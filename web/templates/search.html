@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+
+{% block title %}搜尋 - JavHelper{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 主要容器 - 填滿高度 */
+    .search-container {
+        height: calc(100vh - 120px);
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* 搜尋框區域 */
+    .search-bar {
+        flex-shrink: 0;
+        padding: 1rem;
+        background: #fff;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    /* 結果區域 */
+    .result-area {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+        padding: 1rem;
+        gap: 1rem;
+    }
+
+    /* 封面區域 - 70% */
+    .cover-section {
+        flex: 7;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #1a1a1a;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .cover-img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    /* 導航按鈕 */
+    .nav-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 50px;
+        height: 80px;
+        background: rgba(0,0,0,0.5);
+        border: none;
+        color: #fff;
+        font-size: 1.5rem;
+        cursor: pointer;
+        transition: background 0.2s;
+        z-index: 10;
+    }
+    .nav-btn:hover {
+        background: rgba(0,0,0,0.8);
+    }
+    .nav-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+    .nav-btn.prev { left: 0; border-radius: 0 8px 8px 0; }
+    .nav-btn.next { right: 0; border-radius: 8px 0 0 8px; }
+
+    /* 索引顯示 */
+    .nav-indicator {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.7);
+        color: #fff;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+    }
+
+    /* 資訊區域 - 30% */
+    .info-section {
+        flex: 3;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .info-header {
+        padding: 1rem;
+        border-bottom: 1px solid #eee;
+    }
+
+    .info-number {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #0d6efd;
+        margin: 0;
+    }
+
+    .info-body {
+        flex: 1;
+        padding: 1rem;
+        overflow-y: auto;
+    }
+
+    .info-row {
+        margin-bottom: 1rem;
+    }
+    .info-label {
+        font-size: 0.8rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        margin-bottom: 0.25rem;
+    }
+    .info-value {
+        font-size: 0.95rem;
+        word-break: break-word;
+    }
+
+    .info-footer {
+        padding: 1rem;
+        border-top: 1px solid #eee;
+    }
+
+    .info-title {
+        font-size: 0.9rem;
+        color: #333;
+        line-height: 1.4;
+    }
+
+    /* 標籤 */
+    .tag-badge {
+        font-size: 0.7rem;
+        margin: 2px;
+        background: #e9ecef;
+        color: #495057;
+    }
+
+    /* 狀態頁面 */
+    .state-page {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #6c757d;
+    }
+    .state-page i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+    }
+
+    /* 搜尋提示 */
+    .search-hint {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-top: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="search-container">
+    <!-- 搜尋框 -->
+    <div class="search-bar">
+        <form id="searchForm" class="d-flex gap-2">
+            <div class="flex-grow-1">
+                <div class="input-group input-group-lg">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control"
+                           id="searchQuery" name="q"
+                           placeholder="番號 (SONE-001)、局部番號 (IPZZ-03)、或女優名"
+                           autocomplete="off">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg px-4">
+                搜尋
+            </button>
+        </form>
+        <div class="search-hint">
+            <i class="bi bi-lightbulb"></i>
+            提示：輸入局部番號如 <code>IPZZ-03</code> 可搜尋 030~039，輸入女優名可搜尋其作品
+        </div>
+    </div>
+
+    <!-- 結果區域 -->
+    <div class="result-area">
+        <!-- 初始狀態 -->
+        <div id="emptyState" class="state-page w-100">
+            <i class="bi bi-film"></i>
+            <p class="mb-1">輸入番號或女優名開始搜尋</p>
+            <small>支援 JavBus + Jav321 來源</small>
+        </div>
+
+        <!-- 載入中 -->
+        <div id="loadingState" class="state-page w-100 d-none">
+            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">載入中...</span>
+            </div>
+            <p id="loadingText">搜尋中...</p>
+        </div>
+
+        <!-- 錯誤狀態 -->
+        <div id="errorState" class="state-page w-100 d-none">
+            <i class="bi bi-exclamation-triangle text-danger"></i>
+            <p class="text-danger mb-1" id="errorMessage">搜尋失敗</p>
+            <small>請檢查番號格式或稍後再試</small>
+        </div>
+
+        <!-- 結果卡片 -->
+        <div id="resultCard" class="d-none w-100">
+            <div class="result-area p-0" style="height: 100%;">
+                <!-- 封面區 70% -->
+                <div class="cover-section">
+                    <button class="nav-btn prev d-none" id="btnPrev" title="上一個 (←)">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    <img id="resultCover" src="" class="cover-img" alt="封面">
+                    <button class="nav-btn next d-none" id="btnNext" title="下一個 (→)">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                    <div class="nav-indicator d-none" id="navIndicator">
+                        <span id="currentIndex">1</span> / <span id="totalCount">1</span>
+                    </div>
+                </div>
+
+                <!-- 資訊區 30% -->
+                <div class="info-section">
+                    <div class="info-header">
+                        <h4 class="info-number" id="resultNumber">-</h4>
+                    </div>
+                    <div class="info-body">
+                        <div class="info-row">
+                            <div class="info-label">演員</div>
+                            <div class="info-value" id="resultActors">-</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">發行日期</div>
+                            <div class="info-value" id="resultDate">-</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">片商</div>
+                            <div class="info-value" id="resultMaker">-</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">標籤</div>
+                            <div class="info-value" id="resultTags">-</div>
+                        </div>
+                    </div>
+                    <div class="info-footer">
+                        <div class="info-label">標題</div>
+                        <div class="info-title" id="resultTitle">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('searchForm');
+    const queryInput = document.getElementById('searchQuery');
+
+    const emptyState = document.getElementById('emptyState');
+    const loadingState = document.getElementById('loadingState');
+    const loadingText = document.getElementById('loadingText');
+    const resultCard = document.getElementById('resultCard');
+    const errorState = document.getElementById('errorState');
+
+    // 導航按鈕
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+    const navIndicator = document.getElementById('navIndicator');
+    const currentIndexSpan = document.getElementById('currentIndex');
+    const totalCountSpan = document.getElementById('totalCount');
+
+    // 搜尋結果
+    let searchResults = [];
+    let currentIndex = 0;
+
+    function showState(state) {
+        emptyState.classList.add('d-none');
+        loadingState.classList.add('d-none');
+        resultCard.classList.add('d-none');
+        errorState.classList.add('d-none');
+
+        if (state === 'empty') emptyState.classList.remove('d-none');
+        else if (state === 'loading') loadingState.classList.remove('d-none');
+        else if (state === 'result') resultCard.classList.remove('d-none');
+        else if (state === 'error') errorState.classList.remove('d-none');
+    }
+
+    function displayResult(data) {
+        document.getElementById('resultNumber').textContent = data.number || '-';
+        document.getElementById('resultTitle').textContent = data.title || '-';
+        document.getElementById('resultActors').textContent = (data.actors || []).join(', ') || '-';
+        document.getElementById('resultDate').textContent = data.date || '-';
+        document.getElementById('resultMaker').textContent = data.maker || '-';
+
+        // 標籤
+        const tagsContainer = document.getElementById('resultTags');
+        const tags = data.tags || [];
+        if (tags.length > 0) {
+            tagsContainer.innerHTML = tags.slice(0, 6).map(tag =>
+                `<span class="badge tag-badge">${tag}</span>`
+            ).join('');
+            if (tags.length > 6) {
+                tagsContainer.innerHTML += `<span class="badge tag-badge">+${tags.length - 6}</span>`;
+            }
+        } else {
+            tagsContainer.textContent = '-';
+        }
+
+        // 封面
+        const coverImg = document.getElementById('resultCover');
+        if (data.cover) {
+            coverImg.src = `/api/proxy-image?url=${encodeURIComponent(data.cover)}`;
+            coverImg.style.display = 'block';
+        } else {
+            coverImg.src = '';
+            coverImg.style.display = 'none';
+        }
+    }
+
+    function updateNavigation() {
+        const hasMultiple = searchResults.length > 1;
+
+        btnPrev.classList.toggle('d-none', !hasMultiple);
+        btnNext.classList.toggle('d-none', !hasMultiple);
+        navIndicator.classList.toggle('d-none', !hasMultiple);
+
+        if (hasMultiple) {
+            currentIndexSpan.textContent = currentIndex + 1;
+            totalCountSpan.textContent = searchResults.length;
+
+            btnPrev.disabled = currentIndex === 0;
+            btnNext.disabled = currentIndex === searchResults.length - 1;
+        }
+    }
+
+    function navigateResult(delta) {
+        if (searchResults.length <= 1) return;
+
+        const newIndex = currentIndex + delta;
+        if (newIndex >= 0 && newIndex < searchResults.length) {
+            currentIndex = newIndex;
+            displayResult(searchResults[currentIndex]);
+            updateNavigation();
+        }
+    }
+
+    // 搜尋表單
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const query = queryInput.value.trim();
+        if (!query) return;
+
+        showState('loading');
+        loadingText.textContent = '搜尋中...';
+        searchResults = [];
+        currentIndex = 0;
+
+        try {
+            const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+
+            if (response.ok && data.success && data.data && data.data.length > 0) {
+                searchResults = data.data;
+                currentIndex = 0;
+                displayResult(searchResults[0]);
+                updateNavigation();
+                showState('result');
+            } else {
+                document.getElementById('errorMessage').textContent = data.error || '找不到資料';
+                showState('error');
+            }
+        } catch (err) {
+            document.getElementById('errorMessage').textContent = '網路錯誤: ' + err.message;
+            showState('error');
+        }
+    });
+
+    // 導航按鈕點擊
+    btnPrev.addEventListener('click', () => navigateResult(-1));
+    btnNext.addEventListener('click', () => navigateResult(1));
+
+    // 鍵盤導航
+    document.addEventListener('keydown', (e) => {
+        // 如果正在輸入搜尋框，不處理
+        if (document.activeElement === queryInput) return;
+
+        if (searchResults.length <= 1) return;
+
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            navigateResult(-1);
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            navigateResult(1);
+        }
+    });
+
+    // 自動 focus 搜尋框
+    queryInput.focus();
+});
+</script>
+{% endblock %}

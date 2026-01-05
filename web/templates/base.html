@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}JavHelper{% endblock %}</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --sidebar-width: 220px;
+        }
+
+        body {
+            min-height: 100vh;
+        }
+
+        /* 側邊欄 */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background-color: #212529;
+            padding-top: 1rem;
+            z-index: 1000;
+        }
+
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 0.75rem 1rem;
+            border-radius: 0.25rem;
+            margin: 0.25rem 0.5rem;
+        }
+
+        .sidebar .nav-link:hover {
+            color: #fff;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar .nav-link.active {
+            color: #fff;
+            background-color: #0d6efd;
+        }
+
+        .sidebar .nav-link i {
+            width: 24px;
+            margin-right: 0.5rem;
+        }
+
+        .sidebar-brand {
+            color: #fff;
+            font-size: 1.25rem;
+            font-weight: 600;
+            padding: 0.5rem 1rem 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 0.5rem;
+        }
+
+        /* 主內容區 */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 1.5rem;
+            min-height: 100vh;
+            background-color: #f8f9fa;
+        }
+
+        /* 卡片樣式 */
+        .card {
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+
+        /* 響應式 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- 側邊欄 -->
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <i class="bi bi-film"></i> JavHelper
+        </div>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search">
+                    <i class="bi bi-search"></i> 搜尋
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if page == 'scraper' %}active{% endif %}" href="/scraper">
+                    <i class="bi bi-cloud-download"></i> 刮削器
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if page == 'updater' %}active{% endif %}" href="/updater">
+                    <i class="bi bi-arrow-repeat"></i> 更新器
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if page == 'avlist' %}active{% endif %}" href="/avlist">
+                    <i class="bi bi-list-ul"></i> 列表生成
+                </a>
+            </li>
+            <li class="nav-item mt-3">
+                <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings">
+                    <i class="bi bi-gear"></i> 設定
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- 主內容區 -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
