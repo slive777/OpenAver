@@ -16,6 +16,9 @@ file_mapping.json
 # Archives (舊檔案備份)
 archives/
 
+# Claude Code (本地設定)
+.claude/
+
 # IDE
 .vscode/
 .idea/
