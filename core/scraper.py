@@ -194,10 +194,21 @@ def get_javdb_detail(detail_path: str) -> Optional[Dict]:
             if value:
                 result['maker'] = value.text.strip()
 
-        # 演員
+        # 演員（只抓女優，跳過男優）
         if '演員' in label_text:
-            actors = panel.select('a')
-            result['stars'] = [{'name': a.text.strip()} for a in actors if a.text.strip()]
+            actors = []
+            for a in panel.select('a'):
+                name = a.text.strip()
+                if not name:
+                    continue
+                # 檢查後面的性別標記
+                next_elem = a.find_next_sibling()
+                # 如果有 female 標記，或沒有性別標記（舊格式），都加入
+                # 只跳過明確標記為 male 的
+                if next_elem and 'male' in next_elem.get('class', []) and 'female' not in next_elem.get('class', []):
+                    continue  # 跳過男優
+                actors.append({'name': name})
+            result['stars'] = actors
 
         # 標籤
         if '類別' in label_text:
