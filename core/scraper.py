@@ -925,7 +925,7 @@ def search_prefix(prefix: str, limit: int = 20, offset: int = 0, status_callback
     """
     搜尋番號前綴（如 IPZZ, SONE）
 
-    策略：展開常見番號範圍並行查詢 JavBus
+    使用 JavBus 搜尋頁面，直接返回最新番號
 
     Args:
         prefix: 番號前綴
@@ -933,66 +933,84 @@ def search_prefix(prefix: str, limit: int = 20, offset: int = 0, status_callback
         offset: 跳過前 N 個結果（用於分頁）
         status_callback: 狀態回調函數 (source, status)
     """
+    if not JVAV_AVAILABLE:
+        return []
+
     results = []
     prefix = prefix.strip().upper()
 
     if status_callback:
         status_callback('javbus', 'searching')
 
-    # 展開常見番號範圍
-    # 每 20 個有效結果大約需要搜尋 50 個候選（假設 40% 存在率）
-    # offset=0: 001-050, offset=20: 051-100, offset=40: 101-150
-    batch_size = 50
-    batch_num = offset // limit  # 第幾批次
-    start_num = 1 + batch_num * batch_size
-    end_num = start_num + batch_size - 1
+    jb = JavBusUtil()
 
-    candidates = []
-    for i in range(start_num, end_num + 1):
-        candidates.append(f"{prefix}-{str(i).zfill(3)}")
+    # 計算分頁（JavBus 每頁約 30 個）
+    page = (offset // 30) + 1
+    skip_in_page = offset % 30
 
-    # 並行查詢 JavBus（節流設定）
-    found_data = {}
+    # 從 JavBus 搜尋頁面獲取番號列表（已按最新排序）
+    search_url = f'https://www.javbus.com/search/{prefix}&type=1'
+    code, ids = jb.get_ids_from_page(search_url, page=page)
+
+    if code != 200 or not ids:
+        if status_callback:
+            status_callback('javbus', 'found:0')
+            status_callback('done', 'total:0')
+        return []
+
+    # 跳過 offset 對應的部分，取 limit 個
+    target_ids = ids[skip_in_page:][:limit]
+
+    if not target_ids:
+        if status_callback:
+            status_callback('javbus', 'found:0')
+            status_callback('done', 'total:0')
+        return []
+
+    if status_callback:
+        status_callback('javbus', f'found:{len(target_ids)}')
+        status_callback('javbus', 'fetching_details')
+
+    # 並行取得詳情（節流設定）
+    total_count = len(target_ids)
+    completed_count = 0
+
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-        futures = {executor.submit(scrape_javbus, num): num for num in candidates}
+        futures = {executor.submit(scrape_javbus, num): num for num in target_ids}
         for future in as_completed(futures):
             num = futures[future]
+            completed_count += 1
+            if status_callback:
+                status_callback('javbus', f'details:{completed_count}/{total_count}')
             try:
                 data = future.result()
                 if data and (data.get('title') or data.get('img')):
-                    found_data[num] = data
-                    if len(found_data) >= limit:
-                        break
+                    actors = []
+                    for s in data.get('stars', []):
+                        if isinstance(s, dict):
+                            actors.append(s.get('name', ''))
+                        elif isinstance(s, str):
+                            actors.append(s)
+
+                    results.append({
+                        'number': num,
+                        'title': data.get('title', ''),
+                        'actors': actors,
+                        'date': data.get('date', ''),
+                        'maker': data.get('maker', '') or get_maker_by_prefix(num),
+                        'cover': data.get('img', ''),
+                        'tags': data.get('tags', []),
+                        'source': 'javbus',
+                        'url': data.get('url', ''),
+                    })
             except Exception:
                 pass
             time.sleep(REQUEST_DELAY)  # 請求間隔
 
-    if status_callback:
-        status_callback('javbus', f'found:{len(found_data)}')
-
-    # 組合結果
-    for number, data in found_data.items():
-        actors = []
-        for s in data.get('stars', []):
-            if isinstance(s, dict):
-                actors.append(s.get('name', ''))
-            elif isinstance(s, str):
-                actors.append(s)
-
-        results.append({
-            'number': number,
-            'title': data.get('title', ''),
-            'actors': actors,
-            'date': data.get('date', ''),
-            'maker': data.get('maker', '') or get_maker_by_prefix(number),
-            'cover': data.get('img', ''),
-            'tags': data.get('tags', []),
-            'source': 'javbus',
-            'url': data.get('url', ''),
-        })
-
-    # 按日期排序（新的在前），限制結果數
-    results = sort_results_by_date(results)[:limit]
+    # JavBus 搜尋頁面已按最新排序，保持原順序
+    # 但 as_completed 會打亂順序，需要按原始 ID 順序重排
+    id_order = {id: i for i, id in enumerate(target_ids)}
+    results.sort(key=lambda x: id_order.get(x['number'], 999))
 
     if status_callback:
         status_callback('done', f'total:{len(results)}')
