@@ -3,9 +3,13 @@
 """
 
 from fastapi import APIRouter, Query
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from typing import Optional
 import requests
+import json
+import asyncio
+from queue import Queue
+from threading import Thread
 
 import sys
 from pathlib import Path
@@ -13,7 +17,10 @@ from pathlib import Path
 # 加入 core 模組路徑
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core.scraper import search_jav, smart_search, is_partial_number, is_number_format
+from core.scraper import (
+    search_jav, smart_search, is_partial_number, is_number_format,
+    is_prefix_only, search_partial, search_actress, search_prefix
+)
 
 router = APIRouter(prefix="/api", tags=["search"])
 
@@ -101,12 +108,77 @@ async def search(
 
 def _detect_mode(q: str) -> str:
     """偵測搜尋模式"""
-    if is_partial_number(q):
-        return "partial"
-    elif is_number_format(q):
+    if is_number_format(q):
         return "exact"
+    elif is_partial_number(q):
+        return "partial"
+    elif is_prefix_only(q):
+        return "prefix"
     else:
         return "actress"
+
+
+@router.get("/search/stream")
+async def search_stream(
+    q: str = Query(..., description="番號、局部番號、或女優名")
+):
+    """
+    串流搜尋 API（SSE）- 即時回報搜尋狀態
+
+    返回 Server-Sent Events:
+    - status: 搜尋狀態更新
+    - result: 搜尋結果
+    """
+    q = q.strip()
+    if not q or len(q) < 2:
+        async def error_gen():
+            yield f"data: {json.dumps({'type': 'error', 'message': '請輸入有效的搜尋關鍵字'})}\n\n"
+        return StreamingResponse(error_gen(), media_type="text/event-stream")
+
+    status_queue = Queue()
+
+    def status_callback(source: str, status: str):
+        """狀態回調：放入佇列"""
+        status_queue.put({'source': source, 'status': status})
+
+    def run_search():
+        """在背景執行搜尋"""
+        return smart_search(q, status_callback=status_callback)
+
+    async def event_generator():
+        # 偵測模式
+        mode = _detect_mode(q)
+        yield f"data: {json.dumps({'type': 'mode', 'mode': mode})}\n\n"
+
+        # 啟動搜尋線程
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(run_search)
+
+            # 持續讀取狀態更新
+            while not future.done():
+                try:
+                    # 非阻塞讀取
+                    while not status_queue.empty():
+                        status = status_queue.get_nowait()
+                        yield f"data: {json.dumps({'type': 'status', **status})}\n\n"
+                    await asyncio.sleep(0.1)
+                except Exception:
+                    break
+
+            # 讀取剩餘狀態
+            while not status_queue.empty():
+                status = status_queue.get_nowait()
+                yield f"data: {json.dumps({'type': 'status', **status})}\n\n"
+
+            # 取得結果
+            try:
+                results = future.result()
+                yield f"data: {json.dumps({'type': 'result', 'success': bool(results), 'data': results, 'total': len(results), 'mode': mode})}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 @router.get("/search/sources")
@@ -115,10 +187,8 @@ async def get_sources() -> dict:
     return {
         "sources": [
             {"id": "auto", "name": "自動", "description": "依優先順序自動選擇"},
-            {"id": "javbus", "name": "JavBus", "description": "最常用的來源"},
+            {"id": "javbus", "name": "JavBus", "description": "最常用的來源（封面無浮水印）"},
             {"id": "jav321", "name": "Jav321", "description": "備用來源"},
-            {"id": "dmm", "name": "DMM", "description": "日本官方"},
-            {"id": "avsox", "name": "AVSOX", "description": "無碼內容"},
-            {"id": "mgstage", "name": "MGStage", "description": "MGS 專用"},
+            {"id": "javdb", "name": "JavDB", "description": "女優/前綴搜尋用"},
         ]
     }

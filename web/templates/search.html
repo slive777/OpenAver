@@ -177,6 +177,38 @@
         margin-top: 0.25rem;
     }
 
+    /* 搜尋狀態 */
+    .search-status {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    .search-status .status-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        margin: 0 0.5rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        background: #f8f9fa;
+        transition: all 0.3s;
+    }
+    .search-status .status-item.searching {
+        background: #fff3cd;
+        color: #856404;
+    }
+    .search-status .status-item.success {
+        background: #d4edda;
+        color: #155724;
+    }
+    .search-status .status-item.failed {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    .search-status .status-item .spinner-border {
+        width: 0.8rem;
+        height: 0.8rem;
+    }
+
     /* === RWD 響應式 === */
 
     /* Tablet & Mobile: 調整容器高度 */
@@ -273,6 +305,7 @@
                 <span class="visually-hidden">載入中...</span>
             </div>
             <p id="loadingText">搜尋中...</p>
+            <div id="searchStatus" class="search-status mt-2"></div>
         </div>
 
         <!-- 錯誤狀態 -->
@@ -436,6 +469,58 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // 搜尋狀態元素
+    const searchStatus = document.getElementById('searchStatus');
+
+    // 狀態文字對照
+    const SOURCE_NAMES = {
+        'javbus': 'JavBus',
+        'jav321': 'Jav321',
+        'javdb': 'JavDB',
+        'done': '完成'
+    };
+
+    const STATUS_TEXT = {
+        'searching': '搜尋中',
+        'fetching_covers': '取得封面',
+        'failed': '失敗',
+    };
+
+    function updateSearchStatus(source, status) {
+        // 解析狀態
+        let statusClass = 'searching';
+        let statusText = STATUS_TEXT[status] || status;
+
+        if (status === 'failed') {
+            statusClass = 'failed';
+        } else if (status.startsWith('found:') || status.startsWith('total:')) {
+            statusClass = 'success';
+            const count = status.split(':')[1];
+            statusText = `找到 ${count} 筆`;
+        }
+
+        const sourceName = SOURCE_NAMES[source] || source;
+
+        // 更新或新增狀態項目
+        let item = searchStatus.querySelector(`[data-source="${source}"]`);
+        if (!item) {
+            item = document.createElement('span');
+            item.className = 'status-item';
+            item.dataset.source = source;
+            searchStatus.appendChild(item);
+        }
+
+        item.className = `status-item ${statusClass}`;
+
+        if (statusClass === 'searching') {
+            item.innerHTML = `<span class="spinner-border spinner-border-sm"></span> ${sourceName} ${statusText}`;
+        } else if (statusClass === 'success') {
+            item.innerHTML = `<i class="bi bi-check-circle"></i> ${sourceName} ${statusText}`;
+        } else {
+            item.innerHTML = `<i class="bi bi-x-circle"></i> ${sourceName} ${statusText}`;
+        }
+    }
+
     // 搜尋表單
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -445,9 +530,68 @@ document.addEventListener('DOMContentLoaded', function() {
 
         showState('loading');
         loadingText.textContent = '搜尋中...';
+        searchStatus.innerHTML = '';  // 清空狀態
         searchResults = [];
         currentIndex = 0;
 
+        // 使用 SSE 串流 API
+        const eventSource = new EventSource(`/api/search/stream?q=${encodeURIComponent(query)}`);
+
+        eventSource.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'mode') {
+                    // 顯示搜尋模式
+                    const modeText = {
+                        'exact': '精確搜尋',
+                        'partial': '局部搜尋',
+                        'prefix': '前綴搜尋',
+                        'actress': '女優搜尋'
+                    };
+                    loadingText.textContent = modeText[data.mode] || '搜尋中...';
+                }
+                else if (data.type === 'status') {
+                    // 更新狀態
+                    updateSearchStatus(data.source, data.status);
+                }
+                else if (data.type === 'result') {
+                    // 搜尋完成
+                    eventSource.close();
+
+                    if (data.success && data.data && data.data.length > 0) {
+                        searchResults = data.data;
+                        currentIndex = 0;
+                        displayResult(searchResults[0]);
+                        updateNavigation();
+                        showState('result');
+                        // 預加載前 5 張圖片
+                        preloadImages(1, 5);
+                    } else {
+                        document.getElementById('errorMessage').textContent = '找不到資料';
+                        showState('error');
+                    }
+                }
+                else if (data.type === 'error') {
+                    // 錯誤
+                    eventSource.close();
+                    document.getElementById('errorMessage').textContent = data.message || '搜尋失敗';
+                    showState('error');
+                }
+            } catch (err) {
+                console.error('Parse error:', err);
+            }
+        };
+
+        eventSource.onerror = function() {
+            eventSource.close();
+            // 如果 SSE 失敗，回退到傳統 API
+            fallbackSearch(query);
+        };
+    });
+
+    // 傳統 API 回退
+    async function fallbackSearch(query) {
         try {
             const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
             const data = await response.json();
@@ -458,7 +602,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 displayResult(searchResults[0]);
                 updateNavigation();
                 showState('result');
-                // 預加載前 5 張圖片
                 preloadImages(1, 5);
             } else {
                 document.getElementById('errorMessage').textContent = data.error || '找不到資料';
@@ -468,7 +611,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('errorMessage').textContent = '網路錯誤: ' + err.message;
             showState('error');
         }
-    });
+    }
 
     // 導航按鈕點擊
     btnPrev.addEventListener('click', () => navigateResult(-1));

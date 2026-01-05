@@ -834,6 +834,13 @@ def is_partial_number(s: str) -> bool:
     return bool(match)
 
 
+def is_prefix_only(s: str) -> bool:
+    """判斷是否為純前綴 (如 IPZZ, SONE)"""
+    s = s.strip().upper()
+    # 2-6 個大寫字母，無數字
+    return bool(re.match(r'^[A-Z]{2,6}$', s))
+
+
 def expand_partial_number(partial: str) -> List[str]:
     """
     展開部分番號為完整番號列表
@@ -890,108 +897,215 @@ def search_partial(partial: str) -> List[Dict]:
     return results
 
 
-def search_actress(name: str, limit: int = 20) -> List[Dict]:
+def search_prefix(prefix: str, limit: int = 20, status_callback=None) -> List[Dict]:
     """
-    搜尋女優作品列表
+    搜尋番號前綴（如 IPZZ, SONE）
 
-    優先使用 JavDB（效率高、數據完整）
+    策略：展開常見番號範圍並行查詢 JavBus
+
+    Args:
+        prefix: 番號前綴
+        limit: 最大結果數
+        status_callback: 狀態回調函數 (source, status)
     """
     results = []
+    prefix = prefix.strip().upper()
 
-    # 優先用 JavDB
-    if CURL_CFFI_AVAILABLE:
-        try:
-            javdb_results = search_javdb_list(name, limit=limit)
-            for item in javdb_results:
-                # 直接用搜尋結果的基本資訊，不再逐一查詢詳情
-                results.append({
-                    'number': item['number'],
-                    'title': item['title'],
-                    'actors': [name],  # 搜尋的女優名
-                    'date': item['date'],
-                    'maker': '',  # 列表頁沒有 maker
-                    'cover': item['cover'],
-                    'tags': [],
-                    'source': 'javdb',
-                    'url': f"https://javdb.com{item['detail_url']}" if item.get('detail_url') else '',
-                })
-            if results:
-                return results
-        except Exception:
-            pass
+    if status_callback:
+        status_callback('javbus', 'searching')
 
-    # 備用：JavBus
-    try:
-        search_url = f'https://www.javbus.com/search/{quote(name)}'
-        headers = HEADERS.copy()
-        headers['Cookie'] = 'existmag=all'
+    # 展開常見番號範圍（最新的通常是較高的數字）
+    # 嘗試 001-050 範圍
+    candidates = []
+    for i in range(1, min(51, limit * 2)):
+        candidates.append(f"{prefix}-{str(i).zfill(3)}")
 
-        html = get_html(search_url, headers=headers)
-        if not html:
-            return results
+    # 並行查詢 JavBus
+    found_data = {}
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = {executor.submit(scrape_javbus, num): num for num in candidates}
+        for future in as_completed(futures):
+            num = futures[future]
+            try:
+                data = future.result()
+                if data and (data.get('title') or data.get('img')):
+                    found_data[num] = data
+                    if len(found_data) >= limit:
+                        break
+            except Exception:
+                pass
 
-        soup = BeautifulSoup(html, 'html.parser')
-        count = 0
+    if status_callback:
+        status_callback('javbus', f'found:{len(found_data)}')
 
-        for item in soup.select('.movie-box'):
-            if count >= limit:
-                break
+    # 組合結果
+    for number in sorted(found_data.keys()):
+        data = found_data[number]
+        actors = []
+        for s in data.get('stars', []):
+            if isinstance(s, dict):
+                actors.append(s.get('name', ''))
+            elif isinstance(s, str):
+                actors.append(s)
 
-            number_elem = item.select_one('date:first-of-type')
-            if not number_elem:
-                frame = item.select_one('.photo-frame')
-                if frame:
-                    img = frame.select_one('img')
-                    if img and img.get('title'):
-                        title = img.get('title', '')
-                        match = re.match(r'^([A-Z]+-\d+)', title)
-                        if match:
-                            number = match.group(1)
-                        else:
-                            continue
-                    else:
-                        continue
-                else:
-                    continue
-            else:
-                number = number_elem.get_text(strip=True)
+        results.append({
+            'number': number,
+            'title': data.get('title', ''),
+            'actors': actors,
+            'date': data.get('date', ''),
+            'maker': data.get('maker', '') or get_maker_by_prefix(number),
+            'cover': data.get('img', ''),
+            'tags': data.get('tags', []),
+            'source': 'javbus',
+            'url': data.get('url', ''),
+        })
 
-            if not number:
-                continue
+        if len(results) >= limit:
+            break
 
-            # 取得詳細資訊
-            data = search_jav(number)
-            if data and data.get('title'):
-                results.append(data)
-                count += 1
-
-    except Exception:
-        pass
-
+    if status_callback:
+        status_callback('done', f'total:{len(results)}')
     return results
 
 
-def smart_search(query: str) -> List[Dict]:
+def search_actress(name: str, limit: int = 20, status_callback=None) -> List[Dict]:
+    """
+    搜尋女優作品列表
+
+    使用 jvav 套件的 get_ids_by_star_name
+
+    Args:
+        name: 女優名
+        limit: 最大結果數
+        status_callback: 狀態回調函數 (source, status)
+    """
+    results = []
+
+    if status_callback:
+        status_callback('javbus', 'searching')
+
+    # 使用 jvav 套件
+    if JVAV_AVAILABLE:
+        try:
+            jb = JavBusUtil()
+            # 計算需要幾頁（每頁約 30 個）
+            pages_needed = (limit // 30) + 1
+
+            all_ids = []
+            for page in range(1, pages_needed + 1):
+                code, ids = jb.get_ids_by_star_name(name, page)
+                if code == 200 and ids:
+                    all_ids.extend(ids)
+                    if len(all_ids) >= limit:
+                        break
+                else:
+                    break
+
+            if all_ids:
+                if status_callback:
+                    status_callback('javbus', f'found:{len(all_ids[:limit])}')
+                    status_callback('javbus', 'fetching_details')
+
+                # 並行取得詳情
+                target_ids = all_ids[:limit]
+                with ThreadPoolExecutor(max_workers=5) as executor:
+                    futures = {executor.submit(scrape_javbus, num): num for num in target_ids}
+                    for future in as_completed(futures):
+                        num = futures[future]
+                        try:
+                            data = future.result()
+                            if data and (data.get('title') or data.get('img')):
+                                actors = []
+                                for s in data.get('stars', []):
+                                    if isinstance(s, dict):
+                                        actors.append(s.get('name', ''))
+                                    elif isinstance(s, str):
+                                        actors.append(s)
+
+                                results.append({
+                                    'number': num,
+                                    'title': data.get('title', ''),
+                                    'actors': actors if actors else [name],
+                                    'date': data.get('date', ''),
+                                    'maker': data.get('maker', '') or get_maker_by_prefix(num),
+                                    'cover': data.get('img', ''),
+                                    'tags': data.get('tags', []),
+                                    'source': 'javbus',
+                                    'url': data.get('url', ''),
+                                })
+                        except Exception:
+                            pass
+
+                # 按番號排序
+                results.sort(key=lambda x: x.get('number', ''), reverse=True)
+
+                if status_callback:
+                    status_callback('done', f'total:{len(results)}')
+                return results
+
+        except Exception:
+            if status_callback:
+                status_callback('javbus', 'failed')
+
+    if status_callback:
+        status_callback('done', f'total:{len(results)}')
+    return results
+
+
+def smart_search(query: str, status_callback=None) -> List[Dict]:
     """
     智慧搜尋：自動判斷搜尋類型並執行
 
     - 完整番號 → 精確搜尋
-    - 部分番號 → 展開搜尋
+    - 部分番號 → 展開搜尋 (IPZZ-03)
+    - 純前綴 → 前綴搜尋 (IPZZ)
     - 其他文字 → 女優搜尋
+
+    Args:
+        query: 搜尋關鍵字
+        status_callback: 狀態回調函數 (source, status)
+
+    Returns:
+        搜尋結果列表，包含 'mode' 欄位表示搜尋類型
     """
     query = query.strip()
+    mode = 'unknown'
 
     if not query or len(query) < 2:
         return []
 
     # 判斷搜尋類型
-    if is_partial_number(query):
-        # 部分番號 → 展開搜尋
-        return search_partial(query)
-    elif is_number_format(query):
+    if is_number_format(query):
         # 完整番號 → 精確搜尋
+        mode = 'exact'
+        if status_callback:
+            status_callback('javbus', 'searching')
         data = search_jav(query)
-        return [data] if data else []
+        if status_callback:
+            status_callback('done', 'found:1' if data else 'found:0')
+        results = [data] if data else []
+
+    elif is_partial_number(query):
+        # 部分番號 → 展開搜尋 (IPZZ-03)
+        mode = 'partial'
+        if status_callback:
+            status_callback('javbus', 'searching')
+        results = search_partial(query)
+        if status_callback:
+            status_callback('done', f'found:{len(results)}')
+
+    elif is_prefix_only(query):
+        # 純前綴 → 前綴搜尋 (IPZZ)
+        mode = 'prefix'
+        results = search_prefix(query, status_callback=status_callback)
+
     else:
         # 其他文字 → 女優搜尋
-        return search_actress(query)
+        mode = 'actress'
+        results = search_actress(query, status_callback=status_callback)
+
+    # 在結果中加入搜尋模式
+    for r in results:
+        r['_mode'] = mode
+
+    return results
