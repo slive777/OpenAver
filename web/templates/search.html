@@ -53,25 +53,29 @@
         position: absolute;
         top: 50%;
         transform: translateY(-50%);
-        width: 40px;
-        height: 60px;
-        background: rgba(255,255,255,0.2);
+        width: 44px;
+        height: 64px;
+        background: rgba(0, 0, 0, 0.6);
         border: none;
         color: #fff;
-        font-size: 1.2rem;
+        font-size: 1.4rem;
         cursor: pointer;
-        transition: background 0.2s;
+        transition: all 0.2s;
         z-index: 10;
+        border-radius: 6px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
     .nav-btn:hover {
-        background: rgba(255,255,255,0.4);
+        background: rgba(0, 0, 0, 0.8);
+        transform: translateY(-50%) scale(1.05);
     }
     .nav-btn:disabled {
         opacity: 0.3;
         cursor: not-allowed;
+        transform: translateY(-50%);
     }
-    .nav-btn.prev { left: 5px; border-radius: 4px; }
-    .nav-btn.next { right: 5px; border-radius: 4px; }
+    .nav-btn.prev { left: 10px; }
+    .nav-btn.next { right: 10px; }
 
     /* 索引顯示 */
     .nav-indicator {
@@ -214,10 +218,12 @@
             max-height: none;
         }
         .nav-btn {
-            width: 32px;
-            height: 48px;
-            font-size: 1rem;
+            width: 36px;
+            height: 52px;
+            font-size: 1.1rem;
         }
+        .nav-btn.prev { left: 5px; }
+        .nav-btn.next { right: 5px; }
         .search-bar {
             padding: 0.5rem;
         }
