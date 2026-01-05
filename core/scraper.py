@@ -915,7 +915,7 @@ def search_partial(partial: str) -> List[Dict]:
     return sort_results_by_date(results)
 
 
-def search_prefix(prefix: str, limit: int = 20, status_callback=None) -> List[Dict]:
+def search_prefix(prefix: str, limit: int = 20, offset: int = 0, status_callback=None) -> List[Dict]:
     """
     搜尋番號前綴（如 IPZZ, SONE）
 
@@ -924,6 +924,7 @@ def search_prefix(prefix: str, limit: int = 20, status_callback=None) -> List[Di
     Args:
         prefix: 番號前綴
         limit: 最大結果數
+        offset: 跳過前 N 個結果（用於分頁）
         status_callback: 狀態回調函數 (source, status)
     """
     results = []
@@ -932,10 +933,16 @@ def search_prefix(prefix: str, limit: int = 20, status_callback=None) -> List[Di
     if status_callback:
         status_callback('javbus', 'searching')
 
-    # 展開常見番號範圍（最新的通常是較高的數字）
-    # 嘗試 001-050 範圍
+    # 展開常見番號範圍
+    # 每 20 個有效結果大約需要搜尋 50 個候選（假設 40% 存在率）
+    # offset=0: 001-050, offset=20: 051-100, offset=40: 101-150
+    batch_size = 50
+    batch_num = offset // limit  # 第幾批次
+    start_num = 1 + batch_num * batch_size
+    end_num = start_num + batch_size - 1
+
     candidates = []
-    for i in range(1, min(51, limit * 2)):
+    for i in range(start_num, end_num + 1):
         candidates.append(f"{prefix}-{str(i).zfill(3)}")
 
     # 並行查詢 JavBus
@@ -985,7 +992,7 @@ def search_prefix(prefix: str, limit: int = 20, status_callback=None) -> List[Di
     return results
 
 
-def search_actress(name: str, limit: int = 20, status_callback=None) -> List[Dict]:
+def search_actress(name: str, limit: int = 20, offset: int = 0, status_callback=None) -> List[Dict]:
     """
     搜尋女優作品列表
 
@@ -994,6 +1001,7 @@ def search_actress(name: str, limit: int = 20, status_callback=None) -> List[Dic
     Args:
         name: 女優名
         limit: 最大結果數
+        offset: 跳過前 N 個結果（用於分頁）
         status_callback: 狀態回調函數 (source, status)
     """
     results = []
@@ -1005,18 +1013,23 @@ def search_actress(name: str, limit: int = 20, status_callback=None) -> List[Dic
     if JVAV_AVAILABLE:
         try:
             jb = JavBusUtil()
-            # 計算需要幾頁（每頁約 30 個）
-            pages_needed = (limit // 30) + 1
+            # 計算起始頁和需要的頁數（每頁約 30 個）
+            start_page = (offset // 30) + 1
+            skip_in_page = offset % 30  # 第一頁要跳過的數量
+            pages_needed = ((limit + skip_in_page) // 30) + 2  # 多取一些確保夠
 
             all_ids = []
-            for page in range(1, pages_needed + 1):
+            for page in range(start_page, start_page + pages_needed):
                 code, ids = jb.get_ids_by_star_name(name, page)
                 if code == 200 and ids:
                     all_ids.extend(ids)
-                    if len(all_ids) >= limit:
+                    if len(all_ids) >= limit + skip_in_page:
                         break
                 else:
                     break
+
+            # 跳過 offset 對應的部分
+            all_ids = all_ids[skip_in_page:]
 
             if all_ids:
                 if status_callback:
@@ -1069,7 +1082,7 @@ def search_actress(name: str, limit: int = 20, status_callback=None) -> List[Dic
     return results
 
 
-def smart_search(query: str, status_callback=None) -> List[Dict]:
+def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback=None) -> List[Dict]:
     """
     智慧搜尋：自動判斷搜尋類型並執行
 
@@ -1080,6 +1093,8 @@ def smart_search(query: str, status_callback=None) -> List[Dict]:
 
     Args:
         query: 搜尋關鍵字
+        limit: 最大結果數（預設 20）
+        offset: 跳過前 N 個結果（用於分頁）
         status_callback: 狀態回調函數 (source, status)
 
     Returns:
@@ -1093,8 +1108,10 @@ def smart_search(query: str, status_callback=None) -> List[Dict]:
 
     # 判斷搜尋類型
     if is_number_format(query):
-        # 完整番號 → 精確搜尋
+        # 完整番號 → 精確搜尋（不支援分頁）
         mode = 'exact'
+        if offset > 0:
+            return []  # 精確搜尋只有一個結果，offset>0 時回傳空
         if status_callback:
             status_callback('javbus', 'searching')
         data = search_jav(query)
@@ -1103,8 +1120,10 @@ def smart_search(query: str, status_callback=None) -> List[Dict]:
         results = [data] if data else []
 
     elif is_partial_number(query):
-        # 部分番號 → 展開搜尋 (IPZZ-03)
+        # 部分番號 → 展開搜尋 (IPZZ-03)（固定範圍，不支援分頁）
         mode = 'partial'
+        if offset > 0:
+            return []  # 局部搜尋只有 10 個結果，offset>0 時回傳空
         if status_callback:
             status_callback('javbus', 'searching')
         results = search_partial(query)
@@ -1114,12 +1133,12 @@ def smart_search(query: str, status_callback=None) -> List[Dict]:
     elif is_prefix_only(query):
         # 純前綴 → 前綴搜尋 (IPZZ)
         mode = 'prefix'
-        results = search_prefix(query, status_callback=status_callback)
+        results = search_prefix(query, limit=limit, offset=offset, status_callback=status_callback)
 
     else:
         # 其他文字 → 女優搜尋
         mode = 'actress'
-        results = search_actress(query, status_callback=status_callback)
+        results = search_actress(query, limit=limit, offset=offset, status_callback=status_callback)
 
     # 在結果中加入搜尋模式
     for r in results:

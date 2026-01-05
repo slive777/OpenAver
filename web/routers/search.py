@@ -59,7 +59,9 @@ async def proxy_image(url: str = Query(..., description="圖片 URL")):
 @router.get("/search")
 async def search(
     q: str = Query(..., description="番號、局部番號、或女優名"),
-    mode: str = Query("auto", description="搜尋模式: auto/exact/partial/actress")
+    mode: str = Query("auto", description="搜尋模式: auto/exact/partial/actress"),
+    limit: int = Query(20, description="每頁結果數", ge=1, le=50),
+    offset: int = Query(0, description="跳過前 N 個結果（用於分頁）", ge=0)
 ) -> dict:
     """
     搜尋 JAV 資訊
@@ -70,6 +72,8 @@ async def search(
         - exact: 精確番號搜尋
         - partial: 局部番號搜尋
         - actress: 女優搜尋
+    - **limit**: 每頁結果數（預設 20，最大 50）
+    - **offset**: 跳過前 N 個結果，用於載入更多
     """
     q = q.strip()
     if not q or len(q) < 2:
@@ -77,7 +81,7 @@ async def search(
 
     # 自動模式使用 smart_search
     if mode == "auto":
-        results = smart_search(q)
+        results = smart_search(q, limit=limit, offset=offset)
     elif mode == "exact":
         data = search_jav(q)
         results = [data] if data else []
@@ -86,23 +90,31 @@ async def search(
         results = search_partial(q)
     elif mode == "actress":
         from core.scraper import search_actress
-        results = search_actress(q)
+        results = search_actress(q, limit=limit, offset=offset)
     else:
-        results = smart_search(q)
+        results = smart_search(q, limit=limit, offset=offset)
+
+    detected_mode = mode if mode != "auto" else _detect_mode(q)
 
     if results:
+        # 判斷是否還有更多結果（prefix/actress 模式且結果數 = limit）
+        has_more = detected_mode in ('prefix', 'actress') and len(results) >= limit
         return {
             "success": True,
             "data": results,
             "total": len(results),
-            "mode": mode if mode != "auto" else _detect_mode(q)
+            "mode": detected_mode,
+            "offset": offset,
+            "has_more": has_more
         }
 
     return {
         "success": False,
         "error": f"找不到 {q} 的資料",
         "data": [],
-        "total": 0
+        "total": 0,
+        "mode": detected_mode,
+        "has_more": False
     }
 
 
@@ -120,7 +132,9 @@ def _detect_mode(q: str) -> str:
 
 @router.get("/search/stream")
 async def search_stream(
-    q: str = Query(..., description="番號、局部番號、或女優名")
+    q: str = Query(..., description="番號、局部番號、或女優名"),
+    limit: int = Query(20, description="每頁結果數", ge=1, le=50),
+    offset: int = Query(0, description="跳過前 N 個結果（用於分頁）", ge=0)
 ):
     """
     串流搜尋 API（SSE）- 即時回報搜尋狀態
@@ -143,7 +157,7 @@ async def search_stream(
 
     def run_search():
         """在背景執行搜尋"""
-        return smart_search(q, status_callback=status_callback)
+        return smart_search(q, limit=limit, offset=offset, status_callback=status_callback)
 
     async def event_generator():
         # 偵測模式
@@ -174,7 +188,9 @@ async def search_stream(
             # 取得結果
             try:
                 results = future.result()
-                yield f"data: {json.dumps({'type': 'result', 'success': bool(results), 'data': results, 'total': len(results), 'mode': mode})}\n\n"
+                # 判斷是否還有更多結果
+                has_more = mode in ('prefix', 'actress') and len(results) >= limit
+                yield f"data: {json.dumps({'type': 'result', 'success': bool(results), 'data': results, 'total': len(results), 'mode': mode, 'offset': offset, 'has_more': has_more})}\n\n"
             except Exception as e:
                 yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
