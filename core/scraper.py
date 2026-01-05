@@ -4,10 +4,13 @@ JAV Scraper - 搜尋模組
 """
 
 import re
+import json
 import requests
+from pathlib import Path
 from typing import Optional, Dict, List
 from urllib.parse import quote, urljoin
 from bs4 import BeautifulSoup
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # 嘗試載入 jvav（JavBus API）
 try:
@@ -30,8 +33,84 @@ HEADERS = {
     'Accept-Language': 'ja-JP,ja;q=0.9,zh-TW;q=0.8,zh;q=0.7,en;q=0.6',
 }
 
-# 刮削來源優先順序（JavDB 優先，有 maker）
-SCRAPER_PRIORITY = ['javdb', 'javbus', 'jav321']
+# 刮削來源優先順序（JavBus 優先，封面無浮水印）
+SCRAPER_PRIORITY = ['javbus', 'jav321']
+
+# 片商對照表檔案路徑
+MAKER_MAPPING_FILE = Path(__file__).parent.parent / "maker_mapping.json"
+
+# 快取片商對照表（避免重複讀檔）
+_maker_mapping_cache: Dict[str, str] = {}
+_maker_mapping_loaded = False
+
+
+# ============ 片商對照表 ============
+
+def load_maker_mapping() -> Dict[str, str]:
+    """載入片商對照表（番號前綴 → 片商名稱）"""
+    global _maker_mapping_cache, _maker_mapping_loaded
+    if _maker_mapping_loaded:
+        return _maker_mapping_cache
+
+    if MAKER_MAPPING_FILE.exists():
+        try:
+            with open(MAKER_MAPPING_FILE, 'r', encoding='utf-8') as f:
+                _maker_mapping_cache = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            _maker_mapping_cache = {}
+    _maker_mapping_loaded = True
+    return _maker_mapping_cache
+
+
+def save_maker_mapping(mapping: Dict[str, str]):
+    """儲存片商對照表"""
+    global _maker_mapping_cache, _maker_mapping_loaded
+    try:
+        with open(MAKER_MAPPING_FILE, 'w', encoding='utf-8') as f:
+            json.dump(mapping, f, ensure_ascii=False, indent=2)
+        _maker_mapping_cache = mapping
+        _maker_mapping_loaded = True
+    except IOError:
+        pass
+
+
+def get_maker_by_prefix(number: str) -> str:
+    """
+    從對照表查片商，沒有則查 JavDB 並更新對照表
+
+    Args:
+        number: 番號（如 SONE-103）
+
+    Returns:
+        片商名稱，找不到返回空字串
+    """
+    mapping = load_maker_mapping()
+
+    # 提取前綴（如 SONE-103 → SONE）
+    match = re.match(r'^([A-Za-z]+)', number)
+    if not match:
+        return ""
+
+    prefix = match.group(1).upper()
+
+    # 對照表有 → 直接返回
+    if prefix in mapping:
+        return mapping[prefix]
+
+    # 對照表沒有 → 查 JavDB
+    if CURL_CFFI_AVAILABLE:
+        try:
+            detail = scrape_javdb(number)
+            if detail and detail.get('maker'):
+                maker = detail['maker']
+                # 更新對照表
+                mapping[prefix] = maker
+                save_maker_mapping(mapping)
+                return maker
+        except Exception:
+            pass
+
+    return ""
 
 
 # ============ HTTP 工具 ============
@@ -678,14 +757,12 @@ def search_jav(number: str, source: str = 'auto') -> Optional[Dict]:
     if not all_data:
         return None
 
-    # 選擇主要來源（優先順序：JavDB > Jav321 > JavBus）
-    # JavDB 有 maker，Jav321 有完整封面
-    if 'javdb' in all_data:
-        main_data = all_data['javdb']
+    # 選擇主要來源（優先順序：JavBus > Jav321）
+    # JavBus 封面無浮水印，jvav 套件有維護
+    if 'javbus' in all_data:
+        main_data = all_data['javbus']
     elif 'jav321' in all_data:
         main_data = all_data['jav321']
-    elif 'javbus' in all_data:
-        main_data = all_data['javbus']
     else:
         main_data = list(all_data.values())[0]
 
@@ -711,6 +788,10 @@ def search_jav(number: str, source: str = 'auto') -> Optional[Dict]:
         # 補全封面（如果主來源沒有）
         if not main_data.get('img') and backup_data.get('img'):
             main_data['img'] = backup_data['img']
+
+    # 最後用對照表補全片商（如果還是沒有）
+    if not main_data.get('maker'):
+        main_data['maker'] = get_maker_by_prefix(number)
 
     return _normalize_result(number, main_data)
 
@@ -786,17 +867,26 @@ def expand_partial_number(partial: str) -> List[str]:
 
 def search_partial(partial: str) -> List[Dict]:
     """
-    局部搜尋：自動展開並查詢所有可能的番號
-    只返回有結果的
+    局部搜尋：並行查詢 JavBus/Jav321（無浮水印封面）
+
+    展開候選號碼後並行查詢，提升速度
     """
     candidates = expand_partial_number(partial)
     results = []
 
-    for number in candidates:
-        data = search_jav(number)
-        if data and data.get('title'):  # 確保有實際資料
-            results.append(data)
+    # 並行查詢（限制 5 個線程）
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(search_jav, num): num for num in candidates}
+        for future in as_completed(futures):
+            try:
+                data = future.result()
+                if data and data.get('title'):
+                    results.append(data)
+            except Exception:
+                pass
 
+    # 按番號排序
+    results.sort(key=lambda x: x.get('number', ''))
     return results
 
 

@@ -397,6 +397,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // 預加載圖片（避免切換時延遲）
+    function preloadImages(startIndex, count = 5) {
+        for (let i = startIndex; i < Math.min(startIndex + count, searchResults.length); i++) {
+            if (searchResults[i] && searchResults[i].cover) {
+                const img = new Image();
+                img.src = `/api/proxy-image?url=${encodeURIComponent(searchResults[i].cover)}`;
+            }
+        }
+    }
+
     function updateNavigation() {
         const hasMultiple = searchResults.length > 1;
 
@@ -421,6 +431,8 @@ document.addEventListener('DOMContentLoaded', function() {
             currentIndex = newIndex;
             displayResult(searchResults[currentIndex]);
             updateNavigation();
+            // 預加載後續圖片
+            preloadImages(currentIndex + 1, 3);
         }
     }
 
@@ -446,6 +458,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 displayResult(searchResults[0]);
                 updateNavigation();
                 showState('result');
+                // 預加載前 5 張圖片
+                preloadImages(1, 5);
             } else {
                 document.getElementById('errorMessage').textContent = data.error || '找不到資料';
                 showState('error');
