@@ -116,12 +116,14 @@ def scrape_jav321(number: str) -> Optional[Dict]:
         if img:
             img = img.replace('ps.jpg', 'pl.jpg').replace('/pt/', '/pl/')
 
-        # 提取演員
+        # 提取演員（去重）
         actors = []
+        seen_names = set()
         for a in soup.select('a[href*="/star/"]'):
             name = a.get_text(strip=True)
-            if name:
+            if name and name not in seen_names:
                 actors.append({'name': name})
+                seen_names.add(name)
 
         # 提取日期
         date = ''
