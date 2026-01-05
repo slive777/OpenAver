@@ -1,6 +1,6 @@
 """
 JAV Scraper - 搜尋模組
-從 JavBus, Jav321, DMM, AVSOX, MGStage 抓取影片資訊
+從 JavDB, JavBus, Jav321 抓取影片資訊
 """
 
 import re
@@ -16,6 +16,13 @@ try:
 except ImportError:
     JVAV_AVAILABLE = False
 
+# 嘗試載入 curl_cffi（JavDB TLS 指紋偽造）
+try:
+    from curl_cffi import requests as curl_requests
+    CURL_CFFI_AVAILABLE = True
+except ImportError:
+    CURL_CFFI_AVAILABLE = False
+
 # HTTP 請求設定
 REQUEST_TIMEOUT = 15
 HEADERS = {
@@ -23,8 +30,8 @@ HEADERS = {
     'Accept-Language': 'ja-JP,ja;q=0.9,zh-TW;q=0.8,zh;q=0.7,en;q=0.6',
 }
 
-# 刮削來源優先順序（只保留有效的）
-SCRAPER_PRIORITY = ['javbus', 'jav321']
+# 刮削來源優先順序（JavDB 優先，有 maker）
+SCRAPER_PRIORITY = ['javdb', 'javbus', 'jav321']
 
 
 # ============ HTTP 工具 ============
@@ -59,7 +66,188 @@ def post_html(url: str, data: dict = None, headers: dict = None) -> Optional[str
     return None
 
 
+# ============ JavDB 工具 ============
+
+def get_javdb_html(url: str) -> Optional[str]:
+    """發送請求到 JavDB（使用 TLS 指紋偽造）"""
+    if not CURL_CFFI_AVAILABLE:
+        return None
+    try:
+        response = curl_requests.get(
+            url,
+            impersonate="chrome120",
+            headers={
+                "User-Agent": HEADERS['User-Agent'],
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "zh-TW,zh;q=0.9,ja;q=0.8,en;q=0.7",
+                "Referer": "https://javdb.com/",
+            },
+            timeout=30
+        )
+        if response.status_code == 200:
+            return response.text
+    except Exception:
+        pass
+    return None
+
+
+def search_javdb_list(keyword: str, limit: int = 20) -> List[Dict]:
+    """
+    搜尋 JavDB 列表頁面
+
+    用於女優搜尋、模糊搜尋
+    返回: [{'number': 'SONE-103', 'title': '...', 'detail_url': '/v/xxx', 'date': '...'}]
+    """
+    url = f"https://javdb.com/search?q={quote(keyword)}&f=all"
+    html = get_javdb_html(url)
+    if not html:
+        return []
+
+    soup = BeautifulSoup(html, 'html.parser')
+    results = []
+
+    for item in soup.select('.movie-list .item')[:limit]:
+        try:
+            uid_elem = item.select_one('.video-title strong')
+            uid = uid_elem.text.strip() if uid_elem else ''
+
+            title_elem = item.select_one('.video-title')
+            title = title_elem.text.strip() if title_elem else ''
+            if uid and title.startswith(uid):
+                title = title[len(uid):].strip()
+
+            link_elem = item.select_one('a[href^="/v/"]')
+            detail_url = link_elem['href'] if link_elem else ''
+
+            date_elem = item.select_one('.meta')
+            date = ''
+            if date_elem:
+                date_match = re.search(r'(\d{4}-\d{2}-\d{2})', date_elem.text)
+                if date_match:
+                    date = date_match.group(1)
+
+            cover_elem = item.select_one('img')
+            cover = cover_elem.get('src', '') if cover_elem else ''
+
+            if uid:
+                results.append({
+                    'number': uid,
+                    'title': title,
+                    'date': date,
+                    'cover': cover,
+                    'detail_url': detail_url,
+                })
+        except Exception:
+            continue
+
+    return results
+
+
+def get_javdb_detail(detail_path: str) -> Optional[Dict]:
+    """
+    獲取 JavDB 詳情頁資訊
+
+    detail_path: '/v/xxx' 格式
+    返回完整資訊包含 maker
+    """
+    if not detail_path:
+        return None
+
+    url = f"https://javdb.com{detail_path}" if detail_path.startswith('/') else detail_path
+    html = get_javdb_html(url)
+    if not html:
+        return None
+
+    soup = BeautifulSoup(html, 'html.parser')
+
+    result = {
+        'title': '',
+        'img': '',
+        'stars': [],
+        'date': '',
+        'tags': [],
+        'maker': '',
+        'url': url,
+        'source': 'javdb'
+    }
+
+    # 標題
+    title_elem = soup.select_one('.video-detail h2, .title.is-4')
+    if title_elem:
+        result['title'] = title_elem.text.strip()
+
+    # 解析資訊面板
+    for panel in soup.select('.panel-block'):
+        label = panel.select_one('strong')
+        value = panel.select_one('.value')
+        if not label:
+            continue
+
+        label_text = label.text.strip()
+
+        # 日期
+        if '日期' in label_text and value:
+            result['date'] = value.text.strip()
+
+        # 片商 (Maker)
+        if '片商' in label_text or '製作' in label_text or '發行' in label_text:
+            if value:
+                result['maker'] = value.text.strip()
+
+        # 演員
+        if '演員' in label_text:
+            actors = panel.select('a')
+            result['stars'] = [{'name': a.text.strip()} for a in actors if a.text.strip()]
+
+        # 標籤
+        if '類別' in label_text:
+            tags = panel.select('a')
+            result['tags'] = [t.text.strip() for t in tags if t.text.strip()]
+
+    # 封面
+    cover_elem = soup.select_one('.video-cover img, .column-video-cover img')
+    if cover_elem:
+        result['img'] = cover_elem.get('src', '')
+
+    return result if result['title'] or result['img'] else None
+
+
 # ============ 搜尋器實現 ============
+
+def scrape_javdb(number: str) -> Optional[Dict]:
+    """
+    JavDB 刮削器
+
+    優點：有 maker、數據完整
+    需要 curl_cffi 繞過 TLS 指紋檢測
+    """
+    if not CURL_CFFI_AVAILABLE:
+        return None
+
+    try:
+        # 先搜尋取得 detail_url
+        results = search_javdb_list(number, limit=5)
+
+        # 找到精確匹配的番號
+        target = None
+        number_upper = number.upper().replace('-', '')
+        for r in results:
+            r_num = r['number'].upper().replace('-', '')
+            if r_num == number_upper:
+                target = r
+                break
+
+        if not target or not target.get('detail_url'):
+            return None
+
+        # 獲取詳情頁
+        detail = get_javdb_detail(target['detail_url'])
+        return detail
+
+    except Exception:
+        pass
+    return None
+
 
 def scrape_javbus(number: str) -> Optional[Dict]:
     """JavBus 刮削器（透過 jvav）- 注意：只有右半邊封面"""
@@ -398,6 +586,7 @@ def scrape_mgstage(number: str) -> Optional[Dict]:
 
 # 刮削器映射
 SCRAPERS = {
+    'javdb': scrape_javdb,
     'javbus': scrape_javbus,
     'jav321': scrape_jav321,
     'dmm': scrape_dmm,
@@ -478,19 +667,21 @@ def search_jav(number: str, source: str = 'auto') -> Optional[Dict]:
     if not all_data:
         return None
 
-    # 優先用 Jav321（有完整封面），JavBus 補充
-    if 'jav321' in all_data:
+    # 選擇主要來源（優先順序：JavDB > Jav321 > JavBus）
+    # JavDB 有 maker，Jav321 有完整封面
+    if 'javdb' in all_data:
+        main_data = all_data['javdb']
+    elif 'jav321' in all_data:
         main_data = all_data['jav321']
-        backup_data = all_data.get('javbus')
     elif 'javbus' in all_data:
         main_data = all_data['javbus']
-        backup_data = all_data.get('jav321')
     else:
         main_data = list(all_data.values())[0]
-        backup_data = None
 
-    # 用 backup 補全缺失欄位
-    if backup_data:
+    # 用其他來源補全缺失欄位
+    for src, backup_data in all_data.items():
+        if backup_data is main_data:
+            continue
         # 補全標題
         if not main_data.get('title') and backup_data.get('title'):
             main_data['title'] = backup_data['title']
@@ -503,6 +694,12 @@ def search_jav(number: str, source: str = 'auto') -> Optional[Dict]:
         # 補全標籤
         if not main_data.get('tags') and backup_data.get('tags'):
             main_data['tags'] = backup_data['tags']
+        # 補全片商 (maker)
+        if not main_data.get('maker') and backup_data.get('maker'):
+            main_data['maker'] = backup_data['maker']
+        # 補全封面（如果主來源沒有）
+        if not main_data.get('img') and backup_data.get('img'):
+            main_data['img'] = backup_data['img']
 
     return _normalize_result(number, main_data)
 
@@ -596,37 +793,55 @@ def search_actress(name: str, limit: int = 20) -> List[Dict]:
     """
     搜尋女優作品列表
 
-    使用 JavBus 搜尋功能，返回作品列表
+    優先使用 JavDB（效率高、數據完整）
     """
+    results = []
+
+    # 優先用 JavDB
+    if CURL_CFFI_AVAILABLE:
+        try:
+            javdb_results = search_javdb_list(name, limit=limit)
+            for item in javdb_results:
+                # 直接用搜尋結果的基本資訊，不再逐一查詢詳情
+                results.append({
+                    'number': item['number'],
+                    'title': item['title'],
+                    'actors': [name],  # 搜尋的女優名
+                    'date': item['date'],
+                    'maker': '',  # 列表頁沒有 maker
+                    'cover': item['cover'],
+                    'tags': [],
+                    'source': 'javdb',
+                    'url': f"https://javdb.com{item['detail_url']}" if item.get('detail_url') else '',
+                })
+            if results:
+                return results
+        except Exception:
+            pass
+
+    # 備用：JavBus
     try:
-        # JavBus 搜尋 URL（使用 URL 編碼的名字）
         search_url = f'https://www.javbus.com/search/{quote(name)}'
         headers = HEADERS.copy()
         headers['Cookie'] = 'existmag=all'
 
         html = get_html(search_url, headers=headers)
         if not html:
-            return []
+            return results
 
         soup = BeautifulSoup(html, 'html.parser')
-
-        results = []
         count = 0
 
-        # 解析搜尋結果列表
         for item in soup.select('.movie-box'):
             if count >= limit:
                 break
 
-            # 取得番號
             number_elem = item.select_one('date:first-of-type')
             if not number_elem:
-                # 嘗試其他方式取得番號
                 frame = item.select_one('.photo-frame')
                 if frame:
                     img = frame.select_one('img')
                     if img and img.get('title'):
-                        # 從標題提取番號
                         title = img.get('title', '')
                         match = re.match(r'^([A-Z]+-\d+)', title)
                         if match:
@@ -649,11 +864,10 @@ def search_actress(name: str, limit: int = 20) -> List[Dict]:
                 results.append(data)
                 count += 1
 
-        return results
-
     except Exception:
         pass
-    return []
+
+    return results
 
 
 def smart_search(query: str) -> List[Dict]:
