@@ -76,24 +76,119 @@
             box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
         }
 
-        /* 響應式 */
-        @media (max-width: 768px) {
+        /* 響應式 - Desktop */
+        @media (min-width: 992px) {
             .sidebar {
-                width: 100%;
-                height: auto;
-                position: relative;
+                display: block !important;
+            }
+            .main-content {
+                margin-left: var(--sidebar-width);
+            }
+        }
+
+        /* 響應式 - Tablet & Mobile */
+        @media (max-width: 991.98px) {
+            .sidebar {
+                display: none !important;
             }
             .main-content {
                 margin-left: 0;
+                padding-top: 56px; /* 頂部導航列高度 */
             }
+        }
+
+        /* 頂部導航列 */
+        .top-navbar {
+            height: 56px;
+        }
+
+        /* Offcanvas 選單連結 */
+        .offcanvas-nav .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 0.75rem 1rem;
+            border-radius: 0.25rem;
+            margin: 0.25rem 0.5rem;
+        }
+        .offcanvas-nav .nav-link:hover {
+            color: #fff;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .offcanvas-nav .nav-link.active {
+            color: #fff;
+            background-color: #0d6efd;
+        }
+        .offcanvas-nav .nav-link i {
+            width: 24px;
+            margin-right: 0.5rem;
         }
     </style>
 
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <!-- 側邊欄 -->
-    <nav class="sidebar">
+    <!-- 頂部導航列（僅小螢幕顯示）-->
+    <nav class="navbar navbar-dark bg-dark d-lg-none fixed-top top-navbar">
+        <div class="container-fluid">
+            <button class="btn btn-dark" type="button"
+                    data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas"
+                    aria-controls="sidebarOffcanvas">
+                <i class="bi bi-list fs-4"></i>
+            </button>
+            <span class="navbar-brand mb-0 h5">
+                <i class="bi bi-film"></i> JavHelper
+            </span>
+            <span style="width: 40px;"></span>
+        </div>
+    </nav>
+
+    <!-- Offcanvas 側邊選單（小螢幕）-->
+    <div class="offcanvas offcanvas-start bg-dark d-lg-none" tabindex="-1"
+         id="sidebarOffcanvas" aria-labelledby="sidebarOffcanvasLabel">
+        <div class="offcanvas-header border-bottom border-secondary">
+            <h5 class="offcanvas-title text-white" id="sidebarOffcanvasLabel">
+                <i class="bi bi-film"></i> JavHelper
+            </h5>
+            <button type="button" class="btn-close btn-close-white"
+                    data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body p-0">
+            <ul class="nav flex-column offcanvas-nav">
+                <li class="nav-item">
+                    <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search"
+                       data-bs-dismiss="offcanvas">
+                        <i class="bi bi-search"></i> 搜尋
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if page == 'scraper' %}active{% endif %}" href="/scraper"
+                       data-bs-dismiss="offcanvas">
+                        <i class="bi bi-cloud-download"></i> 刮削器
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if page == 'updater' %}active{% endif %}" href="/updater"
+                       data-bs-dismiss="offcanvas">
+                        <i class="bi bi-arrow-repeat"></i> 更新器
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if page == 'avlist' %}active{% endif %}" href="/avlist"
+                       data-bs-dismiss="offcanvas">
+                        <i class="bi bi-list-ul"></i> 列表生成
+                    </a>
+                </li>
+                <li class="nav-item mt-3">
+                    <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings"
+                       data-bs-dismiss="offcanvas">
+                        <i class="bi bi-gear"></i> 設定
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 側邊欄（Desktop）-->
+    <nav class="sidebar d-none d-lg-block">
         <div class="sidebar-brand">
             <i class="bi bi-film"></i> JavHelper
         </div>
