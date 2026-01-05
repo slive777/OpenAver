@@ -302,6 +302,65 @@ def get_javdb_detail(detail_path: str) -> Optional[Dict]:
     return result if result['title'] or result['img'] else None
 
 
+def search_javdb_fuzzy(keyword: str, limit: int = 20, status_callback=None) -> List[Dict]:
+    """
+    JavDB 模糊搜尋（用於 fallback）
+
+    直接用關鍵字搜尋，可能是女優名、標題片段等
+    """
+    if not CURL_CFFI_AVAILABLE:
+        return []
+
+    if status_callback:
+        status_callback('javdb', 'searching')
+
+    # 搜尋列表
+    results = search_javdb_list(keyword, limit=limit)
+    if not results:
+        if status_callback:
+            status_callback('javdb', 'found:0')
+        return []
+
+    if status_callback:
+        status_callback('javdb', f'found:{len(results)}')
+        status_callback('javdb', 'fetching_details')
+
+    # 並行取得詳情
+    detailed_results = []
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(get_javdb_detail, r.get('detail_url')): r for r in results[:limit]}
+        for future in as_completed(futures):
+            r = futures[future]
+            try:
+                detail = future.result()
+                if detail:
+                    actors = []
+                    for s in detail.get('stars', []):
+                        if isinstance(s, dict):
+                            actors.append(s.get('name', ''))
+                        elif isinstance(s, str):
+                            actors.append(s)
+
+                    detailed_results.append({
+                        'number': r.get('number'),
+                        'title': detail.get('title') or r.get('title'),
+                        'actors': actors,
+                        'date': detail.get('date') or r.get('date'),
+                        'maker': detail.get('maker', ''),
+                        'cover': detail.get('img') or r.get('cover'),
+                        'tags': detail.get('tags', []),
+                        'source': 'javdb',
+                        'url': detail.get('url', ''),
+                    })
+            except Exception:
+                pass
+
+    if status_callback:
+        status_callback('javdb', f'details:{len(detailed_results)}')
+
+    return sort_results_by_date(detailed_results)
+
+
 # ============ 搜尋器實現 ============
 
 def scrape_javdb(number: str) -> Optional[Dict]:
@@ -1135,10 +1194,22 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback=N
         mode = 'prefix'
         results = search_prefix(query, limit=limit, offset=offset, status_callback=status_callback)
 
+        # 無結果時 fallback 到 JavDB 模糊搜尋（可能是英文女優名如 miru, Rio）
+        if not results:
+            results = search_javdb_fuzzy(query, limit=limit, status_callback=status_callback)
+            if results:
+                mode = 'fuzzy'
+
     else:
         # 其他文字 → 女優搜尋
         mode = 'actress'
         results = search_actress(query, limit=limit, offset=offset, status_callback=status_callback)
+
+        # 無結果時 fallback 到 JavDB 模糊搜尋
+        if not results:
+            results = search_javdb_fuzzy(query, limit=limit, status_callback=status_callback)
+            if results:
+                mode = 'fuzzy'
 
     # 在結果中加入搜尋模式
     for r in results:
