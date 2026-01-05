@@ -823,6 +823,25 @@ def _normalize_result(number: str, data: Dict) -> Dict:
 
 # ============ 進階搜尋功能 ============
 
+def sort_results_by_date(results: List[Dict], reverse: bool = True) -> List[Dict]:
+    """
+    按發行日期排序搜尋結果
+
+    Args:
+        results: 搜尋結果列表
+        reverse: True=新的在前（降序），False=舊的在前（升序）
+
+    Returns:
+        排序後的結果列表
+    """
+    def sort_key(item):
+        date = item.get('date', '') or '0000-00-00'
+        number = item.get('number', '')
+        return (date, number)
+
+    return sorted(results, key=sort_key, reverse=reverse)
+
+
 def is_number_format(s: str) -> bool:
     """判斷是否為完整番號格式 (如 SONE-001, ABC-123)"""
     return bool(re.match(r'^[a-zA-Z]+-?\d{3,}$', s.strip()))
@@ -892,9 +911,8 @@ def search_partial(partial: str) -> List[Dict]:
             except Exception:
                 pass
 
-    # 按番號排序
-    results.sort(key=lambda x: x.get('number', ''))
-    return results
+    # 按日期排序（新的在前）
+    return sort_results_by_date(results)
 
 
 def search_prefix(prefix: str, limit: int = 20, status_callback=None) -> List[Dict]:
@@ -939,8 +957,7 @@ def search_prefix(prefix: str, limit: int = 20, status_callback=None) -> List[Di
         status_callback('javbus', f'found:{len(found_data)}')
 
     # 組合結果
-    for number in sorted(found_data.keys()):
-        data = found_data[number]
+    for number, data in found_data.items():
         actors = []
         for s in data.get('stars', []):
             if isinstance(s, dict):
@@ -960,8 +977,8 @@ def search_prefix(prefix: str, limit: int = 20, status_callback=None) -> List[Di
             'url': data.get('url', ''),
         })
 
-        if len(results) >= limit:
-            break
+    # 按日期排序（新的在前），限制結果數
+    results = sort_results_by_date(results)[:limit]
 
     if status_callback:
         status_callback('done', f'total:{len(results)}')
@@ -1036,8 +1053,8 @@ def search_actress(name: str, limit: int = 20, status_callback=None) -> List[Dic
                         except Exception:
                             pass
 
-                # 按番號排序
-                results.sort(key=lambda x: x.get('number', ''), reverse=True)
+                # 按日期排序（新的在前）
+                results = sort_results_by_date(results)
 
                 if status_callback:
                     status_callback('done', f'total:{len(results)}')
