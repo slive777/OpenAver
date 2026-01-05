@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+.venv/
+*.egg-info/
+
+# Cache
+avlist_cache.json
+file_mapping.json
+*.tmp
+
+# Archives (舊檔案備份)
+archives/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Output
+*.html
+failure_report.txt
+
+# Windows
+*.exe
+Thumbs.db
+*Zone.Identifier
+
+# Logs
+*.log
+
+# Local config (使用者特定設定)
+web/config.local.json
+
+# Models (太大不上傳)
+*.gguf
