@@ -1045,10 +1045,16 @@ def search_actress(name: str, limit: int = 20, offset: int = 0, status_callback=
 
                 # 並行取得詳情（節流設定）
                 target_ids = all_ids[:limit]
+                total_count = len(target_ids)
+                completed_count = 0
                 with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
                     futures = {executor.submit(scrape_javbus, num): num for num in target_ids}
                     for future in as_completed(futures):
                         num = futures[future]
+                        completed_count += 1
+                        # 發送進度更新
+                        if status_callback:
+                            status_callback('javbus', f'details:{completed_count}/{total_count}')
                         try:
                             data = future.result()
                             if data and (data.get('title') or data.get('img')):
@@ -1146,10 +1152,16 @@ def search_jav321_keyword(keyword: str, limit: int = 20, status_callback=None) -
 
     # 並行取得詳情（節流設定）
     detailed = []
+    total_count = len(results)
+    completed_count = 0
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = {executor.submit(scrape_jav321, r['number']): r for r in results}
         for future in as_completed(futures):
             r = futures[future]
+            completed_count += 1
+            # 發送進度更新
+            if status_callback:
+                status_callback('jav321', f'details:{completed_count}/{total_count}')
             try:
                 detail = future.result()
                 if detail:
@@ -1168,9 +1180,6 @@ def search_jav321_keyword(keyword: str, limit: int = 20, status_callback=None) -
             except Exception:
                 pass
             time.sleep(REQUEST_DELAY)  # 請求間隔
-
-    if status_callback:
-        status_callback('jav321', f'details:{len(detailed)}')
 
     return sort_results_by_date(detailed)
 
@@ -1230,12 +1239,16 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback=N
 
         # Fallback 1: 當作女優名搜尋（可能是英文女優名如 miru, Rio）
         if not results:
+            if status_callback:
+                status_callback('mode', 'actress')  # 通知前端切換模式
             results = search_actress(query, limit=limit, status_callback=status_callback)
             if results:
                 mode = 'actress'
 
         # Fallback 2: Jav321 通用關鍵字搜尋
         if not results:
+            if status_callback:
+                status_callback('mode', 'keyword')  # 通知前端切換模式
             results = search_jav321_keyword(query, limit=limit, status_callback=status_callback)
             if results:
                 mode = 'keyword'
@@ -1247,6 +1260,8 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback=N
 
         # Fallback: Jav321 通用關鍵字搜尋
         if not results:
+            if status_callback:
+                status_callback('mode', 'keyword')  # 通知前端切換模式
             results = search_jav321_keyword(query, limit=limit, status_callback=status_callback)
             if results:
                 mode = 'keyword'

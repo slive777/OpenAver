@@ -177,36 +177,99 @@
         margin-top: 0.25rem;
     }
 
-    /* 搜尋狀態 */
-    .search-status {
-        font-size: 0.8rem;
-        color: #6c757d;
-    }
-    .search-status .status-item {
-        display: inline-flex;
+    /* === 搜尋進度指示器 === */
+    .search-progress {
+        display: flex;
         align-items: center;
-        gap: 0.25rem;
-        margin: 0 0.5rem;
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        background: #f8f9fa;
-        transition: all 0.3s;
+        justify-content: center;
+        height: 100%;
+        width: 100%;
     }
-    .search-status .status-item.searching {
-        background: #fff3cd;
-        color: #856404;
+
+    .progress-container {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border-radius: 12px;
+        padding: 1.5rem 2rem;
+        min-width: 320px;
+        max-width: 420px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+        font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
     }
-    .search-status .status-item.success {
-        background: #d4edda;
-        color: #155724;
+
+    .progress-header {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-    .search-status .status-item.failed {
-        background: #f8d7da;
-        color: #721c24;
+
+    .progress-query {
+        color: #4ade80;
+        font-weight: 600;
+        font-size: 1.1rem;
     }
-    .search-status .status-item .spinner-border {
-        width: 0.8rem;
-        height: 0.8rem;
+
+    /* 單行日誌 */
+    .progress-log {
+        color: #94a3b8;
+        font-size: 0.85rem;
+        text-align: center;
+        padding: 0.5rem;
+        min-height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .progress-log::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border: 2px solid rgba(96, 165, 250, 0.3);
+        border-top-color: #60a5fa;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* 詳情進度條 */
+    .detail-progress {
+        margin-top: 1rem;
+        position: relative;
+        height: 22px;
+        background: rgba(255,255,255,0.08);
+        border-radius: 11px;
+        overflow: hidden;
+        display: none;
+    }
+
+    .detail-progress.show {
+        display: block;
+    }
+
+    .detail-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6, #60a5fa);
+        border-radius: 11px;
+        transition: width 0.2s ease;
+        min-width: 2%;
+    }
+
+    .detail-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #fff;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.3);
     }
 
     /* === RWD 響應式 === */
@@ -299,13 +362,25 @@
             <small>支援 JavBus + Jav321 來源</small>
         </div>
 
-        <!-- 載入中 -->
-        <div id="loadingState" class="state-page w-100 d-none">
-            <div class="spinner-border text-primary mb-3" style="width: 3rem; height: 3rem;">
-                <span class="visually-hidden">載入中...</span>
+        <!-- 載入中 - 進度指示器 -->
+        <div id="loadingState" class="search-progress w-100 d-none">
+            <div class="progress-container">
+                <!-- 搜尋標題 -->
+                <div class="progress-header">
+                    <span class="progress-query" id="progressQuery">"搜尋中"</span>
+                </div>
+
+                <!-- 單行日誌 -->
+                <div class="progress-log" id="progressLog">
+                    搜尋中...
+                </div>
+
+                <!-- 詳情進度條 -->
+                <div class="detail-progress" id="detailProgress">
+                    <div class="detail-bar" id="detailBar"></div>
+                    <span class="detail-text" id="detailText">0 / 0</span>
+                </div>
             </div>
-            <p id="loadingText">搜尋中...</p>
-            <div id="searchStatus" class="search-status mt-2"></div>
         </div>
 
         <!-- 錯誤狀態 -->
@@ -374,7 +449,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const emptyState = document.getElementById('emptyState');
     const loadingState = document.getElementById('loadingState');
-    const loadingText = document.getElementById('loadingText');
     const resultCard = document.getElementById('resultCard');
     const errorState = document.getElementById('errorState');
 
@@ -529,55 +603,80 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 搜尋狀態元素
-    const searchStatus = document.getElementById('searchStatus');
+    // === 進度指示器控制 ===
+    const progressQuery = document.getElementById('progressQuery');
+    const progressLog = document.getElementById('progressLog');
+    const detailProgress = document.getElementById('detailProgress');
+    const detailBar = document.getElementById('detailBar');
+    const detailText = document.getElementById('detailText');
 
-    // 狀態文字對照
-    const SOURCE_NAMES = {
-        'javbus': 'JavBus',
-        'jav321': 'Jav321',
-        'javdb': 'JavDB',
-        'done': '完成'
+    // 搜尋模式對照
+    const MODE_TEXT = {
+        'exact': '完整番號搜尋',
+        'partial': '部分番號搜尋',
+        'prefix': '系列搜尋',
+        'actress': '女優搜尋',
+        'keyword': '全文搜尋'
     };
 
-    const STATUS_TEXT = {
-        'searching': '搜尋中',
-        'fetching_covers': '取得封面',
-        'failed': '失敗',
-    };
+    function initProgress(query) {
+        progressQuery.textContent = `"${query}"`;
+        progressLog.textContent = '搜尋中...';
+        detailProgress.classList.remove('show');
+    }
 
-    function updateSearchStatus(source, status) {
-        // 解析狀態
-        let statusClass = 'searching';
-        let statusText = STATUS_TEXT[status] || status;
+    function updateLog(text) {
+        progressLog.textContent = text;
+    }
 
-        if (status === 'failed') {
-            statusClass = 'failed';
-        } else if (status.startsWith('found:') || status.startsWith('total:')) {
-            statusClass = 'success';
-            const count = status.split(':')[1];
-            statusText = `找到 ${count} 筆`;
+    function updateDetailProgress(done, total) {
+        if (total > 0) {
+            detailProgress.classList.add('show');
+            const percent = Math.round((done / total) * 100);
+            detailBar.style.width = `${percent}%`;
+            detailText.textContent = `${done} / ${total}`;
+        }
+    }
+
+    // 當前模式
+    let currentMode = '';
+
+    function handleSearchStatus(source, status) {
+        // 處理模式切換
+        if (source === 'mode') {
+            currentMode = status;
+            updateLog(`${MODE_TEXT[status] || status}...`);
+            return;
         }
 
-        const sourceName = SOURCE_NAMES[source] || source;
-
-        // 更新或新增狀態項目
-        let item = searchStatus.querySelector(`[data-source="${source}"]`);
-        if (!item) {
-            item = document.createElement('span');
-            item.className = 'status-item';
-            item.dataset.source = source;
-            searchStatus.appendChild(item);
-        }
-
-        item.className = `status-item ${statusClass}`;
-
-        if (statusClass === 'searching') {
-            item.innerHTML = `<span class="spinner-border spinner-border-sm"></span> ${sourceName} ${statusText}`;
-        } else if (statusClass === 'success') {
-            item.innerHTML = `<i class="bi bi-check-circle"></i> ${sourceName} ${statusText}`;
-        } else {
-            item.innerHTML = `<i class="bi bi-x-circle"></i> ${sourceName} ${statusText}`;
+        // 根據來源和狀態更新日誌
+        if (source === 'javbus' || source === 'jav321') {
+            if (status === 'searching') {
+                updateLog(`${MODE_TEXT[currentMode] || '搜尋'}...`);
+            }
+            else if (status.startsWith('found:')) {
+                const count = status.split(':')[1];
+                if (count === '0') {
+                    updateLog(`${MODE_TEXT[currentMode] || '搜尋'}：無結果`);
+                } else {
+                    updateLog(`${MODE_TEXT[currentMode] || '搜尋'}：找到 ${count} 筆`);
+                }
+            }
+            else if (status === 'fetching_details') {
+                updateLog('抓取詳情...');
+            }
+            else if (status.startsWith('details:')) {
+                const parts = status.split(':')[1].split('/');
+                if (parts.length === 2) {
+                    const done = parseInt(parts[0]);
+                    const total = parseInt(parts[1]);
+                    updateLog(`抓取詳情 ${done}/${total}`);
+                    updateDetailProgress(done, total);
+                }
+            }
+            else if (status === 'failed') {
+                updateLog(`${MODE_TEXT[currentMode] || '搜尋'}：失敗`);
+            }
         }
     }
 
@@ -589,8 +688,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!query) return;
 
         showState('loading');
-        loadingText.textContent = '搜尋中...';
-        searchStatus.innerHTML = '';  // 清空狀態
+        initProgress(query);
         searchResults = [];
         currentIndex = 0;
 
@@ -607,18 +705,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = JSON.parse(event.data);
 
                 if (data.type === 'mode') {
-                    // 顯示搜尋模式
-                    const modeText = {
-                        'exact': '精確搜尋',
-                        'partial': '局部搜尋',
-                        'prefix': '前綴搜尋',
-                        'actress': '女優搜尋'
-                    };
-                    loadingText.textContent = modeText[data.mode] || '搜尋中...';
+                    // 設定當前模式並更新日誌
+                    currentMode = data.mode;
+                    updateLog(`${MODE_TEXT[data.mode] || '搜尋'}...`);
                 }
                 else if (data.type === 'status') {
-                    // 更新狀態
-                    updateSearchStatus(data.source, data.status);
+                    // 更新進度狀態
+                    handleSearchStatus(data.source, data.status);
                 }
                 else if (data.type === 'result') {
                     // 搜尋完成
@@ -627,7 +720,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (data.success && data.data && data.data.length > 0) {
                         searchResults = data.data;
                         currentIndex = 0;
-                        hasMoreResults = data.has_more || false;  // 設定是否還有更多
+                        hasMoreResults = data.has_more || false;
                         displayResult(searchResults[0]);
                         updateNavigation();
                         showState('result');
