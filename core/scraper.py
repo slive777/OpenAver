@@ -420,6 +420,26 @@ def get_female_actors(stars: List[Dict]) -> List[Dict]:
     return female
 
 
+def normalize_number(number: str) -> str:
+    """
+    標準化番號格式（自動加連字號）
+
+    例如:
+      'sone103' → 'SONE-103'
+      'SONE-103' → 'SONE-103'
+      'abc00123' → 'ABC-00123'
+    """
+    number = number.strip().upper()
+    # 如果已經有連字號，直接返回
+    if '-' in number:
+        return number
+    # 嘗試在字母和數字之間插入連字號
+    match = re.match(r'^([A-Z]+)(\d+)$', number)
+    if match:
+        return f"{match.group(1)}-{match.group(2)}"
+    return number
+
+
 def search_jav(number: str, source: str = 'auto') -> Optional[Dict]:
     """
     搜尋 JAV 資訊（自動從多來源補全）
@@ -441,7 +461,7 @@ def search_jav(number: str, source: str = 'auto') -> Optional[Dict]:
             'url': str,         # 詳情頁 URL
         }
     """
-    number = number.strip().upper()
+    number = normalize_number(number)
 
     # 收集所有來源的資料
     all_data = {}

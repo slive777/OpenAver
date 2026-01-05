@@ -375,16 +375,13 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('resultDate').textContent = data.date || '-';
         document.getElementById('resultMaker').textContent = data.maker || '-';
 
-        // 標籤
+        // 標籤（全部顯示）
         const tagsContainer = document.getElementById('resultTags');
         const tags = data.tags || [];
         if (tags.length > 0) {
-            tagsContainer.innerHTML = tags.slice(0, 6).map(tag =>
+            tagsContainer.innerHTML = tags.map(tag =>
                 `<span class="badge tag-badge">${tag}</span>`
             ).join('');
-            if (tags.length > 6) {
-                tagsContainer.innerHTML += `<span class="badge tag-badge">+${tags.length - 6}</span>`;
-            }
         } else {
             tagsContainer.textContent = '-';
         }
