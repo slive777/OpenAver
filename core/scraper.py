@@ -5,6 +5,7 @@ JAV Scraper - 搜尋模組
 
 import re
 import json
+import time
 import requests
 from pathlib import Path
 from typing import Optional, Dict, List
@@ -32,6 +33,10 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept-Language': 'ja-JP,ja;q=0.9,zh-TW;q=0.8,zh;q=0.7,en;q=0.6',
 }
+
+# 爬蟲節流設定（避免被網站封禁）
+MAX_WORKERS = 2          # 並行請求數（保守設定）
+REQUEST_DELAY = 0.3      # 每次請求後延遲（秒）
 
 # 刮削來源優先順序（JavBus 優先，封面無浮水印）
 SCRAPER_PRIORITY = ['javbus', 'jav321']
@@ -900,8 +905,8 @@ def search_partial(partial: str) -> List[Dict]:
     candidates = expand_partial_number(partial)
     results = []
 
-    # 並行查詢（限制 5 個線程）
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    # 並行查詢（節流設定）
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = {executor.submit(search_jav, num): num for num in candidates}
         for future in as_completed(futures):
             try:
@@ -910,6 +915,7 @@ def search_partial(partial: str) -> List[Dict]:
                     results.append(data)
             except Exception:
                 pass
+            time.sleep(REQUEST_DELAY)  # 請求間隔
 
     # 按日期排序（新的在前）
     return sort_results_by_date(results)
@@ -945,9 +951,9 @@ def search_prefix(prefix: str, limit: int = 20, offset: int = 0, status_callback
     for i in range(start_num, end_num + 1):
         candidates.append(f"{prefix}-{str(i).zfill(3)}")
 
-    # 並行查詢 JavBus
+    # 並行查詢 JavBus（節流設定）
     found_data = {}
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = {executor.submit(scrape_javbus, num): num for num in candidates}
         for future in as_completed(futures):
             num = futures[future]
@@ -959,6 +965,7 @@ def search_prefix(prefix: str, limit: int = 20, offset: int = 0, status_callback
                         break
             except Exception:
                 pass
+            time.sleep(REQUEST_DELAY)  # 請求間隔
 
     if status_callback:
         status_callback('javbus', f'found:{len(found_data)}')
@@ -1036,9 +1043,9 @@ def search_actress(name: str, limit: int = 20, offset: int = 0, status_callback=
                     status_callback('javbus', f'found:{len(all_ids[:limit])}')
                     status_callback('javbus', 'fetching_details')
 
-                # 並行取得詳情
+                # 並行取得詳情（節流設定）
                 target_ids = all_ids[:limit]
-                with ThreadPoolExecutor(max_workers=5) as executor:
+                with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
                     futures = {executor.submit(scrape_javbus, num): num for num in target_ids}
                     for future in as_completed(futures):
                         num = futures[future]
@@ -1065,6 +1072,7 @@ def search_actress(name: str, limit: int = 20, offset: int = 0, status_callback=
                                 })
                         except Exception:
                             pass
+                        time.sleep(REQUEST_DELAY)  # 請求間隔
 
                 # 按日期排序（新的在前）
                 results = sort_results_by_date(results)
@@ -1136,9 +1144,9 @@ def search_jav321_keyword(keyword: str, limit: int = 20, status_callback=None) -
         status_callback('jav321', f'found:{len(results)}')
         status_callback('jav321', 'fetching_details')
 
-    # 並行取得詳情
+    # 並行取得詳情（節流設定）
     detailed = []
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         futures = {executor.submit(scrape_jav321, r['number']): r for r in results}
         for future in as_completed(futures):
             r = futures[future]
@@ -1159,6 +1167,7 @@ def search_jav321_keyword(keyword: str, limit: int = 20, status_callback=None) -
                     })
             except Exception:
                 pass
+            time.sleep(REQUEST_DELAY)  # 請求間隔
 
     if status_callback:
         status_callback('jav321', f'details:{len(detailed)}')
