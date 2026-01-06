@@ -185,6 +185,13 @@
         flex-shrink: 0;
     }
 
+    .file-item .btn-scrape-single {
+        flex-shrink: 0;
+        padding: 0 6px;
+        font-size: 0.7rem;
+        line-height: 1.4;
+    }
+
     /* 資訊區域 - 30% */
     .info-section {
         flex: 3;
@@ -571,8 +578,8 @@
                     <div class="file-list-section d-none" id="fileListSection">
                         <div class="file-list-header">
                             <span class="file-count" id="fileCountText">0 個檔案</span>
-                            <button class="btn btn-success btn-sm" id="btnScrape" type="button">
-                                <i class="bi bi-folder-plus"></i> 產生
+                            <button class="btn btn-success btn-sm" id="btnScrapeAll" type="button">
+                                <i class="bi bi-folder-plus"></i> 產生全部
                             </button>
                         </div>
                         <div class="file-list" id="fileList">
@@ -701,7 +708,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileListSection = document.getElementById('fileListSection');
     const fileListContainer = document.getElementById('fileList');
     const fileCountText = document.getElementById('fileCountText');
-    const btnScrape = document.getElementById('btnScrape');
+    const btnScrapeAll = document.getElementById('btnScrapeAll');
 
     // === 狀態保存/還原 ===
     const STATE_KEY = 'javhelper_search_state';
@@ -1205,7 +1212,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fileCountText.textContent = `檔案 ${currentFileIndex + 1}/${fileList.length}`;
 
         // 顯示產生按鈕（拖檔模式）
-        btnScrape.classList.remove('d-none');
+        btnScrapeAll.classList.remove('d-none');
 
         fileList.forEach((file, index) => {
             const item = document.createElement('div');
@@ -1214,24 +1221,48 @@ document.addEventListener('DOMContentLoaded', function() {
             // 狀態圖標：✓ 有結果、✗ 無結果/無番號、空白 未搜尋
             let statusIcon = '';
             let statusClass = 'file-status';
+            let canScrape = false;
             if (!file.number) {
                 statusIcon = '✗';
                 statusClass += ' text-danger';
             } else if (file.searched) {
                 if (file.searchResults && file.searchResults.length > 0) {
                     statusIcon = '✓';
+                    canScrape = true;
                 } else {
                     statusIcon = '✗';
                     statusClass += ' text-danger';
                 }
             }
 
+            // 產生按鈕（只有搜尋成功才顯示）
+            const scrapeBtn = canScrape
+                ? `<button class="btn btn-outline-success btn-sm btn-scrape-single" data-index="${index}" title="產生此檔案">產生</button>`
+                : '';
+
             item.innerHTML = `
                 <i class="bi bi-file-earmark-play file-icon"></i>
                 <span class="file-name" title="${file.path}">${file.filename}</span>
                 <span class="${statusClass}">${statusIcon}</span>
+                ${scrapeBtn}
             `;
-            item.addEventListener('click', () => switchToFile(index, 'first'));
+
+            // 點擊檔名切換（排除按鈕區域）
+            item.addEventListener('click', (e) => {
+                if (!e.target.closest('.btn-scrape-single')) {
+                    switchToFile(index, 'first');
+                }
+            });
+
+            // 產生按鈕事件
+            if (canScrape) {
+                const btn = item.querySelector('.btn-scrape-single');
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    scrapeSingle(index);
+                });
+            }
+
             fileListContainer.appendChild(item);
         });
     }
@@ -1251,7 +1282,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fileCountText.textContent = `搜尋結果 (${countText})`;
 
         // 隱藏產生按鈕（搜尋模式不需要）
-        btnScrape.classList.add('d-none');
+        btnScrapeAll.classList.add('d-none');
 
         searchResults.forEach((result, index) => {
             const item = document.createElement('div');
@@ -1290,11 +1321,9 @@ document.addEventListener('DOMContentLoaded', function() {
         currentFileIndex = index;
         const file = fileList[index];
 
-        // 更新列表高亮
-        renderFileList();
-
         // 無番號檔案：清空畫面顯示錯誤
         if (!file.number) {
+            renderFileList();  // 更新列表高亮
             searchResults = [];
             hasMoreResults = false;
             currentIndex = 0;
@@ -1305,10 +1334,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // 如果還沒搜尋過，執行搜尋
+        // 注意：不在此處呼叫 renderFileList()，避免 race condition
+        // searchForFile() 完成後會自行呼叫 renderFileList()
         if (!file.searched) {
             await searchForFile(file, position, showFullLoading);
         } else if (file.searchResults && file.searchResults.length > 0) {
             // 已有結果，直接顯示
+            renderFileList();  // 更新列表高亮
             searchResults = file.searchResults;
             hasMoreResults = file.hasMoreResults || false;
             currentIndex = position === 'last' ? searchResults.length - 1 : 0;
@@ -1317,6 +1349,7 @@ document.addEventListener('DOMContentLoaded', function() {
             showState('result');
         } else {
             // 已搜尋但無結果
+            renderFileList();  // 更新列表高亮
             searchResults = [];
             hasMoreResults = false;
             currentIndex = 0;
@@ -1450,73 +1483,141 @@ document.addEventListener('DOMContentLoaded', function() {
         setFileList(e.detail.paths);
     });
 
-    // 執行 Scraper（處理當前檔案）
-    async function executeScraper() {
-        if (fileList.length === 0) {
-            alert('請先拖入檔案');
+    // 執行單檔 Scraper（核心函數）
+    async function scrapeFile(file, metadata) {
+        const response = await fetch('/api/scrape-single', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                file_path: file.path,
+                number: metadata.number,
+                metadata: metadata
+            })
+        });
+        return await response.json();
+    }
+
+    // 產生單片（從列表按鈕觸發）
+    async function scrapeSingle(index) {
+        const file = fileList[index];
+        if (!file || !file.searchResults || file.searchResults.length === 0) {
+            alert('此檔案沒有搜尋結果');
             return;
         }
 
-        const file = fileList[currentFileIndex];
-        if (!file || !file.path) {
-            alert('請選擇檔案');
-            return;
+        // 使用第一個搜尋結果
+        const metadata = file.searchResults[0];
+
+        // 找到對應的按鈕並顯示 loading
+        const btn = fileListContainer.querySelector(`[data-index="${index}"]`);
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
         }
 
-        // 使用當前顯示的搜尋結果
-        const metadata = searchResults[currentIndex];
-        if (!metadata || !metadata.number) {
-            alert('沒有番號資料，請先搜尋');
+        try {
+            const result = await scrapeFile(file, metadata);
+            if (result.success) {
+                // 標記已處理
+                file.scraped = true;
+                if (btn) {
+                    btn.innerHTML = '<i class="bi bi-check"></i>';
+                    btn.classList.remove('btn-outline-success');
+                    btn.classList.add('btn-success');
+                    btn.disabled = true;
+                }
+            } else {
+                alert(`${file.filename} 處理失敗: ${result.error || '未知錯誤'}`);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '產生';
+                }
+            }
+        } catch (err) {
+            alert(`${file.filename} 處理失敗: ${err.message}`);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '產生';
+            }
+        }
+    }
+
+    // 產生全部（批次處理）
+    async function scrapeAll() {
+        // 過濾出可處理的檔案
+        const scrapableFiles = fileList.filter(f =>
+            f.searched && f.searchResults && f.searchResults.length > 0 && !f.scraped
+        );
+
+        if (scrapableFiles.length === 0) {
+            alert('沒有可處理的檔案');
             return;
         }
 
         // 顯示處理中狀態
-        btnScrape.disabled = true;
-        const originalHtml = btnScrape.innerHTML;
-        btnScrape.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        btnScrapeAll.disabled = true;
+        const originalHtml = btnScrapeAll.innerHTML;
+        btnScrapeAll.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
 
-        try {
-            const response = await fetch('/api/scrape-single', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    file_path: file.path,
-                    number: metadata.number,
-                    metadata: metadata
-                })
-            });
+        let successCount = 0;
+        let failCount = 0;
 
-            const result = await response.json();
+        for (const file of scrapableFiles) {
+            const index = fileList.indexOf(file);
+            const metadata = file.searchResults[0];
 
-            if (result.success) {
-                // 成功
-                btnScrape.innerHTML = '<i class="bi bi-check-circle"></i>';
-                btnScrape.classList.remove('btn-success');
-                btnScrape.classList.add('btn-outline-success');
-
-                // 簡單提示
-                alert(`處理完成!\n資料夾: ${result.new_folder?.split(/[/\\]/).pop() || '-'}`);
-
-                // 重置按鈕（延遲）
-                setTimeout(() => {
-                    btnScrape.innerHTML = originalHtml;
-                    btnScrape.classList.remove('btn-outline-success');
-                    btnScrape.classList.add('btn-success');
-                    btnScrape.disabled = false;
-                }, 2000);
-            } else {
-                alert('處理失敗: ' + (result.error || '未知錯誤'));
-                btnScrape.disabled = false;
-                btnScrape.innerHTML = originalHtml;
+            // 更新列表按鈕狀態
+            const btn = fileListContainer.querySelector(`[data-index="${index}"]`);
+            if (btn) {
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+                btn.disabled = true;
             }
-        } catch (err) {
-            alert('處理失敗: ' + err.message);
-            btnScrape.disabled = false;
-            btnScrape.innerHTML = originalHtml;
+
+            try {
+                const result = await scrapeFile(file, metadata);
+                if (result.success) {
+                    file.scraped = true;
+                    successCount++;
+                    if (btn) {
+                        btn.innerHTML = '<i class="bi bi-check"></i>';
+                        btn.classList.remove('btn-outline-success');
+                        btn.classList.add('btn-success');
+                    }
+                } else {
+                    failCount++;
+                    if (btn) {
+                        btn.innerHTML = '失敗';
+                        btn.classList.remove('btn-outline-success');
+                        btn.classList.add('btn-outline-danger');
+                    }
+                }
+            } catch (err) {
+                failCount++;
+                if (btn) {
+                    btn.innerHTML = '失敗';
+                    btn.classList.remove('btn-outline-success');
+                    btn.classList.add('btn-outline-danger');
+                }
+            }
         }
+
+        // 完成提示
+        btnScrapeAll.innerHTML = '<i class="bi bi-check-circle"></i>';
+        btnScrapeAll.classList.remove('btn-success');
+        btnScrapeAll.classList.add('btn-outline-success');
+
+        alert(`批次處理完成!\n成功: ${successCount}\n失敗: ${failCount}`);
+
+        // 重置按鈕
+        setTimeout(() => {
+            btnScrapeAll.innerHTML = originalHtml;
+            btnScrapeAll.classList.remove('btn-outline-success');
+            btnScrapeAll.classList.add('btn-success');
+            btnScrapeAll.disabled = false;
+        }, 2000);
     }
 
-    btnScrape.addEventListener('click', executeScraper);
+    btnScrapeAll.addEventListener('click', scrapeAll);
 
     // === 拖拽搜尋功能 ===
     const dragOverlay = document.getElementById('dragOverlay');
