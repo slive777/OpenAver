@@ -49,32 +49,6 @@
                     </div>
                 </div>
 
-                <!-- 封面設定 -->
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="downloadCover" checked>
-                            <label class="form-check-label" for="downloadCover">下載封面</label>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text">檔名</span>
-                            <input type="text" class="form-control" id="coverFilename" value="poster.jpg">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- NFO 設定 -->
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="createNfo" checked>
-                            <label class="form-check-label" for="createNfo">建立 NFO 檔案</label>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- 長度限制 -->
                 <div class="row mb-3">
                     <div class="col-md-6">
@@ -257,9 +231,6 @@ async function loadConfig() {
             document.getElementById('createFolder').checked = config.scraper.create_folder;
             document.getElementById('folderFormat').value = config.scraper.folder_format;
             document.getElementById('filenameFormat').value = config.scraper.filename_format;
-            document.getElementById('downloadCover').checked = config.scraper.download_cover;
-            document.getElementById('coverFilename').value = config.scraper.cover_filename;
-            document.getElementById('createNfo').checked = config.scraper.create_nfo;
             document.getElementById('maxTitleLength').value = config.scraper.max_title_length;
             document.getElementById('maxFilenameLength').value = config.scraper.max_filename_length;
             document.getElementById('videoExtensions').value = config.scraper.video_extensions.join(', ');
@@ -288,9 +259,6 @@ async function saveConfig() {
             create_folder: document.getElementById('createFolder').checked,
             folder_format: document.getElementById('folderFormat').value,
             filename_format: document.getElementById('filenameFormat').value,
-            download_cover: document.getElementById('downloadCover').checked,
-            cover_filename: document.getElementById('coverFilename').value,
-            create_nfo: document.getElementById('createNfo').checked,
             max_title_length: parseInt(document.getElementById('maxTitleLength').value),
             max_filename_length: parseInt(document.getElementById('maxFilenameLength').value),
             video_extensions: document.getElementById('videoExtensions').value

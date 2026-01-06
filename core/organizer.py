@@ -237,10 +237,7 @@ def organize_file(
         return result
 
     # 準備格式化資料
-    actors = []
-    stars = metadata.get('stars', [])
-    if stars:
-        actors = [s.get('name', '') for s in stars if s.get('name')]
+    actors = metadata.get('actors', [])
 
     format_data = {
         'number': number,
@@ -283,32 +280,29 @@ def organize_file(
             shutil.move(file_path, target_path)
         result['new_filename'] = target_path
 
-        # 下載封面
-        if config.get('download_cover', True):
-            img_url = metadata.get('cover', '')
-            if img_url:
-                cover_name = config.get('cover_filename', 'poster.jpg')
-                cover_path = os.path.join(target_dir, cover_name)
-                if download_image(img_url, cover_path):
-                    result['cover_path'] = cover_path
+        # 下載封面（檔名跟隨影片命名）
+        img_url = metadata.get('cover', '')
+        if img_url:
+            cover_path = os.path.join(target_dir, filename_base + '.jpg')
+            if download_image(img_url, cover_path):
+                result['cover_path'] = cover_path
 
-        # 生成 NFO
-        if config.get('create_nfo', True):
-            nfo_path = os.path.join(target_dir, f"{number}.nfo")
-            tags = metadata.get('tags', [])
-            if generate_nfo(
-                number=number,
-                title=format_data['title'],
-                original_title=metadata.get('original_title', metadata.get('title', '')),
-                actors=actors,
-                tags=tags,
-                date=metadata.get('date', ''),
-                maker=metadata.get('maker', ''),
-                url=metadata.get('url', ''),
-                has_subtitle=metadata.get('has_subtitle', False),
-                output_path=nfo_path
-            ):
-                result['nfo_path'] = nfo_path
+        # 生成 NFO（檔名跟隨影片命名）
+        nfo_path = os.path.join(target_dir, filename_base + '.nfo')
+        tags = metadata.get('tags', [])
+        if generate_nfo(
+            number=number,
+            title=format_data['title'],
+            original_title=metadata.get('original_title', metadata.get('title', '')),
+            actors=actors,
+            tags=tags,
+            date=metadata.get('date', ''),
+            maker=metadata.get('maker', ''),
+            url=metadata.get('url', ''),
+            has_subtitle=metadata.get('has_subtitle', False),
+            output_path=nfo_path
+        ):
+            result['nfo_path'] = nfo_path
 
         result['success'] = True
 

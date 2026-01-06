@@ -3,9 +3,6 @@
     "create_folder": true,
     "folder_format": "{actor} - [{num}]{title}",
     "filename_format": "{actor} - [{num}]{title}",
-    "download_cover": true,
-    "cover_filename": "{actor} - [{num}]{title}",
-    "create_nfo": true,
     "max_title_length": 80,
     "max_filename_length": 200,
     "video_extensions": [

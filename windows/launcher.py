@@ -80,9 +80,14 @@ def bind(w):
     """綁定 DOM 事件"""
     global window
     window = w
-    print("[DEBUG] 綁定 drop 事件")
-    # 訂閱 drop 事件（prevent_default=True, stop_propagation=True）
-    window.dom.document.events.drop += DOMEventHandler(on_drop, True, True)
+
+    def on_loaded():
+        """每次頁面加載後綁定 drop 事件"""
+        print("[DEBUG] 頁面加載完成，綁定 drop 事件")
+        window.dom.document.events.drop += DOMEventHandler(on_drop, True, True)
+
+    # 監聽頁面加載事件（每次導航後都會觸發）
+    window.events.loaded += on_loaded
 
 
 if __name__ == '__main__':
