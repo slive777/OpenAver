@@ -64,7 +64,7 @@
     /* 固定比例容器（3:2，接近 800x538） */
     .cover-wrapper {
         position: relative;
-        max-width: 100%;          /* 不超過父容器寬度 */
+        width: 100%;              /* 填滿父容器寬度 */
         max-height: 100%;         /* 不超過父容器高度 */
         aspect-ratio: 3 / 2;      /* 維持 3:2 比例 */
         display: flex;
@@ -441,7 +441,7 @@
             padding-bottom: 50px;
         }
         .cover-wrapper {
-            max-width: 100%;
+            width: 100%;
             max-height: calc(50vh - 60px);
         }
         .cover-img {
@@ -561,17 +561,17 @@
             <div class="result-area p-0">
                 <!-- 封面區 70% -->
                 <div class="cover-section">
-                    <button class="nav-btn prev d-none" id="btnPrev" title="上一個 (←)">
-                        <i class="bi bi-chevron-left"></i>
-                    </button>
                     <div class="cover-wrapper">
                         <img id="resultCover" src="" class="cover-img" alt="封面">
-                    </div>
-                    <button class="nav-btn next d-none" id="btnNext" title="下一個 (→)">
-                        <i class="bi bi-chevron-right"></i>
-                    </button>
-                    <div class="nav-indicator d-none" id="navIndicator">
-                        <span id="currentIndex">1</span> / <span id="totalCount">1</span>
+                        <button class="nav-btn prev d-none" id="btnPrev" title="上一個 (←)">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                        <button class="nav-btn next d-none" id="btnNext" title="下一個 (→)">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                        <div class="nav-indicator d-none" id="navIndicator">
+                            <span id="currentIndex">1</span> / <span id="totalCount">1</span>
+                        </div>
                     </div>
 
                     <!-- 檔案/搜尋結果列表（緊貼在封面下方） -->
@@ -846,6 +846,31 @@ document.addEventListener('DOMContentLoaded', function() {
             coverImg.src = '';
             coverImg.style.display = 'none';
         }
+    }
+
+    // 顯示封面區錯誤（用 SVG 佔位圖）
+    function displayCoverError(message) {
+        const coverImg = document.getElementById('resultCover');
+
+        // 生成 SVG 錯誤圖片
+        const svg = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="800" height="538" viewBox="0 0 800 538">
+                <rect fill="#f8f9fa" width="800" height="538"/>
+                <text x="400" y="230" text-anchor="middle" fill="#ffc107" font-size="80">⚠</text>
+                <text x="400" y="300" text-anchor="middle" fill="#dc3545" font-size="20" font-family="sans-serif">${message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</text>
+                <text x="400" y="330" text-anchor="middle" fill="#6c757d" font-size="14" font-family="sans-serif">請檢查番號格式或稍後再試</text>
+            </svg>
+        `;
+        coverImg.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
+        coverImg.style.display = 'block';
+
+        // 清空資訊區
+        document.getElementById('resultNumber').textContent = '-';
+        document.getElementById('resultTitle').textContent = '-';
+        document.getElementById('resultActors').textContent = '-';
+        document.getElementById('resultDate').textContent = '-';
+        document.getElementById('resultMaker').textContent = '-';
+        document.getElementById('resultTags').textContent = '-';
     }
 
     // 預加載圖片（避免切換時延遲）
@@ -1321,14 +1346,14 @@ document.addEventListener('DOMContentLoaded', function() {
         currentFileIndex = index;
         const file = fileList[index];
 
-        // 無番號檔案：清空畫面顯示錯誤
+        // 無番號檔案：在封面區顯示錯誤（保留列表）
         if (!file.number) {
             renderFileList();  // 更新列表高亮
             searchResults = [];
             hasMoreResults = false;
             currentIndex = 0;
-            document.getElementById('errorMessage').textContent = `無法識別番號: ${file.filename}`;
-            showState('error');
+            displayCoverError(`無法識別番號: ${file.filename}`);
+            showState('result');  // 顯示 resultCard 以保留列表
             updateNavigation();
             return;
         }
@@ -1348,13 +1373,13 @@ document.addEventListener('DOMContentLoaded', function() {
             updateNavigation();
             showState('result');
         } else {
-            // 已搜尋但無結果
+            // 已搜尋但無結果：在封面區顯示錯誤（保留列表）
             renderFileList();  // 更新列表高亮
             searchResults = [];
             hasMoreResults = false;
             currentIndex = 0;
-            document.getElementById('errorMessage').textContent = `找不到 ${file.number} 的資料`;
-            showState('error');
+            displayCoverError(`找不到 ${file.number} 的資料`);
+            showState('result');  // 顯示 resultCard 以保留列表
             updateNavigation();
         }
     }
@@ -1417,8 +1442,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         file.searched = true;
                         file.searchResults = [];
-                        document.getElementById('errorMessage').textContent = `找不到 ${file.number} 的資料`;
-                        showState('error');
+                        displayCoverError(`找不到 ${file.number} 的資料`);
+                        showState('result');  // 保留列表
                         renderFileList();
                     }
                 }
@@ -1431,8 +1456,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     file.searched = true;
                     file.searchResults = [];
-                    document.getElementById('errorMessage').textContent = data.message || '搜尋失敗';
-                    showState('error');
+                    displayCoverError(data.message || '搜尋失敗');
+                    showState('result');  // 保留列表
                     renderFileList();
                 }
             } catch (err) {
@@ -1449,6 +1474,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             file.searched = true;
             file.searchResults = [];
+            displayCoverError('連線錯誤，請稍後再試');
+            showState('result');  // 保留列表
             renderFileList();
         };
     }
