@@ -89,6 +89,9 @@ def bind(w):
 
 
 if __name__ == '__main__':
+    # 關閉自動開啟 DevTools，但保留右鍵選單
+    webview.settings['OPEN_DEVTOOLS_IN_DEBUG'] = False
+
     window = webview.create_window(
         'JavHelper',
         'http://localhost:8000',
@@ -96,4 +99,4 @@ if __name__ == '__main__':
         width=1200,
         height=800
     )
-    webview.start(bind, window)
+    webview.start(bind, window, debug=True)

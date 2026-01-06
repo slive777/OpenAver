@@ -11,6 +11,12 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
 
     <style>
+        /* 啟用文字選取（PyWebView 預設禁用）*/
+        * {
+            user-select: text !important;
+            -webkit-user-select: text !important;
+        }
+
         :root {
             --sidebar-width: 220px;
         }
