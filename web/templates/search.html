@@ -27,19 +27,26 @@
         padding: 0.5rem;
         gap: 0.5rem;
         min-height: 0;
-        /* 移除 align-items: flex-start，讓子元素可以填滿高度 */
     }
 
-    /* 結果卡片填滿高度 */
+    /* 結果卡片 */
     #resultCard {
-        height: 100%;
         display: flex;
         flex-direction: column;
+        max-height: 100%;
     }
 
     #resultCard > .result-area {
-        flex: 1;
+        flex-shrink: 1;
         min-height: 0;
+        align-items: flex-start;  /* 讓 info-section 不要拉伸 */
+    }
+
+    /* 列表在 cover-section 內 */
+    .cover-section > .file-list-section {
+        width: 100%;
+        flex-shrink: 0;
+        margin-top: 0.5rem;
     }
 
     /* 封面區域 - 70% */
@@ -47,11 +54,11 @@
         flex: 7;
         position: relative;
         display: flex;
-        align-items: flex-start;  /* 靠上對齊 */
-        justify-content: center;
+        flex-direction: column;   /* 垂直排列：封面 + 列表 */
+        align-items: center;
         min-width: 0;
-        min-height: 0;            /* 允許縮小，讓高度約束傳遞 */
-        overflow: hidden;         /* 防止溢出 */
+        min-height: 0;
+        overflow: hidden;
     }
 
     /* 固定比例容器（3:2，接近 800x538） */
@@ -472,6 +479,10 @@
     <!-- 搜尋框 -->
     <div class="search-bar">
         <form id="searchForm" class="d-flex gap-2">
+            <!-- 清空按鈕（有內容時顯示） -->
+            <button type="button" class="btn btn-outline-secondary btn-lg d-none" id="btnClear" title="清空">
+                <i class="bi bi-x-lg"></i>
+            </button>
             <div class="flex-grow-1">
                 <div class="input-group input-group-lg">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
@@ -555,6 +566,19 @@
                     <div class="nav-indicator d-none" id="navIndicator">
                         <span id="currentIndex">1</span> / <span id="totalCount">1</span>
                     </div>
+
+                    <!-- 檔案/搜尋結果列表（緊貼在封面下方） -->
+                    <div class="file-list-section d-none" id="fileListSection">
+                        <div class="file-list-header">
+                            <span class="file-count" id="fileCountText">0 個檔案</span>
+                            <button class="btn btn-success btn-sm" id="btnScrape" type="button">
+                                <i class="bi bi-folder-plus"></i> 產生
+                            </button>
+                        </div>
+                        <div class="file-list" id="fileList">
+                            <!-- 動態生成檔案項目 -->
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 資訊區 30% -->
@@ -586,19 +610,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- 檔案列表（結果下方，多檔時顯示） -->
-    <div class="file-list-section d-none" id="fileListSection">
-        <div class="file-list-header">
-            <span class="file-count" id="fileCountText">0 個檔案</span>
-            <button class="btn btn-success btn-sm" id="btnScrape" type="button">
-                <i class="bi bi-folder-plus"></i> 產生
-            </button>
-        </div>
-        <div class="file-list" id="fileList">
-            <!-- 動態生成檔案項目 -->
         </div>
     </div>
 </div>
@@ -667,6 +678,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const errorBtnNext = document.getElementById('errorBtnNext');
     const errorNavIndicator = document.getElementById('errorNavIndicator');
 
+    // 清空按鈕
+    const btnClear = document.getElementById('btnClear');
+
     // 搜尋結果
     let searchResults = [];
     let currentIndex = 0;
@@ -687,6 +701,104 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileListSection = document.getElementById('fileListSection');
     const fileListContainer = document.getElementById('fileList');
     const fileCountText = document.getElementById('fileCountText');
+    const btnScrape = document.getElementById('btnScrape');
+
+    // === 狀態保存/還原 ===
+    const STATE_KEY = 'javhelper_search_state';
+
+    function saveState() {
+        const state = {
+            searchResults,
+            currentIndex,
+            currentQuery,
+            currentOffset,
+            hasMoreResults,
+            fileList,
+            currentFileIndex,
+            listMode,
+            queryValue: queryInput.value
+        };
+        sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
+    }
+
+    function restoreState() {
+        const saved = sessionStorage.getItem(STATE_KEY);
+        if (!saved) return false;
+
+        try {
+            const state = JSON.parse(saved);
+            searchResults = state.searchResults || [];
+            currentIndex = state.currentIndex || 0;
+            currentQuery = state.currentQuery || '';
+            currentOffset = state.currentOffset || 0;
+            hasMoreResults = state.hasMoreResults || false;
+            fileList = state.fileList || [];
+            currentFileIndex = state.currentFileIndex || 0;
+            listMode = state.listMode || null;
+            queryInput.value = state.queryValue || '';
+
+            // 有內容才還原顯示
+            if (searchResults.length > 0) {
+                displayResult(searchResults[currentIndex]);
+                updateNavigation();
+                showState('result');
+
+                if (listMode === 'search') {
+                    renderSearchResultsList();
+                } else if (listMode === 'file') {
+                    renderFileList();
+                }
+                updateClearButton();
+                return true;
+            } else if (fileList.length > 0 && listMode === 'file') {
+                renderFileList();
+                updateClearButton();
+                // 如果當前檔案有結果，顯示它
+                const currentFile = fileList[currentFileIndex];
+                if (currentFile && currentFile.searchResults && currentFile.searchResults.length > 0) {
+                    searchResults = currentFile.searchResults;
+                    hasMoreResults = currentFile.hasMoreResults || false;
+                    displayResult(searchResults[currentIndex]);
+                    updateNavigation();
+                    showState('result');
+                    return true;
+                }
+            }
+        } catch (e) {
+            console.error('還原狀態失敗:', e);
+            sessionStorage.removeItem(STATE_KEY);
+        }
+        return false;
+    }
+
+    function clearState() {
+        sessionStorage.removeItem(STATE_KEY);
+    }
+
+    function clearAll() {
+        searchResults = [];
+        currentIndex = 0;
+        currentQuery = '';
+        currentOffset = 0;
+        hasMoreResults = false;
+        fileList = [];
+        currentFileIndex = 0;
+        listMode = null;
+        queryInput.value = '';
+
+        showState('empty');
+        fileListSection.classList.add('d-none');
+        updateClearButton();
+        clearState();
+    }
+
+    function updateClearButton() {
+        const hasContent = searchResults.length > 0 || fileList.length > 0;
+        btnClear.classList.toggle('d-none', !hasContent);
+    }
+
+    // 離開頁面前保存狀態
+    window.addEventListener('beforeunload', saveState);
 
     function showState(state) {
         emptyState.classList.add('d-none');
@@ -999,6 +1111,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         // 顯示搜尋結果列表
                         listMode = 'search';
                         renderSearchResultsList();
+                        updateClearButton();
                     } else {
                         document.getElementById('errorMessage').textContent = '找不到資料';
                         showState('error');
@@ -1039,6 +1152,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 顯示搜尋結果列表
                 listMode = 'search';
                 renderSearchResultsList();
+                updateClearButton();
             } else {
                 document.getElementById('errorMessage').textContent = data.error || '找不到資料';
                 showState('error');
@@ -1071,11 +1185,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // 自動 focus 搜尋框
-    queryInput.focus();
+    // 清空按鈕點擊
+    btnClear.addEventListener('click', clearAll);
+
+    // 初始化：嘗試還原狀態，否則 focus 搜尋框
+    if (!restoreState()) {
+        queryInput.focus();
+    }
+    updateClearButton();
 
     // === 檔案列表功能 ===
-    const btnScrape = document.getElementById('btnScrape');
 
     // 渲染檔案列表
     function renderFileList() {
@@ -1315,6 +1434,7 @@ document.addEventListener('DOMContentLoaded', function() {
         listMode = 'file';
 
         renderFileList();
+        updateClearButton();
 
         // 自動處理第一個檔案
         if (fileList.length > 0) {
