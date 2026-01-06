@@ -272,6 +272,39 @@
         text-shadow: 0 1px 2px rgba(0,0,0,0.3);
     }
 
+    /* === 拖拽覆蓋層 === */
+    .drag-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(13, 110, 253, 0.1);
+        border: 3px dashed #0d6efd;
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+    }
+    .drag-overlay.active { display: flex; }
+
+    .drag-overlay-content {
+        background: white;
+        padding: 2rem 3rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+        text-align: center;
+    }
+    .drag-overlay-content i {
+        font-size: 3rem;
+        color: #0d6efd;
+        margin-bottom: 1rem;
+        display: block;
+    }
+    .drag-overlay-content p {
+        font-size: 1.1rem;
+        color: #333;
+        margin: 0;
+    }
+
     /* === RWD 響應式 === */
 
     /* Tablet & Mobile: 調整容器高度 */
@@ -330,6 +363,14 @@
 {% endblock %}
 
 {% block content %}
+<!-- 拖拽覆蓋層 -->
+<div class="drag-overlay" id="dragOverlay">
+    <div class="drag-overlay-content">
+        <i class="bi bi-file-earmark-play"></i>
+        <p>放開以搜尋番號</p>
+    </div>
+</div>
+
 <div class="search-container">
     <!-- 搜尋框 -->
     <div class="search-bar">
@@ -795,6 +836,95 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 自動 focus 搜尋框
     queryInput.focus();
+
+    // === 拖拽搜尋功能 ===
+    const dragOverlay = document.getElementById('dragOverlay');
+    let dragCounter = 0;
+
+    /**
+     * 從檔名提取番號
+     */
+    function extractNumber(filename) {
+        // 清洗：取檔名部分（去除路徑和副檔名）
+        const basename = filename.split(/[/\\]/).pop().replace(/\.[^.]+$/, '');
+
+        // 番號正則（優先順序：標準格式 > 無連字號 > FC2）
+        const patterns = [
+            /\b([A-Z]{2,5})-(\d{3,5})\b/i,   // SONE-205
+            /\b([A-Z]{2,5})(\d{3,5})\b/i,     // IPTD927
+            /\b(FC2-PPV)-(\d{5,7})\b/i,       // FC2-PPV-1234567
+        ];
+
+        for (const pattern of patterns) {
+            const match = basename.match(pattern);
+            if (match) {
+                const prefix = match[1].toUpperCase();
+                // FC2 特殊處理
+                if (prefix === 'FC2-PPV') {
+                    return `FC2-PPV-${match[2]}`;
+                }
+                return `${prefix}-${match[2]}`;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 執行拖拽搜尋
+     */
+    function handleFileDrop(files) {
+        if (!files || files.length === 0) return;
+
+        // 只處理第一個檔案
+        const filename = files[0].name;
+        const number = extractNumber(filename);
+
+        if (number) {
+            // 填入搜尋框並執行搜尋
+            queryInput.value = number;
+            form.dispatchEvent(new Event('submit'));
+        } else {
+            // 無法提取番號時顯示錯誤
+            document.getElementById('errorMessage').textContent = '無法從檔名識別番號';
+            showState('error');
+        }
+    }
+
+    // 防止瀏覽器預設行為（開啟檔案）
+    document.addEventListener('dragover', (e) => {
+        e.preventDefault();
+    });
+
+    // 拖拽進入頁面
+    document.addEventListener('dragenter', (e) => {
+        e.preventDefault();
+        dragCounter++;
+
+        // 檢查是否為檔案拖拽
+        if (e.dataTransfer.types.includes('Files')) {
+            dragOverlay.classList.add('active');
+        }
+    });
+
+    // 拖拽離開頁面
+    document.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dragCounter--;
+
+        if (dragCounter === 0) {
+            dragOverlay.classList.remove('active');
+        }
+    });
+
+    // 放開檔案
+    document.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dragCounter = 0;
+        dragOverlay.classList.remove('active');
+
+        // 處理拖拽的檔案
+        handleFileDrop(e.dataTransfer.files);
+    });
 });
 </script>
 {% endblock %}
