@@ -27,7 +27,19 @@
         padding: 0.5rem;
         gap: 0.5rem;
         min-height: 0;
-        align-items: flex-start;
+        /* 移除 align-items: flex-start，讓子元素可以填滿高度 */
+    }
+
+    /* 結果卡片填滿高度 */
+    #resultCard {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #resultCard > .result-area {
+        flex: 1;
+        min-height: 0;
     }
 
     /* 封面區域 - 70% */
@@ -35,16 +47,32 @@
         flex: 7;
         position: relative;
         display: flex;
-        align-items: center;
+        align-items: flex-start;  /* 靠上對齊 */
         justify-content: center;
         min-width: 0;
+        min-height: 0;            /* 允許縮小，讓高度約束傳遞 */
+        overflow: hidden;         /* 防止溢出 */
+    }
+
+    /* 固定比例容器（3:2，接近 800x538） */
+    .cover-wrapper {
+        position: relative;
+        max-width: 100%;          /* 不超過父容器寬度 */
+        max-height: 100%;         /* 不超過父容器高度 */
+        aspect-ratio: 3 / 2;      /* 維持 3:2 比例 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8f9fa;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
 
     .cover-img {
         max-width: 100%;
-        max-height: calc(100vh - 180px);
+        max-height: 100%;
+        object-fit: contain;
         border-radius: 4px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
 
     /* 導航按鈕 */
@@ -398,6 +426,10 @@
             position: relative;
             padding-bottom: 50px;
         }
+        .cover-wrapper {
+            max-width: 100%;
+            max-height: calc(50vh - 60px);
+        }
         .cover-img {
             max-height: calc(50vh - 60px);
         }
@@ -514,7 +546,9 @@
                     <button class="nav-btn prev d-none" id="btnPrev" title="上一個 (←)">
                         <i class="bi bi-chevron-left"></i>
                     </button>
-                    <img id="resultCover" src="" class="cover-img" alt="封面">
+                    <div class="cover-wrapper">
+                        <img id="resultCover" src="" class="cover-img" alt="封面">
+                    </div>
                     <button class="nav-btn next d-none" id="btnNext" title="下一個 (→)">
                         <i class="bi bi-chevron-right"></i>
                     </button>
@@ -647,6 +681,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // === 多檔案列表狀態 ===
     let fileList = [];  // [{path, filename, number, metadata, searched}]
     let currentFileIndex = 0;
+    let listMode = null;  // 'file' | 'search' | null
 
     // 檔案列表 DOM 元素
     const fileListSection = document.getElementById('fileListSection');
@@ -778,6 +813,10 @@ document.addEventListener('DOMContentLoaded', function() {
             displayResult(searchResults[currentIndex]);
             updateNavigation();
             preloadImages(currentIndex + 1, 3);
+            // 搜尋模式下更新列表高亮
+            if (listMode === 'search') {
+                renderSearchResultsList();
+            }
         }
     }
 
@@ -809,6 +848,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // 預加載新圖片
                 preloadImages(currentIndex + 1, 5);
+
+                // 更新搜尋結果列表
+                if (listMode === 'search') {
+                    renderSearchResultsList();
+                }
             } else {
                 // 沒有更多結果了
                 hasMoreResults = false;
@@ -912,6 +956,12 @@ document.addEventListener('DOMContentLoaded', function() {
         searchResults = [];
         currentIndex = 0;
 
+        // 清空多檔案列表（文字搜尋與拖檔搜尋互斥）
+        fileList = [];
+        currentFileIndex = 0;
+        listMode = null;
+        fileListSection.classList.add('d-none');
+
         // 重設分頁狀態
         currentQuery = query;
         currentOffset = 0;
@@ -946,6 +996,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         showState('result');
                         // 預加載前 5 張圖片
                         preloadImages(1, 5);
+                        // 顯示搜尋結果列表
+                        listMode = 'search';
+                        renderSearchResultsList();
                     } else {
                         document.getElementById('errorMessage').textContent = '找不到資料';
                         showState('error');
@@ -983,6 +1036,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateNavigation();
                 showState('result');
                 preloadImages(1, 5);
+                // 顯示搜尋結果列表
+                listMode = 'search';
+                renderSearchResultsList();
             } else {
                 document.getElementById('errorMessage').textContent = data.error || '找不到資料';
                 showState('error');
@@ -1029,6 +1085,9 @@ document.addEventListener('DOMContentLoaded', function() {
         fileListContainer.innerHTML = '';
         fileCountText.textContent = `檔案 ${currentFileIndex + 1}/${fileList.length}`;
 
+        // 顯示產生按鈕（拖檔模式）
+        btnScrape.classList.remove('d-none');
+
         fileList.forEach((file, index) => {
             const item = document.createElement('div');
             item.className = 'file-item' + (index === currentFileIndex ? ' active' : '');
@@ -1056,6 +1115,51 @@ document.addEventListener('DOMContentLoaded', function() {
             item.addEventListener('click', () => switchToFile(index, 'first'));
             fileListContainer.appendChild(item);
         });
+    }
+
+    // 渲染搜尋結果列表（文字搜尋模式）
+    function renderSearchResultsList() {
+        if (searchResults.length === 0) {
+            fileListSection.classList.add('d-none');
+            return;
+        }
+
+        fileListSection.classList.remove('d-none');
+        fileListContainer.innerHTML = '';
+
+        // 更新標題
+        const countText = hasMoreResults ? `${searchResults.length}+` : searchResults.length;
+        fileCountText.textContent = `搜尋結果 (${countText})`;
+
+        // 隱藏產生按鈕（搜尋模式不需要）
+        btnScrape.classList.add('d-none');
+
+        searchResults.forEach((result, index) => {
+            const item = document.createElement('div');
+            item.className = 'file-item' + (index === currentIndex ? ' active' : '');
+
+            // 格式：番號 + 演員 + 片名（CSS 自動截斷）
+            const number = result.number || '';
+            const actors = (result.actors || []).slice(0, 2).join(', ') || '-';
+            const title = result.title || '';
+
+            item.innerHTML = `
+                <span style="flex-shrink:0; font-weight:500; color:#0d6efd; min-width:90px;">${number}</span>
+                <span style="flex-shrink:0; min-width:80px; color:#6c757d;">${actors}</span>
+                <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${title}</span>
+            `;
+            item.addEventListener('click', () => switchToSearchResult(index));
+            fileListContainer.appendChild(item);
+        });
+    }
+
+    // 切換到搜尋結果（文字搜尋模式）
+    function switchToSearchResult(index) {
+        if (index < 0 || index >= searchResults.length) return;
+        currentIndex = index;
+        displayResult(searchResults[currentIndex]);
+        updateNavigation();
+        renderSearchResultsList();  // 更新高亮
     }
 
     // 切換到指定檔案（懶加載搜尋）
@@ -1208,6 +1312,7 @@ document.addEventListener('DOMContentLoaded', function() {
             searched: false
         }));
         currentFileIndex = 0;
+        listMode = 'file';
 
         renderFileList();
 
