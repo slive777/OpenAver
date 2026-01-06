@@ -11,8 +11,9 @@ JAV 影片元數據管理工具 - Web GUI 版本
 
 ## 技術架構
 
-- **後端**: FastAPI + Python
+- **後端**: FastAPI + Python (WSL)
 - **前端**: Jinja2 + Bootstrap 5
+- **GUI**: PyWebView (Windows 桌面應用)
 - **翻譯**: Ollama（可選）
 
 ## 安裝
@@ -38,7 +39,15 @@ source venv/bin/activate
 uvicorn web.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
+### 方式一：瀏覽器
 瀏覽器開啟 http://localhost:8000
+
+### 方式二：PyWebView（推薦）
+```powershell
+# Windows PowerShell
+pip install pywebview
+python windows/launcher.py
+```
 
 ## 目錄結構
 
@@ -50,6 +59,8 @@ JavHelper/
 │   ├── templates/      # HTML 模板
 │   └── static/         # CSS/JS
 ├── core/               # 核心模組
+├── windows/            # Windows 啟動器
+│   └── launcher.py     # PyWebView 啟動腳本
 ├── maker_mapping.json  # 片商映射
 ├── requirements.txt    # Python 依賴
 └── prd.md              # 產品規劃文件
