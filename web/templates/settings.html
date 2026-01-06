@@ -94,23 +94,12 @@
                 <i class="bi bi-search"></i> 搜尋設定
             </div>
             <div class="card-body">
-                <div class="row mb-3">
+                <div class="row">
                     <div class="col-md-6">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="autoSearchOnDrop" checked>
                             <label class="form-check-label" for="autoSearchOnDrop">拖入檔案自動搜尋</label>
                         </div>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6">
-                        <label class="form-label">搜尋過濾詞</label>
-                    </div>
-                    <div class="col-md-6">
-                        <input type="text" class="form-control form-control-sm" id="searchFilter"
-                               placeholder="中文字幕;高清;破解">
-                        <small class="text-muted">以分號分隔，搜尋時會從檔名中移除</small>
                     </div>
                 </div>
             </div>
@@ -237,7 +226,6 @@ async function loadConfig() {
 
             // 搜尋設定
             document.getElementById('autoSearchOnDrop').checked = config.search.auto_search_on_drop;
-            document.getElementById('searchFilter').value = config.search.search_filter;
 
             // 翻譯設定
             document.getElementById('translateEnabled').checked = config.translate.enabled;
@@ -265,8 +253,7 @@ async function saveConfig() {
                 .split(',').map(s => s.trim()).filter(s => s)
         },
         search: {
-            auto_search_on_drop: document.getElementById('autoSearchOnDrop').checked,
-            search_filter: document.getElementById('searchFilter').value
+            auto_search_on_drop: document.getElementById('autoSearchOnDrop').checked
         },
         translate: {
             enabled: document.getElementById('translateEnabled').checked,

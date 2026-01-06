@@ -4,12 +4,11 @@
 
 {% block extra_css %}
 <style>
-    /* 主要容器 - 填滿視窗高度 */
+    /* 主要容器 */
     .search-container {
-        height: calc(100vh - 56px);
+        min-height: calc(100vh - 56px);
         display: flex;
         flex-direction: column;
-        overflow: hidden;
     }
 
     /* 搜尋框區域 - 緊湊 */
@@ -90,21 +89,65 @@
         font-size: 0.8rem;
     }
 
-    /* 路徑輸入區 */
-    .path-input-area {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        padding: 8px 12px;
+    /* 檔案列表區（封面下方） */
+    .file-list-section {
         background: rgba(255,255,255,0.95);
         border-top: 1px solid #dee2e6;
+        padding: 8px 12px;
     }
-    .path-input-area .form-control {
-        background: #f8f9fa;
+
+    .file-list-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
     }
-    .path-input-area .form-control:focus {
-        background: #fff;
+
+    .file-list-header .file-count {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+
+    .file-list {
+        /* 不限制高度，讓頁面滾動 */
+    }
+
+    .file-item {
+        padding: 4px 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        border-radius: 4px;
+        transition: background 0.15s;
+    }
+
+    .file-item:hover {
+        background: #e9ecef;
+    }
+
+    .file-item.active {
+        background: #e7f1ff;
+        font-weight: 500;
+    }
+
+    .file-item .file-icon {
+        color: #6c757d;
+        flex-shrink: 0;
+    }
+
+    .file-item .file-name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .file-item .file-status {
+        font-size: 0.75rem;
+        color: #198754;
+        flex-shrink: 0;
     }
 
     /* 資訊區域 - 30% */
@@ -451,11 +494,21 @@
             <i class="bi bi-exclamation-triangle text-danger"></i>
             <p class="text-danger mb-1" id="errorMessage">搜尋失敗</p>
             <small>請檢查番號格式或稍後再試</small>
+            <!-- 多檔案模式導航 -->
+            <div class="error-nav d-none mt-3" id="errorNav">
+                <button class="btn btn-outline-secondary btn-sm" id="errorBtnPrev" title="上一個 (←)">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                <span class="mx-2" id="errorNavIndicator">1/5</span>
+                <button class="btn btn-outline-secondary btn-sm" id="errorBtnNext" title="下一個 (→)">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+            </div>
         </div>
 
         <!-- 結果卡片 -->
         <div id="resultCard" class="d-none w-100">
-            <div class="result-area p-0" style="height: 100%;">
+            <div class="result-area p-0">
                 <!-- 封面區 70% -->
                 <div class="cover-section">
                     <button class="nav-btn prev d-none" id="btnPrev" title="上一個 (←)">
@@ -467,18 +520,6 @@
                     </button>
                     <div class="nav-indicator d-none" id="navIndicator">
                         <span id="currentIndex">1</span> / <span id="totalCount">1</span>
-                    </div>
-
-                    <!-- 路徑輸入區（封面下方）-->
-                    <div class="path-input-area" id="pathInputArea">
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="bi bi-folder2-open"></i></span>
-                            <input type="text" class="form-control" id="filePathInput"
-                                   placeholder="拖入檔案後自動填入路徑..." readonly>
-                            <button class="btn btn-success px-4" id="btnScrape" type="button">
-                                <i class="bi bi-folder-plus"></i> 產生
-                            </button>
-                        </div>
                     </div>
                 </div>
 
@@ -513,6 +554,19 @@
             </div>
         </div>
     </div>
+
+    <!-- 檔案列表（結果下方，多檔時顯示） -->
+    <div class="file-list-section d-none" id="fileListSection">
+        <div class="file-list-header">
+            <span class="file-count" id="fileCountText">0 個檔案</span>
+            <button class="btn btn-success btn-sm" id="btnScrape" type="button">
+                <i class="bi bi-folder-plus"></i> 產生
+            </button>
+        </div>
+        <div class="file-list" id="fileList">
+            <!-- 動態生成檔案項目 -->
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -543,30 +597,17 @@ function extractNumberGlobal(filename) {
 
 /**
  * PyWebView 拖放回調（由 Python 端呼叫）
- * @param {string} wslPath - WSL 格式的檔案路徑
+ * @param {string|string[]} paths - WSL 格式的檔案路徑（單一或陣列）
  */
-window.handlePyWebViewDrop = function(wslPath) {
-    console.log('PyWebView drop:', wslPath);
+window.handlePyWebViewDrop = function(paths) {
+    // 統一轉為陣列
+    const pathList = Array.isArray(paths) ? paths : [paths];
+    console.log('PyWebView drop:', pathList.length, '個檔案');
 
-    // 填入路徑輸入框
-    const pathInput = document.getElementById('filePathInput');
-    if (pathInput) {
-        pathInput.value = wslPath;
-    }
-
-    // 從路徑提取番號
-    const filename = wslPath.split('/').pop();
-    const number = extractNumberGlobal(filename);
-
-    if (number) {
-        // 填入搜尋框
-        const searchInput = document.getElementById('searchQuery');
-        const searchForm = document.getElementById('searchForm');
-        if (searchInput && searchForm) {
-            searchInput.value = number;
-            searchForm.dispatchEvent(new Event('submit'));
-        }
-    }
+    // 觸發自定義事件，讓主程式處理
+    window.dispatchEvent(new CustomEvent('pywebview-files', {
+        detail: { paths: pathList }
+    }));
 };
 
 // === 主程式 ===
@@ -586,6 +627,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const currentIndexSpan = document.getElementById('currentIndex');
     const totalCountSpan = document.getElementById('totalCount');
 
+    // 錯誤狀態導航按鈕（多檔案模式用）
+    const errorNav = document.getElementById('errorNav');
+    const errorBtnPrev = document.getElementById('errorBtnPrev');
+    const errorBtnNext = document.getElementById('errorBtnNext');
+    const errorNavIndicator = document.getElementById('errorNavIndicator');
+
     // 搜尋結果
     let searchResults = [];
     let currentIndex = 0;
@@ -596,6 +643,15 @@ document.addEventListener('DOMContentLoaded', function() {
     let hasMoreResults = false;
     let isLoadingMore = false;
     const PAGE_SIZE = 20;
+
+    // === 多檔案列表狀態 ===
+    let fileList = [];  // [{path, filename, number, metadata, searched}]
+    let currentFileIndex = 0;
+
+    // 檔案列表 DOM 元素
+    const fileListSection = document.getElementById('fileListSection');
+    const fileListContainer = document.getElementById('fileList');
+    const fileCountText = document.getElementById('fileCountText');
 
     function showState(state) {
         emptyState.classList.add('d-none');
@@ -649,33 +705,71 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateNavigation() {
-        const hasMultiple = searchResults.length > 1 || hasMoreResults;
+        // 多檔案模式或多結果時都顯示導航
+        const hasMultipleResults = searchResults.length > 1 || hasMoreResults;
+        const hasMultipleFiles = fileList.length > 1;
+        const showNav = hasMultipleResults || hasMultipleFiles;
 
-        btnPrev.classList.toggle('d-none', !hasMultiple);
-        btnNext.classList.toggle('d-none', !hasMultiple);
-        navIndicator.classList.toggle('d-none', !hasMultiple);
+        btnPrev.classList.toggle('d-none', !showNav);
+        btnNext.classList.toggle('d-none', !showNav);
+        navIndicator.classList.toggle('d-none', !showNav);
 
-        if (hasMultiple) {
-            currentIndexSpan.textContent = currentIndex + 1;
-            // 顯示總數，如果還有更多就加 +
-            totalCountSpan.textContent = hasMoreResults
-                ? searchResults.length + '+'
-                : searchResults.length;
+        // 判斷是否可往左（有前一個結果，或有前一個檔案）
+        const canGoPrev = currentIndex > 0 || currentFileIndex > 0;
+        // 判斷是否可往右（有後續結果、更多結果、或後續檔案）
+        const canGoNext = currentIndex < searchResults.length - 1 || hasMoreResults || currentFileIndex < fileList.length - 1;
 
-            btnPrev.disabled = currentIndex === 0;
-            // 如果還有更多結果，Next 按鈕不停用
-            btnNext.disabled = !hasMoreResults && currentIndex === searchResults.length - 1;
+        if (showNav) {
+            // 多檔案模式：顯示檔案索引
+            if (fileList.length > 1) {
+                currentIndexSpan.textContent = currentFileIndex + 1;
+                totalCountSpan.textContent = fileList.length;
+            } else {
+                // 單檔案模式：顯示搜尋結果索引
+                currentIndexSpan.textContent = currentIndex + 1;
+                totalCountSpan.textContent = hasMoreResults
+                    ? searchResults.length + '+'
+                    : searchResults.length;
+            }
+
+            btnPrev.disabled = !canGoPrev;
+            btnNext.disabled = !canGoNext;
+        }
+
+        // 更新 error 狀態的導航按鈕（多檔案模式）
+        if (hasMultipleFiles) {
+            errorNav.classList.remove('d-none');
+            errorNavIndicator.textContent = `${currentFileIndex + 1}/${fileList.length}`;
+            errorBtnPrev.disabled = !canGoPrev;
+            errorBtnNext.disabled = !canGoNext;
+        } else {
+            errorNav.classList.add('d-none');
         }
     }
 
     function navigateResult(delta) {
-        if (searchResults.length <= 1 && !hasMoreResults) return;
-
         const newIndex = currentIndex + delta;
 
-        // 往右且到最後一個且還有更多 → 載入更多
-        if (delta > 0 && newIndex >= searchResults.length && hasMoreResults && !isLoadingMore) {
-            loadMoreResults();
+        // 往左且已在第一個 → 切換到上一個檔案
+        if (delta < 0 && newIndex < 0) {
+            if (currentFileIndex > 0) {
+                switchToFile(currentFileIndex - 1, 'last');  // 切到上一個檔案的最後一個結果
+            }
+            return;
+        }
+
+        // 往右且到最後一個
+        if (delta > 0 && newIndex >= searchResults.length) {
+            // 先嘗試載入更多結果
+            if (hasMoreResults && !isLoadingMore) {
+                loadMoreResults();
+                return;
+            }
+            // 沒有更多結果了，切換到下一個檔案
+            if (currentFileIndex < fileList.length - 1) {
+                switchToFile(currentFileIndex + 1, 'first');
+                return;
+            }
             return;
         }
 
@@ -683,7 +777,6 @@ document.addEventListener('DOMContentLoaded', function() {
             currentIndex = newIndex;
             displayResult(searchResults[currentIndex]);
             updateNavigation();
-            // 預加載後續圖片
             preloadImages(currentIndex + 1, 3);
         }
     }
@@ -904,12 +997,14 @@ document.addEventListener('DOMContentLoaded', function() {
     btnPrev.addEventListener('click', () => navigateResult(-1));
     btnNext.addEventListener('click', () => navigateResult(1));
 
+    // Error 狀態導航按鈕點擊（多檔案模式）
+    errorBtnPrev.addEventListener('click', () => navigateResult(-1));
+    errorBtnNext.addEventListener('click', () => navigateResult(1));
+
     // 鍵盤導航
     document.addEventListener('keydown', (e) => {
         // 如果正在輸入搜尋框，不處理
         if (document.activeElement === queryInput) return;
-
-        if (searchResults.length <= 1 && !hasMoreResults) return;
 
         if (e.key === 'ArrowLeft') {
             e.preventDefault();
@@ -923,34 +1018,229 @@ document.addEventListener('DOMContentLoaded', function() {
     // 自動 focus 搜尋框
     queryInput.focus();
 
-    // === Scraper 功能 ===
+    // === 檔案列表功能 ===
     const btnScrape = document.getElementById('btnScrape');
-    const filePathInput = document.getElementById('filePathInput');
 
-    // 檢查是否在 PyWebView 環境
-    function isPyWebView() {
-        return typeof window.pywebview !== 'undefined';
+    // 渲染檔案列表
+    function renderFileList() {
+        // 顯示/隱藏檔案列表區
+        fileListSection.classList.toggle('d-none', fileList.length === 0);
+
+        fileListContainer.innerHTML = '';
+        fileCountText.textContent = `檔案 ${currentFileIndex + 1}/${fileList.length}`;
+
+        fileList.forEach((file, index) => {
+            const item = document.createElement('div');
+            item.className = 'file-item' + (index === currentFileIndex ? ' active' : '');
+
+            // 狀態圖標：✓ 有結果、✗ 無結果/無番號、空白 未搜尋
+            let statusIcon = '';
+            let statusClass = 'file-status';
+            if (!file.number) {
+                statusIcon = '✗';
+                statusClass += ' text-danger';
+            } else if (file.searched) {
+                if (file.searchResults && file.searchResults.length > 0) {
+                    statusIcon = '✓';
+                } else {
+                    statusIcon = '✗';
+                    statusClass += ' text-danger';
+                }
+            }
+
+            item.innerHTML = `
+                <i class="bi bi-file-earmark-play file-icon"></i>
+                <span class="file-name" title="${file.path}">${file.filename}</span>
+                <span class="${statusClass}">${statusIcon}</span>
+            `;
+            item.addEventListener('click', () => switchToFile(index, 'first'));
+            fileListContainer.appendChild(item);
+        });
     }
 
-    // 設定檔案路徑
-    function setFilePath(path) {
-        if (path) {
-            filePathInput.value = path;
-        }
-    }
+    // 切換到指定檔案（懶加載搜尋）
+    // position: 'first' 顯示第一個結果, 'last' 顯示最後一個結果
+    // showFullLoading: true 顯示全畫面 loading（首次拖入時）
+    async function switchToFile(index, position = 'first', showFullLoading = false) {
+        if (index < 0 || index >= fileList.length) return;
 
-    // 執行 Scraper
-    async function executeScraper() {
-        const filePath = filePathInput.value.trim();
+        currentFileIndex = index;
+        const file = fileList[index];
 
-        if (!filePath) {
-            alert('請輸入檔案路徑');
-            filePathInput.focus();
+        // 更新列表高亮
+        renderFileList();
+
+        // 無番號檔案：清空畫面顯示錯誤
+        if (!file.number) {
+            searchResults = [];
+            hasMoreResults = false;
+            currentIndex = 0;
+            document.getElementById('errorMessage').textContent = `無法識別番號: ${file.filename}`;
+            showState('error');
+            updateNavigation();
             return;
         }
 
-        const number = searchResults[currentIndex]?.number;
-        if (!number) {
+        // 如果還沒搜尋過，執行搜尋
+        if (!file.searched) {
+            await searchForFile(file, position, showFullLoading);
+        } else if (file.searchResults && file.searchResults.length > 0) {
+            // 已有結果，直接顯示
+            searchResults = file.searchResults;
+            hasMoreResults = file.hasMoreResults || false;
+            currentIndex = position === 'last' ? searchResults.length - 1 : 0;
+            displayResult(searchResults[currentIndex]);
+            updateNavigation();
+            showState('result');
+        } else {
+            // 已搜尋但無結果
+            searchResults = [];
+            hasMoreResults = false;
+            currentIndex = 0;
+            document.getElementById('errorMessage').textContent = `找不到 ${file.number} 的資料`;
+            showState('error');
+            updateNavigation();
+        }
+    }
+
+    // 為檔案執行搜尋
+    // position: 'first' 顯示第一個結果, 'last' 顯示最後一個結果
+    // showFullLoading: true 顯示全畫面 loading（首次拖入時）, false 只顯示箭頭轉圈
+    async function searchForFile(file, position = 'first', showFullLoading = false) {
+        // 判斷是往左還是往右切換
+        const isGoingNext = position === 'first';
+        const targetBtn = isGoingNext ? btnNext : btnPrev;
+        const originalBtnHtml = targetBtn.innerHTML;
+
+        if (showFullLoading) {
+            showState('loading');
+            initProgress(file.number);
+        } else {
+            // 只在箭頭按鈕上顯示轉圈
+            targetBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            targetBtn.disabled = true;
+        }
+
+        const eventSource = new EventSource(`/api/search/stream?q=${encodeURIComponent(file.number)}`);
+
+        eventSource.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'mode') {
+                    currentMode = data.mode;
+                    updateLog(`${MODE_TEXT[data.mode] || '搜尋'}...`);
+                }
+                else if (data.type === 'status') {
+                    handleSearchStatus(data.source, data.status);
+                }
+                else if (data.type === 'result') {
+                    eventSource.close();
+
+                    // 恢復按鈕狀態
+                    if (!showFullLoading) {
+                        targetBtn.innerHTML = originalBtnHtml;
+                        targetBtn.disabled = false;
+                    }
+
+                    if (data.success && data.data && data.data.length > 0) {
+                        // 儲存完整結果到檔案物件
+                        file.searchResults = data.data;
+                        file.hasMoreResults = data.has_more || false;
+                        file.searched = true;
+
+                        searchResults = data.data;
+                        hasMoreResults = file.hasMoreResults;
+                        currentIndex = position === 'last' ? searchResults.length - 1 : 0;
+                        displayResult(searchResults[currentIndex]);
+                        updateNavigation();
+                        showState('result');
+
+                        // 更新列表顯示
+                        renderFileList();
+                    } else {
+                        file.searched = true;
+                        file.searchResults = [];
+                        document.getElementById('errorMessage').textContent = `找不到 ${file.number} 的資料`;
+                        showState('error');
+                        renderFileList();
+                    }
+                }
+                else if (data.type === 'error') {
+                    eventSource.close();
+                    // 恢復按鈕狀態
+                    if (!showFullLoading) {
+                        targetBtn.innerHTML = originalBtnHtml;
+                        targetBtn.disabled = false;
+                    }
+                    file.searched = true;
+                    file.searchResults = [];
+                    document.getElementById('errorMessage').textContent = data.message || '搜尋失敗';
+                    showState('error');
+                    renderFileList();
+                }
+            } catch (err) {
+                console.error('Parse error:', err);
+            }
+        };
+
+        eventSource.onerror = function() {
+            eventSource.close();
+            // 恢復按鈕狀態
+            if (!showFullLoading) {
+                targetBtn.innerHTML = originalBtnHtml;
+                targetBtn.disabled = false;
+            }
+            file.searched = true;
+            file.searchResults = [];
+            renderFileList();
+        };
+    }
+
+    // 設定檔案列表（從 PyWebView 接收）
+    function setFileList(paths) {
+        fileList = paths.map(path => ({
+            path: path,
+            filename: path.split('/').pop(),
+            number: extractNumber(path),
+            searchResults: [],
+            hasMoreResults: false,
+            searched: false
+        }));
+        currentFileIndex = 0;
+
+        renderFileList();
+
+        // 自動處理第一個檔案
+        if (fileList.length > 0) {
+            if (fileList[0].number) {
+                queryInput.value = fileList[0].number;
+            }
+            switchToFile(0, 'first', true);  // showFullLoading = true
+        }
+    }
+
+    // 監聽 PyWebView 檔案事件
+    window.addEventListener('pywebview-files', (e) => {
+        setFileList(e.detail.paths);
+    });
+
+    // 執行 Scraper（處理當前檔案）
+    async function executeScraper() {
+        if (fileList.length === 0) {
+            alert('請先拖入檔案');
+            return;
+        }
+
+        const file = fileList[currentFileIndex];
+        if (!file || !file.path) {
+            alert('請選擇檔案');
+            return;
+        }
+
+        // 使用當前顯示的搜尋結果
+        const metadata = searchResults[currentIndex];
+        if (!metadata || !metadata.number) {
             alert('沒有番號資料，請先搜尋');
             return;
         }
@@ -961,16 +1251,13 @@ document.addEventListener('DOMContentLoaded', function() {
         btnScrape.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
 
         try {
-            // 取得當前搜尋結果的完整 metadata
-            const currentMetadata = searchResults[currentIndex];
-
             const response = await fetch('/api/scrape-single', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    file_path: filePath,
-                    number: number,
-                    metadata: currentMetadata  // 傳入完整 metadata，避免重新搜尋
+                    file_path: file.path,
+                    number: metadata.number,
+                    metadata: metadata
                 })
             });
 
@@ -982,16 +1269,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 btnScrape.classList.remove('btn-success');
                 btnScrape.classList.add('btn-outline-success');
 
-                // 顯示結果
-                let msg = '處理完成!\n\n';
-                if (result.new_folder) msg += `資料夾: ${result.new_folder.split(/[/\\]/).pop()}\n`;
-                if (result.new_filename) msg += `檔案: ${result.new_filename.split(/[/\\]/).pop()}\n`;
-                if (result.cover_path) msg += `封面: 已下載\n`;
-                if (result.nfo_path) msg += `NFO: 已建立\n`;
-                alert(msg);
-
-                // 清空路徑欄位
-                filePathInput.value = '';
+                // 簡單提示
+                alert(`處理完成!\n資料夾: ${result.new_folder?.split(/[/\\]/).pop() || '-'}`);
 
                 // 重置按鈕（延遲）
                 setTimeout(() => {
@@ -1013,14 +1292,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     btnScrape.addEventListener('click', executeScraper);
-
-    // Enter 鍵觸發
-    filePathInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            executeScraper();
-        }
-    });
 
     // === 拖拽搜尋功能 ===
     const dragOverlay = document.getElementById('dragOverlay');
@@ -1055,11 +1326,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
-     * 執行拖拽搜尋
+     * 執行拖拽搜尋（瀏覽器環境，無法取得完整路徑）
+     * PyWebView 環境會透過 handlePyWebViewDrop 處理
      */
-    async function handleFileDrop(files, dataTransfer) {
+    function handleFileDrop(files) {
         if (!files || files.length === 0) return;
 
+        // 瀏覽器環境：只能搜尋番號，無法取得路徑
         // 只處理第一個檔案
         const file = files[0];
         const filename = file.name;
@@ -1069,30 +1342,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('errorMessage').textContent = '無法從檔名識別番號';
             showState('error');
             return;
-        }
-
-        // 嘗試取得完整路徑（PyWebView）
-        let fullPath = null;
-
-        // 方法1: 從 file.path 取得（Electron/PyWebView 可能支援）
-        if (file.path) {
-            fullPath = file.path;
-        }
-
-        // 方法2: PyWebView API 轉換路徑
-        if (!fullPath && isPyWebView() && window.pywebview.api) {
-            try {
-                if (file.path) {
-                    fullPath = await window.pywebview.api.convert_path(file.path);
-                }
-            } catch (e) {
-                console.log('PyWebView 路徑轉換失敗:', e);
-            }
-        }
-
-        // 如果取得路徑，填入輸入框
-        if (fullPath) {
-            setFilePath(fullPath);
         }
 
         // 填入搜尋框並執行搜尋
@@ -1132,8 +1381,9 @@ document.addEventListener('DOMContentLoaded', function() {
         dragCounter = 0;
         dragOverlay.classList.remove('active');
 
-        // 處理拖拽的檔案（傳入 dataTransfer 以便取得路徑）
-        handleFileDrop(e.dataTransfer.files, e.dataTransfer);
+        // 處理拖拽的檔案（瀏覽器環境）
+        // PyWebView 會透過 Python 端的 on_drop 處理，不會走到這裡
+        handleFileDrop(e.dataTransfer.files);
     });
 });
 </script>

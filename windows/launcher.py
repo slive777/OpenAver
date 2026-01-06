@@ -46,33 +46,31 @@ window = None
 
 
 def on_drop(e):
-    """處理拖放事件，取得完整路徑並傳給前端"""
+    """處理拖放事件，取得完整路徑並傳給前端（支援多檔案）"""
     global window
+    import json
 
     print("[DEBUG] on_drop 被觸發")
-    print(f"[DEBUG] event: {e}")
 
     files = e.get('dataTransfer', {}).get('files', [])
     if not files:
         print("[DEBUG] 沒有檔案")
         return
 
-    # 取得第一個檔案的完整路徑
-    file_info = files[0]
-    print(f"[DEBUG] file_info: {file_info}")
+    # 收集所有檔案的 WSL 路徑
+    wsl_paths = []
+    for file_info in files:
+        full_path = file_info.get('pywebviewFullPath', '')
+        if full_path:
+            wsl_path = api.convert_path(full_path)
+            wsl_paths.append(wsl_path)
+            print(f"[DEBUG] {full_path} → {wsl_path}")
 
-    full_path = file_info.get('pywebviewFullPath', '')
-    print(f"[DEBUG] Windows 路徑: {full_path}")
-
-    if full_path:
-        # 轉換為 WSL 路徑
-        wsl_path = api.convert_path(full_path)
-        print(f"[DEBUG] WSL 路徑: {wsl_path}")
-
-        # 呼叫前端 JS 函數（需要跳脫引號）
-        wsl_path_escaped = wsl_path.replace('\\', '\\\\').replace('"', '\\"')
-        js_code = f'handlePyWebViewDrop("{wsl_path_escaped}")'
-        print(f"[DEBUG] 執行 JS: {js_code}")
+    if wsl_paths:
+        # 傳送 JSON array 給前端
+        paths_json = json.dumps(wsl_paths)
+        js_code = f'handlePyWebViewDrop({paths_json})'
+        print(f"[DEBUG] 執行 JS: handlePyWebViewDrop({len(wsl_paths)} 個檔案)")
         window.evaluate_js(js_code)
 
 

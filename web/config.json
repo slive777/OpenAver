@@ -18,8 +18,7 @@
     ]
   },
   "search": {
-    "auto_search_on_drop": true,
-    "search_filter": ""
+    "auto_search_on_drop": true
   },
   "translate": {
     "enabled": false,
