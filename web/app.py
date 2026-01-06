@@ -27,7 +27,11 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 # ============ 註冊 API 路由 ============
 from web.routers import search as search_router
+from web.routers import config as config_router
+from web.routers import scraper as scraper_router
 app.include_router(search_router.router)
+app.include_router(config_router.router)
+app.include_router(scraper_router.router)
 
 
 # ============ 頁面路由 ============

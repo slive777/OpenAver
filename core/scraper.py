@@ -49,6 +49,40 @@ _maker_mapping_cache: Dict[str, str] = {}
 _maker_mapping_loaded = False
 
 
+# ============ 番號提取 ============
+
+def extract_number(filename: str) -> Optional[str]:
+    """
+    從檔名中提取番號
+
+    Args:
+        filename: 檔案名稱或路徑
+
+    Returns:
+        提取的番號（如 SONE-205），找不到返回 None
+    """
+    # 只取檔名部分
+    basename = Path(filename).stem
+
+    patterns = [
+        r'(FC2-PPV-\d+)',               # FC2-PPV-1234567 (優先)
+        r'\[([A-Za-z]{2,6}-\d{3,5})\]',  # [ABC-123] 方括號內
+        r'([A-Za-z]{2,6}-\d{3,5})',     # ABC-123 帶橫線
+        r'([A-Za-z]{2,6})(\d{3,5})',    # ABC12345 不帶橫線（需重組）
+        r'(\d{3}[A-Za-z]{3,4}-?\d{3,4})', # 123ABC-456
+    ]
+
+    for i, pattern in enumerate(patterns):
+        match = re.search(pattern, basename, re.IGNORECASE)
+        if match:
+            if i == 3:  # 不帶橫線的格式需重組
+                number = f"{match.group(1).upper()}-{match.group(2)}"
+            else:
+                number = match.group(1).upper()
+            return number
+    return None
+
+
 # ============ 片商對照表 ============
 
 def load_maker_mapping() -> Dict[str, str]:
