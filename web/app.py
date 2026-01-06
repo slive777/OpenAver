@@ -90,6 +90,15 @@ async def settings_page(request: Request):
     })
 
 
+@app.get("/help")
+async def help_page(request: Request):
+    """使用說明頁面"""
+    return templates.TemplateResponse("help.html", {
+        "request": request,
+        "page": "help"
+    })
+
+
 # ============ API 路由（稍後移到 routers/）============
 
 @app.get("/api/health")

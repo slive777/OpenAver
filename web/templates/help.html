@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}使用說明 - JavHelper{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h4 class="mb-4">使用說明</h4>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-search"></i> 搜尋功能
+        </div>
+        <div class="card-body">
+            <h6>支援的搜尋方式</h6>
+            <ul>
+                <li><strong>完整番號</strong>：如 <code>SONE-001</code>，精確搜尋單一作品</li>
+                <li><strong>部分番號</strong>：如 <code>SONE-0</code>，搜尋 001~009</li>
+                <li><strong>系列搜尋</strong>：如 <code>SONE</code>，搜尋該系列最新作品</li>
+                <li><strong>女優名</strong>：如 <code>三上悠亜</code>，搜尋該演員作品</li>
+            </ul>
+
+            <h6 class="mt-4">拖放檔案</h6>
+            <ul>
+                <li>將影片檔案拖入視窗，自動提取番號並搜尋</li>
+                <li>支援多檔案批次處理</li>
+                <li>搜尋成功後可點「產生」建立資料夾和 NFO</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-keyboard"></i> 快捷鍵
+        </div>
+        <div class="card-body">
+            <table class="table table-sm">
+                <tbody>
+                    <tr>
+                        <td><kbd>←</kbd> <kbd>→</kbd></td>
+                        <td>切換上一個/下一個結果</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-info-circle"></i> 關於
+        </div>
+        <div class="card-body">
+            <p class="mb-1"><strong>JavHelper</strong></p>
+            <p class="text-muted small mb-0">JAV 影片資訊搜尋與整理工具</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

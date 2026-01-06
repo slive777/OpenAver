@@ -27,6 +27,7 @@ archives/
 
 # Output
 *.html
+!web/templates/*.html
 failure_report.txt
 
 # Windows

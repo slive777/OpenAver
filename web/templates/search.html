@@ -1440,6 +1440,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         displayCoverError(`找不到 ${file.number} 的資料`);
                         showState('result');  // 保留列表
                         renderFileList();
+                        updateNavigation();
                     }
                 }
                 else if (data.type === 'error') {
@@ -1454,6 +1455,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     displayCoverError(data.message || '搜尋失敗');
                     showState('result');  // 保留列表
                     renderFileList();
+                    updateNavigation();
                 }
             } catch (err) {
                 console.error('Parse error:', err);
@@ -1472,6 +1474,7 @@ document.addEventListener('DOMContentLoaded', function() {
             displayCoverError('連線錯誤，請稍後再試');
             showState('result');  // 保留列表
             renderFileList();
+            updateNavigation();
         };
     }
 

@@ -18,7 +18,8 @@
         }
 
         :root {
-            --sidebar-width: 220px;
+            --sidebar-width: 200px;
+            --sidebar-collapsed-width: 60px;
         }
 
         body {
@@ -33,15 +34,61 @@
             width: var(--sidebar-width);
             height: 100vh;
             background-color: #212529;
-            padding-top: 1rem;
             z-index: 1000;
+            transition: width 0.2s ease;
+            display: flex;
+            flex-direction: column;
         }
 
+        .sidebar.collapsed {
+            width: var(--sidebar-collapsed-width);
+        }
+
+        /* 側邊欄頂部（toggle + logo） */
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-toggle {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.25rem;
+            padding: 0.25rem 0.5rem;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .sidebar-toggle:hover {
+            color: #fff;
+        }
+
+        .sidebar-brand {
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            transition: opacity 0.2s;
+        }
+
+        .sidebar.collapsed .sidebar-brand {
+            opacity: 0;
+            width: 0;
+        }
+
+        /* 導航連結 */
         .sidebar .nav-link {
             color: rgba(255, 255, 255, 0.8);
-            padding: 0.75rem 1rem;
+            padding: 0.75rem;
             border-radius: 0.25rem;
             margin: 0.25rem 0.5rem;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
         }
 
         .sidebar .nav-link:hover {
@@ -56,16 +103,24 @@
 
         .sidebar .nav-link i {
             width: 24px;
-            margin-right: 0.5rem;
+            flex-shrink: 0;
+            text-align: center;
         }
 
-        .sidebar-brand {
-            color: #fff;
-            font-size: 1.25rem;
-            font-weight: 600;
-            padding: 0.5rem 1rem 1.5rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            margin-bottom: 0.5rem;
+        .sidebar .nav-link .nav-text {
+            margin-left: 0.5rem;
+            overflow: hidden;
+            transition: opacity 0.2s;
+        }
+
+        .sidebar.collapsed .nav-link .nav-text {
+            opacity: 0;
+            width: 0;
+            margin-left: 0;
+        }
+
+        .sidebar.collapsed .nav-link {
+            justify-content: center;
         }
 
         /* 主內容區 */
@@ -74,6 +129,11 @@
             padding: 1.5rem;
             min-height: 100vh;
             background-color: #f8f9fa;
+            transition: margin-left 0.2s ease;
+        }
+
+        body.sidebar-collapsed .main-content {
+            margin-left: var(--sidebar-collapsed-width);
         }
 
         /* 卡片樣式 */
@@ -85,10 +145,13 @@
         /* 響應式 - Desktop */
         @media (min-width: 992px) {
             .sidebar {
-                display: block !important;
+                display: flex !important;
             }
             .main-content {
                 margin-left: var(--sidebar-width);
+            }
+            body.sidebar-collapsed .main-content {
+                margin-left: var(--sidebar-collapsed-width);
             }
         }
 
@@ -98,7 +161,7 @@
                 display: none !important;
             }
             .main-content {
-                margin-left: 0;
+                margin-left: 0 !important;
                 padding-top: 56px; /* 頂部導航列高度 */
             }
         }
@@ -166,12 +229,6 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if page == 'scraper' %}active{% endif %}" href="/scraper"
-                       data-bs-dismiss="offcanvas">
-                        <i class="bi bi-cloud-download"></i> 刮削器
-                    </a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link {% if page == 'updater' %}active{% endif %}" href="/updater"
                        data-bs-dismiss="offcanvas">
                         <i class="bi bi-arrow-repeat"></i> 更新器
@@ -184,6 +241,12 @@
                     </a>
                 </li>
                 <li class="nav-item mt-3">
+                    <a class="nav-link {% if page == 'help' %}active{% endif %}" href="/help"
+                       data-bs-dismiss="offcanvas">
+                        <i class="bi bi-question-circle"></i> 說明
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings"
                        data-bs-dismiss="offcanvas">
                         <i class="bi bi-gear"></i> 設定
@@ -194,34 +257,42 @@
     </div>
 
     <!-- 側邊欄（Desktop）-->
-    <nav class="sidebar d-none d-lg-block">
-        <div class="sidebar-brand">
-            <i class="bi bi-film"></i> JavHelper
+    <nav class="sidebar d-none d-lg-flex" id="sidebar">
+        <div class="sidebar-header">
+            <button class="sidebar-toggle" id="sidebarToggle" title="展開/收合">
+                <i class="bi bi-list"></i>
+            </button>
+            <span class="sidebar-brand"><i class="bi bi-film"></i> JavHelper</span>
         </div>
-        <ul class="nav flex-column">
+        <ul class="nav flex-column flex-grow-1">
             <li class="nav-item">
-                <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search">
-                    <i class="bi bi-search"></i> 搜尋
+                <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search" title="搜尋">
+                    <i class="bi bi-search"></i>
+                    <span class="nav-text">搜尋</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if page == 'scraper' %}active{% endif %}" href="/scraper">
-                    <i class="bi bi-cloud-download"></i> 刮削器
+                <a class="nav-link {% if page == 'updater' %}active{% endif %}" href="/updater" title="更新器">
+                    <i class="bi bi-arrow-repeat"></i>
+                    <span class="nav-text">更新器</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if page == 'updater' %}active{% endif %}" href="/updater">
-                    <i class="bi bi-arrow-repeat"></i> 更新器
+                <a class="nav-link {% if page == 'avlist' %}active{% endif %}" href="/avlist" title="列表生成">
+                    <i class="bi bi-list-ul"></i>
+                    <span class="nav-text">列表生成</span>
+                </a>
+            </li>
+            <li class="nav-item mt-auto">
+                <a class="nav-link {% if page == 'help' %}active{% endif %}" href="/help" title="使用說明">
+                    <i class="bi bi-question-circle"></i>
+                    <span class="nav-text">說明</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if page == 'avlist' %}active{% endif %}" href="/avlist">
-                    <i class="bi bi-list-ul"></i> 列表生成
-                </a>
-            </li>
-            <li class="nav-item mt-3">
-                <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings">
-                    <i class="bi bi-gear"></i> 設定
+                <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings" title="設定">
+                    <i class="bi bi-gear"></i>
+                    <span class="nav-text">設定</span>
                 </a>
             </li>
         </ul>
@@ -234,6 +305,28 @@
 
     <!-- Bootstrap 5 JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+    // 側邊欄展開/收合
+    (function() {
+        const sidebar = document.getElementById('sidebar');
+        const toggle = document.getElementById('sidebarToggle');
+        const STORAGE_KEY = 'sidebar_collapsed';
+
+        // 讀取儲存狀態
+        if (localStorage.getItem(STORAGE_KEY) === 'true') {
+            sidebar.classList.add('collapsed');
+            document.body.classList.add('sidebar-collapsed');
+        }
+
+        toggle.addEventListener('click', function() {
+            sidebar.classList.toggle('collapsed');
+            document.body.classList.toggle('sidebar-collapsed');
+            // 儲存狀態
+            localStorage.setItem(STORAGE_KEY, sidebar.classList.contains('collapsed'));
+        });
+    })();
+    </script>
 
     {% block extra_js %}{% endblock %}
 </body>
