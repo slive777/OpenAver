@@ -18,10 +18,23 @@ JAV 影片元數據管理工具 - Web GUI 版本
 ## 安裝
 
 ```bash
+# 建立虛擬環境
+python3 -m venv venv
+
+# 啟動虛擬環境
+source venv/bin/activate
+
 # 安裝依賴
 pip install -r requirements.txt
+```
 
-# 啟動
+## 啟動
+
+```bash
+# 啟動虛擬環境（如果尚未啟動）
+source venv/bin/activate
+
+# 啟動伺服器
 uvicorn web.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
