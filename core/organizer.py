@@ -38,6 +38,125 @@ def truncate_title(title: str, max_len: int) -> str:
     return title[:max_len - 3] + '...'
 
 
+def has_chinese(text: str) -> bool:
+    """檢查文字是否包含中文"""
+    if not text:
+        return False
+    for char in text:
+        if '\u4e00' <= char <= '\u9fff':
+            return True
+    return False
+
+
+def clean_source_suffix(text: str) -> str:
+    """清除無意義的來源後綴"""
+    patterns = [
+        r'\s*-\s*Jable\s*TV.*$',
+        r'\s*-\s*Jable.*$',
+        r'\s*-\s*Hayav\s*AV.*$',
+        r'\s*-\s*Hayav.*$',
+        r'\s*-\s*MissAV.*$',
+        r'\s*-\s*J片.*$',
+        r'\s*-\s*免費.*$',
+        r'\s*-\s*Netflav.*$',
+        r'\s*-\s*AV看到飽.*$',
+        r'\s*-\s*Free\s*Japan.*$',
+        r'\s*-\s*Streaming.*$',
+        r'\s*-\s*[A-Za-z]{1,3}\.?$',
+        r'\s*-\s*$',
+        r'\s+-\d+$',
+    ]
+    for p in patterns:
+        text = re.sub(p, '', text, flags=re.IGNORECASE)
+    return text.strip()
+
+
+def extract_chinese_title(filename: str, number: str, actors: List[str] = None) -> Optional[str]:
+    """
+    從檔名提取原始中文片名
+
+    Args:
+        filename: 檔案名稱（不含路徑）
+        number: 番號
+        actors: 演員名單（用於移除）
+
+    Returns:
+        提取的中文片名，如果沒有則返回 None
+    """
+    if not filename:
+        return None
+
+    # 移除副檔名
+    name = os.path.splitext(filename)[0]
+
+    # 移除番號（各種格式）
+    if number:
+        name = re.sub(rf'\[?{re.escape(number)}\]?\s*', '', name, flags=re.IGNORECASE)
+    name = re.sub(r'\[?[A-Za-z]{2,6}-?\d{3,5}\]?\s*', '', name)
+
+    # 清除來源後綴
+    name = clean_source_suffix(name)
+
+    # 清理多餘空格
+    name = re.sub(r'\s+', ' ', name).strip()
+
+    # 移除開頭的「中文字幕」標記
+    name = re.sub(r'^中文字幕\s*', '', name)
+
+    # 移除開頭和結尾的演員名
+    if actors:
+        for actor in actors:
+            name = re.sub(rf'^{re.escape(actor)}\s*-\s*', '', name)
+            name = re.sub(rf'\s+{re.escape(actor)}$', '', name)
+
+    # 移除結尾可能的 2-4 字中文名（演員名）
+    name = re.sub(r'\s+[\u4e00-\u9fff]{2,4}$', '', name)
+
+    name = name.strip()
+
+    # 只有包含中文才返回
+    if name and has_chinese(name):
+        return name
+
+    return None
+
+
+def check_subtitle(filename: str) -> bool:
+    """
+    檢查檔名是否包含字幕標記
+
+    支援的標記：
+    - -C, -c, _C（常見字幕標記）
+    - 中文字幕, 字幕, 中字, [中字]
+    """
+    if not filename:
+        return False
+
+    # 不區分大小寫的標記
+    upper = filename.upper()
+    patterns_upper = ['-C', '_C']
+
+    # 中文標記（精確匹配）
+    patterns_chinese = ['中文字幕', '字幕', '中字', '[中字]', '【中字】']
+
+    # 檢查英文標記（需要是獨立的，避免誤判如 ABC-123）
+    for p in patterns_upper:
+        # 確保 -C 後面不是數字（避免 FC2-PPV-C 之類的誤判）
+        idx = upper.find(p)
+        if idx != -1:
+            # 檢查後面是否為數字或字母
+            next_idx = idx + len(p)
+            if next_idx >= len(upper) or not upper[next_idx].isalnum():
+                return True
+
+    # 檢查中文標記
+    for p in patterns_chinese:
+        if p in filename:
+            return True
+
+    return False
+
+
 def format_string(template: str, data: Dict[str, Any]) -> str:
     """
     根據模板格式化字串
@@ -245,20 +364,34 @@ def organize_file(
         result['error'] = '缺少番號'
         return result
 
+    # 原始檔案資訊
+    original_dir = os.path.dirname(file_path)
+    original_ext = os.path.splitext(file_path)[1]
+    original_filename = os.path.basename(file_path)
+
     # 準備格式化資料
     actors = metadata.get('actors', [])
 
+    # 嘗試從檔名提取中文片名（如果有，優先使用）
+    title = metadata.get('title', '')
+    extracted_title = extract_chinese_title(original_filename, number, actors)
+    if extracted_title:
+        # 檔名有中文片名，優先使用
+        title = extracted_title
+        result['extracted_title'] = extracted_title  # 記錄提取的片名
+
     format_data = {
         'number': number,
-        'title': truncate_title(metadata.get('title', ''), config.get('max_title_length', 80)),
+        'title': truncate_title(title, config.get('max_title_length', 80)),
         'actors': actors,
         'maker': metadata.get('maker', ''),
         'date': metadata.get('date', ''),
     }
 
-    # 原始檔案資訊
-    original_dir = os.path.dirname(file_path)
-    original_ext = os.path.splitext(file_path)[1]
+    # 自動偵測字幕標記（如果 metadata 沒有指定）
+    has_subtitle = metadata.get('has_subtitle')
+    if has_subtitle is None:
+        has_subtitle = check_subtitle(original_filename)
 
     # 計算目標路徑
     if config.get('create_folder', True):
@@ -308,7 +441,7 @@ def organize_file(
             date=metadata.get('date', ''),
             maker=metadata.get('maker', ''),
             url=metadata.get('url', ''),
-            has_subtitle=metadata.get('has_subtitle', False),
+            has_subtitle=has_subtitle,
             output_path=nfo_path
         ):
             result['nfo_path'] = nfo_path

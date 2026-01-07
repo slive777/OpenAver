@@ -263,6 +263,10 @@
         background: #e9ecef;
         color: #495057;
     }
+    .tag-badge.subtitle {
+        background: #198754;
+        color: #fff;
+    }
 
     /* 狀態頁面 */
     .state-page {
@@ -627,6 +631,10 @@
                     <div class="info-footer">
                         <div class="info-label">標題</div>
                         <div class="info-title" id="resultTitle">-</div>
+                        <div id="chineseTitleRow" class="mt-2 d-none">
+                            <div class="info-label">中文標題</div>
+                            <div class="info-title text-success" id="resultChineseTitle">-</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -839,15 +847,42 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('resultDate').textContent = data.date || '-';
         document.getElementById('resultMaker').textContent = data.maker || '-';
 
-        // 標籤（全部顯示）
+        // 取得當前檔案資訊（如果是檔案模式）
+        const currentFile = (listMode === 'file' && fileList[currentFileIndex]) ? fileList[currentFileIndex] : null;
+        const hasSubtitle = currentFile ? currentFile.hasSubtitle : false;
+        const chineseTitle = currentFile ? currentFile.chineseTitle : null;
+
+        // 標籤（全部顯示）+ 字幕標籤
         const tagsContainer = document.getElementById('resultTags');
         const tags = data.tags || [];
+        let tagsHtml = '';
+
+        // 優先顯示字幕標籤（綠色）
+        if (hasSubtitle) {
+            tagsHtml += '<span class="badge tag-badge subtitle">中文字幕</span>';
+        }
+
+        // 其他標籤
         if (tags.length > 0) {
-            tagsContainer.innerHTML = tags.map(tag =>
+            tagsHtml += tags.map(tag =>
                 `<span class="badge tag-badge">${tag}</span>`
             ).join('');
+        }
+
+        if (tagsHtml) {
+            tagsContainer.innerHTML = tagsHtml;
         } else {
             tagsContainer.textContent = '-';
+        }
+
+        // 中文標題（從檔名提取）
+        const chineseTitleRow = document.getElementById('chineseTitleRow');
+        const chineseTitleEl = document.getElementById('resultChineseTitle');
+        if (chineseTitle) {
+            chineseTitleEl.textContent = chineseTitle;
+            chineseTitleRow.classList.remove('d-none');
+        } else {
+            chineseTitleRow.classList.add('d-none');
         }
 
         // 封面
@@ -1437,6 +1472,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         targetBtn.disabled = false;
                     }
 
+                    // 確保維持檔案模式（防止被其他代碼覆蓋）
+                    listMode = 'file';
+
                     if (data.success && data.data && data.data.length > 0) {
                         // 儲存完整結果到檔案物件
                         file.searchResults = data.data;
@@ -1498,14 +1536,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 設定檔案列表（從 PyWebView 接收）
     function setFileList(paths) {
-        fileList = paths.map(path => ({
-            path: path,
-            filename: path.split('/').pop(),
-            number: extractNumber(path),
-            searchResults: [],
-            hasMoreResults: false,
-            searched: false
-        }));
+        fileList = paths.map(path => {
+            const filename = path.split(/[/\\]/).pop();
+            const number = extractNumber(path);
+            return {
+                path: path,
+                filename: filename,
+                number: number,
+                hasSubtitle: checkSubtitle(filename),
+                chineseTitle: extractChineseTitle(filename, number),
+                searchResults: [],
+                hasMoreResults: false,
+                searched: false
+            };
+        });
         currentFileIndex = 0;
         listMode = 'file';
 
@@ -1705,6 +1749,115 @@ document.addEventListener('DOMContentLoaded', function() {
     let dragCounter = 0;
 
     /**
+     * 檢查檔名是否包含字幕標記
+     */
+    function checkSubtitle(filename) {
+        if (!filename) return false;
+        const upper = filename.toUpperCase();
+
+        // 英文標記（需確保不是番號的一部分）
+        const patterns = ['-C', '_C'];
+        for (const p of patterns) {
+            const idx = upper.indexOf(p);
+            if (idx !== -1) {
+                const nextIdx = idx + p.length;
+                // 後面不是字母數字才算
+                if (nextIdx >= upper.length || !/[A-Z0-9]/i.test(upper[nextIdx])) {
+                    return true;
+                }
+            }
+        }
+
+        // 中文標記
+        const chinesePatterns = ['中文字幕', '字幕', '中字', '[中字]', '【中字】'];
+        for (const p of chinesePatterns) {
+            if (filename.includes(p)) return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 檢查文字是否包含中文
+     */
+    function hasChinese(text) {
+        if (!text) return false;
+        return /[\u4e00-\u9fff]/.test(text);
+    }
+
+    /**
+     * 清除無意義的來源後綴
+     */
+    function cleanSourceSuffix(text) {
+        const patterns = [
+            /\s*-\s*Jable\s*TV.*$/i,
+            /\s*-\s*Jable.*$/i,
+            /\s*-\s*Hayav\s*AV.*$/i,
+            /\s*-\s*Hayav.*$/i,
+            /\s*-\s*MissAV.*$/i,
+            /\s*-\s*J片.*$/i,
+            /\s*-\s*免費.*$/i,
+            /\s*-\s*Netflav.*$/i,
+            /\s*-\s*AV看到飽.*$/i,
+            /\s*-\s*Free\s*Japan.*$/i,
+            /\s*-\s*Streaming.*$/i,
+            /\s*-\s*[A-Za-z]{1,3}\.?$/,
+            /\s*-\s*$/,
+            /\s+-\d+$/,
+        ];
+        for (const p of patterns) {
+            text = text.replace(p, '');
+        }
+        return text.trim();
+    }
+
+    /**
+     * 從檔名提取中文片名
+     */
+    function extractChineseTitle(filename, number, actors = []) {
+        if (!filename) return null;
+
+        // 移除副檔名
+        let name = filename.replace(/\.[^.]+$/, '');
+
+        // 移除番號（各種格式）
+        if (number) {
+            const escapedNum = number.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+            name = name.replace(new RegExp(`\\[?${escapedNum}\\]?\\s*`, 'gi'), '');
+        }
+        name = name.replace(/\[?[A-Za-z]{2,6}-?\d{3,5}\]?\s*/g, '');
+
+        // 清除來源後綴
+        name = cleanSourceSuffix(name);
+
+        // 清理多餘空格
+        name = name.replace(/\s+/g, ' ').trim();
+
+        // 移除開頭的「中文字幕」標記
+        name = name.replace(/^中文字幕\s*/, '');
+
+        // 移除開頭和結尾的演員名
+        if (actors && actors.length > 0) {
+            for (const actor of actors) {
+                const escapedActor = actor.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+                name = name.replace(new RegExp(`^${escapedActor}\\s*-\\s*`, ''), '');
+                name = name.replace(new RegExp(`\\s+${escapedActor}$`, ''), '');
+            }
+        }
+
+        // 移除結尾可能的 2-4 字中文名（演員名）
+        name = name.replace(/\s+[\u4e00-\u9fff]{2,4}$/, '');
+
+        name = name.trim();
+
+        // 只有包含中文才返回
+        if (name && hasChinese(name)) {
+            return name;
+        }
+        return null;
+    }
+
+    /**
      * 從檔名提取番號
      */
     function extractNumber(filename) {
@@ -1788,8 +1941,12 @@ document.addEventListener('DOMContentLoaded', function() {
         dragCounter = 0;
         dragOverlay.classList.remove('active');
 
-        // 處理拖拽的檔案（瀏覽器環境）
-        // PyWebView 會透過 Python 端的 on_drop 處理，不會走到這裡
+        // PyWebView 環境由 Python 端 on_drop 處理，這裡跳過
+        if (typeof window.pywebview !== 'undefined') {
+            return;
+        }
+
+        // 純瀏覽器環境：只能搜尋番號，無法取得完整路徑
         handleFileDrop(e.dataTransfer.files);
     });
 });
