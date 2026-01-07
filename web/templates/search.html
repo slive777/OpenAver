@@ -239,6 +239,16 @@
         background: #f8f9fa;
     }
 
+    /* 初始狀態按鈕區 */
+    .empty-actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+    }
+    .empty-actions .btn {
+        font-size: 0.85rem;
+    }
+
     .info-title {
         font-size: 0.8rem;
         color: #333;
@@ -509,8 +519,16 @@
         <!-- 初始狀態 -->
         <div id="emptyState" class="state-page w-100">
             <i class="bi bi-film"></i>
-            <p class="mb-1">輸入番號或女優名開始搜尋</p>
-            <small>支援 JavBus + Jav321 來源</small>
+            <p class="mb-2">輸入番號搜尋，或加入影片檔案</p>
+            <div class="empty-actions">
+                <button class="btn btn-outline-primary btn-sm" id="btnAddFiles">
+                    <i class="bi bi-file-earmark-plus"></i> 加入檔案
+                </button>
+                <button class="btn btn-outline-primary btn-sm" id="btnAddFolder">
+                    <i class="bi bi-folder-plus"></i> 加入資料夾
+                </button>
+            </div>
+            <small class="mt-2 text-muted">也可直接拖入檔案或資料夾</small>
         </div>
 
         <!-- 載入中 - 進度指示器 -->
@@ -1643,6 +1661,44 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     btnScrapeAll.addEventListener('click', scrapeAll);
+
+    // === 加入檔案/資料夾按鈕 ===
+    const btnAddFiles = document.getElementById('btnAddFiles');
+    const btnAddFolder = document.getElementById('btnAddFolder');
+
+    btnAddFiles.addEventListener('click', async () => {
+        // 檢查是否在 PyWebView 環境
+        if (typeof window.pywebview === 'undefined' || !window.pywebview.api) {
+            alert('此功能需要在桌面應用程式中使用');
+            return;
+        }
+        try {
+            const paths = await window.pywebview.api.select_files();
+            if (paths && paths.length > 0) {
+                console.log('選取檔案:', paths.length, '個');
+                window.handlePyWebViewDrop(paths);
+            }
+        } catch (e) {
+            console.error('選取檔案失敗:', e);
+        }
+    });
+
+    btnAddFolder.addEventListener('click', async () => {
+        // 檢查是否在 PyWebView 環境
+        if (typeof window.pywebview === 'undefined' || !window.pywebview.api) {
+            alert('此功能需要在桌面應用程式中使用');
+            return;
+        }
+        try {
+            const paths = await window.pywebview.api.select_folder();
+            if (paths && paths.length > 0) {
+                console.log('資料夾內檔案:', paths.length, '個');
+                window.handlePyWebViewDrop(paths);
+            }
+        } catch (e) {
+            console.error('選取資料夾失敗:', e);
+        }
+    });
 
     // === 拖拽搜尋功能 ===
     const dragOverlay = document.getElementById('dragOverlay');

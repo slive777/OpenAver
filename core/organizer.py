@@ -10,6 +10,8 @@ import requests
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
+from core.path_utils import normalize_path
+
 
 # HTTP 請求設定
 REQUEST_TIMEOUT = 30
@@ -225,6 +227,13 @@ def organize_file(
         'nfo_path': None,
         'error': None
     }
+
+    # 轉換路徑為當前環境格式
+    try:
+        file_path = normalize_path(file_path)
+    except ValueError as e:
+        result['error'] = str(e)
+        return result
 
     if not os.path.exists(file_path):
         result['error'] = '檔案不存在'

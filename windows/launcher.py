@@ -19,35 +19,42 @@ def is_video_file(filename):
 class Api:
     """供前端 JS 調用的 Python API"""
 
-    def convert_path(self, win_path):
+    def select_files(self):
         """
-        將 Windows 路徑轉換為 WSL 路徑
-
-        支援格式：
-        1. C:\\Users\\peace\\... → /mnt/c/Users/peace/...
-        2. \\\\wsl.localhost\\Ubuntu-24.04\\home\\... → /home/...
+        開啟檔案選擇對話框，選取影片檔案
+        Returns: 選取的檔案路徑陣列（Windows 路徑）
         """
-        if not win_path:
-            return win_path
+        global window
+        file_types = ('影片檔案 (*.mp4;*.avi;*.mkv;*.wmv;*.rmvb;*.flv;*.mov;*.m4v;*.ts)',
+                      '所有檔案 (*.*)')
+        result = window.create_file_dialog(
+            webview.OPEN_DIALOG,
+            allow_multiple=True,
+            file_types=file_types
+        )
+        if result:
+            return list(result)
+        return []
 
-        # 格式1: WSL 網路路徑 (\\wsl.localhost\distro\path 或 \\wsl$\distro\path)
-        if win_path.startswith('\\\\wsl.localhost\\') or win_path.startswith('\\\\wsl$\\'):
-            # 移除 \\wsl.localhost\ 或 \\wsl$\
-            path = win_path.replace('\\\\wsl.localhost\\', '').replace('\\\\wsl$\\', '')
-            # 移除發行版名稱 (第一個 \ 之前的部分，如 Ubuntu-24.04)
-            parts = path.split('\\', 1)
-            if len(parts) > 1:
-                wsl_path = '/' + parts[1].replace('\\', '/')
-                return wsl_path
-            return '/'
-
-        # 格式2: Windows 本地路徑 (C:\Users\...)
-        if len(win_path) >= 2 and win_path[1] == ':':
-            drive = win_path[0].lower()
-            rest = win_path[2:].replace('\\', '/')
-            return f'/mnt/{drive}{rest}'
-
-        return win_path
+    def select_folder(self):
+        """
+        開啟資料夾選擇對話框，展開內部影片檔案
+        Returns: 資料夾內影片檔案的路徑陣列（Windows 路徑）
+        """
+        global window
+        result = window.create_file_dialog(webview.FOLDER_DIALOG)
+        if result and len(result) > 0:
+            folder_path = result[0]
+            print(f"[DEBUG] 選取資料夾: {folder_path}")
+            # 展開第一層影片檔案
+            files = []
+            for f in os.listdir(folder_path):
+                file_path = os.path.join(folder_path, f)
+                if os.path.isfile(file_path) and is_video_file(f):
+                    files.append(file_path)
+                    print(f"[DEBUG]   + {f}")
+            return files
+        return []
 
 
 # 全域變數
@@ -67,7 +74,7 @@ def on_drop(e):
         print("[DEBUG] 沒有檔案")
         return
 
-    # 收集所有項目（用 Windows 路徑判斷檔案/資料夾）
+    # 收集所有項目（用 Windows 路徑判斷檔案/資料夾，傳原始路徑給後端）
     expanded_paths = []
     for file_info in files:
         win_path = file_info.get('pywebviewFullPath', '')
@@ -80,14 +87,12 @@ def on_drop(e):
             for f in os.listdir(win_path):
                 file_win_path = os.path.join(win_path, f)
                 if os.path.isfile(file_win_path) and is_video_file(f):
-                    wsl_path = api.convert_path(file_win_path)
-                    expanded_paths.append(wsl_path)
-                    print(f"[DEBUG]   + {f} → {wsl_path}")
+                    expanded_paths.append(file_win_path)
+                    print(f"[DEBUG]   + {f}")
         else:
             # 檔案：直接加入
-            wsl_path = api.convert_path(win_path)
-            expanded_paths.append(wsl_path)
-            print(f"[DEBUG] {win_path} → {wsl_path}")
+            expanded_paths.append(win_path)
+            print(f"[DEBUG] 檔案: {win_path}")
 
     if expanded_paths:
         # 傳送 JSON array 給前端
