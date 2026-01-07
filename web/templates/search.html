@@ -630,7 +630,15 @@
                     </div>
                     <div class="info-footer">
                         <div class="info-label">標題</div>
-                        <div class="info-title" id="resultTitle">-</div>
+                        <div class="info-title d-flex align-items-start">
+                            <span id="resultTitle" style="flex:1;">-</span>
+                            <!-- AI 翻譯按鈕 -->
+                            <button id="translateBtn" class="btn btn-sm btn-link p-0 ms-1 d-none"
+                                    onclick="translateWithAI()" title="AI 翻譯">
+                                <i class="bi bi-translate"></i>
+                            </button>
+                            <span id="translateSpinner" class="spinner-border spinner-border-sm ms-1 d-none"></span>
+                        </div>
                         <div id="chineseTitleRow" class="mt-2 d-none">
                             <div class="info-label" id="chineseTitleLabel">中文片名</div>
                             <div class="info-title text-success" id="resultChineseTitle">-</div>
@@ -779,6 +787,81 @@ document.addEventListener('DOMContentLoaded', function() {
             return { success: false, error: e.message };
         }
     }
+
+    /**
+     * AI 翻譯按鈕點擊事件（全域函數供 onclick 調用）
+     */
+    window.translateWithAI = async function() {
+        const btn = document.getElementById('translateBtn');
+        const spinner = document.getElementById('translateSpinner');
+        const title = btn.dataset.title;
+        const actors = JSON.parse(btn.dataset.actors || '[]');
+        const number = btn.dataset.number || '';
+
+        if (!title) return;
+
+        // 防止並發翻譯
+        if (isTranslating) return;
+        isTranslating = true;
+
+        // 記住開始時的索引（避免切換後存錯位置）
+        const startFileIndex = currentFileIndex;
+        const startResultIndex = currentIndex;
+        const startListMode = listMode;
+
+        // 顯示 loading
+        btn.classList.add('d-none');
+        spinner.classList.remove('d-none');
+
+        try {
+            const result = await translateWithOllama(title, 'translate', { actors, number });
+
+            if (result.success && result.result) {
+                // 存入「原本」位置的 metadata（不管現在在哪）
+                if (startListMode === 'file' && fileList[startFileIndex]) {
+                    const file = fileList[startFileIndex];
+                    if (file.searchResults && file.searchResults[startResultIndex]) {
+                        file.searchResults[startResultIndex].translated_title = result.result;
+                    }
+                } else if (searchResults[startResultIndex]) {
+                    searchResults[startResultIndex].translated_title = result.result;
+                }
+
+                // 只有「還在同一個位置」才更新 UI
+                if (currentFileIndex === startFileIndex && currentIndex === startResultIndex) {
+                    document.getElementById('resultChineseTitle').textContent = result.result;
+                    document.getElementById('chineseTitleRow').classList.remove('d-none');
+                    document.getElementById('chineseTitleLabel').textContent = '中文片名 (AI)';
+                    // 隱藏按鈕（已翻譯完成）
+                    btn.classList.add('d-none');
+                }
+                // 如果已切換到其他影片，不更新 UI，但資料已存好
+                // 用戶切回去時 displayResult() 會正確顯示
+            } else {
+                // 失敗時，只有還在原位置才恢復按鈕
+                if (currentFileIndex === startFileIndex && currentIndex === startResultIndex) {
+                    btn.classList.remove('d-none');
+                }
+                alert(result.error || '翻譯失敗');
+            }
+        } catch (e) {
+            if (currentFileIndex === startFileIndex && currentIndex === startResultIndex) {
+                btn.classList.remove('d-none');
+            }
+            alert('Ollama 連線失敗: ' + e.message);
+        } finally {
+            // 翻譯完成，解除鎖定
+            isTranslating = false;
+
+            // 只有還在原位置才隱藏 spinner
+            if (currentFileIndex === startFileIndex && currentIndex === startResultIndex) {
+                spinner.classList.add('d-none');
+            }
+
+            // 解除當前按鈕的 disabled 狀態（不管在哪）
+            btn.disabled = false;
+        }
+    };
 
     /**
      * 背景翻譯標題（不阻塞 UI）
@@ -1019,18 +1102,26 @@ document.addEventListener('DOMContentLoaded', function() {
             tagsContainer.textContent = '-';
         }
 
-        // 中文標題（從檔名提取）- 先顯示原始值
+        // 中文標題（優先順序：AI 翻譯 > 檔名提取）
         const chineseTitleRow = document.getElementById('chineseTitleRow');
         const chineseTitleLabel = document.getElementById('chineseTitleLabel');
         const chineseTitleEl = document.getElementById('resultChineseTitle');
 
-        // 重置標籤為預設
-        chineseTitleLabel.textContent = '中文片名';
+        // 檢查是否有 AI 翻譯結果
+        const translatedTitle = data.translated_title || null;
 
-        if (chineseTitle) {
+        if (translatedTitle) {
+            // 優先顯示 AI 翻譯
+            chineseTitleLabel.textContent = '中文片名 (AI)';
+            chineseTitleEl.textContent = translatedTitle;
+            chineseTitleRow.classList.remove('d-none');
+        } else if (chineseTitle) {
+            // 其次顯示檔名提取的中文
+            chineseTitleLabel.textContent = '中文片名';
             chineseTitleEl.textContent = chineseTitle;
             chineseTitleRow.classList.remove('d-none');
         } else {
+            chineseTitleLabel.textContent = '中文片名';
             chineseTitleRow.classList.add('d-none');
         }
 
@@ -1039,10 +1130,32 @@ document.addEventListener('DOMContentLoaded', function() {
         if (data.cover) {
             coverImg.src = `/api/proxy-image?url=${encodeURIComponent(data.cover)}`;
             coverImg.style.display = 'block';
-            // 預覽不翻譯，批次產生時才翻譯
         } else {
             coverImg.src = '';
             coverImg.style.display = 'none';
+        }
+
+        // AI 翻譯按鈕：只在沒有中文片名 + 沒有翻譯結果 + 翻譯啟用 + 日文標題時顯示
+        const translateBtn = document.getElementById('translateBtn');
+        const translateSpinner = document.getElementById('translateSpinner');
+        translateSpinner.classList.add('d-none');  // 重置 spinner
+
+        const shouldShowTranslateBtn = appConfig?.translate?.enabled &&
+            !chineseTitle &&
+            !translatedTitle &&
+            data.title &&
+            hasJapanese(data.title);
+
+        if (shouldShowTranslateBtn) {
+            translateBtn.classList.remove('d-none');
+            translateBtn.dataset.title = data.title;
+            translateBtn.dataset.actors = JSON.stringify(data.actors || []);
+            translateBtn.dataset.number = data.number || '';
+            // 翻譯中則 disabled（灰色）
+            translateBtn.disabled = isTranslating;
+        } else {
+            translateBtn.classList.add('d-none');
+            translateBtn.disabled = false;
         }
     }
 
@@ -1073,6 +1186,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // 隱藏中文片名
         document.getElementById('chineseTitleRow').classList.add('d-none');
         document.getElementById('chineseTitleLabel').textContent = '中文片名';
+
+        // 隱藏 AI 翻譯按鈕
+        document.getElementById('translateBtn').classList.add('d-none');
+        document.getElementById('translateSpinner').classList.add('d-none');
     }
 
     // 預加載圖片（避免切換時延遲）
