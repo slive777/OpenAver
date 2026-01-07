@@ -2,8 +2,18 @@
 JavHelper Windows Launcher
 使用 PyWebView 連接 WSL 後端服務
 """
+import os
 import webview
 from webview.dom import DOMEventHandler
+
+# 支援的影片副檔名
+VIDEO_EXTENSIONS = {'.mp4', '.avi', '.mkv', '.wmv', '.rmvb', '.flv', '.mov', '.m4v', '.ts'}
+
+
+def is_video_file(filename):
+    """檢查是否為影片檔案"""
+    ext = os.path.splitext(filename)[1].lower()
+    return ext in VIDEO_EXTENSIONS
 
 
 class Api:
@@ -46,7 +56,7 @@ window = None
 
 
 def on_drop(e):
-    """處理拖放事件，取得完整路徑並傳給前端（支援多檔案）"""
+    """處理拖放事件，取得完整路徑並傳給前端（支援多檔案和資料夾）"""
     global window
     import json
 
@@ -57,20 +67,33 @@ def on_drop(e):
         print("[DEBUG] 沒有檔案")
         return
 
-    # 收集所有檔案的 WSL 路徑
-    wsl_paths = []
+    # 收集所有項目（用 Windows 路徑判斷檔案/資料夾）
+    expanded_paths = []
     for file_info in files:
-        full_path = file_info.get('pywebviewFullPath', '')
-        if full_path:
-            wsl_path = api.convert_path(full_path)
-            wsl_paths.append(wsl_path)
-            print(f"[DEBUG] {full_path} → {wsl_path}")
+        win_path = file_info.get('pywebviewFullPath', '')
+        if not win_path:
+            continue
 
-    if wsl_paths:
+        if os.path.isdir(win_path):
+            # 資料夾：展開第一層影片檔案
+            print(f"[DEBUG] 展開資料夾: {win_path}")
+            for f in os.listdir(win_path):
+                file_win_path = os.path.join(win_path, f)
+                if os.path.isfile(file_win_path) and is_video_file(f):
+                    wsl_path = api.convert_path(file_win_path)
+                    expanded_paths.append(wsl_path)
+                    print(f"[DEBUG]   + {f} → {wsl_path}")
+        else:
+            # 檔案：直接加入
+            wsl_path = api.convert_path(win_path)
+            expanded_paths.append(wsl_path)
+            print(f"[DEBUG] {win_path} → {wsl_path}")
+
+    if expanded_paths:
         # 傳送 JSON array 給前端
-        paths_json = json.dumps(wsl_paths)
+        paths_json = json.dumps(expanded_paths)
         js_code = f'handlePyWebViewDrop({paths_json})'
-        print(f"[DEBUG] 執行 JS: handlePyWebViewDrop({len(wsl_paths)} 個檔案)")
+        print(f"[DEBUG] 執行 JS: handlePyWebViewDrop({len(expanded_paths)} 個檔案)")
         window.evaluate_js(js_code)
 
 
