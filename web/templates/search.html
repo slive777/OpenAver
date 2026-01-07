@@ -632,7 +632,7 @@
                         <div class="info-label">標題</div>
                         <div class="info-title" id="resultTitle">-</div>
                         <div id="chineseTitleRow" class="mt-2 d-none">
-                            <div class="info-label">中文標題</div>
+                            <div class="info-label" id="chineseTitleLabel">中文片名</div>
                             <div class="info-title text-success" id="resultChineseTitle">-</div>
                         </div>
                     </div>
@@ -725,11 +725,155 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentFileIndex = 0;
     let listMode = null;  // 'file' | 'search' | null
 
+    // === 翻譯功能 ===
+    let appConfig = null;  // 應用設定
+    const translationCache = new Map();  // 快取：番號 -> {result, mode}
+    let isTranslating = false;  // 防止並發翻譯
+    let pendingTranslation = null;  // 待處理的翻譯請求
+
     // 檔案列表 DOM 元素
     const fileListSection = document.getElementById('fileListSection');
     const fileListContainer = document.getElementById('fileList');
     const fileCountText = document.getElementById('fileCountText');
     const btnScrapeAll = document.getElementById('btnScrapeAll');
+
+    // === 載入應用設定 ===
+    async function loadAppConfig() {
+        try {
+            const resp = await fetch('/api/config');
+            const data = await resp.json();
+            if (data.success) {
+                appConfig = data.data;
+            }
+        } catch (e) {
+            console.error('載入設定失敗:', e);
+        }
+    }
+
+    // === 翻譯功能 ===
+
+    /**
+     * 判斷文字是否包含日文（平假名、片假名）
+     */
+    function hasJapanese(text) {
+        return /[\u3040-\u309F\u30A0-\u30FF]/.test(text);
+    }
+
+    /**
+     * 調用 Ollama 翻譯/優化標題
+     */
+    async function translateWithOllama(text, mode, metadata = {}) {
+        try {
+            const resp = await fetch('/api/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text: text,
+                    mode: mode,
+                    actors: metadata.actors || [],
+                    number: metadata.number || ''
+                })
+            });
+            return await resp.json();
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    }
+
+    /**
+     * 背景翻譯標題（不阻塞 UI）
+     */
+    async function translateInBackground(data, currentFile) {
+        // 檢查是否啟用翻譯
+        if (!appConfig?.translate?.enabled) return;
+
+        const number = data.number;
+        if (!number) return;
+
+        // 檢查快取
+        if (translationCache.has(number)) {
+            const cached = translationCache.get(number);
+            updateChineseTitleDisplay(cached.result, cached.mode);
+            return;
+        }
+
+        // 從檔名提取的中文（如果有）
+        const chineseFromFile = currentFile?.chineseTitle || null;
+        const japaneseTitle = data.title;
+
+        let textToProcess = null;
+        let mode = null;
+
+        // 判斷邏輯：日文假名優先（因為日文漢字也會被判定為中文）
+        if (japaneseTitle && hasJapanese(japaneseTitle)) {
+            // 標題有日文假名 → 翻譯模式
+            textToProcess = japaneseTitle;
+            mode = 'translate';
+        } else if (chineseFromFile) {
+            // 檔名有中文（且標題無日文） → 優化模式
+            textToProcess = chineseFromFile;
+            mode = 'optimize';
+        }
+
+        if (!textToProcess) return;
+
+        // 調用翻譯 API
+        const result = await translateWithOllama(textToProcess, mode, {
+            actors: data.actors,
+            number: number
+        });
+
+        if (result.success) {
+            // 快取結果
+            translationCache.set(number, { result: result.result, mode: mode });
+            // 更新 UI（只有當前顯示的番號才更新）
+            const currentNumber = document.getElementById('resultNumber').textContent;
+            if (currentNumber === number) {
+                updateChineseTitleDisplay(result.result, mode);
+            }
+        } else {
+            // 顯示錯誤提示
+            console.warn('翻譯失敗:', result.error);
+            showTranslateError(result.error);
+        }
+    }
+
+    /**
+     * 更新中文標題顯示（含來源標示）
+     */
+    function updateChineseTitleDisplay(text, mode) {
+        const chineseTitleRow = document.getElementById('chineseTitleRow');
+        const chineseTitleLabel = document.getElementById('chineseTitleLabel');
+        const chineseTitleEl = document.getElementById('resultChineseTitle');
+
+        if (text) {
+            chineseTitleEl.textContent = text;
+            // 更新標籤
+            if (mode === 'translate') {
+                chineseTitleLabel.textContent = '中文片名 (翻譯)';
+            } else if (mode === 'optimize') {
+                chineseTitleLabel.textContent = '中文片名 (優化)';
+            } else {
+                chineseTitleLabel.textContent = '中文片名';
+            }
+            chineseTitleRow.classList.remove('d-none');
+        }
+    }
+
+    /**
+     * 顯示翻譯錯誤（短暫提示）
+     */
+    function showTranslateError(error) {
+        const chineseTitleLabel = document.getElementById('chineseTitleLabel');
+        const originalText = chineseTitleLabel.textContent;
+        chineseTitleLabel.innerHTML = `中文片名 <span class="text-danger">(${error})</span>`;
+        // 3 秒後恢復
+        setTimeout(() => {
+            if (chineseTitleLabel.innerHTML.includes(error)) {
+                chineseTitleLabel.textContent = originalText;
+            }
+        }, 3000);
+    }
 
     // === 狀態保存/還原 ===
     const STATE_KEY = 'javhelper_search_state';
@@ -875,9 +1019,14 @@ document.addEventListener('DOMContentLoaded', function() {
             tagsContainer.textContent = '-';
         }
 
-        // 中文標題（從檔名提取）
+        // 中文標題（從檔名提取）- 先顯示原始值
         const chineseTitleRow = document.getElementById('chineseTitleRow');
+        const chineseTitleLabel = document.getElementById('chineseTitleLabel');
         const chineseTitleEl = document.getElementById('resultChineseTitle');
+
+        // 重置標籤為預設
+        chineseTitleLabel.textContent = '中文片名';
+
         if (chineseTitle) {
             chineseTitleEl.textContent = chineseTitle;
             chineseTitleRow.classList.remove('d-none');
@@ -890,6 +1039,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (data.cover) {
             coverImg.src = `/api/proxy-image?url=${encodeURIComponent(data.cover)}`;
             coverImg.style.display = 'block';
+            // 預覽不翻譯，批次產生時才翻譯
         } else {
             coverImg.src = '';
             coverImg.style.display = 'none';
@@ -919,6 +1069,10 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('resultDate').textContent = '-';
         document.getElementById('resultMaker').textContent = '-';
         document.getElementById('resultTags').textContent = '-';
+
+        // 隱藏中文片名
+        document.getElementById('chineseTitleRow').classList.add('d-none');
+        document.getElementById('chineseTitleLabel').textContent = '中文片名';
     }
 
     // 預加載圖片（避免切換時延遲）
@@ -1268,7 +1422,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 清空按鈕點擊
     btnClear.addEventListener('click', clearAll);
 
-    // 初始化：嘗試還原狀態，否則 focus 搜尋框
+    // 初始化：載入設定、還原狀態
+    loadAppConfig();  // 背景載入設定（用於翻譯功能）
+
     if (!restoreState()) {
         queryInput.focus();
     }
@@ -1593,7 +1749,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // 使用第一個搜尋結果
-        const metadata = file.searchResults[0];
+        const metadata = { ...file.searchResults[0] };
 
         // 找到對應的按鈕並顯示 loading
         const btn = fileListContainer.querySelector(`[data-index="${index}"]`);
@@ -1603,6 +1759,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
+            // 翻譯邏輯：只有沒有中文標題時才需要翻譯
+            const chineseFromFile = file.chineseTitle;
+            if (appConfig?.translate?.enabled && !chineseFromFile && metadata.title && hasJapanese(metadata.title)) {
+                // 檔名沒有中文 + 標題是日文 → 翻譯
+                const tr = await translateWithOllama(metadata.title, 'translate', metadata);
+                if (tr.success) metadata.translated_title = tr.result;
+            }
+
             const result = await scrapeFile(file, metadata);
             if (result.success) {
                 // 標記已處理
@@ -1651,7 +1815,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         for (const file of scrapableFiles) {
             const index = fileList.indexOf(file);
-            const metadata = file.searchResults[0];
+            const metadata = { ...file.searchResults[0] };
 
             // 更新列表按鈕狀態
             const btn = fileListContainer.querySelector(`[data-index="${index}"]`);
@@ -1661,6 +1825,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             try {
+                // 翻譯邏輯：只有沒有中文標題時才需要翻譯
+                const chineseFromFile = file.chineseTitle;
+                if (appConfig?.translate?.enabled && !chineseFromFile && metadata.title && hasJapanese(metadata.title)) {
+                    // 檔名沒有中文 + 標題是日文 → 翻譯
+                    const tr = await translateWithOllama(metadata.title, 'translate', metadata);
+                    if (tr.success) metadata.translated_title = tr.result;
+                }
+
                 const result = await scrapeFile(file, metadata);
                 if (result.success) {
                     file.scraped = true;
@@ -1850,8 +2022,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         name = name.trim();
 
-        // 只有包含中文才返回
-        if (name && hasChinese(name)) {
+        // 只有包含中文且不含日文假名才返回
+        // （日文漢字也在中文 Unicode 範圍內，需要排除）
+        if (name && hasChinese(name) && !hasJapanese(name)) {
             return name;
         }
         return null;

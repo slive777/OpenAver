@@ -372,13 +372,22 @@ def organize_file(
     # 準備格式化資料
     actors = metadata.get('actors', [])
 
-    # 嘗試從檔名提取中文片名（如果有，優先使用）
-    title = metadata.get('title', '')
+    # 標題優先順序：翻譯 > 檔名提取 > 日文原始
+    original_title = metadata.get('title', '')  # 日文原始標題
+    translated_title = metadata.get('translated_title', '')  # LLM 翻譯/優化的標題
     extracted_title = extract_chinese_title(original_filename, number, actors)
-    if extracted_title:
-        # 檔名有中文片名，優先使用
+
+    # 決定最終使用的標題
+    if translated_title:
+        title = translated_title
+        result['title_source'] = 'translated'
+    elif extracted_title:
         title = extracted_title
-        result['extracted_title'] = extracted_title  # 記錄提取的片名
+        result['title_source'] = 'extracted'
+        result['extracted_title'] = extracted_title
+    else:
+        title = original_title
+        result['title_source'] = 'original'
 
     format_data = {
         'number': number,
@@ -435,7 +444,7 @@ def organize_file(
         if generate_nfo(
             number=number,
             title=format_data['title'],
-            original_title=metadata.get('original_title', metadata.get('title', '')),
+            original_title=original_title,  # 日文原始標題
             actors=actors,
             tags=tags,
             date=metadata.get('date', ''),

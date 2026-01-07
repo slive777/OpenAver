@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from pathlib import Path
 import json
+import httpx
 
 router = APIRouter(prefix="/api", tags=["config"])
 
@@ -89,3 +90,67 @@ async def get_format_variables() -> dict:
             {"name": "{year}", "description": "年份", "example": "2024"},
         ]
     }
+
+
+@router.get("/ollama/models")
+async def get_ollama_models(url: str) -> dict:
+    """取得 Ollama 可用模型列表"""
+    try:
+        # 確保 URL 格式正確
+        url = url.rstrip('/')
+        api_url = f"{url}/api/tags"
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(api_url)
+            resp.raise_for_status()
+            data = resp.json()
+
+            models = [m['name'] for m in data.get('models', [])]
+            return {"success": True, "models": models}
+
+    except httpx.TimeoutException:
+        return {"success": False, "error": "連線逾時"}
+    except httpx.ConnectError:
+        return {"success": False, "error": "無法連線到 Ollama"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+class OllamaTestRequest(BaseModel):
+    url: str
+    model: str
+
+
+@router.post("/ollama/test")
+async def test_ollama_model(request: OllamaTestRequest) -> dict:
+    """測試 Ollama 模型是否能正常回應"""
+    try:
+        url = request.url.rstrip('/')
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{url}/api/chat",
+                json={
+                    "model": request.model,
+                    "messages": [
+                        {"role": "system", "content": "你是翻譯助手"},
+                        {"role": "user", "content": "/no_think\n翻譯：テスト"}
+                    ],
+                    "stream": False
+                }
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+            result = data.get("message", {}).get("content", "").strip()
+            if result:
+                return {"success": True, "result": f"回應：{result}"}
+            else:
+                return {"success": False, "error": "模型無回應"}
+
+    except httpx.TimeoutException:
+        return {"success": False, "error": "連線逾時"}
+    except httpx.ConnectError:
+        return {"success": False, "error": "無法連線到 Ollama"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

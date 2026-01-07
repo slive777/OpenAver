@@ -137,18 +137,31 @@
                             <label class="form-label">Ollama URL</label>
                         </div>
                         <div class="col-md-6">
-                            <input type="text" class="form-control form-control-sm" id="ollamaUrl"
-                                   value="http://localhost:11434">
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control" id="ollamaUrl"
+                                       value="http://localhost:11434">
+                                <button class="btn btn-outline-secondary" type="button" id="testOllamaBtn">
+                                    <i class="bi bi-plug"></i> 測試
+                                </button>
+                            </div>
+                            <small class="text-muted" id="ollamaStatus"></small>
                         </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6">
-                            <label class="form-label">模型名稱</label>
+                            <label class="form-label">模型</label>
                         </div>
                         <div class="col-md-6">
-                            <input type="text" class="form-control form-control-sm" id="ollamaModel"
-                                   value="qwen2.5:7b">
+                            <div class="input-group input-group-sm">
+                                <select class="form-select form-select-sm" id="ollamaModel">
+                                    <option value="">-- 請先測試連線 --</option>
+                                </select>
+                                <button class="btn btn-outline-secondary" type="button" id="testModelBtn" title="測試模型">
+                                    <i class="bi bi-chat-dots"></i> 測試
+                                </button>
+                            </div>
+                            <small class="text-muted" id="modelStatus"></small>
                         </div>
                     </div>
                 </div>
@@ -231,9 +244,14 @@ async function loadConfig() {
             document.getElementById('translateEnabled').checked = config.translate.enabled;
             document.getElementById('translateProvider').value = config.translate.provider;
             document.getElementById('ollamaUrl').value = config.translate.ollama_url;
-            document.getElementById('ollamaModel').value = config.translate.ollama_model;
 
             updateTranslateOptions();
+
+            // 自動載入模型列表（如果有 URL）
+            if (config.translate.ollama_url) {
+                const savedModel = config.translate.ollama_model;
+                await loadOllamaModels(config.translate.ollama_url, savedModel);
+            }
         }
     } catch (e) {
         console.error('載入設定失敗:', e);
@@ -299,8 +317,127 @@ function showToast(message, type = 'info') {
     }
 }
 
+// 載入 Ollama 模型列表（靜默版本，頁面載入時使用）
+async function loadOllamaModels(url, savedModel = '') {
+    const statusEl = document.getElementById('ollamaStatus');
+    const modelSelect = document.getElementById('ollamaModel');
+
+    if (!url) return;
+
+    statusEl.innerHTML = '<span class="text-muted">載入模型中...</span>';
+
+    try {
+        const resp = await fetch(`/api/ollama/models?url=${encodeURIComponent(url)}`);
+        const result = await resp.json();
+
+        if (result.success && result.models && result.models.length > 0) {
+            modelSelect.innerHTML = result.models.map(m =>
+                `<option value="${m}">${m}</option>`
+            ).join('');
+
+            // 設定儲存的模型
+            if (savedModel && result.models.includes(savedModel)) {
+                modelSelect.value = savedModel;
+            }
+
+            statusEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> ${result.models.length} 個模型</span>`;
+        } else {
+            statusEl.innerHTML = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> ${result.error || '無法連線'}</span>`;
+        }
+    } catch (e) {
+        statusEl.innerHTML = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> 無法連線</span>`;
+    }
+}
+
+// 測試 Ollama 連線並載入模型
+async function testOllamaConnection() {
+    const url = document.getElementById('ollamaUrl').value.trim();
+    const statusEl = document.getElementById('ollamaStatus');
+    const modelSelect = document.getElementById('ollamaModel');
+    const btn = document.getElementById('testOllamaBtn');
+
+    if (!url) {
+        statusEl.innerHTML = '<span class="text-danger">請輸入 URL</span>';
+        return;
+    }
+
+    // 顯示載入中
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    statusEl.innerHTML = '<span class="text-muted">連線中...</span>';
+
+    try {
+        const resp = await fetch(`/api/ollama/models?url=${encodeURIComponent(url)}`);
+        const result = await resp.json();
+
+        if (result.success && result.models && result.models.length > 0) {
+            // 成功：填入模型選單
+            const currentModel = modelSelect.value;
+            modelSelect.innerHTML = result.models.map(m =>
+                `<option value="${m}">${m}</option>`
+            ).join('');
+
+            // 保留之前選擇的模型（如果還存在）
+            if (currentModel && result.models.includes(currentModel)) {
+                modelSelect.value = currentModel;
+            }
+
+            statusEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> 已連線，${result.models.length} 個模型</span>`;
+        } else {
+            statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${result.error || '無可用模型'}</span>`;
+            modelSelect.innerHTML = '<option value="">-- 連線失敗 --</option>';
+        }
+    } catch (e) {
+        statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${e.message}</span>`;
+        modelSelect.innerHTML = '<option value="">-- 連線失敗 --</option>';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-plug"></i> 測試';
+    }
+}
+
+// 測試模型是否能正常回應
+async function testModel() {
+    const url = document.getElementById('ollamaUrl').value.trim();
+    const model = document.getElementById('ollamaModel').value;
+    const statusEl = document.getElementById('modelStatus');
+    const btn = document.getElementById('testModelBtn');
+
+    if (!url || !model) {
+        statusEl.innerHTML = '<span class="text-danger">請先選擇模型</span>';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    statusEl.innerHTML = '<span class="text-muted">測試中...</span>';
+
+    try {
+        // 直接調用 Ollama API 測試當前選擇的模型
+        const resp = await fetch('/api/ollama/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, model })
+        });
+        const result = await resp.json();
+
+        if (result.success) {
+            statusEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> ${result.result}</span>`;
+        } else {
+            statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${result.error}</span>`;
+        }
+    } catch (e) {
+        statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${e.message}</span>`;
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-chat-dots"></i> 測試';
+    }
+}
+
 // 事件綁定
 document.getElementById('translateEnabled').addEventListener('change', updateTranslateOptions);
+document.getElementById('testOllamaBtn').addEventListener('click', testOllamaConnection);
+document.getElementById('testModelBtn').addEventListener('click', testModel);
 
 document.getElementById('settingsForm').addEventListener('submit', (e) => {
     e.preventDefault();
