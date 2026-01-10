@@ -49,3 +49,4 @@ web/config.local.json
 build/
 dist/
 output/
+.build_cache/

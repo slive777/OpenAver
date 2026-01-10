@@ -29,6 +29,11 @@ PORT = 8000
 STARTUP_TIMEOUT = 30  # 最多等待 30 秒
 
 
+def log(msg):
+    """輸出日誌（Debug 模式用）"""
+    print(f"[JavHelper] {msg}")
+
+
 def find_free_port(start_port=8000, max_attempts=100):
     """尋找可用端口"""
     for port in range(start_port, start_port + max_attempts):
@@ -77,33 +82,26 @@ def run_server(port):
 # ============ 主程序 ============
 
 def main():
-    print("[JavHelper] 正在啟動...")
+    log("正在啟動...")
 
     # 1. 尋找可用端口
     port = find_free_port(PORT)
-    print(f"[JavHelper] 使用端口: {port}")
+    log(f"使用端口: {port}")
 
     # 2. 在背景 thread 啟動 FastAPI
+    log("啟動伺服器...")
     server_thread = threading.Thread(target=run_server, args=(port,), daemon=True)
     server_thread.start()
-    print("[JavHelper] 正在啟動伺服器...")
 
     # 3. 等待伺服器就緒
+    log("等待伺服器就緒...")
     if not wait_for_server(port):
-        print("[JavHelper] 錯誤：伺服器啟動逾時")
+        log("錯誤：伺服器啟動逾時")
         sys.exit(1)
-    print("[JavHelper] 伺服器已就緒")
+    log("伺服器已就緒")
 
-    # 4. 隱藏控制台視窗（Windows 限定）
-    try:
-        import ctypes
-        ctypes.windll.user32.ShowWindow(
-            ctypes.windll.kernel32.GetConsoleWindow(), 0
-        )
-    except Exception:
-        pass  # 非 Windows 或無控制台時忽略
-
-    # 5. 啟動 PyWebView 窗口
+    # 4. 啟動 PyWebView 窗口
+    log("啟動視窗...")
     webview.settings['OPEN_DEVTOOLS_IN_DEBUG'] = False
 
     window = webview.create_window(
@@ -114,8 +112,7 @@ def main():
         height=800
     )
 
-    # 6. 開始 GUI 事件循環（阻塞直到窗口關閉）
-    # 使用 EdgeChromium 後端（Windows 10/11 內建，不需要 .NET）
+    # 5. 開始 GUI 事件循環（阻塞直到窗口關閉）
     webview.start(bind_events, window, gui='edgechromium')
 
 

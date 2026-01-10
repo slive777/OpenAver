@@ -29,6 +29,7 @@ PYTHON_EMBED_URL = f"https://www.python.org/ftp/python/{PYTHON_VERSION}/python-{
 PROJECT_ROOT = Path(__file__).parent
 BUILD_DIR = PROJECT_ROOT / "build"
 DIST_DIR = PROJECT_ROOT / "dist"
+CACHE_DIR = PROJECT_ROOT / ".build_cache"  # 緩存目錄（不會被清理）
 
 # 需要複製的專案目錄/檔案
 COPY_ITEMS = [
@@ -116,17 +117,24 @@ def clean_build():
 
 
 def download_embedded_python():
-    """下載嵌入式 Python"""
-    print("\n[2/6] 下載嵌入式 Python...")
+    """下載嵌入式 Python（使用緩存）"""
+    print("\n[2/6] 準備嵌入式 Python...")
 
     python_dir = BUILD_DIR / "JavHelper" / "python"
     python_dir.mkdir(parents=True)
 
-    # 下載並解壓
-    zip_path = BUILD_DIR / "python-embed.zip"
-    download_file(PYTHON_EMBED_URL, zip_path)
-    extract_zip(zip_path, python_dir)
-    zip_path.unlink()
+    # 檢查緩存
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cached_zip = CACHE_DIR / f"python-{PYTHON_VERSION}-embed-amd64.zip"
+
+    if cached_zip.exists():
+        print(f"  使用緩存: {cached_zip.name}")
+    else:
+        print("  下載中（首次會較慢）...")
+        download_file(PYTHON_EMBED_URL, cached_zip)
+
+    # 從緩存解壓
+    extract_zip(cached_zip, python_dir)
 
     # 修改 _pth 檔案以啟用 site-packages
     pth_files = list(python_dir.glob("python*._pth"))
@@ -163,15 +171,15 @@ def get_all_dependencies():
 
 
 def download_and_install_packages(python_dir: Path):
-    """下載 Windows wheel 並解壓到 site-packages"""
-    print("\n[3/6] 獲取完整依賴列表...")
+    """下載 Windows wheel 並解壓到 site-packages（使用緩存）"""
+    print("\n[3/6] 準備依賴套件...")
 
     site_packages = python_dir / "Lib" / "site-packages"
     site_packages.mkdir(parents=True, exist_ok=True)
 
-    # 建立暫存目錄存放 wheel
-    wheels_dir = BUILD_DIR / "wheels"
-    wheels_dir.mkdir(exist_ok=True)
+    # 使用緩存目錄存放 wheel
+    wheels_dir = CACHE_DIR / "wheels"
+    wheels_dir.mkdir(parents=True, exist_ok=True)
 
     # 從現有 venv 獲取所有已安裝的套件
     all_deps = get_all_dependencies()
@@ -179,48 +187,42 @@ def download_and_install_packages(python_dir: Path):
     if "pywebview" not in [d.lower() for d in all_deps]:
         all_deps.append("pywebview")
 
-    print(f"  找到 {len(all_deps)} 個套件需要下載")
+    # 額外依賴（手動補充 Windows 專用套件）
+    extra_deps = [
+        "bottle", "proxy-tools", "clr_loader", "pythonnet",
+        "win32-setctime", "colorama",
+    ]
+    all_deps.extend(extra_deps)
 
-    # 逐個下載
-    for pkg in all_deps:
-        # 嘗試下載 Windows wheel
-        pip_cmd = [
-            sys.executable, "-m", "pip", "download",
-            "--dest", str(wheels_dir),
-            "--platform", "win_amd64",
-            "--python-version", "3.12",
-            "--only-binary", ":all:",
-            "--no-deps",
-            pkg,
-        ]
-        result = subprocess.run(pip_cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            # 嘗試不限平台（純 Python 套件）
+    # 檢查已緩存的套件
+    cached_files = set(f.stem.split('-')[0].lower().replace('_', '-') for f in wheels_dir.glob("*.*"))
+    to_download = [pkg for pkg in all_deps if pkg.lower().replace('_', '-') not in cached_files]
+
+    if to_download:
+        print(f"  需下載 {len(to_download)} 個新套件（已緩存 {len(all_deps) - len(to_download)} 個）")
+        for pkg in to_download:
+            # 嘗試下載 Windows wheel
             pip_cmd = [
                 sys.executable, "-m", "pip", "download",
                 "--dest", str(wheels_dir),
+                "--platform", "win_amd64",
+                "--python-version", "3.12",
+                "--only-binary", ":all:",
                 "--no-deps",
                 pkg,
             ]
-            subprocess.run(pip_cmd, capture_output=True, text=True)
-
-    # 額外依賴（手動補充 Windows 專用套件）
-    extra_deps = [
-        # pywebview
-        "bottle", "proxy-tools", "clr_loader", "pythonnet",
-        # loguru (Windows)
-        "win32-setctime",
-        # Windows common
-        "colorama",
-    ]
-    for dep in extra_deps:
-        pip_cmd = [
-            sys.executable, "-m", "pip", "download",
-            "--dest", str(wheels_dir),
-            "--no-deps",
-            dep,
-        ]
-        subprocess.run(pip_cmd, capture_output=True, text=True)
+            result = subprocess.run(pip_cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                # 嘗試不限平台（純 Python 套件）
+                pip_cmd = [
+                    sys.executable, "-m", "pip", "download",
+                    "--dest", str(wheels_dir),
+                    "--no-deps",
+                    pkg,
+                ]
+                subprocess.run(pip_cmd, capture_output=True, text=True)
+    else:
+        print(f"  全部 {len(all_deps)} 個套件已緩存")
 
     # 解壓所有套件到 site-packages
     print("\n[4/6] 安裝套件到 site-packages...")
@@ -236,8 +238,7 @@ def download_and_install_packages(python_dir: Path):
         print(f"  安裝: {tar_file.name}")
         extract_tar_gz(tar_file, site_packages)
 
-    # 清理暫存
-    shutil.rmtree(wheels_dir)
+    # 保留緩存（不清理 wheels_dir）
 
 
 def copy_project_files():
@@ -273,14 +274,17 @@ def create_launcher_scripts():
 
     root_dir = BUILD_DIR / "JavHelper"
 
-    # JavHelper.bat - 啟動時顯示控制台，伺服器就緒後自動隱藏
+    # JavHelper.bat - 顯示簡單日誌後用 pythonw.exe 啟動（無控制台）
     bat_content = '''@echo off
 cd /d "%~dp0"
-"python\\python.exe" "app\\windows\\standalone.py"
+echo JavHelper starting...
+echo Window will appear shortly...
+start "" "python\\pythonw.exe" "app\\windows\\standalone.py"
+ping -n 3 127.0.0.1 >nul
 '''
     (root_dir / "JavHelper.bat").write_text(bat_content, encoding='utf-8')
 
-    # JavHelper_Debug.bat - 有控制台版本
+    # JavHelper_Debug.bat - 有控制台版本（用於調試）
     debug_bat_content = '''@echo off
 cd /d "%~dp0"
 "python\\python.exe" "app\\windows\\standalone.py"
