@@ -86,10 +86,51 @@
         gap: 0.5rem;
         margin-top: 0.5rem;
     }
+
+    /* 拖曳遮罩 */
+    .drag-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(13, 110, 253, 0.15);
+        z-index: 9999;
+        pointer-events: none;
+    }
+
+    .drag-overlay.show {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .drag-overlay-content {
+        background: white;
+        padding: 2rem 3rem;
+        border-radius: 1rem;
+        box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.2);
+        text-align: center;
+        border: 3px dashed #0d6efd;
+    }
+
+    .drag-overlay-content i {
+        font-size: 3rem;
+        color: #0d6efd;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
+<!-- 拖曳遮罩 -->
+<div class="drag-overlay" id="dragOverlay">
+    <div class="drag-overlay-content">
+        <i class="bi bi-folder-plus"></i>
+        <p class="mt-2 mb-0 fw-bold">放開以加入資料夾</p>
+    </div>
+</div>
+
 <div class="avlist-container">
     <h4 class="mb-4"><i class="bi bi-list-ul"></i> 列表生成</h4>
 
@@ -201,7 +242,7 @@ function renderDirectories() {
             <div class="empty-list">
                 <i class="bi bi-folder-plus fs-1 text-muted"></i>
                 <p class="mt-2 mb-0">尚未加入任何資料夾</p>
-                <small class="text-muted">點擊上方按鈕加入要掃描的資料夾</small>
+                <small class="text-muted">點擊上方按鈕或拖曳資料夾至此</small>
             </div>
         `;
         footer.style.display = 'none';
@@ -222,26 +263,36 @@ function renderDirectories() {
 
 // 選擇資料夾 (PyWebView)
 async function selectFolder() {
-    if (window.pywebview && window.pywebview.api && window.pywebview.api.select_folder_path) {
-        try {
-            const folderPath = await pywebview.api.select_folder_path();
-            if (folderPath) {
-                if (!directories.includes(folderPath)) {
-                    directories.push(folderPath);
-                    configDirty = true;
-                    renderDirectories();
-                } else {
-                    alert('此資料夾已在列表中');
-                }
-            }
-        } catch (e) {
-            console.error('PyWebView API 錯誤:', e);
-            toggleManualInput();
-            alert('選擇失敗，請手動輸入路徑');
-        }
-    } else {
+    if (typeof window.pywebview === 'undefined' || !window.pywebview.api) {
         toggleManualInput();
-        alert('此功能需要在桌面應用程式中使用，請手動輸入路徑');
+        alert('此功能需要在桌面應用程式中使用');
+        return;
+    }
+
+    try {
+        const paths = await window.pywebview.api.select_folder();
+        if (paths && paths.length > 0) {
+            // 從第一個檔案路徑提取資料夾路徑
+            const firstFile = paths[0];
+            const lastBackslash = firstFile.lastIndexOf('\\');
+            const lastSlash = firstFile.lastIndexOf('/');
+            const lastSep = Math.max(lastBackslash, lastSlash);
+            const folderPath = lastSep > 0 ? firstFile.substring(0, lastSep) : firstFile;
+            addFolderPath(folderPath);
+        }
+    } catch (e) {
+        console.error('選取資料夾失敗:', e);
+    }
+}
+
+// 加入資料夾路徑（避免重複）
+function addFolderPath(folderPath) {
+    if (!directories.includes(folderPath)) {
+        directories.push(folderPath);
+        configDirty = true;
+        renderDirectories();
+    } else {
+        alert('此資料夾已在列表中');
     }
 }
 
@@ -419,6 +470,71 @@ function escapeHtml(str) {
               .replace(/>/g, '&gt;')
               .replace(/"/g, '&quot;');
 }
+
+// === 拖曳功能 ===
+const dragOverlay = document.getElementById('dragOverlay');
+let dragCounter = 0;
+
+// PyWebView 拖曳處理（由 standalone.py 呼叫）
+window.handlePyWebViewDrop = function(paths) {
+    if (!paths || paths.length === 0) return;
+
+    // 收集所有資料夾路徑（去重）
+    const folderPaths = new Set();
+    for (const filePath of paths) {
+        const lastBackslash = filePath.lastIndexOf('\\');
+        const lastSlash = filePath.lastIndexOf('/');
+        const lastSep = Math.max(lastBackslash, lastSlash);
+        if (lastSep > 0) {
+            folderPaths.add(filePath.substring(0, lastSep));
+        }
+    }
+
+    // 加入資料夾
+    let added = 0;
+    for (const folderPath of folderPaths) {
+        if (!directories.includes(folderPath)) {
+            directories.push(folderPath);
+            added++;
+        }
+    }
+
+    if (added > 0) {
+        configDirty = true;
+        renderDirectories();
+    }
+};
+
+// 拖曳進入
+document.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragCounter++;
+    if (dragCounter === 1) {
+        dragOverlay.classList.add('show');
+    }
+});
+
+// 拖曳離開
+document.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter === 0) {
+        dragOverlay.classList.remove('show');
+    }
+});
+
+// 拖曳經過
+document.addEventListener('dragover', (e) => {
+    e.preventDefault();
+});
+
+// 放開
+document.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    dragOverlay.classList.remove('show');
+    // PyWebView 會自動處理並呼叫 handlePyWebViewDrop
+});
 
 // 初始化
 renderDirectories();  // 先渲染空狀態
