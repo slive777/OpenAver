@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.avlist_scanner import VideoScanner, load_cache, save_cache
 from core.avlist_generator import HTMLGenerator
+from core.path_utils import normalize_path
 from web.routers.config import load_config
 
 router = APIRouter(prefix="/api/avlist", tags=["avlist"])
@@ -69,6 +70,13 @@ def generate_avlist() -> Generator[str, None, None]:
         total_dirs = len(directories)
 
         for idx, directory in enumerate(directories, 1):
+            # 轉換路徑格式 (Windows -> WSL)
+            try:
+                normalized_dir = normalize_path(directory)
+            except ValueError as e:
+                yield send({"type": "log", "level": "warn", "message": f"路徑轉換失敗: {e}"})
+                continue
+
             yield send({
                 "type": "progress",
                 "status": f"掃描: {directory}",
@@ -76,13 +84,13 @@ def generate_avlist() -> Generator[str, None, None]:
                 "total": total_dirs + 1  # +1 for generating
             })
 
-            if not os.path.exists(directory):
+            if not os.path.exists(normalized_dir):
                 yield send({"type": "log", "level": "warn", "message": f"資料夾不存在: {directory}"})
                 continue
 
             try:
                 videos, stats = scanner.scan_directory(
-                    directory,
+                    normalized_dir,
                     recursive=True,
                     relative_path=False,  # 使用絕對路徑
                     min_size_kb=min_size_kb,
