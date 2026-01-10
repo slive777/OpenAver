@@ -211,7 +211,15 @@
     <div class="card mt-3" id="statsCard" style="display: none;">
         <div class="card-body py-2">
             <div class="d-flex justify-content-between align-items-center text-muted small">
-                <span><i class="bi bi-collection-play"></i> 快取影片: <strong id="statTotal">0</strong> 部</span>
+                <span>
+                    <i class="bi bi-collection-play"></i> 快取影片: <strong id="statTotal">0</strong> 部
+                    <span id="statNeedUpdate" style="display: none;">
+                        | 需補全: <strong id="updateCount">0</strong> 部
+                        <button class="btn btn-sm btn-outline-primary ms-1 py-0 px-1" onclick="runNfoUpdate()" id="btnUpdate" title="補全 NFO 資訊">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </button>
+                    </span>
+                </span>
                 <span id="statLastRun"></span>
             </div>
         </div>
@@ -595,10 +603,91 @@ async function loadStats() {
                     }
                     statLastRun.textContent = runInfo;
                 }
+
+                // 檢查需要更新的數量
+                checkNeedUpdate();
             }
         }
     } catch (e) {
         console.error('載入統計失敗:', e);
+    }
+}
+
+// 檢查需要更新的影片數量
+async function checkNeedUpdate() {
+    try {
+        const resp = await fetch('/api/avlist/update-check');
+        const result = await resp.json();
+        if (result.success && result.data && result.data.need_update > 0) {
+            document.getElementById('updateCount').textContent = result.data.need_update;
+            document.getElementById('statNeedUpdate').style.display = '';
+        } else {
+            document.getElementById('statNeedUpdate').style.display = 'none';
+        }
+    } catch (e) {
+        console.error('檢查更新失敗:', e);
+    }
+}
+
+// 執行 NFO 更新
+async function runNfoUpdate() {
+    const btn = document.getElementById('btnUpdate');
+    const progressSection = document.getElementById('progressSection');
+    const logOutput = document.getElementById('logOutput');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:0.75rem;height:0.75rem"></span>';
+    progressSection.classList.add('show');
+    logOutput.innerHTML = '';
+
+    try {
+        const eventSource = new EventSource('/api/avlist/update');
+
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'progress') {
+                document.getElementById('progressStatus').textContent = data.status;
+                document.getElementById('progressCount').textContent = `${data.current} / ${data.total}`;
+                const pct = data.total > 0 ? (data.current / data.total) * 100 : 0;
+                document.getElementById('progressBar').style.width = `${pct}%`;
+            } else if (data.type === 'log') {
+                const cls = data.level === 'error' ? 'log-error' :
+                           data.level === 'warn' ? 'log-warn' : 'log-info';
+                logOutput.innerHTML += `<div class="${cls}">${escapeHtml(data.message)}</div>`;
+                logOutput.scrollTop = logOutput.scrollHeight;
+            } else if (data.type === 'done') {
+                eventSource.close();
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
+                document.getElementById('progressBar').style.width = '100%';
+                document.getElementById('progressStatus').textContent = data.message || '完成';
+
+                // 提示重新產生列表
+                if (data.message) {
+                    logOutput.innerHTML += `<div class="log-info">${escapeHtml(data.message)}</div>`;
+                }
+
+                // 重新檢查更新數量
+                checkNeedUpdate();
+            } else if (data.type === 'error') {
+                eventSource.close();
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
+                logOutput.innerHTML += `<div class="log-error">錯誤: ${escapeHtml(data.message)}</div>`;
+            }
+        };
+
+        eventSource.onerror = function() {
+            eventSource.close();
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
+            logOutput.innerHTML += '<div class="log-error">連線中斷</div>';
+        };
+    } catch (e) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
+        alert('發生錯誤: ' + e.message);
     }
 }
 

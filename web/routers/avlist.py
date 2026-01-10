@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.avlist_scanner import VideoScanner, load_cache, save_cache, fast_scan_directory, VIDEO_EXTENSIONS, VideoInfo
 from core.avlist_generator import HTMLGenerator
 from core.path_utils import normalize_path
+from core.nfo_updater import check_cache_needs_update, update_videos_generator
 from web.routers.config import load_config
 
 router = APIRouter(prefix="/api/avlist", tags=["avlist"])
@@ -247,3 +248,103 @@ async def get_stats():
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+@router.get("/update-check")
+async def check_update():
+    """檢查需要更新的影片數量"""
+    try:
+        config = load_config()
+        avlist_config = config.get('avlist', {})
+        output_dir = avlist_config.get('output_dir', 'output')
+        output_filename = avlist_config.get('output_filename', 'avlist_output.html')
+
+        project_root = Path(__file__).parent.parent.parent
+        cache_path = project_root / output_dir / output_filename.replace('.html', '_cache.json')
+
+        if not cache_path.exists():
+            return {"success": True, "data": {"need_update": 0}}
+
+        cache = load_cache(str(cache_path))
+        stats = check_cache_needs_update(cache)
+
+        # 不要返回 paths 列表（太大）
+        return {
+            "success": True,
+            "data": {
+                "need_update": stats['need_update'],
+                "details": {
+                    "no_title": stats['no_title'],
+                    "no_date": stats['no_date'],
+                    "no_actor": stats['no_actor'],
+                    "no_genre": stats['no_genre'],
+                    "no_maker": stats['no_maker'],
+                }
+            }
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def generate_nfo_update() -> Generator[str, None, None]:
+    """NFO 更新生成器（SSE 串流）"""
+
+    def send(data: dict):
+        return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+    try:
+        config = load_config()
+        avlist_config = config.get('avlist', {})
+        output_dir = avlist_config.get('output_dir', 'output')
+        output_filename = avlist_config.get('output_filename', 'avlist_output.html')
+
+        project_root = Path(__file__).parent.parent.parent
+        cache_path = project_root / output_dir / output_filename.replace('.html', '_cache.json')
+
+        if not cache_path.exists():
+            yield send({"type": "error", "message": "快取檔案不存在，請先產生列表"})
+            return
+
+        cache = load_cache(str(cache_path))
+        stats = check_cache_needs_update(cache)
+
+        if stats['need_update'] == 0:
+            yield send({"type": "done", "message": "沒有需要更新的影片", "updated": 0})
+            return
+
+        yield send({
+            "type": "log",
+            "level": "info",
+            "message": f"找到 {stats['need_update']} 部需要更新的影片"
+        })
+
+        # 執行更新
+        final_stats = None
+        for msg in update_videos_generator(cache, stats['paths']):
+            yield send(msg)
+            # update_videos_generator 會在最後 return stats
+            # 但 Python generator return 的值需要用 StopIteration 來取得
+            # 這裡我們在 msg 中追蹤進度就好
+
+        # 更新完成後重新掃描快取
+        # 簡化處理：直接返回成功，讓使用者重新產生網頁
+        yield send({
+            "type": "done",
+            "message": "更新完成，建議重新產生網頁以更新快取",
+        })
+
+    except Exception as e:
+        yield send({"type": "error", "message": str(e)})
+
+
+@router.get("/update")
+async def run_update():
+    """執行 NFO 更新（SSE 串流回傳進度）"""
+    return StreamingResponse(
+        generate_nfo_update(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
