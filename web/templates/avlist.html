@@ -117,18 +117,9 @@
             </div>
 
             <!-- 資料夾列表 -->
-            <div class="directory-list" id="directoryList">
-                <div class="empty-list" id="emptyHint">
-                    <i class="bi bi-folder-plus fs-1 text-muted"></i>
-                    <p class="mt-2 mb-0">尚未加入任何資料夾</p>
-                    <small class="text-muted">點擊上方按鈕加入要掃描的資料夾</small>
-                </div>
-            </div>
+            <div class="directory-list" id="directoryList"></div>
         </div>
         <div class="card-footer text-end" id="dirFooter" style="display: none;">
-            <button class="btn btn-sm btn-outline-danger" onclick="clearAllDirs()">
-                <i class="bi bi-trash"></i> 清空全部
-            </button>
             <button class="btn btn-sm btn-primary" onclick="saveConfig()">
                 <i class="bi bi-save"></i> 儲存
             </button>
@@ -203,18 +194,20 @@ async function loadConfig() {
 // 渲染資料夾列表
 function renderDirectories() {
     const list = document.getElementById('directoryList');
-    const empty = document.getElementById('emptyHint');
     const footer = document.getElementById('dirFooter');
 
     if (directories.length === 0) {
-        list.innerHTML = '';
-        empty.style.display = 'block';
-        list.appendChild(empty);
+        list.innerHTML = `
+            <div class="empty-list">
+                <i class="bi bi-folder-plus fs-1 text-muted"></i>
+                <p class="mt-2 mb-0">尚未加入任何資料夾</p>
+                <small class="text-muted">點擊上方按鈕加入要掃描的資料夾</small>
+            </div>
+        `;
         footer.style.display = 'none';
         return;
     }
 
-    empty.style.display = 'none';
     footer.style.display = 'block';
     list.innerHTML = directories.map((dir, idx) => `
         <div class="directory-item">
@@ -232,18 +225,23 @@ async function selectFolder() {
     if (window.pywebview && window.pywebview.api && window.pywebview.api.select_folder_path) {
         try {
             const folderPath = await pywebview.api.select_folder_path();
-            if (folderPath && !directories.includes(folderPath)) {
-                directories.push(folderPath);
-                configDirty = true;
-                renderDirectories();
+            if (folderPath) {
+                if (!directories.includes(folderPath)) {
+                    directories.push(folderPath);
+                    configDirty = true;
+                    renderDirectories();
+                } else {
+                    alert('此資料夾已在列表中');
+                }
             }
         } catch (e) {
             console.error('PyWebView API 錯誤:', e);
             toggleManualInput();
+            alert('選擇失敗，請手動輸入路徑');
         }
     } else {
         toggleManualInput();
-        alert('請手動輸入資料夾路徑');
+        alert('此功能需要在桌面應用程式中使用，請手動輸入路徑');
     }
 }
 
@@ -260,12 +258,17 @@ function toggleManualInput() {
 function addManualPath() {
     const input = document.getElementById('manualPath');
     const path = input.value.trim();
-    if (path && !directories.includes(path)) {
-        directories.push(path);
-        configDirty = true;
-        renderDirectories();
-        input.value = '';
+    if (!path) return;
+
+    if (directories.includes(path)) {
+        alert('此資料夾已在列表中');
+        return;
     }
+
+    directories.push(path);
+    configDirty = true;
+    renderDirectories();
+    input.value = '';
 }
 
 // Enter 鍵加入
@@ -283,15 +286,6 @@ function removeDirectory(idx) {
     directories.splice(idx, 1);
     configDirty = true;
     renderDirectories();
-}
-
-// 清空全部
-function clearAllDirs() {
-    if (confirm('確定要清空所有資料夾嗎？')) {
-        directories = [];
-        configDirty = true;
-        renderDirectories();
-    }
 }
 
 // 儲存設定
@@ -427,6 +421,7 @@ function escapeHtml(str) {
 }
 
 // 初始化
+renderDirectories();  // 先渲染空狀態
 loadConfig();
 </script>
 {% endblock %}
