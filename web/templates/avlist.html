@@ -206,6 +206,16 @@
         <i class="bi bi-check-circle"></i>
         <span id="resultMessage"></span>
     </div>
+
+    <!-- 統計資訊 -->
+    <div class="card mt-3" id="statsCard" style="display: none;">
+        <div class="card-body py-2">
+            <div class="d-flex justify-content-between align-items-center text-muted small">
+                <span><i class="bi bi-collection-play"></i> 快取影片: <strong id="statTotal">0</strong> 部</span>
+                <span id="statLastRun"></span>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -445,6 +455,9 @@ async function generate() {
                     `成功產生 ${data.video_count} 部影片列表：${data.output_path}`;
                 btnOpen.style.display = 'inline-block';
                 btnOpen.dataset.path = data.output_path;
+
+                // 刷新統計資訊
+                loadStats();
             } else if (data.type === 'error') {
                 eventSource.close();
                 btn.disabled = false;
@@ -553,8 +566,45 @@ document.addEventListener('drop', (e) => {
     // PyWebView 會自動處理並呼叫 handleFolderDrop
 });
 
+// 載入統計資訊
+async function loadStats() {
+    try {
+        const resp = await fetch('/api/avlist/stats');
+        const result = await resp.json();
+        if (result.success && result.data) {
+            const stats = result.data;
+            const statsCard = document.getElementById('statsCard');
+            const statTotal = document.getElementById('statTotal');
+            const statLastRun = document.getElementById('statLastRun');
+
+            if (stats.total > 0) {
+                statsCard.style.display = 'block';
+                statTotal.textContent = stats.total;
+
+                if (stats.last_run) {
+                    const lastRun = new Date(stats.last_run);
+                    const timeStr = lastRun.toLocaleString('zh-TW', {
+                        month: 'numeric',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    let runInfo = `上次執行: ${timeStr}`;
+                    if (stats.last_added !== null && stats.last_added !== undefined) {
+                        runInfo += ` (新增 ${stats.last_added} 部)`;
+                    }
+                    statLastRun.textContent = runInfo;
+                }
+            }
+        }
+    } catch (e) {
+        console.error('載入統計失敗:', e);
+    }
+}
+
 // 初始化
 renderDirectories();  // 先渲染空狀態
 loadConfig();
+loadStats();
 </script>
 {% endblock %}

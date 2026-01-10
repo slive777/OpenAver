@@ -473,7 +473,8 @@ class VideoScanner:
     def scan_directory(self, directory: str, recursive: bool = True,
                        relative_path: bool = True,
                        min_size_kb: int = 0,
-                       cache: Dict[str, dict] = None) -> Tuple[List[VideoInfo], dict]:
+                       cache: Dict[str, dict] = None,
+                       progress_callback: callable = None) -> Tuple[List[VideoInfo], dict]:
         """掃描資料夾
 
         Args:
@@ -482,6 +483,7 @@ class VideoScanner:
             relative_path: 是否使用相對路徑
             min_size_kb: 最小檔案大小 (KB)
             cache: 緩存字典，用於增量更新
+            progress_callback: 進度回調函數，簽名: (current, total, filename) -> None
 
         Returns:
             Tuple[List[VideoInfo], dict]: (影片列表, 統計資訊)
@@ -520,6 +522,12 @@ class VideoScanner:
                            cached.get('mtime') == file_mtime and
                            cached.get('nfo_mtime', 0) == nfo_mtime)
 
+            video_name = os.path.basename(path_key)
+
+            # 回報進度
+            if progress_callback:
+                progress_callback(i, len(all_files), video_name)
+
             if cache_valid:
                 # 緩存命中，直接使用
                 info = VideoInfo.from_dict(cached['info'])
@@ -527,7 +535,6 @@ class VideoScanner:
                 cache_hits += 1
             else:
                 # 緩存未命中，重新解析
-                video_name = os.path.basename(path_key)
                 print(f"[{i}/{len(all_files)}] 處理: {video_name}")
                 try:
                     info = self.scan_file(path_key, base_path)

@@ -5,6 +5,7 @@ AVList API 路由 - 影片列表生成
 import json
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Generator
 
@@ -14,7 +15,7 @@ from fastapi.responses import StreamingResponse
 # 加入 core 模組路徑
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core.avlist_scanner import VideoScanner, load_cache, save_cache
+from core.avlist_scanner import VideoScanner, load_cache, save_cache, fast_scan_directory, VIDEO_EXTENSIONS, VideoInfo
 from core.avlist_generator import HTMLGenerator
 from core.path_utils import normalize_path
 from web.routers.config import load_config
@@ -61,6 +62,8 @@ def generate_avlist() -> Generator[str, None, None]:
 
         # 載入快取
         cache = load_cache(str(cache_path))
+        # 移除舊的 metadata（不計入快取數量）
+        old_metadata = cache.pop('_metadata', {})
         yield send({"type": "log", "level": "info", "message": f"載入快取: {len(cache)} 筆"})
 
         # 初始化掃描器
@@ -68,6 +71,7 @@ def generate_avlist() -> Generator[str, None, None]:
 
         all_videos = []
         total_dirs = len(directories)
+        total_added = 0  # 追蹤本次新增數量
 
         for idx, directory in enumerate(directories, 1):
             # 轉換路徑格式 (Windows -> WSL)
@@ -89,25 +93,79 @@ def generate_avlist() -> Generator[str, None, None]:
                 continue
 
             try:
-                videos, stats = scanner.scan_directory(
-                    normalized_dir,
-                    recursive=True,
-                    relative_path=False,  # 使用絕對路徑
-                    min_size_kb=min_size_kb,
-                    cache=cache
-                )
+                # 快速掃描取得檔案列表
+                min_size_bytes = min_size_kb * 1024
+                all_files = fast_scan_directory(normalized_dir, VIDEO_EXTENSIONS, min_size_bytes)
+
+                if not all_files:
+                    yield send({"type": "log", "level": "info", "message": f"{directory}: 沒有影片檔案"})
+                    continue
+
+                yield send({"type": "log", "level": "info", "message": f"{directory}: 找到 {len(all_files)} 個檔案"})
+
+                # 逐一處理檔案
+                videos = []
+                cache_hits = 0
+                cache_misses = 0
+                current_paths = set()
+
+                for i, file_info in enumerate(all_files, 1):
+                    path_key = file_info['path']
+                    file_mtime = file_info['mtime']
+                    nfo_mtime = file_info.get('nfo_mtime', 0)
+                    current_paths.add(path_key)
+                    video_name = os.path.basename(path_key)
+
+                    # 檢查緩存
+                    cached = cache.get(path_key)
+                    cache_valid = (cached and
+                                   cached.get('mtime') == file_mtime and
+                                   cached.get('nfo_mtime', 0) == nfo_mtime)
+
+                    if cache_valid:
+                        info = VideoInfo.from_dict(cached['info'])
+                        videos.append(info)
+                        cache_hits += 1
+                    else:
+                        # 回報處理進度（只有非快取命中才顯示）
+                        yield send({"type": "log", "level": "info", "message": f"  [{i}] {video_name}"})
+                        try:
+                            info = scanner.scan_file(path_key, None)
+                            videos.append(info)
+                            cache_misses += 1
+                            cache[path_key] = {
+                                'mtime': file_mtime,
+                                'nfo_mtime': nfo_mtime,
+                                'info': info.to_dict()
+                            }
+                        except Exception as e:
+                            yield send({"type": "log", "level": "warn", "message": f"  [{i}] 錯誤: {e}"})
+
+                # 清理已刪除檔案的緩存
+                deleted_keys = [k for k in list(cache.keys()) if k.startswith(normalized_dir) and k not in current_paths]
+                for k in deleted_keys:
+                    del cache[k]
+
                 all_videos.extend(videos)
+                total_added += cache_misses
                 yield send({
                     "type": "log",
                     "level": "info",
-                    "message": f"{directory}: {len(videos)} 部 (快取: {stats.get('cache_hits', 0)}, 新增: {stats.get('cache_misses', 0)})"
+                    "message": f"{directory}: {len(videos)} 部 (快取: {cache_hits}, 新增: {cache_misses})"
                 })
             except Exception as e:
                 yield send({"type": "log", "level": "error", "message": f"掃描錯誤: {e}"})
 
+        # 儲存 metadata
+        cache['_metadata'] = {
+            'last_run': datetime.now().isoformat(),
+            'last_added': total_added,
+            'last_total': len(all_videos)
+        }
+
         # 儲存快取
         save_cache(str(cache_path), cache)
-        yield send({"type": "log", "level": "info", "message": f"儲存快取: {len(cache)} 筆"})
+        yield send({"type": "log", "level": "info", "message": f"儲存快取: {len(cache) - 1} 筆"})
 
         # 產生 HTML
         yield send({
@@ -156,3 +214,36 @@ async def generate():
             "Connection": "keep-alive",
         }
     )
+
+
+@router.get("/stats")
+async def get_stats():
+    """取得 AVList 統計資訊（從快取檔案讀取）"""
+    try:
+        config = load_config()
+        avlist_config = config.get('avlist', {})
+        output_dir = avlist_config.get('output_dir', 'output')
+        output_filename = avlist_config.get('output_filename', 'avlist_output.html')
+
+        project_root = Path(__file__).parent.parent.parent
+        cache_path = project_root / output_dir / output_filename.replace('.html', '_cache.json')
+
+        if not cache_path.exists():
+            return {"success": True, "data": {"total": 0, "last_run": None, "last_added": None}}
+
+        cache = load_cache(str(cache_path))
+
+        # 讀取 metadata（如果有的話）
+        metadata = cache.pop('_metadata', {})
+
+        return {
+            "success": True,
+            "data": {
+                "total": len(cache),
+                "last_run": metadata.get('last_run'),
+                "last_added": metadata.get('last_added'),
+                "last_total": metadata.get('last_total')
+            }
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
