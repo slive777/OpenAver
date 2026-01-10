@@ -273,10 +273,10 @@ def create_launcher_scripts():
 
     root_dir = BUILD_DIR / "JavHelper"
 
-    # JavHelper.bat - 無控制台版本
+    # JavHelper.bat - 啟動時顯示控制台，伺服器就緒後自動隱藏
     bat_content = '''@echo off
 cd /d "%~dp0"
-start "" "python\\pythonw.exe" "app\\windows\\standalone.py"
+"python\\python.exe" "app\\windows\\standalone.py"
 '''
     (root_dir / "JavHelper.bat").write_text(bat_content, encoding='utf-8')
 

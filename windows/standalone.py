@@ -178,7 +178,16 @@ def main():
         sys.exit(1)
     print("[JavHelper] 伺服器已就緒")
 
-    # 4. 啟動 PyWebView 窗口
+    # 4. 隱藏控制台視窗（Windows 限定）
+    try:
+        import ctypes
+        ctypes.windll.user32.ShowWindow(
+            ctypes.windll.kernel32.GetConsoleWindow(), 0
+        )
+    except Exception:
+        pass  # 非 Windows 或無控制台時忽略
+
+    # 5. 啟動 PyWebView 窗口
     webview.settings['OPEN_DEVTOOLS_IN_DEBUG'] = False
 
     window = webview.create_window(
@@ -189,10 +198,9 @@ def main():
         height=800
     )
 
-    # 5. 開始 GUI 事件循環（阻塞直到窗口關閉）
-    webview.start(bind, window, debug=False)
-
-    print("[JavHelper] 應用程式已關閉")
+    # 6. 開始 GUI 事件循環（阻塞直到窗口關閉）
+    # 使用 EdgeChromium 後端（Windows 10/11 內建，不需要 .NET）
+    webview.start(bind, window, debug=False, gui='edgechromium')
 
 
 if __name__ == '__main__':
