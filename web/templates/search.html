@@ -669,8 +669,8 @@
 function extractNumberGlobal(filename) {
     const basename = filename.split(/[/\\]/).pop().replace(/\.[^.]+$/, '');
     const patterns = [
-        /\b([A-Z]{2,5})-(\d{3,5})\b/i,
-        /\b([A-Z]{2,5})(\d{3,5})\b/i,
+        /\b([A-Z]{1,5})-(\d{3,5})\b/i,   // T28-650, SONE-205（支援單字母）
+        /\b([A-Z]{2,5})(\d{3,5})\b/i,     // IPTD927（無連字號需 2+ 字母避免誤判）
         /\b(FC2-PPV)-(\d{5,7})\b/i,
     ];
     for (const pattern of patterns) {
@@ -1395,6 +1395,51 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ========== 結束標題編輯功能 ==========
 
+    // ========== 手動輸入番號功能 ==========
+
+    /**
+     * 格式化番號（標準化格式）
+     */
+    function formatNumber(input) {
+        if (!input) return null;
+        // 嘗試標準化番號格式
+        const match = input.match(/([A-Z]{1,5})-?(\d{3,7})/i);
+        if (match) {
+            return `${match[1].toUpperCase()}-${match[2]}`;
+        }
+        // FC2 特殊處理
+        const fc2Match = input.match(/FC2-?PPV-?(\d{5,7})/i);
+        if (fc2Match) {
+            return `FC2-PPV-${fc2Match[1]}`;
+        }
+        return input.toUpperCase();
+    }
+
+    /**
+     * 手動輸入番號
+     */
+    function enterNumber(index) {
+        const file = fileList[index];
+        if (!file) return;
+
+        const number = prompt('請輸入番號（例如：T28-650）', '');
+        if (!number || !number.trim()) return;
+
+        // 格式化番號
+        const formatted = formatNumber(number.trim());
+        file.number = formatted;
+        file.searched = false;  // 重置搜尋狀態
+        file.searchResults = [];  // 清空舊結果
+
+        // 切換到該檔案並搜尋
+        switchToFile(index, 'first', true);
+    }
+
+    // 暴露到全域
+    window.enterNumber = enterNumber;
+
+    // ========== 結束手動輸入番號功能 ==========
+
     // 預加載圖片（避免切換時延遲）
     function preloadImages(startIndex, count = 5) {
         for (let i = startIndex; i < Math.min(startIndex + count, searchResults.length); i++) {
@@ -1767,13 +1812,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const item = document.createElement('div');
             item.className = 'file-item' + (index === currentFileIndex ? ' active' : '');
 
-            // 狀態圖標：✓ 有結果、✗ 無結果/無番號、空白 未搜尋
+            // 狀態圖標：✓ 有結果、✗ 無結果、? 無番號（可輸入）、空白 未搜尋
             let statusIcon = '';
             let statusClass = 'file-status';
             let canScrape = false;
+            let needsNumber = false;
             if (!file.number) {
-                statusIcon = '✗';
-                statusClass += ' text-danger';
+                statusIcon = '?';
+                statusClass += ' text-warning';
+                needsNumber = true;
             } else if (file.searched) {
                 if (file.searchResults && file.searchResults.length > 0) {
                     statusIcon = '✓';
@@ -1784,21 +1831,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
-            // 產生按鈕（只有搜尋成功才顯示）
-            const scrapeBtn = canScrape
-                ? `<button class="btn btn-outline-success btn-sm btn-scrape-single" data-index="${index}" title="產生此檔案">產生</button>`
-                : '';
+            // 按鈕：產生 或 輸入番號
+            let actionBtn = '';
+            if (canScrape) {
+                actionBtn = `<button class="btn btn-outline-success btn-sm btn-scrape-single" data-index="${index}" title="產生此檔案">產生</button>`;
+            } else if (needsNumber) {
+                actionBtn = `<button class="btn btn-outline-warning btn-sm btn-enter-number" data-index="${index}" title="手動輸入番號"><i class="bi bi-pencil"></i></button>`;
+            }
 
             item.innerHTML = `
                 <i class="bi bi-file-earmark-play file-icon"></i>
                 <span class="file-name" title="${file.path}">${file.filename}</span>
                 <span class="${statusClass}">${statusIcon}</span>
-                ${scrapeBtn}
+                ${actionBtn}
             `;
 
             // 點擊檔名切換（排除按鈕區域）
             item.addEventListener('click', (e) => {
-                if (!e.target.closest('.btn-scrape-single')) {
+                if (!e.target.closest('.btn-scrape-single') && !e.target.closest('.btn-enter-number')) {
                     switchToFile(index, 'first');
                 }
             });
@@ -1809,6 +1859,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     scrapeSingle(index);
+                });
+            }
+
+            // 輸入番號按鈕事件
+            if (needsNumber) {
+                const btn = item.querySelector('.btn-enter-number');
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    enterNumber(index);
                 });
             }
 
@@ -2359,8 +2418,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 番號正則（優先順序：標準格式 > 無連字號 > FC2）
         const patterns = [
-            /\b([A-Z]{2,5})-(\d{3,5})\b/i,   // SONE-205
-            /\b([A-Z]{2,5})(\d{3,5})\b/i,     // IPTD927
+            /\b([A-Z]{1,5})-(\d{3,5})\b/i,   // T28-650, SONE-205（支援單字母）
+            /\b([A-Z]{2,5})(\d{3,5})\b/i,     // IPTD927（無連字號需 2+ 字母避免誤判）
             /\b(FC2-PPV)-(\d{5,7})\b/i,       // FC2-PPV-1234567
         ];
 
