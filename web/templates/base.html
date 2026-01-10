@@ -234,6 +234,12 @@
                         <i class="bi bi-list-ul"></i> 列表生成
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if page == 'viewer' %}active{% endif %}" href="/viewer"
+                       data-bs-dismiss="offcanvas">
+                        <i class="bi bi-collection-play"></i> 瀏覽
+                    </a>
+                </li>
                 <li class="nav-item mt-3">
                     <a class="nav-link {% if page == 'help' %}active{% endif %}" href="/help"
                        data-bs-dismiss="offcanvas">
@@ -269,6 +275,12 @@
                 <a class="nav-link {% if page == 'avlist' %}active{% endif %}" href="/avlist" title="列表生成">
                     <i class="bi bi-list-ul"></i>
                     <span class="nav-text">列表生成</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if page == 'viewer' %}active{% endif %}" href="/viewer" title="瀏覽">
+                    <i class="bi bi-collection-play"></i>
+                    <span class="nav-text">瀏覽</span>
                 </a>
             </li>
             <li class="nav-item mt-auto">

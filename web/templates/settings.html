@@ -241,6 +241,25 @@
             </div>
         </div>
 
+        <!-- 瀏覽器設定 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-collection-play"></i> 瀏覽器設定
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">影片播放器</label>
+                    </div>
+                    <div class="col-md-6">
+                        <input type="text" class="form-control form-control-sm" id="viewerPlayer"
+                               placeholder="留空使用系統預設">
+                        <small class="text-muted">例如: C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 儲存按鈕 -->
         <div class="d-flex justify-content-end gap-2">
             <button type="button" class="btn btn-secondary" id="resetBtn">
@@ -329,6 +348,11 @@ async function loadConfig() {
                 document.getElementById('avlistMinSize').value = config.avlist.min_size_kb || 0;
             }
 
+            // 瀏覽器設定
+            if (config.viewer) {
+                document.getElementById('viewerPlayer').value = config.viewer.player || '';
+            }
+
             // 自動載入模型列表（如果有 URL）
             if (config.translate.ollama_url) {
                 const savedModel = config.translate.ollama_model;
@@ -387,6 +411,12 @@ async function saveConfig() {
             default_order: document.getElementById('avlistOrder').value,
             items_per_page: parseInt(document.getElementById('avlistItemsPerPage').value),
             min_size_kb: parseInt(document.getElementById('avlistMinSize').value) || 0
+        };
+
+        // 更新 viewer 設定
+        config.viewer = {
+            ...config.viewer,
+            player: document.getElementById('viewerPlayer').value.trim()
         };
 
         const resp = await fetch('/api/config', {

@@ -85,6 +85,15 @@ async def avlist_page(request: Request):
     })
 
 
+@app.get("/viewer")
+async def viewer_page(request: Request):
+    """影片瀏覽頁面"""
+    return templates.TemplateResponse("viewer.html", {
+        "request": request,
+        "page": "viewer"
+    })
+
+
 @app.get("/settings")
 async def settings_page(request: Request):
     """設定頁面"""

@@ -4,7 +4,10 @@ JavHelper PyWebView 共用 API 模組
 """
 import os
 import json
+import subprocess
 import webview
+from pathlib import Path
+from urllib.parse import unquote
 from webview.dom import DOMEventHandler
 
 # 支援的影片副檔名
@@ -81,11 +84,63 @@ class Api:
         return None
 
     def open_file(self, path):
-        """用系統預設程式開啟檔案"""
-        if os.path.exists(path):
+        """用系統預設程式或指定播放器開啟檔案
+
+        支援格式：
+        - file:///C:/path/to/file.mp4
+        - C:/path/to/file.mp4
+        - C:\\path\\to\\file.mp4
+        """
+        # 移除 file:/// 前綴
+        if path.startswith('file:///'):
+            path = path[8:]  # 移除 'file:///'
+
+        # URL decode（處理 %20 等編碼）
+        path = unquote(path)
+
+        # 轉換斜線為反斜線（Windows 格式）
+        path = path.replace('/', '\\')
+
+        print(f"[DEBUG] open_file: {path}")
+
+        if not os.path.exists(path):
+            print(f"[DEBUG] open_file: 檔案不存在")
+            return False
+
+        # 讀取設定，檢查是否有指定播放器
+        player = self._get_player_path()
+
+        if player and os.path.exists(player):
+            print(f"[DEBUG] open_file: 使用播放器 {player}")
+            try:
+                subprocess.Popen([player, path])
+                return True
+            except Exception as e:
+                print(f"[DEBUG] open_file: 播放器啟動失敗 {e}")
+                # fallback 到系統預設
+                os.startfile(path)
+                return True
+        else:
+            # 使用系統預設程式
             os.startfile(path)
             return True
-        return False
+
+    def _get_player_path(self):
+        """從設定檔讀取播放器路徑"""
+        try:
+            # 嘗試多個可能的設定檔路徑
+            possible_paths = [
+                Path(__file__).parent.parent / 'web' / 'config.json',
+                Path(__file__).parent / 'config.json',
+            ]
+            for config_path in possible_paths:
+                if config_path.exists():
+                    with open(config_path, 'r', encoding='utf-8') as f:
+                        config = json.load(f)
+                        return config.get('viewer', {}).get('player', '')
+        except Exception as e:
+            print(f"[DEBUG] _get_player_path error: {e}")
+        return ''
 
 
 def on_drop(e):

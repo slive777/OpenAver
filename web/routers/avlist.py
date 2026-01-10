@@ -9,8 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Generator
 
-from fastapi import APIRouter
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Query
+from fastapi.responses import StreamingResponse, HTMLResponse, Response, FileResponse
 
 # 加入 core 模組路徑
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -348,3 +348,95 @@ async def run_update():
             "Connection": "keep-alive",
         }
     )
+
+
+@router.get("/view")
+async def view_list():
+    """取得產生的 HTML 列表檔案（修改圖片路徑為 API 代理）"""
+    try:
+        config = load_config()
+        avlist_config = config.get('avlist', {})
+        output_dir = avlist_config.get('output_dir', 'output')
+        output_filename = avlist_config.get('output_filename', 'avlist_output.html')
+
+        project_root = Path(__file__).parent.parent.parent
+        html_path = project_root / output_dir / output_filename
+
+        if not html_path.exists():
+            return HTMLResponse(
+                content="<html><body><h1>列表尚未產生</h1><p>請先到「列表生成」頁面產生列表。</p></body></html>",
+                status_code=404
+            )
+
+        with open(html_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # 將 file:/// 圖片路徑替換為 API 代理路徑（只替換圖片，不替換影片）
+        # file:///C:/path/to/image.jpg -> /api/avlist/image?path=C:/path/to/image.jpg
+        import re
+        from urllib.parse import quote
+
+        # 圖片副檔名
+        image_extensions = ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp')
+
+        def replace_file_url(match):
+            file_path = match.group(1)
+            # 只替換圖片路徑
+            if file_path.lower().endswith(image_extensions):
+                encoded_path = quote(file_path, safe='')
+                return f'/api/avlist/image?path={encoded_path}'
+            # 非圖片保持原樣
+            return match.group(0)
+
+        # 匹配 file:/// 後面直到引號的所有字元（包含空格和中文）
+        content = re.sub(r'file:///([^"\'<>]+?)(?=["\'])', replace_file_url, content)
+
+        return HTMLResponse(content=content)
+    except Exception as e:
+        return HTMLResponse(
+            content=f"<html><body><h1>錯誤</h1><p>{e}</p></body></html>",
+            status_code=500
+        )
+
+
+@router.get("/image")
+async def get_image(path: str = Query(..., description="圖片路徑")):
+    """代理圖片請求，解決 file:// 在 iframe 中無法載入的問題"""
+    from urllib.parse import unquote
+    import re
+
+    # URL decode
+    path = unquote(path)
+
+    # 轉換為本地路徑
+    # Windows 路徑 C:/Users/... 需要轉換為 WSL 路徑 /mnt/c/Users/...
+    if re.match(r'^[A-Za-z]:/', path) or re.match(r'^[A-Za-z]:\\\\', path):
+        # Windows 絕對路徑，轉換為 WSL 格式
+        drive = path[0].lower()
+        rest = path[2:].replace('\\', '/')
+        if rest.startswith('/'):
+            rest = rest[1:]
+        local_path = f'/mnt/{drive}/{rest}'
+    elif path.startswith('/mnt/'):
+        # 已經是 WSL 路徑
+        local_path = path
+    else:
+        # 其他格式，嘗試直接使用
+        local_path = path
+
+    if not os.path.exists(local_path):
+        return Response(status_code=404, content=f"Not found: {local_path}")
+
+    # 檢測 MIME 類型
+    ext = os.path.splitext(local_path)[1].lower()
+    mime_types = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.bmp': 'image/bmp',
+    }
+    media_type = mime_types.get(ext, 'application/octet-stream')
+
+    return FileResponse(local_path, media_type=media_type)

@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}影片瀏覽 - JavHelper{% endblock %}
+
+{% block extra_css %}
+<style>
+    .viewer-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding-left: var(--sidebar-width, 64px);
+    }
+
+    @media (max-width: 991.98px) {
+        .viewer-container {
+            padding-left: 0;
+            padding-top: 56px;
+        }
+    }
+
+    .viewer-frame {
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
+
+    .viewer-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #6c757d;
+        text-align: center;
+        padding: 2rem;
+    }
+
+    .viewer-placeholder i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .viewer-placeholder p {
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="viewer-container" id="viewerContainer">
+    <div class="viewer-placeholder" id="placeholder">
+        <i class="bi bi-collection-play"></i>
+        <p>尚未產生影片列表</p>
+        <a href="/avlist" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> 產生列表
+        </a>
+    </div>
+    <iframe id="viewerFrame" class="viewer-frame" style="display: none;"></iframe>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 檢查列表是否存在並載入
+async function loadViewer() {
+    try {
+        const resp = await fetch('/api/avlist/stats');
+        const result = await resp.json();
+
+        if (result.success && result.data && result.data.total > 0) {
+            // 有列表，載入 iframe
+            const frame = document.getElementById('viewerFrame');
+            const placeholder = document.getElementById('placeholder');
+
+            placeholder.style.display = 'none';
+            frame.style.display = 'block';
+            frame.src = '/api/avlist/view';
+
+            // 等待 iframe 載入完成後注入腳本
+            frame.onload = function() {
+                injectExternalPlayerScript(frame);
+            };
+        }
+    } catch (e) {
+        console.error('載入失敗:', e);
+    }
+}
+
+// 注入外部播放器腳本
+function injectExternalPlayerScript(frame) {
+    try {
+        const frameDoc = frame.contentDocument || frame.contentWindow.document;
+
+        // 覆蓋 playVideo 函數
+        const script = frameDoc.createElement('script');
+        script.textContent = `
+            // 覆蓋原本的 playVideo 函數
+            window.playVideo = function(path) {
+                console.log('[Viewer] playVideo called:', path);
+
+                // 嘗試使用 PyWebView API
+                if (window.parent && window.parent.pywebview && window.parent.pywebview.api) {
+                    window.parent.pywebview.api.open_file(path)
+                        .then(function(result) {
+                            console.log('[Viewer] open_file result:', result);
+                        })
+                        .catch(function(err) {
+                            console.error('[Viewer] open_file error:', err);
+                            // fallback: 用原本的方式開啟
+                            window.open(path.replace(/#/g, '%23'), '_blank');
+                        });
+                } else {
+                    // 非 PyWebView 環境，用原本的方式
+                    console.log('[Viewer] PyWebView not available, using default');
+                    window.open(path.replace(/#/g, '%23'), '_blank');
+                }
+            };
+            console.log('[Viewer] playVideo overridden for external player');
+        `;
+        frameDoc.body.appendChild(script);
+        console.log('[Viewer] External player script injected');
+    } catch (e) {
+        console.error('[Viewer] Failed to inject script:', e);
+        // 可能是跨域問題，忽略
+    }
+}
+
+// 初始化
+loadViewer();
+</script>
+{% endblock %}

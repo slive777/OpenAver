@@ -39,6 +39,7 @@ Thumbs.db
 *.log
 
 # Local config (使用者特定設定)
+web/config.json
 web/config.local.json
 
 # Models (太大不上傳)

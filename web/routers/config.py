@@ -51,11 +51,16 @@ class AVListConfig(BaseModel):
     items_per_page: int = 90
 
 
+class ViewerConfig(BaseModel):
+    player: str = ""  # 播放器路徑，空字串使用系統預設
+
+
 class AppConfig(BaseModel):
     scraper: ScraperConfig = ScraperConfig()
     search: SearchConfig = SearchConfig()
     translate: TranslateConfig = TranslateConfig()
     avlist: AVListConfig = AVListConfig()
+    viewer: ViewerConfig = ViewerConfig()
 
 
 def load_config() -> dict:
