@@ -2029,24 +2029,26 @@ document.addEventListener('DOMContentLoaded', function() {
     // 為檔案執行搜尋
     // position: 'first' 顯示第一個結果, 'last' 顯示最後一個結果
     // showFullLoading: true 顯示全畫面 loading（首次拖入時）, false 只顯示箭頭轉圈
-    async function searchForFile(file, position = 'first', showFullLoading = false) {
-        // 判斷是往左還是往右切換
-        const isGoingNext = position === 'first';
-        const targetBtn = isGoingNext ? btnNext : btnPrev;
-        const targetBtnIcon = isGoingNext ? '<i class="bi bi-chevron-right"></i>' : '<i class="bi bi-chevron-left"></i>';
+    // 返回 Promise，讓 searchAll 可以等待搜尋完成
+    function searchForFile(file, position = 'first', showFullLoading = false) {
+        return new Promise((resolve) => {
+            // 判斷是往左還是往右切換
+            const isGoingNext = position === 'first';
+            const targetBtn = isGoingNext ? btnNext : btnPrev;
+            const targetBtnIcon = isGoingNext ? '<i class="bi bi-chevron-right"></i>' : '<i class="bi bi-chevron-left"></i>';
 
-        isSearchingFile = true;
+            isSearchingFile = true;
 
-        if (showFullLoading) {
-            showState('loading');
-            initProgress(file.number);
-        } else {
-            // 只在箭頭按鈕上顯示轉圈
-            targetBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-            targetBtn.disabled = true;
-        }
+            if (showFullLoading) {
+                showState('loading');
+                initProgress(file.number);
+            } else {
+                // 只在箭頭按鈕上顯示轉圈
+                targetBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+                targetBtn.disabled = true;
+            }
 
-        const eventSource = new EventSource(`/api/search/stream?q=${encodeURIComponent(file.number)}`);
+            const eventSource = new EventSource(`/api/search/stream?q=${encodeURIComponent(file.number)}`);
 
         eventSource.onmessage = function(event) {
             try {
@@ -2095,6 +2097,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         renderFileList();
                         updateNavigation();
                     }
+                    resolve();  // 搜尋完成
                 }
                 else if (data.type === 'error') {
                     eventSource.close();
@@ -2110,6 +2113,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     showState('result');  // 保留列表
                     renderFileList();
                     updateNavigation();
+                    resolve();  // 搜尋完成（錯誤）
                 }
             } catch (err) {
                 console.error('Parse error:', err);
@@ -2130,7 +2134,9 @@ document.addEventListener('DOMContentLoaded', function() {
             showState('result');  // 保留列表
             renderFileList();
             updateNavigation();
+            resolve();  // 搜尋完成（連線錯誤）
         };
+        });  // 結束 Promise
     }
 
     // 設定檔案列表（從 PyWebView 接收）
