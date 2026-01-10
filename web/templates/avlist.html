@@ -534,6 +534,8 @@ async function generate() {
                 eventSource.close();
                 isGenerating = false;
                 localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
+                // 清除 viewer 狀態，下次開啟會重新載入
+                localStorage.removeItem('avlist_state');
                 btn.disabled = false;
                 btn.innerHTML = '<i class="bi bi-play-fill"></i> 產生網頁';
                 document.getElementById('progressBar').style.width = '100%';

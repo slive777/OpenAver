@@ -152,15 +152,49 @@ class HTMLGenerator:
 \t\tvar search_words = "";
 \t\tvar filtered_videos = [];
 \t\tvar info_visible = false;  // 預設隱藏資訊，hover 顯示
+\t\tvar AVLIST_STATE_KEY = 'avlist_state';
+
+\t\tfunction saveState() {
+\t\t\ttry {
+\t\t\t\tlocalStorage.setItem(AVLIST_STATE_KEY, JSON.stringify({
+\t\t\t\t\tsw: search_words,
+\t\t\t\t\tpage: current_page,
+\t\t\t\t\tmode: current_mode,
+\t\t\t\t\tsort: current_sort,
+\t\t\t\t\torder: current_order,
+\t\t\t\t\titems: items_per_page
+\t\t\t\t}));
+\t\t\t} catch(e) {}
+\t\t}
+
+\t\tfunction loadState() {
+\t\t\ttry {
+\t\t\t\tvar saved = localStorage.getItem(AVLIST_STATE_KEY);
+\t\t\t\tif (saved) {
+\t\t\t\t\tvar state = JSON.parse(saved);
+\t\t\t\t\tsearch_words = state.sw || '';
+\t\t\t\t\tcurrent_page = parseInt(state.page) || 1;
+\t\t\t\t\tcurrent_mode = parseInt(state.mode) || user_mode;
+\t\t\t\t\tcurrent_sort = state.sort || user_sort;
+\t\t\t\t\tcurrent_order = parseInt(state.order) || user_order;
+\t\t\t\t\titems_per_page = parseInt(state.items) || user_items_per_page;
+\t\t\t\t\treturn true;
+\t\t\t\t}
+\t\t\t} catch(e) {}
+\t\t\treturn false;
+\t\t}
 
 \t\tfunction init() {
-\t\t\tvar params = new URLSearchParams(window.location.search);
-\t\t\tsearch_words = params.get('sw') || "";
-\t\t\tcurrent_page = parseInt(params.get('page')) || 1;
-\t\t\tcurrent_mode = parseInt(params.get('mode')) || user_mode;
-\t\t\tcurrent_order = parseInt(params.get('order')) || user_order;
-\t\t\tcurrent_sort = params.get('sort') || user_sort;
-\t\t\titems_per_page = parseInt(params.get('items')) || user_items_per_page;
+\t\t\t// 優先從 localStorage 載入狀態，否則從 URL 參數
+\t\t\tif (!loadState()) {
+\t\t\t\tvar params = new URLSearchParams(window.location.search);
+\t\t\t\tsearch_words = params.get('sw') || "";
+\t\t\t\tcurrent_page = parseInt(params.get('page')) || 1;
+\t\t\t\tcurrent_mode = parseInt(params.get('mode')) || user_mode;
+\t\t\t\tcurrent_order = parseInt(params.get('order')) || user_order;
+\t\t\t\tcurrent_sort = params.get('sort') || user_sort;
+\t\t\t\titems_per_page = parseInt(params.get('items')) || user_items_per_page;
+\t\t\t}
 \t\t\tdocument.form_search.sw.value = search_words;
 \t\t\tfilterAndSort();
 \t\t\trender();
@@ -394,23 +428,27 @@ class HTMLGenerator:
 \t\t\tcurrent_page = parseInt(page);
 \t\t\trender();
 \t\t\twindow.scrollTo({ top: 0, behavior: 'smooth' });
+\t\t\tsaveState();
 \t\t}
 
 \t\tfunction switchMode(mode) {
 \t\t\tcurrent_mode = mode;
 \t\t\trender();
+\t\t\tsaveState();
 \t\t}
 
 \t\tfunction switchSort(sort) {
 \t\t\tcurrent_sort = sort;
 \t\t\tfilterAndSort();
 \t\t\trender();
+\t\t\tsaveState();
 \t\t}
 
 \t\tfunction switchOrder() {
 \t\t\tcurrent_order = current_order == 0 ? 1 : 0;
 \t\t\tfilterAndSort();
 \t\t\trender();
+\t\t\tsaveState();
 \t\t}
 
 \t\tfunction switchItems(items) {
@@ -418,6 +456,7 @@ class HTMLGenerator:
 \t\t\tcurrent_page = 1;
 \t\t\tfilterAndSort();
 \t\t\trender();
+\t\t\tsaveState();
 \t\t}
 
 \t\tfunction goToLinkWithParameters(sw, page) {
@@ -428,6 +467,8 @@ class HTMLGenerator:
 \t\t\tcurrent_page = page || 1;
 \t\t\tfilterAndSort();
 \t\t\trender();
+\t\t\twindow.scrollTo({ top: 0, behavior: 'smooth' });
+\t\t\tsaveState();
 \t\t}
 
 \t\tfunction updateResetBtn() {
@@ -442,6 +483,7 @@ class HTMLGenerator:
 \t\t\tcurrent_page = 1;
 \t\t\tfilterAndSort();
 \t\t\trender();
+\t\t\tsaveState();
 \t\t}
 
 \t\tfunction playVideo(path) {

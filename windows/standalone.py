@@ -116,8 +116,7 @@ def main():
 
     # 6. 開始 GUI 事件循環（阻塞直到窗口關閉）
     # 使用 EdgeChromium 後端（Windows 10/11 內建，不需要 .NET）
-    # debug=True 可開啟 F12 開發者工具
-    webview.start(bind_events, window, debug=True, gui='edgechromium')
+    webview.start(bind_events, window, gui='edgechromium')
 
 
 if __name__ == '__main__':

@@ -63,14 +63,12 @@ class Api:
         result = window.create_file_dialog(webview.FOLDER_DIALOG)
         if result and len(result) > 0:
             folder_path = result[0]
-            print(f"[DEBUG] 選取資料夾: {folder_path}")
             # 展開第一層影片檔案
             files = []
             for f in os.listdir(folder_path):
                 file_path = os.path.join(folder_path, f)
                 if os.path.isfile(file_path) and is_video_file(f):
                     files.append(file_path)
-                    print(f"[DEBUG]   + {f}")
             # 返回資料夾路徑和檔案列表（AVList 用 folder，Search 用 files）
             return {"folder": folder_path, "files": files}
         return None
@@ -101,22 +99,17 @@ class Api:
         # 轉換斜線為反斜線（Windows 格式）
         path = path.replace('/', '\\')
 
-        print(f"[DEBUG] open_file: {path}")
-
         if not os.path.exists(path):
-            print(f"[DEBUG] open_file: 檔案不存在")
             return False
 
         # 讀取設定，檢查是否有指定播放器
         player = self._get_player_path()
 
         if player and os.path.exists(player):
-            print(f"[DEBUG] open_file: 使用播放器 {player}")
             try:
                 subprocess.Popen([player, path])
                 return True
-            except Exception as e:
-                print(f"[DEBUG] open_file: 播放器啟動失敗 {e}")
+            except Exception:
                 # fallback 到系統預設
                 os.startfile(path)
                 return True
@@ -138,8 +131,8 @@ class Api:
                     with open(config_path, 'r', encoding='utf-8') as f:
                         config = json.load(f)
                         return config.get('viewer', {}).get('player', '')
-        except Exception as e:
-            print(f"[DEBUG] _get_player_path error: {e}")
+        except Exception:
+            pass
         return ''
 
 
@@ -147,11 +140,8 @@ def on_drop(e):
     """處理拖放事件，取得完整路徑並傳給前端（支援多檔案和資料夾）"""
     window = get_window()
 
-    print("[DEBUG] on_drop 被觸發")
-
     files = e.get('dataTransfer', {}).get('files', [])
     if not files:
-        print("[DEBUG] 沒有檔案")
         return
 
     # 收集所有項目
@@ -167,27 +157,22 @@ def on_drop(e):
             # 記錄資料夾路徑（給 avlist 用）
             folder_paths.append(win_path)
             # 資料夾：展開第一層影片檔案（給 search 用）
-            print(f"[DEBUG] 展開資料夾: {win_path}")
             for f in os.listdir(win_path):
                 file_win_path = os.path.join(win_path, f)
                 if os.path.isfile(file_win_path) and is_video_file(f):
                     expanded_paths.append(file_win_path)
-                    print(f"[DEBUG]   + {f}")
         else:
             # 檔案：直接加入
             expanded_paths.append(win_path)
-            print(f"[DEBUG] 檔案: {win_path}")
 
     # 傳送影片檔案路徑（search 頁面用）
     if expanded_paths:
         paths_json = json.dumps(expanded_paths)
-        print(f"[DEBUG] 執行 JS: handlePyWebViewDrop({len(expanded_paths)} 個檔案)")
         window.evaluate_js(f'if(typeof handlePyWebViewDrop === "function") handlePyWebViewDrop({paths_json})')
 
     # 傳送資料夾路徑（avlist 頁面用）
     if folder_paths:
         folders_json = json.dumps(folder_paths)
-        print(f"[DEBUG] 執行 JS: handleFolderDrop({len(folder_paths)} 個資料夾)")
         window.evaluate_js(f'if(typeof handleFolderDrop === "function") handleFolderDrop({folders_json})')
 
 
@@ -197,11 +182,10 @@ def bind_events(w):
 
     def on_loaded():
         """每次頁面加載後綁定 drop 事件"""
-        print("[DEBUG] 頁面加載完成，綁定 drop 事件")
         window = get_window()
         window.dom.document.events.drop += DOMEventHandler(on_drop, True, True)
 
-    # 監聽頁面加載事件（每次導航後都會觸發）
+    # 監聯頁面加載事件（每次導航後都會觸發）
     w.events.loaded += on_loaded
 
 
