@@ -119,6 +119,17 @@ class Api:
             return result[0]
         return None
 
+    def select_folder_for_scan(self):
+        """開啟資料夾選擇對話框，直接返回資料夾路徑（給 avlist 用）"""
+        global window
+        result = window.create_file_dialog(webview.FOLDER_DIALOG)
+        if result and len(result) > 0:
+            folder_path = result[0]
+            print(f"[DEBUG] select_folder_for_scan: {folder_path}")
+            return folder_path
+        print("[DEBUG] select_folder_for_scan: No folder selected")
+        return None
+
     def open_file(self, path):
         """用系統預設程式開啟檔案"""
         if os.path.exists(path):
@@ -162,11 +173,14 @@ def on_drop(e):
     # 傳送影片檔案路徑（search 頁面用）
     if expanded_paths:
         paths_json = json.dumps(expanded_paths)
+        print(f"[DEBUG] on_drop calling handlePyWebViewDrop with {len(expanded_paths)} files")
         window.evaluate_js(f'if(typeof handlePyWebViewDrop === "function") handlePyWebViewDrop({paths_json})')
 
     # 傳送資料夾路徑（avlist 頁面用）
     if folder_paths:
         folders_json = json.dumps(folder_paths)
+        print(f"[DEBUG] on_drop folder_paths: {folder_paths}")
+        print(f"[DEBUG] Calling handleFolderDrop with: {folders_json}")
         window.evaluate_js(f'if(typeof handleFolderDrop === "function") handleFolderDrop({folders_json})')
 
 
@@ -225,7 +239,8 @@ def main():
 
     # 6. 開始 GUI 事件循環（阻塞直到窗口關閉）
     # 使用 EdgeChromium 後端（Windows 10/11 內建，不需要 .NET）
-    webview.start(bind, window, debug=False, gui='edgechromium')
+    # debug=True 可開啟 F12 開發者工具
+    webview.start(bind, window, debug=True, gui='edgechromium')
 
 
 if __name__ == '__main__':

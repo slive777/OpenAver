@@ -263,30 +263,43 @@ function renderDirectories() {
 
 // 選擇資料夾 (PyWebView)
 async function selectFolder() {
+    console.log('[AVList] selectFolder called');
+    console.log('[AVList] window.pywebview:', window.pywebview);
+    console.log('[AVList] window.pywebview?.api:', window.pywebview?.api);
+
     if (typeof window.pywebview === 'undefined' || !window.pywebview.api) {
+        console.log('[AVList] PyWebView not available');
         toggleManualInput();
         alert('此功能需要在桌面應用程式中使用');
         return;
     }
 
     try {
-        // 使用 select_folder_path() 直接取得資料夾路徑
-        const folderPath = await window.pywebview.api.select_folder_path();
+        console.log('[AVList] Calling select_folder_for_scan...');
+        // 使用專用 API 直接取得資料夾路徑
+        const folderPath = await window.pywebview.api.select_folder_for_scan();
+        console.log('[AVList] Result:', folderPath);
+
         if (folderPath) {
             addFolderPath(folderPath);
+        } else {
+            console.log('[AVList] No folder selected');
         }
     } catch (e) {
-        console.error('選取資料夾失敗:', e);
+        console.error('[AVList] 選取資料夾失敗:', e);
     }
 }
 
 // 加入資料夾路徑（避免重複）
 function addFolderPath(folderPath) {
+    console.log('[AVList] addFolderPath called with:', folderPath);
     if (!directories.includes(folderPath)) {
         directories.push(folderPath);
         configDirty = true;
         renderDirectories();
+        console.log('[AVList] Folder added successfully');
     } else {
+        console.log('[AVList] Folder already in list');
         alert('此資料夾已在列表中');
     }
 }
@@ -472,19 +485,29 @@ let dragCounter = 0;
 
 // PyWebView 拖曳處理 - 接收資料夾路徑（由 standalone.py 呼叫）
 window.handleFolderDrop = function(folderPaths) {
-    if (!folderPaths || folderPaths.length === 0) return;
+    console.log('[AVList] handleFolderDrop called with:', folderPaths);
+
+    if (!folderPaths || folderPaths.length === 0) {
+        console.log('[AVList] handleFolderDrop: empty or null folderPaths');
+        return;
+    }
 
     let added = 0;
     for (const folderPath of folderPaths) {
+        console.log('[AVList] Processing folder:', folderPath);
         if (!directories.includes(folderPath)) {
             directories.push(folderPath);
             added++;
+            console.log('[AVList] Added folder:', folderPath);
+        } else {
+            console.log('[AVList] Folder already exists:', folderPath);
         }
     }
 
     if (added > 0) {
         configDirty = true;
         renderDirectories();
+        console.log('[AVList] Rendered', added, 'new folders');
     }
 };
 
@@ -492,6 +515,7 @@ window.handleFolderDrop = function(folderPaths) {
 document.addEventListener('dragenter', (e) => {
     e.preventDefault();
     dragCounter++;
+    console.log('[AVList] dragenter, counter:', dragCounter);
     if (dragCounter === 1) {
         dragOverlay.classList.add('show');
     }
@@ -501,6 +525,7 @@ document.addEventListener('dragenter', (e) => {
 document.addEventListener('dragleave', (e) => {
     e.preventDefault();
     dragCounter--;
+    console.log('[AVList] dragleave, counter:', dragCounter);
     if (dragCounter === 0) {
         dragOverlay.classList.remove('show');
     }
@@ -516,7 +541,8 @@ document.addEventListener('drop', (e) => {
     e.preventDefault();
     dragCounter = 0;
     dragOverlay.classList.remove('show');
-    // PyWebView 會自動處理並呼叫 handlePyWebViewDrop
+    console.log('[AVList] drop event fired');
+    // PyWebView 會自動處理並呼叫 handleFolderDrop
 });
 
 // 初始化
