@@ -111,6 +111,21 @@ class Api:
             return files
         return []
 
+    def select_folder_path(self):
+        """開啟資料夾選擇對話框，返回資料夾路徑"""
+        global window
+        result = window.create_file_dialog(webview.FOLDER_DIALOG)
+        if result and len(result) > 0:
+            return result[0]
+        return None
+
+    def open_file(self, path):
+        """用系統預設程式開啟檔案"""
+        if os.path.exists(path):
+            os.startfile(path)
+            return True
+        return False
+
 
 api = Api()
 window = None

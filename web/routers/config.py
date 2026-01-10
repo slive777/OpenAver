@@ -39,10 +39,23 @@ class TranslateConfig(BaseModel):
     ollama_model: str = "qwen2.5:7b"
 
 
+class AVListConfig(BaseModel):
+    directories: List[str] = []
+    output_dir: str = "output"
+    output_filename: str = "avlist_output.html"
+    path_mappings: dict = {}
+    min_size_kb: int = 0
+    default_mode: str = "image"
+    default_sort: str = "date"
+    default_order: str = "descending"
+    items_per_page: int = 90
+
+
 class AppConfig(BaseModel):
     scraper: ScraperConfig = ScraperConfig()
     search: SearchConfig = SearchConfig()
     translate: TranslateConfig = TranslateConfig()
+    avlist: AVListConfig = AVListConfig()
 
 
 def load_config() -> dict:

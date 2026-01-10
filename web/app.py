@@ -30,10 +30,12 @@ from web.routers import search as search_router
 from web.routers import config as config_router
 from web.routers import scraper as scraper_router
 from web.routers import translate as translate_router
+from web.routers import avlist as avlist_router
 app.include_router(search_router.router)
 app.include_router(config_router.router)
 app.include_router(scraper_router.router)
 app.include_router(translate_router.router)
+app.include_router(avlist_router.router)
 
 
 # ============ 頁面路由 ============

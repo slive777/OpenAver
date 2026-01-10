@@ -168,6 +168,79 @@
             </div>
         </div>
 
+        <!-- AVList 設定 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-list-ul"></i> 列表生成設定
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">預設顯示模式</label>
+                    </div>
+                    <div class="col-md-6">
+                        <select class="form-select form-select-sm" id="avlistMode">
+                            <option value="image">圖片模式</option>
+                            <option value="detail">詳細模式</option>
+                            <option value="text">文字模式</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">預設排序</label>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="input-group input-group-sm">
+                            <select class="form-select" id="avlistSort">
+                                <option value="date">發售日期</option>
+                                <option value="mdate">修改日期</option>
+                                <option value="num">番號</option>
+                                <option value="title">片名</option>
+                                <option value="actor">演員</option>
+                                <option value="maker">片商</option>
+                                <option value="size">檔案大小</option>
+                            </select>
+                            <select class="form-select" id="avlistOrder">
+                                <option value="descending">遞減</option>
+                                <option value="ascending">遞增</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">每頁顯示數量</label>
+                    </div>
+                    <div class="col-md-6">
+                        <select class="form-select form-select-sm" id="avlistItemsPerPage">
+                            <option value="30">30</option>
+                            <option value="45">45</option>
+                            <option value="60">60</option>
+                            <option value="90">90</option>
+                            <option value="120">120</option>
+                            <option value="0">全部</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">最小檔案大小</label>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="input-group input-group-sm">
+                            <input type="number" class="form-control" id="avlistMinSize" value="0" min="0">
+                            <span class="input-group-text">KB</span>
+                        </div>
+                        <small class="text-muted">0 = 不過濾</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 儲存按鈕 -->
         <div class="d-flex justify-content-end gap-2">
             <button type="button" class="btn btn-secondary" id="resetBtn">
@@ -247,6 +320,15 @@ async function loadConfig() {
 
             updateTranslateOptions();
 
+            // AVList 設定
+            if (config.avlist) {
+                document.getElementById('avlistMode').value = config.avlist.default_mode || 'image';
+                document.getElementById('avlistSort').value = config.avlist.default_sort || 'date';
+                document.getElementById('avlistOrder').value = config.avlist.default_order || 'descending';
+                document.getElementById('avlistItemsPerPage').value = config.avlist.items_per_page || 90;
+                document.getElementById('avlistMinSize').value = config.avlist.min_size_kb || 0;
+            }
+
             // 自動載入模型列表（如果有 URL）
             if (config.translate.ollama_url) {
                 const savedModel = config.translate.ollama_model;
@@ -278,6 +360,13 @@ async function saveConfig() {
             provider: document.getElementById('translateProvider').value,
             ollama_url: document.getElementById('ollamaUrl').value,
             ollama_model: document.getElementById('ollamaModel').value
+        },
+        avlist: {
+            default_mode: document.getElementById('avlistMode').value,
+            default_sort: document.getElementById('avlistSort').value,
+            default_order: document.getElementById('avlistOrder').value,
+            items_per_page: parseInt(document.getElementById('avlistItemsPerPage').value),
+            min_size_kb: parseInt(document.getElementById('avlistMinSize').value) || 0
         }
     };
 

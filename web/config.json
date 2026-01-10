@@ -3,6 +3,9 @@
     "create_folder": true,
     "folder_format": "{actor} - [{num}]{title}",
     "filename_format": "{actor} - [{num}]{title}",
+    "download_cover": true,
+    "cover_filename": "poster.jpg",
+    "create_nfo": true,
     "max_title_length": 80,
     "max_filename_length": 200,
     "video_extensions": [
@@ -18,12 +21,26 @@
     ]
   },
   "search": {
-    "auto_search_on_drop": true
+    "auto_search_on_drop": true,
+    "search_filter": ""
   },
   "translate": {
     "enabled": false,
     "provider": "ollama",
-    "ollama_url": "http://localhost:11434",
-    "ollama_model": "qwen2.5:7b"
+    "ollama_url": "http://172.18.128.1:11434",
+    "ollama_model": "qwen3:14b-q4_K_M"
+  },
+  "avlist": {
+    "directories": [
+      "C:\\Users\\peace\\Downloads\\JAV_failed\\123"
+    ],
+    "output_dir": "output",
+    "output_filename": "avlist_output.html",
+    "path_mappings": {},
+    "min_size_kb": 0,
+    "default_mode": "image",
+    "default_sort": "date",
+    "default_order": "descending",
+    "items_per_page": 90
   }
 }

@@ -47,3 +47,4 @@ web/config.local.json
 # Build output
 build/
 dist/
+output/

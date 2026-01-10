@@ -2,17 +2,431 @@
 
 {% block title %}列表生成 - JavHelper{% endblock %}
 
-{% block content %}
-<div class="container-fluid">
-    <h4 class="mb-4">
-        <i class="bi bi-list-ul"></i> AVList 生成器
-    </h4>
+{% block extra_css %}
+<style>
+    .avlist-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
 
-    <div class="card">
-        <div class="card-body text-center text-muted py-5">
-            <i class="bi bi-tools" style="font-size: 4rem;"></i>
-            <p class="mt-3">列表生成功能開發中...</p>
+    .directory-list {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        background: #fff;
+    }
+
+    .directory-item {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid #f0f0f0;
+        gap: 0.5rem;
+    }
+
+    .directory-item:last-child {
+        border-bottom: none;
+    }
+
+    .directory-item .path {
+        flex: 1;
+        font-family: monospace;
+        font-size: 0.875rem;
+        word-break: break-all;
+    }
+
+    .directory-item .btn-remove {
+        flex-shrink: 0;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+
+    .empty-list {
+        padding: 2rem;
+        text-align: center;
+        color: #6c757d;
+    }
+
+    .output-section {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 0.375rem;
+        margin-top: 1rem;
+    }
+
+    .progress-section {
+        display: none;
+        margin-top: 1rem;
+    }
+
+    .progress-section.show {
+        display: block;
+    }
+
+    .log-output {
+        max-height: 200px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 0.8rem;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 0.75rem;
+        border-radius: 0.375rem;
+        margin-top: 0.5rem;
+    }
+
+    .log-output .log-info { color: #6a9955; }
+    .log-output .log-warn { color: #dcdcaa; }
+    .log-output .log-error { color: #f14c4c; }
+
+    /* 手動輸入區 */
+    .manual-input {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="avlist-container">
+    <h4 class="mb-4"><i class="bi bi-list-ul"></i> 列表生成</h4>
+
+    <!-- 資料夾列表 -->
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-folder"></i> 掃描資料夾</span>
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-primary" onclick="selectFolder()" title="選擇資料夾">
+                    <i class="bi bi-folder-plus"></i> 選擇
+                </button>
+                <button class="btn btn-outline-secondary" onclick="toggleManualInput()" title="手動輸入">
+                    <i class="bi bi-keyboard"></i>
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-2">
+            <!-- 手動輸入 -->
+            <div class="manual-input" id="manualInput" style="display: none;">
+                <input type="text" class="form-control form-control-sm" id="manualPath"
+                       placeholder="輸入資料夾路徑，例如: /mnt/c/Videos 或 \\\\NAS\\share">
+                <button class="btn btn-sm btn-primary" onclick="addManualPath()">
+                    <i class="bi bi-plus"></i> 加入
+                </button>
+            </div>
+
+            <!-- 資料夾列表 -->
+            <div class="directory-list" id="directoryList">
+                <div class="empty-list" id="emptyHint">
+                    <i class="bi bi-folder-plus fs-1 text-muted"></i>
+                    <p class="mt-2 mb-0">尚未加入任何資料夾</p>
+                    <small class="text-muted">點擊上方按鈕加入要掃描的資料夾</small>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer text-end" id="dirFooter" style="display: none;">
+            <button class="btn btn-sm btn-outline-danger" onclick="clearAllDirs()">
+                <i class="bi bi-trash"></i> 清空全部
+            </button>
+            <button class="btn btn-sm btn-primary" onclick="saveConfig()">
+                <i class="bi bi-save"></i> 儲存
+            </button>
         </div>
     </div>
+
+    <!-- 輸出設定 -->
+    <div class="output-section">
+        <div class="row align-items-end">
+            <div class="col-md-6 mb-2 mb-md-0">
+                <label class="form-label small"><i class="bi bi-file-earmark-code"></i> 輸出檔案</label>
+                <div class="input-group input-group-sm">
+                    <input type="text" class="form-control" id="outputDir" placeholder="output">
+                    <span class="input-group-text">/</span>
+                    <input type="text" class="form-control" id="outputFilename" placeholder="avlist_output.html">
+                </div>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <button class="btn btn-primary" id="btnGenerate" onclick="generate()">
+                    <i class="bi bi-play-fill"></i> 產生網頁
+                </button>
+                <button class="btn btn-outline-secondary" id="btnOpen" onclick="openOutput()" style="display: none;">
+                    <i class="bi bi-box-arrow-up-right"></i> 開啟
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 進度區 -->
+    <div class="progress-section" id="progressSection">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span id="progressStatus">準備中...</span>
+            <span id="progressCount" class="badge bg-secondary">0 / 0</span>
+        </div>
+        <div class="progress" style="height: 6px;">
+            <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%"></div>
+        </div>
+        <div class="log-output" id="logOutput"></div>
+    </div>
+
+    <!-- 結果區 -->
+    <div class="alert alert-success mt-3" id="resultAlert" style="display: none;">
+        <i class="bi bi-check-circle"></i>
+        <span id="resultMessage"></span>
+    </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let directories = [];
+let config = {};
+let configDirty = false;
+
+// 載入設定
+async function loadConfig() {
+    try {
+        const resp = await fetch('/api/config');
+        const result = await resp.json();
+        if (result.success) {
+            config = result.data;
+            directories = config.avlist?.directories || [];
+            document.getElementById('outputDir').value = config.avlist?.output_dir || 'output';
+            document.getElementById('outputFilename').value = config.avlist?.output_filename || 'avlist_output.html';
+            renderDirectories();
+        }
+    } catch (e) {
+        console.error('載入設定失敗:', e);
+    }
+}
+
+// 渲染資料夾列表
+function renderDirectories() {
+    const list = document.getElementById('directoryList');
+    const empty = document.getElementById('emptyHint');
+    const footer = document.getElementById('dirFooter');
+
+    if (directories.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        list.appendChild(empty);
+        footer.style.display = 'none';
+        return;
+    }
+
+    empty.style.display = 'none';
+    footer.style.display = 'block';
+    list.innerHTML = directories.map((dir, idx) => `
+        <div class="directory-item">
+            <i class="bi bi-folder text-warning"></i>
+            <span class="path">${escapeHtml(dir)}</span>
+            <button class="btn btn-outline-danger btn-remove" onclick="removeDirectory(${idx})" title="移除">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+// 選擇資料夾 (PyWebView)
+async function selectFolder() {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.select_folder_path) {
+        try {
+            const folderPath = await pywebview.api.select_folder_path();
+            if (folderPath && !directories.includes(folderPath)) {
+                directories.push(folderPath);
+                configDirty = true;
+                renderDirectories();
+            }
+        } catch (e) {
+            console.error('PyWebView API 錯誤:', e);
+            toggleManualInput();
+        }
+    } else {
+        toggleManualInput();
+        alert('請手動輸入資料夾路徑');
+    }
+}
+
+// 切換手動輸入區
+function toggleManualInput() {
+    const el = document.getElementById('manualInput');
+    el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+    if (el.style.display === 'flex') {
+        document.getElementById('manualPath').focus();
+    }
+}
+
+// 加入手動輸入的路徑
+function addManualPath() {
+    const input = document.getElementById('manualPath');
+    const path = input.value.trim();
+    if (path && !directories.includes(path)) {
+        directories.push(path);
+        configDirty = true;
+        renderDirectories();
+        input.value = '';
+    }
+}
+
+// Enter 鍵加入
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('manualPath')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addManualPath();
+        }
+    });
+});
+
+// 移除資料夾
+function removeDirectory(idx) {
+    directories.splice(idx, 1);
+    configDirty = true;
+    renderDirectories();
+}
+
+// 清空全部
+function clearAllDirs() {
+    if (confirm('確定要清空所有資料夾嗎？')) {
+        directories = [];
+        configDirty = true;
+        renderDirectories();
+    }
+}
+
+// 儲存設定
+async function saveConfig() {
+    try {
+        config.avlist = config.avlist || {};
+        config.avlist.directories = directories;
+        config.avlist.output_dir = document.getElementById('outputDir').value || 'output';
+        config.avlist.output_filename = document.getElementById('outputFilename').value || 'avlist_output.html';
+
+        const resp = await fetch('/api/config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+        const result = await resp.json();
+        if (result.success) {
+            configDirty = false;
+            alert('設定已儲存');
+        } else {
+            alert('儲存失敗: ' + (result.error || '未知錯誤'));
+        }
+    } catch (e) {
+        console.error('儲存失敗:', e);
+        alert('儲存失敗: ' + e.message);
+    }
+}
+
+// 產生網頁
+async function generate() {
+    if (directories.length === 0) {
+        alert('請先加入至少一個資料夾');
+        return;
+    }
+
+    // 自動儲存設定
+    if (configDirty) {
+        await saveConfig();
+    } else {
+        // 確保 output 設定也儲存
+        config.avlist = config.avlist || {};
+        config.avlist.directories = directories;
+        config.avlist.output_dir = document.getElementById('outputDir').value || 'output';
+        config.avlist.output_filename = document.getElementById('outputFilename').value || 'avlist_output.html';
+        await fetch('/api/config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(config)
+        });
+    }
+
+    const btn = document.getElementById('btnGenerate');
+    const progressSection = document.getElementById('progressSection');
+    const logOutput = document.getElementById('logOutput');
+    const resultAlert = document.getElementById('resultAlert');
+    const btnOpen = document.getElementById('btnOpen');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 產生中...';
+    progressSection.classList.add('show');
+    resultAlert.style.display = 'none';
+    btnOpen.style.display = 'none';
+    logOutput.innerHTML = '';
+
+    try {
+        const eventSource = new EventSource('/api/avlist/generate');
+
+        eventSource.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'progress') {
+                document.getElementById('progressStatus').textContent = data.status;
+                document.getElementById('progressCount').textContent = `${data.current} / ${data.total}`;
+                const pct = data.total > 0 ? (data.current / data.total) * 100 : 0;
+                document.getElementById('progressBar').style.width = `${pct}%`;
+            } else if (data.type === 'log') {
+                const cls = data.level === 'error' ? 'log-error' :
+                           data.level === 'warn' ? 'log-warn' : 'log-info';
+                logOutput.innerHTML += `<div class="${cls}">${escapeHtml(data.message)}</div>`;
+                logOutput.scrollTop = logOutput.scrollHeight;
+            } else if (data.type === 'done') {
+                eventSource.close();
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-play-fill"></i> 產生網頁';
+                document.getElementById('progressBar').style.width = '100%';
+                document.getElementById('progressStatus').textContent = '完成';
+
+                resultAlert.style.display = 'block';
+                document.getElementById('resultMessage').textContent =
+                    `成功產生 ${data.video_count} 部影片列表：${data.output_path}`;
+                btnOpen.style.display = 'inline-block';
+                btnOpen.dataset.path = data.output_path;
+            } else if (data.type === 'error') {
+                eventSource.close();
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-play-fill"></i> 產生網頁';
+                logOutput.innerHTML += `<div class="log-error">錯誤: ${escapeHtml(data.message)}</div>`;
+            }
+        };
+
+        eventSource.onerror = function() {
+            eventSource.close();
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-play-fill"></i> 產生網頁';
+            logOutput.innerHTML += '<div class="log-error">連線中斷</div>';
+        };
+    } catch (e) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-play-fill"></i> 產生網頁';
+        alert('發生錯誤: ' + e.message);
+    }
+}
+
+// 開啟輸出檔案
+function openOutput() {
+    const btn = document.getElementById('btnOpen');
+    const path = btn.dataset.path;
+    if (path) {
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.open_file) {
+            pywebview.api.open_file(path);
+        } else {
+            alert('檔案已產生：' + path);
+        }
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;');
+}
+
+// 初始化
+loadConfig();
+</script>
 {% endblock %}
