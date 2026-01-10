@@ -67,6 +67,27 @@ def generate_avlist() -> Generator[str, None, None]:
         old_metadata = cache.pop('_metadata', {})
         yield send({"type": "log", "level": "info", "message": f"載入快取: {len(cache)} 筆"})
 
+        # 清理不在掃描清單內的快取
+        normalized_dirs = []
+        for d in directories:
+            try:
+                normalized_dirs.append(normalize_path(d))
+            except ValueError:
+                pass
+
+        if normalized_dirs:
+            keys_to_remove = []
+            for key in cache.keys():
+                # 檢查此快取項目是否屬於任一掃描目錄
+                in_scan_list = any(key.startswith(nd) for nd in normalized_dirs)
+                if not in_scan_list:
+                    keys_to_remove.append(key)
+
+            if keys_to_remove:
+                for k in keys_to_remove:
+                    del cache[k]
+                yield send({"type": "log", "level": "info", "message": f"清理舊快取: {len(keys_to_remove)} 筆"})
+
         # 初始化掃描器
         scanner = VideoScanner(path_mappings=path_mappings)
 

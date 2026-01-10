@@ -9,6 +9,31 @@
         margin: 0 auto;
     }
 
+    /* Toast 提示 */
+    .toast-msg {
+        position: fixed;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        padding: 0.75rem 1.25rem;
+        background: #212529;
+        color: #fff;
+        font-size: 0.875rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+        z-index: 2000;
+        max-width: 90vw;
+        word-break: break-all;
+    }
+    .toast-msg.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(-50%) translateY(0);
+    }
+
     .directory-list {
         max-height: 300px;
         overflow-y: auto;
@@ -182,8 +207,8 @@
                 <button class="btn btn-primary" id="btnGenerate" onclick="generate()">
                     <i class="bi bi-play-fill"></i> 產生網頁
                 </button>
-                <button class="btn btn-outline-secondary" id="btnOpen" onclick="openOutput()" style="display: none;">
-                    <i class="bi bi-box-arrow-up-right"></i> 開啟
+                <button class="btn btn-outline-secondary" id="btnCopyPath" onclick="copyOutputPath()" style="display: none;">
+                    <i class="bi bi-clipboard"></i> 複製路徑
                 </button>
             </div>
         </div>
@@ -225,6 +250,9 @@
         </div>
     </div>
 </div>
+
+<!-- Toast 提示 -->
+<div id="toastMsg" class="toast-msg"></div>
 {% endblock %}
 
 {% block extra_js %}
@@ -496,13 +524,13 @@ async function generate() {
     const progressSection = document.getElementById('progressSection');
     const logOutput = document.getElementById('logOutput');
     const resultAlert = document.getElementById('resultAlert');
-    const btnOpen = document.getElementById('btnOpen');
+    const btnCopyPath = document.getElementById('btnCopyPath');
 
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 產生中...';
     progressSection.classList.add('show');
     resultAlert.style.display = 'none';
-    btnOpen.style.display = 'none';
+    btnCopyPath.style.display = 'none';
     logOutput.innerHTML = '';
 
     // 設置生成狀態
@@ -544,9 +572,9 @@ async function generate() {
 
                 resultAlert.style.display = 'block';
                 document.getElementById('resultMessage').textContent =
-                    `成功產生 ${data.video_count} 部影片列表：${data.output_path}`;
-                btnOpen.style.display = 'inline-block';
-                btnOpen.dataset.path = data.output_path;
+                    `成功產生 ${data.video_count} 部影片列表`;
+                btnCopyPath.style.display = 'inline-block';
+                btnCopyPath.dataset.path = data.output_path;
 
                 // 儲存最終 logs
                 saveLogs();
@@ -582,16 +610,24 @@ async function generate() {
     }
 }
 
-// 開啟輸出檔案
-function openOutput() {
-    const btn = document.getElementById('btnOpen');
+// Toast 提示
+function showToast(msg) {
+    const toast = document.getElementById('toastMsg');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+// 複製輸出路徑到剪貼簿
+function copyOutputPath() {
+    const btn = document.getElementById('btnCopyPath');
     const path = btn.dataset.path;
     if (path) {
-        if (window.pywebview && window.pywebview.api && window.pywebview.api.open_file) {
-            pywebview.api.open_file(path);
-        } else {
-            alert('檔案已產生：' + path);
-        }
+        navigator.clipboard.writeText(path).then(() => {
+            showToast('已複製: ' + path);
+        }).catch(() => {
+            alert('複製失敗，路徑：' + path);
+        });
     }
 }
 
