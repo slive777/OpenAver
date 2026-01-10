@@ -264,8 +264,6 @@ function renderDirectories() {
 // 選擇資料夾 (PyWebView)
 async function selectFolder() {
     console.log('[AVList] selectFolder called');
-    console.log('[AVList] window.pywebview:', window.pywebview);
-    console.log('[AVList] window.pywebview?.api:', window.pywebview?.api);
 
     if (typeof window.pywebview === 'undefined' || !window.pywebview.api) {
         console.log('[AVList] PyWebView not available');
@@ -275,13 +273,23 @@ async function selectFolder() {
     }
 
     try {
-        console.log('[AVList] Calling select_folder_for_scan...');
-        // 使用專用 API 直接取得資料夾路徑
-        const folderPath = await window.pywebview.api.select_folder_for_scan();
-        console.log('[AVList] Result:', folderPath);
+        console.log('[AVList] Calling select_folder...');
+        // select_folder() 返回格式: { folder: "路徑", files: [...] }
+        const result = await window.pywebview.api.select_folder();
+        console.log('[AVList] select_folder result:', result);
 
-        if (folderPath) {
-            addFolderPath(folderPath);
+        // 新格式：result 是物件 { folder, files }
+        if (result && result.folder) {
+            addFolderPath(result.folder);
+        }
+        // 舊格式兼容：result 是陣列
+        else if (Array.isArray(result) && result.length > 0) {
+            const firstFile = result[0];
+            const lastSep = Math.max(firstFile.lastIndexOf('\\'), firstFile.lastIndexOf('/'));
+            const folderPath = lastSep > 0 ? firstFile.substring(0, lastSep) : null;
+            if (folderPath) {
+                addFolderPath(folderPath);
+            }
         } else {
             console.log('[AVList] No folder selected');
         }

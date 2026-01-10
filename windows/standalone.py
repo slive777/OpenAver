@@ -15,22 +15,18 @@ APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if APP_DIR not in sys.path:
     sys.path.insert(0, APP_DIR)
 
+# 確保 windows 目錄也在 sys.path 中（for pywebview_api import）
+WINDOWS_DIR = os.path.dirname(os.path.abspath(__file__))
+if WINDOWS_DIR not in sys.path:
+    sys.path.insert(0, WINDOWS_DIR)
+
 import webview
-from webview.dom import DOMEventHandler
+from pywebview_api import api, bind_events
 
 # 配置
 HOST = "127.0.0.1"
 PORT = 8000
 STARTUP_TIMEOUT = 30  # 最多等待 30 秒
-
-# 支援的影片副檔名
-VIDEO_EXTENSIONS = {'.mp4', '.avi', '.mkv', '.wmv', '.rmvb', '.flv', '.mov', '.m4v', '.ts'}
-
-
-def is_video_file(filename):
-    """檢查是否為影片檔案"""
-    ext = os.path.splitext(filename)[1].lower()
-    return ext in VIDEO_EXTENSIONS
 
 
 def find_free_port(start_port=8000, max_attempts=100):
@@ -78,128 +74,9 @@ def run_server(port):
     server.run()
 
 
-# ============ PyWebView API ============
-
-class Api:
-    """供前端 JS 調用的 Python API"""
-
-    def select_files(self):
-        """開啟檔案選擇對話框，選取影片檔案"""
-        global window
-        file_types = ('影片檔案 (*.mp4;*.avi;*.mkv;*.wmv;*.rmvb;*.flv;*.mov;*.m4v;*.ts)',
-                      '所有檔案 (*.*)')
-        result = window.create_file_dialog(
-            webview.OPEN_DIALOG,
-            allow_multiple=True,
-            file_types=file_types
-        )
-        if result:
-            return list(result)
-        return []
-
-    def select_folder(self):
-        """開啟資料夾選擇對話框，展開內部影片檔案"""
-        global window
-        result = window.create_file_dialog(webview.FOLDER_DIALOG)
-        if result and len(result) > 0:
-            folder_path = result[0]
-            files = []
-            for f in os.listdir(folder_path):
-                file_path = os.path.join(folder_path, f)
-                if os.path.isfile(file_path) and is_video_file(f):
-                    files.append(file_path)
-            return files
-        return []
-
-    def select_folder_path(self):
-        """開啟資料夾選擇對話框，返回資料夾路徑"""
-        global window
-        result = window.create_file_dialog(webview.FOLDER_DIALOG)
-        if result and len(result) > 0:
-            return result[0]
-        return None
-
-    def select_folder_for_scan(self):
-        """開啟資料夾選擇對話框，直接返回資料夾路徑（給 avlist 用）"""
-        global window
-        result = window.create_file_dialog(webview.FOLDER_DIALOG)
-        if result and len(result) > 0:
-            folder_path = result[0]
-            print(f"[DEBUG] select_folder_for_scan: {folder_path}")
-            return folder_path
-        print("[DEBUG] select_folder_for_scan: No folder selected")
-        return None
-
-    def open_file(self, path):
-        """用系統預設程式開啟檔案"""
-        if os.path.exists(path):
-            os.startfile(path)
-            return True
-        return False
-
-
-api = Api()
-window = None
-
-
-def on_drop(e):
-    """處理拖放事件，取得完整路徑並傳給前端"""
-    global window
-    import json
-
-    files = e.get('dataTransfer', {}).get('files', [])
-    if not files:
-        return
-
-    expanded_paths = []  # 影片檔案路徑
-    folder_paths = []    # 資料夾路徑
-
-    for file_info in files:
-        win_path = file_info.get('pywebviewFullPath', '')
-        if not win_path:
-            continue
-
-        if os.path.isdir(win_path):
-            # 記錄資料夾路徑（給 avlist 用）
-            folder_paths.append(win_path)
-            # 資料夾：展開第一層影片檔案（給 search 用）
-            for f in os.listdir(win_path):
-                file_win_path = os.path.join(win_path, f)
-                if os.path.isfile(file_win_path) and is_video_file(f):
-                    expanded_paths.append(file_win_path)
-        else:
-            expanded_paths.append(win_path)
-
-    # 傳送影片檔案路徑（search 頁面用）
-    if expanded_paths:
-        paths_json = json.dumps(expanded_paths)
-        print(f"[DEBUG] on_drop calling handlePyWebViewDrop with {len(expanded_paths)} files")
-        window.evaluate_js(f'if(typeof handlePyWebViewDrop === "function") handlePyWebViewDrop({paths_json})')
-
-    # 傳送資料夾路徑（avlist 頁面用）
-    if folder_paths:
-        folders_json = json.dumps(folder_paths)
-        print(f"[DEBUG] on_drop folder_paths: {folder_paths}")
-        print(f"[DEBUG] Calling handleFolderDrop with: {folders_json}")
-        window.evaluate_js(f'if(typeof handleFolderDrop === "function") handleFolderDrop({folders_json})')
-
-
-def bind(w):
-    """綁定 DOM 事件"""
-    global window
-    window = w
-
-    def on_loaded():
-        window.dom.document.events.drop += DOMEventHandler(on_drop, True, True)
-
-    window.events.loaded += on_loaded
-
-
 # ============ 主程序 ============
 
 def main():
-    global window
-
     print("[JavHelper] 正在啟動...")
 
     # 1. 尋找可用端口
@@ -240,7 +117,7 @@ def main():
     # 6. 開始 GUI 事件循環（阻塞直到窗口關閉）
     # 使用 EdgeChromium 後端（Windows 10/11 內建，不需要 .NET）
     # debug=True 可開啟 F12 開發者工具
-    webview.start(bind, window, debug=True, gui='edgechromium')
+    webview.start(bind_events, window, debug=True, gui='edgechromium')
 
 
 if __name__ == '__main__':

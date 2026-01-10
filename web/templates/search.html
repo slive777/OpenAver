@@ -2419,7 +2419,9 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         try {
-            const paths = await window.pywebview.api.select_folder();
+            const result = await window.pywebview.api.select_folder();
+            // 新格式：result 是 { folder, files }
+            const paths = result?.files || result;
             if (paths && paths.length > 0) {
                 console.log('資料夾內檔案:', paths.length, '個');
                 window.handlePyWebViewDrop(paths);
