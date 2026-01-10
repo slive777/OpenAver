@@ -232,6 +232,76 @@
 let directories = [];
 let config = {};
 let configDirty = false;
+let isGenerating = false;  // 追蹤是否正在生成
+
+// localStorage keys
+const STORAGE_KEYS = {
+    logs: 'avlist_logs',
+    isGenerating: 'avlist_generating',
+    lastStatus: 'avlist_last_status'
+};
+
+// 儲存 logs 到 localStorage
+function saveLogs() {
+    const logOutput = document.getElementById('logOutput');
+    localStorage.setItem(STORAGE_KEYS.logs, logOutput.innerHTML);
+}
+
+// 從 localStorage 恢復 logs
+function restoreLogs() {
+    const savedLogs = localStorage.getItem(STORAGE_KEYS.logs);
+    const wasGenerating = localStorage.getItem(STORAGE_KEYS.isGenerating) === 'true';
+
+    if (savedLogs) {
+        const logOutput = document.getElementById('logOutput');
+        const progressSection = document.getElementById('progressSection');
+
+        logOutput.innerHTML = savedLogs;
+        progressSection.classList.add('show');
+
+        // 如果之前正在生成但被中斷
+        if (wasGenerating) {
+            logOutput.innerHTML += '<div class="log-warn">⚠ 生成被中斷（離開頁面）</div>';
+            localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
+        }
+
+        // 恢復狀態文字
+        const lastStatus = localStorage.getItem(STORAGE_KEYS.lastStatus);
+        if (lastStatus) {
+            document.getElementById('progressStatus').textContent = lastStatus;
+        }
+    }
+}
+
+// 清除 logs
+function clearLogs() {
+    localStorage.removeItem(STORAGE_KEYS.logs);
+    localStorage.removeItem(STORAGE_KEYS.isGenerating);
+    localStorage.removeItem(STORAGE_KEYS.lastStatus);
+}
+
+// 離開頁面警告
+window.addEventListener('beforeunload', function(e) {
+    if (isGenerating) {
+        e.preventDefault();
+        e.returnValue = '生成正在進行中，離開將會中斷操作！';
+        return e.returnValue;
+    }
+});
+
+// 監聽側邊欄點擊（PyWebView 中 beforeunload 可能不觸發）
+document.addEventListener('click', function(e) {
+    if (isGenerating) {
+        const link = e.target.closest('a[href]');
+        if (link && !link.href.includes('/avlist')) {
+            if (!confirm('生成正在進行中，離開將會中斷操作！確定要離開嗎？')) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        }
+    }
+});
 
 // 載入設定
 async function loadConfig() {
@@ -435,6 +505,11 @@ async function generate() {
     btnOpen.style.display = 'none';
     logOutput.innerHTML = '';
 
+    // 設置生成狀態
+    isGenerating = true;
+    localStorage.setItem(STORAGE_KEYS.isGenerating, 'true');
+    clearLogs();  // 清除舊 logs
+
     try {
         const eventSource = new EventSource('/api/avlist/generate');
 
@@ -446,17 +521,24 @@ async function generate() {
                 document.getElementById('progressCount').textContent = `${data.current} / ${data.total}`;
                 const pct = data.total > 0 ? (data.current / data.total) * 100 : 0;
                 document.getElementById('progressBar').style.width = `${pct}%`;
+                // 儲存狀態
+                localStorage.setItem(STORAGE_KEYS.lastStatus, data.status);
             } else if (data.type === 'log') {
                 const cls = data.level === 'error' ? 'log-error' :
                            data.level === 'warn' ? 'log-warn' : 'log-info';
                 logOutput.innerHTML += `<div class="${cls}">${escapeHtml(data.message)}</div>`;
                 logOutput.scrollTop = logOutput.scrollHeight;
+                // 每次 log 都儲存
+                saveLogs();
             } else if (data.type === 'done') {
                 eventSource.close();
+                isGenerating = false;
+                localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
                 btn.disabled = false;
                 btn.innerHTML = '<i class="bi bi-play-fill"></i> 產生網頁';
                 document.getElementById('progressBar').style.width = '100%';
                 document.getElementById('progressStatus').textContent = '完成';
+                localStorage.setItem(STORAGE_KEYS.lastStatus, '完成');
 
                 resultAlert.style.display = 'block';
                 document.getElementById('resultMessage').textContent =
@@ -464,23 +546,34 @@ async function generate() {
                 btnOpen.style.display = 'inline-block';
                 btnOpen.dataset.path = data.output_path;
 
+                // 儲存最終 logs
+                saveLogs();
+
                 // 刷新統計資訊
                 loadStats();
             } else if (data.type === 'error') {
                 eventSource.close();
+                isGenerating = false;
+                localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
                 btn.disabled = false;
                 btn.innerHTML = '<i class="bi bi-play-fill"></i> 產生網頁';
                 logOutput.innerHTML += `<div class="log-error">錯誤: ${escapeHtml(data.message)}</div>`;
+                saveLogs();
             }
         };
 
         eventSource.onerror = function() {
             eventSource.close();
+            isGenerating = false;
+            localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-play-fill"></i> 產生網頁';
             logOutput.innerHTML += '<div class="log-error">連線中斷</div>';
+            saveLogs();
         };
     } catch (e) {
+        isGenerating = false;
+        localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-play-fill"></i> 產生網頁';
         alert('發生錯誤: ' + e.message);
@@ -640,6 +733,11 @@ async function runNfoUpdate() {
     progressSection.classList.add('show');
     logOutput.innerHTML = '';
 
+    // 設置生成狀態
+    isGenerating = true;
+    localStorage.setItem(STORAGE_KEYS.isGenerating, 'true');
+    clearLogs();
+
     try {
         const eventSource = new EventSource('/api/avlist/update');
 
@@ -651,40 +749,54 @@ async function runNfoUpdate() {
                 document.getElementById('progressCount').textContent = `${data.current} / ${data.total}`;
                 const pct = data.total > 0 ? (data.current / data.total) * 100 : 0;
                 document.getElementById('progressBar').style.width = `${pct}%`;
+                localStorage.setItem(STORAGE_KEYS.lastStatus, data.status);
             } else if (data.type === 'log') {
                 const cls = data.level === 'error' ? 'log-error' :
                            data.level === 'warn' ? 'log-warn' : 'log-info';
                 logOutput.innerHTML += `<div class="${cls}">${escapeHtml(data.message)}</div>`;
                 logOutput.scrollTop = logOutput.scrollHeight;
+                saveLogs();
             } else if (data.type === 'done') {
                 eventSource.close();
+                isGenerating = false;
+                localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
                 btn.disabled = false;
                 btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
                 document.getElementById('progressBar').style.width = '100%';
                 document.getElementById('progressStatus').textContent = data.message || '完成';
+                localStorage.setItem(STORAGE_KEYS.lastStatus, data.message || '完成');
 
                 // 提示重新產生列表
                 if (data.message) {
                     logOutput.innerHTML += `<div class="log-info">${escapeHtml(data.message)}</div>`;
                 }
+                saveLogs();
 
                 // 重新檢查更新數量
                 checkNeedUpdate();
             } else if (data.type === 'error') {
                 eventSource.close();
+                isGenerating = false;
+                localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
                 btn.disabled = false;
                 btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
                 logOutput.innerHTML += `<div class="log-error">錯誤: ${escapeHtml(data.message)}</div>`;
+                saveLogs();
             }
         };
 
         eventSource.onerror = function() {
             eventSource.close();
+            isGenerating = false;
+            localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
             logOutput.innerHTML += '<div class="log-error">連線中斷</div>';
+            saveLogs();
         };
     } catch (e) {
+        isGenerating = false;
+        localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
         alert('發生錯誤: ' + e.message);
@@ -695,5 +807,6 @@ async function runNfoUpdate() {
 renderDirectories();  // 先渲染空狀態
 loadConfig();
 loadStats();
+restoreLogs();  // 恢復上次的 logs
 </script>
 {% endblock %}

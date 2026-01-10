@@ -4,6 +4,7 @@ JavHelper Web GUI - FastAPI Application
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -42,11 +43,17 @@ app.include_router(avlist_router.router)
 
 @app.get("/")
 async def index(request: Request):
-    """首頁 - 重定向到搜尋頁面"""
-    return templates.TemplateResponse("search.html", {
-        "request": request,
-        "page": "search"
-    })
+    """首頁 - 重定向到預設頁面"""
+    from web.routers.config import load_config
+    config = load_config()
+    default_page = config.get('general', {}).get('default_page', 'search')
+
+    # 驗證頁面名稱
+    valid_pages = ['search', 'avlist', 'viewer']
+    if default_page not in valid_pages:
+        default_page = 'search'
+
+    return RedirectResponse(url=f"/{default_page}", status_code=302)
 
 
 @app.get("/search")

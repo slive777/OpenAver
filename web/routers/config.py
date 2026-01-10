@@ -55,12 +55,17 @@ class ViewerConfig(BaseModel):
     player: str = ""  # 播放器路徑，空字串使用系統預設
 
 
+class GeneralConfig(BaseModel):
+    default_page: str = "search"  # 預設開啟頁面: search, avlist, viewer
+
+
 class AppConfig(BaseModel):
     scraper: ScraperConfig = ScraperConfig()
     search: SearchConfig = SearchConfig()
     translate: TranslateConfig = TranslateConfig()
     avlist: AVListConfig = AVListConfig()
     viewer: ViewerConfig = ViewerConfig()
+    general: GeneralConfig = GeneralConfig()
 
 
 def load_config() -> dict:

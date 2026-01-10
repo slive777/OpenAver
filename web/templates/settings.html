@@ -260,6 +260,27 @@
             </div>
         </div>
 
+        <!-- 一般設定 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-sliders"></i> 一般設定
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">啟動時開啟頁面</label>
+                    </div>
+                    <div class="col-md-6">
+                        <select class="form-select form-select-sm" id="defaultPage">
+                            <option value="search">搜尋</option>
+                            <option value="avlist">列表生成</option>
+                            <option value="viewer">瀏覽</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 儲存按鈕 -->
         <div class="d-flex justify-content-end gap-2">
             <button type="button" class="btn btn-secondary" id="resetBtn">
@@ -353,6 +374,11 @@ async function loadConfig() {
                 document.getElementById('viewerPlayer').value = config.viewer.player || '';
             }
 
+            // 一般設定
+            if (config.general) {
+                document.getElementById('defaultPage').value = config.general.default_page || 'search';
+            }
+
             // 自動載入模型列表（如果有 URL）
             if (config.translate.ollama_url) {
                 const savedModel = config.translate.ollama_model;
@@ -417,6 +443,12 @@ async function saveConfig() {
         config.viewer = {
             ...config.viewer,
             player: document.getElementById('viewerPlayer').value.trim()
+        };
+
+        // 更新 general 設定
+        config.general = {
+            ...config.general,
+            default_page: document.getElementById('defaultPage').value
         };
 
         const resp = await fetch('/api/config', {

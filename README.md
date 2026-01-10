@@ -62,6 +62,16 @@ JavHelper/
 └── prd.md              # 產品規劃文件
 ```
 
+## 打包 Windows 應用程式
+
+```bash
+# 確保在 venv 環境下執行
+source venv/bin/activate
+python build.py
+```
+
+輸出檔案：`dist/JavHelper-Windows-x64.zip`
+
 ## 開發中
 
 詳細規劃請參考 [prd.md](prd.md)
