@@ -64,6 +64,56 @@
 
 {% block extra_js %}
 <script>
+const STORAGE_KEY = 'viewer_scroll_position';
+
+// 儲存滾動位置
+function saveScrollPosition() {
+    try {
+        const frame = document.getElementById('viewerFrame');
+        if (frame && frame.contentWindow) {
+            const scrollY = frame.contentWindow.scrollY || 0;
+            const scrollX = frame.contentWindow.scrollX || 0;
+            if (scrollY > 0 || scrollX > 0) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({ x: scrollX, y: scrollY }));
+                console.log('[Viewer] Saved scroll position:', scrollX, scrollY);
+            }
+        }
+    } catch (e) {
+        // 跨域問題，忽略
+    }
+}
+
+// 恢復滾動位置
+function restoreScrollPosition() {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            const { x, y } = JSON.parse(saved);
+            const frame = document.getElementById('viewerFrame');
+            if (frame && frame.contentWindow) {
+                // 稍微延遲以確保內容已渲染
+                setTimeout(() => {
+                    frame.contentWindow.scrollTo(x, y);
+                    console.log('[Viewer] Restored scroll position:', x, y);
+                }, 100);
+            }
+        }
+    } catch (e) {
+        // 跨域問題，忽略
+    }
+}
+
+// 離開頁面前儲存滾動位置
+window.addEventListener('beforeunload', saveScrollPosition);
+
+// 監聽側邊欄點擊（PyWebView 中 beforeunload 可能不觸發）
+document.addEventListener('click', function(e) {
+    const link = e.target.closest('a[href]');
+    if (link && !link.href.includes('/viewer')) {
+        saveScrollPosition();
+    }
+});
+
 // 檢查列表是否存在並載入
 async function loadViewer() {
     try {
@@ -79,9 +129,10 @@ async function loadViewer() {
             frame.style.display = 'block';
             frame.src = '/api/avlist/view';
 
-            // 等待 iframe 載入完成後注入腳本
+            // 等待 iframe 載入完成後注入腳本並恢復滾動位置
             frame.onload = function() {
                 injectExternalPlayerScript(frame);
+                restoreScrollPosition();
             };
         }
     } catch (e) {
