@@ -630,8 +630,11 @@
                     </div>
                     <div class="info-footer">
                         <div class="info-label">標題</div>
-                        <div class="info-title d-flex align-items-start">
+                        <div class="info-title d-flex align-items-start" id="titleContainer">
                             <span id="resultTitle" style="flex:1;">-</span>
+                            <button id="editTitleBtn" class="btn btn-sm btn-link p-0 ms-1" onclick="startEditTitle()" title="編輯標題">
+                                <i class="bi bi-pencil text-muted"></i>
+                            </button>
                             <!-- AI 翻譯按鈕 -->
                             <button id="translateBtn" class="btn btn-sm btn-link p-0 ms-1 d-none"
                                     onclick="translateWithAI()" title="AI 翻譯">
@@ -641,7 +644,12 @@
                         </div>
                         <div id="chineseTitleRow" class="mt-2 d-none">
                             <div class="info-label" id="chineseTitleLabel">中文片名</div>
-                            <div class="info-title text-success" id="resultChineseTitle">-</div>
+                            <div class="info-title d-flex align-items-start" id="chineseTitleContainer">
+                                <span id="resultChineseTitle" class="text-success" style="flex:1;">-</span>
+                                <button id="editChineseTitleBtn" class="btn btn-sm btn-link p-0 ms-1" onclick="startEditChineseTitle()" title="編輯中文片名">
+                                    <i class="bi bi-pencil text-muted"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1074,6 +1082,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('resultDate').textContent = data.date || '-';
         document.getElementById('resultMaker').textContent = data.maker || '-';
 
+        // 更新日文標題編輯按鈕狀態
+        updateEditButtonState('editTitleBtn', data._titleEdited || false);
+
         // 取得當前檔案資訊（如果是檔案模式）
         const currentFile = (listMode === 'file' && fileList[currentFileIndex]) ? fileList[currentFileIndex] : null;
         const hasSubtitle = currentFile ? currentFile.hasSubtitle : false;
@@ -1115,11 +1126,13 @@ document.addEventListener('DOMContentLoaded', function() {
             chineseTitleLabel.textContent = '中文片名 (AI)';
             chineseTitleEl.textContent = translatedTitle;
             chineseTitleRow.classList.remove('d-none');
+            updateEditButtonState('editChineseTitleBtn', data._chineseTitleEdited || false);
         } else if (chineseTitle) {
             // 其次顯示檔名提取的中文
             chineseTitleLabel.textContent = '中文片名';
             chineseTitleEl.textContent = chineseTitle;
             chineseTitleRow.classList.remove('d-none');
+            updateEditButtonState('editChineseTitleBtn', false);
         } else {
             chineseTitleLabel.textContent = '中文片名';
             chineseTitleRow.classList.add('d-none');
@@ -1190,7 +1203,197 @@ document.addEventListener('DOMContentLoaded', function() {
         // 隱藏 AI 翻譯按鈕
         document.getElementById('translateBtn').classList.add('d-none');
         document.getElementById('translateSpinner').classList.add('d-none');
+
+        // 重置編輯按鈕狀態
+        updateEditButtonState('editTitleBtn', false);
+        updateEditButtonState('editChineseTitleBtn', false);
     }
+
+    // ========== 標題編輯功能 ==========
+
+    // HTML 跳脫
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // 更新編輯按鈕的圖示狀態
+    function updateEditButtonState(btnId, isEdited) {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        const icon = btn.querySelector('i');
+        if (icon) {
+            if (isEdited) {
+                icon.className = 'bi bi-pencil-fill text-success';
+            } else {
+                icon.className = 'bi bi-pencil text-muted';
+            }
+        }
+    }
+
+    // 開始編輯日文標題
+    function startEditTitle() {
+        const container = document.getElementById('titleContainer');
+        const span = document.getElementById('resultTitle');
+        const currentText = span.textContent;
+
+        // 隱藏翻譯按鈕和 spinner
+        const translateBtn = document.getElementById('translateBtn');
+        const translateSpinner = document.getElementById('translateSpinner');
+        translateBtn.classList.add('d-none');
+        translateSpinner.classList.add('d-none');
+
+        // 替換成編輯模式
+        container.innerHTML = `
+            <input type="text" id="editTitleInput" class="form-control form-control-sm" value="${escapeHtml(currentText)}" style="flex:1;" />
+            <button class="btn btn-sm btn-link p-0 ms-1 text-success" onclick="confirmEditTitle()" title="確認">
+                <i class="bi bi-check-lg"></i>
+            </button>
+            <button class="btn btn-sm btn-link p-0 ms-1 text-danger" onclick="cancelEditTitle()" title="取消">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        `;
+        const input = document.getElementById('editTitleInput');
+        input.focus();
+        input.select();
+
+        // Enter 確認, Escape 取消
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') confirmEditTitle();
+            else if (e.key === 'Escape') cancelEditTitle();
+        });
+    }
+
+    // 確認編輯日文標題
+    function confirmEditTitle() {
+        const input = document.getElementById('editTitleInput');
+        const newValue = input.value.trim();
+
+        // 更新 searchResults
+        const file = fileList[currentFileIndex];
+        if (file?.searchResults?.[currentIndex]) {
+            file.searchResults[currentIndex].title = newValue;
+            file.searchResults[currentIndex]._titleEdited = true;
+        }
+
+        restoreTitleDisplay(newValue, true);
+        saveState();
+    }
+
+    // 取消編輯日文標題
+    function cancelEditTitle() {
+        const file = fileList[currentFileIndex];
+        const result = file?.searchResults?.[currentIndex];
+        const originalText = result?.title || '-';
+        const isEdited = result?._titleEdited || false;
+        restoreTitleDisplay(originalText, isEdited);
+    }
+
+    // 還原日文標題顯示
+    function restoreTitleDisplay(text, edited) {
+        const container = document.getElementById('titleContainer');
+        const file = fileList[currentFileIndex];
+        const result = file?.searchResults?.[currentIndex];
+        const chineseTitle = file?.chineseTitle;
+        const translatedTitle = result?.translated_title;
+
+        // 決定是否顯示翻譯按鈕
+        const shouldShowTranslateBtn = appConfig?.translate?.enabled &&
+            !chineseTitle && !translatedTitle && text && text !== '-' && hasJapanese(text);
+
+        container.innerHTML = `
+            <span id="resultTitle" style="flex:1;">${escapeHtml(text)}</span>
+            <button id="editTitleBtn" class="btn btn-sm btn-link p-0 ms-1" onclick="startEditTitle()" title="編輯標題">
+                <i class="bi ${edited ? 'bi-pencil-fill text-success' : 'bi-pencil text-muted'}"></i>
+            </button>
+            <button id="translateBtn" class="btn btn-sm btn-link p-0 ms-1 ${shouldShowTranslateBtn ? '' : 'd-none'}"
+                    onclick="translateWithAI()" title="AI 翻譯">
+                <i class="bi bi-translate"></i>
+            </button>
+            <span id="translateSpinner" class="spinner-border spinner-border-sm ms-1 d-none"></span>
+        `;
+
+        if (shouldShowTranslateBtn) {
+            const btn = document.getElementById('translateBtn');
+            btn.dataset.title = text;
+            btn.dataset.actors = JSON.stringify(result?.actors || []);
+            btn.dataset.number = result?.number || '';
+        }
+    }
+
+    // 開始編輯中文標題
+    function startEditChineseTitle() {
+        const container = document.getElementById('chineseTitleContainer');
+        const span = document.getElementById('resultChineseTitle');
+        const currentText = span.textContent;
+
+        container.innerHTML = `
+            <input type="text" id="editChineseTitleInput" class="form-control form-control-sm text-success" value="${escapeHtml(currentText)}" style="flex:1;" />
+            <button class="btn btn-sm btn-link p-0 ms-1 text-success" onclick="confirmEditChineseTitle()" title="確認">
+                <i class="bi bi-check-lg"></i>
+            </button>
+            <button class="btn btn-sm btn-link p-0 ms-1 text-danger" onclick="cancelEditChineseTitle()" title="取消">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        `;
+        const input = document.getElementById('editChineseTitleInput');
+        input.focus();
+        input.select();
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') confirmEditChineseTitle();
+            else if (e.key === 'Escape') cancelEditChineseTitle();
+        });
+    }
+
+    // 確認編輯中文標題
+    function confirmEditChineseTitle() {
+        const input = document.getElementById('editChineseTitleInput');
+        const newValue = input.value.trim();
+
+        // 更新 searchResults（存入 translated_title）
+        const file = fileList[currentFileIndex];
+        if (file?.searchResults?.[currentIndex]) {
+            file.searchResults[currentIndex].translated_title = newValue;
+            file.searchResults[currentIndex]._chineseTitleEdited = true;
+        }
+
+        restoreChineseTitleDisplay(newValue, true);
+        saveState();
+    }
+
+    // 取消編輯中文標題
+    function cancelEditChineseTitle() {
+        const file = fileList[currentFileIndex];
+        const result = file?.searchResults?.[currentIndex];
+        const translatedTitle = result?.translated_title;
+        const chineseTitle = file?.chineseTitle;
+        const originalText = translatedTitle || chineseTitle || '-';
+        const isEdited = result?._chineseTitleEdited || false;
+        restoreChineseTitleDisplay(originalText, isEdited);
+    }
+
+    // 還原中文標題顯示
+    function restoreChineseTitleDisplay(text, edited) {
+        const container = document.getElementById('chineseTitleContainer');
+        container.innerHTML = `
+            <span id="resultChineseTitle" class="text-success" style="flex:1;">${escapeHtml(text)}</span>
+            <button id="editChineseTitleBtn" class="btn btn-sm btn-link p-0 ms-1" onclick="startEditChineseTitle()" title="編輯中文片名">
+                <i class="bi ${edited ? 'bi-pencil-fill text-success' : 'bi-pencil text-muted'}"></i>
+            </button>
+        `;
+    }
+
+    // 暴露編輯函數到全域（供 onclick 調用）
+    window.startEditTitle = startEditTitle;
+    window.confirmEditTitle = confirmEditTitle;
+    window.cancelEditTitle = cancelEditTitle;
+    window.startEditChineseTitle = startEditChineseTitle;
+    window.confirmEditChineseTitle = confirmEditChineseTitle;
+    window.cancelEditChineseTitle = cancelEditChineseTitle;
+
+    // ========== 結束標題編輯功能 ==========
 
     // 預加載圖片（避免切換時延遲）
     function preloadImages(startIndex, count = 5) {
