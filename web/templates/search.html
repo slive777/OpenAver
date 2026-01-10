@@ -595,9 +595,14 @@
                     <div class="file-list-section d-none" id="fileListSection">
                         <div class="file-list-header">
                             <span class="file-count" id="fileCountText">0 個檔案</span>
-                            <button class="btn btn-success btn-sm" id="btnScrapeAll" type="button">
-                                <i class="bi bi-folder-plus"></i> 產生全部
-                            </button>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" id="btnSearchAll" type="button" title="搜尋所有未搜尋的檔案">
+                                    <i class="bi bi-search"></i> 搜尋全部
+                                </button>
+                                <button class="btn btn-success" id="btnScrapeAll" type="button" title="產生所有已搜尋的檔案">
+                                    <i class="bi bi-folder-plus"></i> 產生全部
+                                </button>
+                            </div>
                         </div>
                         <div class="file-list" id="fileList">
                             <!-- 動態生成檔案項目 -->
@@ -734,6 +739,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentOffset = 0;
     let hasMoreResults = false;
     let isLoadingMore = false;
+    let isSearchingFile = false;  // 追蹤是否正在搜尋檔案
     const PAGE_SIZE = 20;
 
     // === 多檔案列表狀態 ===
@@ -751,6 +757,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileListSection = document.getElementById('fileListSection');
     const fileListContainer = document.getElementById('fileList');
     const fileCountText = document.getElementById('fileCountText');
+    const btnSearchAll = document.getElementById('btnSearchAll');
     const btnScrapeAll = document.getElementById('btnScrapeAll');
 
     // === 載入應用設定 ===
@@ -1048,6 +1055,11 @@ document.addEventListener('DOMContentLoaded', function() {
         currentFileIndex = 0;
         listMode = null;
         queryInput.value = '';
+        isSearchingFile = false;
+
+        // 確保導航按鈕圖示正確
+        btnPrev.innerHTML = '<i class="bi bi-chevron-left"></i>';
+        btnNext.innerHTML = '<i class="bi bi-chevron-right"></i>';
 
         showState('empty');
         fileListSection.classList.add('d-none');
@@ -1435,8 +1447,39 @@ document.addEventListener('DOMContentLoaded', function() {
         switchToFile(index, 'first', true);
     }
 
+    /**
+     * 從列表中移除檔案
+     */
+    function removeFile(index) {
+        if (index < 0 || index >= fileList.length) return;
+
+        // 移除檔案
+        fileList.splice(index, 1);
+
+        // 調整當前索引
+        if (fileList.length === 0) {
+            // 沒有檔案了，清空顯示
+            clearAll();
+            return;
+        }
+
+        if (currentFileIndex >= fileList.length) {
+            currentFileIndex = fileList.length - 1;
+        } else if (currentFileIndex > index) {
+            currentFileIndex--;
+        }
+
+        // 重新渲染並切換
+        renderFileList();
+        if (fileList.length > 0) {
+            switchToFile(currentFileIndex, 'first', false);
+        }
+        saveState();
+    }
+
     // 暴露到全域
     window.enterNumber = enterNumber;
+    window.removeFile = removeFile;
 
     // ========== 結束手動輸入番號功能 ==========
 
@@ -1455,6 +1498,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const hasMultipleResults = searchResults.length > 1 || hasMoreResults;
         const hasMultipleFiles = fileList.length > 1;
         const showNav = hasMultipleResults || hasMultipleFiles;
+
+        // 確保按鈕圖示正確（防止卡在 spinner 狀態）
+        if (!isLoadingMore && !isSearchingFile) {
+            btnPrev.innerHTML = '<i class="bi bi-chevron-left"></i>';
+            btnNext.innerHTML = '<i class="bi bi-chevron-right"></i>';
+        }
 
         btnPrev.classList.toggle('d-none', !showNav);
         btnNext.classList.toggle('d-none', !showNav);
@@ -1840,6 +1889,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             item.innerHTML = `
+                <button class="btn btn-link btn-sm p-0 btn-remove-file text-muted" data-index="${index}" title="移除此檔案">
+                    <i class="bi bi-x"></i>
+                </button>
                 <i class="bi bi-file-earmark-play file-icon"></i>
                 <span class="file-name" title="${file.path}">${file.filename}</span>
                 <span class="${statusClass}">${statusIcon}</span>
@@ -1848,9 +1900,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // 點擊檔名切換（排除按鈕區域）
             item.addEventListener('click', (e) => {
-                if (!e.target.closest('.btn-scrape-single') && !e.target.closest('.btn-enter-number')) {
+                if (!e.target.closest('.btn-scrape-single') && !e.target.closest('.btn-enter-number') && !e.target.closest('.btn-remove-file')) {
                     switchToFile(index, 'first');
                 }
+            });
+
+            // 移除按鈕事件
+            const removeBtn = item.querySelector('.btn-remove-file');
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeFile(index);
             });
 
             // 產生按鈕事件
@@ -1974,7 +2033,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // 判斷是往左還是往右切換
         const isGoingNext = position === 'first';
         const targetBtn = isGoingNext ? btnNext : btnPrev;
-        const originalBtnHtml = targetBtn.innerHTML;
+        const targetBtnIcon = isGoingNext ? '<i class="bi bi-chevron-right"></i>' : '<i class="bi bi-chevron-left"></i>';
+
+        isSearchingFile = true;
 
         if (showFullLoading) {
             showState('loading');
@@ -2000,10 +2061,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 else if (data.type === 'result') {
                     eventSource.close();
+                    isSearchingFile = false;
 
                     // 恢復按鈕狀態
                     if (!showFullLoading) {
-                        targetBtn.innerHTML = originalBtnHtml;
+                        targetBtn.innerHTML = targetBtnIcon;
                         targetBtn.disabled = false;
                     }
 
@@ -2036,9 +2098,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 else if (data.type === 'error') {
                     eventSource.close();
+                    isSearchingFile = false;
                     // 恢復按鈕狀態
                     if (!showFullLoading) {
-                        targetBtn.innerHTML = originalBtnHtml;
+                        targetBtn.innerHTML = targetBtnIcon;
                         targetBtn.disabled = false;
                     }
                     file.searched = true;
@@ -2055,9 +2118,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         eventSource.onerror = function() {
             eventSource.close();
+            isSearchingFile = false;
             // 恢復按鈕狀態
             if (!showFullLoading) {
-                targetBtn.innerHTML = originalBtnHtml;
+                targetBtn.innerHTML = targetBtnIcon;
                 targetBtn.disabled = false;
             }
             file.searched = true;
@@ -2172,6 +2236,61 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // 搜尋全部（依序搜尋未搜尋的檔案）
+    async function searchAll() {
+        // 過濾出需要搜尋的檔案（有番號但未搜尋）
+        const searchableFiles = fileList.filter(f => f.number && !f.searched);
+
+        if (searchableFiles.length === 0) {
+            alert('沒有需要搜尋的檔案');
+            return;
+        }
+
+        // 顯示處理中狀態
+        btnSearchAll.disabled = true;
+        const originalHtml = btnSearchAll.innerHTML;
+        btnSearchAll.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const file of searchableFiles) {
+            const index = fileList.indexOf(file);
+
+            // 切換到該檔案並搜尋
+            await switchToFile(index, 'first', false);
+
+            // 等待搜尋完成
+            if (file.searched) {
+                if (file.searchResults && file.searchResults.length > 0) {
+                    successCount++;
+                } else {
+                    failCount++;
+                }
+            } else {
+                failCount++;
+            }
+
+            // 更新列表顯示
+            renderFileList();
+        }
+
+        // 重置導航按鈕狀態（防止卡在轉圈）
+        isSearchingFile = false;
+        btnNext.innerHTML = '<i class="bi bi-chevron-right"></i>';
+        btnPrev.innerHTML = '<i class="bi bi-chevron-left"></i>';
+        updateNavigation();
+
+        // 完成提示
+        btnSearchAll.innerHTML = `<i class="bi bi-check-circle"></i> ${successCount}/${searchableFiles.length}`;
+
+        // 重置按鈕
+        setTimeout(() => {
+            btnSearchAll.innerHTML = originalHtml;
+            btnSearchAll.disabled = false;
+        }, 2000);
+    }
+
     // 產生全部（批次處理）
     async function scrapeAll() {
         // 過濾出可處理的檔案
@@ -2194,6 +2313,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         for (const file of scrapableFiles) {
             const index = fileList.indexOf(file);
+
+            // 切換到該檔案顯示封面
+            currentFileIndex = index;
+            searchResults = file.searchResults;
+            currentIndex = 0;
+            displayResult(searchResults[0]);
+            renderFileList();
+
             const metadata = { ...file.searchResults[0] };
 
             // 更新列表按鈕狀態
@@ -2255,6 +2382,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 2000);
     }
 
+    btnSearchAll.addEventListener('click', searchAll);
     btnScrapeAll.addEventListener('click', scrapeAll);
 
     // === 加入檔案/資料夾按鈕 ===
