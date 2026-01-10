@@ -140,14 +140,18 @@ def on_drop(e):
     if not files:
         return
 
-    expanded_paths = []
+    expanded_paths = []  # 影片檔案路徑
+    folder_paths = []    # 資料夾路徑
+
     for file_info in files:
         win_path = file_info.get('pywebviewFullPath', '')
         if not win_path:
             continue
 
         if os.path.isdir(win_path):
-            # 資料夾：展開第一層影片檔案
+            # 記錄資料夾路徑（給 avlist 用）
+            folder_paths.append(win_path)
+            # 資料夾：展開第一層影片檔案（給 search 用）
             for f in os.listdir(win_path):
                 file_win_path = os.path.join(win_path, f)
                 if os.path.isfile(file_win_path) and is_video_file(f):
@@ -155,9 +159,15 @@ def on_drop(e):
         else:
             expanded_paths.append(win_path)
 
+    # 傳送影片檔案路徑（search 頁面用）
     if expanded_paths:
         paths_json = json.dumps(expanded_paths)
-        window.evaluate_js(f'handlePyWebViewDrop({paths_json})')
+        window.evaluate_js(f'if(typeof handlePyWebViewDrop === "function") handlePyWebViewDrop({paths_json})')
+
+    # 傳送資料夾路徑（avlist 頁面用）
+    if folder_paths:
+        folders_json = json.dumps(folder_paths)
+        window.evaluate_js(f'if(typeof handleFolderDrop === "function") handleFolderDrop({folders_json})')
 
 
 def bind(w):

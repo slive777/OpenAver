@@ -31,9 +31,7 @@
     "ollama_model": "qwen3:14b-q4_K_M"
   },
   "avlist": {
-    "directories": [
-      "C:\\Users\\peace\\Downloads\\JAV_failed\\123"
-    ],
+    "directories": [],
     "output_dir": "output",
     "output_filename": "avlist_output.html",
     "path_mappings": {},

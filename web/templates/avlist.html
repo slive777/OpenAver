@@ -270,14 +270,9 @@ async function selectFolder() {
     }
 
     try {
-        const paths = await window.pywebview.api.select_folder();
-        if (paths && paths.length > 0) {
-            // 從第一個檔案路徑提取資料夾路徑
-            const firstFile = paths[0];
-            const lastBackslash = firstFile.lastIndexOf('\\');
-            const lastSlash = firstFile.lastIndexOf('/');
-            const lastSep = Math.max(lastBackslash, lastSlash);
-            const folderPath = lastSep > 0 ? firstFile.substring(0, lastSep) : firstFile;
+        // 使用 select_folder_path() 直接取得資料夾路徑
+        const folderPath = await window.pywebview.api.select_folder_path();
+        if (folderPath) {
             addFolderPath(folderPath);
         }
     } catch (e) {
@@ -475,22 +470,10 @@ function escapeHtml(str) {
 const dragOverlay = document.getElementById('dragOverlay');
 let dragCounter = 0;
 
-// PyWebView 拖曳處理（由 standalone.py 呼叫）
-window.handlePyWebViewDrop = function(paths) {
-    if (!paths || paths.length === 0) return;
+// PyWebView 拖曳處理 - 接收資料夾路徑（由 standalone.py 呼叫）
+window.handleFolderDrop = function(folderPaths) {
+    if (!folderPaths || folderPaths.length === 0) return;
 
-    // 收集所有資料夾路徑（去重）
-    const folderPaths = new Set();
-    for (const filePath of paths) {
-        const lastBackslash = filePath.lastIndexOf('\\');
-        const lastSlash = filePath.lastIndexOf('/');
-        const lastSep = Math.max(lastBackslash, lastSlash);
-        if (lastSep > 0) {
-            folderPaths.add(filePath.substring(0, lastSep));
-        }
-    }
-
-    // 加入資料夾
     let added = 0;
     for (const folderPath of folderPaths) {
         if (!directories.includes(folderPath)) {
