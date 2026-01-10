@@ -342,8 +342,19 @@ async function loadConfig() {
 
 // 儲存設定
 async function saveConfig() {
-    const config = {
-        scraper: {
+    try {
+        // 先載入現有設定，避免覆蓋其他頁面的資料
+        const currentResp = await fetch('/api/config');
+        const currentResult = await currentResp.json();
+        if (!currentResult.success) {
+            showToast('載入現有設定失敗', 'danger');
+            return;
+        }
+        const config = currentResult.data;
+
+        // 更新 scraper 設定
+        config.scraper = {
+            ...config.scraper,
             create_folder: document.getElementById('createFolder').checked,
             folder_format: document.getElementById('folderFormat').value,
             filename_format: document.getElementById('filenameFormat').value,
@@ -351,26 +362,33 @@ async function saveConfig() {
             max_filename_length: parseInt(document.getElementById('maxFilenameLength').value),
             video_extensions: document.getElementById('videoExtensions').value
                 .split(',').map(s => s.trim()).filter(s => s)
-        },
-        search: {
+        };
+
+        // 更新 search 設定
+        config.search = {
+            ...config.search,
             auto_search_on_drop: document.getElementById('autoSearchOnDrop').checked
-        },
-        translate: {
+        };
+
+        // 更新 translate 設定
+        config.translate = {
+            ...config.translate,
             enabled: document.getElementById('translateEnabled').checked,
             provider: document.getElementById('translateProvider').value,
             ollama_url: document.getElementById('ollamaUrl').value,
             ollama_model: document.getElementById('ollamaModel').value
-        },
-        avlist: {
+        };
+
+        // 更新 avlist 設定（保留 directories, output_dir 等不在此頁面管理的欄位）
+        config.avlist = {
+            ...config.avlist,
             default_mode: document.getElementById('avlistMode').value,
             default_sort: document.getElementById('avlistSort').value,
             default_order: document.getElementById('avlistOrder').value,
             items_per_page: parseInt(document.getElementById('avlistItemsPerPage').value),
             min_size_kb: parseInt(document.getElementById('avlistMinSize').value) || 0
-        }
-    };
+        };
 
-    try {
         const resp = await fetch('/api/config', {
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
