@@ -31,23 +31,19 @@ pip install -r requirements.txt
 
 ## 啟動
 
+### 1. 啟動後端服務 (WSL)
 ```bash
-# 啟動虛擬環境（如果尚未啟動）
 source venv/bin/activate
-
-# 啟動伺服器
 uvicorn web.app:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 方式一：瀏覽器
-瀏覽器開啟 http://localhost:8000
-
-### 方式二：PyWebView（推薦）
+### 2. 啟動桌面應用 (Windows PowerShell)
 ```powershell
-# Windows PowerShell
 pip install pywebview
 python windows/launcher.py
 ```
+
+> **注意**: 本專案僅支援透過 PyWebView 桌面應用程式使用。直接用瀏覽器開啟無法使用檔案選擇、拖放等功能。
 
 ## 目錄結構
 

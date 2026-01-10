@@ -16,3 +16,6 @@ websockets>=12.0
 
 # Utilities
 pillow>=10.0.0
+
+# Desktop GUI (Windows)
+pywebview>=5.0.0

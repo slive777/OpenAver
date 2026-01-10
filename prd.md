@@ -148,9 +148,12 @@ git commit -m "Initial commit: project restructure for Web GUI"
 | 後端框架 | **FastAPI** | 原生 async、WebSocket 支援、自動 API 文件 |
 | 模板引擎 | **Jinja2** | FastAPI 內建支援 |
 | 前端 UI | **Bootstrap 5** | 快速開發、響應式、不需要 Node.js |
+| **桌面 GUI** | **PyWebView** | 唯一支援的使用方式，提供原生檔案對話框和拖放功能 |
 | 進度更新 | **WebSocket** | 即時推送 scraper/updater 進度 |
 | LLM 翻譯 | **Ollama HTTP API** | 可選功能，用戶自行安裝 |
 | 打包 | **zip + 嵌入式 Python** | 避免 exe 被誤判病毒 |
+
+> **注意**: 本專案僅支援透過 PyWebView 桌面應用程式使用。直接用瀏覽器開啟雖然可以顯示介面，但檔案選擇、拖放等核心功能將無法使用，且不提供維護。
 
 ## 架構設計
 
@@ -311,16 +314,25 @@ JavHelper/
 ## 啟動方式
 
 ### 開發模式
+
+**1. 啟動後端服務 (WSL)**
 ```bash
 cd /home/peace/JavHelper
+source venv/bin/activate
 uvicorn web.app:app --reload --host 0.0.0.0 --port 8000
-# Windows 瀏覽器開啟 http://localhost:8000
+```
+
+**2. 啟動桌面應用 (Windows PowerShell)**
+```powershell
+cd C:\path\to\JavHelper\windows
+python launcher.py
 ```
 
 ### 發布版 (start.bat)
 ```bat
 @echo off
 cd /d "%~dp0"
-python\python.exe -m uvicorn web.app:app --host 127.0.0.1 --port 8000
-start http://localhost:8000
+start "" python\python.exe -m uvicorn web.app:app --host 127.0.0.1 --port 8000
+timeout /t 2 >nul
+python\python.exe windows\launcher.py
 ```

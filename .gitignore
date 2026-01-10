@@ -43,3 +43,7 @@ web/config.local.json
 
 # Models (太大不上傳)
 *.gguf
+
+# Build output
+build/
+dist/
