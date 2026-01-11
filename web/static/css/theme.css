@@ -117,6 +117,46 @@
     color: var(--text-muted) !important;
 }
 
+/* Dark Mode: Bootstrap Card */
+[data-theme="dark"] .card {
+    background-color: var(--bg-card);
+    border-color: var(--border-light);
+}
+
+[data-theme="dark"] .card-header,
+[data-theme="dark"] .card-footer {
+    background-color: rgba(255, 255, 255, 0.03);
+    border-color: var(--border-light);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .card-body {
+    color: var(--text-primary);
+}
+
+/* Dark Mode: Input Group */
+[data-theme="dark"] .input-group-text {
+    background-color: var(--bg-card);
+    border-color: var(--border-light);
+    color: var(--text-secondary);
+}
+
+/* Dark Mode: Dropdown */
+[data-theme="dark"] .dropdown-menu {
+    background-color: var(--bg-card);
+    border-color: var(--border-light);
+}
+
+[data-theme="dark"] .dropdown-item {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .dropdown-item:hover,
+[data-theme="dark"] .dropdown-item:focus {
+    background-color: var(--border-light);
+    color: var(--text-primary);
+}
+
 /* 應用背景色過渡 */
 body {
     transition: background-color 0.3s ease, color 0.3s ease;
