@@ -188,9 +188,12 @@ async def test_ollama_model(request: OllamaTestRequest) -> dict:
                     "model": request.model,
                     "messages": [
                         {"role": "system", "content": "你是翻譯助手"},
-                        {"role": "user", "content": "/no_think\n翻譯：テスト"}
+                        {"role": "user", "content": "翻譯：テスト"}
                     ],
-                    "stream": False
+                    "stream": False,
+                    "options": {
+                        "thinking": False  # 禁用 Qwen3 thinking 模式，加速測試
+                    }
                 }
             )
             resp.raise_for_status()
