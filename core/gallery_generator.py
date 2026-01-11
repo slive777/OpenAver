@@ -1,11 +1,11 @@
 """
-AVList Generator - 生成 HTML 列表
+Gallery Generator - 生成 HTML 列表
 """
 
 import json
 from pathlib import Path
 from typing import List
-from core.avlist_scanner import VideoInfo
+from core.gallery_scanner import VideoInfo
 
 
 class HTMLGenerator:
@@ -21,7 +21,7 @@ class HTMLGenerator:
         return s.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n').replace('\r', '\\r')
 
     def generate(self, videos: List[VideoInfo], output_path: str,
-                 title: str = "AV List",
+                 title: str = "OpenAver Gallery",
                  mode: str = "image",
                  sort: str = "date",
                  order: str = "descending",
@@ -89,7 +89,7 @@ class HTMLGenerator:
 \t<!-- Header -->
 \t<header class="header">
 \t\t<div class="header-inner">
-\t\t\t<div class="logo">AV List</div>
+\t\t\t<div class="logo">OpenAver Gallery</div>
 \t\t\t<div class="search-box">
 \t\t\t\t<form name="form_search" onsubmit="goToLinkWithParameters(document.form_search.sw.value, 1); return false;">
 \t\t\t\t\t<input type="text" name="sw" placeholder="搜尋影片..." autocomplete="off" oninput="updateResetBtn()">
@@ -156,7 +156,7 @@ class HTMLGenerator:
 \t\tvar filtered_videos = [];
 \t\tvar info_visible = false;  // 預設隱藏資訊，hover 顯示
 \t\tvar current_theme = default_theme;
-\t\tvar AVLIST_STATE_KEY = 'avlist_state';
+\t\tvar AVLIST_STATE_KEY = 'gallery_state';
 
 \t\tfunction saveState() {
 \t\t\ttry {
@@ -1694,7 +1694,7 @@ def main():
         sys.exit(1)
 
     input_dir = sys.argv[1]
-    output_file = sys.argv[2] if len(sys.argv) > 2 else "avlist_output.html"
+    output_file = sys.argv[2] if len(sys.argv) > 2 else "gallery_output.html"
 
     scanner = VideoScanner()
     videos = scanner.scan_directory(input_dir)

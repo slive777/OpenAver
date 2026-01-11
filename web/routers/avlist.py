@@ -15,8 +15,8 @@ from fastapi.responses import StreamingResponse, HTMLResponse, Response, FileRes
 # 加入 core 模組路徑
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core.avlist_scanner import VideoScanner, load_cache, save_cache, fast_scan_directory, VIDEO_EXTENSIONS, VideoInfo
-from core.avlist_generator import HTMLGenerator
+from core.gallery_scanner import VideoScanner, load_cache, save_cache, fast_scan_directory, VIDEO_EXTENSIONS, VideoInfo
+from core.gallery_generator import HTMLGenerator
 from core.path_utils import normalize_path
 from core.nfo_updater import check_cache_needs_update, update_videos_generator
 from web.routers.config import load_config

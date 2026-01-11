@@ -1,5 +1,5 @@
 """
-AVList Scanner - 掃描資料夾、讀取 NFO、解析檔名
+Gallery Scanner - 掃描資料夾、讀取 NFO、解析檔名
 """
 
 import json
@@ -112,7 +112,7 @@ VIDEO_EXTENSIONS = {
 IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')
 
 # 預設緩存檔案名稱
-DEFAULT_CACHE_FILE = "avlist_cache.json"
+DEFAULT_CACHE_FILE = "gallery_cache.json"
 
 
 def fast_scan_directory(directory: str, extensions: set, min_size_bytes: int = 0) -> List[dict]:
@@ -187,7 +187,7 @@ def save_cache(cache_path: str, cache: Dict[str, dict]):
 class VideoScanner:
     """影片掃描器"""
 
-    # 番號識別正則表達式 (從 avlistHtml.cs 移植)
+    # 番號識別正則表達式 (從 galleryHtml.cs 移植)
     NUM_PATTERNS = [
         # FC2-PPV
         (r'^(.*[\W_])?FC2(-?PPV)?-(\d+)([\W_].*|[a-z]|F?HD.*)?$',
@@ -218,7 +218,7 @@ class VideoScanner:
          lambda m: f"HEYZO-{m.group(3)}"),
     ]
 
-    # 檔名格式解析的預設模式 (從 avlist.ini)
+    # 檔名格式解析的預設模式 (從 gallery.ini)
     DEFAULT_NAMING_FORMATS = [
         r"<演員> - \[<片商>\]\[<編號>\]<片名>",
         r"<演員> - \[<編號>\]<片名>",

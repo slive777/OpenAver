@@ -1,6 +1,6 @@
 """
 NFO Updater - 批次更新 NFO 檔案中缺失的欄位
-整合到 AVList 頁面使用
+整合到 Gallery 頁面使用
 """
 
 import os
@@ -50,7 +50,7 @@ def check_cache_needs_update(cache: Dict[str, dict]) -> Dict:
     只檢查有 NFO 檔案的影片（nfo_mtime > 0）
 
     Args:
-        cache: avlist_output_cache.json 的內容
+        cache: gallery_output_cache.json 的內容
 
     Returns:
         統計資訊字典
@@ -288,7 +288,7 @@ def update_videos_generator(
     """更新影片的生成器（用於 SSE 串流）
 
     Args:
-        cache: avlist_output_cache.json 的內容
+        cache: gallery_output_cache.json 的內容
         paths: 需要更新的影片路徑列表
 
     Yields:
