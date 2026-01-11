@@ -58,6 +58,7 @@ class ShowcaseConfig(BaseModel):
 class GeneralConfig(BaseModel):
     default_page: str = "search"  # 預設開啟頁面: search, gallery, showcase
     theme: str = "light"  # 主題模式: light, dark
+    sidebar_collapsed: bool = False  # 側邊欄預設收合 (僅影響 Desktop)
 
 
 class AppConfig(BaseModel):

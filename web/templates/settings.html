@@ -372,7 +372,7 @@
                         </select>
                     </div>
                 </div>
-                <div class="row">
+                <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label">啟動時開啟頁面</label>
                     </div>
@@ -382,6 +382,15 @@
                             <option value="gallery">列表生成</option>
                             <option value="showcase">瀏覽</option>
                         </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="sidebarCollapsed">
+                            <label class="form-check-label" for="sidebarCollapsed">啟動時收合側邊欄</label>
+                        </div>
+                        <small class="text-muted">僅影響桌面版</small>
                     </div>
                 </div>
             </div>
@@ -486,6 +495,7 @@
                 if (config.general) {
                     document.getElementById('defaultPage').value = config.general.default_page || 'search';
                     document.getElementById('themeMode').value = config.general.theme || 'light';
+                    document.getElementById('sidebarCollapsed').checked = config.general.sidebar_collapsed || false;
                     // 即時套用主題
                     document.documentElement.setAttribute('data-theme', config.general.theme || 'light');
                 }
@@ -562,7 +572,8 @@
             config.general = {
                 ...config.general,
                 default_page: document.getElementById('defaultPage').value,
-                theme: document.getElementById('themeMode').value
+                theme: document.getElementById('themeMode').value,
+                sidebar_collapsed: document.getElementById('sidebarCollapsed').checked
             };
 
             const resp = await fetch('/api/config', {
