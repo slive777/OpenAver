@@ -113,7 +113,7 @@ class HTMLGenerator:
 \t<!-- Footer -->
 \t<footer class="footer">
 \t\t<div class="pagination" id="pagebar"></div>
-\t\t<div class="hotkey-hint">熱鍵: A 切換模式 | S 顯示/隱藏資訊 | Z/X/C/V 翻頁 | ESC 關閉</div>
+\t\t<div class="hotkey-hint">熱鍵: A 切換模式 | S 顯示/隱藏資訊 | ← / → 翻頁 | ESC 關閉</div>
 \t</footer>
 
 \t<!-- Lightbox Modal -->
@@ -220,6 +220,7 @@ class HTMLGenerator:
 \t\t\t\titems_per_page = parseInt(params.get('items')) || user_items_per_page;
 \t\t\t}
 \t\t\tdocument.form_search.sw.value = search_words;
+\t\t\tupdateResetBtn();
 \t\t\tfilterAndSort();
 \t\t\trender();
 \t\t}
@@ -629,15 +630,14 @@ class HTMLGenerator:
 \t\t// 熱鍵
 \t\tdocument.addEventListener('keydown', function(e) {
 \t\t\tif (e.target.tagName === 'INPUT') return;
+\t\t\tif (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
 \t\t\tvar key = e.key.toUpperCase();
 \t\t\tif (key === 'ESCAPE' && lightbox_open) { hideLightbox(); return; }
 \t\t\tif (lightbox_open) return;
 \t\t\tif (key === 'S' && current_mode === 1) toggleInfo();
 \t\t\telse if (key === 'A') { current_mode = (current_mode + 1) % 3; render(); }
-\t\t\telse if (key === 'Z') goPage(1);
-\t\t\telse if (key === 'X' && current_page > 1) goPage(current_page - 1);
-\t\t\telse if (key === 'C' && current_page < total_pages) goPage(current_page + 1);
-\t\t\telse if (key === 'V') goPage(total_pages);
+\t\t\telse if (key === 'ARROWLEFT' && current_page > 1) goPage(current_page - 1);
+\t\t\telse if (key === 'ARROWRIGHT' && current_page < total_pages) goPage(current_page + 1);
 \t\t});
 
 \t\tfunction escapeHtml(str) {
