@@ -467,19 +467,19 @@
                 updateTranslateOptions();
 
                 // AVList 設定
-                if (config.avlist) {
-                    document.getElementById('avlistMode').value = config.avlist.default_mode || 'image';
-                    document.getElementById('avlistSort').value = config.avlist.default_sort || 'date';
-                    document.getElementById('avlistOrder').value = config.avlist.default_order || 'descending';
-                    document.getElementById('avlistItemsPerPage').value = config.avlist.items_per_page || 90;
-                    document.getElementById('avlistMinSize').value = config.avlist.min_size_kb || 0;
-                    document.getElementById('avlistOutputDir').value = config.avlist.output_dir || 'output';
-                    document.getElementById('avlistOutputFilename').value = config.avlist.output_filename || 'avlist_output.html';
+                if (config.gallery) {
+                    document.getElementById('avlistMode').value = config.gallery.default_mode || 'image';
+                    document.getElementById('avlistSort').value = config.gallery.default_sort || 'date';
+                    document.getElementById('avlistOrder').value = config.gallery.default_order || 'descending';
+                    document.getElementById('avlistItemsPerPage').value = config.gallery.items_per_page || 90;
+                    document.getElementById('avlistMinSize').value = config.gallery.min_size_kb || 0;
+                    document.getElementById('avlistOutputDir').value = config.gallery.output_dir || 'output';
+                    document.getElementById('avlistOutputFilename').value = config.gallery.output_filename || 'avlist_output.html';
                 }
 
                 // 瀏覽器設定
-                if (config.viewer) {
-                    document.getElementById('viewerPlayer').value = config.viewer.player || '';
+                if (config.showcase) {
+                    document.getElementById('viewerPlayer').value = config.showcase.player || '';
                 }
 
                 // 一般設定
@@ -539,8 +539,8 @@
             };
 
             // 更新 avlist 設定
-            config.avlist = {
-                ...config.avlist,
+            config.gallery = {
+                ...config.gallery,
                 default_mode: document.getElementById('avlistMode').value,
                 default_sort: document.getElementById('avlistSort').value,
                 default_order: document.getElementById('avlistOrder').value,
@@ -551,8 +551,8 @@
             };
 
             // 更新 viewer 設定
-            config.viewer = {
-                ...config.viewer,
+            config.showcase = {
+                ...config.showcase,
                 player: document.getElementById('viewerPlayer').value.trim()
             };
 

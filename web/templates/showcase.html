@@ -54,7 +54,7 @@
     <div class="viewer-placeholder" id="placeholder">
         <i class="bi bi-collection-play"></i>
         <p>尚未產生影片列表</p>
-        <a href="/avlist" class="btn btn-primary">
+        <a href="/gallery" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> 產生列表
         </a>
     </div>
@@ -67,7 +67,7 @@
     // 檢查列表是否存在並載入
     async function loadViewer() {
         try {
-            const resp = await fetch('/api/avlist/stats');
+            const resp = await fetch('/api/gallery/stats');
             const result = await resp.json();
 
             if (result.success && result.data && result.data.total > 0) {

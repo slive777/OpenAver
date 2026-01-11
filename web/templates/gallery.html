@@ -197,10 +197,10 @@
             const result = await resp.json();
             if (result.success) {
                 config = result.data;
-                directories = config.avlist?.directories || [];
+                directories = config.gallery?.directories || [];
                 // Update output path display
-                const outputDir = config.avlist?.output_dir || 'output';
-                const outputFilename = config.avlist?.output_filename || 'avlist_output.html';
+                const outputDir = config.gallery?.output_dir || 'output';
+                const outputFilename = config.gallery?.output_filename || 'avlist_output.html';
                 document.getElementById('outputPathDisplay').textContent = `${outputDir}/${outputFilename}`;
                 renderDirectories();
             }
@@ -332,8 +332,8 @@
     // 儲存設定
     async function saveConfig() {
         try {
-            config.avlist = config.avlist || {};
-            config.avlist.directories = directories;
+            config.gallery = config.gallery || {};
+            config.gallery.directories = directories;
             // Keep existing output settings from config
 
             const resp = await fetch('/api/config', {
