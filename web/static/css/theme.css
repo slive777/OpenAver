@@ -1,0 +1,105 @@
+/* ========== 全局主題變數 (與 AVList 一致) ========== */
+:root {
+    /* Colors - Warm Neutral Palette (Light Mode) */
+    --bg-body: #f8f7f4;
+    --bg-card: #ffffff;
+    --bg-header: rgba(255, 255, 255, 0.85);
+    --bg-overlay: rgba(18, 18, 20, 0.88);
+    --bg-sidebar: #212529; /* Sidebar 保持深色，或可隨主題變 */
+    
+    --text-primary: #1a1a1a;
+    --text-secondary: #6b6b6b;
+    --text-muted: #9a9a9a;
+    --text-inverse: #ffffff;
+    
+    --accent: #2d5a7b;
+    --accent-hover: #1e4460;
+    --accent-red: #c94a4a;
+    
+    --border-light: #e8e6e3;
+    --border-card: #eceae7;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+    
+    /* Bootstrap Overrides */
+    --bs-body-bg: var(--bg-body);
+    --bs-body-color: var(--text-primary);
+}
+
+[data-theme="dark"] {
+    --bg-body: #0f0f11;
+    --bg-card: #1c1c1e;
+    --bg-header: rgba(28, 28, 30, 0.85);
+    --bg-overlay: rgba(0, 0, 0, 0.92);
+    --bg-sidebar: #161618;
+    
+    --text-primary: #f2f2f7;
+    --text-secondary: #aeaeb2;
+    --text-muted: #636366;
+    --text-inverse: #ffffff;
+    
+    --accent: #5ac8fa;
+    --accent-hover: #007aff;
+    --accent-red: #ff453a;
+    
+    --border-light: #2c2c2e;
+    --border-card: #3a3a3c;
+    
+    /* Bootstrap Dark Overrides */
+    --bs-body-bg: var(--bg-body);
+    --bs-body-color: var(--text-primary);
+    --bs-card-bg: var(--bg-card);
+    --bs-border-color: var(--border-light);
+}
+
+/* 應用背景色過渡 */
+body {
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark Mode 下的 Bootstrap Card */
+[data-theme="dark"] .card {
+    background-color: var(--bg-card);
+    border-color: var(--border-card);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .card-header {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-bottom-color: var(--border-light);
+}
+
+[data-theme="dark"] .form-control, 
+[data-theme="dark"] .form-select {
+    background-color: #2c2c2e;
+    border-color: #3a3a3c;
+    color: #fff;
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    background-color: #3a3a3c;
+    border-color: var(--accent);
+    color: #fff;
+}
+
+[data-theme="dark"] .input-group-text {
+    background-color: #3a3a3c;
+    border-color: #3a3a3c;
+    color: #fff;
+}
+
+[data-theme="dark"] .dropdown-menu {
+    background-color: var(--bg-card);
+    border-color: var(--border-light);
+}
+
+[data-theme="dark"] .dropdown-item {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .dropdown-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}

@@ -57,6 +57,7 @@ class ViewerConfig(BaseModel):
 
 class GeneralConfig(BaseModel):
     default_page: str = "search"  # 預設開啟頁面: search, avlist, viewer
+    theme: str = "light"  # 主題模式: light, dark
 
 
 class AppConfig(BaseModel):

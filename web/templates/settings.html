@@ -266,6 +266,17 @@
                 <i class="bi bi-sliders"></i> 一般設定
             </div>
             <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">主題模式</label>
+                    </div>
+                    <div class="col-md-6">
+                        <select class="form-select form-select-sm" id="themeMode">
+                            <option value="light">淺色模式 (Light)</option>
+                            <option value="dark">深色模式 (Dark)</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="row">
                     <div class="col-md-6">
                         <label class="form-label">啟動時開啟頁面</label>
@@ -377,6 +388,7 @@ async function loadConfig() {
             // 一般設定
             if (config.general) {
                 document.getElementById('defaultPage').value = config.general.default_page || 'search';
+                document.getElementById('themeMode').value = config.general.theme || 'light';
             }
 
             // 自動載入模型列表（如果有 URL）
@@ -448,7 +460,8 @@ async function saveConfig() {
         // 更新 general 設定
         config.general = {
             ...config.general,
-            default_page: document.getElementById('defaultPage').value
+            default_page: document.getElementById('defaultPage').value,
+            theme: document.getElementById('themeMode').value
         };
 
         const resp = await fetch('/api/config', {
@@ -459,6 +472,9 @@ async function saveConfig() {
         const result = await resp.json();
         if (result.success) {
             showToast('設定已儲存', 'success');
+            // 即時套用主題
+            const newTheme = document.getElementById('themeMode').value;
+            document.documentElement.setAttribute('data-theme', newTheme);
         } else {
             showToast('儲存失敗: ' + result.error, 'danger');
         }
