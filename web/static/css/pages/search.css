@@ -48,6 +48,7 @@
 }
 
 /* 封面區域 - 70% */
+/* 封面區域 - 70% */
 .cover-section {
     flex: 7;
     position: relative;
@@ -55,27 +56,37 @@
     flex-direction: column;
     /* 垂直排列：封面 + 列表 */
     align-items: center;
+    justify-content: flex-start;
+    /* 關鍵修正：靠上對齊 */
+    background: var(--bg-body);
+    /* Dark Mode 支援 */
     min-width: 0;
     min-height: 0;
     overflow: hidden;
+    padding-top: 1rem;
 }
 
-/* 封面容器（圖片自然尺寸） */
+/* 封面容器 */
 .cover-wrapper {
     position: relative;
-    max-width: 100%;
+    width: 100%;
+    min-height: 400px;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
+    background: rgba(0, 0, 0, 0.2);
+    /* 圖片背景深色 */
+    border-radius: 8px;
+    overflow: hidden;
 }
 
 .cover-img {
-    max-width: 100%;
-    max-height: calc(100vh - 250px);
-    /* 限制最大高度 */
+    width: 100%;
+    height: 100%;
+    max-height: calc(100vh - 200px);
     object-fit: contain;
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    /* 絕不裁切 */
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
 }
 
 /* 導航按鈕 */
@@ -129,10 +140,12 @@
 }
 
 /* 檔案列表區（封面下方） */
+/* 檔案列表區（封面下方） */
 .file-list-section {
-    background: rgba(255, 255, 255, 0.95);
-    border-top: 1px solid #dee2e6;
-    padding: 8px 12px;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-light);
+    padding: 0.5rem 1rem;
+    width: 100%;
 }
 
 .file-list-header {
@@ -167,8 +180,9 @@
 }
 
 .file-item.active {
-    background: #e7f1ff;
-    font-weight: 500;
+    background: var(--border-light);
+    color: var(--accent);
+    font-weight: 600;
 }
 
 .file-item .file-icon {
@@ -202,10 +216,15 @@
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    background: #fff;
-    border-radius: 4px;
-    border: 1px solid #dee2e6;
-    min-width: 200px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    /* 提升層次感 */
+    border: none;
+    /* 移除邊框 */
+    min-width: 300px;
+    margin-left: 1rem;
+    /* 與封面區隔開 */
 }
 
 .info-header {
