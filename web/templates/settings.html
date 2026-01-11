@@ -379,8 +379,8 @@
                     <div class="col-md-6">
                         <select class="form-select form-select-sm" id="defaultPage">
                             <option value="search">搜尋</option>
-                            <option value="avlist">列表生成</option>
-                            <option value="viewer">瀏覽</option>
+                            <option value="gallery">列表生成</option>
+                            <option value="showcase">瀏覽</option>
                         </select>
                     </div>
                 </div>
@@ -486,6 +486,8 @@
                 if (config.general) {
                     document.getElementById('defaultPage').value = config.general.default_page || 'search';
                     document.getElementById('themeMode').value = config.general.theme || 'light';
+                    // 即時套用主題
+                    document.documentElement.setAttribute('data-theme', config.general.theme || 'light');
                 }
 
                 // 自動載入模型列表（如果有 URL）
@@ -745,9 +747,20 @@
         saveConfig();
     });
 
-    document.getElementById('resetBtn').addEventListener('click', () => {
-        if (confirm('確定要重置所有設定嗎？')) {
-            loadConfig();
+    document.getElementById('resetBtn').addEventListener('click', async () => {
+        if (confirm('確定要重置所有設定嗎？此操作將刪除所有自訂設定。')) {
+            try {
+                const resp = await fetch('/api/config', { method: 'DELETE' });
+                const result = await resp.json();
+                if (result.success) {
+                    await loadConfig();
+                    showToast('已恢復預設設定', 'success');
+                } else {
+                    showToast('重置失敗: ' + result.error, 'danger');
+                }
+            } catch (e) {
+                showToast('重置失敗: ' + e.message, 'danger');
+            }
         }
     });
 

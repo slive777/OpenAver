@@ -130,7 +130,7 @@ class Api:
                 if config_path.exists():
                     with open(config_path, 'r', encoding='utf-8') as f:
                         config = json.load(f)
-                        return config.get('viewer', {}).get('player', '')
+                        return config.get('showcase', {}).get('player', '')
         except Exception:
             pass
         return ''

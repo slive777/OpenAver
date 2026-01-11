@@ -118,6 +118,17 @@ async def update_config(config: AppConfig) -> dict:
         return {"success": False, "error": str(e)}
 
 
+@router.delete("/config")
+async def reset_config() -> dict:
+    """恢復原廠設定 - 刪除 config.json"""
+    try:
+        if CONFIG_PATH.exists():
+            CONFIG_PATH.unlink()
+        return {"success": True, "message": "已恢復預設設定"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 @router.get("/config/format-variables")
 async def get_format_variables() -> dict:
     """取得可用的格式變數"""
