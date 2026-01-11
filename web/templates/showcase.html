@@ -79,7 +79,7 @@
                 frame.style.display = 'block';
                 // 獲取當前主題並傳遞給 iframe
                 const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-                frame.src = '/api/avlist/view?theme=' + currentTheme;
+                frame.src = '/api/gallery/view?theme=' + currentTheme;
 
                 // 等待 iframe 載入完成後注入外部播放器腳本
                 frame.onload = function () {

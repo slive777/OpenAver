@@ -3,7 +3,7 @@
 {% block title %}列表生成 - OpenAver{% endblock %}
 
 {% block extra_css %}
-<link href="/static/css/pages/avlist.css" rel="stylesheet">
+<link href="/static/css/pages/gallery.css" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
@@ -383,7 +383,7 @@
         clearLogs();  // 清除舊 logs
 
         try {
-            const eventSource = new EventSource('/api/avlist/generate');
+            const eventSource = new EventSource('/api/gallery/generate');
 
             eventSource.onmessage = function (event) {
                 const data = JSON.parse(event.data);
@@ -554,7 +554,7 @@
     // 載入統計資訊
     async function loadStats() {
         try {
-            const resp = await fetch('/api/avlist/stats');
+            const resp = await fetch('/api/gallery/stats');
             const result = await resp.json();
             if (result.success && result.data) {
                 const stats = result.data;
@@ -593,7 +593,7 @@
     // 檢查需要更新的影片數量
     async function checkNeedUpdate() {
         try {
-            const resp = await fetch('/api/avlist/update-check');
+            const resp = await fetch('/api/gallery/update-check');
             const result = await resp.json();
             if (result.success && result.data && result.data.need_update > 0) {
                 document.getElementById('updateCount').textContent = result.data.need_update;
@@ -623,7 +623,7 @@
         clearLogs();
 
         try {
-            const eventSource = new EventSource('/api/avlist/update');
+            const eventSource = new EventSource('/api/gallery/update');
 
             eventSource.onmessage = function (event) {
                 const data = JSON.parse(event.data);

@@ -21,7 +21,7 @@ from core.path_utils import normalize_path
 from core.nfo_updater import check_cache_needs_update, update_videos_generator
 from web.routers.config import load_config
 
-router = APIRouter(prefix="/api/avlist", tags=["avlist"])
+router = APIRouter(prefix="/api/gallery", tags=["gallery"])
 
 
 def generate_avlist() -> Generator[str, None, None]:
