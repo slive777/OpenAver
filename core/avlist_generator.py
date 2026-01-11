@@ -189,8 +189,15 @@ class HTMLGenerator:
 \t\t}
 
 \t\tfunction initTheme() {
-\t\t\t// 使用後端傳入的預設主題，不讀取 localStorage
-\t\t\tcurrent_theme = default_theme;
+\t\t\tvar params = new URLSearchParams(window.location.search);
+\t\t\tvar urlTheme = params.get('theme');
+
+\t\t\tif (urlTheme && (urlTheme === 'light' || urlTheme === 'dark')) {
+\t\t\t\tcurrent_theme = urlTheme; // 優先使用 URL 參數
+\t\t\t} else {
+\t\t\t\t// 使用生成時的預設值
+\t\t\t\tcurrent_theme = default_theme;
+\t\t\t}
 \t\t\tdocument.documentElement.setAttribute('data-theme', current_theme);
 \t\t}
 
