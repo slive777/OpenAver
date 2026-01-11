@@ -28,7 +28,6 @@ class ScraperConfig(BaseModel):
 
 
 class SearchConfig(BaseModel):
-    auto_search_on_drop: bool = True
     search_filter: str = ""
 
 
