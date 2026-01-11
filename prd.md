@@ -1,7 +1,7 @@
-# JavHelper Web GUI - PRD
+# OpenAver Web GUI - PRD
 
 ## 目標
-將 JavHelper 的 4 個功能整合成一個 Web-based GUI，並提供現代化的使用者體驗 (Gallery Style)：
+將 OpenAver 的 4 個功能整合成一個 Web-based GUI，並提供現代化的使用者體驗 (Gallery Style)：
 1. **JAV Search** - 全新 Spotlight 風格搜尋介面
 2. **JAV Scraper** - 自動化刮削影片元數據 + 生成 NFO
 3. **NFO Updater** - 批量更新現有 NFO 檔案
@@ -23,7 +23,7 @@
 
 ## 目錄結構
 ```
-JavHelper/
+OpenAver/
 ├── web/                          # Web GUI
 │   ├── app.py                    # FastAPI 主程式
 │   ├── routers/                  # API 路由 (Search, Config, Scraper, AVList)

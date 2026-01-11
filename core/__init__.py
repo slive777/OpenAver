@@ -1,1 +1,1 @@
-# JavHelper Core Modules
+# OpenAver Core Modules

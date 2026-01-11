@@ -1,5 +1,5 @@
 """
-JavHelper PyWebView 共用 API 模組
+OpenAver PyWebView 共用 API 模組
 供 launcher.py 和 standalone.py 共用
 """
 import os

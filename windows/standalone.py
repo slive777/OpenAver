@@ -1,5 +1,5 @@
 """
-JavHelper Windows 單機版啟動器
+OpenAver Windows 單機版啟動器
 整合 FastAPI 後端 + PyWebView 前端於同一進程
 """
 import os
@@ -31,7 +31,7 @@ STARTUP_TIMEOUT = 30  # 最多等待 30 秒
 
 def log(msg):
     """輸出日誌（Debug 模式用）"""
-    print(f"[JavHelper] {msg}")
+    print(f"[OpenAver] {msg}")
 
 
 def find_free_port(start_port=8000, max_attempts=100):
@@ -105,7 +105,7 @@ def main():
     webview.settings['OPEN_DEVTOOLS_IN_DEBUG'] = False
 
     window = webview.create_window(
-        'JavHelper',
+        'OpenAver',
         f'http://{HOST}:{port}',
         js_api=api,
         width=1200,

@@ -1,5 +1,5 @@
 """
-JavHelper Web GUI - FastAPI Application
+OpenAver Web GUI - FastAPI Application
 """
 from pathlib import Path
 
@@ -15,7 +15,7 @@ STATIC_DIR = BASE_DIR / "static"
 
 # FastAPI 應用
 app = FastAPI(
-    title="JavHelper",
+    title="OpenAver",
     description="JAV 影片元數據管理工具",
     version="0.1.0"
 )
