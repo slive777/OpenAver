@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
 /* ========== 全局主題變數 (與 AVList 一致) ========== */
 :root {
     /* Colors - Warm Neutral Palette (Light Mode) */
@@ -5,7 +7,7 @@
     --bg-card: #ffffff;
     --bg-header: rgba(255, 255, 255, 0.85);
     --bg-overlay: rgba(18, 18, 20, 0.88);
-    --bg-sidebar: #212529; /* Sidebar 保持深色，或可隨主題變 */
+    --bg-sidebar: #212529; /* Sidebar 保持深色 */
     
     --text-primary: #1a1a1a;
     --text-secondary: #6b6b6b;
@@ -22,6 +24,19 @@
     /* Shadows */
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.10);
+    --shadow-card-hover: 0 12px 40px rgba(0, 0, 0, 0.12);
+    
+    /* Layout */
+    --card-radius: 12px;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    
+    /* Transitions */
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --duration-fast: 0.15s;
+    --duration-normal: 0.25s;
+    --duration-slow: 0.4s;
     
     /* Bootstrap Overrides */
     --bs-body-bg: var(--bg-body);
@@ -33,7 +48,7 @@
     --bg-card: #1c1c1e;
     --bg-header: rgba(28, 28, 30, 0.85);
     --bg-overlay: rgba(0, 0, 0, 0.92);
-    --bg-sidebar: #161618;
+    --bg-sidebar: #161618; /* Dark Mode 下更深一點 */
     
     --text-primary: #f2f2f7;
     --text-secondary: #aeaeb2;
@@ -47,6 +62,11 @@
     --border-light: #2c2c2e;
     --border-card: #3a3a3c;
     
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.5);
+    --shadow-card-hover: 0 12px 40px rgba(0, 0, 0, 0.6);
+    
     /* Bootstrap Dark Overrides */
     --bs-body-bg: var(--bg-body);
     --bs-body-color: var(--text-primary);
@@ -57,9 +77,185 @@
 /* 應用背景色過渡 */
 body {
     transition: background-color 0.3s ease, color 0.3s ease;
+    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-/* Dark Mode 下的 Bootstrap Card */
+/* ========== Utilities ========== */
+.glass {
+    background: var(--bg-header);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.noselect {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* ========== Components: Buttons ========== */
+.btn-icon {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: pointer;
+    font-size: 1.125rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    transition: all var(--duration-fast) ease;
+}
+
+.btn-icon:hover {
+    background: var(--bg-body); /* or slight overlay */
+    color: var(--text-primary);
+}
+
+.btn-icon.active {
+    background: var(--accent);
+    color: var(--text-inverse);
+}
+
+.btn-glass {
+    padding: 0.4rem 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.15);
+    color: var(--text-inverse);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all var(--duration-fast) ease;
+    backdrop-filter: blur(4px);
+}
+
+.btn-glass:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.6);
+    color: var(--text-inverse);
+}
+
+/* ========== Components: Spotlight Search ========== */
+.spotlight-search {
+    display: flex;
+    width: 100%;
+    max-width: 600px; /* Wider for desktop */
+    margin: 0 auto;
+}
+
+.spotlight-search input {
+    flex: 1;
+    padding: 0.75rem 1.25rem;
+    border: 1px solid var(--border-light);
+    border-radius: 999px; /* Pill shape */
+    font-size: 1rem;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    outline: none;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.spotlight-search input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(45, 90, 123, 0.15), var(--shadow-md);
+    transform: scale(1.01);
+}
+
+/* ========== Components: Gallery Card ========== */
+.gallery-card {
+    background: var(--bg-card);
+    border-radius: var(--card-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-card);
+    transition: transform var(--duration-normal) var(--ease-out),
+                box-shadow var(--duration-normal) var(--ease-out);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.gallery-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-card-hover);
+    z-index: 10;
+}
+
+.gallery-card-img {
+    position: relative;
+    aspect-ratio: 3 / 2;
+    overflow: hidden;
+    background: var(--bg-body);
+    cursor: pointer;
+}
+
+.gallery-card-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s var(--ease-out);
+}
+
+.gallery-card:hover .gallery-card-img img {
+    transform: scale(1.05);
+}
+
+/* Hover Overlay Actions */
+.gallery-card-actions {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: opacity var(--duration-fast) ease;
+}
+
+.gallery-card:hover .gallery-card-actions {
+    opacity: 1;
+}
+
+.gallery-card-footer {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--border-card);
+    background: var(--bg-card);
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.gallery-card-title {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gallery-card-meta {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    display: flex;
+    justify-content: space-between;
+}
+
+.gallery-card-num {
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+/* ========== Dark Mode Overrides for Bootstrap ========== */
 [data-theme="dark"] .card {
     background-color: var(--bg-card);
     border-color: var(--border-card);
