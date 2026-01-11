@@ -12,6 +12,7 @@ from typing import Optional, Dict, List
 from urllib.parse import quote, urljoin
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
 
 # 嘗試載入 jvav（JavBus API）
 try:
@@ -47,6 +48,7 @@ MAKER_MAPPING_FILE = Path(__file__).parent.parent / "maker_mapping.json"
 # 快取片商對照表（避免重複讀檔）
 _maker_mapping_cache: Dict[str, str] = {}
 _maker_mapping_loaded = False
+_mapping_lock = Lock()
 
 
 # ============ 番號提取 ============
@@ -104,13 +106,14 @@ def load_maker_mapping() -> Dict[str, str]:
 def save_maker_mapping(mapping: Dict[str, str]):
     """儲存片商對照表"""
     global _maker_mapping_cache, _maker_mapping_loaded
-    try:
-        with open(MAKER_MAPPING_FILE, 'w', encoding='utf-8') as f:
-            json.dump(mapping, f, ensure_ascii=False, indent=2)
-        _maker_mapping_cache = mapping
-        _maker_mapping_loaded = True
-    except IOError:
-        pass
+    with _mapping_lock:
+        try:
+            with open(MAKER_MAPPING_FILE, 'w', encoding='utf-8') as f:
+                json.dump(mapping, f, ensure_ascii=False, indent=2)
+            _maker_mapping_cache = mapping
+            _maker_mapping_loaded = True
+        except IOError:
+            pass
 
 
 def get_maker_by_prefix(number: str) -> str:

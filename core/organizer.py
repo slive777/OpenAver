@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import requests
+import html
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
@@ -269,46 +270,46 @@ def generate_nfo(
 
     nfo_content = f'''<?xml version="1.0" encoding="utf-8"?>
 <movie>
-  <title>{display_title}</title>
-  <originaltitle>{original_title}</originaltitle>
+  <title>{html.escape(display_title)}</title>
+  <originaltitle>{html.escape(original_title)}</originaltitle>
   <set></set>
-  <studio>{maker}</studio>
-  <year>{year}</year>
-  <premiered>{date}</premiered>
+  <studio>{html.escape(maker)}</studio>
+  <year>{html.escape(year)}</year>
+  <premiered>{html.escape(date)}</premiered>
   <plot></plot>
   <runtime></runtime>
   <director></director>
-  <poster>{basename}.png</poster>
+  <poster>{html.escape(basename)}.png</poster>
   <thumb></thumb>
-  <fanart>{basename}.jpg</fanart>
+  <fanart>{html.escape(basename)}.jpg</fanart>
 '''
 
     # 演員
     for actor in actors:
         nfo_content += f'''  <actor>
-    <name>{actor}</name>
+    <name>{html.escape(actor)}</name>
     <role></role>
   </actor>
 '''
 
     # 標籤
     for tag in tags:
-        nfo_content += f'  <tag>{tag}</tag>\n'
+        nfo_content += f'  <tag>{html.escape(tag)}</tag>\n'
 
     if has_subtitle:
         nfo_content += '  <tag>中文字幕</tag>\n'
 
     # Genre
     for tag in tags:
-        nfo_content += f'  <genre>{tag}</genre>\n'
+        nfo_content += f'  <genre>{html.escape(tag)}</genre>\n'
 
     if has_subtitle:
         nfo_content += '  <genre>中文字幕</genre>\n'
 
-    nfo_content += f'''  <num>{number}</num>
-  <release>{date}</release>
+    nfo_content += f'''  <num>{html.escape(number)}</num>
+  <release>{html.escape(date)}</release>
   <cover></cover>
-  <website>{url}</website>
+  <website>{html.escape(url)}</website>
 </movie>'''
 
     try:

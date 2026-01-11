@@ -26,7 +26,7 @@ router = APIRouter(prefix="/api", tags=["search"])
 
 
 @router.get("/proxy-image")
-async def proxy_image(url: str = Query(..., description="圖片 URL")):
+def proxy_image(url: str = Query(..., description="圖片 URL")):
     """
     圖片代理 - 解決防盜鏈問題
     """
@@ -57,7 +57,7 @@ async def proxy_image(url: str = Query(..., description="圖片 URL")):
 
 
 @router.get("/search")
-async def search(
+def search(
     q: str = Query(..., description="番號、局部番號、或女優名"),
     mode: str = Query("auto", description="搜尋模式: auto/exact/partial/actress"),
     limit: int = Query(20, description="每頁結果數", ge=1, le=50),

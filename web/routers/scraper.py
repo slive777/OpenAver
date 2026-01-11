@@ -36,7 +36,7 @@ class ScrapeResponse(BaseModel):
 
 
 @router.post("/scrape-single")
-async def scrape_single(request: ScrapeRequest) -> dict:
+def scrape_single(request: ScrapeRequest) -> dict:
     """
     單檔刮削 API
 
