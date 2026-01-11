@@ -52,9 +52,9 @@
     --bg-sidebar: #161618;
     /* Dark Mode 下更深一點 */
 
-    --text-primary: #f2f2f7;
-    --text-secondary: #aeaeb2;
-    --text-muted: #636366;
+    --text-primary: #ffffff;
+    --text-secondary: #e0e0e0;
+    --text-muted: #a0a0a0;
     --text-inverse: #ffffff;
 
     --accent: #5ac8fa;
@@ -74,6 +74,47 @@
     --bs-body-color: var(--text-primary);
     --bs-card-bg: var(--bg-card);
     --bs-border-color: var(--border-light);
+    --bs-secondary-color: var(--text-muted);
+    --bs-tertiary-color: var(--text-muted);
+    --bs-emphasis-color: var(--text-primary);
+
+    /* Form Controls */
+    --bs-form-control-bg: var(--bg-card);
+    --bs-form-check-bg: var(--bg-card);
+
+    /* Links */
+    --bs-link-color: var(--accent);
+    --bs-link-hover-color: var(--accent-hover);
+}
+
+/* Dark Mode: Force Form Control Visibility */
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--border-light);
+}
+
+[data-theme="dark"] .form-control::placeholder {
+    color: var(--text-muted);
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 0.2rem rgba(90, 200, 250, 0.25);
+}
+
+/* Dark Mode: Labels & Text */
+[data-theme="dark"] .form-label,
+[data-theme="dark"] label {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .text-muted {
+    color: var(--text-muted) !important;
 }
 
 /* 應用背景色過渡 */
