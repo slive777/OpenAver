@@ -330,7 +330,7 @@
                     </div>
                     <div class="col-md-6">
                         <input type="text" class="form-control form-control-sm" id="avlistOutputFilename"
-                            value="avlist_output.html" placeholder="avlist_output.html">
+                            value="gallery_output.html" placeholder="gallery_output.html">
                     </div>
                 </div>
             </div>
@@ -483,7 +483,7 @@
                     document.getElementById('avlistItemsPerPage').value = config.gallery.items_per_page || 90;
                     document.getElementById('avlistMinSize').value = config.gallery.min_size_kb || 0;
                     document.getElementById('avlistOutputDir').value = config.gallery.output_dir || 'output';
-                    document.getElementById('avlistOutputFilename').value = config.gallery.output_filename || 'avlist_output.html';
+                    document.getElementById('avlistOutputFilename').value = config.gallery.output_filename || 'gallery_output.html';
                 }
 
                 // 瀏覽器設定
@@ -559,7 +559,7 @@
                 items_per_page: parseInt(document.getElementById('avlistItemsPerPage').value),
                 min_size_kb: parseInt(document.getElementById('avlistMinSize').value) || 0,
                 output_dir: document.getElementById('avlistOutputDir').value.trim() || 'output',
-                output_filename: document.getElementById('avlistOutputFilename').value.trim() || 'avlist_output.html'
+                output_filename: document.getElementById('avlistOutputFilename').value.trim() || 'gallery_output.html'
             };
 
             // 更新 viewer 設定
