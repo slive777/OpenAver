@@ -1,0 +1,445 @@
+/* AVList Generator - Gallery Style CSS */
+
+/* Main Container */
+.avlist-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+/* Page Title */
+.avlist-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.avlist-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.avlist-header .stats {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* Gallery Card - Main Container */
+.avlist-card {
+    background: var(--bg-card);
+    border-radius: 16px;
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.avlist-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-light);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.avlist-card-header .title {
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.avlist-card-header .title i {
+    color: var(--accent);
+}
+
+.avlist-card-header .actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.avlist-card-body {
+    padding: 0;
+}
+
+/* Folder List - Clean Gallery Style */
+.folder-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.folder-item {
+    display: flex;
+    align-items: center;
+    padding: 0.875rem 1.25rem;
+    gap: 0.75rem;
+    border-bottom: 1px solid var(--border-light);
+    transition: background 0.15s ease;
+}
+
+.folder-item:last-child {
+    border-bottom: none;
+}
+
+.folder-item:hover {
+    background: var(--bg-body);
+}
+
+.folder-item .folder-icon {
+    color: var(--accent);
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.folder-item .folder-path {
+    flex: 1;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    word-break: break-all;
+    line-height: 1.4;
+}
+
+.folder-item .btn-remove {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: 6px;
+}
+
+.folder-item:hover .btn-remove {
+    opacity: 1;
+}
+
+/* Empty State */
+.folder-empty {
+    padding: 3rem 2rem;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.folder-empty i {
+    font-size: 3.5rem;
+    opacity: 0.5;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.folder-empty p {
+    margin: 0.5rem 0 0;
+    font-size: 0.875rem;
+}
+
+/* Output Info Section */
+.output-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.25rem;
+    background: var(--bg-body);
+    border-top: 1px solid var(--border-light);
+    font-size: 0.8rem;
+}
+
+.output-info .path {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    color: var(--text-secondary);
+}
+
+.output-info .path code {
+    background: var(--border-light);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    color: var(--text-primary);
+}
+
+.output-info .settings-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.75rem;
+}
+
+.output-info .settings-link:hover {
+    text-decoration: underline;
+}
+
+/* Hero Action Button */
+.action-section {
+    padding: 1.25rem;
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+}
+
+.btn-hero {
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 50px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-hero-primary {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(90, 200, 250, 0.3);
+}
+
+.btn-hero-primary:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(90, 200, 250, 0.4);
+}
+
+.btn-hero-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-hero-secondary {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+}
+
+.btn-hero-secondary:hover {
+    background: var(--border-light);
+}
+
+/* Done Actions */
+.done-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Mini Terminal - Compact Log */
+.mini-terminal {
+    background: #1a1a2e;
+    border-radius: 12px;
+    margin: 1rem;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.mini-terminal-header {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.mini-terminal-header .title {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.mini-terminal-body {
+    max-height: 120px;
+    overflow-y: auto;
+    padding: 0.75rem;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: #d4d4d4;
+}
+
+.mini-terminal-body .log-info {
+    color: #6a9955;
+}
+
+.mini-terminal-body .log-warn {
+    color: #dcdcaa;
+}
+
+.mini-terminal-body .log-error {
+    color: #f14c4c;
+}
+
+/* Progress Bar */
+.progress-mini {
+    height: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    margin: 0.5rem 0.75rem 0.75rem;
+    overflow: hidden;
+}
+
+.progress-mini .bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #60a5fa);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+/* Stats Card */
+.stats-card {
+    background: var(--bg-card);
+    border-radius: 12px;
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.stats-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stats-card .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.stats-card .stat-item i {
+    color: var(--accent);
+}
+
+.stats-card .stat-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* NFO Update Row */
+.nfo-update-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-light);
+}
+
+.nfo-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #f59e0b;
+    font-weight: 500;
+}
+
+.nfo-badge i {
+    font-size: 1rem;
+}
+
+.btn-nfo-update {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.btn-nfo-update:hover {
+    background: linear-gradient(135deg, #d97706, #b45309);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+.btn-nfo-update:disabled {
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-nfo-update.completed {
+    background: var(--border-light);
+    color: var(--text-secondary);
+    box-shadow: none;
+}
+
+/* Toast Message */
+.toast-msg {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    padding: 0.75rem 1.25rem;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    border-radius: 50px;
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 2000;
+    max-width: 90vw;
+    word-break: break-all;
+    border: 1px solid var(--border-light);
+}
+
+.toast-msg.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Drag Overlay - Consistent with Search */
+.drag-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    pointer-events: none;
+}
+
+.drag-overlay.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.drag-overlay-content {
+    text-align: center;
+    color: #fff;
+    transform: scale(0.95);
+    transition: transform 0.3s ease;
+}
+
+.drag-overlay.show .drag-overlay-content {
+    transform: scale(1);
+}
+
+.drag-overlay-content i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    display: block;
+    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.drag-overlay-content p {
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin: 0;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}

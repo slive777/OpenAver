@@ -3,267 +3,114 @@
 {% block title %}列表生成 - JavHelper{% endblock %}
 
 {% block extra_css %}
-<style>
-    .avlist-container {
-        max-width: 800px;
-        margin: 0 auto;
-    }
-
-    /* Toast 提示 */
-    .toast-msg {
-        position: fixed;
-        bottom: 2rem;
-        left: 50%;
-        transform: translateX(-50%) translateY(20px);
-        padding: 0.75rem 1.25rem;
-        background: #212529;
-        color: #fff;
-        font-size: 0.875rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        opacity: 0;
-        visibility: hidden;
-        transition: all 0.3s ease;
-        z-index: 2000;
-        max-width: 90vw;
-        word-break: break-all;
-    }
-
-    .toast-msg.show {
-        opacity: 1;
-        visibility: visible;
-        transform: translateX(-50%) translateY(0);
-    }
-
-    .directory-list {
-        max-height: 300px;
-        overflow-y: auto;
-        border: 1px solid var(--border-light);
-        border-radius: 0.375rem;
-        background: var(--bg-card);
-    }
-
-    .directory-item {
-        display: flex;
-        align-items: center;
-        padding: 0.5rem 0.75rem;
-        border-bottom: 1px solid var(--border-light);
-        gap: 0.5rem;
-    }
-
-    .directory-item:last-child {
-        border-bottom: none;
-    }
-
-    .directory-item .path {
-        flex: 1;
-        font-family: monospace;
-        font-size: 0.875rem;
-        word-break: break-all;
-    }
-
-    .directory-item .btn-remove {
-        flex-shrink: 0;
-        padding: 0.25rem 0.5rem;
-        font-size: 0.75rem;
-    }
-
-    .empty-list {
-        padding: 2rem;
-        text-align: center;
-        color: var(--text-secondary);
-    }
-
-    .output-section {
-        background: var(--bg-card);
-        padding: 1rem;
-        border-radius: 0.375rem;
-        margin-top: 1rem;
-    }
-
-    .progress-section {
-        display: none;
-        margin-top: 1rem;
-    }
-
-    .progress-section.show {
-        display: block;
-    }
-
-    .log-output {
-        max-height: 200px;
-        overflow-y: auto;
-        font-family: monospace;
-        font-size: 0.8rem;
-        background: #1e1e1e;
-        color: #d4d4d4;
-        padding: 0.75rem;
-        border-radius: 0.375rem;
-        margin-top: 0.5rem;
-    }
-
-    .log-output .log-info {
-        color: #6a9955;
-    }
-
-    .log-output .log-warn {
-        color: #dcdcaa;
-    }
-
-    .log-output .log-error {
-        color: #f14c4c;
-    }
-
-    /* 手動輸入區 */
-    .manual-input {
-        display: flex;
-        gap: 0.5rem;
-        margin-top: 0.5rem;
-    }
-
-    /* 拖曳遮罩 */
-    .drag-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        z-index: 9999;
-        pointer-events: none;
-    }
-
-    .drag-overlay.show {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .drag-overlay-content {
-        background: transparent;
-        padding: 2rem;
-        text-align: center;
-        color: #fff;
-    }
-
-    .drag-overlay-content i {
-        font-size: 4rem;
-        color: #fff;
-        text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
-</style>
+<link href="/static/css/pages/avlist.css" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
-<!-- 拖曳遮罩 -->
+<!-- Drag Overlay -->
 <div class="drag-overlay" id="dragOverlay">
     <div class="drag-overlay-content">
         <i class="bi bi-folder-plus"></i>
-        <p class="mt-2 mb-0 fw-bold">放開以加入資料夾</p>
+        <p>放開以加入資料夾</p>
     </div>
 </div>
 
 <div class="avlist-container">
-    <h4 class="mb-4"><i class="bi bi-list-ul"></i> 列表生成</h4>
+    <!-- Header -->
+    <div class="avlist-header">
+        <h4><i class="bi bi-list-ul"></i> 列表生成</h4>
+        <div class="stats" id="headerStats"></div>
+    </div>
 
-    <!-- 資料夾列表 -->
-    <div class="card mb-3">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-folder"></i> 掃描資料夾</span>
-            <div class="btn-group btn-group-sm">
-                <button class="btn btn-outline-primary" onclick="selectFolder()" title="選擇資料夾">
-                    <i class="bi bi-folder-plus"></i> 選擇
+    <!-- Main Card: Folder List -->
+    <div class="avlist-card">
+        <div class="avlist-card-header">
+            <div class="title">
+                <i class="bi bi-folder"></i> <span>掃描資料夾</span>
+            </div>
+            <div class="actions">
+                <button class="btn-icon" onclick="selectFolder()" title="選擇資料夾">
+                    <i class="bi bi-folder-plus"></i>
                 </button>
-                <button class="btn btn-outline-secondary" onclick="toggleManualInput()" title="手動輸入">
+                <button class="btn-icon" onclick="toggleManualInput()" title="手動輸入">
                     <i class="bi bi-keyboard"></i>
                 </button>
             </div>
         </div>
-        <div class="card-body p-2">
-            <!-- 手動輸入 -->
-            <div class="manual-input" id="manualInput" style="display: none;">
-                <input type="text" class="form-control form-control-sm" id="manualPath"
-                    placeholder="輸入資料夾路徑，例如: /mnt/c/Videos 或 \\\\NAS\\share">
+
+        <div class="avlist-card-body">
+            <!-- Manual Input (hidden by default) -->
+            <div class="manual-input" id="manualInput"
+                style="display: none; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-light);">
+                <input type="text" class="form-control form-control-sm" id="manualPath" placeholder="輸入資料夾路徑...">
                 <button class="btn btn-sm btn-primary" onclick="addManualPath()">
-                    <i class="bi bi-plus"></i> 加入
+                    <i class="bi bi-plus"></i>
                 </button>
             </div>
 
-            <!-- 資料夾列表 -->
-            <div class="directory-list" id="directoryList"></div>
+            <!-- Folder List -->
+            <div class="folder-list" id="directoryList"></div>
         </div>
-        <div class="card-footer text-end" id="dirFooter" style="display: none;">
-            <button class="btn btn-sm btn-primary" onclick="saveConfig()">
-                <i class="bi bi-save"></i> 儲存
+
+        <!-- Output Info -->
+        <div class="output-info">
+            <div class="path">
+                <i class="bi bi-file-earmark-code"></i>
+                輸出: <code id="outputPathDisplay">output/avlist_output.html</code>
+            </div>
+            <a href="/settings" class="settings-link">
+                <i class="bi bi-gear"></i> 設定
+            </a>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-section">
+            <button class="btn-hero btn-hero-primary" id="btnGenerate" onclick="generate()">
+                <i class="bi bi-play-fill"></i> 產生網頁
             </button>
-        </div>
-    </div>
-
-    <!-- 輸出設定 -->
-    <div class="output-section">
-        <div class="row align-items-end">
-            <div class="col-md-6 mb-2 mb-md-0">
-                <label class="form-label small"><i class="bi bi-file-earmark-code"></i> 輸出檔案</label>
-                <div class="input-group input-group-sm">
-                    <input type="text" class="form-control" id="outputDir" placeholder="output">
-                    <span class="input-group-text">/</span>
-                    <input type="text" class="form-control" id="outputFilename" placeholder="avlist_output.html">
-                </div>
-            </div>
-            <div class="col-md-6 text-md-end">
-                <button class="btn btn-primary" id="btnGenerate" onclick="generate()">
-                    <i class="bi bi-play-fill"></i> 產生網頁
-                </button>
-                <button class="btn btn-outline-secondary" id="btnCopyPath" onclick="copyOutputPath()"
-                    style="display: none;">
+            <!-- Done Actions (hidden until complete) -->
+            <div id="doneActions" class="done-actions" style="display: none;">
+                <button class="btn-hero btn-hero-secondary" id="btnCopyPath" onclick="copyOutputPath()" title="複製路徑">
                     <i class="bi bi-clipboard"></i> 複製路徑
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- 進度區 -->
-    <div class="progress-section" id="progressSection">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <span id="progressStatus">準備中...</span>
-            <span id="progressCount" class="badge bg-secondary">0 / 0</span>
+    <!-- Mini Terminal (hidden by default) -->
+    <div class="mini-terminal" id="progressSection" style="display: none;">
+        <div class="mini-terminal-header">
+            <span class="title" id="progressStatus">準備中...</span>
         </div>
-        <div class="progress" style="height: 6px;">
-            <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%"></div>
+        <div class="progress-mini">
+            <div class="bar" id="progressBar" style="width: 0%;"></div>
         </div>
-        <div class="log-output" id="logOutput"></div>
+        <div class="mini-terminal-body" id="logOutput"></div>
     </div>
 
-    <!-- 結果區 -->
-    <div class="alert alert-success mt-3" id="resultAlert" style="display: none;">
-        <i class="bi bi-check-circle"></i>
-        <span id="resultMessage"></span>
-    </div>
-
-    <!-- 統計資訊 -->
-    <div class="card mt-3" id="statsCard" style="display: none;">
-        <div class="card-body py-2">
-            <div class="d-flex justify-content-between align-items-center text-muted small">
-                <span>
-                    <i class="bi bi-collection-play"></i> 快取影片: <strong id="statTotal">0</strong> 部
-                    <span id="statNeedUpdate" style="display: none;">
-                        | 需補全: <strong id="updateCount">0</strong> 部
-                        <button class="btn btn-sm btn-outline-primary ms-1 py-0 px-1" onclick="runNfoUpdate()"
-                            id="btnUpdate" title="補全 NFO 資訊">
-                            <i class="bi bi-arrow-repeat"></i>
-                        </button>
-                    </span>
-                </span>
-                <span id="statLastRun"></span>
+    <!-- Stats Card -->
+    <div class="stats-card" id="statsCard" style="display: none;">
+        <div class="stats-row">
+            <div class="stat-item">
+                <i class="bi bi-collection-play"></i>
+                <span>快取影片: <span class="stat-value" id="statTotal">0</span> 部</span>
             </div>
+            <div class="stat-item" id="statLastRun"></div>
+        </div>
+        <!-- NFO Update Section (separate row) -->
+        <div class="nfo-update-row" id="statNeedUpdate" style="display: none;">
+            <span class="nfo-badge">
+                <i class="bi bi-exclamation-circle"></i>
+                需補全: <strong id="updateCount">0</strong> 部
+            </span>
+            <button class="btn-nfo-update" onclick="runNfoUpdate()" id="btnUpdate" title="補全 NFO 資訊">
+                <i class="bi bi-magic"></i> 補全 NFO
+            </button>
         </div>
     </div>
 </div>
 
-<!-- Toast 提示 -->
+<!-- Toast -->
 <div id="toastMsg" class="toast-msg"></div>
 {% endblock %}
 
@@ -297,7 +144,7 @@
             const progressSection = document.getElementById('progressSection');
 
             logOutput.innerHTML = savedLogs;
-            progressSection.classList.add('show');
+            progressSection.style.display = 'block';
 
             // 如果之前正在生成但被中斷
             if (wasGenerating) {
@@ -351,8 +198,10 @@
             if (result.success) {
                 config = result.data;
                 directories = config.avlist?.directories || [];
-                document.getElementById('outputDir').value = config.avlist?.output_dir || 'output';
-                document.getElementById('outputFilename').value = config.avlist?.output_filename || 'avlist_output.html';
+                // Update output path display
+                const outputDir = config.avlist?.output_dir || 'output';
+                const outputFilename = config.avlist?.output_filename || 'avlist_output.html';
+                document.getElementById('outputPathDisplay').textContent = `${outputDir}/${outputFilename}`;
                 renderDirectories();
             }
         } catch (e) {
@@ -363,25 +212,22 @@
     // 渲染資料夾列表
     function renderDirectories() {
         const list = document.getElementById('directoryList');
-        const footer = document.getElementById('dirFooter');
 
         if (directories.length === 0) {
             list.innerHTML = `
-            <div class="empty-list">
-                <i class="bi bi-folder-plus fs-1 text-muted"></i>
-                <p class="mt-2 mb-0">尚未加入任何資料夾</p>
-                <small class="text-muted">點擊上方按鈕或拖曳資料夾至此</small>
+            <div class="folder-empty">
+                <i class="bi bi-folder-plus"></i>
+                <p>尚未加入任何資料夾</p>
+                <p>點擊上方按鈕或拖曳資料夾至此</p>
             </div>
         `;
-            footer.style.display = 'none';
             return;
         }
 
-        footer.style.display = 'block';
         list.innerHTML = directories.map((dir, idx) => `
-        <div class="directory-item">
-            <i class="bi bi-folder text-warning"></i>
-            <span class="path">${escapeHtml(dir)}</span>
+        <div class="folder-item">
+            <i class="bi bi-folder folder-icon"></i>
+            <span class="folder-path">${escapeHtml(dir)}</span>
             <button class="btn btn-outline-danger btn-remove" onclick="removeDirectory(${idx})" title="移除">
                 <i class="bi bi-x"></i>
             </button>
@@ -488,8 +334,7 @@
         try {
             config.avlist = config.avlist || {};
             config.avlist.directories = directories;
-            config.avlist.output_dir = document.getElementById('outputDir').value || 'output';
-            config.avlist.output_filename = document.getElementById('outputFilename').value || 'avlist_output.html';
+            // Keep existing output settings from config
 
             const resp = await fetch('/api/config', {
                 method: 'PUT',
@@ -499,50 +344,37 @@
             const result = await resp.json();
             if (result.success) {
                 configDirty = false;
-                alert('設定已儲存');
+                showToast('設定已儲存');
             } else {
-                alert('儲存失敗: ' + (result.error || '未知錯誤'));
+                showToast('儲存失敗: ' + (result.error || '未知錯誤'));
             }
         } catch (e) {
             console.error('儲存失敗:', e);
-            alert('儲存失敗: ' + e.message);
+            showToast('儲存失敗: ' + e.message);
         }
     }
 
     // 產生網頁
     async function generate() {
         if (directories.length === 0) {
-            alert('請先加入至少一個資料夾');
+            showToast('請先加入至少一個資料夾');
             return;
         }
 
         // 自動儲存設定
         if (configDirty) {
             await saveConfig();
-        } else {
-            // 確保 output 設定也儲存
-            config.avlist = config.avlist || {};
-            config.avlist.directories = directories;
-            config.avlist.output_dir = document.getElementById('outputDir').value || 'output';
-            config.avlist.output_filename = document.getElementById('outputFilename').value || 'avlist_output.html';
-            await fetch('/api/config', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(config)
-            });
         }
 
         const btn = document.getElementById('btnGenerate');
         const progressSection = document.getElementById('progressSection');
         const logOutput = document.getElementById('logOutput');
-        const resultAlert = document.getElementById('resultAlert');
-        const btnCopyPath = document.getElementById('btnCopyPath');
+        const doneActions = document.getElementById('doneActions');
 
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 產生中...';
-        progressSection.classList.add('show');
-        resultAlert.style.display = 'none';
-        btnCopyPath.style.display = 'none';
+        progressSection.style.display = 'block';
+        doneActions.style.display = 'none';
         logOutput.innerHTML = '';
 
         // 設置生成狀態
@@ -558,7 +390,6 @@
 
                 if (data.type === 'progress') {
                     document.getElementById('progressStatus').textContent = data.status;
-                    document.getElementById('progressCount').textContent = `${data.current} / ${data.total}`;
                     const pct = data.total > 0 ? (data.current / data.total) * 100 : 0;
                     document.getElementById('progressBar').style.width = `${pct}%`;
                     // 儲存狀態
@@ -579,14 +410,17 @@
                     btn.disabled = false;
                     btn.innerHTML = '<i class="bi bi-play-fill"></i> 產生網頁';
                     document.getElementById('progressBar').style.width = '100%';
-                    document.getElementById('progressStatus').textContent = '完成';
+                    document.getElementById('progressStatus').textContent = `完成！${data.video_count} 部影片`;
                     localStorage.setItem(STORAGE_KEYS.lastStatus, '完成');
 
-                    resultAlert.style.display = 'block';
-                    document.getElementById('resultMessage').textContent =
-                        `成功產生 ${data.video_count} 部影片列表`;
-                    btnCopyPath.style.display = 'inline-block';
+                    // Show done actions with copy path
+                    const doneActions = document.getElementById('doneActions');
+                    const btnCopyPath = document.getElementById('btnCopyPath');
+                    doneActions.style.display = 'flex';
                     btnCopyPath.dataset.path = data.output_path;
+
+                    // Show toast
+                    showToast(`成功產生 ${data.video_count} 部影片列表`);
 
                     // 儲存最終 logs
                     saveLogs();
@@ -779,8 +613,8 @@
         const logOutput = document.getElementById('logOutput');
 
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm" style="width:0.75rem;height:0.75rem"></span>';
-        progressSection.classList.add('show');
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 補全中...';
+        progressSection.style.display = 'block';
         logOutput.innerHTML = '';
 
         // 設置生成狀態
@@ -810,20 +644,20 @@
                     eventSource.close();
                     isGenerating = false;
                     localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
+                    // Keep button disabled and show completed state
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="bi bi-check-lg"></i> 已完成';
+                    btn.classList.add('completed');
                     document.getElementById('progressBar').style.width = '100%';
                     document.getElementById('progressStatus').textContent = data.message || '完成';
                     localStorage.setItem(STORAGE_KEYS.lastStatus, data.message || '完成');
 
                     // 提示重新產生列表
+                    showToast('補全完成！請重新產生列表以更新');
                     if (data.message) {
                         logOutput.innerHTML += `<div class="log-info">${escapeHtml(data.message)}</div>`;
                     }
                     saveLogs();
-
-                    // 重新檢查更新數量
-                    checkNeedUpdate();
                 } else if (data.type === 'error') {
                     eventSource.close();
                     isGenerating = false;
