@@ -9,8 +9,11 @@
 .search-bar {
     flex-shrink: 0;
     padding: 0.5rem 1rem;
-    background: #fff;
-    border-bottom: 1px solid #dee2e6;
+    background: var(--bg-header, #fff);
+    border-bottom: 1px solid var(--border-light, #dee2e6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 100;
 }
 
 /* 結果區域 */
@@ -30,14 +33,15 @@
     max-height: 100%;
 }
 
-#resultCard > .result-area {
+#resultCard>.result-area {
     flex-shrink: 1;
     min-height: 0;
-    align-items: flex-start;  /* 讓 info-section 不要拉伸 */
+    align-items: flex-start;
+    /* 讓 info-section 不要拉伸 */
 }
 
 /* 列表在 cover-section 內 */
-.cover-section > .file-list-section {
+.cover-section>.file-list-section {
     width: 100%;
     flex-shrink: 0;
     margin-top: 0.5rem;
@@ -48,7 +52,8 @@
     flex: 7;
     position: relative;
     display: flex;
-    flex-direction: column;   /* 垂直排列：封面 + 列表 */
+    flex-direction: column;
+    /* 垂直排列：封面 + 列表 */
     align-items: center;
     min-width: 0;
     min-height: 0;
@@ -66,10 +71,11 @@
 
 .cover-img {
     max-width: 100%;
-    max-height: calc(100vh - 250px);  /* 限制最大高度 */
+    max-height: calc(100vh - 250px);
+    /* 限制最大高度 */
     object-fit: contain;
     border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 /* 導航按鈕 */
@@ -87,19 +93,27 @@
     transition: all 0.2s;
     z-index: 10;
     border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
+
 .nav-btn:hover {
     background: rgba(0, 0, 0, 0.8);
     transform: translateY(-50%) scale(1.05);
 }
+
 .nav-btn:disabled {
     opacity: 0.3;
     cursor: not-allowed;
     transform: translateY(-50%);
 }
-.nav-btn.prev { left: 10px; }
-.nav-btn.next { right: 10px; }
+
+.nav-btn.prev {
+    left: 10px;
+}
+
+.nav-btn.next {
+    right: 10px;
+}
 
 /* 索引顯示 */
 .nav-indicator {
@@ -107,7 +121,7 @@
     bottom: 50px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0,0,0,0.6);
+    background: rgba(0, 0, 0, 0.6);
     color: #fff;
     padding: 2px 10px;
     border-radius: 12px;
@@ -116,7 +130,7 @@
 
 /* 檔案列表區（封面下方） */
 .file-list-section {
-    background: rgba(255,255,255,0.95);
+    background: rgba(255, 255, 255, 0.95);
     border-top: 1px solid #dee2e6;
     padding: 8px 12px;
 }
@@ -216,12 +230,14 @@
 .info-row {
     margin-bottom: 0.75rem;
 }
+
 .info-label {
     font-size: 0.7rem;
     color: #6c757d;
     text-transform: uppercase;
     margin-bottom: 0.15rem;
 }
+
 .info-value {
     font-size: 0.85rem;
     word-break: break-word;
@@ -240,6 +256,7 @@
     margin-top: 0.5rem;
     padding-bottom: 1rem;
 }
+
 .empty-actions .btn {
     font-size: 0.85rem;
 }
@@ -258,6 +275,7 @@
     background: #e9ecef;
     color: #495057;
 }
+
 .tag-badge.subtitle {
     background: #198754;
     color: #fff;
@@ -272,6 +290,7 @@
     height: 100%;
     color: #6c757d;
 }
+
 .state-page i {
     font-size: 3rem;
     margin-bottom: 0.5rem;
@@ -299,7 +318,7 @@
     padding: 1.5rem 2rem;
     min-width: 320px;
     max-width: 420px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
 }
 
@@ -309,7 +328,7 @@
     align-items: center;
     margin-bottom: 1rem;
     padding-bottom: 0.75rem;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .progress-query {
@@ -342,7 +361,9 @@
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* 詳情進度條 */
@@ -350,7 +371,7 @@
     margin-top: 1rem;
     position: relative;
     height: 22px;
-    background: rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 11px;
     overflow: hidden;
     display: none;
@@ -376,13 +397,16 @@
     color: #fff;
     font-size: 0.7rem;
     font-weight: 600;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 /* === 拖拽覆蓋層 === */
 .drag-overlay {
     position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background: rgba(13, 110, 253, 0.1);
     border: 3px dashed #0d6efd;
     z-index: 9999;
@@ -391,15 +415,19 @@
     justify-content: center;
     pointer-events: none;
 }
-.drag-overlay.active { display: flex; }
+
+.drag-overlay.active {
+    display: flex;
+}
 
 .drag-overlay-content {
     background: white;
     padding: 2rem 3rem;
     border-radius: 12px;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
     text-align: center;
 }
+
 .drag-overlay-content i {
     font-size: 3rem;
     color: #0d6efd;
@@ -407,6 +435,7 @@
     display: block;
     padding-bottom: 1rem;
 }
+
 .drag-overlay-content p {
     font-size: 1.1rem;
     color: #333;
@@ -418,7 +447,8 @@
 /* Tablet & Mobile: 調整容器高度 */
 @media (max-width: 991.98px) {
     .search-container {
-        height: calc(100vh - 56px); /* 扣除頂部導航列 */
+        height: calc(100vh - 56px);
+        /* 扣除頂部導航列 */
     }
 }
 
@@ -427,6 +457,7 @@
     .cover-section {
         flex: 6;
     }
+
     .info-section {
         flex: 4;
         min-width: 200px;
@@ -439,6 +470,7 @@
         flex-direction: column;
         overflow-y: auto;
     }
+
     .cover-section {
         flex: none;
         width: 100%;
@@ -446,31 +478,44 @@
         position: relative;
         padding-bottom: 50px;
     }
+
     .cover-wrapper {
         max-width: 100%;
     }
+
     .cover-img {
         max-height: calc(50vh - 60px);
     }
+
     .info-section {
         flex: none;
         width: 100%;
         min-width: auto;
         max-height: none;
     }
+
     .nav-btn {
         width: 36px;
         height: 52px;
         font-size: 1.1rem;
     }
-    .nav-btn.prev { left: 5px; }
-    .nav-btn.next { right: 5px; }
+
+    .nav-btn.prev {
+        left: 5px;
+    }
+
+    .nav-btn.next {
+        right: 5px;
+    }
+
     .search-bar {
         padding: 0.5rem;
     }
+
     .search-hint {
         display: none;
     }
+
     .path-input-area {
         position: relative;
     }

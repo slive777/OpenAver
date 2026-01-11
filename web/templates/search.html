@@ -18,21 +18,19 @@
 <div class="search-container">
     <!-- 搜尋框 -->
     <div class="search-bar">
-        <form id="searchForm" class="d-flex gap-2">
-            <!-- 清空按鈕（有內容時顯示） -->
-            <button type="button" class="btn btn-outline-secondary btn-lg d-none" id="btnClear" title="清空">
-                <i class="bi bi-x-lg"></i>
-            </button>
-            <div class="flex-grow-1">
-                <div class="input-group input-group-lg">
-                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" class="form-control" id="searchQuery" name="q"
-                        placeholder="番號 (SONE-001)、局部番號 (IPZZ-03)、或女優名" autocomplete="off">
+        <form id="searchForm">
+            <div class="spotlight-search">
+                <i class="bi bi-search search-icon-left"></i>
+                <input type="text" id="searchQuery" name="q" placeholder="搜尋番號、女優或拖入檔案..." autocomplete="off">
+                <div class="search-actions-right">
+                    <button type="button" id="btnClear" class="btn-icon d-none" title="清空">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                    <button type="submit" id="btnSubmit" class="btn-icon active" title="搜尋">
+                        <i class="bi bi-arrow-right"></i>
+                    </button>
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary btn-lg px-4">
-                搜尋
-            </button>
         </form>
         <div class="search-hint">
             <i class="bi bi-lightbulb"></i>
