@@ -87,6 +87,19 @@
     object-fit: contain;
     /* 絕不裁切 */
     filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 /* 導航按鈕 */
@@ -160,9 +173,7 @@
     color: var(--text-secondary);
 }
 
-.file-list {
-    /* 不限制高度，讓頁面滾動 */
-}
+
 
 .file-item {
     padding: 4px 8px;
@@ -313,12 +324,13 @@
     align-items: center;
     justify-content: center;
     height: 100%;
-    color: #6c757d;
+    color: var(--text-secondary);
 }
 
 .state-page i {
-    font-size: 3rem;
-    margin-bottom: 0.5rem;
+    font-size: 4.5rem;
+    margin-bottom: 1rem;
+    opacity: 0.6;
 }
 
 /* 搜尋提示 */
