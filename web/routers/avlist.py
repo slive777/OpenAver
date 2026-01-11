@@ -46,6 +46,9 @@ def generate_avlist() -> Generator[str, None, None]:
         default_sort = avlist_config.get('default_sort', 'date')
         default_order = avlist_config.get('default_order', 'descending')
         items_per_page = avlist_config.get('items_per_page', 90)
+        
+        # 取得全域主題設定
+        default_theme = config.get('general', {}).get('theme', 'light')
 
         if not directories:
             yield send({"type": "error", "message": "未設定掃描資料夾"})
@@ -205,7 +208,8 @@ def generate_avlist() -> Generator[str, None, None]:
             mode=default_mode,
             sort=default_sort,
             order=default_order,
-            items_per_page=items_per_page
+            items_per_page=items_per_page,
+            theme=default_theme
         )
 
         yield send({

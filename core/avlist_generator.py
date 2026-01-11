@@ -25,7 +25,8 @@ class HTMLGenerator:
                  mode: str = "image",
                  sort: str = "date",
                  order: str = "descending",
-                 items_per_page: int = 90) -> None:
+                 items_per_page: int = 90,
+                 theme: str = "light") -> None:
         """生成 HTML 檔案"""
 
         # 模式對應
@@ -59,7 +60,8 @@ class HTMLGenerator:
             user_mode=user_mode,
             user_order=user_order,
             user_sort=sort,
-            user_items=items_per_page
+            user_items=items_per_page,
+            theme=theme
         )
 
         # 寫入檔案
@@ -70,13 +72,13 @@ class HTMLGenerator:
 
     def _generate_html(self, title: str, js_videos: List[str],
                        user_mode: int, user_order: int,
-                       user_sort: str, user_items: int) -> str:
+                       user_sort: str, user_items: int, theme: str) -> str:
         """生成 HTML 內容"""
 
         videos_js = '\n'.join([f'\t\tvideos[{i}] = {v};' for i, v in enumerate(js_videos)])
 
         return f'''<!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-TW" data-theme="{theme}">
 <head>
 \t<meta charset="utf-8">
 \t<meta name="viewport" content="width=device-width, initial-scale=1">
@@ -133,6 +135,7 @@ class HTMLGenerator:
 \t\tvar user_order = {user_order};
 \t\tvar user_sort = "{user_sort}";
 \t\tvar user_items_per_page = {user_items};
+\t\tvar default_theme = "{theme}";
 {self._get_javascript()}
 \t\t// Initialize
 \t\tinit();
@@ -152,6 +155,7 @@ class HTMLGenerator:
 \t\tvar search_words = "";
 \t\tvar filtered_videos = [];
 \t\tvar info_visible = false;  // 預設隱藏資訊，hover 顯示
+\t\tvar current_theme = default_theme;
 \t\tvar AVLIST_STATE_KEY = 'avlist_state';
 
 \t\tfunction saveState() {
@@ -184,7 +188,27 @@ class HTMLGenerator:
 \t\t\treturn false;
 \t\t}
 
+\t\tfunction initTheme() {
+\t\t\tvar params = new URLSearchParams(window.location.search);
+\t\t\tvar urlTheme = params.get('theme');
+
+\t\t\tif (urlTheme && (urlTheme === 'light' || urlTheme === 'dark')) {
+\t\t\t\tcurrent_theme = urlTheme; // 優先使用 URL 參數
+\t\t\t} else {
+\t\t\t\t// 使用生成時的預設值
+\t\t\t\tcurrent_theme = default_theme;
+\t\t\t}
+\t\t\tdocument.documentElement.setAttribute('data-theme', current_theme);
+\t\t}
+
+\t\tfunction toggleTheme() {
+\t\t\tcurrent_theme = current_theme === 'light' ? 'dark' : 'light';
+\t\t\tdocument.documentElement.setAttribute('data-theme', current_theme);
+\t\t\trender(); // Update button icon
+\t\t}
+
 \t\tfunction init() {
+\t\t\tinitTheme();
 \t\t\t// 優先從 localStorage 載入狀態，否則從 URL 參數
 \t\t\tif (!loadState()) {
 \t\t\t\tvar params = new URLSearchParams(window.location.search);
@@ -281,7 +305,7 @@ class HTMLGenerator:
 \t\t\t\thtml += '</tr></thead><tbody>';
 \t\t\t\tfor (var i = start; i < end; i++) {
 \t\t\t\t\tvar v = filtered_videos[i];
-\t\t\t\t\thtml += '<tr onclick="playVideo(\\'' + escapeHtml(v.path) + '\\')">';
+\t\t\t\thtml += '<tr onclick="playVideo(\\'' + escapeHtml(v.path) + '\\')">';
 \t\t\t\t\thtml += '<td>' + (i+1) + '</td>';
 \t\t\t\t\thtml += '<td>' + escapeHtml(stripNumPrefix(v.title)) + '</td>';
 \t\t\t\t\thtml += '<td>' + formatActor(v.actor) + '</td>';
@@ -330,7 +354,7 @@ class HTMLGenerator:
 \t\t\t\t\t\thtml += '<div class="info-row info-meta">';
 \t\t\t\t\t\tif (v.maker) html += '<span><b>片商：</b>' + formatMaker(v.maker) + '</span>';
 \t\t\t\t\t\tif (v.date) html += '<span><b>日期：</b>' + escapeHtml(v.date) + '</span>';
-\t\t\t\t\t\thtml += '</div>';
+\t\t\t\t\thtml += '</div>';
 \t\t\t\t\t\tif (v.genre) html += '<div class="info-tags">' + formatGenre(v.genre) + '</div>';
 \t\t\t\t\t\thtml += '</div>';
 \t\t\t\t\t}
@@ -342,7 +366,7 @@ class HTMLGenerator:
 \t\t\t\thtml = '<ul class="text-list">';
 \t\t\t\tfor (var i = start; i < end; i++) {
 \t\t\t\t\tvar v = filtered_videos[i];
-\t\t\t\t\thtml += '<li onclick="playVideo(\\'' + escapeHtml(v.path) + '\\')">';
+\t\t\t\thtml += '<li onclick="playVideo(\\'' + escapeHtml(v.path) + '\\')">';
 \t\t\t\t\thtml += '<span class="text-num">' + escapeHtml(v.num) + '</span>';
 \t\t\t\t\thtml += '<span class="text-title">' + escapeHtml(stripNumPrefix(v.title)) + '</span>';
 \t\t\t\t\tif (v.actor) html += ' <span class="text-actor">(' + escapeHtml(v.actor) + ')</span>';
@@ -376,7 +400,7 @@ class HTMLGenerator:
 \t\t\thtml += '<div class="ctrl-dropdown-menu">';
 \t\t\tfor (var i = 0; i < sorts.length; i++) {
 \t\t\t\tvar s = sorts[i];
-\t\t\t\thtml += '<a href="javascript:void(0);" onclick="switchSort(\\'' + s + '\\')"' + (current_sort==s?' class="active"':'') + '>' + sortNames[s] + '</a>';
+\t\t\thtml += '<a href="javascript:void(0);" onclick="switchSort(\\'' + s + '\\')"' + (current_sort==s?' class="active"':'') + '>' + sortNames[s] + '</a>';
 \t\t\t}
 \t\t\thtml += '</div></div>';
 
@@ -403,6 +427,11 @@ class HTMLGenerator:
 \t\t\t\thtml += '<a href="javascript:void(0);" onclick="switchItems(' + items[i][0] + ')"' + (items_per_page==items[i][0]?' class="active"':'') + '>' + items[i][1] + '</a>';
 \t\t\t}
 \t\t\thtml += '</div></div>';
+
+\t\t\t// 主題切換按鈕 (放在最後)
+\t\t\thtml += '<button class="ctrl-btn" onclick="toggleTheme()" data-tooltip="' + (current_theme=='dark'?'切換淺色':'切換深色') + '">';
+\t\t\thtml += current_theme == 'dark' ? '☼' : '☾';
+\t\t\thtml += '</button>';
 
 \t\t\treturn html;
 \t\t}
@@ -587,7 +616,7 @@ class HTMLGenerator:
 \t\t\t\tcardImg.click();
 \t\t\t} else {
 \t\t\t\t// 不是卡片，關閉 lightbox
-\t\t\t\thideLightbox();
+\t\t\thideLightbox();
 \t\t\t}
 \t\t});
 
@@ -664,15 +693,15 @@ class HTMLGenerator:
 '''
 
     def _get_css(self) -> str:
-        """返回 CSS 樣式 - Editorial Gallery 現代風格"""
+        """返回 CSS 樣式 - Editorial Gallery 現代風格 (支援 Dark Mode)"""
         return '''
 \t<style>
 \t/* ========== CSS Variables ========== */
 \t:root {
-\t\t/* Colors - Warm Neutral Palette */
+\t\t/* Colors - Warm Neutral Palette (Light Mode) */
 \t\t--bg-body: #f8f7f4;
 \t\t--bg-card: #ffffff;
-\t\t--bg-header: rgba(255, 255, 255, 0.92);
+\t\t--bg-header: rgba(255, 255, 255, 0.85);
 \t\t--bg-overlay: rgba(18, 18, 20, 0.88);
 \t\t--bg-lightbox: rgba(10, 10, 12, 0.92);
 \t\t
@@ -721,6 +750,31 @@ class HTMLGenerator:
 \t\t--duration-slow: 0.4s;
 \t}
 
+\t[data-theme="dark"] {
+\t\t--bg-body: #0f0f11;
+\t\t--bg-card: #1c1c1e;
+\t\t--bg-header: rgba(28, 28, 30, 0.85);
+\t\t--bg-overlay: rgba(0, 0, 0, 0.92);
+\t\t--bg-lightbox: rgba(0, 0, 0, 0.95);
+\t\t
+\t\t--text-primary: #f2f2f7;
+\t\t--text-secondary: #aeaeb2;
+\t\t--text-muted: #636366;
+\t\t--text-inverse: #ffffff;
+\t\t
+\t\t--accent: #5ac8fa;
+\t\t--accent-hover: #007aff;
+\t\t--accent-red: #ff453a;
+\t\t
+\t\t--border-light: #2c2c2e;
+\t\t--border-card: #3a3a3c;
+\t\t
+\t\t--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+\t\t--shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+\t\t--shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.5);
+\t\t--shadow-card-hover: 0 12px 40px rgba(0, 0, 0, 0.6);
+\t}
+
 \t/* ========== Reset & Base ========== */
 \t*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 \t
@@ -736,6 +790,7 @@ class HTMLGenerator:
 \t\tcolor: var(--text-primary);
 \t\tline-height: 1.5;
 \t\tmin-height: 100vh;
+\t\ttransition: background-color var(--duration-normal) ease, color var(--duration-normal) ease;
 \t}
 \t
 \ta {
@@ -751,10 +806,11 @@ class HTMLGenerator:
 \t\ttop: 0;
 \t\tz-index: 100;
 \t\tbackground: var(--bg-header);
-\t\tbackdrop-filter: blur(12px);
-\t\t-webkit-backdrop-filter: blur(12px);
+\t\tbackdrop-filter: blur(16px);
+\t\t-webkit-backdrop-filter: blur(16px);
 \t\tborder-bottom: 1px solid var(--border-light);
 \t\theight: var(--header-height);
+\t\ttransition: background-color var(--duration-normal) ease, border-color var(--duration-normal) ease;
 \t}
 \t
 \t.header-inner {
@@ -798,7 +854,7 @@ class HTMLGenerator:
 \t\tcolor: var(--text-primary);
 \t\tbackground: var(--bg-card);
 \t\toutline: none;
-\t\ttransition: border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+\t\ttransition: border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease, background-color var(--duration-normal) ease;
 \t}
 \t
 \t.search-box input:focus {
@@ -818,6 +874,7 @@ class HTMLGenerator:
 \t\tbackground: var(--bg-card);
 \t\tcursor: pointer;
 \t\tfont-size: 1rem;
+\t\tcolor: var(--text-secondary);
 \t\ttransition: all var(--duration-fast) ease;
 \t}
 \t
@@ -825,7 +882,7 @@ class HTMLGenerator:
 \t\tborder-radius: 0 var(--radius-md) var(--radius-md) 0;
 \t}
 \t
-\t.search-box button:hover { background: var(--bg-body); }
+\t.search-box button:hover { background: var(--bg-body); color: var(--text-primary); }
 \t
 \t.search-box .reset-btn {
 \t\tdisplay: none;
@@ -888,6 +945,7 @@ class HTMLGenerator:
 \t\topacity: 0;
 \t\tpointer-events: none;
 \t\ttransition: opacity var(--duration-fast) ease, transform var(--duration-fast) ease;
+\t\tz-index: 300;
 \t}
 \t
 \t.ctrl-btn:hover[data-tooltip]::after {
@@ -991,6 +1049,7 @@ class HTMLGenerator:
 \t.pagination select {
 \t\tfont-family: inherit;
 \t\toutline: none;
+\t\tcolor: var(--text-primary);
 \t}
 
 \t/* ========== Main Content ========== */
@@ -1050,7 +1109,9 @@ class HTMLGenerator:
 \t\tbox-shadow: var(--shadow-sm);
 \t\tborder: 1px solid var(--border-card);
 \t\ttransition: transform var(--duration-normal) var(--ease-out),
-\t\t            box-shadow var(--duration-normal) var(--ease-out);
+\t\t            box-shadow var(--duration-normal) var(--ease-out),
+                    background-color var(--duration-normal) ease,
+                    border-color var(--duration-normal) ease;
 \t\tposition: relative;
 \t}
 \t
@@ -1064,7 +1125,7 @@ class HTMLGenerator:
 \t\tposition: relative;
 \t\taspect-ratio: 3 / 2;
 \t\toverflow: hidden;
-\t\tbackground: linear-gradient(135deg, #f0f0ed 0%, #e8e6e3 100%);
+\t\tbackground: var(--bg-body);
 \t\tcursor: pointer;
 \t}
 \t
@@ -1287,6 +1348,9 @@ class HTMLGenerator:
 \t\tpointer-events: none;
 \t\ttransition: visibility 0s linear var(--duration-normal),
 \t\t            opacity var(--duration-normal) var(--ease-out);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        background: rgba(0, 0, 0, 0.6);
 \t}
 \t
 \t.lightbox.show {

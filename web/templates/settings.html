@@ -2,6 +2,73 @@
 
 {% block title %}設定 - JavHelper{% endblock %}
 
+{% block extra_css %}
+<style>
+    .settings-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .settings-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .settings-header h4 {
+        margin: 0;
+        color: var(--text-primary);
+    }
+
+    /* Modern Card Styling */
+    .card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+    }
+
+    .card-header {
+        background: transparent;
+        border-bottom: 1px solid var(--border-light);
+        font-weight: 600;
+        padding: 1rem 1.25rem;
+    }
+
+    .card-header i {
+        color: var(--accent);
+        margin-right: 0.5rem;
+    }
+
+    .card-body {
+        padding: 1.25rem;
+    }
+
+    /* Form Row Styling */
+    .row.mb-3 .col-md-6:first-child {
+        display: flex;
+        align-items: center;
+    }
+
+    .form-label {
+        margin-bottom: 0;
+        font-size: 0.875rem;
+    }
+
+    /* Divider */
+    hr {
+        border-color: var(--border-light);
+        opacity: 0.5;
+    }
+
+    /* Action Buttons */
+    .action-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <h4 class="mb-4">
@@ -28,7 +95,7 @@
                             <span class="input-group-text">格式</span>
                             <input type="text" class="form-control" id="folderFormat" value="{num}">
                             <button class="btn btn-outline-secondary dropdown-toggle" type="button"
-                                    data-bs-toggle="dropdown" aria-expanded="false">變數</button>
+                                data-bs-toggle="dropdown" aria-expanded="false">變數</button>
                             <ul class="dropdown-menu dropdown-menu-end format-vars" data-target="folderFormat"></ul>
                         </div>
                     </div>
@@ -43,7 +110,7 @@
                         <div class="input-group input-group-sm">
                             <input type="text" class="form-control" id="filenameFormat" value="{num} {title}">
                             <button class="btn btn-outline-secondary dropdown-toggle" type="button"
-                                    data-bs-toggle="dropdown" aria-expanded="false">變數</button>
+                                data-bs-toggle="dropdown" aria-expanded="false">變數</button>
                             <ul class="dropdown-menu dropdown-menu-end format-vars" data-target="filenameFormat"></ul>
                         </div>
                     </div>
@@ -68,7 +135,8 @@
                     </div>
                     <div class="col-md-6">
                         <div class="input-group input-group-sm">
-                            <input type="number" class="form-control" id="maxFilenameLength" value="200" min="50" max="255">
+                            <input type="number" class="form-control" id="maxFilenameLength" value="200" min="50"
+                                max="255">
                             <span class="input-group-text">字元</span>
                         </div>
                     </div>
@@ -81,7 +149,7 @@
                     </div>
                     <div class="col-md-6">
                         <input type="text" class="form-control form-control-sm" id="videoExtensions"
-                               value=".mp4, .avi, .mkv, .wmv, .rmvb, .flv, .mov, .m4v, .ts">
+                            value=".mp4, .avi, .mkv, .wmv, .rmvb, .flv, .mov, .m4v, .ts">
                         <small class="text-muted">以逗號分隔</small>
                     </div>
                 </div>
@@ -138,8 +206,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="input-group input-group-sm">
-                                <input type="text" class="form-control" id="ollamaUrl"
-                                       value="http://localhost:11434">
+                                <input type="text" class="form-control" id="ollamaUrl" value="http://localhost:11434">
                                 <button class="btn btn-outline-secondary" type="button" id="testOllamaBtn">
                                     <i class="bi bi-plug"></i> 測試
                                 </button>
@@ -226,7 +293,7 @@
                     </div>
                 </div>
 
-                <div class="row">
+                <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label">最小檔案大小</label>
                     </div>
@@ -236,6 +303,34 @@
                             <span class="input-group-text">KB</span>
                         </div>
                         <small class="text-muted">0 = 不過濾</small>
+                    </div>
+                </div>
+
+                <hr class="my-3">
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">輸出目錄</label>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" id="avlistOutputDir" value="output"
+                                placeholder="output">
+                            <button class="btn btn-outline-secondary" type="button" onclick="selectOutputFolder()"
+                                title="選擇資料夾">
+                                <i class="bi bi-folder"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">輸出檔名</label>
+                    </div>
+                    <div class="col-md-6">
+                        <input type="text" class="form-control form-control-sm" id="avlistOutputFilename"
+                            value="avlist_output.html" placeholder="avlist_output.html">
                     </div>
                 </div>
             </div>
@@ -253,7 +348,7 @@
                     </div>
                     <div class="col-md-6">
                         <input type="text" class="form-control form-control-sm" id="viewerPlayer"
-                               placeholder="留空使用系統預設">
+                            placeholder="留空使用系統預設">
                         <small class="text-muted">例如: C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe</small>
                     </div>
                 </div>
@@ -266,6 +361,17 @@
                 <i class="bi bi-sliders"></i> 一般設定
             </div>
             <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">主題模式</label>
+                    </div>
+                    <div class="col-md-6">
+                        <select class="form-select form-select-sm" id="themeMode">
+                            <option value="light">淺色模式 (Light)</option>
+                            <option value="dark">深色模式 (Dark)</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="row">
                     <div class="col-md-6">
                         <label class="form-label">啟動時開啟頁面</label>
@@ -296,330 +402,356 @@
 
 {% block extra_js %}
 <script>
-// 格式變數清單
-const formatVariables = [
-    {name: '{num}', description: '番號', example: 'SONE-205'},
-    {name: '{title}', description: '標題', example: '新人出道...'},
-    {name: '{actor}', description: '演員（第一位）', example: '三上悠亜'},
-    {name: '{actors}', description: '所有演員', example: '三上悠亜, 明日花'},
-    {name: '{maker}', description: '片商', example: 'S1'},
-    {name: '{date}', description: '發行日期', example: '2024-01-15'},
-    {name: '{year}', description: '年份', example: '2024'}
-];
+    // 格式變數清單
+    const formatVariables = [
+        { name: '{num}', description: '番號', example: 'SONE-205' },
+        { name: '{title}', description: '標題', example: '新人出道...' },
+        { name: '{actor}', description: '演員（第一位）', example: '三上悠亜' },
+        { name: '{actors}', description: '所有演員', example: '三上悠亜, 明日花' },
+        { name: '{maker}', description: '片商', example: 'S1' },
+        { name: '{date}', description: '發行日期', example: '2024-01-15' },
+        { name: '{year}', description: '年份', example: '2024' }
+    ];
 
-// 初始化格式變數下拉選單
-document.querySelectorAll('.format-vars').forEach(menu => {
-    formatVariables.forEach(v => {
-        const li = document.createElement('li');
-        li.innerHTML = `<a class="dropdown-item" href="#" data-var="${v.name}">
+    // 初始化格式變數下拉選單
+    document.querySelectorAll('.format-vars').forEach(menu => {
+        formatVariables.forEach(v => {
+            const li = document.createElement('li');
+            li.innerHTML = `<a class="dropdown-item" href="#" data-var="${v.name}">
             <code>${v.name}</code> - ${v.description}
             <small class="text-muted d-block">${v.example}</small>
         </a>`;
-        menu.appendChild(li);
+            menu.appendChild(li);
+        });
+
+        menu.addEventListener('click', (e) => {
+            e.preventDefault();
+            const item = e.target.closest('[data-var]');
+            if (item) {
+                const targetId = menu.dataset.target;
+                const input = document.getElementById(targetId);
+                const cursorPos = input.selectionStart;
+                const textBefore = input.value.substring(0, cursorPos);
+                const textAfter = input.value.substring(cursorPos);
+                input.value = textBefore + item.dataset.var + textAfter;
+                input.focus();
+                input.setSelectionRange(cursorPos + item.dataset.var.length, cursorPos + item.dataset.var.length);
+            }
+        });
     });
 
-    menu.addEventListener('click', (e) => {
-        e.preventDefault();
-        const item = e.target.closest('[data-var]');
-        if (item) {
-            const targetId = menu.dataset.target;
-            const input = document.getElementById(targetId);
-            const cursorPos = input.selectionStart;
-            const textBefore = input.value.substring(0, cursorPos);
-            const textAfter = input.value.substring(cursorPos);
-            input.value = textBefore + item.dataset.var + textAfter;
-            input.focus();
-            input.setSelectionRange(cursorPos + item.dataset.var.length, cursorPos + item.dataset.var.length);
+    // 載入設定
+    async function loadConfig() {
+        try {
+            const resp = await fetch('/api/config');
+            const result = await resp.json();
+            if (result.success) {
+                const config = result.data;
+
+                // Scraper 設定
+                document.getElementById('createFolder').checked = config.scraper.create_folder;
+                document.getElementById('folderFormat').value = config.scraper.folder_format;
+                document.getElementById('filenameFormat').value = config.scraper.filename_format;
+                document.getElementById('maxTitleLength').value = config.scraper.max_title_length;
+                document.getElementById('maxFilenameLength').value = config.scraper.max_filename_length;
+                document.getElementById('videoExtensions').value = config.scraper.video_extensions.join(', ');
+
+                // 搜尋設定
+                document.getElementById('autoSearchOnDrop').checked = config.search.auto_search_on_drop;
+
+                // 翻譯設定
+                document.getElementById('translateEnabled').checked = config.translate.enabled;
+                document.getElementById('translateProvider').value = config.translate.provider;
+                document.getElementById('ollamaUrl').value = config.translate.ollama_url;
+
+                updateTranslateOptions();
+
+                // AVList 設定
+                if (config.avlist) {
+                    document.getElementById('avlistMode').value = config.avlist.default_mode || 'image';
+                    document.getElementById('avlistSort').value = config.avlist.default_sort || 'date';
+                    document.getElementById('avlistOrder').value = config.avlist.default_order || 'descending';
+                    document.getElementById('avlistItemsPerPage').value = config.avlist.items_per_page || 90;
+                    document.getElementById('avlistMinSize').value = config.avlist.min_size_kb || 0;
+                    document.getElementById('avlistOutputDir').value = config.avlist.output_dir || 'output';
+                    document.getElementById('avlistOutputFilename').value = config.avlist.output_filename || 'avlist_output.html';
+                }
+
+                // 瀏覽器設定
+                if (config.viewer) {
+                    document.getElementById('viewerPlayer').value = config.viewer.player || '';
+                }
+
+                // 一般設定
+                if (config.general) {
+                    document.getElementById('defaultPage').value = config.general.default_page || 'search';
+                    document.getElementById('themeMode').value = config.general.theme || 'light';
+                }
+
+                // 自動載入模型列表（如果有 URL）
+                if (config.translate.ollama_url) {
+                    const savedModel = config.translate.ollama_model;
+                    await loadOllamaModels(config.translate.ollama_url, savedModel);
+                }
+            }
+        } catch (e) {
+            console.error('載入設定失敗:', e);
         }
-    });
-});
-
-// 載入設定
-async function loadConfig() {
-    try {
-        const resp = await fetch('/api/config');
-        const result = await resp.json();
-        if (result.success) {
-            const config = result.data;
-
-            // Scraper 設定
-            document.getElementById('createFolder').checked = config.scraper.create_folder;
-            document.getElementById('folderFormat').value = config.scraper.folder_format;
-            document.getElementById('filenameFormat').value = config.scraper.filename_format;
-            document.getElementById('maxTitleLength').value = config.scraper.max_title_length;
-            document.getElementById('maxFilenameLength').value = config.scraper.max_filename_length;
-            document.getElementById('videoExtensions').value = config.scraper.video_extensions.join(', ');
-
-            // 搜尋設定
-            document.getElementById('autoSearchOnDrop').checked = config.search.auto_search_on_drop;
-
-            // 翻譯設定
-            document.getElementById('translateEnabled').checked = config.translate.enabled;
-            document.getElementById('translateProvider').value = config.translate.provider;
-            document.getElementById('ollamaUrl').value = config.translate.ollama_url;
-
-            updateTranslateOptions();
-
-            // AVList 設定
-            if (config.avlist) {
-                document.getElementById('avlistMode').value = config.avlist.default_mode || 'image';
-                document.getElementById('avlistSort').value = config.avlist.default_sort || 'date';
-                document.getElementById('avlistOrder').value = config.avlist.default_order || 'descending';
-                document.getElementById('avlistItemsPerPage').value = config.avlist.items_per_page || 90;
-                document.getElementById('avlistMinSize').value = config.avlist.min_size_kb || 0;
-            }
-
-            // 瀏覽器設定
-            if (config.viewer) {
-                document.getElementById('viewerPlayer').value = config.viewer.player || '';
-            }
-
-            // 一般設定
-            if (config.general) {
-                document.getElementById('defaultPage').value = config.general.default_page || 'search';
-            }
-
-            // 自動載入模型列表（如果有 URL）
-            if (config.translate.ollama_url) {
-                const savedModel = config.translate.ollama_model;
-                await loadOllamaModels(config.translate.ollama_url, savedModel);
-            }
-        }
-    } catch (e) {
-        console.error('載入設定失敗:', e);
     }
-}
 
-// 儲存設定
-async function saveConfig() {
-    try {
-        // 先載入現有設定，避免覆蓋其他頁面的資料
-        const currentResp = await fetch('/api/config');
-        const currentResult = await currentResp.json();
-        if (!currentResult.success) {
-            showToast('載入現有設定失敗', 'danger');
+    // 儲存設定
+    async function saveConfig() {
+        try {
+            // 先載入現有設定，避免覆蓋其他頁面的資料
+            const currentResp = await fetch('/api/config');
+            const currentResult = await currentResp.json();
+            if (!currentResult.success) {
+                showToast('載入現有設定失敗', 'danger');
+                return;
+            }
+            const config = currentResult.data;
+
+            // 更新 scraper 設定
+            config.scraper = {
+                ...config.scraper,
+                create_folder: document.getElementById('createFolder').checked,
+                folder_format: document.getElementById('folderFormat').value,
+                filename_format: document.getElementById('filenameFormat').value,
+                max_title_length: parseInt(document.getElementById('maxTitleLength').value),
+                max_filename_length: parseInt(document.getElementById('maxFilenameLength').value),
+                video_extensions: document.getElementById('videoExtensions').value
+                    .split(',').map(s => s.trim()).filter(s => s)
+            };
+
+            // 更新 search 設定
+            config.search = {
+                ...config.search,
+                auto_search_on_drop: document.getElementById('autoSearchOnDrop').checked
+            };
+
+            // 更新 translate 設定
+            config.translate = {
+                ...config.translate,
+                enabled: document.getElementById('translateEnabled').checked,
+                provider: document.getElementById('translateProvider').value,
+                ollama_url: document.getElementById('ollamaUrl').value,
+                ollama_model: document.getElementById('ollamaModel').value
+            };
+
+            // 更新 avlist 設定
+            config.avlist = {
+                ...config.avlist,
+                default_mode: document.getElementById('avlistMode').value,
+                default_sort: document.getElementById('avlistSort').value,
+                default_order: document.getElementById('avlistOrder').value,
+                items_per_page: parseInt(document.getElementById('avlistItemsPerPage').value),
+                min_size_kb: parseInt(document.getElementById('avlistMinSize').value) || 0,
+                output_dir: document.getElementById('avlistOutputDir').value.trim() || 'output',
+                output_filename: document.getElementById('avlistOutputFilename').value.trim() || 'avlist_output.html'
+            };
+
+            // 更新 viewer 設定
+            config.viewer = {
+                ...config.viewer,
+                player: document.getElementById('viewerPlayer').value.trim()
+            };
+
+            // 更新 general 設定
+            config.general = {
+                ...config.general,
+                default_page: document.getElementById('defaultPage').value,
+                theme: document.getElementById('themeMode').value
+            };
+
+            const resp = await fetch('/api/config', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+            const result = await resp.json();
+            if (result.success) {
+                showToast('設定已儲存', 'success');
+                // 即時套用主題
+                const newTheme = document.getElementById('themeMode').value;
+                document.documentElement.setAttribute('data-theme', newTheme);
+            } else {
+                showToast('儲存失敗: ' + result.error, 'danger');
+            }
+        } catch (e) {
+            showToast('儲存失敗: ' + e.message, 'danger');
+        }
+    }
+
+    // 更新翻譯選項顯示
+    function updateTranslateOptions() {
+        const enabled = document.getElementById('translateEnabled').checked;
+        document.getElementById('translateOptions').style.opacity = enabled ? '1' : '0.5';
+        document.querySelectorAll('#translateOptions input, #translateOptions select').forEach(el => {
+            el.disabled = !enabled;
+        });
+    }
+
+    // 選擇輸出資料夾 (PyWebView)
+    async function selectOutputFolder() {
+        if (typeof window.pywebview === 'undefined' || !window.pywebview.api) {
+            alert('此功能需要在桌面應用程式中使用');
             return;
         }
-        const config = currentResult.data;
 
-        // 更新 scraper 設定
-        config.scraper = {
-            ...config.scraper,
-            create_folder: document.getElementById('createFolder').checked,
-            folder_format: document.getElementById('folderFormat').value,
-            filename_format: document.getElementById('filenameFormat').value,
-            max_title_length: parseInt(document.getElementById('maxTitleLength').value),
-            max_filename_length: parseInt(document.getElementById('maxFilenameLength').value),
-            video_extensions: document.getElementById('videoExtensions').value
-                .split(',').map(s => s.trim()).filter(s => s)
-        };
-
-        // 更新 search 設定
-        config.search = {
-            ...config.search,
-            auto_search_on_drop: document.getElementById('autoSearchOnDrop').checked
-        };
-
-        // 更新 translate 設定
-        config.translate = {
-            ...config.translate,
-            enabled: document.getElementById('translateEnabled').checked,
-            provider: document.getElementById('translateProvider').value,
-            ollama_url: document.getElementById('ollamaUrl').value,
-            ollama_model: document.getElementById('ollamaModel').value
-        };
-
-        // 更新 avlist 設定（保留 directories, output_dir 等不在此頁面管理的欄位）
-        config.avlist = {
-            ...config.avlist,
-            default_mode: document.getElementById('avlistMode').value,
-            default_sort: document.getElementById('avlistSort').value,
-            default_order: document.getElementById('avlistOrder').value,
-            items_per_page: parseInt(document.getElementById('avlistItemsPerPage').value),
-            min_size_kb: parseInt(document.getElementById('avlistMinSize').value) || 0
-        };
-
-        // 更新 viewer 設定
-        config.viewer = {
-            ...config.viewer,
-            player: document.getElementById('viewerPlayer').value.trim()
-        };
-
-        // 更新 general 設定
-        config.general = {
-            ...config.general,
-            default_page: document.getElementById('defaultPage').value
-        };
-
-        const resp = await fetch('/api/config', {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(config)
-        });
-        const result = await resp.json();
-        if (result.success) {
-            showToast('設定已儲存', 'success');
-        } else {
-            showToast('儲存失敗: ' + result.error, 'danger');
-        }
-    } catch (e) {
-        showToast('儲存失敗: ' + e.message, 'danger');
-    }
-}
-
-// 更新翻譯選項顯示
-function updateTranslateOptions() {
-    const enabled = document.getElementById('translateEnabled').checked;
-    document.getElementById('translateOptions').style.opacity = enabled ? '1' : '0.5';
-    document.querySelectorAll('#translateOptions input, #translateOptions select').forEach(el => {
-        el.disabled = !enabled;
-    });
-}
-
-// Toast 提示
-function showToast(message, type = 'info') {
-    // 簡單的 alert，可以之後改成 Bootstrap toast
-    if (type === 'success') {
-        alert(message);
-    } else {
-        alert('錯誤: ' + message);
-    }
-}
-
-// 載入 Ollama 模型列表（靜默版本，頁面載入時使用）
-async function loadOllamaModels(url, savedModel = '') {
-    const statusEl = document.getElementById('ollamaStatus');
-    const modelSelect = document.getElementById('ollamaModel');
-
-    if (!url) return;
-
-    statusEl.innerHTML = '<span class="text-muted">載入模型中...</span>';
-
-    try {
-        const resp = await fetch(`/api/ollama/models?url=${encodeURIComponent(url)}`);
-        const result = await resp.json();
-
-        if (result.success && result.models && result.models.length > 0) {
-            modelSelect.innerHTML = result.models.map(m =>
-                `<option value="${m}">${m}</option>`
-            ).join('');
-
-            // 設定儲存的模型
-            if (savedModel && result.models.includes(savedModel)) {
-                modelSelect.value = savedModel;
+        try {
+            const result = await window.pywebview.api.select_folder();
+            if (result && result.folder) {
+                document.getElementById('avlistOutputDir').value = result.folder;
             }
-
-            statusEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> ${result.models.length} 個模型</span>`;
-        } else {
-            statusEl.innerHTML = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> ${result.error || '無法連線'}</span>`;
+        } catch (e) {
+            console.error('選擇資料夾失敗:', e);
         }
-    } catch (e) {
-        statusEl.innerHTML = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> 無法連線</span>`;
-    }
-}
-
-// 測試 Ollama 連線並載入模型
-async function testOllamaConnection() {
-    const url = document.getElementById('ollamaUrl').value.trim();
-    const statusEl = document.getElementById('ollamaStatus');
-    const modelSelect = document.getElementById('ollamaModel');
-    const btn = document.getElementById('testOllamaBtn');
-
-    if (!url) {
-        statusEl.innerHTML = '<span class="text-danger">請輸入 URL</span>';
-        return;
     }
 
-    // 顯示載入中
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-    statusEl.innerHTML = '<span class="text-muted">連線中...</span>';
-
-    try {
-        const resp = await fetch(`/api/ollama/models?url=${encodeURIComponent(url)}`);
-        const result = await resp.json();
-
-        if (result.success && result.models && result.models.length > 0) {
-            // 成功：填入模型選單
-            const currentModel = modelSelect.value;
-            modelSelect.innerHTML = result.models.map(m =>
-                `<option value="${m}">${m}</option>`
-            ).join('');
-
-            // 保留之前選擇的模型（如果還存在）
-            if (currentModel && result.models.includes(currentModel)) {
-                modelSelect.value = currentModel;
-            }
-
-            statusEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> 已連線，${result.models.length} 個模型</span>`;
+    // Toast 提示
+    function showToast(message, type = 'info') {
+        // 簡單的 alert，可以之後改成 Bootstrap toast
+        if (type === 'success') {
+            alert(message);
         } else {
-            statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${result.error || '無可用模型'}</span>`;
+            alert('錯誤: ' + message);
+        }
+    }
+
+    // 載入 Ollama 模型列表（靜默版本，頁面載入時使用）
+    async function loadOllamaModels(url, savedModel = '') {
+        const statusEl = document.getElementById('ollamaStatus');
+        const modelSelect = document.getElementById('ollamaModel');
+
+        if (!url) return;
+
+        statusEl.innerHTML = '<span class="text-muted">載入模型中...</span>';
+
+        try {
+            const resp = await fetch(`/api/ollama/models?url=${encodeURIComponent(url)}`);
+            const result = await resp.json();
+
+            if (result.success && result.models && result.models.length > 0) {
+                modelSelect.innerHTML = result.models.map(m =>
+                    `<option value="${m}">${m}</option>`
+                ).join('');
+
+                // 設定儲存的模型
+                if (savedModel && result.models.includes(savedModel)) {
+                    modelSelect.value = savedModel;
+                }
+
+                statusEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> ${result.models.length} 個模型</span>`;
+            } else {
+                statusEl.innerHTML = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> ${result.error || '無法連線'}</span>`;
+            }
+        } catch (e) {
+            statusEl.innerHTML = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> 無法連線</span>`;
+        }
+    }
+
+    // 測試 Ollama 連線並載入模型
+    async function testOllamaConnection() {
+        const url = document.getElementById('ollamaUrl').value.trim();
+        const statusEl = document.getElementById('ollamaStatus');
+        const modelSelect = document.getElementById('ollamaModel');
+        const btn = document.getElementById('testOllamaBtn');
+
+        if (!url) {
+            statusEl.innerHTML = '<span class="text-danger">請輸入 URL</span>';
+            return;
+        }
+
+        // 顯示載入中
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        statusEl.innerHTML = '<span class="text-muted">連線中...</span>';
+
+        try {
+            const resp = await fetch(`/api/ollama/models?url=${encodeURIComponent(url)}`);
+            const result = await resp.json();
+
+            if (result.success && result.models && result.models.length > 0) {
+                // 成功：填入模型選單
+                const currentModel = modelSelect.value;
+                modelSelect.innerHTML = result.models.map(m =>
+                    `<option value="${m}">${m}</option>`
+                ).join('');
+
+                // 保留之前選擇的模型（如果還存在）
+                if (currentModel && result.models.includes(currentModel)) {
+                    modelSelect.value = currentModel;
+                }
+
+                statusEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> 已連線，${result.models.length} 個模型</span>`;
+            } else {
+                statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${result.error || '無可用模型'}</span>`;
+                modelSelect.innerHTML = '<option value="">-- 連線失敗 --</option>';
+            }
+        } catch (e) {
+            statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${e.message}</span>`;
             modelSelect.innerHTML = '<option value="">-- 連線失敗 --</option>';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-plug"></i> 測試';
         }
-    } catch (e) {
-        statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${e.message}</span>`;
-        modelSelect.innerHTML = '<option value="">-- 連線失敗 --</option>';
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-plug"></i> 測試';
-    }
-}
-
-// 測試模型是否能正常回應
-async function testModel() {
-    const url = document.getElementById('ollamaUrl').value.trim();
-    const model = document.getElementById('ollamaModel').value;
-    const statusEl = document.getElementById('modelStatus');
-    const btn = document.getElementById('testModelBtn');
-
-    if (!url || !model) {
-        statusEl.innerHTML = '<span class="text-danger">請先選擇模型</span>';
-        return;
     }
 
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-    statusEl.innerHTML = '<span class="text-muted">測試中...</span>';
+    // 測試模型是否能正常回應
+    async function testModel() {
+        const url = document.getElementById('ollamaUrl').value.trim();
+        const model = document.getElementById('ollamaModel').value;
+        const statusEl = document.getElementById('modelStatus');
+        const btn = document.getElementById('testModelBtn');
 
-    try {
-        // 直接調用 Ollama API 測試當前選擇的模型
-        const resp = await fetch('/api/ollama/test', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url, model })
-        });
-        const result = await resp.json();
-
-        if (result.success) {
-            statusEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> ${result.result}</span>`;
-        } else {
-            statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${result.error}</span>`;
+        if (!url || !model) {
+            statusEl.innerHTML = '<span class="text-danger">請先選擇模型</span>';
+            return;
         }
-    } catch (e) {
-        statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${e.message}</span>`;
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="bi bi-chat-dots"></i> 測試';
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        statusEl.innerHTML = '<span class="text-muted">測試中...</span>';
+
+        try {
+            // 直接調用 Ollama API 測試當前選擇的模型
+            const resp = await fetch('/api/ollama/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url, model })
+            });
+            const result = await resp.json();
+
+            if (result.success) {
+                statusEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> ${result.result}</span>`;
+            } else {
+                statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${result.error}</span>`;
+            }
+        } catch (e) {
+            statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${e.message}</span>`;
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-chat-dots"></i> 測試';
+        }
     }
-}
 
-// 事件綁定
-document.getElementById('translateEnabled').addEventListener('change', updateTranslateOptions);
-document.getElementById('testOllamaBtn').addEventListener('click', testOllamaConnection);
-document.getElementById('testModelBtn').addEventListener('click', testModel);
+    // 事件綁定
+    document.getElementById('translateEnabled').addEventListener('change', updateTranslateOptions);
+    document.getElementById('testOllamaBtn').addEventListener('click', testOllamaConnection);
+    document.getElementById('testModelBtn').addEventListener('click', testModel);
 
-document.getElementById('settingsForm').addEventListener('submit', (e) => {
-    e.preventDefault();
-    saveConfig();
-});
+    document.getElementById('settingsForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        saveConfig();
+    });
 
-document.getElementById('resetBtn').addEventListener('click', () => {
-    if (confirm('確定要重置所有設定嗎？')) {
-        loadConfig();
-    }
-});
+    document.getElementById('resetBtn').addEventListener('click', () => {
+        if (confirm('確定要重置所有設定嗎？')) {
+            loadConfig();
+        }
+    });
 
-// 初始載入
-loadConfig();
+    // 初始載入
+    loadConfig();
 </script>
 {% endblock %}

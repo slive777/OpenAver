@@ -64,39 +64,41 @@
 
 {% block extra_js %}
 <script>
-// 檢查列表是否存在並載入
-async function loadViewer() {
-    try {
-        const resp = await fetch('/api/avlist/stats');
-        const result = await resp.json();
+    // 檢查列表是否存在並載入
+    async function loadViewer() {
+        try {
+            const resp = await fetch('/api/avlist/stats');
+            const result = await resp.json();
 
-        if (result.success && result.data && result.data.total > 0) {
-            // 有列表，載入 iframe
-            const frame = document.getElementById('viewerFrame');
-            const placeholder = document.getElementById('placeholder');
+            if (result.success && result.data && result.data.total > 0) {
+                // 有列表，載入 iframe
+                const frame = document.getElementById('viewerFrame');
+                const placeholder = document.getElementById('placeholder');
 
-            placeholder.style.display = 'none';
-            frame.style.display = 'block';
-            frame.src = '/api/avlist/view';
+                placeholder.style.display = 'none';
+                frame.style.display = 'block';
+                // 獲取當前主題並傳遞給 iframe
+                const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+                frame.src = '/api/avlist/view?theme=' + currentTheme;
 
-            // 等待 iframe 載入完成後注入外部播放器腳本
-            frame.onload = function() {
-                injectExternalPlayerScript(frame);
-            };
+                // 等待 iframe 載入完成後注入外部播放器腳本
+                frame.onload = function () {
+                    injectExternalPlayerScript(frame);
+                };
+            }
+        } catch (e) {
+            console.error('載入失敗:', e);
         }
-    } catch (e) {
-        console.error('載入失敗:', e);
     }
-}
 
-// 注入外部播放器腳本
-function injectExternalPlayerScript(frame) {
-    try {
-        const frameDoc = frame.contentDocument || frame.contentWindow.document;
+    // 注入外部播放器腳本
+    function injectExternalPlayerScript(frame) {
+        try {
+            const frameDoc = frame.contentDocument || frame.contentWindow.document;
 
-        // 覆蓋 playVideo 函數
-        const script = frameDoc.createElement('script');
-        script.textContent = `
+            // 覆蓋 playVideo 函數
+            const script = frameDoc.createElement('script');
+            script.textContent = `
             // 覆蓋原本的 playVideo 函數
             window.playVideo = function(path) {
                 console.log('[Viewer] playVideo called:', path);
@@ -120,15 +122,15 @@ function injectExternalPlayerScript(frame) {
             };
             console.log('[Viewer] playVideo overridden for external player');
         `;
-        frameDoc.body.appendChild(script);
-        console.log('[Viewer] External player script injected');
-    } catch (e) {
-        console.error('[Viewer] Failed to inject script:', e);
-        // 可能是跨域問題，忽略
+            frameDoc.body.appendChild(script);
+            console.log('[Viewer] External player script injected');
+        } catch (e) {
+            console.error('[Viewer] Failed to inject script:', e);
+            // 可能是跨域問題，忽略
+        }
     }
-}
 
-// 初始化
-loadViewer();
+    // 初始化
+    loadViewer();
 </script>
 {% endblock %}

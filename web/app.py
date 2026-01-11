@@ -39,6 +39,19 @@ app.include_router(translate_router.router)
 app.include_router(avlist_router.router)
 
 
+# ============ 輔助函數 ============
+
+def get_common_context(request: Request) -> dict:
+    """取得共用的模板 Context (包含設定)"""
+    from web.routers.config import load_config
+    config = load_config()
+    return {
+        "request": request,
+        "config": config,
+        "theme": config.get('general', {}).get('theme', 'light')
+    }
+
+
 # ============ 頁面路由 ============
 
 @app.get("/")
@@ -59,64 +72,57 @@ async def index(request: Request):
 @app.get("/search")
 async def search_page(request: Request):
     """搜尋頁面"""
-    return templates.TemplateResponse("search.html", {
-        "request": request,
-        "page": "search"
-    })
+    context = get_common_context(request)
+    context["page"] = "search"
+    return templates.TemplateResponse("search.html", context)
 
 
 @app.get("/scraper")
 async def scraper_page(request: Request):
     """刮削器頁面"""
-    return templates.TemplateResponse("scraper.html", {
-        "request": request,
-        "page": "scraper"
-    })
+    context = get_common_context(request)
+    context["page"] = "scraper"
+    return templates.TemplateResponse("scraper.html", context)
 
 
 @app.get("/updater")
 async def updater_page(request: Request):
     """更新器頁面"""
-    return templates.TemplateResponse("updater.html", {
-        "request": request,
-        "page": "updater"
-    })
+    context = get_common_context(request)
+    context["page"] = "updater"
+    return templates.TemplateResponse("updater.html", context)
 
 
 @app.get("/avlist")
 async def avlist_page(request: Request):
     """列表生成頁面"""
-    return templates.TemplateResponse("avlist.html", {
-        "request": request,
-        "page": "avlist"
-    })
+    context = get_common_context(request)
+    context["page"] = "avlist"
+    return templates.TemplateResponse("avlist.html", context)
 
 
 @app.get("/viewer")
 async def viewer_page(request: Request):
     """影片瀏覽頁面"""
-    return templates.TemplateResponse("viewer.html", {
-        "request": request,
-        "page": "viewer"
-    })
+    context = get_common_context(request)
+    context["page"] = "viewer"
+    return templates.TemplateResponse("viewer.html", context)
 
 
 @app.get("/settings")
 async def settings_page(request: Request):
     """設定頁面"""
-    return templates.TemplateResponse("settings.html", {
-        "request": request,
-        "page": "settings"
-    })
+    context = get_common_context(request)
+    context["page"] = "settings"
+    return templates.TemplateResponse("settings.html", context)
 
 
 @app.get("/help")
 async def help_page(request: Request):
     """使用說明頁面"""
-    return templates.TemplateResponse("help.html", {
-        "request": request,
-        "page": "help"
-    })
+    context = get_common_context(request)
+    context["page"] = "help"
+    return templates.TemplateResponse("help.html", context)
 
 
 # ============ API 路由（稍後移到 routers/）============
