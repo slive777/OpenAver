@@ -1,5 +1,5 @@
 """
-JavHelper Web GUI - FastAPI Application
+OpenAver Web GUI - FastAPI Application
 """
 from pathlib import Path
 
@@ -15,7 +15,7 @@ STATIC_DIR = BASE_DIR / "static"
 
 # FastAPI 應用
 app = FastAPI(
-    title="JavHelper",
+    title="OpenAver",
     description="JAV 影片元數據管理工具",
     version="0.1.0"
 )
@@ -31,12 +31,12 @@ from web.routers import search as search_router
 from web.routers import config as config_router
 from web.routers import scraper as scraper_router
 from web.routers import translate as translate_router
-from web.routers import avlist as avlist_router
+from web.routers import gallery as gallery_router
 app.include_router(search_router.router)
 app.include_router(config_router.router)
 app.include_router(scraper_router.router)
 app.include_router(translate_router.router)
-app.include_router(avlist_router.router)
+app.include_router(gallery_router.router)
 
 
 # ============ 輔助函數 ============
@@ -62,7 +62,7 @@ async def index(request: Request):
     default_page = config.get('general', {}).get('default_page', 'search')
 
     # 驗證頁面名稱
-    valid_pages = ['search', 'avlist', 'viewer']
+    valid_pages = ['search', 'gallery', 'showcase']
     if default_page not in valid_pages:
         default_page = 'search'
 
@@ -93,20 +93,20 @@ async def updater_page(request: Request):
     return templates.TemplateResponse("updater.html", context)
 
 
-@app.get("/avlist")
-async def avlist_page(request: Request):
-    """列表生成頁面"""
+@app.get("/gallery")
+async def gallery_page(request: Request):
+    """Gallery 頁面"""
     context = get_common_context(request)
-    context["page"] = "avlist"
-    return templates.TemplateResponse("avlist.html", context)
+    context["page"] = "gallery"
+    return templates.TemplateResponse("gallery.html", context)
 
 
-@app.get("/viewer")
-async def viewer_page(request: Request):
-    """影片瀏覽頁面"""
+@app.get("/showcase")
+async def showcase_page(request: Request):
+    """Showcase 頁面"""
     context = get_common_context(request)
-    context["page"] = "viewer"
-    return templates.TemplateResponse("viewer.html", context)
+    context["page"] = "showcase"
+    return templates.TemplateResponse("showcase.html", context)
 
 
 @app.get("/settings")

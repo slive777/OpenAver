@@ -39,10 +39,10 @@ class TranslateConfig(BaseModel):
     ollama_model: str = "qwen2.5:7b"
 
 
-class AVListConfig(BaseModel):
+class GalleryConfig(BaseModel):
     directories: List[str] = []
     output_dir: str = "output"
-    output_filename: str = "avlist_output.html"
+    output_filename: str = "gallery_output.html"
     path_mappings: dict = {}
     min_size_kb: int = 0
     default_mode: str = "image"
@@ -51,29 +51,48 @@ class AVListConfig(BaseModel):
     items_per_page: int = 90
 
 
-class ViewerConfig(BaseModel):
+class ShowcaseConfig(BaseModel):
     player: str = ""  # 播放器路徑，空字串使用系統預設
 
 
 class GeneralConfig(BaseModel):
-    default_page: str = "search"  # 預設開啟頁面: search, avlist, viewer
+    default_page: str = "search"  # 預設開啟頁面: search, gallery, showcase
     theme: str = "light"  # 主題模式: light, dark
+    sidebar_collapsed: bool = False  # 側邊欄預設收合 (僅影響 Desktop)
 
 
 class AppConfig(BaseModel):
     scraper: ScraperConfig = ScraperConfig()
     search: SearchConfig = SearchConfig()
     translate: TranslateConfig = TranslateConfig()
-    avlist: AVListConfig = AVListConfig()
-    viewer: ViewerConfig = ViewerConfig()
+    gallery: GalleryConfig = GalleryConfig()
+    showcase: ShowcaseConfig = ShowcaseConfig()
     general: GeneralConfig = GeneralConfig()
 
 
 def load_config() -> dict:
-    """載入設定"""
+    """載入設定，包含自動遷移邏輯"""
     if CONFIG_PATH.exists():
         with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            raw_config = json.load(f)
+
+        need_save = False
+
+        # Migration: avlist -> gallery
+        if 'avlist' in raw_config and 'gallery' not in raw_config:
+            raw_config['gallery'] = raw_config.pop('avlist')
+            need_save = True
+
+        # Migration: viewer -> showcase
+        if 'viewer' in raw_config and 'showcase' not in raw_config:
+            raw_config['showcase'] = raw_config.pop('viewer')
+            need_save = True
+
+        # Save migrated config
+        if need_save:
+            save_config(raw_config)
+
+        return raw_config
     # 返回預設設定
     return AppConfig().model_dump()
 
@@ -96,6 +115,17 @@ async def update_config(config: AppConfig) -> dict:
     try:
         save_config(config.model_dump())
         return {"success": True, "message": "設定已儲存"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.delete("/config")
+async def reset_config() -> dict:
+    """恢復原廠設定 - 刪除 config.json"""
+    try:
+        if CONFIG_PATH.exists():
+            CONFIG_PATH.unlink()
+        return {"success": True, "message": "已恢復預設設定"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 

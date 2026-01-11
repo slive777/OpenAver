@@ -1,8 +1,8 @@
-# JavHelper
+# OpenAver
 
 **現代化的 JAV 影片元數據管理工具 (Modern JAV Metadata Manager)**
 
-JavHelper 是一個基於 Web 技術的桌面應用程式，旨在幫助您輕鬆管理、刮削和生成 JAV 影片的元數據與展示列表。
+OpenAver 是一個基於 Web 技術的桌面應用程式，旨在幫助您輕鬆管理、刮削和生成 JAV 影片的元數據與展示列表。
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)
@@ -42,8 +42,8 @@ JavHelper 是一個基於 Web 技術的桌面應用程式，旨在幫助您輕�
 ### 安裝
 ```bash
 # 1. Clone 專案
-git clone https://github.com/your-repo/JavHelper.git
-cd JavHelper
+git clone https://github.com/your-repo/OpenAver.git
+cd OpenAver
 
 # 2. 建立虛擬環境
 python3 -m venv venv
@@ -74,7 +74,7 @@ pytest
 ## 📂 目錄結構
 
 ```
-JavHelper/
+OpenAver/
 ├── web/                # Web GUI (FastAPI)
 │   ├── routers/        # API Endpoints
 │   ├── templates/      # HTML Templates (Gallery Style)
@@ -82,6 +82,13 @@ JavHelper/
 ├── core/               # 核心邏輯 (Scraper, Generator)
 ├── tests/              # 測試代碼
 └── windows/            # Windows 啟動器
+```
+## 打包 Windows 應用程式
+
+```bash
+# 確保在 venv 環境下執行
+source venv/bin/activate
+python build.py
 ```
 
 ## License

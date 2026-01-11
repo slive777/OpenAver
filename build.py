@@ -1,5 +1,5 @@
 """
-JavHelper Windows 打包腳本
+OpenAver Windows 打包腳本
 在 WSL/Linux 環境下打包出 Windows 可用的 ZIP
 
 使用方式：
@@ -120,7 +120,7 @@ def download_embedded_python():
     """下載嵌入式 Python（使用緩存）"""
     print("\n[2/6] 準備嵌入式 Python...")
 
-    python_dir = BUILD_DIR / "JavHelper" / "python"
+    python_dir = BUILD_DIR / "OpenAver" / "python"
     python_dir.mkdir(parents=True)
 
     # 檢查緩存
@@ -245,7 +245,7 @@ def copy_project_files():
     """複製專案檔案"""
     print("\n[5/6] 複製專案檔案...")
 
-    app_dir = BUILD_DIR / "JavHelper" / "app"
+    app_dir = BUILD_DIR / "OpenAver" / "app"
     app_dir.mkdir(parents=True)
 
     for item in COPY_ITEMS:
@@ -272,33 +272,33 @@ def create_launcher_scripts():
     """建立啟動腳本和說明檔"""
     print("  建立啟動腳本...")
 
-    root_dir = BUILD_DIR / "JavHelper"
+    root_dir = BUILD_DIR / "OpenAver"
 
-    # JavHelper.bat - 顯示簡單日誌後用 pythonw.exe 啟動（無控制台）
+    # OpenAver.bat - 顯示簡單日誌後用 pythonw.exe 啟動（無控制台）
     bat_content = '''@echo off
 cd /d "%~dp0"
-echo JavHelper starting...
+echo OpenAver starting...
 echo Window will appear shortly...
 start "" "python\\pythonw.exe" "app\\windows\\standalone.py"
 ping -n 3 127.0.0.1 >nul
 '''
-    (root_dir / "JavHelper.bat").write_text(bat_content, encoding='utf-8')
+    (root_dir / "OpenAver.bat").write_text(bat_content, encoding='utf-8')
 
-    # JavHelper_Debug.bat - 有控制台版本（用於調試）
+    # OpenAver_Debug.bat - 有控制台版本（用於調試）
     debug_bat_content = '''@echo off
 cd /d "%~dp0"
 "python\\python.exe" "app\\windows\\standalone.py"
 pause
 '''
-    (root_dir / "JavHelper_Debug.bat").write_text(debug_bat_content, encoding='utf-8')
+    (root_dir / "OpenAver_Debug.bat").write_text(debug_bat_content, encoding='utf-8')
 
     # README.txt
-    readme_content = '''JavHelper - JAV 影片元數據管理工具
+    readme_content = '''OpenAver - JAV 影片元數據管理工具
 ====================================
 
 使用方法：
-1. 雙擊 JavHelper.bat 啟動應用程式
-2. 如遇問題，請使用 JavHelper_Debug.bat 查看錯誤訊息
+1. 雙擊 OpenAver.bat 啟動應用程式
+2. 如遇問題，請使用 OpenAver_Debug.bat 查看錯誤訊息
 
 系統需求：
 - Windows 10/11 64位元
@@ -310,7 +310,7 @@ pause
 '''
     (root_dir / "README.txt").write_text(readme_content, encoding='utf-8')
 
-    print("  已建立: JavHelper.bat, JavHelper_Debug.bat, README.txt")
+    print("  已建立: OpenAver.bat, OpenAver_Debug.bat, README.txt")
 
 
 def create_zip_package():
@@ -319,7 +319,7 @@ def create_zip_package():
 
     DIST_DIR.mkdir(parents=True, exist_ok=True)
 
-    zip_name = "JavHelper-Windows-x64"
+    zip_name = "OpenAver-Windows-x64"
     zip_path = DIST_DIR / f"{zip_name}.zip"
 
     # 刪除舊的 ZIP
@@ -331,7 +331,7 @@ def create_zip_package():
         str(DIST_DIR / zip_name),
         'zip',
         BUILD_DIR,
-        "JavHelper"
+        "OpenAver"
     )
 
     # 計算檔案大小
@@ -344,7 +344,7 @@ def create_zip_package():
 def main():
     """主程序"""
     print("=" * 50)
-    print("JavHelper Windows 打包工具")
+    print("OpenAver Windows 打包工具")
     print("=" * 50)
 
     try:

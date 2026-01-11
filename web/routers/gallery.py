@@ -15,13 +15,13 @@ from fastapi.responses import StreamingResponse, HTMLResponse, Response, FileRes
 # 加入 core 模組路徑
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core.avlist_scanner import VideoScanner, load_cache, save_cache, fast_scan_directory, VIDEO_EXTENSIONS, VideoInfo
-from core.avlist_generator import HTMLGenerator
+from core.gallery_scanner import VideoScanner, load_cache, save_cache, fast_scan_directory, VIDEO_EXTENSIONS, VideoInfo
+from core.gallery_generator import HTMLGenerator
 from core.path_utils import normalize_path
 from core.nfo_updater import check_cache_needs_update, update_videos_generator
 from web.routers.config import load_config
 
-router = APIRouter(prefix="/api/avlist", tags=["avlist"])
+router = APIRouter(prefix="/api/gallery", tags=["gallery"])
 
 
 def generate_avlist() -> Generator[str, None, None]:
@@ -33,19 +33,19 @@ def generate_avlist() -> Generator[str, None, None]:
     try:
         # 載入設定
         config = load_config()
-        avlist_config = config.get('avlist', {})
+        gallery_config = config.get('gallery', {})
 
-        directories = avlist_config.get('directories', [])
-        output_dir = avlist_config.get('output_dir', 'output')
-        output_filename = avlist_config.get('output_filename', 'avlist_output.html')
-        path_mappings = avlist_config.get('path_mappings', {})
-        min_size_kb = avlist_config.get('min_size_kb', 0)
+        directories = gallery_config.get('directories', [])
+        output_dir = gallery_config.get('output_dir', 'output')
+        output_filename = gallery_config.get('output_filename', 'gallery_output.html')
+        path_mappings = gallery_config.get('path_mappings', {})
+        min_size_kb = gallery_config.get('min_size_kb', 0)
 
         # 預設顯示設定
-        default_mode = avlist_config.get('default_mode', 'image')
-        default_sort = avlist_config.get('default_sort', 'date')
-        default_order = avlist_config.get('default_order', 'descending')
-        items_per_page = avlist_config.get('items_per_page', 90)
+        default_mode = gallery_config.get('default_mode', 'image')
+        default_sort = gallery_config.get('default_sort', 'date')
+        default_order = gallery_config.get('default_order', 'descending')
+        items_per_page = gallery_config.get('items_per_page', 90)
         
         # 取得全域主題設定
         default_theme = config.get('general', {}).get('theme', 'light')
@@ -247,9 +247,9 @@ async def get_stats():
     """取得 AVList 統計資訊（從快取檔案讀取）"""
     try:
         config = load_config()
-        avlist_config = config.get('avlist', {})
-        output_dir = avlist_config.get('output_dir', 'output')
-        output_filename = avlist_config.get('output_filename', 'avlist_output.html')
+        gallery_config = config.get('gallery', {})
+        output_dir = gallery_config.get('output_dir', 'output')
+        output_filename = gallery_config.get('output_filename', 'gallery_output.html')
 
         project_root = Path(__file__).parent.parent.parent
         cache_path = project_root / output_dir / output_filename.replace('.html', '_cache.json')
@@ -280,9 +280,9 @@ async def check_update():
     """檢查需要更新的影片數量"""
     try:
         config = load_config()
-        avlist_config = config.get('avlist', {})
-        output_dir = avlist_config.get('output_dir', 'output')
-        output_filename = avlist_config.get('output_filename', 'avlist_output.html')
+        gallery_config = config.get('gallery', {})
+        output_dir = gallery_config.get('output_dir', 'output')
+        output_filename = gallery_config.get('output_filename', 'gallery_output.html')
 
         project_root = Path(__file__).parent.parent.parent
         cache_path = project_root / output_dir / output_filename.replace('.html', '_cache.json')
@@ -319,9 +319,9 @@ def generate_nfo_update() -> Generator[str, None, None]:
 
     try:
         config = load_config()
-        avlist_config = config.get('avlist', {})
-        output_dir = avlist_config.get('output_dir', 'output')
-        output_filename = avlist_config.get('output_filename', 'avlist_output.html')
+        gallery_config = config.get('gallery', {})
+        output_dir = gallery_config.get('output_dir', 'output')
+        output_filename = gallery_config.get('output_filename', 'gallery_output.html')
 
         project_root = Path(__file__).parent.parent.parent
         cache_path = project_root / output_dir / output_filename.replace('.html', '_cache.json')
@@ -380,9 +380,9 @@ async def view_list():
     """取得產生的 HTML 列表檔案（修改圖片路徑為 API 代理）"""
     try:
         config = load_config()
-        avlist_config = config.get('avlist', {})
-        output_dir = avlist_config.get('output_dir', 'output')
-        output_filename = avlist_config.get('output_filename', 'avlist_output.html')
+        gallery_config = config.get('gallery', {})
+        output_dir = gallery_config.get('output_dir', 'output')
+        output_filename = gallery_config.get('output_filename', 'gallery_output.html')
 
         project_root = Path(__file__).parent.parent.parent
         html_path = project_root / output_dir / output_filename
@@ -397,7 +397,7 @@ async def view_list():
             content = f.read()
 
         # 將 file:/// 圖片路徑替換為 API 代理路徑（只替換圖片，不替換影片）
-        # file:///C:/path/to/image.jpg -> /api/avlist/image?path=C:/path/to/image.jpg
+        # file:///C:/path/to/image.jpg -> /api/gallery/image?path=C:/path/to/image.jpg
         import re
         from urllib.parse import quote
 
@@ -409,7 +409,7 @@ async def view_list():
             # 只替換圖片路徑
             if file_path.lower().endswith(image_extensions):
                 encoded_path = quote(file_path, safe='')
-                return f'/api/avlist/image?path={encoded_path}'
+                return f'/api/gallery/image?path={encoded_path}'
             # 非圖片保持原樣
             return match.group(0)
 

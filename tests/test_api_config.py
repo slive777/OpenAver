@@ -8,12 +8,12 @@ def test_get_config(client, temp_config_path):
     data = response.json()
     assert data["success"] is True
     assert "scraper" in data["data"]
-    assert "avlist" in data["data"]
+    assert "gallery" in data["data"]
     
     # 驗證 Phase 3.2 新增的欄位
-    avlist = data["data"]["avlist"]
-    assert "output_dir" in avlist
-    assert "output_filename" in avlist
+    gallery = data["data"]["gallery"]
+    assert "output_dir" in gallery
+    assert "output_filename" in gallery
 
 def test_update_config(client, temp_config_path):
     """測試更新設定"""
@@ -22,8 +22,8 @@ def test_update_config(client, temp_config_path):
     current_config = response.json()["data"]
     
     # 修改設定
-    current_config["avlist"]["output_dir"] = "test_output"
-    current_config["avlist"]["output_filename"] = "test.html"
+    current_config["gallery"]["output_dir"] = "test_output"
+    current_config["gallery"]["output_filename"] = "test.html"
     current_config["general"]["theme"] = "dark"
     
     # PUT 更新
@@ -34,8 +34,8 @@ def test_update_config(client, temp_config_path):
     # 再次獲取驗證
     response = client.get("/api/config")
     new_config = response.json()["data"]
-    assert new_config["avlist"]["output_dir"] == "test_output"
-    assert new_config["avlist"]["output_filename"] == "test.html"
+    assert new_config["gallery"]["output_dir"] == "test_output"
+    assert new_config["gallery"]["output_filename"] == "test.html"
     assert new_config["general"]["theme"] == "dark"
 
 def test_config_persistence(client, temp_config_path):

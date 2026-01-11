@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}影片瀏覽 - JavHelper{% endblock %}
+{% block title %}影片瀏覽 - OpenAver{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -54,7 +54,7 @@
     <div class="viewer-placeholder" id="placeholder">
         <i class="bi bi-collection-play"></i>
         <p>尚未產生影片列表</p>
-        <a href="/avlist" class="btn btn-primary">
+        <a href="/gallery" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> 產生列表
         </a>
     </div>
@@ -67,7 +67,7 @@
     // 檢查列表是否存在並載入
     async function loadViewer() {
         try {
-            const resp = await fetch('/api/avlist/stats');
+            const resp = await fetch('/api/gallery/stats');
             const result = await resp.json();
 
             if (result.success && result.data && result.data.total > 0) {
@@ -79,7 +79,7 @@
                 frame.style.display = 'block';
                 // 獲取當前主題並傳遞給 iframe
                 const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-                frame.src = '/api/avlist/view?theme=' + currentTheme;
+                frame.src = '/api/gallery/view?theme=' + currentTheme;
 
                 // 等待 iframe 載入完成後注入外部播放器腳本
                 frame.onload = function () {

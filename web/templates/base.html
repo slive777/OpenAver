@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-TW" data-theme="{{ theme|default('light') }}">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}JavHelper{% endblock %}</title>
+    <title>{% block title %}OpenAver{% endblock %}</title>
 
     <!-- Theme CSS -->
     <link href="/static/css/theme.css" rel="stylesheet">
@@ -63,6 +64,7 @@
             cursor: pointer;
             flex-shrink: 0;
         }
+
         .sidebar-toggle:hover {
             color: #fff;
         }
@@ -149,9 +151,11 @@
             .sidebar {
                 display: flex !important;
             }
+
             .main-content {
                 margin-left: var(--sidebar-width);
             }
+
             body.sidebar-collapsed .main-content {
                 margin-left: var(--sidebar-collapsed-width);
             }
@@ -162,9 +166,11 @@
             .sidebar {
                 display: none !important;
             }
+
             .main-content {
                 margin-left: 0 !important;
-                padding-top: 56px; /* 頂部導航列高度 */
+                padding-top: 56px;
+                /* 頂部導航列高度 */
             }
         }
 
@@ -177,21 +183,24 @@
         .offcanvas {
             background-color: var(--bg-sidebar) !important;
         }
-        
+
         .offcanvas-nav .nav-link {
             color: rgba(255, 255, 255, 0.8);
             padding: 0.75rem 1rem;
             border-radius: 0.25rem;
             margin: 0.25rem 0.5rem;
         }
+
         .offcanvas-nav .nav-link:hover {
             color: #fff;
             background-color: rgba(255, 255, 255, 0.1);
         }
+
         .offcanvas-nav .nav-link.active {
             color: #fff;
             background-color: #0d6efd;
         }
+
         .offcanvas-nav .nav-link i {
             width: 24px;
             margin-right: 0.5rem;
@@ -200,61 +209,56 @@
 
     {% block extra_css %}{% endblock %}
 </head>
+
 <body>
     <!-- 頂部導航列（僅小螢幕顯示）-->
     <nav class="navbar navbar-dark bg-dark d-lg-none fixed-top top-navbar">
         <div class="container-fluid">
-            <button class="btn btn-dark" type="button"
-                    data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas"
-                    aria-controls="sidebarOffcanvas">
+            <button class="btn btn-dark" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas"
+                aria-controls="sidebarOffcanvas">
                 <i class="bi bi-list fs-4"></i>
             </button>
             <span class="navbar-brand mb-0 h5">
-                <i class="bi bi-film"></i> JavHelper
+                <i class="bi bi-film"></i> OpenAver
             </span>
             <span style="width: 40px;"></span>
         </div>
     </nav>
 
     <!-- Offcanvas 側邊選單（小螢幕）-->
-    <div class="offcanvas offcanvas-start bg-dark d-lg-none" tabindex="-1"
-         id="sidebarOffcanvas" aria-labelledby="sidebarOffcanvasLabel">
+    <div class="offcanvas offcanvas-start bg-dark d-lg-none" tabindex="-1" id="sidebarOffcanvas"
+        aria-labelledby="sidebarOffcanvasLabel">
         <div class="offcanvas-header border-bottom border-secondary">
             <h5 class="offcanvas-title text-white" id="sidebarOffcanvasLabel">
-                <i class="bi bi-film"></i> JavHelper
+                <i class="bi bi-film"></i> OpenAver
             </h5>
-            <button type="button" class="btn-close btn-close-white"
-                    data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"
+                aria-label="Close"></button>
         </div>
         <div class="offcanvas-body p-0">
             <ul class="nav flex-column offcanvas-nav">
                 <li class="nav-item">
-                    <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search"
-                       data-bs-dismiss="offcanvas">
+                    <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search">
                         <i class="bi bi-search"></i> 搜尋
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if page == 'avlist' %}active{% endif %}" href="/avlist"
-                       data-bs-dismiss="offcanvas">
+                    <a class="nav-link {% if page == 'gallery' %}active{% endif %}" href="/gallery">
                         <i class="bi bi-list-ul"></i> 列表生成
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if page == 'viewer' %}active{% endif %}" href="/viewer"
-                       data-bs-dismiss="offcanvas">
+                    <a class="nav-link {% if page == 'showcase' %}active{% endif %}" href="/showcase">
                         <i class="bi bi-collection-play"></i> 瀏覽
                     </a>
                 </li>
                 <li class="nav-item mt-3">
-                    <a class="nav-link {% if page == 'help' %}active{% endif %}" href="/help"
-                       data-bs-dismiss="offcanvas">
+                    <a class="nav-link {% if page == 'help' %}active{% endif %}" href="/help">
                         <i class="bi bi-question-circle"></i> 說明
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings"
-                       data-bs-dismiss="offcanvas">
+                    <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings">
                         <i class="bi bi-gear"></i> 設定
                     </a>
                 </li>
@@ -268,7 +272,7 @@
             <button class="sidebar-toggle" id="sidebarToggle" title="展開/收合">
                 <i class="bi bi-list"></i>
             </button>
-            <span class="sidebar-brand"><i class="bi bi-film"></i> JavHelper</span>
+            <span class="sidebar-brand"><i class="bi bi-film"></i> OpenAver</span>
         </div>
         <ul class="nav flex-column flex-grow-1">
             <li class="nav-item">
@@ -278,13 +282,13 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if page == 'avlist' %}active{% endif %}" href="/avlist" title="列表生成">
+                <a class="nav-link {% if page == 'gallery' %}active{% endif %}" href="/gallery" title="列表生成">
                     <i class="bi bi-list-ul"></i>
                     <span class="nav-text">列表生成</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if page == 'viewer' %}active{% endif %}" href="/viewer" title="瀏覽">
+                <a class="nav-link {% if page == 'showcase' %}active{% endif %}" href="/showcase" title="瀏覽">
                     <i class="bi bi-collection-play"></i>
                     <span class="nav-text">瀏覽</span>
                 </a>
@@ -313,27 +317,41 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-    // 側邊欄展開/收合
-    (function() {
-        const sidebar = document.getElementById('sidebar');
-        const toggle = document.getElementById('sidebarToggle');
-        const STORAGE_KEY = 'sidebar_collapsed';
+        // 側邊欄展開/收合
+        (function () {
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            const STORAGE_KEY = 'sidebar_collapsed';
 
-        // 讀取儲存狀態
-        if (localStorage.getItem(STORAGE_KEY) === 'true') {
+            // 從伺服器取得預設值
+            const serverDefault = {{ config.general.sidebar_collapsed|default (false) | tojson
+        }};
+
+        // 優先使用 localStorage（使用者已手動切換過），否則使用伺服器設定
+        let collapsed;
+        const storedValue = localStorage.getItem(STORAGE_KEY);
+        if (storedValue !== null) {
+            collapsed = storedValue === 'true';
+        } else {
+            collapsed = serverDefault;
+        }
+
+        // 套用狀態
+        if (collapsed) {
             sidebar.classList.add('collapsed');
             document.body.classList.add('sidebar-collapsed');
         }
 
-        toggle.addEventListener('click', function() {
+        toggle.addEventListener('click', function () {
             sidebar.classList.toggle('collapsed');
             document.body.classList.toggle('sidebar-collapsed');
-            // 儲存狀態
+            // 儲存狀態到 localStorage
             localStorage.setItem(STORAGE_KEY, sidebar.classList.contains('collapsed'));
         });
-    })();
+    }) ();
     </script>
 
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>
