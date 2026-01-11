@@ -1,81 +1,89 @@
 # JavHelper
 
-JAV 影片元數據管理工具 - Web GUI 版本
+**現代化的 JAV 影片元數據管理工具 (Modern JAV Metadata Manager)**
 
-## 功能
+JavHelper 是一個基於 Web 技術的桌面應用程式，旨在幫助您輕鬆管理、刮削和生成 JAV 影片的元數據與展示列表。
 
-1. **JAV Search** - 搜尋影片資訊（番號、演員、封面）
-2. **JAV Scraper** - 刮削影片元數據 + 生成 NFO
-3. **NFO Updater** - 批量更新現有 NFO 檔案
-4. **AVList Generator** - 生成 HTML 影片列表
+![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)
 
-## 技術架構
+## ✨ 核心功能
 
-- **後端**: FastAPI + Python (WSL)
-- **前端**: Jinja2 + Bootstrap 5
-- **GUI**: PyWebView (Windows 桌面應用)
-- **翻譯**: Ollama（可選）
+### 🔍 Spotlight Search (搜尋)
+- **多來源聚合**: 同時搜尋 JavBus, Jav321, DMM 等多個來源。
+- **Gallery Style**: 現代化的 Hero Detail 介面，以大圖和毛玻璃特效呈現影片資訊。
+- **智慧搜尋**: 支援番號自動標準化、前綴搜尋、女優搜尋。
 
-## 安裝
+### 📝 AVList Generator (列表生成)
+- **靜態 HTML**: 掃描本地影片資料夾，生成精美的靜態 HTML 索引檔。
+- **Mini-Terminal**: 內嵌式終端機視窗，即時顯示掃描與處理進度。
+- **NFO 補全**: 自動檢測並補全缺失的 NFO 檔案。
 
+### ⚙️ Settings (設定)
+- **Dark Mode**: 全站支援深色模式，並自動同步至生成的 Viewer。
+- **Ollama 整合**: 支援使用本地 Ollama 模型翻譯影片標題與簡介。
+- **路徑管理**: 靈活設定輸出路徑與檔案命名規則。
+
+## 🛠️ 技術架構
+
+- **Backend**: FastAPI (Python)
+- **Frontend**: Jinja2 + Bootstrap 5 + Custom CSS (Gallery Design System)
+- **Desktop**: PyWebView (Windows) / Browser (Linux/macOS)
+- **Testing**: Pytest
+
+## 🚀 快速開始
+
+### 前置需求
+- Python 3.10+
+- Chrome/Edge (用於 PyWebView)
+
+### 安裝
 ```bash
-# 建立虛擬環境
+# 1. Clone 專案
+git clone https://github.com/your-repo/JavHelper.git
+cd JavHelper
+
+# 2. 建立虛擬環境
 python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# 啟動虛擬環境
-source venv/bin/activate
-
-# 安裝依賴
+# 3. 安裝依賴
 pip install -r requirements.txt
 ```
 
-## 啟動
-
-### 1. 啟動後端服務 (WSL)
+### 啟動
 ```bash
-source venv/bin/activate
+# 開發模式 (Hot Reload)
 uvicorn web.app:app --reload --host 0.0.0.0 --port 8000
-```
 
-### 2. 啟動桌面應用 (Windows PowerShell)
-```powershell
-pip install pywebview
+# 桌面模式 (Windows)
 python windows/launcher.py
 ```
 
-> **注意**: 本專案僅支援透過 PyWebView 桌面應用程式使用。直接用瀏覽器開啟無法使用檔案選擇、拖放等功能。
+## 🧪 執行測試
 
-## 目錄結構
+本專案包含 API 整合測試與核心邏輯單元測試。
+
+```bash
+source venv/bin/activate
+pytest
+```
+
+## 📂 目錄結構
 
 ```
 JavHelper/
 ├── web/                # Web GUI (FastAPI)
-│   ├── app.py          # 主程式
-│   ├── routers/        # API 路由
-│   ├── templates/      # HTML 模板
-│   └── static/         # CSS/JS
-├── core/               # 核心模組
-├── windows/            # Windows 啟動器
-│   └── launcher.py     # PyWebView 啟動腳本
-├── maker_mapping.json  # 片商映射
-├── requirements.txt    # Python 依賴
-└── prd.md              # 產品規劃文件
+│   ├── routers/        # API Endpoints
+│   ├── templates/      # HTML Templates (Gallery Style)
+│   └── static/         # CSS/JS Assets
+├── core/               # 核心邏輯 (Scraper, Generator)
+├── tests/              # 測試代碼
+└── windows/            # Windows 啟動器
 ```
-
-## 打包 Windows 應用程式
-
-```bash
-# 確保在 venv 環境下執行
-source venv/bin/activate
-python build.py
-```
-
-輸出檔案：`dist/JavHelper-Windows-x64.zip`
-
-## 開發中
-
-詳細規劃請參考 [prd.md](prd.md)
 
 ## License
 
-MIT
+MIT License
