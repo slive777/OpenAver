@@ -10,6 +10,7 @@ import uuid
 from pathlib import Path
 from typing import Dict, List, Optional
 from urllib.parse import quote
+from collections import Counter
 
 from core.gallery_scanner import VideoInfo
 from core.gallery_generator import HTMLGenerator
@@ -34,6 +35,64 @@ class SearchGalleryService:
         
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
+    def _analyze_top_actor(self, results: List[Dict],
+                           threshold: float = 0.8) -> Optional[str]:
+        """
+        分析搜尋結果中的主要演員
+
+        Args:
+            results: 搜尋結果列表
+            threshold: 演員佔比閾值（預設 80%）
+
+        Returns:
+            主要演員名稱，如果沒有達到閾值則返回 None
+        """
+        if not results:
+            return None
+
+        # 統計每個演員出現的次數
+        actor_counter = Counter()
+
+        for result in results:
+            actors = result.get('actors', [])
+
+            # 處理不同的 actors 格式
+            if isinstance(actors, list):
+                for actor in actors:
+                    if isinstance(actor, str):
+                        actor_name = actor
+                    elif isinstance(actor, dict):
+                        actor_name = actor.get('name', '')
+                    else:
+                        continue
+
+                    if actor_name:
+                        actor_counter[actor_name] += 1
+            elif isinstance(actors, str):
+                # 單一演員字串
+                if actors:
+                    actor_counter[actors] += 1
+
+        if not actor_counter:
+            return None
+
+        # 找出出現次數最多的演員
+        top_actor, top_count = actor_counter.most_common(1)[0]
+
+        # 計算佔比
+        total_results = len(results)
+        ratio = top_count / total_results
+
+        # 記錄分析結果（方便 debug）
+        print(f"[Hero Analysis] Top actor: {top_actor} ({top_count}/{total_results} = {ratio:.1%})")
+
+        # 檢查是否達到閾值
+        if ratio >= threshold:
+            return top_actor
+        else:
+            print(f"[Hero Analysis] Ratio {ratio:.1%} < threshold {threshold:.0%}, skip Hero Card")
+            return None
+
     def generate_search_gallery(self, query: str, 
                                 theme: str = "dark",
                                 limit: int = 20) -> Optional[str]:
@@ -55,17 +114,23 @@ class SearchGalleryService:
 
         # 1. 執行智慧搜尋
         results = smart_search(query, limit=limit)
-        
+
         if not results:
             return None
 
-        # 2. 判斷是否為女優搜尋
-        is_actress_mode = results[0].get('_mode') == 'actress'
+        # 2. 分析是否有主要演員（取代原本的 is_actress_mode 判斷）
+        top_actor = self._analyze_top_actor(results, threshold=0.8)
 
-        # 3. 如果是女優搜尋，取得女優資料
+        # 3. 如果有主要演員，取得女優資料
         actress_profile = None
-        if is_actress_mode:
-            actress_profile = scrape_actress_profile(query)
+        if top_actor:
+            print(f"[Hero] Scraping profile for: {top_actor}")
+            actress_profile = scrape_actress_profile(top_actor)
+
+            if not actress_profile:
+                print(f"[Hero] Profile not found for: {top_actor}")
+        else:
+            print(f"[Hero] No dominant actor, skip Hero Card")
 
         # 4. 轉換為 VideoInfo 列表
         videos = self._convert_to_videos(results, actress_profile)
