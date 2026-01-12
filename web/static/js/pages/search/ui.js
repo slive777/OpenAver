@@ -490,13 +490,18 @@ function showTranslateError(error) {
  * @param {string} url - Gallery HTML 的 URL
  */
 function showGallery(url) {
-    const { galleryView, galleryFrame } = window.SearchCore.dom;
+    const { galleryView, galleryFrame, btnBackToDetail } = window.SearchCore.dom;
 
     // 設定 iframe src
     galleryFrame.src = url;
 
     // 顯示 Gallery 容器
     galleryView.classList.remove('d-none');
+
+    // 顯示返回按鈕（在搜尋框中）
+    if (btnBackToDetail) {
+        btnBackToDetail.classList.remove('d-none');
+    }
 
     // 監聽 iframe 的 postMessage
     window.addEventListener('message', handleGalleryMessage);
@@ -508,10 +513,15 @@ function showGallery(url) {
  * 隱藏 Gallery 視圖，返回詳細資料卡
  */
 function hideGallery(showDetail = true) {
-    const { galleryView, galleryFrame } = window.SearchCore.dom;
+    const { galleryView, galleryFrame, btnBackToDetail } = window.SearchCore.dom;
 
     // 隱藏 Gallery 容器
     galleryView.classList.add('d-none');
+
+    // 隱藏返回按鈕（在搜尋框中）
+    if (btnBackToDetail) {
+        btnBackToDetail.classList.add('d-none');
+    }
 
     // 清空 iframe src（釋放資源）
     galleryFrame.src = '';

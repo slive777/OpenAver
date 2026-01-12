@@ -503,39 +503,17 @@
     bottom: 0;
     z-index: 100;
     background: var(--bg-body);
-    display: flex;
-    flex-direction: column;
 }
 
 #galleryView.d-none {
     display: none !important;
 }
 
-.gallery-header {
-    padding: 1rem;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
 #galleryFrame {
-    flex: 1;
     width: 100%;
+    height: 100%;
     border: none;
     background: var(--bg-body);
-}
-
-/* Mobile 優化 */
-@media (max-width: 767px) {
-    .gallery-header {
-        padding: 0.75rem;
-    }
-
-    #btnBackToDetail {
-        font-size: 0.875rem;
-    }
 }
 
 /* === RWD 響應式 === */
