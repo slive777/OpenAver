@@ -32,11 +32,14 @@ from web.routers import config as config_router
 from web.routers import scraper as scraper_router
 from web.routers import translate as translate_router
 from web.routers import gallery as gallery_router
+from web.routers import debug as debug_router
 app.include_router(search_router.router)
 app.include_router(config_router.router)
 app.include_router(scraper_router.router)
 app.include_router(translate_router.router)
 app.include_router(gallery_router.router)
+app.include_router(debug_router.router)
+app.include_router(debug_router.page_router)
 
 
 # ============ 輔助函數 ============
