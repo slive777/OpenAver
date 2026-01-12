@@ -29,6 +29,7 @@ class ScraperConfig(BaseModel):
 
 class SearchConfig(BaseModel):
     search_filter: str = ""
+    gallery_mode_enabled: bool = False  # 女優畫廊模式 (Beta) - 預設關閉
 
 
 class TranslateConfig(BaseModel):

@@ -105,6 +105,18 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="galleryModeEnabled"
+                                   data-section="search" data-key="gallery_mode_enabled">
+                            <label class="form-check-label" for="galleryModeEnabled">
+                                女優畫廊模式 <span class="badge bg-danger">Beta</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="translateEnabled">
                             <label class="form-check-label" for="translateEnabled">啟用標題翻譯</label>
                         </div>
@@ -491,6 +503,11 @@
                 document.getElementById('videoExtensions').value = config.scraper.video_extensions.join(', ');
 
 
+                // 搜尋設定
+                if (config.search) {
+                    document.getElementById('galleryModeEnabled').checked = config.search.gallery_mode_enabled || false;
+                }
+
                 // 翻譯設定
                 document.getElementById('translateEnabled').checked = config.translate.enabled;
                 document.getElementById('translateProvider').value = config.translate.provider;
@@ -558,6 +575,11 @@
                     .split(',').map(s => s.trim()).filter(s => s)
             };
 
+            // 更新 search 設定
+            config.search = {
+                ...config.search,
+                gallery_mode_enabled: document.getElementById('galleryModeEnabled').checked
+            };
 
             // 更新 translate 設定
             config.translate = {

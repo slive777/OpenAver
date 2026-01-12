@@ -141,12 +141,16 @@ def search(
             "has_more": has_more
         }
 
-        # 如果是女優搜尋 且結果 > 10 筆，生成 Gallery HTML
-        if detected_mode == "actress" and results and len(results) > 10:
+        # 如果是女優搜尋 且結果 > 閾值，生成 Gallery HTML
+        # 取得設定
+        from web.routers.config import load_config
+        config = load_config()
+        gallery_enabled = config.get('search', {}).get('gallery_mode_enabled', False)
+        gallery_min_results = 10 if gallery_enabled else 999  # 關閉時設為 999（永不觸發）
+
+        if detected_mode == "actress" and results and len(results) > gallery_min_results:
             try:
                 # 取得主題設定
-                from web.routers.config import load_config
-                config = load_config()
                 theme = config.get('general', {}).get('theme', 'dark')
 
                 # 生成 Gallery
@@ -260,11 +264,15 @@ async def search_stream(
                     'has_more': has_more
                 }
 
-                # 如果是女優搜尋 且結果 > 10 筆，生成 Gallery HTML
-                if mode == "actress" and results and len(results) > 10:
+                # 如果是女優搜尋 且結果 > 閾值，生成 Gallery HTML
+                # 取得設定
+                from web.routers.config import load_config
+                config = load_config()
+                gallery_enabled = config.get('search', {}).get('gallery_mode_enabled', False)
+                gallery_min_results = 10 if gallery_enabled else 999  # 關閉時設為 999（永不觸發）
+
+                if mode == "actress" and results and len(results) > gallery_min_results:
                     try:
-                        from web.routers.config import load_config
-                        config = load_config()
                         theme = config.get('general', {}).get('theme', 'dark')
 
                         from core.search_gallery_service import SearchGalleryService
