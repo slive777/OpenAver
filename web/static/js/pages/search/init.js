@@ -35,6 +35,11 @@ document.addEventListener('DOMContentLoaded', function () {
     dom.errorBtnPrev.addEventListener('click', () => window.SearchUI.navigateResult(-1));
     dom.errorBtnNext.addEventListener('click', () => window.SearchUI.navigateResult(1));
 
+    // 5.5. Gallery 返回按鈕
+    dom.btnBackToDetail.addEventListener('click', () => {
+        window.SearchUI.hideGallery();
+    });
+
     // 6. 鍵盤導航
     document.addEventListener('keydown', (e) => {
         if (document.activeElement === dom.queryInput) return;

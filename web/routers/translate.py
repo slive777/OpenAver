@@ -49,7 +49,7 @@ async def translate_title(request: TranslateRequest) -> dict:
 3. 保留專有名詞（如人名）
 4. 不要添加任何解釋或評論
 5. 只輸出翻譯結果"""
-        user_prompt = f"/no_think{context_section}\n翻譯以下日文標題為繁體中文：\n{request.text}"
+        user_prompt = f"{context_section}\n翻譯以下日文標題為繁體中文：\n{request.text}"
     else:  # optimize
         # 建構需要移除的內容提示
         remove_hints = []
@@ -66,7 +66,7 @@ async def translate_title(request: TranslateRequest) -> dict:
 3. 移除「中文字幕」等標記
 4. 保留核心片名
 5. 只輸出結果，不要解釋"""
-        user_prompt = f"/no_think\n清理以下標題，移除{hints_text}及來源標記，保留核心片名：\n{request.text}"
+        user_prompt = f"清理以下標題，移除{hints_text}及來源標記，保留核心片名：\n{request.text}"
 
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
@@ -78,7 +78,10 @@ async def translate_title(request: TranslateRequest) -> dict:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
-                    "stream": False
+                    "stream": False,
+                    "options": {
+                        "thinking": False  # 禁用 Qwen3 thinking 模式，加速回應
+                    }
                 }
             )
             resp.raise_for_status()

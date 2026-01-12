@@ -419,13 +419,24 @@
                     doneActions.style.display = 'flex';
                     btnCopyPath.dataset.path = data.output_path;
 
+                    // 處理本次新增影片的 NFO 補全提示
+                    if (data.session_update && data.session_update.count > 0) {
+                        document.getElementById('updateCount').textContent = data.session_update.count;
+                        document.getElementById('statNeedUpdate').style.display = '';
+                        // 儲存 paths 供修復按鈕使用
+                        window.sessionUpdatePaths = data.session_update.paths;
+                    } else {
+                        document.getElementById('statNeedUpdate').style.display = 'none';
+                        window.sessionUpdatePaths = [];
+                    }
+
                     // Show toast
                     showToast(`成功產生 ${data.video_count} 部影片列表`);
 
                     // 儲存最終 logs
                     saveLogs();
 
-                    // 刷新統計資訊
+                    // 刷新統計資訊 (不含 NFO 檢查)
                     loadStats();
                 } else if (data.type === 'error') {
                     eventSource.close();
@@ -581,8 +592,8 @@
                         statLastRun.textContent = runInfo;
                     }
 
-                    // 檢查需要更新的數量
-                    checkNeedUpdate();
+                    // 注意：不再自動呼叫 checkNeedUpdate()
+                    // NFO 更新提示僅在掃描後顯示本次新增的問題影片
                 }
             }
         } catch (e) {

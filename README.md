@@ -16,7 +16,7 @@ OpenAver 是一個基於 Web 技術的桌面應用程式，旨在幫助您輕鬆
 - **Gallery Style**: 現代化的 Hero Detail 介面，以大圖和毛玻璃特效呈現影片資訊。
 - **智慧搜尋**: 支援番號自動標準化、前綴搜尋、女優搜尋。
 
-### 📝 AVList Generator (列表生成)
+### 📝 Gallery Generator (列表生成)
 - **靜態 HTML**: 掃描本地影片資料夾，生成精美的靜態 HTML 索引檔。
 - **Mini-Terminal**: 內嵌式終端機視窗，即時顯示掃描與處理進度。
 - **NFO 補全**: 自動檢測並補全缺失的 NFO 檔案。
@@ -36,8 +36,9 @@ OpenAver 是一個基於 Web 技術的桌面應用程式，旨在幫助您輕鬆
 ## 🚀 快速開始
 
 ### 前置需求
-- Python 3.10+
+- Python 3.10+ (原始碼執行)
 - Chrome/Edge (用於 PyWebView)
+- **Microsoft Edge WebView2 Runtime** (Windows 10/VM 必備)
 
 ### 安裝
 ```bash
@@ -62,6 +63,21 @@ uvicorn web.app:app --reload --host 0.0.0.0 --port 8000
 python windows/launcher.py
 ```
 
+## ❓ 疑難排解 (Troubleshooting)
+
+### 1. 程式無法啟動 / 閃退 (Windows)
+**原因**: Windows 安全機制 (Mark of the Web) 封鎖了從網路下載的執行檔或 DLL。
+**解法**:
+1. 對下載的 `OpenAver-Windows-x64.zip` 點擊 **右鍵** -> **內容**。
+2. 在下方勾選 **「解除封鎖 (Unblock)」**，然後按確定。
+3. 重新解壓縮並執行 `OpenAver.bat`。
+*或者使用 7-Zip 軟體進行解壓縮，通常可避開此問題。*
+
+### 2. 介面顯示異常 / 空白 / 沒有毛玻璃特效
+**原因**: 缺少 WebView2 Runtime 或 GPU 加速支援不足（常見於 Windows 10 或虛擬機）。
+**解法**:
+請下載並安裝 [Microsoft Edge WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703)。
+
 ## 🧪 執行測試
 
 本專案包含 API 整合測試與核心邏輯單元測試。
@@ -83,6 +99,7 @@ OpenAver/
 ├── tests/              # 測試代碼
 └── windows/            # Windows 啟動器
 ```
+
 ## 打包 Windows 應用程式
 
 ```bash

@@ -26,8 +26,17 @@ class HTMLGenerator:
                  sort: str = "date",
                  order: str = "descending",
                  items_per_page: int = 90,
-                 theme: str = "light") -> None:
-        """生成 HTML 檔案"""
+                 theme: str = "light",
+                 click_action: str = "play",
+                 has_more: bool = False) -> None:
+        """
+        生成 HTML 檔案
+        
+        Args:
+            click_action: 點擊影片時的行為
+                - "play": 開啟影片（預設）
+                - "postMessage": 發送 postMessage 給父視窗（用於 iframe 嵌入）
+        """
 
         # 模式對應
         mode_map = {"detail": 0, "image": 1, "text": 2}
@@ -61,7 +70,9 @@ class HTMLGenerator:
             user_order=user_order,
             user_sort=sort,
             user_items=items_per_page,
-            theme=theme
+            theme=theme,
+            click_action=click_action,
+            has_more=has_more
         )
 
         # 寫入檔案
@@ -72,7 +83,8 @@ class HTMLGenerator:
 
     def _generate_html(self, title: str, js_videos: List[str],
                        user_mode: int, user_order: int,
-                       user_sort: str, user_items: int, theme: str) -> str:
+                       user_sort: str, user_items: int, theme: str,
+                       click_action: str = "play", has_more: bool = False) -> str:
         """生成 HTML 內容"""
 
         videos_js = '\n'.join([f'\t\tvideos[{i}] = {v};' for i, v in enumerate(js_videos)])
@@ -83,6 +95,7 @@ class HTMLGenerator:
 \t<meta charset="utf-8">
 \t<meta name="viewport" content="width=device-width, initial-scale=1">
 \t<title>{title}</title>
+\t<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 {self._get_css()}
 </head>
 <body>
@@ -113,7 +126,7 @@ class HTMLGenerator:
 \t<!-- Footer -->
 \t<footer class="footer">
 \t\t<div class="pagination" id="pagebar"></div>
-\t\t<div class="hotkey-hint">熱鍵: A 切換模式 | S 顯示/隱藏資訊 | Z/X/C/V 翻頁 | ESC 關閉</div>
+\t\t<div class="hotkey-hint">熱鍵: A 切換模式 | S 顯示/隱藏資訊 | ← / → 翻頁 | ESC 關閉</div>
 \t</footer>
 
 \t<!-- Lightbox Modal -->
@@ -128,6 +141,13 @@ class HTMLGenerator:
 \t<!-- Toast -->
 \t<div id="toast" class="toast"></div>
 
+\t<!-- Load More Section (postMessage mode only) -->
+\t<div id="loadMoreSection" class="load-more-section" style="display: none;">
+\t\t<button onclick="loadMore()" class="load-more-btn">
+\t\t\t<i class="bi bi-arrow-down-circle"></i> 查看更多
+\t\t</button>
+\t</div>
+
 \t<script>
 \t\tvar videos = [];
 {videos_js}
@@ -136,7 +156,21 @@ class HTMLGenerator:
 \t\tvar user_sort = "{user_sort}";
 \t\tvar user_items_per_page = {user_items};
 \t\tvar default_theme = "{theme}";
+\t\tvar click_action = "{click_action}";
+\t\tvar has_more = {str(has_more).lower()};
 {self._get_javascript()}
+\t\t// Load More function (postMessage mode)
+\t\tfunction loadMore() {{
+\t\t\tif (click_action === 'postMessage') {{
+\t\t\t\twindow.parent.postMessage({{type: 'loadMore'}}, '*');
+\t\t\t}}
+\t\t}}
+
+\t\t// Show/hide Load More button based on has_more and click_action
+\t\tif (click_action === 'postMessage' && has_more) {{
+\t\t\tdocument.getElementById('loadMoreSection').style.display = 'block';
+\t\t}}
+
 \t\t// Initialize
 \t\tinit();
 \t</script>
@@ -209,8 +243,11 @@ class HTMLGenerator:
 
 \t\tfunction init() {
 \t\t\tinitTheme();
-\t\t\t// 優先從 localStorage 載入狀態，否則從 URL 參數
-\t\t\tif (!loadState()) {
+\t\t\t// 嵌入模式（postMessage）不載入 localStorage，直接使用生成時的資料
+\t\t\tif (click_action !== 'postMessage' && loadState()) {
+\t\t\t\t// 從 localStorage 載入成功
+\t\t\t} else {
+\t\t\t\t// 從 URL 參數或使用預設值
 \t\t\t\tvar params = new URLSearchParams(window.location.search);
 \t\t\t\tsearch_words = params.get('sw') || "";
 \t\t\t\tcurrent_page = parseInt(params.get('page')) || 1;
@@ -220,6 +257,7 @@ class HTMLGenerator:
 \t\t\t\titems_per_page = parseInt(params.get('items')) || user_items_per_page;
 \t\t\t}
 \t\t\tdocument.form_search.sw.value = search_words;
+\t\t\tupdateResetBtn();
 \t\t\tfilterAndSort();
 \t\t\trender();
 \t\t}
@@ -244,6 +282,12 @@ class HTMLGenerator:
 \t\t\t\tfiltered_videos = videos.slice();
 \t\t\t}
 \t\t\tfiltered_videos.sort(function(a, b) {
+\t\t\t\t// 女優卡置頂 (路徑以 'actress:' 開頭)
+\t\t\t\tvar aIsHero = a.path && a.path.indexOf('actress:') === 0;
+\t\t\t\tvar bIsHero = b.path && b.path.indexOf('actress:') === 0;
+\t\t\t\tif (aIsHero && !bIsHero) return -1;
+\t\t\t\tif (!aIsHero && bIsHero) return 1;
+
 \t\t\t\tvar va, vb;
 \t\t\t\tswitch(current_sort) {
 \t\t\t\t\tcase 'title': va = a.title; vb = b.title; break;
@@ -305,7 +349,7 @@ class HTMLGenerator:
 \t\t\t\thtml += '</tr></thead><tbody>';
 \t\t\t\tfor (var i = start; i < end; i++) {
 \t\t\t\t\tvar v = filtered_videos[i];
-\t\t\t\thtml += '<tr onclick="playVideo(\\'' + escapeHtml(v.path) + '\\')">';
+\t\t\t\thtml += '<tr onclick="playVideo(' + i + ')">';
 \t\t\t\t\thtml += '<td>' + (i+1) + '</td>';
 \t\t\t\t\thtml += '<td>' + escapeHtml(stripNumPrefix(v.title)) + '</td>';
 \t\t\t\t\thtml += '<td>' + formatActor(v.actor) + '</td>';
@@ -326,39 +370,39 @@ class HTMLGenerator:
 \t\t\t\t\thtml += '<div class="card">';
 \t\t\t\t\t// 圖片區（含按鈕）
 \t\t\t\t\thtml += '<div class="card-img" onclick="showLightbox(' + i + ')">';
-\t\t\t\t\thtml += '<img loading="lazy" src="' + imgSrc + '" alt="" onerror="this.parentElement.classList.add(\\'no-img\\')"/>';
+\t\t\t\t\t\thtml += '<img loading="lazy" src="' + imgSrc + '" alt="" onerror="this.parentElement.classList.add(\\'no-img\\')"/>';
 \t\t\t\t\t// Hover 時滑出的按鈕區（在縮圖內部）
-\t\t\t\t\thtml += '<div class="card-actions">';
-\t\t\t\t\thtml += '<a class="action-btn" href="javascript:void(0);" onclick="event.stopPropagation(); playVideo(\\'' + escapeHtml(v.path) + '\\')">開啟</a>';
-\t\t\t\t\thtml += '<a class="action-btn" href="javascript:void(0);" onclick="event.stopPropagation(); copyPath(\\'' + escapeHtml(v.path) + '\\')">複製</a>';
-\t\t\t\t\thtml += '</div>';
-\t\t\t\t\thtml += '</div>';
+\t\t\t\t\t\thtml += '<div class="card-actions">';
+\t\t\t\t\t\thtml += '<a class="action-btn" href="javascript:void(0);" onclick="event.stopPropagation(); playVideo(' + i + ')">開啟</a>';
+\t\t\t\t\t\thtml += '<a class="action-btn" href="javascript:void(0);" onclick="event.stopPropagation(); copyPath(\\'' + escapeHtml(v.path) + '\\')">複製</a>';
+\t\t\t\t\t\thtml += '</div>';
+\t\t\t\t\t\thtml += '</div>';
 \t\t\t\t\t// Footer - 預設：番號+女優，Hover：片名
 \t\t\t\t\thtml += '<div class="card-footer">';
-\t\t\t\t\thtml += '<div class="footer-default">';
-\t\t\t\t\thtml += '<span class="num">' + escapeHtml(v.num || '') + '</span>';
-\t\t\t\t\thtml += '<span class="actor">' + escapeHtml(v.actor || '') + '</span>';
-\t\t\t\t\thtml += '</div>';
-\t\t\t\t\tif (!info_visible) {
-\t\t\t\t\t\t// Hover 時顯示片名（僅在資訊隱藏時）
-\t\t\t\t\t\thtml += '<div class="footer-hover">';
-\t\t\t\t\t\thtml += '<div class="hover-title">' + escapeHtml(stripNumPrefix(v.title)) + '</div>';
+\t\t\t\t\t\thtml += '<div class="footer-default">';
+\t\t\t\t\t\thtml += '<span class="num">' + escapeHtml(v.num || '') + '</span>';
+\t\t\t\t\t\thtml += '<span class="actor">' + escapeHtml(v.actor || '') + '</span>';
 \t\t\t\t\t\thtml += '</div>';
-\t\t\t\t\t}
-\t\t\t\t\thtml += '</div>';
+\t\t\t\t\t\tif (!info_visible) {
+\t\t\t\t\t\t\t// Hover 時顯示片名（僅在資訊隱藏時）
+\t\t\t\t\t\t\thtml += '<div class="footer-hover">';
+\t\t\t\t\t\t\thtml += '<div class="hover-title">' + escapeHtml(stripNumPrefix(v.title)) + '</div>';
+\t\t\t\t\t\t\thtml += '</div>';
+\t\t\t\t\t\t}
+\t\t\t\t\t\thtml += '</div>';
 \t\t\t\t\t// 可切換的詳細資訊區
-\t\t\t\t\tif (info_visible) {
-\t\t\t\t\t\thtml += '<div class="card-info">';
-\t\t\t\t\t\thtml += '<div class="info-title">' + escapeHtml(stripNumPrefix(v.title)) + '</div>';
-\t\t\t\t\t\tif (v.actor) html += '<div class="info-row"><b>演員：</b>' + formatActor(v.actor) + '</div>';
-\t\t\t\t\t\thtml += '<div class="info-row info-meta">';
-\t\t\t\t\t\tif (v.maker) html += '<span><b>片商：</b>' + formatMaker(v.maker) + '</span>';
-\t\t\t\t\t\tif (v.date) html += '<span><b>日期：</b>' + escapeHtml(v.date) + '</span>';
-\t\t\t\t\thtml += '</div>';
-\t\t\t\t\t\tif (v.genre) html += '<div class="info-tags">' + formatGenre(v.genre) + '</div>';
+\t\t\t\t\t\tif (info_visible) {
+\t\t\t\t\t\t\thtml += '<div class="card-info">';
+\t\t\t\t\t\t\thtml += '<div class="info-title">' + escapeHtml(stripNumPrefix(v.title)) + '</div>';
+\t\t\t\t\t\t\tif (v.actor) html += '<div class="info-row"><b>演員：</b>' + formatActor(v.actor) + '</div>';
+\t\t\t\t\t\t\thtml += '<div class="info-row info-meta">';
+\t\t\t\t\t\t\tif (v.maker) html += '<span><b>片商：</b>' + formatMaker(v.maker) + '</span>';
+\t\t\t\t\t\t\tif (v.date) html += '<span><b>日期：</b>' + escapeHtml(v.date) + '</span>';
+\t\t\t\t\t\t\thtml += '</div>';
+\t\t\t\t\t\t\tif (v.genre) html += '<div class="info-tags">' + formatGenre(v.genre) + '</div>';
+\t\t\t\t\t\t\thtml += '</div>';
+\t\t\t\t\t\t}
 \t\t\t\t\t\thtml += '</div>';
-\t\t\t\t\t}
-\t\t\t\t\thtml += '</div>';
 \t\t\t\t}
 \t\t\t\thtml += '</div>';
 \t\t\t} else {
@@ -366,7 +410,7 @@ class HTMLGenerator:
 \t\t\t\thtml = '<ul class="text-list">';
 \t\t\t\tfor (var i = start; i < end; i++) {
 \t\t\t\t\tvar v = filtered_videos[i];
-\t\t\t\thtml += '<li onclick="playVideo(\\'' + escapeHtml(v.path) + '\\')">';
+\t\t\t\thtml += '<li onclick="playVideo(' + i + ')">';
 \t\t\t\t\thtml += '<span class="text-num">' + escapeHtml(v.num) + '</span>';
 \t\t\t\t\thtml += '<span class="text-title">' + escapeHtml(stripNumPrefix(v.title)) + '</span>';
 \t\t\t\t\tif (v.actor) html += ' <span class="text-actor">(' + escapeHtml(v.actor) + ')</span>';
@@ -515,7 +559,22 @@ class HTMLGenerator:
 \t\t\tsaveState();
 \t\t}
 
-\t\tfunction playVideo(path) {
+\t\tfunction playVideo(index) {
+\t\t\tvar video = filtered_videos[index];
+
+\t\t\t// postMessage 模式：發送訊息給父視窗（用於 iframe 嵌入）
+\t\t\tif (click_action === 'postMessage') {
+\t\t\t\tvar number = video.num || video.path;
+\t\t\t\twindow.parent.postMessage({
+\t\t\t\t\ttype: 'videoClick',
+\t\t\t\t\tnumber: number,
+\t\t\t\t\tindex: index
+\t\t\t\t}, '*');
+\t\t\t\treturn;
+\t\t\t}
+
+\t\t\t// 原有播放邏輯
+\t\t\tvar path = video.path;
 \t\t\tvar h = path.replace(/#/g, '%23');
 \t\t\tvar isFirefox = typeof InstallTrigger !== 'undefined';
 \t\t\tif (isFirefox) {
@@ -569,7 +628,7 @@ class HTMLGenerator:
 \t\t\tif (v.genre) html += '<div class="lb-tags">' + formatGenrePills(v.genre) + '</div>';
 \t\t\thtml += '<div class="lb-footer">';
 \t\t\thtml += '<div class="lb-actions">';
-\t\t\thtml += '<a class="lb-btn" href="javascript:void(0);" onclick="event.stopPropagation(); playVideo(\\'' + escapeHtml(v.path) + '\\')">開啟</a>';
+\t\t\thtml += '<a class="lb-btn" href="javascript:void(0);" onclick="event.stopPropagation(); playVideo(' + idx + ')">開啟</a>';
 \t\t\thtml += '<a class="lb-btn" href="javascript:void(0);" onclick="event.stopPropagation(); copyPath(\\'' + escapeHtml(v.path) + '\\')">複製</a>';
 \t\t\thtml += '</div>';
 \t\t\thtml += '<span class="lb-size">' + formatSize(v.size) + '</span>';
@@ -629,15 +688,14 @@ class HTMLGenerator:
 \t\t// 熱鍵
 \t\tdocument.addEventListener('keydown', function(e) {
 \t\t\tif (e.target.tagName === 'INPUT') return;
+\t\t\tif (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
 \t\t\tvar key = e.key.toUpperCase();
 \t\t\tif (key === 'ESCAPE' && lightbox_open) { hideLightbox(); return; }
 \t\t\tif (lightbox_open) return;
 \t\t\tif (key === 'S' && current_mode === 1) toggleInfo();
 \t\t\telse if (key === 'A') { current_mode = (current_mode + 1) % 3; render(); }
-\t\t\telse if (key === 'Z') goPage(1);
-\t\t\telse if (key === 'X' && current_page > 1) goPage(current_page - 1);
-\t\t\telse if (key === 'C' && current_page < total_pages) goPage(current_page + 1);
-\t\t\telse if (key === 'V') goPage(total_pages);
+\t\t\telse if (key === 'ARROWLEFT' && current_page > 1) goPage(current_page - 1);
+\t\t\telse if (key === 'ARROWRIGHT' && current_page < total_pages) goPage(current_page + 1);
 \t\t});
 
 \t\tfunction escapeHtml(str) {
@@ -1677,6 +1735,40 @@ class HTMLGenerator:
 \t\tmain#content {
 \t\t\tpadding: 0 var(--space-md) var(--space-xl);
 \t\t}
+\t}
+
+\t/* ========== Load More Section ========== */
+\t.load-more-section {
+\t\tpadding: 2rem;
+\t\ttext-align: center;
+\t\tbackground: var(--bg-secondary);
+\t\tborder-top: 1px solid var(--border-light);
+\t}
+
+\t.load-more-btn {
+\t\tpadding: 0.75rem 2rem;
+\t\tfont-size: 1rem;
+\t\tbackground: var(--accent);
+\t\tcolor: var(--text-inverse);
+\t\tborder: none;
+\t\tborder-radius: var(--radius-md);
+\t\tcursor: pointer;
+\t\ttransition: all var(--duration-normal) var(--ease-out);
+\t\tfont-family: inherit;
+\t\tfont-weight: 500;
+\t\tdisplay: inline-flex;
+\t\talign-items: center;
+\t\tgap: 0.5rem;
+\t}
+
+\t.load-more-btn:hover {
+\t\tbackground: var(--accent-hover);
+\t\ttransform: translateY(-2px);
+\t\tbox-shadow: var(--shadow-md);
+\t}
+
+\t.load-more-btn i {
+\t\tfont-size: 1.25rem;
 \t}
 
 \t/* ========== Font Import ========== */

@@ -66,6 +66,25 @@
         gap: 0.75rem;
         margin-top: 1rem;
     }
+
+    /* Collapse Toggle Link */
+    .collapse-toggle {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        cursor: pointer;
+    }
+
+    .collapse-toggle:hover {
+        color: var(--accent);
+    }
+
+    .collapse-toggle i {
+        transition: transform 0.2s;
+    }
+
+    .collapse-toggle[aria-expanded="true"] i {
+        transform: rotate(180deg);
+    }
 </style>
 {% endblock %}
 
@@ -76,109 +95,25 @@
     </h4>
 
     <form id="settingsForm">
-        <!-- Scraper 設定 -->
+        <!-- 1. 搜尋與刮削設定 (Search & Scraper) -->
         <div class="card mb-4">
             <div class="card-header">
-                <i class="bi bi-cloud-download"></i> Scraper 設定
+                <i class="bi bi-search"></i> 搜尋與刮削
             </div>
             <div class="card-body">
-                <!-- 資料夾設定 -->
+
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="createFolder" checked>
-                            <label class="form-check-label" for="createFolder">建立資料夾</label>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text">格式</span>
-                            <input type="text" class="form-control" id="folderFormat" value="{num}">
-                            <button class="btn btn-outline-secondary dropdown-toggle" type="button"
-                                data-bs-toggle="dropdown" aria-expanded="false">變數</button>
-                            <ul class="dropdown-menu dropdown-menu-end format-vars" data-target="folderFormat"></ul>
+                            <input class="form-check-input" type="checkbox" id="galleryModeEnabled"
+                                   data-section="search" data-key="gallery_mode_enabled">
+                            <label class="form-check-label" for="galleryModeEnabled">
+                                女優畫廊模式 <span class="badge bg-danger">Beta</span>
+                            </label>
                         </div>
                     </div>
                 </div>
 
-                <!-- 檔名設定 -->
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">檔案命名格式</label>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="input-group input-group-sm">
-                            <input type="text" class="form-control" id="filenameFormat" value="{num} {title}">
-                            <button class="btn btn-outline-secondary dropdown-toggle" type="button"
-                                data-bs-toggle="dropdown" aria-expanded="false">變數</button>
-                            <ul class="dropdown-menu dropdown-menu-end format-vars" data-target="filenameFormat"></ul>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 長度限制 -->
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">標題長度限制</label>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="input-group input-group-sm">
-                            <input type="number" class="form-control" id="maxTitleLength" value="80" min="20" max="200">
-                            <span class="input-group-text">字元</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">檔名長度限制</label>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="input-group input-group-sm">
-                            <input type="number" class="form-control" id="maxFilenameLength" value="200" min="50"
-                                max="255">
-                            <span class="input-group-text">字元</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 影片副檔名 -->
-                <div class="row">
-                    <div class="col-md-6">
-                        <label class="form-label">影片副檔名</label>
-                    </div>
-                    <div class="col-md-6">
-                        <input type="text" class="form-control form-control-sm" id="videoExtensions"
-                            value=".mp4, .avi, .mkv, .wmv, .rmvb, .flv, .mov, .m4v, .ts">
-                        <small class="text-muted">以逗號分隔</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 搜尋設定 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <i class="bi bi-search"></i> 搜尋設定
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="autoSearchOnDrop" checked>
-                            <label class="form-check-label" for="autoSearchOnDrop">拖入檔案自動搜尋</label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 翻譯設定 -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <i class="bi bi-translate"></i> 翻譯設定
-            </div>
-            <div class="card-body">
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <div class="form-check form-switch">
@@ -188,6 +123,7 @@
                     </div>
                 </div>
 
+                <!-- 翻譯選項 (動態顯示) -->
                 <div id="translateOptions">
                     <div class="row mb-3">
                         <div class="col-md-6">
@@ -215,7 +151,7 @@
                         </div>
                     </div>
 
-                    <div class="row">
+                    <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">模型</label>
                         </div>
@@ -232,82 +168,96 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- 進階刮削設定 (Collapsed) -->
+                <hr class="my-3">
+                <div class="mb-2">
+                    <a class="collapse-toggle text-decoration-none" data-bs-toggle="collapse" href="#scraperAdvanced"
+                        role="button" aria-expanded="false">
+                        <i class="bi bi-chevron-down"></i> 進階刮削設定
+                    </a>
+                </div>
+                <div class="collapse" id="scraperAdvanced">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="createFolder" checked>
+                                <label class="form-check-label" for="createFolder">建立資料夾</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">格式</span>
+                                <input type="text" class="form-control" id="folderFormat" value="{num}">
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button"
+                                    data-bs-toggle="dropdown" aria-expanded="false">變數</button>
+                                <ul class="dropdown-menu dropdown-menu-end format-vars" data-target="folderFormat"></ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">檔案命名格式</label>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control" id="filenameFormat" value="{num} {title}">
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button"
+                                    data-bs-toggle="dropdown" aria-expanded="false">變數</button>
+                                <ul class="dropdown-menu dropdown-menu-end format-vars" data-target="filenameFormat">
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">標題長度限制</label>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="input-group input-group-sm">
+                                <input type="number" class="form-control" id="maxTitleLength" value="80" min="20"
+                                    max="200">
+                                <span class="input-group-text">字元</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">檔名長度限制</label>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="input-group input-group-sm">
+                                <input type="number" class="form-control" id="maxFilenameLength" value="200" min="50"
+                                    max="255">
+                                <span class="input-group-text">字元</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">影片副檔名</label>
+                        </div>
+                        <div class="col-md-6">
+                            <input type="text" class="form-control form-control-sm" id="videoExtensions"
+                                value=".mp4, .avi, .mkv, .wmv, .rmvb, .flv, .mov, .m4v, .ts">
+                            <small class="text-muted">以逗號分隔</small>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- AVList 設定 -->
+        <!-- 2. 列表生成設定 (Gallery) -->
         <div class="card mb-4">
             <div class="card-header">
-                <i class="bi bi-list-ul"></i> 列表生成設定
+                <i class="bi bi-list-ul"></i> 列表生成
             </div>
             <div class="card-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">預設顯示模式</label>
-                    </div>
-                    <div class="col-md-6">
-                        <select class="form-select form-select-sm" id="avlistMode">
-                            <option value="image">圖片模式</option>
-                            <option value="detail">詳細模式</option>
-                            <option value="text">文字模式</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">預設排序</label>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="input-group input-group-sm">
-                            <select class="form-select" id="avlistSort">
-                                <option value="date">發售日期</option>
-                                <option value="mdate">修改日期</option>
-                                <option value="num">番號</option>
-                                <option value="title">片名</option>
-                                <option value="actor">演員</option>
-                                <option value="maker">片商</option>
-                                <option value="size">檔案大小</option>
-                            </select>
-                            <select class="form-select" id="avlistOrder">
-                                <option value="descending">遞減</option>
-                                <option value="ascending">遞增</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">每頁顯示數量</label>
-                    </div>
-                    <div class="col-md-6">
-                        <select class="form-select form-select-sm" id="avlistItemsPerPage">
-                            <option value="30">30</option>
-                            <option value="45">45</option>
-                            <option value="60">60</option>
-                            <option value="90">90</option>
-                            <option value="120">120</option>
-                            <option value="0">全部</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">最小檔案大小</label>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="input-group input-group-sm">
-                            <input type="number" class="form-control" id="avlistMinSize" value="0" min="0">
-                            <span class="input-group-text">KB</span>
-                        </div>
-                        <small class="text-muted">0 = 不過濾</small>
-                    </div>
-                </div>
-
-                <hr class="my-3">
-
+                <!-- 常用設定 -->
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label">輸出目錄</label>
@@ -324,7 +274,7 @@
                     </div>
                 </div>
 
-                <div class="row">
+                <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label">輸出檔名</label>
                     </div>
@@ -333,13 +283,88 @@
                             value="gallery_output.html" placeholder="gallery_output.html">
                     </div>
                 </div>
+
+                <!-- 進階顯示選項 (Collapsed) -->
+                <hr class="my-3">
+                <div class="mb-2">
+                    <a class="collapse-toggle text-decoration-none" data-bs-toggle="collapse" href="#galleryAdvanced"
+                        role="button" aria-expanded="false">
+                        <i class="bi bi-chevron-down"></i> 進階顯示選項
+                    </a>
+                </div>
+                <div class="collapse" id="galleryAdvanced">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">預設顯示模式</label>
+                        </div>
+                        <div class="col-md-6">
+                            <select class="form-select form-select-sm" id="avlistMode">
+                                <option value="image">圖片模式</option>
+                                <option value="detail">詳細模式</option>
+                                <option value="text">文字模式</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">預設排序</label>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="input-group input-group-sm">
+                                <select class="form-select" id="avlistSort">
+                                    <option value="date">發售日期</option>
+                                    <option value="mdate">修改日期</option>
+                                    <option value="num">番號</option>
+                                    <option value="title">片名</option>
+                                    <option value="actor">演員</option>
+                                    <option value="maker">片商</option>
+                                    <option value="size">檔案大小</option>
+                                </select>
+                                <select class="form-select" id="avlistOrder">
+                                    <option value="descending">遞減</option>
+                                    <option value="ascending">遞增</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">每頁顯示數量</label>
+                        </div>
+                        <div class="col-md-6">
+                            <select class="form-select form-select-sm" id="avlistItemsPerPage">
+                                <option value="30">30</option>
+                                <option value="45">45</option>
+                                <option value="60">60</option>
+                                <option value="90">90</option>
+                                <option value="120">120</option>
+                                <option value="0">全部</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">最小檔案大小</label>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="input-group input-group-sm">
+                                <input type="number" class="form-control" id="avlistMinSize" value="0" min="0">
+                                <span class="input-group-text">KB</span>
+                            </div>
+                            <small class="text-muted">0 = 不過濾</small>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- 瀏覽器設定 -->
+        <!-- 3. 瀏覽與播放 (Showcase) -->
         <div class="card mb-4">
             <div class="card-header">
-                <i class="bi bi-collection-play"></i> 瀏覽器設定
+                <i class="bi bi-collection-play"></i> 瀏覽與播放
             </div>
             <div class="card-body">
                 <div class="row">
@@ -355,10 +380,10 @@
             </div>
         </div>
 
-        <!-- 一般設定 -->
+        <!-- 4. 系統設定 (System) -->
         <div class="card mb-4">
             <div class="card-header">
-                <i class="bi bi-sliders"></i> 一般設定
+                <i class="bi bi-sliders"></i> 系統設定
             </div>
             <div class="card-body">
                 <div class="row mb-3">
@@ -384,7 +409,7 @@
                         </select>
                     </div>
                 </div>
-                <div class="row">
+                <div class="row mb-3">
                     <div class="col-md-6">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="sidebarCollapsed">
@@ -393,14 +418,26 @@
                         <small class="text-muted">僅影響桌面版</small>
                     </div>
                 </div>
+
+                <hr class="my-3">
+
+                <!-- 重置按鈕 -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label text-danger">重置所有設定</label>
+                        <small class="text-muted d-block">刪除所有自訂設定，恢復預設值</small>
+                    </div>
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-outline-danger btn-sm" id="resetBtn">
+                            <i class="bi bi-arrow-counterclockwise"></i> 重置為預設值
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
         <!-- 儲存按鈕 -->
         <div class="d-flex justify-content-end gap-2">
-            <button type="button" class="btn btn-secondary" id="resetBtn">
-                <i class="bi bi-arrow-counterclockwise"></i> 重置
-            </button>
             <button type="submit" class="btn btn-primary" id="saveBtn">
                 <i class="bi bi-save"></i> 儲存設定
             </button>
@@ -465,8 +502,11 @@
                 document.getElementById('maxFilenameLength').value = config.scraper.max_filename_length;
                 document.getElementById('videoExtensions').value = config.scraper.video_extensions.join(', ');
 
+
                 // 搜尋設定
-                document.getElementById('autoSearchOnDrop').checked = config.search.auto_search_on_drop;
+                if (config.search) {
+                    document.getElementById('galleryModeEnabled').checked = config.search.gallery_mode_enabled || false;
+                }
 
                 // 翻譯設定
                 document.getElementById('translateEnabled').checked = config.translate.enabled;
@@ -538,7 +578,7 @@
             // 更新 search 設定
             config.search = {
                 ...config.search,
-                auto_search_on_drop: document.getElementById('autoSearchOnDrop').checked
+                gallery_mode_enabled: document.getElementById('galleryModeEnabled').checked
             };
 
             // 更新 translate 設定

@@ -97,6 +97,7 @@ def generate_avlist() -> Generator[str, None, None]:
         all_videos = []
         total_dirs = len(directories)
         total_added = 0  # 追蹤本次新增數量
+        session_added_paths = []  # 追蹤本次新增/變更的影片路徑
 
         for idx, directory in enumerate(directories, 1):
             # 轉換路徑格式 (Windows -> WSL)
@@ -163,6 +164,8 @@ def generate_avlist() -> Generator[str, None, None]:
                                 'nfo_mtime': nfo_mtime,
                                 'info': info.to_dict()
                             }
+                            # 追蹤本次新增/變更的路徑
+                            session_added_paths.append(path_key)
                         except Exception as e:
                             yield send({"type": "log", "level": "warn", "message": f"  [{i}] 錯誤: {e}"})
 
@@ -181,11 +184,30 @@ def generate_avlist() -> Generator[str, None, None]:
             except Exception as e:
                 yield send({"type": "log", "level": "error", "message": f"掃描錯誤: {e}"})
 
-        # 儲存 metadata
+        # 檢查本次新增影片是否需要 NFO 補全
+        session_update = {"count": 0, "paths": []}
+        if session_added_paths:
+            # 建立只包含本次新增影片的 session_cache
+            session_cache = {path: cache[path] for path in session_added_paths if path in cache}
+            if session_cache:
+                session_stats = check_cache_needs_update(session_cache)
+                session_update = {
+                    "count": session_stats['need_update'],
+                    "paths": session_stats['paths']
+                }
+                if session_update['count'] > 0:
+                    yield send({
+                        "type": "log",
+                        "level": "warn",
+                        "message": f"發現 {session_update['count']} 部新增影片資訊不全"
+                    })
+
+        # 儲存 metadata（包含 session_update 供 NFO 更新使用）
         cache['_metadata'] = {
             'last_run': datetime.now().isoformat(),
             'last_added': total_added,
-            'last_total': len(all_videos)
+            'last_total': len(all_videos),
+            'last_session_update': session_update
         }
 
         # 儲存快取
@@ -222,7 +244,8 @@ def generate_avlist() -> Generator[str, None, None]:
         yield send({
             "type": "done",
             "video_count": len(all_videos),
-            "output_path": str(html_path)
+            "output_path": str(html_path),
+            "session_update": session_update
         })
 
     except Exception as e:
@@ -331,28 +354,43 @@ def generate_nfo_update() -> Generator[str, None, None]:
             return
 
         cache = load_cache(str(cache_path))
-        stats = check_cache_needs_update(cache)
-
-        if stats['need_update'] == 0:
-            yield send({"type": "done", "message": "沒有需要更新的影片", "updated": 0})
-            return
-
-        yield send({
-            "type": "log",
-            "level": "info",
-            "message": f"找到 {stats['need_update']} 部需要更新的影片"
-        })
+        
+        # 讀取 session 更新資料
+        metadata = cache.get('_metadata', {})
+        session_update = metadata.get('last_session_update', {})
+        
+        paths_to_update = []
+        
+        # 優先：使用本次 session 的更新清單
+        if session_update and session_update.get('count', 0) > 0:
+            paths_to_update = session_update['paths']
+            yield send({
+                "type": "log",
+                "level": "info",
+                "message": f"執行本次新增影片的 NFO 更新 ({len(paths_to_update)} 部)..."
+            })
+        else:
+            # 備用：完整掃描整個快取
+            stats = check_cache_needs_update(cache)
+            if stats['need_update'] == 0:
+                yield send({"type": "done", "message": "沒有需要更新的影片", "updated": 0})
+                return
+            paths_to_update = stats['paths']
+            yield send({
+                "type": "log",
+                "level": "info",
+                "message": f"執行完整 NFO 檢查 ({len(paths_to_update)} 部)..."
+            })
 
         # 執行更新
-        final_stats = None
-        for msg in update_videos_generator(cache, stats['paths']):
+        for msg in update_videos_generator(cache, paths_to_update):
             yield send(msg)
-            # update_videos_generator 會在最後 return stats
-            # 但 Python generator return 的值需要用 StopIteration 來取得
-            # 這裡我們在 msg 中追蹤進度就好
 
-        # 更新完成後重新掃描快取
-        # 簡化處理：直接返回成功，讓使用者重新產生網頁
+        # 更新完成後清除 session_update，避免重複更新
+        if '_metadata' in cache and 'last_session_update' in cache['_metadata']:
+            cache['_metadata']['last_session_update'] = {"count": 0, "paths": []}
+            save_cache(str(cache_path), cache)
+
         yield send({
             "type": "done",
             "message": "更新完成，建議重新產生網頁以更新快取",

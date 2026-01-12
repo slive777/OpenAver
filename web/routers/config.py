@@ -28,8 +28,8 @@ class ScraperConfig(BaseModel):
 
 
 class SearchConfig(BaseModel):
-    auto_search_on_drop: bool = True
     search_filter: str = ""
+    gallery_mode_enabled: bool = False  # 女優畫廊模式 (Beta) - 預設關閉
 
 
 class TranslateConfig(BaseModel):
@@ -188,9 +188,12 @@ async def test_ollama_model(request: OllamaTestRequest) -> dict:
                     "model": request.model,
                     "messages": [
                         {"role": "system", "content": "你是翻譯助手"},
-                        {"role": "user", "content": "/no_think\n翻譯：テスト"}
+                        {"role": "user", "content": "翻譯：テスト"}
                     ],
-                    "stream": False
+                    "stream": False,
+                    "options": {
+                        "thinking": False  # 禁用 Qwen3 thinking 模式，加速測試
+                    }
                 }
             )
             resp.raise_for_status()
