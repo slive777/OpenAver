@@ -3,13 +3,14 @@
 """
 
 from fastapi import APIRouter, Query
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import Response, StreamingResponse, FileResponse
 from typing import Optional
 import requests
 import json
 import asyncio
 from queue import Queue
 from threading import Thread
+import tempfile
 
 import sys
 from pathlib import Path
@@ -56,6 +57,37 @@ def proxy_image(url: str = Query(..., description="圖片 URL")):
     return Response(content=b'', media_type='image/jpeg', status_code=404)
 
 
+@router.get("/search/gallery-view")
+async def gallery_view(path: str):
+    """
+    讀取並回傳暫存的 Gallery HTML
+
+    Args:
+        path: Gallery HTML 檔案的絕對路徑
+
+    Returns:
+        HTML 檔案內容
+    """
+    try:
+        # 安全檢查：只允許讀取系統暫存目錄下的 openaver_gallery 資料夾
+        safe_dir = Path(tempfile.gettempdir()) / "openaver_gallery"
+        safe_dir.mkdir(parents=True, exist_ok=True)
+
+        target_path = Path(path).resolve()
+
+        # 路徑安全驗證
+        if not str(target_path).startswith(str(safe_dir.resolve())):
+            return Response(status_code=403, content="Access Denied")
+
+        if not target_path.exists():
+            return Response(status_code=404, content="File Not Found")
+
+        return FileResponse(target_path, media_type="text/html")
+
+    except Exception as e:
+        return Response(status_code=500, content=str(e))
+
+
 @router.get("/search")
 def search(
     q: str = Query(..., description="番號、局部番號、或女優名"),
@@ -99,7 +131,8 @@ def search(
     if results:
         # 判斷是否還有更多結果（prefix/actress 模式且結果數 = limit）
         has_more = detected_mode in ('prefix', 'actress') and len(results) >= limit
-        return {
+
+        response = {
             "success": True,
             "data": results,
             "total": len(results),
@@ -107,6 +140,32 @@ def search(
             "offset": offset,
             "has_more": has_more
         }
+
+        # 如果是女優搜尋 且結果 > 10 筆，生成 Gallery HTML
+        if detected_mode == "actress" and results and len(results) > 10:
+            try:
+                # 取得主題設定
+                from web.routers.config import load_config
+                config = load_config()
+                theme = config.get('general', {}).get('theme', 'dark')
+
+                # 生成 Gallery
+                from core.search_gallery_service import SearchGalleryService
+                service = SearchGalleryService()
+                gallery_path = service.generate_search_gallery(
+                    query=q,
+                    theme=theme,
+                    limit=limit
+                )
+
+                if gallery_path:
+                    response["gallery_url"] = f"/api/search/gallery-view?path={gallery_path}"
+
+            except Exception as e:
+                # Gallery 生成失敗不影響主搜尋，只記錄錯誤
+                print(f"[Gallery Generation Error] {e}")
+
+        return response
 
     return {
         "success": False,
@@ -190,7 +249,40 @@ async def search_stream(
                 results = future.result()
                 # 判斷是否還有更多結果
                 has_more = mode in ('prefix', 'actress') and len(results) >= limit
-                yield f"data: {json.dumps({'type': 'result', 'success': bool(results), 'data': results, 'total': len(results), 'mode': mode, 'offset': offset, 'has_more': has_more})}\n\n"
+
+                response = {
+                    'type': 'result',
+                    'success': bool(results),
+                    'data': results,
+                    'total': len(results),
+                    'mode': mode,
+                    'offset': offset,
+                    'has_more': has_more
+                }
+
+                # 如果是女優搜尋 且結果 > 10 筆，生成 Gallery HTML
+                if mode == "actress" and results and len(results) > 10:
+                    try:
+                        from web.routers.config import load_config
+                        config = load_config()
+                        theme = config.get('general', {}).get('theme', 'dark')
+
+                        from core.search_gallery_service import SearchGalleryService
+                        service = SearchGalleryService()
+                        gallery_path = service.generate_search_gallery(
+                            query=q,
+                            theme=theme,
+                            limit=limit
+                        )
+
+                        if gallery_path:
+                            response["gallery_url"] = f"/api/search/gallery-view?path={gallery_path}"
+
+                    except Exception as e:
+                        print(f"[Gallery Generation Error] {e}")
+
+                yield f"data: {json.dumps(response)}\n\n"
+
             except Exception as e:
                 yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 

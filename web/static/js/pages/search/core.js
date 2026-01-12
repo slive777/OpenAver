@@ -63,7 +63,11 @@ function initDOM() {
         progressLog: document.getElementById('progressLog'),
         detailProgress: document.getElementById('detailProgress'),
         detailBar: document.getElementById('detailBar'),
-        detailText: document.getElementById('detailText')
+        detailText: document.getElementById('detailText'),
+        // Gallery 相關
+        galleryView: document.getElementById('galleryView'),
+        galleryFrame: document.getElementById('galleryFrame'),
+        btnBackToDetail: document.getElementById('btnBackToDetail')
     };
 }
 
@@ -249,6 +253,14 @@ function clearState() {
 }
 
 function clearAll() {
+    // 先關閉 Gallery（如果有顯示）- 不自動顯示詳細資料卡
+    if (window.SearchUI.hideGallery) {
+        const galleryView = dom.galleryView;
+        if (galleryView && !galleryView.classList.contains('d-none')) {
+            window.SearchUI.hideGallery(false);
+        }
+    }
+
     searchResults = [];
     currentIndex = 0;
     currentQuery = '';
@@ -353,6 +365,14 @@ function handleSearchStatus(source, status) {
 function doSearch(query) {
     if (!query) return;
 
+    // 先關閉現有的 Gallery（如果有顯示）
+    if (window.SearchUI.hideGallery) {
+        const galleryView = dom.galleryView;
+        if (galleryView && !galleryView.classList.contains('d-none')) {
+            window.SearchUI.hideGallery(false);
+        }
+    }
+
     window.SearchUI.showState('loading');
     initProgress(query);
     searchResults = [];
@@ -389,13 +409,24 @@ function doSearch(query) {
                     searchResults = data.data;
                     currentIndex = 0;
                     hasMoreResults = data.has_more || false;
-                    window.SearchUI.displayResult(searchResults[0]);
-                    window.SearchUI.updateNavigation();
-                    window.SearchUI.showState('result');
-                    window.SearchUI.preloadImages(1, 5);
-                    listMode = 'search';
-                    window.SearchFile.renderSearchResultsList();
-                    updateClearButton();
+
+                    // 優先顯示 Gallery（如果有 gallery_url）
+                    if (data.gallery_url) {
+                        window.SearchUI.showGallery(data.gallery_url);
+                        listMode = 'search';
+                        window.SearchFile.renderSearchResultsList();
+                        updateClearButton();
+                        window.SearchCore.saveState();
+                    } else {
+                        // 原有的詳細資料卡顯示邏輯
+                        window.SearchUI.displayResult(searchResults[0]);
+                        window.SearchUI.updateNavigation();
+                        window.SearchUI.showState('result');
+                        window.SearchUI.preloadImages(1, 5);
+                        listMode = 'search';
+                        window.SearchFile.renderSearchResultsList();
+                        updateClearButton();
+                    }
                 } else {
                     document.getElementById('errorMessage').textContent = '找不到資料';
                     window.SearchUI.showState('error');
@@ -421,6 +452,14 @@ function doSearch(query) {
  * 傳統 API 回退
  */
 async function fallbackSearch(query) {
+    // 先關閉現有的 Gallery（如果有顯示）
+    if (window.SearchUI.hideGallery) {
+        const galleryView = dom.galleryView;
+        if (galleryView && !galleryView.classList.contains('d-none')) {
+            window.SearchUI.hideGallery(false);
+        }
+    }
+
     try {
         const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
         const data = await response.json();
@@ -429,13 +468,24 @@ async function fallbackSearch(query) {
             searchResults = data.data;
             currentIndex = 0;
             hasMoreResults = data.has_more || false;
-            window.SearchUI.displayResult(searchResults[0]);
-            window.SearchUI.updateNavigation();
-            window.SearchUI.showState('result');
-            window.SearchUI.preloadImages(1, 5);
-            listMode = 'search';
-            window.SearchFile.renderSearchResultsList();
-            updateClearButton();
+
+            // 優先顯示 Gallery（如果有 gallery_url）
+            if (data.gallery_url) {
+                window.SearchUI.showGallery(data.gallery_url);
+                listMode = 'search';
+                window.SearchFile.renderSearchResultsList();
+                updateClearButton();
+                window.SearchCore.saveState();
+            } else {
+                // 原有的詳細資料卡顯示邏輯
+                window.SearchUI.displayResult(searchResults[0]);
+                window.SearchUI.updateNavigation();
+                window.SearchUI.showState('result');
+                window.SearchUI.preloadImages(1, 5);
+                listMode = 'search';
+                window.SearchFile.renderSearchResultsList();
+                updateClearButton();
+            }
         } else {
             document.getElementById('errorMessage').textContent = data.error || '找不到資料';
             window.SearchUI.showState('error');

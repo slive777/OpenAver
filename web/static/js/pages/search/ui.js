@@ -483,6 +483,97 @@ function showTranslateError(error) {
     }, 3000);
 }
 
+// === Gallery 視圖 ===
+
+/**
+ * 顯示 Gallery 視圖
+ * @param {string} url - Gallery HTML 的 URL
+ */
+function showGallery(url) {
+    const { galleryView, galleryFrame } = window.SearchCore.dom;
+
+    // 設定 iframe src
+    galleryFrame.src = url;
+
+    // 顯示 Gallery 容器
+    galleryView.classList.remove('d-none');
+
+    // 監聽 iframe 的 postMessage
+    window.addEventListener('message', handleGalleryMessage);
+
+    console.log('[Gallery] Showing gallery view:', url);
+}
+
+/**
+ * 隱藏 Gallery 視圖，返回詳細資料卡
+ */
+function hideGallery(showDetail = true) {
+    const { galleryView, galleryFrame } = window.SearchCore.dom;
+
+    // 隱藏 Gallery 容器
+    galleryView.classList.add('d-none');
+
+    // 清空 iframe src（釋放資源）
+    galleryFrame.src = '';
+
+    // 移除 postMessage 監聽
+    window.removeEventListener('message', handleGalleryMessage);
+
+    // 只有需要時才顯示詳細資料卡
+    if (showDetail) {
+        const { searchResults, currentIndex } = window.SearchCore.state;
+        if (searchResults.length > 0) {
+            displayResult(searchResults[currentIndex]);
+            updateNavigation();
+            showState('result');
+        } else {
+            showState('empty');
+        }
+    }
+
+    console.log('[Gallery] Hiding gallery view');
+}
+
+/**
+ * 處理來自 Gallery iframe 的 postMessage
+ * @param {MessageEvent} event
+ */
+function handleGalleryMessage(event) {
+    // 安全檢查：確保訊息來自我們的 iframe
+    if (!event.origin.includes(window.location.origin)) {
+        return;
+    }
+
+    const message = event.data;
+
+    // 處理「點擊影片」事件
+    if (message.type === 'videoClick') {
+        console.log('[Gallery] Video clicked:', message.number);
+
+        // 在 searchResults 中找到對應的影片
+        const { searchResults } = window.SearchCore.state;
+        const index = searchResults.findIndex(r => r.number === message.number);
+
+        if (index !== -1) {
+            // 切換到該影片的詳細資料
+            window.SearchCore.state.currentIndex = index;
+            hideGallery();
+        } else {
+            console.warn('[Gallery] Video not found in search results:', message.number);
+        }
+    }
+
+    // 處理「查看更多」事件
+    if (message.type === 'loadMore') {
+        console.log('[Gallery] Load more requested');
+
+        // 關閉 Gallery，切換到大圖模式
+        hideGallery();
+
+        // 用戶可以用 ← → 箭頭瀏覽，到第 20 片按 → 會自動載入 21-40
+    }
+}
+
 // === 暴露介面 ===
 window.SearchUI = {
     showState,
@@ -495,7 +586,9 @@ window.SearchUI = {
     escapeHtml,
     updateEditButtonState,
     updateChineseTitleDisplay,
-    showTranslateError
+    showTranslateError,
+    showGallery,
+    hideGallery
 };
 
 // 全域函數（onclick 用）
