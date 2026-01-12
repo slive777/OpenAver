@@ -255,17 +255,19 @@ def copy_project_files():
         if src.is_dir():
             print(f"  複製目錄: {item}")
             shutil.copytree(src, dst, ignore=shutil.ignore_patterns(
-                "__pycache__", "*.pyc", ".git", ".gitignore"
+                "__pycache__", "*.pyc", ".git", ".gitignore", "config.json"
             ))
         elif src.is_file():
             print(f"  複製檔案: {item}")
             shutil.copy2(src, dst)
 
-    # 確保 config.json 存在
-    config_src = PROJECT_ROOT / "web" / "config.json"
-    config_dst = app_dir / "web" / "config.json"
-    if config_src.exists() and not config_dst.exists():
-        shutil.copy2(config_src, config_dst)
+    # 複製 config.default.json（預設設定範本）
+    # 注意：不複製 config.json，讓目標環境保留自己的設定
+    config_default_src = PROJECT_ROOT / "web" / "config.default.json"
+    config_default_dst = app_dir / "web" / "config.default.json"
+    if config_default_src.exists():
+        shutil.copy2(config_default_src, config_default_dst)
+        print("  複製檔案: config.default.json")
 
 
 def create_launcher_scripts():

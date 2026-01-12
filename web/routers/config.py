@@ -13,6 +13,7 @@ router = APIRouter(prefix="/api", tags=["config"])
 
 # 設定檔路徑
 CONFIG_PATH = Path(__file__).parent.parent / "config.json"
+CONFIG_DEFAULT_PATH = Path(__file__).parent.parent / "config.default.json"
 
 
 class ScraperConfig(BaseModel):
@@ -71,7 +72,13 @@ class AppConfig(BaseModel):
 
 
 def load_config() -> dict:
-    """載入設定，包含自動遷移邏輯"""
+    """載入設定，包含自動遷移邏輯和首次啟動初始化"""
+    # 首次啟動：從 config.default.json 初始化
+    if not CONFIG_PATH.exists() and CONFIG_DEFAULT_PATH.exists():
+        import shutil
+        shutil.copy2(CONFIG_DEFAULT_PATH, CONFIG_PATH)
+        print(f"[Config] 首次啟動，已從 config.default.json 初始化設定")
+
     if CONFIG_PATH.exists():
         with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
             raw_config = json.load(f)
@@ -93,7 +100,7 @@ def load_config() -> dict:
             save_config(raw_config)
 
         return raw_config
-    # 返回預設設定
+    # 返回預設設定（沒有 default 檔案時）
     return AppConfig().model_dump()
 
 
