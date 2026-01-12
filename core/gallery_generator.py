@@ -102,12 +102,22 @@ class HTMLGenerator:
 \t<!-- Header -->
 \t<header class="header">
 \t\t<div class="header-inner">
-\t\t\t<div class="logo">OpenAver Gallery</div>
-\t\t\t<div class="search-box">
+\t\t\t<div class="logo">
+\t\t\t\t<i class="bi bi-collection-play-fill logo-icon"></i>
+\t\t\t\t<span>OpenAver</span>
+\t\t\t</div>
+\t\t\t<div class="spotlight-search">
+\t\t\t\t<i class="bi bi-search search-icon-left"></i>
 \t\t\t\t<form name="form_search" onsubmit="goToLinkWithParameters(document.form_search.sw.value, 1); return false;">
 \t\t\t\t\t<input type="text" name="sw" placeholder="搜尋影片..." autocomplete="off" oninput="updateResetBtn()">
-\t\t\t\t\t<button type="button" class="reset-btn" onclick="resetSearch()" title="清除">✕</button>
-\t\t\t\t\t<button type="submit" title="搜尋">🔍</button>
+\t\t\t\t\t<div class="search-actions-right">
+\t\t\t\t\t\t<button type="button" class="reset-btn btn-icon d-none" onclick="resetSearch()" title="清除">
+\t\t\t\t\t\t\t<i class="bi bi-x-lg"></i>
+\t\t\t\t\t\t</button>
+\t\t\t\t\t\t<button type="submit" class="btn-icon active" title="搜尋">
+\t\t\t\t\t\t\t<i class="bi bi-arrow-right"></i>
+\t\t\t\t\t\t</button>
+\t\t\t\t\t</div>
 \t\t\t\t</form>
 \t\t\t</div>
 \t\t\t<div class="controls" id="controls"></div>
@@ -546,7 +556,11 @@ class HTMLGenerator:
 
 \t\tfunction updateResetBtn() {
 \t\t\tvar btn = document.querySelector('.reset-btn');
-\t\t\tbtn.style.display = document.form_search.sw.value ? 'flex' : 'none';
+\t\t\tif (document.form_search.sw.value) {
+\t\t\t\tbtn.classList.remove('d-none');
+\t\t\t} else {
+\t\t\t\tbtn.classList.add('d-none');
+\t\t\t}
 \t\t}
 
 \t\tfunction resetSearch() {
@@ -858,6 +872,10 @@ class HTMLGenerator:
 \t}
 \ta:hover { color: var(--accent); }
 
+\t/* ========== Utilities ========== */
+\t.d-none { display: none !important; }
+
+
 \t/* ========== Header ========== */
 \t.header {
 \t\tposition: sticky;
@@ -883,75 +901,86 @@ class HTMLGenerator:
 \t}
 \t
 \t.logo {
-\t\tfont-size: 1.25rem;
+\t\tdisplay: flex;
+\t\talign-items: center;
+\t\tgap: 0.5rem;
+\t\tfont-size: 1.35rem;
 \t\tfont-weight: 700;
 \t\tletter-spacing: -0.02em;
 \t\tcolor: var(--text-primary);
 \t\tjustify-self: start;
 \t}
+
+\t.logo-icon {
+\t\tfont-size: 1.5rem;
+\t\tbackground: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+\t\t-webkit-background-clip: text;
+\t\t-webkit-text-fill-color: transparent;
+\t\tfilter: drop-shadow(0 2px 4px rgba(45, 90, 123, 0.2));
+\t}
 \t
-\t.search-box {
-\t\tjustify-self: center;
+\t/* Spotlight Search - 膠囊藥丸形 */
+\t.spotlight-search {
+\t\tposition: relative;
 \t\twidth: 100%;
-\t\tmax-width: 400px;
+\t\tmax-width: 500px;
+\t\tmargin: 0 auto;
+\t\tjustify-self: center;
 \t}
-\t
-\t.search-box form {
-\t\tdisplay: flex;
-\t\tgap: 0;
+
+\t.spotlight-search .search-icon-left {
+\t\tposition: absolute;
+\t\tleft: 1.25rem;
+\t\ttop: 50%;
+\t\ttransform: translateY(-50%);
+\t\tcolor: var(--text-muted);
+\t\tfont-size: 1.2rem;
+\t\tpointer-events: none;
+\t\tz-index: 2;
 \t}
-\t
-\t.search-box input {
-\t\tflex: 1;
-\t\tpadding: 0.625rem 1rem;
+
+\t.spotlight-search input {
+\t\twidth: 100%;
+\t\theight: 3.5rem;
+\t\tpadding-left: 3.5rem;
+\t\tpadding-right: 6rem;
 \t\tborder: 1px solid var(--border-light);
-\t\tborder-right: none;
-\t\tborder-radius: var(--radius-md) 0 0 var(--radius-md);
-\t\tfont-family: inherit;
-\t\tfont-size: 0.875rem;
-\t\tcolor: var(--text-primary);
+\t\tborder-radius: 999px;
+\t\tfont-size: 1.05rem;
 \t\tbackground: var(--bg-card);
+\t\tcolor: var(--text-primary);
 \t\toutline: none;
-\t\ttransition: border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease, background-color var(--duration-normal) ease;
+\t\tbox-shadow: var(--shadow-sm);
+\t\ttransition: all var(--duration-normal) var(--ease-out);
 \t}
-\t
-\t.search-box input:focus {
+
+\t.spotlight-search input:focus {
 \t\tborder-color: var(--accent);
-\t\tbox-shadow: 0 0 0 3px rgba(45, 90, 123, 0.1);
+\t\tbox-shadow: 0 0 0 4px rgba(45, 90, 123, 0.15), var(--shadow-md);
+\t\ttransform: scale(1.01);
 \t}
-\t
-\t.search-box input::placeholder { color: var(--text-muted); }
-\t
-\t.search-box button {
+
+\t.spotlight-search input::placeholder {
+\t\tcolor: var(--text-muted);
+\t}
+
+\t.spotlight-search .search-actions-right {
+\t\tposition: absolute;
+\t\tright: 0.5rem;
+\t\ttop: 50%;
+\t\ttransform: translateY(-50%);
 \t\tdisplay: flex;
 \t\talign-items: center;
-\t\tjustify-content: center;
-\t\tpadding: 0 0.75rem;
-\t\tborder: 1px solid var(--border-light);
-\t\tborder-left: none;
-\t\tbackground: var(--bg-card);
-\t\tcursor: pointer;
-\t\tfont-size: 1rem;
-\t\tcolor: var(--text-secondary);
-\t\ttransition: all var(--duration-fast) ease;
+\t\tgap: 0.25rem;
+\t\tz-index: 2;
 \t}
-\t
-\t.search-box button:last-child {
-\t\tborder-radius: 0 var(--radius-md) var(--radius-md) 0;
+
+\t.spotlight-search .btn-icon {
+\t\tborder-radius: 50%;
+\t\twidth: 2.5rem;
+\t\theight: 2.5rem;
 \t}
-\t
-\t.search-box button:hover { background: var(--bg-body); color: var(--text-primary); }
-\t
-\t.search-box .reset-btn {
-\t\tdisplay: none;
-\t\tcolor: var(--text-muted);
-\t\tfont-size: 0.875rem;
-\t}
-\t
-\t.search-box .reset-btn:hover {
-\t\tcolor: var(--accent-red);
-\t\tbackground: var(--bg-body);
-\t}
+
 \t
 \t/* Header Controls - Icon Buttons */
 \t.controls {
