@@ -26,8 +26,16 @@ class HTMLGenerator:
                  sort: str = "date",
                  order: str = "descending",
                  items_per_page: int = 90,
-                 theme: str = "light") -> None:
-        """生成 HTML 檔案"""
+                 theme: str = "light",
+                 click_action: str = "play") -> None:
+        """
+        生成 HTML 檔案
+        
+        Args:
+            click_action: 點擊影片時的行為
+                - "play": 開啟影片（預設）
+                - "postMessage": 發送 postMessage 給父視窗（用於 iframe 嵌入）
+        """
 
         # 模式對應
         mode_map = {"detail": 0, "image": 1, "text": 2}
@@ -61,7 +69,8 @@ class HTMLGenerator:
             user_order=user_order,
             user_sort=sort,
             user_items=items_per_page,
-            theme=theme
+            theme=theme,
+            click_action=click_action
         )
 
         # 寫入檔案
@@ -72,7 +81,8 @@ class HTMLGenerator:
 
     def _generate_html(self, title: str, js_videos: List[str],
                        user_mode: int, user_order: int,
-                       user_sort: str, user_items: int, theme: str) -> str:
+                       user_sort: str, user_items: int, theme: str,
+                       click_action: str = "play") -> str:
         """生成 HTML 內容"""
 
         videos_js = '\n'.join([f'\t\tvideos[{i}] = {v};' for i, v in enumerate(js_videos)])
@@ -136,6 +146,7 @@ class HTMLGenerator:
 \t\tvar user_sort = "{user_sort}";
 \t\tvar user_items_per_page = {user_items};
 \t\tvar default_theme = "{theme}";
+\t\tvar click_action = "{click_action}";
 {self._get_javascript()}
 \t\t// Initialize
 \t\tinit();
@@ -209,8 +220,11 @@ class HTMLGenerator:
 
 \t\tfunction init() {
 \t\t\tinitTheme();
-\t\t\t// 優先從 localStorage 載入狀態，否則從 URL 參數
-\t\t\tif (!loadState()) {
+\t\t\t// 嵌入模式（postMessage）不載入 localStorage，直接使用生成時的資料
+\t\t\tif (click_action !== 'postMessage' && loadState()) {
+\t\t\t\t// 從 localStorage 載入成功
+\t\t\t} else {
+\t\t\t\t// 從 URL 參數或使用預設值
 \t\t\t\tvar params = new URLSearchParams(window.location.search);
 \t\t\t\tsearch_words = params.get('sw') || "";
 \t\t\t\tcurrent_page = parseInt(params.get('page')) || 1;
@@ -327,39 +341,39 @@ class HTMLGenerator:
 \t\t\t\t\thtml += '<div class="card">';
 \t\t\t\t\t// 圖片區（含按鈕）
 \t\t\t\t\thtml += '<div class="card-img" onclick="showLightbox(' + i + ')">';
-\t\t\t\t\thtml += '<img loading="lazy" src="' + imgSrc + '" alt="" onerror="this.parentElement.classList.add(\\'no-img\\')"/>';
+\t\t\t\t\t\thtml += '<img loading="lazy" src="' + imgSrc + '" alt="" onerror="this.parentElement.classList.add(\\'no-img\\')"/>';
 \t\t\t\t\t// Hover 時滑出的按鈕區（在縮圖內部）
-\t\t\t\t\thtml += '<div class="card-actions">';
-\t\t\t\t\thtml += '<a class="action-btn" href="javascript:void(0);" onclick="event.stopPropagation(); playVideo(\\'' + escapeHtml(v.path) + '\\')">開啟</a>';
-\t\t\t\t\thtml += '<a class="action-btn" href="javascript:void(0);" onclick="event.stopPropagation(); copyPath(\\'' + escapeHtml(v.path) + '\\')">複製</a>';
-\t\t\t\t\thtml += '</div>';
-\t\t\t\t\thtml += '</div>';
+\t\t\t\t\t\thtml += '<div class="card-actions">';
+\t\t\t\t\t\thtml += '<a class="action-btn" href="javascript:void(0);" onclick="event.stopPropagation(); playVideo(\\'' + escapeHtml(v.path) + '\\')">開啟</a>';
+\t\t\t\t\t\thtml += '<a class="action-btn" href="javascript:void(0);" onclick="event.stopPropagation(); copyPath(\\'' + escapeHtml(v.path) + '\\')">複製</a>';
+\t\t\t\t\t\thtml += '</div>';
+\t\t\t\t\t\thtml += '</div>';
 \t\t\t\t\t// Footer - 預設：番號+女優，Hover：片名
 \t\t\t\t\thtml += '<div class="card-footer">';
-\t\t\t\t\thtml += '<div class="footer-default">';
-\t\t\t\t\thtml += '<span class="num">' + escapeHtml(v.num || '') + '</span>';
-\t\t\t\t\thtml += '<span class="actor">' + escapeHtml(v.actor || '') + '</span>';
-\t\t\t\t\thtml += '</div>';
-\t\t\t\t\tif (!info_visible) {
-\t\t\t\t\t\t// Hover 時顯示片名（僅在資訊隱藏時）
-\t\t\t\t\t\thtml += '<div class="footer-hover">';
-\t\t\t\t\t\thtml += '<div class="hover-title">' + escapeHtml(stripNumPrefix(v.title)) + '</div>';
+\t\t\t\t\t\thtml += '<div class="footer-default">';
+\t\t\t\t\t\thtml += '<span class="num">' + escapeHtml(v.num || '') + '</span>';
+\t\t\t\t\t\thtml += '<span class="actor">' + escapeHtml(v.actor || '') + '</span>';
 \t\t\t\t\t\thtml += '</div>';
-\t\t\t\t\t}
-\t\t\t\t\thtml += '</div>';
+\t\t\t\t\t\tif (!info_visible) {
+\t\t\t\t\t\t\t// Hover 時顯示片名（僅在資訊隱藏時）
+\t\t\t\t\t\t\thtml += '<div class="footer-hover">';
+\t\t\t\t\t\t\thtml += '<div class="hover-title">' + escapeHtml(stripNumPrefix(v.title)) + '</div>';
+\t\t\t\t\t\t\thtml += '</div>';
+\t\t\t\t\t\t}
+\t\t\t\t\t\thtml += '</div>';
 \t\t\t\t\t// 可切換的詳細資訊區
-\t\t\t\t\tif (info_visible) {
-\t\t\t\t\t\thtml += '<div class="card-info">';
-\t\t\t\t\t\thtml += '<div class="info-title">' + escapeHtml(stripNumPrefix(v.title)) + '</div>';
-\t\t\t\t\t\tif (v.actor) html += '<div class="info-row"><b>演員：</b>' + formatActor(v.actor) + '</div>';
-\t\t\t\t\t\thtml += '<div class="info-row info-meta">';
-\t\t\t\t\t\tif (v.maker) html += '<span><b>片商：</b>' + formatMaker(v.maker) + '</span>';
-\t\t\t\t\t\tif (v.date) html += '<span><b>日期：</b>' + escapeHtml(v.date) + '</span>';
-\t\t\t\t\thtml += '</div>';
-\t\t\t\t\t\tif (v.genre) html += '<div class="info-tags">' + formatGenre(v.genre) + '</div>';
+\t\t\t\t\t\tif (info_visible) {
+\t\t\t\t\t\t\thtml += '<div class="card-info">';
+\t\t\t\t\t\t\thtml += '<div class="info-title">' + escapeHtml(stripNumPrefix(v.title)) + '</div>';
+\t\t\t\t\t\t\tif (v.actor) html += '<div class="info-row"><b>演員：</b>' + formatActor(v.actor) + '</div>';
+\t\t\t\t\t\t\thtml += '<div class="info-row info-meta">';
+\t\t\t\t\t\t\tif (v.maker) html += '<span><b>片商：</b>' + formatMaker(v.maker) + '</span>';
+\t\t\t\t\t\t\tif (v.date) html += '<span><b>日期：</b>' + escapeHtml(v.date) + '</span>';
+\t\t\t\t\t\t\thtml += '</div>';
+\t\t\t\t\t\t\tif (v.genre) html += '<div class="info-tags">' + formatGenre(v.genre) + '</div>';
+\t\t\t\t\t\t\thtml += '</div>';
+\t\t\t\t\t\t}
 \t\t\t\t\t\thtml += '</div>';
-\t\t\t\t\t}
-\t\t\t\t\thtml += '</div>';
 \t\t\t\t}
 \t\t\t\thtml += '</div>';
 \t\t\t} else {
@@ -517,6 +531,12 @@ class HTMLGenerator:
 \t\t}
 
 \t\tfunction playVideo(path) {
+\t\t\t// postMessage 模式：發送訊息給父視窗（用於 iframe 嵌入）
+\t\t\tif (click_action === 'postMessage') {
+\t\t\t\twindow.parent.postMessage({type: 'video_click', path: path}, '*');
+\t\t\t\treturn;
+\t\t\t}
+\t\t\t// 原有播放邏輯
 \t\t\tvar h = path.replace(/#/g, '%23');
 \t\t\tvar isFirefox = typeof InstallTrigger !== 'undefined';
 \t\t\tif (isFirefox) {

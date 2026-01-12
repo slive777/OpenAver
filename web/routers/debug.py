@@ -5,11 +5,12 @@ Debug 路由 - 開發測試用 API
 from typing import Optional
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from core.actress_scraper import scrape_actress_profile
+from core.search_gallery_service import SearchGalleryService
 
 
 # Router 設定
@@ -24,6 +25,11 @@ templates = Jinja2Templates(directory=Path(__file__).parent.parent / "templates"
 
 class ScrapeActressRequest(BaseModel):
     name: str
+
+
+class SearchGalleryRequest(BaseModel):
+    query: str
+    theme: str = "dark"
 
 
 # ============ API Endpoints ============
@@ -52,6 +58,50 @@ async def scrape_actress_api(request: ScrapeActressRequest):
         return {"success": False, "error": str(e)}
 
 
+@router.post("/search-gallery")
+async def search_gallery_api(request: SearchGalleryRequest):
+    """
+    生成搜尋結果 Gallery
+    
+    Args:
+        query: 搜尋關鍵字
+        theme: 主題 (light/dark)
+        
+    Returns:
+        Gallery HTML 的 URL
+    """
+    if not request.query or not request.query.strip():
+        return {"success": False, "error": "請輸入搜尋關鍵字"}
+    
+    try:
+        service = SearchGalleryService()
+        html_path = service.generate_search_gallery(
+            query=request.query.strip(),
+            theme=request.theme
+        )
+        
+        if html_path:
+            # 回傳可以載入的 URL
+            return {
+                "success": True, 
+                "url": f"/api/debug/gallery-view?path={html_path}"
+            }
+        else:
+            return {"success": False, "error": f"搜尋「{request.query}」沒有結果"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.get("/gallery-view")
+async def gallery_view(path: str):
+    """返回生成的 Gallery HTML"""
+    from pathlib import Path
+    file_path = Path(path)
+    if file_path.exists() and file_path.suffix == '.html':
+        return FileResponse(path, media_type="text/html")
+    return {"error": "File not found"}
+
+
 # ============ Debug Pages ============
 
 # 頁面路由使用不同的 prefix
@@ -62,3 +112,4 @@ page_router = APIRouter(tags=["debug-pages"])
 async def actress_debug_page(request: Request):
     """女優爬蟲測試頁面"""
     return templates.TemplateResponse("debug_actress.html", {"request": request})
+

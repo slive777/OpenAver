@@ -152,6 +152,18 @@
                 </div>
             </div>
         </div>
+
+        <!-- Gallery 預覽 -->
+        <div class="card mt-4" id="galleryCard" style="display: none;">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">🖼️ Gallery 預覽</h5>
+                <span id="galleryStatus" class="text-muted"></span>
+            </div>
+            <div class="card-body p-0">
+                <iframe id="galleryPreview"
+                    style="width:100%; height:600px; border:none; border-radius: 0 0 12px 12px;"></iframe>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -204,20 +216,67 @@
                     } else {
                         imagePreview.innerHTML = '<p class="text-muted">無頭像</p>';
                     }
+
+                    // 自動載入 Gallery 預覽
+                    loadGallery(name);
                 } else {
                     // 失敗
                     statusBadge.innerHTML = '<span class="badge bg-danger">失敗</span>';
                     imagePreview.innerHTML = `<p class="error-text">${result.error || '未知錯誤'}</p>`;
+                    hideGallery();
                 }
             } catch (error) {
                 jsonResult.textContent = JSON.stringify({ error: error.message }, null, 2);
                 statusBadge.innerHTML = '<span class="badge bg-danger">錯誤</span>';
                 imagePreview.innerHTML = `<p class="error-text">${error.message}</p>`;
+                hideGallery();
             } finally {
                 loading.classList.remove('show');
                 searchBtn.disabled = false;
             }
         }
+
+        // Gallery 預覽相關
+        const galleryCard = document.getElementById('galleryCard');
+        const galleryPreview = document.getElementById('galleryPreview');
+        const galleryStatus = document.getElementById('galleryStatus');
+
+        async function loadGallery(query) {
+            galleryCard.style.display = 'block';
+            galleryStatus.textContent = '載入中...';
+            galleryPreview.src = 'about:blank';
+
+            try {
+                const response = await fetch('/api/debug/search-gallery', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query, theme: 'dark' }),
+                });
+
+                const result = await response.json();
+
+                if (result.success && result.url) {
+                    galleryPreview.src = result.url;
+                    galleryStatus.textContent = '載入完成';
+                } else {
+                    galleryStatus.textContent = result.error || '載入失敗';
+                }
+            } catch (error) {
+                galleryStatus.textContent = '載入失敗: ' + error.message;
+            }
+        }
+
+        function hideGallery() {
+            galleryCard.style.display = 'none';
+        }
+
+        // 監聽 postMessage
+        window.addEventListener('message', function (event) {
+            if (event.data && event.data.type === 'video_click') {
+                console.log('Video clicked:', event.data.path);
+                // 可以在這裡處理點擊事件
+            }
+        });
 
         // 表單提交
         form.addEventListener('submit', (e) => {
