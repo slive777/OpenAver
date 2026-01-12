@@ -259,6 +259,12 @@ class HTMLGenerator:
 \t\t\t\tfiltered_videos = videos.slice();
 \t\t\t}
 \t\t\tfiltered_videos.sort(function(a, b) {
+\t\t\t\t// 女優卡置頂 (路徑以 'actress:' 開頭)
+\t\t\t\tvar aIsHero = a.path && a.path.indexOf('actress:') === 0;
+\t\t\t\tvar bIsHero = b.path && b.path.indexOf('actress:') === 0;
+\t\t\t\tif (aIsHero && !bIsHero) return -1;
+\t\t\t\tif (!aIsHero && bIsHero) return 1;
+
 \t\t\t\tvar va, vb;
 \t\t\t\tswitch(current_sort) {
 \t\t\t\t\tcase 'title': va = a.title; vb = b.title; break;

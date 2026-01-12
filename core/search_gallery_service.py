@@ -159,9 +159,8 @@ class SearchGalleryService:
             num=f"{profile.get('cup', '')}-Cup" if profile.get('cup') else "",
             actor=f"{profile.get('age')}歲" if profile.get('age') else "",
             maker="",
-            # 使用未來日期確保在按日期降序排列時永遠排第一
-            # Y2K38 彩蛋：Unix 32-bit 時間戳溢出日期
-            date="2038-01-19",
+            # 日期恢復正常（透過 generator 的 JS 邏輯置頂）
+            date=profile.get('birth', ''),
             genre=", ".join(tags),
             size=0,
             mtime=0,
