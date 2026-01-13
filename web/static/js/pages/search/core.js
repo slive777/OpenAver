@@ -20,6 +20,17 @@ let fileList = [];
 let currentFileIndex = 0;
 let listMode = null;  // 'file' | 'search' | null
 
+// 批次搜尋狀態
+let batchState = {
+    currentStart: 0,      // 當前批次起始 index（在未搜尋檔案陣列中的位置）
+    batchSize: 20,        // 每批數量
+    isProcessing: false,  // 是否正在處理批次
+    isPaused: false,      // 是否暫停（Phase 9.4 使用）
+    processed: 0,         // 本批已處理數量
+    success: 0,           // 本批成功數量
+    failed: 0             // 本批失敗數量
+};
+
 // 翻譯功能
 let appConfig = null;
 const translationCache = new Map();
@@ -527,6 +538,8 @@ window.SearchCore = {
             get translationCache() { return translationCache; },
             get currentMode() { return currentMode; },
             set currentMode(v) { currentMode = v; },
+            get batchState() { return batchState; },
+            set batchState(v) { batchState = v; },
             PAGE_SIZE
         };
     },

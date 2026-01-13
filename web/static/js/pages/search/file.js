@@ -270,6 +270,9 @@ function renderFileList() {
 
         dom.fileListContainer.appendChild(item);
     });
+
+    // 更新「搜尋全部」按鈕文字
+    updateSearchAllButton();
 }
 
 function renderSearchResultsList() {
@@ -524,6 +527,33 @@ async function scrapeSingle(index) {
     }
 }
 
+/**
+ * 更新「搜尋全部」按鈕文字
+ */
+function updateSearchAllButton() {
+    const { state, dom } = window.SearchCore;
+    const searchableFiles = state.fileList.filter(f => f.number && !f.searched);
+    const total = searchableFiles.length;
+
+    if (total === 0) {
+        dom.btnSearchAll.innerHTML = '<i class="bi bi-search"></i> 搜尋全部';
+        dom.btnSearchAll.disabled = true;
+        return;
+    }
+
+    const batch = state.batchState;
+    const start = batch.currentStart + 1;
+    const end = Math.min(batch.currentStart + batch.batchSize, total);
+
+    if (batch.isProcessing) {
+        dom.btnSearchAll.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 搜尋中...';
+        dom.btnSearchAll.disabled = true;
+    } else {
+        dom.btnSearchAll.innerHTML = `<i class="bi bi-search"></i> 搜尋 ${start}-${end} / ${total}`;
+        dom.btnSearchAll.disabled = false;
+    }
+}
+
 async function searchAll() {
     const { state, dom } = window.SearchCore;
     const searchableFiles = state.fileList.filter(f => f.number && !f.searched);
@@ -533,41 +563,73 @@ async function searchAll() {
         return;
     }
 
-    dom.btnSearchAll.disabled = true;
-    const originalHtml = dom.btnSearchAll.innerHTML;
-    dom.btnSearchAll.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    const batch = state.batchState;
 
-    let successCount = 0;
-    let failCount = 0;
+    // 計算本批次範圍
+    const start = batch.currentStart;
+    const end = Math.min(start + batch.batchSize, searchableFiles.length);
+    const currentBatch = searchableFiles.slice(start, end);
 
-    for (const file of searchableFiles) {
-        const index = state.fileList.indexOf(file);
-        await switchToFile(index, 'first', false);
+    // 更新狀態
+    batch.isProcessing = true;
+    batch.processed = 0;
+    batch.success = 0;
+    batch.failed = 0;
+    updateSearchAllButton();
 
-        if (file.searched) {
-            if (file.searchResults && file.searchResults.length > 0) {
-                successCount++;
+    // 並行處理，一次 2 個
+    const concurrency = 2;
+    for (let i = 0; i < currentBatch.length; i += concurrency) {
+        // 支援暫停（Phase 9.4 會實作）
+        if (batch.isPaused) break;
+
+        const chunk = currentBatch.slice(i, Math.min(i + concurrency, currentBatch.length));
+
+        // 並行處理這一組
+        await Promise.all(chunk.map(async (file) => {
+            const index = state.fileList.indexOf(file);
+            await switchToFile(index, 'first', false);
+
+            if (file.searched && file.searchResults && file.searchResults.length > 0) {
+                batch.success++;
             } else {
-                failCount++;
+                batch.failed++;
             }
-        } else {
-            failCount++;
-        }
 
-        renderFileList();
+            batch.processed++;
+            renderFileList();
+        }));
     }
 
+    // 批次處理完成
     state.isSearchingFile = false;
+    batch.isProcessing = false;
+
+    // 更新批次起始位置
+    batch.currentStart = end;
+
+    // 顯示完成訊息（2 秒）
+    dom.btnSearchAll.innerHTML = `<i class="bi bi-check-circle"></i> ${batch.success}/${currentBatch.length}`;
+    dom.btnSearchAll.disabled = true;
+
+    setTimeout(() => {
+        // 檢查是否還有未搜尋的檔案
+        const remaining = state.fileList.filter(f => f.number && !f.searched);
+        if (remaining.length === 0) {
+            // 全部完成，重置批次狀態
+            batch.currentStart = 0;
+            dom.btnSearchAll.innerHTML = '<i class="bi bi-search"></i> 搜尋全部';
+            dom.btnSearchAll.disabled = true;
+        } else {
+            // 還有檔案，更新按鈕顯示下一批
+            updateSearchAllButton();
+        }
+    }, 2000);
+
+    // 更新導航按鈕
     dom.btnNext.innerHTML = '<i class="bi bi-chevron-right"></i>';
     dom.btnPrev.innerHTML = '<i class="bi bi-chevron-left"></i>';
     window.SearchUI.updateNavigation();
-
-    dom.btnSearchAll.innerHTML = `<i class="bi bi-check-circle"></i> ${successCount}/${searchableFiles.length}`;
-
-    setTimeout(() => {
-        dom.btnSearchAll.innerHTML = originalHtml;
-        dom.btnSearchAll.disabled = false;
-    }, 2000);
 }
 
 async function scrapeAll() {
@@ -733,6 +795,15 @@ async function setFileList(paths) {
     });
     state.currentFileIndex = 0;
     state.listMode = 'file';
+
+    // 重置批次狀態
+    const batch = state.batchState;
+    batch.currentStart = 0;
+    batch.isProcessing = false;
+    batch.isPaused = false;
+    batch.processed = 0;
+    batch.success = 0;
+    batch.failed = 0;
 
     renderFileList();
     window.SearchCore.updateClearButton();

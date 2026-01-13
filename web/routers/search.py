@@ -2,7 +2,7 @@
 搜尋 API 路由
 """
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import Response, StreamingResponse, FileResponse
 from typing import Optional
 import requests
@@ -311,7 +311,7 @@ async def get_sources() -> dict:
 
 
 @router.post("/search/filter-files")
-async def filter_files(request: dict) -> dict:
+async def filter_files(request: Request) -> dict:
     """過濾檔案列表：移除非影片檔與過小檔案
 
     Args:
@@ -328,7 +328,8 @@ async def filter_files(request: dict) -> dict:
     from web.routers.config import load_config
     from core.path_utils import normalize_path
 
-    paths = request.get("paths", [])
+    data = await request.json()
+    paths = data.get("paths", [])
 
     # 載入設定
     config = load_config()
