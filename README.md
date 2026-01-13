@@ -9,6 +9,25 @@ OpenAver 是一個基於 Web 技術的桌面應用程式，旨在幫助您輕鬆
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)
 
+## ⚠️ 免責聲明
+
+本專案僅供個人學習研究使用，請使用者遵守：
+- 尊重網站服務條款
+- 合理控制請求頻率
+- 不用於商業目的
+
+使用本專案造成的任何後果由使用者自行承擔。
+
+## 🔒 隱私聲明
+
+OpenAver 是純本地應用程式：
+- ✅ 不蒐集使用者資料
+- ✅ 不上傳檔案資訊到遠端伺服器
+- ✅ 所有操作在您的電腦本地執行
+- ⚠️ 網路請求僅用於刮削公開影片元數據
+
+---
+
 ## ✨ 核心功能
 
 ### 🔍 Spotlight Search (搜尋)
@@ -85,6 +104,27 @@ python windows/launcher.py
 **原因**: 缺少 WebView2 Runtime 或 GPU 加速支援不足（常見於 Windows 10 或虛擬機）。
 **解法**:
 請下載並安裝 [Microsoft Edge WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703)。
+
+## 🐛 回報問題
+
+如果您遇到問題或發現 Bug，請協助回報：
+
+### 回報方式
+1. 前往 [GitHub Issues](https://github.com/your-repo/OpenAver/issues)
+2. 點擊「New Issue」建立新問題
+3. 請提供以下資訊：
+   - 問題描述（發生什麼錯誤？）
+   - 重現步驟（如何觸發這個問題？）
+   - 您的環境（Windows 版本、是否使用打包版）
+   - **日誌檔案**（如果有）
+
+### 取得日誌檔案（Windows 打包版）
+1. 執行 `OpenAver_Debug.bat`
+2. 重現問題
+3. 日誌位置：`%USERPROFILE%\OpenAver\logs\debug.log`
+4. 將日誌檔案附加到 Issue
+
+---
 
 ## 🧪 執行測試
 

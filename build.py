@@ -271,12 +271,12 @@ def copy_project_files():
 
 
 def create_launcher_scripts():
-    """建立啟動腳本和說明檔"""
+    """建立啟動腳本和說明檔（純英文版本，避免 Big5 編碼地雷字問題）"""
     print("  建立啟動腳本...")
 
     root_dir = BUILD_DIR / "OpenAver"
 
-    # OpenAver.bat - 顯示簡單日誌後用 pythonw.exe 啟動（無控制台）
+    # OpenAver.bat - 正常啟動（無控制台）
     bat_content = '''@echo off
 cd /d "%~dp0"
 echo OpenAver starting...
@@ -284,22 +284,21 @@ echo Window will appear shortly...
 start "" "python\\pythonw.exe" "app\\windows\\standalone.py"
 ping -n 3 127.0.0.1 >nul
 '''
-    (root_dir / "OpenAver.bat").write_text(bat_content, encoding='utf-8')
 
-    # OpenAver_Debug.bat - 有控制台版本（用於調試）
+    # OpenAver_Debug.bat - 偵錯模式（顯示控制台）
+    # 使用純英文避免 Big5 地雷字問題（誌、誤、訊、回、將、以、下、置、上 等字會導致亂碼）
     debug_bat_content = '''@echo off
-chcp 65001 >nul
 echo ======================================
 echo    OpenAver Debug Mode
 echo ======================================
 echo.
 
-REM 設定環境變數強制顯示詳細錯誤
+REM Force detailed error output
 set PYTHONUNBUFFERED=1
 set PYWEBVIEW_LOG=debug
 
-echo [INFO] 啟動 OpenAver (Debug Mode)...
-echo [INFO] 日誌位置: %USERPROFILE%\\OpenAver\\logs\\debug.log
+echo [INFO] Starting OpenAver (Debug Mode)...
+echo [INFO] Log location: %USERPROFILE%\\OpenAver\\logs\\debug.log
 echo.
 
 cd /d "%~dp0"
@@ -308,43 +307,47 @@ cd /d "%~dp0"
 if errorlevel 1 (
     echo.
     echo ======================================
-    echo [ERROR] 啟動失敗！
+    echo [ERROR] Startup failed!
     echo ======================================
     echo.
-    echo 請將以下資訊回報到 GitHub Issues:
-    echo 1. 上方的錯誤訊息
-    echo 2. 日誌檔案: %USERPROFILE%\\OpenAver\\logs\\debug.log
+    echo Please report to GitHub Issues:
+    echo 1. Error messages above
+    echo 2. Log file: %USERPROFILE%\\OpenAver\\logs\\debug.log
     echo.
 )
 
 pause
 '''
-    (root_dir / "OpenAver_Debug.bat").write_text(debug_bat_content, encoding='utf-8')
 
-    # README.txt
-    readme_content = '''OpenAver - JAV 影片元數據管理工具
+    # README.txt - 純英文版本
+    readme_content = '''OpenAver - JAV Metadata Manager
 ====================================
 
-使用方法：
-1. 雙擊 OpenAver.bat 啟動應用程式
-2. 如遇問題，請使用 OpenAver_Debug.bat 查看錯誤訊息
+Usage:
+1. Double-click OpenAver.bat to launch
+2. Use OpenAver_Debug.bat for troubleshooting
 
-系統需求：
-- Windows 10/11 64位元
+Requirements:
+- Windows 10/11 64-bit
 - Microsoft Edge WebView2 Runtime
-- 網路連線（用於搜尋資料）
+- Internet connection
 
-注意事項：
-- 首次啟動可能需要較長時間載入
-- 設定檔儲存於 app\\web\\config.json
-- 日誌檔案位於 %USERPROFILE%\\OpenAver\\logs\\
+Notes:
+- First launch may take longer to load
+- Config: app\\web\\config.json
+- Logs: %USERPROFILE%\\OpenAver\\logs\\
 
-問題回報：
-- 日誌位置：%USERPROFILE%\\OpenAver\\logs\\debug.log
+Troubleshooting:
+- Log file: %USERPROFILE%\\OpenAver\\logs\\debug.log
+- GitHub: https://github.com/your-repo/OpenAver/issues
 '''
-    (root_dir / "README.txt").write_text(readme_content, encoding='utf-8')
 
-    print("  已建立: OpenAver.bat, OpenAver_Debug.bat, README.txt")
+    # 使用 ASCII 編碼（100% 安全）
+    (root_dir / "OpenAver.bat").write_text(bat_content, encoding='ascii')
+    (root_dir / "OpenAver_Debug.bat").write_text(debug_bat_content, encoding='ascii')
+    (root_dir / "README.txt").write_text(readme_content, encoding='ascii')
+
+    print("  Created: OpenAver.bat, OpenAver_Debug.bat, README.txt")
 
 
 def get_directory_size(path):
