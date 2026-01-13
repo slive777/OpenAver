@@ -68,6 +68,10 @@ function initDOM() {
         btnAddFiles: document.getElementById('btnAddFiles'),
         btnAddFolder: document.getElementById('btnAddFolder'),
         btnFavorite: document.getElementById('btnFavorite'),
+        // 批次進度
+        batchProgress: document.getElementById('batchProgress'),
+        batchProgressBar: document.getElementById('batchProgressBar'),
+        batchProgressText: document.getElementById('batchProgressText'),
         dragOverlay: document.getElementById('dragOverlay'),
         // 進度指示器
         progressQuery: document.getElementById('progressQuery'),

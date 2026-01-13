@@ -553,17 +553,65 @@ function updateSearchAllButton() {
     const start = searchedCount + 1;
     const end = Math.min(searchedCount + batch.batchSize, totalWithNumber);
 
+    // 處理中顯示暫停/繼續按鈕
     if (batch.isProcessing) {
-        dom.btnSearchAll.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 搜尋中...';
-        dom.btnSearchAll.disabled = true;
+        if (batch.isPaused) {
+            dom.btnSearchAll.innerHTML = '<i class="bi bi-play-fill"></i> 繼續';
+            dom.btnSearchAll.disabled = false;
+        } else {
+            dom.btnSearchAll.innerHTML = '<i class="bi bi-pause-fill"></i> 暫停';
+            dom.btnSearchAll.disabled = false;
+        }
     } else {
         dom.btnSearchAll.innerHTML = `<i class="bi bi-search"></i> 搜尋 ${start}-${end} / ${totalWithNumber}`;
         dom.btnSearchAll.disabled = false;
     }
 }
 
+/**
+ * 更新批次進度顯示
+ */
+function updateBatchProgress() {
+    const { state, dom } = window.SearchCore;
+    const batch = state.batchState;
+
+    if (!batch.isProcessing) {
+        dom.batchProgress.classList.add('d-none');
+        return;
+    }
+
+    dom.batchProgress.classList.remove('d-none');
+
+    // 計算本批總數
+    const batchTotal = batch.batchSize;
+
+    // 更新進度條
+    const percentage = (batch.processed / batchTotal) * 100;
+    dom.batchProgressBar.style.width = `${percentage}%`;
+
+    // 更新文字
+    dom.batchProgressText.textContent = `處理中 ${batch.processed}/${batchTotal}`;
+}
+
 async function searchAll() {
     const { state, dom } = window.SearchCore;
+    const batch = state.batchState;
+
+    // 繼續模式：從暫停中恢復
+    if (batch.isPaused) {
+        batch.isPaused = false;
+        updateSearchAllButton();
+        return;
+    }
+
+    // 暫停模式：切換為暫停狀態
+    if (batch.isProcessing) {
+        batch.isPaused = true;
+        updateSearchAllButton();
+        return;
+    }
+
+    // === 新的批次開始 ===
     const searchableFiles = state.fileList.filter(f => f.number && !f.searched);
 
     if (searchableFiles.length === 0) {
@@ -571,9 +619,6 @@ async function searchAll() {
         return;
     }
 
-    const batch = state.batchState;
-
-    // 計算本批次範圍（直接從未搜尋列表取前 20 個）
     const currentBatch = searchableFiles.slice(0, batch.batchSize);
 
     // 更新狀態
@@ -582,12 +627,23 @@ async function searchAll() {
     batch.success = 0;
     batch.failed = 0;
     updateSearchAllButton();
+    updateBatchProgress();
 
     // 並行處理，一次 2 個
     const concurrency = 2;
     for (let i = 0; i < currentBatch.length; i += concurrency) {
-        // 支援暫停（Phase 9.4 會實作）
-        if (batch.isPaused) break;
+        // 支援暫停
+        if (batch.isPaused) {
+            // 等待繼續
+            await new Promise(resolve => {
+                const checkInterval = setInterval(() => {
+                    if (!batch.isPaused) {
+                        clearInterval(checkInterval);
+                        resolve();
+                    }
+                }, 100);
+            });
+        }
 
         const chunk = currentBatch.slice(i, Math.min(i + concurrency, currentBatch.length));
 
@@ -603,6 +659,7 @@ async function searchAll() {
             }
 
             batch.processed++;
+            updateBatchProgress();
             renderFileList();
         }));
     }
@@ -610,9 +667,15 @@ async function searchAll() {
     // 批次處理完成
     state.isSearchingFile = false;
     batch.isProcessing = false;
+    batch.isPaused = false;
+    updateBatchProgress();
 
-    // 顯示完成訊息（2 秒）
-    dom.btnSearchAll.innerHTML = `<i class="bi bi-check-circle"></i> ${batch.success}/${currentBatch.length}`;
+    // 顯示完成統計
+    const totalProcessed = batch.success + batch.failed;
+    alert(`批次搜尋完成！\n成功: ${batch.success}\n失敗: ${batch.failed}`);
+
+    // 顯示成功訊息（2 秒）
+    dom.btnSearchAll.innerHTML = `<i class="bi bi-check-circle"></i> ${batch.success}/${totalProcessed}`;
     dom.btnSearchAll.disabled = true;
 
     setTimeout(() => {

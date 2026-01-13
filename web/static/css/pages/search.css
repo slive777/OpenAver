@@ -594,3 +594,31 @@
         position: relative;
     }
 }
+/* 批次進度條（與 .detail-progress 風格統一，使用藍色系） */
+.batch-progress {
+    margin-bottom: 8px;
+    padding: 4px 0;
+}
+
+.batch-progress-bar {
+    height: 6px;
+    background: var(--border-light);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 4px;
+    position: relative;
+}
+
+.batch-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.batch-progress-text {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    text-align: center;
+}
