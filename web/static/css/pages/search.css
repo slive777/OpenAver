@@ -1,3 +1,10 @@
+/* ==================== 進度條共用變數 ==================== */
+:root {
+    --progress-gradient-start: #3b82f6;
+    --progress-gradient-end: #60a5fa;
+    --progress-transition: width 0.3s ease;
+}
+
 /* 主要容器 */
 .search-container {
     min-height: calc(100vh - 56px);
@@ -420,9 +427,9 @@
 
 .detail-bar {
     height: 100%;
-    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    background: linear-gradient(90deg, var(--progress-gradient-start), var(--progress-gradient-end));
     border-radius: 11px;
-    transition: width 0.2s ease;
+    transition: var(--progress-transition);
     min-width: 2%;
 }
 
@@ -593,4 +600,33 @@
     .path-input-area {
         position: relative;
     }
+}
+
+/* 批次進度條（與 .detail-progress 風格統一，使用藍色系） */
+.batch-progress {
+    margin-bottom: 8px;
+    padding: 4px 0;
+}
+
+.batch-progress-bar {
+    height: 6px;
+    background: var(--border-light);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 4px;
+    position: relative;
+}
+
+.batch-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--progress-gradient-start), var(--progress-gradient-end));
+    width: 0%;
+    transition: var(--progress-transition);
+}
+
+.batch-progress-text {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    text-align: center;
 }

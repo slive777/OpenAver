@@ -2,7 +2,7 @@
 搜尋 API 路由
 """
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import Response, StreamingResponse, FileResponse
 from typing import Optional
 import requests
@@ -307,4 +307,155 @@ async def get_sources() -> dict:
             {"id": "jav321", "name": "Jav321", "description": "備用來源"},
             {"id": "javdb", "name": "JavDB", "description": "女優/前綴搜尋用"},
         ]
+    }
+
+
+@router.get("/search/favorite-files")
+async def get_favorite_files() -> dict:
+    """取得我的最愛資料夾的檔案列表（已過濾）
+
+    Returns:
+        {
+            "success": True,
+            "files": ["path1", "path2", ...],
+            "folder": "/path/to/folder",
+            "total": 50
+        }
+    """
+    from web.routers.config import load_config
+    from core.path_utils import normalize_path
+
+    config = load_config()
+    original_folder = config.get('search', {}).get('favorite_folder', '').strip()
+
+    # 處理環境變數
+    if original_folder:
+        # Windows: %USERPROFILE%\Downloads → /home/user/Downloads
+        if '%USERPROFILE%' in original_folder.upper():
+            import re
+            home_dir = str(Path.home())
+            original_folder = re.sub(r'%USERPROFILE%', home_dir, original_folder, flags=re.IGNORECASE)
+
+        # Unix: ~/Videos → /home/user/Videos
+        if original_folder.startswith('~'):
+            original_folder = str(Path(original_folder).expanduser())
+
+    # 空字串 = 使用系統下載資料夾
+    if not original_folder:
+        folder = str(Path.home() / "Downloads")
+    else:
+        # 轉換 Windows 路徑到 WSL 相容路徑
+        folder = normalize_path(original_folder)
+
+    folder_path = Path(folder)
+    if not folder_path.exists():
+        return {
+            "success": False,
+            "error": f"資料夾不存在：{original_folder or folder}",
+            "folder": original_folder or folder
+        }
+
+    # 過濾設定
+    video_exts = [ext.lower() for ext in config.get("scraper", {}).get("video_extensions", [])]
+    min_size_mb = config.get("gallery", {}).get("min_size_mb", 0)
+    min_size_bytes = min_size_mb * 1024 * 1024
+
+    # 掃描資料夾（不遞迴，只掃描第一層）
+    files = []
+    try:
+        for f in folder_path.iterdir():
+            if not f.is_file():
+                continue
+            if f.suffix.lower() not in video_exts:
+                continue
+            if min_size_bytes > 0 and f.stat().st_size < min_size_bytes:
+                continue
+            files.append(str(f))
+    except PermissionError:
+        return {
+            "success": False,
+            "error": "無權限讀取資料夾",
+            "folder": folder
+        }
+
+    if len(files) == 0:
+        return {
+            "success": False,
+            "error": "資料夾內無有效影片檔案",
+            "folder": folder
+        }
+
+    return {
+        "success": True,
+        "files": files,
+        "folder": folder,
+        "total": len(files)
+    }
+
+
+@router.post("/search/filter-files")
+async def filter_files(request: Request) -> dict:
+    """過濾檔案列表：移除非影片檔與過小檔案
+
+    Args:
+        request: {"paths": ["/path/to/file1.mp4", "C:\\path\\to\\file2.txt", ...]}
+
+    Returns:
+        {
+            "success": True,
+            "files": ["filtered paths"],
+            "rejected": {"extension": 0, "size": 0, "not_found": 0},
+            "total_rejected": 0
+        }
+    """
+    from web.routers.config import load_config
+    from core.path_utils import normalize_path
+
+    data = await request.json()
+    paths = data.get("paths", [])
+
+    # 載入設定
+    config = load_config()
+    video_exts = [ext.lower() for ext in config.get("scraper", {}).get("video_extensions", [])]
+    min_size_mb = config.get("gallery", {}).get("min_size_mb", 0)
+    min_size_bytes = min_size_mb * 1024 * 1024
+
+    filtered = []
+    rejected = {"extension": 0, "size": 0, "not_found": 0}
+
+    for original_path in paths:
+        # 轉換路徑格式（Windows -> WSL）
+        try:
+            path = normalize_path(original_path)
+        except ValueError:
+            rejected["not_found"] += 1
+            continue
+
+        p = Path(path)
+        if not p.exists():
+            rejected["not_found"] += 1
+            continue
+
+        suffix = p.suffix.lower()
+        if suffix not in video_exts:
+            rejected["extension"] += 1
+            continue
+
+        if min_size_bytes > 0:
+            try:
+                if p.stat().st_size < min_size_bytes:
+                    rejected["size"] += 1
+                    continue
+            except OSError:
+                rejected["not_found"] += 1
+                continue
+
+        # 保留原始路徑（前端需要）
+        filtered.append(original_path)
+
+    return {
+        "success": True,
+        "files": filtered,
+        "rejected": rejected,
+        "total_rejected": sum(rejected.values())
     }

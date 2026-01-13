@@ -20,6 +20,17 @@ let fileList = [];
 let currentFileIndex = 0;
 let listMode = null;  // 'file' | 'search' | null
 
+// 批次搜尋狀態
+let batchState = {
+    batchSize: 20,        // 每批數量
+    isProcessing: false,  // 是否正在處理批次
+    isPaused: false,      // 是否暫停（Phase 9.4 使用）
+    total: 0,             // 本批實際總數
+    processed: 0,         // 本批已處理數量
+    success: 0,           // 本批成功數量
+    failed: 0             // 本批失敗數量
+};
+
 // 翻譯功能
 let appConfig = null;
 const translationCache = new Map();
@@ -57,6 +68,11 @@ function initDOM() {
         btnScrapeAll: document.getElementById('btnScrapeAll'),
         btnAddFiles: document.getElementById('btnAddFiles'),
         btnAddFolder: document.getElementById('btnAddFolder'),
+        btnFavorite: document.getElementById('btnFavorite'),
+        // 批次進度
+        batchProgress: document.getElementById('batchProgress'),
+        batchProgressBar: document.getElementById('batchProgressBar'),
+        batchProgressText: document.getElementById('batchProgressText'),
         dragOverlay: document.getElementById('dragOverlay'),
         // 進度指示器
         progressQuery: document.getElementById('progressQuery'),
@@ -78,6 +94,12 @@ async function loadAppConfig() {
         const data = await resp.json();
         if (data.success) {
             appConfig = data.data;
+
+            // 更新我的最愛按鈕 tooltip
+            if (dom.btnFavorite) {
+                const favoriteFolder = appConfig?.search?.favorite_folder || '系統下載資料夾';
+                dom.btnFavorite.title = `載入：${favoriteFolder}`;
+            }
         }
     } catch (e) {
         console.error('載入設定失敗:', e);
@@ -527,6 +549,8 @@ window.SearchCore = {
             get translationCache() { return translationCache; },
             get currentMode() { return currentMode; },
             set currentMode(v) { currentMode = v; },
+            get batchState() { return batchState; },
+            set batchState(v) { batchState = v; },
             PAGE_SIZE
         };
     },

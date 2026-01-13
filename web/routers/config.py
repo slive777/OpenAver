@@ -31,6 +31,7 @@ class ScraperConfig(BaseModel):
 class SearchConfig(BaseModel):
     search_filter: str = ""
     gallery_mode_enabled: bool = False  # 女優畫廊模式 (Beta) - 預設關閉
+    favorite_folder: str = ""  # 我的最愛資料夾 - 空字串 = 使用系統下載資料夾
 
 
 class TranslateConfig(BaseModel):
@@ -45,7 +46,7 @@ class GalleryConfig(BaseModel):
     output_dir: str = "output"
     output_filename: str = "gallery_output.html"
     path_mappings: dict = {}
-    min_size_kb: int = 0
+    min_size_mb: int = 0
     default_mode: str = "image"
     default_sort: str = "date"
     default_order: str = "descending"
@@ -94,6 +95,15 @@ def load_config() -> dict:
         if 'viewer' in raw_config and 'showcase' not in raw_config:
             raw_config['showcase'] = raw_config.pop('viewer')
             need_save = True
+
+        # Migration: min_size_kb -> min_size_mb (KB 轉 MB)
+        if 'gallery' in raw_config:
+            g = raw_config['gallery']
+            if 'min_size_kb' in g and 'min_size_mb' not in g:
+                # KB -> MB (四捨五入可接受)
+                g['min_size_mb'] = int(round(g.get('min_size_kb', 0) / 1024))
+                del g['min_size_kb']
+                need_save = True
 
         # Save migrated config
         if need_save:

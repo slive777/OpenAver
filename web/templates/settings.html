@@ -106,11 +106,24 @@
                     <div class="col-md-6">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="galleryModeEnabled"
-                                   data-section="search" data-key="gallery_mode_enabled">
+                                data-section="search" data-key="gallery_mode_enabled">
                             <label class="form-check-label" for="galleryModeEnabled">
                                 女優畫廊模式 <span class="badge bg-danger">Beta</span>
                             </label>
                         </div>
+                    </div>
+                </div>
+
+                <!-- 我的最愛資料夾 -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">我的最愛資料夾</label>
+                        <small class="text-muted d-block">一鍵載入常用資料夾</small>
+                    </div>
+                    <div class="col-md-6">
+                        <input type="text" class="form-control form-control-sm" id="searchFavoriteFolder"
+                            placeholder="留空 = 系統下載資料夾">
+                        <small class="text-muted">範例：C:\Users\&lt;你的使用者名稱&gt;\下載</small>
                     </div>
                 </div>
 
@@ -347,12 +360,12 @@
 
                     <div class="row">
                         <div class="col-md-6">
-                            <label class="form-label">最小檔案大小</label>
+                            <label class="form-label">最小影片尺寸</label>
                         </div>
                         <div class="col-md-6">
                             <div class="input-group input-group-sm">
                                 <input type="number" class="form-control" id="avlistMinSize" value="0" min="0">
-                                <span class="input-group-text">KB</span>
+                                <span class="input-group-text">MB</span>
                             </div>
                             <small class="text-muted">0 = 不過濾</small>
                         </div>
@@ -506,6 +519,7 @@
                 // 搜尋設定
                 if (config.search) {
                     document.getElementById('galleryModeEnabled').checked = config.search.gallery_mode_enabled || false;
+                    document.getElementById('searchFavoriteFolder').value = config.search.favorite_folder || '';
                 }
 
                 // 翻譯設定
@@ -521,7 +535,7 @@
                     document.getElementById('avlistSort').value = config.gallery.default_sort || 'date';
                     document.getElementById('avlistOrder').value = config.gallery.default_order || 'descending';
                     document.getElementById('avlistItemsPerPage').value = config.gallery.items_per_page || 90;
-                    document.getElementById('avlistMinSize').value = config.gallery.min_size_kb || 0;
+                    document.getElementById('avlistMinSize').value = config.gallery.min_size_mb || 0;
                     document.getElementById('avlistOutputDir').value = config.gallery.output_dir || 'output';
                     document.getElementById('avlistOutputFilename').value = config.gallery.output_filename || 'gallery_output.html';
                 }
@@ -578,7 +592,8 @@
             // 更新 search 設定
             config.search = {
                 ...config.search,
-                gallery_mode_enabled: document.getElementById('galleryModeEnabled').checked
+                gallery_mode_enabled: document.getElementById('galleryModeEnabled').checked,
+                favorite_folder: document.getElementById('searchFavoriteFolder').value.trim()
             };
 
             // 更新 translate 設定
@@ -597,7 +612,7 @@
                 default_sort: document.getElementById('avlistSort').value,
                 default_order: document.getElementById('avlistOrder').value,
                 items_per_page: parseInt(document.getElementById('avlistItemsPerPage').value),
-                min_size_kb: parseInt(document.getElementById('avlistMinSize').value) || 0,
+                min_size_mb: parseInt(document.getElementById('avlistMinSize').value) || 0,
                 output_dir: document.getElementById('avlistOutputDir').value.trim() || 'output',
                 output_filename: document.getElementById('avlistOutputFilename').value.trim() || 'gallery_output.html'
             };

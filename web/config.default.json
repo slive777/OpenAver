@@ -22,7 +22,8 @@
   },
   "search": {
     "search_filter": "",
-    "gallery_mode_enabled": false
+    "gallery_mode_enabled": false,
+    "favorite_folder": ""
   },
   "translate": {
     "enabled": false,
@@ -35,7 +36,7 @@
     "output_dir": "output",
     "output_filename": "gallery_output.html",
     "path_mappings": {},
-    "min_size_kb": 0,
+    "min_size_mb": 0,
     "default_mode": "image",
     "default_sort": "date",
     "default_order": "descending",

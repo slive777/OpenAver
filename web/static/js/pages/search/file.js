@@ -270,6 +270,9 @@ function renderFileList() {
 
         dom.fileListContainer.appendChild(item);
     });
+
+    // 更新「搜尋全部」按鈕文字
+    updateSearchAllButton();
 }
 
 function renderSearchResultsList() {
@@ -524,8 +527,98 @@ async function scrapeSingle(index) {
     }
 }
 
+/**
+ * 更新「搜尋全部」按鈕文字
+ */
+function updateSearchAllButton() {
+    const { state, dom } = window.SearchCore;
+
+    // 總共有番號的檔案數（固定）
+    const totalWithNumber = state.fileList.filter(f => f.number).length;
+
+    // 未搜尋的檔案
+    const searchableFiles = state.fileList.filter(f => f.number && !f.searched);
+
+    if (searchableFiles.length === 0) {
+        dom.btnSearchAll.innerHTML = '<i class="bi bi-search"></i> 搜尋全部';
+        dom.btnSearchAll.disabled = true;
+        return;
+    }
+
+    // 已搜尋的數量
+    const searchedCount = totalWithNumber - searchableFiles.length;
+
+    // 本批範圍
+    const batch = state.batchState;
+    const start = searchedCount + 1;
+    const end = Math.min(searchedCount + batch.batchSize, totalWithNumber);
+
+    // 處理中顯示暫停/繼續按鈕
+    if (batch.isProcessing) {
+        if (batch.isPaused) {
+            dom.btnSearchAll.innerHTML = '<i class="bi bi-play-fill"></i> 繼續';
+            dom.btnSearchAll.disabled = false;
+        } else {
+            dom.btnSearchAll.innerHTML = '<i class="bi bi-pause-fill"></i> 暫停';
+            dom.btnSearchAll.disabled = false;
+        }
+    } else {
+        dom.btnSearchAll.innerHTML = `<i class="bi bi-search"></i> 搜尋 ${start}-${end} / ${totalWithNumber}`;
+        dom.btnSearchAll.disabled = false;
+    }
+}
+
+/**
+ * 更新批次進度顯示
+ */
+function updateBatchProgress() {
+    const { state, dom } = window.SearchCore;
+    const batch = state.batchState;
+
+    if (!batch.isProcessing) {
+        dom.batchProgress.classList.add('d-none');
+        return;
+    }
+
+    dom.batchProgress.classList.remove('d-none');
+
+    // 計算本批總數（使用實際批次大小）
+    const batchTotal = batch.total || batch.batchSize;
+
+    // 防禦：避免除以零
+    if (batchTotal <= 0) {
+        dom.batchProgressBar.style.width = '0%';
+        dom.batchProgressText.textContent = '處理中 0/0';
+        return;
+    }
+
+    // 更新進度條
+    const percentage = (batch.processed / batchTotal) * 100;
+    dom.batchProgressBar.style.width = `${percentage}%`;
+
+    // 更新文字
+    dom.batchProgressText.textContent = `處理中 ${batch.processed}/${batchTotal}`;
+}
+
 async function searchAll() {
     const { state, dom } = window.SearchCore;
+    const batch = state.batchState;
+
+    // 繼續模式：從暫停中恢復
+    if (batch.isPaused) {
+        batch.isPaused = false;
+        updateSearchAllButton();
+        return;
+    }
+
+    // 暫停模式：切換為暫停狀態
+    if (batch.isProcessing) {
+        batch.isPaused = true;
+        updateSearchAllButton();
+        return;
+    }
+
+    // === 新的批次開始 ===
     const searchableFiles = state.fileList.filter(f => f.number && !f.searched);
 
     if (searchableFiles.length === 0) {
@@ -533,41 +626,83 @@ async function searchAll() {
         return;
     }
 
-    dom.btnSearchAll.disabled = true;
-    const originalHtml = dom.btnSearchAll.innerHTML;
-    dom.btnSearchAll.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    const currentBatch = searchableFiles.slice(0, batch.batchSize);
 
-    let successCount = 0;
-    let failCount = 0;
+    // 更新狀態
+    batch.isProcessing = true;
+    batch.total = currentBatch.length;  // 記錄實際批次大小
+    batch.processed = 0;
+    batch.success = 0;
+    batch.failed = 0;
+    updateSearchAllButton();
+    updateBatchProgress();
 
-    for (const file of searchableFiles) {
-        const index = state.fileList.indexOf(file);
-        await switchToFile(index, 'first', false);
-
-        if (file.searched) {
-            if (file.searchResults && file.searchResults.length > 0) {
-                successCount++;
-            } else {
-                failCount++;
-            }
-        } else {
-            failCount++;
+    // 並行處理，一次 2 個
+    const concurrency = 2;
+    for (let i = 0; i < currentBatch.length; i += concurrency) {
+        // 支援暫停
+        if (batch.isPaused) {
+            // 等待繼續
+            await new Promise(resolve => {
+                const checkInterval = setInterval(() => {
+                    if (!batch.isPaused) {
+                        clearInterval(checkInterval);
+                        resolve();
+                    }
+                }, 100);
+            });
         }
 
-        renderFileList();
+        const chunk = currentBatch.slice(i, Math.min(i + concurrency, currentBatch.length));
+
+        // 並行處理這一組
+        await Promise.all(chunk.map(async (file) => {
+            const index = state.fileList.indexOf(file);
+            await switchToFile(index, 'first', false);
+
+            if (file.searched && file.searchResults && file.searchResults.length > 0) {
+                batch.success++;
+            } else {
+                batch.failed++;
+            }
+
+            batch.processed++;
+            updateBatchProgress();
+            renderFileList();
+        }));
     }
 
+    // 批次處理完成
     state.isSearchingFile = false;
+    batch.isProcessing = false;
+    batch.isPaused = false;
+    batch.total = 0;  // 重置實際總數
+    updateBatchProgress();
+
+    // 顯示完成統計
+    const totalProcessed = batch.success + batch.failed;
+    alert(`批次搜尋完成！\n成功: ${batch.success}\n失敗: ${batch.failed}`);
+
+    // 顯示成功訊息（2 秒）
+    dom.btnSearchAll.innerHTML = `<i class="bi bi-check-circle"></i> ${batch.success}/${totalProcessed}`;
+    dom.btnSearchAll.disabled = true;
+
+    setTimeout(() => {
+        // 檢查是否還有未搜尋的檔案
+        const remaining = state.fileList.filter(f => f.number && !f.searched);
+        if (remaining.length === 0) {
+            dom.btnSearchAll.innerHTML = '<i class="bi bi-search"></i> 搜尋全部';
+            dom.btnSearchAll.disabled = true;
+        } else {
+            // 還有檔案，更新按鈕顯示下一批
+            updateSearchAllButton();
+        }
+    }, 2000);
+
+    // 更新導航按鈕
     dom.btnNext.innerHTML = '<i class="bi bi-chevron-right"></i>';
     dom.btnPrev.innerHTML = '<i class="bi bi-chevron-left"></i>';
     window.SearchUI.updateNavigation();
-
-    dom.btnSearchAll.innerHTML = `<i class="bi bi-check-circle"></i> ${successCount}/${searchableFiles.length}`;
-
-    setTimeout(() => {
-        dom.btnSearchAll.innerHTML = originalHtml;
-        dom.btnSearchAll.disabled = false;
-    }, 2000);
 }
 
 async function scrapeAll() {
@@ -657,8 +792,107 @@ async function scrapeAll() {
 
 // === 拖拽處理 ===
 
-function setFileList(paths) {
+async function setFileList(paths) {
     const { state, dom } = window.SearchCore;
+
+    // 呼叫過濾 API
+    try {
+        const resp = await fetch('/api/search/filter-files', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paths })
+        });
+        const result = await resp.json();
+
+        if (result.success) {
+            if (result.total_rejected > 0) {
+                const { extension, size, not_found } = result.rejected;
+                let msg = `已過濾 ${result.total_rejected} 個檔案`;
+                const details = [];
+                if (extension > 0) details.push(`${extension} 個非影片檔`);
+                if (size > 0) details.push(`${size} 個小於最小尺寸`);
+                if (not_found > 0) details.push(`${not_found} 個不存在`);
+                if (details.length > 0) msg += `（${details.join('、')}）`;
+
+                // 顯示過濾結果提示（使用短暫 alert 或 Toast）
+                console.log('[Filter]', msg);
+
+                // 使用一個短暫的浮動提示
+                const toast = document.createElement('div');
+                toast.className = 'filter-toast';
+                toast.textContent = msg;
+                toast.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(0,0,0,0.85);
+                    color: white;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    z-index: 9999;
+                    font-size: 14px;
+                    opacity: 1;
+                    transition: opacity 0.5s ease;
+                `;
+                document.body.appendChild(toast);
+                setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+                setTimeout(() => toast.remove(), 3000);
+            }
+            paths = result.files;
+        }
+    } catch (err) {
+        console.error('Filter API error:', err);
+        // 降級：保留原 paths
+    }
+
+    // 🆕 前端過濾：檢查能否提取番號
+    const validPaths = [];
+    let noNumberCount = 0;
+
+    for (const path of paths) {
+        const number = extractNumber(path);
+        if (number !== null) {
+            validPaths.push(path);
+        } else {
+            noNumberCount++;
+        }
+    }
+
+    // 🆕 顯示前端過濾統計（橘色 toast）
+    if (noNumberCount > 0) {
+        const msg = `已過濾 ${noNumberCount} 個無法識別番號的檔案`;
+        console.log('[Filter]', msg);
+
+        const toast = document.createElement('div');
+        toast.className = 'filter-toast';
+        toast.textContent = msg;
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 152, 0, 0.9);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 9999;
+            font-size: 14px;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    paths = validPaths;
+
+    // 檢查空列表
+    if (paths.length === 0) {
+        alert('無有效影片檔案（無法識別番號）');
+        return;
+    }
 
     state.fileList = paths.map(path => {
         const filename = path.split(/[/\\]/).pop();
@@ -676,6 +910,15 @@ function setFileList(paths) {
     });
     state.currentFileIndex = 0;
     state.listMode = 'file';
+
+    // 重置批次狀態
+    const batch = state.batchState;
+    batch.isProcessing = false;
+    batch.isPaused = false;
+    batch.total = 0;
+    batch.processed = 0;
+    batch.success = 0;
+    batch.failed = 0;
 
     renderFileList();
     window.SearchCore.updateClearButton();
