@@ -22,7 +22,7 @@
   },
   "search": {
     "search_filter": "",
-    "gallery_mode_enabled": false,
+    "gallery_mode_enabled": true,
     "favorite_folder": ""
   },
   "translate": {
