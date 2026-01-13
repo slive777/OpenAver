@@ -288,8 +288,35 @@ ping -n 3 127.0.0.1 >nul
 
     # OpenAver_Debug.bat - 有控制台版本（用於調試）
     debug_bat_content = '''@echo off
+chcp 65001 >nul
+echo ======================================
+echo    OpenAver Debug Mode
+echo ======================================
+echo.
+
+REM 設定環境變數強制顯示詳細錯誤
+set PYTHONUNBUFFERED=1
+set PYWEBVIEW_LOG=debug
+
+echo [INFO] 啟動 OpenAver (Debug Mode)...
+echo [INFO] 日誌位置: %USERPROFILE%\\OpenAver\\logs\\debug.log
+echo.
+
 cd /d "%~dp0"
 "python\\python.exe" "app\\windows\\standalone.py"
+
+if errorlevel 1 (
+    echo.
+    echo ======================================
+    echo [ERROR] 啟動失敗！
+    echo ======================================
+    echo.
+    echo 請將以下資訊回報到 GitHub Issues:
+    echo 1. 上方的錯誤訊息
+    echo 2. 日誌檔案: %USERPROFILE%\\OpenAver\\logs\\debug.log
+    echo.
+)
+
 pause
 '''
     (root_dir / "OpenAver_Debug.bat").write_text(debug_bat_content, encoding='utf-8')
@@ -304,15 +331,78 @@ pause
 
 系統需求：
 - Windows 10/11 64位元
+- Microsoft Edge WebView2 Runtime
 - 網路連線（用於搜尋資料）
 
 注意事項：
 - 首次啟動可能需要較長時間載入
 - 設定檔儲存於 app\\web\\config.json
+- 日誌檔案位於 %USERPROFILE%\\OpenAver\\logs\\
+
+問題回報：
+- 日誌位置：%USERPROFILE%\\OpenAver\\logs\\debug.log
 '''
     (root_dir / "README.txt").write_text(readme_content, encoding='utf-8')
 
     print("  已建立: OpenAver.bat, OpenAver_Debug.bat, README.txt")
+
+
+def get_directory_size(path):
+    """計算目錄大小"""
+    total = sum(f.stat().st_size for f in Path(path).rglob('*') if f.is_file())
+    return total
+
+
+def optimize_package():
+    """優化打包體積：刪除 .dist-info、清理 __pycache__"""
+    print("\n[5.5/6] 優化打包體積...")
+
+    app_dir = BUILD_DIR / "OpenAver"
+    size_before = get_directory_size(app_dir)
+
+    # 1. 刪除 .dist-info 資料夾
+    dist_info_count = 0
+    dist_info_size = 0
+    for dist_info in app_dir.rglob("*.dist-info"):
+        if dist_info.is_dir():
+            size = sum(f.stat().st_size for f in dist_info.rglob('*') if f.is_file())
+            dist_info_size += size
+            shutil.rmtree(dist_info)
+            dist_info_count += 1
+
+    if dist_info_count > 0:
+        print(f"  刪除 {dist_info_count} 個 .dist-info 資料夾，節省 {dist_info_size / 1024 / 1024:.2f} MB")
+
+    # 2. 清理 __pycache__ 資料夾
+    pycache_count = 0
+    pycache_size = 0
+    for pycache in app_dir.rglob("__pycache__"):
+        if pycache.is_dir():
+            size = sum(f.stat().st_size for f in pycache.rglob('*') if f.is_file())
+            pycache_size += size
+            shutil.rmtree(pycache)
+            pycache_count += 1
+
+    if pycache_count > 0:
+        print(f"  刪除 {pycache_count} 個 __pycache__ 資料夾，節省 {pycache_size / 1024 / 1024:.2f} MB")
+
+    # 3. 刪除 .egg-info 資料夾
+    egg_info_count = 0
+    egg_info_size = 0
+    for egg_info in app_dir.rglob("*.egg-info"):
+        if egg_info.is_dir():
+            size = sum(f.stat().st_size for f in egg_info.rglob('*') if f.is_file())
+            egg_info_size += size
+            shutil.rmtree(egg_info)
+            egg_info_count += 1
+
+    if egg_info_count > 0:
+        print(f"  刪除 {egg_info_count} 個 .egg-info 資料夾，節省 {egg_info_size / 1024 / 1024:.2f} MB")
+
+    # 統計優化結果
+    size_after = get_directory_size(app_dir)
+    saved = size_before - size_after
+    print(f"  體積優化: {size_before / 1024 / 1024:.1f} MB → {size_after / 1024 / 1024:.1f} MB (節省 {saved / 1024 / 1024:.1f} MB)")
 
 
 def create_zip_package():
@@ -355,6 +445,7 @@ def main():
         download_and_install_packages(python_dir)
         copy_project_files()
         create_launcher_scripts()
+        optimize_package()
         zip_path = create_zip_package()
 
         print("\n" + "=" * 50)
