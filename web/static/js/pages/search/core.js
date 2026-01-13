@@ -22,7 +22,6 @@ let listMode = null;  // 'file' | 'search' | null
 
 // 批次搜尋狀態
 let batchState = {
-    currentStart: 0,      // 當前批次起始 index（在未搜尋檔案陣列中的位置）
     batchSize: 20,        // 每批數量
     isProcessing: false,  // 是否正在處理批次
     isPaused: false,      // 是否暫停（Phase 9.4 使用）

@@ -532,24 +532,32 @@ async function scrapeSingle(index) {
  */
 function updateSearchAllButton() {
     const { state, dom } = window.SearchCore;
-    const searchableFiles = state.fileList.filter(f => f.number && !f.searched);
-    const total = searchableFiles.length;
 
-    if (total === 0) {
+    // 總共有番號的檔案數（固定）
+    const totalWithNumber = state.fileList.filter(f => f.number).length;
+
+    // 未搜尋的檔案
+    const searchableFiles = state.fileList.filter(f => f.number && !f.searched);
+
+    if (searchableFiles.length === 0) {
         dom.btnSearchAll.innerHTML = '<i class="bi bi-search"></i> 搜尋全部';
         dom.btnSearchAll.disabled = true;
         return;
     }
 
+    // 已搜尋的數量
+    const searchedCount = totalWithNumber - searchableFiles.length;
+
+    // 本批範圍
     const batch = state.batchState;
-    const start = batch.currentStart + 1;
-    const end = Math.min(batch.currentStart + batch.batchSize, total);
+    const start = searchedCount + 1;
+    const end = Math.min(searchedCount + batch.batchSize, totalWithNumber);
 
     if (batch.isProcessing) {
         dom.btnSearchAll.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 搜尋中...';
         dom.btnSearchAll.disabled = true;
     } else {
-        dom.btnSearchAll.innerHTML = `<i class="bi bi-search"></i> 搜尋 ${start}-${end} / ${total}`;
+        dom.btnSearchAll.innerHTML = `<i class="bi bi-search"></i> 搜尋 ${start}-${end} / ${totalWithNumber}`;
         dom.btnSearchAll.disabled = false;
     }
 }
@@ -565,10 +573,8 @@ async function searchAll() {
 
     const batch = state.batchState;
 
-    // 計算本批次範圍
-    const start = batch.currentStart;
-    const end = Math.min(start + batch.batchSize, searchableFiles.length);
-    const currentBatch = searchableFiles.slice(start, end);
+    // 計算本批次範圍（直接從未搜尋列表取前 20 個）
+    const currentBatch = searchableFiles.slice(0, batch.batchSize);
 
     // 更新狀態
     batch.isProcessing = true;
@@ -605,9 +611,6 @@ async function searchAll() {
     state.isSearchingFile = false;
     batch.isProcessing = false;
 
-    // 更新批次起始位置
-    batch.currentStart = end;
-
     // 顯示完成訊息（2 秒）
     dom.btnSearchAll.innerHTML = `<i class="bi bi-check-circle"></i> ${batch.success}/${currentBatch.length}`;
     dom.btnSearchAll.disabled = true;
@@ -616,8 +619,6 @@ async function searchAll() {
         // 檢查是否還有未搜尋的檔案
         const remaining = state.fileList.filter(f => f.number && !f.searched);
         if (remaining.length === 0) {
-            // 全部完成，重置批次狀態
-            batch.currentStart = 0;
             dom.btnSearchAll.innerHTML = '<i class="bi bi-search"></i> 搜尋全部';
             dom.btnSearchAll.disabled = true;
         } else {
@@ -773,9 +774,51 @@ async function setFileList(paths) {
         // 降級：保留原 paths
     }
 
+    // 🆕 前端過濾：檢查能否提取番號
+    const validPaths = [];
+    let noNumberCount = 0;
+
+    for (const path of paths) {
+        const number = extractNumber(path);
+        if (number !== null) {
+            validPaths.push(path);
+        } else {
+            noNumberCount++;
+        }
+    }
+
+    // 🆕 顯示前端過濾統計（橘色 toast）
+    if (noNumberCount > 0) {
+        const msg = `已過濾 ${noNumberCount} 個無法識別番號的檔案`;
+        console.log('[Filter]', msg);
+
+        const toast = document.createElement('div');
+        toast.className = 'filter-toast';
+        toast.textContent = msg;
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 152, 0, 0.9);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 9999;
+            font-size: 14px;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    paths = validPaths;
+
     // 檢查空列表
     if (paths.length === 0) {
-        alert('無有效影片檔案');
+        alert('無有效影片檔案（無法識別番號）');
         return;
     }
 
@@ -798,7 +841,6 @@ async function setFileList(paths) {
 
     // 重置批次狀態
     const batch = state.batchState;
-    batch.currentStart = 0;
     batch.isProcessing = false;
     batch.isPaused = false;
     batch.processed = 0;
