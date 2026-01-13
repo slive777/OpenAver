@@ -99,9 +99,28 @@
             // 覆蓋 playVideo 函數
             const script = frameDoc.createElement('script');
             script.textContent = `
-            // 覆蓋原本的 playVideo 函數
-            window.playVideo = function(path) {
-                console.log('[Viewer] playVideo called:', path);
+            // 保存原函數參考
+            var _originalPlayVideo = window.playVideo;
+
+            // 覆蓋 playVideo 函數
+            window.playVideo = function(indexOrPath) {
+                console.log('[Viewer] playVideo called:', indexOrPath, typeof indexOrPath);
+
+                // 判斷參數類型：數字=索引，字串=路徑
+                var path;
+                if (typeof indexOrPath === 'number') {
+                    // 索引模式：從 filtered_videos 取得路徑
+                    var video = filtered_videos[indexOrPath];
+                    if (!video) {
+                        console.error('[Viewer] Video not found at index:', indexOrPath);
+                        return;
+                    }
+                    path = video.path;
+                } else {
+                    path = indexOrPath;
+                }
+
+                console.log('[Viewer] Opening path:', path);
 
                 // 嘗試使用 PyWebView API
                 if (window.parent && window.parent.pywebview && window.parent.pywebview.api) {
