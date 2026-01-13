@@ -582,8 +582,15 @@ function updateBatchProgress() {
 
     dom.batchProgress.classList.remove('d-none');
 
-    // 計算本批總數
-    const batchTotal = batch.batchSize;
+    // 計算本批總數（使用實際批次大小）
+    const batchTotal = batch.total || batch.batchSize;
+
+    // 防禦：避免除以零
+    if (batchTotal <= 0) {
+        dom.batchProgressBar.style.width = '0%';
+        dom.batchProgressText.textContent = '處理中 0/0';
+        return;
+    }
 
     // 更新進度條
     const percentage = (batch.processed / batchTotal) * 100;
@@ -623,6 +630,7 @@ async function searchAll() {
 
     // 更新狀態
     batch.isProcessing = true;
+    batch.total = currentBatch.length;  // 記錄實際批次大小
     batch.processed = 0;
     batch.success = 0;
     batch.failed = 0;
@@ -668,6 +676,7 @@ async function searchAll() {
     state.isSearchingFile = false;
     batch.isProcessing = false;
     batch.isPaused = false;
+    batch.total = 0;  // 重置實際總數
     updateBatchProgress();
 
     // 顯示完成統計
@@ -906,6 +915,7 @@ async function setFileList(paths) {
     const batch = state.batchState;
     batch.isProcessing = false;
     batch.isPaused = false;
+    batch.total = 0;
     batch.processed = 0;
     batch.success = 0;
     batch.failed = 0;

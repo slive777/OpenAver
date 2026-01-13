@@ -25,6 +25,7 @@ let batchState = {
     batchSize: 20,        // 每批數量
     isProcessing: false,  // 是否正在處理批次
     isPaused: false,      // 是否暫停（Phase 9.4 使用）
+    total: 0,             // 本批實際總數
     processed: 0,         // 本批已處理數量
     success: 0,           // 本批成功數量
     failed: 0             // 本批失敗數量
