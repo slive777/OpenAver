@@ -326,7 +326,19 @@ async def get_favorite_files() -> dict:
     from core.path_utils import normalize_path
 
     config = load_config()
-    original_folder = config.get('search', {}).get('favorite_folder', '')
+    original_folder = config.get('search', {}).get('favorite_folder', '').strip()
+
+    # 處理環境變數
+    if original_folder:
+        # Windows: %USERPROFILE%\Downloads → /home/user/Downloads
+        if '%USERPROFILE%' in original_folder.upper():
+            import re
+            home_dir = str(Path.home())
+            original_folder = re.sub(r'%USERPROFILE%', home_dir, original_folder, flags=re.IGNORECASE)
+
+        # Unix: ~/Videos → /home/user/Videos
+        if original_folder.startswith('~'):
+            original_folder = str(Path(original_folder).expanduser())
 
     # 空字串 = 使用系統下載資料夾
     if not original_folder:
