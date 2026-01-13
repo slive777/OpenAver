@@ -31,6 +31,7 @@ class ScraperConfig(BaseModel):
 class SearchConfig(BaseModel):
     search_filter: str = ""
     gallery_mode_enabled: bool = False  # 女優畫廊模式 (Beta) - 預設關閉
+    favorite_folder: str = ""  # 我的最愛資料夾 - 空字串 = 使用系統下載資料夾
 
 
 class TranslateConfig(BaseModel):

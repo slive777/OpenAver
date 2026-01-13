@@ -310,6 +310,77 @@ async def get_sources() -> dict:
     }
 
 
+@router.get("/search/favorite-files")
+async def get_favorite_files() -> dict:
+    """取得我的最愛資料夾的檔案列表（已過濾）
+
+    Returns:
+        {
+            "success": True,
+            "files": ["path1", "path2", ...],
+            "folder": "/path/to/folder",
+            "total": 50
+        }
+    """
+    from web.routers.config import load_config
+    from core.path_utils import normalize_path
+
+    config = load_config()
+    original_folder = config.get('search', {}).get('favorite_folder', '')
+
+    # 空字串 = 使用系統下載資料夾
+    if not original_folder:
+        folder = str(Path.home() / "Downloads")
+    else:
+        # 轉換 Windows 路徑到 WSL 相容路徑
+        folder = normalize_path(original_folder)
+
+    folder_path = Path(folder)
+    if not folder_path.exists():
+        return {
+            "success": False,
+            "error": f"資料夾不存在：{original_folder or folder}",
+            "folder": original_folder or folder
+        }
+
+    # 過濾設定
+    video_exts = [ext.lower() for ext in config.get("scraper", {}).get("video_extensions", [])]
+    min_size_mb = config.get("gallery", {}).get("min_size_mb", 0)
+    min_size_bytes = min_size_mb * 1024 * 1024
+
+    # 掃描資料夾（不遞迴，只掃描第一層）
+    files = []
+    try:
+        for f in folder_path.iterdir():
+            if not f.is_file():
+                continue
+            if f.suffix.lower() not in video_exts:
+                continue
+            if min_size_bytes > 0 and f.stat().st_size < min_size_bytes:
+                continue
+            files.append(str(f))
+    except PermissionError:
+        return {
+            "success": False,
+            "error": "無權限讀取資料夾",
+            "folder": folder
+        }
+
+    if len(files) == 0:
+        return {
+            "success": False,
+            "error": "資料夾內無有效影片檔案",
+            "folder": folder
+        }
+
+    return {
+        "success": True,
+        "files": files,
+        "folder": folder,
+        "total": len(files)
+    }
+
+
 @router.post("/search/filter-files")
 async def filter_files(request: Request) -> dict:
     """過濾檔案列表：移除非影片檔與過小檔案

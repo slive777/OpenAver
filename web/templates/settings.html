@@ -114,6 +114,19 @@
                     </div>
                 </div>
 
+                <!-- 我的最愛資料夾 -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">我的最愛資料夾</label>
+                        <small class="text-muted d-block">一鍵載入常用資料夾</small>
+                    </div>
+                    <div class="col-md-6">
+                        <input type="text" class="form-control form-control-sm" id="searchFavoriteFolder"
+                            placeholder="預設：%USERPROFILE%\Downloads">
+                        <small class="text-muted">只掃描第一層（不含子資料夾）</small>
+                    </div>
+                </div>
+
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <div class="form-check form-switch">
@@ -506,6 +519,7 @@
                 // 搜尋設定
                 if (config.search) {
                     document.getElementById('galleryModeEnabled').checked = config.search.gallery_mode_enabled || false;
+                    document.getElementById('searchFavoriteFolder').value = config.search.favorite_folder || '';
                 }
 
                 // 翻譯設定
@@ -578,7 +592,8 @@
             // 更新 search 設定
             config.search = {
                 ...config.search,
-                gallery_mode_enabled: document.getElementById('galleryModeEnabled').checked
+                gallery_mode_enabled: document.getElementById('galleryModeEnabled').checked,
+                favorite_folder: document.getElementById('searchFavoriteFolder').value.trim()
             };
 
             // 更新 translate 設定

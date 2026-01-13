@@ -3,6 +3,54 @@
  * 事件綁定、頁面初始化入口
  */
 
+/**
+ * 載入我的最愛資料夾
+ */
+async function loadFavoriteFolder() {
+    const { dom } = window.SearchCore;
+
+    // 顯示載入中
+    dom.btnFavorite.disabled = true;
+    const originalHtml = dom.btnFavorite.innerHTML;
+    dom.btnFavorite.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    try {
+        const resp = await fetch('/api/search/favorite-files');
+        const result = await resp.json();
+
+        if (!result.success) {
+            alert(result.error || '載入失敗');
+            dom.btnFavorite.disabled = false;
+            dom.btnFavorite.innerHTML = originalHtml;
+            return;
+        }
+
+        // 顯示成功訊息
+        console.log(`[Favorite] 載入 ${result.total} 個檔案：${result.folder}`);
+
+        // 載入檔案列表（會自動過濾）
+        await window.SearchFile.setFileList(result.files);
+
+        // 自動開始搜尋前 20 個
+        // 延遲 100ms 確保 UI 更新完成
+        setTimeout(() => {
+            const searchableFiles = window.SearchCore.state.fileList.filter(
+                f => f.number && !f.searched
+            );
+            if (searchableFiles.length > 0) {
+                window.SearchFile.searchAll();
+            }
+        }, 100);
+
+    } catch (err) {
+        console.error('Favorite API error:', err);
+        alert('載入失敗：' + err.message);
+    } finally {
+        dom.btnFavorite.disabled = false;
+        dom.btnFavorite.innerHTML = originalHtml;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     // 初始化 DOM 引用
     window.SearchCore.initDOM();
@@ -93,6 +141,9 @@ document.addEventListener('DOMContentLoaded', function () {
             console.error('選取資料夾失敗:', e);
         }
     });
+
+    // 10. 我的最愛按鈕
+    dom.btnFavorite.addEventListener('click', loadFavoriteFolder);
 
     // 10. PyWebView 檔案事件
     window.addEventListener('pywebview-files', (e) => {

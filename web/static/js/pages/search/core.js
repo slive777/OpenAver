@@ -67,6 +67,7 @@ function initDOM() {
         btnScrapeAll: document.getElementById('btnScrapeAll'),
         btnAddFiles: document.getElementById('btnAddFiles'),
         btnAddFolder: document.getElementById('btnAddFolder'),
+        btnFavorite: document.getElementById('btnFavorite'),
         dragOverlay: document.getElementById('dragOverlay'),
         // 進度指示器
         progressQuery: document.getElementById('progressQuery'),
@@ -88,6 +89,12 @@ async function loadAppConfig() {
         const data = await resp.json();
         if (data.success) {
             appConfig = data.data;
+
+            // 更新我的最愛按鈕 tooltip
+            if (dom.btnFavorite) {
+                const favoriteFolder = appConfig?.search?.favorite_folder || '系統下載資料夾';
+                dom.btnFavorite.title = `載入：${favoriteFolder}`;
+            }
         }
     } catch (e) {
         console.error('載入設定失敗:', e);
