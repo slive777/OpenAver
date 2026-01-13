@@ -657,8 +657,65 @@ async function scrapeAll() {
 
 // === 拖拽處理 ===
 
-function setFileList(paths) {
+async function setFileList(paths) {
     const { state, dom } = window.SearchCore;
+
+    // 呼叫過濾 API
+    try {
+        const resp = await fetch('/api/search/filter-files', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paths })
+        });
+        const result = await resp.json();
+
+        if (result.success) {
+            if (result.total_rejected > 0) {
+                const { extension, size, not_found } = result.rejected;
+                let msg = `已過濾 ${result.total_rejected} 個檔案`;
+                const details = [];
+                if (extension > 0) details.push(`${extension} 個非影片檔`);
+                if (size > 0) details.push(`${size} 個小於最小尺寸`);
+                if (not_found > 0) details.push(`${not_found} 個不存在`);
+                if (details.length > 0) msg += `（${details.join('、')}）`;
+
+                // 顯示過濾結果提示（使用短暫 alert 或 Toast）
+                console.log('[Filter]', msg);
+
+                // 使用一個短暫的浮動提示
+                const toast = document.createElement('div');
+                toast.className = 'filter-toast';
+                toast.textContent = msg;
+                toast.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(0,0,0,0.85);
+                    color: white;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    z-index: 9999;
+                    font-size: 14px;
+                    opacity: 1;
+                    transition: opacity 0.5s ease;
+                `;
+                document.body.appendChild(toast);
+                setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+                setTimeout(() => toast.remove(), 3000);
+            }
+            paths = result.files;
+        }
+    } catch (err) {
+        console.error('Filter API error:', err);
+        // 降級：保留原 paths
+    }
+
+    // 檢查空列表
+    if (paths.length === 0) {
+        alert('無有效影片檔案');
+        return;
+    }
 
     state.fileList = paths.map(path => {
         const filename = path.split(/[/\\]/).pop();

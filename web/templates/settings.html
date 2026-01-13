@@ -106,7 +106,7 @@
                     <div class="col-md-6">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="galleryModeEnabled"
-                                   data-section="search" data-key="gallery_mode_enabled">
+                                data-section="search" data-key="gallery_mode_enabled">
                             <label class="form-check-label" for="galleryModeEnabled">
                                 女優畫廊模式 <span class="badge bg-danger">Beta</span>
                             </label>
@@ -347,12 +347,12 @@
 
                     <div class="row">
                         <div class="col-md-6">
-                            <label class="form-label">最小檔案大小</label>
+                            <label class="form-label">最小影片尺寸</label>
                         </div>
                         <div class="col-md-6">
                             <div class="input-group input-group-sm">
                                 <input type="number" class="form-control" id="avlistMinSize" value="0" min="0">
-                                <span class="input-group-text">KB</span>
+                                <span class="input-group-text">MB</span>
                             </div>
                             <small class="text-muted">0 = 不過濾</small>
                         </div>
@@ -521,7 +521,7 @@
                     document.getElementById('avlistSort').value = config.gallery.default_sort || 'date';
                     document.getElementById('avlistOrder').value = config.gallery.default_order || 'descending';
                     document.getElementById('avlistItemsPerPage').value = config.gallery.items_per_page || 90;
-                    document.getElementById('avlistMinSize').value = config.gallery.min_size_kb || 0;
+                    document.getElementById('avlistMinSize').value = config.gallery.min_size_mb || 0;
                     document.getElementById('avlistOutputDir').value = config.gallery.output_dir || 'output';
                     document.getElementById('avlistOutputFilename').value = config.gallery.output_filename || 'gallery_output.html';
                 }
@@ -597,7 +597,7 @@
                 default_sort: document.getElementById('avlistSort').value,
                 default_order: document.getElementById('avlistOrder').value,
                 items_per_page: parseInt(document.getElementById('avlistItemsPerPage').value),
-                min_size_kb: parseInt(document.getElementById('avlistMinSize').value) || 0,
+                min_size_mb: parseInt(document.getElementById('avlistMinSize').value) || 0,
                 output_dir: document.getElementById('avlistOutputDir').value.trim() || 'output',
                 output_filename: document.getElementById('avlistOutputFilename').value.trim() || 'gallery_output.html'
             };

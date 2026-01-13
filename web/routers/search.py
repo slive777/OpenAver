@@ -308,3 +308,70 @@ async def get_sources() -> dict:
             {"id": "javdb", "name": "JavDB", "description": "女優/前綴搜尋用"},
         ]
     }
+
+
+@router.post("/search/filter-files")
+async def filter_files(request: dict) -> dict:
+    """過濾檔案列表：移除非影片檔與過小檔案
+
+    Args:
+        request: {"paths": ["/path/to/file1.mp4", "C:\\path\\to\\file2.txt", ...]}
+
+    Returns:
+        {
+            "success": True,
+            "files": ["filtered paths"],
+            "rejected": {"extension": 0, "size": 0, "not_found": 0},
+            "total_rejected": 0
+        }
+    """
+    from web.routers.config import load_config
+    from core.path_utils import normalize_path
+
+    paths = request.get("paths", [])
+
+    # 載入設定
+    config = load_config()
+    video_exts = [ext.lower() for ext in config.get("scraper", {}).get("video_extensions", [])]
+    min_size_mb = config.get("gallery", {}).get("min_size_mb", 0)
+    min_size_bytes = min_size_mb * 1024 * 1024
+
+    filtered = []
+    rejected = {"extension": 0, "size": 0, "not_found": 0}
+
+    for original_path in paths:
+        # 轉換路徑格式（Windows -> WSL）
+        try:
+            path = normalize_path(original_path)
+        except ValueError:
+            rejected["not_found"] += 1
+            continue
+
+        p = Path(path)
+        if not p.exists():
+            rejected["not_found"] += 1
+            continue
+
+        suffix = p.suffix.lower()
+        if suffix not in video_exts:
+            rejected["extension"] += 1
+            continue
+
+        if min_size_bytes > 0:
+            try:
+                if p.stat().st_size < min_size_bytes:
+                    rejected["size"] += 1
+                    continue
+            except OSError:
+                rejected["not_found"] += 1
+                continue
+
+        # 保留原始路徑（前端需要）
+        filtered.append(original_path)
+
+    return {
+        "success": True,
+        "files": filtered,
+        "rejected": rejected,
+        "total_rejected": sum(rejected.values())
+    }

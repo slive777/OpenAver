@@ -39,7 +39,7 @@ def generate_avlist() -> Generator[str, None, None]:
         output_dir = gallery_config.get('output_dir', 'output')
         output_filename = gallery_config.get('output_filename', 'gallery_output.html')
         path_mappings = gallery_config.get('path_mappings', {})
-        min_size_kb = gallery_config.get('min_size_kb', 0)
+        min_size_mb = gallery_config.get('min_size_mb', 0)
 
         # 預設顯示設定
         default_mode = gallery_config.get('default_mode', 'image')
@@ -120,7 +120,7 @@ def generate_avlist() -> Generator[str, None, None]:
 
             try:
                 # 快速掃描取得檔案列表
-                min_size_bytes = min_size_kb * 1024
+                min_size_bytes = min_size_mb * 1024 * 1024
                 all_files = fast_scan_directory(normalized_dir, VIDEO_EXTENSIONS, min_size_bytes)
 
                 if not all_files:

@@ -472,7 +472,7 @@ class VideoScanner:
 
     def scan_directory(self, directory: str, recursive: bool = True,
                        relative_path: bool = True,
-                       min_size_kb: int = 0,
+                       min_size_mb: int = 0,
                        cache: Dict[str, dict] = None,
                        progress_callback: callable = None) -> Tuple[List[VideoInfo], dict]:
         """掃描資料夾
@@ -481,7 +481,7 @@ class VideoScanner:
             directory: 要掃描的資料夾路徑
             recursive: 是否遞迴掃描子資料夾
             relative_path: 是否使用相對路徑
-            min_size_kb: 最小檔案大小 (KB)
+            min_size_mb: 最小檔案大小 (MB)
             cache: 緩存字典，用於增量更新
             progress_callback: 進度回調函數，簽名: (current, total, filename) -> None
 
@@ -495,7 +495,7 @@ class VideoScanner:
 
         videos = []
         base_path = str(directory) if relative_path else None
-        min_size_bytes = min_size_kb * 1024
+        min_size_bytes = min_size_mb * 1024 * 1024
         use_cache = cache is not None
 
         # 使用 fast_scan_directory 一次取得所有檔案資訊
