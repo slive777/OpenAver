@@ -18,6 +18,8 @@
 | **Phase 2** | UI 重構 (Gallery Design System) | ✅ [Done] |
 | **Phase 3** | AVList 與 Settings 優化 | ✅ [Done] |
 | **Phase 4** | 測試基礎設施 (Infrastructure) | ✅ [Done] |
+| **Phase 8** | Search Gallery (女優畫廊模式) | ✅ [Done] |
+| **Phase 9** | Search File Optimization (本地檔案搜尋優化) | ✅ [Done] |
 
 ---
 
@@ -37,9 +39,14 @@ OpenAver/
 │   └── config.json               # 統一設定檔
 │
 ├── core/                         # 核心模組
-│   ├── scraper.py                # 刮削器 (JavBus/Jav321/DMM)
+│   ├── scraper.py                # 刮削器 (JavBus/Jav321/JavDB)
+│   ├── actress_scraper.py        # 女優爬蟲 (JavDB)
+│   ├── search_gallery_service.py # Search Gallery Service
 │   ├── avlist_generator.py       # HTML 生成器
-│   └── ...
+│   ├── gallery_generator.py      # Gallery HTML 生成器
+│   ├── organizer.py              # 檔案整理模組
+│   ├── path_utils.py             # 跨平台路徑處理
+│   └── nfo_updater.py            # NFO 補全模組
 │
 ├── tests/                        # 測試套件
 │   ├── conftest.py               # Fixtures
@@ -79,6 +86,31 @@ OpenAver/
 - 建立 `tests/` 目錄結構。
 - 實作 Settings API 的整合測試與 Scraper 的煙霧測試。
 - 確保核心功能在重構後的穩定性。
+
+### 階段 8：Search Gallery (女優畫廊模式) [Done]
+- **女優爬蟲**: 從 JavDB 抓取女優個人資料（罩杯、身高、三圍、生日等）。
+- **Hero Card**: 女優搜尋結果顯示個人資料卡片（3x 大小）。
+- **Gallery 模式**: 搜尋結果 > 10 片時自動切換為畫廊瀏覽模式。
+- **演員一致性檢查**: 佔比 ≥ 80% 才顯示 Hero Card（防止模糊搜尋誤觸發）。
+- **Beta 開關**: Settings 頁面可開關此功能（預設關閉）。
+- **postMessage 通訊**: 支援 Gallery iframe 與主頁面互動。
+
+### 階段 9：Search File Optimization (本地檔案搜尋優化) [Done]
+- **檔案過濾**:
+  - 後端過濾：副檔名 + 最小影片尺寸（MB）
+  - 前端過濾：無法提取番號的檔案自動排除
+  - Toast 通知顯示被過濾的數量
+- **批次搜尋**:
+  - 20 個檔案一批，並發 2 個請求
+  - 按鈕文字動態顯示：「搜尋 1-20 / 100」→「搜尋 21-40 / 100」
+  - 進度條即時更新（6px 藍色漸層）
+- **暫停/繼續**: 批次搜尋支援暫停與恢復功能
+- **我的最愛資料夾**:
+  - Settings 設定常用資料夾路徑
+  - 一鍵載入並自動搜尋前 20 個檔案
+  - 支援環境變數（`%USERPROFILE%`、`~`）
+  - Dynamic Tooltip 顯示實際路徑
+- **進度條樣式統一**: 使用 CSS 變數統一管理顏色與動畫
 
 ## 技術選型
 
