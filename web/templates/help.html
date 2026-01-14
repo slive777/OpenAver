@@ -6,6 +6,9 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="mb-0">使用說明</h4>
+        <button class="btn btn-primary btn-sm" id="btnRestartTutorialHelp">
+            <i class="bi bi-play-circle"></i> 重看新手引導
+        </button>
     </div>
 
     <!-- 搜尋功能 -->
@@ -181,4 +184,10 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.getElementById('btnRestartTutorialHelp')?.addEventListener('click', () => {
+        window.location.href = '/search?tutorial=restart';
+    });
+</script>
 {% endblock %}

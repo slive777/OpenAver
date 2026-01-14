@@ -446,6 +446,21 @@
                         </button>
                     </div>
                 </div>
+
+                <hr class="my-3">
+
+                <!-- 重看新手引導 -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">新手引導</label>
+                        <small class="text-muted d-block">觀看功能介紹教學</small>
+                    </div>
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btnRestartTutorial">
+                            <i class="bi bi-play-circle"></i> 重看新手引導
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -828,6 +843,11 @@
                 showToast('重置失敗: ' + e.message, 'danger');
             }
         }
+    });
+
+    // 重看新手引導
+    document.getElementById('btnRestartTutorial')?.addEventListener('click', () => {
+        window.location.href = '/search?tutorial=restart';
     });
 
     // 初始載入

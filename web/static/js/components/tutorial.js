@@ -236,8 +236,19 @@ class SpotlightTutorial {
 // 全域實例
 window.SpotlightTutorial = new SpotlightTutorial();
 
-// 首次啟動自動觸發
+// 首次啟動自動觸發 + URL 參數觸發
 document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // 檢查 URL 參數觸發（從其他頁面導向）
+    if (urlParams.get('tutorial') === 'restart') {
+        setTimeout(() => {
+            window.SpotlightTutorial.start();
+        }, 1000);
+        return;
+    }
+
+    // 首次啟動自動觸發（僅 /search 頁面）
     if (window.location.pathname === '/search' || window.location.pathname === '/') {
         setTimeout(() => {
             if (window.SpotlightTutorial.shouldShow()) {
