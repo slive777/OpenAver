@@ -38,7 +38,18 @@ class SpotlightTutorial {
         this.storageKey = 'openaver_tutorial_completed';
     }
 
-    shouldShow() {
+    async shouldShow() {
+        // 檢查後端狀態（持久化）
+        try {
+            const resp = await fetch('/api/tutorial-status');
+            const data = await resp.json();
+            if (data.success) {
+                return !data.completed;
+            }
+        } catch (e) {
+            console.warn('Tutorial API failed, fallback to localStorage');
+        }
+        // Fallback 到 localStorage（瀏覽器模式備用）
         return !localStorage.getItem(this.storageKey);
     }
 
@@ -215,8 +226,15 @@ class SpotlightTutorial {
         this.complete(false);
     }
 
-    complete(markComplete = true) {
+    async complete(markComplete = true) {
         if (markComplete) {
+            // 寫入後端（持久化，PyWebView 環境）
+            try {
+                await fetch('/api/tutorial-completed', { method: 'POST' });
+            } catch (e) {
+                console.warn('Tutorial API failed, fallback to localStorage');
+            }
+            // 同時寫入 localStorage（瀏覽器模式備用）
             localStorage.setItem(this.storageKey, 'true');
         }
 
@@ -237,11 +255,18 @@ class SpotlightTutorial {
 window.SpotlightTutorial = new SpotlightTutorial();
 
 // 首次啟動自動觸發 + URL 參數觸發
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
 
     // 檢查 URL 參數觸發（從其他頁面導向）
     if (urlParams.get('tutorial') === 'restart') {
+        // 重置後端狀態
+        try {
+            await fetch('/api/tutorial-reset', { method: 'POST' });
+        } catch (e) {
+            console.warn('Tutorial reset API failed');
+        }
+        localStorage.removeItem('openaver_tutorial_completed');
         setTimeout(() => {
             window.SpotlightTutorial.start();
         }, 1000);
@@ -250,8 +275,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 首次啟動自動觸發（僅 /search 頁面）
     if (window.location.pathname === '/search' || window.location.pathname === '/') {
-        setTimeout(() => {
-            if (window.SpotlightTutorial.shouldShow()) {
+        setTimeout(async () => {
+            if (await window.SpotlightTutorial.shouldShow()) {
                 window.SpotlightTutorial.start();
             }
         }, 1000);

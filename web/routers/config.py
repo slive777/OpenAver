@@ -61,6 +61,7 @@ class GeneralConfig(BaseModel):
     default_page: str = "search"  # 預設開啟頁面: search, gallery, showcase
     theme: str = "light"  # 主題模式: light, dark
     sidebar_collapsed: bool = False  # 側邊欄預設收合 (僅影響 Desktop)
+    tutorial_completed: bool = False  # 新手引導是否已完成
 
 
 class AppConfig(BaseModel):
@@ -145,6 +146,36 @@ async def reset_config() -> dict:
         return {"success": True, "message": "已恢復預設設定"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+@router.get("/tutorial-status")
+async def get_tutorial_status() -> dict:
+    """取得新手引導完成狀態"""
+    config = load_config()
+    completed = config.get("general", {}).get("tutorial_completed", False)
+    return {"success": True, "completed": completed}
+
+
+@router.post("/tutorial-completed")
+async def mark_tutorial_completed() -> dict:
+    """標記新手引導已完成（僅在點擊完成時呼叫）"""
+    config = load_config()
+    if "general" not in config:
+        config["general"] = {}
+    config["general"]["tutorial_completed"] = True
+    save_config(config)
+    return {"success": True}
+
+
+@router.post("/tutorial-reset")
+async def reset_tutorial() -> dict:
+    """重置新手引導狀態（供設定頁使用）"""
+    config = load_config()
+    if "general" not in config:
+        config["general"] = {}
+    config["general"]["tutorial_completed"] = False
+    save_config(config)
+    return {"success": True}
 
 
 @router.get("/config/format-variables")
