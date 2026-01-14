@@ -617,6 +617,9 @@ class HTMLGenerator:
 
 \t\t// Lightbox
 \t\tvar lightbox_open = false;
+\t\tvar lb_move_enabled = false;  // Phase 11.0: 延遲啟用滑鼠關閉
+\t\tvar lb_move_timer = null;
+\t\tvar lb_start_x = 0, lb_start_y = 0;  // Phase 11.0: 開啟時滑鼠位置
 \t\tfunction showLightbox(idx) {
 \t\t\tvar v = filtered_videos[idx];
 \t\t\tif (!v) return;
@@ -653,6 +656,13 @@ class HTMLGenerator:
 \t\t\tlightbox.classList.add('show');
 \t\t\tlightbox_open = true;
 \t\t\tdocument.body.style.overflow = 'hidden';
+\t\t\t
+\t\t\t// Phase 11.0: 延遲 1000ms 後才啟用滑鼠關閉
+\t\t\tlb_move_enabled = false;
+\t\t\tif (lb_move_timer) clearTimeout(lb_move_timer);
+\t\t\tlb_move_timer = setTimeout(function() {
+\t\t\t\tlb_move_enabled = true;
+\t\t\t}, 1000);
 \t\t}
 
 \t\tfunction hideLightbox() {
@@ -660,11 +670,28 @@ class HTMLGenerator:
 \t\t\tlightbox.classList.remove('show');
 \t\t\tlightbox_open = false;
 \t\t\tdocument.body.style.overflow = '';
+\t\t\t// Phase 11.0: 重置起始位置
+\t\t\tlb_start_x = 0;
+\t\t\tlb_start_y = 0;
 \t\t}
 
-\t\t// 滑鼠離開 lightbox-content 時自動關閉
-\t\tdocument.querySelector('.lightbox-content').addEventListener('mouseleave', function() {
-\t\t\tif (lightbox_open) hideLightbox();
+\t\t// Phase 11.0: 滑鼠移動到背景時關閉 Lightbox (需移動超過 50px)
+\t\tdocument.getElementById('lightbox').addEventListener('mousemove', function(e) {
+\t\t\tif (!lightbox_open) return;
+\t\t\tif (!lb_move_enabled) return;  // Phase 11.0: 延遲期間不關閉
+\t\t\t// 如果滑鼠在 .lightbox-content 內部，不關閉
+\t\t\tif (e.target.closest('.lightbox-content')) return;
+\t\t\t// Phase 11.0: 記錄起始位置 (第一次離開內容區)
+\t\t\tif (lb_start_x === 0 && lb_start_y === 0) {
+\t\t\t\tlb_start_x = e.clientX;
+\t\t\t\tlb_start_y = e.clientY;
+\t\t\t\treturn;
+\t\t\t}
+\t\t\t// Phase 11.0: 檢查移動距離，需超過 200px 才關閉
+\t\t\tvar dist = Math.sqrt(Math.pow(e.clientX - lb_start_x, 2) + Math.pow(e.clientY - lb_start_y, 2));
+\t\t\tif (dist < 200) return;
+\t\t\t// 滑鼠在背景區域移動超過 200px，關閉 Lightbox
+\t\t\thideLightbox();
 \t\t});
 
 \t\t// 點擊 lightbox 背景時，檢查是否點到卡片
