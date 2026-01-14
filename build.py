@@ -271,12 +271,12 @@ def copy_project_files():
 
 
 def create_launcher_scripts():
-    """建立啟動腳本和說明檔"""
+    """建立啟動腳本和說明檔（純英文版本，避免 Big5 編碼地雷字問題）"""
     print("  建立啟動腳本...")
 
     root_dir = BUILD_DIR / "OpenAver"
 
-    # OpenAver.bat - 顯示簡單日誌後用 pythonw.exe 啟動（無控制台）
+    # OpenAver.bat - 正常啟動（無控制台）
     bat_content = '''@echo off
 cd /d "%~dp0"
 echo OpenAver starting...
@@ -284,44 +284,142 @@ echo Window will appear shortly...
 start "" "python\\pythonw.exe" "app\\windows\\standalone.py"
 ping -n 3 127.0.0.1 >nul
 '''
-    (root_dir / "OpenAver.bat").write_text(bat_content, encoding='utf-8')
 
-    # OpenAver_Debug.bat - 有控制台版本（用於調試）
+    # OpenAver_Debug.bat - 偵錯模式（顯示控制台）
+    # 使用純英文避免 Big5 地雷字問題（誌、誤、訊、回、將、以、下、置、上 等字會導致亂碼）
     debug_bat_content = '''@echo off
+echo ======================================
+echo    OpenAver Debug Mode
+echo ======================================
+echo.
+
+REM Force detailed error output
+set PYTHONUNBUFFERED=1
+set PYWEBVIEW_LOG=debug
+
+echo [INFO] Starting OpenAver (Debug Mode)...
+echo [INFO] Log location: %USERPROFILE%\\OpenAver\\logs\\debug.log
+echo.
+
 cd /d "%~dp0"
 "python\\python.exe" "app\\windows\\standalone.py"
+
+if errorlevel 1 (
+    echo.
+    echo ======================================
+    echo [ERROR] Startup failed!
+    echo ======================================
+    echo.
+    echo Please report to GitHub Issues:
+    echo 1. Error messages above
+    echo 2. Log file: %USERPROFILE%\\OpenAver\\logs\\debug.log
+    echo.
+)
+
 pause
 '''
-    (root_dir / "OpenAver_Debug.bat").write_text(debug_bat_content, encoding='utf-8')
 
-    # README.txt
-    readme_content = '''OpenAver - JAV 影片元數據管理工具
+    # README.txt - 純英文版本
+    readme_content = '''OpenAver - JAV Metadata Manager
 ====================================
 
-使用方法：
-1. 雙擊 OpenAver.bat 啟動應用程式
-2. 如遇問題，請使用 OpenAver_Debug.bat 查看錯誤訊息
+Usage:
+1. Double-click OpenAver.bat to launch
+2. Use OpenAver_Debug.bat for troubleshooting
 
-系統需求：
-- Windows 10/11 64位元
-- 網路連線（用於搜尋資料）
+Requirements:
+- Windows 10/11 64-bit
+- Microsoft Edge WebView2 Runtime
+- Internet connection
 
-注意事項：
-- 首次啟動可能需要較長時間載入
-- 設定檔儲存於 app\\web\\config.json
+Notes:
+- First launch may take longer to load
+- Config: app\\web\\config.json
+- Logs: %USERPROFILE%\\OpenAver\\logs\\
+
+Troubleshooting:
+- Log file: %USERPROFILE%\\OpenAver\\logs\\debug.log
+- GitHub: https://github.com/your-repo/OpenAver/issues
 '''
-    (root_dir / "README.txt").write_text(readme_content, encoding='utf-8')
 
-    print("  已建立: OpenAver.bat, OpenAver_Debug.bat, README.txt")
+    # 使用 ASCII 編碼（100% 安全）
+    (root_dir / "OpenAver.bat").write_text(bat_content, encoding='ascii')
+    (root_dir / "OpenAver_Debug.bat").write_text(debug_bat_content, encoding='ascii')
+    (root_dir / "README.txt").write_text(readme_content, encoding='ascii')
+
+    print("  Created: OpenAver.bat, OpenAver_Debug.bat, README.txt")
+
+
+def get_directory_size(path):
+    """計算目錄大小"""
+    total = sum(f.stat().st_size for f in Path(path).rglob('*') if f.is_file())
+    return total
+
+
+def optimize_package():
+    """優化打包體積：刪除 .dist-info、清理 __pycache__"""
+    print("\n[5.5/6] 優化打包體積...")
+
+    app_dir = BUILD_DIR / "OpenAver"
+    size_before = get_directory_size(app_dir)
+
+    # 1. 刪除 .dist-info 資料夾
+    dist_info_count = 0
+    dist_info_size = 0
+    for dist_info in app_dir.rglob("*.dist-info"):
+        if dist_info.is_dir():
+            size = sum(f.stat().st_size for f in dist_info.rglob('*') if f.is_file())
+            dist_info_size += size
+            shutil.rmtree(dist_info)
+            dist_info_count += 1
+
+    if dist_info_count > 0:
+        print(f"  刪除 {dist_info_count} 個 .dist-info 資料夾，節省 {dist_info_size / 1024 / 1024:.2f} MB")
+
+    # 2. 清理 __pycache__ 資料夾
+    pycache_count = 0
+    pycache_size = 0
+    for pycache in app_dir.rglob("__pycache__"):
+        if pycache.is_dir():
+            size = sum(f.stat().st_size for f in pycache.rglob('*') if f.is_file())
+            pycache_size += size
+            shutil.rmtree(pycache)
+            pycache_count += 1
+
+    if pycache_count > 0:
+        print(f"  刪除 {pycache_count} 個 __pycache__ 資料夾，節省 {pycache_size / 1024 / 1024:.2f} MB")
+
+    # 3. 刪除 .egg-info 資料夾
+    egg_info_count = 0
+    egg_info_size = 0
+    for egg_info in app_dir.rglob("*.egg-info"):
+        if egg_info.is_dir():
+            size = sum(f.stat().st_size for f in egg_info.rglob('*') if f.is_file())
+            egg_info_size += size
+            shutil.rmtree(egg_info)
+            egg_info_count += 1
+
+    if egg_info_count > 0:
+        print(f"  刪除 {egg_info_count} 個 .egg-info 資料夾，節省 {egg_info_size / 1024 / 1024:.2f} MB")
+
+    # 統計優化結果
+    size_after = get_directory_size(app_dir)
+    saved = size_before - size_after
+    print(f"  體積優化: {size_before / 1024 / 1024:.1f} MB → {size_after / 1024 / 1024:.1f} MB (節省 {saved / 1024 / 1024:.1f} MB)")
 
 
 def create_zip_package():
     """打包成 ZIP"""
     print("\n[6/6] 打包成 ZIP...")
 
+    # 讀取版本號
+    import sys
+    sys.path.insert(0, str(PROJECT_ROOT))
+    from core.version import VERSION
+
     DIST_DIR.mkdir(parents=True, exist_ok=True)
 
-    zip_name = "OpenAver-Windows-x64"
+    zip_name = f"OpenAver-v{VERSION}-Windows-x64"
     zip_path = DIST_DIR / f"{zip_name}.zip"
 
     # 刪除舊的 ZIP
@@ -355,6 +453,7 @@ def main():
         download_and_install_packages(python_dir)
         copy_project_files()
         create_launcher_scripts()
+        optimize_package()
         zip_path = create_zip_package()
 
         print("\n" + "=" * 50)

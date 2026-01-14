@@ -351,7 +351,7 @@ def scrape_javdb(number: str) -> Optional[Dict]:
     JavDB 刮削器
 
     優點：有 maker、數據完整
-    需要 curl_cffi 繞過 TLS 指紋檢測
+    使用 curl_cffi 確保連線相容性
     """
     if not CURL_CFFI_AVAILABLE:
         return None

@@ -22,7 +22,7 @@
   },
   "search": {
     "search_filter": "",
-    "gallery_mode_enabled": false,
+    "gallery_mode_enabled": true,
     "favorite_folder": ""
   },
   "translate": {
@@ -48,6 +48,7 @@
   "general": {
     "default_page": "search",
     "theme": "light",
-    "sidebar_collapsed": false
+    "sidebar_collapsed": false,
+    "tutorial_completed": false
   }
 }

@@ -1,6 +1,6 @@
-# JavHelper Core 模組說明
+# OpenAver Core 模組說明
 
-本目錄 (`core/`) 包含 JavHelper 的核心邏輯與後端功能實作。以下是各檔案的功能說明：
+本目錄 (`core/`) 包含 OpenAver 的核心邏輯與後端功能實作。以下是各檔案的功能說明：
 
 ## 核心功能
 

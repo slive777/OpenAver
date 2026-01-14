@@ -323,29 +323,30 @@ async def get_favorite_files() -> dict:
         }
     """
     from web.routers.config import load_config
-    from core.path_utils import normalize_path
+    from core.path_utils import expand_env_vars, get_environment
 
     config = load_config()
     original_folder = config.get('search', {}).get('favorite_folder', '').strip()
 
-    # 處理環境變數
-    if original_folder:
-        # Windows: %USERPROFILE%\Downloads → /home/user/Downloads
-        if '%USERPROFILE%' in original_folder.upper():
-            import re
-            home_dir = str(Path.home())
-            original_folder = re.sub(r'%USERPROFILE%', home_dir, original_folder, flags=re.IGNORECASE)
-
-        # Unix: ~/Videos → /home/user/Videos
-        if original_folder.startswith('~'):
-            original_folder = str(Path(original_folder).expanduser())
-
-    # 空字串 = 使用系統下載資料夾
-    if not original_folder:
-        folder = str(Path.home() / "Downloads")
-    else:
-        # 轉換 Windows 路徑到 WSL 相容路徑
-        folder = normalize_path(original_folder)
+    # 處理資料夾路徑
+    try:
+        if not original_folder:
+            # 空字串 = 使用系統下載資料夾
+            if get_environment() == 'wsl':
+                # WSL 環境：使用 Windows 下載資料夾
+                folder = expand_env_vars('%USERPROFILE%\\Downloads')
+            else:
+                # 其他環境：使用本地 home 下載資料夾
+                folder = str(Path.home() / "Downloads")
+        else:
+            # 使用 expand_env_vars 處理環境變數並轉換路徑
+            folder = expand_env_vars(original_folder)
+    except ValueError as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "folder": original_folder
+        }
 
     folder_path = Path(folder)
     if not folder_path.exists():
