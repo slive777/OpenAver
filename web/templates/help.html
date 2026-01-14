@@ -4,8 +4,11 @@
 
 {% block content %}
 <div class="container-fluid">
-    <h4 class="mb-4">使用說明</h4>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0">使用說明</h4>
+    </div>
 
+    <!-- 搜尋功能 -->
     <div class="card mb-4">
         <div class="card-header">
             <i class="bi bi-search"></i> 搜尋功能
@@ -16,18 +19,93 @@
                 <li><strong>完整番號</strong>：如 <code>SONE-001</code>，精確搜尋單一作品</li>
                 <li><strong>部分番號</strong>：如 <code>SONE-0</code>，搜尋 001~009</li>
                 <li><strong>系列搜尋</strong>：如 <code>SONE</code>，搜尋該系列最新作品</li>
-                <li><strong>女優名</strong>：如 <code>三上悠亜</code>，搜尋該演員作品</li>
+                <li><strong>女優名</strong>：如 <code>河北彩花</code>，搜尋該演員作品</li>
             </ul>
 
             <h6 class="mt-4">拖放檔案</h6>
             <ul>
                 <li>將影片檔案拖入視窗，自動提取番號並搜尋</li>
-                <li>支援多檔案批次處理</li>
-                <li>搜尋成功後可點「產生」建立資料夾和 NFO</li>
+                <li>支援多檔案批次處理（一次 20 個）</li>
+                <li>搜尋成功後可點「產生」更改檔名、下載封面和建立資料夾與 NFO</li>
             </ul>
         </div>
     </div>
 
+    <!-- 批次檔案搜尋 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-files"></i> 批次檔案搜尋
+        </div>
+        <div class="card-body">
+            <h6>加入多個檔案</h6>
+            <ul>
+                <li><strong>拖入資料夾</strong>：自動掃描資料夾內的影片檔案</li>
+                <li><strong>自動過濾</strong>：排除非影片檔與小於設定大小的檔案</li>
+                <li><strong>批次搜尋</strong>：每批 20 個檔案，並發 2 個請求</li>
+                <li><strong>進度顯示</strong>：即時顯示搜尋進度（如：處理 15/100）</li>
+            </ul>
+
+            <h6 class="mt-4">我的最愛資料夾</h6>
+            <ul>
+                <li>在 Settings 設定常用資料夾路徑</li>
+                <li>點擊「⭐ 我的最愛」按鈕一鍵載入</li>
+                <li>自動開始搜尋前 20 個檔案</li>
+            </ul>
+
+            <h6 class="mt-4">暫停與繼續</h6>
+            <ul>
+                <li>批次搜尋時可點擊「暫停」按鈕</li>
+                <li>點擊「繼續」從暫停處恢復</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 女優畫廊模式 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-person-circle"></i> 女優畫廊模式
+        </div>
+        <div class="card-body">
+            <h6>自動觸發條件</h6>
+            <ul>
+                <li>搜尋結果 > 10 部作品</li>
+                <li>80% 以上作品有相同女優（演員一致性檢查）</li>
+                <li>在 Settings 啟用「畫廊模式」</li>
+            </ul>
+
+            <h6 class="mt-4">功能特色</h6>
+            <ul>
+                <li><strong>Hero Card</strong>：顯示女優個人資料（罩杯、身高、三圍、生日）</li>
+                <li><strong>畫廊瀏覽</strong>：以封面圖方式展示作品列表</li>
+                <li><strong>快速返回</strong>：點擊「← 返回詳細資料」回到一般模式</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 列表生成器 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-file-earmark-code"></i> 列表生成器 (AVList)
+        </div>
+        <div class="card-body">
+            <h6>功能說明</h6>
+            <ul>
+                <li>掃描本地影片資料夾，生成精美的 HTML 展示頁</li>
+                <li>自動讀取 NFO 檔案並顯示元數據</li>
+                <li>支援「NFO 補全」：自動搜尋缺失的 NFO 檔案</li>
+                <li>內建 Mini Terminal 顯示即時處理進度</li>
+            </ul>
+
+            <h6 class="mt-4">輸出檔案</h6>
+            <ul>
+                <li><strong>index.html</strong>：可在瀏覽器開啟的靜態頁面</li>
+                <li><strong>自動複製</strong>：封面圖與 NFO 複製到輸出目錄</li>
+                <li><strong>Dark Mode</strong>：自動跟隨 Web App 的主題設定</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 快捷鍵 -->
     <div class="card mb-4">
         <div class="card-header">
             <i class="bi bi-keyboard"></i> 快捷鍵
@@ -36,21 +114,70 @@
             <table class="table table-sm">
                 <tbody>
                     <tr>
+                        <td style="width: 30%;"><kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>K</kbd></td>
+                        <td>聚焦搜尋框</td>
+                    </tr>
+                    <tr>
                         <td><kbd>←</kbd> <kbd>→</kbd></td>
                         <td>切換上一個/下一個結果</td>
+                    </tr>
+                    <tr>
+                        <td><kbd>Esc</kbd></td>
+                        <td>清空搜尋框</td>
+                    </tr>
+                    <tr>
+                        <td><kbd>Enter</kbd></td>
+                        <td>執行搜尋</td>
                     </tr>
                 </tbody>
             </table>
         </div>
     </div>
 
+    <!-- 疑難排解 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-question-circle"></i> 疑難排解
+        </div>
+        <div class="card-body">
+            <h6>程式無法啟動 / 閃退 (Windows)</h6>
+            <p><strong>原因</strong>：Windows 安全機制封鎖了從網路下載的檔案。</p>
+            <p><strong>解法</strong>：</p>
+            <ol>
+                <li>對下載的 ZIP 檔點擊右鍵 → 內容</li>
+                <li>勾選「解除封鎖 (Unblock)」，按確定</li>
+                <li>重新解壓縮並執行</li>
+            </ol>
+
+            <h6 class="mt-4">介面顯示異常 / 空白</h6>
+            <p><strong>原因</strong>：缺少 WebView2 Runtime（常見於 Windows 10 或虛擬機）。</p>
+            <p><strong>解法</strong>：下載並安裝 <a href="https://go.microsoft.com/fwlink/p/?LinkId=2124703"
+                    target="_blank">Microsoft Edge WebView2 Runtime</a>。</p>
+
+            <h6 class="mt-4">需要回報問題</h6>
+            <p><strong>日誌位置</strong>：<code>%USERPROFILE%\OpenAver\logs\debug.log</code></p>
+            <p><strong>執行 Debug 模式</strong>：</p>
+            <ol>
+                <li>執行 <code>OpenAver_Debug.bat</code></li>
+                <li>重現問題</li>
+                <li>將日誌檔案與錯誤訊息回報到 <a href="https://github.com/jav-scraper/OpenAver/issues" target="_blank">GitHub
+                        Issues</a></li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- 關於 -->
     <div class="card mb-4">
         <div class="card-header">
             <i class="bi bi-info-circle"></i> 關於
         </div>
         <div class="card-body">
-            <p class="mb-1"><strong>OpenAver</strong></p>
-            <p class="text-muted small mb-0">JAV 影片資訊搜尋與整理工具</p>
+            <p class="mb-1"><strong>OpenAver v1.0.0</strong></p>
+            <p class="text-muted small mb-3">JAV 影片元數據管理工具</p>
+            <p class="text-muted small mb-0">
+                🔒 純本地應用程式，不蒐集使用者資料<br>
+                📝 開源專案，歡迎貢獻與回饋
+            </p>
         </div>
     </div>
 </div>
