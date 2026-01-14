@@ -1,0 +1,138 @@
+/* Tutorial 遮罩層 */
+.tutorial-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: transparent;
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-normal) var(--ease-out);
+}
+
+.tutorial-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Sidebar Mode：只遮蓋主內容區，sidebar 保持可見 */
+.tutorial-overlay.sidebar-mode {
+    background: var(--bg-overlay);
+}
+
+/* 聚光燈高亮區域 */
+.tutorial-spotlight {
+    position: fixed;
+    background: transparent;
+    border-radius: var(--card-radius);
+    box-shadow: 0 0 0 9999px var(--bg-overlay),
+        0 0 20px rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+    z-index: 10000;
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+[data-theme="dark"] .tutorial-spotlight {
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75),
+        0 0 0 4px rgba(90, 200, 250, 0.9),
+        0 0 20px rgba(90, 200, 250, 0.6),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* 提示卡片 */
+.tutorial-card {
+    position: fixed;
+    width: 360px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow-lg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    z-index: 10001;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+.tutorial-overlay.active .tutorial-card {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.tutorial-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.tutorial-card-header h5 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.tutorial-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    transition: all var(--duration-fast);
+}
+
+.tutorial-close:hover {
+    color: var(--text-primary);
+    background: var(--border-light);
+}
+
+.tutorial-card-body {
+    padding: 16px 20px;
+}
+
+.tutorial-card-body p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+.tutorial-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border-light);
+}
+
+.tutorial-progress {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.tutorial-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.tutorial-actions .btn {
+    padding: 6px 16px;
+    font-size: 13px;
+    border-radius: var(--radius-sm);
+}
+
+/* 響應式 */
+@media (max-width: 768px) {
+    .tutorial-card {
+        width: calc(100vw - 40px);
+        left: 20px !important;
+        right: 20px !important;
+    }
+}
