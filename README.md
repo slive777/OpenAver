@@ -7,7 +7,8 @@ OpenAver 是一個基於 Web 技術的桌面應用程式，旨在幫助您輕鬆
 ![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Version](https://img.shields.io/badge/Version-0.1.0-orange.svg)
+![Tests](https://github.com/slive777/OpenAver/actions/workflows/test.yml/badge.svg)
+![GitHub Release](https://img.shields.io/github/v/release/slive777/OpenAver)
 
 ## 📸 截圖預覽
 
