@@ -7,7 +7,20 @@ OpenAver 是一個基於 Web 技術的桌面應用程式，旨在幫助您輕鬆
 ![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)
+![Version](https://img.shields.io/badge/Version-0.1.0-orange.svg)
+
+## 📸 截圖預覽
+
+![Showcase Grid](docs/screenshots/showcase-grid.png)
+
+<details>
+<summary>更多截圖</summary>
+
+| 首頁 | 搜尋結果 | Showcase 詳細 |
+|------|----------|---------------|
+| ![Home](docs/screenshots/home.jpg) | ![Search](docs/screenshots/search-detail.jpg) | ![Detail](docs/screenshots/showcase-detail.png) |
+
+</details>
 
 ## ⚠️ 免責聲明
 
@@ -70,7 +83,7 @@ OpenAver 是純本地應用程式：
 ### 安裝
 ```bash
 # 1. Clone 專案
-git clone https://github.com/your-repo/OpenAver.git
+git clone https://github.com/slive777/OpenAver.git
 cd OpenAver
 
 # 2. 建立虛擬環境
@@ -110,7 +123,7 @@ python windows/launcher.py
 如果您遇到問題或發現 Bug，請協助回報：
 
 ### 回報方式
-1. 前往 [GitHub Issues](https://github.com/your-repo/OpenAver/issues)
+1. 前往 [GitHub Issues](https://github.com/slive777/OpenAver/issues)
 2. 點擊「New Issue」建立新問題
 3. 請提供以下資訊：
    - 問題描述（發生什麼錯誤？）
