@@ -40,11 +40,16 @@ jobs:
       - name: Build Windows package
         run: python build.py
 
+      - name: Prepare artifact
+        run: |
+          cd dist
+          unzip *.zip -d artifact
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: OpenAver-Windows-x64
-          path: dist/*.zip
+          path: dist/artifact/
           retention-days: 30
 
       - name: Upload to Release

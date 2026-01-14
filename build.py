@@ -53,6 +53,7 @@ PACKAGES = [
     "websockets",
     "pillow",
     "pywebview",
+    "httpx",  # Required for FastAPI TestClient and async HTTP
 ]
 
 
