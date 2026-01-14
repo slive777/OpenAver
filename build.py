@@ -412,9 +412,14 @@ def create_zip_package():
     """打包成 ZIP"""
     print("\n[6/6] 打包成 ZIP...")
 
+    # 讀取版本號
+    import sys
+    sys.path.insert(0, str(PROJECT_ROOT))
+    from core.version import VERSION
+
     DIST_DIR.mkdir(parents=True, exist_ok=True)
 
-    zip_name = "OpenAver-Windows-x64"
+    zip_name = f"OpenAver-v{VERSION}-Windows-x64"
     zip_path = DIST_DIR / f"{zip_name}.zip"
 
     # 刪除舊的 ZIP

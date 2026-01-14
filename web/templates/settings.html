@@ -463,14 +463,27 @@
                 </div>
             </div>
         </div>
+        <hr class="my-3">
 
-        <!-- 儲存按鈕 -->
-        <div class="d-flex justify-content-end gap-2">
-            <button type="submit" class="btn btn-primary" id="saveBtn">
-                <i class="bi bi-save"></i> 儲存設定
-            </button>
+        <!-- 版本資訊 -->
+        <div class="row">
+            <div class="col-md-6">
+                <label class="form-label">版本資訊</label>
+            </div>
+            <div class="col-md-6">
+                <span id="appVersion" class="text-muted">載入中...</span>
+            </div>
         </div>
-    </form>
+</div>
+</div>
+
+<!-- 儲存按鈕 -->
+<div class="d-flex justify-content-end gap-2">
+    <button type="submit" class="btn btn-primary" id="saveBtn">
+        <i class="bi bi-save"></i> 儲存設定
+    </button>
+</div>
+</form>
 </div>
 {% endblock %}
 
@@ -850,7 +863,23 @@
         window.location.href = '/search?tutorial=restart';
     });
 
+    // 載入版本資訊
+    async function loadVersion() {
+        try {
+            const resp = await fetch('/api/version');
+            const data = await resp.json();
+            if (data.success) {
+                document.getElementById('appVersion').textContent = `v${data.version}`;
+                document.getElementById('appVersion').classList.remove('text-muted');
+                document.getElementById('appVersion').classList.add('text-primary');
+            }
+        } catch (e) {
+            document.getElementById('appVersion').textContent = '無法載入';
+        }
+    }
+
     // 初始載入
     loadConfig();
+    loadVersion();
 </script>
 {% endblock %}

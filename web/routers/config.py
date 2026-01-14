@@ -178,6 +178,13 @@ async def reset_tutorial() -> dict:
     return {"success": True}
 
 
+@router.get("/version")
+async def get_version() -> dict:
+    """取得版本資訊"""
+    from core.version import VERSION_INFO
+    return {"success": True, **VERSION_INFO}
+
+
 @router.get("/config/format-variables")
 async def get_format_variables() -> dict:
     """取得可用的格式變數"""
