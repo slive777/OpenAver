@@ -155,6 +155,81 @@ def to_unix_path(path: str) -> str:
     return path
 
 
+def expand_env_vars(path: str) -> str:
+    """
+    展開環境變數並轉換路徑
+
+    支援：
+    - %USERPROFILE%\\Downloads → /mnt/c/Users/<user>/Downloads (WSL)
+    - %USERPROFILE%\\Downloads → C:\\Users\\<user>\\Downloads (Windows)
+    - ~/Downloads → /home/<user>/Downloads (Unix)
+
+    Args:
+        path: 包含環境變數的路徑
+
+    Returns:
+        展開並轉換後的路徑
+    """
+    if not path:
+        return path
+
+    # 處理 Unix 波浪號
+    if path.startswith('~'):
+        from pathlib import Path
+        return str(Path(path).expanduser())
+
+    # 處理 Windows 環境變數 %USERPROFILE%
+    if '%USERPROFILE%' in path.upper():
+        if CURRENT_ENV == 'wsl':
+            # WSL 環境：從 /etc/passwd 或 cmd.exe 取得 Windows 用戶名
+            import subprocess
+            try:
+                # 透過 cmd.exe 取得 Windows 的 USERPROFILE
+                result = subprocess.run(
+                    ['cmd.exe', '/c', 'echo', '%USERPROFILE%'],
+                    capture_output=True, text=True, timeout=5
+                )
+                win_userprofile = result.stdout.strip()
+                if win_userprofile and win_userprofile != '%USERPROFILE%':
+                    # 不區分大小寫替換環境變數
+                    import re as regex_module
+                    path = regex_module.sub(
+                        r'%USERPROFILE%',
+                        lambda m: win_userprofile,
+                        path,
+                        flags=regex_module.IGNORECASE
+                    )
+                    # 轉換成 WSL 路徑
+                    return normalize_path(path)
+            except Exception:
+                pass
+
+            # Fallback: 假設 Windows 用戶名與 WSL 用戶名相同
+            import os
+            import re as regex_module
+            wsl_user = os.environ.get('USER', 'user')
+            win_path = f'C:\\Users\\{wsl_user}'
+            path = regex_module.sub(
+                r'%USERPROFILE%',
+                lambda m: win_path,
+                path,
+                flags=regex_module.IGNORECASE
+            )
+            return normalize_path(path)
+
+        elif CURRENT_ENV == 'windows':
+            # Windows 環境：使用 os.path.expandvars
+            import os
+            return os.path.expandvars(path)
+
+        else:
+            # 純 Linux/Mac：無法處理 Windows 環境變數
+            raise ValueError(f'當前環境不支援 Windows 環境變數: {path}')
+
+    # 其他情況：直接 normalize
+    return normalize_path(path)
+
+
 def get_environment() -> str:
     """取得當前環境"""
     return CURRENT_ENV
