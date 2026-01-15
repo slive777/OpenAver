@@ -277,13 +277,15 @@ def create_launcher_scripts():
 
     root_dir = BUILD_DIR / "OpenAver"
 
-    # OpenAver.bat - 正常啟動（無控制台）
+    # OpenAver.bat - 正常啟動（顯示啟動提示）
     bat_content = '''@echo off
 cd /d "%~dp0"
-echo OpenAver starting...
-echo Window will appear shortly...
+echo ==============================
+echo    OpenAver Starting...
+echo ==============================
+echo.
 start "" "python\\pythonw.exe" "app\\windows\\standalone.py"
-ping -n 3 127.0.0.1 >nul
+ping -n 2 127.0.0.1 >nul
 '''
 
     # OpenAver_Debug.bat - 偵錯模式（顯示控制台）
