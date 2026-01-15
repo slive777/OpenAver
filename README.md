@@ -12,14 +12,16 @@ OpenAver 是一個基於 Web 技術的桌面應用程式，旨在幫助您輕鬆
 
 ## 📸 截圖預覽
 
-![Demo](docs/screenshots/demo.gif)
+![Home](docs/screenshots/home.jpg)
 
 <details>
 <summary>更多截圖</summary>
 
-| 首頁 | 搜尋結果 | Showcase 詳細 |
-|------|----------|---------------|
-| ![Home](docs/screenshots/home.jpg) | ![Search](docs/screenshots/search-detail.jpg) | ![Detail](docs/screenshots/showcase-detail.png) |
+![Demo](docs/screenshots/demo.gif)
+
+| 搜尋結果 | Showcase Grid | Showcase 詳細 |
+|----------|---------------|---------------|
+| ![Search](docs/screenshots/search-detail.png) | ![Grid](docs/screenshots/showcase-grid.png) | ![Detail](docs/screenshots/showcase-detail.png) |
 
 </details>
 
