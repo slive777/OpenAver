@@ -1,6 +1,12 @@
-# OpenAver
+<p align="center">
+  <img src="docs/logo.svg" alt="OpenAver Logo" width="200">
+</p>
 
-**現代化的 JAV 影片元數據管理工具 (Modern JAV Metadata Manager)**
+<h1 align="center">OpenAver</h1>
+
+<p align="center">
+  <strong>現代化的 JAV 影片元數據管理工具 (Modern JAV Metadata Manager)</strong>
+</p>
 
 OpenAver 是一個基於 Web 技術的桌面應用程式，旨在幫助您輕鬆管理、刮削和生成 JAV 影片的元數據與展示列表。
 

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f7cff"/>
+      <stop offset="100%" style="stop-color:#6c5ce7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 圓形背景 -->
+  <circle cx="32" cy="32" r="30" fill="#1a1a2e"/>
+
+  <!-- A 字母 - 播放按鈕風格 -->
+  <path d="M20 48 L32 16 L44 48"
+        fill="none"
+        stroke="url(#gradient)"
+        stroke-width="4"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- A 橫線 -->
+  <path d="M24 38 L40 38"
+        fill="none"
+        stroke="url(#gradient)"
+        stroke-width="4"
+        stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="200" height="60">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f7cff"/>
+      <stop offset="100%" style="stop-color:#6c5ce7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- A - 特殊設計，像播放按鈕 -->
+  <path d="M10 48 L30 12 L50 48 M18 36 L42 36"
+        fill="none"
+        stroke="url(#gradient)"
+        stroke-width="5"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- v -->
+  <path d="M58 16 L73 44 L88 16"
+        fill="none"
+        stroke="url(#gradient)"
+        stroke-width="5"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- e -->
+  <path d="M96 30 L124 30 M96 30 C96 16, 124 16, 124 30 C124 44, 96 44, 96 44"
+        fill="none"
+        stroke="url(#gradient)"
+        stroke-width="5"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- r -->
+  <path d="M136 44 L136 20 M136 28 C136 18, 158 18, 158 24"
+        fill="none"
+        stroke="url(#gradient)"
+        stroke-width="5"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+</svg>
