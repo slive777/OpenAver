@@ -121,6 +121,12 @@ python windows/launcher.py
 **解法**:
 請下載並安裝 [Microsoft Edge WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703)。
 
+## 💬 社群
+
+加入 [Telegram 群組](https://t.me/+J-U2l96gv0FjZTBl) 與其他使用者交流討論！
+
+---
+
 ## 🐛 回報問題
 
 如果您遇到問題或發現 Bug，請協助回報：

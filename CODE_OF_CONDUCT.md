@@ -44,7 +44,9 @@
 ## 執行
 
 可以向負責執行的社群領導者報告濫用、騷擾或其他不可接受的行為，
-報告方式：在 [GitHub Issues](https://github.com/slive777/OpenAver/issues) 中提交。
+報告方式：
+- [GitHub Issues](https://github.com/slive777/OpenAver/issues)
+- [Telegram 群組](https://t.me/+J-U2l96gv0FjZTBl)
 
 所有投訴都將被及時且公平地審查和調查。
 

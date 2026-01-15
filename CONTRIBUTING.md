@@ -159,6 +159,12 @@ Closes #123
 
 ---
 
+## 💬 社群
+
+加入 [Telegram 群組](https://t.me/+J-U2l96gv0FjZTBl) 與其他使用者交流分享！
+
+---
+
 ## 🙏 感謝
 
 感謝所有貢獻者讓 OpenAver 變得更好！
