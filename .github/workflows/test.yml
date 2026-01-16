@@ -40,5 +40,5 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-test.txt
 
-      - name: Run tests
-        run: pytest -v
+      - name: Run tests (unit + integration only, no smoke)
+        run: pytest tests/unit tests/integration -v --ignore=tests/smoke

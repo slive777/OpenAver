@@ -94,8 +94,8 @@ def to_wsl_path(path: str) -> str:
     # Windows 本地路徑: C:\Users\...
     if len(path) >= 2 and path[1] == ':':
         drive = path[0].lower()
-        rest = path[2:].replace('\\', '/')
-        return f'/mnt/{drive}{rest}'
+        rest = path[2:].rstrip('\\').replace('\\', '/')
+        return f'/mnt/{drive}{rest}' if rest else f'/mnt/{drive}'
 
     # 其他格式，嘗試直接返回
     return path
