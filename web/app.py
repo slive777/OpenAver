@@ -8,6 +8,9 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+# 版本號（集中管理）
+VERSION = "0.1.1"
+
 # 路徑設定
 BASE_DIR = Path(__file__).parent
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -17,7 +20,7 @@ STATIC_DIR = BASE_DIR / "static"
 app = FastAPI(
     title="OpenAver",
     description="JAV 影片元數據管理工具",
-    version="0.1.0"
+    version=VERSION
 )
 
 # 靜態檔案
@@ -48,7 +51,8 @@ def get_common_context(request: Request) -> dict:
     return {
         "request": request,
         "config": config,
-        "theme": config.get('general', {}).get('theme', 'light')
+        "theme": config.get('general', {}).get('theme', 'light'),
+        "version": VERSION
     }
 
 
@@ -130,4 +134,48 @@ async def help_page(request: Request):
 @app.get("/api/health")
 async def health_check():
     """健康檢查"""
-    return {"status": "ok", "version": "0.1.0"}
+    return {"status": "ok", "version": VERSION}
+
+
+@app.get("/api/version")
+async def get_version():
+    """取得應用程式版本"""
+    return {"success": True, "version": VERSION}
+
+
+@app.get("/api/check-update")
+async def check_update():
+    """手動檢查 GitHub 是否有新版本（保護隱私，不自動連網）"""
+    import httpx
+
+    current_version = VERSION
+    github_api = "https://api.github.com/repos/slive777/OpenAver/releases/latest"
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(github_api, headers={"Accept": "application/vnd.github.v3+json"})
+
+            if resp.status_code == 404:
+                # 還沒有 release
+                return {"success": True, "has_update": False, "current_version": current_version}
+
+            resp.raise_for_status()
+            data = resp.json()
+
+            latest_version = data.get("tag_name", "").lstrip("v")
+            download_url = data.get("html_url", "")
+
+            # 簡單版本比較
+            has_update = latest_version > current_version
+
+            return {
+                "success": True,
+                "has_update": has_update,
+                "current_version": current_version,
+                "latest_version": latest_version,
+                "download_url": download_url
+            }
+    except httpx.TimeoutException:
+        return {"success": False, "error": "連線逾時"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

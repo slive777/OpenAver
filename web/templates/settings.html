@@ -9,6 +9,15 @@
         margin: 0 auto;
     }
 
+    /* 轉動動畫 */
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
     .settings-header {
         margin-bottom: 1.5rem;
     }
@@ -466,12 +475,26 @@
         <hr class="my-3">
 
         <!-- 版本資訊 -->
-        <div class="row">
+        <div class="row mb-3">
             <div class="col-md-6">
                 <label class="form-label">版本資訊</label>
             </div>
             <div class="col-md-6">
                 <span id="appVersion" class="text-muted">載入中...</span>
+            </div>
+        </div>
+
+        <!-- 檢查更新 -->
+        <div class="row">
+            <div class="col-md-6">
+                <label class="form-label">軟體更新</label>
+                <div class="form-text">手動檢查 GitHub 是否有新版本</div>
+            </div>
+            <div class="col-md-6 d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCheckUpdate">
+                    <i class="bi bi-cloud-download"></i> 檢查更新
+                </button>
+                <span id="updateStatus" class="small"></span>
             </div>
         </div>
 </div>
@@ -877,6 +900,39 @@
             document.getElementById('appVersion').textContent = '無法載入';
         }
     }
+
+    // 檢查更新
+    document.getElementById('btnCheckUpdate')?.addEventListener('click', async () => {
+        const btn = document.getElementById('btnCheckUpdate');
+        const status = document.getElementById('updateStatus');
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> 檢查中...';
+        status.textContent = '';
+        status.className = 'small';
+
+        try {
+            const resp = await fetch('/api/check-update');
+            const data = await resp.json();
+
+            if (data.success) {
+                if (data.has_update) {
+                    status.innerHTML = `<a href="${data.download_url}" target="_blank" class="text-success">
+                        <i class="bi bi-download"></i> 新版本 ${data.latest_version} 可用
+                    </a>`;
+                } else {
+                    status.innerHTML = '<span class="text-muted"><i class="bi bi-check-circle"></i> 已是最新版本</span>';
+                }
+            } else {
+                status.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle"></i> ${data.error || '檢查失敗'}</span>`;
+            }
+        } catch (e) {
+            status.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> 網路錯誤</span>';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-cloud-download"></i> 檢查更新';
+        }
+    });
 
     // 初始載入
     loadConfig();
