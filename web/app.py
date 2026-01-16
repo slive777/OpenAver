@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 # 版本號（集中管理）
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 
 # 路徑設定
 BASE_DIR = Path(__file__).parent

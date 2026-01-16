@@ -1,8 +1,8 @@
 {
   "scraper": {
     "create_folder": true,
-    "folder_format": "{num}",
-    "filename_format": "{num} {title}",
+    "folder_format": "{actor}",
+    "filename_format": "[{num}][{maker}] {title}",
     "download_cover": true,
     "cover_filename": "poster.jpg",
     "create_nfo": true,
