@@ -29,7 +29,7 @@ from pywebview_api import api, bind_events
 
 # 配置
 HOST = "127.0.0.1"
-PORT = 8000
+PORT = 49152  # 使用動態/私有端口範圍 (49152-65535)，避免權限問題
 STARTUP_TIMEOUT = 30  # 最多等待 30 秒
 
 # 全域 logger
@@ -165,8 +165,8 @@ def show_error(title, message, details=None):
 
 # ============ 核心功能 ============
 
-def find_free_port(start_port=8000, max_attempts=100):
-    """尋找可用端口（改進版，包含詳細日誌和更健壯的實現）"""
+def find_free_port(start_port=49152, max_attempts=100):
+    """尋找可用端口（改進版，使用動態端口範圍避免權限問題）"""
     last_error = None
     tested_ports = []
 
@@ -176,6 +176,8 @@ def find_free_port(start_port=8000, max_attempts=100):
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             # 設置 SO_REUSEADDR 選項（允許快速重用端口）
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            # 設置超時避免卡住
+            sock.settimeout(1)
             sock.bind((HOST, port))
             sock.close()
 
@@ -199,16 +201,24 @@ def find_free_port(start_port=8000, max_attempts=100):
                 except Exception:
                     pass
 
-    # 提供更詳細的錯誤信息
+    # 提供更詳細的錯誤信息和解決方案
     error_msg = f"無法找到可用端口 ({start_port}-{start_port + max_attempts - 1})"
     if last_error:
+        error_code = getattr(last_error, 'winerror', None) or getattr(last_error, 'errno', None)
         error_msg += f"\n最後錯誤: {last_error}"
+
+        # 針對 Windows Error 10013 提供具體建議
+        if error_code == 10013:
+            error_msg += "\n\n[解決方案]"
+            error_msg += "\n1. 暫時關閉防火牆或安全軟件（如 360、McAfee）"
+            error_msg += "\n2. 右鍵點擊 OpenAver.bat，選擇「以系統管理員身分執行」"
+            error_msg += "\n3. 檢查 Windows Defender 防火牆設定"
+            error_msg += "\n4. 重新啟動電腦後再試"
+
         error_msg += f"\n已測試 {len(tested_ports)} 個端口"
 
     if logger:
         logger.error(error_msg)
-        logger.error(f"這可能是由於防火牆、安全軟件或系統權限限制造成的")
-        logger.error(f"請嘗試：1) 暫時關閉防火牆/安全軟件 2) 以管理員身份運行 3) 檢查系統日誌")
 
     raise RuntimeError(error_msg)
 
@@ -265,8 +275,17 @@ def main():
                 sys.exit(0)
 
     # 1. 尋找可用端口
-    port = find_free_port(PORT)
-    log(f"使用端口: {port}")
+    try:
+        port = find_free_port(PORT)
+        log(f"使用端口: {port}")
+    except RuntimeError as e:
+        # 端口綁定失敗，顯示詳細的解決方案
+        show_error(
+            "啟動失敗 - 無法綁定端口",
+            str(e),
+            None
+        )
+        sys.exit(1)
 
     # 2. 在背景 thread 啟動 FastAPI
     log("啟動伺服器...")
