@@ -251,7 +251,7 @@ class TestExtractNumberFromSamples:
     @pytest.fixture
     def samples_dir(self):
         """取得 samples 目錄"""
-        return Path(__file__).parent.parent.parent / 'samples'
+        return Path(__file__).parent.parent / 'samples'
 
     @pytest.fixture
     def expected_results(self, samples_dir):

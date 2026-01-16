@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-01-17
+
+### Added
+- Tutorial Step 5: Guide users to try sample files immediately after onboarding
+- Sample files folder ("教學檔案") included in Windows package with 10 searchable examples
+- Comprehensive test framework (115 test cases: unit + integration + smoke)
+
+### Changed
+- Tutorial card now has "large" variant for final step emphasis
+- Test samples moved to `tests/samples/` for cleaner project structure
+
+---
+
 ## [0.1.3] - 2026-01-17
 
 ### Fixed

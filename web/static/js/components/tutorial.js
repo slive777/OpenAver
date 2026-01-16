@@ -32,6 +32,14 @@ class SpotlightTutorial {
                 title: '⚙️ 個人化設定',
                 content: '切換 Dark Mode、設定我的最愛資料夾<br>調整介面與功能偏好',
                 position: 'right'
+            },
+            {
+                id: 'samples',
+                target: '#emptyState',
+                title: '🎬 立即體驗！',
+                content: '拖放 <code>教學檔案</code> 資料夾<br>或其中任一 <code>.mp4</code> 檔案到此視窗<br><br><small class="text-muted">內含 10 個真實可搜尋的範例</small>',
+                position: 'bottom',
+                large: true
             }
         ];
         this.isActive = false;
@@ -142,6 +150,15 @@ class SpotlightTutorial {
 
         document.getElementById('tutorialTitle').textContent = step.title;
         document.getElementById('tutorialContent').innerHTML = step.content;
+
+        // 大視窗模式
+        const card = document.getElementById('tutorialCard');
+        if (step.large) {
+            card.classList.add('large');
+        } else {
+            card.classList.remove('large');
+        }
+
         document.getElementById('tutorialProgress').textContent = `${stepIndex + 1} / ${this.steps.length}`;
 
         const btnNext = document.getElementById('tutorialNext');

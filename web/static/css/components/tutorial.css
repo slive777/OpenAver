@@ -128,6 +128,27 @@
     border-radius: var(--radius-sm);
 }
 
+/* 大視窗模式（第 5 步） */
+.tutorial-card.large {
+    width: 420px;
+}
+
+.tutorial-card.large .tutorial-card-body {
+    padding: 24px 28px;
+}
+
+.tutorial-card.large .tutorial-card-body p {
+    font-size: 15px;
+    line-height: 1.8;
+}
+
+.tutorial-card.large code {
+    background: var(--border-light);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
 /* 響應式 */
 @media (max-width: 768px) {
     .tutorial-card {

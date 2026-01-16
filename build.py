@@ -270,6 +270,13 @@ def copy_project_files():
         shutil.copy2(config_default_src, config_default_dst)
         print("  複製檔案: config.default.json")
 
+    # 複製範例檔案到根目錄（讓用戶容易找到）
+    samples_src = PROJECT_ROOT / "tests" / "samples" / "basic"
+    samples_dst = BUILD_DIR / "OpenAver" / "教學檔案"
+    if samples_src.exists():
+        shutil.copytree(samples_src, samples_dst)
+        print("  複製目錄: 教學檔案 (10 個範例)")
+
 
 def create_launcher_scripts():
     """建立啟動腳本和說明檔（純英文版本，避免 Big5 編碼地雷字問題）"""
