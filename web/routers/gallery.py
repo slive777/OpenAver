@@ -467,24 +467,44 @@ async def get_image(path: str = Query(..., description="圖片路徑")):
     """代理圖片請求，解決 file:// 在 iframe 中無法載入的問題"""
     from urllib.parse import unquote
     import re
+    import platform
 
     # URL decode
     path = unquote(path)
 
+    # 檢測是否在 WSL 環境
+    is_wsl = 'microsoft' in platform.uname().release.lower()
+    is_windows = platform.system() == 'Windows'
+
     # 轉換為本地路徑
-    # Windows 路徑 C:/Users/... 需要轉換為 WSL 路徑 /mnt/c/Users/...
-    if re.match(r'^[A-Za-z]:/', path) or re.match(r'^[A-Za-z]:\\\\', path):
-        # Windows 絕對路徑，轉換為 WSL 格式
-        drive = path[0].lower()
-        rest = path[2:].replace('\\', '/')
-        if rest.startswith('/'):
-            rest = rest[1:]
-        local_path = f'/mnt/{drive}/{rest}'
+    if re.match(r'^[A-Za-z]:/', path) or re.match(r'^[A-Za-z]:\\', path):
+        # Windows 絕對路徑
+        if is_wsl:
+            # WSL 環境：轉換為 /mnt/c/ 格式
+            drive = path[0].lower()
+            rest = path[2:].replace('\\', '/')
+            if rest.startswith('/'):
+                rest = rest[1:]
+            local_path = f'/mnt/{drive}/{rest}'
+        else:
+            # Windows 原生環境：直接使用，只統一斜線
+            local_path = path.replace('/', '\\')
     elif path.startswith('/mnt/'):
-        # 已經是 WSL 路徑
-        local_path = path
+        # WSL 路徑
+        if is_windows:
+            # Windows 原生環境：轉換回 Windows 格式
+            # /mnt/c/Users/... -> C:\Users\...
+            parts = path.split('/')
+            if len(parts) >= 3:
+                drive = parts[2].upper()
+                rest = '\\'.join(parts[3:])
+                local_path = f'{drive}:\\{rest}'
+            else:
+                local_path = path
+        else:
+            local_path = path
     else:
-        # 其他格式，嘗試直接使用
+        # 其他格式（網路路徑等），直接使用
         local_path = path
 
     if not os.path.exists(local_path):
