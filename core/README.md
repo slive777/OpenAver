@@ -8,7 +8,7 @@
 **影片資訊爬蟲**
 - 負責從各大網站（JavBus, JavDB, Jav321, DMM 等）搜尋與抓取影片元數據。
 - 實作了多來源整合搜尋 `search_jav()`。
-- 包含處理 JavDB TLS 指紋偽造與 JavBus 爬取邏輯。
+- 包含處理 JavDB 與 JavBus 爬取邏輯。
 - 維護片商對照表 (`maker_mapping.json`) 的載入與更新。
 
 ### `gallery_generator.py`
