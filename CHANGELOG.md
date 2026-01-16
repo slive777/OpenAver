@@ -5,12 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.2] - 2026-01-17
+## [0.1.3] - 2026-01-17
 
 ### Fixed
+- NFO updater now uses centralized `path_utils.normalize_path()` for Windows compatibility
+- Image proxy refactored to use `path_utils.normalize_path()` (removed duplicate code)
 - Settings dropdown menus no longer clipped by card overflow
 - Default folder format changed to `{actor}`
 - Default filename format changed to `[{num}][{maker}] {title}`
+
+### Changed
+- Centralized all path conversion logic in `core/path_utils.py`
 
 ---
 

@@ -96,21 +96,22 @@ def get_nfo_path_from_video(video_path: str) -> Optional[str]:
     """從影片路徑取得對應的 NFO 檔案路徑
 
     Args:
-        video_path: 影片檔案路徑（可能是 file:/// URL 或 Linux 路徑）
+        video_path: 影片檔案路徑（可能是 file:/// URL 或任意格式路徑）
 
     Returns:
         NFO 檔案的路徑，不存在則返回 None
     """
+    from core.path_utils import normalize_path
+
     # 移除 file:/// 前綴
     if video_path.startswith('file:///'):
         video_path = video_path[8:]
 
-    # 嘗試轉換 Windows 路徑為 WSL 路徑
-    # C:/Users/... -> /mnt/c/Users/...
-    if len(video_path) >= 2 and video_path[1] == ':':
-        drive = video_path[0].lower()
-        rest = video_path[2:].replace('\\', '/')
-        video_path = f'/mnt/{drive}{rest}'
+    # 使用 path_utils 統一處理路徑轉換
+    try:
+        video_path = normalize_path(video_path)
+    except ValueError:
+        pass  # 無法轉換時使用原路徑
 
     # 取得 NFO 路徑
     video_p = Path(video_path)
