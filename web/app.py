@@ -8,8 +8,8 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-# 版本號（集中管理）
-VERSION = "0.1.2"
+# 版本號（從 core/version.py 統一管理）
+from core.version import VERSION
 
 # 路徑設定
 BASE_DIR = Path(__file__).parent
