@@ -166,15 +166,51 @@ def show_error(title, message, details=None):
 # ============ 核心功能 ============
 
 def find_free_port(start_port=8000, max_attempts=100):
-    """尋找可用端口"""
+    """尋找可用端口（改進版，包含詳細日誌和更健壯的實現）"""
+    last_error = None
+    tested_ports = []
+
     for port in range(start_port, start_port + max_attempts):
+        sock = None
         try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind((HOST, port))
-                return port
-        except OSError:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            # 設置 SO_REUSEADDR 選項（允許快速重用端口）
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            sock.bind((HOST, port))
+            sock.close()
+
+            # 記錄成功找到的端口
+            if logger:
+                logger.info(f"找到可用端口: {port}")
+
+            return port
+        except OSError as e:
+            last_error = e
+            tested_ports.append(port)
+            # 記錄詳細的失敗信息（僅前 5 次和最後 5 次，避免日誌過多）
+            if len(tested_ports) <= 5 or len(tested_ports) >= max_attempts - 5:
+                if logger:
+                    logger.debug(f"端口 {port} 不可用: {e}")
             continue
-    raise RuntimeError(f"無法找到可用端口 ({start_port}-{start_port + max_attempts})")
+        finally:
+            if sock:
+                try:
+                    sock.close()
+                except Exception:
+                    pass
+
+    # 提供更詳細的錯誤信息
+    error_msg = f"無法找到可用端口 ({start_port}-{start_port + max_attempts - 1})"
+    if last_error:
+        error_msg += f"\n最後錯誤: {last_error}"
+        error_msg += f"\n已測試 {len(tested_ports)} 個端口"
+
+    if logger:
+        logger.error(error_msg)
+        logger.error(f"這可能是由於防火牆、安全軟件或系統權限限制造成的")
+        logger.error(f"請嘗試：1) 暫時關閉防火牆/安全軟件 2) 以管理員身份運行 3) 檢查系統日誌")
+
+    raise RuntimeError(error_msg)
 
 
 def wait_for_server(port, timeout=STARTUP_TIMEOUT):
