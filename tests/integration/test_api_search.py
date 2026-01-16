@@ -24,7 +24,7 @@ class TestSearchByNumber:
     def test_search_exact_number_success(self, client, mocker):
         """精確番號搜尋成功"""
         mock_data = load_fixture('responses/javbus/SONE-103.json')
-        mocker.patch('core.scraper.search_jav', return_value=mock_data)
+        mocker.patch('web.routers.search.search_jav', return_value=mock_data)
 
         response = client.get('/api/search', params={'q': 'SONE-103', 'mode': 'exact'})
 
@@ -37,7 +37,7 @@ class TestSearchByNumber:
     def test_search_auto_mode(self, client, mocker):
         """自動模式搜尋"""
         mock_data = load_fixture('responses/javbus/SONE-103.json')
-        mocker.patch('core.scraper.smart_search', return_value=[mock_data])
+        mocker.patch('web.routers.search.smart_search', return_value=[mock_data])
 
         response = client.get('/api/search', params={'q': 'SONE-103'})
 
@@ -48,7 +48,7 @@ class TestSearchByNumber:
 
     def test_search_no_results(self, client, mocker):
         """搜尋無結果"""
-        mocker.patch('core.scraper.smart_search', return_value=[])
+        mocker.patch('web.routers.search.smart_search', return_value=[])
 
         response = client.get('/api/search', params={'q': 'FAKE-999'})
 
@@ -98,7 +98,7 @@ class TestSearchModes:
             {'number': 'SONE-102', 'title': 'Title 2'},
             {'number': 'SONE-103', 'title': 'Title 3'},
         ]
-        mocker.patch('core.scraper.search_partial', return_value=mock_results)
+        mocker.patch('web.routers.search.search_partial', return_value=mock_results)
 
         response = client.get('/api/search', params={'q': 'SONE-10', 'mode': 'partial'})
 
@@ -110,7 +110,7 @@ class TestSearchModes:
     def test_search_actress_mode(self, client, mocker):
         """女優搜尋模式"""
         mock_results = load_fixture('responses/javdb/actress_search.json')
-        mocker.patch('core.scraper.search_actress', return_value=mock_results)
+        mocker.patch('web.routers.search.search_actress', return_value=mock_results)
 
         response = client.get('/api/search', params={'q': '石川澪', 'mode': 'actress'})
 
@@ -126,7 +126,7 @@ class TestSearchPagination:
     def test_search_with_limit(self, client, mocker):
         """分頁 limit 參數"""
         mock_results = [{'number': f'SONE-{i}', 'title': f'Title {i}'} for i in range(10)]
-        mocker.patch('core.scraper.smart_search', return_value=mock_results[:5])
+        mocker.patch('web.routers.search.smart_search', return_value=mock_results[:5])
 
         response = client.get('/api/search', params={'q': 'SONE', 'limit': 5})
 
@@ -137,7 +137,7 @@ class TestSearchPagination:
     def test_search_with_offset(self, client, mocker):
         """分頁 offset 參數"""
         mock_results = [{'number': f'SONE-{i}', 'title': f'Title {i}'} for i in range(100, 110)]
-        mocker.patch('core.scraper.smart_search', return_value=mock_results)
+        mocker.patch('web.routers.search.smart_search', return_value=mock_results)
 
         response = client.get('/api/search', params={'q': 'SONE', 'limit': 5, 'offset': 5})
 

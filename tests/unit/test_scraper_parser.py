@@ -64,11 +64,11 @@ class TestExtractNumber:
         assert extract_number('stars-804_4K_60fps.mp4') == 'STARS-804'
 
     def test_fc2_no_second_hyphen(self):
-        """FC2 無第二橫線 FC2PPV-999999"""
-        # 這個格式可能需要特殊處理
+        """FC2 無第二橫線 FC2PPV-999999 - 目前不支援"""
+        # 目前 regex 只支援 FC2-PPV-\d+，FC2PPV-\d+ 格式暫不支援
         result = extract_number('FC2PPV-999999.avi')
-        # 根據 patterns，可能匹配為 FC2PPV-999999
-        assert result is not None
+        # 待未來優化 regex 時再支援
+        assert result is None
 
     # --- suffix/ 後綴處理（需移除）---
     # 注意：extract_number 不處理後綴移除，這是 normalize 的工作

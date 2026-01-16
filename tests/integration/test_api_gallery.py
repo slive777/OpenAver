@@ -105,7 +105,7 @@ class TestGalleryView:
     def test_view_list_no_file(self, client, mocker, tmp_path):
         """無 HTML 檔案時"""
         mocker.patch('web.routers.gallery.load_config', return_value={
-            'avlist': {'output_dir': str(tmp_path)}
+            'gallery': {'output_dir': str(tmp_path)}
         })
 
         response = client.get('/api/gallery/view')
@@ -120,7 +120,7 @@ class TestGalleryView:
         html_file.write_text('<html><body>Test Gallery</body></html>', encoding='utf-8')
 
         mocker.patch('web.routers.gallery.load_config', return_value={
-            'avlist': {'output_dir': str(tmp_path)}
+            'gallery': {'output_dir': str(tmp_path)}
         })
 
         response = client.get('/api/gallery/view')
@@ -137,7 +137,7 @@ class TestCheckUpdate:
 
     def test_check_update_endpoint(self, client):
         """檢查更新端點正常回應"""
-        response = client.get('/api/gallery/check-update')
+        response = client.get('/api/gallery/update-check')
 
         # API 可能返回 200 或 需要配置
         # 這裡只驗證端點可達且返回 JSON
