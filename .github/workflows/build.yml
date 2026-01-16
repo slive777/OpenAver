@@ -11,6 +11,9 @@ on:
         required: false
         default: 'dev'
 
+permissions:
+  contents: write
+
 jobs:
   build-windows-x64:
     runs-on: ubuntu-latest
