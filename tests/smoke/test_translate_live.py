@@ -8,8 +8,7 @@ test_translate_live.py - 翻譯服務 Smoke 測試
 
 前提條件：
 - Ollama 服務運行中
-- qwen3:8b 模型已安裝
-- translategemma:12b 模型已安裝（批次翻譯）
+- 配置的翻譯模型已安裝
 """
 
 import pytest
@@ -24,8 +23,7 @@ TEST_CONFIG = {
     "provider": "ollama",
     "ollama": {
         "url": os.getenv("OLLAMA_URL", "http://localhost:11434"),
-        "model": "qwen3:8b",
-        "batch_model": "translategemma:12b"
+        "model": "qwen3:8b"  # 所有翻譯都用此模型
     }
 }
 

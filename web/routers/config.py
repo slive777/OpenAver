@@ -34,11 +34,28 @@ class SearchConfig(BaseModel):
     favorite_folder: str = ""  # 我的最愛資料夾 - 空字串 = 使用系統下載資料夾
 
 
+class OllamaConfig(BaseModel):
+    """串接結構：Ollama 配置"""
+    url: str = "http://localhost:11434"
+    model: str = "qwen3:8b"  # 所有翻譯（單片/批次）都用此模型
+
+
 class TranslateConfig(BaseModel):
     enabled: bool = False
     provider: str = "ollama"
-    ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "qwen2.5:7b"
+
+    # Task 1.2, 1.3 新增字段
+    auto_progressive: bool = True
+    progressive_first: bool = True
+    progressive_range: List[int] = [2, 10]
+    batch_size: int = 10
+
+    # 嵌套結構
+    ollama: OllamaConfig = OllamaConfig()
+
+    # 舊字段（保留向後兼容）
+    ollama_url: Optional[str] = None
+    ollama_model: Optional[str] = None
 
 
 class GalleryConfig(BaseModel):
@@ -104,6 +121,46 @@ def load_config() -> dict:
                 # KB -> MB (四捨五入可接受)
                 g['min_size_mb'] = int(round(g.get('min_size_kb', 0) / 1024))
                 del g['min_size_kb']
+                need_save = True
+
+        # Migration: translate 扁平結構 -> 嵌套結構
+        if 'translate' in raw_config:
+            t = raw_config['translate']
+
+            # 遷移 ollama_url -> ollama.url
+            if 'ollama_url' in t and 'ollama' not in t:
+                t['ollama'] = {
+                    'url': t.get('ollama_url', 'http://localhost:11434'),
+                    'model': t.get('ollama_model', 'qwen3:8b')
+                }
+                # 刪除舊字段
+                t.pop('ollama_url', None)
+                t.pop('ollama_model', None)
+                need_save = True
+
+            # 移除舊的 batch_model 字段（Task 1.3.1 清理）
+            if 'ollama' in t and isinstance(t['ollama'], dict) and 'batch_model' in t['ollama']:
+                del t['ollama']['batch_model']
+                need_save = True
+
+            # 補充缺少的新字段
+            defaults = {
+                'auto_progressive': True,
+                'progressive_first': True,
+                'progressive_range': [2, 10],
+                'batch_size': 10
+            }
+            for key, default_value in defaults.items():
+                if key not in t:
+                    t[key] = default_value
+                    need_save = True
+
+            # 確保 ollama 嵌套存在
+            if 'ollama' not in t:
+                t['ollama'] = {
+                    'url': 'http://localhost:11434',
+                    'model': 'qwen3:8b'
+                }
                 need_save = True
 
         # Save migrated config

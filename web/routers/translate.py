@@ -59,8 +59,10 @@ async def translate_title(request: TranslateRequest) -> dict:
     if not translate_config.get("enabled", False):
         return {"success": False, "error": "翻譯功能未啟用"}
 
-    ollama_url = translate_config.get("ollama_url", "http://localhost:11434").rstrip("/")
-    ollama_model = translate_config.get("ollama_model", "qwen3:8b")
+    # 兼容嵌套結構和舊扁平結構
+    ollama_config = translate_config.get("ollama", {})
+    ollama_url = ollama_config.get("url", translate_config.get("ollama_url", "http://localhost:11434")).rstrip("/")
+    ollama_model = ollama_config.get("model", translate_config.get("ollama_model", "qwen3:8b"))
 
     # 根據模式建構 prompt（參考 jav_scraper.py）
     if request.mode == "translate":

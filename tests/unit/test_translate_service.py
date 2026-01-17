@@ -74,7 +74,6 @@ class TestOllamaTranslateServiceConfig:
 
         assert service.ollama_url == "http://localhost:11434"
         assert service.model == "qwen3:8b"
-        assert service.batch_model == "translategemma:12b"
 
     def test_custom_url(self):
         """自定義 URL 正確處理"""
@@ -93,13 +92,11 @@ class TestOllamaTranslateServiceConfig:
     def test_custom_models(self):
         """自定義模型正確設置"""
         config = {
-            "model": "llama3:8b",
-            "batch_model": "mistral:7b"
+            "model": "llama3:8b"
         }
         service = OllamaTranslateService(config)
 
         assert service.model == "llama3:8b"
-        assert service.batch_model == "mistral:7b"
 
 
 # ============ 抽象類測試 ============

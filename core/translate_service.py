@@ -66,13 +66,11 @@ class OllamaTranslateService(TranslateService):
             config: Ollama 配置字典
                 {
                     "url": "http://localhost:11434",
-                    "model": "qwen3:8b",
-                    "batch_model": "translategemma:12b"
+                    "model": "qwen3:8b"  # 所有翻譯都用此模型
                 }
         """
         self.ollama_url = config.get("url", "http://localhost:11434").rstrip("/")
         self.model = config.get("model", "qwen3:8b")
-        self.batch_model = config.get("batch_model", "translategemma:12b")
 
     async def translate_single(self, title: str, context: Optional[Dict] = None) -> str:
         """
@@ -126,7 +124,7 @@ class OllamaTranslateService(TranslateService):
 
     async def translate_batch(self, titles: List[str], context: Optional[Dict] = None) -> List[str]:
         """
-        批次翻譯（使用 translategemma:12b）
+        批次翻譯（使用統一的 model）
 
         適用場景：後台翻譯第 2-10 片
         實驗數據：batch=10，耗時 5.35 秒，對齊率 100%
@@ -163,7 +161,7 @@ Output format: numbered list, one translation per line."""
                 resp = await client.post(
                     f"{self.ollama_url}/api/chat",
                     json={
-                        "model": self.batch_model,
+                        "model": self.model,
                         "messages": [
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": user_prompt}
