@@ -28,8 +28,15 @@
   "translate": {
     "enabled": false,
     "provider": "ollama",
-    "ollama_url": "http://localhost:11434",
-    "ollama_model": "qwen2.5:7b"
+    "batch_size": 10,
+    "ollama": {
+      "url": "http://localhost:11434",
+      "model": "qwen3:8b"
+    },
+    "gemini": {
+      "api_key": "",
+      "model": "gemini-2.0-flash-lite"
+    }
   },
   "gallery": {
     "directories": [],

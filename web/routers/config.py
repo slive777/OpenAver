@@ -11,6 +11,12 @@ import httpx
 
 router = APIRouter(prefix="/api", tags=["config"])
 
+# Import reset function (避免循環導入，在需要時才導入)
+def _reset_translate_service():
+    """延遲導入並調用 reset_translate_service()"""
+    from web.routers.translate import reset_translate_service
+    reset_translate_service()
+
 # 設定檔路徑
 CONFIG_PATH = Path(__file__).parent.parent / "config.json"
 CONFIG_DEFAULT_PATH = Path(__file__).parent.parent / "config.default.json"
@@ -34,11 +40,30 @@ class SearchConfig(BaseModel):
     favorite_folder: str = ""  # 我的最愛資料夾 - 空字串 = 使用系統下載資料夾
 
 
+class OllamaConfig(BaseModel):
+    """串接結構：Ollama 配置"""
+    url: str = "http://localhost:11434"
+    model: str = "qwen3:8b"  # 所有翻譯（單片/批次）都用此模型
+
+
+class GeminiConfig(BaseModel):
+    """串接結構：Gemini 配置"""
+    api_key: str = ""  # Gemini API Key
+    model: str = "gemini-flash-lite-latest"  # 預設使用 latest 別名（自動路由可用版本）
+
+
 class TranslateConfig(BaseModel):
     enabled: bool = False
-    provider: str = "ollama"
-    ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "qwen2.5:7b"
+    provider: str = "ollama"  # "ollama" | "gemini"
+    batch_size: int = 10  # 批次翻譯大小
+
+    # 嵌套結構
+    ollama: OllamaConfig = OllamaConfig()
+    gemini: GeminiConfig = GeminiConfig()
+
+    # 舊字段（保留向後兼容）
+    ollama_url: Optional[str] = None
+    ollama_model: Optional[str] = None
 
 
 class GalleryConfig(BaseModel):
@@ -106,6 +131,62 @@ def load_config() -> dict:
                 del g['min_size_kb']
                 need_save = True
 
+        # Migration: translate 扁平結構 -> 嵌套結構
+        if 'translate' in raw_config:
+            t = raw_config['translate']
+
+            # 遷移 ollama_url -> ollama.url（優先使用舊值）
+            if 'ollama_url' in t or 'ollama_model' in t:
+                # 確保 ollama 嵌套存在
+                if 'ollama' not in t:
+                    t['ollama'] = {}
+
+                # 優先使用舊字段的值來更新嵌套結構（檢查非空）
+                if 'ollama_url' in t:
+                    url = t.pop('ollama_url')
+                    if url:  # 檢查不是 None
+                        t['ollama']['url'] = url.rstrip('/')
+                    need_save = True
+                if 'ollama_model' in t:
+                    model = t.pop('ollama_model')
+                    if model:  # 檢查不是 None
+                        t['ollama']['model'] = model
+                    need_save = True
+
+            # 移除舊的 batch_model 字段（Task 1.3.1 清理）
+            if 'ollama' in t and isinstance(t['ollama'], dict) and 'batch_model' in t['ollama']:
+                del t['ollama']['batch_model']
+                need_save = True
+
+            # 移除廢棄的漸進式翻譯字段（Task 1.3.4 簡化）
+            deprecated_fields = ['auto_progressive', 'progressive_first', 'progressive_range']
+            for field in deprecated_fields:
+                if field in t:
+                    del t[field]
+                    need_save = True
+
+            # 確保 batch_size 存在
+            if 'batch_size' not in t:
+                t['batch_size'] = 10
+                need_save = True
+
+            # 確保 ollama 嵌套存在
+            if 'ollama' not in t:
+                t['ollama'] = {
+                    'url': 'http://localhost:11434',
+                    'model': 'qwen3:8b'
+                }
+                need_save = True
+
+            # Task 2.4：確保 gemini 嵌套存在（Gemini 支持遷移）
+            if 'gemini' not in t:
+                t['gemini'] = {
+                    'api_key': '',
+                    'model': 'gemini-flash-lite-latest'
+                }
+                need_save = True
+                print('[Config] 遷移配置：添加 Gemini 支持')
+
         # Save migrated config
         if need_save:
             save_config(raw_config)
@@ -132,6 +213,7 @@ async def update_config(config: AppConfig) -> dict:
     """更新所有設定"""
     try:
         save_config(config.model_dump())
+        _reset_translate_service()  # 重置翻譯服務，讓新配置生效
         return {"success": True, "message": "設定已儲存"}
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -143,6 +225,7 @@ async def reset_config() -> dict:
     try:
         if CONFIG_PATH.exists():
             CONFIG_PATH.unlink()
+        _reset_translate_service()  # 清除舊服務實例
         return {"success": True, "message": "已恢復預設設定"}
     except Exception as e:
         return {"success": False, "error": str(e)}

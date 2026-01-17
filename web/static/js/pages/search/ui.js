@@ -103,12 +103,22 @@ function displayResult(data) {
         data.title &&
         window.SearchCore.hasJapanese(data.title);
 
+    // 🆕 檢查是否正在批次翻譯中
+    const isBatchTranslating = window.SearchCore.isBatchTranslating(state.currentIndex);
+
     if (shouldShowTranslateBtn) {
-        translateBtn.classList.remove('d-none');
-        translateBtn.dataset.title = data.title;
-        translateBtn.dataset.actors = JSON.stringify(data.actors || []);
-        translateBtn.dataset.number = data.number || '';
-        translateBtn.disabled = state.isTranslating;
+        if (isBatchTranslating) {
+            // 🆕 正在批次翻譯中 → 顯示 spinner
+            translateBtn.classList.add('d-none');
+            translateSpinner.classList.remove('d-none');
+        } else {
+            // 未翻譯 → 顯示翻譯按鈕
+            translateBtn.classList.remove('d-none');
+            translateBtn.dataset.title = data.title;
+            translateBtn.dataset.actors = JSON.stringify(data.actors || []);
+            translateBtn.dataset.number = data.number || '';
+            translateBtn.disabled = state.isTranslating;
+        }
     } else {
         translateBtn.classList.add('d-none');
         translateBtn.disabled = false;
@@ -483,6 +493,51 @@ function showTranslateError(error) {
     }, 3000);
 }
 
+/**
+ * 更新翻譯標題（供漸進式翻譯調用）
+ *
+ * 用途：當後台批次翻譯完成時，如果用戶正在查看該片，立即更新 UI
+ *
+ * @param {string} translatedTitle - 翻譯後的標題
+ */
+function updateTranslatedTitle(translatedTitle) {
+    // 更新中文標題顯示
+    const chineseTitleRow = document.getElementById('chineseTitleRow');
+    const chineseTitleLabel = document.getElementById('chineseTitleLabel');
+    const chineseTitleEl = document.getElementById('resultChineseTitle');
+
+    if (chineseTitleEl && translatedTitle) {
+        chineseTitleEl.textContent = translatedTitle;
+        chineseTitleLabel.textContent = '中文片名 (AI)';
+        chineseTitleRow.classList.remove('d-none');
+    }
+
+    // 隱藏翻譯按鈕（已有翻譯）
+    const translateBtn = document.getElementById('translateBtn');
+    if (translateBtn) {
+        translateBtn.classList.add('d-none');
+    }
+
+    // 隱藏載入中指示器
+    const translateSpinner = document.getElementById('translateSpinner');
+    if (translateSpinner) {
+        translateSpinner.classList.add('d-none');
+    }
+}
+
+/**
+ * 🆕 顯示批次翻譯中狀態
+ */
+function showBatchTranslatingState() {
+    const translateBtn = document.getElementById('translateBtn');
+    const translateSpinner = document.getElementById('translateSpinner');
+
+    if (translateBtn && translateSpinner) {
+        translateBtn.classList.add('d-none');
+        translateSpinner.classList.remove('d-none');
+    }
+}
+
 // === Gallery 視圖 ===
 
 /**
@@ -597,6 +652,9 @@ window.SearchUI = {
     updateEditButtonState,
     updateChineseTitleDisplay,
     showTranslateError,
+    updateTranslatedTitle,
+    // 🆕 新增
+    showBatchTranslatingState,
     showGallery,
     hideGallery
 };

@@ -37,6 +37,9 @@ const translationCache = new Map();
 let isTranslating = false;
 let pendingTranslation = null;
 
+// 🆕 追蹤正在批次翻譯的片索引
+const batchTranslatingIndices = new Set();
+
 // 狀態保存 Key
 const STATE_KEY = 'javhelper_search_state';
 
@@ -138,67 +141,151 @@ async function translateWithOllama(text, mode, metadata = {}) {
 
 /**
  * AI 翻譯按鈕點擊事件（全域函數供 onclick 調用）
+ *
+ * Gemini 模式：只翻譯當前片（避免 API 限制）
+ * Ollama 模式：批次翻譯從當前位置開始的 10 片
  */
 async function translateWithAI() {
     const btn = document.getElementById('translateBtn');
     const spinner = document.getElementById('translateSpinner');
-    const title = btn.dataset.title;
-    const actors = JSON.parse(btn.dataset.actors || '[]');
-    const number = btn.dataset.number || '';
-
-    if (!title) return;
 
     // 防止並發翻譯
     if (isTranslating) return;
     isTranslating = true;
 
-    // 記住開始時的索引
-    const startFileIndex = currentFileIndex;
-    const startResultIndex = currentIndex;
-    const startListMode = listMode;
-
-    // 顯示 loading
+    // 隱藏按鈕，顯示 spinner
     btn.classList.add('d-none');
     spinner.classList.remove('d-none');
 
     try {
-        const result = await translateWithOllama(title, 'translate', { actors, number });
+        // === Gemini 模式：只翻譯當前片 ===
+        if (appConfig?.translate?.provider === 'gemini') {
+            let currentResult = null;
 
-        if (result.success && result.result) {
-            // 存入原本位置的 metadata
-            if (startListMode === 'file' && fileList[startFileIndex]) {
-                const file = fileList[startFileIndex];
-                if (file.searchResults && file.searchResults[startResultIndex]) {
-                    file.searchResults[startResultIndex].translated_title = result.result;
-                }
-            } else if (searchResults[startResultIndex]) {
-                searchResults[startResultIndex].translated_title = result.result;
+            if (listMode === 'file' && fileList[currentFileIndex]) {
+                const results = fileList[currentFileIndex].searchResults || [];
+                currentResult = results[currentIndex];
+            } else {
+                currentResult = searchResults[currentIndex];
             }
 
-            // 只有還在同一個位置才更新 UI
-            if (currentFileIndex === startFileIndex && currentIndex === startResultIndex) {
-                document.getElementById('resultChineseTitle').textContent = result.result;
-                document.getElementById('chineseTitleRow').classList.remove('d-none');
-                document.getElementById('chineseTitleLabel').textContent = '中文片名 (AI)';
-                btn.classList.add('d-none');
+            if (!currentResult || !currentResult.title || !hasJapanese(currentResult.title)) {
+                throw new Error('當前片無需翻譯');
+            }
+
+            console.log(`[Gemini] 單片翻譯: ${currentResult.title}`);
+
+            // 調用單片翻譯 API
+            const result = await translateWithOllama(currentResult.title, 'translate', currentResult);
+
+            if (result.success && result.result) {
+                // 更新翻譯結果
+                if (listMode === 'file') {
+                    fileList[currentFileIndex].searchResults[currentIndex].translated_title = result.result;
+                } else {
+                    searchResults[currentIndex].translated_title = result.result;
+                }
+                window.SearchUI.updateTranslatedTitle(result.result);
+                console.log(`[Gemini] 翻譯完成: ${result.result}`);
+                saveState();
+            } else {
+                throw new Error(result.error || '翻譯失敗');
+            }
+
+            return;  // Gemini 模式結束
+        }
+
+        // === Ollama 模式：批次翻譯 10 片 ===
+        const batch = [];
+        const batchMeta = [];
+
+        if (listMode === 'file') {
+            for (let fi = currentFileIndex; fi < fileList.length && batch.length < 10; fi++) {
+                const file = fileList[fi];
+                const results = file.searchResults || [];
+
+                for (let ri = 0; ri < results.length && batch.length < 10; ri++) {
+                    const result = results[ri];
+                    if (result.title && hasJapanese(result.title) && !result.translated_title) {
+                        batch.push(result);
+                        batchMeta.push({ fileIndex: fi, resultIndex: ri });
+                    }
+                }
             }
         } else {
-            if (currentFileIndex === startFileIndex && currentIndex === startResultIndex) {
-                btn.classList.remove('d-none');
+            for (let i = currentIndex; i < searchResults.length && batch.length < 10; i++) {
+                const result = searchResults[i];
+                if (result.title && hasJapanese(result.title) && !result.translated_title) {
+                    batch.push(result);
+                    batchMeta.push({ resultIndex: i });
+                }
             }
-            alert(result.error || '翻譯失敗');
         }
-    } catch (e) {
-        if (currentFileIndex === startFileIndex && currentIndex === startResultIndex) {
-            btn.classList.remove('d-none');
+
+        if (batch.length === 0) {
+            throw new Error('無需翻譯的日文標題');
         }
-        alert('Ollama 連線失敗: ' + e.message);
+
+        console.log(`[Ollama Batch] 批次翻譯 ${batch.length} 片`);
+
+        if (listMode !== 'file') {
+            batchMeta.forEach(meta => {
+                batchTranslatingIndices.add(meta.resultIndex);
+            });
+        }
+
+        const titles = batch.map(r => r.title);
+        const translations = await translateBatch(titles);
+
+        if (translations && translations.length > 0) {
+            translations.forEach((trans, i) => {
+                if (!trans) return;
+                const meta = batchMeta[i];
+
+                if (listMode === 'file') {
+                    fileList[meta.fileIndex].searchResults[meta.resultIndex].translated_title = trans;
+                    if (meta.fileIndex === currentFileIndex && meta.resultIndex === currentIndex) {
+                        window.SearchUI.updateTranslatedTitle(trans);
+                    }
+                } else {
+                    searchResults[meta.resultIndex].translated_title = trans;
+                    batchTranslatingIndices.delete(meta.resultIndex);
+                    if (meta.resultIndex === currentIndex) {
+                        window.SearchUI.updateTranslatedTitle(trans);
+                    }
+                }
+            });
+
+            console.log(`[Ollama Batch] 完成 ${translations.filter(t => t).length} 片翻譯`);
+            saveState();
+        }
+
+        if (listMode !== 'file') {
+            batchMeta.forEach(meta => {
+                batchTranslatingIndices.delete(meta.resultIndex);
+            });
+        }
+
+    } catch (error) {
+        console.error('[Translate] 翻譯失敗:', error);
+        alert('翻譯失敗：' + error.message);
     } finally {
         isTranslating = false;
-        if (currentFileIndex === startFileIndex && currentIndex === startResultIndex) {
-            spinner.classList.add('d-none');
+        spinner.classList.add('d-none');
+
+        let currentResult = null;
+        if (listMode === 'file' && fileList[currentFileIndex]) {
+            const results = fileList[currentFileIndex].searchResults || [];
+            currentResult = results[currentIndex];
+        } else {
+            currentResult = searchResults[currentIndex];
         }
-        btn.disabled = false;
+
+        if (currentResult && currentResult.title &&
+            hasJapanese(currentResult.title) &&
+            !currentResult.translated_title) {
+            btn.classList.remove('d-none');
+        }
     }
 }
 
@@ -518,6 +605,38 @@ async function fallbackSearch(query) {
     }
 }
 
+// === 翻譯功能 ===
+
+/**
+ * 批次翻譯（調用 /api/translate-batch）
+ *
+ * @param {Array<string>} titles - 日文標題列表
+ * @returns {Promise<Array<string>>} 繁體中文翻譯列表
+ */
+async function translateBatch(titles) {
+    try {
+        const resp = await fetch('/api/translate-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                titles: titles,
+                batch_size: 10
+            })
+        });
+
+        if (!resp.ok) {
+            throw new Error(`HTTP ${resp.status}`);
+        }
+
+        const data = await resp.json();
+        return data.translations || [];
+
+    } catch (error) {
+        console.error('[Progressive] 批次翻譯失敗:', error);
+        return [];
+    }
+}
+
 // === 暴露介面 ===
 window.SearchCore = {
     // 狀態（供其他模組讀寫）
@@ -574,6 +693,9 @@ window.SearchCore = {
     hasJapanese,
     translateWithOllama,
     translateWithAI,
+    translateBatch,
+    // 檢查是否正在批次翻譯
+    isBatchTranslating: (index) => batchTranslatingIndices.has(index),
     MODE_TEXT
 };
 
