@@ -161,7 +161,7 @@
                         <div class="col-md-6">
                             <select class="form-select form-select-sm" id="translateProvider">
                                 <option value="ollama">Ollama（本地）</option>
-                                <option value="gemini">Gemini（Google）</option>
+                                <option value="gemini">Gemini（Google 雲端）</option>
                             </select>
                         </div>
                     </div>
@@ -240,10 +240,16 @@
                                 <label class="form-label">模型</label>
                             </div>
                             <div class="col-md-6">
-                                <select class="form-select form-select-sm" id="geminiModel" disabled>
-                                    <option value="">-- 請先測試 API Key --</option>
-                                </select>
-                                <small class="text-muted" id="geminiModelHint"></small>
+                                <div class="input-group input-group-sm">
+                                    <select class="form-select form-select-sm" id="geminiModel" disabled>
+                                        <option value="">-- 請先測試 API Key --</option>
+                                    </select>
+                                    <button class="btn btn-outline-secondary" type="button" id="testGeminiTranslateBtn"
+                                        title="測試翻譯功能" disabled>
+                                        <i class="bi bi-chat-dots"></i> 測試
+                                    </button>
+                                </div>
+                                <small class="text-muted" id="geminiModelStatus"></small>
                             </div>
                         </div>
                     </div>
@@ -736,7 +742,7 @@
                 },
                 gemini: {
                     api_key: document.getElementById('geminiApiKey').value,
-                    model: document.getElementById('geminiModel').value || 'gemini-2.0-flash-lite'
+                    model: document.getElementById('geminiModel').value || 'gemini-flash-lite-latest'
                 }
             };
 
@@ -867,9 +873,9 @@
                 // 填充模型下拉框
                 populateGeminiModels(data.models);
 
-                // 啟用模型下拉框
+                // 啟用模型下拉框和測試按鈕
                 modelSelect.disabled = false;
-                hintEl.textContent = `已找到 ${data.models.length} 個可用模型`;
+                document.getElementById('testGeminiTranslateBtn').disabled = false;
 
             } else {
                 // 失敗：顯示錯誤信息
@@ -916,6 +922,57 @@
         // 恢復之前選擇的模型
         if (savedModel && models.some(m => m.name === savedModel)) {
             select.value = savedModel;
+        }
+    }
+
+    // 測試 Gemini 翻譯功能
+    async function testGeminiTranslation() {
+        const apiKey = document.getElementById('geminiApiKey').value;
+        const model = document.getElementById('geminiModel').value;
+        const statusEl = document.getElementById('geminiModelStatus');
+        const testBtn = document.getElementById('testGeminiTranslateBtn');
+
+        if (!apiKey) {
+            statusEl.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle"></i> 請先輸入 API Key</span>';
+            return;
+        }
+
+        if (!model) {
+            statusEl.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle"></i> 請先選擇模型</span>';
+            return;
+        }
+
+        // 禁用按鈕，顯示加載狀態
+        testBtn.disabled = true;
+        testBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        statusEl.innerHTML = '<span class="text-muted">測試翻譯中...</span>';
+
+        try {
+            const response = await fetch('/api/gemini/test-translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    api_key: apiKey,
+                    model: model
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // 翻譯成功
+                statusEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill"></i> 翻譯測試成功！ (${data.translation})</span>`;
+            } else {
+                // 翻譯失敗 - 顯示 Google 的錯誤訊息
+                statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> ${data.error}</span>`;
+            }
+
+        } catch (error) {
+            statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> 測試失敗: ${error.message}</span>`;
+        } finally {
+            // 恢復按鈕
+            testBtn.disabled = false;
+            testBtn.innerHTML = '<i class="bi bi-chat-dots"></i> 測試';
         }
     }
 
@@ -1069,6 +1126,7 @@
     document.getElementById('testOllamaBtn').addEventListener('click', testOllamaConnection);
     document.getElementById('testModelBtn').addEventListener('click', testModel);
     document.getElementById('testGeminiBtn').addEventListener('click', testGeminiConnection);
+    document.getElementById('testGeminiTranslateBtn').addEventListener('click', testGeminiTranslation);
 
     document.getElementById('settingsForm').addEventListener('submit', (e) => {
         e.preventDefault();

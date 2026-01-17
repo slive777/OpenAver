@@ -33,6 +33,19 @@ class TestResponse(BaseModel):
     error: str = ""
 
 
+class TestTranslateRequest(BaseModel):
+    """測試翻譯請求"""
+    api_key: str
+    model: str = "gemini-flash-lite-latest"
+
+
+class TestTranslateResponse(BaseModel):
+    """測試翻譯響應"""
+    success: bool
+    translation: str = ""
+    error: str = ""  # Google 的原始錯誤訊息
+
+
 @router.post("/test", response_model=TestResponse)
 async def test_gemini_connection(request: TestRequest):
     """
@@ -77,9 +90,9 @@ async def test_gemini_connection(request: TestRequest):
                     description=model.get("description", "")[:100]  # 限制長度
                 ))
 
-        # 排序：latest 在前
+        # 排序：lite-latest 優先（最推薦），其他 latest 次之
         flash_models.sort(key=lambda m: (
-            0 if "latest" in m.name else 1,
+            0 if "lite-latest" in m.name else (1 if "latest" in m.name else 2),
             m.name
         ))
 
@@ -149,3 +162,97 @@ def is_flash_model(model_name: str) -> bool:
         return False
 
     return True
+
+
+@router.post("/test-translate", response_model=TestTranslateResponse)
+async def test_gemini_translate(request: TestTranslateRequest):
+    """
+    測試 Gemini 實際翻譯功能
+
+    使用安全的測試標題驗證翻譯能力，並返回 Google 的實際錯誤訊息
+
+    Args:
+        request: 包含 API Key 和 Model 的請求
+
+    Returns:
+        TestTranslateResponse: 包含翻譯結果或 Google 的錯誤訊息
+    """
+    if not request.api_key:
+        raise HTTPException(status_code=400, detail="API Key is required")
+
+    # 使用安全的測試標題（不會觸發內容過濾）
+    test_title = "新人女優デビュー"
+
+    try:
+        # 構建翻譯請求
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{request.model}:generateContent"
+        headers = {"x-goog-api-key": request.api_key}
+        payload = {
+            "contents": [{"parts": [{"text": f"請將以下日文翻譯成繁體中文：{test_title}"}]}],
+            "generationConfig": {
+                "temperature": 0.3,
+                "maxOutputTokens": 50
+            }
+        }
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(url, headers=headers, json=payload)
+
+        data = response.json()
+
+        # 檢查響應結構
+        if "candidates" in data and data["candidates"]:
+            # 成功
+            translation = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+            return TestTranslateResponse(
+                success=True,
+                translation=translation
+            )
+
+        elif "error" in data:
+            # API 錯誤（返回 Google 的原始錯誤訊息）
+            error_msg = data["error"].get("message", "Unknown error")
+            return TestTranslateResponse(
+                success=False,
+                error=error_msg
+            )
+
+        elif "promptFeedback" in data:
+            # 內容過濾
+            block_reason = data.get("promptFeedback", {}).get("blockReason", "UNKNOWN")
+            return TestTranslateResponse(
+                success=False,
+                error=f"內容被過濾: {block_reason}"
+            )
+
+        else:
+            # 未知響應格式
+            return TestTranslateResponse(
+                success=False,
+                error="未知的響應格式"
+            )
+
+    except httpx.HTTPStatusError as e:
+        # HTTP 錯誤
+        try:
+            error_data = e.response.json()
+            error_msg = error_data.get("error", {}).get("message", str(e))
+        except Exception:
+            error_msg = f"HTTP {e.response.status_code}"
+
+        return TestTranslateResponse(
+            success=False,
+            error=error_msg
+        )
+
+    except httpx.TimeoutException:
+        return TestTranslateResponse(
+            success=False,
+            error="連接超時（10秒）"
+        )
+
+    except Exception as e:
+        return TestTranslateResponse(
+            success=False,
+            error=str(e)
+        )

@@ -43,7 +43,7 @@ class OllamaConfig(BaseModel):
 class GeminiConfig(BaseModel):
     """串接結構：Gemini 配置"""
     api_key: str = ""  # Gemini API Key
-    model: str = "gemini-2.0-flash-lite"  # 預設使用最快的 flash-lite
+    model: str = "gemini-flash-lite-latest"  # 預設使用 latest 別名（自動路由可用版本）
 
 
 class TranslateConfig(BaseModel):
@@ -176,7 +176,7 @@ def load_config() -> dict:
             if 'gemini' not in t:
                 t['gemini'] = {
                     'api_key': '',
-                    'model': 'gemini-2.0-flash-lite'
+                    'model': 'gemini-flash-lite-latest'
                 }
                 need_save = True
                 print('[Config] 遷移配置：添加 Gemini 支持')

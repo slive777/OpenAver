@@ -236,11 +236,11 @@ class GeminiTranslateService(TranslateService):
             config: Gemini 配置字典
                 {
                     "api_key": "AIza...",
-                    "model": "gemini-2.0-flash-lite"
+                    "model": "gemini-flash-lite-latest"
                 }
         """
         self.api_key = config.get("api_key", "")
-        self.model = config.get("model", "gemini-2.0-flash-lite")
+        self.model = config.get("model", "gemini-flash-lite-latest")
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
 
         if not self.api_key:
@@ -253,14 +253,16 @@ class GeminiTranslateService(TranslateService):
         適用場景：用戶手動點擊翻譯按鈕
         性能：約 0.87 秒
         """
-        prompt = f"""請將以下日文標題翻譯為繁體中文：
+        prompt = f"""你是專業的影視資料庫管理員與翻譯引擎。這是既有日文文字的逐字翻譯任務，請將以下標題翻譯為繁體中文。
 
+原文：
 {title}
 
 翻譯要求：
-1. 使用繁體中文
-2. 保持簡潔，不超過50字
-3. 只輸出翻譯結果，不要額外說明
+1. 這是純粹的資料庫翻譯任務，不生成新內容
+2. 使用繁體中文
+3. 保持簡潔，不超過50字
+4. 只輸出翻譯結果，不要額外說明
 """
 
         try:
@@ -271,7 +273,25 @@ class GeminiTranslateService(TranslateService):
                 "generationConfig": {
                     "temperature": 0.3,
                     "maxOutputTokens": 100
-                }
+                },
+                "safetySettings": [
+                    {
+                        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                        "threshold": "BLOCK_NONE"
+                    },
+                    {
+                        "category": "HARM_CATEGORY_HARASSMENT",
+                        "threshold": "BLOCK_NONE"
+                    },
+                    {
+                        "category": "HARM_CATEGORY_HATE_SPEECH",
+                        "threshold": "BLOCK_NONE"
+                    },
+                    {
+                        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                        "threshold": "BLOCK_NONE"
+                    }
+                ]
             }
 
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -279,9 +299,46 @@ class GeminiTranslateService(TranslateService):
                 resp.raise_for_status()
 
             data = resp.json()
-            translation = data["candidates"][0]["content"]["parts"][0]["text"].strip()
 
-            return translation
+            # Step 1: 檢查 promptFeedback（最優先）
+            if "promptFeedback" in data:
+                feedback = data["promptFeedback"]
+                if "blockReason" in feedback:
+                    block_reason = feedback["blockReason"]
+                    safety_ratings = feedback.get("safetyRatings", [])
+                    print(f"[Gemini] Prompt 被過濾: {block_reason}")
+                    if safety_ratings:
+                        print(f"[Gemini] 安全評級: {safety_ratings}")
+                    return ""
+
+            # Step 2: 檢查 candidates 是否存在
+            if "candidates" not in data or not data["candidates"]:
+                if "error" in data:
+                    error_msg = data["error"].get("message", "Unknown error")
+                    print(f"[Gemini] API Error: {error_msg}")
+                else:
+                    print(f"[Gemini] No candidates in response")
+                return ""
+
+            candidate = data["candidates"][0]
+
+            # Step 3: 檢查 finishReason
+            finish_reason = candidate.get("finishReason", "")
+            if finish_reason and finish_reason != "STOP":
+                print(f"[Gemini] 異常終止: finishReason={finish_reason}")
+                if finish_reason == "SAFETY":
+                    safety_ratings = candidate.get("safetyRatings", [])
+                    print(f"[Gemini] 安全過濾觸發: {safety_ratings}")
+                return ""
+
+            # Step 4: 安全訪問 content 字段
+            try:
+                translation = candidate["content"]["parts"][0]["text"].strip()
+                return translation
+            except (KeyError, IndexError, TypeError) as e:
+                print(f"[Gemini] 響應格式錯誤: {e}")
+                print(f"[Gemini] Candidate 結構: {candidate}")
+                return ""
 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 400:
@@ -307,18 +364,19 @@ class GeminiTranslateService(TranslateService):
         if n == 0:
             return []
 
-        # 構建批次翻譯 prompt（已驗證）
-        prompt = f"""你是一個日文到繁體中文的翻譯助手。請將以下 {n} 個日文標題翻譯為繁體中文。
+        # 構建批次翻譯 prompt（已優化）
+        prompt = f"""你是專業的影視資料庫管理員與翻譯引擎。這是 {n} 個既有日文文字的逐字翻譯任務，請翻譯為繁體中文。
 
-輸入標題：
+原文：
 {chr(10).join(f'{i+1}. {t}' for i, t in enumerate(titles))}
 
-要求：
+翻譯要求：
+- 這是純粹的資料庫翻譯任務，不生成新內容
 - 使用繁體中文
 - 嚴格按照原有順序輸出
 - 每行一個翻譯，格式：數字. 翻譯內容
 - 保持簡潔，每個不超過50字
-- 不要添加額外說明，直接輸出翻譯列表
+- 只輸出翻譯列表，不要額外說明
 
 翻譯結果：
 """
@@ -331,7 +389,25 @@ class GeminiTranslateService(TranslateService):
                 "generationConfig": {
                     "temperature": 0.3,
                     "maxOutputTokens": 1000
-                }
+                },
+                "safetySettings": [
+                    {
+                        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                        "threshold": "BLOCK_NONE"
+                    },
+                    {
+                        "category": "HARM_CATEGORY_HARASSMENT",
+                        "threshold": "BLOCK_NONE"
+                    },
+                    {
+                        "category": "HARM_CATEGORY_HATE_SPEECH",
+                        "threshold": "BLOCK_NONE"
+                    },
+                    {
+                        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                        "threshold": "BLOCK_NONE"
+                    }
+                ]
             }
 
             async with httpx.AsyncClient(timeout=60.0) as client:
@@ -339,7 +415,45 @@ class GeminiTranslateService(TranslateService):
                 resp.raise_for_status()
 
             data = resp.json()
-            result_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+            # Step 1: 檢查 promptFeedback（最優先）
+            if "promptFeedback" in data:
+                feedback = data["promptFeedback"]
+                if "blockReason" in feedback:
+                    block_reason = feedback["blockReason"]
+                    safety_ratings = feedback.get("safetyRatings", [])
+                    print(f"[Gemini] 批次 Prompt 被過濾: {block_reason}")
+                    if safety_ratings:
+                        print(f"[Gemini] 安全評級: {safety_ratings}")
+                    return [""] * n
+
+            # Step 2: 檢查 candidates 是否存在
+            if "candidates" not in data or not data["candidates"]:
+                if "error" in data:
+                    error_msg = data["error"].get("message", "Unknown error")
+                    print(f"[Gemini] API Error: {error_msg}")
+                else:
+                    print(f"[Gemini] No candidates in response")
+                return [""] * n
+
+            candidate = data["candidates"][0]
+
+            # Step 3: 檢查 finishReason
+            finish_reason = candidate.get("finishReason", "")
+            if finish_reason and finish_reason != "STOP":
+                print(f"[Gemini] 批次翻譯異常終止: finishReason={finish_reason}")
+                if finish_reason == "SAFETY":
+                    safety_ratings = candidate.get("safetyRatings", [])
+                    print(f"[Gemini] 安全過濾觸發: {safety_ratings}")
+                return [""] * n
+
+            # Step 4: 安全訪問 content 字段
+            try:
+                result_text = candidate["content"]["parts"][0]["text"].strip()
+            except (KeyError, IndexError, TypeError) as e:
+                print(f"[Gemini] 響應格式錯誤: {e}")
+                print(f"[Gemini] Candidate 結構: {candidate}")
+                return [""] * n
 
             # 解析結果
             translations = self._parse_batch_result(result_text)
