@@ -327,7 +327,7 @@ function startEditTitle() {
     translateSpinner.classList.add('d-none');
 
     container.innerHTML = `
-        <input type="text" id="editTitleInput" class="form-control form-control-sm" value="${escapeHtml(currentText)}" style="flex:1;" />
+        <textarea id="editTitleInput" class="form-control form-control-sm" rows="3" style="flex:1; min-width:0; resize:none;">${escapeHtml(currentText)}</textarea>
         <button class="btn btn-sm btn-link p-0 ms-1 text-success" onclick="confirmEditTitle()" title="確認">
             <i class="bi bi-check-lg"></i>
         </button>
@@ -408,7 +408,7 @@ function startEditChineseTitle() {
     const currentText = span.textContent;
 
     container.innerHTML = `
-        <input type="text" id="editChineseTitleInput" class="form-control form-control-sm text-success" value="${escapeHtml(currentText)}" style="flex:1;" />
+        <textarea id="editChineseTitleInput" class="form-control form-control-sm text-success" rows="2" style="flex:1; min-width:0; resize:none;">${escapeHtml(currentText)}</textarea>
         <button class="btn btn-sm btn-link p-0 ms-1 text-success" onclick="confirmEditChineseTitle()" title="確認">
             <i class="bi bi-check-lg"></i>
         </button>
