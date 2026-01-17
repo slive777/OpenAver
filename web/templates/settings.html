@@ -577,7 +577,8 @@
                 // 翻譯設定
                 document.getElementById('translateEnabled').checked = config.translate.enabled;
                 document.getElementById('translateProvider').value = config.translate.provider;
-                document.getElementById('ollamaUrl').value = config.translate.ollama_url;
+                // 支持新的嵌套结构 (ollama.url) 和旧的扁平结构 (ollama_url)
+                document.getElementById('ollamaUrl').value = config.translate.ollama?.url || config.translate.ollama_url || '';
 
                 updateTranslateOptions();
 
@@ -607,9 +608,10 @@
                 }
 
                 // 自動載入模型列表（如果有 URL）
-                if (config.translate.ollama_url) {
-                    const savedModel = config.translate.ollama_model;
-                    await loadOllamaModels(config.translate.ollama_url, savedModel);
+                const ollamaUrl = config.translate.ollama?.url || config.translate.ollama_url;
+                const ollamaModel = config.translate.ollama?.model || config.translate.ollama_model;
+                if (ollamaUrl) {
+                    await loadOllamaModels(ollamaUrl, ollamaModel);
                 }
             }
         } catch (e) {
@@ -648,13 +650,15 @@
                 favorite_folder: document.getElementById('searchFavoriteFolder').value.trim()
             };
 
-            // 更新 translate 設定
+            // 更新 translate 設定（使用新的嵌套结构）
             config.translate = {
                 ...config.translate,
                 enabled: document.getElementById('translateEnabled').checked,
                 provider: document.getElementById('translateProvider').value,
-                ollama_url: document.getElementById('ollamaUrl').value,
-                ollama_model: document.getElementById('ollamaModel').value
+                ollama: {
+                    url: document.getElementById('ollamaUrl').value,
+                    model: document.getElementById('ollamaModel').value
+                }
             };
 
             // 更新 avlist 設定

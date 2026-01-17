@@ -127,16 +127,23 @@ def load_config() -> dict:
         if 'translate' in raw_config:
             t = raw_config['translate']
 
-            # 遷移 ollama_url -> ollama.url
-            if 'ollama_url' in t and 'ollama' not in t:
-                t['ollama'] = {
-                    'url': t.get('ollama_url', 'http://localhost:11434'),
-                    'model': t.get('ollama_model', 'qwen3:8b')
-                }
-                # 刪除舊字段
-                t.pop('ollama_url', None)
-                t.pop('ollama_model', None)
-                need_save = True
+            # 遷移 ollama_url -> ollama.url（優先使用舊值）
+            if 'ollama_url' in t or 'ollama_model' in t:
+                # 確保 ollama 嵌套存在
+                if 'ollama' not in t:
+                    t['ollama'] = {}
+
+                # 優先使用舊字段的值來更新嵌套結構（檢查非空）
+                if 'ollama_url' in t:
+                    url = t.pop('ollama_url')
+                    if url:  # 檢查不是 None
+                        t['ollama']['url'] = url.rstrip('/')
+                    need_save = True
+                if 'ollama_model' in t:
+                    model = t.pop('ollama_model')
+                    if model:  # 檢查不是 None
+                        t['ollama']['model'] = model
+                    need_save = True
 
             # 移除舊的 batch_model 字段（Task 1.3.1 清理）
             if 'ollama' in t and isinstance(t['ollama'], dict) and 'batch_model' in t['ollama']:
