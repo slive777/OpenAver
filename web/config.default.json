@@ -28,12 +28,6 @@
   "translate": {
     "enabled": false,
     "provider": "ollama",
-    "auto_progressive": true,
-    "progressive_first": true,
-    "progressive_range": [
-      2,
-      10
-    ],
     "batch_size": 10,
     "ollama": {
       "url": "http://localhost:11434",

@@ -490,12 +490,6 @@ function doSearch(query) {
                         listMode = 'search';
                         window.SearchFile.renderSearchResultsList();
                         updateClearButton();
-
-                        // === 新增：漸進式翻譯（配置驅動）===
-                        if (appConfig?.translate?.enabled &&
-                            appConfig?.translate?.auto_progressive !== false) {
-                            progressiveTranslate(searchResults);
-                        }
                     }
                 } else {
                     document.getElementById('errorMessage').textContent = '找不到資料';
@@ -555,12 +549,6 @@ async function fallbackSearch(query) {
                 listMode = 'search';
                 window.SearchFile.renderSearchResultsList();
                 updateClearButton();
-
-                // === 新增：漸進式翻譯（配置驅動）===
-                if (appConfig?.translate?.enabled &&
-                    appConfig?.translate?.auto_progressive !== false) {
-                    progressiveTranslate(searchResults);
-                }
             }
         } else {
             document.getElementById('errorMessage').textContent = data.error || '找不到資料';
@@ -572,154 +560,7 @@ async function fallbackSearch(query) {
     }
 }
 
-// === 漸進式翻譯功能 ===
-
-/**
- * 漸進式翻譯：先翻譯第 1 片，再批次翻譯 2-10 片
- *
- * 策略：
- * - 第 1 片：立即翻譯（單片 API，2-5 秒）
- * - 第 2-10 片：後台批次翻譯（批次 API，5.35 秒）
- *
- * 用戶體驗：瀏覽第 2-10 片時，中文已準備好
- *
- * @param {Array} results - 搜尋結果列表
- */
-async function progressiveTranslate(results) {
-    // 讀取配置
-    const config = appConfig?.translate || {};
-    const progressiveRange = config.progressive_range || [2, 10];
-
-    // 過濾出有日文的結果（未翻譯的）
-    const japaneseResults = results.filter(r =>
-        r.title &&
-        hasJapanese(r.title) &&
-        !r.translated_title
-    );
-
-    if (japaneseResults.length === 0) {
-        console.log('[Progressive] 無需翻譯的日文標題');
-        return;
-    }
-
-    console.log(`[Progressive] 開始漸進式翻譯: ${japaneseResults.length} 個標題`);
-
-    try {
-        // === 步驟 1：立即翻譯第 1 片（單片 API，快速響應）===
-        if (japaneseResults.length >= 1 && config.progressive_first !== false) {
-            const first = japaneseResults[0];
-            console.log('[Progressive] 翻譯第 1 片...');
-
-            const trans = await translateSingle(
-                first.title,
-                first.actors || [],
-                first.number || ''
-            );
-
-            if (trans) {
-                // 更新第 1 片
-                const index = results.indexOf(first);
-                results[index].translated_title = trans;
-
-                // 如果用戶還在看第 1 片，立即更新 UI
-                if (currentIndex === index) {
-                    window.SearchUI.updateTranslatedTitle(trans);
-                }
-
-                console.log(`[Progressive] 第 1 片翻譯完成: ${trans.substring(0, 30)}...`);
-            }
-        }
-
-        // === 步驟 2：後台批次翻譯第 2-10 片 ===
-        if (japaneseResults.length >= 2) {
-            const [start, end] = progressiveRange;
-            const batch = japaneseResults.slice(start - 1, end);
-            const titles = batch.map(r => r.title);
-
-            console.log(`[Progressive] 批次翻譯第 ${start}-${Math.min(end, japaneseResults.length)} 片...`);
-
-            // 🆕 標記這些片正在翻譯中
-            batch.forEach(result => {
-                const index = results.indexOf(result);
-                batchTranslatingIndices.add(index);
-            });
-
-            // 🆕 如果用戶正在看正在翻譯的片，更新 UI
-            if (batchTranslatingIndices.has(currentIndex)) {
-                window.SearchUI.showBatchTranslatingState();
-            }
-
-            const translations = await translateBatch(titles);
-
-            if (translations && translations.length > 0) {
-                // 更新結果
-                translations.forEach((trans, i) => {
-                    if (!trans) return;  // 跳過失敗的翻譯
-
-                    const result = batch[i];
-                    const index = results.indexOf(result);
-                    results[index].translated_title = trans;
-
-                    // 🆕 移除翻譯中標記
-                    batchTranslatingIndices.delete(index);
-
-                    // 如果用戶正在看這一片，立即更新 UI
-                    if (currentIndex === index) {
-                        window.SearchUI.updateTranslatedTitle(trans);
-                    }
-                });
-
-                console.log(`[Progressive] 批次翻譯完成: ${translations.filter(t => t).length} 片`);
-            }
-
-            // 🆕 清理所有標記
-            batch.forEach(result => {
-                const index = results.indexOf(result);
-                batchTranslatingIndices.delete(index);
-            });
-        }
-
-        // 保存狀態到 sessionStorage
-        saveState();
-
-    } catch (error) {
-        console.error('[Progressive] 翻譯失敗:', error);
-    }
-}
-
-/**
- * 單片翻譯（調用 /api/translate）
- *
- * @param {string} title - 日文標題
- * @param {Array} actors - 演員列表
- * @param {string} number - 番號
- * @returns {Promise<string>} 繁體中文翻譯
- */
-async function translateSingle(title, actors, number) {
-    try {
-        const resp = await fetch('/api/translate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                text: title,
-                mode: 'translate',
-                actors: Array.isArray(actors) ? actors : [actors],
-                number: number
-            })
-        });
-
-        if (!resp.ok) {
-            throw new Error(`HTTP ${resp.status}`);
-        }
-
-        const data = await resp.json();
-        return data.result || '';
-
-    } catch (error) {
-        console.error('[Progressive] 單片翻譯失敗:', error);
-        return '';
-    }
-}
+// === 翻譯功能 ===
 
 /**
  * 批次翻譯（調用 /api/translate-batch）
@@ -807,10 +648,8 @@ window.SearchCore = {
     hasJapanese,
     translateWithOllama,
     translateWithAI,
-    progressiveTranslate,
-    translateSingle,
     translateBatch,
-    // 🆕 檢查是否正在批次翻譯
+    // 檢查是否正在批次翻譯
     isBatchTranslating: (index) => batchTranslatingIndices.has(index),
     MODE_TEXT
 };

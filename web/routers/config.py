@@ -43,12 +43,7 @@ class OllamaConfig(BaseModel):
 class TranslateConfig(BaseModel):
     enabled: bool = False
     provider: str = "ollama"
-
-    # Task 1.2, 1.3 新增字段
-    auto_progressive: bool = True
-    progressive_first: bool = True
-    progressive_range: List[int] = [2, 10]
-    batch_size: int = 10
+    batch_size: int = 10  # 批次翻譯大小
 
     # 嵌套結構
     ollama: OllamaConfig = OllamaConfig()
@@ -150,17 +145,17 @@ def load_config() -> dict:
                 del t['ollama']['batch_model']
                 need_save = True
 
-            # 補充缺少的新字段
-            defaults = {
-                'auto_progressive': True,
-                'progressive_first': True,
-                'progressive_range': [2, 10],
-                'batch_size': 10
-            }
-            for key, default_value in defaults.items():
-                if key not in t:
-                    t[key] = default_value
+            # 移除廢棄的漸進式翻譯字段（Task 1.3.4 簡化）
+            deprecated_fields = ['auto_progressive', 'progressive_first', 'progressive_range']
+            for field in deprecated_fields:
+                if field in t:
+                    del t[field]
                     need_save = True
+
+            # 確保 batch_size 存在
+            if 'batch_size' not in t:
+                t['batch_size'] = 10
+                need_save = True
 
             # 確保 ollama 嵌套存在
             if 'ollama' not in t:
