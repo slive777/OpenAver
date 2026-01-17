@@ -483,6 +483,38 @@ function showTranslateError(error) {
     }, 3000);
 }
 
+/**
+ * 更新翻譯標題（供漸進式翻譯調用）
+ *
+ * 用途：當後台批次翻譯完成時，如果用戶正在查看該片，立即更新 UI
+ *
+ * @param {string} translatedTitle - 翻譯後的標題
+ */
+function updateTranslatedTitle(translatedTitle) {
+    // 更新中文標題顯示
+    const chineseTitleRow = document.getElementById('chineseTitleRow');
+    const chineseTitleLabel = document.getElementById('chineseTitleLabel');
+    const chineseTitleEl = document.getElementById('resultChineseTitle');
+
+    if (chineseTitleEl && translatedTitle) {
+        chineseTitleEl.textContent = translatedTitle;
+        chineseTitleLabel.textContent = '中文片名 (AI)';
+        chineseTitleRow.classList.remove('d-none');
+    }
+
+    // 隱藏翻譯按鈕（已有翻譯）
+    const translateBtn = document.getElementById('translateBtn');
+    if (translateBtn) {
+        translateBtn.classList.add('d-none');
+    }
+
+    // 隱藏載入中指示器
+    const translateSpinner = document.getElementById('translateSpinner');
+    if (translateSpinner) {
+        translateSpinner.classList.add('d-none');
+    }
+}
+
 // === Gallery 視圖 ===
 
 /**
@@ -597,6 +629,7 @@ window.SearchUI = {
     updateEditButtonState,
     updateChineseTitleDisplay,
     showTranslateError,
+    updateTranslatedTitle,
     showGallery,
     hideGallery
 };
