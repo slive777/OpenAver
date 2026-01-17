@@ -44,14 +44,14 @@ class TestCreateTranslateService:
 
         assert isinstance(service, OllamaTranslateService)
 
-    def test_factory_gemini_not_implemented(self):
-        """Gemini provider 拋出 NotImplementedError"""
+    def test_factory_gemini_missing_api_key(self):
+        """Gemini provider 缺少 API Key 拋出 ValueError"""
         config = {"provider": "gemini", "gemini": {}}
 
-        with pytest.raises(NotImplementedError) as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             create_translate_service(config)
 
-        assert "Task 2" in str(exc_info.value)
+        assert "API Key" in str(exc_info.value)
 
     def test_factory_unknown_provider(self):
         """未知 provider 拋出 ValueError"""

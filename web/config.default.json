@@ -32,6 +32,10 @@
     "ollama": {
       "url": "http://localhost:11434",
       "model": "qwen3:8b"
+    },
+    "gemini": {
+      "api_key": "",
+      "model": "gemini-2.0-flash-lite"
     }
   },
   "gallery": {

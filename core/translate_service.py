@@ -225,6 +225,174 @@ Output format: numbered list, one translation per line."""
         return translations
 
 
+class GeminiTranslateService(TranslateService):
+    """Google Gemini API 翻譯服務實現"""
+
+    def __init__(self, config: Dict):
+        """
+        初始化 Gemini 服務
+
+        Args:
+            config: Gemini 配置字典
+                {
+                    "api_key": "AIza...",
+                    "model": "gemini-2.0-flash-lite"
+                }
+        """
+        self.api_key = config.get("api_key", "")
+        self.model = config.get("model", "gemini-2.0-flash-lite")
+        self.base_url = "https://generativelanguage.googleapis.com/v1beta"
+
+        if not self.api_key:
+            raise ValueError("Gemini API Key is required")
+
+    async def translate_single(self, title: str, context: Optional[Dict] = None) -> str:
+        """
+        單片翻譯
+
+        適用場景：用戶手動點擊翻譯按鈕
+        性能：約 0.87 秒
+        """
+        prompt = f"""請將以下日文標題翻譯為繁體中文：
+
+{title}
+
+翻譯要求：
+1. 使用繁體中文
+2. 保持簡潔，不超過50字
+3. 只輸出翻譯結果，不要額外說明
+"""
+
+        try:
+            url = f"{self.base_url}/models/{self.model}:generateContent"
+            headers = {"x-goog-api-key": self.api_key}
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {
+                    "temperature": 0.3,
+                    "maxOutputTokens": 100
+                }
+            }
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(url, headers=headers, json=payload)
+                resp.raise_for_status()
+
+            data = resp.json()
+            translation = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+            return translation
+
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 400:
+                print(f"[Gemini] Invalid API Key or request")
+            elif e.response.status_code == 429:
+                print(f"[Gemini] API quota exceeded")
+            else:
+                print(f"[Gemini] API error: {e.response.status_code}")
+            return ""
+        except Exception as e:
+            print(f"[ERROR] Gemini single translation failed: {e}")
+            return ""
+
+    async def translate_batch(self, titles: List[str], context: Optional[Dict] = None) -> List[str]:
+        """
+        批次翻譯
+
+        適用場景：批次翻譯 10 片
+        性能：約 1.10 秒 / 10 片
+        """
+        n = len(titles)
+
+        if n == 0:
+            return []
+
+        # 構建批次翻譯 prompt（已驗證）
+        prompt = f"""你是一個日文到繁體中文的翻譯助手。請將以下 {n} 個日文標題翻譯為繁體中文。
+
+輸入標題：
+{chr(10).join(f'{i+1}. {t}' for i, t in enumerate(titles))}
+
+要求：
+- 使用繁體中文
+- 嚴格按照原有順序輸出
+- 每行一個翻譯，格式：數字. 翻譯內容
+- 保持簡潔，每個不超過50字
+- 不要添加額外說明，直接輸出翻譯列表
+
+翻譯結果：
+"""
+
+        try:
+            url = f"{self.base_url}/models/{self.model}:generateContent"
+            headers = {"x-goog-api-key": self.api_key}
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {
+                    "temperature": 0.3,
+                    "maxOutputTokens": 1000
+                }
+            }
+
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(url, headers=headers, json=payload)
+                resp.raise_for_status()
+
+            data = resp.json()
+            result_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+            # 解析結果
+            translations = self._parse_batch_result(result_text)
+
+            # 驗證對齊率
+            if len(translations) != n:
+                print(f"[Gemini] 警告：解析出 {len(translations)}/{n} 個翻譯")
+                # 補齊或截斷
+                while len(translations) < n:
+                    translations.append("")
+                translations = translations[:n]
+
+            return translations
+
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 400:
+                print(f"[Gemini] Invalid API Key or request")
+            elif e.response.status_code == 429:
+                print(f"[Gemini] API quota exceeded")
+            else:
+                print(f"[Gemini] API error: {e.response.status_code}")
+            return [""] * n
+        except Exception as e:
+            print(f"[ERROR] Gemini batch translation failed: {e}")
+            return [""] * n
+
+    def _parse_batch_result(self, result_text: str) -> List[str]:
+        """解析批次翻譯結果"""
+        lines = result_text.strip().split('\n')
+        translations = []
+
+        for line in lines:
+            line = line.strip()
+
+            # 跳過空行和說明文字
+            if not line or line.startswith('以下') or line.startswith('翻譯'):
+                continue
+
+            # 解析序號格式：1. xxx 或 1、xxx 或 1) xxx
+            if line and line[0].isdigit():
+                for sep in ['. ', '、', ') ', '．']:
+                    if sep in line:
+                        parts = line.split(sep, 1)
+                        if len(parts) == 2:
+                            translations.append(parts[1].strip())
+                            break
+            # 列表符號
+            elif line.startswith('*') or line.startswith('-'):
+                translations.append(line[1:].strip())
+
+        return translations
+
+
 def create_translate_service(config: Dict) -> TranslateService:
     """
     創建翻譯服務實例（工廠函數）
@@ -241,8 +409,7 @@ def create_translate_service(config: Dict) -> TranslateService:
         TranslateService 實例
 
     Raises:
-        ValueError: 未知的 provider
-        NotImplementedError: provider 尚未實現
+        ValueError: 未知的 provider 或配置錯誤
     """
     provider = config.get("provider", "ollama")
 
@@ -251,11 +418,8 @@ def create_translate_service(config: Dict) -> TranslateService:
         return OllamaTranslateService(ollama_config)
 
     elif provider == "gemini":
-        # Task 2 將實現 GeminiTranslateService
-        raise NotImplementedError(
-            "Gemini provider will be implemented in Task 2. "
-            "Please set provider to 'ollama' in config.json"
-        )
+        gemini_config = config.get("gemini", {})
+        return GeminiTranslateService(gemini_config)
 
     else:
         raise ValueError(f"Unknown translate provider: {provider}")

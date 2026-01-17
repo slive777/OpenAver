@@ -40,13 +40,20 @@ class OllamaConfig(BaseModel):
     model: str = "qwen3:8b"  # 所有翻譯（單片/批次）都用此模型
 
 
+class GeminiConfig(BaseModel):
+    """串接結構：Gemini 配置"""
+    api_key: str = ""  # Gemini API Key
+    model: str = "gemini-2.0-flash-lite"  # 預設使用最快的 flash-lite
+
+
 class TranslateConfig(BaseModel):
     enabled: bool = False
-    provider: str = "ollama"
+    provider: str = "ollama"  # "ollama" | "gemini"
     batch_size: int = 10  # 批次翻譯大小
 
     # 嵌套結構
     ollama: OllamaConfig = OllamaConfig()
+    gemini: GeminiConfig = GeminiConfig()
 
     # 舊字段（保留向後兼容）
     ollama_url: Optional[str] = None
