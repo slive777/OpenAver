@@ -11,6 +11,12 @@ import httpx
 
 router = APIRouter(prefix="/api", tags=["config"])
 
+# Import reset function (避免循環導入，在需要時才導入)
+def _reset_translate_service():
+    """延遲導入並調用 reset_translate_service()"""
+    from web.routers.translate import reset_translate_service
+    reset_translate_service()
+
 # 設定檔路徑
 CONFIG_PATH = Path(__file__).parent.parent / "config.json"
 CONFIG_DEFAULT_PATH = Path(__file__).parent.parent / "config.default.json"
@@ -207,6 +213,7 @@ async def update_config(config: AppConfig) -> dict:
     """更新所有設定"""
     try:
         save_config(config.model_dump())
+        _reset_translate_service()  # 重置翻譯服務，讓新配置生效
         return {"success": True, "message": "設定已儲存"}
     except Exception as e:
         return {"success": False, "error": str(e)}
@@ -218,6 +225,7 @@ async def reset_config() -> dict:
     try:
         if CONFIG_PATH.exists():
             CONFIG_PATH.unlink()
+        _reset_translate_service()  # 清除舊服務實例
         return {"success": True, "message": "已恢復預設設定"}
     except Exception as e:
         return {"success": False, "error": str(e)}

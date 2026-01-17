@@ -48,6 +48,12 @@ def get_translate_service():
     return _translate_service
 
 
+def reset_translate_service():
+    """重置翻譯服務實例（配置改變時調用）"""
+    global _translate_service
+    _translate_service = None
+
+
 @router.post("/translate")
 async def translate_title(request: TranslateRequest) -> dict:
     """翻譯或優化標題"""
