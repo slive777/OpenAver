@@ -797,7 +797,9 @@
         });
 
         if (enabled) {
-            // 啟用時，重新應用 Provider 切換邏輯
+            // 先啟用 Provider 下拉選單
+            document.getElementById('translateProvider').disabled = false;
+            // 再應用 Provider 切換邏輯
             onTranslateProviderChange();
         }
     }
