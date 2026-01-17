@@ -103,12 +103,22 @@ function displayResult(data) {
         data.title &&
         window.SearchCore.hasJapanese(data.title);
 
+    // 🆕 檢查是否正在批次翻譯中
+    const isBatchTranslating = window.SearchCore.isBatchTranslating(state.currentIndex);
+
     if (shouldShowTranslateBtn) {
-        translateBtn.classList.remove('d-none');
-        translateBtn.dataset.title = data.title;
-        translateBtn.dataset.actors = JSON.stringify(data.actors || []);
-        translateBtn.dataset.number = data.number || '';
-        translateBtn.disabled = state.isTranslating;
+        if (isBatchTranslating) {
+            // 🆕 正在批次翻譯中 → 顯示 spinner
+            translateBtn.classList.add('d-none');
+            translateSpinner.classList.remove('d-none');
+        } else {
+            // 未翻譯 → 顯示翻譯按鈕
+            translateBtn.classList.remove('d-none');
+            translateBtn.dataset.title = data.title;
+            translateBtn.dataset.actors = JSON.stringify(data.actors || []);
+            translateBtn.dataset.number = data.number || '';
+            translateBtn.disabled = state.isTranslating;
+        }
     } else {
         translateBtn.classList.add('d-none');
         translateBtn.disabled = false;
@@ -515,6 +525,19 @@ function updateTranslatedTitle(translatedTitle) {
     }
 }
 
+/**
+ * 🆕 顯示批次翻譯中狀態
+ */
+function showBatchTranslatingState() {
+    const translateBtn = document.getElementById('translateBtn');
+    const translateSpinner = document.getElementById('translateSpinner');
+
+    if (translateBtn && translateSpinner) {
+        translateBtn.classList.add('d-none');
+        translateSpinner.classList.remove('d-none');
+    }
+}
+
 // === Gallery 視圖 ===
 
 /**
@@ -630,6 +653,8 @@ window.SearchUI = {
     updateChineseTitleDisplay,
     showTranslateError,
     updateTranslatedTitle,
+    // 🆕 新增
+    showBatchTranslatingState,
     showGallery,
     hideGallery
 };

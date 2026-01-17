@@ -37,6 +37,9 @@ const translationCache = new Map();
 let isTranslating = false;
 let pendingTranslation = null;
 
+// 🆕 追蹤正在批次翻譯的片索引
+const batchTranslatingIndices = new Set();
+
 // 狀態保存 Key
 const STATE_KEY = 'javhelper_search_state';
 
@@ -138,67 +141,106 @@ async function translateWithOllama(text, mode, metadata = {}) {
 
 /**
  * AI 翻譯按鈕點擊事件（全域函數供 onclick 調用）
+ * 🆕 改為批次翻譯從當前片開始的 10 片
  */
 async function translateWithAI() {
     const btn = document.getElementById('translateBtn');
     const spinner = document.getElementById('translateSpinner');
-    const title = btn.dataset.title;
-    const actors = JSON.parse(btn.dataset.actors || '[]');
-    const number = btn.dataset.number || '';
-
-    if (!title) return;
 
     // 防止並發翻譯
     if (isTranslating) return;
     isTranslating = true;
 
-    // 記住開始時的索引
-    const startFileIndex = currentFileIndex;
-    const startResultIndex = currentIndex;
-    const startListMode = listMode;
-
-    // 顯示 loading
+    // 隱藏按鈕，顯示 spinner
     btn.classList.add('d-none');
     spinner.classList.remove('d-none');
 
     try {
-        const result = await translateWithOllama(title, 'translate', { actors, number });
+        // 🆕 獲取從當前片開始的 10 片日文標題
+        const currentResults = (listMode === 'file' && fileList[currentFileIndex])
+            ? fileList[currentFileIndex].searchResults
+            : searchResults;
 
-        if (result.success && result.result) {
-            // 存入原本位置的 metadata
-            if (startListMode === 'file' && fileList[startFileIndex]) {
-                const file = fileList[startFileIndex];
-                if (file.searchResults && file.searchResults[startResultIndex]) {
-                    file.searchResults[startResultIndex].translated_title = result.result;
+        if (!currentResults || currentResults.length === 0) {
+            throw new Error('無搜尋結果');
+        }
+
+        // 從當前片開始，取 10 片未翻譯的日文標題
+        const batch = [];
+        const batchIndices = [];
+
+        for (let i = currentIndex; i < currentResults.length && batch.length < 10; i++) {
+            const result = currentResults[i];
+            if (result.title &&
+                hasJapanese(result.title) &&
+                !result.translated_title) {
+                batch.push(result);
+                batchIndices.push(i);
+            }
+        }
+
+        if (batch.length === 0) {
+            throw new Error('無需翻譯的日文標題');
+        }
+
+        console.log(`[Manual Batch] 手動批次翻譯 ${batch.length} 片（索引 ${batchIndices[0]}-${batchIndices[batchIndices.length - 1]}）`);
+
+        // 🆕 標記這些片正在翻譯中
+        batchIndices.forEach(index => {
+            batchTranslatingIndices.add(index);
+        });
+
+        // 🆕 調用批次翻譯 API
+        const titles = batch.map(r => r.title);
+        const translations = await translateBatch(titles);
+
+        if (translations && translations.length > 0) {
+            // 更新翻譯結果
+            translations.forEach((trans, i) => {
+                if (!trans) return;
+
+                const index = batchIndices[i];
+                currentResults[index].translated_title = trans;
+
+                // 清除翻譯中標記
+                batchTranslatingIndices.delete(index);
+
+                // 如果用戶還在當前片，更新 UI
+                if (index === currentIndex) {
+                    window.SearchUI.updateTranslatedTitle(trans);
                 }
-            } else if (searchResults[startResultIndex]) {
-                searchResults[startResultIndex].translated_title = result.result;
-            }
+            });
 
-            // 只有還在同一個位置才更新 UI
-            if (currentFileIndex === startFileIndex && currentIndex === startResultIndex) {
-                document.getElementById('resultChineseTitle').textContent = result.result;
-                document.getElementById('chineseTitleRow').classList.remove('d-none');
-                document.getElementById('chineseTitleLabel').textContent = '中文片名 (AI)';
-                btn.classList.add('d-none');
-            }
-        } else {
-            if (currentFileIndex === startFileIndex && currentIndex === startResultIndex) {
-                btn.classList.remove('d-none');
-            }
-            alert(result.error || '翻譯失敗');
+            console.log(`[Manual Batch] 完成 ${translations.filter(t => t).length} 片翻譯`);
+
+            // 保存狀態
+            saveState();
         }
-    } catch (e) {
-        if (currentFileIndex === startFileIndex && currentIndex === startResultIndex) {
-            btn.classList.remove('d-none');
-        }
-        alert('Ollama 連線失敗: ' + e.message);
+
+        // 清理所有標記（防止遺漏）
+        batchIndices.forEach(index => {
+            batchTranslatingIndices.delete(index);
+        });
+
+    } catch (error) {
+        console.error('[Manual Batch] 翻譯失敗:', error);
+        alert('翻譯失敗：' + error.message);
     } finally {
         isTranslating = false;
-        if (currentFileIndex === startFileIndex && currentIndex === startResultIndex) {
-            spinner.classList.add('d-none');
+        spinner.classList.add('d-none');
+
+        // 重新檢查是否需要顯示翻譯按鈕
+        const currentResults = (listMode === 'file' && fileList[currentFileIndex])
+            ? fileList[currentFileIndex].searchResults
+            : searchResults;
+
+        const currentResult = currentResults ? currentResults[currentIndex] : null;
+
+        if (currentResult && currentResult.title &&
+            hasJapanese(currentResult.title) &&
+            !currentResult.translated_title) {
+            btn.classList.remove('d-none');
         }
-        btn.disabled = false;
     }
 }
 
@@ -596,6 +638,17 @@ async function progressiveTranslate(results) {
 
             console.log(`[Progressive] 批次翻譯第 ${start}-${Math.min(end, japaneseResults.length)} 片...`);
 
+            // 🆕 標記這些片正在翻譯中
+            batch.forEach(result => {
+                const index = results.indexOf(result);
+                batchTranslatingIndices.add(index);
+            });
+
+            // 🆕 如果用戶正在看正在翻譯的片，更新 UI
+            if (batchTranslatingIndices.has(currentIndex)) {
+                window.SearchUI.showBatchTranslatingState();
+            }
+
             const translations = await translateBatch(titles);
 
             if (translations && translations.length > 0) {
@@ -607,6 +660,9 @@ async function progressiveTranslate(results) {
                     const index = results.indexOf(result);
                     results[index].translated_title = trans;
 
+                    // 🆕 移除翻譯中標記
+                    batchTranslatingIndices.delete(index);
+
                     // 如果用戶正在看這一片，立即更新 UI
                     if (currentIndex === index) {
                         window.SearchUI.updateTranslatedTitle(trans);
@@ -615,6 +671,12 @@ async function progressiveTranslate(results) {
 
                 console.log(`[Progressive] 批次翻譯完成: ${translations.filter(t => t).length} 片`);
             }
+
+            // 🆕 清理所有標記
+            batch.forEach(result => {
+                const index = results.indexOf(result);
+                batchTranslatingIndices.delete(index);
+            });
         }
 
         // 保存狀態到 sessionStorage
@@ -748,6 +810,8 @@ window.SearchCore = {
     progressiveTranslate,
     translateSingle,
     translateBatch,
+    // 🆕 檢查是否正在批次翻譯
+    isBatchTranslating: (index) => batchTranslatingIndices.has(index),
     MODE_TEXT
 };
 
