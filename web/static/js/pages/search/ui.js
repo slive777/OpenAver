@@ -3,6 +3,87 @@
  * 狀態顯示、結果展示、導航、標題編輯
  */
 
+// === 版本切換功能 ===
+
+async function switchSource() {
+    const btn = document.getElementById('switchSourceBtn');
+    if (!btn) return;
+
+    let allVariantIds = JSON.parse(btn.dataset.allVariantIds || '[]');
+    let currentVariantId = btn.dataset.currentVariantId || '';
+    const number = btn.dataset.number;
+
+    if (!number) {
+        alert('無法切換版本：番號資訊不完整');
+        return;
+    }
+
+    // 顯示載入中
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    btn.disabled = true;
+
+    try {
+        // 如果沒有 variant IDs，先獲取所有版本
+        if (allVariantIds.length === 0) {
+            const resp = await fetch(`/api/search?q=${encodeURIComponent(number)}&mode=exact`);
+            const json = await resp.json();
+
+            if (json.success && json.data && json.data.length > 0) {
+                const firstResult = json.data[0];
+                allVariantIds = firstResult._all_variant_ids || [];
+                currentVariantId = firstResult._variant_id || '';
+
+                // 更新按鈕資料
+                btn.dataset.allVariantIds = JSON.stringify(allVariantIds);
+                btn.dataset.currentVariantId = currentVariantId;
+            }
+        }
+
+        // 檢查是否有多個版本
+        if (allVariantIds.length <= 1) {
+            alert('沒有其他版本');
+            return;
+        }
+
+        // 計算下一個版本索引（循環）
+        const currentIndex = allVariantIds.indexOf(currentVariantId);
+        const nextIndex = (currentIndex + 1) % allVariantIds.length;
+        const nextVariantId = allVariantIds[nextIndex];
+
+        // 請求下一個版本
+        const resp = await fetch(`/api/search?q=${encodeURIComponent(number)}&variant_id=${encodeURIComponent(nextVariantId)}`);
+        const json = await resp.json();
+
+        if (json.success && json.data && json.data.length > 0) {
+            const newData = json.data[0];
+            // 保留所有變體 ID 列表
+            newData._all_variant_ids = allVariantIds;
+
+            // 更新顯示
+            displayResult(newData);
+            updateNavigation();
+
+            // 更新 searchResults（如果需要保存狀態）
+            const { state } = window.SearchCore;
+            if (state.searchResults.length > 0) {
+                state.searchResults[0] = newData;
+            }
+
+            // 保存狀態
+            window.SearchCore.saveState();
+        } else {
+            alert('切換版本失敗：無法獲取資料');
+        }
+    } catch (err) {
+        console.error('切換版本失敗:', err);
+        alert('切換版本失敗，請稍後再試');
+    } finally {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    }
+}
+
 // === 狀態切換 ===
 
 function showState(state) {
@@ -122,6 +203,26 @@ function displayResult(data) {
     } else {
         translateBtn.classList.add('d-none');
         translateBtn.disabled = false;
+    }
+
+    // 更新切換版本按鈕的資料
+    const switchSourceBtn = document.getElementById('switchSourceBtn');
+    if (switchSourceBtn) {
+        const allVariantIds = data._all_variant_ids || [];
+        const currentVariantId = data._variant_id || '';
+
+        // 更新按鈕資料
+        switchSourceBtn.dataset.allVariantIds = JSON.stringify(allVariantIds);
+        switchSourceBtn.dataset.currentVariantId = currentVariantId;
+        switchSourceBtn.dataset.number = data.number || '';
+
+        // 更新 title
+        if (allVariantIds.length > 1) {
+            const currentIndex = allVariantIds.indexOf(currentVariantId);
+            switchSourceBtn.title = `切換版本 (${currentIndex + 1}/${allVariantIds.length})`;
+        } else {
+            switchSourceBtn.title = '切換版本';
+        }
     }
 }
 
@@ -666,3 +767,4 @@ window.cancelEditTitle = cancelEditTitle;
 window.startEditChineseTitle = startEditChineseTitle;
 window.confirmEditChineseTitle = confirmEditChineseTitle;
 window.cancelEditChineseTitle = cancelEditChineseTitle;
+window.switchSource = switchSource;
