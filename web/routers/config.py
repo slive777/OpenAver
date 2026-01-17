@@ -172,6 +172,15 @@ def load_config() -> dict:
                 }
                 need_save = True
 
+            # Task 2.4：確保 gemini 嵌套存在（Gemini 支持遷移）
+            if 'gemini' not in t:
+                t['gemini'] = {
+                    'api_key': '',
+                    'model': 'gemini-2.0-flash-lite'
+                }
+                need_save = True
+                print('[Config] 遷移配置：添加 Gemini 支持')
+
         # Save migrated config
         if need_save:
             save_config(raw_config)

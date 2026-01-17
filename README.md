@@ -70,10 +70,25 @@ OpenAver 是純本地應用程式：
 
 ### ⚙️ Settings (設定)
 - **Dark Mode**: 全站支援深色模式，並自動同步至生成的 Viewer。
-- **Ollama 整合**: 支援使用本地 Ollama 模型翻譯影片標題與簡介。
+- **翻譯服務**: 支援 Ollama（本地）和 Gemini（Google）兩種翻譯提供商。
 - **路徑管理**: 靈活設定輸出路徑與檔案命名規則。
 - **我的最愛資料夾**: 設定常用資料夾，一鍵載入並自動搜尋。
 - **檔案過濾**: 設定最小影片尺寸 (MB)，自動排除過小檔案。
+
+### 🌐 翻譯功能
+
+OpenAver 支援兩種翻譯提供商：
+
+| 提供商 | 特點 | 速度 |
+|--------|------|------|
+| **Ollama（本地）** | 免費、無 API 限制、需本地 GPU | ~5 秒/片 |
+| **Gemini（Google）** | 雲端 API、免費額度 15 RPM | ~0.1 秒/片 |
+
+**⚠️ Gemini API Key 安全提示**
+
+- API Key 以明文存儲在 `web/config.json`
+- **請勿將 config.json 分享給他人或上傳至公開位置**
+- 如需撤銷：前往 [Google AI Studio](https://aistudio.google.com/apikey) 重新生成
 
 ## 🛠️ 技術架構
 
