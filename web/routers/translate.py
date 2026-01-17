@@ -3,11 +3,12 @@
 """
 
 from fastapi import APIRouter
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 import httpx
 
 from web.routers.config import load_config
+from core.translate_service import create_translate_service
 
 router = APIRouter(prefix="/api", tags=["translate"])
 
@@ -17,6 +18,34 @@ class TranslateRequest(BaseModel):
     mode: str = "translate"  # "translate" (日文→中文) 或 "optimize" (清理中文)
     actors: Optional[List[str]] = None
     number: Optional[str] = None
+
+
+class BatchTranslateRequest(BaseModel):
+    """批次翻譯請求模型"""
+    titles: List[str] = Field(default=[], max_length=100)
+    batch_size: int = Field(default=10, ge=1, le=20)
+
+
+
+# 全局翻譯服務實例（單例模式）
+_translate_service = None
+
+
+def get_translate_service():
+    """
+    獲取翻譯服務實例（單例）
+
+    使用單例模式避免重複初始化 Ollama 連線
+
+    Returns:
+        TranslateService 實例
+    """
+    global _translate_service
+    if _translate_service is None:
+        config = load_config()
+        translate_config = config.get("translate", {})
+        _translate_service = create_translate_service(translate_config)
+    return _translate_service
 
 
 @router.post("/translate")
@@ -112,3 +141,76 @@ async def translate_title(request: TranslateRequest) -> dict:
         return {"success": False, "error": "無法連線到 Ollama"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+@router.post("/translate-batch")
+async def translate_batch(request: BatchTranslateRequest):
+    """
+    批次翻譯多個標題
+
+    使用抽象層，支援 Ollama/Gemini 提供商
+    一次翻譯最多 10-20 個標題
+
+    實驗數據（Ollama translategemma:12b）：
+    - Batch=10: 5.35 秒，對齊率 100%
+    - Batch=15: 7.60 秒，對齊率 100%
+
+    Request Body:
+        {
+            "titles": ["日文標題1", "日文標題2", ...],
+            "batch_size": 10  // 可選，默認 10
+        }
+
+    Response:
+        {
+            "translations": ["繁中翻譯1", "繁中翻譯2", ...],
+            "count": 10,       // 成功翻譯數量
+            "errors": []       // 失敗的索引列表
+        }
+
+    Example:
+        curl -X POST http://localhost:8080/api/translate-batch \\
+             -H "Content-Type: application/json" \\
+             -d '{"titles": ["痴漢願望の女", "芸能人 白石茉莉奈"]}'
+    """
+    try:
+        # 獲取翻譯服務（單例）
+        translate_service = get_translate_service()
+
+        # 獲取配置的批次大小（預留：可從 config 讀取默認值）
+        config = load_config()
+        default_batch_size = config.get("translate", {}).get("batch_size", 10)
+
+        # 限制批次大小（防止超時），優先使用請求參數
+        batch_size = min(request.batch_size or default_batch_size, 20)
+        results = []
+
+        # 分批翻譯（如果超過 batch_size）
+        for i in range(0, len(request.titles), batch_size):
+            batch = request.titles[i:i+batch_size]
+            translations = await translate_service.translate_batch(batch)
+            results.extend(translations)
+
+        # 統計成功/失敗
+        success_count = len([t for t in results if t])
+        error_indices = [i for i, t in enumerate(results) if not t]
+
+        return {
+            "translations": results,
+            "count": success_count,
+            "errors": error_indices
+        }
+
+    except Exception as e:
+        print(f"[ERROR] Batch translation API failed: {e}")
+        import traceback
+        traceback.print_exc()
+
+        # 返回錯誤響應（不拋出異常，避免前端報錯）
+        return {
+            "translations": [""] * len(request.titles),
+            "count": 0,
+            "errors": list(range(len(request.titles))),
+            "error_message": str(e)
+        }
+
