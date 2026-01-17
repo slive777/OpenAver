@@ -7,6 +7,19 @@ set -e
 echo "=== Task 1 集成測試 ==="
 echo ""
 
+# 檢查並清理 8000 端口
+echo "【0/4】檢查測試端口..."
+if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
+    PID=$(lsof -t -i:8000)
+    echo "  ⚠️ 端口 8000 被占用 (PID: $PID)，正在關閉..."
+    kill -9 $PID 2>/dev/null || true
+    sleep 1
+    echo "  ✅ 端口已清理"
+else
+    echo "  ✅ 端口 8000 可用"
+fi
+echo ""
+
 # 讀取配置中的 Ollama URL
 OLLAMA_URL=$(python3 -c "import json; c = json.load(open('web/config.json')); print(c.get('translate',{}).get('ollama',{}).get('url', 'http://localhost:11434'))" 2>/dev/null || echo "http://localhost:11434")
 echo "Ollama URL: $OLLAMA_URL"
@@ -31,7 +44,7 @@ echo "  配置的翻譯模型: $MODEL"
 # 【3/4】測試批次翻譯 API
 echo ""
 echo "【3/4】測試批次翻譯 API..."
-RESPONSE=$(curl -s -X POST http://localhost:8080/api/translate-batch \
+RESPONSE=$(curl -s -X POST http://localhost:8000/api/translate-batch \
   -H "Content-Type: application/json" \
   -d '{"titles":["新人デビュー","中出し解禁"],"batch_size":10}' 2>/dev/null || echo "")
 
@@ -40,7 +53,7 @@ if echo "$RESPONSE" | grep -q "translations"; then
     echo "  ✅ 批次翻譯 API 正常 (成功 $COUNT/2)"
 else
     echo "  ⚠️ 批次翻譯 API 未響應（伺服器可能未啟動）"
-    echo "  提示：請先執行 python app.py"
+    echo "  提示：請先執行 uvicorn web.app:app --host 0.0.0.0 --port 8000"
 fi
 
 # 【4/4】運行 pytest
@@ -56,7 +69,7 @@ echo ""
 echo "=== 基礎測試完成 ==="
 echo ""
 echo "請在瀏覽器中進行手動驗證："
-echo "  1. 開啟 http://localhost:8080/search"
+echo "  1. 開啟 http://localhost:8000/search"
 echo "  2. 搜尋 'SONE-576'"
 echo "  3. 確認搜尋結果正常（不會自動翻譯）"
 echo "  4. 點擊翻譯按鈕 → 批次翻譯 10 片"
