@@ -68,16 +68,17 @@ def extract_number(filename: str) -> Optional[str]:
 
     patterns = [
         r'(FC2-PPV-\d+)',               # FC2-PPV-1234567 (優先)
-        r'\[([A-Za-z]{2,6}-\d{3,5})\]',  # [ABC-123] 方括號內
-        r'([A-Za-z]{2,6}-\d{3,5})',     # ABC-123 帶橫線
-        r'([A-Za-z]{2,6})(\d{3,5})',    # ABC12345 不帶橫線（需重組）
+        r'([A-Za-z]+\d+-\d+)',          # T28-103 混合格式 (字母+數字-數字)
+        r'\[([A-Za-z]{1,6}-\d{3,5})\]',  # [ABC-123] 方括號內 (支援單字母)
+        r'([A-Za-z]{1,6}-\d{3,5})',     # ABC-123 帶橫線 (支援單字母)
+        r'([A-Za-z]{2,6})(\d{3,5})',    # ABC12345 不帶橫線（需重組，保持 2+ 避免誤判）
         r'(\d{3}[A-Za-z]{3,4}-?\d{3,4})', # 123ABC-456
     ]
 
     for i, pattern in enumerate(patterns):
         match = re.search(pattern, basename, re.IGNORECASE)
         if match:
-            if i == 3:  # 不帶橫線的格式需重組
+            if i == 4:  # 不帶橫線的格式需重組 (ABC12345 → ABC-12345)
                 number = f"{match.group(1).upper()}-{match.group(2)}"
             else:
                 number = match.group(1).upper()
