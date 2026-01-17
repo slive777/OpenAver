@@ -190,6 +190,17 @@ source venv/bin/activate
 python build.py
 ```
 
+## 🙏 致謝 (Acknowledgements)
+
+OpenAver 使用並感謝以下開源專案：
+
+- **[jvav](https://github.com/akynazh/jvav)** - JAV 元數據刮削工具庫，提供 JavBus/JavDB/JavLib 等多來源支援
+- **[FastAPI](https://fastapi.tiangolo.com/)** - 現代化的 Python Web 框架
+- **[PyWebView](https://pywebview.flowrl.com/)** - 輕量級的跨平台桌面應用框架
+- **[Bootstrap](https://getbootstrap.com/)** - 前端 UI 框架
+
+特別感謝所有為這些專案做出貢獻的開發者們。
+
 ## License
 
 MIT License
