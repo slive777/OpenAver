@@ -13,9 +13,15 @@
     .spin {
         animation: spin 1s linear infinite;
     }
+
     @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+        from {
+            transform: rotate(0deg);
+        }
+
+        to {
+            transform: rotate(360deg);
+        }
     }
 
     .settings-header {
@@ -155,39 +161,90 @@
                         <div class="col-md-6">
                             <select class="form-select form-select-sm" id="translateProvider">
                                 <option value="ollama">Ollama（本地）</option>
+                                <option value="gemini">Gemini（Google）</option>
                             </select>
                         </div>
                     </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Ollama URL</label>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="input-group input-group-sm">
-                                <input type="text" class="form-control" id="ollamaUrl" value="http://localhost:11434">
-                                <button class="btn btn-outline-secondary" type="button" id="testOllamaBtn">
-                                    <i class="bi bi-plug"></i> 測試
-                                </button>
+                    <!-- Ollama 設定 -->
+                    <div id="ollamaFields">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Ollama URL</label>
                             </div>
-                            <small class="text-muted" id="ollamaStatus"></small>
+                            <div class="col-md-6">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control" id="ollamaUrl"
+                                        value="http://localhost:11434">
+                                    <button class="btn btn-outline-secondary" type="button" id="testOllamaBtn">
+                                        <i class="bi bi-plug"></i> 測試
+                                    </button>
+                                </div>
+                                <small class="text-muted" id="ollamaStatus"></small>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">模型</label>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="input-group input-group-sm">
+                                    <select class="form-select form-select-sm" id="ollamaModel">
+                                        <option value="">-- 請先測試連線 --</option>
+                                    </select>
+                                    <button class="btn btn-outline-secondary" type="button" id="testModelBtn"
+                                        title="測試模型">
+                                        <i class="bi bi-chat-dots"></i> 測試
+                                    </button>
+                                </div>
+                                <small class="text-muted" id="modelStatus"></small>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">模型</label>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="input-group input-group-sm">
-                                <select class="form-select form-select-sm" id="ollamaModel">
-                                    <option value="">-- 請先測試連線 --</option>
-                                </select>
-                                <button class="btn btn-outline-secondary" type="button" id="testModelBtn" title="測試模型">
-                                    <i class="bi bi-chat-dots"></i> 測試
-                                </button>
+                    <!-- Gemini 設定 (初始隱藏) -->
+                    <div id="geminiFields" style="display: none;">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">API Key</label>
                             </div>
-                            <small class="text-muted" id="modelStatus"></small>
+                            <div class="col-md-6">
+                                <div class="input-group input-group-sm">
+                                    <input type="password" class="form-control" id="geminiApiKey" placeholder="AIza...">
+                                    <button class="btn btn-outline-secondary" type="button" id="testGeminiBtn">
+                                        <i class="bi bi-plug"></i> 測試
+                                    </button>
+                                </div>
+                                <small class="text-muted" id="geminiStatus"></small>
+                                <small class="form-text text-muted d-block mt-1">
+                                    <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a>
+                                    可免費申請
+                                </small>
+
+                                <!-- 安全警告 -->
+                                <div class="alert alert-warning mt-2 py-2" role="alert" style="font-size: 0.8rem;">
+                                    <strong>⚠️ 安全提示：</strong>
+                                    <ul class="mb-0 ps-3">
+                                        <li>API Key 將以明文存儲在 config.json</li>
+                                        <li>請勿將 config.json 分享給他人</li>
+                                        <li>如需撤銷，請前往 <a href="https://aistudio.google.com/apikey" target="_blank">Google
+                                                AI Studio</a> 重新生成</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">模型</label>
+                            </div>
+                            <div class="col-md-6">
+                                <select class="form-select form-select-sm" id="geminiModel" disabled>
+                                    <option value="">-- 請先測試 API Key --</option>
+                                </select>
+                                <small class="text-muted" id="geminiModelHint"></small>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -211,7 +268,8 @@
                         <div class="col-md-6">
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text">資料夾名稱</span>
-                                <input type="text" class="form-control" id="folderFormat" value="{actor}" placeholder="{actor}">
+                                <input type="text" class="form-control" id="folderFormat" value="{actor}"
+                                    placeholder="{actor}">
                                 <button class="btn btn-outline-secondary dropdown-toggle" type="button"
                                     data-bs-toggle="dropdown" aria-expanded="false">變數</button>
                                 <ul class="dropdown-menu dropdown-menu-end format-vars" data-target="folderFormat"></ul>
@@ -225,7 +283,8 @@
                         </div>
                         <div class="col-md-6">
                             <div class="input-group input-group-sm">
-                                <input type="text" class="form-control" id="filenameFormat" value="[{num}][{maker}] {title}" placeholder="[{num}][{maker}] {title}">
+                                <input type="text" class="form-control" id="filenameFormat"
+                                    value="[{num}][{maker}] {title}" placeholder="[{num}][{maker}] {title}">
                                 <button class="btn btn-outline-secondary dropdown-toggle" type="button"
                                     data-bs-toggle="dropdown" aria-expanded="false">變數</button>
                                 <ul class="dropdown-menu dropdown-menu-end format-vars" data-target="filenameFormat">
@@ -576,9 +635,25 @@
 
                 // 翻譯設定
                 document.getElementById('translateEnabled').checked = config.translate.enabled;
-                document.getElementById('translateProvider').value = config.translate.provider;
-                // 支持新的嵌套结构 (ollama.url) 和旧的扁平结构 (ollama_url)
+                document.getElementById('translateProvider').value = config.translate.provider || 'ollama';
+                // Ollama 設定（支持新的嵌套结构和旧的扁平结构）
                 document.getElementById('ollamaUrl').value = config.translate.ollama?.url || config.translate.ollama_url || '';
+
+                // Gemini 設定
+                if (config.translate.gemini) {
+                    document.getElementById('geminiApiKey').value = config.translate.gemini.api_key || '';
+                    // 預設填入模型（稍後測試時會更新）
+                    const geminiModel = document.getElementById('geminiModel');
+                    if (config.translate.gemini.model) {
+                        geminiModel.innerHTML = `<option value="${config.translate.gemini.model}">${config.translate.gemini.model}</option>`;
+                        geminiModel.value = config.translate.gemini.model;
+                    }
+
+                    // 如果有 API Key，自動測試獲取模型列表
+                    if (config.translate.gemini.api_key && config.translate.provider === 'gemini') {
+                        setTimeout(() => testGeminiConnection(), 100);
+                    }
+                }
 
                 updateTranslateOptions();
 
@@ -607,10 +682,10 @@
                     document.documentElement.setAttribute('data-theme', config.general.theme || 'light');
                 }
 
-                // 自動載入模型列表（如果有 URL）
+                // 自動載入 Ollama 模型列表（如果有 URL 且是 Ollama provider）
                 const ollamaUrl = config.translate.ollama?.url || config.translate.ollama_url;
                 const ollamaModel = config.translate.ollama?.model || config.translate.ollama_model;
-                if (ollamaUrl) {
+                if (ollamaUrl && config.translate.provider === 'ollama') {
                     await loadOllamaModels(ollamaUrl, ollamaModel);
                 }
             }
@@ -658,6 +733,10 @@
                 ollama: {
                     url: document.getElementById('ollamaUrl').value,
                     model: document.getElementById('ollamaModel').value
+                },
+                gemini: {
+                    api_key: document.getElementById('geminiApiKey').value,
+                    model: document.getElementById('geminiModel').value || 'gemini-2.0-flash-lite'
                 }
             };
 
@@ -710,9 +789,132 @@
     function updateTranslateOptions() {
         const enabled = document.getElementById('translateEnabled').checked;
         document.getElementById('translateOptions').style.opacity = enabled ? '1' : '0.5';
-        document.querySelectorAll('#translateOptions input, #translateOptions select').forEach(el => {
-            el.disabled = !enabled;
+        document.querySelectorAll('#translateOptions input, #translateOptions select, #translateOptions button').forEach(el => {
+            // 不禁用整個區塊，只處理 opacity
+            if (!enabled) {
+                el.disabled = true;
+            }
         });
+
+        if (enabled) {
+            // 啟用時，重新應用 Provider 切換邏輯
+            onTranslateProviderChange();
+        }
+    }
+
+    // ===== Provider 切換邏輯 =====
+    function onTranslateProviderChange() {
+        const provider = document.getElementById('translateProvider').value;
+        const ollamaFields = document.getElementById('ollamaFields');
+        const geminiFields = document.getElementById('geminiFields');
+        const enabled = document.getElementById('translateEnabled').checked;
+
+        if (provider === 'ollama') {
+            ollamaFields.style.display = 'block';
+            geminiFields.style.display = 'none';
+            // 啟用 Ollama 字段
+            if (enabled) {
+                ollamaFields.querySelectorAll('input, select, button').forEach(el => el.disabled = false);
+            }
+        } else if (provider === 'gemini') {
+            ollamaFields.style.display = 'none';
+            geminiFields.style.display = 'block';
+            // 啟用 Gemini 字段（除了模型選擇，需要先測試 API Key）
+            if (enabled) {
+                geminiFields.querySelectorAll('input, button').forEach(el => el.disabled = false);
+                // 模型選擇保持 disabled 直到測試成功
+                const geminiModel = document.getElementById('geminiModel');
+                if (geminiModel.options.length <= 1 || !geminiModel.options[0].value) {
+                    geminiModel.disabled = true;
+                }
+            }
+        }
+    }
+
+    // ===== Gemini API Key 測試 =====
+    async function testGeminiConnection() {
+        const apiKey = document.getElementById('geminiApiKey').value;
+        const statusEl = document.getElementById('geminiStatus');
+        const testBtn = document.getElementById('testGeminiBtn');
+        const modelSelect = document.getElementById('geminiModel');
+        const hintEl = document.getElementById('geminiModelHint');
+
+        if (!apiKey) {
+            statusEl.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle"></i> 請輸入 API Key</span>';
+            return;
+        }
+
+        // 禁用按鈕，顯示加載狀態
+        testBtn.disabled = true;
+        testBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        statusEl.innerHTML = '<span class="text-muted">連線中...</span>';
+
+        try {
+            const response = await fetch('/api/gemini/test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key: apiKey })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // 成功：顯示找到的模型數量
+                statusEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> 找到 ${data.count} 個 Flash 模型</span>`;
+
+                // 填充模型下拉框
+                populateGeminiModels(data.models);
+
+                // 啟用模型下拉框
+                modelSelect.disabled = false;
+                hintEl.textContent = `已找到 ${data.models.length} 個可用模型`;
+
+            } else {
+                // 失敗：顯示錯誤信息
+                statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${data.error || '連接失敗'}</span>`;
+
+                // 禁用模型下拉框
+                modelSelect.disabled = true;
+                modelSelect.innerHTML = '<option value="">-- 請先測試 API Key --</option>';
+                hintEl.textContent = '';
+            }
+
+        } catch (error) {
+            statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${error.message}</span>`;
+        } finally {
+            // 恢復按鈕
+            testBtn.disabled = false;
+            testBtn.innerHTML = '<i class="bi bi-plug"></i> 測試';
+        }
+    }
+
+    // 填充 Gemini 模型下拉框
+    function populateGeminiModels(models) {
+        const select = document.getElementById('geminiModel');
+        const savedModel = select.value;
+
+        select.innerHTML = '';
+
+        models.forEach((model, index) => {
+            const option = document.createElement('option');
+            option.value = model.name;
+
+            // 添加推薦標籤
+            if (index === 0 && model.name.includes('lite')) {
+                option.textContent = `${model.name} (推薦，最快)`;
+            } else if (index === 0) {
+                option.textContent = `${model.name} (推薦)`;
+            } else {
+                option.textContent = model.name;
+            }
+
+            select.appendChild(option);
+        });
+
+        // 恢復之前選擇的模型
+        if (savedModel && models.some(m => m.name === savedModel)) {
+            select.value = savedModel;
+        }
     }
 
     // 選擇輸出資料夾 (PyWebView)
@@ -861,8 +1063,10 @@
 
     // 事件綁定
     document.getElementById('translateEnabled').addEventListener('change', updateTranslateOptions);
+    document.getElementById('translateProvider').addEventListener('change', onTranslateProviderChange);
     document.getElementById('testOllamaBtn').addEventListener('click', testOllamaConnection);
     document.getElementById('testModelBtn').addEventListener('click', testModel);
+    document.getElementById('testGeminiBtn').addEventListener('click', testGeminiConnection);
 
     document.getElementById('settingsForm').addEventListener('submit', (e) => {
         e.preventDefault();
