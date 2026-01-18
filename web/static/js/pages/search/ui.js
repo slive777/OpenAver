@@ -3,6 +3,261 @@
  * 狀態顯示、結果展示、導航、標題編輯
  */
 
+// === 版本切換功能 ===
+
+/**
+ * 來源順序（從後端 SCRAPER_PRIORITY 同步）
+ * 未來擴展只需後端修改，前端自動適配
+ */
+const SOURCE_ORDER = ['javbus', 'jav321', 'javdb'];
+
+/**
+ * 來源顯示名稱對照
+ */
+const SOURCE_NAMES = {
+    'javbus': 'JavBus',
+    'jav321': 'Jav321',
+    'javdb': 'JavDB'
+};
+
+/**
+ * 切換狀態結構（每個番號獨立）
+ * key: 番號, value: { sourceIdx, variantIdx, cache: { source: [...variants] | [] | undefined } }
+ */
+const switchStateMap = new Map();
+
+/**
+ * 取得或初始化某番號的切換狀態
+ */
+function getSwitchState(number) {
+    if (!switchStateMap.has(number)) {
+        switchStateMap.set(number, {
+            sourceIdx: 0,
+            variantIdx: 0,
+            cache: {}  // { 'javbus': [...], 'jav321': [], 'javdb': undefined }
+        });
+    }
+    return switchStateMap.get(number);
+}
+
+/**
+ * 推進位置（同站下一版本 → 下一來源）
+ * @returns {boolean} 是否切換了來源
+ */
+function advancePosition(state) {
+    const currentSource = SOURCE_ORDER[state.sourceIdx];
+    const variants = state.cache[currentSource] || [];
+
+    // 同站有下一版本
+    if (state.variantIdx < variants.length - 1) {
+        state.variantIdx++;
+        return false;  // 未切換來源
+    }
+
+    // 切換到下一來源
+    state.sourceIdx = (state.sourceIdx + 1) % SOURCE_ORDER.length;
+    state.variantIdx = 0;
+    return true;  // 切換了來源
+}
+
+/**
+ * 懶加載：確保指定來源已查詢過（支援多版本）
+ */
+async function ensureCached(state, number) {
+    const source = SOURCE_ORDER[state.sourceIdx];
+
+    // undefined = 還沒查，[] = 查過沒資料，[...] = 有資料
+    if (state.cache[source] !== undefined) {
+        return;
+    }
+
+    console.log(`[SwitchSource] 懶加載查詢: ${source} - ${number}`);
+
+    try {
+        const resp = await fetch(`/api/search?q=${encodeURIComponent(number)}&mode=exact&source=${source}`);
+        const json = await resp.json();
+
+        if (json.success && json.data && json.data.length > 0) {
+            const firstResult = json.data[0];
+            const allVariantIds = firstResult._all_variant_ids || [];
+            const firstVariantId = firstResult._variant_id;
+
+            if (allVariantIds.length <= 1) {
+                // 只有 1 個版本
+                state.cache[source] = [{ ...firstResult, _source: source }];
+            } else {
+                // 多版本：按 allVariantIds 順序獲取
+                const variants = [];
+
+                for (const variantId of allVariantIds) {
+                    if (variantId === firstVariantId) {
+                        // 已有的結果，直接使用
+                        variants.push({ ...firstResult, _source: source });
+                    } else {
+                        // 需要額外獲取
+                        try {
+                            const vResp = await fetch(`/api/search?q=${encodeURIComponent(number)}&variant_id=${encodeURIComponent(variantId)}`);
+                            const vJson = await vResp.json();
+                            if (vJson.success && vJson.data?.[0]) {
+                                variants.push({ ...vJson.data[0], _source: source });
+                            }
+                        } catch (e) {
+                            console.warn(`[SwitchSource] 獲取版本 ${variantId} 失敗:`, e);
+                        }
+                    }
+                }
+
+                state.cache[source] = variants.length > 0 ? variants : [{ ...firstResult, _source: source }];
+                console.log(`[SwitchSource] ${source} 共 ${variants.length} 個版本`);
+            }
+        } else {
+            // 沒資料
+            state.cache[source] = [];
+        }
+    } catch (err) {
+        console.error(`[SwitchSource] 查詢 ${source} 失敗:`, err);
+        state.cache[source] = [];
+    }
+}
+
+/**
+ * 顯示 Toast 提示「來自 {source}」（在 ⟳ 按鈕右側）
+ */
+function showSourceToast(source) {
+    const name = SOURCE_NAMES[source] || source;
+    const btn = document.getElementById('switchSourceBtn');
+
+    // 移除舊的 toast
+    const oldToast = document.getElementById('sourceToast');
+    if (oldToast) oldToast.remove();
+
+    // 建立 Toast
+    const toast = document.createElement('span');
+    toast.id = 'sourceToast';
+    toast.className = 'source-toast-inline';
+    toast.textContent = `來自 ${name}`;
+
+    // 插入到按鈕右側
+    if (btn && btn.parentNode) {
+        btn.parentNode.insertBefore(toast, btn.nextSibling);
+    } else {
+        document.body.appendChild(toast);
+    }
+
+    // 動畫顯示
+    requestAnimationFrame(() => {
+        toast.classList.add('show');
+    });
+
+    // 2 秒後消失
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
+}
+
+/**
+ * 按鈕抖動效果（無其他版本時）
+ */
+function shakeButton(btn) {
+    btn.classList.add('shake');
+    setTimeout(() => btn.classList.remove('shake'), 300);
+}
+
+/**
+ * 多來源循環切換
+ *
+ * 邏輯流程：
+ * 1. 先在同站搜尋其他版本
+ * 2. 同站沒有 → 去下一個來源搜尋
+ * 3. 來源循環：javbus → jav321 → javdb → javbus...
+ * 4. 自動跳過沒有資料的來源
+ * 5. 跨來源切換時顯示 Toast
+ */
+async function switchSource() {
+    const btn = document.getElementById('switchSourceBtn');
+    if (!btn) return;
+
+    const number = btn.dataset.number;
+    if (!number) {
+        console.warn('[SwitchSource] 無番號資訊');
+        return;
+    }
+
+    // 取得切換狀態
+    const state = getSwitchState(number);
+
+    // 記錄起始位置（用於檢測循環回起點）
+    const startPos = `${state.sourceIdx}:${state.variantIdx}`;
+
+    // 顯示載入中
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    btn.disabled = true;
+
+    try {
+        // 先確保當前來源已快取（避免第一次按 ⟳ 跳過當前來源）
+        await ensureCached(state, number);
+
+        while (true) {
+            // 推進位置
+            const changedSource = advancePosition(state);
+
+            // 檢查是否循環回起點
+            const currentPos = `${state.sourceIdx}:${state.variantIdx}`;
+            if (currentPos === startPos) {
+                console.log('[SwitchSource] 循環完畢，回到起點');
+                shakeButton(btn);  // 抖動提示無其他版本
+                return;
+            }
+
+            // 懶加載查詢
+            await ensureCached(state, number);
+
+            // 取得當前來源的版本列表
+            const source = SOURCE_ORDER[state.sourceIdx];
+            const variants = state.cache[source] || [];
+
+            // 檢查是否有資料
+            if (variants.length > state.variantIdx) {
+                const variant = variants[state.variantIdx];
+
+                // 更新顯示
+                displayResult(variant);
+                updateNavigation();
+
+                // 更新 searchResults
+                const { state: coreState } = window.SearchCore;
+                if (coreState.searchResults.length > 0) {
+                    coreState.searchResults[coreState.currentIndex] = variant;
+                }
+
+                // 更新按鈕資料
+                btn.dataset.currentVariantId = variant._variant_id || '';
+
+                // 跨來源時顯示 Toast
+                if (changedSource) {
+                    showSourceToast(source);
+                }
+
+                // 保存狀態
+                window.SearchCore.saveState();
+
+                console.log(`[SwitchSource] 切換到 ${source} 第 ${state.variantIdx + 1} 版`);
+                return;
+            }
+
+            // 沒資料，繼續下一個位置
+            console.log(`[SwitchSource] ${source} 無資料，繼續...`);
+        }
+    } catch (err) {
+        console.error('[SwitchSource] 切換失敗:', err);
+    } finally {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    }
+}
+
 // === 狀態切換 ===
 
 function showState(state) {
@@ -122,6 +377,26 @@ function displayResult(data) {
     } else {
         translateBtn.classList.add('d-none');
         translateBtn.disabled = false;
+    }
+
+    // 更新切換版本按鈕的資料
+    const switchSourceBtn = document.getElementById('switchSourceBtn');
+    if (switchSourceBtn) {
+        const allVariantIds = data._all_variant_ids || [];
+        const currentVariantId = data._variant_id || '';
+
+        // 更新按鈕資料
+        switchSourceBtn.dataset.allVariantIds = JSON.stringify(allVariantIds);
+        switchSourceBtn.dataset.currentVariantId = currentVariantId;
+        switchSourceBtn.dataset.number = data.number || '';
+
+        // 更新 title
+        if (allVariantIds.length > 1) {
+            const currentIndex = allVariantIds.indexOf(currentVariantId);
+            switchSourceBtn.title = `切換版本 (${currentIndex + 1}/${allVariantIds.length})`;
+        } else {
+            switchSourceBtn.title = '切換版本';
+        }
     }
 }
 
@@ -327,7 +602,7 @@ function startEditTitle() {
     translateSpinner.classList.add('d-none');
 
     container.innerHTML = `
-        <input type="text" id="editTitleInput" class="form-control form-control-sm" value="${escapeHtml(currentText)}" style="flex:1;" />
+        <textarea id="editTitleInput" class="form-control form-control-sm" rows="3" style="flex:1; min-width:0; resize:none;">${escapeHtml(currentText)}</textarea>
         <button class="btn btn-sm btn-link p-0 ms-1 text-success" onclick="confirmEditTitle()" title="確認">
             <i class="bi bi-check-lg"></i>
         </button>
@@ -408,7 +683,7 @@ function startEditChineseTitle() {
     const currentText = span.textContent;
 
     container.innerHTML = `
-        <input type="text" id="editChineseTitleInput" class="form-control form-control-sm text-success" value="${escapeHtml(currentText)}" style="flex:1;" />
+        <textarea id="editChineseTitleInput" class="form-control form-control-sm text-success" rows="2" style="flex:1; min-width:0; resize:none;">${escapeHtml(currentText)}</textarea>
         <button class="btn btn-sm btn-link p-0 ms-1 text-success" onclick="confirmEditChineseTitle()" title="確認">
             <i class="bi bi-check-lg"></i>
         </button>
@@ -666,3 +941,4 @@ window.cancelEditTitle = cancelEditTitle;
 window.startEditChineseTitle = startEditChineseTitle;
 window.confirmEditChineseTitle = confirmEditChineseTitle;
 window.cancelEditChineseTitle = cancelEditChineseTitle;
+window.switchSource = switchSource;

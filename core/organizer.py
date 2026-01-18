@@ -405,8 +405,22 @@ def organize_file(
 
     # 計算目標路徑
     if config.get('create_folder', True):
-        folder_name = format_string(config.get('folder_format', '{num}'), format_data)
-        target_dir = os.path.join(original_dir, folder_name)
+        # 優先使用新格式 folder_layers
+        layers = config.get('folder_layers', [])
+        if not layers:
+            # 相容舊格式：folder_format 可能含 / 分隔
+            old_format = config.get('folder_format', '{num}')
+            layers = [p.strip() for p in old_format.replace('\\', '/').split('/') if p.strip()]
+
+        # 過濾空值，分別格式化每層
+        path_parts = []
+        for layer in layers[:3]:  # 限制最多 3 層
+            if layer:
+                part = format_string(layer, format_data)
+                if part:
+                    path_parts.append(part)
+
+        target_dir = os.path.join(original_dir, *path_parts) if path_parts else original_dir
     else:
         target_dir = original_dir
 

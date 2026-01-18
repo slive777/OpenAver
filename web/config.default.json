@@ -1,6 +1,7 @@
 {
   "scraper": {
     "create_folder": true,
+    "folder_layers": ["{num}"],
     "folder_format": "{actor}",
     "filename_format": "[{num}][{maker}] {title}",
     "download_cover": true,

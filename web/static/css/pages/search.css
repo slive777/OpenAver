@@ -252,6 +252,9 @@
     padding: 0.75rem;
     border-bottom: 1px solid var(--border-light);
     background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .info-number {
@@ -259,6 +262,22 @@
     font-weight: bold;
     color: var(--accent);
     margin: 0;
+}
+
+#switchSourceBtn {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    opacity: 0.6;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+#switchSourceBtn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+#switchSourceBtn:disabled {
+    opacity: 0.3;
 }
 
 .info-body {

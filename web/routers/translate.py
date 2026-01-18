@@ -56,7 +56,7 @@ def reset_translate_service():
 
 @router.post("/translate")
 async def translate_title(request: TranslateRequest) -> dict:
-    """翻譯或優化標題"""
+    """翻譯或優化標題（支援 Ollama/Gemini）"""
     import re
 
     config = load_config()
@@ -65,45 +65,53 @@ async def translate_title(request: TranslateRequest) -> dict:
     if not translate_config.get("enabled", False):
         return {"success": False, "error": "翻譯功能未啟用"}
 
+    # === translate 模式：使用 translate service（支援 Ollama/Gemini）===
+    if request.mode == "translate":
+        try:
+            translate_service = get_translate_service()
+            context = {
+                "actors": request.actors or [],
+                "number": request.number or ""
+            }
+            result = await translate_service.translate_single(request.text, context)
+
+            if not result:
+                return {"success": False, "error": "翻譯結果為空"}
+
+            return {
+                "success": True,
+                "result": result,
+                "mode": request.mode
+            }
+
+        except ValueError as e:
+            # API Key 未設定等配置錯誤
+            return {"success": False, "error": str(e)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # === optimize 模式：使用 Ollama 清理標題 ===
     # 兼容嵌套結構和舊扁平結構
     ollama_config = translate_config.get("ollama", {})
     ollama_url = ollama_config.get("url", translate_config.get("ollama_url", "http://localhost:11434")).rstrip("/")
     ollama_model = ollama_config.get("model", translate_config.get("ollama_model", "qwen3:8b"))
 
-    # 根據模式建構 prompt（參考 jav_scraper.py）
-    if request.mode == "translate":
-        # 建構上下文
-        context_parts = []
-        if request.actors:
-            context_parts.append(f"演員: {', '.join(request.actors[:3])}")
-        context = "\n".join(context_parts) if context_parts else ""
-        context_section = f"\n影片資訊：\n{context}\n" if context else ""
+    # 建構需要移除的內容提示
+    remove_hints = []
+    if request.actors:
+        remove_hints.append(f"女優名：{', '.join(request.actors)}")
+    if request.number:
+        remove_hints.append(f"番號：{request.number}")
+    hints_text = "、".join(remove_hints) if remove_hints else ""
 
-        system_prompt = """你是專業的日文翻譯，專門翻譯成人影片標題。
-規則：
-1. 翻譯成繁體中文
-2. 保持標題簡潔，不超過50字
-3. 保留專有名詞（如人名）
-4. 不要添加任何解釋或評論
-5. 只輸出翻譯結果"""
-        user_prompt = f"{context_section}\n翻譯以下日文標題為繁體中文：\n{request.text}"
-    else:  # optimize
-        # 建構需要移除的內容提示
-        remove_hints = []
-        if request.actors:
-            remove_hints.append(f"女優名：{', '.join(request.actors)}")
-        if request.number:
-            remove_hints.append(f"番號：{request.number}")
-        hints_text = "、".join(remove_hints) if remove_hints else ""
-
-        system_prompt = """你是標題編輯，專門清理影片標題。
+    system_prompt = """你是標題編輯，專門清理影片標題。
 規則：
 1. 移除來源標記（如 Hayav, Jable, MissAV, FC2, Streaming Free 等）
 2. 移除女優名稱和番號
 3. 移除「中文字幕」等標記
 4. 保留核心片名
 5. 只輸出結果，不要解釋"""
-        user_prompt = f"清理以下標題，移除{hints_text}及來源標記，保留核心片名：\n{request.text}"
+    user_prompt = f"清理以下標題，移除{hints_text}及來源標記，保留核心片名：\n{request.text}"
 
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
@@ -130,7 +138,7 @@ async def translate_title(request: TranslateRequest) -> dict:
             if not result:
                 return {"success": False, "error": "翻譯結果為空"}
 
-            # 清理輸出（參考 jav_scraper.py）
+            # 清理輸出
             result = result.strip().strip('"').strip("'")
             result = re.sub(r'^翻譯[：:]\s*', '', result)
             result = re.sub(r'^中文[：:]\s*', '', result)

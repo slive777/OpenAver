@@ -68,16 +68,17 @@ def extract_number(filename: str) -> Optional[str]:
 
     patterns = [
         r'(FC2-PPV-\d+)',               # FC2-PPV-1234567 (優先)
-        r'\[([A-Za-z]{2,6}-\d{3,5})\]',  # [ABC-123] 方括號內
-        r'([A-Za-z]{2,6}-\d{3,5})',     # ABC-123 帶橫線
-        r'([A-Za-z]{2,6})(\d{3,5})',    # ABC12345 不帶橫線（需重組）
+        r'([A-Za-z]+\d+-\d+)',          # T28-103 混合格式 (字母+數字-數字)
+        r'\[([A-Za-z]{1,6}-\d{3,5})\]',  # [ABC-123] 方括號內 (支援單字母)
+        r'([A-Za-z]{1,6}-\d{3,5})',     # ABC-123 帶橫線 (支援單字母)
+        r'([A-Za-z]{2,6})(\d{3,5})',    # ABC12345 不帶橫線（需重組，保持 2+ 避免誤判）
         r'(\d{3}[A-Za-z]{3,4}-?\d{3,4})', # 123ABC-456
     ]
 
     for i, pattern in enumerate(patterns):
         match = re.search(pattern, basename, re.IGNORECASE)
         if match:
-            if i == 3:  # 不帶橫線的格式需重組
+            if i == 4:  # 不帶橫線的格式需重組 (ABC12345 → ABC-12345)
                 number = f"{match.group(1).upper()}-{match.group(2)}"
             else:
                 number = match.group(1).upper()
@@ -835,7 +836,132 @@ def search_jav(number: str, source: str = 'auto') -> Optional[Dict]:
     if not main_data.get('maker'):
         main_data['maker'] = get_maker_by_prefix(number)
 
-    return _normalize_result(number, main_data)
+    # 標準化結果並添加來源標識
+    result = _normalize_result(number, main_data)
+    result['_source'] = main_data.get('source', '')
+    return result
+
+
+def get_all_variant_ids(number: str) -> List[str]:
+    """
+    獲取所有匹配的番號變體 ID
+
+    Args:
+        number: 番號（如 MIDV-018）
+
+    Returns:
+        所有變體 ID 列表，按日期排序（新→舊）
+        例如：['MIDV-018_2021-12-17', 'MIDV-018']
+    """
+    number = normalize_number(number)
+    variant_ids = []
+
+    if JVAV_AVAILABLE:
+        try:
+            jb = JavBusUtil()
+            search_url = f'https://www.javbus.com/search/{number}&type=0'
+            code, ids = jb.get_ids_from_page(search_url, page=1)
+
+            if code == 200 and ids:
+                # 過濾出真正匹配的番號
+                number_normalized = number.upper().replace('-', '')
+                for id in ids:
+                    base_id = id.split('_')[0]
+                    if base_id.upper().replace('-', '') == number_normalized:
+                        variant_ids.append(id)
+
+                # 按日期排序（新的在前）- 帶日期後綴的會排在前面
+                variant_ids.sort(reverse=True)
+        except Exception:
+            pass
+
+    return variant_ids
+
+
+
+
+def search_by_variant_id(variant_id: str, base_number: str) -> Optional[Dict]:
+    """
+    根據變體 ID 搜索特定版本
+
+    Args:
+        variant_id: 變體 ID（如 'MIDV-018_2021-12-17' 或 'MIDV-018'）
+        base_number: 基礎番號（如 'MIDV-018'）
+
+    Returns:
+        搜索結果
+    """
+    if not JVAV_AVAILABLE:
+        return None
+
+    try:
+        data = scrape_javbus(variant_id)
+        if data and (data.get('title') or data.get('img')):
+            actors = []
+            for s in data.get('stars', []):
+                if isinstance(s, dict):
+                    actors.append(s.get('name', ''))
+                elif isinstance(s, str):
+                    actors.append(s)
+
+            return {
+                'number': base_number,  # 使用標準化的番號
+                'title': data.get('title', ''),
+                'actors': actors,
+                'date': data.get('date', ''),
+                'maker': data.get('maker', '') or get_maker_by_prefix(base_number),
+                'cover': data.get('img', ''),
+                'tags': data.get('tags', []),
+                'source': 'javbus',
+                'url': data.get('url', ''),
+                '_source': 'javbus',
+                '_variant_id': variant_id
+            }
+    except Exception:
+        pass
+
+    return None
+
+
+def search_jav_single_source(number: str, source: str) -> Optional[Dict]:
+    """
+    使用指定來源搜索，不做 fallback
+
+    Args:
+        number: 番號（如 SONE-001）
+        source: 來源 ('javbus', 'jav321')
+
+    Returns:
+        搜索結果，包含 _source 字段標識來源
+    """
+    number = normalize_number(number)
+
+    if source not in SCRAPERS:
+        return None
+
+    try:
+        data = SCRAPERS[source](number)
+        if data:
+            # 補全 maker（如果沒有）
+            if not data.get('maker'):
+                data['maker'] = get_maker_by_prefix(number)
+
+            # 標準化結果並添加來源標識
+            result = _normalize_result(number, data)
+            result['_source'] = source
+
+            # javbus 來源：添加版本資訊（支援多版本切換）
+            if source == 'javbus':
+                variant_ids = get_all_variant_ids(number)
+                if variant_ids:
+                    result['_variant_id'] = variant_ids[0]
+                    result['_all_variant_ids'] = variant_ids
+
+            return result
+    except Exception:
+        pass
+
+    return None
 
 
 def _normalize_result(number: str, data: Dict) -> Dict:
@@ -1265,16 +1391,56 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback=N
 
     # 判斷搜尋類型
     if is_number_format(query):
-        # 完整番號 → 精確搜尋（不支援分頁）
+        # 完整番號 → 精確搜尋（第一次只返回最新版本）
         mode = 'exact'
+        # 正規化番號（midv018 → MIDV-018）
+        query = normalize_number(query)
         if offset > 0:
-            return []  # 精確搜尋只有一個結果，offset>0 時回傳空
+            return []  # 精確搜尋不支援分頁，offset>0 時回傳空
         if status_callback:
             status_callback('javbus', 'searching')
-        data = search_jav(query)
+
+        # 獲取所有變體 ID
+        variant_ids = get_all_variant_ids(query)
+
+        if variant_ids and len(variant_ids) > 0:
+            # 搜索第一個（最新的）版本
+            first_id = variant_ids[0]
+            data = scrape_javbus(first_id)
+            if data and (data.get('title') or data.get('img')):
+                actors = []
+                for s in data.get('stars', []):
+                    if isinstance(s, dict):
+                        actors.append(s.get('name', ''))
+                    elif isinstance(s, str):
+                        actors.append(s)
+
+                result = {
+                    'number': query,  # 使用標準化的番號
+                    'title': data.get('title', ''),
+                    'actors': actors,
+                    'date': data.get('date', ''),
+                    'maker': data.get('maker', '') or get_maker_by_prefix(query),
+                    'cover': data.get('img', ''),
+                    'tags': data.get('tags', []),
+                    'source': 'javbus',
+                    'url': data.get('url', ''),
+                    '_source': 'javbus',
+                    '_variant_id': first_id,
+                    '_all_variant_ids': variant_ids  # 所有版本的 ID
+                }
+                results = [result]
+            else:
+                # 第一個版本搜索失敗，使用原有邏輯
+                data = search_jav(query)
+                results = [data] if data else []
+        else:
+            # 沒有找到多個版本，使用原有邏輯
+            data = search_jav(query)
+            results = [data] if data else []
+
         if status_callback:
-            status_callback('done', 'found:1' if data else 'found:0')
-        results = [data] if data else []
+            status_callback('done', f'found:{len(results)}' if results else 'found:0')
 
     elif is_partial_number(query):
         # 部分番號 → 展開搜尋 (IPZZ-03)（固定範圍，不支援分頁）

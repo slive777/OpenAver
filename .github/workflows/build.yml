@@ -1,4 +1,4 @@
-name: Build Windows
+name: Build
 
 on:
   push:
@@ -15,6 +15,7 @@ permissions:
   contents: write
 
 jobs:
+  # ============ Windows x64 ============
   build-windows-x64:
     runs-on: ubuntu-latest
 
@@ -59,8 +60,55 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/*.zip
+          files: dist/*-Windows-*.zip
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============ macOS arm64 (Alpha) ============
+  build-macos-arm64:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache build artifacts
+        uses: actions/cache@v4
+        with:
+          path: .build_cache_macos
+          key: build-cache-macos-${{ hashFiles('build_macos.py') }}
+          restore-keys: |
+            build-cache-macos-
+
+      - name: Build macOS package
+        run: python build_macos.py
+
+      - name: Prepare artifact
+        run: |
+          cd dist
+          unzip *-macOS-*.zip -d artifact
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenAver-macOS-arm64-alpha
+          path: dist/artifact/
+          retention-days: 30
+
+      - name: Upload to Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*-macOS-*.zip
+          draft: false
+          prerelease: true  # macOS Alpha 版標記為 prerelease
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

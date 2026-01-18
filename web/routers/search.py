@@ -20,7 +20,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.scraper import (
     search_jav, smart_search, is_partial_number, is_number_format,
-    is_prefix_only, search_partial, search_actress, search_prefix
+    is_prefix_only, search_partial, search_actress, search_prefix,
+    search_by_variant_id
 )
 
 router = APIRouter(prefix="/api", tags=["search"])
@@ -92,6 +93,8 @@ async def gallery_view(path: str):
 def search(
     q: str = Query(..., description="番號、局部番號、或女優名"),
     mode: str = Query("auto", description="搜尋模式: auto/exact/partial/actress"),
+    source: Optional[str] = Query(None, description="指定來源: javbus/jav321"),
+    variant_id: Optional[str] = Query(None, description="變體 ID: 用於切換版本"),
     limit: int = Query(20, description="每頁結果數", ge=1, le=50),
     offset: int = Query(0, description="跳過前 N 個結果（用於分頁）", ge=0)
 ) -> dict:
@@ -104,6 +107,9 @@ def search(
         - exact: 精確番號搜尋
         - partial: 局部番號搜尋
         - actress: 女優搜尋
+    - **source**: 指定來源（僅 exact 模式有效）
+        - javbus: JavBus
+        - jav321: Jav321
     - **limit**: 每頁結果數（預設 20，最大 50）
     - **offset**: 跳過前 N 個結果，用於載入更多
     """
@@ -111,12 +117,30 @@ def search(
     if not q or len(q) < 2:
         return {"success": False, "error": "請輸入有效的搜尋關鍵字", "data": [], "total": 0}
 
+    # 如果指定了 variant_id，直接搜索該版本
+    if variant_id:
+        data = search_by_variant_id(variant_id, q)
+        results = [data] if data else []
+        return {
+            "success": bool(results),
+            "data": results,
+            "total": len(results),
+            "mode": "exact"
+        }
+
     # 自動模式使用 smart_search
     if mode == "auto":
         results = smart_search(q, limit=limit, offset=offset)
     elif mode == "exact":
-        data = search_jav(q)
-        results = [data] if data else []
+        if source:
+            # 指定來源搜索
+            from core.scraper import search_jav_single_source
+            data = search_jav_single_source(q, source)
+            results = [data] if data else []
+        else:
+            # 精確搜索（使用 smart_search 的 exact 模式）
+            data = search_jav(q)
+            results = [data] if data else []
     elif mode == "partial":
         from core.scraper import search_partial
         results = search_partial(q)

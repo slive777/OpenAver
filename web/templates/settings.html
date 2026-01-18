@@ -267,18 +267,47 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="createFolder" checked>
+                                <input class="form-check-input" type="checkbox" id="createFolder" checked
+                                    onchange="updateFolderLayers()">
                                 <label class="form-check-label" for="createFolder">建立資料夾</label>
                             </div>
                         </div>
                         <div class="col-md-6">
+                            <!-- 第一行：外層 / 中層 -->
+                            <div class="d-flex align-items-center gap-1 mb-2">
+                                <div class="input-group input-group-sm" style="flex: 1;">
+                                    <input type="text" class="form-control" id="folderLayer1" placeholder="外層"
+                                        oninput="updateFolderLayers()" disabled>
+                                    <button class="btn btn-outline-secondary dropdown-toggle" type="button"
+                                        id="folderLayer1Btn" data-bs-toggle="dropdown" disabled>變數</button>
+                                    <ul class="dropdown-menu dropdown-menu-end folder-layer-vars"
+                                        data-target="folderLayer1"></ul>
+                                </div>
+                                <span class="text-muted">/</span>
+                                <div class="input-group input-group-sm" style="flex: 1;">
+                                    <input type="text" class="form-control" id="folderLayer2" placeholder="中層"
+                                        oninput="updateFolderLayers()" disabled>
+                                    <button class="btn btn-outline-secondary dropdown-toggle" type="button"
+                                        id="folderLayer2Btn" data-bs-toggle="dropdown" disabled>變數</button>
+                                    <ul class="dropdown-menu dropdown-menu-end folder-layer-vars"
+                                        data-target="folderLayer2"></ul>
+                                </div>
+                            </div>
+                            <!-- 第二行：內層（佔整行） -->
                             <div class="input-group input-group-sm">
-                                <span class="input-group-text">資料夾名稱</span>
-                                <input type="text" class="form-control" id="folderFormat" value="{actor}"
-                                    placeholder="{actor}">
+                                <span class="input-group-text">內層</span>
+                                <input type="text" class="form-control" id="folderLayer3" value="{num}"
+                                    placeholder="{num}" oninput="updateFolderLayers()">
                                 <button class="btn btn-outline-secondary dropdown-toggle" type="button"
-                                    data-bs-toggle="dropdown" aria-expanded="false">變數</button>
-                                <ul class="dropdown-menu dropdown-menu-end format-vars" data-target="folderFormat"></ul>
+                                    id="folderLayer3Btn" data-bs-toggle="dropdown">變數</button>
+                                <ul class="dropdown-menu dropdown-menu-end folder-layer-vars"
+                                    data-target="folderLayer3"></ul>
+                            </div>
+                            <div class="mt-1">
+                                <small class="text-muted">
+                                    <i class="bi bi-file-earmark-play"></i> 預覽: <span
+                                        id="folderPreview">SSNI-618/[SSNI-618][SOD] 絕對領域.mp4</span>
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -290,7 +319,8 @@
                         <div class="col-md-6">
                             <div class="input-group input-group-sm">
                                 <input type="text" class="form-control" id="filenameFormat"
-                                    value="[{num}][{maker}] {title}" placeholder="[{num}][{maker}] {title}">
+                                    value="[{num}][{maker}] {title}" placeholder="[{num}][{maker}] {title}"
+                                    oninput="updateFolderPreview()">
                                 <button class="btn btn-outline-secondary dropdown-toggle" type="button"
                                     data-bs-toggle="dropdown" aria-expanded="false">變數</button>
                                 <ul class="dropdown-menu dropdown-menu-end format-vars" data-target="filenameFormat">
@@ -612,6 +642,120 @@
                 input.value = textBefore + item.dataset.var + textAfter;
                 input.focus();
                 input.setSelectionRange(cursorPos + item.dataset.var.length, cursorPos + item.dataset.var.length);
+                // 更新預覽（如果是 folderFormat）
+                if (targetId === 'folderFormat') updateFolderPreview();
+            }
+        });
+    });
+
+    // === 資料夾多層結構功能 ===
+    const FOLDER_PREVIEW_DATA = {
+        num: 'SSNI-618',
+        maker: 'SOD',
+        actor: '三上悠亞',
+        actors: '三上悠亞, 明日花',
+        title: '絕對領域',
+        date: '2024-01-15',
+        year: '2024'
+    };
+
+    // 連動啟用邏輯（右→左：內 → 中 → 外）
+    function updateFolderLayers() {
+        const createFolder = document.getElementById('createFolder').checked;
+        const layer3Input = document.getElementById('folderLayer3');  // 內層
+        const layer2Input = document.getElementById('folderLayer2');  // 中層
+        const layer1Input = document.getElementById('folderLayer1');  // 外層
+
+        const layer3Btn = document.getElementById('folderLayer3Btn');
+        const layer2Btn = document.getElementById('folderLayer2Btn');
+        const layer1Btn = document.getElementById('folderLayer1Btn');
+
+        // 如果「建立資料夾」未勾選，全部 disabled
+        if (!createFolder) {
+            layer3Input.disabled = true;
+            layer3Btn.disabled = true;
+            layer2Input.disabled = true;
+            layer2Btn.disabled = true;
+            layer1Input.disabled = true;
+            layer1Btn.disabled = true;
+            updateFolderPreview();
+            return;
+        }
+
+        // 「建立資料夾」已勾選，啟用內層
+        layer3Input.disabled = false;
+        layer3Btn.disabled = false;
+
+        // 連動啟用
+        const layer3HasValue = !!layer3Input.value.trim();
+        const layer2HasValue = !!layer2Input.value.trim();
+
+        layer2Input.disabled = !layer3HasValue;
+        layer2Btn.disabled = !layer3HasValue;
+
+        layer1Input.disabled = !layer2HasValue;
+        layer1Btn.disabled = !layer2HasValue;
+
+        // 禁用時清空
+        if (layer2Input.disabled) layer2Input.value = '';
+        if (layer1Input.disabled) layer1Input.value = '';
+
+        updateFolderPreview();
+    }
+
+    function updateFolderPreview() {
+        const createFolder = document.getElementById('createFolder').checked;
+
+        // 格式化檔名預覽
+        const filenameFormat = document.getElementById('filenameFormat').value || '{num} {title}';
+        let filenamePreview = filenameFormat;
+        for (const [key, val] of Object.entries(FOLDER_PREVIEW_DATA)) {
+            filenamePreview = filenamePreview.replace(new RegExp(`\\{${key}\\}`, 'g'), val);
+        }
+
+        // 如果「建立資料夾」未勾選，只顯示檔名
+        if (!createFolder) {
+            document.getElementById('folderPreview').textContent = filenamePreview + '.mp4';
+            return;
+        }
+
+        // 收集所有層（由外到內）
+        const layers = [
+            document.getElementById('folderLayer1').value.trim(),
+            document.getElementById('folderLayer2').value.trim(),
+            document.getElementById('folderLayer3').value.trim()
+        ].filter(v => v);
+
+        // 格式化資料夾預覽
+        let folderPreview = layers.map(layer => {
+            let part = layer;
+            for (const [key, val] of Object.entries(FOLDER_PREVIEW_DATA)) {
+                part = part.replace(new RegExp(`\\{${key}\\}`, 'g'), val);
+            }
+            return part;
+        }).join('/');
+
+        const folder = folderPreview ? folderPreview + '/' : '';
+        document.getElementById('folderPreview').textContent = folder + filenamePreview + '.mp4';
+    }
+
+    // 初始化資料夾層變數下拉選單
+    document.querySelectorAll('.folder-layer-vars').forEach(menu => {
+        menu.innerHTML = `
+            <li><a class="dropdown-item" href="#" data-var="{num}">{num}</a></li>
+            <li><a class="dropdown-item" href="#" data-var="{actor}">{actor}</a></li>
+            <li><a class="dropdown-item" href="#" data-var="{maker}">{maker}</a></li>
+            <li><a class="dropdown-item" href="#" data-var="{title}">{title}</a></li>
+            <li><a class="dropdown-item" href="#" data-var="{year}">{year}</a></li>
+        `;
+        menu.addEventListener('click', (e) => {
+            if (e.target.dataset.var) {
+                e.preventDefault();
+                const targetId = menu.dataset.target;
+                const input = document.getElementById(targetId);
+                input.value += e.target.dataset.var;
+                input.focus();
+                updateFolderLayers();
             }
         });
     });
@@ -626,8 +770,26 @@
 
                 // Scraper 設定
                 document.getElementById('createFolder').checked = config.scraper.create_folder;
-                document.getElementById('folderFormat').value = config.scraper.folder_format;
+
+                // 資料夾層（新格式 folder_layers 或對後兼容試圖分解舊的 folder_format）
+                const layers = config.scraper.folder_layers || [];
+                if (layers.length >= 1) {
+                    document.getElementById('folderLayer3').value = layers[layers.length - 1] || '';
+                }
+                if (layers.length >= 2) {
+                    document.getElementById('folderLayer2').value = layers[layers.length - 2] || '';
+                }
+                if (layers.length >= 3) {
+                    document.getElementById('folderLayer1').value = layers[layers.length - 3] || '';
+                }
+                // 如果沒有 folder_layers，嘗試從舊的 folder_format 讀取
+                if (layers.length === 0 && config.scraper.folder_format) {
+                    document.getElementById('folderLayer3').value = config.scraper.folder_format;
+                }
+
+                // 先設定 filenameFormat，再更新預覽（預覽會用到 filenameFormat）
                 document.getElementById('filenameFormat').value = config.scraper.filename_format;
+                updateFolderLayers();
                 document.getElementById('maxTitleLength').value = config.scraper.max_title_length;
                 document.getElementById('maxFilenameLength').value = config.scraper.max_filename_length;
                 document.getElementById('videoExtensions').value = config.scraper.video_extensions.join(', ');
@@ -713,10 +875,17 @@
             const config = currentResult.data;
 
             // 更新 scraper 設定
+            const folderLayers = [
+                document.getElementById('folderLayer1').value.trim(),
+                document.getElementById('folderLayer2').value.trim(),
+                document.getElementById('folderLayer3').value.trim()
+            ].filter(v => v);
+
             config.scraper = {
                 ...config.scraper,
                 create_folder: document.getElementById('createFolder').checked,
-                folder_format: document.getElementById('folderFormat').value,
+                folder_layers: folderLayers,  // 新格式
+                folder_format: folderLayers.join('/') || '{num}',  // 向後兼容
                 filename_format: document.getElementById('filenameFormat').value,
                 max_title_length: parseInt(document.getElementById('maxTitleLength').value),
                 max_filename_length: parseInt(document.getElementById('maxFilenameLength').value),

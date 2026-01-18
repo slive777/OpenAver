@@ -155,6 +155,10 @@
                 <div class="info-section">
                     <div class="info-header">
                         <h4 class="info-number" id="resultNumber">-</h4>
+                        <button id="switchSourceBtn" class="btn btn-link p-0"
+                            onclick="switchSource()" title="切換版本">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </button>
                     </div>
                     <div class="info-body">
                         <div class="info-row">
@@ -217,15 +221,20 @@
     function extractNumberGlobal(filename) {
         const basename = filename.split(/[/\\]/).pop().replace(/\.[^.]+$/, '');
         const patterns = [
-            /\b([A-Z]{1,5})-(\d{3,5})\b/i,   // T28-650, SONE-205（支援單字母）
-            /\b([A-Z]{2,5})(\d{3,5})\b/i,     // IPTD927（無連字號需 2+ 字母避免誤判）
-            /\b(FC2-PPV)-(\d{5,7})\b/i,
+            /\b(FC2-PPV)-(\d{5,7})\b/i,          // FC2-PPV-1234567（優先）
+            /\b([A-Z]+\d+-\d+)\b/i,              // T28-103 混合格式（字母+數字-數字）
+            /\b([A-Z]{1,5})-(\d{3,5})\b/i,       // SONE-205（支援單字母）
+            /\b([A-Z]{2,5})(\d{3,5})\b/i,        // IPTD927（無連字號需 2+ 字母避免誤判）
         ];
         for (const pattern of patterns) {
             const match = basename.match(pattern);
             if (match) {
                 const prefix = match[1].toUpperCase();
+                // FC2-PPV 特殊處理
                 if (prefix === 'FC2-PPV') return `FC2-PPV-${match[2]}`;
+                // 混合格式已包含完整番號
+                if (pattern === patterns[1]) return prefix;
+                // 其他格式需組合
                 return `${prefix}-${match[2]}`;
             }
         }

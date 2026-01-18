@@ -316,7 +316,11 @@ def main():
     )
 
     # 5. 開始 GUI 事件循環（阻塞直到窗口關閉）
-    webview.start(bind_events, window, gui='edgechromium')
+    # 根據平台選擇 GUI 後端
+    if sys.platform == 'darwin':
+        webview.start(bind_events, window)  # macOS 使用預設 (Cocoa/WebKit)
+    else:
+        webview.start(bind_events, window, gui='edgechromium')  # Windows
 
 
 if __name__ == '__main__':
