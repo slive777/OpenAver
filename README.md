@@ -94,10 +94,32 @@ OpenAver 支援兩種翻譯提供商：
 
 - **Backend**: FastAPI (Python)
 - **Frontend**: Jinja2 + Bootstrap 5 + Custom CSS (Gallery Design System)
-- **Desktop**: PyWebView (Windows) / Browser (Linux/macOS)
+- **Desktop**: PyWebView (Windows/macOS)
 - **Testing**: Pytest
 
-## 🚀 快速開始
+## 📥 下載
+
+從 [GitHub Releases](https://github.com/slive777/OpenAver/releases/latest) 下載最新版本：
+
+| 平台 | 檔案 | 狀態 |
+|------|------|------|
+| **Windows x64** | `OpenAver-vX.X.X-Windows-x64.zip` | ✅ 穩定版 |
+| **macOS arm64** | `OpenAver-vX.X.X-macOS-arm64-alpha.zip` | 🧪 Alpha |
+
+### macOS 首次執行 (重要)
+
+由於沒有 Apple 簽名，macOS 會阻擋首次執行：
+
+1. 右鍵點擊 `OpenAver.command`
+2. 選擇「**打開**」(Open)
+3. 在彈出對話框中點擊「**打開**」
+
+> ⚠️ macOS 版本為 Alpha 測試，僅支援 Apple Silicon (M1/M2/M3/M4)。
+> 如遇問題請至 [GitHub Issues](https://github.com/slive777/OpenAver/issues) 回報。
+
+---
+
+## 🚀 快速開始（原始碼）
 
 ### 前置需求
 - Python 3.10+ (原始碼執行)
@@ -141,6 +163,13 @@ python windows/launcher.py
 **原因**: 缺少 WebView2 Runtime 或 GPU 加速支援不足（常見於 Windows 10 或虛擬機）。
 **解法**:
 請下載並安裝 [Microsoft Edge WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703)。
+
+### 3. macOS 無法開啟 / 安全性警告
+**原因**: macOS Gatekeeper 阻擋未簽名的應用程式。
+**解法**:
+1. 右鍵點擊 `OpenAver.command` → 選擇「打開」
+2. 在彈出的對話框中再次點擊「打開」
+3. 只需設定一次，之後可正常雙擊執行
 
 ## 💬 社群
 

@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-01-18
+
+### Added
+
+#### 🍎 macOS 支援 (Alpha)
+- macOS arm64 (Apple Silicon M1/M2/M3/M4) 打包支援
+- PyWebView + WebKit 整合，功能與 Windows 版一致
+- GitHub Actions 自動打包 macOS ZIP
+- Gatekeeper 繞過說明文件
+
+#### 🔄 多來源循環切換
+- 新增 ⟳ 按鈕，可在 javbus/jav321/javdb 之間循環切換
+- 懶加載查詢 + 快取機制，避免重複請求
+- 跨來源切換時顯示 Toast 提示
+
+#### 📁 多層目錄結構
+- 三欄位輸入框 UI（外層/中層/內層）
+- 連動啟用邏輯（右到左：內→中→外）
+- 即時預覽顯示完整路徑 + 檔名
+- 「建立資料夾」開關連動所有欄位
+
+#### 🤖 AI 翻譯進化
+- 支援本地 Ollama 和 Google Gemini 雙引擎
+- Gemini Safety Settings 優化（成功率 98-99%）
+- 翻譯服務抽象層（策略模式）
+- Gemini 模式點擊翻譯只翻譯當前片（避免 API 限制）
+- 推薦模型：gemini-flash-lite-latest
+
+#### ✨ 體驗優化
+- 片名編輯框改用 textarea，支援多行顯示
+- 設定頁預覽即時更新修復
+- 混合格式番號支援（如 T28-103）
+
+### Changed
+- 翻譯服務選項 UI 改進：「Gemini（Google 雲端）」vs「Ollama（本地）」
+- 測試框架升級至 126 個測試案例
+
+### Fixed
+- `/api/translate` 端點現在正確支援 Gemini provider
+- 設定頁載入時預覽顯示正確值
+- 跨平台 `open_file()` 修復（macOS: `open`, Linux: `xdg-open`）
+
+---
+
 ## [0.1.4] - 2026-01-17
 
 ### Added
