@@ -200,15 +200,25 @@ class TestSpecialNumbers:
             normalized = scraper._normalize_fc2_number(fmt)
             assert normalized == "1723984", f"{fmt} 正規化失敗: {normalized}"
 
-    def test_uncensored_number(self):
-        """無碼番號格式（Carib/1Pondo）"""
-        from core.scrapers import AVSOXScraper
+    def test_uncensored_smart_search(self):
+        """無碼番號 smart_search 觸發測試"""
+        from core.scraper import smart_search
 
-        scraper = AVSOXScraper()
-        video = scraper.search("051119-917")
+        test_cases = [
+            ("FC2-PPV-2200414", "fc2"),
+            ("FC2-PPV-2781063", "fc2"),
+            ("FC2-PPV-2865434", "fc2"),
+            ("010120-001", "1pondo"),
+            ("031515-828", "carib"),
+        ]
 
-        if video:
-            assert "-" in video.number  # 無碼格式通常有 -
+        for number, desc in test_cases:
+            results = smart_search(number, limit=1)
+            if results:
+                assert results[0].get('_mode') == 'uncensored', \
+                    f"{number} ({desc}) 應為 uncensored 模式，實際: {results[0].get('_mode')}"
+            else:
+                pytest.skip(f"{number} ({desc}) 無法搜尋到結果")
 
     def test_stars_prefix_conversion(self):
         """STARS 前綴轉換（DMM 特殊格式）"""

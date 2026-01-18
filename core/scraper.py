@@ -494,6 +494,19 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
     if not query or len(query) < 2:
         return []
 
+    # 0. 無碼特殊處理 (FC2 / 日期-編號格式)
+    is_uncensored = 'fc2' in query.lower() or re.match(r'^\d{6}-\d{3,}$', query)
+    if is_uncensored:
+        if status_callback:
+            status_callback('mode', 'uncensored')
+        res = search_jav(query)
+        results = [res] if res else []
+        if status_callback:
+            status_callback('done', f'found:{len(results)}')
+        for r in results:
+            r['_mode'] = 'uncensored'
+        return results
+
     # 1. 精確搜尋
     if is_number_format(query):
         query = normalize_number(query)

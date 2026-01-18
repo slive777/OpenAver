@@ -405,7 +405,8 @@ const MODE_TEXT = {
     'partial': '部分番號搜尋',
     'prefix': '系列搜尋',
     'actress': '模糊搜尋',
-    'keyword': '全文搜尋'
+    'keyword': '全文搜尋',
+    'uncensored': '無碼搜尋'
 };
 
 let currentMode = '';
