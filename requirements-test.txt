@@ -17,7 +17,9 @@ websockets>=12.0
 # Utilities
 pillow>=10.0.0
 
-# Testing
+# Testing & Dev
 pytest>=7.0.0
 pytest-mock>=3.12.0
 httpx>=0.25.0
+mypy>=1.0.0
+types-requests
