@@ -786,9 +786,10 @@
                 if (layers.length === 0 && config.scraper.folder_format) {
                     document.getElementById('folderLayer3').value = config.scraper.folder_format;
                 }
-                updateFolderLayers();
 
+                // 先設定 filenameFormat，再更新預覽（預覽會用到 filenameFormat）
                 document.getElementById('filenameFormat').value = config.scraper.filename_format;
+                updateFolderLayers();
                 document.getElementById('maxTitleLength').value = config.scraper.max_title_length;
                 document.getElementById('maxFilenameLength').value = config.scraper.max_filename_length;
                 document.getElementById('videoExtensions').value = config.scraper.video_extensions.join(', ');
