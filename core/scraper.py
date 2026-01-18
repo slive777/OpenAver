@@ -14,6 +14,7 @@ from typing import Optional, List, Dict, Union, Any, Callable, Type
 # 引入新版爬蟲模組
 from core.scrapers import (
     JavBusScraper, JAV321Scraper, JavDBScraper,
+    DMMScraper, FC2Scraper, AVSOXScraper,
     Video, ScraperConfig, BaseScraper
 )
 from core.scrapers.utils import extract_number as _new_extract_number
@@ -32,7 +33,10 @@ MAX_WORKERS = 2
 REQUEST_DELAY = 0.3
 
 # 爬蟲優先順序
-SCRAPER_CLASSES: List[Type[BaseScraper]] = [JavBusScraper, JAV321Scraper, JavDBScraper]
+SCRAPER_CLASSES: List[Type[BaseScraper]] = [
+    JavBusScraper, JAV321Scraper, JavDBScraper,
+    DMMScraper, FC2Scraper, AVSOXScraper
+]
 
 # 片商對照表檔案路徑
 MAKER_MAPPING_FILE = Path(__file__).parent.parent / "maker_mapping.json"
@@ -177,6 +181,12 @@ def search_jav(number: str, source: str = 'auto') -> Optional[Dict[str, Any]]:
         scrapers = [JAV321Scraper()]
     elif source == 'javdb':
         scrapers = [JavDBScraper()]
+    elif source == 'dmm':
+        scrapers = [DMMScraper()]
+    elif source == 'fc2':
+        scrapers = [FC2Scraper()]
+    elif source == 'avsox':
+        scrapers = [AVSOXScraper()]
     else:
         scrapers = [cls() for cls in SCRAPER_CLASSES]
 
