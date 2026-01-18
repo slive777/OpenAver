@@ -419,3 +419,60 @@ body {
 [data-theme="dark"] .dropdown-item:hover {
     background-color: rgba(255, 255, 255, 0.1);
 }
+
+/* ========== Components: Source Toast (Inline) ========== */
+.source-toast-inline {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.2rem 0.6rem;
+    background: var(--bg-header);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--border-light);
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    vertical-align: middle;
+}
+
+.source-toast-inline.show {
+    opacity: 1;
+}
+
+[data-theme="dark"] .source-toast-inline {
+    background: rgba(44, 44, 46, 0.9);
+    border-color: var(--border-card);
+    color: var(--text-muted);
+}
+
+/* ========== Components: Button Shake Animation ========== */
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    20% {
+        transform: translateX(-3px);
+    }
+
+    40% {
+        transform: translateX(3px);
+    }
+
+    60% {
+        transform: translateX(-2px);
+    }
+
+    80% {
+        transform: translateX(2px);
+    }
+}
+
+.shake {
+    animation: shake 0.3s ease;
+}

@@ -949,6 +949,14 @@ def search_jav_single_source(number: str, source: str) -> Optional[Dict]:
             # 標準化結果並添加來源標識
             result = _normalize_result(number, data)
             result['_source'] = source
+
+            # javbus 來源：添加版本資訊（支援多版本切換）
+            if source == 'javbus':
+                variant_ids = get_all_variant_ids(number)
+                if variant_ids:
+                    result['_variant_id'] = variant_ids[0]
+                    result['_all_variant_ids'] = variant_ids
+
             return result
     except Exception:
         pass
