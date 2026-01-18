@@ -108,7 +108,7 @@ jobs:
         with:
           files: dist/*-macOS-*.zip
           draft: false
-          prerelease: true  # macOS Alpha 版標記為 prerelease
+          prerelease: false  # 與 Windows 一致，macOS Alpha 狀態在檔名和 README 說明
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
