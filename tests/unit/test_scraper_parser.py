@@ -94,10 +94,10 @@ class TestExtractNumber:
 
     # --- special_format/ 特殊片商格式 ---
     def test_number_prefix(self):
-        """數字開頭系列 T28-103 - 前綴含數字，不符合現有模式"""
+        """數字開頭系列 T28-103 - 混合格式番號（Task 15.2 新增支援）"""
         result = extract_number('T28-103.avi')
-        # T28 前綴含數字，不符合 [A-Za-z]{2,6} 模式，返回 None
-        assert result is None
+        # T28 混合格式（字母+數字前綴），現已支援
+        assert result == 'T28-103'
 
     def test_heyzo(self):
         """HEYZO 格式"""
