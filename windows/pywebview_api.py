@@ -3,6 +3,7 @@ OpenAver PyWebView 共用 API 模組
 供 launcher.py 和 standalone.py 共用
 """
 import os
+import sys
 import json
 import subprocess
 import webview
@@ -96,8 +97,9 @@ class Api:
         # URL decode（處理 %20 等編碼）
         path = unquote(path)
 
-        # 轉換斜線為反斜線（Windows 格式）
-        path = path.replace('/', '\\')
+        # Windows: 轉換斜線為反斜線
+        if sys.platform == 'win32':
+            path = path.replace('/', '\\')
 
         if not os.path.exists(path):
             return False
@@ -110,13 +112,19 @@ class Api:
                 subprocess.Popen([player, path])
                 return True
             except Exception:
-                # fallback 到系統預設
+                pass  # fallback 到系統預設
+
+        # 跨平台開啟檔案
+        try:
+            if sys.platform == 'win32':
                 os.startfile(path)
-                return True
-        else:
-            # 使用系統預設程式
-            os.startfile(path)
+            elif sys.platform == 'darwin':
+                subprocess.run(['open', path])
+            else:
+                subprocess.run(['xdg-open', path])
             return True
+        except Exception:
+            return False
 
     def _get_player_path(self):
         """從設定檔讀取播放器路徑"""
