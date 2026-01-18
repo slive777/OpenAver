@@ -405,8 +405,11 @@ def organize_file(
 
     # 計算目標路徑
     if config.get('create_folder', True):
-        folder_name = format_string(config.get('folder_format', '{num}'), format_data)
-        target_dir = os.path.join(original_dir, folder_name)
+        folder_path = format_string(config.get('folder_format', '{num}'), format_data)
+        # 支援多層目錄（用 / 或 \ 分隔），最多 3 層
+        path_parts = [p.strip() for p in folder_path.replace('\\', '/').split('/') if p.strip()]
+        path_parts = path_parts[:3]  # 限制最多 3 層
+        target_dir = os.path.join(original_dir, *path_parts) if path_parts else original_dir
     else:
         target_dir = original_dir
 
