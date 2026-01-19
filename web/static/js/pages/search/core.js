@@ -200,11 +200,11 @@ async function translateWithAI() {
         const batchMeta = [];
 
         if (listMode === 'file') {
-            for (let fi = currentFileIndex; fi < fileList.length && batch.length < 10; fi++) {
+            for (let fi = currentFileIndex; fi < fileList.length && batch.length < 1; fi++) {
                 const file = fileList[fi];
                 const results = file.searchResults || [];
 
-                for (let ri = 0; ri < results.length && batch.length < 10; ri++) {
+                for (let ri = 0; ri < results.length && batch.length < 1; ri++) {
                     const result = results[ri];
                     if (result.title && hasJapanese(result.title) && !result.translated_title) {
                         batch.push(result);
@@ -213,7 +213,7 @@ async function translateWithAI() {
                 }
             }
         } else {
-            for (let i = currentIndex; i < searchResults.length && batch.length < 10; i++) {
+            for (let i = currentIndex; i < searchResults.length && batch.length < 1; i++) {
                 const result = searchResults[i];
                 if (result.title && hasJapanese(result.title) && !result.translated_title) {
                     batch.push(result);
@@ -621,7 +621,7 @@ async function translateBatch(titles) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 titles: titles,
-                batch_size: 10
+                batch_size: 1
             })
         });
 
