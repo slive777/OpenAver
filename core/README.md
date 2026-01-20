@@ -5,11 +5,37 @@
 ## 核心功能
 
 ### `scraper.py`
-**影片資訊爬蟲**
-- 負責從各大網站（JavBus, JavDB, Jav321, DMM 等）搜尋與抓取影片元數據。
+**影片資訊爬蟲 Facade**
+- 負責調度各來源爬蟲模組（JavBus, JavDB, Jav321, FC2, AVSOX）。
 - 實作了多來源整合搜尋 `search_jav()`。
-- 包含處理 JavDB 與 JavBus 爬取邏輯。
 - 維護片商對照表 (`maker_mapping.json`) 的載入與更新。
+- 實際爬取邏輯已移至 `scrapers/` 子模組。
+
+### `scrapers/` 子模組
+**模組化爬蟲架構** (Phase 16 重構)
+
+```
+scrapers/
+├── __init__.py         # 統一導出
+├── base.py             # BaseScraper 抽象類
+├── models.py           # Pydantic 資料模型
+├── utils.py            # 共用工具函數
+├── javbus.py           # JavBusScraper
+├── jav321.py           # JAV321Scraper
+├── javdb.py            # JavDBScraper (需 curl_cffi)
+├── fc2.py              # FC2Scraper
+└── avsox.py            # AVSOXScraper
+```
+
+#### `scrapers/utils.py`
+**共用工具函數** (Phase 17 擴充)
+- `extract_number()` - 從檔名提取番號
+- `normalize_number()` - 番號格式標準化
+- `has_japanese()` - 日文檢測（平假名+片假名）
+- `has_chinese()` - 中文檢測
+- `check_subtitle()` - 字幕標記偵測
+- `format_number()` - 番號格式化
+- `SOURCE_ORDER` / `SOURCE_NAMES` - 來源配置常數
 
 ### `gallery_generator.py`
 **HTML 畫廊生成器**
@@ -29,9 +55,24 @@
 ### `organizer.py`
 **檔案整理工具**
 - 負責影片檔案的整理、重命名與移動。
-- 支援自訂資料夾與檔名格式。
+- 支援自訂資料夾與檔名格式（多層目錄結構）。
 - 自動下載封面圖片與生成 NFO 檔案。
 - 包含中文片名提取邏輯（從檔名中智慧識別中文標題）。
+- 字幕偵測與中文檢測改從 `scrapers/utils.py` 導入。
+
+### `translate_service.py`
+**AI 翻譯服務**
+- 抽象基類 `TranslateService` 定義統一介面。
+- `OllamaTranslateService` - 本地 Ollama 翻譯（批次處理）。
+- `GeminiTranslateService` - Google Gemini API 翻譯。
+  - 內建 `safetySettings` (BLOCK_NONE) 避免內容過濾。
+  - 批次翻譯改為逐片調用以提高成功率。
+- 工廠函數 `create_translate_service()` 根據配置創建服務。
+
+### `version.py`
+**版本資訊**
+- 集中管理版本號 `__version__`。
+- 供 Help 頁面與打包腳本使用。
 
 ## 輔助服務
 
