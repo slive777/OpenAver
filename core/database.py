@@ -65,6 +65,30 @@ def init_db(db_path: Path = None) -> None:
         CREATE INDEX IF NOT EXISTS idx_videos_maker ON videos(maker)
     """)
 
+    # 創建女優別名表
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS actress_aliases (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            old_name TEXT NOT NULL UNIQUE,
+            new_name TEXT NOT NULL,
+            applied_count INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # 創建索引
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_actress_aliases_new_name ON actress_aliases(new_name)
+    """)
+
+    # 插入種子資料
+    cursor.execute("""
+        INSERT OR IGNORE INTO actress_aliases (old_name, new_name) VALUES
+        ('miru', '坂道みる'),
+        ('橋本ありな', '新ありな'),
+        ('河北彩伽', '河北彩花')
+    """)
+
     conn.commit()
     conn.close()
 
@@ -170,4 +194,30 @@ class Video:
             if isinstance(data['updated_at'], str):
                 data['updated_at'] = datetime.fromisoformat(data['updated_at'])
 
+        return cls(**data)
+
+
+@dataclass
+class ActressAlias:
+    """女優別名對照"""
+    id: Optional[int] = None
+    old_name: str = ""
+    new_name: str = ""
+    applied_count: int = 0
+    created_at: Optional[datetime] = None
+
+    def to_dict(self) -> dict:
+        """轉為字典"""
+        data = asdict(self)
+        if self.created_at:
+            data['created_at'] = self.created_at.isoformat()
+        return data
+
+    @classmethod
+    def from_row(cls, row: tuple, columns: List[str]) -> 'ActressAlias':
+        """從資料庫 row 建立"""
+        data = dict(zip(columns, row))
+        if 'created_at' in data and data['created_at']:
+            if isinstance(data['created_at'], str):
+                data['created_at'] = datetime.fromisoformat(data['created_at'])
         return cls(**data)

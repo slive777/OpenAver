@@ -9,7 +9,8 @@ from core.database import (
     get_db_path,
     get_connection,
     init_db,
-    Video
+    Video,
+    ActressAlias
 )
 from core.gallery_scanner import VideoInfo
 
@@ -309,3 +310,72 @@ def test_video_from_video_info_with_spaces():
     # 應該去除空白並過濾空項目
     assert video.actresses == ["演員A", "演員B", "演員C"]
     assert video.tags == ["類型1", "類型2", "類型3"]
+
+
+def test_init_db_creates_actress_aliases_table(tmp_path):
+    """測試 actress_aliases 表建立"""
+    db_path = tmp_path / "test.db"
+    init_db(db_path)
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='actress_aliases'")
+    assert cursor.fetchone() is not None
+    conn.close()
+
+
+def test_actress_aliases_index_created(tmp_path):
+    """測試索引建立"""
+    db_path = tmp_path / "test.db"
+    init_db(db_path)
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_actress_aliases_new_name'")
+    assert cursor.fetchone() is not None
+    conn.close()
+
+
+def test_actress_aliases_seed_data(tmp_path):
+    """測試種子資料"""
+    db_path = tmp_path / "test.db"
+    init_db(db_path)
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT old_name, new_name FROM actress_aliases ORDER BY id")
+    rows = cursor.fetchall()
+    assert len(rows) == 3
+    assert rows[0] == ('miru', '坂道みる')
+    assert rows[1] == ('橋本ありな', '新ありな')
+    assert rows[2] == ('河北彩伽', '河北彩花')
+    conn.close()
+
+
+def test_actress_alias_dataclass_defaults():
+    """測試 ActressAlias 預設值"""
+    alias = ActressAlias()
+    assert alias.id is None
+    assert alias.old_name == ""
+    assert alias.new_name == ""
+    assert alias.applied_count == 0
+    assert alias.created_at is None
+
+
+def test_actress_alias_unique_constraint(tmp_path):
+    """測試 old_name 唯一約束"""
+    db_path = tmp_path / "test.db"
+    init_db(db_path)
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+    # 嘗試插入重複的 old_name
+    with pytest.raises(sqlite3.IntegrityError):
+        cursor.execute("INSERT INTO actress_aliases (old_name, new_name) VALUES ('miru', '其他名字')")
+    conn.close()
+
+
+def test_actress_alias_to_dict():
+    """測試 to_dict 方法"""
+    alias = ActressAlias(id=1, old_name='miru', new_name='坂道みる', applied_count=5)
+    d = alias.to_dict()
+    assert d['id'] == 1
+    assert d['old_name'] == 'miru'
+    assert d['new_name'] == '坂道みる'
+    assert d['applied_count'] == 5
