@@ -9,23 +9,60 @@ test_translate_live.py - 翻譯服務 Smoke 測試
 前提條件：
 - Ollama 服務運行中
 - 配置的翻譯模型已安裝
+
+配置優先順序：
+1. 用戶配置 (~/.config/openaver/config.json)
+2. 環境變數 OLLAMA_URL / OLLAMA_MODEL
+3. 預設值 localhost:11434 / qwen3:8b
 """
 
 import pytest
 import asyncio
 import os
+import json
+from pathlib import Path
 from core.translate_service import create_translate_service
 
 
-# 測試配置（可通過環境變量覆蓋）
-# export OLLAMA_URL=http://172.18.128.1:11434
-TEST_CONFIG = {
-    "provider": "ollama",
-    "ollama": {
-        "url": os.getenv("OLLAMA_URL", "http://localhost:11434"),
-        "model": "qwen3:8b"  # 所有翻譯都用此模型
+def load_test_config():
+    """載入測試配置，優先使用用戶配置"""
+    # 嘗試從專案目錄讀取配置
+    config_paths = [
+        Path(__file__).parent.parent.parent / "web" / "config.json",  # 專案內
+        Path.home() / ".config" / "openaver" / "config.json",  # 用戶目錄
+    ]
+
+    for config_path in config_paths:
+        if config_path.exists():
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    user_config = json.load(f)
+                translate_config = user_config.get("translate", {})
+                ollama_config = translate_config.get("ollama", {})
+
+                # 直接讀取 ollama 配置（不管 provider 設什麼）
+                if ollama_config:
+                    return {
+                        "provider": "ollama",
+                        "ollama": {
+                            "url": ollama_config.get("url", os.getenv("OLLAMA_URL", "http://localhost:11434")),
+                            "model": ollama_config.get("model", os.getenv("OLLAMA_MODEL", "qwen3:8b"))
+                        }
+                    }
+            except Exception:
+                continue  # 讀取失敗，嘗試下一個
+
+    # 預設配置（可通過環境變數覆蓋）
+    return {
+        "provider": "ollama",
+        "ollama": {
+            "url": os.getenv("OLLAMA_URL", "http://localhost:11434"),
+            "model": os.getenv("OLLAMA_MODEL", "qwen3:8b")
+        }
     }
-}
+
+
+TEST_CONFIG = load_test_config()
 
 
 @pytest.mark.smoke
