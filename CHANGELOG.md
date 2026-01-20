@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-01-20
+
+### Added
+
+#### 🔧 Scraper Modularization (Phase 16)
+- New `core/scrapers/` module with BaseScraper abstract class
+- 5 modular scrapers: JavBusScraper, JAV321Scraper, JavDBScraper, FC2Scraper, AVSOXScraper
+- Pydantic data models: Video, Actress, ScraperConfig
+- Type hints throughout scraper modules
+
+#### 🔍 Uncensored Search Mode
+- FC2 番號搜尋支援 (FC2-PPV-XXXXXX)
+- Caribbeancom / 1Pondo 無碼番號支援 (XXXXXX-XXX 格式)
+- AVSOX 爬蟲專門處理無碼內容
+
+#### 🎯 Precise Search Enhancement
+- 精準搜尋支援指定來源 (javbus/jav321/javdb/fc2/avsox)
+- 多來源同時查詢，自動合併結果
+
+### Changed
+- Scraper architecture refactored from monolithic to modular design
+- Test framework expanded to 153 test cases
+- Pydantic models updated to v2 ConfigDict syntax
+
+### Removed
+- DMM scraper temporarily removed (requires Japan IP, pending testing)
+- Backup available at `/feature/dmm.py`
+
+---
+
 ## [0.2.0] - 2026-01-18
 
 ### Added
