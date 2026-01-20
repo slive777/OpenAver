@@ -113,6 +113,7 @@ async function loadAppConfig() {
 
 /**
  * 判斷文字是否包含日文（平假名、片假名）
+ * [LOCAL FALLBACK] 後端已有 has_japanese，此為備用
  */
 function hasJapanese(text) {
     return /[\u3040-\u309F\u30A0-\u30FF]/.test(text);

@@ -60,6 +60,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // 1. 載入設定
     window.SearchCore.loadAppConfig();
 
+    // 載入來源配置
+    window.SearchUI.loadSourceConfig();
+
     // 2. 還原狀態
     if (!window.SearchCore.restoreState()) {
         dom.queryInput.focus();

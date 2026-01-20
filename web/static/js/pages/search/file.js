@@ -129,6 +129,36 @@ function extractNumber(filename) {
 }
 
 /**
+ * 批次解析檔名（呼叫後端 API）
+ * @param {string[]} filenames - 檔名列表
+ * @returns {Promise<Array<{filename: string, number: string|null, has_subtitle: boolean}>>}
+ */
+async function parseFilenames(filenames) {
+    try {
+        const response = await fetch('/api/parse-filename', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filenames })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data.results;
+    } catch (error) {
+        console.warn('[parseFilenames] API 失敗，使用本地解析:', error.message);
+        // Fallback 到本地解析
+        return filenames.map(filename => ({
+            filename,
+            number: extractNumber(filename),
+            has_subtitle: checkSubtitle(filename)
+        }));
+    }
+}
+
+/**
  * 格式化番號（標準化格式）
  */
 function formatNumber(input) {
@@ -961,6 +991,7 @@ window.SearchFile = {
     extractChineseTitle,
     extractNumber,
     formatNumber,
+    parseFilenames,
     // 列表渲染
     renderFileList,
     renderSearchResultsList,
