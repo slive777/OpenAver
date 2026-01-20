@@ -23,6 +23,7 @@ from core.scraper import (
     is_prefix_only, search_partial, search_actress, search_prefix,
     search_by_variant_id
 )
+from core.scrapers.utils import SOURCE_ORDER, SOURCE_NAMES
 
 router = APIRouter(prefix="/api", tags=["search"])
 
@@ -327,15 +328,28 @@ async def search_stream(
 @router.get("/search/sources")
 async def get_sources() -> dict:
     """取得可用的搜尋來源"""
+    # 來源描述（保留向後相容）
+    source_descriptions = {
+        "auto": "依優先順序自動選擇",
+        "javbus": "最常用的來源（封面無浮水印）",
+        "jav321": "備用來源（封面完整）",
+        "javdb": "資料完整（有片商）",
+        "fc2": "FC2 專用",
+        "avsox": "無碼片源"
+    }
+
+    # 動態生成 sources 列表
+    sources = [{"id": "auto", "name": "自動", "description": source_descriptions["auto"]}]
+    for source_id in SOURCE_ORDER:
+        sources.append({
+            "id": source_id,
+            "name": SOURCE_NAMES.get(source_id, source_id),
+            "description": source_descriptions.get(source_id, "")
+        })
+
     return {
-        "sources": [
-            {"id": "auto", "name": "自動", "description": "依優先順序自動選擇"},
-            {"id": "javbus", "name": "JavBus", "description": "最常用的來源（封面無浮水印）"},
-            {"id": "jav321", "name": "Jav321", "description": "備用來源（封面完整）"},
-            {"id": "javdb", "name": "JavDB", "description": "資料完整（有片商）"},
-            {"id": "fc2", "name": "FC2", "description": "FC2 專用"},
-            {"id": "avsox", "name": "AVSOX", "description": "無碼片源"},
-        ]
+        "sources": sources,
+        "order": SOURCE_ORDER  # 新增：來源優先順序
     }
 
 

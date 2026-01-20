@@ -144,3 +144,46 @@ class TestSearchPagination:
         assert response.status_code == 200
         data = response.json()
         assert 'offset' in data
+
+
+class TestSearchSources:
+    """搜尋來源 API 測試"""
+
+    def test_get_sources(self, client):
+        """測試取得搜尋來源"""
+        response = client.get("/api/search/sources")
+        assert response.status_code == 200
+        data = response.json()
+
+        # 檢查 sources 存在
+        assert "sources" in data
+        assert len(data["sources"]) > 0
+
+        # 檢查 auto 選項存在
+        source_ids = [s["id"] for s in data["sources"]]
+        assert "auto" in source_ids
+
+    def test_sources_has_order(self, client):
+        """測試 sources 包含 order 欄位"""
+        response = client.get("/api/search/sources")
+        assert response.status_code == 200
+        data = response.json()
+
+        # 檢查 order 存在
+        assert "order" in data
+        assert isinstance(data["order"], list)
+        assert len(data["order"]) > 0
+
+        # 檢查順序包含基本來源
+        assert "javbus" in data["order"]
+        assert "jav321" in data["order"]
+
+    def test_sources_order_matches_sources(self, client):
+        """測試 order 與 sources 一致"""
+        response = client.get("/api/search/sources")
+        data = response.json()
+
+        # order 中的所有來源都應該在 sources 中（除了 auto）
+        source_ids = [s["id"] for s in data["sources"] if s["id"] != "auto"]
+        for source in data["order"]:
+            assert source in source_ids
