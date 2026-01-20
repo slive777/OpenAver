@@ -452,6 +452,13 @@ function displayResult(data) {
             switchSourceBtn.title = '切換版本';
         }
     }
+
+    // 更新本地標記
+    if (data._localStatus) {
+        showLocalBadge(data._localStatus);
+    } else {
+        hideLocalBadge();
+    }
 }
 
 function displayCoverError(message) {
@@ -968,6 +975,53 @@ function handleGalleryMessage(event) {
     }
 }
 
+// === 本地標記功能 ===
+
+/**
+ * 顯示本地標記 badge
+ * @param {Object} localStatus - 本地狀態 { exists: true, count: 2, paths: [...] }
+ */
+function showLocalBadge(localStatus) {
+    const badge = document.getElementById('localBadge');
+    if (!badge) return;
+
+    if (localStatus && localStatus.exists) {
+        badge.classList.remove('d-none');
+        if (localStatus.count > 1) {
+            badge.title = `本地已有 ${localStatus.count} 個版本`;
+        } else {
+            badge.title = '本地已有';
+        }
+    } else {
+        badge.classList.add('d-none');
+    }
+}
+
+/**
+ * 隱藏本地標記 badge
+ */
+function hideLocalBadge() {
+    const badge = document.getElementById('localBadge');
+    if (badge) {
+        badge.classList.add('d-none');
+    }
+}
+
+/**
+ * 更新搜尋結果的本地標記（批次更新）
+ * 在 checkLocalStatus() 完成後調用
+ */
+function updateLocalBadges() {
+    const { state } = window.SearchCore;
+    const currentResult = state.searchResults[state.currentIndex];
+
+    if (currentResult && currentResult._localStatus) {
+        showLocalBadge(currentResult._localStatus);
+    } else {
+        hideLocalBadge();
+    }
+}
+
 // === 暴露介面 ===
 window.SearchUI = {
     showState,
@@ -988,7 +1042,11 @@ window.SearchUI = {
     hideGallery,
     loadSourceConfig,
     getSourceOrder,
-    getSourceNames
+    getSourceNames,
+    // 本地標記功能
+    showLocalBadge,
+    hideLocalBadge,
+    updateLocalBadges
 };
 
 // 全域函數（onclick 用）

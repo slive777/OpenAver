@@ -649,3 +649,19 @@
     font-size: 0.75rem;
     text-align: center;
 }
+
+/* ==================== 本地標記樣式 ==================== */
+.local-badge {
+    font-size: 1rem;
+    margin-left: 0.5rem;
+    cursor: pointer;
+}
+
+.local-badge:hover {
+    opacity: 0.8;
+}
+
+.file-item .local-indicator {
+    font-size: 0.8rem;
+    margin-left: 4px;
+}

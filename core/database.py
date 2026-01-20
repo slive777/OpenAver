@@ -377,6 +377,51 @@ class VideoRepository:
         finally:
             conn.close()
 
+    def get_by_numbers(self, numbers: List[str]) -> dict:
+        """根據番號批次查詢（大小寫不敏感）
+
+        Args:
+            numbers: 番號列表 (e.g., ["SONE-205", "ABW-001"])
+
+        Returns:
+            dict: {番號: [Video, ...]} - 同番號可能有多個檔案
+                  番號 key 使用原始輸入的大小寫形式
+        """
+        if not numbers:
+            return {}
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # 建立大寫番號 → 原始輸入的映射
+            upper_to_original = {n.upper(): n for n in numbers}
+            upper_numbers = list(upper_to_original.keys())
+
+            # 使用 UPPER() 進行大小寫不敏感比對
+            placeholders = ', '.join(['?'] * len(upper_numbers))
+            cursor.execute(
+                f"SELECT * FROM videos WHERE UPPER(number) IN ({placeholders})",
+                upper_numbers
+            )
+            rows = cursor.fetchall()
+
+            # 建立結果字典（使用原始輸入的 key）
+            result = {}
+            for row in rows:
+                video = Video.from_row(row, self._get_columns())
+                if video.number:
+                    # 找到原始輸入的 key
+                    original_key = upper_to_original.get(video.number.upper())
+                    if original_key:
+                        if original_key not in result:
+                            result[original_key] = []
+                        result[original_key].append(video)
+
+            return result
+        finally:
+            conn.close()
+
 
 def migrate_json_to_sqlite(json_path: Path, db_path: Path = None,
                            delete_on_success: bool = True) -> dict:

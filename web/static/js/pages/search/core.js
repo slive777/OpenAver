@@ -521,6 +521,9 @@ function doSearch(query) {
                     currentIndex = 0;
                     hasMoreResults = data.has_more || false;
 
+                    // 查詢本地狀態（非同步，不阻塞顯示）
+                    checkLocalStatus(searchResults);
+
                     // 優先顯示 Gallery（如果有 gallery_url）
                     if (data.gallery_url) {
                         window.SearchUI.showGallery(data.gallery_url);
@@ -580,6 +583,9 @@ async function fallbackSearch(query) {
             currentIndex = 0;
             hasMoreResults = data.has_more || false;
 
+            // 查詢本地狀態（非同步，不阻塞顯示）
+            checkLocalStatus(searchResults);
+
             // 優先顯示 Gallery（如果有 gallery_url）
             if (data.gallery_url) {
                 window.SearchUI.showGallery(data.gallery_url);
@@ -604,6 +610,46 @@ async function fallbackSearch(query) {
     } catch (err) {
         document.getElementById('errorMessage').textContent = '網路錯誤: ' + err.message;
         window.SearchUI.showState('error');
+    }
+}
+
+// === 本地狀態查詢 ===
+
+/**
+ * 查詢搜尋結果在本地庫的存在狀態
+ * @param {Array} results - 搜尋結果陣列
+ */
+async function checkLocalStatus(results) {
+    // 收集所有有效番號
+    const numbers = results
+        .map(r => r.number)
+        .filter(n => n)
+        .join(',');
+
+    if (!numbers) return;
+
+    try {
+        const resp = await fetch(`/api/search/local-status?numbers=${encodeURIComponent(numbers)}`);
+        if (!resp.ok) {
+            console.warn('[LocalStatus] API 請求失敗:', resp.status);
+            return;
+        }
+
+        const data = await resp.json();
+
+        // 更新搜尋結果的本地狀態
+        results.forEach(result => {
+            if (result.number) {
+                // 嘗試原始大小寫和大寫
+                result._localStatus = data[result.number] || data[result.number?.toUpperCase()];
+            }
+        });
+
+        // 更新 UI
+        window.SearchUI.updateLocalBadges();
+
+    } catch (err) {
+        console.error('[LocalStatus] 查詢失敗:', err);
     }
 }
 
@@ -698,7 +744,9 @@ window.SearchCore = {
     translateBatch,
     // 檢查是否正在批次翻譯
     isBatchTranslating: (index) => batchTranslatingIndices.has(index),
-    MODE_TEXT
+    MODE_TEXT,
+    // 本地狀態查詢
+    checkLocalStatus
 };
 
 // 全域函數（onclick 用）
