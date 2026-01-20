@@ -9,7 +9,7 @@
  * 來源順序（從後端 SCRAPER_PRIORITY 同步）
  * 未來擴展只需後端修改，前端自動適配
  */
-const SOURCE_ORDER = ['javbus', 'jav321', 'javdb'];
+const SOURCE_ORDER = ['javbus', 'jav321', 'javdb', 'dmm', 'fc2', 'avsox'];
 
 /**
  * 來源顯示名稱對照
@@ -17,7 +17,10 @@ const SOURCE_ORDER = ['javbus', 'jav321', 'javdb'];
 const SOURCE_NAMES = {
     'javbus': 'JavBus',
     'jav321': 'Jav321',
-    'javdb': 'JavDB'
+    'javdb': 'JavDB',
+    'dmm': 'DMM',
+    'fc2': 'FC2',
+    'avsox': 'AVSOX'
 };
 
 /**
@@ -34,7 +37,7 @@ function getSwitchState(number) {
         switchStateMap.set(number, {
             sourceIdx: 0,
             variantIdx: 0,
-            cache: {}  // { 'javbus': [...], 'jav321': [], 'javdb': undefined }
+            cache: {}  // { 'javbus': [...], 'jav321': [], ... }
         });
     }
     return switchStateMap.get(number);

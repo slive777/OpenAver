@@ -93,7 +93,7 @@ async def gallery_view(path: str):
 def search(
     q: str = Query(..., description="番號、局部番號、或女優名"),
     mode: str = Query("auto", description="搜尋模式: auto/exact/partial/actress"),
-    source: Optional[str] = Query(None, description="指定來源: javbus/jav321"),
+    source: Optional[str] = Query(None, description="指定來源: javbus/jav321/javdb/fc2/avsox"),
     variant_id: Optional[str] = Query(None, description="變體 ID: 用於切換版本"),
     limit: int = Query(20, description="每頁結果數", ge=1, le=50),
     offset: int = Query(0, description="跳過前 N 個結果（用於分頁）", ge=0)
@@ -110,6 +110,9 @@ def search(
     - **source**: 指定來源（僅 exact 模式有效）
         - javbus: JavBus
         - jav321: Jav321
+        - javdb: JavDB
+        - fc2: FC2
+        - avsox: AVSOX
     - **limit**: 每頁結果數（預設 20，最大 50）
     - **offset**: 跳過前 N 個結果，用於載入更多
     """
@@ -328,8 +331,10 @@ async def get_sources() -> dict:
         "sources": [
             {"id": "auto", "name": "自動", "description": "依優先順序自動選擇"},
             {"id": "javbus", "name": "JavBus", "description": "最常用的來源（封面無浮水印）"},
-            {"id": "jav321", "name": "Jav321", "description": "備用來源"},
-            {"id": "javdb", "name": "JavDB", "description": "女優/前綴搜尋用"},
+            {"id": "jav321", "name": "Jav321", "description": "備用來源（封面完整）"},
+            {"id": "javdb", "name": "JavDB", "description": "資料完整（有片商）"},
+            {"id": "fc2", "name": "FC2", "description": "FC2 專用"},
+            {"id": "avsox", "name": "AVSOX", "description": "無碼片源"},
         ]
     }
 

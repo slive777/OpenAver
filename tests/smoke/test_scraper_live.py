@@ -1,13 +1,13 @@
 """
-test_scraper_live.py - 供應商連通 Smoke Tests
+test_scraper_live.py - 爬蟲連通 Smoke Tests
 
-⚠️ 只用於本地手動測試，不進 CI（避免被 ban）
+Phase 16 Task 2: 測試 5 個爬蟲的網路連通性
 
 執行方式：
-    pytest tests/smoke -v -m smoke
+    pytest tests/smoke/test_scraper_live.py -v -m smoke
 
 注意：
-- 只測文字資料，不抓圖片
+- 只用於本地手動測試，不進 CI（避免被 ban）
 - 無法連線時自動 skip，不算失敗
 """
 
@@ -15,9 +15,11 @@ import pytest
 from core.scraper import search_jav
 
 
+# ========== 舊 API 連通測試 ==========
+
 @pytest.mark.smoke
-class TestScraperLive:
-    """各供應商連通測試 - 僅本地手動跑"""
+class TestOldAPIConnectivity:
+    """舊 API 連通測試（search_jav）"""
 
     def test_javbus_connectivity(self):
         """JavBus 連通性測試"""
@@ -27,7 +29,6 @@ class TestScraperLive:
 
         assert result.get('number') == 'SONE-103', f"番號不符: {result.get('number')}"
         assert result.get('title'), "標題為空"
-        # actors 可能為空，不強制要求
 
     def test_jav321_connectivity(self):
         """Jav321 連通性測試"""
@@ -53,9 +54,88 @@ class TestScraperLive:
         if result is None:
             pytest.skip("所有來源無法連線")
 
-        # 只要有結果就算通過
         assert result.get('number'), "無番號返回"
 
+
+# ========== 新爬蟲模組連通測試 ==========
+
+@pytest.mark.smoke
+class TestNewScraperConnectivity:
+    """新爬蟲模組連通測試（Phase 16 Task 2）"""
+
+    def test_javbus_scraper(self):
+        """JavBusScraper 連通性"""
+        from core.scrapers import JavBusScraper
+
+        scraper = JavBusScraper()
+        video = scraper.search("SONE-205")
+
+        if video is None:
+            pytest.skip("JavBusScraper 無法連線")
+
+        assert video.number == "SONE-205"
+        assert video.source == "javbus"
+        assert video.cover_url.startswith("http")
+
+    def test_jav321_scraper(self):
+        """JAV321Scraper 連通性"""
+        from core.scrapers import JAV321Scraper
+
+        scraper = JAV321Scraper()
+        video = scraper.search("MIDV-018")
+
+        if video is None:
+            pytest.skip("JAV321Scraper 無法連線")
+
+        assert "MIDV" in video.number.upper()
+        assert video.source == "jav321"
+
+    def test_javdb_scraper(self):
+        """JavDBScraper 連通性"""
+        from core.scrapers import JavDBScraper
+
+        try:
+            from curl_cffi import requests
+        except ImportError:
+            pytest.skip("curl_cffi not installed")
+
+        scraper = JavDBScraper()
+        video = scraper.search("SSNI-001")
+
+        if video is None:
+            pytest.skip("JavDBScraper 無法連線")
+
+        assert video.number == "SSNI-001"
+        assert video.source == "javdb"
+
+    def test_fc2_scraper(self):
+        """FC2Scraper 連通性"""
+        from core.scrapers import FC2Scraper
+
+        scraper = FC2Scraper()
+        video = scraper.search("FC2-PPV-1723984")
+
+        if video is None:
+            pytest.skip("FC2Scraper 無法連線")
+
+        assert "FC2" in video.number
+        assert video.source == "fc2"
+        assert video.title != ""
+
+    def test_avsox_scraper(self):
+        """AVSOXScraper 連通性（無碼專用）"""
+        from core.scrapers import AVSOXScraper
+
+        scraper = AVSOXScraper()
+        video = scraper.search("051119-917")
+
+        if video is None:
+            pytest.skip("AVSOXScraper 無法連線")
+
+        assert video.source == "avsox"
+        assert len(video.actresses) > 0
+
+# ========== 女優搜尋測試 ==========
 
 @pytest.mark.smoke
 class TestActressSearch:
@@ -71,3 +151,49 @@ class TestActressSearch:
 
         assert len(results) >= 1, "至少應返回 1 個結果"
         assert results[0].get('number'), "結果應包含番號"
+
+
+# ========== 特殊番號測試 ==========
+
+@pytest.mark.smoke
+class TestSpecialNumbers:
+    """特殊番號格式測試"""
+
+    def test_fc2_number_formats(self):
+        """FC2 各種格式測試"""
+        from core.scrapers import FC2Scraper
+
+        scraper = FC2Scraper()
+
+        # 測試不同格式都能正規化
+        formats = [
+            "FC2-PPV-1723984",
+            "FC2PPV-1723984",
+            "FC2-1723984",
+            "fc2ppv1723984",
+        ]
+
+        for fmt in formats:
+            normalized = scraper._normalize_fc2_number(fmt)
+            assert normalized == "1723984", f"{fmt} 正規化失敗: {normalized}"
+
+    def test_uncensored_smart_search(self):
+        """無碼番號 smart_search 觸發測試"""
+        from core.scraper import smart_search
+
+        test_cases = [
+            ("FC2-PPV-2200414", "fc2"),
+            ("FC2-PPV-2781063", "fc2"),
+            ("FC2-PPV-2865434", "fc2"),
+            ("010120-001", "1pondo"),
+            ("031515-828", "carib"),
+        ]
+
+        for number, desc in test_cases:
+            results = smart_search(number, limit=1)
+            if results:
+                assert results[0].get('_mode') == 'uncensored', \
+                    f"{number} ({desc}) 應為 uncensored 模式，實際: {results[0].get('_mode')}"
+            else:
+                pytest.skip(f"{number} ({desc}) 無法搜尋到結果")
+

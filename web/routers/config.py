@@ -325,12 +325,12 @@ async def test_ollama_model(request: OllamaTestRequest) -> dict:
                 json={
                     "model": request.model,
                     "messages": [
-                        {"role": "system", "content": "你是翻譯助手"},
-                        {"role": "user", "content": "翻譯：テスト"}
+                        {"role": "user", "content": "將以下日文翻譯成繁體中文，只輸出翻譯結果：新人女優デビュー"}
                     ],
                     "stream": False,
                     "options": {
-                        "thinking": False  # 禁用 Qwen3 thinking 模式，加速測試
+                        "num_predict": 50,  # 限制輸出長度
+                        "temperature": 0.3
                     }
                 }
             )
