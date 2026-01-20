@@ -11,8 +11,6 @@ venv/
 # Cache
 avlist_cache.json
 file_mapping.json
-dmm_content_ids.json
-dmm_prefix_hints.json
 *.tmp
 
 # Archives (舊檔案備份)

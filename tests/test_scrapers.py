@@ -1,13 +1,13 @@
 """Scraper 模組測試
 
-Phase 16 Task 2: 測試 6 個爬蟲模組
+Phase 16 Task 2: 測試 5 個爬蟲模組
 - Task 1 (舊): JavBusScraper, JAV321Scraper, JavDBScraper
-- Task 2 (新): DMMScraper, FC2Scraper, AVSOXScraper
+- Task 2 (新): FC2Scraper, AVSOXScraper
 """
 import pytest
 from core.scrapers import (
     JavBusScraper, JAV321Scraper, JavDBScraper,
-    DMMScraper, FC2Scraper, AVSOXScraper,
+    FC2Scraper, AVSOXScraper,
     Video, Actress
 )
 
@@ -127,59 +127,6 @@ class TestJavDBScraper:
 
 # ========== Task 2 新爬蟲測試 ==========
 
-class TestDMMScraper:
-    """
-    DMM 爬蟲測試
-
-    ⚠️ 重要：DMM API 需要日本 IP，必須開啟 VPN 才能連線
-    - 離線測試（不需 VPN）：番號解析、前綴轉換、快取操作
-    - 線上測試（需要 VPN）：已標記 skip，手動執行需開 VPN
-    """
-
-    @pytest.fixture
-    def scraper(self):
-        return DMMScraper()
-
-    def test_normalize_number(self, scraper):
-        """測試：番號解析"""
-        prefix, num = scraper._parse_number("SONE-205")
-        assert prefix == "sone"
-        assert num == "205"
-
-        prefix, num = scraper._parse_number("STARS-804")
-        assert prefix == "stars"
-        assert num == "804"
-
-    def test_convert_with_hints(self, scraper):
-        """測試：前綴轉換"""
-        # SONE 無前綴
-        cid = scraper._convert_with_hints("SONE-205")
-        assert cid == "sone00205"
-
-        # STARS 有前綴 "1"
-        cid = scraper._convert_with_hints("STARS-804")
-        assert cid == "1stars00804"
-
-    def test_cache_operations(self, scraper):
-        """測試：快取操作"""
-        # 測試讀取（不修改實際快取）
-        cache = scraper._load_cache()
-        assert isinstance(cache, dict)
-
-        hints = scraper._load_prefix_hints()
-        assert isinstance(hints, dict)
-
-    @pytest.mark.skip(reason="需要日本 VPN")
-    def test_search_with_vpn(self, scraper):
-        """測試：實際搜尋（需要 VPN）"""
-        video = scraper.search("SONE-205")
-
-        if video:
-            assert isinstance(video, Video)
-            assert video.source == "dmm"
-            assert video.cover_url != ""
-
-
 class TestFC2Scraper:
     """FC2 爬蟲測試"""
 
@@ -289,7 +236,6 @@ class TestMultiSourceIntegration:
             JavBusScraper(),
             JAV321Scraper(),
             JavDBScraper(),
-            DMMScraper(),
             FC2Scraper(),
             AVSOXScraper(),
         ]
@@ -311,7 +257,6 @@ class TestMultiSourceIntegration:
             JavBusScraper(),
             JAV321Scraper(),
             JavDBScraper(),
-            DMMScraper(),
             FC2Scraper(),
             AVSOXScraper(),
         ]
@@ -319,5 +264,5 @@ class TestMultiSourceIntegration:
         source_names = [s.source_name for s in scrapers]
         assert len(source_names) == len(set(source_names)), "來源名稱應唯一"
 
-        expected_names = {"javbus", "jav321", "javdb", "dmm", "fc2", "avsox"}
+        expected_names = {"javbus", "jav321", "javdb", "fc2", "avsox"}
         assert set(source_names) == expected_names

@@ -69,28 +69,18 @@ class OllamaTranslateService(TranslateService):
                     "model": "qwen3:8b"  # 所有翻譯都用此模型
                 }
         """
-        self.ollama_url = config.get("url", "http://localhost:11434").rstrip("/")
-        self.model = config.get("model", "qwen3:8b")
+        self.ollama_url = (config.get("url") or "http://localhost:11434").rstrip("/")
+        self.model = config.get("model") or "qwen3:8b"
 
     async def translate_single(self, title: str, context: Optional[Dict] = None) -> str:
         """
-        單片翻譯（使用 qwen3:8b）
+        單片翻譯
 
         適用場景：用戶查看第 1 片時立即翻譯
         """
-        system_prompt = """你是專業的日文翻譯。請將以下 AV 影片標題翻譯成繁體中文。
+        prompt = f"""將以下日文AV標題翻譯成繁體中文。保留原本的色情語氣，女優名保留日文。只輸出翻譯結果。
 
-規則：
-- 保持簡潔，不超過 50 字
-- 女優名保留日文
-- 術語參考：
-  * 中出し → 內射
-  * 潮吹き → 潮吹
-  * デビュー → 出道
-  * 新人 → 新人（保留）
-  * 巨乳 → 巨乳（保留）"""
-
-        user_prompt = f"翻譯：{title}"
+{title}"""
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -99,11 +89,13 @@ class OllamaTranslateService(TranslateService):
                     json={
                         "model": self.model,
                         "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_prompt}
+                            {"role": "user", "content": prompt}
                         ],
                         "stream": False,
-                        "options": {"thinking": False}
+                        "options": {
+                            "num_predict": 100,
+                            "temperature": 0.3
+                        }
                     }
                 )
 
@@ -124,80 +116,19 @@ class OllamaTranslateService(TranslateService):
 
     async def translate_batch(self, titles: List[str], context: Optional[Dict] = None) -> List[str]:
         """
-        批次翻譯（使用統一的 model）
+        批次翻譯 - 逐片翻譯確保穩定性
 
         適用場景：後台翻譯第 2-10 片
-        實驗數據：batch=10，耗時 5.35 秒，對齊率 100%
         """
-        n = len(titles)
-
-        if n == 0:
+        if not titles:
             return []
 
-        system_prompt = """You are a professional Japanese-to-Chinese translator for adult video titles.
+        results = []
+        for title in titles:
+            result = await self.translate_single(title, context)
+            results.append(result)
 
-Rules:
-- Translate to Traditional Chinese (Taiwan style)
-- Keep actress names in original Japanese
-- Concise output, max 50 characters per title
-- Output format: one translation per line, numbered (1. translation)
-
-Adult terminology:
-- デビュー → 出道
-- 中出し → 內射
-- 潮吹き → 潮吹
-- 巨乳 → 巨乳
-- 新人 → 新人
-- AV解禁 → AV解禁"""
-
-        user_prompt = f"""Translate the following {n} Japanese AV titles to Traditional Chinese:
-
-{chr(10).join(f'{i+1}. {t}' for i, t in enumerate(titles))}
-
-Output format: numbered list, one translation per line."""
-
-        try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                resp = await client.post(
-                    f"{self.ollama_url}/api/chat",
-                    json={
-                        "model": self.model,
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_prompt}
-                        ],
-                        "stream": False,
-                        "options": {
-                            "temperature": 0.3,
-                            "num_predict": 2048,
-                            "num_ctx": 4096
-                        }
-                    }
-                )
-
-            if resp.status_code != 200:
-                raise Exception(f"Ollama API error: {resp.status_code}")
-
-            data = resp.json()
-            content = data.get("message", {}).get("content", "")
-
-            # 解析輸出（移除編號前綴）
-            translations = self._parse_batch_output(content)
-
-            # 驗證對齊率（關鍵！）
-            if len(translations) != n:
-                print(f"[WARN] Batch translation misalignment: expected {n}, got {len(translations)}")
-                # 補齊或截斷
-                while len(translations) < n:
-                    translations.append("")
-                translations = translations[:n]
-
-            return translations
-
-        except Exception as e:
-            print(f"[ERROR] Batch translation failed: {e}")
-            # 失敗時返回空字符串列表
-            return [""] * n
+        return results
 
     def _clean_output(self, text: str) -> str:
         """清理翻譯輸出"""

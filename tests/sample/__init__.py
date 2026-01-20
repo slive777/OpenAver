@@ -7,11 +7,6 @@ Phase 16 Task 2: 爬蟲測試用樣本番號
 - 無碼番號（Carib/1Pondo）
 - FC2 番號
 - 特殊格式番號
-
-⚠️ DMM 測試注意事項：
-- DMM API 需要日本 IP，必須開啟 VPN（如 Surfshark 日本節點）才能連線
-- 不開 VPN 時，DMM 相關的網路測試會失敗，這是正常的
-- 離線測試（番號解析、前綴轉換）不需要 VPN
 """
 
 # ========== 有碼番號（Censored）==========
@@ -23,7 +18,7 @@ CENSORED_SAMPLES = {
         "maker": "S1",
         "actress": "未歩なな",
         "date": "2024",
-        "expected_sources": ["javbus", "jav321", "javdb", "dmm"],
+        "expected_sources": ["javbus", "jav321", "javdb"],
     },
     "SSNI-001": {
         "maker": "S1",
@@ -66,21 +61,19 @@ CENSORED_SAMPLES = {
         "expected_sources": ["javbus", "jav321", "javdb"],
     },
 
-    # SOD STAR 系列（DMM 需要 "1" 前綴）
+    # SOD STAR 系列
     "STARS-804": {
         "maker": "SOD",
         "actress": "永野いち夏",
         "date": "2023",
-        "dmm_content_id": "1stars00804",
-        "expected_sources": ["javbus", "jav321", "javdb", "dmm"],
+        "expected_sources": ["javbus", "jav321", "javdb"],
     },
 
-    # Prestige 系列（DMM 需要 "118" 前綴）
+    # Prestige 系列
     "ABW-001": {
         "maker": "Prestige",
         "actress": "河北彩花",
         "date": "2020",
-        "dmm_content_id": "118abw00001",
         "expected_sources": ["javbus", "jav321", "javdb"],
     },
 
@@ -146,17 +139,6 @@ NUMBER_FORMAT_SAMPLES = {
     "FC2PPV-1723984": "1723984",
     "FC2-1723984": "1723984",
     "fc2ppv1723984": "1723984",
-}
-
-# ========== DMM Content ID 轉換 ==========
-
-DMM_CONTENT_ID_SAMPLES = {
-    # (番號, 預期 content_id)
-    "SONE-205": "sone00205",      # 無前綴
-    "STARS-804": "1stars00804",   # "1" 前綴
-    "ABW-001": "118abw00001",     # "118" 前綴
-    "ABP-123": "118abp00123",     # "118" 前綴
-    "MIDV-018": "midv00018",      # 無前綴
 }
 
 # ========== 不存在的番號（用於測試錯誤處理）==========

@@ -1,7 +1,7 @@
 """
 test_scraper_live.py - 爬蟲連通 Smoke Tests
 
-Phase 16 Task 2: 測試 6 個爬蟲的網路連通性
+Phase 16 Task 2: 測試 5 個爬蟲的網路連通性
 
 執行方式：
     pytest tests/smoke/test_scraper_live.py -v -m smoke
@@ -9,7 +9,6 @@ Phase 16 Task 2: 測試 6 個爬蟲的網路連通性
 注意：
 - 只用於本地手動測試，不進 CI（避免被 ban）
 - 無法連線時自動 skip，不算失敗
-- DMM 需要日本 VPN
 """
 
 import pytest
@@ -136,28 +135,6 @@ class TestNewScraperConnectivity:
         assert video.source == "avsox"
         assert len(video.actresses) > 0
 
-    @pytest.mark.skip(reason="需要日本 VPN - 開啟 Surfshark 日本節點後移除此標記")
-    def test_dmm_scraper(self):
-        """
-        DMMScraper 連通性
-
-        ⚠️ 此測試需要日本 VPN：
-        1. 開啟 VPN 並連接日本節點
-        2. 移除 @pytest.mark.skip 裝飾器
-        3. 執行測試
-        """
-        from core.scrapers import DMMScraper
-
-        scraper = DMMScraper()
-        video = scraper.search("SONE-205")
-
-        if video is None:
-            pytest.fail("DMMScraper 無法連線 - 請確認 VPN 已連接日本節點")
-
-        assert video.source == "dmm"
-        assert video.cover_url != ""
-
-
 # ========== 女優搜尋測試 ==========
 
 @pytest.mark.smoke
@@ -220,16 +197,3 @@ class TestSpecialNumbers:
             else:
                 pytest.skip(f"{number} ({desc}) 無法搜尋到結果")
 
-    def test_stars_prefix_conversion(self):
-        """STARS 前綴轉換（DMM 特殊格式）"""
-        from core.scrapers import DMMScraper
-
-        scraper = DMMScraper()
-
-        # STARS 系列在 DMM 需要加 "1" 前綴
-        cid = scraper._convert_with_hints("STARS-804")
-        assert cid == "1stars00804"
-
-        # SONE 系列無前綴
-        cid = scraper._convert_with_hints("SONE-205")
-        assert cid == "sone00205"
