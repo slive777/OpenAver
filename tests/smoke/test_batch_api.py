@@ -11,7 +11,7 @@ test_batch_api.py - 批次翻譯 API 測試
     python tests/smoke/test_batch_api.py
 
 環境變數：
-    API_URL: API 基礎 URL (默認 http://localhost:8080)
+    API_URL: API 基礎 URL (默認 http://localhost:8000)
     OLLAMA_URL: Ollama 服務 URL (供 translate_service 使用)
 """
 
@@ -30,7 +30,7 @@ except ImportError:
 
 
 # 測試配置
-API_URL = os.getenv("API_URL", "http://localhost:8080")
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 BATCH_ENDPOINT = f"{API_URL}/api/translate-batch"
 
 
