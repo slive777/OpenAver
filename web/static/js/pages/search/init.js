@@ -60,6 +60,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // 1. 載入設定
     window.SearchCore.loadAppConfig();
 
+    // 載入來源配置
+    window.SearchUI.loadSourceConfig();
+
     // 2. 還原狀態
     if (!window.SearchCore.restoreState()) {
         dom.queryInput.focus();
@@ -146,8 +149,8 @@ document.addEventListener('DOMContentLoaded', function () {
     dom.btnFavorite.addEventListener('click', loadFavoriteFolder);
 
     // 10. PyWebView 檔案事件
-    window.addEventListener('pywebview-files', (e) => {
-        window.SearchFile.setFileList(e.detail.paths);
+    window.addEventListener('pywebview-files', async (e) => {
+        await window.SearchFile.setFileList(e.detail.paths);
     });
 
     // 11. 拖拽事件

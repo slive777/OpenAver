@@ -65,8 +65,8 @@ def load_config():
     return translate_config
 
 
-async def test_single_translation(service, title):
-    """測試單個標題翻譯"""
+async def run_single_translation(service, title):
+    """測試單個標題翻譯（輔助函數，非 pytest test）"""
     print(f"原文: {title}")
     result = await service.translate_single(title)
 
@@ -78,8 +78,8 @@ async def test_single_translation(service, title):
         return False
 
 
-async def test_batch_translation(service, titles):
-    """測試批次翻譯"""
+async def run_batch_translation(service, titles):
+    """測試批次翻譯（輔助函數，非 pytest test）"""
     print(f"\n批次翻譯 {len(titles)} 個標題...")
     print("=" * 60)
 
@@ -122,20 +122,20 @@ async def main():
     print("📋 測試 1: 單個高風險標題")
     print("=" * 60)
     test_title = HIGH_RISK_TITLES[0]
-    success = await test_single_translation(service, test_title)
+    success = await run_single_translation(service, test_title)
     print()
 
     # 測試 2: 批次翻譯 5 個高風險標題
     print("📋 測試 2: 批次翻譯 5 個高風險標題")
     print("=" * 60)
     batch_5 = HIGH_RISK_TITLES[:5]
-    rate_5 = await test_batch_translation(service, batch_5)
+    rate_5 = await run_batch_translation(service, batch_5)
     print()
 
     # 測試 3: 批次翻譯全部 10 個高風險標題
     print("📋 測試 3: 批次翻譯全部 10 個高風險標題")
     print("=" * 60)
-    rate_10 = await test_batch_translation(service, HIGH_RISK_TITLES)
+    rate_10 = await run_batch_translation(service, HIGH_RISK_TITLES)
     print()
 
     # 總結

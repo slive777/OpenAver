@@ -115,3 +115,136 @@ def extract_number(filename: str) -> Optional[str]:
 def rate_limit(delay: float = 0.3) -> None:
     """請求節流（避免被封禁）"""
     time.sleep(delay)
+
+
+# ============================================================
+# 文字檢測函數
+# ============================================================
+
+def has_japanese(text: str) -> bool:
+    """
+    檢測文字是否包含日文（平假名或片假名）
+
+    Args:
+        text: 待檢測的文字
+
+    Returns:
+        True 如果包含日文字符，否則 False
+
+    Examples:
+        >>> has_japanese("これはテスト")
+        True
+        >>> has_japanese("中文標題")
+        False
+    """
+    if not text:
+        return False
+    for char in text:
+        if '\u3040' <= char <= '\u309f':  # 平假名
+            return True
+        if '\u30a0' <= char <= '\u30ff':  # 片假名
+            return True
+    return False
+
+
+def has_chinese(text: str) -> bool:
+    """
+    檢測文字是否包含中文
+
+    Args:
+        text: 待檢測的文字
+
+    Returns:
+        True 如果包含中文字符，否則 False
+
+    Examples:
+        >>> has_chinese("標題")
+        True
+        >>> has_chinese("Title")
+        False
+    """
+    if not text:
+        return False
+    for char in text:
+        if '\u4e00' <= char <= '\u9fff':
+            return True
+    return False
+
+
+def check_subtitle(filename: str) -> bool:
+    """
+    檢查檔名是否包含字幕標記
+
+    支援的標記：
+    - -C, -c, _C（常見字幕標記）
+    - 中文字幕, 字幕, 中字, [中字], 【中字】
+
+    Args:
+        filename: 檔案名稱
+
+    Returns:
+        True 如果包含字幕標記，否則 False
+
+    Examples:
+        >>> check_subtitle("ABC-123-C.mp4")
+        True
+        >>> check_subtitle("[中文字幕] ABC-123.mp4")
+        True
+        >>> check_subtitle("ABC-123.mp4")
+        False
+    """
+    if not filename:
+        return False
+
+    upper = filename.upper()
+    patterns_upper = ['-C', '_C']
+    patterns_chinese = ['中文字幕', '字幕', '中字', '[中字]', '【中字】']
+
+    for p in patterns_upper:
+        idx = upper.find(p)
+        if idx != -1:
+            next_idx = idx + len(p)
+            if next_idx >= len(upper) or not upper[next_idx].isalnum():
+                return True
+
+    for p in patterns_chinese:
+        if p in filename:
+            return True
+
+    return False
+
+
+def format_number(number: str) -> str:
+    """
+    格式化番號為標準格式
+
+    Args:
+        number: 原始番號
+
+    Returns:
+        標準化的番號（大寫、去空白）
+
+    Examples:
+        >>> format_number("sone-205")
+        'SONE-205'
+        >>> format_number("  ABC-123  ")
+        'ABC-123'
+    """
+    if not number:
+        return number
+    return number.upper().strip()
+
+
+# ============================================================
+# 來源配置常數
+# ============================================================
+
+SOURCE_ORDER = ['javbus', 'jav321', 'javdb', 'fc2', 'avsox']
+
+SOURCE_NAMES = {
+    'javbus': 'JavBus',
+    'jav321': 'Jav321',
+    'javdb': 'JavDB',
+    'fc2': 'FC2',
+    'avsox': 'AVSOX'
+}

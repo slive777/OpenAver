@@ -6,22 +6,73 @@
 // === 版本切換功能 ===
 
 /**
- * 來源順序（從後端 SCRAPER_PRIORITY 同步）
- * 未來擴展只需後端修改，前端自動適配
+ * 來源順序（從後端 API 載入，此為預設值）
  */
-const SOURCE_ORDER = ['javbus', 'jav321', 'javdb', 'dmm', 'fc2', 'avsox'];
+let SOURCE_ORDER = ['javbus', 'jav321', 'javdb', 'fc2', 'avsox'];
 
 /**
  * 來源顯示名稱對照
  */
-const SOURCE_NAMES = {
+let SOURCE_NAMES = {
     'javbus': 'JavBus',
     'jav321': 'Jav321',
     'javdb': 'JavDB',
-    'dmm': 'DMM',
     'fc2': 'FC2',
     'avsox': 'AVSOX'
 };
+
+/**
+ * 從後端載入來源配置
+ * @returns {Promise<void>}
+ */
+async function loadSourceConfig() {
+    try {
+        const response = await fetch('/api/search/sources');
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // 更新來源順序
+        if (data.order && Array.isArray(data.order)) {
+            SOURCE_ORDER = data.order;
+            console.log('[SourceConfig] 已從 API 載入 SOURCE_ORDER:', SOURCE_ORDER);
+        }
+
+        // 從 sources 更新顯示名稱
+        if (data.sources && Array.isArray(data.sources)) {
+            const newNames = {};
+            for (const source of data.sources) {
+                if (source.id && source.id !== 'auto') {
+                    newNames[source.id] = source.name;
+                }
+            }
+            if (Object.keys(newNames).length > 0) {
+                SOURCE_NAMES = newNames;
+            }
+        }
+    } catch (error) {
+        console.warn('[SourceConfig] 載入失敗，使用預設值:', error.message);
+        // 保留預設值
+    }
+}
+
+/**
+ * 取得當前來源順序
+ * @returns {string[]}
+ */
+function getSourceOrder() {
+    return SOURCE_ORDER;
+}
+
+/**
+ * 取得來源顯示名稱
+ * @returns {Object}
+ */
+function getSourceNames() {
+    return SOURCE_NAMES;
+}
 
 /**
  * 切換狀態結構（每個番號獨立）
@@ -934,7 +985,10 @@ window.SearchUI = {
     // 🆕 新增
     showBatchTranslatingState,
     showGallery,
-    hideGallery
+    hideGallery,
+    loadSourceConfig,
+    getSourceOrder,
+    getSourceNames
 };
 
 // 全域函數（onclick 用）

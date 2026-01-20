@@ -9,6 +9,7 @@ import httpx
 
 from web.routers.config import load_config
 from core.translate_service import create_translate_service
+from core.scrapers.utils import has_japanese
 
 router = APIRouter(prefix="/api", tags=["translate"])
 
@@ -64,6 +65,15 @@ async def translate_title(request: TranslateRequest) -> dict:
 
     if not translate_config.get("enabled", False):
         return {"success": False, "error": "翻譯功能未啟用"}
+
+    # === 新增：日文檢測，只對 translate 模式生效 ===
+    if request.mode == "translate" and not has_japanese(request.text):
+        return {
+            "skipped": True,
+            "success": True,  # 新增：API 成功執行跳過邏輯
+            "reason": "no_japanese",
+            "original": request.text
+        }
 
     # === translate 模式：使用 translate service（支援 Ollama/Gemini）===
     if request.mode == "translate":
@@ -199,21 +209,42 @@ async def translate_batch(request: BatchTranslateRequest):
 
         # 限制批次大小（防止超時），優先使用請求參數
         batch_size = min(request.batch_size or default_batch_size, 20)
-        results = []
 
-        # 分批翻譯（如果超過 batch_size）
-        for i in range(0, len(request.titles), batch_size):
-            batch = request.titles[i:i+batch_size]
-            translations = await translate_service.translate_batch(batch)
-            results.extend(translations)
+        # 過濾出包含日文的標題
+        japanese_indices = []
+        japanese_titles = []
+        for i, title in enumerate(request.titles):
+            if has_japanese(title):
+                japanese_indices.append(i)
+                japanese_titles.append(title)
 
-        # 統計成功/失敗
-        success_count = len([t for t in results if t])
-        error_indices = [i for i, t in enumerate(results) if not t]
+        # 初始化結果列表（預設為原文）
+        results = list(request.titles)
+
+        # 只翻譯日文標題
+        success_indices = []  # 新增：追蹤成功的索引
+        if japanese_titles:
+            translations = []
+            for i in range(0, len(japanese_titles), batch_size):
+                batch = japanese_titles[i:i+batch_size]
+                batch_results = await translate_service.translate_batch(batch)
+                translations.extend(batch_results)
+
+            # 將翻譯結果放回對應位置，同時追蹤成功的
+            for idx, trans in zip(japanese_indices, translations):
+                if trans:  # trans 非空表示翻譯成功
+                    results[idx] = trans
+                    success_indices.append(idx)  # 記錄成功的索引
+
+        # 統計 - 修正邏輯
+        success_count = len(success_indices)  # 基於成功執行，而非結果差異
+        skipped_count = len(request.titles) - len(japanese_indices)
+        error_indices = [i for i in japanese_indices if i not in success_indices]  # 失敗 = 日文但未成功翻譯
 
         return {
             "translations": results,
             "count": success_count,
+            "skipped": skipped_count,
             "errors": error_indices
         }
 
@@ -224,8 +255,9 @@ async def translate_batch(request: BatchTranslateRequest):
 
         # 返回錯誤響應（不拋出異常，避免前端報錯）
         return {
-            "translations": [""] * len(request.titles),
+            "translations": list(request.titles),
             "count": 0,
+            "skipped": 0,
             "errors": list(range(len(request.titles))),
             "error_message": str(e)
         }

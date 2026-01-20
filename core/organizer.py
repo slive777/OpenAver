@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 
 from core.path_utils import normalize_path
+from core.scrapers.utils import has_chinese, check_subtitle
 
 
 # HTTP 請求設定
@@ -37,16 +38,6 @@ def truncate_title(title: str, max_len: int) -> str:
     if len(title) <= max_len:
         return title
     return title[:max_len - 3] + '...'
-
-
-def has_chinese(text: str) -> bool:
-    """檢查文字是否包含中文"""
-    if not text:
-        return False
-    for char in text:
-        if '\u4e00' <= char <= '\u9fff':
-            return True
-    return False
 
 
 def clean_source_suffix(text: str) -> str:
@@ -120,42 +111,6 @@ def extract_chinese_title(filename: str, number: str, actors: List[str] = None) 
         return name
 
     return None
-
-
-def check_subtitle(filename: str) -> bool:
-    """
-    檢查檔名是否包含字幕標記
-
-    支援的標記：
-    - -C, -c, _C（常見字幕標記）
-    - 中文字幕, 字幕, 中字, [中字]
-    """
-    if not filename:
-        return False
-
-    # 不區分大小寫的標記
-    upper = filename.upper()
-    patterns_upper = ['-C', '_C']
-
-    # 中文標記（精確匹配）
-    patterns_chinese = ['中文字幕', '字幕', '中字', '[中字]', '【中字】']
-
-    # 檢查英文標記（需要是獨立的，避免誤判如 ABC-123）
-    for p in patterns_upper:
-        # 確保 -C 後面不是數字（避免 FC2-PPV-C 之類的誤判）
-        idx = upper.find(p)
-        if idx != -1:
-            # 檢查後面是否為數字或字母
-            next_idx = idx + len(p)
-            if next_idx >= len(upper) or not upper[next_idx].isalnum():
-                return True
-
-    # 檢查中文標記
-    for p in patterns_chinese:
-        if p in filename:
-            return True
-
-    return False
 
 
 def format_string(template: str, data: Dict[str, Any]) -> str:
