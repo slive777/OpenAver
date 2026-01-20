@@ -197,6 +197,264 @@ class Video:
         return cls(**data)
 
 
+class VideoRepository:
+    """影片資料存取層"""
+
+    def __init__(self, db_path: Path = None):
+        self.db_path = db_path or get_db_path()
+
+    def _get_connection(self) -> sqlite3.Connection:
+        """取得資料庫連線"""
+        return get_connection(self.db_path)
+
+    def _get_columns(self) -> List[str]:
+        """取得欄位名稱列表"""
+        return [
+            'id', 'path', 'number', 'title', 'original_title',
+            'actresses', 'maker', 'series', 'tags', 'duration',
+            'size_bytes', 'cover_path', 'release_date', 'mtime', 'nfo_mtime',
+            'created_at', 'updated_at'
+        ]
+
+    def upsert(self, video: Video) -> int:
+        """新增或更新影片（根據 path 判斷）
+
+        Returns:
+            int: 影片 id
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            video_dict = video.to_dict()
+            # 移除自動欄位
+            video_dict.pop('id', None)
+            video_dict.pop('created_at', None)
+            video_dict.pop('updated_at', None)
+
+            columns = list(video_dict.keys())
+            placeholders = ', '.join(['?'] * len(columns))
+            update_clause = ', '.join([f"{col} = excluded.{col}" for col in columns if col != 'path'])
+
+            sql = f"""
+                INSERT INTO videos ({', '.join(columns)})
+                VALUES ({placeholders})
+                ON CONFLICT(path) DO UPDATE SET
+                    {update_clause},
+                    updated_at = CURRENT_TIMESTAMP
+            """
+
+            cursor.execute(sql, list(video_dict.values()))
+            conn.commit()
+
+            # 取得 id
+            cursor.execute("SELECT id FROM videos WHERE path = ?", (video.path,))
+            row = cursor.fetchone()
+            return row[0] if row else 0
+        finally:
+            conn.close()
+
+    def upsert_batch(self, videos: List[Video]) -> tuple:
+        """批次新增或更新
+
+        Returns:
+            Tuple[int, int]: (inserted, updated)
+        """
+        if not videos:
+            return (0, 0)
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # 先取得現有 path 列表
+            paths = [v.path for v in videos]
+            placeholders = ', '.join(['?'] * len(paths))
+            cursor.execute(f"SELECT path FROM videos WHERE path IN ({placeholders})", paths)
+            existing_paths = {row[0] for row in cursor.fetchall()}
+
+            inserted = 0
+            updated = 0
+
+            for video in videos:
+                video_dict = video.to_dict()
+                video_dict.pop('id', None)
+                video_dict.pop('created_at', None)
+                video_dict.pop('updated_at', None)
+
+                columns = list(video_dict.keys())
+                placeholders_sql = ', '.join(['?'] * len(columns))
+                update_clause = ', '.join([f"{col} = excluded.{col}" for col in columns if col != 'path'])
+
+                sql = f"""
+                    INSERT INTO videos ({', '.join(columns)})
+                    VALUES ({placeholders_sql})
+                    ON CONFLICT(path) DO UPDATE SET
+                        {update_clause},
+                        updated_at = CURRENT_TIMESTAMP
+                """
+
+                cursor.execute(sql, list(video_dict.values()))
+
+                if video.path in existing_paths:
+                    updated += 1
+                else:
+                    inserted += 1
+
+            conn.commit()
+            return (inserted, updated)
+        finally:
+            conn.close()
+
+    def get_by_path(self, path: str) -> Optional[Video]:
+        """根據 path 查詢"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("SELECT * FROM videos WHERE path = ?", (path,))
+            row = cursor.fetchone()
+            if row:
+                return Video.from_row(row, self._get_columns())
+            return None
+        finally:
+            conn.close()
+
+    def get_all(self) -> List[Video]:
+        """取得所有影片"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("SELECT * FROM videos ORDER BY id")
+            rows = cursor.fetchall()
+            return [Video.from_row(row, self._get_columns()) for row in rows]
+        finally:
+            conn.close()
+
+    def get_mtime_index(self) -> dict:
+        """取得 {path: (mtime, nfo_mtime)} 索引，用於增量比對"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("SELECT path, mtime, nfo_mtime FROM videos")
+            rows = cursor.fetchall()
+            return {row[0]: (row[1], row[2]) for row in rows}
+        finally:
+            conn.close()
+
+    def delete_by_paths(self, paths: List[str]) -> int:
+        """批次刪除
+
+        Returns:
+            int: 刪除數量
+        """
+        if not paths:
+            return 0
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            placeholders = ', '.join(['?'] * len(paths))
+            cursor.execute(f"DELETE FROM videos WHERE path IN ({placeholders})", paths)
+            deleted_count = cursor.rowcount
+            conn.commit()
+            return deleted_count
+        finally:
+            conn.close()
+
+    def count(self) -> int:
+        """取得總數"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("SELECT COUNT(*) FROM videos")
+            row = cursor.fetchone()
+            return row[0] if row else 0
+        finally:
+            conn.close()
+
+
+def migrate_json_to_sqlite(json_path: Path, db_path: Path = None,
+                           delete_on_success: bool = True) -> dict:
+    """遷移 JSON cache 到 SQLite
+
+    Args:
+        json_path: JSON 快取檔案路徑
+        db_path: SQLite 資料庫路徑（預設為 output/openaver.db）
+        delete_on_success: 成功後是否刪除 JSON 檔案
+
+    Returns:
+        dict: {'migrated': int, 'skipped': int, 'errors': int}
+    """
+    from core.gallery_scanner import VideoInfo
+
+    result = {'migrated': 0, 'skipped': 0, 'errors': 0}
+
+    if not Path(json_path).exists():
+        return result
+
+    # 確保資料庫已初始化
+    if db_path is None:
+        db_path = get_db_path()
+    init_db(db_path)
+
+    # 讀取 JSON
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            cache_data = json.load(f)
+    except (json.JSONDecodeError, IOError) as e:
+        result['errors'] = 1
+        return result
+
+    repo = VideoRepository(db_path)
+    videos_to_upsert = []
+
+    for path_key, entry in cache_data.items():
+        # 跳過 _metadata
+        if path_key == '_metadata':
+            result['skipped'] += 1
+            continue
+
+        try:
+            # 取得 info 資料
+            info_dict = entry.get('info', {})
+            if not info_dict:
+                result['skipped'] += 1
+                continue
+
+            # 建立 VideoInfo
+            video_info = VideoInfo.from_dict(info_dict)
+
+            # 轉換為 Video
+            video = Video.from_video_info(video_info)
+
+            # 設定 mtime 和 nfo_mtime（從 cache entry 取得，不是從 info 取得）
+            video.mtime = entry.get('mtime', 0.0)
+            video.nfo_mtime = entry.get('nfo_mtime', 0.0)
+
+            videos_to_upsert.append(video)
+        except Exception as e:
+            result['errors'] += 1
+
+    # 批次寫入
+    if videos_to_upsert:
+        inserted, updated = repo.upsert_batch(videos_to_upsert)
+        result['migrated'] = inserted + updated
+
+    # 成功後刪除 JSON
+    if delete_on_success and result['errors'] == 0 and result['migrated'] > 0:
+        try:
+            Path(json_path).unlink()
+        except IOError:
+            pass
+
+    return result
+
+
 @dataclass
 class ActressAlias:
     """女優別名對照"""

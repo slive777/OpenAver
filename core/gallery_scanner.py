@@ -470,6 +470,107 @@ class VideoScanner:
 
         return info
 
+    def scan_to_sqlite(self, directory: str, db_path: 'Path' = None,
+                       min_size_mb: int = 0,
+                       progress_callback: callable = None) -> dict:
+        """掃描目錄並寫入 SQLite
+
+        Args:
+            directory: 要掃描的資料夾路徑
+            db_path: SQLite 資料庫路徑（預設為 output/openaver.db）
+            min_size_mb: 最小檔案大小 (MB)
+            progress_callback: 進度回調函數，簽名: (current, total, filename) -> None
+
+        Returns:
+            dict: {'inserted': int, 'updated': int, 'deleted': int, 'total': int}
+        """
+        from core.database import VideoRepository, Video, init_db, get_db_path
+
+        directory = Path(directory)
+        if not directory.exists():
+            raise ValueError(f"資料夾不存在: {directory}")
+
+        # 初始化資料庫
+        if db_path is None:
+            db_path = get_db_path()
+        init_db(db_path)
+
+        repo = VideoRepository(db_path)
+        min_size_bytes = min_size_mb * 1024 * 1024
+
+        # 步驟 1: 快速掃描檔案取得 mtime
+        print(f"[*] 快速掃描目錄中...")
+        file_infos = fast_scan_directory(str(directory), VIDEO_EXTENSIONS, min_size_bytes)
+        print(f"[*] 找到 {len(file_infos)} 個影片檔案")
+
+        # 步驟 2: 從 SQLite 取得現有 mtime 索引
+        # 注意：資料庫中的 path 是 file:/// 格式
+        db_index = repo.get_mtime_index()  # {path: (mtime, nfo_mtime)}
+
+        # 建立 file:/// 路徑到原始路徑的映射，以及原始路徑到 mtime 的映射
+        # scan_file 會產生 file:/// 格式的路徑
+        def to_file_uri(fs_path: str) -> str:
+            """將檔案系統路徑轉換為 file:/// URI（配合 scan_file 的格式）"""
+            abs_path = fs_path.replace(chr(92), '/')
+            win_path = wsl_to_windows_path(abs_path, self.path_mappings)
+            return f"file:///{win_path}"
+
+        # 步驟 3: 比對決定需要處理的檔案
+        needs_scan = []
+        current_file_uris = set()
+
+        for file_info in file_infos:
+            fs_path = file_info['path']
+            file_uri = to_file_uri(fs_path)
+            current_file_uris.add(file_uri)
+
+            db_entry = db_index.get(file_uri)
+            if db_entry is None:
+                # 新檔案
+                needs_scan.append(file_info)
+            elif db_entry[0] != file_info['mtime'] or db_entry[1] != file_info.get('nfo_mtime', 0):
+                # mtime 或 nfo_mtime 變更
+                needs_scan.append(file_info)
+
+        # 步驟 4: 清理已刪除的檔案（比對 file:/// 格式的路徑）
+        deleted_paths = set(db_index.keys()) - current_file_uris
+        deleted_count = repo.delete_by_paths(list(deleted_paths))
+        if deleted_count > 0:
+            print(f"[*] 清理 {deleted_count} 個已刪除檔案")
+
+        # 步驟 5: 掃描並寫入
+        videos_to_upsert = []
+        total_needs_scan = len(needs_scan)
+
+        for i, file_info in enumerate(needs_scan, 1):
+            video_name = os.path.basename(file_info['path'])
+
+            # 回報進度
+            if progress_callback:
+                progress_callback(i, total_needs_scan, video_name)
+
+            print(f"[{i}/{total_needs_scan}] 處理: {video_name}")
+
+            try:
+                video_info = self.scan_file(file_info['path'], None)
+                video = Video.from_video_info(video_info)
+                video.mtime = file_info['mtime']
+                video.nfo_mtime = file_info.get('nfo_mtime', 0)
+                videos_to_upsert.append(video)
+            except Exception as e:
+                print(f"  [!] 錯誤: {e}")
+
+        # 批次寫入
+        inserted, updated = repo.upsert_batch(videos_to_upsert)
+        print(f"[*] 完成: 新增 {inserted}, 更新 {updated}, 刪除 {deleted_count}")
+
+        return {
+            'inserted': inserted,
+            'updated': updated,
+            'deleted': deleted_count,
+            'total': repo.count()
+        }
+
     def scan_directory(self, directory: str, recursive: bool = True,
                        relative_path: bool = True,
                        min_size_mb: int = 0,
