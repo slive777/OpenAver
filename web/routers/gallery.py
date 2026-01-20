@@ -181,6 +181,24 @@ def generate_avlist() -> Generator[str, None, None]:
         # 從 SQLite 取得所有影片用於生成 HTML
         all_db_videos = repo.get_all()
 
+        # === 自動套用女優別名 ===
+        alias_repo = ActressAliasRepository(db_path)
+        aliases = alias_repo.get_all()
+
+        if aliases:
+            yield send({"type": "log", "level": "info",
+                        "message": f"套用 {len(aliases)} 筆女優別名..."})
+
+            videos_updated = False
+            for msg in apply_actress_aliases_generator(aliases, repo, alias_repo):
+                yield send(msg)
+                if msg.get('type') == 'log' and 'NFO 更新' in msg.get('message', ''):
+                    videos_updated = True
+
+            # 如果有更新，重新取得影片資料
+            if videos_updated:
+                all_db_videos = repo.get_all()
+
         # 轉換為 VideoInfo 格式供 HTMLGenerator 使用
         all_videos = []
         for v in all_db_videos:

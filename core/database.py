@@ -88,7 +88,9 @@ def init_db(db_path: Path = None) -> None:
             INSERT INTO actress_aliases (old_name, new_name) VALUES
             ('miru', '坂道みる'),
             ('橋本ありな', '新ありな'),
-            ('河北彩伽', '河北彩花')
+            ('河北彩伽', '河北彩花'),
+            ('天海こころ', '深田えいみ'),
+            ('心菜りお', '深田えいみ')
         """)
 
     conn.commit()

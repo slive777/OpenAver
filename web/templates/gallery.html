@@ -149,12 +149,6 @@
                 </div>
             </div>
 
-            <!-- Apply Button -->
-            <div class="alias-actions">
-                <button class="btn-apply-alias" onclick="applyActressAliases()" id="btnApplyAlias">
-                    <i class="bi bi-check-all"></i> 套用到 NFO
-                </button>
-            </div>
         </div>
     </div>
 </div>
@@ -921,80 +915,6 @@
             }
         } catch (e) {
             showToast('刪除失敗: ' + e.message);
-        }
-    }
-
-    // 套用別名到 NFO
-    async function applyActressAliases() {
-        const btn = document.getElementById('btnApplyAlias');
-        const progressSection = document.getElementById('progressSection');
-        const logOutput = document.getElementById('logOutput');
-
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 套用中...';
-        progressSection.style.display = 'block';
-        logOutput.innerHTML = '';
-
-        isGenerating = true;
-        localStorage.setItem(STORAGE_KEYS.isGenerating, 'true');
-        clearLogs();
-
-        try {
-            const eventSource = new EventSource('/api/gallery/apply-actress-aliases');
-
-            eventSource.onmessage = function (event) {
-                const data = JSON.parse(event.data);
-
-                if (data.type === 'progress') {
-                    document.getElementById('progressStatus').textContent = data.status;
-                    const pct = data.total > 0 ? (data.current / data.total) * 100 : 0;
-                    document.getElementById('progressBar').style.width = `${pct}%`;
-                    localStorage.setItem(STORAGE_KEYS.lastStatus, data.status);
-                } else if (data.type === 'log') {
-                    const cls = data.level === 'error' ? 'log-error' :
-                        data.level === 'warn' ? 'log-warn' : 'log-info';
-                    logOutput.innerHTML += `<div class="${cls}">${escapeHtml(data.message)}</div>`;
-                    logOutput.scrollTop = logOutput.scrollHeight;
-                    saveLogs();
-                } else if (data.type === 'done') {
-                    eventSource.close();
-                    isGenerating = false;
-                    localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-check-all"></i> 套用到 NFO';
-                    document.getElementById('progressBar').style.width = '100%';
-                    document.getElementById('progressStatus').textContent = data.message || '完成';
-                    localStorage.setItem(STORAGE_KEYS.lastStatus, '完成');
-
-                    showToast(data.message || '套用完成');
-                    loadActressAliases();
-                    saveLogs();
-                } else if (data.type === 'error') {
-                    eventSource.close();
-                    isGenerating = false;
-                    localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-check-all"></i> 套用到 NFO';
-                    logOutput.innerHTML += `<div class="log-error">錯誤: ${escapeHtml(data.message)}</div>`;
-                    saveLogs();
-                }
-            };
-
-            eventSource.onerror = function () {
-                eventSource.close();
-                isGenerating = false;
-                localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-check-all"></i> 套用到 NFO';
-                logOutput.innerHTML += '<div class="log-error">連線中斷</div>';
-                saveLogs();
-            };
-        } catch (e) {
-            isGenerating = false;
-            localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-check-all"></i> 套用到 NFO';
-            alert('發生錯誤: ' + e.message);
         }
     }
 
