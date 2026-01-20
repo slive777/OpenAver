@@ -1,18 +1,19 @@
 """Scraper 資料模型"""
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Actress(BaseModel):
     """女優資訊"""
-    name: str = Field(..., min_length=1, description="女優名稱")
+    model_config = ConfigDict(frozen=True)
 
-    class Config:
-        frozen = True  # 不可變
+    name: str = Field(..., min_length=1, description="女優名稱")
 
 
 class Video(BaseModel):
     """影片資訊"""
+    model_config = ConfigDict(frozen=True)
+
     number: str = Field(..., description="番號（如 SONE-205）")
     title: str = Field(default="", description="影片標題")
     actresses: list[Actress] = Field(default_factory=list, description="女優列表")
@@ -26,9 +27,6 @@ class Video(BaseModel):
     # 選用欄位（Task 5 會加入）
     rating: Optional[float] = None
     votes: Optional[int] = None
-
-    class Config:
-        frozen = True
 
     def to_legacy_dict(self) -> dict[str, object]:
         """轉換成舊格式（向後相容）"""
