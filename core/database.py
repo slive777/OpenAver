@@ -81,13 +81,15 @@ def init_db(db_path: Path = None) -> None:
         CREATE INDEX IF NOT EXISTS idx_actress_aliases_new_name ON actress_aliases(new_name)
     """)
 
-    # 插入種子資料
-    cursor.execute("""
-        INSERT OR IGNORE INTO actress_aliases (old_name, new_name) VALUES
-        ('miru', '坂道みる'),
-        ('橋本ありな', '新ありな'),
-        ('河北彩伽', '河北彩花')
-    """)
+    # 插入種子資料（只在表格為空時插入，避免刪除後又重新插入）
+    cursor.execute("SELECT COUNT(*) FROM actress_aliases")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("""
+            INSERT INTO actress_aliases (old_name, new_name) VALUES
+            ('miru', '坂道みる'),
+            ('橋本ありな', '新ありな'),
+            ('河北彩伽', '河北彩花')
+        """)
 
     conn.commit()
     conn.close()

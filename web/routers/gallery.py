@@ -640,9 +640,9 @@ def generate_apply_actress_aliases() -> Generator[str, None, None]:
         yield send({"type": "error", "message": str(e)})
 
 
-@router.post("/apply-actress-aliases")
+@router.get("/apply-actress-aliases")
 async def apply_actress_aliases():
-    """執行批次更新（SSE 串流回傳進度）"""
+    """執行批次更新（SSE 串流回傳進度）- 使用 GET 以支援 EventSource"""
     return StreamingResponse(
         generate_apply_actress_aliases(),
         media_type="text/event-stream",
