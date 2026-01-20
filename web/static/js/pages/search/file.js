@@ -883,21 +883,14 @@ async function setFileList(paths) {
     const filenames = paths.map(p => p.split(/[/\\]/).pop());
     const parseResults = await parseFilenames(filenames);
 
-    // 建立 filename -> parseResult 的對照表
-    const parseMap = new Map();
-    parseResults.forEach((result, idx) => {
-        parseMap.set(filenames[idx], result);
-    });
-
-    // 前端過濾：檢查能否提取番號
-    const validPaths = [];
+    // 前端過濾：檢查能否提取番號（用 index 對應，避免同名檔案衝突）
+    const validIndices = [];
     let noNumberCount = 0;
 
-    for (const path of paths) {
-        const filename = path.split(/[/\\]/).pop();
-        const result = parseMap.get(filename);
+    for (let i = 0; i < paths.length; i++) {
+        const result = parseResults[i];
         if (result && result.number !== null) {
-            validPaths.push(path);
+            validIndices.push(i);
         } else {
             noNumberCount++;
         }
@@ -930,18 +923,17 @@ async function setFileList(paths) {
         setTimeout(() => toast.remove(), 3000);
     }
 
-    paths = validPaths;
-
     // 檢查空列表
-    if (paths.length === 0) {
+    if (validIndices.length === 0) {
         alert('無有效影片檔案（無法識別番號）');
         return;
     }
 
-    // 使用已解析的結果構建 fileList
-    state.fileList = paths.map(path => {
-        const filename = path.split(/[/\\]/).pop();
-        const result = parseMap.get(filename) || { number: null, has_subtitle: false };
+    // 使用已解析的結果構建 fileList（用 index 對應）
+    state.fileList = validIndices.map(i => {
+        const path = paths[i];
+        const filename = filenames[i];
+        const result = parseResults[i];
         return {
             path: path,
             filename: filename,
