@@ -18,9 +18,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.gallery_scanner import VideoScanner, load_cache, save_cache, fast_scan_directory, VIDEO_EXTENSIONS, VideoInfo
 from core.gallery_generator import HTMLGenerator
 from core.path_utils import normalize_path
-from core.nfo_updater import check_cache_needs_update, update_videos_generator
-from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite
+from core.nfo_updater import check_cache_needs_update, update_videos_generator, apply_actress_aliases_generator
+from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite, ActressAliasRepository
 from web.routers.config import load_config
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/gallery", tags=["gallery"])
 
@@ -511,3 +512,142 @@ async def get_image(path: str = Query(..., description="圖片路徑")):
     media_type = mime_types.get(ext, 'application/octet-stream')
 
     return FileResponse(local_path, media_type=media_type)
+
+
+# === 女優名稱管理 API ===
+
+class ActressAliasRequest(BaseModel):
+    """新增女優別名請求"""
+    old_name: str
+    new_name: str
+
+
+@router.get("/actress-aliases")
+async def get_actress_aliases():
+    """取得所有別名對照"""
+    try:
+        db_path = get_db_path()
+        init_db(db_path)
+
+        alias_repo = ActressAliasRepository(db_path)
+        aliases = alias_repo.get_all()
+
+        return {
+            "success": True,
+            "data": [alias.to_dict() for alias in aliases]
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/actress-aliases")
+async def add_actress_alias(request: ActressAliasRequest):
+    """新增別名對照"""
+    try:
+        if not request.old_name or not request.new_name:
+            return {"success": False, "error": "名稱不可為空"}
+
+        if request.old_name == request.new_name:
+            return {"success": False, "error": "新舊名稱不可相同"}
+
+        db_path = get_db_path()
+        init_db(db_path)
+
+        alias_repo = ActressAliasRepository(db_path)
+        new_id = alias_repo.add(request.old_name, request.new_name)
+
+        if new_id == -1:
+            return {"success": False, "error": "該舊名稱已存在"}
+
+        return {"success": True, "data": {"id": new_id}}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.delete("/actress-aliases/{alias_id}")
+async def delete_actress_alias(alias_id: int):
+    """刪除別名對照"""
+    try:
+        db_path = get_db_path()
+        init_db(db_path)
+
+        alias_repo = ActressAliasRepository(db_path)
+        success = alias_repo.delete(alias_id)
+
+        if not success:
+            return {"success": False, "error": "找不到該別名對照"}
+
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.get("/actress-stats")
+async def get_actress_stats(name: str = Query(..., description="女優名稱")):
+    """查詢某名字的片數"""
+    try:
+        db_path = get_db_path()
+
+        if not db_path.exists():
+            return {"success": True, "data": {"count": 0}}
+
+        repo = VideoRepository(db_path)
+        count = repo.count_by_actress(name)
+
+        return {"success": True, "data": {"count": count}}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def generate_apply_actress_aliases() -> Generator[str, None, None]:
+    """套用女優別名生成器（SSE 串流）"""
+
+    def send(data: dict):
+        return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+    try:
+        db_path = get_db_path()
+
+        if not db_path.exists():
+            yield send({"type": "error", "message": "資料庫不存在"})
+            return
+
+        init_db(db_path)
+        video_repo = VideoRepository(db_path)
+        alias_repo = ActressAliasRepository(db_path)
+
+        aliases = alias_repo.get_all()
+        if not aliases:
+            yield send({"type": "done", "message": "沒有別名對照", "stats": {}})
+            return
+
+        yield send({
+            "type": "log",
+            "level": "info",
+            "message": f"開始套用 {len(aliases)} 筆別名對照..."
+        })
+
+        # 執行套用
+        for msg in apply_actress_aliases_generator(aliases, video_repo, alias_repo):
+            yield send(msg)
+
+        yield send({
+            "type": "done",
+            "message": "套用完成！建議重新產生列表以更新封面。"
+        })
+
+    except Exception as e:
+        yield send({"type": "error", "message": str(e)})
+
+
+@router.post("/apply-actress-aliases")
+async def apply_actress_aliases():
+    """執行批次更新（SSE 串流回傳進度）"""
+    return StreamingResponse(
+        generate_apply_actress_aliases(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )

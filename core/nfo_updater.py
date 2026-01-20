@@ -386,3 +386,137 @@ def update_videos_generator(
             stats['failed'] += 1
 
     return stats
+
+
+def replace_actress_in_nfo(nfo_path: str, old_name: str, new_name: str) -> Tuple[bool, str]:
+    """替換 NFO 中的女優名稱
+
+    Args:
+        nfo_path: NFO 檔案路徑
+        old_name: 舊女優名稱
+        new_name: 新女優名稱
+
+    Returns:
+        Tuple[bool, str]: (是否有修改, 訊息)
+    """
+    tree, root = parse_nfo(nfo_path)
+    if root is None:
+        return False, "無法解析 NFO"
+
+    modified = False
+
+    # 尋找並替換 <actor><name>old_name</name></actor>
+    for actor_elem in root.findall('.//actor'):
+        name_elem = actor_elem.find('name')
+        if name_elem is not None and name_elem.text:
+            if name_elem.text.strip() == old_name:
+                name_elem.text = new_name
+                modified = True
+
+    if modified:
+        indent_xml(root)
+        tree.write(nfo_path, encoding='utf-8', xml_declaration=True)
+        return True, f"已替換: {old_name} -> {new_name}"
+
+    return False, "未找到該女優名稱"
+
+
+def apply_actress_aliases_generator(
+    aliases: List,
+    video_repo,
+    alias_repo
+) -> Generator[dict, None, dict]:
+    """批次套用女優別名的生成器（SSE 串流）
+
+    Args:
+        aliases: ActressAlias 列表
+        video_repo: VideoRepository 實例
+        alias_repo: ActressAliasRepository 實例
+
+    Yields:
+        進度訊息 dict
+
+    Returns:
+        統計結果 dict
+    """
+    stats = {
+        'total_aliases': len(aliases),
+        'total_videos': 0,
+        'nfo_updated': 0,
+        'db_updated': 0,
+        'failed': 0,
+    }
+
+    for alias_idx, alias in enumerate(aliases, 1):
+        old_name = alias.old_name
+        new_name = alias.new_name
+        alias_applied = 0
+
+        yield {
+            'type': 'progress',
+            'current': alias_idx,
+            'total': len(aliases),
+            'status': f'處理: {old_name} -> {new_name}'
+        }
+
+        # 取得包含此女優名稱的影片
+        videos = video_repo.get_videos_by_actress(old_name)
+
+        if not videos:
+            yield {
+                'type': 'log',
+                'level': 'info',
+                'message': f'[{alias_idx}] {old_name}: 沒有影片'
+            }
+            continue
+
+        yield {
+            'type': 'log',
+            'level': 'info',
+            'message': f'[{alias_idx}] {old_name} -> {new_name}: 找到 {len(videos)} 部影片'
+        }
+
+        stats['total_videos'] += len(videos)
+
+        for video in videos:
+            # 更新 NFO
+            nfo_path = get_nfo_path_from_video(video.path)
+            if nfo_path:
+                try:
+                    updated, msg = replace_actress_in_nfo(nfo_path, old_name, new_name)
+                    if updated:
+                        stats['nfo_updated'] += 1
+                        yield {
+                            'type': 'log',
+                            'level': 'info',
+                            'message': f'  NFO 更新: {video.number or video.path}'
+                        }
+                except Exception as e:
+                    stats['failed'] += 1
+                    yield {
+                        'type': 'log',
+                        'level': 'error',
+                        'message': f'  NFO 錯誤: {video.number or video.path} - {e}'
+                    }
+
+            # 更新 SQLite
+            try:
+                if video_repo.update_actress_name(video.id, old_name, new_name):
+                    stats['db_updated'] += 1
+                    alias_applied += 1
+            except Exception as e:
+                stats['failed'] += 1
+                yield {
+                    'type': 'log',
+                    'level': 'error',
+                    'message': f'  DB 錯誤: {video.number or video.path} - {e}'
+                }
+
+        # 更新 applied_count
+        if alias_applied > 0:
+            try:
+                alias_repo.increment_applied_count(alias.id, alias_applied)
+            except Exception:
+                pass
+
+    return stats

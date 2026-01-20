@@ -422,6 +422,117 @@ class VideoRepository:
         finally:
             conn.close()
 
+    def count_by_actress(self, actress_name: str) -> int:
+        """查詢某女優名字的片數
+
+        Args:
+            actress_name: 女優名稱
+
+        Returns:
+            int: 包含該女優的影片數量
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # actresses 欄位是 JSON array，使用 LIKE 查詢
+            # 需要處理完全匹配（避免部分匹配，例如 "miru" 匹配到 "miruku"）
+            cursor.execute(
+                """
+                SELECT COUNT(*) FROM videos
+                WHERE actresses LIKE ?
+                   OR actresses LIKE ?
+                   OR actresses LIKE ?
+                   OR actresses = ?
+                """,
+                (
+                    f'["{actress_name}",%',      # 開頭
+                    f'%, "{actress_name}",%',    # 中間
+                    f'%, "{actress_name}"]',     # 結尾
+                    f'["{actress_name}"]'        # 唯一
+                )
+            )
+            row = cursor.fetchone()
+            return row[0] if row else 0
+        finally:
+            conn.close()
+
+    def get_videos_by_actress(self, actress_name: str) -> List['Video']:
+        """取得包含某女優的所有影片
+
+        Args:
+            actress_name: 女優名稱
+
+        Returns:
+            List[Video]: 包含該女優的影片列表
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                """
+                SELECT * FROM videos
+                WHERE actresses LIKE ?
+                   OR actresses LIKE ?
+                   OR actresses LIKE ?
+                   OR actresses = ?
+                ORDER BY id
+                """,
+                (
+                    f'["{actress_name}",%',
+                    f'%, "{actress_name}",%',
+                    f'%, "{actress_name}"]',
+                    f'["{actress_name}"]'
+                )
+            )
+            rows = cursor.fetchall()
+            return [Video.from_row(row, self._get_columns()) for row in rows]
+        finally:
+            conn.close()
+
+    def update_actress_name(self, video_id: int, old_name: str, new_name: str) -> bool:
+        """更新影片的女優名稱
+
+        Args:
+            video_id: 影片 ID
+            old_name: 舊女優名稱
+            new_name: 新女優名稱
+
+        Returns:
+            bool: 是否成功更新
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # 先取得目前的 actresses
+            cursor.execute("SELECT actresses FROM videos WHERE id = ?", (video_id,))
+            row = cursor.fetchone()
+            if not row or not row[0]:
+                return False
+
+            try:
+                actresses = json.loads(row[0])
+            except json.JSONDecodeError:
+                return False
+
+            # 替換名稱
+            if old_name not in actresses:
+                return False
+
+            actresses = [new_name if a == old_name else a for a in actresses]
+
+            # 更新
+            cursor.execute(
+                "UPDATE videos SET actresses = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (json.dumps(actresses, ensure_ascii=False), video_id)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
 
 def migrate_json_to_sqlite(json_path: Path, db_path: Path = None,
                            delete_on_success: bool = True) -> dict:
@@ -524,3 +635,94 @@ class ActressAlias:
             if isinstance(data['created_at'], str):
                 data['created_at'] = datetime.fromisoformat(data['created_at'])
         return cls(**data)
+
+
+class ActressAliasRepository:
+    """女優別名資料存取層"""
+
+    def __init__(self, db_path: Path = None):
+        self.db_path = db_path or get_db_path()
+
+    def _get_connection(self) -> sqlite3.Connection:
+        """取得資料庫連線"""
+        return get_connection(self.db_path)
+
+    def _get_columns(self) -> List[str]:
+        """取得欄位名稱列表"""
+        return ['id', 'old_name', 'new_name', 'applied_count', 'created_at']
+
+    def get_all(self) -> List[ActressAlias]:
+        """取得所有別名對照"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("SELECT * FROM actress_aliases ORDER BY id")
+            rows = cursor.fetchall()
+            return [ActressAlias.from_row(row, self._get_columns()) for row in rows]
+        finally:
+            conn.close()
+
+    def add(self, old_name: str, new_name: str) -> int:
+        """新增別名對照
+
+        Args:
+            old_name: 舊名稱（要被替換的）
+            new_name: 新名稱（替換成的）
+
+        Returns:
+            int: 新增的 id，若已存在則返回 -1
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                "INSERT INTO actress_aliases (old_name, new_name) VALUES (?, ?)",
+                (old_name, new_name)
+            )
+            conn.commit()
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            # old_name 已存在
+            return -1
+        finally:
+            conn.close()
+
+    def delete(self, id: int) -> bool:
+        """刪除別名對照
+
+        Args:
+            id: 別名對照 ID
+
+        Returns:
+            bool: 是否成功刪除
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("DELETE FROM actress_aliases WHERE id = ?", (id,))
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    def increment_applied_count(self, id: int, count: int) -> None:
+        """增加套用次數
+
+        Args:
+            id: 別名對照 ID
+            count: 要增加的次數
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute(
+                "UPDATE actress_aliases SET applied_count = applied_count + ? WHERE id = ?",
+                (count, id)
+            )
+            conn.commit()
+        finally:
+            conn.close()
