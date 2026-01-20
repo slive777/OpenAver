@@ -25,6 +25,7 @@ class TestTranslateSkipNonJapanese:
         assert response.status_code == 200
         data = response.json()
         assert data.get("skipped") is True
+        assert data.get("success") is True  # 新增：驗證 success 欄位
         assert data.get("reason") == "no_japanese"
         assert data.get("original") == "中文標題沒有日文"
 
@@ -40,6 +41,7 @@ class TestTranslateSkipNonJapanese:
         assert response.status_code == 200
         data = response.json()
         assert data.get("skipped") is True
+        assert data.get("success") is True  # 新增
         assert data.get("reason") == "no_japanese"
 
     @patch("web.routers.translate.load_config")

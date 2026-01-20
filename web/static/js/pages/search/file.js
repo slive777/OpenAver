@@ -879,20 +879,31 @@ async function setFileList(paths) {
         // 降級：保留原 paths
     }
 
-    // 🆕 前端過濾：檢查能否提取番號
+    // 🔧 使用後端 API 批次解析所有檔名
+    const filenames = paths.map(p => p.split(/[/\\]/).pop());
+    const parseResults = await parseFilenames(filenames);
+
+    // 建立 filename -> parseResult 的對照表
+    const parseMap = new Map();
+    parseResults.forEach((result, idx) => {
+        parseMap.set(filenames[idx], result);
+    });
+
+    // 前端過濾：檢查能否提取番號
     const validPaths = [];
     let noNumberCount = 0;
 
     for (const path of paths) {
-        const number = extractNumber(path);
-        if (number !== null) {
+        const filename = path.split(/[/\\]/).pop();
+        const result = parseMap.get(filename);
+        if (result && result.number !== null) {
             validPaths.push(path);
         } else {
             noNumberCount++;
         }
     }
 
-    // 🆕 顯示前端過濾統計（橘色 toast）
+    // 顯示前端過濾統計（橘色 toast）
     if (noNumberCount > 0) {
         const msg = `已過濾 ${noNumberCount} 個無法識別番號的檔案`;
         console.log('[Filter]', msg);
@@ -927,15 +938,16 @@ async function setFileList(paths) {
         return;
     }
 
+    // 使用已解析的結果構建 fileList
     state.fileList = paths.map(path => {
         const filename = path.split(/[/\\]/).pop();
-        const number = extractNumber(path);
+        const result = parseMap.get(filename) || { number: null, has_subtitle: false };
         return {
             path: path,
             filename: filename,
-            number: number,
-            hasSubtitle: checkSubtitle(filename),
-            chineseTitle: extractChineseTitle(filename, number),
+            number: result.number,
+            hasSubtitle: result.has_subtitle,
+            chineseTitle: extractChineseTitle(filename, result.number),
             searchResults: [],
             hasMoreResults: false,
             searched: false
@@ -960,7 +972,7 @@ async function setFileList(paths) {
         if (state.fileList[0].number) {
             dom.queryInput.value = state.fileList[0].number;
         }
-        switchToFile(0, 'first', true);
+        await switchToFile(0, 'first', true);
     }
 }
 

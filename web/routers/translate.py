@@ -70,6 +70,7 @@ async def translate_title(request: TranslateRequest) -> dict:
     if request.mode == "translate" and not has_japanese(request.text):
         return {
             "skipped": True,
+            "success": True,  # 新增：API 成功執行跳過邏輯
             "reason": "no_japanese",
             "original": request.text
         }
@@ -221,6 +222,7 @@ async def translate_batch(request: BatchTranslateRequest):
         results = list(request.titles)
 
         # 只翻譯日文標題
+        success_indices = []  # 新增：追蹤成功的索引
         if japanese_titles:
             translations = []
             for i in range(0, len(japanese_titles), batch_size):
@@ -228,15 +230,16 @@ async def translate_batch(request: BatchTranslateRequest):
                 batch_results = await translate_service.translate_batch(batch)
                 translations.extend(batch_results)
 
-            # 將翻譯結果放回對應位置
+            # 將翻譯結果放回對應位置，同時追蹤成功的
             for idx, trans in zip(japanese_indices, translations):
-                if trans:  # 只有成功翻譯才替換
+                if trans:  # trans 非空表示翻譯成功
                     results[idx] = trans
+                    success_indices.append(idx)  # 記錄成功的索引
 
-        # 統計
-        success_count = len([t for i, t in enumerate(results) if i in japanese_indices and t != request.titles[i]])
+        # 統計 - 修正邏輯
+        success_count = len(success_indices)  # 基於成功執行，而非結果差異
         skipped_count = len(request.titles) - len(japanese_indices)
-        error_indices = [i for i in japanese_indices if results[i] == request.titles[i]]
+        error_indices = [i for i in japanese_indices if i not in success_indices]  # 失敗 = 日文但未成功翻譯
 
         return {
             "translations": results,

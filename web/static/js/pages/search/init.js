@@ -149,8 +149,8 @@ document.addEventListener('DOMContentLoaded', function () {
     dom.btnFavorite.addEventListener('click', loadFavoriteFolder);
 
     // 10. PyWebView 檔案事件
-    window.addEventListener('pywebview-files', (e) => {
-        window.SearchFile.setFileList(e.detail.paths);
+    window.addEventListener('pywebview-files', async (e) => {
+        await window.SearchFile.setFileList(e.detail.paths);
     });
 
     // 11. 拖拽事件
