@@ -5,10 +5,16 @@ Gallery Scanner - 掃描資料夾、讀取 NFO、解析檔名
 import json
 import os
 import re
+import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+from core.logger import get_logger
+from core.path_utils import to_file_uri
+
+logger = get_logger(__name__)
 
 
 def load_maker_mapping() -> Dict[str, str]:
@@ -121,6 +127,7 @@ def fast_scan_directory(directory: str, extensions: set, min_size_bytes: int = 0
     使用 os.scandir() 替代 glob() + stat()，大幅減少系統呼叫次數
     同時收集 NFO 檔案的 mtime，用於偵測 NFO 更新
     """
+    logger.debug(f"[FastScan] 掃描目錄: {directory}")
     results = []
     nfo_mtimes = {}  # 記錄每個目錄中的 NFO mtime
 
@@ -166,6 +173,7 @@ def fast_scan_directory(directory: str, extensions: set, min_size_bytes: int = 0
             pass
 
     scan_recursive(directory)
+    logger.debug(f"[FastScan] 找到 {len(results)} 個檔案")
     return results
 
 
@@ -401,7 +409,10 @@ class VideoScanner:
 
     def scan_file(self, video_path: str, base_path: str = None) -> VideoInfo:
         """掃描單一影片檔案"""
+        t_start = time.time()
         video_path = Path(video_path)
+        video_name = video_path.name
+        logger.debug(f"[Scan] {video_name} 開始")
 
         # 基本檔案資訊
         info = VideoInfo()
@@ -415,10 +426,8 @@ class VideoScanner:
             except ValueError:
                 info.path = str(video_path).replace('\\', '/')
         else:
-            # 絕對路徑 (file:// 格式) - 轉換 WSL 路徑為 Windows 路徑
-            abs_path = str(video_path).replace(chr(92), '/')
-            win_path = wsl_to_windows_path(abs_path, self.path_mappings)
-            info.path = f"file:///{win_path}"
+            # 絕對路徑 (file:// 格式) - 使用統一的 to_file_uri()
+            info.path = to_file_uri(str(video_path), self.path_mappings)
 
         # 檔案大小和修改時間
         try:
@@ -430,8 +439,12 @@ class VideoScanner:
 
         # 嘗試讀取 NFO
         nfo_path = video_path.with_suffix('.nfo')
+        t_nfo_check = time.time()
         if nfo_path.exists():
+            logger.debug(f"[Scan]   nfo_exists: {t_nfo_check - t_start:.2f}s")
             nfo_info = self.parse_nfo(str(nfo_path))
+            t_parse = time.time()
+            logger.debug(f"[Scan]   parse_nfo: {t_parse - t_nfo_check:.2f}s")
             if nfo_info:
                 info.title = nfo_info.title or info.title
                 info.originaltitle = nfo_info.originaltitle or info.originaltitle
@@ -467,6 +480,9 @@ class VideoScanner:
                 abs_img = img_path.replace(chr(92), '/')
                 win_img = wsl_to_windows_path(abs_img, self.path_mappings)
                 info.img = f"file:///{win_img}"
+
+        t_end = time.time()
+        logger.debug(f"[Scan] {video_name} 完成 ({t_end - t_start:.2f}s)")
 
         return info
 

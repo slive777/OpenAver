@@ -361,3 +361,145 @@ class TestGetEnvironment:
 
         monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'linux')
         assert path_utils.get_environment() == 'linux'
+
+
+# ============ TestToFileUri ============
+
+class TestToFileUri:
+    """測試 to_file_uri() 路徑轉換為 file:/// URI
+
+    這是 D.1 新增的函數，用於統一路徑格式以確保快取命中。
+    所有路徑最終都應轉換為 file:/// 格式，與 scan_file() 產生的格式一致。
+    """
+
+    # --- Windows 本地路徑 ---
+    def test_windows_backslash(self):
+        """Windows 反斜線路徑"""
+        result = path_utils.to_file_uri(r'C:\Videos\test.mp4')
+        assert result == 'file:///C:/Videos/test.mp4'
+
+    def test_windows_forward_slash(self):
+        """Windows 正斜線路徑"""
+        result = path_utils.to_file_uri('C:/Videos/test.mp4')
+        assert result == 'file:///C:/Videos/test.mp4'
+
+    def test_windows_lowercase_drive(self):
+        """小寫磁碟機"""
+        result = path_utils.to_file_uri(r'd:\downloads\file.mp4')
+        assert result == 'file:///d:/downloads/file.mp4'
+
+    def test_windows_root_only(self):
+        """只有磁碟機根目錄"""
+        result = path_utils.to_file_uri('C:\\')
+        assert result == 'file:///C:/'
+
+    # --- WSL mount 路徑 ---
+    def test_wsl_mount_c(self):
+        """/mnt/c 路徑"""
+        result = path_utils.to_file_uri('/mnt/c/Videos/test.mp4')
+        assert result == 'file:///C:/Videos/test.mp4'
+
+    def test_wsl_mount_d(self):
+        """/mnt/d 路徑"""
+        result = path_utils.to_file_uri('/mnt/d/Downloads/file.mp4')
+        assert result == 'file:///D:/Downloads/file.mp4'
+
+    def test_wsl_mount_root_only(self):
+        """只有 mount 根目錄"""
+        result = path_utils.to_file_uri('/mnt/c')
+        assert result == 'file:///C:'
+
+    # --- UNC 路徑（網路路徑） ---
+    def test_unc_standard_backslash(self):
+        """標準 UNC 反斜線路徑"""
+        result = path_utils.to_file_uri(r'\\server\share\test.mp4')
+        assert result == 'file://///server/share/test.mp4'
+
+    def test_unc_ip_address(self):
+        """UNC IP 位址路徑"""
+        result = path_utils.to_file_uri(r'\\192.168.1.177\downloads\test.mp4')
+        assert result == 'file://///192.168.1.177/downloads/test.mp4'
+
+    def test_unc_forward_slash(self):
+        """UNC 已經是正斜線"""
+        result = path_utils.to_file_uri('//server/share/test.mp4')
+        assert result == 'file://///server/share/test.mp4'
+
+    # --- UNC 邊緣案例（D.1.3 修復） ---
+    def test_unc_extra_slashes(self):
+        """UNC 多餘斜線應正規化"""
+        result = path_utils.to_file_uri('////server/share/test.mp4')
+        assert result == 'file://///server/share/test.mp4'
+
+    def test_unc_many_extra_slashes(self):
+        """UNC 超多斜線應正規化"""
+        result = path_utils.to_file_uri('////////server/share/test.mp4')
+        assert result == 'file://///server/share/test.mp4'
+
+    def test_unc_mixed_format(self):
+        """UNC 混合格式（反斜線 + 正斜線）"""
+        result = path_utils.to_file_uri(r'\\//server/share/test.mp4')
+        assert result == 'file://///server/share/test.mp4'
+
+    # --- 一致性測試（確保與 scan_file 相同） ---
+    def test_all_formats_produce_5_slashes_for_unc(self):
+        """所有 UNC 格式都應產生 5 斜線"""
+        test_cases = [
+            r'\\server\share\file.mp4',
+            '//server/share/file.mp4',
+            '////server/share/file.mp4',
+            r'\\//server/share/file.mp4',
+        ]
+        for path in test_cases:
+            result = path_utils.to_file_uri(path)
+            # 計算 file: 後的斜線數
+            after_file = result[5:]  # 移除 'file:'
+            leading_slashes = len(after_file) - len(after_file.lstrip('/'))
+            assert leading_slashes == 5, f"Path {path} produced {leading_slashes} slashes, expected 5"
+
+    # --- path_mappings 測試 ---
+    def test_path_mappings_unc(self, monkeypatch):
+        """WSL 環境下 path_mappings 轉換 UNC"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        mappings = {'/home/user/nas': r'\\DiskStation\share'}
+        result = path_utils.to_file_uri('/home/user/nas/Videos/test.mp4', mappings)
+        assert result == 'file://///DiskStation/share/Videos/test.mp4'
+
+    def test_path_mappings_not_matched(self, monkeypatch):
+        """path_mappings 不匹配時 fallback"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        mappings = {'/home/other': r'\\Server\share'}
+        result = path_utils.to_file_uri('/home/user/test.mp4', mappings)
+        # 不匹配，直接返回原路徑
+        assert result == 'file:////home/user/test.mp4'
+
+
+# ============ TestToFileUriConsistency ============
+
+class TestToFileUriConsistency:
+    """測試 to_file_uri() 與 scan_file() 產生的路徑格式一致性
+
+    這是最重要的測試：確保查詢路徑和儲存路徑格式相同，否則快取永遠 miss。
+    """
+
+    def test_consistency_with_wsl_to_windows_path(self):
+        """驗證 to_file_uri 與 wsl_to_windows_path + file:/// 一致"""
+        from core.gallery_scanner import wsl_to_windows_path
+
+        test_cases = [
+            r'C:\Videos\test.mp4',
+            '/mnt/c/Videos/test.mp4',
+            r'\\server\share\test.mp4',
+        ]
+
+        for path in test_cases:
+            # scan_file 的邏輯
+            abs_path = path.replace(chr(92), '/')
+            win_path = wsl_to_windows_path(abs_path, None)
+            scan_file_result = f"file:///{win_path}"
+
+            # to_file_uri 的結果
+            to_file_uri_result = path_utils.to_file_uri(path)
+
+            assert scan_file_result == to_file_uri_result, \
+                f"Mismatch for {path}:\n  scan_file: {scan_file_result}\n  to_file_uri: {to_file_uri_result}"

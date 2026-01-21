@@ -8,6 +8,10 @@ import re
 import time
 import json
 from pathlib import Path
+
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, List, Dict, Union, Any, Callable, Type
 
@@ -189,15 +193,21 @@ def search_jav(number: str, source: str = 'auto') -> Optional[Dict[str, Any]]:
         scrapers = [cls() for cls in SCRAPER_CLASSES]
 
     # 執行搜尋
+    logger.info(f"[Search] {number} 使用來源: {source}")
     for scraper in scrapers:
         try:
+            scraper_name = scraper.__class__.__name__
+            logger.debug(f"[Search] 嘗試 {scraper_name}...")
             video = scraper.search(number)
             if video:
                 all_data[video.source] = video
-        except Exception:
+                logger.debug(f"[Search] {scraper_name} 找到結果")
+        except Exception as e:
+            logger.debug(f"[Search] {scraper_name} 錯誤: {e}")
             continue
 
     if not all_data:
+        logger.info(f"[Search] {number} 無結果")
         return None
 
     # 合併邏輯
@@ -243,6 +253,7 @@ def search_jav(number: str, source: str = 'auto') -> Optional[Dict[str, Any]]:
 
     result = main_video.to_legacy_dict()
     result['_source'] = main_video.source # 保留內部欄位
+    logger.info(f"[Search] {number} 完成，來源: {main_video.source}")
     return result
 
 
