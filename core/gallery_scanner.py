@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from core.path_utils import to_file_uri
+
 
 def load_maker_mapping() -> Dict[str, str]:
     """載入片商映射檔（番號前綴 -> 片商名稱）"""
@@ -415,10 +417,8 @@ class VideoScanner:
             except ValueError:
                 info.path = str(video_path).replace('\\', '/')
         else:
-            # 絕對路徑 (file:// 格式) - 轉換 WSL 路徑為 Windows 路徑
-            abs_path = str(video_path).replace(chr(92), '/')
-            win_path = wsl_to_windows_path(abs_path, self.path_mappings)
-            info.path = f"file:///{win_path}"
+            # 絕對路徑 (file:// 格式) - 使用統一的 to_file_uri()
+            info.path = to_file_uri(str(video_path), self.path_mappings)
 
         # 檔案大小和修改時間
         try:
