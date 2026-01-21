@@ -665,3 +665,70 @@
     font-size: 0.8rem;
     margin-left: 4px;
 }
+
+/* ==================== 用戶標籤樣式 ==================== */
+.tag-badge.user-tag {
+    background: #6366f1;
+    color: #fff;
+    cursor: default;
+}
+
+.tag-badge .tag-remove {
+    cursor: pointer;
+    margin-left: 4px;
+    opacity: 0.7;
+}
+
+.tag-badge .tag-remove:hover {
+    opacity: 1;
+}
+
+.tag-add-btn {
+    padding: 1px 6px;
+    font-size: 0.7rem;
+    line-height: 1;
+    background: transparent;
+    border: 1px dashed var(--text-muted);
+    color: var(--text-muted);
+    border-radius: 4px;
+    margin-left: 2px;
+    vertical-align: middle;
+}
+
+.tag-add-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.tag-input-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    vertical-align: middle;
+}
+
+.tag-input {
+    width: 80px;
+    padding: 1px 4px;
+    font-size: 0.7rem;
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.tag-confirm, .tag-cancel {
+    padding: 0 4px;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    border: none;
+    background: transparent;
+}
+
+.tag-confirm {
+    color: #22c55e;
+}
+
+.tag-cancel {
+    color: #ef4444;
+}

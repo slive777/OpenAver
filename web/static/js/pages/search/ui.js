@@ -348,9 +348,10 @@ function displayResult(data) {
     const hasSubtitle = currentFile ? currentFile.hasSubtitle : false;
     const chineseTitle = currentFile ? currentFile.chineseTitle : null;
 
-    // 標籤（全部顯示）+ 字幕標籤
+    // 標籤（全部顯示）+ 字幕標籤 + 用戶標籤
     const tagsContainer = document.getElementById('resultTags');
     const tags = data.tags || [];
+    const userTags = data.user_tags || [];
     let tagsHtml = '';
 
     if (hasSubtitle) {
@@ -359,15 +360,21 @@ function displayResult(data) {
 
     if (tags.length > 0) {
         tagsHtml += tags.map(tag =>
-            `<span class="badge tag-badge">${tag}</span>`
+            `<span class="badge tag-badge">${escapeHtml(tag)}</span>`
         ).join('');
     }
 
-    if (tagsHtml) {
-        tagsContainer.innerHTML = tagsHtml;
-    } else {
-        tagsContainer.textContent = '-';
+    // 用戶標籤（可刪除）
+    if (userTags.length > 0) {
+        tagsHtml += userTags.map(tag =>
+            `<span class="badge tag-badge user-tag">${escapeHtml(tag)} <span class="tag-remove" onclick="removeUserTag('${escapeHtml(tag)}')">&times;</span></span>`
+        ).join('');
     }
+
+    // 新增按鈕
+    tagsHtml += '<button class="btn btn-sm tag-add-btn" onclick="showAddTagInput()" title="新增標籤">+</button>';
+
+    tagsContainer.innerHTML = tagsHtml;
 
     // 中文標題
     const chineseTitleRow = document.getElementById('chineseTitleRow');
@@ -1022,6 +1029,105 @@ function updateLocalBadges() {
     }
 }
 
+// === 用戶標籤功能 ===
+
+/**
+ * 顯示新增標籤輸入框
+ */
+function showAddTagInput() {
+    const container = document.getElementById('resultTags');
+    const addBtn = container.querySelector('.tag-add-btn');
+    if (!addBtn) return;
+
+    // 建立輸入框
+    const inputWrapper = document.createElement('span');
+    inputWrapper.className = 'tag-input-wrapper';
+    inputWrapper.innerHTML = `
+        <input type="text" class="tag-input" placeholder="標籤名稱" maxlength="20">
+        <button class="btn btn-sm tag-confirm" onclick="confirmAddTag()" title="確認">✓</button>
+        <button class="btn btn-sm tag-cancel" onclick="cancelAddTag()" title="取消">✕</button>
+    `;
+
+    // 替換按鈕為輸入框
+    addBtn.replaceWith(inputWrapper);
+
+    // 自動聚焦
+    const input = inputWrapper.querySelector('.tag-input');
+    input.focus();
+
+    // Enter 確認，Escape 取消
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') confirmAddTag();
+        else if (e.key === 'Escape') cancelAddTag();
+    });
+}
+
+/**
+ * 確認新增標籤
+ */
+function confirmAddTag() {
+    const input = document.querySelector('.tag-input');
+    if (!input) return;
+
+    const tag = input.value.trim();
+    if (tag) {
+        addUserTag(tag);
+    } else {
+        cancelAddTag();
+    }
+}
+
+/**
+ * 取消新增標籤
+ */
+function cancelAddTag() {
+    const { state } = window.SearchCore;
+    const currentResult = state.searchResults[state.currentIndex];
+    if (currentResult) {
+        displayResult(currentResult);
+    }
+}
+
+/**
+ * 新增用戶標籤
+ */
+function addUserTag(tag) {
+    const { state } = window.SearchCore;
+    const currentResult = state.searchResults[state.currentIndex];
+    if (!currentResult) return;
+
+    // 初始化 user_tags
+    if (!currentResult.user_tags) {
+        currentResult.user_tags = [];
+    }
+
+    // 避免重複
+    if (currentResult.user_tags.includes(tag)) {
+        cancelAddTag();
+        return;
+    }
+
+    currentResult.user_tags.push(tag);
+    displayResult(currentResult);
+    window.SearchCore.saveState();
+}
+
+/**
+ * 移除用戶標籤
+ */
+function removeUserTag(tag) {
+    const { state } = window.SearchCore;
+    const currentResult = state.searchResults[state.currentIndex];
+    if (!currentResult || !currentResult.user_tags) return;
+
+    const idx = currentResult.user_tags.indexOf(tag);
+    if (idx > -1) {
+        currentResult.user_tags.splice(idx, 1);
+        displayResult(currentResult);
+        window.SearchCore.saveState();
+    }
+}
+
 // === 暴露介面 ===
 window.SearchUI = {
     showState,
@@ -1057,3 +1163,9 @@ window.startEditChineseTitle = startEditChineseTitle;
 window.confirmEditChineseTitle = confirmEditChineseTitle;
 window.cancelEditChineseTitle = cancelEditChineseTitle;
 window.switchSource = switchSource;
+// 用戶標籤
+window.showAddTagInput = showAddTagInput;
+window.confirmAddTag = confirmAddTag;
+window.cancelAddTag = cancelAddTag;
+window.addUserTag = addUserTag;
+window.removeUserTag = removeUserTag;
