@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.gallery_scanner import VideoScanner, load_cache, save_cache, fast_scan_directory, VIDEO_EXTENSIONS, VideoInfo
 from core.gallery_generator import HTMLGenerator
-from core.path_utils import normalize_path
+from core.path_utils import normalize_path, to_file_uri
 from core.nfo_updater import check_cache_needs_update, update_videos_generator, apply_actress_aliases_generator
 from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite, ActressAliasRepository
 from web.routers.config import load_config
@@ -127,9 +127,10 @@ def generate_avlist() -> Generator[str, None, None]:
 
                 for file_info in all_files:
                     path = file_info['path']
-                    current_paths.add(path)
+                    file_uri = to_file_uri(path, path_mappings)
+                    current_paths.add(file_uri)
 
-                    db_entry = db_index.get(path)
+                    db_entry = db_index.get(file_uri)
                     if db_entry is None:
                         # 新檔案
                         needs_scan.append(file_info)
@@ -138,7 +139,8 @@ def generate_avlist() -> Generator[str, None, None]:
                         needs_scan.append(file_info)
 
                 # 清理已刪除的檔案（限定在此目錄下）
-                deleted_paths = [p for p in db_index.keys() if p.startswith(normalized_dir) and p not in current_paths]
+                normalized_dir_uri = to_file_uri(normalized_dir, path_mappings)
+                deleted_paths = [p for p in db_index.keys() if p.startswith(normalized_dir_uri) and p not in current_paths]
                 if deleted_paths:
                     deleted_count = repo.delete_by_paths(deleted_paths)
                     total_deleted += deleted_count

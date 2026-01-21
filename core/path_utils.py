@@ -233,3 +233,49 @@ def expand_env_vars(path: str) -> str:
 def get_environment() -> str:
     """取得當前環境"""
     return CURRENT_ENV
+
+
+def to_file_uri(fs_path: str, path_mappings: dict = None) -> str:
+    """
+    將檔案系統路徑轉換為 file:/// URI
+
+    支援輸入：
+    - C:\\Videos\\xxx.mp4 → file:///C:/Videos/xxx.mp4
+    - /mnt/c/Videos/xxx.mp4 → file:///C:/Videos/xxx.mp4
+    - \\\\NAS\\share\\xxx.mp4 → file:///NAS/share/xxx.mp4
+
+    Args:
+        fs_path: 檔案系統路徑
+        path_mappings: 路徑映射表（WSL 環境用）
+
+    Returns:
+        file:/// 格式的 URI
+    """
+    # 統一使用正斜線
+    abs_path = fs_path.replace(chr(92), '/')
+
+    # Windows 路徑：C:/... 格式
+    if len(abs_path) >= 2 and abs_path[1] == ':':
+        return f"file:///{abs_path}"
+
+    # WSL mount 路徑：/mnt/c/... → C:/...
+    if abs_path.startswith('/mnt/') and len(abs_path) > 5:
+        drive = abs_path[5].upper()
+        rest = abs_path[6:] if len(abs_path) > 6 else ''
+        return f"file:///{drive}:{rest}"
+
+    # UNC 路徑：//server/share/... 或開頭是 /
+    if abs_path.startswith('//'):
+        return f"file:{abs_path}"
+
+    # 其他 Unix 路徑：使用 path_mappings 轉換
+    if path_mappings and CURRENT_ENV == 'wsl':
+        # 嘗試找到匹配的映射
+        for wsl_prefix, win_prefix in path_mappings.items():
+            if abs_path.startswith(wsl_prefix):
+                win_path = win_prefix + abs_path[len(wsl_prefix):]
+                win_path = win_path.replace(chr(92), '/')
+                return f"file:///{win_path}"
+
+    # Fallback：直接用原路徑
+    return f"file:///{abs_path}"
