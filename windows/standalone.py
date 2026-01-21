@@ -11,7 +11,6 @@ import urllib.request
 import urllib.error
 import logging
 import traceback
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 # 確保專案根目錄在 sys.path 中
@@ -24,6 +23,7 @@ WINDOWS_DIR = os.path.dirname(os.path.abspath(__file__))
 if WINDOWS_DIR not in sys.path:
     sys.path.insert(0, WINDOWS_DIR)
 
+from core.logger import setup_logging, get_logger
 import webview
 from pywebview_api import api, bind_events
 
@@ -31,59 +31,6 @@ from pywebview_api import api, bind_events
 HOST = "127.0.0.1"
 PORT = 49152  # 使用動態/私有端口範圍 (49152-65535)，避免權限問題
 STARTUP_TIMEOUT = 30  # 最多等待 30 秒
-
-# 全域 logger
-logger = None
-
-
-# ============ 日誌系統 ============
-
-def setup_logging():
-    """設定日誌系統（RotatingFileHandler）"""
-    global logger
-
-    # 日誌目錄：%USERPROFILE%/OpenAver/logs/
-    log_dir = Path.home() / "OpenAver" / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
-
-    log_file = log_dir / "debug.log"
-
-    # 配置 RotatingFileHandler (5 個檔案 x 10MB)
-    file_handler = RotatingFileHandler(
-        log_file,
-        maxBytes=10 * 1024 * 1024,  # 10MB
-        backupCount=5,
-        encoding='utf-8'
-    )
-
-    # 格式
-    formatter = logging.Formatter(
-        '%(asctime)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-    file_handler.setFormatter(formatter)
-
-    # 設定 root logger
-    logger = logging.getLogger('OpenAver')
-    logger.setLevel(logging.DEBUG)
-    logger.addHandler(file_handler)
-
-    # 同時輸出到 console（INFO 以上）
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-
-    logger.info(f"日誌系統初始化完成：{log_file}")
-    return logger
-
-
-def log(msg):
-    """輸出日誌（相容舊版）"""
-    if logger:
-        logger.info(msg)
-    else:
-        print(f"[OpenAver] {msg}")
 
 
 # ============ WebView2 檢查 ============
@@ -135,13 +82,13 @@ def show_webview2_prompt():
         root.destroy()
         return result
     except Exception as e:
-        log(f"無法顯示 WebView2 提示視窗：{e}")
+        print(f"[OpenAver] 無法顯示 WebView2 提示視窗：{e}")
         return False
 
 
 # ============ 錯誤處理 ============
 
-def show_error(title, message, details=None):
+def show_error(title, message, details=None, logger=None):
     """顯示錯誤訊息視窗"""
     try:
         import tkinter as tk
@@ -158,14 +105,19 @@ def show_error(title, message, details=None):
         root.destroy()
     except Exception:
         # tkinter 不可用時，只輸出到 console/log
-        log(f"[ERROR] {title}: {message}")
-        if details:
-            log(f"[DETAILS] {details}")
+        if logger:
+            logger.error(f"{title}: {message}")
+            if details:
+                logger.error(f"詳情: {details}")
+        else:
+            print(f"[OpenAver ERROR] {title}: {message}")
+            if details:
+                print(f"[OpenAver DETAILS] {details}")
 
 
 # ============ 核心功能 ============
 
-def find_free_port(start_port=49152, max_attempts=100):
+def find_free_port(start_port=49152, logger=None, max_attempts=100):
     """尋找可用端口（改進版，使用動態端口範圍避免權限問題）"""
     last_error = None
     tested_ports = []
@@ -240,17 +192,25 @@ def wait_for_server(port, timeout=STARTUP_TIMEOUT):
     return False
 
 
-def run_server(port):
+def run_server(port, debug_mode=False):
     """在背景執行 uvicorn 伺服器"""
     import uvicorn
     from web.app import app
+
+    # Debug 模式顯示完整 HTTP 請求 log
+    if debug_mode:
+        log_level = "debug"
+        access_log = True
+    else:
+        log_level = "warning"
+        access_log = False
 
     config = uvicorn.Config(
         app,
         host=HOST,
         port=port,
-        log_level="warning",
-        access_log=False,
+        log_level=log_level,
+        access_log=access_log,
     )
     server = uvicorn.Server(config)
     server.run()
@@ -259,52 +219,59 @@ def run_server(port):
 # ============ 主程序 ============
 
 def main():
-    global logger
-    logger = setup_logging()
-    log("正在啟動...")
+    # 檢查 DEBUG 環境變數
+    debug_mode = os.environ.get('OPENAVER_DEBUG', '0') == '1'
+    console_level = logging.DEBUG if debug_mode else logging.INFO
+    setup_logging(console_level=console_level)
+    logger = get_logger('standalone')
+
+    logger.info("正在啟動...")
 
     # 0. 檢查 WebView2（僅 Windows）
     if sys.platform == 'win32':
         if not check_webview2_installed():
-            log("WebView2 Runtime 未安裝")
+            logger.info("WebView2 Runtime 未安裝")
             if not show_webview2_prompt():
-                log("用戶取消安裝，程式結束")
+                logger.info("用戶取消安裝，程式結束")
                 sys.exit(0)
             else:
-                log("請安裝 WebView2 後重新啟動")
+                logger.info("請安裝 WebView2 後重新啟動")
                 sys.exit(0)
 
     # 1. 尋找可用端口
     try:
-        port = find_free_port(PORT)
-        log(f"使用端口: {port}")
+        port = find_free_port(PORT, logger)
+        logger.info(f"使用端口: {port}")
     except RuntimeError as e:
         # 端口綁定失敗，顯示詳細的解決方案
         show_error(
             "啟動失敗 - 無法綁定端口",
             str(e),
-            None
+            None,
+            logger
         )
         sys.exit(1)
 
     # 2. 在背景 thread 啟動 FastAPI
-    log("啟動伺服器...")
-    server_thread = threading.Thread(target=run_server, args=(port,), daemon=True)
+    logger.info("啟動伺服器...")
+    server_thread = threading.Thread(target=run_server, args=(port, debug_mode), daemon=True)
     server_thread.start()
 
     # 3. 等待伺服器就緒
-    log("等待伺服器就緒...")
+    logger.info("等待伺服器就緒...")
     if not wait_for_server(port):
-        log("錯誤：伺服器啟動逾時")
+        logger.info("錯誤：伺服器啟動逾時")
         show_error(
             "啟動失敗",
-            "伺服器啟動逾時。\n\n請檢查是否有其他程式佔用端口 8000。"
+            "伺服器啟動逾時。\n\n請檢查是否有其他程式佔用端口 8000。",
+            None,
+            logger
         )
         sys.exit(1)
-    log("伺服器已就緒")
+    logger.info("伺服器已就緒")
 
     # 4. 啟動 PyWebView 窗口
-    log("啟動視窗...")
+    logger.info("啟動視窗...")
     webview.settings['OPEN_DEVTOOLS_IN_DEBUG'] = False
 
     window = webview.create_window(
@@ -342,9 +309,12 @@ if __name__ == '__main__':
         sys.exit(1)
     except Exception as e:
         error_details = traceback.format_exc()
-        # 確保錯誤也寫入日誌
-        if logger:
-            logger.error(f"未預期的錯誤：{e}\n{error_details}")
+        # 嘗試取得 logger 寫入錯誤（可能尚未初始化）
+        try:
+            err_logger = get_logger('standalone')
+            err_logger.error(f"未預期的錯誤：{e}\n{error_details}")
+        except Exception:
+            pass
         show_error(
             "啟動失敗 - 未知錯誤",
             "OpenAver 啟動時發生錯誤。\n\n請將錯誤詳情回報到 GitHub Issues。",

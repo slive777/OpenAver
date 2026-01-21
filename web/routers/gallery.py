@@ -22,6 +22,9 @@ from core.nfo_updater import check_cache_needs_update, update_videos_generator, 
 from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite, ActressAliasRepository
 from web.routers.config import load_config
 from pydantic import BaseModel
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/gallery", tags=["gallery"])
 
@@ -56,6 +59,8 @@ def generate_avlist() -> Generator[str, None, None]:
             yield send({"type": "error", "message": "未設定掃描資料夾"})
             return
 
+        logger.info(f"[Gallery] 開始生成，目錄數: {len(directories)}")
+
         # 確保輸出目錄存在
         project_root = Path(__file__).parent.parent.parent
         output_path = project_root / output_dir
@@ -89,6 +94,8 @@ def generate_avlist() -> Generator[str, None, None]:
         session_added_paths = []  # 追蹤本次新增/變更的影片路徑
 
         for idx, directory in enumerate(directories, 1):
+            logger.info(f"[Gallery] 掃描: {directory}")
+
             # 轉換路徑格式 (Windows -> WSL)
             try:
                 normalized_dir = normalize_path(directory)
@@ -171,6 +178,8 @@ def generate_avlist() -> Generator[str, None, None]:
                     inserted, updated = repo.upsert_batch(videos_to_upsert)
                     total_inserted += inserted
                     total_updated += updated
+
+                logger.info(f"[Gallery] {directory}: {len(all_files)} 個檔案，快取命中 {cache_hits}")
 
                 yield send({
                     "type": "log",
@@ -281,6 +290,8 @@ def generate_avlist() -> Generator[str, None, None]:
             "current": total_dirs + 1,
             "total": total_dirs + 1
         })
+
+        logger.info(f"[Gallery] 完成，新增 {total_inserted}，更新 {total_updated}，刪除 {total_deleted}")
 
         yield send({
             "type": "done",
