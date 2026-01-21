@@ -342,10 +342,12 @@ def test_actress_aliases_seed_data(tmp_path):
     cursor = conn.cursor()
     cursor.execute("SELECT old_name, new_name FROM actress_aliases ORDER BY id")
     rows = cursor.fetchall()
-    assert len(rows) == 3
+    assert len(rows) == 5
     assert rows[0] == ('miru', '坂道みる')
     assert rows[1] == ('橋本ありな', '新ありな')
     assert rows[2] == ('河北彩伽', '河北彩花')
+    assert rows[3] == ('天海こころ', '深田えいみ')
+    assert rows[4] == ('心菜りお', '深田えいみ')
     conn.close()
 
 

@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-01-21
+
+### Added
+
+#### 🗄️ SQLite Data Layer (Phase 18)
+- SQLite database with WAL mode for local video metadata
+- Gallery Scanner stores video info (path, number, actresses, mtime)
+- `/search` page shows local status indicator (green dot = already in library)
+- Actress alias management (Settings page)
+- Auto-apply aliases during Gallery scan
+- User tags in `/search` (frontend state, written to NFO on generate)
+
+#### 🔄 Thin Client Refactor (Phase 17)
+- Business logic centralized to backend
+- New `/api/parse-filename` endpoint for batch filename parsing
+- `/api/translate` auto-skips non-Japanese text
+- `/api/search/sources` returns unified source configuration
+- Frontend simplified: removed duplicate logic (hasJapanese, extractNumber, etc.)
+
+### Changed
+- Test framework expanded to 315 test cases
+- Frontend JS reduced complexity (uses backend APIs)
+
+### Fixed
+- Path format consistency in database (`file:///` URI)
+- Alias application correctly reloads DB after NFO updates
+- `/api/search/local-status` properly initializes database
+
+---
+
 ## [0.3.0] - 2026-01-20
 
 ### Added

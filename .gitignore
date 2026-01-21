@@ -53,3 +53,4 @@ build/
 dist/
 output/
 .build_cache/
+CLAUDE.md
