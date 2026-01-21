@@ -1,6 +1,9 @@
-"""JavDB 爬蟲（需 curl_cffi TLS 指紋偽造）"""
+"""JavDB 爬蟲"""
+import logging
 import re
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 from urllib.parse import quote
 from bs4 import BeautifulSoup
 from .base import BaseScraper
@@ -51,8 +54,8 @@ class JavDBScraper(BaseScraper):
 
             if response.status_code == 200:
                 return str(response.text)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"JavDB request failed for {url}: {e}")
 
         return None
 
@@ -192,7 +195,8 @@ class JavDBScraper(BaseScraper):
 
             return video
 
-        except Exception:
+        except Exception as e:
+            logger.warning(f"JavDB search failed for {number}: {e}")
             return None
 
     def search_by_keyword(self, keyword: str, limit: int = 20) -> list[Video]:
@@ -229,10 +233,12 @@ class JavDBScraper(BaseScraper):
                     if video:
                         results.append(video)
 
-                except Exception:
+                except Exception as e:
+                    logger.debug(f"JavDB keyword search item failed: {e}")
                     continue
 
             return results
 
-        except Exception:
+        except Exception as e:
+            logger.warning(f"JavDB keyword search failed for {keyword}: {e}")
             return []

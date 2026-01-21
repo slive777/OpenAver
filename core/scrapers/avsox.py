@@ -1,7 +1,10 @@
 """AVSOX 爬蟲"""
+import logging
 import re
 import requests
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 from lxml import etree
 from .base import BaseScraper
 from .models import Video, Actress, ScraperConfig
@@ -55,7 +58,8 @@ class AVSOXScraper(BaseScraper):
                 if resp.status_code == 200:
                     self._working_domain = domain
                     return domain
-            except Exception:
+            except Exception as e:
+                logger.debug(f"AVSOX domain {domain} unavailable: {e}")
                 continue
         return None
 
@@ -151,7 +155,8 @@ class AVSOXScraper(BaseScraper):
 
             return None
 
-        except Exception:
+        except Exception as e:
+            logger.debug(f"AVSOX search URL failed for {number}: {e}")
             return None
 
     def search(self, number: str) -> Optional[Video]:
@@ -228,7 +233,8 @@ class AVSOXScraper(BaseScraper):
 
         except requests.Timeout:
             raise TimeoutError(f"AVSOX request timeout for {number}")
-        except Exception:
+        except Exception as e:
+            logger.warning(f"AVSOX search failed for {number}: {e}")
             return None
 
     def search_by_keyword(self, keyword: str, limit: int = 20) -> list[Video]:
@@ -274,7 +280,8 @@ class AVSOXScraper(BaseScraper):
 
             return results
 
-        except Exception:
+        except Exception as e:
+            logger.warning(f"AVSOX keyword search failed for {keyword}: {e}")
             return []
 
 

@@ -1,7 +1,10 @@
 """FC2 爬蟲（使用 FC2Hub/javten.com）"""
+import logging
 import re
 import requests
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 from lxml import etree
 from .base import BaseScraper
 from .models import Video, Actress, ScraperConfig
@@ -129,7 +132,8 @@ class FC2Scraper(BaseScraper):
             # 若都沒有，返回第一個
             return urls[0]
 
-        except Exception:
+        except Exception as e:
+            logger.debug(f"FC2 search URL failed for {fc2_number}: {e}")
             return None
 
     def search(self, number: str) -> Optional[Video]:
@@ -195,7 +199,8 @@ class FC2Scraper(BaseScraper):
 
         except requests.Timeout:
             raise TimeoutError(f"FC2 request timeout for {number}")
-        except Exception:
+        except Exception as e:
+            logger.warning(f"FC2 search failed for {number}: {e}")
             return None
 
     def search_by_keyword(self, keyword: str, limit: int = 20) -> list[Video]:

@@ -1,8 +1,11 @@
 """爬蟲共用工具"""
+import logging
 import re
 import time
 import requests
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 # 全域設定
@@ -37,8 +40,8 @@ def get_html(url: str, timeout: int = DEFAULT_TIMEOUT,
 
         if resp.status_code == 200:
             return resp.text
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"GET {url} failed: {e}")
     return None
 
 
@@ -66,8 +69,8 @@ def post_html(url: str, data: Optional[dict[str, object]] = None, timeout: int =
 
         if resp.status_code == 200:
             return resp.text
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"POST {url} failed: {e}")
     return None
 
 

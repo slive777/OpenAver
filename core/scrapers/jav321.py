@@ -1,6 +1,9 @@
 """JAV321 爬蟲"""
+import logging
 import re
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from .base import BaseScraper
@@ -121,7 +124,8 @@ class JAV321Scraper(BaseScraper):
 
             return video
 
-        except Exception:
+        except Exception as e:
+            logger.warning(f"JAV321 search failed for {number}: {e}")
             return None
 
     def search_by_keyword(self, keyword: str, limit: int = 20) -> list[Video]:
@@ -164,10 +168,12 @@ class JAV321Scraper(BaseScraper):
                     if video:
                         results.append(video)
 
-                except Exception:
+                except Exception as e:
+                    logger.debug(f"JAV321 keyword search item failed: {e}")
                     continue
 
             return results
 
-        except Exception:
+        except Exception as e:
+            logger.warning(f"JAV321 keyword search failed for {keyword}: {e}")
             return []

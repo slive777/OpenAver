@@ -1,6 +1,9 @@
 """JavBus 爬蟲（透過 jvav 庫）"""
+import logging
 from typing import Optional
 from .base import BaseScraper
+
+logger = logging.getLogger(__name__)
 from .models import Video, Actress
 from .utils import rate_limit
 
@@ -76,7 +79,7 @@ class JavBusScraper(BaseScraper):
             return video
 
         except Exception as e:
-            # 記錄錯誤但不拋出（讓上層處理）
+            logger.warning(f"JavBus search failed for {number}: {e}")
             return None
 
     def search_by_keyword(self, keyword: str, limit: int = 20) -> list[Video]:
