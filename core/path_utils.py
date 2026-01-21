@@ -266,7 +266,9 @@ def to_file_uri(fs_path: str, path_mappings: dict = None) -> str:
 
     # UNC 路徑：//server/share/... → file://///server/share/...
     # 需要使用 file:/// + //path 格式，與 scan_file() 產生的格式一致
+    # 正規化：移除多餘的前導斜線，確保恆定 2 個（避免 //// 變成 7 斜線）
     if abs_path.startswith('//'):
+        abs_path = '//' + abs_path.lstrip('/')
         return f"file:///{abs_path}"
 
     # 其他 Unix 路徑：使用 path_mappings 轉換
