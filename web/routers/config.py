@@ -29,8 +29,8 @@ class ScraperConfig(BaseModel):
     download_cover: bool = True
     cover_filename: str = "poster.jpg"
     create_nfo: bool = True
-    max_title_length: int = 80
-    max_filename_length: int = 200
+    max_title_length: int = 50
+    max_filename_length: int = 60
     video_extensions: List[str] = [".mp4", ".avi", ".mkv", ".wmv", ".rmvb", ".flv", ".mov", ".m4v", ".ts"]
 
 

@@ -31,13 +31,20 @@ def sanitize_filename(name: str) -> str:
     return name
 
 
-def truncate_title(title: str, max_len: int) -> str:
+def truncate_title(title: str, max_len: int = 50) -> str:
     """截斷標題長度"""
     if not title:
         return ''
     if len(title) <= max_len:
         return title
     return title[:max_len - 3] + '...'
+
+
+def truncate_to_chars(text: str, max_chars: int = 60) -> str:
+    """按字符截斷，確保不超過指定長度"""
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars - 3] + '...'
 
 
 def clean_source_suffix(text: str) -> str:
@@ -347,7 +354,7 @@ def organize_file(
 
     format_data = {
         'number': number,
-        'title': truncate_title(title, config.get('max_title_length', 80)),
+        'title': truncate_title(title, config.get('max_title_length', 50)),
         'actors': actors,
         'maker': metadata.get('maker', ''),
         'date': metadata.get('date', ''),
@@ -368,10 +375,12 @@ def organize_file(
             layers = [p.strip() for p in old_format.replace('\\', '/').split('/') if p.strip()]
 
         # 過濾空值，分別格式化每層
+        # 讀取設定，但上限 120 字符
+        max_folder_chars = min(config.get('max_filename_length', 60), 120)
         path_parts = []
         for layer in layers[:3]:  # 限制最多 3 層
             if layer:
-                part = format_string(layer, format_data)
+                part = truncate_to_chars(format_string(layer, format_data), max_folder_chars)
                 if part:
                     path_parts.append(part)
 
@@ -382,10 +391,10 @@ def organize_file(
     # 計算新檔名
     filename_base = format_string(config.get('filename_format', '{num} {title}'), format_data)
 
-    # 確保檔名長度限制
-    max_len = config.get('max_filename_length', 200)
-    if len(filename_base) + len(original_ext) > max_len:
-        filename_base = filename_base[:max_len - len(original_ext) - 3] + '...'
+    # 讀取設定，但上限 120 字符（扣除副檔名）
+    max_filename_chars = min(config.get('max_filename_length', 60), 120)
+    max_chars = max_filename_chars - len(original_ext)
+    filename_base = truncate_to_chars(filename_base, max_chars)
 
     new_filename = filename_base + original_ext
     target_path = os.path.join(target_dir, new_filename)
