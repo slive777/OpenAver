@@ -5,7 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-01-22
+
+### Added
+
+#### 🔍 FC2 / Uncensored Search
+- FC2-PPV number search support
+- Caribbeancom / 1Pondo uncensored numbers
+- AVSOX scraper for uncensored content
+
+#### 🎯 Uncensored Mode Toggle
+- Settings page switch to search AVSOX / FC2 only
+
+#### 🗄️ Local Library
+- SQLite database tracks scanned videos
+- Search page shows "in library" green dot indicator
+- Actress alias management (auto-apply during scan)
+- User tags (saved to NFO)
+
+### Changed
+- Scraper architecture modularized (Phase 16)
+- Frontend logic moved to backend APIs (Phase 17)
+- Test framework expanded to 311 cases
+- Tutorial samples: added FC2-PPV-1723984 (11 total)
+
+### Removed
+- DMM scraper temporarily removed (requires Japan IP)
+
+---
+
 ## [0.4.0] - 2026-01-21
+
+> ⚠️ Merged into 0.2.1
 
 ### Added
 
@@ -36,6 +67,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 ## [0.3.0] - 2026-01-20
+
+> ⚠️ Merged into 0.2.1
 
 ### Added
 
