@@ -483,16 +483,50 @@ def search_by_variant_id(variant_id: str, base_number: str) -> Optional[Dict[str
     return None
 
 
-def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None) -> List[Dict[str, Any]]:
+def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, uncensored_mode: bool = False) -> List[Dict[str, Any]]:
     """
     智慧搜尋：自動判斷搜尋類型並執行
+
+    Args:
+        query: 搜尋關鍵字
+        limit: 結果數量限制
+        offset: 分頁偏移
+        status_callback: 狀態回調函數
+        uncensored_mode: 無碼模式（只搜 AVSOX / FC2）
     """
     query = query.strip()
-    
+
     if not query or len(query) < 2:
         return []
 
-    # 0. 無碼特殊處理 (FC2 / 日期-編號格式)
+    # 無碼模式：只搜尋 AVSOX / FC2
+    if uncensored_mode:
+        if status_callback:
+            status_callback('mode', 'uncensored')
+
+        # 嘗試從查詢中提取番號
+        extracted = _new_extract_number(query)
+        search_term = extracted if extracted else query
+
+        if status_callback:
+            status_callback('avsox', 'searching')
+
+        # AVSOX 優先
+        result = search_jav(search_term, source='avsox')
+        if not result:
+            # FC2 備用
+            if status_callback:
+                status_callback('fc2', 'searching')
+            result = search_jav(search_term, source='fc2')
+
+        results = [result] if result else []
+        if status_callback:
+            status_callback('done', f'found:{len(results)}')
+        for r in results:
+            r['_mode'] = 'uncensored'
+        return results
+
+    # 0. 無碼特殊處理 (FC2 / 日期-編號格式) - 自動偵測
     is_uncensored = 'fc2' in query.lower() or re.match(r'^\d{6}-\d{3,}$', query)
     if is_uncensored:
         if status_callback:

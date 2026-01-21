@@ -24,6 +24,7 @@
   "search": {
     "search_filter": "",
     "gallery_mode_enabled": true,
+    "uncensored_mode_enabled": false,
     "favorite_folder": ""
   },
   "translate": {

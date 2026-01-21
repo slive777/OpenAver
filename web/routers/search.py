@@ -133,9 +133,14 @@ def search(
             "mode": "exact"
         }
 
+    # 讀取無碼模式設定
+    from web.routers.config import load_config
+    config = load_config()
+    uncensored_mode = config.get('search', {}).get('uncensored_mode_enabled', False)
+
     # 自動模式使用 smart_search
     if mode == "auto":
-        results = smart_search(q, limit=limit, offset=offset)
+        results = smart_search(q, limit=limit, offset=offset, uncensored_mode=uncensored_mode)
     elif mode == "exact":
         if source:
             # 指定來源搜索
@@ -241,6 +246,11 @@ async def search_stream(
             yield f"data: {json.dumps({'type': 'error', 'message': '請輸入有效的搜尋關鍵字'})}\n\n"
         return StreamingResponse(error_gen(), media_type="text/event-stream")
 
+    # 讀取無碼模式設定
+    from web.routers.config import load_config
+    config = load_config()
+    uncensored_mode = config.get('search', {}).get('uncensored_mode_enabled', False)
+
     status_queue = Queue()
 
     def status_callback(source: str, status: str):
@@ -249,7 +259,7 @@ async def search_stream(
 
     def run_search():
         """在背景執行搜尋"""
-        return smart_search(q, limit=limit, offset=offset, status_callback=status_callback)
+        return smart_search(q, limit=limit, offset=offset, status_callback=status_callback, uncensored_mode=uncensored_mode)
 
     async def event_generator():
         # 偵測模式

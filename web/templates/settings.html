@@ -130,6 +130,19 @@
                     </div>
                 </div>
 
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="uncensoredModeEnabled"
+                                data-section="search" data-key="uncensored_mode_enabled">
+                            <label class="form-check-label" for="uncensoredModeEnabled">
+                                無碼模式
+                            </label>
+                        </div>
+                        <small class="text-muted">啟用時只搜尋 AVSOX / FC2，適合無碼作品</small>
+                    </div>
+                </div>
+
                 <!-- 我的最愛資料夾 -->
                 <div class="row mb-3">
                     <div class="col-md-6">
@@ -798,6 +811,7 @@
                 // 搜尋設定
                 if (config.search) {
                     document.getElementById('galleryModeEnabled').checked = config.search.gallery_mode_enabled || false;
+                    document.getElementById('uncensoredModeEnabled').checked = config.search.uncensored_mode_enabled || false;
                     document.getElementById('searchFavoriteFolder').value = config.search.favorite_folder || '';
                 }
 
@@ -897,6 +911,7 @@
             config.search = {
                 ...config.search,
                 gallery_mode_enabled: document.getElementById('galleryModeEnabled').checked,
+                uncensored_mode_enabled: document.getElementById('uncensoredModeEnabled').checked,
                 favorite_folder: document.getElementById('searchFavoriteFolder').value.trim()
             };
 
