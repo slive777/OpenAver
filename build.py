@@ -275,7 +275,7 @@ def copy_project_files():
     samples_dst = BUILD_DIR / "OpenAver" / "教學檔案"
     if samples_src.exists():
         shutil.copytree(samples_src, samples_dst)
-        print("  複製目錄: 教學檔案 (10 個範例)")
+        print("  複製目錄: 教學檔案 (11 個範例)")
 
 
 def create_launcher_scripts():

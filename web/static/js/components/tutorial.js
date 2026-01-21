@@ -37,7 +37,7 @@ class SpotlightTutorial {
                 id: 'samples',
                 target: '#emptyState',
                 title: '🎬 立即體驗！',
-                content: '拖放 <code>教學檔案</code> 資料夾<br>或其中任一 <code>.mp4</code> 檔案到此視窗<br><br><small class="text-muted">內含 10 個真實可搜尋的範例</small>',
+                content: '拖放 <code>教學檔案</code> 資料夾<br>或其中任一 <code>.mp4</code> 檔案到此視窗<br><br><small class="text-muted">內含 11 個真實可搜尋的範例</small>',
                 position: 'bottom',
                 large: true
             }

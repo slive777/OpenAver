@@ -191,9 +191,12 @@ def generate_avlist() -> Generator[str, None, None]:
 
             db_updated = False
             for msg in apply_actress_aliases_generator(aliases, repo, alias_repo):
+                # 過濾掉中間函數的 done 事件，避免前端誤判為最終結果
+                if msg.get('type') == 'done':
+                    if msg.get('db_updated', 0) > 0:
+                        db_updated = True
+                    continue  # 不轉發 done 事件
                 yield send(msg)
-                if msg.get('type') == 'done' and msg.get('db_updated', 0) > 0:
-                    db_updated = True
 
             # 如果有更新，重新取得影片資料
             if db_updated:
