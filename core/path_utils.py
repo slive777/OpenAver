@@ -264,9 +264,10 @@ def to_file_uri(fs_path: str, path_mappings: dict = None) -> str:
         rest = abs_path[6:] if len(abs_path) > 6 else ''
         return f"file:///{drive}:{rest}"
 
-    # UNC 路徑：//server/share/... 或開頭是 /
+    # UNC 路徑：//server/share/... → file://///server/share/...
+    # 需要使用 file:/// + //path 格式，與 scan_file() 產生的格式一致
     if abs_path.startswith('//'):
-        return f"file:{abs_path}"
+        return f"file:///{abs_path}"
 
     # 其他 Unix 路徑：使用 path_mappings 轉換
     if path_mappings and CURRENT_ENV == 'wsl':
