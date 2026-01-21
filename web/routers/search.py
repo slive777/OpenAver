@@ -4,7 +4,7 @@
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import Response, StreamingResponse, FileResponse
-from typing import Optional
+from typing import Optional, List
 import requests
 import json
 import asyncio
@@ -18,6 +18,7 @@ from pathlib import Path
 # 加入 core 模組路徑
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from core.database import VideoRepository, get_db_path, init_db
 from core.scraper import (
     search_jav, smart_search, is_partial_number, is_number_format,
     is_prefix_only, search_partial, search_actress, search_prefix,
@@ -503,3 +504,53 @@ async def filter_files(request: Request) -> dict:
         "rejected": rejected,
         "total_rejected": sum(rejected.values())
     }
+
+
+@router.get("/search/local-status")
+async def get_local_status(numbers: str = Query(..., description="逗號分隔的番號列表")) -> dict:
+    """查詢番號在本地庫的存在狀態
+
+    Args:
+        numbers: 逗號分隔的番號列表 (e.g., "SONE-205,ABW-001")
+
+    Returns:
+        {
+            "SONE-205": { "exists": true, "count": 2, "paths": ["/path/1.mp4", "/path/2.mp4"] },
+            "ABW-001": { "exists": false }
+        }
+
+    Notes:
+        - 大小寫不敏感比對
+        - 限制單次查詢最多 100 個番號
+    """
+    # 解析番號列表
+    number_list = [n.strip() for n in numbers.split(',') if n.strip()]
+
+    if not number_list:
+        return {}
+
+    # 限制單次查詢最多 100 個番號
+    if len(number_list) > 100:
+        number_list = number_list[:100]
+
+    # 查詢資料庫
+    init_db()  # 確保 DB 存在
+    repo = VideoRepository()
+    videos_by_number = repo.get_by_numbers(number_list)
+
+    # 建立回應
+    result = {}
+    for number in number_list:
+        videos = videos_by_number.get(number, [])
+        if videos:
+            result[number] = {
+                "exists": True,
+                "count": len(videos),
+                "paths": [v.path for v in videos]
+            }
+        else:
+            result[number] = {
+                "exists": False
+            }
+
+    return result

@@ -18,14 +18,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from core.gallery_scanner import VideoScanner, load_cache, save_cache, fast_scan_directory, VIDEO_EXTENSIONS, VideoInfo
 from core.gallery_generator import HTMLGenerator
 from core.path_utils import normalize_path
-from core.nfo_updater import check_cache_needs_update, update_videos_generator
+from core.nfo_updater import check_cache_needs_update, update_videos_generator, apply_actress_aliases_generator
+from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite, ActressAliasRepository
 from web.routers.config import load_config
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/gallery", tags=["gallery"])
 
 
 def generate_avlist() -> Generator[str, None, None]:
-    """產生影片列表（SSE 串流）"""
+    """產生影片列表（SSE 串流）- 使用 SQLite 儲存"""
 
     def send(data: dict):
         return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
@@ -46,7 +48,7 @@ def generate_avlist() -> Generator[str, None, None]:
         default_sort = gallery_config.get('default_sort', 'date')
         default_order = gallery_config.get('default_order', 'descending')
         items_per_page = gallery_config.get('items_per_page', 90)
-        
+
         # 取得全域主題設定
         default_theme = config.get('general', {}).get('theme', 'light')
 
@@ -61,42 +63,29 @@ def generate_avlist() -> Generator[str, None, None]:
 
         html_path = output_path / output_filename
         cache_path = output_path / output_filename.replace('.html', '_cache.json')
+        db_path = get_db_path()
 
         yield send({"type": "log", "level": "info", "message": f"輸出路徑: {html_path}"})
 
-        # 載入快取
-        cache = load_cache(str(cache_path))
-        # 移除舊的 metadata（不計入快取數量）
-        old_metadata = cache.pop('_metadata', {})
-        yield send({"type": "log", "level": "info", "message": f"載入快取: {len(cache)} 筆"})
+        # 檢查是否需要遷移 JSON cache 到 SQLite
+        if cache_path.exists() and not db_path.exists():
+            yield send({"type": "log", "level": "info", "message": "遷移 JSON cache 到 SQLite..."})
+            migrate_result = migrate_json_to_sqlite(cache_path, db_path, delete_on_success=True)
+            yield send({"type": "log", "level": "info", "message": f"遷移完成: {migrate_result['migrated']} 筆"})
 
-        # 清理不在掃描清單內的快取
-        normalized_dirs = []
-        for d in directories:
-            try:
-                normalized_dirs.append(normalize_path(d))
-            except ValueError:
-                pass
+        # 初始化資料庫
+        init_db(db_path)
+        repo = VideoRepository(db_path)
 
-        if normalized_dirs:
-            keys_to_remove = []
-            for key in cache.keys():
-                # 檢查此快取項目是否屬於任一掃描目錄
-                in_scan_list = any(key.startswith(nd) for nd in normalized_dirs)
-                if not in_scan_list:
-                    keys_to_remove.append(key)
-
-            if keys_to_remove:
-                for k in keys_to_remove:
-                    del cache[k]
-                yield send({"type": "log", "level": "info", "message": f"清理舊快取: {len(keys_to_remove)} 筆"})
+        yield send({"type": "log", "level": "info", "message": f"資料庫筆數: {repo.count()}"})
 
         # 初始化掃描器
         scanner = VideoScanner(path_mappings=path_mappings)
 
-        all_videos = []
         total_dirs = len(directories)
-        total_added = 0  # 追蹤本次新增數量
+        total_inserted = 0
+        total_updated = 0
+        total_deleted = 0
         session_added_paths = []  # 追蹤本次新增/變更的影片路徑
 
         for idx, directory in enumerate(directories, 1):
@@ -129,66 +118,123 @@ def generate_avlist() -> Generator[str, None, None]:
 
                 yield send({"type": "log", "level": "info", "message": f"{directory}: 找到 {len(all_files)} 個檔案"})
 
-                # 逐一處理檔案
-                videos = []
-                cache_hits = 0
-                cache_misses = 0
+                # 取得現有 mtime 索引
+                db_index = repo.get_mtime_index()
+
+                # 比對決定需要處理的檔案
+                needs_scan = []
                 current_paths = set()
 
-                for i, file_info in enumerate(all_files, 1):
-                    path_key = file_info['path']
-                    file_mtime = file_info['mtime']
-                    nfo_mtime = file_info.get('nfo_mtime', 0)
-                    current_paths.add(path_key)
-                    video_name = os.path.basename(path_key)
+                for file_info in all_files:
+                    path = file_info['path']
+                    current_paths.add(path)
 
-                    # 檢查緩存
-                    cached = cache.get(path_key)
-                    cache_valid = (cached and
-                                   cached.get('mtime') == file_mtime and
-                                   cached.get('nfo_mtime', 0) == nfo_mtime)
+                    db_entry = db_index.get(path)
+                    if db_entry is None:
+                        # 新檔案
+                        needs_scan.append(file_info)
+                    elif db_entry[0] != file_info['mtime'] or db_entry[1] != file_info.get('nfo_mtime', 0):
+                        # mtime 或 nfo_mtime 變更
+                        needs_scan.append(file_info)
 
-                    if cache_valid:
-                        info = VideoInfo.from_dict(cached['info'])
-                        videos.append(info)
-                        cache_hits += 1
-                    else:
-                        # 回報處理進度（只有非快取命中才顯示）
-                        yield send({"type": "log", "level": "info", "message": f"  [{i}] {video_name}"})
-                        try:
-                            info = scanner.scan_file(path_key, None)
-                            videos.append(info)
-                            cache_misses += 1
-                            cache[path_key] = {
-                                'mtime': file_mtime,
-                                'nfo_mtime': nfo_mtime,
-                                'info': info.to_dict()
-                            }
-                            # 追蹤本次新增/變更的路徑
-                            session_added_paths.append(path_key)
-                        except Exception as e:
-                            yield send({"type": "log", "level": "warn", "message": f"  [{i}] 錯誤: {e}"})
+                # 清理已刪除的檔案（限定在此目錄下）
+                deleted_paths = [p for p in db_index.keys() if p.startswith(normalized_dir) and p not in current_paths]
+                if deleted_paths:
+                    deleted_count = repo.delete_by_paths(deleted_paths)
+                    total_deleted += deleted_count
+                    yield send({"type": "log", "level": "info", "message": f"  清理 {deleted_count} 個已刪除檔案"})
 
-                # 清理已刪除檔案的緩存
-                deleted_keys = [k for k in list(cache.keys()) if k.startswith(normalized_dir) and k not in current_paths]
-                for k in deleted_keys:
-                    del cache[k]
+                # 掃描並寫入需要更新的檔案
+                videos_to_upsert = []
+                cache_hits = len(all_files) - len(needs_scan)
+                cache_misses = 0
 
-                all_videos.extend(videos)
-                total_added += cache_misses
+                for i, file_info in enumerate(needs_scan, 1):
+                    video_name = os.path.basename(file_info['path'])
+                    yield send({"type": "log", "level": "info", "message": f"  [{i}/{len(needs_scan)}] {video_name}"})
+
+                    try:
+                        video_info = scanner.scan_file(file_info['path'], None)
+                        video = Video.from_video_info(video_info)
+                        video.mtime = file_info['mtime']
+                        video.nfo_mtime = file_info.get('nfo_mtime', 0)
+                        videos_to_upsert.append(video)
+                        session_added_paths.append(video.path)
+                        cache_misses += 1
+                    except Exception as e:
+                        yield send({"type": "log", "level": "warn", "message": f"  [{i}] 錯誤: {e}"})
+
+                # 批次寫入
+                if videos_to_upsert:
+                    inserted, updated = repo.upsert_batch(videos_to_upsert)
+                    total_inserted += inserted
+                    total_updated += updated
+
                 yield send({
                     "type": "log",
                     "level": "info",
-                    "message": f"{directory}: {len(videos)} 部 (快取: {cache_hits}, 新增: {cache_misses})"
+                    "message": f"{directory}: {len(all_files)} 部 (快取: {cache_hits}, 新增/更新: {cache_misses})"
                 })
             except Exception as e:
                 yield send({"type": "log", "level": "error", "message": f"掃描錯誤: {e}"})
 
-        # 檢查本次新增影片是否需要 NFO 補全
+        # 從 SQLite 取得所有影片用於生成 HTML
+        all_db_videos = repo.get_all()
+
+        # === 自動套用女優別名 ===
+        alias_repo = ActressAliasRepository(db_path)
+        aliases = alias_repo.get_all()
+
+        if aliases:
+            yield send({"type": "log", "level": "info",
+                        "message": f"套用 {len(aliases)} 筆女優別名..."})
+
+            db_updated = False
+            for msg in apply_actress_aliases_generator(aliases, repo, alias_repo):
+                yield send(msg)
+                if msg.get('type') == 'done' and msg.get('db_updated', 0) > 0:
+                    db_updated = True
+
+            # 如果有更新，重新取得影片資料
+            if db_updated:
+                all_db_videos = repo.get_all()
+
+        # 轉換為 VideoInfo 格式供 HTMLGenerator 使用
+        all_videos = []
+        for v in all_db_videos:
+            info = VideoInfo(
+                path=v.path,
+                title=v.title,
+                originaltitle=v.original_title,
+                actor=','.join(v.actresses) if v.actresses else '',
+                num=v.number or '',
+                maker=v.maker,
+                date=v.release_date,
+                genre=','.join(v.tags) if v.tags else '',
+                size=v.size_bytes,
+                mtime=int(v.mtime * 10000000 + 116444736000000000) if v.mtime else 0,
+                img=v.cover_path
+            )
+            all_videos.append(info)
+
+        # 檢查本次新增影片是否需要 NFO 補全（建構相容的 cache 格式）
         session_update = {"count": 0, "paths": []}
         if session_added_paths:
-            # 建立只包含本次新增影片的 session_cache
-            session_cache = {path: cache[path] for path in session_added_paths if path in cache}
+            # 建立只包含本次新增影片的 session_cache（相容 check_cache_needs_update 格式）
+            session_cache = {}
+            for path in session_added_paths:
+                video = repo.get_by_path(path)
+                if video:
+                    session_cache[path] = {
+                        'info': {
+                            'title': video.title,
+                            'date': video.release_date,
+                            'actor': ','.join(video.actresses) if video.actresses else '',
+                            'genre': ','.join(video.tags) if video.tags else '',
+                            'maker': video.maker,
+                            'num': video.number or ''
+                        }
+                    }
             if session_cache:
                 session_stats = check_cache_needs_update(session_cache)
                 session_update = {
@@ -202,17 +248,7 @@ def generate_avlist() -> Generator[str, None, None]:
                         "message": f"發現 {session_update['count']} 部新增影片資訊不全"
                     })
 
-        # 儲存 metadata（包含 session_update 供 NFO 更新使用）
-        cache['_metadata'] = {
-            'last_run': datetime.now().isoformat(),
-            'last_added': total_added,
-            'last_total': len(all_videos),
-            'last_session_update': session_update
-        }
-
-        # 儲存快取
-        save_cache(str(cache_path), cache)
-        yield send({"type": "log", "level": "info", "message": f"儲存快取: {len(cache) - 1} 筆"})
+        yield send({"type": "log", "level": "info", "message": f"資料庫總筆數: {repo.count()}"})
 
         # 產生 HTML
         yield send({
@@ -245,7 +281,12 @@ def generate_avlist() -> Generator[str, None, None]:
             "type": "done",
             "video_count": len(all_videos),
             "output_path": str(html_path),
-            "session_update": session_update
+            "session_update": session_update,
+            "stats": {
+                "inserted": total_inserted,
+                "updated": total_updated,
+                "deleted": total_deleted
+            }
         })
 
     except Exception as e:
@@ -267,31 +308,23 @@ async def generate():
 
 @router.get("/stats")
 async def get_stats():
-    """取得 AVList 統計資訊（從快取檔案讀取）"""
+    """取得 AVList 統計資訊（從 SQLite 讀取）"""
     try:
-        config = load_config()
-        gallery_config = config.get('gallery', {})
-        output_dir = gallery_config.get('output_dir', 'output')
-        output_filename = gallery_config.get('output_filename', 'gallery_output.html')
+        db_path = get_db_path()
 
-        project_root = Path(__file__).parent.parent.parent
-        cache_path = project_root / output_dir / output_filename.replace('.html', '_cache.json')
-
-        if not cache_path.exists():
+        if not db_path.exists():
             return {"success": True, "data": {"total": 0, "last_run": None, "last_added": None}}
 
-        cache = load_cache(str(cache_path))
-
-        # 讀取 metadata（如果有的話）
-        metadata = cache.pop('_metadata', {})
+        repo = VideoRepository(db_path)
+        total = repo.count()
 
         return {
             "success": True,
             "data": {
-                "total": len(cache),
-                "last_run": metadata.get('last_run'),
-                "last_added": metadata.get('last_added'),
-                "last_total": metadata.get('last_total')
+                "total": total,
+                "last_run": None,  # SQLite 版本不追蹤 last_run
+                "last_added": None,  # SQLite 版本不追蹤 last_added
+                "last_total": total
             }
         }
     except Exception as e:
@@ -300,20 +333,30 @@ async def get_stats():
 
 @router.get("/update-check")
 async def check_update():
-    """檢查需要更新的影片數量"""
+    """檢查需要更新的影片數量（從 SQLite 讀取）"""
     try:
-        config = load_config()
-        gallery_config = config.get('gallery', {})
-        output_dir = gallery_config.get('output_dir', 'output')
-        output_filename = gallery_config.get('output_filename', 'gallery_output.html')
+        db_path = get_db_path()
 
-        project_root = Path(__file__).parent.parent.parent
-        cache_path = project_root / output_dir / output_filename.replace('.html', '_cache.json')
-
-        if not cache_path.exists():
+        if not db_path.exists():
             return {"success": True, "data": {"need_update": 0}}
 
-        cache = load_cache(str(cache_path))
+        repo = VideoRepository(db_path)
+        all_videos = repo.get_all()
+
+        # 建構相容 check_cache_needs_update 的格式
+        cache = {}
+        for v in all_videos:
+            cache[v.path] = {
+                'info': {
+                    'title': v.title,
+                    'date': v.release_date,
+                    'actor': ','.join(v.actresses) if v.actresses else '',
+                    'genre': ','.join(v.tags) if v.tags else '',
+                    'maker': v.maker,
+                    'num': v.number or ''
+                }
+            }
+
         stats = check_cache_needs_update(cache)
 
         # 不要返回 paths 列表（太大）
@@ -335,65 +378,59 @@ async def check_update():
 
 
 def generate_nfo_update() -> Generator[str, None, None]:
-    """NFO 更新生成器（SSE 串流）"""
+    """NFO 更新生成器（SSE 串流）- 使用 SQLite"""
 
     def send(data: dict):
         return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
 
     try:
-        config = load_config()
-        gallery_config = config.get('gallery', {})
-        output_dir = gallery_config.get('output_dir', 'output')
-        output_filename = gallery_config.get('output_filename', 'gallery_output.html')
+        db_path = get_db_path()
 
-        project_root = Path(__file__).parent.parent.parent
-        cache_path = project_root / output_dir / output_filename.replace('.html', '_cache.json')
-
-        if not cache_path.exists():
-            yield send({"type": "error", "message": "快取檔案不存在，請先產生列表"})
+        if not db_path.exists():
+            yield send({"type": "error", "message": "資料庫不存在，請先產生列表"})
             return
 
-        cache = load_cache(str(cache_path))
-        
-        # 讀取 session 更新資料
-        metadata = cache.get('_metadata', {})
-        session_update = metadata.get('last_session_update', {})
-        
-        paths_to_update = []
-        
-        # 優先：使用本次 session 的更新清單
-        if session_update and session_update.get('count', 0) > 0:
-            paths_to_update = session_update['paths']
-            yield send({
-                "type": "log",
-                "level": "info",
-                "message": f"執行本次新增影片的 NFO 更新 ({len(paths_to_update)} 部)..."
-            })
-        else:
-            # 備用：完整掃描整個快取
-            stats = check_cache_needs_update(cache)
-            if stats['need_update'] == 0:
-                yield send({"type": "done", "message": "沒有需要更新的影片", "updated": 0})
-                return
-            paths_to_update = stats['paths']
-            yield send({
-                "type": "log",
-                "level": "info",
-                "message": f"執行完整 NFO 檢查 ({len(paths_to_update)} 部)..."
-            })
+        repo = VideoRepository(db_path)
+        all_videos = repo.get_all()
+
+        if not all_videos:
+            yield send({"type": "done", "message": "沒有影片資料", "updated": 0})
+            return
+
+        # 建構相容 check_cache_needs_update 的格式
+        cache = {}
+        for v in all_videos:
+            cache[v.path] = {
+                'info': {
+                    'title': v.title,
+                    'date': v.release_date,
+                    'actor': ','.join(v.actresses) if v.actresses else '',
+                    'genre': ','.join(v.tags) if v.tags else '',
+                    'maker': v.maker,
+                    'num': v.number or ''
+                }
+            }
+
+        # 檢查需要更新的影片
+        stats = check_cache_needs_update(cache)
+        if stats['need_update'] == 0:
+            yield send({"type": "done", "message": "沒有需要更新的影片", "updated": 0})
+            return
+
+        paths_to_update = stats['paths']
+        yield send({
+            "type": "log",
+            "level": "info",
+            "message": f"執行 NFO 檢查 ({len(paths_to_update)} 部)..."
+        })
 
         # 執行更新
         for msg in update_videos_generator(cache, paths_to_update):
             yield send(msg)
 
-        # 更新完成後清除 session_update，避免重複更新
-        if '_metadata' in cache and 'last_session_update' in cache['_metadata']:
-            cache['_metadata']['last_session_update'] = {"count": 0, "paths": []}
-            save_cache(str(cache_path), cache)
-
         yield send({
             "type": "done",
-            "message": "更新完成，建議重新產生網頁以更新快取",
+            "message": "更新完成，建議重新產生網頁以更新資料庫",
         })
 
     except Exception as e:
@@ -493,3 +530,142 @@ async def get_image(path: str = Query(..., description="圖片路徑")):
     media_type = mime_types.get(ext, 'application/octet-stream')
 
     return FileResponse(local_path, media_type=media_type)
+
+
+# === 女優名稱管理 API ===
+
+class ActressAliasRequest(BaseModel):
+    """新增女優別名請求"""
+    old_name: str
+    new_name: str
+
+
+@router.get("/actress-aliases")
+async def get_actress_aliases():
+    """取得所有別名對照"""
+    try:
+        db_path = get_db_path()
+        init_db(db_path)
+
+        alias_repo = ActressAliasRepository(db_path)
+        aliases = alias_repo.get_all()
+
+        return {
+            "success": True,
+            "data": [alias.to_dict() for alias in aliases]
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/actress-aliases")
+async def add_actress_alias(request: ActressAliasRequest):
+    """新增別名對照"""
+    try:
+        if not request.old_name or not request.new_name:
+            return {"success": False, "error": "名稱不可為空"}
+
+        if request.old_name == request.new_name:
+            return {"success": False, "error": "新舊名稱不可相同"}
+
+        db_path = get_db_path()
+        init_db(db_path)
+
+        alias_repo = ActressAliasRepository(db_path)
+        new_id = alias_repo.add(request.old_name, request.new_name)
+
+        if new_id == -1:
+            return {"success": False, "error": "該舊名稱已存在"}
+
+        return {"success": True, "data": {"id": new_id}}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.delete("/actress-aliases/{alias_id}")
+async def delete_actress_alias(alias_id: int):
+    """刪除別名對照"""
+    try:
+        db_path = get_db_path()
+        init_db(db_path)
+
+        alias_repo = ActressAliasRepository(db_path)
+        success = alias_repo.delete(alias_id)
+
+        if not success:
+            return {"success": False, "error": "找不到該別名對照"}
+
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.get("/actress-stats")
+async def get_actress_stats(name: str = Query(..., description="女優名稱")):
+    """查詢某名字的片數"""
+    try:
+        db_path = get_db_path()
+
+        if not db_path.exists():
+            return {"success": True, "data": {"count": 0}}
+
+        repo = VideoRepository(db_path)
+        count = repo.count_by_actress(name)
+
+        return {"success": True, "data": {"count": count}}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def generate_apply_actress_aliases() -> Generator[str, None, None]:
+    """套用女優別名生成器（SSE 串流）"""
+
+    def send(data: dict):
+        return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+    try:
+        db_path = get_db_path()
+
+        if not db_path.exists():
+            yield send({"type": "error", "message": "資料庫不存在"})
+            return
+
+        init_db(db_path)
+        video_repo = VideoRepository(db_path)
+        alias_repo = ActressAliasRepository(db_path)
+
+        aliases = alias_repo.get_all()
+        if not aliases:
+            yield send({"type": "done", "message": "沒有別名對照", "stats": {}})
+            return
+
+        yield send({
+            "type": "log",
+            "level": "info",
+            "message": f"開始套用 {len(aliases)} 筆別名對照..."
+        })
+
+        # 執行套用
+        for msg in apply_actress_aliases_generator(aliases, video_repo, alias_repo):
+            yield send(msg)
+
+        yield send({
+            "type": "done",
+            "message": "套用完成！建議重新產生列表以更新封面。"
+        })
+
+    except Exception as e:
+        yield send({"type": "error", "message": str(e)})
+
+
+@router.get("/apply-actress-aliases")
+async def apply_actress_aliases():
+    """執行批次更新（SSE 串流回傳進度）- 使用 GET 以支援 EventSource"""
+    return StreamingResponse(
+        generate_apply_actress_aliases(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )

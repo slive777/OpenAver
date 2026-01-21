@@ -411,12 +411,14 @@ def organize_file(
         # 生成 NFO（檔名跟隨影片命名）
         nfo_path = os.path.join(target_dir, filename_base + '.nfo')
         tags = metadata.get('tags', [])
+        user_tags = metadata.get('user_tags', [])
+        all_tags = tags + [t for t in user_tags if t not in tags]  # 合併用戶標籤
         if generate_nfo(
             number=number,
             title=format_data['title'],
             original_title=original_title,  # 日文原始標題
             actors=actors,
-            tags=tags,
+            tags=all_tags,
             date=metadata.get('date', ''),
             maker=metadata.get('maker', ''),
             url=metadata.get('url', ''),
