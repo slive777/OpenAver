@@ -210,6 +210,44 @@
         localStorage.removeItem(STORAGE_KEYS.lastStatus);
     }
 
+    // === Log 批次處理 ===
+    let logBatch = [];
+    let logTimer = null;
+    const LOG_BATCH_INTERVAL = 100;  // 100ms 批次間隔
+
+    // 加入 log 到批次佇列
+    function addLog(cls, message) {
+        const logOutput = document.getElementById('logOutput');
+        logBatch.push(`<div class="${cls}">${escapeHtml(message)}</div>`);
+
+        if (!logTimer) {
+            logTimer = setTimeout(flushLogs, LOG_BATCH_INTERVAL);
+        }
+    }
+
+    // 批次渲染 logs
+    function flushLogs() {
+        if (logBatch.length === 0) {
+            logTimer = null;
+            return;
+        }
+
+        const logOutput = document.getElementById('logOutput');
+
+        // 1. 批次插入 DOM（用 insertAdjacentHTML 避免重新解析整個 innerHTML）
+        logOutput.insertAdjacentHTML('beforeend', logBatch.join(''));
+
+        // 2. 滾動到底部
+        logOutput.scrollTop = logOutput.scrollHeight;
+
+        // 3. 只在批次結束時存一次 localStorage
+        saveLogs();
+
+        // 4. 清空批次
+        logBatch = [];
+        logTimer = null;
+    }
+
     // 離開頁面警告
     window.addEventListener('beforeunload', function (e) {
         if (isGenerating) {
@@ -440,10 +478,7 @@
                 } else if (data.type === 'log') {
                     const cls = data.level === 'error' ? 'log-error' :
                         data.level === 'warn' ? 'log-warn' : 'log-info';
-                    logOutput.innerHTML += `<div class="${cls}">${escapeHtml(data.message)}</div>`;
-                    logOutput.scrollTop = logOutput.scrollHeight;
-                    // 每次 log 都儲存
-                    saveLogs();
+                    addLog(cls, data.message);  // 使用批次處理
                 } else if (data.type === 'done') {
                     eventSource.close();
                     isGenerating = false;
@@ -476,8 +511,8 @@
                     // Show toast
                     showToast(`成功產生 ${data.video_count} 部影片列表`);
 
-                    // 儲存最終 logs
-                    saveLogs();
+                    // 確保最後一批 log 顯示並儲存
+                    flushLogs();
 
                     // 刷新統計資訊 (不含 NFO 檢查)
                     loadStats();
@@ -487,8 +522,8 @@
                     localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
                     btn.disabled = false;
                     btn.innerHTML = '<i class="bi bi-play-fill"></i> 產生網頁';
-                    logOutput.innerHTML += `<div class="log-error">錯誤: ${escapeHtml(data.message)}</div>`;
-                    saveLogs();
+                    addLog('log-error', '錯誤: ' + data.message);
+                    flushLogs();
                 }
             };
 
@@ -498,8 +533,8 @@
                 localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
                 btn.disabled = false;
                 btn.innerHTML = '<i class="bi bi-play-fill"></i> 產生網頁';
-                logOutput.innerHTML += '<div class="log-error">連線中斷</div>';
-                saveLogs();
+                addLog('log-error', '連線中斷');
+                flushLogs();
             };
         } catch (e) {
             isGenerating = false;
@@ -691,9 +726,7 @@
                 } else if (data.type === 'log') {
                     const cls = data.level === 'error' ? 'log-error' :
                         data.level === 'warn' ? 'log-warn' : 'log-info';
-                    logOutput.innerHTML += `<div class="${cls}">${escapeHtml(data.message)}</div>`;
-                    logOutput.scrollTop = logOutput.scrollHeight;
-                    saveLogs();
+                    addLog(cls, data.message);  // 使用批次處理
                 } else if (data.type === 'done') {
                     eventSource.close();
                     isGenerating = false;
@@ -709,17 +742,17 @@
                     // 提示重新產生列表
                     showToast('補全完成！請重新產生列表以更新');
                     if (data.message) {
-                        logOutput.innerHTML += `<div class="log-info">${escapeHtml(data.message)}</div>`;
+                        addLog('log-info', data.message);
                     }
-                    saveLogs();
+                    flushLogs();
                 } else if (data.type === 'error') {
                     eventSource.close();
                     isGenerating = false;
                     localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
                     btn.disabled = false;
                     btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
-                    logOutput.innerHTML += `<div class="log-error">錯誤: ${escapeHtml(data.message)}</div>`;
-                    saveLogs();
+                    addLog('log-error', '錯誤: ' + data.message);
+                    flushLogs();
                 }
             };
 
@@ -729,8 +762,8 @@
                 localStorage.setItem(STORAGE_KEYS.isGenerating, 'false');
                 btn.disabled = false;
                 btn.innerHTML = '<i class="bi bi-arrow-repeat"></i>';
-                logOutput.innerHTML += '<div class="log-error">連線中斷</div>';
-                saveLogs();
+                addLog('log-error', '連線中斷');
+                flushLogs();
             };
         } catch (e) {
             isGenerating = false;
