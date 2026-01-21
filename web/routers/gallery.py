@@ -159,7 +159,7 @@ def generate_avlist() -> Generator[str, None, None]:
                         video.mtime = file_info['mtime']
                         video.nfo_mtime = file_info.get('nfo_mtime', 0)
                         videos_to_upsert.append(video)
-                        session_added_paths.append(file_info['path'])
+                        session_added_paths.append(video.path)
                         cache_misses += 1
                     except Exception as e:
                         yield send({"type": "log", "level": "warn", "message": f"  [{i}] 錯誤: {e}"})
@@ -189,14 +189,14 @@ def generate_avlist() -> Generator[str, None, None]:
             yield send({"type": "log", "level": "info",
                         "message": f"套用 {len(aliases)} 筆女優別名..."})
 
-            videos_updated = False
+            db_updated = False
             for msg in apply_actress_aliases_generator(aliases, repo, alias_repo):
                 yield send(msg)
-                if msg.get('type') == 'log' and 'NFO 更新' in msg.get('message', ''):
-                    videos_updated = True
+                if msg.get('type') == 'done' and msg.get('db_updated', 0) > 0:
+                    db_updated = True
 
             # 如果有更新，重新取得影片資料
-            if videos_updated:
+            if db_updated:
                 all_db_videos = repo.get_all()
 
         # 轉換為 VideoInfo 格式供 HTMLGenerator 使用

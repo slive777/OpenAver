@@ -18,7 +18,7 @@ from pathlib import Path
 # 加入 core 模組路徑
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from core.database import VideoRepository, get_db_path
+from core.database import VideoRepository, get_db_path, init_db
 from core.scraper import (
     search_jav, smart_search, is_partial_number, is_number_format,
     is_prefix_only, search_partial, search_actress, search_prefix,
@@ -534,6 +534,7 @@ async def get_local_status(numbers: str = Query(..., description="逗號分隔�
         number_list = number_list[:100]
 
     # 查詢資料庫
+    init_db()  # 確保 DB 存在
     repo = VideoRepository()
     videos_by_number = repo.get_by_numbers(number_list)
 

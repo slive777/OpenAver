@@ -519,4 +519,5 @@ def apply_actress_aliases_generator(
             except Exception:
                 pass
 
+    yield {'type': 'done', **stats}
     return stats
