@@ -11,6 +11,7 @@ OpenAver macOS 打包腳本
     3. 複製專案檔案
     4. 打包成 ZIP
 """
+import fnmatch
 import os
 import sys
 import shutil
@@ -66,6 +67,14 @@ PACKAGES_MACOS = [
     "pyobjc-core",
     "pyobjc-framework-Cocoa",
     "pyobjc-framework-WebKit",
+]
+
+# 打包時要移除的套件目錄（開發工具，不需要運行）
+REMOVE_PACKAGES = [
+    'pip', 'pip-*',
+    'setuptools', 'setuptools-*', '_distutils_hack',
+    'wheel', 'wheel-*',
+    'pkg_resources',
 ]
 
 
@@ -273,6 +282,7 @@ def optimize_package():
     print("\n[6/7] 優化打包體積...")
 
     app_dir = BUILD_DIR / "OpenAver"
+    site_packages = app_dir / "python" / "lib" / f"python{PYTHON_VERSION}" / "site-packages"
 
     # 刪除 __pycache__ 和 .pyc
     pycache_count = 0
@@ -288,7 +298,22 @@ def optimize_package():
             shutil.rmtree(dist_info)
             dist_info_count += 1
 
+    # 刪除不需要的開發工具套件
+    removed_packages = []
+    if site_packages.exists():
+        for item in site_packages.iterdir():
+            for pattern in REMOVE_PACKAGES:
+                if fnmatch.fnmatch(item.name, pattern) or fnmatch.fnmatch(item.name.lower(), pattern):
+                    if item.is_dir():
+                        shutil.rmtree(item)
+                    else:
+                        item.unlink()
+                    removed_packages.append(item.name)
+                    break
+
     print(f"  刪除 {pycache_count} 個 __pycache__, {dist_info_count} 個 .dist-info")
+    if removed_packages:
+        print(f"  移除 {len(removed_packages)} 個開發工具: {', '.join(removed_packages[:5])}{'...' if len(removed_packages) > 5 else ''}")
 
 
 def create_zip_package():

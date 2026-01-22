@@ -56,6 +56,26 @@ PACKAGES = [
     "httpx",  # Required for FastAPI TestClient and async HTTP
 ]
 
+# 打包時排除的套件（測試/開發工具，不影響運行）
+EXCLUDE_PACKAGES = {
+    # 測試工具
+    'pytest', 'pytest-asyncio', 'pytest-mock', 'pytest-cov',
+    'coverage', 'pluggy', 'iniconfig',
+
+    # 類型檢查工具
+    'mypy', 'mypy-extensions', 'typed-ast', 'types-requests',
+    'types-beautifulsoup4', 'types-html5lib',
+
+    # 開發工具
+    'pip', 'setuptools', 'wheel', 'twine', 'build',
+
+    # 文檔工具
+    'docutils', 'pygments', 'readme-renderer',
+
+    # 未使用
+    'langdetect',
+}
+
 
 # ============ 工具函數 ============
 
@@ -158,16 +178,26 @@ import site
 
 
 def get_all_dependencies():
-    """從現有 venv 獲取完整依賴列表"""
+    """從現有 venv 獲取完整依賴列表（排除測試/開發工具）"""
     result = subprocess.run(
         [sys.executable, "-m", "pip", "freeze"],
         capture_output=True, text=True
     )
     deps = []
+    excluded = []
     for line in result.stdout.strip().split('\n'):
         if '==' in line:
             pkg_name = line.split('==')[0].strip()
-            deps.append(pkg_name)
+            # 標準化套件名稱（pip 用 - 和 _ 可互換）
+            pkg_normalized = pkg_name.lower().replace('_', '-')
+            if pkg_normalized in EXCLUDE_PACKAGES:
+                excluded.append(pkg_name)
+            else:
+                deps.append(pkg_name)
+
+    if excluded:
+        print(f"  排除 {len(excluded)} 個測試/開發套件: {', '.join(excluded[:5])}{'...' if len(excluded) > 5 else ''}")
+
     return deps
 
 
