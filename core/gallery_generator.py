@@ -278,7 +278,7 @@ class HTMLGenerator:
 \t\t\t\tvar terms = search_words.toLowerCase().split(/\\s+/).filter(function(t) { return t.length > 0; });
 \t\t\t\tfiltered_videos = videos.filter(function(v) {
 \t\t\t\t\t// 建立所有可搜尋欄位的組合文字
-\t\t\t\t\tvar searchable = [v.title, v.otitle, v.actor, v.num, v.maker, v.genre, v.date].filter(Boolean).join(' ').toLowerCase();
+\t\t\t\t\tvar searchable = [v.title, v.otitle, v.actor, v.num, v.maker, v.genre, v.date, v.path].filter(Boolean).join(' ').toLowerCase();
 \t\t\t\t\t// 番號的正規化版本（移除空格和連字號）
 \t\t\t\t\tvar numNorm = v.num ? v.num.toLowerCase().replace(/[\\s\\-]/g, '') : '';
 \t\t\t\t\t// 每個關鍵字都要匹配（AND 邏輯）
