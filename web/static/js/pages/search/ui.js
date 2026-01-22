@@ -994,14 +994,81 @@ function showLocalBadge(localStatus) {
 
     if (localStatus && localStatus.exists) {
         badge.classList.remove('d-none');
+
+        // 儲存路徑供點擊複製用
+        badge.dataset.paths = JSON.stringify(localStatus.paths || []);
+
         if (localStatus.count > 1) {
-            badge.title = `本地已有 ${localStatus.count} 個版本`;
+            badge.title = `本地已有 ${localStatus.count} 個版本（點擊複製路徑）`;
         } else {
-            badge.title = '本地已有';
+            badge.title = '本地已有（點擊複製路徑）';
+        }
+
+        // 設定點擊事件（只設定一次）
+        if (!badge.dataset.clickBound) {
+            badge.addEventListener('click', copyLocalPath);
+            badge.dataset.clickBound = 'true';
         }
     } else {
         badge.classList.add('d-none');
     }
+}
+
+/**
+ * 複製本地路徑到剪貼簿
+ */
+function copyLocalPath() {
+    const badge = document.getElementById('localBadge');
+    if (!badge) return;
+
+    try {
+        const paths = JSON.parse(badge.dataset.paths || '[]');
+        if (paths.length === 0) return;
+
+        // 複製第一個路徑（如果有多個，用換行分隔全部）
+        const textToCopy = paths.length === 1 ? paths[0] : paths.join('\n');
+
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            // 顯示成功提示
+            const msg = paths.length === 1 ? '已複製路徑' : `已複製 ${paths.length} 個路徑`;
+            showToast(msg, 'success');
+        }).catch(err => {
+            console.error('複製失敗:', err);
+            showToast('複製失敗', 'danger');
+        });
+    } catch (err) {
+        console.error('解析路徑失敗:', err);
+    }
+}
+
+/**
+ * 顯示 Toast 提示
+ */
+function showToast(message, type = 'info') {
+    // 檢查是否有現有的 toast 容器
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        container.style.zIndex = '9999';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-bg-${type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    container.appendChild(toast);
+
+    const bsToast = new bootstrap.Toast(toast, { delay: 2000 });
+    bsToast.show();
+
+    toast.addEventListener('hidden.bs.toast', () => toast.remove());
 }
 
 /**
