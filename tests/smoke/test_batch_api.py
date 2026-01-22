@@ -49,7 +49,7 @@ def post_json(url, data, timeout=60):
 class TestBatchTranslateAPI:
     """批次翻譯 API 測試"""
 
-    def test_batch_basic(self):
+    def test_batch_basic(self, ensure_api_server):
         """基本批次翻譯 (2 個標題)"""
         titles = ["新人デビュー", "中出し解禁"]
 
@@ -59,14 +59,14 @@ class TestBatchTranslateAPI:
         print(f"  狀態碼: {status}")
 
         if status != 200:
-            pytest.skip(f"API 無法連線: {data}")
+            pytest.skip(f"API 無法連線（Ollama 可能未啟動）: {data}")
 
         print(f"  翻譯: {data.get('translations', [])}")
         print(f"  成功: {data.get('count', 0)}/{len(titles)}")
 
         assert len(data.get("translations", [])) == len(titles), "對齊率失敗"
 
-    def test_batch_five_titles(self):
+    def test_batch_five_titles(self, ensure_api_server):
         """批次翻譯 5 個標題"""
         titles = [
             "痴漢願望の女 色情狂ナース編 天使もえ",
@@ -84,7 +84,7 @@ class TestBatchTranslateAPI:
         print(f"  耗時: {elapsed:.2f} 秒")
 
         if status != 200:
-            pytest.skip(f"API 無法連線: {data}")
+            pytest.skip(f"API 無法連線（Ollama 可能未啟動）: {data}")
 
         print(f"  成功: {data.get('count', 0)}/{len(titles)}")
 
@@ -94,7 +94,7 @@ class TestBatchTranslateAPI:
 
         assert len(data.get("translations", [])) == len(titles), "對齊率失敗"
 
-    def test_batch_empty(self):
+    def test_batch_empty(self, ensure_api_server):
         """空列表處理"""
         status, data = post_json(BATCH_ENDPOINT, {"titles": []})
 
@@ -102,13 +102,13 @@ class TestBatchTranslateAPI:
         print(f"  狀態碼: {status}")
 
         if status != 200:
-            pytest.skip(f"API 無法連線: {data}")
+            pytest.skip(f"API 無法連線（Ollama 可能未啟動）: {data}")
 
         assert data.get("translations") == [], "空輸入應返回空列表"
         assert data.get("count") == 0
         assert data.get("errors") == []
 
-    def test_batch_single(self):
+    def test_batch_single(self, ensure_api_server):
         """單個標題"""
         titles = ["テスト"]
 
@@ -117,7 +117,7 @@ class TestBatchTranslateAPI:
         print(f"\n單個標題:")
 
         if status != 200:
-            pytest.skip(f"API 無法連線: {data}")
+            pytest.skip(f"API 無法連線（Ollama 可能未啟動）: {data}")
 
         print(f"  翻譯: {data.get('translations', [])}")
 

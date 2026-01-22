@@ -81,7 +81,7 @@ class TestTranslateSingleLive:
         print(f"譯文: {result}")
 
         if not result:
-            pytest.skip("Ollama 無法連線或翻譯失敗")
+            pytest.skip("Ollama 無法連線（Windows 請開啟 Ollama 應用程式）")
 
         assert len(result) > 0, "翻譯結果不應為空"
         assert len(result) <= 100, "翻譯結果過長"
@@ -98,7 +98,7 @@ class TestTranslateSingleLive:
         print(f"譯文: {result}")
 
         if not result:
-            pytest.skip("Ollama 無法連線或翻譯失敗")
+            pytest.skip("Ollama 無法連線（Windows 請開啟 Ollama 應用程式）")
 
         assert len(result) > 0
 
@@ -135,7 +135,7 @@ class TestTranslateBatchLive:
         print(f"\n成功翻譯: {non_empty}/{len(titles)}")
 
         if non_empty == 0:
-            pytest.skip("Ollama 無法連線或翻譯失敗")
+            pytest.skip("Ollama 無法連線（Windows 請開啟 Ollama 應用程式）")
 
         assert non_empty >= len(titles) * 0.8, "翻譯成功率低於 80%"
 
@@ -151,7 +151,7 @@ class TestTranslateBatchLive:
             print(f"\nBatch size {n}: 輸入 {len(titles)}, 輸出 {len(results)}")
 
             if not any(results):
-                pytest.skip(f"Batch={n} Ollama 無法連線")
+                pytest.skip(f"Batch={n} Ollama 無法連線（Windows 請開啟 Ollama）")
 
             assert len(results) == n, f"Batch={n} 對齊失敗"
 
