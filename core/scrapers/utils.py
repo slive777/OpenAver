@@ -95,9 +95,9 @@ def extract_number(filename: str) -> Optional[str]:
     from pathlib import Path
     basename = Path(filename).stem
 
-    # 預處理 - 清理常見後綴（UC, UNCEN, UNCENSORED, LEAK, LEAKED）
+    # 預處理 - 清理常見後綴（需有分隔符，避免誤刪 JUC-123 等合法前綴）
     basename = re.sub(
-        r'[-_]?(UC|UNCEN|UNCENSORED|LEAK|LEAKED)(?=[-_.\s]|$)',
+        r'[-_](UC|UNCEN|UNCENSORED|LEAK|LEAKED)(?=[-_.\s]|$)',
         '', basename, flags=re.IGNORECASE
     )
 

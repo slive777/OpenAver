@@ -63,9 +63,9 @@ def normalize_number(number: str) -> str:
 def is_number_format(s: str) -> bool:
     """判斷是否為完整番號格式 (如 SONE-001, ABC-123, SONE-103-UC)"""
     s = s.strip()
-    # 清理常見後綴（與 extract_number 邏輯一致）
+    # 清理常見後綴（需有分隔符，避免誤刪 JUC-123 等合法前綴）
     s = re.sub(
-        r'[-_]?(UC|UNCEN|UNCENSORED|LEAK|LEAKED)(?=[-_.\s]|$)',
+        r'[-_](UC|UNCEN|UNCENSORED|LEAK|LEAKED)(?=[-_.\s]|$)',
         '', s, flags=re.IGNORECASE
     )
     return bool(re.match(r'^[a-zA-Z]+-?\d{3,}$', s))

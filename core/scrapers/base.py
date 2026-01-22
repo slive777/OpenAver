@@ -87,9 +87,9 @@ class BaseScraper(ABC):
         """
         import re
         number = number.strip()
-        # 清理常見後綴（UC, UNCEN, UNCENSORED, LEAK, LEAKED）
+        # 清理常見後綴（需有分隔符，避免誤刪 JUC-123 等合法前綴）
         number = re.sub(
-            r'[-_]?(UC|UNCEN|UNCENSORED|LEAK|LEAKED)(?=[-_.\s]|$)',
+            r'[-_](UC|UNCEN|UNCENSORED|LEAK|LEAKED)(?=[-_.\s]|$)',
             '', number, flags=re.IGNORECASE
         )
         number = number.upper()

@@ -71,9 +71,8 @@ class TestExtractNumber:
         result = extract_number('FC2PPV-999999.avi')
         assert result == 'PPV-99999'  # 誤抓結果，非預期但目前行為
 
-    # --- suffix/ 後綴處理（需移除）---
-    # 注意：extract_number 不處理後綴移除，這是 normalize 的工作
-    # 但測試驗證基本番號仍可正確提取
+    # --- suffix/ 後綴處理 ---
+    # extract_number 會預處理清理 -UC/-UNCENSORED/-LEAK 等後綴
 
     def test_suffix_c_subtitle(self):
         """中文字幕後綴 SUPD-103C → SUPD-103C（extract 不移除後綴）"""
@@ -115,6 +114,14 @@ class TestExtractNumber:
         """HEYZO 格式"""
         result = extract_number('HEYZO-2048.avi')
         assert result == 'HEYZO-2048'
+
+    def test_juc_prefix_not_stripped(self):
+        """JUC-123 前綴含 UC 不應被誤刪（回歸測試）"""
+        assert extract_number('JUC-123.mp4') == 'JUC-123'
+
+    def test_duc_prefix_not_stripped(self):
+        """DUC-456 前綴含 UC 不應被誤刪"""
+        assert extract_number('DUC-456.mp4') == 'DUC-456'
 
     # --- tricky/ 刁鑽案例 ---
     def test_date_prefix(self):
@@ -404,6 +411,20 @@ class TestSearchQueryIntegration:
         # 步驟 2: 正規化後搜尋
         search_query = normalize_number(user_input)
         assert search_query == 'SONE-103'
+
+    # --- 回歸測試：前綴含 UC 不應被誤刪 ---
+    def test_juc_prefix_regression(self):
+        """JUC-123 前綴含 UC 不應被誤刪（回歸測試）"""
+        query = 'JUC-123'
+        assert is_number_format(query) is True
+        assert normalize_number(query) == 'JUC-123'
+        assert extract_number('JUC-123.mp4') == 'JUC-123'
+
+    def test_juc_with_suffix_regression(self):
+        """JUC-123-UC 前綴含 UC 但後綴也有 UC"""
+        query = 'JUC-123-UC'
+        assert is_number_format(query) is True
+        assert normalize_number(query) == 'JUC-123'  # 只移除後綴的 -UC
 
 
 # ============ 從 samples/ 讀取測試 ============
