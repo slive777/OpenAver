@@ -95,6 +95,12 @@ def extract_number(filename: str) -> Optional[str]:
     from pathlib import Path
     basename = Path(filename).stem
 
+    # 預處理 - 清理常見後綴（UC, UNCEN, UNCENSORED, LEAK, LEAKED）
+    basename = re.sub(
+        r'[-_]?(UC|UNCEN|UNCENSORED|LEAK|LEAKED)(?=[-_.\s]|$)',
+        '', basename, flags=re.IGNORECASE
+    )
+
     patterns = [
         r'(FC2-PPV-\d+)',               # FC2-PPV-1234567
         r'(\d{6}-\d{3,})',              # 041417-413 日期-編號格式（無碼）

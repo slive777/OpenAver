@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-01-22
+
+### Fixed
+
+#### 🔧 後綴清理（檔名 + 搜尋查詢）
+- `extract_number()` - 從檔名提取番號時清理 UC/UNCEN/UNCENSORED/LEAK/LEAKED 後綴
+- `is_number_format()` - 搜尋查詢格式驗證時清理後綴
+- `normalize_number()` - 番號正規化時清理後綴
+- 檔名 `SONE-103-UC.mp4` 和搜尋查詢 `SONE-103-UC` 現在都能正確處理
+
+### Added
+
+#### 🧪 整合測試
+- 新增 `TestSearchQueryIntegration` 測試類，驗證搜尋流程完整性
+
+---
+
 ## [0.2.1] - 2026-01-22
 
 ### Added

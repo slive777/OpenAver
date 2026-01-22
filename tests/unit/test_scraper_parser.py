@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 
 # 測試目標模組
-from core.scraper import extract_number, normalize_number
+from core.scraper import extract_number, normalize_number, is_number_format
 
 
 # ============ TestExtractNumber ============
@@ -91,6 +91,18 @@ class TestExtractNumber:
         """無碼流出 SONE-103-UC"""
         result = extract_number('SONE-103-UC.avi')
         assert 'SONE-103' in result
+
+    def test_suffix_uc_cleaned(self):
+        """UC 後綴應被清理"""
+        assert extract_number('SONE-103-UC.mp4') == 'SONE-103'
+
+    def test_suffix_uncensored_cleaned(self):
+        """uncensored 後綴應被清理"""
+        assert extract_number('ABC-123-uncensored.mp4') == 'ABC-123'
+
+    def test_suffix_leak_cleaned(self):
+        """leak 後綴應被清理"""
+        assert extract_number('MIDV-456_leak.mp4') == 'MIDV-456'
 
     # --- special_format/ 特殊片商格式 ---
     def test_number_prefix(self):
@@ -241,6 +253,157 @@ class TestNormalizeNumber:
     def test_long_number(self):
         """長數字 ABC12345 → ABC-12345"""
         assert normalize_number('ABC12345') == 'ABC-12345'
+
+    # --- 後綴清理 ---
+    def test_suffix_uc_cleaned(self):
+        """UC 後綴應被清理 SONE-103-UC → SONE-103"""
+        assert normalize_number('SONE-103-UC') == 'SONE-103'
+
+    def test_suffix_uncensored_cleaned(self):
+        """UNCENSORED 後綴應被清理"""
+        assert normalize_number('ABC-123-UNCENSORED') == 'ABC-123'
+
+    def test_suffix_leak_cleaned(self):
+        """LEAK 後綴應被清理"""
+        assert normalize_number('MIDV-456_leak') == 'MIDV-456'
+
+    def test_suffix_with_no_hyphen(self):
+        """無橫線 + 後綴 STARS804-UNCEN → STARS-804"""
+        assert normalize_number('STARS804-UNCEN') == 'STARS-804'
+
+
+# ============ TestIsNumberFormat ============
+
+class TestIsNumberFormat:
+    """測試番號格式驗證（含後綴處理）"""
+
+    # --- 標準格式 ---
+    def test_standard_format(self):
+        """標準格式 SONE-103"""
+        assert is_number_format('SONE-103') is True
+
+    def test_no_hyphen(self):
+        """無橫線 ABC123"""
+        assert is_number_format('ABC123') is True
+
+    def test_lowercase(self):
+        """小寫 sone-103"""
+        assert is_number_format('sone-103') is True
+
+    # --- 後綴處理 ---
+    def test_suffix_uc(self):
+        """UC 後綴 SONE-103-UC"""
+        assert is_number_format('SONE-103-UC') is True
+
+    def test_suffix_uncensored(self):
+        """UNCENSORED 後綴 ABC-123-UNCENSORED"""
+        assert is_number_format('ABC-123-UNCENSORED') is True
+
+    def test_suffix_uncen(self):
+        """UNCEN 後綴 MIDV-456-UNCEN"""
+        assert is_number_format('MIDV-456-UNCEN') is True
+
+    def test_suffix_leak(self):
+        """LEAK 後綴 STARS-804-leak"""
+        assert is_number_format('STARS-804-leak') is True
+
+    def test_suffix_leaked(self):
+        """LEAKED 後綴 IPZZ-001_LEAKED"""
+        assert is_number_format('IPZZ-001_LEAKED') is True
+
+    # --- 無效格式 ---
+    def test_invalid_partial(self):
+        """部分番號 SONE-01"""
+        assert is_number_format('SONE-01') is False
+
+    def test_invalid_prefix_only(self):
+        """純前綴 SONE"""
+        assert is_number_format('SONE') is False
+
+    def test_invalid_numbers_only(self):
+        """純數字 123456"""
+        assert is_number_format('123456') is False
+
+    def test_invalid_short_number(self):
+        """數字太短 ABC-12"""
+        assert is_number_format('ABC-12') is False
+
+
+# ============ 整合測試：搜尋流程 ============
+
+class TestSearchQueryIntegration:
+    """
+    整合測試：模擬搜尋查詢的完整流程
+
+    驗證 is_number_format() + normalize_number() 配合正確
+    這類測試能抓到單元測試漏掉的問題
+    """
+
+    # --- 後綴查詢應正確處理 ---
+    def test_uc_suffix_flow(self):
+        """UC 後綴查詢完整流程"""
+        query = 'SONE-103-UC'
+        assert is_number_format(query) is True
+        assert normalize_number(query) == 'SONE-103'
+
+    def test_uncensored_suffix_flow(self):
+        """UNCENSORED 後綴查詢完整流程"""
+        query = 'ABC-123-UNCENSORED'
+        assert is_number_format(query) is True
+        assert normalize_number(query) == 'ABC-123'
+
+    def test_leak_suffix_flow(self):
+        """LEAK 後綴查詢完整流程"""
+        query = 'MIDV-456_leak'
+        assert is_number_format(query) is True
+        assert normalize_number(query) == 'MIDV-456'
+
+    def test_uncen_suffix_flow(self):
+        """UNCEN 後綴查詢完整流程"""
+        query = 'STARS-804-UNCEN'
+        assert is_number_format(query) is True
+        assert normalize_number(query) == 'STARS-804'
+
+    def test_leaked_suffix_flow(self):
+        """LEAKED 後綴查詢完整流程"""
+        query = 'IPZZ-001_LEAKED'
+        assert is_number_format(query) is True
+        assert normalize_number(query) == 'IPZZ-001'
+
+    # --- 標準查詢不受影響 ---
+    def test_standard_query_unchanged(self):
+        """標準查詢不應被修改"""
+        query = 'SONE-103'
+        assert is_number_format(query) is True
+        assert normalize_number(query) == 'SONE-103'
+
+    def test_no_hyphen_query_normalized(self):
+        """無橫線查詢應正規化"""
+        query = 'sone103'
+        assert is_number_format(query) is True
+        assert normalize_number(query) == 'SONE-103'
+
+    # --- 檔名提取 + 搜尋流程 ---
+    def test_filename_to_search_flow(self):
+        """檔名提取到搜尋的完整流程"""
+        filename = 'SONE-103-UC_1080p.mp4'
+        # 步驟 1: 從檔名提取番號
+        number = extract_number(filename)
+        assert number == 'SONE-103'
+        # 步驟 2: 驗證格式（用於判斷搜尋模式）
+        assert is_number_format(number) is True
+        # 步驟 3: 正規化（用於實際搜尋）
+        assert normalize_number(number) == 'SONE-103'
+
+    def test_user_input_to_search_flow(self):
+        """用戶輸入到搜尋的完整流程"""
+        # 用戶直接輸入帶後綴的番號
+        user_input = 'SONE-103-UC'
+        # 步驟 1: 驗證是完整番號格式
+        assert is_number_format(user_input) is True
+        # 步驟 2: 正規化後搜尋
+        search_query = normalize_number(user_input)
+        assert search_query == 'SONE-103'
 
 
 # ============ 從 samples/ 讀取測試 ============

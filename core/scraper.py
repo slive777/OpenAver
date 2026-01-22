@@ -61,8 +61,14 @@ def normalize_number(number: str) -> str:
 
 
 def is_number_format(s: str) -> bool:
-    """判斷是否為完整番號格式 (如 SONE-001, ABC-123)"""
-    return bool(re.match(r'^[a-zA-Z]+-?\d{3,}$', s.strip()))
+    """判斷是否為完整番號格式 (如 SONE-001, ABC-123, SONE-103-UC)"""
+    s = s.strip()
+    # 清理常見後綴（與 extract_number 邏輯一致）
+    s = re.sub(
+        r'[-_]?(UC|UNCEN|UNCENSORED|LEAK|LEAKED)(?=[-_.\s]|$)',
+        '', s, flags=re.IGNORECASE
+    )
+    return bool(re.match(r'^[a-zA-Z]+-?\d{3,}$', s))
 
 
 def is_partial_number(s: str) -> bool:

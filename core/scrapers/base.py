@@ -85,9 +85,15 @@ class BaseScraper(ABC):
         Returns:
             正規化後的番號
         """
-        number = number.upper().strip()
-        # ABC123 → ABC-123
         import re
+        number = number.strip()
+        # 清理常見後綴（UC, UNCEN, UNCENSORED, LEAK, LEAKED）
+        number = re.sub(
+            r'[-_]?(UC|UNCEN|UNCENSORED|LEAK|LEAKED)(?=[-_.\s]|$)',
+            '', number, flags=re.IGNORECASE
+        )
+        number = number.upper()
+        # ABC123 → ABC-123
         match = re.match(r'^([A-Z]+)(\d+)$', number)
         if match:
             return f"{match.group(1)}-{match.group(2)}"
