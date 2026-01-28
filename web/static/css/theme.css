@@ -1,7 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap');
 
 /* ========== 全局主題變數 (與 AVList 一致) ========== */
 :root {
+    /* Display Font for Design System */
+    --font-display: 'Space Grotesk', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     /* Colors - Warm Neutral Palette (Light Mode) */
     --bg-body: #f8f7f4;
     --bg-card: #ffffff;

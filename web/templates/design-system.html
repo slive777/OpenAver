@@ -7,15 +7,13 @@
 {% endblock %}
 
 {% block content %}
-<div class="ds-container">
-    <!-- 頁面標題 -->
-    <header class="ds-header">
-        <h1>OpenAver Design System</h1>
-        <p class="ds-subtitle">DaisyUI + Fluent Design 2 元件庫</p>
-    </header>
+<!-- 必修 1：加 ds-page class 到 body -->
+<script>document.body.classList.add('ds-page');</script>
 
-    <!-- 目錄導航 -->
+<div class="ds-layout">
+    <!-- 左側 TOC 側欄 -->
     <nav class="ds-toc">
+        <span class="ds-toc-title">Contents</span>
         <a href="#colors">Colors & Typography</a>
         <a href="#fluent">Fluent Tokens</a>
         <a href="#buttons">Buttons</a>
@@ -26,427 +24,468 @@
         <a href="#feedback">Feedback</a>
     </nav>
 
-    <!-- 區塊 1: Colors & Typography -->
-    <section id="colors" class="ds-section">
-        <h2>Colors & Typography</h2>
+    <!-- 右側內容 -->
+    <div class="ds-content">
+        <!-- 頁面標題 -->
+        <header class="ds-header">
+            <h1>OpenAver Design System</h1>
+            <p class="ds-subtitle">DaisyUI + Fluent Design 2 元件庫</p>
+        </header>
 
-        <!-- 主題色盤 -->
-        <div class="ds-subsection">
-            <h3>Theme Colors</h3>
-            <div class="ds-color-grid">
-                <div class="ds-color-swatch" style="background: var(--bg-body);">
-                    <span>--bg-body</span>
-                </div>
-                <div class="ds-color-swatch" style="background: var(--bg-card);">
-                    <span>--bg-card</span>
-                </div>
-                <div class="ds-color-swatch" style="background: var(--bg-sidebar);">
-                    <span>--bg-sidebar</span>
-                </div>
-                <div class="ds-color-swatch" style="background: var(--accent);">
-                    <span>--accent</span>
-                </div>
-                <div class="ds-color-swatch" style="background: var(--accent-red);">
-                    <span>--accent-red</span>
+        <!-- 區塊 1: Colors & Typography (glass 樣式) -->
+        <section id="colors" class="ds-section glass">
+            <h2>Colors & Typography</h2>
+
+            <!-- 主題色盤（儀表板化） -->
+            <div class="ds-subsection">
+                <h3>Theme Colors</h3>
+                <div class="ds-color-grid">
+                    <div class="ds-color-swatch" style="background: var(--bg-body);">
+                        <div class="ds-color-info">
+                            <span class="ds-color-name">--bg-body</span>
+                            <code class="ds-color-hex">#f8f7f4</code>
+                            <span class="ds-color-usage">Page background</span>
+                        </div>
+                    </div>
+                    <div class="ds-color-swatch" style="background: var(--bg-card);">
+                        <div class="ds-color-info">
+                            <span class="ds-color-name">--bg-card</span>
+                            <code class="ds-color-hex">#ffffff</code>
+                            <span class="ds-color-usage">Card surfaces</span>
+                        </div>
+                    </div>
+                    <div class="ds-color-swatch" style="background: var(--bg-sidebar);">
+                        <div class="ds-color-info">
+                            <span class="ds-color-name">--bg-sidebar</span>
+                            <code class="ds-color-hex">#212529</code>
+                            <span class="ds-color-usage">Navigation sidebar</span>
+                        </div>
+                    </div>
+                    <div class="ds-color-swatch" style="background: var(--accent);">
+                        <div class="ds-color-info">
+                            <span class="ds-color-name">--accent</span>
+                            <code class="ds-color-hex">#2d5a7b</code>
+                            <span class="ds-color-usage">Primary actions, links</span>
+                        </div>
+                    </div>
+                    <div class="ds-color-swatch" style="background: var(--accent-red);">
+                        <div class="ds-color-info">
+                            <span class="ds-color-name">--accent-red</span>
+                            <code class="ds-color-hex">#c94a4a</code>
+                            <span class="ds-color-usage">Destructive actions</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- 文字色 -->
-        <div class="ds-subsection">
-            <h3>Text Colors</h3>
-            <div class="ds-text-samples">
-                <p><span style="color: var(--text-primary); font-weight: 600;">Primary Text</span> <code style="color: var(--text-muted); font-size: 0.85rem;">(--text-primary)</code></p>
-                <p><span style="color: var(--text-secondary);">Secondary Text</span> <code style="color: var(--text-muted); font-size: 0.85rem;">(--text-secondary)</code></p>
-                <p><span style="color: var(--text-muted);">Muted Text</span> <code style="color: var(--text-muted); font-size: 0.85rem;">(--text-muted)</code></p>
-            </div>
-        </div>
-
-        <!-- 字型等級 -->
-        <div class="ds-subsection">
-            <h3>Typography Scale</h3>
-            <div class="ds-typography">
-                <h1>Heading 1 - Plus Jakarta Sans 700</h1>
-                <h2>Heading 2 - Plus Jakarta Sans 600</h2>
-                <h3>Heading 3 - Plus Jakarta Sans 600</h3>
-                <h4>Heading 4 - Plus Jakarta Sans 500</h4>
-                <p>Body Text - Plus Jakarta Sans 400, 1rem/1.5</p>
-                <small>Small Text - 0.875rem</small>
-            </div>
-        </div>
-    </section>
-
-    <!-- 區塊 2: Fluent Design Tokens -->
-    <section id="fluent" class="ds-section">
-        <h2>Fluent Design Tokens</h2>
-
-        <!-- 圓角展示 -->
-        <div class="ds-subsection">
-            <h3>Border Radius</h3>
-            <div class="ds-radius-grid">
-                <div class="ds-radius-item fluent-rounded-sm">
-                    <span>sm (2px)</span>
-                </div>
-                <div class="ds-radius-item fluent-rounded-md">
-                    <span>md (4px)</span>
-                </div>
-                <div class="ds-radius-item fluent-rounded-lg">
-                    <span>lg (8px)</span>
-                </div>
-                <div class="ds-radius-item fluent-rounded-xl">
-                    <span>xl (12px)</span>
+            <!-- 文字色 -->
+            <div class="ds-subsection">
+                <h3>Text Colors</h3>
+                <div class="ds-text-samples">
+                    <p><span style="color: var(--text-primary); font-weight: 600;">Primary Text</span> <code style="color: var(--text-muted); font-size: 0.85rem;">(--text-primary)</code></p>
+                    <p><span style="color: var(--text-secondary);">Secondary Text</span> <code style="color: var(--text-muted); font-size: 0.85rem;">(--text-secondary)</code></p>
+                    <p><span style="color: var(--text-muted);">Muted Text</span> <code style="color: var(--text-muted); font-size: 0.85rem;">(--text-muted)</code></p>
                 </div>
             </div>
-        </div>
 
-        <!-- 陰影展示 -->
-        <div class="ds-subsection">
-            <h3>Elevation (Shadow)</h3>
-            <div class="ds-shadow-grid">
-                <div class="ds-shadow-item fluent-shadow-2">shadow-2</div>
-                <div class="ds-shadow-item fluent-shadow-4">shadow-4</div>
-                <div class="ds-shadow-item fluent-shadow-8">shadow-8</div>
-                <div class="ds-shadow-item fluent-shadow-16">shadow-16</div>
-            </div>
-            <p class="ds-note">Light/Dark 模式下陰影深度自動調整</p>
-        </div>
-
-        <!-- 毛玻璃效果 -->
-        <div class="ds-subsection">
-            <h3>Acrylic (Blur)</h3>
-            <div class="ds-acrylic-demo">
-                <div class="ds-acrylic-bg">
-                    <img src="https://picsum.photos/400/200" alt="背景">
-                </div>
-                <div class="ds-acrylic-overlay fluent-acrylic">
-                    <span>.fluent-acrylic</span>
-                    <code>blur: 30px, saturate: 140%</code>
+            <!-- 字型等級 -->
+            <div class="ds-subsection">
+                <h3>Typography Scale</h3>
+                <div class="ds-typography">
+                    <h1>Heading 1 - Space Grotesk 700</h1>
+                    <h2>Heading 2 - Space Grotesk 600</h2>
+                    <h3>Heading 3 - Plus Jakarta Sans 600</h3>
+                    <h4>Heading 4 - Plus Jakarta Sans 500</h4>
+                    <p>Body Text - Plus Jakarta Sans 400, 1rem/1.5</p>
+                    <small>Small Text - 0.875rem</small>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- 動畫時長 -->
-        <div class="ds-subsection">
-            <h3>Motion Duration</h3>
-            <div class="ds-duration-list">
-                <div class="ds-duration-item">
-                    <span class="ds-duration-name">ultra-fast</span>
-                    <span class="ds-duration-value">50ms</span>
-                </div>
-                <div class="ds-duration-item">
-                    <span class="ds-duration-name">faster</span>
-                    <span class="ds-duration-value">83ms</span>
-                </div>
-                <div class="ds-duration-item">
-                    <span class="ds-duration-name">fast</span>
-                    <span class="ds-duration-value">167ms</span>
-                </div>
-                <div class="ds-duration-item">
-                    <span class="ds-duration-name">normal</span>
-                    <span class="ds-duration-value">250ms</span>
-                </div>
-                <div class="ds-duration-item">
-                    <span class="ds-duration-name">slow</span>
-                    <span class="ds-duration-value">300ms</span>
-                </div>
-                <div class="ds-duration-item">
-                    <span class="ds-duration-name">slower</span>
-                    <span class="ds-duration-value">400ms</span>
+        <!-- 區塊 2: Fluent Design Tokens (accent-bar 樣式) -->
+        <section id="fluent" class="ds-section accent-bar">
+            <h2>Fluent Design Tokens</h2>
+
+            <!-- 圓角展示 -->
+            <div class="ds-subsection">
+                <h3>Border Radius</h3>
+                <div class="ds-radius-grid">
+                    <div class="ds-radius-item fluent-rounded-sm">
+                        <span>sm (2px)</span>
+                    </div>
+                    <div class="ds-radius-item fluent-rounded-md">
+                        <span>md (4px)</span>
+                    </div>
+                    <div class="ds-radius-item fluent-rounded-lg">
+                        <span>lg (8px)</span>
+                    </div>
+                    <div class="ds-radius-item fluent-rounded-xl">
+                        <span>xl (12px)</span>
+                    </div>
                 </div>
             </div>
-        </div>
-    </section>
 
-    <!-- 區塊 3: Buttons -->
-    <section id="buttons" class="ds-section">
-        <h2>Buttons</h2>
-
-        <!-- DaisyUI 按鈕 -->
-        <div class="ds-subsection">
-            <h3>DaisyUI Buttons</h3>
-            <div class="ds-button-row">
-                <button class="btn btn-primary">Primary</button>
-                <button class="btn btn-secondary">Secondary</button>
-                <button class="btn btn-accent">Accent</button>
-                <button class="btn btn-ghost">Ghost</button>
-                <button class="btn btn-link">Link</button>
-            </div>
-            <div class="ds-button-row">
-                <button class="btn btn-outline btn-primary">Outline</button>
-                <button class="btn btn-primary btn-sm">Small</button>
-                <button class="btn btn-primary btn-lg">Large</button>
-                <button class="btn btn-primary" disabled>Disabled</button>
-            </div>
-        </div>
-
-        <!-- Bootstrap 按鈕（過渡期保留） -->
-        <div class="ds-subsection">
-            <h3>Bootstrap Buttons (Legacy)</h3>
-            <div class="ds-button-row">
-                <button class="btn btn-primary">Primary</button>
-                <button class="btn btn-outline-primary">Outline</button>
-                <button class="btn btn-outline-secondary">Secondary</button>
-                <button class="btn btn-outline-danger">Danger</button>
-                <button class="btn btn-success">Success</button>
-            </div>
-        </div>
-
-        <!-- 自訂按鈕 -->
-        <div class="ds-subsection">
-            <h3>Custom Buttons</h3>
-            <div class="ds-button-row ds-button-row-dark">
-                <button class="btn-icon"><i class="bi bi-search"></i></button>
-                <button class="btn-icon active"><i class="bi bi-arrow-right"></i></button>
-                <button class="btn-glass">Glass Button</button>
-            </div>
-            <div class="ds-button-row">
-                <button class="btn-hero btn-hero-primary">
-                    <i class="bi bi-play-fill"></i> Hero Primary
-                </button>
-                <button class="btn-hero btn-hero-secondary">
-                    <i class="bi bi-clipboard"></i> Hero Secondary
-                </button>
-            </div>
-        </div>
-    </section>
-
-    <!-- 區塊 4: Form Controls -->
-    <section id="forms" class="ds-section">
-        <h2>Form Controls</h2>
-
-        <div class="ds-subsection">
-            <h3>Input Fields</h3>
-            <div class="ds-form-grid">
-                <div class="ds-form-item">
-                    <label class="form-label">Text Input</label>
-                    <input type="text" class="form-control" placeholder="輸入文字...">
+            <!-- 陰影展示 -->
+            <div class="ds-subsection">
+                <h3>Elevation (Shadow)</h3>
+                <div class="ds-shadow-grid">
+                    <div class="ds-shadow-item fluent-shadow-2">shadow-2</div>
+                    <div class="ds-shadow-item fluent-shadow-4">shadow-4</div>
+                    <div class="ds-shadow-item fluent-shadow-8">shadow-8</div>
+                    <div class="ds-shadow-item fluent-shadow-16">shadow-16</div>
                 </div>
-                <div class="ds-form-item">
-                    <label class="form-label">Small Input</label>
-                    <input type="text" class="form-control form-control-sm" placeholder="小型輸入框">
-                </div>
-                <div class="ds-form-item">
-                    <label class="form-label">Select</label>
-                    <select class="form-select">
-                        <option>選項 1</option>
-                        <option>選項 2</option>
-                        <option>選項 3</option>
-                    </select>
+                <p class="ds-note">Light/Dark 模式下陰影深度自動調整</p>
+            </div>
+
+            <!-- 毛玻璃效果 -->
+            <div class="ds-subsection">
+                <h3>Acrylic (Blur)</h3>
+                <div class="ds-acrylic-demo">
+                    <div class="ds-acrylic-bg">
+                        <img src="/static/img/demo/sone-103.jpg" alt="背景">
+                    </div>
+                    <div class="ds-acrylic-overlay fluent-acrylic">
+                        <span>.fluent-acrylic</span>
+                        <code>blur: 30px, saturate: 140%</code>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="ds-subsection">
-            <h3>Spotlight Search</h3>
-            <div class="spotlight-search" style="max-width: 500px;">
-                <i class="bi bi-search search-icon-left"></i>
-                <input type="text" placeholder="搜尋番號、女優或拖入檔案...">
-                <div class="search-actions-right">
-                    <button class="btn-icon"><i class="bi bi-x-lg"></i></button>
+            <!-- 動畫時長 -->
+            <div class="ds-subsection">
+                <h3>Motion Duration</h3>
+                <div class="ds-duration-list">
+                    <div class="ds-duration-item">
+                        <span class="ds-duration-name">ultra-fast</span>
+                        <span class="ds-duration-value">50ms</span>
+                    </div>
+                    <div class="ds-duration-item">
+                        <span class="ds-duration-name">faster</span>
+                        <span class="ds-duration-value">83ms</span>
+                    </div>
+                    <div class="ds-duration-item">
+                        <span class="ds-duration-name">fast</span>
+                        <span class="ds-duration-value">167ms</span>
+                    </div>
+                    <div class="ds-duration-item">
+                        <span class="ds-duration-name">normal</span>
+                        <span class="ds-duration-value">250ms</span>
+                    </div>
+                    <div class="ds-duration-item">
+                        <span class="ds-duration-name">slow</span>
+                        <span class="ds-duration-value">300ms</span>
+                    </div>
+                    <div class="ds-duration-item">
+                        <span class="ds-duration-name">slower</span>
+                        <span class="ds-duration-value">400ms</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 區塊 3: Buttons (glass 樣式) -->
+        <section id="buttons" class="ds-section glass">
+            <h2>Buttons</h2>
+
+            <!-- DaisyUI 按鈕 -->
+            <div class="ds-subsection">
+                <h3>DaisyUI Buttons</h3>
+                <div class="ds-button-row">
+                    <button class="btn btn-primary">Primary</button>
+                    <button class="btn btn-secondary">Secondary</button>
+                    <button class="btn btn-accent">Accent</button>
+                    <button class="btn btn-ghost">Ghost</button>
+                    <button class="btn btn-link">Link</button>
+                </div>
+                <div class="ds-button-row">
+                    <button class="btn btn-outline btn-primary">Outline</button>
+                    <button class="btn btn-primary btn-sm">Small</button>
+                    <button class="btn btn-primary btn-lg">Large</button>
+                    <button class="btn btn-primary" disabled>Disabled</button>
+                </div>
+            </div>
+
+            <!-- Bootstrap 按鈕（過渡期保留） -->
+            <div class="ds-subsection">
+                <h3>Bootstrap Buttons (Legacy)</h3>
+                <div class="ds-button-row">
+                    <button class="btn btn-primary">Primary</button>
+                    <button class="btn btn-outline-primary">Outline</button>
+                    <button class="btn btn-outline-secondary">Secondary</button>
+                    <button class="btn btn-outline-danger">Danger</button>
+                    <button class="btn btn-success">Success</button>
+                </div>
+            </div>
+
+            <!-- 自訂按鈕 -->
+            <div class="ds-subsection">
+                <h3>Custom Buttons</h3>
+                <div class="ds-button-row ds-button-row-dark">
+                    <button class="btn-icon"><i class="bi bi-search"></i></button>
                     <button class="btn-icon active"><i class="bi bi-arrow-right"></i></button>
+                    <button class="btn-glass">Glass Button</button>
+                </div>
+                <div class="ds-button-row">
+                    <button class="btn-hero btn-hero-primary">
+                        <i class="bi bi-play-fill"></i> Hero Primary
+                    </button>
+                    <button class="btn-hero btn-hero-secondary">
+                        <i class="bi bi-clipboard"></i> Hero Secondary
+                    </button>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div class="ds-subsection">
-            <h3>Checkbox & Toggle</h3>
-            <div class="ds-form-row">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="check1" checked>
-                    <label class="form-check-label" for="check1">Checkbox</label>
-                </div>
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="switch1" checked>
-                    <label class="form-check-label" for="switch1">Toggle Switch</label>
-                </div>
-            </div>
-        </div>
-    </section>
+        <!-- 區塊 4: Form Controls (accent-bar 樣式) -->
+        <section id="forms" class="ds-section accent-bar">
+            <h2>Form Controls</h2>
 
-    <!-- 區塊 5: Cards -->
-    <section id="cards" class="ds-section">
-        <h2>Cards</h2>
-
-        <div class="ds-subsection">
-            <h3>Bootstrap Card (Legacy)</h3>
-            <div class="card" style="max-width: 300px;">
-                <div class="card-header">Card Header</div>
-                <div class="card-body">
-                    <h5 class="card-title">Card Title</h5>
-                    <p class="card-text">Card content goes here.</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="ds-subsection">
-            <h3>Fluent Card</h3>
-            <div class="fluent-card" style="max-width: 300px; padding: 1rem; background: var(--bg-card);">
-                <h5>Fluent Card</h5>
-                <p style="color: var(--text-secondary);">12px 圓角 + shadow-4，hover 時 shadow-8</p>
-            </div>
-        </div>
-
-        <div class="ds-subsection">
-            <h3>Gallery Card</h3>
-            <div class="gallery-card" style="max-width: 280px;">
-                <div class="gallery-card-img">
-                    <img src="https://picsum.photos/280/180" alt="封面">
-                    <div class="gallery-card-actions">
-                        <button class="btn-glass">查看</button>
-                        <button class="btn-glass">編輯</button>
+            <div class="ds-subsection">
+                <h3>Input Fields</h3>
+                <div class="ds-form-grid">
+                    <div class="ds-form-item">
+                        <label class="form-label">Text Input</label>
+                        <input type="text" class="form-control" placeholder="輸入文字...">
                     </div>
-                </div>
-                <div class="gallery-card-footer">
-                    <div class="gallery-card-title">作品標題範例</div>
-                    <div class="gallery-card-meta">
-                        <span class="gallery-card-num">ABC-123</span>
-                        <span>2024-01-01</span>
+                    <div class="ds-form-item">
+                        <label class="form-label">Small Input</label>
+                        <input type="text" class="form-control form-control-sm" placeholder="小型輸入框">
+                    </div>
+                    <div class="ds-form-item">
+                        <label class="form-label">Select</label>
+                        <select class="form-select">
+                            <option>選項 1</option>
+                            <option>選項 2</option>
+                            <option>選項 3</option>
+                        </select>
                     </div>
                 </div>
             </div>
-        </div>
-    </section>
 
-    <!-- 區塊 6: AV Card Variants（重點）-->
-    <section id="av-cards" class="ds-section">
-        <h2>AV Card Variants</h2>
-        <p class="ds-note">4 種卡片變體用於不同場景，統一使用 Fluent Design tokens</p>
-
-        <!-- Thumbnail 變體 -->
-        <div class="ds-subsection">
-            <h3>1. Thumbnail（列表縮圖）</h3>
-            <p class="ds-desc">用於搜尋結果下拉、側邊列表，強調緊湊</p>
-            <div class="ds-card-demo">
-                <div class="av-card-thumbnail">
-                    <img src="https://picsum.photos/80/60" alt="thumb">
-                    <div class="av-card-thumbnail-info">
-                        <span class="av-num">SONE-205</span>
-                        <span class="av-actress">女優名</span>
-                    </div>
-                </div>
-                <div class="av-card-thumbnail">
-                    <img src="https://picsum.photos/80/60" alt="thumb">
-                    <div class="av-card-thumbnail-info">
-                        <span class="av-num">IPZZ-030</span>
-                        <span class="av-actress">另一位女優</span>
+            <div class="ds-subsection">
+                <h3>Spotlight Search</h3>
+                <div class="spotlight-search" style="max-width: 500px;">
+                    <i class="bi bi-search search-icon-left"></i>
+                    <input type="text" placeholder="搜尋番號、女優或拖入檔案...">
+                    <div class="search-actions-right">
+                        <button class="btn-icon"><i class="bi bi-x-lg"></i></button>
+                        <button class="btn-icon active"><i class="bi bi-arrow-right"></i></button>
                     </div>
                 </div>
             </div>
-            <pre class="ds-code"><code>.av-card-thumbnail {
+
+            <div class="ds-subsection">
+                <h3>Checkbox & Toggle</h3>
+                <div class="ds-form-row">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="check1" checked>
+                        <label class="form-check-label" for="check1">Checkbox</label>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="switch1" checked>
+                        <label class="form-check-label" for="switch1">Toggle Switch</label>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 區塊 5: Cards (glass 樣式) -->
+        <section id="cards" class="ds-section glass">
+            <h2>Cards</h2>
+
+            <div class="ds-subsection">
+                <h3>Bootstrap Card (Legacy)</h3>
+                <div class="card" style="max-width: 300px;">
+                    <div class="card-header">Card Header</div>
+                    <div class="card-body">
+                        <h5 class="card-title">Card Title</h5>
+                        <p class="card-text">Card content goes here.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ds-subsection">
+                <h3>Fluent Card</h3>
+                <div class="fluent-card" style="max-width: 300px; padding: 1rem; background: var(--bg-card);">
+                    <h5>Fluent Card</h5>
+                    <p style="color: var(--text-secondary);">12px 圓角 + shadow-4，hover 時 shadow-8</p>
+                </div>
+            </div>
+
+            <div class="ds-subsection">
+                <h3>Gallery Card</h3>
+                <div class="gallery-card ds-gallery-card" style="max-width: 280px;">
+                    <div class="gallery-card-img">
+                        <img src="/static/img/demo/mide-974.jpg" alt="封面">
+                        <div class="gallery-card-actions">
+                            <button class="btn-glass">查看</button>
+                            <button class="btn-glass">編輯</button>
+                        </div>
+                    </div>
+                    <div class="gallery-card-footer">
+                        <div class="gallery-card-title">作品標題範例</div>
+                        <div class="gallery-card-meta">
+                            <span class="gallery-card-num">MIDE-974</span>
+                            <span>2024-01-01</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 區塊 6: AV Card Variants（重點，accent-bar 樣式）-->
+        <section id="av-cards" class="ds-section accent-bar">
+            <h2>AV Card Variants</h2>
+            <p class="ds-note">4 種卡片變體用於不同場景，統一使用 Fluent Design tokens</p>
+
+            <!-- Thumbnail 變體 -->
+            <div class="ds-subsection">
+                <h3>1. Thumbnail（列表縮圖）</h3>
+                <p class="ds-desc">用於搜尋結果下拉、側邊列表，強調緊湊</p>
+                <div class="ds-card-demo">
+                    <div class="av-card-thumbnail">
+                        <img src="/static/img/demo/sone-103.jpg" alt="thumb">
+                        <div class="av-card-thumbnail-info">
+                            <span class="av-num">SONE-103</span>
+                            <span class="av-actress">女優名</span>
+                        </div>
+                    </div>
+                    <div class="av-card-thumbnail">
+                        <img src="/static/img/demo/ipzz-001.jpg" alt="thumb">
+                        <div class="av-card-thumbnail-info">
+                            <span class="av-num">IPZZ-001</span>
+                            <span class="av-actress">另一位女優</span>
+                        </div>
+                    </div>
+                </div>
+                <pre class="ds-code"><code>.av-card-thumbnail {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.25rem;
   border-radius: var(--fluent-radius-md);
 }</code></pre>
-        </div>
-
-        <!-- Preview 變體 -->
-        <div class="ds-subsection">
-            <h3>2. Preview（網格封面）</h3>
-            <p class="ds-desc">用於 Gallery 網格展示，強調封面視覺</p>
-            <div class="ds-card-demo ds-card-grid">
-                <div class="av-card-preview">
-                    <div class="av-card-preview-img">
-                        <img src="https://picsum.photos/200/133" alt="cover">
-                        <div class="av-card-preview-overlay">
-                            <button class="btn-glass"><i class="bi bi-eye"></i></button>
-                            <button class="btn-glass"><i class="bi bi-folder-plus"></i></button>
-                        </div>
-                        <span class="av-card-preview-badge">HD</span>
-                    </div>
-                    <div class="av-card-preview-footer">
-                        <span class="av-num">SONE-205</span>
-                        <span class="av-actress">女優名</span>
-                    </div>
-                </div>
-                <div class="av-card-preview">
-                    <div class="av-card-preview-img">
-                        <img src="https://picsum.photos/200/133" alt="cover">
-                        <span class="av-card-preview-badge local">本地</span>
-                    </div>
-                    <div class="av-card-preview-footer">
-                        <span class="av-num">FC2-PPV-1234567</span>
-                        <span class="av-actress">素人</span>
-                    </div>
-                </div>
             </div>
-            <pre class="ds-code"><code>.av-card-preview {
+
+            <!-- Preview 變體（拼貼佈局） -->
+            <div class="ds-subsection">
+                <h3>2. Preview（網格封面）</h3>
+                <p class="ds-desc">用於 Gallery 網格展示，強調封面視覺。一大兩小拼貼佈局</p>
+                <div class="ds-card-demo ds-card-mosaic">
+                    <!-- 大卡 (featured) -->
+                    <div class="av-card-preview featured">
+                        <div class="av-card-preview-img">
+                            <img src="/static/img/demo/sone-103.jpg" alt="cover">
+                            <div class="av-card-preview-overlay">
+                                <button class="btn-glass"><i class="bi bi-eye"></i></button>
+                                <button class="btn-glass"><i class="bi bi-folder-plus"></i></button>
+                            </div>
+                            <span class="av-card-preview-badge">HD</span>
+                        </div>
+                        <div class="av-card-preview-footer">
+                            <span class="av-num">SONE-103</span>
+                            <span class="av-actress">女優名</span>
+                        </div>
+                    </div>
+                    <!-- 小卡 1 -->
+                    <div class="av-card-preview">
+                        <div class="av-card-preview-img">
+                            <img src="/static/img/demo/mide-974.jpg" alt="cover">
+                            <span class="av-card-preview-badge local">本地</span>
+                        </div>
+                        <div class="av-card-preview-footer">
+                            <span class="av-num">MIDE-974</span>
+                            <span class="av-actress">女優名</span>
+                        </div>
+                    </div>
+                    <!-- 小卡 2 -->
+                    <div class="av-card-preview">
+                        <div class="av-card-preview-img">
+                            <img src="/static/img/demo/fc2-1723984.jpg" alt="cover">
+                            <span class="av-card-preview-badge">FC2</span>
+                        </div>
+                        <div class="av-card-preview-footer">
+                            <span class="av-num">FC2-PPV-1723984</span>
+                            <span class="av-actress">素人</span>
+                        </div>
+                    </div>
+                </div>
+                <pre class="ds-code"><code>.av-card-preview {
   border-radius: var(--fluent-radius-xl);
   box-shadow: var(--fluent-shadow-4);
   overflow: hidden;
 }
 .av-card-preview:hover {
-  box-shadow: var(--fluent-shadow-8);
-  transform: translateY(-4px);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 20px rgba(90, 200, 250, 0.2);
+  transform: translateY(-6px);
 }</code></pre>
-        </div>
+            </div>
 
-        <!-- Full 變體 -->
-        <div class="ds-subsection">
-            <h3>3. Full（詳細頁面）</h3>
-            <p class="ds-desc">用於搜尋結果詳情，左右分區佈局</p>
-            <div class="ds-card-demo">
-                <div class="av-card-full">
-                    <div class="av-card-full-cover">
-                        <img src="https://picsum.photos/400/267" alt="full cover">
-                    </div>
-                    <div class="av-card-full-info">
-                        <div class="av-card-full-header">
-                            <h4 class="av-num">SONE-205</h4>
-                            <span class="local-badge">本地</span>
+            <!-- Full 變體 -->
+            <div class="ds-subsection">
+                <h3>3. Full（詳細頁面）</h3>
+                <p class="ds-desc">用於搜尋結果詳情，左右分區佈局</p>
+                <div class="ds-card-demo">
+                    <div class="av-card-full">
+                        <div class="av-card-full-cover">
+                            <img src="/static/img/demo/cawd-441.jpg" alt="full cover">
                         </div>
-                        <div class="av-card-full-body">
-                            <div class="info-row">
-                                <span class="info-label">演員</span>
-                                <span class="info-value">女優名稱</span>
+                        <div class="av-card-full-info">
+                            <div class="av-card-full-header">
+                                <h4 class="av-num">CAWD-441</h4>
+                                <span class="local-badge">本地</span>
                             </div>
-                            <div class="info-row">
-                                <span class="info-label">發行日期</span>
-                                <span class="info-value">2024-01-15</span>
+                            <div class="av-card-full-body">
+                                <div class="info-row">
+                                    <span class="info-label">演員</span>
+                                    <span class="info-value">女優名稱</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">發行日期</span>
+                                    <span class="info-value">2024-01-15</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">片商</span>
+                                    <span class="info-value">Kawaii</span>
+                                </div>
                             </div>
-                            <div class="info-row">
-                                <span class="info-label">片商</span>
-                                <span class="info-value">S1 NO.1 STYLE</span>
+                            <div class="av-card-full-footer">
+                                <span class="info-label">標題</span>
+                                <p class="info-value">作品標題範例，可能很長需要換行顯示</p>
                             </div>
-                        </div>
-                        <div class="av-card-full-footer">
-                            <span class="info-label">標題</span>
-                            <p class="info-value">作品標題範例，可能很長需要換行顯示</p>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Compact 變體 -->
-        <div class="ds-subsection">
-            <h3>4. Compact（檔案列表行）</h3>
-            <p class="ds-desc">用於批次處理的檔案列表，單行緊湊</p>
-            <div class="ds-card-demo">
-                <div class="av-card-compact">
-                    <i class="bi bi-file-earmark-play"></i>
-                    <span class="av-filename">SONE-205.mp4</span>
-                    <span class="av-num">SONE-205</span>
-                    <span class="av-status searched"><i class="bi bi-check"></i> 已搜尋</span>
-                    <button class="btn btn-sm btn-outline-primary">產生</button>
+            <!-- Compact 變體 -->
+            <div class="ds-subsection">
+                <h3>4. Compact（檔案列表行）</h3>
+                <p class="ds-desc">用於批次處理的檔案列表，單行緊湊</p>
+                <div class="ds-card-demo">
+                    <div class="av-card-compact">
+                        <i class="bi bi-file-earmark-play"></i>
+                        <span class="av-filename">SONE-103.mp4</span>
+                        <span class="av-num">SONE-103</span>
+                        <span class="av-status searched"><i class="bi bi-check"></i> 已搜尋</span>
+                        <button class="btn btn-sm btn-outline-primary">產生</button>
+                    </div>
+                    <div class="av-card-compact">
+                        <i class="bi bi-file-earmark-play"></i>
+                        <span class="av-filename">IPZZ-001_uncensored.mp4</span>
+                        <span class="av-num">IPZZ-001</span>
+                        <span class="av-status pending">待搜尋</span>
+                        <button class="btn btn-sm btn-outline-secondary">搜尋</button>
+                    </div>
+                    <div class="av-card-compact active">
+                        <i class="bi bi-file-earmark-play"></i>
+                        <span class="av-filename">FC2-PPV-1723984.mp4</span>
+                        <span class="av-num">FC2-PPV-1723984</span>
+                        <span class="av-status local"><i class="bi bi-folder-check"></i> 本地</span>
+                        <button class="btn btn-sm btn-success">完成</button>
+                    </div>
                 </div>
-                <div class="av-card-compact">
-                    <i class="bi bi-file-earmark-play"></i>
-                    <span class="av-filename">IPZZ-030_uncensored.mp4</span>
-                    <span class="av-num">IPZZ-030</span>
-                    <span class="av-status pending">待搜尋</span>
-                    <button class="btn btn-sm btn-outline-secondary">搜尋</button>
-                </div>
-                <div class="av-card-compact active">
-                    <i class="bi bi-file-earmark-play"></i>
-                    <span class="av-filename">FC2-PPV-1234567.mp4</span>
-                    <span class="av-num">FC2-PPV-1234567</span>
-                    <span class="av-status local"><i class="bi bi-folder-check"></i> 本地</span>
-                    <button class="btn btn-sm btn-success">完成</button>
-                </div>
-            </div>
-            <pre class="ds-code"><code>.av-card-compact {
+                <pre class="ds-code"><code>.av-card-compact {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -456,89 +495,118 @@
 .av-card-compact.active {
   background: var(--border-light);
 }</code></pre>
-        </div>
-    </section>
-
-    <!-- 區塊 7: Navigation -->
-    <section id="navigation" class="ds-section">
-        <h2>Navigation</h2>
-
-        <div class="ds-subsection">
-            <h3>Sidebar (Mini Demo)</h3>
-            <div class="ds-sidebar-demo">
-                <nav class="ds-sidebar-mini">
-                    <a class="nav-link active"><i class="bi bi-search"></i> 搜尋</a>
-                    <a class="nav-link"><i class="bi bi-list-ul"></i> 列表生成</a>
-                    <a class="nav-link"><i class="bi bi-collection-play"></i> 瀏覽</a>
-                    <a class="nav-link"><i class="bi bi-gear"></i> 設定</a>
-                </nav>
             </div>
-        </div>
+        </section>
 
-        <div class="ds-subsection">
-            <h3>Tabs (DaisyUI)</h3>
-            <div class="tabs tabs-bordered">
-                <a class="tab tab-active">Tab 1</a>
-                <a class="tab">Tab 2</a>
-                <a class="tab">Tab 3</a>
-            </div>
-        </div>
-    </section>
+        <!-- 區塊 7: Navigation (glass 樣式) -->
+        <section id="navigation" class="ds-section glass">
+            <h2>Navigation</h2>
 
-    <!-- 區塊 8: Feedback -->
-    <section id="feedback" class="ds-section">
-        <h2>Feedback</h2>
-
-        <div class="ds-subsection">
-            <h3>Alert / Badge</h3>
-            <div class="ds-feedback-row">
-                <div class="alert alert-warning" role="alert">
-                    <i class="bi bi-exclamation-triangle"></i> 警告訊息
-                </div>
-                <span class="badge bg-primary">Badge</span>
-                <span class="badge bg-danger">錯誤</span>
-                <span class="badge bg-success">成功</span>
-            </div>
-        </div>
-
-        <div class="ds-subsection">
-            <h3>Toast</h3>
-            <div class="ds-toast-demo">
-                <div class="toast-msg show">這是一個 Toast 訊息</div>
-            </div>
-            <div class="ds-toast-demo">
-                <div class="source-toast-inline show">已複製</div>
-            </div>
-        </div>
-
-        <div class="ds-subsection">
-            <h3>Progress Bar</h3>
-            <div class="ds-progress-demo">
-                <div class="detail-progress show" style="position: relative;">
-                    <div class="detail-bar" style="width: 65%;"></div>
-                    <span class="detail-text">65 / 100</span>
+            <div class="ds-subsection">
+                <h3>Sidebar (Mini Demo)</h3>
+                <div class="ds-sidebar-demo">
+                    <nav class="ds-sidebar-mini">
+                        <a class="nav-link active"><i class="bi bi-search"></i> 搜尋</a>
+                        <a class="nav-link"><i class="bi bi-list-ul"></i> 列表生成</a>
+                        <a class="nav-link"><i class="bi bi-collection-play"></i> 瀏覽</a>
+                        <a class="nav-link"><i class="bi bi-gear"></i> 設定</a>
+                    </nav>
                 </div>
             </div>
-            <div class="ds-progress-demo">
-                <div class="batch-progress">
-                    <div class="batch-progress-bar">
-                        <div class="batch-progress-fill" style="width: 40%;"></div>
+
+            <div class="ds-subsection">
+                <h3>Tabs (DaisyUI)</h3>
+                <div class="tabs tabs-bordered">
+                    <a class="tab tab-active">Tab 1</a>
+                    <a class="tab">Tab 2</a>
+                    <a class="tab">Tab 3</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- 區塊 8: Feedback (accent-bar 樣式) -->
+        <section id="feedback" class="ds-section accent-bar">
+            <h2>Feedback</h2>
+
+            <div class="ds-subsection">
+                <h3>Alert / Badge</h3>
+                <div class="ds-feedback-row">
+                    <div class="alert alert-warning" role="alert">
+                        <i class="bi bi-exclamation-triangle"></i> 警告訊息
                     </div>
-                    <small class="batch-progress-text">處理中 4/10</small>
+                    <span class="badge bg-primary">Badge</span>
+                    <span class="badge bg-danger">錯誤</span>
+                    <span class="badge bg-success">成功</span>
                 </div>
             </div>
-        </div>
 
-        <div class="ds-subsection">
-            <h3>Spinner</h3>
-            <div class="ds-feedback-row">
-                <span class="spinner-border spinner-border-sm"></span>
-                <span class="spinner-border"></span>
-                <button class="btn btn-primary" disabled>
-                    <span class="spinner-border spinner-border-sm"></span> 載入中...
-                </button>
+            <div class="ds-subsection">
+                <h3>Toast</h3>
+                <div class="ds-toast-demo">
+                    <div class="toast-msg show">這是一個 Toast 訊息</div>
+                </div>
+                <div class="ds-toast-demo">
+                    <div class="source-toast-inline show">已複製</div>
+                </div>
             </div>
-        </div>
-    </section>
+
+            <div class="ds-subsection">
+                <h3>Progress Bar</h3>
+                <div class="ds-progress-demo">
+                    <div class="detail-progress show" style="position: relative;">
+                        <div class="detail-bar" style="width: 65%;"></div>
+                        <span class="detail-text">65 / 100</span>
+                    </div>
+                </div>
+                <div class="ds-progress-demo">
+                    <div class="batch-progress">
+                        <div class="batch-progress-bar">
+                            <div class="batch-progress-fill" style="width: 40%;"></div>
+                        </div>
+                        <small class="batch-progress-text">處理中 4/10</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ds-subsection">
+                <h3>Spinner</h3>
+                <div class="ds-feedback-row">
+                    <span class="spinner-border spinner-border-sm"></span>
+                    <span class="spinner-border"></span>
+                    <button class="btn btn-primary" disabled>
+                        <span class="spinner-border spinner-border-sm"></span> 載入中...
+                    </button>
+                </div>
+            </div>
+        </section>
+    </div>
 </div>
+
+<!-- TOC Active State Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tocLinks = document.querySelectorAll('.ds-toc a');
+    const sections = document.querySelectorAll('.ds-section');
+
+    function updateActiveLink() {
+        let current = '';
+        sections.forEach(section => {
+            const sectionTop = section.offsetTop;
+            if (window.scrollY >= sectionTop - 100) {
+                current = section.getAttribute('id');
+            }
+        });
+
+        tocLinks.forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('href') === '#' + current) {
+                link.classList.add('active');
+            }
+        });
+    }
+
+    window.addEventListener('scroll', updateActiveLink);
+    updateActiveLink();
+});
+</script>
 {% endblock %}

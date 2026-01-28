@@ -1,25 +1,123 @@
 /* ==================== Design System Page ==================== */
-/* A youthful, contemporary take on Fluent Design 2 */
+/* Frosted Glass + Light Vignette - Fluent Design 2 Enhanced */
 
-/* ==================== Hero Header ==================== */
-.ds-container {
-    max-width: 1200px;
+/* ==================== Page Background & Atmosphere ==================== */
+/* 必修 1：背景層次（加在 body.ds-page 上） */
+.ds-page {
+    background:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(90, 200, 250, 0.15), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(0, 122, 255, 0.08), transparent),
+        var(--bg-body);
+}
+
+/* 必修 1：讓 main-content 透明，露出頁面背景 */
+.ds-page .main-content {
+    background: transparent;
+}
+
+[data-theme="dark"] .ds-page {
+    background:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(90, 200, 250, 0.08), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(88, 86, 214, 0.06), transparent),
+        var(--bg-body);
+}
+
+/* ==================== Layout: TOC Sidebar + Content ==================== */
+.ds-layout {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 2rem;
+    width: min(1400px, 100%);
     margin: 0 auto;
     padding: 2rem;
 }
 
+/* TOC 固定側欄 */
+.ds-toc {
+    position: sticky;
+    top: 2rem;
+    height: fit-content;
+    padding: 1.5rem;
+    background: var(--bg-card);
+    border-radius: var(--fluent-radius-xl);
+    border: 1px solid var(--border-light);
+    box-shadow: var(--fluent-shadow-4);
+}
+
+.ds-toc-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.ds-toc a {
+    display: block;
+    padding: 0.5rem 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    padding-left: 0.75rem;
+    margin-left: -0.75rem;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.ds-toc a:hover,
+.ds-toc a.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+}
+
+/* RWD: 小螢幕隱藏側欄 */
+@media (max-width: 1024px) {
+    .ds-layout {
+        grid-template-columns: 1fr;
+        padding: 1rem;
+    }
+    .ds-toc {
+        display: none;
+    }
+}
+
+/* ==================== Content Area ==================== */
+.ds-content {
+    min-width: 0; /* Prevent grid blowout */
+}
+
+/* 必修 3：Noise Pattern Overlay */
+.ds-content::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.02;
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* ==================== Hero Header ==================== */
 .ds-header {
     text-align: center;
     margin-bottom: 3rem;
-    padding: 3rem 2rem;
-    background: linear-gradient(135deg,
-        rgba(90, 200, 250, 0.08) 0%,
-        rgba(0, 122, 255, 0.06) 50%,
-        rgba(88, 86, 214, 0.04) 100%
-    );
+    padding: 4rem 2rem;
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-radius: var(--fluent-radius-xl);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+        var(--fluent-shadow-4);
     position: relative;
     overflow: hidden;
+}
+
+[data-theme="dark"] .ds-header {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .ds-header::before {
@@ -29,8 +127,9 @@
     right: -20%;
     width: 400px;
     height: 400px;
-    background: radial-gradient(circle, rgba(90, 200, 250, 0.15) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(90, 200, 250, 0.2) 0%, transparent 70%);
     pointer-events: none;
+    animation: ds-float 6s ease-in-out infinite;
 }
 
 .ds-header::after {
@@ -40,13 +139,17 @@
     left: -10%;
     width: 300px;
     height: 300px;
-    background: radial-gradient(circle, rgba(0, 122, 255, 0.1) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(0, 122, 255, 0.15) 0%, transparent 70%);
     pointer-events: none;
+    animation: ds-float 8s ease-in-out infinite reverse;
 }
 
+/* Typography: Display Font H1 */
 .ds-header h1 {
-    font-size: 2.5rem;
+    font-family: var(--font-display);
+    font-size: 3rem;
     font-weight: 700;
+    letter-spacing: -0.02em;
     background: linear-gradient(135deg, var(--accent) 0%, #007aff 50%, #5856d6 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -71,74 +174,54 @@
     z-index: 1;
 }
 
-/* ==================== Navigation TOC ==================== */
-.ds-toc {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding: 1rem 1.25rem;
-    background: var(--bg-card);
-    border-radius: var(--fluent-radius-xl);
-    box-shadow: var(--fluent-shadow-4);
-    margin-bottom: 2.5rem;
-    border: 1px solid var(--border-light);
-}
-
-.ds-toc a {
-    color: var(--text-secondary);
-    text-decoration: none;
-    padding: 0.5rem 1rem;
-    border-radius: var(--fluent-radius-lg);
-    font-size: 0.9rem;
-    font-weight: 500;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
-    position: relative;
-}
-
-.ds-toc a::after {
-    content: '';
-    position: absolute;
-    bottom: 4px;
-    left: 50%;
-    width: 0;
-    height: 2px;
-    background: linear-gradient(90deg, var(--accent) 0%, #007aff 100%);
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
-    transform: translateX(-50%);
-    border-radius: 1px;
-}
-
-.ds-toc a:hover {
-    color: var(--accent);
-    background: rgba(90, 200, 250, 0.08);
-}
-
-.ds-toc a:hover::after {
-    width: 60%;
-}
-
 /* ==================== Section Cards ==================== */
 .ds-section {
     margin-bottom: 2.5rem;
     padding: 2rem;
-    background: var(--bg-card);
     border-radius: var(--fluent-radius-xl);
-    box-shadow: var(--fluent-shadow-4);
-    border: 1px solid var(--border-light);
     transition: all var(--fluent-duration-normal) var(--fluent-ease-standard);
 }
 
-.ds-section:hover {
-    box-shadow: var(--fluent-shadow-8);
+/* 樣式 A：透明玻璃 + 細描邊 */
+.ds-section.glass {
+    background: rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+        var(--fluent-shadow-4);
 }
 
+[data-theme="dark"] .ds-section.glass {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* 樣式 B：微色塊 + 左側強色條 */
+.ds-section.accent-bar {
+    background: var(--bg-card);
+    border-left: 4px solid var(--accent);
+    border-radius: 0 var(--fluent-radius-xl) var(--fluent-radius-xl) 0;
+    box-shadow: var(--fluent-shadow-4);
+}
+
+/* Section Hover：發光邊 */
+.ds-section:hover {
+    box-shadow:
+        0 0 0 1px rgba(90, 200, 250, 0.2),
+        0 0 30px rgba(90, 200, 250, 0.1),
+        var(--fluent-shadow-8);
+}
+
+/* Typography: Display Font H2 */
 .ds-section h2 {
-    font-size: 1.5rem;
+    font-family: var(--font-display);
+    font-size: 2rem;
     font-weight: 700;
     color: var(--text-primary);
     margin-bottom: 1.75rem;
     padding-bottom: 1rem;
-    border-bottom: none;
     position: relative;
     display: inline-block;
 }
@@ -167,22 +250,19 @@
     margin-bottom: 0;
 }
 
+/* H3：小字級 + letter-spacing（不用 uppercase，中文無效） */
 .ds-subsection h3 {
-    font-size: 1.1rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 1.25rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    margin-bottom: 1rem;
 }
 
 .ds-subsection h3::before {
-    content: '';
-    width: 4px;
-    height: 1.1rem;
-    background: var(--accent);
-    border-radius: 2px;
+    content: '//';
+    margin-right: 0.5rem;
+    opacity: 0.5;
 }
 
 .ds-desc {
@@ -201,19 +281,19 @@
     border-left: 2px solid var(--border-light);
 }
 
-/* ==================== Color Palette Grid ==================== */
+/* ==================== Color Palette Grid (Token 儀表板) ==================== */
 .ds-color-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 1rem;
 }
 
 .ds-color-swatch {
-    height: 100px;
-    border-radius: var(--fluent-radius-lg);
+    height: 120px;
+    border-radius: var(--fluent-radius-xl);
     display: flex;
     align-items: flex-end;
-    padding: 0.75rem;
+    padding: 1rem;
     box-shadow: var(--fluent-shadow-4);
     transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
     cursor: pointer;
@@ -225,21 +305,56 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.3) 0%, transparent 50%);
+    background: linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 60%);
     opacity: 0;
     transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .ds-color-swatch:hover {
     transform: translateY(-4px) scale(1.02);
-    box-shadow: var(--fluent-shadow-16);
+    box-shadow:
+        0 0 0 2px var(--accent),
+        0 0 20px rgba(90, 200, 250, 0.2),
+        var(--fluent-shadow-16);
 }
 
 .ds-color-swatch:hover::before {
     opacity: 1;
 }
 
-.ds-color-swatch span {
+/* Color Info Panel */
+.ds-color-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--fluent-radius-md);
+    position: relative;
+    z-index: 1;
+}
+
+.ds-color-name {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: #fff;
+}
+
+.ds-color-hex {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.ds-color-usage {
+    font-size: 0.65rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Legacy swatch label (fallback) */
+.ds-color-swatch > span:not(.ds-color-name) {
     font-size: 0.75rem;
     font-weight: 600;
     background: rgba(0,0,0,0.6);
@@ -249,6 +364,7 @@
     position: relative;
     z-index: 1;
     backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 
 /* ==================== Text Samples ==================== */
@@ -293,11 +409,13 @@
 }
 
 .ds-typography h1 {
+    font-family: var(--font-display);
     font-size: 2.25rem;
     font-weight: 700;
 }
 
 .ds-typography h2 {
+    font-family: var(--font-display);
     font-size: 1.75rem;
     font-weight: 600;
     border-bottom: none;
@@ -514,6 +632,35 @@
     gap: 1.25rem;
 }
 
+/* ==================== AV Cards 拼貼佈局 (Mosaic) ==================== */
+.ds-card-mosaic {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 1rem;
+}
+
+.ds-card-mosaic .featured {
+    grid-row: span 2;
+}
+
+.ds-card-mosaic .av-card-preview.featured .av-card-preview-img {
+    aspect-ratio: 4/3;
+}
+
+/* RWD：小螢幕單欄 */
+@media (max-width: 768px) {
+    .ds-card-mosaic {
+        grid-template-columns: 1fr;
+    }
+    .ds-card-mosaic .featured {
+        grid-row: auto;
+    }
+    .ds-card-mosaic .av-card-preview.featured .av-card-preview-img {
+        aspect-ratio: 3/2;
+    }
+}
+
 /* ==================== AV Card Variants ==================== */
 
 /* Thumbnail Variant */
@@ -569,8 +716,12 @@
     border: 1px solid var(--border-light);
 }
 
+/* Preview Variant: 發光邊 Hover */
 .av-card-preview:hover {
-    box-shadow: var(--fluent-shadow-16);
+    box-shadow:
+        0 0 0 2px var(--accent),
+        0 0 20px rgba(90, 200, 250, 0.2),
+        var(--fluent-shadow-16);
     transform: translateY(-6px);
     border-color: var(--accent);
 }
@@ -744,6 +895,21 @@
     color: var(--accent);
 }
 
+/* ==================== 必修 4：Gallery Card Hover（僅限 design-system 頁面）==================== */
+.ds-gallery-card:hover .gallery-card-actions {
+    opacity: 1;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+}
+
+.ds-gallery-card:hover {
+    box-shadow:
+        0 0 0 2px var(--accent),
+        0 0 20px rgba(90, 200, 250, 0.15),
+        var(--fluent-shadow-8);
+}
+
 /* ==================== Code Block ==================== */
 .ds-code {
     background: linear-gradient(135deg, #1e1e2e 0%, #252535 100%);
@@ -823,20 +989,20 @@
 
 /* ==================== Responsive Design ==================== */
 @media (max-width: 768px) {
-    .ds-container {
-        padding: 1rem;
-    }
-
     .ds-header {
         padding: 2rem 1.5rem;
     }
 
     .ds-header h1 {
-        font-size: 1.75rem;
+        font-size: 2rem;
     }
 
     .ds-section {
         padding: 1.25rem;
+    }
+
+    .ds-section h2 {
+        font-size: 1.5rem;
     }
 
     .av-card-full {
@@ -862,14 +1028,5 @@
 
 @keyframes ds-float {
     0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
-}
-
-/* Optional: Add subtle animation to header gradients */
-.ds-header::before {
-    animation: ds-float 6s ease-in-out infinite;
-}
-
-.ds-header::after {
-    animation: ds-float 8s ease-in-out infinite reverse;
+    50% { transform: translateY(-8px); }
 }
