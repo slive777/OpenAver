@@ -1042,7 +1042,7 @@ function copyLocalPath() {
 }
 
 /**
- * 顯示 Toast 提示
+ * 顯示 Toast 提示（無需 Bootstrap JS）
  */
 function showToast(message, type = 'info') {
     // 檢查是否有現有的 toast 容器
@@ -1055,20 +1055,31 @@ function showToast(message, type = 'info') {
     }
 
     const toast = document.createElement('div');
-    toast.className = `toast align-items-center text-bg-${type} border-0`;
+    toast.className = `toast align-items-center text-bg-${type} border-0 show`;
     toast.setAttribute('role', 'alert');
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(100%)';
+    toast.style.transition = 'all 0.3s ease-in-out';
     toast.innerHTML = `
         <div class="d-flex">
             <div class="toast-body">${message}</div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.parentElement.parentElement.remove()"></button>
         </div>
     `;
     container.appendChild(toast);
 
-    const bsToast = new bootstrap.Toast(toast, { delay: 2000 });
-    bsToast.show();
+    // Fade in animation
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateX(0)';
+    });
 
-    toast.addEventListener('hidden.bs.toast', () => toast.remove());
+    // Auto remove after 2 seconds
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
 }
 
 /**

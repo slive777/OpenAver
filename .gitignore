@@ -54,3 +54,7 @@ dist/
 output/
 .build_cache/
 CLAUDE.md
+
+# Tailwind CSS
+tools/tailwindcss-extra
+web/static/css/tailwind.css

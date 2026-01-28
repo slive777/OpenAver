@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<html lang="zh-TW" data-theme="{{ theme|default('light') }}">
+<html lang="zh-TW"
+      x-data="{ theme: $persist('{{ theme|default('light') }}').as('theme') }"
+      :data-theme="theme">
 
 <head>
     <meta charset="UTF-8">
@@ -12,6 +14,8 @@
 
     <!-- Theme CSS -->
     <link href="/static/css/theme.css" rel="stylesheet">
+    <!-- Tailwind + DaisyUI CSS -->
+    <link href="/static/css/tailwind.css" rel="stylesheet">
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -59,6 +63,11 @@
             align-items: center;
             padding: 0.75rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* 使用 Fluent Design 毛玻璃效果的 Sidebar Header（可選） */
+        .sidebar-header.fluent-acrylic {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
         }
 
         .sidebar-toggle {
@@ -146,10 +155,16 @@
             margin-left: var(--sidebar-collapsed-width);
         }
 
-        /* 卡片樣式 */
+        /* 卡片樣式 - 使用 Fluent Design tokens */
         .card {
             border: none;
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            border-radius: var(--fluent-radius-xl);
+            box-shadow: var(--fluent-shadow-4);
+            transition: box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+        }
+
+        .card:hover {
+            box-shadow: var(--fluent-shadow-8);
         }
 
         /* 響應式 - Desktop */
@@ -216,12 +231,15 @@
     {% block extra_css %}{% endblock %}
 </head>
 
-<body>
+<body x-data="{
+    sidebarCollapsed: $persist({{ config.general.sidebar_collapsed|default(false)|tojson }}).as('sidebar_collapsed'),
+    mobileMenuOpen: false
+}" :class="{ 'sidebar-collapsed': sidebarCollapsed }" class="{% if page == 'design-system' %}ds-page{% endif %}">
     <!-- 頂部導航列（僅小螢幕顯示）-->
-    <nav class="navbar navbar-dark bg-dark d-lg-none fixed-top top-navbar">
+    <nav class="navbar navbar-dark d-lg-none fixed-top top-navbar fluent-acrylic"
+         style="border-bottom: 1px solid var(--border-light);">
         <div class="container-fluid">
-            <button class="btn btn-dark" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas"
-                aria-controls="sidebarOffcanvas">
+            <button class="btn btn-dark" type="button" @click="mobileMenuOpen = true">
                 <i class="bi bi-list fs-4"></i>
             </button>
             <span class="navbar-brand mb-0 h5">
@@ -232,13 +250,22 @@
     </nav>
 
     <!-- Offcanvas 側邊選單（小螢幕）-->
-    <div class="offcanvas offcanvas-start bg-dark d-lg-none" tabindex="-1" id="sidebarOffcanvas"
-        aria-labelledby="sidebarOffcanvasLabel">
+    <div x-show="mobileMenuOpen"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 -translate-x-full"
+         x-transition:enter-end="opacity-100 translate-x-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-x-0"
+         x-transition:leave-end="opacity-0 -translate-x-full"
+         @click.outside="mobileMenuOpen = false"
+         class="offcanvas offcanvas-start bg-dark d-lg-none"
+         tabindex="-1"
+         style="display: none;">
         <div class="offcanvas-header border-bottom border-secondary">
-            <h5 class="offcanvas-title text-white" id="sidebarOffcanvasLabel">
+            <h5 class="offcanvas-title text-white">
                 <i class="bi bi-film"></i> OpenAver
             </h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"
+            <button type="button" class="btn-close btn-close-white" @click="mobileMenuOpen = false"
                 aria-label="Close"></button>
         </div>
         <div class="offcanvas-body p-0">
@@ -273,9 +300,11 @@
     </div>
 
     <!-- 側邊欄（Desktop）-->
-    <nav class="sidebar d-none d-lg-flex" id="sidebar">
+    <nav class="sidebar d-none d-lg-flex"
+         :class="{ 'collapsed': sidebarCollapsed }"
+         x-ref="sidebar">
         <div class="sidebar-header">
-            <button class="sidebar-toggle" id="sidebarToggle" title="展開/收合">
+            <button class="sidebar-toggle" @click="sidebarCollapsed = !sidebarCollapsed" title="展開/收合">
                 <i class="bi bi-list"></i>
             </button>
             <span class="sidebar-brand"><img src="/static/favicon.svg" alt="Logo" style="width: 20px; height: 20px; margin-right: 4px;"> OpenAver</span>
@@ -319,45 +348,13 @@
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Bootstrap 5 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Alpine Plugins (must load before Alpine Core) -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+    <!-- Alpine Core -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <!-- Tutorial JS -->
     <script src="/static/js/components/tutorial.js"></script>
-
-    <script>
-        // 側邊欄展開/收合
-        (function () {
-            const sidebar = document.getElementById('sidebar');
-            const toggle = document.getElementById('sidebarToggle');
-            const STORAGE_KEY = 'sidebar_collapsed';
-
-            // 從伺服器取得預設值
-            const serverDefault = {{ config.general.sidebar_collapsed|default (false) | tojson
-        }};
-
-        // 優先使用 localStorage（使用者已手動切換過），否則使用伺服器設定
-        let collapsed;
-        const storedValue = localStorage.getItem(STORAGE_KEY);
-        if (storedValue !== null) {
-            collapsed = storedValue === 'true';
-        } else {
-            collapsed = serverDefault;
-        }
-
-        // 套用狀態
-        if (collapsed) {
-            sidebar.classList.add('collapsed');
-            document.body.classList.add('sidebar-collapsed');
-        }
-
-        toggle.addEventListener('click', function () {
-            sidebar.classList.toggle('collapsed');
-            document.body.classList.toggle('sidebar-collapsed');
-            // 儲存狀態到 localStorage
-            localStorage.setItem(STORAGE_KEY, sidebar.classList.contains('collapsed'));
-        });
-    }) ();
-    </script>
 
     {% block extra_js %}{% endblock %}
 </body>
