@@ -31,10 +31,13 @@
     --shadow-lg: var(--fluent-shadow-16, 0 8px 30px rgba(0, 0, 0, 0.10));
     --shadow-card-hover: var(--fluent-shadow-8, 0 12px 40px rgba(0, 0, 0, 0.12));
 
-    /* Layout - 對應至 Fluent Design tokens */
-    --card-radius: var(--fluent-radius-xl, 12px);     /* Fluent X-Large */
-    --radius-sm: var(--fluent-radius-md, 4px);        /* Fluent Medium */
-    --radius-md: var(--fluent-radius-lg, 8px);        /* Fluent Large */
+    /* 圓角 Token 系統（統一語義命名） */
+    --radius-xs: 4px;                                 /* 小標籤、badge、小 icon */
+    --radius-sm: 8px;                                 /* thumbnail、封面、小卡 */
+    --radius-md: 12px;                                /* 卡片、表單、一般容器 */
+    --radius-lg: 16px;                                /* modal、重要容器 */
+    --radius-pill: 999px;                             /* Spotlight Search */
+    --card-radius: var(--radius-md);                  /* 對齊既有用法 (12px) */
 
     /* Transitions - 對應至 Fluent Design tokens */
     --ease-out: var(--fluent-ease-decel, cubic-bezier(0.22, 1, 0.36, 1));
@@ -255,7 +258,7 @@ body {
     padding-right: 6rem;
     /* Space for right actions */
     border: 1px solid var(--border-light);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     /* Pill shape */
     font-size: 1.1rem;
     background: var(--bg-card);
@@ -315,6 +318,7 @@ body {
     overflow: hidden;
     background: var(--bg-body);
     cursor: pointer;
+    border-radius: var(--radius-sm); /* 8px，比卡片 12px 略小 */
 }
 
 .gallery-card-img img {
@@ -432,7 +436,7 @@ body {
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     border: 1px solid var(--border-light);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     font-size: 0.75rem;
     font-weight: 500;
     color: var(--text-secondary);

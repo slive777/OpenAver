@@ -234,7 +234,7 @@
 <body x-data="{
     sidebarCollapsed: $persist({{ config.general.sidebar_collapsed|default(false)|tojson }}).as('sidebar_collapsed'),
     mobileMenuOpen: false
-}" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+}" :class="{ 'sidebar-collapsed': sidebarCollapsed }" class="{% if page == 'design-system' %}ds-page{% endif %}">
     <!-- 頂部導航列（僅小螢幕顯示）-->
     <nav class="navbar navbar-dark d-lg-none fixed-top top-navbar fluent-acrylic"
          style="border-bottom: 1px solid var(--border-light);">

@@ -7,9 +7,6 @@
 {% endblock %}
 
 {% block content %}
-<!-- 必修 1：加 ds-page class 到 body -->
-<script>document.body.classList.add('ds-page');</script>
-
 <div class="ds-layout">
     <!-- 左側 TOC 側欄 -->
     <nav class="ds-toc">
@@ -43,35 +40,35 @@
                     <div class="ds-color-swatch" style="background: var(--bg-body);">
                         <div class="ds-color-info">
                             <span class="ds-color-name">--bg-body</span>
-                            <code class="ds-color-hex">#f8f7f4</code>
+                            <code class="ds-color-hex" data-var="--bg-body"></code>
                             <span class="ds-color-usage">Page background</span>
                         </div>
                     </div>
                     <div class="ds-color-swatch" style="background: var(--bg-card);">
                         <div class="ds-color-info">
                             <span class="ds-color-name">--bg-card</span>
-                            <code class="ds-color-hex">#ffffff</code>
+                            <code class="ds-color-hex" data-var="--bg-card"></code>
                             <span class="ds-color-usage">Card surfaces</span>
                         </div>
                     </div>
                     <div class="ds-color-swatch" style="background: var(--bg-sidebar);">
                         <div class="ds-color-info">
                             <span class="ds-color-name">--bg-sidebar</span>
-                            <code class="ds-color-hex">#212529</code>
+                            <code class="ds-color-hex" data-var="--bg-sidebar"></code>
                             <span class="ds-color-usage">Navigation sidebar</span>
                         </div>
                     </div>
                     <div class="ds-color-swatch" style="background: var(--accent);">
                         <div class="ds-color-info">
                             <span class="ds-color-name">--accent</span>
-                            <code class="ds-color-hex">#2d5a7b</code>
+                            <code class="ds-color-hex" data-var="--accent"></code>
                             <span class="ds-color-usage">Primary actions, links</span>
                         </div>
                     </div>
                     <div class="ds-color-swatch" style="background: var(--accent-red);">
                         <div class="ds-color-info">
                             <span class="ds-color-name">--accent-red</span>
-                            <code class="ds-color-hex">#c94a4a</code>
+                            <code class="ds-color-hex" data-var="--accent-red"></code>
                             <span class="ds-color-usage">Destructive actions</span>
                         </div>
                     </div>
@@ -582,9 +579,10 @@
     </div>
 </div>
 
-<!-- TOC Active State Script -->
+<!-- TOC Active State Script + Dynamic Color Hex -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // TOC Active State
     const tocLinks = document.querySelectorAll('.ds-toc a');
     const sections = document.querySelectorAll('.ds-section');
 
@@ -607,6 +605,45 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.addEventListener('scroll', updateActiveLink);
     updateActiveLink();
+
+    // Dynamic Color Hex Values
+    function rgbToHex(rgb) {
+        // Handle rgb(r, g, b), rgb(r g b), rgba(r, g, b, a), rgba(r g b / a)
+        const match = rgb.match(/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/);
+        if (match) {
+            const r = parseInt(match[1]).toString(16).padStart(2, '0');
+            const g = parseInt(match[2]).toString(16).padStart(2, '0');
+            const b = parseInt(match[3]).toString(16).padStart(2, '0');
+            return `#${r}${g}${b}`;
+        }
+        // Already hex or other format, return as-is
+        return rgb;
+    }
+
+    function updateColorHex() {
+        const style = getComputedStyle(document.documentElement);
+        document.querySelectorAll('.ds-color-hex[data-var]').forEach(el => {
+            const varName = el.dataset.var;
+            const value = style.getPropertyValue(varName).trim();
+            // Convert rgb to hex if needed
+            el.textContent = value.startsWith('rgb') ? rgbToHex(value) : value;
+        });
+    }
+
+    // Initial update
+    updateColorHex();
+
+    // Watch for theme changes via MutationObserver on html element
+    const htmlEl = document.documentElement;
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.attributeName === 'data-theme') {
+                // Delay to let CSS variables update
+                setTimeout(updateColorHex, 50);
+            }
+        });
+    });
+    observer.observe(htmlEl, { attributes: true, attributeFilter: ['data-theme'] });
 });
 </script>
 {% endblock %}
