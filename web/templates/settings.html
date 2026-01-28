@@ -101,6 +101,15 @@
     .collapse-toggle[aria-expanded="true"] i {
         transform: rotate(180deg);
     }
+
+    /* Alpine.js rotate animation */
+    .collapse-toggle i {
+        transition: transform 0.2s ease;
+    }
+
+    .rotate-180 {
+        transform: rotate(180deg) !important;
+    }
 </style>
 {% endblock %}
 
@@ -270,13 +279,16 @@
 
                 <!-- 進階刮削設定 (Collapsed) -->
                 <hr class="my-3">
-                <div class="mb-2">
-                    <a class="collapse-toggle text-decoration-none" data-bs-toggle="collapse" href="#scraperAdvanced"
-                        role="button" aria-expanded="false">
-                        <i class="bi bi-chevron-down"></i> 進階刮削設定
-                    </a>
-                </div>
-                <div class="collapse" id="scraperAdvanced">
+                <div x-data="{ expanded: false }">
+                    <div class="mb-2">
+                        <a class="collapse-toggle text-decoration-none"
+                           @click="expanded = !expanded"
+                           :aria-expanded="expanded"
+                           role="button">
+                            <i class="bi bi-chevron-down" :class="{ 'rotate-180': expanded }"></i> 進階刮削設定
+                        </a>
+                    </div>
+                    <div x-show="expanded" x-collapse id="scraperAdvanced">
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <div class="form-check form-switch">
@@ -288,33 +300,36 @@
                         <div class="col-md-6">
                             <!-- 第一行：外層 / 中層 -->
                             <div class="d-flex align-items-center gap-1 mb-2">
-                                <div class="input-group input-group-sm" style="flex: 1;">
+                                <div class="input-group input-group-sm" style="flex: 1;" x-data="{ open: false }">
                                     <input type="text" class="form-control" id="folderLayer1" placeholder="外層"
                                         oninput="updateFolderLayers()" disabled>
                                     <button class="btn btn-outline-secondary dropdown-toggle" type="button"
-                                        id="folderLayer1Btn" data-bs-toggle="dropdown" disabled>變數</button>
-                                    <ul class="dropdown-menu dropdown-menu-end folder-layer-vars"
-                                        data-target="folderLayer1"></ul>
+                                        id="folderLayer1Btn" @click="open = !open" disabled>變數</button>
+                                    <ul x-show="open" @click.outside="open = false" x-transition
+                                        class="dropdown-menu dropdown-menu-end folder-layer-vars show"
+                                        data-target="folderLayer1" style="display: none;"></ul>
                                 </div>
                                 <span class="text-muted">/</span>
-                                <div class="input-group input-group-sm" style="flex: 1;">
+                                <div class="input-group input-group-sm" style="flex: 1;" x-data="{ open: false }">
                                     <input type="text" class="form-control" id="folderLayer2" placeholder="中層"
                                         oninput="updateFolderLayers()" disabled>
                                     <button class="btn btn-outline-secondary dropdown-toggle" type="button"
-                                        id="folderLayer2Btn" data-bs-toggle="dropdown" disabled>變數</button>
-                                    <ul class="dropdown-menu dropdown-menu-end folder-layer-vars"
-                                        data-target="folderLayer2"></ul>
+                                        id="folderLayer2Btn" @click="open = !open" disabled>變數</button>
+                                    <ul x-show="open" @click.outside="open = false" x-transition
+                                        class="dropdown-menu dropdown-menu-end folder-layer-vars show"
+                                        data-target="folderLayer2" style="display: none;"></ul>
                                 </div>
                             </div>
                             <!-- 第二行：內層（佔整行） -->
-                            <div class="input-group input-group-sm">
+                            <div class="input-group input-group-sm" x-data="{ open: false }">
                                 <span class="input-group-text">內層</span>
                                 <input type="text" class="form-control" id="folderLayer3" value="{num}"
                                     placeholder="{num}" oninput="updateFolderLayers()">
                                 <button class="btn btn-outline-secondary dropdown-toggle" type="button"
-                                    id="folderLayer3Btn" data-bs-toggle="dropdown">變數</button>
-                                <ul class="dropdown-menu dropdown-menu-end folder-layer-vars"
-                                    data-target="folderLayer3"></ul>
+                                    id="folderLayer3Btn" @click="open = !open">變數</button>
+                                <ul x-show="open" @click.outside="open = false" x-transition
+                                    class="dropdown-menu dropdown-menu-end folder-layer-vars show"
+                                    data-target="folderLayer3" style="display: none;"></ul>
                             </div>
                             <div class="mt-1">
                                 <small class="text-muted">
@@ -330,13 +345,15 @@
                             <label class="form-label">檔案命名格式</label>
                         </div>
                         <div class="col-md-6">
-                            <div class="input-group input-group-sm">
+                            <div class="input-group input-group-sm" x-data="{ open: false }">
                                 <input type="text" class="form-control" id="filenameFormat"
                                     value="[{num}][{maker}] {title}" placeholder="[{num}][{maker}] {title}"
                                     oninput="updateFolderPreview()">
                                 <button class="btn btn-outline-secondary dropdown-toggle" type="button"
-                                    data-bs-toggle="dropdown" aria-expanded="false">變數</button>
-                                <ul class="dropdown-menu dropdown-menu-end format-vars" data-target="filenameFormat">
+                                    @click="open = !open" :aria-expanded="open">變數</button>
+                                <ul x-show="open" @click.outside="open = false" x-transition
+                                    class="dropdown-menu dropdown-menu-end format-vars show"
+                                    data-target="filenameFormat" style="display: none;">
                                 </ul>
                             </div>
                         </div>
@@ -378,6 +395,7 @@
                             <small class="text-muted">以逗號分隔</small>
                         </div>
                     </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -417,13 +435,16 @@
 
                 <!-- 進階顯示選項 (Collapsed) -->
                 <hr class="my-3">
-                <div class="mb-2">
-                    <a class="collapse-toggle text-decoration-none" data-bs-toggle="collapse" href="#galleryAdvanced"
-                        role="button" aria-expanded="false">
-                        <i class="bi bi-chevron-down"></i> 進階顯示選項
-                    </a>
-                </div>
-                <div class="collapse" id="galleryAdvanced">
+                <div x-data="{ expanded: false }">
+                    <div class="mb-2">
+                        <a class="collapse-toggle text-decoration-none"
+                           @click="expanded = !expanded"
+                           :aria-expanded="expanded"
+                           role="button">
+                            <i class="bi bi-chevron-down" :class="{ 'rotate-180': expanded }"></i> 進階顯示選項
+                        </a>
+                    </div>
+                    <div x-show="expanded" x-collapse id="galleryAdvanced">
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label">預設顯示模式</label>
@@ -488,6 +509,7 @@
                             <small class="text-muted">0 = 不過濾</small>
                         </div>
                     </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -522,7 +544,7 @@
                         <label class="form-label">主題模式</label>
                     </div>
                     <div class="col-md-6">
-                        <select class="form-select form-select-sm" id="themeMode">
+                        <select class="form-select form-select-sm" id="themeMode" x-model="theme">
                             <option value="light">淺色模式 (Light)</option>
                             <option value="dark">深色模式 (Dark)</option>
                         </select>
@@ -860,8 +882,7 @@
                     document.getElementById('defaultPage').value = config.general.default_page || 'search';
                     document.getElementById('themeMode').value = config.general.theme || 'light';
                     document.getElementById('sidebarCollapsed').checked = config.general.sidebar_collapsed || false;
-                    // 即時套用主題
-                    document.documentElement.setAttribute('data-theme', config.general.theme || 'light');
+                    // Alpine.js x-model 會自動同步主題
                 }
 
                 // 自動載入 Ollama 模型列表（如果有 URL 且是 Ollama provider）
@@ -964,9 +985,7 @@
             const result = await resp.json();
             if (result.success) {
                 showToast('設定已儲存', 'success');
-                // 即時套用主題
-                const newTheme = document.getElementById('themeMode').value;
-                document.documentElement.setAttribute('data-theme', newTheme);
+                // Alpine.js x-model 會自動同步主題到 localStorage
             } else {
                 showToast('儲存失敗: ' + result.error, 'danger');
             }

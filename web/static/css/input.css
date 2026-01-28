@@ -5,3 +5,13 @@
 
 /* 保留現有 CSS 變數系統 */
 @import "./theme.css";
+
+/* Alpine.js 過渡動畫 */
+.rotate-180 {
+  transform: rotate(180deg);
+}
+
+/* Alpine.js x-transition 基礎樣式 */
+[x-cloak] {
+  display: none !important;
+}
