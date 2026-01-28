@@ -1,5 +1,7 @@
 /* ==================== Design System Page ==================== */
+/* A youthful, contemporary take on Fluent Design 2 */
 
+/* ==================== Hero Header ==================== */
 .ds-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -8,67 +10,157 @@
 
 .ds-header {
     text-align: center;
-    margin-bottom: 2rem;
-    padding-bottom: 2rem;
-    border-bottom: 1px solid var(--border-light);
+    margin-bottom: 3rem;
+    padding: 3rem 2rem;
+    background: linear-gradient(135deg,
+        rgba(90, 200, 250, 0.08) 0%,
+        rgba(0, 122, 255, 0.06) 50%,
+        rgba(88, 86, 214, 0.04) 100%
+    );
+    border-radius: var(--fluent-radius-xl);
+    position: relative;
+    overflow: hidden;
+}
+
+.ds-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(90, 200, 250, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.ds-header::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    left: -10%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(0, 122, 255, 0.1) 0%, transparent 70%);
+    pointer-events: none;
 }
 
 .ds-header h1 {
-    font-size: 2rem;
+    font-size: 2.5rem;
     font-weight: 700;
-    color: var(--text-primary);
+    background: linear-gradient(135deg, var(--accent) 0%, #007aff 50%, #5856d6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    position: relative;
+    z-index: 1;
+}
+
+[data-theme="dark"] .ds-header h1 {
+    background: linear-gradient(135deg, #5ac8fa 0%, #64d2ff 50%, #bf5af2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .ds-subtitle {
     color: var(--text-secondary);
-    margin-top: 0.5rem;
+    margin-top: 0.75rem;
+    font-size: 1.1rem;
+    font-weight: 500;
+    position: relative;
+    z-index: 1;
 }
 
-/* 目錄導航 */
+/* ==================== Navigation TOC ==================== */
 .ds-toc {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem 1rem;
-    padding: 1rem;
+    gap: 0.5rem;
+    padding: 1rem 1.25rem;
     background: var(--bg-card);
     border-radius: var(--fluent-radius-xl);
     box-shadow: var(--fluent-shadow-4);
-    margin-bottom: 2rem;
+    margin-bottom: 2.5rem;
+    border: 1px solid var(--border-light);
 }
 
 .ds-toc a {
     color: var(--text-secondary);
     text-decoration: none;
-    padding: 0.25rem 0.5rem;
-    border-radius: var(--fluent-radius-md);
+    padding: 0.5rem 1rem;
+    border-radius: var(--fluent-radius-lg);
+    font-size: 0.9rem;
+    font-weight: 500;
     transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    position: relative;
+}
+
+.ds-toc a::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent) 0%, #007aff 100%);
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transform: translateX(-50%);
+    border-radius: 1px;
 }
 
 .ds-toc a:hover {
-    background: var(--border-light);
     color: var(--accent);
+    background: rgba(90, 200, 250, 0.08);
 }
 
-/* 區塊 */
+.ds-toc a:hover::after {
+    width: 60%;
+}
+
+/* ==================== Section Cards ==================== */
 .ds-section {
-    margin-bottom: 3rem;
-    padding: 1.5rem;
+    margin-bottom: 2.5rem;
+    padding: 2rem;
     background: var(--bg-card);
     border-radius: var(--fluent-radius-xl);
     box-shadow: var(--fluent-shadow-4);
+    border: 1px solid var(--border-light);
+    transition: all var(--fluent-duration-normal) var(--fluent-ease-standard);
+}
+
+.ds-section:hover {
+    box-shadow: var(--fluent-shadow-8);
 }
 
 .ds-section h2 {
     font-size: 1.5rem;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-primary);
-    margin-bottom: 1.5rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 2px solid var(--accent);
+    margin-bottom: 1.75rem;
+    padding-bottom: 1rem;
+    border-bottom: none;
+    position: relative;
+    display: inline-block;
 }
 
+.ds-section h2::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent) 0%, #007aff 60%, transparent 100%);
+    border-radius: 2px;
+}
+
+[data-theme="dark"] .ds-section h2::after {
+    background: linear-gradient(90deg, #5ac8fa 0%, #64d2ff 60%, transparent 100%);
+}
+
+/* ==================== Subsections ==================== */
 .ds-subsection {
-    margin-bottom: 2rem;
+    margin-bottom: 2.5rem;
 }
 
 .ds-subsection:last-child {
@@ -79,57 +171,163 @@
     font-size: 1.1rem;
     font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 1rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ds-subsection h3::before {
+    content: '';
+    width: 4px;
+    height: 1.1rem;
+    background: var(--accent);
+    border-radius: 2px;
 }
 
 .ds-desc {
     color: var(--text-secondary);
-    font-size: 0.9rem;
-    margin-bottom: 1rem;
+    font-size: 0.95rem;
+    margin-bottom: 1.25rem;
+    line-height: 1.6;
 }
 
 .ds-note {
     color: var(--text-muted);
     font-size: 0.85rem;
     font-style: italic;
-    margin-top: 0.5rem;
+    margin-top: 0.75rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--border-light);
 }
 
-/* 色盤展示 */
+/* ==================== Color Palette Grid ==================== */
 .ds-color-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 1rem;
 }
 
 .ds-color-swatch {
-    height: 80px;
+    height: 100px;
     border-radius: var(--fluent-radius-lg);
     display: flex;
     align-items: flex-end;
-    padding: 0.5rem;
-    box-shadow: var(--fluent-shadow-2);
+    padding: 0.75rem;
+    box-shadow: var(--fluent-shadow-4);
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.ds-color-swatch::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.3) 0%, transparent 50%);
+    opacity: 0;
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.ds-color-swatch:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: var(--fluent-shadow-16);
+}
+
+.ds-color-swatch:hover::before {
+    opacity: 1;
 }
 
 .ds-color-swatch span {
-    font-size: 0.7rem;
-    background: rgba(0,0,0,0.5);
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(0,0,0,0.6);
     color: #fff;
-    padding: 2px 6px;
-    border-radius: var(--fluent-radius-sm);
+    padding: 4px 8px;
+    border-radius: var(--fluent-radius-md);
+    position: relative;
+    z-index: 1;
+    backdrop-filter: blur(4px);
 }
 
-/* 文字樣本 */
+/* ==================== Text Samples ==================== */
+.ds-text-samples {
+    padding: 1.5rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
+}
+
 .ds-text-samples p {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-light);
 }
 
-/* 字型展示 */
+.ds-text-samples p:last-child {
+    margin-bottom: 0;
+    border-bottom: none;
+}
+
+/* ==================== Typography Scale ==================== */
 .ds-typography {
     line-height: 1.8;
+    padding: 1.5rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
 }
 
-/* 圓角展示 */
+/* CRITICAL: Force typography visibility in both modes */
+.ds-typography h1,
+.ds-typography h2,
+.ds-typography h3,
+.ds-typography h4,
+.ds-typography p,
+.ds-typography small {
+    color: var(--text-primary) !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
+    background: none !important;
+    margin-bottom: 1rem;
+}
+
+.ds-typography h1 {
+    font-size: 2.25rem;
+    font-weight: 700;
+}
+
+.ds-typography h2 {
+    font-size: 1.75rem;
+    font-weight: 600;
+    border-bottom: none;
+}
+
+.ds-typography h2::after {
+    display: none;
+}
+
+.ds-typography h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.ds-typography h4 {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.ds-typography p {
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.ds-typography small {
+    font-size: 0.875rem;
+    display: block;
+}
+
+/* ==================== Border Radius Grid ==================== */
 .ds-radius-grid {
     display: flex;
     gap: 1.5rem;
@@ -139,19 +337,34 @@
 .ds-radius-item {
     width: 100px;
     height: 100px;
-    background: var(--accent);
+    background: linear-gradient(135deg, var(--accent) 0%, #007aff 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     color: #fff;
     font-size: 0.8rem;
+    font-weight: 600;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    cursor: pointer;
 }
 
-/* 陰影展示 */
+.ds-radius-item:hover {
+    transform: scale(1.08);
+    box-shadow: 0 8px 24px rgba(90, 200, 250, 0.3);
+}
+
+[data-theme="dark"] .ds-radius-item {
+    background: linear-gradient(135deg, #5ac8fa 0%, #007aff 100%);
+}
+
+/* ==================== Shadow Grid ==================== */
 .ds-shadow-grid {
     display: flex;
-    gap: 2rem;
+    gap: 1.5rem;
     flex-wrap: wrap;
+    padding: 1.5rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
 }
 
 .ds-shadow-item {
@@ -163,15 +376,24 @@
     align-items: center;
     justify-content: center;
     font-size: 0.85rem;
+    font-weight: 500;
     color: var(--text-secondary);
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    cursor: pointer;
 }
 
-/* 毛玻璃展示 */
+.ds-shadow-item:hover {
+    transform: translateY(-4px);
+    color: var(--text-primary);
+}
+
+/* ==================== Acrylic Demo ==================== */
 .ds-acrylic-demo {
     position: relative;
-    height: 200px;
+    height: 220px;
     border-radius: var(--fluent-radius-xl);
     overflow: hidden;
+    box-shadow: var(--fluent-shadow-8);
 }
 
 .ds-acrylic-bg {
@@ -190,147 +412,167 @@
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 1.5rem;
+    padding: 1.75rem;
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.5rem;
 }
 
 .ds-acrylic-overlay span {
     font-weight: 600;
+    font-size: 1.1rem;
     color: var(--text-primary);
 }
 
 .ds-acrylic-overlay code {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: var(--text-secondary);
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
 }
 
-/* 時長列表 */
+/* ==================== Duration List ==================== */
 .ds-duration-list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 0.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.75rem;
 }
 
 .ds-duration-item {
     display: flex;
     justify-content: space-between;
-    padding: 0.5rem;
+    align-items: center;
+    padding: 0.75rem 1rem;
     background: var(--bg-body);
-    border-radius: var(--fluent-radius-md);
+    border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.ds-duration-item:hover {
+    border-color: var(--accent);
+    background: rgba(90, 200, 250, 0.05);
 }
 
 .ds-duration-name {
     color: var(--text-primary);
     font-weight: 500;
+    font-size: 0.9rem;
 }
 
 .ds-duration-value {
-    color: var(--text-muted);
-    font-family: monospace;
+    color: var(--accent);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.85rem;
+    font-weight: 600;
 }
 
-/* 按鈕展示 */
+/* ==================== Button Showcase ==================== */
 .ds-button-row {
     display: flex;
     flex-wrap: wrap;
     gap: 0.75rem;
-    margin-bottom: 1rem;
+    margin-bottom: 1.25rem;
     align-items: center;
 }
 
 .ds-button-row-dark {
-    background: var(--bg-sidebar);
-    padding: 1rem;
+    background: linear-gradient(135deg, #1c1c1e 0%, #2c2c2e 100%);
+    padding: 1.25rem;
     border-radius: var(--fluent-radius-lg);
 }
 
-/* 表單展示 */
+/* ==================== Form Grid ==================== */
 .ds-form-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.25rem;
 }
 
 .ds-form-item {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.5rem;
 }
 
 .ds-form-row {
     display: flex;
-    gap: 2rem;
+    gap: 2.5rem;
     align-items: center;
 }
 
-/* 卡片展示 */
+/* ==================== Card Demo Container ==================== */
 .ds-card-demo {
-    padding: 1rem;
+    padding: 1.5rem;
     background: var(--bg-body);
     border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
 }
 
 .ds-card-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.25rem;
 }
 
-/* AV Card Variants */
-/* Thumbnail */
+/* ==================== AV Card Variants ==================== */
+
+/* Thumbnail Variant */
 .av-card-thumbnail {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem;
+    gap: 0.75rem;
+    padding: 0.75rem;
     background: var(--bg-card);
-    border-radius: var(--fluent-radius-md);
+    border-radius: var(--fluent-radius-lg);
     cursor: pointer;
-    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    border: 1px solid transparent;
 }
 
 .av-card-thumbnail:hover {
     background: var(--border-light);
+    border-color: var(--accent);
+    transform: translateX(4px);
 }
 
 .av-card-thumbnail img {
-    width: 60px;
-    height: 45px;
+    width: 64px;
+    height: 48px;
     object-fit: cover;
-    border-radius: var(--fluent-radius-sm);
+    border-radius: var(--fluent-radius-md);
 }
 
 .av-card-thumbnail-info {
     display: flex;
     flex-direction: column;
-    gap: 0.125rem;
+    gap: 0.25rem;
 }
 
 .av-num {
     font-weight: 600;
     color: var(--accent);
-    font-size: 0.85rem;
+    font-size: 0.9rem;
 }
 
 .av-actress {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: var(--text-secondary);
 }
 
-/* Preview */
+/* Preview Variant */
 .av-card-preview {
     background: var(--bg-card);
     border-radius: var(--fluent-radius-xl);
     box-shadow: var(--fluent-shadow-4);
     overflow: hidden;
     transition: all var(--fluent-duration-normal) var(--fluent-ease-standard);
+    border: 1px solid var(--border-light);
 }
 
 .av-card-preview:hover {
-    box-shadow: var(--fluent-shadow-8);
-    transform: translateY(-4px);
+    box-shadow: var(--fluent-shadow-16);
+    transform: translateY(-6px);
+    border-color: var(--accent);
 }
 
 .av-card-preview-img {
@@ -347,17 +589,17 @@
 }
 
 .av-card-preview:hover .av-card-preview-img img {
-    transform: scale(1.05);
+    transform: scale(1.08);
 }
 
 .av-card-preview-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(0,0,0,0.5);
+    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, transparent 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 0.75rem;
     opacity: 0;
     transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
@@ -368,67 +610,79 @@
 
 .av-card-preview-badge {
     position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    background: var(--accent);
+    top: 0.75rem;
+    right: 0.75rem;
+    background: linear-gradient(135deg, var(--accent) 0%, #007aff 100%);
     color: #fff;
-    font-size: 0.65rem;
-    padding: 2px 6px;
-    border-radius: var(--fluent-radius-sm);
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: var(--fluent-radius-md);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
 .av-card-preview-badge.local {
-    background: #22c55e;
+    background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
 }
 
 .av-card-preview-footer {
-    padding: 0.75rem;
+    padding: 1rem;
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.35rem;
 }
 
-/* Full */
+/* Full Variant */
 .av-card-full {
     display: flex;
-    gap: 1rem;
+    gap: 0;
     background: var(--bg-card);
     border-radius: var(--fluent-radius-xl);
     box-shadow: var(--fluent-shadow-8);
     overflow: hidden;
+    border: 1px solid var(--border-light);
 }
 
 .av-card-full-cover {
     flex: 7;
     min-height: 200px;
+    position: relative;
+    overflow: hidden;
 }
 
 .av-card-full-cover img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    transition: transform var(--fluent-duration-slow) var(--fluent-ease-standard);
+}
+
+.av-card-full:hover .av-card-full-cover img {
+    transform: scale(1.03);
 }
 
 .av-card-full-info {
     flex: 3;
-    padding: 1rem;
+    padding: 1.25rem;
     display: flex;
     flex-direction: column;
+    min-width: 280px;
 }
 
 .av-card-full-header {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding-bottom: 0.75rem;
+    gap: 0.75rem;
+    padding-bottom: 1rem;
     border-bottom: 1px solid var(--border-light);
-    margin-bottom: 0.75rem;
+    margin-bottom: 1rem;
 }
 
 .av-card-full-header h4 {
-    font-size: 1.25rem;
+    font-size: 1.35rem;
     color: var(--accent);
     margin: 0;
+    font-weight: 700;
 }
 
 .av-card-full-body {
@@ -436,100 +690,117 @@
 }
 
 .av-card-full-footer {
-    padding-top: 0.75rem;
+    padding-top: 1rem;
     border-top: 1px solid var(--border-light);
 }
 
-/* Compact */
+/* Compact Variant */
 .av-card-compact {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    border-radius: var(--fluent-radius-md);
-    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--fluent-radius-lg);
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    border: 1px solid transparent;
 }
 
 .av-card-compact:hover {
     background: var(--border-light);
+    border-color: var(--border-light);
 }
 
 .av-card-compact.active {
-    background: var(--border-light);
+    background: rgba(90, 200, 250, 0.1);
+    border-color: var(--accent);
 }
 
 .av-card-compact i {
     color: var(--text-muted);
+    font-size: 1.1rem;
 }
 
 .av-filename {
     flex: 1;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: var(--text-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-weight: 500;
 }
 
 .av-status {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
+    font-weight: 500;
 }
 
 .av-status.searched {
-    color: #22c55e;
+    color: #34c759;
 }
 
 .av-status.local {
     color: var(--accent);
 }
 
-/* Code Block */
+/* ==================== Code Block ==================== */
 .ds-code {
-    background: #1e1e2e;
+    background: linear-gradient(135deg, #1e1e2e 0%, #252535 100%);
     border-radius: var(--fluent-radius-lg);
-    padding: 1rem;
+    padding: 1.25rem;
     overflow-x: auto;
-    margin-top: 1rem;
+    margin-top: 1.25rem;
+    border: 1px solid rgba(255,255,255,0.05);
 }
 
 .ds-code code {
     color: #cdd6f4;
-    font-family: 'SF Mono', 'Fira Code', monospace;
-    font-size: 0.8rem;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.85rem;
     white-space: pre;
+    line-height: 1.6;
 }
 
-/* Sidebar Demo */
+/* ==================== Sidebar Demo ==================== */
 .ds-sidebar-demo {
-    background: var(--bg-sidebar);
+    background: linear-gradient(180deg, #1c1c1e 0%, #161618 100%);
     border-radius: var(--fluent-radius-xl);
-    padding: 0.5rem;
-    max-width: 200px;
+    padding: 0.75rem;
+    max-width: 220px;
+    box-shadow: var(--fluent-shadow-8);
 }
 
 .ds-sidebar-mini .nav-link {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
-    color: rgba(255,255,255,0.7);
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    color: rgba(255,255,255,0.65);
     text-decoration: none;
-    border-radius: var(--fluent-radius-md);
+    border-radius: var(--fluent-radius-lg);
     margin-bottom: 0.25rem;
+    font-weight: 500;
+    font-size: 0.9rem;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .ds-sidebar-mini .nav-link:hover {
-    background: rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.08);
     color: #fff;
 }
 
 .ds-sidebar-mini .nav-link.active {
-    background: var(--accent);
+    background: linear-gradient(135deg, var(--accent) 0%, #007aff 100%);
     color: #fff;
+    box-shadow: 0 4px 12px rgba(90, 200, 250, 0.3);
 }
 
-/* Feedback */
+[data-theme="dark"] .ds-sidebar-mini .nav-link.active {
+    background: linear-gradient(135deg, #5ac8fa 0%, #007aff 100%);
+}
+
+/* ==================== Feedback Components ==================== */
 .ds-feedback-row {
     display: flex;
     flex-wrap: wrap;
@@ -547,17 +818,25 @@
 
 .ds-progress-demo {
     max-width: 400px;
-    margin-bottom: 1rem;
+    margin-bottom: 1.25rem;
 }
 
-/* RWD */
+/* ==================== Responsive Design ==================== */
 @media (max-width: 768px) {
     .ds-container {
         padding: 1rem;
     }
 
+    .ds-header {
+        padding: 2rem 1.5rem;
+    }
+
+    .ds-header h1 {
+        font-size: 1.75rem;
+    }
+
     .ds-section {
-        padding: 1rem;
+        padding: 1.25rem;
     }
 
     .av-card-full {
@@ -571,5 +850,26 @@
 
     .av-card-full-info {
         flex: none;
+        min-width: auto;
     }
+}
+
+/* ==================== Animation Keyframes ==================== */
+@keyframes ds-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+@keyframes ds-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+
+/* Optional: Add subtle animation to header gradients */
+.ds-header::before {
+    animation: ds-float 6s ease-in-out infinite;
+}
+
+.ds-header::after {
+    animation: ds-float 8s ease-in-out infinite reverse;
 }
