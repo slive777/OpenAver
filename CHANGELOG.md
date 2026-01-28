@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+#### 🎨 Design System (Phase 23)
+- `/design-system` 頁面展示所有 UI 元件
+- Fluent Design 2 視覺語言（毛玻璃、12px 圓角、複合陰影）
+- 統一圓角 Token 系統（`--radius-xs/sm/md/lg/pill`）
+- Space Grotesk 字型用於標題
+- AV Card 4 種變體（Thumbnail/Preview/Full/Compact）
+- 背景光暈 + 噪點紋理視覺效果
+
+### Changed
+- Dark mode 文字對比度修復
+- Gallery Card hover 改為右側聚焦（`transform-origin: 65% center`）
+- Hex 色彩顯示動態讀取 CSS 變數
+
+---
+
 ## [0.2.3] - 2026-01-23
 
 ### Added
