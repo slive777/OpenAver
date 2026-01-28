@@ -65,6 +65,11 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
 
+        /* 使用 Fluent Design 毛玻璃效果的 Sidebar Header（可選） */
+        .sidebar-header.fluent-acrylic {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
         .sidebar-toggle {
             background: none;
             border: none;
@@ -150,10 +155,16 @@
             margin-left: var(--sidebar-collapsed-width);
         }
 
-        /* 卡片樣式 */
+        /* 卡片樣式 - 使用 Fluent Design tokens */
         .card {
             border: none;
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            border-radius: var(--fluent-radius-xl);
+            box-shadow: var(--fluent-shadow-4);
+            transition: box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+        }
+
+        .card:hover {
+            box-shadow: var(--fluent-shadow-8);
         }
 
         /* 響應式 - Desktop */
@@ -225,7 +236,8 @@
     mobileMenuOpen: false
 }" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
     <!-- 頂部導航列（僅小螢幕顯示）-->
-    <nav class="navbar navbar-dark bg-dark d-lg-none fixed-top top-navbar">
+    <nav class="navbar navbar-dark d-lg-none fixed-top top-navbar fluent-acrylic"
+         style="border-bottom: 1px solid var(--border-light);">
         <div class="container-fluid">
             <button class="btn btn-dark" type="button" @click="mobileMenuOpen = true">
                 <i class="bi bi-list fs-4"></i>

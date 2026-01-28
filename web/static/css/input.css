@@ -6,6 +6,112 @@
 /* 保留現有 CSS 變數系統 */
 @import "./theme.css";
 
+/* ========== Fluent Design Tokens ========== */
+:root {
+  /* 圓角 - 採用 Fluent 官方規範 */
+  --fluent-radius-none: 0px;
+  --fluent-radius-sm: 2px;    /* Small: 徽章、<32px 元素 */
+  --fluent-radius-md: 4px;    /* Medium: 按鈕、下拉選單（預設） */
+  --fluent-radius-lg: 8px;    /* Large: 大型按鈕 */
+  --fluent-radius-xl: 12px;   /* X-Large: 卡片、工作表、彈出窗口 */
+  --fluent-radius-circle: 50%;
+
+  /* 陰影 - Fluent 雙層系統（Light Theme） */
+  --fluent-shadow-2: 0px 0px 2px rgba(0, 0, 0, 0.12), 0px 1px 2px rgba(0, 0, 0, 0.14);
+  --fluent-shadow-4: 0px 0px 2px rgba(0, 0, 0, 0.12), 0px 2px 4px rgba(0, 0, 0, 0.14);
+  --fluent-shadow-8: 0px 0px 2px rgba(0, 0, 0, 0.12), 0px 4px 8px rgba(0, 0, 0, 0.14);
+  --fluent-shadow-16: 0px 0px 2px rgba(0, 0, 0, 0.12), 0px 8px 16px rgba(0, 0, 0, 0.14);
+  --fluent-shadow-28: 0px 0px 2px rgba(0, 0, 0, 0.12), 0px 14px 28px rgba(0, 0, 0, 0.14);
+  --fluent-shadow-64: 0px 0px 2px rgba(0, 0, 0, 0.12), 0px 32px 64px rgba(0, 0, 0, 0.14);
+
+  /* 動畫時長 - Fluent 官方規範 */
+  --fluent-duration-ultra-fast: 50ms;
+  --fluent-duration-faster: 83ms;
+  --fluent-duration-fast: 167ms;
+  --fluent-duration-normal: 250ms;
+  --fluent-duration-slow: 300ms;
+  --fluent-duration-slower: 400ms;
+
+  /* 動畫緩動函數 - Fluent 官方規範 */
+  --fluent-ease-decel: cubic-bezier(0, 0, 0, 1);        /* 進入動畫 */
+  --fluent-ease-accel: cubic-bezier(1, 0, 1, 1);        /* 離開動畫 */
+  --fluent-ease-standard: cubic-bezier(0.33, 0, 0.67, 1);
+  --fluent-ease-in-out: cubic-bezier(0.645, 0.045, 0.355, 1);
+
+  /* Acrylic 毛玻璃 - 採用視覺憲章較強效果 */
+  --fluent-blur: 30px;
+  --fluent-saturate: 140%;
+  --fluent-acrylic-bg-light: rgba(255, 255, 255, 0.7);
+  --fluent-acrylic-bg-dark: rgba(28, 28, 30, 0.7);
+
+  /* Smoke 遮罩 */
+  --fluent-smoke: rgba(0, 0, 0, 0.4);
+}
+
+/* Dark Theme 陰影 - 更深的陰影 */
+[data-theme="dark"] {
+  --fluent-shadow-2: 0px 0px 2px rgba(0, 0, 0, 0.24), 0px 1px 2px rgba(0, 0, 0, 0.28);
+  --fluent-shadow-4: 0px 0px 2px rgba(0, 0, 0, 0.24), 0px 2px 4px rgba(0, 0, 0, 0.28);
+  --fluent-shadow-8: 0px 0px 2px rgba(0, 0, 0, 0.24), 0px 4px 8px rgba(0, 0, 0, 0.28);
+  --fluent-shadow-16: 0px 0px 2px rgba(0, 0, 0, 0.24), 0px 8px 16px rgba(0, 0, 0, 0.28);
+  --fluent-shadow-28: 0px 0px 2px rgba(0, 0, 0, 0.24), 0px 14px 28px rgba(0, 0, 0, 0.28);
+  --fluent-shadow-64: 0px 0px 2px rgba(0, 0, 0, 0.24), 0px 32px 64px rgba(0, 0, 0, 0.28);
+
+  --fluent-smoke: rgba(0, 0, 0, 0.6);
+}
+
+/* ========== Fluent Utility Classes ========== */
+
+/* Acrylic 毛玻璃效果 */
+.fluent-acrylic {
+  background-color: var(--fluent-acrylic-bg-light);
+  backdrop-filter: blur(var(--fluent-blur)) saturate(var(--fluent-saturate));
+  -webkit-backdrop-filter: blur(var(--fluent-blur)) saturate(var(--fluent-saturate));
+}
+
+[data-theme="dark"] .fluent-acrylic {
+  background-color: var(--fluent-acrylic-bg-dark);
+}
+
+/* Smoke 遮罩（用於 Modal 背景） */
+.fluent-smoke {
+  background-color: var(--fluent-smoke);
+}
+
+/* 圓角 Utility */
+.fluent-rounded-sm { border-radius: var(--fluent-radius-sm); }
+.fluent-rounded-md { border-radius: var(--fluent-radius-md); }
+.fluent-rounded-lg { border-radius: var(--fluent-radius-lg); }
+.fluent-rounded-xl { border-radius: var(--fluent-radius-xl); }
+
+/* 陰影 Utility */
+.fluent-shadow-2 { box-shadow: var(--fluent-shadow-2); }
+.fluent-shadow-4 { box-shadow: var(--fluent-shadow-4); }
+.fluent-shadow-8 { box-shadow: var(--fluent-shadow-8); }
+.fluent-shadow-16 { box-shadow: var(--fluent-shadow-16); }
+
+/* 卡片標準樣式（12px 圓角 + shadow-4） */
+.fluent-card {
+  border-radius: var(--fluent-radius-xl);
+  box-shadow: var(--fluent-shadow-4);
+  transition: box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.fluent-card:hover {
+  box-shadow: var(--fluent-shadow-8);
+}
+
+/* 動畫 Transition Utility */
+.fluent-transition {
+  transition-duration: var(--fluent-duration-normal);
+  transition-timing-function: var(--fluent-ease-standard);
+}
+
+.fluent-transition-fast {
+  transition-duration: var(--fluent-duration-fast);
+  transition-timing-function: var(--fluent-ease-decel);
+}
+
 /* Alpine.js 過渡動畫 */
 .rotate-180 {
   transform: rotate(180deg);

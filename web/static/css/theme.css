@@ -22,22 +22,22 @@
     --border-light: #e8e6e3;
     --border-card: #eceae7;
 
-    /* Shadows */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
-    --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.10);
-    --shadow-card-hover: 0 12px 40px rgba(0, 0, 0, 0.12);
+    /* Shadows - 對應至 Fluent Design tokens */
+    --shadow-sm: var(--fluent-shadow-2, 0 1px 2px rgba(0, 0, 0, 0.04));
+    --shadow-md: var(--fluent-shadow-4, 0 4px 12px rgba(0, 0, 0, 0.06));
+    --shadow-lg: var(--fluent-shadow-16, 0 8px 30px rgba(0, 0, 0, 0.10));
+    --shadow-card-hover: var(--fluent-shadow-8, 0 12px 40px rgba(0, 0, 0, 0.12));
 
-    /* Layout */
-    --card-radius: 12px;
-    --radius-sm: 6px;
-    --radius-md: 8px;
+    /* Layout - 對應至 Fluent Design tokens */
+    --card-radius: var(--fluent-radius-xl, 12px);     /* Fluent X-Large */
+    --radius-sm: var(--fluent-radius-md, 4px);        /* Fluent Medium */
+    --radius-md: var(--fluent-radius-lg, 8px);        /* Fluent Large */
 
-    /* Transitions */
-    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-    --duration-fast: 0.15s;
-    --duration-normal: 0.25s;
-    --duration-slow: 0.4s;
+    /* Transitions - 對應至 Fluent Design tokens */
+    --ease-out: var(--fluent-ease-decel, cubic-bezier(0.22, 1, 0.36, 1));
+    --duration-fast: var(--fluent-duration-fast, 0.167s);
+    --duration-normal: var(--fluent-duration-normal, 0.25s);
+    --duration-slow: var(--fluent-duration-slower, 0.4s);
 
     /* Bootstrap Overrides */
     --bs-body-bg: var(--bg-body);
