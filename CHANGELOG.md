@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.4] - 2026-01-29
 
 ### Added
 
@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dark mode 文字對比度修復
 - Gallery Card hover 改為右側聚焦（`transform-origin: 65% center`）
 - Hex 色彩顯示動態讀取 CSS 變數
+- README 翻譯速度說明更新（Ollama 5s → 0.5s）
+
+### Removed
+- 刪除廢棄測試腳本 `test_task2_integration.sh`
 
 ---
 
