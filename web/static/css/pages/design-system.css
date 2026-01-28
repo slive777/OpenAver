@@ -1,0 +1,575 @@
+/* ==================== Design System Page ==================== */
+
+.ds-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.ds-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.ds-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.ds-subtitle {
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+}
+
+/* 目錄導航 */
+.ds-toc {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    padding: 1rem;
+    background: var(--bg-card);
+    border-radius: var(--fluent-radius-xl);
+    box-shadow: var(--fluent-shadow-4);
+    margin-bottom: 2rem;
+}
+
+.ds-toc a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--fluent-radius-md);
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.ds-toc a:hover {
+    background: var(--border-light);
+    color: var(--accent);
+}
+
+/* 區塊 */
+.ds-section {
+    margin-bottom: 3rem;
+    padding: 1.5rem;
+    background: var(--bg-card);
+    border-radius: var(--fluent-radius-xl);
+    box-shadow: var(--fluent-shadow-4);
+}
+
+.ds-section h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--accent);
+}
+
+.ds-subsection {
+    margin-bottom: 2rem;
+}
+
+.ds-subsection:last-child {
+    margin-bottom: 0;
+}
+
+.ds-subsection h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+.ds-desc {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.ds-note {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-style: italic;
+    margin-top: 0.5rem;
+}
+
+/* 色盤展示 */
+.ds-color-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 1rem;
+}
+
+.ds-color-swatch {
+    height: 80px;
+    border-radius: var(--fluent-radius-lg);
+    display: flex;
+    align-items: flex-end;
+    padding: 0.5rem;
+    box-shadow: var(--fluent-shadow-2);
+}
+
+.ds-color-swatch span {
+    font-size: 0.7rem;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: var(--fluent-radius-sm);
+}
+
+/* 文字樣本 */
+.ds-text-samples p {
+    margin-bottom: 0.5rem;
+}
+
+/* 字型展示 */
+.ds-typography {
+    line-height: 1.8;
+}
+
+/* 圓角展示 */
+.ds-radius-grid {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.ds-radius-item {
+    width: 100px;
+    height: 100px;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 0.8rem;
+}
+
+/* 陰影展示 */
+.ds-shadow-grid {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.ds-shadow-item {
+    width: 120px;
+    height: 80px;
+    background: var(--bg-card);
+    border-radius: var(--fluent-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* 毛玻璃展示 */
+.ds-acrylic-demo {
+    position: relative;
+    height: 200px;
+    border-radius: var(--fluent-radius-xl);
+    overflow: hidden;
+}
+
+.ds-acrylic-bg {
+    position: absolute;
+    inset: 0;
+}
+
+.ds-acrylic-bg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ds-acrylic-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.ds-acrylic-overlay span {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ds-acrylic-overlay code {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* 時長列表 */
+.ds-duration-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.5rem;
+}
+
+.ds-duration-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-md);
+}
+
+.ds-duration-name {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.ds-duration-value {
+    color: var(--text-muted);
+    font-family: monospace;
+}
+
+/* 按鈕展示 */
+.ds-button-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    align-items: center;
+}
+
+.ds-button-row-dark {
+    background: var(--bg-sidebar);
+    padding: 1rem;
+    border-radius: var(--fluent-radius-lg);
+}
+
+/* 表單展示 */
+.ds-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.ds-form-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.ds-form-row {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+}
+
+/* 卡片展示 */
+.ds-card-demo {
+    padding: 1rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
+}
+
+.ds-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+/* AV Card Variants */
+/* Thumbnail */
+.av-card-thumbnail {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: var(--bg-card);
+    border-radius: var(--fluent-radius-md);
+    cursor: pointer;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.av-card-thumbnail:hover {
+    background: var(--border-light);
+}
+
+.av-card-thumbnail img {
+    width: 60px;
+    height: 45px;
+    object-fit: cover;
+    border-radius: var(--fluent-radius-sm);
+}
+
+.av-card-thumbnail-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.av-num {
+    font-weight: 600;
+    color: var(--accent);
+    font-size: 0.85rem;
+}
+
+.av-actress {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* Preview */
+.av-card-preview {
+    background: var(--bg-card);
+    border-radius: var(--fluent-radius-xl);
+    box-shadow: var(--fluent-shadow-4);
+    overflow: hidden;
+    transition: all var(--fluent-duration-normal) var(--fluent-ease-standard);
+}
+
+.av-card-preview:hover {
+    box-shadow: var(--fluent-shadow-8);
+    transform: translateY(-4px);
+}
+
+.av-card-preview-img {
+    position: relative;
+    aspect-ratio: 3/2;
+    overflow: hidden;
+}
+
+.av-card-preview-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--fluent-duration-slow) var(--fluent-ease-standard);
+}
+
+.av-card-preview:hover .av-card-preview-img img {
+    transform: scale(1.05);
+}
+
+.av-card-preview-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    opacity: 0;
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.av-card-preview:hover .av-card-preview-overlay {
+    opacity: 1;
+}
+
+.av-card-preview-badge {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: var(--fluent-radius-sm);
+}
+
+.av-card-preview-badge.local {
+    background: #22c55e;
+}
+
+.av-card-preview-footer {
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+/* Full */
+.av-card-full {
+    display: flex;
+    gap: 1rem;
+    background: var(--bg-card);
+    border-radius: var(--fluent-radius-xl);
+    box-shadow: var(--fluent-shadow-8);
+    overflow: hidden;
+}
+
+.av-card-full-cover {
+    flex: 7;
+    min-height: 200px;
+}
+
+.av-card-full-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.av-card-full-info {
+    flex: 3;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.av-card-full-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: 0.75rem;
+}
+
+.av-card-full-header h4 {
+    font-size: 1.25rem;
+    color: var(--accent);
+    margin: 0;
+}
+
+.av-card-full-body {
+    flex: 1;
+}
+
+.av-card-full-footer {
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-light);
+}
+
+/* Compact */
+.av-card-compact {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--fluent-radius-md);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.av-card-compact:hover {
+    background: var(--border-light);
+}
+
+.av-card-compact.active {
+    background: var(--border-light);
+}
+
+.av-card-compact i {
+    color: var(--text-muted);
+}
+
+.av-filename {
+    flex: 1;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.av-status {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.av-status.searched {
+    color: #22c55e;
+}
+
+.av-status.local {
+    color: var(--accent);
+}
+
+/* Code Block */
+.ds-code {
+    background: #1e1e2e;
+    border-radius: var(--fluent-radius-lg);
+    padding: 1rem;
+    overflow-x: auto;
+    margin-top: 1rem;
+}
+
+.ds-code code {
+    color: #cdd6f4;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.8rem;
+    white-space: pre;
+}
+
+/* Sidebar Demo */
+.ds-sidebar-demo {
+    background: var(--bg-sidebar);
+    border-radius: var(--fluent-radius-xl);
+    padding: 0.5rem;
+    max-width: 200px;
+}
+
+.ds-sidebar-mini .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    color: rgba(255,255,255,0.7);
+    text-decoration: none;
+    border-radius: var(--fluent-radius-md);
+    margin-bottom: 0.25rem;
+}
+
+.ds-sidebar-mini .nav-link:hover {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+}
+
+.ds-sidebar-mini .nav-link.active {
+    background: var(--accent);
+    color: #fff;
+}
+
+/* Feedback */
+.ds-feedback-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+}
+
+.ds-toast-demo {
+    margin-bottom: 1rem;
+}
+
+.ds-toast-demo .toast-msg {
+    position: relative;
+}
+
+.ds-progress-demo {
+    max-width: 400px;
+    margin-bottom: 1rem;
+}
+
+/* RWD */
+@media (max-width: 768px) {
+    .ds-container {
+        padding: 1rem;
+    }
+
+    .ds-section {
+        padding: 1rem;
+    }
+
+    .av-card-full {
+        flex-direction: column;
+    }
+
+    .av-card-full-cover {
+        flex: none;
+        height: 200px;
+    }
+
+    .av-card-full-info {
+        flex: none;
+    }
+}

@@ -133,6 +133,14 @@ async def help_page(request: Request):
     return templates.TemplateResponse("help.html", context)
 
 
+@app.get("/design-system")
+async def design_system_page(request: Request):
+    """設計系統展示頁面"""
+    context = get_common_context(request)
+    context["page"] = "design-system"
+    return templates.TemplateResponse("design-system.html", context)
+
+
 # ============ API 路由（稍後移到 routers/）============
 
 @app.get("/api/health")
