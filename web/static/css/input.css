@@ -1,0 +1,7 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: light, dark;
+}
+
+/* 保留現有 CSS 變數系統 */
+@import "./theme.css";
