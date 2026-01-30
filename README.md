@@ -106,15 +106,32 @@ OpenAver 支援兩種翻譯提供商：
 | **Windows x64** | `OpenAver-vX.X.X-Windows-x64.zip` | ✅ 穩定版 |
 | **macOS arm64** | `OpenAver-vX.X.X-macOS-arm64-alpha.zip` | 🧪 Alpha |
 
-### macOS 首次執行 (重要)
+### macOS 首次執行（重要）
 
-由於沒有 Apple 簽名，macOS 會阻擋首次執行：
+⚠️ macOS 會封鎖網路下載的程式，請照以下步驟操作（只需一次）。
 
-1. 右鍵點擊 `OpenAver.command`
-2. 選擇「**打開**」(Open)
-3. 在彈出對話框中點擊「**打開**」
+1. **下載 ZIP** — Safari 會自動解壓縮，檔案在「下載項目」資料夾
 
-> ⚠️ macOS 版本為 Alpha 測試，僅支援 Apple Silicon (M1/M2/M3/M4)。
+2. **開啟終端機** — 按 `⌘ + 空白鍵` 開啟 Spotlight，輸入 `Terminal` 按 Enter
+
+3. **進入資料夾**（複製貼上）：
+   ```bash
+   cd ~/Downloads/OpenAver-*-macOS-*
+   ```
+
+4. **解除安全封鎖**（必做）：
+   ```bash
+   xattr -dr com.apple.quarantine .
+   ```
+
+5. **啟動程式**：
+   ```bash
+   ./OpenAver.command
+   ```
+
+> 💡 設定完成後，之後可直接雙擊 `OpenAver.command` 執行。
+
+> ⚠️ macOS 版本為 Alpha，僅支援 Apple Silicon (M1/M2/M3/M4)。
 > 如遇問題請至 [GitHub Issues](https://github.com/slive777/OpenAver/issues) 回報。
 
 ---
@@ -166,10 +183,7 @@ python windows/launcher.py
 
 ### 3. macOS 無法開啟 / 安全性警告
 **原因**: macOS Gatekeeper 阻擋未簽名的應用程式。
-**解法**:
-1. 右鍵點擊 `OpenAver.command` → 選擇「打開」
-2. 在彈出的對話框中再次點擊「打開」
-3. 只需設定一次，之後可正常雙擊執行
+**解法**: 請參考上方「[macOS 首次執行](#macos-首次執行重要)」章節，使用終端機執行 `xattr` 指令解除封鎖。
 
 ## 💬 社群
 

@@ -227,42 +227,53 @@ main()
     readme_content = '''OpenAver - JAV Metadata Manager
 ====================================
 
-Usage:
-1. Double-click OpenAver.command to launch
-2. On first run, right-click and select "Open" to bypass Gatekeeper
-
 Requirements:
 - macOS 13+ (Ventura or later)
 - Apple Silicon (M1/M2/M3/M4)
 
+First Run - IMPORTANT:
+See MACOS_ALPHA_README.txt for setup instructions.
+
 Notes:
 - This is an Alpha release. Please report issues!
 - Config: app/web/config.json
-- GitHub: https://github.com/peacepenguin/OpenAver/issues
+- GitHub: https://github.com/slive777/OpenAver/issues
 '''
 
     # MACOS_ALPHA_README.txt
     alpha_readme_content = '''===============================================
-  OpenAver macOS - Alpha Test Version
+  OpenAver macOS 首次執行指南（Alpha）
 ===============================================
 
-NOTICE: This is an alpha release. Please report
-any issues to GitHub.
+⚠️ macOS 會封鎖網路下載的程式，請照以下步驟操作（只需一次）。
 
-[First Run - IMPORTANT]
-1. Right-click OpenAver.command
-2. Select "Open"
-3. Click "Open" in the dialog
+[步驟 1] 下載 ZIP
+  - Safari 會自動解壓縮，檔案在「下載項目」資料夾
 
-This is required by macOS security. Only needed once.
+[步驟 2] 開啟終端機
+  - 按 ⌘ + 空白鍵 開啟 Spotlight
+  - 輸入 Terminal 並按 Enter
 
-[Known Limitations]
-- Not signed by Apple (security warning expected)
-- Only tested on macOS 13+ with Apple Silicon
-- Please report issues!
+[步驟 3] 進入資料夾（複製貼上以下指令）
+  cd ~/Downloads/OpenAver-*-macOS-*
 
-[Support]
-GitHub: https://github.com/peacepenguin/OpenAver/issues
+[步驟 4] 解除安全封鎖（必做）
+  xattr -dr com.apple.quarantine .
+
+[步驟 5] 啟動程式
+  ./OpenAver.command
+
+===============================================
+
+💡 設定完成後，之後可直接雙擊 OpenAver.command 執行。
+
+[已知限制]
+- 未經 Apple 簽名（會有安全警告）
+- 僅支援 Apple Silicon (M1/M2/M3/M4)
+- Alpha 測試版，歡迎回報問題！
+
+[回報問題]
+GitHub: https://github.com/slive777/OpenAver/issues
 '''
 
     # 寫入檔案
