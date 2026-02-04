@@ -1060,3 +1060,41 @@
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-8px); }
 }
+
+/* ==================== Additional Component Styles for Design System ==================== */
+
+/* Rotate utility for collapse toggle */
+.rotate-180 {
+    transform: rotate(180deg) !important;
+}
+
+/* File list header */
+.file-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: 0.5rem;
+}
+
+/* Collapse toggle */
+.collapse-toggle {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: color var(--fluent-duration-fast);
+}
+
+.collapse-toggle:hover {
+    color: var(--accent);
+}
+
+.collapse-toggle i {
+    transition: transform 0.2s ease;
+}
+
+.collapse-toggle[aria-expanded="true"] i,
+.collapse-toggle i.rotate-180 {
+    transform: rotate(180deg);
+}

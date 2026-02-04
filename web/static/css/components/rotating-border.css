@@ -1,0 +1,205 @@
+/* ========================================
+   Rotating Border Effect - Single Spotlight
+   ======================================== */
+
+/**
+ * 旋轉外框特效 - 單光點旋轉變體
+ *
+ * 用途：
+ * - Search 頁面：搜尋結果卡片有本地匹配時
+ * - Sidebar：Showcase 連結有內容時
+ * - Gallery Card：縮圖有本地檔案時（可選）
+ *
+ * 技術：
+ * - CSS @property：定義可動畫的角度變數
+ * - conic-gradient：圓錐漸層實現光點旋轉
+ * - mask-composite：裁切出邊框形狀
+ *
+ * 瀏覽器支援：Chrome 85+, Edge 85+, Safari 15.4+, Firefox 128+
+ */
+
+/* ========== CSS Custom Property 定義 ========== */
+
+/**
+ * 定義可動畫的角度變數
+ * 允許 CSS 變數參與動畫過渡
+ */
+@property --spotlight-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* ========== 核心樣式 ========== */
+
+/**
+ * 旋轉外框基礎 class
+ * 使用 ::before 偽元素創建旋轉光點層
+ */
+.rotating-border-spotlight {
+  position: relative;
+  overflow: visible;
+}
+
+/**
+ * 外框層 - 使用 ::before 偽元素
+ * 在元素外圍創建旋轉光點邊框
+ */
+.rotating-border-spotlight::before {
+  content: '';
+  position: absolute;
+  inset: -2px; /* 外擴 2px 形成邊框效果 */
+  border-radius: inherit; /* 繼承父層圓角 */
+  padding: 2px; /* 配合 mask 技巧形成邊框寬度 */
+
+  /* 圓錐漸層：單光點 + 長拖尾 */
+  background: conic-gradient(
+    from var(--spotlight-angle) at 50% 50%,
+    transparent 0deg,
+    rgba(90, 200, 250, 0.6) 30deg,  /* 光點核心 */
+    rgba(90, 200, 250, 0.3) 60deg,  /* 拖尾 */
+    transparent 90deg
+  );
+
+  /* 遮罩技巧：裁切出邊框（僅保留外圈，內部透明）*/
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+
+  /* 避免阻擋內部元素的滑鼠事件 */
+  pointer-events: none;
+
+  /* 層級設定：在父元素背景之上，內容之下 */
+  z-index: -1;
+
+  /* 預設不旋轉（等待 active 狀態啟用）*/
+  animation: none;
+
+  /* 初始狀態不可見 */
+  opacity: 0;
+  transition: opacity var(--fluent-duration-fast, 0.167s) ease-out;
+}
+
+/* ========== 啟用狀態 ========== */
+
+/**
+ * 啟用旋轉效果
+ * 當元素擁有 .active class 時開始旋轉
+ */
+.rotating-border-spotlight.active::before {
+  animation: rotate-spotlight 2.5s linear infinite;
+  opacity: 1;
+}
+
+/* ========== 動畫定義 ========== */
+
+/**
+ * 旋轉動畫
+ * 2.5 秒旋轉一圈，平衡視覺吸引力與干擾度
+ */
+@keyframes rotate-spotlight {
+  to {
+    --spotlight-angle: 360deg;
+  }
+}
+
+/* ========== Light/Dark Mode 相容 ========== */
+
+/**
+ * Dark Mode 顏色調整
+ * 增加亮度以確保在深色背景上可見
+ */
+[data-theme="dark"] .rotating-border-spotlight::before {
+  background: conic-gradient(
+    from var(--spotlight-angle) at 50% 50%,
+    transparent 0deg,
+    rgba(100, 210, 255, 0.7) 30deg,  /* 更亮的光點核心 */
+    rgba(100, 210, 255, 0.4) 60deg,  /* 更亮的拖尾 */
+    transparent 90deg
+  );
+}
+
+/* ========== GPU 加速優化 ========== */
+
+/**
+ * 效能提示：僅在需要時啟用 will-change
+ * 避免過度使用影響效能
+ */
+.rotating-border-spotlight {
+  will-change: auto;
+}
+
+.rotating-border-spotlight:hover,
+.rotating-border-spotlight.active {
+  will-change: transform;
+}
+
+/* ========== 無障礙支援 ========== */
+
+/**
+ * prefers-reduced-motion：尊重使用者偏好
+ * 停用動畫，改為靜態發光邊框
+ */
+@media (prefers-reduced-motion: reduce) {
+  .rotating-border-spotlight::before {
+    animation: none !important;
+  }
+
+  /* 靜態發光邊框作為降級方案 */
+  .rotating-border-spotlight.active::before {
+    background: conic-gradient(
+      from 0deg at 50% 50%,
+      rgba(90, 200, 250, 0.4) 0deg,
+      rgba(90, 200, 250, 0.4) 360deg
+    );
+  }
+
+  [data-theme="dark"] .rotating-border-spotlight.active::before {
+    background: conic-gradient(
+      from 0deg at 50% 50%,
+      rgba(100, 210, 255, 0.5) 0deg,
+      rgba(100, 210, 255, 0.5) 360deg
+    );
+  }
+}
+
+/* ========== 瀏覽器降級方案 ========== */
+
+/**
+ * 對於不支援 conic-gradient 的舊版瀏覽器
+ * 降級為靜態 box-shadow 邊框
+ */
+@supports not (background: conic-gradient(red, blue)) {
+  .rotating-border-spotlight::before {
+    display: none;
+  }
+
+  .rotating-border-spotlight.active {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+}
+
+/* ========== 可選變體 ========== */
+
+/**
+ * 速度變體（未來擴展用）
+ */
+.rotating-border-spotlight.speed-fast.active::before {
+  animation-duration: 1.5s;
+}
+
+.rotating-border-spotlight.speed-slow.active::before {
+  animation-duration: 4s;
+}
+
+/**
+ * 增強發光變體（未來擴展用）
+ */
+.rotating-border-spotlight.glow-strong::before {
+  filter: brightness(1.3);
+}
