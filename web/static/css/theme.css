@@ -50,7 +50,7 @@
     --bs-body-color: var(--text-primary);
 }
 
-[data-theme="dark"] {
+[data-theme="dim"] {
     --bg-body: #0f0f11;
     --bg-card: #1c1c1e;
     --bg-header: rgba(28, 28, 30, 0.85);
@@ -94,19 +94,19 @@
 }
 
 /* Dark Mode: Force Form Control Visibility */
-[data-theme="dark"] .form-control,
-[data-theme="dark"] .form-select {
+[data-theme="dim"] .form-control,
+[data-theme="dim"] .form-select {
     background-color: var(--bg-card);
     color: var(--text-primary);
     border-color: var(--border-light);
 }
 
-[data-theme="dark"] .form-control::placeholder {
+[data-theme="dim"] .form-control::placeholder {
     color: var(--text-muted);
 }
 
-[data-theme="dark"] .form-control:focus,
-[data-theme="dark"] .form-select:focus {
+[data-theme="dim"] .form-control:focus,
+[data-theme="dim"] .form-select:focus {
     background-color: var(--bg-card);
     color: var(--text-primary);
     border-color: var(--accent);
@@ -114,51 +114,51 @@
 }
 
 /* Dark Mode: Labels & Text */
-[data-theme="dark"] .form-label,
-[data-theme="dark"] label {
+[data-theme="dim"] .form-label,
+[data-theme="dim"] label {
     color: var(--text-primary);
 }
 
-[data-theme="dark"] .text-muted {
+[data-theme="dim"] .text-muted {
     color: var(--text-muted) !important;
 }
 
 /* Dark Mode: Bootstrap Card */
-[data-theme="dark"] .card {
+[data-theme="dim"] .card {
     background-color: var(--bg-card);
     border-color: var(--border-light);
 }
 
-[data-theme="dark"] .card-header,
-[data-theme="dark"] .card-footer {
+[data-theme="dim"] .card-header,
+[data-theme="dim"] .card-footer {
     background-color: rgba(255, 255, 255, 0.03);
     border-color: var(--border-light);
     color: var(--text-primary);
 }
 
-[data-theme="dark"] .card-body {
+[data-theme="dim"] .card-body {
     color: var(--text-primary);
 }
 
 /* Dark Mode: Input Group */
-[data-theme="dark"] .input-group-text {
+[data-theme="dim"] .input-group-text {
     background-color: var(--bg-card);
     border-color: var(--border-light);
     color: var(--text-secondary);
 }
 
 /* Dark Mode: Dropdown */
-[data-theme="dark"] .dropdown-menu {
+[data-theme="dim"] .dropdown-menu {
     background-color: var(--bg-card);
     border-color: var(--border-light);
 }
 
-[data-theme="dark"] .dropdown-item {
+[data-theme="dim"] .dropdown-item {
     color: var(--text-primary);
 }
 
-[data-theme="dark"] .dropdown-item:hover,
-[data-theme="dark"] .dropdown-item:focus {
+[data-theme="dim"] .dropdown-item:hover,
+[data-theme="dim"] .dropdown-item:focus {
     background-color: var(--border-light);
     color: var(--text-primary);
 }
@@ -383,47 +383,47 @@ body {
 }
 
 /* ========== Dark Mode Overrides for Bootstrap ========== */
-[data-theme="dark"] .card {
+[data-theme="dim"] .card {
     background-color: var(--bg-card);
     border-color: var(--border-card);
     color: var(--text-primary);
 }
 
-[data-theme="dark"] .card-header {
+[data-theme="dim"] .card-header {
     background-color: rgba(255, 255, 255, 0.05);
     border-bottom-color: var(--border-light);
 }
 
-[data-theme="dark"] .form-control,
-[data-theme="dark"] .form-select {
+[data-theme="dim"] .form-control,
+[data-theme="dim"] .form-select {
     background-color: #2c2c2e;
     border-color: #3a3a3c;
     color: #fff;
 }
 
-[data-theme="dark"] .form-control:focus,
-[data-theme="dark"] .form-select:focus {
+[data-theme="dim"] .form-control:focus,
+[data-theme="dim"] .form-select:focus {
     background-color: #3a3a3c;
     border-color: var(--accent);
     color: #fff;
 }
 
-[data-theme="dark"] .input-group-text {
+[data-theme="dim"] .input-group-text {
     background-color: #3a3a3c;
     border-color: #3a3a3c;
     color: #fff;
 }
 
-[data-theme="dark"] .dropdown-menu {
+[data-theme="dim"] .dropdown-menu {
     background-color: var(--bg-card);
     border-color: var(--border-light);
 }
 
-[data-theme="dark"] .dropdown-item {
+[data-theme="dim"] .dropdown-item {
     color: var(--text-primary);
 }
 
-[data-theme="dark"] .dropdown-item:hover {
+[data-theme="dim"] .dropdown-item:hover {
     background-color: rgba(255, 255, 255, 0.1);
 }
 
@@ -449,7 +449,7 @@ body {
     opacity: 1;
 }
 
-[data-theme="dark"] .source-toast-inline {
+[data-theme="dim"] .source-toast-inline {
     background: rgba(44, 44, 46, 0.9);
     border-color: var(--border-card);
     color: var(--text-muted);
