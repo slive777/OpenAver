@@ -24,8 +24,8 @@
     --accent-hover: oklch(var(--p) / 0.8);
 
     /* 邊框色 */
-    --border-light: oklch(var(--bc) / 0.1);
-    --border-card: oklch(var(--bc) / 0.15);
+    --border-light: oklch(var(--bc) / 0.15);
+    --border-card: oklch(var(--bc) / 0.2);
 
     /* ===== 陰影 - Fluent Design tokens 橋接 ===== */
     --shadow-sm: var(--fluent-shadow-2);
@@ -98,9 +98,9 @@ body {
 
 .btn-glass {
     padding: 0.4rem 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    border: 1px solid oklch(100% 0 0 / 0.4);
     border-radius: var(--radius-sm);
-    background: rgba(255, 255, 255, 0.15);
+    background: oklch(100% 0 0 / 0.15);
     color: var(--text-inverse);
     font-size: 0.75rem;
     font-weight: 500;
@@ -111,8 +111,8 @@ body {
 }
 
 .btn-glass:hover {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.6);
+    background: oklch(100% 0 0 / 0.3);
+    border-color: oklch(100% 0 0 / 0.6);
     color: var(--text-inverse);
 }
 
@@ -155,7 +155,7 @@ body {
 
 .spotlight-search input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 4px rgba(45, 90, 123, 0.15), var(--shadow-md);
+    box-shadow: 0 0 0 4px oklch(var(--p) / 0.15), var(--shadow-md);
     transform: scale(1.01);
 }
 
@@ -221,7 +221,7 @@ body {
 .gallery-card-actions {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: oklch(0% 0 0 / 0.4);
     backdrop-filter: blur(2px);
     opacity: 0;
     display: flex;
@@ -290,7 +290,7 @@ body {
 }
 
 [data-theme="dim"] .source-toast-inline {
-    background: rgba(44, 44, 46, 0.9);
+    background: oklch(var(--b3) / 0.9);
     border-color: var(--border-card);
     color: var(--text-muted);
 }

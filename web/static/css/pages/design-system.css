@@ -6,7 +6,7 @@
 .ds-page {
     background:
         radial-gradient(ellipse 80% 50% at 50% -20%, rgba(90, 200, 250, 0.15), transparent),
-        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(0, 122, 255, 0.08), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 100%, oklch(55% 0.15 250 / 0.08), transparent),
         var(--bg-body);
 }
 
@@ -18,7 +18,7 @@
 [data-theme="dim"] .ds-page {
     background:
         radial-gradient(ellipse 80% 50% at 50% -20%, rgba(90, 200, 250, 0.08), transparent),
-        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(88, 86, 214, 0.06), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 100%, oklch(55% 0.2 280 / 0.06), transparent),
         var(--bg-body);
 }
 
@@ -105,13 +105,13 @@
     text-align: center;
     margin-bottom: 3rem;
     padding: 4rem 2rem;
-    background: rgba(255, 255, 255, 0.5);
+    background: oklch(var(--b2) / 0.7);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-radius: var(--fluent-radius-xl);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid var(--border-light);
     box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+        0 0 0 1px oklch(var(--bc) / 0.05) inset,
         var(--fluent-shadow-4);
     position: relative;
     z-index: 1; /* 提升到噪點層之上 */
@@ -119,8 +119,8 @@
 }
 
 [data-theme="dim"] .ds-header {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: oklch(var(--b2) / 0.5);
+    border: 1px solid var(--border-light);
 }
 
 .ds-header::before {
@@ -142,7 +142,7 @@
     left: -10%;
     width: 300px;
     height: 300px;
-    background: radial-gradient(circle, rgba(0, 122, 255, 0.15) 0%, transparent 70%);
+    background: radial-gradient(circle, oklch(55% 0.15 250 / 0.15) 0%, transparent 70%);
     pointer-events: none;
     animation: ds-float 8s ease-in-out infinite reverse;
 }
@@ -189,18 +189,18 @@
 
 /* 樣式 A：透明玻璃 + 細描邊 */
 .ds-section.glass {
-    background: rgba(255, 255, 255, 0.5);
+    background: oklch(var(--b2) / 0.7);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid var(--border-light);
     box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+        0 0 0 1px oklch(var(--bc) / 0.05) inset,
         var(--fluent-shadow-4);
 }
 
 [data-theme="dim"] .ds-section.glass {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: oklch(var(--b2) / 0.5);
+    border: 1px solid var(--border-light);
 }
 
 /* 樣式 B：微色塊 + 左側強色條 */
@@ -314,7 +314,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 60%);
+    background: linear-gradient(to top, oklch(0% 0 0 / 0.4) 0%, transparent 60%);
     opacity: 0;
     transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
@@ -336,7 +336,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-    background: rgba(0, 0, 0, 0.6);
+    background: oklch(0% 0 0 / 0.75);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     padding: 0.5rem 0.75rem;
@@ -348,26 +348,26 @@
 .ds-color-name {
     font-weight: 600;
     font-size: 0.8rem;
-    color: #fff;
+    color: oklch(100% 0 0);
 }
 
 .ds-color-hex {
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
     font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.8);
+    color: oklch(100% 0 0 / 0.8);
 }
 
 .ds-color-usage {
     font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.6);
+    color: oklch(100% 0 0 / 0.6);
 }
 
 /* Legacy swatch label (fallback) */
 .ds-color-swatch > span:not(.ds-color-name) {
     font-size: 0.75rem;
     font-weight: 600;
-    background: rgba(0,0,0,0.6);
-    color: #fff;
+    background: oklch(0% 0 0 / 0.75);
+    color: oklch(100% 0 0);
     padding: 4px 8px;
     border-radius: var(--fluent-radius-md);
     position: relative;
@@ -472,7 +472,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: oklch(100% 0 0);
     font-size: 0.8rem;
     font-weight: 600;
     transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
@@ -608,9 +608,10 @@
 }
 
 .ds-button-row-dark {
-    background: linear-gradient(135deg, #1c1c1e 0%, #2c2c2e 100%);
+    background: linear-gradient(135deg, oklch(var(--b3)) 0%, oklch(var(--b2)) 100%);
     padding: 1.25rem;
     border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
 }
 
 /* ==================== Form Grid ==================== */
@@ -761,7 +762,7 @@
 .av-card-preview-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, transparent 100%);
+    background: linear-gradient(to top, oklch(0% 0 0 / 0.7) 0%, oklch(0% 0 0 / 0.3) 50%, transparent 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -779,12 +780,12 @@
     top: 0.75rem;
     right: 0.75rem;
     background: linear-gradient(135deg, var(--accent) 0%, #007aff 100%);
-    color: #fff;
+    color: oklch(100% 0 0);
     font-size: 0.7rem;
     font-weight: 600;
     padding: 4px 10px;
     border-radius: var(--fluent-radius-md);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 8px oklch(0% 0 0 / 0.25);
 }
 
 .av-card-preview-badge.local {
@@ -915,7 +916,7 @@
     opacity: 1;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+    background: linear-gradient(to top, oklch(0% 0 0 / 0.7), transparent);
 }
 
 .ds-gallery-card:hover {
@@ -939,16 +940,16 @@
 
 /* ==================== Code Block ==================== */
 .ds-code {
-    background: linear-gradient(135deg, #1e1e2e 0%, #252535 100%);
+    background: linear-gradient(135deg, oklch(var(--b3)) 0%, oklch(var(--b2)) 100%);
     border-radius: var(--fluent-radius-lg);
     padding: 1.25rem;
     overflow-x: auto;
     margin-top: 1.25rem;
-    border: 1px solid rgba(255,255,255,0.05);
+    border: 1px solid var(--border-light);
 }
 
 .ds-code code {
-    color: #cdd6f4;
+    color: var(--text-primary);
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
     font-size: 0.85rem;
     white-space: pre;
@@ -957,11 +958,12 @@
 
 /* ==================== Sidebar Demo ==================== */
 .ds-sidebar-demo {
-    background: linear-gradient(180deg, #1c1c1e 0%, #161618 100%);
+    background: linear-gradient(180deg, oklch(var(--b3)) 0%, oklch(var(--b2)) 100%);
     border-radius: var(--fluent-radius-xl);
     padding: 0.75rem;
     max-width: 220px;
     box-shadow: var(--fluent-shadow-8);
+    border: 1px solid var(--border-light);
 }
 
 .ds-sidebar-mini .nav-link {
@@ -969,7 +971,7 @@
     align-items: center;
     gap: 0.75rem;
     padding: 0.75rem 1rem;
-    color: rgba(255,255,255,0.65);
+    color: oklch(var(--bc) / 0.65);
     text-decoration: none;
     border-radius: var(--fluent-radius-lg);
     margin-bottom: 0.25rem;
@@ -979,13 +981,13 @@
 }
 
 .ds-sidebar-mini .nav-link:hover {
-    background: rgba(255,255,255,0.08);
-    color: #fff;
+    background: oklch(var(--bc) / 0.08);
+    color: oklch(var(--bc));
 }
 
 .ds-sidebar-mini .nav-link.active {
     background: linear-gradient(135deg, var(--accent) 0%, #007aff 100%);
-    color: #fff;
+    color: oklch(100% 0 0);
     box-shadow: 0 4px 12px rgba(90, 200, 250, 0.3);
 }
 
