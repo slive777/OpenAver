@@ -1,9 +1,5 @@
 /* ==================== 進度條共用變數 ==================== */
-:root {
-    --progress-gradient-start: #3b82f6;
-    --progress-gradient-end: #60a5fa;
-    --progress-transition: width 0.3s ease;
-}
+/* 已移除 - 改用 DaisyUI 變數 */
 
 /* 主要容器 */
 .search-container {
@@ -376,13 +372,18 @@
 }
 
 .progress-container {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    background: oklch(var(--b2));
     border-radius: 12px;
     padding: 1.5rem 2rem;
     min-width: 320px;
     max-width: 420px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-md);
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    transition: background-color 0.3s ease;
+}
+
+[data-theme="dim"] .progress-container {
+    background: oklch(var(--b3));
 }
 
 .progress-header {
@@ -391,18 +392,19 @@
     align-items: center;
     margin-bottom: 1rem;
     padding-bottom: 0.75rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid oklch(var(--bc) / 0.1);
 }
 
 .progress-query {
-    color: #4ade80;
+    color: oklch(var(--s));
     font-weight: 600;
     font-size: 1.1rem;
+    transition: color 0.3s ease;
 }
 
 /* 單行日誌 */
 .progress-log {
-    color: #94a3b8;
+    color: oklch(var(--bc) / 0.6);
     font-size: 0.85rem;
     text-align: center;
     padding: 0.5rem;
@@ -411,14 +413,15 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
+    transition: color 0.3s ease;
 }
 
 .progress-log::before {
     content: '';
     width: 8px;
     height: 8px;
-    border: 2px solid rgba(96, 165, 250, 0.3);
-    border-top-color: #60a5fa;
+    border: 2px solid oklch(var(--p) / 0.3);
+    border-top-color: oklch(var(--p));
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
@@ -434,10 +437,11 @@
     margin-top: 1rem;
     position: relative;
     height: 22px;
-    background: rgba(255, 255, 255, 0.08);
+    background: oklch(var(--b1) / 0.5);
     border-radius: 11px;
     overflow: hidden;
     display: none;
+    transition: background-color 0.3s ease;
 }
 
 .detail-progress.show {
@@ -446,9 +450,9 @@
 
 .detail-bar {
     height: 100%;
-    background: linear-gradient(90deg, var(--progress-gradient-start), var(--progress-gradient-end));
+    background: oklch(var(--p));
     border-radius: 11px;
-    transition: var(--progress-transition);
+    transition: width 0.3s ease, background-color 0.3s ease;
     min-width: 2%;
 }
 
@@ -457,10 +461,11 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: #fff;
+    color: oklch(var(--pc));
     font-size: 0.7rem;
     font-weight: 600;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 1px 2px oklch(var(--b1) / 0.3);
+    transition: color 0.3s ease;
 }
 
 /* === 拖拽覆蓋層 === */
@@ -471,7 +476,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.6);
+    background: oklch(var(--b1) / 0.6);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     z-index: 9999;
@@ -480,7 +485,7 @@
     justify-content: center;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
+    transition: opacity 0.3s ease, visibility 0.3s ease, background-color 0.3s ease;
     pointer-events: none;
 }
 
@@ -505,18 +510,20 @@
 
 .drag-overlay-content i {
     font-size: 4rem;
-    color: #fff;
+    color: oklch(var(--bc));
     margin-bottom: 1rem;
     display: block;
-    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    text-shadow: 0 4px 12px oklch(var(--b1) / 0.2);
+    transition: color 0.3s ease;
 }
 
 .drag-overlay-content p {
     font-size: 1.5rem;
     font-weight: 500;
-    color: #fff;
+    color: oklch(var(--bc));
     margin: 0;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 2px 8px oklch(var(--b1) / 0.3);
+    transition: color 0.3s ease;
 }
 
 /* ==================== Gallery View ==================== */
@@ -629,25 +636,27 @@
 
 .batch-progress-bar {
     height: 6px;
-    background: var(--border-light);
+    background: oklch(var(--b2));
     border-radius: 3px;
     overflow: hidden;
     margin-bottom: 4px;
     position: relative;
+    transition: background-color 0.3s ease;
 }
 
 .batch-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--progress-gradient-start), var(--progress-gradient-end));
+    background: oklch(var(--p));
     width: 0%;
-    transition: var(--progress-transition);
+    transition: width 0.3s ease, background-color 0.3s ease;
 }
 
 .batch-progress-text {
     display: block;
-    color: var(--text-secondary);
+    color: oklch(var(--bc) / 0.6);
     font-size: 0.75rem;
     text-align: center;
+    transition: color 0.3s ease;
 }
 
 /* ==================== 本地標記樣式 ==================== */
