@@ -291,6 +291,10 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 1rem;
+    padding: 1.5rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
 }
 
 .ds-color-swatch {
@@ -455,6 +459,10 @@
     display: flex;
     gap: 1.5rem;
     flex-wrap: wrap;
+    padding: 1.5rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
 }
 
 .ds-radius-item {
@@ -488,6 +496,7 @@
     padding: 1.5rem;
     background: var(--bg-body);
     border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
 }
 
 .ds-shadow-item {
