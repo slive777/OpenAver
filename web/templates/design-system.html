@@ -18,6 +18,7 @@
         <a href="#cards">Cards</a>
         <a href="#av-cards">AV Card Variants</a>
         <a href="#file-components">File Components</a>
+        <a href="#drag-overlay">Search Drag Overlay</a>
         <a href="#progress">Progress & Feedback</a>
         <a href="#navigation">Navigation</a>
         <a href="#rotating-border">Rotating Border</a>
@@ -520,31 +521,39 @@
             </div>
 
             <!-- Drag Overlay -->
-            <div class="ds-subsection">
-                <h3>Drag Overlay</h3>
-                <p class="ds-desc">拖曳檔案時的全螢幕覆蓋層，毛玻璃效果 + 大圖示提示</p>
-                <div class="ds-card-demo" style="position: relative; height: 300px; overflow: hidden; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                    <img src="/static/img/demo/sone-103.jpg" alt="background" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.3;">
-                    <div class="drag-overlay show" style="position: absolute;">
+            <div class="ds-subsection" id="drag-overlay">
+                <h3>Drag Overlay (Search 彈窗)</h3>
+                <p class="ds-desc">拖曳檔案時的全螢幕覆蓋層，毛玻璃效果 + 大圖示提示，支援主題跟隨</p>
+
+                <!-- 示範容器：模擬實際效果 -->
+                <div class="ds-card-demo" style="position: relative; height: 300px; overflow: hidden; border-radius: var(--fluent-radius-xl);">
+                    <!-- 背景圖片 -->
+                    <img src="/static/img/demo/sone-103.jpg" alt="background"
+                         style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;">
+
+                    <!-- Drag Overlay（使用 .active class） -->
+                    <div class="drag-overlay active" style="position: absolute; inset: 0; border-radius: var(--fluent-radius-xl);">
                         <div class="drag-overlay-content">
                             <i class="bi bi-file-earmark-arrow-up"></i>
                             <p>拖入檔案或資料夾</p>
                         </div>
                     </div>
                 </div>
-                <pre class="ds-code"><code>.drag-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(12px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.drag-overlay-content i {
-  font-size: 4rem;
-  color: #fff;
-}</code></pre>
+
+                <!-- 技術說明 -->
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-body); border-radius: var(--fluent-radius-lg); border: 1px solid var(--border-light);">
+                    <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">
+                        <strong style="color: var(--text-primary);">主題適配：</strong>
+                        背景色 <code>oklch(var(--b1) / 0.6)</code>、文字色 <code>oklch(var(--bc))</code> 自動跟隨 DaisyUI 主題
+                    </p>
+                </div>
+
+                <pre class="ds-code"><code>&lt;div class="drag-overlay active"&gt;
+  &lt;div class="drag-overlay-content"&gt;
+    &lt;i class="bi bi-file-earmark-arrow-up"&gt;&lt;/i&gt;
+    &lt;p&gt;拖入檔案或資料夾&lt;/p&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
             </div>
 
             <!-- Folder Item -->
