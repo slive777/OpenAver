@@ -1264,6 +1264,11 @@
     z-index: 10;
 }
 
+/* State Matrix: 強制顯示 hover overlay actions */
+.gallery-card.state-hover .gallery-card-actions {
+    opacity: 1;
+}
+
 /* 強制 Selected 狀態（卡片）*/
 .gallery-card.state-selected {
     border: 2px solid var(--accent);
