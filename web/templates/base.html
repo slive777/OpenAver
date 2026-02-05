@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW"
-      x-data="{ theme: $persist('{{ theme|default('light') }}').as('theme') }"
+      x-data="{ theme: $persist('{{ theme|default('wireframe') }}').as('theme') }"
       :data-theme="theme">
 
 <head>
@@ -16,12 +16,12 @@
     <link href="/static/css/theme.css" rel="stylesheet">
     <!-- Tailwind + DaisyUI CSS -->
     <link href="/static/css/tailwind.css" rel="stylesheet">
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <!-- Tutorial CSS -->
     <link href="/static/css/components/tutorial.css" rel="stylesheet">
+    <!-- Rotating Border Effect -->
+    <link href="/static/css/components/rotating-border.css" rel="stylesheet">
 
     <style>
         /* 啟用文字選取（PyWebView 預設禁用）*/
@@ -46,11 +46,15 @@
             left: 0;
             width: var(--sidebar-width);
             height: 100vh;
-            background-color: var(--bg-sidebar);
+            background-color: oklch(var(--b2));
             z-index: 1000;
-            transition: width 0.2s ease;
+            transition: width 0.2s ease, background-color 0.3s ease;
             display: flex;
             flex-direction: column;
+        }
+
+        [data-theme="dim"] .sidebar {
+            background-color: oklch(var(--b3));
         }
 
         .sidebar.collapsed {
@@ -62,36 +66,37 @@
             display: flex;
             align-items: center;
             padding: 0.75rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid oklch(var(--bc) / 0.1);
         }
 
         /* 使用 Fluent Design 毛玻璃效果的 Sidebar Header（可選） */
         .sidebar-header.fluent-acrylic {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            border-bottom: 1px solid oklch(var(--bc) / 0.15);
         }
 
         .sidebar-toggle {
             background: none;
             border: none;
-            color: rgba(255, 255, 255, 0.8);
+            color: oklch(var(--bc) / 0.7);
             font-size: 1.25rem;
             padding: 0.25rem 0.5rem;
             cursor: pointer;
             flex-shrink: 0;
+            transition: color 0.2s ease;
         }
 
         .sidebar-toggle:hover {
-            color: #fff;
+            color: oklch(var(--bc));
         }
 
         .sidebar-brand {
-            color: #fff;
+            color: oklch(var(--bc));
             font-size: 1.1rem;
             font-weight: 600;
             margin-left: 0.5rem;
             white-space: nowrap;
             overflow: hidden;
-            transition: opacity 0.2s;
+            transition: opacity 0.2s, color 0.3s ease;
         }
 
         .sidebar.collapsed .sidebar-brand {
@@ -101,23 +106,24 @@
 
         /* 導航連結 */
         .sidebar .nav-link {
-            color: rgba(255, 255, 255, 0.8);
+            color: oklch(var(--bc) / 0.7);
             padding: 0.75rem;
             border-radius: 0.25rem;
             margin: 0.25rem 0.5rem;
             display: flex;
             align-items: center;
             white-space: nowrap;
+            transition: color 0.2s ease, background-color 0.2s ease;
         }
 
         .sidebar .nav-link:hover {
-            color: #fff;
-            background-color: rgba(255, 255, 255, 0.1);
+            color: oklch(var(--bc));
+            background-color: oklch(var(--b1) / 0.5);
         }
 
         .sidebar .nav-link.active {
-            color: #fff;
-            background-color: #0d6efd;
+            color: oklch(var(--pc));
+            background-color: oklch(var(--p));
         }
 
         .sidebar .nav-link i {
@@ -147,8 +153,8 @@
             margin-left: var(--sidebar-width);
             padding: 1.5rem;
             min-height: 100vh;
-            background-color: var(--bg-body);
-            transition: margin-left 0.2s ease;
+            background-color: oklch(var(--b1));
+            transition: margin-left 0.2s ease, background-color 0.3s ease;
         }
 
         body.sidebar-collapsed .main-content {
@@ -202,24 +208,30 @@
 
         /* Offcanvas 選單連結 */
         .offcanvas {
-            background-color: var(--bg-sidebar) !important;
+            background-color: oklch(var(--b2)) !important;
+            transition: background-color 0.3s ease;
+        }
+
+        [data-theme="dim"] .offcanvas {
+            background-color: oklch(var(--b3)) !important;
         }
 
         .offcanvas-nav .nav-link {
-            color: rgba(255, 255, 255, 0.8);
+            color: oklch(var(--bc) / 0.7);
             padding: 0.75rem 1rem;
             border-radius: 0.25rem;
             margin: 0.25rem 0.5rem;
+            transition: color 0.2s ease, background-color 0.2s ease;
         }
 
         .offcanvas-nav .nav-link:hover {
-            color: #fff;
-            background-color: rgba(255, 255, 255, 0.1);
+            color: oklch(var(--bc));
+            background-color: oklch(var(--b1) / 0.5);
         }
 
         .offcanvas-nav .nav-link.active {
-            color: #fff;
-            background-color: #0d6efd;
+            color: oklch(var(--pc));
+            background-color: oklch(var(--p));
         }
 
         .offcanvas-nav .nav-link i {
@@ -323,7 +335,7 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if page == 'showcase' %}active{% endif %}" href="/showcase" title="瀏覽">
+                <a class="nav-link rotating-border-spotlight {% if page == 'showcase' %}active{% endif %} {% if showcase_has_content %}active{% endif %}" href="/showcase" title="瀏覽">
                     <i class="bi bi-collection-play"></i>
                     <span class="nav-text">瀏覽</span>
                 </a>

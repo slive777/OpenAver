@@ -1,166 +1,51 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap');
 
-/* ========== 全局主題變數 (與 AVList 一致) ========== */
+/* ========== 全局主題變數 ========== */
 :root {
     /* Display Font for Design System */
     --font-display: 'Space Grotesk', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    /* Colors - Warm Neutral Palette (Light Mode) */
-    --bg-body: #f8f7f4;
-    --bg-card: #ffffff;
-    --bg-header: rgba(255, 255, 255, 0.85);
-    --bg-overlay: rgba(18, 18, 20, 0.88);
-    --bg-sidebar: #212529;
-    /* Sidebar 保持深色 */
 
-    --text-primary: #1a1a1a;
-    --text-secondary: #6b6b6b;
-    --text-muted: #9a9a9a;
-    --text-inverse: #ffffff;
+    /* ===== DaisyUI 橋接變數（過渡期）===== */
+    /* 背景色 */
+    --bg-body: var(--color-base-100);
+    --bg-card: var(--color-base-200);
+    --bg-header: color-mix(in oklch, var(--color-base-200) 85%, transparent);
+    --bg-overlay: color-mix(in oklch, var(--color-base-100) 88%, transparent);
 
-    --accent: #2d5a7b;
-    --accent-hover: #1e4460;
-    --accent-red: #c94a4a;
+    /* 文字色 */
+    --text-primary: var(--color-base-content);
+    --text-secondary: color-mix(in oklch, var(--color-base-content) 70%, transparent);
+    --text-muted: color-mix(in oklch, var(--color-base-content) 50%, transparent);
+    --text-inverse: var(--color-neutral-content);
 
-    --border-light: #e8e6e3;
-    --border-card: #eceae7;
+    /* 主題色 */
+    --accent: var(--color-primary);
+    --accent-hover: color-mix(in oklch, var(--color-primary) 80%, transparent);
 
-    /* Shadows - 對應至 Fluent Design tokens */
-    --shadow-sm: var(--fluent-shadow-2, 0 1px 2px rgba(0, 0, 0, 0.04));
-    --shadow-md: var(--fluent-shadow-4, 0 4px 12px rgba(0, 0, 0, 0.06));
-    --shadow-lg: var(--fluent-shadow-16, 0 8px 30px rgba(0, 0, 0, 0.10));
-    --shadow-card-hover: var(--fluent-shadow-8, 0 12px 40px rgba(0, 0, 0, 0.12));
+    /* 邊框色 */
+    --border-light: color-mix(in oklch, var(--color-base-content) 15%, transparent);
+    --border-card: color-mix(in oklch, var(--color-base-content) 20%, transparent);
 
-    /* 圓角 Token 系統（統一語義命名） */
-    --radius-xs: 4px;                                 /* 小標籤、badge、小 icon */
-    --radius-sm: 8px;                                 /* thumbnail、封面、小卡 */
-    --radius-md: 12px;                                /* 卡片、表單、一般容器 */
-    --radius-lg: 16px;                                /* modal、重要容器 */
-    --radius-pill: 999px;                             /* Spotlight Search */
-    --card-radius: var(--radius-md);                  /* 對齊既有用法 (12px) */
+    /* ===== 陰影 - Fluent Design tokens 橋接 ===== */
+    --shadow-sm: var(--fluent-shadow-2);
+    --shadow-md: var(--fluent-shadow-4);
+    --shadow-lg: var(--fluent-shadow-16);
+    --shadow-card-hover: var(--fluent-shadow-8);
 
-    /* Transitions - 對應至 Fluent Design tokens */
-    --ease-out: var(--fluent-ease-decel, cubic-bezier(0.22, 1, 0.36, 1));
-    --duration-fast: var(--fluent-duration-fast, 0.167s);
-    --duration-normal: var(--fluent-duration-normal, 0.25s);
-    --duration-slow: var(--fluent-duration-slower, 0.4s);
+    /* ===== 圓角 Token 系統（語義化命名）===== */
+    --radius-xs: 4px;              /* 小標籤、badge、小 icon */
+    --radius-sm: 8px;              /* thumbnail、封面、小卡 */
+    --radius-md: 12px;             /* 卡片、表單、一般容器 */
+    --radius-lg: 16px;             /* modal、重要容器 */
+    --radius-pill: 999px;          /* Spotlight Search */
+    --card-radius: var(--radius-md); /* 對齊既有用法 (12px) */
 
-    /* Bootstrap Overrides */
-    --bs-body-bg: var(--bg-body);
-    --bs-body-color: var(--text-primary);
-}
-
-[data-theme="dark"] {
-    --bg-body: #0f0f11;
-    --bg-card: #1c1c1e;
-    --bg-header: rgba(28, 28, 30, 0.85);
-    --bg-overlay: rgba(0, 0, 0, 0.92);
-    --bg-sidebar: #161618;
-    /* Dark Mode 下更深一點 */
-
-    --text-primary: #ffffff;
-    --text-secondary: #d4d4d4;
-    --text-muted: #a8a8a8;
-    --text-inverse: #ffffff;
-
-    --accent: #5ac8fa;
-    --accent-hover: #007aff;
-    --accent-red: #ff453a;
-
-    --border-light: #2c2c2e;
-    --border-card: #3a3a3c;
-
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.5);
-    --shadow-card-hover: 0 12px 40px rgba(0, 0, 0, 0.6);
-
-    /* Bootstrap Dark Overrides */
-    --bs-body-bg: var(--bg-body);
-    --bs-body-color: var(--text-primary);
-    --bs-card-bg: var(--bg-card);
-    --bs-border-color: var(--border-light);
-    --bs-secondary-color: var(--text-muted);
-    --bs-tertiary-color: var(--text-muted);
-    --bs-emphasis-color: var(--text-primary);
-
-    /* Form Controls */
-    --bs-form-control-bg: var(--bg-card);
-    --bs-form-check-bg: var(--bg-card);
-
-    /* Links */
-    --bs-link-color: var(--accent);
-    --bs-link-hover-color: var(--accent-hover);
-}
-
-/* Dark Mode: Force Form Control Visibility */
-[data-theme="dark"] .form-control,
-[data-theme="dark"] .form-select {
-    background-color: var(--bg-card);
-    color: var(--text-primary);
-    border-color: var(--border-light);
-}
-
-[data-theme="dark"] .form-control::placeholder {
-    color: var(--text-muted);
-}
-
-[data-theme="dark"] .form-control:focus,
-[data-theme="dark"] .form-select:focus {
-    background-color: var(--bg-card);
-    color: var(--text-primary);
-    border-color: var(--accent);
-    box-shadow: 0 0 0 0.2rem rgba(90, 200, 250, 0.25);
-}
-
-/* Dark Mode: Labels & Text */
-[data-theme="dark"] .form-label,
-[data-theme="dark"] label {
-    color: var(--text-primary);
-}
-
-[data-theme="dark"] .text-muted {
-    color: var(--text-muted) !important;
-}
-
-/* Dark Mode: Bootstrap Card */
-[data-theme="dark"] .card {
-    background-color: var(--bg-card);
-    border-color: var(--border-light);
-}
-
-[data-theme="dark"] .card-header,
-[data-theme="dark"] .card-footer {
-    background-color: rgba(255, 255, 255, 0.03);
-    border-color: var(--border-light);
-    color: var(--text-primary);
-}
-
-[data-theme="dark"] .card-body {
-    color: var(--text-primary);
-}
-
-/* Dark Mode: Input Group */
-[data-theme="dark"] .input-group-text {
-    background-color: var(--bg-card);
-    border-color: var(--border-light);
-    color: var(--text-secondary);
-}
-
-/* Dark Mode: Dropdown */
-[data-theme="dark"] .dropdown-menu {
-    background-color: var(--bg-card);
-    border-color: var(--border-light);
-}
-
-[data-theme="dark"] .dropdown-item {
-    color: var(--text-primary);
-}
-
-[data-theme="dark"] .dropdown-item:hover,
-[data-theme="dark"] .dropdown-item:focus {
-    background-color: var(--border-light);
-    color: var(--text-primary);
+    /* ===== 動畫 - Fluent Design tokens 橋接 ===== */
+    --ease-out: var(--fluent-ease-decel);
+    --duration-fast: var(--fluent-duration-fast);
+    --duration-normal: var(--fluent-duration-normal);
+    --duration-slow: var(--fluent-duration-slower);
 }
 
 /* 應用背景色過渡 */
@@ -196,6 +81,7 @@ body {
     justify-content: center;
     color: var(--text-secondary);
     transition: all var(--duration-fast) ease;
+    box-sizing: border-box;
 }
 
 .btn-icon:hover {
@@ -206,16 +92,25 @@ body {
 
 .btn-icon.active {
     background: var(--accent);
-    color: var(--text-inverse);
+    color: var(--color-primary-content);
+    /* 邊界分離感 */
+    box-shadow: 0 2px 8px color-mix(in oklch, var(--accent) 40%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 30%, transparent);
+}
+
+/* Spotlight Search active icon 強化 */
+.spotlight-search .btn-icon.active i {
+    color: var(--color-primary-content);
+    font-size: 1.2rem;
 }
 
 
 
 .btn-glass {
     padding: 0.4rem 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    border: 1px solid oklch(100% 0 0 / 0.4);
     border-radius: var(--radius-sm);
-    background: rgba(255, 255, 255, 0.15);
+    background: oklch(100% 0 0 / 0.15);
     color: var(--text-inverse);
     font-size: 0.75rem;
     font-weight: 500;
@@ -226,8 +121,8 @@ body {
 }
 
 .btn-glass:hover {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.6);
+    background: oklch(100% 0 0 / 0.3);
+    border-color: oklch(100% 0 0 / 0.6);
     color: var(--text-inverse);
 }
 
@@ -270,7 +165,7 @@ body {
 
 .spotlight-search input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 4px rgba(45, 90, 123, 0.15), var(--shadow-md);
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--color-primary) 15%, transparent), var(--shadow-md);
     transform: scale(1.01);
 }
 
@@ -336,7 +231,7 @@ body {
 .gallery-card-actions {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: oklch(0% 0 0 / 0.4);
     backdrop-filter: blur(2px);
     opacity: 0;
     display: flex;
@@ -382,51 +277,6 @@ body {
     letter-spacing: 0.02em;
 }
 
-/* ========== Dark Mode Overrides for Bootstrap ========== */
-[data-theme="dark"] .card {
-    background-color: var(--bg-card);
-    border-color: var(--border-card);
-    color: var(--text-primary);
-}
-
-[data-theme="dark"] .card-header {
-    background-color: rgba(255, 255, 255, 0.05);
-    border-bottom-color: var(--border-light);
-}
-
-[data-theme="dark"] .form-control,
-[data-theme="dark"] .form-select {
-    background-color: #2c2c2e;
-    border-color: #3a3a3c;
-    color: #fff;
-}
-
-[data-theme="dark"] .form-control:focus,
-[data-theme="dark"] .form-select:focus {
-    background-color: #3a3a3c;
-    border-color: var(--accent);
-    color: #fff;
-}
-
-[data-theme="dark"] .input-group-text {
-    background-color: #3a3a3c;
-    border-color: #3a3a3c;
-    color: #fff;
-}
-
-[data-theme="dark"] .dropdown-menu {
-    background-color: var(--bg-card);
-    border-color: var(--border-light);
-}
-
-[data-theme="dark"] .dropdown-item {
-    color: var(--text-primary);
-}
-
-[data-theme="dark"] .dropdown-item:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
 /* ========== Components: Source Toast (Inline) ========== */
 .source-toast-inline {
     display: inline-block;
@@ -449,8 +299,8 @@ body {
     opacity: 1;
 }
 
-[data-theme="dark"] .source-toast-inline {
-    background: rgba(44, 44, 46, 0.9);
+[data-theme="dim"] .source-toast-inline {
+    background: color-mix(in oklch, var(--color-base-300) 90%, transparent);
     border-color: var(--border-card);
     color: var(--text-muted);
 }

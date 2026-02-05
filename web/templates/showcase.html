@@ -78,7 +78,7 @@
                 placeholder.style.display = 'none';
                 frame.style.display = 'block';
                 // 獲取當前主題並傳遞給 iframe
-                const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+                const currentTheme = document.documentElement.getAttribute('data-theme') || 'wireframe';
                 frame.src = '/api/gallery/view?theme=' + currentTheme;
 
                 // 等待 iframe 載入完成後注入外部播放器腳本

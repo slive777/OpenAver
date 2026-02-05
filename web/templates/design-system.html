@@ -17,7 +17,11 @@
         <a href="#forms">Form Controls</a>
         <a href="#cards">Cards</a>
         <a href="#av-cards">AV Card Variants</a>
+        <a href="#file-components">File Components</a>
+        <a href="#drag-overlay">Search Drag Overlay</a>
+        <a href="#progress">Progress & Feedback</a>
         <a href="#navigation">Navigation</a>
+        <a href="#rotating-border">Rotating Border</a>
         <a href="#feedback">Feedback</a>
     </nav>
 
@@ -51,11 +55,11 @@
                             <span class="ds-color-usage">Card surfaces</span>
                         </div>
                     </div>
-                    <div class="ds-color-swatch" style="background: var(--bg-sidebar);">
-                        <div class="ds-color-info">
-                            <span class="ds-color-name">--bg-sidebar</span>
-                            <code class="ds-color-hex" data-var="--bg-sidebar"></code>
-                            <span class="ds-color-usage">Navigation sidebar</span>
+                    <div class="ds-color-swatch" style="background: var(--bg-card);">
+                        <div class="ds-color-info" style="color: var(--text-secondary);">
+                            <span class="ds-color-name">--bg-card</span>
+                            <code class="ds-color-hex" data-var="--bg-card"></code>
+                            <span class="ds-color-usage">Card surfaces (previously sidebar)</span>
                         </div>
                     </div>
                     <div class="ds-color-swatch" style="background: var(--accent);">
@@ -333,41 +337,12 @@
         <!-- 區塊 6: AV Card Variants（重點，accent-bar 樣式）-->
         <section id="av-cards" class="ds-section accent-bar">
             <h2>AV Card Variants</h2>
-            <p class="ds-note">4 種卡片變體用於不同場景，統一使用 Fluent Design tokens</p>
+            <p class="ds-note">3 種核心卡片變體用於不同場景，統一使用 Fluent Design tokens</p>
 
-            <!-- Thumbnail 變體 -->
+            <!-- Preview 變體（網格卡片） -->
             <div class="ds-subsection">
-                <h3>1. Thumbnail（列表縮圖）</h3>
-                <p class="ds-desc">用於搜尋結果下拉、側邊列表，強調緊湊</p>
-                <div class="ds-card-demo">
-                    <div class="av-card-thumbnail">
-                        <img src="/static/img/demo/sone-103.jpg" alt="thumb">
-                        <div class="av-card-thumbnail-info">
-                            <span class="av-num">SONE-103</span>
-                            <span class="av-actress">女優名</span>
-                        </div>
-                    </div>
-                    <div class="av-card-thumbnail">
-                        <img src="/static/img/demo/ipzz-001.jpg" alt="thumb">
-                        <div class="av-card-thumbnail-info">
-                            <span class="av-num">IPZZ-001</span>
-                            <span class="av-actress">另一位女優</span>
-                        </div>
-                    </div>
-                </div>
-                <pre class="ds-code"><code>.av-card-thumbnail {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.25rem;
-  border-radius: var(--fluent-radius-md);
-}</code></pre>
-            </div>
-
-            <!-- Preview 變體（拼貼佈局） -->
-            <div class="ds-subsection">
-                <h3>2. Preview（網格封面）</h3>
-                <p class="ds-desc">用於 Gallery 網格展示，強調封面視覺。一大兩小拼貼佈局</p>
+                <h3>1. Preview（網格封面）</h3>
+                <p class="ds-desc">用於 Gallery 網格展示，強調封面視覺。統一尺寸網格佈局</p>
                 <div class="ds-card-demo ds-card-mosaic">
                     <!-- 大卡 (featured) -->
                     <div class="av-card-preview featured">
@@ -420,7 +395,7 @@
 
             <!-- Full 變體 -->
             <div class="ds-subsection">
-                <h3>3. Full（詳細頁面）</h3>
+                <h3>2. Full（詳細頁面）</h3>
                 <p class="ds-desc">用於搜尋結果詳情，左右分區佈局</p>
                 <div class="ds-card-demo">
                     <div class="av-card-full">
@@ -457,7 +432,7 @@
 
             <!-- Compact 變體 -->
             <div class="ds-subsection">
-                <h3>4. Compact（檔案列表行）</h3>
+                <h3>3. Compact（檔案列表行）</h3>
                 <p class="ds-desc">用於批次處理的檔案列表，單行緊湊</p>
                 <div class="ds-card-demo">
                     <div class="av-card-compact">
@@ -495,7 +470,261 @@
             </div>
         </section>
 
-        <!-- 區塊 7: Navigation (glass 樣式) -->
+        <!-- 區塊 7: File Components (glass 樣式) -->
+        <section id="file-components" class="ds-section glass">
+            <h2>File Components</h2>
+            <p class="ds-note">檔案操作相關元件，用於 Search 和 Gallery 頁面</p>
+
+            <!-- File List Section -->
+            <div class="ds-subsection">
+                <h3>File List Section</h3>
+                <p class="ds-desc">檔案列表項目，顯示檔案資訊和操作按鈕，支援 hover 和 active 狀態</p>
+                <div class="ds-card-demo">
+                    <div class="file-list-section" style="max-width: 600px;">
+                        <div class="file-list-header">
+                            <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">檔案列表</span>
+                            <span style="font-size: 0.8rem; color: var(--text-secondary);">3 個檔案</span>
+                        </div>
+                        <div class="file-item">
+                            <i class="bi bi-file-earmark-play file-icon"></i>
+                            <span class="file-name">SONE-103.mp4</span>
+                            <span class="file-status">已搜尋</span>
+                            <button class="btn btn-sm btn-outline-primary btn-scrape-single">查看</button>
+                        </div>
+                        <div class="file-item active">
+                            <i class="bi bi-file-earmark-play file-icon"></i>
+                            <span class="file-name">MIDE-974_HD.mp4</span>
+                            <span class="file-status">已搜尋</span>
+                            <button class="btn btn-sm btn-outline-primary btn-scrape-single">查看</button>
+                        </div>
+                        <div class="file-item">
+                            <i class="bi bi-file-earmark-play file-icon"></i>
+                            <span class="file-name">FC2-PPV-1723984.mp4</span>
+                            <span class="file-status" style="color: var(--text-muted);">待搜尋</span>
+                            <button class="btn btn-sm btn-outline-secondary btn-scrape-single">搜尋</button>
+                        </div>
+                    </div>
+                </div>
+                <pre class="ds-code"><code>.file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.file-item.active {
+  background: var(--border-light);
+  color: var(--accent);
+  font-weight: 600;
+}</code></pre>
+            </div>
+
+            <!-- Drag Overlay -->
+            <div class="ds-subsection" id="drag-overlay">
+                <h3>Drag Overlay (Search 彈窗)</h3>
+                <p class="ds-desc">拖曳檔案時的全螢幕覆蓋層，毛玻璃效果 + 大圖示提示，支援主題跟隨</p>
+
+                <!-- 示範容器：模擬實際效果 -->
+                <div class="ds-card-demo" style="position: relative; height: 300px; overflow: hidden; border-radius: var(--fluent-radius-xl);">
+                    <!-- 背景圖片 -->
+                    <img src="/static/img/demo/sone-103.jpg" alt="background"
+                         style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;">
+
+                    <!-- Drag Overlay（使用 .active class） -->
+                    <div class="drag-overlay active" style="position: absolute; inset: 0; border-radius: var(--fluent-radius-xl);">
+                        <div class="drag-overlay-content">
+                            <i class="bi bi-file-earmark-arrow-up"></i>
+                            <p>拖入檔案或資料夾</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 技術說明 -->
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-body); border-radius: var(--fluent-radius-lg); border: 1px solid var(--border-light);">
+                    <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">
+                        <strong style="color: var(--text-primary);">主題適配：</strong>
+                        背景色 <code>oklch(var(--b1) / 0.6)</code>、文字色 <code>oklch(var(--bc))</code> 自動跟隨 DaisyUI 主題
+                    </p>
+                </div>
+
+                <pre class="ds-code"><code>&lt;div class="drag-overlay active"&gt;
+  &lt;div class="drag-overlay-content"&gt;
+    &lt;i class="bi bi-file-earmark-arrow-up"&gt;&lt;/i&gt;
+    &lt;p&gt;拖入檔案或資料夾&lt;/p&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+            </div>
+
+            <!-- Folder Item -->
+            <div class="ds-subsection">
+                <h3>Folder Item</h3>
+                <p class="ds-desc">Gallery 頁的資料夾列表項目，顯示路徑和移除按鈕</p>
+                <div class="ds-card-demo">
+                    <div style="max-width: 600px; background: var(--bg-card); border-radius: 12px; overflow: hidden;">
+                        <div class="folder-item">
+                            <i class="bi bi-folder folder-icon"></i>
+                            <span class="folder-path">/Users/username/Videos/AV</span>
+                            <button class="btn btn-sm btn-outline-danger btn-remove">移除</button>
+                        </div>
+                        <div class="folder-item">
+                            <i class="bi bi-folder folder-icon"></i>
+                            <span class="folder-path">D:\Downloads\JAV\Uncensored</span>
+                            <button class="btn btn-sm btn-outline-danger btn-remove">移除</button>
+                        </div>
+                    </div>
+                </div>
+                <pre class="ds-code"><code>.folder-item {
+  display: flex;
+  align-items: center;
+  padding: 0.875rem 1.25rem;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--border-light);
+}
+.folder-item:hover {
+  background: var(--bg-body);
+}
+.folder-item:hover .btn-remove {
+  opacity: 1;
+}</code></pre>
+            </div>
+        </section>
+
+        <!-- 區塊 8: Progress & Feedback (accent-bar 樣式) -->
+        <section id="progress" class="ds-section accent-bar">
+            <h2>Progress & Feedback</h2>
+            <p class="ds-note">進度顯示和即時回饋元件</p>
+
+            <!-- Progress Indicator -->
+            <div class="ds-subsection">
+                <h3>Progress Indicator</h3>
+                <p class="ds-desc">Search 頁的搜尋進度顯示，跟隨主題顯示（wireframe: 淺底深字 / dim: 深底淺字）</p>
+                <div class="ds-card-demo" style="background: var(--bg-body); padding: 2rem; border-radius: var(--radius-md);">
+                    <div class="search-progress" style="max-width: 500px; margin: 0 auto;">
+                        <div class="progress-container">
+                            <div class="progress-header">
+                                <span class="progress-status">搜尋中</span>
+                            </div>
+                            <div class="progress-log">
+                                正在搜尋 SONE-103...
+                            </div>
+                            <div class="detail-progress show">
+                                <div class="detail-bar" style="width: 65%;"></div>
+                                <span class="detail-text">65 / 100</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <pre class="ds-code"><code>.search-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.progress-log::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border: 2px solid rgba(96, 165, 250, 0.3);
+  border-top-color: #60a5fa;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}</code></pre>
+            </div>
+
+            <!-- Mini Terminal -->
+            <div class="ds-subsection">
+                <h3>Mini Terminal</h3>
+                <p class="ds-desc">Gallery 頁的產生進度日誌視窗，Terminal 風格輸出</p>
+                <div class="ds-card-demo">
+                    <div class="mini-terminal" style="max-width: 500px;">
+                        <div class="mini-terminal-header">
+                            <span class="title">產生進度</span>
+                        </div>
+                        <div class="mini-terminal-body">
+                            <div class="log-info">[INFO] 正在產生網頁列表...</div>
+                            <div class="log-info">[INFO] 已處理 50 個影片</div>
+                            <div class="log-warn">[WARN] 部分檔案缺少封面</div>
+                            <div class="log-info">[INFO] 產生完成</div>
+                        </div>
+                        <div class="progress-mini">
+                            <div style="width: 80%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 2px;"></div>
+                        </div>
+                    </div>
+                </div>
+                <pre class="ds-code"><code>.mini-terminal {
+  background: #1a1a2e;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.mini-terminal-body {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.75rem;
+  color: #d4d4d4;
+}</code></pre>
+            </div>
+
+            <!-- Batch Progress Bar -->
+            <div class="ds-subsection">
+                <h3>Batch Progress Bar</h3>
+                <p class="ds-desc">批次處理進度條，與 detail-progress 風格統一（藍色漸層）</p>
+                <div class="ds-card-demo">
+                    <div class="batch-progress" style="max-width: 400px;">
+                        <div class="batch-progress-bar">
+                            <div class="batch-progress-fill" style="width: 40%;"></div>
+                        </div>
+                        <small class="batch-progress-text">處理中 4/10</small>
+                    </div>
+                    <div class="batch-progress" style="max-width: 400px;">
+                        <div class="batch-progress-bar">
+                            <div class="batch-progress-fill" style="width: 75%;"></div>
+                        </div>
+                        <small class="batch-progress-text">處理中 15/20</small>
+                    </div>
+                </div>
+                <pre class="ds-code"><code>.batch-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg,
+    var(--progress-gradient-start),
+    var(--progress-gradient-end));
+  transition: var(--progress-transition);
+}</code></pre>
+            </div>
+
+            <!-- Collapse Toggle -->
+            <div class="ds-subsection">
+                <h3>Collapse Toggle</h3>
+                <p class="ds-desc">展開/收起連結，使用 Alpine.js，Chevron icon 旋轉動畫</p>
+                <div class="ds-card-demo">
+                    <div style="max-width: 400px; padding: 1rem; background: var(--bg-card); border-radius: 12px;">
+                        <div x-data="{ expanded: false }">
+                            <a class="collapse-toggle text-decoration-none"
+                               @click="expanded = !expanded"
+                               :aria-expanded="expanded"
+                               role="button"
+                               style="display: inline-flex; align-items: center; gap: 0.5rem; color: var(--text-secondary); font-size: 0.875rem; cursor: pointer;">
+                                <i class="bi bi-chevron-down" :class="{ 'rotate-180': expanded }"></i> 進階選項
+                            </a>
+                            <div x-show="expanded" x-collapse style="margin-top: 1rem; padding: 1rem; background: var(--bg-body); border-radius: 8px;">
+                                <p style="margin: 0; color: var(--text-secondary);">這裡是展開後的內容區域</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <pre class="ds-code"><code>&lt;div x-data="{ expanded: false }"&gt;
+  &lt;a class="collapse-toggle"
+     @click="expanded = !expanded"&gt;
+    &lt;i class="bi bi-chevron-down"
+       :class="{ 'rotate-180': expanded }"&gt;&lt;/i&gt;
+    進階選項
+  &lt;/a&gt;
+  &lt;div x-show="expanded" x-collapse&gt;
+    內容...
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+            </div>
+        </section>
+
+        <!-- 區塊 9: Navigation (glass 樣式) -->
         <section id="navigation" class="ds-section glass">
             <h2>Navigation</h2>
 
@@ -513,6 +742,9 @@
 
             <div class="ds-subsection">
                 <h3>Tabs (DaisyUI)</h3>
+                <div class="alert alert-warning" role="alert" style="margin-bottom: 1rem; padding: 0.5rem 0.75rem;">
+                    <i class="bi bi-exclamation-triangle"></i> <strong>未實際使用</strong> - 此元件目前未在專案中使用
+                </div>
                 <div class="tabs tabs-bordered">
                     <a class="tab tab-active">Tab 1</a>
                     <a class="tab">Tab 2</a>
@@ -521,8 +753,178 @@
             </div>
         </section>
 
-        <!-- 區塊 8: Feedback (accent-bar 樣式) -->
-        <section id="feedback" class="ds-section accent-bar">
+        <!-- 區塊 10: Rotating Border Effect (accent-bar 樣式) -->
+        <section id="rotating-border" class="ds-section accent-bar">
+            <h2>Rotating Border Effect</h2>
+            <p class="ds-note">單光點旋轉外框特效，用於指示「有本地匹配」或「有內容」狀態</p>
+
+            <!-- 基礎展示 -->
+            <div class="ds-subsection">
+                <h3>Basic Usage</h3>
+                <p class="ds-desc">為元素添加 <code>.rotating-border-spotlight</code> class，並用 <code>.active</code> 啟用旋轉</p>
+                <div class="ds-card-demo">
+                    <div class="d-flex gap-3 flex-wrap align-items-center">
+                        <!-- Inactive 狀態 -->
+                        <div class="rotating-border-spotlight"
+                             style="padding: 1.5rem 2rem; background: var(--bg-card); border-radius: var(--radius-md);">
+                            <h5 style="margin: 0; color: var(--text-primary);">Inactive State</h5>
+                            <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary); font-size: 0.875rem;">沒有旋轉效果</p>
+                        </div>
+
+                        <!-- Active 狀態 -->
+                        <div class="rotating-border-spotlight active"
+                             style="padding: 1.5rem 2rem; background: var(--bg-card); border-radius: var(--radius-md);">
+                            <h5 style="margin: 0; color: var(--text-primary);">Active State</h5>
+                            <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary); font-size: 0.875rem;">正在旋轉</p>
+                        </div>
+                    </div>
+                </div>
+                <pre class="ds-code"><code>&lt;div class="rotating-border-spotlight active"&gt;
+  &lt;!-- 內容 --&gt;
+&lt;/div&gt;</code></pre>
+            </div>
+
+            <!-- 應用場景 -->
+            <div class="ds-subsection">
+                <h3>Use Cases</h3>
+                <p class="ds-desc">實際應用場景展示</p>
+
+                <!-- 場景 1: Card -->
+                <h4 style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 1rem; font-weight: 600;">1. Card with Local Match</h4>
+                <div class="ds-card-demo">
+                    <div class="rotating-border-spotlight active"
+                         style="max-width: 280px; background: var(--bg-card); border-radius: var(--fluent-radius-xl, 12px); overflow: hidden; box-shadow: var(--fluent-shadow-4);">
+                        <div style="aspect-ratio: 16/9; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); position: relative;">
+                            <img src="/static/img/demo/sone-103.jpg" alt="cover" style="width: 100%; height: 100%; object-fit: cover;">
+                            <span style="position: absolute; top: 0.5rem; right: 0.5rem; background: rgba(90, 200, 250, 0.9); color: #fff; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">本地</span>
+                        </div>
+                        <div style="padding: 1rem;">
+                            <div style="font-weight: 600; color: var(--accent); margin-bottom: 0.25rem;">SONE-103</div>
+                            <div style="font-size: 0.875rem; color: var(--text-secondary);">2024-01-15</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 場景 2: Navigation Link -->
+                <h4 style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 1rem; font-weight: 600;">2. Sidebar Navigation Link</h4>
+                <div class="ds-card-demo">
+                    <div style="background: var(--bg-card); padding: 1rem; border-radius: var(--radius-md); max-width: 200px;">
+                        <nav style="display: flex; flex-direction: column; gap: 0.25rem;">
+                            <a class="nav-link" href="#" style="color: var(--text-secondary); padding: 0.75rem; border-radius: 0.25rem; display: flex; align-items: center; text-decoration: none;">
+                                <i class="bi bi-search" style="width: 24px;"></i>
+                                <span style="margin-left: 0.5rem;">搜尋</span>
+                            </a>
+                            <a class="nav-link rotating-border-spotlight active" href="#" style="color: var(--text-secondary); padding: 0.75rem; border-radius: 0.25rem; display: flex; align-items: center; text-decoration: none; background-color: rgba(255, 255, 255, 0.1);">
+                                <i class="bi bi-collection-play" style="width: 24px;"></i>
+                                <span style="margin-left: 0.5rem;">瀏覽 (有內容)</span>
+                            </a>
+                            <a class="nav-link" href="#" style="color: rgba(255, 255, 255, 0.8); padding: 0.75rem; border-radius: 0.25rem; display: flex; align-items: center; text-decoration: none;">
+                                <i class="bi bi-gear" style="width: 24px;"></i>
+                                <span style="margin-left: 0.5rem;">設定</span>
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+
+                <!-- 場景 3: Info Section -->
+                <h4 style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 1rem; font-weight: 600;">3. Search Result Info Section</h4>
+                <div class="ds-card-demo">
+                    <div class="rotating-border-spotlight active"
+                         style="max-width: 600px; background: var(--bg-card); border-radius: var(--radius-md); padding: 1.5rem; box-shadow: var(--fluent-shadow-4);">
+                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                            <i class="bi bi-folder-check" style="font-size: 1.5rem; color: var(--accent);"></i>
+                            <h4 style="margin: 0; font-size: 1.125rem; font-weight: 600; color: var(--text-primary);">本地資料庫匹配</h4>
+                        </div>
+                        <div style="padding-left: 2.25rem;">
+                            <div style="margin-bottom: 0.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                                <span style="color: var(--text-primary); font-weight: 600;">檔案：</span>
+                                /Users/username/Videos/SONE-103.mp4
+                            </div>
+                            <div style="color: var(--text-secondary); font-size: 0.875rem;">
+                                <span style="color: var(--text-primary); font-weight: 600;">大小：</span>
+                                2.4 GB
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 技術規格 -->
+            <div class="ds-subsection">
+                <h3>Technical Specs</h3>
+                <div class="ds-card-demo">
+                    <table class="table table-sm" style="max-width: 600px; margin: 0;">
+                        <tbody>
+                            <tr>
+                                <td style="width: 30%; font-weight: 600; color: var(--text-primary);">旋轉速度</td>
+                                <td style="color: var(--text-secondary);">2.5 秒/圈</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 600; color: var(--text-primary);">光點角度</td>
+                                <td style="color: var(--text-secondary);">30° 核心 + 30° 拖尾 = 60° 總長</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 600; color: var(--text-primary);">Light Mode 透明度</td>
+                                <td style="color: var(--text-secondary);">0.6 (核心) / 0.3 (拖尾)</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 600; color: var(--text-primary);">Dark Mode 透明度</td>
+                                <td style="color: var(--text-secondary);">0.7 (核心) / 0.4 (拖尾)</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 600; color: var(--text-primary);">顏色來源</td>
+                                <td style="color: var(--text-secondary);">延續 <code>--accent</code> 藍色系</td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: 600; color: var(--text-primary);">瀏覽器支援</td>
+                                <td style="color: var(--text-secondary);">Chrome 85+, Edge 85+, Safari 15.4+, Firefox 128+</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 變體選項 -->
+            <div class="ds-subsection">
+                <h3>Speed Variants (Optional)</h3>
+                <p class="ds-desc">可選的速度變體，用於不同強調程度</p>
+                <div class="ds-card-demo">
+                    <div class="d-flex gap-3 flex-wrap">
+                        <div class="rotating-border-spotlight speed-slow active"
+                             style="padding: 1rem 1.5rem; background: var(--bg-card); border-radius: var(--radius-md);">
+                            <small style="color: var(--text-muted);">Slow (4s)</small>
+                        </div>
+                        <div class="rotating-border-spotlight active"
+                             style="padding: 1rem 1.5rem; background: var(--bg-card); border-radius: var(--radius-md);">
+                            <small style="color: var(--text-muted);">Normal (2.5s)</small>
+                        </div>
+                        <div class="rotating-border-spotlight speed-fast active"
+                             style="padding: 1rem 1.5rem; background: var(--bg-card); border-radius: var(--radius-md);">
+                            <small style="color: var(--text-muted);">Fast (1.5s)</small>
+                        </div>
+                    </div>
+                </div>
+                <pre class="ds-code"><code>&lt;!-- 慢速旋轉 --&gt;
+&lt;div class="rotating-border-spotlight speed-slow active"&gt;...&lt;/div&gt;
+
+&lt;!-- 快速旋轉 --&gt;
+&lt;div class="rotating-border-spotlight speed-fast active"&gt;...&lt;/div&gt;</code></pre>
+            </div>
+
+            <!-- 無障礙與降級 -->
+            <div class="ds-subsection">
+                <h3>Accessibility & Fallback</h3>
+                <div class="alert alert-info" role="alert" style="margin-bottom: 1rem;">
+                    <i class="bi bi-info-circle"></i> <strong>prefers-reduced-motion</strong>：尊重使用者偏好，停用動畫改為靜態發光邊框
+                </div>
+                <div class="alert alert-warning" role="alert">
+                    <i class="bi bi-exclamation-triangle"></i> <strong>瀏覽器降級</strong>：不支援 <code>conic-gradient</code> 時降級為靜態 <code>box-shadow</code> 邊框
+                </div>
+            </div>
+        </section>
+
+        <!-- 區塊 11: Feedback (glass 樣式) -->
+        <section id="feedback" class="ds-section glass">
             <h2>Feedback</h2>
 
             <div class="ds-subsection">

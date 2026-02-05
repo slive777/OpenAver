@@ -6,7 +6,7 @@
 .ds-page {
     background:
         radial-gradient(ellipse 80% 50% at 50% -20%, rgba(90, 200, 250, 0.15), transparent),
-        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(0, 122, 255, 0.08), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 100%, oklch(55% 0.15 250 / 0.08), transparent),
         var(--bg-body);
 }
 
@@ -15,10 +15,10 @@
     background: transparent;
 }
 
-[data-theme="dark"] .ds-page {
+[data-theme="dim"] .ds-page {
     background:
         radial-gradient(ellipse 80% 50% at 50% -20%, rgba(90, 200, 250, 0.08), transparent),
-        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(88, 86, 214, 0.06), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 100%, oklch(55% 0.2 280 / 0.06), transparent),
         var(--bg-body);
 }
 
@@ -105,22 +105,22 @@
     text-align: center;
     margin-bottom: 3rem;
     padding: 4rem 2rem;
-    background: rgba(255, 255, 255, 0.5);
+    background: color-mix(in oklch, var(--color-base-200) 70%, transparent);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-radius: var(--fluent-radius-xl);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid var(--border-light);
     box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+        0 0 0 1px color-mix(in oklch, var(--color-base-content) 5%, transparent) inset,
         var(--fluent-shadow-4);
     position: relative;
     z-index: 1; /* 提升到噪點層之上 */
     overflow: hidden;
 }
 
-[data-theme="dark"] .ds-header {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+[data-theme="dim"] .ds-header {
+    background: color-mix(in oklch, var(--color-base-200) 50%, transparent);
+    border: 1px solid var(--border-light);
 }
 
 .ds-header::before {
@@ -142,7 +142,7 @@
     left: -10%;
     width: 300px;
     height: 300px;
-    background: radial-gradient(circle, rgba(0, 122, 255, 0.15) 0%, transparent 70%);
+    background: radial-gradient(circle, oklch(55% 0.15 250 / 0.15) 0%, transparent 70%);
     pointer-events: none;
     animation: ds-float 8s ease-in-out infinite reverse;
 }
@@ -161,7 +161,7 @@
     z-index: 1;
 }
 
-[data-theme="dark"] .ds-header h1 {
+[data-theme="dim"] .ds-header h1 {
     background: linear-gradient(135deg, #5ac8fa 0%, #64d2ff 50%, #bf5af2 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -189,18 +189,18 @@
 
 /* 樣式 A：透明玻璃 + 細描邊 */
 .ds-section.glass {
-    background: rgba(255, 255, 255, 0.5);
+    background: color-mix(in oklch, var(--color-base-200) 70%, transparent);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid var(--border-light);
     box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+        0 0 0 1px color-mix(in oklch, var(--color-base-content) 5%, transparent) inset,
         var(--fluent-shadow-4);
 }
 
-[data-theme="dark"] .ds-section.glass {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+[data-theme="dim"] .ds-section.glass {
+    background: color-mix(in oklch, var(--color-base-200) 50%, transparent);
+    border: 1px solid var(--border-light);
 }
 
 /* 樣式 B：微色塊 + 左側強色條 */
@@ -242,7 +242,7 @@
     border-radius: 2px;
 }
 
-[data-theme="dark"] .ds-section h2::after {
+[data-theme="dim"] .ds-section h2::after {
     background: linear-gradient(90deg, #5ac8fa 0%, #64d2ff 60%, transparent 100%);
 }
 
@@ -291,6 +291,10 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 1rem;
+    padding: 1.5rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
 }
 
 .ds-color-swatch {
@@ -310,7 +314,7 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.4) 0%, transparent 60%);
+    background: linear-gradient(to top, oklch(0% 0 0 / 0.4) 0%, transparent 60%);
     opacity: 0;
     transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
@@ -332,7 +336,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-    background: rgba(0, 0, 0, 0.6);
+    background: oklch(0% 0 0 / 0.75);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     padding: 0.5rem 0.75rem;
@@ -344,26 +348,26 @@
 .ds-color-name {
     font-weight: 600;
     font-size: 0.8rem;
-    color: #fff;
+    color: oklch(100% 0 0);
 }
 
 .ds-color-hex {
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
     font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.8);
+    color: oklch(100% 0 0 / 0.8);
 }
 
 .ds-color-usage {
     font-size: 0.65rem;
-    color: rgba(255, 255, 255, 0.6);
+    color: oklch(100% 0 0 / 0.6);
 }
 
 /* Legacy swatch label (fallback) */
 .ds-color-swatch > span:not(.ds-color-name) {
     font-size: 0.75rem;
     font-weight: 600;
-    background: rgba(0,0,0,0.6);
-    color: #fff;
+    background: oklch(0% 0 0 / 0.75);
+    color: oklch(100% 0 0);
     padding: 4px 8px;
     border-radius: var(--fluent-radius-md);
     position: relative;
@@ -455,6 +459,10 @@
     display: flex;
     gap: 1.5rem;
     flex-wrap: wrap;
+    padding: 1.5rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
 }
 
 .ds-radius-item {
@@ -464,7 +472,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: oklch(100% 0 0);
     font-size: 0.8rem;
     font-weight: 600;
     transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
@@ -476,7 +484,7 @@
     box-shadow: 0 8px 24px rgba(90, 200, 250, 0.3);
 }
 
-[data-theme="dark"] .ds-radius-item {
+[data-theme="dim"] .ds-radius-item {
     background: linear-gradient(135deg, #5ac8fa 0%, #007aff 100%);
 }
 
@@ -488,6 +496,7 @@
     padding: 1.5rem;
     background: var(--bg-body);
     border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
 }
 
 .ds-shadow-item {
@@ -599,9 +608,10 @@
 }
 
 .ds-button-row-dark {
-    background: linear-gradient(135deg, #1c1c1e 0%, #2c2c2e 100%);
+    background: linear-gradient(135deg, var(--color-base-300) 0%, var(--color-base-200) 100%);
     padding: 1.25rem;
     border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
 }
 
 /* ==================== Form Grid ==================== */
@@ -752,7 +762,7 @@
 .av-card-preview-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, transparent 100%);
+    background: linear-gradient(to top, oklch(0% 0 0 / 0.7) 0%, oklch(0% 0 0 / 0.3) 50%, transparent 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -770,12 +780,12 @@
     top: 0.75rem;
     right: 0.75rem;
     background: linear-gradient(135deg, var(--accent) 0%, #007aff 100%);
-    color: #fff;
+    color: oklch(100% 0 0);
     font-size: 0.7rem;
     font-weight: 600;
     padding: 4px 10px;
     border-radius: var(--fluent-radius-md);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 8px oklch(0% 0 0 / 0.25);
 }
 
 .av-card-preview-badge.local {
@@ -906,7 +916,7 @@
     opacity: 1;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+    background: linear-gradient(to top, oklch(0% 0 0 / 0.7), transparent);
 }
 
 .ds-gallery-card:hover {
@@ -930,16 +940,16 @@
 
 /* ==================== Code Block ==================== */
 .ds-code {
-    background: linear-gradient(135deg, #1e1e2e 0%, #252535 100%);
+    background: linear-gradient(135deg, var(--color-base-300) 0%, var(--color-base-200) 100%);
     border-radius: var(--fluent-radius-lg);
     padding: 1.25rem;
     overflow-x: auto;
     margin-top: 1.25rem;
-    border: 1px solid rgba(255,255,255,0.05);
+    border: 1px solid var(--border-light);
 }
 
 .ds-code code {
-    color: #cdd6f4;
+    color: var(--text-primary);
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
     font-size: 0.85rem;
     white-space: pre;
@@ -948,11 +958,12 @@
 
 /* ==================== Sidebar Demo ==================== */
 .ds-sidebar-demo {
-    background: linear-gradient(180deg, #1c1c1e 0%, #161618 100%);
+    background: linear-gradient(180deg, var(--color-base-300) 0%, var(--color-base-200) 100%);
     border-radius: var(--fluent-radius-xl);
     padding: 0.75rem;
     max-width: 220px;
     box-shadow: var(--fluent-shadow-8);
+    border: 1px solid var(--border-light);
 }
 
 .ds-sidebar-mini .nav-link {
@@ -960,7 +971,7 @@
     align-items: center;
     gap: 0.75rem;
     padding: 0.75rem 1rem;
-    color: rgba(255,255,255,0.65);
+    color: color-mix(in oklch, var(--color-base-content) 65%, transparent);
     text-decoration: none;
     border-radius: var(--fluent-radius-lg);
     margin-bottom: 0.25rem;
@@ -970,17 +981,17 @@
 }
 
 .ds-sidebar-mini .nav-link:hover {
-    background: rgba(255,255,255,0.08);
-    color: #fff;
+    background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
+    color: var(--color-base-content);
 }
 
 .ds-sidebar-mini .nav-link.active {
     background: linear-gradient(135deg, var(--accent) 0%, #007aff 100%);
-    color: #fff;
+    color: oklch(100% 0 0);
     box-shadow: 0 4px 12px rgba(90, 200, 250, 0.3);
 }
 
-[data-theme="dark"] .ds-sidebar-mini .nav-link.active {
+[data-theme="dim"] .ds-sidebar-mini .nav-link.active {
     background: linear-gradient(135deg, #5ac8fa 0%, #007aff 100%);
 }
 
@@ -1059,4 +1070,115 @@
 @keyframes ds-float {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-8px); }
+}
+
+/* ==================== Additional Component Styles for Design System ==================== */
+
+/* Rotate utility for collapse toggle */
+.rotate-180 {
+    transform: rotate(180deg) !important;
+}
+
+/* File list header */
+.file-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: 0.5rem;
+}
+
+/* Collapse toggle */
+.collapse-toggle {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: color var(--fluent-duration-fast);
+}
+
+.collapse-toggle:hover {
+    color: var(--accent);
+}
+
+.collapse-toggle i {
+    transition: transform 0.2s ease;
+}
+
+.collapse-toggle[aria-expanded="true"] i,
+.collapse-toggle i.rotate-180 {
+    transform: rotate(180deg);
+}
+
+/* ==================== Progress Indicator Demo ==================== */
+/* 從 search.css 提取的最小樣式，供 design-system 展示用 */
+/*
+ * ⚠️ 注意：這些 .progress-* 樣式僅限 /design-system 頁面使用
+ * 實際的 Progress Indicator 樣式定義在 search.css
+ * 若此 CSS 被其他頁面載入，可能會覆蓋 search.css 的樣式
+ *
+ * 最佳實踐：確保 design-system.css 只在 design-system.html 載入
+ */
+
+.progress-container {
+    background: var(--color-base-200);
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    box-shadow: var(--fluent-shadow-4);
+    border: 1px solid var(--border-light);
+    transition: background-color 0.3s ease;
+}
+
+[data-theme="dim"] .progress-container {
+    background: var(--color-base-300);
+}
+
+.progress-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid color-mix(in oklch, var(--color-base-content) 10%, transparent);
+}
+
+.progress-status {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--color-base-content);
+}
+
+.progress-log {
+    font-size: 0.9rem;
+    color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
+    margin-bottom: 1rem;
+}
+
+.detail-progress {
+    display: none;
+    background: color-mix(in oklch, var(--color-base-100) 50%, transparent);
+    border-radius: 8px;
+    padding: 0.5rem;
+    position: relative;
+}
+
+.detail-progress.show {
+    display: block;
+}
+
+.detail-bar {
+    height: 6px;
+    background: var(--color-primary);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.detail-text {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-base-content);
 }

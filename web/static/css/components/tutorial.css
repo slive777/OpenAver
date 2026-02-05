@@ -34,7 +34,7 @@
     transition: all var(--duration-normal) var(--ease-out);
 }
 
-[data-theme="dark"] .tutorial-spotlight {
+[data-theme="dim"] .tutorial-spotlight {
     box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75),
         0 0 0 4px rgba(90, 200, 250, 0.9),
         0 0 20px rgba(90, 200, 250, 0.6),
