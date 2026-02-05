@@ -223,7 +223,7 @@
 
 /* Mini Terminal - Compact Log */
 .mini-terminal {
-    background: oklch(var(--b2));
+    background: oklch(var(--color-base-200));
     border-radius: 12px;
     margin: 1rem;
     overflow: hidden;
@@ -232,20 +232,20 @@
 }
 
 [data-theme="dim"] .mini-terminal {
-    background: oklch(var(--b3));
+    background: oklch(var(--color-base-300));
 }
 
 .mini-terminal-header {
     display: flex;
     align-items: center;
     padding: 0.5rem 0.75rem;
-    background: oklch(var(--bc) / 0.05);
+    background: oklch(var(--color-base-content) / 0.05);
     transition: background-color 0.3s ease;
 }
 
 .mini-terminal-header .title {
     font-size: 0.8rem;
-    color: oklch(var(--bc) / 0.7);
+    color: oklch(var(--color-base-content) / 0.7);
     transition: color 0.3s ease;
 }
 
@@ -256,16 +256,16 @@
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
     font-size: 0.75rem;
     line-height: 1.5;
-    color: oklch(var(--bc) / 0.8);
+    color: oklch(var(--color-base-content) / 0.8);
     transition: color 0.3s ease;
 }
 
 .mini-terminal-body .log-info {
-    color: oklch(var(--s));
+    color: oklch(var(--color-secondary));
 }
 
 .mini-terminal-body .log-warn {
-    color: oklch(var(--a));
+    color: oklch(var(--color-accent));
 }
 
 .mini-terminal-body .log-error {
@@ -276,7 +276,7 @@
 /* Progress Bar */
 .progress-mini {
     height: 3px;
-    background: oklch(var(--b1) / 0.5);
+    background: oklch(var(--color-base-100) / 0.5);
     border-radius: 2px;
     margin: 0.5rem 0.75rem 0.75rem;
     overflow: hidden;
@@ -285,7 +285,7 @@
 
 .progress-mini .bar {
     height: 100%;
-    background: oklch(var(--p));
+    background: oklch(var(--color-primary));
     border-radius: 2px;
     transition: width 0.3s ease, background-color 0.3s ease;
 }
@@ -410,7 +410,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: oklch(var(--b1) / 0.6);
+    background: oklch(var(--color-base-100) / 0.6);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     z-index: 9999;
@@ -442,19 +442,19 @@
 
 .drag-overlay-content i {
     font-size: 4rem;
-    color: oklch(var(--bc));
+    color: oklch(var(--color-base-content));
     margin-bottom: 1rem;
     display: block;
-    text-shadow: 0 4px 12px oklch(var(--b1) / 0.3);
+    text-shadow: 0 4px 12px oklch(var(--color-base-100) / 0.3);
     transition: color 0.3s ease;
 }
 
 .drag-overlay-content p {
     font-size: 1.25rem;
     font-weight: 500;
-    color: oklch(var(--bc));
+    color: oklch(var(--color-base-content));
     margin: 0;
-    text-shadow: 0 2px 8px oklch(var(--b1) / 0.3);
+    text-shadow: 0 2px 8px oklch(var(--color-base-100) / 0.3);
     transition: color 0.3s ease;
 }
 

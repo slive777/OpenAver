@@ -8,24 +8,24 @@
 
     /* ===== DaisyUI 橋接變數（過渡期）===== */
     /* 背景色 */
-    --bg-body: oklch(var(--b1));
-    --bg-card: oklch(var(--b2));
-    --bg-header: oklch(var(--b2) / 0.85);
-    --bg-overlay: oklch(var(--b1) / 0.88);
+    --bg-body: oklch(var(--color-base-100));
+    --bg-card: oklch(var(--color-base-200));
+    --bg-header: oklch(var(--color-base-200) / 0.85);
+    --bg-overlay: oklch(var(--color-base-100) / 0.88);
 
     /* 文字色 */
-    --text-primary: oklch(var(--bc));
-    --text-secondary: oklch(var(--bc) / 0.7);
-    --text-muted: oklch(var(--bc) / 0.5);
-    --text-inverse: oklch(var(--nc));
+    --text-primary: oklch(var(--color-base-content));
+    --text-secondary: oklch(var(--color-base-content) / 0.7);
+    --text-muted: oklch(var(--color-base-content) / 0.5);
+    --text-inverse: oklch(var(--color-neutral-content));
 
     /* 主題色 */
-    --accent: oklch(var(--p));
-    --accent-hover: oklch(var(--p) / 0.8);
+    --accent: oklch(var(--color-primary));
+    --accent-hover: oklch(var(--color-primary) / 0.8);
 
     /* 邊框色 */
-    --border-light: oklch(var(--bc) / 0.15);
-    --border-card: oklch(var(--bc) / 0.2);
+    --border-light: oklch(var(--color-base-content) / 0.15);
+    --border-card: oklch(var(--color-base-content) / 0.2);
 
     /* ===== 陰影 - Fluent Design tokens 橋接 ===== */
     --shadow-sm: var(--fluent-shadow-2);
@@ -155,7 +155,7 @@ body {
 
 .spotlight-search input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 4px oklch(var(--p) / 0.15), var(--shadow-md);
+    box-shadow: 0 0 0 4px oklch(var(--color-primary) / 0.15), var(--shadow-md);
     transform: scale(1.01);
 }
 
@@ -290,7 +290,7 @@ body {
 }
 
 [data-theme="dim"] .source-toast-inline {
-    background: oklch(var(--b3) / 0.9);
+    background: oklch(var(--color-base-300) / 0.9);
     border-color: var(--border-card);
     color: var(--text-muted);
 }

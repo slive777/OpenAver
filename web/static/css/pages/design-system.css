@@ -105,13 +105,13 @@
     text-align: center;
     margin-bottom: 3rem;
     padding: 4rem 2rem;
-    background: oklch(var(--b2) / 0.7);
+    background: oklch(var(--color-base-200) / 0.7);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-radius: var(--fluent-radius-xl);
     border: 1px solid var(--border-light);
     box-shadow:
-        0 0 0 1px oklch(var(--bc) / 0.05) inset,
+        0 0 0 1px oklch(var(--color-base-content) / 0.05) inset,
         var(--fluent-shadow-4);
     position: relative;
     z-index: 1; /* 提升到噪點層之上 */
@@ -119,7 +119,7 @@
 }
 
 [data-theme="dim"] .ds-header {
-    background: oklch(var(--b2) / 0.5);
+    background: oklch(var(--color-base-200) / 0.5);
     border: 1px solid var(--border-light);
 }
 
@@ -189,17 +189,17 @@
 
 /* 樣式 A：透明玻璃 + 細描邊 */
 .ds-section.glass {
-    background: oklch(var(--b2) / 0.7);
+    background: oklch(var(--color-base-200) / 0.7);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--border-light);
     box-shadow:
-        0 0 0 1px oklch(var(--bc) / 0.05) inset,
+        0 0 0 1px oklch(var(--color-base-content) / 0.05) inset,
         var(--fluent-shadow-4);
 }
 
 [data-theme="dim"] .ds-section.glass {
-    background: oklch(var(--b2) / 0.5);
+    background: oklch(var(--color-base-200) / 0.5);
     border: 1px solid var(--border-light);
 }
 
@@ -608,7 +608,7 @@
 }
 
 .ds-button-row-dark {
-    background: linear-gradient(135deg, oklch(var(--b3)) 0%, oklch(var(--b2)) 100%);
+    background: linear-gradient(135deg, oklch(var(--color-base-300)) 0%, oklch(var(--color-base-200)) 100%);
     padding: 1.25rem;
     border-radius: var(--fluent-radius-lg);
     border: 1px solid var(--border-light);
@@ -940,7 +940,7 @@
 
 /* ==================== Code Block ==================== */
 .ds-code {
-    background: linear-gradient(135deg, oklch(var(--b3)) 0%, oklch(var(--b2)) 100%);
+    background: linear-gradient(135deg, oklch(var(--color-base-300)) 0%, oklch(var(--color-base-200)) 100%);
     border-radius: var(--fluent-radius-lg);
     padding: 1.25rem;
     overflow-x: auto;
@@ -958,7 +958,7 @@
 
 /* ==================== Sidebar Demo ==================== */
 .ds-sidebar-demo {
-    background: linear-gradient(180deg, oklch(var(--b3)) 0%, oklch(var(--b2)) 100%);
+    background: linear-gradient(180deg, oklch(var(--color-base-300)) 0%, oklch(var(--color-base-200)) 100%);
     border-radius: var(--fluent-radius-xl);
     padding: 0.75rem;
     max-width: 220px;
@@ -971,7 +971,7 @@
     align-items: center;
     gap: 0.75rem;
     padding: 0.75rem 1rem;
-    color: oklch(var(--bc) / 0.65);
+    color: oklch(var(--color-base-content) / 0.65);
     text-decoration: none;
     border-radius: var(--fluent-radius-lg);
     margin-bottom: 0.25rem;
@@ -981,8 +981,8 @@
 }
 
 .ds-sidebar-mini .nav-link:hover {
-    background: oklch(var(--bc) / 0.08);
-    color: oklch(var(--bc));
+    background: oklch(var(--color-base-content) / 0.08);
+    color: oklch(var(--color-base-content));
 }
 
 .ds-sidebar-mini .nav-link.active {

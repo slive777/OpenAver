@@ -372,7 +372,7 @@
 }
 
 .progress-container {
-    background: oklch(var(--b2));
+    background: oklch(var(--color-base-200));
     border-radius: 12px;
     padding: 1.5rem 2rem;
     min-width: 320px;
@@ -383,7 +383,7 @@
 }
 
 [data-theme="dim"] .progress-container {
-    background: oklch(var(--b3));
+    background: oklch(var(--color-base-300));
 }
 
 .progress-header {
@@ -392,11 +392,11 @@
     align-items: center;
     margin-bottom: 1rem;
     padding-bottom: 0.75rem;
-    border-bottom: 1px solid oklch(var(--bc) / 0.1);
+    border-bottom: 1px solid oklch(var(--color-base-content) / 0.1);
 }
 
 .progress-query {
-    color: oklch(var(--s));
+    color: oklch(var(--color-secondary));
     font-weight: 600;
     font-size: 1.1rem;
     transition: color 0.3s ease;
@@ -404,7 +404,7 @@
 
 /* 單行日誌 */
 .progress-log {
-    color: oklch(var(--bc) / 0.6);
+    color: oklch(var(--color-base-content) / 0.6);
     font-size: 0.85rem;
     text-align: center;
     padding: 0.5rem;
@@ -420,8 +420,8 @@
     content: '';
     width: 8px;
     height: 8px;
-    border: 2px solid oklch(var(--p) / 0.3);
-    border-top-color: oklch(var(--p));
+    border: 2px solid oklch(var(--color-primary) / 0.3);
+    border-top-color: oklch(var(--color-primary));
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
 }
@@ -437,7 +437,7 @@
     margin-top: 1rem;
     position: relative;
     height: 22px;
-    background: oklch(var(--b1) / 0.5);
+    background: oklch(var(--color-base-100) / 0.5);
     border-radius: 11px;
     overflow: hidden;
     display: none;
@@ -450,7 +450,7 @@
 
 .detail-bar {
     height: 100%;
-    background: oklch(var(--p));
+    background: oklch(var(--color-primary));
     border-radius: 11px;
     transition: width 0.3s ease, background-color 0.3s ease;
     min-width: 2%;
@@ -461,10 +461,10 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: oklch(var(--pc));
+    color: oklch(var(--color-primary-content));
     font-size: 0.7rem;
     font-weight: 600;
-    text-shadow: 0 1px 2px oklch(var(--b1) / 0.3);
+    text-shadow: 0 1px 2px oklch(var(--color-base-100) / 0.3);
     transition: color 0.3s ease;
 }
 
@@ -476,7 +476,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: oklch(var(--b1) / 0.6);
+    background: oklch(var(--color-base-100) / 0.6);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     z-index: 9999;
@@ -510,19 +510,19 @@
 
 .drag-overlay-content i {
     font-size: 4rem;
-    color: oklch(var(--bc));
+    color: oklch(var(--color-base-content));
     margin-bottom: 1rem;
     display: block;
-    text-shadow: 0 4px 12px oklch(var(--b1) / 0.2);
+    text-shadow: 0 4px 12px oklch(var(--color-base-100) / 0.2);
     transition: color 0.3s ease;
 }
 
 .drag-overlay-content p {
     font-size: 1.5rem;
     font-weight: 500;
-    color: oklch(var(--bc));
+    color: oklch(var(--color-base-content));
     margin: 0;
-    text-shadow: 0 2px 8px oklch(var(--b1) / 0.3);
+    text-shadow: 0 2px 8px oklch(var(--color-base-100) / 0.3);
     transition: color 0.3s ease;
 }
 
@@ -636,7 +636,7 @@
 
 .batch-progress-bar {
     height: 6px;
-    background: oklch(var(--b2));
+    background: oklch(var(--color-base-200));
     border-radius: 3px;
     overflow: hidden;
     margin-bottom: 4px;
@@ -646,14 +646,14 @@
 
 .batch-progress-fill {
     height: 100%;
-    background: oklch(var(--p));
+    background: oklch(var(--color-primary));
     width: 0%;
     transition: width 0.3s ease, background-color 0.3s ease;
 }
 
 .batch-progress-text {
     display: block;
-    color: oklch(var(--bc) / 0.6);
+    color: oklch(var(--color-base-content) / 0.6);
     font-size: 0.75rem;
     text-align: center;
     transition: color 0.3s ease;
