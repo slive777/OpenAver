@@ -8,24 +8,24 @@
 
     /* ===== DaisyUI 橋接變數（過渡期）===== */
     /* 背景色 */
-    --bg-body: oklch(var(--color-base-100));
-    --bg-card: oklch(var(--color-base-200));
-    --bg-header: oklch(var(--color-base-200) / 0.85);
-    --bg-overlay: oklch(var(--color-base-100) / 0.88);
+    --bg-body: var(--color-base-100);
+    --bg-card: var(--color-base-200);
+    --bg-header: color-mix(in oklch, var(--color-base-200) 85%, transparent);
+    --bg-overlay: color-mix(in oklch, var(--color-base-100) 88%, transparent);
 
     /* 文字色 */
-    --text-primary: oklch(var(--color-base-content));
-    --text-secondary: oklch(var(--color-base-content) / 0.7);
-    --text-muted: oklch(var(--color-base-content) / 0.5);
-    --text-inverse: oklch(var(--color-neutral-content));
+    --text-primary: var(--color-base-content);
+    --text-secondary: color-mix(in oklch, var(--color-base-content) 70%, transparent);
+    --text-muted: color-mix(in oklch, var(--color-base-content) 50%, transparent);
+    --text-inverse: var(--color-neutral-content);
 
     /* 主題色 */
-    --accent: oklch(var(--color-primary));
-    --accent-hover: oklch(var(--color-primary) / 0.8);
+    --accent: var(--color-primary);
+    --accent-hover: color-mix(in oklch, var(--color-primary) 80%, transparent);
 
     /* 邊框色 */
-    --border-light: oklch(var(--color-base-content) / 0.15);
-    --border-card: oklch(var(--color-base-content) / 0.2);
+    --border-light: color-mix(in oklch, var(--color-base-content) 15%, transparent);
+    --border-card: color-mix(in oklch, var(--color-base-content) 20%, transparent);
 
     /* ===== 陰影 - Fluent Design tokens 橋接 ===== */
     --shadow-sm: var(--fluent-shadow-2);
@@ -155,7 +155,7 @@ body {
 
 .spotlight-search input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 4px oklch(var(--color-primary) / 0.15), var(--shadow-md);
+    box-shadow: 0 0 0 4px color-mix(in oklch, var(--color-primary) 15%, transparent), var(--shadow-md);
     transform: scale(1.01);
 }
 
@@ -290,7 +290,7 @@ body {
 }
 
 [data-theme="dim"] .source-toast-inline {
-    background: oklch(var(--color-base-300) / 0.9);
+    background: color-mix(in oklch, var(--color-base-300) 90%, transparent);
     border-color: var(--border-card);
     color: var(--text-muted);
 }
