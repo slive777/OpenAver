@@ -731,7 +731,8 @@
         var(--fluent-shadow-4);
     overflow: hidden;
     transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard),
-                box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+                box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard),
+                border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
     border: 1px solid var(--border-light);
 }
 
