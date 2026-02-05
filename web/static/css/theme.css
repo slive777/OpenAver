@@ -81,6 +81,7 @@ body {
     justify-content: center;
     color: var(--text-secondary);
     transition: all var(--duration-fast) ease;
+    box-sizing: border-box;
 }
 
 .btn-icon:hover {
@@ -91,7 +92,16 @@ body {
 
 .btn-icon.active {
     background: var(--accent);
-    color: var(--text-inverse);
+    color: var(--color-primary-content);
+    /* 邊界分離感 */
+    box-shadow: 0 2px 8px color-mix(in oklch, var(--accent) 40%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 30%, transparent);
+}
+
+/* Spotlight Search active icon 強化 */
+.spotlight-search .btn-icon.active i {
+    color: var(--color-primary-content);
+    font-size: 1.2rem;
 }
 
 

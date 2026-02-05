@@ -1109,3 +1109,76 @@
 .collapse-toggle i.rotate-180 {
     transform: rotate(180deg);
 }
+
+/* ==================== Progress Indicator Demo ==================== */
+/* 從 search.css 提取的最小樣式，供 design-system 展示用 */
+/*
+ * ⚠️ 注意：這些 .progress-* 樣式僅限 /design-system 頁面使用
+ * 實際的 Progress Indicator 樣式定義在 search.css
+ * 若此 CSS 被其他頁面載入，可能會覆蓋 search.css 的樣式
+ *
+ * 最佳實踐：確保 design-system.css 只在 design-system.html 載入
+ */
+
+.progress-container {
+    background: var(--color-base-200);
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    box-shadow: var(--fluent-shadow-4);
+    border: 1px solid var(--border-light);
+    transition: background-color 0.3s ease;
+}
+
+[data-theme="dim"] .progress-container {
+    background: var(--color-base-300);
+}
+
+.progress-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid color-mix(in oklch, var(--color-base-content) 10%, transparent);
+}
+
+.progress-status {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--color-base-content);
+}
+
+.progress-log {
+    font-size: 0.9rem;
+    color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
+    margin-bottom: 1rem;
+}
+
+.detail-progress {
+    display: none;
+    background: color-mix(in oklch, var(--color-base-100) 50%, transparent);
+    border-radius: 8px;
+    padding: 0.5rem;
+    position: relative;
+}
+
+.detail-progress.show {
+    display: block;
+}
+
+.detail-bar {
+    height: 6px;
+    background: var(--color-primary);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.detail-text {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-base-content);
+}

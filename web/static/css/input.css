@@ -3,6 +3,25 @@
   themes: wireframe, dim;
 }
 
+/* ========== wireframe 主題色覆寫 ========== */
+/* 解決淺色模式下白字在淺灰背景上不可讀的問題 */
+/* 深灰偏冷色系：保留極簡感但帶 Fluent 冷色氣質 */
+:root:has(input.theme-controller[value=wireframe]:checked),
+[data-theme="wireframe"] {
+  --color-primary: oklch(32% 0.02 250);           /* 深冷灰 - 白字可讀 */
+  --color-secondary: oklch(38% 0.02 250);         /* 中深冷灰 */
+  --color-accent: oklch(34% 0.04 230);            /* 深灰偏藍 */
+
+  /* 對應的 content 色（文字色） */
+  --color-primary-content: oklch(98% 0 0);        /* 近白 */
+  --color-secondary-content: oklch(98% 0 0);
+  --color-accent-content: oklch(98% 0 0);
+
+  /* neutral 覆寫（與 primary 一致，保持設計系統統一） */
+  --color-neutral: oklch(32% 0.02 250);           /* 與 primary 一致的深冷灰 */
+  --color-neutral-content: oklch(98% 0 0);        /* 近白 */
+}
+
 /* 保留現有 CSS 變數系統 */
 @import "./theme.css";
 

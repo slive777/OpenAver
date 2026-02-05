@@ -55,11 +55,11 @@
                             <span class="ds-color-usage">Card surfaces</span>
                         </div>
                     </div>
-                    <div class="ds-color-swatch" style="background: var(--bg-sidebar);">
-                        <div class="ds-color-info">
-                            <span class="ds-color-name">--bg-sidebar</span>
-                            <code class="ds-color-hex" data-var="--bg-sidebar"></code>
-                            <span class="ds-color-usage">Navigation sidebar</span>
+                    <div class="ds-color-swatch" style="background: var(--bg-card);">
+                        <div class="ds-color-info" style="color: var(--text-secondary);">
+                            <span class="ds-color-name">--bg-card</span>
+                            <code class="ds-color-hex" data-var="--bg-card"></code>
+                            <span class="ds-color-usage">Card surfaces (previously sidebar)</span>
                         </div>
                     </div>
                     <div class="ds-color-swatch" style="background: var(--accent);">
@@ -599,7 +599,7 @@
             <div class="ds-subsection">
                 <h3>Progress Indicator</h3>
                 <p class="ds-desc">Search 頁的搜尋進度顯示，跟隨主題顯示（wireframe: 淺底深字 / dim: 深底淺字）</p>
-                <div class="ds-card-demo">
+                <div class="ds-card-demo" style="background: var(--bg-body); padding: 2rem; border-radius: var(--radius-md);">
                     <div class="search-progress" style="max-width: 500px; margin: 0 auto;">
                         <div class="progress-container">
                             <div class="progress-header">
@@ -808,13 +808,13 @@
                 <!-- 場景 2: Navigation Link -->
                 <h4 style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 1rem; font-weight: 600;">2. Sidebar Navigation Link</h4>
                 <div class="ds-card-demo">
-                    <div style="background: var(--bg-sidebar); padding: 1rem; border-radius: var(--radius-md); max-width: 200px;">
+                    <div style="background: var(--bg-card); padding: 1rem; border-radius: var(--radius-md); max-width: 200px;">
                         <nav style="display: flex; flex-direction: column; gap: 0.25rem;">
-                            <a class="nav-link" href="#" style="color: rgba(255, 255, 255, 0.8); padding: 0.75rem; border-radius: 0.25rem; display: flex; align-items: center; text-decoration: none;">
+                            <a class="nav-link" href="#" style="color: var(--text-secondary); padding: 0.75rem; border-radius: 0.25rem; display: flex; align-items: center; text-decoration: none;">
                                 <i class="bi bi-search" style="width: 24px;"></i>
                                 <span style="margin-left: 0.5rem;">搜尋</span>
                             </a>
-                            <a class="nav-link rotating-border-spotlight active" href="#" style="color: rgba(255, 255, 255, 0.8); padding: 0.75rem; border-radius: 0.25rem; display: flex; align-items: center; text-decoration: none; background-color: rgba(255, 255, 255, 0.1);">
+                            <a class="nav-link rotating-border-spotlight active" href="#" style="color: var(--text-secondary); padding: 0.75rem; border-radius: 0.25rem; display: flex; align-items: center; text-decoration: none; background-color: rgba(255, 255, 255, 0.1);">
                                 <i class="bi bi-collection-play" style="width: 24px;"></i>
                                 <span style="margin-left: 0.5rem;">瀏覽 (有內容)</span>
                             </a>
