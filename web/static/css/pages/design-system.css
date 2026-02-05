@@ -1071,11 +1071,13 @@
     width: 60px;
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 0.5rem;
-    padding: 1rem 0.5rem;
+    padding: 1rem 6px;
     background: var(--bg-card);
     border-radius: var(--fluent-radius-lg);
     border: 1px solid var(--border-light);
+    box-sizing: border-box;
 }
 
 .ds-nav-rail-link {
@@ -1089,6 +1091,7 @@
     transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
     cursor: pointer;
     position: relative;
+    box-sizing: border-box;
 }
 
 .ds-nav-rail-link i {
