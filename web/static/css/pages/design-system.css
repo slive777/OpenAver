@@ -1251,13 +1251,13 @@
     box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.2);
 }
 
-/* 強制 Hover 狀態（卡片）*/
+/* 強制 Hover 狀態（卡片）- 與 theme.css .gallery-card:hover 一致 */
 .gallery-card.state-hover {
-    transform: translateY(-6px);
+    transform: translateY(-4px) scale(1.01);
     box-shadow:
-        0 0 0 2px var(--accent),
-        0 0 20px rgba(90, 200, 250, 0.2),
-        var(--fluent-shadow-8);
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 12%, transparent),
+        var(--shadow-card-hover);
+    z-index: 10;
 }
 
 /* 強制 Selected 狀態（卡片）*/
