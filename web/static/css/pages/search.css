@@ -326,18 +326,7 @@
 }
 
 /* 標籤 */
-.tag-badge {
-    font-size: 0.65rem;
-    margin: 1px;
-    padding: 2px 6px;
-    background: var(--border-light);
-    color: var(--text-secondary);
-}
-
-.tag-badge.subtitle {
-    background: #198754;
-    color: #fff;
-}
+/* REMOVED: .tag-badge moved to theme.css (global) */
 
 /* 狀態頁面 */
 .state-page {
@@ -660,15 +649,7 @@
 }
 
 /* ==================== 本地標記樣式 ==================== */
-.local-badge {
-    font-size: 1rem;
-    margin-left: 0.5rem;
-    cursor: pointer;
-}
-
-.local-badge:hover {
-    opacity: 0.8;
-}
+/* REMOVED: .local-badge moved to theme.css (global) */
 
 .file-item .local-indicator {
     font-size: 0.8rem;

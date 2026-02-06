@@ -915,7 +915,7 @@
 }
 
 /* Tag badges in Full card body */
-.ds-page .av-card-full-body .info-value {
+.ds-page .av-card-full-body .info-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
