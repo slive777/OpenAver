@@ -465,3 +465,93 @@ body {
     background: #198754;
     color: #fff;
 }
+
+/* ========== Components: Page States (Empty / Loading / Error) ========== */
+
+/* State Page Container - 用於 Empty/Loading/Error 等全螢幕狀態 */
+.state-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 300px;
+    color: var(--text-secondary);
+    padding: 2rem;
+}
+
+/* State Page Icon - 大圖標 */
+.state-page-icon,
+.state-page i {
+    font-size: 4.5rem;
+    margin-bottom: 1rem;
+    opacity: 0.6;
+    color: var(--text-secondary);
+    transition: all var(--duration-normal) var(--ease-out);
+}
+
+/* Icon Hover 微動畫 */
+.state-page:hover .state-page-icon,
+.state-page:hover i {
+    opacity: 0.8;
+    color: var(--accent);
+    transform: scale(1.05);
+}
+
+/* State Page Text */
+.state-page-text,
+.state-page > p {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+/* State Page Hint - 小提示文字 */
+.state-page-hint,
+.state-page > small {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+}
+
+/* Empty Actions - 按鈕容器 */
+.empty-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+/* Empty Actions 按鈕樣式調整 */
+.empty-actions .btn {
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
+    transition: all var(--duration-fast) var(--ease-out);
+    box-shadow: var(--fluent-shadow-2);
+}
+
+.empty-actions .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--fluent-shadow-4);
+}
+
+.empty-actions .btn i {
+    margin-right: 0.5rem;
+}
+
+/* Responsive: 小螢幕按鈕垂直排列 */
+@media (max-width: 576px) {
+    .empty-actions {
+        flex-direction: column;
+        width: 100%;
+        max-width: 280px;
+    }
+
+    .empty-actions .btn {
+        width: 100%;
+    }
+}

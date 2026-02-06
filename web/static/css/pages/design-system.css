@@ -1544,3 +1544,19 @@
         justify-content: center;
     }
 }
+
+/* ==================== Page States Demo Container ==================== */
+.ds-state-demo {
+    min-height: 400px;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+/* 確保 state-page 在 demo 容器中垂直居中 */
+.ds-state-demo .state-page {
+    width: 100%;
+}

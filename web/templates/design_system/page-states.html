@@ -1,0 +1,47 @@
+<!-- ========== Page States Section ========== -->
+<!-- 包含 Empty State、Loading State、Error State 等展示 -->
+
+<!-- Empty State - Search Initial State -->
+<div class="ds-subsection">
+    <h3>Search Empty State</h3>
+    <p class="ds-desc">搜尋頁面的初始狀態，引導用戶加入檔案或資料夾</p>
+
+    <div class="ds-card-demo">
+        <!-- 模擬搜尋頁結果區域 -->
+        <div class="ds-state-demo">
+            <div class="state-page">
+                <i class="bi bi-film state-page-icon"></i>
+                <p class="state-page-text">輸入番號搜尋，或加入影片檔案</p>
+                <div class="empty-actions">
+                    <button class="btn btn-outline btn-primary btn-sm">
+                        <i class="bi bi-file-earmark-plus"></i> 加入檔案
+                    </button>
+                    <button class="btn btn-outline btn-primary btn-sm">
+                        <i class="bi bi-folder-plus"></i> 加入資料夾
+                    </button>
+                    <button class="btn btn-outline btn-warning btn-sm" title="載入我的最愛資料夾">
+                        <i class="bi bi-star-fill"></i> 我的最愛
+                    </button>
+                </div>
+                <small class="state-page-hint">也可直接拖入檔案或資料夾</small>
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="state-page"&gt;
+    &lt;i class="bi bi-film"&gt;&lt;/i&gt;
+    &lt;p&gt;輸入番號搜尋，或加入影片檔案&lt;/p&gt;
+    &lt;div class="empty-actions"&gt;
+        &lt;button class="btn btn-outline btn-primary btn-sm"&gt;
+            &lt;i class="bi bi-file-earmark-plus"&gt;&lt;/i&gt; 加入檔案
+        &lt;/button&gt;
+        &lt;button class="btn btn-outline btn-primary btn-sm"&gt;
+            &lt;i class="bi bi-folder-plus"&gt;&lt;/i&gt; 加入資料夾
+        &lt;/button&gt;
+        &lt;button class="btn btn-outline btn-warning btn-sm"&gt;
+            &lt;i class="bi bi-star-fill"&gt;&lt;/i&gt; 我的最愛
+        &lt;/button&gt;
+    &lt;/div&gt;
+    &lt;small class="state-page-hint"&gt;也可直接拖入檔案或資料夾&lt;/small&gt;
+&lt;/div&gt;</code></pre>
+</div>
