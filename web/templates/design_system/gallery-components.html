@@ -141,3 +141,87 @@
   &lt;/div&gt;
 &lt;/div&gt;</code></pre>
 </div>
+
+<!-- D.7: Stats Card + NFO 更新 -->
+<div class="ds-subsection">
+    <h3>Stats Card + NFO Update</h3>
+    <p class="ds-desc">Gallery 產生完成後的統計資訊與 NFO 補全提示區塊</p>
+
+    <!-- 完整展示 -->
+    <div class="ds-card-demo" style="max-width: 700px; margin: 0 auto;">
+        <div class="stats-card">
+            <!-- 統計列 -->
+            <div class="stats-row">
+                <div class="stat-item">
+                    <i class="bi bi-collection-play"></i>
+                    <span>快取影片: <span class="stat-value">1,234</span> 部</span>
+                </div>
+                <div class="stat-item">
+                    <span>上次執行: 2026-01-15 10:30 (新增 23 部)</span>
+                </div>
+            </div>
+
+            <!-- NFO 更新列 -->
+            <div class="nfo-update-row">
+                <span class="nfo-badge">
+                    <i class="bi bi-exclamation-circle"></i>
+                    需補全: <strong>15</strong> 部
+                </span>
+                <button class="btn-nfo-update">
+                    <i class="bi bi-magic"></i> 補全 NFO
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 按鈕三態展示 -->
+    <h4 style="margin-top: 2rem; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">Button States</h4>
+    <div class="ds-card-demo" style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+        <!-- Default 狀態 -->
+        <div style="text-align: center;">
+            <button class="btn-nfo-update">
+                <i class="bi bi-magic"></i> 補全 NFO
+            </button>
+            <p style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary);">Default</p>
+        </div>
+
+        <!-- Loading 狀態 -->
+        <div style="text-align: center;">
+            <button class="btn-nfo-update" disabled>
+                <span class="loading loading-spinner loading-sm"></span> 補全中...
+            </button>
+            <p style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary);">Loading</p>
+        </div>
+
+        <!-- Completed 狀態 -->
+        <div style="text-align: center;">
+            <button class="btn-nfo-update completed" disabled>
+                <i class="bi bi-check-lg"></i> 已完成
+            </button>
+            <p style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary);">Completed</p>
+        </div>
+    </div>
+
+    <!-- 代碼展示 -->
+    <pre class="ds-code"><code>&lt;div class="stats-card"&gt;
+  &lt;div class="stats-row"&gt;
+    &lt;div class="stat-item"&gt;
+      &lt;i class="bi bi-collection-play"&gt;&lt;/i&gt;
+      &lt;span&gt;快取影片: &lt;span class="stat-value"&gt;1,234&lt;/span&gt; 部&lt;/span&gt;
+    &lt;/div&gt;
+    &lt;div class="stat-item"&gt;
+      &lt;span&gt;上次執行: 2026-01-15 10:30&lt;/span&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div class="nfo-update-row"&gt;
+    &lt;span class="nfo-badge"&gt;
+      &lt;i class="bi bi-exclamation-circle"&gt;&lt;/i&gt;
+      需補全: &lt;strong&gt;15&lt;/strong&gt; 部
+    &lt;/span&gt;
+    &lt;button class="btn-nfo-update"&gt;
+      &lt;i class="bi bi-magic"&gt;&lt;/i&gt; 補全 NFO
+    &lt;/button&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+</div>

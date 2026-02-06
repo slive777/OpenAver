@@ -909,3 +909,100 @@ body {
     display: none; /* 由 JS 控制 */
     gap: 0.75rem;
 }
+
+/* ========== Components: Stats Card + NFO Update ========== */
+
+/* Stats Card - 統計資訊卡片 */
+.stats-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    box-shadow: var(--fluent-shadow-4);
+    border: 1px solid var(--border-light);
+}
+
+/* Stats Row - 統計項目橫向佈局 */
+.stats-card .stats-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Stat Item - 單個統計項目 */
+.stats-card .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.stats-card .stat-item i {
+    color: var(--accent);
+}
+
+/* Stat Value - 數值強調 */
+.stats-card .stat-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* NFO Update Row - NFO 補全提示列 */
+.nfo-update-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-light);
+}
+
+/* NFO Badge - 琥珀色警告 badge */
+.nfo-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #f59e0b;
+    font-weight: 500;
+}
+
+.nfo-badge i {
+    font-size: 1rem;
+}
+
+/* NFO Update Button - 琥珀漸層按鈕 */
+.btn-nfo-update {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border: none;
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.btn-nfo-update:hover {
+    background: linear-gradient(135deg, #d97706, #b45309);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+.btn-nfo-update:disabled {
+    cursor: not-allowed;
+    transform: none;
+    opacity: 0.7;
+}
+
+/* NFO Button Completed State - 完成狀態（灰底）*/
+.btn-nfo-update.completed {
+    background: var(--border-light);
+    color: var(--text-secondary);
+    box-shadow: none;
+}
