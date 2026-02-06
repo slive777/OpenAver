@@ -12,10 +12,10 @@
                     <i class="bi bi-folder"></i> <span>掃描資料夾</span>
                 </div>
                 <div class="actions">
-                    <button class="btn-icon" title="選擇資料夾">
+                    <button class="btn-icon" title="選擇資料夾" type="button">
                         <i class="bi bi-folder-plus"></i>
                     </button>
-                    <button class="btn-icon active" title="手動輸入">
+                    <button class="btn-icon active" title="手動輸入" type="button">
                         <i class="bi bi-keyboard"></i>
                     </button>
                 </div>
@@ -25,7 +25,7 @@
                 <!-- 手動輸入列（展開狀態）-->
                 <div class="manual-input" style="display: flex; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-light); gap: 0.5rem;">
                     <input type="text" class="input input-bordered input-sm" placeholder="輸入資料夾路徑..." value="D:\Videos\JAV" style="flex: 1;">
-                    <button class="btn btn-primary btn-sm">
+                    <button class="btn btn-primary btn-sm" type="button">
                         <i class="bi bi-plus"></i>
                     </button>
                 </div>
@@ -35,21 +35,21 @@
                     <div class="folder-item">
                         <i class="bi bi-folder folder-icon"></i>
                         <span class="folder-path">D:\Videos\JAV</span>
-                        <button class="btn btn-ghost btn-xs btn-remove">
+                        <button class="btn btn-ghost btn-xs btn-remove" type="button">
                             <i class="bi bi-x"></i>
                         </button>
                     </div>
                     <div class="folder-item">
                         <i class="bi bi-folder folder-icon"></i>
                         <span class="folder-path">/Users/username/Movies/Adult</span>
-                        <button class="btn btn-ghost btn-xs btn-remove">
+                        <button class="btn btn-ghost btn-xs btn-remove" type="button">
                             <i class="bi bi-x"></i>
                         </button>
                     </div>
                     <div class="folder-item">
                         <i class="bi bi-folder folder-icon"></i>
                         <span class="folder-path">\\NAS\Media\AV Collection</span>
-                        <button class="btn btn-ghost btn-xs btn-remove">
+                        <button class="btn btn-ghost btn-xs btn-remove" type="button">
                             <i class="bi bi-x"></i>
                         </button>
                     </div>
@@ -62,19 +62,19 @@
                     <i class="bi bi-file-earmark-code"></i>
                     輸出: <code>output/avlist_output.html</code>
                 </div>
-                <a href="#" class="settings-link">
+                <a href="javascript:void(0)" class="settings-link">
                     <i class="bi bi-gear"></i> 設定
                 </a>
             </div>
 
             <!-- Action 區（產生按鈕 + 完成按鈕）-->
             <div class="action-section">
-                <button class="btn-hero btn-hero-primary">
+                <button class="btn-hero btn-hero-primary" type="button">
                     <i class="bi bi-play-fill"></i> 產生網頁
                 </button>
                 <!-- 完成按鈕（展開狀態）-->
                 <div class="done-actions" style="display: flex;">
-                    <button class="btn-hero btn-hero-secondary" title="複製路徑">
+                    <button class="btn-hero btn-hero-secondary" title="複製路徑" type="button">
                         <i class="bi bi-clipboard"></i> 複製路徑
                     </button>
                 </div>
@@ -91,10 +91,10 @@
                     <i class="bi bi-folder"></i> <span>掃描資料夾</span>
                 </div>
                 <div class="actions">
-                    <button class="btn-icon" title="選擇資料夾">
+                    <button class="btn-icon" title="選擇資料夾" type="button">
                         <i class="bi bi-folder-plus"></i>
                     </button>
-                    <button class="btn-icon" title="手動輸入">
+                    <button class="btn-icon" title="手動輸入" type="button">
                         <i class="bi bi-keyboard"></i>
                     </button>
                 </div>
@@ -167,7 +167,7 @@
                     <i class="bi bi-exclamation-circle"></i>
                     需補全: <strong>15</strong> 部
                 </span>
-                <button class="btn-nfo-update">
+                <button class="btn-nfo-update" type="button">
                     <i class="bi bi-magic"></i> 補全 NFO
                 </button>
             </div>
@@ -179,7 +179,7 @@
     <div class="ds-card-demo" style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
         <!-- Default 狀態 -->
         <div style="text-align: center;">
-            <button class="btn-nfo-update">
+            <button class="btn-nfo-update" type="button">
                 <i class="bi bi-magic"></i> 補全 NFO
             </button>
             <p style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary);">Default</p>
@@ -187,7 +187,7 @@
 
         <!-- Loading 狀態 -->
         <div style="text-align: center;">
-            <button class="btn-nfo-update" disabled>
+            <button class="btn-nfo-update" disabled type="button">
                 <span class="loading loading-spinner loading-sm"></span> 補全中...
             </button>
             <p style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary);">Loading</p>
@@ -195,7 +195,7 @@
 
         <!-- Completed 狀態 -->
         <div style="text-align: center;">
-            <button class="btn-nfo-update completed" disabled>
+            <button class="btn-nfo-update completed" disabled type="button">
                 <i class="bi bi-check-lg"></i> 已完成
             </button>
             <p style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary);">Completed</p>
@@ -275,7 +275,7 @@
                         <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
                         <span class="alias-new">坂道みる</span>
                         <span class="alias-applied">(已套用 15)</span>
-                        <button class="btn-alias-delete" title="刪除">
+                        <button class="btn-alias-delete" title="刪除" type="button">
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
@@ -284,7 +284,7 @@
                         <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
                         <span class="alias-new">AIKA</span>
                         <span class="alias-applied">(已套用 8)</span>
-                        <button class="btn-alias-delete" title="刪除">
+                        <button class="btn-alias-delete" title="刪除" type="button">
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
@@ -293,7 +293,7 @@
                         <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
                         <span class="alias-new">高橋聖子</span>
                         <span class="alias-applied">(已套用 23)</span>
-                        <button class="btn-alias-delete" title="刪除">
+                        <button class="btn-alias-delete" title="刪除" type="button">
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>

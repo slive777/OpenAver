@@ -675,7 +675,7 @@ body {
 /* ========== Components: AVList Gallery Management ========== */
 
 /* AVList Card - 主容器 */
-.avlist-card {
+#gallery-components .avlist-card {
     background: var(--bg-card);
     border-radius: var(--radius-md);
     box-shadow:
@@ -687,7 +687,7 @@ body {
     transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
-.avlist-card:hover {
+#gallery-components .avlist-card:hover {
     box-shadow:
         inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 12%, transparent),
         0 0 0 2px var(--accent),
@@ -696,7 +696,7 @@ body {
 }
 
 /* AVList Card Header */
-.avlist-card-header {
+#gallery-components .avlist-card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -705,7 +705,7 @@ body {
     background: color-mix(in oklch, var(--color-base-content) 2%, transparent);
 }
 
-.avlist-card-header .title {
+#gallery-components .avlist-card-header .title {
     font-weight: 600;
     color: var(--text-primary);
     display: flex;
@@ -713,22 +713,22 @@ body {
     gap: 0.5rem;
 }
 
-.avlist-card-header .title i {
+#gallery-components .avlist-card-header .title i {
     color: var(--accent);
 }
 
-.avlist-card-header .actions {
+#gallery-components .avlist-card-header .actions {
     display: flex;
     gap: 0.5rem;
 }
 
 /* AVList Card Body */
-.avlist-card-body {
+#gallery-components .avlist-card-body {
     padding: 0;
 }
 
 /* Manual Input Row */
-.manual-input {
+#gallery-components .manual-input {
     display: none; /* 由 JS 控制 */
     padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--border-light);
@@ -736,17 +736,17 @@ body {
     background: var(--bg-body);
 }
 
-.manual-input input {
+#gallery-components .manual-input input {
     flex: 1;
 }
 
 /* Folder List */
-.folder-list {
+#gallery-components .folder-list {
     max-height: 300px;
     overflow-y: auto;
 }
 
-.folder-item {
+#gallery-components .folder-item {
     display: flex;
     align-items: center;
     padding: 0.875rem 1.25rem;
@@ -755,21 +755,21 @@ body {
     transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
-.folder-item:last-child {
+#gallery-components .folder-item:last-child {
     border-bottom: none;
 }
 
-.folder-item:hover {
+#gallery-components .folder-item:hover {
     background: var(--bg-body);
 }
 
-.folder-item .folder-icon {
+#gallery-components .folder-item .folder-icon {
     color: var(--accent);
     font-size: 1.25rem;
     flex-shrink: 0;
 }
 
-.folder-item .folder-path {
+#gallery-components .folder-item .folder-path {
     flex: 1;
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
     font-size: 0.8rem;
@@ -778,7 +778,7 @@ body {
     line-height: 1.4;
 }
 
-.folder-item .btn-remove {
+#gallery-components .folder-item .btn-remove {
     opacity: 0;
     transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
     padding: 0.25rem 0.5rem;
@@ -786,31 +786,31 @@ body {
     border-radius: var(--radius-sm);
 }
 
-.folder-item:hover .btn-remove {
+#gallery-components .folder-item:hover .btn-remove {
     opacity: 1;
 }
 
 /* Folder Empty State */
-.folder-empty {
+#gallery-components .folder-empty {
     padding: 3rem 2rem;
     text-align: center;
     color: var(--text-secondary);
 }
 
-.folder-empty i {
+#gallery-components .folder-empty i {
     font-size: 3.5rem;
     opacity: 0.5;
     margin-bottom: 1rem;
     display: block;
 }
 
-.folder-empty p {
+#gallery-components .folder-empty p {
     margin: 0.5rem 0 0;
     font-size: 0.875rem;
 }
 
 /* Output Info Section */
-.output-info {
+#gallery-components .output-info {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -820,7 +820,7 @@ body {
     font-size: 0.8rem;
 }
 
-.output-info .path {
+#gallery-components .output-info .path {
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
     color: var(--text-secondary);
     display: flex;
@@ -828,26 +828,26 @@ body {
     gap: 0.5rem;
 }
 
-.output-info .path code {
+#gallery-components .output-info .path code {
     background: var(--border-light);
     padding: 0.15rem 0.4rem;
     border-radius: var(--radius-xs);
     color: var(--text-primary);
 }
 
-.output-info .settings-link {
+#gallery-components .output-info .settings-link {
     color: var(--accent);
     text-decoration: none;
     font-size: 0.75rem;
     transition: opacity var(--fluent-duration-fast);
 }
 
-.output-info .settings-link:hover {
+#gallery-components .output-info .settings-link:hover {
     opacity: 0.7;
 }
 
 /* Hero Action Buttons */
-.action-section {
+#gallery-components .action-section {
     padding: 1.25rem;
     display: flex;
     justify-content: center;
@@ -855,7 +855,7 @@ body {
     flex-wrap: wrap;
 }
 
-.btn-hero {
+#gallery-components .btn-hero {
     padding: 0.75rem 2rem;
     font-size: 1rem;
     font-weight: 600;
@@ -869,7 +869,7 @@ body {
     box-shadow: var(--fluent-shadow-4);
 }
 
-.btn-hero-primary {
+#gallery-components .btn-hero-primary {
     background: var(--accent);
     color: var(--color-primary-content);
     box-shadow:
@@ -877,7 +877,7 @@ body {
         0 4px 12px var(--glow-primary);
 }
 
-.btn-hero-primary:hover {
+#gallery-components .btn-hero-primary:hover {
     background: var(--accent-hover);
     transform: translateY(-2px);
     box-shadow:
@@ -887,25 +887,25 @@ body {
         var(--fluent-shadow-8);
 }
 
-.btn-hero-primary:disabled {
+#gallery-components .btn-hero-primary:disabled {
     opacity: 0.6;
     cursor: not-allowed;
     transform: none;
 }
 
-.btn-hero-secondary {
+#gallery-components .btn-hero-secondary {
     background: var(--bg-card);
     color: var(--text-primary);
     border: 1px solid var(--border-light);
 }
 
-.btn-hero-secondary:hover {
+#gallery-components .btn-hero-secondary:hover {
     background: var(--border-light);
     transform: translateY(-2px);
 }
 
 /* Done Actions */
-.done-actions {
+#gallery-components .done-actions {
     display: none; /* 由 JS 控制 */
     gap: 0.75rem;
 }
@@ -913,7 +913,7 @@ body {
 /* ========== Components: Stats Card + NFO Update ========== */
 
 /* Stats Card - 統計資訊卡片 */
-.stats-card {
+#gallery-components .stats-card {
     background: var(--bg-card);
     border-radius: var(--radius-md);
     margin-top: 1rem;
@@ -925,31 +925,31 @@ body {
 }
 
 /* Stats Row - 統計項目橫向佈局 */
-.stats-card .stats-row {
+#gallery-components .stats-card .stats-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
 /* Stat Item - 單個統計項目 */
-.stats-card .stat-item {
+#gallery-components .stats-card .stat-item {
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
-.stats-card .stat-item i {
+#gallery-components .stats-card .stat-item i {
     color: var(--accent);
 }
 
 /* Stat Value - 數值強調 */
-.stats-card .stat-value {
+#gallery-components .stats-card .stat-value {
     font-weight: 600;
     color: var(--text-primary);
 }
 
 /* NFO Update Row - NFO 補全提示列 */
-.nfo-update-row {
+#gallery-components .nfo-update-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -959,7 +959,7 @@ body {
 }
 
 /* NFO Badge - 琥珀色警告 badge */
-.nfo-badge {
+#gallery-components .nfo-badge {
     display: flex;
     align-items: center;
     gap: 0.4rem;
@@ -967,12 +967,12 @@ body {
     font-weight: 500;
 }
 
-.nfo-badge i {
+#gallery-components .nfo-badge i {
     font-size: 1rem;
 }
 
 /* NFO Update Button - 琥珀漸層按鈕 */
-.btn-nfo-update {
+#gallery-components .btn-nfo-update {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
@@ -988,20 +988,20 @@ body {
     box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
 }
 
-.btn-nfo-update:hover {
+#gallery-components .btn-nfo-update:hover {
     background: linear-gradient(135deg, #d97706, #b45309);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
 }
 
-.btn-nfo-update:disabled {
+#gallery-components .btn-nfo-update:disabled {
     cursor: not-allowed;
     transform: none;
     opacity: 0.7;
 }
 
 /* NFO Button Completed State - 完成狀態（灰底）*/
-.btn-nfo-update.completed {
+#gallery-components .btn-nfo-update.completed {
     background: var(--border-light);
     color: var(--text-secondary);
     box-shadow: none;
@@ -1010,7 +1010,7 @@ body {
 /* ========== Components: Actress Alias Management ========== */
 
 /* Actress Alias Card - 主容器 */
-.actress-alias-card {
+#gallery-components .actress-alias-card {
     background: var(--bg-card);
     border-radius: var(--radius-md);
     margin-top: 1rem;
@@ -1022,7 +1022,7 @@ body {
     transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
-.actress-alias-card:hover {
+#gallery-components .actress-alias-card:hover {
     box-shadow:
         inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 12%, transparent),
         0 0 0 2px var(--accent),
@@ -1031,7 +1031,7 @@ body {
 }
 
 /* Actress Alias Header */
-.actress-alias-header {
+#gallery-components .actress-alias-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1042,11 +1042,11 @@ body {
     transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
-.actress-alias-header:hover {
+#gallery-components .actress-alias-header:hover {
     background: color-mix(in oklch, var(--color-base-content) 4%, transparent);
 }
 
-.actress-alias-header .title {
+#gallery-components .actress-alias-header .title {
     font-weight: 600;
     color: var(--text-primary);
     display: flex;
@@ -1055,12 +1055,12 @@ body {
     font-size: 0.875rem;
 }
 
-.actress-alias-header .title i {
+#gallery-components .actress-alias-header .title i {
     color: #ec4899; /* Pink accent - 女優管理識別色 */
     font-size: 1rem;
 }
 
-.actress-alias-header .btn-collapse {
+#gallery-components .actress-alias-header .btn-collapse {
     background: transparent;
     border: none;
     color: var(--text-secondary);
@@ -1069,28 +1069,28 @@ body {
     transition: color var(--fluent-duration-fast);
 }
 
-.actress-alias-header .btn-collapse:hover {
+#gallery-components .actress-alias-header .btn-collapse:hover {
     color: var(--text-primary);
 }
 
 /* Actress Alias Body */
-.actress-alias-body {
+#gallery-components .actress-alias-body {
     padding: 1rem;
 }
 
 /* Alias Form */
-.alias-form {
+#gallery-components .alias-form {
     margin-bottom: 1rem;
 }
 
-.alias-form-row {
+#gallery-components .alias-form-row {
     display: flex;
     align-items: flex-end;
     gap: 0.75rem;
     flex-wrap: wrap;
 }
 
-.alias-input-group {
+#gallery-components .alias-input-group {
     flex: 1;
     min-width: 120px;
     display: flex;
@@ -1098,7 +1098,7 @@ body {
     gap: 0.25rem;
 }
 
-.alias-input-group label {
+#gallery-components .alias-input-group label {
     font-size: 0.7rem;
     color: var(--text-secondary);
     text-transform: uppercase;
@@ -1106,19 +1106,19 @@ body {
     font-weight: 600;
 }
 
-.alias-input-group input {
+#gallery-components .alias-input-group input {
     width: 100%;
     transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
-.alias-input-group input:focus {
+#gallery-components .alias-input-group input:focus {
     border-color: var(--accent);
     box-shadow:
         0 0 0 4px var(--glow-subtle),
         inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent);
 }
 
-.alias-count {
+#gallery-components .alias-count {
     font-size: 0.7rem;
     color: var(--accent);
     min-height: 1rem;
@@ -1126,14 +1126,14 @@ body {
     font-weight: 600;
 }
 
-.alias-arrow {
+#gallery-components .alias-arrow {
     color: var(--text-secondary);
     font-size: 1rem;
     padding-bottom: 0.5rem;
     flex-shrink: 0;
 }
 
-.btn-alias-add {
+#gallery-components .btn-alias-add {
     padding: 0.5rem 0.75rem;
     background: var(--accent);
     color: var(--color-primary-content);
@@ -1148,7 +1148,7 @@ body {
     box-shadow: var(--fluent-shadow-2);
 }
 
-.btn-alias-add:hover {
+#gallery-components .btn-alias-add:hover {
     background: var(--accent-hover);
     transform: translateY(-1px);
     box-shadow:
@@ -1157,14 +1157,14 @@ body {
         var(--fluent-shadow-4);
 }
 
-.btn-alias-add:disabled {
+#gallery-components .btn-alias-add:disabled {
     opacity: 0.5;
     cursor: not-allowed;
     transform: none;
     box-shadow: none;
 }
 
-.alias-preview {
+#gallery-components .alias-preview {
     font-size: 0.75rem;
     color: var(--text-secondary);
     margin-top: 0.5rem;
@@ -1174,13 +1174,13 @@ body {
     gap: 0.5rem;
 }
 
-.alias-preview i {
+#gallery-components .alias-preview i {
     color: var(--accent);
     font-size: 0.9rem;
 }
 
 /* Alias List */
-.alias-list {
+#gallery-components .alias-list {
     max-height: 200px;
     overflow-y: auto;
     border: 1px solid var(--stroke-default);
@@ -1188,27 +1188,27 @@ body {
     background: var(--bg-body);
 }
 
-.alias-list-empty,
-.alias-list-loading,
-.alias-list-error {
+#gallery-components .alias-list-empty,
+#gallery-components .alias-list-loading,
+#gallery-components .alias-list-error {
     padding: 1.5rem;
     text-align: center;
     color: var(--text-secondary);
     font-size: 0.8rem;
 }
 
-.alias-list-loading {
+#gallery-components .alias-list-loading {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
 }
 
-.alias-list-error {
+#gallery-components .alias-list-error {
     color: var(--color-error);
 }
 
-.alias-item {
+#gallery-components .alias-item {
     display: flex;
     align-items: center;
     padding: 0.6rem 0.75rem;
@@ -1217,15 +1217,15 @@ body {
     transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
-.alias-item:last-child {
+#gallery-components .alias-item:last-child {
     border-bottom: none;
 }
 
-.alias-item:hover {
+#gallery-components .alias-item:hover {
     background: color-mix(in oklch, var(--color-base-content) 3%, transparent);
 }
 
-.alias-old {
+#gallery-components .alias-old {
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
     font-size: 0.8rem;
     color: #dcdcaa; /* VS Code 黃色 - 舊名稱 */
@@ -1233,13 +1233,13 @@ body {
     font-weight: 500;
 }
 
-.alias-item .alias-arrow {
+#gallery-components .alias-item .alias-arrow {
     color: var(--text-muted);
     font-size: 0.75rem;
     padding: 0;
 }
 
-.alias-new {
+#gallery-components .alias-new {
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
     font-size: 0.8rem;
     color: #6a9955; /* VS Code 綠色 - 新名稱 */
@@ -1247,13 +1247,13 @@ body {
     font-weight: 500;
 }
 
-.alias-applied {
+#gallery-components .alias-applied {
     font-size: 0.7rem;
     color: var(--text-secondary);
     white-space: nowrap;
 }
 
-.btn-alias-delete {
+#gallery-components .btn-alias-delete {
     opacity: 0;
     background: transparent;
     border: none;
@@ -1264,39 +1264,39 @@ body {
     font-size: 0.9rem;
 }
 
-.alias-item:hover .btn-alias-delete {
+#gallery-components .alias-item:hover .btn-alias-delete {
     opacity: 1;
 }
 
-.btn-alias-delete:hover {
+#gallery-components .btn-alias-delete:hover {
     color: #ff6b6b;
     transform: scale(1.1);
 }
 
 /* Responsive: 小螢幕處理 */
 @media (max-width: 576px) {
-    .alias-form-row {
+    #gallery-components .alias-form-row {
         flex-direction: column;
         align-items: stretch;
     }
 
-    .alias-input-group {
+    #gallery-components .alias-input-group {
         min-width: 100%;
     }
 
-    .alias-arrow {
+    #gallery-components .alias-arrow {
         padding: 0;
         align-self: center;
         transform: rotate(90deg);
     }
 
-    .btn-alias-add {
+    #gallery-components .btn-alias-add {
         width: 100%;
         padding: 0.75rem;
     }
 
-    .alias-old,
-    .alias-new {
+    #gallery-components .alias-old,
+    #gallery-components .alias-new {
         min-width: auto;
         flex: 1;
     }
