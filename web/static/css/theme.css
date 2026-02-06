@@ -671,3 +671,241 @@ body {
         height: 32px;
     }
 }
+
+/* ========== Components: AVList Gallery Management ========== */
+
+/* AVList Card - 主容器 */
+.avlist-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-4);
+    overflow: hidden;
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-light);
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.avlist-card:hover {
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 12%, transparent),
+        0 0 0 2px var(--accent),
+        0 0 20px var(--glow-primary),
+        var(--fluent-shadow-8);
+}
+
+/* AVList Card Header */
+.avlist-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-light);
+    background: color-mix(in oklch, var(--color-base-content) 2%, transparent);
+}
+
+.avlist-card-header .title {
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.avlist-card-header .title i {
+    color: var(--accent);
+}
+
+.avlist-card-header .actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* AVList Card Body */
+.avlist-card-body {
+    padding: 0;
+}
+
+/* Manual Input Row */
+.manual-input {
+    display: none; /* 由 JS 控制 */
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-light);
+    gap: 0.5rem;
+    background: var(--bg-body);
+}
+
+.manual-input input {
+    flex: 1;
+}
+
+/* Folder List */
+.folder-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.folder-item {
+    display: flex;
+    align-items: center;
+    padding: 0.875rem 1.25rem;
+    gap: 0.75rem;
+    border-bottom: 1px solid var(--border-light);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.folder-item:last-child {
+    border-bottom: none;
+}
+
+.folder-item:hover {
+    background: var(--bg-body);
+}
+
+.folder-item .folder-icon {
+    color: var(--accent);
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.folder-item .folder-path {
+    flex: 1;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    word-break: break-all;
+    line-height: 1.4;
+}
+
+.folder-item .btn-remove {
+    opacity: 0;
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: var(--radius-sm);
+}
+
+.folder-item:hover .btn-remove {
+    opacity: 1;
+}
+
+/* Folder Empty State */
+.folder-empty {
+    padding: 3rem 2rem;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.folder-empty i {
+    font-size: 3.5rem;
+    opacity: 0.5;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.folder-empty p {
+    margin: 0.5rem 0 0;
+    font-size: 0.875rem;
+}
+
+/* Output Info Section */
+.output-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.25rem;
+    background: var(--bg-body);
+    border-top: 1px solid var(--border-light);
+    font-size: 0.8rem;
+}
+
+.output-info .path {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.output-info .path code {
+    background: var(--border-light);
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--radius-xs);
+    color: var(--text-primary);
+}
+
+.output-info .settings-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.75rem;
+    transition: opacity var(--fluent-duration-fast);
+}
+
+.output-info .settings-link:hover {
+    opacity: 0.7;
+}
+
+/* Hero Action Buttons */
+.action-section {
+    padding: 1.25rem;
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.btn-hero {
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: var(--radius-pill);
+    border: none;
+    cursor: pointer;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: var(--fluent-shadow-4);
+}
+
+.btn-hero-primary {
+    background: var(--accent);
+    color: var(--color-primary-content);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        0 4px 12px var(--glow-primary);
+}
+
+.btn-hero-primary:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 12%, transparent),
+        0 0 0 2px var(--accent),
+        0 0 20px var(--glow-primary),
+        var(--fluent-shadow-8);
+}
+
+.btn-hero-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-hero-secondary {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+}
+
+.btn-hero-secondary:hover {
+    background: var(--border-light);
+    transform: translateY(-2px);
+}
+
+/* Done Actions */
+.done-actions {
+    display: none; /* 由 JS 控制 */
+    gap: 0.75rem;
+}
