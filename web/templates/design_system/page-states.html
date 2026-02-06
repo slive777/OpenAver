@@ -45,3 +45,57 @@
     &lt;small class="state-page-hint"&gt;也可直接拖入檔案或資料夾&lt;/small&gt;
 &lt;/div&gt;</code></pre>
 </div>
+
+<!-- Error State - Search Error with Multi-file Navigation -->
+<div class="ds-subsection">
+    <h3>Search Error State</h3>
+    <p class="ds-desc">搜尋失敗時顯示的錯誤狀態，多檔案模式下提供導航切換</p>
+
+    <div class="ds-card-demo">
+        <!-- 模擬搜尋頁結果區域 -->
+        <div class="ds-state-demo">
+            <div class="state-page error">
+                <i class="bi bi-exclamation-triangle state-page-icon"></i>
+                <p class="state-page-text error-text">搜尋失敗</p>
+                <small class="state-page-hint">請檢查番號格式或稍後再試</small>
+
+                <!-- 多檔案模式導航 -->
+                <div class="error-nav">
+                    <button class="btn btn-outline btn-neutral btn-sm" title="上一個 (←)">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    <span class="error-nav-indicator">1/5</span>
+                    <button class="btn btn-outline btn-neutral btn-sm" title="下一個 (→)">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="state-page error"&gt;
+    &lt;i class="bi bi-exclamation-triangle"&gt;&lt;/i&gt;
+    &lt;p class="error-text"&gt;搜尋失敗&lt;/p&gt;
+    &lt;small&gt;請檢查番號格式或稍後再試&lt;/small&gt;
+
+    &lt;!-- 多檔案模式導航 --&gt;
+    &lt;div class="error-nav"&gt;
+        &lt;button class="btn btn-outline btn-neutral btn-sm"&gt;
+            &lt;i class="bi bi-chevron-left"&gt;&lt;/i&gt;
+        &lt;/button&gt;
+        &lt;span class="error-nav-indicator"&gt;1/5&lt;/span&gt;
+        &lt;button class="btn btn-outline btn-neutral btn-sm"&gt;
+            &lt;i class="bi bi-chevron-right"&gt;&lt;/i&gt;
+        &lt;/button&gt;
+    &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+
+    <div class="ds-note">
+        <strong>使用場景：</strong>
+        <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+            <li>單檔案搜尋失敗：只顯示圖標 + 錯誤訊息 + 提示文字（隱藏導航）</li>
+            <li>多檔案批次搜尋：顯示導航按鈕，允許用戶切換到其他檔案查看錯誤</li>
+            <li>錯誤訊息動態更新：透過 JS 修改 <code>errorMessage</code> 元素的文字內容</li>
+        </ul>
+    </div>
+</div>

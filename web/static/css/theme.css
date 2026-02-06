@@ -6,6 +6,10 @@
     /* Display Font for Design System */
     --font-display: 'Space Grotesk', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 
+    /* ===== Error Colors ===== */
+    --color-error: #ff3b30;  /* Apple HIG Red */
+    --glow-error: rgba(255, 59, 48, 0.2);  /* 錯誤微光 */
+
     /* ===== DaisyUI 橋接變數（過渡期）===== */
     /* 背景色 */
     --bg-body: var(--color-base-100);
@@ -446,6 +450,11 @@ body {
 }
 
 /* Dark Mode 調整（DaisyUI theme = dim） */
+[data-theme="dim"] {
+    --color-error: #ff453a;  /* 深色模式調亮 */
+    --glow-error: rgba(255, 69, 58, 0.25);
+}
+
 [data-theme="dim"] .info-icon-btn:hover {
     background: rgba(255, 255, 255, 0.08);
 }
@@ -553,5 +562,116 @@ body {
 
     .empty-actions .btn {
         width: 100%;
+    }
+}
+
+/* ========== Error State Variant ========== */
+
+/* Error State 容器 - 紅色微光邊框 */
+.state-page.error {
+    border-radius: var(--radius-md);
+    box-shadow:
+        0 0 0 1px var(--color-error),
+        0 0 20px var(--glow-error),
+        var(--fluent-shadow-4);
+    padding: 2.5rem;
+    background: color-mix(in oklch, var(--color-error) 3%, transparent);
+}
+
+/* Error State 圖標 - 紅色警告 */
+.state-page.error .state-page-icon,
+.state-page.error i.bi-exclamation-triangle {
+    color: var(--color-error);
+    opacity: 0.9;
+}
+
+/* Error State 圖標 Hover - 加深紅色 + 輕微抖動 */
+.state-page.error:hover .state-page-icon,
+.state-page.error:hover i.bi-exclamation-triangle {
+    opacity: 1;
+    color: var(--color-error);
+    transform: scale(1.05);
+    animation: error-shake 0.3s ease;
+}
+
+/* 錯誤文字 */
+.error-text {
+    color: var(--color-error);
+    font-weight: 600;
+}
+
+/* 錯誤抖動動畫 */
+@keyframes error-shake {
+    0%, 100% { transform: scale(1.05) translateX(0); }
+    25% { transform: scale(1.05) translateX(-4px); }
+    75% { transform: scale(1.05) translateX(4px); }
+}
+
+/* ========== Error Navigation (Multi-file Mode) ========== */
+
+.error-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding: 0.75rem 1.25rem;
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    box-shadow: var(--fluent-shadow-2);
+    border: 1px solid var(--border-light);
+}
+
+.error-nav-indicator {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    min-width: 3rem;
+    text-align: center;
+}
+
+/* 導航按鈕樣式調整 */
+.error-nav .btn {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+}
+
+.error-nav .btn i {
+    font-size: 1.1rem;
+}
+
+/* 導航按鈕 Hover */
+.error-nav .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--fluent-shadow-4);
+}
+
+/* 導航按鈕 Disabled */
+.error-nav .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Responsive: 小螢幕導航容器 */
+@media (max-width: 576px) {
+    .error-nav {
+        padding: 0.5rem 1rem;
+        gap: 0.5rem;
+    }
+
+    .error-nav-indicator {
+        min-width: 2.5rem;
+        font-size: 0.85rem;
+    }
+
+    .error-nav .btn {
+        width: 32px;
+        height: 32px;
     }
 }
