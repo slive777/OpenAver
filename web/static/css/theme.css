@@ -1301,3 +1301,83 @@ body {
         flex: 1;
     }
 }
+
+/* ========== Components: Settings Form (D.9a) ========== */
+
+/* Settings Form Group - Toggle switch 容器 */
+#settings-components .settings-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+/* Settings Label - Toggle switch 標籤 */
+#settings-components .settings-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+}
+
+#settings-components .settings-label .label-text {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Settings Hint - 說明文字（基礎樣式，不設 margin-left）*/
+#settings-components .settings-hint {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+/* Toggle 區塊專用 — 縮排對齊 label text */
+#settings-components .settings-form-group .settings-hint {
+    margin-left: 48px; /* toggle 寬度 (36px) + gap (12px) */
+}
+
+/* Settings Form Row - 標籤 + 控制項橫向佈局 */
+#settings-components .settings-form-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+/* Row Label - 左側標籤 */
+#settings-components .row-label {
+    min-width: 140px;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    padding-top: 6px; /* 與 input 對齊 */
+}
+
+/* Select 控制項 */
+#settings-components .select {
+    flex: 1;
+    max-width: 300px;
+}
+
+/* Input Group Inline - Number input + 單位後綴 */
+#settings-components .input-group-inline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#settings-components .input-group-inline .input {
+    width: 120px;
+}
+
+/* Input Suffix - 單位文字 */
+#settings-components .input-suffix {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}

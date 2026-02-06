@@ -1,0 +1,207 @@
+<!-- D.9a: Settings 基礎表單元件 -->
+<div class="ds-subsection">
+    <h3>1. Toggle Switch + 說明文字</h3>
+    <p class="ds-desc">開關控制項，用於布林設定選項，支援說明文字和 Badge 標籤</p>
+
+    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <!-- 範例 1: 含 Badge -->
+        <div class="settings-form-group">
+            <label class="settings-label">
+                <input type="checkbox" class="toggle toggle-primary" checked>
+                <span class="label-text">
+                    女優畫廊模式 <span class="badge badge-error badge-sm">Beta</span>
+                </span>
+            </label>
+        </div>
+
+        <!-- 範例 2: 含說明文字 -->
+        <div class="settings-form-group">
+            <label class="settings-label">
+                <input type="checkbox" class="toggle toggle-primary">
+                <span class="label-text">無碼模式</span>
+            </label>
+            <small class="settings-hint">啟用時只搜尋 AVSOX / FC2，適合無碼作品</small>
+        </div>
+
+        <!-- 範例 3: 簡單 toggle -->
+        <div class="settings-form-group">
+            <label class="settings-label">
+                <input type="checkbox" class="toggle toggle-primary" checked>
+                <span class="label-text">啟用標題翻譯</span>
+            </label>
+        </div>
+
+        <!-- 範例 4: 簡單 toggle -->
+        <div class="settings-form-group">
+            <label class="settings-label">
+                <input type="checkbox" class="toggle toggle-primary" checked>
+                <span class="label-text">建立資料夾</span>
+            </label>
+        </div>
+
+        <!-- 範例 5: 含說明文字 -->
+        <div class="settings-form-group">
+            <label class="settings-label">
+                <input type="checkbox" class="toggle toggle-primary">
+                <span class="label-text">啟動時收合側邊欄</span>
+            </label>
+            <small class="settings-hint">僅影響桌面版</small>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="settings-form-group"&gt;
+  &lt;label class="settings-label"&gt;
+    &lt;input type="checkbox" class="toggle toggle-primary"&gt;
+    &lt;span class="label-text"&gt;無碼模式&lt;/span&gt;
+  &lt;/label&gt;
+  &lt;small class="settings-hint"&gt;啟用時只搜尋 AVSOX / FC2，適合無碼作品&lt;/small&gt;
+&lt;/div&gt;</code></pre>
+</div>
+
+<!-- D.9a: Select 下拉選單 -->
+<div class="ds-subsection">
+    <h3>2. Select 下拉選單</h3>
+    <p class="ds-desc">下拉選擇器，用於單選或雙選組合（如排序 + 順序）</p>
+
+    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <!-- 範例 1: 主題模式 -->
+        <div class="settings-form-row">
+            <label class="row-label">主題模式</label>
+            <select class="select select-bordered select-sm">
+                <option value="wireframe">淺色模式 (Wireframe)</option>
+                <option value="dim">深色模式 (Dim)</option>
+            </select>
+        </div>
+
+        <!-- 範例 2: 啟動頁面 -->
+        <div class="settings-form-row">
+            <label class="row-label">啟動時開啟頁面</label>
+            <select class="select select-bordered select-sm">
+                <option value="search">搜尋</option>
+                <option value="gallery">列表生成</option>
+                <option value="showcase">瀏覽</option>
+            </select>
+        </div>
+
+        <!-- 範例 3: 雙 select（排序 + 順序）-->
+        <div class="settings-form-row">
+            <label class="row-label">預設排序</label>
+            <div style="display: flex; gap: 8px; flex: 1;">
+                <select class="select select-bordered select-sm" style="flex: 1;">
+                    <option value="date">發售日期</option>
+                    <option value="mdate">修改日期</option>
+                    <option value="num">番號</option>
+                    <option value="title">片名</option>
+                    <option value="actor">演員</option>
+                    <option value="maker">片商</option>
+                    <option value="size">檔案大小</option>
+                </select>
+                <select class="select select-bordered select-sm" style="width: 100px;">
+                    <option value="descending">遞減</option>
+                    <option value="ascending">遞增</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="settings-form-row"&gt;
+  &lt;label class="row-label"&gt;主題模式&lt;/label&gt;
+  &lt;select class="select select-bordered select-sm"&gt;
+    &lt;option value="wireframe"&gt;淺色模式 (Wireframe)&lt;/option&gt;
+    &lt;option value="dim"&gt;深色模式 (Dim)&lt;/option&gt;
+  &lt;/select&gt;
+&lt;/div&gt;</code></pre>
+</div>
+
+<!-- D.9a: Number input + 單位後綴 -->
+<div class="ds-subsection">
+    <h3>3. Number Input + 單位後綴</h3>
+    <p class="ds-desc">數字輸入框，右側顯示單位（字元、MB 等）</p>
+
+    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <!-- 範例 1: 標題長度限制 -->
+        <div class="settings-form-row">
+            <label class="row-label">標題長度限制</label>
+            <div class="input-group-inline">
+                <input type="number" class="input input-bordered input-sm" value="80" min="20" max="200">
+                <span class="input-suffix">字元</span>
+            </div>
+        </div>
+
+        <!-- 範例 2: 檔名長度限制 -->
+        <div class="settings-form-row">
+            <label class="row-label">檔名長度限制</label>
+            <div class="input-group-inline">
+                <input type="number" class="input input-bordered input-sm" value="200" min="50" max="255">
+                <span class="input-suffix">字元</span>
+            </div>
+        </div>
+
+        <!-- 範例 3: 最小影片尺寸 -->
+        <div class="settings-form-row">
+            <label class="row-label">最小影片尺寸</label>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div class="input-group-inline">
+                    <input type="number" class="input input-bordered input-sm" value="0" min="0">
+                    <span class="input-suffix">MB</span>
+                </div>
+                <small class="settings-hint">0 = 不過濾</small>
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="settings-form-row"&gt;
+  &lt;label class="row-label"&gt;標題長度限制&lt;/label&gt;
+  &lt;div class="input-group-inline"&gt;
+    &lt;input type="number" class="input input-bordered input-sm" value="80"&gt;
+    &lt;span class="input-suffix"&gt;字元&lt;/span&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+</div>
+
+<!-- D.9a: Text input + 說明文字 -->
+<div class="ds-subsection">
+    <h3>4. Text Input + 說明文字</h3>
+    <p class="ds-desc">文字輸入框，支援說明文字和按鈕組合（如選擇資料夾）</p>
+
+    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <!-- 範例 1: 我的最愛資料夾（含說明）-->
+        <div class="settings-form-row">
+            <label class="row-label">我的最愛資料夾</label>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                <input type="text" class="input input-bordered input-sm" placeholder="留空 = 系統下載資料夾">
+                <small class="settings-hint">範例：C:\Users\&lt;你的使用者名稱&gt;\下載</small>
+            </div>
+        </div>
+
+        <!-- 範例 2: 輸出目錄（含按鈕）-->
+        <div class="settings-form-row">
+            <label class="row-label">輸出目錄</label>
+            <div style="flex: 1; display: flex; gap: 8px;">
+                <input type="text" class="input input-bordered input-sm" value="output" style="flex: 1;">
+                <button class="btn btn-outline btn-sm" title="選擇資料夾" type="button">
+                    <i class="bi bi-folder"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 範例 3: 影片播放器（含說明）-->
+        <div class="settings-form-row">
+            <label class="row-label">影片播放器</label>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                <input type="text" class="input input-bordered input-sm" placeholder="留空使用系統預設">
+                <small class="settings-hint">例如: C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe</small>
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="settings-form-row"&gt;
+  &lt;label class="row-label"&gt;輸出目錄&lt;/label&gt;
+  &lt;div style="flex: 1; display: flex; gap: 8px;"&gt;
+    &lt;input type="text" class="input input-bordered input-sm" value="output" style="flex: 1;"&gt;
+    &lt;button class="btn btn-outline btn-sm" type="button"&gt;
+      &lt;i class="bi bi-folder"&gt;&lt;/i&gt;
+    &lt;/button&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+</div>
