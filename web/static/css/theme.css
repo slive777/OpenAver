@@ -1381,3 +1381,234 @@ body {
     color: var(--text-secondary);
     font-weight: 500;
 }
+
+/* ========================================
+   D.9b: Settings 收合區塊 + 變數插入 Dropdown
+   ======================================== */
+
+/* 收合區塊 - Collapsible Section */
+#settings-components .collapsible-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: color-mix(in oklch, var(--color-base-content) 2%, transparent);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
+    border: 1px solid var(--border-light);
+}
+
+#settings-components .collapsible-trigger:hover {
+    background: color-mix(in oklch, var(--color-base-content) 3%, transparent);
+}
+
+#settings-components .collapsible-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#settings-components .collapsible-title i {
+    color: var(--accent);
+    font-size: 1rem;
+}
+
+#settings-components .btn-icon-collapse {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color var(--fluent-duration-fast), transform var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+#settings-components .btn-icon-collapse:hover {
+    color: var(--accent);
+}
+
+#settings-components .btn-icon-collapse i {
+    font-size: 1rem;
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+#settings-components .btn-icon-collapse i.rotate-180 {
+    transform: rotate(180deg);
+}
+
+#settings-components .collapsible-content {
+    margin-top: 16px;
+    padding: 16px;
+    background: color-mix(in oklch, var(--color-base-content) 3%, transparent);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+}
+
+/* 變數插入 Dropdown */
+#settings-components .variable-input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+#settings-components .btn-variable {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--accent);
+    background: oklch(var(--p) / 0.1);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    white-space: nowrap;
+}
+
+#settings-components .btn-variable:hover {
+    background: oklch(var(--p) / 0.15);
+    box-shadow: 0 0 0 2px oklch(var(--p) / 0.2);
+}
+
+#settings-components .btn-variable i {
+    font-size: 1rem;
+}
+
+/* 變數下拉列表（靜態展示用）*/
+#settings-components .variable-dropdown-demo {
+    margin-top: 8px;
+    position: relative;
+}
+
+#settings-components .variable-menu {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    box-shadow: var(--fluent-shadow-8);
+    padding: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+#settings-components .variable-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background var(--fluent-duration-fast);
+}
+
+#settings-components .variable-item:hover {
+    background: color-mix(in oklch, var(--color-base-content) 2%, transparent);
+}
+
+#settings-components .variable-name {
+    font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--accent);
+    background: oklch(var(--p) / 0.1);
+    padding: 2px 6px;
+    border-radius: 3px;
+    align-self: flex-start;
+}
+
+#settings-components .variable-desc {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+#settings-components .variable-example {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* 多層資料夾連動 */
+#settings-components .folder-layers-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#settings-components .folder-layer-group {
+    display: flex;
+    align-items: center;
+    flex: 1;
+}
+
+#settings-components .folder-layer-group.disabled {
+    opacity: 0.5;
+}
+
+#settings-components .folder-layer-group.disabled input,
+#settings-components .folder-layer-group.disabled button {
+    cursor: not-allowed;
+}
+
+#settings-components .folder-separator {
+    font-size: 1rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+#settings-components .btn-variable-sm {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    font-size: 0.875rem;
+    color: var(--accent);
+    background: oklch(var(--p) / 0.1);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+#settings-components .btn-variable-sm:hover:not(:disabled) {
+    background: oklch(var(--p) / 0.15);
+    box-shadow: 0 0 0 2px oklch(var(--p) / 0.2);
+}
+
+#settings-components .btn-variable-sm:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 即時預覽路徑 */
+#settings-components .folder-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: color-mix(in oklch, var(--color-base-content) 3%, transparent);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-light);
+}
+
+#settings-components .folder-preview i {
+    color: var(--accent);
+    font-size: 1rem;
+}
+
+#settings-components .folder-preview .preview-text {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+}
