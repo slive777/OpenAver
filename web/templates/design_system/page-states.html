@@ -99,3 +99,64 @@
         </ul>
     </div>
 </div>
+
+<!-- Loading State - Search Progress Indicator -->
+<div class="ds-subsection">
+    <h3>Search Loading State</h3>
+    <p class="ds-desc">搜尋進行中的進度指示器，展示查詢標題、旋轉動畫和進度條</p>
+
+    <div class="ds-card-demo">
+        <!-- 模擬搜尋頁結果區域 -->
+        <div class="ds-state-demo">
+            <div class="search-progress">
+                <div class="progress-container">
+                    <!-- 搜尋標題 -->
+                    <div class="progress-header">
+                        <span class="progress-status">"SONE-103"</span>
+                    </div>
+
+                    <!-- 單行日誌 + Spinner -->
+                    <div class="progress-log">
+                        正在搜尋 SONE-103...
+                    </div>
+
+                    <!-- 詳情進度條 -->
+                    <div class="detail-progress show">
+                        <div class="detail-bar" style="width: 65%;"></div>
+                        <span class="detail-text">65 / 100</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="search-progress"&gt;
+    &lt;div class="progress-container"&gt;
+        &lt;!-- 搜尋標題 --&gt;
+        &lt;div class="progress-header"&gt;
+            &lt;span class="progress-status"&gt;"SONE-103"&lt;/span&gt;
+        &lt;/div&gt;
+
+        &lt;!-- 單行日誌 + Spinner --&gt;
+        &lt;div class="progress-log"&gt;
+            正在搜尋 SONE-103...
+        &lt;/div&gt;
+
+        &lt;!-- 詳情進度條 --&gt;
+        &lt;div class="detail-progress show"&gt;
+            &lt;div class="detail-bar" style="width: 65%;"&gt;&lt;/div&gt;
+            &lt;span class="detail-text"&gt;65 / 100&lt;/span&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+
+    <div class="ds-note">
+        <strong>使用場景：</strong>
+        <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+            <li>搜尋單一番號：顯示查詢標題（如 <code>"SONE-103"</code>）+ 進度日誌</li>
+            <li>批次搜尋多檔案：進度條顯示當前處理進度（如 65 / 100）</li>
+            <li>進度日誌動態更新：透過 JS 修改 <code>progressLog</code> 文字（如「正在解析 JAVBus...」）</li>
+            <li>進度條動態更新：透過 JS 修改 <code>detailBar</code> 的 <code>width</code> 樣式（如 <code>width: 80%</code>）</li>
+        </ul>
+    </div>
+</div>

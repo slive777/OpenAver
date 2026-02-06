@@ -1409,6 +1409,28 @@
     font-size: 0.9rem;
     color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
     margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+/* ==================== Progress Indicator Demo - Spinner Animation ==================== */
+/* 補充 v0.2.3 的旋轉動畫，確保 Loading State 展示完整 */
+
+.progress-log::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border: 2px solid color-mix(in oklch, var(--color-base-content) 30%, transparent);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
 .detail-progress {
