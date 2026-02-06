@@ -1612,3 +1612,92 @@ body {
     color: var(--text-secondary);
     font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
 }
+
+/* ========================================
+   D.9c: Settings 特殊元件
+   ======================================== */
+
+/* API Key 警告 Alert */
+#settings-components .api-key-alert {
+    margin-top: 12px;
+    font-size: 0.8rem;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+}
+
+#settings-components .api-key-alert > i {
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+#settings-components .api-key-alert .alert-content {
+    flex: 1;
+}
+
+#settings-components .api-key-alert strong {
+    font-weight: 600;
+    color: inherit;
+}
+
+#settings-components .api-key-alert .alert-list {
+    margin: 8px 0 0 0;
+    padding-left: 1.25rem;
+    list-style: disc;
+}
+
+#settings-components .api-key-alert .alert-list li {
+    margin-bottom: 4px;
+    line-height: 1.5;
+}
+
+#settings-components .api-key-alert .alert-link {
+    color: inherit;
+    text-decoration: underline;
+    font-weight: 600;
+}
+
+#settings-components .api-key-alert .alert-link:hover {
+    opacity: 0.8;
+}
+
+/* 版本文字 */
+#settings-components .version-text {
+    font-size: 0.875rem;
+    color: var(--accent);
+    font-weight: 600;
+    font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+}
+
+/* 檢查更新按鈕區域 */
+#settings-components .update-check-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 儲存按鈕區域 */
+#settings-components .save-btn-wrapper {
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* 儲存按鈕 - 強化視覺 */
+#settings-components .save-btn {
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 0.625rem 1.5rem;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+#settings-components .save-btn:hover {
+    box-shadow: 0 0 0 4px oklch(var(--p) / 0.2);
+    transform: translateY(-1px);
+}
+
+#settings-components .save-btn i {
+    font-size: 1rem;
+}

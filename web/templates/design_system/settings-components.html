@@ -407,3 +407,203 @@
   &lt;/div&gt;
 &lt;/div&gt;</code></pre>
 </div>
+
+<!-- D.9c: API Key 警告 Alert -->
+<div class="ds-subsection">
+    <h3>7. API Key 警告 Alert</h3>
+    <p class="ds-desc">用於 Gemini API Key 輸入框下方的安全提示，強調敏感資料風險</p>
+
+    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <!-- API Key 輸入框（上下文）-->
+        <div class="settings-form-row">
+            <label class="row-label">API Key</label>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                <div style="display: flex; gap: 8px;">
+                    <input type="password" class="input input-bordered input-sm" placeholder="AIza..." style="flex: 1;">
+                    <button class="btn btn-outline btn-sm" type="button">
+                        <i class="bi bi-plug"></i> 測試
+                    </button>
+                </div>
+                <small class="settings-hint">
+                    <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a>
+                    可免費申請
+                </small>
+            </div>
+        </div>
+
+        <!-- 安全警告 Alert -->
+        <div class="alert alert-warning api-key-alert">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <div class="alert-content">
+                <strong>安全提示：</strong>
+                <ul class="alert-list">
+                    <li>API Key 將以明文存儲在 config.json</li>
+                    <li>請勿將 config.json 分享給他人</li>
+                    <li>如需撤銷，請前往 <a href="https://aistudio.google.com/apikey" target="_blank" class="alert-link">Google AI Studio</a> 重新生成</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="alert alert-warning api-key-alert"&gt;
+  &lt;i class="bi bi-exclamation-triangle-fill"&gt;&lt;/i&gt;
+  &lt;div class="alert-content"&gt;
+    &lt;strong&gt;安全提示：&lt;/strong&gt;
+    &lt;ul class="alert-list"&gt;
+      &lt;li&gt;API Key 將以明文存儲在 config.json&lt;/li&gt;
+      &lt;li&gt;請勿將 config.json 分享給他人&lt;/li&gt;
+      &lt;li&gt;如需撤銷，請前往 &lt;a href="..." target="_blank" class="alert-link"&gt;Google AI Studio&lt;/a&gt; 重新生成&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+</div>
+
+<!-- D.9c: 版本 + 檢查更新（3 態互動展示）-->
+<div class="ds-subsection" x-data="{ checkUpdateState: 'default' }">
+    <h3>8. 版本 + 檢查更新</h3>
+    <p class="ds-desc">版本資訊顯示 + 檢查更新按鈕（含 default / loading / completed 三態）</p>
+
+    <!-- 互動控制：5 個按鈕切換狀態 -->
+    <div style="max-width: 600px; margin: 0 auto 1rem; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+        <button class="btn btn-sm btn-outline" type="button" @click="checkUpdateState = 'default'">
+            顯示 Default
+        </button>
+        <button class="btn btn-sm btn-outline" type="button" @click="checkUpdateState = 'loading'">
+            顯示 Loading
+        </button>
+        <button class="btn btn-sm btn-outline" type="button" @click="checkUpdateState = 'completed-new'">
+            顯示 Completed (有更新)
+        </button>
+        <button class="btn btn-sm btn-outline" type="button" @click="checkUpdateState = 'completed-latest'">
+            顯示 Completed (已最新)
+        </button>
+        <button class="btn btn-sm btn-outline" type="button" @click="checkUpdateState = 'completed-error'">
+            顯示 Completed (錯誤)
+        </button>
+    </div>
+
+    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <!-- 版本資訊 -->
+        <div class="settings-form-row">
+            <label class="row-label">版本資訊</label>
+            <span class="version-text">v0.3.0</span>
+        </div>
+
+        <!-- 檢查更新 -->
+        <div class="settings-form-row">
+            <label class="row-label">軟體更新</label>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                <small class="settings-hint">手動檢查 GitHub 是否有新版本</small>
+                <div class="update-check-wrapper">
+                    <!-- Default 狀態 -->
+                    <button class="btn btn-outline btn-sm" type="button" x-show="checkUpdateState === 'default'">
+                        <i class="bi bi-cloud-download"></i> 檢查更新
+                    </button>
+
+                    <!-- Loading 狀態 -->
+                    <button class="btn btn-outline btn-sm" type="button" disabled x-show="checkUpdateState === 'loading'">
+                        <span class="loading loading-spinner loading-sm"></span> 檢查中...
+                    </button>
+
+                    <!-- Completed 狀態 - 有更新 -->
+                    <template x-if="checkUpdateState === 'completed-new'">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="btn btn-outline btn-sm" type="button">
+                                <i class="bi bi-cloud-download"></i> 檢查更新
+                            </button>
+                            <div class="badge badge-success gap-2" style="font-size: 0.75rem; padding: 0.5rem 0.75rem;">
+                                <i class="bi bi-download"></i>
+                                <a href="https://github.com/owner/repo/releases/latest" target="_blank" style="color: inherit; text-decoration: none;">
+                                    新版本 v0.3.1 可用
+                                </a>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Completed 狀態 - 已最新 -->
+                    <template x-if="checkUpdateState === 'completed-latest'">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="btn btn-outline btn-sm" type="button">
+                                <i class="bi bi-cloud-download"></i> 檢查更新
+                            </button>
+                            <span style="font-size: 0.8rem; color: var(--text-muted);">
+                                <i class="bi bi-check-circle"></i> 已是最新版本
+                            </span>
+                        </div>
+                    </template>
+
+                    <!-- Completed 狀態 - 錯誤 -->
+                    <template x-if="checkUpdateState === 'completed-error'">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="btn btn-outline btn-sm" type="button">
+                                <i class="bi bi-cloud-download"></i> 檢查更新
+                            </button>
+                            <span style="font-size: 0.8rem; color: oklch(var(--er));">
+                                <i class="bi bi-exclamation-circle"></i> 網路錯誤
+                            </span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;!-- Default 狀態 --&gt;
+&lt;button class="btn btn-outline btn-sm" type="button"&gt;
+  &lt;i class="bi bi-cloud-download"&gt;&lt;/i&gt; 檢查更新
+&lt;/button&gt;
+
+&lt;!-- Loading 狀態 --&gt;
+&lt;button class="btn btn-outline btn-sm" type="button" disabled&gt;
+  &lt;span class="loading loading-spinner loading-sm"&gt;&lt;/span&gt; 檢查中...
+&lt;/button&gt;
+
+&lt;!-- Completed 狀態 - 有更新 --&gt;
+&lt;div class="badge badge-success gap-2"&gt;
+  &lt;i class="bi bi-download"&gt;&lt;/i&gt;
+  &lt;a href="..." target="_blank"&gt;新版本 v0.3.1 可用&lt;/a&gt;
+&lt;/div&gt;
+
+&lt;!-- Completed 狀態 - 已最新 --&gt;
+&lt;span style="color: var(--text-muted);"&gt;
+  &lt;i class="bi bi-check-circle"&gt;&lt;/i&gt; 已是最新版本
+&lt;/span&gt;
+
+&lt;!-- Completed 狀態 - 錯誤 --&gt;
+&lt;span style="color: oklch(var(--er));"&gt;
+  &lt;i class="bi bi-exclamation-circle"&gt;&lt;/i&gt; 網路錯誤
+&lt;/span&gt;</code></pre>
+</div>
+
+<!-- D.9c: 儲存按鈕（Primary CTA）-->
+<div class="ds-subsection">
+    <h3>9. 儲存按鈕（Primary CTA）</h3>
+    <p class="ds-desc">Settings 表單的主要行動按鈕，位於表單最下方右對齊</p>
+
+    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <!-- 上下文：最後一個表單項 -->
+        <div class="settings-form-row">
+            <label class="row-label">主題模式</label>
+            <select class="select select-bordered select-sm">
+                <option value="wireframe">淺色模式 (Wireframe)</option>
+                <option value="dim">深色模式 (Dim)</option>
+            </select>
+        </div>
+
+        <!-- 分隔線 -->
+        <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--border-light); opacity: 0.5;">
+
+        <!-- 儲存按鈕區域 -->
+        <div class="save-btn-wrapper">
+            <button type="submit" class="btn btn-primary save-btn">
+                <i class="bi bi-save"></i> 儲存設定
+            </button>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="save-btn-wrapper"&gt;
+  &lt;button type="submit" class="btn btn-primary save-btn"&gt;
+    &lt;i class="bi bi-save"&gt;&lt;/i&gt; 儲存設定
+  &lt;/button&gt;
+&lt;/div&gt;</code></pre>
+</div>
