@@ -1006,3 +1006,298 @@ body {
     color: var(--text-secondary);
     box-shadow: none;
 }
+
+/* ========== Components: Actress Alias Management ========== */
+
+/* Actress Alias Card - 主容器 */
+.actress-alias-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    margin-top: 1rem;
+    overflow: hidden;
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-4);
+    border: 1px solid var(--stroke-default);
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.actress-alias-card:hover {
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 12%, transparent),
+        0 0 0 2px var(--accent),
+        0 0 20px var(--glow-primary),
+        var(--fluent-shadow-8);
+}
+
+/* Actress Alias Header */
+.actress-alias-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: color-mix(in oklch, var(--color-base-content) 2%, transparent);
+    border-bottom: 1px solid var(--stroke-subtle);
+    cursor: pointer;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.actress-alias-header:hover {
+    background: color-mix(in oklch, var(--color-base-content) 4%, transparent);
+}
+
+.actress-alias-header .title {
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.actress-alias-header .title i {
+    color: #ec4899; /* Pink accent - 女優管理識別色 */
+    font-size: 1rem;
+}
+
+.actress-alias-header .btn-collapse {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.25rem;
+    cursor: pointer;
+    transition: color var(--fluent-duration-fast);
+}
+
+.actress-alias-header .btn-collapse:hover {
+    color: var(--text-primary);
+}
+
+/* Actress Alias Body */
+.actress-alias-body {
+    padding: 1rem;
+}
+
+/* Alias Form */
+.alias-form {
+    margin-bottom: 1rem;
+}
+
+.alias-form-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.alias-input-group {
+    flex: 1;
+    min-width: 120px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.alias-input-group label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.alias-input-group input {
+    width: 100%;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.alias-input-group input:focus {
+    border-color: var(--accent);
+    box-shadow:
+        0 0 0 4px var(--glow-subtle),
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent);
+}
+
+.alias-count {
+    font-size: 0.7rem;
+    color: var(--accent);
+    min-height: 1rem;
+    margin-top: 0.25rem;
+    font-weight: 600;
+}
+
+.alias-arrow {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    padding-bottom: 0.5rem;
+    flex-shrink: 0;
+}
+
+.btn-alias-add {
+    padding: 0.5rem 0.75rem;
+    background: var(--accent);
+    color: var(--color-primary-content);
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    box-shadow: var(--fluent-shadow-2);
+}
+
+.btn-alias-add:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow:
+        0 0 0 2px var(--accent),
+        0 0 12px var(--glow-primary),
+        var(--fluent-shadow-4);
+}
+
+.btn-alias-add:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.alias-preview {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+    min-height: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.alias-preview i {
+    color: var(--accent);
+    font-size: 0.9rem;
+}
+
+/* Alias List */
+.alias-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-sm);
+    background: var(--bg-body);
+}
+
+.alias-list-empty,
+.alias-list-loading,
+.alias-list-error {
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.alias-list-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.alias-list-error {
+    color: var(--color-error);
+}
+
+.alias-item {
+    display: flex;
+    align-items: center;
+    padding: 0.6rem 0.75rem;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--stroke-subtle);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.alias-item:last-child {
+    border-bottom: none;
+}
+
+.alias-item:hover {
+    background: color-mix(in oklch, var(--color-base-content) 3%, transparent);
+}
+
+.alias-old {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.8rem;
+    color: #dcdcaa; /* VS Code 黃色 - 舊名稱 */
+    min-width: 80px;
+    font-weight: 500;
+}
+
+.alias-item .alias-arrow {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    padding: 0;
+}
+
+.alias-new {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.8rem;
+    color: #6a9955; /* VS Code 綠色 - 新名稱 */
+    flex: 1;
+    font-weight: 500;
+}
+
+.alias-applied {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.btn-alias-delete {
+    opacity: 0;
+    background: transparent;
+    border: none;
+    color: var(--color-error);
+    padding: 0.25rem;
+    cursor: pointer;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    font-size: 0.9rem;
+}
+
+.alias-item:hover .btn-alias-delete {
+    opacity: 1;
+}
+
+.btn-alias-delete:hover {
+    color: #ff6b6b;
+    transform: scale(1.1);
+}
+
+/* Responsive: 小螢幕處理 */
+@media (max-width: 576px) {
+    .alias-form-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .alias-input-group {
+        min-width: 100%;
+    }
+
+    .alias-arrow {
+        padding: 0;
+        align-self: center;
+        transform: rotate(90deg);
+    }
+
+    .btn-alias-add {
+        width: 100%;
+        padding: 0.75rem;
+    }
+
+    .alias-old,
+    .alias-new {
+        min-width: auto;
+        flex: 1;
+    }
+}

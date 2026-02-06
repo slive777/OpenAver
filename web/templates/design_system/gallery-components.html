@@ -225,3 +225,177 @@
   &lt;/div&gt;
 &lt;/div&gt;</code></pre>
 </div>
+
+<!-- D.8: 女優別名管理卡片 -->
+<div class="ds-subsection">
+    <h3>Actress Alias Management Card</h3>
+    <p class="ds-desc">女優名稱對照管理，用於統一不同別名/英文名/舊名</p>
+
+    <!-- 完整展開展示 -->
+    <div class="ds-card-demo" style="max-width: 700px; margin: 0 auto;" x-data="{ open: true }">
+        <div class="actress-alias-card">
+            <!-- Header: 可點擊收合 -->
+            <div class="actress-alias-header" @click="open = !open" style="cursor: pointer;">
+                <div class="title">
+                    <i class="bi bi-person-badge"></i> <span>女優名稱管理</span>
+                </div>
+                <button class="btn-icon btn-collapse" title="展開/收起" type="button">
+                    <i class="bi" :class="open ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+                </button>
+            </div>
+
+            <div class="actress-alias-body" x-show="open" x-transition>
+                <!-- Add New Alias Form -->
+                <div class="alias-form">
+                    <div class="alias-form-row">
+                        <div class="alias-input-group">
+                            <label>舊名稱</label>
+                            <input type="text" class="input input-bordered input-sm" placeholder="例：高橋しょう子" value="高橋しょう子">
+                            <span class="alias-count">23 部</span>
+                        </div>
+                        <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
+                        <div class="alias-input-group">
+                            <label>新名稱</label>
+                            <input type="text" class="input input-bordered input-sm" placeholder="例：高橋聖子" value="高橋聖子">
+                            <span class="alias-count">0 部</span>
+                        </div>
+                        <button class="btn-alias-add" type="button">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                    <div class="alias-preview">
+                        <i class="bi bi-info-circle"></i> 將有 23 部影片的 "高橋しょう子" 改為 "高橋聖子"
+                    </div>
+                </div>
+
+                <!-- Alias List -->
+                <div class="alias-list">
+                    <div class="alias-item">
+                        <span class="alias-old">miru</span>
+                        <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
+                        <span class="alias-new">坂道みる</span>
+                        <span class="alias-applied">(已套用 15)</span>
+                        <button class="btn-alias-delete" title="刪除">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    <div class="alias-item">
+                        <span class="alias-old">aika</span>
+                        <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
+                        <span class="alias-new">AIKA</span>
+                        <span class="alias-applied">(已套用 8)</span>
+                        <button class="btn-alias-delete" title="刪除">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    <div class="alias-item">
+                        <span class="alias-old">高橋しょう子</span>
+                        <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
+                        <span class="alias-new">高橋聖子</span>
+                        <span class="alias-applied">(已套用 23)</span>
+                        <button class="btn-alias-delete" title="刪除">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 收合狀態展示 -->
+    <h4 style="margin-top: 2rem; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">Collapsed State</h4>
+    <div class="ds-card-demo" style="max-width: 700px; margin: 0 auto;" x-data="{ open: false }">
+        <div class="actress-alias-card">
+            <div class="actress-alias-header" @click="open = !open" style="cursor: pointer;">
+                <div class="title">
+                    <i class="bi bi-person-badge"></i> <span>女優名稱管理</span>
+                </div>
+                <button class="btn-icon btn-collapse" title="展開/收起" type="button">
+                    <i class="bi" :class="open ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+                </button>
+            </div>
+            <div class="actress-alias-body" x-show="open" x-transition></div>
+        </div>
+    </div>
+
+    <!-- 空狀態展示 -->
+    <h4 style="margin-top: 2rem; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">Empty State</h4>
+    <div class="ds-card-demo" style="max-width: 700px; margin: 0 auto;" x-data="{ open: true }">
+        <div class="actress-alias-card">
+            <div class="actress-alias-header" @click="open = !open" style="cursor: pointer;">
+                <div class="title">
+                    <i class="bi bi-person-badge"></i> <span>女優名稱管理</span>
+                </div>
+                <button class="btn-icon btn-collapse" title="展開/收起" type="button">
+                    <i class="bi" :class="open ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+                </button>
+            </div>
+            <div class="actress-alias-body" x-show="open" x-transition>
+                <div class="alias-form">
+                    <div class="alias-form-row">
+                        <div class="alias-input-group">
+                            <label>舊名稱</label>
+                            <input type="text" class="input input-bordered input-sm" placeholder="例：miru">
+                            <span class="alias-count"></span>
+                        </div>
+                        <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
+                        <div class="alias-input-group">
+                            <label>新名稱</label>
+                            <input type="text" class="input input-bordered input-sm" placeholder="例：坂道みる">
+                            <span class="alias-count"></span>
+                        </div>
+                        <button class="btn-alias-add" type="button">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                    <div class="alias-preview"></div>
+                </div>
+                <div class="alias-list">
+                    <div class="alias-list-empty">尚無別名對照</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 代碼展示 -->
+    <pre class="ds-code"><code>&lt;div class="actress-alias-card"&gt;
+  &lt;div class="actress-alias-header"&gt;
+    &lt;div class="title"&gt;
+      &lt;i class="bi bi-person-badge"&gt;&lt;/i&gt; &lt;span&gt;女優名稱管理&lt;/span&gt;
+    &lt;/div&gt;
+    &lt;button class="btn-icon btn-collapse"&gt;
+      &lt;i class="bi bi-chevron-down"&gt;&lt;/i&gt;
+    &lt;/button&gt;
+  &lt;/div&gt;
+
+  &lt;div class="actress-alias-body"&gt;
+    &lt;!-- Alias Form --&gt;
+    &lt;div class="alias-form"&gt;
+      &lt;div class="alias-form-row"&gt;
+        &lt;div class="alias-input-group"&gt;
+          &lt;label&gt;舊名稱&lt;/label&gt;
+          &lt;input class="input input-bordered input-sm"&gt;
+          &lt;span class="alias-count"&gt;23 部&lt;/span&gt;
+        &lt;/div&gt;
+        &lt;span class="alias-arrow"&gt;→&lt;/span&gt;
+        &lt;div class="alias-input-group"&gt;
+          &lt;label&gt;新名稱&lt;/label&gt;
+          &lt;input class="input input-bordered input-sm"&gt;
+        &lt;/div&gt;
+        &lt;button class="btn-alias-add"&gt;+&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+
+    &lt;!-- Alias List --&gt;
+    &lt;div class="alias-list"&gt;
+      &lt;div class="alias-item"&gt;
+        &lt;span class="alias-old"&gt;miru&lt;/span&gt;
+        &lt;span class="alias-arrow"&gt;→&lt;/span&gt;
+        &lt;span class="alias-new"&gt;坂道みる&lt;/span&gt;
+        &lt;span class="alias-applied"&gt;(已套用 15)&lt;/span&gt;
+        &lt;button class="btn-alias-delete"&gt;×&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+</div>
