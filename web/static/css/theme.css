@@ -368,3 +368,100 @@ body {
 .shake {
     animation: shake 0.3s ease;
 }
+
+/* ========== AV Card Full: Interactive Elements ========== */
+
+/* Info Icon Button - 用於 Full Card header/footer 的圖標按鈕 */
+.info-icon-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: pointer;
+    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    transition: all var(--duration-fast) var(--ease-out);
+    flex-shrink: 0;
+}
+
+.info-icon-btn:hover {
+    background: var(--border-light);
+    color: var(--accent);
+    transform: scale(1.08);
+}
+
+.info-icon-btn:active {
+    transform: scale(0.95);
+}
+
+.info-icon-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(90, 200, 250, 0.2);
+}
+
+/* Local Badge - 可點擊複製路徑 */
+.local-badge {
+    font-size: 1rem;
+    cursor: pointer;
+    transition: opacity var(--duration-fast) var(--ease-out);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.local-badge:hover {
+    opacity: 0.7;
+}
+
+.local-badge:active {
+    transform: scale(0.9);
+}
+
+/* AV Card Full Footer - 標題區塊佈局 */
+.av-card-full-footer-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.info-value-with-actions {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.info-value-with-actions .info-value {
+    flex: 1;
+    min-width: 0;
+}
+
+.av-card-full-footer-actions {
+    display: flex;
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+
+/* Dark Mode 調整（DaisyUI theme = dim） */
+[data-theme="dim"] .info-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Tag Badge - 從 search.css 移至 theme.css 供全站使用 */
+.tag-badge {
+    font-size: 0.65rem;
+    margin: 1px;
+    padding: 2px 6px;
+    background: var(--border-light);
+    color: var(--text-secondary);
+    border-radius: var(--radius-xs, 4px);
+    display: inline-block;
+}
+
+.tag-badge.subtitle {
+    background: #198754;
+    color: #fff;
+}

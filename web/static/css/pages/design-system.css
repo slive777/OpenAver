@@ -905,6 +905,22 @@
     border-top: 1px solid var(--border-light);
 }
 
+/* AV Card Full: Demo-specific adjustments */
+.ds-page .av-card-full-header {
+    align-items: center;
+}
+
+.ds-page .av-card-full-header .av-num {
+    flex: 1;
+}
+
+/* Tag badges in Full card body */
+.ds-page .av-card-full-body .info-value {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
 /* Compact Variant */
 .av-card-compact {
     display: flex;
