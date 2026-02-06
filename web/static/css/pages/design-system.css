@@ -290,25 +290,30 @@
 /* ==================== Color Palette Grid (Token 儀表板) ==================== */
 .ds-color-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(160px, 200px));
     gap: 1rem;
     padding: 1.5rem;
     background: var(--bg-body);
     border-radius: var(--fluent-radius-lg);
     border: 1px solid var(--border-light);
+    justify-content: center;
+    justify-items: center;
 }
 
 .ds-color-swatch {
     height: 120px;
+    width: 100%;
+    max-width: 200px;
     border-radius: var(--fluent-radius-xl);
-    display: flex;
-    align-items: flex-end;
+    display: grid;
+    place-items: center;
     padding: 1rem;
     box-shadow: var(--fluent-shadow-4);
     transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
     cursor: pointer;
     position: relative;
     overflow: hidden;
+    box-sizing: border-box;
 }
 
 .ds-color-swatch::before {
@@ -344,6 +349,8 @@
     border-radius: var(--fluent-radius-md);
     position: relative;
     z-index: 1;
+    text-align: center;
+    align-items: center;
 }
 
 .ds-color-name {
