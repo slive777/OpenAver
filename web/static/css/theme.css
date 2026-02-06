@@ -1397,6 +1397,9 @@ body {
     cursor: pointer;
     transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
     border: 1px solid var(--border-light);
+    font: inherit;
+    text-align: left;
+    width: 100%;
 }
 
 #settings-components .collapsible-trigger:hover {
@@ -1467,7 +1470,7 @@ body {
     font-size: 0.875rem;
     font-weight: 500;
     color: var(--accent);
-    background: oklch(var(--p) / 0.1);
+    background: color-mix(in oklch, var(--accent) 10%, transparent);
     border: 1px solid var(--accent);
     border-radius: var(--radius-sm);
     cursor: pointer;
@@ -1476,8 +1479,8 @@ body {
 }
 
 #settings-components .btn-variable:hover {
-    background: oklch(var(--p) / 0.15);
-    box-shadow: 0 0 0 2px oklch(var(--p) / 0.2);
+    background: color-mix(in oklch, var(--accent) 15%, transparent);
+    box-shadow: 0 0 0 2px var(--glow-subtle);
 }
 
 #settings-components .btn-variable i {
@@ -1519,7 +1522,7 @@ body {
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--accent);
-    background: oklch(var(--p) / 0.1);
+    background: color-mix(in oklch, var(--accent) 10%, transparent);
     padding: 2px 6px;
     border-radius: 3px;
     align-self: flex-start;
@@ -1573,7 +1576,7 @@ body {
     padding: 0;
     font-size: 0.875rem;
     color: var(--accent);
-    background: oklch(var(--p) / 0.1);
+    background: color-mix(in oklch, var(--accent) 10%, transparent);
     border: 1px solid var(--accent);
     border-radius: var(--radius-sm);
     cursor: pointer;
@@ -1581,8 +1584,8 @@ body {
 }
 
 #settings-components .btn-variable-sm:hover:not(:disabled) {
-    background: oklch(var(--p) / 0.15);
-    box-shadow: 0 0 0 2px oklch(var(--p) / 0.2);
+    background: color-mix(in oklch, var(--accent) 15%, transparent);
+    box-shadow: 0 0 0 2px var(--glow-subtle);
 }
 
 #settings-components .btn-variable-sm:disabled {
@@ -1694,7 +1697,7 @@ body {
 }
 
 #settings-components .save-btn:hover {
-    box-shadow: 0 0 0 4px oklch(var(--p) / 0.2);
+    box-shadow: 0 0 0 4px var(--glow-subtle);
     transform: translateY(-1px);
 }
 

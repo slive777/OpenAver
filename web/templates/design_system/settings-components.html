@@ -215,14 +215,14 @@
     <h4 style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">Expanded State</h4>
     <div class="ds-card-demo" style="max-width: 700px; margin: 0 auto; padding: 1.5rem;">
         <div x-data="{ expanded: true }">
-            <div class="collapsible-trigger" @click="expanded = !expanded">
+            <button class="collapsible-trigger" type="button" @click="expanded = !expanded" :aria-expanded="expanded.toString()">
                 <span class="collapsible-title">
                     <i class="bi bi-gear"></i> 進階刮削設定
                 </span>
-                <button class="btn-icon-collapse" type="button">
+                <span class="btn-icon-collapse" aria-hidden="true">
                     <i class="bi bi-chevron-down" :class="{ 'rotate-180': expanded }"></i>
-                </button>
-            </div>
+                </span>
+            </button>
             <div x-show="expanded" x-transition class="collapsible-content">
                 <!-- 展開後的內容：用 D.9a 的 form rows 作為範例 -->
                 <div class="settings-form-group">
@@ -255,14 +255,14 @@
     <h4 style="margin-top: 2rem; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">Collapsed State</h4>
     <div class="ds-card-demo" style="max-width: 700px; margin: 0 auto; padding: 1.5rem;">
         <div x-data="{ expanded: false }">
-            <div class="collapsible-trigger" @click="expanded = !expanded">
+            <button class="collapsible-trigger" type="button" @click="expanded = !expanded" :aria-expanded="expanded.toString()">
                 <span class="collapsible-title">
                     <i class="bi bi-sliders"></i> 進階顯示選項
                 </span>
-                <button class="btn-icon-collapse" type="button">
+                <span class="btn-icon-collapse" aria-hidden="true">
                     <i class="bi bi-chevron-down" :class="{ 'rotate-180': expanded }"></i>
-                </button>
-            </div>
+                </span>
+            </button>
             <div x-show="expanded" x-transition class="collapsible-content">
                 <!-- 收合時不顯示 -->
             </div>
@@ -270,14 +270,14 @@
     </div>
 
     <pre class="ds-code"><code>&lt;div x-data="{ expanded: false }"&gt;
-  &lt;div class="collapsible-trigger" @click="expanded = !expanded"&gt;
+  &lt;button class="collapsible-trigger" type="button" @click="expanded = !expanded" :aria-expanded="expanded.toString()"&gt;
     &lt;span class="collapsible-title"&gt;
       &lt;i class="bi bi-gear"&gt;&lt;/i&gt; 進階刮削設定
     &lt;/span&gt;
-    &lt;button class="btn-icon-collapse" type="button"&gt;
+    &lt;span class="btn-icon-collapse" aria-hidden="true"&gt;
       &lt;i class="bi bi-chevron-down" :class="{ 'rotate-180': expanded }"&gt;&lt;/i&gt;
-    &lt;/button&gt;
-  &lt;/div&gt;
+    &lt;/span&gt;
+  &lt;/button&gt;
   &lt;div x-show="expanded" x-transition class="collapsible-content"&gt;
     &lt;!-- 進階設定內容 --&gt;
   &lt;/div&gt;
@@ -425,7 +425,7 @@
                     </button>
                 </div>
                 <small class="settings-hint">
-                    <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a>
+                    <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a>
                     可免費申請
                 </small>
             </div>
@@ -439,7 +439,7 @@
                 <ul class="alert-list">
                     <li>API Key 將以明文存儲在 config.json</li>
                     <li>請勿將 config.json 分享給他人</li>
-                    <li>如需撤銷，請前往 <a href="https://aistudio.google.com/apikey" target="_blank" class="alert-link">Google AI Studio</a> 重新生成</li>
+                    <li>如需撤銷，請前往 <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" class="alert-link">Google AI Studio</a> 重新生成</li>
                 </ul>
             </div>
         </div>
@@ -513,7 +513,7 @@
                             </button>
                             <div class="badge badge-success gap-2" style="font-size: 0.75rem; padding: 0.5rem 0.75rem;">
                                 <i class="bi bi-download"></i>
-                                <a href="https://github.com/owner/repo/releases/latest" target="_blank" style="color: inherit; text-decoration: none;">
+                                <a href="https://github.com/owner/repo/releases/latest" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;">
                                     新版本 v0.3.1 可用
                                 </a>
                             </div>
@@ -538,7 +538,7 @@
                             <button class="btn btn-outline btn-sm" type="button">
                                 <i class="bi bi-cloud-download"></i> 檢查更新
                             </button>
-                            <span style="font-size: 0.8rem; color: oklch(var(--er));">
+                            <span style="font-size: 0.8rem; color: var(--color-error);">
                                 <i class="bi bi-exclamation-circle"></i> 網路錯誤
                             </span>
                         </div>
@@ -570,7 +570,7 @@
 &lt;/span&gt;
 
 &lt;!-- Completed 狀態 - 錯誤 --&gt;
-&lt;span style="color: oklch(var(--er));"&gt;
+&lt;span style="color: var(--color-error);"&gt;
   &lt;i class="bi bi-exclamation-circle"&gt;&lt;/i&gt; 網路錯誤
 &lt;/span&gt;</code></pre>
 </div>
