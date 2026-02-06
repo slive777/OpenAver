@@ -545,7 +545,7 @@
                     </div>
                     <div class="col-md-6">
                         <select class="form-select form-select-sm" id="themeMode" x-model="theme">
-                            <option value="wireframe">淺色模式 (Wireframe)</option>
+                            <option value="light">淺色模式 (Light)</option>
                             <option value="dim">深色模式 (Dim)</option>
                         </select>
                     </div>
@@ -880,7 +880,7 @@
                 // 一般設定
                 if (config.general) {
                     document.getElementById('defaultPage').value = config.general.default_page || 'search';
-                    document.getElementById('themeMode').value = config.general.theme || 'wireframe';
+                    document.getElementById('themeMode').value = config.general.theme || 'light';
                     document.getElementById('sidebarCollapsed').checked = config.general.sidebar_collapsed || false;
                     // Alpine.js x-model 會自動同步主題
                 }

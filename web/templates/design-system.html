@@ -42,11 +42,11 @@
                 <!-- Theme Toggle Button -->
                 <div class="ds-theme-toggle">
                     <button class="theme-toggle-btn"
-                            @click="theme = (theme === 'wireframe' ? 'dim' : 'wireframe')"
-                            :title="theme === 'wireframe' ? '切換至深色模式' : '切換至淺色模式'"
+                            @click="theme = (theme === 'light' ? 'dim' : 'light')"
+                            :title="theme === 'light' ? '切換至深色模式' : '切換至淺色模式'"
                             type="button">
-                        <i class="bi" :class="theme === 'wireframe' ? 'bi-moon-stars' : 'bi-sun'"></i>
-                        <span class="theme-toggle-label" x-text="theme === 'wireframe' ? 'Wireframe' : 'Dim'"></span>
+                        <i class="bi" :class="theme === 'light' ? 'bi-moon-stars' : 'bi-sun'"></i>
+                        <span class="theme-toggle-label" x-text="theme === 'light' ? 'Light' : 'Dim'"></span>
                     </button>
                 </div>
             </div>
