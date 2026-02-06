@@ -109,15 +109,22 @@
 .fluent-shadow-8 { box-shadow: var(--fluent-shadow-8); }
 .fluent-shadow-16 { box-shadow: var(--fluent-shadow-16); }
 
-/* 卡片標準樣式（12px 圓角 + shadow-4） */
+/* 卡片標準樣式（12px 圓角 + 頂部高光線 + shadow-4） */
 .fluent-card {
   border-radius: var(--fluent-radius-xl);
-  box-shadow: var(--fluent-shadow-4);
-  transition: box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+    var(--fluent-shadow-4);
+  transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard),
+              box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .fluent-card:hover {
-  box-shadow: var(--fluent-shadow-8);
+  transform: translateY(-4px) scale(1.01);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 12%, transparent),
+    var(--fluent-shadow-8),
+    0 0 20px var(--glow-primary);
 }
 
 /* 動畫 Transition Utility */

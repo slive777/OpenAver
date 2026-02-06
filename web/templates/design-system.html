@@ -15,6 +15,7 @@
         <a href="#fluent">Fluent Tokens</a>
         <a href="#buttons">Buttons</a>
         <a href="#forms">Form Controls</a>
+        <a href="#state-matrix">State Matrix</a>
         <a href="#cards">Cards</a>
         <a href="#av-cards">AV Card Variants</a>
         <a href="#file-components">File Components</a>
@@ -29,8 +30,23 @@
     <div class="ds-content">
         <!-- 頁面標題 -->
         <header class="ds-header">
-            <h1>OpenAver Design System</h1>
-            <p class="ds-subtitle">DaisyUI + Fluent Design 2 元件庫</p>
+            <div class="ds-header-content">
+                <div class="ds-header-text">
+                    <h1>OpenAver Design System</h1>
+                    <p class="ds-subtitle">DaisyUI + Fluent Design 2 元件庫</p>
+                </div>
+
+                <!-- Theme Toggle Button -->
+                <div class="ds-theme-toggle">
+                    <button class="theme-toggle-btn"
+                            @click="theme = (theme === 'wireframe' ? 'dim' : 'wireframe')"
+                            :title="theme === 'wireframe' ? '切換至深色模式' : '切換至淺色模式'"
+                            type="button">
+                        <i class="bi" :class="theme === 'wireframe' ? 'bi-moon-stars' : 'bi-sun'"></i>
+                        <span class="theme-toggle-label" x-text="theme === 'wireframe' ? 'Wireframe' : 'Dim'"></span>
+                    </button>
+                </div>
+            </div>
         </header>
 
         <!-- 區塊 1: Colors & Typography (glass 樣式) -->
@@ -40,43 +56,67 @@
             <!-- 主題色盤（儀表板化） -->
             <div class="ds-subsection">
                 <h3>Theme Colors</h3>
+
+                <!-- 第 1 組：DaisyUI 基礎色（Base Palette） -->
+                <h4 style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin: 1rem 0 0.75rem 0; letter-spacing: 0.05em;">DaisyUI Base Palette</h4>
                 <div class="ds-color-grid">
-                    <div class="ds-color-swatch" style="background: var(--bg-body);">
+                    <div class="ds-color-swatch" style="background: var(--color-base-100);">
                         <div class="ds-color-info">
-                            <span class="ds-color-name">--bg-body</span>
-                            <code class="ds-color-hex" data-var="--bg-body"></code>
-                            <span class="ds-color-usage">Page background</span>
+                            <span class="ds-color-name">--color-base-100</span>
+                            <code class="ds-color-hex" data-var="--color-base-100"></code>
+                            <span class="ds-color-usage">Lightest background</span>
                         </div>
                     </div>
-                    <div class="ds-color-swatch" style="background: var(--bg-card);">
+                    <div class="ds-color-swatch" style="background: var(--color-base-200);">
                         <div class="ds-color-info">
-                            <span class="ds-color-name">--bg-card</span>
-                            <code class="ds-color-hex" data-var="--bg-card"></code>
-                            <span class="ds-color-usage">Card surfaces</span>
+                            <span class="ds-color-name">--color-base-200</span>
+                            <code class="ds-color-hex" data-var="--color-base-200"></code>
+                            <span class="ds-color-usage">Card background</span>
                         </div>
                     </div>
-                    <div class="ds-color-swatch" style="background: var(--bg-card);">
-                        <div class="ds-color-info" style="color: var(--text-secondary);">
-                            <span class="ds-color-name">--bg-card</span>
-                            <code class="ds-color-hex" data-var="--bg-card"></code>
-                            <span class="ds-color-usage">Card surfaces (previously sidebar)</span>
+                    <div class="ds-color-swatch" style="background: var(--color-base-300);">
+                        <div class="ds-color-info">
+                            <span class="ds-color-name">--color-base-300</span>
+                            <code class="ds-color-hex" data-var="--color-base-300"></code>
+                            <span class="ds-color-usage">Dropdown/Modal</span>
                         </div>
                     </div>
-                    <div class="ds-color-swatch" style="background: var(--accent);">
+                    <div class="ds-color-swatch" style="background: var(--color-primary);">
                         <div class="ds-color-info">
-                            <span class="ds-color-name">--accent</span>
-                            <code class="ds-color-hex" data-var="--accent"></code>
-                            <span class="ds-color-usage">Primary actions, links</span>
-                        </div>
-                    </div>
-                    <div class="ds-color-swatch" style="background: var(--accent-red);">
-                        <div class="ds-color-info">
-                            <span class="ds-color-name">--accent-red</span>
-                            <code class="ds-color-hex" data-var="--accent-red"></code>
-                            <span class="ds-color-usage">Destructive actions</span>
+                            <span class="ds-color-name">--color-primary</span>
+                            <code class="ds-color-hex" data-var="--color-primary"></code>
+                            <span class="ds-color-usage">Primary actions</span>
                         </div>
                     </div>
                 </div>
+
+                <!-- 第 2 組：Surface Hierarchy（C.2 新增變數） -->
+                <h4 style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin: 1.5rem 0 0.75rem 0; letter-spacing: 0.05em;">Surface Hierarchy (NEW in C.2)</h4>
+                <div class="ds-color-grid">
+                    <div class="ds-color-swatch" style="background: var(--surface-0);">
+                        <div class="ds-color-info">
+                            <span class="ds-color-name">--surface-0</span>
+                            <code class="ds-color-hex" data-var="--surface-0"></code>
+                            <span class="ds-color-usage">Body background</span>
+                        </div>
+                    </div>
+                    <div class="ds-color-swatch" style="background: var(--surface-1);">
+                        <div class="ds-color-info">
+                            <span class="ds-color-name">--surface-1</span>
+                            <code class="ds-color-hex" data-var="--surface-1"></code>
+                            <span class="ds-color-usage">Card, Sidebar</span>
+                        </div>
+                    </div>
+                    <div class="ds-color-swatch" style="background: var(--surface-2);">
+                        <div class="ds-color-info">
+                            <span class="ds-color-name">--surface-2</span>
+                            <code class="ds-color-hex" data-var="--surface-2"></code>
+                            <span class="ds-color-usage">Dropdown, Modal</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stroke & Glow 區塊已移除：置中問題待解決 -->
             </div>
 
             <!-- 文字色 -->
@@ -136,6 +176,138 @@
                     <div class="ds-shadow-item fluent-shadow-16">shadow-16</div>
                 </div>
                 <p class="ds-note">Light/Dark 模式下陰影深度自動調整</p>
+            </div>
+
+            <!-- 完整 Elevation Scale 展示 -->
+            <div class="ds-subsection">
+                <h3>Elevation Scale (Complete)</h3>
+                <p class="ds-desc">Fluent Design 2 雙層陰影系統，Light/Dark 模式自動調整深度</p>
+
+                <div class="ds-elevation-grid">
+                    <!-- shadow-2 -->
+                    <div class="ds-elevation-item fluent-shadow-2">
+                        <span class="ds-elevation-label">shadow-2</span>
+                        <span class="ds-elevation-semantic">Small</span>
+                        <span class="ds-elevation-usage">Button hover</span>
+                    </div>
+
+                    <!-- shadow-4 -->
+                    <div class="ds-elevation-item fluent-shadow-4">
+                        <span class="ds-elevation-label">shadow-4</span>
+                        <span class="ds-elevation-semantic">Medium</span>
+                        <span class="ds-elevation-usage">Card default</span>
+                    </div>
+
+                    <!-- shadow-8 -->
+                    <div class="ds-elevation-item fluent-shadow-8">
+                        <span class="ds-elevation-label">shadow-8</span>
+                        <span class="ds-elevation-semantic">Large</span>
+                        <span class="ds-elevation-usage">Card hover, Dropdown</span>
+                    </div>
+
+                    <!-- shadow-16 -->
+                    <div class="ds-elevation-item fluent-shadow-16">
+                        <span class="ds-elevation-label">shadow-16</span>
+                        <span class="ds-elevation-semantic">XLarge</span>
+                        <span class="ds-elevation-usage">Modal, Drawer</span>
+                    </div>
+
+                    <!-- shadow-28 -->
+                    <div class="ds-elevation-item fluent-shadow-28">
+                        <span class="ds-elevation-label">shadow-28</span>
+                        <span class="ds-elevation-semantic">XXLarge</span>
+                        <span class="ds-elevation-usage">Command Bar, FAB</span>
+                    </div>
+
+                    <!-- shadow-64 -->
+                    <div class="ds-elevation-item fluent-shadow-64">
+                        <span class="ds-elevation-label">shadow-64</span>
+                        <span class="ds-elevation-semantic">Ambient</span>
+                        <span class="ds-elevation-usage">Fullscreen Overlay</span>
+                    </div>
+                </div>
+
+                <p class="ds-note">💡 Dark theme 陰影深度加倍（opacity: 0.24/0.28），自動跟隨主題切換</p>
+            </div>
+
+            <!-- Spacing Scale 展示 -->
+            <div class="ds-subsection">
+                <h3>Spacing Scale</h3>
+                <p class="ds-desc">基於 8px 基礎單位的間距系統，適用於 padding/margin/gap</p>
+
+                <div class="ds-spacing-grid">
+                    <!-- 4px -->
+                    <div class="ds-spacing-item">
+                        <div class="ds-spacing-bar" style="width: 4px; background: var(--color-primary);"></div>
+                        <div class="ds-spacing-info">
+                            <span class="ds-spacing-size">4px</span>
+                            <span class="ds-spacing-usage">Hairline gap（微調）</span>
+                        </div>
+                    </div>
+
+                    <!-- 8px -->
+                    <div class="ds-spacing-item">
+                        <div class="ds-spacing-bar" style="width: 8px; background: var(--color-primary);"></div>
+                        <div class="ds-spacing-info">
+                            <span class="ds-spacing-size">8px</span>
+                            <span class="ds-spacing-usage">Element padding（按鈕內距）</span>
+                        </div>
+                    </div>
+
+                    <!-- 12px -->
+                    <div class="ds-spacing-item">
+                        <div class="ds-spacing-bar" style="width: 12px; background: var(--color-primary);"></div>
+                        <div class="ds-spacing-info">
+                            <span class="ds-spacing-size">12px</span>
+                            <span class="ds-spacing-usage">Small gap（表單欄位）</span>
+                        </div>
+                    </div>
+
+                    <!-- 16px -->
+                    <div class="ds-spacing-item">
+                        <div class="ds-spacing-bar" style="width: 16px; background: var(--color-primary);"></div>
+                        <div class="ds-spacing-info">
+                            <span class="ds-spacing-size">16px</span>
+                            <span class="ds-spacing-usage">Standard gap（卡片區塊）</span>
+                        </div>
+                    </div>
+
+                    <!-- 24px -->
+                    <div class="ds-spacing-item">
+                        <div class="ds-spacing-bar" style="width: 24px; background: var(--color-primary);"></div>
+                        <div class="ds-spacing-info">
+                            <span class="ds-spacing-size">24px</span>
+                            <span class="ds-spacing-usage">Section gap（章節間距）</span>
+                        </div>
+                    </div>
+
+                    <!-- 32px -->
+                    <div class="ds-spacing-item">
+                        <div class="ds-spacing-bar" style="width: 32px; background: var(--color-primary);"></div>
+                        <div class="ds-spacing-info">
+                            <span class="ds-spacing-size">32px</span>
+                            <span class="ds-spacing-usage">Card padding（卡片內距）</span>
+                        </div>
+                    </div>
+
+                    <!-- 48px -->
+                    <div class="ds-spacing-item">
+                        <div class="ds-spacing-bar" style="width: 48px; background: var(--color-primary);"></div>
+                        <div class="ds-spacing-info">
+                            <span class="ds-spacing-size">48px</span>
+                            <span class="ds-spacing-usage">Container gap（區塊間距）</span>
+                        </div>
+                    </div>
+
+                    <!-- 64px -->
+                    <div class="ds-spacing-item">
+                        <div class="ds-spacing-bar" style="width: 64px; background: var(--color-primary);"></div>
+                        <div class="ds-spacing-info">
+                            <span class="ds-spacing-size">64px</span>
+                            <span class="ds-spacing-usage">Page margin（頁面邊距）</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- 毛玻璃效果 -->
@@ -264,13 +436,21 @@
             </div>
 
             <div class="ds-subsection">
-                <h3>Spotlight Search</h3>
-                <div class="spotlight-search" style="max-width: 500px;">
-                    <i class="bi bi-search search-icon-left"></i>
-                    <input type="text" placeholder="搜尋番號、女優或拖入檔案...">
-                    <div class="search-actions-right">
-                        <button class="btn-icon"><i class="bi bi-x-lg"></i></button>
-                        <button class="btn-icon active"><i class="bi bi-arrow-right"></i></button>
+                <h3>Spotlight Search (C.6 Acrylic)</h3>
+                <p class="ds-desc" style="margin-bottom: 1rem; color: var(--text-secondary); font-size: 0.9rem;">
+                    膠囊形搜尋框 + Acrylic 毛玻璃效果 + 內層高光線。<br>
+                    <strong>Focus 狀態</strong>：scale(1.02) + 主題色發光
+                </p>
+
+                <!-- 展示背景圖片（為了顯示 backdrop-filter 效果）-->
+                <div style="position: relative; padding: 2rem; border-radius: var(--radius-md); overflow: hidden; background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);">
+                    <div class="spotlight-search" style="max-width: 500px; position: relative; z-index: 2;">
+                        <i class="bi bi-search search-icon-left"></i>
+                        <input type="text" placeholder="搜尋番號、女優或拖入檔案...">
+                        <div class="search-actions-right">
+                            <button class="btn-icon"><i class="bi bi-x-lg"></i></button>
+                            <button class="btn-icon active"><i class="bi bi-arrow-right"></i></button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -285,6 +465,116 @@
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" id="switch1" checked>
                         <label class="form-check-label" for="switch1">Toggle Switch</label>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 區塊 4.5: State Matrix (glass 樣式) -->
+        <section id="state-matrix" class="ds-section glass">
+            <h2>State Matrix</h2>
+            <p class="ds-note">核心元件的視覺狀態展示（非互動，純 CSS 強制顯示）</p>
+
+            <!-- Button States -->
+            <div class="ds-subsection">
+                <h3>Button States</h3>
+                <div class="ds-state-matrix">
+                    <div class="ds-state-item">
+                        <span class="ds-state-label">Default</span>
+                        <button class="btn btn-primary">Primary</button>
+                    </div>
+                    <div class="ds-state-item">
+                        <span class="ds-state-label">Hover</span>
+                        <button class="btn btn-primary state-hover">Primary</button>
+                    </div>
+                    <div class="ds-state-item">
+                        <span class="ds-state-label">Active</span>
+                        <button class="btn btn-primary state-active">Primary</button>
+                    </div>
+                    <div class="ds-state-item">
+                        <span class="ds-state-label">Disabled</span>
+                        <button class="btn btn-primary" disabled>Primary</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input States -->
+            <div class="ds-subsection">
+                <h3>Input States</h3>
+                <div class="ds-state-matrix">
+                    <div class="ds-state-item">
+                        <span class="ds-state-label">Default</span>
+                        <input type="text" class="form-control" placeholder="輸入文字..." style="width: 160px;">
+                    </div>
+                    <div class="ds-state-item">
+                        <span class="ds-state-label">Focus</span>
+                        <input type="text" class="form-control state-focus" value="聚焦狀態" style="width: 160px;">
+                    </div>
+                    <div class="ds-state-item">
+                        <span class="ds-state-label">Error</span>
+                        <input type="text" class="form-control state-error" value="錯誤狀態" style="width: 160px;">
+                    </div>
+                    <div class="ds-state-item">
+                        <span class="ds-state-label">Disabled</span>
+                        <input type="text" class="form-control" value="禁用狀態" disabled style="width: 160px;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card States -->
+            <div class="ds-subsection">
+                <h3>Card States</h3>
+                <div class="ds-state-matrix" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+                    <!-- Default -->
+                    <div class="ds-state-item">
+                        <span class="ds-state-label">Default</span>
+                        <div class="gallery-card" style="width: 100%; max-width: 220px;">
+                            <div class="gallery-card-img">
+                                <div style="width: 100%; aspect-ratio: 3/2; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: var(--radius-sm);"></div>
+                            </div>
+                            <div class="gallery-card-footer">
+                                <div class="gallery-card-title">預設狀態</div>
+                                <div class="gallery-card-meta">
+                                    <span class="gallery-card-num">DEFAULT</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hover -->
+                    <div class="ds-state-item">
+                        <span class="ds-state-label">Hover</span>
+                        <div class="gallery-card state-hover" style="width: 100%; max-width: 220px;">
+                            <div class="gallery-card-img">
+                                <div style="width: 100%; aspect-ratio: 3/2; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: var(--radius-sm); position: relative;">
+                                    <div class="gallery-card-actions">
+                                        <button class="btn-glass">查看</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="gallery-card-footer">
+                                <div class="gallery-card-title">懸停狀態</div>
+                                <div class="gallery-card-meta">
+                                    <span class="gallery-card-num">HOVER</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Selected -->
+                    <div class="ds-state-item">
+                        <span class="ds-state-label">Selected</span>
+                        <div class="gallery-card state-selected" style="width: 100%; max-width: 220px;">
+                            <div class="gallery-card-img">
+                                <div style="width: 100%; aspect-ratio: 3/2; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: var(--radius-sm);"></div>
+                            </div>
+                            <div class="gallery-card-footer">
+                                <div class="gallery-card-title">選中狀態</div>
+                                <div class="gallery-card-meta">
+                                    <span class="gallery-card-num">SELECTED</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -306,10 +596,13 @@
             </div>
 
             <div class="ds-subsection">
-                <h3>Fluent Card</h3>
+                <h3>Fluent Card (C.5 Enhanced)</h3>
                 <div class="fluent-card" style="max-width: 300px; padding: 1rem; background: var(--bg-card);">
                     <h5>Fluent Card</h5>
-                    <p style="color: var(--text-secondary);">12px 圓角 + shadow-4，hover 時 shadow-8</p>
+                    <p style="color: var(--text-secondary); margin-bottom: 0.5rem;">12px 圓角 + 頂部高光線 + shadow-4</p>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">
+                        <strong>Hover:</strong> 高光線加強 + shadow-8 + 主題色發光
+                    </p>
                 </div>
             </div>
 
@@ -751,6 +1044,141 @@
                     <a class="tab">Tab 3</a>
                 </div>
             </div>
+
+            <div class="ds-subsection">
+                <h3>Navigation Rail (Collapsed State)</h3>
+                <p class="ds-desc">Icon-only 導航條，用於收合側邊欄時的精簡模式。展示 Fluent Design 2 規範的 48x48px 正方形項目 + pill 形 active 狀態</p>
+
+                <!-- 展開 vs 收合對比 -->
+                <h4 style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin: 1.5rem 0 0.75rem 0; letter-spacing: 0.05em;">EXPANDED VS COLLAPSED</h4>
+                <div style="display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start; margin-bottom: 2rem;">
+                    <!-- 展開狀態 (Traditional Sidebar) -->
+                    <div>
+                        <span style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">Expanded (200px)</span>
+                        <div class="ds-sidebar-demo">
+                            <nav class="ds-sidebar-mini">
+                                <a class="nav-link active"><i class="bi bi-search"></i> 搜尋</a>
+                                <a class="nav-link"><i class="bi bi-list-ul"></i> 列表生成</a>
+                                <a class="nav-link"><i class="bi bi-collection-play"></i> 瀏覽</a>
+                                <a class="nav-link"><i class="bi bi-gear"></i> 設定</a>
+                            </nav>
+                        </div>
+                    </div>
+
+                    <!-- 收合狀態 (Navigation Rail) -->
+                    <div>
+                        <span style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">Collapsed (60px)</span>
+                        <div class="ds-nav-rail">
+                            <a class="ds-nav-rail-link active" title="搜尋"><i class="bi bi-search"></i></a>
+                            <a class="ds-nav-rail-link" title="列表生成"><i class="bi bi-list-ul"></i></a>
+                            <a class="ds-nav-rail-link" title="瀏覽"><i class="bi bi-collection-play"></i></a>
+                            <a class="ds-nav-rail-link" title="設定"><i class="bi bi-gear"></i></a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 狀態展示 -->
+                <h4 style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin: 1.5rem 0 0.75rem 0; letter-spacing: 0.05em;">STATE MATRIX</h4>
+                <div style="display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start; margin-bottom: 2rem;">
+                    <!-- Default -->
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Default</span>
+                        <div style="background: var(--bg-card); border-radius: var(--fluent-radius-lg); padding: 0.5rem; border: 1px solid var(--border-light);">
+                            <a class="ds-nav-rail-link" title="預設"><i class="bi bi-star"></i></a>
+                        </div>
+                    </div>
+
+                    <!-- Hover -->
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Hover</span>
+                        <div style="background: var(--bg-card); border-radius: var(--fluent-radius-lg); padding: 0.5rem; border: 1px solid var(--border-light);">
+                            <a class="ds-nav-rail-link" title="懸停" style="background: color-mix(in oklch, var(--color-base-content) 8%, transparent); color: var(--color-base-content);"><i class="bi bi-star"></i></a>
+                        </div>
+                    </div>
+
+                    <!-- Active -->
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Active</span>
+                        <div style="background: var(--bg-card); border-radius: var(--fluent-radius-lg); padding: 0.5rem; border: 1px solid var(--border-light);">
+                            <a class="ds-nav-rail-link active" title="啟用"><i class="bi bi-star-fill"></i></a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 技術規格 -->
+                <h4 style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin: 1.5rem 0 0.75rem 0; letter-spacing: 0.05em;">TECHNICAL SPECS</h4>
+                <div style="padding: 1rem; background: var(--bg-body); border-radius: var(--fluent-radius-lg); border: 1px solid var(--border-light);">
+                    <table style="width: 100%; font-size: 0.85rem;">
+                        <tbody>
+                            <tr>
+                                <td style="padding: 0.5rem 0; color: var(--text-primary); font-weight: 600; width: 40%;">容器寬度</td>
+                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>60px</code></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem 0; color: var(--text-primary); font-weight: 600;">項目尺寸</td>
+                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>48px × 48px</code> 正方形</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem 0; color: var(--text-primary); font-weight: 600;">Icon 尺寸</td>
+                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>24px</code></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem 0; color: var(--text-primary); font-weight: 600;">間距</td>
+                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>0.5rem (8px)</code> 垂直間距</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem 0; color: var(--text-primary); font-weight: 600;">Default 圓角</td>
+                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>var(--fluent-radius-md)</code> (4px)</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem 0; color: var(--text-primary); font-weight: 600;">Active 圓角</td>
+                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>var(--radius-pill)</code> (膠囊形)</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem 0; color: var(--text-primary); font-weight: 600;">Active 背景</td>
+                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>oklch(var(--p) / 0.15)</code></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem 0; color: var(--text-primary); font-weight: 600;">Active 邊框</td>
+                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>2px solid oklch(var(--p))</code></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem 0; color: var(--text-primary); font-weight: 600;">Active 發光</td>
+                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>0 0 16px var(--glow-primary)</code></td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem 0; color: var(--text-primary); font-weight: 600;">Hover 背景</td>
+                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>color-mix(in oklch, var(--color-base-content) 8%, transparent)</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <pre class="ds-code"><code>.ds-nav-rail {
+  width: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 6px;
+}
+
+.ds-nav-rail-link {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--fluent-radius-md);
+}
+
+.ds-nav-rail-link.active {
+  background: oklch(var(--p) / 0.15);
+  color: oklch(var(--pc));
+  border: 2px solid oklch(var(--p));
+  border-radius: var(--radius-pill);
+  box-shadow: 0 0 16px var(--glow-primary);
+}</code></pre>
+            </div>
         </section>
 
         <!-- 區塊 10: Rotating Border Effect (accent-bar 樣式) -->
@@ -1009,17 +1437,62 @@ document.addEventListener('DOMContentLoaded', function() {
     updateActiveLink();
 
     // Dynamic Color Hex Values
-    function rgbToHex(rgb) {
-        // Handle rgb(r, g, b), rgb(r g b), rgba(r, g, b, a), rgba(r g b / a)
-        const match = rgb.match(/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/);
-        if (match) {
-            const r = parseInt(match[1]).toString(16).padStart(2, '0');
-            const g = parseInt(match[2]).toString(16).padStart(2, '0');
-            const b = parseInt(match[3]).toString(16).padStart(2, '0');
-            return `#${r}${g}${b}`;
+    function colorToHex(colorValue) {
+        // Create a temporary element to get computed RGB
+        const temp = document.createElement('div');
+        temp.style.color = colorValue;
+        temp.style.visibility = 'hidden';
+        temp.style.position = 'absolute';
+        document.body.appendChild(temp);
+        const computed = getComputedStyle(temp).color;
+        document.body.removeChild(temp);
+
+        // Match both rgb() and rgba() formats
+        // Modern browsers may return "rgba(r, g, b, a)" or "rgb(r g b / a)"
+        const rgbaMatch = computed.match(/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([0-9.]+))?\)/);
+
+        if (rgbaMatch) {
+            const r = parseInt(rgbaMatch[1]);
+            const g = parseInt(rgbaMatch[2]);
+            const b = parseInt(rgbaMatch[3]);
+            const a = rgbaMatch[4] !== undefined ? parseFloat(rgbaMatch[4]) : 1;
+
+            const rHex = r.toString(16).padStart(2, '0');
+            const gHex = g.toString(16).padStart(2, '0');
+            const bHex = b.toString(16).padStart(2, '0');
+
+            // If alpha is not 1, show with alpha indicator
+            if (a < 0.999) {
+                const alphaPercent = Math.round(a * 100);
+                return `#${rHex}${gHex}${bHex} ${alphaPercent}%`;
+            }
+
+            return `#${rHex}${gHex}${bHex}`;
         }
-        // Already hex or other format, return as-is
-        return rgb;
+
+        // Handle color(srgb r g b / a) format (modern browsers)
+        const srgbMatch = computed.match(/color\(srgb\s+([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)(?:\s*\/\s*([0-9.]+))?\)/);
+
+        if (srgbMatch) {
+            const r = Math.round(parseFloat(srgbMatch[1]) * 255);
+            const g = Math.round(parseFloat(srgbMatch[2]) * 255);
+            const b = Math.round(parseFloat(srgbMatch[3]) * 255);
+            const a = srgbMatch[4] !== undefined ? parseFloat(srgbMatch[4]) : 1;
+
+            const rHex = r.toString(16).padStart(2, '0');
+            const gHex = g.toString(16).padStart(2, '0');
+            const bHex = b.toString(16).padStart(2, '0');
+
+            if (a < 0.999) {
+                const alphaPercent = Math.round(a * 100);
+                return `#${rHex}${gHex}${bHex} ${alphaPercent}%`;
+            }
+
+            return `#${rHex}${gHex}${bHex}`;
+        }
+
+        // Fallback: return original value if conversion fails
+        return colorValue;
     }
 
     function updateColorHex() {
@@ -1027,8 +1500,27 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.ds-color-hex[data-var]').forEach(el => {
             const varName = el.dataset.var;
             const value = style.getPropertyValue(varName).trim();
-            // Convert rgb to hex if needed
-            el.textContent = value.startsWith('rgb') ? rgbToHex(value) : value;
+
+            // Handle different color formats
+            if (value.startsWith('rgb')) {
+                // Direct RGB/RGBA
+                const match = value.match(/rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/);
+                if (match) {
+                    const r = parseInt(match[1]).toString(16).padStart(2, '0');
+                    const g = parseInt(match[2]).toString(16).padStart(2, '0');
+                    const b = parseInt(match[3]).toString(16).padStart(2, '0');
+                    el.textContent = `#${r}${g}${b}`;
+                }
+            } else if (value.startsWith('oklch') || value.startsWith('color-mix')) {
+                // OKLCH or color-mix: use temporary element
+                el.textContent = colorToHex(value);
+            } else if (value.startsWith('#')) {
+                // Already HEX
+                el.textContent = value;
+            } else {
+                // Unknown format: display as-is
+                el.textContent = value;
+            }
         });
     }
 

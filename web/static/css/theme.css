@@ -27,6 +27,20 @@
     --border-light: color-mix(in oklch, var(--color-base-content) 15%, transparent);
     --border-card: color-mix(in oklch, var(--color-base-content) 20%, transparent);
 
+    /* ===== NEW: Surface Hierarchy（Fluent Design 2 語義化變數）===== */
+    /* Surface 層級 - 依視覺深度遞增 */
+    --surface-0: var(--color-base-100);  /* 最底層：body 背景 */
+    --surface-1: var(--color-base-200);  /* 中間層：card, sidebar */
+    --surface-2: var(--color-base-300);  /* 最上層：dropdown, modal */
+
+    /* Stroke 邊框 - 統一邊框透明度 */
+    --stroke-subtle: color-mix(in oklch, var(--color-base-content) 8%, transparent);   /* 極淡邊框（分隔線）*/
+    --stroke-default: color-mix(in oklch, var(--color-base-content) 16%, transparent); /* 預設邊框（卡片邊框）*/
+
+    /* Glow 發光效果 - 用於 hover/focus 狀態 */
+    --glow-primary: color-mix(in oklch, var(--color-primary) 40%, transparent);       /* 主色發光 */
+    --glow-subtle: color-mix(in oklch, var(--color-primary) 20%, transparent);        /* 微妙發光（背景）*/
+
     /* ===== 陰影 - Fluent Design tokens 橋接 ===== */
     --shadow-sm: var(--fluent-shadow-2);
     --shadow-md: var(--fluent-shadow-4);
@@ -159,14 +173,31 @@ body {
     background: var(--bg-card);
     color: var(--text-primary);
     outline: none;
-    box-shadow: var(--shadow-sm);
+
+    /* Acrylic 玻璃效果 */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px); /* Safari 支援 */
+
+    /* 內層高光線 + 外陰影 */
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        var(--shadow-sm);
+
     transition: all var(--duration-normal) var(--ease-out);
 }
 
 .spotlight-search input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 4px color-mix(in oklch, var(--color-primary) 15%, transparent), var(--shadow-md);
-    transform: scale(1.01);
+
+    /* 內層高光線（強化）+ 發光環 + 外陰影 */
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.15),
+        0 0 0 4px color-mix(in oklch, var(--color-primary) 15%, transparent),
+        0 0 20px var(--glow-primary),
+        var(--shadow-md);
+
+    /* 放大倍率提升 */
+    transform: scale(1.02);
 }
 
 .spotlight-search .search-actions-right {
@@ -192,18 +223,22 @@ body {
     background: var(--bg-card);
     border-radius: var(--card-radius);
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--shadow-sm);
     border: 1px solid var(--border-card);
-    transition: transform var(--duration-normal) var(--ease-out),
-        box-shadow var(--duration-normal) var(--ease-out);
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard),
+        box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
     position: relative;
     display: flex;
     flex-direction: column;
 }
 
 .gallery-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-4px) scale(1.01);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 12%, transparent),
+        var(--shadow-card-hover);
     z-index: 10;
 }
 
