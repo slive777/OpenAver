@@ -2776,7 +2776,7 @@ body {
   overflow: hidden;
   background: var(--bg-body);
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
 .gallery-card-img img {
   width: 100%;

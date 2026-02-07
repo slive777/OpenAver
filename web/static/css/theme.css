@@ -256,7 +256,7 @@ body {
     overflow: hidden;
     background: var(--bg-body);
     cursor: pointer;
-    border-radius: var(--radius-sm); /* 8px，比卡片 12px 略小 */
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0; /* 頂部 8px，底部直角（接觸 footer）*/
 }
 
 .gallery-card-img img {
