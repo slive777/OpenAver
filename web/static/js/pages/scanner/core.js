@@ -246,12 +246,27 @@ async function generate() {
     }
 }
 
-// Toast 提示
+// Toast 提示 — fluent-toast design-system component
 function showToast(msg) {
     const toast = document.getElementById('toastMsg');
-    toast.textContent = msg;
-    toast.classList.add('show');
-    setTimeout(() => toast.classList.remove('show'), 2500);
+    const text  = document.getElementById('toastText');
+    text.textContent = msg;
+
+    // Reset any pending hide
+    toast.classList.remove('toast-hiding');
+
+    // Show
+    toast.classList.add('toast-active');
+
+    // Auto-dismiss after 2500 ms
+    clearTimeout(showToast._timer);
+    showToast._timer = setTimeout(() => {
+        toast.classList.add('toast-hiding');
+        toast.addEventListener('transitionend', function onEnd() {
+            toast.removeEventListener('transitionend', onEnd);
+            toast.classList.remove('toast-active', 'toast-hiding');
+        }, { once: true });
+    }, 2500);
 }
 
 // 複製輸出路徑到剪貼簿

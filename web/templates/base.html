@@ -46,15 +46,15 @@
             left: 0;
             width: var(--sidebar-width);
             height: 100vh;
-            background-color: oklch(var(--b2));
+            background-color: var(--surface-1);
             z-index: 1000;
-            transition: width 0.2s ease, background-color 0.3s ease;
+            transition: width var(--fluent-duration-normal) var(--fluent-ease-standard), background-color 0.3s ease;
             display: flex;
             flex-direction: column;
         }
 
         [data-theme="dim"] .sidebar {
-            background-color: oklch(var(--b3));
+            background-color: var(--surface-2);
         }
 
         .sidebar.collapsed {
@@ -66,31 +66,31 @@
             display: flex;
             align-items: center;
             padding: 0.75rem;
-            border-bottom: 1px solid oklch(var(--bc) / 0.1);
+            border-bottom: 1px solid var(--stroke-subtle);
         }
 
         /* 使用 Fluent Design 毛玻璃效果的 Sidebar Header（可選） */
         .sidebar-header.fluent-acrylic {
-            border-bottom: 1px solid oklch(var(--bc) / 0.15);
+            border-bottom: 1px solid var(--stroke-default);
         }
 
         .sidebar-toggle {
             background: none;
             border: none;
-            color: oklch(var(--bc) / 0.7);
+            color: var(--text-secondary);
             font-size: 1.25rem;
             padding: 0.25rem 0.5rem;
             cursor: pointer;
             flex-shrink: 0;
-            transition: color 0.2s ease;
+            transition: color var(--fluent-duration-normal) var(--fluent-ease-standard);
         }
 
         .sidebar-toggle:hover {
-            color: oklch(var(--bc));
+            color: var(--text-primary);
         }
 
         .sidebar-brand {
-            color: oklch(var(--bc));
+            color: var(--text-primary);
             font-size: 1.1rem;
             font-weight: 600;
             margin-left: 0.5rem;
@@ -106,24 +106,24 @@
 
         /* 導航連結 */
         .sidebar .nav-link {
-            color: oklch(var(--bc) / 0.7);
+            color: var(--text-secondary);
             padding: 0.75rem;
-            border-radius: 0.25rem;
+            border-radius: var(--fluent-radius-md);
             margin: 0.25rem 0.5rem;
             display: flex;
             align-items: center;
             white-space: nowrap;
-            transition: color 0.2s ease, background-color 0.2s ease;
+            transition: color var(--fluent-duration-normal) var(--fluent-ease-standard), background-color var(--fluent-duration-normal) var(--fluent-ease-standard);
         }
 
         .sidebar .nav-link:hover {
-            color: oklch(var(--bc));
-            background-color: oklch(var(--b1) / 0.5);
+            color: var(--text-primary);
+            background-color: var(--bg-overlay);
         }
 
         .sidebar .nav-link.active {
-            color: oklch(var(--pc));
-            background-color: oklch(var(--p));
+            color: var(--color-primary-content);
+            background-color: var(--accent);
         }
 
         .sidebar .nav-link i {
@@ -153,7 +153,7 @@
             margin-left: var(--sidebar-width);
             padding: 1.5rem;
             min-height: 100vh;
-            background-color: oklch(var(--b1));
+            background-color: var(--surface-0);
             transition: margin-left 0.2s ease, background-color 0.3s ease;
         }
 
@@ -208,30 +208,30 @@
 
         /* Offcanvas 選單連結 */
         .offcanvas {
-            background-color: oklch(var(--b2)) !important;
+            background-color: var(--surface-1) !important;
             transition: background-color 0.3s ease;
         }
 
         [data-theme="dim"] .offcanvas {
-            background-color: oklch(var(--b3)) !important;
+            background-color: var(--surface-2) !important;
         }
 
         .offcanvas-nav .nav-link {
-            color: oklch(var(--bc) / 0.7);
+            color: var(--text-secondary);
             padding: 0.75rem 1rem;
-            border-radius: 0.25rem;
+            border-radius: var(--fluent-radius-md);
             margin: 0.25rem 0.5rem;
-            transition: color 0.2s ease, background-color 0.2s ease;
+            transition: color var(--fluent-duration-normal) var(--fluent-ease-standard), background-color var(--fluent-duration-normal) var(--fluent-ease-standard);
         }
 
         .offcanvas-nav .nav-link:hover {
-            color: oklch(var(--bc));
-            background-color: oklch(var(--b1) / 0.5);
+            color: var(--text-primary);
+            background-color: var(--bg-overlay);
         }
 
         .offcanvas-nav .nav-link.active {
-            color: oklch(var(--pc));
-            background-color: oklch(var(--p));
+            color: var(--color-primary-content);
+            background-color: var(--accent);
         }
 
         .offcanvas-nav .nav-link i {
@@ -246,7 +246,7 @@
 <body x-data="{
     sidebarCollapsed: $persist({{ config.general.sidebar_collapsed|default(false)|tojson }}).as('sidebar_collapsed'),
     mobileMenuOpen: false
-}" :class="{ 'sidebar-collapsed': sidebarCollapsed }" class="{% if page == 'design-system' %}ds-page{% endif %}">
+}" :class="{ 'sidebar-collapsed': sidebarCollapsed }" class="{% if page in ['design-system', 'showcase'] %}ds-page{% endif %}">
     <!-- 頂部導航列（僅小螢幕顯示）-->
     <nav class="navbar bg-base-200 lg:hidden fixed top-0 left-0 right-0 z-50 h-14 top-navbar fluent-acrylic border-b border-base-300" x-show="!mobileMenuOpen">
         <div class="navbar-start">

@@ -15,7 +15,7 @@
     </div>
 </div>
 
-<div class="avlist-container">
+<div class="avlist-container ds-gallery-composition">
     <!-- Header -->
     <div class="avlist-header">
         <h4><i class="bi bi-list-ul"></i> 列表生成</h4>
@@ -120,7 +120,7 @@
             </button>
         </div>
 
-        <div class="actress-alias-body" id="aliasCardBody">
+        <div class="actress-alias-body" id="aliasCardBody" style="display: none;">
             <!-- Add New Alias Form -->
             <div class="alias-form">
                 <div class="alias-form-row">
@@ -154,7 +154,12 @@
 </div>
 
 <!-- Toast -->
-<div id="toastMsg" class="toast-msg"></div>
+<div id="toastMsg" class="toast toast-bottom toast-center fluent-toast-container">
+    <div class="alert fluent-toast alert-info" role="alert">
+        <i class="bi bi-info-circle"></i>
+        <span id="toastText"></span>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
