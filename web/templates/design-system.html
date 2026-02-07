@@ -26,6 +26,7 @@
         <a href="#page-compositions">Page Compositions</a>
         <a href="#modals">Modals</a>
         <a href="#toasts">Toasts</a>
+        <a href="#help-elements">Help Elements</a>
         <a href="#progress">Progress & Feedback</a>
         <a href="#navigation">Navigation</a>
         <a href="#rotating-border">Rotating Border</a>
@@ -1130,6 +1131,105 @@
     &lt;/div&gt;
   &lt;/div&gt;
 &lt;/div&gt;</code></pre>
+            </div>
+        </section>
+
+        <!-- 區塊: Help Elements -->
+        <section id="help-elements" class="ds-section glass">
+            <h2>Help Elements</h2>
+            <p class="ds-note">Help 頁面使用的鍵盤快捷鍵展示元件（DaisyUI kbd + table）</p>
+
+            <!-- Subsection: Keyboard Shortcuts -->
+            <div class="ds-subsection">
+                <h3>Keyboard Shortcuts</h3>
+                <p class="ds-desc">使用說明頁面的鍵盤快捷鍵對照表，展示主應用程式的核心快捷鍵</p>
+
+                <!-- Kbd Demo Container -->
+                <div class="ds-kbd-demo">
+                    <!-- 快捷鍵表格 -->
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th style="width: 40%;">按鍵組合</th>
+                                <th style="width: 60%;">功能</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <kbd class="kbd kbd-sm">Ctrl</kbd> / <kbd class="kbd kbd-sm">Cmd</kbd> + <kbd class="kbd kbd-sm">K</kbd>
+                                </td>
+                                <td>聚焦搜尋框</td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd>
+                                </td>
+                                <td>切換上一個/下一個結果</td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <kbd class="kbd kbd-sm">Esc</kbd>
+                                </td>
+                                <td>清空搜尋框</td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <kbd class="kbd kbd-sm">Enter</kbd>
+                                </td>
+                                <td>執行搜尋</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 技術說明 -->
+                <div class="ds-note" style="margin-top: 1.5rem;">
+                    <strong>技術細節：</strong>
+                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                        <li>使用 DaisyUI <code>&lt;kbd&gt;</code> 元件（<code>.kbd.kbd-sm</code>）</li>
+                        <li>表格使用 DaisyUI <code>&lt;table&gt;</code> + <code>.table-sm</code>（減少內距）</li>
+                        <li>按鍵組合使用 <code>+</code> 符號清晰標示（如 Ctrl + K）</li>
+                        <li>欄位寬度比例：按鍵 40% / 功能 60%</li>
+                        <li>自動跟隨 Light/Dark 主題切換（DaisyUI 內建）</li>
+                    </ul>
+                </div>
+
+                <!-- 單獨 Kbd 展示 -->
+                <div style="margin-top: 2rem;">
+                    <h4 style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem;">Kbd 尺寸變體</h4>
+                    <div class="ds-kbd-sizes">
+                        <div class="ds-kbd-size-item">
+                            <kbd class="kbd kbd-xs">Ctrl</kbd>
+                            <span class="ds-kbd-label">kbd-xs</span>
+                        </div>
+                        <div class="ds-kbd-size-item">
+                            <kbd class="kbd kbd-sm">Ctrl</kbd>
+                            <span class="ds-kbd-label">kbd-sm</span>
+                        </div>
+                        <div class="ds-kbd-size-item">
+                            <kbd class="kbd">Ctrl</kbd>
+                            <span class="ds-kbd-label">kbd (預設)</span>
+                        </div>
+                        <div class="ds-kbd-size-item">
+                            <kbd class="kbd kbd-lg">Ctrl</kbd>
+                            <span class="ds-kbd-label">kbd-lg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 程式碼範例 -->
+                <pre class="ds-code" style="margin-top: 1.5rem;"><code>&lt;!-- 快捷鍵表格 --&gt;
+&lt;table class="table table-sm"&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;
+        &lt;kbd class="kbd kbd-sm"&gt;Ctrl&lt;/kbd&gt; + &lt;kbd class="kbd kbd-sm"&gt;K&lt;/kbd&gt;
+      &lt;/td&gt;
+      &lt;td&gt;聚焦搜尋框&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;</code></pre>
             </div>
         </section>
 

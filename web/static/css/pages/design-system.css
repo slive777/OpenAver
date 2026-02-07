@@ -2213,3 +2213,77 @@
         width: 100%;
     }
 }
+
+/* ==================== D.12: Help Elements Demo Container ==================== */
+
+.ds-kbd-demo {
+    padding: 1.5rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
+}
+
+/* 表格樣式微調（讓欄位對齊更清晰）*/
+.ds-kbd-demo table {
+    width: 100%;
+}
+
+.ds-kbd-demo th {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-bottom: 0.75rem;
+}
+
+.ds-kbd-demo td {
+    padding: 0.75rem 0.5rem;
+    vertical-align: middle;
+}
+
+.ds-kbd-demo tbody tr {
+    border-bottom: 1px solid var(--border-light);
+    transition: background-color var(--fluent-duration-fast);
+}
+
+.ds-kbd-demo tbody tr:last-child {
+    border-bottom: none;
+}
+
+.ds-kbd-demo tbody tr:hover {
+    background-color: color-mix(in oklch, var(--color-base-content) 4%, transparent);
+}
+
+/* Kbd 元件在表格中的間距調整 */
+.ds-kbd-demo kbd {
+    margin: 0 0.25rem;
+}
+
+.ds-kbd-demo kbd:first-child {
+    margin-left: 0;
+}
+
+/* Kbd 尺寸變體展示區 */
+.ds-kbd-sizes {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 1.5rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
+}
+
+.ds-kbd-size-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.ds-kbd-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
