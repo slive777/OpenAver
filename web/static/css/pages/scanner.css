@@ -28,7 +28,7 @@
 /* Gallery Card - Main Container */
 .avlist-card {
     background: var(--bg-card);
-    border-radius: 16px;
+    border-radius: var(--fluent-radius-xl);
     box-shadow: var(--shadow-md);
     overflow: hidden;
     margin-bottom: 1rem;
@@ -40,7 +40,7 @@
     align-items: center;
     padding: 1rem 1.25rem;
     border-bottom: 1px solid var(--border-light);
-    background: rgba(255, 255, 255, 0.02);
+    background: color-mix(in oklch, var(--color-base-content) 2%, transparent);
 }
 
 .avlist-card-header .title {
@@ -76,7 +76,7 @@
     padding: 0.875rem 1.25rem;
     gap: 0.75rem;
     border-bottom: 1px solid var(--border-light);
-    transition: background 0.15s ease;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-decel);
 }
 
 .folder-item:last-child {
@@ -104,10 +104,10 @@
 
 .folder-item .btn-remove {
     opacity: 0;
-    transition: opacity 0.15s ease;
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-decel);
     padding: 0.25rem 0.5rem;
     font-size: 0.75rem;
-    border-radius: 6px;
+    border-radius: var(--fluent-radius-md);
 }
 
 .folder-item:hover .btn-remove {
@@ -152,7 +152,7 @@
 .output-info .path code {
     background: var(--border-light);
     padding: 0.15rem 0.4rem;
-    border-radius: 4px;
+    border-radius: var(--fluent-radius-sm);
     color: var(--text-primary);
 }
 
@@ -178,10 +178,10 @@
     padding: 0.75rem 2rem;
     font-size: 1rem;
     font-weight: 600;
-    border-radius: 50px;
+    border-radius: var(--fluent-radius-circle);
     border: none;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
@@ -189,14 +189,14 @@
 
 .btn-hero-primary {
     background: var(--accent);
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(90, 200, 250, 0.3);
+    color: var(--color-primary-content);
+    box-shadow: 0 4px 12px var(--glow-primary);
 }
 
 .btn-hero-primary:hover {
     background: var(--accent-hover);
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(90, 200, 250, 0.4);
+    box-shadow: 0 6px 16px var(--glow-primary);
 }
 
 .btn-hero-primary:disabled {
@@ -224,11 +224,11 @@
 /* Mini Terminal - Compact Log */
 .mini-terminal {
     background: var(--color-base-200);
-    border-radius: 12px;
+    border-radius: var(--fluent-radius-xl);
     margin: 1rem;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
-    transition: background-color 0.3s ease;
+    transition: background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 [data-theme="dim"] .mini-terminal {
@@ -240,13 +240,13 @@
     align-items: center;
     padding: 0.5rem 0.75rem;
     background: color-mix(in oklch, var(--color-base-content) 5%, transparent);
-    transition: background-color 0.3s ease;
+    transition: background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 .mini-terminal-header .title {
     font-size: 0.8rem;
     color: color-mix(in oklch, var(--color-base-content) 70%, transparent);
-    transition: color 0.3s ease;
+    transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 .mini-terminal-body {
@@ -257,7 +257,7 @@
     font-size: 0.75rem;
     line-height: 1.5;
     color: color-mix(in oklch, var(--color-base-content) 80%, transparent);
-    transition: color 0.3s ease;
+    transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 .mini-terminal-body .log-info {
@@ -269,31 +269,30 @@
 }
 
 .mini-terminal-body .log-error {
-    color: oklch(90% 0.2 30);
-    /* 保持紅色，但使用 OKLch */
+    color: var(--color-error);
 }
 
 /* Progress Bar */
 .progress-mini {
     height: 3px;
     background: color-mix(in oklch, var(--color-base-100) 50%, transparent);
-    border-radius: 2px;
+    border-radius: var(--fluent-radius-sm);
     margin: 0.5rem 0.75rem 0.75rem;
     overflow: hidden;
-    transition: background-color 0.3s ease;
+    transition: background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 .progress-mini .bar {
     height: 100%;
     background: var(--color-primary);
-    border-radius: 2px;
-    transition: width 0.3s ease, background-color 0.3s ease;
+    border-radius: var(--fluent-radius-sm);
+    transition: width var(--fluent-duration-slow) var(--fluent-ease-standard), background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 /* Stats Card */
 .stats-card {
     background: var(--bg-card);
-    border-radius: 12px;
+    border-radius: var(--fluent-radius-xl);
     margin-top: 1rem;
     padding: 0.75rem 1rem;
     font-size: 0.8rem;
@@ -353,9 +352,9 @@
     color: #fff;
     background: linear-gradient(135deg, #f59e0b, #d97706);
     border: none;
-    border-radius: 20px;
+    border-radius: var(--fluent-radius-circle);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
     box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
 }
 
@@ -386,11 +385,11 @@
     background: var(--bg-card);
     color: var(--text-primary);
     font-size: 0.875rem;
-    border-radius: 50px;
+    border-radius: var(--fluent-radius-circle);
     box-shadow: var(--shadow-lg);
     opacity: 0;
     visibility: hidden;
-    transition: all 0.3s ease;
+    transition: all var(--fluent-duration-slow) var(--fluent-ease-standard);
     z-index: 2000;
     max-width: 90vw;
     word-break: break-all;
@@ -419,7 +418,7 @@
     justify-content: center;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease, background-color 0.3s ease;
+    transition: opacity var(--fluent-duration-slow) var(--fluent-ease-standard), visibility var(--fluent-duration-slow) var(--fluent-ease-standard), background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
     pointer-events: none;
 }
 
@@ -431,9 +430,9 @@
 
 .drag-overlay-content {
     text-align: center;
-    color: #fff;
+    color: var(--color-base-content);
     transform: scale(0.95);
-    transition: transform 0.3s ease;
+    transition: transform var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 .drag-overlay.show .drag-overlay-content {
@@ -446,7 +445,7 @@
     margin-bottom: 1rem;
     display: block;
     text-shadow: 0 4px 12px color-mix(in oklch, var(--color-base-100) 30%, transparent);
-    transition: color 0.3s ease;
+    transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 .drag-overlay-content p {
@@ -455,13 +454,13 @@
     color: var(--color-base-content);
     margin: 0;
     text-shadow: 0 2px 8px color-mix(in oklch, var(--color-base-100) 30%, transparent);
-    transition: color 0.3s ease;
+    transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 /* === Actress Alias Management === */
 .actress-alias-card {
     background: var(--bg-card);
-    border-radius: 12px;
+    border-radius: var(--fluent-radius-xl);
     margin-top: 1rem;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
@@ -472,7 +471,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 0.75rem 1rem;
-    background: rgba(255, 255, 255, 0.02);
+    background: color-mix(in oklch, var(--color-base-content) 2%, transparent);
     border-bottom: 1px solid var(--border-light);
     cursor: pointer;
 }
@@ -496,7 +495,7 @@
     color: var(--text-secondary);
     padding: 0.25rem;
     cursor: pointer;
-    transition: transform 0.2s ease;
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-decel);
 }
 
 .actress-alias-header .btn-collapse:hover {
@@ -536,11 +535,11 @@
 .alias-input-group input {
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--border-light);
-    border-radius: 8px;
+    border-radius: var(--fluent-radius-lg);
     background: var(--bg-body);
     color: var(--text-primary);
     font-size: 0.875rem;
-    transition: border-color 0.2s ease;
+    transition: border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .alias-input-group input:focus {
@@ -569,11 +568,11 @@
 .btn-alias-add {
     padding: 0.5rem 0.75rem;
     background: var(--accent);
-    color: #fff;
+    color: var(--color-primary-content);
     border: none;
-    border-radius: 8px;
+    border-radius: var(--fluent-radius-lg);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -609,7 +608,7 @@
     max-height: 200px;
     overflow-y: auto;
     border: 1px solid var(--border-light);
-    border-radius: 8px;
+    border-radius: var(--fluent-radius-lg);
     background: var(--bg-body);
 }
 
@@ -623,7 +622,7 @@
 }
 
 .alias-list-error {
-    color: #f14c4c;
+    color: var(--color-error);
 }
 
 .alias-item {
@@ -632,7 +631,7 @@
     padding: 0.6rem 0.75rem;
     gap: 0.5rem;
     border-bottom: 1px solid var(--border-light);
-    transition: background 0.15s ease;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-decel);
 }
 
 .alias-item:last-child {
@@ -640,7 +639,7 @@
 }
 
 .alias-item:hover {
-    background: rgba(255, 255, 255, 0.02);
+    background: color-mix(in oklch, var(--color-base-content) 2%, transparent);
 }
 
 .alias-old {
@@ -672,10 +671,10 @@
     opacity: 0;
     background: transparent;
     border: none;
-    color: #f14c4c;
+    color: var(--color-error);
     padding: 0.25rem;
     cursor: pointer;
-    transition: opacity 0.15s ease;
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-decel);
 }
 
 .alias-item:hover .btn-alias-delete {
@@ -703,9 +702,9 @@
     color: #fff;
     background: linear-gradient(135deg, #ec4899, #d946ef);
     border: none;
-    border-radius: 20px;
+    border-radius: var(--fluent-radius-circle);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
     box-shadow: 0 2px 8px rgba(236, 72, 153, 0.3);
 }
 
