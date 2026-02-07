@@ -23,7 +23,7 @@ def client(temp_db, monkeypatch):
         return temp_db
 
     monkeypatch.setattr("core.database.get_db_path", mock_get_db_path)
-    monkeypatch.setattr("web.routers.gallery.get_db_path", mock_get_db_path)
+    monkeypatch.setattr("web.routers.scanner.get_db_path", mock_get_db_path)
 
     from web.app import app
     return TestClient(app)
@@ -203,7 +203,7 @@ class TestActressAliasAPI:
         """測試取得所有別名"""
         def mock_get_db_path():
             return temp_db
-        monkeypatch.setattr("web.routers.gallery.get_db_path", mock_get_db_path)
+        monkeypatch.setattr("web.routers.scanner.get_db_path", mock_get_db_path)
 
         response = client.get("/api/gallery/actress-aliases")
         assert response.status_code == 200
@@ -217,7 +217,7 @@ class TestActressAliasAPI:
         """測試新增別名"""
         def mock_get_db_path():
             return temp_db
-        monkeypatch.setattr("web.routers.gallery.get_db_path", mock_get_db_path)
+        monkeypatch.setattr("web.routers.scanner.get_db_path", mock_get_db_path)
 
         response = client.post(
             "/api/gallery/actress-aliases",
@@ -233,7 +233,7 @@ class TestActressAliasAPI:
         """測試新增空名稱"""
         def mock_get_db_path():
             return temp_db
-        monkeypatch.setattr("web.routers.gallery.get_db_path", mock_get_db_path)
+        monkeypatch.setattr("web.routers.scanner.get_db_path", mock_get_db_path)
 
         response = client.post(
             "/api/gallery/actress-aliases",
@@ -249,7 +249,7 @@ class TestActressAliasAPI:
         """測試新增相同名稱"""
         def mock_get_db_path():
             return temp_db
-        monkeypatch.setattr("web.routers.gallery.get_db_path", mock_get_db_path)
+        monkeypatch.setattr("web.routers.scanner.get_db_path", mock_get_db_path)
 
         response = client.post(
             "/api/gallery/actress-aliases",
@@ -265,7 +265,7 @@ class TestActressAliasAPI:
         """測試新增重複的舊名稱"""
         def mock_get_db_path():
             return temp_db
-        monkeypatch.setattr("web.routers.gallery.get_db_path", mock_get_db_path)
+        monkeypatch.setattr("web.routers.scanner.get_db_path", mock_get_db_path)
 
         # 第一次新增
         client.post(
@@ -288,7 +288,7 @@ class TestActressAliasAPI:
         """測試刪除別名"""
         def mock_get_db_path():
             return temp_db
-        monkeypatch.setattr("web.routers.gallery.get_db_path", mock_get_db_path)
+        monkeypatch.setattr("web.routers.scanner.get_db_path", mock_get_db_path)
 
         # 先新增
         response = client.post(
@@ -308,7 +308,7 @@ class TestActressAliasAPI:
         """測試刪除不存在的別名"""
         def mock_get_db_path():
             return temp_db
-        monkeypatch.setattr("web.routers.gallery.get_db_path", mock_get_db_path)
+        monkeypatch.setattr("web.routers.scanner.get_db_path", mock_get_db_path)
 
         response = client.delete("/api/gallery/actress-aliases/99999")
         assert response.status_code == 200
@@ -321,7 +321,7 @@ class TestActressAliasAPI:
         """測試查詢女優片數"""
         def mock_get_db_path():
             return populated_db
-        monkeypatch.setattr("web.routers.gallery.get_db_path", mock_get_db_path)
+        monkeypatch.setattr("web.routers.scanner.get_db_path", mock_get_db_path)
 
         response = client.get("/api/gallery/actress-stats?name=miru")
         assert response.status_code == 200
@@ -334,7 +334,7 @@ class TestActressAliasAPI:
         """測試查詢不存在的女優片數"""
         def mock_get_db_path():
             return populated_db
-        monkeypatch.setattr("web.routers.gallery.get_db_path", mock_get_db_path)
+        monkeypatch.setattr("web.routers.scanner.get_db_path", mock_get_db_path)
 
         response = client.get("/api/gallery/actress-stats?name=nonexistent")
         assert response.status_code == 200
