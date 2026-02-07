@@ -465,8 +465,8 @@ body {
 }
 
 .tag-badge.subtitle {
-    background: #198754;
-    color: #fff;
+    background: var(--color-success);
+    color: var(--color-success-content);
 }
 
 /* ========== Components: Page States (Empty / Loading / Error) ========== */

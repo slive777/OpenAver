@@ -212,7 +212,7 @@
     <p class="ds-desc">進階設定區域的收合/展開控制，卡片式觸發器 + Alpine.js 互動</p>
 
     <!-- 展開狀態 -->
-    <h4 style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">Expanded State</h4>
+    <h4 class="ds-variant-label" style="margin-top: 1.5rem;">Expanded State</h4>
     <div class="ds-card-demo" style="max-width: 700px; margin: 0 auto; padding: 1.5rem;">
         <div x-data="{ expanded: true }">
             <button class="collapsible-trigger" type="button" @click="expanded = !expanded" :aria-expanded="expanded.toString()">
@@ -252,7 +252,7 @@
     </div>
 
     <!-- 收合狀態 -->
-    <h4 style="margin-top: 2rem; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">Collapsed State</h4>
+    <h4 class="ds-variant-label">Collapsed State</h4>
     <div class="ds-card-demo" style="max-width: 700px; margin: 0 auto; padding: 1.5rem;">
         <div x-data="{ expanded: false }">
             <button class="collapsible-trigger" type="button" @click="expanded = !expanded" :aria-expanded="expanded.toString()">
@@ -290,7 +290,7 @@
     <p class="ds-desc">檔案命名格式的變數插入控制項，展示變數列表 + description + example</p>
 
     <!-- 單一變數插入（檔案命名格式）-->
-    <h4 style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">Single Variable Dropdown (檔案命名格式)</h4>
+    <h4 class="ds-variant-label" style="margin-top: 1.5rem;">Single Variable Dropdown (檔案命名格式)</h4>
     <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
         <div class="settings-form-row">
             <label class="row-label">檔案命名格式</label>
@@ -344,7 +344,7 @@
     </div>
 
     <!-- 多層資料夾連動（外層 / 中層 / 內層）-->
-    <h4 style="margin-top: 2rem; margin-bottom: 1rem; font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">Multi-Layer Folder Structure (3 層連動)</h4>
+    <h4 class="ds-variant-label">Multi-Layer Folder Structure (3 層連動)</h4>
     <div class="ds-card-demo" style="max-width: 700px; margin: 0 auto; padding: 1.5rem;">
         <!-- 第一行：外層 / 中層 -->
         <div class="folder-layers-row">

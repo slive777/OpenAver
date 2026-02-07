@@ -65,7 +65,7 @@
                 <h3>Theme Colors</h3>
 
                 <!-- 第 1 組：DaisyUI 基礎色（Base Palette） -->
-                <h4 style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin: 1rem 0 0.75rem 0; letter-spacing: 0.05em;">DaisyUI Base Palette</h4>
+                <h4 class="ds-group-label" style="margin-top: 1rem;">DaisyUI Base Palette</h4>
                 <div class="ds-color-grid">
                     <div class="ds-color-swatch" style="background: var(--color-base-100);">
                         <div class="ds-color-info">
@@ -98,7 +98,7 @@
                 </div>
 
                 <!-- 第 2 組：Surface Hierarchy（C.2 新增變數） -->
-                <h4 style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin: 1.5rem 0 0.75rem 0; letter-spacing: 0.05em;">Surface Hierarchy (NEW in C.2)</h4>
+                <h4 class="ds-group-label">Surface Hierarchy (NEW in C.2)</h4>
                 <div class="ds-color-grid">
                     <div class="ds-color-swatch" style="background: var(--surface-0);">
                         <div class="ds-color-info">
@@ -1199,7 +1199,7 @@
 
                 <!-- 單獨 Kbd 展示 -->
                 <div style="margin-top: 2rem;">
-                    <h4 style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem;">Kbd 尺寸變體</h4>
+                    <h4 class="ds-variant-label" style="margin-top: 0; color: var(--text-primary);">Kbd 尺寸變體</h4>
                     <div class="ds-kbd-sizes">
                         <div class="ds-kbd-size-item">
                             <kbd class="kbd kbd-xs">Ctrl</kbd>
@@ -1243,7 +1243,7 @@
             <!-- Progress Indicator -->
             <div class="ds-subsection">
                 <h3>Progress Indicator</h3>
-                <p class="ds-desc">Search 頁的搜尋進度顯示，跟隨主題顯示（wireframe: 淺底深字 / dim: 深底淺字）</p>
+                <p class="ds-desc">Search 頁的搜尋進度顯示，跟隨主題顯示（light: 淺底深字 / dim: 深底淺字）</p>
                 <div class="ds-card-demo" style="background: var(--bg-body); padding: 2rem; border-radius: var(--radius-md);">
                     <div class="search-progress" style="max-width: 500px; margin: 0 auto;">
                         <div class="progress-container">
@@ -1402,7 +1402,7 @@
                 <p class="ds-desc">Icon-only 導航條，用於收合側邊欄時的精簡模式。展示 Fluent Design 2 規範的 48x48px 正方形項目 + pill 形 active 狀態</p>
 
                 <!-- 展開 vs 收合對比 -->
-                <h4 style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin: 1.5rem 0 0.75rem 0; letter-spacing: 0.05em;">EXPANDED VS COLLAPSED</h4>
+                <h4 class="ds-group-label">EXPANDED VS COLLAPSED</h4>
                 <div style="display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start; margin-bottom: 2rem;">
                     <!-- 展開狀態 (Traditional Sidebar) -->
                     <div>
@@ -1430,7 +1430,7 @@
                 </div>
 
                 <!-- 狀態展示 -->
-                <h4 style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin: 1.5rem 0 0.75rem 0; letter-spacing: 0.05em;">STATE MATRIX</h4>
+                <h4 class="ds-group-label">STATE MATRIX</h4>
                 <div style="display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start; margin-bottom: 2rem;">
                     <!-- Default -->
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
@@ -1458,7 +1458,7 @@
                 </div>
 
                 <!-- 技術規格 -->
-                <h4 style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin: 1.5rem 0 0.75rem 0; letter-spacing: 0.05em;">TECHNICAL SPECS</h4>
+                <h4 class="ds-group-label">TECHNICAL SPECS</h4>
                 <div style="padding: 1rem; background: var(--bg-body); border-radius: var(--fluent-radius-lg); border: 1px solid var(--border-light);">
                     <table style="width: 100%; font-size: 0.85rem;">
                         <tbody>
@@ -1488,11 +1488,11 @@
                             </tr>
                             <tr>
                                 <td style="padding: 0.5rem 0; color: var(--text-primary); font-weight: 600;">Active 背景</td>
-                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>oklch(var(--p) / 0.15)</code></td>
+                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>color-mix(in oklch, var(--accent) 15%, transparent)</code></td>
                             </tr>
                             <tr>
                                 <td style="padding: 0.5rem 0; color: var(--text-primary); font-weight: 600;">Active 邊框</td>
-                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>2px solid oklch(var(--p))</code></td>
+                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>2px solid var(--accent)</code></td>
                             </tr>
                             <tr>
                                 <td style="padding: 0.5rem 0; color: var(--text-primary); font-weight: 600;">Active 發光</td>
@@ -1524,9 +1524,9 @@
 }
 
 .ds-nav-rail-link.active {
-  background: oklch(var(--p) / 0.15);
-  color: oklch(var(--pc));
-  border: 2px solid oklch(var(--p));
+  background: color-mix(in oklch, var(--accent) 15%, transparent);
+  color: var(--color-primary-content);
+  border: 2px solid var(--accent);
   border-radius: var(--radius-pill);
   box-shadow: 0 0 16px var(--glow-primary);
 }</code></pre>
@@ -1570,7 +1570,7 @@
                 <p class="ds-desc">實際應用場景展示</p>
 
                 <!-- 場景 1: Card -->
-                <h4 style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 1rem; font-weight: 600;">1. Card with Local Match</h4>
+                <h4 class="ds-variant-label" style="margin-top: 1.5rem; font-size: 1rem;">1. Card with Local Match</h4>
                 <div class="ds-card-demo">
                     <div class="rotating-border-spotlight active"
                          style="max-width: 280px; background: var(--bg-card); border-radius: var(--fluent-radius-xl, 12px); overflow: hidden; box-shadow: var(--fluent-shadow-4);">
@@ -1586,7 +1586,7 @@
                 </div>
 
                 <!-- 場景 2: Navigation Link -->
-                <h4 style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 1rem; font-weight: 600;">2. Sidebar Navigation Link</h4>
+                <h4 class="ds-variant-label" style="margin-top: 1.5rem; font-size: 1rem;">2. Sidebar Navigation Link</h4>
                 <div class="ds-card-demo">
                     <div style="background: var(--bg-card); padding: 1rem; border-radius: var(--radius-md); max-width: 200px;">
                         <nav style="display: flex; flex-direction: column; gap: 0.25rem;">
@@ -1607,7 +1607,7 @@
                 </div>
 
                 <!-- 場景 3: Info Section -->
-                <h4 style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 1rem; font-weight: 600;">3. Search Result Info Section</h4>
+                <h4 class="ds-variant-label" style="margin-top: 1.5rem; font-size: 1rem;">3. Search Result Info Section</h4>
                 <div class="ds-card-demo">
                     <div class="rotating-border-spotlight active"
                          style="max-width: 600px; background: var(--bg-card); border-radius: var(--radius-md); padding: 1.5rem; box-shadow: var(--fluent-shadow-4);">

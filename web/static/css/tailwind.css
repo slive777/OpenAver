@@ -2552,6 +2552,7 @@
   --color-accent-content: oklch(98% 0 0);
   --color-neutral: oklch(32% 0.02 250);
   --color-neutral-content: oklch(98% 0 0);
+  --color-base-100: oklch(98.5% 0.005 85);
 }
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap');
@@ -2949,8 +2950,8 @@ body {
   display: inline-block;
 }
 .tag-badge.subtitle {
-  background: #198754;
-  color: #fff;
+  background: var(--color-success);
+  color: var(--color-success-content);
 }
 .ds-page .state-page {
   display: flex;

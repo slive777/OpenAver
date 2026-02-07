@@ -20,6 +20,9 @@
   /* neutral 覆寫（與 primary 一致，保持設計系統統一） */
   --color-neutral: oklch(32% 0.02 250);           /* 與 primary 一致的深冷灰 */
   --color-neutral-content: oklch(98% 0 0);        /* 近白 */
+
+  /* 底色回暖 — 0.2.3 的暖奶白 #f8f7f4 風格 */
+  --color-base-100: oklch(98.5% 0.005 85);
 }
 
 /* 保留現有 CSS 變數系統 */
