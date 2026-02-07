@@ -62,7 +62,7 @@
     border-left: 2px solid transparent;
     padding-left: 0.75rem;
     margin-left: -0.75rem;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: color var(--fluent-duration-fast) var(--fluent-ease-standard), border-left-color var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .ds-toc a:hover,
@@ -180,7 +180,7 @@
     margin-bottom: 2.5rem;
     padding: 2rem;
     border-radius: var(--fluent-radius-xl);
-    transition: all var(--fluent-duration-normal) var(--fluent-ease-standard);
+    transition: box-shadow var(--fluent-duration-normal) var(--fluent-ease-standard);
     position: relative;
     z-index: 1; /* 提升到噪點層之上 */
 }
@@ -210,8 +210,8 @@
 /* Section Hover：發光邊 */
 .ds-section:hover {
     box-shadow:
-        0 0 0 1px rgba(90, 200, 250, 0.2),
-        0 0 30px rgba(90, 200, 250, 0.1),
+        0 0 0 1px var(--glow-subtle),
+        0 0 30px color-mix(in oklch, var(--accent) 10%, transparent),
         var(--fluent-shadow-8);
 }
 
@@ -322,7 +322,7 @@
     place-items: center;
     padding: 1rem;
     box-shadow: var(--fluent-shadow-4);
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
     cursor: pointer;
     position: relative;
     overflow: hidden;
@@ -492,7 +492,7 @@
     color: oklch(100% 0 0);
     font-size: 0.8rem;
     font-weight: 600;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
     cursor: pointer;
 }
 
@@ -527,7 +527,7 @@
     font-size: 0.85rem;
     font-weight: 500;
     color: var(--text-secondary);
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard), color var(--fluent-duration-fast) var(--fluent-ease-standard);
     cursor: pointer;
 }
 
@@ -570,13 +570,15 @@
 .ds-acrylic-overlay span {
     font-weight: 600;
     font-size: 1.1rem;
-    color: var(--text-primary);
+    color: oklch(100% 0 0);
+    text-shadow: 0 1px 3px oklch(0% 0 0 / 0.5);
 }
 
 .ds-acrylic-overlay code {
     font-size: 0.85rem;
-    color: var(--text-secondary);
+    color: oklch(100% 0 0 / 0.8);
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    text-shadow: 0 1px 3px oklch(0% 0 0 / 0.5);
 }
 
 /* ==================== Duration List ==================== */
@@ -594,7 +596,7 @@
     background: var(--bg-body);
     border-radius: var(--fluent-radius-lg);
     border: 1px solid var(--border-light);
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: border-color var(--fluent-duration-fast) var(--fluent-ease-standard), background var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .ds-duration-item:hover {
@@ -705,12 +707,12 @@
     background: var(--bg-card);
     border-radius: var(--fluent-radius-lg);
     cursor: pointer;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), border-color var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard);
     border: 1px solid transparent;
 }
 
 .av-card-thumbnail:hover {
-    background: var(--border-light);
+    background: color-mix(in oklch, var(--color-base-content) 4%, transparent);
     border-color: var(--accent);
     transform: translateX(4px);
 }
@@ -809,7 +811,7 @@
     color: oklch(100% 0 0);
     font-size: 1.25rem;
     cursor: pointer;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), border-color var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -937,12 +939,12 @@
     gap: 0.75rem;
     padding: 0.75rem 1rem;
     border-radius: var(--fluent-radius-lg);
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
     border: 1px solid transparent;
 }
 
 .av-card-compact:hover {
-    background: var(--border-light);
+    background: color-mix(in oklch, var(--color-base-content) 4%, transparent);
     border-color: var(--border-light);
 }
 
@@ -1046,7 +1048,7 @@
     margin-bottom: 0.25rem;
     font-weight: 500;
     font-size: 0.9rem;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), color var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .ds-sidebar-mini .nav-link:hover {
@@ -1144,7 +1146,7 @@
     justify-content: center;
     border-radius: var(--fluent-radius-md);
     color: color-mix(in oklch, var(--color-base-content) 70%, transparent);
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), color var(--fluent-duration-fast) var(--fluent-ease-standard);
     cursor: pointer;
     position: relative;
     box-sizing: border-box;
@@ -1196,7 +1198,7 @@
     height: 32px;
     background: var(--color-primary);
     border-radius: var(--fluent-radius-md);
-    transition: width var(--duration-normal) ease;
+    transition: width var(--duration-normal) var(--fluent-ease-standard);
 }
 
 .ds-spacing-info {
@@ -1232,7 +1234,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    transition: transform var(--duration-fast) ease;
+    transition: transform var(--duration-fast) var(--fluent-ease-standard);
 }
 
 .ds-elevation-item:hover {
@@ -1288,7 +1290,7 @@
 /* 強制 Hover 狀態（按鈕）*/
 .btn.state-hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(90, 200, 250, 0.3);
+    box-shadow: 0 4px 12px var(--glow-primary);
 }
 
 /* 強制 Active 狀態（按鈕）*/
@@ -1347,7 +1349,7 @@
     color: var(--text-secondary);
     font-size: 0.875rem;
     cursor: pointer;
-    transition: color var(--fluent-duration-fast);
+    transition: color var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .collapse-toggle:hover {
@@ -1355,7 +1357,7 @@
 }
 
 .collapse-toggle i {
-    transition: transform var(--duration-fast) ease;
+    transition: transform var(--duration-fast) var(--fluent-ease-standard);
 }
 
 .collapse-toggle[aria-expanded="true"] i,
@@ -1379,7 +1381,7 @@
     padding: 1.5rem 2rem;
     box-shadow: var(--fluent-shadow-4);
     border: 1px solid var(--border-light);
-    transition: background-color var(--duration-normal) ease;
+    transition: background-color var(--duration-normal) var(--fluent-ease-standard);
 }
 
 [data-theme="dim"] .ds-page .progress-container {
@@ -1445,7 +1447,7 @@
     height: 6px;
     background: var(--color-primary);
     border-radius: var(--fluent-radius-sm);
-    transition: width var(--duration-normal) ease;
+    transition: width var(--duration-normal) var(--fluent-ease-standard);
 }
 
 .ds-page .detail-text {
@@ -1495,7 +1497,7 @@
     font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), border-color var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard);
     box-shadow: var(--fluent-shadow-4);
 }
 
@@ -1524,7 +1526,7 @@
 .theme-toggle-btn i {
     font-size: 1.1rem;
     color: var(--accent);
-    transition: transform var(--fluent-duration-fast);
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .theme-toggle-btn:hover i {
@@ -1691,7 +1693,7 @@
     cursor: pointer;
     border-radius: var(--fluent-radius-lg);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    transition: all var(--duration-fast) ease;
+    transition: background var(--duration-fast) var(--fluent-ease-standard), transform var(--duration-fast) var(--fluent-ease-standard);
 }
 
 .ds-search-composition .ds-comp-nav-prev {
@@ -1772,7 +1774,7 @@
 .ds-search-composition .batch-progress-fill {
     height: 100%;
     background: linear-gradient(90deg, var(--accent), color-mix(in oklch, var(--accent) 70%, transparent));
-    transition: width var(--duration-normal) ease;
+    transition: width var(--duration-normal) var(--fluent-ease-standard);
 }
 
 .ds-search-composition .batch-progress-text {
@@ -1797,7 +1799,7 @@
     gap: 8px;
     font-size: 0.8rem;
     border-radius: var(--fluent-radius-md);
-    transition: background var(--duration-fast);
+    transition: background var(--duration-fast) var(--fluent-ease-standard);
     cursor: pointer;
 }
 
@@ -1828,7 +1830,7 @@
     font-size: 0.7rem;
     line-height: 1;
     opacity: 0;
-    transition: opacity var(--duration-fast);
+    transition: opacity var(--duration-fast) var(--fluent-ease-standard);
 }
 
 .ds-search-composition .ds-comp-file-item:hover .ds-comp-file-remove {
@@ -1885,7 +1887,7 @@
     align-items: center;
     justify-content: center;
     padding: 0;
-    transition: all var(--duration-fast);
+    transition: background var(--duration-fast) var(--fluent-ease-standard), transform var(--duration-fast) var(--fluent-ease-standard);
 }
 
 .ds-search-composition .ds-comp-file-action-btn:hover {
@@ -2036,7 +2038,7 @@
    =================================================================== */
 .ds-gallery-composition {
     background: var(--surface-0);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     padding: 2rem;
     border: 1px solid var(--border-light);
     display: flex;
@@ -2130,7 +2132,7 @@
 }
 
 .ds-modal-demo .btn {
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .ds-modal-demo .btn:hover {
@@ -2158,7 +2160,7 @@
 }
 
 .ds-toast-buttons .btn {
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .ds-toast-buttons .btn:hover {
@@ -2208,7 +2210,7 @@
 
 .ds-kbd-demo tbody tr {
     border-bottom: 1px solid var(--border-light);
-    transition: background-color var(--fluent-duration-fast);
+    transition: background-color var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .ds-kbd-demo tbody tr:last-child {

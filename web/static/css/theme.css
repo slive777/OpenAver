@@ -68,11 +68,15 @@
 
 /* 應用背景色過渡 */
 body {
-    transition: background-color var(--duration-normal) ease, color var(--duration-normal) ease;
+    transition: background-color var(--duration-normal) var(--fluent-ease-standard), color var(--duration-normal) var(--fluent-ease-standard);
     font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 /* ========== Utilities ========== */
+/* Glass Hierarchy (Fluent Design 2):
+   - Heavy (16-30px): header, modal, overlay — .glass, .fluent-acrylic
+   - Medium (4-12px): floating UI — .btn-glass, spotlight-search, source-toast
+   - None: content cards — 只用 tint + stroke, 無 blur */
 .glass {
     background: var(--bg-header);
     backdrop-filter: blur(16px);
@@ -98,7 +102,7 @@ body {
     align-items: center;
     justify-content: center;
     color: var(--text-secondary);
-    transition: all var(--duration-fast) ease;
+    transition: background var(--duration-fast) var(--fluent-ease-standard), color var(--duration-fast) var(--fluent-ease-standard), box-shadow var(--duration-fast) var(--fluent-ease-standard);
     box-sizing: border-box;
 }
 
@@ -134,7 +138,7 @@ body {
     font-weight: 500;
     text-decoration: none;
     cursor: pointer;
-    transition: all var(--duration-fast) ease;
+    transition: background var(--duration-fast) var(--fluent-ease-standard), border-color var(--duration-fast) var(--fluent-ease-standard), color var(--duration-fast) var(--fluent-ease-standard);
     backdrop-filter: blur(4px);
 }
 
@@ -187,7 +191,7 @@ body {
         inset 0 1px 0 rgba(255, 255, 255, 0.1),
         var(--shadow-sm);
 
-    transition: all var(--duration-normal) var(--ease-out);
+    transition: border-color var(--duration-normal) var(--ease-out), box-shadow var(--duration-normal) var(--ease-out), transform var(--duration-normal) var(--ease-out);
 }
 
 .spotlight-search input:focus {
@@ -277,7 +281,7 @@ body {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    transition: opacity var(--duration-fast) ease;
+    transition: opacity var(--duration-fast) var(--fluent-ease-standard);
 }
 
 .gallery-card:hover .gallery-card-actions {
@@ -330,7 +334,7 @@ body {
     font-weight: 500;
     color: var(--text-secondary);
     opacity: 0;
-    transition: opacity var(--duration-normal) ease;
+    transition: opacity var(--duration-normal) var(--ease-out);
     vertical-align: middle;
 }
 
@@ -388,7 +392,7 @@ body {
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
-    transition: all var(--duration-fast) var(--ease-out);
+    transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
     flex-shrink: 0;
 }
 
@@ -491,7 +495,7 @@ body {
     margin-bottom: 1rem;
     opacity: 0.6;
     color: var(--text-secondary);
-    transition: all var(--duration-normal) var(--ease-out);
+    transition: opacity var(--duration-normal) var(--ease-out), color var(--duration-normal) var(--ease-out), transform var(--duration-normal) var(--ease-out);
 }
 
 /* Icon Hover 微動畫 - 只選直屬主圖標 */
@@ -531,7 +535,7 @@ body {
     font-size: 0.85rem;
     padding: 0.5rem 1rem;
     border-radius: var(--radius-sm);
-    transition: all var(--duration-fast) var(--ease-out);
+    transition: transform var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
     box-shadow: var(--fluent-shadow-2);
 }
 
@@ -678,7 +682,7 @@ body {
     overflow: hidden;
     margin-bottom: 1rem;
     border: 1px solid var(--border-light);
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 :is(#gallery-components, .ds-gallery-composition) .avlist-card:hover {
@@ -837,37 +841,29 @@ body {
     color: var(--accent);
     text-decoration: none;
     font-size: 0.75rem;
-    transition: opacity var(--fluent-duration-fast);
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 :is(#gallery-components, .ds-gallery-composition) .output-info .settings-link:hover {
     opacity: 0.7;
 }
 
-/* Hero Action Buttons */
-:is(#gallery-components, .ds-gallery-composition) .action-section {
-    padding: 1.25rem;
-    display: flex;
-    justify-content: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-}
-
-:is(#gallery-components, .ds-gallery-composition) .btn-hero {
+/* Hero Action Buttons — base styles (unscoped, works anywhere) */
+.btn-hero {
     padding: 0.75rem 2rem;
     font-size: 1rem;
     font-weight: 600;
     border-radius: var(--radius-pill);
     border: none;
     cursor: pointer;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     box-shadow: var(--fluent-shadow-4);
 }
 
-:is(#gallery-components, .ds-gallery-composition) .btn-hero-primary {
+.btn-hero-primary {
     background: var(--accent);
     color: var(--color-primary-content);
     box-shadow:
@@ -875,7 +871,7 @@ body {
         0 4px 12px var(--glow-primary);
 }
 
-:is(#gallery-components, .ds-gallery-composition) .btn-hero-primary:hover {
+.btn-hero-primary:hover {
     background: var(--accent-hover);
     transform: translateY(-2px);
     box-shadow:
@@ -885,21 +881,30 @@ body {
         var(--fluent-shadow-8);
 }
 
-:is(#gallery-components, .ds-gallery-composition) .btn-hero-primary:disabled {
+.btn-hero-primary:disabled {
     opacity: 0.6;
     cursor: not-allowed;
     transform: none;
 }
 
-:is(#gallery-components, .ds-gallery-composition) .btn-hero-secondary {
+.btn-hero-secondary {
     background: var(--bg-card);
     color: var(--text-primary);
     border: 1px solid var(--border-light);
 }
 
-:is(#gallery-components, .ds-gallery-composition) .btn-hero-secondary:hover {
+.btn-hero-secondary:hover {
     background: var(--border-light);
     transform: translateY(-2px);
+}
+
+/* Hero Action Buttons — gallery-scoped overrides */
+:is(#gallery-components, .ds-gallery-composition) .action-section {
+    padding: 1.25rem;
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
 }
 
 /* Done Actions */
@@ -982,7 +987,7 @@ body {
     border: none;
     border-radius: var(--radius-pill);
     cursor: pointer;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
     box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
 }
 
@@ -1017,7 +1022,7 @@ body {
         inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
         var(--fluent-shadow-4);
     border: 1px solid var(--stroke-default);
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 :is(#gallery-components, .ds-gallery-composition) .actress-alias-card:hover {
@@ -1064,7 +1069,7 @@ body {
     color: var(--text-secondary);
     padding: 0.25rem;
     cursor: pointer;
-    transition: color var(--fluent-duration-fast);
+    transition: color var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 :is(#gallery-components, .ds-gallery-composition) .actress-alias-header .btn-collapse:hover {
@@ -1106,7 +1111,7 @@ body {
 
 :is(#gallery-components, .ds-gallery-composition) .alias-input-group input {
     width: 100%;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: border-color var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 :is(#gallery-components, .ds-gallery-composition) .alias-input-group input:focus {
@@ -1138,7 +1143,7 @@ body {
     border: none;
     border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1258,7 +1263,7 @@ body {
     color: var(--color-error);
     padding: 0.25rem;
     cursor: pointer;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard), color var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard);
     font-size: 0.9rem;
 }
 
@@ -1428,7 +1433,7 @@ body {
     background: transparent;
     color: var(--text-secondary);
     cursor: pointer;
-    transition: color var(--fluent-duration-fast), transform var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: color var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 #settings-components .btn-icon-collapse:hover {
@@ -1472,7 +1477,7 @@ body {
     border: 1px solid var(--accent);
     border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
     white-space: nowrap;
 }
 
@@ -1508,7 +1513,7 @@ body {
     padding: 10px 12px;
     border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: background var(--fluent-duration-fast);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 #settings-components .variable-item:hover {
@@ -1522,7 +1527,7 @@ body {
     color: var(--accent);
     background: color-mix(in oklch, var(--accent) 10%, transparent);
     padding: 2px 6px;
-    border-radius: 3px;
+    border-radius: var(--fluent-radius-sm);
     align-self: flex-start;
 }
 
@@ -1578,7 +1583,7 @@ body {
     border: 1px solid var(--accent);
     border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 #settings-components .btn-variable-sm:hover:not(:disabled) {
@@ -1691,7 +1696,7 @@ body {
     font-size: 0.875rem;
     font-weight: 600;
     padding: 0.625rem 1.5rem;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 #settings-components .save-btn:hover {
