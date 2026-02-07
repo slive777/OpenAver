@@ -12,8 +12,8 @@
 .search-bar {
     flex-shrink: 0;
     padding: 0.5rem 1rem;
-    background: var(--bg-header, #fff);
-    border-bottom: 1px solid var(--border-light, #dee2e6);
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border-light);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     z-index: 100;
@@ -79,7 +79,7 @@
     justify-content: center;
     background: rgba(0, 0, 0, 0.2);
     /* 圖片背景深色 */
-    border-radius: 8px;
+    border-radius: var(--fluent-radius-lg);
     overflow: hidden;
 }
 
@@ -117,10 +117,10 @@
     color: #fff;
     font-size: 1.4rem;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
     z-index: 10;
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    border-radius: var(--fluent-radius-md);
+    box-shadow: var(--fluent-shadow-4);
 }
 
 .nav-btn:hover {
@@ -151,7 +151,7 @@
     background: rgba(0, 0, 0, 0.6);
     color: #fff;
     padding: 2px 10px;
-    border-radius: 12px;
+    border-radius: var(--fluent-radius-xl);
     font-size: 0.8rem;
 }
 
@@ -185,8 +185,8 @@
     gap: 8px;
     cursor: pointer;
     font-size: 0.8rem;
-    border-radius: 4px;
-    transition: background 0.15s;
+    border-radius: var(--fluent-radius-sm);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
     color: var(--text-primary);
     /* Force text color */
 }
@@ -234,7 +234,7 @@
     flex-direction: column;
     overflow-y: auto;
     background: var(--bg-card);
-    border-radius: 12px;
+    border-radius: var(--fluent-radius-xl);
     box-shadow: var(--shadow-lg);
     /* 提升層次感 */
     border: none;
@@ -264,7 +264,7 @@
     font-size: 1.25rem;
     color: var(--text-secondary);
     opacity: 0.6;
-    transition: opacity 0.2s, transform 0.2s;
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-decel);
 }
 
 #switchSourceBtn:hover {
@@ -362,13 +362,13 @@
 
 .progress-container {
     background: var(--color-base-200);
-    border-radius: 12px;
+    border-radius: var(--fluent-radius-xl);
     padding: 1.5rem 2rem;
     min-width: 320px;
     max-width: 420px;
     box-shadow: var(--shadow-md);
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    transition: background-color 0.3s ease;
+    transition: background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 [data-theme="dim"] .progress-container {
@@ -388,7 +388,7 @@
     color: var(--color-secondary);
     font-weight: 600;
     font-size: 1.1rem;
-    transition: color 0.3s ease;
+    transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 /* 單行日誌 */
@@ -402,7 +402,7 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    transition: color 0.3s ease;
+    transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 .progress-log::before {
@@ -411,7 +411,7 @@
     height: 8px;
     border: 2px solid color-mix(in oklch, var(--color-primary) 30%, transparent);
     border-top-color: var(--color-primary);
-    border-radius: 50%;
+    border-radius: var(--fluent-radius-circle);
     animation: spin 0.8s linear infinite;
 }
 
@@ -427,10 +427,10 @@
     position: relative;
     height: 22px;
     background: color-mix(in oklch, var(--color-base-100) 50%, transparent);
-    border-radius: 11px;
+    border-radius: var(--fluent-radius-xl);
     overflow: hidden;
     display: none;
-    transition: background-color 0.3s ease;
+    transition: background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 .detail-progress.show {
@@ -440,8 +440,8 @@
 .detail-bar {
     height: 100%;
     background: var(--color-primary);
-    border-radius: 11px;
-    transition: width 0.3s ease, background-color 0.3s ease;
+    border-radius: var(--fluent-radius-xl);
+    transition: width var(--fluent-duration-slow) var(--fluent-ease-standard), background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
     min-width: 2%;
 }
 
@@ -454,7 +454,7 @@
     font-size: 0.7rem;
     font-weight: 600;
     text-shadow: 0 1px 2px color-mix(in oklch, var(--color-base-100) 30%, transparent);
-    transition: color 0.3s ease;
+    transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 /* === 拖拽覆蓋層 === */
@@ -474,7 +474,7 @@
     justify-content: center;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease, background-color 0.3s ease;
+    transition: opacity var(--fluent-duration-slow) var(--fluent-ease-standard), visibility var(--fluent-duration-slow) var(--fluent-ease-standard), background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
     pointer-events: none;
 }
 
@@ -488,9 +488,9 @@
     background: transparent;
     padding: 2rem;
     text-align: center;
-    color: #fff;
+    color: var(--color-base-content);
     transform: scale(0.95);
-    transition: transform 0.3s ease;
+    transition: transform var(--fluent-duration-slow) var(--fluent-ease-decel);
 }
 
 .drag-overlay.active .drag-overlay-content {
@@ -503,7 +503,7 @@
     margin-bottom: 1rem;
     display: block;
     text-shadow: 0 4px 12px color-mix(in oklch, var(--color-base-100) 20%, transparent);
-    transition: color 0.3s ease;
+    transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 .drag-overlay-content p {
@@ -512,7 +512,7 @@
     color: var(--color-base-content);
     margin: 0;
     text-shadow: 0 2px 8px color-mix(in oklch, var(--color-base-100) 30%, transparent);
-    transition: color 0.3s ease;
+    transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 /* ==================== Gallery View ==================== */
@@ -626,18 +626,18 @@
 .batch-progress-bar {
     height: 6px;
     background: var(--color-base-200);
-    border-radius: 3px;
+    border-radius: var(--fluent-radius-sm);
     overflow: hidden;
     margin-bottom: 4px;
     position: relative;
-    transition: background-color 0.3s ease;
+    transition: background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 .batch-progress-fill {
     height: 100%;
     background: var(--color-primary);
     width: 0%;
-    transition: width 0.3s ease, background-color 0.3s ease;
+    transition: width var(--fluent-duration-slow) var(--fluent-ease-standard), background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 .batch-progress-text {
@@ -645,7 +645,7 @@
     color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
     font-size: 0.75rem;
     text-align: center;
-    transition: color 0.3s ease;
+    transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 /* ==================== 本地標記樣式 ==================== */
@@ -680,7 +680,7 @@
     background: transparent;
     border: 1px dashed var(--text-muted);
     color: var(--text-muted);
-    border-radius: 4px;
+    border-radius: var(--fluent-radius-sm);
     margin-left: 2px;
     vertical-align: middle;
 }
@@ -702,7 +702,7 @@
     padding: 1px 4px;
     font-size: 0.7rem;
     border: 1px solid var(--accent);
-    border-radius: 4px;
+    border-radius: var(--fluent-radius-sm);
     background: var(--bg-card);
     color: var(--text-primary);
 }
