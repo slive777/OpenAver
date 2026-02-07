@@ -1034,7 +1034,7 @@ function copyLocalPath() {
             showToast(msg, 'success');
         }).catch(err => {
             console.error('複製失敗:', err);
-            showToast('複製失敗', 'danger');
+            showToast('複製失敗', 'error');
         });
     } catch (err) {
         console.error('解析路徑失敗:', err);
@@ -1042,44 +1042,45 @@ function copyLocalPath() {
 }
 
 /**
- * 顯示 Toast 提示（無需 Bootstrap JS）
+ * 顯示 Toast 提示（Fluent Design 風格）
+ * @param {string} message - 提示訊息
+ * @param {string} type - 類型：success | error | info | warning
  */
-function showToast(message, type = 'info') {
-    // 檢查是否有現有的 toast 容器
-    let container = document.querySelector('.toast-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-        container.style.zIndex = '9999';
-        document.body.appendChild(container);
-    }
+function showToast(message, type = 'success') {
+    const iconMap = {
+        success: 'bi-check-circle-fill',
+        error: 'bi-exclamation-circle-fill',
+        info: 'bi-info-circle-fill',
+        warning: 'bi-exclamation-triangle-fill'
+    };
 
     const toast = document.createElement('div');
-    toast.className = `toast align-items-center text-bg-${type} border-0 show`;
-    toast.setAttribute('role', 'alert');
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateX(100%)';
-    toast.style.transition = 'all 0.3s ease-in-out';
+    toast.className = `fluent-toast alert alert-${type}`;
     toast.innerHTML = `
-        <div class="flex">
-            <div class="toast-body">${message}</div>
-            <button type="button" class="btn btn-sm btn-circle btn-ghost mr-2 m-auto" onclick="this.parentElement.parentElement.remove()">
-                <i class="bi bi-x"></i>
-            </button>
-        </div>
+        <i class="bi ${iconMap[type] || iconMap.success}"></i>
+        <span>${message}</span>
     `;
-    container.appendChild(toast);
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 1.5rem;
+        right: 1.5rem;
+        z-index: 2000;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all var(--fluent-duration-normal) var(--fluent-ease-decel);
+    `;
+    document.body.appendChild(toast);
 
-    // Fade in animation
+    // Fade in
     requestAnimationFrame(() => {
         toast.style.opacity = '1';
-        toast.style.transform = 'translateX(0)';
+        toast.style.transform = 'translateY(0)';
     });
 
     // Auto remove after 2 seconds
     setTimeout(() => {
         toast.style.opacity = '0';
-        toast.style.transform = 'translateX(100%)';
+        toast.style.transform = 'translateY(20px)';
         setTimeout(() => toast.remove(), 300);
     }, 2000);
 }

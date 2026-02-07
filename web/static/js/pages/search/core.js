@@ -33,9 +33,7 @@ let batchState = {
 
 // 翻譯功能
 let appConfig = null;
-const translationCache = new Map();
 let isTranslating = false;
-let pendingTranslation = null;
 
 // 🆕 追蹤正在批次翻譯的片索引
 const batchTranslatingIndices = new Set();
@@ -715,7 +713,6 @@ window.SearchCore = {
             get appConfig() { return appConfig; },
             get isTranslating() { return isTranslating; },
             set isTranslating(v) { isTranslating = v; },
-            get translationCache() { return translationCache; },
             get currentMode() { return currentMode; },
             set currentMode(v) { currentMode = v; },
             get batchState() { return batchState; },
