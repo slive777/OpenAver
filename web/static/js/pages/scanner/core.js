@@ -102,7 +102,7 @@ async function loadConfig() {
             directories = config.gallery?.directories || [];
             // Update output path display
             const outputDir = config.gallery?.output_dir || 'output';
-            const outputFilename = config.gallery?.output_filename || 'avlist_output.html';
+            const outputFilename = config.gallery?.output_filename || 'gallery_output.html';
             document.getElementById('outputPathDisplay').textContent = `${outputDir}/${outputFilename}`;
             renderDirectories();
         }
@@ -354,7 +354,8 @@ async function runNfoUpdate() {
 
             if (data.type === 'progress') {
                 document.getElementById('progressStatus').textContent = data.status;
-                document.getElementById('progressCount').textContent = `${data.current} / ${data.total}`;
+                const countEl = document.getElementById('progressCount');
+                if (countEl) countEl.textContent = `${data.current} / ${data.total}`;
                 const pct = data.total > 0 ? (data.current / data.total) * 100 : 0;
                 document.getElementById('progressBar').style.width = `${pct}%`;
                 localStorage.setItem(STORAGE_KEYS.lastStatus, data.status);

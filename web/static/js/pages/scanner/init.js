@@ -16,7 +16,7 @@ window.addEventListener('beforeunload', function (e) {
 document.addEventListener('click', function (e) {
     if (isGenerating) {
         const link = e.target.closest('a[href]');
-        if (link && !link.href.includes('/avlist')) {
+        if (link && !link.href.includes('/scanner')) {
             if (!confirm('生成正在進行中，離開將會中斷操作！確定要離開嗎？')) {
                 e.preventDefault();
                 e.stopPropagation();
