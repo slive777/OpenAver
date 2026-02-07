@@ -52,3 +52,18 @@ def test_config_persistence(client, temp_config_path):
         saved_data = json.load(f)
         
     assert saved_data["scraper"]["max_title_length"] == 99
+
+
+# ============ 路由改名向後兼容測試 ============
+
+def test_gallery_legacy_redirect(client):
+    """GET /gallery 應 302 轉址到 /scanner"""
+    response = client.get("/gallery", follow_redirects=False)
+    assert response.status_code == 302
+    assert response.headers["location"] == "/scanner"
+
+
+def test_scanner_route_ok(client):
+    """GET /scanner 應正常回應 200"""
+    response = client.get("/scanner")
+    assert response.status_code == 200

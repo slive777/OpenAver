@@ -113,6 +113,12 @@ async def scanner_page(request: Request):
     return templates.TemplateResponse("scanner.html", context)
 
 
+@app.get("/gallery")
+async def gallery_redirect():
+    """Legacy redirect: /gallery → /scanner"""
+    return RedirectResponse(url="/scanner", status_code=302)
+
+
 @app.get("/showcase")
 async def showcase_page(request: Request):
     """Showcase 頁面"""

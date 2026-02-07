@@ -879,7 +879,10 @@
 
                 // 一般設定
                 if (config.general) {
-                    document.getElementById('defaultPage').value = config.general.default_page || 'search';
+                    let defaultPage = config.general.default_page || 'search';
+                    // 向後兼容：舊配置 "gallery" 映射到新值 "scanner"
+                    if (defaultPage === 'gallery') defaultPage = 'scanner';
+                    document.getElementById('defaultPage').value = defaultPage;
                     document.getElementById('themeMode').value = config.general.theme || 'light';
                     document.getElementById('sidebarCollapsed').checked = config.general.sidebar_collapsed || false;
                     // Alpine.js x-model 會自動同步主題
