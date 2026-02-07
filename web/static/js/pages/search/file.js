@@ -225,11 +225,11 @@ function removeFile(index) {
 function renderFileList() {
     const { state, dom } = window.SearchCore;
 
-    dom.fileListSection.classList.toggle('d-none', state.fileList.length === 0);
+    dom.fileListSection.classList.toggle('hidden', state.fileList.length === 0);
     dom.fileListContainer.innerHTML = '';
     dom.fileCountText.textContent = `檔案 ${state.currentFileIndex + 1}/${state.fileList.length}`;
 
-    dom.btnScrapeAll.classList.remove('d-none');
+    dom.btnScrapeAll.classList.remove('hidden');
 
     state.fileList.forEach((file, index) => {
         const item = document.createElement('div');
@@ -250,15 +250,15 @@ function renderFileList() {
                 canScrape = true;
             } else {
                 statusIcon = '✗';
-                statusClass += ' text-danger';
+                statusClass += ' text-error';
             }
         }
 
         let actionBtn = '';
         if (canScrape) {
-            actionBtn = `<button class="btn btn-outline-success btn-sm btn-scrape-single" data-index="${index}" title="產生此檔案">產生</button>`;
+            actionBtn = `<button class="btn btn-sm btn-outline btn-success btn-scrape-single" data-index="${index}" title="產生此檔案">產生</button>`;
         } else if (needsNumber) {
-            actionBtn = `<button class="btn btn-outline-warning btn-sm btn-enter-number" data-index="${index}" title="手動輸入番號"><i class="bi bi-pencil"></i></button>`;
+            actionBtn = `<button class="btn btn-sm btn-outline btn-warning btn-enter-number" data-index="${index}" title="手動輸入番號"><i class="bi bi-pencil"></i></button>`;
         }
 
         item.innerHTML = `
@@ -312,17 +312,17 @@ function renderSearchResultsList() {
     const { state, dom } = window.SearchCore;
 
     if (state.searchResults.length === 0) {
-        dom.fileListSection.classList.add('d-none');
+        dom.fileListSection.classList.add('hidden');
         return;
     }
 
-    dom.fileListSection.classList.remove('d-none');
+    dom.fileListSection.classList.remove('hidden');
     dom.fileListContainer.innerHTML = '';
 
     const countText = state.hasMoreResults ? `${state.searchResults.length}+` : state.searchResults.length;
     dom.fileCountText.textContent = `搜尋結果 (${countText})`;
 
-    dom.btnScrapeAll.classList.add('d-none');
+    dom.btnScrapeAll.classList.add('hidden');
 
     state.searchResults.forEach((result, index) => {
         const item = document.createElement('div');
@@ -406,7 +406,7 @@ function searchForFile(file, position = 'first', showFullLoading = false) {
             window.SearchUI.showState('loading');
             window.SearchCore.initProgress(file.number);
         } else {
-            targetBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            targetBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
             targetBtn.disabled = true;
         }
 
@@ -523,7 +523,7 @@ async function scrapeSingle(index) {
     const btn = dom.fileListContainer.querySelector(`[data-index="${index}"]`);
     if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        btn.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
     }
 
     try {
@@ -540,8 +540,7 @@ async function scrapeSingle(index) {
             file.scraped = true;
             if (btn) {
                 btn.innerHTML = '<i class="bi bi-check"></i>';
-                btn.classList.remove('btn-outline-success');
-                btn.classList.add('btn-success');
+                btn.classList.remove('btn-outline');
                 btn.disabled = true;
             }
         } else {
@@ -609,11 +608,11 @@ function updateBatchProgress() {
     const batch = state.batchState;
 
     if (!batch.isProcessing) {
-        dom.batchProgress.classList.add('d-none');
+        dom.batchProgress.classList.add('hidden');
         return;
     }
 
-    dom.batchProgress.classList.remove('d-none');
+    dom.batchProgress.classList.remove('hidden');
 
     // 計算本批總數（使用實際批次大小）
     const batchTotal = batch.total || batch.batchSize;
@@ -751,7 +750,7 @@ async function scrapeAll() {
 
     dom.btnScrapeAll.disabled = true;
     const originalHtml = dom.btnScrapeAll.innerHTML;
-    dom.btnScrapeAll.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    dom.btnScrapeAll.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
 
     let successCount = 0;
     let failCount = 0;
@@ -769,7 +768,7 @@ async function scrapeAll() {
 
         const btn = dom.fileListContainer.querySelector(`[data-index="${index}"]`);
         if (btn) {
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            btn.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
             btn.disabled = true;
         }
 
@@ -788,37 +787,34 @@ async function scrapeAll() {
                 successCount++;
                 if (btn) {
                     btn.innerHTML = '<i class="bi bi-check"></i>';
-                    btn.classList.remove('btn-outline-success');
-                    btn.classList.add('btn-success');
+                    btn.classList.remove('btn-outline');
                 }
             } else {
                 failCount++;
                 if (btn) {
                     btn.innerHTML = '失敗';
-                    btn.classList.remove('btn-outline-success');
-                    btn.classList.add('btn-outline-danger');
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-error');
                 }
             }
         } catch (err) {
             failCount++;
             if (btn) {
                 btn.innerHTML = '失敗';
-                btn.classList.remove('btn-outline-success');
-                btn.classList.add('btn-outline-danger');
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-error');
             }
         }
     }
 
     dom.btnScrapeAll.innerHTML = '<i class="bi bi-check-circle"></i>';
-    dom.btnScrapeAll.classList.remove('btn-success');
-    dom.btnScrapeAll.classList.add('btn-outline-success');
+    dom.btnScrapeAll.classList.add('btn-outline');
 
     alert(`批次處理完成!\n成功: ${successCount}\n失敗: ${failCount}`);
 
     setTimeout(() => {
         dom.btnScrapeAll.innerHTML = originalHtml;
-        dom.btnScrapeAll.classList.remove('btn-outline-success');
-        dom.btnScrapeAll.classList.add('btn-success');
+        dom.btnScrapeAll.classList.remove('btn-outline');
         dom.btnScrapeAll.disabled = false;
     }, 2000);
 }

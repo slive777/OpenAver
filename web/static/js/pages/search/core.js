@@ -155,8 +155,8 @@ async function translateWithAI() {
     isTranslating = true;
 
     // 隱藏按鈕，顯示 spinner
-    btn.classList.add('d-none');
-    spinner.classList.remove('d-none');
+    btn.classList.add('hidden');
+    spinner.classList.remove('hidden');
 
     try {
         // === Gemini 模式：只翻譯當前片 ===
@@ -272,7 +272,7 @@ async function translateWithAI() {
         alert('翻譯失敗：' + error.message);
     } finally {
         isTranslating = false;
-        spinner.classList.add('d-none');
+        spinner.classList.add('hidden');
 
         let currentResult = null;
         if (listMode === 'file' && fileList[currentFileIndex]) {
@@ -285,7 +285,7 @@ async function translateWithAI() {
         if (currentResult && currentResult.title &&
             hasJapanese(currentResult.title) &&
             !currentResult.translated_title) {
-            btn.classList.remove('d-none');
+            btn.classList.remove('hidden');
         }
     }
 }
@@ -366,7 +366,7 @@ function clearAll() {
     // 先關閉 Gallery（如果有顯示）- 不自動顯示詳細資料卡
     if (window.SearchUI.hideGallery) {
         const galleryView = dom.galleryView;
-        if (galleryView && !galleryView.classList.contains('d-none')) {
+        if (galleryView && !galleryView.classList.contains('hidden')) {
             window.SearchUI.hideGallery(false);
         }
     }
@@ -387,7 +387,7 @@ function clearAll() {
     if (dom.btnNext) dom.btnNext.innerHTML = '<i class="bi bi-chevron-right"></i>';
 
     window.SearchUI.showState('empty');
-    if (dom.fileListSection) dom.fileListSection.classList.add('d-none');
+    if (dom.fileListSection) dom.fileListSection.classList.add('hidden');
     updateClearButton();
     clearState();
 }
@@ -395,7 +395,7 @@ function clearAll() {
 function updateClearButton() {
     const hasContent = searchResults.length > 0 || fileList.length > 0;
     if (dom.btnClear) {
-        dom.btnClear.classList.toggle('d-none', !hasContent);
+        dom.btnClear.classList.toggle('hidden', !hasContent);
     }
 }
 
@@ -479,7 +479,7 @@ function doSearch(query) {
     // 先關閉現有的 Gallery（如果有顯示）
     if (window.SearchUI.hideGallery) {
         const galleryView = dom.galleryView;
-        if (galleryView && !galleryView.classList.contains('d-none')) {
+        if (galleryView && !galleryView.classList.contains('hidden')) {
             window.SearchUI.hideGallery(false);
         }
     }
@@ -493,7 +493,7 @@ function doSearch(query) {
     fileList = [];
     currentFileIndex = 0;
     listMode = null;
-    if (dom.fileListSection) dom.fileListSection.classList.add('d-none');
+    if (dom.fileListSection) dom.fileListSection.classList.add('hidden');
 
     // 重設分頁狀態
     currentQuery = query;
@@ -569,7 +569,7 @@ async function fallbackSearch(query) {
     // 先關閉現有的 Gallery（如果有顯示）
     if (window.SearchUI.hideGallery) {
         const galleryView = dom.galleryView;
-        if (galleryView && !galleryView.classList.contains('d-none')) {
+        if (galleryView && !galleryView.classList.contains('hidden')) {
             window.SearchUI.hideGallery(false);
         }
     }

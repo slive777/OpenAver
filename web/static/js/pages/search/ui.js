@@ -246,7 +246,7 @@ async function switchSource() {
 
     // 顯示載入中
     const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    btn.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
     btn.disabled = true;
 
     try {
@@ -317,15 +317,15 @@ async function switchSource() {
 function showState(state) {
     const { dom } = window.SearchCore;
 
-    dom.emptyState.classList.add('d-none');
-    dom.loadingState.classList.add('d-none');
-    dom.resultCard.classList.add('d-none');
-    dom.errorState.classList.add('d-none');
+    dom.emptyState.classList.add('hidden');
+    dom.loadingState.classList.add('hidden');
+    dom.resultCard.classList.add('hidden');
+    dom.errorState.classList.add('hidden');
 
-    if (state === 'empty') dom.emptyState.classList.remove('d-none');
-    else if (state === 'loading') dom.loadingState.classList.remove('d-none');
-    else if (state === 'result') dom.resultCard.classList.remove('d-none');
-    else if (state === 'error') dom.errorState.classList.remove('d-none');
+    if (state === 'empty') dom.emptyState.classList.remove('hidden');
+    else if (state === 'loading') dom.loadingState.classList.remove('hidden');
+    else if (state === 'result') dom.resultCard.classList.remove('hidden');
+    else if (state === 'error') dom.errorState.classList.remove('hidden');
 }
 
 // === 結果顯示 ===
@@ -385,16 +385,16 @@ function displayResult(data) {
     if (translatedTitle) {
         chineseTitleLabel.textContent = '中文片名 (AI)';
         chineseTitleEl.textContent = translatedTitle;
-        chineseTitleRow.classList.remove('d-none');
+        chineseTitleRow.classList.remove('hidden');
         updateEditButtonState('editChineseTitleBtn', data._chineseTitleEdited || false);
     } else if (chineseTitle) {
         chineseTitleLabel.textContent = '中文片名';
         chineseTitleEl.textContent = chineseTitle;
-        chineseTitleRow.classList.remove('d-none');
+        chineseTitleRow.classList.remove('hidden');
         updateEditButtonState('editChineseTitleBtn', false);
     } else {
         chineseTitleLabel.textContent = '中文片名';
-        chineseTitleRow.classList.add('d-none');
+        chineseTitleRow.classList.add('hidden');
     }
 
     // 封面
@@ -410,7 +410,7 @@ function displayResult(data) {
     // AI 翻譯按鈕
     const translateBtn = document.getElementById('translateBtn');
     const translateSpinner = document.getElementById('translateSpinner');
-    translateSpinner.classList.add('d-none');
+    translateSpinner.classList.add('hidden');
 
     const appConfig = state.appConfig;
     const shouldShowTranslateBtn = appConfig?.translate?.enabled &&
@@ -425,18 +425,18 @@ function displayResult(data) {
     if (shouldShowTranslateBtn) {
         if (isBatchTranslating) {
             // 🆕 正在批次翻譯中 → 顯示 spinner
-            translateBtn.classList.add('d-none');
-            translateSpinner.classList.remove('d-none');
+            translateBtn.classList.add('hidden');
+            translateSpinner.classList.remove('hidden');
         } else {
             // 未翻譯 → 顯示翻譯按鈕
-            translateBtn.classList.remove('d-none');
+            translateBtn.classList.remove('hidden');
             translateBtn.dataset.title = data.title;
             translateBtn.dataset.actors = JSON.stringify(data.actors || []);
             translateBtn.dataset.number = data.number || '';
             translateBtn.disabled = state.isTranslating;
         }
     } else {
-        translateBtn.classList.add('d-none');
+        translateBtn.classList.add('hidden');
         translateBtn.disabled = false;
     }
 
@@ -489,11 +489,11 @@ function displayCoverError(message) {
     document.getElementById('resultMaker').textContent = '-';
     document.getElementById('resultTags').textContent = '-';
 
-    document.getElementById('chineseTitleRow').classList.add('d-none');
+    document.getElementById('chineseTitleRow').classList.add('hidden');
     document.getElementById('chineseTitleLabel').textContent = '中文片名';
 
-    document.getElementById('translateBtn').classList.add('d-none');
-    document.getElementById('translateSpinner').classList.add('d-none');
+    document.getElementById('translateBtn').classList.add('hidden');
+    document.getElementById('translateSpinner').classList.add('hidden');
 
     updateEditButtonState('editTitleBtn', false);
     updateEditButtonState('editChineseTitleBtn', false);
@@ -524,9 +524,9 @@ function updateNavigation() {
         dom.btnNext.innerHTML = '<i class="bi bi-chevron-right"></i>';
     }
 
-    dom.btnPrev.classList.toggle('d-none', !showNav);
-    dom.btnNext.classList.toggle('d-none', !showNav);
-    dom.navIndicator.classList.toggle('d-none', !showNav);
+    dom.btnPrev.classList.toggle('hidden', !showNav);
+    dom.btnNext.classList.toggle('hidden', !showNav);
+    dom.navIndicator.classList.toggle('hidden', !showNav);
 
     const canGoPrev = state.currentIndex > 0 || state.currentFileIndex > 0;
     const canGoNext = state.currentIndex < state.searchResults.length - 1 ||
@@ -550,12 +550,12 @@ function updateNavigation() {
 
     // 更新 error 狀態的導航按鈕
     if (hasMultipleFiles) {
-        dom.errorNav.classList.remove('d-none');
+        dom.errorNav.classList.remove('hidden');
         dom.errorNavIndicator.textContent = `${state.currentFileIndex + 1}/${state.fileList.length}`;
         dom.errorBtnPrev.disabled = !canGoPrev;
         dom.errorBtnNext.disabled = !canGoNext;
     } else {
-        dom.errorNav.classList.add('d-none');
+        dom.errorNav.classList.add('hidden');
     }
 }
 
@@ -603,7 +603,7 @@ async function loadMoreResults() {
     state.isLoadingMore = true;
     const newOffset = state.currentOffset + state.PAGE_SIZE;
 
-    dom.btnNext.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    dom.btnNext.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
     dom.btnNext.disabled = true;
 
     try {
@@ -666,15 +666,15 @@ function startEditTitle() {
 
     const translateBtn = document.getElementById('translateBtn');
     const translateSpinner = document.getElementById('translateSpinner');
-    translateBtn.classList.add('d-none');
-    translateSpinner.classList.add('d-none');
+    translateBtn.classList.add('hidden');
+    translateSpinner.classList.add('hidden');
 
     container.innerHTML = `
-        <textarea id="editTitleInput" class="form-control form-control-sm" rows="3" style="flex:1; min-width:0; resize:none;">${escapeHtml(currentText)}</textarea>
-        <button class="btn btn-sm btn-link p-0 ms-1 text-success" onclick="confirmEditTitle()" title="確認">
+        <textarea id="editTitleInput" class="textarea textarea-bordered" rows="3" style="flex:1; min-width:0; resize:none;">${escapeHtml(currentText)}</textarea>
+        <button class="btn btn-sm btn-link p-0 ml-1 text-success" onclick="confirmEditTitle()" title="確認">
             <i class="bi bi-check-lg"></i>
         </button>
-        <button class="btn btn-sm btn-link p-0 ms-1 text-danger" onclick="cancelEditTitle()" title="取消">
+        <button class="btn btn-sm btn-link p-0 ml-1 text-error" onclick="cancelEditTitle()" title="取消">
             <i class="bi bi-x-lg"></i>
         </button>
     `;
@@ -727,14 +727,14 @@ function restoreTitleDisplay(text, edited) {
 
     container.innerHTML = `
         <span id="resultTitle" style="flex:1;">${escapeHtml(text)}</span>
-        <button id="editTitleBtn" class="btn btn-sm btn-link p-0 ms-1" onclick="startEditTitle()" title="編輯標題">
+        <button id="editTitleBtn" class="btn btn-sm btn-link p-0 ml-1" onclick="startEditTitle()" title="編輯標題">
             <i class="bi ${edited ? 'bi-pencil-fill text-success' : 'bi-pencil text-muted'}"></i>
         </button>
-        <button id="translateBtn" class="btn btn-sm btn-link p-0 ms-1 ${shouldShowTranslateBtn ? '' : 'd-none'}"
+        <button id="translateBtn" class="btn btn-sm btn-link p-0 ml-1 ${shouldShowTranslateBtn ? '' : 'hidden'}"
                 onclick="translateWithAI()" title="AI 翻譯">
             <i class="bi bi-translate"></i>
         </button>
-        <span id="translateSpinner" class="spinner-border spinner-border-sm ms-1 d-none"></span>
+        <span id="translateSpinner" class="loading loading-spinner loading-sm ml-1 hidden"></span>
     `;
 
     if (shouldShowTranslateBtn) {
@@ -751,11 +751,11 @@ function startEditChineseTitle() {
     const currentText = span.textContent;
 
     container.innerHTML = `
-        <textarea id="editChineseTitleInput" class="form-control form-control-sm text-success" rows="2" style="flex:1; min-width:0; resize:none;">${escapeHtml(currentText)}</textarea>
-        <button class="btn btn-sm btn-link p-0 ms-1 text-success" onclick="confirmEditChineseTitle()" title="確認">
+        <textarea id="editChineseTitleInput" class="textarea textarea-bordered text-success" rows="2" style="flex:1; min-width:0; resize:none;">${escapeHtml(currentText)}</textarea>
+        <button class="btn btn-sm btn-link p-0 ml-1 text-success" onclick="confirmEditChineseTitle()" title="確認">
             <i class="bi bi-check-lg"></i>
         </button>
-        <button class="btn btn-sm btn-link p-0 ms-1 text-danger" onclick="cancelEditChineseTitle()" title="取消">
+        <button class="btn btn-sm btn-link p-0 ml-1 text-error" onclick="cancelEditChineseTitle()" title="取消">
             <i class="bi bi-x-lg"></i>
         </button>
     `;
@@ -799,7 +799,7 @@ function restoreChineseTitleDisplay(text, edited) {
     const container = document.getElementById('chineseTitleContainer');
     container.innerHTML = `
         <span id="resultChineseTitle" class="text-success" style="flex:1;">${escapeHtml(text)}</span>
-        <button id="editChineseTitleBtn" class="btn btn-sm btn-link p-0 ms-1" onclick="startEditChineseTitle()" title="編輯中文片名">
+        <button id="editChineseTitleBtn" class="btn btn-sm btn-link p-0 ml-1" onclick="startEditChineseTitle()" title="編輯中文片名">
             <i class="bi ${edited ? 'bi-pencil-fill text-success' : 'bi-pencil text-muted'}"></i>
         </button>
     `;
@@ -821,14 +821,14 @@ function updateChineseTitleDisplay(text, mode) {
         } else {
             chineseTitleLabel.textContent = '中文片名';
         }
-        chineseTitleRow.classList.remove('d-none');
+        chineseTitleRow.classList.remove('hidden');
     }
 }
 
 function showTranslateError(error) {
     const chineseTitleLabel = document.getElementById('chineseTitleLabel');
     const originalText = chineseTitleLabel.textContent;
-    chineseTitleLabel.innerHTML = `中文片名 <span class="text-danger">(${error})</span>`;
+    chineseTitleLabel.innerHTML = `中文片名 <span class="text-error">(${error})</span>`;
     setTimeout(() => {
         if (chineseTitleLabel.innerHTML.includes(error)) {
             chineseTitleLabel.textContent = originalText;
@@ -852,19 +852,19 @@ function updateTranslatedTitle(translatedTitle) {
     if (chineseTitleEl && translatedTitle) {
         chineseTitleEl.textContent = translatedTitle;
         chineseTitleLabel.textContent = '中文片名 (AI)';
-        chineseTitleRow.classList.remove('d-none');
+        chineseTitleRow.classList.remove('hidden');
     }
 
     // 隱藏翻譯按鈕（已有翻譯）
     const translateBtn = document.getElementById('translateBtn');
     if (translateBtn) {
-        translateBtn.classList.add('d-none');
+        translateBtn.classList.add('hidden');
     }
 
     // 隱藏載入中指示器
     const translateSpinner = document.getElementById('translateSpinner');
     if (translateSpinner) {
-        translateSpinner.classList.add('d-none');
+        translateSpinner.classList.add('hidden');
     }
 }
 
@@ -876,8 +876,8 @@ function showBatchTranslatingState() {
     const translateSpinner = document.getElementById('translateSpinner');
 
     if (translateBtn && translateSpinner) {
-        translateBtn.classList.add('d-none');
-        translateSpinner.classList.remove('d-none');
+        translateBtn.classList.add('hidden');
+        translateSpinner.classList.remove('hidden');
     }
 }
 
@@ -894,11 +894,11 @@ function showGallery(url) {
     galleryFrame.src = url;
 
     // 顯示 Gallery 容器
-    galleryView.classList.remove('d-none');
+    galleryView.classList.remove('hidden');
 
     // 顯示返回按鈕（在搜尋框中）
     if (btnBackToDetail) {
-        btnBackToDetail.classList.remove('d-none');
+        btnBackToDetail.classList.remove('hidden');
     }
 
     // 監聽 iframe 的 postMessage
@@ -914,11 +914,11 @@ function hideGallery(showDetail = true) {
     const { galleryView, galleryFrame, btnBackToDetail } = window.SearchCore.dom;
 
     // 隱藏 Gallery 容器
-    galleryView.classList.add('d-none');
+    galleryView.classList.add('hidden');
 
     // 隱藏返回按鈕（在搜尋框中）
     if (btnBackToDetail) {
-        btnBackToDetail.classList.add('d-none');
+        btnBackToDetail.classList.add('hidden');
     }
 
     // 清空 iframe src（釋放資源）
@@ -993,7 +993,7 @@ function showLocalBadge(localStatus) {
     if (!badge) return;
 
     if (localStatus && localStatus.exists) {
-        badge.classList.remove('d-none');
+        badge.classList.remove('hidden');
 
         // 儲存路徑供點擊複製用
         badge.dataset.paths = JSON.stringify(localStatus.paths || []);
@@ -1010,7 +1010,7 @@ function showLocalBadge(localStatus) {
             badge.dataset.clickBound = 'true';
         }
     } else {
-        badge.classList.add('d-none');
+        badge.classList.add('hidden');
     }
 }
 
@@ -1061,9 +1061,11 @@ function showToast(message, type = 'info') {
     toast.style.transform = 'translateX(100%)';
     toast.style.transition = 'all 0.3s ease-in-out';
     toast.innerHTML = `
-        <div class="d-flex">
+        <div class="flex">
             <div class="toast-body">${message}</div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.parentElement.parentElement.remove()"></button>
+            <button type="button" class="btn btn-sm btn-circle btn-ghost mr-2 m-auto" onclick="this.parentElement.parentElement.remove()">
+                <i class="bi bi-x"></i>
+            </button>
         </div>
     `;
     container.appendChild(toast);
@@ -1088,7 +1090,7 @@ function showToast(message, type = 'info') {
 function hideLocalBadge() {
     const badge = document.getElementById('localBadge');
     if (badge) {
-        badge.classList.add('d-none');
+        badge.classList.add('hidden');
     }
 }
 

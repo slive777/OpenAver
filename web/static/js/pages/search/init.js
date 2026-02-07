@@ -12,7 +12,7 @@ async function loadFavoriteFolder() {
     // 顯示載入中
     dom.btnFavorite.disabled = true;
     const originalHtml = dom.btnFavorite.innerHTML;
-    dom.btnFavorite.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    dom.btnFavorite.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
 
     try {
         const resp = await fetch('/api/search/favorite-files');
