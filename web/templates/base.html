@@ -248,21 +248,25 @@
     mobileMenuOpen: false
 }" :class="{ 'sidebar-collapsed': sidebarCollapsed }" class="{% if page == 'design-system' %}ds-page{% endif %}">
     <!-- 頂部導航列（僅小螢幕顯示）-->
-    <nav class="navbar navbar-dark d-lg-none fixed-top top-navbar fluent-acrylic"
-         style="border-bottom: 1px solid var(--border-light);">
-        <div class="container-fluid">
-            <button class="btn btn-dark" type="button" @click="mobileMenuOpen = true">
-                <i class="bi bi-list fs-4"></i>
+    <nav class="navbar bg-base-200 lg:hidden fixed top-0 left-0 right-0 z-50 h-14 top-navbar fluent-acrylic border-b border-base-300">
+        <div class="navbar-start">
+            <button class="btn btn-ghost btn-square" type="button" @click="mobileMenuOpen = true">
+                <i class="bi bi-list text-2xl"></i>
             </button>
-            <span class="navbar-brand mb-0 h5">
+        </div>
+        <div class="navbar-center">
+            <span class="text-lg font-semibold">
                 <i class="bi bi-film"></i> OpenAver
             </span>
-            <span style="width: 40px;"></span>
+        </div>
+        <div class="navbar-end">
+            <span class="w-10"></span>
         </div>
     </nav>
 
     <!-- Offcanvas 側邊選單（小螢幕）-->
     <div x-show="mobileMenuOpen"
+         x-cloak
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0 -translate-x-full"
          x-transition:enter-end="opacity-100 translate-x-0"
@@ -270,18 +274,21 @@
          x-transition:leave-start="opacity-100 translate-x-0"
          x-transition:leave-end="opacity-0 -translate-x-full"
          @click.outside="mobileMenuOpen = false"
-         class="offcanvas offcanvas-start bg-dark d-lg-none"
-         tabindex="-1"
-         style="display: none;">
-        <div class="offcanvas-header border-bottom border-secondary">
-            <h5 class="offcanvas-title text-white">
+         class="fixed inset-y-0 left-0 w-64 bg-base-200 shadow-xl z-50 lg:hidden"
+         tabindex="-1">
+        <div class="flex items-center justify-between p-4 border-b border-base-300">
+            <h5 class="text-lg font-semibold">
                 <i class="bi bi-film"></i> OpenAver
             </h5>
-            <button type="button" class="btn-close btn-close-white" @click="mobileMenuOpen = false"
-                aria-label="Close"></button>
+            <button type="button"
+                    class="btn btn-sm btn-circle btn-ghost"
+                    @click="mobileMenuOpen = false"
+                    aria-label="Close">
+                <i class="bi bi-x text-xl"></i>
+            </button>
         </div>
-        <div class="offcanvas-body p-0">
-            <ul class="nav flex-column offcanvas-nav">
+        <div class="p-0">
+            <ul class="flex flex-col offcanvas-nav">
                 <li class="nav-item">
                     <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search">
                         <i class="bi bi-search"></i> 搜尋
@@ -312,7 +319,7 @@
     </div>
 
     <!-- 側邊欄（Desktop）-->
-    <nav class="sidebar d-none d-lg-flex"
+    <nav class="sidebar hidden lg:flex"
          :class="{ 'collapsed': sidebarCollapsed }"
          x-ref="sidebar">
         <div class="sidebar-header">
@@ -321,7 +328,7 @@
             </button>
             <span class="sidebar-brand"><img src="/static/favicon.svg" alt="Logo" style="width: 20px; height: 20px; margin-right: 4px;"> OpenAver</span>
         </div>
-        <ul class="nav flex-column flex-grow-1">
+        <ul class="flex flex-col flex-grow">
             <li class="nav-item">
                 <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search" title="搜尋">
                     <i class="bi bi-search"></i>
