@@ -1582,3 +1582,485 @@
 .ds-state-demo .state-page {
     width: 100%;
 }
+
+/* ==================== D.14: Search Page Composition ==================== */
+
+/* 主容器 */
+.ds-search-composition {
+    min-height: 600px;
+    max-height: 800px;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-xl);
+    overflow: hidden;
+    box-shadow: var(--fluent-shadow-8);
+    border: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header - Acrylic Effect */
+.ds-search-composition .ds-comp-header {
+    flex-shrink: 0;
+    padding: 1rem 1.5rem;
+    background: color-mix(in oklch, var(--color-base-200) 70%, transparent);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border-light);
+    z-index: 100;
+}
+
+/* Search Input */
+.ds-search-composition .ds-comp-search-input {
+    width: 100%;
+    height: 3.5rem;
+    padding-left: 3.5rem;
+    padding-right: 6rem;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-pill);
+    font-size: 1.1rem;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    outline: none;
+    box-shadow: var(--shadow-sm);
+}
+
+/* Search Hint */
+.ds-search-composition .ds-comp-hint {
+    margin-top: 0.5rem;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.ds-search-composition .ds-comp-hint code {
+    background: var(--border-light);
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--radius-xs);
+}
+
+/* Result Area */
+.ds-search-composition .ds-comp-result-area {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    padding: 1rem;
+    gap: 1rem;
+    min-height: 0;
+}
+
+/* Cover Section (70%) */
+.ds-search-composition .ds-comp-cover-section {
+    flex: 7;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    background: var(--bg-body);
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    padding-top: 1rem;
+}
+
+/* Cover Wrapper */
+.ds-search-composition .ds-comp-cover-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 400px;
+    max-height: 600px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+/* Cover Image */
+.ds-search-composition .ds-comp-cover-img {
+    width: 100%;
+    height: 100%;
+    max-height: calc(100vh - 200px);
+    object-fit: contain;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+}
+
+/* Nav Buttons */
+.ds-search-composition .ds-comp-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 64px;
+    background: rgba(0, 0, 0, 0.6);
+    border: none;
+    color: oklch(100% 0 0);
+    font-size: 1.4rem;
+    cursor: pointer;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
+}
+
+.ds-search-composition .ds-comp-nav-prev {
+    left: 10px;
+}
+
+.ds-search-composition .ds-comp-nav-next {
+    right: 10px;
+}
+
+.ds-search-composition .ds-comp-nav-btn:hover {
+    background: rgba(0, 0, 0, 0.8);
+    transform: translateY(-50%) scale(1.05);
+}
+
+.ds-search-composition .ds-comp-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: translateY(-50%);
+}
+
+/* Nav Indicator */
+.ds-search-composition .ds-comp-nav-indicator {
+    position: absolute;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.6);
+    color: oklch(100% 0 0);
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+}
+
+/* File Section */
+.ds-search-composition .ds-comp-file-section {
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-light);
+    padding: 0.5rem 1rem;
+    width: 100%;
+    margin-top: 0.5rem;
+    border-radius: var(--radius-sm);
+}
+
+/* File Header */
+.ds-search-composition .ds-comp-file-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.ds-search-composition .ds-comp-file-count {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.ds-search-composition .ds-comp-file-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Batch Progress */
+.ds-search-composition .ds-comp-progress {
+    margin-bottom: 8px;
+    padding: 4px 0;
+}
+
+.ds-search-composition .batch-progress-bar {
+    height: 6px;
+    background: var(--border-light);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 4px;
+    position: relative;
+}
+
+.ds-search-composition .batch-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), color-mix(in oklch, var(--accent) 70%, transparent));
+    transition: width 0.3s ease;
+}
+
+.ds-search-composition .batch-progress-text {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    text-align: center;
+}
+
+/* File List */
+.ds-search-composition .ds-comp-file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* File Item */
+.ds-search-composition .ds-comp-file-item {
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    border-radius: 4px;
+    transition: background 0.15s;
+    cursor: pointer;
+}
+
+.ds-search-composition .ds-comp-file-item:hover {
+    background: var(--border-light);
+}
+
+.ds-search-composition .ds-comp-file-item.active {
+    background: var(--border-light);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.ds-search-composition .ds-comp-file-icon {
+    color: var(--text-muted);
+}
+
+.ds-search-composition .ds-comp-file-item.active .ds-comp-file-icon {
+    color: var(--accent);
+}
+
+.ds-search-composition .ds-comp-file-remove {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    font-size: 0.7rem;
+    line-height: 1;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.ds-search-composition .ds-comp-file-item:hover .ds-comp-file-remove {
+    opacity: 0.6;
+}
+
+.ds-search-composition .ds-comp-file-remove:hover {
+    opacity: 1 !important;
+    color: var(--color-error);
+}
+
+/* 鍵盤焦點時顯示刪除按鈕 */
+.ds-search-composition .ds-comp-file-remove:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* 當 file-item 內有元素獲得焦點時，顯示刪除按鈕 */
+.ds-search-composition .ds-comp-file-item:focus-within .ds-comp-file-remove {
+    opacity: 0.6;
+}
+
+.ds-search-composition .ds-comp-file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-primary);
+}
+
+/* Status Icons (線條風格, 14px) */
+.ds-search-composition .ds-comp-file-status-icon {
+    font-size: 14px;
+    line-height: 1;
+}
+
+.ds-search-composition .ds-comp-file-status-icon.status-found {
+    color: var(--color-success);
+}
+
+.ds-search-composition .ds-comp-file-status-icon.status-fail {
+    color: var(--color-error);
+}
+
+.ds-search-composition .ds-comp-file-status-icon.status-unknown {
+    color: var(--color-warning);
+}
+
+/* Action Icon Buttons (ghost style, 24x24) */
+.ds-search-composition .ds-comp-file-action-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--color-success);
+    cursor: pointer;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all 0.15s;
+}
+
+.ds-search-composition .ds-comp-file-action-btn:hover {
+    background: color-mix(in oklch, var(--color-success) 12%, transparent);
+    transform: scale(1.1);
+}
+
+.ds-search-composition .ds-comp-file-action-btn.status-unknown {
+    color: var(--color-warning);
+}
+
+.ds-search-composition .ds-comp-file-action-btn.status-unknown:hover {
+    background: color-mix(in oklch, var(--color-warning) 12%, transparent);
+}
+
+/* Info Section (30%) */
+.ds-search-composition .ds-comp-info-section {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    box-shadow: var(--fluent-shadow-8);
+    border: 1px solid var(--border-light);
+    min-width: 300px;
+}
+
+/* Info Header */
+.ds-search-composition .ds-comp-info-header {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-light);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ds-search-composition .ds-comp-info-number {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--accent);
+    margin: 0;
+}
+
+.ds-search-composition .ds-comp-local-badge {
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+/* Info Body */
+.ds-search-composition .ds-comp-info-body {
+    flex: 1;
+    padding: 0.75rem;
+    overflow-y: auto;
+}
+
+.ds-search-composition .ds-comp-info-row {
+    margin-bottom: 0.75rem;
+}
+
+.ds-search-composition .ds-comp-info-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+    letter-spacing: 0.05em;
+}
+
+.ds-search-composition .ds-comp-info-value {
+    font-size: 0.9rem;
+    word-break: break-word;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.ds-search-composition .ds-comp-info-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.ds-search-composition .ds-comp-info-tags .tag-badge {
+    font-size: 0.65rem;
+    margin: 1px;
+    padding: 2px 6px;
+    background: var(--border-light);
+    color: var(--text-secondary);
+    border-radius: var(--radius-xs);
+}
+
+.ds-search-composition .ds-comp-subtitle-badge {
+    background: var(--color-success) !important;
+    color: var(--color-success-content) !important;
+}
+
+/* Info Footer */
+.ds-search-composition .ds-comp-info-footer {
+    padding: 0.75rem;
+    border-top: 1px solid var(--border-light);
+    background: transparent;
+}
+
+.ds-search-composition .ds-comp-info-title-wrapper {
+    display: flex;
+    align-items: flex-start;
+}
+
+.ds-search-composition .ds-comp-info-title {
+    flex: 1;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    line-height: 1.3;
+}
+
+.ds-search-composition .ds-comp-info-actions {
+    display: flex;
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+
+/* Info Icon Button Hover */
+.ds-search-composition .info-icon-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    cursor: pointer;
+    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+}
+
+.ds-search-composition .info-icon-btn:hover {
+    background: var(--border-light);
+    color: var(--accent);
+    transform: scale(1.08);
+}
+
+/* Responsive: 小螢幕垂直排列 */
+@media (max-width: 768px) {
+    .ds-search-composition .ds-comp-result-area {
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    .ds-search-composition .ds-comp-cover-section {
+        flex: none;
+        width: 100%;
+        max-height: 50vh;
+    }
+
+    .ds-search-composition .ds-comp-info-section {
+        flex: none;
+        width: 100%;
+        min-width: auto;
+        max-height: none;
+    }
+}
