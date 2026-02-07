@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.4] - 2026-01-29
+## [0.2.4] - 2026-02-07
 
 ### Added
 
@@ -17,11 +17,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AV Card 4 種變體（Thumbnail/Preview/Full/Compact）
 - 背景光暈 + 噪點紋理視覺效果
 
+#### 🧩 Design System Phase 23-4
+- Toast 元件（4 種語意色 + 3 段倒計時動畫 + hover 暫停）
+- Button 元件（Primary/Secondary/Ghost/Outline/Icon/Link 6 種變體）
+- Help 頁面元素（鍵盤快捷鍵表 + Kbd 尺寸變體）
+- Focus-visible 統一規則 + reduced-motion 無障礙收斂
+- Search / Gallery Page Composition 頁面級 Mockup
+- Settings 特殊元件展示（收合區塊 + 變數插入 Dropdown）
+
 ### Changed
 - Dark mode 文字對比度修復
 - Gallery Card hover 改為右側聚焦（`transform-origin: 65% center`）
 - Hex 色彩顯示動態讀取 CSS 變數
 - README 翻譯速度說明更新（Ollama 5s → 0.5s）
+- 硬編碼色彩 / 圓角 / rgba 全面替換為 Fluent Design Token
+- `transition: all` 替換為具體屬性（效能優化）
+- 所有動畫 easing 統一使用 Fluent Token（`--fluent-ease-standard` / `--ease-out`）
+- 暖奶白底色回歸（`--color-base-100: oklch(98.5% 0.005 85)`）
+- Card 圖片圓角對齊：底部接觸 footer 處改為直角
 
 ### Removed
 - 刪除廢棄測試腳本 `test_task2_integration.sh`
