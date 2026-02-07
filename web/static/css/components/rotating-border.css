@@ -139,35 +139,6 @@
   will-change: transform;
 }
 
-/* ========== 無障礙支援 ========== */
-
-/**
- * prefers-reduced-motion：尊重使用者偏好
- * 停用動畫，改為靜態發光邊框
- */
-@media (prefers-reduced-motion: reduce) {
-  .rotating-border-spotlight::before {
-    animation: none !important;
-  }
-
-  /* 靜態發光邊框作為降級方案 */
-  .rotating-border-spotlight.active::before {
-    background: conic-gradient(
-      from 0deg at 50% 50%,
-      rgba(90, 200, 250, 0.4) 0deg,
-      rgba(90, 200, 250, 0.4) 360deg
-    );
-  }
-
-  [data-theme="dim"] .rotating-border-spotlight.active::before {
-    background: conic-gradient(
-      from 0deg at 50% 50%,
-      rgba(100, 210, 255, 0.5) 0deg,
-      rgba(100, 210, 255, 0.5) 360deg
-    );
-  }
-}
-
 /* ========== 瀏覽器降級方案 ========== */
 
 /**

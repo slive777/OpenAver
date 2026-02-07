@@ -68,7 +68,7 @@
 
 /* 應用背景色過渡 */
 body {
-    transition: background-color 0.3s ease, color 0.3s ease;
+    transition: background-color var(--duration-normal) ease, color var(--duration-normal) ease;
     font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -259,7 +259,7 @@ body {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.4s var(--ease-out);
+    transition: transform var(--duration-slow) var(--ease-out);
 }
 
 .gallery-card:hover .gallery-card-img img {
@@ -330,7 +330,7 @@ body {
     font-weight: 500;
     color: var(--text-secondary);
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity var(--duration-normal) ease;
     vertical-align: middle;
 }
 
@@ -370,7 +370,7 @@ body {
 }
 
 .shake {
-    animation: shake 0.3s ease;
+    animation: shake var(--duration-normal) ease;
 }
 
 /* ========== AV Card Full: Interactive Elements ========== */
@@ -400,12 +400,6 @@ body {
 
 .info-icon-btn:active {
     transform: scale(0.95);
-}
-
-.info-icon-btn:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-    box-shadow: 0 0 0 4px rgba(90, 200, 250, 0.2);
 }
 
 /* Local Badge - 可點擊複製路徑 */
@@ -587,7 +581,7 @@ body {
     opacity: 1;
     color: var(--color-error);
     transform: scale(1.05);
-    animation: error-shake 0.3s ease;
+    animation: error-shake var(--duration-normal) ease;
 }
 
 /* 錯誤文字 */
@@ -791,10 +785,6 @@ body {
 }
 
 :is(#gallery-components, .ds-gallery-composition) .folder-item:focus-within .btn-remove {
-    opacity: 1;
-}
-
-:is(#gallery-components, .ds-gallery-composition) .folder-item .btn-remove:focus-visible {
     opacity: 1;
 }
 
@@ -1782,17 +1772,6 @@ body {
     }
 }
 
-/* prefers-reduced-motion: 停用動畫 */
-@media (prefers-reduced-motion: reduce) {
-    .fluent-modal::backdrop {
-        animation: none;
-    }
-
-    .fluent-modal[open] .fluent-modal-box {
-        animation: none;
-    }
-}
-
 /* ========== Components: Fluent Toast (D.11) ========== */
 
 /* Toast Container - 確保在最上層 */
@@ -1848,15 +1827,86 @@ body {
     transform: translateY(20px);
 }
 
-/* prefers-reduced-motion: 停用動畫 */
+/* ========== Universal Focus-visible (D.13) ========== */
+/* 統一所有可互動元素的焦點樣式 */
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.btn:focus-visible,
+.btn-icon:focus-visible,
+.btn-glass:focus-visible,
+.btn-hero:focus-visible,
+.btn-hero-primary:focus-visible,
+.btn-hero-secondary:focus-visible,
+.btn-nfo-update:focus-visible,
+.btn-alias-add:focus-visible,
+.btn-variable:focus-visible,
+.btn-variable-sm:focus-visible,
+.info-icon-btn:focus-visible,
+.local-badge:focus-visible,
+.collapsible-trigger:focus-visible,
+[role="button"]:focus-visible,
+summary:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px var(--glow-primary);
+}
+
+/* 特殊狀態保留 - 只調整光圈顏色 */
+:is(#gallery-components, .ds-gallery-composition) .folder-item .btn-remove:focus-visible,
+.ds-search-composition .ds-comp-file-remove:focus-visible {
+    opacity: 1;
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px var(--glow-primary);
+}
+
+/* ========== Reduced Motion (D.13 統一收斂) ========== */
+/* 一次關閉所有 transition / transform / animation */
+
 @media (prefers-reduced-motion: reduce) {
-    .fluent-toast-enter,
-    .fluent-toast-leave {
-        transition: none;
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
     }
 
+    /* 完全停用特定元件動畫 */
+    .fluent-modal::backdrop,
+    .fluent-modal[open] .fluent-modal-box,
+    .fluent-toast-enter,
+    .fluent-toast-leave,
+    .rotating-border-spotlight::before {
+        animation: none !important;
+        transition: none !important;
+    }
+
+    /* 移除 transform 位移 */
     .fluent-toast-enter-start,
     .fluent-toast-leave-end {
-        transform: translateY(0);
+        transform: translateY(0) !important;
+    }
+
+    /* Rotating Border 降級為靜態發光 */
+    .rotating-border-spotlight.active::before {
+        background: conic-gradient(
+            from 0deg at 50% 50%,
+            rgba(90, 200, 250, 0.4) 0deg,
+            rgba(90, 200, 250, 0.4) 360deg
+        ) !important;
+    }
+
+    [data-theme="dim"] .rotating-border-spotlight.active::before {
+        background: conic-gradient(
+            from 0deg at 50% 50%,
+            rgba(100, 210, 255, 0.5) 0deg,
+            rgba(100, 210, 255, 0.5) 360deg
+        ) !important;
     }
 }

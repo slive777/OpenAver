@@ -106,8 +106,6 @@
     margin-bottom: 3rem;
     padding: 4rem 2rem;
     background: color-mix(in oklch, var(--color-base-200) 70%, transparent);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
     border-radius: var(--fluent-radius-xl);
     border: 1px solid var(--border-light);
     box-shadow:
@@ -190,8 +188,6 @@
 /* 樣式 A：透明玻璃 + 細描邊 */
 .ds-section.glass {
     background: color-mix(in oklch, var(--color-base-200) 70%, transparent);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--border-light);
     box-shadow:
         0 0 0 1px color-mix(in oklch, var(--color-base-content) 5%, transparent) inset,
@@ -343,8 +339,6 @@
     flex-direction: column;
     gap: 0.25rem;
     background: oklch(0% 0 0 / 0.75);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
     padding: 0.5rem 0.75rem;
     border-radius: var(--fluent-radius-md);
     position: relative;
@@ -380,8 +374,6 @@
     border-radius: var(--fluent-radius-md);
     position: relative;
     z-index: 1;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
 }
 
 /* ==================== Text Samples ==================== */
@@ -801,8 +793,6 @@
     font-size: 1.25rem;
     cursor: pointer;
     transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1197,7 +1187,7 @@
     height: 32px;
     background: var(--color-primary);
     border-radius: 4px;
-    transition: width 0.3s ease;
+    transition: width var(--duration-normal) ease;
 }
 
 .ds-spacing-info {
@@ -1233,7 +1223,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    transition: transform 0.2s ease;
+    transition: transform var(--duration-fast) ease;
 }
 
 .ds-elevation-item:hover {
@@ -1361,7 +1351,7 @@
 }
 
 .collapse-toggle i {
-    transition: transform 0.2s ease;
+    transition: transform var(--duration-fast) ease;
 }
 
 .collapse-toggle[aria-expanded="true"] i,
@@ -1385,7 +1375,7 @@
     padding: 1.5rem 2rem;
     box-shadow: var(--fluent-shadow-4);
     border: 1px solid var(--border-light);
-    transition: background-color 0.3s ease;
+    transition: background-color var(--duration-normal) ease;
 }
 
 [data-theme="dim"] .progress-container {
@@ -1451,7 +1441,7 @@
     height: 6px;
     background: var(--color-primary);
     border-radius: 3px;
-    transition: width 0.3s ease;
+    transition: width var(--duration-normal) ease;
 }
 
 .detail-text {
@@ -1495,8 +1485,6 @@
     gap: 0.5rem;
     padding: 0.5rem 1rem;
     background: color-mix(in oklch, var(--color-base-200) 70%, transparent);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
     border: 1px solid var(--border-light);
     border-radius: var(--fluent-radius-lg);
     color: var(--text-primary);
@@ -1605,8 +1593,6 @@
     flex-shrink: 0;
     padding: 1rem 1.5rem;
     background: color-mix(in oklch, var(--color-base-200) 70%, transparent);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border-light);
     z-index: 100;
 }
@@ -1701,7 +1687,7 @@
     cursor: pointer;
     border-radius: 6px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    transition: all 0.2s ease;
+    transition: all var(--duration-fast) ease;
 }
 
 .ds-search-composition .ds-comp-nav-prev {
@@ -1782,7 +1768,7 @@
 .ds-search-composition .batch-progress-fill {
     height: 100%;
     background: linear-gradient(90deg, var(--accent), color-mix(in oklch, var(--accent) 70%, transparent));
-    transition: width 0.3s ease;
+    transition: width var(--duration-normal) ease;
 }
 
 .ds-search-composition .batch-progress-text {
@@ -1807,7 +1793,7 @@
     gap: 8px;
     font-size: 0.8rem;
     border-radius: 4px;
-    transition: background 0.15s;
+    transition: background var(--duration-fast);
     cursor: pointer;
 }
 
@@ -1838,7 +1824,7 @@
     font-size: 0.7rem;
     line-height: 1;
     opacity: 0;
-    transition: opacity 0.15s;
+    transition: opacity var(--duration-fast);
 }
 
 .ds-search-composition .ds-comp-file-item:hover .ds-comp-file-remove {
@@ -1848,13 +1834,6 @@
 .ds-search-composition .ds-comp-file-remove:hover {
     opacity: 1 !important;
     color: var(--color-error);
-}
-
-/* 鍵盤焦點時顯示刪除按鈕 */
-.ds-search-composition .ds-comp-file-remove:focus-visible {
-    opacity: 1;
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
 }
 
 /* 當 file-item 內有元素獲得焦點時，顯示刪除按鈕 */
@@ -1902,7 +1881,7 @@
     align-items: center;
     justify-content: center;
     padding: 0;
-    transition: all 0.15s;
+    transition: all var(--duration-fast);
 }
 
 .ds-search-composition .ds-comp-file-action-btn:hover {
@@ -2037,7 +2016,7 @@
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
-    transition: all 0.2s ease;
+    transition: all var(--duration-fast) ease;
 }
 
 .ds-search-composition .info-icon-btn:hover {
