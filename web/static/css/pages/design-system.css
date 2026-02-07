@@ -2173,3 +2173,43 @@
     transform: translateY(-2px);
     box-shadow: var(--fluent-shadow-4);
 }
+
+/* ==================== D.11: Toast Demo Container ==================== */
+
+.ds-toast-demo {
+    padding: 3rem 2rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
+    text-align: center;
+    min-height: 200px;
+    position: relative;
+}
+
+.ds-toast-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.ds-toast-buttons .btn {
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.ds-toast-buttons .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--fluent-shadow-4);
+}
+
+/* RWD: 小螢幕按鈕垂直堆疊 */
+@media (max-width: 640px) {
+    .ds-toast-buttons {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ds-toast-buttons .btn {
+        width: 100%;
+    }
+}

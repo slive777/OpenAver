@@ -1613,8 +1613,22 @@
   .static {
     position: static;
   }
+  .toast-center {
+    @layer daisyui.l1.l2 {
+      inset-inline-start: calc(1/2 * 100%);
+      inset-inline-end: calc(1/2 * 100%);
+      --toast-x: -50%;
+    }
+  }
   .end-0 {
     inset-inline-end: calc(var(--spacing) * 0);
+  }
+  .toast-bottom {
+    @layer daisyui.l1.l2 {
+      top: auto;
+      bottom: calc(0.25rem * 4);
+      --toast-y: 0;
+    }
   }
   .bottom-0 {
     bottom: calc(var(--spacing) * 0);
@@ -2254,11 +2268,25 @@
       font-size: 0.75rem;
     }
   }
+  .alert-error {
+    @layer daisyui.l1.l2 {
+      color: var(--color-error-content);
+      --alert-border-color: var(--color-error);
+      --alert-color: var(--color-error);
+    }
+  }
   .alert-info {
     @layer daisyui.l1.l2 {
       color: var(--color-info-content);
       --alert-border-color: var(--color-info);
       --alert-color: var(--color-info);
+    }
+  }
+  .alert-success {
+    @layer daisyui.l1.l2 {
+      color: var(--color-success-content);
+      --alert-border-color: var(--color-success);
+      --alert-color: var(--color-success);
     }
   }
   .alert-warning {
@@ -2427,6 +2455,12 @@
     @layer daisyui.l1.l2.l3 {
       --btn-color: var(--color-error);
       --btn-fg: var(--color-error-content);
+    }
+  }
+  .btn-info {
+    @layer daisyui.l1.l2.l3 {
+      --btn-color: var(--color-info);
+      --btn-fg: var(--color-info-content);
     }
   }
   .btn-neutral {
@@ -3966,6 +4000,54 @@ body {
   }
   .fluent-modal[open] .fluent-modal-box {
     animation: none;
+  }
+}
+.fluent-toast-container {
+  z-index: 2000;
+}
+.fluent-toast {
+  border-radius: var(--fluent-radius-lg);
+  box-shadow: var(--fluent-shadow-16);
+  padding: 0.75rem 1.25rem;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 280px;
+  max-width: 420px;
+}
+.fluent-toast .bi {
+  font-size: 1.125rem;
+  flex-shrink: 0;
+}
+.fluent-toast-enter {
+  transition: all var(--fluent-duration-normal) var(--fluent-ease-decel);
+}
+.fluent-toast-enter-start {
+  opacity: 0;
+  transform: translateY(20px);
+}
+.fluent-toast-enter-end {
+  opacity: 1;
+  transform: translateY(0);
+}
+.fluent-toast-leave {
+  transition: all var(--fluent-duration-normal) var(--fluent-ease-accel);
+}
+.fluent-toast-leave-start {
+  opacity: 1;
+  transform: translateY(0);
+}
+.fluent-toast-leave-end {
+  opacity: 0;
+  transform: translateY(20px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .fluent-toast-enter, .fluent-toast-leave {
+    transition: none;
+  }
+  .fluent-toast-enter-start, .fluent-toast-leave-end {
+    transform: translateY(0);
   }
 }
 :root {

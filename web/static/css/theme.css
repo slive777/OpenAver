@@ -1792,3 +1792,71 @@ body {
         animation: none;
     }
 }
+
+/* ========== Components: Fluent Toast (D.11) ========== */
+
+/* Toast Container - 確保在最上層 */
+.fluent-toast-container {
+    z-index: 2000;
+}
+
+/* Fluent Toast - Alert 樣式增強 */
+.fluent-toast {
+    border-radius: var(--fluent-radius-lg);
+    box-shadow: var(--fluent-shadow-16);
+    padding: 0.75rem 1.25rem;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 280px;
+    max-width: 420px;
+}
+
+/* Toast Icon 尺寸 */
+.fluent-toast .bi {
+    font-size: 1.125rem;
+    flex-shrink: 0;
+}
+
+/* Alpine.js x-transition 動畫類別 */
+.fluent-toast-enter {
+    transition: all var(--fluent-duration-normal) var(--fluent-ease-decel);
+}
+
+.fluent-toast-enter-start {
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+.fluent-toast-enter-end {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.fluent-toast-leave {
+    transition: all var(--fluent-duration-normal) var(--fluent-ease-accel);
+}
+
+.fluent-toast-leave-start {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.fluent-toast-leave-end {
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+/* prefers-reduced-motion: 停用動畫 */
+@media (prefers-reduced-motion: reduce) {
+    .fluent-toast-enter,
+    .fluent-toast-leave {
+        transition: none;
+    }
+
+    .fluent-toast-enter-start,
+    .fluent-toast-leave-end {
+        transform: translateY(0);
+    }
+}

@@ -25,6 +25,7 @@
         <a href="#settings-components">Settings Components</a>
         <a href="#page-compositions">Page Compositions</a>
         <a href="#modals">Modals</a>
+        <a href="#toasts">Toasts</a>
         <a href="#progress">Progress & Feedback</a>
         <a href="#navigation">Navigation</a>
         <a href="#rotating-border">Rotating Border</a>
@@ -1018,6 +1019,116 @@
       &lt;button&gt;close&lt;/button&gt;
     &lt;/form&gt;
   &lt;/dialog&gt;
+&lt;/div&gt;</code></pre>
+            </div>
+        </section>
+
+        <!-- 區塊: Toasts -->
+        <section id="toasts" class="ds-section accent-bar"
+                 x-data="{
+                   toastVisible: false,
+                   toastMessage: '',
+                   toastType: 'success',
+                   toastTimeout: null,
+                   showToast(message, type = 'success', duration = 2500) {
+                     clearTimeout(this.toastTimeout);
+                     this.toastMessage = message;
+                     this.toastType = type;
+                     this.toastVisible = true;
+                     this.toastTimeout = setTimeout(() => {
+                       this.toastVisible = false;
+                     }, duration);
+                   }
+                 }">
+            <h2>Toasts</h2>
+            <p class="ds-note">Non-blocking 輕量回饋通知，底部居中自動消失，使用 DaisyUI alert + Alpine.js</p>
+
+            <!-- Subsection: Interactive Toast Demo -->
+            <div class="ds-subsection">
+                <h3>Toast Variants</h3>
+                <p class="ds-desc">成功/錯誤/資訊三種變體，2-3 秒後自動消失，Hover 暫停倒數</p>
+
+                <!-- Demo 容器 -->
+                <div class="ds-toast-demo">
+                    <!-- 觸發按鈕組 -->
+                    <div class="ds-toast-buttons">
+                        <button class="btn btn-success"
+                                @click="showToast('✓ 路徑已複製', 'success', 2500)">
+                            <i class="bi bi-check-circle"></i> 觸發成功 Toast
+                        </button>
+
+                        <button class="btn btn-error"
+                                @click="showToast('✗ 產生失敗', 'error', 2500)">
+                            <i class="bi bi-x-circle"></i> 觸發錯誤 Toast
+                        </button>
+
+                        <button class="btn btn-info"
+                                @click="showToast('⟳ 正在處理...', 'info', 3000)">
+                            <i class="bi bi-info-circle"></i> 觸發資訊 Toast
+                        </button>
+                    </div>
+
+                    <!-- Toast Container (Fixed positioning) -->
+                    <div class="toast toast-bottom toast-center fluent-toast-container"
+                         x-show="toastVisible"
+                         x-transition:enter="fluent-toast-enter"
+                         x-transition:enter-start="fluent-toast-enter-start"
+                         x-transition:enter-end="fluent-toast-enter-end"
+                         x-transition:leave="fluent-toast-leave"
+                         x-transition:leave-start="fluent-toast-leave-start"
+                         x-transition:leave-end="fluent-toast-leave-end"
+                         @mouseenter="clearTimeout(toastTimeout)"
+                         @mouseleave="toastTimeout = setTimeout(() => { toastVisible = false; }, 2500)">
+                        <div class="alert fluent-toast"
+                             :class="`alert-${toastType}`"
+                             role="alert">
+                            <!-- Icon -->
+                            <i class="bi"
+                               :class="{
+                                 'bi-check-circle': toastType === 'success',
+                                 'bi-x-circle': toastType === 'error',
+                                 'bi-info-circle': toastType === 'info'
+                               }"></i>
+                            <span x-text="toastMessage"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 技術說明 -->
+                <div class="ds-note" style="margin-top: 1.5rem;">
+                    <strong>技術細節：</strong>
+                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                        <li>使用 DaisyUI <code>toast</code> 容器 + <code>alert</code> 元件</li>
+                        <li>Alpine.js <code>showToast()</code> 統一管理訊息、類型、持續時間</li>
+                        <li>顏色變體：<code>alert-success</code>（綠）/ <code>alert-error</code>（紅）/ <code>alert-info</code>（藍）</li>
+                        <li>動畫：Slide up (20px → 0) + Fade in，使用 <code>x-transition</code></li>
+                        <li>Hover 暫停倒數：<code>@mouseenter</code> / <code>@mouseleave</code></li>
+                        <li>陰影使用 <code>--fluent-shadow-16</code>（XLarge elevation）</li>
+                        <li>圓角使用 <code>--fluent-radius-lg</code> (8px)</li>
+                        <li>持續時間：成功/錯誤 2.5 秒，資訊 3 秒</li>
+                    </ul>
+                </div>
+
+                <!-- 程式碼範例 -->
+                <pre class="ds-code"><code>&lt;!-- Alpine.js 控制 --&gt;
+&lt;div x-data="{
+  toastVisible: false,
+  toastMessage: '',
+  toastType: 'success',
+  showToast(message, type = 'success', duration = 2500) {
+    this.toastMessage = message;
+    this.toastType = type;
+    this.toastVisible = true;
+    setTimeout(() =&gt; { this.toastVisible = false; }, duration);
+  }
+}"&gt;
+  &lt;button @click="showToast('已複製', 'success')"&gt;複製&lt;/button&gt;
+
+  &lt;div class="toast toast-bottom toast-center" x-show="toastVisible"&gt;
+    &lt;div class="alert fluent-toast" :class="`alert-${toastType}`"&gt;
+      &lt;span x-text="toastMessage"&gt;&lt;/span&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
 &lt;/div&gt;</code></pre>
             </div>
         </section>
