@@ -15,7 +15,7 @@
     </div>
 </div>
 
-<div class="search-container">
+<div class="search-container ds-page">
     <!-- Gallery 視圖容器 -->
     <div id="galleryView" class="hidden">
         <iframe id="galleryFrame" src="" sandbox="allow-same-origin allow-scripts"></iframe>
@@ -50,8 +50,8 @@
     <div class="result-area">
         <!-- 初始狀態 -->
         <div id="emptyState" class="state-page w-full">
-            <i class="bi bi-film"></i>
-            <p class="mb-2">輸入番號搜尋，或加入影片檔案</p>
+            <i class="bi bi-film state-page-icon"></i>
+            <p class="state-page-text">輸入番號搜尋，或加入影片檔案</p>
             <div class="empty-actions">
                 <button class="btn btn-sm btn-outline btn-primary" id="btnAddFiles">
                     <i class="bi bi-file-earmark-plus"></i> 加入檔案
@@ -63,7 +63,7 @@
                     <i class="bi bi-star-fill"></i> 我的最愛
                 </button>
             </div>
-            <small class="mt-2 text-muted">也可直接拖入檔案或資料夾</small>
+            <small class="state-page-hint">也可直接拖入檔案或資料夾</small>
         </div>
 
         <!-- 載入中 - 進度指示器 -->
@@ -88,16 +88,16 @@
         </div>
 
         <!-- 錯誤狀態 -->
-        <div id="errorState" class="state-page w-full hidden">
-            <i class="bi bi-exclamation-triangle text-error"></i>
-            <p class="text-error mb-1" id="errorMessage">搜尋失敗</p>
-            <small>請檢查番號格式或稍後再試</small>
+        <div id="errorState" class="state-page error w-full hidden">
+            <i class="bi bi-exclamation-triangle state-page-icon"></i>
+            <p class="state-page-text error-text" id="errorMessage">搜尋失敗</p>
+            <small class="state-page-hint">請檢查番號格式或稍後再試</small>
             <!-- 多檔案模式導航 -->
-            <div class="error-nav hidden mt-3" id="errorNav">
+            <div class="error-nav hidden" id="errorNav">
                 <button class="btn btn-sm btn-outline btn-neutral" id="errorBtnPrev" title="上一個 (←)">
                     <i class="bi bi-chevron-left"></i>
                 </button>
-                <span class="mx-2" id="errorNavIndicator">1/5</span>
+                <span class="error-nav-indicator" id="errorNavIndicator">1/5</span>
                 <button class="btn btn-sm btn-outline btn-neutral" id="errorBtnNext" title="下一個 (→)">
                     <i class="bi bi-chevron-right"></i>
                 </button>

@@ -259,7 +259,7 @@ function renderFileList() {
 
         let actionBtn = '';
         if (canScrape) {
-            actionBtn = `<button class="btn btn-sm btn-outline btn-success btn-scrape-single" data-index="${index}" title="產生此檔案">產生</button>`;
+            actionBtn = `<button class="btn btn-sm btn-outline btn-success btn-scrape-single" data-index="${index}" title="產生 NFO + 封面" aria-label="產生 NFO + 封面"><i class="bi bi-folder-plus"></i></button>`;
         } else if (needsNumber) {
             actionBtn = `<button class="btn btn-sm btn-outline btn-warning btn-enter-number" data-index="${index}" title="手動輸入番號"><i class="bi bi-pencil"></i></button>`;
         }
@@ -550,14 +550,14 @@ async function scrapeSingle(index) {
             alert(`${file.filename} 處理失敗: ${result.error || '未知錯誤'}`);
             if (btn) {
                 btn.disabled = false;
-                btn.innerHTML = '產生';
+                btn.innerHTML = '<i class="bi bi-folder-plus"></i>';
             }
         }
     } catch (err) {
         alert(`${file.filename} 處理失敗: ${err.message}`);
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '產生';
+            btn.innerHTML = '<i class="bi bi-folder-plus"></i>';
         }
     }
 }
