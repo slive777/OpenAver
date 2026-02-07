@@ -660,6 +660,7 @@
     display: grid;
     grid-template-columns: 2fr 1fr;
     grid-template-rows: auto auto;
+    align-content: start;
     gap: 1rem;
 }
 
@@ -837,10 +838,11 @@
 }
 
 .av-card-preview-footer {
-    padding: 1rem;
+    padding: 0.5rem 0.75rem;
     display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
 }
 
 /* Full Variant */
@@ -2151,4 +2153,23 @@
     .ds-gallery-preview-grid .av-card-preview:not(.featured) {
         grid-column: 1;
     }
+}
+
+/* ==================== D.10: Modal Demo Container ==================== */
+
+.ds-modal-demo {
+    padding: 2rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
+    text-align: center;
+}
+
+.ds-modal-demo .btn {
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.ds-modal-demo .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--fluent-shadow-4);
 }

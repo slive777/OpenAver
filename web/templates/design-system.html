@@ -24,6 +24,7 @@
         <a href="#gallery-components">Gallery Components</a>
         <a href="#settings-components">Settings Components</a>
         <a href="#page-compositions">Page Compositions</a>
+        <a href="#modals">Modals</a>
         <a href="#progress">Progress & Feedback</a>
         <a href="#navigation">Navigation</a>
         <a href="#rotating-border">Rotating Border</a>
@@ -941,6 +942,84 @@
             <p class="ds-note">頁面級排版 Mockup，展示遷移後的完整視覺節奏 (純靜態展示，非互動)</p>
 
             {% include 'design_system/page-compositions.html' %}
+        </section>
+
+        <!-- 區塊: Modals -->
+        <section id="modals" class="ds-section glass">
+            <h2>Modals</h2>
+            <p class="ds-note">Fluent Design 2 風格的確認對話框，使用 DaisyUI modal + Alpine.js</p>
+
+            <!-- Subsection: Basic Confirmation Dialog -->
+            <div class="ds-subsection">
+                <h3>Confirmation Dialog</h3>
+                <p class="ds-desc">刪除/確認操作的標準對話框，Smoke backdrop + Fluent 卡片樣式</p>
+
+                <!-- Demo 容器 -->
+                <div class="ds-modal-demo" x-data>
+                    <!-- 觸發按鈕 -->
+                    <button class="btn btn-error" @click="$refs.confirmDialog.showModal()">
+                        <i class="bi bi-trash"></i> 刪除項目
+                    </button>
+
+                    <!-- Modal Dialog -->
+                    <dialog x-ref="confirmDialog" class="modal fluent-modal">
+                        <div class="modal-box fluent-modal-box">
+                            <!-- Header -->
+                            <h3 class="fluent-modal-title">確認刪除</h3>
+
+                            <!-- Body -->
+                            <p class="fluent-modal-body">
+                                確定要刪除此項目嗎？此操作無法復原。
+                            </p>
+
+                            <!-- Footer Actions -->
+                            <div class="modal-action fluent-modal-actions">
+                                <button class="btn btn-ghost" @click="$refs.confirmDialog.close()">
+                                    取消
+                                </button>
+                                <button class="btn btn-error" @click="$refs.confirmDialog.close()">
+                                    <i class="bi bi-trash"></i> 確認刪除
+                                </button>
+                            </div>
+                        </div>
+                        <form method="dialog" class="modal-backdrop">
+                            <button>close</button>
+                        </form>
+                    </dialog>
+                </div>
+
+                <!-- 技術說明 -->
+                <div class="ds-note" style="margin-top: 1.5rem;">
+                    <strong>技術細節：</strong>
+                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                        <li>使用原生 <code>&lt;dialog&gt;</code> 元素 + Alpine.js <code>$refs</code></li>
+                        <li>Backdrop 點擊和 ESC 鍵關閉為原生功能（無需額外處理）</li>
+                        <li>Smoke backdrop 使用 <code>--fluent-smoke</code> token（Light: 0.4, Dark: 0.6）</li>
+                        <li>卡片陰影使用 <code>--fluent-shadow-28</code>（XXLarge elevation）</li>
+                        <li>圓角使用 <code>--fluent-radius-xl</code> (12px)</li>
+                        <li>Open 動畫：Scale (0.95 → 1) + Fade，250ms duration</li>
+                    </ul>
+                </div>
+
+                <!-- 程式碼範例 -->
+                <pre class="ds-code"><code>&lt;!-- Alpine.js 控制 --&gt;
+&lt;div x-data&gt;
+  &lt;button @click="$refs.dialog.showModal()"&gt;Open&lt;/button&gt;
+
+  &lt;dialog x-ref="dialog" class="modal fluent-modal"&gt;
+    &lt;div class="modal-box fluent-modal-box"&gt;
+      &lt;h3 class="fluent-modal-title"&gt;Title&lt;/h3&gt;
+      &lt;p class="fluent-modal-body"&gt;Content&lt;/p&gt;
+      &lt;div class="modal-action fluent-modal-actions"&gt;
+        &lt;button @click="$refs.dialog.close()"&gt;Close&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;form method="dialog" class="modal-backdrop"&gt;
+      &lt;button&gt;close&lt;/button&gt;
+    &lt;/form&gt;
+  &lt;/dialog&gt;
+&lt;/div&gt;</code></pre>
+            </div>
         </section>
 
         <!-- 區塊 8: Progress & Feedback (accent-bar 樣式) -->

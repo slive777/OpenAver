@@ -1712,3 +1712,83 @@ body {
 #settings-components .save-btn i {
     font-size: 1rem;
 }
+
+/* ========== Components: Fluent Modal (D.10) ========== */
+
+/* Fluent Modal - Smoke Backdrop Override */
+.fluent-modal::backdrop {
+    background-color: var(--fluent-smoke);
+    animation: modal-backdrop-fade-in var(--fluent-duration-normal) var(--fluent-ease-standard);
+}
+
+/* Fluent Modal Box - 卡片樣式 */
+.fluent-modal-box {
+    box-shadow: var(--fluent-shadow-28);
+    padding: 1.5rem;
+    background: var(--surface-2);
+    border: 1px solid var(--stroke-default);
+    /* 移除 DaisyUI 預設的過大圓角 */
+    border-radius: var(--fluent-radius-xl) !important;
+}
+
+/* Modal 開啟動畫 */
+.fluent-modal[open] .fluent-modal-box {
+    animation: modal-scale-fade-in var(--fluent-duration-normal) var(--fluent-ease-standard);
+}
+
+/* Fluent Modal Title */
+.fluent-modal-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 1rem 0;
+    line-height: 1.3;
+}
+
+/* Fluent Modal Body */
+.fluent-modal-body {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0 0 1.5rem 0;
+}
+
+/* Fluent Modal Actions - 按鈕區 */
+.fluent-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    margin: 0;
+}
+
+/* 動畫定義 */
+@keyframes modal-backdrop-fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modal-scale-fade-in {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* prefers-reduced-motion: 停用動畫 */
+@media (prefers-reduced-motion: reduce) {
+    .fluent-modal::backdrop {
+        animation: none;
+    }
+
+    .fluent-modal[open] .fluent-modal-box {
+        animation: none;
+    }
+}
