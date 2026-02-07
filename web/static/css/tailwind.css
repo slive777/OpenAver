@@ -13,6 +13,7 @@
     --radius-xs: 0.125rem;
     --radius-sm: 0.25rem;
     --radius-md: 0.375rem;
+    --radius-lg: 0.5rem;
     --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
@@ -2929,7 +2930,7 @@ body {
     height: 32px;
   }
 }
-#gallery-components .avlist-card {
+:is(#gallery-components, .ds-gallery-composition) .avlist-card {
   background: var(--bg-card);
   border-radius: var(--radius-md);
   box-shadow: inset 0 1px 0 var(--color-base-content), var(--fluent-shadow-4);
@@ -2941,13 +2942,13 @@ body {
   border: 1px solid var(--border-light);
   transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
-#gallery-components .avlist-card:hover {
+:is(#gallery-components, .ds-gallery-composition) .avlist-card:hover {
   box-shadow: inset 0 1px 0 var(--color-base-content), 0 0 0 2px var(--accent), 0 0 20px var(--glow-primary), var(--fluent-shadow-8);
   @supports (color: color-mix(in lab, red, red)) {
     box-shadow: inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 12%, transparent), 0 0 0 2px var(--accent), 0 0 20px var(--glow-primary), var(--fluent-shadow-8);
   }
 }
-#gallery-components .avlist-card-header {
+:is(#gallery-components, .ds-gallery-composition) .avlist-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -2958,38 +2959,38 @@ body {
     background: color-mix(in oklch, var(--color-base-content) 2%, transparent);
   }
 }
-#gallery-components .avlist-card-header .title {
+:is(#gallery-components, .ds-gallery-composition) .avlist-card-header .title {
   font-weight: 600;
   color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
-#gallery-components .avlist-card-header .title i {
+:is(#gallery-components, .ds-gallery-composition) .avlist-card-header .title i {
   color: var(--accent);
 }
-#gallery-components .avlist-card-header .actions {
+:is(#gallery-components, .ds-gallery-composition) .avlist-card-header .actions {
   display: flex;
   gap: 0.5rem;
 }
-#gallery-components .avlist-card-body {
+:is(#gallery-components, .ds-gallery-composition) .avlist-card-body {
   padding: 0;
 }
-#gallery-components .manual-input {
+:is(#gallery-components, .ds-gallery-composition) .manual-input {
   display: none;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border-light);
   gap: 0.5rem;
   background: var(--bg-body);
 }
-#gallery-components .manual-input input {
+:is(#gallery-components, .ds-gallery-composition) .manual-input input {
   flex: 1;
 }
-#gallery-components .folder-list {
+:is(#gallery-components, .ds-gallery-composition) .folder-list {
   max-height: 300px;
   overflow-y: auto;
 }
-#gallery-components .folder-item {
+:is(#gallery-components, .ds-gallery-composition) .folder-item {
   display: flex;
   align-items: center;
   padding: 0.875rem 1.25rem;
@@ -2997,18 +2998,18 @@ body {
   border-bottom: 1px solid var(--border-light);
   transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
-#gallery-components .folder-item:last-child {
+:is(#gallery-components, .ds-gallery-composition) .folder-item:last-child {
   border-bottom: none;
 }
-#gallery-components .folder-item:hover {
+:is(#gallery-components, .ds-gallery-composition) .folder-item:hover {
   background: var(--bg-body);
 }
-#gallery-components .folder-item .folder-icon {
+:is(#gallery-components, .ds-gallery-composition) .folder-item .folder-icon {
   color: var(--accent);
   font-size: 1.25rem;
   flex-shrink: 0;
 }
-#gallery-components .folder-item .folder-path {
+:is(#gallery-components, .ds-gallery-composition) .folder-item .folder-path {
   flex: 1;
   font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
   font-size: 0.8rem;
@@ -3016,32 +3017,38 @@ body {
   word-break: break-all;
   line-height: 1.4;
 }
-#gallery-components .folder-item .btn-remove {
+:is(#gallery-components, .ds-gallery-composition) .folder-item .btn-remove {
   opacity: 0;
   transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
   padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
   border-radius: var(--radius-sm);
 }
-#gallery-components .folder-item:hover .btn-remove {
+:is(#gallery-components, .ds-gallery-composition) .folder-item:hover .btn-remove {
   opacity: 1;
 }
-#gallery-components .folder-empty {
+:is(#gallery-components, .ds-gallery-composition) .folder-item:focus-within .btn-remove {
+  opacity: 1;
+}
+:is(#gallery-components, .ds-gallery-composition) .folder-item .btn-remove:focus-visible {
+  opacity: 1;
+}
+:is(#gallery-components, .ds-gallery-composition) .folder-empty {
   padding: 3rem 2rem;
   text-align: center;
   color: var(--text-secondary);
 }
-#gallery-components .folder-empty i {
+:is(#gallery-components, .ds-gallery-composition) .folder-empty i {
   font-size: 3.5rem;
   opacity: 0.5;
   margin-bottom: 1rem;
   display: block;
 }
-#gallery-components .folder-empty p {
+:is(#gallery-components, .ds-gallery-composition) .folder-empty p {
   margin: 0.5rem 0 0;
   font-size: 0.875rem;
 }
-#gallery-components .output-info {
+:is(#gallery-components, .ds-gallery-composition) .output-info {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3050,36 +3057,36 @@ body {
   border-top: 1px solid var(--border-light);
   font-size: 0.8rem;
 }
-#gallery-components .output-info .path {
+:is(#gallery-components, .ds-gallery-composition) .output-info .path {
   font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
   color: var(--text-secondary);
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
-#gallery-components .output-info .path code {
+:is(#gallery-components, .ds-gallery-composition) .output-info .path code {
   background: var(--border-light);
   padding: 0.15rem 0.4rem;
   border-radius: var(--radius-xs);
   color: var(--text-primary);
 }
-#gallery-components .output-info .settings-link {
+:is(#gallery-components, .ds-gallery-composition) .output-info .settings-link {
   color: var(--accent);
   text-decoration: none;
   font-size: 0.75rem;
   transition: opacity var(--fluent-duration-fast);
 }
-#gallery-components .output-info .settings-link:hover {
+:is(#gallery-components, .ds-gallery-composition) .output-info .settings-link:hover {
   opacity: 0.7;
 }
-#gallery-components .action-section {
+:is(#gallery-components, .ds-gallery-composition) .action-section {
   padding: 1.25rem;
   display: flex;
   justify-content: center;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
-#gallery-components .btn-hero {
+:is(#gallery-components, .ds-gallery-composition) .btn-hero {
   padding: 0.75rem 2rem;
   font-size: 1rem;
   font-weight: 600;
@@ -3092,7 +3099,7 @@ body {
   gap: 0.5rem;
   box-shadow: var(--fluent-shadow-4);
 }
-#gallery-components .btn-hero-primary {
+:is(#gallery-components, .ds-gallery-composition) .btn-hero-primary {
   background: var(--accent);
   color: var(--color-primary-content);
   box-shadow: inset 0 1px 0 var(--color-base-content), 0 4px 12px var(--glow-primary);
@@ -3100,7 +3107,7 @@ body {
     box-shadow: inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent), 0 4px 12px var(--glow-primary);
   }
 }
-#gallery-components .btn-hero-primary:hover {
+:is(#gallery-components, .ds-gallery-composition) .btn-hero-primary:hover {
   background: var(--accent-hover);
   transform: translateY(-2px);
   box-shadow: inset 0 1px 0 var(--color-base-content), 0 0 0 2px var(--accent), 0 0 20px var(--glow-primary), var(--fluent-shadow-8);
@@ -3108,25 +3115,25 @@ body {
     box-shadow: inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 12%, transparent), 0 0 0 2px var(--accent), 0 0 20px var(--glow-primary), var(--fluent-shadow-8);
   }
 }
-#gallery-components .btn-hero-primary:disabled {
+:is(#gallery-components, .ds-gallery-composition) .btn-hero-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
 }
-#gallery-components .btn-hero-secondary {
+:is(#gallery-components, .ds-gallery-composition) .btn-hero-secondary {
   background: var(--bg-card);
   color: var(--text-primary);
   border: 1px solid var(--border-light);
 }
-#gallery-components .btn-hero-secondary:hover {
+:is(#gallery-components, .ds-gallery-composition) .btn-hero-secondary:hover {
   background: var(--border-light);
   transform: translateY(-2px);
 }
-#gallery-components .done-actions {
+:is(#gallery-components, .ds-gallery-composition) .done-actions {
   display: none;
   gap: 0.75rem;
 }
-#gallery-components .stats-card {
+:is(#gallery-components, .ds-gallery-composition) .stats-card {
   background: var(--bg-card);
   border-radius: var(--radius-md);
   margin-top: 1rem;
@@ -3136,24 +3143,24 @@ body {
   box-shadow: var(--fluent-shadow-4);
   border: 1px solid var(--border-light);
 }
-#gallery-components .stats-card .stats-row {
+:is(#gallery-components, .ds-gallery-composition) .stats-card .stats-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-#gallery-components .stats-card .stat-item {
+:is(#gallery-components, .ds-gallery-composition) .stats-card .stat-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
-#gallery-components .stats-card .stat-item i {
+:is(#gallery-components, .ds-gallery-composition) .stats-card .stat-item i {
   color: var(--accent);
 }
-#gallery-components .stats-card .stat-value {
+:is(#gallery-components, .ds-gallery-composition) .stats-card .stat-value {
   font-weight: 600;
   color: var(--text-primary);
 }
-#gallery-components .nfo-update-row {
+:is(#gallery-components, .ds-gallery-composition) .nfo-update-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -3161,17 +3168,17 @@ body {
   padding-top: 0.75rem;
   border-top: 1px solid var(--border-light);
 }
-#gallery-components .nfo-badge {
+:is(#gallery-components, .ds-gallery-composition) .nfo-badge {
   display: flex;
   align-items: center;
   gap: 0.4rem;
   color: #f59e0b;
   font-weight: 500;
 }
-#gallery-components .nfo-badge i {
+:is(#gallery-components, .ds-gallery-composition) .nfo-badge i {
   font-size: 1rem;
 }
-#gallery-components .btn-nfo-update {
+:is(#gallery-components, .ds-gallery-composition) .btn-nfo-update {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -3186,22 +3193,22 @@ body {
   transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
   box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
 }
-#gallery-components .btn-nfo-update:hover {
+:is(#gallery-components, .ds-gallery-composition) .btn-nfo-update:hover {
   background: linear-gradient(135deg, #d97706, #b45309);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
 }
-#gallery-components .btn-nfo-update:disabled {
+:is(#gallery-components, .ds-gallery-composition) .btn-nfo-update:disabled {
   cursor: not-allowed;
   transform: none;
   opacity: 0.7;
 }
-#gallery-components .btn-nfo-update.completed {
+:is(#gallery-components, .ds-gallery-composition) .btn-nfo-update.completed {
   background: var(--border-light);
   color: var(--text-secondary);
   box-shadow: none;
 }
-#gallery-components .actress-alias-card {
+:is(#gallery-components, .ds-gallery-composition) .actress-alias-card {
   background: var(--bg-card);
   border-radius: var(--radius-md);
   margin-top: 1rem;
@@ -3213,13 +3220,13 @@ body {
   border: 1px solid var(--stroke-default);
   transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
-#gallery-components .actress-alias-card:hover {
+:is(#gallery-components, .ds-gallery-composition) .actress-alias-card:hover {
   box-shadow: inset 0 1px 0 var(--color-base-content), 0 0 0 2px var(--accent), 0 0 20px var(--glow-primary), var(--fluent-shadow-8);
   @supports (color: color-mix(in lab, red, red)) {
     box-shadow: inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 12%, transparent), 0 0 0 2px var(--accent), 0 0 20px var(--glow-primary), var(--fluent-shadow-8);
   }
 }
-#gallery-components .actress-alias-header {
+:is(#gallery-components, .ds-gallery-composition) .actress-alias-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -3232,13 +3239,13 @@ body {
   cursor: pointer;
   transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
-#gallery-components .actress-alias-header:hover {
+:is(#gallery-components, .ds-gallery-composition) .actress-alias-header:hover {
   background: var(--color-base-content);
   @supports (color: color-mix(in lab, red, red)) {
     background: color-mix(in oklch, var(--color-base-content) 4%, transparent);
   }
 }
-#gallery-components .actress-alias-header .title {
+:is(#gallery-components, .ds-gallery-composition) .actress-alias-header .title {
   font-weight: 600;
   color: var(--text-primary);
   display: flex;
@@ -3246,11 +3253,11 @@ body {
   gap: 0.5rem;
   font-size: 0.875rem;
 }
-#gallery-components .actress-alias-header .title i {
+:is(#gallery-components, .ds-gallery-composition) .actress-alias-header .title i {
   color: #ec4899;
   font-size: 1rem;
 }
-#gallery-components .actress-alias-header .btn-collapse {
+:is(#gallery-components, .ds-gallery-composition) .actress-alias-header .btn-collapse {
   background: transparent;
   border: none;
   color: var(--text-secondary);
@@ -3258,60 +3265,60 @@ body {
   cursor: pointer;
   transition: color var(--fluent-duration-fast);
 }
-#gallery-components .actress-alias-header .btn-collapse:hover {
+:is(#gallery-components, .ds-gallery-composition) .actress-alias-header .btn-collapse:hover {
   color: var(--text-primary);
 }
-#gallery-components .actress-alias-body {
+:is(#gallery-components, .ds-gallery-composition) .actress-alias-body {
   padding: 1rem;
 }
-#gallery-components .alias-form {
+:is(#gallery-components, .ds-gallery-composition) .alias-form {
   margin-bottom: 1rem;
 }
-#gallery-components .alias-form-row {
+:is(#gallery-components, .ds-gallery-composition) .alias-form-row {
   display: flex;
   align-items: flex-end;
   gap: 0.75rem;
   flex-wrap: wrap;
 }
-#gallery-components .alias-input-group {
+:is(#gallery-components, .ds-gallery-composition) .alias-input-group {
   flex: 1;
   min-width: 120px;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
-#gallery-components .alias-input-group label {
+:is(#gallery-components, .ds-gallery-composition) .alias-input-group label {
   font-size: 0.7rem;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-weight: 600;
 }
-#gallery-components .alias-input-group input {
+:is(#gallery-components, .ds-gallery-composition) .alias-input-group input {
   width: 100%;
   transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
-#gallery-components .alias-input-group input:focus {
+:is(#gallery-components, .ds-gallery-composition) .alias-input-group input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 4px var(--glow-subtle), inset 0 1px 0 var(--color-base-content);
   @supports (color: color-mix(in lab, red, red)) {
     box-shadow: 0 0 0 4px var(--glow-subtle), inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent);
   }
 }
-#gallery-components .alias-count {
+:is(#gallery-components, .ds-gallery-composition) .alias-count {
   font-size: 0.7rem;
   color: var(--accent);
   min-height: 1rem;
   margin-top: 0.25rem;
   font-weight: 600;
 }
-#gallery-components .alias-arrow {
+:is(#gallery-components, .ds-gallery-composition) .alias-arrow {
   color: var(--text-secondary);
   font-size: 1rem;
   padding-bottom: 0.5rem;
   flex-shrink: 0;
 }
-#gallery-components .btn-alias-add {
+:is(#gallery-components, .ds-gallery-composition) .btn-alias-add {
   padding: 0.5rem 0.75rem;
   background: var(--accent);
   color: var(--color-primary-content);
@@ -3325,18 +3332,18 @@ body {
   font-size: 1.1rem;
   box-shadow: var(--fluent-shadow-2);
 }
-#gallery-components .btn-alias-add:hover {
+:is(#gallery-components, .ds-gallery-composition) .btn-alias-add:hover {
   background: var(--accent-hover);
   transform: translateY(-1px);
   box-shadow: 0 0 0 2px var(--accent), 0 0 12px var(--glow-primary), var(--fluent-shadow-4);
 }
-#gallery-components .btn-alias-add:disabled {
+:is(#gallery-components, .ds-gallery-composition) .btn-alias-add:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
 }
-#gallery-components .alias-preview {
+:is(#gallery-components, .ds-gallery-composition) .alias-preview {
   font-size: 0.75rem;
   color: var(--text-secondary);
   margin-top: 0.5rem;
@@ -3345,33 +3352,33 @@ body {
   align-items: center;
   gap: 0.5rem;
 }
-#gallery-components .alias-preview i {
+:is(#gallery-components, .ds-gallery-composition) .alias-preview i {
   color: var(--accent);
   font-size: 0.9rem;
 }
-#gallery-components .alias-list {
+:is(#gallery-components, .ds-gallery-composition) .alias-list {
   max-height: 200px;
   overflow-y: auto;
   border: 1px solid var(--stroke-default);
   border-radius: var(--radius-sm);
   background: var(--bg-body);
 }
-#gallery-components .alias-list-empty, #gallery-components .alias-list-loading, #gallery-components .alias-list-error {
+:is(#gallery-components, .ds-gallery-composition) .alias-list-empty, :is(#gallery-components, .ds-gallery-composition) .alias-list-loading, :is(#gallery-components, .ds-gallery-composition) .alias-list-error {
   padding: 1.5rem;
   text-align: center;
   color: var(--text-secondary);
   font-size: 0.8rem;
 }
-#gallery-components .alias-list-loading {
+:is(#gallery-components, .ds-gallery-composition) .alias-list-loading {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
 }
-#gallery-components .alias-list-error {
+:is(#gallery-components, .ds-gallery-composition) .alias-list-error {
   color: var(--color-error);
 }
-#gallery-components .alias-item {
+:is(#gallery-components, .ds-gallery-composition) .alias-item {
   display: flex;
   align-items: center;
   padding: 0.6rem 0.75rem;
@@ -3379,40 +3386,40 @@ body {
   border-bottom: 1px solid var(--stroke-subtle);
   transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
-#gallery-components .alias-item:last-child {
+:is(#gallery-components, .ds-gallery-composition) .alias-item:last-child {
   border-bottom: none;
 }
-#gallery-components .alias-item:hover {
+:is(#gallery-components, .ds-gallery-composition) .alias-item:hover {
   background: var(--color-base-content);
   @supports (color: color-mix(in lab, red, red)) {
     background: color-mix(in oklch, var(--color-base-content) 3%, transparent);
   }
 }
-#gallery-components .alias-old {
+:is(#gallery-components, .ds-gallery-composition) .alias-old {
   font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
   font-size: 0.8rem;
   color: #dcdcaa;
   min-width: 80px;
   font-weight: 500;
 }
-#gallery-components .alias-item .alias-arrow {
+:is(#gallery-components, .ds-gallery-composition) .alias-item .alias-arrow {
   color: var(--text-muted);
   font-size: 0.75rem;
   padding: 0;
 }
-#gallery-components .alias-new {
+:is(#gallery-components, .ds-gallery-composition) .alias-new {
   font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
   font-size: 0.8rem;
   color: #6a9955;
   flex: 1;
   font-weight: 500;
 }
-#gallery-components .alias-applied {
+:is(#gallery-components, .ds-gallery-composition) .alias-applied {
   font-size: 0.7rem;
   color: var(--text-secondary);
   white-space: nowrap;
 }
-#gallery-components .btn-alias-delete {
+:is(#gallery-components, .ds-gallery-composition) .btn-alias-delete {
   opacity: 0;
   background: transparent;
   border: none;
@@ -3422,31 +3429,31 @@ body {
   transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
   font-size: 0.9rem;
 }
-#gallery-components .alias-item:hover .btn-alias-delete {
+:is(#gallery-components, .ds-gallery-composition) .alias-item:hover .btn-alias-delete {
   opacity: 1;
 }
-#gallery-components .btn-alias-delete:hover {
+:is(#gallery-components, .ds-gallery-composition) .btn-alias-delete:hover {
   color: #ff6b6b;
   transform: scale(1.1);
 }
 @media (max-width: 576px) {
-  #gallery-components .alias-form-row {
+  :is(#gallery-components, .ds-gallery-composition) .alias-form-row {
     flex-direction: column;
     align-items: stretch;
   }
-  #gallery-components .alias-input-group {
+  :is(#gallery-components, .ds-gallery-composition) .alias-input-group {
     min-width: 100%;
   }
-  #gallery-components .alias-arrow {
+  :is(#gallery-components, .ds-gallery-composition) .alias-arrow {
     padding: 0;
     align-self: center;
     transform: rotate(90deg);
   }
-  #gallery-components .btn-alias-add {
+  :is(#gallery-components, .ds-gallery-composition) .btn-alias-add {
     width: 100%;
     padding: 0.75rem;
   }
-  #gallery-components .alias-old, #gallery-components .alias-new {
+  :is(#gallery-components, .ds-gallery-composition) .alias-old, :is(#gallery-components, .ds-gallery-composition) .alias-new {
     min-width: auto;
     flex: 1;
   }
