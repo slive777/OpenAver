@@ -7,6 +7,7 @@
 
 /**
  * 檢查檔名是否包含字幕標記
+ * [FALLBACK] 當 /api/parse-filename 失敗時使用
  */
 function checkSubtitle(filename) {
     if (!filename) return false;
@@ -102,6 +103,8 @@ function extractChineseTitle(filename, number, actors = []) {
 
 /**
  * 從檔名提取番號
+ * [FALLBACK] 當 /api/parse-filename 失敗時使用
+ * 主要路徑應優先呼叫後端 API
  */
 function extractNumber(filename) {
     const basename = filename.split(/[/\\]/).pop().replace(/\.[^.]+$/, '');

@@ -113,7 +113,7 @@ async function loadAppConfig() {
 
 /**
  * 判斷文字是否包含日文（平假名、片假名）
- * [LOCAL FALLBACK] 後端已有 has_japanese，此為備用
+ * [FRONTEND UTIL] 翻譯功能的即時判斷，必須保留在前端
  */
 function hasJapanese(text) {
     return /[\u3040-\u309F\u30A0-\u30FF]/.test(text);
@@ -564,6 +564,8 @@ function doSearch(query) {
 
 /**
  * 傳統 API 回退
+ * [FALLBACK] 當 SSE (/api/search/stream) 失敗時降級為 REST API
+ * 確保在不支援 SSE 的環境下仍可正常搜尋
  */
 async function fallbackSearch(query) {
     // 先關閉現有的 Gallery（如果有顯示）
