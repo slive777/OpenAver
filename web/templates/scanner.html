@@ -42,7 +42,7 @@
             <!-- Manual Input (hidden by default) -->
             <div class="manual-input" id="manualInput"
                 style="display: none; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-light);">
-                <input type="text" class="form-control form-control-sm" id="manualPath" placeholder="輸入資料夾路徑...">
+                <input type="text" class="input input-bordered input-sm" id="manualPath" placeholder="輸入資料夾路徑...">
                 <button class="btn btn-sm btn-primary" onclick="addManualPath()">
                     <i class="bi bi-plus"></i>
                 </button>
@@ -145,7 +145,7 @@
             <!-- Alias List -->
             <div class="alias-list" id="aliasList">
                 <div class="alias-list-loading">
-                    <span class="spinner-border spinner-border-sm"></span> 載入中...
+                    <span class="loading loading-spinner loading-sm"></span> 載入中...
                 </div>
             </div>
 
@@ -309,7 +309,7 @@
         <div class="folder-item">
             <i class="bi bi-folder folder-icon"></i>
             <span class="folder-path">${escapeHtml(dir)}</span>
-            <button class="btn btn-outline-danger btn-remove" onclick="removeDirectory(${idx})" title="移除">
+            <button class="btn btn-sm btn-outline btn-error btn-remove" onclick="removeDirectory(${idx})" title="移除">
                 <i class="bi bi-x"></i>
             </button>
         </div>
@@ -453,7 +453,7 @@
         const doneActions = document.getElementById('doneActions');
 
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 產生中...';
+        btn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> 產生中...';
         progressSection.style.display = 'block';
         doneActions.style.display = 'none';
         logOutput.innerHTML = '';
@@ -702,7 +702,7 @@
         const logOutput = document.getElementById('logOutput');
 
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 補全中...';
+        btn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> 補全中...';
         progressSection.style.display = 'block';
         logOutput.innerHTML = '';
 
