@@ -62,7 +62,7 @@
     border-left: 2px solid transparent;
     padding-left: 0.75rem;
     margin-left: -0.75rem;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: color var(--fluent-duration-fast) var(--fluent-ease-standard), border-left-color var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .ds-toc a:hover,
@@ -106,8 +106,6 @@
     margin-bottom: 3rem;
     padding: 4rem 2rem;
     background: color-mix(in oklch, var(--color-base-200) 70%, transparent);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
     border-radius: var(--fluent-radius-xl);
     border: 1px solid var(--border-light);
     box-shadow:
@@ -182,7 +180,7 @@
     margin-bottom: 2.5rem;
     padding: 2rem;
     border-radius: var(--fluent-radius-xl);
-    transition: all var(--fluent-duration-normal) var(--fluent-ease-standard);
+    transition: box-shadow var(--fluent-duration-normal) var(--fluent-ease-standard);
     position: relative;
     z-index: 1; /* 提升到噪點層之上 */
 }
@@ -190,8 +188,6 @@
 /* 樣式 A：透明玻璃 + 細描邊 */
 .ds-section.glass {
     background: color-mix(in oklch, var(--color-base-200) 70%, transparent);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--border-light);
     box-shadow:
         0 0 0 1px color-mix(in oklch, var(--color-base-content) 5%, transparent) inset,
@@ -214,8 +210,8 @@
 /* Section Hover：發光邊 */
 .ds-section:hover {
     box-shadow:
-        0 0 0 1px rgba(90, 200, 250, 0.2),
-        0 0 30px rgba(90, 200, 250, 0.1),
+        0 0 0 1px var(--glow-subtle),
+        0 0 30px color-mix(in oklch, var(--accent) 10%, transparent),
         var(--fluent-shadow-8);
 }
 
@@ -239,7 +235,7 @@
     width: 100%;
     height: 3px;
     background: linear-gradient(90deg, var(--accent) 0%, #007aff 60%, transparent 100%);
-    border-radius: 2px;
+    border-radius: var(--fluent-radius-sm);
 }
 
 [data-theme="dim"] .ds-section h2::after {
@@ -268,6 +264,23 @@
     content: '//';
     margin-right: 0.5rem;
     opacity: 0.5;
+}
+
+/* Group / Section Labels */
+.ds-group-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin: 1.5rem 0 0.75rem 0;
+    letter-spacing: 0.05em;
+}
+
+.ds-variant-label {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
 }
 
 .ds-desc {
@@ -309,7 +322,7 @@
     place-items: center;
     padding: 1rem;
     box-shadow: var(--fluent-shadow-4);
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
     cursor: pointer;
     position: relative;
     overflow: hidden;
@@ -343,8 +356,6 @@
     flex-direction: column;
     gap: 0.25rem;
     background: oklch(0% 0 0 / 0.75);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
     padding: 0.5rem 0.75rem;
     border-radius: var(--fluent-radius-md);
     position: relative;
@@ -380,8 +391,6 @@
     border-radius: var(--fluent-radius-md);
     position: relative;
     z-index: 1;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
 }
 
 /* ==================== Text Samples ==================== */
@@ -483,7 +492,7 @@
     color: oklch(100% 0 0);
     font-size: 0.8rem;
     font-weight: 600;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
     cursor: pointer;
 }
 
@@ -518,7 +527,7 @@
     font-size: 0.85rem;
     font-weight: 500;
     color: var(--text-secondary);
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard), color var(--fluent-duration-fast) var(--fluent-ease-standard);
     cursor: pointer;
 }
 
@@ -561,13 +570,15 @@
 .ds-acrylic-overlay span {
     font-weight: 600;
     font-size: 1.1rem;
-    color: var(--text-primary);
+    color: oklch(100% 0 0);
+    text-shadow: 0 1px 3px oklch(0% 0 0 / 0.5);
 }
 
 .ds-acrylic-overlay code {
     font-size: 0.85rem;
-    color: var(--text-secondary);
+    color: oklch(100% 0 0 / 0.8);
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    text-shadow: 0 1px 3px oklch(0% 0 0 / 0.5);
 }
 
 /* ==================== Duration List ==================== */
@@ -585,7 +596,7 @@
     background: var(--bg-body);
     border-radius: var(--fluent-radius-lg);
     border: 1px solid var(--border-light);
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: border-color var(--fluent-duration-fast) var(--fluent-ease-standard), background var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .ds-duration-item:hover {
@@ -660,6 +671,7 @@
     display: grid;
     grid-template-columns: 2fr 1fr;
     grid-template-rows: auto auto;
+    align-content: start;
     gap: 1rem;
 }
 
@@ -695,12 +707,12 @@
     background: var(--bg-card);
     border-radius: var(--fluent-radius-lg);
     cursor: pointer;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), border-color var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard);
     border: 1px solid transparent;
 }
 
 .av-card-thumbnail:hover {
-    background: var(--border-light);
+    background: color-mix(in oklch, var(--color-base-content) 4%, transparent);
     border-color: var(--accent);
     transform: translateX(4px);
 }
@@ -772,20 +784,49 @@
     transform: scale(1.08);
 }
 
-.av-card-preview-overlay {
+/* Overlay 只顯示在 Featured 大卡 */
+.av-card-preview.featured .av-card-preview-overlay {
     position: absolute;
     inset: 0;
     background: linear-gradient(to top, oklch(0% 0 0 / 0.7) 0%, oklch(0% 0 0 / 0.3) 50%, transparent 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
+    gap: 1rem;
     opacity: 0;
     transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
-.av-card-preview:hover .av-card-preview-overlay {
+.av-card-preview.featured:hover .av-card-preview-overlay {
     opacity: 1;
+}
+
+/* 圓形玻璃按鈕（用於 Overlay Actions） */
+.btn-glass-circle {
+    width: 48px;
+    height: 48px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    color: oklch(100% 0 0);
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), border-color var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px oklch(0% 0 0 / 0.3);
+}
+
+.btn-glass-circle:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: scale(1.08);
+    box-shadow: 0 6px 16px oklch(0% 0 0 / 0.4);
+}
+
+.btn-glass-circle:active {
+    transform: scale(0.95);
 }
 
 .av-card-preview-badge {
@@ -806,10 +847,11 @@
 }
 
 .av-card-preview-footer {
-    padding: 1rem;
+    padding: 0.5rem 0.75rem;
     display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
 }
 
 /* Full Variant */
@@ -874,6 +916,22 @@
     border-top: 1px solid var(--border-light);
 }
 
+/* AV Card Full: Demo-specific adjustments */
+.ds-page .av-card-full-header {
+    align-items: center;
+}
+
+.ds-page .av-card-full-header .av-num {
+    flex: 1;
+}
+
+/* Tag badges in Full card body */
+.ds-page .av-card-full-body .info-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
 /* Compact Variant */
 .av-card-compact {
     display: flex;
@@ -881,17 +939,17 @@
     gap: 0.75rem;
     padding: 0.75rem 1rem;
     border-radius: var(--fluent-radius-lg);
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
     border: 1px solid transparent;
 }
 
 .av-card-compact:hover {
-    background: var(--border-light);
+    background: color-mix(in oklch, var(--color-base-content) 4%, transparent);
     border-color: var(--border-light);
 }
 
 .av-card-compact.active {
-    background: rgba(90, 200, 250, 0.1);
+    background: color-mix(in oklch, var(--accent) 10%, transparent);
     border-color: var(--accent);
 }
 
@@ -917,7 +975,7 @@
 }
 
 .av-status.searched {
-    color: #34c759;
+    color: var(--color-success);
 }
 
 .av-status.local {
@@ -990,7 +1048,7 @@
     margin-bottom: 0.25rem;
     font-weight: 500;
     font-size: 0.9rem;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), color var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .ds-sidebar-mini .nav-link:hover {
@@ -1014,14 +1072,6 @@
     flex-wrap: wrap;
     gap: 1rem;
     align-items: center;
-}
-
-.ds-toast-demo {
-    margin-bottom: 1rem;
-}
-
-.ds-toast-demo .toast-msg {
-    position: relative;
 }
 
 .ds-progress-demo {
@@ -1066,7 +1116,7 @@
 /* 層級原則：容器 12px > 封面 8px > badge 4px */
 .av-card-preview-img,
 .gallery-card-img {
-    border-radius: var(--radius-sm); /* 8px，比卡片 12px 略小 */
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0; /* 頂部 8px，底部直角（接觸 footer）*/
     overflow: hidden;
 }
 
@@ -1096,7 +1146,7 @@
     justify-content: center;
     border-radius: var(--fluent-radius-md);
     color: color-mix(in oklch, var(--color-base-content) 70%, transparent);
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), color var(--fluent-duration-fast) var(--fluent-ease-standard);
     cursor: pointer;
     position: relative;
     box-sizing: border-box;
@@ -1112,9 +1162,9 @@
 }
 
 .ds-nav-rail-link.active {
-    background: oklch(var(--p) / 0.15);
-    color: oklch(var(--pc));
-    border: 2px solid oklch(var(--p));
+    background: color-mix(in oklch, var(--accent) 15%, transparent);
+    color: var(--color-primary-content);
+    border: 2px solid var(--accent);
     border-radius: var(--radius-pill);
     box-shadow: 0 0 16px var(--glow-primary);
 }
@@ -1147,8 +1197,8 @@
 .ds-spacing-bar {
     height: 32px;
     background: var(--color-primary);
-    border-radius: 4px;
-    transition: width 0.3s ease;
+    border-radius: var(--fluent-radius-md);
+    transition: width var(--duration-normal) var(--fluent-ease-standard);
 }
 
 .ds-spacing-info {
@@ -1184,7 +1234,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    transition: transform 0.2s ease;
+    transition: transform var(--duration-fast) var(--fluent-ease-standard);
 }
 
 .ds-elevation-item:hover {
@@ -1240,7 +1290,7 @@
 /* 強制 Hover 狀態（按鈕）*/
 .btn.state-hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(90, 200, 250, 0.3);
+    box-shadow: 0 4px 12px var(--glow-primary);
 }
 
 /* 強制 Active 狀態（按鈕）*/
@@ -1252,14 +1302,14 @@
 /* 強制 Focus 狀態（輸入框）*/
 .form-control.state-focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(90, 200, 250, 0.2);
+    box-shadow: 0 0 0 3px var(--glow-subtle);
     outline: none;
 }
 
 /* 強制 Error 狀態（輸入框）*/
 .form-control.state-error {
-    border-color: #ff3b30;
-    box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.2);
+    border-color: var(--color-error);
+    box-shadow: 0 0 0 3px var(--glow-error);
 }
 
 /* 強制 Hover 狀態（卡片）- 與 theme.css .gallery-card:hover 一致 */
@@ -1279,15 +1329,10 @@
 /* 強制 Selected 狀態（卡片）*/
 .gallery-card.state-selected {
     border: 2px solid var(--accent);
-    background: rgba(90, 200, 250, 0.05);
+    background: color-mix(in oklch, var(--accent) 5%, transparent);
 }
 
 /* ==================== Additional Component Styles for Design System ==================== */
-
-/* Rotate utility for collapse toggle */
-.rotate-180 {
-    transform: rotate(180deg) !important;
-}
 
 /* File list header */
 .file-list-header {
@@ -1304,7 +1349,7 @@
     color: var(--text-secondary);
     font-size: 0.875rem;
     cursor: pointer;
-    transition: color var(--fluent-duration-fast);
+    transition: color var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .collapse-toggle:hover {
@@ -1312,7 +1357,7 @@
 }
 
 .collapse-toggle i {
-    transition: transform 0.2s ease;
+    transition: transform var(--duration-fast) var(--fluent-ease-standard);
 }
 
 .collapse-toggle[aria-expanded="true"] i,
@@ -1330,20 +1375,20 @@
  * 最佳實踐：確保 design-system.css 只在 design-system.html 載入
  */
 
-.progress-container {
+.ds-page .progress-container {
     background: var(--color-base-200);
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     padding: 1.5rem 2rem;
     box-shadow: var(--fluent-shadow-4);
     border: 1px solid var(--border-light);
-    transition: background-color 0.3s ease;
+    transition: background-color var(--duration-normal) var(--fluent-ease-standard);
 }
 
-[data-theme="dim"] .progress-container {
+[data-theme="dim"] .ds-page .progress-container {
     background: var(--color-base-300);
 }
 
-.progress-header {
+.ds-page .progress-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1352,38 +1397,60 @@
     border-bottom: 1px solid color-mix(in oklch, var(--color-base-content) 10%, transparent);
 }
 
-.progress-status {
+.ds-page .progress-status {
     font-weight: 600;
     font-size: 1rem;
     color: var(--color-base-content);
 }
 
-.progress-log {
+.ds-page .progress-log {
     font-size: 0.9rem;
     color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
     margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 }
 
-.detail-progress {
+/* ==================== Progress Indicator Demo - Spinner Animation ==================== */
+/* 補充 v0.2.3 的旋轉動畫，確保 Loading State 展示完整 */
+
+.ds-page .progress-log::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border: 2px solid color-mix(in oklch, var(--color-base-content) 30%, transparent);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.ds-page .detail-progress {
     display: none;
     background: color-mix(in oklch, var(--color-base-100) 50%, transparent);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     padding: 0.5rem;
     position: relative;
 }
 
-.detail-progress.show {
+.ds-page .detail-progress.show {
     display: block;
 }
 
-.detail-bar {
+.ds-page .detail-bar {
     height: 6px;
     background: var(--color-primary);
-    border-radius: 3px;
-    transition: width 0.3s ease;
+    border-radius: var(--fluent-radius-sm);
+    transition: width var(--duration-normal) var(--fluent-ease-standard);
 }
 
-.detail-text {
+.ds-page .detail-text {
     position: absolute;
     right: 0.75rem;
     top: 50%;
@@ -1424,15 +1491,13 @@
     gap: 0.5rem;
     padding: 0.5rem 1rem;
     background: color-mix(in oklch, var(--color-base-200) 70%, transparent);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
     border: 1px solid var(--border-light);
     border-radius: var(--fluent-radius-lg);
     color: var(--text-primary);
     font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), border-color var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard);
     box-shadow: var(--fluent-shadow-4);
 }
 
@@ -1461,7 +1526,7 @@
 .theme-toggle-btn i {
     font-size: 1.1rem;
     color: var(--accent);
-    transition: transform var(--fluent-duration-fast);
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .theme-toggle-btn:hover i {
@@ -1496,4 +1561,695 @@
         height: 40px;
         justify-content: center;
     }
+}
+
+/* ==================== Page States Demo Container ==================== */
+.ds-state-demo {
+    min-height: 400px;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+/* 確保 state-page 在 demo 容器中垂直居中 */
+.ds-state-demo .state-page {
+    width: 100%;
+}
+
+/* ==================== D.14: Search Page Composition ==================== */
+
+/* 主容器 */
+.ds-search-composition {
+    min-height: 600px;
+    max-height: 800px;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-xl);
+    overflow: hidden;
+    box-shadow: var(--fluent-shadow-8);
+    border: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header - Acrylic Effect */
+.ds-search-composition .ds-comp-header {
+    flex-shrink: 0;
+    padding: 1rem 1.5rem;
+    background: color-mix(in oklch, var(--color-base-200) 70%, transparent);
+    border-bottom: 1px solid var(--border-light);
+    z-index: 100;
+}
+
+/* Search Input */
+.ds-search-composition .ds-comp-search-input {
+    width: 100%;
+    height: 3.5rem;
+    padding-left: 3.5rem;
+    padding-right: 6rem;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-pill);
+    font-size: 1.1rem;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    outline: none;
+    box-shadow: var(--shadow-sm);
+}
+
+/* Search Hint */
+.ds-search-composition .ds-comp-hint {
+    margin-top: 0.5rem;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.ds-search-composition .ds-comp-hint code {
+    background: var(--border-light);
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--radius-xs);
+}
+
+/* Result Area */
+.ds-search-composition .ds-comp-result-area {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    padding: 1rem;
+    gap: 1rem;
+    min-height: 0;
+}
+
+/* Cover Section (70%) */
+.ds-search-composition .ds-comp-cover-section {
+    flex: 7;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    background: var(--bg-body);
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    padding-top: 1rem;
+}
+
+/* Cover Wrapper */
+.ds-search-composition .ds-comp-cover-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 400px;
+    max-height: 600px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+/* Cover Image */
+.ds-search-composition .ds-comp-cover-img {
+    width: 100%;
+    height: 100%;
+    max-height: calc(100vh - 200px);
+    object-fit: contain;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+}
+
+/* Nav Buttons */
+.ds-search-composition .ds-comp-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 64px;
+    background: rgba(0, 0, 0, 0.6);
+    border: none;
+    color: oklch(100% 0 0);
+    font-size: 1.4rem;
+    cursor: pointer;
+    border-radius: var(--fluent-radius-lg);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: background var(--duration-fast) var(--fluent-ease-standard), transform var(--duration-fast) var(--fluent-ease-standard);
+}
+
+.ds-search-composition .ds-comp-nav-prev {
+    left: 10px;
+}
+
+.ds-search-composition .ds-comp-nav-next {
+    right: 10px;
+}
+
+.ds-search-composition .ds-comp-nav-btn:hover {
+    background: rgba(0, 0, 0, 0.8);
+    transform: translateY(-50%) scale(1.05);
+}
+
+.ds-search-composition .ds-comp-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: translateY(-50%);
+}
+
+/* Nav Indicator */
+.ds-search-composition .ds-comp-nav-indicator {
+    position: absolute;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.6);
+    color: oklch(100% 0 0);
+    padding: 2px 10px;
+    border-radius: var(--radius-md);
+    font-size: 0.8rem;
+}
+
+/* File Section */
+.ds-search-composition .ds-comp-file-section {
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-light);
+    padding: 0.5rem 1rem;
+    width: 100%;
+    margin-top: 0.5rem;
+    border-radius: var(--radius-sm);
+}
+
+/* File Header */
+.ds-search-composition .ds-comp-file-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.ds-search-composition .ds-comp-file-count {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.ds-search-composition .ds-comp-file-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Batch Progress */
+.ds-search-composition .ds-comp-progress {
+    margin-bottom: 8px;
+    padding: 4px 0;
+}
+
+.ds-search-composition .batch-progress-bar {
+    height: 6px;
+    background: var(--border-light);
+    border-radius: var(--fluent-radius-sm);
+    overflow: hidden;
+    margin-bottom: 4px;
+    position: relative;
+}
+
+.ds-search-composition .batch-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), color-mix(in oklch, var(--accent) 70%, transparent));
+    transition: width var(--duration-normal) var(--fluent-ease-standard);
+}
+
+.ds-search-composition .batch-progress-text {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    text-align: center;
+}
+
+/* File List */
+.ds-search-composition .ds-comp-file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* File Item */
+.ds-search-composition .ds-comp-file-item {
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    border-radius: var(--fluent-radius-md);
+    transition: background var(--duration-fast) var(--fluent-ease-standard);
+    cursor: pointer;
+}
+
+.ds-search-composition .ds-comp-file-item:hover {
+    background: var(--border-light);
+}
+
+.ds-search-composition .ds-comp-file-item.active {
+    background: var(--border-light);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.ds-search-composition .ds-comp-file-icon {
+    color: var(--text-muted);
+}
+
+.ds-search-composition .ds-comp-file-item.active .ds-comp-file-icon {
+    color: var(--accent);
+}
+
+.ds-search-composition .ds-comp-file-remove {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0;
+    font-size: 0.7rem;
+    line-height: 1;
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--fluent-ease-standard);
+}
+
+.ds-search-composition .ds-comp-file-item:hover .ds-comp-file-remove {
+    opacity: 0.6;
+}
+
+.ds-search-composition .ds-comp-file-remove:hover {
+    opacity: 1 !important;
+    color: var(--color-error);
+}
+
+/* 當 file-item 內有元素獲得焦點時，顯示刪除按鈕 */
+.ds-search-composition .ds-comp-file-item:focus-within .ds-comp-file-remove {
+    opacity: 0.6;
+}
+
+.ds-search-composition .ds-comp-file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-primary);
+}
+
+/* Status Icons (線條風格, 14px) */
+.ds-search-composition .ds-comp-file-status-icon {
+    font-size: 14px;
+    line-height: 1;
+}
+
+.ds-search-composition .ds-comp-file-status-icon.status-found {
+    color: var(--color-success);
+}
+
+.ds-search-composition .ds-comp-file-status-icon.status-fail {
+    color: var(--color-error);
+}
+
+.ds-search-composition .ds-comp-file-status-icon.status-unknown {
+    color: var(--color-warning);
+}
+
+/* Action Icon Buttons (ghost style, 24x24) */
+.ds-search-composition .ds-comp-file-action-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--color-success);
+    cursor: pointer;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background var(--duration-fast) var(--fluent-ease-standard), transform var(--duration-fast) var(--fluent-ease-standard);
+}
+
+.ds-search-composition .ds-comp-file-action-btn:hover {
+    background: color-mix(in oklch, var(--color-success) 12%, transparent);
+    transform: scale(1.1);
+}
+
+.ds-search-composition .ds-comp-file-action-btn.status-unknown {
+    color: var(--color-warning);
+}
+
+.ds-search-composition .ds-comp-file-action-btn.status-unknown:hover {
+    background: color-mix(in oklch, var(--color-warning) 12%, transparent);
+}
+
+/* Info Section (30%) */
+.ds-search-composition .ds-comp-info-section {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    box-shadow: var(--fluent-shadow-8);
+    border: 1px solid var(--border-light);
+    min-width: 300px;
+}
+
+/* Info Header */
+.ds-search-composition .ds-comp-info-header {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-light);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ds-search-composition .ds-comp-info-number {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--accent);
+    margin: 0;
+}
+
+.ds-search-composition .ds-comp-local-badge {
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+/* Info Body */
+.ds-search-composition .ds-comp-info-body {
+    flex: 1;
+    padding: 0.75rem;
+    overflow-y: auto;
+}
+
+.ds-search-composition .ds-comp-info-row {
+    margin-bottom: 0.75rem;
+}
+
+.ds-search-composition .ds-comp-info-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+    letter-spacing: 0.05em;
+}
+
+.ds-search-composition .ds-comp-info-value {
+    font-size: 0.9rem;
+    word-break: break-word;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.ds-search-composition .ds-comp-info-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.ds-search-composition .ds-comp-info-tags .tag-badge {
+    font-size: 0.65rem;
+    margin: 1px;
+    padding: 2px 6px;
+    background: var(--border-light);
+    color: var(--text-secondary);
+    border-radius: var(--radius-xs);
+}
+
+.ds-search-composition .ds-comp-subtitle-badge {
+    background: var(--color-success) !important;
+    color: var(--color-success-content) !important;
+}
+
+/* Info Footer */
+.ds-search-composition .ds-comp-info-footer {
+    padding: 0.75rem;
+    border-top: 1px solid var(--border-light);
+    background: transparent;
+}
+
+.ds-search-composition .ds-comp-info-title-wrapper {
+    display: flex;
+    align-items: flex-start;
+}
+
+.ds-search-composition .ds-comp-info-title {
+    flex: 1;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    line-height: 1.3;
+}
+
+.ds-search-composition .ds-comp-info-actions {
+    display: flex;
+    gap: 0.25rem;
+    flex-shrink: 0;
+}
+
+/* Info Icon Button — 繼承 theme.css .info-icon-btn 全域樣式 */
+/* hover 行為與全域定義一致，無需覆寫 */
+
+/* Responsive: 小螢幕垂直排列 */
+@media (max-width: 768px) {
+    .ds-search-composition .ds-comp-result-area {
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    .ds-search-composition .ds-comp-cover-section {
+        flex: none;
+        width: 100%;
+        max-height: 50vh;
+    }
+
+    .ds-search-composition .ds-comp-info-section {
+        flex: none;
+        width: 100%;
+        min-width: auto;
+        max-height: none;
+    }
+}
+
+/* ===================================================================
+   D.15: Gallery Page Composition
+   =================================================================== */
+.ds-gallery-composition {
+    background: var(--surface-0);
+    border-radius: var(--radius-md);
+    padding: 2rem;
+    border: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* Section Title */
+.ds-gallery-section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border-light);
+}
+
+.ds-gallery-section-title i {
+    font-size: 1.25rem;
+    color: var(--accent);
+}
+
+/* Cards Row (Stats + Alias horizontal) */
+.ds-gallery-cards-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.ds-gallery-cards-row .stats-card,
+.ds-gallery-cards-row .actress-alias-card {
+    margin: 0;
+}
+
+/* Preview Grid (Mosaic Layout) */
+.ds-gallery-preview-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 1rem;
+}
+
+.ds-gallery-preview-grid .av-card-preview.featured {
+    grid-row: 1 / 3;
+    grid-column: 1;
+}
+
+.ds-gallery-preview-grid .av-card-preview:not(.featured) {
+    grid-column: 2;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .ds-gallery-composition {
+        padding: 1.5rem;
+        gap: 1.5rem;
+    }
+
+    /* Cards row becomes vertical */
+    .ds-gallery-cards-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    /* Preview grid becomes single column */
+    .ds-gallery-preview-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+    }
+
+    .ds-gallery-preview-grid .av-card-preview.featured {
+        grid-row: auto;
+        grid-column: 1;
+    }
+
+    .ds-gallery-preview-grid .av-card-preview:not(.featured) {
+        grid-column: 1;
+    }
+}
+
+/* ==================== D.10: Modal Demo Container ==================== */
+
+.ds-modal-demo {
+    padding: 2rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
+    text-align: center;
+}
+
+.ds-modal-demo .btn {
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.ds-modal-demo .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--fluent-shadow-4);
+}
+
+/* ==================== D.11: Toast Demo Container ==================== */
+
+.ds-toast-demo {
+    padding: 3rem 2rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
+    text-align: center;
+    min-height: 200px;
+    position: relative;
+}
+
+.ds-toast-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.ds-toast-buttons .btn {
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.ds-toast-buttons .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--fluent-shadow-4);
+}
+
+/* RWD: 小螢幕按鈕垂直堆疊 */
+@media (max-width: 640px) {
+    .ds-toast-buttons {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ds-toast-buttons .btn {
+        width: 100%;
+    }
+}
+
+/* ==================== D.12: Help Elements Demo Container ==================== */
+
+.ds-kbd-demo {
+    padding: 1.5rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
+}
+
+/* 表格樣式微調（讓欄位對齊更清晰）*/
+.ds-kbd-demo table {
+    width: 100%;
+}
+
+.ds-kbd-demo th {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-bottom: 0.75rem;
+}
+
+.ds-kbd-demo td {
+    padding: 0.75rem 0.5rem;
+    vertical-align: middle;
+}
+
+.ds-kbd-demo tbody tr {
+    border-bottom: 1px solid var(--border-light);
+    transition: background-color var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.ds-kbd-demo tbody tr:last-child {
+    border-bottom: none;
+}
+
+.ds-kbd-demo tbody tr:hover {
+    background-color: color-mix(in oklch, var(--color-base-content) 4%, transparent);
+}
+
+/* Kbd 元件在表格中的間距調整 */
+.ds-kbd-demo kbd {
+    margin: 0 0.25rem;
+}
+
+.ds-kbd-demo kbd:first-child {
+    margin-left: 0;
+}
+
+/* Kbd 尺寸變體展示區 */
+.ds-kbd-sizes {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 1.5rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
+}
+
+.ds-kbd-size-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.ds-kbd-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
 }

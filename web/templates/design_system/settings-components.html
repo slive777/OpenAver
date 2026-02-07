@@ -1,0 +1,609 @@
+<!-- D.9a: Settings 基礎表單元件 -->
+<div class="ds-subsection">
+    <h3>1. Toggle Switch + 說明文字</h3>
+    <p class="ds-desc">開關控制項，用於布林設定選項，支援說明文字和 Badge 標籤</p>
+
+    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <!-- 範例 1: 含 Badge -->
+        <div class="settings-form-group">
+            <label class="settings-label">
+                <input type="checkbox" class="toggle toggle-primary" checked>
+                <span class="label-text">
+                    女優畫廊模式 <span class="badge badge-error badge-sm">Beta</span>
+                </span>
+            </label>
+        </div>
+
+        <!-- 範例 2: 含說明文字 -->
+        <div class="settings-form-group">
+            <label class="settings-label">
+                <input type="checkbox" class="toggle toggle-primary">
+                <span class="label-text">無碼模式</span>
+            </label>
+            <small class="settings-hint">啟用時只搜尋 AVSOX / FC2，適合無碼作品</small>
+        </div>
+
+        <!-- 範例 3: 簡單 toggle -->
+        <div class="settings-form-group">
+            <label class="settings-label">
+                <input type="checkbox" class="toggle toggle-primary" checked>
+                <span class="label-text">啟用標題翻譯</span>
+            </label>
+        </div>
+
+        <!-- 範例 4: 簡單 toggle -->
+        <div class="settings-form-group">
+            <label class="settings-label">
+                <input type="checkbox" class="toggle toggle-primary" checked>
+                <span class="label-text">建立資料夾</span>
+            </label>
+        </div>
+
+        <!-- 範例 5: 含說明文字 -->
+        <div class="settings-form-group">
+            <label class="settings-label">
+                <input type="checkbox" class="toggle toggle-primary">
+                <span class="label-text">啟動時收合側邊欄</span>
+            </label>
+            <small class="settings-hint">僅影響桌面版</small>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="settings-form-group"&gt;
+  &lt;label class="settings-label"&gt;
+    &lt;input type="checkbox" class="toggle toggle-primary"&gt;
+    &lt;span class="label-text"&gt;無碼模式&lt;/span&gt;
+  &lt;/label&gt;
+  &lt;small class="settings-hint"&gt;啟用時只搜尋 AVSOX / FC2，適合無碼作品&lt;/small&gt;
+&lt;/div&gt;</code></pre>
+</div>
+
+<!-- D.9a: Select 下拉選單 -->
+<div class="ds-subsection">
+    <h3>2. Select 下拉選單</h3>
+    <p class="ds-desc">下拉選擇器，用於單選或雙選組合（如排序 + 順序）</p>
+
+    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <!-- 範例 1: 主題模式 -->
+        <div class="settings-form-row">
+            <label class="row-label">主題模式</label>
+            <select class="select select-bordered select-sm">
+                <option value="light">淺色模式 (Light)</option>
+                <option value="dim">深色模式 (Dim)</option>
+            </select>
+        </div>
+
+        <!-- 範例 2: 啟動頁面 -->
+        <div class="settings-form-row">
+            <label class="row-label">啟動時開啟頁面</label>
+            <select class="select select-bordered select-sm">
+                <option value="search">搜尋</option>
+                <option value="gallery">列表生成</option>
+                <option value="showcase">瀏覽</option>
+            </select>
+        </div>
+
+        <!-- 範例 3: 雙 select（排序 + 順序）-->
+        <div class="settings-form-row">
+            <label class="row-label">預設排序</label>
+            <div style="display: flex; gap: 8px; flex: 1;">
+                <select class="select select-bordered select-sm" style="flex: 1;">
+                    <option value="date">發售日期</option>
+                    <option value="mdate">修改日期</option>
+                    <option value="num">番號</option>
+                    <option value="title">片名</option>
+                    <option value="actor">演員</option>
+                    <option value="maker">片商</option>
+                    <option value="size">檔案大小</option>
+                </select>
+                <select class="select select-bordered select-sm" style="width: 100px;">
+                    <option value="descending">遞減</option>
+                    <option value="ascending">遞增</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="settings-form-row"&gt;
+  &lt;label class="row-label"&gt;主題模式&lt;/label&gt;
+  &lt;select class="select select-bordered select-sm"&gt;
+    &lt;option value="light"&gt;淺色模式 (Light)&lt;/option&gt;
+    &lt;option value="dim"&gt;深色模式 (Dim)&lt;/option&gt;
+  &lt;/select&gt;
+&lt;/div&gt;</code></pre>
+</div>
+
+<!-- D.9a: Number input + 單位後綴 -->
+<div class="ds-subsection">
+    <h3>3. Number Input + 單位後綴</h3>
+    <p class="ds-desc">數字輸入框，右側顯示單位（字元、MB 等）</p>
+
+    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <!-- 範例 1: 標題長度限制 -->
+        <div class="settings-form-row">
+            <label class="row-label">標題長度限制</label>
+            <div class="input-group-inline">
+                <input type="number" class="input input-bordered input-sm" value="80" min="20" max="200">
+                <span class="input-suffix">字元</span>
+            </div>
+        </div>
+
+        <!-- 範例 2: 檔名長度限制 -->
+        <div class="settings-form-row">
+            <label class="row-label">檔名長度限制</label>
+            <div class="input-group-inline">
+                <input type="number" class="input input-bordered input-sm" value="200" min="50" max="255">
+                <span class="input-suffix">字元</span>
+            </div>
+        </div>
+
+        <!-- 範例 3: 最小影片尺寸 -->
+        <div class="settings-form-row">
+            <label class="row-label">最小影片尺寸</label>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <div class="input-group-inline">
+                    <input type="number" class="input input-bordered input-sm" value="0" min="0">
+                    <span class="input-suffix">MB</span>
+                </div>
+                <small class="settings-hint">0 = 不過濾</small>
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="settings-form-row"&gt;
+  &lt;label class="row-label"&gt;標題長度限制&lt;/label&gt;
+  &lt;div class="input-group-inline"&gt;
+    &lt;input type="number" class="input input-bordered input-sm" value="80"&gt;
+    &lt;span class="input-suffix"&gt;字元&lt;/span&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+</div>
+
+<!-- D.9a: Text input + 說明文字 -->
+<div class="ds-subsection">
+    <h3>4. Text Input + 說明文字</h3>
+    <p class="ds-desc">文字輸入框，支援說明文字和按鈕組合（如選擇資料夾）</p>
+
+    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <!-- 範例 1: 我的最愛資料夾（含說明）-->
+        <div class="settings-form-row">
+            <label class="row-label">我的最愛資料夾</label>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                <input type="text" class="input input-bordered input-sm" placeholder="留空 = 系統下載資料夾">
+                <small class="settings-hint">範例：C:\Users\&lt;你的使用者名稱&gt;\下載</small>
+            </div>
+        </div>
+
+        <!-- 範例 2: 輸出目錄（含按鈕）-->
+        <div class="settings-form-row">
+            <label class="row-label">輸出目錄</label>
+            <div style="flex: 1; display: flex; gap: 8px;">
+                <input type="text" class="input input-bordered input-sm" value="output" style="flex: 1;">
+                <button class="btn btn-outline btn-sm" title="選擇資料夾" type="button">
+                    <i class="bi bi-folder"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 範例 3: 影片播放器（含說明）-->
+        <div class="settings-form-row">
+            <label class="row-label">影片播放器</label>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                <input type="text" class="input input-bordered input-sm" placeholder="留空使用系統預設">
+                <small class="settings-hint">例如: C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe</small>
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="settings-form-row"&gt;
+  &lt;label class="row-label"&gt;輸出目錄&lt;/label&gt;
+  &lt;div style="flex: 1; display: flex; gap: 8px;"&gt;
+    &lt;input type="text" class="input input-bordered input-sm" value="output" style="flex: 1;"&gt;
+    &lt;button class="btn btn-outline btn-sm" type="button"&gt;
+      &lt;i class="bi bi-folder"&gt;&lt;/i&gt;
+    &lt;/button&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+</div>
+
+<!-- D.9b: 收合區塊（Collapsible Section）-->
+<div class="ds-subsection">
+    <h3>5. 收合區塊（Collapsible Section）</h3>
+    <p class="ds-desc">進階設定區域的收合/展開控制，卡片式觸發器 + Alpine.js 互動</p>
+
+    <!-- 展開狀態 -->
+    <h4 class="ds-variant-label" style="margin-top: 1.5rem;">Expanded State</h4>
+    <div class="ds-card-demo" style="max-width: 700px; margin: 0 auto; padding: 1.5rem;">
+        <div x-data="{ expanded: true }">
+            <button class="collapsible-trigger" type="button" @click="expanded = !expanded" :aria-expanded="expanded.toString()">
+                <span class="collapsible-title">
+                    <i class="bi bi-gear"></i> 進階刮削設定
+                </span>
+                <span class="btn-icon-collapse" aria-hidden="true">
+                    <i class="bi bi-chevron-down" :class="{ 'rotate-180': expanded }"></i>
+                </span>
+            </button>
+            <div x-show="expanded" x-transition class="collapsible-content">
+                <!-- 展開後的內容：用 D.9a 的 form rows 作為範例 -->
+                <div class="settings-form-group">
+                    <label class="settings-label">
+                        <input type="checkbox" class="toggle toggle-primary" checked>
+                        <span class="label-text">建立資料夾</span>
+                    </label>
+                </div>
+
+                <div class="settings-form-row">
+                    <label class="row-label">標題長度限制</label>
+                    <div class="input-group-inline">
+                        <input type="number" class="input input-bordered input-sm" value="80" min="20" max="200">
+                        <span class="input-suffix">字元</span>
+                    </div>
+                </div>
+
+                <div class="settings-form-row">
+                    <label class="row-label">檔名長度限制</label>
+                    <div class="input-group-inline">
+                        <input type="number" class="input input-bordered input-sm" value="200" min="50" max="255">
+                        <span class="input-suffix">字元</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 收合狀態 -->
+    <h4 class="ds-variant-label">Collapsed State</h4>
+    <div class="ds-card-demo" style="max-width: 700px; margin: 0 auto; padding: 1.5rem;">
+        <div x-data="{ expanded: false }">
+            <button class="collapsible-trigger" type="button" @click="expanded = !expanded" :aria-expanded="expanded.toString()">
+                <span class="collapsible-title">
+                    <i class="bi bi-sliders"></i> 進階顯示選項
+                </span>
+                <span class="btn-icon-collapse" aria-hidden="true">
+                    <i class="bi bi-chevron-down" :class="{ 'rotate-180': expanded }"></i>
+                </span>
+            </button>
+            <div x-show="expanded" x-transition class="collapsible-content">
+                <!-- 收合時不顯示 -->
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div x-data="{ expanded: false }"&gt;
+  &lt;button class="collapsible-trigger" type="button" @click="expanded = !expanded" :aria-expanded="expanded.toString()"&gt;
+    &lt;span class="collapsible-title"&gt;
+      &lt;i class="bi bi-gear"&gt;&lt;/i&gt; 進階刮削設定
+    &lt;/span&gt;
+    &lt;span class="btn-icon-collapse" aria-hidden="true"&gt;
+      &lt;i class="bi bi-chevron-down" :class="{ 'rotate-180': expanded }"&gt;&lt;/i&gt;
+    &lt;/span&gt;
+  &lt;/button&gt;
+  &lt;div x-show="expanded" x-transition class="collapsible-content"&gt;
+    &lt;!-- 進階設定內容 --&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+</div>
+
+<!-- D.9b: 變數插入 Dropdown -->
+<div class="ds-subsection">
+    <h3>6. 變數插入 Dropdown</h3>
+    <p class="ds-desc">檔案命名格式的變數插入控制項，展示變數列表 + description + example</p>
+
+    <!-- 單一變數插入（檔案命名格式）-->
+    <h4 class="ds-variant-label" style="margin-top: 1.5rem;">Single Variable Dropdown (檔案命名格式)</h4>
+    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <div class="settings-form-row">
+            <label class="row-label">檔案命名格式</label>
+            <div class="variable-input-group">
+                <input type="text" class="input input-bordered input-sm" value="[{num}][{maker}] {title}" placeholder="[{num}][{maker}] {title}" style="flex: 1;">
+                <button class="btn-variable" type="button">
+                    <i class="bi bi-braces"></i> 變數
+                </button>
+            </div>
+        </div>
+        <!-- 變數下拉列表（靜態展示，打開狀態）-->
+        <div class="variable-dropdown-demo">
+            <div class="variable-menu">
+                <div class="variable-item">
+                    <code class="variable-name">{num}</code>
+                    <span class="variable-desc">番號</span>
+                    <small class="variable-example">例：SONE-205</small>
+                </div>
+                <div class="variable-item">
+                    <code class="variable-name">{title}</code>
+                    <span class="variable-desc">標題</span>
+                    <small class="variable-example">例：新人出道...</small>
+                </div>
+                <div class="variable-item">
+                    <code class="variable-name">{actor}</code>
+                    <span class="variable-desc">演員（第一位）</span>
+                    <small class="variable-example">例：三上悠亜</small>
+                </div>
+                <div class="variable-item">
+                    <code class="variable-name">{actors}</code>
+                    <span class="variable-desc">所有演員</span>
+                    <small class="variable-example">例：三上悠亜, 明日花</small>
+                </div>
+                <div class="variable-item">
+                    <code class="variable-name">{maker}</code>
+                    <span class="variable-desc">片商</span>
+                    <small class="variable-example">例：S1</small>
+                </div>
+                <div class="variable-item">
+                    <code class="variable-name">{date}</code>
+                    <span class="variable-desc">發行日期</span>
+                    <small class="variable-example">例：2024-01-15</small>
+                </div>
+                <div class="variable-item">
+                    <code class="variable-name">{year}</code>
+                    <span class="variable-desc">年份</span>
+                    <small class="variable-example">例：2024</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 多層資料夾連動（外層 / 中層 / 內層）-->
+    <h4 class="ds-variant-label">Multi-Layer Folder Structure (3 層連動)</h4>
+    <div class="ds-card-demo" style="max-width: 700px; margin: 0 auto; padding: 1.5rem;">
+        <!-- 第一行：外層 / 中層 -->
+        <div class="folder-layers-row">
+            <div class="folder-layer-group disabled">
+                <input type="text" class="input input-bordered input-sm" placeholder="外層" disabled>
+                <button class="btn-variable-sm" type="button" disabled>
+                    <i class="bi bi-braces"></i>
+                </button>
+            </div>
+            <span class="folder-separator">/</span>
+            <div class="folder-layer-group disabled">
+                <input type="text" class="input input-bordered input-sm" placeholder="中層" disabled>
+                <button class="btn-variable-sm" type="button" disabled>
+                    <i class="bi bi-braces"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 第二行：內層（佔整行）-->
+        <div class="folder-layers-row" style="margin-top: 8px;">
+            <div class="folder-layer-group" style="flex: 1;">
+                <span class="input-group-text" style="background: color-mix(in oklch, var(--color-base-content) 2%, transparent); border: 1px solid var(--border-light); border-radius: var(--radius-sm) 0 0 var(--radius-sm); padding: 0.375rem 0.75rem; font-size: 0.875rem; color: var(--text-secondary);">內層</span>
+                <input type="text" class="input input-bordered input-sm" value="{num}" placeholder="{num}" style="flex: 1; border-radius: 0;">
+                <button class="btn-variable-sm" type="button" style="border-radius: 0 var(--radius-sm) var(--radius-sm) 0;">
+                    <i class="bi bi-braces"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 即時預覽路徑 -->
+        <div class="folder-preview">
+            <i class="bi bi-file-earmark-play"></i>
+            <span class="preview-text">預覽: SSNI-618/[SSNI-618][SOD] 絕對領域.mp4</span>
+        </div>
+
+        <!-- 說明文字 -->
+        <div style="margin-top: 1rem; padding: 0.75rem; background: color-mix(in oklch, var(--color-base-content) 3%, transparent); border-radius: var(--radius-sm); border-left: 3px solid var(--accent);">
+            <small style="color: var(--text-secondary); font-size: 0.8rem;">
+                <i class="bi bi-info-circle"></i>
+                <strong style="color: var(--text-primary);">連動規則：</strong>
+                內層有值才能啟用中層，中層有值才能啟用外層（由內向外逐層啟用）
+            </small>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;!-- 單一變數插入 --&gt;
+&lt;div class="variable-input-group"&gt;
+  &lt;input type="text" class="input input-bordered input-sm"&gt;
+  &lt;button class="btn-variable" type="button"&gt;
+    &lt;i class="bi bi-braces"&gt;&lt;/i&gt; 變數
+  &lt;/button&gt;
+&lt;/div&gt;
+
+&lt;!-- 變數列表 --&gt;
+&lt;div class="variable-menu"&gt;
+  &lt;div class="variable-item"&gt;
+    &lt;code class="variable-name"&gt;{num}&lt;/code&gt;
+    &lt;span class="variable-desc"&gt;番號&lt;/span&gt;
+    &lt;small class="variable-example"&gt;例：SONE-205&lt;/small&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+</div>
+
+<!-- D.9c: API Key 警告 Alert -->
+<div class="ds-subsection">
+    <h3>7. API Key 警告 Alert</h3>
+    <p class="ds-desc">用於 Gemini API Key 輸入框下方的安全提示，強調敏感資料風險</p>
+
+    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <!-- API Key 輸入框（上下文）-->
+        <div class="settings-form-row">
+            <label class="row-label">API Key</label>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                <div style="display: flex; gap: 8px;">
+                    <input type="password" class="input input-bordered input-sm" placeholder="AIza..." style="flex: 1;">
+                    <button class="btn btn-outline btn-sm" type="button">
+                        <i class="bi bi-plug"></i> 測試
+                    </button>
+                </div>
+                <small class="settings-hint">
+                    <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a>
+                    可免費申請
+                </small>
+            </div>
+        </div>
+
+        <!-- 安全警告 Alert -->
+        <div class="alert alert-warning api-key-alert">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <div class="alert-content">
+                <strong>安全提示：</strong>
+                <ul class="alert-list">
+                    <li>API Key 將以明文存儲在 config.json</li>
+                    <li>請勿將 config.json 分享給他人</li>
+                    <li>如需撤銷，請前往 <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" class="alert-link">Google AI Studio</a> 重新生成</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="alert alert-warning api-key-alert"&gt;
+  &lt;i class="bi bi-exclamation-triangle-fill"&gt;&lt;/i&gt;
+  &lt;div class="alert-content"&gt;
+    &lt;strong&gt;安全提示：&lt;/strong&gt;
+    &lt;ul class="alert-list"&gt;
+      &lt;li&gt;API Key 將以明文存儲在 config.json&lt;/li&gt;
+      &lt;li&gt;請勿將 config.json 分享給他人&lt;/li&gt;
+      &lt;li&gt;如需撤銷，請前往 &lt;a href="..." target="_blank" class="alert-link"&gt;Google AI Studio&lt;/a&gt; 重新生成&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+</div>
+
+<!-- D.9c: 版本 + 檢查更新（3 態互動展示）-->
+<div class="ds-subsection" x-data="{ checkUpdateState: 'default' }">
+    <h3>8. 版本 + 檢查更新</h3>
+    <p class="ds-desc">版本資訊顯示 + 檢查更新按鈕（含 default / loading / completed 三態）</p>
+
+    <!-- 互動控制：5 個按鈕切換狀態 -->
+    <div style="max-width: 600px; margin: 0 auto 1rem; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+        <button class="btn btn-sm btn-outline" type="button" @click="checkUpdateState = 'default'">
+            顯示 Default
+        </button>
+        <button class="btn btn-sm btn-outline" type="button" @click="checkUpdateState = 'loading'">
+            顯示 Loading
+        </button>
+        <button class="btn btn-sm btn-outline" type="button" @click="checkUpdateState = 'completed-new'">
+            顯示 Completed (有更新)
+        </button>
+        <button class="btn btn-sm btn-outline" type="button" @click="checkUpdateState = 'completed-latest'">
+            顯示 Completed (已最新)
+        </button>
+        <button class="btn btn-sm btn-outline" type="button" @click="checkUpdateState = 'completed-error'">
+            顯示 Completed (錯誤)
+        </button>
+    </div>
+
+    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <!-- 版本資訊 -->
+        <div class="settings-form-row">
+            <label class="row-label">版本資訊</label>
+            <span class="version-text">v0.3.0</span>
+        </div>
+
+        <!-- 檢查更新 -->
+        <div class="settings-form-row">
+            <label class="row-label">軟體更新</label>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                <small class="settings-hint">手動檢查 GitHub 是否有新版本</small>
+                <div class="update-check-wrapper">
+                    <!-- Default 狀態 -->
+                    <button class="btn btn-outline btn-sm" type="button" x-show="checkUpdateState === 'default'">
+                        <i class="bi bi-cloud-download"></i> 檢查更新
+                    </button>
+
+                    <!-- Loading 狀態 -->
+                    <button class="btn btn-outline btn-sm" type="button" disabled x-show="checkUpdateState === 'loading'">
+                        <span class="loading loading-spinner loading-sm"></span> 檢查中...
+                    </button>
+
+                    <!-- Completed 狀態 - 有更新 -->
+                    <template x-if="checkUpdateState === 'completed-new'">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="btn btn-outline btn-sm" type="button">
+                                <i class="bi bi-cloud-download"></i> 檢查更新
+                            </button>
+                            <div class="badge badge-success gap-2" style="font-size: 0.75rem; padding: 0.5rem 0.75rem;">
+                                <i class="bi bi-download"></i>
+                                <a href="https://github.com/owner/repo/releases/latest" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: none;">
+                                    新版本 v0.3.1 可用
+                                </a>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Completed 狀態 - 已最新 -->
+                    <template x-if="checkUpdateState === 'completed-latest'">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="btn btn-outline btn-sm" type="button">
+                                <i class="bi bi-cloud-download"></i> 檢查更新
+                            </button>
+                            <span style="font-size: 0.8rem; color: var(--text-muted);">
+                                <i class="bi bi-check-circle"></i> 已是最新版本
+                            </span>
+                        </div>
+                    </template>
+
+                    <!-- Completed 狀態 - 錯誤 -->
+                    <template x-if="checkUpdateState === 'completed-error'">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="btn btn-outline btn-sm" type="button">
+                                <i class="bi bi-cloud-download"></i> 檢查更新
+                            </button>
+                            <span style="font-size: 0.8rem; color: var(--color-error);">
+                                <i class="bi bi-exclamation-circle"></i> 網路錯誤
+                            </span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;!-- Default 狀態 --&gt;
+&lt;button class="btn btn-outline btn-sm" type="button"&gt;
+  &lt;i class="bi bi-cloud-download"&gt;&lt;/i&gt; 檢查更新
+&lt;/button&gt;
+
+&lt;!-- Loading 狀態 --&gt;
+&lt;button class="btn btn-outline btn-sm" type="button" disabled&gt;
+  &lt;span class="loading loading-spinner loading-sm"&gt;&lt;/span&gt; 檢查中...
+&lt;/button&gt;
+
+&lt;!-- Completed 狀態 - 有更新 --&gt;
+&lt;div class="badge badge-success gap-2"&gt;
+  &lt;i class="bi bi-download"&gt;&lt;/i&gt;
+  &lt;a href="..." target="_blank"&gt;新版本 v0.3.1 可用&lt;/a&gt;
+&lt;/div&gt;
+
+&lt;!-- Completed 狀態 - 已最新 --&gt;
+&lt;span style="color: var(--text-muted);"&gt;
+  &lt;i class="bi bi-check-circle"&gt;&lt;/i&gt; 已是最新版本
+&lt;/span&gt;
+
+&lt;!-- Completed 狀態 - 錯誤 --&gt;
+&lt;span style="color: var(--color-error);"&gt;
+  &lt;i class="bi bi-exclamation-circle"&gt;&lt;/i&gt; 網路錯誤
+&lt;/span&gt;</code></pre>
+</div>
+
+<!-- D.9c: 儲存按鈕（Primary CTA）-->
+<div class="ds-subsection">
+    <h3>9. 儲存按鈕（Primary CTA）</h3>
+    <p class="ds-desc">Settings 表單的主要行動按鈕，位於表單最下方右對齊</p>
+
+    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <!-- 上下文：最後一個表單項 -->
+        <div class="settings-form-row">
+            <label class="row-label">主題模式</label>
+            <select class="select select-bordered select-sm">
+                <option value="light">淺色模式 (Light)</option>
+                <option value="dim">深色模式 (Dim)</option>
+            </select>
+        </div>
+
+        <!-- 分隔線 -->
+        <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid var(--border-light); opacity: 0.5;">
+
+        <!-- 儲存按鈕區域 -->
+        <div class="save-btn-wrapper">
+            <button type="submit" class="btn btn-primary save-btn">
+                <i class="bi bi-save"></i> 儲存設定
+            </button>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="save-btn-wrapper"&gt;
+  &lt;button type="submit" class="btn btn-primary save-btn"&gt;
+    &lt;i class="bi bi-save"&gt;&lt;/i&gt; 儲存設定
+  &lt;/button&gt;
+&lt;/div&gt;</code></pre>
+</div>

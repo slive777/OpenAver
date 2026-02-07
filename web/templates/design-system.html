@@ -20,6 +20,13 @@
         <a href="#av-cards">AV Card Variants</a>
         <a href="#file-components">File Components</a>
         <a href="#drag-overlay">Search Drag Overlay</a>
+        <a href="#page-states">Page States</a>
+        <a href="#gallery-components">Gallery Components</a>
+        <a href="#settings-components">Settings Components</a>
+        <a href="#page-compositions">Page Compositions</a>
+        <a href="#modals">Modals</a>
+        <a href="#toasts">Toasts</a>
+        <a href="#help-elements">Help Elements</a>
         <a href="#progress">Progress & Feedback</a>
         <a href="#navigation">Navigation</a>
         <a href="#rotating-border">Rotating Border</a>
@@ -39,11 +46,11 @@
                 <!-- Theme Toggle Button -->
                 <div class="ds-theme-toggle">
                     <button class="theme-toggle-btn"
-                            @click="theme = (theme === 'wireframe' ? 'dim' : 'wireframe')"
-                            :title="theme === 'wireframe' ? '切換至深色模式' : '切換至淺色模式'"
+                            @click="theme = (theme === 'light' ? 'dim' : 'light')"
+                            :title="theme === 'light' ? '切換至深色模式' : '切換至淺色模式'"
                             type="button">
-                        <i class="bi" :class="theme === 'wireframe' ? 'bi-moon-stars' : 'bi-sun'"></i>
-                        <span class="theme-toggle-label" x-text="theme === 'wireframe' ? 'Wireframe' : 'Dim'"></span>
+                        <i class="bi" :class="theme === 'light' ? 'bi-moon-stars' : 'bi-sun'"></i>
+                        <span class="theme-toggle-label" x-text="theme === 'light' ? 'Light' : 'Dim'"></span>
                     </button>
                 </div>
             </div>
@@ -58,7 +65,7 @@
                 <h3>Theme Colors</h3>
 
                 <!-- 第 1 組：DaisyUI 基礎色（Base Palette） -->
-                <h4 style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin: 1rem 0 0.75rem 0; letter-spacing: 0.05em;">DaisyUI Base Palette</h4>
+                <h4 class="ds-group-label" style="margin-top: 1rem;">DaisyUI Base Palette</h4>
                 <div class="ds-color-grid">
                     <div class="ds-color-swatch" style="background: var(--color-base-100);">
                         <div class="ds-color-info">
@@ -91,7 +98,7 @@
                 </div>
 
                 <!-- 第 2 組：Surface Hierarchy（C.2 新增變數） -->
-                <h4 style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin: 1.5rem 0 0.75rem 0; letter-spacing: 0.05em;">Surface Hierarchy (NEW in C.2)</h4>
+                <h4 class="ds-group-label">Surface Hierarchy (NEW in C.2)</h4>
                 <div class="ds-color-grid">
                     <div class="ds-color-swatch" style="background: var(--surface-0);">
                         <div class="ds-color-info">
@@ -530,7 +537,7 @@
                         <span class="ds-state-label">Default</span>
                         <div class="gallery-card" style="width: 100%; max-width: 220px;">
                             <div class="gallery-card-img">
-                                <div style="width: 100%; aspect-ratio: 3/2; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: var(--radius-sm);"></div>
+                                <div style="width: 100%; aspect-ratio: 3/2; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: var(--radius-sm) var(--radius-sm) 0 0;"></div>
                             </div>
                             <div class="gallery-card-footer">
                                 <div class="gallery-card-title">預設狀態</div>
@@ -546,7 +553,7 @@
                         <span class="ds-state-label">Hover</span>
                         <div class="gallery-card state-hover" style="width: 100%; max-width: 220px;">
                             <div class="gallery-card-img">
-                                <div style="width: 100%; aspect-ratio: 3/2; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: var(--radius-sm); position: relative;">
+                                <div style="width: 100%; aspect-ratio: 3/2; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: var(--radius-sm) var(--radius-sm) 0 0; position: relative;">
                                     <div class="gallery-card-actions">
                                         <button class="btn-glass">查看</button>
                                     </div>
@@ -566,7 +573,7 @@
                         <span class="ds-state-label">Selected</span>
                         <div class="gallery-card state-selected" style="width: 100%; max-width: 220px;">
                             <div class="gallery-card-img">
-                                <div style="width: 100%; aspect-ratio: 3/2; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: var(--radius-sm);"></div>
+                                <div style="width: 100%; aspect-ratio: 3/2; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: var(--radius-sm) var(--radius-sm) 0 0;"></div>
                             </div>
                             <div class="gallery-card-footer">
                                 <div class="gallery-card-title">選中狀態</div>
@@ -642,8 +649,8 @@
                         <div class="av-card-preview-img">
                             <img src="/static/img/demo/sone-103.jpg" alt="cover">
                             <div class="av-card-preview-overlay">
-                                <button class="btn-glass"><i class="bi bi-eye"></i></button>
-                                <button class="btn-glass"><i class="bi bi-folder-plus"></i></button>
+                                <button type="button" class="btn-glass-circle" title="播放影片"><i class="bi bi-play-fill"></i></button>
+                                <button type="button" class="btn-glass-circle" title="複製路徑"><i class="bi bi-clipboard"></i></button>
                             </div>
                             <span class="av-card-preview-badge">HD</span>
                         </div>
@@ -698,12 +705,15 @@
                         <div class="av-card-full-info">
                             <div class="av-card-full-header">
                                 <h4 class="av-num">CAWD-441</h4>
-                                <span class="local-badge">本地</span>
+                                <span class="local-badge" title="本地已有，點擊複製路徑">📁</span>
+                                <button type="button" class="info-icon-btn" title="切換資料來源">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </button>
                             </div>
                             <div class="av-card-full-body">
                                 <div class="info-row">
                                     <span class="info-label">演員</span>
-                                    <span class="info-value">女優名稱</span>
+                                    <span class="info-value">乙白沙也加</span>
                                 </div>
                                 <div class="info-row">
                                     <span class="info-label">發行日期</span>
@@ -713,10 +723,31 @@
                                     <span class="info-label">片商</span>
                                     <span class="info-value">Kawaii</span>
                                 </div>
+                                <div class="info-row">
+                                    <span class="info-label">標籤</span>
+                                    <div class="info-value info-tags">
+                                        <span class="tag-badge">美少女</span>
+                                        <span class="tag-badge">單體作品</span>
+                                        <span class="tag-badge">中出</span>
+                                        <span class="tag-badge subtitle">中文字幕</span>
+                                    </div>
+                                </div>
                             </div>
                             <div class="av-card-full-footer">
-                                <span class="info-label">標題</span>
-                                <p class="info-value">作品標題範例，可能很長需要換行顯示</p>
+                                <div class="av-card-full-footer-content">
+                                    <span class="info-label">標題</span>
+                                    <div class="info-value-with-actions">
+                                        <p class="info-value">【圧倒的4K映像でヌク！】 ボクの彼女は「天然系」の究極エロかわ美少女。幸せ同棲イチャラブ性活 乙白さやか</p>
+                                        <div class="av-card-full-footer-actions">
+                                            <button type="button" class="info-icon-btn" title="編輯標題">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button type="button" class="info-icon-btn" title="AI 批次翻譯 10 部">
+                                                <i class="bi bi-translate"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -883,6 +914,327 @@
             </div>
         </section>
 
+        <!-- 區塊 7.5: Page States (glass 樣式) -->
+        <section id="page-states" class="ds-section glass">
+            <h2>Page States</h2>
+            <p class="ds-note">搜尋頁面的各種狀態展示，用於引導用戶操作或顯示進度/錯誤</p>
+
+            {% include 'design_system/page-states.html' %}
+        </section>
+
+        <!-- 區塊: Gallery Components -->
+        <section id="gallery-components" class="ds-section glass">
+            <h2>Gallery Components</h2>
+            <p class="ds-note">Gallery 頁面的元件系統，包含資料夾管理、統計卡片和女優別名管理</p>
+
+            {% include 'design_system/gallery-components.html' %}
+        </section>
+
+        <!-- 區塊: Settings Components -->
+        <section id="settings-components" class="ds-section glass">
+            <h2>Settings Components</h2>
+            <p class="ds-note">Settings 頁面的基礎表單元件，包含 Toggle、Select、Number input 和 Text input</p>
+
+            {% include 'design_system/settings-components.html' %}
+        </section>
+
+        <!-- 區塊: Page Compositions -->
+        <section id="page-compositions" class="ds-section glass">
+            <h2>Page Compositions</h2>
+            <p class="ds-note">頁面級排版 Mockup，展示遷移後的完整視覺節奏 (純靜態展示，非互動)</p>
+
+            {% include 'design_system/page-compositions.html' %}
+        </section>
+
+        <!-- 區塊: Modals -->
+        <section id="modals" class="ds-section glass">
+            <h2>Modals</h2>
+            <p class="ds-note">Fluent Design 2 風格的確認對話框，使用 DaisyUI modal + Alpine.js</p>
+
+            <!-- Subsection: Basic Confirmation Dialog -->
+            <div class="ds-subsection">
+                <h3>Confirmation Dialog</h3>
+                <p class="ds-desc">刪除/確認操作的標準對話框，Smoke backdrop + Fluent 卡片樣式</p>
+
+                <!-- Demo 容器 -->
+                <div class="ds-modal-demo" x-data>
+                    <!-- 觸發按鈕 -->
+                    <button type="button" class="btn btn-error" @click="$refs.confirmDialog.showModal()">
+                        <i class="bi bi-trash"></i> 刪除項目
+                    </button>
+
+                    <!-- Modal Dialog -->
+                    <dialog x-ref="confirmDialog" class="modal fluent-modal">
+                        <div class="modal-box fluent-modal-box">
+                            <!-- Header -->
+                            <h3 class="fluent-modal-title">確認刪除</h3>
+
+                            <!-- Body -->
+                            <p class="fluent-modal-body">
+                                確定要刪除此項目嗎？此操作無法復原。
+                            </p>
+
+                            <!-- Footer Actions -->
+                            <div class="modal-action fluent-modal-actions">
+                                <button type="button" class="btn btn-ghost" @click="$refs.confirmDialog.close()">
+                                    取消
+                                </button>
+                                <button type="button" class="btn btn-error" @click="$refs.confirmDialog.close()">
+                                    <i class="bi bi-trash"></i> 確認刪除
+                                </button>
+                            </div>
+                        </div>
+                        <form method="dialog" class="modal-backdrop">
+                            <button>close</button>
+                        </form>
+                    </dialog>
+                </div>
+
+                <!-- 技術說明 -->
+                <div class="ds-note" style="margin-top: 1.5rem;">
+                    <strong>技術細節：</strong>
+                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                        <li>使用原生 <code>&lt;dialog&gt;</code> 元素 + Alpine.js <code>$refs</code></li>
+                        <li>Backdrop 點擊和 ESC 鍵關閉為原生功能（無需額外處理）</li>
+                        <li>Smoke backdrop 使用 <code>--fluent-smoke</code> token（Light: 0.4, Dark: 0.6）</li>
+                        <li>卡片陰影使用 <code>--fluent-shadow-28</code>（XXLarge elevation）</li>
+                        <li>圓角使用 <code>--fluent-radius-xl</code> (12px)</li>
+                        <li>Open 動畫：Scale (0.95 → 1) + Fade，250ms duration</li>
+                    </ul>
+                </div>
+
+                <!-- 程式碼範例 -->
+                <pre class="ds-code"><code>&lt;!-- Alpine.js 控制 --&gt;
+&lt;div x-data&gt;
+  &lt;button @click="$refs.dialog.showModal()"&gt;Open&lt;/button&gt;
+
+  &lt;dialog x-ref="dialog" class="modal fluent-modal"&gt;
+    &lt;div class="modal-box fluent-modal-box"&gt;
+      &lt;h3 class="fluent-modal-title"&gt;Title&lt;/h3&gt;
+      &lt;p class="fluent-modal-body"&gt;Content&lt;/p&gt;
+      &lt;div class="modal-action fluent-modal-actions"&gt;
+        &lt;button @click="$refs.dialog.close()"&gt;Close&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;form method="dialog" class="modal-backdrop"&gt;
+      &lt;button&gt;close&lt;/button&gt;
+    &lt;/form&gt;
+  &lt;/dialog&gt;
+&lt;/div&gt;</code></pre>
+            </div>
+        </section>
+
+        <!-- 區塊: Toasts -->
+        <section id="toasts" class="ds-section accent-bar"
+                 x-data="{
+                   toastVisible: false,
+                   toastMessage: '',
+                   toastType: 'success',
+                   toastTimeout: null,
+                   toastDuration: 2500,
+                   showToast(message, type = 'success', duration = 2500) {
+                     clearTimeout(this.toastTimeout);
+                     this.toastMessage = message;
+                     this.toastType = type;
+                     this.toastDuration = duration;
+                     this.toastVisible = true;
+                     this.toastTimeout = setTimeout(() => {
+                       this.toastVisible = false;
+                     }, duration);
+                   }
+                 }">
+            <h2>Toasts</h2>
+            <p class="ds-note">Non-blocking 輕量回饋通知，底部居中自動消失，使用 DaisyUI alert + Alpine.js</p>
+
+            <!-- Subsection: Interactive Toast Demo -->
+            <div class="ds-subsection">
+                <h3>Toast Variants</h3>
+                <p class="ds-desc">成功/錯誤/資訊三種變體，2-3 秒後自動消失，Hover 暫停倒數</p>
+
+                <!-- Demo 容器 -->
+                <div class="ds-toast-demo">
+                    <!-- 觸發按鈕組 -->
+                    <div class="ds-toast-buttons">
+                        <button type="button" class="btn btn-success"
+                                @click="showToast('✓ 路徑已複製', 'success', 2500)">
+                            <i class="bi bi-check-circle"></i> 觸發成功 Toast
+                        </button>
+
+                        <button type="button" class="btn btn-error"
+                                @click="showToast('✗ 產生失敗', 'error', 2500)">
+                            <i class="bi bi-x-circle"></i> 觸發錯誤 Toast
+                        </button>
+
+                        <button type="button" class="btn btn-info"
+                                @click="showToast('⟳ 正在處理...', 'info', 3000)">
+                            <i class="bi bi-info-circle"></i> 觸發資訊 Toast
+                        </button>
+                    </div>
+
+                    <!-- Toast Container (Fixed positioning) -->
+                    <div class="toast toast-bottom toast-center fluent-toast-container"
+                         x-show="toastVisible"
+                         x-transition:enter="fluent-toast-enter"
+                         x-transition:enter-start="fluent-toast-enter-start"
+                         x-transition:enter-end="fluent-toast-enter-end"
+                         x-transition:leave="fluent-toast-leave"
+                         x-transition:leave-start="fluent-toast-leave-start"
+                         x-transition:leave-end="fluent-toast-leave-end"
+                         @mouseenter="clearTimeout(toastTimeout)"
+                         @mouseleave="toastTimeout = setTimeout(() => { toastVisible = false; }, toastDuration)">
+                        <div class="alert fluent-toast"
+                             :class="`alert-${toastType}`"
+                             role="alert">
+                            <!-- Icon -->
+                            <i class="bi"
+                               :class="{
+                                 'bi-check-circle': toastType === 'success',
+                                 'bi-x-circle': toastType === 'error',
+                                 'bi-info-circle': toastType === 'info'
+                               }"></i>
+                            <span x-text="toastMessage"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 技術說明 -->
+                <div class="ds-note" style="margin-top: 1.5rem;">
+                    <strong>技術細節：</strong>
+                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                        <li>使用 DaisyUI <code>toast</code> 容器 + <code>alert</code> 元件</li>
+                        <li>Alpine.js <code>showToast()</code> 統一管理訊息、類型、持續時間</li>
+                        <li>顏色變體：<code>alert-success</code>（綠）/ <code>alert-error</code>（紅）/ <code>alert-info</code>（藍）</li>
+                        <li>動畫：Slide up (20px → 0) + Fade in，使用 <code>x-transition</code></li>
+                        <li>Hover 暫停倒數：<code>@mouseenter</code> / <code>@mouseleave</code></li>
+                        <li>陰影使用 <code>--fluent-shadow-16</code>（XLarge elevation）</li>
+                        <li>圓角使用 <code>--fluent-radius-lg</code> (8px)</li>
+                        <li>持續時間：成功/錯誤 2.5 秒，資訊 3 秒</li>
+                    </ul>
+                </div>
+
+                <!-- 程式碼範例 -->
+                <pre class="ds-code"><code>&lt;!-- Alpine.js 控制 --&gt;
+&lt;div x-data="{
+  toastVisible: false,
+  toastMessage: '',
+  toastType: 'success',
+  showToast(message, type = 'success', duration = 2500) {
+    this.toastMessage = message;
+    this.toastType = type;
+    this.toastVisible = true;
+    setTimeout(() =&gt; { this.toastVisible = false; }, duration);
+  }
+}"&gt;
+  &lt;button @click="showToast('已複製', 'success')"&gt;複製&lt;/button&gt;
+
+  &lt;div class="toast toast-bottom toast-center" x-show="toastVisible"&gt;
+    &lt;div class="alert fluent-toast" :class="`alert-${toastType}`"&gt;
+      &lt;span x-text="toastMessage"&gt;&lt;/span&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+            </div>
+        </section>
+
+        <!-- 區塊: Help Elements -->
+        <section id="help-elements" class="ds-section glass">
+            <h2>Help Elements</h2>
+            <p class="ds-note">Help 頁面使用的鍵盤快捷鍵展示元件（DaisyUI kbd + table）</p>
+
+            <!-- Subsection: Keyboard Shortcuts -->
+            <div class="ds-subsection">
+                <h3>Keyboard Shortcuts</h3>
+                <p class="ds-desc">使用說明頁面的鍵盤快捷鍵對照表，展示主應用程式的核心快捷鍵</p>
+
+                <!-- Kbd Demo Container -->
+                <div class="ds-kbd-demo">
+                    <!-- 快捷鍵表格 -->
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th style="width: 40%;">按鍵組合</th>
+                                <th style="width: 60%;">功能</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <kbd class="kbd kbd-sm">Ctrl</kbd> / <kbd class="kbd kbd-sm">Cmd</kbd> + <kbd class="kbd kbd-sm">K</kbd>
+                                </td>
+                                <td>聚焦搜尋框</td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd>
+                                </td>
+                                <td>切換上一個/下一個結果</td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <kbd class="kbd kbd-sm">Esc</kbd>
+                                </td>
+                                <td>清空搜尋框</td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <kbd class="kbd kbd-sm">Enter</kbd>
+                                </td>
+                                <td>執行搜尋</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 技術說明 -->
+                <div class="ds-note" style="margin-top: 1.5rem;">
+                    <strong>技術細節：</strong>
+                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                        <li>使用 DaisyUI <code>&lt;kbd&gt;</code> 元件（<code>.kbd.kbd-sm</code>）</li>
+                        <li>表格使用 DaisyUI <code>&lt;table&gt;</code> + <code>.table-sm</code>（減少內距）</li>
+                        <li>按鍵組合使用 <code>+</code> 符號清晰標示（如 Ctrl + K）</li>
+                        <li>欄位寬度比例：按鍵 40% / 功能 60%</li>
+                        <li>自動跟隨 Light/Dark 主題切換（DaisyUI 內建）</li>
+                    </ul>
+                </div>
+
+                <!-- 單獨 Kbd 展示 -->
+                <div style="margin-top: 2rem;">
+                    <h4 class="ds-variant-label" style="margin-top: 0; color: var(--text-primary);">Kbd 尺寸變體</h4>
+                    <div class="ds-kbd-sizes">
+                        <div class="ds-kbd-size-item">
+                            <kbd class="kbd kbd-xs">Ctrl</kbd>
+                            <span class="ds-kbd-label">kbd-xs</span>
+                        </div>
+                        <div class="ds-kbd-size-item">
+                            <kbd class="kbd kbd-sm">Ctrl</kbd>
+                            <span class="ds-kbd-label">kbd-sm</span>
+                        </div>
+                        <div class="ds-kbd-size-item">
+                            <kbd class="kbd">Ctrl</kbd>
+                            <span class="ds-kbd-label">kbd (預設)</span>
+                        </div>
+                        <div class="ds-kbd-size-item">
+                            <kbd class="kbd kbd-lg">Ctrl</kbd>
+                            <span class="ds-kbd-label">kbd-lg</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 程式碼範例 -->
+                <pre class="ds-code" style="margin-top: 1.5rem;"><code>&lt;!-- 快捷鍵表格 --&gt;
+&lt;table class="table table-sm"&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;
+        &lt;kbd class="kbd kbd-sm"&gt;Ctrl&lt;/kbd&gt; + &lt;kbd class="kbd kbd-sm"&gt;K&lt;/kbd&gt;
+      &lt;/td&gt;
+      &lt;td&gt;聚焦搜尋框&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;</code></pre>
+            </div>
+        </section>
+
         <!-- 區塊 8: Progress & Feedback (accent-bar 樣式) -->
         <section id="progress" class="ds-section accent-bar">
             <h2>Progress & Feedback</h2>
@@ -891,7 +1243,7 @@
             <!-- Progress Indicator -->
             <div class="ds-subsection">
                 <h3>Progress Indicator</h3>
-                <p class="ds-desc">Search 頁的搜尋進度顯示，跟隨主題顯示（wireframe: 淺底深字 / dim: 深底淺字）</p>
+                <p class="ds-desc">Search 頁的搜尋進度顯示，跟隨主題顯示（light: 淺底深字 / dim: 深底淺字）</p>
                 <div class="ds-card-demo" style="background: var(--bg-body); padding: 2rem; border-radius: var(--radius-md);">
                     <div class="search-progress" style="max-width: 500px; margin: 0 auto;">
                         <div class="progress-container">
@@ -1050,7 +1402,7 @@
                 <p class="ds-desc">Icon-only 導航條，用於收合側邊欄時的精簡模式。展示 Fluent Design 2 規範的 48x48px 正方形項目 + pill 形 active 狀態</p>
 
                 <!-- 展開 vs 收合對比 -->
-                <h4 style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin: 1.5rem 0 0.75rem 0; letter-spacing: 0.05em;">EXPANDED VS COLLAPSED</h4>
+                <h4 class="ds-group-label">EXPANDED VS COLLAPSED</h4>
                 <div style="display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start; margin-bottom: 2rem;">
                     <!-- 展開狀態 (Traditional Sidebar) -->
                     <div>
@@ -1078,7 +1430,7 @@
                 </div>
 
                 <!-- 狀態展示 -->
-                <h4 style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin: 1.5rem 0 0.75rem 0; letter-spacing: 0.05em;">STATE MATRIX</h4>
+                <h4 class="ds-group-label">STATE MATRIX</h4>
                 <div style="display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start; margin-bottom: 2rem;">
                     <!-- Default -->
                     <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
@@ -1106,7 +1458,7 @@
                 </div>
 
                 <!-- 技術規格 -->
-                <h4 style="font-size: 0.75rem; font-weight: 500; color: var(--text-muted); margin: 1.5rem 0 0.75rem 0; letter-spacing: 0.05em;">TECHNICAL SPECS</h4>
+                <h4 class="ds-group-label">TECHNICAL SPECS</h4>
                 <div style="padding: 1rem; background: var(--bg-body); border-radius: var(--fluent-radius-lg); border: 1px solid var(--border-light);">
                     <table style="width: 100%; font-size: 0.85rem;">
                         <tbody>
@@ -1136,11 +1488,11 @@
                             </tr>
                             <tr>
                                 <td style="padding: 0.5rem 0; color: var(--text-primary); font-weight: 600;">Active 背景</td>
-                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>oklch(var(--p) / 0.15)</code></td>
+                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>color-mix(in oklch, var(--accent) 15%, transparent)</code></td>
                             </tr>
                             <tr>
                                 <td style="padding: 0.5rem 0; color: var(--text-primary); font-weight: 600;">Active 邊框</td>
-                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>2px solid oklch(var(--p))</code></td>
+                                <td style="padding: 0.5rem 0; color: var(--text-secondary);"><code>2px solid var(--accent)</code></td>
                             </tr>
                             <tr>
                                 <td style="padding: 0.5rem 0; color: var(--text-primary); font-weight: 600;">Active 發光</td>
@@ -1172,9 +1524,9 @@
 }
 
 .ds-nav-rail-link.active {
-  background: oklch(var(--p) / 0.15);
-  color: oklch(var(--pc));
-  border: 2px solid oklch(var(--p));
+  background: color-mix(in oklch, var(--accent) 15%, transparent);
+  color: var(--color-primary-content);
+  border: 2px solid var(--accent);
   border-radius: var(--radius-pill);
   box-shadow: 0 0 16px var(--glow-primary);
 }</code></pre>
@@ -1218,7 +1570,7 @@
                 <p class="ds-desc">實際應用場景展示</p>
 
                 <!-- 場景 1: Card -->
-                <h4 style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 1rem; font-weight: 600;">1. Card with Local Match</h4>
+                <h4 class="ds-variant-label" style="margin-top: 1.5rem; font-size: 1rem;">1. Card with Local Match</h4>
                 <div class="ds-card-demo">
                     <div class="rotating-border-spotlight active"
                          style="max-width: 280px; background: var(--bg-card); border-radius: var(--fluent-radius-xl, 12px); overflow: hidden; box-shadow: var(--fluent-shadow-4);">
@@ -1234,7 +1586,7 @@
                 </div>
 
                 <!-- 場景 2: Navigation Link -->
-                <h4 style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 1rem; font-weight: 600;">2. Sidebar Navigation Link</h4>
+                <h4 class="ds-variant-label" style="margin-top: 1.5rem; font-size: 1rem;">2. Sidebar Navigation Link</h4>
                 <div class="ds-card-demo">
                     <div style="background: var(--bg-card); padding: 1rem; border-radius: var(--radius-md); max-width: 200px;">
                         <nav style="display: flex; flex-direction: column; gap: 0.25rem;">
@@ -1255,7 +1607,7 @@
                 </div>
 
                 <!-- 場景 3: Info Section -->
-                <h4 style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 1rem; font-weight: 600;">3. Search Result Info Section</h4>
+                <h4 class="ds-variant-label" style="margin-top: 1.5rem; font-size: 1rem;">3. Search Result Info Section</h4>
                 <div class="ds-card-demo">
                     <div class="rotating-border-spotlight active"
                          style="max-width: 600px; background: var(--bg-card); border-radius: var(--radius-md); padding: 1.5rem; box-shadow: var(--fluent-shadow-4);">

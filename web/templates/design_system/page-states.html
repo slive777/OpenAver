@@ -1,0 +1,162 @@
+<!-- ========== Page States Section ========== -->
+<!-- 包含 Empty State、Loading State、Error State 等展示 -->
+
+<!-- Empty State - Search Initial State -->
+<div class="ds-subsection">
+    <h3>Search Empty State</h3>
+    <p class="ds-desc">搜尋頁面的初始狀態，引導用戶加入檔案或資料夾</p>
+
+    <div class="ds-card-demo">
+        <!-- 模擬搜尋頁結果區域 -->
+        <div class="ds-state-demo">
+            <div class="state-page">
+                <i class="bi bi-film state-page-icon"></i>
+                <p class="state-page-text">輸入番號搜尋，或加入影片檔案</p>
+                <div class="empty-actions">
+                    <button type="button" class="btn btn-outline btn-primary btn-sm">
+                        <i class="bi bi-file-earmark-plus"></i> 加入檔案
+                    </button>
+                    <button type="button" class="btn btn-outline btn-primary btn-sm">
+                        <i class="bi bi-folder-plus"></i> 加入資料夾
+                    </button>
+                    <button type="button" class="btn btn-outline btn-warning btn-sm" title="載入我的最愛資料夾">
+                        <i class="bi bi-star-fill"></i> 我的最愛
+                    </button>
+                </div>
+                <small class="state-page-hint">也可直接拖入檔案或資料夾</small>
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="state-page"&gt;
+    &lt;i class="bi bi-film"&gt;&lt;/i&gt;
+    &lt;p&gt;輸入番號搜尋，或加入影片檔案&lt;/p&gt;
+    &lt;div class="empty-actions"&gt;
+        &lt;button class="btn btn-outline btn-primary btn-sm"&gt;
+            &lt;i class="bi bi-file-earmark-plus"&gt;&lt;/i&gt; 加入檔案
+        &lt;/button&gt;
+        &lt;button class="btn btn-outline btn-primary btn-sm"&gt;
+            &lt;i class="bi bi-folder-plus"&gt;&lt;/i&gt; 加入資料夾
+        &lt;/button&gt;
+        &lt;button class="btn btn-outline btn-warning btn-sm"&gt;
+            &lt;i class="bi bi-star-fill"&gt;&lt;/i&gt; 我的最愛
+        &lt;/button&gt;
+    &lt;/div&gt;
+    &lt;small class="state-page-hint"&gt;也可直接拖入檔案或資料夾&lt;/small&gt;
+&lt;/div&gt;</code></pre>
+</div>
+
+<!-- Error State - Search Error with Multi-file Navigation -->
+<div class="ds-subsection">
+    <h3>Search Error State</h3>
+    <p class="ds-desc">搜尋失敗時顯示的錯誤狀態，多檔案模式下提供導航切換</p>
+
+    <div class="ds-card-demo">
+        <!-- 模擬搜尋頁結果區域 -->
+        <div class="ds-state-demo">
+            <div class="state-page error">
+                <i class="bi bi-exclamation-triangle state-page-icon"></i>
+                <p class="state-page-text error-text">搜尋失敗</p>
+                <small class="state-page-hint">請檢查番號格式或稍後再試</small>
+
+                <!-- 多檔案模式導航 -->
+                <div class="error-nav">
+                    <button type="button" class="btn btn-outline btn-neutral btn-sm" title="上一個 (←)">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    <span class="error-nav-indicator">1/5</span>
+                    <button type="button" class="btn btn-outline btn-neutral btn-sm" title="下一個 (→)">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="state-page error"&gt;
+    &lt;i class="bi bi-exclamation-triangle"&gt;&lt;/i&gt;
+    &lt;p class="error-text"&gt;搜尋失敗&lt;/p&gt;
+    &lt;small&gt;請檢查番號格式或稍後再試&lt;/small&gt;
+
+    &lt;!-- 多檔案模式導航 --&gt;
+    &lt;div class="error-nav"&gt;
+        &lt;button class="btn btn-outline btn-neutral btn-sm"&gt;
+            &lt;i class="bi bi-chevron-left"&gt;&lt;/i&gt;
+        &lt;/button&gt;
+        &lt;span class="error-nav-indicator"&gt;1/5&lt;/span&gt;
+        &lt;button class="btn btn-outline btn-neutral btn-sm"&gt;
+            &lt;i class="bi bi-chevron-right"&gt;&lt;/i&gt;
+        &lt;/button&gt;
+    &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+
+    <div class="ds-note">
+        <strong>使用場景：</strong>
+        <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+            <li>單檔案搜尋失敗：只顯示圖標 + 錯誤訊息 + 提示文字（隱藏導航）</li>
+            <li>多檔案批次搜尋：顯示導航按鈕，允許用戶切換到其他檔案查看錯誤</li>
+            <li>錯誤訊息動態更新：透過 JS 修改 <code>errorMessage</code> 元素的文字內容</li>
+        </ul>
+    </div>
+</div>
+
+<!-- Loading State - Search Progress Indicator -->
+<div class="ds-subsection">
+    <h3>Search Loading State</h3>
+    <p class="ds-desc">搜尋進行中的進度指示器，展示查詢標題、旋轉動畫和進度條</p>
+
+    <div class="ds-card-demo">
+        <!-- 模擬搜尋頁結果區域 -->
+        <div class="ds-state-demo">
+            <div class="search-progress">
+                <div class="progress-container">
+                    <!-- 搜尋標題 -->
+                    <div class="progress-header">
+                        <span class="progress-status">"SONE-103"</span>
+                    </div>
+
+                    <!-- 單行日誌 + Spinner -->
+                    <div class="progress-log">
+                        正在搜尋 SONE-103...
+                    </div>
+
+                    <!-- 詳情進度條 -->
+                    <div class="detail-progress show">
+                        <div class="detail-bar" style="width: 65%;"></div>
+                        <span class="detail-text">65 / 100</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="search-progress"&gt;
+    &lt;div class="progress-container"&gt;
+        &lt;!-- 搜尋標題 --&gt;
+        &lt;div class="progress-header"&gt;
+            &lt;span class="progress-status"&gt;"SONE-103"&lt;/span&gt;
+        &lt;/div&gt;
+
+        &lt;!-- 單行日誌 + Spinner --&gt;
+        &lt;div class="progress-log"&gt;
+            正在搜尋 SONE-103...
+        &lt;/div&gt;
+
+        &lt;!-- 詳情進度條 --&gt;
+        &lt;div class="detail-progress show"&gt;
+            &lt;div class="detail-bar" style="width: 65%;"&gt;&lt;/div&gt;
+            &lt;span class="detail-text"&gt;65 / 100&lt;/span&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+
+    <div class="ds-note">
+        <strong>使用場景：</strong>
+        <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+            <li>搜尋單一番號：顯示查詢標題（如 <code>"SONE-103"</code>）+ 進度日誌</li>
+            <li>批次搜尋多檔案：進度條顯示當前處理進度（如 65 / 100）</li>
+            <li>進度日誌動態更新：透過 JS 修改 <code>progressLog</code> 文字（如「正在解析 JAVBus...」）</li>
+            <li>進度條動態更新：透過 JS 修改 <code>detailBar</code> 的 <code>width</code> 樣式（如 <code>width: 80%</code>）</li>
+        </ul>
+    </div>
+</div>

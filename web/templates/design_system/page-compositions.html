@@ -1,0 +1,369 @@
+<!-- D.14: Search Page Composition -->
+<div class="ds-subsection">
+    <h3>Search Page Composition</h3>
+    <p class="ds-desc">完整搜尋結果頁面排版 (SONE-103 範例數據)</p>
+
+    <!-- Mockup 容器 -->
+    <div class="ds-search-composition">
+        <!-- Acrylic Header + Spotlight Search Bar -->
+        <div class="ds-comp-header">
+            <div class="spotlight-search" style="max-width: 680px; margin: 0 auto;">
+                <i class="bi bi-search search-icon-left"></i>
+                <input type="text" value="SONE-103" placeholder="搜尋番號、女優或拖入檔案..." class="ds-comp-search-input">
+                <div class="search-actions-right">
+                    <button class="btn-icon" type="button" title="清空" aria-label="清空">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                    <button class="btn-icon active" type="button" title="搜尋" aria-label="搜尋">
+                        <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="search-hint ds-comp-hint">
+                <i class="bi bi-lightbulb"></i>
+                提示：輸入局部番號如 <code>IPZZ-03</code> 可搜尋 030~039
+            </div>
+        </div>
+
+        <!-- Result Area (Cover + Info Panel) -->
+        <div class="ds-comp-result-area">
+            <!-- Cover Section (70%) -->
+            <div class="ds-comp-cover-section">
+                <!-- Cover Wrapper -->
+                <div class="ds-comp-cover-wrapper">
+                    <img src="/static/img/demo/sone-103.jpg" alt="SONE-103 封面" class="ds-comp-cover-img">
+
+                    <!-- Nav Buttons -->
+                    <button class="ds-comp-nav-btn ds-comp-nav-prev" type="button" title="上一個" aria-label="上一個">
+                        <i class="bi bi-chevron-left"></i>
+                    </button>
+                    <button class="ds-comp-nav-btn ds-comp-nav-next" type="button" title="下一個" aria-label="下一個">
+                        <i class="bi bi-chevron-right"></i>
+                    </button>
+
+                    <!-- Nav Indicator -->
+                    <div class="ds-comp-nav-indicator">
+                        <span>1</span> / <span>3</span>
+                    </div>
+                </div>
+
+                <!-- File List Section (緊貼封面下方) -->
+                <div class="ds-comp-file-section">
+                    <div class="ds-comp-file-header">
+                        <span class="ds-comp-file-count">4 個檔案</span>
+                        <div class="ds-comp-file-actions">
+                            <button class="btn btn-outline btn-primary btn-sm" type="button">
+                                <i class="bi bi-search"></i> 搜尋全部
+                            </button>
+                            <button class="btn btn-success btn-sm" type="button">
+                                <i class="bi bi-folder-plus"></i> 產生全部
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Batch Progress Bar -->
+                    <div class="batch-progress ds-comp-progress">
+                        <div class="batch-progress-bar">
+                            <div class="batch-progress-fill" style="width: 75%;"></div>
+                        </div>
+                        <small class="batch-progress-text">處理中 3/4</small>
+                    </div>
+
+                    <!-- File Items (4 種狀態展示) -->
+                    <div class="ds-comp-file-list">
+                        <!-- 狀態 1: 搜到結果 (active) — 可產生 -->
+                        <div class="ds-comp-file-item active">
+                            <button class="ds-comp-file-remove" type="button" title="移除此檔案" aria-label="移除此檔案"><i class="bi bi-x"></i></button>
+                            <i class="bi bi-file-earmark-play ds-comp-file-icon"></i>
+                            <span class="ds-comp-file-name">SONE-103.mp4</span>
+                            <i class="bi bi-check-lg ds-comp-file-status-icon status-found"></i>
+                            <button class="ds-comp-file-action-btn" type="button" title="產生 NFO + 封面" aria-label="產生 NFO + 封面"><i class="bi bi-folder-plus"></i></button>
+                        </div>
+                        <!-- 狀態 2: 搜到結果 — 可產生 -->
+                        <div class="ds-comp-file-item">
+                            <button class="ds-comp-file-remove" type="button" title="移除此檔案" aria-label="移除此檔案"><i class="bi bi-x"></i></button>
+                            <i class="bi bi-file-earmark-play ds-comp-file-icon"></i>
+                            <span class="ds-comp-file-name">SONE-103_HD.mp4</span>
+                            <i class="bi bi-check-lg ds-comp-file-status-icon status-found"></i>
+                            <button class="ds-comp-file-action-btn" type="button" title="產生 NFO + 封面" aria-label="產生 NFO + 封面"><i class="bi bi-folder-plus"></i></button>
+                        </div>
+                        <!-- 狀態 3: 無法辨識番號 — 手動輸入 -->
+                        <div class="ds-comp-file-item">
+                            <button class="ds-comp-file-remove" type="button" title="移除此檔案" aria-label="移除此檔案"><i class="bi bi-x"></i></button>
+                            <i class="bi bi-file-earmark-play ds-comp-file-icon"></i>
+                            <span class="ds-comp-file-name">unknown_file.mp4</span>
+                            <i class="bi bi-question-lg ds-comp-file-status-icon status-unknown"></i>
+                            <button class="ds-comp-file-action-btn status-unknown" type="button" title="手動輸入番號" aria-label="手動輸入番號"><i class="bi bi-pencil"></i></button>
+                        </div>
+                        <!-- 狀態 4: 未搜尋 — 無動作 -->
+                        <div class="ds-comp-file-item">
+                            <button class="ds-comp-file-remove" type="button" title="移除此檔案" aria-label="移除此檔案"><i class="bi bi-x"></i></button>
+                            <i class="bi bi-file-earmark-play ds-comp-file-icon"></i>
+                            <span class="ds-comp-file-name">SONE-103_4K.mp4</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info Section (30%) -->
+            <div class="ds-comp-info-section">
+                <!-- Info Header -->
+                <div class="ds-comp-info-header">
+                    <h4 class="ds-comp-info-number">SONE-103</h4>
+                    <span class="ds-comp-local-badge" title="本地已有">📁</span>
+                    <button class="info-icon-btn" type="button" title="切換版本" aria-label="切換版本">
+                        <i class="bi bi-arrow-repeat"></i>
+                    </button>
+                </div>
+
+                <!-- Info Body -->
+                <div class="ds-comp-info-body">
+                    <div class="ds-comp-info-row">
+                        <div class="ds-comp-info-label">演員</div>
+                        <div class="ds-comp-info-value">未歩なな</div>
+                    </div>
+                    <div class="ds-comp-info-row">
+                        <div class="ds-comp-info-label">發行日期</div>
+                        <div class="ds-comp-info-value">2024-03-19</div>
+                    </div>
+                    <div class="ds-comp-info-row">
+                        <div class="ds-comp-info-label">片商</div>
+                        <div class="ds-comp-info-value">S1 NO.1 STYLE</div>
+                    </div>
+                    <div class="ds-comp-info-row">
+                        <div class="ds-comp-info-label">標籤</div>
+                        <div class="ds-comp-info-value ds-comp-info-tags">
+                            <span class="tag-badge">美少女</span>
+                            <span class="tag-badge">單體作品</span>
+                            <span class="tag-badge">巨乳</span>
+                            <span class="tag-badge">首次亮相</span>
+                            <span class="tag-badge ds-comp-subtitle-badge">中文字幕</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Footer -->
+                <div class="ds-comp-info-footer">
+                    <div class="ds-comp-info-label">標題</div>
+                    <div class="ds-comp-info-title-wrapper">
+                        <span class="ds-comp-info-title">【圧倒的4K映像でヌク！】新人NO.1STYLE 未歩ななAVデビュー</span>
+                        <div class="ds-comp-info-actions">
+                            <button class="info-icon-btn" type="button" title="編輯標題" aria-label="編輯標題">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="info-icon-btn" type="button" title="批次翻譯 10 片" aria-label="批次翻譯 10 片">
+                                <i class="bi bi-translate"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 技術說明 -->
+    <div class="ds-note" style="margin-top: 1.5rem;">
+        <strong>Composition 說明：</strong>
+        <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+            <li>Header 區使用 Acrylic 毛玻璃效果 (<code>backdrop-filter: blur(20px)</code>)</li>
+            <li>Result 區左右比例 70:30 (Cover: Info)</li>
+            <li>File List 緊貼 Cover 下方，展示本地拖入檔案的 4 種狀態</li>
+            <li>狀態 icon 化：<code>bi-check-lg</code> (搜到) / <code>bi-question-lg</code> (無法辨識) / 空白 (未搜尋)</li>
+            <li>動作 icon 化：<code>bi-folder-plus</code> (產生) / <code>bi-pencil</code> (手動輸入)，與 Header「產生全部」同 icon</li>
+            <li>Info Panel 複用 D.2 的 AV Card Full 結構，含完整互動按鈕</li>
+        </ul>
+    </div>
+</div>
+
+<!-- D.15: Gallery Page Composition -->
+<div class="ds-subsection">
+    <h3>Gallery Page Composition</h3>
+    <p class="ds-desc">完整 Gallery 頁面排版（管理區 + 封面牆預覽）</p>
+
+    <!-- Mockup 容器 -->
+    <div class="ds-gallery-composition">
+        <!-- Section Title: Management Area -->
+        <div class="ds-gallery-section-title">
+            <i class="bi bi-gear"></i>
+            <span>管理區</span>
+        </div>
+
+        <!-- Folder Management Card -->
+        <div class="avlist-card">
+            <div class="avlist-card-header">
+                <div class="title">
+                    <i class="bi bi-folder"></i> <span>掃描資料夾</span>
+                </div>
+                <div class="actions">
+                    <button class="btn-icon" title="選擇資料夾" aria-label="選擇資料夾" type="button">
+                        <i class="bi bi-folder-plus"></i>
+                    </button>
+                    <button class="btn-icon" title="手動輸入" aria-label="手動輸入" type="button">
+                        <i class="bi bi-keyboard"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="avlist-card-body">
+                <div class="folder-list">
+                    <!-- Folder Item 1 -->
+                    <div class="folder-item">
+                        <i class="bi bi-folder folder-icon"></i>
+                        <span class="folder-path">D:\Videos\JAV</span>
+                        <button class="btn btn-ghost btn-xs btn-remove" aria-label="移除資料夾" type="button">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                    <!-- Folder Item 2 -->
+                    <div class="folder-item">
+                        <i class="bi bi-folder folder-icon"></i>
+                        <span class="folder-path">/Users/username/Movies/Adult</span>
+                        <button class="btn btn-ghost btn-xs btn-remove" aria-label="移除資料夾" type="button">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                    <!-- Folder Item 3 -->
+                    <div class="folder-item">
+                        <i class="bi bi-folder folder-icon"></i>
+                        <span class="folder-path">\\NAS\Media\AV Collection</span>
+                        <button class="btn btn-ghost btn-xs btn-remove" aria-label="移除資料夾" type="button">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- 輸出資訊列 -->
+            <div class="output-info">
+                <div class="path">
+                    <i class="bi bi-file-earmark-code"></i>
+                    輸出: <code>output/gallery_output.html</code>
+                </div>
+                <a href="javascript:void(0)" class="settings-link">
+                    <i class="bi bi-gear"></i> 設定
+                </a>
+            </div>
+            <!-- Action 區（產生按鈕 + 完成按鈕）-->
+            <div class="action-section">
+                <button class="btn-hero btn-hero-primary" type="button">
+                    <i class="bi bi-play-fill"></i> 產生網頁
+                </button>
+                <!-- 完成按鈕（展開狀態）-->
+                <div class="done-actions" style="display: flex;">
+                    <button class="btn-hero btn-hero-secondary" title="複製路徑" type="button">
+                        <i class="bi bi-clipboard"></i> 複製路徑
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cards Row: Stats + Alias -->
+        <div class="ds-gallery-cards-row">
+            <!-- Stats Card -->
+            <div class="stats-card">
+                <!-- 統計列 -->
+                <div class="stats-row">
+                    <div class="stat-item">
+                        <i class="bi bi-collection-play"></i>
+                        <span>快取影片: <span class="stat-value">1,234</span> 部</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>上次執行: 2026-01-15 10:30 (新增 23 部)</span>
+                    </div>
+                </div>
+                <!-- NFO 更新列 -->
+                <div class="nfo-update-row">
+                    <span class="nfo-badge">
+                        <i class="bi bi-exclamation-circle"></i>
+                        需補全: <strong>15</strong> 部
+                    </span>
+                    <button class="btn-nfo-update" type="button">
+                        <i class="bi bi-magic"></i> 補全 NFO
+                    </button>
+                </div>
+            </div>
+
+            <!-- Alias Card (Collapsed) -->
+            <div class="actress-alias-card">
+                <div class="actress-alias-header" style="cursor: pointer;">
+                    <div class="title">
+                        <i class="bi bi-person-badge"></i> <span>女優名稱管理</span>
+                    </div>
+                    <button class="btn-icon btn-collapse" title="展開/收起" aria-label="展開/收起" type="button">
+                        <i class="bi bi-chevron-down"></i>
+                    </button>
+                </div>
+                <div class="actress-alias-body" style="display: none;">
+                    <!-- Collapsed State -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Title: Preview Area -->
+        <div class="ds-gallery-section-title">
+            <i class="bi bi-grid-3x3-gap"></i>
+            <span>封面牆預覽（範例輸出）</span>
+        </div>
+
+        <!-- Preview Grid (Mosaic Layout) -->
+        <div class="ds-gallery-preview-grid">
+            <!-- Featured Card (Large) -->
+            <div class="av-card-preview featured">
+                <div class="av-card-preview-img">
+                    <img src="/static/img/demo/sone-103.jpg" alt="SONE-103">
+                    <div class="av-card-preview-overlay">
+                        <button type="button" class="btn-glass-circle" title="播放影片" aria-label="播放影片"><i class="bi bi-play-fill"></i></button>
+                        <button type="button" class="btn-glass-circle" title="複製路徑" aria-label="複製路徑"><i class="bi bi-clipboard"></i></button>
+                    </div>
+                </div>
+                <div class="av-card-preview-footer">
+                    <span class="av-num">SONE-103</span>
+                    <span class="av-actress">未歩なな</span>
+                </div>
+            </div>
+
+            <!-- Small Card 1 -->
+            <div class="av-card-preview">
+                <div class="av-card-preview-img">
+                    <img src="/static/img/demo/mide-974.jpg" alt="MIDE-974">
+                </div>
+                <div class="av-card-preview-footer">
+                    <span class="av-num">MIDE-974</span>
+                    <span class="av-actress">石川澪</span>
+                </div>
+            </div>
+
+            <!-- Small Card 2 -->
+            <div class="av-card-preview">
+                <div class="av-card-preview-img">
+                    <img src="/static/img/demo/ipzz-001.jpg" alt="IPZZ-001">
+                </div>
+                <div class="av-card-preview-footer">
+                    <span class="av-num">IPZZ-001</span>
+                    <span class="av-actress">天海つばさ</span>
+                </div>
+            </div>
+
+            <!-- Small Card 3 -->
+            <div class="av-card-preview">
+                <div class="av-card-preview-img">
+                    <img src="/static/img/demo/fc2-1723984.jpg" alt="FC2-1723984">
+                </div>
+                <div class="av-card-preview-footer">
+                    <span class="av-num">FC2-1723984</span>
+                    <span class="av-actress">素人</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 技術說明 -->
+    <div class="ds-note" style="margin-top: 1.5rem;">
+        <strong>Composition 說明：</strong>
+        <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+            <li>管理區複用 D.6/D.7/D.8 元件：Folder Management、Stats Card、Alias Card（收合狀態）</li>
+            <li>Section Title 區分「管理區」與「封面牆預覽」兩大區塊</li>
+            <li>Stats + Alias 水平排列節省垂直空間（Desktop）</li>
+            <li>Preview Grid 使用 Mosaic Layout：Featured (2fr) + 3 small cards (1fr)，可用於調整 <code>gallery_output.html</code> 設計</li>
+            <li>RWD: &lt;768px 時 Stats + Alias 垂直堆疊，Preview Grid 單欄顯示</li>
+        </ul>
+    </div>
+</div>
