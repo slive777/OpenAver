@@ -959,7 +959,7 @@
                 <!-- Demo 容器 -->
                 <div class="ds-modal-demo" x-data>
                     <!-- 觸發按鈕 -->
-                    <button class="btn btn-error" @click="$refs.confirmDialog.showModal()">
+                    <button type="button" class="btn btn-error" @click="$refs.confirmDialog.showModal()">
                         <i class="bi bi-trash"></i> 刪除項目
                     </button>
 
@@ -976,10 +976,10 @@
 
                             <!-- Footer Actions -->
                             <div class="modal-action fluent-modal-actions">
-                                <button class="btn btn-ghost" @click="$refs.confirmDialog.close()">
+                                <button type="button" class="btn btn-ghost" @click="$refs.confirmDialog.close()">
                                     取消
                                 </button>
-                                <button class="btn btn-error" @click="$refs.confirmDialog.close()">
+                                <button type="button" class="btn btn-error" @click="$refs.confirmDialog.close()">
                                     <i class="bi bi-trash"></i> 確認刪除
                                 </button>
                             </div>
@@ -1031,10 +1031,12 @@
                    toastMessage: '',
                    toastType: 'success',
                    toastTimeout: null,
+                   toastDuration: 2500,
                    showToast(message, type = 'success', duration = 2500) {
                      clearTimeout(this.toastTimeout);
                      this.toastMessage = message;
                      this.toastType = type;
+                     this.toastDuration = duration;
                      this.toastVisible = true;
                      this.toastTimeout = setTimeout(() => {
                        this.toastVisible = false;
@@ -1053,17 +1055,17 @@
                 <div class="ds-toast-demo">
                     <!-- 觸發按鈕組 -->
                     <div class="ds-toast-buttons">
-                        <button class="btn btn-success"
+                        <button type="button" class="btn btn-success"
                                 @click="showToast('✓ 路徑已複製', 'success', 2500)">
                             <i class="bi bi-check-circle"></i> 觸發成功 Toast
                         </button>
 
-                        <button class="btn btn-error"
+                        <button type="button" class="btn btn-error"
                                 @click="showToast('✗ 產生失敗', 'error', 2500)">
                             <i class="bi bi-x-circle"></i> 觸發錯誤 Toast
                         </button>
 
-                        <button class="btn btn-info"
+                        <button type="button" class="btn btn-info"
                                 @click="showToast('⟳ 正在處理...', 'info', 3000)">
                             <i class="bi bi-info-circle"></i> 觸發資訊 Toast
                         </button>
@@ -1079,7 +1081,7 @@
                          x-transition:leave-start="fluent-toast-leave-start"
                          x-transition:leave-end="fluent-toast-leave-end"
                          @mouseenter="clearTimeout(toastTimeout)"
-                         @mouseleave="toastTimeout = setTimeout(() => { toastVisible = false; }, 2500)">
+                         @mouseleave="toastTimeout = setTimeout(() => { toastVisible = false; }, toastDuration)">
                         <div class="alert fluent-toast"
                              :class="`alert-${toastType}`"
                              role="alert">
