@@ -242,6 +242,8 @@
             padding: 0.75rem 1rem;
             border-radius: var(--fluent-radius-md);
             margin: 0.25rem 0.5rem;
+            display: flex;
+            align-items: center;
             transition: color var(--fluent-duration-normal) var(--fluent-ease-standard), background-color var(--fluent-duration-normal) var(--fluent-ease-standard);
         }
 
@@ -304,7 +306,7 @@
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
          @click="mobileMenuOpen = false"
-         class="fixed inset-0 bg-black/50 z-40 lg:hidden">
+         class="fixed inset-0 bg-black/50 z-[200] lg:hidden">
     </div>
 
     <!-- Offcanvas 側邊選單（小螢幕）-->
@@ -316,7 +318,7 @@
          x-transition:leave="transition ease-in duration-200"
          x-transition:leave-start="opacity-100 translate-x-0"
          x-transition:leave-end="opacity-0 -translate-x-full"
-         class="fixed inset-y-0 left-0 w-64 bg-base-200 shadow-xl z-50 lg:hidden"
+         class="fixed inset-y-0 left-0 w-64 bg-base-200 shadow-xl z-[210] lg:hidden"
          tabindex="-1">
         <div class="flex items-center justify-between p-4 border-b border-base-300">
             <h5 class="text-lg font-semibold">
