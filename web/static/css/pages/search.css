@@ -308,18 +308,6 @@
     background: transparent;
 }
 
-/* 初始狀態按鈕區 */
-.empty-actions {
-    display: flex;
-    gap: 0.75rem;
-    margin-top: 0.5rem;
-    padding-bottom: 1rem;
-}
-
-.empty-actions .btn {
-    font-size: 0.85rem;
-}
-
 .info-title {
     font-size: 0.8rem;
     color: var(--text-primary);
@@ -337,23 +325,6 @@
 /* .ds-page .error-nav { display:flex } (theme.css:606) 蓋過 .hidden，需 !important */
 .ds-page .error-nav.hidden {
     display: none !important;
-}
-
-/* 狀態頁面 */
-.state-page {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    color: var(--text-secondary);
-}
-
-.state-page > i {
-    font-size: 4.5rem;
-    margin-bottom: 1rem;
-    opacity: 0.6;
 }
 
 /* 搜尋提示 */
