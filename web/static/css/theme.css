@@ -1003,8 +1003,9 @@ body {
     inset: 0;
     background: linear-gradient(to top, oklch(0% 0 0 / 0.7) 0%, oklch(0% 0 0 / 0.3) 50%, transparent 100%);
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: center;
+    padding-bottom: 0.75rem;
     gap: 1rem;
     opacity: 0;
     pointer-events: none;

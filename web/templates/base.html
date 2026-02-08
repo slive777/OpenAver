@@ -95,19 +95,9 @@
         }
 
         .sidebar-brand {
-            color: var(--text-primary);
-            font-size: 1.1rem;
-            font-weight: 600;
             margin-left: 0.5rem;
-            white-space: nowrap;
-            overflow: hidden;
-            transition: opacity 0.2s, color 0.3s ease;
-        }
-
-        .sidebar.collapsed .sidebar-brand,
-        body.sidebar-collapsed .sidebar .sidebar-brand {
-            opacity: 0;
-            width: 0;
+            display: flex;
+            align-items: center;
         }
 
         /* 導航連結 */
@@ -388,7 +378,7 @@
                     title="展開/收合">
                 <i class="bi bi-list"></i>
             </button>
-            <span class="sidebar-brand"><img src="/static/favicon.svg" alt="Logo" style="width: 20px; height: 20px; margin-right: 4px;"> OpenAver</span>
+            <span class="sidebar-brand"><img src="/static/favicon.svg" alt="Logo" style="width: 20px; height: 20px;"></span>
         </div>
         <ul class="flex flex-col flex-grow">
             <li class="nav-item">
