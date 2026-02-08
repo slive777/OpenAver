@@ -911,6 +911,7 @@ body {
     justify-content: center;
     gap: 1rem;
     opacity: 0;
+    pointer-events: none;
     transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
@@ -928,6 +929,7 @@ body {
     color: oklch(100% 0 0);
     font-size: 1.25rem;
     cursor: pointer;
+    pointer-events: auto;
     transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), border-color var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
     display: flex;
     align-items: center;
