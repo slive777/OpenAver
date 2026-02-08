@@ -730,51 +730,6 @@
     gap: 0.25rem;
 }
 
-/* Preview Variant - Featured Overlay（僅 design-system 頁面使用）*/
-.av-card-preview.featured .av-card-preview-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to top, oklch(0% 0 0 / 0.7) 0%, oklch(0% 0 0 / 0.3) 50%, transparent 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    opacity: 0;
-    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
-}
-
-.av-card-preview.featured:hover .av-card-preview-overlay {
-    opacity: 1;
-}
-
-/* 圓形玻璃按鈕（用於 Overlay Actions） */
-.btn-glass-circle {
-    width: 48px;
-    height: 48px;
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.15);
-    color: oklch(100% 0 0);
-    font-size: 1.25rem;
-    cursor: pointer;
-    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), border-color var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 12px oklch(0% 0 0 / 0.3);
-}
-
-.btn-glass-circle:hover {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.6);
-    transform: scale(1.08);
-    box-shadow: 0 6px 16px oklch(0% 0 0 / 0.4);
-}
-
-.btn-glass-circle:active {
-    transform: scale(0.95);
-}
-
 /* Full Variant */
 .av-card-full {
     display: flex;

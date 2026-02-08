@@ -901,6 +901,51 @@ body {
     color: var(--text-secondary);
 }
 
+/* Preview Overlay - Hover Actions */
+:is(#gallery-components, .ds-gallery-composition) .av-card-preview-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, oklch(0% 0 0 / 0.7) 0%, oklch(0% 0 0 / 0.3) 50%, transparent 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    opacity: 0;
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+:is(#gallery-components, .ds-gallery-composition) .av-card-preview:hover .av-card-preview-overlay {
+    opacity: 1;
+}
+
+/* Glass Circle Button - Overlay Actions */
+:is(#gallery-components, .ds-gallery-composition) .btn-glass-circle {
+    width: 48px;
+    height: 48px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    color: oklch(100% 0 0);
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), border-color var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px oklch(0% 0 0 / 0.3);
+}
+
+:is(#gallery-components, .ds-gallery-composition) .btn-glass-circle:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: scale(1.08);
+    box-shadow: 0 6px 16px oklch(0% 0 0 / 0.4);
+}
+
+:is(#gallery-components, .ds-gallery-composition) .btn-glass-circle:active {
+    transform: scale(0.95);
+}
+
 /* Output Info Section */
 :is(#gallery-components, .ds-gallery-composition) .output-info {
     display: flex;
