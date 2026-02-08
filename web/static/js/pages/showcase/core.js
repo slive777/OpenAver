@@ -258,8 +258,63 @@ function showcaseState() {
                 this.filteredVideos = [...this.videos];
             }
 
-            // --- 排序 (M4b 實作，此處先保留原有的空實作) ---
-            // this.filteredVideos.sort(...);
+            // --- 排序 (M4b) ---
+            this.filteredVideos.sort((a, b) => {
+                // 1. 女優卡置頂邏輯（原版 L1230-1234）
+                //    備註：Showcase 頁面目前不會有 actress: 開頭的路徑（該機制屬於女優 Gallery）
+                //    保留此邏輯以確保與原版行為 100% 一致，未來 24-migrate-3 若整合女優 Gallery 時需要
+                const aIsHero = a.path && a.path.indexOf('actress:') === 0;
+                const bIsHero = b.path && b.path.indexOf('actress:') === 0;
+                if (aIsHero && !bIsHero) return -1;
+                if (!aIsHero && bIsHero) return 1;
+
+                // 2. Random 排序：立即返回（每次呼叫 applyFilterAndSort 都重新洗牌）
+                if (this.sort === 'random') {
+                    return Math.random() - 0.5;
+                }
+
+                // 3. 其他排序：取得比較值
+                let va, vb;
+                switch (this.sort) {
+                    case 'title':
+                        va = a.title || '';
+                        vb = b.title || '';
+                        break;
+                    case 'actor':
+                        va = a.actresses || '';
+                        vb = b.actresses || '';
+                        break;
+                    case 'num':
+                        va = a.number || '';
+                        vb = b.number || '';
+                        break;
+                    case 'maker':
+                        va = a.maker || '';
+                        vb = b.maker || '';
+                        break;
+                    case 'date':
+                        va = a.release_date || '';
+                        vb = b.release_date || '';
+                        break;
+                    case 'size':
+                        va = a.size || 0;
+                        vb = b.size || 0;
+                        break;
+                    case 'mdate':
+                        va = a.mtime || 0;
+                        vb = b.mtime || 0;
+                        break;
+                    default:
+                        // 未知排序欄位 fallback 到 path
+                        va = a.path || '';
+                        vb = b.path || '';
+                }
+
+                // 4. 比較邏輯（asc='asc', desc='desc'）
+                if (va < vb) return this.order === 'asc' ? -1 : 1;
+                if (va > vb) return this.order === 'asc' ? 1 : -1;
+                return 0;
+            });
 
             // --- 重置頁碼並更新分頁 ---
             this.page = 1;
