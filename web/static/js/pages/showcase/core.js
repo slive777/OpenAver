@@ -73,10 +73,12 @@ function showcaseState() {
             const urlNum = (key) => { const v = urlParams.get(key); return v !== null && v !== '' ? v : undefined; };
             this.sort = urlParams.get('sort') || state.sort || defaultSort;
             this.order = urlParams.get('order') || state.order || defaultOrder;
-            this.perPage = parseInt(urlNum('perPage') ?? state.perPage ?? defaultPerPage);
-            this.page = parseInt(urlNum('page') ?? state.page ?? 1);
+            const rawPerPage = parseInt(urlNum('perPage') ?? state.perPage ?? defaultPerPage);
+            this.perPage = Number.isNaN(rawPerPage) ? defaultPerPage : rawPerPage;
+            this.page = parseInt(urlNum('page') ?? state.page ?? 1) || 1;
             this.search = urlParams.get('search') || state.search || '';
             this.mode = urlParams.get('mode') || state.mode || 'grid';
+            if (!['grid', 'table', 'list'].includes(this.mode)) this.mode = 'grid';
         },
 
         // --- 狀態持久化 (M2c) ---
@@ -179,6 +181,7 @@ function showcaseState() {
         },
 
         switchMode(m) {
+            if (!['grid', 'table', 'list'].includes(m)) return;
             this.mode = m;
             this.saveState();  // M2c: 持久化狀態
         },
@@ -209,7 +212,7 @@ function showcaseState() {
         },
 
         updatePagination() {
-            const perPage = parseInt(this.perPage);
+            const perPage = Math.max(0, parseInt(this.perPage) || 0);
             if (perPage === 0) {
                 this.paginatedVideos = this.filteredVideos;
                 this.totalPages = 1;
@@ -261,6 +264,9 @@ function showcaseState() {
             this.lightboxIndex = -1;
             this.lightboxStartX = 0;
             this.lightboxStartY = 0;
+            if (this.lightboxMoveTimer) clearTimeout(this.lightboxMoveTimer);
+            this.lightboxMoveTimer = null;
+            this.lightboxMoveEnabled = false;
         },
 
         prevLightboxVideo() {
