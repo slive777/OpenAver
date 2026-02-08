@@ -53,11 +53,11 @@ function showcaseState() {
         // --- 生命週期 ---
         async init() {
             this.restoreState();        // M2c: 先恢復狀態
+            const savedPage = this.page;
             await this.fetchVideos();
-            // init 時不呼叫 applyFilterAndSort()（會重置 page=1），
-            // 直接設定 filteredVideos + updatePagination 保留恢復的頁碼
-            this.filteredVideos = [...this.videos];
-            this.updatePagination();
+            this.applyFilterAndSort();  // M4a: 套用搜尋篩選（會重置 page=1）
+            this.page = savedPage;      // 恢復儲存的頁碼
+            this.updatePagination();    // 重新分頁（會 clamp 超出範圍的頁碼）
         },
 
         // --- 狀態恢復 (M2c) ---
@@ -224,9 +224,44 @@ function showcaseState() {
 
         // --- 資料處理 (M2a 基本實作，M4 完整化) ---
         applyFilterAndSort() {
-            // M2a 簡單版：只複製原始資料
-            // M4 才實作搜尋關鍵字、多欄位排序等
-            this.filteredVideos = [...this.videos];
+            // --- 搜尋篩選 (M4a) ---
+            if (this.search && this.search.trim()) {
+                // 分割多個關鍵字（用空格分隔，過濾空字串）
+                const terms = this.search.toLowerCase().trim().split(/\s+/).filter(t => t.length > 0);
+
+                this.filteredVideos = this.videos.filter(video => {
+                    // 建立所有可搜尋欄位的組合文字（對應原版 L1216）
+                    // API 欄位名稱對應：otitle → original_title, actor → actresses, num → number, genre → tags, date → release_date
+                    const searchable = [
+                        video.title,
+                        video.original_title,
+                        video.actresses,
+                        video.number,
+                        video.maker,
+                        video.tags,
+                        video.release_date,
+                        video.path
+                    ].filter(Boolean).join(' ').toLowerCase();
+
+                    // 番號的正規化版本（移除空格和連字號）
+                    const numNorm = video.number ? video.number.toLowerCase().replace(/[\s\-]/g, '') : '';
+
+                    // 每個關鍵字都要匹配（AND 邏輯）
+                    return terms.every(term => {
+                        const termNorm = term.replace(/[\s\-]/g, '');
+                        // 番號模糊匹配 OR 一般欄位匹配
+                        return (numNorm && numNorm.includes(termNorm)) || searchable.includes(term);
+                    });
+                });
+            } else {
+                // 空搜尋：回傳全部影片
+                this.filteredVideos = [...this.videos];
+            }
+
+            // --- 排序 (M4b 實作，此處先保留原有的空實作) ---
+            // this.filteredVideos.sort(...);
+
+            // --- 重置頁碼並更新分頁 ---
             this.page = 1;
             this.updatePagination();
         },
