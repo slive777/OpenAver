@@ -7,6 +7,7 @@ function showcaseState() {
     return {
         // --- 狀態變數 ---
         loading: true,
+        error: '',           // 錯誤訊息（API 失敗時顯示）
         videos: [],           // 全部影片資料（從 API 載入）
         filteredVideos: [],   // 搜尋/排序後的結果
         paginatedVideos: [],  // 當前頁顯示的影片
@@ -52,10 +53,12 @@ function showcaseState() {
             const urlParams = new URLSearchParams(window.location.search);
 
             // 4. 優先序：URL > localStorage > config > fallback
+            //    urlNum: 取 URL 數值參數，空字串視為無值（避免 parseInt("") → NaN）
+            const urlNum = (key) => { const v = urlParams.get(key); return v !== null && v !== '' ? v : undefined; };
             this.sort = urlParams.get('sort') || state.sort || defaultSort;
             this.order = urlParams.get('order') || state.order || defaultOrder;
-            this.perPage = parseInt(urlParams.get('perPage') || state.perPage || defaultPerPage);
-            this.page = parseInt(urlParams.get('page') || state.page || 1);
+            this.perPage = parseInt(urlNum('perPage') ?? state.perPage ?? defaultPerPage);
+            this.page = parseInt(urlNum('page') ?? state.page ?? 1);
             this.search = urlParams.get('search') || state.search || '';
             this.mode = urlParams.get('mode') || state.mode || 'grid';
         },
@@ -90,16 +93,40 @@ function showcaseState() {
         // --- API 呼叫 ---
         async fetchVideos() {
             this.loading = true;
+            this.error = '';
             try {
                 const resp = await fetch('/api/showcase/videos');
+                if (!resp.ok) {
+                    this.videos = [];
+                    this.filteredVideos = [];
+                    this.error = `伺服器錯誤 (${resp.status})`;
+                    return;
+                }
                 const data = await resp.json();
+                if (!data.success) {
+                    this.videos = [];
+                    this.filteredVideos = [];
+                    this.error = data.error || '載入失敗';
+                    return;
+                }
                 this.videos = data.videos || [];
                 this.filteredVideos = this.videos;
             } catch (e) {
                 console.error('Failed to fetch videos:', e);
+                this.videos = [];
+                this.filteredVideos = [];
+                this.error = '無法連線到伺服器';
             } finally {
                 this.loading = false;
             }
+        },
+
+        // --- 重試（async 安全） ---
+        async retry() {
+            this.error = '';
+            await this.fetchVideos();
+            this.filteredVideos = [...this.videos];
+            this.updatePagination();
         },
 
         // --- 互動邏輯 (M2a 只定義骨架，M4 才實作完整邏輯) ---
@@ -161,8 +188,12 @@ function showcaseState() {
             if (perPage === 0) {
                 this.paginatedVideos = this.filteredVideos;
                 this.totalPages = 1;
+                this.page = 1;
             } else {
-                this.totalPages = Math.ceil(this.filteredVideos.length / perPage);
+                this.totalPages = Math.max(1, Math.ceil(this.filteredVideos.length / perPage));
+                // clamp page 到有效範圍
+                if (this.page > this.totalPages) this.page = this.totalPages;
+                if (this.page < 1) this.page = 1;
                 const start = (this.page - 1) * perPage;
                 this.paginatedVideos = this.filteredVideos.slice(start, start + perPage);
             }

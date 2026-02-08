@@ -19,7 +19,7 @@
     </div>
 
     <!-- Empty State (API 回傳空資料時) -->
-    <div class="state-page" x-show="!loading && videos.length === 0">
+    <div class="state-page" x-show="!loading && !error && videos.length === 0">
         <i class="bi bi-collection-play state-page-icon"></i>
         <p class="state-page-text">尚未產生影片列表</p>
         <div class="empty-actions">
@@ -29,8 +29,19 @@
         </div>
     </div>
 
+    <!-- Error State (API 錯誤時) -->
+    <div class="state-page error" x-show="!loading && error">
+        <i class="bi bi-exclamation-triangle state-page-icon"></i>
+        <p class="state-page-text" x-text="error"></p>
+        <div class="empty-actions">
+            <button class="btn btn-outline btn-primary btn-sm" @click="retry()">
+                <i class="bi bi-arrow-clockwise"></i> 重試
+            </button>
+        </div>
+    </div>
+
     <!-- Main Content (API 載入後顯示) -->
-    <div x-show="videos.length > 0" style="display: none;">
+    <div x-show="!error && videos.length > 0" style="display: none;">
 
         <!-- Toolbar -->
         <div class="showcase-toolbar">

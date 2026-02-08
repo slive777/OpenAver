@@ -816,6 +816,91 @@ body {
     font-size: 0.875rem;
 }
 
+/* ========== AV Card: Preview Variant ========== */
+
+/* Preview Card - 主容器 */
+:is(#gallery-components, .ds-gallery-composition) .av-card-preview {
+    background: var(--bg-card);
+    border-radius: var(--fluent-radius-xl);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-4);
+    overflow: hidden;
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard),
+                box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard),
+                border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
+    border: 1px solid var(--border-light);
+}
+
+/* Preview Card - 發光邊 Hover */
+:is(#gallery-components, .ds-gallery-composition) .av-card-preview:hover {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 12%, transparent),
+        0 0 0 2px var(--accent),
+        0 0 20px var(--glow-primary),
+        var(--fluent-shadow-16);
+    border-color: var(--accent);
+}
+
+/* Preview Image Container */
+:is(#gallery-components, .ds-gallery-composition) .av-card-preview-img {
+    position: relative;
+    aspect-ratio: 3/2;
+    overflow: hidden;
+}
+
+:is(#gallery-components, .ds-gallery-composition) .av-card-preview-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--fluent-duration-slow) var(--fluent-ease-standard);
+    transform-origin: 65% center; /* 聚焦右側（AV 封面主體區域） */
+}
+
+:is(#gallery-components, .ds-gallery-composition) .av-card-preview:hover .av-card-preview-img img {
+    transform: scale(1.08);
+}
+
+/* Preview Badge */
+:is(#gallery-components, .ds-gallery-composition) .av-card-preview-badge {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: linear-gradient(135deg, var(--accent) 0%, #007aff 100%);
+    color: oklch(100% 0 0);
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: var(--fluent-radius-md);
+    box-shadow: 0 2px 8px oklch(0% 0 0 / 0.25);
+}
+
+:is(#gallery-components, .ds-gallery-composition) .av-card-preview-badge.local {
+    background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
+}
+
+/* Preview Footer */
+:is(#gallery-components, .ds-gallery-composition) .av-card-preview-footer {
+    padding: 0.5rem 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+/* AV Card 共用文字樣式 */
+:is(#gallery-components, .ds-gallery-composition) .av-num {
+    font-weight: 600;
+    color: var(--accent);
+    font-size: 0.9rem;
+}
+
+:is(#gallery-components, .ds-gallery-composition) .av-actress {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
 /* Output Info Section */
 :is(#gallery-components, .ds-gallery-composition) .output-info {
     display: flex;
