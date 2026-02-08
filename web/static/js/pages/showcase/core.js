@@ -163,6 +163,15 @@ function showcaseState() {
             this.saveState();  // M2c: 持久化狀態
         },
 
+        sortBy(field) {
+            if (this.sort === field) {
+                this.toggleOrder();  // 同欄位 → 切換方向
+            } else {
+                this.sort = field;
+                this.onSortChange(); // 不同欄位 → 切換排序欄位
+            }
+        },
+
         onPerPageChange() {
             this.page = 1;
             this.updatePagination();

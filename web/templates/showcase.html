@@ -81,7 +81,7 @@
                     </button>
                 </div>
 
-                <!-- 顯示模式 (M2a 只有 grid，M3 才加入 table/list) -->
+                <!-- 顯示模式 (M3 啟用 table) -->
                 <div class="control-group mode-switcher">
                     <button class="btn-icon"
                             :class="{ 'active': mode === 'grid' }"
@@ -89,8 +89,10 @@
                             title="圖片模式 (A)">
                         <i class="bi bi-grid-3x3"></i>
                     </button>
-                    <!-- M3 才啟用 -->
-                    <button class="btn-icon" disabled title="表格模式 (即將推出)">
+                    <button class="btn-icon"
+                            :class="{ 'active': mode === 'table' }"
+                            @click="switchMode('table')"
+                            title="表格模式">
                         <i class="bi bi-table"></i>
                     </button>
                     <button class="btn-icon" disabled title="列表模式 (即將推出)">
@@ -130,6 +132,94 @@
                     </div>
                 </div>
             </template>
+        </div>
+
+        <!-- Detail Table (M3b) -->
+        <div class="showcase-table-wrapper" x-show="mode === 'table'" style="display: none;">
+            <div class="table-scroll-container">
+                <table class="table table-zebra table-pin-rows">
+                    <thead>
+                        <tr>
+                            <th class="table-col-index">#</th>
+                            <th class="table-col-number sortable"
+                                :class="{ 'sort-active': sort === 'num' }"
+                                @click="sortBy('num')">
+                                番號
+                                <i class="bi sort-icon"
+                                   :class="sort === 'num' ? (order === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up'"></i>
+                            </th>
+                            <th class="table-col-title sortable"
+                                :class="{ 'sort-active': sort === 'title' }"
+                                @click="sortBy('title')">
+                                標題
+                                <i class="bi sort-icon"
+                                   :class="sort === 'title' ? (order === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up'"></i>
+                            </th>
+                            <th class="table-col-actor sortable"
+                                :class="{ 'sort-active': sort === 'actor' }"
+                                @click="sortBy('actor')">
+                                女優
+                                <i class="bi sort-icon"
+                                   :class="sort === 'actor' ? (order === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up'"></i>
+                            </th>
+                            <th class="table-col-maker sortable"
+                                :class="{ 'sort-active': sort === 'maker' }"
+                                @click="sortBy('maker')">
+                                片商
+                                <i class="bi sort-icon"
+                                   :class="sort === 'maker' ? (order === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up'"></i>
+                            </th>
+                            <th class="table-col-date sortable"
+                                :class="{ 'sort-active': sort === 'date' }"
+                                @click="sortBy('date')">
+                                日期
+                                <i class="bi sort-icon"
+                                   :class="sort === 'date' ? (order === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up'"></i>
+                            </th>
+                            <th class="table-col-tags">標籤</th>
+                            <th class="table-col-size sortable"
+                                :class="{ 'sort-active': sort === 'size' }"
+                                @click="sortBy('size')">
+                                大小
+                                <i class="bi sort-icon"
+                                   :class="sort === 'size' ? (order === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up'"></i>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="(video, index) in paginatedVideos" :key="video.path">
+                            <tr @click="openLightbox(getCurrentFilteredIndex(index))" class="table-row-clickable">
+                                <td class="table-cell-index" x-text="getCurrentFilteredIndex(index) + 1"></td>
+                                <td class="table-cell-number">
+                                    <span class="table-number-highlight" x-text="video.number"></span>
+                                </td>
+                                <td class="table-cell-title" x-text="video.title || '未知標題'"></td>
+                                <td class="table-cell-actor" x-text="video.actresses || '未知'"></td>
+                                <td class="table-cell-maker" x-text="video.maker || '-'"></td>
+                                <td class="table-cell-date" x-text="video.release_date || '-'"></td>
+                                <td class="table-cell-tags">
+                                    <template x-if="video.tags">
+                                        <div class="table-tags-wrapper">
+                                            <template x-for="tag in video.tags.split(',').slice(0, 3).filter(t => t.trim())" :key="tag">
+                                                <span class="table-tag" x-text="tag.trim()"></span>
+                                            </template>
+                                            <template x-if="video.tags.split(',').length > 3">
+                                                <span class="table-tag-more" x-text="`+${video.tags.split(',').length - 3}`"></span>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <template x-if="!video.tags">
+                                        <span class="text-muted">-</span>
+                                    </template>
+                                </td>
+                                <td class="table-cell-size">
+                                    <span class="table-size-mono" x-text="formatSize(video.size || 0)"></span>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <!-- Pagination -->

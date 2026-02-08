@@ -466,6 +466,188 @@
     }
 }
 
+/* ==================== Detail Table Mode ==================== */
+
+/* Table Wrapper */
+.showcase-table-wrapper {
+    padding: 1.5rem;
+}
+
+/* Scroll Container - 小螢幕橫向滾動 */
+.table-scroll-container {
+    overflow-x: auto;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Table Base - DaisyUI .table 強化 */
+.showcase-table-wrapper .table {
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-default);
+    font-size: 0.875rem;
+}
+
+/* Table Header */
+.showcase-table-wrapper .table thead th {
+    background: var(--surface-0);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1rem 0.75rem;
+    border-bottom: 2px solid var(--stroke-default);
+    white-space: nowrap;
+    position: relative;
+}
+
+/* Sortable Header */
+.showcase-table-wrapper .table thead th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: background var(--duration-fast) var(--ease-out),
+                color var(--duration-fast) var(--ease-out);
+}
+
+.showcase-table-wrapper .table thead th.sortable:hover {
+    background: var(--glow-subtle);
+    color: var(--text-primary);
+}
+
+/* Active Sort Column */
+.showcase-table-wrapper .table thead th.sort-active {
+    color: var(--accent);
+}
+
+/* Sort Icon */
+.showcase-table-wrapper .table .sort-icon {
+    margin-left: 0.5rem;
+    font-size: 0.875rem;
+    opacity: 0.6;
+    transition: opacity var(--duration-fast) var(--ease-out);
+}
+
+.showcase-table-wrapper .table thead th.sortable:hover .sort-icon,
+.showcase-table-wrapper .table thead th.sort-active .sort-icon {
+    opacity: 1;
+}
+
+/* Table Body */
+.showcase-table-wrapper .table tbody td {
+    padding: 0.875rem 0.75rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--stroke-subtle);
+    vertical-align: middle;
+}
+
+/* Clickable Row */
+.table-row-clickable {
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out);
+}
+
+.table-row-clickable:hover {
+    background: var(--glow-subtle) !important; /* 覆蓋 DaisyUI zebra */
+}
+
+/* Column Widths */
+.table-col-index { width: 60px; }
+.table-col-number { width: 140px; }
+.table-col-title { min-width: 250px; max-width: 400px; }
+.table-col-actor { width: 150px; }
+.table-col-maker { width: 120px; }
+.table-col-date { width: 110px; }
+.table-col-tags { width: 200px; }
+.table-col-size { width: 100px; }
+
+/* Cell Styles */
+.table-cell-index {
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.table-cell-number {
+    font-family: var(--font-mono);
+}
+
+.table-number-highlight {
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+}
+
+.table-number-highlight:hover {
+    text-decoration: underline;
+}
+
+.table-cell-title {
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.table-cell-actor {
+    color: var(--text-secondary);
+}
+
+.table-cell-maker,
+.table-cell-date {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+/* Tags in Table */
+.table-tags-wrapper {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.table-tag {
+    padding: 0.125rem 0.5rem;
+    background: var(--bg-body);
+    border: 1px solid var(--stroke-subtle);
+    border-radius: var(--radius-pill);
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.table-tag-more {
+    padding: 0.125rem 0.5rem;
+    background: var(--glow-subtle);
+    border-radius: var(--radius-pill);
+    font-size: 0.7rem;
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* Size Cell */
+.table-size-mono {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+/* Responsive: 小螢幕 */
+@media (max-width: 768px) {
+    .showcase-table-wrapper {
+        padding: 1rem;
+    }
+
+    .showcase-table-wrapper .table {
+        font-size: 0.8rem;
+    }
+
+    .showcase-table-wrapper .table thead th,
+    .showcase-table-wrapper .table tbody td {
+        padding: 0.75rem 0.5rem;
+    }
+}
+
 /* ==================== Light / Dim 主題適配 ==================== */
 /* 使用 theme.css 定義的 CSS 變數，無需額外覆寫 */
 /* --bg-header 已在 theme.css 定義：color-mix(in oklch, var(--color-base-200) 85%, transparent) */
