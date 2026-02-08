@@ -660,12 +660,6 @@
     border: 1px solid var(--border-light);
 }
 
-.ds-card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 1.25rem;
-}
-
 /* ==================== AV Cards 拼貼佈局 (Mosaic) ==================== */
 .ds-card-mosaic {
     display: grid;
