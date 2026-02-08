@@ -26,9 +26,6 @@ function showcaseState() {
         toastType: 'success',
         toastTimer: null,
 
-        // Card Info 展開狀態 (M3i)
-        infoVisible: false,
-
         search: '',
         sort: 'date',         // M2a 先用硬編碼，M4 才從 config/localStorage 恢復
         order: 'desc',
@@ -193,11 +190,6 @@ function showcaseState() {
             if (!['grid', 'table', 'list'].includes(m)) return;
             this.mode = m;
             this.saveState();  // M2c: 持久化狀態
-        },
-
-        // Card Info 切換 (M3i)
-        toggleInfo() {
-            this.infoVisible = !this.infoVisible;
         },
 
         prevPage() {
@@ -439,10 +431,7 @@ function showcaseState() {
                 return;
             }
 
-            // M3i: S 鍵切換 Card Info（僅 Grid 模式）
-            if (e.key.toUpperCase() === 'S' && this.mode === 'grid') {
-                this.toggleInfo();
-            }
+            // TODO: M4 才加入頁面級快捷鍵（模式切換、翻頁等）
         }
     };
 }

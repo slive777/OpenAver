@@ -866,65 +866,6 @@
     }
 }
 
-/* ==================== Card Info Expand (M3i) ==================== */
-
-.card-info {
-    padding: 0.5rem 0.75rem 0.75rem;
-    font-size: 0.8125rem;
-    line-height: 1.5;
-    border-top: 1px solid var(--stroke-subtle);
-}
-
-.card-info .info-title {
-    font-weight: 500;
-    color: var(--text-primary);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    margin-bottom: 0.25rem;
-}
-
-.card-info .info-row {
-    color: var(--text-secondary);
-    margin-bottom: 0.25rem;
-}
-
-.card-info .info-row b {
-    color: var(--text-primary);
-    font-weight: 500;
-}
-
-.card-info .info-link {
-    color: var(--text-secondary);
-    text-decoration: none;
-}
-
-.card-info .info-link:hover {
-    color: var(--accent);
-    text-decoration: underline;
-}
-
-.card-info .info-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 0.75rem;
-}
-
-.card-info .info-tags {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.card-info .tag:not(:last-child)::after {
-    content: " / ";
-    color: var(--stroke-subtle);
-}
-
 /* ==================== Light / Dim 主題適配 ==================== */
 /* 使用 theme.css 定義的 CSS 變數，無需額外覆寫 */
 /* --bg-header 已在 theme.css 定義：color-mix(in oklch, var(--color-base-200) 85%, transparent) */
