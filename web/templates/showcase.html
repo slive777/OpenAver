@@ -116,7 +116,7 @@
         <div class="showcase-grid" x-show="mode === 'grid'">
             <template x-for="(video, index) in paginatedVideos" :key="video.path">
                 <div class="av-card-preview"
-                     @click="playVideo(video.path)"
+                     @click="openLightbox(getCurrentFilteredIndex(index))"
                      :style="`--card-index: ${index}`">
                     <div class="av-card-preview-img">
                         <img :src="video.cover_url"
@@ -144,6 +144,123 @@
                     @click="nextPage()"
                     :disabled="page === totalPages">
                 下一頁 <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+
+        <!-- Lightbox (M3a) -->
+        <div class="showcase-lightbox"
+             :class="{ 'show': lightboxOpen }"
+             @click="handleLightboxBackdropClick($event)"
+             @mousemove="handleLightboxMousemove($event)">
+
+            <div class="lightbox-content" @click.stop>
+                <!-- Close Button -->
+                <button class="lightbox-close"
+                        @click="closeLightbox()"
+                        title="關閉 (ESC)">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+
+                <!-- Cover Image -->
+                <div class="lightbox-cover">
+                    <img :src="currentLightboxVideo?.cover_url"
+                         :alt="currentLightboxVideo?.number"
+                         @error="$event.target.src='/static/images/placeholder.png'">
+                </div>
+
+                <!-- Metadata Panel -->
+                <div class="lightbox-metadata">
+                    <!-- Title Section -->
+                    <div class="lb-section lb-title-section">
+                        <h2 class="lb-title" x-text="currentLightboxVideo?.title || '未知標題'"></h2>
+                        <p class="lb-original-title"
+                           x-show="currentLightboxVideo?.original_title"
+                           x-text="currentLightboxVideo?.original_title"></p>
+                    </div>
+
+                    <!-- Actress Section -->
+                    <div class="lb-section lb-actress-section"
+                         x-show="currentLightboxVideo?.actresses">
+                        <div class="lb-label">
+                            <i class="bi bi-person-fill"></i> 女優
+                        </div>
+                        <div class="lb-value" x-text="currentLightboxVideo?.actresses || '未知'"></div>
+                    </div>
+
+                    <!-- Number & Maker Section -->
+                    <div class="lb-section lb-meta-row">
+                        <div class="lb-meta-item">
+                            <div class="lb-label">
+                                <i class="bi bi-hash"></i> 番號
+                            </div>
+                            <div class="lb-value lb-number"
+                                 x-text="currentLightboxVideo?.number || '未知'"></div>
+                        </div>
+                        <div class="lb-meta-item"
+                             x-show="currentLightboxVideo?.maker">
+                            <div class="lb-label">
+                                <i class="bi bi-building"></i> 片商
+                            </div>
+                            <div class="lb-value" x-text="currentLightboxVideo?.maker"></div>
+                        </div>
+                    </div>
+
+                    <!-- Date Section -->
+                    <div class="lb-section"
+                         x-show="currentLightboxVideo?.release_date">
+                        <div class="lb-label">
+                            <i class="bi bi-calendar3"></i> 發行日期
+                        </div>
+                        <div class="lb-value" x-text="currentLightboxVideo?.release_date"></div>
+                    </div>
+
+                    <!-- Tags Section -->
+                    <div class="lb-section lb-tags-section"
+                         x-show="currentLightboxVideo?.tags">
+                        <div class="lb-label">
+                            <i class="bi bi-tags-fill"></i> 標籤
+                        </div>
+                        <div class="lb-tags">
+                            <template x-for="tag in (currentLightboxVideo?.tags || '').split(',').filter(t => t.trim())" :key="tag">
+                                <span class="lb-tag" x-text="tag"></span>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- File Size Section -->
+                    <div class="lb-section lb-size-section">
+                        <div class="lb-label">
+                            <i class="bi bi-hdd"></i> 檔案大小
+                        </div>
+                        <div class="lb-value lb-size" x-text="formatSize(currentLightboxVideo?.size || 0)"></div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="lb-actions">
+                        <button class="btn-hero btn-hero-primary"
+                                @click="playVideo(currentLightboxVideo?.path)">
+                            <i class="bi bi-play-circle-fill"></i> 開啟影片
+                        </button>
+                        <button class="btn-hero btn-hero-secondary"
+                                @click="copyPath(currentLightboxVideo?.path)">
+                            <i class="bi bi-clipboard"></i> 複製路徑
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Arrows OUTSIDE lightbox-content -->
+            <button class="lightbox-nav lightbox-nav-prev"
+                    @click.stop="prevLightboxVideo()"
+                    x-show="lightboxIndex > 0"
+                    title="上一部 (←)">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            <button class="lightbox-nav lightbox-nav-next"
+                    @click.stop="nextLightboxVideo()"
+                    x-show="lightboxIndex < filteredVideos.length - 1"
+                    title="下一部 (→)">
+                <i class="bi bi-chevron-right"></i>
             </button>
         </div>
 
