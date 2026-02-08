@@ -270,11 +270,19 @@
     }
 }
 
+/* 481-679px → 2 columns（補齊斷點，對齊原版 gallery） */
+@media (min-width: 481px) and (max-width: 679px) {
+    .showcase-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+}
+
 /* 680-899px → 2 columns */
 @media (min-width: 680px) and (max-width: 899px) {
     .showcase-grid {
         grid-template-columns: repeat(2, 1fr);
-        gap: 1rem; /* 減小間距 */
+        gap: 1rem;
     }
 }
 
