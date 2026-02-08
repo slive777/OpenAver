@@ -58,63 +58,16 @@
         padding: 1.25rem;
     }
 
-    /* Form Row Styling */
-    .row.mb-3 .col-md-6:first-child {
-        display: flex;
-        align-items: center;
-    }
-
-    .form-label {
-        margin-bottom: 0;
-        font-size: 0.875rem;
-    }
-
     /* Divider */
     hr {
         border-color: var(--border-light);
         opacity: 0.5;
     }
-
-    /* Action Buttons */
-    .action-buttons {
-        display: flex;
-        justify-content: flex-end;
-        gap: 0.75rem;
-        margin-top: 1rem;
-    }
-
-    /* Collapse Toggle Link */
-    .collapse-toggle {
-        color: var(--text-secondary);
-        font-size: 0.875rem;
-        cursor: pointer;
-    }
-
-    .collapse-toggle:hover {
-        color: var(--accent);
-    }
-
-    .collapse-toggle i {
-        transition: transform 0.2s;
-    }
-
-    .collapse-toggle[aria-expanded="true"] i {
-        transform: rotate(180deg);
-    }
-
-    /* Alpine.js rotate animation */
-    .collapse-toggle i {
-        transition: transform 0.2s ease;
-    }
-
-    .rotate-180 {
-        transform: rotate(180deg) !important;
-    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div id="settings-components" class="container-fluid">
     <h4 class="mb-4">
         <i class="bi bi-gear"></i> 設定
     </h4>
@@ -127,151 +80,132 @@
             </div>
             <div class="card-body">
 
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="galleryModeEnabled"
-                                data-section="search" data-key="gallery_mode_enabled">
-                            <label class="form-check-label" for="galleryModeEnabled">
-                                女優畫廊模式 <span class="badge bg-danger">Beta</span>
-                            </label>
-                        </div>
-                    </div>
+                <div class="settings-form-group">
+                    <label class="settings-label">
+                        <input type="checkbox" class="toggle toggle-primary" id="galleryModeEnabled"
+                            data-section="search" data-key="gallery_mode_enabled">
+                        <span class="label-text">女優畫廊模式 <span class="badge badge-error badge-sm">Beta</span></span>
+                    </label>
                 </div>
 
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="uncensoredModeEnabled"
-                                data-section="search" data-key="uncensored_mode_enabled">
-                            <label class="form-check-label" for="uncensoredModeEnabled">
-                                無碼模式
-                            </label>
-                        </div>
-                        <small class="text-muted">啟用時只搜尋 AVSOX / FC2，適合無碼作品</small>
-                    </div>
+                <div class="settings-form-group">
+                    <label class="settings-label">
+                        <input type="checkbox" class="toggle toggle-primary" id="uncensoredModeEnabled"
+                            data-section="search" data-key="uncensored_mode_enabled">
+                        <span class="label-text">無碼模式</span>
+                    </label>
+                    <small class="settings-hint">啟用時只搜尋 AVSOX / FC2，適合無碼作品</small>
                 </div>
 
                 <!-- 我的最愛資料夾 -->
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">我的最愛資料夾</label>
-                        <small class="text-muted d-block">一鍵載入常用資料夾</small>
-                    </div>
-                    <div class="col-md-6">
-                        <input type="text" class="form-control form-control-sm" id="searchFavoriteFolder"
+                <div class="settings-form-row">
+                    <label class="row-label">
+                        我的最愛資料夾
+                        <small class="settings-hint">一鍵載入常用資料夾</small>
+                    </label>
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                        <input type="text" class="input input-bordered input-sm" id="searchFavoriteFolder"
                             placeholder="留空 = 系統下載資料夾">
-                        <small class="text-muted">範例：C:\Users\&lt;你的使用者名稱&gt;\下載</small>
+                        <small class="settings-hint">範例：C:\Users\&lt;你的使用者名稱&gt;\下載</small>
                     </div>
                 </div>
 
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="translateEnabled">
-                            <label class="form-check-label" for="translateEnabled">啟用標題翻譯</label>
-                        </div>
-                    </div>
+                <div class="settings-form-group">
+                    <label class="settings-label">
+                        <input type="checkbox" class="toggle toggle-primary" id="translateEnabled">
+                        <span class="label-text">啟用標題翻譯</span>
+                    </label>
                 </div>
 
                 <!-- 翻譯選項 (動態顯示) -->
                 <div id="translateOptions">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">翻譯服務</label>
-                        </div>
-                        <div class="col-md-6">
-                            <select class="form-select form-select-sm" id="translateProvider">
-                                <option value="ollama">Ollama（本地）</option>
-                                <option value="gemini">Gemini（Google 雲端）</option>
-                            </select>
-                        </div>
+                    <div class="settings-form-row">
+                        <label class="row-label">翻譯服務</label>
+                        <select class="select select-bordered select-sm" id="translateProvider">
+                            <option value="ollama">Ollama（本地）</option>
+                            <option value="gemini">Gemini（Google 雲端）</option>
+                        </select>
                     </div>
 
                     <!-- Ollama 設定 -->
                     <div id="ollamaFields">
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">Ollama URL</label>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="input-group input-group-sm">
-                                    <input type="text" class="form-control" id="ollamaUrl"
-                                        value="http://localhost:11434">
-                                    <button class="btn btn-outline-secondary" type="button" id="testOllamaBtn">
+                        <div class="settings-form-row">
+                            <label class="row-label">Ollama URL</label>
+                            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                                <div class="variable-input-group">
+                                    <input type="text" class="input input-bordered input-sm" id="ollamaUrl"
+                                        value="http://localhost:11434" style="flex: 1;">
+                                    <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testOllamaBtn">
                                         <i class="bi bi-plug"></i> 測試
                                     </button>
                                 </div>
-                                <small class="text-muted" id="ollamaStatus"></small>
+                                <small class="settings-hint" id="ollamaStatus"></small>
                             </div>
                         </div>
 
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">模型</label>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="input-group input-group-sm">
-                                    <select class="form-select form-select-sm" id="ollamaModel">
+                        <div class="settings-form-row">
+                            <label class="row-label">模型</label>
+                            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                                <div class="variable-input-group">
+                                    <select class="select select-bordered select-sm" id="ollamaModel" style="flex: 1;">
                                         <option value="">-- 請先測試連線 --</option>
                                     </select>
-                                    <button class="btn btn-outline-secondary" type="button" id="testModelBtn"
+                                    <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testModelBtn"
                                         title="測試模型">
                                         <i class="bi bi-chat-dots"></i> 測試
                                     </button>
                                 </div>
-                                <small class="text-muted" id="modelStatus"></small>
+                                <small class="settings-hint" id="modelStatus"></small>
                             </div>
                         </div>
                     </div>
 
                     <!-- Gemini 設定 (初始隱藏) -->
                     <div id="geminiFields" style="display: none;">
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">API Key</label>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="input-group input-group-sm">
-                                    <input type="password" class="form-control" id="geminiApiKey" placeholder="AIza...">
-                                    <button class="btn btn-outline-secondary" type="button" id="testGeminiBtn">
+                        <div class="settings-form-row">
+                            <label class="row-label">API Key</label>
+                            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                                <div class="variable-input-group">
+                                    <input type="password" class="input input-bordered input-sm" id="geminiApiKey" placeholder="AIza..." style="flex: 1;">
+                                    <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testGeminiBtn">
                                         <i class="bi bi-plug"></i> 測試
                                     </button>
                                 </div>
-                                <small class="text-muted" id="geminiStatus"></small>
-                                <small class="form-text text-muted d-block mt-1">
+                                <small class="settings-hint" id="geminiStatus"></small>
+                                <small class="settings-hint">
                                     <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a>
                                     可免費申請
                                 </small>
 
                                 <!-- 安全警告 -->
-                                <div class="alert alert-warning mt-2 py-2" role="alert" style="font-size: 0.8rem;">
-                                    <strong>⚠️ 安全提示：</strong>
-                                    <ul class="mb-0 ps-3">
-                                        <li>API Key 將以明文存儲在 config.json</li>
-                                        <li>請勿將 config.json 分享給他人</li>
-                                        <li>如需撤銷，請前往 <a href="https://aistudio.google.com/apikey" target="_blank">Google
-                                                AI Studio</a> 重新生成</li>
-                                    </ul>
+                                <div class="alert alert-warning api-key-alert" role="alert">
+                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                    <div class="alert-content">
+                                        <strong>安全提示：</strong>
+                                        <ul class="alert-list">
+                                            <li>API Key 將以明文存儲在 config.json</li>
+                                            <li>請勿將 config.json 分享給他人</li>
+                                            <li>如需撤銷，請前往 <a href="https://aistudio.google.com/apikey" target="_blank" class="alert-link">Google
+                                                    AI Studio</a> 重新生成</li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="row mb-3">
-                            <div class="col-md-6">
-                                <label class="form-label">模型</label>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="input-group input-group-sm">
-                                    <select class="form-select form-select-sm" id="geminiModel" disabled>
+                        <div class="settings-form-row">
+                            <label class="row-label">模型</label>
+                            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                                <div class="variable-input-group">
+                                    <select class="select select-bordered select-sm" id="geminiModel" disabled style="flex: 1;">
                                         <option value="">-- 請先測試 API Key --</option>
                                     </select>
-                                    <button class="btn btn-outline-secondary" type="button" id="testGeminiTranslateBtn"
+                                    <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testGeminiTranslateBtn"
                                         title="測試翻譯功能" disabled>
                                         <i class="bi bi-chat-dots"></i> 測試
                                     </button>
                                 </div>
-                                <small class="text-muted" id="geminiModelStatus"></small>
+                                <small class="settings-hint" id="geminiModelStatus"></small>
                             </div>
                         </div>
                     </div>
@@ -280,119 +214,114 @@
                 <!-- 進階刮削設定 (Collapsed) -->
                 <hr class="my-3">
                 <div x-data="{ expanded: false }">
-                    <div class="mb-2">
-                        <a class="collapse-toggle text-decoration-none"
-                           @click="expanded = !expanded"
-                           :aria-expanded="expanded"
-                           role="button">
-                            <i class="bi bi-chevron-down" :class="{ 'rotate-180': expanded }"></i> 進階刮削設定
-                        </a>
+                    <button class="collapsible-trigger" type="button" @click="expanded = !expanded" :aria-expanded="expanded.toString()">
+                        <span class="collapsible-title">
+                            <i class="bi bi-gear"></i> 進階刮削設定
+                        </span>
+                        <span class="btn-icon-collapse" aria-hidden="true">
+                            <i class="bi bi-chevron-down" :class="{ 'rotate-180': expanded }"></i>
+                        </span>
+                    </button>
+                    <div x-show="expanded" x-transition class="collapsible-content" id="scraperAdvanced">
+                    <div class="settings-form-group">
+                        <label class="settings-label">
+                            <input type="checkbox" class="toggle toggle-primary" id="createFolder" checked
+                                onchange="updateFolderLayers()">
+                            <span class="label-text">建立資料夾</span>
+                        </label>
                     </div>
-                    <div x-show="expanded" x-collapse id="scraperAdvanced">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="createFolder" checked
-                                    onchange="updateFolderLayers()">
-                                <label class="form-check-label" for="createFolder">建立資料夾</label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
+
+                    <div class="settings-form-row">
+                        <label class="row-label">資料夾層級</label>
+                        <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
                             <!-- 第一行：外層 / 中層 -->
-                            <div class="d-flex align-items-center gap-1 mb-2">
-                                <div class="input-group input-group-sm" style="flex: 1;" x-data="{ open: false }">
-                                    <input type="text" class="form-control" id="folderLayer1" placeholder="外層"
+                            <div class="folder-layers-row">
+                                <div class="folder-layer-group disabled" x-data="{ open: false }">
+                                    <input type="text" class="input input-bordered input-sm" id="folderLayer1" placeholder="外層"
                                         oninput="updateFolderLayers()" disabled>
-                                    <button class="btn btn-outline-secondary dropdown-toggle" type="button"
-                                        id="folderLayer1Btn" @click="open = !open" disabled>變數</button>
-                                    <ul x-show="open" @click.outside="open = false" x-transition
-                                        class="dropdown-menu dropdown-menu-end folder-layer-vars show"
-                                        data-target="folderLayer1" style="display: none;"></ul>
+                                    <button class="btn-variable-sm" type="button"
+                                        id="folderLayer1Btn" @click="open = !open" disabled>
+                                        <i class="bi bi-braces"></i>
+                                    </button>
+                                    <div x-show="open" @click.outside="open = false" x-transition
+                                        class="variable-menu"
+                                        data-target="folderLayer1" style="display: none;"></div>
                                 </div>
-                                <span class="text-muted">/</span>
-                                <div class="input-group input-group-sm" style="flex: 1;" x-data="{ open: false }">
-                                    <input type="text" class="form-control" id="folderLayer2" placeholder="中層"
+                                <span class="folder-separator">/</span>
+                                <div class="folder-layer-group disabled" x-data="{ open: false }">
+                                    <input type="text" class="input input-bordered input-sm" id="folderLayer2" placeholder="中層"
                                         oninput="updateFolderLayers()" disabled>
-                                    <button class="btn btn-outline-secondary dropdown-toggle" type="button"
-                                        id="folderLayer2Btn" @click="open = !open" disabled>變數</button>
-                                    <ul x-show="open" @click.outside="open = false" x-transition
-                                        class="dropdown-menu dropdown-menu-end folder-layer-vars show"
-                                        data-target="folderLayer2" style="display: none;"></ul>
+                                    <button class="btn-variable-sm" type="button"
+                                        id="folderLayer2Btn" @click="open = !open" disabled>
+                                        <i class="bi bi-braces"></i>
+                                    </button>
+                                    <div x-show="open" @click.outside="open = false" x-transition
+                                        class="variable-menu"
+                                        data-target="folderLayer2" style="display: none;"></div>
                                 </div>
                             </div>
                             <!-- 第二行：內層（佔整行） -->
-                            <div class="input-group input-group-sm" x-data="{ open: false }">
+                            <div class="folder-layer-group" x-data="{ open: false }">
                                 <span class="input-group-text">內層</span>
-                                <input type="text" class="form-control" id="folderLayer3" value="{num}"
-                                    placeholder="{num}" oninput="updateFolderLayers()">
-                                <button class="btn btn-outline-secondary dropdown-toggle" type="button"
-                                    id="folderLayer3Btn" @click="open = !open">變數</button>
-                                <ul x-show="open" @click.outside="open = false" x-transition
-                                    class="dropdown-menu dropdown-menu-end folder-layer-vars show"
-                                    data-target="folderLayer3" style="display: none;"></ul>
+                                <input type="text" class="input input-bordered input-sm" id="folderLayer3" value="{num}"
+                                    placeholder="{num}" oninput="updateFolderLayers()" style="flex: 1;">
+                                <button class="btn-variable-sm" type="button"
+                                    id="folderLayer3Btn" @click="open = !open">
+                                    <i class="bi bi-braces"></i>
+                                </button>
+                                <div x-show="open" @click.outside="open = false" x-transition
+                                    class="variable-menu"
+                                    data-target="folderLayer3" style="display: none;"></div>
                             </div>
-                            <div class="mt-1">
-                                <small class="text-muted">
-                                    <i class="bi bi-file-earmark-play"></i> 預覽: <span
-                                        id="folderPreview">SSNI-618/[SSNI-618][SOD] 絕對領域.mp4</span>
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">檔案命名格式</label>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="input-group input-group-sm" x-data="{ open: false }">
-                                <input type="text" class="form-control" id="filenameFormat"
-                                    value="[{num}][{maker}] {title}" placeholder="[{num}][{maker}] {title}"
-                                    oninput="updateFolderPreview()">
-                                <button class="btn btn-outline-secondary dropdown-toggle" type="button"
-                                    @click="open = !open" :aria-expanded="open">變數</button>
-                                <ul x-show="open" @click.outside="open = false" x-transition
-                                    class="dropdown-menu dropdown-menu-end format-vars show"
-                                    data-target="filenameFormat" style="display: none;">
-                                </ul>
+                            <div class="folder-preview">
+                                <i class="bi bi-file-earmark-play"></i>
+                                <span class="preview-text">預覽: <span
+                                    id="folderPreview">SSNI-618/[SSNI-618][SOD] 絕對領域.mp4</span></span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">標題長度限制</label>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="input-group input-group-sm">
-                                <input type="number" class="form-control" id="maxTitleLength" value="80" min="20"
-                                    max="200">
-                                <span class="input-group-text">字元</span>
+                    <div class="settings-form-row">
+                        <label class="row-label">檔案命名格式</label>
+                        <div class="variable-input-group" x-data="{ open: false }">
+                            <input type="text" class="input input-bordered input-sm" id="filenameFormat"
+                                value="[{num}][{maker}] {title}" placeholder="[{num}][{maker}] {title}"
+                                oninput="updateFolderPreview()" style="flex: 1;">
+                            <button class="btn-variable" type="button"
+                                @click="open = !open" :aria-expanded="open">
+                                <i class="bi bi-braces"></i> 變數
+                            </button>
+                            <div x-show="open" @click.outside="open = false" x-transition
+                                class="variable-menu"
+                                data-target="filenameFormat" data-type="format" style="display: none;">
                             </div>
                         </div>
                     </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">檔名長度限制</label>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="input-group input-group-sm">
-                                <input type="number" class="form-control" id="maxFilenameLength" value="200" min="50"
-                                    max="255">
-                                <span class="input-group-text">字元</span>
-                            </div>
+                    <div class="settings-form-row">
+                        <label class="row-label">標題長度限制</label>
+                        <div class="input-group-inline">
+                            <input type="number" class="input input-bordered input-sm" id="maxTitleLength" value="80" min="20"
+                                max="200">
+                            <span class="input-suffix">字元</span>
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6">
-                            <label class="form-label">影片副檔名</label>
+                    <div class="settings-form-row">
+                        <label class="row-label">檔名長度限制</label>
+                        <div class="input-group-inline">
+                            <input type="number" class="input input-bordered input-sm" id="maxFilenameLength" value="200" min="50"
+                                max="255">
+                            <span class="input-suffix">字元</span>
                         </div>
-                        <div class="col-md-6">
-                            <input type="text" class="form-control form-control-sm" id="videoExtensions"
+                    </div>
+
+                    <div class="settings-form-row">
+                        <label class="row-label">影片副檔名</label>
+                        <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                            <input type="text" class="input input-bordered input-sm" id="videoExtensions"
                                 value=".mp4, .avi, .mkv, .wmv, .rmvb, .flv, .mov, .m4v, .ts">
-                            <small class="text-muted">以逗號分隔</small>
+                            <small class="settings-hint">以逗號分隔</small>
                         </div>
                     </div>
                     </div>
@@ -407,106 +336,84 @@
             </div>
             <div class="card-body">
                 <!-- 常用設定 -->
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">輸出目錄</label>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="input-group input-group-sm">
-                            <input type="text" class="form-control" id="avlistOutputDir" value="output"
-                                placeholder="output">
-                            <button class="btn btn-outline-secondary" type="button" onclick="selectOutputFolder()"
-                                title="選擇資料夾">
-                                <i class="bi bi-folder"></i>
-                            </button>
-                        </div>
+                <div class="settings-form-row">
+                    <label class="row-label">輸出目錄</label>
+                    <div class="variable-input-group">
+                        <input type="text" class="input input-bordered input-sm" id="avlistOutputDir" value="output"
+                            placeholder="output" style="flex: 1;">
+                        <button class="btn btn-sm btn-outline btn-neutral" type="button" onclick="selectOutputFolder()"
+                            title="選擇資料夾">
+                            <i class="bi bi-folder"></i>
+                        </button>
                     </div>
                 </div>
 
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">輸出檔名</label>
-                    </div>
-                    <div class="col-md-6">
-                        <input type="text" class="form-control form-control-sm" id="avlistOutputFilename"
-                            value="gallery_output.html" placeholder="gallery_output.html">
-                    </div>
+                <div class="settings-form-row">
+                    <label class="row-label">輸出檔名</label>
+                    <input type="text" class="input input-bordered input-sm" id="avlistOutputFilename"
+                        value="gallery_output.html" placeholder="gallery_output.html">
                 </div>
 
                 <!-- 進階顯示選項 (Collapsed) -->
                 <hr class="my-3">
                 <div x-data="{ expanded: false }">
-                    <div class="mb-2">
-                        <a class="collapse-toggle text-decoration-none"
-                           @click="expanded = !expanded"
-                           :aria-expanded="expanded"
-                           role="button">
-                            <i class="bi bi-chevron-down" :class="{ 'rotate-180': expanded }"></i> 進階顯示選項
-                        </a>
+                    <button class="collapsible-trigger" type="button" @click="expanded = !expanded" :aria-expanded="expanded.toString()">
+                        <span class="collapsible-title">
+                            <i class="bi bi-sliders"></i> 進階顯示選項
+                        </span>
+                        <span class="btn-icon-collapse" aria-hidden="true">
+                            <i class="bi bi-chevron-down" :class="{ 'rotate-180': expanded }"></i>
+                        </span>
+                    </button>
+                    <div x-show="expanded" x-transition class="collapsible-content" id="galleryAdvanced">
+                    <div class="settings-form-row">
+                        <label class="row-label">預設顯示模式</label>
+                        <select class="select select-bordered select-sm" id="avlistMode">
+                            <option value="image">圖片模式</option>
+                            <option value="detail">詳細模式</option>
+                            <option value="text">文字模式</option>
+                        </select>
                     </div>
-                    <div x-show="expanded" x-collapse id="galleryAdvanced">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">預設顯示模式</label>
-                        </div>
-                        <div class="col-md-6">
-                            <select class="form-select form-select-sm" id="avlistMode">
-                                <option value="image">圖片模式</option>
-                                <option value="detail">詳細模式</option>
-                                <option value="text">文字模式</option>
+
+                    <div class="settings-form-row">
+                        <label class="row-label">預設排序</label>
+                        <div style="display: flex; gap: 8px; flex: 1;">
+                            <select class="select select-bordered select-sm" id="avlistSort" style="flex: 1;">
+                                <option value="date">發售日期</option>
+                                <option value="mdate">修改日期</option>
+                                <option value="num">番號</option>
+                                <option value="title">片名</option>
+                                <option value="actor">演員</option>
+                                <option value="maker">片商</option>
+                                <option value="size">檔案大小</option>
+                            </select>
+                            <select class="select select-bordered select-sm" id="avlistOrder" style="width: 100px;">
+                                <option value="descending">遞減</option>
+                                <option value="ascending">遞增</option>
                             </select>
                         </div>
                     </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">預設排序</label>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="input-group input-group-sm">
-                                <select class="form-select" id="avlistSort">
-                                    <option value="date">發售日期</option>
-                                    <option value="mdate">修改日期</option>
-                                    <option value="num">番號</option>
-                                    <option value="title">片名</option>
-                                    <option value="actor">演員</option>
-                                    <option value="maker">片商</option>
-                                    <option value="size">檔案大小</option>
-                                </select>
-                                <select class="form-select" id="avlistOrder">
-                                    <option value="descending">遞減</option>
-                                    <option value="ascending">遞增</option>
-                                </select>
-                            </div>
-                        </div>
+                    <div class="settings-form-row">
+                        <label class="row-label">每頁顯示數量</label>
+                        <select class="select select-bordered select-sm" id="avlistItemsPerPage">
+                            <option value="30">30</option>
+                            <option value="45">45</option>
+                            <option value="60">60</option>
+                            <option value="90">90</option>
+                            <option value="120">120</option>
+                            <option value="0">全部</option>
+                        </select>
                     </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label">每頁顯示數量</label>
-                        </div>
-                        <div class="col-md-6">
-                            <select class="form-select form-select-sm" id="avlistItemsPerPage">
-                                <option value="30">30</option>
-                                <option value="45">45</option>
-                                <option value="60">60</option>
-                                <option value="90">90</option>
-                                <option value="120">120</option>
-                                <option value="0">全部</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <label class="form-label">最小影片尺寸</label>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="input-group input-group-sm">
-                                <input type="number" class="form-control" id="avlistMinSize" value="0" min="0">
-                                <span class="input-group-text">MB</span>
+                    <div class="settings-form-row">
+                        <label class="row-label">最小影片尺寸</label>
+                        <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                            <div class="input-group-inline">
+                                <input type="number" class="input input-bordered input-sm" id="avlistMinSize" value="0" min="0">
+                                <span class="input-suffix">MB</span>
                             </div>
-                            <small class="text-muted">0 = 不過濾</small>
+                            <small class="settings-hint">0 = 不過濾</small>
                         </div>
                     </div>
                     </div>
@@ -520,14 +427,12 @@
                 <i class="bi bi-collection-play"></i> 瀏覽與播放
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <label class="form-label">影片播放器</label>
-                    </div>
-                    <div class="col-md-6">
-                        <input type="text" class="form-control form-control-sm" id="viewerPlayer"
+                <div class="settings-form-row">
+                    <label class="row-label">影片播放器</label>
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                        <input type="text" class="input input-bordered input-sm" id="viewerPlayer"
                             placeholder="留空使用系統預設">
-                        <small class="text-muted">例如: C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe</small>
+                        <small class="settings-hint">例如: C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe</small>
                     </div>
                 </div>
             </div>
@@ -539,90 +444,72 @@
                 <i class="bi bi-sliders"></i> 系統設定
             </div>
             <div class="card-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">主題模式</label>
-                    </div>
-                    <div class="col-md-6">
-                        <select class="form-select form-select-sm" id="themeMode" x-model="theme">
-                            <option value="light">淺色模式 (Light)</option>
-                            <option value="dim">深色模式 (Dim)</option>
-                        </select>
-                    </div>
+                <div class="settings-form-row">
+                    <label class="row-label">主題模式</label>
+                    <select class="select select-bordered select-sm" id="themeMode" x-model="theme">
+                        <option value="light">淺色模式 (Light)</option>
+                        <option value="dim">深色模式 (Dim)</option>
+                    </select>
                 </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">啟動時開啟頁面</label>
-                    </div>
-                    <div class="col-md-6">
-                        <select class="form-select form-select-sm" id="defaultPage">
-                            <option value="search">搜尋</option>
-                            <option value="scanner">列表生成</option>
-                            <option value="showcase">瀏覽</option>
-                        </select>
-                    </div>
+                <div class="settings-form-row">
+                    <label class="row-label">啟動時開啟頁面</label>
+                    <select class="select select-bordered select-sm" id="defaultPage">
+                        <option value="search">搜尋</option>
+                        <option value="scanner">列表生成</option>
+                        <option value="showcase">瀏覽</option>
+                    </select>
                 </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="sidebarCollapsed">
-                            <label class="form-check-label" for="sidebarCollapsed">啟動時收合側邊欄</label>
-                        </div>
-                        <small class="text-muted">僅影響桌面版</small>
-                    </div>
+                <div class="settings-form-group">
+                    <label class="settings-label">
+                        <input type="checkbox" class="toggle toggle-primary" id="sidebarCollapsed">
+                        <span class="label-text">啟動時收合側邊欄</span>
+                    </label>
+                    <small class="settings-hint">僅影響桌面版</small>
                 </div>
 
                 <hr class="my-3">
 
                 <!-- 重置按鈕 -->
-                <div class="row">
-                    <div class="col-md-6">
-                        <label class="form-label text-danger">重置所有設定</label>
-                        <small class="text-muted d-block">刪除所有自訂設定，恢復預設值</small>
-                    </div>
-                    <div class="col-md-6">
-                        <button type="button" class="btn btn-outline-danger btn-sm" id="resetBtn">
-                            <i class="bi bi-arrow-counterclockwise"></i> 重置為預設值
-                        </button>
-                    </div>
+                <div class="settings-form-row">
+                    <label class="row-label" style="color: var(--color-error);">
+                        重置所有設定
+                        <small class="settings-hint">刪除所有自訂設定，恢復預設值</small>
+                    </label>
+                    <button type="button" class="btn btn-sm btn-outline btn-error" id="resetBtn">
+                        <i class="bi bi-arrow-counterclockwise"></i> 重置為預設值
+                    </button>
                 </div>
 
                 <hr class="my-3">
 
                 <!-- 重看新手引導 -->
-                <div class="row">
-                    <div class="col-md-6">
-                        <label class="form-label">新手引導</label>
-                        <small class="text-muted d-block">觀看功能介紹教學</small>
-                    </div>
-                    <div class="col-md-6">
-                        <button type="button" class="btn btn-outline-primary btn-sm" id="btnRestartTutorial">
-                            <i class="bi bi-play-circle"></i> 重看新手引導
-                        </button>
-                    </div>
+                <div class="settings-form-row">
+                    <label class="row-label">
+                        新手引導
+                        <small class="settings-hint">觀看功能介紹教學</small>
+                    </label>
+                    <button type="button" class="btn btn-sm btn-outline btn-primary" id="btnRestartTutorial">
+                        <i class="bi bi-play-circle"></i> 重看新手引導
+                    </button>
                 </div>
             </div>
         </div>
         <hr class="my-3">
 
         <!-- 版本資訊 -->
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <label class="form-label">版本資訊</label>
-            </div>
-            <div class="col-md-6">
-                <span id="appVersion" class="text-muted">載入中...</span>
-            </div>
+        <div class="settings-form-row">
+            <label class="row-label">版本資訊</label>
+            <span id="appVersion" class="version-text">載入中...</span>
         </div>
 
         <!-- 檢查更新 -->
-        <div class="row">
-            <div class="col-md-6">
-                <label class="form-label">軟體更新</label>
-                <div class="form-text">手動檢查 GitHub 是否有新版本</div>
-            </div>
-            <div class="col-md-6 d-flex align-items-center gap-2">
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCheckUpdate">
+        <div class="settings-form-row">
+            <label class="row-label">
+                軟體更新
+                <small class="settings-hint">手動檢查 GitHub 是否有新版本</small>
+            </label>
+            <div class="update-check-wrapper">
+                <button type="button" class="btn btn-sm btn-outline btn-neutral" id="btnCheckUpdate">
                     <i class="bi bi-cloud-download"></i> 檢查更新
                 </button>
                 <span id="updateStatus" class="small"></span>
@@ -632,8 +519,8 @@
 </div>
 
 <!-- 儲存按鈕 -->
-<div class="d-flex justify-content-end gap-2">
-    <button type="submit" class="btn btn-primary" id="saveBtn">
+<div class="save-btn-wrapper">
+    <button type="submit" class="btn btn-primary save-btn" id="saveBtn">
         <i class="bi bi-save"></i> 儲存設定
     </button>
 </div>
@@ -655,14 +542,17 @@
     ];
 
     // 初始化格式變數下拉選單
-    document.querySelectorAll('.format-vars').forEach(menu => {
+    document.querySelectorAll('.variable-menu[data-type="format"]').forEach(menu => {
         formatVariables.forEach(v => {
-            const li = document.createElement('li');
-            li.innerHTML = `<a class="dropdown-item" href="#" data-var="${v.name}">
-            <code>${v.name}</code> - ${v.description}
-            <small class="text-muted d-block">${v.example}</small>
-        </a>`;
-            menu.appendChild(li);
+            const div = document.createElement('div');
+            div.className = 'variable-item';
+            div.dataset.var = v.name;
+            div.innerHTML = `
+                <code class="variable-name">${v.name}</code>
+                <span class="variable-desc">${v.description}</span>
+                <small class="variable-example">例：${v.example}</small>
+            `;
+            menu.appendChild(div);
         });
 
         menu.addEventListener('click', (e) => {
@@ -775,20 +665,21 @@
     }
 
     // 初始化資料夾層變數下拉選單
-    document.querySelectorAll('.folder-layer-vars').forEach(menu => {
+    document.querySelectorAll('.variable-menu[data-target^="folderLayer"]').forEach(menu => {
         menu.innerHTML = `
-            <li><a class="dropdown-item" href="#" data-var="{num}">{num}</a></li>
-            <li><a class="dropdown-item" href="#" data-var="{actor}">{actor}</a></li>
-            <li><a class="dropdown-item" href="#" data-var="{maker}">{maker}</a></li>
-            <li><a class="dropdown-item" href="#" data-var="{title}">{title}</a></li>
-            <li><a class="dropdown-item" href="#" data-var="{year}">{year}</a></li>
+            <div class="variable-item" data-var="{num}"><code class="variable-name">{num}</code></div>
+            <div class="variable-item" data-var="{actor}"><code class="variable-name">{actor}</code></div>
+            <div class="variable-item" data-var="{maker}"><code class="variable-name">{maker}</code></div>
+            <div class="variable-item" data-var="{title}"><code class="variable-name">{title}</code></div>
+            <div class="variable-item" data-var="{year}"><code class="variable-name">{year}</code></div>
         `;
         menu.addEventListener('click', (e) => {
-            if (e.target.dataset.var) {
+            const item = e.target.closest('[data-var]');
+            if (item) {
                 e.preventDefault();
                 const targetId = menu.dataset.target;
                 const input = document.getElementById(targetId);
-                input.value += e.target.dataset.var;
+                input.value += item.dataset.var;
                 input.focus();
                 updateFolderLayers();
             }
@@ -1054,14 +945,14 @@
         const hintEl = document.getElementById('geminiModelHint');
 
         if (!apiKey) {
-            statusEl.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle"></i> 請輸入 API Key</span>';
+            statusEl.innerHTML = '<span class="text-error"><i class="bi bi-x-circle"></i> 請輸入 API Key</span>';
             return;
         }
 
         // 禁用按鈕，顯示加載狀態
         testBtn.disabled = true;
-        testBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-        statusEl.innerHTML = '<span class="text-muted">連線中...</span>';
+        testBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
+        statusEl.innerHTML = '<span style="color: var(--text-muted);">連線中...</span>';
 
         try {
             const response = await fetch('/api/gemini/test', {
@@ -1085,7 +976,7 @@
 
             } else {
                 // 失敗：顯示錯誤信息
-                statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${data.error || '連接失敗'}</span>`;
+                statusEl.innerHTML = `<span class="text-error"><i class="bi bi-x-circle"></i> ${data.error || '連接失敗'}</span>`;
 
                 // 禁用模型下拉框
                 modelSelect.disabled = true;
@@ -1094,7 +985,7 @@
             }
 
         } catch (error) {
-            statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${error.message}</span>`;
+            statusEl.innerHTML = `<span class="text-error"><i class="bi bi-x-circle"></i> ${error.message}</span>`;
         } finally {
             // 恢復按鈕
             testBtn.disabled = false;
@@ -1139,19 +1030,19 @@
         const testBtn = document.getElementById('testGeminiTranslateBtn');
 
         if (!apiKey) {
-            statusEl.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle"></i> 請先輸入 API Key</span>';
+            statusEl.innerHTML = '<span class="text-error"><i class="bi bi-x-circle"></i> 請先輸入 API Key</span>';
             return;
         }
 
         if (!model) {
-            statusEl.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle"></i> 請先選擇模型</span>';
+            statusEl.innerHTML = '<span class="text-error"><i class="bi bi-x-circle"></i> 請先選擇模型</span>';
             return;
         }
 
         // 禁用按鈕，顯示加載狀態
         testBtn.disabled = true;
-        testBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-        statusEl.innerHTML = '<span class="text-muted">測試翻譯中...</span>';
+        testBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
+        statusEl.innerHTML = '<span style="color: var(--text-muted);">測試翻譯中...</span>';
 
         try {
             const response = await fetch('/api/gemini/test-translate', {
@@ -1170,11 +1061,11 @@
                 statusEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle-fill"></i> 翻譯測試成功！ (${data.translation})</span>`;
             } else {
                 // 翻譯失敗 - 顯示 Google 的錯誤訊息
-                statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> ${data.error}</span>`;
+                statusEl.innerHTML = `<span class="text-error"><i class="bi bi-exclamation-triangle-fill"></i> ${data.error}</span>`;
             }
 
         } catch (error) {
-            statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> 測試失敗: ${error.message}</span>`;
+            statusEl.innerHTML = `<span class="text-error"><i class="bi bi-x-circle"></i> 測試失敗: ${error.message}</span>`;
         } finally {
             // 恢復按鈕
             testBtn.disabled = false;
@@ -1216,7 +1107,7 @@
 
         if (!url) return;
 
-        statusEl.innerHTML = '<span class="text-muted">載入模型中...</span>';
+        statusEl.innerHTML = '<span style="color: var(--text-muted);">載入模型中...</span>';
 
         try {
             const resp = await fetch(`/api/ollama/models?url=${encodeURIComponent(url)}`);
@@ -1249,14 +1140,14 @@
         const btn = document.getElementById('testOllamaBtn');
 
         if (!url) {
-            statusEl.innerHTML = '<span class="text-danger">請輸入 URL</span>';
+            statusEl.innerHTML = '<span class="text-error">請輸入 URL</span>';
             return;
         }
 
         // 顯示載入中
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-        statusEl.innerHTML = '<span class="text-muted">連線中...</span>';
+        btn.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
+        statusEl.innerHTML = '<span style="color: var(--text-muted);">連線中...</span>';
 
         try {
             const resp = await fetch(`/api/ollama/models?url=${encodeURIComponent(url)}`);
@@ -1276,11 +1167,11 @@
 
                 statusEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> 已連線，${result.models.length} 個模型</span>`;
             } else {
-                statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${result.error || '無可用模型'}</span>`;
+                statusEl.innerHTML = `<span class="text-error"><i class="bi bi-x-circle"></i> ${result.error || '無可用模型'}</span>`;
                 modelSelect.innerHTML = '<option value="">-- 連線失敗 --</option>';
             }
         } catch (e) {
-            statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${e.message}</span>`;
+            statusEl.innerHTML = `<span class="text-error"><i class="bi bi-x-circle"></i> ${e.message}</span>`;
             modelSelect.innerHTML = '<option value="">-- 連線失敗 --</option>';
         } finally {
             btn.disabled = false;
@@ -1296,13 +1187,13 @@
         const btn = document.getElementById('testModelBtn');
 
         if (!url || !model) {
-            statusEl.innerHTML = '<span class="text-danger">請先選擇模型</span>';
+            statusEl.innerHTML = '<span class="text-error">請先選擇模型</span>';
             return;
         }
 
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-        statusEl.innerHTML = '<span class="text-muted">測試中...</span>';
+        btn.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
+        statusEl.innerHTML = '<span style="color: var(--text-muted);">測試中...</span>';
 
         try {
             // 直接調用 Ollama API 測試當前選擇的模型
@@ -1316,10 +1207,10 @@
             if (result.success) {
                 statusEl.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> ${result.result}</span>`;
             } else {
-                statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${result.error}</span>`;
+                statusEl.innerHTML = `<span class="text-error"><i class="bi bi-x-circle"></i> ${result.error}</span>`;
             }
         } catch (e) {
-            statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> ${e.message}</span>`;
+            statusEl.innerHTML = `<span class="text-error"><i class="bi bi-x-circle"></i> ${e.message}</span>`;
         } finally {
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-chat-dots"></i> 測試';
@@ -1368,8 +1259,7 @@
             const data = await resp.json();
             if (data.success) {
                 document.getElementById('appVersion').textContent = `v${data.version}`;
-                document.getElementById('appVersion').classList.remove('text-muted');
-                document.getElementById('appVersion').classList.add('text-primary');
+                // Version text styling is handled by .version-text class
             }
         } catch (e) {
             document.getElementById('appVersion').textContent = '無法載入';
@@ -1396,13 +1286,13 @@
                         <i class="bi bi-download"></i> 新版本 ${data.latest_version} 可用
                     </a>`;
                 } else {
-                    status.innerHTML = '<span class="text-muted"><i class="bi bi-check-circle"></i> 已是最新版本</span>';
+                    status.innerHTML = '<span style="color: var(--text-muted);"><i class="bi bi-check-circle"></i> 已是最新版本</span>';
                 }
             } else {
-                status.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle"></i> ${data.error || '檢查失敗'}</span>`;
+                status.innerHTML = `<span class="text-error"><i class="bi bi-exclamation-circle"></i> ${data.error || '檢查失敗'}</span>`;
             }
         } catch (e) {
-            status.innerHTML = '<span class="text-danger"><i class="bi bi-exclamation-circle"></i> 網路錯誤</span>';
+            status.innerHTML = '<span class="text-error"><i class="bi bi-exclamation-circle"></i> 網路錯誤</span>';
         } finally {
             btn.disabled = false;
             btn.innerHTML = '<i class="bi bi-cloud-download"></i> 檢查更新';
