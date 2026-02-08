@@ -32,14 +32,14 @@
     overflow: visible;
 }
 
-#settings-components .card-header {
+#settings-components .settings-card-header {
     background: transparent;
     border-bottom: 1px solid var(--border-light);
     font-weight: 600;
     padding: 1rem 1.25rem;
 }
 
-#settings-components .card-header i {
+#settings-components .settings-card-header i {
     color: var(--accent);
     margin-right: 0.5rem;
 }
@@ -52,4 +52,134 @@
 #settings-components hr {
     border-color: var(--border-light);
     opacity: 0.5;
+}
+
+/* ========== 長文字換行策略（全域，不需 media query）========== */
+
+#settings-components .settings-hint {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+#settings-components .row-label,
+#settings-components .version-text {
+    overflow-wrap: anywhere;
+}
+
+/* ========== Responsive: 行動版（窄螢幕）RWD ========== */
+
+/* Tablet / Mobile: 768px 以下 */
+@media (max-width: 768px) {
+    /* 1. Settings Form Row - 垂直堆疊 */
+    #settings-components .settings-form-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    /* 直排模式下，所有子元素佔滿寬度 */
+    #settings-components .settings-form-row > * {
+        width: 100%;
+    }
+
+    #settings-components .row-label {
+        min-width: unset;
+        padding-top: 0;
+    }
+
+    #settings-components .select {
+        max-width: none;
+    }
+
+    /* 2. Folder Layers Row - 垂直堆疊 */
+    #settings-components .folder-layers-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    #settings-components .folder-separator {
+        display: none; /* 垂直排列時不需要 / 符號 */
+    }
+
+    #settings-components .folder-layer-group {
+        width: 100%;
+    }
+
+    /* 4. 雙 Select 橫排佈局 - 強制垂直 */
+    /* ⚠️ 過渡方案：依賴 inline style 字串，後續應改為語義 class（如 .sort-row） */
+    #settings-components .settings-form-row > div[style*="display: flex"] {
+        flex-direction: column !important;
+    }
+
+    #settings-components .settings-form-row > div[style*="display: flex"] > .select {
+        width: 100% !important;
+        max-width: none !important;
+    }
+
+    /* Folder Preview - 縮小文字 */
+    #settings-components .folder-preview .preview-text {
+        font-size: 0.75rem;
+        word-break: break-all;
+    }
+}
+
+/* Small Mobile: 480px 以下 */
+@media (max-width: 480px) {
+    /* 3. Variable Input Group - 小螢幕改為可換行，避免欄位高度異常 */
+    #settings-components .variable-input-group {
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    /* 輸入框/下拉可縮，避免擠壓造成溢出 */
+    #settings-components .variable-input-group > .input,
+    #settings-components .variable-input-group > .select {
+        flex: 1 1 12rem;
+        min-width: 0;
+    }
+
+    /* 按鈕保持自然寬度，避免像 sample.png 那樣變成超高全寬按鈕 */
+    #settings-components .variable-input-group > .btn,
+    #settings-components .variable-input-group > .btn-variable {
+        width: auto;
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+
+    /* 5. Input Group Inline - 縮小 number input */
+    #settings-components .input-group-inline .input {
+        width: 80px;
+    }
+
+    /* Settings Hint - 減少左縮排（toggle 區塊） */
+    #settings-components .settings-form-group .settings-hint {
+        margin-left: 0; /* 移除 48px 縮排，節省空間 */
+    }
+
+    /* API Key Alert - 縮小 padding */
+    #settings-components .api-key-alert {
+        padding: 10px 12px;
+        font-size: 0.75rem;
+    }
+
+    #settings-components .api-key-alert > i {
+        font-size: 0.9rem;
+    }
+
+    /* Collapsible Trigger - 縮小文字 */
+    #settings-components .collapsible-title {
+        font-size: 0.8rem;
+    }
+
+    /* Version Text - 縮小字體 */
+    #settings-components .version-text {
+        font-size: 0.8rem;
+    }
+
+    /* Update Check Wrapper - 垂直堆疊 */
+    #settings-components .update-check-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+    }
 }
