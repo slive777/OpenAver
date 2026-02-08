@@ -110,7 +110,7 @@ async function saveConfig() {
         const currentResp = await fetch('/api/config');
         const currentResult = await currentResp.json();
         if (!currentResult.success) {
-            showToast('載入現有設定失敗', 'danger');
+            showToast('載入現有設定失敗', 'error');
             return;
         }
         const config = currentResult.data;
@@ -193,10 +193,10 @@ async function saveConfig() {
             showToast('設定已儲存', 'success');
             // Alpine.js x-model 會自動同步主題到 localStorage
         } else {
-            showToast('儲存失敗: ' + result.error, 'danger');
+            showToast('儲存失敗: ' + result.error, 'error');
         }
     } catch (e) {
-        showToast('儲存失敗: ' + e.message, 'danger');
+        showToast('儲存失敗: ' + e.message, 'error');
     }
 }
 
@@ -249,11 +249,30 @@ function onTranslateProviderChange() {
 }
 
 // Toast 提示
-function showToast(message, type = 'info') {
-    // 簡單的 alert，可以之後改成 Bootstrap toast
-    if (type === 'success') {
-        alert(message);
-    } else {
-        alert('錯誤: ' + message);
+function showToast(message, type = 'success') {
+    const toastContainer = document.getElementById('toastContainer');
+    if (!toastContainer) {
+        console.warn('Toast container not found');
+        return;
     }
+
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type}`;
+    toast.innerHTML = `
+        <div class="flex items-center gap-2">
+            <span class="flex-1">${message}</span>
+            <button type="button" class="btn btn-sm btn-circle btn-ghost" onclick="this.parentElement.parentElement.remove()">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+    `;
+
+    toastContainer.appendChild(toast);
+
+    // 3 秒後自動移除
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.remove();
+        }
+    }, 3000);
 }
