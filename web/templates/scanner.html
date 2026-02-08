@@ -424,7 +424,11 @@ function scannerPage() {
                     document.getElementById('scannerDirtyCheckModal').showModal();
                     return false;
                 } else {
-                    return confirm(guard.message + '確定要離開嗎？');
+                    const confirmed = confirm(guard.message + '確定要離開嗎？');
+                    if (confirmed) {
+                        this._skipBeforeUnload = true;
+                    }
+                    return confirmed;
                 }
             }
             return true;
@@ -432,6 +436,7 @@ function scannerPage() {
 
         // beforeunload 警告
         window.addEventListener('beforeunload', (e) => {
+            if (this._skipBeforeUnload) return;
             const guard = this.shouldWarnBeforeLeave();
             if (guard.shouldWarn) {
                 e.preventDefault();
@@ -497,12 +502,15 @@ function scannerPage() {
                 this.configDirty = false;
                 this.folderSnapshot = JSON.stringify(this.directories);
                 this.showToast('設定已儲存');
+                return true;
             } else {
                 this.showToast('儲存失敗: ' + (result.error || '未知錯誤'));
+                return false;
             }
         } catch (e) {
             console.error('儲存失敗:', e);
             this.showToast('儲存失敗: ' + e.message);
+            return false;
         }
     },
 
@@ -652,11 +660,14 @@ function scannerPage() {
     },
 
     async dirtyCheckSave() {
-        await this.saveConfig();
-        document.getElementById('scannerDirtyCheckModal').close();
-        if (this.pendingNavigationUrl) {
-            window.location.href = this.pendingNavigationUrl;
+        const saved = await this.saveConfig();
+        if (saved) {
+            document.getElementById('scannerDirtyCheckModal').close();
+            if (this.pendingNavigationUrl) {
+                window.location.href = this.pendingNavigationUrl;
+            }
         }
+        // If save failed, modal stays open, user sees toast error
     },
 
     // ===== Utility Methods =====
@@ -795,7 +806,8 @@ function scannerPage() {
     },
 
     confirmClearAll() {
-        if (this.logEntries.length === 0) {
+        const hasLogs = this.logEntries.length > 0 || localStorage.getItem('avlist_logs');
+        if (!hasLogs) {
             this.showToast('目前沒有日誌');
             return;
         }

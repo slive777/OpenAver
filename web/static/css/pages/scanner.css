@@ -192,27 +192,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity var(--fluent-duration-slow) var(--fluent-ease-standard), visibility var(--fluent-duration-slow) var(--fluent-ease-standard), background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
-    pointer-events: none;
-}
-
-.drag-overlay.show {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
+    transition: background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 .drag-overlay-content {
     text-align: center;
     color: var(--color-base-content);
-    transform: scale(0.95);
-    transition: transform var(--fluent-duration-slow) var(--fluent-ease-standard);
-}
-
-.drag-overlay.show .drag-overlay-content {
-    transform: scale(1);
 }
 
 .drag-overlay-content i {
