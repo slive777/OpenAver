@@ -89,12 +89,15 @@
 
         <!-- Action Buttons -->
         <div class="action-section">
-            <button class="btn-hero btn-hero-primary" id="btnGenerate" onclick="generate()">
-                <i class="bi bi-play-fill"></i> 產生網頁
+            <button class="btn-hero btn-hero-primary" id="btnGenerate"
+                    @click="generate()"
+                    x-bind:disabled="isBusy"
+                    x-html="generateButtonText">
             </button>
             <!-- Done Actions (hidden until complete) -->
-            <div id="doneActions" class="done-actions" style="display: none;">
-                <button class="btn-hero btn-hero-secondary" id="btnCopyPath" onclick="copyOutputPath()" title="複製路徑">
+            <div id="doneActions" class="done-actions" x-show="doneActionsVisible">
+                <button class="btn-hero btn-hero-secondary" id="btnCopyPath"
+                        @click="copyOutputPath()" title="複製路徑">
                     <i class="bi bi-clipboard"></i> 複製路徑
                 </button>
             </div>
@@ -102,12 +105,12 @@
     </div>
 
     <!-- Mini Terminal (hidden by default) -->
-    <div class="mini-terminal" id="progressSection" style="display: none;">
+    <div class="mini-terminal" id="progressSection" x-show="progressSectionVisible">
         <div class="mini-terminal-header">
-            <span class="title" id="progressStatus">準備中...</span>
+            <span class="title" id="progressStatus" x-text="progressStatus"></span>
         </div>
         <div class="progress-mini">
-            <div class="bar" id="progressBar" style="width: 0%;"></div>
+            <div class="bar" id="progressBar" x-bind:style="{ width: progressPercent + '%' }"></div>
         </div>
         <div class="mini-terminal-body" id="logOutput"></div>
     </div>
@@ -122,13 +125,15 @@
             <div class="stat-item" id="statLastRun" x-text="statLastRun"></div>
         </div>
         <!-- NFO Update Section (separate row) -->
-        <div class="nfo-update-row" id="statNeedUpdate" style="display: none;">
+        <div class="nfo-update-row" id="statNeedUpdate" x-show="nfoUpdateVisible">
             <span class="nfo-badge">
                 <i class="bi bi-exclamation-circle"></i>
-                需補全: <strong id="updateCount">0</strong> 部
+                需補全: <strong id="updateCount" x-text="nfoNeedUpdateCount"></strong> 部
             </span>
-            <button class="btn-nfo-update" onclick="runNfoUpdate()" id="btnUpdate" title="補全 NFO 資訊">
-                <i class="bi bi-magic"></i> 補全 NFO
+            <button class="btn-nfo-update" @click="runNfoUpdate()" id="btnUpdate"
+                    x-bind:disabled="nfoUpdateButtonDisabled"
+                    x-html="nfoUpdateButtonText"
+                    title="補全 NFO 資訊">
             </button>
         </div>
     </div>
@@ -210,7 +215,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/pages/scanner/core.js"></script>
 <script src="/static/js/pages/scanner/alias.js"></script>
 <script>
 function scannerPage() {
@@ -219,7 +223,6 @@ function scannerPage() {
     directories: [],
     config: {},
     configDirty: false,
-    isGenerating: false,
 
     // ===== Folder Dirty Check =====
     folderSnapshot: null,
@@ -238,6 +241,30 @@ function scannerPage() {
     manualInputVisible: false,
     manualPath: '',
 
+    // ===== T7b: State Machine =====
+    state: 'idle',  // 'idle' | 'generating' | 'nfoUpdating' | 'done' | 'error'
+
+    // ===== T7b: Progress =====
+    progressStatus: '準備中...',
+    progressCurrent: 0,
+    progressTotal: 0,
+
+    // ===== T7b: Log System =====
+    logHtml: '',           // 日誌 HTML（用於 restoreLogs）
+    logBatch: [],          // 批次佇列
+    logTimer: null,        // 批次計時器
+
+    // ===== T7b: Done Actions =====
+    outputPath: '',        // 輸出路徑（供複製）
+
+    // ===== T7b: NFO Update =====
+    nfoNeedUpdateCount: 0,
+    nfoUpdatePaths: [],
+    nfoUpdateVisible: false,
+
+    // ===== T7b: EventSource 管理 =====
+    eventSource: null,
+
     // ===== Computed Properties =====
     get isFolderDirty() {
         if (!this.folderSnapshot) return false;
@@ -248,6 +275,52 @@ function scannerPage() {
         const outputDir = this.config.gallery?.output_dir || 'output';
         const outputFilename = this.config.gallery?.output_filename || 'gallery_output.html';
         return `${outputDir}/${outputFilename}`;
+    },
+
+    // ===== T7b: Computed Properties =====
+    get progressPercent() {
+        if (this.progressTotal === 0) return 0;
+        return (this.progressCurrent / this.progressTotal) * 100;
+    },
+
+    get isGenerating() {
+        return this.state === 'generating' || this.state === 'nfoUpdating';
+    },
+
+    get isBusy() {
+        // 用於按鈕 disabled：generating/nfoUpdating 時鎖定
+        return this.isGenerating;
+    },
+
+    get progressSectionVisible() {
+        // state 非 idle 時顯示，或有恢復的 logs 時也顯示
+        return this.state !== 'idle' || this.logHtml !== '';
+    },
+
+    get doneActionsVisible() {
+        return this.state === 'done' && this.outputPath !== '';
+    },
+
+    get generateButtonText() {
+        if (this.state === 'generating') {
+            return '<span class="loading loading-spinner loading-sm"></span> 產生中...';
+        }
+        return '<i class="bi bi-play-fill"></i> 產生網頁';
+    },
+
+    get nfoUpdateButtonText() {
+        if (this.state === 'nfoUpdating') {
+            return '<span class="loading loading-spinner loading-sm"></span> 補全中...';
+        }
+        if (this.nfoNeedUpdateCount > 0) {
+            return `<i class="bi bi-magic"></i> 補全 NFO`;
+        }
+        return '<i class="bi bi-check-lg"></i> 已完成';
+    },
+
+    get nfoUpdateButtonDisabled() {
+        // generating/nfoUpdating 時鎖定；idle/done/error 時看 nfoNeedUpdateCount
+        return this.isGenerating || this.nfoNeedUpdateCount === 0;
     },
 
     // ===== Lifecycle =====
@@ -262,10 +335,17 @@ function scannerPage() {
         // 暴露 PyWebView 回調
         window.addScannerFolder = (path) => self.addFolderPath(path);
 
+        // T7b: 暴露全域函數給 alias.js（T7c 遷移前過渡期）
+        window.showToast = (msg) => self.showToast(msg);
+        window.escapeHtml = (str) => self.escapeHtml ? self.escapeHtml(str) : str;
+
         // 初始載入
         await this.loadConfig();
         this.loadStats();
-        restoreLogs();
+
+        // T7b: 恢復日誌（確保 DOM 已渲染）
+        await this.$nextTick();
+        this.restoreLogs();
 
         // 暴露全域檢查函式
         window.confirmLeavingScanner = (targetUrl) => {
@@ -295,7 +375,8 @@ function scannerPage() {
 
     // ===== Leave Guard =====
     shouldWarnBeforeLeave() {
-        if (window.isGenerating) {
+        // T7b: 改為讀取 Alpine state，而非全域變數
+        if (this.isGenerating) {
             return {
                 shouldWarn: true,
                 message: '生成正在進行中，離開將會中斷操作！',
@@ -323,9 +404,7 @@ function scannerPage() {
                 this.config = result.data;
                 this.directories = this.config.gallery?.directories || [];
 
-                // 同步全域變數
-                window.config = this.config;
-                window.directories = this.directories;
+                // T7b: 不再需要同步全域變數（core.js 已刪除）
 
                 // 建立快照
                 this.folderSnapshot = JSON.stringify(this.directories);
@@ -529,6 +608,278 @@ function scannerPage() {
                 toast.classList.remove('toast-active', 'toast-hiding');
             }, { once: true });
         }, 2500);
+    },
+
+    escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    },
+
+    // ===== T7b: Log System =====
+    addLog(level, message) {
+        const cls = level === 'error' ? 'log-error' :
+                    level === 'warn' ? 'log-warn' : 'log-info';
+        const escaped = this.escapeHtml(message);
+        this.logBatch.push(`<div class="${cls}">${escaped}</div>`);
+
+        if (!this.logTimer) {
+            this.logTimer = setTimeout(() => this.flushLogs(), 100);
+        }
+    },
+
+    flushLogs() {
+        if (this.logBatch.length === 0) {
+            this.logTimer = null;
+            return;
+        }
+
+        const logOutput = document.getElementById('logOutput');
+        logOutput.insertAdjacentHTML('beforeend', this.logBatch.join(''));
+        logOutput.scrollTop = logOutput.scrollHeight;
+
+        // 更新 Alpine state（供 restoreLogs 使用）
+        this.logHtml = logOutput.innerHTML;
+
+        // 儲存到 localStorage
+        localStorage.setItem('avlist_logs', this.logHtml);
+
+        this.logBatch = [];
+        this.logTimer = null;
+    },
+
+    restoreLogs() {
+        const savedLogs = localStorage.getItem('avlist_logs');
+        const wasGenerating = localStorage.getItem('avlist_generating') === 'true';
+
+        if (savedLogs) {
+            const logOutput = document.getElementById('logOutput');
+            logOutput.innerHTML = savedLogs;
+            this.logHtml = savedLogs;
+
+            if (wasGenerating) {
+                this.addLog('warn', '⚠ 生成被中斷（離開頁面）');
+                this.flushLogs();
+                localStorage.setItem('avlist_generating', 'false');
+            }
+
+            const lastStatus = localStorage.getItem('avlist_last_status');
+            if (lastStatus) {
+                this.progressStatus = lastStatus;
+            }
+
+            // 如果有未完成的任務，顯示 progress section
+            if (wasGenerating || savedLogs) {
+                this.state = 'idle';  // 重置狀態為 idle（已中斷）
+            }
+        }
+    },
+
+    clearLogs() {
+        localStorage.removeItem('avlist_logs');
+        localStorage.removeItem('avlist_generating');
+        localStorage.removeItem('avlist_last_status');
+        this.logHtml = '';
+        const logOutput = document.getElementById('logOutput');
+        if (logOutput) logOutput.innerHTML = '';
+    },
+
+    // ===== T7b: Generate Flow =====
+    async generate() {
+        // 互斥鎖定：generating/nfoUpdating 時不可再次執行
+        if (this.isGenerating) return;
+
+        if (this.directories.length === 0) {
+            this.showToast('請先加入至少一個資料夾');
+            return;
+        }
+
+        // 自動儲存設定
+        if (this.configDirty) {
+            await this.saveConfig();
+        }
+
+        // 重置狀態
+        this.state = 'generating';
+        this.progressStatus = '準備中...';
+        this.progressCurrent = 0;
+        this.progressTotal = 0;
+        this.outputPath = '';
+        this.nfoUpdateVisible = false;
+        this.clearLogs();
+
+        // 設置 localStorage 標記
+        localStorage.setItem('avlist_generating', 'true');
+
+        // 同步全域變數（過渡期）
+        window.isGenerating = true;
+
+        try {
+            this.eventSource = new EventSource('/api/gallery/generate');
+
+            this.eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'progress') {
+                    this.progressStatus = data.status;
+                    this.progressCurrent = data.current;
+                    this.progressTotal = data.total;
+                    localStorage.setItem('avlist_last_status', data.status);
+                } else if (data.type === 'log') {
+                    this.addLog(data.level, data.message);
+                } else if (data.type === 'done') {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                    this.state = 'done';
+                    this.progressStatus = `完成！${data.video_count} 部影片`;
+                    this.progressCurrent = this.progressTotal;
+                    this.outputPath = data.output_path;
+
+                    localStorage.setItem('avlist_generating', 'false');
+                    localStorage.setItem('avlist_last_status', '完成');
+                    localStorage.removeItem('avlist_state');  // 清除 viewer 狀態
+
+                    window.isGenerating = false;
+
+                    // 處理 NFO 更新提示
+                    if (data.session_update && data.session_update.count > 0) {
+                        this.nfoNeedUpdateCount = data.session_update.count;
+                        this.nfoUpdatePaths = data.session_update.paths;
+                        this.nfoUpdateVisible = true;
+                    } else {
+                        this.nfoNeedUpdateCount = 0;
+                        this.nfoUpdatePaths = [];
+                        this.nfoUpdateVisible = false;
+                    }
+
+                    this.showToast(`成功產生 ${data.video_count} 部影片列表`);
+                    this.flushLogs();
+
+                    // 刷新統計（不含 NFO 檢查）
+                    this.loadStats();
+
+                    // 更新資料夾快照（generate 成功視為儲存）
+                    this.folderSnapshot = JSON.stringify(this.directories);
+                } else if (data.type === 'error') {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                    this.state = 'error';
+                    this.addLog('error', '錯誤: ' + data.message);
+                    this.flushLogs();
+                    localStorage.setItem('avlist_generating', 'false');
+                    window.isGenerating = false;
+                }
+            };
+
+            this.eventSource.onerror = () => {
+                this.eventSource.close();
+                this.eventSource = null;
+                this.state = 'error';
+                this.addLog('error', '連線中斷');
+                this.flushLogs();
+                localStorage.setItem('avlist_generating', 'false');
+                window.isGenerating = false;
+            };
+        } catch (e) {
+            this.state = 'error';
+            localStorage.setItem('avlist_generating', 'false');
+            window.isGenerating = false;
+            alert('發生錯誤: ' + e.message);
+        }
+    },
+
+    // ===== T7b: NFO Update Flow =====
+    async runNfoUpdate() {
+        // 互斥鎖定
+        if (this.isGenerating) return;
+
+        if (this.nfoNeedUpdateCount === 0) {
+            this.showToast('沒有需要更新的影片');
+            return;
+        }
+
+        // 重置狀態
+        this.state = 'nfoUpdating';
+        this.progressStatus = '準備中...';
+        this.progressCurrent = 0;
+        this.progressTotal = 0;
+        this.clearLogs();
+
+        localStorage.setItem('avlist_generating', 'true');
+        window.isGenerating = true;
+
+        try {
+            this.eventSource = new EventSource('/api/gallery/update');
+
+            this.eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'progress') {
+                    this.progressStatus = data.status;
+                    this.progressCurrent = data.current;
+                    this.progressTotal = data.total;
+                    localStorage.setItem('avlist_last_status', data.status);
+                } else if (data.type === 'log') {
+                    this.addLog(data.level, data.message);
+                } else if (data.type === 'done') {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                    this.state = 'done';
+                    this.progressStatus = data.message || '完成';
+                    this.progressCurrent = this.progressTotal;
+
+                    localStorage.setItem('avlist_generating', 'false');
+                    localStorage.setItem('avlist_last_status', data.message || '完成');
+                    window.isGenerating = false;
+
+                    this.showToast('補全完成！請重新產生列表以更新');
+                    if (data.message) {
+                        this.addLog('info', data.message);
+                    }
+                    this.flushLogs();
+
+                    // 隱藏 NFO 更新按鈕（已完成）
+                    this.nfoNeedUpdateCount = 0;
+                    this.nfoUpdateVisible = false;
+                } else if (data.type === 'error') {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                    this.state = 'error';
+                    this.addLog('error', '錯誤: ' + data.message);
+                    this.flushLogs();
+                    localStorage.setItem('avlist_generating', 'false');
+                    window.isGenerating = false;
+                }
+            };
+
+            this.eventSource.onerror = () => {
+                this.eventSource.close();
+                this.eventSource = null;
+                this.state = 'error';
+                this.addLog('error', '連線中斷');
+                this.flushLogs();
+                localStorage.setItem('avlist_generating', 'false');
+                window.isGenerating = false;
+            };
+        } catch (e) {
+            this.state = 'error';
+            localStorage.setItem('avlist_generating', 'false');
+            window.isGenerating = false;
+            alert('發生錯誤: ' + e.message);
+        }
+    },
+
+    // ===== T7b: Utility =====
+    copyOutputPath() {
+        if (!this.outputPath) return;
+
+        navigator.clipboard.writeText(this.outputPath).then(() => {
+            this.showToast('已複製: ' + this.outputPath);
+        }).catch(() => {
+            alert('複製失敗，路徑：' + this.outputPath);
+        });
     },
 
   };
