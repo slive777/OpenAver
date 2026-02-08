@@ -144,38 +144,63 @@
             <div class="title">
                 <i class="bi bi-person-badge"></i> <span>女優名稱管理</span>
             </div>
-            <button class="btn-icon btn-collapse" onclick="toggleAliasCard()" title="展開/收起">
-                <i class="bi bi-chevron-down" id="aliasCollapseIcon"></i>
+            <button class="btn-icon btn-collapse" @click="toggleAliasCard()" title="展開/收起">
+                <i class="bi" :class="aliasCardCollapsed ? 'bi-chevron-down' : 'bi-chevron-up'"></i>
             </button>
         </div>
 
-        <div class="actress-alias-body" id="aliasCardBody" style="display: none;">
+        <div class="actress-alias-body" x-show="!aliasCardCollapsed">
             <!-- Add New Alias Form -->
             <div class="alias-form">
                 <div class="alias-form-row">
                     <div class="alias-input-group">
                         <label>舊名稱</label>
-                        <input type="text" id="aliasOldName" placeholder="例：miru" oninput="previewAliasCount()">
-                        <span class="alias-count" id="oldNameCount"></span>
+                        <input type="text" x-model="aliasForm.oldName" placeholder="例：miru"
+                               @input="previewAliasCount()">
+                        <span class="alias-count" x-text="aliasForm.oldCount"></span>
                     </div>
                     <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
                     <div class="alias-input-group">
                         <label>新名稱</label>
-                        <input type="text" id="aliasNewName" placeholder="例：坂道みる" oninput="previewAliasCount()">
-                        <span class="alias-count" id="newNameCount"></span>
+                        <input type="text" x-model="aliasForm.newName" placeholder="例：坂道みる"
+                               @input="previewAliasCount()">
+                        <span class="alias-count" x-text="aliasForm.newCount"></span>
                     </div>
-                    <button class="btn-alias-add" onclick="addActressAlias()" id="btnAddAlias">
+                    <button class="btn-alias-add" @click="addActressAlias()"
+                            :disabled="aliasForm.isAdding">
                         <i class="bi bi-plus-lg"></i>
                     </button>
                 </div>
-                <div class="alias-preview" id="aliasPreview"></div>
+                <div class="alias-preview" x-html="aliasForm.previewMessage"></div>
             </div>
 
             <!-- Alias List -->
-            <div class="alias-list" id="aliasList">
-                <div class="alias-list-loading">
+            <div class="alias-list">
+                <!-- 載入中 -->
+                <div class="alias-list-loading" x-show="aliasListLoading">
                     <span class="loading loading-spinner loading-sm"></span> 載入中...
                 </div>
+
+                <!-- 錯誤訊息 -->
+                <div class="alias-list-error" x-show="aliasListError" x-text="aliasListError"></div>
+
+                <!-- 空狀態 -->
+                <div class="alias-list-empty" x-show="!aliasListLoading && !aliasListError && aliasList.length === 0">
+                    尚無別名對照
+                </div>
+
+                <!-- 別名項目 -->
+                <template x-for="alias in aliasList" :key="alias.id">
+                    <div class="alias-item">
+                        <span class="alias-old" x-text="alias.old_name"></span>
+                        <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
+                        <span class="alias-new" x-text="alias.new_name"></span>
+                        <span class="alias-applied" x-text="alias.applied_count > 0 ? `(已套用 ${alias.applied_count})` : ''"></span>
+                        <button class="btn-alias-delete" @click="deleteActressAlias(alias.id)" title="刪除">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </template>
             </div>
 
         </div>
@@ -215,7 +240,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/pages/scanner/alias.js"></script>
 <script>
 function scannerPage() {
   return {
@@ -240,6 +264,25 @@ function scannerPage() {
     // ===== Manual Input State =====
     manualInputVisible: false,
     manualPath: '',
+
+    // ===== Alias State =====
+    aliasCardCollapsed: true,
+    aliasList: [],           // 別名列表 [{id, old_name, new_name, applied_count}]
+    aliasListLoading: false, // 載入狀態
+    aliasListError: '',      // 錯誤訊息
+
+    // ===== Alias Form State =====
+    aliasForm: {
+        oldName: '',
+        newName: '',
+        oldCount: '',       // 顯示文字（如 "5 部"）
+        newCount: '',
+        previewMessage: '', // HTML（含 icon）
+        isAdding: false     // 新增按鈕 disabled 狀態
+    },
+
+    // ===== Alias Preview Debounce =====
+    previewDebounceTimer: null,
 
     // ===== T7b: State Machine =====
     state: 'idle',  // 'idle' | 'generating' | 'nfoUpdating' | 'done' | 'error'
@@ -327,17 +370,9 @@ function scannerPage() {
     async init() {
         // 覆蓋全域函數為 Alpine 版本
         const self = this;
-        window.renderDirectories = () => {};
-        window.loadConfig = () => self.loadConfig();
-        window.loadStats = () => self.loadStats();
-        window.saveConfig = () => self.saveConfig();
 
         // 暴露 PyWebView 回調
         window.addScannerFolder = (path) => self.addFolderPath(path);
-
-        // T7b: 暴露全域函數給 alias.js（T7c 遷移前過渡期）
-        window.showToast = (msg) => self.showToast(msg);
-        window.escapeHtml = (str) => self.escapeHtml ? self.escapeHtml(str) : str;
 
         // 初始載入
         await this.loadConfig();
@@ -880,6 +915,161 @@ function scannerPage() {
         }).catch(() => {
             alert('複製失敗，路徑：' + this.outputPath);
         });
+    },
+
+    // ===== Alias: Card Toggle =====
+    toggleAliasCard() {
+        this.aliasCardCollapsed = !this.aliasCardCollapsed;
+
+        // 首次展開時載入別名列表
+        if (!this.aliasCardCollapsed && this.aliasList.length === 0) {
+            this.loadActressAliases();
+        }
+    },
+
+    // ===== Alias: Load List =====
+    async loadActressAliases() {
+        this.aliasListLoading = true;
+        this.aliasListError = '';
+
+        try {
+            const resp = await fetch('/api/gallery/actress-aliases');
+            const result = await resp.json();
+
+            if (result.success) {
+                this.aliasList = result.data || [];
+            } else {
+                this.aliasListError = '載入失敗: ' + (result.error || '未知錯誤');
+            }
+        } catch (e) {
+            this.aliasListError = '載入失敗: ' + e.message;
+        } finally {
+            this.aliasListLoading = false;
+        }
+    },
+
+    // ===== Alias: Preview Count (Debounce 300ms) =====
+    async previewAliasCount() {
+        // 清除舊計時器
+        if (this.previewDebounceTimer) {
+            clearTimeout(this.previewDebounceTimer);
+        }
+
+        // 重置顯示
+        this.aliasForm.oldCount = '';
+        this.aliasForm.newCount = '';
+        this.aliasForm.previewMessage = '';
+
+        this.previewDebounceTimer = setTimeout(async () => {
+            const oldName = this.aliasForm.oldName.trim();
+            const newName = this.aliasForm.newName.trim();
+
+            // 查詢舊名稱片數
+            if (oldName) {
+                try {
+                    const resp = await fetch(`/api/gallery/actress-stats?name=${encodeURIComponent(oldName)}`);
+                    const result = await resp.json();
+                    if (result.success) {
+                        this.aliasForm.oldCount = `${result.data.count} 部`;
+                    }
+                } catch (e) {
+                    // 忽略錯誤
+                }
+            }
+
+            // 查詢新名稱片數
+            if (newName) {
+                try {
+                    const resp = await fetch(`/api/gallery/actress-stats?name=${encodeURIComponent(newName)}`);
+                    const result = await resp.json();
+                    if (result.success) {
+                        this.aliasForm.newCount = `${result.data.count} 部`;
+                    }
+                } catch (e) {
+                    // 忽略錯誤
+                }
+            }
+
+            // 顯示預覽訊息
+            if (oldName && newName) {
+                const oldC = parseInt(this.aliasForm.oldCount) || 0;
+                if (oldC > 0) {
+                    // 使用 Alpine escapeHtml（x-html 會渲染 HTML，需手動 escape）
+                    const escapedOld = this.escapeHtml(oldName);
+                    const escapedNew = this.escapeHtml(newName);
+                    this.aliasForm.previewMessage =
+                        `<i class="bi bi-info-circle"></i> 將有 ${oldC} 部影片的 "${escapedOld}" 改為 "${escapedNew}"`;
+                }
+            }
+        }, 300);
+    },
+
+    // ===== Alias: Add =====
+    async addActressAlias() {
+        const oldName = this.aliasForm.oldName.trim();
+        const newName = this.aliasForm.newName.trim();
+
+        if (!oldName || !newName) {
+            this.showToast('請輸入舊名稱和新名稱');
+            return;
+        }
+
+        if (oldName === newName) {
+            this.showToast('新舊名稱不可相同');
+            return;
+        }
+
+        this.aliasForm.isAdding = true;
+
+        try {
+            const resp = await fetch('/api/gallery/actress-aliases', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ old_name: oldName, new_name: newName })
+            });
+            const result = await resp.json();
+
+            if (result.success) {
+                this.showToast('已新增別名對照');
+                // 清空表單
+                this.aliasForm.oldName = '';
+                this.aliasForm.newName = '';
+                this.aliasForm.oldCount = '';
+                this.aliasForm.newCount = '';
+                this.aliasForm.previewMessage = '';
+                // 重新載入列表
+                this.loadActressAliases();
+            } else {
+                this.showToast('新增失敗: ' + (result.error || '未知錯誤'));
+            }
+        } catch (e) {
+            this.showToast('新增失敗: ' + e.message);
+        } finally {
+            this.aliasForm.isAdding = false;
+        }
+    },
+
+    // ===== Alias: Delete =====
+    async deleteActressAlias(id) {
+        if (!confirm('確定要刪除這個別名對照嗎？')) {
+            return;
+        }
+
+        try {
+            const resp = await fetch(`/api/gallery/actress-aliases/${id}`, {
+                method: 'DELETE'
+            });
+            const result = await resp.json();
+
+            if (result.success) {
+                this.showToast('已刪除');
+                this.loadActressAliases();
+            } else {
+                this.showToast('刪除失敗: ' + (result.error || '未知錯誤'));
+            }
+        } catch (e) {
+            this.showToast('刪除失敗: ' + e.message);
+        }
     },
 
   };
