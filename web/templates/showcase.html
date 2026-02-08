@@ -3,34 +3,23 @@
 {% block title %}影片瀏覽 - OpenAver{% endblock %}
 
 {% block extra_css %}
-<style>
-    .viewer-container {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        padding-left: var(--sidebar-width, 64px);
-    }
-
-    @media (max-width: 991.98px) {
-        .viewer-container {
-            padding-left: 0;
-            padding-top: 56px;
-        }
-    }
-
-    .viewer-frame {
-        width: 100%;
-        height: 100%;
-        border: none;
-    }
-</style>
+<link href="/static/css/pages/showcase.css" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
-<div class="viewer-container ds-page" id="viewerContainer">
-    <div class="state-page" id="placeholder">
+<div class="showcase-container ds-gallery-composition"
+     x-data="showcaseState()"
+     x-init="init()"
+     @keydown.window="handleKeydown($event)">
+
+    <!-- Loading State (初始顯示) -->
+    <div class="state-page" x-show="loading && videos.length === 0">
+        <i class="bi bi-hourglass-split state-page-icon"></i>
+        <p class="state-page-text">載入影片列表中...</p>
+    </div>
+
+    <!-- Empty State (API 回傳空資料時) -->
+    <div class="state-page" x-show="!loading && videos.length === 0">
         <i class="bi bi-collection-play state-page-icon"></i>
         <p class="state-page-text">尚未產生影片列表</p>
         <div class="empty-actions">
@@ -39,98 +28,119 @@
             </a>
         </div>
     </div>
-    <iframe id="viewerFrame" class="viewer-frame" style="display: none;"></iframe>
+
+    <!-- Main Content (API 載入後顯示) -->
+    <div x-show="videos.length > 0" style="display: none;">
+
+        <!-- Toolbar -->
+        <div class="showcase-toolbar">
+            <div class="toolbar-section toolbar-search">
+                <div class="spotlight-search">
+                    <i class="bi bi-search search-icon-left"></i>
+                    <input type="text"
+                           placeholder="搜尋番號、女優、標題..."
+                           x-model="search"
+                           @input.debounce.300ms="onSearchChange()">
+                    <div class="search-actions-right">
+                        <button class="btn-icon"
+                                x-show="search !== ''"
+                                @click="search = ''; onSearchChange()"
+                                title="清除搜尋">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="toolbar-section toolbar-controls">
+                <!-- 排序 -->
+                <div class="control-group">
+                    <select class="select select-sm select-bordered" x-model="sort" @change="onSortChange()">
+                        <option value="date">日期</option>
+                        <option value="num">番號</option>
+                        <option value="title">標題</option>
+                        <option value="actor">女優</option>
+                        <option value="maker">片商</option>
+                        <option value="size">大小</option>
+                        <option value="mdate">修改時間</option>
+                        <option value="random">隨機</option>
+                    </select>
+                    <button class="btn-icon" @click="toggleOrder()" title="切換排序方向">
+                        <i class="bi" :class="order === 'asc' ? 'bi-sort-up' : 'bi-sort-down'"></i>
+                    </button>
+                </div>
+
+                <!-- 顯示模式 (M2a 只有 grid，M3 才加入 table/list) -->
+                <div class="control-group mode-switcher">
+                    <button class="btn-icon"
+                            :class="{ 'active': mode === 'grid' }"
+                            @click="switchMode('grid')"
+                            title="圖片模式 (A)">
+                        <i class="bi bi-grid-3x3"></i>
+                    </button>
+                    <!-- M3 才啟用 -->
+                    <button class="btn-icon" disabled title="表格模式 (即將推出)">
+                        <i class="bi bi-table"></i>
+                    </button>
+                    <button class="btn-icon" disabled title="列表模式 (即將推出)">
+                        <i class="bi bi-list-ul"></i>
+                    </button>
+                </div>
+
+                <!-- 每頁數量 -->
+                <div class="control-group">
+                    <select class="select select-sm select-bordered" x-model="perPage" @change="onPerPageChange()">
+                        <option value="30">30 部</option>
+                        <option value="45">45 部</option>
+                        <option value="60">60 部</option>
+                        <option value="90">90 部</option>
+                        <option value="120">120 部</option>
+                        <option value="0">全部</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Image Grid -->
+        <div class="showcase-grid" x-show="mode === 'grid'">
+            <template x-for="(video, index) in paginatedVideos" :key="video.path">
+                <div class="av-card-preview"
+                     @click="playVideo(video.path)"
+                     :style="`--card-index: ${index}`">
+                    <div class="av-card-preview-img">
+                        <img :src="video.cover_url"
+                             :alt="video.number"
+                             loading="lazy">
+                        <!-- Badge: Local / HD 等狀態標籤 (M2a 先不實作) -->
+                    </div>
+                    <div class="av-card-preview-footer">
+                        <span class="av-num" x-text="video.number"></span>
+                        <span class="av-actress" x-text="video.actresses || '未知'"></span>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Pagination -->
+        <div class="showcase-pagination" x-show="totalPages > 1">
+            <button class="btn btn-sm btn-outline"
+                    @click="prevPage()"
+                    :disabled="page === 1">
+                <i class="bi bi-chevron-left"></i> 上一頁
+            </button>
+            <span class="pagination-info" x-text="`第 ${page} / ${totalPages} 頁`"></span>
+            <button class="btn btn-sm btn-outline"
+                    @click="nextPage()"
+                    :disabled="page === totalPages">
+                下一頁 <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    // 檢查列表是否存在並載入
-    async function loadViewer() {
-        try {
-            const resp = await fetch('/api/gallery/stats');
-            const result = await resp.json();
-
-            if (result.success && result.data && result.data.total > 0) {
-                // 有列表，載入 iframe
-                const frame = document.getElementById('viewerFrame');
-                const placeholder = document.getElementById('placeholder');
-
-                placeholder.style.display = 'none';
-                frame.style.display = 'block';
-                // 獲取當前主題並傳遞給 iframe
-                const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-                frame.src = '/api/gallery/view?theme=' + currentTheme;
-
-                // 等待 iframe 載入完成後注入外部播放器腳本
-                frame.onload = function () {
-                    injectExternalPlayerScript(frame);
-                };
-            }
-        } catch (e) {
-            console.error('載入失敗:', e);
-        }
-    }
-
-    // 注入外部播放器腳本
-    function injectExternalPlayerScript(frame) {
-        try {
-            const frameDoc = frame.contentDocument || frame.contentWindow.document;
-
-            // 覆蓋 playVideo 函數
-            const script = frameDoc.createElement('script');
-            script.textContent = `
-            // 保存原函數參考
-            var _originalPlayVideo = window.playVideo;
-
-            // 覆蓋 playVideo 函數
-            window.playVideo = function(indexOrPath) {
-                console.log('[Viewer] playVideo called:', indexOrPath, typeof indexOrPath);
-
-                // 判斷參數類型：數字=索引，字串=路徑
-                var path;
-                if (typeof indexOrPath === 'number') {
-                    // 索引模式：從 filtered_videos 取得路徑
-                    var video = filtered_videos[indexOrPath];
-                    if (!video) {
-                        console.error('[Viewer] Video not found at index:', indexOrPath);
-                        return;
-                    }
-                    path = video.path;
-                } else {
-                    path = indexOrPath;
-                }
-
-                console.log('[Viewer] Opening path:', path);
-
-                // 嘗試使用 PyWebView API
-                if (window.parent && window.parent.pywebview && window.parent.pywebview.api) {
-                    window.parent.pywebview.api.open_file(path)
-                        .then(function(result) {
-                            console.log('[Viewer] open_file result:', result);
-                        })
-                        .catch(function(err) {
-                            console.error('[Viewer] open_file error:', err);
-                            // fallback: 用原本的方式開啟
-                            window.open(path.replace(/#/g, '%23'), '_blank');
-                        });
-                } else {
-                    // 非 PyWebView 環境，用原本的方式
-                    console.log('[Viewer] PyWebView not available, using default');
-                    window.open(path.replace(/#/g, '%23'), '_blank');
-                }
-            };
-            console.log('[Viewer] playVideo overridden for external player');
-        `;
-            frameDoc.body.appendChild(script);
-            console.log('[Viewer] External player script injected');
-        } catch (e) {
-            console.error('[Viewer] Failed to inject script:', e);
-            // 可能是跨域問題，忽略
-        }
-    }
-
-    // 初始化
-    loadViewer();
-</script>
+<!-- M2a 只需 core.js -->
+<script src="/static/js/pages/showcase/core.js"></script>
 {% endblock %}
