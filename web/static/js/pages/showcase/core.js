@@ -202,6 +202,16 @@ function showcaseState() {
             }
         },
 
+        // Status bar 頁面跳轉 (M3g)
+        goToPage(p) {
+            const num = parseInt(p);
+            if (Number.isNaN(num) || num < 1 || num > this.totalPages) return;
+            this.page = num;
+            this.updatePagination();
+            this.saveState();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+
         // --- 資料處理 (M2a 基本實作，M4 完整化) ---
         applyFilterAndSort() {
             // M2a 簡單版：只複製原始資料

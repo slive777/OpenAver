@@ -68,6 +68,114 @@
     gap: 0.25rem;
 }
 
+/* ==================== Status Bar (M3g) ==================== */
+
+.showcase-status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    background: var(--surface-0);
+    border-bottom: 1px solid var(--stroke-subtle);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.status-total {
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+}
+
+.status-total b {
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-weight: 600;
+}
+
+.status-pagination {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.page-select {
+    padding: 0.375rem 2rem 0.375rem 0.75rem;
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition: border-color var(--duration-fast) var(--ease-out),
+                background var(--duration-fast) var(--ease-out);
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    min-width: 100px;
+}
+
+.page-select:hover {
+    border-color: var(--accent);
+    background: var(--glow-subtle);
+}
+
+.page-select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--glow-primary);
+}
+
+.page-btn {
+    padding: 0.375rem 0.875rem;
+    background: transparent;
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+    white-space: nowrap;
+}
+
+.page-btn:hover:not(:disabled) {
+    background: var(--glow-subtle);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+    .showcase-status-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+        padding: 1rem;
+    }
+
+    .status-total {
+        text-align: center;
+    }
+
+    .status-pagination {
+        justify-content: center;
+    }
+
+    .page-select {
+        min-width: 80px;
+    }
+
+    .page-btn {
+        padding: 0.375rem 0.625rem;
+        font-size: 0.8125rem;
+    }
+}
+
 /* ==================== Image Grid - 5 段響應式斷點 ==================== */
 /* 參考 gallery_generator.py L1177-1216 */
 
@@ -173,26 +281,6 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-/* ==================== Pagination ==================== */
-.showcase-pagination {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-}
-
-/* Pagination Info - 頁碼指示器 */
-.pagination-info {
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    min-width: 6rem;
-    text-align: center;
 }
 
 /* ==================== Lightbox ==================== */

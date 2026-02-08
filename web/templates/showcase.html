@@ -117,6 +117,27 @@
             </div>
         </div>
 
+        <!-- Status Bar (M3g) -->
+        <div class="showcase-status-bar">
+            <span class="status-total">
+                <template x-if="!search">
+                    <span>共 <b x-text="filteredVideos.length"></b> 部影片</span>
+                </template>
+                <template x-if="search">
+                    <span>搜尋 "<b x-text="search"></b>" — 找到 <b x-text="filteredVideos.length"></b> 部</span>
+                </template>
+            </span>
+            <div class="status-pagination" x-show="totalPages > 1">
+                <button class="page-btn" @click="prevPage()" :disabled="page === 1">← 上一頁</button>
+                <select class="page-select" x-model.number="page" @change="goToPage(page)">
+                    <template x-for="p in totalPages" :key="p">
+                        <option :value="p" x-text="`${p} / ${totalPages}`" :selected="p === page"></option>
+                    </template>
+                </select>
+                <button class="page-btn" @click="nextPage()" :disabled="page === totalPages">下一頁 →</button>
+            </div>
+        </div>
+
         <!-- Image Grid -->
         <div class="showcase-grid" x-show="mode === 'grid'">
             <template x-for="(video, index) in paginatedVideos" :key="video.path">
@@ -252,21 +273,6 @@
                     </li>
                 </template>
             </ul>
-        </div>
-
-        <!-- Pagination -->
-        <div class="showcase-pagination" x-show="totalPages > 1">
-            <button class="btn btn-sm btn-outline"
-                    @click="prevPage()"
-                    :disabled="page === 1">
-                <i class="bi bi-chevron-left"></i> 上一頁
-            </button>
-            <span class="pagination-info" x-text="`第 ${page} / ${totalPages} 頁`"></span>
-            <button class="btn btn-sm btn-outline"
-                    @click="nextPage()"
-                    :disabled="page === totalPages">
-                下一頁 <i class="bi bi-chevron-right"></i>
-            </button>
         </div>
 
         <!-- Lightbox (M3a) -->
