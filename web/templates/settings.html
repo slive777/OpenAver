@@ -8,9 +8,20 @@
 
 {% block content %}
 <div id="settings-components">
-    <h4 class="mb-4">
-        <i class="bi bi-gear"></i> 設定
-    </h4>
+    <div class="settings-header">
+        <h4 class="mb-0">
+            <i class="bi bi-gear"></i> 設定
+        </h4>
+        <div class="settings-theme-toggle">
+            <button class="theme-toggle-btn"
+                    @click="theme = (theme === 'light' ? 'dim' : 'light')"
+                    :title="theme === 'light' ? '切換至深色模式' : '切換至淺色模式'"
+                    type="button">
+                <i class="bi" :class="theme === 'light' ? 'bi-moon-stars' : 'bi-sun'"></i>
+                <span class="theme-toggle-label" x-text="theme === 'light' ? 'Light' : 'Dim'"></span>
+            </button>
+        </div>
+    </div>
 
     <form id="settingsForm">
         <!-- 1. 搜尋與刮削設定 (Search & Scraper) -->
@@ -384,13 +395,11 @@
                 <i class="bi bi-sliders"></i> 系統設定
             </div>
             <div class="card-body">
-                <div class="settings-form-row">
-                    <label class="row-label">主題模式</label>
-                    <select class="select select-bordered select-sm" id="themeMode" x-model="theme">
-                        <option value="light">淺色模式 (Light)</option>
-                        <option value="dim">深色模式 (Dim)</option>
-                    </select>
-                </div>
+                <!-- 隱藏 select：保留 #themeMode 供 core.js loadConfig/saveConfig 使用，T4b 清除 -->
+                <select id="themeMode" x-model="theme" class="hidden">
+                    <option value="light">Light</option>
+                    <option value="dim">Dim</option>
+                </select>
                 <div class="settings-form-row">
                     <label class="row-label">啟動時開啟頁面</label>
                     <select class="select select-bordered select-sm" id="defaultPage">

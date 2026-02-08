@@ -1,5 +1,8 @@
 /* Settings 頁面專屬元件（非共用，不納入 Design System）*/
 
+/* 保護 settings 頁內所有 .hidden（避免被自定義 CSS 覆蓋）*/
+#settings-components .hidden { display: none !important; }
+
 .settings-container {
     max-width: 900px;
     margin: 0 auto;
@@ -180,5 +183,83 @@
         flex-direction: column;
         gap: 8px;
         align-items: flex-start;
+    }
+}
+
+/* ==================== Settings Header + Theme Toggle ==================== */
+
+.settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.settings-theme-toggle {
+    flex-shrink: 0;
+}
+
+.settings-theme-toggle .theme-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: color-mix(in oklch, var(--color-base-200) 70%, transparent);
+    border: 1px solid var(--border-light);
+    border-radius: var(--fluent-radius-lg);
+    cursor: pointer;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+                box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard),
+                transform var(--fluent-duration-fast) var(--fluent-ease-standard);
+    box-shadow: var(--fluent-shadow-4);
+}
+
+[data-theme="dim"] .settings-theme-toggle .theme-toggle-btn {
+    background: color-mix(in oklch, var(--color-base-200) 50%, transparent);
+}
+
+.settings-theme-toggle .theme-toggle-btn:hover {
+    background: var(--color-base-200);
+    border-color: var(--accent);
+    box-shadow:
+        0 0 0 1px var(--accent),
+        0 0 20px rgba(90, 200, 250, 0.2),
+        var(--fluent-shadow-8);
+    transform: translateY(-2px);
+}
+
+.settings-theme-toggle .theme-toggle-btn:active {
+    transform: translateY(0);
+    box-shadow: var(--fluent-shadow-2);
+}
+
+.settings-theme-toggle .theme-toggle-btn i {
+    font-size: 1.1rem;
+    color: var(--accent);
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.settings-theme-toggle .theme-toggle-btn:hover i {
+    transform: rotate(15deg);
+}
+
+.settings-theme-toggle .theme-toggle-label {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+    .settings-theme-toggle .theme-toggle-label {
+        display: none;
+    }
+
+    .settings-theme-toggle .theme-toggle-btn {
+        padding: 0.5rem;
+        width: 40px;
+        height: 40px;
+        justify-content: center;
     }
 }
