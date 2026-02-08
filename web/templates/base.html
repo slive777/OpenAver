@@ -1,12 +1,35 @@
 <!DOCTYPE html>
 <html lang="zh-TW"
-      x-data="{ theme: $persist('{{ theme|default('light') }}').as('theme') }"
+      data-theme="{{ theme|default('light') }}"
+      x-data="{ theme: '{{ theme|default('light') }}' }"
+      x-init="$watch('theme', configSync('theme'))"
       :data-theme="theme">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}OpenAver{% endblock %}</title>
+
+    <!-- Config sync: debounce + keepalive + abort previous -->
+    <script>
+      function configSync(field) {
+        var tid, ctrl;
+        return function(val) {
+          clearTimeout(tid);
+          if (ctrl) ctrl.abort();
+          tid = setTimeout(function() {
+            ctrl = new AbortController();
+            fetch('/api/config/general/' + field, {
+              method: 'PUT',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({value: val}),
+              keepalive: true,
+              signal: ctrl.signal
+            }).catch(function() {});
+          }, 150);
+        };
+      }
+    </script>
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
@@ -242,21 +265,15 @@
 </head>
 
 <body x-data="{
-    sidebarCollapsed: $persist(window.__sidebarCollapsedInitial ?? false).as('sidebar_collapsed'),
+    sidebarCollapsed: {{ sidebar_collapsed|default(false)|tojson }},
     mobileMenuOpen: false
 }"
+     x-init="$watch('sidebarCollapsed', configSync('sidebar_collapsed'))"
      :class="{ 'sidebar-collapsed': sidebarCollapsed }"
      class="{% if page in ['design-system', 'showcase'] %}ds-page{% endif %}">
-    <!-- Sidebar: 同步讀取 localStorage 防止閃爍（Alpine 載入前執行） -->
+    <!-- Sidebar: Jinja 直接渲染 class 防止閃爍（不依賴 localStorage） -->
     <script>
-      window.__sidebarCollapsedInitial = false;
-      try {
-        const raw = localStorage.getItem('_x_sidebar_collapsed');
-        if (raw !== null) {
-          window.__sidebarCollapsedInitial = JSON.parse(raw) === true;
-        }
-      } catch (e) {}
-      if (window.__sidebarCollapsedInitial) {
+      if ({{ sidebar_collapsed|default(false)|tojson }}) {
         document.body.classList.add('sidebar-collapsed');
       }
     </script>
@@ -384,7 +401,7 @@
          x-ref="sidebar">
         <div class="sidebar-header">
             <button class="sidebar-toggle"
-                    @click="sidebarCollapsed = !sidebarCollapsed; try { localStorage.setItem('_x_sidebar_collapsed', JSON.stringify(sidebarCollapsed)); } catch (e) {}"
+                    @click="sidebarCollapsed = !sidebarCollapsed"
                     title="展開/收合">
                 <i class="bi bi-list"></i>
             </button>

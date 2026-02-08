@@ -262,6 +262,27 @@ async def reset_tutorial() -> dict:
     return {"success": True}
 
 
+class GeneralFieldRequest(BaseModel):
+    value: str | bool
+
+
+@router.put("/config/general/{field}")
+async def update_general_field(field: str, request: GeneralFieldRequest) -> dict:
+    """更新 general 區塊單一欄位（輕量端點，供 UI toggle 即時同步）"""
+    allowed = {"sidebar_collapsed", "theme"}
+    if field not in allowed:
+        return {"success": False, "error": f"不允許更新欄位: {field}"}
+    try:
+        config = load_config()
+        if "general" not in config:
+            config["general"] = {}
+        config["general"][field] = request.value
+        save_config(config)
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 @router.get("/version")
 async def get_version() -> dict:
     """取得版本資訊"""

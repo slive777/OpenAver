@@ -58,6 +58,7 @@ def get_common_context(request: Request) -> dict:
         "request": request,
         "config": config,
         "theme": config.get('general', {}).get('theme', 'light'),
+        "sidebar_collapsed": config.get('general', {}).get('sidebar_collapsed', False),
         "version": VERSION
     }
 

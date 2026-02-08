@@ -39,8 +39,7 @@ function settingsPage() {
             viewerPlayer: '',
 
             // General
-            defaultPage: 'search',
-            sidebarCollapsed: false
+            defaultPage: 'search'
         },
 
         // ===== UI State =====
@@ -223,7 +222,7 @@ function settingsPage() {
                     let defaultPage = config.general?.default_page || 'search';
                     if (defaultPage === 'gallery') defaultPage = 'scanner';  // 向後兼容
                     this.form.defaultPage = defaultPage;
-                    this.form.sidebarCollapsed = config.general?.sidebar_collapsed || false;
+                    // sidebar_collapsed 已移除（由 Alpine $persist + localStorage 驅動）
 
                     // 自動載入 Ollama 模型列表
                     const ollamaUrl = config.translate.ollama?.url || config.translate.ollama_url;
@@ -315,8 +314,8 @@ function settingsPage() {
                 config.general = {
                     ...config.general,
                     default_page: this.form.defaultPage,
-                    theme: this.theme || document.documentElement.getAttribute('data-theme') || 'light',
-                    sidebar_collapsed: this.form.sidebarCollapsed
+                    theme: this.theme || document.documentElement.getAttribute('data-theme') || 'light'
+                    // theme / sidebar_collapsed 由 base.html $watch 即時同步，此處僅隨整體設定一併寫入
                 };
 
                 const resp = await fetch('/api/config', {
