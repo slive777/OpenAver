@@ -76,7 +76,8 @@
                     <div class="settings-form-row">
                         <label class="row-label">翻譯服務</label>
                         <select class="select select-bordered select-sm" id="translateProvider"
-                            x-model="form.translateProvider">
+                            x-model="form.translateProvider"
+                            :disabled="!form.translateEnabled">
                             <option value="ollama">Ollama（本地）</option>
                             <option value="gemini">Gemini（Google 雲端）</option>
                         </select>
@@ -89,9 +90,11 @@
                             <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                                 <div class="variable-input-group">
                                     <input type="text" class="input input-bordered input-sm" id="ollamaUrl"
-                                        x-model="form.ollamaUrl" style="flex: 1;">
+                                        x-model="form.ollamaUrl" style="flex: 1;"
+                                        :disabled="!form.translateEnabled">
                                     <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testOllamaBtn"
-                                        @click="testOllamaConnection()">
+                                        @click="testOllamaConnection()"
+                                        :disabled="!form.translateEnabled">
                                         <i class="bi bi-plug"></i> 測試
                                     </button>
                                 </div>
@@ -104,14 +107,15 @@
                             <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                                 <div class="variable-input-group">
                                     <select class="select select-bordered select-sm" id="ollamaModel" style="flex: 1;"
-                                        x-model="form.ollamaModel" :disabled="ollamaModels.length === 0">
+                                        x-model="form.ollamaModel" :disabled="!form.translateEnabled || ollamaModels.length === 0">
                                         <option value="" disabled x-show="ollamaModels.length === 0">請先測試連線</option>
                                         <template x-for="model in ollamaModels" :key="model">
                                             <option :value="model" x-text="model"></option>
                                         </template>
                                     </select>
                                     <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testModelBtn"
-                                        @click="testModel()" title="測試模型">
+                                        @click="testModel()" title="測試模型"
+                                        :disabled="!form.translateEnabled">
                                         <i class="bi bi-chat-dots"></i> 測試
                                     </button>
                                 </div>
@@ -127,9 +131,11 @@
                             <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                                 <div class="variable-input-group">
                                     <input type="password" class="input input-bordered input-sm" id="geminiApiKey"
-                                        x-model="form.geminiApiKey" placeholder="AIza..." style="flex: 1;">
+                                        x-model="form.geminiApiKey" placeholder="AIza..." style="flex: 1;"
+                                        :disabled="!form.translateEnabled">
                                     <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testGeminiBtn"
-                                        @click="testGeminiConnection()">
+                                        @click="testGeminiConnection()"
+                                        :disabled="!form.translateEnabled">
                                         <i class="bi bi-plug"></i> 測試
                                     </button>
                                 </div>
@@ -160,7 +166,7 @@
                             <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                                 <div class="variable-input-group">
                                     <select class="select select-bordered select-sm" id="geminiModel" style="flex: 1;"
-                                        x-model="form.geminiModel" :disabled="geminiModels.length === 0">
+                                        x-model="form.geminiModel" :disabled="!form.translateEnabled || geminiModels.length === 0">
                                         <option value="" disabled x-show="geminiModels.length === 0">請先測試 API Key</option>
                                         <template x-for="model in geminiModels" :key="model.name">
                                             <option :value="model.name" x-text="model.name"></option>
@@ -168,7 +174,7 @@
                                     </select>
                                     <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testGeminiTranslateBtn"
                                         @click="testGeminiTranslation()" title="測試翻譯功能"
-                                        :disabled="geminiModels.length === 0">
+                                        :disabled="!form.translateEnabled || geminiModels.length === 0">
                                         <i class="bi bi-chat-dots"></i> 測試
                                     </button>
                                 </div>

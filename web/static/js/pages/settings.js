@@ -315,7 +315,7 @@ function settingsPage() {
                 config.general = {
                     ...config.general,
                     default_page: this.form.defaultPage,
-                    theme: this.theme || localStorage.getItem('theme') || 'light',
+                    theme: this.theme || document.documentElement.getAttribute('data-theme') || 'light',
                     sidebar_collapsed: this.form.sidebarCollapsed
                 };
 
@@ -636,10 +636,11 @@ function settingsPage() {
             // saveConfig 成功會更新 savedState，isDirty 變 false
             if (!this.isDirty) {
                 // 儲存成功，跳轉
+                document.getElementById('dirtyCheckModal').close();
                 window.location.href = this.pendingNavigationUrl;
             }
-            // 儲存失敗，modal 保持開啟（toast 已顯示錯誤）
-            document.getElementById('dirtyCheckModal').close();
+            // 儲存失敗：modal 保持開啟，toast 已顯示錯誤
+            // 用戶可選「不儲存」離開或「取消」留下
         },
 
         // Dirty check modal — 不儲存直接離開
