@@ -513,27 +513,49 @@ function showcaseState() {
             }, duration);
         },
 
-        // --- 快捷鍵 (M2a 只定義骨架，M4 完整實作) ---
+        // --- 快捷鍵 (M4c 完整實作) ---
         handleKeydown(e) {
-            // 輸入框中不處理快捷鍵
+            // 1. 輸入框中不處理快捷鍵
             if (e.target.tagName === 'INPUT') return;
 
-            // Lightbox 開啟時的快捷鍵
+            // 2. modifier keys 停用（原版 L1667）
+            if (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
+
+            // 3. 轉大寫統一處理
+            const key = e.key.toUpperCase();
+
+            // 4. Lightbox 開啟時的快捷鍵（優先處理）
             if (this.lightboxOpen) {
-                if (e.key === 'Escape') {
+                if (key === 'ESCAPE') {
                     this.closeLightbox();
-                } else if (e.key === 'ArrowLeft') {
+                } else if (key === 'ARROWLEFT') {
                     this.prevLightboxVideo();
-                } else if (e.key === 'ArrowRight') {
+                } else if (key === 'ARROWRIGHT') {
                     this.nextLightboxVideo();
                 }
-                return;
+                return; // Lightbox 開啟時阻止其他快捷鍵
             }
 
-            // M3i: S 鍵切換 Card Info（僅 Grid 模式，排除 modifier）
-            if (e.key.toUpperCase() === 'S' && this.mode === 'grid'
-                && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
+            // 5. 非 Lightbox 狀態的快捷鍵
+            if (key === 'S' && this.mode === 'grid') {
+                // S 鍵：切換 Card Info（僅 Grid 模式，已完成於 M3i）
                 this.toggleInfo();
+            } else if (key === 'A') {
+                // A 鍵：循環切換模式 Grid → Table → List → Grid
+                const modeOrder = ['grid', 'table', 'list'];
+                const currentIndex = modeOrder.indexOf(this.mode);
+                const nextIndex = (currentIndex + 1) % 3;
+                this.switchMode(modeOrder[nextIndex]);
+            } else if (key === 'ARROWLEFT') {
+                // ← 鍵：上一頁（需檢查 page > 1）
+                if (this.page > 1) {
+                    this.prevPage();
+                }
+            } else if (key === 'ARROWRIGHT') {
+                // → 鍵：下一頁（需檢查 page < totalPages）
+                if (this.page < this.totalPages) {
+                    this.nextPage();
+                }
             }
         }
     };
