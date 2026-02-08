@@ -1,1 +1,182 @@
-/* Showcase 頁面專屬樣式 — M2b 實作 */
+/* ========================================
+   Showcase 頁面專屬樣式
+   IMPORTANT: 禁止重複定義 theme.css 已有元件
+   ======================================== */
+
+/* ==================== Page Container ==================== */
+.showcase-container {
+    min-height: calc(100vh - 56px); /* 扣除 header */
+    display: flex;
+    flex-direction: column;
+}
+
+/* ==================== Toolbar - Sticky + Acrylic ==================== */
+.showcase-toolbar {
+    /* Sticky positioning */
+    position: sticky;
+    top: 0;
+    z-index: 100;
+
+    /* Acrylic 毛玻璃效果（Fluent Design 2 - Heavy Glass）*/
+    background: var(--bg-header); /* color-mix 85% transparency */
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+
+    /* Border */
+    border-bottom: 1px solid var(--border-light);
+
+    /* Spacing */
+    padding: 0.75rem 1.5rem;
+
+    /* Layout */
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Toolbar 區段 */
+.toolbar-section {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* Search 區段 - 寬度撐滿 */
+.toolbar-search {
+    flex: 1;
+    min-width: 280px; /* 防止過窄 */
+}
+
+/* Controls 區段 - 自動寬度 */
+.toolbar-controls {
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+/* Control Group - 單個控制元件群組（排序 + 按鈕 / select / mode switcher）*/
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Mode Switcher - 顯示模式切換器 */
+.mode-switcher {
+    display: flex;
+    gap: 0.25rem;
+}
+
+/* ==================== Image Grid - 5 段響應式斷點 ==================== */
+/* 參考 gallery_generator.py L1177-1216 */
+
+.showcase-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    padding: 1.5rem;
+
+    /* 防止卡片過寬 */
+    max-width: 100%;
+}
+
+/* 響應式斷點 - 5 段固定欄位 */
+
+/* 1500px+ → 5 columns */
+@media (min-width: 1500px) {
+    .showcase-grid {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+
+/* 1100-1499px → 4 columns */
+@media (min-width: 1100px) and (max-width: 1499px) {
+    .showcase-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* 900-1099px → 3 columns */
+@media (min-width: 900px) and (max-width: 1099px) {
+    .showcase-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* 680-899px → 2 columns */
+@media (min-width: 680px) and (max-width: 899px) {
+    .showcase-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem; /* 減小間距 */
+    }
+}
+
+/* ≤480px → 1 column */
+@media (max-width: 480px) {
+    .showcase-grid {
+        grid-template-columns: 1fr;
+        padding: 1rem;
+    }
+}
+
+/* ==================== Pagination ==================== */
+.showcase-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+/* Pagination Info - 頁碼指示器 */
+.pagination-info {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    min-width: 6rem;
+    text-align: center;
+}
+
+/* ==================== Lightbox (M3 預留空間) ==================== */
+/* M3 將實作全螢幕 Lightbox，此處預先定義基礎樣式 */
+
+.showcase-lightbox {
+    /* M3 實作時定義：
+       - position: fixed; inset: 0; z-index: 1000;
+       - backdrop: blur(30px) + smoke
+       - 導航按鈕（左右箭頭）
+       - 關閉按鈕（ESC / 點擊背景）
+       - 圖片居中 + scale 動畫
+    */
+}
+
+/* ==================== Responsive: Toolbar ==================== */
+/* 小螢幕：Toolbar 垂直排列 */
+@media (max-width: 768px) {
+    .showcase-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+        padding: 1rem;
+    }
+
+    .toolbar-section {
+        width: 100%;
+    }
+
+    .toolbar-search {
+        min-width: auto;
+    }
+
+    .toolbar-controls {
+        justify-content: space-between;
+    }
+}
+
+/* ==================== Light / Dim 主題適配 ==================== */
+/* 使用 theme.css 定義的 CSS 變數，無需額外覆寫 */
+/* --bg-header 已在 theme.css 定義：color-mix(in oklch, var(--color-base-200) 85%, transparent) */
+/* 主題切換時自動過渡（transition 在 theme.css body 定義）*/
