@@ -7,15 +7,18 @@
 {% endblock %}
 
 {% block content %}
-<!-- Drag Overlay -->
-<div class="drag-overlay" id="dragOverlay">
-    <div class="drag-overlay-content">
-        <i class="bi bi-folder-plus"></i>
-        <p>放開以加入資料夾</p>
+<div class="avlist-container ds-gallery-composition" x-data="scannerPage()"
+     @dragenter.document="handleDragEnter($event)"
+     @dragleave.document="handleDragLeave($event)"
+     @dragover.document.prevent
+     @drop.document.prevent="handleDrop($event)">
+    <!-- Drag Overlay (must be inside x-data scope) -->
+    <div class="drag-overlay" id="dragOverlay" x-show="showDragOverlay" x-transition.opacity>
+        <div class="drag-overlay-content">
+            <i class="bi bi-folder-plus"></i>
+            <p>放開以加入資料夾</p>
+        </div>
     </div>
-</div>
-
-<div class="avlist-container ds-gallery-composition">
     <!-- Header -->
     <div class="avlist-header">
         <h4><i class="bi bi-list-ul"></i> 列表生成</h4>
@@ -29,10 +32,10 @@
                 <i class="bi bi-folder"></i> <span>掃描資料夾</span>
             </div>
             <div class="actions">
-                <button class="btn-icon" onclick="selectFolder()" title="選擇資料夾">
+                <button class="btn-icon" @click="selectFolder()" title="選擇資料夾">
                     <i class="bi bi-folder-plus"></i>
                 </button>
-                <button class="btn-icon" onclick="toggleManualInput()" title="手動輸入">
+                <button class="btn-icon" @click="toggleManualInput()" title="手動輸入">
                     <i class="bi bi-keyboard"></i>
                 </button>
             </div>
@@ -40,23 +43,44 @@
 
         <div class="avlist-card-body">
             <!-- Manual Input (hidden by default) -->
-            <div class="manual-input" id="manualInput"
-                style="display: none; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-light);">
-                <input type="text" class="input input-bordered input-sm" id="manualPath" placeholder="輸入資料夾路徑...">
-                <button class="btn btn-sm btn-primary" onclick="addManualPath()">
+            <div class="manual-input" x-show="manualInputVisible"
+                style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-light);">
+                <input type="text" class="input input-bordered input-sm" id="manualPath"
+                       x-model="manualPath" placeholder="輸入資料夾路徑..."
+                       @keypress.enter="addManualPath()">
+                <button class="btn btn-sm btn-primary" @click="addManualPath()">
                     <i class="bi bi-plus"></i>
                 </button>
             </div>
 
             <!-- Folder List -->
-            <div class="folder-list" id="directoryList"></div>
+            <div class="folder-list">
+                <!-- Empty State -->
+                <div x-show="directories.length === 0" class="folder-empty">
+                    <i class="bi bi-folder-plus"></i>
+                    <p>尚未加入任何資料夾</p>
+                    <p>點擊上方按鈕或拖曳資料夾至此</p>
+                </div>
+
+                <!-- Folder Items -->
+                <template x-for="(dir, idx) in directories" :key="idx">
+                    <div class="folder-item">
+                        <i class="bi bi-folder folder-icon"></i>
+                        <span class="folder-path" x-text="dir"></span>
+                        <button class="btn btn-sm btn-outline btn-error btn-remove"
+                                @click="removeDirectory(idx)" title="移除">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                </template>
+            </div>
         </div>
 
         <!-- Output Info -->
         <div class="output-info">
             <div class="path">
                 <i class="bi bi-file-earmark-code"></i>
-                輸出: <code id="outputPathDisplay">output/gallery_output.html</code>
+                輸出: <code id="outputPathDisplay" x-text="outputPathDisplay"></code>
             </div>
             <a href="/settings" class="settings-link">
                 <i class="bi bi-gear"></i> 設定
@@ -89,13 +113,13 @@
     </div>
 
     <!-- Stats Card -->
-    <div class="stats-card" id="statsCard" style="display: none;">
+    <div class="stats-card" id="statsCard" x-show="statsVisible">
         <div class="stats-row">
             <div class="stat-item">
                 <i class="bi bi-collection-play"></i>
-                <span>快取影片: <span class="stat-value" id="statTotal">0</span> 部</span>
+                <span>快取影片: <span class="stat-value" id="statTotal" x-text="statTotal"></span> 部</span>
             </div>
-            <div class="stat-item" id="statLastRun"></div>
+            <div class="stat-item" id="statLastRun" x-text="statLastRun"></div>
         </div>
         <!-- NFO Update Section (separate row) -->
         <div class="nfo-update-row" id="statNeedUpdate" style="display: none;">
@@ -151,9 +175,32 @@
 
         </div>
     </div>
+
+    <!-- Dirty Check Modal (must be inside x-data scope for @click) -->
+    <dialog id="scannerDirtyCheckModal" class="modal fluent-modal">
+        <div class="modal-box fluent-modal-box">
+            <h3 class="fluent-modal-title">
+                <i class="bi bi-exclamation-triangle"></i> 尚未儲存的變更
+            </h3>
+            <p class="fluent-modal-body">
+                您有修改資料夾清單但未產生網頁，要如何處理？
+            </p>
+            <div class="modal-action fluent-modal-actions">
+                <button type="button" class="btn btn-ghost" @click="dirtyCheckCancel()">
+                    取消
+                </button>
+                <button type="button" class="btn btn-error" @click="dirtyCheckDiscard()">
+                    放棄變更
+                </button>
+                <button type="button" class="btn btn-primary" @click="dirtyCheckSave()">
+                    儲存並離開
+                </button>
+            </div>
+        </div>
+    </dialog>
 </div>
 
-<!-- Toast -->
+<!-- Toast (outside x-data — showToast uses getElementById, no Alpine binding needed) -->
 <div id="toastMsg" class="toast toast-bottom toast-center fluent-toast-container">
     <div class="alert fluent-toast alert-info" role="alert">
         <i class="bi bi-info-circle"></i>
@@ -164,7 +211,347 @@
 
 {% block extra_js %}
 <script src="/static/js/pages/scanner/core.js"></script>
-<script src="/static/js/pages/scanner/folders.js"></script>
 <script src="/static/js/pages/scanner/alias.js"></script>
-<script src="/static/js/pages/scanner/init.js"></script>
+<script>
+function scannerPage() {
+  return {
+    // ===== Data State =====
+    directories: [],
+    config: {},
+    configDirty: false,
+    isGenerating: false,
+
+    // ===== Folder Dirty Check =====
+    folderSnapshot: null,
+    pendingNavigationUrl: '',
+
+    // ===== Drag-drop State =====
+    dragCounter: 0,
+    showDragOverlay: false,
+
+    // ===== Stats State =====
+    statsVisible: false,
+    statTotal: 0,
+    statLastRun: '',
+
+    // ===== Manual Input State =====
+    manualInputVisible: false,
+    manualPath: '',
+
+    // ===== Computed Properties =====
+    get isFolderDirty() {
+        if (!this.folderSnapshot) return false;
+        return JSON.stringify(this.directories) !== this.folderSnapshot;
+    },
+
+    get outputPathDisplay() {
+        const outputDir = this.config.gallery?.output_dir || 'output';
+        const outputFilename = this.config.gallery?.output_filename || 'gallery_output.html';
+        return `${outputDir}/${outputFilename}`;
+    },
+
+    // ===== Lifecycle =====
+    async init() {
+        // 覆蓋全域函數為 Alpine 版本
+        const self = this;
+        window.renderDirectories = () => {};
+        window.loadConfig = () => self.loadConfig();
+        window.loadStats = () => self.loadStats();
+        window.saveConfig = () => self.saveConfig();
+
+        // 暴露 PyWebView 回調
+        window.addScannerFolder = (path) => self.addFolderPath(path);
+
+        // 初始載入
+        await this.loadConfig();
+        this.loadStats();
+        restoreLogs();
+
+        // 暴露全域檢查函式
+        window.confirmLeavingScanner = (targetUrl) => {
+            const guard = this.shouldWarnBeforeLeave();
+            if (guard.shouldWarn) {
+                if (guard.useModal) {
+                    this.pendingNavigationUrl = targetUrl;
+                    document.getElementById('scannerDirtyCheckModal').showModal();
+                    return false;
+                } else {
+                    return confirm(guard.message + '確定要離開嗎？');
+                }
+            }
+            return true;
+        };
+
+        // beforeunload 警告
+        window.addEventListener('beforeunload', (e) => {
+            const guard = this.shouldWarnBeforeLeave();
+            if (guard.shouldWarn) {
+                e.preventDefault();
+                e.returnValue = guard.message;
+                return e.returnValue;
+            }
+        });
+    },
+
+    // ===== Leave Guard =====
+    shouldWarnBeforeLeave() {
+        if (window.isGenerating) {
+            return {
+                shouldWarn: true,
+                message: '生成正在進行中，離開將會中斷操作！',
+                useModal: false
+            };
+        }
+        if (this.isFolderDirty) {
+            return {
+                shouldWarn: true,
+                message: '您有未儲存的資料夾變更',
+                useModal: true
+            };
+        }
+        return { shouldWarn: false };
+    },
+
+    // ===== Config Methods =====
+    async loadConfig() {
+        this.folderSnapshot = null;
+
+        try {
+            const resp = await fetch('/api/config');
+            const result = await resp.json();
+            if (result.success) {
+                this.config = result.data;
+                this.directories = this.config.gallery?.directories || [];
+
+                // 同步全域變數
+                window.config = this.config;
+                window.directories = this.directories;
+
+                // 建立快照
+                this.folderSnapshot = JSON.stringify(this.directories);
+            }
+        } catch (e) {
+            console.error('載入設定失敗:', e);
+        }
+    },
+
+    async saveConfig() {
+        try {
+            this.config.gallery = this.config.gallery || {};
+            this.config.gallery.directories = this.directories;
+
+            const resp = await fetch('/api/config', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(this.config)
+            });
+            const result = await resp.json();
+            if (result.success) {
+                this.configDirty = false;
+                this.folderSnapshot = JSON.stringify(this.directories);
+                this.showToast('設定已儲存');
+            } else {
+                this.showToast('儲存失敗: ' + (result.error || '未知錯誤'));
+            }
+        } catch (e) {
+            console.error('儲存失敗:', e);
+            this.showToast('儲存失敗: ' + e.message);
+        }
+    },
+
+    // ===== Stats Methods =====
+    async loadStats() {
+        try {
+            const resp = await fetch('/api/gallery/stats');
+            const result = await resp.json();
+            if (result.success && result.data) {
+                const stats = result.data;
+                if (stats.total > 0) {
+                    this.statsVisible = true;
+                    this.statTotal = stats.total;
+
+                    if (stats.last_run) {
+                        const lastRun = new Date(stats.last_run);
+                        const timeStr = lastRun.toLocaleString('zh-TW', {
+                            month: 'numeric',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        let runInfo = `上次執行: ${timeStr}`;
+                        if (stats.last_added !== null && stats.last_added !== undefined) {
+                            runInfo += ` (新增 ${stats.last_added} 部)`;
+                        }
+                        this.statLastRun = runInfo;
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('載入統計失敗:', e);
+        }
+    },
+
+    // ===== Folder Management =====
+    async selectFolder() {
+        console.log('[AVList] selectFolder called');
+
+        if (typeof window.pywebview === 'undefined' || !window.pywebview.api) {
+            console.log('[AVList] PyWebView not available');
+            this.toggleManualInput();
+            alert('此功能需要在桌面應用程式中使用');
+            return;
+        }
+
+        try {
+            console.log('[AVList] Calling select_folder...');
+            const result = await window.pywebview.api.select_folder();
+            console.log('[AVList] select_folder result:', result);
+
+            if (result && result.folder) {
+                this.addFolderPath(result.folder);
+            } else if (Array.isArray(result) && result.length > 0) {
+                const firstFile = result[0];
+                const lastSep = Math.max(firstFile.lastIndexOf('\\'), firstFile.lastIndexOf('/'));
+                const folderPath = lastSep > 0 ? firstFile.substring(0, lastSep) : null;
+                if (folderPath) {
+                    this.addFolderPath(folderPath);
+                }
+            } else {
+                console.log('[AVList] No folder selected');
+            }
+        } catch (e) {
+            console.error('[AVList] 選取資料夾失敗:', e);
+        }
+    },
+
+    addFolderPath(folderPath) {
+        console.log('[AVList] addFolderPath called with:', folderPath);
+        if (!this.directories.includes(folderPath)) {
+            this.directories.push(folderPath);
+            this.configDirty = true;
+            console.log('[AVList] Folder added successfully');
+        } else {
+            console.log('[AVList] Folder already in list');
+            alert('此資料夾已在列表中');
+        }
+    },
+
+    toggleManualInput() {
+        this.manualInputVisible = !this.manualInputVisible;
+        if (this.manualInputVisible) {
+            this.$nextTick(() => {
+                document.getElementById('manualPath').focus();
+            });
+        }
+    },
+
+    addManualPath() {
+        const path = this.manualPath.trim();
+        if (!path) return;
+
+        if (this.directories.includes(path)) {
+            alert('此資料夾已在列表中');
+            return;
+        }
+
+        this.directories.push(path);
+        this.configDirty = true;
+        this.manualPath = '';
+    },
+
+    removeDirectory(idx) {
+        this.directories.splice(idx, 1);
+        this.configDirty = true;
+    },
+
+    // ===== Drag-drop Methods =====
+    handleDragEnter(e) {
+        e.preventDefault();
+        this.dragCounter++;
+        console.log('[AVList] dragenter, counter:', this.dragCounter);
+        if (this.dragCounter === 1) {
+            this.showDragOverlay = true;
+        }
+    },
+
+    handleDragLeave(e) {
+        e.preventDefault();
+        this.dragCounter--;
+        console.log('[AVList] dragleave, counter:', this.dragCounter);
+        if (this.dragCounter === 0) {
+            this.showDragOverlay = false;
+        }
+    },
+
+    handleDrop(e) {
+        e.preventDefault();
+        this.dragCounter = 0;
+        this.showDragOverlay = false;
+        console.log('[AVList] drop event fired');
+    },
+
+    // ===== Dirty Check Modal Actions =====
+    dirtyCheckCancel() {
+        document.getElementById('scannerDirtyCheckModal').close();
+        this.pendingNavigationUrl = '';
+    },
+
+    async dirtyCheckDiscard() {
+        await this.loadConfig();
+        document.getElementById('scannerDirtyCheckModal').close();
+        if (this.pendingNavigationUrl) {
+            window.location.href = this.pendingNavigationUrl;
+        }
+    },
+
+    async dirtyCheckSave() {
+        await this.saveConfig();
+        document.getElementById('scannerDirtyCheckModal').close();
+        if (this.pendingNavigationUrl) {
+            window.location.href = this.pendingNavigationUrl;
+        }
+    },
+
+    // ===== Utility Methods =====
+    showToast(msg) {
+        const toast = document.getElementById('toastMsg');
+        const text  = document.getElementById('toastText');
+        text.textContent = msg;
+
+        toast.classList.remove('toast-hiding');
+        toast.classList.add('toast-active');
+
+        clearTimeout(this._toastTimer);
+        this._toastTimer = setTimeout(() => {
+            toast.classList.add('toast-hiding');
+            toast.addEventListener('transitionend', function onEnd() {
+                toast.removeEventListener('transitionend', onEnd);
+                toast.classList.remove('toast-active', 'toast-hiding');
+            }, { once: true });
+        }, 2500);
+    },
+
+  };
+}
+
+// PyWebView 拖曳處理
+window.handleFolderDrop = function (folderPaths) {
+    console.log('[AVList] handleFolderDrop called with:', folderPaths);
+
+    if (!folderPaths || folderPaths.length === 0) {
+        console.log('[AVList] handleFolderDrop: empty or null folderPaths');
+        return;
+    }
+
+    if (typeof window.addScannerFolder !== 'function') {
+        console.error('[AVList] Alpine not ready, addScannerFolder not available');
+        return;
+    }
+
+    for (const folderPath of folderPaths) {
+        console.log('[AVList] Processing folder:', folderPath);
+        window.addScannerFolder(folderPath);
+    }
+};
+</script>
 {% endblock %}

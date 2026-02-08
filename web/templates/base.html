@@ -319,6 +319,8 @@
                        @click="
                            if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
                                $event.preventDefault();
+                           } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
+                               $event.preventDefault();
                            }
                        ">
                         <i class="bi bi-search"></i> 搜尋
@@ -328,6 +330,8 @@
                     <a class="nav-link {% if page == 'scanner' %}active{% endif %}" href="/scanner"
                        @click="
                            if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                               $event.preventDefault();
+                           } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
                                $event.preventDefault();
                            }
                        ">
@@ -339,6 +343,8 @@
                        @click="
                            if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
                                $event.preventDefault();
+                           } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
+                               $event.preventDefault();
                            }
                        ">
                         <i class="bi bi-collection-play"></i> 瀏覽
@@ -349,6 +355,8 @@
                        @click="
                            if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
                                $event.preventDefault();
+                           } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
+                               $event.preventDefault();
                            }
                        ">
                         <i class="bi bi-question-circle"></i> 說明
@@ -358,6 +366,8 @@
                     <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings"
                        @click="
                            if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                               $event.preventDefault();
+                           } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
                                $event.preventDefault();
                            }
                        ">
@@ -386,6 +396,8 @@
                    @click="
                        if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
                            $event.preventDefault();
+                       } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
+                           $event.preventDefault();
                        }
                    ">
                     <i class="bi bi-search"></i>
@@ -396,6 +408,8 @@
                 <a class="nav-link {% if page == 'scanner' %}active{% endif %}" href="/scanner" title="列表生成"
                    @click="
                        if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                           $event.preventDefault();
+                       } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
                            $event.preventDefault();
                        }
                    ">
@@ -408,6 +422,8 @@
                    @click="
                        if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
                            $event.preventDefault();
+                       } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
+                           $event.preventDefault();
                        }
                    ">
                     <i class="bi bi-collection-play"></i>
@@ -419,6 +435,8 @@
                    @click="
                        if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
                            $event.preventDefault();
+                       } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
+                           $event.preventDefault();
                        }
                    ">
                     <i class="bi bi-question-circle"></i>
@@ -429,6 +447,8 @@
                 <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings" title="設定"
                    @click="
                        if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                           $event.preventDefault();
+                       } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
                            $event.preventDefault();
                        }
                    ">
