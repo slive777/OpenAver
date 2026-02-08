@@ -59,6 +59,11 @@
                                 title="清除搜尋">
                             <i class="bi bi-x-lg"></i>
                         </button>
+                        <button class="btn-icon active"
+                                @click="onSearchChange()"
+                                title="搜尋">
+                            <i class="bi bi-arrow-right"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -66,41 +71,64 @@
             <div class="toolbar-section toolbar-controls">
                 <!-- 排序 -->
                 <div class="control-group">
-                    <select class="select select-sm select-bordered" x-model="sort" @change="onSortChange()">
-                        <option value="date">日期</option>
-                        <option value="num">番號</option>
-                        <option value="title">標題</option>
-                        <option value="actor">女優</option>
-                        <option value="maker">片商</option>
-                        <option value="size">大小</option>
-                        <option value="mdate">修改時間</option>
-                        <option value="random">隨機</option>
-                    </select>
+                    <div class="toolbar-dropdown-wrap" @click.outside="sortOpen = false">
+                        <button class="btn-icon"
+                                @click="sortOpen = !sortOpen; modeOpen = false; perPageOpen = false"
+                                :title="'排序: ' + sort"
+                                :class="{ 'active': sortOpen }">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+                        <div class="toolbar-dropdown" x-show="sortOpen" x-transition.opacity.duration.150ms @click.stop>
+                            <a href="#" class="dropdown-item" :class="{ 'active': sort === 'date' }"
+                               @click.prevent="sort = 'date'; onSortChange(); sortOpen = false">
+                                <i class="bi bi-calendar"></i> 日期</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': sort === 'num' }"
+                               @click.prevent="sort = 'num'; onSortChange(); sortOpen = false">
+                                <i class="bi bi-hash"></i> 番號</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': sort === 'title' }"
+                               @click.prevent="sort = 'title'; onSortChange(); sortOpen = false">
+                                <i class="bi bi-type"></i> 標題</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': sort === 'actor' }"
+                               @click.prevent="sort = 'actor'; onSortChange(); sortOpen = false">
+                                <i class="bi bi-person"></i> 女優</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': sort === 'maker' }"
+                               @click.prevent="sort = 'maker'; onSortChange(); sortOpen = false">
+                                <i class="bi bi-building"></i> 片商</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': sort === 'size' }"
+                               @click.prevent="sort = 'size'; onSortChange(); sortOpen = false">
+                                <i class="bi bi-file-earmark"></i> 大小</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': sort === 'mdate' }"
+                               @click.prevent="sort = 'mdate'; onSortChange(); sortOpen = false">
+                                <i class="bi bi-clock"></i> 修改時間</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': sort === 'random' }"
+                               @click.prevent="sort = 'random'; onSortChange(); sortOpen = false">
+                                <i class="bi bi-shuffle"></i> 隨機</a>
+                        </div>
+                    </div>
                     <button class="btn-icon" @click="toggleOrder()" title="切換排序方向">
                         <i class="bi" :class="order === 'asc' ? 'bi-sort-up' : 'bi-sort-down'"></i>
                     </button>
                 </div>
 
-                <!-- 顯示模式 (M3c 全部啟用) -->
-                <div class="control-group mode-switcher">
+                <!-- 顯示模式 -->
+                <div class="toolbar-dropdown-wrap" @click.outside="modeOpen = false">
                     <button class="btn-icon"
-                            :class="{ 'active': mode === 'grid' }"
-                            @click="switchMode('grid')"
-                            title="圖片模式 (A)">
-                        <i class="bi bi-grid-3x3"></i>
+                            @click="modeOpen = !modeOpen; sortOpen = false; perPageOpen = false"
+                            :title="'模式: ' + (mode === 'grid' ? '圖片' : mode === 'table' ? '詳細' : '文字')"
+                            :class="{ 'active': modeOpen }">
+                        <i class="bi" :class="mode === 'grid' ? 'bi-grid-3x3' : mode === 'table' ? 'bi-table' : 'bi-list-ul'"></i>
                     </button>
-                    <button class="btn-icon"
-                            :class="{ 'active': mode === 'table' }"
-                            @click="switchMode('table')"
-                            title="表格模式">
-                        <i class="bi bi-table"></i>
-                    </button>
-                    <button class="btn-icon"
-                            :class="{ 'active': mode === 'list' }"
-                            @click="switchMode('list')"
-                            title="列表模式">
-                        <i class="bi bi-list-ul"></i>
-                    </button>
+                    <div class="toolbar-dropdown" x-show="modeOpen" x-transition.opacity.duration.150ms @click.stop>
+                        <a href="#" class="dropdown-item" :class="{ 'active': mode === 'grid' }"
+                           @click.prevent="switchMode('grid'); modeOpen = false">
+                            <i class="bi bi-grid-3x3"></i> 圖片</a>
+                        <a href="#" class="dropdown-item" :class="{ 'active': mode === 'table' }"
+                           @click.prevent="switchMode('table'); modeOpen = false">
+                            <i class="bi bi-table"></i> 詳細</a>
+                        <a href="#" class="dropdown-item" :class="{ 'active': mode === 'list' }"
+                           @click.prevent="switchMode('list'); modeOpen = false">
+                            <i class="bi bi-list-ul"></i> 文字</a>
+                    </div>
                 </div>
 
                 <!-- 資訊顯示開關 (M3i - 僅 Grid 模式) -->
@@ -113,15 +141,27 @@
                 </button>
 
                 <!-- 每頁數量 -->
-                <div class="control-group">
-                    <select class="select select-sm select-bordered" x-model="perPage" @change="onPerPageChange()">
-                        <option value="30">30 部</option>
-                        <option value="45">45 部</option>
-                        <option value="60">60 部</option>
-                        <option value="90">90 部</option>
-                        <option value="120">120 部</option>
-                        <option value="0">全部</option>
-                    </select>
+                <div class="toolbar-dropdown-wrap" @click.outside="perPageOpen = false">
+                    <button class="btn-icon"
+                            @click="perPageOpen = !perPageOpen; sortOpen = false; modeOpen = false"
+                            :title="'每頁: ' + (perPage == 0 ? '全部' : perPage + ' 部')"
+                            :class="{ 'active': perPageOpen }">
+                        <i class="bi bi-list-nested"></i>
+                    </button>
+                    <div class="toolbar-dropdown" x-show="perPageOpen" x-transition.opacity.duration.150ms @click.stop>
+                        <a href="#" class="dropdown-item" :class="{ 'active': perPage == 30 }"
+                           @click.prevent="perPage = 30; onPerPageChange(); perPageOpen = false">30 部</a>
+                        <a href="#" class="dropdown-item" :class="{ 'active': perPage == 45 }"
+                           @click.prevent="perPage = 45; onPerPageChange(); perPageOpen = false">45 部</a>
+                        <a href="#" class="dropdown-item" :class="{ 'active': perPage == 60 }"
+                           @click.prevent="perPage = 60; onPerPageChange(); perPageOpen = false">60 部</a>
+                        <a href="#" class="dropdown-item" :class="{ 'active': perPage == 90 }"
+                           @click.prevent="perPage = 90; onPerPageChange(); perPageOpen = false">90 部</a>
+                        <a href="#" class="dropdown-item" :class="{ 'active': perPage == 120 }"
+                           @click.prevent="perPage = 120; onPerPageChange(); perPageOpen = false">120 部</a>
+                        <a href="#" class="dropdown-item" :class="{ 'active': perPage == 0 }"
+                           @click.prevent="perPage = 0; onPerPageChange(); perPageOpen = false">全部</a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -184,10 +224,13 @@
                         <div class="info-title" x-text="video.title || '未知標題'"></div>
                         <div class="info-row" x-show="video.actresses">
                             <b>演員：</b>
-                            <template x-for="actress in (video.actresses || '').split(',').filter(a => a.trim())" :key="actress">
-                                <a class="info-link" href="#"
-                                   @click.prevent.stop="searchFromMetadata(actress.trim())"
-                                   x-text="actress.trim()"></a>
+                            <template x-for="(actress, i) in (video.actresses || '').split(',').filter(a => a.trim())" :key="actress">
+                                <span>
+                                    <span x-show="i > 0">, </span>
+                                    <a class="info-link" href="#"
+                                       @click.prevent.stop="searchFromMetadata(actress.trim())"
+                                       x-text="actress.trim()"></a>
+                                </span>
                             </template>
                         </div>
                         <div class="info-row info-meta">
@@ -220,49 +263,13 @@
                     <thead>
                         <tr>
                             <th class="table-col-index">#</th>
-                            <th class="table-col-number sortable"
-                                :class="{ 'sort-active': sort === 'num' }"
-                                @click="sortBy('num')">
-                                番號
-                                <i class="bi sort-icon"
-                                   :class="sort === 'num' ? (order === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up'"></i>
-                            </th>
-                            <th class="table-col-title sortable"
-                                :class="{ 'sort-active': sort === 'title' }"
-                                @click="sortBy('title')">
-                                標題
-                                <i class="bi sort-icon"
-                                   :class="sort === 'title' ? (order === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up'"></i>
-                            </th>
-                            <th class="table-col-actor sortable"
-                                :class="{ 'sort-active': sort === 'actor' }"
-                                @click="sortBy('actor')">
-                                女優
-                                <i class="bi sort-icon"
-                                   :class="sort === 'actor' ? (order === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up'"></i>
-                            </th>
-                            <th class="table-col-maker sortable"
-                                :class="{ 'sort-active': sort === 'maker' }"
-                                @click="sortBy('maker')">
-                                片商
-                                <i class="bi sort-icon"
-                                   :class="sort === 'maker' ? (order === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up'"></i>
-                            </th>
-                            <th class="table-col-date sortable"
-                                :class="{ 'sort-active': sort === 'date' }"
-                                @click="sortBy('date')">
-                                日期
-                                <i class="bi sort-icon"
-                                   :class="sort === 'date' ? (order === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up'"></i>
-                            </th>
+                            <th class="table-col-number">番號</th>
+                            <th class="table-col-title">標題</th>
+                            <th class="table-col-actor">女優</th>
+                            <th class="table-col-maker">片商</th>
+                            <th class="table-col-date">日期</th>
                             <th class="table-col-tags">標籤</th>
-                            <th class="table-col-size sortable"
-                                :class="{ 'sort-active': sort === 'size' }"
-                                @click="sortBy('size')">
-                                大小
-                                <i class="bi sort-icon"
-                                   :class="sort === 'size' ? (order === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up'"></i>
-                            </th>
+                            <th class="table-col-size">大小</th>
                         </tr>
                     </thead>
                     <tbody>

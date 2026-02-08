@@ -29,6 +29,11 @@ function showcaseState() {
         // Card Info 展開狀態 (M3i)
         infoVisible: false,
 
+        // Toolbar Dropdown 狀態
+        sortOpen: false,
+        modeOpen: false,
+        perPageOpen: false,
+
         search: '',
         sort: 'date',         // M2a 先用硬編碼，M4 才從 config/localStorage 恢復
         order: 'desc',
@@ -172,15 +177,6 @@ function showcaseState() {
             this.order = this.order === 'asc' ? 'desc' : 'asc';
             this.applyFilterAndSort();
             this.saveState();  // M2c: 持久化狀態
-        },
-
-        sortBy(field) {
-            if (this.sort === field) {
-                this.toggleOrder();  // 同欄位 → 切換方向
-            } else {
-                this.sort = field;
-                this.onSortChange(); // 不同欄位 → 切換排序欄位
-            }
         },
 
         onPerPageChange() {
@@ -389,12 +385,17 @@ function showcaseState() {
             return perPage === 0 ? paginatedIndex : (this.page - 1) * perPage + paginatedIndex;
         },
 
-        // 複製路徑到剪貼簿
+        // 複製資料夾路徑到剪貼簿（file URI → Windows 路徑）
         async copyPath(path) {
             if (!path) return;
             try {
-                await navigator.clipboard.writeText(path);
-                this.showToast('已複製: ' + path);
+                // 取資料夾路徑（去掉檔名）
+                const lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+                const folder = lastSlash >= 0 ? path.substring(0, lastSlash) : path;
+                // file:/// → Windows 反斜線路徑
+                const winPath = folder.replace(/^file:\/\/\/?/, '').replace(/\//g, '\\');
+                await navigator.clipboard.writeText(winPath);
+                this.showToast('已複製: ' + winPath);
             } catch (err) {
                 this.showToast('複製失敗', 'error');
             }
@@ -439,8 +440,9 @@ function showcaseState() {
                 return;
             }
 
-            // M3i: S 鍵切換 Card Info（僅 Grid 模式）
-            if (e.key.toUpperCase() === 'S' && this.mode === 'grid') {
+            // M3i: S 鍵切換 Card Info（僅 Grid 模式，排除 modifier）
+            if (e.key.toUpperCase() === 'S' && this.mode === 'grid'
+                && !e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
                 this.toggleInfo();
             }
         }
