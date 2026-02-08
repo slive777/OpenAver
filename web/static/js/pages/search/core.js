@@ -33,9 +33,7 @@ let batchState = {
 
 // 翻譯功能
 let appConfig = null;
-const translationCache = new Map();
 let isTranslating = false;
-let pendingTranslation = null;
 
 // 🆕 追蹤正在批次翻譯的片索引
 const batchTranslatingIndices = new Set();
@@ -113,7 +111,7 @@ async function loadAppConfig() {
 
 /**
  * 判斷文字是否包含日文（平假名、片假名）
- * [LOCAL FALLBACK] 後端已有 has_japanese，此為備用
+ * [FRONTEND UTIL] 翻譯功能的即時判斷，必須保留在前端
  */
 function hasJapanese(text) {
     return /[\u3040-\u309F\u30A0-\u30FF]/.test(text);
@@ -155,8 +153,8 @@ async function translateWithAI() {
     isTranslating = true;
 
     // 隱藏按鈕，顯示 spinner
-    btn.classList.add('d-none');
-    spinner.classList.remove('d-none');
+    btn.classList.add('hidden');
+    spinner.classList.remove('hidden');
 
     try {
         // === Gemini 模式：只翻譯當前片 ===
@@ -272,7 +270,7 @@ async function translateWithAI() {
         alert('翻譯失敗：' + error.message);
     } finally {
         isTranslating = false;
-        spinner.classList.add('d-none');
+        spinner.classList.add('hidden');
 
         let currentResult = null;
         if (listMode === 'file' && fileList[currentFileIndex]) {
@@ -285,7 +283,7 @@ async function translateWithAI() {
         if (currentResult && currentResult.title &&
             hasJapanese(currentResult.title) &&
             !currentResult.translated_title) {
-            btn.classList.remove('d-none');
+            btn.classList.remove('hidden');
         }
     }
 }
@@ -366,7 +364,7 @@ function clearAll() {
     // 先關閉 Gallery（如果有顯示）- 不自動顯示詳細資料卡
     if (window.SearchUI.hideGallery) {
         const galleryView = dom.galleryView;
-        if (galleryView && !galleryView.classList.contains('d-none')) {
+        if (galleryView && !galleryView.classList.contains('hidden')) {
             window.SearchUI.hideGallery(false);
         }
     }
@@ -387,7 +385,7 @@ function clearAll() {
     if (dom.btnNext) dom.btnNext.innerHTML = '<i class="bi bi-chevron-right"></i>';
 
     window.SearchUI.showState('empty');
-    if (dom.fileListSection) dom.fileListSection.classList.add('d-none');
+    if (dom.fileListSection) dom.fileListSection.classList.add('hidden');
     updateClearButton();
     clearState();
 }
@@ -395,7 +393,7 @@ function clearAll() {
 function updateClearButton() {
     const hasContent = searchResults.length > 0 || fileList.length > 0;
     if (dom.btnClear) {
-        dom.btnClear.classList.toggle('d-none', !hasContent);
+        dom.btnClear.classList.toggle('hidden', !hasContent);
     }
 }
 
@@ -479,7 +477,7 @@ function doSearch(query) {
     // 先關閉現有的 Gallery（如果有顯示）
     if (window.SearchUI.hideGallery) {
         const galleryView = dom.galleryView;
-        if (galleryView && !galleryView.classList.contains('d-none')) {
+        if (galleryView && !galleryView.classList.contains('hidden')) {
             window.SearchUI.hideGallery(false);
         }
     }
@@ -493,7 +491,7 @@ function doSearch(query) {
     fileList = [];
     currentFileIndex = 0;
     listMode = null;
-    if (dom.fileListSection) dom.fileListSection.classList.add('d-none');
+    if (dom.fileListSection) dom.fileListSection.classList.add('hidden');
 
     // 重設分頁狀態
     currentQuery = query;
@@ -564,12 +562,14 @@ function doSearch(query) {
 
 /**
  * 傳統 API 回退
+ * [FALLBACK] 當 SSE (/api/search/stream) 失敗時降級為 REST API
+ * 確保在不支援 SSE 的環境下仍可正常搜尋
  */
 async function fallbackSearch(query) {
     // 先關閉現有的 Gallery（如果有顯示）
     if (window.SearchUI.hideGallery) {
         const galleryView = dom.galleryView;
-        if (galleryView && !galleryView.classList.contains('d-none')) {
+        if (galleryView && !galleryView.classList.contains('hidden')) {
             window.SearchUI.hideGallery(false);
         }
     }
@@ -713,7 +713,6 @@ window.SearchCore = {
             get appConfig() { return appConfig; },
             get isTranslating() { return isTranslating; },
             set isTranslating(v) { isTranslating = v; },
-            get translationCache() { return translationCache; },
             get currentMode() { return currentMode; },
             set currentMode(v) { currentMode = v; },
             get batchState() { return batchState; },

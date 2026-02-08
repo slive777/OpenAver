@@ -34,14 +34,14 @@ from web.routers import search as search_router
 from web.routers import config as config_router
 from web.routers import scraper as scraper_router
 from web.routers import translate as translate_router
-from web.routers import gallery as gallery_router
+from web.routers import scanner as scanner_router
 from web.routers import gemini as gemini_router
 from web.routers import filename as filename_router
 app.include_router(search_router.router)
 app.include_router(config_router.router)
 app.include_router(scraper_router.router)
 app.include_router(translate_router.router)
-app.include_router(gallery_router.router)
+app.include_router(scanner_router.router)
 app.include_router(gemini_router.router)
 app.include_router(filename_router.router)
 
@@ -69,8 +69,12 @@ async def index(request: Request):
     config = load_config()
     default_page = config.get('general', {}).get('default_page', 'search')
 
+    # 向後兼容：舊配置 "gallery" 映射到新路由 "/scanner"
+    if default_page == 'gallery':
+        default_page = 'scanner'
+
     # 驗證頁面名稱
-    valid_pages = ['search', 'gallery', 'showcase']
+    valid_pages = ['search', 'scanner', 'showcase']
     if default_page not in valid_pages:
         default_page = 'search'
 
@@ -101,12 +105,18 @@ async def updater_page(request: Request):
     return templates.TemplateResponse("updater.html", context)
 
 
-@app.get("/gallery")
-async def gallery_page(request: Request):
-    """Gallery 頁面"""
+@app.get("/scanner")
+async def scanner_page(request: Request):
+    """Scanner 頁面"""
     context = get_common_context(request)
-    context["page"] = "gallery"
-    return templates.TemplateResponse("gallery.html", context)
+    context["page"] = "scanner"
+    return templates.TemplateResponse("scanner.html", context)
+
+
+@app.get("/gallery")
+async def gallery_redirect():
+    """Legacy redirect: /gallery → /scanner"""
+    return RedirectResponse(url="/scanner", status_code=302)
 
 
 @app.get("/showcase")

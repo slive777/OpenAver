@@ -46,15 +46,15 @@
             left: 0;
             width: var(--sidebar-width);
             height: 100vh;
-            background-color: oklch(var(--b2));
+            background-color: var(--surface-1);
             z-index: 1000;
-            transition: width 0.2s ease, background-color 0.3s ease;
+            transition: width var(--fluent-duration-normal) var(--fluent-ease-standard), background-color 0.3s ease;
             display: flex;
             flex-direction: column;
         }
 
         [data-theme="dim"] .sidebar {
-            background-color: oklch(var(--b3));
+            background-color: var(--surface-2);
         }
 
         .sidebar.collapsed {
@@ -66,31 +66,31 @@
             display: flex;
             align-items: center;
             padding: 0.75rem;
-            border-bottom: 1px solid oklch(var(--bc) / 0.1);
+            border-bottom: 1px solid var(--stroke-subtle);
         }
 
         /* 使用 Fluent Design 毛玻璃效果的 Sidebar Header（可選） */
         .sidebar-header.fluent-acrylic {
-            border-bottom: 1px solid oklch(var(--bc) / 0.15);
+            border-bottom: 1px solid var(--stroke-default);
         }
 
         .sidebar-toggle {
             background: none;
             border: none;
-            color: oklch(var(--bc) / 0.7);
+            color: var(--text-secondary);
             font-size: 1.25rem;
             padding: 0.25rem 0.5rem;
             cursor: pointer;
             flex-shrink: 0;
-            transition: color 0.2s ease;
+            transition: color var(--fluent-duration-normal) var(--fluent-ease-standard);
         }
 
         .sidebar-toggle:hover {
-            color: oklch(var(--bc));
+            color: var(--text-primary);
         }
 
         .sidebar-brand {
-            color: oklch(var(--bc));
+            color: var(--text-primary);
             font-size: 1.1rem;
             font-weight: 600;
             margin-left: 0.5rem;
@@ -106,24 +106,24 @@
 
         /* 導航連結 */
         .sidebar .nav-link {
-            color: oklch(var(--bc) / 0.7);
+            color: var(--text-secondary);
             padding: 0.75rem;
-            border-radius: 0.25rem;
+            border-radius: var(--fluent-radius-md);
             margin: 0.25rem 0.5rem;
             display: flex;
             align-items: center;
             white-space: nowrap;
-            transition: color 0.2s ease, background-color 0.2s ease;
+            transition: color var(--fluent-duration-normal) var(--fluent-ease-standard), background-color var(--fluent-duration-normal) var(--fluent-ease-standard);
         }
 
         .sidebar .nav-link:hover {
-            color: oklch(var(--bc));
-            background-color: oklch(var(--b1) / 0.5);
+            color: var(--text-primary);
+            background-color: var(--bg-overlay);
         }
 
         .sidebar .nav-link.active {
-            color: oklch(var(--pc));
-            background-color: oklch(var(--p));
+            color: var(--color-primary-content);
+            background-color: var(--accent);
         }
 
         .sidebar .nav-link i {
@@ -153,7 +153,7 @@
             margin-left: var(--sidebar-width);
             padding: 1.5rem;
             min-height: 100vh;
-            background-color: oklch(var(--b1));
+            background-color: var(--surface-0);
             transition: margin-left 0.2s ease, background-color 0.3s ease;
         }
 
@@ -208,30 +208,30 @@
 
         /* Offcanvas 選單連結 */
         .offcanvas {
-            background-color: oklch(var(--b2)) !important;
+            background-color: var(--surface-1) !important;
             transition: background-color 0.3s ease;
         }
 
         [data-theme="dim"] .offcanvas {
-            background-color: oklch(var(--b3)) !important;
+            background-color: var(--surface-2) !important;
         }
 
         .offcanvas-nav .nav-link {
-            color: oklch(var(--bc) / 0.7);
+            color: var(--text-secondary);
             padding: 0.75rem 1rem;
-            border-radius: 0.25rem;
+            border-radius: var(--fluent-radius-md);
             margin: 0.25rem 0.5rem;
-            transition: color 0.2s ease, background-color 0.2s ease;
+            transition: color var(--fluent-duration-normal) var(--fluent-ease-standard), background-color var(--fluent-duration-normal) var(--fluent-ease-standard);
         }
 
         .offcanvas-nav .nav-link:hover {
-            color: oklch(var(--bc));
-            background-color: oklch(var(--b1) / 0.5);
+            color: var(--text-primary);
+            background-color: var(--bg-overlay);
         }
 
         .offcanvas-nav .nav-link.active {
-            color: oklch(var(--pc));
-            background-color: oklch(var(--p));
+            color: var(--color-primary-content);
+            background-color: var(--accent);
         }
 
         .offcanvas-nav .nav-link i {
@@ -246,49 +246,68 @@
 <body x-data="{
     sidebarCollapsed: $persist({{ config.general.sidebar_collapsed|default(false)|tojson }}).as('sidebar_collapsed'),
     mobileMenuOpen: false
-}" :class="{ 'sidebar-collapsed': sidebarCollapsed }" class="{% if page == 'design-system' %}ds-page{% endif %}">
+}" :class="{ 'sidebar-collapsed': sidebarCollapsed }" class="{% if page in ['design-system', 'showcase'] %}ds-page{% endif %}">
     <!-- 頂部導航列（僅小螢幕顯示）-->
-    <nav class="navbar navbar-dark d-lg-none fixed-top top-navbar fluent-acrylic"
-         style="border-bottom: 1px solid var(--border-light);">
-        <div class="container-fluid">
-            <button class="btn btn-dark" type="button" @click="mobileMenuOpen = true">
-                <i class="bi bi-list fs-4"></i>
+    <nav class="navbar bg-base-200 lg:hidden fixed top-0 left-0 right-0 z-50 h-14 top-navbar fluent-acrylic border-b border-base-300" x-show="!mobileMenuOpen">
+        <div class="navbar-start">
+            <button class="btn btn-ghost btn-square" type="button" @click="mobileMenuOpen = true">
+                <i class="bi bi-list text-2xl"></i>
             </button>
-            <span class="navbar-brand mb-0 h5">
+        </div>
+        <div class="navbar-center">
+            <span class="text-lg font-semibold">
                 <i class="bi bi-film"></i> OpenAver
             </span>
-            <span style="width: 40px;"></span>
+        </div>
+        <div class="navbar-end">
+            <span class="w-10"></span>
         </div>
     </nav>
 
+    <!-- Offcanvas Backdrop（小螢幕）-->
+    <div x-show="mobileMenuOpen"
+         x-cloak
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         @click="mobileMenuOpen = false"
+         class="fixed inset-0 bg-black/50 z-40 lg:hidden">
+    </div>
+
     <!-- Offcanvas 側邊選單（小螢幕）-->
     <div x-show="mobileMenuOpen"
+         x-cloak
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0 -translate-x-full"
          x-transition:enter-end="opacity-100 translate-x-0"
          x-transition:leave="transition ease-in duration-200"
          x-transition:leave-start="opacity-100 translate-x-0"
          x-transition:leave-end="opacity-0 -translate-x-full"
-         @click.outside="mobileMenuOpen = false"
-         class="offcanvas offcanvas-start bg-dark d-lg-none"
-         tabindex="-1"
-         style="display: none;">
-        <div class="offcanvas-header border-bottom border-secondary">
-            <h5 class="offcanvas-title text-white">
+         class="fixed inset-y-0 left-0 w-64 bg-base-200 shadow-xl z-50 lg:hidden"
+         tabindex="-1">
+        <div class="flex items-center justify-between p-4 border-b border-base-300">
+            <h5 class="text-lg font-semibold">
                 <i class="bi bi-film"></i> OpenAver
             </h5>
-            <button type="button" class="btn-close btn-close-white" @click="mobileMenuOpen = false"
-                aria-label="Close"></button>
+            <button type="button"
+                    class="btn btn-sm btn-circle btn-ghost"
+                    @click="mobileMenuOpen = false"
+                    aria-label="Close">
+                <i class="bi bi-x text-xl"></i>
+            </button>
         </div>
-        <div class="offcanvas-body p-0">
-            <ul class="nav flex-column offcanvas-nav">
+        <div class="p-0">
+            <ul class="flex flex-col offcanvas-nav">
                 <li class="nav-item">
                     <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search">
                         <i class="bi bi-search"></i> 搜尋
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if page == 'gallery' %}active{% endif %}" href="/gallery">
+                    <a class="nav-link {% if page == 'scanner' %}active{% endif %}" href="/scanner">
                         <i class="bi bi-list-ul"></i> 列表生成
                     </a>
                 </li>
@@ -312,7 +331,7 @@
     </div>
 
     <!-- 側邊欄（Desktop）-->
-    <nav class="sidebar d-none d-lg-flex"
+    <nav class="sidebar hidden lg:flex"
          :class="{ 'collapsed': sidebarCollapsed }"
          x-ref="sidebar">
         <div class="sidebar-header">
@@ -321,7 +340,7 @@
             </button>
             <span class="sidebar-brand"><img src="/static/favicon.svg" alt="Logo" style="width: 20px; height: 20px; margin-right: 4px;"> OpenAver</span>
         </div>
-        <ul class="nav flex-column flex-grow-1">
+        <ul class="flex flex-col flex-grow">
             <li class="nav-item">
                 <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search" title="搜尋">
                     <i class="bi bi-search"></i>
@@ -329,7 +348,7 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if page == 'gallery' %}active{% endif %}" href="/gallery" title="列表生成">
+                <a class="nav-link {% if page == 'scanner' %}active{% endif %}" href="/scanner" title="列表生成">
                     <i class="bi bi-list-ul"></i>
                     <span class="nav-text">列表生成</span>
                 </a>

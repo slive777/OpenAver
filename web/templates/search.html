@@ -15,9 +15,9 @@
     </div>
 </div>
 
-<div class="search-container">
+<div class="search-container ds-page">
     <!-- Gallery 視圖容器 -->
-    <div id="galleryView" class="d-none">
+    <div id="galleryView" class="hidden">
         <iframe id="galleryFrame" src="" sandbox="allow-same-origin allow-scripts"></iframe>
     </div>
 
@@ -28,10 +28,10 @@
                 <i class="bi bi-search search-icon-left"></i>
                 <input type="text" id="searchQuery" name="q" placeholder="搜尋番號、女優或拖入檔案..." autocomplete="off">
                 <div class="search-actions-right">
-                    <button type="button" id="btnBackToDetail" class="btn-icon d-none" title="返回詳細資料">
+                    <button type="button" id="btnBackToDetail" class="btn-icon hidden" title="返回詳細資料">
                         <i class="bi bi-arrow-left"></i>
                     </button>
-                    <button type="button" id="btnClear" class="btn-icon d-none" title="清空">
+                    <button type="button" id="btnClear" class="btn-icon hidden" title="清空">
                         <i class="bi bi-x-lg"></i>
                     </button>
                     <button type="submit" id="btnSubmit" class="btn-icon active" title="搜尋">
@@ -49,25 +49,25 @@
     <!-- 結果區域 -->
     <div class="result-area">
         <!-- 初始狀態 -->
-        <div id="emptyState" class="state-page w-100">
-            <i class="bi bi-film"></i>
-            <p class="mb-2">輸入番號搜尋，或加入影片檔案</p>
+        <div id="emptyState" class="state-page w-full">
+            <i class="bi bi-film state-page-icon"></i>
+            <p class="state-page-text">輸入番號搜尋，或加入影片檔案</p>
             <div class="empty-actions">
-                <button class="btn btn-outline-primary btn-sm" id="btnAddFiles">
+                <button class="btn btn-sm btn-outline btn-primary" id="btnAddFiles">
                     <i class="bi bi-file-earmark-plus"></i> 加入檔案
                 </button>
-                <button class="btn btn-outline-primary btn-sm" id="btnAddFolder">
+                <button class="btn btn-sm btn-outline btn-primary" id="btnAddFolder">
                     <i class="bi bi-folder-plus"></i> 加入資料夾
                 </button>
-                <button class="btn btn-outline-warning btn-sm" id="btnFavorite" title="載入我的最愛資料夾">
+                <button class="btn btn-sm btn-outline btn-warning" id="btnFavorite" title="載入我的最愛資料夾">
                     <i class="bi bi-star-fill"></i> 我的最愛
                 </button>
             </div>
-            <small class="mt-2 text-muted">也可直接拖入檔案或資料夾</small>
+            <small class="state-page-hint">也可直接拖入檔案或資料夾</small>
         </div>
 
         <!-- 載入中 - 進度指示器 -->
-        <div id="loadingState" class="search-progress w-100 d-none">
+        <div id="loadingState" class="search-progress w-full hidden">
             <div class="progress-container">
                 <!-- 搜尋標題 -->
                 <div class="progress-header">
@@ -88,57 +88,57 @@
         </div>
 
         <!-- 錯誤狀態 -->
-        <div id="errorState" class="state-page w-100 d-none">
-            <i class="bi bi-exclamation-triangle text-danger"></i>
-            <p class="text-danger mb-1" id="errorMessage">搜尋失敗</p>
-            <small>請檢查番號格式或稍後再試</small>
+        <div id="errorState" class="state-page error w-full hidden">
+            <i class="bi bi-exclamation-triangle state-page-icon"></i>
+            <p class="state-page-text error-text" id="errorMessage">搜尋失敗</p>
+            <small class="state-page-hint">請檢查番號格式或稍後再試</small>
             <!-- 多檔案模式導航 -->
-            <div class="error-nav d-none mt-3" id="errorNav">
-                <button class="btn btn-outline-secondary btn-sm" id="errorBtnPrev" title="上一個 (←)">
+            <div class="error-nav hidden" id="errorNav">
+                <button class="btn btn-sm btn-outline btn-neutral" id="errorBtnPrev" title="上一個 (←)">
                     <i class="bi bi-chevron-left"></i>
                 </button>
-                <span class="mx-2" id="errorNavIndicator">1/5</span>
-                <button class="btn btn-outline-secondary btn-sm" id="errorBtnNext" title="下一個 (→)">
+                <span class="error-nav-indicator" id="errorNavIndicator">1/5</span>
+                <button class="btn btn-sm btn-outline btn-neutral" id="errorBtnNext" title="下一個 (→)">
                     <i class="bi bi-chevron-right"></i>
                 </button>
             </div>
         </div>
 
         <!-- 結果卡片 -->
-        <div id="resultCard" class="d-none w-100">
+        <div id="resultCard" class="hidden w-full">
             <div class="result-area p-0">
                 <!-- 封面區 70% -->
                 <div class="cover-section">
                     <div class="cover-wrapper">
                         <img id="resultCover" src="" class="cover-img" alt="封面">
-                        <button class="nav-btn prev d-none" id="btnPrev" title="上一個 (←)">
+                        <button class="nav-btn prev hidden" id="btnPrev" title="上一個 (←)">
                             <i class="bi bi-chevron-left"></i>
                         </button>
-                        <button class="nav-btn next d-none" id="btnNext" title="下一個 (→)">
+                        <button class="nav-btn next hidden" id="btnNext" title="下一個 (→)">
                             <i class="bi bi-chevron-right"></i>
                         </button>
-                        <div class="nav-indicator d-none" id="navIndicator">
+                        <div class="nav-indicator hidden" id="navIndicator">
                             <span id="currentIndex">1</span> / <span id="totalCount">1</span>
                         </div>
                     </div>
 
                     <!-- 檔案/搜尋結果列表（緊貼在封面下方） -->
-                    <div class="file-list-section d-none" id="fileListSection">
+                    <div class="file-list-section hidden" id="fileListSection">
                         <div class="file-list-header">
                             <span class="file-count" id="fileCountText">0 個檔案</span>
                             <div class="join">
-                                <button class="btn btn-outline btn-primary btn-sm join-item" id="btnSearchAll" type="button"
+                                <button class="btn btn-sm btn-outline btn-primary join-item" id="btnSearchAll" type="button"
                                     title="搜尋所有未搜尋的檔案">
                                     <i class="bi bi-search"></i> 搜尋全部
                                 </button>
-                                <button class="btn btn-success btn-sm join-item" id="btnScrapeAll" type="button" title="產生所有已搜尋的檔案">
+                                <button class="btn btn-sm btn-success join-item" id="btnScrapeAll" type="button" title="產生所有已搜尋的檔案">
                                     <i class="bi bi-folder-plus"></i> 產生全部
                                 </button>
                             </div>
                         </div>
 
                         <!-- 批次進度條 -->
-                        <div class="batch-progress d-none" id="batchProgress">
+                        <div class="batch-progress hidden" id="batchProgress">
                             <div class="batch-progress-bar">
                                 <div class="batch-progress-fill" id="batchProgressBar"></div>
                             </div>
@@ -155,7 +155,7 @@
                 <div class="info-section">
                     <div class="info-header">
                         <h4 class="info-number" id="resultNumber">-</h4>
-                        <span id="localBadge" class="local-badge d-none" title="本地已有">📁</span>
+                        <span id="localBadge" class="local-badge hidden" title="本地已有">📁</span>
                         <button id="switchSourceBtn" class="btn btn-link p-0"
                             onclick="switchSource()" title="切換版本">
                             <i class="bi bi-arrow-repeat"></i>
@@ -181,24 +181,24 @@
                     </div>
                     <div class="info-footer">
                         <div class="info-label">標題</div>
-                        <div class="info-title d-flex align-items-start" id="titleContainer">
+                        <div class="info-title flex items-start" id="titleContainer">
                             <span id="resultTitle" style="flex:1;">-</span>
-                            <button id="editTitleBtn" class="btn btn-sm btn-link p-0 ms-1" onclick="startEditTitle()"
+                            <button id="editTitleBtn" class="btn btn-sm btn-link p-0 ml-1" onclick="startEditTitle()"
                                 title="編輯標題">
                                 <i class="bi bi-pencil text-muted"></i>
                             </button>
                             <!-- AI 翻譯按鈕 -->
-                            <button id="translateBtn" class="btn btn-sm btn-link p-0 ms-1 d-none"
+                            <button id="translateBtn" class="btn btn-sm btn-link p-0 ml-1 hidden"
                                 onclick="translateWithAI()" title="批次翻譯 10 片">
                                 <i class="bi bi-translate"></i>
                             </button>
-                            <span id="translateSpinner" class="spinner-border spinner-border-sm ms-1 d-none"></span>
+                            <span id="translateSpinner" class="loading loading-spinner loading-sm ml-1 hidden"></span>
                         </div>
-                        <div id="chineseTitleRow" class="mt-2 d-none">
+                        <div id="chineseTitleRow" class="mt-2 hidden">
                             <div class="info-label" id="chineseTitleLabel">中文片名</div>
-                            <div class="info-title d-flex align-items-start" id="chineseTitleContainer">
+                            <div class="info-title flex items-start" id="chineseTitleContainer">
                                 <span id="resultChineseTitle" class="text-success" style="flex:1;">-</span>
-                                <button id="editChineseTitleBtn" class="btn btn-sm btn-link p-0 ms-1"
+                                <button id="editChineseTitleBtn" class="btn btn-sm btn-link p-0 ml-1"
                                     onclick="startEditChineseTitle()" title="編輯中文片名">
                                     <i class="bi bi-pencil text-muted"></i>
                                 </button>
@@ -215,32 +215,6 @@
 {% block extra_js %}
 <script>
     // === 全域函數：供 PyWebView Python 端呼叫 ===
-
-    /**
-     * 從檔名提取番號（全域版本）
-     */
-    function extractNumberGlobal(filename) {
-        const basename = filename.split(/[/\\]/).pop().replace(/\.[^.]+$/, '');
-        const patterns = [
-            /\b(FC2-PPV)-(\d{5,7})\b/i,          // FC2-PPV-1234567（優先）
-            /\b([A-Z]+\d+-\d+)\b/i,              // T28-103 混合格式（字母+數字-數字）
-            /\b([A-Z]{1,5})-(\d{3,5})\b/i,       // SONE-205（支援單字母）
-            /\b([A-Z]{2,5})(\d{3,5})\b/i,        // IPTD927（無連字號需 2+ 字母避免誤判）
-        ];
-        for (const pattern of patterns) {
-            const match = basename.match(pattern);
-            if (match) {
-                const prefix = match[1].toUpperCase();
-                // FC2-PPV 特殊處理
-                if (prefix === 'FC2-PPV') return `FC2-PPV-${match[2]}`;
-                // 混合格式已包含完整番號
-                if (pattern === patterns[1]) return prefix;
-                // 其他格式需組合
-                return `${prefix}-${match[2]}`;
-            }
-        }
-        return null;
-    }
 
     /**
      * PyWebView 拖放回調（由 Python 端呼叫）

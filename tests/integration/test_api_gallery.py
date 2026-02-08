@@ -104,7 +104,7 @@ class TestGalleryView:
 
     def test_view_list_no_file(self, client, mocker, tmp_path):
         """無 HTML 檔案時"""
-        mocker.patch('web.routers.gallery.load_config', return_value={
+        mocker.patch('web.routers.scanner.load_config', return_value={
             'gallery': {'output_dir': str(tmp_path)}
         })
 
@@ -119,7 +119,7 @@ class TestGalleryView:
         html_file = tmp_path / "gallery_output.html"
         html_file.write_text('<html><body>Test Gallery</body></html>', encoding='utf-8')
 
-        mocker.patch('web.routers.gallery.load_config', return_value={
+        mocker.patch('web.routers.scanner.load_config', return_value={
             'gallery': {'output_dir': str(tmp_path)}
         })
 

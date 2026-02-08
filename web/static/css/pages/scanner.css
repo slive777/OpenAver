@@ -1,0 +1,173 @@
+/* AVList Generator - Scanner Page Specific CSS */
+/* Gallery components (.avlist-card, .folder-*, .stats-card, .actress-alias-*, etc.)
+   are provided by theme.css via the .ds-gallery-composition scope. */
+
+/* Main Container */
+.avlist-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+/* Page Title */
+.avlist-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.avlist-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.avlist-header .stats {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* Mini Terminal - Compact Log */
+.mini-terminal {
+    background: var(--color-base-200);
+    border-radius: var(--fluent-radius-xl);
+    margin: 1rem;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
+}
+
+[data-theme="dim"] .mini-terminal {
+    background: var(--color-base-300);
+}
+
+.mini-terminal-header {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: color-mix(in oklch, var(--color-base-content) 5%, transparent);
+    transition: background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
+}
+
+.mini-terminal-header .title {
+    font-size: 0.8rem;
+    color: color-mix(in oklch, var(--color-base-content) 70%, transparent);
+    transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
+}
+
+.mini-terminal-body {
+    max-height: 120px;
+    overflow-y: auto;
+    padding: 0.75rem;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: color-mix(in oklch, var(--color-base-content) 80%, transparent);
+    transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
+}
+
+.mini-terminal-body .log-info {
+    color: var(--color-secondary);
+}
+
+.mini-terminal-body .log-warn {
+    color: var(--color-accent);
+}
+
+.mini-terminal-body .log-error {
+    color: var(--color-error);
+}
+
+/* Progress Bar */
+.progress-mini {
+    height: 3px;
+    background: color-mix(in oklch, var(--color-base-100) 50%, transparent);
+    border-radius: var(--fluent-radius-sm);
+    margin: 0.5rem 0.75rem 0.75rem;
+    overflow: hidden;
+    transition: background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
+}
+
+.progress-mini .bar {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: var(--fluent-radius-sm);
+    transition: width var(--fluent-duration-slow) var(--fluent-ease-standard), background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
+}
+
+/* Toast — uses .fluent-toast from theme.css; plain-JS show/hide */
+#toastMsg {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: all var(--fluent-duration-normal) var(--fluent-ease-decel);
+    pointer-events: none;
+}
+
+#toastMsg.toast-active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+#toastMsg.toast-hiding {
+    transition: all var(--fluent-duration-normal) var(--fluent-ease-accel);
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+/* Drag Overlay - Consistent with Search */
+.drag-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: color-mix(in oklch, var(--color-base-100) 60%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--fluent-duration-slow) var(--fluent-ease-standard), visibility var(--fluent-duration-slow) var(--fluent-ease-standard), background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
+    pointer-events: none;
+}
+
+.drag-overlay.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.drag-overlay-content {
+    text-align: center;
+    color: var(--color-base-content);
+    transform: scale(0.95);
+    transition: transform var(--fluent-duration-slow) var(--fluent-ease-standard);
+}
+
+.drag-overlay.show .drag-overlay-content {
+    transform: scale(1);
+}
+
+.drag-overlay-content i {
+    font-size: 4rem;
+    color: var(--color-base-content);
+    margin-bottom: 1rem;
+    display: block;
+    text-shadow: 0 4px 12px color-mix(in oklch, var(--color-base-100) 30%, transparent);
+    transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
+}
+
+.drag-overlay-content p {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--color-base-content);
+    margin: 0;
+    text-shadow: 0 2px 8px color-mix(in oklch, var(--color-base-100) 30%, transparent);
+    transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
+}

@@ -20,8 +20,8 @@ class SpotlightTutorial {
                 position: 'right'
             },
             {
-                id: 'gallery',
-                target: '#sidebar a[href="/gallery"]',
+                id: 'scanner',
+                target: '#sidebar a[href="/scanner"]',
                 title: '📝 列表生成',
                 content: '掃描本地資料夾，生成精美的 HTML 展示頁<br>自動補全 NFO 檔案',
                 position: 'right'

@@ -3,20 +3,20 @@
 {% block title %}使用說明 - OpenAver{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="mb-0">使用說明</h4>
+<div class="container mx-auto px-4 max-w-screen-2xl">
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-2xl font-semibold mb-0">使用說明</h2>
         <button class="btn btn-primary btn-sm" id="btnRestartTutorialHelp">
             <i class="bi bi-play-circle"></i> 重看新手引導
         </button>
     </div>
 
     <!-- 搜尋功能 -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="bi bi-search"></i> 搜尋功能
-        </div>
+    <div class="card bg-base-100 fluent-shadow-4 fluent-rounded-xl mb-4">
         <div class="card-body">
+            <h2 class="card-title text-lg">
+                <i class="bi bi-search"></i> 搜尋功能
+            </h2>
             <h6>支援的搜尋方式</h6>
             <ul>
                 <li><strong>完整番號</strong>：如 <code>SONE-001</code>，精確搜尋單一作品</li>
@@ -35,11 +35,11 @@
     </div>
 
     <!-- 批次檔案搜尋 -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="bi bi-files"></i> 批次檔案搜尋
-        </div>
+    <div class="card bg-base-100 fluent-shadow-4 fluent-rounded-xl mb-4">
         <div class="card-body">
+            <h2 class="card-title text-lg">
+                <i class="bi bi-files"></i> 批次檔案搜尋
+            </h2>
             <h6>加入多個檔案</h6>
             <ul>
                 <li><strong>拖入資料夾</strong>：自動掃描資料夾內的影片檔案</li>
@@ -64,11 +64,11 @@
     </div>
 
     <!-- 女優畫廊模式 -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="bi bi-person-circle"></i> 女優畫廊模式
-        </div>
+    <div class="card bg-base-100 fluent-shadow-4 fluent-rounded-xl mb-4">
         <div class="card-body">
+            <h2 class="card-title text-lg">
+                <i class="bi bi-person-circle"></i> 女優畫廊模式
+            </h2>
             <h6>自動觸發條件</h6>
             <ul>
                 <li>搜尋結果 > 10 部作品</li>
@@ -86,11 +86,11 @@
     </div>
 
     <!-- 列表生成器 -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="bi bi-file-earmark-code"></i> 列表生成器 (AVList)
-        </div>
+    <div class="card bg-base-100 fluent-shadow-4 fluent-rounded-xl mb-4">
         <div class="card-body">
+            <h2 class="card-title text-lg">
+                <i class="bi bi-file-earmark-code"></i> 列表生成器 (AVList)
+            </h2>
             <h6>功能說明</h6>
             <ul>
                 <li>掃描本地影片資料夾，生成精美的 HTML 展示頁</li>
@@ -109,27 +109,27 @@
     </div>
 
     <!-- 快捷鍵 -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="bi bi-keyboard"></i> 快捷鍵
-        </div>
+    <div class="card bg-base-100 fluent-shadow-4 fluent-rounded-xl mb-4">
         <div class="card-body">
+            <h2 class="card-title text-lg">
+                <i class="bi bi-keyboard"></i> 快捷鍵
+            </h2>
             <table class="table table-sm">
                 <tbody>
                     <tr>
-                        <td style="width: 30%;"><kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>K</kbd></td>
+                        <td style="width: 30%;"><kbd class="kbd kbd-sm">Ctrl</kbd> / <kbd class="kbd kbd-sm">Cmd</kbd> + <kbd class="kbd kbd-sm">K</kbd></td>
                         <td>聚焦搜尋框</td>
                     </tr>
                     <tr>
-                        <td><kbd>←</kbd> <kbd>→</kbd></td>
+                        <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
                         <td>切換上一個/下一個結果</td>
                     </tr>
                     <tr>
-                        <td><kbd>Esc</kbd></td>
+                        <td><kbd class="kbd kbd-sm">Esc</kbd></td>
                         <td>清空搜尋框</td>
                     </tr>
                     <tr>
-                        <td><kbd>Enter</kbd></td>
+                        <td><kbd class="kbd kbd-sm">Enter</kbd></td>
                         <td>執行搜尋</td>
                     </tr>
                 </tbody>
@@ -138,11 +138,11 @@
     </div>
 
     <!-- 疑難排解 -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="bi bi-question-circle"></i> 疑難排解
-        </div>
+    <div class="card bg-base-100 fluent-shadow-4 fluent-rounded-xl mb-4">
         <div class="card-body">
+            <h2 class="card-title text-lg">
+                <i class="bi bi-question-circle"></i> 疑難排解
+            </h2>
             <h6>程式無法啟動 / 閃退 (Windows)</h6>
             <p><strong>原因</strong>：Windows 安全機制封鎖了從網路下載的檔案。</p>
             <p><strong>解法</strong>：</p>
@@ -170,14 +170,14 @@
     </div>
 
     <!-- 關於 -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <i class="bi bi-info-circle"></i> 關於
-        </div>
+    <div class="card bg-base-100 fluent-shadow-4 fluent-rounded-xl mb-4">
         <div class="card-body">
+            <h2 class="card-title text-lg">
+                <i class="bi bi-info-circle"></i> 關於
+            </h2>
             <p class="mb-1"><strong>OpenAver v{{ version }}</strong></p>
-            <p class="text-muted small mb-3">JAV 影片元數據管理工具</p>
-            <p class="text-muted small mb-0">
+            <p class="text-base-content/60 text-sm mb-3">JAV 影片元數據管理工具</p>
+            <p class="text-base-content/60 text-sm mb-0">
                 🔒 純本地應用程式，不蒐集使用者資料<br>
                 📝 開源專案，歡迎貢獻與回饋
             </p>

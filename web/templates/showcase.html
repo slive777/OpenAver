@@ -25,38 +25,19 @@
         height: 100%;
         border: none;
     }
-
-    .viewer-placeholder {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 100%;
-        color: #6c757d;
-        text-align: center;
-        padding: 2rem;
-    }
-
-    .viewer-placeholder i {
-        font-size: 4rem;
-        margin-bottom: 1rem;
-        opacity: 0.5;
-    }
-
-    .viewer-placeholder p {
-        margin-bottom: 1rem;
-    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="viewer-container" id="viewerContainer">
-    <div class="viewer-placeholder" id="placeholder">
-        <i class="bi bi-collection-play"></i>
-        <p>尚未產生影片列表</p>
-        <a href="/gallery" class="btn btn-primary">
-            <i class="bi bi-plus-circle"></i> 產生列表
-        </a>
+<div class="viewer-container ds-page" id="viewerContainer">
+    <div class="state-page" id="placeholder">
+        <i class="bi bi-collection-play state-page-icon"></i>
+        <p class="state-page-text">尚未產生影片列表</p>
+        <div class="empty-actions">
+            <a href="/scanner" class="btn btn-outline btn-primary btn-sm">
+                <i class="bi bi-plus-circle"></i> 產生列表
+            </a>
+        </div>
     </div>
     <iframe id="viewerFrame" class="viewer-frame" style="display: none;"></iframe>
 </div>

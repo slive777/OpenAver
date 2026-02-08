@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}列表生成 - OpenAver{% endblock %}
+
+{% block extra_css %}
+<link href="/static/css/pages/scanner.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<!-- Drag Overlay -->
+<div class="drag-overlay" id="dragOverlay">
+    <div class="drag-overlay-content">
+        <i class="bi bi-folder-plus"></i>
+        <p>放開以加入資料夾</p>
+    </div>
+</div>
+
+<div class="avlist-container ds-gallery-composition">
+    <!-- Header -->
+    <div class="avlist-header">
+        <h4><i class="bi bi-list-ul"></i> 列表生成</h4>
+        <div class="stats" id="headerStats"></div>
+    </div>
+
+    <!-- Main Card: Folder List -->
+    <div class="avlist-card">
+        <div class="avlist-card-header">
+            <div class="title">
+                <i class="bi bi-folder"></i> <span>掃描資料夾</span>
+            </div>
+            <div class="actions">
+                <button class="btn-icon" onclick="selectFolder()" title="選擇資料夾">
+                    <i class="bi bi-folder-plus"></i>
+                </button>
+                <button class="btn-icon" onclick="toggleManualInput()" title="手動輸入">
+                    <i class="bi bi-keyboard"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="avlist-card-body">
+            <!-- Manual Input (hidden by default) -->
+            <div class="manual-input" id="manualInput"
+                style="display: none; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-light);">
+                <input type="text" class="input input-bordered input-sm" id="manualPath" placeholder="輸入資料夾路徑...">
+                <button class="btn btn-sm btn-primary" onclick="addManualPath()">
+                    <i class="bi bi-plus"></i>
+                </button>
+            </div>
+
+            <!-- Folder List -->
+            <div class="folder-list" id="directoryList"></div>
+        </div>
+
+        <!-- Output Info -->
+        <div class="output-info">
+            <div class="path">
+                <i class="bi bi-file-earmark-code"></i>
+                輸出: <code id="outputPathDisplay">output/gallery_output.html</code>
+            </div>
+            <a href="/settings" class="settings-link">
+                <i class="bi bi-gear"></i> 設定
+            </a>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-section">
+            <button class="btn-hero btn-hero-primary" id="btnGenerate" onclick="generate()">
+                <i class="bi bi-play-fill"></i> 產生網頁
+            </button>
+            <!-- Done Actions (hidden until complete) -->
+            <div id="doneActions" class="done-actions" style="display: none;">
+                <button class="btn-hero btn-hero-secondary" id="btnCopyPath" onclick="copyOutputPath()" title="複製路徑">
+                    <i class="bi bi-clipboard"></i> 複製路徑
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mini Terminal (hidden by default) -->
+    <div class="mini-terminal" id="progressSection" style="display: none;">
+        <div class="mini-terminal-header">
+            <span class="title" id="progressStatus">準備中...</span>
+        </div>
+        <div class="progress-mini">
+            <div class="bar" id="progressBar" style="width: 0%;"></div>
+        </div>
+        <div class="mini-terminal-body" id="logOutput"></div>
+    </div>
+
+    <!-- Stats Card -->
+    <div class="stats-card" id="statsCard" style="display: none;">
+        <div class="stats-row">
+            <div class="stat-item">
+                <i class="bi bi-collection-play"></i>
+                <span>快取影片: <span class="stat-value" id="statTotal">0</span> 部</span>
+            </div>
+            <div class="stat-item" id="statLastRun"></div>
+        </div>
+        <!-- NFO Update Section (separate row) -->
+        <div class="nfo-update-row" id="statNeedUpdate" style="display: none;">
+            <span class="nfo-badge">
+                <i class="bi bi-exclamation-circle"></i>
+                需補全: <strong id="updateCount">0</strong> 部
+            </span>
+            <button class="btn-nfo-update" onclick="runNfoUpdate()" id="btnUpdate" title="補全 NFO 資訊">
+                <i class="bi bi-magic"></i> 補全 NFO
+            </button>
+        </div>
+    </div>
+
+    <!-- Actress Alias Management -->
+    <div class="actress-alias-card" id="actressAliasCard">
+        <div class="actress-alias-header">
+            <div class="title">
+                <i class="bi bi-person-badge"></i> <span>女優名稱管理</span>
+            </div>
+            <button class="btn-icon btn-collapse" onclick="toggleAliasCard()" title="展開/收起">
+                <i class="bi bi-chevron-down" id="aliasCollapseIcon"></i>
+            </button>
+        </div>
+
+        <div class="actress-alias-body" id="aliasCardBody" style="display: none;">
+            <!-- Add New Alias Form -->
+            <div class="alias-form">
+                <div class="alias-form-row">
+                    <div class="alias-input-group">
+                        <label>舊名稱</label>
+                        <input type="text" id="aliasOldName" placeholder="例：miru" oninput="previewAliasCount()">
+                        <span class="alias-count" id="oldNameCount"></span>
+                    </div>
+                    <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
+                    <div class="alias-input-group">
+                        <label>新名稱</label>
+                        <input type="text" id="aliasNewName" placeholder="例：坂道みる" oninput="previewAliasCount()">
+                        <span class="alias-count" id="newNameCount"></span>
+                    </div>
+                    <button class="btn-alias-add" onclick="addActressAlias()" id="btnAddAlias">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                </div>
+                <div class="alias-preview" id="aliasPreview"></div>
+            </div>
+
+            <!-- Alias List -->
+            <div class="alias-list" id="aliasList">
+                <div class="alias-list-loading">
+                    <span class="loading loading-spinner loading-sm"></span> 載入中...
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toastMsg" class="toast toast-bottom toast-center fluent-toast-container">
+    <div class="alert fluent-toast alert-info" role="alert">
+        <i class="bi bi-info-circle"></i>
+        <span id="toastText"></span>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/pages/scanner/core.js"></script>
+<script src="/static/js/pages/scanner/folders.js"></script>
+<script src="/static/js/pages/scanner/alias.js"></script>
+<script src="/static/js/pages/scanner/init.js"></script>
+{% endblock %}
