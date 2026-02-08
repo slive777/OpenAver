@@ -105,12 +105,11 @@
     }
 
     /* 4. 雙 Select 橫排佈局 - 強制垂直 */
-    /* ⚠️ 過渡方案：依賴 inline style 字串，後續應改為語義 class（如 .sort-row） */
-    #settings-components .settings-form-row > div[style*="display: flex"] {
+    #settings-components .sort-row {
         flex-direction: column !important;
     }
 
-    #settings-components .settings-form-row > div[style*="display: flex"] > .select {
+    #settings-components .sort-row > .select {
         width: 100% !important;
         max-width: none !important;
     }
