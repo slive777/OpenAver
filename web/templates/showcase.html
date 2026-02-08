@@ -351,6 +351,22 @@
         </div>
 
     </div>
+
+    <!-- Toast (M3h) -->
+    <div class="toast toast-bottom toast-center fluent-toast-container"
+         x-show="toastVisible"
+         x-transition:enter="fluent-toast-enter"
+         x-transition:enter-start="fluent-toast-enter-start"
+         x-transition:enter-end="fluent-toast-enter-end"
+         x-transition:leave="fluent-toast-leave"
+         x-transition:leave-start="fluent-toast-leave-start"
+         x-transition:leave-end="fluent-toast-leave-end">
+        <div class="alert fluent-toast"
+             :class="toastType === 'error' ? 'alert-error' : 'alert-success'">
+            <i class="bi" :class="toastType === 'error' ? 'bi-exclamation-circle' : 'bi-check-circle'"></i>
+            <span x-text="toastMessage"></span>
+        </div>
+    </div>
 </div>
 {% endblock %}
 

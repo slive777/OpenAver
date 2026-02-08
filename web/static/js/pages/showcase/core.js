@@ -20,6 +20,12 @@ function showcaseState() {
         lightboxStartX: 0,
         lightboxStartY: 0,
 
+        // Toast 狀態 (M3h)
+        toastVisible: false,
+        toastMessage: '',
+        toastType: 'success',
+        toastTimer: null,
+
         search: '',
         sort: 'date',         // M2a 先用硬編碼，M4 才從 config/localStorage 恢復
         order: 'desc',
@@ -380,10 +386,9 @@ function showcaseState() {
             if (!path) return;
             try {
                 await navigator.clipboard.writeText(path);
-                // TODO: M5 Toast 通知「已複製路徑」
-                console.log('Path copied:', path);
+                this.showToast('已複製: ' + path);
             } catch (err) {
-                console.error('Failed to copy path:', err);
+                this.showToast('複製失敗', 'error');
             }
         },
 
@@ -396,6 +401,17 @@ function showcaseState() {
             }
             const mb = bytes / (1024 * 1024);
             return `${mb.toFixed(2)} MB`;
+        },
+
+        // --- Toast 通知 (M3h) ---
+        showToast(msg, type = 'success', duration = 2500) {
+            this.toastMessage = msg;
+            this.toastType = type;
+            this.toastVisible = true;
+            if (this.toastTimer) clearTimeout(this.toastTimer);
+            this.toastTimer = setTimeout(() => {
+                this.toastVisible = false;
+            }, duration);
         },
 
         // --- 快捷鍵 (M2a 只定義骨架，M4 完整實作) ---
