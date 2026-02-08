@@ -269,6 +269,14 @@ function showcaseState() {
             this.lightboxMoveEnabled = false;
         },
 
+        // Metadata 點擊搜尋 (M3f)
+        searchFromMetadata(term) {
+            this.closeLightbox();
+            this.search = term;
+            this.applyFilterAndSort();
+            this.saveState();
+        },
+
         prevLightboxVideo() {
             if (this.lightboxIndex > 0) {
                 this.lightboxIndex--;

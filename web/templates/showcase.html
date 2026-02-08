@@ -296,17 +296,23 @@
                     <div class="lb-otitle"
                          x-show="currentLightboxVideo?.original_title"
                          x-text="currentLightboxVideo?.original_title"></div>
-                    <div class="lb-actor"
-                         x-show="currentLightboxVideo?.actresses"
-                         x-text="currentLightboxVideo?.actresses"></div>
+                    <div class="lb-actor" x-show="currentLightboxVideo?.actresses">
+                        <template x-for="(actress, idx) in (currentLightboxVideo?.actresses || '').split(',').filter(a => a.trim())" :key="actress">
+                            <span>
+                                <a href="#" class="lb-link" @click.prevent="searchFromMetadata(actress.trim())" x-text="actress.trim()"></a><span x-show="idx < (currentLightboxVideo?.actresses || '').split(',').filter(a => a.trim()).length - 1">, </span>
+                            </span>
+                        </template>
+                    </div>
                     <div class="lb-meta">
                         <span x-text="currentLightboxVideo?.number || '未知'"></span>
-                        <span x-show="currentLightboxVideo?.maker" x-text="currentLightboxVideo?.maker"></span>
+                        <span x-show="currentLightboxVideo?.maker">
+                            <a href="#" class="lb-link" @click.prevent="searchFromMetadata(currentLightboxVideo?.maker)" x-text="currentLightboxVideo?.maker"></a>
+                        </span>
                         <span x-show="currentLightboxVideo?.release_date" x-text="currentLightboxVideo?.release_date"></span>
                     </div>
                     <div class="lb-tags" x-show="currentLightboxVideo?.tags">
                         <template x-for="tag in (currentLightboxVideo?.tags || '').split(',').filter(t => t.trim())" :key="tag">
-                            <span class="lb-tag" x-text="tag.trim()"></span>
+                            <a href="#" class="lb-tag lb-link" @click.prevent="searchFromMetadata(tag.trim())" x-text="tag.trim()"></a>
                         </template>
                     </div>
                     <div class="lb-footer">

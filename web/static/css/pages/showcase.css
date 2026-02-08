@@ -436,6 +436,25 @@
     right: 2rem;
 }
 
+/* Lightbox Clickable Links (M3f) */
+.lb-link {
+    color: inherit;
+    text-decoration: none;
+    transition: color var(--duration-fast) var(--ease-out);
+}
+
+.lb-link:hover {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+/* Tag 連結 - 保留 pill 背景 */
+.lb-tag.lb-link:hover {
+    background: var(--accent);
+    color: var(--surface-0);
+    text-decoration: none;
+}
+
 /* Responsive: 小螢幕 */
 @media (max-width: 1024px) {
     .lightbox-nav {
