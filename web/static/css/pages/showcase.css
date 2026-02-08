@@ -1,0 +1,1065 @@
+/* ========================================
+   Showcase 頁面專屬樣式
+   IMPORTANT: 禁止重複定義 theme.css 已有元件
+   ======================================== */
+
+/* ==================== Page Container ==================== */
+.showcase-container {
+    min-height: calc(100vh - 56px); /* 扣除 header */
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 48px; /* 防止 shortcut-hint 遮擋最後一行卡片 (M4c) */
+
+    /* Background Atmosphere — 對齊 Design System (design-system.css L6-11) */
+    background:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(90, 200, 250, 0.15), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 100%, oklch(55% 0.15 250 / 0.08), transparent),
+        var(--bg-body);
+}
+
+/* ==================== Toolbar - Sticky + Acrylic ==================== */
+.showcase-toolbar {
+    /* Sticky positioning */
+    position: sticky;
+    top: 0;
+    z-index: 100;
+
+    /* Acrylic 毛玻璃效果（Fluent Design 2 - Heavy Glass）*/
+    background: var(--bg-header); /* color-mix 85% transparency */
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+
+    /* Border */
+    border-bottom: 1px solid var(--border-light);
+
+    /* Spacing */
+    padding: 0.75rem 1.5rem;
+
+    /* Layout */
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Toolbar 區段 */
+.toolbar-section {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* Search 區段 - 寬度撐滿 */
+.toolbar-search {
+    flex: 1;
+    min-width: 280px; /* 防止過窄 */
+}
+
+/* Controls 區段 - 自動寬度 */
+.toolbar-controls {
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+/* Control Group - 單個控制元件群組（排序 + 按鈕 / select / mode switcher）*/
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* (M3c mode-switcher 已改為 dropdown) */
+
+/* ==================== Toolbar Dropdown (排序/每頁) ==================== */
+
+.toolbar-dropdown-wrap {
+    position: relative;
+}
+
+.toolbar-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 0.5rem;
+    min-width: 150px;
+    background: var(--surface-2);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    padding: 0.375rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 200;
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.4rem 0.625rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    transition: background var(--duration-fast) var(--ease-out),
+                color var(--duration-fast) var(--ease-out);
+    white-space: nowrap;
+}
+
+.dropdown-item:hover {
+    background: var(--glow-subtle);
+    color: var(--text-primary);
+}
+
+.dropdown-item.active {
+    background: var(--accent);
+    color: var(--color-primary-content);
+    font-weight: 500;
+}
+
+.dropdown-item i {
+    font-size: 0.9375rem;
+    flex-shrink: 0;
+    width: 1.125rem;
+    text-align: center;
+}
+
+/* ==================== Status Bar (M3g) ==================== */
+
+.showcase-status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    background: var(--surface-0);
+    border-bottom: 1px solid var(--stroke-subtle);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.status-total {
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+}
+
+.status-total b {
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-weight: 600;
+}
+
+.status-pagination {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.page-select {
+    padding: 0.375rem 2rem 0.375rem 0.75rem;
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    font-family: var(--font-mono);
+    cursor: pointer;
+    transition: border-color var(--duration-fast) var(--ease-out),
+                background var(--duration-fast) var(--ease-out);
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    min-width: 100px;
+}
+
+.page-select:hover {
+    border-color: var(--accent);
+    background: var(--glow-subtle);
+}
+
+.page-select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--glow-primary);
+}
+
+.page-btn {
+    padding: 0.375rem 0.875rem;
+    background: transparent;
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+    white-space: nowrap;
+}
+
+.page-btn:hover:not(:disabled) {
+    background: var(--glow-subtle);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+    .showcase-status-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+        padding: 1rem;
+    }
+
+    .status-total {
+        text-align: center;
+    }
+
+    .status-pagination {
+        justify-content: center;
+    }
+
+    .page-select {
+        min-width: 80px;
+    }
+
+    .page-btn {
+        padding: 0.375rem 0.625rem;
+        font-size: 0.8125rem;
+    }
+}
+
+/* ==================== Image Grid - 5 段響應式斷點 ==================== */
+/* 參考 gallery_generator.py L1177-1216 */
+
+.showcase-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    padding: 1.5rem;
+
+    /* 防止卡片過寬 */
+    max-width: 100%;
+}
+
+/* 響應式斷點 - 5 段固定欄位 */
+
+/* 1500px+ → 5 columns */
+@media (min-width: 1500px) {
+    .showcase-grid {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+
+/* 1100-1499px → 4 columns */
+@media (min-width: 1100px) and (max-width: 1499px) {
+    .showcase-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* 900-1099px → 3 columns */
+@media (min-width: 900px) and (max-width: 1099px) {
+    .showcase-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* 481-679px → 2 columns（補齊斷點，對齊原版 gallery） */
+@media (min-width: 481px) and (max-width: 679px) {
+    .showcase-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+}
+
+/* 680-899px → 2 columns */
+@media (min-width: 680px) and (max-width: 899px) {
+    .showcase-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+}
+
+/* ≤480px → 1 column */
+@media (max-width: 480px) {
+    .showcase-grid {
+        grid-template-columns: 1fr;
+        padding: 1rem;
+    }
+}
+
+/* ==================== Card Footer Switch (M3e) ==================== */
+
+/* Footer 容器：支援雙層切換 */
+.showcase-grid .av-card-preview-footer {
+    position: relative;
+    overflow: hidden;
+    height: 2.5rem;
+}
+
+/* 預設層：番號 + 女優 */
+.footer-default {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+/* 懸停層：標題（絕對定位覆蓋） */
+.footer-hover {
+    position: absolute;
+    inset: 0;
+    padding: 0.5rem 0.75rem;
+    background: var(--surface-1);
+    opacity: 0;
+    transform: translateY(100%);
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard),
+                transform var(--fluent-duration-fast) var(--fluent-ease-standard);
+    display: flex;
+    align-items: center;
+}
+
+/* Card Hover 時切換 */
+.av-card-preview:hover .footer-hover {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.av-card-preview:hover .footer-default {
+    opacity: 0;
+}
+
+/* 懸停標題：2 行截斷 */
+.hover-title {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ==================== Lightbox ==================== */
+
+/* Lightbox Overlay */
+.showcase-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /* Smoke Backdrop */
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+
+    /* 初始隱藏 */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+
+    /* Fluent Design 2 動畫 */
+    transition: opacity var(--duration-normal) var(--ease-out),
+                visibility 0s linear var(--duration-normal);
+}
+
+.showcase-lightbox.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition-delay: 0s;
+}
+
+/* Lightbox Content Card — 垂直佈局（大圖上方 + metadata 下方） */
+.lightbox-content {
+    position: relative;
+    max-width: 90vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    overflow-y: auto;
+
+    /* Fluent Design 2 Card */
+    background: var(--surface-2);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--fluent-shadow-28);
+
+    /* Scale Pop-in 動畫 */
+    transform: scale(0.95);
+    transition: transform var(--duration-normal) var(--ease-out);
+}
+
+.showcase-lightbox.show .lightbox-content {
+    transform: scale(1);
+}
+
+/* Close Button */
+.lightbox-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: var(--text-inverse);
+    font-size: 1.25rem;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out),
+                transform var(--duration-fast) var(--ease-out);
+    z-index: 10;
+}
+
+.lightbox-close:hover {
+    background: rgba(0, 0, 0, 0.5);
+    transform: scale(1.1);
+}
+
+/* Cover Image Section — 大圖佔主要空間 */
+.lightbox-cover {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lightbox-cover img {
+    max-width: 100%;
+    max-height: 60vh;
+    object-fit: contain;
+    border-radius: var(--radius-sm);
+}
+
+/* Metadata Panel — 緊湊版（匹配原版 gallery） */
+.lightbox-metadata {
+    padding: 0.5rem 0 0 0;
+    max-width: 600px;
+    width: 100%;
+    border-top: 1px solid var(--stroke-subtle);
+}
+
+/* Title */
+.lightbox-metadata .lb-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.4;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Original Title */
+.lightbox-metadata .lb-otitle {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Actress */
+.lightbox-metadata .lb-actor {
+    font-size: 0.8125rem;
+    color: var(--accent);
+    margin-bottom: 0.25rem;
+}
+
+/* Meta: Number · Maker · Date — 單行 flex */
+.lightbox-metadata .lb-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.lightbox-metadata .lb-meta span:not(:last-child)::after {
+    content: " · ";
+    margin: 0 0.35em;
+}
+
+/* Tags — pill flex wrap */
+.lightbox-metadata .lb-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.5rem;
+}
+
+.lightbox-metadata .lb-tag {
+    padding: 0.15rem 0.5rem;
+    background: var(--bg-body);
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    color: var(--text-secondary);
+    border: 1px solid var(--stroke-subtle);
+}
+
+/* Footer: Actions left + Size right */
+.lb-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--stroke-subtle);
+}
+
+.lb-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.lb-btn {
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all var(--duration-fast) ease;
+}
+
+.lb-btn:hover {
+    background: var(--glow-subtle);
+    color: var(--text-primary);
+}
+
+.lb-btn i {
+    margin-right: 0.25rem;
+}
+
+.lb-size {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+/* Navigation Arrows */
+.lightbox-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 56px;
+    height: 56px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: var(--text-inverse);
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out),
+                transform var(--duration-fast) var(--ease-out);
+    z-index: 10;
+}
+
+.lightbox-nav:hover {
+    background: rgba(0, 0, 0, 0.5);
+    transform: translateY(-50%) scale(1.1);
+}
+
+.lightbox-nav-prev {
+    left: 2rem;
+}
+
+.lightbox-nav-next {
+    right: 2rem;
+}
+
+/* Lightbox Clickable Links (M3f) */
+.lb-link {
+    color: inherit;
+    text-decoration: none;
+    transition: color var(--duration-fast) var(--ease-out);
+}
+
+.lb-link:hover {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+/* Tag 連結 - 保留 pill 背景 */
+.lb-tag.lb-link:hover {
+    background: var(--accent);
+    color: var(--surface-0);
+    text-decoration: none;
+}
+
+/* Responsive: 小螢幕 */
+@media (max-width: 1024px) {
+    .lightbox-nav {
+        width: 48px;
+        height: 48px;
+        font-size: 1.25rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .lightbox-content {
+        max-width: 95vw;
+        max-height: 95vh;
+        padding: 1rem;
+    }
+
+    .lightbox-nav {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+}
+
+/* ==================== Responsive: Toolbar ==================== */
+/* 小螢幕：Toolbar 垂直排列 */
+@media (max-width: 768px) {
+    .showcase-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+        padding: 1rem;
+    }
+
+    .toolbar-section {
+        width: 100%;
+    }
+
+    .toolbar-search {
+        min-width: auto;
+    }
+
+    .toolbar-controls {
+        justify-content: space-between;
+    }
+}
+
+/* ==================== Detail Table Mode ==================== */
+
+/* Table Wrapper */
+.showcase-table-wrapper {
+    padding: 1.5rem;
+}
+
+/* Scroll Container - 小螢幕橫向滾動 */
+.table-scroll-container {
+    overflow-x: auto;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Table Base - DaisyUI .table 強化 */
+.showcase-table-wrapper .table {
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-default);
+    font-size: 0.875rem;
+}
+
+/* Table Header */
+.showcase-table-wrapper .table thead th {
+    background: var(--surface-0);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1rem 0.75rem;
+    border-bottom: 2px solid var(--stroke-default);
+    white-space: nowrap;
+    position: relative;
+}
+
+/* Table Body */
+.showcase-table-wrapper .table tbody td {
+    padding: 0.875rem 0.75rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--stroke-subtle);
+    vertical-align: middle;
+}
+
+/* Clickable Row */
+.table-row-clickable {
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out);
+}
+
+.table-row-clickable:hover {
+    background: var(--glow-subtle) !important; /* 覆蓋 DaisyUI zebra */
+}
+
+/* Column Widths */
+.table-col-index { width: 60px; }
+.table-col-number { width: 140px; }
+.table-col-title { min-width: 250px; max-width: 400px; }
+.table-col-actor { width: 150px; }
+.table-col-maker { width: 120px; }
+.table-col-date { width: 110px; }
+.table-col-tags { width: 200px; }
+.table-col-size { width: 100px; }
+
+/* Cell Styles */
+.table-cell-index {
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.table-cell-number {
+    font-family: var(--font-mono);
+}
+
+.table-number-highlight {
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+}
+
+.table-number-highlight:hover {
+    text-decoration: underline;
+}
+
+.table-cell-title {
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.table-cell-actor {
+    color: var(--text-secondary);
+}
+
+.table-cell-maker,
+.table-cell-date {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+/* Tags in Table */
+.table-tags-wrapper {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.table-tag {
+    padding: 0.125rem 0.5rem;
+    background: var(--bg-body);
+    border: 1px solid var(--stroke-subtle);
+    border-radius: var(--radius-pill);
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.table-tag-more {
+    padding: 0.125rem 0.5rem;
+    background: var(--glow-subtle);
+    border-radius: var(--radius-pill);
+    font-size: 0.7rem;
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* Size Cell */
+.table-size-mono {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+/* Responsive: 小螢幕 */
+@media (max-width: 768px) {
+    .showcase-table-wrapper {
+        padding: 1rem;
+    }
+
+    .showcase-table-wrapper .table {
+        font-size: 0.8rem;
+    }
+
+    .showcase-table-wrapper .table thead th,
+    .showcase-table-wrapper .table tbody td {
+        padding: 0.75rem 0.5rem;
+    }
+}
+
+/* ==================== Text List Mode ==================== */
+
+/* List Wrapper */
+.showcase-list-wrapper {
+    padding: 1.5rem;
+}
+
+/* List Container */
+.showcase-list {
+    list-style: none;
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+/* List Item - Compact Single Line */
+.list-item {
+    padding: 0.875rem 1.25rem;
+    border-bottom: 1px solid var(--stroke-subtle);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out);
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+}
+
+.list-item:last-child {
+    border-bottom: none;
+}
+
+.list-item:hover {
+    background: var(--glow-subtle);
+}
+
+/* Number - Accent + Monospace */
+.list-number {
+    color: var(--accent);
+    font-weight: 600;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+    min-width: 120px;
+}
+
+/* Title - Primary Text */
+.list-title {
+    color: var(--text-primary);
+    font-weight: 500;
+    font-size: 0.9375rem;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Actor - Secondary Text with Parentheses */
+.list-actor {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* Responsive: 小螢幕 */
+@media (max-width: 768px) {
+    .showcase-list-wrapper {
+        padding: 1rem;
+    }
+
+    .list-item {
+        padding: 0.75rem 1rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .list-number {
+        min-width: 100px;
+        font-size: 0.8125rem;
+    }
+
+    .list-title {
+        font-size: 0.875rem;
+        flex-basis: 100%;
+    }
+
+    .list-actor {
+        font-size: 0.8125rem;
+        flex-basis: 100%;
+        padding-left: calc(100px + 0.5rem);
+    }
+}
+
+/* ==================== Card Info Expand (M3i) ==================== */
+
+/* 展開面板 — footer 同層，自然撐高卡片 */
+.card-info {
+    padding: 0.5rem 0.75rem 0.75rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    border-top: 1px solid var(--stroke-subtle);
+}
+
+.card-info .info-title {
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1.4;
+    margin-bottom: 0.25rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.card-info .info-row {
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.card-info .info-row b {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.card-info .info-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color var(--duration-fast) var(--ease-out);
+}
+
+.card-info .info-link:hover {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+.card-info .info-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+}
+
+.card-info .info-tags {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.card-info .tag:not(:last-child)::after {
+    content: " / ";
+    color: var(--stroke-subtle);
+}
+
+/* ==================== Light / Dim 主題適配 ==================== */
+/* 使用 theme.css 定義的 CSS 變數，無需額外覆寫 */
+/* --bg-header 已在 theme.css 定義：color-mix(in oklch, var(--color-base-200) 85%, transparent) */
+/* 主題切換時自動過渡（transition 在 theme.css body 定義）*/
+
+/* Dim 模式：降低背景光暈透明度（對齊 design-system.css L18-23） */
+[data-theme="dim"] .showcase-container {
+    background:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(90, 200, 250, 0.08), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 100%, oklch(55% 0.2 280 / 0.06), transparent),
+        var(--bg-body);
+}
+
+/* ==================== Shortcut Hint (M4c) ==================== */
+
+.shortcut-hint {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+
+    /* 背景 - 使用 Design System token */
+    background: var(--bg-header); /* color-mix 85% transparency + backdrop-filter */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--stroke-subtle);
+
+    /* 間距 */
+    padding: 0.5rem 1rem;
+
+    /* 布局 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hint-text {
+    font-size: 0.8125rem;
+    color: var(--text-muted); /* Design System token */
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Keyboard Key Styling */
+.shortcut-hint kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.75rem;
+    padding: 0.125rem 0.375rem;
+
+    /* 視覺效果 */
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+
+    /* 字體 */
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+/* 響應式：小螢幕隱藏提示文字（避免擠壓） */
+@media (max-width: 640px) {
+    .shortcut-hint {
+        display: none;
+    }
+    .showcase-container {
+        padding-bottom: 0;
+    }
+}
+
+/* ==================== Background Atmosphere ==================== */
+
+/* 噪點紋理覆蓋層（對齊 design-system.css L93-101） */
+.showcase-container::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.02;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* 確保內容層在噪點紋理之上 */
+/* 注意：.showcase-toolbar 已有 position:sticky + z-index:100，不需加入 */
+.showcase-status-bar,
+.showcase-grid,
+.showcase-table-wrapper,
+.showcase-list-wrapper {
+    position: relative;
+    z-index: 1;
+}

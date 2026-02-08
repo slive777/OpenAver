@@ -3,34 +3,23 @@
 {% block title %}影片瀏覽 - OpenAver{% endblock %}
 
 {% block extra_css %}
-<style>
-    .viewer-container {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        padding-left: var(--sidebar-width, 64px);
-    }
-
-    @media (max-width: 991.98px) {
-        .viewer-container {
-            padding-left: 0;
-            padding-top: 56px;
-        }
-    }
-
-    .viewer-frame {
-        width: 100%;
-        height: 100%;
-        border: none;
-    }
-</style>
+<link href="/static/css/pages/showcase.css" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
-<div class="viewer-container ds-page" id="viewerContainer">
-    <div class="state-page" id="placeholder">
+<div class="showcase-container ds-gallery-composition"
+     x-data="showcaseState()"
+     x-init="init()"
+     @keydown.window="handleKeydown($event)">
+
+    <!-- Loading State (初始顯示) -->
+    <div class="state-page" x-show="loading && videos.length === 0">
+        <i class="bi bi-hourglass-split state-page-icon"></i>
+        <p class="state-page-text">載入影片列表中...</p>
+    </div>
+
+    <!-- Empty State (API 回傳空資料時) -->
+    <div class="state-page" x-show="!loading && !error && videos.length === 0">
         <i class="bi bi-collection-play state-page-icon"></i>
         <p class="state-page-text">尚未產生影片列表</p>
         <div class="empty-actions">
@@ -39,98 +28,409 @@
             </a>
         </div>
     </div>
-    <iframe id="viewerFrame" class="viewer-frame" style="display: none;"></iframe>
+
+    <!-- Error State (API 錯誤時) -->
+    <div class="state-page error" x-show="!loading && error">
+        <i class="bi bi-exclamation-triangle state-page-icon"></i>
+        <p class="state-page-text" x-text="error"></p>
+        <div class="empty-actions">
+            <button class="btn btn-outline btn-primary btn-sm" @click="retry()">
+                <i class="bi bi-arrow-clockwise"></i> 重試
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content (API 載入後顯示) -->
+    <div x-show="!error && videos.length > 0" style="display: none;">
+
+        <!-- Toolbar -->
+        <div class="showcase-toolbar">
+            <div class="toolbar-section toolbar-search">
+                <div class="spotlight-search">
+                    <i class="bi bi-search search-icon-left"></i>
+                    <input type="text"
+                           placeholder="搜尋番號、女優、標題..."
+                           x-model="search"
+                           @input.debounce.300ms="onSearchChange()">
+                    <div class="search-actions-right">
+                        <button class="btn-icon"
+                                x-show="search !== ''"
+                                @click="search = ''; onSearchChange()"
+                                title="清除搜尋">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                        <button class="btn-icon active"
+                                @click="onSearchChange()"
+                                title="搜尋">
+                            <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="toolbar-section toolbar-controls">
+                <!-- 排序 -->
+                <div class="control-group">
+                    <div class="toolbar-dropdown-wrap" @click.outside="sortOpen = false">
+                        <button class="btn-icon"
+                                @click="sortOpen = !sortOpen; modeOpen = false; perPageOpen = false"
+                                :title="'排序: ' + sort"
+                                :class="{ 'active': sortOpen }">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+                        <div class="toolbar-dropdown" x-show="sortOpen" x-transition.opacity.duration.150ms @click.stop>
+                            <a href="#" class="dropdown-item" :class="{ 'active': sort === 'date' }"
+                               @click.prevent="sort = 'date'; onSortChange(); sortOpen = false">
+                                <i class="bi bi-calendar"></i> 日期</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': sort === 'num' }"
+                               @click.prevent="sort = 'num'; onSortChange(); sortOpen = false">
+                                <i class="bi bi-hash"></i> 番號</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': sort === 'title' }"
+                               @click.prevent="sort = 'title'; onSortChange(); sortOpen = false">
+                                <i class="bi bi-type"></i> 標題</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': sort === 'actor' }"
+                               @click.prevent="sort = 'actor'; onSortChange(); sortOpen = false">
+                                <i class="bi bi-person"></i> 女優</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': sort === 'maker' }"
+                               @click.prevent="sort = 'maker'; onSortChange(); sortOpen = false">
+                                <i class="bi bi-building"></i> 片商</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': sort === 'size' }"
+                               @click.prevent="sort = 'size'; onSortChange(); sortOpen = false">
+                                <i class="bi bi-file-earmark"></i> 大小</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': sort === 'mdate' }"
+                               @click.prevent="sort = 'mdate'; onSortChange(); sortOpen = false">
+                                <i class="bi bi-clock"></i> 修改時間</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': sort === 'random' }"
+                               @click.prevent="sort = 'random'; onSortChange(); sortOpen = false">
+                                <i class="bi bi-shuffle"></i> 隨機</a>
+                        </div>
+                    </div>
+                    <button class="btn-icon" @click="toggleOrder()" title="切換排序方向">
+                        <i class="bi" :class="order === 'asc' ? 'bi-sort-up' : 'bi-sort-down'"></i>
+                    </button>
+                </div>
+
+                <!-- 顯示模式 -->
+                <div class="toolbar-dropdown-wrap" @click.outside="modeOpen = false">
+                    <button class="btn-icon"
+                            @click="modeOpen = !modeOpen; sortOpen = false; perPageOpen = false"
+                            :title="'模式: ' + (mode === 'grid' ? '圖片' : mode === 'table' ? '詳細' : '文字')"
+                            :class="{ 'active': modeOpen }">
+                        <i class="bi" :class="mode === 'grid' ? 'bi-grid-3x3' : mode === 'table' ? 'bi-table' : 'bi-list-ul'"></i>
+                    </button>
+                    <div class="toolbar-dropdown" x-show="modeOpen" x-transition.opacity.duration.150ms @click.stop>
+                        <a href="#" class="dropdown-item" :class="{ 'active': mode === 'grid' }"
+                           @click.prevent="switchMode('grid'); modeOpen = false">
+                            <i class="bi bi-grid-3x3"></i> 圖片</a>
+                        <a href="#" class="dropdown-item" :class="{ 'active': mode === 'table' }"
+                           @click.prevent="switchMode('table'); modeOpen = false">
+                            <i class="bi bi-table"></i> 詳細</a>
+                        <a href="#" class="dropdown-item" :class="{ 'active': mode === 'list' }"
+                           @click.prevent="switchMode('list'); modeOpen = false">
+                            <i class="bi bi-list-ul"></i> 文字</a>
+                    </div>
+                </div>
+
+                <!-- 資訊顯示開關 (M3i - 僅 Grid 模式) -->
+                <button class="btn-icon"
+                        x-show="mode === 'grid'"
+                        :class="{ 'active': infoVisible }"
+                        @click="toggleInfo()"
+                        title="顯示/隱藏資訊 (S)">
+                    <i class="bi bi-eye"></i>
+                </button>
+
+                <!-- 每頁數量 -->
+                <div class="toolbar-dropdown-wrap" @click.outside="perPageOpen = false">
+                    <button class="btn-icon"
+                            @click="perPageOpen = !perPageOpen; sortOpen = false; modeOpen = false"
+                            :title="'每頁: ' + (perPage == 0 ? '全部' : perPage + ' 部')"
+                            :class="{ 'active': perPageOpen }">
+                        <i class="bi bi-list-nested"></i>
+                    </button>
+                    <div class="toolbar-dropdown" x-show="perPageOpen" x-transition.opacity.duration.150ms @click.stop>
+                        <a href="#" class="dropdown-item" :class="{ 'active': perPage == 30 }"
+                           @click.prevent="perPage = 30; onPerPageChange(); perPageOpen = false">30 部</a>
+                        <a href="#" class="dropdown-item" :class="{ 'active': perPage == 45 }"
+                           @click.prevent="perPage = 45; onPerPageChange(); perPageOpen = false">45 部</a>
+                        <a href="#" class="dropdown-item" :class="{ 'active': perPage == 60 }"
+                           @click.prevent="perPage = 60; onPerPageChange(); perPageOpen = false">60 部</a>
+                        <a href="#" class="dropdown-item" :class="{ 'active': perPage == 90 }"
+                           @click.prevent="perPage = 90; onPerPageChange(); perPageOpen = false">90 部</a>
+                        <a href="#" class="dropdown-item" :class="{ 'active': perPage == 120 }"
+                           @click.prevent="perPage = 120; onPerPageChange(); perPageOpen = false">120 部</a>
+                        <a href="#" class="dropdown-item" :class="{ 'active': perPage == 0 }"
+                           @click.prevent="perPage = 0; onPerPageChange(); perPageOpen = false">全部</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Bar (M3g) -->
+        <div class="showcase-status-bar">
+            <span class="status-total">
+                <template x-if="!search">
+                    <span>共 <b x-text="filteredVideos.length"></b> 部影片</span>
+                </template>
+                <template x-if="search">
+                    <span>搜尋 "<b x-text="search"></b>" — 找到 <b x-text="filteredVideos.length"></b> 部</span>
+                </template>
+            </span>
+            <div class="status-pagination" x-show="totalPages > 1">
+                <button class="page-btn" @click="prevPage()" :disabled="page === 1">← 上一頁</button>
+                <select class="page-select" x-model.number="page" @change="goToPage(page)">
+                    <template x-for="p in totalPages" :key="p">
+                        <option :value="p" x-text="`${p} / ${totalPages}`" :selected="p === page"></option>
+                    </template>
+                </select>
+                <button class="page-btn" @click="nextPage()" :disabled="page === totalPages">下一頁 →</button>
+            </div>
+        </div>
+
+        <!-- Image Grid -->
+        <div class="showcase-grid" x-show="mode === 'grid'">
+            <template x-for="(video, index) in paginatedVideos" :key="video.path">
+                <div class="av-card-preview"
+                     @click="openLightbox(getCurrentFilteredIndex(index))"
+                     :style="`--card-index: ${index}`">
+                    <div class="av-card-preview-img">
+                        <img :src="video.cover_url"
+                             :alt="video.number"
+                             loading="lazy">
+                        <div class="av-card-preview-overlay">
+                            <button class="btn-glass-circle"
+                                    @click.stop="playVideo(video.path)"
+                                    title="開啟影片">
+                                <i class="bi bi-play-fill"></i>
+                            </button>
+                            <button class="btn-glass-circle"
+                                    @click.stop="copyPath(video.path)"
+                                    title="複製路徑">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="av-card-preview-footer">
+                        <div class="footer-default">
+                            <span class="av-num" x-text="video.number"></span>
+                            <span class="av-actress" x-text="video.actresses || '未知'"></span>
+                        </div>
+                        <div class="footer-hover" x-show="!infoVisible">
+                            <div class="hover-title" x-text="video.title || '未知標題'"></div>
+                        </div>
+                    </div>
+                    <!-- Card Info 展開區 (M3i) — footer 同層，展開時撐高卡片 -->
+                    <div class="card-info" x-show="infoVisible" x-cloak @click.stop>
+                        <div class="info-title" x-text="video.title || '未知標題'"></div>
+                        <div class="info-row" x-show="video.actresses">
+                            <b>演員：</b>
+                            <template x-for="(actress, i) in (video.actresses || '').split(',').filter(a => a.trim())" :key="actress">
+                                <span>
+                                    <span x-show="i > 0">, </span>
+                                    <a class="info-link" href="#"
+                                       @click.prevent.stop="searchFromMetadata(actress.trim())"
+                                       x-text="actress.trim()"></a>
+                                </span>
+                            </template>
+                        </div>
+                        <div class="info-row info-meta">
+                            <span x-show="video.maker">
+                                <b>片商：</b>
+                                <a class="info-link" href="#"
+                                   @click.prevent.stop="searchFromMetadata(video.maker)"
+                                   x-text="video.maker"></a>
+                            </span>
+                            <span x-show="video.release_date">
+                                <b>日期：</b><span x-text="video.release_date"></span>
+                            </span>
+                        </div>
+                        <div class="info-tags" x-show="video.tags">
+                            <template x-for="tag in (video.tags || '').split(',').filter(t => t.trim())" :key="tag">
+                                <a class="tag info-link" href="#"
+                                   @click.prevent.stop="searchFromMetadata(tag.trim())"
+                                   x-text="tag.trim()"></a>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Detail Table (M3b) -->
+        <div class="showcase-table-wrapper" x-show="mode === 'table'" style="display: none;">
+            <div class="table-scroll-container">
+                <table class="table table-zebra table-pin-rows">
+                    <thead>
+                        <tr>
+                            <th class="table-col-index">#</th>
+                            <th class="table-col-number">番號</th>
+                            <th class="table-col-title">標題</th>
+                            <th class="table-col-actor">女優</th>
+                            <th class="table-col-maker">片商</th>
+                            <th class="table-col-date">日期</th>
+                            <th class="table-col-tags">標籤</th>
+                            <th class="table-col-size">大小</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="(video, index) in paginatedVideos" :key="video.path">
+                            <tr @click="openLightbox(getCurrentFilteredIndex(index))" class="table-row-clickable">
+                                <td class="table-cell-index" x-text="getCurrentFilteredIndex(index) + 1"></td>
+                                <td class="table-cell-number">
+                                    <span class="table-number-highlight" x-text="video.number"></span>
+                                </td>
+                                <td class="table-cell-title" x-text="video.title || '未知標題'"></td>
+                                <td class="table-cell-actor" x-text="video.actresses || '未知'"></td>
+                                <td class="table-cell-maker" x-text="video.maker || '-'"></td>
+                                <td class="table-cell-date" x-text="video.release_date || '-'"></td>
+                                <td class="table-cell-tags">
+                                    <template x-if="video.tags">
+                                        <div class="table-tags-wrapper">
+                                            <template x-for="tag in video.tags.split(',').slice(0, 3).filter(t => t.trim())" :key="tag">
+                                                <span class="table-tag" x-text="tag.trim()"></span>
+                                            </template>
+                                            <template x-if="video.tags.split(',').length > 3">
+                                                <span class="table-tag-more" x-text="`+${video.tags.split(',').length - 3}`"></span>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <template x-if="!video.tags">
+                                        <span class="text-muted">-</span>
+                                    </template>
+                                </td>
+                                <td class="table-cell-size">
+                                    <span class="table-size-mono" x-text="formatSize(video.size || 0)"></span>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Text List (M3c) -->
+        <div class="showcase-list-wrapper" x-show="mode === 'list'" style="display: none;">
+            <ul class="showcase-list">
+                <template x-for="(video, index) in paginatedVideos" :key="video.path">
+                    <li class="list-item" @click="openLightbox(getCurrentFilteredIndex(index))">
+                        <span class="list-number" x-text="video.number"></span>
+                        <span class="list-title" x-text="video.title || '未知標題'"></span>
+                        <span class="list-actor" x-show="video.actresses" x-text="`(${video.actresses})`"></span>
+                    </li>
+                </template>
+            </ul>
+        </div>
+
+        <!-- Lightbox (M3a) -->
+        <div class="showcase-lightbox"
+             :class="{ 'show': lightboxOpen }"
+             @click="handleLightboxBackdropClick($event)"
+             @mousemove="handleLightboxMousemove($event)">
+
+            <div class="lightbox-content" @click.stop>
+                <!-- Close Button -->
+                <button class="lightbox-close"
+                        @click="closeLightbox()"
+                        title="關閉 (ESC)">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+
+                <!-- Cover Image -->
+                <div class="lightbox-cover">
+                    <img :src="currentLightboxVideo?.cover_url"
+                         :alt="currentLightboxVideo?.number"
+                         @error="$event.target.onerror=null; $event.target.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22 fill=%22%23666%22><rect width=%22400%22 height=%22300%22 fill=%22%23222%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2216%22>No Image</text></svg>'">
+                </div>
+
+                <!-- Metadata Panel（緊湊版，匹配原版 gallery） -->
+                <div class="lightbox-metadata">
+                    <div class="lb-title" x-text="currentLightboxVideo?.title || '未知標題'"></div>
+                    <div class="lb-otitle"
+                         x-show="currentLightboxVideo?.original_title"
+                         x-text="currentLightboxVideo?.original_title"></div>
+                    <div class="lb-actor" x-show="currentLightboxVideo?.actresses">
+                        <template x-for="(actress, idx) in (currentLightboxVideo?.actresses || '').split(',').filter(a => a.trim())" :key="actress">
+                            <span>
+                                <a href="#" class="lb-link" @click.prevent="searchFromMetadata(actress.trim())" x-text="actress.trim()"></a><span x-show="idx < (currentLightboxVideo?.actresses || '').split(',').filter(a => a.trim()).length - 1">, </span>
+                            </span>
+                        </template>
+                    </div>
+                    <div class="lb-meta">
+                        <span x-text="currentLightboxVideo?.number || '未知'"></span>
+                        <span x-show="currentLightboxVideo?.maker">
+                            <a href="#" class="lb-link" @click.prevent="searchFromMetadata(currentLightboxVideo?.maker)" x-text="currentLightboxVideo?.maker"></a>
+                        </span>
+                        <span x-show="currentLightboxVideo?.release_date" x-text="currentLightboxVideo?.release_date"></span>
+                    </div>
+                    <div class="lb-tags" x-show="currentLightboxVideo?.tags">
+                        <template x-for="tag in (currentLightboxVideo?.tags || '').split(',').filter(t => t.trim())" :key="tag">
+                            <a href="#" class="lb-tag lb-link" @click.prevent="searchFromMetadata(tag.trim())" x-text="tag.trim()"></a>
+                        </template>
+                    </div>
+                    <div class="lb-footer">
+                        <div class="lb-actions">
+                            <button class="lb-btn" @click="playVideo(currentLightboxVideo?.path)">
+                                <i class="bi bi-play-fill"></i> 播放
+                            </button>
+                            <button class="lb-btn" @click="copyPath(currentLightboxVideo?.path)">
+                                <i class="bi bi-clipboard"></i> 複製
+                            </button>
+                        </div>
+                        <span class="lb-size" x-text="formatSize(currentLightboxVideo?.size || 0)"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Arrows OUTSIDE lightbox-content -->
+            <button class="lightbox-nav lightbox-nav-prev"
+                    @click.stop="prevLightboxVideo()"
+                    x-show="lightboxIndex > 0"
+                    title="上一部 (←)">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+            <button class="lightbox-nav lightbox-nav-next"
+                    @click.stop="nextLightboxVideo()"
+                    x-show="lightboxIndex < filteredVideos.length - 1"
+                    title="下一部 (→)">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Toast (M3h) -->
+    <div class="toast toast-bottom toast-center fluent-toast-container"
+         x-show="toastVisible"
+         x-transition:enter="fluent-toast-enter"
+         x-transition:enter-start="fluent-toast-enter-start"
+         x-transition:enter-end="fluent-toast-enter-end"
+         x-transition:leave="fluent-toast-leave"
+         x-transition:leave-start="fluent-toast-leave-start"
+         x-transition:leave-end="fluent-toast-leave-end">
+        <div class="alert fluent-toast"
+             :class="toastType === 'error' ? 'alert-error' : 'alert-success'">
+            <i class="bi" :class="toastType === 'error' ? 'bi-exclamation-circle' : 'bi-check-circle'"></i>
+            <span x-text="toastMessage"></span>
+        </div>
+    </div>
+
+    <!-- Shortcut Hint (M4c) -->
+    <div class="shortcut-hint">
+        <span class="hint-text">
+            <kbd>A</kbd> 切換模式 ·
+            <kbd>S</kbd> 顯示資訊 ·
+            <kbd>←</kbd> <kbd>→</kbd> 翻頁 ·
+            <kbd>ESC</kbd> 關閉
+        </span>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<!-- M2c: 傳遞 config 給 JS -->
 <script>
-    // 檢查列表是否存在並載入
-    async function loadViewer() {
-        try {
-            const resp = await fetch('/api/gallery/stats');
-            const result = await resp.json();
-
-            if (result.success && result.data && result.data.total > 0) {
-                // 有列表，載入 iframe
-                const frame = document.getElementById('viewerFrame');
-                const placeholder = document.getElementById('placeholder');
-
-                placeholder.style.display = 'none';
-                frame.style.display = 'block';
-                // 獲取當前主題並傳遞給 iframe
-                const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-                frame.src = '/api/gallery/view?theme=' + currentTheme;
-
-                // 等待 iframe 載入完成後注入外部播放器腳本
-                frame.onload = function () {
-                    injectExternalPlayerScript(frame);
-                };
-            }
-        } catch (e) {
-            console.error('載入失敗:', e);
-        }
-    }
-
-    // 注入外部播放器腳本
-    function injectExternalPlayerScript(frame) {
-        try {
-            const frameDoc = frame.contentDocument || frame.contentWindow.document;
-
-            // 覆蓋 playVideo 函數
-            const script = frameDoc.createElement('script');
-            script.textContent = `
-            // 保存原函數參考
-            var _originalPlayVideo = window.playVideo;
-
-            // 覆蓋 playVideo 函數
-            window.playVideo = function(indexOrPath) {
-                console.log('[Viewer] playVideo called:', indexOrPath, typeof indexOrPath);
-
-                // 判斷參數類型：數字=索引，字串=路徑
-                var path;
-                if (typeof indexOrPath === 'number') {
-                    // 索引模式：從 filtered_videos 取得路徑
-                    var video = filtered_videos[indexOrPath];
-                    if (!video) {
-                        console.error('[Viewer] Video not found at index:', indexOrPath);
-                        return;
-                    }
-                    path = video.path;
-                } else {
-                    path = indexOrPath;
-                }
-
-                console.log('[Viewer] Opening path:', path);
-
-                // 嘗試使用 PyWebView API
-                if (window.parent && window.parent.pywebview && window.parent.pywebview.api) {
-                    window.parent.pywebview.api.open_file(path)
-                        .then(function(result) {
-                            console.log('[Viewer] open_file result:', result);
-                        })
-                        .catch(function(err) {
-                            console.error('[Viewer] open_file error:', err);
-                            // fallback: 用原本的方式開啟
-                            window.open(path.replace(/#/g, '%23'), '_blank');
-                        });
-                } else {
-                    // 非 PyWebView 環境，用原本的方式
-                    console.log('[Viewer] PyWebView not available, using default');
-                    window.open(path.replace(/#/g, '%23'), '_blank');
-                }
-            };
-            console.log('[Viewer] playVideo overridden for external player');
-        `;
-            frameDoc.body.appendChild(script);
-            console.log('[Viewer] External player script injected');
-        } catch (e) {
-            console.error('[Viewer] Failed to inject script:', e);
-            // 可能是跨域問題，忽略
-        }
-    }
-
-    // 初始化
-    loadViewer();
+window.__SHOWCASE_CONFIG__ = {{ (config.gallery or {}) | tojson | safe }};
 </script>
+<!-- M2a 只需 core.js -->
+<script src="/static/js/pages/showcase/core.js"></script>
 {% endblock %}
