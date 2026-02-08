@@ -81,7 +81,7 @@
                     </button>
                 </div>
 
-                <!-- 顯示模式 (M3 啟用 table) -->
+                <!-- 顯示模式 (M3c 全部啟用) -->
                 <div class="control-group mode-switcher">
                     <button class="btn-icon"
                             :class="{ 'active': mode === 'grid' }"
@@ -95,7 +95,10 @@
                             title="表格模式">
                         <i class="bi bi-table"></i>
                     </button>
-                    <button class="btn-icon" disabled title="列表模式 (即將推出)">
+                    <button class="btn-icon"
+                            :class="{ 'active': mode === 'list' }"
+                            @click="switchMode('list')"
+                            title="列表模式">
                         <i class="bi bi-list-ul"></i>
                     </button>
                 </div>
@@ -220,6 +223,19 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+
+        <!-- Text List (M3c) -->
+        <div class="showcase-list-wrapper" x-show="mode === 'list'" style="display: none;">
+            <ul class="showcase-list">
+                <template x-for="(video, index) in paginatedVideos" :key="video.path">
+                    <li class="list-item" @click="openLightbox(getCurrentFilteredIndex(index))">
+                        <span class="list-number" x-text="video.number"></span>
+                        <span class="list-title" x-text="video.title || '未知標題'"></span>
+                        <span class="list-actor" x-show="video.actresses" x-text="`(${video.actresses})`"></span>
+                    </li>
+                </template>
+            </ul>
         </div>
 
         <!-- Pagination -->

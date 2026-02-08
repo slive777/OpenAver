@@ -609,6 +609,101 @@
     }
 }
 
+/* ==================== Text List Mode ==================== */
+
+/* List Wrapper */
+.showcase-list-wrapper {
+    padding: 1.5rem;
+}
+
+/* List Container */
+.showcase-list {
+    list-style: none;
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+/* List Item - Compact Single Line */
+.list-item {
+    padding: 0.875rem 1.25rem;
+    border-bottom: 1px solid var(--stroke-subtle);
+    cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out);
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+}
+
+.list-item:last-child {
+    border-bottom: none;
+}
+
+.list-item:hover {
+    background: var(--glow-subtle);
+}
+
+/* Number - Accent + Monospace */
+.list-number {
+    color: var(--accent);
+    font-weight: 600;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+    min-width: 120px;
+}
+
+/* Title - Primary Text */
+.list-title {
+    color: var(--text-primary);
+    font-weight: 500;
+    font-size: 0.9375rem;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Actor - Secondary Text with Parentheses */
+.list-actor {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* Responsive: 小螢幕 */
+@media (max-width: 768px) {
+    .showcase-list-wrapper {
+        padding: 1rem;
+    }
+
+    .list-item {
+        padding: 0.75rem 1rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .list-number {
+        min-width: 100px;
+        font-size: 0.8125rem;
+    }
+
+    .list-title {
+        font-size: 0.875rem;
+        flex-basis: 100%;
+    }
+
+    .list-actor {
+        font-size: 0.8125rem;
+        flex-basis: 100%;
+        padding-left: calc(100px + 0.5rem);
+    }
+}
+
 /* ==================== Light / Dim 主題適配 ==================== */
 /* 使用 theme.css 定義的 CSS 變數，無需額外覆寫 */
 /* --bg-header 已在 theme.css 定義：color-mix(in oklch, var(--color-base-200) 85%, transparent) */
