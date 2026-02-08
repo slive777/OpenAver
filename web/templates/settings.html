@@ -7,7 +7,7 @@
 {% endblock %}
 
 {% block content %}
-<div id="settings-components">
+<div id="settings-components" x-data="settingsPage()">
     <div class="settings-header">
         <h4 class="mb-0">
             <i class="bi bi-gear"></i> 設定
@@ -23,7 +23,7 @@
         </div>
     </div>
 
-    <form id="settingsForm">
+    <form id="settingsForm" @submit.prevent="saveConfig">
         <!-- 1. 搜尋與刮削設定 (Search & Scraper) -->
         <div class="card mb-4">
             <div class="settings-card-header">
@@ -34,7 +34,7 @@
                 <div class="settings-form-group">
                     <label class="settings-label">
                         <input type="checkbox" class="toggle toggle-primary" id="galleryModeEnabled"
-                            data-section="search" data-key="gallery_mode_enabled">
+                            x-model="form.galleryModeEnabled">
                         <span class="label-text">女優畫廊模式 <span class="badge badge-error badge-sm">Beta</span></span>
                     </label>
                 </div>
@@ -42,7 +42,7 @@
                 <div class="settings-form-group">
                     <label class="settings-label">
                         <input type="checkbox" class="toggle toggle-primary" id="uncensoredModeEnabled"
-                            data-section="search" data-key="uncensored_mode_enabled">
+                            x-model="form.uncensoredModeEnabled">
                         <span class="label-text">無碼模式</span>
                     </label>
                     <small class="settings-hint">啟用時只搜尋 AVSOX / FC2，適合無碼作品</small>
@@ -56,6 +56,7 @@
                     </label>
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                         <input type="text" class="input input-bordered input-sm" id="searchFavoriteFolder"
+                            x-model="form.searchFavoriteFolder"
                             placeholder="留空 = 系統下載資料夾">
                         <small class="settings-hint">範例：C:\Users\&lt;你的使用者名稱&gt;\下載</small>
                     </div>
@@ -63,34 +64,38 @@
 
                 <div class="settings-form-group">
                     <label class="settings-label">
-                        <input type="checkbox" class="toggle toggle-primary" id="translateEnabled">
+                        <input type="checkbox" class="toggle toggle-primary" id="translateEnabled"
+                            x-model="form.translateEnabled">
                         <span class="label-text">啟用標題翻譯</span>
                     </label>
                 </div>
 
                 <!-- 翻譯選項 (動態顯示) -->
-                <div id="translateOptions">
+                <div id="translateOptions"
+                     :style="{ opacity: form.translateEnabled ? '1' : '0.5' }">
                     <div class="settings-form-row">
                         <label class="row-label">翻譯服務</label>
-                        <select class="select select-bordered select-sm" id="translateProvider">
+                        <select class="select select-bordered select-sm" id="translateProvider"
+                            x-model="form.translateProvider">
                             <option value="ollama">Ollama（本地）</option>
                             <option value="gemini">Gemini（Google 雲端）</option>
                         </select>
                     </div>
 
                     <!-- Ollama 設定 -->
-                    <div id="ollamaFields">
+                    <div id="ollamaFields" x-show="form.translateProvider === 'ollama'">
                         <div class="settings-form-row">
                             <label class="row-label">Ollama URL</label>
                             <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                                 <div class="variable-input-group">
                                     <input type="text" class="input input-bordered input-sm" id="ollamaUrl"
-                                        value="http://localhost:11434" style="flex: 1;">
-                                    <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testOllamaBtn">
+                                        x-model="form.ollamaUrl" style="flex: 1;">
+                                    <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testOllamaBtn"
+                                        @click="testOllamaConnection()">
                                         <i class="bi bi-plug"></i> 測試
                                     </button>
                                 </div>
-                                <small class="settings-hint" id="ollamaStatus"></small>
+                                <small class="settings-hint" x-html="ollamaStatus"></small>
                             </div>
                         </div>
 
@@ -98,31 +103,37 @@
                             <label class="row-label">模型</label>
                             <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                                 <div class="variable-input-group">
-                                    <select class="select select-bordered select-sm" id="ollamaModel" style="flex: 1;">
-                                        <option value="">-- 請先測試連線 --</option>
+                                    <select class="select select-bordered select-sm" id="ollamaModel" style="flex: 1;"
+                                        x-model="form.ollamaModel" :disabled="ollamaModels.length === 0">
+                                        <option value="" disabled x-show="ollamaModels.length === 0">請先測試連線</option>
+                                        <template x-for="model in ollamaModels" :key="model">
+                                            <option :value="model" x-text="model"></option>
+                                        </template>
                                     </select>
                                     <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testModelBtn"
-                                        title="測試模型">
+                                        @click="testModel()" title="測試模型">
                                         <i class="bi bi-chat-dots"></i> 測試
                                     </button>
                                 </div>
-                                <small class="settings-hint" id="modelStatus"></small>
+                                <small class="settings-hint" x-html="modelStatus"></small>
                             </div>
                         </div>
                     </div>
 
                     <!-- Gemini 設定 (初始隱藏) -->
-                    <div id="geminiFields" style="display: none;">
+                    <div id="geminiFields" x-show="form.translateProvider === 'gemini'">
                         <div class="settings-form-row">
                             <label class="row-label">API Key</label>
                             <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                                 <div class="variable-input-group">
-                                    <input type="password" class="input input-bordered input-sm" id="geminiApiKey" placeholder="AIza..." style="flex: 1;">
-                                    <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testGeminiBtn">
+                                    <input type="password" class="input input-bordered input-sm" id="geminiApiKey"
+                                        x-model="form.geminiApiKey" placeholder="AIza..." style="flex: 1;">
+                                    <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testGeminiBtn"
+                                        @click="testGeminiConnection()">
                                         <i class="bi bi-plug"></i> 測試
                                     </button>
                                 </div>
-                                <small class="settings-hint" id="geminiStatus"></small>
+                                <small class="settings-hint" x-html="geminiStatus"></small>
                                 <small class="settings-hint">
                                     <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a>
                                     可免費申請
@@ -148,15 +159,20 @@
                             <label class="row-label">模型</label>
                             <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                                 <div class="variable-input-group">
-                                    <select class="select select-bordered select-sm" id="geminiModel" disabled style="flex: 1;">
-                                        <option value="">-- 請先測試 API Key --</option>
+                                    <select class="select select-bordered select-sm" id="geminiModel" style="flex: 1;"
+                                        x-model="form.geminiModel" :disabled="geminiModels.length === 0">
+                                        <option value="" disabled x-show="geminiModels.length === 0">請先測試 API Key</option>
+                                        <template x-for="model in geminiModels" :key="model.name">
+                                            <option :value="model.name" x-text="model.name"></option>
+                                        </template>
                                     </select>
                                     <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testGeminiTranslateBtn"
-                                        title="測試翻譯功能" disabled>
+                                        @click="testGeminiTranslation()" title="測試翻譯功能"
+                                        :disabled="geminiModels.length === 0">
                                         <i class="bi bi-chat-dots"></i> 測試
                                     </button>
                                 </div>
-                                <small class="settings-hint" id="geminiModelStatus"></small>
+                                <small class="settings-hint" x-html="geminiModelStatus"></small>
                             </div>
                         </div>
                     </div>
@@ -176,8 +192,8 @@
                     <div x-show="expanded" x-transition class="collapsible-content" id="scraperAdvanced">
                     <div class="settings-form-group">
                         <label class="settings-label">
-                            <input type="checkbox" class="toggle toggle-primary" id="createFolder" checked
-                                onchange="updateFolderLayers()">
+                            <input type="checkbox" class="toggle toggle-primary" id="createFolder"
+                                x-model="form.createFolder">
                             <span class="label-text">建立資料夾</span>
                         </label>
                     </div>
@@ -187,47 +203,58 @@
                         <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
                             <!-- 第一行：外層 / 中層 -->
                             <div class="folder-layers-row">
-                                <div class="folder-layer-group disabled" x-data="{ open: false }">
+                                <div class="folder-layer-group" :class="{ 'disabled': !layer1Enabled }" x-data="{ open: false }">
                                     <input type="text" class="input input-bordered input-sm" id="folderLayer1" placeholder="外層"
-                                        oninput="updateFolderLayers()" disabled>
+                                        x-model="form.folderLayer1" :disabled="!layer1Enabled">
                                     <button class="btn-variable-sm" type="button"
-                                        id="folderLayer1Btn" @click="open = !open" disabled>
+                                        id="folderLayer1Btn" @click="open = !open" :disabled="!layer1Enabled">
                                         <i class="bi bi-braces"></i>
                                     </button>
-                                    <div x-show="open" @click.outside="open = false" x-transition
-                                        class="variable-menu"
-                                        data-target="folderLayer1" style="display: none;"></div>
+                                    <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
+                                        <template x-for="v in folderVariables" :key="v.name">
+                                            <div class="variable-item" @click="appendVariable('folderLayer1', v.name); open = false">
+                                                <code class="variable-name" x-text="v.name"></code>
+                                            </div>
+                                        </template>
+                                    </div>
                                 </div>
                                 <span class="folder-separator">/</span>
-                                <div class="folder-layer-group disabled" x-data="{ open: false }">
+                                <div class="folder-layer-group" :class="{ 'disabled': !layer2Enabled }" x-data="{ open: false }">
                                     <input type="text" class="input input-bordered input-sm" id="folderLayer2" placeholder="中層"
-                                        oninput="updateFolderLayers()" disabled>
+                                        x-model="form.folderLayer2" :disabled="!layer2Enabled">
                                     <button class="btn-variable-sm" type="button"
-                                        id="folderLayer2Btn" @click="open = !open" disabled>
+                                        id="folderLayer2Btn" @click="open = !open" :disabled="!layer2Enabled">
                                         <i class="bi bi-braces"></i>
                                     </button>
-                                    <div x-show="open" @click.outside="open = false" x-transition
-                                        class="variable-menu"
-                                        data-target="folderLayer2" style="display: none;"></div>
+                                    <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
+                                        <template x-for="v in folderVariables" :key="v.name">
+                                            <div class="variable-item" @click="appendVariable('folderLayer2', v.name); open = false">
+                                                <code class="variable-name" x-text="v.name"></code>
+                                            </div>
+                                        </template>
+                                    </div>
                                 </div>
                             </div>
                             <!-- 第二行：內層（佔整行） -->
-                            <div class="folder-layer-group" x-data="{ open: false }">
+                            <div class="folder-layer-group" :class="{ 'disabled': !layer3Enabled }" x-data="{ open: false }">
                                 <span class="input-group-text">內層</span>
-                                <input type="text" class="input input-bordered input-sm" id="folderLayer3" value="{num}"
-                                    placeholder="{num}" oninput="updateFolderLayers()" style="flex: 1;">
+                                <input type="text" class="input input-bordered input-sm" id="folderLayer3"
+                                    x-model="form.folderLayer3" placeholder="{num}" :disabled="!layer3Enabled" style="flex: 1;">
                                 <button class="btn-variable-sm" type="button"
-                                    id="folderLayer3Btn" @click="open = !open">
+                                    id="folderLayer3Btn" @click="open = !open" :disabled="!layer3Enabled">
                                     <i class="bi bi-braces"></i>
                                 </button>
-                                <div x-show="open" @click.outside="open = false" x-transition
-                                    class="variable-menu"
-                                    data-target="folderLayer3" style="display: none;"></div>
+                                <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
+                                    <template x-for="v in folderVariables" :key="v.name">
+                                        <div class="variable-item" @click="appendVariable('folderLayer3', v.name); open = false">
+                                            <code class="variable-name" x-text="v.name"></code>
+                                        </div>
+                                    </template>
+                                </div>
                             </div>
                             <div class="folder-preview">
                                 <i class="bi bi-file-earmark-play"></i>
-                                <span class="preview-text">預覽: <span
-                                    id="folderPreview">SSNI-618/[SSNI-618][SOD] 絕對領域.mp4</span></span>
+                                <span class="preview-text">預覽: <span x-text="folderPreviewText"></span></span>
                             </div>
                         </div>
                     </div>
@@ -236,15 +263,19 @@
                         <label class="row-label">檔案命名格式</label>
                         <div class="variable-input-group" x-data="{ open: false }">
                             <input type="text" class="input input-bordered input-sm" id="filenameFormat"
-                                value="[{num}][{maker}] {title}" placeholder="[{num}][{maker}] {title}"
-                                oninput="updateFolderPreview()" style="flex: 1;">
+                                x-model="form.filenameFormat" placeholder="[{num}][{maker}] {title}" style="flex: 1;">
                             <button class="btn-variable" type="button"
                                 @click="open = !open" :aria-expanded="open">
                                 <i class="bi bi-braces"></i> 變數
                             </button>
-                            <div x-show="open" @click.outside="open = false" x-transition
-                                class="variable-menu"
-                                data-target="filenameFormat" data-type="format" style="display: none;">
+                            <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
+                                <template x-for="v in formatVariables" :key="v.name">
+                                    <div class="variable-item" @click="insertVariable('filenameFormat', v.name); open = false">
+                                        <code class="variable-name" x-text="v.name"></code>
+                                        <span class="variable-desc" x-text="v.description"></span>
+                                        <small class="variable-example" x-text="'例：' + v.example"></small>
+                                    </div>
+                                </template>
                             </div>
                         </div>
                     </div>
@@ -252,8 +283,8 @@
                     <div class="settings-form-row">
                         <label class="row-label">標題長度限制</label>
                         <div class="input-group-inline">
-                            <input type="number" class="input input-bordered input-sm" id="maxTitleLength" value="80" min="20"
-                                max="200">
+                            <input type="number" class="input input-bordered input-sm" id="maxTitleLength"
+                                x-model.number="form.maxTitleLength" min="20" max="200">
                             <span class="input-suffix">字元</span>
                         </div>
                     </div>
@@ -261,8 +292,8 @@
                     <div class="settings-form-row">
                         <label class="row-label">檔名長度限制</label>
                         <div class="input-group-inline">
-                            <input type="number" class="input input-bordered input-sm" id="maxFilenameLength" value="200" min="50"
-                                max="255">
+                            <input type="number" class="input input-bordered input-sm" id="maxFilenameLength"
+                                x-model.number="form.maxFilenameLength" min="50" max="255">
                             <span class="input-suffix">字元</span>
                         </div>
                     </div>
@@ -271,7 +302,7 @@
                         <label class="row-label">影片副檔名</label>
                         <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                             <input type="text" class="input input-bordered input-sm" id="videoExtensions"
-                                value=".mp4, .avi, .mkv, .wmv, .rmvb, .flv, .mov, .m4v, .ts">
+                                x-model="form.videoExtensions">
                             <small class="settings-hint">以逗號分隔</small>
                         </div>
                     </div>
@@ -290,10 +321,10 @@
                 <div class="settings-form-row">
                     <label class="row-label">輸出目錄</label>
                     <div class="variable-input-group">
-                        <input type="text" class="input input-bordered input-sm" id="avlistOutputDir" value="output"
-                            placeholder="output" style="flex: 1;">
-                        <button class="btn btn-sm btn-outline btn-neutral" type="button" onclick="selectOutputFolder()"
-                            title="選擇資料夾">
+                        <input type="text" class="input input-bordered input-sm" id="avlistOutputDir"
+                            x-model="form.avlistOutputDir" placeholder="output" style="flex: 1;">
+                        <button class="btn btn-sm btn-outline btn-neutral" type="button"
+                            @click="selectOutputFolder()" title="選擇資料夾">
                             <i class="bi bi-folder"></i>
                         </button>
                     </div>
@@ -302,7 +333,7 @@
                 <div class="settings-form-row">
                     <label class="row-label">輸出檔名</label>
                     <input type="text" class="input input-bordered input-sm" id="avlistOutputFilename"
-                        value="gallery_output.html" placeholder="gallery_output.html">
+                        x-model="form.avlistOutputFilename" placeholder="gallery_output.html">
                 </div>
 
                 <!-- 進階顯示選項 (Collapsed) -->
@@ -319,7 +350,8 @@
                     <div x-show="expanded" x-transition class="collapsible-content" id="galleryAdvanced">
                     <div class="settings-form-row">
                         <label class="row-label">預設顯示模式</label>
-                        <select class="select select-bordered select-sm" id="avlistMode">
+                        <select class="select select-bordered select-sm" id="avlistMode"
+                            x-model="form.avlistMode">
                             <option value="image">圖片模式</option>
                             <option value="detail">詳細模式</option>
                             <option value="text">文字模式</option>
@@ -329,7 +361,8 @@
                     <div class="settings-form-row">
                         <label class="row-label">預設排序</label>
                         <div class="sort-row" style="display: flex; gap: 8px; flex: 1;">
-                            <select class="select select-bordered select-sm" id="avlistSort" style="flex: 1;">
+                            <select class="select select-bordered select-sm" id="avlistSort" style="flex: 1;"
+                                x-model="form.avlistSort">
                                 <option value="date">發售日期</option>
                                 <option value="mdate">修改日期</option>
                                 <option value="num">番號</option>
@@ -338,7 +371,8 @@
                                 <option value="maker">片商</option>
                                 <option value="size">檔案大小</option>
                             </select>
-                            <select class="select select-bordered select-sm" id="avlistOrder" style="width: 100px;">
+                            <select class="select select-bordered select-sm" id="avlistOrder" style="width: 100px;"
+                                x-model="form.avlistOrder">
                                 <option value="descending">遞減</option>
                                 <option value="ascending">遞增</option>
                             </select>
@@ -347,7 +381,8 @@
 
                     <div class="settings-form-row">
                         <label class="row-label">每頁顯示數量</label>
-                        <select class="select select-bordered select-sm" id="avlistItemsPerPage">
+                        <select class="select select-bordered select-sm" id="avlistItemsPerPage"
+                            x-model.number="form.avlistItemsPerPage">
                             <option value="30">30</option>
                             <option value="45">45</option>
                             <option value="60">60</option>
@@ -361,7 +396,8 @@
                         <label class="row-label">最小影片尺寸</label>
                         <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                             <div class="input-group-inline">
-                                <input type="number" class="input input-bordered input-sm" id="avlistMinSize" value="0" min="0">
+                                <input type="number" class="input input-bordered input-sm" id="avlistMinSize"
+                                    x-model.number="form.avlistMinSize" min="0">
                                 <span class="input-suffix">MB</span>
                             </div>
                             <small class="settings-hint">0 = 不過濾</small>
@@ -382,7 +418,7 @@
                     <label class="row-label">影片播放器</label>
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                         <input type="text" class="input input-bordered input-sm" id="viewerPlayer"
-                            placeholder="留空使用系統預設">
+                            x-model="form.viewerPlayer" placeholder="留空使用系統預設">
                         <small class="settings-hint">例如: C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe</small>
                     </div>
                 </div>
@@ -395,14 +431,10 @@
                 <i class="bi bi-sliders"></i> 系統設定
             </div>
             <div class="card-body">
-                <!-- 隱藏 select：保留 #themeMode 供 core.js loadConfig/saveConfig 使用，T4b 清除 -->
-                <select id="themeMode" x-model="theme" class="hidden">
-                    <option value="light">Light</option>
-                    <option value="dim">Dim</option>
-                </select>
                 <div class="settings-form-row">
                     <label class="row-label">啟動時開啟頁面</label>
-                    <select class="select select-bordered select-sm" id="defaultPage">
+                    <select class="select select-bordered select-sm" id="defaultPage"
+                        x-model="form.defaultPage">
                         <option value="search">搜尋</option>
                         <option value="scanner">列表生成</option>
                         <option value="showcase">瀏覽</option>
@@ -410,7 +442,8 @@
                 </div>
                 <div class="settings-form-group">
                     <label class="settings-label">
-                        <input type="checkbox" class="toggle toggle-primary" id="sidebarCollapsed">
+                        <input type="checkbox" class="toggle toggle-primary" id="sidebarCollapsed"
+                            x-model="form.sidebarCollapsed">
                         <span class="label-text">啟動時收合側邊欄</span>
                     </label>
                     <small class="settings-hint">僅影響桌面版</small>
@@ -424,7 +457,8 @@
                         重置所有設定
                         <small class="settings-hint">刪除所有自訂設定，恢復預設值</small>
                     </label>
-                    <button type="button" class="btn btn-sm btn-outline btn-error" id="resetBtn">
+                    <button type="button" class="btn btn-sm btn-outline btn-error"
+                        @click="resetConfig()">
                         <i class="bi bi-arrow-counterclockwise"></i> 重置為預設值
                     </button>
                 </div>
@@ -437,7 +471,8 @@
                         新手引導
                         <small class="settings-hint">觀看功能介紹教學</small>
                     </label>
-                    <button type="button" class="btn btn-sm btn-outline btn-primary" id="btnRestartTutorial">
+                    <button type="button" class="btn btn-sm btn-outline btn-primary"
+                        @click="restartTutorial()">
                         <i class="bi bi-play-circle"></i> 重看新手引導
                     </button>
                 </div>
@@ -448,7 +483,7 @@
         <!-- 版本資訊 -->
         <div class="settings-form-row">
             <label class="row-label">版本資訊</label>
-            <span id="appVersion" class="version-text">載入中...</span>
+            <span class="version-text" x-text="appVersion"></span>
         </div>
 
         <!-- 檢查更新 -->
@@ -458,10 +493,11 @@
                 <small class="settings-hint">手動檢查 GitHub 是否有新版本</small>
             </label>
             <div class="update-check-wrapper">
-                <button type="button" class="btn btn-sm btn-outline btn-neutral" id="btnCheckUpdate">
+                <button type="button" class="btn btn-sm btn-outline btn-neutral" id="btnCheckUpdate"
+                    @click="checkUpdate()">
                     <i class="bi bi-cloud-download"></i> 檢查更新
                 </button>
-                <span id="updateStatus" class="small"></span>
+                <span class="small" x-html="updateStatus"></span>
             </div>
         </div>
 
@@ -479,9 +515,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/pages/settings/core.js"></script>
-<script src="/static/js/pages/settings/translate.js"></script>
-<script src="/static/js/pages/settings/folders.js"></script>
-<script src="/static/js/pages/settings/format.js"></script>
-<script src="/static/js/pages/settings/init.js"></script>
+<script src="/static/js/pages/settings.js"></script>
 {% endblock %}
