@@ -127,11 +127,27 @@
                         <img :src="video.cover_url"
                              :alt="video.number"
                              loading="lazy">
-                        <!-- Badge: Local / HD 等狀態標籤 (M2a 先不實作) -->
+                        <div class="av-card-preview-overlay">
+                            <button class="btn-glass-circle"
+                                    @click.stop="playVideo(video.path)"
+                                    title="開啟影片">
+                                <i class="bi bi-play-fill"></i>
+                            </button>
+                            <button class="btn-glass-circle"
+                                    @click.stop="copyPath(video.path)"
+                                    title="複製路徑">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="av-card-preview-footer">
-                        <span class="av-num" x-text="video.number"></span>
-                        <span class="av-actress" x-text="video.actresses || '未知'"></span>
+                        <div class="footer-default">
+                            <span class="av-num" x-text="video.number"></span>
+                            <span class="av-actress" x-text="video.actresses || '未知'"></span>
+                        </div>
+                        <div class="footer-hover">
+                            <div class="hover-title" x-text="video.title || '未知標題'"></div>
+                        </div>
                     </div>
                 </div>
             </template>

@@ -120,6 +120,61 @@
     }
 }
 
+/* ==================== Card Footer Switch (M3e) ==================== */
+
+/* Footer 容器：支援雙層切換 */
+.showcase-grid .av-card-preview-footer {
+    position: relative;
+    overflow: hidden;
+    height: 2.5rem;
+}
+
+/* 預設層：番號 + 女優 */
+.footer-default {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+/* 懸停層：標題（絕對定位覆蓋） */
+.footer-hover {
+    position: absolute;
+    inset: 0;
+    padding: 0.5rem 0.75rem;
+    background: var(--surface-1);
+    opacity: 0;
+    transform: translateY(100%);
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard),
+                transform var(--fluent-duration-fast) var(--fluent-ease-standard);
+    display: flex;
+    align-items: center;
+}
+
+/* Card Hover 時切換 */
+.av-card-preview:hover .footer-hover {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.av-card-preview:hover .footer-default {
+    opacity: 0;
+}
+
+/* 懸停標題：2 行截斷 */
+.hover-title {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* ==================== Pagination ==================== */
 .showcase-pagination {
     display: flex;
