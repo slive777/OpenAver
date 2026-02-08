@@ -244,9 +244,15 @@
 </head>
 
 <body x-data="{
-    sidebarCollapsed: $persist({{ config.general.sidebar_collapsed|default(false)|tojson }}).as('sidebar_collapsed'),
+    sidebarCollapsed: $persist(false).as('sidebar_collapsed'),
     mobileMenuOpen: false
-}" :class="{ 'sidebar-collapsed': sidebarCollapsed }" class="{% if page in ['design-system', 'showcase'] %}ds-page{% endif %}">
+}"
+     :class="{ 'sidebar-collapsed': sidebarCollapsed }"
+     class="{% if page in ['design-system', 'showcase'] %}ds-page{% endif %}">
+    <!-- Sidebar: 同步讀取 localStorage 防止閃爍（Alpine 載入前執行） -->
+    <script>
+      try{if(JSON.parse(localStorage.getItem('_x_sidebar_collapsed')))document.body.classList.add('sidebar-collapsed')}catch(e){}
+    </script>
     <!-- 頂部導航列（僅小螢幕顯示）-->
     <nav class="navbar bg-base-200 lg:hidden fixed top-0 left-0 right-0 z-50 h-14 top-navbar fluent-acrylic border-b border-base-300" x-show="!mobileMenuOpen">
         <div class="navbar-start">
