@@ -1729,51 +1729,57 @@ body {
     position: relative;
 }
 
+:is(#settings-components, #ds-settings-components) .variable-dropdown {
+    position: relative;
+    display: inline-flex;
+}
+
 :is(#settings-components, #ds-settings-components) .variable-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 20;
+    margin-top: 4px;
     background: var(--bg-card);
     border: 1px solid var(--border-light);
     border-radius: var(--radius-md);
     box-shadow: var(--fluent-shadow-8);
     padding: 8px;
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-:is(#settings-components, #ds-settings-components) .variable-item {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 10px 12px;
-    border-radius: var(--radius-sm);
+    gap: 6px;
+    width: fit-content;
+}
+
+:is(#settings-components, #ds-settings-components) .variable-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: var(--border-light);
+    padding: 4px 10px;
+    border-radius: var(--radius-xs, 4px);
     cursor: pointer;
     transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
+    user-select: none;
 }
 
-:is(#settings-components, #ds-settings-components) .variable-item:hover {
-    background: color-mix(in oklch, var(--color-base-content) 2%, transparent);
-}
-
-:is(#settings-components, #ds-settings-components) .variable-name {
-    font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--accent);
-    background: color-mix(in oklch, var(--accent) 10%, transparent);
-    padding: 2px 6px;
-    border-radius: var(--fluent-radius-sm);
-    align-self: flex-start;
-}
-
-:is(#settings-components, #ds-settings-components) .variable-desc {
-    font-size: 0.875rem;
+:is(#settings-components, #ds-settings-components) .variable-badge:hover {
+    background: color-mix(in oklch, var(--color-base-content) 15%, transparent);
     color: var(--text-primary);
-    font-weight: 500;
 }
 
-:is(#settings-components, #ds-settings-components) .variable-example {
-    font-size: 0.75rem;
-    color: var(--text-muted);
+:is(#settings-components, #ds-settings-components) .format-preview {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    min-height: 1.5rem;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px;
 }
+
 
 /* 多層資料夾連動 */
 :is(#settings-components, #ds-settings-components) .folder-layers-row {

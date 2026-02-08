@@ -209,53 +209,65 @@
                         <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
                             <!-- 第一行：外層 / 中層 -->
                             <div class="folder-layers-row">
-                                <div class="folder-layer-group" :class="{ 'disabled': !layer1Enabled }" x-data="{ open: false }">
-                                    <input type="text" class="input input-bordered input-sm" id="folderLayer1" placeholder="外層"
-                                        x-model="form.folderLayer1" :disabled="!layer1Enabled">
-                                    <button class="btn-variable-sm" type="button"
-                                        id="folderLayer1Btn" @click="open = !open" :disabled="!layer1Enabled">
-                                        <i class="bi bi-braces"></i>
-                                    </button>
-                                    <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
-                                        <template x-for="v in folderVariables" :key="v.name">
-                                            <div class="variable-item" @click="appendVariable('folderLayer1', v.name); open = false">
-                                                <code class="variable-name" x-text="v.name"></code>
+                                <div class="folder-layer-group" :class="{ 'disabled': !layer1Enabled }" x-data="{ open: false }" style="flex-direction: column; align-items: stretch;">
+                                    <div class="format-preview" x-show="form.folderLayer1" x-html="formatPreviewHtml(form.folderLayer1)"></div>
+                                    <div style="display: flex; gap: 4px;">
+                                        <input type="text" class="input input-bordered input-sm" id="folderLayer1" placeholder="外層"
+                                            x-model="form.folderLayer1" :disabled="!layer1Enabled">
+                                        <div class="variable-dropdown">
+                                            <button class="btn-variable" type="button"
+                                                id="folderLayer1Btn" @click="open = !open" :disabled="!layer1Enabled">
+                                                <i class="bi bi-braces"></i> 變數
+                                            </button>
+                                            <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
+                                                <template x-for="v in folderVariables" :key="v.name">
+                                                    <span class="variable-badge" @click="appendVariable('folderLayer1', v.name); open = false"
+                                                          x-text="v.label" :title="v.name"></span>
+                                                </template>
                                             </div>
-                                        </template>
+                                        </div>
                                     </div>
                                 </div>
                                 <span class="folder-separator">/</span>
-                                <div class="folder-layer-group" :class="{ 'disabled': !layer2Enabled }" x-data="{ open: false }">
-                                    <input type="text" class="input input-bordered input-sm" id="folderLayer2" placeholder="中層"
-                                        x-model="form.folderLayer2" :disabled="!layer2Enabled">
-                                    <button class="btn-variable-sm" type="button"
-                                        id="folderLayer2Btn" @click="open = !open" :disabled="!layer2Enabled">
-                                        <i class="bi bi-braces"></i>
-                                    </button>
-                                    <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
-                                        <template x-for="v in folderVariables" :key="v.name">
-                                            <div class="variable-item" @click="appendVariable('folderLayer2', v.name); open = false">
-                                                <code class="variable-name" x-text="v.name"></code>
+                                <div class="folder-layer-group" :class="{ 'disabled': !layer2Enabled }" x-data="{ open: false }" style="flex-direction: column; align-items: stretch;">
+                                    <div class="format-preview" x-show="form.folderLayer2" x-html="formatPreviewHtml(form.folderLayer2)"></div>
+                                    <div style="display: flex; gap: 4px;">
+                                        <input type="text" class="input input-bordered input-sm" id="folderLayer2" placeholder="中層"
+                                            x-model="form.folderLayer2" :disabled="!layer2Enabled">
+                                        <div class="variable-dropdown">
+                                            <button class="btn-variable" type="button"
+                                                id="folderLayer2Btn" @click="open = !open" :disabled="!layer2Enabled">
+                                                <i class="bi bi-braces"></i> 變數
+                                            </button>
+                                            <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
+                                                <template x-for="v in folderVariables" :key="v.name">
+                                                    <span class="variable-badge" @click="appendVariable('folderLayer2', v.name); open = false"
+                                                          x-text="v.label" :title="v.name"></span>
+                                                </template>
                                             </div>
-                                        </template>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <!-- 第二行：內層（佔整行） -->
-                            <div class="folder-layer-group" :class="{ 'disabled': !layer3Enabled }" x-data="{ open: false }">
-                                <span class="input-group-text">內層</span>
-                                <input type="text" class="input input-bordered input-sm" id="folderLayer3"
-                                    x-model="form.folderLayer3" placeholder="{num}" :disabled="!layer3Enabled" style="flex: 1;">
-                                <button class="btn-variable-sm" type="button"
-                                    id="folderLayer3Btn" @click="open = !open" :disabled="!layer3Enabled">
-                                    <i class="bi bi-braces"></i>
-                                </button>
-                                <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
-                                    <template x-for="v in folderVariables" :key="v.name">
-                                        <div class="variable-item" @click="appendVariable('folderLayer3', v.name); open = false">
-                                            <code class="variable-name" x-text="v.name"></code>
+                            <div class="folder-layer-group" :class="{ 'disabled': !layer3Enabled }" x-data="{ open: false }" style="flex-direction: column; align-items: stretch;">
+                                <div class="format-preview" x-show="form.folderLayer3" x-html="formatPreviewHtml(form.folderLayer3)"></div>
+                                <div style="display: flex; gap: 4px;">
+                                    <span class="input-group-text">內層</span>
+                                    <input type="text" class="input input-bordered input-sm" id="folderLayer3"
+                                        x-model="form.folderLayer3" placeholder="{num}" :disabled="!layer3Enabled" style="flex: 1;">
+                                    <div class="variable-dropdown">
+                                        <button class="btn-variable" type="button"
+                                            id="folderLayer3Btn" @click="open = !open" :disabled="!layer3Enabled">
+                                            <i class="bi bi-braces"></i> 變數
+                                        </button>
+                                        <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
+                                            <template x-for="v in folderVariables" :key="v.name">
+                                                <span class="variable-badge" @click="appendVariable('folderLayer3', v.name); open = false"
+                                                      x-text="v.label" :title="v.name"></span>
+                                            </template>
                                         </div>
-                                    </template>
+                                    </div>
                                 </div>
                             </div>
                             <div class="folder-preview">
@@ -267,21 +279,23 @@
 
                     <div class="settings-form-row">
                         <label class="row-label">檔案命名格式</label>
-                        <div class="variable-input-group" x-data="{ open: false }">
-                            <input type="text" class="input input-bordered input-sm" id="filenameFormat"
-                                x-model="form.filenameFormat" placeholder="[{num}][{maker}] {title}" style="flex: 1;">
-                            <button class="btn-variable" type="button"
-                                @click="open = !open" :aria-expanded="open">
-                                <i class="bi bi-braces"></i> 變數
-                            </button>
-                            <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
-                                <template x-for="v in formatVariables" :key="v.name">
-                                    <div class="variable-item" @click="insertVariable('filenameFormat', v.name); open = false">
-                                        <code class="variable-name" x-text="v.name"></code>
-                                        <span class="variable-desc" x-text="v.description"></span>
-                                        <small class="variable-example" x-text="'例：' + v.example"></small>
+                        <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                            <div class="format-preview" x-show="form.filenameFormat" x-html="formatPreviewHtml(form.filenameFormat)"></div>
+                            <div class="variable-input-group" x-data="{ open: false }">
+                                <input type="text" class="input input-bordered input-sm" id="filenameFormat"
+                                    x-model="form.filenameFormat" placeholder="[{num}][{maker}] {title}" style="flex: 1;">
+                                <div class="variable-dropdown">
+                                    <button class="btn-variable" type="button"
+                                        @click="open = !open" :aria-expanded="open">
+                                        <i class="bi bi-braces"></i> 變數
+                                    </button>
+                                    <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
+                                        <template x-for="v in formatVariables" :key="v.name">
+                                            <span class="variable-badge" @click="insertVariable('filenameFormat', v.name); open = false"
+                                                  x-text="v.label" :title="v.name"></span>
+                                        </template>
                                     </div>
-                                </template>
+                                </div>
                             </div>
                         </div>
                     </div>

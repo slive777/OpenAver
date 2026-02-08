@@ -59,20 +59,20 @@ function settingsPage() {
 
         // ===== Constants =====
         formatVariables: [
-            { name: '{num}', description: '番號', example: 'SONE-205' },
-            { name: '{title}', description: '標題', example: '新人出道...' },
-            { name: '{actor}', description: '演員（第一位）', example: '三上悠亜' },
-            { name: '{actors}', description: '所有演員', example: '三上悠亜, 明日花' },
-            { name: '{maker}', description: '片商', example: 'S1' },
-            { name: '{date}', description: '發行日期', example: '2024-01-15' },
-            { name: '{year}', description: '年份', example: '2024' }
+            { name: '{num}', label: '番號' },
+            { name: '{title}', label: '標題' },
+            { name: '{actor}', label: '女優' },
+            { name: '{actors}', label: '女優(全)' },
+            { name: '{maker}', label: '片商' },
+            { name: '{date}', label: '日期' },
+            { name: '{year}', label: '年份' }
         ],
         folderVariables: [
-            { name: '{num}' },
-            { name: '{actor}' },
-            { name: '{maker}' },
-            { name: '{title}' },
-            { name: '{year}' }
+            { name: '{num}', label: '番號' },
+            { name: '{actor}', label: '女優' },
+            { name: '{maker}', label: '片商' },
+            { name: '{title}', label: '標題' },
+            { name: '{year}', label: '年份' }
         ],
         FOLDER_PREVIEW_DATA: {
             num: 'SSNI-618',
@@ -628,6 +628,21 @@ function settingsPage() {
 
         appendVariable(targetField, varName) {
             this.form[targetField] += varName;
+        },
+
+        formatPreviewHtml(formatStr) {
+            if (!formatStr) return '';
+            // Escape HTML to prevent XSS via x-html
+            let html = formatStr.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            // Build a map from token name to label
+            const allVars = [...this.formatVariables, ...this.folderVariables];
+            const seen = new Set();
+            for (const v of allVars) {
+                if (seen.has(v.name)) continue;
+                seen.add(v.name);
+                html = html.replaceAll(v.name, `<span class="tag-badge">${v.label}</span>`);
+            }
+            return html;
         },
 
         // Dirty check modal — 儲存更改後離開
