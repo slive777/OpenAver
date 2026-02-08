@@ -75,6 +75,19 @@ def populated_db(temp_db):
             cover_path="",  # 無封面測試
             mtime=0.0  # 零時間測試
         ),
+        Video(
+            path="file://///NAS/share/PRED-001.mp4",
+            number="PRED-001",
+            title="Test Video 4 - UNC Path",
+            original_title="",
+            actresses=["篠田ゆう"],
+            maker="Premium",
+            release_date="2024-03-01",
+            tags=[],
+            size_bytes=1073741824,
+            cover_path="file://///NAS/share/PRED-001/cover.jpg",  # UNC 路徑測試
+            mtime=1709251200.0
+        ),
     ]
     repo.upsert_batch(videos)
     return temp_db
@@ -126,8 +139,8 @@ class TestShowcaseVideosAPI:
 
         data = response.json()
         assert data["success"] is True
-        assert data["total"] == 3
-        assert len(data["videos"]) == 3
+        assert data["total"] == 4
+        assert len(data["videos"]) == 4
 
         # 驗證第一筆資料欄位完整性
         video1 = data["videos"][0]
@@ -145,6 +158,8 @@ class TestShowcaseVideosAPI:
 
     def test_cover_url_conversion_unix_path(self, client, populated_db, monkeypatch):
         """測試 cover_url 正確轉換（Unix 路徑）"""
+        from urllib.parse import unquote
+
         def mock_get_db_path():
             return populated_db
         monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
@@ -153,16 +168,24 @@ class TestShowcaseVideosAPI:
         data = response.json()
 
         # 第一筆：file:///mnt/media/SONE-205/poster.jpg
-        # 預期：/api/gallery/image?path=mnt%2Fmedia%2FSONE-205%2Fposter.jpg
+        # 預期：/api/gallery/image?path=/mnt/media/SONE-205/poster.jpg (URL encoded)
         video1 = data["videos"][0]
         assert video1["cover_url"].startswith("/api/gallery/image?path=")
-        assert "mnt" in video1["cover_url"]
-        assert "SONE-205" in video1["cover_url"]
+
+        # 解碼 URL 以驗證路徑格式
+        path_param = video1["cover_url"].split("path=")[1]
+        decoded_path = unquote(path_param)
+
+        # 驗證前導 / 保留（不是相對路徑 mnt/media/...）
+        assert decoded_path.startswith("/"), f"Unix 路徑前導 / 丟失: {decoded_path}"
+        assert "SONE-205" in decoded_path
         # URL encoded，路徑分隔符 / 會變成 %2F
         assert "%2F" in video1["cover_url"]
 
     def test_cover_url_conversion_windows_path(self, client, populated_db, monkeypatch):
         """測試 cover_url 正確轉換（Windows 路徑）"""
+        from urllib.parse import unquote
+
         def mock_get_db_path():
             return populated_db
         monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
@@ -171,12 +194,40 @@ class TestShowcaseVideosAPI:
         data = response.json()
 
         # 第二筆：file:///C:/Videos/ABW-001/cover.jpg
-        # 預期：/api/gallery/image?path=C%3A%2FVideos%2FABW-001%2Fcover.jpg
+        # normalize_path 在 WSL 會轉為 /mnt/c/...，在 Windows 保持 C:/...
         video2 = data["videos"][1]
         assert video2["cover_url"].startswith("/api/gallery/image?path=")
-        # C: 會被編碼為 C%3A
-        assert "C%3A" in video2["cover_url"]
         assert "ABW-001" in video2["cover_url"]
+
+        # 解碼 URL 驗證路徑合理性（不是相對路徑）
+        path_param = video2["cover_url"].split("path=")[1]
+        decoded_path = unquote(path_param)
+        # 路徑應該是絕對路徑（/ 開頭或盤符開頭）
+        assert decoded_path.startswith("/") or (len(decoded_path) >= 2 and decoded_path[1] == ":"), \
+            f"Windows 路徑轉換結果不是絕對路徑: {decoded_path}"
+
+    def test_cover_url_conversion_unc_path(self, client, populated_db, monkeypatch):
+        """測試 cover_url 正確轉換（UNC 路徑，不多加 /）"""
+        from urllib.parse import unquote
+
+        def mock_get_db_path():
+            return populated_db
+        monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
+
+        response = client.get("/api/showcase/videos")
+        data = response.json()
+
+        # 第四筆：file://///NAS/share/PRED-001/cover.jpg
+        # strip file:/// → //NAS/share/PRED-001/cover.jpg（已有前導 /，不應再加）
+        video4 = data["videos"][3]
+        assert video4["cover_url"].startswith("/api/gallery/image?path=")
+
+        path_param = video4["cover_url"].split("path=")[1]
+        decoded_path = unquote(path_param)
+        # UNC 路徑應保持 //server/share 格式（恰好兩個 /）
+        assert decoded_path.startswith("//"), f"UNC 路徑格式錯誤: {decoded_path}"
+        assert not decoded_path.startswith("///"), f"UNC 路徑多了 /: {decoded_path}"
+        assert "PRED-001" in decoded_path
 
     def test_cover_url_empty_when_no_cover(self, client, populated_db, monkeypatch):
         """測試無封面圖時 cover_url 為空字串"""
@@ -304,3 +355,24 @@ class TestShowcaseVideosAPI:
         # 所有 path 都應該保持 file:/// 格式（開啟影片用）
         for video in data["videos"]:
             assert video["path"].startswith("file:///")
+
+    def test_get_videos_error_handling(self, client, populated_db, monkeypatch):
+        """測試 DB 錯誤時回傳 500 + 錯誤訊息"""
+        def mock_get_db_path():
+            return populated_db
+        monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
+
+        # Mock VideoRepository.get_all() 拋出異常
+        def mock_get_all_error(self):
+            raise Exception("db error")
+
+        monkeypatch.setattr("core.database.VideoRepository.get_all", mock_get_all_error)
+
+        response = client.get("/api/showcase/videos")
+        assert response.status_code == 500
+
+        data = response.json()
+        assert data["success"] is False
+        assert "db error" in data["error"]
+        assert data["videos"] == []
+        assert data["total"] == 0
