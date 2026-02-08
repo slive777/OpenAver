@@ -4,7 +4,7 @@ async function testGeminiConnection() {
     const statusEl = document.getElementById('geminiStatus');
     const testBtn = document.getElementById('testGeminiBtn');
     const modelSelect = document.getElementById('geminiModel');
-    const hintEl = document.getElementById('geminiModelHint');
+    const hintEl = document.getElementById('geminiModelStatus');
 
     if (!apiKey) {
         statusEl.innerHTML = '<span class="text-error"><i class="bi bi-x-circle"></i> 請輸入 API Key</span>';
@@ -43,7 +43,7 @@ async function testGeminiConnection() {
             // 禁用模型下拉框
             modelSelect.disabled = true;
             modelSelect.innerHTML = '<option value="">-- 請先測試 API Key --</option>';
-            hintEl.textContent = '';
+            if (hintEl) hintEl.textContent = '';
         }
 
     } catch (error) {

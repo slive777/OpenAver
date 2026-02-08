@@ -20,10 +20,10 @@ document.getElementById('resetBtn').addEventListener('click', async () => {
                 await loadConfig();
                 showToast('已恢復預設設定', 'success');
             } else {
-                showToast('重置失敗: ' + result.error, 'danger');
+                showToast('重置失敗: ' + result.error, 'error');
             }
         } catch (e) {
-            showToast('重置失敗: ' + e.message, 'danger');
+            showToast('重置失敗: ' + e.message, 'error');
         }
     }
 });

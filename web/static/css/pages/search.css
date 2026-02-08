@@ -334,6 +334,11 @@
     display: none !important;
 }
 
+/* .ds-page .error-nav { display:flex } (theme.css:606) 蓋過 .hidden，需 !important */
+.ds-page .error-nav.hidden {
+    display: none !important;
+}
+
 /* 狀態頁面 */
 .state-page {
     display: flex;

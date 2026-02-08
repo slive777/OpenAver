@@ -35,8 +35,8 @@ document.querySelectorAll('.variable-menu[data-type="format"]').forEach(menu => 
             input.value = textBefore + item.dataset.var + textAfter;
             input.focus();
             input.setSelectionRange(cursorPos + item.dataset.var.length, cursorPos + item.dataset.var.length);
-            // 更新預覽（如果是 folderFormat）
-            if (targetId === 'folderFormat') updateFolderPreview();
+            // 更新預覽（如果是 filenameFormat）
+            if (targetId === 'filenameFormat') updateFolderPreview();
         }
     });
 });
@@ -63,6 +63,12 @@ function updateFolderLayers() {
     const layer2Btn = document.getElementById('folderLayer2Btn');
     const layer1Btn = document.getElementById('folderLayer1Btn');
 
+    // 同步 .folder-layer-group 的 .disabled class 與 input disabled 狀態
+    function syncGroupDisabled(input) {
+        const group = input.closest('.folder-layer-group');
+        if (group) group.classList.toggle('disabled', input.disabled);
+    }
+
     // 如果「建立資料夾」未勾選，全部 disabled
     if (!createFolder) {
         layer3Input.disabled = true;
@@ -71,6 +77,9 @@ function updateFolderLayers() {
         layer2Btn.disabled = true;
         layer1Input.disabled = true;
         layer1Btn.disabled = true;
+        syncGroupDisabled(layer1Input);
+        syncGroupDisabled(layer2Input);
+        syncGroupDisabled(layer3Input);
         updateFolderPreview();
         return;
     }
@@ -92,6 +101,11 @@ function updateFolderLayers() {
     // 禁用時清空
     if (layer2Input.disabled) layer2Input.value = '';
     if (layer1Input.disabled) layer1Input.value = '';
+
+    // 同步外觀 class
+    syncGroupDisabled(layer1Input);
+    syncGroupDisabled(layer2Input);
+    syncGroupDisabled(layer3Input);
 
     updateFolderPreview();
 }
