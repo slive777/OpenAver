@@ -258,83 +258,35 @@
                          @error="$event.target.src='/static/images/placeholder.png'">
                 </div>
 
-                <!-- Metadata Panel -->
+                <!-- Metadata Panel（緊湊版，匹配原版 gallery） -->
                 <div class="lightbox-metadata">
-                    <!-- Title Section -->
-                    <div class="lb-section lb-title-section">
-                        <h2 class="lb-title" x-text="currentLightboxVideo?.title || '未知標題'"></h2>
-                        <p class="lb-original-title"
-                           x-show="currentLightboxVideo?.original_title"
-                           x-text="currentLightboxVideo?.original_title"></p>
+                    <div class="lb-title" x-text="currentLightboxVideo?.title || '未知標題'"></div>
+                    <div class="lb-otitle"
+                         x-show="currentLightboxVideo?.original_title"
+                         x-text="currentLightboxVideo?.original_title"></div>
+                    <div class="lb-actor"
+                         x-show="currentLightboxVideo?.actresses"
+                         x-text="currentLightboxVideo?.actresses"></div>
+                    <div class="lb-meta">
+                        <span x-text="currentLightboxVideo?.number || '未知'"></span>
+                        <span x-show="currentLightboxVideo?.maker" x-text="currentLightboxVideo?.maker"></span>
+                        <span x-show="currentLightboxVideo?.release_date" x-text="currentLightboxVideo?.release_date"></span>
                     </div>
-
-                    <!-- Actress Section -->
-                    <div class="lb-section lb-actress-section"
-                         x-show="currentLightboxVideo?.actresses">
-                        <div class="lb-label">
-                            <i class="bi bi-person-fill"></i> 女優
-                        </div>
-                        <div class="lb-value" x-text="currentLightboxVideo?.actresses || '未知'"></div>
+                    <div class="lb-tags" x-show="currentLightboxVideo?.tags">
+                        <template x-for="tag in (currentLightboxVideo?.tags || '').split(',').filter(t => t.trim())" :key="tag">
+                            <span class="lb-tag" x-text="tag.trim()"></span>
+                        </template>
                     </div>
-
-                    <!-- Number & Maker Section -->
-                    <div class="lb-section lb-meta-row">
-                        <div class="lb-meta-item">
-                            <div class="lb-label">
-                                <i class="bi bi-hash"></i> 番號
-                            </div>
-                            <div class="lb-value lb-number"
-                                 x-text="currentLightboxVideo?.number || '未知'"></div>
+                    <div class="lb-footer">
+                        <div class="lb-actions">
+                            <button class="lb-btn" @click="playVideo(currentLightboxVideo?.path)">
+                                <i class="bi bi-play-fill"></i> 播放
+                            </button>
+                            <button class="lb-btn" @click="copyPath(currentLightboxVideo?.path)">
+                                <i class="bi bi-clipboard"></i> 複製
+                            </button>
                         </div>
-                        <div class="lb-meta-item"
-                             x-show="currentLightboxVideo?.maker">
-                            <div class="lb-label">
-                                <i class="bi bi-building"></i> 片商
-                            </div>
-                            <div class="lb-value" x-text="currentLightboxVideo?.maker"></div>
-                        </div>
-                    </div>
-
-                    <!-- Date Section -->
-                    <div class="lb-section"
-                         x-show="currentLightboxVideo?.release_date">
-                        <div class="lb-label">
-                            <i class="bi bi-calendar3"></i> 發行日期
-                        </div>
-                        <div class="lb-value" x-text="currentLightboxVideo?.release_date"></div>
-                    </div>
-
-                    <!-- Tags Section -->
-                    <div class="lb-section lb-tags-section"
-                         x-show="currentLightboxVideo?.tags">
-                        <div class="lb-label">
-                            <i class="bi bi-tags-fill"></i> 標籤
-                        </div>
-                        <div class="lb-tags">
-                            <template x-for="tag in (currentLightboxVideo?.tags || '').split(',').filter(t => t.trim())" :key="tag">
-                                <span class="lb-tag" x-text="tag"></span>
-                            </template>
-                        </div>
-                    </div>
-
-                    <!-- File Size Section -->
-                    <div class="lb-section lb-size-section">
-                        <div class="lb-label">
-                            <i class="bi bi-hdd"></i> 檔案大小
-                        </div>
-                        <div class="lb-value lb-size" x-text="formatSize(currentLightboxVideo?.size || 0)"></div>
-                    </div>
-
-                    <!-- Action Buttons -->
-                    <div class="lb-actions">
-                        <button class="btn-hero btn-hero-primary"
-                                @click="playVideo(currentLightboxVideo?.path)">
-                            <i class="bi bi-play-circle-fill"></i> 開啟影片
-                        </button>
-                        <button class="btn-hero btn-hero-secondary"
-                                @click="copyPath(currentLightboxVideo?.path)">
-                            <i class="bi bi-clipboard"></i> 複製路徑
-                        </button>
+                        <span class="lb-size" x-text="formatSize(currentLightboxVideo?.size || 0)"></span>
                     </div>
                 </div>
             </div>

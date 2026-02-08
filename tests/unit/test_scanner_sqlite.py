@@ -280,21 +280,20 @@ class TestScanToSqlite:
         assert result['inserted'] == 3
         assert result['total'] == 3
 
-    def test_scan_default_db_path(self, temp_video_dir):
-        """測試預設資料庫路徑"""
+    def test_scan_default_db_path(self, temp_video_dir, monkeypatch):
+        """測試預設資料庫路徑（使用 mock 避免汙染真實 DB）"""
         create_video_file(temp_video_dir, "test.mp4")
 
+        # Mock get_db_path 指向臨時 DB，避免 scan_to_sqlite 步驟 4
+        # 清理邏輯把真實 DB 中不在 temp_video_dir 的影片全部刪除
+        import tempfile
+        mock_db = Path(tempfile.mkdtemp()) / "test_default.db"
+        monkeypatch.setattr("core.database.get_db_path", lambda: mock_db)
+
         scanner = VideoScanner()
-        # 使用預設路徑（不傳入 db_path）
-        # 這會使用 output/openaver.db
         result = scanner.scan_to_sqlite(str(temp_video_dir))
 
         assert result['inserted'] == 1
-
-        # 清理：刪除預設資料庫中的測試資料
-        from core.database import get_db_path
-        repo = VideoRepository(get_db_path())
-        repo.delete_by_paths([v.path for v in repo.get_all() if str(temp_video_dir) in v.path])
 
 
 class TestScanToSqliteIntegration:
