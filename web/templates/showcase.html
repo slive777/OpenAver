@@ -103,6 +103,15 @@
                     </button>
                 </div>
 
+                <!-- 資訊顯示開關 (M3i - 僅 Grid 模式) -->
+                <button class="btn-icon"
+                        x-show="mode === 'grid'"
+                        :class="{ 'active': infoVisible }"
+                        @click="toggleInfo()"
+                        title="顯示/隱藏資訊 (S)">
+                    <i class="bi bi-eye"></i>
+                </button>
+
                 <!-- 每頁數量 -->
                 <div class="control-group">
                     <select class="select select-sm select-bordered" x-model="perPage" @change="onPerPageChange()">
@@ -166,8 +175,39 @@
                             <span class="av-num" x-text="video.number"></span>
                             <span class="av-actress" x-text="video.actresses || '未知'"></span>
                         </div>
-                        <div class="footer-hover">
+                        <div class="footer-hover" x-show="!infoVisible">
                             <div class="hover-title" x-text="video.title || '未知標題'"></div>
+                        </div>
+
+                        <!-- Card Info (M3i) -->
+                        <div class="card-info" x-show="infoVisible" x-cloak>
+                            <div class="info-title" x-text="video.title || '未知標題'"></div>
+                            <div class="info-row" x-show="video.actresses">
+                                <b>演員：</b>
+                                <template x-for="actress in (video.actresses || '').split(',').filter(a => a.trim())" :key="actress">
+                                    <a class="info-link" href="#"
+                                       @click.prevent.stop="searchFromMetadata(actress.trim())"
+                                       x-text="actress.trim()"></a>
+                                </template>
+                            </div>
+                            <div class="info-row info-meta">
+                                <span x-show="video.maker">
+                                    <b>片商：</b>
+                                    <a class="info-link" href="#"
+                                       @click.prevent.stop="searchFromMetadata(video.maker)"
+                                       x-text="video.maker"></a>
+                                </span>
+                                <span x-show="video.release_date">
+                                    <b>日期：</b><span x-text="video.release_date"></span>
+                                </span>
+                            </div>
+                            <div class="info-tags" x-show="video.tags">
+                                <template x-for="tag in (video.tags || '').split(',').filter(t => t.trim())" :key="tag">
+                                    <a class="tag info-link" href="#"
+                                       @click.prevent.stop="searchFromMetadata(tag.trim())"
+                                       x-text="tag.trim()"></a>
+                                </template>
+                            </div>
                         </div>
                     </div>
                 </div>
