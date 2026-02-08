@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-02-08
+
+### Added
+
+#### 🔄 Bootstrap → DaisyUI 全站遷移 (Phase 24)
+- DaisyUI + Tailwind CSS 取代 Bootstrap 5，完成前端框架替換
+- Alpine.js 取代 Bootstrap JS（sidebar、offcanvas、collapse、toast）
+- Design System 3 套 scope 機制（`.ds-page` / `.ds-gallery-composition` / `#settings-components`）
+- `.text-muted` utility class（綁定 `--text-muted` 變數）
+
+#### 📁 路由改名 `/gallery` → `/scanner`
+- 頁面路由語義化：Scanner = 掃描 + 列表生成
+- `/gallery` 自動 302 重定向到 `/scanner`（向後相容）
+- Config `default_page: "gallery"` 自動映射到 `/scanner`
+
+#### 📦 JS 模組化
+- Settings inline JS 抽離為 5 個獨立模組（core/translate/folders/format/init）
+- Scanner inline JS 抽離為 4 個獨立模組（core/alias/folders/init）
+
+### Changed
+- 所有頁面使用 DaisyUI 元件（btn/input/select/toggle/card/badge/alert）
+- Bootstrap grid（`.row`/`.col-md-*`）→ Tailwind grid/flex
+- Bootstrap form（`.form-control`/`.form-select`/`.form-check`）→ DaisyUI
+- `settings.html` `container-fluid` 移除、`card-header` → `settings-card-header`
+- `search.css` 移除 29 行與 theme.css 重複的 `.state-page` + `.empty-actions`
+- `showcase.html` 加入 `.ds-page` scope 啟用 Design System 狀態元件
+- Settings 排序區塊脆弱 selector `div[style*=...]` → `.sort-row` 語義 class
+- Tailwind CSS 重新編譯（v4.1.18 + DaisyUI 5.5.17）
+
+### Removed
+- Bootstrap CSS CDN（保留 Bootstrap Icons）
+- Bootstrap JS CDN
+- 前端 `[LOCAL FALLBACK]` 函數（`hasJapanese`/`extractNumber`/`checkSubtitle`）
+- `web/routers/gallery.py`（重命名為 `scanner.py`）
+
+---
+
 ## [0.2.4] - 2026-02-07
 
 ### Added

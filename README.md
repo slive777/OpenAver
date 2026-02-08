@@ -63,7 +63,7 @@ OpenAver 是純本地應用程式：
   - 暫停/繼續功能
   - 我的最愛資料夾一鍵載入
 
-### 📝 Gallery Generator (列表生成)
+### 📝 Scanner (掃描與列表生成)
 - **靜態 HTML**: 掃描本地影片資料夾，生成精美的靜態 HTML 索引檔。
 - **Mini-Terminal**: 內嵌式終端機視窗，即時顯示掃描與處理進度。
 - **NFO 補全**: 自動檢測並補全缺失的 NFO 檔案。
@@ -93,7 +93,7 @@ OpenAver 支援兩種翻譯提供商：
 ## 🛠️ 技術架構
 
 - **Backend**: FastAPI (Python)
-- **Frontend**: Jinja2 + Bootstrap 5 + Custom CSS (Gallery Design System)
+- **Frontend**: Jinja2 + DaisyUI + Tailwind CSS + Fluent Design 2
 - **Desktop**: PyWebView (Windows/macOS)
 - **Testing**: Pytest
 
@@ -226,8 +226,8 @@ pytest
 ```
 OpenAver/
 ├── web/                # Web GUI (FastAPI)
-│   ├── routers/        # API Endpoints (Search, Config, Scraper, AVList)
-│   ├── templates/      # HTML Templates (Gallery Style)
+│   ├── routers/        # API Endpoints (Search, Config, Scraper, Scanner)
+│   ├── templates/      # HTML Templates (DaisyUI + Fluent Design 2)
 │   └── static/         # CSS/JS Assets (Modular JS, Theme CSS)
 ├── core/               # 核心邏輯
 │   ├── scraper.py              # 刮削器 (JavBus/Jav321/JavDB)
@@ -255,7 +255,9 @@ OpenAver 使用並感謝以下開源專案：
 - **[jvav](https://github.com/akynazh/jvav)** - JAV 元數據刮削工具庫，提供 JavBus/JavDB/JavLib 等多來源支援
 - **[FastAPI](https://fastapi.tiangolo.com/)** - 現代化的 Python Web 框架
 - **[PyWebView](https://pywebview.flowrl.com/)** - 輕量級的跨平台桌面應用框架
-- **[Bootstrap](https://getbootstrap.com/)** - 前端 UI 框架
+- **[DaisyUI](https://daisyui.com/)** - Tailwind CSS 元件庫
+- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS 框架
+- **[Alpine.js](https://alpinejs.dev/)** - 輕量級 JavaScript 框架
 
 特別感謝所有為這些專案做出貢獻的開發者們。
 
