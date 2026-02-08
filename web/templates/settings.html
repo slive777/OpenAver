@@ -3,67 +3,7 @@
 {% block title %}設定 - OpenAver{% endblock %}
 
 {% block extra_css %}
-<style>
-    .settings-container {
-        max-width: 900px;
-        margin: 0 auto;
-    }
-
-    /* 轉動動畫 */
-    .spin {
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        from {
-            transform: rotate(0deg);
-        }
-
-        to {
-            transform: rotate(360deg);
-        }
-    }
-
-    .settings-header {
-        margin-bottom: 1.5rem;
-    }
-
-    .settings-header h4 {
-        margin: 0;
-        color: var(--text-primary);
-    }
-
-    /* Modern Card Styling */
-    .card {
-        border: none;
-        border-radius: 16px;
-        box-shadow: var(--shadow-sm);
-        /* overflow: hidden 會導致下拉選單被截斷，改用 visible */
-        overflow: visible;
-    }
-
-    .card-header {
-        background: transparent;
-        border-bottom: 1px solid var(--border-light);
-        font-weight: 600;
-        padding: 1rem 1.25rem;
-    }
-
-    .card-header i {
-        color: var(--accent);
-        margin-right: 0.5rem;
-    }
-
-    .card-body {
-        padding: 1.25rem;
-    }
-
-    /* Divider */
-    hr {
-        border-color: var(--border-light);
-        opacity: 0.5;
-    }
-</style>
+<link rel="stylesheet" href="/static/css/pages/settings.css">
 {% endblock %}
 
 {% block content %}
@@ -471,7 +411,7 @@
 
                 <!-- 重置按鈕 -->
                 <div class="settings-form-row">
-                    <label class="row-label" style="color: var(--color-error);">
+                    <label class="row-label text-error">
                         重置所有設定
                         <small class="settings-hint">刪除所有自訂設定，恢復預設值</small>
                     </label>

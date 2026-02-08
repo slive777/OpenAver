@@ -1708,6 +1708,16 @@ body {
     font-size: 1rem;
 }
 
+/* Input Group Text - 資料夾層級前綴標籤 */
+#settings-components .input-group-text {
+    background: color-mix(in oklch, var(--color-base-content) 2%, transparent);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
 /* ========== Components: Fluent Modal (D.10) ========== */
 
 /* Fluent Modal - Smoke Backdrop Override */

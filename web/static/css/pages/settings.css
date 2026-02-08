@@ -1,0 +1,55 @@
+/* Settings 頁面專屬元件（非共用，不納入 Design System）*/
+
+.settings-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* 轉動動畫（測試/檢查更新按鈕）*/
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.settings-header {
+    margin-bottom: 1.5rem;
+}
+
+.settings-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+/* Modern Card Styling（theme.css 未納入 #settings-components scope）*/
+#settings-components .card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
+    overflow: visible;
+}
+
+#settings-components .card-header {
+    background: transparent;
+    border-bottom: 1px solid var(--border-light);
+    font-weight: 600;
+    padding: 1rem 1.25rem;
+}
+
+#settings-components .card-header i {
+    color: var(--accent);
+    margin-right: 0.5rem;
+}
+
+#settings-components .card-body {
+    padding: 1.25rem;
+}
+
+/* Divider */
+#settings-components hr {
+    border-color: var(--border-light);
+    opacity: 0.5;
+}
