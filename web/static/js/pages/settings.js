@@ -53,6 +53,10 @@ function settingsPage() {
         appVersion: '載入中...',
         updateStatus: '',
 
+        // ===== Dirty Check State =====
+        savedState: null,
+        pendingNavigationUrl: '',
+
         // ===== Constants =====
         formatVariables: [
             { name: '{num}', description: '番號', example: 'SONE-205' },
@@ -81,6 +85,10 @@ function settingsPage() {
         },
 
         // ===== Computed Properties =====
+        get isDirty() {
+            if (!this.savedState) return false;
+            return JSON.stringify(this.form) !== JSON.stringify(this.savedState);
+        },
         get layer3Enabled() {
             return this.form.createFolder;
         },
@@ -138,10 +146,23 @@ function settingsPage() {
                     this.form.folderLayer1 = '';
                 }
             });
+
+            // 暴露全域檢查函式（供 base.html sidebar 使用）
+            window.confirmLeavingSettings = (targetUrl) => {
+                if (this.isDirty) {
+                    this.pendingNavigationUrl = targetUrl;
+                    document.getElementById('dirtyCheckModal').showModal();
+                    return false;  // 阻止導航
+                }
+                return true;  // 允許導航
+            };
         },
 
         // ===== Methods =====
         async loadConfig() {
+            // 清空快照（載入期間不判定 dirty）
+            this.savedState = null;
+
             try {
                 const resp = await fetch('/api/config');
                 const result = await resp.json();
@@ -210,6 +231,9 @@ function settingsPage() {
                     if (ollamaUrl && config.translate.provider === 'ollama') {
                         await this.loadOllamaModels(ollamaUrl, ollamaModel);
                     }
+
+                    // 建立初始快照（dirty check 基準）
+                    this.savedState = JSON.parse(JSON.stringify(this.form));
                 }
             } catch (e) {
                 console.error('載入設定失敗:', e);
@@ -303,6 +327,8 @@ function settingsPage() {
                 const result = await resp.json();
                 if (result.success) {
                     this.showToast('設定已儲存', 'success');
+                    // 更新快照（避免儲存後仍為 dirty）
+                    this.savedState = JSON.parse(JSON.stringify(this.form));
                 } else {
                     this.showToast('儲存失敗: ' + result.error, 'error');
                 }
@@ -602,6 +628,30 @@ function settingsPage() {
 
         appendVariable(targetField, varName) {
             this.form[targetField] += varName;
+        },
+
+        // Dirty check modal — 儲存更改後離開
+        async dirtyCheckSave() {
+            await this.saveConfig();
+            // saveConfig 成功會更新 savedState，isDirty 變 false
+            if (!this.isDirty) {
+                // 儲存成功，跳轉
+                window.location.href = this.pendingNavigationUrl;
+            }
+            // 儲存失敗，modal 保持開啟（toast 已顯示錯誤）
+            document.getElementById('dirtyCheckModal').close();
+        },
+
+        // Dirty check modal — 不儲存直接離開
+        dirtyCheckDiscard() {
+            this.savedState = null;  // 防止殘留
+            window.location.href = this.pendingNavigationUrl;
+        },
+
+        // Dirty check modal — 取消（留在 settings）
+        dirtyCheckCancel() {
+            this.pendingNavigationUrl = '';
+            document.getElementById('dirtyCheckModal').close();
         },
 
         showToast(message, type = 'success') {

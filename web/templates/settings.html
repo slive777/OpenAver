@@ -509,6 +509,32 @@
         </div>
     </form>
 
+    <!-- Dirty Check Modal -->
+    <dialog id="dirtyCheckModal" class="modal fluent-modal">
+        <div class="modal-box fluent-modal-box">
+            <h3 class="fluent-modal-title">
+                <i class="bi bi-exclamation-triangle"></i> 尚未儲存的變更
+            </h3>
+            <p class="fluent-modal-body">
+                您有修改尚未儲存，要如何處理？
+            </p>
+            <div class="modal-action fluent-modal-actions">
+                <button type="button" class="btn btn-ghost" @click="dirtyCheckCancel()">
+                    取消
+                </button>
+                <button type="button" class="btn btn-outline btn-warning" @click="dirtyCheckDiscard()">
+                    <i class="bi bi-x-circle"></i> 不儲存
+                </button>
+                <button type="button" class="btn btn-primary" @click="dirtyCheckSave()">
+                    <i class="bi bi-save"></i> 儲存更改
+                </button>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+
 <!-- Toast 通知容器 -->
 <div id="toastContainer" class="toast toast-end toast-top" style="z-index: 9999;"></div>
 </div>

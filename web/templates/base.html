@@ -325,27 +325,52 @@
         <div class="p-0">
             <ul class="flex flex-col offcanvas-nav">
                 <li class="nav-item">
-                    <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search">
+                    <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search"
+                       @click="
+                           if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                               $event.preventDefault();
+                           }
+                       ">
                         <i class="bi bi-search"></i> 搜尋
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if page == 'scanner' %}active{% endif %}" href="/scanner">
+                    <a class="nav-link {% if page == 'scanner' %}active{% endif %}" href="/scanner"
+                       @click="
+                           if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                               $event.preventDefault();
+                           }
+                       ">
                         <i class="bi bi-list-ul"></i> 列表生成
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if page == 'showcase' %}active{% endif %}" href="/showcase">
+                    <a class="nav-link {% if page == 'showcase' %}active{% endif %}" href="/showcase"
+                       @click="
+                           if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                               $event.preventDefault();
+                           }
+                       ">
                         <i class="bi bi-collection-play"></i> 瀏覽
                     </a>
                 </li>
                 <li class="nav-item mt-3">
-                    <a class="nav-link {% if page == 'help' %}active{% endif %}" href="/help">
+                    <a class="nav-link {% if page == 'help' %}active{% endif %}" href="/help"
+                       @click="
+                           if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                               $event.preventDefault();
+                           }
+                       ">
                         <i class="bi bi-question-circle"></i> 說明
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings">
+                    <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings"
+                       @click="
+                           if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                               $event.preventDefault();
+                           }
+                       ">
                         <i class="bi bi-gear"></i> 設定
                     </a>
                 </li>
@@ -367,31 +392,56 @@
         </div>
         <ul class="flex flex-col flex-grow">
             <li class="nav-item">
-                <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search" title="搜尋">
+                <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search" title="搜尋"
+                   @click="
+                       if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                           $event.preventDefault();
+                       }
+                   ">
                     <i class="bi bi-search"></i>
                     <span class="nav-text">搜尋</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if page == 'scanner' %}active{% endif %}" href="/scanner" title="列表生成">
+                <a class="nav-link {% if page == 'scanner' %}active{% endif %}" href="/scanner" title="列表生成"
+                   @click="
+                       if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                           $event.preventDefault();
+                       }
+                   ">
                     <i class="bi bi-list-ul"></i>
                     <span class="nav-text">列表生成</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link rotating-border-spotlight {% if page == 'showcase' %}active{% endif %} {% if showcase_has_content %}active{% endif %}" href="/showcase" title="瀏覽">
+                <a class="nav-link rotating-border-spotlight {% if page == 'showcase' %}active{% endif %} {% if showcase_has_content %}active{% endif %}" href="/showcase" title="瀏覽"
+                   @click="
+                       if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                           $event.preventDefault();
+                       }
+                   ">
                     <i class="bi bi-collection-play"></i>
                     <span class="nav-text">瀏覽</span>
                 </a>
             </li>
             <li class="nav-item mt-auto">
-                <a class="nav-link {% if page == 'help' %}active{% endif %}" href="/help" title="使用說明">
+                <a class="nav-link {% if page == 'help' %}active{% endif %}" href="/help" title="使用說明"
+                   @click="
+                       if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                           $event.preventDefault();
+                       }
+                   ">
                     <i class="bi bi-question-circle"></i>
                     <span class="nav-text">說明</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings" title="設定">
+                <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings" title="設定"
+                   @click="
+                       if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                           $event.preventDefault();
+                       }
+                   ">
                     <i class="bi bi-gear"></i>
                     <span class="nav-text">設定</span>
                 </a>
