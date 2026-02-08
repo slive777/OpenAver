@@ -66,6 +66,7 @@
     --duration-slow: var(--fluent-duration-slower);
 }
 
+
 /* 應用背景色過渡 */
 body {
     transition: background-color var(--duration-normal) var(--fluent-ease-standard), color var(--duration-normal) var(--fluent-ease-standard);
@@ -428,6 +429,68 @@ body {
     transform: scale(0.9);
 }
 
+/* === AV Card Full — 統一卡片元件 === */
+.av-card-full {
+    display: flex;
+    gap: 0;
+    background: var(--bg-card);
+    border-radius: var(--fluent-radius-xl);
+    box-shadow: var(--fluent-shadow-8);
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+}
+
+.av-card-full-cover {
+    flex: 7;
+    min-height: 200px;
+    position: relative;
+    overflow: hidden;
+}
+
+.av-card-full-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--fluent-duration-slow) var(--fluent-ease-standard);
+}
+
+.av-card-full:hover .av-card-full-cover img {
+    transform: scale(1.03);
+}
+
+.av-card-full-info {
+    flex: 3;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    min-width: 280px;
+}
+
+.av-card-full-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: 1rem;
+}
+
+.av-card-full-header h4 {
+    font-size: 1.35rem;
+    color: var(--accent);
+    margin: 0;
+    font-weight: 700;
+}
+
+.av-card-full-body {
+    flex: 1;
+}
+
+.av-card-full-footer {
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-light);
+}
+
 /* AV Card Full Footer - 標題區塊佈局 */
 .av-card-full-footer-content {
     display: flex;
@@ -450,6 +513,39 @@ body {
     display: flex;
     gap: 0.25rem;
     flex-shrink: 0;
+}
+
+/* === AV Card: Info Row 樣式（全域） === */
+.info-row {
+    margin-bottom: 0.75rem;
+}
+
+.info-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+    letter-spacing: 0.05em;
+    display: block;
+}
+
+.info-value {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.info-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.info-title {
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    line-height: 1.3;
 }
 
 /* Dark Mode 調整（DaisyUI theme = dim） */

@@ -19,7 +19,7 @@
     z-index: 100;
 }
 
-/* 結果區域 */
+/* 結果區域（外層容器，包含所有狀態頁 + 結果卡片） */
 .result-area {
     flex: 1;
     display: flex;
@@ -29,49 +29,20 @@
     min-height: 0;
 }
 
-/* 結果卡片 */
+/* 結果卡片 wrapper（卡片 + 檔案列表垂直排列） */
 #resultCard {
     display: flex;
     flex-direction: column;
     width: 100%;
     max-height: 100%;
-}
-
-#resultCard>.result-area {
-    flex-shrink: 1;
-    min-height: 0;
-    align-items: flex-start;
-    /* 讓 info-section 不要拉伸 */
-}
-
-/* 列表在 cover-section 內 */
-.cover-section>.file-list-section {
-    width: 100%;
-    flex-shrink: 0;
-    margin-top: 0.5rem;
-}
-
-/* 封面區域 - 70% */
-/* 封面區域 - 70% */
-.cover-section {
-    flex: 7;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    /* 垂直排列：封面 + 列表 */
-    align-items: center;
-    justify-content: flex-start;
-    /* 關鍵修正：靠上對齊 */
-    background: var(--bg-body);
-    /* Dark Mode 支援 */
-    min-width: 0;
-    min-height: 0;
+    gap: 0.5rem;
     overflow: hidden;
-    padding-top: 1rem;
 }
 
-/* 封面容器 */
-.cover-wrapper {
+/* === AV Card Full: Search 專用擴充 === */
+
+/* 封面內層 wrapper（支援導航按鈕絕對定位） */
+.av-card-full-cover-wrapper {
     position: relative;
     width: 100%;
     min-height: 400px;
@@ -79,35 +50,40 @@
     align-items: flex-start;
     justify-content: center;
     background: rgba(0, 0, 0, 0.2);
-    /* 圖片背景深色 */
-    border-radius: var(--fluent-radius-lg);
-    overflow: hidden;
 }
 
-.cover-img {
+.av-card-full-cover-img {
     width: 100%;
     height: 100%;
     max-height: calc(100vh - 200px);
-    object-fit: contain;
-    /* 絕不裁切 */
+    object-fit: contain;  /* Search 不裁切 */
     filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
     animation: fadeIn 0.5s ease-out;
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.98);
-    }
-
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
+    from { opacity: 0; transform: scale(0.98); }
+    to { opacity: 1; transform: scale(1); }
 }
 
-/* 導航按鈕 */
-.nav-btn {
+/* 停用 hover 放大（Search 有導航按鈕，放大會干擾） */
+.av-card-full:hover .av-card-full-cover img {
+    transform: none;
+}
+
+/* Search 專用：info 固定寬度，封面自適應 */
+.search-container .av-card-full-cover {
+    flex: 1;
+    min-width: 0;
+}
+
+.search-container .av-card-full-info {
+    flex: 0 0 320px;
+    overflow-y: auto;
+}
+
+/* 導航按鈕（絕對定位在封面上） */
+.av-card-full-cover-wrapper .nav-btn {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
@@ -124,27 +100,22 @@
     box-shadow: var(--fluent-shadow-4);
 }
 
-.nav-btn:hover {
+.av-card-full-cover-wrapper .nav-btn:hover {
     background: rgba(0, 0, 0, 0.8);
     transform: translateY(-50%) scale(1.05);
 }
 
-.nav-btn:disabled {
+.av-card-full-cover-wrapper .nav-btn:disabled {
     opacity: 0.3;
     cursor: not-allowed;
     transform: translateY(-50%);
 }
 
-.nav-btn.prev {
-    left: 10px;
-}
+.av-card-full-cover-wrapper .nav-btn.prev { left: 10px; }
+.av-card-full-cover-wrapper .nav-btn.next { right: 10px; }
 
-.nav-btn.next {
-    right: 10px;
-}
-
-/* 索引顯示 */
-.nav-indicator {
+/* 索引指示器 */
+.av-card-full-cover-wrapper .nav-indicator {
     position: absolute;
     bottom: 50px;
     left: 50%;
@@ -156,13 +127,23 @@
     font-size: 0.8rem;
 }
 
-/* 檔案列表區（封面下方） */
-/* 檔案列表區（封面下方） */
+/* AV Card Full 在 wrapper 內可壓縮（檔案列表出現時） */
+#resultCard > .av-card-full {
+    flex-shrink: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* 檔案列表區（卡片下方獨立區塊） */
 .file-list-section {
     background: var(--bg-card);
-    border-top: 1px solid var(--border-light);
+    border: 1px solid var(--border-light);
+    border-radius: var(--fluent-radius-lg);
     padding: 0.5rem 1rem;
     width: 100%;
+    flex-shrink: 0;
+    overflow-y: auto;
+    max-height: 200px;
 }
 
 .file-list-header {
@@ -228,38 +209,7 @@
     line-height: 1.4;
 }
 
-/* 資訊區域 - 30% */
-.info-section {
-    flex: 3;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    background: var(--bg-card);
-    border-radius: var(--fluent-radius-xl);
-    box-shadow: var(--shadow-lg);
-    /* 提升層次感 */
-    border: none;
-    /* 移除邊框 */
-    min-width: 300px;
-    margin-left: 1rem;
-    /* 與封面區隔開 */
-}
-
-.info-header {
-    padding: 0.75rem;
-    border-bottom: 1px solid var(--border-light);
-    background: transparent;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.info-number {
-    font-size: 1.25rem;
-    font-weight: bold;
-    color: var(--accent);
-    margin: 0;
-}
+/* === 保留：Search 專用 ID 樣式 === */
 
 #switchSourceBtn {
     font-size: 1.25rem;
@@ -277,53 +227,14 @@
     opacity: 0.3;
 }
 
-.info-body {
-    flex: 1;
-    padding: 0.75rem;
-    overflow-y: auto;
-}
-
-.info-row {
-    margin-bottom: 0.75rem;
-}
-
-.info-label {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    margin-bottom: 0.25rem;
-    letter-spacing: 0.05em;
-}
-
-.info-value {
-    font-size: 0.9rem;
-    word-break: break-word;
-    color: var(--text-primary);
-    line-height: 1.5;
-}
-
-.info-footer {
-    padding: 0.75rem;
-    border-top: 1px solid var(--border-light);
-    background: transparent;
-}
-
-.info-title {
-    font-size: 0.8rem;
-    color: var(--text-primary);
-    line-height: 1.3;
-}
-
 /* 標籤 */
 /* REMOVED: .tag-badge moved to theme.css (global) */
 
-/* .hidden 強化：search 狀態區塊的 display 規則會覆蓋 Tailwind .hidden，需 !important */
-.result-area > .hidden {
-    display: none !important;
-}
-
-/* .ds-page .error-nav { display:flex } (theme.css:606) 蓋過 .hidden，需 !important */
-.ds-page .error-nav.hidden {
+/* .hidden 保護：search 頁內所有後代元素。
+ * 自定義 CSS（.search-progress / .info-icon-btn / .error-nav 等）
+ * 的 display 規則會覆蓋 Tailwind .hidden，需 !important。
+ * 僅限 .search-container 範圍，不影響全站 Tailwind responsive 語義。 */
+.search-container .hidden {
     display: none !important;
 }
 
@@ -528,61 +439,42 @@
     }
 }
 
-/* Tablet: 調整比例 60/40 */
-@media (max-width: 991.98px) and (min-width: 768px) {
-    .cover-section {
-        flex: 6;
-    }
+/* === RWD: Search Card 響應式 === */
 
-    .info-section {
-        flex: 4;
-        min-width: 200px;
-    }
-}
-
-/* Mobile: 垂直排列 */
-@media (max-width: 767.98px) {
-    .result-area {
+/* <= 1024px：垂直排列（封面上方 + info 下方） */
+@media (max-width: 1024px) {
+    .search-container .av-card-full {
         flex-direction: column;
         overflow-y: auto;
     }
 
-    .cover-section {
+    .search-container .av-card-full-cover {
         flex: none;
         width: 100%;
         max-height: 50vh;
-        position: relative;
-        padding-bottom: 50px;
     }
 
-    .cover-wrapper {
-        max-width: 100%;
-    }
-
-    .cover-img {
+    .av-card-full-cover-img {
         max-height: calc(50vh - 60px);
     }
 
-    .info-section {
+    .search-container .av-card-full-info {
         flex: none;
         width: 100%;
         min-width: auto;
-        max-height: none;
     }
+}
 
-    .nav-btn {
+/* Mobile 額外調整 */
+@media (max-width: 767.98px) {
+    .av-card-full-cover-wrapper .nav-btn {
         width: 36px;
         height: 52px;
         font-size: 1.1rem;
     }
 
-    .nav-btn.prev {
-        left: 5px;
-    }
-
-    .nav-btn.next {
-        right: 5px;
-    }
+    .av-card-full-cover-wrapper .nav-btn.prev { left: 5px; }
+    .av-card-full-cover-wrapper .nav-btn.next { right: 5px; }
 
     .search-bar {
         padding: 0.5rem;
@@ -590,10 +482,6 @@
 
     .search-hint {
         display: none;
-    }
-
-    .path-input-area {
-        position: relative;
     }
 }
 

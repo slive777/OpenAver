@@ -670,13 +670,15 @@ function startEditTitle() {
     translateSpinner.classList.add('hidden');
 
     container.innerHTML = `
-        <textarea id="editTitleInput" class="textarea textarea-bordered" rows="3" style="flex:1; min-width:0; resize:none;">${escapeHtml(currentText)}</textarea>
-        <button class="btn btn-sm btn-link p-0 ml-1 text-success" onclick="confirmEditTitle()" title="確認">
-            <i class="bi bi-check-lg"></i>
-        </button>
-        <button class="btn btn-sm btn-link p-0 ml-1 text-error" onclick="cancelEditTitle()" title="取消">
-            <i class="bi bi-x-lg"></i>
-        </button>
+        <textarea id="editTitleInput" class="textarea textarea-bordered info-value" rows="3" style="flex:1; min-width:0; resize:none;">${escapeHtml(currentText)}</textarea>
+        <div class="av-card-full-footer-actions">
+            <button class="info-icon-btn text-success" onclick="confirmEditTitle()" title="確認">
+                <i class="bi bi-check-lg"></i>
+            </button>
+            <button class="info-icon-btn text-error" onclick="cancelEditTitle()" title="取消">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
     `;
     const input = document.getElementById('editTitleInput');
     input.focus();
@@ -726,15 +728,17 @@ function restoreTitleDisplay(text, edited) {
         window.SearchCore.hasJapanese(text);
 
     container.innerHTML = `
-        <span id="resultTitle" style="flex:1;">${escapeHtml(text)}</span>
-        <button id="editTitleBtn" class="btn btn-sm btn-link p-0 ml-1" onclick="startEditTitle()" title="編輯標題">
-            <i class="bi ${edited ? 'bi-pencil-fill text-success' : 'bi-pencil text-muted'}"></i>
-        </button>
-        <button id="translateBtn" class="btn btn-sm btn-link p-0 ml-1 ${shouldShowTranslateBtn ? '' : 'hidden'}"
-                onclick="translateWithAI()" title="AI 翻譯">
-            <i class="bi bi-translate"></i>
-        </button>
-        <span id="translateSpinner" class="loading loading-spinner loading-sm ml-1 hidden"></span>
+        <span class="info-value" id="resultTitle">${escapeHtml(text)}</span>
+        <div class="av-card-full-footer-actions">
+            <button id="editTitleBtn" class="info-icon-btn" onclick="startEditTitle()" title="編輯標題">
+                <i class="bi ${edited ? 'bi-pencil-fill text-success' : 'bi-pencil text-muted'}"></i>
+            </button>
+            <button id="translateBtn" class="info-icon-btn ${shouldShowTranslateBtn ? '' : 'hidden'}"
+                    onclick="translateWithAI()" title="AI 翻譯">
+                <i class="bi bi-translate"></i>
+            </button>
+            <span id="translateSpinner" class="loading loading-spinner loading-sm hidden"></span>
+        </div>
     `;
 
     if (shouldShowTranslateBtn) {
@@ -751,13 +755,15 @@ function startEditChineseTitle() {
     const currentText = span.textContent;
 
     container.innerHTML = `
-        <textarea id="editChineseTitleInput" class="textarea textarea-bordered text-success" rows="2" style="flex:1; min-width:0; resize:none;">${escapeHtml(currentText)}</textarea>
-        <button class="btn btn-sm btn-link p-0 ml-1 text-success" onclick="confirmEditChineseTitle()" title="確認">
-            <i class="bi bi-check-lg"></i>
-        </button>
-        <button class="btn btn-sm btn-link p-0 ml-1 text-error" onclick="cancelEditChineseTitle()" title="取消">
-            <i class="bi bi-x-lg"></i>
-        </button>
+        <textarea id="editChineseTitleInput" class="textarea textarea-bordered info-value text-success" rows="2" style="flex:1; min-width:0; resize:none;">${escapeHtml(currentText)}</textarea>
+        <div class="av-card-full-footer-actions">
+            <button class="info-icon-btn text-success" onclick="confirmEditChineseTitle()" title="確認">
+                <i class="bi bi-check-lg"></i>
+            </button>
+            <button class="info-icon-btn text-error" onclick="cancelEditChineseTitle()" title="取消">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
     `;
     const input = document.getElementById('editChineseTitleInput');
     input.focus();
@@ -798,10 +804,12 @@ function cancelEditChineseTitle() {
 function restoreChineseTitleDisplay(text, edited) {
     const container = document.getElementById('chineseTitleContainer');
     container.innerHTML = `
-        <span id="resultChineseTitle" class="text-success" style="flex:1;">${escapeHtml(text)}</span>
-        <button id="editChineseTitleBtn" class="btn btn-sm btn-link p-0 ml-1" onclick="startEditChineseTitle()" title="編輯中文片名">
-            <i class="bi ${edited ? 'bi-pencil-fill text-success' : 'bi-pencil text-muted'}"></i>
-        </button>
+        <span class="info-value text-success" id="resultChineseTitle">${escapeHtml(text)}</span>
+        <div class="av-card-full-footer-actions">
+            <button id="editChineseTitleBtn" class="info-icon-btn" onclick="startEditChineseTitle()" title="編輯中文片名">
+                <i class="bi ${edited ? 'bi-pencil-fill text-success' : 'bi-pencil text-muted'}"></i>
+            </button>
+        </div>
     `;
 }
 
