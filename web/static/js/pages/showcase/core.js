@@ -156,8 +156,10 @@ function showcaseState() {
         // --- 重試（async 安全） ---
         async retry() {
             this.error = '';
+            const savedPage = this.page;
             await this.fetchVideos();
-            this.filteredVideos = [...this.videos];
+            this.applyFilterAndSort();
+            this.page = savedPage;
             this.updatePagination();
         },
 
@@ -541,8 +543,8 @@ function showcaseState() {
                 // S 鍵：切換 Card Info（僅 Grid 模式，已完成於 M3i）
                 this.toggleInfo();
             } else if (key === 'A') {
-                // A 鍵：循環切換模式 Grid → Table → List → Grid
-                const modeOrder = ['grid', 'table', 'list'];
+                // A 鍵：循環切換模式 Grid → List → Table → Grid
+                const modeOrder = ['grid', 'list', 'table'];
                 const currentIndex = modeOrder.indexOf(this.mode);
                 const nextIndex = (currentIndex + 1) % 3;
                 this.switchMode(modeOrder[nextIndex]);
