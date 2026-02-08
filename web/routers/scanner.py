@@ -240,6 +240,7 @@ def generate_avlist() -> Generator[str, None, None]:
                 video = repo.get_by_path(path)
                 if video:
                     session_cache[path] = {
+                        'nfo_mtime': video.nfo_mtime,
                         'info': {
                             'title': video.title,
                             'date': video.release_date,
@@ -363,6 +364,7 @@ async def check_update():
         cache = {}
         for v in all_videos:
             cache[v.path] = {
+                'nfo_mtime': v.nfo_mtime,
                 'info': {
                     'title': v.title,
                     'date': v.release_date,
@@ -417,6 +419,7 @@ def generate_nfo_update() -> Generator[str, None, None]:
         cache = {}
         for v in all_videos:
             cache[v.path] = {
+                'nfo_mtime': v.nfo_mtime,
                 'info': {
                     'title': v.title,
                     'date': v.release_date,
