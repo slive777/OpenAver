@@ -61,6 +61,11 @@
             width: var(--sidebar-collapsed-width);
         }
 
+        /* 預先套用 body class 時也要同步影響 sidebar 本體，避免首屏展開閃爍 */
+        body.sidebar-collapsed .sidebar {
+            width: var(--sidebar-collapsed-width);
+        }
+
         /* 側邊欄頂部（toggle + logo） */
         .sidebar-header {
             display: flex;
@@ -99,7 +104,8 @@
             transition: opacity 0.2s, color 0.3s ease;
         }
 
-        .sidebar.collapsed .sidebar-brand {
+        .sidebar.collapsed .sidebar-brand,
+        body.sidebar-collapsed .sidebar .sidebar-brand {
             opacity: 0;
             width: 0;
         }
@@ -138,13 +144,15 @@
             transition: opacity 0.2s;
         }
 
-        .sidebar.collapsed .nav-link .nav-text {
+        .sidebar.collapsed .nav-link .nav-text,
+        body.sidebar-collapsed .sidebar .nav-link .nav-text {
             opacity: 0;
             width: 0;
             margin-left: 0;
         }
 
-        .sidebar.collapsed .nav-link {
+        .sidebar.collapsed .nav-link,
+        body.sidebar-collapsed .sidebar .nav-link {
             justify-content: center;
         }
 
@@ -244,14 +252,23 @@
 </head>
 
 <body x-data="{
-    sidebarCollapsed: $persist(false).as('sidebar_collapsed'),
+    sidebarCollapsed: $persist(window.__sidebarCollapsedInitial ?? false).as('sidebar_collapsed'),
     mobileMenuOpen: false
 }"
      :class="{ 'sidebar-collapsed': sidebarCollapsed }"
      class="{% if page in ['design-system', 'showcase'] %}ds-page{% endif %}">
     <!-- Sidebar: 同步讀取 localStorage 防止閃爍（Alpine 載入前執行） -->
     <script>
-      try{if(JSON.parse(localStorage.getItem('_x_sidebar_collapsed')))document.body.classList.add('sidebar-collapsed')}catch(e){}
+      window.__sidebarCollapsedInitial = false;
+      try {
+        const raw = localStorage.getItem('_x_sidebar_collapsed');
+        if (raw !== null) {
+          window.__sidebarCollapsedInitial = JSON.parse(raw) === true;
+        }
+      } catch (e) {}
+      if (window.__sidebarCollapsedInitial) {
+        document.body.classList.add('sidebar-collapsed');
+      }
     </script>
     <!-- 頂部導航列（僅小螢幕顯示）-->
     <nav class="navbar bg-base-200 lg:hidden fixed top-0 left-0 right-0 z-50 h-14 top-navbar fluent-acrylic border-b border-base-300" x-show="!mobileMenuOpen">
@@ -341,7 +358,9 @@
          :class="{ 'collapsed': sidebarCollapsed }"
          x-ref="sidebar">
         <div class="sidebar-header">
-            <button class="sidebar-toggle" @click="sidebarCollapsed = !sidebarCollapsed" title="展開/收合">
+            <button class="sidebar-toggle"
+                    @click="sidebarCollapsed = !sidebarCollapsed; try { localStorage.setItem('_x_sidebar_collapsed', JSON.stringify(sidebarCollapsed)); } catch (e) {}"
+                    title="展開/收合">
                 <i class="bi bi-list"></i>
             </button>
             <span class="sidebar-brand"><img src="/static/favicon.svg" alt="Logo" style="width: 20px; height: 20px; margin-right: 4px;"> OpenAver</span>
