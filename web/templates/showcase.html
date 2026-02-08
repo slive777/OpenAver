@@ -141,6 +141,10 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- M2c: 傳遞 config 給 JS -->
+<script>
+window.__SHOWCASE_CONFIG__ = {{ (config.gallery or {}) | tojson | safe }};
+</script>
 <!-- M2a 只需 core.js -->
 <script src="/static/js/pages/showcase/core.js"></script>
 {% endblock %}
