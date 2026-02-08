@@ -108,11 +108,40 @@
     <div class="mini-terminal" id="progressSection" x-show="progressSectionVisible">
         <div class="mini-terminal-header">
             <span class="title" id="progressStatus" x-text="progressStatus"></span>
+
+            <!-- T7d: Filter Badges -->
+            <div class="log-filter-group">
+                <button class="log-filter-btn" :class="{ active: logFilter === 'all' }"
+                        @click="logFilter = 'all'" title="顯示全部">
+                    全部
+                </button>
+                <button class="log-filter-btn" :class="{ active: logFilter === 'error' }"
+                        @click="logFilter = 'error'" title="僅顯示錯誤">
+                    錯誤
+                </button>
+                <button class="log-filter-btn" :class="{ active: logFilter === 'warn' }"
+                        @click="logFilter = 'warn'" title="僅顯示警告">
+                    警告
+                </button>
+            </div>
+
+            <!-- T7d: Action Buttons -->
+            <div class="log-actions">
+                <button class="log-action-btn" @click="copyLogs()" title="複製日誌">
+                    <i class="bi bi-clipboard"></i>
+                </button>
+                <button class="log-action-btn" @click="clearLogsDisplay()" title="清除畫面（重整後恢復）">
+                    <i class="bi bi-eraser"></i>
+                </button>
+                <button class="log-action-btn" @click="confirmClearAll()" title="清除全部（包含歷史）">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
         </div>
         <div class="progress-mini">
             <div class="bar" id="progressBar" x-bind:style="{ width: progressPercent + '%' }"></div>
         </div>
-        <div class="mini-terminal-body" id="logOutput"></div>
+        <div class="mini-terminal-body" id="logOutput" :class="'filter-' + logFilter"></div>
     </div>
 
     <!-- Stats Card -->
@@ -296,6 +325,10 @@ function scannerPage() {
     logHtml: '',           // 日誌 HTML（用於 restoreLogs）
     logBatch: [],          // 批次佇列
     logTimer: null,        // 批次計時器
+
+    // ===== T7d: Log Terminal 增強 =====
+    logEntries: [],        // [{level, message, timestamp}] 結構化陣列
+    logFilter: 'all',      // 'all' | 'error' | 'warn' 篩選條件
 
     // ===== T7b: Done Actions =====
     outputPath: '',        // 輸出路徑（供複製）
@@ -655,10 +688,13 @@ function scannerPage() {
 
     // ===== T7b: Log System =====
     addLog(level, message) {
+        // T7d: 加入結構化陣列
+        this.logEntries.push({ level, message, timestamp: Date.now() });
+
         const cls = level === 'error' ? 'log-error' :
                     level === 'warn' ? 'log-warn' : 'log-info';
         const escaped = this.escapeHtml(message);
-        this.logBatch.push(`<div class="${cls}">${escaped}</div>`);
+        this.logBatch.push(`<div class="${cls}" data-level="${level}">${escaped}</div>`);
 
         if (!this.logTimer) {
             this.logTimer = setTimeout(() => this.flushLogs(), 100);
@@ -694,6 +730,19 @@ function scannerPage() {
             logOutput.innerHTML = savedLogs;
             this.logHtml = savedLogs;
 
+            // T7d: 解析 HTML，重建 logEntries（相容舊格式無 data-level）
+            this.logEntries = [];
+            const logDivs = logOutput.querySelectorAll('.log-info, .log-warn, .log-error');
+            logDivs.forEach(div => {
+                let level = div.getAttribute('data-level');
+                if (!level) {
+                    if (div.classList.contains('log-error')) level = 'error';
+                    else if (div.classList.contains('log-warn')) level = 'warn';
+                    else level = 'info';
+                }
+                this.logEntries.push({ level, message: div.textContent, timestamp: Date.now() });
+            });
+
             if (wasGenerating) {
                 this.addLog('warn', '⚠ 生成被中斷（離開頁面）');
                 this.flushLogs();
@@ -717,8 +766,44 @@ function scannerPage() {
         localStorage.removeItem('avlist_generating');
         localStorage.removeItem('avlist_last_status');
         this.logHtml = '';
+        this.logEntries = [];
         const logOutput = document.getElementById('logOutput');
         if (logOutput) logOutput.innerHTML = '';
+    },
+
+    // ===== T7d: Log Terminal 增強 =====
+    clearLogsDisplay() {
+        this.logHtml = '';
+        this.logEntries = [];
+        const logOutput = document.getElementById('logOutput');
+        if (logOutput) logOutput.innerHTML = '';
+    },
+
+    copyLogs() {
+        if (this.logEntries.length === 0) {
+            this.showToast('目前沒有日誌');
+            return;
+        }
+
+        const text = this.logEntries.map(entry => entry.message).join('\n');
+
+        navigator.clipboard.writeText(text).then(() => {
+            this.showToast(`已複製 ${this.logEntries.length} 筆日誌`);
+        }).catch(() => {
+            alert('複製失敗，日誌內容：\n\n' + text.substring(0, 500) + '...');
+        });
+    },
+
+    confirmClearAll() {
+        if (this.logEntries.length === 0) {
+            this.showToast('目前沒有日誌');
+            return;
+        }
+
+        if (confirm('確定要清除所有日誌嗎？（包含歷史紀錄）')) {
+            this.clearLogs();
+            this.showToast('已清除所有日誌');
+        }
     },
 
     // ===== T7b: Generate Flow =====

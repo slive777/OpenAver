@@ -44,6 +44,8 @@
 .mini-terminal-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
     padding: 0.5rem 0.75rem;
     background: color-mix(in oklch, var(--color-base-content) 5%, transparent);
     transition: background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
@@ -53,6 +55,65 @@
     font-size: 0.8rem;
     color: color-mix(in oklch, var(--color-base-content) 70%, transparent);
     transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
+    flex-shrink: 0;
+}
+
+/* Log Filter Group */
+.log-filter-group {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.log-filter-btn {
+    padding: 0.125rem 0.5rem;
+    font-size: 0.7rem;
+    border-radius: var(--fluent-radius-md);
+    background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
+    color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
+    border: none;
+    cursor: pointer;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.log-filter-btn:hover {
+    background: color-mix(in oklch, var(--color-base-content) 12%, transparent);
+    color: var(--color-base-content);
+}
+
+.log-filter-btn.active {
+    background: var(--color-primary);
+    color: var(--color-primary-content);
+}
+
+/* Log Actions */
+.log-actions {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.log-action-btn {
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--fluent-radius-sm);
+    background: transparent;
+    color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
+    border: none;
+    cursor: pointer;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.log-action-btn:hover {
+    background: color-mix(in oklch, var(--color-base-content) 10%, transparent);
+    color: var(--color-base-content);
+}
+
+.log-action-btn i {
+    font-size: 0.75rem;
 }
 
 .mini-terminal-body {
@@ -170,4 +231,15 @@
     margin: 0;
     text-shadow: 0 2px 8px color-mix(in oklch, var(--color-base-100) 30%, transparent);
     transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
+}
+
+/* Log Filter CSS-only */
+.mini-terminal-body.filter-error .log-info,
+.mini-terminal-body.filter-error .log-warn {
+    display: none !important;
+}
+
+.mini-terminal-body.filter-warn .log-info,
+.mini-terminal-body.filter-warn .log-error {
+    display: none !important;
 }
