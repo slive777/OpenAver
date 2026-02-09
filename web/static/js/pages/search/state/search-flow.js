@@ -138,30 +138,25 @@ window.SearchStateMixin_SearchFlow = {
                             window.SearchCore.checkLocalStatus(this.searchResults);
                         }
 
-                        // 優先顯示 Gallery（如果有 gallery_url）
-                        if (data.gallery_url && window.SearchUI?.showGallery) {
-                            window.SearchUI.showGallery(data.gallery_url);
-                            this.listMode = 'search';
-                            this.hasContent = true;
-                            window.SearchCore.updateClearButton();
-                            this.saveState();
-                            this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
-                        } else {
-                            // 原有的詳細資料卡顯示邏輯
-                            window.SearchUI.showState('result');
-                            if (window.SearchUI?.preloadImages) {
-                                window.SearchUI.preloadImages(1, 5);
-                            }
-                            this.listMode = 'search';
-                            this.hasContent = true;
-                            window.SearchCore.updateClearButton();
-                            this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
-                            // Reset edit states
-                            this.coverError = '';
-                            this.editingTitle = false;
-                            this.editingChineseTitle = false;
-                            this.addingTag = false;
+                        // T2a: gallery_url 作為信號自動切換 Grid 模式
+                        if (data.gallery_url) {
+                            this.displayMode = 'grid';
                         }
+
+                        // 顯示結果
+                        window.SearchUI.showState('result');
+                        if (window.SearchUI?.preloadImages) {
+                            window.SearchUI.preloadImages(1, 5);
+                        }
+                        this.listMode = 'search';
+                        this.hasContent = true;
+                        window.SearchCore.updateClearButton();
+                        this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
+                        // Reset edit states
+                        this.coverError = '';
+                        this.editingTitle = false;
+                        this.editingChineseTitle = false;
+                        this.addingTag = false;
                     } else {
                         this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋失敗）
                         window.SearchUI.showState('error');
@@ -240,29 +235,25 @@ window.SearchStateMixin_SearchFlow = {
                     window.SearchCore.checkLocalStatus(this.searchResults);
                 }
 
-                // 優先顯示 Gallery
-                if (data.gallery_url && window.SearchUI?.showGallery) {
-                    window.SearchUI.showGallery(data.gallery_url);
-                    this.listMode = 'search';
-                    this.hasContent = true;
-                    window.SearchCore.updateClearButton();
-                    this.saveState();
-                    this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
-                } else {
-                    window.SearchUI.showState('result');
-                    if (window.SearchUI?.preloadImages) {
-                        window.SearchUI.preloadImages(1, 5);
-                    }
-                    this.listMode = 'search';
-                    this.hasContent = true;
-                    window.SearchCore.updateClearButton();
-                    this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
-                    // Reset edit states
-                    this.coverError = '';
-                    this.editingTitle = false;
-                    this.editingChineseTitle = false;
-                    this.addingTag = false;
+                // T2a: gallery_url 作為信號自動切換 Grid 模式
+                if (data.gallery_url) {
+                    this.displayMode = 'grid';
                 }
+
+                // 顯示結果
+                window.SearchUI.showState('result');
+                if (window.SearchUI?.preloadImages) {
+                    window.SearchUI.preloadImages(1, 5);
+                }
+                this.listMode = 'search';
+                this.hasContent = true;
+                window.SearchCore.updateClearButton();
+                this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
+                // Reset edit states
+                this.coverError = '';
+                this.editingTitle = false;
+                this.editingChineseTitle = false;
+                this.addingTag = false;
             } else {
                 this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋失敗）
                 window.SearchUI.showState('error');

@@ -65,6 +65,11 @@ window.SearchStateMixin_Base = function() {
         activeEventSource: null,   // 當前 SSE 連線
         _searchSnapshot: null,     // cancelSearch 用的狀態快照
 
+        // ===== T2a: Display Mode State =====
+        displayMode: 'detail',     // 'detail' | 'grid'
+        lightboxOpen: false,       // Lightbox 顯示狀態
+        lightboxIndex: 0,          // Lightbox 當前索引
+
         // ===== Constants =====
         PAGE_SIZE: 20,
         MODE_TEXT: {

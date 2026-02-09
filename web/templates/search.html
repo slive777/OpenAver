@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <link href="/static/css/pages/search.css" rel="stylesheet">
+<link href="/static/css/pages/showcase.css" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
@@ -15,6 +16,43 @@
             <p>放開以搜尋番號</p>
         </div>
     </div>
+
+    <!-- T2a: Lightbox（Grid 模式） -->
+    <div class="showcase-lightbox"
+         :class="{ 'show': lightboxOpen }"
+         @click="handleLightboxBackdropClick($event)">
+
+        <div class="lightbox-content" @click.stop>
+            <!-- Close Button -->
+            <button class="lightbox-close"
+                    @click="closeLightbox()"
+                    title="關閉 (ESC)">
+                <i class="bi bi-x-lg"></i>
+            </button>
+
+            <!-- Cover Image -->
+            <div class="lightbox-cover">
+                <img :src="currentLightboxVideo()?.cover ? `/api/proxy-image?url=${encodeURIComponent(currentLightboxVideo().cover)}` : ''"
+                     :alt="currentLightboxVideo()?.number"
+                     @error="$event.target.onerror=null; $event.target.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22 fill=%22%23666%22><rect width=%22400%22 height=%22300%22 fill=%22%23222%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2216%22>No Image</text></svg>'">
+            </div>
+        </div>
+
+        <!-- Navigation Arrows -->
+        <button class="lightbox-nav lightbox-nav-prev"
+                @click.stop="prevLightboxVideo()"
+                x-show="lightboxIndex > 0"
+                title="上一部 (←)">
+            <i class="bi bi-chevron-left"></i>
+        </button>
+        <button class="lightbox-nav lightbox-nav-next"
+                @click.stop="nextLightboxVideo()"
+                x-show="lightboxIndex < searchResults.length - 1"
+                title="下一部 (→)">
+            <i class="bi bi-chevron-right"></i>
+        </button>
+    </div>
+
     <!-- Gallery 視圖容器 -->
     <div id="galleryView" class="hidden">
         <iframe id="galleryFrame" src="" sandbox="allow-same-origin allow-scripts"></iframe>
@@ -37,6 +75,14 @@
                     </button>
                     <button type="button" id="btnBackToDetail" class="btn-icon hidden" title="返回詳細資料">
                         <i class="bi bi-arrow-left"></i>
+                    </button>
+                    <!-- T2a: Grid / Detail Toggle -->
+                    <button type="button"
+                            class="btn-icon rotating-border-spotlight active"
+                            x-show="listMode === 'search'"
+                            @click="toggleDisplayMode()"
+                            :title="displayMode === 'detail' ? '切換到圖片模式' : '切換到詳細模式'">
+                        <i class="bi" :class="displayMode === 'detail' ? 'bi-grid-3x3' : 'bi-list-ul'"></i>
                     </button>
                     <button type="button" id="btnClear" class="btn-icon hidden" x-show="hasContent" @click="clearAll()" title="清空">
                         <i class="bi bi-x-lg"></i>
@@ -123,8 +169,8 @@
 
         <!-- 結果卡片（wrapper：卡片 + 檔案列表垂直排列） -->
         <div id="resultCard" class="hidden" x-show="pageState === 'result'" x-cloak>
-            <!-- AV Card Full：封面 + 資訊並排 -->
-            <div class="av-card-full">
+            <!-- AV Card Full：封面 + 資訊並排（Detail 模式） -->
+            <div class="av-card-full" x-show="displayMode === 'detail'">
                 <div class="av-card-full-cover">
                     <div class="av-card-full-cover-wrapper">
                         <img id="resultCover" class="av-card-full-cover-img"
@@ -295,6 +341,51 @@
             </div>
             </div>
 
+            <!-- T2a: Grid Mode（封面牆） -->
+            <div class="search-grid ds-gallery-composition" x-show="displayMode === 'grid'" x-cloak>
+                <template x-for="(result, index) in searchResults" :key="result.number + '_' + index">
+                    <div class="av-card-preview"
+                         @click="openLightbox(index)"
+                         :style="`--card-index: ${index}`">
+                        <div class="av-card-preview-img">
+                            <img :src="result.cover ? `/api/proxy-image?url=${encodeURIComponent(result.cover)}` : ''"
+                                 :alt="result.number"
+                                 loading="lazy"
+                                 @error="$event.target.style.display='none'">
+                            <!-- Local Badge -->
+                            <div class="av-card-preview-badge local"
+                                 x-show="result._localStatus?.exists"
+                                 title="本地有此影片">
+                                📁 本地
+                            </div>
+                            <!-- Overlay Actions (Hover) -->
+                            <div class="av-card-preview-overlay">
+                                <button class="btn-glass-circle"
+                                        @click.stop="switchToDetail(index)"
+                                        title="查看詳情">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                                <button class="btn-glass-circle"
+                                        @click.stop="copyPath(result._localStatus?.paths?.[0] || '')"
+                                        x-show="result._localStatus?.exists"
+                                        title="複製路徑">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="av-card-preview-footer">
+                            <div class="footer-default">
+                                <span class="av-num" x-text="result.number || '-'">-</span>
+                                <span class="av-actress" x-text="(result.actors || []).slice(0, 2).join(', ') || '未知'">未知</span>
+                            </div>
+                            <div class="footer-hover">
+                                <div class="hover-title" x-text="result.title || '未知標題'">未知標題</div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
             <!-- 檔案列表（卡片外，下方獨立） -->
             <div class="file-list-section" id="fileListSection"
                  x-show="(listMode === 'file' && fileList.length > 0) || (listMode === 'search' && searchResults.length > 0)">
@@ -438,6 +529,7 @@
 <script src="/static/js/pages/search/state/file-list.js"></script>
 <script src="/static/js/pages/search/state/batch.js"></script>
 <script src="/static/js/pages/search/state/bridge.js"></script>
+<script src="/static/js/pages/search/state/grid-mode.js"></script>
 <script src="/static/js/pages/search/state/index.js"></script>
 <!-- Existing JS modules -->
 <script src="/static/js/pages/search/core.js"></script>

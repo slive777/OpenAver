@@ -18,6 +18,7 @@ window.SearchStateMixin_Persistence = {
             this.fileList = state.fileList || [];
             this.currentFileIndex = state.currentFileIndex || 0;
             this.listMode = state.listMode || null;
+            this.displayMode = state.displayMode || 'detail';
 
             // 同步回 core.js module-level vars（舊 JS 函數直接讀取這些變數）
             const coreState = window.SearchCore.state;
@@ -78,7 +79,8 @@ window.SearchStateMixin_Persistence = {
             fileList: coreState?.fileList ?? this.fileList,
             currentFileIndex: coreState?.currentFileIndex ?? this.currentFileIndex,
             listMode: coreState?.listMode ?? this.listMode,
-            queryValue: queryInput ? queryInput.value : ''
+            queryValue: queryInput ? queryInput.value : '',
+            displayMode: this.displayMode
         };
         sessionStorage.setItem(this.STATE_KEY, JSON.stringify(state));
     },

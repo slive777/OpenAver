@@ -111,6 +111,28 @@ window.SearchStateMixin_Navigation = {
         const queryInput = document.getElementById('searchQuery');
         if (document.activeElement === queryInput) return;
 
+        // T2a: Lightbox 鍵盤導航（優先）
+        if (this.lightboxOpen) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                this.closeLightbox();
+                return;
+            }
+            if (event.key === 'ArrowLeft') {
+                event.preventDefault();
+                this.prevLightboxVideo();
+                return;
+            }
+            if (event.key === 'ArrowRight') {
+                event.preventDefault();
+                this.nextLightboxVideo();
+                return;
+            }
+        }
+
+        // Detail 模式導航（Grid 模式不觸發）
+        if (this.displayMode !== 'detail') return;
+
         if (event.key === 'ArrowLeft') {
             event.preventDefault();
             this.navigate(-1);

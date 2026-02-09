@@ -22,6 +22,7 @@ function searchPage() {
         ...window.SearchStateMixin_FileList,
         ...window.SearchStateMixin_Batch,
         ...window.SearchStateMixin_Bridge,
+        ...window.SearchStateMixin_GridMode,
 
         // ===== Lifecycle =====
         async init() {

@@ -601,3 +601,53 @@
 .tag-cancel {
     color: #ef4444;
 }
+
+/* ==================== T2a: Grid Mode ==================== */
+.search-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    padding: 1.5rem;
+    max-width: 100%;
+    overflow-y: auto;
+}
+
+/* 響應式斷點 - 對齊 showcase.css */
+@media (min-width: 1500px) {
+    .search-grid {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+
+@media (min-width: 1100px) and (max-width: 1499px) {
+    .search-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (min-width: 900px) and (max-width: 1099px) {
+    .search-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 481px) and (max-width: 899px) {
+    .search-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .search-grid {
+        grid-template-columns: 1fr;
+        padding: 1rem;
+    }
+}
+
+/* Footer 雙層切換（對齊 showcase.css .showcase-grid 的 footer 設定） */
+.search-grid .av-card-preview-footer {
+    position: relative;
+    overflow: hidden;
+    height: 2.5rem;
+}
