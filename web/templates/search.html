@@ -200,7 +200,7 @@
                         <span class="info-label">標籤</span>
                         <span class="info-value" id="resultTags">
                             <!-- 字幕標籤 -->
-                            <span x-show="hasSubtitle" class="badge tag-badge subtitle">中文字幕</span>
+                            <span x-show="hasSubtitle()" class="badge tag-badge subtitle">中文字幕</span>
                             <!-- 系統標籤 -->
                             <template x-for="tag in (current().tags || [])" :key="tag">
                                 <span class="badge tag-badge" x-text="tag"></span>
@@ -429,8 +429,16 @@
 
     // === 主程式已移至 /static/js/pages/search/ ===
 </script>
-<!-- Alpine State (must load before other JS) -->
-<script src="/static/js/pages/search/state.js"></script>
+<!-- Alpine State Modules (must load before other JS) -->
+<script src="/static/js/pages/search/state/base.js"></script>
+<script src="/static/js/pages/search/state/persistence.js"></script>
+<script src="/static/js/pages/search/state/search-flow.js"></script>
+<script src="/static/js/pages/search/state/navigation.js"></script>
+<script src="/static/js/pages/search/state/result-card.js"></script>
+<script src="/static/js/pages/search/state/file-list.js"></script>
+<script src="/static/js/pages/search/state/batch.js"></script>
+<script src="/static/js/pages/search/state/bridge.js"></script>
+<script src="/static/js/pages/search/state/index.js"></script>
 <!-- Existing JS modules -->
 <script src="/static/js/pages/search/core.js"></script>
 <script src="/static/js/pages/search/ui.js"></script>
