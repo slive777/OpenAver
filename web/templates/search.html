@@ -9,7 +9,7 @@
 {% block content %}
 <div class="search-container ds-page" x-data="searchPage()" @keydown.window="handleKeydown($event)">
     <!-- 拖拽覆蓋層（必須在 x-data scope 內） -->
-    <div class="drag-overlay" id="dragOverlay" x-show="dragActive">
+    <div class="drag-overlay" id="dragOverlay" :class="{ active: dragActive }">
         <div class="drag-overlay-content">
             <i class="bi bi-file-earmark-play"></i>
             <p>放開以搜尋番號</p>
@@ -131,15 +131,16 @@
                              x-show="!coverError && current().cover"
                              :src="coverUrl()"
                              @error="handleCoverError()"
+                             @load="coverError = ''; _coverRetried = false"
                              alt="封面">
                         <!-- 封面錯誤 -->
-                        <div x-show="coverError" class="cover-error-placeholder" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-muted);">
+                        <div x-show="coverError" class="cover-error-placeholder">
                             <i class="bi bi-exclamation-triangle" style="font-size:3rem;color:var(--color-warning);"></i>
                             <p x-text="coverError" style="margin-top:0.5rem;"></p>
                             <small>請檢查番號格式或稍後再試</small>
                         </div>
                         <!-- 無封面 -->
-                        <div x-show="!coverError && !current().cover" class="cover-error-placeholder" style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);">
+                        <div x-show="!coverError && !current().cover" class="cover-error-placeholder">
                             <i class="bi bi-image" style="font-size:3rem;"></i>
                         </div>
                         <button class="nav-btn prev" id="btnPrev"

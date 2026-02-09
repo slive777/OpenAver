@@ -428,7 +428,9 @@ async function checkLocalStatus(results) {
         });
 
         // 更新 UI
-        window.SearchUI.updateLocalBadges();
+        if (window.SearchUI?.updateLocalBadges) {
+            window.SearchUI.updateLocalBadges();
+        }
 
     } catch (err) {
         console.error('[LocalStatus] 查詢失敗:', err);

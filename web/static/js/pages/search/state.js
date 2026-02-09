@@ -52,6 +52,7 @@ function searchPage() {
         addingTag: false,
         newTagValue: '',
         coverError: '',
+        _coverRetried: false,
 
         // ===== T1d: File List State =====
         dragActive: false,
@@ -133,14 +134,18 @@ function searchPage() {
 
         searchAllButtonText() {
             const searchableFiles = this.fileList.filter(f => f.number && !f.searched);
+            const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0));
             const totalWithNumber = this.fileList.filter(f => f.number).length;
             const batch = this.batchState;
 
-            if (searchableFiles.length === 0) {
+            if (searchableFiles.length === 0 && failedFiles.length === 0) {
                 return '搜尋全部';
             }
             if (batch.isProcessing) {
                 return batch.isPaused ? '繼續' : '暫停';
+            }
+            if (searchableFiles.length === 0 && failedFiles.length > 0) {
+                return `重試失敗 (${failedFiles.length})`;
             }
             const searchedCount = totalWithNumber - searchableFiles.length;
             const start = searchedCount + 1;
@@ -153,12 +158,18 @@ function searchPage() {
             if (batch.isProcessing) {
                 return batch.isPaused ? 'bi-play-fill' : 'bi-pause-fill';
             }
+            const searchableFiles = this.fileList.filter(f => f.number && !f.searched);
+            const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0));
+            if (searchableFiles.length === 0 && failedFiles.length > 0) {
+                return 'bi-arrow-clockwise';
+            }
             return 'bi-search';
         },
 
         searchAllDisabled() {
             const searchableFiles = this.fileList.filter(f => f.number && !f.searched);
-            return searchableFiles.length === 0 && !this.batchState.isProcessing;
+            const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0));
+            return searchableFiles.length === 0 && failedFiles.length === 0 && !this.batchState.isProcessing;
         },
 
         batchPercent() {
@@ -259,6 +270,10 @@ function searchPage() {
                 if (queryInput && state.queryValue) {
                     queryInput.value = state.queryValue;
                 }
+
+                // Fix 1: 清除封面錯誤（防止還原時殘留舊狀態）
+                this.coverError = '';
+                this._coverRetried = false;
 
                 // 還原顯示狀態（透過舊 JS 的 showState 同時處理 .hidden + Alpine pageState）
                 if (this.searchResults.length > 0) {
@@ -788,6 +803,7 @@ function searchPage() {
 
                 // Reset cover error on navigation
                 this.coverError = '';
+                this._coverRetried = false;
 
                 if (window.SearchUI?.preloadImages) {
                     window.SearchUI.preloadImages(this.currentIndex + 1, 3);
@@ -1071,6 +1087,17 @@ function searchPage() {
         // ===== T1c: Cover Error =====
 
         handleCoverError() {
+            // Fix 4: 一次自動重試（cache bust）
+            if (!this._coverRetried) {
+                this._coverRetried = true;
+                const img = document.getElementById('resultCover');
+                if (img && img.src) {
+                    const sep = img.src.includes('?') ? '&' : '?';
+                    img.src = img.src + sep + '_t=' + Date.now();
+                    return; // 不設 coverError，讓重試有機會成功
+                }
+            }
+            this._coverRetried = false;
             this.coverError = '封面載入失敗';
         },
 
@@ -1173,6 +1200,17 @@ function searchPage() {
                                 file.searched = true;
                                 file.searchResults = [];
                                 this.coverError = `找不到 ${file.number} 的資料`;
+
+                                // 重置共享狀態（防止 navigate() 讀到過時資料）
+                                this.searchResults = [];
+                                this.hasMoreResults = false;
+                                this.currentIndex = 0;
+
+                                // 同步到 core.js
+                                coreState.searchResults = this.searchResults;
+                                coreState.hasMoreResults = this.hasMoreResults;
+                                coreState.currentIndex = this.currentIndex;
+
                                 window.SearchUI.showState('result');
                             }
                             resolve();
@@ -1185,6 +1223,17 @@ function searchPage() {
                             file.searched = true;
                             file.searchResults = [];
                             this.coverError = data.message || '搜尋失敗';
+
+                            // 重置共享狀態（防止 navigate() 讀到過時資料）
+                            this.searchResults = [];
+                            this.hasMoreResults = false;
+                            this.currentIndex = 0;
+
+                            // 同步到 core.js
+                            coreState.searchResults = this.searchResults;
+                            coreState.hasMoreResults = this.hasMoreResults;
+                            coreState.currentIndex = this.currentIndex;
+
                             window.SearchUI.showState('result');
                             resolve();
                         }
@@ -1201,6 +1250,17 @@ function searchPage() {
                     file.searched = true;
                     file.searchResults = [];
                     this.coverError = '連線錯誤，請稍後再試';
+
+                    // 重置共享狀態（防止 navigate() 讀到過時資料）
+                    this.searchResults = [];
+                    this.hasMoreResults = false;
+                    this.currentIndex = 0;
+
+                    // 同步到 core.js
+                    coreState.searchResults = this.searchResults;
+                    coreState.hasMoreResults = this.hasMoreResults;
+                    coreState.currentIndex = this.currentIndex;
+
                     window.SearchUI.showState('result');
                     resolve();
                 };
@@ -1236,13 +1296,21 @@ function searchPage() {
 
             // === 新的批次開始 ===
             const searchableFiles = this.fileList.filter(f => f.number && !f.searched);
+            const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0));
 
-            if (searchableFiles.length === 0) {
+            let targetFiles;
+            if (searchableFiles.length > 0) {
+                targetFiles = searchableFiles;
+            } else if (failedFiles.length > 0) {
+                // 重試失敗：重置 searched 狀態
+                failedFiles.forEach(f => { f.searched = false; f.searchResults = []; });
+                targetFiles = failedFiles;
+            } else {
                 alert('沒有需要搜尋的檔案');
                 return;
             }
 
-            const currentBatch = searchableFiles.slice(0, batch.batchSize);
+            const currentBatch = targetFiles.slice(0, batch.batchSize);
 
             // 更新狀態
             batch.isProcessing = true;
