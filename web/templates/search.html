@@ -104,13 +104,13 @@
             </div>
         </div>
 
-        <!-- 結果卡片 -->
-        <div id="resultCard" class="hidden w-full">
-            <div class="result-area p-0">
-                <!-- 封面區 70% -->
-                <div class="cover-section">
-                    <div class="cover-wrapper">
-                        <img id="resultCover" src="" class="cover-img" alt="封面">
+        <!-- 結果卡片（wrapper：卡片 + 檔案列表垂直排列） -->
+        <div id="resultCard" class="hidden">
+            <!-- AV Card Full：封面 + 資訊並排 -->
+            <div class="av-card-full">
+                <div class="av-card-full-cover">
+                    <div class="av-card-full-cover-wrapper">
+                        <img id="resultCover" class="av-card-full-cover-img" src="" alt="封面">
                         <button class="nav-btn prev hidden" id="btnPrev" title="上一個 (←)">
                             <i class="bi bi-chevron-left"></i>
                         </button>
@@ -121,90 +121,89 @@
                             <span id="currentIndex">1</span> / <span id="totalCount">1</span>
                         </div>
                     </div>
-
-                    <!-- 檔案/搜尋結果列表（緊貼在封面下方） -->
-                    <div class="file-list-section hidden" id="fileListSection">
-                        <div class="file-list-header">
-                            <span class="file-count" id="fileCountText">0 個檔案</span>
-                            <div class="join">
-                                <button class="btn btn-sm btn-outline btn-primary join-item" id="btnSearchAll" type="button"
-                                    title="搜尋所有未搜尋的檔案">
-                                    <i class="bi bi-search"></i> 搜尋全部
-                                </button>
-                                <button class="btn btn-sm btn-success join-item" id="btnScrapeAll" type="button" title="產生所有已搜尋的檔案">
-                                    <i class="bi bi-folder-plus"></i> 產生全部
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- 批次進度條 -->
-                        <div class="batch-progress hidden" id="batchProgress">
-                            <div class="batch-progress-bar">
-                                <div class="batch-progress-fill" id="batchProgressBar"></div>
-                            </div>
-                            <small class="batch-progress-text" id="batchProgressText">處理中 0/0</small>
-                        </div>
-
-                        <div class="file-list" id="fileList">
-                            <!-- 動態生成檔案項目 -->
-                        </div>
+                </div>
+                <div class="av-card-full-info">
+                <div class="av-card-full-header">
+                    <h4 class="av-num" id="resultNumber">-</h4>
+                    <span id="localBadge" class="local-badge hidden" title="本地已有">📁</span>
+                    <button id="switchSourceBtn" class="info-icon-btn" onclick="switchSource()" title="切換版本">
+                        <i class="bi bi-arrow-repeat"></i>
+                    </button>
+                </div>
+                <div class="av-card-full-body">
+                    <div class="info-row">
+                        <span class="info-label">演員</span>
+                        <span class="info-value" id="resultActors">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">發行日期</span>
+                        <span class="info-value" id="resultDate">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">片商</span>
+                        <span class="info-value" id="resultMaker">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">標籤</span>
+                        <span class="info-value" id="resultTags">-</span>
                     </div>
                 </div>
-
-                <!-- 資訊區 30% -->
-                <div class="info-section">
-                    <div class="info-header">
-                        <h4 class="info-number" id="resultNumber">-</h4>
-                        <span id="localBadge" class="local-badge hidden" title="本地已有">📁</span>
-                        <button id="switchSourceBtn" class="btn btn-link p-0"
-                            onclick="switchSource()" title="切換版本">
-                            <i class="bi bi-arrow-repeat"></i>
-                        </button>
-                    </div>
-                    <div class="info-body">
-                        <div class="info-row">
-                            <div class="info-label">演員</div>
-                            <div class="info-value" id="resultActors">-</div>
-                        </div>
-                        <div class="info-row">
-                            <div class="info-label">發行日期</div>
-                            <div class="info-value" id="resultDate">-</div>
-                        </div>
-                        <div class="info-row">
-                            <div class="info-label">片商</div>
-                            <div class="info-value" id="resultMaker">-</div>
-                        </div>
-                        <div class="info-row">
-                            <div class="info-label">標籤</div>
-                            <div class="info-value" id="resultTags">-</div>
+                <div class="av-card-full-footer">
+                    <div class="av-card-full-footer-content">
+                        <span class="info-label">標題</span>
+                        <div class="info-value-with-actions" id="titleContainer">
+                            <span class="info-value" id="resultTitle">-</span>
+                            <div class="av-card-full-footer-actions">
+                                <button id="editTitleBtn" class="info-icon-btn" onclick="startEditTitle()" title="編輯標題">
+                                    <i class="bi bi-pencil text-muted"></i>
+                                </button>
+                                <button id="translateBtn" class="info-icon-btn hidden" onclick="translateWithAI()" title="AI 翻譯">
+                                    <i class="bi bi-translate"></i>
+                                </button>
+                                <span id="translateSpinner" class="loading loading-spinner loading-sm hidden"></span>
+                            </div>
                         </div>
                     </div>
-                    <div class="info-footer">
-                        <div class="info-label">標題</div>
-                        <div class="info-title flex items-start" id="titleContainer">
-                            <span id="resultTitle" style="flex:1;">-</span>
-                            <button id="editTitleBtn" class="btn btn-sm btn-link p-0 ml-1" onclick="startEditTitle()"
-                                title="編輯標題">
-                                <i class="bi bi-pencil text-muted"></i>
-                            </button>
-                            <!-- AI 翻譯按鈕 -->
-                            <button id="translateBtn" class="btn btn-sm btn-link p-0 ml-1 hidden"
-                                onclick="translateWithAI()" title="批次翻譯 10 片">
-                                <i class="bi bi-translate"></i>
-                            </button>
-                            <span id="translateSpinner" class="loading loading-spinner loading-sm ml-1 hidden"></span>
-                        </div>
-                        <div id="chineseTitleRow" class="mt-2 hidden">
-                            <div class="info-label" id="chineseTitleLabel">中文片名</div>
-                            <div class="info-title flex items-start" id="chineseTitleContainer">
-                                <span id="resultChineseTitle" class="text-success" style="flex:1;">-</span>
-                                <button id="editChineseTitleBtn" class="btn btn-sm btn-link p-0 ml-1"
-                                    onclick="startEditChineseTitle()" title="編輯中文片名">
+                    <div id="chineseTitleRow" class="av-card-full-footer-content mt-2 hidden">
+                        <span class="info-label" id="chineseTitleLabel">中文片名</span>
+                        <div class="info-value-with-actions" id="chineseTitleContainer">
+                            <span class="info-value text-success" id="resultChineseTitle">-</span>
+                            <div class="av-card-full-footer-actions">
+                                <button id="editChineseTitleBtn" class="info-icon-btn" onclick="startEditChineseTitle()" title="編輯中文片名">
                                     <i class="bi bi-pencil text-muted"></i>
                                 </button>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+            </div>
+
+            <!-- 檔案列表（卡片外，下方獨立） -->
+            <div class="file-list-section hidden" id="fileListSection">
+                <div class="file-list-header">
+                    <span class="file-count" id="fileCountText">0 個檔案</span>
+                    <div class="join">
+                        <button class="btn btn-sm btn-outline btn-primary join-item" id="btnSearchAll" type="button"
+                            title="搜尋所有未搜尋的檔案">
+                            <i class="bi bi-search"></i> 搜尋全部
+                        </button>
+                        <button class="btn btn-sm btn-success join-item" id="btnScrapeAll" type="button" title="產生所有已搜尋的檔案">
+                            <i class="bi bi-folder-plus"></i> 產生全部
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 批次進度條 -->
+                <div class="batch-progress hidden" id="batchProgress">
+                    <div class="batch-progress-bar">
+                        <div class="batch-progress-fill" id="batchProgressBar"></div>
+                    </div>
+                    <small class="batch-progress-text" id="batchProgressText">處理中 0/0</small>
+                </div>
+
+                <div class="file-list" id="fileList">
+                    <!-- 動態生成檔案項目 -->
                 </div>
             </div>
         </div>

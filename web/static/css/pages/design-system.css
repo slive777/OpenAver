@@ -660,12 +660,6 @@
     border: 1px solid var(--border-light);
 }
 
-.ds-card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 1.25rem;
-}
-
 /* ==================== AV Cards 拼貼佈局 (Mosaic) ==================== */
 .ds-card-mosaic {
     display: grid;
@@ -730,67 +724,7 @@
     gap: 0.25rem;
 }
 
-/* Full Variant */
-.av-card-full {
-    display: flex;
-    gap: 0;
-    background: var(--bg-card);
-    border-radius: var(--fluent-radius-xl);
-    box-shadow: var(--fluent-shadow-8);
-    overflow: hidden;
-    border: 1px solid var(--border-light);
-}
-
-.av-card-full-cover {
-    flex: 7;
-    min-height: 200px;
-    position: relative;
-    overflow: hidden;
-}
-
-.av-card-full-cover img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform var(--fluent-duration-slow) var(--fluent-ease-standard);
-}
-
-.av-card-full:hover .av-card-full-cover img {
-    transform: scale(1.03);
-}
-
-.av-card-full-info {
-    flex: 3;
-    padding: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    min-width: 280px;
-}
-
-.av-card-full-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid var(--border-light);
-    margin-bottom: 1rem;
-}
-
-.av-card-full-header h4 {
-    font-size: 1.35rem;
-    color: var(--accent);
-    margin: 0;
-    font-weight: 700;
-}
-
-.av-card-full-body {
-    flex: 1;
-}
-
-.av-card-full-footer {
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-light);
-}
+/* AV Card Full base styles → theme.css (全域可用) */
 
 /* AV Card Full: Demo-specific adjustments */
 .ds-page .av-card-full-header {

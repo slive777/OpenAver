@@ -303,10 +303,11 @@
     height: 2.5rem;
 }
 
-/* 預設層：番號 + 女優 */
+/* 預設層：番號（左）+ 女優（右） */
 .footer-default {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.5rem;
     width: 100%;
     transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);

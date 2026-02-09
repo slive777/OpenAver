@@ -7,15 +7,18 @@
 {% endblock %}
 
 {% block content %}
-<!-- Drag Overlay -->
-<div class="drag-overlay" id="dragOverlay">
-    <div class="drag-overlay-content">
-        <i class="bi bi-folder-plus"></i>
-        <p>放開以加入資料夾</p>
+<div class="avlist-container ds-gallery-composition" x-data="scannerPage()"
+     @dragenter.document="handleDragEnter($event)"
+     @dragleave.document="handleDragLeave($event)"
+     @dragover.document.prevent
+     @drop.document.prevent="handleDrop($event)">
+    <!-- Drag Overlay (must be inside x-data scope) -->
+    <div class="drag-overlay" id="dragOverlay" x-show="showDragOverlay" x-transition.opacity>
+        <div class="drag-overlay-content">
+            <i class="bi bi-folder-plus"></i>
+            <p>放開以加入資料夾</p>
+        </div>
     </div>
-</div>
-
-<div class="avlist-container ds-gallery-composition">
     <!-- Header -->
     <div class="avlist-header">
         <h4><i class="bi bi-list-ul"></i> 列表生成</h4>
@@ -29,10 +32,10 @@
                 <i class="bi bi-folder"></i> <span>掃描資料夾</span>
             </div>
             <div class="actions">
-                <button class="btn-icon" onclick="selectFolder()" title="選擇資料夾">
+                <button class="btn-icon" @click="selectFolder()" title="選擇資料夾">
                     <i class="bi bi-folder-plus"></i>
                 </button>
-                <button class="btn-icon" onclick="toggleManualInput()" title="手動輸入">
+                <button class="btn-icon" @click="toggleManualInput()" title="手動輸入">
                     <i class="bi bi-keyboard"></i>
                 </button>
             </div>
@@ -40,23 +43,44 @@
 
         <div class="avlist-card-body">
             <!-- Manual Input (hidden by default) -->
-            <div class="manual-input" id="manualInput"
-                style="display: none; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-light);">
-                <input type="text" class="input input-bordered input-sm" id="manualPath" placeholder="輸入資料夾路徑...">
-                <button class="btn btn-sm btn-primary" onclick="addManualPath()">
+            <div class="manual-input" x-show="manualInputVisible"
+                style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-light);">
+                <input type="text" class="input input-bordered input-sm" id="manualPath"
+                       x-model="manualPath" placeholder="輸入資料夾路徑..."
+                       @keypress.enter="addManualPath()">
+                <button class="btn btn-sm btn-primary" @click="addManualPath()">
                     <i class="bi bi-plus"></i>
                 </button>
             </div>
 
             <!-- Folder List -->
-            <div class="folder-list" id="directoryList"></div>
+            <div class="folder-list">
+                <!-- Empty State -->
+                <div x-show="directories.length === 0" class="folder-empty">
+                    <i class="bi bi-folder-plus"></i>
+                    <p>尚未加入任何資料夾</p>
+                    <p>點擊上方按鈕或拖曳資料夾至此</p>
+                </div>
+
+                <!-- Folder Items -->
+                <template x-for="(dir, idx) in directories" :key="idx">
+                    <div class="folder-item">
+                        <i class="bi bi-folder folder-icon"></i>
+                        <span class="folder-path" x-text="dir"></span>
+                        <button class="btn btn-sm btn-outline btn-error btn-remove"
+                                @click="removeDirectory(idx)" title="移除">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                </template>
+            </div>
         </div>
 
         <!-- Output Info -->
         <div class="output-info">
             <div class="path">
                 <i class="bi bi-file-earmark-code"></i>
-                輸出: <code id="outputPathDisplay">output/gallery_output.html</code>
+                輸出: <code id="outputPathDisplay" x-text="outputPathDisplay"></code>
             </div>
             <a href="/settings" class="settings-link">
                 <i class="bi bi-gear"></i> 設定
@@ -65,12 +89,15 @@
 
         <!-- Action Buttons -->
         <div class="action-section">
-            <button class="btn-hero btn-hero-primary" id="btnGenerate" onclick="generate()">
-                <i class="bi bi-play-fill"></i> 產生網頁
+            <button class="btn-hero btn-hero-primary" id="btnGenerate"
+                    @click="generate()"
+                    x-bind:disabled="isBusy"
+                    x-html="generateButtonText">
             </button>
             <!-- Done Actions (hidden until complete) -->
-            <div id="doneActions" class="done-actions" style="display: none;">
-                <button class="btn-hero btn-hero-secondary" id="btnCopyPath" onclick="copyOutputPath()" title="複製路徑">
+            <div id="doneActions" class="done-actions" x-show="doneActionsVisible">
+                <button class="btn-hero btn-hero-secondary" id="btnCopyPath"
+                        @click="copyOutputPath()" title="複製路徑">
                     <i class="bi bi-clipboard"></i> 複製路徑
                 </button>
             </div>
@@ -78,33 +105,64 @@
     </div>
 
     <!-- Mini Terminal (hidden by default) -->
-    <div class="mini-terminal" id="progressSection" style="display: none;">
+    <div class="mini-terminal" id="progressSection" x-show="progressSectionVisible">
         <div class="mini-terminal-header">
-            <span class="title" id="progressStatus">準備中...</span>
+            <span class="title" id="progressStatus" x-text="progressStatus"></span>
+
+            <!-- T7d: Filter Badges -->
+            <div class="log-filter-group">
+                <button class="log-filter-btn" :class="{ active: logFilter === 'all' }"
+                        @click="logFilter = 'all'" title="顯示全部">
+                    全部
+                </button>
+                <button class="log-filter-btn" :class="{ active: logFilter === 'error' }"
+                        @click="logFilter = 'error'" title="僅顯示錯誤">
+                    錯誤
+                </button>
+                <button class="log-filter-btn" :class="{ active: logFilter === 'warn' }"
+                        @click="logFilter = 'warn'" title="僅顯示警告">
+                    警告
+                </button>
+            </div>
+
+            <!-- T7d: Action Buttons -->
+            <div class="log-actions">
+                <button class="log-action-btn" @click="copyLogs()" title="複製日誌">
+                    <i class="bi bi-clipboard"></i>
+                </button>
+                <button class="log-action-btn" @click="clearLogsDisplay()" title="清除畫面（重整後恢復）">
+                    <i class="bi bi-eraser"></i>
+                </button>
+                <button class="log-action-btn" @click="confirmClearAll()" title="清除全部（包含歷史）">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
         </div>
         <div class="progress-mini">
-            <div class="bar" id="progressBar" style="width: 0%;"></div>
+            <div class="bar" id="progressBar" x-bind:style="{ width: progressPercent + '%' }"></div>
         </div>
-        <div class="mini-terminal-body" id="logOutput"></div>
+        <div class="mini-terminal-body" id="logOutput" :class="'filter-' + logFilter"></div>
     </div>
 
     <!-- Stats Card -->
-    <div class="stats-card" id="statsCard" style="display: none;">
+    <div class="stats-card" id="statsCard" x-show="statsVisible">
         <div class="stats-row">
             <div class="stat-item">
                 <i class="bi bi-collection-play"></i>
-                <span>快取影片: <span class="stat-value" id="statTotal">0</span> 部</span>
+                <span>快取影片: <span class="stat-value" id="statTotal" x-text="statTotal"></span> 部</span>
             </div>
-            <div class="stat-item" id="statLastRun"></div>
+            <div class="stat-item" id="statLastRun" x-text="statLastRun"></div>
         </div>
         <!-- NFO Update Section (separate row) -->
-        <div class="nfo-update-row" id="statNeedUpdate" style="display: none;">
+        <div class="nfo-update-row" id="statNeedUpdate" x-show="nfoUpdateVisible">
             <span class="nfo-badge">
                 <i class="bi bi-exclamation-circle"></i>
-                需補全: <strong id="updateCount">0</strong> 部
+                需補全: <strong id="updateCount" x-text="nfoNeedUpdateCount"></strong> 部
             </span>
-            <button class="btn-nfo-update" onclick="runNfoUpdate()" id="btnUpdate" title="補全 NFO 資訊">
-                <i class="bi bi-magic"></i> 補全 NFO
+            <button class="btn-nfo-update" @click="runNfoUpdate()" id="btnUpdate"
+                    x-bind:disabled="nfoUpdateButtonDisabled"
+                    x-html="nfoUpdateButtonText"
+                    title="補全 NFO 資訊">
             </button>
         </div>
     </div>
@@ -115,45 +173,93 @@
             <div class="title">
                 <i class="bi bi-person-badge"></i> <span>女優名稱管理</span>
             </div>
-            <button class="btn-icon btn-collapse" onclick="toggleAliasCard()" title="展開/收起">
-                <i class="bi bi-chevron-down" id="aliasCollapseIcon"></i>
+            <button class="btn-icon btn-collapse" @click="toggleAliasCard()" title="展開/收起">
+                <i class="bi" :class="aliasCardCollapsed ? 'bi-chevron-down' : 'bi-chevron-up'"></i>
             </button>
         </div>
 
-        <div class="actress-alias-body" id="aliasCardBody" style="display: none;">
+        <div class="actress-alias-body" x-show="!aliasCardCollapsed">
             <!-- Add New Alias Form -->
             <div class="alias-form">
                 <div class="alias-form-row">
                     <div class="alias-input-group">
                         <label>舊名稱</label>
-                        <input type="text" id="aliasOldName" placeholder="例：miru" oninput="previewAliasCount()">
-                        <span class="alias-count" id="oldNameCount"></span>
+                        <input type="text" x-model="aliasForm.oldName" placeholder="例：miru"
+                               @input="previewAliasCount()">
+                        <span class="alias-count" x-text="aliasForm.oldCount"></span>
                     </div>
                     <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
                     <div class="alias-input-group">
                         <label>新名稱</label>
-                        <input type="text" id="aliasNewName" placeholder="例：坂道みる" oninput="previewAliasCount()">
-                        <span class="alias-count" id="newNameCount"></span>
+                        <input type="text" x-model="aliasForm.newName" placeholder="例：坂道みる"
+                               @input="previewAliasCount()">
+                        <span class="alias-count" x-text="aliasForm.newCount"></span>
                     </div>
-                    <button class="btn-alias-add" onclick="addActressAlias()" id="btnAddAlias">
+                    <button class="btn-alias-add" @click="addActressAlias()"
+                            :disabled="aliasForm.isAdding">
                         <i class="bi bi-plus-lg"></i>
                     </button>
                 </div>
-                <div class="alias-preview" id="aliasPreview"></div>
+                <div class="alias-preview" x-html="aliasForm.previewMessage"></div>
             </div>
 
             <!-- Alias List -->
-            <div class="alias-list" id="aliasList">
-                <div class="alias-list-loading">
+            <div class="alias-list">
+                <!-- 載入中 -->
+                <div class="alias-list-loading" x-show="aliasListLoading">
                     <span class="loading loading-spinner loading-sm"></span> 載入中...
                 </div>
+
+                <!-- 錯誤訊息 -->
+                <div class="alias-list-error" x-show="aliasListError" x-text="aliasListError"></div>
+
+                <!-- 空狀態 -->
+                <div class="alias-list-empty" x-show="!aliasListLoading && !aliasListError && aliasList.length === 0">
+                    尚無別名對照
+                </div>
+
+                <!-- 別名項目 -->
+                <template x-for="alias in aliasList" :key="alias.id">
+                    <div class="alias-item">
+                        <span class="alias-old" x-text="alias.old_name"></span>
+                        <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
+                        <span class="alias-new" x-text="alias.new_name"></span>
+                        <span class="alias-applied" x-text="alias.applied_count > 0 ? `(已套用 ${alias.applied_count})` : ''"></span>
+                        <button class="btn-alias-delete" @click="deleteActressAlias(alias.id)" title="刪除">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </template>
             </div>
 
         </div>
     </div>
+
+    <!-- Dirty Check Modal (must be inside x-data scope for @click) -->
+    <dialog id="scannerDirtyCheckModal" class="modal fluent-modal">
+        <div class="modal-box fluent-modal-box">
+            <h3 class="fluent-modal-title">
+                <i class="bi bi-exclamation-triangle"></i> 尚未儲存的變更
+            </h3>
+            <p class="fluent-modal-body">
+                您有修改資料夾清單但未產生網頁，要如何處理？
+            </p>
+            <div class="modal-action fluent-modal-actions">
+                <button type="button" class="btn btn-ghost" @click="dirtyCheckCancel()">
+                    取消
+                </button>
+                <button type="button" class="btn btn-error" @click="dirtyCheckDiscard()">
+                    放棄變更
+                </button>
+                <button type="button" class="btn btn-primary" @click="dirtyCheckSave()">
+                    儲存並離開
+                </button>
+            </div>
+        </div>
+    </dialog>
 </div>
 
-<!-- Toast -->
+<!-- Toast (outside x-data — showToast uses getElementById, no Alpine binding needed) -->
 <div id="toastMsg" class="toast toast-bottom toast-center fluent-toast-container">
     <div class="alert fluent-toast alert-info" role="alert">
         <i class="bi bi-info-circle"></i>
@@ -163,8 +269,927 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/pages/scanner/core.js"></script>
-<script src="/static/js/pages/scanner/folders.js"></script>
-<script src="/static/js/pages/scanner/alias.js"></script>
-<script src="/static/js/pages/scanner/init.js"></script>
+<script>
+function scannerPage() {
+  return {
+    // ===== Data State =====
+    directories: [],
+    config: {},
+    configDirty: false,
+
+    // ===== Folder Dirty Check =====
+    folderSnapshot: null,
+    pendingNavigationUrl: '',
+
+    // ===== Drag-drop State =====
+    dragCounter: 0,
+    showDragOverlay: false,
+
+    // ===== Stats State =====
+    statsVisible: false,
+    statTotal: 0,
+    statLastRun: '',
+
+    // ===== Manual Input State =====
+    manualInputVisible: false,
+    manualPath: '',
+
+    // ===== Alias State =====
+    aliasCardCollapsed: true,
+    aliasList: [],           // 別名列表 [{id, old_name, new_name, applied_count}]
+    aliasListLoading: false, // 載入狀態
+    aliasListError: '',      // 錯誤訊息
+
+    // ===== Alias Form State =====
+    aliasForm: {
+        oldName: '',
+        newName: '',
+        oldCount: '',       // 顯示文字（如 "5 部"）
+        newCount: '',
+        previewMessage: '', // HTML（含 icon）
+        isAdding: false     // 新增按鈕 disabled 狀態
+    },
+
+    // ===== Alias Preview Debounce =====
+    previewDebounceTimer: null,
+
+    // ===== T7b: State Machine =====
+    state: 'idle',  // 'idle' | 'generating' | 'nfoUpdating' | 'done' | 'error'
+
+    // ===== T7b: Progress =====
+    progressStatus: '準備中...',
+    progressCurrent: 0,
+    progressTotal: 0,
+
+    // ===== T7b: Log System =====
+    logHtml: '',           // 日誌 HTML（用於 restoreLogs）
+    logBatch: [],          // 批次佇列
+    logTimer: null,        // 批次計時器
+
+    // ===== T7d: Log Terminal 增強 =====
+    logEntries: [],        // [{level, message, timestamp}] 結構化陣列
+    logFilter: 'all',      // 'all' | 'error' | 'warn' 篩選條件
+
+    // ===== T7b: Done Actions =====
+    outputPath: '',        // 輸出路徑（供複製）
+
+    // ===== T7b: NFO Update =====
+    nfoNeedUpdateCount: 0,
+    nfoUpdatePaths: [],
+    nfoUpdateVisible: false,
+
+    // ===== T7b: EventSource 管理 =====
+    eventSource: null,
+
+    // ===== Computed Properties =====
+    get isFolderDirty() {
+        if (!this.folderSnapshot) return false;
+        return JSON.stringify(this.directories) !== this.folderSnapshot;
+    },
+
+    get outputPathDisplay() {
+        const outputDir = this.config.gallery?.output_dir || 'output';
+        const outputFilename = this.config.gallery?.output_filename || 'gallery_output.html';
+        return `${outputDir}/${outputFilename}`;
+    },
+
+    // ===== T7b: Computed Properties =====
+    get progressPercent() {
+        if (this.progressTotal === 0) return 0;
+        return (this.progressCurrent / this.progressTotal) * 100;
+    },
+
+    get isGenerating() {
+        return this.state === 'generating' || this.state === 'nfoUpdating';
+    },
+
+    get isBusy() {
+        // 用於按鈕 disabled：generating/nfoUpdating 時鎖定
+        return this.isGenerating;
+    },
+
+    get progressSectionVisible() {
+        // state 非 idle 時顯示，或有恢復的 logs 時也顯示
+        return this.state !== 'idle' || this.logHtml !== '';
+    },
+
+    get doneActionsVisible() {
+        return this.state === 'done' && this.outputPath !== '';
+    },
+
+    get generateButtonText() {
+        if (this.state === 'generating') {
+            return '<span class="loading loading-spinner loading-sm"></span> 產生中...';
+        }
+        return '<i class="bi bi-play-fill"></i> 產生網頁';
+    },
+
+    get nfoUpdateButtonText() {
+        if (this.state === 'nfoUpdating') {
+            return '<span class="loading loading-spinner loading-sm"></span> 補全中...';
+        }
+        if (this.nfoNeedUpdateCount > 0) {
+            return `<i class="bi bi-magic"></i> 補全 NFO`;
+        }
+        return '<i class="bi bi-check-lg"></i> 已完成';
+    },
+
+    get nfoUpdateButtonDisabled() {
+        // generating/nfoUpdating 時鎖定；idle/done/error 時看 nfoNeedUpdateCount
+        return this.isGenerating || this.nfoNeedUpdateCount === 0;
+    },
+
+    // ===== Lifecycle =====
+    async init() {
+        // 覆蓋全域函數為 Alpine 版本
+        const self = this;
+
+        // 暴露 PyWebView 回調
+        window.addScannerFolder = (path) => self.addFolderPath(path);
+
+        // 初始載入
+        await this.loadConfig();
+        this.loadStats();
+
+        // T7b: 恢復日誌（確保 DOM 已渲染）
+        await this.$nextTick();
+        this.restoreLogs();
+
+        // 暴露全域檢查函式
+        window.confirmLeavingScanner = (targetUrl) => {
+            const guard = this.shouldWarnBeforeLeave();
+            if (guard.shouldWarn) {
+                if (guard.useModal) {
+                    this.pendingNavigationUrl = targetUrl;
+                    document.getElementById('scannerDirtyCheckModal').showModal();
+                    return false;
+                } else {
+                    const confirmed = confirm(guard.message + '確定要離開嗎？');
+                    if (confirmed) {
+                        this._skipBeforeUnload = true;
+                    }
+                    return confirmed;
+                }
+            }
+            return true;
+        };
+
+        // beforeunload 警告
+        window.addEventListener('beforeunload', (e) => {
+            if (this._skipBeforeUnload) return;
+            const guard = this.shouldWarnBeforeLeave();
+            if (guard.shouldWarn) {
+                e.preventDefault();
+                e.returnValue = guard.message;
+                return e.returnValue;
+            }
+        });
+    },
+
+    // ===== Leave Guard =====
+    shouldWarnBeforeLeave() {
+        // T7b: 改為讀取 Alpine state，而非全域變數
+        if (this.isGenerating) {
+            return {
+                shouldWarn: true,
+                message: '生成正在進行中，離開將會中斷操作！',
+                useModal: false
+            };
+        }
+        if (this.isFolderDirty) {
+            return {
+                shouldWarn: true,
+                message: '您有未儲存的資料夾變更',
+                useModal: true
+            };
+        }
+        return { shouldWarn: false };
+    },
+
+    // ===== Config Methods =====
+    async loadConfig() {
+        this.folderSnapshot = null;
+
+        try {
+            const resp = await fetch('/api/config');
+            const result = await resp.json();
+            if (result.success) {
+                this.config = result.data;
+                this.directories = this.config.gallery?.directories || [];
+
+                // T7b: 不再需要同步全域變數（core.js 已刪除）
+
+                // 建立快照
+                this.folderSnapshot = JSON.stringify(this.directories);
+            }
+        } catch (e) {
+            console.error('載入設定失敗:', e);
+        }
+    },
+
+    async saveConfig() {
+        try {
+            this.config.gallery = this.config.gallery || {};
+            this.config.gallery.directories = this.directories;
+
+            const resp = await fetch('/api/config', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(this.config)
+            });
+            const result = await resp.json();
+            if (result.success) {
+                this.configDirty = false;
+                this.folderSnapshot = JSON.stringify(this.directories);
+                this.showToast('設定已儲存');
+                return true;
+            } else {
+                this.showToast('儲存失敗: ' + (result.error || '未知錯誤'));
+                return false;
+            }
+        } catch (e) {
+            console.error('儲存失敗:', e);
+            this.showToast('儲存失敗: ' + e.message);
+            return false;
+        }
+    },
+
+    // ===== Stats Methods =====
+    async loadStats() {
+        try {
+            const resp = await fetch('/api/gallery/stats');
+            const result = await resp.json();
+            if (result.success && result.data) {
+                const stats = result.data;
+                if (stats.total > 0) {
+                    this.statsVisible = true;
+                    this.statTotal = stats.total;
+
+                    if (stats.last_run) {
+                        const lastRun = new Date(stats.last_run);
+                        const timeStr = lastRun.toLocaleString('zh-TW', {
+                            month: 'numeric',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                        let runInfo = `上次執行: ${timeStr}`;
+                        if (stats.last_added !== null && stats.last_added !== undefined) {
+                            runInfo += ` (新增 ${stats.last_added} 部)`;
+                        }
+                        this.statLastRun = runInfo;
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('載入統計失敗:', e);
+        }
+    },
+
+    // ===== Folder Management =====
+    async selectFolder() {
+        console.log('[AVList] selectFolder called');
+
+        if (typeof window.pywebview === 'undefined' || !window.pywebview.api) {
+            console.log('[AVList] PyWebView not available');
+            this.toggleManualInput();
+            alert('此功能需要在桌面應用程式中使用');
+            return;
+        }
+
+        try {
+            console.log('[AVList] Calling select_folder...');
+            const result = await window.pywebview.api.select_folder();
+            console.log('[AVList] select_folder result:', result);
+
+            if (result && result.folder) {
+                this.addFolderPath(result.folder);
+            } else if (Array.isArray(result) && result.length > 0) {
+                const firstFile = result[0];
+                const lastSep = Math.max(firstFile.lastIndexOf('\\'), firstFile.lastIndexOf('/'));
+                const folderPath = lastSep > 0 ? firstFile.substring(0, lastSep) : null;
+                if (folderPath) {
+                    this.addFolderPath(folderPath);
+                }
+            } else {
+                console.log('[AVList] No folder selected');
+            }
+        } catch (e) {
+            console.error('[AVList] 選取資料夾失敗:', e);
+        }
+    },
+
+    addFolderPath(folderPath) {
+        console.log('[AVList] addFolderPath called with:', folderPath);
+        if (!this.directories.includes(folderPath)) {
+            this.directories.push(folderPath);
+            this.configDirty = true;
+            console.log('[AVList] Folder added successfully');
+        } else {
+            console.log('[AVList] Folder already in list');
+            alert('此資料夾已在列表中');
+        }
+    },
+
+    toggleManualInput() {
+        this.manualInputVisible = !this.manualInputVisible;
+        if (this.manualInputVisible) {
+            this.$nextTick(() => {
+                document.getElementById('manualPath').focus();
+            });
+        }
+    },
+
+    addManualPath() {
+        const path = this.manualPath.trim();
+        if (!path) return;
+
+        if (this.directories.includes(path)) {
+            alert('此資料夾已在列表中');
+            return;
+        }
+
+        this.directories.push(path);
+        this.configDirty = true;
+        this.manualPath = '';
+    },
+
+    removeDirectory(idx) {
+        this.directories.splice(idx, 1);
+        this.configDirty = true;
+    },
+
+    // ===== Drag-drop Methods =====
+    handleDragEnter(e) {
+        e.preventDefault();
+        this.dragCounter++;
+        console.log('[AVList] dragenter, counter:', this.dragCounter);
+        if (this.dragCounter === 1) {
+            this.showDragOverlay = true;
+        }
+    },
+
+    handleDragLeave(e) {
+        e.preventDefault();
+        this.dragCounter--;
+        console.log('[AVList] dragleave, counter:', this.dragCounter);
+        if (this.dragCounter === 0) {
+            this.showDragOverlay = false;
+        }
+    },
+
+    handleDrop(e) {
+        e.preventDefault();
+        this.dragCounter = 0;
+        this.showDragOverlay = false;
+        console.log('[AVList] drop event fired');
+    },
+
+    // ===== Dirty Check Modal Actions =====
+    dirtyCheckCancel() {
+        document.getElementById('scannerDirtyCheckModal').close();
+        this.pendingNavigationUrl = '';
+    },
+
+    async dirtyCheckDiscard() {
+        await this.loadConfig();
+        document.getElementById('scannerDirtyCheckModal').close();
+        if (this.pendingNavigationUrl) {
+            window.location.href = this.pendingNavigationUrl;
+        }
+    },
+
+    async dirtyCheckSave() {
+        const saved = await this.saveConfig();
+        if (saved) {
+            document.getElementById('scannerDirtyCheckModal').close();
+            if (this.pendingNavigationUrl) {
+                window.location.href = this.pendingNavigationUrl;
+            }
+        }
+        // If save failed, modal stays open, user sees toast error
+    },
+
+    // ===== Utility Methods =====
+    showToast(msg) {
+        const toast = document.getElementById('toastMsg');
+        const text  = document.getElementById('toastText');
+        text.textContent = msg;
+
+        toast.classList.remove('toast-hiding');
+        toast.classList.add('toast-active');
+
+        clearTimeout(this._toastTimer);
+        this._toastTimer = setTimeout(() => {
+            toast.classList.add('toast-hiding');
+            toast.addEventListener('transitionend', function onEnd() {
+                toast.removeEventListener('transitionend', onEnd);
+                toast.classList.remove('toast-active', 'toast-hiding');
+            }, { once: true });
+        }, 2500);
+    },
+
+    escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    },
+
+    // ===== T7b: Log System =====
+    addLog(level, message) {
+        // T7d: 加入結構化陣列
+        this.logEntries.push({ level, message, timestamp: Date.now() });
+
+        const cls = level === 'error' ? 'log-error' :
+                    level === 'warn' ? 'log-warn' : 'log-info';
+        const escaped = this.escapeHtml(message);
+        this.logBatch.push(`<div class="${cls}" data-level="${level}">${escaped}</div>`);
+
+        if (!this.logTimer) {
+            this.logTimer = setTimeout(() => this.flushLogs(), 100);
+        }
+    },
+
+    flushLogs() {
+        if (this.logBatch.length === 0) {
+            this.logTimer = null;
+            return;
+        }
+
+        const logOutput = document.getElementById('logOutput');
+        logOutput.insertAdjacentHTML('beforeend', this.logBatch.join(''));
+        logOutput.scrollTop = logOutput.scrollHeight;
+
+        // 更新 Alpine state（供 restoreLogs 使用）
+        this.logHtml = logOutput.innerHTML;
+
+        // 儲存到 localStorage
+        localStorage.setItem('avlist_logs', this.logHtml);
+
+        this.logBatch = [];
+        this.logTimer = null;
+    },
+
+    restoreLogs() {
+        const savedLogs = localStorage.getItem('avlist_logs');
+        const wasGenerating = localStorage.getItem('avlist_generating') === 'true';
+
+        if (savedLogs) {
+            const logOutput = document.getElementById('logOutput');
+            logOutput.innerHTML = savedLogs;
+            this.logHtml = savedLogs;
+
+            // T7d: 解析 HTML，重建 logEntries（相容舊格式無 data-level）
+            this.logEntries = [];
+            const logDivs = logOutput.querySelectorAll('.log-info, .log-warn, .log-error');
+            logDivs.forEach(div => {
+                let level = div.getAttribute('data-level');
+                if (!level) {
+                    if (div.classList.contains('log-error')) level = 'error';
+                    else if (div.classList.contains('log-warn')) level = 'warn';
+                    else level = 'info';
+                }
+                this.logEntries.push({ level, message: div.textContent, timestamp: Date.now() });
+            });
+
+            if (wasGenerating) {
+                this.addLog('warn', '⚠ 生成被中斷（離開頁面）');
+                this.flushLogs();
+                localStorage.setItem('avlist_generating', 'false');
+            }
+
+            const lastStatus = localStorage.getItem('avlist_last_status');
+            if (lastStatus) {
+                this.progressStatus = lastStatus;
+            }
+
+            // 如果有未完成的任務，顯示 progress section
+            if (wasGenerating || savedLogs) {
+                this.state = 'idle';  // 重置狀態為 idle（已中斷）
+            }
+        }
+    },
+
+    clearLogs() {
+        localStorage.removeItem('avlist_logs');
+        localStorage.removeItem('avlist_generating');
+        localStorage.removeItem('avlist_last_status');
+        this.logHtml = '';
+        this.logEntries = [];
+        const logOutput = document.getElementById('logOutput');
+        if (logOutput) logOutput.innerHTML = '';
+    },
+
+    // ===== T7d: Log Terminal 增強 =====
+    clearLogsDisplay() {
+        this.logHtml = '';
+        this.logEntries = [];
+        const logOutput = document.getElementById('logOutput');
+        if (logOutput) logOutput.innerHTML = '';
+    },
+
+    copyLogs() {
+        if (this.logEntries.length === 0) {
+            this.showToast('目前沒有日誌');
+            return;
+        }
+
+        const text = this.logEntries.map(entry => entry.message).join('\n');
+
+        navigator.clipboard.writeText(text).then(() => {
+            this.showToast(`已複製 ${this.logEntries.length} 筆日誌`);
+        }).catch(() => {
+            alert('複製失敗，日誌內容：\n\n' + text.substring(0, 500) + '...');
+        });
+    },
+
+    confirmClearAll() {
+        const hasLogs = this.logEntries.length > 0 || localStorage.getItem('avlist_logs');
+        if (!hasLogs) {
+            this.showToast('目前沒有日誌');
+            return;
+        }
+
+        if (confirm('確定要清除所有日誌嗎？（包含歷史紀錄）')) {
+            this.clearLogs();
+            this.showToast('已清除所有日誌');
+        }
+    },
+
+    // ===== T7b: Generate Flow =====
+    async generate() {
+        // 互斥鎖定：generating/nfoUpdating 時不可再次執行
+        if (this.isGenerating) return;
+
+        if (this.directories.length === 0) {
+            this.showToast('請先加入至少一個資料夾');
+            return;
+        }
+
+        // 自動儲存設定
+        if (this.configDirty) {
+            await this.saveConfig();
+        }
+
+        // 重置狀態
+        this.state = 'generating';
+        this.progressStatus = '準備中...';
+        this.progressCurrent = 0;
+        this.progressTotal = 0;
+        this.outputPath = '';
+        this.nfoUpdateVisible = false;
+        this.clearLogs();
+
+        // 設置 localStorage 標記
+        localStorage.setItem('avlist_generating', 'true');
+
+        // 同步全域變數（過渡期）
+        window.isGenerating = true;
+
+        try {
+            this.eventSource = new EventSource('/api/gallery/generate');
+
+            this.eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'progress') {
+                    this.progressStatus = data.status;
+                    this.progressCurrent = data.current;
+                    this.progressTotal = data.total;
+                    localStorage.setItem('avlist_last_status', data.status);
+                } else if (data.type === 'log') {
+                    this.addLog(data.level, data.message);
+                } else if (data.type === 'done') {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                    this.state = 'done';
+                    this.progressStatus = `完成！${data.video_count} 部影片`;
+                    this.progressCurrent = this.progressTotal;
+                    this.outputPath = data.output_path;
+
+                    localStorage.setItem('avlist_generating', 'false');
+                    localStorage.setItem('avlist_last_status', '完成');
+                    localStorage.removeItem('avlist_state');  // 清除 viewer 狀態
+
+                    window.isGenerating = false;
+
+                    // 處理 NFO 更新提示
+                    if (data.session_update && data.session_update.count > 0) {
+                        this.nfoNeedUpdateCount = data.session_update.count;
+                        this.nfoUpdatePaths = data.session_update.paths;
+                        this.nfoUpdateVisible = true;
+                    } else {
+                        this.nfoNeedUpdateCount = 0;
+                        this.nfoUpdatePaths = [];
+                        this.nfoUpdateVisible = false;
+                    }
+
+                    this.showToast(`成功產生 ${data.video_count} 部影片列表`);
+                    this.flushLogs();
+
+                    // 刷新統計（不含 NFO 檢查）
+                    this.loadStats();
+
+                    // 更新資料夾快照（generate 成功視為儲存）
+                    this.folderSnapshot = JSON.stringify(this.directories);
+                } else if (data.type === 'error') {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                    this.state = 'error';
+                    this.addLog('error', '錯誤: ' + data.message);
+                    this.flushLogs();
+                    localStorage.setItem('avlist_generating', 'false');
+                    window.isGenerating = false;
+                }
+            };
+
+            this.eventSource.onerror = () => {
+                this.eventSource.close();
+                this.eventSource = null;
+                this.state = 'error';
+                this.addLog('error', '連線中斷');
+                this.flushLogs();
+                localStorage.setItem('avlist_generating', 'false');
+                window.isGenerating = false;
+            };
+        } catch (e) {
+            this.state = 'error';
+            localStorage.setItem('avlist_generating', 'false');
+            window.isGenerating = false;
+            alert('發生錯誤: ' + e.message);
+        }
+    },
+
+    // ===== T7b: NFO Update Flow =====
+    async runNfoUpdate() {
+        // 互斥鎖定
+        if (this.isGenerating) return;
+
+        if (this.nfoNeedUpdateCount === 0) {
+            this.showToast('沒有需要更新的影片');
+            return;
+        }
+
+        // 重置狀態
+        this.state = 'nfoUpdating';
+        this.progressStatus = '準備中...';
+        this.progressCurrent = 0;
+        this.progressTotal = 0;
+        this.clearLogs();
+
+        localStorage.setItem('avlist_generating', 'true');
+        window.isGenerating = true;
+
+        try {
+            this.eventSource = new EventSource('/api/gallery/update');
+
+            this.eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'progress') {
+                    this.progressStatus = data.status;
+                    this.progressCurrent = data.current;
+                    this.progressTotal = data.total;
+                    localStorage.setItem('avlist_last_status', data.status);
+                } else if (data.type === 'log') {
+                    this.addLog(data.level, data.message);
+                } else if (data.type === 'done') {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                    this.state = 'done';
+                    this.progressStatus = data.message || '完成';
+                    this.progressCurrent = this.progressTotal;
+
+                    localStorage.setItem('avlist_generating', 'false');
+                    localStorage.setItem('avlist_last_status', data.message || '完成');
+                    window.isGenerating = false;
+
+                    this.showToast('補全完成！請重新產生列表以更新');
+                    if (data.message) {
+                        this.addLog('info', data.message);
+                    }
+                    this.flushLogs();
+
+                    // 隱藏 NFO 更新按鈕（已完成）
+                    this.nfoNeedUpdateCount = 0;
+                    this.nfoUpdateVisible = false;
+                } else if (data.type === 'error') {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                    this.state = 'error';
+                    this.addLog('error', '錯誤: ' + data.message);
+                    this.flushLogs();
+                    localStorage.setItem('avlist_generating', 'false');
+                    window.isGenerating = false;
+                }
+            };
+
+            this.eventSource.onerror = () => {
+                this.eventSource.close();
+                this.eventSource = null;
+                this.state = 'error';
+                this.addLog('error', '連線中斷');
+                this.flushLogs();
+                localStorage.setItem('avlist_generating', 'false');
+                window.isGenerating = false;
+            };
+        } catch (e) {
+            this.state = 'error';
+            localStorage.setItem('avlist_generating', 'false');
+            window.isGenerating = false;
+            alert('發生錯誤: ' + e.message);
+        }
+    },
+
+    // ===== T7b: Utility =====
+    copyOutputPath() {
+        if (!this.outputPath) return;
+
+        navigator.clipboard.writeText(this.outputPath).then(() => {
+            this.showToast('已複製: ' + this.outputPath);
+        }).catch(() => {
+            alert('複製失敗，路徑：' + this.outputPath);
+        });
+    },
+
+    // ===== Alias: Card Toggle =====
+    toggleAliasCard() {
+        this.aliasCardCollapsed = !this.aliasCardCollapsed;
+
+        // 首次展開時載入別名列表
+        if (!this.aliasCardCollapsed && this.aliasList.length === 0) {
+            this.loadActressAliases();
+        }
+    },
+
+    // ===== Alias: Load List =====
+    async loadActressAliases() {
+        this.aliasListLoading = true;
+        this.aliasListError = '';
+
+        try {
+            const resp = await fetch('/api/gallery/actress-aliases');
+            const result = await resp.json();
+
+            if (result.success) {
+                this.aliasList = result.data || [];
+            } else {
+                this.aliasListError = '載入失敗: ' + (result.error || '未知錯誤');
+            }
+        } catch (e) {
+            this.aliasListError = '載入失敗: ' + e.message;
+        } finally {
+            this.aliasListLoading = false;
+        }
+    },
+
+    // ===== Alias: Preview Count (Debounce 300ms) =====
+    async previewAliasCount() {
+        // 清除舊計時器
+        if (this.previewDebounceTimer) {
+            clearTimeout(this.previewDebounceTimer);
+        }
+
+        // 重置顯示
+        this.aliasForm.oldCount = '';
+        this.aliasForm.newCount = '';
+        this.aliasForm.previewMessage = '';
+
+        this.previewDebounceTimer = setTimeout(async () => {
+            const oldName = this.aliasForm.oldName.trim();
+            const newName = this.aliasForm.newName.trim();
+
+            // 查詢舊名稱片數
+            if (oldName) {
+                try {
+                    const resp = await fetch(`/api/gallery/actress-stats?name=${encodeURIComponent(oldName)}`);
+                    const result = await resp.json();
+                    if (result.success) {
+                        this.aliasForm.oldCount = `${result.data.count} 部`;
+                    }
+                } catch (e) {
+                    // 忽略錯誤
+                }
+            }
+
+            // 查詢新名稱片數
+            if (newName) {
+                try {
+                    const resp = await fetch(`/api/gallery/actress-stats?name=${encodeURIComponent(newName)}`);
+                    const result = await resp.json();
+                    if (result.success) {
+                        this.aliasForm.newCount = `${result.data.count} 部`;
+                    }
+                } catch (e) {
+                    // 忽略錯誤
+                }
+            }
+
+            // 顯示預覽訊息
+            if (oldName && newName) {
+                const oldC = parseInt(this.aliasForm.oldCount) || 0;
+                if (oldC > 0) {
+                    // 使用 Alpine escapeHtml（x-html 會渲染 HTML，需手動 escape）
+                    const escapedOld = this.escapeHtml(oldName);
+                    const escapedNew = this.escapeHtml(newName);
+                    this.aliasForm.previewMessage =
+                        `<i class="bi bi-info-circle"></i> 將有 ${oldC} 部影片的 "${escapedOld}" 改為 "${escapedNew}"`;
+                }
+            }
+        }, 300);
+    },
+
+    // ===== Alias: Add =====
+    async addActressAlias() {
+        const oldName = this.aliasForm.oldName.trim();
+        const newName = this.aliasForm.newName.trim();
+
+        if (!oldName || !newName) {
+            this.showToast('請輸入舊名稱和新名稱');
+            return;
+        }
+
+        if (oldName === newName) {
+            this.showToast('新舊名稱不可相同');
+            return;
+        }
+
+        this.aliasForm.isAdding = true;
+
+        try {
+            const resp = await fetch('/api/gallery/actress-aliases', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ old_name: oldName, new_name: newName })
+            });
+            const result = await resp.json();
+
+            if (result.success) {
+                this.showToast('已新增別名對照');
+                // 清空表單
+                this.aliasForm.oldName = '';
+                this.aliasForm.newName = '';
+                this.aliasForm.oldCount = '';
+                this.aliasForm.newCount = '';
+                this.aliasForm.previewMessage = '';
+                // 重新載入列表
+                this.loadActressAliases();
+            } else {
+                this.showToast('新增失敗: ' + (result.error || '未知錯誤'));
+            }
+        } catch (e) {
+            this.showToast('新增失敗: ' + e.message);
+        } finally {
+            this.aliasForm.isAdding = false;
+        }
+    },
+
+    // ===== Alias: Delete =====
+    async deleteActressAlias(id) {
+        if (!confirm('確定要刪除這個別名對照嗎？')) {
+            return;
+        }
+
+        try {
+            const resp = await fetch(`/api/gallery/actress-aliases/${id}`, {
+                method: 'DELETE'
+            });
+            const result = await resp.json();
+
+            if (result.success) {
+                this.showToast('已刪除');
+                this.loadActressAliases();
+            } else {
+                this.showToast('刪除失敗: ' + (result.error || '未知錯誤'));
+            }
+        } catch (e) {
+            this.showToast('刪除失敗: ' + e.message);
+        }
+    },
+
+  };
+}
+
+// PyWebView 拖曳處理
+window.handleFolderDrop = function (folderPaths) {
+    console.log('[AVList] handleFolderDrop called with:', folderPaths);
+
+    if (!folderPaths || folderPaths.length === 0) {
+        console.log('[AVList] handleFolderDrop: empty or null folderPaths');
+        return;
+    }
+
+    if (typeof window.addScannerFolder !== 'function') {
+        console.error('[AVList] Alpine not ready, addScannerFolder not available');
+        return;
+    }
+
+    for (const folderPath of folderPaths) {
+        console.log('[AVList] Processing folder:', folderPath);
+        window.addScannerFolder(folderPath);
+    }
+};
+</script>
 {% endblock %}

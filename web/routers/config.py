@@ -88,6 +88,7 @@ class GeneralConfig(BaseModel):
     theme: str = "light"  # 主題模式: light, dark
     sidebar_collapsed: bool = False  # 側邊欄預設收合 (僅影響 Desktop)
     tutorial_completed: bool = False  # 新手引導是否已完成
+    font_size: str = "md"  # 全站字體大小: xs, sm, md, lg, xl
 
 
 class AppConfig(BaseModel):
@@ -260,6 +261,27 @@ async def reset_tutorial() -> dict:
     config["general"]["tutorial_completed"] = False
     save_config(config)
     return {"success": True}
+
+
+class GeneralFieldRequest(BaseModel):
+    value: str | bool
+
+
+@router.put("/config/general/{field}")
+async def update_general_field(field: str, request: GeneralFieldRequest) -> dict:
+    """更新 general 區塊單一欄位（輕量端點，供 UI toggle 即時同步）"""
+    allowed = {"sidebar_collapsed", "theme", "font_size"}
+    if field not in allowed:
+        return {"success": False, "error": f"不允許更新欄位: {field}"}
+    try:
+        config = load_config()
+        if "general" not in config:
+            config["general"] = {}
+        config["general"][field] = request.value
+        save_config(config)
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 @router.get("/version")

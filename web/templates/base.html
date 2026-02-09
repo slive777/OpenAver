@@ -1,12 +1,37 @@
 <!DOCTYPE html>
 <html lang="zh-TW"
-      x-data="{ theme: $persist('{{ theme|default('light') }}').as('theme') }"
-      :data-theme="theme">
+      data-theme="{{ theme|default('light') }}"
+      style="font-size: {{ font_size_px|default(16) }}px"
+      x-data="{ theme: '{{ theme|default('light') }}', fontSize: '{{ font_size|default('md') }}' }"
+      x-init="$watch('theme', configSync('theme')); $watch('fontSize', configSync('font_size'))"
+      :data-theme="theme"
+      :style="'font-size:' + {xs:'13px',sm:'14px',md:'16px',lg:'18px',xl:'20px'}[fontSize]">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}OpenAver{% endblock %}</title>
+
+    <!-- Config sync: debounce + keepalive + abort previous -->
+    <script>
+      function configSync(field) {
+        var tid, ctrl;
+        return function(val) {
+          clearTimeout(tid);
+          if (ctrl) ctrl.abort();
+          tid = setTimeout(function() {
+            ctrl = new AbortController();
+            fetch('/api/config/general/' + field, {
+              method: 'PUT',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({value: val}),
+              keepalive: true,
+              signal: ctrl.signal
+            }).catch(function() {});
+          }, 150);
+        };
+      }
+    </script>
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
@@ -61,6 +86,11 @@
             width: var(--sidebar-collapsed-width);
         }
 
+        /* 預先套用 body class 時也要同步影響 sidebar 本體，避免首屏展開閃爍 */
+        body.sidebar-collapsed .sidebar {
+            width: var(--sidebar-collapsed-width);
+        }
+
         /* 側邊欄頂部（toggle + logo） */
         .sidebar-header {
             display: flex;
@@ -90,18 +120,9 @@
         }
 
         .sidebar-brand {
-            color: var(--text-primary);
-            font-size: 1.1rem;
-            font-weight: 600;
             margin-left: 0.5rem;
-            white-space: nowrap;
-            overflow: hidden;
-            transition: opacity 0.2s, color 0.3s ease;
-        }
-
-        .sidebar.collapsed .sidebar-brand {
-            opacity: 0;
-            width: 0;
+            display: flex;
+            align-items: center;
         }
 
         /* 導航連結 */
@@ -138,13 +159,15 @@
             transition: opacity 0.2s;
         }
 
-        .sidebar.collapsed .nav-link .nav-text {
+        .sidebar.collapsed .nav-link .nav-text,
+        body.sidebar-collapsed .sidebar .nav-link .nav-text {
             opacity: 0;
             width: 0;
             margin-left: 0;
         }
 
-        .sidebar.collapsed .nav-link {
+        .sidebar.collapsed .nav-link,
+        body.sidebar-collapsed .sidebar .nav-link {
             justify-content: center;
         }
 
@@ -196,14 +219,14 @@
 
             .main-content {
                 margin-left: 0 !important;
-                padding-top: 56px;
-                /* 頂部導航列高度 */
+                padding-top: 3.5rem;
+                /* 頂部導航列高度（rem，與 h-14 同步縮放） */
             }
         }
 
         /* 頂部導航列 */
         .top-navbar {
-            height: 56px;
+            height: 3.5rem;
         }
 
         /* Offcanvas 選單連結 */
@@ -221,6 +244,8 @@
             padding: 0.75rem 1rem;
             border-radius: var(--fluent-radius-md);
             margin: 0.25rem 0.5rem;
+            display: flex;
+            align-items: center;
             transition: color var(--fluent-duration-normal) var(--fluent-ease-standard), background-color var(--fluent-duration-normal) var(--fluent-ease-standard);
         }
 
@@ -244,9 +269,18 @@
 </head>
 
 <body x-data="{
-    sidebarCollapsed: $persist({{ config.general.sidebar_collapsed|default(false)|tojson }}).as('sidebar_collapsed'),
+    sidebarCollapsed: {{ sidebar_collapsed|default(false)|tojson }},
     mobileMenuOpen: false
-}" :class="{ 'sidebar-collapsed': sidebarCollapsed }" class="{% if page in ['design-system', 'showcase'] %}ds-page{% endif %}">
+}"
+     x-init="$watch('sidebarCollapsed', configSync('sidebar_collapsed'))"
+     :class="{ 'sidebar-collapsed': sidebarCollapsed }"
+     class="{% if page in ['design-system', 'showcase'] %}ds-page{% endif %}">
+    <!-- Sidebar: Jinja 直接渲染 class 防止閃爍（不依賴 localStorage） -->
+    <script>
+      if ({{ sidebar_collapsed|default(false)|tojson }}) {
+        document.body.classList.add('sidebar-collapsed');
+      }
+    </script>
     <!-- 頂部導航列（僅小螢幕顯示）-->
     <nav class="navbar bg-base-200 lg:hidden fixed top-0 left-0 right-0 z-50 h-14 top-navbar fluent-acrylic border-b border-base-300" x-show="!mobileMenuOpen">
         <div class="navbar-start">
@@ -274,7 +308,7 @@
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
          @click="mobileMenuOpen = false"
-         class="fixed inset-0 bg-black/50 z-40 lg:hidden">
+         class="fixed inset-0 bg-black/50 z-[200] lg:hidden">
     </div>
 
     <!-- Offcanvas 側邊選單（小螢幕）-->
@@ -286,7 +320,7 @@
          x-transition:leave="transition ease-in duration-200"
          x-transition:leave-start="opacity-100 translate-x-0"
          x-transition:leave-end="opacity-0 -translate-x-full"
-         class="fixed inset-y-0 left-0 w-64 bg-base-200 shadow-xl z-50 lg:hidden"
+         class="fixed inset-y-0 left-0 w-64 bg-base-200 shadow-xl z-[210] lg:hidden"
          tabindex="-1">
         <div class="flex items-center justify-between p-4 border-b border-base-300">
             <h5 class="text-lg font-semibold">
@@ -302,27 +336,62 @@
         <div class="p-0">
             <ul class="flex flex-col offcanvas-nav">
                 <li class="nav-item">
-                    <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search">
+                    <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search"
+                       @click="
+                           if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                               $event.preventDefault();
+                           } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
+                               $event.preventDefault();
+                           }
+                       ">
                         <i class="bi bi-search"></i> 搜尋
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if page == 'scanner' %}active{% endif %}" href="/scanner">
+                    <a class="nav-link {% if page == 'scanner' %}active{% endif %}" href="/scanner"
+                       @click="
+                           if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                               $event.preventDefault();
+                           } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
+                               $event.preventDefault();
+                           }
+                       ">
                         <i class="bi bi-list-ul"></i> 列表生成
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if page == 'showcase' %}active{% endif %}" href="/showcase">
+                    <a class="nav-link {% if page == 'showcase' %}active{% endif %}" href="/showcase"
+                       @click="
+                           if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                               $event.preventDefault();
+                           } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
+                               $event.preventDefault();
+                           }
+                       ">
                         <i class="bi bi-collection-play"></i> 瀏覽
                     </a>
                 </li>
                 <li class="nav-item mt-3">
-                    <a class="nav-link {% if page == 'help' %}active{% endif %}" href="/help">
+                    <a class="nav-link {% if page == 'help' %}active{% endif %}" href="/help"
+                       @click="
+                           if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                               $event.preventDefault();
+                           } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
+                               $event.preventDefault();
+                           }
+                       ">
                         <i class="bi bi-question-circle"></i> 說明
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings">
+                    <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings"
+                       @click="
+                           if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                               $event.preventDefault();
+                           } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
+                               $event.preventDefault();
+                           }
+                       ">
                         <i class="bi bi-gear"></i> 設定
                     </a>
                 </li>
@@ -335,38 +404,75 @@
          :class="{ 'collapsed': sidebarCollapsed }"
          x-ref="sidebar">
         <div class="sidebar-header">
-            <button class="sidebar-toggle" @click="sidebarCollapsed = !sidebarCollapsed" title="展開/收合">
+            <button class="sidebar-toggle"
+                    @click="sidebarCollapsed = !sidebarCollapsed"
+                    title="展開/收合">
                 <i class="bi bi-list"></i>
             </button>
-            <span class="sidebar-brand"><img src="/static/favicon.svg" alt="Logo" style="width: 20px; height: 20px; margin-right: 4px;"> OpenAver</span>
+            <span class="sidebar-brand"><img src="/static/favicon.svg" alt="Logo" style="width: 20px; height: 20px;"></span>
         </div>
         <ul class="flex flex-col flex-grow">
             <li class="nav-item">
-                <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search" title="搜尋">
+                <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search" title="搜尋"
+                   @click="
+                       if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                           $event.preventDefault();
+                       } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
+                           $event.preventDefault();
+                       }
+                   ">
                     <i class="bi bi-search"></i>
                     <span class="nav-text">搜尋</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if page == 'scanner' %}active{% endif %}" href="/scanner" title="列表生成">
+                <a class="nav-link {% if page == 'scanner' %}active{% endif %}" href="/scanner" title="列表生成"
+                   @click="
+                       if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                           $event.preventDefault();
+                       } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
+                           $event.preventDefault();
+                       }
+                   ">
                     <i class="bi bi-list-ul"></i>
                     <span class="nav-text">列表生成</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link rotating-border-spotlight {% if page == 'showcase' %}active{% endif %} {% if showcase_has_content %}active{% endif %}" href="/showcase" title="瀏覽">
+                <a class="nav-link rotating-border-spotlight {% if page == 'showcase' %}active{% endif %} {% if showcase_has_content %}active{% endif %}" href="/showcase" title="瀏覽"
+                   @click="
+                       if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                           $event.preventDefault();
+                       } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
+                           $event.preventDefault();
+                       }
+                   ">
                     <i class="bi bi-collection-play"></i>
                     <span class="nav-text">瀏覽</span>
                 </a>
             </li>
             <li class="nav-item mt-auto">
-                <a class="nav-link {% if page == 'help' %}active{% endif %}" href="/help" title="使用說明">
+                <a class="nav-link {% if page == 'help' %}active{% endif %}" href="/help" title="使用說明"
+                   @click="
+                       if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                           $event.preventDefault();
+                       } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
+                           $event.preventDefault();
+                       }
+                   ">
                     <i class="bi bi-question-circle"></i>
                     <span class="nav-text">說明</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings" title="設定">
+                <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings" title="設定"
+                   @click="
+                       if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
+                           $event.preventDefault();
+                       } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner($el.href)) {
+                           $event.preventDefault();
+                       }
+                   ">
                     <i class="bi bi-gear"></i>
                     <span class="nav-text">設定</span>
                 </a>

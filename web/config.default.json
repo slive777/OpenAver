@@ -58,6 +58,7 @@
     "default_page": "search",
     "theme": "light",
     "sidebar_collapsed": false,
-    "tutorial_completed": false
+    "tutorial_completed": false,
+    "font_size": "md"
   }
 }
