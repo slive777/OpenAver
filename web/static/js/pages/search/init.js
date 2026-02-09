@@ -55,6 +55,29 @@ document.addEventListener('DOMContentLoaded', function () {
     // T1a: initDOM / loadAppConfig / loadSourceConfig / restoreState / updateClearButton
     // 已由 Alpine init() 接管，這裡只保留事件綁定（T1b-T1d 將遷移到 Alpine）
 
+    // Fix 4: 防呆 — 如果 Alpine init() 未執行 initDOM()，這裡補救
+    if (!window.SearchCore.dom.form) {
+        console.warn('[Init] Alpine init() 未執行，fallback 呼叫 initDOM()');
+        window.SearchCore.initDOM();
+    }
+
+    // Fix 4b: 如果 Alpine bridge 未建立，補上 no-op 防止 file.js 呼叫時拋錯
+    if (!window.SearchCore.initProgress) {
+        window.SearchCore.initProgress = (query) => {
+            console.warn('[Init] initProgress called without Alpine bridge');
+        };
+    }
+    if (!window.SearchCore.updateLog) {
+        window.SearchCore.updateLog = (msg) => {
+            console.warn('[Init] updateLog called without Alpine bridge');
+        };
+    }
+    if (!window.SearchCore.handleSearchStatus) {
+        window.SearchCore.handleSearchStatus = (source, status) => {
+            console.warn('[Init] handleSearchStatus called without Alpine bridge');
+        };
+    }
+
     const { state, dom } = window.SearchCore;
 
     // T1b: 表單提交、導航按鈕、鍵盤導航已遷移到 Alpine（@submit.prevent, @click, @keydown.window）

@@ -53,6 +53,7 @@ function searchPage() {
         // ===== Search State Machine =====
         requestId: 0,              // 搜尋請求計數器（防競態）
         activeEventSource: null,   // 當前 SSE 連線
+        _searchSnapshot: null,     // cancelSearch 用的狀態快照
 
         // ===== Constants =====
         PAGE_SIZE: 20,
@@ -266,6 +267,23 @@ function searchPage() {
             if (window.SearchUI) {
                 window.SearchUI.navigateResult = (delta) => this.navigate(delta);
             }
+
+            // Fix 1: 新增 file.js 需要的進度函數 bridge
+            if (window.SearchCore) {
+                window.SearchCore.initProgress = (query) => {
+                    this.progressLog = '搜尋中...';
+                    this.currentMode = '';
+                    this.detailDone = 0;
+                    this.detailTotal = 0;
+                    this.currentQuery = query;
+                };
+                window.SearchCore.updateLog = (msg) => {
+                    this.progressLog = msg;
+                };
+                window.SearchCore.handleSearchStatus = (source, status) => {
+                    this.handleSearchStatus(source, status);
+                };
+            }
         },
 
         // ===== Methods (Placeholder for T1b-T1d) =====
@@ -327,6 +345,19 @@ function searchPage() {
                     window.SearchUI.hideGallery(false);
                 }
             }
+
+            // Fix 2: 保存 snapshot（供 cancelSearch 還原）
+            this._searchSnapshot = {
+                searchResults: this.searchResults,
+                currentIndex: this.currentIndex,
+                fileList: this.fileList,
+                currentFileIndex: this.currentFileIndex,
+                listMode: this.listMode,
+                hasMoreResults: this.hasMoreResults,
+                currentQuery: this.currentQuery,
+                currentOffset: this.currentOffset,
+                pageState: this.pageState
+            };
 
             // 5. 初始化狀態（修正 1: 使用 showState）
             window.SearchUI.showState('loading');
@@ -404,6 +435,7 @@ function searchPage() {
                                 this.hasContent = true;
                                 window.SearchCore.updateClearButton();
                                 this.saveState();
+                                this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
                             } else {
                                 // 原有的詳細資料卡顯示邏輯
                                 if (window.SearchUI?.displayResult) {
@@ -422,8 +454,10 @@ function searchPage() {
                                 }
                                 this.hasContent = true;
                                 window.SearchCore.updateClearButton();
+                                this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
                             }
                         } else {
+                            this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋失敗）
                             window.SearchUI.showState('error');
                             const errorMsg = document.getElementById('errorMessage');
                             if (errorMsg) {
@@ -434,6 +468,7 @@ function searchPage() {
                     else if (data.type === 'error') {
                         eventSource.close();
                         this.activeEventSource = null;
+                        this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋錯誤）
                         window.SearchUI.showState('error');
                         const errorMsg = document.getElementById('errorMessage');
                         if (errorMsg) {
@@ -454,15 +489,16 @@ function searchPage() {
 
                 eventSource.close();
                 this.activeEventSource = null;
-                this.fallbackSearch(query);
+                this.fallbackSearch(query, currentRequestId); // Fix 3: 傳入 requestId
             };
         },
 
         /**
          * 傳統 API 回退（SSE 失敗時）
          * @param {string} query - 搜尋關鍵字
+         * @param {number} savedRequestId - 保存的請求 ID（防競態）
          */
-        async fallbackSearch(query) {
+        async fallbackSearch(query, savedRequestId) {
             // 關閉 Gallery（如果有）
             if (window.SearchUI?.hideGallery) {
                 const galleryView = document.getElementById('galleryView');
@@ -474,6 +510,9 @@ function searchPage() {
             try {
                 const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
                 const data = await response.json();
+
+                // Fix 3: 檢查是否已被新搜尋取代
+                if (savedRequestId !== this.requestId) return;
 
                 if (response.ok && data.success && data.data && data.data.length > 0) {
                     // 修正 2: 更新 Alpine state
@@ -505,6 +544,7 @@ function searchPage() {
                         this.hasContent = true;
                         window.SearchCore.updateClearButton();
                         this.saveState();
+                        this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
                     } else {
                         if (window.SearchUI?.displayResult) {
                             window.SearchUI.displayResult(this.searchResults[0]);
@@ -522,8 +562,10 @@ function searchPage() {
                         }
                         this.hasContent = true;
                         window.SearchCore.updateClearButton();
+                        this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
                     }
                 } else {
+                    this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋失敗）
                     window.SearchUI.showState('error');
                     const errorMsg = document.getElementById('errorMessage');
                     if (errorMsg) {
@@ -531,6 +573,9 @@ function searchPage() {
                     }
                 }
             } catch (err) {
+                // Fix 3: 舊請求失敗不覆蓋新搜尋畫面
+                if (savedRequestId !== this.requestId) return;
+                this._searchSnapshot = null;
                 window.SearchUI.showState('error');
                 const errorMsg = document.getElementById('errorMessage');
                 if (errorMsg) {
@@ -540,7 +585,7 @@ function searchPage() {
         },
 
         /**
-         * 取消搜尋（修正 3: 恢復到上一個有效狀態）
+         * 取消搜尋（Fix 2: 恢復到上一個有效狀態）
          */
         cancelSearch() {
             if (this.activeEventSource) {
@@ -549,12 +594,41 @@ function searchPage() {
             }
             this.requestId++;
 
-            // 恢復到上一個有效狀態
-            if (this.searchResults.length > 0) {
-                window.SearchUI.showState('result');
+            // 還原到搜尋前的狀態
+            const snap = this._searchSnapshot;
+            if (snap) {
+                this.searchResults = snap.searchResults;
+                this.currentIndex = snap.currentIndex;
+                this.fileList = snap.fileList;
+                this.currentFileIndex = snap.currentFileIndex;
+                this.listMode = snap.listMode;
+                this.hasMoreResults = snap.hasMoreResults;
+                this.currentQuery = snap.currentQuery;
+                this.currentOffset = snap.currentOffset;
+
+                // 同步回 core.js
+                const coreState = window.SearchCore.state;
+                coreState.searchResults = this.searchResults;
+                coreState.currentIndex = this.currentIndex;
+                coreState.fileList = this.fileList;
+                coreState.currentFileIndex = this.currentFileIndex;
+                coreState.listMode = this.listMode;
+                coreState.hasMoreResults = this.hasMoreResults;
+
+                // 還原顯示（只在有結果時才呼叫 displayResult）
+                if (this.searchResults.length > 0) {
+                    if (window.SearchUI?.displayResult) {
+                        window.SearchUI.displayResult(this.searchResults[this.currentIndex]);
+                    }
+                    if (window.SearchUI?.updateNavigation) {
+                        window.SearchUI.updateNavigation();
+                    }
+                }
+                window.SearchUI.showState(snap.pageState);
             } else {
                 window.SearchUI.showState('empty');
             }
+            this._searchSnapshot = null;
         },
 
         /**

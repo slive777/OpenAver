@@ -540,6 +540,9 @@ window.SearchCore = {
     updateClearButton,
     // T1b: 這些函數已遷移到 Alpine，保留 bridge 指向（在 state.js setupBridgeLayer() 設定）
     doSearch: null,
+    initProgress: null,      // bridge 在 state.js 設定
+    updateLog: null,         // bridge 在 state.js 設定
+    handleSearchStatus: null, // bridge 在 state.js 設定
     hasJapanese,
     translateWithOllama,
     translateWithAI,
