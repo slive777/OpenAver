@@ -80,11 +80,7 @@ function initDOM() {
         progressLog: document.getElementById('progressLog'),
         detailProgress: document.getElementById('detailProgress'),
         detailBar: document.getElementById('detailBar'),
-        detailText: document.getElementById('detailText'),
-        // Gallery 相關
-        galleryView: document.getElementById('galleryView'),
-        galleryFrame: document.getElementById('galleryFrame'),
-        btnBackToDetail: document.getElementById('btnBackToDetail')
+        detailText: document.getElementById('detailText')
     };
 }
 
@@ -336,14 +332,6 @@ function clearState() {
 }
 
 function clearAll() {
-    // 先關閉 Gallery（如果有顯示）- 不自動顯示詳細資料卡
-    if (window.SearchUI.hideGallery) {
-        const galleryView = dom.galleryView;
-        if (galleryView && !galleryView.classList.contains('hidden')) {
-            window.SearchUI.hideGallery(false);
-        }
-    }
-
     searchResults = [];
     currentIndex = 0;
     currentQuery = '';

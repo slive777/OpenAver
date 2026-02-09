@@ -364,106 +364,6 @@ function escapeHtml(text) {
 // T1c: Removed - startEditChineseTitle, confirmEditChineseTitle, cancelEditChineseTitle, restoreChineseTitleDisplay
 // T1c: Removed - updateChineseTitleDisplay, showTranslateError, updateTranslatedTitle, showBatchTranslatingState
 
-// === Gallery 視圖 ===
-
-/**
- * 顯示 Gallery 視圖
- * @param {string} url - Gallery HTML 的 URL
- */
-function showGallery(url) {
-    const { galleryView, galleryFrame, btnBackToDetail } = window.SearchCore.dom;
-
-    // 設定 iframe src
-    galleryFrame.src = url;
-
-    // 顯示 Gallery 容器
-    galleryView.classList.remove('hidden');
-
-    // 顯示返回按鈕（在搜尋框中）
-    if (btnBackToDetail) {
-        btnBackToDetail.classList.remove('hidden');
-    }
-
-    // 監聽 iframe 的 postMessage
-    window.addEventListener('message', handleGalleryMessage);
-
-    console.log('[Gallery] Showing gallery view:', url);
-}
-
-/**
- * 隱藏 Gallery 視圖，返回詳細資料卡
- */
-function hideGallery(showDetail = true) {
-    const { galleryView, galleryFrame, btnBackToDetail } = window.SearchCore.dom;
-
-    // 隱藏 Gallery 容器
-    galleryView.classList.add('hidden');
-
-    // 隱藏返回按鈕（在搜尋框中）
-    if (btnBackToDetail) {
-        btnBackToDetail.classList.add('hidden');
-    }
-
-    // 清空 iframe src（釋放資源）
-    galleryFrame.src = '';
-
-    // 移除 postMessage 監聽
-    window.removeEventListener('message', handleGalleryMessage);
-
-    // 只有需要時才顯示詳細資料卡
-    if (showDetail) {
-        const { searchResults, currentIndex } = window.SearchCore.state;
-        if (searchResults.length > 0) {
-            // T1c: Alpine template自動顯示，只需 showState
-            showState('result');
-        } else {
-            showState('empty');
-        }
-    }
-
-    console.log('[Gallery] Hiding gallery view');
-}
-
-/**
- * 處理來自 Gallery iframe 的 postMessage
- * @param {MessageEvent} event
- */
-function handleGalleryMessage(event) {
-    // 安全檢查：確保訊息來自我們的 iframe
-    if (!event.origin.includes(window.location.origin)) {
-        return;
-    }
-
-    const message = event.data;
-
-    // 處理「點擊影片」事件
-    if (message.type === 'videoClick') {
-        console.log('[Gallery] Video clicked:', message.number);
-
-        // 在 searchResults 中找到對應的影片
-        const { searchResults } = window.SearchCore.state;
-        const index = searchResults.findIndex(r => r.number === message.number);
-
-        if (index !== -1) {
-            // 切換到該影片的詳細資料
-            window.SearchCore.state.currentIndex = index;
-            hideGallery();
-        } else {
-            console.warn('[Gallery] Video not found in search results:', message.number);
-        }
-    }
-
-    // 處理「查看更多」事件
-    if (message.type === 'loadMore') {
-        console.log('[Gallery] Load more requested');
-
-        // 關閉 Gallery，切換到大圖模式
-        hideGallery();
-
-        // 用戶可以用 ← → 箭頭瀏覽，到第 20 片按 → 會自動載入 21-40
-    }
-}
-
 // === 本地標記功能 ===
 // T1c: 所有本地標記函數已遷移至 Alpine state.js
 // Removed: showLocalBadge, copyLocalPath, showToast, hideLocalBadge, updateLocalBadges
@@ -479,8 +379,6 @@ window.SearchUI = {
     preloadImages,
     navigateResult: null,  // 在 state.js setupBridgeLayer() 設定
     escapeHtml,
-    showGallery,
-    hideGallery,
     loadSourceConfig,
     getSourceOrder,
     getSourceNames

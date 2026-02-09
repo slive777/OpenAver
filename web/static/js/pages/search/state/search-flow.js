@@ -55,14 +55,6 @@ window.SearchStateMixin_SearchFlow = {
         this.requestId++;
         const currentRequestId = this.requestId;
 
-        // 4. 關閉 Gallery（如果有）
-        if (window.SearchUI?.hideGallery) {
-            const galleryView = document.getElementById('galleryView');
-            if (galleryView && !galleryView.classList.contains('hidden')) {
-                window.SearchUI.hideGallery(false);
-            }
-        }
-
         // Fix 2: 保存 snapshot（供 cancelSearch 還原）
         this._searchSnapshot = {
             searchResults: this.searchResults,
@@ -138,8 +130,8 @@ window.SearchStateMixin_SearchFlow = {
                             window.SearchCore.checkLocalStatus(this.searchResults);
                         }
 
-                        // T2a: gallery_url 作為信號自動切換 Grid 模式
-                        if (data.gallery_url) {
+                        // T2b: 女優搜尋自動切 Grid（前端判斷取代舊 gallery_url 信號）
+                        if (this.currentMode === 'actress' && this.appConfig?.search?.gallery_mode_enabled && data.data.length > 10) {
                             this.displayMode = 'grid';
                         }
 
@@ -200,14 +192,6 @@ window.SearchStateMixin_SearchFlow = {
      * @param {number} savedRequestId - 保存的請求 ID（防競態）
      */
     async fallbackSearch(query, savedRequestId) {
-        // 關閉 Gallery（如果有）
-        if (window.SearchUI?.hideGallery) {
-            const galleryView = document.getElementById('galleryView');
-            if (galleryView && !galleryView.classList.contains('hidden')) {
-                window.SearchUI.hideGallery(false);
-            }
-        }
-
         try {
             const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
             const data = await response.json();
@@ -235,8 +219,8 @@ window.SearchStateMixin_SearchFlow = {
                     window.SearchCore.checkLocalStatus(this.searchResults);
                 }
 
-                // T2a: gallery_url 作為信號自動切換 Grid 模式
-                if (data.gallery_url) {
+                // T2b: 女優搜尋自動切 Grid（前端判斷取代舊 gallery_url 信號）
+                if (this.currentMode === 'actress' && this.appConfig?.search?.gallery_mode_enabled && data.data.length > 10) {
                     this.displayMode = 'grid';
                 }
 

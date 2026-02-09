@@ -33,12 +33,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const { state, dom } = window.SearchCore;
 
     // T1b: 表單提交、導航按鈕、鍵盤導航已遷移到 Alpine（@submit.prevent, @click, @keydown.window）
-
-    // 5.5. Gallery 返回按鈕（T2b 才遷移）
-    dom.btnBackToDetail.addEventListener('click', () => {
-        window.SearchUI.hideGallery();
-    });
-
     // T1d: 清空、批次、加入檔案/資料夾、我的最愛、pywebview-files 已遷移到 Alpine（@click, init()）
 
     // 11. 拖拽事件（document 級別，呼叫 Alpine）

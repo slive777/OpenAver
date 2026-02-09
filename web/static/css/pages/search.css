@@ -421,25 +421,6 @@
     transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
-/* ==================== Gallery View ==================== */
-
-#galleryView {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 100;
-    background: var(--bg-body);
-}
-
-#galleryFrame {
-    width: 100%;
-    height: 100%;
-    border: none;
-    background: var(--bg-body);
-}
-
 /* === RWD 響應式 === */
 
 /* Tablet & Mobile: 調整容器高度 */

@@ -53,11 +53,6 @@
         </button>
     </div>
 
-    <!-- Gallery 視圖容器 -->
-    <div id="galleryView" class="hidden">
-        <iframe id="galleryFrame" src="" sandbox="allow-same-origin allow-scripts"></iframe>
-    </div>
-
     <!-- 搜尋框 -->
     <div class="search-bar">
         <form id="searchForm" @submit.prevent="doSearch()">
@@ -72,9 +67,6 @@
                             class="btn-icon"
                             title="取消搜尋">
                         <i class="bi bi-x-lg"></i>
-                    </button>
-                    <button type="button" id="btnBackToDetail" class="btn-icon hidden" title="返回詳細資料">
-                        <i class="bi bi-arrow-left"></i>
                     </button>
                     <!-- T2a: Grid / Detail Toggle -->
                     <button type="button"
