@@ -276,11 +276,7 @@ async function switchSource() {
             if (variants.length > state.variantIdx) {
                 const variant = variants[state.variantIdx];
 
-                // 更新顯示
-                displayResult(variant);
-                updateNavigation();
-
-                // 更新 searchResults
+                // T1c: 更新 searchResults，Alpine template 自動反應
                 const { state: coreState } = window.SearchCore;
                 if (coreState.searchResults.length > 0) {
                     coreState.searchResults[coreState.currentIndex] = variant;
@@ -336,175 +332,8 @@ function showState(state) {
 }
 
 // === 結果顯示 ===
-
-function displayResult(data) {
-    const { state } = window.SearchCore;
-
-    document.getElementById('resultNumber').textContent = data.number || '-';
-    document.getElementById('resultTitle').textContent = data.title || '-';
-    document.getElementById('resultActors').textContent = (data.actors || []).join(', ') || '-';
-    document.getElementById('resultDate').textContent = data.date || '-';
-    document.getElementById('resultMaker').textContent = data.maker || '-';
-
-    // 更新日文標題編輯按鈕狀態
-    updateEditButtonState('editTitleBtn', data._titleEdited || false);
-
-    // 取得當前檔案資訊
-    const currentFile = (state.listMode === 'file' && state.fileList[state.currentFileIndex])
-        ? state.fileList[state.currentFileIndex] : null;
-    const hasSubtitle = currentFile ? currentFile.hasSubtitle : false;
-    const chineseTitle = currentFile ? currentFile.chineseTitle : null;
-
-    // 標籤（全部顯示）+ 字幕標籤 + 用戶標籤
-    const tagsContainer = document.getElementById('resultTags');
-    const tags = data.tags || [];
-    const userTags = data.user_tags || [];
-    let tagsHtml = '';
-
-    if (hasSubtitle) {
-        tagsHtml += '<span class="badge tag-badge subtitle">中文字幕</span>';
-    }
-
-    if (tags.length > 0) {
-        tagsHtml += tags.map(tag =>
-            `<span class="badge tag-badge">${escapeHtml(tag)}</span>`
-        ).join('');
-    }
-
-    // 用戶標籤（可刪除）
-    if (userTags.length > 0) {
-        tagsHtml += userTags.map(tag =>
-            `<span class="badge tag-badge user-tag">${escapeHtml(tag)} <span class="tag-remove" onclick="removeUserTag('${escapeHtml(tag)}')">&times;</span></span>`
-        ).join('');
-    }
-
-    // 新增按鈕
-    tagsHtml += '<button class="btn btn-sm tag-add-btn" onclick="showAddTagInput()" title="新增標籤">+</button>';
-
-    tagsContainer.innerHTML = tagsHtml;
-
-    // 中文標題
-    const chineseTitleRow = document.getElementById('chineseTitleRow');
-    const chineseTitleLabel = document.getElementById('chineseTitleLabel');
-    const chineseTitleEl = document.getElementById('resultChineseTitle');
-    const translatedTitle = data.translated_title || null;
-
-    if (translatedTitle) {
-        chineseTitleLabel.textContent = '中文片名 (AI)';
-        chineseTitleEl.textContent = translatedTitle;
-        chineseTitleRow.classList.remove('hidden');
-        updateEditButtonState('editChineseTitleBtn', data._chineseTitleEdited || false);
-    } else if (chineseTitle) {
-        chineseTitleLabel.textContent = '中文片名';
-        chineseTitleEl.textContent = chineseTitle;
-        chineseTitleRow.classList.remove('hidden');
-        updateEditButtonState('editChineseTitleBtn', false);
-    } else {
-        chineseTitleLabel.textContent = '中文片名';
-        chineseTitleRow.classList.add('hidden');
-    }
-
-    // 封面
-    const coverImg = document.getElementById('resultCover');
-    if (data.cover) {
-        coverImg.src = `/api/proxy-image?url=${encodeURIComponent(data.cover)}`;
-        coverImg.style.display = 'block';
-    } else {
-        coverImg.src = '';
-        coverImg.style.display = 'none';
-    }
-
-    // AI 翻譯按鈕
-    const translateBtn = document.getElementById('translateBtn');
-    const translateSpinner = document.getElementById('translateSpinner');
-    translateSpinner.classList.add('hidden');
-
-    const appConfig = state.appConfig;
-    const shouldShowTranslateBtn = appConfig?.translate?.enabled &&
-        !chineseTitle &&
-        !translatedTitle &&
-        data.title &&
-        window.SearchCore.hasJapanese(data.title);
-
-    // 🆕 檢查是否正在批次翻譯中
-    const isBatchTranslating = window.SearchCore.isBatchTranslating(state.currentIndex);
-
-    if (shouldShowTranslateBtn) {
-        if (isBatchTranslating) {
-            // 🆕 正在批次翻譯中 → 顯示 spinner
-            translateBtn.classList.add('hidden');
-            translateSpinner.classList.remove('hidden');
-        } else {
-            // 未翻譯 → 顯示翻譯按鈕
-            translateBtn.classList.remove('hidden');
-            translateBtn.dataset.title = data.title;
-            translateBtn.dataset.actors = JSON.stringify(data.actors || []);
-            translateBtn.dataset.number = data.number || '';
-            translateBtn.disabled = state.isTranslating;
-        }
-    } else {
-        translateBtn.classList.add('hidden');
-        translateBtn.disabled = false;
-    }
-
-    // 更新切換版本按鈕的資料
-    const switchSourceBtn = document.getElementById('switchSourceBtn');
-    if (switchSourceBtn) {
-        const allVariantIds = data._all_variant_ids || [];
-        const currentVariantId = data._variant_id || '';
-
-        // 更新按鈕資料
-        switchSourceBtn.dataset.allVariantIds = JSON.stringify(allVariantIds);
-        switchSourceBtn.dataset.currentVariantId = currentVariantId;
-        switchSourceBtn.dataset.number = data.number || '';
-
-        // 更新 title
-        if (allVariantIds.length > 1) {
-            const currentIndex = allVariantIds.indexOf(currentVariantId);
-            switchSourceBtn.title = `切換版本 (${currentIndex + 1}/${allVariantIds.length})`;
-        } else {
-            switchSourceBtn.title = '切換版本';
-        }
-    }
-
-    // 更新本地標記
-    if (data._localStatus) {
-        showLocalBadge(data._localStatus);
-    } else {
-        hideLocalBadge();
-    }
-}
-
-function displayCoverError(message) {
-    const coverImg = document.getElementById('resultCover');
-
-    const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="800" height="538" viewBox="0 0 800 538">
-            <rect fill="#f8f9fa" width="800" height="538"/>
-            <text x="400" y="230" text-anchor="middle" fill="#ffc107" font-size="80">⚠</text>
-            <text x="400" y="300" text-anchor="middle" fill="#dc3545" font-size="20" font-family="sans-serif">${message.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</text>
-            <text x="400" y="330" text-anchor="middle" fill="#6c757d" font-size="14" font-family="sans-serif">請檢查番號格式或稍後再試</text>
-        </svg>
-    `;
-    coverImg.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
-    coverImg.style.display = 'block';
-
-    document.getElementById('resultNumber').textContent = '-';
-    document.getElementById('resultTitle').textContent = '-';
-    document.getElementById('resultActors').textContent = '-';
-    document.getElementById('resultDate').textContent = '-';
-    document.getElementById('resultMaker').textContent = '-';
-    document.getElementById('resultTags').textContent = '-';
-
-    document.getElementById('chineseTitleRow').classList.add('hidden');
-    document.getElementById('chineseTitleLabel').textContent = '中文片名';
-
-    document.getElementById('translateBtn').classList.add('hidden');
-    document.getElementById('translateSpinner').classList.add('hidden');
-
-    updateEditButtonState('editTitleBtn', false);
-    updateEditButtonState('editChineseTitleBtn', false);
-}
+// T1c: displayResult 遷移至 Alpine（已由 template binding 接管）
+// 保留 bridge stub 供 file.js 使用（T1d 才完全移除）
 
 // === 導航 ===
 
@@ -518,58 +347,12 @@ function preloadImages(startIndex, count = 5) {
     }
 }
 
-function updateNavigation() {
-    const { state, dom } = window.SearchCore;
-
-    const hasMultipleResults = state.searchResults.length > 1 || state.hasMoreResults;
-    const hasMultipleFiles = state.fileList.length > 1;
-    const showNav = hasMultipleResults || hasMultipleFiles;
-
-    // 確保按鈕圖示正確
-    if (!state.isLoadingMore && !state.isSearchingFile) {
-        dom.btnPrev.innerHTML = '<i class="bi bi-chevron-left"></i>';
-        dom.btnNext.innerHTML = '<i class="bi bi-chevron-right"></i>';
-    }
-
-    dom.btnPrev.classList.toggle('hidden', !showNav);
-    dom.btnNext.classList.toggle('hidden', !showNav);
-    dom.navIndicator.classList.toggle('hidden', !showNav);
-
-    const canGoPrev = state.currentIndex > 0 || state.currentFileIndex > 0;
-    const canGoNext = state.currentIndex < state.searchResults.length - 1 ||
-        state.hasMoreResults ||
-        state.currentFileIndex < state.fileList.length - 1;
-
-    if (showNav) {
-        if (state.fileList.length > 1) {
-            dom.currentIndexSpan.textContent = state.currentFileIndex + 1;
-            dom.totalCountSpan.textContent = state.fileList.length;
-        } else {
-            dom.currentIndexSpan.textContent = state.currentIndex + 1;
-            dom.totalCountSpan.textContent = state.hasMoreResults
-                ? state.searchResults.length + '+'
-                : state.searchResults.length;
-        }
-
-        dom.btnPrev.disabled = !canGoPrev;
-        dom.btnNext.disabled = !canGoNext;
-    }
-
-    // 更新 error 狀態的導航按鈕
-    if (hasMultipleFiles) {
-        dom.errorNav.classList.remove('hidden');
-        dom.errorNavIndicator.textContent = `${state.currentFileIndex + 1}/${state.fileList.length}`;
-        dom.errorBtnPrev.disabled = !canGoPrev;
-        dom.errorBtnNext.disabled = !canGoNext;
-    } else {
-        dom.errorNav.classList.add('hidden');
-    }
-}
-
-// T1b: navigateResult, loadMoreResults 已遷移到 Alpine state.js
-// 保留 updateNavigation 供舊 JS 使用（T1c 完全遷移後才刪除）
+// T1c: updateNavigation 已遷移至 Alpine computed（showNavigation, navIndicatorText, canGoPrev, canGoNext）
+// Bridge stub 在 window.SearchUI 中提供 no-op 給 file.js
 
 // === 標題編輯功能 ===
+// T1c: 所有編輯函數已遷移至 Alpine state.js
+// 保留 escapeHtml 供其他模組使用
 
 function escapeHtml(text) {
     const div = document.createElement('div');
@@ -577,249 +360,9 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function updateEditButtonState(btnId, isEdited) {
-    const btn = document.getElementById(btnId);
-    if (!btn) return;
-    const icon = btn.querySelector('i');
-    if (icon) {
-        if (isEdited) {
-            icon.className = 'bi bi-pencil-fill text-success';
-        } else {
-            icon.className = 'bi bi-pencil text-muted';
-        }
-    }
-}
-
-function startEditTitle() {
-    const { state } = window.SearchCore;
-    const container = document.getElementById('titleContainer');
-    const span = document.getElementById('resultTitle');
-    const currentText = span.textContent;
-
-    const translateBtn = document.getElementById('translateBtn');
-    const translateSpinner = document.getElementById('translateSpinner');
-    translateBtn.classList.add('hidden');
-    translateSpinner.classList.add('hidden');
-
-    container.innerHTML = `
-        <textarea id="editTitleInput" class="textarea textarea-bordered info-value" rows="3" style="flex:1; min-width:0; resize:none;">${escapeHtml(currentText)}</textarea>
-        <div class="av-card-full-footer-actions">
-            <button class="info-icon-btn text-success" onclick="confirmEditTitle()" title="確認">
-                <i class="bi bi-check-lg"></i>
-            </button>
-            <button class="info-icon-btn text-error" onclick="cancelEditTitle()" title="取消">
-                <i class="bi bi-x-lg"></i>
-            </button>
-        </div>
-    `;
-    const input = document.getElementById('editTitleInput');
-    input.focus();
-    input.select();
-
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') confirmEditTitle();
-        else if (e.key === 'Escape') cancelEditTitle();
-    });
-}
-
-function confirmEditTitle() {
-    const { state } = window.SearchCore;
-    const input = document.getElementById('editTitleInput');
-    const newValue = input.value.trim();
-
-    const file = state.fileList[state.currentFileIndex];
-    if (file?.searchResults?.[state.currentIndex]) {
-        file.searchResults[state.currentIndex].title = newValue;
-        file.searchResults[state.currentIndex]._titleEdited = true;
-    }
-
-    restoreTitleDisplay(newValue, true);
-    window.SearchCore.saveState();
-}
-
-function cancelEditTitle() {
-    const { state } = window.SearchCore;
-    const file = state.fileList[state.currentFileIndex];
-    const result = file?.searchResults?.[state.currentIndex];
-    const originalText = result?.title || '-';
-    const isEdited = result?._titleEdited || false;
-    restoreTitleDisplay(originalText, isEdited);
-}
-
-function restoreTitleDisplay(text, edited) {
-    const { state } = window.SearchCore;
-    const container = document.getElementById('titleContainer');
-    const file = state.fileList[state.currentFileIndex];
-    const result = file?.searchResults?.[state.currentIndex];
-    const chineseTitle = file?.chineseTitle;
-    const translatedTitle = result?.translated_title;
-
-    const appConfig = state.appConfig;
-    const shouldShowTranslateBtn = appConfig?.translate?.enabled &&
-        !chineseTitle && !translatedTitle && text && text !== '-' &&
-        window.SearchCore.hasJapanese(text);
-
-    container.innerHTML = `
-        <span class="info-value" id="resultTitle">${escapeHtml(text)}</span>
-        <div class="av-card-full-footer-actions">
-            <button id="editTitleBtn" class="info-icon-btn" onclick="startEditTitle()" title="編輯標題">
-                <i class="bi ${edited ? 'bi-pencil-fill text-success' : 'bi-pencil text-muted'}"></i>
-            </button>
-            <button id="translateBtn" class="info-icon-btn ${shouldShowTranslateBtn ? '' : 'hidden'}"
-                    onclick="translateWithAI()" title="AI 翻譯">
-                <i class="bi bi-translate"></i>
-            </button>
-            <span id="translateSpinner" class="loading loading-spinner loading-sm hidden"></span>
-        </div>
-    `;
-
-    if (shouldShowTranslateBtn) {
-        const btn = document.getElementById('translateBtn');
-        btn.dataset.title = text;
-        btn.dataset.actors = JSON.stringify(result?.actors || []);
-        btn.dataset.number = result?.number || '';
-    }
-}
-
-function startEditChineseTitle() {
-    const container = document.getElementById('chineseTitleContainer');
-    const span = document.getElementById('resultChineseTitle');
-    const currentText = span.textContent;
-
-    container.innerHTML = `
-        <textarea id="editChineseTitleInput" class="textarea textarea-bordered info-value text-success" rows="2" style="flex:1; min-width:0; resize:none;">${escapeHtml(currentText)}</textarea>
-        <div class="av-card-full-footer-actions">
-            <button class="info-icon-btn text-success" onclick="confirmEditChineseTitle()" title="確認">
-                <i class="bi bi-check-lg"></i>
-            </button>
-            <button class="info-icon-btn text-error" onclick="cancelEditChineseTitle()" title="取消">
-                <i class="bi bi-x-lg"></i>
-            </button>
-        </div>
-    `;
-    const input = document.getElementById('editChineseTitleInput');
-    input.focus();
-    input.select();
-
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') confirmEditChineseTitle();
-        else if (e.key === 'Escape') cancelEditChineseTitle();
-    });
-}
-
-function confirmEditChineseTitle() {
-    const { state } = window.SearchCore;
-    const input = document.getElementById('editChineseTitleInput');
-    const newValue = input.value.trim();
-
-    const file = state.fileList[state.currentFileIndex];
-    if (file?.searchResults?.[state.currentIndex]) {
-        file.searchResults[state.currentIndex].translated_title = newValue;
-        file.searchResults[state.currentIndex]._chineseTitleEdited = true;
-    }
-
-    restoreChineseTitleDisplay(newValue, true);
-    window.SearchCore.saveState();
-}
-
-function cancelEditChineseTitle() {
-    const { state } = window.SearchCore;
-    const file = state.fileList[state.currentFileIndex];
-    const result = file?.searchResults?.[state.currentIndex];
-    const translatedTitle = result?.translated_title;
-    const chineseTitle = file?.chineseTitle;
-    const originalText = translatedTitle || chineseTitle || '-';
-    const isEdited = result?._chineseTitleEdited || false;
-    restoreChineseTitleDisplay(originalText, isEdited);
-}
-
-function restoreChineseTitleDisplay(text, edited) {
-    const container = document.getElementById('chineseTitleContainer');
-    container.innerHTML = `
-        <span class="info-value text-success" id="resultChineseTitle">${escapeHtml(text)}</span>
-        <div class="av-card-full-footer-actions">
-            <button id="editChineseTitleBtn" class="info-icon-btn" onclick="startEditChineseTitle()" title="編輯中文片名">
-                <i class="bi ${edited ? 'bi-pencil-fill text-success' : 'bi-pencil text-muted'}"></i>
-            </button>
-        </div>
-    `;
-}
-
-// === 翻譯顯示 ===
-
-function updateChineseTitleDisplay(text, mode) {
-    const chineseTitleRow = document.getElementById('chineseTitleRow');
-    const chineseTitleLabel = document.getElementById('chineseTitleLabel');
-    const chineseTitleEl = document.getElementById('resultChineseTitle');
-
-    if (text) {
-        chineseTitleEl.textContent = text;
-        if (mode === 'translate') {
-            chineseTitleLabel.textContent = '中文片名 (翻譯)';
-        } else if (mode === 'optimize') {
-            chineseTitleLabel.textContent = '中文片名 (優化)';
-        } else {
-            chineseTitleLabel.textContent = '中文片名';
-        }
-        chineseTitleRow.classList.remove('hidden');
-    }
-}
-
-function showTranslateError(error) {
-    const chineseTitleLabel = document.getElementById('chineseTitleLabel');
-    const originalText = chineseTitleLabel.textContent;
-    chineseTitleLabel.innerHTML = `中文片名 <span class="text-error">(${error})</span>`;
-    setTimeout(() => {
-        if (chineseTitleLabel.innerHTML.includes(error)) {
-            chineseTitleLabel.textContent = originalText;
-        }
-    }, 3000);
-}
-
-/**
- * 更新翻譯標題（供漸進式翻譯調用）
- *
- * 用途：當後台批次翻譯完成時，如果用戶正在查看該片，立即更新 UI
- *
- * @param {string} translatedTitle - 翻譯後的標題
- */
-function updateTranslatedTitle(translatedTitle) {
-    // 更新中文標題顯示
-    const chineseTitleRow = document.getElementById('chineseTitleRow');
-    const chineseTitleLabel = document.getElementById('chineseTitleLabel');
-    const chineseTitleEl = document.getElementById('resultChineseTitle');
-
-    if (chineseTitleEl && translatedTitle) {
-        chineseTitleEl.textContent = translatedTitle;
-        chineseTitleLabel.textContent = '中文片名 (AI)';
-        chineseTitleRow.classList.remove('hidden');
-    }
-
-    // 隱藏翻譯按鈕（已有翻譯）
-    const translateBtn = document.getElementById('translateBtn');
-    if (translateBtn) {
-        translateBtn.classList.add('hidden');
-    }
-
-    // 隱藏載入中指示器
-    const translateSpinner = document.getElementById('translateSpinner');
-    if (translateSpinner) {
-        translateSpinner.classList.add('hidden');
-    }
-}
-
-/**
- * 🆕 顯示批次翻譯中狀態
- */
-function showBatchTranslatingState() {
-    const translateBtn = document.getElementById('translateBtn');
-    const translateSpinner = document.getElementById('translateSpinner');
-
-    if (translateBtn && translateSpinner) {
-        translateBtn.classList.add('hidden');
-        translateSpinner.classList.remove('hidden');
-    }
-}
+// T1c: Removed - updateEditButtonState, startEditTitle, confirmEditTitle, cancelEditTitle, restoreTitleDisplay
+// T1c: Removed - startEditChineseTitle, confirmEditChineseTitle, cancelEditChineseTitle, restoreChineseTitleDisplay
+// T1c: Removed - updateChineseTitleDisplay, showTranslateError, updateTranslatedTitle, showBatchTranslatingState
 
 // === Gallery 視圖 ===
 
@@ -871,8 +414,7 @@ function hideGallery(showDetail = true) {
     if (showDetail) {
         const { searchResults, currentIndex } = window.SearchCore.state;
         if (searchResults.length > 0) {
-            displayResult(searchResults[currentIndex]);
-            updateNavigation();
+            // T1c: Alpine template自動顯示，只需 showState
             showState('result');
         } else {
             showState('empty');
@@ -923,269 +465,40 @@ function handleGalleryMessage(event) {
 }
 
 // === 本地標記功能 ===
-
-/**
- * 顯示本地標記 badge
- * @param {Object} localStatus - 本地狀態 { exists: true, count: 2, paths: [...] }
- */
-function showLocalBadge(localStatus) {
-    const badge = document.getElementById('localBadge');
-    if (!badge) return;
-
-    if (localStatus && localStatus.exists) {
-        badge.classList.remove('hidden');
-
-        // 儲存路徑供點擊複製用
-        badge.dataset.paths = JSON.stringify(localStatus.paths || []);
-
-        if (localStatus.count > 1) {
-            badge.title = `本地已有 ${localStatus.count} 個版本（點擊複製路徑）`;
-        } else {
-            badge.title = '本地已有（點擊複製路徑）';
-        }
-
-        // 設定點擊事件（只設定一次）
-        if (!badge.dataset.clickBound) {
-            badge.addEventListener('click', copyLocalPath);
-            badge.dataset.clickBound = 'true';
-        }
-    } else {
-        badge.classList.add('hidden');
-    }
-}
-
-/**
- * 複製本地路徑到剪貼簿
- */
-function copyLocalPath() {
-    const badge = document.getElementById('localBadge');
-    if (!badge) return;
-
-    try {
-        const paths = JSON.parse(badge.dataset.paths || '[]');
-        if (paths.length === 0) return;
-
-        // 複製第一個路徑（如果有多個，用換行分隔全部）
-        const textToCopy = paths.length === 1 ? paths[0] : paths.join('\n');
-
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            // 顯示成功提示
-            const msg = paths.length === 1 ? '已複製路徑' : `已複製 ${paths.length} 個路徑`;
-            showToast(msg, 'success');
-        }).catch(err => {
-            console.error('複製失敗:', err);
-            showToast('複製失敗', 'error');
-        });
-    } catch (err) {
-        console.error('解析路徑失敗:', err);
-    }
-}
-
-/**
- * 顯示 Toast 提示（Fluent Design 風格）
- * @param {string} message - 提示訊息
- * @param {string} type - 類型：success | error | info | warning
- */
-function showToast(message, type = 'success') {
-    const iconMap = {
-        success: 'bi-check-circle-fill',
-        error: 'bi-exclamation-circle-fill',
-        info: 'bi-info-circle-fill',
-        warning: 'bi-exclamation-triangle-fill'
-    };
-
-    const toast = document.createElement('div');
-    toast.className = `fluent-toast alert alert-${type}`;
-    toast.innerHTML = `
-        <i class="bi ${iconMap[type] || iconMap.success}"></i>
-        <span>${message}</span>
-    `;
-    toast.style.cssText = `
-        position: fixed;
-        bottom: 1.5rem;
-        right: 1.5rem;
-        z-index: 2000;
-        opacity: 0;
-        transform: translateY(20px);
-        transition: all var(--fluent-duration-normal) var(--fluent-ease-decel);
-    `;
-    document.body.appendChild(toast);
-
-    // Fade in
-    requestAnimationFrame(() => {
-        toast.style.opacity = '1';
-        toast.style.transform = 'translateY(0)';
-    });
-
-    // Auto remove after 2 seconds
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(20px)';
-        setTimeout(() => toast.remove(), 300);
-    }, 2000);
-}
-
-/**
- * 隱藏本地標記 badge
- */
-function hideLocalBadge() {
-    const badge = document.getElementById('localBadge');
-    if (badge) {
-        badge.classList.add('hidden');
-    }
-}
-
-/**
- * 更新搜尋結果的本地標記（批次更新）
- * 在 checkLocalStatus() 完成後調用
- */
-function updateLocalBadges() {
-    const { state } = window.SearchCore;
-    const currentResult = state.searchResults[state.currentIndex];
-
-    if (currentResult && currentResult._localStatus) {
-        showLocalBadge(currentResult._localStatus);
-    } else {
-        hideLocalBadge();
-    }
-}
+// T1c: 所有本地標記函數已遷移至 Alpine state.js
+// Removed: showLocalBadge, copyLocalPath, showToast, hideLocalBadge, updateLocalBadges
+// Note: updateLocalBadges still called by core.js checkLocalStatus(), but now no-ops via Alpine reactivity
 
 // === 用戶標籤功能 ===
-
-/**
- * 顯示新增標籤輸入框
- */
-function showAddTagInput() {
-    const container = document.getElementById('resultTags');
-    const addBtn = container.querySelector('.tag-add-btn');
-    if (!addBtn) return;
-
-    // 建立輸入框
-    const inputWrapper = document.createElement('span');
-    inputWrapper.className = 'tag-input-wrapper';
-    inputWrapper.innerHTML = `
-        <input type="text" class="tag-input" placeholder="標籤名稱" maxlength="20">
-        <button class="btn btn-sm tag-confirm" onclick="confirmAddTag()" title="確認">✓</button>
-        <button class="btn btn-sm tag-cancel" onclick="cancelAddTag()" title="取消">✕</button>
-    `;
-
-    // 替換按鈕為輸入框
-    addBtn.replaceWith(inputWrapper);
-
-    // 自動聚焦
-    const input = inputWrapper.querySelector('.tag-input');
-    input.focus();
-
-    // Enter 確認，Escape 取消
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') confirmAddTag();
-        else if (e.key === 'Escape') cancelAddTag();
-    });
-}
-
-/**
- * 確認新增標籤
- */
-function confirmAddTag() {
-    const input = document.querySelector('.tag-input');
-    if (!input) return;
-
-    const tag = input.value.trim();
-    if (tag) {
-        addUserTag(tag);
-    } else {
-        cancelAddTag();
-    }
-}
-
-/**
- * 取消新增標籤
- */
-function cancelAddTag() {
-    const { state } = window.SearchCore;
-    const currentResult = state.searchResults[state.currentIndex];
-    if (currentResult) {
-        displayResult(currentResult);
-    }
-}
-
-/**
- * 新增用戶標籤
- */
-function addUserTag(tag) {
-    const { state } = window.SearchCore;
-    const currentResult = state.searchResults[state.currentIndex];
-    if (!currentResult) return;
-
-    // 初始化 user_tags
-    if (!currentResult.user_tags) {
-        currentResult.user_tags = [];
-    }
-
-    // 避免重複
-    if (currentResult.user_tags.includes(tag)) {
-        cancelAddTag();
-        return;
-    }
-
-    currentResult.user_tags.push(tag);
-    displayResult(currentResult);
-    window.SearchCore.saveState();
-}
-
-/**
- * 移除用戶標籤
- */
-function removeUserTag(tag) {
-    const { state } = window.SearchCore;
-    const currentResult = state.searchResults[state.currentIndex];
-    if (!currentResult || !currentResult.user_tags) return;
-
-    const idx = currentResult.user_tags.indexOf(tag);
-    if (idx > -1) {
-        currentResult.user_tags.splice(idx, 1);
-        displayResult(currentResult);
-        window.SearchCore.saveState();
-    }
-}
+// T1c: 所有標籤函數已遷移至 Alpine state.js
+// Removed: showAddTagInput, confirmAddTag, cancelAddTag, addUserTag, removeUserTag
 
 // === 暴露介面 ===
 window.SearchUI = {
     showState,
-    displayResult,
-    displayCoverError,
+    // T1c: Bridge stub for file.js (until T1d)
+    displayResult: function(data) {
+        // file.js 呼叫此函數時，只需確保 Alpine state 有正確的 searchResults/currentIndex
+        // Alpine template binding 會自動顯示
+        // 不需要做任何事，因為 file.js 在呼叫 displayResult 前已經設定了 coreState.searchResults[idx]
+    },
+    updateNavigation: function() {
+        // no-op — Alpine computed (showNavigation, navIndicatorText, canGoPrev, canGoNext) 自動處理
+    },
     preloadImages,
-    updateNavigation,  // 保留（T1c 才完全移除，暫時供舊邏輯用）
     navigateResult: null,  // 在 state.js setupBridgeLayer() 設定
     escapeHtml,
-    updateEditButtonState,
-    updateChineseTitleDisplay,
-    showTranslateError,
-    updateTranslatedTitle,
-    // 🆕 新增
-    showBatchTranslatingState,
     showGallery,
     hideGallery,
     loadSourceConfig,
     getSourceOrder,
     getSourceNames,
-    // 本地標記功能
-    showLocalBadge,
-    hideLocalBadge,
-    updateLocalBadges
+    // T1c: 以下函數被移除（已遷移到 Alpine），但保留 stub 供 core.js 使用
+    updateLocalBadges: function() {
+        // no-op — Alpine reactivity automatically updates badge
+    }
 };
 
 // 全域函數（onclick 用）
-window.startEditTitle = startEditTitle;
-window.confirmEditTitle = confirmEditTitle;
-window.cancelEditTitle = cancelEditTitle;
-window.startEditChineseTitle = startEditChineseTitle;
-window.confirmEditChineseTitle = confirmEditChineseTitle;
-window.cancelEditChineseTitle = cancelEditChineseTitle;
+// T1c: 所有編輯/標籤函數已在 state.js setupBridgeLayer() 中設定
 window.switchSource = switchSource;
-// 用戶標籤
-window.showAddTagInput = showAddTagInput;
-window.confirmAddTag = confirmAddTag;
-window.cancelAddTag = cancelAddTag;
-window.addUserTag = addUserTag;
-window.removeUserTag = removeUserTag;

@@ -139,23 +139,15 @@ async function translateWithOllama(text, mode, metadata = {}) {
 }
 
 /**
- * AI 翻譯按鈕點擊事件（全域函數供 onclick 調用）
+ * T1c: Internal translate function (called by Alpine wrapper)
  *
  * Gemini 模式：只翻譯當前片（避免 API 限制）
  * Ollama 模式：批次翻譯從當前位置開始的 10 片
+ *
+ * NOTE: isTranslating state is managed by Alpine wrapper in state.js
  */
-async function translateWithAI() {
-    const btn = document.getElementById('translateBtn');
-    const spinner = document.getElementById('translateSpinner');
-
-    // 防止並發翻譯
-    if (isTranslating) return;
-    isTranslating = true;
-
-    // 隱藏按鈕，顯示 spinner
-    btn.classList.add('hidden');
-    spinner.classList.remove('hidden');
-
+async function _translateWithAI() {
+    // T1c: isTranslating now managed by Alpine wrapper
     try {
         // === Gemini 模式：只翻譯當前片 ===
         if (appConfig?.translate?.provider === 'gemini') {
@@ -184,7 +176,7 @@ async function translateWithAI() {
                 } else {
                     searchResults[currentIndex].translated_title = result.result;
                 }
-                window.SearchUI.updateTranslatedTitle(result.result);
+                // T1c: Alpine reactive will update UI automatically
                 console.log(`[Gemini] 翻譯完成: ${result.result}`);
                 saveState();
             } else {
@@ -243,15 +235,11 @@ async function translateWithAI() {
 
                 if (listMode === 'file') {
                     fileList[meta.fileIndex].searchResults[meta.resultIndex].translated_title = trans;
-                    if (meta.fileIndex === currentFileIndex && meta.resultIndex === currentIndex) {
-                        window.SearchUI.updateTranslatedTitle(trans);
-                    }
+                    // T1c: Alpine reactive will update UI automatically
                 } else {
                     searchResults[meta.resultIndex].translated_title = trans;
                     batchTranslatingIndices.delete(meta.resultIndex);
-                    if (meta.resultIndex === currentIndex) {
-                        window.SearchUI.updateTranslatedTitle(trans);
-                    }
+                    // T1c: Alpine reactive will update UI automatically
                 }
             });
 
@@ -267,24 +255,11 @@ async function translateWithAI() {
 
     } catch (error) {
         console.error('[Translate] 翻譯失敗:', error);
-        alert('翻譯失敗：' + error.message);
+        // T1c: Re-throw for Alpine wrapper to handle
+        throw error;
     } finally {
-        isTranslating = false;
-        spinner.classList.add('hidden');
-
-        let currentResult = null;
-        if (listMode === 'file' && fileList[currentFileIndex]) {
-            const results = fileList[currentFileIndex].searchResults || [];
-            currentResult = results[currentIndex];
-        } else {
-            currentResult = searchResults[currentIndex];
-        }
-
-        if (currentResult && currentResult.title &&
-            hasJapanese(currentResult.title) &&
-            !currentResult.translated_title) {
-            btn.classList.remove('hidden');
-        }
+        // T1c: isTranslating cleanup handled by Alpine wrapper
+        // T1c: UI updates handled by Alpine reactive
     }
 }
 
@@ -545,7 +520,8 @@ window.SearchCore = {
     handleSearchStatus: null, // bridge 在 state.js 設定
     hasJapanese,
     translateWithOllama,
-    translateWithAI,
+    // T1c: Internal translate function (called by Alpine wrapper)
+    _translateWithAI,
     translateBatch,
     // 檢查是否正在批次翻譯
     isBatchTranslating: (index) => batchTranslatingIndices.has(index),
@@ -554,5 +530,4 @@ window.SearchCore = {
     checkLocalStatus
 };
 
-// 全域函數（onclick 用）
-window.translateWithAI = translateWithAI;
+// T1c: 全域函數已在 state.js setupBridgeLayer() 中設定
