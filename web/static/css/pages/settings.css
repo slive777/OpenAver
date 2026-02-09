@@ -186,7 +186,7 @@
     }
 }
 
-/* ==================== Settings Header + Theme Toggle ==================== */
+/* ==================== Settings Header + Actions (Font Size + Theme) ==================== */
 
 .settings-header {
     display: flex;
@@ -194,6 +194,12 @@
     align-items: center;
     gap: 1rem;
     margin-bottom: 1.5rem;
+}
+
+.settings-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
 }
 
 .settings-theme-toggle {
@@ -261,5 +267,62 @@
         width: 40px;
         height: 40px;
         justify-content: center;
+    }
+}
+
+/* ==================== Font Size Control ==================== */
+
+.font-size-control {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    background: color-mix(in oklch, var(--color-base-200) 70%, transparent);
+    border: 1px solid var(--border-light);
+    border-radius: var(--fluent-radius-lg);
+    flex-shrink: 0;
+}
+
+[data-theme="dim"] .font-size-control {
+    background: color-mix(in oklch, var(--color-base-200) 50%, transparent);
+}
+
+.font-size-btn {
+    padding: 0.25rem 0.5rem;
+    border: none;
+    border-radius: var(--fluent-radius-md);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-weight: 600;
+    line-height: 1;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    min-width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.font-size-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-overlay);
+}
+
+.font-size-btn.active {
+    background: var(--accent);
+    color: var(--color-primary-content);
+    box-shadow: var(--fluent-shadow-4);
+}
+
+@media (max-width: 768px) {
+    .font-size-control {
+        padding: 1px;
+        gap: 1px;
+    }
+
+    .font-size-btn {
+        padding: 0.2rem 0.35rem;
+        min-width: 28px;
+        font-size: 0.7rem;
     }
 }

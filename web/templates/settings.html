@@ -12,14 +12,30 @@
         <h4 class="mb-0">
             <i class="bi bi-gear"></i> 設定
         </h4>
-        <div class="settings-theme-toggle">
-            <button class="theme-toggle-btn"
-                    @click="theme = (theme === 'light' ? 'dim' : 'light')"
-                    :title="theme === 'light' ? '切換至深色模式' : '切換至淺色模式'"
-                    type="button">
-                <i class="bi" :class="theme === 'light' ? 'bi-moon-stars' : 'bi-sun'"></i>
-                <span class="theme-toggle-label" x-text="theme === 'light' ? 'Light' : 'Dim'"></span>
-            </button>
+        <div class="settings-header-actions">
+            <!-- Font Size Control -->
+            <div class="font-size-control">
+                <template x-for="s in [{k:'xs',l:'A'},{k:'sm',l:'A'},{k:'md',l:'A'},{k:'lg',l:'A'},{k:'xl',l:'A'}]">
+                    <button type="button"
+                            class="font-size-btn"
+                            :class="{ active: fontSize === s.k }"
+                            :style="'font-size:' + {xs:'0.7rem',sm:'0.8rem',md:'0.9rem',lg:'1.05rem',xl:'1.2rem'}[s.k]"
+                            @click="fontSize = s.k"
+                            :title="'字體大小: ' + s.k"
+                            x-text="s.l">
+                    </button>
+                </template>
+            </div>
+            <!-- Theme Toggle -->
+            <div class="settings-theme-toggle">
+                <button class="theme-toggle-btn"
+                        @click="theme = (theme === 'light' ? 'dim' : 'light')"
+                        :title="theme === 'light' ? '切換至深色模式' : '切換至淺色模式'"
+                        type="button">
+                    <i class="bi" :class="theme === 'light' ? 'bi-moon-stars' : 'bi-sun'"></i>
+                    <span class="theme-toggle-label" x-text="theme === 'light' ? 'Light' : 'Dim'"></span>
+                </button>
+            </div>
         </div>
     </div>
 

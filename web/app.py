@@ -54,11 +54,19 @@ def get_common_context(request: Request) -> dict:
     """取得共用的模板 Context (包含設定)"""
     from web.routers.config import load_config
     config = load_config()
+
+    # Font size mapping
+    FONT_SIZE_MAP = {"xs": 13, "sm": 14, "md": 16, "lg": 18, "xl": 20}
+    font_size = config.get('general', {}).get('font_size', 'md')
+    font_size_px = FONT_SIZE_MAP.get(font_size, 16)
+
     return {
         "request": request,
         "config": config,
         "theme": config.get('general', {}).get('theme', 'light'),
         "sidebar_collapsed": config.get('general', {}).get('sidebar_collapsed', False),
+        "font_size": font_size,
+        "font_size_px": font_size_px,
         "version": VERSION
     }
 
