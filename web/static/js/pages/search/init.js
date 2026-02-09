@@ -3,54 +3,6 @@
  * 事件綁定、頁面初始化入口
  */
 
-/**
- * 載入我的最愛資料夾
- */
-async function loadFavoriteFolder() {
-    const { dom } = window.SearchCore;
-
-    // 顯示載入中
-    dom.btnFavorite.disabled = true;
-    const originalHtml = dom.btnFavorite.innerHTML;
-    dom.btnFavorite.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
-
-    try {
-        const resp = await fetch('/api/search/favorite-files');
-        const result = await resp.json();
-
-        if (!result.success) {
-            alert(result.error || '載入失敗');
-            dom.btnFavorite.disabled = false;
-            dom.btnFavorite.innerHTML = originalHtml;
-            return;
-        }
-
-        // 顯示成功訊息
-        console.log(`[Favorite] 載入 ${result.total} 個檔案：${result.folder}`);
-
-        // 載入檔案列表（會自動過濾）
-        await window.SearchFile.setFileList(result.files);
-
-        // 自動開始搜尋前 20 個
-        // 延遲 100ms 確保 UI 更新完成
-        setTimeout(() => {
-            const searchableFiles = window.SearchCore.state.fileList.filter(
-                f => f.number && !f.searched
-            );
-            if (searchableFiles.length > 0) {
-                window.SearchFile.searchAll();
-            }
-        }, 100);
-
-    } catch (err) {
-        console.error('Favorite API error:', err);
-        alert('載入失敗：' + err.message);
-    } finally {
-        dom.btnFavorite.disabled = false;
-        dom.btnFavorite.innerHTML = originalHtml;
-    }
-}
-
 document.addEventListener('DOMContentLoaded', function () {
     // T1a: initDOM / loadAppConfig / loadSourceConfig / restoreState / updateClearButton
     // 已由 Alpine init() 接管，這裡只保留事件綁定（T1b-T1d 將遷移到 Alpine）
@@ -87,56 +39,9 @@ document.addEventListener('DOMContentLoaded', function () {
         window.SearchUI.hideGallery();
     });
 
-    // 7. 清空按鈕（T1c 才遷移）
-    dom.btnClear.addEventListener('click', window.SearchCore.clearAll);
+    // T1d: 清空、批次、加入檔案/資料夾、我的最愛、pywebview-files 已遷移到 Alpine（@click, init()）
 
-    // 8. 批次按鈕
-    dom.btnSearchAll.addEventListener('click', window.SearchFile.searchAll);
-    dom.btnScrapeAll.addEventListener('click', window.SearchFile.scrapeAll);
-
-    // 9. 加入檔案/資料夾按鈕
-    dom.btnAddFiles.addEventListener('click', async () => {
-        if (typeof window.pywebview === 'undefined' || !window.pywebview.api) {
-            alert('此功能需要在桌面應用程式中使用');
-            return;
-        }
-        try {
-            const paths = await window.pywebview.api.select_files();
-            if (paths && paths.length > 0) {
-                console.log('選取檔案:', paths.length, '個');
-                window.handlePyWebViewDrop(paths);
-            }
-        } catch (e) {
-            console.error('選取檔案失敗:', e);
-        }
-    });
-
-    dom.btnAddFolder.addEventListener('click', async () => {
-        if (typeof window.pywebview === 'undefined' || !window.pywebview.api) {
-            alert('此功能需要在桌面應用程式中使用');
-            return;
-        }
-        try {
-            const result = await window.pywebview.api.select_folder();
-            const paths = result?.files || result;
-            if (paths && paths.length > 0) {
-                console.log('資料夾內檔案:', paths.length, '個');
-                window.handlePyWebViewDrop(paths);
-            }
-        } catch (e) {
-            console.error('選取資料夾失敗:', e);
-        }
-    });
-
-    // 10. 我的最愛按鈕
-    dom.btnFavorite.addEventListener('click', loadFavoriteFolder);
-
-    // 10. PyWebView 檔案事件
-    window.addEventListener('pywebview-files', async (e) => {
-        await window.SearchFile.setFileList(e.detail.paths);
-    });
-
-    // 11. 拖拽事件
+    // 11. 拖拽事件（document 級別，呼叫 Alpine）
     let dragCounter = 0;
 
     document.addEventListener('dragover', (e) => {
@@ -147,7 +52,10 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
         dragCounter++;
         if (e.dataTransfer.types.includes('Files')) {
-            dom.dragOverlay.classList.add('active');
+            const el = document.querySelector('.search-container[x-data]');
+            if (el && el._x_dataStack) {
+                Alpine.$data(el).dragActive = true;
+            }
         }
     });
 
@@ -155,22 +63,24 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
         dragCounter--;
         if (dragCounter === 0) {
-            dom.dragOverlay.classList.remove('active');
+            const el = document.querySelector('.search-container[x-data]');
+            if (el && el._x_dataStack) {
+                Alpine.$data(el).dragActive = false;
+            }
         }
     });
 
     document.addEventListener('drop', (e) => {
         e.preventDefault();
         dragCounter = 0;
-        dom.dragOverlay.classList.remove('active');
-
-        // PyWebView 環境由 Python 端處理
-        if (typeof window.pywebview !== 'undefined') {
-            return;
+        const el = document.querySelector('.search-container[x-data]');
+        if (el && el._x_dataStack) {
+            Alpine.$data(el).dragActive = false;
+            // PyWebView 環境由 Python 端處理
+            if (typeof window.pywebview === 'undefined') {
+                Alpine.$data(el).handleFileDrop(e.dataTransfer.files);
+            }
         }
-
-        // 純瀏覽器環境
-        window.SearchFile.handleFileDrop(e.dataTransfer.files);
     });
 
     // 12. 離開前保存狀態（已由 Alpine init() 接管）

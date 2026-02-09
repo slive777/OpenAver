@@ -476,15 +476,6 @@ function handleGalleryMessage(event) {
 // === 暴露介面 ===
 window.SearchUI = {
     showState,
-    // T1c: Bridge stub for file.js (until T1d)
-    displayResult: function(data) {
-        // file.js 呼叫此函數時，只需確保 Alpine state 有正確的 searchResults/currentIndex
-        // Alpine template binding 會自動顯示
-        // 不需要做任何事，因為 file.js 在呼叫 displayResult 前已經設定了 coreState.searchResults[idx]
-    },
-    updateNavigation: function() {
-        // no-op — Alpine computed (showNavigation, navIndicatorText, canGoPrev, canGoNext) 自動處理
-    },
     preloadImages,
     navigateResult: null,  // 在 state.js setupBridgeLayer() 設定
     escapeHtml,
@@ -492,11 +483,7 @@ window.SearchUI = {
     hideGallery,
     loadSourceConfig,
     getSourceOrder,
-    getSourceNames,
-    // T1c: 以下函數被移除（已遷移到 Alpine），但保留 stub 供 core.js 使用
-    updateLocalBadges: function() {
-        // no-op — Alpine reactivity automatically updates badge
-    }
+    getSourceNames
 };
 
 // 全域函數（onclick 用）

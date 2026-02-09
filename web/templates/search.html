@@ -7,15 +7,14 @@
 {% endblock %}
 
 {% block content %}
-<!-- 拖拽覆蓋層 -->
-<div class="drag-overlay" id="dragOverlay">
-    <div class="drag-overlay-content">
-        <i class="bi bi-file-earmark-play"></i>
-        <p>放開以搜尋番號</p>
-    </div>
-</div>
-
 <div class="search-container ds-page" x-data="searchPage()" @keydown.window="handleKeydown($event)">
+    <!-- 拖拽覆蓋層（必須在 x-data scope 內） -->
+    <div class="drag-overlay" id="dragOverlay" x-show="dragActive">
+        <div class="drag-overlay-content">
+            <i class="bi bi-file-earmark-play"></i>
+            <p>放開以搜尋番號</p>
+        </div>
+    </div>
     <!-- Gallery 視圖容器 -->
     <div id="galleryView" class="hidden">
         <iframe id="galleryFrame" src="" sandbox="allow-same-origin allow-scripts"></iframe>
@@ -39,7 +38,7 @@
                     <button type="button" id="btnBackToDetail" class="btn-icon hidden" title="返回詳細資料">
                         <i class="bi bi-arrow-left"></i>
                     </button>
-                    <button type="button" id="btnClear" class="btn-icon hidden" x-show="hasContent" title="清空">
+                    <button type="button" id="btnClear" class="btn-icon hidden" x-show="hasContent" @click="clearAll()" title="清空">
                         <i class="bi bi-x-lg"></i>
                     </button>
                     <button type="submit" id="btnSubmit" class="btn-icon active" title="搜尋">
@@ -61,14 +60,16 @@
             <i class="bi bi-film state-page-icon"></i>
             <p class="state-page-text">輸入番號搜尋，或加入影片檔案</p>
             <div class="empty-actions">
-                <button class="btn btn-sm btn-outline btn-primary" id="btnAddFiles">
+                <button class="btn btn-sm btn-outline btn-primary" id="btnAddFiles" @click="addFiles()">
                     <i class="bi bi-file-earmark-plus"></i> 加入檔案
                 </button>
-                <button class="btn btn-sm btn-outline btn-primary" id="btnAddFolder">
+                <button class="btn btn-sm btn-outline btn-primary" id="btnAddFolder" @click="addFolder()">
                     <i class="bi bi-folder-plus"></i> 加入資料夾
                 </button>
-                <button class="btn btn-sm btn-outline btn-warning" id="btnFavorite" title="載入我的最愛資料夾">
-                    <i class="bi bi-star-fill"></i> 我的最愛
+                <button class="btn btn-sm btn-outline btn-warning" id="btnFavorite" @click="loadFavorite()" :disabled="isLoadingFavorite" title="載入我的最愛資料夾">
+                    <template x-if="!isLoadingFavorite"><i class="bi bi-star-fill"></i></template>
+                    <span x-show="isLoadingFavorite" class="loading loading-spinner loading-sm"></span>
+                    <span x-text="isLoadingFavorite ? '' : '我的最愛'">我的最愛</span>
                 </button>
             </div>
             <small class="state-page-hint">也可直接拖入檔案或資料夾</small>
@@ -143,18 +144,19 @@
                         </div>
                         <button class="nav-btn prev" id="btnPrev"
                                 x-show="showNavigation()"
-                                :disabled="!canGoPrev()"
+                                :disabled="!canGoPrev() || (isSearchingFile && searchingFileDirection === 'prev')"
                                 @click="navigate(-1)"
                                 title="上一個 (←)">
-                            <i class="bi bi-chevron-left"></i>
+                            <i x-show="!(isSearchingFile && searchingFileDirection === 'prev')" class="bi bi-chevron-left"></i>
+                            <span x-show="isSearchingFile && searchingFileDirection === 'prev'" class="loading loading-spinner loading-sm"></span>
                         </button>
                         <button class="nav-btn next" id="btnNext"
                                 x-show="showNavigation()"
-                                :disabled="!canGoNext() || isLoadingMore"
+                                :disabled="!canGoNext() || isLoadingMore || (isSearchingFile && searchingFileDirection === 'next')"
                                 @click="navigate(1)"
                                 title="下一個 (→)">
-                            <i x-show="!isLoadingMore" class="bi bi-chevron-right"></i>
-                            <span x-show="isLoadingMore" class="loading loading-spinner loading-sm"></span>
+                            <i x-show="!isLoadingMore && !(isSearchingFile && searchingFileDirection === 'next')" class="bi bi-chevron-right"></i>
+                            <span x-show="isLoadingMore || (isSearchingFile && searchingFileDirection === 'next')" class="loading loading-spinner loading-sm"></span>
                         </button>
                         <div class="nav-indicator" id="navIndicator"
                              x-show="showNavigation()">
@@ -293,30 +295,111 @@
             </div>
 
             <!-- 檔案列表（卡片外，下方獨立） -->
-            <div class="file-list-section hidden" id="fileListSection">
+            <div class="file-list-section" id="fileListSection"
+                 x-show="(listMode === 'file' && fileList.length > 0) || (listMode === 'search' && searchResults.length > 0)">
                 <div class="file-list-header">
-                    <span class="file-count" id="fileCountText">0 個檔案</span>
+                    <span class="file-count" id="fileCountText" x-text="fileCountText()">0 個檔案</span>
                     <div class="join">
                         <button class="btn btn-sm btn-outline btn-primary join-item" id="btnSearchAll" type="button"
+                            @click="searchAll()"
+                            :disabled="searchAllDisabled()"
                             title="搜尋所有未搜尋的檔案">
-                            <i class="bi bi-search"></i> 搜尋全部
+                            <i :class="searchAllButtonIcon()"></i>
+                            <span x-text="searchAllButtonText()">搜尋全部</span>
                         </button>
-                        <button class="btn btn-sm btn-success join-item" id="btnScrapeAll" type="button" title="產生所有已搜尋的檔案">
-                            <i class="bi bi-folder-plus"></i> 產生全部
+                        <button class="btn btn-sm btn-success join-item" id="btnScrapeAll" type="button"
+                            x-show="listMode === 'file'"
+                            @click="scrapeAll()"
+                            :disabled="isScrapeAllProcessing"
+                            title="產生所有已搜尋的檔案">
+                            <span x-show="!isScrapeAllProcessing"><i class="bi bi-folder-plus"></i> 產生全部</span>
+                            <span x-show="isScrapeAllProcessing" class="loading loading-spinner loading-sm"></span>
                         </button>
                     </div>
                 </div>
 
                 <!-- 批次進度條 -->
-                <div class="batch-progress hidden" id="batchProgress">
+                <div class="batch-progress" id="batchProgress"
+                     x-show="batchState.isProcessing">
                     <div class="batch-progress-bar">
-                        <div class="batch-progress-fill" id="batchProgressBar"></div>
+                        <div class="batch-progress-fill" id="batchProgressBar"
+                             :style="'width:' + batchPercent() + '%'"></div>
                     </div>
-                    <small class="batch-progress-text" id="batchProgressText">處理中 0/0</small>
+                    <small class="batch-progress-text" id="batchProgressText"
+                           x-text="'處理中 ' + batchState.processed + '/' + batchState.total">處理中 0/0</small>
                 </div>
 
-                <div class="file-list" id="fileList">
-                    <!-- 動態生成檔案項目 -->
+                <!-- 檔案列表 -->
+                <div x-show="listMode === 'file'" class="file-list" id="fileList">
+                    <template x-for="(file, i) in fileList" :key="file.path">
+                        <div @click="switchToFile(i, 'first')"
+                             :class="i === currentFileIndex ? 'file-item active' : 'file-item'">
+                            <!-- 移除按鈕 -->
+                            <button class="btn btn-link btn-sm p-0 btn-remove-file text-muted"
+                                    @click.stop="removeFile(i)"
+                                    title="移除此檔案">
+                                <i class="bi bi-x"></i>
+                            </button>
+
+                            <!-- 檔案圖示 -->
+                            <i class="bi bi-file-earmark-play file-icon"></i>
+
+                            <!-- 檔名 -->
+                            <span class="file-name" :title="file.path" x-text="file.filename">-</span>
+
+                            <!-- 狀態圖示 -->
+                            <span :class="fileStatusClass(file)"
+                                  x-text="fileStatusIcon(file)"></span>
+
+                            <!-- 動作按鈕：產生 NFO -->
+                            <button x-show="canScrapeFile(file) && !file.isScraping && file.scrapeStatus !== 'done'"
+                                    @click.stop="scrapeSingle(i)"
+                                    class="btn btn-sm btn-outline btn-success btn-scrape-single"
+                                    title="產生 NFO + 封面">
+                                <i class="bi bi-folder-plus"></i>
+                            </button>
+
+                            <!-- Scraping spinner -->
+                            <span x-show="file.isScraping" class="loading loading-spinner loading-sm"></span>
+
+                            <!-- Scrape done -->
+                            <button x-show="file.scrapeStatus === 'done'"
+                                    class="btn btn-sm btn-success btn-scrape-single" disabled>
+                                <i class="bi bi-check"></i>
+                            </button>
+
+                            <!-- Scrape failed -->
+                            <button x-show="file.scrapeStatus === 'failed'"
+                                    @click.stop="scrapeSingle(i)"
+                                    class="btn btn-sm btn-error btn-scrape-single"
+                                    title="重試">
+                                失敗
+                            </button>
+
+                            <!-- 動作按鈕：手動輸入番號 -->
+                            <button x-show="needsNumberInput(file)"
+                                    @click.stop="enterNumber(i)"
+                                    class="btn btn-sm btn-outline btn-warning btn-enter-number"
+                                    title="手動輸入番號">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- 搜尋結果列表 -->
+                <div x-show="listMode === 'search'" class="file-list">
+                    <template x-for="(result, i) in searchResults" :key="(result.number || '') + '_' + i">
+                        <div @click="switchToSearchResult(i)"
+                             :class="i === currentIndex ? 'file-item active' : 'file-item'">
+                            <span style="flex-shrink:0;font-weight:500;color:#0d6efd;min-width:90px;"
+                                  x-text="result.number || '-'">-</span>
+                            <span style="flex-shrink:0;min-width:80px;color:#6c757d;"
+                                  x-text="(result.actors || []).slice(0,2).join(', ') || '-'">-</span>
+                            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                                  x-text="result.title || '-'">-</span>
+                        </div>
+                    </template>
                 </div>
             </div>
         </div>
