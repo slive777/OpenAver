@@ -566,83 +566,8 @@ function updateNavigation() {
     }
 }
 
-function navigateResult(delta) {
-    const { state } = window.SearchCore;
-    const newIndex = state.currentIndex + delta;
-
-    // 往左且已在第一個 → 切換到上一個檔案
-    if (delta < 0 && newIndex < 0) {
-        if (state.currentFileIndex > 0) {
-            window.SearchFile.switchToFile(state.currentFileIndex - 1, 'last');
-        }
-        return;
-    }
-
-    // 往右且到最後一個
-    if (delta > 0 && newIndex >= state.searchResults.length) {
-        if (state.hasMoreResults && !state.isLoadingMore) {
-            loadMoreResults();
-            return;
-        }
-        if (state.currentFileIndex < state.fileList.length - 1) {
-            window.SearchFile.switchToFile(state.currentFileIndex + 1, 'first');
-            return;
-        }
-        return;
-    }
-
-    if (newIndex >= 0 && newIndex < state.searchResults.length) {
-        state.currentIndex = newIndex;
-        displayResult(state.searchResults[state.currentIndex]);
-        updateNavigation();
-        preloadImages(state.currentIndex + 1, 3);
-        if (state.listMode === 'search') {
-            window.SearchFile.renderSearchResultsList();
-        }
-    }
-}
-
-async function loadMoreResults() {
-    const { state, dom } = window.SearchCore;
-
-    if (state.isLoadingMore || !state.hasMoreResults || !state.currentQuery) return;
-
-    state.isLoadingMore = true;
-    const newOffset = state.currentOffset + state.PAGE_SIZE;
-
-    dom.btnNext.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
-    dom.btnNext.disabled = true;
-
-    try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(state.currentQuery)}&offset=${newOffset}&limit=${state.PAGE_SIZE}`);
-        const data = await response.json();
-
-        if (response.ok && data.success && data.data && data.data.length > 0) {
-            state.searchResults = state.searchResults.concat(data.data);
-            state.currentOffset = newOffset;
-            state.hasMoreResults = data.has_more;
-
-            state.currentIndex = state.searchResults.length - data.data.length;
-            displayResult(state.searchResults[state.currentIndex]);
-            updateNavigation();
-
-            preloadImages(state.currentIndex + 1, 5);
-
-            if (state.listMode === 'search') {
-                window.SearchFile.renderSearchResultsList();
-            }
-        } else {
-            state.hasMoreResults = false;
-            updateNavigation();
-        }
-    } catch (err) {
-        console.error('載入更多失敗:', err);
-    } finally {
-        state.isLoadingMore = false;
-        dom.btnNext.innerHTML = '<i class="bi bi-chevron-right"></i>';
-        updateNavigation();
-    }
-}
+// T1b: navigateResult, loadMoreResults 已遷移到 Alpine state.js
+// 保留 updateNavigation 供舊 JS 使用（T1c 完全遷移後才刪除）
 
 // === 標題編輯功能 ===
 
@@ -1230,9 +1155,8 @@ window.SearchUI = {
     displayResult,
     displayCoverError,
     preloadImages,
-    updateNavigation,
-    navigateResult,
-    loadMoreResults,
+    updateNavigation,  // 保留（T1c 才完全移除，暫時供舊邏輯用）
+    navigateResult: null,  // 在 state.js setupBridgeLayer() 設定
     escapeHtml,
     updateEditButtonState,
     updateChineseTitleDisplay,

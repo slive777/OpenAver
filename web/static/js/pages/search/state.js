@@ -50,6 +50,10 @@ function searchPage() {
         detailDone: 0,
         detailTotal: 0,
 
+        // ===== Search State Machine =====
+        requestId: 0,              // 搜尋請求計數器（防競態）
+        activeEventSource: null,   // 當前 SSE 連線
+
         // ===== Constants =====
         PAGE_SIZE: 20,
         MODE_TEXT: {
@@ -65,6 +69,38 @@ function searchPage() {
         // ===== Computed Properties =====
         // 修正 2: hasContent 改為 plain data property（由 updateClearButton() 同步）
         hasContent: false,
+
+        canGoPrev() {
+            return this.currentIndex > 0 || this.currentFileIndex > 0;
+        },
+
+        canGoNext() {
+            return this.currentIndex < this.searchResults.length - 1 ||
+                   this.hasMoreResults ||
+                   this.currentFileIndex < this.fileList.length - 1;
+        },
+
+        showNavigation() {
+            const hasMultipleResults = this.searchResults.length > 1 || this.hasMoreResults;
+            const hasMultipleFiles = this.fileList.length > 1;
+            return hasMultipleResults || hasMultipleFiles;
+        },
+
+        navIndicatorText() {
+            if (this.fileList.length > 1) {
+                return `${this.currentFileIndex + 1}/${this.fileList.length}`;
+            } else {
+                const total = this.hasMoreResults
+                    ? this.searchResults.length + '+'
+                    : this.searchResults.length;
+                return `${this.currentIndex + 1}/${total}`;
+            }
+        },
+
+        detailProgressPercent() {
+            if (this.detailTotal === 0) return 0;
+            return Math.round((this.detailDone / this.detailTotal) * 100);
+        },
 
         // ===== Lifecycle =====
         async init() {
@@ -221,6 +257,15 @@ function searchPage() {
                 window.SearchCore.saveState = () => this.saveState();
                 window.SearchCore.clearState = () => this.clearState();
             }
+
+            // T1b: 新增搜尋流程 bridge
+            // 讓舊 JS 可以觸發 Alpine 搜尋
+            if (window.SearchCore) {
+                window.SearchCore.doSearch = (query) => this.doSearch(query);
+            }
+            if (window.SearchUI) {
+                window.SearchUI.navigateResult = (delta) => this.navigate(delta);
+            }
         },
 
         // ===== Methods (Placeholder for T1b-T1d) =====
@@ -252,9 +297,454 @@ function searchPage() {
             this.listMode = null;
             this.pageState = 'empty';
             this.hasContent = false;
+        },
+
+        // ===== T1b: Search Methods =====
+
+        /**
+         * 執行搜尋（SSE 串流）
+         * @param {string} query - 搜尋關鍵字（可選，預設讀取 input）
+         */
+        async doSearch(query) {
+            // 1. 取得搜尋關鍵字
+            if (!query) {
+                const input = document.getElementById('searchQuery');
+                query = input?.value?.trim();
+            }
+            if (!query) return;
+
+            // 2. 取消現有搜尋
+            this.cancelSearch();
+
+            // 3. 新搜尋請求
+            this.requestId++;
+            const currentRequestId = this.requestId;
+
+            // 4. 關閉 Gallery（如果有）
+            if (window.SearchUI?.hideGallery) {
+                const galleryView = document.getElementById('galleryView');
+                if (galleryView && !galleryView.classList.contains('hidden')) {
+                    window.SearchUI.hideGallery(false);
+                }
+            }
+
+            // 5. 初始化狀態（修正 1: 使用 showState）
+            window.SearchUI.showState('loading');
+            this.progressLog = '搜尋中...';
+            this.currentMode = '';
+            this.detailDone = 0;
+            this.detailTotal = 0;
+            this.searchResults = [];
+            this.currentIndex = 0;
+            this.fileList = [];
+            this.currentFileIndex = 0;
+            this.listMode = null;
+            this.currentQuery = query;
+            this.currentOffset = 0;
+            this.hasMoreResults = false;
+
+            // 隱藏檔案列表
+            const fileListSection = document.getElementById('fileListSection');
+            if (fileListSection) {
+                fileListSection.classList.add('hidden');
+            }
+
+            // 6. 建立 SSE 連線
+            this.activeEventSource = new EventSource(`/api/search/stream?q=${encodeURIComponent(query)}`);
+            const eventSource = this.activeEventSource;
+
+            eventSource.onmessage = (event) => {
+                // 檢查是否已被取消
+                if (currentRequestId !== this.requestId) {
+                    eventSource.close();
+                    return;
+                }
+
+                try {
+                    const data = JSON.parse(event.data);
+
+                    if (data.type === 'mode') {
+                        this.currentMode = data.mode;
+                        this.progressLog = `${this.MODE_TEXT[data.mode] || data.mode}...`;
+                    }
+                    else if (data.type === 'status') {
+                        this.handleSearchStatus(data.source, data.status);
+                    }
+                    else if (data.type === 'result') {
+                        eventSource.close();
+                        this.activeEventSource = null;
+
+                        if (data.success && data.data && data.data.length > 0) {
+                            // 修正 2: 更新 Alpine state
+                            this.searchResults = data.data;
+                            this.currentIndex = 0;
+                            this.hasMoreResults = data.has_more || false;
+
+                            // 同步回 core.js
+                            const coreState = window.SearchCore.state;
+                            coreState.searchResults = this.searchResults;
+                            coreState.currentIndex = this.currentIndex;
+                            coreState.hasMoreResults = this.hasMoreResults;
+                            coreState.listMode = 'search';
+                            coreState.currentQuery = this.currentQuery;
+                            coreState.currentOffset = this.currentOffset;
+
+                            // 查詢本地狀態（非同步）
+                            if (window.SearchCore?.checkLocalStatus) {
+                                window.SearchCore.checkLocalStatus(this.searchResults);
+                            }
+
+                            // 優先顯示 Gallery（如果有 gallery_url）
+                            if (data.gallery_url && window.SearchUI?.showGallery) {
+                                window.SearchUI.showGallery(data.gallery_url);
+                                this.listMode = 'search';
+                                if (window.SearchFile?.renderSearchResultsList) {
+                                    window.SearchFile.renderSearchResultsList();
+                                }
+                                this.hasContent = true;
+                                window.SearchCore.updateClearButton();
+                                this.saveState();
+                            } else {
+                                // 原有的詳細資料卡顯示邏輯
+                                if (window.SearchUI?.displayResult) {
+                                    window.SearchUI.displayResult(this.searchResults[0]);
+                                }
+                                if (window.SearchUI?.updateNavigation) {
+                                    window.SearchUI.updateNavigation();
+                                }
+                                window.SearchUI.showState('result');
+                                if (window.SearchUI?.preloadImages) {
+                                    window.SearchUI.preloadImages(1, 5);
+                                }
+                                this.listMode = 'search';
+                                if (window.SearchFile?.renderSearchResultsList) {
+                                    window.SearchFile.renderSearchResultsList();
+                                }
+                                this.hasContent = true;
+                                window.SearchCore.updateClearButton();
+                            }
+                        } else {
+                            window.SearchUI.showState('error');
+                            const errorMsg = document.getElementById('errorMessage');
+                            if (errorMsg) {
+                                errorMsg.textContent = '找不到資料';
+                            }
+                        }
+                    }
+                    else if (data.type === 'error') {
+                        eventSource.close();
+                        this.activeEventSource = null;
+                        window.SearchUI.showState('error');
+                        const errorMsg = document.getElementById('errorMessage');
+                        if (errorMsg) {
+                            errorMsg.textContent = data.message || '搜尋失敗';
+                        }
+                    }
+                } catch (err) {
+                    console.error('Parse error:', err);
+                }
+            };
+
+            eventSource.onerror = () => {
+                // 檢查是否已被取消
+                if (currentRequestId !== this.requestId) {
+                    eventSource.close();
+                    return;
+                }
+
+                eventSource.close();
+                this.activeEventSource = null;
+                this.fallbackSearch(query);
+            };
+        },
+
+        /**
+         * 傳統 API 回退（SSE 失敗時）
+         * @param {string} query - 搜尋關鍵字
+         */
+        async fallbackSearch(query) {
+            // 關閉 Gallery（如果有）
+            if (window.SearchUI?.hideGallery) {
+                const galleryView = document.getElementById('galleryView');
+                if (galleryView && !galleryView.classList.contains('hidden')) {
+                    window.SearchUI.hideGallery(false);
+                }
+            }
+
+            try {
+                const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+
+                if (response.ok && data.success && data.data && data.data.length > 0) {
+                    // 修正 2: 更新 Alpine state
+                    this.searchResults = data.data;
+                    this.currentIndex = 0;
+                    this.hasMoreResults = data.has_more || false;
+
+                    // 同步回 core.js
+                    const coreState = window.SearchCore.state;
+                    coreState.searchResults = this.searchResults;
+                    coreState.currentIndex = this.currentIndex;
+                    coreState.hasMoreResults = this.hasMoreResults;
+                    coreState.listMode = 'search';
+                    coreState.currentQuery = this.currentQuery;
+                    coreState.currentOffset = this.currentOffset;
+
+                    // 查詢本地狀態
+                    if (window.SearchCore?.checkLocalStatus) {
+                        window.SearchCore.checkLocalStatus(this.searchResults);
+                    }
+
+                    // 優先顯示 Gallery
+                    if (data.gallery_url && window.SearchUI?.showGallery) {
+                        window.SearchUI.showGallery(data.gallery_url);
+                        this.listMode = 'search';
+                        if (window.SearchFile?.renderSearchResultsList) {
+                            window.SearchFile.renderSearchResultsList();
+                        }
+                        this.hasContent = true;
+                        window.SearchCore.updateClearButton();
+                        this.saveState();
+                    } else {
+                        if (window.SearchUI?.displayResult) {
+                            window.SearchUI.displayResult(this.searchResults[0]);
+                        }
+                        if (window.SearchUI?.updateNavigation) {
+                            window.SearchUI.updateNavigation();
+                        }
+                        window.SearchUI.showState('result');
+                        if (window.SearchUI?.preloadImages) {
+                            window.SearchUI.preloadImages(1, 5);
+                        }
+                        this.listMode = 'search';
+                        if (window.SearchFile?.renderSearchResultsList) {
+                            window.SearchFile.renderSearchResultsList();
+                        }
+                        this.hasContent = true;
+                        window.SearchCore.updateClearButton();
+                    }
+                } else {
+                    window.SearchUI.showState('error');
+                    const errorMsg = document.getElementById('errorMessage');
+                    if (errorMsg) {
+                        errorMsg.textContent = data.error || '找不到資料';
+                    }
+                }
+            } catch (err) {
+                window.SearchUI.showState('error');
+                const errorMsg = document.getElementById('errorMessage');
+                if (errorMsg) {
+                    errorMsg.textContent = '網路錯誤: ' + err.message;
+                }
+            }
+        },
+
+        /**
+         * 取消搜尋（修正 3: 恢復到上一個有效狀態）
+         */
+        cancelSearch() {
+            if (this.activeEventSource) {
+                this.activeEventSource.close();
+                this.activeEventSource = null;
+            }
+            this.requestId++;
+
+            // 恢復到上一個有效狀態
+            if (this.searchResults.length > 0) {
+                window.SearchUI.showState('result');
+            } else {
+                window.SearchUI.showState('empty');
+            }
+        },
+
+        /**
+         * 處理 SSE 狀態更新
+         * @param {string} source - 來源（javbus/jav321）
+         * @param {string} status - 狀態字串
+         */
+        handleSearchStatus(source, status) {
+            if (source === 'mode') {
+                this.currentMode = status;
+                this.progressLog = `${this.MODE_TEXT[status] || status}...`;
+                return;
+            }
+
+            if (source === 'javbus' || source === 'jav321') {
+                if (status === 'searching') {
+                    this.progressLog = `${this.MODE_TEXT[this.currentMode] || '搜尋'}...`;
+                }
+                else if (status.startsWith('found:')) {
+                    const count = status.split(':')[1];
+                    if (count === '0') {
+                        this.progressLog = `${this.MODE_TEXT[this.currentMode] || '搜尋'}：無結果`;
+                    } else {
+                        this.progressLog = `${this.MODE_TEXT[this.currentMode] || '搜尋'}：找到 ${count} 筆`;
+                    }
+                }
+                else if (status === 'fetching_details') {
+                    this.progressLog = '抓取詳情...';
+                }
+                else if (status.startsWith('details:')) {
+                    const parts = status.split(':')[1].split('/');
+                    if (parts.length === 2) {
+                        this.detailDone = parseInt(parts[0]);
+                        this.detailTotal = parseInt(parts[1]);
+                        this.progressLog = `抓取詳情 ${this.detailDone}/${this.detailTotal}`;
+                    }
+                }
+                else if (status === 'failed') {
+                    this.progressLog = `${this.MODE_TEXT[this.currentMode] || '搜尋'}：失敗`;
+                }
+            }
+        },
+
+        // ===== Navigation Methods =====
+
+        /**
+         * 導航到相對位置
+         * @param {number} delta - 偏移量（-1 = 上一個，1 = 下一個）
+         */
+        navigate(delta) {
+            const newIndex = this.currentIndex + delta;
+
+            // 往左且已在第一個 → 切換到上一個檔案
+            if (delta < 0 && newIndex < 0) {
+                if (this.currentFileIndex > 0 && window.SearchFile?.switchToFile) {
+                    window.SearchFile.switchToFile(this.currentFileIndex - 1, 'last');
+                }
+                return;
+            }
+
+            // 往右且到最後一個
+            if (delta > 0 && newIndex >= this.searchResults.length) {
+                if (this.hasMoreResults && !this.isLoadingMore) {
+                    this.loadMore();
+                    return;
+                }
+                if (this.currentFileIndex < this.fileList.length - 1 && window.SearchFile?.switchToFile) {
+                    window.SearchFile.switchToFile(this.currentFileIndex + 1, 'first');
+                    return;
+                }
+                return;
+            }
+
+            // 正常範圍內導航
+            if (newIndex >= 0 && newIndex < this.searchResults.length) {
+                this.currentIndex = newIndex;
+
+                // 修正 2: 同步回 core.js
+                const coreState = window.SearchCore?.state;
+                if (coreState) {
+                    coreState.currentIndex = this.currentIndex;
+                }
+
+                if (window.SearchUI?.displayResult) {
+                    window.SearchUI.displayResult(this.searchResults[this.currentIndex]);
+                }
+                if (window.SearchUI?.updateNavigation) {
+                    window.SearchUI.updateNavigation();
+                }
+                if (window.SearchUI?.preloadImages) {
+                    window.SearchUI.preloadImages(this.currentIndex + 1, 3);
+                }
+                if (this.listMode === 'search' && window.SearchFile?.renderSearchResultsList) {
+                    window.SearchFile.renderSearchResultsList();
+                }
+            }
+        },
+
+        /**
+         * 載入更多結果
+         */
+        async loadMore() {
+            if (this.isLoadingMore || !this.hasMoreResults || !this.currentQuery) return;
+
+            this.isLoadingMore = true;
+            const newOffset = this.currentOffset + this.PAGE_SIZE;
+
+            // 按鈕顯示 spinner（暫時用舊方式，T1c 才改 Alpine）
+            const btnNext = document.getElementById('btnNext');
+            if (btnNext) {
+                btnNext.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
+                btnNext.disabled = true;
+            }
+
+            try {
+                const response = await fetch(
+                    `/api/search?q=${encodeURIComponent(this.currentQuery)}&offset=${newOffset}&limit=${this.PAGE_SIZE}`
+                );
+                const data = await response.json();
+
+                if (response.ok && data.success && data.data && data.data.length > 0) {
+                    this.searchResults = this.searchResults.concat(data.data);
+                    this.currentOffset = newOffset;
+                    this.hasMoreResults = data.has_more;
+                    this.currentIndex = this.searchResults.length - data.data.length;
+
+                    // 修正 2: 同步回 core.js
+                    const coreState = window.SearchCore?.state;
+                    if (coreState) {
+                        coreState.searchResults = this.searchResults;
+                        coreState.currentOffset = this.currentOffset;
+                        coreState.hasMoreResults = this.hasMoreResults;
+                        coreState.currentIndex = this.currentIndex;
+                    }
+
+                    if (window.SearchUI?.displayResult) {
+                        window.SearchUI.displayResult(this.searchResults[this.currentIndex]);
+                    }
+                    if (window.SearchUI?.updateNavigation) {
+                        window.SearchUI.updateNavigation();
+                    }
+                    if (window.SearchUI?.preloadImages) {
+                        window.SearchUI.preloadImages(this.currentIndex + 1, 5);
+                    }
+                    if (this.listMode === 'search' && window.SearchFile?.renderSearchResultsList) {
+                        window.SearchFile.renderSearchResultsList();
+                    }
+                } else {
+                    this.hasMoreResults = false;
+                    if (window.SearchUI?.updateNavigation) {
+                        window.SearchUI.updateNavigation();
+                    }
+                }
+            } catch (err) {
+                console.error('載入更多失敗:', err);
+            } finally {
+                this.isLoadingMore = false;
+                if (btnNext) {
+                    btnNext.innerHTML = '<i class="bi bi-chevron-right"></i>';
+                }
+                if (window.SearchUI?.updateNavigation) {
+                    window.SearchUI.updateNavigation();
+                }
+
+                // 同步回 core.js
+                const coreState = window.SearchCore?.state;
+                if (coreState) {
+                    coreState.isLoadingMore = this.isLoadingMore;
+                }
+            }
+        },
+
+        /**
+         * 處理鍵盤導航
+         * @param {KeyboardEvent} event - 鍵盤事件
+         */
+        handleKeydown(event) {
+            // 忽略在搜尋框內的按鍵
+            const queryInput = document.getElementById('searchQuery');
+            if (document.activeElement === queryInput) return;
+
+            if (event.key === 'ArrowLeft') {
+                event.preventDefault();
+                this.navigate(-1);
+            } else if (event.key === 'ArrowRight') {
+                event.preventDefault();
+                this.navigate(1);
+            }
         }
 
-        // T1b will add: doSearch(), navigate(), handleKeydown()
         // T1c will add: displayResult(), editTitle()
         // T1d will add: renderFileList(), searchAll(), scrapeAll()
     };

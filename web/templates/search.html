@@ -15,7 +15,7 @@
     </div>
 </div>
 
-<div class="search-container ds-page" x-data="searchPage()">
+<div class="search-container ds-page" x-data="searchPage()" @keydown.window="handleKeydown($event)">
     <!-- Gallery 視圖容器 -->
     <div id="galleryView" class="hidden">
         <iframe id="galleryFrame" src="" sandbox="allow-same-origin allow-scripts"></iframe>
@@ -23,11 +23,19 @@
 
     <!-- 搜尋框 -->
     <div class="search-bar">
-        <form id="searchForm">
+        <form id="searchForm" @submit.prevent="doSearch()">
             <div class="spotlight-search">
                 <i class="bi bi-search search-icon-left"></i>
                 <input type="text" id="searchQuery" name="q" placeholder="搜尋番號、女優或拖入檔案..." autocomplete="off">
                 <div class="search-actions-right">
+                    <!-- 取消搜尋按鈕（loading 狀態顯示） -->
+                    <button type="button"
+                            x-show="pageState === 'loading'"
+                            @click="cancelSearch()"
+                            class="btn-icon"
+                            title="取消搜尋">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
                     <button type="button" id="btnBackToDetail" class="btn-icon hidden" title="返回詳細資料">
                         <i class="bi bi-arrow-left"></i>
                     </button>
@@ -71,18 +79,18 @@
             <div class="progress-container">
                 <!-- 搜尋標題 -->
                 <div class="progress-header">
-                    <span class="progress-query" id="progressQuery">"搜尋中"</span>
+                    <span class="progress-query" x-text="'&quot;' + currentQuery + '&quot;'"></span>
                 </div>
 
                 <!-- 單行日誌 -->
-                <div class="progress-log" id="progressLog">
+                <div class="progress-log" x-text="progressLog">
                     搜尋中...
                 </div>
 
                 <!-- 詳情進度條 -->
-                <div class="detail-progress" id="detailProgress">
-                    <div class="detail-bar" id="detailBar"></div>
-                    <span class="detail-text" id="detailText">0 / 0</span>
+                <div class="detail-progress" x-show="detailTotal > 0">
+                    <div class="detail-bar" :style="'width:' + detailProgressPercent + '%'"></div>
+                    <span class="detail-text" x-text="detailDone + ' / ' + detailTotal">0 / 0</span>
                 </div>
             </div>
         </div>
@@ -93,12 +101,18 @@
             <p class="state-page-text error-text" id="errorMessage">搜尋失敗</p>
             <small class="state-page-hint">請檢查番號格式或稍後再試</small>
             <!-- 多檔案模式導航 -->
-            <div class="error-nav hidden" id="errorNav">
-                <button class="btn btn-sm btn-outline btn-neutral" id="errorBtnPrev" title="上一個 (←)">
+            <div class="error-nav" x-show="fileList.length > 1" id="errorNav">
+                <button class="btn btn-sm btn-outline btn-neutral"
+                        :disabled="!canGoPrev"
+                        @click="navigate(-1)"
+                        title="上一個 (←)">
                     <i class="bi bi-chevron-left"></i>
                 </button>
-                <span class="error-nav-indicator" id="errorNavIndicator">1/5</span>
-                <button class="btn btn-sm btn-outline btn-neutral" id="errorBtnNext" title="下一個 (→)">
+                <span class="error-nav-indicator" x-text="navIndicatorText">1/5</span>
+                <button class="btn btn-sm btn-outline btn-neutral"
+                        :disabled="!canGoNext"
+                        @click="navigate(1)"
+                        title="下一個 (→)">
                     <i class="bi bi-chevron-right"></i>
                 </button>
             </div>
@@ -111,14 +125,24 @@
                 <div class="av-card-full-cover">
                     <div class="av-card-full-cover-wrapper">
                         <img id="resultCover" class="av-card-full-cover-img" src="" alt="封面">
-                        <button class="nav-btn prev hidden" id="btnPrev" title="上一個 (←)">
+                        <button class="nav-btn prev" id="btnPrev"
+                                x-show="showNavigation"
+                                :disabled="!canGoPrev"
+                                @click="navigate(-1)"
+                                title="上一個 (←)">
                             <i class="bi bi-chevron-left"></i>
                         </button>
-                        <button class="nav-btn next hidden" id="btnNext" title="下一個 (→)">
+                        <button class="nav-btn next" id="btnNext"
+                                x-show="showNavigation"
+                                :disabled="!canGoNext"
+                                @click="navigate(1)"
+                                title="下一個 (→)">
                             <i class="bi bi-chevron-right"></i>
                         </button>
-                        <div class="nav-indicator hidden" id="navIndicator">
-                            <span id="currentIndex">1</span> / <span id="totalCount">1</span>
+                        <div class="nav-indicator" id="navIndicator"
+                             x-show="showNavigation"
+                             x-text="navIndicatorText">
+                            1 / 1
                         </div>
                     </div>
                 </div>

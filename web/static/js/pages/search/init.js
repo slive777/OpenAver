@@ -57,42 +57,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const { state, dom } = window.SearchCore;
 
-    // 3. 表單提交
-    dom.form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const query = dom.queryInput.value.trim();
-        if (query) {
-            window.SearchCore.doSearch(query);
-        }
-    });
+    // T1b: 表單提交、導航按鈕、鍵盤導航已遷移到 Alpine（@submit.prevent, @click, @keydown.window）
 
-    // 4. 導航按鈕
-    dom.btnPrev.addEventListener('click', () => window.SearchUI.navigateResult(-1));
-    dom.btnNext.addEventListener('click', () => window.SearchUI.navigateResult(1));
-
-    // 5. Error 狀態導航按鈕
-    dom.errorBtnPrev.addEventListener('click', () => window.SearchUI.navigateResult(-1));
-    dom.errorBtnNext.addEventListener('click', () => window.SearchUI.navigateResult(1));
-
-    // 5.5. Gallery 返回按鈕
+    // 5.5. Gallery 返回按鈕（T2b 才遷移）
     dom.btnBackToDetail.addEventListener('click', () => {
         window.SearchUI.hideGallery();
     });
 
-    // 6. 鍵盤導航
-    document.addEventListener('keydown', (e) => {
-        if (document.activeElement === dom.queryInput) return;
-
-        if (e.key === 'ArrowLeft') {
-            e.preventDefault();
-            window.SearchUI.navigateResult(-1);
-        } else if (e.key === 'ArrowRight') {
-            e.preventDefault();
-            window.SearchUI.navigateResult(1);
-        }
-    });
-
-    // 7. 清空按鈕
+    // 7. 清空按鈕（T1c 才遷移）
     dom.btnClear.addEventListener('click', window.SearchCore.clearAll);
 
     // 8. 批次按鈕

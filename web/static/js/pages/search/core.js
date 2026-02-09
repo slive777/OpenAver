@@ -403,6 +403,7 @@ function updateClearButton() {
 }
 
 // === 進度指示器 ===
+// T1b: initProgress, updateLog, updateDetailProgress, handleSearchStatus 已遷移到 Alpine state.js
 
 const MODE_TEXT = {
     'exact': '完整番號搜尋',
@@ -415,208 +416,9 @@ const MODE_TEXT = {
 
 let currentMode = '';
 
-function initProgress(query) {
-    if (dom.progressQuery) dom.progressQuery.textContent = `"${query}"`;
-    if (dom.progressLog) dom.progressLog.textContent = '搜尋中...';
-    if (dom.detailProgress) dom.detailProgress.classList.remove('show');
-}
-
-function updateLog(text) {
-    if (dom.progressLog) dom.progressLog.textContent = text;
-}
-
-function updateDetailProgress(done, total) {
-    if (total > 0 && dom.detailProgress) {
-        dom.detailProgress.classList.add('show');
-        const percent = Math.round((done / total) * 100);
-        if (dom.detailBar) dom.detailBar.style.width = `${percent}%`;
-        if (dom.detailText) dom.detailText.textContent = `${done} / ${total}`;
-    }
-}
-
-function handleSearchStatus(source, status) {
-    if (source === 'mode') {
-        currentMode = status;
-        updateLog(`${MODE_TEXT[status] || status}...`);
-        return;
-    }
-
-    if (source === 'javbus' || source === 'jav321') {
-        if (status === 'searching') {
-            updateLog(`${MODE_TEXT[currentMode] || '搜尋'}...`);
-        }
-        else if (status.startsWith('found:')) {
-            const count = status.split(':')[1];
-            if (count === '0') {
-                updateLog(`${MODE_TEXT[currentMode] || '搜尋'}：無結果`);
-            } else {
-                updateLog(`${MODE_TEXT[currentMode] || '搜尋'}：找到 ${count} 筆`);
-            }
-        }
-        else if (status === 'fetching_details') {
-            updateLog('抓取詳情...');
-        }
-        else if (status.startsWith('details:')) {
-            const parts = status.split(':')[1].split('/');
-            if (parts.length === 2) {
-                const done = parseInt(parts[0]);
-                const total = parseInt(parts[1]);
-                updateLog(`抓取詳情 ${done}/${total}`);
-                updateDetailProgress(done, total);
-            }
-        }
-        else if (status === 'failed') {
-            updateLog(`${MODE_TEXT[currentMode] || '搜尋'}：失敗`);
-        }
-    }
-}
-
 // === 搜尋邏輯 ===
-
-/**
- * 執行搜尋（SSE 串流）
- */
-function doSearch(query) {
-    if (!query) return;
-
-    // 先關閉現有的 Gallery（如果有顯示）
-    if (window.SearchUI.hideGallery) {
-        const galleryView = dom.galleryView;
-        if (galleryView && !galleryView.classList.contains('hidden')) {
-            window.SearchUI.hideGallery(false);
-        }
-    }
-
-    window.SearchUI.showState('loading');
-    initProgress(query);
-    searchResults = [];
-    currentIndex = 0;
-
-    // 清空多檔案列表
-    fileList = [];
-    currentFileIndex = 0;
-    listMode = null;
-    if (dom.fileListSection) dom.fileListSection.classList.add('hidden');
-
-    // 重設分頁狀態
-    currentQuery = query;
-    currentOffset = 0;
-    hasMoreResults = false;
-
-    const eventSource = new EventSource(`/api/search/stream?q=${encodeURIComponent(query)}`);
-
-    eventSource.onmessage = function (event) {
-        try {
-            const data = JSON.parse(event.data);
-
-            if (data.type === 'mode') {
-                currentMode = data.mode;
-                updateLog(`${MODE_TEXT[data.mode] || '搜尋'}...`);
-            }
-            else if (data.type === 'status') {
-                handleSearchStatus(data.source, data.status);
-            }
-            else if (data.type === 'result') {
-                eventSource.close();
-
-                if (data.success && data.data && data.data.length > 0) {
-                    searchResults = data.data;
-                    currentIndex = 0;
-                    hasMoreResults = data.has_more || false;
-
-                    // 查詢本地狀態（非同步，不阻塞顯示）
-                    checkLocalStatus(searchResults);
-
-                    // 優先顯示 Gallery（如果有 gallery_url）
-                    if (data.gallery_url) {
-                        window.SearchUI.showGallery(data.gallery_url);
-                        listMode = 'search';
-                        window.SearchFile.renderSearchResultsList();
-                        updateClearButton();
-                        window.SearchCore.saveState();
-                    } else {
-                        // 原有的詳細資料卡顯示邏輯
-                        window.SearchUI.displayResult(searchResults[0]);
-                        window.SearchUI.updateNavigation();
-                        window.SearchUI.showState('result');
-                        window.SearchUI.preloadImages(1, 5);
-                        listMode = 'search';
-                        window.SearchFile.renderSearchResultsList();
-                        updateClearButton();
-                    }
-                } else {
-                    document.getElementById('errorMessage').textContent = '找不到資料';
-                    window.SearchUI.showState('error');
-                }
-            }
-            else if (data.type === 'error') {
-                eventSource.close();
-                document.getElementById('errorMessage').textContent = data.message || '搜尋失敗';
-                window.SearchUI.showState('error');
-            }
-        } catch (err) {
-            console.error('Parse error:', err);
-        }
-    };
-
-    eventSource.onerror = function () {
-        eventSource.close();
-        fallbackSearch(query);
-    };
-}
-
-/**
- * 傳統 API 回退
- * [FALLBACK] 當 SSE (/api/search/stream) 失敗時降級為 REST API
- * 確保在不支援 SSE 的環境下仍可正常搜尋
- */
-async function fallbackSearch(query) {
-    // 先關閉現有的 Gallery（如果有顯示）
-    if (window.SearchUI.hideGallery) {
-        const galleryView = dom.galleryView;
-        if (galleryView && !galleryView.classList.contains('hidden')) {
-            window.SearchUI.hideGallery(false);
-        }
-    }
-
-    try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-        const data = await response.json();
-
-        if (response.ok && data.success && data.data && data.data.length > 0) {
-            searchResults = data.data;
-            currentIndex = 0;
-            hasMoreResults = data.has_more || false;
-
-            // 查詢本地狀態（非同步，不阻塞顯示）
-            checkLocalStatus(searchResults);
-
-            // 優先顯示 Gallery（如果有 gallery_url）
-            if (data.gallery_url) {
-                window.SearchUI.showGallery(data.gallery_url);
-                listMode = 'search';
-                window.SearchFile.renderSearchResultsList();
-                updateClearButton();
-                window.SearchCore.saveState();
-            } else {
-                // 原有的詳細資料卡顯示邏輯
-                window.SearchUI.displayResult(searchResults[0]);
-                window.SearchUI.updateNavigation();
-                window.SearchUI.showState('result');
-                window.SearchUI.preloadImages(1, 5);
-                listMode = 'search';
-                window.SearchFile.renderSearchResultsList();
-                updateClearButton();
-            }
-        } else {
-            document.getElementById('errorMessage').textContent = data.error || '找不到資料';
-            window.SearchUI.showState('error');
-        }
-    } catch (err) {
-        document.getElementById('errorMessage').textContent = '網路錯誤: ' + err.message;
-        window.SearchUI.showState('error');
-    }
-}
+// T1b: doSearch, fallbackSearch 已遷移到 Alpine state.js
+// 保留 module-level vars 供舊 JS 讀取
 
 // === 本地狀態查詢 ===
 
@@ -736,12 +538,8 @@ window.SearchCore = {
     clearState,
     clearAll,
     updateClearButton,
-    initProgress,
-    updateLog,
-    updateDetailProgress,
-    handleSearchStatus,
-    doSearch,
-    fallbackSearch,
+    // T1b: 這些函數已遷移到 Alpine，保留 bridge 指向（在 state.js setupBridgeLayer() 設定）
+    doSearch: null,
     hasJapanese,
     translateWithOllama,
     translateWithAI,
