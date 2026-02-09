@@ -89,7 +89,7 @@
 
                 <!-- 詳情進度條 -->
                 <div class="detail-progress" x-show="detailTotal > 0">
-                    <div class="detail-bar" :style="'width:' + detailProgressPercent + '%'"></div>
+                    <div class="detail-bar" :style="'width:' + detailProgressPercent() + '%'"></div>
                     <span class="detail-text" x-text="detailDone + ' / ' + detailTotal">0 / 0</span>
                 </div>
             </div>
@@ -103,14 +103,16 @@
             <!-- 多檔案模式導航 -->
             <div class="error-nav" x-show="fileList.length > 1" id="errorNav">
                 <button class="btn btn-sm btn-outline btn-neutral"
-                        :disabled="!canGoPrev"
+                        id="errorBtnPrev"
+                        :disabled="!canGoPrev()"
                         @click="navigate(-1)"
                         title="上一個 (←)">
                     <i class="bi bi-chevron-left"></i>
                 </button>
-                <span class="error-nav-indicator" x-text="navIndicatorText">1/5</span>
+                <span class="error-nav-indicator" id="errorNavIndicator" x-text="navIndicatorText()">1/5</span>
                 <button class="btn btn-sm btn-outline btn-neutral"
-                        :disabled="!canGoNext"
+                        id="errorBtnNext"
+                        :disabled="!canGoNext()"
                         @click="navigate(1)"
                         title="下一個 (→)">
                     <i class="bi bi-chevron-right"></i>
@@ -126,23 +128,25 @@
                     <div class="av-card-full-cover-wrapper">
                         <img id="resultCover" class="av-card-full-cover-img" src="" alt="封面">
                         <button class="nav-btn prev" id="btnPrev"
-                                x-show="showNavigation"
-                                :disabled="!canGoPrev"
+                                x-show="showNavigation()"
+                                :disabled="!canGoPrev()"
                                 @click="navigate(-1)"
                                 title="上一個 (←)">
                             <i class="bi bi-chevron-left"></i>
                         </button>
                         <button class="nav-btn next" id="btnNext"
-                                x-show="showNavigation"
-                                :disabled="!canGoNext"
+                                x-show="showNavigation()"
+                                :disabled="!canGoNext()"
                                 @click="navigate(1)"
                                 title="下一個 (→)">
                             <i class="bi bi-chevron-right"></i>
                         </button>
                         <div class="nav-indicator" id="navIndicator"
-                             x-show="showNavigation"
-                             x-text="navIndicatorText">
-                            1 / 1
+                             x-show="showNavigation()">
+                            <span id="currentIndex"
+                                  x-text="fileList.length > 1 ? (currentFileIndex + 1) : (currentIndex + 1)">1</span> /
+                            <span id="totalCount"
+                                  x-text="fileList.length > 1 ? fileList.length : (hasMoreResults ? (searchResults.length + '+') : searchResults.length)">1</span>
                         </div>
                     </div>
                 </div>

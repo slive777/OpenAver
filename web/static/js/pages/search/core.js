@@ -396,7 +396,7 @@ function updateClearButton() {
         dom.btnClear.classList.toggle('hidden', !hasContent);
     }
     // T1a: 同步 Alpine hasContent
-    const el = document.querySelector('[x-data]');
+    const el = document.querySelector('.search-container[x-data]');
     if (el && el._x_dataStack) {
         Alpine.$data(el).hasContent = hasContent;
     }

@@ -329,7 +329,7 @@ function showState(state) {
     else if (state === 'error') dom.errorState.classList.remove('hidden');
 
     // T1a: 同步 Alpine pageState
-    const el = document.querySelector('[x-data]');
+    const el = document.querySelector('.search-container[x-data]');
     if (el && el._x_dataStack) {
         Alpine.$data(el).pageState = state;
     }
