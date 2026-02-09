@@ -24,6 +24,10 @@ window.SearchStateMixin_GridMode = {
         this.lightboxOpen = true;
         // 同步 currentIndex（讓 Detail 與 Grid 保持一致）
         this.currentIndex = index;
+        const coreState = window.SearchCore?.state;
+        if (coreState) {
+            coreState.currentIndex = this.currentIndex;
+        }
     },
 
     /**
@@ -40,6 +44,10 @@ window.SearchStateMixin_GridMode = {
         if (this.lightboxIndex > 0) {
             this.lightboxIndex--;
             this.currentIndex = this.lightboxIndex;
+            const coreState = window.SearchCore?.state;
+            if (coreState) {
+                coreState.currentIndex = this.currentIndex;
+            }
         }
     },
 
@@ -50,6 +58,10 @@ window.SearchStateMixin_GridMode = {
         if (this.lightboxIndex < this.searchResults.length - 1) {
             this.lightboxIndex++;
             this.currentIndex = this.lightboxIndex;
+            const coreState = window.SearchCore?.state;
+            if (coreState) {
+                coreState.currentIndex = this.currentIndex;
+            }
         }
     },
 
@@ -80,6 +92,10 @@ window.SearchStateMixin_GridMode = {
     switchToDetail(index) {
         this.displayMode = 'detail';
         this.currentIndex = index;
+        const coreState = window.SearchCore?.state;
+        if (coreState) {
+            coreState.currentIndex = this.currentIndex;
+        }
         this.saveState();
     },
 

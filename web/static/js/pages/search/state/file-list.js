@@ -80,6 +80,7 @@ window.SearchStateMixin_FileList = {
                         this.searchingFileDirection = null;
 
                         this.listMode = 'file';
+                        this.displayMode = 'detail';
                         coreState.listMode = 'file';
 
                         if (data.success && data.data && data.data.length > 0) {
@@ -336,6 +337,7 @@ window.SearchStateMixin_FileList = {
         });
         this.currentFileIndex = 0;
         this.listMode = 'file';
+        this.displayMode = 'detail';
 
         // 同步到 core.js
         const coreState = window.SearchCore.state;

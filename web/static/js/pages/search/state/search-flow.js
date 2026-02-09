@@ -200,6 +200,9 @@ window.SearchStateMixin_SearchFlow = {
             if (savedRequestId !== this.requestId) return;
 
             if (response.ok && data.success && data.data && data.data.length > 0) {
+                // 更新 currentMode 從 response
+                this.currentMode = data.mode || this.currentMode;
+
                 // 修正 2: 更新 Alpine state
                 this.searchResults = data.data;
                 this.currentIndex = 0;
@@ -220,7 +223,7 @@ window.SearchStateMixin_SearchFlow = {
                 }
 
                 // T2b: 女優搜尋自動切 Grid（前端判斷取代舊 gallery_url 信號）
-                if (this.currentMode === 'actress' && this.appConfig?.search?.gallery_mode_enabled && data.data.length > 10) {
+                if (data.mode === 'actress' && this.appConfig?.search?.gallery_mode_enabled && data.data.length > 10) {
                     this.displayMode = 'grid';
                 }
 

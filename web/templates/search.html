@@ -334,7 +334,7 @@
             </div>
 
             <!-- T2a: Grid Mode（封面牆） -->
-            <div class="search-grid ds-gallery-composition" x-show="displayMode === 'grid'" x-cloak>
+            <div class="search-grid ds-gallery-composition" x-show="displayMode === 'grid' && listMode === 'search'" x-cloak>
                 <template x-for="(result, index) in searchResults" :key="result.number + '_' + index">
                     <div class="av-card-preview"
                          @click="openLightbox(index)"
