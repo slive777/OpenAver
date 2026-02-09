@@ -395,6 +395,11 @@ function updateClearButton() {
     if (dom.btnClear) {
         dom.btnClear.classList.toggle('hidden', !hasContent);
     }
+    // T1a: 同步 Alpine hasContent
+    const el = document.querySelector('[x-data]');
+    if (el && el._x_dataStack) {
+        Alpine.$data(el).hasContent = hasContent;
+    }
 }
 
 // === 進度指示器 ===

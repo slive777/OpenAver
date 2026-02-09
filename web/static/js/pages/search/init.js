@@ -52,22 +52,10 @@ async function loadFavoriteFolder() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    // 初始化 DOM 引用
-    window.SearchCore.initDOM();
+    // T1a: initDOM / loadAppConfig / loadSourceConfig / restoreState / updateClearButton
+    // 已由 Alpine init() 接管，這裡只保留事件綁定（T1b-T1d 將遷移到 Alpine）
 
     const { state, dom } = window.SearchCore;
-
-    // 1. 載入設定
-    window.SearchCore.loadAppConfig();
-
-    // 載入來源配置
-    window.SearchUI.loadSourceConfig();
-
-    // 2. 還原狀態
-    if (!window.SearchCore.restoreState()) {
-        dom.queryInput.focus();
-    }
-    window.SearchCore.updateClearButton();
 
     // 3. 表單提交
     dom.form.addEventListener('submit', (e) => {
@@ -190,6 +178,5 @@ document.addEventListener('DOMContentLoaded', function () {
         window.SearchFile.handleFileDrop(e.dataTransfer.files);
     });
 
-    // 12. 離開前保存狀態
-    window.addEventListener('beforeunload', window.SearchCore.saveState);
+    // 12. 離開前保存狀態（已由 Alpine init() 接管）
 });

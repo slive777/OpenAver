@@ -317,6 +317,7 @@ async function switchSource() {
 function showState(state) {
     const { dom } = window.SearchCore;
 
+    // 原有 .hidden 操作（保留，防 FOUC + 向後相容）
     dom.emptyState.classList.add('hidden');
     dom.loadingState.classList.add('hidden');
     dom.resultCard.classList.add('hidden');
@@ -326,6 +327,12 @@ function showState(state) {
     else if (state === 'loading') dom.loadingState.classList.remove('hidden');
     else if (state === 'result') dom.resultCard.classList.remove('hidden');
     else if (state === 'error') dom.errorState.classList.remove('hidden');
+
+    // T1a: 同步 Alpine pageState
+    const el = document.querySelector('[x-data]');
+    if (el && el._x_dataStack) {
+        Alpine.$data(el).pageState = state;
+    }
 }
 
 // === 結果顯示 ===

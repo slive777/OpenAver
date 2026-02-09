@@ -15,7 +15,7 @@
     </div>
 </div>
 
-<div class="search-container ds-page">
+<div class="search-container ds-page" x-data="searchPage()">
     <!-- Gallery 視圖容器 -->
     <div id="galleryView" class="hidden">
         <iframe id="galleryFrame" src="" sandbox="allow-same-origin allow-scripts"></iframe>
@@ -31,7 +31,7 @@
                     <button type="button" id="btnBackToDetail" class="btn-icon hidden" title="返回詳細資料">
                         <i class="bi bi-arrow-left"></i>
                     </button>
-                    <button type="button" id="btnClear" class="btn-icon hidden" title="清空">
+                    <button type="button" id="btnClear" class="btn-icon hidden" x-show="hasContent" title="清空">
                         <i class="bi bi-x-lg"></i>
                     </button>
                     <button type="submit" id="btnSubmit" class="btn-icon active" title="搜尋">
@@ -49,7 +49,7 @@
     <!-- 結果區域 -->
     <div class="result-area">
         <!-- 初始狀態 -->
-        <div id="emptyState" class="state-page w-full">
+        <div id="emptyState" class="state-page w-full" x-show="pageState === 'empty'">
             <i class="bi bi-film state-page-icon"></i>
             <p class="state-page-text">輸入番號搜尋，或加入影片檔案</p>
             <div class="empty-actions">
@@ -67,7 +67,7 @@
         </div>
 
         <!-- 載入中 - 進度指示器 -->
-        <div id="loadingState" class="search-progress w-full hidden">
+        <div id="loadingState" class="search-progress w-full hidden" x-show="pageState === 'loading'" x-cloak>
             <div class="progress-container">
                 <!-- 搜尋標題 -->
                 <div class="progress-header">
@@ -88,7 +88,7 @@
         </div>
 
         <!-- 錯誤狀態 -->
-        <div id="errorState" class="state-page error w-full hidden">
+        <div id="errorState" class="state-page error w-full hidden" x-show="pageState === 'error'" x-cloak>
             <i class="bi bi-exclamation-triangle state-page-icon"></i>
             <p class="state-page-text error-text" id="errorMessage">搜尋失敗</p>
             <small class="state-page-hint">請檢查番號格式或稍後再試</small>
@@ -105,7 +105,7 @@
         </div>
 
         <!-- 結果卡片（wrapper：卡片 + 檔案列表垂直排列） -->
-        <div id="resultCard" class="hidden">
+        <div id="resultCard" class="hidden" x-show="pageState === 'result'" x-cloak>
             <!-- AV Card Full：封面 + 資訊並排 -->
             <div class="av-card-full">
                 <div class="av-card-full-cover">
@@ -232,6 +232,9 @@
 
     // === 主程式已移至 /static/js/pages/search/ ===
 </script>
+<!-- Alpine State (must load before other JS) -->
+<script src="/static/js/pages/search/state.js"></script>
+<!-- Existing JS modules -->
 <script src="/static/js/pages/search/core.js"></script>
 <script src="/static/js/pages/search/ui.js"></script>
 <script src="/static/js/pages/search/file.js"></script>
