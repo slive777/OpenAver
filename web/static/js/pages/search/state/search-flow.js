@@ -69,7 +69,9 @@ window.SearchStateMixin_SearchFlow = {
             currentQuery: this.currentQuery,
             currentOffset: this.currentOffset,
             pageState: this.pageState,
-            actressProfile: this.actressProfile
+            actressProfile: this.actressProfile,
+            displayMode: this.displayMode,      // T3 fix: 還原 Grid 狀態
+            currentMode: this.currentMode       // T3 fix: 還原搜尋模式（toggle 顯示依賴）
         };
 
         // 5. 初始化狀態（修正 1: 使用 showState）
@@ -137,16 +139,9 @@ window.SearchStateMixin_SearchFlow = {
                             window.SearchCore.checkLocalStatus(this.searchResults);
                         }
 
-                        // T3b: 搜尋完成提示（短暫顯示）
-                        if (data.actress_profile) {
-                            this.progressLog = '👤 女優資料已載入';
-                        }
-
                         // T2b/T3a: 模糊搜尋自動切 Grid（actress/prefix ≥10 筆）
                         if ((this.currentMode === 'actress' || this.currentMode === 'prefix') && this.appConfig?.search?.gallery_mode_enabled && data.data.length >= 10) {
                             this.displayMode = 'grid';
-                            // T3b: Grid 切換提示（覆蓋女優提示）
-                            this.progressLog = '切換 Grid 模式';
                         }
 
                         // 顯示結果
@@ -240,16 +235,9 @@ window.SearchStateMixin_SearchFlow = {
                     window.SearchCore.checkLocalStatus(this.searchResults);
                 }
 
-                // T3b: 搜尋完成提示（短暫顯示）
-                if (data.actress_profile) {
-                    this.progressLog = '👤 女優資料已載入';
-                }
-
                 // T2b/T3a: 模糊搜尋自動切 Grid（actress/prefix ≥10 筆）
                 if ((data.mode === 'actress' || data.mode === 'prefix') && this.appConfig?.search?.gallery_mode_enabled && data.data.length >= 10) {
                     this.displayMode = 'grid';
-                    // T3b: Grid 切換提示（覆蓋女優提示）
-                    this.progressLog = '切換 Grid 模式';
                 }
 
                 // 顯示結果
@@ -308,6 +296,8 @@ window.SearchStateMixin_SearchFlow = {
             this.currentQuery = snap.currentQuery;
             this.currentOffset = snap.currentOffset;
             this.actressProfile = snap.actressProfile;
+            this.displayMode = snap.displayMode || 'detail';
+            this.currentMode = snap.currentMode || '';
 
             // 同步回 core.js
             const coreState = window.SearchCore.state;
