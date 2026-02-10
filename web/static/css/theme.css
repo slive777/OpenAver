@@ -918,7 +918,7 @@ body {
     position: relative;
     aspect-ratio: 3/2;
     overflow: hidden;
-    border-radius: inherit; /* T5: 繼承父層 --fluent-radius-xl，與 rotating border 共存 */
+    border-radius: var(--fluent-radius-xl) var(--fluent-radius-xl) 0 0; /* 頂部匹配卡片圓角，底部直角（接觸 footer） */
 }
 
 :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview-img img {

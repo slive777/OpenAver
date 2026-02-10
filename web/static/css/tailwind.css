@@ -3477,7 +3477,7 @@ body {
   position: relative;
   aspect-ratio: 3/2;
   overflow: hidden;
-  border-radius: inherit;
+  border-radius: var(--fluent-radius-xl) var(--fluent-radius-xl) 0 0;
 }
 :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview-img img {
   width: 100%;

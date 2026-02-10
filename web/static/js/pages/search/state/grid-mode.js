@@ -23,6 +23,7 @@ window.SearchStateMixin_GridMode = {
     openLightbox(index) {
         this.lightboxIndex = index;
         this.lightboxOpen = true;
+        this.actressLightboxMode = false;  // 從 actress 模式切回普通模式
         // 同步 currentIndex（讓 Detail 與 Grid 保持一致）
         this.currentIndex = index;
         const coreState = window.SearchCore?.state;
@@ -82,7 +83,7 @@ window.SearchStateMixin_GridMode = {
     handleLightboxBackdropClick(event) {
         // T5: 對齊 showcase.js L420-446 的 Click-through 邏輯
 
-        // 如果點擊的是 lightbox-content 內部，不處理
+        // 如果點擊的是 lightbox-content 內部，不處理（對齊 showcase）
         if (event.target.closest('.lightbox-content')) return;
 
         // 暫時隱藏 lightbox 來檢測下方元素
@@ -95,20 +96,11 @@ window.SearchStateMixin_GridMode = {
         // 恢復 lightbox
         lightbox.style.display = '';
 
-        // 檢查是否是卡片
-        const cardEl = elementBelow ? elementBelow.closest('.av-card-preview') : null;
+        // 檢查是否是卡片 → 觸發卡片自身的 @click handler（hero card / 普通卡片都適用）
+        const cardEl = elementBelow?.closest('.search-grid .av-card-preview') || null;
         if (cardEl) {
-            // Click-through: 找到該卡片對應的索引並切換
-            const cards = Array.from(document.querySelectorAll('.search-grid .av-card-preview:not(.hero-card)'));
-            const clickedIndex = cards.indexOf(cardEl);
-            if (clickedIndex >= 0) {
-                this.openLightbox(clickedIndex);
-            } else {
-                // T5: Hero Card 或未知卡片 → 關閉 lightbox
-                this.closeLightbox();
-            }
+            cardEl.click();
         } else {
-            // 不是卡片，關閉 lightbox
             this.closeLightbox();
         }
     },
