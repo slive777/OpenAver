@@ -75,7 +75,7 @@
   pointer-events: none;
 
   /* 層級設定：在父元素背景之上，內容之下 */
-  z-index: -1;
+  z-index: 1;
 
   /* 預設不旋轉（等待 active 狀態啟用）*/
   animation: none;
@@ -173,4 +173,37 @@
  */
 .rotating-border-spotlight.glow-strong::before {
   filter: brightness(1.3);
+}
+
+/* ========== T4: Once 變體（轉一圈後停止）========== */
+
+/**
+ * 單次旋轉變體
+ * 用於本地匹配提示：轉一圈後停止，避免持續干擾
+ */
+.rotating-border-spotlight.once.active::before {
+  animation: rotate-spotlight 2.5s linear 1;  /* iteration-count: 1 */
+}
+
+/**
+ * Pulse 一次變體（不依賴 active）
+ * 用於 sidebar 事件觸發：每次事件都可強制重播一圈
+ */
+.rotating-border-spotlight.pulse-once::before {
+  animation: rotate-spotlight 2.5s linear 1;
+  opacity: 1;
+}
+
+/* ========== T4: 卡片 overflow 覆蓋 ========== */
+
+/**
+ * 搜尋卡片需要 overflow: visible 讓 ::before 邊框可見
+ * 這些選擇器的 specificity 匹配或超過原始 overflow: hidden 規則
+ */
+#resultCard > .av-card-full.rotating-border-spotlight {
+  overflow: visible;
+}
+
+:is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview.rotating-border-spotlight {
+  overflow: visible;
 }

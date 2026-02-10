@@ -200,7 +200,10 @@
             </div>
 
             <!-- AV Card Full：封面 + 資訊並排（Detail 模式） -->
-            <div class="av-card-full" x-show="displayMode === 'detail'">
+            <div class="av-card-full rotating-border-spotlight"
+                 x-show="displayMode === 'detail'"
+                 :class="{ 'active once': shouldShowLocalBorder(current()) }"
+                 @animationend.self="markLocalBorderPlayed(current()?.number)">
                 <div class="av-card-full-cover">
                     <div class="av-card-full-cover-wrapper">
                         <img id="resultCover" class="av-card-full-cover-img"
@@ -398,20 +401,16 @@
 
                 <!-- 正常搜尋結果卡片 -->
                 <template x-for="(result, index) in searchResults" :key="result.number + '_' + index">
-                    <div class="av-card-preview"
+                    <div class="av-card-preview rotating-border-spotlight"
                          @click="openLightbox(index)"
-                         :style="`--card-index: ${index + (actressProfile ? 1 : 0)}`">
+                         :style="`--card-index: ${index + (actressProfile ? 1 : 0)}`"
+                         :class="{ 'active once': shouldShowLocalBorder(result) }"
+                         @animationend.self="markLocalBorderPlayed(result?.number)">
                         <div class="av-card-preview-img">
                             <img :src="result.cover ? `/api/proxy-image?url=${encodeURIComponent(result.cover)}` : ''"
                                  :alt="result.number"
                                  loading="lazy"
                                  @error="$event.target.style.display='none'">
-                            <!-- Local Badge -->
-                            <div class="av-card-preview-badge local"
-                                 x-show="result._localStatus?.exists"
-                                 title="本地有此影片">
-                                📁 本地
-                            </div>
                             <!-- Overlay Actions (Hover) -->
                             <div class="av-card-preview-overlay">
                                 <button class="btn-glass-circle"

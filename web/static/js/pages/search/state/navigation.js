@@ -86,6 +86,11 @@ window.SearchStateMixin_Navigation = {
                 if (window.SearchUI?.preloadImages) {
                     window.SearchUI.preloadImages(this.currentIndex + 1, 5);
                 }
+
+                // T4: Load more 後查詢本地狀態
+                if (window.SearchCore?.checkLocalStatus) {
+                    window.SearchCore.checkLocalStatus(this.searchResults);
+                }
             } else {
                 this.hasMoreResults = false;
             }

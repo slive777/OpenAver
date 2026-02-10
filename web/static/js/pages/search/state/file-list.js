@@ -98,6 +98,11 @@ window.SearchStateMixin_FileList = {
                             coreState.hasMoreResults = this.hasMoreResults;
                             coreState.currentIndex = this.currentIndex;
 
+                            // T4: File search 後查詢本地狀態
+                            if (window.SearchCore?.checkLocalStatus) {
+                                window.SearchCore.checkLocalStatus(this.searchResults);
+                            }
+
                             window.SearchUI.showState('result');
                         } else {
                             file.searched = true;

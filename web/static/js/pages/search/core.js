@@ -415,6 +415,18 @@ async function checkLocalStatus(results) {
             }
         });
 
+        // T4: 收集有本地匹配的番號
+        const localMatchNumbers = results
+            .filter(r => r._localStatus?.exists)
+            .map(r => r.number);
+
+        // T4: 觸發跨 scope 事件（通知 sidebar + 卡片）
+        if (localMatchNumbers.length > 0) {
+            window.dispatchEvent(new CustomEvent('search:local-match', {
+                detail: { numbers: localMatchNumbers }
+            }));
+        }
+
         // 更新 UI
         if (window.SearchUI?.updateLocalBadges) {
             window.SearchUI.updateLocalBadges();

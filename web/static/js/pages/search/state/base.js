@@ -74,6 +74,10 @@ window.SearchStateMixin_Base = function() {
         // ===== T2d: Actress Profile State =====
         actressProfile: null,      // { name, img, backdrop, birth, age, height, cup, bust, waist, hip, hometown, hobby }
 
+        // ===== T4: Rotating Border State =====
+        // T4: 追蹤已播放 rotating border 的番號（避免 Alpine `:class` 重複觸發動畫）
+        _localBorderPlayed: {},
+
         // ===== Constants =====
         PAGE_SIZE: 20,
         MODE_TEXT: {
@@ -206,6 +210,18 @@ window.SearchStateMixin_Base = function() {
 
         needsNumberInput(file) {
             return !file.number;
+        },
+
+        // ===== T4: Rotating Border Methods =====
+
+        // T4: 檢查是否應顯示本地匹配外框（尚未播放動畫 + 本地存在）
+        shouldShowLocalBorder(result) {
+            return result?._localStatus?.exists && !this._localBorderPlayed[result?.number];
+        },
+
+        // T4: 標記番號已播放動畫
+        markLocalBorderPlayed(number) {
+            if (number) this._localBorderPlayed[number] = true;
         }
     };
 };

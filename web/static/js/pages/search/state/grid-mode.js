@@ -10,6 +10,7 @@ window.SearchStateMixin_GridMode = {
      */
     toggleDisplayMode() {
         this.displayMode = this.displayMode === 'detail' ? 'grid' : 'detail';
+        this._localBorderPlayed = {};  // T4: 切換模式時重置，讓動畫在新佈局重新標示
         this.saveState();
     },
 
