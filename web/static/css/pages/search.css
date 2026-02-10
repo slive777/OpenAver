@@ -653,3 +653,28 @@
     transform-origin: center center;  /* 置中（覆蓋 65% center 的 AV 封面偏移） */
 }
 
+/* ==================== T6b: 統一 Toast 容器 ==================== */
+.search-toast-container {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 9999;  /* 高於所有其他元素（包括 lightbox z-index: 1000） */
+    max-width: 420px;
+    pointer-events: none;  /* 不阻擋底下元素的點擊 */
+}
+
+.search-toast-container .alert {
+    pointer-events: auto;  /* alert 本身可點擊（未來可能加關閉按鈕） */
+    box-shadow: var(--fluent-shadow-16);  /* 大陰影，提升視覺層級 */
+}
+
+/* Mobile 適配：toast 左右邊距 */
+@media (max-width: 767.98px) {
+    .search-toast-container {
+        left: 1rem;
+        right: 1rem;
+        bottom: 1rem;
+        max-width: none;
+    }
+}
+

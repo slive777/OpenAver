@@ -193,22 +193,24 @@ window.SearchStateMixin_ResultCard = {
         });
     },
 
-    // ===== T1c: Toast =====
+    // ===== T6b: Toast =====
 
-    showToast(message, type = 'success') {
-        const iconMap = {
-            success: 'bi-check-circle-fill',
-            error: 'bi-exclamation-circle-fill',
-            info: 'bi-info-circle-fill',
-            warning: 'bi-exclamation-triangle-fill'
-        };
-        const toast = document.createElement('div');
-        toast.className = `fluent-toast alert alert-${type}`;
-        toast.innerHTML = `<i class="bi ${iconMap[type] || iconMap.success}"></i><span>${message}</span>`;
-        toast.style.cssText = `position:fixed;bottom:1.5rem;right:1.5rem;z-index:2000;opacity:0;transform:translateY(20px);transition:all var(--fluent-duration-normal) var(--fluent-ease-decel);`;
-        document.body.appendChild(toast);
-        requestAnimationFrame(() => { toast.style.opacity='1'; toast.style.transform='translateY(0)'; });
-        setTimeout(() => { toast.style.opacity='0'; toast.style.transform='translateY(20px)'; setTimeout(() => toast.remove(), 300); }, 2000);
+    showToast(message, type = 'success', duration = 2500) {
+        // 設定 toast 內容
+        this._toast.message = message;
+        this._toast.type = type;
+        this._toast.visible = true;
+
+        // 清除舊的 timer
+        if (this._toastTimer) {
+            clearTimeout(this._toastTimer);
+        }
+
+        // 設定自動隱藏
+        this._toastTimer = setTimeout(() => {
+            this._toast.visible = false;
+            this._toastTimer = null;
+        }, duration);
     },
 
     // ===== T1c: Cover Error =====

@@ -48,6 +48,14 @@ window.SearchStateMixin_Base = function() {
         coverError: '',
         _coverRetried: false,
 
+        // ===== T6b: Toast State =====
+        _toast: {
+            message: '',
+            type: 'success',  // 'success' | 'error' | 'warning' | 'info'
+            visible: false
+        },
+        _toastTimer: null,  // setTimeout ID for auto-hide
+
         // ===== T1d: File List State =====
         dragActive: false,
         isLoadingFavorite: false,

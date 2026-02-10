@@ -249,26 +249,8 @@ window.SearchStateMixin_FileList = {
                     if (not_found > 0) details.push(`${not_found} 個不存在`);
                     if (details.length > 0) msg += `（${details.join('、')}）`;
 
-                    // 顯示黑色 toast（後端過濾）
-                    const toast = document.createElement('div');
-                    toast.textContent = msg;
-                    toast.style.cssText = `
-                        position: fixed;
-                        bottom: 20px;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        background: rgba(0,0,0,0.85);
-                        color: white;
-                        padding: 12px 24px;
-                        border-radius: 8px;
-                        z-index: 9999;
-                        font-size: 14px;
-                        opacity: 1;
-                        transition: opacity 0.5s ease;
-                    `;
-                    document.body.appendChild(toast);
-                    setTimeout(() => { toast.style.opacity = '0'; }, 2500);
-                    setTimeout(() => toast.remove(), 3000);
+                    // T6b: 後端過濾提示（info 類型）
+                    this.showToast(msg, 'info');
                 }
                 paths = result.files;
             }
@@ -293,29 +275,10 @@ window.SearchStateMixin_FileList = {
             }
         }
 
-        // 顯示橘色 toast（前端過濾）
+        // T6b: 前端過濾提示（warning 類型）
         if (noNumberCount > 0) {
             const msg = `已過濾 ${noNumberCount} 個無法識別番號的檔案`;
-
-            const toast = document.createElement('div');
-            toast.textContent = msg;
-            toast.style.cssText = `
-                position: fixed;
-                bottom: 60px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(255, 152, 0, 0.9);
-                color: white;
-                padding: 12px 24px;
-                border-radius: 8px;
-                z-index: 9999;
-                font-size: 14px;
-                opacity: 1;
-                transition: opacity 0.5s ease;
-            `;
-            document.body.appendChild(toast);
-            setTimeout(() => { toast.style.opacity = '0'; }, 2500);
-            setTimeout(() => toast.remove(), 3000);
+            this.showToast(msg, 'warning');
         }
 
         // 檢查空列表

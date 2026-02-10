@@ -81,7 +81,7 @@ body {
 /* ========== Utilities ========== */
 /* Glass Hierarchy (Fluent Design 2):
    - Heavy (16-30px): header, modal, overlay — .glass, .fluent-acrylic
-   - Medium (4-12px): floating UI — .btn-glass, spotlight-search, source-toast
+   - Medium (4-12px): floating UI — .btn-glass, spotlight-search
    - None: content cards — 只用 tint + stroke, 無 blur */
 .glass {
     background: var(--bg-header);
@@ -326,33 +326,7 @@ body {
     letter-spacing: 0.02em;
 }
 
-/* ========== Components: Source Toast (Inline) ========== */
-.source-toast-inline {
-    display: inline-block;
-    margin-left: 0.5rem;
-    padding: 0.2rem 0.6rem;
-    background: var(--bg-header);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid var(--border-light);
-    border-radius: var(--radius-pill);
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    opacity: 0;
-    transition: opacity var(--duration-normal) var(--ease-out);
-    vertical-align: middle;
-}
-
-.source-toast-inline.show {
-    opacity: 1;
-}
-
-[data-theme="dim"] .source-toast-inline {
-    background: color-mix(in oklch, var(--color-base-300) 90%, transparent);
-    border-color: var(--border-card);
-    color: var(--text-muted);
-}
+/* T6b: .source-toast-inline 已移除（統一使用 Alpine toast）*/
 
 /* ========== Components: Button Shake Animation ========== */
 @keyframes shake {

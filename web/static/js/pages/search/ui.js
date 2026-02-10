@@ -168,39 +168,17 @@ async function ensureCached(state, number) {
 }
 
 /**
- * 顯示 Toast 提示「來自 {source}」（在 ⟳ 按鈕右側）
+ * T6b: 顯示來源切換提示（透過 bridge 呼叫 Alpine toast）
  */
 function showSourceToast(source) {
     const name = SOURCE_NAMES[source] || source;
-    const btn = document.getElementById('switchSourceBtn');
+    const msg = `來自 ${name}`;
 
-    // 移除舊的 toast
-    const oldToast = document.getElementById('sourceToast');
-    if (oldToast) oldToast.remove();
-
-    // 建立 Toast
-    const toast = document.createElement('span');
-    toast.id = 'sourceToast';
-    toast.className = 'source-toast-inline';
-    toast.textContent = `來自 ${name}`;
-
-    // 插入到按鈕右側
-    if (btn && btn.parentNode) {
-        btn.parentNode.insertBefore(toast, btn.nextSibling);
-    } else {
-        document.body.appendChild(toast);
+    // 透過 bridge 呼叫 Alpine toast
+    const el = document.querySelector('.search-container[x-data]');
+    if (el && el._x_dataStack) {
+        Alpine.$data(el).showToast(msg, 'info', 2000);
     }
-
-    // 動畫顯示
-    requestAnimationFrame(() => {
-        toast.classList.add('show');
-    });
-
-    // 2 秒後消失
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
-    }, 2000);
 }
 
 /**

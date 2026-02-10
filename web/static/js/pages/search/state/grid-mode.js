@@ -145,12 +145,11 @@ window.SearchStateMixin_GridMode = {
         if (!path) return;
         navigator.clipboard.writeText(path).then(() => {
             console.log('[Grid] 路徑已複製:', path);
-            // Toast 提示（可選）
-            if (window.SearchUI?.showToast) {
-                window.SearchUI.showToast('路徑已複製');
-            }
+            // T6b: 統一 toast
+            this.showToast('路徑已複製', 'success');
         }).catch(err => {
             console.error('[Grid] 複製失敗:', err);
+            this.showToast('複製失敗', 'error');
         });
     },
 

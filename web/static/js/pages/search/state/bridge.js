@@ -66,5 +66,11 @@ window.SearchStateMixin_Bridge = {
             window.SearchFile.renderFileList = () => {}; // no-op
             window.SearchFile.renderSearchResultsList = () => {}; // no-op
         }
+
+        // T6b: Toast bridge（供外部 JS 如 ui.js 的 showSourceToast 使用）
+        if (window.SearchUI) {
+            window.SearchUI.showToast = (message, type = 'success', duration = 2500) =>
+                this.showToast(message, type, duration);
+        }
     }
 };
