@@ -35,6 +35,15 @@ window.SearchStateMixin_GridMode = {
      */
     closeLightbox() {
         this.lightboxOpen = false;
+        this.actressLightboxMode = false;
+    },
+
+    /**
+     * 開啟 Actress Lightbox（Hero Card 專用）
+     */
+    openActressLightbox() {
+        this.lightboxOpen = true;
+        this.actressLightboxMode = true;
     },
 
     /**

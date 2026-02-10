@@ -82,6 +82,7 @@ window.SearchStateMixin_SearchFlow = {
         this.currentQuery = query;
         this.currentOffset = 0;
         this.hasMoreResults = false;
+        this.actressProfile = null;  // T2d: 清空上次的女優資料
 
         // 檔案列表由 x-show 自動隱藏（listMode=null, fileList=[]）
 
@@ -115,6 +116,7 @@ window.SearchStateMixin_SearchFlow = {
                         this.searchResults = data.data;
                         this.currentIndex = 0;
                         this.hasMoreResults = data.has_more || false;
+                        this.actressProfile = data.actress_profile || null;  // T2d: 寫入女優資料
 
                         // 同步回 core.js
                         const coreState = window.SearchCore.state;
@@ -207,6 +209,7 @@ window.SearchStateMixin_SearchFlow = {
                 this.searchResults = data.data;
                 this.currentIndex = 0;
                 this.hasMoreResults = data.has_more || false;
+                this.actressProfile = data.actress_profile || null;  // T2d: 寫入女優資料
 
                 // 同步回 core.js
                 const coreState = window.SearchCore.state;

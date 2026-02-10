@@ -32,8 +32,10 @@
 
             <!-- Cover Image -->
             <div class="lightbox-cover">
-                <img :src="currentLightboxVideo()?.cover ? `/api/proxy-image?url=${encodeURIComponent(currentLightboxVideo().cover)}` : ''"
-                     :alt="currentLightboxVideo()?.number"
+                <img :src="actressLightboxMode
+                         ? (actressProfile?.img ? `/api/proxy-image?url=${encodeURIComponent(actressProfile.img)}` : '')
+                         : (currentLightboxVideo()?.cover ? `/api/proxy-image?url=${encodeURIComponent(currentLightboxVideo().cover)}` : '')"
+                     :alt="actressLightboxMode ? actressProfile?.name : currentLightboxVideo()?.number"
                      @error="$event.target.onerror=null; $event.target.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22 fill=%22%23666%22><rect width=%22400%22 height=%22300%22 fill=%22%23222%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2216%22>No Image</text></svg>'">
             </div>
         </div>
@@ -41,13 +43,13 @@
         <!-- Navigation Arrows -->
         <button class="lightbox-nav lightbox-nav-prev"
                 @click.stop="prevLightboxVideo()"
-                x-show="lightboxIndex > 0"
+                x-show="!actressLightboxMode && lightboxIndex > 0"
                 title="上一部 (←)">
             <i class="bi bi-chevron-left"></i>
         </button>
         <button class="lightbox-nav lightbox-nav-next"
                 @click.stop="nextLightboxVideo()"
-                x-show="lightboxIndex < searchResults.length - 1"
+                x-show="!actressLightboxMode && lightboxIndex < searchResults.length - 1"
                 title="下一部 (→)">
             <i class="bi bi-chevron-right"></i>
         </button>
@@ -71,7 +73,7 @@
                     <!-- T2a: Grid / Detail Toggle -->
                     <button type="button"
                             class="btn-icon rotating-border-spotlight active"
-                            x-show="listMode === 'search'"
+                            x-show="listMode === 'search' && appConfig?.search?.gallery_mode_enabled !== false"
                             @click="toggleDisplayMode()"
                             :title="displayMode === 'detail' ? '切換到圖片模式' : '切換到詳細模式'">
                         <i class="bi" :class="displayMode === 'detail' ? 'bi-grid-3x3' : 'bi-list-ul'"></i>
@@ -161,6 +163,42 @@
 
         <!-- 結果卡片（wrapper：卡片 + 檔案列表垂直排列） -->
         <div id="resultCard" class="hidden" x-show="pageState === 'result'" x-cloak>
+            <!-- T2d: Actress Banner (Detail Mode) -->
+            <div class="actress-banner"
+                 x-show="actressProfile && displayMode === 'detail' && listMode === 'search'"
+                 x-cloak>
+                <div class="actress-banner-photo">
+                    <img :src="actressProfile?.img ? (actressProfile?.img?.startsWith('http') && actressProfile?.img?.includes('graphis.ne.jp') ? actressProfile?.img : `/api/proxy-image?url=${encodeURIComponent(actressProfile?.img)}`) : ''"
+                         :alt="actressProfile?.name"
+                         @error="$event.target.parentElement.style.display='none'">
+                </div>
+                <div class="actress-banner-info">
+                    <h3 class="actress-name" x-text="actressProfile?.name">-</h3>
+                    <div class="actress-details">
+                        <span x-show="actressProfile?.birth" class="actress-detail-item">
+                            <i class="bi bi-calendar"></i>
+                            <span x-text="actressProfile?.birth + (actressProfile?.age ? ` (${actressProfile?.age}歲)` : '')"></span>
+                        </span>
+                        <span x-show="actressProfile?.height" class="actress-detail-item">
+                            <i class="bi bi-arrows-vertical"></i>
+                            <span x-text="actressProfile?.height"></span>
+                        </span>
+                        <span x-show="actressProfile?.cup" class="actress-detail-item">
+                            <i class="bi bi-award"></i>
+                            <span x-text="actressProfile?.cup + '罩杯'"></span>
+                        </span>
+                        <span x-show="actressProfile?.bust || actressProfile?.waist || actressProfile?.hip" class="actress-detail-item">
+                            <i class="bi bi-rulers"></i>
+                            <span x-text="[actressProfile?.bust, actressProfile?.waist, actressProfile?.hip].filter(Boolean).join(' / ')"></span>
+                        </span>
+                        <span x-show="actressProfile?.hometown" class="actress-detail-item">
+                            <i class="bi bi-geo-alt"></i>
+                            <span x-text="actressProfile?.hometown"></span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
             <!-- AV Card Full：封面 + 資訊並排（Detail 模式） -->
             <div class="av-card-full" x-show="displayMode === 'detail'">
                 <div class="av-card-full-cover">
@@ -335,10 +373,34 @@
 
             <!-- T2a: Grid Mode（封面牆） -->
             <div class="search-grid ds-gallery-composition" x-show="displayMode === 'grid' && listMode === 'search'" x-cloak>
+                <!-- T2d: Hero Card（第一格）-->
+                <div class="av-card-preview hero-card"
+                     x-show="actressProfile"
+                     x-cloak
+                     @click="openActressLightbox()"
+                     :style="`--card-index: 0`">
+                    <div class="av-card-preview-img">
+                        <img :src="actressProfile?.img ? `/api/proxy-image?url=${encodeURIComponent(actressProfile.img)}` : ''"
+                             :alt="actressProfile?.name"
+                             loading="lazy"
+                             @error="$event.target.onerror=null; $event.target.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22360%22 height=%22508%22 fill=%22%23666%22><rect width=%22360%22 height=%22508%22 fill=%22%23222%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2216%22>No Image</text></svg>'">
+                    </div>
+                    <div class="av-card-preview-footer">
+                        <div class="footer-default">
+                            <span class="av-num" x-text="actressProfile?.birth || '-'">-</span>
+                            <span class="av-actress" x-text="actressProfile?.height || ''"></span>
+                        </div>
+                        <div class="footer-hover">
+                            <div class="hover-title" x-text="[actressProfile?.name || '', actressProfile?.age ? actressProfile?.age + '歲' : '', actressProfile?.cup ? actressProfile?.cup + '罩杯' : '', actressProfile?.bust || '', actressProfile?.waist || '', actressProfile?.hip || '', actressProfile?.hometown || '', actressProfile?.hobby || ''].filter(Boolean).join(' · ') || '-'"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 正常搜尋結果卡片 -->
                 <template x-for="(result, index) in searchResults" :key="result.number + '_' + index">
                     <div class="av-card-preview"
                          @click="openLightbox(index)"
-                         :style="`--card-index: ${index}`">
+                         :style="`--card-index: ${index + (actressProfile ? 1 : 0)}`">
                         <div class="av-card-preview-img">
                             <img :src="result.cover ? `/api/proxy-image?url=${encodeURIComponent(result.cover)}` : ''"
                                  :alt="result.number"
