@@ -137,9 +137,16 @@ window.SearchStateMixin_SearchFlow = {
                             window.SearchCore.checkLocalStatus(this.searchResults);
                         }
 
+                        // T3b: 搜尋完成提示（短暫顯示）
+                        if (data.actress_profile) {
+                            this.progressLog = '👤 女優資料已載入';
+                        }
+
                         // T2b/T3a: 模糊搜尋自動切 Grid（actress/prefix ≥10 筆）
                         if ((this.currentMode === 'actress' || this.currentMode === 'prefix') && this.appConfig?.search?.gallery_mode_enabled && data.data.length >= 10) {
                             this.displayMode = 'grid';
+                            // T3b: Grid 切換提示（覆蓋女優提示）
+                            this.progressLog = '切換 Grid 模式';
                         }
 
                         // 顯示結果
@@ -233,9 +240,16 @@ window.SearchStateMixin_SearchFlow = {
                     window.SearchCore.checkLocalStatus(this.searchResults);
                 }
 
+                // T3b: 搜尋完成提示（短暫顯示）
+                if (data.actress_profile) {
+                    this.progressLog = '👤 女優資料已載入';
+                }
+
                 // T2b/T3a: 模糊搜尋自動切 Grid（actress/prefix ≥10 筆）
                 if ((data.mode === 'actress' || data.mode === 'prefix') && this.appConfig?.search?.gallery_mode_enabled && data.data.length >= 10) {
                     this.displayMode = 'grid';
+                    // T3b: Grid 切換提示（覆蓋女優提示）
+                    this.progressLog = '切換 Grid 模式';
                 }
 
                 // 顯示結果
@@ -313,43 +327,48 @@ window.SearchStateMixin_SearchFlow = {
     },
 
     /**
-     * 處理 SSE 狀態更新
-     * @param {string} source - 來源（javbus/jav321）
+     * 處理 SSE 狀態更新（T3b: 豐富化進度文字，顯示來源名稱）
+     * @param {string} source - 來源（javbus/jav321/javdb/fc2/avsox/mode/done）
      * @param {string} status - 狀態字串
      */
     handleSearchStatus(source, status) {
+        // Mode 切換事件（不變）
         if (source === 'mode') {
             this.currentMode = status;
             this.progressLog = `${this.MODE_TEXT[status] || status}...`;
             return;
         }
 
-        if (source === 'javbus' || source === 'jav321') {
-            if (status === 'searching') {
-                this.progressLog = `${this.MODE_TEXT[this.currentMode] || '搜尋'}...`;
+        // T3b: 忽略 'done' 事件（後端搜尋完成標記，前端由 result 事件處理）
+        if (source === 'done') return;
+
+        // T3b: 接受所有 source（移除 javbus/jav321 的限制）
+        const sourceName = this.SOURCE_NAME[source] || source;
+
+        if (status === 'searching') {
+            this.progressLog = `${sourceName} 搜尋中...`;
+        }
+        else if (status.startsWith('found:')) {
+            const count = status.split(':')[1];
+            if (count === '0') {
+                this.progressLog = `${sourceName} 無結果`;
+            } else {
+                this.progressLog = `${sourceName} 找到 ${count} 筆`;
             }
-            else if (status.startsWith('found:')) {
-                const count = status.split(':')[1];
-                if (count === '0') {
-                    this.progressLog = `${this.MODE_TEXT[this.currentMode] || '搜尋'}：無結果`;
-                } else {
-                    this.progressLog = `${this.MODE_TEXT[this.currentMode] || '搜尋'}：找到 ${count} 筆`;
-                }
+        }
+        else if (status === 'fetching_details') {
+            this.progressLog = '抓取詳情...';
+        }
+        else if (status.startsWith('details:')) {
+            const parts = status.split(':')[1].split('/');
+            if (parts.length === 2) {
+                this.detailDone = parseInt(parts[0]);
+                this.detailTotal = parseInt(parts[1]);
+                this.progressLog = `抓取詳情 ${this.detailDone}/${this.detailTotal}`;
             }
-            else if (status === 'fetching_details') {
-                this.progressLog = '抓取詳情...';
-            }
-            else if (status.startsWith('details:')) {
-                const parts = status.split(':')[1].split('/');
-                if (parts.length === 2) {
-                    this.detailDone = parseInt(parts[0]);
-                    this.detailTotal = parseInt(parts[1]);
-                    this.progressLog = `抓取詳情 ${this.detailDone}/${this.detailTotal}`;
-                }
-            }
-            else if (status === 'failed') {
-                this.progressLog = `${this.MODE_TEXT[this.currentMode] || '搜尋'}：失敗`;
-            }
+        }
+        else if (status === 'failed') {
+            this.progressLog = `${sourceName} 失敗`;
         }
     }
 };

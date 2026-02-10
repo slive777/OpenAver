@@ -88,6 +88,13 @@ window.SearchStateMixin_Base = function() {
             'keyword': '全文搜尋',
             'uncensored': '無碼搜尋'
         },
+        SOURCE_NAME: {
+            'javbus': 'JavBus',
+            'jav321': 'Jav321',
+            'javdb': 'JavDB',
+            'fc2': 'FC2',
+            'avsox': 'AVSOX'
+        },
         STATE_KEY: 'javhelper_search_state',
 
         // ===== Computed Properties =====
