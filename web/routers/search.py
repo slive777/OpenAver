@@ -4,7 +4,7 @@
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import Response, StreamingResponse
-from typing import Optional, List
+from typing import Optional, List, Dict
 import requests
 import json
 import asyncio
@@ -98,7 +98,8 @@ def search(
             "success": bool(results),
             "data": results,
             "total": len(results),
-            "mode": "exact"
+            "mode": "exact",
+            "actress_profile": None
         }
 
     # 讀取無碼模式設定
@@ -131,6 +132,17 @@ def search(
     detected_mode = mode if mode != "auto" else _detect_mode(q)
 
     if results:
+        # Consistency check（僅 actress/prefix 模式觸發）
+        actress_profile = None
+        if detected_mode in ('actress', 'prefix'):
+            top_actor = _analyze_top_actor(results, threshold=0.8, min_samples=3)
+            if top_actor:
+                print(f"[Actress Profile] Fetching profile for: {top_actor}")
+                from core.actress_scraper import get_actress_profile
+                actress_profile = get_actress_profile(top_actor)
+                if not actress_profile:
+                    print(f"[Actress Profile] Not found for: {top_actor}")
+
         # 判斷是否還有更多結果（prefix/actress 模式且結果數 = limit）
         has_more = detected_mode in ('prefix', 'actress') and len(results) >= limit
 
@@ -140,7 +152,8 @@ def search(
             "total": len(results),
             "mode": detected_mode,
             "offset": offset,
-            "has_more": has_more
+            "has_more": has_more,
+            "actress_profile": actress_profile
         }
 
     return {
@@ -149,7 +162,8 @@ def search(
         "data": [],
         "total": 0,
         "mode": detected_mode,
-        "has_more": False
+        "has_more": False,
+        "actress_profile": None
     }
 
 
@@ -163,6 +177,88 @@ def _detect_mode(q: str) -> str:
         return "prefix"
     else:
         return "actress"
+
+
+def _normalize_actress_name(name: str) -> str:
+    """正規化女優名稱（consistency check 用）"""
+    import unicodedata
+    name = name.strip()
+    # 全形 → 半形
+    name = unicodedata.normalize('NFKC', name)
+    # 統一空白符
+    name = ' '.join(name.split())
+    return name
+
+
+def _analyze_top_actor(results: List[Dict], threshold: float = 0.8, min_samples: int = 3) -> Optional[str]:
+    """
+    分析搜尋結果中的主要演員（consistency check）
+
+    Args:
+        results: 搜尋結果列表
+        threshold: 演員佔比閾值（預設 80%）
+        min_samples: 最小樣本數（少於此數不觸發）
+
+    Returns:
+        主要演員名稱，未通過檢查返回 None
+
+    邏輯：
+    1. 結果數 < min_samples → 跳過
+    2. 統計有 actors 欄位的結果中各女優出現次數
+    3. 最多者佔比 >= threshold → 通過
+    4. 名稱正規化：strip + 全形→半形 + 統一空白
+    """
+    from collections import Counter
+
+    if not results or len(results) < min_samples:
+        return None
+
+    # 統計演員出現次數
+    actor_counter = Counter()
+    valid_results_count = 0  # 有 actors 欄位的結果數
+
+    for result in results:
+        actors = result.get('actors', [])
+        if not actors:
+            continue  # 無 actors 欄位 → 不計入分母
+
+        valid_results_count += 1
+
+        # 處理不同格式
+        if isinstance(actors, list):
+            for actor in actors:
+                if isinstance(actor, str):
+                    actor_name = actor
+                elif isinstance(actor, dict):
+                    actor_name = actor.get('name', '')
+                else:
+                    continue
+
+                if actor_name:
+                    # 正規化名稱
+                    normalized = _normalize_actress_name(actor_name)
+                    actor_counter[normalized] += 1
+        elif isinstance(actors, str):
+            if actors:
+                normalized = _normalize_actress_name(actors)
+                actor_counter[normalized] += 1
+
+    if not actor_counter or valid_results_count < min_samples:
+        return None
+
+    # 找出出現最多的演員
+    top_actor, top_count = actor_counter.most_common(1)[0]
+
+    # 計算佔比（分母 = 有 actors 的結果數）
+    ratio = top_count / valid_results_count
+
+    print(f"[Consistency] Top actor: {top_actor} ({top_count}/{valid_results_count} = {ratio:.1%})")
+
+    if ratio >= threshold:
+        return top_actor
+    else:
+        print(f"[Consistency] Ratio {ratio:.1%} < {threshold:.0%}, skip actress_profile")
+        return None
 
 
 @router.get("/search/stream")
@@ -228,6 +324,18 @@ async def search_stream(
             # 取得結果
             try:
                 results = future.result()
+
+                # Consistency check（與 REST 相同邏輯）
+                actress_profile = None
+                if mode in ('actress', 'prefix'):
+                    top_actor = _analyze_top_actor(results, threshold=0.8, min_samples=3)
+                    if top_actor:
+                        print(f"[Actress Profile] Fetching profile for: {top_actor}")
+                        from core.actress_scraper import get_actress_profile
+                        actress_profile = get_actress_profile(top_actor)
+                        if not actress_profile:
+                            print(f"[Actress Profile] Not found for: {top_actor}")
+
                 # 判斷是否還有更多結果
                 has_more = mode in ('prefix', 'actress') and len(results) >= limit
 
@@ -238,13 +346,14 @@ async def search_stream(
                     'total': len(results),
                     'mode': mode,
                     'offset': offset,
-                    'has_more': has_more
+                    'has_more': has_more,
+                    'actress_profile': actress_profile
                 }
 
                 yield f"data: {json.dumps(response)}\n\n"
 
             except Exception as e:
-                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e), 'actress_profile': None})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

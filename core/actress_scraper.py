@@ -183,3 +183,86 @@ def _parse_info_line(text: str, result: Dict) -> None:
         hobby = text.split(':')[-1].split('：')[-1].strip()
         if hobby:
             result['hobby'] = hobby
+
+
+# Cache 結構（模組層級變數）
+_cache = {}  # key: str (正規化女優名), value: dict (profile + timestamp)
+_CACHE_TTL = 3600  # 1 小時
+
+
+def _normalize_name(name: str) -> str:
+    """正規化女優名稱（用於 cache key）"""
+    import unicodedata
+    name = name.strip()
+    # 全形 → 半形
+    name = unicodedata.normalize('NFKC', name)
+    # 統一空白符
+    name = ' '.join(name.split())
+    return name
+
+
+def get_actress_profile(name: str) -> Optional[Dict]:
+    """
+    取得女優完整資料（Graphis + JavBus 雙來源並行）
+
+    Args:
+        name: 女優名稱（日文）
+
+    Returns:
+        {
+            'name': str,           # 姓名
+            'img': str,            # 頭像 URL（Graphis 優先）
+            'backdrop': str,       # 背景 URL（僅 Graphis 有）
+            'birth': str,          # 生日 "1996-12-03"
+            'age': int,            # 年齡
+            'height': str,         # 身高 "160cm"
+            'cup': str,            # 罩杯 "G"
+            'bust': str,           # 胸圍 "90cm"
+            'waist': str,          # 腰圍 "55cm"
+            'hip': str,            # 臀圍 "86cm"
+            'hometown': str,       # 出身地
+            'hobby': str,          # 興趣
+        }
+        兩邊都沒資料返回 None
+    """
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    from core.graphis_scraper import scrape_graphis_photo
+
+    # Cache 檢查
+    cache_key = _normalize_name(name)
+    if cache_key in _cache:
+        cached = _cache[cache_key]
+        if time.time() - cached['timestamp'] < _CACHE_TTL:
+            return cached['data']
+        else:
+            del _cache[cache_key]  # 過期清理
+
+    # 並行抓取
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        graphis_future = executor.submit(scrape_graphis_photo, name)
+        javbus_future = executor.submit(scrape_actress_profile, name)
+
+        graphis_result = graphis_future.result()  # 5s timeout（內建）
+        javbus_result = javbus_future.result()    # 15s timeout（內建）
+
+    # 資料合併
+    if javbus_result:
+        result = javbus_result.copy()
+    elif graphis_result:
+        result = {'name': name}
+    else:
+        return None
+
+    # Graphis 照片優先覆蓋
+    if graphis_result:
+        result['img'] = graphis_result['prof_url']
+        result['backdrop'] = graphis_result['backdrop_url']
+
+    # Cache 寫入
+    _cache[cache_key] = {
+        'data': result,
+        'timestamp': time.time()
+    }
+
+    return result
