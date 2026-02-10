@@ -4,34 +4,81 @@
 
 {% block extra_css %}
 <link href="/static/css/pages/search.css" rel="stylesheet">
+<link href="/static/css/pages/showcase.css" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
-<!-- 拖拽覆蓋層 -->
-<div class="drag-overlay" id="dragOverlay">
-    <div class="drag-overlay-content">
-        <i class="bi bi-file-earmark-play"></i>
-        <p>放開以搜尋番號</p>
+<div class="search-container ds-page" x-data="searchPage()" @keydown.window="handleKeydown($event)">
+    <!-- 拖拽覆蓋層（必須在 x-data scope 內） -->
+    <div class="drag-overlay" id="dragOverlay" :class="{ active: dragActive }">
+        <div class="drag-overlay-content">
+            <i class="bi bi-file-earmark-play"></i>
+            <p>放開以搜尋番號</p>
+        </div>
     </div>
-</div>
 
-<div class="search-container ds-page">
-    <!-- Gallery 視圖容器 -->
-    <div id="galleryView" class="hidden">
-        <iframe id="galleryFrame" src="" sandbox="allow-same-origin allow-scripts"></iframe>
+    <!-- T2a: Lightbox（Grid 模式） -->
+    <div class="showcase-lightbox"
+         :class="{ 'show': lightboxOpen }"
+         @click="handleLightboxBackdropClick($event)">
+
+        <div class="lightbox-content" @click.stop>
+            <!-- Close Button -->
+            <button class="lightbox-close"
+                    @click="closeLightbox()"
+                    title="關閉 (ESC)">
+                <i class="bi bi-x-lg"></i>
+            </button>
+
+            <!-- Cover Image -->
+            <div class="lightbox-cover">
+                <img :src="actressLightboxMode
+                         ? (actressProfile?.img ? `/api/proxy-image?url=${encodeURIComponent(actressProfile.img)}` : '')
+                         : (currentLightboxVideo()?.cover ? `/api/proxy-image?url=${encodeURIComponent(currentLightboxVideo().cover)}` : '')"
+                     :alt="actressLightboxMode ? actressProfile?.name : currentLightboxVideo()?.number"
+                     @error="$event.target.onerror=null; $event.target.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22 fill=%22%23666%22><rect width=%22400%22 height=%22300%22 fill=%22%23222%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2216%22>No Image</text></svg>'">
+            </div>
+        </div>
+
+        <!-- Navigation Arrows -->
+        <button class="lightbox-nav lightbox-nav-prev"
+                @click.stop="prevLightboxVideo()"
+                x-show="!actressLightboxMode && lightboxIndex > 0"
+                title="上一部 (←)">
+            <i class="bi bi-chevron-left"></i>
+        </button>
+        <button class="lightbox-nav lightbox-nav-next"
+                @click.stop="nextLightboxVideo()"
+                x-show="!actressLightboxMode && lightboxIndex < searchResults.length - 1"
+                title="下一部 (→)">
+            <i class="bi bi-chevron-right"></i>
+        </button>
     </div>
 
     <!-- 搜尋框 -->
     <div class="search-bar">
-        <form id="searchForm">
+        <form id="searchForm" @submit.prevent="doSearch()">
             <div class="spotlight-search">
                 <i class="bi bi-search search-icon-left"></i>
                 <input type="text" id="searchQuery" name="q" placeholder="搜尋番號、女優或拖入檔案..." autocomplete="off">
                 <div class="search-actions-right">
-                    <button type="button" id="btnBackToDetail" class="btn-icon hidden" title="返回詳細資料">
-                        <i class="bi bi-arrow-left"></i>
+                    <!-- 取消搜尋按鈕（loading 狀態顯示） -->
+                    <button type="button"
+                            x-show="pageState === 'loading'"
+                            @click="cancelSearch()"
+                            class="btn-icon"
+                            title="取消搜尋">
+                        <i class="bi bi-x-lg"></i>
                     </button>
-                    <button type="button" id="btnClear" class="btn-icon hidden" title="清空">
+                    <!-- T2a/T3a: Grid / Detail Toggle -->
+                    <button type="button"
+                            class="btn-icon rotating-border-spotlight active"
+                            x-show="listMode === 'search' && appConfig?.search?.gallery_mode_enabled !== false && (currentMode === 'actress' || currentMode === 'prefix')"
+                            @click="toggleDisplayMode()"
+                            :title="displayMode === 'detail' ? '切換到圖片模式' : '切換到詳細模式'">
+                        <i class="bi" :class="displayMode === 'detail' ? 'bi-grid-3x3' : 'bi-list-ul'"></i>
+                    </button>
+                    <button type="button" id="btnClear" class="btn-icon hidden" x-show="hasContent" @click="clearAll()" title="清空">
                         <i class="bi bi-x-lg"></i>
                     </button>
                     <button type="submit" id="btnSubmit" class="btn-icon active" title="搜尋">
@@ -49,128 +96,243 @@
     <!-- 結果區域 -->
     <div class="result-area">
         <!-- 初始狀態 -->
-        <div id="emptyState" class="state-page w-full">
+        <div id="emptyState" class="state-page w-full" x-show="pageState === 'empty'">
             <i class="bi bi-film state-page-icon"></i>
             <p class="state-page-text">輸入番號搜尋，或加入影片檔案</p>
             <div class="empty-actions">
-                <button class="btn btn-sm btn-outline btn-primary" id="btnAddFiles">
+                <button class="btn btn-sm btn-outline btn-primary" id="btnAddFiles" @click="addFiles()">
                     <i class="bi bi-file-earmark-plus"></i> 加入檔案
                 </button>
-                <button class="btn btn-sm btn-outline btn-primary" id="btnAddFolder">
+                <button class="btn btn-sm btn-outline btn-primary" id="btnAddFolder" @click="addFolder()">
                     <i class="bi bi-folder-plus"></i> 加入資料夾
                 </button>
-                <button class="btn btn-sm btn-outline btn-warning" id="btnFavorite" title="載入我的最愛資料夾">
-                    <i class="bi bi-star-fill"></i> 我的最愛
+                <button class="btn btn-sm btn-outline btn-warning" id="btnFavorite" @click="loadFavorite()" :disabled="isLoadingFavorite" title="載入我的最愛資料夾">
+                    <template x-if="!isLoadingFavorite"><i class="bi bi-star-fill"></i></template>
+                    <span x-show="isLoadingFavorite" class="loading loading-spinner loading-sm"></span>
+                    <span x-text="isLoadingFavorite ? '' : '我的最愛'">我的最愛</span>
                 </button>
             </div>
             <small class="state-page-hint">也可直接拖入檔案或資料夾</small>
         </div>
 
         <!-- 載入中 - 進度指示器 -->
-        <div id="loadingState" class="search-progress w-full hidden">
+        <div id="loadingState" class="search-progress w-full hidden" x-show="pageState === 'loading'" x-cloak>
             <div class="progress-container">
                 <!-- 搜尋標題 -->
                 <div class="progress-header">
-                    <span class="progress-query" id="progressQuery">"搜尋中"</span>
+                    <span class="progress-query" x-text="'&quot;' + currentQuery + '&quot;'"></span>
                 </div>
 
                 <!-- 單行日誌 -->
-                <div class="progress-log" id="progressLog">
+                <div class="progress-log" x-text="progressLog">
                     搜尋中...
                 </div>
 
                 <!-- 詳情進度條 -->
-                <div class="detail-progress" id="detailProgress">
-                    <div class="detail-bar" id="detailBar"></div>
-                    <span class="detail-text" id="detailText">0 / 0</span>
+                <div class="detail-progress" x-show="detailTotal > 0">
+                    <div class="detail-bar" :style="'width:' + detailProgressPercent() + '%'"></div>
+                    <span class="detail-text" x-text="detailDone + ' / ' + detailTotal">0 / 0</span>
                 </div>
             </div>
         </div>
 
         <!-- 錯誤狀態 -->
-        <div id="errorState" class="state-page error w-full hidden">
+        <div id="errorState" class="state-page error w-full hidden" x-show="pageState === 'error'" x-cloak>
             <i class="bi bi-exclamation-triangle state-page-icon"></i>
-            <p class="state-page-text error-text" id="errorMessage">搜尋失敗</p>
+            <p class="state-page-text error-text" id="errorMessage" x-text="errorText || '搜尋失敗'">搜尋失敗</p>
             <small class="state-page-hint">請檢查番號格式或稍後再試</small>
             <!-- 多檔案模式導航 -->
-            <div class="error-nav hidden" id="errorNav">
-                <button class="btn btn-sm btn-outline btn-neutral" id="errorBtnPrev" title="上一個 (←)">
+            <div class="error-nav" x-show="fileList.length > 1" id="errorNav">
+                <button class="btn btn-sm btn-outline btn-neutral"
+                        id="errorBtnPrev"
+                        :disabled="!canGoPrev()"
+                        @click="navigate(-1)"
+                        title="上一個 (←)">
                     <i class="bi bi-chevron-left"></i>
                 </button>
-                <span class="error-nav-indicator" id="errorNavIndicator">1/5</span>
-                <button class="btn btn-sm btn-outline btn-neutral" id="errorBtnNext" title="下一個 (→)">
+                <span class="error-nav-indicator" id="errorNavIndicator" x-text="navIndicatorText()">1/5</span>
+                <button class="btn btn-sm btn-outline btn-neutral"
+                        id="errorBtnNext"
+                        :disabled="!canGoNext()"
+                        @click="navigate(1)"
+                        title="下一個 (→)">
                     <i class="bi bi-chevron-right"></i>
                 </button>
             </div>
         </div>
 
         <!-- 結果卡片（wrapper：卡片 + 檔案列表垂直排列） -->
-        <div id="resultCard" class="hidden">
-            <!-- AV Card Full：封面 + 資訊並排 -->
-            <div class="av-card-full">
+        <div id="resultCard" class="hidden" x-show="pageState === 'result'" x-cloak>
+            <!-- T5: Actress Banner 完全移除（Detail 模式不顯示女優資訊）-->
+            <!-- Hero Card 仍在 Grid 模式顯示（L379-400，已有 x-show="displayMode === 'grid'"） -->
+
+            <!-- AV Card Full：封面 + 資訊並排（Detail 模式） -->
+            <div class="av-card-full rotating-border-spotlight"
+                 x-show="displayMode === 'detail'"
+                 :class="{ 'active once': shouldShowLocalBorder(current()) }"
+                 @animationend.self="markLocalBorderPlayed(current()?.number)">
                 <div class="av-card-full-cover">
                     <div class="av-card-full-cover-wrapper">
-                        <img id="resultCover" class="av-card-full-cover-img" src="" alt="封面">
-                        <button class="nav-btn prev hidden" id="btnPrev" title="上一個 (←)">
-                            <i class="bi bi-chevron-left"></i>
+                        <img id="resultCover" class="av-card-full-cover-img"
+                             x-show="!coverError && current().cover"
+                             :src="coverUrl()"
+                             @error="handleCoverError()"
+                             @load="coverError = ''; _coverRetried = false"
+                             alt="封面">
+                        <!-- 封面錯誤 -->
+                        <div x-show="coverError" class="cover-error-placeholder">
+                            <i class="bi bi-exclamation-triangle" style="font-size:3rem;color:var(--color-warning);"></i>
+                            <p x-text="coverError" style="margin-top:0.5rem;"></p>
+                            <small>請檢查番號格式或稍後再試</small>
+                        </div>
+                        <!-- 無封面 -->
+                        <div x-show="!coverError && !current().cover" class="cover-error-placeholder">
+                            <i class="bi bi-image" style="font-size:3rem;"></i>
+                        </div>
+                        <button class="nav-btn prev" id="btnPrev"
+                                x-show="showNavigation()"
+                                :disabled="!canGoPrev() || (isSearchingFile && searchingFileDirection === 'prev')"
+                                @click="navigate(-1)"
+                                title="上一個 (←)">
+                            <i x-show="!(isSearchingFile && searchingFileDirection === 'prev')" class="bi bi-chevron-left"></i>
+                            <span x-show="isSearchingFile && searchingFileDirection === 'prev'" class="loading loading-spinner loading-sm"></span>
                         </button>
-                        <button class="nav-btn next hidden" id="btnNext" title="下一個 (→)">
-                            <i class="bi bi-chevron-right"></i>
+                        <button class="nav-btn next" id="btnNext"
+                                x-show="showNavigation()"
+                                :disabled="!canGoNext() || isLoadingMore || (isSearchingFile && searchingFileDirection === 'next')"
+                                @click="navigate(1)"
+                                title="下一個 (→)">
+                            <i x-show="!isLoadingMore && !(isSearchingFile && searchingFileDirection === 'next')" class="bi bi-chevron-right"></i>
+                            <span x-show="isLoadingMore || (isSearchingFile && searchingFileDirection === 'next')" class="loading loading-spinner loading-sm"></span>
                         </button>
-                        <div class="nav-indicator hidden" id="navIndicator">
-                            <span id="currentIndex">1</span> / <span id="totalCount">1</span>
+                        <div class="nav-indicator" id="navIndicator"
+                             x-show="showNavigation()">
+                            <span id="currentIndex"
+                                  x-text="fileList.length > 1 ? (currentFileIndex + 1) : (currentIndex + 1)">1</span> /
+                            <span id="totalCount"
+                                  x-text="fileList.length > 1 ? fileList.length : (hasMoreResults ? (searchResults.length + '+') : searchResults.length)">1</span>
                         </div>
                     </div>
                 </div>
                 <div class="av-card-full-info">
                 <div class="av-card-full-header">
-                    <h4 class="av-num" id="resultNumber">-</h4>
-                    <span id="localBadge" class="local-badge hidden" title="本地已有">📁</span>
-                    <button id="switchSourceBtn" class="info-icon-btn" onclick="switchSource()" title="切換版本">
+                    <h4 class="av-num" id="resultNumber" x-text="current().number || '-'">-</h4>
+                    <span id="localBadge" class="local-badge"
+                          x-show="hasLocalBadge()"
+                          :title="localBadgeTitle()"
+                          @click="copyLocalPath()">📁</span>
+                    <button id="switchSourceBtn" class="info-icon-btn" @click="switchSource()"
+                            title="切換版本"
+                            :data-number="current().number || ''"
+                            :data-all-variant-ids="JSON.stringify(current()._all_variant_ids || [])"
+                            :data-current-variant-id="current()._variant_id || ''">
                         <i class="bi bi-arrow-repeat"></i>
                     </button>
                 </div>
                 <div class="av-card-full-body">
                     <div class="info-row">
                         <span class="info-label">演員</span>
-                        <span class="info-value" id="resultActors">-</span>
+                        <span class="info-value" id="resultActors" x-text="(current().actors || []).join(', ') || '-'">-</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">發行日期</span>
-                        <span class="info-value" id="resultDate">-</span>
+                        <span class="info-value" id="resultDate" x-text="current().date || '-'">-</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">片商</span>
-                        <span class="info-value" id="resultMaker">-</span>
+                        <span class="info-value" id="resultMaker" x-text="current().maker || '-'">-</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">標籤</span>
-                        <span class="info-value" id="resultTags">-</span>
+                        <span class="info-value" id="resultTags">
+                            <!-- 字幕標籤 -->
+                            <span x-show="hasSubtitle()" class="badge tag-badge subtitle">中文字幕</span>
+                            <!-- 系統標籤 -->
+                            <template x-for="tag in (current().tags || [])" :key="tag">
+                                <span class="badge tag-badge" x-text="tag"></span>
+                            </template>
+                            <!-- 用戶標籤 -->
+                            <template x-for="tag in (current().user_tags || [])" :key="'u_' + tag">
+                                <span class="badge tag-badge user-tag">
+                                    <span x-text="tag"></span>
+                                    <span class="tag-remove" @click="removeUserTag(tag)">&times;</span>
+                                </span>
+                            </template>
+                            <!-- 新增標籤按鈕 -->
+                            <button x-show="!addingTag" @click="showAddTagInput()" class="btn btn-sm tag-add-btn" title="新增標籤">+</button>
+                            <!-- 新增標籤輸入框 -->
+                            <span x-show="addingTag" class="tag-input-wrapper">
+                                <input type="text" x-ref="tagInput" x-model="newTagValue"
+                                       @keydown.enter="confirmAddTag()" @keydown.escape="cancelAddTag()"
+                                       class="tag-input" placeholder="標籤名稱" maxlength="20">
+                                <button @click="confirmAddTag()" class="btn btn-sm tag-confirm">✓</button>
+                                <button @click="cancelAddTag()" class="btn btn-sm tag-cancel">✕</button>
+                            </span>
+                        </span>
                     </div>
                 </div>
                 <div class="av-card-full-footer">
                     <div class="av-card-full-footer-content">
                         <span class="info-label">標題</span>
-                        <div class="info-value-with-actions" id="titleContainer">
-                            <span class="info-value" id="resultTitle">-</span>
+                        <!-- 顯示模式 -->
+                        <div class="info-value-with-actions" id="titleContainer" x-show="!editingTitle">
+                            <span class="info-value" id="resultTitle" x-text="current().title || '-'">-</span>
                             <div class="av-card-full-footer-actions">
-                                <button id="editTitleBtn" class="info-icon-btn" onclick="startEditTitle()" title="編輯標題">
-                                    <i class="bi bi-pencil text-muted"></i>
+                                <button id="editTitleBtn" class="info-icon-btn" @click="startEditTitle()" title="編輯標題">
+                                    <i :class="current()._titleEdited ? 'bi bi-pencil-fill text-success' : 'bi bi-pencil text-muted'"></i>
                                 </button>
-                                <button id="translateBtn" class="info-icon-btn hidden" onclick="translateWithAI()" title="AI 翻譯">
+                                <button id="translateBtn" class="info-icon-btn"
+                                        x-show="canTranslate() && !isTranslating"
+                                        @click="translateWithAI()" title="AI 翻譯">
                                     <i class="bi bi-translate"></i>
                                 </button>
-                                <span id="translateSpinner" class="loading loading-spinner loading-sm hidden"></span>
+                                <span id="translateSpinner" class="loading loading-spinner loading-sm"
+                                      x-show="isTranslating"></span>
+                            </div>
+                        </div>
+                        <!-- 編輯模式 -->
+                        <div class="info-value-with-actions" x-show="editingTitle" x-cloak>
+                            <textarea x-ref="titleInput" x-model="editedTitleValue"
+                                      @keydown.enter.prevent="confirmEditTitle()"
+                                      @keydown.escape="cancelEditTitle()"
+                                      class="textarea textarea-bordered info-value"
+                                      rows="3" style="flex:1;min-width:0;resize:none;"></textarea>
+                            <div class="av-card-full-footer-actions">
+                                <button class="info-icon-btn text-success" @click="confirmEditTitle()" title="確認">
+                                    <i class="bi bi-check-lg"></i>
+                                </button>
+                                <button class="info-icon-btn text-error" @click="cancelEditTitle()" title="取消">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
-                    <div id="chineseTitleRow" class="av-card-full-footer-content mt-2 hidden">
-                        <span class="info-label" id="chineseTitleLabel">中文片名</span>
-                        <div class="info-value-with-actions" id="chineseTitleContainer">
-                            <span class="info-value text-success" id="resultChineseTitle">-</span>
+                    <!-- 中文標題 -->
+                    <div id="chineseTitleRow" class="av-card-full-footer-content mt-2"
+                         x-show="hasChineseTitle()">
+                        <span class="info-label" id="chineseTitleLabel" x-text="chineseTitleLabel()">中文片名</span>
+                        <!-- 顯示模式 -->
+                        <div class="info-value-with-actions" id="chineseTitleContainer" x-show="!editingChineseTitle">
+                            <span class="info-value text-success" id="resultChineseTitle" x-text="chineseTitleText()">-</span>
                             <div class="av-card-full-footer-actions">
-                                <button id="editChineseTitleBtn" class="info-icon-btn" onclick="startEditChineseTitle()" title="編輯中文片名">
-                                    <i class="bi bi-pencil text-muted"></i>
+                                <button id="editChineseTitleBtn" class="info-icon-btn" @click="startEditChineseTitle()" title="編輯中文片名">
+                                    <i :class="current()._chineseTitleEdited ? 'bi bi-pencil-fill text-success' : 'bi bi-pencil text-muted'"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <!-- 編輯模式 -->
+                        <div class="info-value-with-actions" x-show="editingChineseTitle" x-cloak>
+                            <textarea x-ref="chineseTitleInput" x-model="editedChineseTitleValue"
+                                      @keydown.enter.prevent="confirmEditChineseTitle()"
+                                      @keydown.escape="cancelEditChineseTitle()"
+                                      class="textarea textarea-bordered info-value text-success"
+                                      rows="2" style="flex:1;min-width:0;resize:none;"></textarea>
+                            <div class="av-card-full-footer-actions">
+                                <button class="info-icon-btn text-success" @click="confirmEditChineseTitle()" title="確認">
+                                    <i class="bi bi-check-lg"></i>
+                                </button>
+                                <button class="info-icon-btn text-error" @click="cancelEditChineseTitle()" title="取消">
+                                    <i class="bi bi-x-lg"></i>
                                 </button>
                             </div>
                         </div>
@@ -179,33 +341,207 @@
             </div>
             </div>
 
+            <!-- T2a: Grid Mode（封面牆） -->
+            <div class="search-grid ds-gallery-composition" x-show="displayMode === 'grid' && listMode === 'search'" x-cloak>
+                <!-- T2d: Hero Card（第一格）-->
+                <div class="av-card-preview hero-card"
+                     x-show="actressProfile"
+                     x-cloak
+                     @click="openActressLightbox()"
+                     :style="`--card-index: 0`">
+                    <div class="av-card-preview-img">
+                        <img :src="actressProfile?.img ? `/api/proxy-image?url=${encodeURIComponent(actressProfile.img)}` : ''"
+                             :alt="actressProfile?.name"
+                             loading="lazy"
+                             @error="$event.target.onerror=null; $event.target.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22360%22 height=%22508%22 fill=%22%23666%22><rect width=%22360%22 height=%22508%22 fill=%22%23222%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2216%22>No Image</text></svg>'">
+                    </div>
+                    <div class="av-card-preview-footer">
+                        <div class="footer-default">
+                            <span class="av-num" x-text="actressProfile?.birth || '-'">-</span>
+                            <span class="av-actress" x-text="actressProfile?.height || ''"></span>
+                        </div>
+                        <div class="footer-hover">
+                            <div class="hover-title" x-text="[actressProfile?.name || '', actressProfile?.age ? actressProfile?.age + '歲' : '', actressProfile?.cup ? actressProfile?.cup + '罩杯' : '', actressProfile?.bust || '', actressProfile?.waist || '', actressProfile?.hip || '', actressProfile?.hometown || '', actressProfile?.hobby || ''].filter(Boolean).join(' · ') || '-'"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 正常搜尋結果卡片 -->
+                <template x-for="(result, index) in searchResults" :key="result.number + '_' + index">
+                    <div class="av-card-preview"
+                         @click="openLightbox(index)"
+                         :style="`--card-index: ${index + (actressProfile ? 1 : 0)}`"
+                         :class="{ 'rotating-border-spotlight active once': shouldShowLocalBorder(result) }"
+                         @animationend.self="markLocalBorderPlayed(result?.number)">
+                        <div class="av-card-preview-img">
+                            <img :src="result.cover ? `/api/proxy-image?url=${encodeURIComponent(result.cover)}` : ''"
+                                 :alt="result.number"
+                                 loading="lazy"
+                                 x-show="!_gridImageErrors.has(index)"
+                                 @error="markImageError(index)">
+                            <!-- Overlay Actions (Hover) -->
+                            <div class="av-card-preview-overlay">
+                                <button class="btn-glass-circle"
+                                        @click.stop="switchToDetail(index)"
+                                        title="查看詳情">
+                                    <i class="bi bi-info-circle"></i>
+                                </button>
+                                <button class="btn-glass-circle"
+                                        @click.stop="copyPath(result._localStatus?.paths?.[0] || '')"
+                                        x-show="result._localStatus?.exists"
+                                        title="複製路徑">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="av-card-preview-footer">
+                            <div class="footer-default">
+                                <span class="av-num" x-text="result.number || '-'">-</span>
+                                <span class="av-actress" x-text="(result.actors || []).slice(0, 2).join(', ') || '未知'">未知</span>
+                            </div>
+                            <div class="footer-hover">
+                                <div class="hover-title" x-text="result.title || '未知標題'">未知標題</div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
             <!-- 檔案列表（卡片外，下方獨立） -->
-            <div class="file-list-section hidden" id="fileListSection">
+            <div class="file-list-section" id="fileListSection"
+                 x-show="(listMode === 'file' && fileList.length > 0) || (listMode === 'search' && searchResults.length > 0)">
                 <div class="file-list-header">
-                    <span class="file-count" id="fileCountText">0 個檔案</span>
+                    <span class="file-count" id="fileCountText" x-text="fileCountText()">0 個檔案</span>
                     <div class="join">
                         <button class="btn btn-sm btn-outline btn-primary join-item" id="btnSearchAll" type="button"
+                            @click="searchAll()"
+                            :disabled="searchAllDisabled()"
                             title="搜尋所有未搜尋的檔案">
-                            <i class="bi bi-search"></i> 搜尋全部
+                            <i :class="searchAllButtonIcon()"></i>
+                            <span x-text="searchAllButtonText()">搜尋全部</span>
                         </button>
-                        <button class="btn btn-sm btn-success join-item" id="btnScrapeAll" type="button" title="產生所有已搜尋的檔案">
-                            <i class="bi bi-folder-plus"></i> 產生全部
+                        <button class="btn btn-sm btn-success join-item" id="btnScrapeAll" type="button"
+                            x-show="listMode === 'file'"
+                            @click="scrapeAll()"
+                            :disabled="isScrapeAllProcessing"
+                            title="產生所有已搜尋的檔案">
+                            <span x-show="!isScrapeAllProcessing"><i class="bi bi-folder-plus"></i> 產生全部</span>
+                            <span x-show="isScrapeAllProcessing" class="loading loading-spinner loading-sm"></span>
                         </button>
                     </div>
                 </div>
 
                 <!-- 批次進度條 -->
-                <div class="batch-progress hidden" id="batchProgress">
+                <div class="batch-progress" id="batchProgress"
+                     x-show="batchState.isProcessing">
                     <div class="batch-progress-bar">
-                        <div class="batch-progress-fill" id="batchProgressBar"></div>
+                        <div class="batch-progress-fill" id="batchProgressBar"
+                             :style="'width:' + batchPercent() + '%'"></div>
                     </div>
-                    <small class="batch-progress-text" id="batchProgressText">處理中 0/0</small>
+                    <small class="batch-progress-text" id="batchProgressText"
+                           x-text="'處理中 ' + batchState.processed + '/' + batchState.total">處理中 0/0</small>
                 </div>
 
-                <div class="file-list" id="fileList">
-                    <!-- 動態生成檔案項目 -->
+                <!-- 檔案列表 -->
+                <div x-show="listMode === 'file'" class="file-list" id="fileList">
+                    <template x-for="(file, i) in fileList" :key="file.path">
+                        <div @click="switchToFile(i, 'first')"
+                             :class="i === currentFileIndex ? 'file-item active' : 'file-item'">
+                            <!-- 移除按鈕 -->
+                            <button class="btn btn-link btn-sm p-0 btn-remove-file text-muted"
+                                    @click.stop="removeFile(i)"
+                                    title="移除此檔案">
+                                <i class="bi bi-x"></i>
+                            </button>
+
+                            <!-- 檔案圖示 -->
+                            <i class="bi bi-file-earmark-play file-icon"></i>
+
+                            <!-- 檔名 -->
+                            <span class="file-name" :title="file.path" x-text="file.filename">-</span>
+
+                            <!-- 狀態圖示 -->
+                            <span :class="fileStatusClass(file)"
+                                  x-text="fileStatusIcon(file)"></span>
+
+                            <!-- 動作按鈕：產生 NFO -->
+                            <button x-show="canScrapeFile(file) && !file.isScraping && file.scrapeStatus !== 'done'"
+                                    @click.stop="scrapeSingle(i)"
+                                    class="btn btn-sm btn-outline btn-success btn-scrape-single"
+                                    title="產生 NFO + 封面">
+                                <i class="bi bi-folder-plus"></i>
+                            </button>
+
+                            <!-- Scraping spinner -->
+                            <span x-show="file.isScraping" class="loading loading-spinner loading-sm"></span>
+
+                            <!-- Scrape done -->
+                            <button x-show="file.scrapeStatus === 'done'"
+                                    class="btn btn-sm btn-success btn-scrape-single" disabled>
+                                <i class="bi bi-check"></i>
+                            </button>
+
+                            <!-- Scrape failed -->
+                            <button x-show="file.scrapeStatus === 'failed'"
+                                    @click.stop="scrapeSingle(i)"
+                                    class="btn btn-sm btn-error btn-scrape-single"
+                                    title="重試">
+                                失敗
+                            </button>
+
+                            <!-- 動作按鈕：手動輸入番號 -->
+                            <button x-show="needsNumberInput(file)"
+                                    @click.stop="enterNumber(i)"
+                                    class="btn btn-sm btn-outline btn-warning btn-enter-number"
+                                    title="手動輸入番號">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- 搜尋結果列表 -->
+                <div x-show="listMode === 'search'" class="file-list">
+                    <template x-for="(result, i) in searchResults" :key="(result.number || '') + '_' + i">
+                        <div @click="switchToSearchResult(i)"
+                             :class="i === currentIndex ? 'file-item active' : 'file-item'">
+                            <span style="flex-shrink:0;font-weight:500;color:var(--accent);min-width:90px;"
+                                  x-text="result.number || '-'">-</span>
+                            <span style="flex-shrink:0;min-width:80px;color:var(--text-secondary);"
+                                  x-text="(result.actors || []).slice(0,2).join(', ') || '-'">-</span>
+                            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                                  x-text="result.title || '-'">-</span>
+                        </div>
+                    </template>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- T6b: 統一 Toast 組件（固定位置，Alpine 管理） -->
+    <div class="search-toast-container"
+         x-show="_toast.visible"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-4"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 translate-y-4">
+        <div class="alert"
+             :class="{
+                 'alert-success': _toast.type === 'success',
+                 'alert-error': _toast.type === 'error',
+                 'alert-warning': _toast.type === 'warning',
+                 'alert-info': _toast.type === 'info'
+             }">
+            <i class="bi"
+               :class="{
+                   'bi-check-circle-fill': _toast.type === 'success',
+                   'bi-exclamation-circle-fill': _toast.type === 'error',
+                   'bi-exclamation-triangle-fill': _toast.type === 'warning',
+                   'bi-info-circle-fill': _toast.type === 'info'
+               }"></i>
+            <span x-text="_toast.message"></span>
         </div>
     </div>
 </div>
@@ -232,6 +568,18 @@
 
     // === 主程式已移至 /static/js/pages/search/ ===
 </script>
+<!-- Alpine State Modules (must load before other JS) -->
+<script src="/static/js/pages/search/state/base.js"></script>
+<script src="/static/js/pages/search/state/persistence.js"></script>
+<script src="/static/js/pages/search/state/search-flow.js"></script>
+<script src="/static/js/pages/search/state/navigation.js"></script>
+<script src="/static/js/pages/search/state/result-card.js"></script>
+<script src="/static/js/pages/search/state/file-list.js"></script>
+<script src="/static/js/pages/search/state/batch.js"></script>
+<script src="/static/js/pages/search/state/bridge.js"></script>
+<script src="/static/js/pages/search/state/grid-mode.js"></script>
+<script src="/static/js/pages/search/state/index.js"></script>
+<!-- Existing JS modules -->
 <script src="/static/js/pages/search/core.js"></script>
 <script src="/static/js/pages/search/ui.js"></script>
 <script src="/static/js/pages/search/file.js"></script>

@@ -52,6 +52,17 @@
     background: rgba(0, 0, 0, 0.2);
 }
 
+/* Fix 3: 封面錯誤/無封面 placeholder 置中 */
+.cover-error-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+}
+
 .av-card-full-cover-img {
     width: 100%;
     height: 100%;
@@ -198,7 +209,7 @@
 
 .file-item .file-status {
     font-size: 0.75rem;
-    color: #198754;
+    color: var(--color-success);
     flex-shrink: 0;
 }
 
@@ -410,25 +421,6 @@
     transition: color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
-/* ==================== Gallery View ==================== */
-
-#galleryView {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 100;
-    background: var(--bg-body);
-}
-
-#galleryFrame {
-    width: 100%;
-    height: 100%;
-    border: none;
-    background: var(--bg-body);
-}
-
 /* === RWD 響應式 === */
 
 /* Tablet & Mobile: 調整容器高度 */
@@ -526,7 +518,7 @@
 
 /* ==================== 用戶標籤樣式 ==================== */
 .tag-badge.user-tag {
-    background: #6366f1;
+    background: var(--accent);
     color: #fff;
     cursor: default;
 }
@@ -584,9 +576,106 @@
 }
 
 .tag-confirm {
-    color: #22c55e;
+    color: var(--color-success);
 }
 
 .tag-cancel {
-    color: #ef4444;
+    color: var(--color-error);
+}
+
+/* ==================== T2a: Grid Mode ==================== */
+.search-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    padding: 1.5rem;
+    padding-bottom: 2.5rem; /* 底部安全距：容納 hover glow（20px shadow + 4px translateY） */
+
+    /* 防止卡片過寬（對齊 showcase-grid） */
+    max-width: 100%;
+}
+
+/* 響應式斷點 - 對齊 showcase.css */
+@media (min-width: 1500px) {
+    .search-grid {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+
+@media (min-width: 1100px) and (max-width: 1499px) {
+    .search-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (min-width: 900px) and (max-width: 1099px) {
+    .search-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 481px) and (max-width: 899px) {
+    .search-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .search-grid {
+        grid-template-columns: 1fr;
+        padding: 1rem;
+    }
+}
+
+/* Footer 雙層切換（對齊 showcase.css .showcase-grid 的 footer 設定） */
+.search-grid .av-card-preview-footer {
+    position: relative;
+    overflow: hidden;
+    height: 2.5rem;
+}
+
+/* ==================== T2d: Actress Profile ==================== */
+
+/* T5: Detail Mode Actress Banner 已移除（HTML + CSS），僅保留 Grid Mode Hero Card */
+
+/* Grid Mode - Hero Card */
+.hero-card {
+    cursor: pointer;
+}
+
+/* Hero Card 圖片覆寫：容器保持 3/2，圖片 contain 完整顯示 */
+/* 需匹配 theme.css :is(#ds-gallery-components, .ds-gallery-composition) 的 specificity */
+:is(#ds-gallery-components, .ds-gallery-composition) .hero-card .av-card-preview-img {
+    background: var(--bg-card, rgba(0, 0, 0, 0.05));  /* letterbox 留白背景 */
+}
+
+:is(#ds-gallery-components, .ds-gallery-composition) .hero-card .av-card-preview-img img {
+    object-fit: contain;  /* 完整顯示，不裁切 */
+    transform-origin: center center;  /* 置中（覆蓋 65% center 的 AV 封面偏移） */
+}
+
+/* ==================== T6b: 統一 Toast 容器 ==================== */
+.search-toast-container {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 9999;  /* 高於所有其他元素（包括 lightbox z-index: 1000） */
+    max-width: 420px;
+    pointer-events: none;  /* 不阻擋底下元素的點擊 */
+}
+
+.search-toast-container .alert {
+    pointer-events: auto;  /* alert 本身可點擊（未來可能加關閉按鈕） */
+    box-shadow: var(--fluent-shadow-16);  /* 大陰影，提升視覺層級 */
+}
+
+/* Mobile 適配：toast 左右邊距 */
+@media (max-width: 767.98px) {
+    .search-toast-container {
+        left: 1rem;
+        right: 1rem;
+        bottom: 1rem;
+        max-width: none;
+    }
 }

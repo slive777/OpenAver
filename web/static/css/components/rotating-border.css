@@ -38,7 +38,6 @@
  */
 .rotating-border-spotlight {
   position: relative;
-  overflow: visible;
 }
 
 /**
@@ -48,7 +47,7 @@
 .rotating-border-spotlight::before {
   content: '';
   position: absolute;
-  inset: -2px; /* 外擴 2px 形成邊框效果 */
+  inset: 0; /* 內側邊框，避免受父層 overflow 與圓角裁切影響 */
   border-radius: inherit; /* 繼承父層圓角 */
   padding: 2px; /* 配合 mask 技巧形成邊框寬度 */
 
@@ -75,7 +74,7 @@
   pointer-events: none;
 
   /* 層級設定：在父元素背景之上，內容之下 */
-  z-index: -1;
+  z-index: 1;
 
   /* 預設不旋轉（等待 active 狀態啟用）*/
   animation: none;
@@ -173,4 +172,23 @@
  */
 .rotating-border-spotlight.glow-strong::before {
   filter: brightness(1.3);
+}
+
+/* ========== T4: Once 變體（轉一圈後停止）========== */
+
+/**
+ * 單次旋轉變體
+ * 用於本地匹配提示：轉一圈後停止，避免持續干擾
+ */
+.rotating-border-spotlight.once.active::before {
+  animation: rotate-spotlight 2.5s linear 1;  /* iteration-count: 1 */
+}
+
+/**
+ * Pulse 一次變體（不依賴 active）
+ * 用於 sidebar 事件觸發：每次事件都可強制重播一圈
+ */
+.rotating-border-spotlight.pulse-once::before {
+  animation: rotate-spotlight 2.5s linear 1;
+  opacity: 1;
 }

@@ -645,6 +645,9 @@
       mask-image: url("data:image/svg+xml,%3Csvg width='24' height='24' stroke='black' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cg transform-origin='center'%3E%3Ccircle cx='12' cy='12' r='9.5' fill='none' stroke-width='3' stroke-linecap='round'%3E%3CanimateTransform attributeName='transform' type='rotate' from='0 12 12' to='360 12 12' dur='2s' repeatCount='indefinite'/%3E%3Canimate attributeName='stroke-dasharray' values='0,150;42,150;42,150' keyTimes='0;0.475;1' dur='1.5s' repeatCount='indefinite'/%3E%3Canimate attributeName='stroke-dashoffset' values='0;-16;-59' keyTimes='0;0.475;1' dur='1.5s' repeatCount='indefinite'/%3E%3C/circle%3E%3C/g%3E%3C/svg%3E");
     }
   }
+  .visible {
+    visibility: visible;
+  }
   .list {
     @layer daisyui.l1.l2.l3 {
       display: flex;
@@ -2277,6 +2280,14 @@
     --tw-translate-x: calc(var(--spacing) * 0);
     translate: var(--tw-translate-x) var(--tw-translate-y);
   }
+  .translate-y-0 {
+    --tw-translate-y: calc(var(--spacing) * 0);
+    translate: var(--tw-translate-x) var(--tw-translate-y);
+  }
+  .translate-y-4 {
+    --tw-translate-y: calc(var(--spacing) * 4);
+    translate: var(--tw-translate-x) var(--tw-translate-y);
+  }
   .rotate-180 {
     rotate: 180deg;
   }
@@ -3001,33 +3012,6 @@ body {
   font-weight: 600;
   letter-spacing: 0.02em;
 }
-.source-toast-inline {
-  display: inline-block;
-  margin-left: 0.5rem;
-  padding: 0.2rem 0.6rem;
-  background: var(--bg-header);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-pill);
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  opacity: 0;
-  transition: opacity var(--duration-normal) var(--ease-out);
-  vertical-align: middle;
-}
-.source-toast-inline.show {
-  opacity: 1;
-}
-[data-theme="dim"] .source-toast-inline {
-  background: var(--color-base-300);
-  @supports (color: color-mix(in lab, red, red)) {
-    background: color-mix(in oklch, var(--color-base-300) 90%, transparent);
-  }
-  border-color: var(--border-card);
-  color: var(--text-muted);
-}
 @keyframes shake {
   0%, 100% {
     transform: translateX(0);
@@ -3493,6 +3477,7 @@ body {
   position: relative;
   aspect-ratio: 3/2;
   overflow: hidden;
+  border-radius: var(--fluent-radius-xl) var(--fluent-radius-xl) 0 0;
 }
 :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview-img img {
   width: 100%;

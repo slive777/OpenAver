@@ -440,6 +440,16 @@
             </li>
             <li class="nav-item">
                 <a class="nav-link rotating-border-spotlight {% if page == 'showcase' %}active{% endif %} {% if showcase_has_content %}active{% endif %}" href="/showcase" title="瀏覽"
+                   @search:local-match.window="
+                       $el.classList.remove('pulse-once');
+                       void $el.offsetWidth;  // force reflow to replay animation
+                       $el.classList.add('pulse-once');
+                   "
+                   @animationend.self="
+                       if ($el.classList.contains('pulse-once')) {
+                           $el.classList.remove('pulse-once');
+                       }
+                   "
                    @click="
                        if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings($el.href)) {
                            $event.preventDefault();

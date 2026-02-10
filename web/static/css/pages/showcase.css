@@ -361,10 +361,10 @@
     align-items: center;
     justify-content: center;
 
-    /* Smoke Backdrop */
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(30px);
-    -webkit-backdrop-filter: blur(30px);
+    /* Smoke Backdrop — 匹配 gallery_generator.py 舊版風格 */
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 
     /* 初始隱藏 */
     opacity: 0;
