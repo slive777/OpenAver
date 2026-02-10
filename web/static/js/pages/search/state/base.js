@@ -47,6 +47,7 @@ window.SearchStateMixin_Base = function() {
         newTagValue: '',
         coverError: '',
         _coverRetried: false,
+        errorText: '',  // T6c: Error message state
 
         // ===== T6b: Toast State =====
         _toast: {

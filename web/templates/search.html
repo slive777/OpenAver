@@ -139,7 +139,7 @@
         <!-- 錯誤狀態 -->
         <div id="errorState" class="state-page error w-full hidden" x-show="pageState === 'error'" x-cloak>
             <i class="bi bi-exclamation-triangle state-page-icon"></i>
-            <p class="state-page-text error-text" id="errorMessage">搜尋失敗</p>
+            <p class="state-page-text error-text" id="errorMessage" x-text="errorText || '搜尋失敗'">搜尋失敗</p>
             <small class="state-page-hint">請檢查番號格式或稍後再試</small>
             <!-- 多檔案模式導航 -->
             <div class="error-nav" x-show="fileList.length > 1" id="errorNav">

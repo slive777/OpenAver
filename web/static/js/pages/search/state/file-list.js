@@ -341,10 +341,7 @@ window.SearchStateMixin_FileList = {
         const number = window.SearchFile.extractNumber(filename);
 
         if (!number) {
-            const errorMsg = document.getElementById('errorMessage');
-            if (errorMsg) {
-                errorMsg.textContent = '無法從檔名識別番號';
-            }
+            this.errorText = '無法從檔名識別番號';  // T6c: Alpine state
             window.SearchUI.showState('error');
             return;
         }

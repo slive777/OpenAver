@@ -32,6 +32,7 @@ window.SearchStateMixin_SearchFlow = {
         this.listMode = null;
         this.pageState = 'empty';
         this.hasContent = false;
+        this.errorText = '';  // T6c: 清空錯誤訊息
     },
 
     // ===== T1b: Search Methods =====
@@ -91,6 +92,7 @@ window.SearchStateMixin_SearchFlow = {
         this.actressProfile = null;  // T2d: 清空上次的女優資料
         this.displayMode = 'detail';  // T3a: 新搜尋重置顯示模式
         this._gridImageErrors = new Set();  // T6a: 清空 Grid 圖片錯誤記錄
+        this.errorText = '';  // T6c: 清空上次的錯誤訊息
 
         // 檔案列表由 x-show 自動隱藏（listMode=null, fileList=[]）
 
@@ -161,22 +163,16 @@ window.SearchStateMixin_SearchFlow = {
                         this.addingTag = false;
                     } else {
                         this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋失敗）
+                        this.errorText = '找不到資料';  // T6c: Alpine state
                         window.SearchUI.showState('error');
-                        const errorMsg = document.getElementById('errorMessage');
-                        if (errorMsg) {
-                            errorMsg.textContent = '找不到資料';
-                        }
                     }
                 }
                 else if (data.type === 'error') {
                     eventSource.close();
                     this.activeEventSource = null;
                     this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋錯誤）
+                    this.errorText = data.message || '搜尋失敗';  // T6c: Alpine state
                     window.SearchUI.showState('error');
-                    const errorMsg = document.getElementById('errorMessage');
-                    if (errorMsg) {
-                        errorMsg.textContent = data.message || '搜尋失敗';
-                    }
                 }
             } catch (err) {
                 console.error('Parse error:', err);
@@ -257,21 +253,15 @@ window.SearchStateMixin_SearchFlow = {
                 this.addingTag = false;
             } else {
                 this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋失敗）
+                this.errorText = data.error || '找不到資料';  // T6c: Alpine state
                 window.SearchUI.showState('error');
-                const errorMsg = document.getElementById('errorMessage');
-                if (errorMsg) {
-                    errorMsg.textContent = data.error || '找不到資料';
-                }
             }
         } catch (err) {
             // Fix 3: 舊請求失敗不覆蓋新搜尋畫面
             if (savedRequestId !== this.requestId) return;
             this._searchSnapshot = null;
+            this.errorText = '網路錯誤: ' + err.message;  // T6c: Alpine state
             window.SearchUI.showState('error');
-            const errorMsg = document.getElementById('errorMessage');
-            if (errorMsg) {
-                errorMsg.textContent = '網路錯誤: ' + err.message;
-            }
         }
     },
 
