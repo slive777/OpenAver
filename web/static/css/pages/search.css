@@ -635,76 +635,7 @@
 
 /* ==================== T2d: Actress Profile ==================== */
 
-/* Detail Mode - Actress Banner */
-.actress-banner {
-    display: flex;
-    gap: 1.5rem;
-    background: var(--bg-card);
-    border-radius: var(--fluent-radius-xl);
-    box-shadow: var(--fluent-shadow-8);
-    border: 1px solid var(--border-light);
-    padding: 1.25rem;
-    margin-bottom: 1rem;
-    transition: box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
-}
-
-.actress-banner:hover {
-    box-shadow: var(--fluent-shadow-16);
-}
-
-.actress-banner-photo {
-    flex-shrink: 0;
-    width: 180px;
-    height: 254px;  /* 360x508 比例 */
-    border-radius: var(--fluent-radius-md);
-    overflow: hidden;
-    background: var(--bg-body);
-}
-
-.actress-banner-photo img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform var(--fluent-duration-slow) var(--fluent-ease-standard);
-}
-
-.actress-banner:hover .actress-banner-photo img {
-    transform: scale(1.05);
-}
-
-.actress-banner-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    min-width: 0;
-}
-
-.actress-name {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--accent);
-    margin: 0;
-}
-
-.actress-details {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem 1.5rem;
-}
-
-.actress-detail-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-}
-
-.actress-detail-item i {
-    color: var(--accent);
-    font-size: 1rem;
-}
+/* T5: Detail Mode Actress Banner 已移除（HTML + CSS），僅保留 Grid Mode Hero Card */
 
 /* Grid Mode - Hero Card */
 .hero-card {
@@ -722,35 +653,3 @@
     transform-origin: center center;  /* 置中（覆蓋 65% center 的 AV 封面偏移） */
 }
 
-/* Responsive: 小螢幕調整 */
-@media (max-width: 768px) {
-    .actress-banner {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-    }
-
-    .actress-banner-photo {
-        width: 140px;
-        height: 197px;
-    }
-
-    .actress-details {
-        justify-content: center;
-    }
-}
-
-@media (max-width: 480px) {
-    .actress-banner-photo {
-        width: 120px;
-        height: 169px;
-    }
-
-    .actress-name {
-        font-size: 1.25rem;
-    }
-
-    .actress-detail-item {
-        font-size: 0.8rem;
-    }
-}

@@ -76,11 +76,39 @@ window.SearchStateMixin_GridMode = {
     },
 
     /**
-     * Lightbox 背景點擊處理（點擊背景關閉）
+     * Lightbox 背景點擊處理（點擊背景關閉 / 點擊卡片切換）
      * @param {MouseEvent} event - 點擊事件
      */
     handleLightboxBackdropClick(event) {
-        if (event.target.classList.contains('showcase-lightbox')) {
+        // T5: 對齊 showcase.js L420-446 的 Click-through 邏輯
+
+        // 如果點擊的是 lightbox-content 內部，不處理
+        if (event.target.closest('.lightbox-content')) return;
+
+        // 暫時隱藏 lightbox 來檢測下方元素
+        const lightbox = event.currentTarget;
+        lightbox.style.display = 'none';
+
+        // 找到點擊位置下的元素
+        const elementBelow = document.elementFromPoint(event.clientX, event.clientY);
+
+        // 恢復 lightbox
+        lightbox.style.display = '';
+
+        // 檢查是否是卡片
+        const cardEl = elementBelow ? elementBelow.closest('.av-card-preview') : null;
+        if (cardEl) {
+            // Click-through: 找到該卡片對應的索引並切換
+            const cards = Array.from(document.querySelectorAll('.search-grid .av-card-preview:not(.hero-card)'));
+            const clickedIndex = cards.indexOf(cardEl);
+            if (clickedIndex >= 0) {
+                this.openLightbox(clickedIndex);
+            } else {
+                // T5: Hero Card 或未知卡片 → 關閉 lightbox
+                this.closeLightbox();
+            }
+        } else {
+            // 不是卡片，關閉 lightbox
             this.closeLightbox();
         }
     },

@@ -19,6 +19,7 @@ window.SearchStateMixin_Persistence = {
             this.currentFileIndex = state.currentFileIndex || 0;
             this.listMode = state.listMode || null;
             this.displayMode = state.displayMode || 'detail';
+            this.actressProfile = state.actressProfile || null;  // T5: 恢復女優資料
 
             // gallery_mode_enabled=false → 強制 detail mode
             if (this.appConfig?.search?.gallery_mode_enabled === false) {
@@ -85,7 +86,8 @@ window.SearchStateMixin_Persistence = {
             currentFileIndex: coreState?.currentFileIndex ?? this.currentFileIndex,
             listMode: coreState?.listMode ?? this.listMode,
             queryValue: queryInput ? queryInput.value : '',
-            displayMode: this.displayMode
+            displayMode: this.displayMode,
+            actressProfile: this.actressProfile  // T5: 持久化女優資料
         };
         sessionStorage.setItem(this.STATE_KEY, JSON.stringify(state));
     },

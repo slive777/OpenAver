@@ -163,41 +163,8 @@
 
         <!-- 結果卡片（wrapper：卡片 + 檔案列表垂直排列） -->
         <div id="resultCard" class="hidden" x-show="pageState === 'result'" x-cloak>
-            <!-- T2d: Actress Banner (Detail Mode) -->
-            <div class="actress-banner"
-                 x-show="actressProfile && displayMode === 'detail' && listMode === 'search'"
-                 x-cloak>
-                <div class="actress-banner-photo">
-                    <img :src="actressProfile?.img ? `/api/proxy-image?url=${encodeURIComponent(actressProfile.img)}` : ''"
-                         :alt="actressProfile?.name"
-                         @error="$event.target.onerror=null; $event.target.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22180%22 height=%22253%22 fill=%22%23666%22><rect width=%22180%22 height=%22253%22 fill=%22%23222%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2214%22>No Photo</text></svg>'">
-                </div>
-                <div class="actress-banner-info">
-                    <h3 class="actress-name" x-text="actressProfile?.name">-</h3>
-                    <div class="actress-details">
-                        <span x-show="actressProfile?.birth" class="actress-detail-item">
-                            <i class="bi bi-calendar"></i>
-                            <span x-text="actressProfile?.birth + (actressProfile?.age ? ` (${actressProfile?.age}歲)` : '')"></span>
-                        </span>
-                        <span x-show="actressProfile?.height" class="actress-detail-item">
-                            <i class="bi bi-arrows-vertical"></i>
-                            <span x-text="actressProfile?.height"></span>
-                        </span>
-                        <span x-show="actressProfile?.cup" class="actress-detail-item">
-                            <i class="bi bi-award"></i>
-                            <span x-text="actressProfile?.cup + '罩杯'"></span>
-                        </span>
-                        <span x-show="actressProfile?.bust || actressProfile?.waist || actressProfile?.hip" class="actress-detail-item">
-                            <i class="bi bi-rulers"></i>
-                            <span x-text="[actressProfile?.bust, actressProfile?.waist, actressProfile?.hip].filter(Boolean).join(' / ')"></span>
-                        </span>
-                        <span x-show="actressProfile?.hometown" class="actress-detail-item">
-                            <i class="bi bi-geo-alt"></i>
-                            <span x-text="actressProfile?.hometown"></span>
-                        </span>
-                    </div>
-                </div>
-            </div>
+            <!-- T5: Actress Banner 完全移除（Detail 模式不顯示女優資訊）-->
+            <!-- Hero Card 仍在 Grid 模式顯示（L379-400，已有 x-show="displayMode === 'grid'"） -->
 
             <!-- AV Card Full：封面 + 資訊並排（Detail 模式） -->
             <div class="av-card-full rotating-border-spotlight"
