@@ -209,7 +209,7 @@
 
 .file-item .file-status {
     font-size: 0.75rem;
-    color: #198754;
+    color: var(--color-success);
     flex-shrink: 0;
 }
 
@@ -518,7 +518,7 @@
 
 /* ==================== 用戶標籤樣式 ==================== */
 .tag-badge.user-tag {
-    background: #6366f1;
+    background: var(--accent);
     color: #fff;
     cursor: default;
 }
@@ -576,11 +576,11 @@
 }
 
 .tag-confirm {
-    color: #22c55e;
+    color: var(--color-success);
 }
 
 .tag-cancel {
-    color: #ef4444;
+    color: var(--color-error);
 }
 
 /* ==================== T2a: Grid Mode ==================== */

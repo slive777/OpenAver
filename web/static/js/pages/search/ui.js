@@ -66,13 +66,6 @@ function getSourceOrder() {
     return SOURCE_ORDER;
 }
 
-/**
- * 取得來源顯示名稱
- * @returns {Object}
- */
-function getSourceNames() {
-    return SOURCE_NAMES;
-}
 
 /**
  * 切換狀態結構（每個番號獨立）
@@ -352,13 +345,6 @@ function preloadImages(startIndex, count = 5) {
 
 // === 標題編輯功能 ===
 // T1c: 所有編輯函數已遷移至 Alpine state.js
-// 保留 escapeHtml 供其他模組使用
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
 
 // T1c: Removed - updateEditButtonState, startEditTitle, confirmEditTitle, cancelEditTitle, restoreTitleDisplay
 // T1c: Removed - startEditChineseTitle, confirmEditChineseTitle, cancelEditChineseTitle, restoreChineseTitleDisplay
@@ -378,10 +364,8 @@ window.SearchUI = {
     showState,
     preloadImages,
     navigateResult: null,  // 在 state.js setupBridgeLayer() 設定
-    escapeHtml,
     loadSourceConfig,
-    getSourceOrder,
-    getSourceNames
+    getSourceOrder
 };
 
 // 全域函數（onclick 用）

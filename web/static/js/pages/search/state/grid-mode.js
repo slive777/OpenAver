@@ -152,5 +152,13 @@ window.SearchStateMixin_GridMode = {
         }).catch(err => {
             console.error('[Grid] 複製失敗:', err);
         });
+    },
+
+    /**
+     * 標記 Grid 圖片載入失敗
+     * @param {number} index - 卡片索引
+     */
+    markImageError(index) {
+        this._gridImageErrors = new Set([...this._gridImageErrors, index]);
     }
 };

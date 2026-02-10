@@ -78,6 +78,10 @@ window.SearchStateMixin_Base = function() {
         // T4: 追蹤已播放 rotating border 的番號（避免 Alpine `:class` 重複觸發動畫）
         _localBorderPlayed: {},
 
+        // ===== T6a: Grid Image Error State =====
+        // Grid 模式圖片錯誤追蹤
+        _gridImageErrors: new Set(),
+
         // ===== Constants =====
         PAGE_SIZE: 20,
         MODE_TEXT: {

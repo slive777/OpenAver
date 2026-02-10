@@ -90,6 +90,7 @@ window.SearchStateMixin_SearchFlow = {
         this.hasMoreResults = false;
         this.actressProfile = null;  // T2d: 清空上次的女優資料
         this.displayMode = 'detail';  // T3a: 新搜尋重置顯示模式
+        this._gridImageErrors = new Set();  // T6a: 清空 Grid 圖片錯誤記錄
 
         // 檔案列表由 x-show 自動隱藏（listMode=null, fileList=[]）
 

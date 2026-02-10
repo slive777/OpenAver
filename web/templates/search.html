@@ -221,7 +221,7 @@
                           x-show="hasLocalBadge()"
                           :title="localBadgeTitle()"
                           @click="copyLocalPath()">📁</span>
-                    <button id="switchSourceBtn" class="info-icon-btn" onclick="switchSource()"
+                    <button id="switchSourceBtn" class="info-icon-btn" @click="switchSource()"
                             title="切換版本"
                             :data-number="current().number || ''"
                             :data-all-variant-ids="JSON.stringify(current()._all_variant_ids || [])"
@@ -377,7 +377,8 @@
                             <img :src="result.cover ? `/api/proxy-image?url=${encodeURIComponent(result.cover)}` : ''"
                                  :alt="result.number"
                                  loading="lazy"
-                                 @error="$event.target.style.display='none'">
+                                 x-show="!_gridImageErrors.has(index)"
+                                 @error="markImageError(index)">
                             <!-- Overlay Actions (Hover) -->
                             <div class="av-card-preview-overlay">
                                 <button class="btn-glass-circle"
@@ -504,9 +505,9 @@
                     <template x-for="(result, i) in searchResults" :key="(result.number || '') + '_' + i">
                         <div @click="switchToSearchResult(i)"
                              :class="i === currentIndex ? 'file-item active' : 'file-item'">
-                            <span style="flex-shrink:0;font-weight:500;color:#0d6efd;min-width:90px;"
+                            <span style="flex-shrink:0;font-weight:500;color:var(--accent);min-width:90px;"
                                   x-text="result.number || '-'">-</span>
-                            <span style="flex-shrink:0;min-width:80px;color:#6c757d;"
+                            <span style="flex-shrink:0;min-width:80px;color:var(--text-secondary);"
                                   x-text="(result.actors || []).slice(0,2).join(', ') || '-'">-</span>
                             <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
                                   x-text="result.title || '-'">-</span>
