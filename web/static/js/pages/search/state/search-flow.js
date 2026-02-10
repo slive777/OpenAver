@@ -87,6 +87,7 @@ window.SearchStateMixin_SearchFlow = {
         this.currentOffset = 0;
         this.hasMoreResults = false;
         this.actressProfile = null;  // T2d: 清空上次的女優資料
+        this.displayMode = 'detail';  // T3a: 新搜尋重置顯示模式
 
         // 檔案列表由 x-show 自動隱藏（listMode=null, fileList=[]）
 
@@ -136,8 +137,8 @@ window.SearchStateMixin_SearchFlow = {
                             window.SearchCore.checkLocalStatus(this.searchResults);
                         }
 
-                        // T2b: 女優搜尋自動切 Grid（前端判斷取代舊 gallery_url 信號）
-                        if (this.currentMode === 'actress' && this.appConfig?.search?.gallery_mode_enabled && data.data.length > 10) {
+                        // T2b/T3a: 模糊搜尋自動切 Grid（actress/prefix ≥10 筆）
+                        if ((this.currentMode === 'actress' || this.currentMode === 'prefix') && this.appConfig?.search?.gallery_mode_enabled && data.data.length >= 10) {
                             this.displayMode = 'grid';
                         }
 
@@ -232,8 +233,8 @@ window.SearchStateMixin_SearchFlow = {
                     window.SearchCore.checkLocalStatus(this.searchResults);
                 }
 
-                // T2b: 女優搜尋自動切 Grid（前端判斷取代舊 gallery_url 信號）
-                if (data.mode === 'actress' && this.appConfig?.search?.gallery_mode_enabled && data.data.length > 10) {
+                // T2b/T3a: 模糊搜尋自動切 Grid（actress/prefix ≥10 筆）
+                if ((data.mode === 'actress' || data.mode === 'prefix') && this.appConfig?.search?.gallery_mode_enabled && data.data.length >= 10) {
                     this.displayMode = 'grid';
                 }
 
