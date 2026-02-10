@@ -9,9 +9,10 @@
 - API 整合測試（mock search 結果 + mock actress profile）
 """
 
+import json
+
 import pytest
 from unittest.mock import patch, MagicMock
-import time
 
 
 # ============================================================================
@@ -606,3 +607,34 @@ def test_search_api_variant_id_no_profile():
 
         assert 'actress_profile' in data
         assert data['actress_profile'] is None  # variant_id 路徑不觸發
+
+
+def test_sse_includes_actress_profile(mock_search_actress, mock_actress_profile):
+    """SSE result event 應包含 actress_profile"""
+    from fastapi.testclient import TestClient
+    from web.app import app
+
+    client = TestClient(app)
+
+    with patch('web.routers.search.smart_search', side_effect=mock_search_actress), \
+         patch('core.actress_scraper.get_actress_profile', side_effect=mock_actress_profile):
+
+        response = client.get('/api/search/stream?q=桜空もも')
+
+        # Parse SSE events
+        events = []
+        for line in response.text.strip().split('\n'):
+            if line.startswith('data: '):
+                event_data = json.loads(line[6:])  # Remove 'data: ' prefix
+                events.append(event_data)
+
+        # Find result event
+        result_events = [e for e in events if e.get('type') == 'result']
+        assert len(result_events) == 1
+
+        result_event = result_events[0]
+        assert result_event['success'] is True
+        assert 'actress_profile' in result_event
+        assert result_event['actress_profile'] is not None
+        assert result_event['actress_profile']['name'] == '桜空もも'
+        assert 'graphis.ne.jp' in result_event['actress_profile']['img']

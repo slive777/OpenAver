@@ -238,13 +238,25 @@ def get_actress_profile(name: str) -> Optional[Dict]:
         else:
             del _cache[cache_key]  # 過期清理
 
-    # 並行抓取
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        graphis_future = executor.submit(scrape_graphis_photo, name)
-        javbus_future = executor.submit(scrape_actress_profile, name)
+    # 並行抓取（嚴格 5s 上限，shutdown 不等待背景執行緒）
+    executor = ThreadPoolExecutor(max_workers=2)
+    graphis_future = executor.submit(scrape_graphis_photo, name)
+    javbus_future = executor.submit(scrape_actress_profile, name)
 
-        graphis_result = graphis_future.result()  # 5s timeout（內建）
-        javbus_result = javbus_future.result()    # 15s timeout（內建）
+    start = time.time()
+
+    try:
+        graphis_result = graphis_future.result(timeout=5)
+    except Exception:
+        graphis_result = None
+
+    remaining = max(0, 5 - (time.time() - start))
+    try:
+        javbus_result = javbus_future.result(timeout=remaining)
+    except Exception:
+        javbus_result = None
+
+    executor.shutdown(wait=False)
 
     # 資料合併
     if javbus_result:

@@ -65,7 +65,8 @@ window.SearchStateMixin_SearchFlow = {
             hasMoreResults: this.hasMoreResults,
             currentQuery: this.currentQuery,
             currentOffset: this.currentOffset,
-            pageState: this.pageState
+            pageState: this.pageState,
+            actressProfile: this.actressProfile
         };
 
         // 5. 初始化狀態（修正 1: 使用 showState）
@@ -285,6 +286,7 @@ window.SearchStateMixin_SearchFlow = {
             this.hasMoreResults = snap.hasMoreResults;
             this.currentQuery = snap.currentQuery;
             this.currentOffset = snap.currentOffset;
+            this.actressProfile = snap.actressProfile;
 
             // 同步回 core.js
             const coreState = window.SearchCore.state;

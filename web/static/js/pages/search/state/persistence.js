@@ -20,6 +20,11 @@ window.SearchStateMixin_Persistence = {
             this.listMode = state.listMode || null;
             this.displayMode = state.displayMode || 'detail';
 
+            // gallery_mode_enabled=false → 強制 detail mode
+            if (this.appConfig?.search?.gallery_mode_enabled === false) {
+                this.displayMode = 'detail';
+            }
+
             // 同步回 core.js module-level vars（舊 JS 函數直接讀取這些變數）
             const coreState = window.SearchCore.state;
             coreState.searchResults = this.searchResults;
