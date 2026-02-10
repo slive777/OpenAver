@@ -72,7 +72,8 @@ window.SearchStateMixin_SearchFlow = {
             pageState: this.pageState,
             actressProfile: this.actressProfile,
             displayMode: this.displayMode,      // T3 fix: 還原 Grid 狀態
-            currentMode: this.currentMode       // T3 fix: 還原搜尋模式（toggle 顯示依賴）
+            currentMode: this.currentMode,      // T3 fix: 還原搜尋模式（toggle 顯示依賴）
+            errorText: this.errorText            // T6c fix: 還原錯誤訊息
         };
 
         // 5. 初始化狀態（修正 1: 使用 showState）
@@ -289,6 +290,7 @@ window.SearchStateMixin_SearchFlow = {
             this.actressProfile = snap.actressProfile;
             this.displayMode = snap.displayMode || 'detail';
             this.currentMode = snap.currentMode || '';
+            this.errorText = snap.errorText || '';
 
             // 同步回 core.js
             const coreState = window.SearchCore.state;

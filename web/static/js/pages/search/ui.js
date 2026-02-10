@@ -174,10 +174,9 @@ function showSourceToast(source) {
     const name = SOURCE_NAMES[source] || source;
     const msg = `來自 ${name}`;
 
-    // 透過 bridge 呼叫 Alpine toast
-    const el = document.querySelector('.search-container[x-data]');
-    if (el && el._x_dataStack) {
-        Alpine.$data(el).showToast(msg, 'info', 2000);
+    // T6b fix: 透過 bridge 呼叫，減少對 Alpine instance 的耦合
+    if (window.SearchUI?.showToast) {
+        window.SearchUI.showToast(msg, 'info', 2000);
     }
 }
 
