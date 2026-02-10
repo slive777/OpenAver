@@ -589,8 +589,10 @@
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1.5rem;
     padding: 1.5rem;
+    padding-bottom: 2.5rem; /* 底部安全距：容納 hover glow（20px shadow + 4px translateY） */
+
+    /* 防止卡片過寬（對齊 showcase-grid） */
     max-width: 100%;
-    overflow-y: auto;
 }
 
 /* 響應式斷點 - 對齊 showcase.css */
@@ -677,4 +679,3 @@
         max-width: none;
     }
 }
-

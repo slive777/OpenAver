@@ -38,7 +38,6 @@
  */
 .rotating-border-spotlight {
   position: relative;
-  overflow: visible;
 }
 
 /**
@@ -48,7 +47,7 @@
 .rotating-border-spotlight::before {
   content: '';
   position: absolute;
-  inset: -2px; /* 外擴 2px 形成邊框效果 */
+  inset: 0; /* 內側邊框，避免受父層 overflow 與圓角裁切影響 */
   border-radius: inherit; /* 繼承父層圓角 */
   padding: 2px; /* 配合 mask 技巧形成邊框寬度 */
 
@@ -192,18 +191,4 @@
 .rotating-border-spotlight.pulse-once::before {
   animation: rotate-spotlight 2.5s linear 1;
   opacity: 1;
-}
-
-/* ========== T4: 卡片 overflow 覆蓋 ========== */
-
-/**
- * 搜尋卡片需要 overflow: visible 讓 ::before 邊框可見
- * 這些選擇器的 specificity 匹配或超過原始 overflow: hidden 規則
- */
-#resultCard > .av-card-full.rotating-border-spotlight {
-  overflow: visible;
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview.rotating-border-spotlight {
-  overflow: visible;
 }
