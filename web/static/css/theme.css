@@ -1214,7 +1214,7 @@ body {
     padding: 0.4rem 0.75rem;
     font-size: 0.75rem;
     font-weight: 600;
-    color: #fff;
+    color: var(--text-inverse);
     background: linear-gradient(135deg, var(--color-warning), var(--color-warning-dark));
     border: none;
     border-radius: var(--radius-pill);
