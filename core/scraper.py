@@ -129,7 +129,7 @@ def get_maker_by_prefix(number: str) -> str:
         scraper = JavDBScraper()
         # 這裡可能會觸發網路請求，如果是測試環境可能會失敗，加 try-except
         video = scraper.search(number)
-        if video and video.maker:
+        if video and video.maker and not re.match(r'^\d{4}(-\d{2}){0,2}$', video.maker):
             mapping[prefix] = video.maker
             save_maker_mapping(mapping)
             return video.maker

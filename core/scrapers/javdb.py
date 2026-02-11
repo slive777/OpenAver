@@ -138,8 +138,8 @@ class JavDBScraper(BaseScraper):
                 if '日期' in label_text and value:
                     date = value.text.strip()
 
-                # 片商
-                if '片商' in label_text or '製作' in label_text or '發行' in label_text:
+                # 片商（排除「發行日期」避免把日期誤判為片商）
+                if ('片商' in label_text or '製作' in label_text or '發行' in label_text) and '日期' not in label_text:
                     if value:
                         maker = value.text.strip()
 
