@@ -17,6 +17,7 @@ window.SearchStateMixin_FileList = {
             this.hasMoreResults = false;
             this.currentIndex = 0;
             this.coverError = `無法識別番號: ${file.filename}`;
+            this._syncToCore({ skipFileList: true });
             window.SearchUI.showState('result');
             return;
         }
@@ -36,6 +37,7 @@ window.SearchStateMixin_FileList = {
             this.hasMoreResults = false;
             this.currentIndex = 0;
             this.coverError = `找不到 ${file.number} 的資料`;
+            this._syncToCore({ skipFileList: true });
             window.SearchUI.showState('result');
         }
     },

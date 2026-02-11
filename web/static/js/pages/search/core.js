@@ -348,7 +348,6 @@ function clearAll() {
     if (dom.btnNext) dom.btnNext.innerHTML = '<i class="bi bi-chevron-right"></i>';
 
     window.SearchUI.showState('empty');
-    if (dom.fileListSection) dom.fileListSection.classList.add('hidden');
     updateClearButton();
     clearState();
 }

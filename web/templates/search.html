@@ -78,7 +78,7 @@
                             :title="displayMode === 'detail' ? '切換到圖片模式' : '切換到詳細模式'">
                         <i class="bi" :class="displayMode === 'detail' ? 'bi-grid-3x3' : 'bi-list-ul'"></i>
                     </button>
-                    <button type="button" id="btnClear" class="btn-icon hidden" x-show="hasContent" @click="clearAll()" title="清空">
+                    <button type="button" id="btnClear" class="btn-icon" x-show="hasContent" x-cloak @click="clearAll()" title="清空">
                         <i class="bi bi-x-lg"></i>
                     </button>
                     <button type="submit" id="btnSubmit" class="btn-icon active" title="搜尋">
@@ -116,7 +116,7 @@
         </div>
 
         <!-- 載入中 - 進度指示器 -->
-        <div id="loadingState" class="search-progress w-full hidden" x-show="pageState === 'loading'" x-cloak>
+        <div id="loadingState" class="search-progress w-full" x-show="pageState === 'loading'" x-cloak>
             <div class="progress-container">
                 <!-- 搜尋標題 -->
                 <div class="progress-header">
@@ -137,7 +137,7 @@
         </div>
 
         <!-- 錯誤狀態 -->
-        <div id="errorState" class="state-page error w-full hidden" x-show="pageState === 'error'" x-cloak>
+        <div id="errorState" class="state-page error w-full" x-show="pageState === 'error'" x-cloak>
             <i class="bi bi-exclamation-triangle state-page-icon"></i>
             <p class="state-page-text error-text" id="errorMessage" x-text="errorText || '搜尋失敗'">搜尋失敗</p>
             <small class="state-page-hint">請檢查番號格式或稍後再試</small>
@@ -162,7 +162,7 @@
         </div>
 
         <!-- 結果卡片（wrapper：卡片 + 檔案列表垂直排列） -->
-        <div id="resultCard" class="hidden" x-show="pageState === 'result'" x-cloak>
+        <div id="resultCard" x-show="pageState === 'result'" x-cloak>
             <!-- T5: Actress Banner 完全移除（Detail 模式不顯示女優資訊）-->
             <!-- Hero Card 仍在 Grid 模式顯示（L379-400，已有 x-show="displayMode === 'grid'"） -->
 
