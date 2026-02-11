@@ -151,7 +151,7 @@
     font-size: 3rem;
     font-weight: 700;
     letter-spacing: -0.02em;
-    background: linear-gradient(135deg, var(--accent) 0%, #007aff 50%, #5856d6 100%);
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 50%, var(--gradient-indigo) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -160,7 +160,7 @@
 }
 
 [data-theme="dim"] .ds-header h1 {
-    background: linear-gradient(135deg, #5ac8fa 0%, #64d2ff 50%, #bf5af2 100%);
+    background: linear-gradient(135deg, var(--gradient-cyan) 0%, var(--gradient-cyan-light) 50%, var(--gradient-purple) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -234,12 +234,12 @@
     left: 0;
     width: 100%;
     height: 3px;
-    background: linear-gradient(90deg, var(--accent) 0%, #007aff 60%, transparent 100%);
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-secondary) 60%, transparent 100%);
     border-radius: var(--fluent-radius-sm);
 }
 
 [data-theme="dim"] .ds-section h2::after {
-    background: linear-gradient(90deg, #5ac8fa 0%, #64d2ff 60%, transparent 100%);
+    background: linear-gradient(90deg, var(--gradient-cyan) 0%, var(--gradient-cyan-light) 60%, transparent 100%);
 }
 
 /* ==================== Subsections ==================== */
@@ -485,7 +485,7 @@
 .ds-radius-item {
     width: 100px;
     height: 100px;
-    background: linear-gradient(135deg, var(--accent) 0%, #007aff 100%);
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -502,7 +502,7 @@
 }
 
 [data-theme="dim"] .ds-radius-item {
-    background: linear-gradient(135deg, #5ac8fa 0%, #007aff 100%);
+    background: linear-gradient(135deg, var(--gradient-cyan) 0%, var(--accent-secondary) 100%);
 }
 
 /* ==================== Shadow Grid ==================== */
@@ -867,13 +867,13 @@
 }
 
 .ds-sidebar-mini .nav-link.active {
-    background: linear-gradient(135deg, var(--accent) 0%, #007aff 100%);
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%);
     color: oklch(100% 0 0);
     box-shadow: 0 4px 12px rgba(90, 200, 250, 0.3);
 }
 
 [data-theme="dim"] .ds-sidebar-mini .nav-link.active {
-    background: linear-gradient(135deg, #5ac8fa 0%, #007aff 100%);
+    background: linear-gradient(135deg, var(--gradient-cyan) 0%, var(--accent-secondary) 100%);
 }
 
 /* ==================== Feedback Components ==================== */
