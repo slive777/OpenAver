@@ -29,9 +29,8 @@ window.SearchStateMixin_Persistence = {
             this._syncToCore();
 
             // 還原搜尋框輸入值
-            const queryInput = document.getElementById('searchQuery');
-            if (queryInput && state.queryValue) {
-                queryInput.value = state.queryValue;
+            if (state.queryValue) {
+                this.searchQuery = state.queryValue;
             }
 
             // Fix 1: 清除封面錯誤（防止還原時殘留舊狀態）

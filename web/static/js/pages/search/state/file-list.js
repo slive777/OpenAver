@@ -285,9 +285,8 @@ window.SearchStateMixin_FileList = {
         window.SearchCore.updateClearButton();
 
         if (this.fileList.length > 0) {
-            const queryInput = document.getElementById('searchQuery');
-            if (queryInput && this.fileList[0].number) {
-                queryInput.value = this.fileList[0].number;
+            if (this.fileList[0].number) {
+                this.searchQuery = this.fileList[0].number;
             }
             await this.switchToFile(0, 'first', true);
         }
@@ -306,10 +305,7 @@ window.SearchStateMixin_FileList = {
             return;
         }
 
-        const queryInput = document.getElementById('searchQuery');
-        if (queryInput) {
-            queryInput.value = number;
-        }
+        this.searchQuery = number;
         this.doSearch(number);
     },
 

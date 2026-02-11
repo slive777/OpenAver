@@ -11,6 +11,7 @@ window.SearchStateMixin_Base = function() {
         searchResults: [],
         currentIndex: 0,
         currentQuery: '',
+        searchQuery: '',  // V1c: 對應 input 即時輸入值（x-model 綁定）
         currentOffset: 0,
         hasMoreResults: false,
         isLoadingMore: false,

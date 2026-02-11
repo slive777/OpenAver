@@ -109,5 +109,13 @@ window.SearchStateMixin_Bridge = {
             window.SearchUI.showToast = (message, type = 'success', duration = 2500) =>
                 this.showToast(message, type, duration);
         }
+
+        // V1c: searchQuery 雙寫策略 — Alpine state → DOM 同步（遷移期相容）
+        this.$watch('searchQuery', (newValue) => {
+            const dom = window.SearchCore?.dom;
+            if (dom?.queryInput && dom.queryInput.value !== newValue) {
+                dom.queryInput.value = newValue;
+            }
+        });
     }
 };

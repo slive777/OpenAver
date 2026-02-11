@@ -42,10 +42,9 @@ window.SearchStateMixin_SearchFlow = {
      * @param {string} query - 搜尋關鍵字（可選，預設讀取 input）
      */
     async doSearch(query) {
-        // 1. 取得搜尋關鍵字
+        // 1. 取得搜尋關鍵字（V1c: 優先從 Alpine state 讀取）
         if (!query) {
-            const input = document.getElementById('searchQuery');
-            query = input?.value?.trim();
+            query = this.searchQuery?.trim();
         }
         if (!query) return;
 
