@@ -3,6 +3,43 @@
  * 包含：舊 JS 與 Alpine 的橋接層（setupBridgeLayer）
  */
 window.SearchStateMixin_Bridge = {
+    /**
+     * 同步 Alpine state 到 core.js module vars
+     *
+     * 集中式 state sync helper，取代散落在各 mixin 的手動 coreState 賦值。
+     *
+     * @param {Object} options - 可選配置
+     * @param {boolean} options.skipFileList - 跳過 fileList 陣列同步（效能優化，僅同步索引）
+     */
+    _syncToCore(options = {}) {
+        const coreState = window.SearchCore?.state;
+        if (!coreState) {
+            console.warn('[Alpine] _syncToCore: window.SearchCore.state not available');
+            return;
+        }
+
+        // === 核心搜尋狀態（永遠同步） ===
+        coreState.searchResults = this.searchResults;
+        coreState.currentIndex = this.currentIndex;
+        coreState.currentQuery = this.currentQuery;
+        coreState.currentOffset = this.currentOffset;
+        coreState.hasMoreResults = this.hasMoreResults;
+        coreState.isLoadingMore = this.isLoadingMore;
+        coreState.listMode = this.listMode;
+
+        // === 檔案列表狀態（可選同步） ===
+        if (!options.skipFileList) {
+            coreState.fileList = this.fileList;
+            coreState.currentFileIndex = this.currentFileIndex;
+        } else {
+            // skipFileList: 只同步索引（輕量，適用於純導航操作）
+            coreState.currentFileIndex = this.currentFileIndex;
+        }
+
+        // === 內部狀態標記 ===
+        coreState.isSearchingFile = this.isSearchingFile;
+    },
+
     // ===== Bridge Layer =====
     // 修正 2: 簡化 Bridge Layer（不覆寫 window.SearchCore.state）
     setupBridgeLayer() {

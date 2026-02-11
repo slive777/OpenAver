@@ -76,8 +76,8 @@ window.SearchStateMixin_Batch = {
         }
 
         // 批次處理完成
-        const coreState = window.SearchCore.state;
-        coreState.isSearchingFile = false;
+        this.isSearchingFile = false;
+        this._syncToCore();
         batch.isProcessing = false;
         batch.isPaused = false;
 
@@ -111,12 +111,7 @@ window.SearchStateMixin_Batch = {
             this.searchResults = file.searchResults;
             this.currentIndex = 0;
             this.coverError = '';
-
-            // 同步到 core.js
-            const coreState = window.SearchCore.state;
-            coreState.currentFileIndex = index;
-            coreState.searchResults = this.searchResults;
-            coreState.currentIndex = 0;
+            this._syncToCore({ skipFileList: true });  // scrape 迴圈中，fileList 不變
 
             const metadata = { ...file.searchResults[0] };
 
