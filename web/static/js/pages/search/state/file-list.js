@@ -10,16 +10,14 @@ window.SearchStateMixin_FileList = {
 
         this.currentFileIndex = index;
         const file = this.fileList[index];
-
-        // 同步到 core.js
-        const coreState = window.SearchCore.state;
-        coreState.currentFileIndex = index;
+        this._syncToCore({ skipFileList: true });  // 只切換索引
 
         if (!file.number) {
             this.searchResults = [];
             this.hasMoreResults = false;
             this.currentIndex = 0;
             this.coverError = `無法識別番號: ${file.filename}`;
+            this._syncToCore({ skipFileList: true });
             window.SearchUI.showState('result');
             return;
         }
@@ -31,11 +29,7 @@ window.SearchStateMixin_FileList = {
             this.hasMoreResults = file.hasMoreResults || false;
             this.currentIndex = position === 'last' ? this.searchResults.length - 1 : 0;
             this.coverError = '';
-
-            // 同步到 core.js
-            coreState.searchResults = this.searchResults;
-            coreState.hasMoreResults = this.hasMoreResults;
-            coreState.currentIndex = this.currentIndex;
+            this._syncToCore({ skipFileList: true });
 
             window.SearchUI.showState('result');
         } else {
@@ -43,13 +37,14 @@ window.SearchStateMixin_FileList = {
             this.hasMoreResults = false;
             this.currentIndex = 0;
             this.coverError = `找不到 ${file.number} 的資料`;
+            this._syncToCore({ skipFileList: true });
             window.SearchUI.showState('result');
         }
     },
 
     async searchForFile(file, position = 'first', showFullLoading = false) {
-        const coreState = window.SearchCore.state;
-        coreState.isSearchingFile = true;
+        this.isSearchingFile = true;
+        this._syncToCore({ skipFileList: true });
 
         if (showFullLoading) {
             window.SearchUI.showState('loading');
@@ -67,7 +62,7 @@ window.SearchStateMixin_FileList = {
                     const data = JSON.parse(event.data);
 
                     if (data.type === 'mode') {
-                        coreState.currentMode = data.mode;
+                        window.SearchCore.state.currentMode = data.mode;
                         window.SearchCore.updateLog(`${window.SearchCore.MODE_TEXT[data.mode] || '搜尋'}...`);
                     }
                     else if (data.type === 'status') {
@@ -75,13 +70,10 @@ window.SearchStateMixin_FileList = {
                     }
                     else if (data.type === 'result') {
                         eventSource.close();
-                        coreState.isSearchingFile = false;
                         this.isSearchingFile = false;
                         this.searchingFileDirection = null;
-
                         this.listMode = 'file';
                         this.displayMode = 'detail';
-                        coreState.listMode = 'file';
 
                         if (data.success && data.data && data.data.length > 0) {
                             file.searchResults = data.data;
@@ -92,11 +84,7 @@ window.SearchStateMixin_FileList = {
                             this.hasMoreResults = file.hasMoreResults;
                             this.currentIndex = position === 'last' ? this.searchResults.length - 1 : 0;
                             this.coverError = '';
-
-                            // 同步到 core.js
-                            coreState.searchResults = this.searchResults;
-                            coreState.hasMoreResults = this.hasMoreResults;
-                            coreState.currentIndex = this.currentIndex;
+                            this._syncToCore();
 
                             // T4: File search 後查詢本地狀態
                             if (window.SearchCore?.checkLocalStatus) {
@@ -109,15 +97,11 @@ window.SearchStateMixin_FileList = {
                             file.searchResults = [];
                             this.coverError = `找不到 ${file.number} 的資料`;
 
-                            // 重置共享狀態（防止 navigate() 讀到過時資料）
+                            // 重置共享狀態
                             this.searchResults = [];
                             this.hasMoreResults = false;
                             this.currentIndex = 0;
-
-                            // 同步到 core.js
-                            coreState.searchResults = this.searchResults;
-                            coreState.hasMoreResults = this.hasMoreResults;
-                            coreState.currentIndex = this.currentIndex;
+                            this._syncToCore();
 
                             window.SearchUI.showState('result');
                         }
@@ -125,22 +109,16 @@ window.SearchStateMixin_FileList = {
                     }
                     else if (data.type === 'error') {
                         eventSource.close();
-                        coreState.isSearchingFile = false;
                         this.isSearchingFile = false;
                         this.searchingFileDirection = null;
                         file.searched = true;
                         file.searchResults = [];
                         this.coverError = data.message || '搜尋失敗';
 
-                        // 重置共享狀態（防止 navigate() 讀到過時資料）
                         this.searchResults = [];
                         this.hasMoreResults = false;
                         this.currentIndex = 0;
-
-                        // 同步到 core.js
-                        coreState.searchResults = this.searchResults;
-                        coreState.hasMoreResults = this.hasMoreResults;
-                        coreState.currentIndex = this.currentIndex;
+                        this._syncToCore();
 
                         window.SearchUI.showState('result');
                         resolve();
@@ -152,22 +130,16 @@ window.SearchStateMixin_FileList = {
 
             eventSource.onerror = () => {
                 eventSource.close();
-                coreState.isSearchingFile = false;
                 this.isSearchingFile = false;
                 this.searchingFileDirection = null;
                 file.searched = true;
                 file.searchResults = [];
                 this.coverError = '連線錯誤，請稍後再試';
 
-                // 重置共享狀態（防止 navigate() 讀到過時資料）
                 this.searchResults = [];
                 this.hasMoreResults = false;
                 this.currentIndex = 0;
-
-                // 同步到 core.js
-                coreState.searchResults = this.searchResults;
-                coreState.hasMoreResults = this.hasMoreResults;
-                coreState.currentIndex = this.currentIndex;
+                this._syncToCore();
 
                 window.SearchUI.showState('result');
                 resolve();
@@ -178,10 +150,7 @@ window.SearchStateMixin_FileList = {
     switchToSearchResult(index) {
         if (index < 0 || index >= this.searchResults.length) return;
         this.currentIndex = index;
-
-        // 同步到 core.js
-        const coreState = window.SearchCore.state;
-        coreState.currentIndex = index;
+        this._syncToCore({ skipFileList: true });
 
         // Reset cover error on switch
         this.coverError = '';
@@ -217,11 +186,7 @@ window.SearchStateMixin_FileList = {
         } else if (this.currentFileIndex > index) {
             this.currentFileIndex--;
         }
-
-        // 同步到 core.js
-        const coreState = window.SearchCore.state;
-        coreState.fileList = this.fileList;
-        coreState.currentFileIndex = this.currentFileIndex;
+        this._syncToCore();
 
         if (this.fileList.length > 0) {
             this.switchToFile(this.currentFileIndex, 'first', false);
@@ -306,12 +271,7 @@ window.SearchStateMixin_FileList = {
         this.currentFileIndex = 0;
         this.listMode = 'file';
         this.displayMode = 'detail';
-
-        // 同步到 core.js
-        const coreState = window.SearchCore.state;
-        coreState.fileList = this.fileList;
-        coreState.currentFileIndex = 0;
-        coreState.listMode = 'file';
+        this._syncToCore();
 
         // 重置批次狀態
         const batch = this.batchState;
@@ -325,9 +285,8 @@ window.SearchStateMixin_FileList = {
         window.SearchCore.updateClearButton();
 
         if (this.fileList.length > 0) {
-            const queryInput = document.getElementById('searchQuery');
-            if (queryInput && this.fileList[0].number) {
-                queryInput.value = this.fileList[0].number;
+            if (this.fileList[0].number) {
+                this.searchQuery = this.fileList[0].number;
             }
             await this.switchToFile(0, 'first', true);
         }
@@ -346,10 +305,7 @@ window.SearchStateMixin_FileList = {
             return;
         }
 
-        const queryInput = document.getElementById('searchQuery');
-        if (queryInput) {
-            queryInput.value = number;
-        }
+        this.searchQuery = number;
         this.doSearch(number);
     },
 

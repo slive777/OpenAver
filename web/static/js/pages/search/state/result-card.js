@@ -183,9 +183,17 @@ window.SearchStateMixin_ResultCard = {
     copyLocalPath() {
         const paths = this.current()?._localStatus?.paths || [];
         if (paths.length === 0) return;
-        const textToCopy = paths.length === 1 ? paths[0] : paths.join('\n');
+        // 取資料夾路徑（去掉檔名），file:/// → Windows 反斜線路徑
+        const folders = paths.map(p => {
+            const lastSlash = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
+            const folder = lastSlash >= 0 ? p.substring(0, lastSlash) : p;
+            return folder.replace(/^file:\/\/\/?/, '').replace(/\//g, '\\');
+        });
+        // 去重（多版本可能在同一資料夾）
+        const unique = [...new Set(folders)];
+        const textToCopy = unique.join('\n');
         navigator.clipboard.writeText(textToCopy).then(() => {
-            const msg = paths.length === 1 ? '已複製路徑' : `已複製 ${paths.length} 個路徑`;
+            const msg = unique.length === 1 ? '已複製: ' + unique[0] : `已複製 ${unique.length} 個路徑`;
             this.showToast(msg, 'success');
         }).catch(err => {
             console.error('複製失敗:', err);
@@ -228,5 +236,24 @@ window.SearchStateMixin_ResultCard = {
         }
         this._coverRetried = false;
         this.coverError = '封面載入失敗';
+    },
+
+    // ===== V1d: Source Switching =====
+
+    /**
+     * 切換來源（Alpine method wrapper）
+     * 呼叫 ui.js 的 switchSource() 並傳入 Alpine context
+     */
+    async switchSource() {
+        const number = this.current()?.number;
+        if (!number) {
+            console.warn('[Alpine] switchSource: 無番號資訊');
+            return;
+        }
+
+        // 呼叫 ui.js 的 switchSource（傳入 Alpine context）
+        if (window.switchSourceCore) {
+            await window.switchSourceCore(this, number);
+        }
     }
 };

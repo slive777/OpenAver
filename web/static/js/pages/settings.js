@@ -52,6 +52,20 @@ function settingsPage() {
         appVersion: '載入中...',
         updateStatus: '',
 
+        // Toast state
+        _toast: { message: '', type: 'success', visible: false },
+        _toastTimer: null,
+
+        // Test buttons loading state
+        testOllamaLoading: false,
+        testModelLoading: false,
+        testGeminiLoading: false,
+        testGeminiTranslateLoading: false,
+        checkUpdateLoading: false,
+
+        // Dirty Check Modal State
+        dirtyCheckModalOpen: false,
+
         // ===== Dirty Check State =====
         savedState: null,
         pendingNavigationUrl: '',
@@ -150,7 +164,7 @@ function settingsPage() {
             window.confirmLeavingSettings = (targetUrl) => {
                 if (this.isDirty) {
                     this.pendingNavigationUrl = targetUrl;
-                    document.getElementById('dirtyCheckModal').showModal();
+                    this.dirtyCheckModalOpen = true;
                     return false;  // 阻止導航
                 }
                 return true;  // 允許導航
@@ -349,7 +363,7 @@ function settingsPage() {
         async loadOllamaModels(url, savedModel = '') {
             if (!url) return;
 
-            this.ollamaStatus = '<span style="color: var(--text-muted);">載入模型中...</span>';
+            this.ollamaStatus = '<span class="text-base-content/50">載入模型中...</span>';
 
             try {
                 const resp = await fetch(`/api/ollama/models?url=${encodeURIComponent(url)}`);
@@ -382,10 +396,8 @@ function settingsPage() {
                 return;
             }
 
-            const btn = document.getElementById('testOllamaBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
-            this.ollamaStatus = '<span style="color: var(--text-muted);">連線中...</span>';
+            this.testOllamaLoading = true;
+            this.ollamaStatus = '<span class="text-base-content/50">連線中...</span>';
 
             try {
                 const resp = await fetch(`/api/ollama/models?url=${encodeURIComponent(url)}`);
@@ -406,8 +418,7 @@ function settingsPage() {
                 this.ollamaStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${e.message}</span>`;
                 this.ollamaModels = [];
             } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-plug"></i> 測試';
+                this.testOllamaLoading = false;
             }
         },
 
@@ -420,10 +431,8 @@ function settingsPage() {
                 return;
             }
 
-            const btn = document.getElementById('testModelBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
-            this.modelStatus = '<span style="color: var(--text-muted);">測試中...</span>';
+            this.testModelLoading = true;
+            this.modelStatus = '<span class="text-base-content/50">測試中...</span>';
 
             try {
                 const resp = await fetch('/api/ollama/test', {
@@ -441,8 +450,7 @@ function settingsPage() {
             } catch (e) {
                 this.modelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${e.message}</span>`;
             } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-chat-dots"></i> 測試';
+                this.testModelLoading = false;
             }
         },
 
@@ -454,10 +462,8 @@ function settingsPage() {
                 return;
             }
 
-            const testBtn = document.getElementById('testGeminiBtn');
-            testBtn.disabled = true;
-            testBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
-            this.geminiStatus = '<span style="color: var(--text-muted);">連線中...</span>';
+            this.testGeminiLoading = true;
+            this.geminiStatus = '<span class="text-base-content/50">連線中...</span>';
 
             try {
                 const response = await fetch('/api/gemini/test', {
@@ -484,8 +490,7 @@ function settingsPage() {
             } catch (error) {
                 this.geminiStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${error.message}</span>`;
             } finally {
-                testBtn.disabled = false;
-                testBtn.innerHTML = '<i class="bi bi-plug"></i> 測試';
+                this.testGeminiLoading = false;
             }
         },
 
@@ -503,10 +508,8 @@ function settingsPage() {
                 return;
             }
 
-            const testBtn = document.getElementById('testGeminiTranslateBtn');
-            testBtn.disabled = true;
-            testBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
-            this.geminiModelStatus = '<span style="color: var(--text-muted);">測試翻譯中...</span>';
+            this.testGeminiTranslateLoading = true;
+            this.geminiModelStatus = '<span class="text-base-content/50">測試翻譯中...</span>';
 
             try {
                 const response = await fetch('/api/gemini/test-translate', {
@@ -528,8 +531,7 @@ function settingsPage() {
             } catch (error) {
                 this.geminiModelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> 測試失敗: ${error.message}</span>`;
             } finally {
-                testBtn.disabled = false;
-                testBtn.innerHTML = '<i class="bi bi-chat-dots"></i> 測試';
+                this.testGeminiTranslateLoading = false;
             }
         },
 
@@ -571,10 +573,7 @@ function settingsPage() {
         },
 
         async checkUpdate() {
-            const btn = document.getElementById('btnCheckUpdate');
-
-            btn.disabled = true;
-            btn.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> 檢查中...';
+            this.checkUpdateLoading = true;
             this.updateStatus = '';
 
             try {
@@ -587,7 +586,7 @@ function settingsPage() {
                             <i class="bi bi-download"></i> 新版本 ${data.latest_version} 可用
                         </a>`;
                     } else {
-                        this.updateStatus = '<span style="color: var(--text-muted);"><i class="bi bi-check-circle"></i> 已是最新版本</span>';
+                        this.updateStatus = '<span class="text-base-content/50"><i class="bi bi-check-circle"></i> 已是最新版本</span>';
                     }
                 } else {
                     this.updateStatus = `<span class="text-error"><i class="bi bi-exclamation-circle"></i> ${data.error || '檢查失敗'}</span>`;
@@ -595,8 +594,7 @@ function settingsPage() {
             } catch (e) {
                 this.updateStatus = '<span class="text-error"><i class="bi bi-exclamation-circle"></i> 網路錯誤</span>';
             } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-cloud-download"></i> 檢查更新';
+                this.checkUpdateLoading = false;
             }
         },
 
@@ -613,7 +611,7 @@ function settingsPage() {
         },
 
         insertVariable(targetField, varName) {
-            const input = document.getElementById(targetField);
+            const input = this.$refs[targetField];
             const cursorPos = input.selectionStart;
             const textBefore = this.form[targetField].substring(0, cursorPos);
             const textAfter = this.form[targetField].substring(cursorPos);
@@ -650,7 +648,7 @@ function settingsPage() {
             // saveConfig 成功會更新 savedState，isDirty 變 false
             if (!this.isDirty) {
                 // 儲存成功，跳轉
-                document.getElementById('dirtyCheckModal').close();
+                this.dirtyCheckModalOpen = false;
                 window.location.href = this.pendingNavigationUrl;
             }
             // 儲存失敗：modal 保持開啟，toast 已顯示錯誤
@@ -666,35 +664,18 @@ function settingsPage() {
         // Dirty check modal — 取消（留在 settings）
         dirtyCheckCancel() {
             this.pendingNavigationUrl = '';
-            document.getElementById('dirtyCheckModal').close();
+            this.dirtyCheckModalOpen = false;
         },
 
-        showToast(message, type = 'success') {
-            const toastContainer = document.getElementById('toastContainer');
-            if (!toastContainer) {
-                console.warn('Toast container not found');
-                return;
-            }
-
-            const toast = document.createElement('div');
-            toast.className = `alert alert-${type}`;
-            toast.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <span class="flex-1">${message}</span>
-                    <button type="button" class="btn btn-sm btn-circle btn-ghost" onclick="this.parentElement.parentElement.remove()">
-                        <i class="bi bi-x"></i>
-                    </button>
-                </div>
-            `;
-
-            toastContainer.appendChild(toast);
-
-            // 3 秒後自動移除
-            setTimeout(() => {
-                if (toast.parentElement) {
-                    toast.remove();
-                }
-            }, 3000);
+        showToast(message, type = 'success', duration = 2500) {
+            this._toast.message = message;
+            this._toast.type = type;
+            this._toast.visible = true;
+            if (this._toastTimer) clearTimeout(this._toastTimer);
+            this._toastTimer = setTimeout(() => {
+                this._toast.visible = false;
+                this._toastTimer = null;
+            }, duration);
         }
     };
 }

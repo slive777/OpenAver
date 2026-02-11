@@ -180,16 +180,10 @@ function showSourceToast(source) {
     }
 }
 
-/**
- * 按鈕抖動效果（無其他版本時）
- */
-function shakeButton(btn) {
-    btn.classList.add('shake');
-    setTimeout(() => btn.classList.remove('shake'), 300);
-}
+// V1d: shakeButton() 已移除，改用 Alpine reactive class binding
 
 /**
- * 多來源循環切換
+ * 多來源循環切換（Alpine-ready version）
  *
  * 邏輯流程：
  * 1. 先在同站搜尋其他版本
@@ -197,12 +191,12 @@ function shakeButton(btn) {
  * 3. 來源循環：javbus → jav321 → javdb → javbus...
  * 4. 自動跳過沒有資料的來源
  * 5. 跨來源切換時顯示 Toast
+ *
+ * @param {Object} alpineContext - Alpine component context
+ * @param {string} number - 番號
+ * @returns {Promise<void>}
  */
-async function switchSource() {
-    const btn = document.getElementById('switchSourceBtn');
-    if (!btn) return;
-
-    const number = btn.dataset.number;
+async function switchSource(alpineContext, number) {
     if (!number) {
         console.warn('[SwitchSource] 無番號資訊');
         return;
@@ -214,10 +208,9 @@ async function switchSource() {
     // 記錄起始位置（用於檢測循環回起點）
     const startPos = `${state.sourceIdx}:${state.variantIdx}`;
 
-    // 顯示載入中
-    const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<span class="loading loading-spinner loading-sm"></span>';
-    btn.disabled = true;
+    // Alpine reactive loading state
+    alpineContext.isSwitchingSource = true;
+    alpineContext.switchSourceShake = false;
 
     try {
         // 先確保當前來源已快取（避免第一次按 ⟳ 跳過當前來源）
@@ -231,7 +224,11 @@ async function switchSource() {
             const currentPos = `${state.sourceIdx}:${state.variantIdx}`;
             if (currentPos === startPos) {
                 console.log('[SwitchSource] 循環完畢，回到起點');
-                shakeButton(btn);  // 抖動提示無其他版本
+                // Trigger shake animation via Alpine state
+                alpineContext.switchSourceShake = true;
+                setTimeout(() => {
+                    alpineContext.switchSourceShake = false;
+                }, 300);
                 return;
             }
 
@@ -246,14 +243,10 @@ async function switchSource() {
             if (variants.length > state.variantIdx) {
                 const variant = variants[state.variantIdx];
 
-                // T1c: 更新 searchResults，Alpine template 自動反應
-                const { state: coreState } = window.SearchCore;
-                if (coreState.searchResults.length > 0) {
-                    coreState.searchResults[coreState.currentIndex] = variant;
+                // 更新 Alpine state（Alpine template 自動反應）
+                if (alpineContext.searchResults.length > 0) {
+                    alpineContext.searchResults[alpineContext.currentIndex] = variant;
                 }
-
-                // 更新按鈕資料
-                btn.dataset.currentVariantId = variant._variant_id || '';
 
                 // 跨來源時顯示 Toast
                 if (changedSource) {
@@ -261,7 +254,7 @@ async function switchSource() {
                 }
 
                 // 保存狀態
-                window.SearchCore.saveState();
+                alpineContext.saveState();
 
                 console.log(`[SwitchSource] 切換到 ${source} 第 ${state.variantIdx + 1} 版`);
                 return;
@@ -273,28 +266,14 @@ async function switchSource() {
     } catch (err) {
         console.error('[SwitchSource] 切換失敗:', err);
     } finally {
-        btn.innerHTML = originalHtml;
-        btn.disabled = false;
+        alpineContext.isSwitchingSource = false;
     }
 }
 
 // === 狀態切換 ===
 
 function showState(state) {
-    const { dom } = window.SearchCore;
-
-    // 原有 .hidden 操作（保留，防 FOUC + 向後相容）
-    dom.emptyState.classList.add('hidden');
-    dom.loadingState.classList.add('hidden');
-    dom.resultCard.classList.add('hidden');
-    dom.errorState.classList.add('hidden');
-
-    if (state === 'empty') dom.emptyState.classList.remove('hidden');
-    else if (state === 'loading') dom.loadingState.classList.remove('hidden');
-    else if (state === 'result') dom.resultCard.classList.remove('hidden');
-    else if (state === 'error') dom.errorState.classList.remove('hidden');
-
-    // T1a: 同步 Alpine pageState
+    // Alpine x-show 控制顯示/隱藏（classList 操作已移除）
     const el = document.querySelector('.search-container[x-data]');
     if (el && el._x_dataStack) {
         Alpine.$data(el).pageState = state;
@@ -345,6 +324,5 @@ window.SearchUI = {
     getSourceOrder
 };
 
-// 全域函數（onclick 用）
-// T1c: 所有編輯/標籤函數已在 state.js setupBridgeLayer() 中設定
-window.switchSource = switchSource;
+// V1d: 暴露 core 函數（供 Alpine wrapper 呼叫）
+window.switchSourceCore = switchSource;

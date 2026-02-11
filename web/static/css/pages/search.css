@@ -102,7 +102,7 @@
     height: 64px;
     background: rgba(0, 0, 0, 0.6);
     border: none;
-    color: #fff;
+    color: var(--text-inverse);
     font-size: 1.4rem;
     cursor: pointer;
     transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
@@ -132,7 +132,7 @@
     left: 50%;
     transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.6);
-    color: #fff;
+    color: var(--text-inverse);
     padding: 2px 10px;
     border-radius: var(--fluent-radius-xl);
     font-size: 0.8rem;
@@ -519,7 +519,7 @@
 /* ==================== 用戶標籤樣式 ==================== */
 .tag-badge.user-tag {
     background: var(--accent);
-    color: #fff;
+    color: var(--text-inverse);
     cursor: default;
 }
 

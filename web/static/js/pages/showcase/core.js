@@ -356,7 +356,7 @@ function showcaseState() {
         openLightbox(index) {
             this.lightboxIndex = index;
             this.lightboxOpen = true;
-            document.body.style.overflow = 'hidden';
+            document.body.classList.add('overflow-hidden');
 
             // Smart Close: 延遲 1000ms 後才啟用滑鼠關閉
             this.lightboxMoveEnabled = false;
@@ -372,7 +372,7 @@ function showcaseState() {
 
         closeLightbox() {
             this.lightboxOpen = false;
-            document.body.style.overflow = '';
+            document.body.classList.remove('overflow-hidden');
             this.lightboxIndex = -1;
             this.lightboxStartX = 0;
             this.lightboxStartY = 0;
@@ -417,6 +417,22 @@ function showcaseState() {
             }
         },
 
+        /**
+         * Known Limitation: Click-Through Detection 技巧
+         *
+         * 此方法使用 style.display 暫時隱藏 lightbox（而非 Alpine :class）
+         *
+         * 原因：
+         * - elementFromPoint() 需要元素真正從 DOM 層級消失才能穿透到下方卡片
+         * - Alpine :class / x-show 在檢測瞬間仍會阻擋 elementFromPoint()
+         * - 執行時間極短（< 16ms），使用者無感知
+         *
+         * 替代方案：無（Web API 限制）
+         *
+         * 功能：點擊 lightbox 背景時
+         * - 如果下方是圖片卡片 → click-through 切換到該影片
+         * - 如果不是卡片 → 關閉 lightbox
+         */
         handleLightboxBackdropClick(e) {
             // Smart Close: 只有點擊到 backdrop 且已啟用時才處理
             if (!this.lightboxMoveEnabled) return;

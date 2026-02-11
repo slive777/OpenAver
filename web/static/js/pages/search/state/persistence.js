@@ -26,22 +26,11 @@ window.SearchStateMixin_Persistence = {
             if (this.appConfig?.search?.gallery_mode_enabled === false) {
                 this.displayMode = 'detail';
             }
-
-            // 同步回 core.js module-level vars（舊 JS 函數直接讀取這些變數）
-            const coreState = window.SearchCore.state;
-            coreState.searchResults = this.searchResults;
-            coreState.currentIndex = this.currentIndex;
-            coreState.currentQuery = this.currentQuery;
-            coreState.currentOffset = this.currentOffset;
-            coreState.hasMoreResults = this.hasMoreResults;
-            coreState.fileList = this.fileList;
-            coreState.currentFileIndex = this.currentFileIndex;
-            coreState.listMode = this.listMode;
+            this._syncToCore();
 
             // 還原搜尋框輸入值
-            const queryInput = document.getElementById('searchQuery');
-            if (queryInput && state.queryValue) {
-                queryInput.value = state.queryValue;
+            if (state.queryValue) {
+                this.searchQuery = state.queryValue;
             }
 
             // Fix 1: 清除封面錯誤（防止還原時殘留舊狀態）
@@ -56,8 +45,7 @@ window.SearchStateMixin_Persistence = {
                 if (currentFile?.searchResults?.length > 0) {
                     this.searchResults = currentFile.searchResults;
                     this.hasMoreResults = currentFile.hasMoreResults || false;
-                    coreState.searchResults = this.searchResults;
-                    coreState.hasMoreResults = this.hasMoreResults;
+                    this._syncToCore();
                     window.SearchUI.showState('result');
                 }
             }

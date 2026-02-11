@@ -36,12 +36,7 @@ window.SearchStateMixin_Navigation = {
         // 正常範圍內導航
         if (newIndex >= 0 && newIndex < this.searchResults.length) {
             this.currentIndex = newIndex;
-
-            // 修正 2: 同步回 core.js
-            const coreState = window.SearchCore?.state;
-            if (coreState) {
-                coreState.currentIndex = this.currentIndex;
-            }
+            this._syncToCore({ skipFileList: true });  // 導航頻繁，跳過 fileList
 
             // Reset cover error on navigation
             this.coverError = '';
@@ -73,15 +68,7 @@ window.SearchStateMixin_Navigation = {
                 this.currentOffset = newOffset;
                 this.hasMoreResults = data.has_more;
                 this.currentIndex = this.searchResults.length - data.data.length;
-
-                // 修正 2: 同步回 core.js
-                const coreState = window.SearchCore?.state;
-                if (coreState) {
-                    coreState.searchResults = this.searchResults;
-                    coreState.currentOffset = this.currentOffset;
-                    coreState.hasMoreResults = this.hasMoreResults;
-                    coreState.currentIndex = this.currentIndex;
-                }
+                this._syncToCore({ skipFileList: true });  // load more 不涉及 fileList
 
                 if (window.SearchUI?.preloadImages) {
                     window.SearchUI.preloadImages(this.currentIndex + 1, 5);
@@ -98,12 +85,7 @@ window.SearchStateMixin_Navigation = {
             console.error('載入更多失敗:', err);
         } finally {
             this.isLoadingMore = false;
-
-            // 同步回 core.js
-            const coreState = window.SearchCore?.state;
-            if (coreState) {
-                coreState.isLoadingMore = this.isLoadingMore;
-            }
+            this._syncToCore({ skipFileList: true });
         }
     },
 

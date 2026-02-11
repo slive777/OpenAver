@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Bootstrap CSS CDN（保留 Bootstrap Icons）
 - Bootstrap JS CDN
-- 前端 `[LOCAL FALLBACK]` 函數（`hasJapanese`/`extractNumber`/`checkSubtitle`）
+- `[LOCAL FALLBACK]` 標記（函數保留作為 API fallback 機制）
 - `web/routers/gallery.py`（重命名為 `scanner.py`）
 
 ---

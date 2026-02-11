@@ -25,6 +25,7 @@ window.SearchStateMixin_SearchFlow = {
         this.searchResults = [];
         this.currentIndex = 0;
         this.currentQuery = '';
+        this.searchQuery = '';  // 清空搜尋框
         this.currentOffset = 0;
         this.hasMoreResults = false;
         this.fileList = [];
@@ -42,10 +43,9 @@ window.SearchStateMixin_SearchFlow = {
      * @param {string} query - 搜尋關鍵字（可選，預設讀取 input）
      */
     async doSearch(query) {
-        // 1. 取得搜尋關鍵字
+        // 1. 取得搜尋關鍵字（V1c: 優先從 Alpine state 讀取）
         if (!query) {
-            const input = document.getElementById('searchQuery');
-            query = input?.value?.trim();
+            query = this.searchQuery?.trim();
         }
         if (!query) return;
 
@@ -128,15 +128,8 @@ window.SearchStateMixin_SearchFlow = {
                         this.currentIndex = 0;
                         this.hasMoreResults = data.has_more || false;
                         this.actressProfile = data.actress_profile || null;  // T2d: 寫入女優資料
-
-                        // 同步回 core.js
-                        const coreState = window.SearchCore.state;
-                        coreState.searchResults = this.searchResults;
-                        coreState.currentIndex = this.currentIndex;
-                        coreState.hasMoreResults = this.hasMoreResults;
-                        coreState.listMode = 'search';
-                        coreState.currentQuery = this.currentQuery;
-                        coreState.currentOffset = this.currentOffset;
+                        this.listMode = 'search';
+                        this._syncToCore();
 
                         // 查詢本地狀態（非同步）
                         if (window.SearchCore?.checkLocalStatus) {
@@ -218,15 +211,8 @@ window.SearchStateMixin_SearchFlow = {
                 this.currentIndex = 0;
                 this.hasMoreResults = data.has_more || false;
                 this.actressProfile = data.actress_profile || null;  // T2d: 寫入女優資料
-
-                // 同步回 core.js
-                const coreState = window.SearchCore.state;
-                coreState.searchResults = this.searchResults;
-                coreState.currentIndex = this.currentIndex;
-                coreState.hasMoreResults = this.hasMoreResults;
-                coreState.listMode = 'search';
-                coreState.currentQuery = this.currentQuery;
-                coreState.currentOffset = this.currentOffset;
+                this.listMode = 'search';
+                this._syncToCore();
 
                 // 查詢本地狀態
                 if (window.SearchCore?.checkLocalStatus) {
@@ -291,15 +277,7 @@ window.SearchStateMixin_SearchFlow = {
             this.displayMode = snap.displayMode || 'detail';
             this.currentMode = snap.currentMode || '';
             this.errorText = snap.errorText || '';
-
-            // 同步回 core.js
-            const coreState = window.SearchCore.state;
-            coreState.searchResults = this.searchResults;
-            coreState.currentIndex = this.currentIndex;
-            coreState.fileList = this.fileList;
-            coreState.currentFileIndex = this.currentFileIndex;
-            coreState.listMode = this.listMode;
-            coreState.hasMoreResults = this.hasMoreResults;
+            this._syncToCore();
 
             // 還原顯示
             window.SearchUI.showState(snap.pageState);

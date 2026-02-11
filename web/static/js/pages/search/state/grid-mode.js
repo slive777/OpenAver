@@ -26,10 +26,7 @@ window.SearchStateMixin_GridMode = {
         this.actressLightboxMode = false;  // 從 actress 模式切回普通模式
         // 同步 currentIndex（讓 Detail 與 Grid 保持一致）
         this.currentIndex = index;
-        const coreState = window.SearchCore?.state;
-        if (coreState) {
-            coreState.currentIndex = this.currentIndex;
-        }
+        this._syncToCore({ skipFileList: true });
     },
 
     /**
@@ -55,10 +52,7 @@ window.SearchStateMixin_GridMode = {
         if (this.lightboxIndex > 0) {
             this.lightboxIndex--;
             this.currentIndex = this.lightboxIndex;
-            const coreState = window.SearchCore?.state;
-            if (coreState) {
-                coreState.currentIndex = this.currentIndex;
-            }
+            this._syncToCore({ skipFileList: true });
         }
     },
 
@@ -69,10 +63,7 @@ window.SearchStateMixin_GridMode = {
         if (this.lightboxIndex < this.searchResults.length - 1) {
             this.lightboxIndex++;
             this.currentIndex = this.lightboxIndex;
-            const coreState = window.SearchCore?.state;
-            if (coreState) {
-                coreState.currentIndex = this.currentIndex;
-            }
+            this._syncToCore({ skipFileList: true });
         }
     },
 
@@ -122,10 +113,7 @@ window.SearchStateMixin_GridMode = {
     switchToDetail(index) {
         this.displayMode = 'detail';
         this.currentIndex = index;
-        const coreState = window.SearchCore?.state;
-        if (coreState) {
-            coreState.currentIndex = this.currentIndex;
-        }
+        this._syncToCore({ skipFileList: true });
         this.saveState();
     },
 
@@ -135,10 +123,14 @@ window.SearchStateMixin_GridMode = {
      */
     copyPath(path) {
         if (!path) return;
-        navigator.clipboard.writeText(path).then(() => {
-            console.log('[Grid] 路徑已複製:', path);
-            // T6b: 統一 toast
-            this.showToast('路徑已複製', 'success');
+        // 取資料夾路徑（去掉檔名）
+        const lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+        const folder = lastSlash >= 0 ? path.substring(0, lastSlash) : path;
+        // file:/// → Windows 反斜線路徑
+        const winPath = folder.replace(/^file:\/\/\/?/, '').replace(/\//g, '\\');
+        navigator.clipboard.writeText(winPath).then(() => {
+            console.log('[Grid] 路徑已複製:', winPath);
+            this.showToast('已複製: ' + winPath, 'success');
         }).catch(err => {
             console.error('[Grid] 複製失敗:', err);
             this.showToast('複製失敗', 'error');

@@ -64,6 +64,30 @@
     --duration-fast: var(--fluent-duration-fast);
     --duration-normal: var(--fluent-duration-normal);
     --duration-slow: var(--fluent-duration-slower);
+
+    /* ===== 新增：V4 語義化色彩變數 ===== */
+
+    /* Apple HIG 色系（badge, gradient） */
+    --accent-secondary: #007aff;      /* Apple Blue (iOS System Blue) */
+    --gradient-cyan: #5ac8fa;          /* Apple Cyan */
+    --gradient-cyan-light: #64d2ff;    /* Apple Cyan Light */
+    --gradient-purple: #bf5af2;        /* Apple Purple */
+    --gradient-indigo: #5856d6;        /* Apple Indigo */
+
+    /* Success 色系（綠色 badge, gradient） */
+    --color-success: #34c759;         /* Apple HIG Green (light mode) */
+    --color-success-dark: #30d158;    /* Apple HIG Green (dark mode) */
+
+    /* Warning 色系（琥珀色，NFO 警告） */
+    --color-warning: #f59e0b;         /* Tailwind amber-500 */
+    --color-warning-dark: #d97706;    /* Tailwind amber-600 */
+    --color-warning-darker: #b45309;  /* Tailwind amber-700 */
+
+    /* Accent 色系（粉紅，女優管理） */
+    --accent-pink: #ec4899;           /* Tailwind pink-500 - 女優識別色 */
+
+    /* Error 色系擴展（淡紅，delete hover） */
+    --color-error-hover: #ff6b6b;     /* 柔和紅 - 刪除按鈕 hover */
 }
 
 
@@ -194,7 +218,7 @@ body {
 
     /* 內層高光線 + 外陰影 */
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 10%, transparent),
         var(--shadow-sm);
 
     transition: border-color var(--duration-normal) var(--ease-out), box-shadow var(--duration-normal) var(--ease-out), transform var(--duration-normal) var(--ease-out);
@@ -205,7 +229,7 @@ body {
 
     /* 內層高光線（強化）+ 發光環 + 外陰影 */
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.15),
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 15%, transparent),
         0 0 0 4px color-mix(in oklch, var(--color-primary) 15%, transparent),
         0 0 20px var(--glow-primary),
         var(--shadow-md);
@@ -526,6 +550,9 @@ body {
 [data-theme="dim"] {
     --color-error: #ff453a;  /* 深色模式調亮 */
     --glow-error: rgba(255, 69, 58, 0.25);
+
+    /* V4: Dark mode success 色覆寫 */
+    --color-success: #30d158;         /* Dark mode 使用較亮綠 */
 }
 
 [data-theme="dim"] .info-icon-btn:hover {
@@ -938,7 +965,7 @@ body {
     position: absolute;
     top: 0.75rem;
     right: 0.75rem;
-    background: linear-gradient(135deg, var(--accent) 0%, #007aff 100%);
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%);
     color: oklch(100% 0 0);
     font-size: 0.7rem;
     font-weight: 600;
@@ -948,7 +975,7 @@ body {
 }
 
 :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview-badge.local {
-    background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
+    background: linear-gradient(135deg, var(--color-success) 0%, var(--color-success-dark) 100%);
 }
 
 /* Preview Footer */
@@ -995,9 +1022,9 @@ body {
 :is(#ds-gallery-components, .ds-gallery-composition) .btn-glass-circle {
     width: 48px;
     height: 48px;
-    border: 1px solid rgba(255, 255, 255, 0.4);
+    border: 1px solid color-mix(in oklch, white 40%, transparent);
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.15);
+    background: color-mix(in oklch, white 15%, transparent);
     color: oklch(100% 0 0);
     font-size: 1.25rem;
     cursor: pointer;
@@ -1175,7 +1202,7 @@ body {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    color: #f59e0b;
+    color: var(--color-warning);
     font-weight: 500;
 }
 
@@ -1191,19 +1218,19 @@ body {
     padding: 0.4rem 0.75rem;
     font-size: 0.75rem;
     font-weight: 600;
-    color: #fff;
-    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: var(--text-inverse);
+    background: linear-gradient(135deg, var(--color-warning), var(--color-warning-dark));
     border: none;
     border-radius: var(--radius-pill);
     cursor: pointer;
     transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
-    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+    box-shadow: 0 2px 8px color-mix(in oklch, var(--color-warning) 30%, transparent);
 }
 
 :is(#ds-gallery-components, .ds-gallery-composition) .btn-nfo-update:hover {
-    background: linear-gradient(135deg, #d97706, #b45309);
+    background: linear-gradient(135deg, var(--color-warning-dark), var(--color-warning-darker));
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+    box-shadow: 0 4px 12px color-mix(in oklch, var(--color-warning) 40%, transparent);
 }
 
 :is(#ds-gallery-components, .ds-gallery-composition) .btn-nfo-update:disabled {
@@ -1268,7 +1295,7 @@ body {
 }
 
 :is(#ds-gallery-components, .ds-gallery-composition) .actress-alias-header .title i {
-    color: #ec4899; /* Pink accent - 女優管理識別色 */
+    color: var(--accent-pink); /* 女優管理識別色 */
     font-size: 1rem;
 }
 
@@ -1437,10 +1464,11 @@ body {
     background: color-mix(in oklch, var(--color-base-content) 3%, transparent);
 }
 
+/* Intentional hardcoded: 模擬 VS Code diff 配色（不使用 theme 變數） */
 :is(#ds-gallery-components, .ds-gallery-composition) .alias-old {
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
     font-size: 0.8rem;
-    color: #dcdcaa; /* VS Code 黃色 - 舊名稱 */
+    color: #dcdcaa; /* VS Code 黃色 - 舊名稱（before/deleted） */
     min-width: 80px;
     font-weight: 500;
 }
@@ -1454,7 +1482,7 @@ body {
 :is(#ds-gallery-components, .ds-gallery-composition) .alias-new {
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
     font-size: 0.8rem;
-    color: #6a9955; /* VS Code 綠色 - 新名稱 */
+    color: #6a9955; /* VS Code 綠色 - 新名稱（after/added） */
     flex: 1;
     font-weight: 500;
 }
@@ -1481,7 +1509,7 @@ body {
 }
 
 :is(#ds-gallery-components, .ds-gallery-composition) .btn-alias-delete:hover {
-    color: #ff6b6b;
+    color: var(--color-error-hover);
     transform: scale(1.1);
 }
 

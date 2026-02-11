@@ -60,7 +60,7 @@
         <form id="searchForm" @submit.prevent="doSearch()">
             <div class="spotlight-search">
                 <i class="bi bi-search search-icon-left"></i>
-                <input type="text" id="searchQuery" name="q" placeholder="搜尋番號、女優或拖入檔案..." autocomplete="off">
+                <input type="text" id="searchQuery" name="q" placeholder="搜尋番號、女優或拖入檔案..." autocomplete="off" x-model="searchQuery">
                 <div class="search-actions-right">
                     <!-- 取消搜尋按鈕（loading 狀態顯示） -->
                     <button type="button"
@@ -78,7 +78,7 @@
                             :title="displayMode === 'detail' ? '切換到圖片模式' : '切換到詳細模式'">
                         <i class="bi" :class="displayMode === 'detail' ? 'bi-grid-3x3' : 'bi-list-ul'"></i>
                     </button>
-                    <button type="button" id="btnClear" class="btn-icon hidden" x-show="hasContent" @click="clearAll()" title="清空">
+                    <button type="button" id="btnClear" class="btn-icon" x-show="hasContent" x-cloak @click="clearAll()" title="清空">
                         <i class="bi bi-x-lg"></i>
                     </button>
                     <button type="submit" id="btnSubmit" class="btn-icon active" title="搜尋">
@@ -116,7 +116,7 @@
         </div>
 
         <!-- 載入中 - 進度指示器 -->
-        <div id="loadingState" class="search-progress w-full hidden" x-show="pageState === 'loading'" x-cloak>
+        <div id="loadingState" class="search-progress w-full" x-show="pageState === 'loading'" x-cloak>
             <div class="progress-container">
                 <!-- 搜尋標題 -->
                 <div class="progress-header">
@@ -137,7 +137,7 @@
         </div>
 
         <!-- 錯誤狀態 -->
-        <div id="errorState" class="state-page error w-full hidden" x-show="pageState === 'error'" x-cloak>
+        <div id="errorState" class="state-page error w-full" x-show="pageState === 'error'" x-cloak>
             <i class="bi bi-exclamation-triangle state-page-icon"></i>
             <p class="state-page-text error-text" id="errorMessage" x-text="errorText || '搜尋失敗'">搜尋失敗</p>
             <small class="state-page-hint">請檢查番號格式或稍後再試</small>
@@ -162,7 +162,7 @@
         </div>
 
         <!-- 結果卡片（wrapper：卡片 + 檔案列表垂直排列） -->
-        <div id="resultCard" class="hidden" x-show="pageState === 'result'" x-cloak>
+        <div id="resultCard" x-show="pageState === 'result'" x-cloak>
             <!-- T5: Actress Banner 完全移除（Detail 模式不顯示女優資訊）-->
             <!-- Hero Card 仍在 Grid 模式顯示（L379-400，已有 x-show="displayMode === 'grid'"） -->
 
@@ -181,13 +181,13 @@
                              alt="封面">
                         <!-- 封面錯誤 -->
                         <div x-show="coverError" class="cover-error-placeholder">
-                            <i class="bi bi-exclamation-triangle" style="font-size:3rem;color:var(--color-warning);"></i>
-                            <p x-text="coverError" style="margin-top:0.5rem;"></p>
+                            <i class="bi bi-exclamation-triangle text-5xl text-warning"></i>
+                            <p x-text="coverError" class="mt-2"></p>
                             <small>請檢查番號格式或稍後再試</small>
                         </div>
                         <!-- 無封面 -->
                         <div x-show="!coverError && !current().cover" class="cover-error-placeholder">
-                            <i class="bi bi-image" style="font-size:3rem;"></i>
+                            <i class="bi bi-image text-5xl"></i>
                         </div>
                         <button class="nav-btn prev" id="btnPrev"
                                 x-show="showNavigation()"
@@ -221,12 +221,13 @@
                           x-show="hasLocalBadge()"
                           :title="localBadgeTitle()"
                           @click="copyLocalPath()">📁</span>
-                    <button id="switchSourceBtn" class="info-icon-btn" @click="switchSource()"
+                    <button id="switchSourceBtn" class="info-icon-btn"
+                            @click="switchSource()"
                             title="切換版本"
-                            :data-number="current().number || ''"
-                            :data-all-variant-ids="JSON.stringify(current()._all_variant_ids || [])"
-                            :data-current-variant-id="current()._variant_id || ''">
-                        <i class="bi bi-arrow-repeat"></i>
+                            :disabled="isSwitchingSource"
+                            :class="{ 'shake': switchSourceShake }">
+                        <i class="bi bi-arrow-repeat" x-show="!isSwitchingSource"></i>
+                        <span x-show="isSwitchingSource" class="loading loading-spinner loading-sm"></span>
                     </button>
                 </div>
                 <div class="av-card-full-body">
@@ -295,8 +296,8 @@
                             <textarea x-ref="titleInput" x-model="editedTitleValue"
                                       @keydown.enter.prevent="confirmEditTitle()"
                                       @keydown.escape="cancelEditTitle()"
-                                      class="textarea textarea-bordered info-value"
-                                      rows="3" style="flex:1;min-width:0;resize:none;"></textarea>
+                                      class="textarea textarea-bordered info-value flex-1 min-w-0 resize-none"
+                                      rows="3"></textarea>
                             <div class="av-card-full-footer-actions">
                                 <button class="info-icon-btn text-success" @click="confirmEditTitle()" title="確認">
                                     <i class="bi bi-check-lg"></i>
@@ -325,8 +326,8 @@
                             <textarea x-ref="chineseTitleInput" x-model="editedChineseTitleValue"
                                       @keydown.enter.prevent="confirmEditChineseTitle()"
                                       @keydown.escape="cancelEditChineseTitle()"
-                                      class="textarea textarea-bordered info-value text-success"
-                                      rows="2" style="flex:1;min-width:0;resize:none;"></textarea>
+                                      class="textarea textarea-bordered info-value text-success flex-1 min-w-0 resize-none"
+                                      rows="2"></textarea>
                             <div class="av-card-full-footer-actions">
                                 <button class="info-icon-btn text-success" @click="confirmEditChineseTitle()" title="確認">
                                     <i class="bi bi-check-lg"></i>
@@ -347,8 +348,7 @@
                 <div class="av-card-preview hero-card"
                      x-show="actressProfile"
                      x-cloak
-                     @click="openActressLightbox()"
-                     :style="`--card-index: 0`">
+                     @click="openActressLightbox()">
                     <div class="av-card-preview-img">
                         <img :src="actressProfile?.img ? `/api/proxy-image?url=${encodeURIComponent(actressProfile.img)}` : ''"
                              :alt="actressProfile?.name"
@@ -370,7 +370,6 @@
                 <template x-for="(result, index) in searchResults" :key="result.number + '_' + index">
                     <div class="av-card-preview"
                          @click="openLightbox(index)"
-                         :style="`--card-index: ${index + (actressProfile ? 1 : 0)}`"
                          :class="{ 'rotating-border-spotlight active once': shouldShowLocalBorder(result) }"
                          @animationend.self="markLocalBorderPlayed(result?.number)">
                         <div class="av-card-preview-img">
@@ -505,11 +504,11 @@
                     <template x-for="(result, i) in searchResults" :key="(result.number || '') + '_' + i">
                         <div @click="switchToSearchResult(i)"
                              :class="i === currentIndex ? 'file-item active' : 'file-item'">
-                            <span style="flex-shrink:0;font-weight:500;color:var(--accent);min-width:90px;"
+                            <span class="flex-shrink-0 font-medium text-primary min-w-[90px]"
                                   x-text="result.number || '-'">-</span>
-                            <span style="flex-shrink:0;min-width:80px;color:var(--text-secondary);"
+                            <span class="flex-shrink-0 min-w-[80px] text-base-content/70"
                                   x-text="(result.actors || []).slice(0,2).join(', ') || '-'">-</span>
-                            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                            <span class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
                                   x-text="result.title || '-'">-</span>
                         </div>
                     </template>

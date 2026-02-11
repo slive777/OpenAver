@@ -11,6 +11,7 @@ window.SearchStateMixin_Base = function() {
         searchResults: [],
         currentIndex: 0,
         currentQuery: '',
+        searchQuery: '',  // V1c: 對應 input 即時輸入值（x-model 綁定）
         currentOffset: 0,
         hasMoreResults: false,
         isLoadingMore: false,
@@ -62,6 +63,10 @@ window.SearchStateMixin_Base = function() {
         isLoadingFavorite: false,
         searchingFileDirection: null,  // 'next' | 'prev' — for searchForFile btn spinner
         isScrapeAllProcessing: false,  // scrapeAll spinner
+
+        // ===== V1d: Source Switching State =====
+        isSwitchingSource: false,      // 切換來源中（控制 spinner + disabled）
+        switchSourceShake: false,      // 觸發抖動動畫（無其他版本時）
 
         // ===== Progress State =====
         currentMode: '',
