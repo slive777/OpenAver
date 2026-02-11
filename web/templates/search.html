@@ -181,13 +181,13 @@
                              alt="封面">
                         <!-- 封面錯誤 -->
                         <div x-show="coverError" class="cover-error-placeholder">
-                            <i class="bi bi-exclamation-triangle" style="font-size:3rem;color:var(--color-warning);"></i>
-                            <p x-text="coverError" style="margin-top:0.5rem;"></p>
+                            <i class="bi bi-exclamation-triangle text-5xl text-warning"></i>
+                            <p x-text="coverError" class="mt-2"></p>
                             <small>請檢查番號格式或稍後再試</small>
                         </div>
                         <!-- 無封面 -->
                         <div x-show="!coverError && !current().cover" class="cover-error-placeholder">
-                            <i class="bi bi-image" style="font-size:3rem;"></i>
+                            <i class="bi bi-image text-5xl"></i>
                         </div>
                         <button class="nav-btn prev" id="btnPrev"
                                 x-show="showNavigation()"
@@ -299,8 +299,8 @@
                             <textarea x-ref="titleInput" x-model="editedTitleValue"
                                       @keydown.enter.prevent="confirmEditTitle()"
                                       @keydown.escape="cancelEditTitle()"
-                                      class="textarea textarea-bordered info-value"
-                                      rows="3" style="flex:1;min-width:0;resize:none;"></textarea>
+                                      class="textarea textarea-bordered info-value flex-1 min-w-0 resize-none"
+                                      rows="3"></textarea>
                             <div class="av-card-full-footer-actions">
                                 <button class="info-icon-btn text-success" @click="confirmEditTitle()" title="確認">
                                     <i class="bi bi-check-lg"></i>
@@ -329,8 +329,8 @@
                             <textarea x-ref="chineseTitleInput" x-model="editedChineseTitleValue"
                                       @keydown.enter.prevent="confirmEditChineseTitle()"
                                       @keydown.escape="cancelEditChineseTitle()"
-                                      class="textarea textarea-bordered info-value text-success"
-                                      rows="2" style="flex:1;min-width:0;resize:none;"></textarea>
+                                      class="textarea textarea-bordered info-value text-success flex-1 min-w-0 resize-none"
+                                      rows="2"></textarea>
                             <div class="av-card-full-footer-actions">
                                 <button class="info-icon-btn text-success" @click="confirmEditChineseTitle()" title="確認">
                                     <i class="bi bi-check-lg"></i>
@@ -351,8 +351,7 @@
                 <div class="av-card-preview hero-card"
                      x-show="actressProfile"
                      x-cloak
-                     @click="openActressLightbox()"
-                     :style="`--card-index: 0`">
+                     @click="openActressLightbox()">
                     <div class="av-card-preview-img">
                         <img :src="actressProfile?.img ? `/api/proxy-image?url=${encodeURIComponent(actressProfile.img)}` : ''"
                              :alt="actressProfile?.name"
@@ -374,7 +373,6 @@
                 <template x-for="(result, index) in searchResults" :key="result.number + '_' + index">
                     <div class="av-card-preview"
                          @click="openLightbox(index)"
-                         :style="`--card-index: ${index + (actressProfile ? 1 : 0)}`"
                          :class="{ 'rotating-border-spotlight active once': shouldShowLocalBorder(result) }"
                          @animationend.self="markLocalBorderPlayed(result?.number)">
                         <div class="av-card-preview-img">
@@ -509,11 +507,11 @@
                     <template x-for="(result, i) in searchResults" :key="(result.number || '') + '_' + i">
                         <div @click="switchToSearchResult(i)"
                              :class="i === currentIndex ? 'file-item active' : 'file-item'">
-                            <span style="flex-shrink:0;font-weight:500;color:var(--accent);min-width:90px;"
+                            <span class="flex-shrink-0 font-medium text-primary min-w-[90px]"
                                   x-text="result.number || '-'">-</span>
-                            <span style="flex-shrink:0;min-width:80px;color:var(--text-secondary);"
+                            <span class="flex-shrink-0 min-w-[80px] text-base-content/70"
                                   x-text="(result.actors || []).slice(0,2).join(', ') || '-'">-</span>
-                            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                            <span class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
                                   x-text="result.title || '-'">-</span>
                         </div>
                     </template>
