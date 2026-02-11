@@ -224,9 +224,6 @@
                     <button id="switchSourceBtn" class="info-icon-btn"
                             @click="switchSource()"
                             title="切換版本"
-                            :data-number="current().number || ''"
-                            :data-all-variant-ids="JSON.stringify(current()._all_variant_ids || [])"
-                            :data-current-variant-id="current()._variant_id || ''"
                             :disabled="isSwitchingSource"
                             :class="{ 'shake': switchSourceShake }">
                         <i class="bi bi-arrow-repeat" x-show="!isSwitchingSource"></i>

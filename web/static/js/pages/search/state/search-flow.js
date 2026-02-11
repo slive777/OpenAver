@@ -25,6 +25,7 @@ window.SearchStateMixin_SearchFlow = {
         this.searchResults = [];
         this.currentIndex = 0;
         this.currentQuery = '';
+        this.searchQuery = '';  // 清空搜尋框
         this.currentOffset = 0;
         this.hasMoreResults = false;
         this.fileList = [];

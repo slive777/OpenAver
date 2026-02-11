@@ -18,6 +18,9 @@
     --text-xl--line-height: calc(1.75 / 1.25);
     --text-2xl: 1.5rem;
     --text-2xl--line-height: calc(2 / 1.5);
+    --text-5xl: 3rem;
+    --text-5xl--line-height: 1;
+    --font-weight-medium: 500;
     --font-weight-semibold: 600;
     --radius-xs: 0.125rem;
     --radius-sm: 0.25rem;
@@ -184,6 +187,59 @@
   }
 }
 @layer utilities {
+  .diff {
+    @layer daisyui.l1.l2.l3 {
+      position: relative;
+      display: grid;
+      width: 100%;
+      overflow: hidden;
+      webkit-user-select: none;
+      user-select: none;
+      grid-template-rows: 1fr 1.8rem 1fr;
+      direction: ltr;
+      container-type: inline-size;
+      grid-template-columns: auto 1fr;
+      &:focus-visible, &:has(.diff-item-1:focus-visible) {
+        outline-style: var(--tw-outline-style);
+        outline-width: 2px;
+        outline-offset: 1px;
+        outline-color: var(--color-base-content);
+      }
+      &:focus-visible {
+        outline-style: var(--tw-outline-style);
+        outline-width: 2px;
+        outline-offset: 1px;
+        outline-color: var(--color-base-content);
+        .diff-resizer {
+          min-width: 95cqi;
+          max-width: 95cqi;
+        }
+      }
+      &:has(.diff-item-1:focus-visible) {
+        outline-style: var(--tw-outline-style);
+        outline-width: 2px;
+        outline-offset: 1px;
+        .diff-resizer {
+          min-width: 5cqi;
+          max-width: 5cqi;
+        }
+      }
+      @supports (-webkit-overflow-scrolling: touch) and (overflow: -webkit-paged-x) {
+        &:focus {
+          .diff-resizer {
+            min-width: 5cqi;
+            max-width: 5cqi;
+          }
+        }
+        &:has(.diff-item-1:focus) {
+          .diff-resizer {
+            min-width: 95cqi;
+            max-width: 95cqi;
+          }
+        }
+      }
+    }
+  }
   .modal {
     @layer daisyui.l1.l2.l3 {
       pointer-events: none;
@@ -2263,11 +2319,23 @@
   .max-w-screen-2xl {
     max-width: var(--breakpoint-2xl);
   }
+  .min-w-0 {
+    min-width: calc(var(--spacing) * 0);
+  }
+  .min-w-\[80px\] {
+    min-width: 80px;
+  }
+  .min-w-\[90px\] {
+    min-width: 90px;
+  }
   .flex-1 {
     flex: 1;
   }
   .flex-shrink {
     flex-shrink: 1;
+  }
+  .flex-shrink-0 {
+    flex-shrink: 0;
   }
   .flex-grow {
     flex-grow: 1;
@@ -2312,6 +2380,9 @@
       }
     }
   }
+  .resize-none {
+    resize: none;
+  }
   .flex-col {
     flex-direction: column;
   }
@@ -2329,6 +2400,9 @@
   }
   .gap-3 {
     gap: calc(var(--spacing) * 3);
+  }
+  .overflow-hidden {
+    overflow: hidden;
   }
   .border {
     border-style: var(--tw-border-style);
@@ -2435,6 +2509,10 @@
     font-size: var(--text-2xl);
     line-height: var(--tw-leading, var(--text-2xl--line-height));
   }
+  .text-5xl {
+    font-size: var(--text-5xl);
+    line-height: var(--tw-leading, var(--text-5xl--line-height));
+  }
   .text-lg {
     font-size: var(--text-lg);
     line-height: var(--tw-leading, var(--text-lg--line-height));
@@ -2471,9 +2549,19 @@
       font-size: 0.625rem;
     }
   }
+  .font-medium {
+    --tw-font-weight: var(--font-weight-medium);
+    font-weight: var(--font-weight-medium);
+  }
   .font-semibold {
     --tw-font-weight: var(--font-weight-semibold);
     font-weight: var(--font-weight-semibold);
+  }
+  .text-ellipsis {
+    text-overflow: ellipsis;
+  }
+  .whitespace-nowrap {
+    white-space: nowrap;
   }
   .alert-error {
     @layer daisyui.l1.l2 {
@@ -2509,8 +2597,17 @@
       color: color-mix(in oklab, var(--color-base-content) 60%, transparent);
     }
   }
+  .text-base-content\/70 {
+    color: var(--color-base-content);
+    @supports (color: color-mix(in lab, red, red)) {
+      color: color-mix(in oklab, var(--color-base-content) 70%, transparent);
+    }
+  }
   .text-error {
     color: var(--color-error);
+  }
+  .text-primary {
+    color: var(--color-primary);
   }
   .text-success {
     color: var(--color-success);
