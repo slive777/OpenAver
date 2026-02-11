@@ -156,28 +156,6 @@
     transition: width var(--fluent-duration-slow) var(--fluent-ease-standard), background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
-/* Toast — uses .fluent-toast from theme.css; plain-JS show/hide */
-#toastMsg {
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(20px);
-    transition: all var(--fluent-duration-normal) var(--fluent-ease-decel);
-    pointer-events: none;
-}
-
-#toastMsg.toast-active {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-    pointer-events: auto;
-}
-
-#toastMsg.toast-hiding {
-    transition: all var(--fluent-duration-normal) var(--fluent-ease-accel);
-    opacity: 0;
-    transform: translateY(20px);
-}
-
 /* Drag Overlay - Consistent with Search */
 .drag-overlay {
     position: fixed;

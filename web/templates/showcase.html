@@ -41,7 +41,7 @@
     </div>
 
     <!-- Main Content (API 載入後顯示) -->
-    <div x-show="!error && videos.length > 0" style="display: none;">
+    <div x-show="!error && videos.length > 0" x-cloak>
 
         <!-- Toolbar -->
         <div class="showcase-toolbar">
@@ -257,7 +257,7 @@
         </div>
 
         <!-- Detail Table (M3b) -->
-        <div class="showcase-table-wrapper" x-show="mode === 'table'" style="display: none;">
+        <div class="showcase-table-wrapper" x-show="mode === 'table'" x-cloak>
             <div class="table-scroll-container">
                 <table class="table table-zebra table-pin-rows">
                     <thead>
@@ -309,7 +309,7 @@
         </div>
 
         <!-- Text List (M3c) -->
-        <div class="showcase-list-wrapper" x-show="mode === 'list'" style="display: none;">
+        <div class="showcase-list-wrapper" x-show="mode === 'list'" x-cloak>
             <ul class="showcase-list">
                 <template x-for="(video, index) in paginatedVideos" :key="video.path">
                     <li class="list-item" @click="openLightbox(getCurrentFilteredIndex(index))">
