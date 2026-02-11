@@ -9,6 +9,9 @@ from datetime import datetime
 from typing import Optional, Dict
 
 from bs4 import BeautifulSoup
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 
 # 嘗試載入 jvav（JavBus API）
 try:
@@ -54,7 +57,7 @@ def scrape_actress_profile(name: str) -> Optional[Dict]:
 
         # 檢查 jvav 是否有 check_star_exists 方法（版本相容性）
         if not hasattr(jb, 'check_star_exists'):
-            print("[actress_scraper] Error: jvav 版本過舊，缺少 check_star_exists 方法")
+            logger.error("[actress_scraper] jvav 版本過舊，缺少 check_star_exists 方法")
             return None
 
         # Step 1: 使用 jvav 搜尋女優，取得 star_id
@@ -119,7 +122,7 @@ def scrape_actress_profile(name: str) -> Optional[Dict]:
         return None
 
     except Exception as e:
-        print(f"[actress_scraper] Error: {e}")
+        logger.error(f"[actress_scraper] Error: {e}")
         return None
 
 

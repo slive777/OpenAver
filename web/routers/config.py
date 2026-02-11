@@ -9,6 +9,10 @@ from pathlib import Path
 import json
 import httpx
 
+from core.logger import get_logger
+
+logger = get_logger(__name__)
+
 router = APIRouter(prefix="/api", tags=["config"])
 
 # Import reset function (避免循環導入，在需要時才導入)
@@ -106,7 +110,7 @@ def load_config() -> dict:
     if not CONFIG_PATH.exists() and CONFIG_DEFAULT_PATH.exists():
         import shutil
         shutil.copy2(CONFIG_DEFAULT_PATH, CONFIG_PATH)
-        print(f"[Config] 首次啟動，已從 config.default.json 初始化設定")
+        logger.info("[Config] 首次啟動，已從 config.default.json 初始化設定")
 
     if CONFIG_PATH.exists():
         with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
@@ -187,7 +191,7 @@ def load_config() -> dict:
                     'model': 'gemini-flash-lite-latest'
                 }
                 need_save = True
-                print('[Config] 遷移配置：添加 Gemini 支持')
+                logger.info("[Config] 遷移配置：添加 Gemini 支持")
 
         # Save migrated config
         if need_save:

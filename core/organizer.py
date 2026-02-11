@@ -13,6 +13,9 @@ from typing import Optional, Dict, Any, List
 
 from core.path_utils import normalize_path
 from core.scrapers.utils import has_chinese, check_subtitle
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 # HTTP 請求設定
@@ -186,7 +189,7 @@ def download_image(url: str, save_path: str, referer: str = '') -> bool:
                 f.write(resp.content)
             return True
     except Exception as e:
-        print(f"[!] 下載圖片失敗: {e}")
+        logger.warning(f"[!] 下載圖片失敗: {e}")
     return False
 
 
@@ -279,7 +282,7 @@ def generate_nfo(
             f.write(nfo_content)
         return True
     except Exception as e:
-        print(f"[!] 生成 NFO 失敗: {e}")
+        logger.error(f"[!] 生成 NFO 失敗: {e}")
         return False
 
 

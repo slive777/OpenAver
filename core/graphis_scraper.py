@@ -9,6 +9,9 @@ from urllib.parse import quote
 import requests
 from bs4 import BeautifulSoup
 
+from core.logger import get_logger
+logger = get_logger(__name__)
+
 
 def scrape_graphis_photo(name: str) -> Optional[Dict]:
     """
@@ -70,11 +73,11 @@ def scrape_graphis_photo(name: str) -> Optional[Dict]:
         }
 
     except requests.exceptions.Timeout:
-        print(f"[graphis] Timeout for {name}")
+        logger.warning(f"[graphis] Timeout for {name}")
         return None
     except requests.exceptions.RequestException as e:
-        print(f"[graphis] Request error for {name}: {e}")
+        logger.warning(f"[graphis] Request error for {name}: {e}")
         return None
     except Exception as e:
-        print(f"[graphis] Unexpected error for {name}: {e}")
+        logger.error(f"[graphis] Unexpected error for {name}: {e}")
         return None

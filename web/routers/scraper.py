@@ -13,7 +13,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.organizer import organize_file
 from core.scraper import search_jav
+from core.logger import get_logger
 from web.routers.config import load_config
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api", tags=["scraper"])
 
@@ -75,7 +78,7 @@ def scrape_single(request: ScrapeRequest) -> dict:
             }
         metadata['number'] = number
 
-    print(f"[DEBUG] cover URL: {metadata.get('cover', 'NO COVER')}")
+    logger.debug(f"[scraper] cover URL: {metadata.get('cover', 'NO COVER')}")
 
     # 載入設定
     config = load_config()

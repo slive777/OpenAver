@@ -378,7 +378,7 @@ class VideoScanner:
             return info
 
         except Exception as e:
-            print(f"  [!] NFO 讀取失敗: {nfo_path} - {e}")
+            logger.warning(f"  [!] NFO 讀取失敗: {nfo_path} - {e}")
             return None
 
     def find_cover_image(self, video_path: str) -> str:
@@ -515,9 +515,9 @@ class VideoScanner:
         min_size_bytes = min_size_mb * 1024 * 1024
 
         # 步驟 1: 快速掃描檔案取得 mtime
-        print(f"[*] 快速掃描目錄中...")
+        logger.info("[*] 快速掃描目錄中...")
         file_infos = fast_scan_directory(str(directory), VIDEO_EXTENSIONS, min_size_bytes)
-        print(f"[*] 找到 {len(file_infos)} 個影片檔案")
+        logger.info(f"[*] 找到 {len(file_infos)} 個影片檔案")
 
         # 步驟 2: 從 SQLite 取得現有 mtime 索引
         # 注意：資料庫中的 path 是 file:/// 格式
@@ -552,7 +552,7 @@ class VideoScanner:
         deleted_paths = set(db_index.keys()) - current_file_uris
         deleted_count = repo.delete_by_paths(list(deleted_paths))
         if deleted_count > 0:
-            print(f"[*] 清理 {deleted_count} 個已刪除檔案")
+            logger.info(f"[*] 清理 {deleted_count} 個已刪除檔案")
 
         # 步驟 5: 掃描並寫入
         videos_to_upsert = []
@@ -565,7 +565,7 @@ class VideoScanner:
             if progress_callback:
                 progress_callback(i, total_needs_scan, video_name)
 
-            print(f"[{i}/{total_needs_scan}] 處理: {video_name}")
+            logger.info(f"[{i}/{total_needs_scan}] 處理: {video_name}")
 
             try:
                 video_info = self.scan_file(file_info['path'], None)
@@ -574,11 +574,11 @@ class VideoScanner:
                 video.nfo_mtime = file_info.get('nfo_mtime', 0)
                 videos_to_upsert.append(video)
             except Exception as e:
-                print(f"  [!] 錯誤: {e}")
+                logger.warning(f"  [!] 錯誤: {e}")
 
         # 批次寫入
         inserted, updated = repo.upsert_batch(videos_to_upsert)
-        print(f"[*] 完成: 新增 {inserted}, 更新 {updated}, 刪除 {deleted_count}")
+        logger.info(f"[*] 完成: 新增 {inserted}, 更新 {updated}, 刪除 {deleted_count}")
 
         return {
             'inserted': inserted,
@@ -617,9 +617,9 @@ class VideoScanner:
 
         # 使用 fast_scan_directory 一次取得所有檔案資訊
         # 這大幅減少對 NAS 的系統呼叫次數
-        print(f"[*] 快速掃描目錄中...")
+        logger.info("[*] 快速掃描目錄中...")
         all_files = fast_scan_directory(str(directory), VIDEO_EXTENSIONS, min_size_bytes)
-        print(f"[*] 找到 {len(all_files)} 個影片檔案")
+        logger.info(f"[*] 找到 {len(all_files)} 個影片檔案")
 
         # 統計緩存命中
         cache_hits = 0
@@ -652,7 +652,7 @@ class VideoScanner:
                 cache_hits += 1
             else:
                 # 緩存未命中，重新解析
-                print(f"[{i}/{len(all_files)}] 處理: {video_name}")
+                logger.info(f"[{i}/{len(all_files)}] 處理: {video_name}")
                 try:
                     info = self.scan_file(path_key, base_path)
                     videos.append(info)
@@ -666,7 +666,7 @@ class VideoScanner:
                             'info': info.to_dict()
                         }
                 except Exception as e:
-                    print(f"  [!] 錯誤: {e}")
+                    logger.warning(f"  [!] 錯誤: {e}")
 
         # 清理已刪除檔案的緩存
         deleted_count = 0
@@ -676,11 +676,11 @@ class VideoScanner:
                 del cache[k]
             deleted_count = len(deleted_keys)
             if deleted_keys:
-                print(f"[*] 清理 {deleted_count} 個已刪除檔案的緩存")
+                logger.info(f"[*] 清理 {deleted_count} 個已刪除檔案的緩存")
 
         # 顯示緩存統計
         if use_cache:
-            print(f"[*] 緩存: 命中 {cache_hits}, 新增/更新 {cache_misses}")
+            logger.info(f"[*] 緩存: 命中 {cache_hits}, 新增/更新 {cache_misses}")
 
         stats = {
             'cache_hits': cache_hits,
@@ -693,6 +693,8 @@ class VideoScanner:
 def main():
     """測試用"""
     import sys
+    from core.logger import setup_logging
+    setup_logging()
 
     if len(sys.argv) < 2:
         print("用法: python scanner.py <資料夾路徑>")
@@ -701,12 +703,12 @@ def main():
     scanner = VideoScanner()
     videos, stats = scanner.scan_directory(sys.argv[1])
 
-    print(f"\n=== 掃描結果 ({len(videos)} 部) ===")
-    print(f"統計: 緩存命中 {stats['cache_hits']}, 新增/更新 {stats['cache_misses']}")
+    logger.info(f"\n=== 掃描結果 ({len(videos)} 部) ===")
+    logger.info(f"統計: 緩存命中 {stats['cache_hits']}, 新增/更新 {stats['cache_misses']}")
     for v in videos[:10]:  # 只顯示前 10 部
-        print(f"  {v.num or 'N/A'}: {v.title[:50]}...")
+        logger.info(f"  {v.num or 'N/A'}: {v.title[:50]}...")
         if v.actor:
-            print(f"    演員: {v.actor}")
+            logger.info(f"    演員: {v.actor}")
 
 
 if __name__ == "__main__":

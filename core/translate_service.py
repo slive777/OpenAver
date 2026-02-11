@@ -18,6 +18,9 @@
 """
 
 from abc import ABC, abstractmethod
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 from typing import List, Dict, Optional
 import httpx
 import re
@@ -111,7 +114,7 @@ class OllamaTranslateService(TranslateService):
             return result if result else ""
 
         except Exception as e:
-            print(f"[ERROR] Single translation failed: {e}")
+            logger.error(f"[Ollama] Single translation failed: {e}")
             return ""
 
     async def translate_batch(self, titles: List[str], context: Optional[Dict] = None) -> List[str]:
@@ -237,18 +240,18 @@ class GeminiTranslateService(TranslateService):
                 if "blockReason" in feedback:
                     block_reason = feedback["blockReason"]
                     safety_ratings = feedback.get("safetyRatings", [])
-                    print(f"[Gemini] Prompt 被過濾: {block_reason}")
+                    logger.warning(f"[Gemini] Prompt 被過濾: {block_reason}")
                     if safety_ratings:
-                        print(f"[Gemini] 安全評級: {safety_ratings}")
+                        logger.warning(f"[Gemini] 安全評級: {safety_ratings}")
                     return ""
 
             # Step 2: 檢查 candidates 是否存在
             if "candidates" not in data or not data["candidates"]:
                 if "error" in data:
                     error_msg = data["error"].get("message", "Unknown error")
-                    print(f"[Gemini] API Error: {error_msg}")
+                    logger.error(f"[Gemini] API Error: {error_msg}")
                 else:
-                    print(f"[Gemini] No candidates in response")
+                    logger.warning("[Gemini] No candidates in response")
                 return ""
 
             candidate = data["candidates"][0]
@@ -256,10 +259,10 @@ class GeminiTranslateService(TranslateService):
             # Step 3: 檢查 finishReason
             finish_reason = candidate.get("finishReason", "")
             if finish_reason and finish_reason != "STOP":
-                print(f"[Gemini] 異常終止: finishReason={finish_reason}")
+                logger.warning(f"[Gemini] 異常終止: finishReason={finish_reason}")
                 if finish_reason == "SAFETY":
                     safety_ratings = candidate.get("safetyRatings", [])
-                    print(f"[Gemini] 安全過濾觸發: {safety_ratings}")
+                    logger.warning(f"[Gemini] 安全過濾觸發: {safety_ratings}")
                 return ""
 
             # Step 4: 安全訪問 content 字段
@@ -267,20 +270,20 @@ class GeminiTranslateService(TranslateService):
                 translation = candidate["content"]["parts"][0]["text"].strip()
                 return translation
             except (KeyError, IndexError, TypeError) as e:
-                print(f"[Gemini] 響應格式錯誤: {e}")
-                print(f"[Gemini] Candidate 結構: {candidate}")
+                logger.error(f"[Gemini] 響應格式錯誤: {e}")
+                logger.debug(f"[Gemini] Candidate 結構: {candidate}")
                 return ""
 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 400:
-                print(f"[Gemini] Invalid API Key or request")
+                logger.error("[Gemini] Invalid API Key or request")
             elif e.response.status_code == 429:
-                print(f"[Gemini] API quota exceeded")
+                logger.warning("[Gemini] API quota exceeded")
             else:
-                print(f"[Gemini] API error: {e.response.status_code}")
+                logger.error(f"[Gemini] API error: {e.response.status_code}")
             return ""
         except Exception as e:
-            print(f"[ERROR] Gemini single translation failed: {e}")
+            logger.error(f"[Gemini] Single translation failed: {e}")
             return ""
 
     async def translate_batch(self, titles: List[str], context: Optional[Dict] = None) -> List[str]:

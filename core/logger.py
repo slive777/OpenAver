@@ -62,7 +62,16 @@ def setup_logging(log_dir: Path = None, console_level: int = logging.INFO):
     root_logger.addHandler(file_handler)
 
     # Console Handler (可調整等級)
-    console_handler = logging.StreamHandler(sys.stdout)
+    # 使用 errors='replace' 避免 Windows cp950 遇到日文字元時 crash
+    import io
+    try:
+        safe_stream = io.TextIOWrapper(
+            sys.stdout.buffer, encoding=sys.stdout.encoding or 'utf-8', errors='replace'
+        )
+        safe_stream._close = False  # 防止 handler 關閉 stdout
+    except AttributeError:
+        safe_stream = sys.stdout  # fallback（IDE / 重定向時 buffer 可能不存在）
+    console_handler = logging.StreamHandler(safe_stream)
     console_handler.setLevel(console_level)
     console_formatter = logging.Formatter(
         '%(asctime)s - %(levelname)s - %(message)s',

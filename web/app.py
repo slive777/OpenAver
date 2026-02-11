@@ -11,6 +11,10 @@ from fastapi.templating import Jinja2Templates
 # 版本號（從 core/version.py 統一管理）
 from core.version import VERSION
 
+# 確保 logging 在非 standalone 模式（uvicorn 直接啟動）也有初始化
+from core.logger import setup_logging
+setup_logging()
+
 # 路徑設定
 BASE_DIR = Path(__file__).parent
 TEMPLATES_DIR = BASE_DIR / "templates"

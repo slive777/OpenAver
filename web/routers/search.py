@@ -17,6 +17,9 @@ from pathlib import Path
 # 加入 core 模組路徑
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from core.logger import get_logger
+logger = get_logger(__name__)
+
 from core.database import VideoRepository, get_db_path, init_db
 from core.scraper import (
     search_jav, smart_search, is_partial_number, is_number_format,
@@ -137,11 +140,11 @@ def search(
         if detected_mode in ('actress', 'prefix'):
             top_actor = _analyze_top_actor(results, threshold=0.8, min_samples=3)
             if top_actor:
-                print(f"[Actress Profile] Fetching profile for: {top_actor}")
+                logger.info(f"[Actress Profile] Fetching profile for: {top_actor}")
                 from core.actress_scraper import get_actress_profile
                 actress_profile = get_actress_profile(top_actor)
                 if not actress_profile:
-                    print(f"[Actress Profile] Not found for: {top_actor}")
+                    logger.info(f"[Actress Profile] Not found for: {top_actor}")
 
         # 判斷是否還有更多結果（prefix/actress 模式且結果數 = limit）
         has_more = detected_mode in ('prefix', 'actress') and len(results) >= limit
@@ -252,12 +255,12 @@ def _analyze_top_actor(results: List[Dict], threshold: float = 0.8, min_samples:
     # 計算佔比（分母 = 有 actors 的結果數）
     ratio = top_count / valid_results_count
 
-    print(f"[Consistency] Top actor: {top_actor} ({top_count}/{valid_results_count} = {ratio:.1%})")
+    logger.info(f"[Consistency] Top actor: {top_actor} ({top_count}/{valid_results_count} = {ratio:.1%})")
 
     if ratio >= threshold:
         return top_actor
     else:
-        print(f"[Consistency] Ratio {ratio:.1%} < {threshold:.0%}, skip actress_profile")
+        logger.info(f"[Consistency] Ratio {ratio:.1%} < {threshold:.0%}, skip actress_profile")
         return None
 
 
@@ -330,11 +333,11 @@ async def search_stream(
                 if mode in ('actress', 'prefix'):
                     top_actor = _analyze_top_actor(results, threshold=0.8, min_samples=3)
                     if top_actor:
-                        print(f"[Actress Profile] Fetching profile for: {top_actor}")
+                        logger.info(f"[Actress Profile] Fetching profile for: {top_actor}")
                         from core.actress_scraper import get_actress_profile
                         actress_profile = get_actress_profile(top_actor)
                         if not actress_profile:
-                            print(f"[Actress Profile] Not found for: {top_actor}")
+                            logger.info(f"[Actress Profile] Not found for: {top_actor}")
 
                 # 判斷是否還有更多結果
                 has_more = mode in ('prefix', 'actress') and len(results) >= limit

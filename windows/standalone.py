@@ -82,7 +82,12 @@ def show_webview2_prompt():
         root.destroy()
         return result
     except Exception as e:
-        print(f"[OpenAver] 無法顯示 WebView2 提示視窗：{e}")
+        # 使用 ASCII-safe 格式避免 Windows console 編碼問題
+        try:
+            err_logger = get_logger('standalone')
+            err_logger.warning(f"[OpenAver] 無法顯示 WebView2 提示視窗：{e}")
+        except Exception:
+            pass
         return False
 
 
@@ -110,9 +115,13 @@ def show_error(title, message, details=None, logger=None):
             if details:
                 logger.error(f"詳情: {details}")
         else:
-            print(f"[OpenAver ERROR] {title}: {message}")
-            if details:
-                print(f"[OpenAver DETAILS] {details}")
+            try:
+                err_logger = get_logger('standalone')
+                err_logger.error(f"{title}: {message}")
+                if details:
+                    err_logger.error(f"Details: {details}")
+            except Exception:
+                pass  # logger 未初始化時靜默失敗
 
 
 # ============ 核心功能 ============

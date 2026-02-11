@@ -6,6 +6,9 @@ import json
 from pathlib import Path
 from typing import List
 from core.gallery_scanner import VideoInfo
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class HTMLGenerator:
@@ -79,7 +82,7 @@ class HTMLGenerator:
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(html)
 
-        print(f"[+] 已生成: {output_path}")
+        logger.info(f"[+] 已生成: {output_path}")
 
     def _generate_html(self, title: str, js_videos: List[str],
                        user_mode: int, user_order: int,

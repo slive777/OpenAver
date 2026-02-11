@@ -10,6 +10,9 @@ import httpx
 from web.routers.config import load_config
 from core.translate_service import create_translate_service
 from core.scrapers.utils import has_japanese
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api", tags=["translate"])
 
@@ -249,9 +252,7 @@ async def translate_batch(request: BatchTranslateRequest):
         }
 
     except Exception as e:
-        print(f"[ERROR] Batch translation API failed: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.exception(f"[translate] Batch translation API failed: {e}")
 
         # 返回錯誤響應（不拋出異常，避免前端報錯）
         return {

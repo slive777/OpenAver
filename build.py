@@ -317,6 +317,7 @@ def create_launcher_scripts():
     # OpenAver.bat - 正常啟動（顯示啟動提示）
     bat_content = '''@echo off
 cd /d "%~dp0"
+set PYTHONUTF8=1
 echo ==============================
 echo    OpenAver Starting...
 echo ==============================
@@ -333,7 +334,8 @@ echo    OpenAver Debug Mode
 echo ======================================
 echo.
 
-REM Force detailed error output
+REM Force UTF-8 encoding and detailed error output
+set PYTHONUTF8=1
 set PYTHONUNBUFFERED=1
 set PYWEBVIEW_LOG=debug
 
