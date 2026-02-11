@@ -255,7 +255,7 @@ Notes:
   - 輸入 Terminal 並按 Enter
 
 [步驟 3] 進入資料夾（複製貼上以下指令）
-  cd ~/Downloads/OpenAver-*-macOS-*
+  cd ~/Downloads/OpenAver
 
 [步驟 4] 解除安全封鎖（必做）
   xattr -dr com.apple.quarantine .
