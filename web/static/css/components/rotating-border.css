@@ -174,14 +174,14 @@
   filter: brightness(1.3);
 }
 
-/* ========== T4: Once 變體（轉一圈後停止）========== */
+/* ========== T4: Once 變體（轉數圈後停止）========== */
 
 /**
- * 單次旋轉變體
- * 用於本地匹配提示：轉一圈後停止，避免持續干擾
+ * 有限次旋轉變體
+ * 用於本地匹配提示：轉 5 圈後停止，讓使用者看清楚
  */
 .rotating-border-spotlight.once.active::before {
-  animation: rotate-spotlight 2.5s linear 1;  /* iteration-count: 1 */
+  animation: rotate-spotlight 2.5s linear 5;  /* iteration-count: 5 */
 }
 
 /**
