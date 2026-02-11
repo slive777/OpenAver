@@ -221,12 +221,16 @@
                           x-show="hasLocalBadge()"
                           :title="localBadgeTitle()"
                           @click="copyLocalPath()">📁</span>
-                    <button id="switchSourceBtn" class="info-icon-btn" @click="switchSource()"
+                    <button id="switchSourceBtn" class="info-icon-btn"
+                            @click="switchSource()"
                             title="切換版本"
                             :data-number="current().number || ''"
                             :data-all-variant-ids="JSON.stringify(current()._all_variant_ids || [])"
-                            :data-current-variant-id="current()._variant_id || ''">
-                        <i class="bi bi-arrow-repeat"></i>
+                            :data-current-variant-id="current()._variant_id || ''"
+                            :disabled="isSwitchingSource"
+                            :class="{ 'shake': switchSourceShake }">
+                        <i class="bi bi-arrow-repeat" x-show="!isSwitchingSource"></i>
+                        <span x-show="isSwitchingSource" class="loading loading-spinner loading-sm"></span>
                     </button>
                 </div>
                 <div class="av-card-full-body">

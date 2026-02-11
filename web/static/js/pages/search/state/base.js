@@ -64,6 +64,10 @@ window.SearchStateMixin_Base = function() {
         searchingFileDirection: null,  // 'next' | 'prev' — for searchForFile btn spinner
         isScrapeAllProcessing: false,  // scrapeAll spinner
 
+        // ===== V1d: Source Switching State =====
+        isSwitchingSource: false,      // 切換來源中（控制 spinner + disabled）
+        switchSourceShake: false,      // 觸發抖動動畫（無其他版本時）
+
         // ===== Progress State =====
         currentMode: '',
         progressLog: '搜尋中...',

@@ -228,5 +228,24 @@ window.SearchStateMixin_ResultCard = {
         }
         this._coverRetried = false;
         this.coverError = '封面載入失敗';
+    },
+
+    // ===== V1d: Source Switching =====
+
+    /**
+     * 切換來源（Alpine method wrapper）
+     * 呼叫 ui.js 的 switchSource() 並傳入 Alpine context
+     */
+    async switchSource() {
+        const number = this.current()?.number;
+        if (!number) {
+            console.warn('[Alpine] switchSource: 無番號資訊');
+            return;
+        }
+
+        // 呼叫 ui.js 的 switchSource（傳入 Alpine context）
+        if (window.switchSourceCore) {
+            await window.switchSourceCore(this, number);
+        }
     }
 };
