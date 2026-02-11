@@ -5,6 +5,69 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-02-11
+
+### Added
+
+#### 🖼️ Showcase 動態化 (Phase 24-2)
+- `/api/showcase/videos` API 端點 — SQLite SSR 取代靜態 iframe
+- `showcase.html` 全面重寫 — Image Grid + Detail Table + Text List 三種顯示模式
+- Lightbox 元件 — Smart Close + metadata + 鍵盤導航
+- Card hover footer + glass button overlay
+- Toast 通知系統（Design System fluent-toast）
+- 搜尋邏輯（多關鍵字 AND + 模糊番號匹配）
+- 排序邏輯（8 種欄位 + asc/desc + random 洗牌）
+- 快捷鍵完整實作 + 底部提示列
+- Config 整合 + 狀態持久化（localStorage + URL state）
+- Status bar 影片統計 + 分頁控制
+- Showcase API 單元測試（12 cases）
+
+#### 🔀 Alpine.js 全站遷移 (Phase 24-3)
+- Search 結果改用 AV Card Full 統一卡片
+- Settings Alpine.js 狀態管理（主題 toggle + dirty check + fluent-modal）
+- Scanner Alpine 基礎架構（資料夾管理 + SSE 串流 + 女優別名 + Log Terminal 增強）
+- Sidebar 純 localStorage 驅動（消除收合閃爍）
+- 全站字體大小 5 階調整 + configSync 即時同步
+- Settings 格式變數 dropdown 簡化（tag-badge + 預覽列）
+
+#### 🎯 Search Grid Mode + 女優資料卡 (Phase 24-4)
+- Alpine 骨架 + 狀態容器 — `state.js` 1734L 單檔拆為 9 個 mixin 模組
+- 搜尋流程 + 導航遷移至 Alpine（SSE/REST/navigate/loadMore）
+- 結果卡片 template binding 取代 `displayResult()`
+- 檔案列表 + 拖拽遷移至 Alpine（x-for/computed）
+- Grid Mode — 封面牆 + Lightbox + 女優自動切換
+- 女優資料卡（Graphis + JavBus 雙來源並行 + Detail Banner + Hero Card）
+- 本地匹配提示 + Rotating Border 動畫
+- 搜尋進度豐富化（來源名稱 + 完成提示）
+
+#### 🔍 D.6 最終驗收 (Phase 24-5)
+- 前端遷移守衛測試 `test_frontend_lint.py`（靜態分析 4 類規則）
+- `_syncToCore()` 統一 helper — 集中 29 處 coreState 同步
+- GSAP 就緒度報告
+
+### Changed
+- 全站 Alpine.js 統一 — 零 vanilla inline handler、零 Bootstrap 殘留
+- `theme.css` 硬編碼 hex / rgba → CSS 變數 + `color-mix()` 語法統一
+- `design-system.css` 13 處 hex → CSS 變數（`--gradient-cyan/indigo/purple`）
+- Settings theme toggle 只保留 icon（移除 Light/Dim 文字）
+- `/search` copyPath 統一複製資料夾路徑（與 `/showcase` 一致）
+- `[LOCAL FALLBACK]` 標記語義化為 `[API FALLBACK]`
+- Showcase 從靜態 iframe 改為 SQLite SSR 動態頁面
+
+### Fixed
+- Windows cp950 編碼全面修復（`print()` → `logger` + `PYTHONUTF8`）
+- Rotating Border 本地匹配從轉 1 圈改為 5 圈
+- NFO 補全 cache 漏傳 `nfo_mtime` 導致永遠不觸發
+- Sidebar 收合閃爍（純 localStorage + inline script 同步）
+
+### Removed
+- 舊 iframe Gallery 端點 / service / JS / CSS
+- 所有 vanilla inline event handler
+- Bootstrap 殘留 class（零殘留確認）
+- `[LOCAL FALLBACK]` 標記
+
+---
+
 ## [0.3.0] - 2026-02-08
 
 ### Added
