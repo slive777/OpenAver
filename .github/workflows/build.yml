@@ -66,7 +66,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ============ macOS arm64 (Alpha) ============
+  # ============ macOS arm64 ============
   build-macos-arm64:
     runs-on: macos-latest
 
@@ -98,7 +98,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OpenAver-macOS-arm64-alpha
+          name: OpenAver-macOS-arm64
           path: dist/artifact/
           retention-days: 30
 
@@ -108,7 +108,7 @@ jobs:
         with:
           files: dist/*-macOS-*.zip
           draft: false
-          prerelease: false  # 與 Windows 一致，macOS Alpha 狀態在檔名和 README 說明
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

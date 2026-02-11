@@ -240,9 +240,9 @@ Notes:
 - GitHub: https://github.com/slive777/OpenAver/issues
 '''
 
-    # MACOS_ALPHA_README.txt
-    alpha_readme_content = '''===============================================
-  OpenAver macOS 首次執行指南（Alpha）
+    # MACOS_README.txt
+    macos_readme_content = '''===============================================
+  OpenAver macOS 首次執行指南
 ===============================================
 
 ⚠️ macOS 會封鎖網路下載的程式，請照以下步驟操作（只需一次）。
@@ -267,10 +267,9 @@ Notes:
 
 💡 設定完成後，之後可直接雙擊 OpenAver.command 執行。
 
-[已知限制]
-- 未經 Apple 簽名（會有安全警告）
+[注意事項]
+- 未經 Apple 簽名（首次執行會有安全警告）
 - 僅支援 Apple Silicon (M1/M2/M3/M4)
-- Alpha 測試版，歡迎回報問題！
 
 [回報問題]
 GitHub: https://github.com/slive777/OpenAver/issues
@@ -283,9 +282,9 @@ GitHub: https://github.com/slive777/OpenAver/issues
     os.chmod(command_file, 0o755)
 
     (root_dir / "README.txt").write_text(readme_content, encoding='utf-8')
-    (root_dir / "MACOS_ALPHA_README.txt").write_text(alpha_readme_content, encoding='utf-8')
+    (root_dir / "MACOS_README.txt").write_text(macos_readme_content, encoding='utf-8')
 
-    print("  Created: OpenAver.command, README.txt, MACOS_ALPHA_README.txt")
+    print("  Created: OpenAver.command, README.txt, MACOS_README.txt")
 
 
 def optimize_package():
@@ -337,7 +336,7 @@ def create_zip_package():
 
     DIST_DIR.mkdir(parents=True, exist_ok=True)
 
-    zip_name = f"OpenAver-v{VERSION}-macOS-arm64-alpha"
+    zip_name = f"OpenAver-v{VERSION}-macOS-arm64"
     zip_path = DIST_DIR / f"{zip_name}.zip"
 
     # 刪除舊的 ZIP
@@ -362,7 +361,7 @@ def create_zip_package():
 def main():
     """主程序"""
     print("=" * 50)
-    print("OpenAver macOS 打包工具 (Alpha)")
+    print("OpenAver macOS 打包工具")
     print("=" * 50)
 
     # 檢查是否在 macOS 上執行
