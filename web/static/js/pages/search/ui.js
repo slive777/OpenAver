@@ -281,20 +281,7 @@ async function switchSource() {
 // === 狀態切換 ===
 
 function showState(state) {
-    const { dom } = window.SearchCore;
-
-    // 原有 .hidden 操作（保留，防 FOUC + 向後相容）
-    dom.emptyState.classList.add('hidden');
-    dom.loadingState.classList.add('hidden');
-    dom.resultCard.classList.add('hidden');
-    dom.errorState.classList.add('hidden');
-
-    if (state === 'empty') dom.emptyState.classList.remove('hidden');
-    else if (state === 'loading') dom.loadingState.classList.remove('hidden');
-    else if (state === 'result') dom.resultCard.classList.remove('hidden');
-    else if (state === 'error') dom.errorState.classList.remove('hidden');
-
-    // T1a: 同步 Alpine pageState
+    // Alpine x-show 控制顯示/隱藏（classList 操作已移除）
     const el = document.querySelector('.search-container[x-data]');
     if (el && el._x_dataStack) {
         Alpine.$data(el).pageState = state;

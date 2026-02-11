@@ -355,10 +355,7 @@ function clearAll() {
 
 function updateClearButton() {
     const hasContent = searchResults.length > 0 || fileList.length > 0;
-    if (dom.btnClear) {
-        dom.btnClear.classList.toggle('hidden', !hasContent);
-    }
-    // T1a: 同步 Alpine hasContent
+    // Alpine x-show 控制顯示/隱藏（classList 操作已移除）
     const el = document.querySelector('.search-container[x-data]');
     if (el && el._x_dataStack) {
         Alpine.$data(el).hasContent = hasContent;
