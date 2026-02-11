@@ -6,7 +6,8 @@
 <div class="container mx-auto px-4 max-w-screen-2xl">
     <div class="flex justify-between items-center mb-4">
         <h2 class="text-2xl font-semibold mb-0">使用說明</h2>
-        <button class="btn btn-primary btn-sm" id="btnRestartTutorialHelp">
+        <button class="btn btn-primary btn-sm"
+                @click="window.location.href = '/search?tutorial=restart'">
             <i class="bi bi-play-circle"></i> 重看新手引導
         </button>
     </div>
@@ -117,7 +118,7 @@
             <table class="table table-sm">
                 <tbody>
                     <tr>
-                        <td style="width: 30%;"><kbd class="kbd kbd-sm">Ctrl</kbd> / <kbd class="kbd kbd-sm">Cmd</kbd> + <kbd class="kbd kbd-sm">K</kbd></td>
+                        <td class="w-[30%]"><kbd class="kbd kbd-sm">Ctrl</kbd> / <kbd class="kbd kbd-sm">Cmd</kbd> + <kbd class="kbd kbd-sm">K</kbd></td>
                         <td>聚焦搜尋框</td>
                     </tr>
                     <tr>
@@ -185,9 +186,4 @@
     </div>
 </div>
 
-<script>
-    document.getElementById('btnRestartTutorialHelp')?.addEventListener('click', () => {
-        window.location.href = '/search?tutorial=restart';
-    });
-</script>
 {% endblock %}
