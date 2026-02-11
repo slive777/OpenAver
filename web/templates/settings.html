@@ -70,7 +70,7 @@
                         我的最愛資料夾
                         <small class="settings-hint">一鍵載入常用資料夾</small>
                     </label>
-                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                    <div class="flex-1 flex flex-col gap-1">
                         <input type="text" class="input input-bordered input-sm" id="searchFavoriteFolder"
                             x-model="form.searchFavoriteFolder"
                             placeholder="留空 = 系統下載資料夾">
@@ -88,7 +88,7 @@
 
                 <!-- 翻譯選項 (動態顯示) -->
                 <div id="translateOptions"
-                     :style="{ opacity: form.translateEnabled ? '1' : '0.5' }">
+                     :class="{ 'opacity-50': !form.translateEnabled }">
                     <div class="settings-form-row">
                         <label class="row-label">翻譯服務</label>
                         <select class="select select-bordered select-sm" id="translateProvider"
@@ -103,15 +103,19 @@
                     <div id="ollamaFields" x-show="form.translateProvider === 'ollama'">
                         <div class="settings-form-row">
                             <label class="row-label">Ollama URL</label>
-                            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                            <div class="flex-1 flex flex-col gap-1">
                                 <div class="variable-input-group">
-                                    <input type="text" class="input input-bordered input-sm" id="ollamaUrl"
-                                        x-model="form.ollamaUrl" style="flex: 1;"
+                                    <input type="text" class="input input-bordered input-sm flex-1" id="ollamaUrl"
+                                        x-model="form.ollamaUrl"
                                         :disabled="!form.translateEnabled">
                                     <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testOllamaBtn"
                                         @click="testOllamaConnection()"
-                                        :disabled="!form.translateEnabled">
-                                        <i class="bi bi-plug"></i> 測試
+                                        :disabled="!form.translateEnabled || testOllamaLoading">
+                                        <span x-show="testOllamaLoading" class="loading loading-spinner loading-sm"></span>
+                                        <template x-if="!testOllamaLoading">
+                                            <i class="bi bi-plug"></i>
+                                        </template>
+                                        <span x-text="testOllamaLoading ? '' : ' 測試'"></span>
                                     </button>
                                 </div>
                                 <small class="settings-hint" x-html="ollamaStatus"></small>
@@ -120,9 +124,9 @@
 
                         <div class="settings-form-row">
                             <label class="row-label">模型</label>
-                            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                            <div class="flex-1 flex flex-col gap-1">
                                 <div class="variable-input-group">
-                                    <select class="select select-bordered select-sm" id="ollamaModel" style="flex: 1;"
+                                    <select class="select select-bordered select-sm flex-1" id="ollamaModel"
                                         x-model="form.ollamaModel" :disabled="!form.translateEnabled || ollamaModels.length === 0">
                                         <option value="" disabled x-show="ollamaModels.length === 0">請先測試連線</option>
                                         <template x-for="model in ollamaModels" :key="model">
@@ -131,8 +135,12 @@
                                     </select>
                                     <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testModelBtn"
                                         @click="testModel()" title="測試模型"
-                                        :disabled="!form.translateEnabled">
-                                        <i class="bi bi-chat-dots"></i> 測試
+                                        :disabled="!form.translateEnabled || testModelLoading">
+                                        <span x-show="testModelLoading" class="loading loading-spinner loading-sm"></span>
+                                        <template x-if="!testModelLoading">
+                                            <i class="bi bi-chat-dots"></i>
+                                        </template>
+                                        <span x-text="testModelLoading ? '' : ' 測試'"></span>
                                     </button>
                                 </div>
                                 <small class="settings-hint" x-html="modelStatus"></small>
@@ -144,15 +152,19 @@
                     <div id="geminiFields" x-show="form.translateProvider === 'gemini'">
                         <div class="settings-form-row">
                             <label class="row-label">API Key</label>
-                            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                            <div class="flex-1 flex flex-col gap-1">
                                 <div class="variable-input-group">
-                                    <input type="password" class="input input-bordered input-sm" id="geminiApiKey"
-                                        x-model="form.geminiApiKey" placeholder="AIza..." style="flex: 1;"
+                                    <input type="password" class="input input-bordered input-sm flex-1" id="geminiApiKey"
+                                        x-model="form.geminiApiKey" placeholder="AIza..."
                                         :disabled="!form.translateEnabled">
                                     <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testGeminiBtn"
                                         @click="testGeminiConnection()"
-                                        :disabled="!form.translateEnabled">
-                                        <i class="bi bi-plug"></i> 測試
+                                        :disabled="!form.translateEnabled || testGeminiLoading">
+                                        <span x-show="testGeminiLoading" class="loading loading-spinner loading-sm"></span>
+                                        <template x-if="!testGeminiLoading">
+                                            <i class="bi bi-plug"></i>
+                                        </template>
+                                        <span x-text="testGeminiLoading ? '' : ' 測試'"></span>
                                     </button>
                                 </div>
                                 <small class="settings-hint" x-html="geminiStatus"></small>
@@ -179,9 +191,9 @@
 
                         <div class="settings-form-row">
                             <label class="row-label">模型</label>
-                            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                            <div class="flex-1 flex flex-col gap-1">
                                 <div class="variable-input-group">
-                                    <select class="select select-bordered select-sm" id="geminiModel" style="flex: 1;"
+                                    <select class="select select-bordered select-sm flex-1" id="geminiModel"
                                         x-model="form.geminiModel" :disabled="!form.translateEnabled || geminiModels.length === 0">
                                         <option value="" disabled x-show="geminiModels.length === 0">請先測試 API Key</option>
                                         <template x-for="model in geminiModels" :key="model.name">
@@ -190,8 +202,12 @@
                                     </select>
                                     <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testGeminiTranslateBtn"
                                         @click="testGeminiTranslation()" title="測試翻譯功能"
-                                        :disabled="!form.translateEnabled || geminiModels.length === 0">
-                                        <i class="bi bi-chat-dots"></i> 測試
+                                        :disabled="!form.translateEnabled || geminiModels.length === 0 || testGeminiTranslateLoading">
+                                        <span x-show="testGeminiTranslateLoading" class="loading loading-spinner loading-sm"></span>
+                                        <template x-if="!testGeminiTranslateLoading">
+                                            <i class="bi bi-chat-dots"></i>
+                                        </template>
+                                        <span x-text="testGeminiTranslateLoading ? '' : ' 測試'"></span>
                                     </button>
                                 </div>
                                 <small class="settings-hint" x-html="geminiModelStatus"></small>
@@ -222,12 +238,12 @@
 
                     <div class="settings-form-row">
                         <label class="row-label">資料夾層級</label>
-                        <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+                        <div class="flex-1 flex flex-col gap-2">
                             <!-- 第一行：外層 / 中層 -->
                             <div class="folder-layers-row">
-                                <div class="folder-layer-group" :class="{ 'disabled': !layer1Enabled }" x-data="{ open: false }" style="flex-direction: column; align-items: stretch;">
+                                <div class="folder-layer-group flex-col items-stretch" :class="{ 'disabled': !layer1Enabled }" x-data="{ open: false }">
                                     <div class="format-preview" x-show="form.folderLayer1" x-html="formatPreviewHtml(form.folderLayer1)"></div>
-                                    <div style="display: flex; gap: 4px;">
+                                    <div class="flex gap-1">
                                         <input type="text" class="input input-bordered input-sm" id="folderLayer1" placeholder="外層"
                                             x-model="form.folderLayer1" :disabled="!layer1Enabled">
                                         <div class="variable-dropdown">
@@ -245,9 +261,9 @@
                                     </div>
                                 </div>
                                 <span class="folder-separator">/</span>
-                                <div class="folder-layer-group" :class="{ 'disabled': !layer2Enabled }" x-data="{ open: false }" style="flex-direction: column; align-items: stretch;">
+                                <div class="folder-layer-group flex-col items-stretch" :class="{ 'disabled': !layer2Enabled }" x-data="{ open: false }">
                                     <div class="format-preview" x-show="form.folderLayer2" x-html="formatPreviewHtml(form.folderLayer2)"></div>
-                                    <div style="display: flex; gap: 4px;">
+                                    <div class="flex gap-1">
                                         <input type="text" class="input input-bordered input-sm" id="folderLayer2" placeholder="中層"
                                             x-model="form.folderLayer2" :disabled="!layer2Enabled">
                                         <div class="variable-dropdown">
@@ -266,12 +282,12 @@
                                 </div>
                             </div>
                             <!-- 第二行：內層（佔整行） -->
-                            <div class="folder-layer-group" :class="{ 'disabled': !layer3Enabled }" x-data="{ open: false }" style="flex-direction: column; align-items: stretch;">
+                            <div class="folder-layer-group flex-col items-stretch" :class="{ 'disabled': !layer3Enabled }" x-data="{ open: false }">
                                 <div class="format-preview" x-show="form.folderLayer3" x-html="formatPreviewHtml(form.folderLayer3)"></div>
-                                <div style="display: flex; gap: 4px;">
+                                <div class="flex gap-1">
                                     <span class="input-group-text">內層</span>
-                                    <input type="text" class="input input-bordered input-sm" id="folderLayer3"
-                                        x-model="form.folderLayer3" placeholder="{num}" :disabled="!layer3Enabled" style="flex: 1;">
+                                    <input type="text" class="input input-bordered input-sm flex-1" id="folderLayer3"
+                                        x-model="form.folderLayer3" placeholder="{num}" :disabled="!layer3Enabled">
                                     <div class="variable-dropdown">
                                         <button class="btn-variable" type="button"
                                             id="folderLayer3Btn" @click="open = !open" :disabled="!layer3Enabled">
@@ -295,11 +311,12 @@
 
                     <div class="settings-form-row">
                         <label class="row-label">檔案命名格式</label>
-                        <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                        <div class="flex-1 flex flex-col gap-1">
                             <div class="format-preview" x-show="form.filenameFormat" x-html="formatPreviewHtml(form.filenameFormat)"></div>
                             <div class="variable-input-group" x-data="{ open: false }">
-                                <input type="text" class="input input-bordered input-sm" id="filenameFormat"
-                                    x-model="form.filenameFormat" placeholder="[{num}][{maker}] {title}" style="flex: 1;">
+                                <input type="text" class="input input-bordered input-sm flex-1" id="filenameFormat"
+                                    x-ref="filenameFormat"
+                                    x-model="form.filenameFormat" placeholder="[{num}][{maker}] {title}">
                                 <div class="variable-dropdown">
                                     <button class="btn-variable" type="button"
                                         @click="open = !open" :aria-expanded="open">
@@ -336,7 +353,7 @@
 
                     <div class="settings-form-row">
                         <label class="row-label">影片副檔名</label>
-                        <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                        <div class="flex-1 flex flex-col gap-1">
                             <input type="text" class="input input-bordered input-sm" id="videoExtensions"
                                 x-model="form.videoExtensions">
                             <small class="settings-hint">以逗號分隔</small>
@@ -357,8 +374,8 @@
                 <div class="settings-form-row">
                     <label class="row-label">輸出目錄</label>
                     <div class="variable-input-group">
-                        <input type="text" class="input input-bordered input-sm" id="avlistOutputDir"
-                            x-model="form.avlistOutputDir" placeholder="output" style="flex: 1;">
+                        <input type="text" class="input input-bordered input-sm flex-1" id="avlistOutputDir"
+                            x-model="form.avlistOutputDir" placeholder="output">
                         <button class="btn btn-sm btn-outline btn-neutral" type="button"
                             @click="selectOutputFolder()" title="選擇資料夾">
                             <i class="bi bi-folder"></i>
@@ -396,8 +413,8 @@
 
                     <div class="settings-form-row">
                         <label class="row-label">預設排序</label>
-                        <div class="sort-row" style="display: flex; gap: 8px; flex: 1;">
-                            <select class="select select-bordered select-sm" id="avlistSort" style="flex: 1;"
+                        <div class="sort-row flex gap-2 flex-1">
+                            <select class="select select-bordered select-sm flex-1" id="avlistSort"
                                 x-model="form.avlistSort">
                                 <option value="date">發售日期</option>
                                 <option value="mdate">修改日期</option>
@@ -407,7 +424,7 @@
                                 <option value="maker">片商</option>
                                 <option value="size">檔案大小</option>
                             </select>
-                            <select class="select select-bordered select-sm" id="avlistOrder" style="width: 100px;"
+                            <select class="select select-bordered select-sm w-[100px]" id="avlistOrder"
                                 x-model="form.avlistOrder">
                                 <option value="descending">遞減</option>
                                 <option value="ascending">遞增</option>
@@ -430,7 +447,7 @@
 
                     <div class="settings-form-row">
                         <label class="row-label">最小影片尺寸</label>
-                        <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                        <div class="flex-1 flex flex-col gap-1">
                             <div class="input-group-inline">
                                 <input type="number" class="input input-bordered input-sm" id="avlistMinSize"
                                     x-model.number="form.avlistMinSize" min="0">
@@ -452,7 +469,7 @@
             <div class="card-body">
                 <div class="settings-form-row">
                     <label class="row-label">影片播放器</label>
-                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                    <div class="flex-1 flex flex-col gap-1">
                         <input type="text" class="input input-bordered input-sm" id="viewerPlayer"
                             x-model="form.viewerPlayer" placeholder="留空使用系統預設">
                         <small class="settings-hint">例如: C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe</small>
@@ -521,8 +538,14 @@
             </label>
             <div class="update-check-wrapper">
                 <button type="button" class="btn btn-sm btn-outline btn-neutral" id="btnCheckUpdate"
-                    @click="checkUpdate()">
-                    <i class="bi bi-cloud-download"></i> 檢查更新
+                    @click="checkUpdate()"
+                    :disabled="checkUpdateLoading">
+                    <span x-show="checkUpdateLoading">
+                        <i class="bi bi-arrow-repeat spin"></i> 檢查中...
+                    </span>
+                    <span x-show="!checkUpdateLoading">
+                        <i class="bi bi-cloud-download"></i> 檢查更新
+                    </span>
                 </button>
                 <span class="small" x-html="updateStatus"></span>
             </div>
@@ -537,7 +560,10 @@
     </form>
 
     <!-- Dirty Check Modal -->
-    <dialog id="dirtyCheckModal" class="modal fluent-modal">
+    <dialog class="modal fluent-modal"
+        :class="{ 'modal-open': dirtyCheckModalOpen }"
+        @click.self="dirtyCheckCancel()"
+        @keydown.escape.window="dirtyCheckModalOpen && dirtyCheckCancel()">
         <div class="modal-box fluent-modal-box">
             <h3 class="fluent-modal-title">
                 <i class="bi bi-exclamation-triangle"></i> 尚未儲存的變更
@@ -557,13 +583,17 @@
                 </button>
             </div>
         </div>
-        <form method="dialog" class="modal-backdrop">
-            <button>close</button>
-        </form>
     </dialog>
 
-<!-- Toast 通知容器 -->
-<div id="toastContainer" class="toast toast-end toast-top" style="z-index: 9999;"></div>
+<!-- Toast 容器（Alpine controlled）-->
+<div class="toast toast-end toast-top z-[9999]" x-show="_toast.visible" x-cloak x-transition>
+    <div class="alert" :class="`alert-${_toast.type}`">
+        <span x-text="_toast.message"></span>
+        <button type="button" class="btn btn-sm btn-circle btn-ghost" @click="_toast.visible = false">
+            <i class="bi bi-x"></i>
+        </button>
+    </div>
+</div>
 </div>
 {% endblock %}
 
