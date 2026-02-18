@@ -95,7 +95,7 @@ window.SearchStateMixin_Navigation = {
      */
     handleKeydown(event) {
         // 忽略在搜尋框內的按鍵
-        const queryInput = document.getElementById('searchQuery');
+        const queryInput = this.$refs.searchQuery;
         if (document.activeElement === queryInput) return;
 
         // T2a: Lightbox 鍵盤導航（優先）
