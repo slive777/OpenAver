@@ -19,7 +19,7 @@ from typing import Optional, List, Dict, Union, Any, Callable, Type
 from core.scrapers import (
     JavBusScraper, JAV321Scraper, JavDBScraper,
     FC2Scraper, AVSOXScraper,
-    D2PassScraper, HEYZOScraper, JavGuruScraper, DMMScraper,
+    D2PassScraper, HEYZOScraper, DMMScraper,
     Video, ScraperConfig, BaseScraper
 )
 from core.scrapers.utils import extract_number as _new_extract_number
@@ -40,7 +40,7 @@ REQUEST_DELAY = 0.3
 # 爬蟲優先順序
 SCRAPER_CLASSES: List[Type[BaseScraper]] = [
     JavBusScraper, JAV321Scraper, JavDBScraper,
-    JavGuruScraper, FC2Scraper, AVSOXScraper,
+    FC2Scraper, AVSOXScraper,
     D2PassScraper, HEYZOScraper,
 ]
 
@@ -202,8 +202,6 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '') -> Option
         scrapers = [JAV321Scraper()]
     elif source == 'javdb':
         scrapers = [JavDBScraper()]
-    elif source == 'javguru':
-        scrapers = [JavGuruScraper()]
     elif source == 'd2pass':
         scrapers = [D2PassScraper()]
     elif source == 'heyzo':

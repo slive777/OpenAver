@@ -8,7 +8,7 @@
 /**
  * 來源順序（從後端 API 載入，此為預設值）
  */
-let SOURCE_ORDER = ['dmm', 'javbus', 'jav321', 'javdb', 'javguru', 'd2pass', 'heyzo', 'fc2', 'avsox'];
+let SOURCE_ORDER = ['dmm', 'javbus', 'jav321', 'javdb', 'd2pass', 'heyzo', 'fc2', 'avsox'];
 
 /**
  * 來源顯示名稱對照
@@ -18,7 +18,6 @@ let SOURCE_NAMES = {
     'javbus':  'JavBus',
     'jav321':  'Jav321',
     'javdb':   'JavDB',
-    'javguru': 'JavGuru',
     'd2pass':  'D2Pass',
     'heyzo':   'HEYZO',
     'fc2':     'FC2',

@@ -77,14 +77,13 @@ function settingsPage() {
         // ===== Constants =====
 
         // 來源分群常數（與 core/scrapers/utils.py 同步）
-        CENSORED_SOURCES: ['dmm', 'javbus', 'jav321', 'javdb', 'javguru'],
+        CENSORED_SOURCES: ['dmm', 'javbus', 'jav321', 'javdb'],
         UNCENSORED_SOURCES: ['d2pass', 'heyzo', 'fc2', 'avsox'],
         SOURCE_NAMES: {
             'dmm':     'DMM',
             'javbus':  'JavBus',
             'jav321':  'Jav321',
             'javdb':   'JavDB',
-            'javguru': 'JavGuru',
             'd2pass':  'D2Pass',
             'heyzo':   'HEYZO',
             'fc2':     'FC2',

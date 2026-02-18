@@ -1,7 +1,7 @@
 """
 新 Scraper 單元測試（全 mock，不發外部 request）
 
-T4: D2Pass / HEYZO / JavGuru / DMM scraper tests + Pipeline routing + Proxy API + extract_number
+T4: D2Pass / HEYZO / DMM scraper tests + Pipeline routing + Proxy API + extract_number
 """
 import json
 import pytest
@@ -10,7 +10,6 @@ from unittest.mock import patch, MagicMock, call
 
 from core.scrapers.d2pass import D2PassScraper
 from core.scrapers.heyzo import HEYZOScraper
-from core.scrapers.javguru import JavGuruScraper
 from core.scrapers.dmm import DMMScraper
 from core.scrapers.models import Video, Actress, ScraperConfig
 from core.scrapers.utils import extract_number
@@ -55,26 +54,6 @@ HEYZO_EN_HTML = b"""
 </table>
 </body>
 </html>
-"""
-
-JAVGURU_SEARCH_HTML = b"""
-<html><body>
-<a class="grid1" href="https://jav.guru/sone-205/">SONE-205</a>
-</body></html>
-"""
-
-JAVGURU_DETAIL_HTML = b"""
-<html><body>
-<div class="titl">Graduation To Adulthood</div>
-<div class="infoleft">
-    <strong>Code:</strong> <a>SONE-205</a><br>
-    <strong>Release Date:</strong> 2024-03-19<br>
-    <strong>Studio:</strong> <a>S1 NO.1 STYLE</a><br>
-    <strong>Tags:</strong> <a>Beautiful Girl</a> <a>Slender</a><br>
-    <strong>Actress:</strong> <a>Nana Miho</a><br>
-</div>
-<div class="large-screenimg"><img src="https://pics.dmm.co.jp/sone205.jpg"/></div>
-</body></html>
 """
 
 DMM_SEARCH_RESPONSE = {
@@ -264,59 +243,7 @@ class TestHEYZOScraper:
 
 
 # ============================================================
-# Class 3: TestJavGuruScraper
-# ============================================================
-
-class TestJavGuruScraper:
-    """JavGuru 爬蟲單元測試（全 mock）"""
-
-    @pytest.fixture
-    def scraper(self):
-        return JavGuruScraper()
-
-    def test_javguru_search_success(self, scraper):
-        """兩步 mock（搜尋頁 + 詳情頁）完整搜尋流程"""
-        search_resp = _make_mock_resp(status_code=200, content=JAVGURU_SEARCH_HTML)
-        detail_resp = _make_mock_resp(status_code=200, content=JAVGURU_DETAIL_HTML)
-
-        with patch.object(scraper._session, 'get', side_effect=[search_resp, detail_resp]):
-            with patch('core.scrapers.utils.rate_limit'):
-                video = scraper.search("SONE-205")
-
-        assert video is not None
-        assert video.number == "SONE-205"
-        assert video.title == "Graduation To Adulthood"
-        assert video.source == "javguru"
-        assert video.maker == "S1 NO.1 STYLE"
-        assert len(video.actresses) >= 1
-
-    def test_javguru_infoleft_parse(self, scraper):
-        """_parse_detail 從 HTML bytes 解析所有欄位"""
-        video = scraper._parse_detail(JAVGURU_DETAIL_HTML, "https://jav.guru/sone-205/")
-
-        assert video is not None
-        assert video.number == "SONE-205"
-        assert video.title == "Graduation To Adulthood"
-        assert video.date == "2024-03-19"
-        assert video.maker == "S1 NO.1 STYLE"
-        assert "Beautiful Girl" in video.tags
-        assert "Slender" in video.tags
-        assert any(a.name == "Nana Miho" for a in video.actresses)
-        assert video.cover_url == "https://pics.dmm.co.jp/sone205.jpg"
-
-    def test_javguru_not_found(self, scraper):
-        """搜尋頁無結果時 search 回傳 None"""
-        empty_html = b"<html><body></body></html>"
-        mock_resp = _make_mock_resp(status_code=200, content=empty_html)
-
-        with patch.object(scraper._session, 'get', return_value=mock_resp):
-            video = scraper.search("INVALID-99999")
-
-        assert video is None
-
-
-# ============================================================
-# Class 4: TestDMMScraper
+# Class 3: TestDMMScraper
 # ============================================================
 
 class TestDMMScraper:
@@ -397,7 +324,7 @@ class TestDMMScraper:
 
 
 # ============================================================
-# Class 5: TestProxyAPI
+# Class 4: TestProxyAPI
 # ============================================================
 
 class TestProxyAPI:
@@ -458,7 +385,7 @@ class TestProxyAPI:
 
 
 # ============================================================
-# Class 6: TestPipeline
+# Class 5: TestPipeline
 # ============================================================
 
 class TestPipeline:
@@ -566,7 +493,7 @@ class TestPipeline:
 
 
 # ============================================================
-# Class 7: TestExtractNumber
+# Class 6: TestExtractNumber
 # ============================================================
 
 class TestExtractNumber:
@@ -595,7 +522,7 @@ class TestExtractNumber:
 
 
 # ============================================================
-# Class 8: TestDMMTags
+# Class 7: TestDMMTags
 # ============================================================
 
 class TestDMMTags:
@@ -737,7 +664,7 @@ class TestDMMTags:
 
 
 # ============================================================
-# Class 9: TestFastPathRouting
+# Class 8: TestFastPathRouting
 # ============================================================
 
 class TestFastPathRouting:

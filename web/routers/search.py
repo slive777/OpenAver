@@ -396,7 +396,6 @@ async def get_sources() -> dict:
         "javbus": "最常用的來源（封面無浮水印）",
         "jav321": "備用來源（封面完整）",
         "javdb": "資料完整（有片商）",
-        "javguru": "聚合站（有碼+無碼）",
         "d2pass": "1Pondo / Caribbeancom / 10musume",
         "heyzo": "HEYZO 專用",
         "fc2": "FC2 專用",
