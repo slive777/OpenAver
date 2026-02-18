@@ -179,6 +179,14 @@ def download_image(url: str, save_path: str, referer: str = '') -> bool:
                 referer = "https://www.dmm.co.jp/"
             elif "jav321.com" in url:
                 referer = "https://www.jav321.com/"
+            elif "1pondo.tv" in url:
+                referer = "https://www.1pondo.tv/"
+            elif "caribbeancom.com" in url:
+                referer = "https://www.caribbeancom.com/"
+            elif "10musume.com" in url:
+                referer = "https://www.10musume.com/"
+            elif "heyzo.com" in url:
+                referer = "https://www.heyzo.com/"
 
         if referer:
             headers['Referer'] = referer

@@ -56,6 +56,12 @@ def proxy_image(url: str = Query(..., description="圖片 URL")):
             referer = "https://www.dmm.co.jp/"
         elif "jav321.com" in url:
             referer = "https://www.jav321.com/"
+        elif "1pondo.tv" in url:
+            referer = "https://www.1pondo.tv/"
+        elif "caribbeancom.com" in url:
+            referer = "https://www.caribbeancom.com/"
+        elif "10musume.com" in url:
+            referer = "https://www.10musume.com/"
 
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
