@@ -115,6 +115,13 @@ body {
     border-bottom: 1px solid var(--border-light);
 }
 
+/* ---- T8.2: Fluent Toolbar — 工具列標準 Acrylic 材質 ---- */
+.fluent-toolbar {
+    background: var(--bg-header);
+    backdrop-filter: blur(16px) saturate(130%);
+    -webkit-backdrop-filter: blur(16px) saturate(130%);
+}
+
 .noselect {
     user-select: none;
     -webkit-user-select: none;

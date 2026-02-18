@@ -8,10 +8,6 @@
     margin: 0 auto;
 }
 
-.settings-header {
-    margin-bottom: 1.5rem;
-}
-
 .settings-header h4 {
     margin: 0;
     color: var(--text-primary);
@@ -190,7 +186,13 @@
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
-    margin-bottom: 1.5rem;
+    /* T8.2: Acrylic 材質 */
+    background: var(--bg-header);
+    backdrop-filter: blur(12px) saturate(120%);
+    -webkit-backdrop-filter: blur(12px) saturate(120%);
+    border-bottom: 1px solid var(--stroke-subtle);
+    padding-bottom: 1rem;
+    margin-bottom: 0.5rem;
 }
 
 .settings-header-actions {
