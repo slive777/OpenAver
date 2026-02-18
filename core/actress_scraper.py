@@ -275,6 +275,8 @@ def get_actress_profile(name: str, makers: list = None) -> Optional[Dict]:
         result = javbus_result.copy()
     elif graphis_result:
         result = {'name': name}
+    elif gfriends_url:
+        result = {'name': name, 'img': gfriends_url}
     else:
         return None
 

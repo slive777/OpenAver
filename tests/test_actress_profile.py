@@ -511,7 +511,7 @@ def test_search_api_actress_with_profile(mock_search_actress, mock_actress_profi
 
     client = TestClient(app)
 
-    with patch('core.scraper.search_actress', side_effect=mock_search_actress), \
+    with patch('web.routers.search.search_actress', side_effect=mock_search_actress), \
          patch('core.actress_scraper.get_actress_profile', side_effect=mock_actress_profile):
 
         resp = client.get("/api/search?q=桜空もも&mode=actress")
@@ -535,7 +535,7 @@ def test_search_api_exact_no_profile():
     def mock_search_jav(q):
         return {'number': 'SONE-205', 'actors': ['桜空もも']}
 
-    with patch('core.scraper.search_jav', side_effect=mock_search_jav):
+    with patch('web.routers.search.search_jav', side_effect=mock_search_jav):
         resp = client.get("/api/search?q=SONE-205&mode=exact")
         data = resp.json()
 
@@ -571,8 +571,8 @@ def test_search_api_mixed_results_no_profile():
             {'number': 'FUGA-005', 'actors': ['古川未波']},
         ]
 
-    with patch('core.scraper.smart_search', side_effect=mock_smart_search), \
-         patch('core.scraper.search_actress', side_effect=mock_search_actress):
+    with patch('web.routers.search.smart_search', side_effect=mock_smart_search), \
+         patch('web.routers.search.search_actress', side_effect=mock_search_actress):
         resp = client.get("/api/search?q=古川")
         data = resp.json()
 
@@ -594,7 +594,7 @@ def test_search_api_few_results_no_profile():
             {'number': 'SONE-180', 'actors': ['桜空もも']},
         ]
 
-    with patch('core.scraper.smart_search', side_effect=mock_smart_search):
+    with patch('web.routers.search.smart_search', side_effect=mock_smart_search):
         resp = client.get("/api/search?q=test")
         data = resp.json()
 
@@ -610,7 +610,7 @@ def test_search_api_graceful_failure(mock_search_actress):
     client = TestClient(app)
 
     # Mock 雙來源都失敗
-    with patch('core.scraper.search_actress', side_effect=mock_search_actress), \
+    with patch('web.routers.search.search_actress', side_effect=mock_search_actress), \
          patch('core.actress_scraper.get_actress_profile', return_value=None):
 
         resp = client.get("/api/search?q=桜空もも&mode=actress")
@@ -631,7 +631,7 @@ def test_search_api_variant_id_no_profile():
     def mock_search_variant(variant_id, q):
         return {'number': 'SONE-205', 'actors': ['桜空もも']}
 
-    with patch('core.scraper.search_by_variant_id', side_effect=mock_search_variant):
+    with patch('web.routers.search.search_by_variant_id', side_effect=mock_search_variant):
         resp = client.get("/api/search?q=SONE-205&variant_id=javbus-SONE-205")
         data = resp.json()
 
@@ -1007,6 +1007,24 @@ def test_get_actress_profile_birth_javbus_only():
         # JavBus birth and hometown preserved
         assert result.get('birth') == javbus_birth
         assert result.get('hometown') == javbus_hometown
+
+
+def test_get_actress_profile_gfriends_only():
+    """gfriends 有圖但 javbus/graphis 都沒資料 → 仍回傳 minimal profile"""
+    from core.actress_scraper import get_actress_profile, _cache
+    _cache.clear()
+
+    gfriends_url = 'https://cdn.jsdelivr.net/gh/gfriends/gfriends@master/Content/7-S1/桜空もも.jpg'
+
+    with patch('core.graphis_scraper.scrape_graphis_photo', return_value=None), \
+         patch('core.actress_scraper.scrape_actress_profile', return_value=None), \
+         patch('core.gfriends_lookup.lookup_gfriends', return_value=gfriends_url):
+
+        result = get_actress_profile("桜空もも", makers=['S1'])
+
+        assert result is not None
+        assert result['name'] == '桜空もも'
+        assert result['img'] == gfriends_url
 
 
 # ============================================================================

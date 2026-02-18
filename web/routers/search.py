@@ -35,8 +35,11 @@ router = APIRouter(prefix="/api", tags=["search"])
 # 載入 maker_mapping.json（啟動時一次性載入）
 _MAKER_MAPPING = {}
 _maker_mapping_path = Path(__file__).parent.parent.parent / "maker_mapping.json"
-if _maker_mapping_path.exists():
-    _MAKER_MAPPING = json.loads(_maker_mapping_path.read_text(encoding='utf-8'))
+try:
+    if _maker_mapping_path.exists():
+        _MAKER_MAPPING = json.loads(_maker_mapping_path.read_text(encoding='utf-8'))
+except Exception:
+    _MAKER_MAPPING = {}
 
 
 @router.get("/proxy-image")
@@ -132,10 +135,8 @@ def search(
             data = search_jav(q)
             results = [data] if data else []
     elif mode == "partial":
-        from core.scraper import search_partial
         results = search_partial(q)
     elif mode == "actress":
-        from core.scraper import search_actress
         results = search_actress(q, limit=limit, offset=offset)
     else:
         results = smart_search(q, limit=limit, offset=offset)
