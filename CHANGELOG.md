@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-02-18
+
+### Added
+
+#### 🎨 GSAP 前置準備 + Fluent Material Boost (Phase 25)
+
+**Motion Infrastructure (T1–T6)**
+- `motion-prefs.js` — `matchMedia` reduced-motion JS 橋接（`OpenAver.prefersReducedMotion`）
+- `motion-adapter.js` — 共用 GSAP 封裝（`playEnter` / `playLeave` / `playStagger` / `playModal` + `createContext` 生命週期清理）
+- GSAP 3.12.5 CDN 載入（base.html，在 Alpine 之前同步載入）
+- `TestMotionInfra` 守衛測試（motion-prefs / motion-adapter / 載入順序 / 無直接 gsap 呼叫）
+
+**Design System 同步清理 (T7)**
+- Hero Card 女優資料卡展示
+- Toast 變體對照表（fluent-toast / search-toast / settings-toast）
+- File Item 5 狀態動態控制展示
+
+**Fluent Material Boost (T8)**
+- Canvas Layer（Mica 氛圍背景）— 全頁 radial-gradient + SVG noise overlay（light/dim 各一組）
+- Shell Acrylic — Sidebar `backdrop-filter: blur(30px) saturate(140%)` + Offcanvas `fluent-acrylic`
+- `.fluent-toolbar` utility class（blur 16px + saturate 130%）
+- Surface Elevation — 卡片 `inset 0 1px 0` 頂部高光 + Fluent shadow 層次分離
+- `help.css` 新建 — Help 頁卡片材質統一
+- Design System Materials Layer System 展示（Canvas / Shell / Surface 三層 demo + 對照表）
+
+### Changed
+- Scanner `$refs` fallback 移除（4 處 `getElementById` → `this.$refs`）
+- Search `$refs` 遷移（3 處 `getElementById` → `$refs` / Alpine state）
+- `@keyframes spin` 統一至 theme.css（移除 search.css / settings.css / design-system.css 重複）
+- `--ds-glow-rgb` 變數化 — 全站 18 處 `rgba(90, 200, 250, ...)` → `rgba(var(--ds-glow-rgb), ...)`
+- Settings `.card` border-radius 硬編碼 `16px` → `var(--radius-lg)` token
+- Settings `.card` shadow-sm → shadow-4 + inset 高光 + stroke-default
+- Scanner `.mini-terminal` dim mode 實色 → `color-mix` 半透明
+- Search bar `backdrop-filter` 從 `blur(10px)` 升級至 `blur(16px) saturate(130%)`
+- Settings/Scanner header 新增 Acrylic 材質（backdrop-filter + border-bottom）
+- Sidebar 實色背景 → `color-mix 75%` 半透明 + Acrylic
+- Offcanvas `bg-base-200` → `fluent-acrylic`
+
+### Fixed
+- Scanner/Showcase 只顯示當前設定資料夾的影片（DB 保留全部當 cache）
+- Ollama 翻譯 prompt 重構 — system message + few-shot 解決漢字重標題輸出日文問題
+- Ollama `num_predict` 100→500 — think mode 模型推理耗盡 token 導致無回應
+- JavDB「發行日期」誤判為片商 + maker 快取日期值防護
+- macOS README 解壓路徑修正
+- macOS 打包移除 Alpha 標記 — 正式版命名
+
+### Removed
+- Design System Legacy 區塊（Bootstrap Buttons/Card/Tabs、未使用的 av-card-thumbnail/compact）
+- Design System 重複展示（Shadow Grid、NavRail Expanded、舊版 Toast）
+
+---
+
 ## [0.3.1] - 2026-02-11
 
 ### Added
