@@ -188,6 +188,9 @@ class DMMScraper(BaseScraper):
         query_word = number.upper().replace('-', '')
         prefix, _ = self._parse_number(number)
 
+        if not prefix:
+            return None
+
         try:
             payload = {
                 'query': self.SEARCH_QUERY,

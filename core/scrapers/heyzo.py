@@ -69,7 +69,7 @@ class HEYZOScraper(BaseScraper):
             for script in scripts:
                 try:
                     data = json.loads(script)
-                    if data.get('@type') == 'Movie':
+                    if isinstance(data, dict) and data.get('@type') == 'Movie':
                         return data
                 except json.JSONDecodeError:
                     continue
