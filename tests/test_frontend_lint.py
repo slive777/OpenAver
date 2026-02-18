@@ -294,18 +294,31 @@ class TestMotionInfra:
             "載入順序錯誤：motion-adapter.js 應在 alpinejs 之前"
 
     def test_no_direct_gsap_calls_in_pages(self):
-        """頁面 JS 不直接呼叫 gsap.to/from/set — 必須透過 motion adapter"""
-        js_pages_dir = PROJECT_ROOT / "web" / "static" / "js" / "pages"
+        """頁面/元件 JS 不直接呼叫 GSAP API — 必須透過 motion adapter"""
+        scan_dirs = [
+            PROJECT_ROOT / "web" / "static" / "js" / "pages",
+            PROJECT_ROOT / "web" / "static" / "js" / "components",
+        ]
+        # motion-adapter.js 本身是合法 GSAP 呼叫點
+        allowed_files = {'motion-adapter.js'}
         violations = []
 
-        for js_file in js_pages_dir.rglob("*.js"):
-            matches = find_pattern_in_file(js_file, r'gsap\.(to|from|set)\(')
-            for line_num, line_content in matches:
-                violations.append(
-                    f"{js_file.relative_to(PROJECT_ROOT)}:{line_num} — {line_content[:80]}"
+        for scan_dir in scan_dirs:
+            if not scan_dir.exists():
+                continue
+            for js_file in scan_dir.rglob("*.js"):
+                if js_file.name in allowed_files:
+                    continue
+                matches = find_pattern_in_file(
+                    js_file,
+                    r'(?:gsap\.(to|from|fromTo|set|timeline)\(|ScrollTrigger\.(create|batch)\()'
                 )
+                for line_num, line_content in matches:
+                    violations.append(
+                        f"{js_file.relative_to(PROJECT_ROOT)}:{line_num} — {line_content[:80]}"
+                    )
 
         assert len(violations) == 0, (
-            f"發現 {len(violations)} 個直接 gsap 呼叫（應透過 OpenAver.motion.*）:\n" +
+            f"發現 {len(violations)} 個直接 GSAP 呼叫（應透過 OpenAver.motion.*）:\n" +
             "\n".join(f"  - {v}" for v in violations)
         )

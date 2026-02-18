@@ -41,8 +41,11 @@
 
         /** 進場動畫（通用淡入上移） */
         playEnter: function (elements, opts) {
-            if (!this._shouldAnimate()) return null;
             opts = opts || {};
+            if (!this._shouldAnimate()) {
+                if (typeof opts.onComplete === 'function') opts.onComplete();
+                return null;
+            }
             return this._run(opts.ctx, function () {
                 return gsap.from(elements, {
                     y: opts.y !== undefined ? opts.y : 20,
@@ -57,8 +60,11 @@
 
         /** 離場動畫 */
         playLeave: function (elements, opts) {
-            if (!this._shouldAnimate()) return null;
             opts = opts || {};
+            if (!this._shouldAnimate()) {
+                if (typeof opts.onComplete === 'function') opts.onComplete();
+                return null;
+            }
             return this._run(opts.ctx, function () {
                 return gsap.to(elements, {
                     y: opts.y !== undefined ? opts.y : -10,
@@ -72,8 +78,11 @@
 
         /** Stagger 序列進場（Gallery 卡片等） */
         playStagger: function (elements, opts) {
-            if (!this._shouldAnimate()) return null;
             opts = opts || {};
+            if (!this._shouldAnimate()) {
+                if (typeof opts.onComplete === 'function') opts.onComplete();
+                return null;
+            }
             return this._run(opts.ctx, function () {
                 return gsap.from(elements, {
                     y: opts.y !== undefined ? opts.y : 30,
@@ -88,8 +97,11 @@
 
         /** Modal 彈出動畫 */
         playModal: function (element, opts) {
-            if (!this._shouldAnimate()) return null;
             opts = opts || {};
+            if (!this._shouldAnimate()) {
+                if (typeof opts.onComplete === 'function') opts.onComplete();
+                return null;
+            }
             return this._run(opts.ctx, function () {
                 return gsap.from(element, {
                     scale: 0.95,

@@ -5,6 +5,12 @@
 (function () {
     window.OpenAver = window.OpenAver || {};
 
+    // Feature detect: 舊/特殊嵌入環境可能無 matchMedia
+    if (typeof window.matchMedia !== 'function') {
+        window.OpenAver.prefersReducedMotion = false;
+        return;
+    }
+
     var mql = window.matchMedia('(prefers-reduced-motion: reduce)');
     window.OpenAver.prefersReducedMotion = mql.matches;
 
