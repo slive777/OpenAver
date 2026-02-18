@@ -5,9 +5,11 @@
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import Response, StreamingResponse
 from typing import Optional, List, Dict
+import re
 import requests
 import json
 import asyncio
+from collections import Counter
 from queue import Queue
 from threading import Thread
 
@@ -29,6 +31,15 @@ from core.scraper import (
 from core.scrapers.utils import SOURCE_ORDER, SOURCE_NAMES
 
 router = APIRouter(prefix="/api", tags=["search"])
+
+# 載入 maker_mapping.json（啟動時一次性載入）
+_MAKER_MAPPING = {}
+_maker_mapping_path = Path(__file__).parent.parent.parent / "maker_mapping.json"
+try:
+    if _maker_mapping_path.exists():
+        _MAKER_MAPPING = json.loads(_maker_mapping_path.read_text(encoding='utf-8'))
+except Exception:
+    _MAKER_MAPPING = {}
 
 
 @router.get("/proxy-image")
@@ -124,10 +135,8 @@ def search(
             data = search_jav(q)
             results = [data] if data else []
     elif mode == "partial":
-        from core.scraper import search_partial
         results = search_partial(q)
     elif mode == "actress":
-        from core.scraper import search_actress
         results = search_actress(q, limit=limit, offset=offset)
     else:
         results = smart_search(q, limit=limit, offset=offset)
@@ -142,7 +151,7 @@ def search(
             if top_actor:
                 logger.info(f"[Actress Profile] Fetching profile for: {top_actor}")
                 from core.actress_scraper import get_actress_profile
-                actress_profile = get_actress_profile(top_actor)
+                actress_profile = get_actress_profile(top_actor, makers=_extract_top_makers(results))
                 if not actress_profile:
                     logger.info(f"[Actress Profile] Not found for: {top_actor}")
 
@@ -168,6 +177,20 @@ def search(
         "has_more": False,
         "actress_profile": None
     }
+
+
+def _extract_top_makers(results: list) -> list:
+    """從搜尋結果統計出現最多的前 2 個片商名"""
+    counter = Counter()
+    for r in results:
+        number = r.get('number', '')
+        match = re.match(r'^([A-Za-z]+)', number)
+        if match:
+            prefix = match.group(1).upper()
+            maker = _MAKER_MAPPING.get(prefix)
+            if maker:
+                counter[maker] += 1
+    return [maker for maker, _ in counter.most_common(2)]
 
 
 def _detect_mode(q: str) -> str:
@@ -335,7 +358,7 @@ async def search_stream(
                     if top_actor:
                         logger.info(f"[Actress Profile] Fetching profile for: {top_actor}")
                         from core.actress_scraper import get_actress_profile
-                        actress_profile = get_actress_profile(top_actor)
+                        actress_profile = get_actress_profile(top_actor, makers=_extract_top_makers(results))
                         if not actress_profile:
                             logger.info(f"[Actress Profile] Not found for: {top_actor}")
 

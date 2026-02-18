@@ -105,11 +105,6 @@ window.SearchStateMixin_Navigation = {
                 this.closeLightbox();
                 return;
             }
-            // Block arrow keys in actress lightbox mode (single photo, no navigation)
-            if (this.actressLightboxMode) {
-                event.preventDefault();
-                return;
-            }
             if (event.key === 'ArrowLeft') {
                 event.preventDefault();
                 this.prevLightboxVideo();

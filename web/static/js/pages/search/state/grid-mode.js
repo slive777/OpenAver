@@ -23,7 +23,6 @@ window.SearchStateMixin_GridMode = {
     openLightbox(index) {
         this.lightboxIndex = index;
         this.lightboxOpen = true;
-        this.actressLightboxMode = false;  // 從 actress 模式切回普通模式
         // 同步 currentIndex（讓 Detail 與 Grid 保持一致）
         this.currentIndex = index;
         this._syncToCore({ skipFileList: true });
@@ -34,21 +33,29 @@ window.SearchStateMixin_GridMode = {
      */
     closeLightbox() {
         this.lightboxOpen = false;
-        this.actressLightboxMode = false;
     },
 
     /**
      * 開啟 Actress Lightbox（Hero Card 專用）
      */
     openActressLightbox() {
+        this.lightboxIndex = -1;
         this.lightboxOpen = true;
-        this.actressLightboxMode = true;
     },
 
     /**
      * Lightbox 上一部
      */
     prevLightboxVideo() {
+        if (this.lightboxIndex === -1) {
+            // Already at actress photo (leftmost) — do nothing
+            return;
+        }
+        if (this.lightboxIndex === 0 && this.actressProfile) {
+            // At first cover and actress profile exists → go to actress photo
+            this.lightboxIndex = -1;
+            return;
+        }
         if (this.lightboxIndex > 0) {
             this.lightboxIndex--;
             this.currentIndex = this.lightboxIndex;
@@ -60,6 +67,13 @@ window.SearchStateMixin_GridMode = {
      * Lightbox 下一部
      */
     nextLightboxVideo() {
+        if (this.lightboxIndex === -1) {
+            // At actress photo → go to first cover
+            this.lightboxIndex = 0;
+            this.currentIndex = 0;
+            this._syncToCore({ skipFileList: true });
+            return;
+        }
         if (this.lightboxIndex < this.searchResults.length - 1) {
             this.lightboxIndex++;
             this.currentIndex = this.lightboxIndex;
@@ -101,6 +115,7 @@ window.SearchStateMixin_GridMode = {
      * @returns {Object|null} 當前影片資料
      */
     currentLightboxVideo() {
+        if (this.lightboxIndex < 0) return null;
         return this.searchResults[this.lightboxIndex] || null;
     },
 
