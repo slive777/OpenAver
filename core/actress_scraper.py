@@ -289,6 +289,15 @@ def get_actress_profile(name: str, makers: list = None) -> Optional[Dict]:
     if graphis_result:
         result['backdrop'] = graphis_result['backdrop_url']
 
+    # Text: graphis > javbus
+    if graphis_result:
+        for field in ('age', 'height', 'cup', 'bust', 'waist', 'hip', 'hobby'):
+            if graphis_result.get(field):
+                result[field] = graphis_result[field]
+        if graphis_result.get('name_en'):
+            result['name_en'] = graphis_result['name_en']
+    # birth, hometown: JavBus only（不覆蓋）
+
     # Cache 寫入
     _cache[cache_key] = {
         'data': result,
