@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-02-19
+
+### Added
+
+#### 🔍 Scraper 來源擴充 (Phase 27)
+- **D2PassScraper** — 1Pondo / Caribbeancom / 10musume 三站聯合無碼爬蟲（共享 JSON API）
+- **HEYZOScraper** — JSON-LD + HTML table 解析
+- **DMMScraper** — GraphQL API + 日本 IP Proxy 支援（從 feature/ 遷移至 core/scrapers/）
+- DMM Tags — GraphQL `genres` 探測（Capability Cache）+ HTML fallback 雙路徑
+- Settings Proxy 欄位 — DMM HTTP Proxy 輸入 + 測試連線按鈕
+- Settings Source Badge — 有碼/無碼來源 tag-badge 狀態顯示（取代純文字 hint）
+- Fast-Path 前綴路由 — FC2/HEYZO 搜尋省掉無謂 D2Pass request
+- `extract_number()` 擴充 — 支援底線格式 `DDMMYY_NNN`（1Pondo/10musume）
+- 未知 source 白名單驗證 — `search_jav` 回傳 None + API 400
+- 新增 `tests/test_new_scrapers.py`（D2Pass/HEYZO/DMM/Pipeline/Fast-Path 共 41 測試案例）
+
+#### 👤 Grid 模式女優資料卡增強 (Phase 26)
+- **gfriends 圖片查表** — 最高優先女優頭像來源（GitHub CDN）
+- **Graphis Profile 文字解析** — 英文名 / 身高 / 三圍 / 興趣
+- Lightbox 導航修正 — 女優頭像可方向鍵移動到封面
+- 新增 16 測試案例（gfriends lookup + Graphis text parsing）
+
+### Changed
+- Uncensored 偵測擴充 — 支援 HEYZO 前綴 + D2Pass 日期格式
+- Uncensored mode 路由擴充 — D2Pass → HEYZO → FC2 → AVSOX
+- DMM Top-1 優先順序 — proxy 有值時 DMM 排有碼第一
+- Regex 統一 — `\d{6}[-_]\d{2,}` 三處一致（extract_number / is_uncensored × 2）
+- `folder_layers` 預設改為 `{actor}`
+
+### Fixed
+- Caribbeancom + 1Pondo 封面 fallback — `ThumbHigh` 為 null 時構造 URL
+- HEYZO JSON-LD list guard — `@graph` 陣列格式防禦
+- DMM empty prefix guard — 空 prefix 不發無謂 request
+- JavGuru 移除 — HTML 結構不穩定 + 封面 CDN 失效
+
+### Removed
+- JavGuru scraper（HTML 結構不穩定，封面 CDN 失效）
+- Settings 來源純文字 hint（改為 Source Badge）
+
+---
+
 ## [0.3.2] - 2026-02-18
 
 ### Added
