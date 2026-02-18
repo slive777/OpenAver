@@ -1032,7 +1032,7 @@
                     <strong>技術細節：</strong>
                     <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
                         <li>使用原生 <code>&lt;dialog&gt;</code> 元素 + Alpine.js <code>$refs</code></li>
-                        <li>Production 透過 Alpine <code>$refs.confirmDialog.showModal()</code> 呼叫原生 dialog API，非 CSS class toggle</li>
+                        <li>Production 透過 Alpine class toggle（<code>:class="{ 'modal-open': dirtyCheckModalOpen }"</code>）控制 modal 顯示（參見 settings.html、scanner.html）；此頁 demo 使用原生 <code>$refs.showModal()</code> 僅為展示用途</li>
                         <li>Backdrop 點擊和 ESC 鍵關閉為原生功能（無需額外處理）</li>
                         <li>Smoke backdrop 使用 <code>--fluent-smoke</code> token（Light: 0.4, Dark: 0.6）</li>
                         <li>卡片陰影使用 <code>--fluent-shadow-28</code>（XXLarge elevation）</li>
@@ -1087,7 +1087,7 @@
             <!-- Subsection: Interactive Toast Demo -->
             <div class="ds-subsection">
                 <h3>Toast Variants</h3>
-                <p class="ds-desc">成功/錯誤/資訊三種變體，2-3 秒後自動消失，Hover 暫停倒數</p>
+                <p class="ds-desc">成功/錯誤/資訊三種變體，2-3 秒後自動消失</p>
 
                 <!-- Demo 容器 -->
                 <div class="ds-toast-demo">
@@ -1118,8 +1118,7 @@
                          x-transition:leave="fluent-toast-leave"
                          x-transition:leave-start="fluent-toast-leave-start"
                          x-transition:leave-end="fluent-toast-leave-end"
-                         @mouseenter="clearTimeout(toastTimeout)"
-                         @mouseleave="toastTimeout = setTimeout(() => { toastVisible = false; }, toastDuration)">
+>
                         <div class="alert fluent-toast"
                              :class="`alert-${toastType}`"
                              role="alert">
@@ -1143,7 +1142,7 @@
                         <li>Alpine.js <code>showToast()</code> 統一管理訊息、類型、持續時間</li>
                         <li>顏色變體：<code>alert-success</code>（綠）/ <code>alert-error</code>（紅）/ <code>alert-info</code>（藍）</li>
                         <li>動畫：Slide up (20px → 0) + Fade in，使用 <code>x-transition</code></li>
-                        <li>Hover 暫停倒數：<code>@mouseenter</code> / <code>@mouseleave</code></li>
+                        <li>Production 無 Hover 暫停（自動消失）</li>
                         <li>陰影使用 <code>--fluent-shadow-16</code>（XLarge elevation）</li>
                         <li>圓角使用 <code>--fluent-radius-lg</code> (8px)</li>
                         <li>持續時間：成功/錯誤 2.5 秒，資訊 3 秒</li>
@@ -1246,7 +1245,7 @@
                             </tr>
                             <tr>
                                 <td>Hover 暫停</td>
-                                <td>有（@mouseenter/mouseleave）</td>
+                                <td>無</td>
                                 <td>無</td>
                                 <td>無</td>
                             </tr>
