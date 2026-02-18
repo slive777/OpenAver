@@ -235,7 +235,9 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '') -> Option
 
     # 合併邏輯
     main_video = None
-    if 'javbus' in all_data:
+    if 'dmm' in all_data:
+        main_video = all_data['dmm']
+    elif 'javbus' in all_data:
         main_video = all_data['javbus']
     elif 'jav321' in all_data:
         main_video = all_data['jav321']
@@ -587,10 +589,20 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
         query = normalize_number(query)
         if offset > 0:
             return []
-            
+
+        # DMM Top-1（proxy 有值時精確搜尋優先用 DMM）
+        if proxy_url:
+            if status_callback:
+                status_callback('dmm', 'searching')
+            res = search_jav(query, source='dmm', proxy_url=proxy_url)
+            if res:
+                res['_mode'] = 'exact'
+                if status_callback: status_callback('done', 'found:1')
+                return [res]
+
         if status_callback:
             status_callback('javbus', 'searching')
-            
+
         # 嘗試找變體
         variant_ids = get_all_variant_ids(query)
         if variant_ids:
@@ -599,16 +611,6 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
             res = search_by_variant_id(first, query)
             if res:
                 res['_all_variant_ids'] = variant_ids
-                if status_callback: status_callback('done', 'found:1')
-                return [res]
-        
-        # DMM Top-1（proxy 有值時精確搜尋優先用 DMM）
-        if proxy_url:
-            if status_callback:
-                status_callback('dmm', 'searching')
-            res = search_jav(query, source='dmm', proxy_url=proxy_url)
-            if res:
-                res['_mode'] = 'exact'
                 if status_callback: status_callback('done', 'found:1')
                 return [res]
 

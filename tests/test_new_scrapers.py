@@ -516,18 +516,16 @@ class TestPipeline:
         mock_heyzo.assert_called()
 
     def test_dmm_top1_when_proxy(self):
-        """有 proxy_url 且搜尋番號格式 → DMMScraper 被嘗試（精確搜尋 DMM Top-1）"""
+        """有 proxy_url 且搜尋番號格式 → DMM 優先於 variant IDs"""
         mock_video = self._make_video("dmm", "SONE-205")
 
-        # smart_search 走精確搜尋路徑時會先嘗試 get_all_variant_ids，
-        # 若 JVAV 不可用則返回 []，再走 DMM Top-1 路徑
-        with patch('core.scraper.get_all_variant_ids', return_value=[]):
-            with patch.object(DMMScraper, 'search', return_value=mock_video) as mock_dmm:
-                with patch('core.scrapers.utils.rate_limit'):
-                    results = smart_search("SONE-205", proxy_url="http://proxy:8080")
+        with patch.object(DMMScraper, 'search', return_value=mock_video) as mock_dmm:
+            with patch('core.scrapers.utils.rate_limit'):
+                results = smart_search("SONE-205", proxy_url="http://proxy:8080")
 
         mock_dmm.assert_called()
         assert len(results) >= 1
+        assert results[0]['_mode'] == 'exact'
 
 
 # ============================================================
