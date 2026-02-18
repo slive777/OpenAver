@@ -342,7 +342,7 @@ class TestDMMScraper:
         mock_post.assert_not_called()
 
     def test_dmm_cache_hit(self, dmm_scraper, tmp_path, monkeypatch):
-        """快取命中時只呼叫 detail query 一次"""
+        """快取命中時不呼叫 search query（detail query + probe query，不超過 2 次）"""
         import core.scrapers.dmm as dmm_module
         cache_path = tmp_path / "dmm_content_ids.json"
         cache_path.write_text('{"SONE-205": "sone00205"}', encoding='utf-8')
@@ -354,8 +354,11 @@ class TestDMMScraper:
                 video = dmm_scraper.search("SONE-205")
 
         assert video is not None
-        # 快取命中 → 只呼叫 detail query，不呼叫 search query
-        assert mock_post.call_count == 1
+        # 快取命中 → 不呼叫 search query；payload 中不含 legacySearchPPV
+        for call_args in mock_post.call_args_list:
+            payload = call_args[1].get('json', {}) if call_args[1] else {}
+            query_str = payload.get('query', '')
+            assert 'legacySearchPPV' not in query_str, "Cache hit should not trigger search query"
 
     def test_dmm_graphql_success(self, dmm_scraper):
         """無快取時依次呼叫 search query + detail query，成功返回 Video"""
@@ -550,3 +553,145 @@ class TestExtractNumber:
         scraper = D2PassScraper()
         result = scraper.normalize_number("120415_201")
         assert result == "120415_201"
+
+
+# ============================================================
+# Class 8: TestDMMTags
+# ============================================================
+
+class TestDMMTags:
+    """DMM Tags — GraphQL probe + HTML fallback fail-open 測試"""
+
+    @pytest.fixture
+    def dmm_scraper(self, tmp_path, monkeypatch):
+        """DMM scraper with isolated cache + reset _genres_supported"""
+        import core.scrapers.dmm as dmm_module
+        monkeypatch.setattr(dmm_module, "CACHE_FILE", tmp_path / "dmm_content_ids.json")
+        monkeypatch.setattr(dmm_module, "PREFIX_FILE", tmp_path / "dmm_prefix_hints.json")
+        monkeypatch.setattr(dmm_module, "_genres_supported", None)
+        config = ScraperConfig(proxy_url="http://test-proxy:8080")
+        return DMMScraper(config)
+
+    def test_dmm_probe_schema_error(self, dmm_scraper, monkeypatch):
+        """GraphQL schema error → _genres_supported=False（永久停用）"""
+        import core.scrapers.dmm as dmm_module
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            'errors': [{'message': "Unknown field 'genres' on type 'PpvContent'"}]
+        }
+
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp):
+            tags, label = dmm_scraper._probe_genres("sone00205")
+
+        assert tags == []
+        assert label == ''
+        assert dmm_module._genres_supported is False
+
+    def test_dmm_probe_schema_error_cannot_query(self, dmm_scraper, monkeypatch):
+        """GraphQL 'Cannot query field' 變體 → 同樣永久停用"""
+        import core.scrapers.dmm as dmm_module
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            'errors': [{'message': "Cannot query field 'genres' on type 'PpvContent'"}]
+        }
+
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp):
+            tags, label = dmm_scraper._probe_genres("sone00205")
+
+        assert tags == []
+        assert label == ''
+        assert dmm_module._genres_supported is False
+
+    def test_dmm_probe_timeout_keeps_none(self, dmm_scraper, monkeypatch):
+        """網路錯誤 → _genres_supported 維持 None（暫時性，可重試）"""
+        import core.scrapers.dmm as dmm_module
+
+        with patch.object(dmm_scraper._session, 'post', side_effect=Exception("connection timeout")):
+            tags, label = dmm_scraper._probe_genres("sone00205")
+
+        assert tags == []
+        assert label == ''
+        assert dmm_module._genres_supported is None
+
+    def test_dmm_probe_empty_tags_sets_true(self, dmm_scraper, monkeypatch):
+        """GraphQL 正常回應但 genres 為空 → _genres_supported=True（schema 支援）"""
+        import core.scrapers.dmm as dmm_module
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            'data': {'ppvContent': {'genres': [], 'label': None}}
+        }
+
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp):
+            tags, label = dmm_scraper._probe_genres("sone00205")
+
+        assert tags == []
+        assert label == ''
+        assert dmm_module._genres_supported is True
+
+    def test_dmm_html_fallback_error(self, dmm_scraper):
+        """HTML fallback HTTP 500 → 回傳 []，不 crash"""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 500
+
+        with patch.object(dmm_scraper._session, 'get', return_value=mock_resp):
+            tags = dmm_scraper._fetch_tags_from_html("sone00205")
+
+        assert tags == []
+
+    def test_dmm_both_fail_video_intact(self, dmm_scraper, monkeypatch):
+        """probe + HTML 都失敗 → Video 仍完整，tags=[]"""
+        detail_resp = _make_mock_resp(status_code=200, json_data=DMM_DETAIL_RESPONSE)
+
+        with patch.object(dmm_scraper, '_probe_genres', return_value=([], '')), \
+             patch.object(dmm_scraper, '_fetch_tags_from_html', return_value=[]), \
+             patch.object(dmm_scraper._session, 'post', return_value=detail_resp), \
+             patch('core.scrapers.utils.rate_limit'):
+            video = dmm_scraper.search("SONE-205")
+
+        assert video is not None
+        assert video.title != ''
+        assert video.cover_url != ''
+        assert video.source == 'dmm'
+        assert video.tags == []
+
+    def test_dmm_probe_cache_false_skip(self, dmm_scraper, monkeypatch):
+        """_genres_supported=False → 直接跳過，不發 HTTP request"""
+        import core.scrapers.dmm as dmm_module
+        monkeypatch.setattr(dmm_module, '_genres_supported', False)
+
+        with patch.object(dmm_scraper._session, 'post') as mock_post:
+            tags, label = dmm_scraper._probe_genres("sone00205")
+
+        assert tags == []
+        assert label == ''
+        mock_post.assert_not_called()
+
+    def test_dmm_probe_cache_true_still_query(self, dmm_scraper, monkeypatch):
+        """_genres_supported=True → 仍發 HTTP 查詢（該片可能有 tags）"""
+        import core.scrapers.dmm as dmm_module
+        monkeypatch.setattr(dmm_module, '_genres_supported', True)
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            'data': {
+                'ppvContent': {
+                    'genres': [{'name': '美少女'}, {'name': 'ハイビジョン'}],
+                    'label': {'name': 'S1 NO.1 STYLE'}
+                }
+            }
+        }
+
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp) as mock_post:
+            tags, label = dmm_scraper._probe_genres("sone00205")
+
+        mock_post.assert_called_once()
+        assert tags == ['美少女', 'ハイビジョン']
+        assert label == 'S1 NO.1 STYLE'
+        assert dmm_module._genres_supported is True

@@ -17,6 +17,10 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 CACHE_FILE = PROJECT_ROOT / "dmm_content_ids.json"      # 完整番號 → content_id
 PREFIX_FILE = PROJECT_ROOT / "dmm_prefix_hints.json"    # 番號前綴 → DMM 前綴
 
+# module-level capability cache（三態）
+# None = 未知（首次或暫時性失敗），True = schema 支援，False = schema 不支援
+_genres_supported: Optional[bool] = None
+
 
 class DMMScraper(BaseScraper):
     """
@@ -65,6 +69,19 @@ class DMMScraper(BaseScraper):
         }
     """
 
+    # 獨立 probe query — 與 DETAIL_QUERY 分離，失敗不影響主流程
+    GENRES_PROBE_QUERY = """
+        query ProbeGenres($id: ID!) {
+            ppvContent(id: $id) {
+                genres { name }
+                label { name }
+            }
+        }
+    """
+
+    # GraphQL schema error patterns — 不同實作回傳的訊息格式不同
+    SCHEMA_ERROR_PATTERNS = ('Unknown field', 'Cannot query field')
+
     def __init__(self, config: Optional[ScraperConfig] = None):
         super().__init__(config)
         self._session = requests.Session()
@@ -81,6 +98,113 @@ class DMMScraper(BaseScraper):
 
     def _get_source_name(self) -> str:
         return "dmm"
+
+    def _probe_genres(self, content_id: str) -> tuple[list[str], str]:
+        """
+        探測 ppvContent 是否支援 genres/label 欄位。
+
+        三態 cache 控制：
+        - _genres_supported is False → 立即回傳空（永久跳過）
+        - _genres_supported is True  → 仍查詢（該片可能有 tags）
+        - _genres_supported is None  → 首次查詢，依結果更新 cache
+
+        Returns:
+            (tags, label) — 探測失敗時回傳 ([], '')
+        """
+        global _genres_supported
+
+        # 已確認 schema 不支援 → 永久跳過
+        if _genres_supported is False:
+            return [], ''
+
+        try:
+            payload = {
+                'query': self.GENRES_PROBE_QUERY,
+                'variables': {'id': content_id}
+            }
+            resp = self._session.post(self.API_URL, json=payload, timeout=5)
+
+            if resp.status_code != 200:
+                # HTTP 錯誤 → 暫時性失敗，維持 None
+                return [], ''
+
+            resp_json = resp.json()
+            errors = resp_json.get('errors', [])
+
+            # 判定 1：schema error（unknown field / validation error）→ 確認不支援
+            if any(
+                any(pat in (e.get('message', '') or '') for pat in self.SCHEMA_ERROR_PATTERNS)
+                for e in errors
+            ):
+                _genres_supported = False
+                logger.info("[DMM] GraphQL schema 不支援 genres，已永久停用 probe")
+                return [], ''
+
+            # 判定 2：GraphQL 錯誤但非 schema error → 暫時性，維持 None
+            data = resp_json.get('data') or {}
+            item = data.get('ppvContent')
+
+            if item is None:
+                # content_id 不存在或其他 null，無法判定 → 維持 None
+                return [], ''
+
+            # 判定 3：正常回應 → schema 支援（即使此片 tags 為空）
+            _genres_supported = True
+            genres = item.get('genres') or []
+            tags = [g['name'] for g in genres if g.get('name')]
+            label = (item.get('label') or {}).get('name', '')
+            return tags, label
+
+        except Exception:
+            # 網路錯誤、timeout → 暫時性失敗，維持 None（不設 False）
+            return [], ''
+
+    def _fetch_tags_from_html(self, content_id: str) -> list[str]:
+        """
+        從 DMM 商品頁 HTML 抓取 genres（ジャンル）。
+        使用同一 session（已設定 proxy），傳 age_check_done=1 cookie 繞過年齡驗證。
+
+        兩種解析策略：
+        1. JSON-LD VideoObject.genre（較快）
+        2. XPath ジャンル 欄（備援）
+
+        Returns:
+            tags list（失敗時回傳 []，不 raise）
+        """
+        url = f"https://www.dmm.co.jp/digital/videoa/-/detail/=/cid={content_id}/"
+        try:
+            resp = self._session.get(
+                url,
+                timeout=self.config.timeout,
+                cookies={"age_check_done": "1"}
+            )
+            if resp.status_code != 200:
+                return []
+
+            from lxml import etree
+            import json as _json
+
+            html = etree.fromstring(resp.content, etree.HTMLParser())
+
+            # 方法 1: JSON-LD VideoObject.genre
+            for script in html.xpath('//script[@type="application/ld+json"]/text()'):
+                try:
+                    ld = _json.loads(script)
+                    if isinstance(ld, dict) and ld.get('@type') == 'VideoObject':
+                        genre = ld.get('genre')
+                        if genre and isinstance(genre, list):
+                            return [g for g in genre if isinstance(g, str)]
+                except _json.JSONDecodeError:
+                    continue
+
+            # 方法 2: XPath ジャンル 表格欄
+            tags = html.xpath(
+                '//th[contains(.//text(),"ジャンル")]/following-sibling::td//a/text()'
+            )
+            return [t.strip() for t in tags if t.strip()]
+
+        except Exception:
+            return []
 
     # ========== 快取管理 ==========
 
@@ -261,6 +385,11 @@ class DMMScraper(BaseScraper):
             if release_date and 'T' in release_date:
                 release_date = release_date.split('T')[0]
 
+            # T5a: GraphQL probe → T5b: HTML fallback
+            tags, _label = self._probe_genres(content_id)
+            if not tags:
+                tags = self._fetch_tags_from_html(content_id)
+
             video = Video(
                 number=item.get('makerContentId', ''),
                 title=item.get('title', ''),
@@ -268,7 +397,7 @@ class DMMScraper(BaseScraper):
                 date=release_date,
                 maker=item.get('maker', {}).get('name', ''),
                 cover_url=item.get('packageImage', {}).get('largeUrl', ''),
-                tags=[],
+                tags=tags,
                 source=self.source_name,
                 detail_url=f"https://www.dmm.co.jp/digital/videoa/-/detail/=/cid={content_id}/",
             )
