@@ -44,6 +44,7 @@
     /* Glow 發光效果 - 用於 hover/focus 狀態 */
     --glow-primary: color-mix(in oklch, var(--color-primary) 40%, transparent);       /* 主色發光 */
     --glow-subtle: color-mix(in oklch, var(--color-primary) 20%, transparent);        /* 微妙發光（背景）*/
+    --ds-glow-rgb: 90, 200, 250;                                                      /* DS 發光色（Apple Cyan）*/
 
     /* ===== 陰影 - Fluent Design tokens 橋接 ===== */
     --shadow-sm: var(--fluent-shadow-2);

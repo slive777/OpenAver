@@ -5,7 +5,7 @@
 /* 必修 1：背景層次（加在 body.ds-page 上） */
 .ds-page {
     background:
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(90, 200, 250, 0.15), transparent),
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(var(--ds-glow-rgb), 0.15), transparent),
         radial-gradient(ellipse 60% 40% at 80% 100%, oklch(55% 0.15 250 / 0.08), transparent),
         var(--bg-body);
 }
@@ -17,7 +17,7 @@
 
 [data-theme="dim"] .ds-page {
     background:
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(90, 200, 250, 0.08), transparent),
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(var(--ds-glow-rgb), 0.08), transparent),
         radial-gradient(ellipse 60% 40% at 80% 100%, oklch(55% 0.2 280 / 0.06), transparent),
         var(--bg-body);
 }
@@ -128,7 +128,7 @@
     right: -20%;
     width: 400px;
     height: 400px;
-    background: radial-gradient(circle, rgba(90, 200, 250, 0.2) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(var(--ds-glow-rgb), 0.2) 0%, transparent 70%);
     pointer-events: none;
     animation: ds-float 6s ease-in-out infinite;
 }
@@ -342,7 +342,7 @@
     transform: translateY(-4px) scale(1.02);
     box-shadow:
         0 0 0 2px var(--accent),
-        0 0 20px rgba(90, 200, 250, 0.2),
+        0 0 20px rgba(var(--ds-glow-rgb), 0.2),
         var(--fluent-shadow-16);
 }
 
@@ -498,7 +498,7 @@
 
 .ds-radius-item:hover {
     transform: scale(1.08);
-    box-shadow: 0 8px 24px rgba(90, 200, 250, 0.3);
+    box-shadow: 0 8px 24px rgba(var(--ds-glow-rgb), 0.3);
 }
 
 [data-theme="dim"] .ds-radius-item {
@@ -601,7 +601,7 @@
 
 .ds-duration-item:hover {
     border-color: var(--accent);
-    background: rgba(90, 200, 250, 0.05);
+    background: rgba(var(--ds-glow-rgb), 0.05);
 }
 
 .ds-duration-name {
@@ -719,7 +719,7 @@
 .ds-gallery-card:hover {
     box-shadow:
         0 0 0 2px var(--accent),
-        0 0 20px rgba(90, 200, 250, 0.15),
+        0 0 20px rgba(var(--ds-glow-rgb), 0.15),
         var(--fluent-shadow-8);
 }
 
@@ -785,7 +785,7 @@
 .ds-sidebar-mini .nav-link.active {
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%);
     color: oklch(100% 0 0);
-    box-shadow: 0 4px 12px rgba(90, 200, 250, 0.3);
+    box-shadow: 0 4px 12px rgba(var(--ds-glow-rgb), 0.3);
 }
 
 [data-theme="dim"] .ds-sidebar-mini .nav-link.active {
@@ -1230,7 +1230,7 @@
     border-color: var(--accent);
     box-shadow:
         0 0 0 1px var(--accent),
-        0 0 20px rgba(90, 200, 250, 0.2),
+        0 0 20px rgba(var(--ds-glow-rgb), 0.2),
         var(--fluent-shadow-8);
     transform: translateY(-2px);
 }
