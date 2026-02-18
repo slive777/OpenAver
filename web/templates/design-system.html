@@ -404,13 +404,19 @@
                                 <td>Shell</td>
                                 <td><code>.fluent-acrylic</code></td>
                                 <td>blur(30px) saturate(140%)</td>
-                                <td>Sidebar / Offcanvas / Mobile Navbar</td>
+                                <td>Offcanvas / Mobile Navbar</td>
                             </tr>
                             <tr>
                                 <td>Shell</td>
-                                <td><code>.fluent-toolbar</code></td>
-                                <td>blur(16px) saturate(130%)</td>
-                                <td>頁面工具列 header（search-bar / settings-header 等）</td>
+                                <td><code>.sidebar</code>（自訂）</td>
+                                <td>blur(30px) saturate(140%) + color-mix 75%</td>
+                                <td>Desktop Sidebar</td>
+                            </tr>
+                            <tr>
+                                <td>Shell</td>
+                                <td><code>.search-bar</code> / <code>.settings-header</code> / <code>.avlist-header</code>（直寫，非 class hook）</td>
+                                <td>blur(12–16px) saturate(120–130%)</td>
+                                <td>頁面工具列 header（search-bar 16px / settings-header·avlist-header 12px）；<code>.fluent-toolbar</code> 為備用 utility，尚未套用</td>
                             </tr>
                             <tr>
                                 <td>Surface</td>
