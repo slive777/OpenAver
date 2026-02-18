@@ -580,8 +580,8 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
     is_uncensored = (
         'fc2' in query.lower() or
         'heyzo' in query.lower() or
-        re.match(r'^\d{6}-\d{2,3}$', query) or
-        re.match(r'^\d{6}_\d{2,3}$', query)
+        re.match(r'^\d{6}-\d{2,}$', query) or
+        re.match(r'^\d{6}_\d{2,}$', query)
     )
     if is_uncensored:
         if status_callback:
