@@ -630,6 +630,7 @@
                         </div>
                     </div>
                     <!-- 小卡 1 (本地匹配 - 以旋轉外框提示) -->
+                    <!-- .once modifier：旋轉 5 圈後自動停止，用於本地匹配提示場景 -->
                     <div class="av-card-preview rotating-border-spotlight active once">
                         <div class="av-card-preview-img">
                             <img src="/static/img/demo/mide-974.jpg" alt="cover">
@@ -660,6 +661,7 @@
   box-shadow: 0 0 0 2px var(--accent), 0 0 20px rgba(90, 200, 250, 0.2);
   transform: translateY(-6px);
 }</code></pre>
+                <p class="ds-desc" style="margin-top: 0.75rem;">小卡 1 使用 <code>.once</code> modifier：旋轉 5 圈後自動停止（本地匹配提示場景）</p>
             </div>
 
             <!-- Full 變體 -->
@@ -926,6 +928,7 @@
                     <strong>技術細節：</strong>
                     <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
                         <li>使用原生 <code>&lt;dialog&gt;</code> 元素 + Alpine.js <code>$refs</code></li>
+                        <li>Production 透過 Alpine <code>$refs.confirmDialog.showModal()</code> 呼叫原生 dialog API，非 CSS class toggle</li>
                         <li>Backdrop 點擊和 ESC 鍵關閉為原生功能（無需額外處理）</li>
                         <li>Smoke backdrop 使用 <code>--fluent-smoke</code> token（Light: 0.4, Dark: 0.6）</li>
                         <li>卡片陰影使用 <code>--fluent-shadow-28</code>（XXLarge elevation）</li>
@@ -1174,7 +1177,8 @@
             <!-- Progress Indicator -->
             <div class="ds-subsection">
                 <h3>Progress Indicator</h3>
-                <p class="ds-desc">Search 頁的搜尋進度顯示，跟隨主題顯示（light: 淺底深字 / dim: 深底淺字）</p>
+                <p class="ds-desc">Search 頁的搜尋進度顯示，跟隨主題顯示（light: 淺底深字 / dim: 深底淺字）<br>
+                    <small style="color: var(--text-muted);">⚠️ Demo 樣式（design-system.css scoped），production 版定義見 search.css</small></p>
                 <div class="ds-card-demo" style="background: var(--bg-body); padding: 2rem; border-radius: var(--radius-md);">
                     <div class="search-progress" style="max-width: 500px; margin: 0 auto;">
                         <div class="progress-container">
@@ -1579,6 +1583,29 @@
 
 &lt;!-- 快速旋轉 --&gt;
 &lt;div class="rotating-border-spotlight speed-fast active"&gt;...&lt;/div&gt;</code></pre>
+            </div>
+
+            <!-- Once Variants -->
+            <div class="ds-subsection">
+                <h3>Once Variants</h3>
+                <p class="ds-desc">單次旋轉 modifier，動畫播放完後自動停止，適用於提示類場景</p>
+                <div class="ds-card-demo">
+                    <div class="d-flex gap-3 flex-wrap align-items-center">
+                        <div class="rotating-border-spotlight active once"
+                             style="padding: 1rem 1.5rem; background: var(--bg-card); border-radius: var(--radius-md);">
+                            <small style="color: var(--text-muted);">.once（5 圈停止）</small>
+                        </div>
+                        <div class="rotating-border-spotlight active pulse-once"
+                             style="padding: 1rem 1.5rem; background: var(--bg-card); border-radius: var(--radius-md);">
+                            <small style="color: var(--text-muted);">.pulse-once（1 圈停止）</small>
+                        </div>
+                    </div>
+                </div>
+                <pre class="ds-code"><code>&lt;!-- 本地匹配提示：旋轉 5 圈後停止 --&gt;
+&lt;div class="rotating-border-spotlight active once"&gt;...&lt;/div&gt;
+
+&lt;!-- Sidebar 事件觸發：旋轉 1 圈後停止 --&gt;
+&lt;div class="rotating-border-spotlight active pulse-once"&gt;...&lt;/div&gt;</code></pre>
             </div>
 
             <!-- 無障礙與降級 -->
