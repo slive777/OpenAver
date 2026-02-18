@@ -19,15 +19,22 @@
 
 /* Modern Card Styling（theme.css 未納入 #settings-components scope）*/
 #settings-components .card {
-    border: none;
-    border-radius: 16px;
-    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-lg);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-4);
     overflow: visible;
+    background: color-mix(in oklch, var(--color-base-200) 80%, transparent);
+}
+
+[data-theme="dim"] #settings-components .card {
+    background: color-mix(in oklch, var(--color-base-200) 60%, transparent);
 }
 
 #settings-components .settings-card-header {
-    background: transparent;
-    border-bottom: 1px solid var(--border-light);
+    background: color-mix(in oklch, var(--color-base-content) 2%, transparent);
+    border-bottom: 1px solid var(--stroke-subtle);
     font-weight: 600;
     padding: 1rem 1.25rem;
 }

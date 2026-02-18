@@ -2,6 +2,10 @@
 
 {% block title %}使用說明 - OpenAver{% endblock %}
 
+{% block extra_css %}
+<link href="/static/css/pages/help.css" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
 <div class="container mx-auto px-4 max-w-screen-2xl">
     <div class="flex justify-between items-center mb-4">
@@ -13,7 +17,7 @@
     </div>
 
     <!-- 搜尋功能 -->
-    <div class="card bg-base-100 fluent-shadow-4 fluent-rounded-xl mb-4">
+    <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
                 <i class="bi bi-search"></i> 搜尋功能
@@ -36,7 +40,7 @@
     </div>
 
     <!-- 批次檔案搜尋 -->
-    <div class="card bg-base-100 fluent-shadow-4 fluent-rounded-xl mb-4">
+    <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
                 <i class="bi bi-files"></i> 批次檔案搜尋
@@ -65,7 +69,7 @@
     </div>
 
     <!-- 女優畫廊模式 -->
-    <div class="card bg-base-100 fluent-shadow-4 fluent-rounded-xl mb-4">
+    <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
                 <i class="bi bi-person-circle"></i> 女優畫廊模式
@@ -87,7 +91,7 @@
     </div>
 
     <!-- 列表生成器 -->
-    <div class="card bg-base-100 fluent-shadow-4 fluent-rounded-xl mb-4">
+    <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
                 <i class="bi bi-file-earmark-code"></i> 列表生成器 (AVList)
@@ -110,7 +114,7 @@
     </div>
 
     <!-- 快捷鍵 -->
-    <div class="card bg-base-100 fluent-shadow-4 fluent-rounded-xl mb-4">
+    <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
                 <i class="bi bi-keyboard"></i> 快捷鍵
@@ -139,7 +143,7 @@
     </div>
 
     <!-- 疑難排解 -->
-    <div class="card bg-base-100 fluent-shadow-4 fluent-rounded-xl mb-4">
+    <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
                 <i class="bi bi-question-circle"></i> 疑難排解
@@ -171,7 +175,7 @@
     </div>
 
     <!-- 關於 -->
-    <div class="card bg-base-100 fluent-shadow-4 fluent-rounded-xl mb-4">
+    <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
                 <i class="bi bi-info-circle"></i> 關於

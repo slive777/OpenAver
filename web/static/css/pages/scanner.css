@@ -29,16 +29,19 @@
 
 /* Mini Terminal - Compact Log */
 .mini-terminal {
-    background: var(--color-base-200);
+    background: color-mix(in oklch, var(--color-base-200) 80%, transparent);
+    border: 1px solid var(--stroke-default);
     border-radius: var(--fluent-radius-xl);
     margin: 1rem;
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-4);
     transition: background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 [data-theme="dim"] .mini-terminal {
-    background: var(--color-base-300);
+    background: color-mix(in oklch, var(--color-base-200) 55%, transparent);
 }
 
 .mini-terminal-header {
