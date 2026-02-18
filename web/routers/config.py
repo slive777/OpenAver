@@ -356,7 +356,7 @@ async def test_ollama_model(request: OllamaTestRequest) -> dict:
                     ],
                     "stream": False,
                     "options": {
-                        "num_predict": 50,  # 限制輸出長度
+                        "num_predict": 500,  # think mode 需要足夠 token（翻譯本身 ~20 tok，其餘供推理）
                         "temperature": 0.3
                     }
                 }

@@ -96,7 +96,7 @@ class OllamaTranslateService(TranslateService):
                         ],
                         "stream": False,
                         "options": {
-                            "num_predict": 100,
+                            "num_predict": 500,
                             "temperature": 0.3
                         }
                     }
