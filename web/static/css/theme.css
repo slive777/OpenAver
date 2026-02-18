@@ -381,6 +381,15 @@ body {
     animation: shake var(--duration-normal) ease;
 }
 
+/* ========== Components: Spin Animation ========== */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
 /* ========== AV Card Full: Interactive Elements ========== */
 
 /* Info Icon Button - 用於 Full Card header/footer 的圖標按鈕 */

@@ -1237,9 +1237,6 @@
     flex-shrink: 0;
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
 
 .ds-page .detail-progress {
     display: none;
