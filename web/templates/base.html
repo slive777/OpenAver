@@ -281,7 +281,7 @@
 }"
      x-init="$watch('sidebarCollapsed', configSync('sidebar_collapsed'))"
      :class="{ 'sidebar-collapsed': sidebarCollapsed }"
-     class="{% if page in ['design-system', 'showcase'] %}ds-page{% endif %}">
+     class="{% if page in ['design-system', 'showcase'] %}ds-page{% endif %} fluent-canvas page-{{ page }}">
     <!-- Sidebar: Jinja 直接渲染 class 防止閃爍（不依賴 localStorage） -->
     <script>
       if ({{ sidebar_collapsed|default(false)|tojson }}) {

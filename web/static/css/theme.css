@@ -2178,3 +2178,35 @@ summary:focus-visible {
         ) !important;
     }
 }
+
+/* ========== T8.1: Fluent Canvas Layer (Mica 氛圍背景) ========== */
+
+/* --- Light Mode --- */
+body.fluent-canvas:not(.ds-page) {
+    background:
+        radial-gradient(ellipse 100% 60% at 50% -10%, rgba(var(--ds-glow-rgb), 0.10), transparent),
+        radial-gradient(ellipse 70% 50% at 100% 100%, oklch(55% 0.12 85 / 0.06), transparent),
+        var(--bg-body);
+}
+
+body.fluent-canvas:not(.ds-page) .main-content {
+    background-color: transparent;
+}
+
+body.fluent-canvas:not(.ds-page)::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.025;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* --- Dim Mode --- */
+[data-theme="dim"] body.fluent-canvas:not(.ds-page) {
+    background:
+        radial-gradient(ellipse 100% 60% at 50% -10%, rgba(var(--ds-glow-rgb), 0.06), transparent),
+        radial-gradient(ellipse 70% 50% at 100% 100%, oklch(55% 0.15 260 / 0.05), transparent),
+        var(--bg-body);
+}
