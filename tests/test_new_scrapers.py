@@ -530,6 +530,23 @@ class TestPipeline:
         assert len(results) >= 1
         assert results[0]['_mode'] == 'exact'
 
+    def test_uncensored_mode_fast_path_fc2(self):
+        """uncensored_mode=True + FC2 前綴 → D2PassScraper 不被呼叫"""
+        mock_video = self._make_video("fc2", "FC2-PPV-1234567")
+
+        from core.scrapers.fc2 import FC2Scraper
+        from core.scrapers.avsox import AVSOXScraper
+
+        with patch.object(D2PassScraper, 'search', return_value=None) as mock_d2:
+            with patch.object(HEYZOScraper, 'search', return_value=None):
+                with patch.object(FC2Scraper, 'search', return_value=mock_video):
+                    with patch.object(AVSOXScraper, 'search', return_value=None):
+                        with patch('core.scrapers.utils.rate_limit'):
+                            results = smart_search("FC2-PPV-1234567", uncensored_mode=True)
+
+        assert len(results) == 1
+        mock_d2.assert_not_called()
+
 
 # ============================================================
 # Class 7: TestExtractNumber
@@ -553,6 +570,11 @@ class TestExtractNumber:
         scraper = D2PassScraper()
         result = scraper.normalize_number("120415_201")
         assert result == "120415_201"
+
+    def test_extract_number_hyphen_2digit(self):
+        """hyphen 格式 2-digit suffix 正確提取（T6b regex 修正）"""
+        result = extract_number("041417-41.mp4")
+        assert result == "041417-41"
 
 
 # ============================================================
@@ -695,3 +717,72 @@ class TestDMMTags:
         assert tags == ['美少女', 'ハイビジョン']
         assert label == 'S1 NO.1 STYLE'
         assert dmm_module._genres_supported is True
+
+
+# ============================================================
+# Class 9: TestFastPathRouting
+# ============================================================
+
+class TestFastPathRouting:
+    """Fast-path routing 測試 — FC2/HEYZO 前綴直接路由到正確來源"""
+
+    def _make_video(self, source: str, number: str = "TEST-001") -> Video:
+        return Video(
+            number=number,
+            title="Test Title",
+            actresses=[],
+            date="2024-01-01",
+            maker="Test Maker",
+            cover_url="",
+            tags=[],
+            source=source,
+            detail_url="https://example.com",
+        )
+
+    def test_fast_path_fc2(self):
+        """FC2 前綴 → D2PassScraper 不被呼叫，FC2Scraper 被呼叫"""
+        from core.scrapers.fc2 import FC2Scraper
+        from core.scrapers.avsox import AVSOXScraper
+        mock_video = self._make_video("fc2", "FC2-PPV-1234567")
+
+        with patch.object(D2PassScraper, 'search', return_value=None) as mock_d2:
+            with patch.object(HEYZOScraper, 'search', return_value=None):
+                with patch.object(FC2Scraper, 'search', return_value=mock_video) as mock_fc2:
+                    with patch.object(AVSOXScraper, 'search', return_value=None):
+                        with patch('core.scrapers.utils.rate_limit'):
+                            results = smart_search("FC2-PPV-1234567")
+
+        assert len(results) == 1
+        assert results[0]['_mode'] == 'uncensored'
+        mock_fc2.assert_called()
+        mock_d2.assert_not_called()
+
+    def test_fast_path_heyzo(self):
+        """HEYZO 前綴 → D2PassScraper 不被呼叫，HEYZOScraper 被呼叫"""
+        from core.scrapers.fc2 import FC2Scraper
+        from core.scrapers.avsox import AVSOXScraper
+        mock_video = self._make_video("heyzo", "HEYZO-0783")
+
+        with patch.object(D2PassScraper, 'search', return_value=None) as mock_d2:
+            with patch.object(HEYZOScraper, 'search', return_value=mock_video) as mock_heyzo:
+                with patch.object(FC2Scraper, 'search', return_value=None):
+                    with patch.object(AVSOXScraper, 'search', return_value=None):
+                        with patch('core.scrapers.utils.rate_limit'):
+                            results = smart_search("HEYZO-0783")
+
+        assert len(results) == 1
+        assert results[0]['_mode'] == 'uncensored'
+        mock_heyzo.assert_called()
+        mock_d2.assert_not_called()
+
+    def test_fast_path_d2pass_unchanged(self):
+        """D2Pass 日期格式 → D2PassScraper 被呼叫（完整路由不變）"""
+        mock_video = self._make_video("d2pass", "120415_201")
+
+        with patch.object(D2PassScraper, 'search', return_value=mock_video) as mock_d2:
+            with patch('core.scrapers.utils.rate_limit'):
+                results = smart_search("120415_201")
+
+        assert len(results) == 1
+        assert results[0]['_mode'] == 'uncensored'
+        mock_d2.assert_called()
