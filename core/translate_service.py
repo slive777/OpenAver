@@ -81,9 +81,10 @@ class OllamaTranslateService(TranslateService):
 
         適用場景：用戶查看第 1 片時立即翻譯
         """
-        prompt = f"""將以下日文AV標題翻譯成繁體中文。保留原本的色情語氣，女優名保留日文。只輸出翻譯結果。
+        system_msg = "你是日翻中翻譯機。輸入日文，輸出繁體中文。禁止輸出任何日文假名（の、は、が、で、に等）。"
+        prompt = f"""範例：義父の隣で夫に電話させながら人妻を寝取る → 在公公旁邊讓人妻一邊打電話給丈夫一邊被睡走
 
-{title}"""
+請翻譯：{title}"""
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -92,6 +93,7 @@ class OllamaTranslateService(TranslateService):
                     json={
                         "model": self.model,
                         "messages": [
+                            {"role": "system", "content": system_msg},
                             {"role": "user", "content": prompt}
                         ],
                         "stream": False,
