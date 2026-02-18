@@ -690,40 +690,6 @@
     }
 }
 
-/* ==================== AV Card Variants ==================== */
-
-/* Thumbnail Variant */
-.av-card-thumbnail {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    background: var(--bg-card);
-    border-radius: var(--fluent-radius-lg);
-    cursor: pointer;
-    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), border-color var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard);
-    border: 1px solid transparent;
-}
-
-.av-card-thumbnail:hover {
-    background: color-mix(in oklch, var(--color-base-content) 4%, transparent);
-    border-color: var(--accent);
-    transform: translateX(4px);
-}
-
-.av-card-thumbnail img {
-    width: 64px;
-    height: 48px;
-    object-fit: cover;
-    border-radius: var(--fluent-radius-md);
-}
-
-.av-card-thumbnail-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
 /* AV Card Full base styles → theme.css (全域可用) */
 
 /* AV Card Full: Demo-specific adjustments */
@@ -740,56 +706,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-}
-
-/* Compact Variant */
-.av-card-compact {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    border-radius: var(--fluent-radius-lg);
-    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
-    border: 1px solid transparent;
-}
-
-.av-card-compact:hover {
-    background: color-mix(in oklch, var(--color-base-content) 4%, transparent);
-    border-color: var(--border-light);
-}
-
-.av-card-compact.active {
-    background: color-mix(in oklch, var(--accent) 10%, transparent);
-    border-color: var(--accent);
-}
-
-.av-card-compact i {
-    color: var(--text-muted);
-    font-size: 1.1rem;
-}
-
-.av-filename {
-    flex: 1;
-    font-size: 0.9rem;
-    color: var(--text-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-weight: 500;
-}
-
-.av-status {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    font-weight: 500;
-}
-
-.av-status.searched {
-    color: var(--color-success);
-}
-
-.av-status.local {
-    color: var(--accent);
 }
 
 /* ==================== 必修 4：Gallery Card Hover（僅限 design-system 頁面）==================== */
@@ -928,10 +844,6 @@
 .gallery-card-img {
     border-radius: var(--radius-sm) var(--radius-sm) 0 0; /* 頂部 8px，底部直角（接觸 footer）*/
     overflow: hidden;
-}
-
-.av-card-thumbnail img {
-    border-radius: var(--radius-sm); /* 8px，統一封面/縮圖圓角 */
 }
 
 /* ==================== Navigation Rail Demo ==================== */

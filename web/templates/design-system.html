@@ -123,7 +123,6 @@
                     </div>
                 </div>
 
-                <!-- Stroke & Glow 區塊已移除：置中問題待解決 -->
             </div>
 
             <!-- 文字色 -->
@@ -385,18 +384,6 @@
                 </div>
             </div>
 
-            <!-- Bootstrap 按鈕（過渡期保留） -->
-            <div class="ds-subsection">
-                <h3>Bootstrap Buttons (Legacy)</h3>
-                <div class="ds-button-row">
-                    <button class="btn btn-primary">Primary</button>
-                    <button class="btn btn-outline-primary">Outline</button>
-                    <button class="btn btn-outline-secondary">Secondary</button>
-                    <button class="btn btn-outline-danger">Danger</button>
-                    <button class="btn btn-success">Success</button>
-                </div>
-            </div>
-
             <!-- 自訂按鈕 -->
             <div class="ds-subsection">
                 <h3>Custom Buttons</h3>
@@ -422,6 +409,9 @@
 
             <div class="ds-subsection">
                 <h3>Input Fields</h3>
+                <p class="ds-desc" style="font-size: 0.85rem; color: var(--text-muted);">
+                    <code>form-control</code>、<code>form-select</code>、<code>form-check</code>、<code>form-check-input</code> 為 Bootstrap classes，已由 DaisyUI override 統一視覺。
+                </p>
                 <div class="ds-form-grid">
                     <div class="ds-form-item">
                         <label class="form-label">Text Input</label>
@@ -592,17 +582,6 @@
             <h2>Cards</h2>
 
             <div class="ds-subsection">
-                <h3>Bootstrap Card (Legacy)</h3>
-                <div class="card" style="max-width: 300px;">
-                    <div class="card-header">Card Header</div>
-                    <div class="card-body">
-                        <h5 class="card-title">Card Title</h5>
-                        <p class="card-text">Card content goes here.</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="ds-subsection">
                 <h3>Fluent Card (C.5 Enhanced)</h3>
                 <div class="fluent-card" style="max-width: 300px; padding: 1rem; background: var(--bg-card);">
                     <h5>Fluent Card</h5>
@@ -753,44 +732,6 @@
                 </div>
             </div>
 
-            <!-- Compact 變體 -->
-            <div class="ds-subsection">
-                <h3>3. Compact（檔案列表行）</h3>
-                <p class="ds-desc">用於批次處理的檔案列表，單行緊湊</p>
-                <div class="ds-card-demo">
-                    <div class="av-card-compact">
-                        <i class="bi bi-file-earmark-play"></i>
-                        <span class="av-filename">SONE-103.mp4</span>
-                        <span class="av-num">SONE-103</span>
-                        <span class="av-status searched"><i class="bi bi-check"></i> 已搜尋</span>
-                        <button class="btn btn-sm btn-outline-primary">產生</button>
-                    </div>
-                    <div class="av-card-compact">
-                        <i class="bi bi-file-earmark-play"></i>
-                        <span class="av-filename">IPZZ-001_uncensored.mp4</span>
-                        <span class="av-num">IPZZ-001</span>
-                        <span class="av-status pending">待搜尋</span>
-                        <button class="btn btn-sm btn-outline-secondary">搜尋</button>
-                    </div>
-                    <div class="av-card-compact active">
-                        <i class="bi bi-file-earmark-play"></i>
-                        <span class="av-filename">FC2-PPV-1723984.mp4</span>
-                        <span class="av-num">FC2-PPV-1723984</span>
-                        <span class="av-status local"><i class="bi bi-folder-check"></i> 本地</span>
-                        <button class="btn btn-sm btn-success">完成</button>
-                    </div>
-                </div>
-                <pre class="ds-code"><code>.av-card-compact {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  border-radius: var(--fluent-radius-md);
-}
-.av-card-compact.active {
-  background: var(--border-light);
-}</code></pre>
-            </div>
         </section>
 
         <!-- 區塊 7: File Components (glass 樣式) -->
@@ -1385,18 +1326,6 @@
             </div>
 
             <div class="ds-subsection">
-                <h3>Tabs (DaisyUI)</h3>
-                <div class="alert alert-warning" role="alert" style="margin-bottom: 1rem; padding: 0.5rem 0.75rem;">
-                    <i class="bi bi-exclamation-triangle"></i> <strong>未實際使用</strong> - 此元件目前未在專案中使用
-                </div>
-                <div class="tabs tabs-bordered">
-                    <a class="tab tab-active">Tab 1</a>
-                    <a class="tab">Tab 2</a>
-                    <a class="tab">Tab 3</a>
-                </div>
-            </div>
-
-            <div class="ds-subsection">
                 <h3>Navigation Rail (Collapsed State)</h3>
                 <p class="ds-desc">Icon-only 導航條，用於收合側邊欄時的精簡模式。展示 Fluent Design 2 規範的 48x48px 正方形項目 + pill 形 active 狀態</p>
 
@@ -1711,9 +1640,9 @@
                     <div class="alert alert-warning" role="alert">
                         <i class="bi bi-exclamation-triangle"></i> 警告訊息
                     </div>
-                    <span class="badge bg-primary">Badge</span>
-                    <span class="badge bg-danger">錯誤</span>
-                    <span class="badge bg-success">成功</span>
+                    <span class="badge badge-primary">Badge</span>
+                    <span class="badge badge-error">錯誤</span>
+                    <span class="badge badge-success">成功</span>
                 </div>
             </div>
 
@@ -1748,10 +1677,10 @@
             <div class="ds-subsection">
                 <h3>Spinner</h3>
                 <div class="ds-feedback-row">
-                    <span class="spinner-border spinner-border-sm"></span>
-                    <span class="spinner-border"></span>
+                    <span class="loading loading-spinner loading-sm"></span>
+                    <span class="loading loading-spinner"></span>
                     <button class="btn btn-primary" disabled>
-                        <span class="spinner-border spinner-border-sm"></span> 載入中...
+                        <span class="loading loading-spinner loading-sm"></span> 載入中...
                     </button>
                 </div>
             </div>
