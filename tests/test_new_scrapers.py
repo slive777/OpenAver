@@ -11,6 +11,7 @@ from unittest.mock import patch, MagicMock, call
 from core.scrapers.d2pass import D2PassScraper
 from core.scrapers.heyzo import HEYZOScraper
 from core.scrapers.dmm import DMMScraper
+from core.scrapers.javbus import JavBusScraper
 from core.scrapers.models import Video, Actress, ScraperConfig
 from core.scrapers.utils import extract_number
 from core.scraper import search_jav, smart_search
@@ -732,3 +733,53 @@ class TestFastPathRouting:
         assert len(results) == 1
         assert results[0]['_mode'] == 'uncensored'
         mock_d2.assert_called()
+
+
+# ============================================================
+# Class 9: TestUnknownSource
+# ============================================================
+
+class TestUnknownSource:
+    """未知 source 驗證測試 — 確保 JavGuru 等已移除來源明確失敗"""
+
+    def test_search_jav_unknown_source_returns_none(self):
+        """search_jav 傳入未知來源（如 'javguru'）→ 立即返回 None，不走 auto mode"""
+        # 確認完全不呼叫任何 scraper
+        with patch.object(JavBusScraper, 'search', return_value=None) as mock_jb:
+            with patch.object(DMMScraper, 'search', return_value=None) as mock_dmm:
+                result = search_jav("SONE-205", source="javguru")
+
+        assert result is None
+        mock_jb.assert_not_called()
+        mock_dmm.assert_not_called()
+
+    def test_search_jav_unknown_source_no_fallback(self):
+        """未知來源不應 fallback 到 auto mode — 即使 scraper 能找到結果也應被攔截"""
+        from core.scrapers.models import Video
+
+        mock_video = Video(
+            number="SONE-205",
+            title="Should Not Appear",
+            actresses=[],
+            date="2024-01-01",
+            maker="Test",
+            cover_url="",
+            tags=[],
+            source="javbus",
+            detail_url="https://example.com",
+        )
+
+        with patch.object(JavBusScraper, 'search', return_value=mock_video):
+            result = search_jav("SONE-205", source="javguru")
+
+        assert result is None
+
+    def test_api_unknown_source_returns_400(self):
+        """GET /api/search?q=SONE-205&source=javguru → HTTP 400"""
+        client = TestClient(app)
+        resp = client.get("/api/search", params={"q": "SONE-205", "source": "javguru"})
+
+        assert resp.status_code == 400
+        data = resp.json()
+        assert "error" in data
+        assert "javguru" in data["error"]

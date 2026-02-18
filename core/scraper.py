@@ -183,6 +183,11 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '') -> Option
     # 標準化番號
     number = normalize_number(number)
 
+    VALID_SOURCES = {'auto', 'dmm', 'javbus', 'jav321', 'javdb', 'd2pass', 'heyzo', 'fc2', 'avsox'}
+    if source not in VALID_SOURCES:
+        logger.warning(f"[Search] 未知來源: {source}")
+        return None
+
     # DMM 需要 proxy，有 proxy_url 才建立
     dmm_config = ScraperConfig(proxy_url=proxy_url) if proxy_url else None
 
@@ -211,6 +216,7 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '') -> Option
     elif source == 'avsox':
         scrapers = [AVSOXScraper()]
     else:
+        # 安全 fallback — 理論上已被上方 VALID_SOURCES 攔截，不應執行到此
         scrapers = [cls() for cls in SCRAPER_CLASSES]
 
     # 執行搜尋

@@ -3,7 +3,7 @@
 """
 
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import Response, StreamingResponse, JSONResponse
 from typing import Optional, List, Dict
 import re
 import requests
@@ -103,6 +103,12 @@ def search(
     q = q.strip()
     if not q or len(q) < 2:
         return {"success": False, "error": "請輸入有效的搜尋關鍵字", "data": [], "total": 0}
+
+    # 驗證 source 參數
+    if source is not None:
+        valid_sources = {'auto', 'dmm', 'javbus', 'jav321', 'javdb', 'd2pass', 'heyzo', 'fc2', 'avsox'}
+        if source not in valid_sources:
+            return JSONResponse(status_code=400, content={"error": f"未知來源: {source}"})
 
     # 如果指定了 variant_id，直接搜索該版本
     if variant_id:
