@@ -519,6 +519,23 @@ def search_by_variant_id(variant_id: str, base_number: str) -> Optional[Dict[str
     return None
 
 
+def _get_uncensored_sources(search_term: str) -> list[str]:
+    """
+    根據番號前綴決定無碼來源搜尋順序。
+
+    - FC2 前綴 → ['fc2', 'avsox']（省 D2Pass + HEYZO）
+    - HEYZO 前綴 → ['heyzo', 'avsox']（省 D2Pass）
+    - 其他（D2Pass 日期格式等）→ ['d2pass', 'heyzo', 'fc2', 'avsox']（原始順序）
+    """
+    term_lower = search_term.lower().strip()
+    if term_lower.startswith('fc2'):
+        return ['fc2', 'avsox']
+    elif term_lower.startswith('heyzo'):
+        return ['heyzo', 'avsox']
+    else:
+        return ['d2pass', 'heyzo', 'fc2', 'avsox']
+
+
 def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, uncensored_mode: bool = False, proxy_url: str = '') -> List[Dict[str, Any]]:
     """
     智慧搜尋：自動判斷搜尋類型並執行
@@ -544,7 +561,8 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
         search_term = extracted if extracted else query
 
         result = None
-        for unc_source in ['d2pass', 'heyzo', 'fc2', 'avsox']:
+        unc_sources = _get_uncensored_sources(search_term)
+        for unc_source in unc_sources:
             if status_callback:
                 status_callback(unc_source, 'searching')
             result = search_jav(search_term, source=unc_source, proxy_url=proxy_url)
@@ -571,7 +589,8 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
         extracted = _new_extract_number(query)
         search_term = extracted if extracted else query
         result = None
-        for unc_source in ['d2pass', 'heyzo', 'fc2', 'avsox']:
+        unc_sources = _get_uncensored_sources(search_term)
+        for unc_source in unc_sources:
             if status_callback:
                 status_callback(unc_source, 'searching')
             result = search_jav(search_term, source=unc_source, proxy_url=proxy_url)
