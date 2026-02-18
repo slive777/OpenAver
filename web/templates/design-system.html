@@ -172,18 +172,6 @@
                 </div>
             </div>
 
-            <!-- 陰影展示 -->
-            <div class="ds-subsection">
-                <h3>Elevation (Shadow)</h3>
-                <div class="ds-shadow-grid">
-                    <div class="ds-shadow-item fluent-shadow-2">shadow-2</div>
-                    <div class="ds-shadow-item fluent-shadow-4">shadow-4</div>
-                    <div class="ds-shadow-item fluent-shadow-8">shadow-8</div>
-                    <div class="ds-shadow-item fluent-shadow-16">shadow-16</div>
-                </div>
-                <p class="ds-note">Light/Dark 模式下陰影深度自動調整</p>
-            </div>
-
             <!-- 完整 Elevation Scale 展示 -->
             <div class="ds-subsection">
                 <h3>Elevation Scale (Complete)</h3>
@@ -614,6 +602,9 @@
         </section>
 
         <!-- 區塊 6: AV Card Variants（重點，accent-bar 樣式）-->
+        <!-- NOTE: ds-gallery-composition class 必須保留 —— search.css:644 的
+             :is(#ds-gallery-components, .ds-gallery-composition) .hero-card 依賴此 class
+             提供 hero-card 的 object-fit: contain 和 letterbox 背景（T7.5 新增的 demo）-->
         <section id="ds-av-cards" class="ds-section accent-bar ds-gallery-composition">
             <h2>AV Card Variants</h2>
             <p class="ds-note">3 種核心卡片變體用於不同場景，統一使用 Fluent Design tokens</p>
@@ -1329,34 +1320,6 @@
                 <h3>Navigation Rail (Collapsed State)</h3>
                 <p class="ds-desc">Icon-only 導航條，用於收合側邊欄時的精簡模式。展示 Fluent Design 2 規範的 48x48px 正方形項目 + pill 形 active 狀態</p>
 
-                <!-- 展開 vs 收合對比 -->
-                <h4 class="ds-group-label">EXPANDED VS COLLAPSED</h4>
-                <div style="display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start; margin-bottom: 2rem;">
-                    <!-- 展開狀態 (Traditional Sidebar) -->
-                    <div>
-                        <span style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">Expanded (200px)</span>
-                        <div class="ds-sidebar-demo">
-                            <nav class="ds-sidebar-mini">
-                                <a class="nav-link active"><i class="bi bi-search"></i> 搜尋</a>
-                                <a class="nav-link"><i class="bi bi-list-ul"></i> 列表生成</a>
-                                <a class="nav-link"><i class="bi bi-collection-play"></i> 瀏覽</a>
-                                <a class="nav-link"><i class="bi bi-gear"></i> 設定</a>
-                            </nav>
-                        </div>
-                    </div>
-
-                    <!-- 收合狀態 (Navigation Rail) -->
-                    <div>
-                        <span style="display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">Collapsed (60px)</span>
-                        <div class="ds-nav-rail">
-                            <a class="ds-nav-rail-link active" title="搜尋"><i class="bi bi-search"></i></a>
-                            <a class="ds-nav-rail-link" title="列表生成"><i class="bi bi-list-ul"></i></a>
-                            <a class="ds-nav-rail-link" title="瀏覽"><i class="bi bi-collection-play"></i></a>
-                            <a class="ds-nav-rail-link" title="設定"><i class="bi bi-gear"></i></a>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- 狀態展示 -->
                 <h4 class="ds-group-label">STATE MATRIX</h4>
                 <div style="display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start; margin-bottom: 2rem;">
@@ -1648,30 +1611,19 @@
 
             <div class="ds-subsection">
                 <h3>Toast</h3>
-                <div class="ds-toast-demo">
-                    <div class="toast-msg show">這是一個 Toast 訊息</div>
-                </div>
-                <div class="ds-toast-demo">
-                    <div class="source-toast-inline show">已複製</div>
-                </div>
+                <p class="ds-desc">
+                    <code>toast-msg</code> 和 <code>source-toast-inline</code> 為舊版實作，已棄用。
+                    標準 Toast 實作為 <code>fluent-toast</code>，請參見
+                    <a href="#ds-toasts" style="color: var(--color-primary);">Toasts section</a>。
+                </p>
             </div>
 
             <div class="ds-subsection">
                 <h3>Progress Bar</h3>
-                <div class="ds-progress-demo">
-                    <div class="detail-progress show" style="position: relative;">
-                        <div class="detail-bar" style="width: 65%;"></div>
-                        <span class="detail-text">65 / 100</span>
-                    </div>
-                </div>
-                <div class="ds-progress-demo">
-                    <div class="batch-progress">
-                        <div class="batch-progress-bar">
-                            <div class="batch-progress-fill" style="width: 40%;"></div>
-                        </div>
-                        <small class="batch-progress-text">處理中 4/10</small>
-                    </div>
-                </div>
+                <p class="ds-desc">
+                    <code>detail-progress</code> 和 <code>batch-progress</code> 的完整展示（含 code snippet）
+                    請參見 <a href="#ds-progress" style="color: var(--color-primary);">Progress &amp; Feedback section</a>。
+                </p>
             </div>
 
             <div class="ds-subsection">
