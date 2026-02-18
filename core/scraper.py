@@ -578,8 +578,8 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
 
     # 0. 無碼特殊處理 - 自動偵測（FC2 / HEYZO / 日期-編號格式）
     is_uncensored = (
-        'fc2' in query.lower() or
-        'heyzo' in query.lower() or
+        query.lower().strip().startswith('fc2') or
+        query.lower().strip().startswith('heyzo') or
         re.match(r'^\d{6}-\d{2,}$', query) or
         re.match(r'^\d{6}_\d{2,}$', query)
     )

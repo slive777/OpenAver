@@ -547,6 +547,23 @@ class TestPipeline:
         assert len(results) == 1
         mock_d2.assert_not_called()
 
+    def test_uncensored_mode_fast_path_heyzo(self):
+        """uncensored_mode=True + HEYZO 前綴 → D2PassScraper 不被呼叫"""
+        mock_video = self._make_video("heyzo", "HEYZO-0783")
+
+        from core.scrapers.fc2 import FC2Scraper
+        from core.scrapers.avsox import AVSOXScraper
+
+        with patch.object(D2PassScraper, 'search', return_value=None) as mock_d2:
+            with patch.object(HEYZOScraper, 'search', return_value=mock_video) as mock_heyzo:
+                with patch.object(FC2Scraper, 'search', return_value=None):
+                    with patch.object(AVSOXScraper, 'search', return_value=None):
+                        with patch('core.scrapers.utils.rate_limit'):
+                            results = smart_search("HEYZO-0783", uncensored_mode=True)
+
+        assert len(results) == 1
+        mock_d2.assert_not_called()
+
 
 # ============================================================
 # Class 7: TestExtractNumber
@@ -746,7 +763,7 @@ class TestFastPathRouting:
         mock_video = self._make_video("fc2", "FC2-PPV-1234567")
 
         with patch.object(D2PassScraper, 'search', return_value=None) as mock_d2:
-            with patch.object(HEYZOScraper, 'search', return_value=None):
+            with patch.object(HEYZOScraper, 'search', return_value=None) as mock_heyzo:
                 with patch.object(FC2Scraper, 'search', return_value=mock_video) as mock_fc2:
                     with patch.object(AVSOXScraper, 'search', return_value=None):
                         with patch('core.scrapers.utils.rate_limit'):
@@ -756,6 +773,7 @@ class TestFastPathRouting:
         assert results[0]['_mode'] == 'uncensored'
         mock_fc2.assert_called()
         mock_d2.assert_not_called()
+        mock_heyzo.assert_not_called()
 
     def test_fast_path_heyzo(self):
         """HEYZO 前綴 → D2PassScraper 不被呼叫，HEYZOScraper 被呼叫"""
@@ -765,7 +783,7 @@ class TestFastPathRouting:
 
         with patch.object(D2PassScraper, 'search', return_value=None) as mock_d2:
             with patch.object(HEYZOScraper, 'search', return_value=mock_video) as mock_heyzo:
-                with patch.object(FC2Scraper, 'search', return_value=None):
+                with patch.object(FC2Scraper, 'search', return_value=None) as mock_fc2:
                     with patch.object(AVSOXScraper, 'search', return_value=None):
                         with patch('core.scrapers.utils.rate_limit'):
                             results = smart_search("HEYZO-0783")
@@ -774,6 +792,7 @@ class TestFastPathRouting:
         assert results[0]['_mode'] == 'uncensored'
         mock_heyzo.assert_called()
         mock_d2.assert_not_called()
+        mock_fc2.assert_not_called()
 
     def test_fast_path_d2pass_unchanged(self):
         """D2Pass 日期格式 → D2PassScraper 被呼叫（完整路由不變）"""
