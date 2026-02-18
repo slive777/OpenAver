@@ -8,6 +8,8 @@ from .fc2 import FC2Scraper
 from .avsox import AVSOXScraper
 from .d2pass import D2PassScraper
 from .heyzo import HEYZOScraper
+from .javguru import JavGuruScraper
+from .dmm import DMMScraper
 from .utils import extract_number
 
 __all__ = [
@@ -22,5 +24,7 @@ __all__ = [
     'AVSOXScraper',
     'D2PassScraper',
     'HEYZOScraper',
+    'JavGuruScraper',
+    'DMMScraper',
     'extract_number',
 ]
