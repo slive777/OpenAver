@@ -443,8 +443,12 @@
         {% block content %}{% endblock %}
     </main>
 
+    <!-- GSAP Core (Phase E) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <!-- Motion Preferences Bridge (T4) -->
     <script src="/static/js/components/motion-prefs.js"></script>
+    <!-- Motion Adapter — shared GSAP wrappers (T5) -->
+    <script src="/static/js/components/motion-adapter.js"></script>
 
     <!-- Alpine Plugins (must load before Alpine Core) -->
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js"></script>
