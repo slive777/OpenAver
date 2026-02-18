@@ -36,8 +36,8 @@
 
 [data-theme="dim"] .tutorial-spotlight {
     box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75),
-        0 0 0 4px rgba(90, 200, 250, 0.9),
-        0 0 20px rgba(90, 200, 250, 0.6),
+        0 0 0 4px rgba(var(--ds-glow-rgb), 0.9),
+        0 0 20px rgba(var(--ds-glow-rgb), 0.6),
         inset 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 

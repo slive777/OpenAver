@@ -240,3 +240,85 @@ class TestNoInlineStyleDisplay:
             "\n".join(f"  - {v}" for v in violations) +
             "\n\n提示：應該移除 style='display:none'，改用 x-cloak 處理初始隱藏"
         )
+
+
+class TestMotionInfra:
+    """確認 GSAP motion 基礎設施完整"""
+
+    def test_motion_prefs_js_exists(self):
+        """motion-prefs.js 存在且包含必要 API"""
+        js_file = PROJECT_ROOT / "web" / "static" / "js" / "components" / "motion-prefs.js"
+        assert js_file.exists(), f"motion-prefs.js 不存在: {js_file}"
+
+        content = js_file.read_text(encoding='utf-8')
+        assert 'prefersReducedMotion' in content, \
+            "motion-prefs.js 缺少 prefersReducedMotion"
+        assert 'openaver:motion-pref-change' in content, \
+            "motion-prefs.js 缺少 openaver:motion-pref-change 事件"
+        assert 'addListener' in content, \
+            "motion-prefs.js 缺少 addListener 相容性 fallback"
+
+    def test_motion_adapter_js_exists(self):
+        """motion-adapter.js 存在且包含 4 個共用動畫函數 + createContext + _shouldAnimate"""
+        js_file = PROJECT_ROOT / "web" / "static" / "js" / "components" / "motion-adapter.js"
+        assert js_file.exists(), f"motion-adapter.js 不存在: {js_file}"
+
+        content = js_file.read_text(encoding='utf-8')
+        for symbol in ('createContext', 'playEnter', 'playLeave', 'playStagger',
+                        'playModal', '_shouldAnimate'):
+            assert symbol in content, f"motion-adapter.js 缺少 {symbol}"
+
+    def test_base_html_loads_gsap_and_adapters(self):
+        """base.html 載入 GSAP CDN + motion-prefs + motion-adapter，且順序正確"""
+        base_html = PROJECT_ROOT / "web" / "templates" / "base.html"
+        assert base_html.exists(), f"base.html 不存在: {base_html}"
+
+        content = base_html.read_text(encoding='utf-8')
+
+        assert 'gsap.min.js' in content, "base.html 缺少 GSAP CDN script"
+        assert 'motion-prefs.js' in content, "base.html 缺少 motion-prefs.js"
+        assert 'motion-adapter.js' in content, "base.html 缺少 motion-adapter.js"
+        assert 'alpinejs' in content, "base.html 缺少 Alpine.js"
+
+        # 驗證載入順序：GSAP → motion-prefs → motion-adapter → Alpine
+        idx_gsap = content.index('gsap.min.js')
+        idx_prefs = content.index('motion-prefs.js')
+        idx_adapter = content.index('motion-adapter.js')
+        idx_alpine = content.index('alpinejs')
+
+        assert idx_gsap < idx_prefs, \
+            "載入順序錯誤：gsap.min.js 應在 motion-prefs.js 之前"
+        assert idx_prefs < idx_adapter, \
+            "載入順序錯誤：motion-prefs.js 應在 motion-adapter.js 之前"
+        assert idx_adapter < idx_alpine, \
+            "載入順序錯誤：motion-adapter.js 應在 alpinejs 之前"
+
+    def test_no_direct_gsap_calls_in_pages(self):
+        """頁面/元件 JS 不直接呼叫 GSAP API — 必須透過 motion adapter"""
+        scan_dirs = [
+            PROJECT_ROOT / "web" / "static" / "js" / "pages",
+            PROJECT_ROOT / "web" / "static" / "js" / "components",
+        ]
+        # motion-adapter.js 本身是合法 GSAP 呼叫點
+        allowed_files = {'motion-adapter.js'}
+        violations = []
+
+        for scan_dir in scan_dirs:
+            if not scan_dir.exists():
+                continue
+            for js_file in scan_dir.rglob("*.js"):
+                if js_file.name in allowed_files:
+                    continue
+                matches = find_pattern_in_file(
+                    js_file,
+                    r'(?:gsap\.(to|from|fromTo|set|timeline)\(|ScrollTrigger\.(create|batch)\()'
+                )
+                for line_num, line_content in matches:
+                    violations.append(
+                        f"{js_file.relative_to(PROJECT_ROOT)}:{line_num} — {line_content[:80]}"
+                    )
+
+        assert len(violations) == 0, (
+            f"發現 {len(violations)} 個直接 GSAP 呼叫（應透過 OpenAver.motion.*）:\n" +
+            "\n".join(f"  - {v}" for v in violations)
+        )

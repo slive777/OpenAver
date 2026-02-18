@@ -60,7 +60,7 @@
         <form id="searchForm" @submit.prevent="doSearch()">
             <div class="spotlight-search">
                 <i class="bi bi-search search-icon-left"></i>
-                <input type="text" id="searchQuery" name="q" placeholder="搜尋番號、女優或拖入檔案..." autocomplete="off" x-model="searchQuery">
+                <input type="text" id="searchQuery" name="q" placeholder="搜尋番號、女優或拖入檔案..." autocomplete="off" x-model="searchQuery" x-ref="searchQuery">
                 <div class="search-actions-right">
                     <!-- 取消搜尋按鈕（loading 狀態顯示） -->
                     <button type="button"
@@ -173,7 +173,7 @@
                  @animationend.self="markLocalBorderPlayed(current()?.number)">
                 <div class="av-card-full-cover">
                     <div class="av-card-full-cover-wrapper">
-                        <img id="resultCover" class="av-card-full-cover-img"
+                        <img id="resultCover" x-ref="coverImg" class="av-card-full-cover-img"
                              x-show="!coverError && current().cover"
                              :src="coverUrl()"
                              @error="handleCoverError()"

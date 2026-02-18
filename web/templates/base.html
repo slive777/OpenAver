@@ -71,7 +71,10 @@
             left: 0;
             width: var(--sidebar-width);
             height: 100vh;
-            background-color: var(--surface-1);
+            background-color: color-mix(in oklch, var(--color-base-200) 75%, transparent);
+            backdrop-filter: blur(var(--fluent-blur)) saturate(var(--fluent-saturate));
+            -webkit-backdrop-filter: blur(var(--fluent-blur)) saturate(var(--fluent-saturate));
+            border-right: 1px solid var(--stroke-subtle);
             z-index: 1000;
             transition: width var(--fluent-duration-normal) var(--fluent-ease-standard), background-color 0.3s ease;
             display: flex;
@@ -79,7 +82,7 @@
         }
 
         [data-theme="dim"] .sidebar {
-            background-color: var(--surface-2);
+            background-color: color-mix(in oklch, var(--color-base-300) 75%, transparent);
         }
 
         .sidebar.collapsed {
@@ -281,7 +284,7 @@
 }"
      x-init="$watch('sidebarCollapsed', configSync('sidebar_collapsed'))"
      :class="{ 'sidebar-collapsed': sidebarCollapsed }"
-     class="{% if page in ['design-system', 'showcase'] %}ds-page{% endif %}">
+     class="{% if page in ['design-system', 'showcase'] %}ds-page{% endif %} fluent-canvas page-{{ page }}">
     <!-- Sidebar: Jinja 直接渲染 class 防止閃爍（不依賴 localStorage） -->
     <script>
       if ({{ sidebar_collapsed|default(false)|tojson }}) {
@@ -327,7 +330,7 @@
          x-transition:leave="transition ease-in duration-200"
          x-transition:leave-start="opacity-100 translate-x-0"
          x-transition:leave-end="opacity-0 -translate-x-full"
-         class="fixed inset-y-0 left-0 w-64 bg-base-200 shadow-xl z-[210] lg:hidden"
+         class="fixed inset-y-0 left-0 w-64 shadow-xl z-[210] lg:hidden fluent-acrylic"
          tabindex="-1">
         <div class="flex items-center justify-between p-4 border-b border-base-300">
             <h5 class="text-lg font-semibold">
@@ -442,6 +445,13 @@
     <main class="main-content">
         {% block content %}{% endblock %}
     </main>
+
+    <!-- GSAP Core (Phase E) — defer 保序：GSAP → prefs → adapter → Alpine -->
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <!-- Motion Preferences Bridge (T4) -->
+    <script defer src="/static/js/components/motion-prefs.js"></script>
+    <!-- Motion Adapter — shared GSAP wrappers (T5) -->
+    <script defer src="/static/js/components/motion-adapter.js"></script>
 
     <!-- Alpine Plugins (must load before Alpine Core) -->
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js"></script>

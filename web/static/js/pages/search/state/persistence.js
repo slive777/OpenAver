@@ -64,7 +64,6 @@ window.SearchStateMixin_Persistence = {
         // T1a: 從 core.js module vars 讀取（它們是 source of truth）
         // Alpine state 可能是 stale（core.js 函數直接改 module vars，不經過 Alpine）
         const coreState = window.SearchCore?.state;
-        const queryInput = document.getElementById('searchQuery');
         const state = {
             searchResults: coreState?.searchResults ?? this.searchResults,
             currentIndex: coreState?.currentIndex ?? this.currentIndex,
@@ -74,7 +73,7 @@ window.SearchStateMixin_Persistence = {
             fileList: coreState?.fileList ?? this.fileList,
             currentFileIndex: coreState?.currentFileIndex ?? this.currentFileIndex,
             listMode: coreState?.listMode ?? this.listMode,
-            queryValue: queryInput ? queryInput.value : '',
+            queryValue: this.searchQuery,
             displayMode: this.displayMode,
             currentMode: this.currentMode,  // T3 fix: 持久化搜尋模式
             actressProfile: this.actressProfile  // T5: 持久化女優資料

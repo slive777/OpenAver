@@ -227,7 +227,7 @@ window.SearchStateMixin_ResultCard = {
         // Fix 4: 一次自動重試（cache bust）
         if (!this._coverRetried) {
             this._coverRetried = true;
-            const img = document.getElementById('resultCover');
+            const img = this.$refs.coverImg;
             if (img && img.src) {
                 const sep = img.src.includes('?') ? '&' : '?';
                 img.src = img.src + sep + '_t=' + Date.now();

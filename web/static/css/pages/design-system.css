@@ -5,7 +5,7 @@
 /* 必修 1：背景層次（加在 body.ds-page 上） */
 .ds-page {
     background:
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(90, 200, 250, 0.15), transparent),
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(var(--ds-glow-rgb), 0.15), transparent),
         radial-gradient(ellipse 60% 40% at 80% 100%, oklch(55% 0.15 250 / 0.08), transparent),
         var(--bg-body);
 }
@@ -17,7 +17,7 @@
 
 [data-theme="dim"] .ds-page {
     background:
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(90, 200, 250, 0.08), transparent),
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(var(--ds-glow-rgb), 0.08), transparent),
         radial-gradient(ellipse 60% 40% at 80% 100%, oklch(55% 0.2 280 / 0.06), transparent),
         var(--bg-body);
 }
@@ -128,7 +128,7 @@
     right: -20%;
     width: 400px;
     height: 400px;
-    background: radial-gradient(circle, rgba(90, 200, 250, 0.2) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(var(--ds-glow-rgb), 0.2) 0%, transparent 70%);
     pointer-events: none;
     animation: ds-float 6s ease-in-out infinite;
 }
@@ -342,7 +342,7 @@
     transform: translateY(-4px) scale(1.02);
     box-shadow:
         0 0 0 2px var(--accent),
-        0 0 20px rgba(90, 200, 250, 0.2),
+        0 0 20px rgba(var(--ds-glow-rgb), 0.2),
         var(--fluent-shadow-16);
 }
 
@@ -498,7 +498,7 @@
 
 .ds-radius-item:hover {
     transform: scale(1.08);
-    box-shadow: 0 8px 24px rgba(90, 200, 250, 0.3);
+    box-shadow: 0 8px 24px rgba(var(--ds-glow-rgb), 0.3);
 }
 
 [data-theme="dim"] .ds-radius-item {
@@ -601,7 +601,7 @@
 
 .ds-duration-item:hover {
     border-color: var(--accent);
-    background: rgba(90, 200, 250, 0.05);
+    background: rgba(var(--ds-glow-rgb), 0.05);
 }
 
 .ds-duration-name {
@@ -690,40 +690,6 @@
     }
 }
 
-/* ==================== AV Card Variants ==================== */
-
-/* Thumbnail Variant */
-.av-card-thumbnail {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    background: var(--bg-card);
-    border-radius: var(--fluent-radius-lg);
-    cursor: pointer;
-    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), border-color var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard);
-    border: 1px solid transparent;
-}
-
-.av-card-thumbnail:hover {
-    background: color-mix(in oklch, var(--color-base-content) 4%, transparent);
-    border-color: var(--accent);
-    transform: translateX(4px);
-}
-
-.av-card-thumbnail img {
-    width: 64px;
-    height: 48px;
-    object-fit: cover;
-    border-radius: var(--fluent-radius-md);
-}
-
-.av-card-thumbnail-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
 /* AV Card Full base styles → theme.css (全域可用) */
 
 /* AV Card Full: Demo-specific adjustments */
@@ -742,56 +708,6 @@
     gap: 4px;
 }
 
-/* Compact Variant */
-.av-card-compact {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    border-radius: var(--fluent-radius-lg);
-    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
-    border: 1px solid transparent;
-}
-
-.av-card-compact:hover {
-    background: color-mix(in oklch, var(--color-base-content) 4%, transparent);
-    border-color: var(--border-light);
-}
-
-.av-card-compact.active {
-    background: color-mix(in oklch, var(--accent) 10%, transparent);
-    border-color: var(--accent);
-}
-
-.av-card-compact i {
-    color: var(--text-muted);
-    font-size: 1.1rem;
-}
-
-.av-filename {
-    flex: 1;
-    font-size: 0.9rem;
-    color: var(--text-primary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-weight: 500;
-}
-
-.av-status {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    font-weight: 500;
-}
-
-.av-status.searched {
-    color: var(--color-success);
-}
-
-.av-status.local {
-    color: var(--accent);
-}
-
 /* ==================== 必修 4：Gallery Card Hover（僅限 design-system 頁面）==================== */
 .ds-gallery-card:hover .gallery-card-actions {
     opacity: 1;
@@ -803,7 +719,7 @@
 .ds-gallery-card:hover {
     box-shadow:
         0 0 0 2px var(--accent),
-        0 0 20px rgba(90, 200, 250, 0.15),
+        0 0 20px rgba(var(--ds-glow-rgb), 0.15),
         var(--fluent-shadow-8);
 }
 
@@ -869,7 +785,7 @@
 .ds-sidebar-mini .nav-link.active {
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%);
     color: oklch(100% 0 0);
-    box-shadow: 0 4px 12px rgba(90, 200, 250, 0.3);
+    box-shadow: 0 4px 12px rgba(var(--ds-glow-rgb), 0.3);
 }
 
 [data-theme="dim"] .ds-sidebar-mini .nav-link.active {
@@ -928,10 +844,6 @@
 .gallery-card-img {
     border-radius: var(--radius-sm) var(--radius-sm) 0 0; /* 頂部 8px，底部直角（接觸 footer）*/
     overflow: hidden;
-}
-
-.av-card-thumbnail img {
-    border-radius: var(--radius-sm); /* 8px，統一封面/縮圖圓角 */
 }
 
 /* ==================== Navigation Rail Demo ==================== */
@@ -1149,9 +1061,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.5rem 0.75rem;
-    border-bottom: 1px solid var(--border-light);
-    margin-bottom: 0.5rem;
+    margin-bottom: 6px;
 }
 
 /* Collapse toggle */
@@ -1237,9 +1147,6 @@
     flex-shrink: 0;
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
 
 .ds-page .detail-progress {
     display: none;
@@ -1321,7 +1228,7 @@
     border-color: var(--accent);
     box-shadow:
         0 0 0 1px var(--accent),
-        0 0 20px rgba(90, 200, 250, 0.2),
+        0 0 20px rgba(var(--ds-glow-rgb), 0.2),
         var(--fluent-shadow-8);
     transform: translateY(-2px);
 }
@@ -2062,4 +1969,296 @@
 .ds-kbd-label {
     font-size: 0.7rem;
     color: var(--text-muted);
+}
+
+/* ==================== D.13: Hero Card Demo ==================== */
+
+/* Hero Card demo wrapper：讓卡片不要撐滿整行 */
+.ds-hero-card-demo {
+    justify-content: flex-start;
+}
+
+/* Hero Card footer 靜態 demo（showcase.css 未載入時的 fallback） */
+/* 僅在 design-system 頁使用，不影響 production */
+.ds-hero-footer-default {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+/* ==================== D.14: Toast Comparison ==================== */
+
+/* Toast Specimens Row */
+.ds-toast-specimens {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+}
+
+.ds-toast-specimen-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 200px;
+}
+
+.ds-specimen-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Toast Comparison Table */
+.ds-toast-comparison {
+    overflow-x: auto;
+    border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
+}
+
+.ds-toast-comparison table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.ds-toast-comparison th {
+    padding: 0.75rem 1rem;
+    background: color-mix(in oklch, var(--color-base-content) 5%, transparent);
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-align: left;
+    border-bottom: 1px solid var(--border-light);
+    white-space: nowrap;
+}
+
+.ds-toast-comparison th:first-child {
+    color: var(--text-primary);
+    width: 120px;
+}
+
+.ds-toast-comparison td {
+    padding: 0.6rem 1rem;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.ds-toast-comparison td:first-child {
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.ds-toast-comparison tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.ds-toast-comparison tbody tr:hover td {
+    background: color-mix(in oklch, var(--color-base-content) 3%, transparent);
+}
+
+.ds-toast-comparison code {
+    font-size: 0.75rem;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
+    color: var(--accent);
+}
+
+/* ==================== Materials Layer System (T8.4) ==================== */
+
+.ds-materials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.ds-material-item {
+    border-radius: var(--fluent-radius-xl);
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+    box-shadow: var(--fluent-shadow-4);
+}
+
+/* Preview 區域 */
+.ds-material-preview {
+    height: 120px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Info 區域 */
+.ds-material-info {
+    padding: 1rem;
+    background: var(--surface-1);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.ds-material-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.ds-material-class {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.8rem;
+    color: var(--accent);
+    background: color-mix(in oklch, var(--accent) 10%, transparent);
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--fluent-radius-sm);
+    align-self: flex-start;
+}
+
+.ds-material-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.ds-material-tokens {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.ds-material-tokens code {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+/* Canvas Layer Demo */
+.ds-material-canvas-demo {
+    width: 100%;
+    height: 100%;
+    background:
+        radial-gradient(ellipse 100% 60% at 50% -10%, rgba(var(--ds-glow-rgb), 0.25), transparent),
+        radial-gradient(ellipse 70% 50% at 100% 100%, oklch(55% 0.12 85 / 0.12), transparent),
+        var(--bg-body);
+    position: relative;
+}
+
+.ds-material-canvas-demo::after {
+    content: 'Mica Canvas';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+[data-theme="dim"] .ds-material-canvas-demo {
+    background:
+        radial-gradient(ellipse 100% 60% at 50% -10%, rgba(var(--ds-glow-rgb), 0.12), transparent),
+        radial-gradient(ellipse 70% 50% at 100% 100%, oklch(55% 0.15 260 / 0.10), transparent),
+        var(--bg-body);
+}
+
+/* Toolbar Demo — 背景漸層 + Acrylic 效果直接寫，不依賴 .fluent-toolbar class */
+.ds-material-toolbar-demo {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0 1.25rem;
+    background:
+        radial-gradient(ellipse 80% 80% at 20% 50%, rgba(var(--ds-glow-rgb), 0.3), transparent),
+        linear-gradient(135deg, oklch(65% 0.15 250 / 0.3) 0%, oklch(55% 0.12 85 / 0.2) 100%);
+    backdrop-filter: blur(16px) saturate(130%);
+    -webkit-backdrop-filter: blur(16px) saturate(130%);
+}
+
+.ds-material-toolbar-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Surface Elevation Demo */
+.ds-material-surface-demo {
+    width: 100%;
+    height: 100%;
+    background: color-mix(in oklch, var(--color-base-200) 80%, transparent);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+[data-theme="dim"] .ds-material-surface-demo {
+    background: color-mix(in oklch, var(--color-base-200) 55%, transparent);
+}
+
+.ds-material-surface-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+/* Material Table */
+.ds-material-table-wrap {
+    overflow-x: auto;
+}
+
+.ds-material-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.ds-material-table th {
+    text-align: left;
+    padding: 0.6rem 1rem;
+    background: var(--surface-0);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--border-light);
+}
+
+.ds-material-table td {
+    padding: 0.6rem 1rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--stroke-subtle);
+    vertical-align: top;
+}
+
+.ds-material-table td:first-child {
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+}
+
+.ds-material-table td code {
+    font-size: 0.8rem;
+    background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--fluent-radius-sm);
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+.ds-material-table tr:last-child td {
+    border-bottom: none;
+}
+
+.ds-material-table tr:hover td {
+    background: color-mix(in oklch, var(--color-base-content) 3%, transparent);
 }

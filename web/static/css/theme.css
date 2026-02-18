@@ -44,6 +44,7 @@
     /* Glow 發光效果 - 用於 hover/focus 狀態 */
     --glow-primary: color-mix(in oklch, var(--color-primary) 40%, transparent);       /* 主色發光 */
     --glow-subtle: color-mix(in oklch, var(--color-primary) 20%, transparent);        /* 微妙發光（背景）*/
+    --ds-glow-rgb: 90, 200, 250;                                                      /* DS 發光色（Apple Cyan）*/
 
     /* ===== 陰影 - Fluent Design tokens 橋接 ===== */
     --shadow-sm: var(--fluent-shadow-2);
@@ -112,6 +113,13 @@ body {
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--border-light);
+}
+
+/* ---- T8.2: Fluent Toolbar — 工具列標準 Acrylic 材質 ---- */
+.fluent-toolbar {
+    background: var(--bg-header);
+    backdrop-filter: blur(16px) saturate(130%);
+    -webkit-backdrop-filter: blur(16px) saturate(130%);
 }
 
 .noselect {
@@ -379,6 +387,15 @@ body {
 
 .shake {
     animation: shake var(--duration-normal) ease;
+}
+
+/* ========== Components: Spin Animation ========== */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.spin {
+    animation: spin 1s linear infinite;
 }
 
 /* ========== AV Card Full: Interactive Elements ========== */
@@ -2155,8 +2172,8 @@ summary:focus-visible {
     .rotating-border-spotlight.active::before {
         background: conic-gradient(
             from 0deg at 50% 50%,
-            rgba(90, 200, 250, 0.4) 0deg,
-            rgba(90, 200, 250, 0.4) 360deg
+            rgba(var(--ds-glow-rgb), 0.4) 0deg,
+            rgba(var(--ds-glow-rgb), 0.4) 360deg
         ) !important;
     }
 
@@ -2167,4 +2184,36 @@ summary:focus-visible {
             rgba(100, 210, 255, 0.5) 360deg
         ) !important;
     }
+}
+
+/* ========== T8.1: Fluent Canvas Layer (Mica 氛圍背景) ========== */
+
+/* --- Light Mode --- */
+body.fluent-canvas:not(.ds-page) {
+    background:
+        radial-gradient(ellipse 100% 60% at 50% -10%, rgba(var(--ds-glow-rgb), 0.10), transparent),
+        radial-gradient(ellipse 70% 50% at 100% 100%, oklch(55% 0.12 85 / 0.06), transparent),
+        var(--bg-body);
+}
+
+body.fluent-canvas:not(.ds-page) .main-content {
+    background-color: transparent;
+}
+
+body.fluent-canvas:not(.ds-page)::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.025;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* --- Dim Mode --- */
+[data-theme="dim"] body.fluent-canvas:not(.ds-page) {
+    background:
+        radial-gradient(ellipse 100% 60% at 50% -10%, rgba(var(--ds-glow-rgb), 0.06), transparent),
+        radial-gradient(ellipse 70% 50% at 100% 100%, oklch(55% 0.15 260 / 0.05), transparent),
+        var(--bg-body);
 }

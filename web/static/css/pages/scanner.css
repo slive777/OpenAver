@@ -14,7 +14,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    /* T8.2: Acrylic 材質 */
+    background: var(--bg-header);
+    backdrop-filter: blur(12px) saturate(120%);
+    -webkit-backdrop-filter: blur(12px) saturate(120%);
+    border-bottom: 1px solid var(--stroke-subtle);
+    padding-bottom: 1rem;
+    margin-bottom: 0.5rem;
 }
 
 .avlist-header h4 {
@@ -29,16 +35,19 @@
 
 /* Mini Terminal - Compact Log */
 .mini-terminal {
-    background: var(--color-base-200);
+    background: color-mix(in oklch, var(--color-base-200) 80%, transparent);
+    border: 1px solid var(--stroke-default);
     border-radius: var(--fluent-radius-xl);
     margin: 1rem;
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-4);
     transition: background-color var(--fluent-duration-slow) var(--fluent-ease-standard);
 }
 
 [data-theme="dim"] .mini-terminal {
-    background: var(--color-base-300);
+    background: color-mix(in oklch, var(--color-base-200) 55%, transparent);
 }
 
 .mini-terminal-header {

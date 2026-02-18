@@ -754,7 +754,7 @@ function scannerPage() {
             return;
         }
 
-        const logOutput = this.$refs.logOutput || document.getElementById('logOutput');
+        const logOutput = this.$refs.logOutput;
         logOutput.insertAdjacentHTML('beforeend', this.logBatch.join(''));
         logOutput.scrollTop = logOutput.scrollHeight;
 
@@ -773,7 +773,7 @@ function scannerPage() {
         const wasGenerating = localStorage.getItem('avlist_generating') === 'true';
 
         if (savedLogs) {
-            const logOutput = this.$refs.logOutput || document.getElementById('logOutput');
+            const logOutput = this.$refs.logOutput;
             logOutput.innerHTML = savedLogs;
             this.logHtml = savedLogs;
 
@@ -814,16 +814,14 @@ function scannerPage() {
         localStorage.removeItem('avlist_last_status');
         this.logHtml = '';
         this.logEntries = [];
-        const logOutput = this.$refs.logOutput || document.getElementById('logOutput');
-        if (logOutput) logOutput.innerHTML = '';
+        this.$refs.logOutput.innerHTML = '';
     },
 
     // ===== T7d: Log Terminal 增強 =====
     clearLogsDisplay() {
         this.logHtml = '';
         this.logEntries = [];
-        const logOutput = this.$refs.logOutput || document.getElementById('logOutput');
-        if (logOutput) logOutput.innerHTML = '';
+        this.$refs.logOutput.innerHTML = '';
     },
 
     copyLogs() {
