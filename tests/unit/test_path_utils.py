@@ -503,3 +503,32 @@ class TestToFileUriConsistency:
 
             assert scan_file_result == to_file_uri_result, \
                 f"Mismatch for {path}:\n  scan_file: {scan_file_result}\n  to_file_uri: {to_file_uri_result}"
+
+
+class TestIsPathUnderDir:
+    """測試 is_path_under_dir — 避免前綴碰撞"""
+
+    def test_file_directly_under_dir(self):
+        from core.path_utils import is_path_under_dir
+        assert is_path_under_dir("file:///E:/media/SONE-205.mp4", "file:///E:/media") is True
+
+    def test_file_in_subdirectory(self):
+        from core.path_utils import is_path_under_dir
+        assert is_path_under_dir("file:///E:/media/sub/video.mp4", "file:///E:/media") is True
+
+    def test_prefix_collision_rejected(self):
+        """E:/media 不應匹配 E:/media2 底下的檔案"""
+        from core.path_utils import is_path_under_dir
+        assert is_path_under_dir("file:///E:/media2/video.mp4", "file:///E:/media") is False
+
+    def test_exact_match(self):
+        from core.path_utils import is_path_under_dir
+        assert is_path_under_dir("file:///E:/media", "file:///E:/media") is True
+
+    def test_dir_with_trailing_slash(self):
+        from core.path_utils import is_path_under_dir
+        assert is_path_under_dir("file:///E:/media/video.mp4", "file:///E:/media/") is True
+
+    def test_unrelated_path(self):
+        from core.path_utils import is_path_under_dir
+        assert is_path_under_dir("file:///C:/Videos/video.mp4", "file:///E:/media") is False

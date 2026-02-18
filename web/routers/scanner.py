@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.gallery_scanner import VideoScanner, load_cache, save_cache, fast_scan_directory, VIDEO_EXTENSIONS, VideoInfo
 from core.gallery_generator import HTMLGenerator
-from core.path_utils import normalize_path, to_file_uri
+from core.path_utils import normalize_path, to_file_uri, is_path_under_dir
 from core.nfo_updater import check_cache_needs_update, update_videos_generator, apply_actress_aliases_generator
 from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite, ActressAliasRepository
 from web.routers.config import load_config
@@ -147,7 +147,7 @@ def generate_avlist() -> Generator[str, None, None]:
 
                 # 清理已刪除的檔案（限定在此目錄下）
                 normalized_dir_uri = to_file_uri(normalized_dir, path_mappings)
-                deleted_paths = [p for p in db_index.keys() if p.startswith(normalized_dir_uri) and p not in current_paths]
+                deleted_paths = [p for p in db_index.keys() if is_path_under_dir(p, normalized_dir_uri) and p not in current_paths]
                 if deleted_paths:
                     deleted_count = repo.delete_by_paths(deleted_paths)
                     total_deleted += deleted_count
@@ -189,8 +189,18 @@ def generate_avlist() -> Generator[str, None, None]:
             except Exception as e:
                 yield send({"type": "log", "level": "error", "message": f"掃描錯誤: {e}"})
 
-        # 從 SQLite 取得所有影片用於生成 HTML
-        all_db_videos = repo.get_all()
+        # 建立「當前設定資料夾」URI 集合，用於過濾 DB 記錄
+        # DB 保留所有歷史資料當 cache，但只輸出當前設定的資料夾
+        configured_dir_uris = set()
+        for d in directories:
+            try:
+                configured_dir_uris.add(to_file_uri(normalize_path(d), path_mappings))
+            except ValueError:
+                continue
+
+        # 從 SQLite 取得影片，只保留當前設定資料夾底下的記錄
+        all_db_videos = [v for v in repo.get_all()
+                         if any(is_path_under_dir(v.path, uri) for uri in configured_dir_uris)]
 
         # === 自動套用女優別名 ===
         alias_repo = ActressAliasRepository(db_path)
@@ -209,9 +219,10 @@ def generate_avlist() -> Generator[str, None, None]:
                     continue  # 不轉發 done 事件
                 yield send(msg)
 
-            # 如果有更新，重新取得影片資料
+            # 如果有更新，重新取得影片資料（同樣只保留當前設定資料夾）
             if db_updated:
-                all_db_videos = repo.get_all()
+                all_db_videos = [v for v in repo.get_all()
+                                 if any(is_path_under_dir(v.path, uri) for uri in configured_dir_uris)]
 
         # 轉換為 VideoInfo 格式供 HTMLGenerator 使用
         all_videos = []

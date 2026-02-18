@@ -22,8 +22,23 @@ def client(temp_db, monkeypatch):
     def mock_get_db_path():
         return temp_db
 
+    # Mock config：directories 涵蓋所有測試資料路徑
+    def mock_load_config():
+        return {
+            "gallery": {
+                "directories": [
+                    "E:/media",
+                    "C:/Videos",
+                    "D:/AV",
+                    "//NAS/share",
+                ],
+                "path_mappings": {},
+            }
+        }
+
     monkeypatch.setattr("core.database.get_db_path", mock_get_db_path)
     monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
+    monkeypatch.setattr("web.routers.showcase.load_config", mock_load_config)
 
     from web.app import app
     return TestClient(app)
@@ -37,7 +52,7 @@ def populated_db(temp_db):
     # 插入測試影片資料
     videos = [
         Video(
-            path="file:///mnt/media/SONE-205.mp4",
+            path="file:///E:/media/SONE-205.mp4",
             number="SONE-205",
             title="Test Video 1",
             original_title="テストビデオ1",
@@ -46,7 +61,7 @@ def populated_db(temp_db):
             release_date="2024-01-15",
             tags=["単体作品", "ハイビジョン", "独占配信"],
             size_bytes=3145728000,
-            cover_path="file:///mnt/media/SONE-205/poster.jpg",
+            cover_path="file:///E:/media/SONE-205/poster.jpg",
             mtime=1705276800.0  # 2024-01-15 00:00:00 UTC
         ),
         Video(
@@ -167,8 +182,8 @@ class TestShowcaseVideosAPI:
         response = client.get("/api/showcase/videos")
         data = response.json()
 
-        # 第一筆：file:///mnt/media/SONE-205/poster.jpg
-        # 預期：/api/gallery/image?path=/mnt/media/SONE-205/poster.jpg (URL encoded)
+        # 第一筆：file:///E:/media/SONE-205/poster.jpg
+        # WSL 環境 normalize_path 會轉為 /mnt/e/media/SONE-205/poster.jpg
         video1 = data["videos"][0]
         assert video1["cover_url"].startswith("/api/gallery/image?path=")
 
@@ -375,4 +390,85 @@ class TestShowcaseVideosAPI:
         assert data["success"] is False
         assert "db error" in data["error"]
         assert data["videos"] == []
+        assert data["total"] == 0
+
+
+class TestShowcaseDirectoryFiltering:
+    """測試 Showcase 只回傳「當前設定資料夾」底下的影片"""
+
+    def test_only_configured_dirs_returned(self, client, populated_db, monkeypatch):
+        """只設定部分資料夾時，不應回傳其他資料夾的影片"""
+        def mock_get_db_path():
+            return populated_db
+        monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
+
+        # 只設定 E:/media，不包含 C:/Videos、D:/AV、//NAS/share
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": ["E:/media"],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.showcase.load_config", mock_load_config)
+
+        response = client.get("/api/showcase/videos")
+        data = response.json()
+
+        assert data["success"] is True
+        assert data["total"] == 1
+        assert data["videos"][0]["number"] == "SONE-205"
+
+    def test_prefix_collision_not_matched(self, client, temp_db, monkeypatch):
+        """設定 E:/media 時，E:/media2 底下的影片不應被混入（前綴碰撞回歸測試）"""
+        # 插入兩筆：一筆在 E:/media，一筆在 E:/media2（前綴碰撞候選）
+        repo = VideoRepository(temp_db)
+        repo.upsert_batch([
+            Video(
+                path="file:///E:/media/SONE-205.mp4",
+                number="SONE-205", title="Under media",
+                actresses=[], tags=[], size_bytes=0, mtime=0.0,
+            ),
+            Video(
+                path="file:///E:/media2/ABW-001.mp4",
+                number="ABW-001", title="Under media2",
+                actresses=[], tags=[], size_bytes=0, mtime=0.0,
+            ),
+        ])
+
+        def mock_get_db_path():
+            return temp_db
+        monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
+
+        # 只設定 E:/media — 不應包含 E:/media2
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": ["E:/media"],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.showcase.load_config", mock_load_config)
+
+        response = client.get("/api/showcase/videos")
+        data = response.json()
+
+        assert data["success"] is True
+        assert data["total"] == 1
+        assert data["videos"][0]["number"] == "SONE-205"
+
+    def test_no_dirs_configured_returns_empty(self, client, populated_db, monkeypatch):
+        """未設定資料夾時回傳空結果"""
+        def mock_get_db_path():
+            return populated_db
+        monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
+
+        def mock_load_config():
+            return {"gallery": {"directories": [], "path_mappings": {}}}
+        monkeypatch.setattr("web.routers.showcase.load_config", mock_load_config)
+
+        response = client.get("/api/showcase/videos")
+        data = response.json()
+
+        assert data["success"] is True
         assert data["total"] == 0

@@ -13,7 +13,8 @@ from fastapi.responses import JSONResponse
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.database import VideoRepository, get_db_path, init_db
-from core.path_utils import normalize_path
+from core.path_utils import normalize_path, to_file_uri, is_path_under_dir
+from web.routers.config import load_config
 
 router = APIRouter(prefix="/api/showcase", tags=["showcase"])
 
@@ -34,7 +35,22 @@ async def get_videos():
 
         init_db(db_path)  # 確保 schema 存在（防止半毀損 DB）
         repo = VideoRepository(db_path)
-        all_videos = repo.get_all()
+
+        # 只取「當前設定資料夾」底下的記錄（DB 保留全部當 cache）
+        config = load_config()
+        gallery_config = config.get('gallery', {})
+        directories = gallery_config.get('directories', [])
+        path_mappings = gallery_config.get('path_mappings', {})
+
+        configured_dir_uris = set()
+        for d in directories:
+            try:
+                configured_dir_uris.add(to_file_uri(normalize_path(d), path_mappings))
+            except ValueError:
+                continue
+
+        all_videos = [v for v in repo.get_all()
+                      if any(is_path_under_dir(v.path, uri) for uri in configured_dir_uris)]
 
         # 轉換為前端格式
         videos_json = []

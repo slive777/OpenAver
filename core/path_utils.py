@@ -282,3 +282,17 @@ def to_file_uri(fs_path: str, path_mappings: dict = None) -> str:
 
     # Fallback：直接用原路徑
     return f"file:///{abs_path}"
+
+
+def is_path_under_dir(path: str, dir_uri: str) -> bool:
+    """
+    判斷 file:/// URI 路徑是否在指定目錄底下。
+
+    避免裸 startswith 前綴碰撞（如 E:/media 誤匹配 E:/media2）。
+    要求 path 在 dir_uri 之後緊接 '/' 或完全相等。
+    """
+    if path == dir_uri:
+        return True
+    # 確保 dir_uri 以 / 結尾再比對，避免前綴碰撞
+    prefix = dir_uri if dir_uri.endswith('/') else dir_uri + '/'
+    return path.startswith(prefix)
