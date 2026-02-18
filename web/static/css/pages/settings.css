@@ -221,7 +221,7 @@
     border-color: var(--accent);
     box-shadow:
         0 0 0 1px var(--accent),
-        0 0 20px rgba(90, 200, 250, 0.2),
+        0 0 20px rgba(var(--ds-glow-rgb), 0.2),
         var(--fluent-shadow-8);
     transform: translateY(-2px);
 }

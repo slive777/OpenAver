@@ -2165,8 +2165,8 @@ summary:focus-visible {
     .rotating-border-spotlight.active::before {
         background: conic-gradient(
             from 0deg at 50% 50%,
-            rgba(90, 200, 250, 0.4) 0deg,
-            rgba(90, 200, 250, 0.4) 360deg
+            rgba(var(--ds-glow-rgb), 0.4) 0deg,
+            rgba(var(--ds-glow-rgb), 0.4) 360deg
         ) !important;
     }
 

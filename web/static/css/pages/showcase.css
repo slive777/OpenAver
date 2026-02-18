@@ -12,7 +12,7 @@
 
     /* Background Atmosphere — 對齊 Design System (design-system.css L6-11) */
     background:
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(90, 200, 250, 0.15), transparent),
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(var(--ds-glow-rgb), 0.15), transparent),
         radial-gradient(ellipse 60% 40% at 80% 100%, oklch(55% 0.15 250 / 0.08), transparent),
         var(--bg-body);
 }
@@ -972,7 +972,7 @@
 /* Dim 模式：降低背景光暈透明度（對齊 design-system.css L18-23） */
 [data-theme="dim"] .showcase-container {
     background:
-        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(90, 200, 250, 0.08), transparent),
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(var(--ds-glow-rgb), 0.08), transparent),
         radial-gradient(ellipse 60% 40% at 80% 100%, oklch(55% 0.2 280 / 0.06), transparent),
         var(--bg-body);
 }

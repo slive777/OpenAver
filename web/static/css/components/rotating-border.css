@@ -55,8 +55,8 @@
   background: conic-gradient(
     from var(--spotlight-angle) at 50% 50%,
     transparent 0deg,
-    rgba(90, 200, 250, 0.6) 30deg,  /* 光點核心 */
-    rgba(90, 200, 250, 0.3) 60deg,  /* 拖尾 */
+    rgba(var(--ds-glow-rgb), 0.6) 30deg,  /* 光點核心 */
+    rgba(var(--ds-glow-rgb), 0.3) 60deg,  /* 拖尾 */
     transparent 90deg
   );
 
