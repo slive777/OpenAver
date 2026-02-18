@@ -134,12 +134,13 @@ def test_get_actress_profile_both_sources():
         }
 
     with patch('core.graphis_scraper.scrape_graphis_photo', side_effect=mock_graphis), \
-         patch('core.actress_scraper.scrape_actress_profile', side_effect=mock_javbus):
+         patch('core.actress_scraper.scrape_actress_profile', side_effect=mock_javbus), \
+         patch('core.gfriends_lookup.lookup_gfriends', return_value=None):
 
         result = get_actress_profile("桜空もも")
 
         assert result is not None
-        # Graphis 照片優先
+        # Graphis 照片優先（gfriends 回傳 None）
         assert result['img'] == 'https://graphis.ne.jp/prof.jpg'
         assert result['backdrop'] == 'https://graphis.ne.jp/model.jpg'
 
@@ -166,7 +167,8 @@ def test_get_actress_profile_javbus_only():
         }
 
     with patch('core.graphis_scraper.scrape_graphis_photo', return_value=None), \
-         patch('core.actress_scraper.scrape_actress_profile', side_effect=mock_javbus):
+         patch('core.actress_scraper.scrape_actress_profile', side_effect=mock_javbus), \
+         patch('core.gfriends_lookup.lookup_gfriends', return_value=None):
 
         result = get_actress_profile("桜空もも")
 
@@ -190,7 +192,8 @@ def test_get_actress_profile_graphis_only():
         }
 
     with patch('core.graphis_scraper.scrape_graphis_photo', side_effect=mock_graphis), \
-         patch('core.actress_scraper.scrape_actress_profile', return_value=None):
+         patch('core.actress_scraper.scrape_actress_profile', return_value=None), \
+         patch('core.gfriends_lookup.lookup_gfriends', return_value=None):
 
         result = get_actress_profile("桜空もも")
 
@@ -241,7 +244,8 @@ def test_get_actress_profile_cache_hit():
         }
 
     with patch('core.graphis_scraper.scrape_graphis_photo', side_effect=mock_graphis) as graphis_mock, \
-         patch('core.actress_scraper.scrape_actress_profile', side_effect=mock_javbus) as javbus_mock:
+         patch('core.actress_scraper.scrape_actress_profile', side_effect=mock_javbus) as javbus_mock, \
+         patch('core.gfriends_lookup.lookup_gfriends', return_value=None):
 
         # 第一次呼叫
         result1 = get_actress_profile("桜空もも")
@@ -286,7 +290,8 @@ def test_get_actress_profile_cache_expired():
 
     with patch('time.time', side_effect=mock_time), \
          patch('core.graphis_scraper.scrape_graphis_photo', side_effect=mock_graphis) as graphis_mock, \
-         patch('core.actress_scraper.scrape_actress_profile', side_effect=mock_javbus) as javbus_mock:
+         patch('core.actress_scraper.scrape_actress_profile', side_effect=mock_javbus) as javbus_mock, \
+         patch('core.gfriends_lookup.lookup_gfriends', return_value=None):
 
         # 第一次呼叫
         result1 = get_actress_profile("桜空もも")
@@ -320,7 +325,8 @@ def test_get_actress_profile_cache_name_normalization():
         return {'name': name, 'img': 'https://javbus.com/img.jpg'}
 
     with patch('core.graphis_scraper.scrape_graphis_photo', side_effect=mock_graphis) as graphis_mock, \
-         patch('core.actress_scraper.scrape_actress_profile', side_effect=mock_javbus):
+         patch('core.actress_scraper.scrape_actress_profile', side_effect=mock_javbus), \
+         patch('core.gfriends_lookup.lookup_gfriends', return_value=None):
 
         # 第一次：正常名稱
         result1 = get_actress_profile("桜空もも")
@@ -461,7 +467,7 @@ def mock_search_actress():
 @pytest.fixture
 def mock_actress_profile():
     """Mock 女優資料"""
-    def mock_fn(name):
+    def mock_fn(name, **kwargs):
         if name == '桜空もも':
             return {
                 'name': '桜空もも',

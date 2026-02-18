@@ -204,17 +204,18 @@ def _normalize_name(name: str) -> str:
     return name
 
 
-def get_actress_profile(name: str) -> Optional[Dict]:
+def get_actress_profile(name: str, makers: list = None) -> Optional[Dict]:
     """
-    取得女優完整資料（Graphis + JavBus 雙來源並行）
+    取得女優完整資料（gfriends + Graphis + JavBus 三來源並行）
 
     Args:
         name: 女優名稱（日文）
+        makers: 片商名稱列表（從搜尋結果統計，用於 gfriends 查表）
 
     Returns:
         {
             'name': str,           # 姓名
-            'img': str,            # 頭像 URL（Graphis 優先）
+            'img': str,            # 頭像 URL（gfriends > Graphis > JavBus）
             'backdrop': str,       # 背景 URL（僅 Graphis 有）
             'birth': str,          # 生日 "1996-12-03"
             'age': int,            # 年齡
@@ -226,11 +227,12 @@ def get_actress_profile(name: str) -> Optional[Dict]:
             'hometown': str,       # 出身地
             'hobby': str,          # 興趣
         }
-        兩邊都沒資料返回 None
+        三邊都沒資料返回 None
     """
     import time
     from concurrent.futures import ThreadPoolExecutor
     from core.graphis_scraper import scrape_graphis_photo
+    from core.gfriends_lookup import lookup_gfriends
 
     # Cache 檢查
     cache_key = _normalize_name(name)
@@ -242,9 +244,10 @@ def get_actress_profile(name: str) -> Optional[Dict]:
             del _cache[cache_key]  # 過期清理
 
     # 並行抓取（嚴格 5s 上限，shutdown 不等待背景執行緒）
-    executor = ThreadPoolExecutor(max_workers=2)
+    executor = ThreadPoolExecutor(max_workers=3)
     graphis_future = executor.submit(scrape_graphis_photo, name)
     javbus_future = executor.submit(scrape_actress_profile, name)
+    gfriends_future = executor.submit(lookup_gfriends, name, makers)
 
     start = time.time()
 
@@ -259,6 +262,12 @@ def get_actress_profile(name: str) -> Optional[Dict]:
     except Exception:
         javbus_result = None
 
+    remaining = max(0, 5 - (time.time() - start))
+    try:
+        gfriends_url = gfriends_future.result(timeout=remaining)
+    except Exception:
+        gfriends_url = None
+
     executor.shutdown(wait=False)
 
     # 資料合併
@@ -269,9 +278,15 @@ def get_actress_profile(name: str) -> Optional[Dict]:
     else:
         return None
 
-    # Graphis 照片優先覆蓋
-    if graphis_result:
+    # Image priority: gfriends > graphis > javbus
+    if gfriends_url:
+        result['img'] = gfriends_url
+    elif graphis_result:
         result['img'] = graphis_result['prof_url']
+    # else: javbus img 保留
+
+    # Backdrop: graphis only（gfriends 無 backdrop）
+    if graphis_result:
         result['backdrop'] = graphis_result['backdrop_url']
 
     # Cache 寫入
