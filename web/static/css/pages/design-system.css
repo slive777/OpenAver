@@ -2071,3 +2071,194 @@
     background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
     color: var(--accent);
 }
+
+/* ==================== Materials Layer System (T8.4) ==================== */
+
+.ds-materials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.ds-material-item {
+    border-radius: var(--fluent-radius-xl);
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+    box-shadow: var(--fluent-shadow-4);
+}
+
+/* Preview 區域 */
+.ds-material-preview {
+    height: 120px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Info 區域 */
+.ds-material-info {
+    padding: 1rem;
+    background: var(--surface-1);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.ds-material-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.ds-material-class {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.8rem;
+    color: var(--accent);
+    background: color-mix(in oklch, var(--accent) 10%, transparent);
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--fluent-radius-sm);
+    align-self: flex-start;
+}
+
+.ds-material-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.ds-material-tokens {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.ds-material-tokens code {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+/* Canvas Layer Demo */
+.ds-material-canvas-demo {
+    width: 100%;
+    height: 100%;
+    background:
+        radial-gradient(ellipse 100% 60% at 50% -10%, rgba(var(--ds-glow-rgb), 0.25), transparent),
+        radial-gradient(ellipse 70% 50% at 100% 100%, oklch(55% 0.12 85 / 0.12), transparent),
+        var(--bg-body);
+    position: relative;
+}
+
+.ds-material-canvas-demo::after {
+    content: 'Mica Canvas';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+[data-theme="dim"] .ds-material-canvas-demo {
+    background:
+        radial-gradient(ellipse 100% 60% at 50% -10%, rgba(var(--ds-glow-rgb), 0.12), transparent),
+        radial-gradient(ellipse 70% 50% at 100% 100%, oklch(55% 0.15 260 / 0.10), transparent),
+        var(--bg-body);
+}
+
+/* Toolbar Demo — 背景漸層 + Acrylic 效果直接寫，不依賴 .fluent-toolbar class */
+.ds-material-toolbar-demo {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding: 0 1.25rem;
+    background:
+        radial-gradient(ellipse 80% 80% at 20% 50%, rgba(var(--ds-glow-rgb), 0.3), transparent),
+        linear-gradient(135deg, oklch(65% 0.15 250 / 0.3) 0%, oklch(55% 0.12 85 / 0.2) 100%);
+    backdrop-filter: blur(16px) saturate(130%);
+    -webkit-backdrop-filter: blur(16px) saturate(130%);
+}
+
+.ds-material-toolbar-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Surface Elevation Demo */
+.ds-material-surface-demo {
+    width: 100%;
+    height: 100%;
+    background: color-mix(in oklch, var(--color-base-200) 80%, transparent);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+[data-theme="dim"] .ds-material-surface-demo {
+    background: color-mix(in oklch, var(--color-base-200) 55%, transparent);
+}
+
+.ds-material-surface-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+/* Material Table */
+.ds-material-table-wrap {
+    overflow-x: auto;
+}
+
+.ds-material-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.ds-material-table th {
+    text-align: left;
+    padding: 0.6rem 1rem;
+    background: var(--surface-0);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--border-light);
+}
+
+.ds-material-table td {
+    padding: 0.6rem 1rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--stroke-subtle);
+    vertical-align: top;
+}
+
+.ds-material-table td:first-child {
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+}
+
+.ds-material-table td code {
+    font-size: 0.8rem;
+    background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--fluent-radius-sm);
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+.ds-material-table tr:last-child td {
+    border-bottom: none;
+}
+
+.ds-material-table tr:hover td {
+    background: color-mix(in oklch, var(--color-base-content) 3%, transparent);
+}

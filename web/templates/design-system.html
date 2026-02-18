@@ -318,6 +318,115 @@
                 </div>
             </div>
 
+            <!-- Materials Layer System (T8 新增) -->
+            <div class="ds-subsection">
+                <h3>Materials Layer System</h3>
+                <p class="ds-desc">
+                    Fluent Design 2 材質三層架構：Canvas（整頁氛圍）→ Shell（毛玻璃工具列）→ Surface（卡片邊界感）。
+                    Light / Dim 模式皆自動適配。
+                </p>
+
+                <div class="ds-materials-grid">
+
+                    <!-- Layer 1: Canvas (Mica) -->
+                    <div class="ds-material-item ds-material-canvas">
+                        <div class="ds-material-preview">
+                            <div class="ds-material-canvas-demo"></div>
+                        </div>
+                        <div class="ds-material-info">
+                            <span class="ds-material-name">Canvas Layer</span>
+                            <span class="ds-material-class">body.fluent-canvas</span>
+                            <span class="ds-material-desc">Mica 氛圍背景 — 全頁底層漸層 + noise overlay</span>
+                            <div class="ds-material-tokens">
+                                <code>--ds-glow-rgb: 90, 200, 250</code>
+                                <code>radial-gradient + noise 0.025 opacity</code>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Layer 2: Toolbar (Acrylic Light) -->
+                    <div class="ds-material-item ds-material-toolbar">
+                        <div class="ds-material-preview">
+                            <div class="ds-material-toolbar-demo">
+                                <span class="ds-material-toolbar-label">.fluent-toolbar</span>
+                            </div>
+                        </div>
+                        <div class="ds-material-info">
+                            <span class="ds-material-name">Toolbar (Shell)</span>
+                            <span class="ds-material-class">.fluent-toolbar</span>
+                            <span class="ds-material-desc">工具列標準 Acrylic — 輕量毛玻璃，背景透出氛圍層</span>
+                            <div class="ds-material-tokens">
+                                <code>blur: 16px, saturate: 130%</code>
+                                <code>bg: var(--bg-header)</code>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Layer 3: Surface Elevation -->
+                    <div class="ds-material-item ds-material-surface">
+                        <div class="ds-material-preview">
+                            <div class="ds-material-surface-demo">
+                                <span class="ds-material-surface-label">Surface Card</span>
+                            </div>
+                        </div>
+                        <div class="ds-material-info">
+                            <span class="ds-material-name">Surface Elevation</span>
+                            <span class="ds-material-class">inset highlight + shadow</span>
+                            <span class="ds-material-desc">卡片材質邊界感 — 頂部 1px 高光線 + Fluent 陰影，無 blur</span>
+                            <div class="ds-material-tokens">
+                                <code>inset 0 1px 0 oklch(base-content 8%)</code>
+                                <code>+ var(--fluent-shadow-4)</code>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- 對照表 -->
+                <div class="ds-material-table-wrap" style="margin-top: 1.5rem;">
+                    <table class="ds-material-table">
+                        <thead>
+                            <tr>
+                                <th>Layer</th>
+                                <th>Class / Selector</th>
+                                <th>Effect</th>
+                                <th>用途</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Canvas</td>
+                                <td><code>body.fluent-canvas</code></td>
+                                <td>radial-gradient + noise</td>
+                                <td>全頁 Mica 氛圍（Search / Settings / Scanner / Help）</td>
+                            </tr>
+                            <tr>
+                                <td>Shell</td>
+                                <td><code>.fluent-acrylic</code></td>
+                                <td>blur(30px) saturate(140%)</td>
+                                <td>Sidebar / Offcanvas / Mobile Navbar</td>
+                            </tr>
+                            <tr>
+                                <td>Shell</td>
+                                <td><code>.fluent-toolbar</code></td>
+                                <td>blur(16px) saturate(130%)</td>
+                                <td>頁面工具列 header（search-bar / settings-header 等）</td>
+                            </tr>
+                            <tr>
+                                <td>Surface</td>
+                                <td>inset 0 1px 0 + shadow</td>
+                                <td>頂部高光 + 陰影（無 blur）</td>
+                                <td>卡片、terminal、state-page</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <p class="ds-note">
+                    Canvas 層使用 <code>body.fluent-canvas:not(.ds-page)</code>，排除 Design System 頁自身（DS 頁有獨立背景定義）。
+                </p>
+            </div>
+
             <!-- 動畫時長 -->
             <div class="ds-subsection">
                 <h3>Motion Duration</h3>
@@ -658,7 +767,7 @@
   overflow: hidden;
 }
 .av-card-preview:hover {
-  box-shadow: 0 0 0 2px var(--accent), 0 0 20px rgba(90, 200, 250, 0.2);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 20px rgba(var(--ds-glow-rgb), 0.2);
   transform: translateY(-6px);
 }</code></pre>
                 <p class="ds-desc" style="margin-top: 0.75rem;">小卡 1 使用 <code>.once</code> modifier：旋轉 5 圈後自動停止（本地匹配提示場景）</p>
