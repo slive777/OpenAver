@@ -725,6 +725,39 @@
                 </div>
             </div>
 
+            <!-- Hero Card 變體（女優資料卡） -->
+            <div class="ds-subsection">
+                <h3>3. Hero Card（女優資料卡）</h3>
+                <p class="ds-desc">搜尋結果 Grid 第一格的女優資料卡。<code>object-fit: contain</code> 完整顯示大頭照，letterbox 背景填補空白，footer 顯示生日與身高</p>
+                <div class="ds-card-demo ds-hero-card-demo">
+                    <div class="av-card-preview hero-card" style="width: 200px;">
+                        <div class="av-card-preview-img">
+                            <img src="/static/img/demo/ipzz-001.jpg" alt="女優大頭照">
+                        </div>
+                        <div class="av-card-preview-footer" style="position: relative;">
+                            <div class="ds-hero-footer-default">
+                                <span class="av-num">1998-05-23</span>
+                                <span class="av-actress">158cm</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <pre class="ds-code"><code>/* Hero Card 覆寫：contain + letterbox（grid 第一格） */
+:is(#ds-gallery-components, .ds-gallery-composition) .hero-card .av-card-preview-img {
+  background: var(--bg-card);  /* letterbox 留白背景 */
+}
+:is(#ds-gallery-components, .ds-gallery-composition) .hero-card .av-card-preview-img img {
+  object-fit: contain;         /* 完整顯示，不裁切 */
+  transform-origin: center center; /* 覆蓋 65% center 偏移 */
+}
+
+/* Footer：預設層（番號位置顯示生日）+ 懸停層（完整 profile 摘要）*/
+/* 懸停層由 showcase.css: .footer-hover + .hover-title 控制 */</code></pre>
+                <p class="ds-desc" style="margin-top: 0.75rem;">
+                    Hover 時 footer 切換為完整 profile 摘要（透過 <code>.footer-default</code>/<code>.footer-hover</code> + Alpine <code>x-text</code> 動態組合，僅在 showcase.css 載入頁面生效）
+                </p>
+            </div>
+
         </section>
 
         <!-- 區塊 7: File Components (glass 樣式) -->
@@ -732,49 +765,120 @@
             <h2>File Components</h2>
             <p class="ds-note">檔案操作相關元件，用於 Search 和 Gallery 頁面</p>
 
-            <!-- File List Section -->
+            <!-- File List Section — 動態狀態完整展示 -->
             <div class="ds-subsection">
-                <h3>File List Section</h3>
-                <p class="ds-desc">檔案列表項目，顯示檔案資訊和操作按鈕，支援 hover 和 active 狀態</p>
+                <h3>File List — 動態狀態控制</h3>
+                <p class="ds-desc">
+                    每個 file-item row 結構固定：remove 按鈕、檔案圖示、檔名、狀態圖示、action slot。
+                    action slot 內的 button/spinner 透過 Alpine <code>x-show</code> 互斥顯示（scrape-ready → searching → done / failed）；
+                    row 本身只切 <code>.active</code> class 表示當前選中。
+                </p>
                 <div class="ds-card-demo">
-                    <div class="file-list-section" style="max-width: 600px;">
+                    <div class="file-list-section" style="max-width: 640px;">
                         <div class="file-list-header">
                             <span style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">檔案列表</span>
-                            <span style="font-size: 0.8rem; color: var(--text-secondary);">3 個檔案</span>
+                            <span style="font-size: 0.8rem; color: var(--text-secondary);">5 個檔案</span>
                         </div>
-                        <div class="file-item">
+
+                        <!-- State 1: scrape-ready（可產出 NFO，尚未開始）-->
+                        <div class="file-item active" title="State: scrape-ready（active = 當前選中）">
+                            <button class="btn btn-link btn-sm p-0 btn-remove-file text-muted" title="移除此檔案">
+                                <i class="bi bi-x"></i>
+                            </button>
                             <i class="bi bi-file-earmark-play file-icon"></i>
-                            <span class="file-name">SONE-103.mp4</span>
-                            <span class="file-status">已搜尋</span>
-                            <button class="btn btn-sm btn-outline-primary btn-scrape-single">查看</button>
+                            <span class="file-name" title="/videos/SONE-103.mp4">SONE-103.mp4</span>
+                            <span class="file-status">✓</span>
+                            <!-- x-show="canScrapeFile(file) && !file.isScraping && file.scrapeStatus !== 'done'" -->
+                            <button class="btn btn-sm btn-outline btn-success btn-scrape-single" title="產生 NFO + 封面">
+                                <i class="bi bi-folder-plus"></i>
+                            </button>
                         </div>
-                        <div class="file-item active">
+
+                        <!-- State 2: searching / scraping（spinner 中）-->
+                        <div class="file-item" title="State: isScraping = true">
+                            <button class="btn btn-link btn-sm p-0 btn-remove-file text-muted" title="移除此檔案">
+                                <i class="bi bi-x"></i>
+                            </button>
                             <i class="bi bi-file-earmark-play file-icon"></i>
-                            <span class="file-name">MIDE-974_HD.mp4</span>
-                            <span class="file-status">已搜尋</span>
-                            <button class="btn btn-sm btn-outline-primary btn-scrape-single">查看</button>
+                            <span class="file-name" title="/videos/MIDE-974_HD.mp4">MIDE-974_HD.mp4</span>
+                            <span class="file-status">✓</span>
+                            <!-- x-show="file.isScraping" -->
+                            <span class="loading loading-spinner loading-sm"></span>
                         </div>
-                        <div class="file-item">
+
+                        <!-- State 3: done（scrapeStatus = 'done'）-->
+                        <div class="file-item" title="State: scrapeStatus = 'done'">
+                            <button class="btn btn-link btn-sm p-0 btn-remove-file text-muted" title="移除此檔案">
+                                <i class="bi bi-x"></i>
+                            </button>
                             <i class="bi bi-file-earmark-play file-icon"></i>
-                            <span class="file-name">FC2-PPV-1723984.mp4</span>
-                            <span class="file-status" style="color: var(--text-muted);">待搜尋</span>
-                            <button class="btn btn-sm btn-outline-secondary btn-scrape-single">搜尋</button>
+                            <span class="file-name" title="/videos/CAWD-441.mp4">CAWD-441.mp4</span>
+                            <span class="file-status">✓</span>
+                            <!-- x-show="file.scrapeStatus === 'done'" -->
+                            <button class="btn btn-sm btn-success btn-scrape-single" disabled>
+                                <i class="bi bi-check"></i>
+                            </button>
                         </div>
+
+                        <!-- State 4: failed（scrapeStatus = 'failed'，可重試）-->
+                        <div class="file-item" title="State: scrapeStatus = 'failed'">
+                            <button class="btn btn-link btn-sm p-0 btn-remove-file text-muted" title="移除此檔案">
+                                <i class="bi bi-x"></i>
+                            </button>
+                            <i class="bi bi-file-earmark-play file-icon"></i>
+                            <span class="file-name" title="/videos/FC2-PPV-1723984.mp4">FC2-PPV-1723984.mp4</span>
+                            <span class="file-status text-error">✗</span>
+                            <!-- x-show="file.scrapeStatus === 'failed'" -->
+                            <button class="btn btn-sm btn-error btn-scrape-single" title="重試">
+                                失敗
+                            </button>
+                        </div>
+
+                        <!-- State 5: needsNumberInput（file.number 為空，需手動輸入番號）-->
+                        <div class="file-item" title="State: !file.number (needsNumberInput)">
+                            <button class="btn btn-link btn-sm p-0 btn-remove-file text-muted" title="移除此檔案">
+                                <i class="bi bi-x"></i>
+                            </button>
+                            <i class="bi bi-file-earmark-play file-icon"></i>
+                            <span class="file-name" title="/videos/unknown_720p.mp4">unknown_720p.mp4</span>
+                            <span class="file-status text-warning">?</span>
+                            <!-- x-show="needsNumberInput(file)" -->
+                            <button class="btn btn-sm btn-outline btn-warning btn-enter-number" title="手動輸入番號">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </div>
+
                     </div>
                 </div>
-                <pre class="ds-code"><code>.file-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+
+                <!-- 技術說明 -->
+                <div class="ds-note" style="margin-top: 1rem;">
+                    <strong>狀態切換邏輯：</strong>
+                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                        <li><code>x-show="canScrapeFile(file) && !file.isScraping && file.scrapeStatus !== 'done'"</code> → 顯示 NFO 按鈕</li>
+                        <li><code>x-show="file.isScraping"</code> → 顯示 spinner</li>
+                        <li><code>x-show="file.scrapeStatus === 'done'"</code> → 顯示完成按鈕（disabled）</li>
+                        <li><code>x-show="file.scrapeStatus === 'failed'"</code> → 顯示失敗按鈕（可重試）</li>
+                        <li><code>x-show="needsNumberInput(file)"</code> → <code>!file.number</code>，顯示手動輸入按鈕</li>
+                    </ul>
+                </div>
+
+                <pre class="ds-code"><code>/* File Item 核心樣式（search.css） */
+.file-item {
+  display: flex; align-items: center; gap: 8px;
   padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
+  border-radius: var(--fluent-radius-sm);
+  font-size: 0.8rem; cursor: pointer;
+  transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 .file-item.active {
   background: var(--border-light);
   color: var(--accent);
   font-weight: 600;
-}</code></pre>
+}
+.file-item .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-item .file-status { font-size: 0.75rem; color: var(--color-success); flex-shrink: 0; }
+.file-item .btn-scrape-single { flex-shrink: 0; padding: 0 6px; font-size: 0.7rem; }</code></pre>
             </div>
 
             <!-- Drag Overlay -->
@@ -1067,6 +1171,106 @@
     &lt;/div&gt;
   &lt;/div&gt;
 &lt;/div&gt;</code></pre>
+            </div>
+
+            <!-- Toast Pattern 對照表 -->
+            <div class="ds-subsection">
+                <h3>Toast Pattern 對照</h3>
+                <p class="ds-desc">3 種 toast pattern 分別用於不同頁面，差異主要在位置、生命週期與交互行為</p>
+
+                <!-- Visual Specimens -->
+                <div class="ds-toast-specimens">
+                    <!-- fluent-toast specimen -->
+                    <div class="ds-toast-specimen-item">
+                        <span class="ds-specimen-label">fluent-toast（底部居中）</span>
+                        <div class="alert alert-success fluent-toast" role="alert" style="pointer-events: none;">
+                            <i class="bi bi-check-circle"></i>
+                            <span>✓ 路徑已複製</span>
+                        </div>
+                    </div>
+                    <!-- search-toast specimen -->
+                    <div class="ds-toast-specimen-item">
+                        <span class="ds-specimen-label">search-toast（右下角 fixed）</span>
+                        <div class="alert alert-info" style="box-shadow: var(--fluent-shadow-16); pointer-events: none;">
+                            <i class="bi bi-info-circle-fill"></i>
+                            <span>⟳ 正在翻譯...</span>
+                        </div>
+                    </div>
+                    <!-- settings-toast specimen -->
+                    <div class="ds-toast-specimen-item">
+                        <span class="ds-specimen-label">settings-toast（右上角 fixed）</span>
+                        <div class="alert alert-success" style="pointer-events: none;">
+                            <span>設定已儲存</span>
+                            <button type="button" class="btn btn-sm btn-circle btn-ghost" disabled>
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comparison Table -->
+                <div class="ds-toast-comparison">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>特性</th>
+                                <th>fluent-toast</th>
+                                <th>search-toast</th>
+                                <th>settings-toast</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>位置</td>
+                                <td>底部居中<br><code>toast-bottom toast-center</code></td>
+                                <td>右下角 fixed<br><code>bottom: 1.5rem; right: 1.5rem</code></td>
+                                <td>右上角 fixed<br><code>toast-end toast-top</code></td>
+                            </tr>
+                            <tr>
+                                <td>z-index</td>
+                                <td>DaisyUI 預設</td>
+                                <td>9999（高於 lightbox z-1000）</td>
+                                <td>9999（<code>z-[9999]</code>）</td>
+                            </tr>
+                            <tr>
+                                <td>陰影</td>
+                                <td><code>--fluent-shadow-16</code><br>（<code>.fluent-toast</code> class）</td>
+                                <td><code>--fluent-shadow-16</code><br>（<code>.search-toast-container .alert</code>）</td>
+                                <td>DaisyUI 預設</td>
+                            </tr>
+                            <tr>
+                                <td>動畫</td>
+                                <td>Slide-up + Fade<br>（x-transition 自定義 class）</td>
+                                <td>Slide-up + Fade<br>（Tailwind <code>translate-y-4</code>）</td>
+                                <td>DaisyUI 預設<br>（<code>x-transition</code>）</td>
+                            </tr>
+                            <tr>
+                                <td>Hover 暫停</td>
+                                <td>有（@mouseenter/mouseleave）</td>
+                                <td>無</td>
+                                <td>無</td>
+                            </tr>
+                            <tr>
+                                <td>關閉方式</td>
+                                <td>自動消失（2–3 秒）</td>
+                                <td>自動消失（auto-hide）</td>
+                                <td>手動關閉按鈕 + 自動消失</td>
+                            </tr>
+                            <tr>
+                                <td>pointer-events</td>
+                                <td>未特別限制</td>
+                                <td>container: none<br>alert: auto（防穿透）</td>
+                                <td>未特別限制</td>
+                            </tr>
+                            <tr>
+                                <td>用途</td>
+                                <td>Design System demo<br>通用範例</td>
+                                <td>Search 頁操作回饋<br>（複製路徑、NFO 產出等）</td>
+                                <td>Settings 頁操作回饋<br>（儲存設定等）</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
 

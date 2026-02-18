@@ -1970,3 +1970,104 @@
     font-size: 0.7rem;
     color: var(--text-muted);
 }
+
+/* ==================== D.13: Hero Card Demo ==================== */
+
+/* Hero Card demo wrapper：讓卡片不要撐滿整行 */
+.ds-hero-card-demo {
+    justify-content: flex-start;
+}
+
+/* Hero Card footer 靜態 demo（showcase.css 未載入時的 fallback） */
+/* 僅在 design-system 頁使用，不影響 production */
+.ds-hero-footer-default {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+/* ==================== D.14: Toast Comparison ==================== */
+
+/* Toast Specimens Row */
+.ds-toast-specimens {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+}
+
+.ds-toast-specimen-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 200px;
+}
+
+.ds-specimen-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Toast Comparison Table */
+.ds-toast-comparison {
+    overflow-x: auto;
+    border-radius: var(--fluent-radius-lg);
+    border: 1px solid var(--border-light);
+}
+
+.ds-toast-comparison table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.ds-toast-comparison th {
+    padding: 0.75rem 1rem;
+    background: color-mix(in oklch, var(--color-base-content) 5%, transparent);
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-align: left;
+    border-bottom: 1px solid var(--border-light);
+    white-space: nowrap;
+}
+
+.ds-toast-comparison th:first-child {
+    color: var(--text-primary);
+    width: 120px;
+}
+
+.ds-toast-comparison td {
+    padding: 0.6rem 1rem;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.ds-toast-comparison td:first-child {
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.ds-toast-comparison tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.ds-toast-comparison tbody tr:hover td {
+    background: color-mix(in oklch, var(--color-base-content) 3%, transparent);
+}
+
+.ds-toast-comparison code {
+    font-size: 0.75rem;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
+    color: var(--accent);
+}
