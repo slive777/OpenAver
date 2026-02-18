@@ -63,6 +63,29 @@
                     <small class="settings-hint">啟用時只搜尋 AVSOX / FC2，適合無碼作品</small>
                 </div>
 
+                <!-- Proxy -->
+                <div class="settings-form-row">
+                    <label class="row-label">
+                        Proxy
+                        <small class="settings-hint">DMM 需要日本 IP</small>
+                    </label>
+                    <div class="flex-1 flex flex-col gap-1">
+                        <div class="variable-input-group">
+                            <input type="text" class="input input-bordered input-sm flex-1"
+                                x-model="form.proxyUrl"
+                                placeholder="http://帳號:密碼@主機:埠號">
+                            <button class="btn btn-sm btn-outline" type="button"
+                                @click="testProxy()"
+                                :disabled="!form.proxyUrl.trim() || testProxyLoading">
+                                <span x-show="testProxyLoading" class="loading loading-spinner loading-sm"></span>
+                                測試
+                            </button>
+                        </div>
+                        <small class="settings-hint" x-show="proxyStatus" x-text="proxyStatus"
+                            :class="{ 'text-success': proxyStatusOk, 'text-error': proxyStatus && !proxyStatusOk && !testProxyLoading }"></small>
+                    </div>
+                </div>
+
                 <!-- 我的最愛資料夾 -->
                 <div class="settings-form-row">
                     <label class="row-label">

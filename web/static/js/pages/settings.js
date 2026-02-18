@@ -7,6 +7,7 @@ function settingsPage() {
             galleryModeEnabled: false,
             uncensoredModeEnabled: false,
             searchFavoriteFolder: '',
+            proxyUrl: '',
 
             // Translate
             translateEnabled: false,
@@ -62,6 +63,9 @@ function settingsPage() {
         testGeminiLoading: false,
         testGeminiTranslateLoading: false,
         checkUpdateLoading: false,
+        proxyStatus: '',
+        proxyStatusOk: false,
+        testProxyLoading: false,
 
         // Dirty Check Modal State
         dirtyCheckModalOpen: false,
@@ -186,6 +190,7 @@ function settingsPage() {
                     this.form.galleryModeEnabled = config.search?.gallery_mode_enabled || false;
                     this.form.uncensoredModeEnabled = config.search?.uncensored_mode_enabled || false;
                     this.form.searchFavoriteFolder = config.search?.favorite_folder || '';
+                    this.form.proxyUrl = config.search?.proxy_url || '';
 
                     // Translate
                     this.form.translateEnabled = config.translate.enabled;
@@ -288,7 +293,8 @@ function settingsPage() {
                     ...config.search,
                     gallery_mode_enabled: this.form.galleryModeEnabled,
                     uncensored_mode_enabled: this.form.uncensoredModeEnabled,
-                    favorite_folder: this.form.searchFavoriteFolder.trim()
+                    favorite_folder: this.form.searchFavoriteFolder.trim(),
+                    proxy_url: this.form.proxyUrl.trim()
                 };
 
                 // 更新 translate
@@ -385,6 +391,34 @@ function settingsPage() {
                 }
             } catch (e) {
                 this.ollamaStatus = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> 無法連線</span>`;
+            }
+        },
+
+        async testProxy() {
+            if (!this.form.proxyUrl.trim()) return;
+
+            this.testProxyLoading = true;
+            this.proxyStatusOk = false;
+            this.proxyStatus = '測試中...';
+
+            try {
+                const resp = await fetch('/api/proxy/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ proxy_url: this.form.proxyUrl.trim() })
+                });
+                const result = await resp.json();
+
+                if (result.success === true) {
+                    this.proxyStatusOk = true;
+                    this.proxyStatus = `✓ ${result.message}`;
+                } else {
+                    this.proxyStatus = `✗ ${result.message}`;
+                }
+            } catch (e) {
+                this.proxyStatus = '✗ 網路錯誤，請稍後再試';
+            } finally {
+                this.testProxyLoading = false;
             }
         },
 

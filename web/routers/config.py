@@ -43,6 +43,7 @@ class SearchConfig(BaseModel):
     gallery_mode_enabled: bool = True  # Grid 模式開關（toggle 可見 + 女優自動切 Grid）
     uncensored_mode_enabled: bool = False  # 無碼模式 - 只搜尋 AVSOX / FC2
     favorite_folder: str = ""  # 我的最愛資料夾 - 空字串 = 使用系統下載資料夾
+    proxy_url: str = ""
 
 
 class OllamaConfig(BaseModel):
@@ -376,3 +377,34 @@ async def test_ollama_model(request: OllamaTestRequest) -> dict:
         return {"success": False, "error": "無法連線到 Ollama"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+class ProxyTestRequest(BaseModel):
+    proxy_url: str
+
+
+@router.post("/proxy/test")
+def test_proxy(request: ProxyTestRequest) -> dict:
+    """測試 Proxy 連線（透過 DMM GraphQL endpoint 驗證）"""
+    import requests
+    proxies = {'http': request.proxy_url, 'https': request.proxy_url}
+    try:
+        resp = requests.post(
+            "https://api.video.dmm.co.jp/graphql",
+            json={"query": "{ __typename }"},
+            headers={"Content-Type": "application/json"},
+            proxies=proxies,
+            timeout=10
+        )
+        if resp.status_code == 200:
+            return {"success": True, "reason": "ok", "message": "Proxy 連線成功（DMM 可達）"}
+        elif resp.status_code == 403:
+            return {"success": False, "reason": "non_jp", "message": "Proxy 連線成功，但 DMM 回傳 403（可能非日本 IP）"}
+        else:
+            return {"success": False, "reason": "unexpected_status", "message": f"DMM 回傳異常狀態碼: {resp.status_code}"}
+    except requests.exceptions.Timeout:
+        return {"success": False, "reason": "unreachable", "message": "連線失敗: 連線逾時"}
+    except requests.exceptions.ConnectionError:
+        return {"success": False, "reason": "unreachable", "message": "連線失敗: 無法連線到 Proxy"}
+    except Exception:
+        return {"success": False, "reason": "unreachable", "message": "連線失敗: 請檢查 Proxy 網址格式"}
