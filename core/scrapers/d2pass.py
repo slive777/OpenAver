@@ -139,7 +139,7 @@ class D2PassScraper(BaseScraper):
         if not cover_url and site == 'caribbeancom':
             cover_url = f'https://www.caribbeancom.com/moviepages/{movie_id}/images/l_l.jpg'
         if not cover_url and site == '1pondo':
-            cover_url = f'https://www.1pondo.tv/moviepages/{movie_id}/images/str.jpg'
+            cover_url = f'https://www.1pondo.tv/assets/sample/{movie_id}/str.jpg'
 
         # 標籤（日文名優先）
         tags = data.get('UCNAME') or data.get('UCNAMEEn') or []

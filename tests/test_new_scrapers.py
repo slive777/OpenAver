@@ -190,6 +190,44 @@ class TestD2PassScraper:
 
         assert video is None
 
+    def test_d2pass_caribbeancom_cover_fallback(self, scraper):
+        """Caribbeancom ThumbHigh=null 時，自動構造封面 URL"""
+        carib_json = {
+            "Status": True,
+            "Title": "テスト動画",
+            "ActressesJa": ["テスト"],
+            "Release": "2024-02-09",
+            "UCNAME": [],
+            # ThumbHigh / MovieThumb 都不存在 → 觸發 fallback
+        }
+        mock_resp = _make_mock_resp(status_code=200, json_data=carib_json)
+
+        with patch.object(scraper._session, 'get', return_value=mock_resp):
+            with patch('core.scrapers.utils.rate_limit'):
+                video = scraper.search("020924-001")
+
+        assert video is not None
+        assert video.cover_url == "https://www.caribbeancom.com/moviepages/020924-001/images/l_l.jpg"
+
+    def test_d2pass_1pondo_cover_fallback(self, scraper):
+        """1Pondo ThumbHigh=null 時，自動構造封面 URL"""
+        pondo_json = {
+            "Status": True,
+            "Title": "テスト動画",
+            "ActressesJa": ["テスト"],
+            "Release": "2024-04-23",
+            "UCNAME": [],
+            # ThumbHigh / MovieThumb 都不存在 → 觸發 fallback
+        }
+        mock_resp = _make_mock_resp(status_code=200, json_data=pondo_json)
+
+        with patch.object(scraper._session, 'get', return_value=mock_resp):
+            with patch('core.scrapers.utils.rate_limit'):
+                video = scraper.search("042324_001")
+
+        assert video is not None
+        assert video.cover_url == "https://www.1pondo.tv/assets/sample/042324_001/str.jpg"
+
 
 # ============================================================
 # Class 2: TestHEYZOScraper
