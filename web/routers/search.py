@@ -3,7 +3,7 @@
 """
 
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import Response, StreamingResponse, JSONResponse
 from typing import Optional, List, Dict
 import re
 import requests
@@ -104,6 +104,12 @@ def search(
     if not q or len(q) < 2:
         return {"success": False, "error": "請輸入有效的搜尋關鍵字", "data": [], "total": 0}
 
+    # 驗證 source 參數
+    if source is not None:
+        valid_sources = {'auto', 'dmm', 'javbus', 'jav321', 'javdb', 'd2pass', 'heyzo', 'fc2', 'avsox'}
+        if source not in valid_sources:
+            return JSONResponse(status_code=400, content={"error": f"未知來源: {source}"})
+
     # 如果指定了 variant_id，直接搜索該版本
     if variant_id:
         data = search_by_variant_id(variant_id, q)
@@ -116,30 +122,31 @@ def search(
             "actress_profile": None
         }
 
-    # 讀取無碼模式設定
+    # 讀取設定（無碼模式 + proxy）
     from web.routers.config import load_config
     config = load_config()
     uncensored_mode = config.get('search', {}).get('uncensored_mode_enabled', False)
+    proxy_url = config.get('search', {}).get('proxy_url', '')
 
     # 自動模式使用 smart_search
     if mode == "auto":
-        results = smart_search(q, limit=limit, offset=offset, uncensored_mode=uncensored_mode)
+        results = smart_search(q, limit=limit, offset=offset, uncensored_mode=uncensored_mode, proxy_url=proxy_url)
     elif mode == "exact":
         if source:
             # 指定來源搜索
             from core.scraper import search_jav_single_source
-            data = search_jav_single_source(q, source)
+            data = search_jav_single_source(q, source, proxy_url=proxy_url)
             results = [data] if data else []
         else:
             # 精確搜索（使用 smart_search 的 exact 模式）
-            data = search_jav(q)
+            data = search_jav(q, proxy_url=proxy_url)
             results = [data] if data else []
     elif mode == "partial":
         results = search_partial(q)
     elif mode == "actress":
         results = search_actress(q, limit=limit, offset=offset)
     else:
-        results = smart_search(q, limit=limit, offset=offset)
+        results = smart_search(q, limit=limit, offset=offset, proxy_url=proxy_url)
 
     detected_mode = mode if mode != "auto" else _detect_mode(q)
 
@@ -306,10 +313,11 @@ async def search_stream(
             yield f"data: {json.dumps({'type': 'error', 'message': '請輸入有效的搜尋關鍵字'})}\n\n"
         return StreamingResponse(error_gen(), media_type="text/event-stream")
 
-    # 讀取無碼模式設定
+    # 讀取設定（無碼模式 + proxy）
     from web.routers.config import load_config
     config = load_config()
     uncensored_mode = config.get('search', {}).get('uncensored_mode_enabled', False)
+    proxy_url = config.get('search', {}).get('proxy_url', '')
 
     status_queue = Queue()
 
@@ -319,7 +327,7 @@ async def search_stream(
 
     def run_search():
         """在背景執行搜尋"""
-        return smart_search(q, limit=limit, offset=offset, status_callback=status_callback, uncensored_mode=uncensored_mode)
+        return smart_search(q, limit=limit, offset=offset, status_callback=status_callback, uncensored_mode=uncensored_mode, proxy_url=proxy_url)
 
     async def event_generator():
         # 偵測模式
@@ -390,11 +398,14 @@ async def get_sources() -> dict:
     # 來源描述（保留向後相容）
     source_descriptions = {
         "auto": "依優先順序自動選擇",
+        "dmm": "日本官方（需 Proxy）",
         "javbus": "最常用的來源（封面無浮水印）",
         "jav321": "備用來源（封面完整）",
         "javdb": "資料完整（有片商）",
+        "d2pass": "1Pondo / Caribbeancom / 10musume",
+        "heyzo": "HEYZO 專用",
         "fc2": "FC2 專用",
-        "avsox": "無碼片源"
+        "avsox": "無碼片源",
     }
 
     # 動態生成 sources 列表

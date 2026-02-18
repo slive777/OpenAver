@@ -7,6 +7,7 @@ function settingsPage() {
             galleryModeEnabled: false,
             uncensoredModeEnabled: false,
             searchFavoriteFolder: '',
+            proxyUrl: '',
 
             // Translate
             translateEnabled: false,
@@ -62,6 +63,9 @@ function settingsPage() {
         testGeminiLoading: false,
         testGeminiTranslateLoading: false,
         checkUpdateLoading: false,
+        proxyStatus: '',
+        proxyStatusOk: false,
+        testProxyLoading: false,
 
         // Dirty Check Modal State
         dirtyCheckModalOpen: false,
@@ -71,6 +75,21 @@ function settingsPage() {
         pendingNavigationUrl: '',
 
         // ===== Constants =====
+
+        // 來源分群常數（與 core/scrapers/utils.py 同步）
+        CENSORED_SOURCES: ['dmm', 'javbus', 'jav321', 'javdb'],
+        UNCENSORED_SOURCES: ['d2pass', 'heyzo', 'fc2', 'avsox'],
+        SOURCE_NAMES: {
+            'dmm':     'DMM',
+            'javbus':  'JavBus',
+            'jav321':  'Jav321',
+            'javdb':   'JavDB',
+            'd2pass':  'D2Pass',
+            'heyzo':   'HEYZO',
+            'fc2':     'FC2',
+            'avsox':   'AVSOX',
+        },
+
         formatVariables: [
             { name: '{num}', label: '番號' },
             { name: '{title}', label: '標題' },
@@ -102,6 +121,32 @@ function settingsPage() {
             if (!this.savedState) return false;
             return JSON.stringify(this.form) !== JSON.stringify(this.savedState);
         },
+
+        /**
+         * 來源是否啟用（決定 badge 亮度）
+         * - 有碼來源：無碼模式關閉時啟用
+         * - 無碼來源：無碼模式開啟時啟用
+         * - DMM：有碼模式 + proxy 有值才亮
+         */
+        isSourceActive(src) {
+            const isUncensored = this.UNCENSORED_SOURCES.includes(src);
+            if (isUncensored) {
+                return this.form.uncensoredModeEnabled;
+            }
+            if (src === 'dmm') {
+                return !this.form.uncensoredModeEnabled && !!this.form.proxyUrl.trim();
+            }
+            return !this.form.uncensoredModeEnabled;
+        },
+
+        /**
+         * DMM 是否可用（proxy_url 非空）
+         * 控制 source-dmm-disabled class（刪除線樣式）
+         */
+        isDmmAvailable() {
+            return !!this.form.proxyUrl.trim();
+        },
+
         get layer3Enabled() {
             return this.form.createFolder;
         },
@@ -186,6 +231,7 @@ function settingsPage() {
                     this.form.galleryModeEnabled = config.search?.gallery_mode_enabled || false;
                     this.form.uncensoredModeEnabled = config.search?.uncensored_mode_enabled || false;
                     this.form.searchFavoriteFolder = config.search?.favorite_folder || '';
+                    this.form.proxyUrl = config.search?.proxy_url || '';
 
                     // Translate
                     this.form.translateEnabled = config.translate.enabled;
@@ -288,7 +334,8 @@ function settingsPage() {
                     ...config.search,
                     gallery_mode_enabled: this.form.galleryModeEnabled,
                     uncensored_mode_enabled: this.form.uncensoredModeEnabled,
-                    favorite_folder: this.form.searchFavoriteFolder.trim()
+                    favorite_folder: this.form.searchFavoriteFolder.trim(),
+                    proxy_url: this.form.proxyUrl.trim()
                 };
 
                 // 更新 translate
@@ -385,6 +432,34 @@ function settingsPage() {
                 }
             } catch (e) {
                 this.ollamaStatus = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> 無法連線</span>`;
+            }
+        },
+
+        async testProxy() {
+            if (!this.form.proxyUrl.trim()) return;
+
+            this.testProxyLoading = true;
+            this.proxyStatusOk = false;
+            this.proxyStatus = '測試中...';
+
+            try {
+                const resp = await fetch('/api/proxy/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ proxy_url: this.form.proxyUrl.trim() })
+                });
+                const result = await resp.json();
+
+                if (result.success === true) {
+                    this.proxyStatusOk = true;
+                    this.proxyStatus = `✓ ${result.message}`;
+                } else {
+                    this.proxyStatus = `✗ ${result.message}`;
+                }
+            } catch (e) {
+                this.proxyStatus = '✗ 網路錯誤，請稍後再試';
+            } finally {
+                this.testProxyLoading = false;
             }
         },
 

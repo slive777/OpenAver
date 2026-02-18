@@ -60,7 +60,53 @@
                             x-model="form.uncensoredModeEnabled">
                         <span class="label-text">無碼模式</span>
                     </label>
-                    <small class="settings-hint">啟用時只搜尋 AVSOX / FC2，適合無碼作品</small>
+
+                    <!-- Source Badges -->
+                    <div class="source-badges-row mt-2">
+                        <!-- 有碼來源 -->
+                        <template x-for="src in CENSORED_SOURCES" :key="src">
+                            <span class="badge badge-sm source-badge"
+                                :class="{
+                                    'source-active': isSourceActive(src),
+                                    'source-dmm-disabled': src === 'dmm' && !isDmmAvailable()
+                                }"
+                                x-text="SOURCE_NAMES[src] || src">
+                            </span>
+                        </template>
+
+                        <span class="source-badge-sep">|</span>
+
+                        <!-- 無碼來源 -->
+                        <template x-for="src in UNCENSORED_SOURCES" :key="src">
+                            <span class="badge badge-sm source-badge"
+                                :class="{ 'source-active': isSourceActive(src) }"
+                                x-text="SOURCE_NAMES[src] || src">
+                            </span>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Proxy -->
+                <div class="settings-form-row">
+                    <label class="row-label">
+                        Proxy
+                        <small class="settings-hint">DMM 需要日本 IP</small>
+                    </label>
+                    <div class="flex-1 flex flex-col gap-1">
+                        <div class="variable-input-group">
+                            <input type="text" class="input input-bordered input-sm flex-1"
+                                x-model="form.proxyUrl"
+                                placeholder="http://帳號:密碼@主機:埠號">
+                            <button class="btn btn-sm btn-outline" type="button"
+                                @click="testProxy()"
+                                :disabled="!form.proxyUrl.trim() || testProxyLoading">
+                                <span x-show="testProxyLoading" class="loading loading-spinner loading-sm"></span>
+                                測試
+                            </button>
+                        </div>
+                        <small class="settings-hint" x-show="proxyStatus" x-text="proxyStatus"
+                            :class="{ 'text-success': proxyStatusOk, 'text-error': proxyStatus && !proxyStatusOk && !testProxyLoading }"></small>
+                    </div>
                 </div>
 
                 <!-- 我的最愛資料夾 -->

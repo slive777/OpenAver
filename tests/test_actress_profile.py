@@ -532,7 +532,7 @@ def test_search_api_exact_no_profile():
 
     client = TestClient(app)
 
-    def mock_search_jav(q):
+    def mock_search_jav(q, **kwargs):
         return {'number': 'SONE-205', 'actors': ['桜空もも']}
 
     with patch('web.routers.search.search_jav', side_effect=mock_search_jav):

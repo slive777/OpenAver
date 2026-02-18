@@ -103,7 +103,8 @@ def extract_number(filename: str) -> Optional[str]:
 
     patterns = [
         r'(FC2-PPV-\d+)',               # FC2-PPV-1234567
-        r'(\d{6}-\d{3,})',              # 041417-413 日期-編號格式（無碼）
+        r'(\d{6}-\d{2,})',              # 041417-413 日期-編號格式（無碼）
+        r'(\d{6}_\d{2,})',             # 120415_201 / 082912_01 底線格式（無碼）
         r'([A-Za-z]+\d+-\d+)',          # T28-103 混合格式
         r'\[([A-Za-z]{1,6}-\d{3,5})\]', # [ABC-123] 方括號
         r'([A-Za-z]{1,6}-\d{3,5})',     # ABC-123 帶橫線
@@ -114,7 +115,7 @@ def extract_number(filename: str) -> Optional[str]:
     for i, pattern in enumerate(patterns):
         match = re.search(pattern, basename, re.IGNORECASE)
         if match:
-            if i == 5:  # 不帶橫線需重組（ABC12345）
+            if i == 6:  # 不帶橫線需重組（ABC12345）
                 number = f"{match.group(1).upper()}-{match.group(2)}"
             else:
                 number = match.group(1).upper()
@@ -249,12 +250,20 @@ def format_number(number: str) -> str:
 # 來源配置常數
 # ============================================================
 
-SOURCE_ORDER = ['javbus', 'jav321', 'javdb', 'fc2', 'avsox']
+# 分群常數（供 scraper.py / settings UI 使用）
+CENSORED_SOURCES = ['dmm', 'javbus', 'jav321', 'javdb']
+UNCENSORED_SOURCES = ['d2pass', 'heyzo', 'fc2', 'avsox']
+PROXY_SOURCES = {'dmm'}  # 需要 proxy 才能使用的來源
+
+SOURCE_ORDER = CENSORED_SOURCES + UNCENSORED_SOURCES
 
 SOURCE_NAMES = {
+    'dmm': 'DMM',
     'javbus': 'JavBus',
     'jav321': 'Jav321',
     'javdb': 'JavDB',
+    'd2pass': 'D2Pass',
+    'heyzo': 'HEYZO',
     'fc2': 'FC2',
-    'avsox': 'AVSOX'
+    'avsox': 'AVSOX',
 }

@@ -19,6 +19,7 @@ from typing import Optional, List, Dict, Union, Any, Callable, Type
 from core.scrapers import (
     JavBusScraper, JAV321Scraper, JavDBScraper,
     FC2Scraper, AVSOXScraper,
+    D2PassScraper, HEYZOScraper, DMMScraper,
     Video, ScraperConfig, BaseScraper
 )
 from core.scrapers.utils import extract_number as _new_extract_number
@@ -39,7 +40,8 @@ REQUEST_DELAY = 0.3
 # 爬蟲優先順序
 SCRAPER_CLASSES: List[Type[BaseScraper]] = [
     JavBusScraper, JAV321Scraper, JavDBScraper,
-    FC2Scraper, AVSOXScraper
+    FC2Scraper, AVSOXScraper,
+    D2PassScraper, HEYZOScraper,
 ]
 
 # 片商對照表檔案路徑
@@ -172,30 +174,49 @@ def expand_partial_number(partial: str) -> List[str]:
 
 # ============ 核心搜尋函數 ============
 
-def search_jav(number: str, source: str = 'auto') -> Optional[Dict[str, Any]]:
+def search_jav(number: str, source: str = 'auto', proxy_url: str = '') -> Optional[Dict[str, Any]]:
     """
     搜尋 JAV 資訊（向後相容函數）
     """
     all_data: Dict[str, Video] = {}
-    
+
     # 標準化番號
     number = normalize_number(number)
+
+    VALID_SOURCES = {'auto', 'dmm', 'javbus', 'jav321', 'javdb', 'd2pass', 'heyzo', 'fc2', 'avsox'}
+    if source not in VALID_SOURCES:
+        logger.warning(f"[Search] 未知來源: {source}")
+        return None
+
+    # DMM 需要 proxy，有 proxy_url 才建立
+    dmm_config = ScraperConfig(proxy_url=proxy_url) if proxy_url else None
 
     # 決定要跑哪些爬蟲
     scrapers = []
     if source == 'auto':
-        scrapers = [cls() for cls in SCRAPER_CLASSES]
+        base = [cls() for cls in SCRAPER_CLASSES]
+        if dmm_config:
+            scrapers = [DMMScraper(dmm_config)] + base
+        else:
+            scrapers = base
+    elif source == 'dmm':
+        scrapers = [DMMScraper(dmm_config)] if dmm_config else []
     elif source == 'javbus':
         scrapers = [JavBusScraper()]
     elif source == 'jav321':
         scrapers = [JAV321Scraper()]
     elif source == 'javdb':
         scrapers = [JavDBScraper()]
+    elif source == 'd2pass':
+        scrapers = [D2PassScraper()]
+    elif source == 'heyzo':
+        scrapers = [HEYZOScraper()]
     elif source == 'fc2':
         scrapers = [FC2Scraper()]
     elif source == 'avsox':
         scrapers = [AVSOXScraper()]
     else:
+        # 安全 fallback — 理論上已被上方 VALID_SOURCES 攔截，不應執行到此
         scrapers = [cls() for cls in SCRAPER_CLASSES]
 
     # 執行搜尋
@@ -218,7 +239,9 @@ def search_jav(number: str, source: str = 'auto') -> Optional[Dict[str, Any]]:
 
     # 合併邏輯
     main_video = None
-    if 'javbus' in all_data:
+    if 'dmm' in all_data:
+        main_video = all_data['dmm']
+    elif 'javbus' in all_data:
         main_video = all_data['javbus']
     elif 'jav321' in all_data:
         main_video = all_data['jav321']
@@ -263,9 +286,9 @@ def search_jav(number: str, source: str = 'auto') -> Optional[Dict[str, Any]]:
     return result
 
 
-def search_jav_single_source(number: str, source: str) -> Optional[Dict[str, Any]]:
+def search_jav_single_source(number: str, source: str, proxy_url: str = '') -> Optional[Dict[str, Any]]:
     """指定單一來源搜尋"""
-    return search_jav(number, source=source)
+    return search_jav(number, source=source, proxy_url=proxy_url)
 
 
 def search_partial(partial: str) -> List[Dict[str, Any]]:
@@ -500,7 +523,24 @@ def search_by_variant_id(variant_id: str, base_number: str) -> Optional[Dict[str
     return None
 
 
-def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, uncensored_mode: bool = False) -> List[Dict[str, Any]]:
+def _get_uncensored_sources(search_term: str) -> list[str]:
+    """
+    根據番號前綴決定無碼來源搜尋順序。
+
+    - FC2 前綴 → ['fc2', 'avsox']（省 D2Pass + HEYZO）
+    - HEYZO 前綴 → ['heyzo', 'avsox']（省 D2Pass）
+    - 其他（D2Pass 日期格式等）→ ['d2pass', 'heyzo', 'fc2', 'avsox']（原始順序）
+    """
+    term_lower = search_term.lower().strip()
+    if term_lower.startswith('fc2'):
+        return ['fc2', 'avsox']
+    elif term_lower.startswith('heyzo'):
+        return ['heyzo', 'avsox']
+    else:
+        return ['d2pass', 'heyzo', 'fc2', 'avsox']
+
+
+def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, uncensored_mode: bool = False, proxy_url: str = '') -> List[Dict[str, Any]]:
     """
     智慧搜尋：自動判斷搜尋類型並執行
 
@@ -516,25 +556,22 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
     if not query or len(query) < 2:
         return []
 
-    # 無碼模式：只搜尋 AVSOX / FC2
+    # 無碼模式：D2Pass → HEYZO → FC2 → AVSOX
     if uncensored_mode:
         if status_callback:
             status_callback('mode', 'uncensored')
 
-        # 嘗試從查詢中提取番號
         extracted = _new_extract_number(query)
         search_term = extracted if extracted else query
 
-        if status_callback:
-            status_callback('avsox', 'searching')
-
-        # AVSOX 優先
-        result = search_jav(search_term, source='avsox')
-        if not result:
-            # FC2 備用
+        result = None
+        unc_sources = _get_uncensored_sources(search_term)
+        for unc_source in unc_sources:
             if status_callback:
-                status_callback('fc2', 'searching')
-            result = search_jav(search_term, source='fc2')
+                status_callback(unc_source, 'searching')
+            result = search_jav(search_term, source=unc_source, proxy_url=proxy_url)
+            if result:
+                break
 
         results = [result] if result else []
         if status_callback:
@@ -543,13 +580,27 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
             r['_mode'] = 'uncensored'
         return results
 
-    # 0. 無碼特殊處理 (FC2 / 日期-編號格式) - 自動偵測
-    is_uncensored = 'fc2' in query.lower() or re.match(r'^\d{6}-\d{3,}$', query)
+    # 0. 無碼特殊處理 - 自動偵測（FC2 / HEYZO / 日期-編號格式）
+    is_uncensored = (
+        query.lower().strip().startswith('fc2') or
+        query.lower().strip().startswith('heyzo') or
+        re.match(r'^\d{6}-\d{2,}$', query) or
+        re.match(r'^\d{6}_\d{2,}$', query)
+    )
     if is_uncensored:
         if status_callback:
             status_callback('mode', 'uncensored')
-        res = search_jav(query)
-        results = [res] if res else []
+        extracted = _new_extract_number(query)
+        search_term = extracted if extracted else query
+        result = None
+        unc_sources = _get_uncensored_sources(search_term)
+        for unc_source in unc_sources:
+            if status_callback:
+                status_callback(unc_source, 'searching')
+            result = search_jav(search_term, source=unc_source, proxy_url=proxy_url)
+            if result:
+                break
+        results = [result] if result else []
         if status_callback:
             status_callback('done', f'found:{len(results)}')
         for r in results:
@@ -561,10 +612,20 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
         query = normalize_number(query)
         if offset > 0:
             return []
-            
+
+        # DMM Top-1（proxy 有值時精確搜尋優先用 DMM）
+        if proxy_url:
+            if status_callback:
+                status_callback('dmm', 'searching')
+            res = search_jav(query, source='dmm', proxy_url=proxy_url)
+            if res:
+                res['_mode'] = 'exact'
+                if status_callback: status_callback('done', 'found:1')
+                return [res]
+
         if status_callback:
             status_callback('javbus', 'searching')
-            
+
         # 嘗試找變體
         variant_ids = get_all_variant_ids(query)
         if variant_ids:
@@ -575,9 +636,9 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
                 res['_all_variant_ids'] = variant_ids
                 if status_callback: status_callback('done', 'found:1')
                 return [res]
-        
+
         # 一般搜尋
-        res = search_jav(query)
+        res = search_jav(query, proxy_url=proxy_url)
         results = [res] if res else []
         if status_callback: status_callback('done', f'found:{len(results)}')
         for r in results: r['_mode'] = 'exact'
