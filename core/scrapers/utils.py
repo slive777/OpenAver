@@ -250,12 +250,21 @@ def format_number(number: str) -> str:
 # 來源配置常數
 # ============================================================
 
-SOURCE_ORDER = ['javbus', 'jav321', 'javdb', 'fc2', 'avsox']
+# 分群常數（供 scraper.py / settings UI 使用）
+CENSORED_SOURCES = ['dmm', 'javbus', 'jav321', 'javdb', 'javguru']
+UNCENSORED_SOURCES = ['d2pass', 'heyzo', 'fc2', 'avsox']
+PROXY_SOURCES = {'dmm'}  # 需要 proxy 才能使用的來源
+
+SOURCE_ORDER = CENSORED_SOURCES + UNCENSORED_SOURCES
 
 SOURCE_NAMES = {
+    'dmm': 'DMM',
     'javbus': 'JavBus',
     'jav321': 'Jav321',
     'javdb': 'JavDB',
+    'javguru': 'JavGuru',
+    'd2pass': 'D2Pass',
+    'heyzo': 'HEYZO',
     'fc2': 'FC2',
-    'avsox': 'AVSOX'
+    'avsox': 'AVSOX',
 }

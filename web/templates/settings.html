@@ -60,7 +60,31 @@
                             x-model="form.uncensoredModeEnabled">
                         <span class="label-text">無碼模式</span>
                     </label>
-                    <small class="settings-hint">啟用時只搜尋 AVSOX / FC2，適合無碼作品</small>
+
+                    <!-- Source Badges -->
+                    <div class="source-badges-row mt-2">
+                        <!-- 有碼來源 -->
+                        <template x-for="src in CENSORED_SOURCES" :key="src">
+                            <span class="badge badge-sm source-badge"
+                                :class="{
+                                    'source-active': isSourceActive(src),
+                                    'source-dmm-disabled': src === 'dmm' && !isDmmAvailable()
+                                }"
+                                x-text="SOURCE_NAMES[src] || src">
+                            </span>
+                        </template>
+
+                        <span class="source-badge-sep">|</span>
+
+                        <!-- 無碼來源 -->
+                        <template x-for="src in UNCENSORED_SOURCES" :key="src">
+                            <span class="badge badge-sm source-badge"
+                                :class="{ 'source-active': isSourceActive(src) }"
+                                x-text="SOURCE_NAMES[src] || src">
+                            </span>
+                        </template>
+                    </div>
+                    <small class="settings-hint mt-1">亮色 = 啟用；DMM 需設定 Proxy 才生效</small>
                 </div>
 
                 <!-- Proxy -->

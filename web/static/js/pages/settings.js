@@ -75,6 +75,22 @@ function settingsPage() {
         pendingNavigationUrl: '',
 
         // ===== Constants =====
+
+        // 來源分群常數（與 core/scrapers/utils.py 同步）
+        CENSORED_SOURCES: ['dmm', 'javbus', 'jav321', 'javdb', 'javguru'],
+        UNCENSORED_SOURCES: ['d2pass', 'heyzo', 'fc2', 'avsox'],
+        SOURCE_NAMES: {
+            'dmm':     'DMM',
+            'javbus':  'JavBus',
+            'jav321':  'Jav321',
+            'javdb':   'JavDB',
+            'javguru': 'JavGuru',
+            'd2pass':  'D2Pass',
+            'heyzo':   'HEYZO',
+            'fc2':     'FC2',
+            'avsox':   'AVSOX',
+        },
+
         formatVariables: [
             { name: '{num}', label: '番號' },
             { name: '{title}', label: '標題' },
@@ -106,6 +122,32 @@ function settingsPage() {
             if (!this.savedState) return false;
             return JSON.stringify(this.form) !== JSON.stringify(this.savedState);
         },
+
+        /**
+         * 來源是否啟用（決定 badge 亮度）
+         * - 有碼來源：無碼模式關閉時啟用
+         * - 無碼來源：無碼模式開啟時啟用
+         * - DMM：有碼模式 + proxy 有值才亮
+         */
+        isSourceActive(src) {
+            const isUncensored = this.UNCENSORED_SOURCES.includes(src);
+            if (isUncensored) {
+                return this.form.uncensoredModeEnabled;
+            }
+            if (src === 'dmm') {
+                return !this.form.uncensoredModeEnabled && !!this.form.proxyUrl.trim();
+            }
+            return !this.form.uncensoredModeEnabled;
+        },
+
+        /**
+         * DMM 是否可用（proxy_url 非空）
+         * 控制 source-dmm-disabled class（刪除線樣式）
+         */
+        isDmmAvailable() {
+            return !!this.form.proxyUrl.trim();
+        },
+
         get layer3Enabled() {
             return this.form.createFolder;
         },
