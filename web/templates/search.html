@@ -32,10 +32,10 @@
 
             <!-- Cover Image -->
             <div class="lightbox-cover">
-                <img :src="actressLightboxMode
+                <img :src="actressLightboxMode()
                          ? (actressProfile?.img ? `/api/proxy-image?url=${encodeURIComponent(actressProfile.img)}` : '')
                          : (currentLightboxVideo()?.cover ? `/api/proxy-image?url=${encodeURIComponent(currentLightboxVideo().cover)}` : '')"
-                     :alt="actressLightboxMode ? actressProfile?.name : currentLightboxVideo()?.number"
+                     :alt="actressLightboxMode() ? actressProfile?.name : currentLightboxVideo()?.number"
                      @error="$event.target.onerror=null; $event.target.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22 fill=%22%23666%22><rect width=%22400%22 height=%22300%22 fill=%22%23222%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2216%22>No Image</text></svg>'">
             </div>
         </div>
@@ -43,13 +43,13 @@
         <!-- Navigation Arrows -->
         <button class="lightbox-nav lightbox-nav-prev"
                 @click.stop="prevLightboxVideo()"
-                x-show="!actressLightboxMode && lightboxIndex > 0"
+                x-show="lightboxIndex >= 0 && (lightboxIndex > 0 || actressProfile)"
                 title="上一部 (←)">
             <i class="bi bi-chevron-left"></i>
         </button>
         <button class="lightbox-nav lightbox-nav-next"
                 @click.stop="nextLightboxVideo()"
-                x-show="!actressLightboxMode && lightboxIndex < searchResults.length - 1"
+                x-show="lightboxIndex < searchResults.length - 1"
                 title="下一部 (→)">
             <i class="bi bi-chevron-right"></i>
         </button>

@@ -82,8 +82,7 @@ window.SearchStateMixin_Base = function() {
         // ===== T2a: Display Mode State =====
         displayMode: 'detail',     // 'detail' | 'grid'
         lightboxOpen: false,       // Lightbox 顯示狀態
-        lightboxIndex: 0,          // Lightbox 當前索引
-        actressLightboxMode: false, // Actress photo lightbox mode
+        lightboxIndex: 0,          // Lightbox 當前索引（-1 = 女優頭像）
 
         // ===== T2d: Actress Profile State =====
         actressProfile: null,      // { name, img, backdrop, birth, age, height, cup, bust, waist, hip, hometown, hobby }
@@ -118,6 +117,10 @@ window.SearchStateMixin_Base = function() {
         // ===== Computed Properties =====
         // 修正 2: hasContent 改為 plain data property（由 updateClearButton() 同步）
         hasContent: false,
+
+        actressLightboxMode() {
+            return this.lightboxIndex === -1;
+        },
 
         canGoPrev() {
             return this.currentIndex > 0 || this.currentFileIndex > 0;
