@@ -2,6 +2,7 @@
 OpenAver Web GUI - FastAPI Application
 """
 from pathlib import Path
+import re
 
 import logging
 
@@ -212,11 +213,15 @@ async def check_update():
 
             # 語意版本比較（tuple 比較避免 "0.10.0" < "0.9.0" 問題）
             def _parse_ver(v):
-                return tuple(int(x) for x in v.split('.'))
+                # Strip prerelease/build suffixes: "0.10.0-rc1" → "0.10.0"
+                m = re.match(r'(\d+(?:\.\d+)*)', v)
+                if not m:
+                    raise ValueError(f"Cannot parse version: {v}")
+                return tuple(int(x) for x in m.group(1).split('.'))
             try:
                 has_update = _parse_ver(latest_version) > _parse_ver(current_version)
             except (ValueError, AttributeError):
-                has_update = latest_version > current_version
+                has_update = False
 
             return {
                 "success": True,
