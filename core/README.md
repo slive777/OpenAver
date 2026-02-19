@@ -24,7 +24,10 @@ scrapers/
 ├── jav321.py           # JAV321Scraper
 ├── javdb.py            # JavDBScraper (需 curl_cffi)
 ├── fc2.py              # FC2Scraper
-└── avsox.py            # AVSOXScraper
+├── avsox.py            # AVSOXScraper
+├── dmm.py              # DMMScraper (GraphQL API + Proxy)
+├── d2pass.py           # D2PassScraper (1Pondo/Caribbeancom/10musume)
+└── heyzo.py            # HEYZOScraper (JSON-LD + HTML table)
 ```
 
 #### `scrapers/utils.py`
@@ -59,6 +62,14 @@ scrapers/
 - 自動下載封面圖片與生成 NFO 檔案。
 - 包含中文片名提取邏輯（從檔名中智慧識別中文標題）。
 - 字幕偵測與中文檢測改從 `scrapers/utils.py` 導入。
+- `format_string()` fallback — 資料夾層級空值時自動降級。
+- `{suffix}` 格式變數 — UC/LEAK/4K 等版本標記支援。
+
+### `database.py`
+**SQLite 資料層**
+- WAL mode 高效讀寫。
+- `VideoRepository` — 影片快取 CRUD + `clear_all()` 一鍵清除。
+- `init_db()` — Schema 初始化 + 遷移。
 
 ### `translate_service.py`
 **AI 翻譯服務**
@@ -99,3 +110,4 @@ scrapers/
 **跨平台路徑處理**
 - 解決 Windows、WSL (Windows Subsystem for Linux)、Linux 與 macOS 之間的路徑格式差異。
 - 支援將 WSL 路徑轉換為 Windows 可讀取的 `file:///` 格式，確保在 Windows 瀏覽器中能直接開啟本地檔案。
+- `uri_to_fs_path()` — file:// URI → 當前環境 FS 路徑轉換。

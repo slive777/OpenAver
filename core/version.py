@@ -2,7 +2,7 @@
 OpenAver 版本資訊
 """
 
-__version__ = "0.3.3"
+__version__ = "0.3.5"
 VERSION = __version__
 
 # 版本資訊

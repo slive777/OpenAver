@@ -5,6 +5,72 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5] - 2026-02-20
+
+### Added
+
+#### 🏷️ 版本標記與覆蓋保護 (T1)
+- suffix_keywords config + `{suffix}` 格式變數 — UC/LEAK/4K 等標記自動偵測
+- Search suffix badge + 覆蓋引導彈窗 — 已有檔案時提示用戶確認
+- Scraper API duplicate response — 覆蓋保護傳前端
+
+#### 📦 Fallback 空值防護 (T2)
+- `format_string()` fallback — 資料夾層級空值時自動降級，避免空資料夾
+- scrape response fallback warning toast — 刮削空值欄位提示
+
+#### 🌐 批次翻譯 (T3)
+- translateAll() — 雲端搜尋模式批次翻譯按鈕 + 翻譯 icon 藍色化
+
+#### 📂 系統檔案管理員整合 (T5)
+- openLocal() — Search Detail/Grid + Showcase 統一「開啟資料夾」功能
+- PyWebView API `open_folder()` — 系統檔案管理員開啟
+
+#### 🖼️ Jellyfin 圖片模式 (T6)
+- crop_to_poster() + organize_file() — Jellyfin 圖片自動生成
+- Scanner Jellyfin 圖片批次補齊 — SSE 串流 + 偵測邏輯
+- NFO poster/thumb/fanart 標籤修正 — .png→.jpg + Jellyfin 後綴
+
+#### 🔗 路徑工具統一 (T7)
+- `uri_to_fs_path()` — 新增 file:// URI → FS 路徑轉換
+- 前端 `pathToDisplay()` — 統一路徑顯示格式
+- Path Guardrails 守衛測試 — 路徑違規清零
+
+#### 🎨 Design System 補齊 (T8)
+- DS 圖示庫補齊 — 21 個缺漏 icon
+- DS 色盤補齊 — `--color-warning-content` + `--color-translate` token
+- DS 元件補齊 — suffix-badge / override modal / toast warning / mini-terminal
+- DS 文件補齊 — Showcase Toolbar + Jellyfin Image Row
+
+#### ⚙️ Settings / Help 重構 (T4, T9)
+- Settings 簡化 — 移除版本/更新/新手引導，viewerPlayer 併入系統設定
+- Help 全面重構 — hero card + Alpine 檢查更新 + 新增區塊（格式變數/Showcase/Scraper 來源）
+- 檔名長度限制 Help Icon — 路徑長度說明浮動面板
+
+#### 🗑️ Scanner 清除快取
+- 清除快取 icon + DaisyUI modal 兩步確認 + DELETE API
+
+### Changed
+- `folder_layers` 預設改為 `{actor}`
+- Toast 描述四種變體 + snippet `#d4d4d4` token 化
+
+### Fixed
+
+#### 🔒 安全加固 (28-4)
+- **str(e) 外洩修正** — 7 個 router 共 27 處 `str(e)` 改為固定中文訊息 + server-side log
+- **語意版本比較** — tuple 比較取代字串比較，支援 prerelease strip
+- **SSE onerror guard** — 正常關閉不再觸發假「連線中斷」錯誤 (×3 處)
+- **restoreState() crash** — optional chaining 保護已遷移函式呼叫
+- **check-update 硬上限** — `asyncio.wait_for()` 防止 DNS 失敗無限等待
+- **logger.exception** — translate.py 保留 traceback 便於排錯
+
+#### 🧪 測試品質提升 (28-4)
+- 共用 `tests/unit/conftest.py` — 消除 4 檔重複 fixture
+- `test_frontend_lint.py` 相對路徑修正
+- `test_api_gallery.py` 斷言加強 — 消除永遠 pass 的弱斷言
+- 測試總數 523 → 564（+41）
+
+---
+
 ## [0.3.3] - 2026-02-19
 
 ### Added
