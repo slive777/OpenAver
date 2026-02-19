@@ -37,6 +37,7 @@ class ScraperConfig(BaseModel):
     max_filename_length: int = 60
     video_extensions: List[str] = [".mp4", ".avi", ".mkv", ".wmv", ".rmvb", ".flv", ".mov", ".m4v", ".ts"]
     suffix_keywords: List[str] = ["-cd1", "-cd2", "-4k", "-uc"]
+    jellyfin_mode: bool = False
 
 
 class SearchConfig(BaseModel):
@@ -199,6 +200,12 @@ def load_config() -> dict:
         s = raw_config.get('scraper', {})
         if 'suffix_keywords' not in s:
             s['suffix_keywords'] = ['-cd1', '-cd2', '-4k', '-uc']
+            need_save = True
+
+        # 確保 scraper.jellyfin_mode 存在（Fix-6 Jellyfin 圖片模式）
+        s = raw_config.get('scraper', {})
+        if 'jellyfin_mode' not in s:
+            s['jellyfin_mode'] = False
             need_save = True
 
         # Save migrated config

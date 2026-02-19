@@ -20,7 +20,8 @@
       ".mov",
       ".m4v",
       ".ts"
-    ]
+    ],
+    "jellyfin_mode": false
   },
   "search": {
     "search_filter": "",
