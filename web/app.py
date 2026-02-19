@@ -3,6 +3,8 @@ OpenAver Web GUI - FastAPI Application
 """
 from pathlib import Path
 
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -14,6 +16,8 @@ from core.version import VERSION
 # 確保 logging 在非 standalone 模式（uvicorn 直接啟動）也有初始化
 from core.logger import setup_logging
 setup_logging()
+
+logger = logging.getLogger(__name__)
 
 # 路徑設定
 BASE_DIR = Path(__file__).parent
@@ -206,8 +210,13 @@ async def check_update():
             latest_version = data.get("tag_name", "").lstrip("v")
             download_url = data.get("html_url", "")
 
-            # 簡單版本比較
-            has_update = latest_version > current_version
+            # 語意版本比較（tuple 比較避免 "0.10.0" < "0.9.0" 問題）
+            def _parse_ver(v):
+                return tuple(int(x) for x in v.split('.'))
+            try:
+                has_update = _parse_ver(latest_version) > _parse_ver(current_version)
+            except (ValueError, AttributeError):
+                has_update = latest_version > current_version
 
             return {
                 "success": True,
@@ -219,4 +228,5 @@ async def check_update():
     except (httpx.TimeoutException, TimeoutError):
         return {"success": False, "error": "連線逾時"}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("檢查更新失敗: %s", e)
+        return {"success": False, "error": "檢查更新失敗"}

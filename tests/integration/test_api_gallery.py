@@ -148,18 +148,17 @@ class TestGalleryView:
     """測試 Gallery 列表檢視"""
 
     def test_view_list_no_file(self, client, mocker, tmp_path):
-        """無 HTML 檔案時"""
+        """無 HTML 檔案時應返回 404"""
         mocker.patch('web.routers.scanner.load_config', return_value={
             'gallery': {'output_dir': str(tmp_path)}
         })
 
         response = client.get('/api/gallery/view')
 
-        # 應該返回某種錯誤或預設內容
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code == 404
 
     def test_view_list_with_html(self, client, mocker, tmp_path):
-        """有 HTML 檔案時"""
+        """有 HTML 檔案時應返回 200 HTML 內容"""
         # 建立測試 HTML
         html_file = tmp_path / "gallery_output.html"
         html_file.write_text('<html><body>Test Gallery</body></html>', encoding='utf-8')
@@ -170,9 +169,8 @@ class TestGalleryView:
 
         response = client.get('/api/gallery/view')
 
-        # 應該返回 HTML 內容
-        if response.status_code == 200:
-            assert 'text/html' in response.headers.get('content-type', '')
+        assert response.status_code == 200
+        assert 'text/html' in response.headers.get('content-type', '')
 
 
 # ============ Check Update 測試 ============
@@ -184,9 +182,7 @@ class TestCheckUpdate:
         """檢查更新端點正常回應"""
         response = client.get('/api/gallery/update-check')
 
-        # API 可能返回 200 或 需要配置
-        # 這裡只驗證端點可達且返回 JSON
-        assert response.status_code in [200, 404, 500]
-        if response.status_code == 200:
-            data = response.json()
-            assert isinstance(data, dict)
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, dict)
+        assert 'success' in data

@@ -320,7 +320,8 @@ def generate_avlist() -> Generator[str, None, None]:
         })
 
     except Exception as e:
-        yield send({"type": "error", "message": str(e)})
+        logger.error("產生影片列表失敗: %s", e)
+        yield send({"type": "error", "message": "產生影片列表失敗"})
 
 
 @router.get("/generate")
@@ -358,7 +359,8 @@ async def get_stats():
             }
         }
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("取得統計資訊失敗: %s", e)
+        return {"success": False, "error": "取得統計資訊失敗"}
 
 
 @router.delete("/cache")
@@ -423,7 +425,8 @@ async def check_update():
             }
         }
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("檢查更新數量失敗: %s", e)
+        return {"success": False, "error": "檢查更新數量失敗"}
 
 
 def generate_nfo_update() -> Generator[str, None, None]:
@@ -484,7 +487,8 @@ def generate_nfo_update() -> Generator[str, None, None]:
         })
 
     except Exception as e:
-        yield send({"type": "error", "message": str(e)})
+        logger.error("NFO 更新失敗: %s", e)
+        yield send({"type": "error", "message": "NFO 更新失敗"})
 
 
 @router.get("/update")
@@ -605,7 +609,8 @@ async def get_actress_aliases():
             "data": [alias.to_dict() for alias in aliases]
         }
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("取得女優別名失敗: %s", e)
+        return {"success": False, "error": "取得女優別名失敗"}
 
 
 @router.post("/actress-aliases")
@@ -629,7 +634,8 @@ async def add_actress_alias(request: ActressAliasRequest):
 
         return {"success": True, "data": {"id": new_id}}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("新增女優別名失敗: %s", e)
+        return {"success": False, "error": "新增女優別名失敗"}
 
 
 @router.delete("/actress-aliases/{alias_id}")
@@ -647,7 +653,8 @@ async def delete_actress_alias(alias_id: int):
 
         return {"success": True}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("刪除女優別名失敗: %s", e)
+        return {"success": False, "error": "刪除女優別名失敗"}
 
 
 @router.get("/actress-stats")
@@ -664,7 +671,8 @@ async def get_actress_stats(name: str = Query(..., description="女優名稱")):
 
         return {"success": True, "data": {"count": count}}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("查詢女優片數失敗: %s", e)
+        return {"success": False, "error": "查詢女優片數失敗"}
 
 
 def generate_apply_actress_aliases() -> Generator[str, None, None]:
@@ -705,7 +713,8 @@ def generate_apply_actress_aliases() -> Generator[str, None, None]:
         })
 
     except Exception as e:
-        yield send({"type": "error", "message": str(e)})
+        logger.error("套用女優別名失敗: %s", e)
+        yield send({"type": "error", "message": "套用女優別名失敗"})
 
 
 @router.get("/apply-actress-aliases")
@@ -809,7 +818,8 @@ def generate_jellyfin_images_stream() -> Generator[str, None, None]:
         yield send({"type": "done", "message": f"完成！已補齊 {total} 部影片的 Jellyfin 圖片"})
 
     except Exception as e:
-        yield send({"type": "error", "message": str(e)})
+        logger.error("產生 Jellyfin 圖片失敗: %s", e)
+        yield send({"type": "error", "message": "產生 Jellyfin 圖片失敗"})
 
 
 @router.get("/jellyfin-check")
@@ -823,7 +833,8 @@ async def jellyfin_image_check():
         result = check_jellyfin_images_needed(repo)
         return {"success": True, "data": {"need_update": result['need_update']}}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("檢查 Jellyfin 圖片狀態失敗: %s", e)
+        return {"success": False, "error": "檢查 Jellyfin 圖片狀態失敗"}
 
 
 @router.get("/jellyfin-update")

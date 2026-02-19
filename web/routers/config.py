@@ -237,7 +237,8 @@ async def update_config(config: AppConfig) -> dict:
         _reset_translate_service()  # 重置翻譯服務，讓新配置生效
         return {"success": True, "message": "設定已儲存"}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("儲存設定失敗: %s", e)
+        return {"success": False, "error": "儲存設定失敗"}
 
 
 @router.delete("/config")
@@ -249,7 +250,8 @@ async def reset_config() -> dict:
         _reset_translate_service()  # 清除舊服務實例
         return {"success": True, "message": "已恢復預設設定"}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("恢復預設設定失敗: %s", e)
+        return {"success": False, "error": "恢復預設設定失敗"}
 
 
 @router.get("/tutorial-status")
@@ -300,7 +302,8 @@ async def update_general_field(field: str, request: GeneralFieldRequest) -> dict
         save_config(config)
         return {"success": True}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("更新設定欄位失敗: %s", e)
+        return {"success": False, "error": "更新設定欄位失敗"}
 
 
 @router.get("/version")
@@ -348,7 +351,8 @@ async def get_ollama_models(url: str) -> dict:
     except httpx.ConnectError:
         return {"success": False, "error": "無法連線到 Ollama"}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("取得 Ollama 模型列表失敗: %s", e)
+        return {"success": False, "error": "取得模型列表失敗"}
 
 
 class OllamaTestRequest(BaseModel):
@@ -391,7 +395,8 @@ async def test_ollama_model(request: OllamaTestRequest) -> dict:
     except httpx.ConnectError:
         return {"success": False, "error": "無法連線到 Ollama"}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("測試 Ollama 模型失敗: %s", e)
+        return {"success": False, "error": "測試模型失敗"}
 
 
 class ProxyTestRequest(BaseModel):

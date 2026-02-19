@@ -1040,6 +1040,7 @@ function scannerPage() {
             };
 
             this.eventSource.onerror = () => {
+                if (this.state === 'done') return;
                 this.eventSource.close();
                 this.eventSource = null;
                 this.state = 'error';
@@ -1121,6 +1122,7 @@ function scannerPage() {
             };
 
             this.eventSource.onerror = () => {
+                if (this.state === 'done') return;
                 this.eventSource.close();
                 this.eventSource = null;
                 this.state = 'error';
@@ -1199,6 +1201,7 @@ function scannerPage() {
             };
 
             this.eventSource.onerror = () => {
+                if (this.state === 'done') return;
                 this.eventSource.close();
                 this.eventSource = null;
                 this.state = 'error';

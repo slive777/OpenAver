@@ -14,7 +14,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.database import VideoRepository, get_db_path, init_db
 from core.path_utils import normalize_path, to_file_uri, is_path_under_dir, uri_to_fs_path
+from core.logger import get_logger
 from web.routers.config import load_config
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/showcase", tags=["showcase"])
 
@@ -82,9 +85,10 @@ async def get_videos():
         })
 
     except Exception as e:
+        logger.error("取得影片資料失敗: %s", e)
         return JSONResponse({
             "success": False,
-            "error": str(e),
+            "error": "取得影片資料失敗",
             "videos": [],
             "total": 0
         }, status_code=500)

@@ -1,19 +1,12 @@
 """測試 Showcase API"""
 import pytest
-import tempfile
 from pathlib import Path
 from fastapi.testclient import TestClient
 
 from core.database import init_db, Video, VideoRepository
 
 
-@pytest.fixture
-def temp_db():
-    """建立臨時資料庫"""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test.db"
-        init_db(db_path)
-        yield db_path
+# temp_db fixture 定義於 tests/unit/conftest.py
 
 
 @pytest.fixture
@@ -388,7 +381,7 @@ class TestShowcaseVideosAPI:
 
         data = response.json()
         assert data["success"] is False
-        assert "db error" in data["error"]
+        assert data["error"] == "取得影片資料失敗"
         assert data["videos"] == []
         assert data["total"] == 0
 
