@@ -84,7 +84,15 @@ def scrape_single(request: ScrapeRequest) -> dict:
     config = load_config()
     scraper_config = config.get('scraper', {})
 
-    # 執行整理
+    # 執行整理（scraper_config 已包含 suffix_keywords，organize_file 自行偵測）
     result = organize_file(file_path, metadata, scraper_config)
+
+    # 覆蓋保護：目標路徑已存在時回傳 duplicate 狀態（不覆蓋）
+    if result.get('duplicate'):
+        return {
+            "success": False,
+            "duplicate": True,
+            "duplicate_target": result.get('duplicate_target', ''),
+        }
 
     return result
