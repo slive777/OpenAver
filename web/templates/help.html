@@ -7,13 +7,59 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 max-w-screen-2xl">
-    <div class="flex justify-between items-center mb-4">
-        <h2 class="text-2xl font-semibold mb-0">使用說明</h2>
-        <button class="btn btn-primary btn-sm"
-                @click="window.location.href = '/search?tutorial=restart'">
-            <i class="bi bi-play-circle"></i> 重看新手引導
-        </button>
+<div class="help-container container mx-auto px-4 max-w-screen-2xl" x-data="helpPage()">
+    <!-- Hero Card — 置頂區 -->
+    <div class="card help-card fluent-rounded-xl mb-4">
+        <div class="card-body">
+            <h2 class="card-title text-lg">
+                <i class="bi bi-info-circle"></i>
+                <span>OpenAver <span x-text="appVersion || 'v{{ version }}'">v{{ version }}</span></span>
+            </h2>
+            <p class="text-base-content/60 text-sm mb-1">JAV 影片元數據管理工具</p>
+            <p class="text-base-content/60 text-sm mb-3">
+                🔒 純本地應用程式，不蒐集使用者資料
+            </p>
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- 主 CTA -->
+                <button class="btn btn-primary btn-sm"
+                        @click="window.location.href = '/search?tutorial=restart'">
+                    <i class="bi bi-play-circle"></i> 重看新手引導
+                </button>
+                <!-- 次 CTA -->
+                <button class="btn btn-outline btn-neutral btn-sm"
+                        @click="checkUpdate()"
+                        :disabled="checkUpdateLoading">
+                    <span x-show="checkUpdateLoading" class="loading loading-spinner loading-sm"></span>
+                    <span x-show="!checkUpdateLoading"><i class="bi bi-cloud-download"></i></span>
+                    檢查更新
+                </button>
+                <!-- 更新結果 inline -->
+                <template x-if="checkDone && !errorMsg && hasUpdate">
+                    <a :href="downloadUrl" target="_blank" rel="noopener noreferrer" class="text-success text-sm">
+                        <i class="bi bi-download"></i> 新版本 <span x-text="latestVersion"></span> 可用
+                    </a>
+                </template>
+                <template x-if="checkDone && !errorMsg && !hasUpdate">
+                    <span class="text-base-content/50 text-sm">
+                        <i class="bi bi-check-circle"></i> 已是最新版本
+                    </span>
+                </template>
+                <template x-if="checkDone && errorMsg">
+                    <span class="text-error text-sm">
+                        <i class="bi bi-exclamation-circle"></i> <span x-text="errorMsg"></span>
+                    </span>
+                </template>
+                <!-- 外部連結 -->
+                <a class="btn btn-ghost btn-sm" href="https://github.com/slive777/OpenAver"
+                   target="_blank" rel="noopener noreferrer">
+                    <i class="bi bi-github"></i> GitHub
+                </a>
+                <a class="btn btn-ghost btn-sm" href="https://t.me/+J-U2l96gv0FjZTBl"
+                   target="_blank" rel="noopener noreferrer">
+                    <i class="bi bi-telegram"></i> Telegram
+                </a>
+            </div>
+        </div>
     </div>
 
     <!-- 搜尋功能 -->
@@ -168,26 +214,13 @@
             <ol>
                 <li>執行 <code>OpenAver_Debug.bat</code></li>
                 <li>重現問題</li>
-                <li>將日誌檔案與錯誤訊息回報到 <a href="https://github.com/jav-scraper/OpenAver/issues" target="_blank">GitHub
-                        Issues</a></li>
+                <li>將日誌檔案與錯誤訊息回報到 <a href="https://github.com/slive777/OpenAver/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a></li>
             </ol>
-        </div>
-    </div>
-
-    <!-- 關於 -->
-    <div class="card help-card fluent-rounded-xl mb-4">
-        <div class="card-body">
-            <h2 class="card-title text-lg">
-                <i class="bi bi-info-circle"></i> 關於
-            </h2>
-            <p class="mb-1"><strong>OpenAver v{{ version }}</strong></p>
-            <p class="text-base-content/60 text-sm mb-3">JAV 影片元數據管理工具</p>
-            <p class="text-base-content/60 text-sm mb-0">
-                🔒 純本地應用程式，不蒐集使用者資料<br>
-                📝 開源專案，歡迎貢獻與回饋
-            </p>
         </div>
     </div>
 </div>
 
+{% endblock %}
+{% block extra_js %}
+<script defer src="/static/js/pages/help.js"></script>
 {% endblock %}

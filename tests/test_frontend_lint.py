@@ -572,3 +572,21 @@ class TestSettingsSimplify:
             "settings.js 仍包含 loadVersion — 應已搬至 help.js"
         assert 'restartTutorial' not in js, \
             "settings.js 仍包含 restartTutorial — HTML row 刪除後為死碼"
+
+
+class TestHelpPage:
+    """T4b 守衛 — Help 頁必要元素"""
+
+    def test_help_js_exists(self):
+        """help.js 存在"""
+        assert (PROJECT_ROOT / 'web/static/js/pages/help.js').exists()
+
+    def test_help_html_has_alpine_scope(self):
+        """help.html 含 helpPage() Alpine scope"""
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        assert 'helpPage()' in html
+
+    def test_help_html_has_check_update(self):
+        """help.html 含 checkUpdate 按鈕"""
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        assert 'checkUpdate' in html
