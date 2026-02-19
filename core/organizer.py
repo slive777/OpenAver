@@ -238,6 +238,34 @@ def crop_to_poster(src_path: str, dst_path: str) -> bool:
         return False
 
 
+def generate_jellyfin_images(cover_path: str, base_stem: str) -> dict:
+    """為單部影片產生 Jellyfin poster + fanart（供批次補齊用）。
+
+    Args:
+        cover_path: 封面圖片的完整檔案系統路徑
+        base_stem: 目標檔名 stem（不含副檔名，已移除 -poster/-fanart 後綴）
+    """
+    result = {'fanart': False, 'poster': False}
+
+    fanart_path = base_stem + '-fanart.jpg'
+    poster_path = base_stem + '-poster.jpg'
+
+    # fanart = 原圖複製
+    try:
+        shutil.copy2(cover_path, fanart_path)
+        result['fanart'] = True
+        result['fanart_path'] = fanart_path
+    except Exception as e:
+        logger.warning(f"[!] generate_jellyfin_images fanart 複製失敗: {e}")
+
+    # poster = 裁切
+    if crop_to_poster(cover_path, poster_path):
+        result['poster'] = True
+        result['poster_path'] = poster_path
+
+    return result
+
+
 def download_image(url: str, save_path: str, referer: str = '') -> bool:
     """下載圖片"""
     if not url:

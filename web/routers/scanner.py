@@ -5,6 +5,8 @@ AVList API 路由 - 影片列表生成
 import json
 import os
 import sys
+import shutil
+from urllib.parse import unquote
 from datetime import datetime
 from pathlib import Path
 from typing import Generator
@@ -20,6 +22,7 @@ from core.gallery_generator import HTMLGenerator
 from core.path_utils import normalize_path, to_file_uri, is_path_under_dir
 from core.nfo_updater import check_cache_needs_update, update_videos_generator, apply_actress_aliases_generator
 from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite, ActressAliasRepository
+from core.organizer import generate_jellyfin_images
 from web.routers.config import load_config
 from pydantic import BaseModel
 from core.logger import get_logger
@@ -693,6 +696,132 @@ async def apply_actress_aliases():
     """執行批次更新（SSE 串流回傳進度）- 使用 GET 以支援 EventSource"""
     return StreamingResponse(
         generate_apply_actress_aliases(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
+
+
+# === Jellyfin 圖片批次補齊 ===
+
+def _file_uri_to_fs_path(uri: str) -> str:
+    """file:/// URI → 本機檔案系統路徑"""
+    path = uri
+    if path.startswith('file:///'):
+        path = path[8:]
+    path = unquote(path)
+    try:
+        path = normalize_path(path)
+    except ValueError:
+        pass
+    return path
+
+
+def _cover_base_stem(cover_fs: str) -> str:
+    """從封面路徑取得 base stem，移除 -poster / -fanart 後綴避免重複"""
+    stem = os.path.splitext(cover_fs)[0]
+    for suffix in ('-poster', '-fanart'):
+        if stem.endswith(suffix):
+            stem = stem[:-len(suffix)]
+            break
+    return stem
+
+
+def check_jellyfin_images_needed(repo: VideoRepository) -> dict:
+    """檢查 DB 中有多少影片缺少 poster/fanart"""
+    videos = repo.get_all()
+    need_update = []
+    for v in videos:
+        if not v.cover_path:
+            continue
+        cover_fs = _file_uri_to_fs_path(v.cover_path)
+        if not os.path.exists(cover_fs):
+            continue
+        base_stem = _cover_base_stem(cover_fs)
+        poster = base_stem + '-poster.jpg'
+        fanart = base_stem + '-fanart.jpg'
+        if not os.path.exists(poster) or not os.path.exists(fanart):
+            need_update.append({
+                'cover_path': cover_fs,
+                'base_stem': base_stem,
+                'number': v.number or '',
+            })
+    return {'need_update': len(need_update), 'items': need_update}
+
+
+def generate_jellyfin_images_stream() -> Generator[str, None, None]:
+    """SSE 串流：批次為影片產生 poster + fanart"""
+
+    def send(data: dict):
+        return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+    try:
+        db_path = get_db_path()
+
+        if not db_path.exists():
+            yield send({"type": "error", "message": "資料庫不存在，請先產生列表"})
+            return
+
+        repo = VideoRepository(db_path)
+        result = check_jellyfin_images_needed(repo)
+        items = result['items']
+        total = len(items)
+
+        if total == 0:
+            yield send({"type": "done", "message": "沒有需要補齊的影片", "updated": 0})
+            return
+
+        yield send({"type": "log", "level": "info", "message": f"需補齊 {total} 部影片的 Jellyfin 圖片..."})
+
+        for i, item in enumerate(items, 1):
+            cover = item['cover_path']
+            num = item['number']
+            stem = item['base_stem']
+
+            yield send({
+                "type": "progress",
+                "current": i,
+                "total": total,
+                "status": f"處理 {num}"
+            })
+
+            img_result = generate_jellyfin_images(cover, stem)
+
+            if not img_result['fanart']:
+                yield send({"type": "log", "level": "warn", "message": f"{num} fanart 複製失敗"})
+
+            if img_result['poster']:
+                yield send({"type": "log", "level": "info", "message": f"✓ {num} poster + fanart"})
+            else:
+                yield send({"type": "log", "level": "warn", "message": f"{num} poster 裁切失敗"})
+
+        yield send({"type": "done", "message": f"完成！已補齊 {total} 部影片的 Jellyfin 圖片"})
+
+    except Exception as e:
+        yield send({"type": "error", "message": str(e)})
+
+
+@router.get("/jellyfin-check")
+async def jellyfin_image_check():
+    """檢查多少影片需要補齊 Jellyfin 圖片"""
+    try:
+        db_path = get_db_path()
+        if not db_path.exists():
+            return {"success": True, "data": {"need_update": 0}}
+        repo = VideoRepository(db_path)
+        result = check_jellyfin_images_needed(repo)
+        return {"success": True, "data": {"need_update": result['need_update']}}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.get("/jellyfin-update")
+async def jellyfin_image_update():
+    """批次產生 poster + fanart（SSE 串流回傳進度）"""
+    return StreamingResponse(
+        generate_jellyfin_images_stream(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
