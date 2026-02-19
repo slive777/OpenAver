@@ -277,7 +277,9 @@ def generate_nfo(
     maker: str = '',
     url: str = '',
     has_subtitle: bool = False,
-    output_path: str = ''
+    output_path: str = '',
+    has_poster: bool = False,
+    has_fanart: bool = False
 ) -> bool:
     """
     生成 NFO 檔案
@@ -307,6 +309,9 @@ def generate_nfo(
     # 顯示標題
     display_title = f"[{number}]{title}" if title else f"[{number}]{original_title}"
 
+    poster_suffix = '-poster' if has_poster else ''
+    fanart_suffix = '-fanart' if has_fanart else ''
+
     nfo_content = f'''<?xml version="1.0" encoding="utf-8"?>
 <movie>
   <title>{html.escape(display_title)}</title>
@@ -318,9 +323,9 @@ def generate_nfo(
   <plot></plot>
   <runtime></runtime>
   <director></director>
-  <poster>{html.escape(basename)}.png</poster>
-  <thumb></thumb>
-  <fanart>{html.escape(basename)}.jpg</fanart>
+  <poster>{html.escape(basename)}{poster_suffix}.jpg</poster>
+  <thumb>{html.escape(basename)}.jpg</thumb>
+  <fanart>{html.escape(basename)}{fanart_suffix}.jpg</fanart>
 '''
 
     # 演員
@@ -566,7 +571,9 @@ def organize_file(
             maker=metadata.get('maker', ''),
             url=metadata.get('url', ''),
             has_subtitle=has_subtitle,
-            output_path=nfo_path
+            output_path=nfo_path,
+            has_poster=bool(result.get('poster_path')),
+            has_fanart=bool(result.get('fanart_path')),
         ):
             result['nfo_path'] = nfo_path
 
