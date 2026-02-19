@@ -395,3 +395,48 @@ class TestJellyfinFrontend:
         content = html_file.read_text(encoding='utf-8')
         assert 'runJellyfinImageUpdate' in content, \
             "scanner.html 缺少 runJellyfinImageUpdate（T6d Jellyfin 批次補齊）"
+
+
+class TestOpenLocalGuard:
+    """確認 openLocal() 綁定和 open_folder() API 的結構完整性（T5a / T5b）"""
+
+    def test_open_local_in_search(self):
+        """search.html 包含 openLocal( 綁定（Detail badge + Grid overlay 兩處）"""
+        html_file = PROJECT_ROOT / "web" / "templates" / "search.html"
+        content = html_file.read_text(encoding='utf-8')
+        assert 'openLocal(' in content, \
+            "search.html 缺少 openLocal( 綁定（T5b：Detail badge + Grid overlay）"
+
+    def test_open_local_in_showcase(self):
+        """showcase.html 包含 openLocal( 綁定（Grid overlay + Lightbox 兩處）"""
+        html_file = PROJECT_ROOT / "web" / "templates" / "showcase.html"
+        content = html_file.read_text(encoding='utf-8')
+        assert 'openLocal(' in content, \
+            "showcase.html 缺少 openLocal( 綁定（T5b：Grid overlay + Lightbox）"
+
+    def test_open_local_method_exists(self):
+        """result-card.js 和 showcase/core.js 均包含 openLocal(path) method 定義"""
+        result_card = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "result-card.js"
+        showcase_core = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "showcase" / "core.js"
+
+        rc_content = result_card.read_text(encoding='utf-8')
+        assert 'openLocal(path)' in rc_content, \
+            "result-card.js 缺少 openLocal(path) method 定義（T5b）"
+
+        sc_content = showcase_core.read_text(encoding='utf-8')
+        assert 'openLocal(path)' in sc_content, \
+            "showcase/core.js 缺少 openLocal(path) method 定義（T5b）"
+
+    def test_open_folder_pywebview_api(self):
+        """windows/pywebview_api.py 包含 def open_folder（T5a）"""
+        api_file = PROJECT_ROOT / "windows" / "pywebview_api.py"
+        content = api_file.read_text(encoding='utf-8')
+        assert 'def open_folder' in content, \
+            "pywebview_api.py 缺少 def open_folder（T5a）"
+
+    def test_no_stale_copy_local_path(self):
+        """search.html 不包含 copyLocalPath( 呼叫（確認舊 call 已清除）"""
+        html_file = PROJECT_ROOT / "web" / "templates" / "search.html"
+        content = html_file.read_text(encoding='utf-8')
+        assert 'copyLocalPath(' not in content, \
+            "search.html 仍包含 copyLocalPath( — T5b 應已將其改為 openLocal()"
