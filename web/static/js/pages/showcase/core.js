@@ -493,22 +493,6 @@ function showcaseState() {
             return perPage === 0 ? paginatedIndex : (this.page - 1) * perPage + paginatedIndex;
         },
 
-        // 複製資料夾路徑到剪貼簿（file URI → Windows 路徑）
-        async copyPath(path) {
-            if (!path) return;
-            try {
-                // 取資料夾路徑（去掉檔名）
-                const lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
-                const folder = lastSlash >= 0 ? path.substring(0, lastSlash) : path;
-                // file:/// → Windows 反斜線路徑
-                const winPath = folder.replace(/^file:\/\/\/?/, '').replace(/\//g, '\\');
-                await navigator.clipboard.writeText(winPath);
-                this.showToast('已複製: ' + winPath);
-            } catch (err) {
-                this.showToast('複製失敗', 'error');
-            }
-        },
-
         // 開啟資料夾（複製路徑到剪貼簿 + PyWebView 桌面模式額外開啟資料夾）
         openLocal(path) {
             if (!path) return;
