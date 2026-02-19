@@ -559,3 +559,60 @@ class TestIsPathUnderDir:
     def test_unrelated_path(self):
         from core.path_utils import is_path_under_dir
         assert is_path_under_dir("file:///C:/Videos/video.mp4", "file:///E:/media") is False
+
+
+# ============ TestUriToFsPath ============
+
+class TestUriToFsPath:
+    """測試 uri_to_fs_path() — file:/// URI → 檔案系統路徑"""
+
+    def test_windows_drive_letter(self, monkeypatch):
+        """Windows drive-letter: file:///C:/Videos/test.mp4 → C:/Videos/test.mp4（Windows 環境）"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
+        result = path_utils.uri_to_fs_path('file:///C:/Videos/test.mp4')
+        assert result == 'C:/Videos/test.mp4'
+
+    def test_unix_path_linux(self, monkeypatch):
+        """Unix path: file:///home/user/test.mp4 → /home/user/test.mp4（Linux 環境）"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'linux')
+        result = path_utils.uri_to_fs_path('file:///home/user/test.mp4')
+        assert result == '/home/user/test.mp4'
+
+    def test_wsl_path(self, monkeypatch):
+        """WSL mount path: file:///mnt/c/Videos/test.mp4 → /mnt/c/Videos/test.mp4（WSL 環境）"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        result = path_utils.uri_to_fs_path('file:///mnt/c/Videos/test.mp4')
+        assert result == '/mnt/c/Videos/test.mp4'
+
+    def test_url_encoded_spaces(self, monkeypatch):
+        """URL decode: file:///C:/My%20Videos/test.mp4 → C:/My Videos/test.mp4（Windows 環境）"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
+        result = path_utils.uri_to_fs_path('file:///C:/My%20Videos/test.mp4')
+        assert result == 'C:/My Videos/test.mp4'
+
+    def test_non_file_uri_passthrough(self, monkeypatch):
+        """非 file:/// 輸入原樣通過 normalize_path（Linux 環境）"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'linux')
+        result = path_utils.uri_to_fs_path('/mnt/c/test.mp4')
+        assert result == '/mnt/c/test.mp4'
+
+    def test_valueerror_fallback(self, monkeypatch):
+        """normalize_path 拋 ValueError 時返回原路徑（Linux 環境下 Windows 路徑）"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'linux')
+        # Linux 環境收到 Windows drive-letter → normalize_path 拋 ValueError → 原樣返回
+        result = path_utils.uri_to_fs_path('file:///C:/Videos/test.mp4')
+        # C:/Videos/test.mp4 — normalize_path raises ValueError, fallback to unquoted path
+        assert result == 'C:/Videos/test.mp4'
+
+    def test_unc_path(self, monkeypatch):
+        """UNC path: file://///server/share/test.mp4 → //server/share/test.mp4（Windows 環境）"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
+        result = path_utils.uri_to_fs_path('file://///server/share/test.mp4')
+        # 剝除 file:/// → //server/share/test.mp4，已有 // 前導，不補 /
+        assert result == '//server/share/test.mp4'
+
+    def test_url_encoded_cjk(self, monkeypatch):
+        """URL decode CJK: file:///home/user/%E5%BD%B1%E7%89%87/test.mp4 → /home/user/影片/test.mp4"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'linux')
+        result = path_utils.uri_to_fs_path('file:///home/user/%E5%BD%B1%E7%89%87/test.mp4')
+        assert result == '/home/user/影片/test.mp4'

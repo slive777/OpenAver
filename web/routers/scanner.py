@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.gallery_scanner import VideoScanner, load_cache, save_cache, fast_scan_directory, VIDEO_EXTENSIONS, VideoInfo
 from core.gallery_generator import HTMLGenerator
-from core.path_utils import normalize_path, to_file_uri, is_path_under_dir
+from core.path_utils import normalize_path, to_file_uri, is_path_under_dir, uri_to_fs_path
 from core.nfo_updater import check_cache_needs_update, update_videos_generator, apply_actress_aliases_generator
 from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite, ActressAliasRepository
 from core.organizer import generate_jellyfin_images
@@ -707,15 +707,7 @@ async def apply_actress_aliases():
 
 def _file_uri_to_fs_path(uri: str) -> str:
     """file:/// URI → 本機檔案系統路徑"""
-    path = uri
-    if path.startswith('file:///'):
-        path = path[8:]
-    path = unquote(path)
-    try:
-        path = normalize_path(path)
-    except ValueError:
-        pass
-    return path
+    return uri_to_fs_path(uri)
 
 
 def _cover_base_stem(cover_fs: str) -> str:

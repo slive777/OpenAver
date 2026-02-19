@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Generator
 
 from core.scraper import search_jav
-from core.path_utils import normalize_path
+from core.path_utils import normalize_path, uri_to_fs_path
 
 
 def needs_update(info: dict, has_nfo: bool = True) -> Tuple[bool, List[str]]:
@@ -101,17 +101,7 @@ def get_nfo_path_from_video(video_path: str) -> Optional[str]:
     Returns:
         NFO 檔案的路徑，不存在則返回 None
     """
-    from core.path_utils import normalize_path
-
-    # 移除 file:/// 前綴
-    if video_path.startswith('file:///'):
-        video_path = video_path[8:]
-
-    # 使用 path_utils 統一處理路徑轉換
-    try:
-        video_path = normalize_path(video_path)
-    except ValueError:
-        pass  # 無法轉換時使用原路徑
+    video_path = uri_to_fs_path(video_path)
 
     # 取得 NFO 路徑
     video_p = Path(video_path)

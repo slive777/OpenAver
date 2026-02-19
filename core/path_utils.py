@@ -6,6 +6,7 @@
 """
 import platform
 import re
+from urllib.parse import unquote
 
 
 def detect_environment() -> str:
@@ -282,6 +283,25 @@ def to_file_uri(fs_path: str, path_mappings: dict = None) -> str:
 
     # Fallback：直接用原路徑
     return f"file:///{abs_path}"
+
+
+def uri_to_fs_path(uri: str) -> str:
+    """file:/// URI → 當前環境檔案系統路徑。
+
+    strip prefix → restore leading / → unquote → normalize_path。
+    非 file:/// 輸入原樣通過 normalize_path。
+    """
+    path = uri
+    if path.startswith('file:///'):
+        path = path[8:]
+        # 非 Windows drive-letter 且非 UNC → 還原前導 /
+        if not (len(path) >= 2 and path[1] == ':') and not path.startswith('/'):
+            path = '/' + path
+    path = unquote(path)
+    try:
+        return normalize_path(path)
+    except ValueError:
+        return path
 
 
 def is_path_under_dir(path: str, dir_uri: str) -> bool:
