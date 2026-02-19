@@ -372,10 +372,21 @@ class TestOrganizeFallback:
         assert "[SONE-205]" in new_name
 
     def test_organize_used_fallbacks_field(self, tmp_path):
-        # actors=[], date="" → used_fallbacks 包含 ['女優', '日期']
+        # actors=[], date="" + create_folder=True + folder 含 {actor}/{year}
+        # → used_fallbacks 包含 ['女優', '日期']
         src = tmp_path / "SONE-205.mp4"
         src.write_bytes(b"test")
-        config = _make_config(tmp_path)
+        config = {
+            "create_folder": True,
+            "folder_layers": ["{actor}", "{year}"],
+            "filename_format": "[{num}] {title}",
+            "download_cover": False,
+            "cover_filename": "poster.jpg",
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
         metadata = {
             "number": "SONE-205", "title": "Test Title",
             "actors": [], "tags": [], "maker": "S1",
@@ -398,6 +409,22 @@ class TestOrganizeFallback:
         result = organize_file(str(src), metadata, config)
         assert result["success"] is True
         assert result["used_fallbacks"] == []
+
+    def test_organize_used_fallbacks_create_folder_false(self, tmp_path):
+        """create_folder=false 時不應有任何 fallback 報告"""
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"test")
+        config = _make_config(tmp_path)  # create_folder=False
+        metadata = {
+            "number": "SONE-205", "title": "Test Title",
+            "actors": [], "tags": [], "maker": "",
+            "date": "", "cover": "", "url": "",
+        }
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True
+        assert result["used_fallbacks"] == [], (
+            f"create_folder=false 時 used_fallbacks 應為空，實際: {result['used_fallbacks']}"
+        )
 
 
 # ============ Config suffix_keywords 持久化測試 ============

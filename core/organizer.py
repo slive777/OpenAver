@@ -410,16 +410,24 @@ def organize_file(
     suffix = _detect_suffixes(original_filename, suffix_keywords)
     format_data['suffix'] = suffix
 
-    # 記錄哪些欄位用了 fallback（供前端 toast 提示）
+    # 記錄哪些欄位實際用了 fallback（僅資料夾層級會觸發 fallback）
     used_fallbacks = []
-    if not format_data.get('actors'):
-        used_fallbacks.append('女優')
-    if not format_data.get('maker'):
-        used_fallbacks.append('片商')
-    if not format_data.get('date'):
-        used_fallbacks.append('日期')
-    if not format_data.get('title'):
-        used_fallbacks.append('標題')
+    if config.get('create_folder', True):
+        # 解析資料夾層級中實際使用的 placeholder
+        layers = config.get('folder_layers', [])
+        if not layers:
+            old_format = config.get('folder_format', '{num}')
+            layers = [p.strip() for p in old_format.replace('\\', '/').split('/') if p.strip()]
+        folder_template = ' '.join(layers)  # 合併所有層級一次檢查
+
+        if ('{actor}' in folder_template or '{actors}' in folder_template) and not format_data.get('actors'):
+            used_fallbacks.append('女優')
+        if '{maker}' in folder_template and not format_data.get('maker'):
+            used_fallbacks.append('片商')
+        if ('{date}' in folder_template or '{year}' in folder_template) and not format_data.get('date'):
+            used_fallbacks.append('日期')
+        if '{title}' in folder_template and not format_data.get('title'):
+            used_fallbacks.append('標題')
 
     # 自動偵測字幕標記（如果 metadata 沒有指定）
     has_subtitle = metadata.get('has_subtitle')
