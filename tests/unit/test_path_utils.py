@@ -474,37 +474,6 @@ class TestToFileUri:
         assert result == 'file:////home/user/test.mp4'
 
 
-# ============ TestToFileUriConsistency ============
-
-class TestToFileUriConsistency:
-    """測試 to_file_uri() 與 scan_file() 產生的路徑格式一致性
-
-    這是最重要的測試：確保查詢路徑和儲存路徑格式相同，否則快取永遠 miss。
-    """
-
-    def test_consistency_with_wsl_to_windows_path(self):
-        """驗證 to_file_uri 與 wsl_to_windows_path + file:/// 一致"""
-        from core.gallery_scanner import wsl_to_windows_path
-
-        test_cases = [
-            r'C:\Videos\test.mp4',
-            '/mnt/c/Videos/test.mp4',
-            r'\\server\share\test.mp4',
-        ]
-
-        for path in test_cases:
-            # scan_file 的邏輯
-            abs_path = path.replace(chr(92), '/')
-            win_path = wsl_to_windows_path(abs_path, None)
-            scan_file_result = f"file:///{win_path}"
-
-            # to_file_uri 的結果
-            to_file_uri_result = path_utils.to_file_uri(path)
-
-            assert scan_file_result == to_file_uri_result, \
-                f"Mismatch for {path}:\n  scan_file: {scan_file_result}\n  to_file_uri: {to_file_uri_result}"
-
-
 class TestToFileUriPlainUnix:
     """測試 to_file_uri() 對純 Unix 路徑的處理（無 path_mappings）"""
 

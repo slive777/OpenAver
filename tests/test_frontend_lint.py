@@ -519,7 +519,6 @@ class TestPathContract:
             + "\n".join(f"  - {v}" for v in violations)
         )
 
-    @pytest.mark.xfail(reason="T7c 修正前：gallery_scanner.py 尚有 shadow helper 定義")
     def test_no_shadow_path_helpers(self):
         """掃描 Python 檔，確認無 def wsl_to_windows_path / def to_file_uri shadow helper"""
         pattern = r'def wsl_to_windows_path|def to_file_uri'
