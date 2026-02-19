@@ -341,3 +341,30 @@ class TestNoDuplicateNativeDialog:
         content = html_path.read_text(encoding="utf-8")
         assert "duplicateModalOpen" in content, \
             "search.html 未找到 duplicateModalOpen — duplicate modal 應使用 Alpine state"
+
+
+class TestTranslateAll:
+    """確認 translateAll 前端基礎設施完整"""
+
+    def test_translate_all_button_exists(self):
+        """search.html 包含 translateAll() 綁定且受 isCloudSearchMode 條件保護"""
+        html_file = PROJECT_ROOT / "web" / "templates" / "search.html"
+        content = html_file.read_text(encoding='utf-8')
+        assert 'translateAll()' in content, \
+            "search.html 缺少 translateAll() 綁定"
+        assert 'isCloudSearchMode' in content, \
+            "search.html 缺少 isCloudSearchMode 條件"
+
+    def test_translate_state_in_base(self):
+        """base.js 包含 translateState 物件定義"""
+        js_file = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "base.js"
+        content = js_file.read_text(encoding='utf-8')
+        assert 'translateState' in content, \
+            "base.js 缺少 translateState 物件定義"
+
+    def test_translate_all_in_batch(self):
+        """batch.js 包含 async translateAll method 定義"""
+        js_file = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "batch.js"
+        content = js_file.read_text(encoding='utf-8')
+        assert 'async translateAll' in content, \
+            "batch.js 缺少 async translateAll method 定義"
