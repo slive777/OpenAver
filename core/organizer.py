@@ -123,6 +123,22 @@ def extract_chinese_title(filename: str, number: str, actors: List[str] = None) 
     return None
 
 
+def _detect_suffixes(filename: str, keywords: list) -> str:
+    """
+    從原始檔名偵測版本標記關鍵字。
+    邊界正則避免 -cd1 匹配 -cd10。
+    """
+    lower = filename.lower()
+    matched = []
+    for kw in keywords:
+        kw_lower = kw.lower().strip()
+        if not kw_lower:
+            continue
+        if re.search(re.escape(kw_lower) + r'(?=[-_.\s]|$)', lower):
+            matched.append(kw_lower)
+    return ''.join(matched)
+
+
 def format_string(template: str, data: Dict[str, Any]) -> str:
     """
     根據模板格式化字串
@@ -160,6 +176,9 @@ def format_string(template: str, data: Dict[str, Any]) -> str:
     date = data.get('date', '')
     result = result.replace('{date}', date)
     result = result.replace('{year}', date[:4] if date else '')
+
+    # 版本後綴（如 "-4k-cd1"，無匹配時為空字串）
+    result = result.replace('{suffix}', data.get('suffix', ''))
 
     return sanitize_filename(result.strip())
 
@@ -363,6 +382,11 @@ def organize_file(
         'date': metadata.get('date', ''),
     }
 
+    # 偵測版本後綴
+    suffix_keywords = config.get('suffix_keywords', [])
+    suffix = _detect_suffixes(original_filename, suffix_keywords)
+    format_data['suffix'] = suffix
+
     # 自動偵測字幕標記（如果 metadata 沒有指定）
     has_subtitle = metadata.get('has_subtitle')
     if has_subtitle is None:
@@ -410,6 +434,11 @@ def organize_file(
 
         # 移動並重命名檔案
         if file_path != target_path:
+            if os.path.exists(target_path):
+                result['success'] = False
+                result['duplicate'] = True
+                result['duplicate_target'] = os.path.basename(target_path)
+                return result
             shutil.move(file_path, target_path)
         result['new_filename'] = target_path
 

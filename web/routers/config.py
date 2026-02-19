@@ -36,6 +36,7 @@ class ScraperConfig(BaseModel):
     max_title_length: int = 50
     max_filename_length: int = 60
     video_extensions: List[str] = [".mp4", ".avi", ".mkv", ".wmv", ".rmvb", ".flv", ".mov", ".m4v", ".ts"]
+    suffix_keywords: List[str] = ["-cd1", "-cd2", "-4k", "-uc"]
 
 
 class SearchConfig(BaseModel):
@@ -194,6 +195,12 @@ def load_config() -> dict:
                 need_save = True
                 logger.info("[Config] 遷移配置：添加 Gemini 支持")
 
+        # 確保 scraper.suffix_keywords 存在（Fix-1 版本標記）
+        s = raw_config.get('scraper', {})
+        if 'suffix_keywords' not in s:
+            s['suffix_keywords'] = ['-cd1', '-cd2', '-4k', '-uc']
+            need_save = True
+
         # Save migrated config
         if need_save:
             save_config(raw_config)
@@ -308,6 +315,7 @@ async def get_format_variables() -> dict:
             {"name": "{maker}", "description": "片商", "example": "S1"},
             {"name": "{date}", "description": "發行日期", "example": "2024-01-15"},
             {"name": "{year}", "description": "年份", "example": "2024"},
+            {"name": "{suffix}", "description": "版本標記（自動偵測）", "example": "-4k"},
         ]
     }
 
