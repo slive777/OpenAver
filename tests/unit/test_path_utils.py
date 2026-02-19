@@ -505,6 +505,33 @@ class TestToFileUriConsistency:
                 f"Mismatch for {path}:\n  scan_file: {scan_file_result}\n  to_file_uri: {to_file_uri_result}"
 
 
+class TestToFileUriPlainUnix:
+    """測試 to_file_uri() 對純 Unix 路徑的處理（無 path_mappings）"""
+
+    def test_to_file_uri_plain_unix(self):
+        """純 Unix 路徑在無 mappings 時直接 fallback 為 file:////home/..."""
+        result = path_utils.to_file_uri('/home/user/video.mp4')
+        assert result == 'file:////home/user/video.mp4'
+
+
+class TestNormalizePathEdgeCases:
+    """補齊 normalize_path() 測試矩陣缺口"""
+
+    def test_normalize_path_url_encoded(self, monkeypatch):
+        """Windows 環境下，URL-encoded 路徑原樣通過（C:/My%20Videos/...）"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
+        result = path_utils.normalize_path('C:/My%20Videos/test.mp4')
+        # to_windows_path 偵測到 path[1]==':' → 原樣回傳（未解 URL encoding）
+        assert result == 'C:/My%20Videos/test.mp4'
+
+    def test_normalize_path_unc(self, monkeypatch):
+        """Windows 環境下，UNC 路徑原樣通過（\\\\server\\share\\...）"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
+        result = path_utils.normalize_path(r'\\server\share\test.mp4')
+        # to_windows_path 偵測到 startswith('\\\\') → 原樣回傳
+        assert result == r'\\server\share\test.mp4'
+
+
 class TestIsPathUnderDir:
     """測試 is_path_under_dir — 避免前綴碰撞"""
 

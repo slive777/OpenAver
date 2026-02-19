@@ -460,3 +460,101 @@ class TestOpenLocalGuard:
             content = js_file.read_text(encoding='utf-8')
             assert 'displayPath' in content, \
                 f"{js_file.name} openLocal() 缺少跨平台路徑格式偵測（displayPath）"
+
+
+class TestPathContract:
+    """路徑契約守衛測試 — 確保路徑處理邏輯集中在 path_utils.py（T7.0）
+
+    前 3 個測試標記為 xfail：當前 codebase 尚有違規，
+    後續 T7a-T7e 修正後會逐步轉為 pass。
+    """
+
+    # 掃描範圍：core/ web/ windows/（排除 path_utils.py 本身）
+    _SCAN_DIRS = ['core', 'web', 'windows']
+    _ALLOWED_FILE = 'path_utils.py'
+
+    def _collect_py_files(self):
+        """收集 core/、web/、windows/ 下所有 .py 檔（排除 path_utils.py）"""
+        files = []
+        for dir_name in self._SCAN_DIRS:
+            scan_dir = PROJECT_ROOT / dir_name
+            if not scan_dir.exists():
+                continue
+            for py_file in scan_dir.rglob('*.py'):
+                if py_file.name == self._ALLOWED_FILE:
+                    continue
+                files.append(py_file)
+        return files
+
+    @pytest.mark.xfail(reason="T7a-T7e 修正前：codebase 尚有手動 URI strip 違規")
+    def test_no_raw_uri_strip(self):
+        """掃描 Python 檔，確認無 path[8:] 或 path[len('file:///'):]  手動 URI strip"""
+        # 符合 [8:] 或 [len('file:///'):]
+        pattern = r'''\[8:\]|\[len\(['"]file:///['"]\):\]'''
+        violations = []
+        for py_file in self._collect_py_files():
+            matches = find_pattern_in_file(py_file, pattern)
+            for line_num, line_content in matches:
+                violations.append(
+                    f"{py_file.relative_to(PROJECT_ROOT)}:{line_num} — {line_content[:80]}"
+                )
+        assert len(violations) == 0, (
+            f"發現 {len(violations)} 個手動 URI strip 違規（應改用 uri_to_fs_path()）:\n"
+            + "\n".join(f"  - {v}" for v in violations)
+        )
+
+    @pytest.mark.xfail(reason="T7a-T7e 修正前：codebase 尚有手動 URI 建構違規")
+    def test_no_manual_uri_construct(self):
+        """掃描 Python 檔，確認無 f\"file:///{ 手動 URI 建構"""
+        pattern = r'f["\']file:///'
+        violations = []
+        for py_file in self._collect_py_files():
+            matches = find_pattern_in_file(py_file, pattern)
+            for line_num, line_content in matches:
+                violations.append(
+                    f"{py_file.relative_to(PROJECT_ROOT)}:{line_num} — {line_content[:80]}"
+                )
+        assert len(violations) == 0, (
+            f"發現 {len(violations)} 個手動 URI 建構違規（應改用 to_file_uri()）:\n"
+            + "\n".join(f"  - {v}" for v in violations)
+        )
+
+    @pytest.mark.xfail(reason="T7c 修正前：gallery_scanner.py 尚有 shadow helper 定義")
+    def test_no_shadow_path_helpers(self):
+        """掃描 Python 檔，確認無 def wsl_to_windows_path / def to_file_uri shadow helper"""
+        pattern = r'def wsl_to_windows_path|def to_file_uri'
+        violations = []
+        for py_file in self._collect_py_files():
+            matches = find_pattern_in_file(py_file, pattern)
+            for line_num, line_content in matches:
+                violations.append(
+                    f"{py_file.relative_to(PROJECT_ROOT)}:{line_num} — {line_content[:80]}"
+                )
+        assert len(violations) == 0, (
+            f"發現 {len(violations)} 個 shadow path helper 定義（應集中在 path_utils.py）:\n"
+            + "\n".join(f"  - {v}" for v in violations)
+        )
+
+    def test_path_to_display_js_no_optional_slash(self):
+        """pathToDisplay JS 工具不應使用 /? regex（會錯誤吸收路徑前導斜線）"""
+        # 搜尋所有 path-utils / pathUtils JS 檔
+        candidates = list(PROJECT_ROOT.rglob('path-utils.js')) + \
+                     list(PROJECT_ROOT.rglob('pathUtils.js'))
+        # 排除 venv/、node_modules/
+        js_files = [
+            f for f in candidates
+            if 'venv' not in f.parts and 'node_modules' not in f.parts
+        ]
+        if not js_files:
+            pytest.skip("pathToDisplay JS 工具尚未建立（T7d 前）")
+        violations = []
+        for js_file in js_files:
+            matches = find_pattern_in_file(js_file, r'\/\?')
+            for line_num, line_content in matches:
+                violations.append(
+                    f"{js_file.relative_to(PROJECT_ROOT)}:{line_num} — {line_content[:80]}"
+                )
+        assert len(violations) == 0, (
+            f"pathToDisplay 使用了 /? regex（會錯誤匹配路徑前導斜線）:\n"
+            + "\n".join(f"  - {v}" for v in violations)
+        )
