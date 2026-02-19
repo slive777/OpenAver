@@ -2262,3 +2262,29 @@
 .ds-material-table tr:hover td {
     background: color-mix(in oklch, var(--color-base-content) 3%, transparent);
 }
+
+/* ==================== Icon Catalog (#ds-icons) ==================== */
+.ds-icon-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    min-width: 100px;
+}
+
+.ds-icon-card i {
+    font-size: 1.75rem;
+    color: var(--text-primary);
+}
+
+.ds-icon-card code {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.ds-icon-card span {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
