@@ -208,6 +208,11 @@
                                     title="複製路徑">
                                 <i class="bi bi-clipboard"></i>
                             </button>
+                            <button class="btn-glass-circle"
+                                    @click.stop="openLocal(video.path)"
+                                    title="開啟資料夾">
+                                <i class="bi bi-folder2-open"></i>
+                            </button>
                         </div>
                     </div>
                     <div class="av-card-preview-footer">
@@ -374,6 +379,9 @@
                             </button>
                             <button class="lb-btn" @click="copyPath(currentLightboxVideo?.path)">
                                 <i class="bi bi-clipboard"></i> 複製
+                            </button>
+                            <button class="lb-btn" @click="openLocal(currentLightboxVideo?.path)">
+                                <i class="bi bi-folder2-open"></i> 資料夾
                             </button>
                         </div>
                         <span class="lb-size" x-text="formatSize(currentLightboxVideo?.size || 0)"></span>

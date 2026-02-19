@@ -220,7 +220,7 @@
                     <span id="localBadge" class="local-badge"
                           x-show="hasLocalBadge()"
                           :title="localBadgeTitle()"
-                          @click="copyLocalPath()">📁</span>
+                          @click="openLocal(current()._localStatus?.paths?.[0])">📁</span>
                     <button id="switchSourceBtn" class="info-icon-btn"
                             @click="switchSource()"
                             title="切換版本"
@@ -390,10 +390,10 @@
                                     <i class="bi bi-info-circle"></i>
                                 </button>
                                 <button class="btn-glass-circle"
-                                        @click.stop="copyPath(result._localStatus?.paths?.[0] || '')"
+                                        @click.stop="openLocal(result._localStatus?.paths?.[0] || '')"
                                         x-show="result._localStatus?.exists"
-                                        title="複製路徑">
-                                    <i class="bi bi-clipboard"></i>
+                                        title="開啟資料夾">
+                                    <i class="bi bi-folder2-open"></i>
                                 </button>
                             </div>
                         </div>

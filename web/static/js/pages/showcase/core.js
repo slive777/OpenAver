@@ -509,6 +509,38 @@ function showcaseState() {
             }
         },
 
+        // 開啟資料夾（複製路徑到剪貼簿 + PyWebView 桌面模式額外開啟資料夾）
+        openLocal(path) {
+            if (!path) return;
+
+            // 1. 擷取資料夾路徑
+            const lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+            const folder = lastSlash >= 0 ? path.substring(0, lastSlash) : path;
+            const winPath = folder.replace(/^file:\/\/\/?/, '').replace(/\//g, '\\');
+
+            // 2. 複製到剪貼簿
+            const clipboardOk = navigator.clipboard.writeText(winPath)
+                .then(() => true)
+                .catch(() => false);
+
+            // 3. PyWebView 桌面模式：額外開啟資料夾
+            if (window.pywebview?.api?.open_folder) {
+                window.pywebview.api.open_folder(path)
+                    .then(async () => {
+                        const ok = await clipboardOk;
+                        this.showToast(ok ? '已開啟資料夾（路徑已複製）' : '已開啟資料夾', 'success');
+                    })
+                    .catch(async () => {
+                        const ok = await clipboardOk;
+                        this.showToast(ok ? '已複製: ' + winPath : '開啟資料夾失敗', ok ? 'success' : 'error');
+                    });
+            } else {
+                clipboardOk.then(ok => {
+                    this.showToast(ok ? '已複製: ' + winPath : '複製失敗', ok ? 'success' : 'error');
+                });
+            }
+        },
+
         // 格式化檔案大小（bytes → GB/MB）
         formatSize(bytes) {
             if (!bytes || bytes === 0) return '未知';
