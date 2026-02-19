@@ -139,6 +139,11 @@ window.SearchStateMixin_Batch = {
                     file.scraped = true;
                     file.scrapeStatus = 'done';
                     successCount++;
+                    // 新增：fallback 提示
+                    if (result.used_fallbacks?.length) {
+                        const fields = result.used_fallbacks.join('、');
+                        this.showToast(`⚠️ ${fields} 資訊未取得，已使用預設值`, 'warning');
+                    }
                 } else {
                     file.scrapeStatus = 'failed';
                     failCount++;
@@ -189,6 +194,11 @@ window.SearchStateMixin_Batch = {
             if (result.success) {
                 file.scraped = true;
                 file.scrapeStatus = 'done';
+                // 新增：fallback 提示
+                if (result.used_fallbacks?.length) {
+                    const fields = result.used_fallbacks.join('、');
+                    this.showToast(`⚠️ ${fields} 資訊未取得，已使用預設值`, 'warning');
+                }
             } else {
                 alert(`${file.filename} 處理失敗: ${result.error || '未知錯誤'}`);
                 file.scrapeStatus = 'failed';
