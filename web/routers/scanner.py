@@ -5,7 +5,6 @@ AVList API 路由 - 影片列表生成
 import json
 import os
 import sys
-import shutil
 from urllib.parse import unquote
 from datetime import datetime
 from pathlib import Path

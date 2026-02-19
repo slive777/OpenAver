@@ -462,6 +462,7 @@ function scannerPage() {
         // 初始載入
         await this.loadConfig();
         this.loadStats();
+        this.checkJellyfinImages();
 
         // T7b: 恢復日誌（確保 DOM 已渲染）
         await this.$nextTick();
@@ -1130,8 +1131,8 @@ function scannerPage() {
                     }
                     this.flushLogs();
 
-                    this.jellyfinImageCount = 0;
-                    this.jellyfinImageVisible = false;
+                    // 重新檢查實際檔案狀態（部分失敗時仍有缺圖）
+                    this.checkJellyfinImages();
                 } else if (data.type === 'error') {
                     this.eventSource.close();
                     this.eventSource = null;
