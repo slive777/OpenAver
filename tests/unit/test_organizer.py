@@ -77,6 +77,38 @@ class TestFormatStringSuffix:
         assert result == "[SONE-205] title"
 
 
+class TestFormatStringFallback:
+    """format_string() use_fallback 參數測試"""
+
+    def test_format_string_fallback_actor(self):
+        result = format_string("{actor}", {"actors": []}, use_fallback=True)
+        assert result == "未知女優"
+
+    def test_format_string_fallback_maker(self):
+        result = format_string("{maker}", {"maker": ""}, use_fallback=True)
+        assert result == "未知片商"
+
+    def test_format_string_fallback_year(self):
+        result = format_string("{year}", {"date": ""}, use_fallback=True)
+        assert result == "未知年份"
+
+    def test_format_string_fallback_date(self):
+        result = format_string("{date}", {"date": ""}, use_fallback=True)
+        assert result == "未知日期"
+
+    def test_format_string_fallback_title(self):
+        result = format_string("{title}", {"title": ""}, use_fallback=True)
+        assert result == "未知標題"
+
+    def test_format_string_no_fallback_default(self):
+        result = format_string("{actor}", {"actors": []})  # use_fallback=False
+        assert result == ""
+
+    def test_format_string_has_value_no_fallback(self):
+        result = format_string("{actor}", {"actors": ["三上悠亞"]}, use_fallback=True)
+        assert result == "三上悠亞"
+
+
 # ============ organize_file() 整合測試 ============
 
 def _make_config(tmp_path: Path, suffix_keywords=None) -> dict:
@@ -282,6 +314,90 @@ class TestOrganizeTruncateSuffix:
         assert len(new_name) <= max_len, (
             f"檔名長度 {len(new_name)} 超過 max_filename_length={max_len}: {new_name}"
         )
+
+
+class TestOrganizeFallback:
+    """organize_file() fallback 資料夾建立與 used_fallbacks 欄位測試"""
+
+    def test_organize_fallback_creates_folder(self, tmp_path):
+        # actors=[]，folder="{actor}" → 建立 "未知女優/" 子資料夾
+        # 不能用 _make_config，需 create_folder=True + folder_layers
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"test")
+        config = {
+            "create_folder": True,
+            "folder_layers": ["{actor}"],
+            "filename_format": "[{num}] {title}",
+            "download_cover": False,
+            "cover_filename": "poster.jpg",
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+        metadata = {
+            "number": "SONE-205", "title": "Test Title",
+            "actors": [], "tags": [], "maker": "S1",
+            "date": "2024-01-15", "cover": "", "url": "",
+        }
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+        assert result["new_folder"] is not None
+        folder_name = Path(result["new_folder"]).name
+        assert folder_name == "未知女優"
+
+    def test_organize_filename_no_fallback(self, tmp_path):
+        # actors=[]，filename="{actor}" → 檔名不含 "未知女優"
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"test")
+        config = {
+            "create_folder": False,
+            "filename_format": "[{num}][{actor}] {title}",
+            "download_cover": False,
+            "cover_filename": "poster.jpg",
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+        metadata = {
+            "number": "SONE-205", "title": "Test Title",
+            "actors": [], "tags": [], "maker": "S1",
+            "date": "2024-01-15", "cover": "", "url": "",
+        }
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True
+        new_name = Path(result["new_filename"]).name
+        assert "未知女優" not in new_name
+        assert "[SONE-205]" in new_name
+
+    def test_organize_used_fallbacks_field(self, tmp_path):
+        # actors=[], date="" → used_fallbacks 包含 ['女優', '日期']
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"test")
+        config = _make_config(tmp_path)
+        metadata = {
+            "number": "SONE-205", "title": "Test Title",
+            "actors": [], "tags": [], "maker": "S1",
+            "date": "", "cover": "", "url": "",
+        }
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True
+        assert result["used_fallbacks"] == ["女優", "日期"]
+
+    def test_organize_no_fallbacks_when_complete(self, tmp_path):
+        # 所有欄位有值 → used_fallbacks == []
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"test")
+        config = _make_config(tmp_path)
+        metadata = {
+            "number": "SONE-205", "title": "Test Title",
+            "actors": ["三上悠亞"], "tags": [], "maker": "S1",
+            "date": "2024-01-15", "cover": "", "url": "",
+        }
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True
+        assert result["used_fallbacks"] == []
 
 
 # ============ Config suffix_keywords 持久化測試 ============
