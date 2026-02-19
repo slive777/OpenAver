@@ -194,9 +194,7 @@ window.SearchStateMixin_ResultCard = {
         // 1. 擷取資料夾路徑
         const lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
         const folder = lastSlash >= 0 ? path.substring(0, lastSlash) : path;
-        // 跨平台路徑格式：Windows drive letter → 反斜線，其他 → 保留原格式
-        const stripped = folder.replace(/^file:\/\/\/?/, '');
-        const displayPath = /^[A-Za-z]:/.test(stripped) ? stripped.replace(/\//g, '\\') : stripped;
+        const displayPath = pathToDisplay(folder);
 
         // 2. 複製到剪貼簿
         const clipboardOk = navigator.clipboard.writeText(displayPath)
