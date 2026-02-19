@@ -248,6 +248,10 @@
                         <span class="info-value" id="resultTags">
                             <!-- 字幕標籤 -->
                             <span x-show="hasSubtitle()" class="badge tag-badge subtitle">中文字幕</span>
+                            <!-- Fix-1: 版本標記 badges -->
+                            <template x-for="sfx in currentSuffixes()" :key="sfx">
+                                <span class="badge tag-badge suffix-badge" x-text="sfx"></span>
+                            </template>
                             <!-- 系統標籤 -->
                             <template x-for="tag in (current().tags || [])" :key="tag">
                                 <span class="badge tag-badge" x-text="tag"></span>
@@ -543,6 +547,21 @@
             <span x-text="_toast.message"></span>
         </div>
     </div>
+
+    <!-- Fix-1: 覆蓋警告 Modal -->
+    <dialog id="duplicateModal" class="fluent-modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">&#x26A0;&#xFE0F; 檔案重複</h3>
+            <p class="py-2">目標檔案已存在，繼續會覆蓋原有檔案：</p>
+            <p class="text-sm opacity-70" x-text="duplicateTarget"></p>
+            <p class="py-2">這通常發生在同一部影片有多個版本（CD1/CD2、4K、UC）時。</p>
+            <p class="py-2">請到 <strong>設定 → 進階刮削設定 → 版本標記</strong>，新增關鍵字並確認檔案命名格式包含 <code class="badge badge-sm">{suffix}</code> 變數。</p>
+            <div class="modal-action">
+                <button class="btn btn-sm" @click="closeDuplicateModal()">了解</button>
+                <a href="/settings" class="btn btn-sm btn-primary">前往設定</a>
+            </div>
+        </div>
+    </dialog>
 </div>
 {% endblock %}
 

@@ -178,6 +178,22 @@ function formatNumber(input) {
 }
 
 /**
+ * 從檔名偵測版本標記關鍵字（邊界正則，與 Python _detect_suffixes 同邏輯）
+ * @param {string} filename - 原始檔名
+ * @param {string[]} keywords - 設定的關鍵字列表
+ * @returns {string[]} 匹配到的關鍵字（如 ["-4k", "-cd1"]）
+ */
+function detectSuffixes(filename, keywords) {
+    if (!filename || !keywords?.length) return [];
+    const lower = filename.toLowerCase();
+    const escapeRegex = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return keywords.filter(kw => {
+        const pattern = new RegExp(escapeRegex(kw.toLowerCase()) + '(?=[-_.\\s]|$)');
+        return pattern.test(lower);
+    });
+}
+
+/**
  * scrapeFile - Pure API call helper (used by Alpine methods)
  */
 async function scrapeFile(file, metadata) {
@@ -204,6 +220,7 @@ window.SearchFile = {
     formatNumber,
     parseFilenames,
     scrapeFile,
+    detectSuffixes,
     // Bridge stubs (overwritten by Alpine setupBridgeLayer)
     switchToFile: function() {},
     searchAll: function() {},

@@ -103,6 +103,7 @@ window.SearchStateMixin_Batch = {
 
         let successCount = 0;
         let failCount = 0;
+        let duplicateCount = 0;
 
         for (const file of scrapableFiles) {
             const index = this.fileList.indexOf(file);
@@ -128,6 +129,12 @@ window.SearchStateMixin_Batch = {
                 }
 
                 const result = await window.SearchFile.scrapeFile(file, metadata);
+                if (result.duplicate) {
+                    file.scrapeStatus = 'duplicate';
+                    file.isScraping = false;  // 必須清除，否則 spinner 永遠轉（L144 的清除被 continue 跳過）
+                    duplicateCount++;
+                    continue;
+                }
                 if (result.success) {
                     file.scraped = true;
                     file.scrapeStatus = 'done';
@@ -146,7 +153,8 @@ window.SearchStateMixin_Batch = {
 
         this.isScrapeAllProcessing = false;
 
-        alert(`批次處理完成！\n成功: ${successCount}\n失敗: ${failCount}`);
+        alert(`批次處理完成！\n成功: ${successCount}\n失敗: ${failCount}` +
+            (duplicateCount ? `\n重複: ${duplicateCount}（請到設定 → 版本標記）` : ''));
     },
 
     async scrapeSingle(index) {
@@ -171,6 +179,13 @@ window.SearchStateMixin_Batch = {
             }
 
             const result = await window.SearchFile.scrapeFile(file, metadata);
+            if (result.duplicate) {
+                this.duplicateTarget = result.duplicate_target || '';
+                document.getElementById('duplicateModal').showModal();
+                file.scrapeStatus = 'duplicate';
+                file.isScraping = false;
+                return;
+            }
             if (result.success) {
                 file.scraped = true;
                 file.scrapeStatus = 'done';

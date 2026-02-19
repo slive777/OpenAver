@@ -21,6 +21,14 @@ window.SearchStateMixin_ResultCard = {
         return false;
     },
 
+    // 當前結果的版本標記 badges（Fix-1）
+    currentSuffixes() {
+        if (this.listMode === 'file' && this.fileList[this.currentFileIndex]) {
+            return this.fileList[this.currentFileIndex].suffixes || [];
+        }
+        return [];  // 雲端搜尋模式無 suffix
+    },
+
     // 改為 method（原為 getter）
     chineseTitle() {
         if (this.listMode === 'file' && this.fileList[this.currentFileIndex]) {

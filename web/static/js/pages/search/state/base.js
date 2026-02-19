@@ -48,6 +48,8 @@ window.SearchStateMixin_Base = function() {
         newTagValue: '',
         coverError: '',
         _coverRetried: false,
+        // ===== Fix-1: Duplicate State =====
+        duplicateTarget: '',  // duplicate modal 顯示的目標檔名
         errorText: '',  // T6c: Error message state
 
         // ===== T6b: Toast State =====
@@ -250,6 +252,11 @@ window.SearchStateMixin_Base = function() {
         // T4: 標記番號已播放動畫
         markLocalBorderPlayed(number) {
             if (number) this._localBorderPlayed[number] = true;
-        }
+        },
+
+        closeDuplicateModal() {
+            document.getElementById('duplicateModal').close();
+            this.duplicateTarget = '';
+        },
     };
 };

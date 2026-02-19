@@ -694,3 +694,9 @@
         max-width: none;
     }
 }
+
+/* ==================== Fix-1: Suffix Badge ==================== */
+.tag-badge.suffix-badge {
+    background: var(--color-warning);
+    color: var(--color-warning-content);
+}
