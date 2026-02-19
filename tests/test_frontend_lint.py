@@ -486,7 +486,6 @@ class TestPathContract:
                 files.append(py_file)
         return files
 
-    @pytest.mark.xfail(reason="T7a-T7e 修正前：codebase 尚有手動 URI strip 違規")
     def test_no_raw_uri_strip(self):
         """掃描 Python 檔，確認無 path[8:] 或 path[len('file:///'):]  手動 URI strip"""
         # 符合 [8:] 或 [len('file:///'):]
@@ -503,7 +502,6 @@ class TestPathContract:
             + "\n".join(f"  - {v}" for v in violations)
         )
 
-    @pytest.mark.xfail(reason="T7a-T7e 修正前：codebase 尚有手動 URI 建構違規")
     def test_no_manual_uri_construct(self):
         """掃描 Python 檔，確認無 f\"file:///{ 手動 URI 建構"""
         pattern = r'f["\']file:///'
