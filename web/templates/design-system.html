@@ -254,6 +254,32 @@
                     </div>
                 </div>
 
+                <!-- 第 3 組：語義色 / 自訂色 -->
+                <h4 class="ds-group-label">Semantic & Custom Colors</h4>
+                <div class="ds-color-grid">
+                    <div class="ds-color-swatch" style="background: var(--color-warning);">
+                        <div class="ds-color-info">
+                            <span class="ds-color-name">--color-warning</span>
+                            <code class="ds-color-hex" data-var="--color-warning"></code>
+                            <span class="ds-color-usage">Warning alerts, suffix badge bg</span>
+                        </div>
+                    </div>
+                    <div class="ds-color-swatch" style="background: var(--color-warning-content);">
+                        <div class="ds-color-info">
+                            <span class="ds-color-name">--color-warning-content</span>
+                            <code class="ds-color-hex" data-var="--color-warning-content"></code>
+                            <span class="ds-color-usage">Warning text on warning bg</span>
+                        </div>
+                    </div>
+                    <div class="ds-color-swatch" style="background: var(--color-translate);">
+                        <div class="ds-color-info">
+                            <span class="ds-color-name">--color-translate</span>
+                            <code class="ds-color-hex" data-var="--color-translate"></code>
+                            <span class="ds-color-usage">翻譯功能圖示 / 按鈕色</span>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
             <!-- 文字色 -->
@@ -1728,8 +1754,8 @@
   content: '';
   width: 8px;
   height: 8px;
-  border: 2px solid rgba(96, 165, 250, 0.3);
-  border-top-color: #60a5fa;
+  border: 2px solid color-mix(in oklch, var(--color-primary) 30%, transparent);
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }</code></pre>
@@ -1761,7 +1787,7 @@
                             <div class="log-info">[INFO] 產生完成</div>
                         </div>
                         <div class="progress-mini">
-                            <div style="width: 80%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 2px;"></div>
+                            <div style="width: 80%; height: 100%; background: linear-gradient(90deg, var(--color-primary), color-mix(in oklch, var(--color-primary) 70%, white)); border-radius: 2px;"></div>
                         </div>
                     </div>
                 </div>
@@ -1773,7 +1799,7 @@
                     </ul>
                 </div>
                 <pre class="ds-code"><code>.mini-terminal {
-  background: #1a1a2e;
+  background: color-mix(in oklch, var(--color-base-100) 95%, black);
   border-radius: 12px;
   overflow: hidden;
 }
