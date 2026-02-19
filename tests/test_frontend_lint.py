@@ -347,13 +347,13 @@ class TestTranslateAll:
     """確認 translateAll 前端基礎設施完整"""
 
     def test_translate_all_button_exists(self):
-        """search.html 包含 translateAll() 綁定且受 isCloudSearchMode 條件保護"""
+        """search.html 包含 translateAll() 綁定且按鈕由 listMode 條件控制"""
         html_file = PROJECT_ROOT / "web" / "templates" / "search.html"
         content = html_file.read_text(encoding='utf-8')
         assert 'translateAll()' in content, \
             "search.html 缺少 translateAll() 綁定"
-        assert 'isCloudSearchMode' in content, \
-            "search.html 缺少 isCloudSearchMode 條件"
+        assert "listMode === 'search'" in content, \
+            "search.html 缺少 listMode === 'search' 條件（控制翻譯全部按鈕顯示）"
 
     def test_translate_state_in_base(self):
         """base.js 包含 translateState 物件定義"""
@@ -368,3 +368,12 @@ class TestTranslateAll:
         content = js_file.read_text(encoding='utf-8')
         assert 'async translateAll' in content, \
             "batch.js 缺少 async translateAll method 定義"
+
+    def test_is_cloud_search_mode_uses_list_mode(self):
+        """isCloudSearchMode 應依賴 listMode === 'search'，不依賴 fileList.length"""
+        js_file = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "base.js"
+        content = js_file.read_text(encoding='utf-8')
+        assert "listMode === 'search'" in content, \
+            "isCloudSearchMode 應使用 listMode === 'search'，不應依賴 fileList.length === 0"
+        assert "fileList.length === 0 && this.searchResults.length > 0" not in content, \
+            "isCloudSearchMode 不應使用 fileList.length === 0 條件（殘留 fileList 會使雲端搜尋模式失效）"

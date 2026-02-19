@@ -417,7 +417,7 @@
                     <span class="file-count" id="fileCountText" x-text="fileCountText()">0 個檔案</span>
                     <div class="join">
                         <button class="btn btn-sm btn-outline btn-primary join-item" id="btnSearchAll" type="button"
-                            x-show="!isCloudSearchMode"
+                            x-show="listMode === 'file'"
                             @click="searchAll()"
                             :disabled="searchAllDisabled()"
                             title="搜尋所有未搜尋的檔案">
@@ -425,7 +425,7 @@
                             <span x-text="searchAllButtonText()">搜尋全部</span>
                         </button>
                         <button class="btn btn-sm btn-outline btn-primary join-item"
-                            x-show="isCloudSearchMode"
+                            x-show="listMode === 'search'"
                             @click="translateAll()"
                             :disabled="translateAllDisabled()"
                             title="翻譯所有日文標題">

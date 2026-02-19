@@ -221,7 +221,7 @@ window.SearchStateMixin_Base = function() {
         },
 
         get isCloudSearchMode() {
-            return this.fileList.length === 0 && this.searchResults.length > 0;
+            return this.listMode === 'search' && this.searchResults.length > 0;
         },
 
         translateAllButtonText() {
