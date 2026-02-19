@@ -410,6 +410,44 @@ class TestOrganizeFallback:
         assert result["success"] is True
         assert result["used_fallbacks"] == []
 
+    def test_organize_fallback_amateur_no_actress(self, tmp_path):
+        """素人片（CHN-180）有 title/maker/date 但無演員 — 僅女優觸發 fallback"""
+        src = tmp_path / "CHN-180.mp4"
+        src.write_bytes(b"test")
+        config = {
+            "create_folder": True,
+            "folder_layers": ["{actor}"],
+            "filename_format": "[{num}][{maker}] {title}",
+            "download_cover": False,
+            "cover_filename": "poster.jpg",
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+        metadata = {
+            "number": "CHN-180",
+            "title": "新・素人娘、お貸しします。 VOL.83",
+            "actors": [],
+            "tags": ["素人", "美乳"],
+            "maker": "プレステージ",
+            "date": "2023-05-12",
+            "cover": "",
+            "url": "",
+        }
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True
+        # 僅女優觸發 fallback（maker/date/title 都有值）
+        assert result["used_fallbacks"] == ["女優"]
+        # 資料夾名為 fallback 值
+        folder_name = Path(result["new_folder"]).name
+        assert folder_name == "未知女優"
+        # 檔名不含 fallback（檔名不啟用 fallback）
+        filename_only = Path(result["new_filename"]).name
+        assert "未知女優" not in filename_only
+        # 檔名包含片商（有值，正常顯示）
+        assert "プレステージ" in filename_only
+
     def test_organize_used_fallbacks_create_folder_false(self, tmp_path):
         """create_folder=false 時不應有任何 fallback 報告"""
         src = tmp_path / "SONE-205.mp4"
