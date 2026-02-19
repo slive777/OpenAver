@@ -171,6 +171,119 @@ class TestOrganizeDuplicateDetection:
         assert "-cd2" in Path(result2["new_filename"]).name
 
 
+class TestOrganizeTruncateSuffix:
+    """organize_file() 長標題時 suffix 不應被截斷"""
+
+    def test_suffix_not_truncated_by_max_chars(self, tmp_path):
+        """
+        長標題超過 max_filename_length 時，suffix 仍應保留。
+        例：max_filename_length=30，title 很長，suffix="-cd1" 不應被截掉。
+        """
+        # 建立檔案
+        src = tmp_path / "SONE-205-CD1.mp4"
+        src.write_bytes(b"test")
+
+        config = {
+            "create_folder": False,
+            "filename_format": "[{num}][{maker}] {title}{suffix}",
+            "download_cover": False,
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 40,  # 故意很短，迫使截斷
+            "suffix_keywords": ["-cd1", "-cd2", "-4k", "-uc"],
+        }
+        metadata = {
+            "number": "SONE-205",
+            "title": "超級無敵長的標題名稱會被截斷但後綴應該保留",
+            "actors": [],
+            "tags": [],
+            "maker": "S1",
+            "date": "2024-01-15",
+            "cover": "",
+            "url": "",
+        }
+
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+
+        new_name = Path(result["new_filename"]).name
+        # suffix -cd1 必須在檔名中保留
+        assert "-cd1" in new_name, f"suffix -cd1 被截斷: {new_name}"
+
+    def test_small_max_filename_length_with_suffix(self, tmp_path):
+        """
+        回歸測試：max_filename_length 極小時，檔名長度不應超限。
+        max_filename_length=12, suffix=-cd1, ext=.mp4 → stem+ext 應 <= 12
+        """
+        src = tmp_path / "SONE-205-CD1.mp4"
+        src.write_bytes(b"test")
+
+        config = {
+            "create_folder": False,
+            "filename_format": "[{num}] {title}{suffix}",
+            "download_cover": False,
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 12,
+            "suffix_keywords": ["-cd1", "-cd2"],
+        }
+        metadata = {
+            "number": "SONE-205",
+            "title": "Test Title",
+            "actors": [],
+            "tags": [],
+            "maker": "S1",
+            "date": "2024-01-15",
+            "cover": "",
+            "url": "",
+        }
+
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+
+        new_name = Path(result["new_filename"]).name
+        assert len(new_name) <= 12, (
+            f"檔名長度 {len(new_name)} 超過 max_filename_length=12: {new_name}"
+        )
+
+    @pytest.mark.parametrize("max_len", [6, 7, 8])
+    def test_suffix_longer_than_budget(self, tmp_path, max_len):
+        """
+        極端邊界：max_filename_length 比 suffix+ext 還小時，
+        檔名長度仍不應超過 max_filename_length。
+        """
+        src = tmp_path / "SONE-205-CD1.mp4"
+        src.write_bytes(b"test")
+
+        config = {
+            "create_folder": False,
+            "filename_format": "[{num}] {title}{suffix}",
+            "download_cover": False,
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": max_len,
+            "suffix_keywords": ["-cd1"],
+        }
+        metadata = {
+            "number": "SONE-205",
+            "title": "Test",
+            "actors": [],
+            "tags": [],
+            "maker": "S1",
+            "date": "2024-01-15",
+            "cover": "",
+            "url": "",
+        }
+
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+
+        new_name = Path(result["new_filename"]).name
+        assert len(new_name) <= max_len, (
+            f"檔名長度 {len(new_name)} 超過 max_filename_length={max_len}: {new_name}"
+        )
+
+
 # ============ Config suffix_keywords 持久化測試 ============
 
 class TestConfigSuffixKeywordsPersistence:

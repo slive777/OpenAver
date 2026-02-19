@@ -50,6 +50,7 @@ window.SearchStateMixin_Base = function() {
         _coverRetried: false,
         // ===== Fix-1: Duplicate State =====
         duplicateTarget: '',  // duplicate modal 顯示的目標檔名
+        duplicateModalOpen: false,  // Alpine state for duplicate modal
         errorText: '',  // T6c: Error message state
 
         // ===== T6b: Toast State =====
@@ -255,7 +256,7 @@ window.SearchStateMixin_Base = function() {
         },
 
         closeDuplicateModal() {
-            document.getElementById('duplicateModal').close();
+            this.duplicateModalOpen = false;
             this.duplicateTarget = '';
         },
     };

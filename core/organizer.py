@@ -45,6 +45,10 @@ def truncate_title(title: str, max_len: int = 50) -> str:
 
 def truncate_to_chars(text: str, max_chars: int = 60) -> str:
     """按字符截斷，確保不超過指定長度"""
+    if max_chars <= 0:
+        return ''
+    if max_chars <= 3:
+        return text[:max_chars]
     if len(text) <= max_chars:
         return text
     return text[:max_chars - 3] + '...'
@@ -415,13 +419,25 @@ def organize_file(
     else:
         target_dir = original_dir
 
-    # 計算新檔名
-    filename_base = format_string(config.get('filename_format', '{num} {title}'), format_data)
-
-    # 讀取設定，但上限 120 字符（扣除副檔名）
+    # 計算新檔名（suffix 保護：先截斷 base，再接回 suffix）
+    filename_template = config.get('filename_format', '{num} {title}')
     max_filename_chars = min(config.get('max_filename_length', 60), 120)
     max_chars = max_filename_chars - len(original_ext)
-    filename_base = truncate_to_chars(filename_base, max_chars)
+
+    suffix = format_data.get('suffix', '')
+    if suffix and '{suffix}' in filename_template:
+        # 先用空 suffix 產生 base，截斷後再接回 suffix
+        no_suffix_data = dict(format_data, suffix='')
+        base_without_suffix = format_string(filename_template, no_suffix_data)
+        base_budget = max(0, max_chars - len(suffix))
+        if base_budget == 0:
+            filename_base = truncate_to_chars(suffix, max_chars)
+        else:
+            base_without_suffix = truncate_to_chars(base_without_suffix, base_budget)
+            filename_base = base_without_suffix + suffix
+    else:
+        filename_base = format_string(filename_template, format_data)
+        filename_base = truncate_to_chars(filename_base, max_chars)
 
     new_filename = filename_base + original_ext
     target_path = os.path.join(target_dir, new_filename)

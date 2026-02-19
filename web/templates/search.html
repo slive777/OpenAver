@@ -548,10 +548,14 @@
         </div>
     </div>
 
-    <!-- Fix-1: 覆蓋警告 Modal -->
-    <dialog id="duplicateModal" class="fluent-modal">
-        <div class="modal-box">
-            <h3 class="font-bold text-lg">&#x26A0;&#xFE0F; 檔案重複</h3>
+    <!-- Fix-1: 覆蓋警告 Modal (Alpine state-driven) -->
+    <dialog class="modal fluent-modal"
+            :class="{ 'modal-open': duplicateModalOpen }"
+            @click.self="closeDuplicateModal()">
+        <div class="modal-box fluent-modal-box">
+            <h3 class="fluent-modal-title">
+                <i class="bi bi-exclamation-triangle"></i> 檔案重複
+            </h3>
             <p class="py-2">目標檔案已存在，繼續會覆蓋原有檔案：</p>
             <p class="text-sm opacity-70" x-text="duplicateTarget"></p>
             <p class="py-2">這通常發生在同一部影片有多個版本（CD1/CD2、4K、UC）時。</p>

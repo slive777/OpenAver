@@ -322,3 +322,22 @@ class TestMotionInfra:
             f"發現 {len(violations)} 個直接 GSAP 呼叫（應透過 OpenAver.motion.*）:\n" +
             "\n".join(f"  - {v}" for v in violations)
         )
+
+
+class TestNoDuplicateNativeDialog:
+    """確認 duplicate modal 使用 Alpine state-driven pattern（不使用原生 showModal/close）"""
+
+    def test_no_show_modal_in_state_mixins(self):
+        """state/*.js 不應包含 showModal() 呼叫"""
+        state_dir = Path("web/static/js/pages/search/state")
+        for js_file in state_dir.glob("*.js"):
+            content = js_file.read_text(encoding="utf-8")
+            assert "showModal()" not in content, \
+                f"{js_file.name} 仍包含原生 showModal() — 應改用 Alpine state"
+
+    def test_duplicate_modal_uses_modal_open_class(self):
+        """search.html 的 duplicate modal 應使用 :class=\"{ 'modal-open': ... }\" pattern"""
+        html_path = Path("web/templates/search.html")
+        content = html_path.read_text(encoding="utf-8")
+        assert "duplicateModalOpen" in content, \
+            "search.html 未找到 duplicateModalOpen — duplicate modal 應使用 Alpine state"

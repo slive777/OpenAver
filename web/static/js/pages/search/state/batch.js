@@ -181,7 +181,7 @@ window.SearchStateMixin_Batch = {
             const result = await window.SearchFile.scrapeFile(file, metadata);
             if (result.duplicate) {
                 this.duplicateTarget = result.duplicate_target || '';
-                document.getElementById('duplicateModal').showModal();
+                this.duplicateModalOpen = true;
                 file.scrapeStatus = 'duplicate';
                 file.isScraping = false;
                 return;
