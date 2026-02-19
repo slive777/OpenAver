@@ -126,6 +126,51 @@ class Api:
         except Exception:
             return False
 
+    def open_folder(self, path):
+        """用系統檔案管理員開啟檔案所在資料夾
+
+        支援格式同 open_file()：
+        - file:///C:/path/to/file.mp4
+        - C:/path/to/file.mp4
+        - C:\\path\\to\\file.mp4
+
+        Windows: explorer /select, → 打開資料夾並選中檔案
+        macOS:   open -R          → Finder 中顯示檔案
+        Linux:   xdg-open         → 打開所在資料夾
+        """
+        # 移除 file:/// 前綴
+        if path.startswith('file:///'):
+            path = path[8:]
+
+        # URL decode（處理 %20 等編碼）
+        path = unquote(path)
+
+        # Windows: 轉換斜線為反斜線
+        if sys.platform == 'win32':
+            path = path.replace('/', '\\')
+
+        if not os.path.exists(path):
+            # 檔案不存在，嘗試開啟父資料夾
+            parent = os.path.dirname(path)
+            if not os.path.exists(parent):
+                return False
+            path = parent
+
+        try:
+            if sys.platform == 'win32':
+                # /select, 會打開資料夾並選中該檔案
+                subprocess.Popen(['explorer', '/select,', path])
+            elif sys.platform == 'darwin':
+                # -R 會在 Finder 中顯示並選中該檔案
+                subprocess.run(['open', '-R', path])
+            else:
+                # Linux: 開啟所在資料夾
+                folder = os.path.dirname(path) if os.path.isfile(path) else path
+                subprocess.run(['xdg-open', folder])
+            return True
+        except Exception:
+            return False
+
     def _get_player_path(self):
         """從設定檔讀取播放器路徑"""
         try:
