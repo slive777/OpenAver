@@ -82,6 +82,17 @@
                 <li>支援多檔案批次處理（一次 20 個）</li>
                 <li>搜尋成功後可點「產生」更改檔名、下載封面和建立資料夾與 NFO</li>
             </ul>
+
+            <h6 class="mt-4">Grid 模式（封面牆）</h6>
+            <ul>
+                <li>搜尋後可切換為封面牆顯示，點擊封面開啟 Lightbox</li>
+                <li><strong>Lightbox</strong>：全螢幕檢視封面，<kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd> 鍵導航，<kbd class="kbd kbd-sm">Esc</kbd> 關閉</li>
+            </ul>
+
+            <h6 class="mt-4">版本標記 Badge</h6>
+            <ul>
+                <li>檔名含 <code>-4k</code>、<code>-uc</code> 等關鍵字時，結果卡片自動顯示彩色 badge</li>
+            </ul>
         </div>
     </div>
 
@@ -101,7 +112,7 @@
 
             <h6 class="mt-4">我的最愛資料夾</h6>
             <ul>
-                <li>在 Settings 設定常用資料夾路徑</li>
+                <li>在<strong>設定頁</strong>設定常用資料夾路徑</li>
                 <li>點擊「⭐ 我的最愛」按鈕一鍵載入</li>
                 <li>自動開始搜尋前 20 個檔案</li>
             </ul>
@@ -110,6 +121,16 @@
             <ul>
                 <li>批次搜尋時可點擊「暫停」按鈕</li>
                 <li>點擊「繼續」從暫停處恢復</li>
+            </ul>
+
+            <h6 class="mt-4">產生全部</h6>
+            <ul>
+                <li>批次搜尋完成後，可一次執行所有成功結果的重命名 / 建資料夾 / NFO</li>
+            </ul>
+
+            <h6 class="mt-4">版本標記保留</h6>
+            <ul>
+                <li>檔名中的 <code>-cd1</code>、<code>-4k</code> 等會自動保留為 <code>{suffix}</code></li>
             </ul>
         </div>
     </div>
@@ -132,6 +153,13 @@
                 <li><strong>Hero Card</strong>：顯示女優個人資料（罩杯、身高、三圍、生日）</li>
                 <li><strong>畫廊瀏覽</strong>：以封面圖方式展示作品列表</li>
                 <li><strong>快速返回</strong>：點擊「← 返回詳細資料」回到一般模式</li>
+            </ul>
+
+            <h6 class="mt-4">Grid Mode 與 Gallery Mode 差異</h6>
+            <ul>
+                <li><strong>Gallery Mode</strong>（自動觸發）：搜尋結果 > 10 部且女優一致時自動切換</li>
+                <li><strong>Grid Mode</strong>（手動切換）：任何搜尋結果都可手動切換為封面牆顯示</li>
+                <li>Grid Mode 支援 Lightbox 導航（<kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd> 切換）</li>
             </ul>
         </div>
     </div>
@@ -156,6 +184,12 @@
                 <li><strong>自動複製</strong>：封面圖與 NFO 複製到輸出目錄</li>
                 <li><strong>Dark Mode</strong>：自動跟隨 Web App 的主題設定</li>
             </ul>
+
+            <h6 class="mt-4">Jellyfin 圖片模式</h6>
+            <ul>
+                <li>在<strong>設定頁</strong>開啟後，掃描時自動產生 <code>-poster.jpg</code> + <code>-fanart.jpg</code></li>
+                <li>掃描完成後可至 <code>/showcase</code> 頁面瀏覽生成結果</li>
+            </ul>
         </div>
     </div>
 
@@ -165,26 +199,69 @@
             <h2 class="card-title text-lg">
                 <i class="bi bi-keyboard"></i> 快捷鍵
             </h2>
-            <table class="table table-sm">
-                <tbody>
-                    <tr>
-                        <td class="w-[30%]"><kbd class="kbd kbd-sm">Ctrl</kbd> / <kbd class="kbd kbd-sm">Cmd</kbd> + <kbd class="kbd kbd-sm">K</kbd></td>
-                        <td>聚焦搜尋框</td>
-                    </tr>
-                    <tr>
-                        <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
-                        <td>切換上一個/下一個結果</td>
-                    </tr>
-                    <tr>
-                        <td><kbd class="kbd kbd-sm">Esc</kbd></td>
-                        <td>清空搜尋框</td>
-                    </tr>
-                    <tr>
-                        <td><kbd class="kbd kbd-sm">Enter</kbd></td>
-                        <td>執行搜尋</td>
-                    </tr>
-                </tbody>
-            </table>
+
+            <h6>搜尋頁</h6>
+            <p class="text-base-content/60 text-sm mb-2">搜尋框聚焦時所有快捷鍵停用，避免干擾輸入。</p>
+            <div class="overflow-x-auto">
+                <table class="table table-sm">
+                    <thead>
+                        <tr><th>按鍵</th><th>情境</th><th>動作</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><kbd class="kbd kbd-sm">Esc</kbd></td>
+                            <td>Lightbox 開啟時</td>
+                            <td>關閉 Lightbox</td>
+                        </tr>
+                        <tr>
+                            <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
+                            <td>Lightbox 開啟時</td>
+                            <td>上 / 下一部影片</td>
+                        </tr>
+                        <tr>
+                            <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
+                            <td>Detail 模式，Lightbox 關閉</td>
+                            <td>切換上 / 下一個結果</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h6 class="mt-4">瀏覽頁 (Showcase)</h6>
+            <div class="overflow-x-auto">
+                <table class="table table-sm">
+                    <thead>
+                        <tr><th>按鍵</th><th>情境</th><th>動作</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
+                            <td>Lightbox 關閉時</td>
+                            <td>上 / 下一頁</td>
+                        </tr>
+                        <tr>
+                            <td><kbd class="kbd kbd-sm">A</kbd></td>
+                            <td>Lightbox 關閉時</td>
+                            <td>循環切換模式（圖片 → 文字 → 詳細）</td>
+                        </tr>
+                        <tr>
+                            <td><kbd class="kbd kbd-sm">S</kbd></td>
+                            <td>Grid 模式，Lightbox 關閉</td>
+                            <td>顯示 / 隱藏卡片資訊</td>
+                        </tr>
+                        <tr>
+                            <td><kbd class="kbd kbd-sm">Esc</kbd></td>
+                            <td>Lightbox 開啟時</td>
+                            <td>關閉 Lightbox</td>
+                        </tr>
+                        <tr>
+                            <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
+                            <td>Lightbox 開啟時</td>
+                            <td>上 / 下一部影片</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -216,6 +293,17 @@
                 <li>重現問題</li>
                 <li>將日誌檔案與錯誤訊息回報到 <a href="https://github.com/slive777/OpenAver/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a></li>
             </ol>
+
+            <h6 class="mt-4">DMM 無法搜尋</h6>
+            <ul>
+                <li>DMM 需要日本 IP，請在<strong>設定頁</strong> → Proxy 欄位填入日本 IP 代理</li>
+            </ul>
+
+            <h6 class="mt-4">翻譯無回應</h6>
+            <ul>
+                <li><strong>Ollama</strong>：確認 Ollama 應用程式已啟動（Windows 需手動開啟）</li>
+                <li><strong>Gemini</strong>：確認 API Key 已在<strong>設定頁</strong>正確設定</li>
+            </ul>
         </div>
     </div>
 </div>
