@@ -135,6 +135,42 @@
         </div>
     </div>
 
+    <!-- 格式變數一覽表 -->
+    <div class="card help-card fluent-rounded-xl mb-4">
+        <div class="card-body">
+            <h2 class="card-title text-lg">
+                <i class="bi bi-braces"></i> 格式變數一覽表
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="table table-sm">
+                    <thead>
+                        <tr><th>變數</th><th>說明</th><th>範例</th><th>資料夾 fallback</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>{num}</code></td><td>番號</td><td>SONE-205</td><td>—</td></tr>
+                        <tr><td><code>{title}</code></td><td>標題</td><td>新人出道...</td><td>未知標題</td></tr>
+                        <tr><td><code>{actor}</code></td><td>第一位演員</td><td>三上悠亜</td><td>未知女優</td></tr>
+                        <tr><td><code>{actors}</code></td><td>所有演員</td><td>三上悠亜, 明日花</td><td>未知女優</td></tr>
+                        <tr><td><code>{maker}</code></td><td>片商</td><td>S1</td><td>未知片商</td></tr>
+                        <tr><td><code>{date}</code></td><td>發行日期</td><td>2024-01-15</td><td>未知日期</td></tr>
+                        <tr><td><code>{year}</code></td><td>年份</td><td>2024</td><td>未知年份</td></tr>
+                        <tr><td><code>{suffix}</code></td><td>版本標記</td><td>-4k</td><td>空則消失</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <h6 class="mt-4">預設格式</h6>
+            <ul>
+                <li>檔名：<code>[{num}][{maker}] {title}{suffix}</code></li>
+                <li>資料夾：<code>{actor}</code></li>
+            </ul>
+            <h6 class="mt-4">Fallback 規則</h6>
+            <ul>
+                <li>資料夾層級會使用 fallback 值（如「未知女優」），避免路徑為空</li>
+                <li>檔名不使用 fallback，變數為空時直接省略</li>
+            </ul>
+        </div>
+    </div>
+
     <!-- 女優畫廊模式 -->
     <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
@@ -189,6 +225,35 @@
             <ul>
                 <li>在<strong>設定頁</strong>開啟後，掃描時自動產生 <code>-poster.jpg</code> + <code>-fanart.jpg</code></li>
                 <li>掃描完成後可至 <code>/showcase</code> 頁面瀏覽生成結果</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 影片瀏覽 Showcase -->
+    <div class="card help-card fluent-rounded-xl mb-4">
+        <div class="card-body">
+            <h2 class="card-title text-lg">
+                <i class="bi bi-collection-play"></i> 影片瀏覽 (Showcase)
+            </h2>
+            <p>Scanner 掃描完成後，可至 <code>/showcase</code> 頁面瀏覽影片庫。</p>
+
+            <h6 class="mt-4">顯示模式</h6>
+            <ul>
+                <li><strong>圖片模式（Grid）</strong>：封面牆顯示，點擊開啟 Lightbox</li>
+                <li><strong>文字模式（List）</strong>：精簡列表，適合快速瀏覽</li>
+                <li><strong>詳細模式（Table）</strong>：含完整元數據的表格顯示</li>
+            </ul>
+
+            <h6 class="mt-4">排序與搜尋</h6>
+            <ul>
+                <li><strong>排序</strong>：日期 / 番號 / 標題 / 女優 / 片商 / 大小 / 修改時間 / 隨機</li>
+                <li><strong>搜尋</strong>：支援番號、女優、標題等關鍵字篩選</li>
+            </ul>
+
+            <h6 class="mt-4">其他功能</h6>
+            <ul>
+                <li>Lightbox 全螢幕封面檢視（<kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd> 導航）</li>
+                <li>每頁顯示數量可在<strong>設定頁</strong>調整</li>
             </ul>
         </div>
     </div>
@@ -259,6 +324,49 @@
                             <td>Lightbox 開啟時</td>
                             <td>上 / 下一部影片</td>
                         </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scraper 來源說明 -->
+    <div class="card help-card fluent-rounded-xl mb-4">
+        <div class="card-body">
+            <h2 class="card-title text-lg">
+                <i class="bi bi-globe"></i> Scraper 來源說明
+            </h2>
+
+            <h6>有碼來源</h6>
+            <ul>
+                <li><strong>DMM</strong>：需設定日本 IP Proxy（<strong>設定頁</strong> → Proxy 欄位）</li>
+                <li><strong>JavBus</strong>、<strong>Jav321</strong>、<strong>JavDB</strong>：直接可用</li>
+            </ul>
+
+            <h6 class="mt-4">無碼來源</h6>
+            <ul>
+                <li><strong>D2Pass</strong>：涵蓋 1Pondo / Caribbeancom / 10musume 三站</li>
+                <li><strong>HEYZO</strong>：獨立來源</li>
+                <li><strong>FC2</strong>：FC2-PPV 專用</li>
+                <li><strong>AVSOX</strong>：無碼通用來源</li>
+            </ul>
+
+            <h6 class="mt-4">切換模式</h6>
+            <ul>
+                <li>在<strong>設定頁</strong>開啟「無碼模式」toggle，搜尋時將優先使用無碼來源</li>
+            </ul>
+
+            <h6 class="mt-4">番號格式範例</h6>
+            <div class="overflow-x-auto">
+                <table class="table table-sm">
+                    <thead>
+                        <tr><th>來源</th><th>格式</th><th>範例</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Caribbeancom</td><td><code>DDMMYY-NNN</code></td><td><code>010125-001</code></td></tr>
+                        <tr><td>1Pondo</td><td><code>DDMMYY_NNN</code></td><td><code>010125_001</code></td></tr>
+                        <tr><td>HEYZO</td><td><code>HEYZO-NNNN</code></td><td><code>HEYZO-3510</code></td></tr>
+                        <tr><td>FC2</td><td><code>FC2-PPV-NNNNNN</code></td><td><code>FC2-PPV-1723984</code></td></tr>
                     </tbody>
                 </table>
             </div>
