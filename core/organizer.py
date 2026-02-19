@@ -9,6 +9,7 @@ import shutil
 import requests
 import html
 from pathlib import Path
+from PIL import Image
 from typing import Optional, Dict, Any, List
 
 from core.path_utils import normalize_path
@@ -203,6 +204,38 @@ def format_string(template: str, data: Dict[str, Any], use_fallback: bool = Fals
     result = result.replace('{suffix}', data.get('suffix', ''))
 
     return sanitize_filename(result.strip())
+
+
+def crop_to_poster(src_path: str, dst_path: str) -> bool:
+    """
+    從橫向封面裁切直向海報（Jellyfin poster）。
+
+    裁切模式（純比例自動判斷）：
+    - h/w >= 1.4 → 已是直向，直接複製
+    - h/w >= 1.0 → 方形（FC2/無碼），裁中間（寬度 = h/1.5，置中）
+    - h/w <  1.0 → 標準橫向（有碼），裁右側（起點 = w/1.9 ≈ 右47%）
+    """
+    try:
+        with Image.open(src_path) as img:
+            w, h = img.size
+            ratio = h / w
+
+            if ratio >= 1.4:
+                shutil.copy2(src_path, dst_path)
+                return True
+            elif ratio >= 1.0:
+                crop_w = int(h / 1.5)
+                x0 = (w - crop_w) // 2
+                cropped = img.convert("RGB").crop((x0, 0, x0 + crop_w, h))
+            else:
+                x0 = int(w / 1.9)
+                cropped = img.convert("RGB").crop((x0, 0, w, h))
+
+            cropped.save(dst_path, 'JPEG', quality=95, subsampling=0)
+            return True
+    except Exception as e:
+        logger.warning(f"[!] crop_to_poster 失敗: {e}")
+        return False
 
 
 def download_image(url: str, save_path: str, referer: str = '') -> bool:
@@ -502,6 +535,21 @@ def organize_file(
             cover_path = os.path.join(target_dir, filename_base + '.jpg')
             if download_image(img_url, cover_path):
                 result['cover_path'] = cover_path
+
+        # Jellyfin 模式：產生 poster + fanart
+        if config.get('jellyfin_mode') and result.get('cover_path'):
+            cover_jpg = result['cover_path']
+            # fanart = 原圖複製
+            fanart_path = os.path.join(target_dir, filename_base + '-fanart.jpg')
+            try:
+                shutil.copy2(cover_jpg, fanart_path)
+                result['fanart_path'] = fanart_path
+            except Exception as e:
+                logger.warning(f"[!] Fanart 複製失敗: {e}")
+            # poster = 裁切
+            poster_path = os.path.join(target_dir, filename_base + '-poster.jpg')
+            if crop_to_poster(cover_jpg, poster_path):
+                result['poster_path'] = poster_path
 
         # 生成 NFO（檔名跟隨影片命名）
         nfo_path = os.path.join(target_dir, filename_base + '.nfo')
