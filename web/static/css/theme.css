@@ -26,6 +26,7 @@
     /* 主題色 */
     --accent: var(--color-primary);
     --accent-hover: color-mix(in oklch, var(--color-primary) 80%, transparent);
+    --color-translate: oklch(0.62 0.18 260);
 
     /* 邊框色 */
     --border-light: color-mix(in oklch, var(--color-base-content) 15%, transparent);
@@ -427,6 +428,13 @@ body {
     transform: scale(0.95);
 }
 
+.bi-translate {
+    color: var(--color-translate);
+}
+.btn .bi-translate {
+    color: inherit;
+}
+
 /* Local Badge - 可點擊複製路徑 */
 .local-badge {
     font-size: 1rem;
@@ -570,6 +578,7 @@ body {
 
     /* V4: Dark mode success 色覆寫 */
     --color-success: #30d158;         /* Dark mode 使用較亮綠 */
+    --color-translate: oklch(0.72 0.14 260);
 }
 
 [data-theme="dim"] .info-icon-btn:hover {
