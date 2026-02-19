@@ -1127,6 +1127,31 @@
 .file-item .btn-scrape-single { flex-shrink: 0; padding: 0 6px; font-size: 0.7rem; }</code></pre>
             </div>
 
+            <!-- Tag Badge System -->
+            <div class="ds-subsection">
+                <h3>Tag Badge 三層系統</h3>
+                <p class="ds-desc">標籤使用三種 badge 變體：系統標籤（灰）、中文字幕（綠）、版本標記（黃）</p>
+                <div class="ds-card-demo" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                    <span class="badge tag-badge">HD</span>
+                    <span class="badge tag-badge">獨家</span>
+                    <span class="badge tag-badge subtitle">中文字幕</span>
+                    <span class="badge tag-badge suffix-badge">-4K</span>
+                    <span class="badge tag-badge suffix-badge">-CD1</span>
+                    <span class="badge tag-badge suffix-badge">-UC</span>
+                </div>
+                <div class="ds-note" style="margin-top: 1rem;">
+                    <strong>三層語意：</strong>
+                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                        <li><code>.tag-badge</code> — 預設灰（系統/來源標籤）</li>
+                        <li><code>.tag-badge.subtitle</code> — 綠色（中文字幕偵測）</li>
+                        <li><code>.tag-badge.suffix-badge</code> — 黃色（Fix-1 版本標記：-4K / -CD1 / -CD2 / -UC）</li>
+                    </ul>
+                </div>
+                <pre class="ds-code"><code>&lt;span class="badge tag-badge"&gt;HD&lt;/span&gt;
+&lt;span class="badge tag-badge subtitle"&gt;中文字幕&lt;/span&gt;
+&lt;span class="badge tag-badge suffix-badge"&gt;-4K&lt;/span&gt;</code></pre>
+            </div>
+
             <!-- Drag Overlay -->
             <div class="ds-subsection" id="ds-drag-overlay">
                 <h3>Drag Overlay (Search 彈窗)</h3>
@@ -1306,6 +1331,50 @@
   &lt;/dialog&gt;
 &lt;/div&gt;</code></pre>
             </div>
+
+            <!-- Override Warning Modal -->
+            <div class="ds-subsection">
+                <h3>Override Warning Modal（覆蓋警告）</h3>
+                <p class="ds-desc">Fix-1 新增：當目標檔案已存在時（如 CD1/CD2 同番號）顯示覆蓋警告</p>
+                <div class="ds-card-demo">
+                    <div class="fluent-modal-box" style="max-width: 500px; margin: 0 auto; border: 1px solid var(--border-light); border-radius: var(--fluent-radius-lg);">
+                        <h3 class="fluent-modal-title">
+                            <i class="bi bi-exclamation-triangle"></i> 檔案重複
+                        </h3>
+                        <p class="py-2">目標檔案已存在，繼續會覆蓋原有檔案：</p>
+                        <p class="text-sm opacity-70">[SONE-205][S1] SONE-205.mp4</p>
+                        <p class="py-2">這通常發生在同一部影片有多個版本（CD1/CD2、4K、UC）時。</p>
+                        <p class="py-2">請到 <strong>設定 → 進階刮削設定 → 版本標記</strong>，新增關鍵字並確認檔案命名格式包含 <code class="badge badge-sm">{suffix}</code> 變數。</p>
+                        <div class="modal-action fluent-modal-actions">
+                            <button class="btn btn-sm">了解</button>
+                            <button class="btn btn-sm btn-primary">前往設定</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="ds-note" style="margin-top: 1rem;">
+                    <strong>技術差異：</strong> 此 Modal 使用 Alpine <code>duplicateModalOpen</code> class toggle（<code>:class="{ 'modal-open': duplicateModalOpen }"</code>），
+                    而非 Confirmation Dialog 的 <code>$refs.dialog.showModal()</code> 方式。兩種模式均可：
+                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                        <li>Class-driven：適合需要自訂背景行為（如 <code>@click.self</code> 關閉）</li>
+                        <li><code>&lt;dialog&gt;</code> native：適合標準 Escape 關閉 + focus trap</li>
+                    </ul>
+                </div>
+                <pre class="ds-code"><code>&lt;dialog class="modal fluent-modal"
+        :class="{ 'modal-open': duplicateModalOpen }"
+        @click.self="closeDuplicateModal()"&gt;
+  &lt;div class="modal-box fluent-modal-box"&gt;
+    &lt;h3 class="fluent-modal-title"&gt;
+      &lt;i class="bi bi-exclamation-triangle"&gt;&lt;/i&gt; 檔案重複
+    &lt;/h3&gt;
+    &lt;p&gt;...&lt;/p&gt;
+    &lt;p&gt;包含 &lt;code class="badge badge-sm"&gt;{suffix}&lt;/code&gt; 變數。&lt;/p&gt;
+    &lt;div class="modal-action"&gt;
+      &lt;button class="btn btn-sm" @click="closeDuplicateModal()"&gt;了解&lt;/button&gt;
+      &lt;a href="/settings" class="btn btn-sm btn-primary"&gt;前往設定&lt;/a&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/dialog&gt;</code></pre>
+            </div>
         </section>
 
         <!-- 區塊: Toasts -->
@@ -1353,6 +1422,11 @@
                                 @click="showToast('⟳ 正在處理...', 'info', 3000)">
                             <i class="bi bi-info-circle"></i> 觸發資訊 Toast
                         </button>
+
+                        <button type="button" class="btn btn-warning"
+                                @click="showToast('⚠ 版本標記未設定', 'warning', 3000)">
+                            <i class="bi bi-exclamation-triangle-fill"></i> 觸發警告 Toast
+                        </button>
                     </div>
 
                     <!-- Toast Container (Fixed positioning) -->
@@ -1373,7 +1447,8 @@
                                :class="{
                                  'bi-check-circle': toastType === 'success',
                                  'bi-x-circle': toastType === 'error',
-                                 'bi-info-circle': toastType === 'info'
+                                 'bi-info-circle': toastType === 'info',
+                                 'bi-exclamation-triangle-fill': toastType === 'warning'
                                }"></i>
                             <span x-text="toastMessage"></span>
                         </div>
@@ -1386,7 +1461,7 @@
                     <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
                         <li>使用 DaisyUI <code>toast</code> 容器 + <code>alert</code> 元件</li>
                         <li>Alpine.js <code>showToast()</code> 統一管理訊息、類型、持續時間</li>
-                        <li>顏色變體：<code>alert-success</code>（綠）/ <code>alert-error</code>（紅）/ <code>alert-info</code>（藍）</li>
+                        <li>顏色變體：<code>alert-success</code>（綠）/ <code>alert-error</code>（紅）/ <code>alert-info</code>（藍）/ <code>alert-warning</code>（黃）</li>
                         <li>動畫：Slide up (20px → 0) + Fade in，使用 <code>x-transition</code></li>
                         <li>Production 無 Hover 暫停（自動消失）</li>
                         <li>陰影使用 <code>--fluent-shadow-16</code>（XLarge elevation）</li>
@@ -1668,6 +1743,16 @@
                     <div class="mini-terminal" style="max-width: 500px;">
                         <div class="mini-terminal-header">
                             <span class="title">產生進度</span>
+                            <div class="log-filter-group">
+                                <button class="log-filter-btn active">全部</button>
+                                <button class="log-filter-btn">錯誤</button>
+                                <button class="log-filter-btn">警告</button>
+                            </div>
+                            <div class="log-actions">
+                                <button class="log-action-btn" title="複製日誌"><i class="bi bi-clipboard"></i></button>
+                                <button class="log-action-btn" title="清除畫面"><i class="bi bi-eraser"></i></button>
+                                <button class="log-action-btn" title="清除全部"><i class="bi bi-trash"></i></button>
+                            </div>
                         </div>
                         <div class="mini-terminal-body">
                             <div class="log-info">[INFO] 正在產生網頁列表...</div>
@@ -1679,6 +1764,13 @@
                             <div style="width: 80%; height: 100%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 2px;"></div>
                         </div>
                     </div>
+                </div>
+                <div class="ds-note" style="margin-top: 1rem;">
+                    <strong>子元件說明：</strong>
+                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                        <li><code>.log-filter-group</code> — pill tab 容器，<code>.log-filter-btn.active</code> 使用 primary 色</li>
+                        <li><code>.log-action-btn</code> — 透明背景小按鈕，hover 時顯色。clipboard / eraser / trash</li>
+                    </ul>
                 </div>
                 <pre class="ds-code"><code>.mini-terminal {
   background: #1a1a2e;
