@@ -2351,3 +2351,41 @@
 .ds-page .log-action-btn i {
     font-size: 0.75rem;
 }
+
+/* ==================== Showcase Toolbar (from showcase.css:21-70) ==================== */
+.ds-page .showcase-toolbar {
+    position: static;
+    background: var(--bg-header);
+    backdrop-filter: blur(16px) saturate(130%);
+    -webkit-backdrop-filter: blur(16px) saturate(130%);
+    border-bottom: 1px solid var(--border-light);
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: var(--fluent-radius-lg);
+}
+
+.ds-page .toolbar-section {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.ds-page .toolbar-search {
+    flex: 1;
+    min-width: 200px;
+}
+
+.ds-page .toolbar-controls {
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.ds-page .control-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
