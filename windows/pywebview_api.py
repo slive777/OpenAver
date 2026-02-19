@@ -8,7 +8,7 @@ import json
 import subprocess
 import webview
 from pathlib import Path
-from urllib.parse import unquote
+from core.path_utils import uri_to_fs_path
 from webview.dom import DOMEventHandler
 
 # 支援的影片副檔名
@@ -90,16 +90,7 @@ class Api:
         - C:/path/to/file.mp4
         - C:\\path\\to\\file.mp4
         """
-        # 移除 file:/// 前綴
-        if path.startswith('file:///'):
-            path = path[8:]  # 移除 'file:///'
-
-        # URL decode（處理 %20 等編碼）
-        path = unquote(path)
-
-        # Windows: 轉換斜線為反斜線
-        if sys.platform == 'win32':
-            path = path.replace('/', '\\')
+        path = uri_to_fs_path(path)
 
         if not os.path.exists(path):
             return False
@@ -138,16 +129,7 @@ class Api:
         macOS:   open -R          → Finder 中顯示檔案
         Linux:   xdg-open         → 打開所在資料夾
         """
-        # 移除 file:/// 前綴
-        if path.startswith('file:///'):
-            path = path[8:]
-
-        # URL decode（處理 %20 等編碼）
-        path = unquote(path)
-
-        # Windows: 轉換斜線為反斜線
-        if sys.platform == 'win32':
-            path = path.replace('/', '\\')
+        path = uri_to_fs_path(path)
 
         if not os.path.exists(path):
             # 檔案不存在，嘗試開啟父資料夾
