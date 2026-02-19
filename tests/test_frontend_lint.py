@@ -465,8 +465,7 @@ class TestOpenLocalGuard:
 class TestPathContract:
     """路徑契約守衛測試 — 確保路徑處理邏輯集中在 path_utils.py（T7.0）
 
-    前 3 個測試標記為 xfail：當前 codebase 尚有違規，
-    後續 T7a-T7e 修正後會逐步轉為 pass。
+    4 個守衛測試掃描 production code 禁止模式（T7a-T7e 已全部修正通過）。
     """
 
     # 掃描範圍：core/ web/ windows/（排除 path_utils.py 本身）
