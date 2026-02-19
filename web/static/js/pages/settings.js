@@ -47,6 +47,7 @@ function settingsPage() {
 
         // ===== UI State =====
         newSuffixInput: '',
+        showPathHelp: false,
         ollamaStatus: '',
         modelStatus: '',
         geminiStatus: '',
