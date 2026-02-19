@@ -89,6 +89,84 @@ window.SearchStateMixin_Batch = {
         batch.total = 0;
     },
 
+    async translateAll() {
+        const ts = this.translateState;
+
+        if (ts.isPaused) {
+            ts.isPaused = false;
+            return;
+        }
+
+        if (ts.isProcessing) {
+            ts.isPaused = true;
+            return;
+        }
+
+        const translatableResults = this.searchResults.filter(
+            r => r.title && window.SearchCore.hasJapanese(r.title) && !r.translated_title
+        );
+
+        if (translatableResults.length === 0) {
+            this.showToast('沒有需要翻譯的標題', 'info');
+            return;
+        }
+
+        ts.isProcessing = true;
+        ts.isPaused = false;
+        ts.total = translatableResults.length;
+        ts.processed = 0;
+        ts.success = 0;
+        ts.failed = 0;
+
+        const isGemini = this.appConfig?.translate?.provider === 'gemini';
+
+        for (const result of translatableResults) {
+            if (ts.isPaused) {
+                await new Promise(resolve => {
+                    const checkInterval = setInterval(() => {
+                        if (!ts.isPaused) {
+                            clearInterval(checkInterval);
+                            resolve();
+                        }
+                    }, 100);
+                });
+            }
+
+            try {
+                const response = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: result.title,
+                        mode: 'translate',
+                        actors: result.actors,
+                        number: result.number
+                    })
+                });
+                const data = await response.json();
+                if (data.success && data.result && !data.skipped) {
+                    result.translated_title = data.result;
+                    ts.success++;
+                } else {
+                    ts.failed++;
+                }
+            } catch (err) {
+                ts.failed++;
+            }
+
+            ts.processed++;
+
+            if (isGemini && ts.processed < ts.total) {
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+        }
+
+        ts.isProcessing = false;
+        ts.isPaused = false;
+        this.showToast(`翻譯完成：成功 ${ts.success}，失敗 ${ts.failed}`, ts.failed > 0 ? 'warning' : 'success');
+        ts.total = 0;
+    },
+
     async scrapeAll() {
         const scrapableFiles = this.fileList.filter(f =>
             f.searched && f.searchResults && f.searchResults.length > 0 && !f.scraped

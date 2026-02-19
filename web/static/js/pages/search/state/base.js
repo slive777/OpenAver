@@ -33,6 +33,16 @@ window.SearchStateMixin_Base = function() {
             failed: 0
         },
 
+        // ===== Translate State =====
+        translateState: {
+            isProcessing: false,
+            isPaused: false,
+            total: 0,
+            processed: 0,
+            success: 0,
+            failed: 0,
+        },
+
         // ===== App Config =====
         appConfig: null,
 
@@ -208,6 +218,35 @@ window.SearchStateMixin_Base = function() {
             const searchableFiles = this.fileList.filter(f => f.number && !f.searched);
             const failedFiles = this.fileList.filter(f => f.number && f.searched && (!f.searchResults || f.searchResults.length === 0));
             return searchableFiles.length === 0 && failedFiles.length === 0 && !this.batchState.isProcessing;
+        },
+
+        get isCloudSearchMode() {
+            return this.fileList.length === 0 && this.searchResults.length > 0;
+        },
+
+        translateAllButtonText() {
+            const ts = this.translateState;
+            if (ts.isProcessing) {
+                return ts.isPaused ? '繼續' : `翻譯中 ${ts.processed}/${ts.total}`;
+            }
+            const count = this.searchResults.filter(r => r.title && window.SearchCore?.hasJapanese(r.title) && !r.translated_title).length;
+            return `翻譯全部 (${count})`;
+        },
+
+        translateAllButtonIcon() {
+            const ts = this.translateState;
+            if (ts.isProcessing) {
+                return ts.isPaused ? 'bi-play-fill' : 'bi-pause-fill';
+            }
+            return 'bi-translate';
+        },
+
+        translateAllDisabled() {
+            const ts = this.translateState;
+            if (ts.isProcessing) return false;
+            if (!this.appConfig?.translate?.enabled) return true;
+            const count = this.searchResults.filter(r => r.title && window.SearchCore?.hasJapanese(r.title) && !r.translated_title).length;
+            return count === 0;
         },
 
         batchPercent() {
