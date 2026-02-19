@@ -381,6 +381,24 @@ class VideoRepository:
         finally:
             conn.close()
 
+    def clear_all(self) -> int:
+        """清除所有影片快取
+
+        Returns:
+            int: 刪除數量
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("SELECT COUNT(*) FROM videos")
+            count = cursor.fetchone()[0]
+            cursor.execute("DELETE FROM videos")
+            conn.commit()
+            return count
+        finally:
+            conn.close()
+
     def get_by_numbers(self, numbers: List[str]) -> dict:
         """根據番號批次查詢（大小寫不敏感）
 

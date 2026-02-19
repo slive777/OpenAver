@@ -97,6 +97,51 @@ class TestGalleryStats:
         assert 'success' in data or 'data' in data or 'total' in data
 
 
+# ============ 清除快取測試 ============
+
+class TestClearCache:
+    """測試 DELETE /api/gallery/cache"""
+
+    def test_clear_cache_no_db(self, client, mocker):
+        """DB 不存在時應回傳 deleted=0"""
+        mocker.patch('web.routers.scanner.get_db_path',
+                      return_value=Path('/nonexistent/openaver.db'))
+        response = client.delete('/api/gallery/cache')
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is True
+        assert data['deleted'] == 0
+
+    def test_clear_cache_success(self, client, tmp_path, mocker):
+        """有資料時應清除並回傳刪除數量"""
+        from core.database import init_db, VideoRepository, Video
+        db_path = tmp_path / "test.db"
+        init_db(db_path)
+        repo = VideoRepository(db_path)
+        repo.upsert_batch([
+            Video(path="file:///v1.mp4", mtime=100.0),
+            Video(path="file:///v2.mp4", mtime=200.0),
+        ])
+        mocker.patch('web.routers.scanner.get_db_path', return_value=db_path)
+
+        response = client.delete('/api/gallery/cache')
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is True
+        assert data['deleted'] == 2
+        assert repo.count() == 0
+
+    def test_clear_cache_error_no_leak(self, client, mocker):
+        """例外時不外洩內部資訊"""
+        mocker.patch('web.routers.scanner.get_db_path',
+                      side_effect=RuntimeError('/secret/path leaked'))
+        response = client.delete('/api/gallery/cache')
+        data = response.json()
+        assert data['success'] is False
+        assert '/secret' not in data['error']
+        assert data['error'] == '清除快取失敗'
+
+
 # ============ Gallery View 測試 ============
 
 class TestGalleryView:

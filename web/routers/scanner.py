@@ -361,6 +361,24 @@ async def get_stats():
         return {"success": False, "error": str(e)}
 
 
+@router.delete("/cache")
+async def clear_cache():
+    """清除所有影片快取（DELETE FROM videos）"""
+    try:
+        db_path = get_db_path()
+
+        if not db_path.exists():
+            return {"success": True, "deleted": 0}
+
+        repo = VideoRepository(db_path)
+        deleted = repo.clear_all()
+        return {"success": True, "deleted": deleted}
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error("清除快取失敗: %s", e)
+        return {"success": False, "error": "清除快取失敗"}
+
+
 @router.get("/update-check")
 async def check_update():
     """檢查需要更新的影片數量（從 SQLite 讀取）"""

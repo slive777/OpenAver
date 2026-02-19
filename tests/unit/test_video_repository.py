@@ -233,6 +233,29 @@ class TestVideoRepository:
         assert repo.count() == 3
 
 
+    def test_clear_all_empty(self, temp_db):
+        """測試 clear_all 空資料庫"""
+        repo = VideoRepository(temp_db)
+        deleted = repo.clear_all()
+        assert deleted == 0
+        assert repo.count() == 0
+
+    def test_clear_all_with_data(self, temp_db):
+        """測試 clear_all 有資料"""
+        repo = VideoRepository(temp_db)
+        videos = [
+            Video(path="file:///video1.mp4", mtime=100.0),
+            Video(path="file:///video2.mp4", mtime=200.0),
+            Video(path="file:///video3.mp4", mtime=300.0),
+        ]
+        repo.upsert_batch(videos)
+        assert repo.count() == 3
+
+        deleted = repo.clear_all()
+        assert deleted == 3
+        assert repo.count() == 0
+
+
 class TestMigrateJsonToSqlite:
     """migrate_json_to_sqlite 測試"""
 

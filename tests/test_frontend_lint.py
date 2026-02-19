@@ -600,3 +600,18 @@ class TestHelpPage:
             f"help.html 應恰好有 1 個 help.js script tag，找到 {len(matches)} 個"
         assert 'defer' not in matches[0], \
             "help.js script tag 帶有 defer — Alpine 會在 helpPage() 定義前初始化"
+
+
+class TestScannerClearCache:
+    """清除快取守衛 — scanner 頁面必要元素"""
+
+    def test_scanner_html_has_clear_cache_method(self):
+        """scanner.html 含 clearCache() method"""
+        html = (PROJECT_ROOT / 'web/templates/scanner.html').read_text(encoding='utf-8')
+        assert 'clearCache()' in html
+
+    def test_scanner_html_has_delete_api_binding(self):
+        """scanner.html 含 DELETE /api/gallery/cache 呼叫"""
+        html = (PROJECT_ROOT / 'web/templates/scanner.html').read_text(encoding='utf-8')
+        assert "/api/gallery/cache" in html
+        assert "DELETE" in html

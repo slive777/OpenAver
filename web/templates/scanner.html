@@ -152,6 +152,10 @@
             <div class="stat-item">
                 <i class="bi bi-collection-play"></i>
                 <span>快取影片: <span class="stat-value" id="statTotal" x-text="statTotal"></span> 部</span>
+                <button class="btn btn-ghost btn-xs" @click="clearCacheModalOpen = true"
+                        :disabled="isBusy" title="清除快取">
+                    <i class="bi bi-trash3"></i>
+                </button>
             </div>
             <div class="stat-item" id="statLastRun" x-text="statLastRun"></div>
         </div>
@@ -274,6 +278,32 @@
         </div>
     </dialog>
 
+    <!-- Clear Cache Modal -->
+    <dialog class="modal fluent-modal"
+            :class="{ 'modal-open': clearCacheModalOpen }"
+            @click.self="clearCacheModalOpen = false">
+        <div class="modal-box fluent-modal-box">
+            <h3 class="fluent-modal-title">
+                <i class="bi bi-exclamation-triangle text-warning"></i> 清除影片快取
+            </h3>
+            <p class="fluent-modal-body">
+                此操作將刪除所有已快取的影片元數據（共 <strong x-text="statTotal"></strong> 部），
+                下次需重新掃描才能恢復。確定要清除嗎？
+            </p>
+            <div class="modal-action fluent-modal-actions">
+                <button type="button" class="btn btn-ghost" @click="clearCacheModalOpen = false">
+                    取消
+                </button>
+                <button type="button" class="btn btn-error" @click="clearCache()"
+                        :disabled="clearCacheLoading">
+                    <span x-show="clearCacheLoading" class="loading loading-spinner loading-xs"></span>
+                    <span x-show="!clearCacheLoading"><i class="bi bi-trash3"></i></span>
+                    確認刪除
+                </button>
+            </div>
+        </div>
+    </dialog>
+
     <!-- Toast (Alpine controlled) -->
     <div class="toast toast-bottom toast-center fluent-toast-container"
          x-show="_toast.visible"
@@ -327,6 +357,8 @@ function scannerPage() {
     statsVisible: false,
     statTotal: 0,
     statLastRun: '',
+    clearCacheModalOpen: false,
+    clearCacheLoading: false,
 
     // ===== Manual Input State =====
     manualInputVisible: false,
@@ -596,6 +628,28 @@ function scannerPage() {
             }
         } catch (e) {
             console.error('載入統計失敗:', e);
+        }
+    },
+
+    async clearCache() {
+        this.clearCacheLoading = true;
+        try {
+            const resp = await fetch('/api/gallery/cache', { method: 'DELETE' });
+            const result = await resp.json();
+            if (result.success) {
+                this.showToast(`已清除 ${result.deleted} 部影片快取`, 'success');
+                this.statTotal = 0;
+                this.statsVisible = false;
+                this.nfoUpdateVisible = false;
+                this.jellyfinImageVisible = false;
+                this.clearCacheModalOpen = false;
+            } else {
+                this.showToast('清除失敗: ' + (result.error || '未知錯誤'), 'error');
+            }
+        } catch (e) {
+            this.showToast('清除失敗: ' + e.message, 'error');
+        } finally {
+            this.clearCacheLoading = false;
         }
     },
 
