@@ -554,3 +554,21 @@ class TestPathContract:
             f"pathToDisplay 使用了 /? regex（會錯誤匹配路徑前導斜線）:\n"
             + "\n".join(f"  - {v}" for v in violations)
         )
+
+
+class TestSettingsSimplify:
+    """T4a 守衛 — Settings 不再包含版本/更新 UI"""
+
+    def test_settings_html_no_check_update(self):
+        """settings.html 不含 checkUpdate（已搬至 help）"""
+        html = (PROJECT_ROOT / 'web/templates/settings.html').read_text(encoding='utf-8')
+        assert 'checkUpdate' not in html, \
+            "settings.html 仍包含 checkUpdate — 應已搬至 /help"
+
+    def test_settings_js_no_dead_methods(self):
+        """settings.js 不含 loadVersion 及 restartTutorial（已搬至 help）"""
+        js = (PROJECT_ROOT / 'web/static/js/pages/settings.js').read_text(encoding='utf-8')
+        assert 'loadVersion' not in js, \
+            "settings.js 仍包含 loadVersion — 應已搬至 help.js"
+        assert 'restartTutorial' not in js, \
+            "settings.js 仍包含 restartTutorial — HTML row 刪除後為死碼"

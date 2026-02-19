@@ -564,24 +564,7 @@
             </div>
         </div>
 
-        <!-- 3. 瀏覽與播放 (Showcase) -->
-        <div class="card mb-4">
-            <div class="settings-card-header">
-                <i class="bi bi-collection-play"></i> 瀏覽與播放
-            </div>
-            <div class="card-body">
-                <div class="settings-form-row">
-                    <label class="row-label">影片播放器</label>
-                    <div class="flex-1 flex flex-col gap-1">
-                        <input type="text" class="input input-bordered input-sm" id="viewerPlayer"
-                            x-model="form.viewerPlayer" placeholder="留空使用系統預設">
-                        <small class="settings-hint">例如: C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 4. 系統設定 (System) -->
+        <!-- 3. 系統設定 (System) -->
         <div class="card mb-4">
             <div class="settings-card-header">
                 <i class="bi bi-sliders"></i> 系統設定
@@ -596,6 +579,14 @@
                         <option value="showcase">瀏覽</option>
                     </select>
                 </div>
+                <div class="settings-form-row">
+                    <label class="row-label">影片播放器</label>
+                    <div class="flex-1 flex flex-col gap-1">
+                        <input type="text" class="input input-bordered input-sm" id="viewerPlayer"
+                            x-model="form.viewerPlayer" placeholder="留空使用系統預設">
+                        <small class="settings-hint">例如: C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe</small>
+                    </div>
+                </div>
                 <hr class="my-3">
 
                 <!-- 重置按鈕 -->
@@ -609,48 +600,6 @@
                         <i class="bi bi-arrow-counterclockwise"></i> 重置為預設值
                     </button>
                 </div>
-
-                <hr class="my-3">
-
-                <!-- 重看新手引導 -->
-                <div class="settings-form-row">
-                    <label class="row-label">
-                        新手引導
-                        <small class="settings-hint">觀看功能介紹教學</small>
-                    </label>
-                    <button type="button" class="btn btn-sm btn-outline btn-primary"
-                        @click="restartTutorial()">
-                        <i class="bi bi-play-circle"></i> 重看新手引導
-                    </button>
-                </div>
-            </div>
-        </div>
-        <hr class="my-3">
-
-        <!-- 版本資訊 -->
-        <div class="settings-form-row">
-            <label class="row-label">版本資訊</label>
-            <span class="version-text" x-text="appVersion"></span>
-        </div>
-
-        <!-- 檢查更新 -->
-        <div class="settings-form-row">
-            <label class="row-label">
-                軟體更新
-                <small class="settings-hint">手動檢查 GitHub 是否有新版本</small>
-            </label>
-            <div class="update-check-wrapper">
-                <button type="button" class="btn btn-sm btn-outline btn-neutral" id="btnCheckUpdate"
-                    @click="checkUpdate()"
-                    :disabled="checkUpdateLoading">
-                    <span x-show="checkUpdateLoading">
-                        <i class="bi bi-arrow-repeat spin"></i> 檢查中...
-                    </span>
-                    <span x-show="!checkUpdateLoading">
-                        <i class="bi bi-cloud-download"></i> 檢查更新
-                    </span>
-                </button>
-                <span class="small" x-html="updateStatus"></span>
             </div>
         </div>
 

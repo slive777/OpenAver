@@ -54,9 +54,6 @@ function settingsPage() {
         geminiModelStatus: '',
         ollamaModels: [],
         geminiModels: [],
-        appVersion: '載入中...',
-        updateStatus: '',
-
         // Toast state
         _toast: { message: '', type: 'success', visible: false },
         _toastTimer: null,
@@ -66,7 +63,6 @@ function settingsPage() {
         testModelLoading: false,
         testGeminiLoading: false,
         testGeminiTranslateLoading: false,
-        checkUpdateLoading: false,
         proxyStatus: '',
         proxyStatusOk: false,
         testProxyLoading: false,
@@ -195,7 +191,6 @@ function settingsPage() {
         // ===== Lifecycle =====
         init() {
             this.loadConfig();
-            this.loadVersion();
 
             // Watch for form changes
             this.$watch('form.translateEnabled', () => this.updateTranslateOptions());
@@ -651,48 +646,6 @@ function settingsPage() {
                 } catch (e) {
                     this.showToast('重置失敗: ' + e.message, 'error');
                 }
-            }
-        },
-
-        restartTutorial() {
-            window.location.href = '/search?tutorial=restart';
-        },
-
-        async checkUpdate() {
-            this.checkUpdateLoading = true;
-            this.updateStatus = '';
-
-            try {
-                const resp = await fetch('/api/check-update');
-                const data = await resp.json();
-
-                if (data.success) {
-                    if (data.has_update) {
-                        this.updateStatus = `<a href="${data.download_url}" target="_blank" class="text-success">
-                            <i class="bi bi-download"></i> 新版本 ${data.latest_version} 可用
-                        </a>`;
-                    } else {
-                        this.updateStatus = '<span class="text-base-content/50"><i class="bi bi-check-circle"></i> 已是最新版本</span>';
-                    }
-                } else {
-                    this.updateStatus = `<span class="text-error"><i class="bi bi-exclamation-circle"></i> ${data.error || '檢查失敗'}</span>`;
-                }
-            } catch (e) {
-                this.updateStatus = '<span class="text-error"><i class="bi bi-exclamation-circle"></i> 網路錯誤</span>';
-            } finally {
-                this.checkUpdateLoading = false;
-            }
-        },
-
-        async loadVersion() {
-            try {
-                const resp = await fetch('/api/version');
-                const data = await resp.json();
-                if (data.success) {
-                    this.appVersion = `v${data.version}`;
-                }
-            } catch (e) {
-                this.appVersion = '無法載入';
             }
         },
 
