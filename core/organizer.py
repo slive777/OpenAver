@@ -9,6 +9,7 @@ import shutil
 import requests
 import html
 from pathlib import Path
+from PIL import Image
 from typing import Optional, Dict, Any, List
 
 from core.path_utils import normalize_path
@@ -45,6 +46,10 @@ def truncate_title(title: str, max_len: int = 50) -> str:
 
 def truncate_to_chars(text: str, max_chars: int = 60) -> str:
     """按字符截斷，確保不超過指定長度"""
+    if max_chars <= 0:
+        return ''
+    if max_chars <= 3:
+        return text[:max_chars]
     if len(text) <= max_chars:
         return text
     return text[:max_chars - 3] + '...'
@@ -123,7 +128,33 @@ def extract_chinese_title(filename: str, number: str, actors: List[str] = None) 
     return None
 
 
-def format_string(template: str, data: Dict[str, Any]) -> str:
+def _detect_suffixes(filename: str, keywords: list) -> str:
+    """
+    從原始檔名偵測版本標記關鍵字。
+    邊界正則避免 -cd1 匹配 -cd10。
+    """
+    lower = filename.lower()
+    matched = []
+    for kw in keywords:
+        kw_lower = kw.lower().strip()
+        if not kw_lower:
+            continue
+        if re.search(re.escape(kw_lower) + r'(?=[-_.\s]|$)', lower):
+            matched.append(kw_lower)
+    return ''.join(matched)
+
+
+FALLBACKS = {
+    'actor':  '未知女優',
+    'actors': '未知女優',
+    'maker':  '未知片商',
+    'title':  '未知標題',
+    'date':   '未知日期',
+    'year':   '未知年份',
+}
+
+
+def format_string(template: str, data: Dict[str, Any], use_fallback: bool = False) -> str:
     """
     根據模板格式化字串
 
@@ -135,14 +166,21 @@ def format_string(template: str, data: Dict[str, Any]) -> str:
     - {maker}: 片商
     - {date}: 發行日期
     - {year}: 年份
+    - {suffix}: 版本後綴（Fix-1）
+
+    Args:
+        use_fallback: True 時空值使用 FALLBACKS（僅資料夾層級傳 True）。
+                      False 時空值保持空字串（檔名格式用，避免 [未知片商] 等雜訊）。
     """
     result = template
+    fb = FALLBACKS if use_fallback else {}
 
-    # 番號
+    # 番號（保證非空，不需 fallback）
     result = result.replace('{num}', data.get('number', ''))
 
     # 標題
-    result = result.replace('{title}', data.get('title', ''))
+    title = data.get('title', '') or fb.get('title', '')
+    result = result.replace('{title}', title)
 
     # 演員
     actors = data.get('actors', [])
@@ -150,18 +188,82 @@ def format_string(template: str, data: Dict[str, Any]) -> str:
         result = result.replace('{actor}', actors[0])
         result = result.replace('{actors}', ', '.join(actors))
     else:
-        result = result.replace('{actor}', '')
-        result = result.replace('{actors}', '')
+        result = result.replace('{actor}', fb.get('actor', ''))
+        result = result.replace('{actors}', fb.get('actors', ''))
 
     # 片商
-    result = result.replace('{maker}', data.get('maker', ''))
+    maker = data.get('maker', '') or fb.get('maker', '')
+    result = result.replace('{maker}', maker)
 
     # 日期
     date = data.get('date', '')
-    result = result.replace('{date}', date)
-    result = result.replace('{year}', date[:4] if date else '')
+    result = result.replace('{date}', date or fb.get('date', ''))
+    result = result.replace('{year}', date[:4] if date else fb.get('year', ''))
+
+    # 後綴（Fix-1，空值就是空字串，不需 fallback）
+    result = result.replace('{suffix}', data.get('suffix', ''))
 
     return sanitize_filename(result.strip())
+
+
+def crop_to_poster(src_path: str, dst_path: str) -> bool:
+    """
+    從橫向封面裁切直向海報（Jellyfin poster）。
+
+    裁切模式（純比例自動判斷）：
+    - h/w >= 1.4 → 已是直向，直接複製
+    - h/w >= 1.0 → 方形（FC2/無碼），裁中間（寬度 = h/1.5，置中）
+    - h/w <  1.0 → 標準橫向（有碼），裁右側（起點 = w/1.9 ≈ 右47%）
+    """
+    try:
+        with Image.open(src_path) as img:
+            w, h = img.size
+            ratio = h / w
+
+            if ratio >= 1.4:
+                shutil.copy2(src_path, dst_path)
+                return True
+            elif ratio >= 1.0:
+                crop_w = int(h / 1.5)
+                x0 = (w - crop_w) // 2
+                cropped = img.convert("RGB").crop((x0, 0, x0 + crop_w, h))
+            else:
+                x0 = int(w / 1.9)
+                cropped = img.convert("RGB").crop((x0, 0, w, h))
+
+            cropped.save(dst_path, 'JPEG', quality=95, subsampling=0)
+            return True
+    except Exception as e:
+        logger.warning(f"[!] crop_to_poster 失敗: {e}")
+        return False
+
+
+def generate_jellyfin_images(cover_path: str, base_stem: str) -> dict:
+    """為單部影片產生 Jellyfin poster + fanart（供批次補齊用）。
+
+    Args:
+        cover_path: 封面圖片的完整檔案系統路徑
+        base_stem: 目標檔名 stem（不含副檔名，已移除 -poster/-fanart 後綴）
+    """
+    result = {'fanart': False, 'poster': False}
+
+    fanart_path = base_stem + '-fanart.jpg'
+    poster_path = base_stem + '-poster.jpg'
+
+    # fanart = 原圖複製
+    try:
+        shutil.copy2(cover_path, fanart_path)
+        result['fanart'] = True
+        result['fanart_path'] = fanart_path
+    except Exception as e:
+        logger.warning(f"[!] generate_jellyfin_images fanart 複製失敗: {e}")
+
+    # poster = 裁切
+    if crop_to_poster(cover_path, poster_path):
+        result['poster'] = True
+        result['poster_path'] = poster_path
+
+    return result
 
 
 def download_image(url: str, save_path: str, referer: str = '') -> bool:
@@ -203,7 +305,9 @@ def generate_nfo(
     maker: str = '',
     url: str = '',
     has_subtitle: bool = False,
-    output_path: str = ''
+    output_path: str = '',
+    has_poster: bool = False,
+    has_fanart: bool = False
 ) -> bool:
     """
     生成 NFO 檔案
@@ -233,6 +337,9 @@ def generate_nfo(
     # 顯示標題
     display_title = f"[{number}]{title}" if title else f"[{number}]{original_title}"
 
+    poster_suffix = '-poster' if has_poster else ''
+    fanart_suffix = '-fanart' if has_fanart else ''
+
     nfo_content = f'''<?xml version="1.0" encoding="utf-8"?>
 <movie>
   <title>{html.escape(display_title)}</title>
@@ -244,9 +351,9 @@ def generate_nfo(
   <plot></plot>
   <runtime></runtime>
   <director></director>
-  <poster>{html.escape(basename)}.png</poster>
-  <thumb></thumb>
-  <fanart>{html.escape(basename)}.jpg</fanart>
+  <poster>{html.escape(basename)}{poster_suffix}.jpg</poster>
+  <thumb>{html.escape(basename)}.jpg</thumb>
+  <fanart>{html.escape(basename)}{fanart_suffix}.jpg</fanart>
 '''
 
     # 演員
@@ -310,7 +417,8 @@ def organize_file(
         'new_filename': None,
         'cover_path': None,
         'nfo_path': None,
-        'error': None
+        'error': None,
+        'used_fallbacks': []
     }
 
     # 轉換路徑為當前環境格式
@@ -363,6 +471,30 @@ def organize_file(
         'date': metadata.get('date', ''),
     }
 
+    # 偵測版本後綴
+    suffix_keywords = config.get('suffix_keywords', [])
+    suffix = _detect_suffixes(original_filename, suffix_keywords)
+    format_data['suffix'] = suffix
+
+    # 記錄哪些欄位實際用了 fallback（僅資料夾層級會觸發 fallback）
+    used_fallbacks = []
+    if config.get('create_folder', True):
+        # 解析資料夾層級中實際使用的 placeholder
+        layers = config.get('folder_layers', [])
+        if not layers:
+            old_format = config.get('folder_format', '{num}')
+            layers = [p.strip() for p in old_format.replace('\\', '/').split('/') if p.strip()]
+        folder_template = ' '.join(layers)  # 合併所有層級一次檢查
+
+        if ('{actor}' in folder_template or '{actors}' in folder_template) and not format_data.get('actors'):
+            used_fallbacks.append('女優')
+        if '{maker}' in folder_template and not format_data.get('maker'):
+            used_fallbacks.append('片商')
+        if ('{date}' in folder_template or '{year}' in folder_template) and not format_data.get('date'):
+            used_fallbacks.append('日期')
+        if '{title}' in folder_template and not format_data.get('title'):
+            used_fallbacks.append('標題')
+
     # 自動偵測字幕標記（如果 metadata 沒有指定）
     has_subtitle = metadata.get('has_subtitle')
     if has_subtitle is None:
@@ -383,7 +515,7 @@ def organize_file(
         path_parts = []
         for layer in layers[:3]:  # 限制最多 3 層
             if layer:
-                part = truncate_to_chars(format_string(layer, format_data), max_folder_chars)
+                part = truncate_to_chars(format_string(layer, format_data, use_fallback=True), max_folder_chars)
                 if part:
                     path_parts.append(part)
 
@@ -391,13 +523,25 @@ def organize_file(
     else:
         target_dir = original_dir
 
-    # 計算新檔名
-    filename_base = format_string(config.get('filename_format', '{num} {title}'), format_data)
-
-    # 讀取設定，但上限 120 字符（扣除副檔名）
+    # 計算新檔名（suffix 保護：先截斷 base，再接回 suffix）
+    filename_template = config.get('filename_format', '{num} {title}')
     max_filename_chars = min(config.get('max_filename_length', 60), 120)
     max_chars = max_filename_chars - len(original_ext)
-    filename_base = truncate_to_chars(filename_base, max_chars)
+
+    suffix = format_data.get('suffix', '')
+    if suffix and '{suffix}' in filename_template:
+        # 先用空 suffix 產生 base，截斷後再接回 suffix
+        no_suffix_data = dict(format_data, suffix='')
+        base_without_suffix = format_string(filename_template, no_suffix_data)
+        base_budget = max(0, max_chars - len(suffix))
+        if base_budget == 0:
+            filename_base = truncate_to_chars(suffix, max_chars)
+        else:
+            base_without_suffix = truncate_to_chars(base_without_suffix, base_budget)
+            filename_base = base_without_suffix + suffix
+    else:
+        filename_base = format_string(filename_template, format_data)
+        filename_base = truncate_to_chars(filename_base, max_chars)
 
     new_filename = filename_base + original_ext
     target_path = os.path.join(target_dir, new_filename)
@@ -410,6 +554,11 @@ def organize_file(
 
         # 移動並重命名檔案
         if file_path != target_path:
+            if os.path.exists(target_path):
+                result['success'] = False
+                result['duplicate'] = True
+                result['duplicate_target'] = os.path.basename(target_path)
+                return result
             shutil.move(file_path, target_path)
         result['new_filename'] = target_path
 
@@ -419,6 +568,21 @@ def organize_file(
             cover_path = os.path.join(target_dir, filename_base + '.jpg')
             if download_image(img_url, cover_path):
                 result['cover_path'] = cover_path
+
+        # Jellyfin 模式：產生 poster + fanart
+        if config.get('jellyfin_mode') and result.get('cover_path'):
+            cover_jpg = result['cover_path']
+            # fanart = 原圖複製
+            fanart_path = os.path.join(target_dir, filename_base + '-fanart.jpg')
+            try:
+                shutil.copy2(cover_jpg, fanart_path)
+                result['fanart_path'] = fanart_path
+            except Exception as e:
+                logger.warning(f"[!] Fanart 複製失敗: {e}")
+            # poster = 裁切
+            poster_path = os.path.join(target_dir, filename_base + '-poster.jpg')
+            if crop_to_poster(cover_jpg, poster_path):
+                result['poster_path'] = poster_path
 
         # 生成 NFO（檔名跟隨影片命名）
         nfo_path = os.path.join(target_dir, filename_base + '.nfo')
@@ -435,10 +599,13 @@ def organize_file(
             maker=metadata.get('maker', ''),
             url=metadata.get('url', ''),
             has_subtitle=has_subtitle,
-            output_path=nfo_path
+            output_path=nfo_path,
+            has_poster=bool(result.get('poster_path')),
+            has_fanart=bool(result.get('fanart_path')),
         ):
             result['nfo_path'] = nfo_path
 
+        result['used_fallbacks'] = used_fallbacks
         result['success'] = True
 
     except Exception as e:

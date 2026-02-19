@@ -5,10 +5,14 @@ Gemini API 路由 - 提供測試和模型查詢功能
 - POST /api/gemini/test - 測試 API Key 並獲取可用模型
 """
 
+import logging
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import httpx
 from typing import List
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/gemini", tags=["gemini"])
 
@@ -126,9 +130,10 @@ async def test_gemini_connection(request: TestRequest):
         )
 
     except Exception as e:
+        logger.error("測試 Gemini 連線失敗: %s", e)
         return TestResponse(
             success=False,
-            error=str(e)
+            error="測試 Gemini 連線失敗"
         )
 
 
@@ -236,7 +241,7 @@ async def test_gemini_translate(request: TestTranslateRequest):
         # HTTP 錯誤
         try:
             error_data = e.response.json()
-            error_msg = error_data.get("error", {}).get("message", str(e))
+            error_msg = error_data.get("error", {}).get("message", f"HTTP {e.response.status_code}")
         except Exception:
             error_msg = f"HTTP {e.response.status_code}"
 
@@ -252,7 +257,8 @@ async def test_gemini_translate(request: TestTranslateRequest):
         )
 
     except Exception as e:
+        logger.error("測試 Gemini 翻譯失敗: %s", e)
         return TestTranslateResponse(
             success=False,
-            error=str(e)
+            error="測試 Gemini 翻譯失敗"
         )

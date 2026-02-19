@@ -387,7 +387,8 @@ async def search_stream(
                 yield f"data: {json.dumps(response)}\n\n"
 
             except Exception as e:
-                yield f"data: {json.dumps({'type': 'error', 'message': str(e), 'actress_profile': None})}\n\n"
+                logger.error("串流搜尋失敗: %s", e)
+                yield f"data: {json.dumps({'type': 'error', 'message': '搜尋失敗', 'actress_profile': None})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
@@ -455,9 +456,10 @@ async def get_favorite_files() -> dict:
             # 使用 expand_env_vars 處理環境變數並轉換路徑
             folder = expand_env_vars(original_folder)
     except ValueError as e:
+        logger.error("路徑轉換失敗: %s", e)
         return {
             "success": False,
-            "error": str(e),
+            "error": "路徑轉換失敗，請檢查我的最愛資料夾設定",
             "folder": original_folder
         }
 

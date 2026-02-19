@@ -3,12 +3,13 @@
     "create_folder": true,
     "folder_layers": ["{actor}"],
     "folder_format": "{actor}",
-    "filename_format": "[{num}][{maker}] {title}",
+    "filename_format": "[{num}][{maker}] {title}{suffix}",
     "download_cover": true,
     "cover_filename": "poster.jpg",
     "create_nfo": true,
     "max_title_length": 50,
     "max_filename_length": 60,
+    "suffix_keywords": ["-cd1", "-cd2", "-4k", "-uc"],
     "video_extensions": [
       ".mp4",
       ".avi",
@@ -19,7 +20,8 @@
       ".mov",
       ".m4v",
       ".ts"
-    ]
+    ],
+    "jellyfin_mode": false
   },
   "search": {
     "search_filter": "",

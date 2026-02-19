@@ -33,6 +33,16 @@ window.SearchStateMixin_Base = function() {
             failed: 0
         },
 
+        // ===== Translate State =====
+        translateState: {
+            isProcessing: false,
+            isPaused: false,
+            total: 0,
+            processed: 0,
+            success: 0,
+            failed: 0,
+        },
+
         // ===== App Config =====
         appConfig: null,
 
@@ -48,6 +58,9 @@ window.SearchStateMixin_Base = function() {
         newTagValue: '',
         coverError: '',
         _coverRetried: false,
+        // ===== Fix-1: Duplicate State =====
+        duplicateTarget: '',  // duplicate modal 顯示的目標檔名
+        duplicateModalOpen: false,  // Alpine state for duplicate modal
         errorText: '',  // T6c: Error message state
 
         // ===== T6b: Toast State =====
@@ -207,6 +220,35 @@ window.SearchStateMixin_Base = function() {
             return searchableFiles.length === 0 && failedFiles.length === 0 && !this.batchState.isProcessing;
         },
 
+        get isCloudSearchMode() {
+            return this.listMode === 'search' && this.searchResults.length > 0;
+        },
+
+        translateAllButtonText() {
+            const ts = this.translateState;
+            if (ts.isProcessing) {
+                return ts.isPaused ? '繼續' : `翻譯中 ${ts.processed}/${ts.total}`;
+            }
+            const count = this.searchResults.filter(r => r.title && window.SearchCore?.hasJapanese(r.title) && !r.translated_title).length;
+            return `翻譯全部 (${count})`;
+        },
+
+        translateAllButtonIcon() {
+            const ts = this.translateState;
+            if (ts.isProcessing) {
+                return ts.isPaused ? 'bi-play-fill' : 'bi-pause-fill';
+            }
+            return 'bi-translate';
+        },
+
+        translateAllDisabled() {
+            const ts = this.translateState;
+            if (ts.isProcessing) return false;
+            if (!this.appConfig?.translate?.enabled) return true;
+            const count = this.searchResults.filter(r => r.title && window.SearchCore?.hasJapanese(r.title) && !r.translated_title).length;
+            return count === 0;
+        },
+
         batchPercent() {
             const batch = this.batchState;
             if (batch.total === 0) return 0;
@@ -250,6 +292,11 @@ window.SearchStateMixin_Base = function() {
         // T4: 標記番號已播放動畫
         markLocalBorderPlayed(number) {
             if (number) this._localBorderPlayed[number] = true;
-        }
+        },
+
+        closeDuplicateModal() {
+            this.duplicateModalOpen = false;
+            this.duplicateTarget = '';
+        },
     };
 };

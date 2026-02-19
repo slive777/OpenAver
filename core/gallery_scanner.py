@@ -35,43 +35,6 @@ def load_maker_mapping() -> Dict[str, str]:
     return {}
 
 
-def wsl_to_windows_path(path: str, path_mappings: dict = None) -> str:
-    r"""將 WSL/Linux 路徑轉換為 Windows 可存取的路徑
-
-    支援：
-    1. 自訂路徑映射（NAS UNC）：/home/user/usbshare2/... -> //DiskStation/usbshare2/...
-       （輸出用正斜線，配合 file:/// 前綴變成 file://///DiskStation/...）
-    2. 標準 WSL 路徑：/mnt/c/Users/user/... -> C:/Users/user/...
-    """
-    # 自訂映射優先（按路徑長度排序，最長的先匹配）
-    if path_mappings:
-        sorted_mappings = sorted(path_mappings.items(), key=lambda x: len(x[0]), reverse=True)
-        for linux_path, windows_path in sorted_mappings:
-            if path.startswith(linux_path):
-                rest = path[len(linux_path):]
-                # 把 rest 的斜線統一成正斜線
-                rest = rest.replace('\\', '/')
-
-                # 如果是 UNC 路徑（\\server\share），轉成 //server/share 格式
-                # 這樣配合 file:/// 前綴會變成 file://///server/share（瀏覽器標準格式）
-                if windows_path.startswith('\\\\'):
-                    # \\DiskStation\share -> //DiskStation/share
-                    unc_path = windows_path.replace('\\', '/')
-                    return unc_path + rest
-                else:
-                    # 一般 Windows 路徑，保持反斜線
-                    win_rest = rest.replace('/', '\\')
-                    return windows_path + win_rest
-
-    # 標準 WSL 路徑
-    match = re.match(r'^/mnt/([a-z])/(.*)$', path, re.IGNORECASE)
-    if match:
-        drive = match.group(1).upper()
-        rest = match.group(2)
-        return f"{drive}:/{rest}"
-    return path
-
-
 @dataclass
 class VideoInfo:
     """影片資訊資料結構"""
@@ -477,9 +440,7 @@ class VideoScanner:
                 except ValueError:
                     info.img = img_path.replace('\\', '/')
             else:
-                abs_img = img_path.replace(chr(92), '/')
-                win_img = wsl_to_windows_path(abs_img, self.path_mappings)
-                info.img = f"file:///{win_img}"
+                info.img = to_file_uri(img_path, self.path_mappings)
 
         t_end = time.time()
         logger.debug(f"[Scan] {video_name} 完成 ({t_end - t_start:.2f}s)")
@@ -524,12 +485,7 @@ class VideoScanner:
         db_index = repo.get_mtime_index()  # {path: (mtime, nfo_mtime)}
 
         # 建立 file:/// 路徑到原始路徑的映射，以及原始路徑到 mtime 的映射
-        # scan_file 會產生 file:/// 格式的路徑
-        def to_file_uri(fs_path: str) -> str:
-            """將檔案系統路徑轉換為 file:/// URI（配合 scan_file 的格式）"""
-            abs_path = fs_path.replace(chr(92), '/')
-            win_path = wsl_to_windows_path(abs_path, self.path_mappings)
-            return f"file:///{win_path}"
+        # scan_file 會產生 file:/// 格式的路徑（使用 core.path_utils.to_file_uri）
 
         # 步驟 3: 比對決定需要處理的檔案
         needs_scan = []
@@ -537,7 +493,7 @@ class VideoScanner:
 
         for file_info in file_infos:
             fs_path = file_info['path']
-            file_uri = to_file_uri(fs_path)
+            file_uri = to_file_uri(fs_path, self.path_mappings)
             current_file_uris.add(file_uri)
 
             db_entry = db_index.get(file_uri)

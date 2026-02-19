@@ -262,6 +262,10 @@ window.SearchStateMixin_FileList = {
                 filename: filename,
                 number: result.number,
                 hasSubtitle: result.has_subtitle,
+                suffixes: window.SearchFile.detectSuffixes(
+                    filename,
+                    this.appConfig?.scraper?.suffix_keywords || []
+                ),
                 chineseTitle: window.SearchFile.extractChineseTitle(filename, result.number),
                 searchResults: [],
                 hasMoreResults: false,

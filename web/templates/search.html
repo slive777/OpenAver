@@ -220,7 +220,7 @@
                     <span id="localBadge" class="local-badge"
                           x-show="hasLocalBadge()"
                           :title="localBadgeTitle()"
-                          @click="copyLocalPath()">📁</span>
+                          @click="openLocal(current()._localStatus?.paths?.[0])">📁</span>
                     <button id="switchSourceBtn" class="info-icon-btn"
                             @click="switchSource()"
                             title="切換版本"
@@ -248,6 +248,10 @@
                         <span class="info-value" id="resultTags">
                             <!-- 字幕標籤 -->
                             <span x-show="hasSubtitle()" class="badge tag-badge subtitle">中文字幕</span>
+                            <!-- Fix-1: 版本標記 badges -->
+                            <template x-for="sfx in currentSuffixes()" :key="sfx">
+                                <span class="badge tag-badge suffix-badge" x-text="sfx"></span>
+                            </template>
                             <!-- 系統標籤 -->
                             <template x-for="tag in (current().tags || [])" :key="tag">
                                 <span class="badge tag-badge" x-text="tag"></span>
@@ -386,10 +390,10 @@
                                     <i class="bi bi-info-circle"></i>
                                 </button>
                                 <button class="btn-glass-circle"
-                                        @click.stop="copyPath(result._localStatus?.paths?.[0] || '')"
+                                        @click.stop="openLocal(result._localStatus?.paths?.[0] || '')"
                                         x-show="result._localStatus?.exists"
-                                        title="複製路徑">
-                                    <i class="bi bi-clipboard"></i>
+                                        title="開啟資料夾">
+                                    <i class="bi bi-folder2-open"></i>
                                 </button>
                             </div>
                         </div>
@@ -413,11 +417,20 @@
                     <span class="file-count" id="fileCountText" x-text="fileCountText()">0 個檔案</span>
                     <div class="join">
                         <button class="btn btn-sm btn-outline btn-primary join-item" id="btnSearchAll" type="button"
+                            x-show="listMode === 'file'"
                             @click="searchAll()"
                             :disabled="searchAllDisabled()"
                             title="搜尋所有未搜尋的檔案">
                             <i :class="searchAllButtonIcon()"></i>
                             <span x-text="searchAllButtonText()">搜尋全部</span>
+                        </button>
+                        <button class="btn btn-sm btn-primary join-item"
+                            x-show="listMode === 'search'"
+                            @click="translateAll()"
+                            :disabled="translateAllDisabled()"
+                            title="翻譯所有日文標題">
+                            <i :class="translateAllButtonIcon()"></i>
+                            <span x-text="translateAllButtonText()">翻譯全部</span>
                         </button>
                         <button class="btn btn-sm btn-success join-item" id="btnScrapeAll" type="button"
                             x-show="listMode === 'file'"
@@ -543,6 +556,25 @@
             <span x-text="_toast.message"></span>
         </div>
     </div>
+
+    <!-- Fix-1: 覆蓋警告 Modal (Alpine state-driven) -->
+    <dialog class="modal fluent-modal"
+            :class="{ 'modal-open': duplicateModalOpen }"
+            @click.self="closeDuplicateModal()">
+        <div class="modal-box fluent-modal-box">
+            <h3 class="fluent-modal-title">
+                <i class="bi bi-exclamation-triangle"></i> 檔案重複
+            </h3>
+            <p class="py-2">目標檔案已存在，繼續會覆蓋原有檔案：</p>
+            <p class="text-sm opacity-70" x-text="duplicateTarget"></p>
+            <p class="py-2">這通常發生在同一部影片有多個版本（CD1/CD2、4K、UC）時。</p>
+            <p class="py-2">請到 <strong>設定 → 進階刮削設定 → 版本標記</strong>，新增關鍵字並確認檔案命名格式包含 <code class="badge badge-sm">{suffix}</code> 變數。</p>
+            <div class="modal-action">
+                <button class="btn btn-sm" @click="closeDuplicateModal()">了解</button>
+                <a href="/settings" class="btn btn-sm btn-primary">前往設定</a>
+            </div>
+        </div>
+    </dialog>
 </div>
 {% endblock %}
 

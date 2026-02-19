@@ -127,6 +127,7 @@
                     <label class="settings-label">
                         <input type="checkbox" class="toggle toggle-primary" id="translateEnabled"
                             x-model="form.translateEnabled">
+                        <i class="bi bi-translate"></i>
                         <span class="label-text">啟用標題翻譯</span>
                     </label>
                 </div>
@@ -273,6 +274,34 @@
                         </span>
                     </button>
                     <div x-show="expanded" x-transition class="collapsible-content" id="scraperAdvanced">
+
+                    <!-- 版本標記 -->
+                    <div class="settings-form-row">
+                        <label class="row-label">
+                            版本標記
+                            <small class="settings-hint">檔名含這些關鍵字時保留為 {suffix}</small>
+                        </label>
+                        <div class="flex-1 flex flex-col gap-1">
+                            <div class="suffix-tags-container">
+                                <template x-for="(kw, idx) in form.suffixKeywords" :key="idx">
+                                    <span class="badge badge-sm suffix-tag">
+                                        <span x-text="kw"></span>
+                                        <span class="suffix-tag-remove" @click="removeSuffix(idx)">&times;</span>
+                                    </span>
+                                </template>
+                                <div class="suffix-input-inline">
+                                    <input type="text" class="input input-bordered input-xs"
+                                        x-model="newSuffixInput"
+                                        placeholder="-4k"
+                                        @keydown.enter.prevent="addSuffix()"
+                                        style="width: 80px;">
+                                    <button class="btn btn-xs btn-outline" type="button"
+                                        @click="addSuffix()" :disabled="!newSuffixInput.trim()">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="settings-form-group">
                         <label class="settings-label">
                             <input type="checkbox" class="toggle toggle-primary" id="createFolder"
@@ -361,7 +390,7 @@
                             <div class="variable-input-group" x-data="{ open: false }">
                                 <input type="text" class="input input-bordered input-sm flex-1" id="filenameFormat"
                                     x-ref="filenameFormat"
-                                    x-model="form.filenameFormat" placeholder="[{num}][{maker}] {title}">
+                                    x-model="form.filenameFormat" placeholder="[{num}][{maker}] {title}{suffix}">
                                 <div class="variable-dropdown">
                                     <button class="btn-variable" type="button"
                                         @click="open = !open" :aria-expanded="open">
@@ -388,11 +417,32 @@
                     </div>
 
                     <div class="settings-form-row">
-                        <label class="row-label">檔名長度限制</label>
-                        <div class="input-group-inline">
+                        <label class="row-label" for="maxFilenameLength">檔名長度限制</label>
+                        <div class="input-group-inline" style="position: relative;">
                             <input type="number" class="input input-bordered input-sm" id="maxFilenameLength"
                                 x-model.number="form.maxFilenameLength" min="50" max="255">
                             <span class="input-suffix">字元</span>
+                            <button type="button" class="settings-hint"
+                                    style="cursor: pointer; background: none; border: none; padding: 0; margin-left: 0.375rem; line-height: 1;"
+                                    @click="showPathHelp = !showPathHelp"
+                                    :aria-expanded="showPathHelp"
+                                    aria-controls="pathLengthHelp"
+                                    aria-label="Windows 路徑長度說明">
+                                <i class="bi bi-question-circle"></i>
+                            </button>
+                            <div id="pathLengthHelp" x-show="showPathHelp" x-cloak x-transition
+                                 @click.outside="showPathHelp = false"
+                                 style="position: absolute; top: 100%; left: 0; margin-top: 0.5rem; width: 22rem; padding: 0.75rem; background: var(--color-base-200); border-radius: var(--fluent-radius-sm); box-shadow: var(--shadow-4); z-index: 50;">
+                                <small class="settings-hint" style="display: block; line-height: 1.6;">
+                                    Windows 預設路徑上限為 260 字元（適用 Windows 10 1607+ / Windows 11）。<br>
+                                    若需更長檔名，以<strong>系統管理員身分</strong>開啟 PowerShell 執行：
+                                </small>
+                                <pre style="margin: 0.5rem 0; padding: 0.5rem; background: var(--color-base-300); border-radius: var(--fluent-radius-sm); overflow-x: auto;"><code style="font-size: 0.75rem;">Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1</code></pre>
+                                <small class="settings-hint" style="display: block; line-height: 1.6;">
+                                    重開機後生效。<br>
+                                    macOS / Linux 不受此限制，但從 macOS/Linux 產生的長檔名搬到未啟用 LongPathsEnabled 的 Windows 仍可能失敗。
+                                </small>
+                            </div>
                         </div>
                     </div>
 
@@ -403,6 +453,14 @@
                                 x-model="form.videoExtensions">
                             <small class="settings-hint">以逗號分隔</small>
                         </div>
+                    </div>
+                    <div class="settings-form-row">
+                        <label class="row-label">
+                            <input type="checkbox" class="toggle toggle-sm toggle-primary"
+                                   x-model="form.jellyfinMode">
+                            Jellyfin 圖片模式
+                            <small class="settings-hint">自動產生 {stem}-poster.jpg + {stem}-fanart.jpg</small>
+                        </label>
                     </div>
                     </div>
                 </div>
@@ -506,24 +564,7 @@
             </div>
         </div>
 
-        <!-- 3. 瀏覽與播放 (Showcase) -->
-        <div class="card mb-4">
-            <div class="settings-card-header">
-                <i class="bi bi-collection-play"></i> 瀏覽與播放
-            </div>
-            <div class="card-body">
-                <div class="settings-form-row">
-                    <label class="row-label">影片播放器</label>
-                    <div class="flex-1 flex flex-col gap-1">
-                        <input type="text" class="input input-bordered input-sm" id="viewerPlayer"
-                            x-model="form.viewerPlayer" placeholder="留空使用系統預設">
-                        <small class="settings-hint">例如: C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 4. 系統設定 (System) -->
+        <!-- 3. 系統設定 (System) -->
         <div class="card mb-4">
             <div class="settings-card-header">
                 <i class="bi bi-sliders"></i> 系統設定
@@ -538,6 +579,14 @@
                         <option value="showcase">瀏覽</option>
                     </select>
                 </div>
+                <div class="settings-form-row">
+                    <label class="row-label">影片播放器</label>
+                    <div class="flex-1 flex flex-col gap-1">
+                        <input type="text" class="input input-bordered input-sm" id="viewerPlayer"
+                            x-model="form.viewerPlayer" placeholder="留空使用系統預設">
+                        <small class="settings-hint">例如: C:\Program Files\DAUM\PotPlayer\PotPlayerMini64.exe</small>
+                    </div>
+                </div>
                 <hr class="my-3">
 
                 <!-- 重置按鈕 -->
@@ -551,48 +600,6 @@
                         <i class="bi bi-arrow-counterclockwise"></i> 重置為預設值
                     </button>
                 </div>
-
-                <hr class="my-3">
-
-                <!-- 重看新手引導 -->
-                <div class="settings-form-row">
-                    <label class="row-label">
-                        新手引導
-                        <small class="settings-hint">觀看功能介紹教學</small>
-                    </label>
-                    <button type="button" class="btn btn-sm btn-outline btn-primary"
-                        @click="restartTutorial()">
-                        <i class="bi bi-play-circle"></i> 重看新手引導
-                    </button>
-                </div>
-            </div>
-        </div>
-        <hr class="my-3">
-
-        <!-- 版本資訊 -->
-        <div class="settings-form-row">
-            <label class="row-label">版本資訊</label>
-            <span class="version-text" x-text="appVersion"></span>
-        </div>
-
-        <!-- 檢查更新 -->
-        <div class="settings-form-row">
-            <label class="row-label">
-                軟體更新
-                <small class="settings-hint">手動檢查 GitHub 是否有新版本</small>
-            </label>
-            <div class="update-check-wrapper">
-                <button type="button" class="btn btn-sm btn-outline btn-neutral" id="btnCheckUpdate"
-                    @click="checkUpdate()"
-                    :disabled="checkUpdateLoading">
-                    <span x-show="checkUpdateLoading">
-                        <i class="bi bi-arrow-repeat spin"></i> 檢查中...
-                    </span>
-                    <span x-show="!checkUpdateLoading">
-                        <i class="bi bi-cloud-download"></i> 檢查更新
-                    </span>
-                </button>
-                <span class="small" x-html="updateStatus"></span>
             </div>
         </div>
 

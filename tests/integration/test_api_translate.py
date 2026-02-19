@@ -108,3 +108,19 @@ class TestTranslateBatchSkip:
         assert data["translations"] == ["中文1", "中文2", "English"]
         # translate_batch 不應被呼叫
         mock_translate.translate_batch.assert_not_called()
+
+
+class TestTranslateDisabled:
+    """測試翻譯功能關閉時的回應"""
+
+    @patch("web.routers.translate.load_config")
+    def test_translate_disabled_returns_error(self, mock_config):
+        """translate.enabled = False 時應回傳 success=False 且含錯誤訊息"""
+        mock_config.return_value = {"translate": {"enabled": False}}
+        response = client.post("/api/translate", json={
+            "text": "テスト", "mode": "translate"
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert "翻譯功能未啟用" in data["error"]

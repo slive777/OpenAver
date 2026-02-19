@@ -36,6 +36,8 @@ class ScraperConfig(BaseModel):
     max_title_length: int = 50
     max_filename_length: int = 60
     video_extensions: List[str] = [".mp4", ".avi", ".mkv", ".wmv", ".rmvb", ".flv", ".mov", ".m4v", ".ts"]
+    suffix_keywords: List[str] = ["-cd1", "-cd2", "-4k", "-uc"]
+    jellyfin_mode: bool = False
 
 
 class SearchConfig(BaseModel):
@@ -194,6 +196,18 @@ def load_config() -> dict:
                 need_save = True
                 logger.info("[Config] 遷移配置：添加 Gemini 支持")
 
+        # 確保 scraper.suffix_keywords 存在（Fix-1 版本標記）
+        s = raw_config.get('scraper', {})
+        if 'suffix_keywords' not in s:
+            s['suffix_keywords'] = ['-cd1', '-cd2', '-4k', '-uc']
+            need_save = True
+
+        # 確保 scraper.jellyfin_mode 存在（Fix-6 Jellyfin 圖片模式）
+        s = raw_config.get('scraper', {})
+        if 'jellyfin_mode' not in s:
+            s['jellyfin_mode'] = False
+            need_save = True
+
         # Save migrated config
         if need_save:
             save_config(raw_config)
@@ -223,7 +237,8 @@ async def update_config(config: AppConfig) -> dict:
         _reset_translate_service()  # 重置翻譯服務，讓新配置生效
         return {"success": True, "message": "設定已儲存"}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("儲存設定失敗: %s", e)
+        return {"success": False, "error": "儲存設定失敗"}
 
 
 @router.delete("/config")
@@ -235,7 +250,8 @@ async def reset_config() -> dict:
         _reset_translate_service()  # 清除舊服務實例
         return {"success": True, "message": "已恢復預設設定"}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("恢復預設設定失敗: %s", e)
+        return {"success": False, "error": "恢復預設設定失敗"}
 
 
 @router.get("/tutorial-status")
@@ -286,7 +302,8 @@ async def update_general_field(field: str, request: GeneralFieldRequest) -> dict
         save_config(config)
         return {"success": True}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("更新設定欄位失敗: %s", e)
+        return {"success": False, "error": "更新設定欄位失敗"}
 
 
 @router.get("/version")
@@ -308,6 +325,7 @@ async def get_format_variables() -> dict:
             {"name": "{maker}", "description": "片商", "example": "S1"},
             {"name": "{date}", "description": "發行日期", "example": "2024-01-15"},
             {"name": "{year}", "description": "年份", "example": "2024"},
+            {"name": "{suffix}", "description": "版本標記（自動偵測）", "example": "-4k"},
         ]
     }
 
@@ -333,7 +351,8 @@ async def get_ollama_models(url: str) -> dict:
     except httpx.ConnectError:
         return {"success": False, "error": "無法連線到 Ollama"}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("取得 Ollama 模型列表失敗: %s", e)
+        return {"success": False, "error": "取得模型列表失敗"}
 
 
 class OllamaTestRequest(BaseModel):
@@ -376,7 +395,8 @@ async def test_ollama_model(request: OllamaTestRequest) -> dict:
     except httpx.ConnectError:
         return {"success": False, "error": "無法連線到 Ollama"}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("測試 Ollama 模型失敗: %s", e)
+        return {"success": False, "error": "測試模型失敗"}
 
 
 class ProxyTestRequest(BaseModel):

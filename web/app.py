@@ -2,6 +2,9 @@
 OpenAver Web GUI - FastAPI Application
 """
 from pathlib import Path
+import re
+
+import logging
 
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
@@ -14,6 +17,8 @@ from core.version import VERSION
 # 確保 logging 在非 standalone 模式（uvicorn 直接啟動）也有初始化
 from core.logger import setup_logging
 setup_logging()
+
+logger = logging.getLogger(__name__)
 
 # 路徑設定
 BASE_DIR = Path(__file__).parent
@@ -183,14 +188,18 @@ async def get_version():
 @app.get("/api/check-update")
 async def check_update():
     """手動檢查 GitHub 是否有新版本（保護隱私，不自動連網）"""
+    import asyncio
     import httpx
 
     current_version = VERSION
     github_api = "https://api.github.com/repos/slive777/OpenAver/releases/latest"
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(github_api, headers={"Accept": "application/vnd.github.v3+json"})
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await asyncio.wait_for(
+                client.get(github_api, headers={"Accept": "application/vnd.github.v3+json"}),
+                timeout=5.0,
+            )
 
             if resp.status_code == 404:
                 # 還沒有 release
@@ -202,8 +211,17 @@ async def check_update():
             latest_version = data.get("tag_name", "").lstrip("v")
             download_url = data.get("html_url", "")
 
-            # 簡單版本比較
-            has_update = latest_version > current_version
+            # 語意版本比較（tuple 比較避免 "0.10.0" < "0.9.0" 問題）
+            def _parse_ver(v):
+                # Strip prerelease/build suffixes: "0.10.0-rc1" → "0.10.0"
+                m = re.match(r'(\d+(?:\.\d+)*)', v)
+                if not m:
+                    raise ValueError(f"Cannot parse version: {v}")
+                return tuple(int(x) for x in m.group(1).split('.'))
+            try:
+                has_update = _parse_ver(latest_version) > _parse_ver(current_version)
+            except (ValueError, AttributeError):
+                has_update = False
 
             return {
                 "success": True,
@@ -212,7 +230,8 @@ async def check_update():
                 "latest_version": latest_version,
                 "download_url": download_url
             }
-    except httpx.TimeoutException:
+    except (httpx.TimeoutException, TimeoutError):
         return {"success": False, "error": "連線逾時"}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error("檢查更新失敗: %s", e)
+        return {"success": False, "error": "檢查更新失敗"}

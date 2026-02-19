@@ -89,6 +89,84 @@ window.SearchStateMixin_Batch = {
         batch.total = 0;
     },
 
+    async translateAll() {
+        const ts = this.translateState;
+
+        if (ts.isPaused) {
+            ts.isPaused = false;
+            return;
+        }
+
+        if (ts.isProcessing) {
+            ts.isPaused = true;
+            return;
+        }
+
+        const translatableResults = this.searchResults.filter(
+            r => r.title && window.SearchCore.hasJapanese(r.title) && !r.translated_title
+        );
+
+        if (translatableResults.length === 0) {
+            this.showToast('沒有需要翻譯的標題', 'info');
+            return;
+        }
+
+        ts.isProcessing = true;
+        ts.isPaused = false;
+        ts.total = translatableResults.length;
+        ts.processed = 0;
+        ts.success = 0;
+        ts.failed = 0;
+
+        const isGemini = this.appConfig?.translate?.provider === 'gemini';
+
+        for (const result of translatableResults) {
+            if (ts.isPaused) {
+                await new Promise(resolve => {
+                    const checkInterval = setInterval(() => {
+                        if (!ts.isPaused) {
+                            clearInterval(checkInterval);
+                            resolve();
+                        }
+                    }, 100);
+                });
+            }
+
+            try {
+                const response = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: result.title,
+                        mode: 'translate',
+                        actors: result.actors,
+                        number: result.number
+                    })
+                });
+                const data = await response.json();
+                if (data.success && data.result && !data.skipped) {
+                    result.translated_title = data.result;
+                    ts.success++;
+                } else {
+                    ts.failed++;
+                }
+            } catch (err) {
+                ts.failed++;
+            }
+
+            ts.processed++;
+
+            if (isGemini && ts.processed < ts.total) {
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+        }
+
+        ts.isProcessing = false;
+        ts.isPaused = false;
+        this.showToast(`翻譯完成：成功 ${ts.success}，失敗 ${ts.failed}`, ts.failed > 0 ? 'warning' : 'success');
+        ts.total = 0;
+    },
+
     async scrapeAll() {
         const scrapableFiles = this.fileList.filter(f =>
             f.searched && f.searchResults && f.searchResults.length > 0 && !f.scraped
@@ -103,6 +181,7 @@ window.SearchStateMixin_Batch = {
 
         let successCount = 0;
         let failCount = 0;
+        let duplicateCount = 0;
 
         for (const file of scrapableFiles) {
             const index = this.fileList.indexOf(file);
@@ -128,10 +207,21 @@ window.SearchStateMixin_Batch = {
                 }
 
                 const result = await window.SearchFile.scrapeFile(file, metadata);
+                if (result.duplicate) {
+                    file.scrapeStatus = 'duplicate';
+                    file.isScraping = false;  // 必須清除，否則 spinner 永遠轉（L144 的清除被 continue 跳過）
+                    duplicateCount++;
+                    continue;
+                }
                 if (result.success) {
                     file.scraped = true;
                     file.scrapeStatus = 'done';
                     successCount++;
+                    // 新增：fallback 提示
+                    if (result.used_fallbacks?.length) {
+                        const fields = result.used_fallbacks.join('、');
+                        this.showToast(`⚠️ ${fields} 資訊未取得，已使用預設值`, 'warning');
+                    }
                 } else {
                     file.scrapeStatus = 'failed';
                     failCount++;
@@ -146,7 +236,8 @@ window.SearchStateMixin_Batch = {
 
         this.isScrapeAllProcessing = false;
 
-        alert(`批次處理完成！\n成功: ${successCount}\n失敗: ${failCount}`);
+        alert(`批次處理完成！\n成功: ${successCount}\n失敗: ${failCount}` +
+            (duplicateCount ? `\n重複: ${duplicateCount}（請到設定 → 版本標記）` : ''));
     },
 
     async scrapeSingle(index) {
@@ -171,9 +262,21 @@ window.SearchStateMixin_Batch = {
             }
 
             const result = await window.SearchFile.scrapeFile(file, metadata);
+            if (result.duplicate) {
+                this.duplicateTarget = result.duplicate_target || '';
+                this.duplicateModalOpen = true;
+                file.scrapeStatus = 'duplicate';
+                file.isScraping = false;
+                return;
+            }
             if (result.success) {
                 file.scraped = true;
                 file.scrapeStatus = 'done';
+                // 新增：fallback 提示
+                if (result.used_fallbacks?.length) {
+                    const fields = result.used_fallbacks.join('、');
+                    this.showToast(`⚠️ ${fields} 資訊未取得，已使用預設值`, 'warning');
+                }
             } else {
                 alert(`${file.filename} 處理失敗: ${result.error || '未知錯誤'}`);
                 file.scrapeStatus = 'failed';

@@ -367,3 +367,91 @@
         </ul>
     </div>
 </div>
+
+<!-- D.16: Showcase Toolbar -->
+<div class="ds-subsection">
+    <h3>Showcase Toolbar</h3>
+    <p class="ds-desc">Showcase 頁面頂部工具列，包含搜尋、排序、模式切換、資訊開關、每頁數量控制</p>
+
+    <div class="ds-card-demo">
+        <div class="showcase-toolbar">
+            <!-- Search -->
+            <div class="toolbar-section toolbar-search">
+                <div class="spotlight-search">
+                    <i class="bi bi-search search-icon-left"></i>
+                    <input type="text" placeholder="搜尋番號、女優、標題..." disabled>
+                    <div class="search-actions-right">
+                        <button class="btn-icon" title="清除搜尋">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                        <button class="btn-icon active" title="搜尋">
+                            <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="toolbar-section toolbar-controls">
+                <!-- 排序 -->
+                <div class="control-group">
+                    <button class="btn-icon" title="排序: 日期">
+                        <i class="bi bi-funnel"></i>
+                    </button>
+                    <button class="btn-icon" title="切換排序方向">
+                        <i class="bi bi-sort-down"></i>
+                    </button>
+                </div>
+
+                <!-- 顯示模式 -->
+                <button class="btn-icon active" title="模式: 圖片">
+                    <i class="bi bi-grid-3x3"></i>
+                </button>
+
+                <!-- 資訊顯示 -->
+                <button class="btn-icon active" title="顯示/隱藏資訊">
+                    <i class="bi bi-eye"></i>
+                </button>
+
+                <!-- 每頁數量 -->
+                <button class="btn-icon" title="每頁: 30 部">
+                    <i class="bi bi-list-nested"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="ds-note" style="margin-top: 1rem;">
+        <strong>CSS 結構：</strong>
+        <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+            <li><code>.showcase-toolbar</code> — flex 容器，Production 使用 <code>position: sticky</code>（DS demo 為 static）</li>
+            <li><code>.toolbar-section</code> — 分區容器（<code>.toolbar-search</code> 搜尋 + <code>.toolbar-controls</code> 控制）</li>
+            <li><code>.control-group</code> — 排序按鈕組（funnel + sort direction 緊密排列）</li>
+            <li><code>.btn-icon</code> — 來自 <code>theme.css</code>（全域可用），<code>.active</code> 狀態使用 primary 色</li>
+            <li><code>.spotlight-search</code> — 來自 <code>theme.css</code>（全域可用），Fluent blur 搜尋框</li>
+            <li>排序下拉選單使用 Alpine <code>x-show</code>（此處靜態展示，省略下拉面板）</li>
+        </ul>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="showcase-toolbar"&gt;
+  &lt;div class="toolbar-section toolbar-search"&gt;
+    &lt;div class="spotlight-search"&gt;
+      &lt;i class="bi bi-search search-icon-left"&gt;&lt;/i&gt;
+      &lt;input type="text" placeholder="搜尋..."&gt;
+      &lt;div class="search-actions-right"&gt;
+        &lt;button class="btn-icon"&gt;&lt;i class="bi bi-x-lg"&gt;&lt;/i&gt;&lt;/button&gt;
+        &lt;button class="btn-icon active"&gt;&lt;i class="bi bi-arrow-right"&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+  &lt;div class="toolbar-section toolbar-controls"&gt;
+    &lt;div class="control-group"&gt;
+      &lt;button class="btn-icon"&gt;&lt;i class="bi bi-funnel"&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;button class="btn-icon"&gt;&lt;i class="bi bi-sort-down"&gt;&lt;/i&gt;&lt;/button&gt;
+    &lt;/div&gt;
+    &lt;button class="btn-icon active"&gt;&lt;i class="bi bi-grid-3x3"&gt;&lt;/i&gt;&lt;/button&gt;
+    &lt;button class="btn-icon active"&gt;&lt;i class="bi bi-eye"&gt;&lt;/i&gt;&lt;/button&gt;
+    &lt;button class="btn-icon"&gt;&lt;i class="bi bi-list-nested"&gt;&lt;/i&gt;&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+</div>

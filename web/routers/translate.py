@@ -99,9 +99,11 @@ async def translate_title(request: TranslateRequest) -> dict:
 
         except ValueError as e:
             # API Key 未設定等配置錯誤
-            return {"success": False, "error": str(e)}
+            logger.exception("翻譯設定錯誤: %s", e)
+            return {"success": False, "error": "翻譯設定錯誤，請檢查 API Key 設定"}
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            logger.exception("翻譯失敗: %s", e)
+            return {"success": False, "error": "翻譯失敗"}
 
     # === optimize 模式：使用 Ollama 清理標題 ===
     # 兼容嵌套結構和舊扁平結構
@@ -169,7 +171,8 @@ async def translate_title(request: TranslateRequest) -> dict:
     except httpx.ConnectError:
         return {"success": False, "error": "無法連線到 Ollama"}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.exception("標題優化失敗: %s", e)
+        return {"success": False, "error": "標題優化失敗"}
 
 
 @router.post("/translate-batch")
@@ -252,7 +255,7 @@ async def translate_batch(request: BatchTranslateRequest):
         }
 
     except Exception as e:
-        logger.exception(f"[translate] Batch translation API failed: {e}")
+        logger.exception("批次翻譯失敗: %s", e)
 
         # 返回錯誤響應（不拋出異常，避免前端報錯）
         return {
@@ -260,6 +263,6 @@ async def translate_batch(request: BatchTranslateRequest):
             "count": 0,
             "skipped": 0,
             "errors": list(range(len(request.titles))),
-            "error_message": str(e)
+            "error_message": "批次翻譯失敗"
         }
 

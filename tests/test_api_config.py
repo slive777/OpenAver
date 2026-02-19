@@ -67,3 +67,26 @@ def test_scanner_route_ok(client):
     """GET /scanner 應正常回應 200"""
     response = client.get("/scanner")
     assert response.status_code == 200
+
+
+class TestTranslateConfigRoundTrip:
+    """測試 translate 設定 round-trip（GET → PUT → GET）"""
+
+    def test_translate_config_roundtrip(self, client, temp_config_path):
+        """translate.enabled 和 translate.provider 應在 round-trip 後保留"""
+        response = client.get("/api/config")
+        assert response.status_code == 200
+        config_data = response.json()["data"]
+
+        config_data["translate"]["enabled"] = True
+        config_data["translate"]["provider"] = "gemini"
+
+        response = client.put("/api/config", json=config_data)
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+
+        response = client.get("/api/config")
+        assert response.status_code == 200
+        updated = response.json()["data"]
+        assert updated["translate"]["enabled"] is True
+        assert updated["translate"]["provider"] == "gemini"

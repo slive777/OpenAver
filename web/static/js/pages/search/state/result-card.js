@@ -21,6 +21,14 @@ window.SearchStateMixin_ResultCard = {
         return false;
     },
 
+    // 當前結果的版本標記 badges（Fix-1）
+    currentSuffixes() {
+        if (this.listMode === 'file' && this.fileList[this.currentFileIndex]) {
+            return this.fileList[this.currentFileIndex].suffixes || [];
+        }
+        return [];  // 雲端搜尋模式無 suffix
+    },
+
     // 改為 method（原為 getter）
     chineseTitle() {
         if (this.listMode === 'file' && this.fileList[this.currentFileIndex]) {
@@ -69,8 +77,8 @@ window.SearchStateMixin_ResultCard = {
         const status = this.current()?._localStatus;
         if (!status || !status.exists) return '';
         return status.count > 1
-            ? `本地已有 ${status.count} 個版本（點擊複製路徑）`
-            : '本地已有（點擊複製路徑）';
+            ? `本地已有 ${status.count} 個版本（點擊開啟資料夾）`
+            : '本地已有（點擊開啟資料夾）';
     },
 
     // ===== T1c: Title Edit Methods =====
@@ -180,25 +188,39 @@ window.SearchStateMixin_ResultCard = {
 
     // ===== T1c: Local Badge =====
 
-    copyLocalPath() {
-        const paths = this.current()?._localStatus?.paths || [];
-        if (paths.length === 0) return;
-        // 取資料夾路徑（去掉檔名），file:/// → Windows 反斜線路徑
-        const folders = paths.map(p => {
-            const lastSlash = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
-            const folder = lastSlash >= 0 ? p.substring(0, lastSlash) : p;
-            return folder.replace(/^file:\/\/\/?/, '').replace(/\//g, '\\');
-        });
-        // 去重（多版本可能在同一資料夾）
-        const unique = [...new Set(folders)];
-        const textToCopy = unique.join('\n');
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            const msg = unique.length === 1 ? '已複製: ' + unique[0] : `已複製 ${unique.length} 個路徑`;
-            this.showToast(msg, 'success');
-        }).catch(err => {
-            console.error('複製失敗:', err);
-            this.showToast('複製失敗', 'error');
-        });
+    openLocal(path) {
+        if (!path) return;
+
+        // 1. 擷取資料夾路徑
+        const lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+        const folder = lastSlash >= 0 ? path.substring(0, lastSlash) : path;
+        const displayPath = pathToDisplay(folder);
+
+        // 2. 複製到剪貼簿
+        const clipboardOk = navigator.clipboard.writeText(displayPath)
+            .then(() => true)
+            .catch(() => false);
+
+        // 3. PyWebView 桌面模式：額外開啟資料夾
+        if (window.pywebview?.api?.open_folder) {
+            window.pywebview.api.open_folder(path)
+                .then(async (opened) => {
+                    const ok = await clipboardOk;
+                    if (opened) {
+                        this.showToast(ok ? '已開啟資料夾（路徑已複製）' : '已開啟資料夾', 'success');
+                    } else {
+                        this.showToast(ok ? '已複製: ' + displayPath : '開啟資料夾失敗', ok ? 'success' : 'error');
+                    }
+                })
+                .catch(async () => {
+                    const ok = await clipboardOk;
+                    this.showToast(ok ? '已複製: ' + displayPath : '開啟資料夾失敗', ok ? 'success' : 'error');
+                });
+        } else {
+            clipboardOk.then(ok => {
+                this.showToast(ok ? '已複製: ' + displayPath : '複製失敗', ok ? 'success' : 'error');
+            });
+        }
     },
 
     // ===== T6b: Toast =====

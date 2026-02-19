@@ -13,8 +13,11 @@ from fastapi.responses import JSONResponse
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.database import VideoRepository, get_db_path, init_db
-from core.path_utils import normalize_path, to_file_uri, is_path_under_dir
+from core.path_utils import normalize_path, to_file_uri, is_path_under_dir, uri_to_fs_path
+from core.logger import get_logger
 from web.routers.config import load_config
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/showcase", tags=["showcase"])
 
@@ -58,20 +61,7 @@ async def get_videos():
             # cover_path 轉換：file:///C:/path/to/cover.jpg → /api/gallery/image?path=C:/path/to/cover.jpg
             cover_url = ""
             if v.cover_path:
-                # 從 file:/// URI 提取檔案系統路徑
-                fs_path = v.cover_path
-                if fs_path.startswith('file:///'):
-                    fs_path = fs_path[len('file:///'):]  # 移除 'file:///'（8 字元）
-                    # Unix 路徑需要還原前導 /（Windows C:/ 和 UNC //server 不需要）
-                    if not fs_path.startswith('/') and not (len(fs_path) >= 2 and fs_path[1] == ':'):
-                        fs_path = '/' + fs_path
-
-                # 使用 normalize_path 轉換為當前環境路徑（與 image proxy 一致）
-                try:
-                    local_path = normalize_path(fs_path)
-                except ValueError:
-                    local_path = fs_path
-
+                local_path = uri_to_fs_path(v.cover_path)
                 cover_url = f"/api/gallery/image?path={quote(local_path, safe='')}"
 
             videos_json.append({
@@ -95,9 +85,10 @@ async def get_videos():
         })
 
     except Exception as e:
+        logger.error("取得影片資料失敗: %s", e)
         return JSONResponse({
             "success": False,
-            "error": str(e),
+            "error": "取得影片資料失敗",
             "videos": [],
             "total": 0
         }, status_code=500)

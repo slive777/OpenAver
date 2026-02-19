@@ -2262,3 +2262,130 @@
 .ds-material-table tr:hover td {
     background: color-mix(in oklch, var(--color-base-content) 3%, transparent);
 }
+
+/* ==================== Icon Catalog (#ds-icons) ==================== */
+.ds-icon-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    min-width: 100px;
+}
+
+.ds-icon-card i {
+    font-size: 1.75rem;
+    color: var(--text-primary);
+}
+
+.ds-icon-card code {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.ds-icon-card span {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+/* ==================== Suffix Badge (from search.css:699-702) ==================== */
+.ds-page .tag-badge.suffix-badge {
+    background: var(--color-warning);
+    color: var(--color-warning-content);
+}
+
+/* ==================== Mini Terminal Controls (from scanner.css:71-126) ==================== */
+.ds-page .log-filter-group {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.ds-page .log-filter-btn {
+    padding: 0.125rem 0.5rem;
+    font-size: 0.7rem;
+    border-radius: var(--fluent-radius-md);
+    background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
+    color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
+    border: none;
+    cursor: pointer;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.ds-page .log-filter-btn:hover {
+    background: color-mix(in oklch, var(--color-base-content) 12%, transparent);
+    color: var(--color-base-content);
+}
+
+.ds-page .log-filter-btn.active {
+    background: var(--color-primary);
+    color: var(--color-primary-content);
+}
+
+.ds-page .log-actions {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.ds-page .log-action-btn {
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--fluent-radius-sm);
+    background: transparent;
+    color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
+    border: none;
+    cursor: pointer;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.ds-page .log-action-btn:hover {
+    background: color-mix(in oklch, var(--color-base-content) 10%, transparent);
+    color: var(--color-base-content);
+}
+
+.ds-page .log-action-btn i {
+    font-size: 0.75rem;
+}
+
+/* ==================== Showcase Toolbar (from showcase.css:21-70) ==================== */
+.ds-page .showcase-toolbar {
+    position: static;
+    background: var(--bg-header);
+    backdrop-filter: blur(16px) saturate(130%);
+    -webkit-backdrop-filter: blur(16px) saturate(130%);
+    border-bottom: 1px solid var(--border-light);
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: var(--fluent-radius-lg);
+}
+
+.ds-page .toolbar-section {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.ds-page .toolbar-search {
+    flex: 1;
+    min-width: 200px;
+}
+
+.ds-page .toolbar-controls {
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.ds-page .control-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}

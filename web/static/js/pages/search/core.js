@@ -296,26 +296,26 @@ function restoreState() {
 
         // 有內容才還原顯示
         if (searchResults.length > 0) {
-            window.SearchUI.displayResult(searchResults[currentIndex]);
-            window.SearchUI.updateNavigation();
+            window.SearchUI.displayResult?.(searchResults[currentIndex]);
+            window.SearchUI.updateNavigation?.();
             window.SearchUI.showState('result');
 
             if (listMode === 'search') {
-                window.SearchFile.renderSearchResultsList();
+                window.SearchFile?.renderSearchResultsList?.();
             } else if (listMode === 'file') {
-                window.SearchFile.renderFileList();
+                window.SearchFile?.renderFileList?.();
             }
             updateClearButton();
             return true;
         } else if (fileList.length > 0 && listMode === 'file') {
-            window.SearchFile.renderFileList();
+            window.SearchFile?.renderFileList?.();
             updateClearButton();
             const currentFile = fileList[currentFileIndex];
             if (currentFile && currentFile.searchResults && currentFile.searchResults.length > 0) {
                 searchResults = currentFile.searchResults;
                 hasMoreResults = currentFile.hasMoreResults || false;
-                window.SearchUI.displayResult(searchResults[currentIndex]);
-                window.SearchUI.updateNavigation();
+                window.SearchUI.displayResult?.(searchResults[currentIndex]);
+                window.SearchUI.updateNavigation?.();
                 window.SearchUI.showState('result');
                 return true;
             }

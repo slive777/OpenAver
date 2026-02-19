@@ -7,13 +7,60 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 max-w-screen-2xl">
-    <div class="flex justify-between items-center mb-4">
-        <h2 class="text-2xl font-semibold mb-0">使用說明</h2>
-        <button class="btn btn-primary btn-sm"
-                @click="window.location.href = '/search?tutorial=restart'">
-            <i class="bi bi-play-circle"></i> 重看新手引導
-        </button>
+<div class="help-container container mx-auto px-4 max-w-screen-2xl" x-data="helpPage()">
+    <!-- Hero Card — 置頂區 -->
+    <div class="card help-card fluent-rounded-xl mb-4">
+        <div class="card-body">
+            <h2 class="card-title text-lg">
+                <i class="bi bi-info-circle"></i>
+                <span>OpenAver <span x-text="appVersion || 'v{{ version }}'">v{{ version }}</span></span>
+            </h2>
+            <p class="text-base-content/60 text-sm mb-1">JAV 影片元數據管理工具</p>
+            <p class="text-base-content/60 text-sm mb-3">
+                🔒 純本地應用程式，不蒐集使用者資料
+            </p>
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- 主 CTA -->
+                <button class="btn btn-primary btn-sm"
+                        @click="window.location.href = '/search?tutorial=restart'">
+                    <i class="bi bi-play-circle"></i> 重看新手引導
+                </button>
+                <!-- 次 CTA -->
+                <button class="btn btn-outline btn-neutral btn-sm"
+                        @click="checkUpdate()"
+                        :disabled="checkUpdateLoading">
+                    <span x-show="checkUpdateLoading" class="loading loading-spinner loading-sm"></span>
+                    <span x-show="checkUpdateLoading">檢查中…</span>
+                    <span x-show="!checkUpdateLoading"><i class="bi bi-cloud-download"></i></span>
+                    <span x-show="!checkUpdateLoading">檢查更新</span>
+                </button>
+                <!-- 更新結果 inline -->
+                <template x-if="checkDone && !errorMsg && hasUpdate">
+                    <a :href="downloadUrl" target="_blank" rel="noopener noreferrer" class="text-success text-sm">
+                        <i class="bi bi-download"></i> 新版本 <span x-text="latestVersion"></span> 可用
+                    </a>
+                </template>
+                <template x-if="checkDone && !errorMsg && !hasUpdate">
+                    <span class="text-base-content/50 text-sm">
+                        <i class="bi bi-check-circle"></i> 已是最新版本
+                    </span>
+                </template>
+                <template x-if="checkDone && errorMsg">
+                    <span class="text-error text-sm">
+                        <i class="bi bi-exclamation-circle"></i> <span x-text="errorMsg"></span>
+                    </span>
+                </template>
+                <!-- 外部連結 -->
+                <a class="btn btn-ghost btn-sm" href="https://github.com/slive777/OpenAver"
+                   target="_blank" rel="noopener noreferrer">
+                    <i class="bi bi-github"></i> GitHub
+                </a>
+                <a class="btn btn-ghost btn-sm" href="https://t.me/+J-U2l96gv0FjZTBl"
+                   target="_blank" rel="noopener noreferrer">
+                    <i class="bi bi-telegram"></i> Telegram
+                </a>
+            </div>
+        </div>
     </div>
 
     <!-- 搜尋功能 -->
@@ -36,6 +83,17 @@
                 <li>支援多檔案批次處理（一次 20 個）</li>
                 <li>搜尋成功後可點「產生」更改檔名、下載封面和建立資料夾與 NFO</li>
             </ul>
+
+            <h6 class="mt-4">Grid 模式（封面牆）</h6>
+            <ul>
+                <li>搜尋後可切換為封面牆顯示，點擊封面開啟 Lightbox</li>
+                <li><strong>Lightbox</strong>：全螢幕檢視封面，<kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd> 鍵導航，<kbd class="kbd kbd-sm">Esc</kbd> 關閉</li>
+            </ul>
+
+            <h6 class="mt-4">版本標記 Badge</h6>
+            <ul>
+                <li>檔名含 <code>-4k</code>、<code>-uc</code> 等關鍵字時，結果卡片自動顯示彩色 badge</li>
+            </ul>
         </div>
     </div>
 
@@ -55,7 +113,7 @@
 
             <h6 class="mt-4">我的最愛資料夾</h6>
             <ul>
-                <li>在 Settings 設定常用資料夾路徑</li>
+                <li>在<strong>設定頁</strong>設定常用資料夾路徑</li>
                 <li>點擊「⭐ 我的最愛」按鈕一鍵載入</li>
                 <li>自動開始搜尋前 20 個檔案</li>
             </ul>
@@ -64,6 +122,52 @@
             <ul>
                 <li>批次搜尋時可點擊「暫停」按鈕</li>
                 <li>點擊「繼續」從暫停處恢復</li>
+            </ul>
+
+            <h6 class="mt-4">產生全部</h6>
+            <ul>
+                <li>批次搜尋完成後，可一次執行所有成功結果的重命名 / 建資料夾 / NFO</li>
+            </ul>
+
+            <h6 class="mt-4">版本標記保留</h6>
+            <ul>
+                <li>檔名中的 <code>-cd1</code>、<code>-4k</code> 等會自動保留為 <code>{suffix}</code></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 格式變數一覽表 -->
+    <div class="card help-card fluent-rounded-xl mb-4">
+        <div class="card-body">
+            <h2 class="card-title text-lg">
+                <i class="bi bi-braces"></i> 格式變數一覽表
+            </h2>
+            <div class="overflow-x-auto">
+                <table class="table table-sm">
+                    <thead>
+                        <tr><th>變數</th><th>說明</th><th>範例</th><th>資料夾 fallback</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>{num}</code></td><td>番號</td><td>SONE-205</td><td>—</td></tr>
+                        <tr><td><code>{title}</code></td><td>標題</td><td>新人出道...</td><td>未知標題</td></tr>
+                        <tr><td><code>{actor}</code></td><td>第一位演員</td><td>三上悠亜</td><td>未知女優</td></tr>
+                        <tr><td><code>{actors}</code></td><td>所有演員</td><td>三上悠亜, 明日花</td><td>未知女優</td></tr>
+                        <tr><td><code>{maker}</code></td><td>片商</td><td>S1</td><td>未知片商</td></tr>
+                        <tr><td><code>{date}</code></td><td>發行日期</td><td>2024-01-15</td><td>未知日期</td></tr>
+                        <tr><td><code>{year}</code></td><td>年份</td><td>2024</td><td>未知年份</td></tr>
+                        <tr><td><code>{suffix}</code></td><td>版本標記</td><td>-4k</td><td>空則消失</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <h6 class="mt-4">預設格式</h6>
+            <ul>
+                <li>檔名：<code>[{num}][{maker}] {title}{suffix}</code></li>
+                <li>資料夾：<code>{actor}</code></li>
+            </ul>
+            <h6 class="mt-4">Fallback 規則</h6>
+            <ul>
+                <li>資料夾層級會使用 fallback 值（如「未知女優」），避免路徑為空</li>
+                <li>檔名不使用 fallback，變數為空時直接省略</li>
             </ul>
         </div>
     </div>
@@ -86,6 +190,13 @@
                 <li><strong>Hero Card</strong>：顯示女優個人資料（罩杯、身高、三圍、生日）</li>
                 <li><strong>畫廊瀏覽</strong>：以封面圖方式展示作品列表</li>
                 <li><strong>快速返回</strong>：點擊「← 返回詳細資料」回到一般模式</li>
+            </ul>
+
+            <h6 class="mt-4">Grid Mode 與 Gallery Mode 差異</h6>
+            <ul>
+                <li><strong>Gallery Mode</strong>（自動觸發）：搜尋結果 > 10 部且女優一致時自動切換</li>
+                <li><strong>Grid Mode</strong>（手動切換）：任何搜尋結果都可手動切換為封面牆顯示</li>
+                <li>Grid Mode 支援 Lightbox 導航（<kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd> 切換）</li>
             </ul>
         </div>
     </div>
@@ -110,6 +221,41 @@
                 <li><strong>自動複製</strong>：封面圖與 NFO 複製到輸出目錄</li>
                 <li><strong>Dark Mode</strong>：自動跟隨 Web App 的主題設定</li>
             </ul>
+
+            <h6 class="mt-4">Jellyfin 圖片模式</h6>
+            <ul>
+                <li>在<strong>設定頁</strong>開啟後，掃描時自動產生 <code>-poster.jpg</code> + <code>-fanart.jpg</code></li>
+                <li>掃描完成後可至 <code>/showcase</code> 頁面瀏覽生成結果</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 影片瀏覽 Showcase -->
+    <div class="card help-card fluent-rounded-xl mb-4">
+        <div class="card-body">
+            <h2 class="card-title text-lg">
+                <i class="bi bi-collection-play"></i> 影片瀏覽 (Showcase)
+            </h2>
+            <p>Scanner 掃描完成後，可至 <code>/showcase</code> 頁面瀏覽影片庫。</p>
+
+            <h6 class="mt-4">顯示模式</h6>
+            <ul>
+                <li><strong>圖片模式（Grid）</strong>：封面牆顯示，點擊開啟 Lightbox</li>
+                <li><strong>文字模式（List）</strong>：精簡列表，適合快速瀏覽</li>
+                <li><strong>詳細模式（Table）</strong>：含完整元數據的表格顯示</li>
+            </ul>
+
+            <h6 class="mt-4">排序與搜尋</h6>
+            <ul>
+                <li><strong>排序</strong>：日期 / 番號 / 標題 / 女優 / 片商 / 大小 / 修改時間 / 隨機</li>
+                <li><strong>搜尋</strong>：支援番號、女優、標題等關鍵字篩選</li>
+            </ul>
+
+            <h6 class="mt-4">其他功能</h6>
+            <ul>
+                <li>Lightbox 全螢幕封面檢視（<kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd> 導航）</li>
+                <li>每頁顯示數量可在<strong>設定頁</strong>調整</li>
+            </ul>
         </div>
     </div>
 
@@ -119,26 +265,112 @@
             <h2 class="card-title text-lg">
                 <i class="bi bi-keyboard"></i> 快捷鍵
             </h2>
-            <table class="table table-sm">
-                <tbody>
-                    <tr>
-                        <td class="w-[30%]"><kbd class="kbd kbd-sm">Ctrl</kbd> / <kbd class="kbd kbd-sm">Cmd</kbd> + <kbd class="kbd kbd-sm">K</kbd></td>
-                        <td>聚焦搜尋框</td>
-                    </tr>
-                    <tr>
-                        <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
-                        <td>切換上一個/下一個結果</td>
-                    </tr>
-                    <tr>
-                        <td><kbd class="kbd kbd-sm">Esc</kbd></td>
-                        <td>清空搜尋框</td>
-                    </tr>
-                    <tr>
-                        <td><kbd class="kbd kbd-sm">Enter</kbd></td>
-                        <td>執行搜尋</td>
-                    </tr>
-                </tbody>
-            </table>
+
+            <h6>搜尋頁</h6>
+            <p class="text-base-content/60 text-sm mb-2">搜尋框聚焦時所有快捷鍵停用，避免干擾輸入。</p>
+            <div class="overflow-x-auto">
+                <table class="table table-sm">
+                    <thead>
+                        <tr><th>按鍵</th><th>情境</th><th>動作</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><kbd class="kbd kbd-sm">Esc</kbd></td>
+                            <td>Lightbox 開啟時</td>
+                            <td>關閉 Lightbox</td>
+                        </tr>
+                        <tr>
+                            <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
+                            <td>Lightbox 開啟時</td>
+                            <td>上 / 下一部影片</td>
+                        </tr>
+                        <tr>
+                            <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
+                            <td>Detail 模式，Lightbox 關閉</td>
+                            <td>切換上 / 下一個結果</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h6 class="mt-4">瀏覽頁 (Showcase)</h6>
+            <div class="overflow-x-auto">
+                <table class="table table-sm">
+                    <thead>
+                        <tr><th>按鍵</th><th>情境</th><th>動作</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
+                            <td>Lightbox 關閉時</td>
+                            <td>上 / 下一頁</td>
+                        </tr>
+                        <tr>
+                            <td><kbd class="kbd kbd-sm">A</kbd></td>
+                            <td>Lightbox 關閉時</td>
+                            <td>循環切換模式（圖片 → 文字 → 詳細）</td>
+                        </tr>
+                        <tr>
+                            <td><kbd class="kbd kbd-sm">S</kbd></td>
+                            <td>Grid 模式，Lightbox 關閉</td>
+                            <td>顯示 / 隱藏卡片資訊</td>
+                        </tr>
+                        <tr>
+                            <td><kbd class="kbd kbd-sm">Esc</kbd></td>
+                            <td>Lightbox 開啟時</td>
+                            <td>關閉 Lightbox</td>
+                        </tr>
+                        <tr>
+                            <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
+                            <td>Lightbox 開啟時</td>
+                            <td>上 / 下一部影片</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scraper 來源說明 -->
+    <div class="card help-card fluent-rounded-xl mb-4">
+        <div class="card-body">
+            <h2 class="card-title text-lg">
+                <i class="bi bi-globe"></i> Scraper 來源說明
+            </h2>
+
+            <h6>有碼來源</h6>
+            <ul>
+                <li><strong>DMM</strong>：需設定日本 IP Proxy（<strong>設定頁</strong> → Proxy 欄位）</li>
+                <li><strong>JavBus</strong>、<strong>Jav321</strong>、<strong>JavDB</strong>：直接可用</li>
+            </ul>
+
+            <h6 class="mt-4">無碼來源</h6>
+            <ul>
+                <li><strong>D2Pass</strong>：涵蓋 1Pondo / Caribbeancom / 10musume 三站</li>
+                <li><strong>HEYZO</strong>：獨立來源</li>
+                <li><strong>FC2</strong>：FC2-PPV 專用</li>
+                <li><strong>AVSOX</strong>：無碼通用來源</li>
+            </ul>
+
+            <h6 class="mt-4">切換模式</h6>
+            <ul>
+                <li>在<strong>設定頁</strong>開啟「無碼模式」toggle，搜尋時將優先使用無碼來源</li>
+            </ul>
+
+            <h6 class="mt-4">番號格式範例</h6>
+            <div class="overflow-x-auto">
+                <table class="table table-sm">
+                    <thead>
+                        <tr><th>來源</th><th>格式</th><th>範例</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Caribbeancom</td><td><code>DDMMYY-NNN</code></td><td><code>010125-001</code></td></tr>
+                        <tr><td>1Pondo</td><td><code>DDMMYY_NNN</code></td><td><code>010125_001</code></td></tr>
+                        <tr><td>HEYZO</td><td><code>HEYZO-NNNN</code></td><td><code>HEYZO-3510</code></td></tr>
+                        <tr><td>FC2</td><td><code>FC2-PPV-NNNNNN</code></td><td><code>FC2-PPV-1723984</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -168,26 +400,24 @@
             <ol>
                 <li>執行 <code>OpenAver_Debug.bat</code></li>
                 <li>重現問題</li>
-                <li>將日誌檔案與錯誤訊息回報到 <a href="https://github.com/jav-scraper/OpenAver/issues" target="_blank">GitHub
-                        Issues</a></li>
+                <li>將日誌檔案與錯誤訊息回報到 <a href="https://github.com/slive777/OpenAver/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a></li>
             </ol>
-        </div>
-    </div>
 
-    <!-- 關於 -->
-    <div class="card help-card fluent-rounded-xl mb-4">
-        <div class="card-body">
-            <h2 class="card-title text-lg">
-                <i class="bi bi-info-circle"></i> 關於
-            </h2>
-            <p class="mb-1"><strong>OpenAver v{{ version }}</strong></p>
-            <p class="text-base-content/60 text-sm mb-3">JAV 影片元數據管理工具</p>
-            <p class="text-base-content/60 text-sm mb-0">
-                🔒 純本地應用程式，不蒐集使用者資料<br>
-                📝 開源專案，歡迎貢獻與回饋
-            </p>
+            <h6 class="mt-4">DMM 無法搜尋</h6>
+            <ul>
+                <li>DMM 需要日本 IP，請在<strong>設定頁</strong> → Proxy 欄位填入日本 IP 代理</li>
+            </ul>
+
+            <h6 class="mt-4">翻譯無回應</h6>
+            <ul>
+                <li><strong>Ollama</strong>：確認 Ollama 應用程式已啟動（Windows 需手動開啟）</li>
+                <li><strong>Gemini</strong>：確認 API Key 已在<strong>設定頁</strong>正確設定</li>
+            </ul>
         </div>
     </div>
 </div>
 
+{% endblock %}
+{% block extra_js %}
+<script src="/static/js/pages/help.js"></script>
 {% endblock %}

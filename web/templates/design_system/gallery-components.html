@@ -171,6 +171,17 @@
                     <i class="bi bi-magic"></i> 補全 NFO
                 </button>
             </div>
+
+            <!-- Jellyfin 圖片補齊列 -->
+            <div class="nfo-update-row">
+                <span class="nfo-badge">
+                    <i class="bi bi-image"></i>
+                    需補齊圖片: <strong>8</strong> 部
+                </span>
+                <button class="btn-nfo-update" type="button">
+                    <i class="bi bi-images"></i> 補齊圖片
+                </button>
+            </div>
         </div>
     </div>
 
@@ -202,6 +213,29 @@
         </div>
     </div>
 
+    <!-- Jellyfin Image 按鈕三態 -->
+    <h4 class="ds-variant-label" style="width: 100%; margin-top: 1rem;">Jellyfin Image Button States</h4>
+    <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+        <div style="text-align: center;">
+            <button class="btn-nfo-update" type="button">
+                <i class="bi bi-images"></i> 補齊圖片
+            </button>
+            <p style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary);">Default</p>
+        </div>
+        <div style="text-align: center;">
+            <button class="btn-nfo-update" disabled type="button">
+                <span class="loading loading-spinner loading-sm"></span> 補齊中...
+            </button>
+            <p style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary);">Loading</p>
+        </div>
+        <div style="text-align: center;">
+            <button class="btn-nfo-update completed" disabled type="button">
+                <i class="bi bi-check-lg"></i> 已完成
+            </button>
+            <p style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary);">Completed</p>
+        </div>
+    </div>
+
     <!-- 代碼展示 -->
     <pre class="ds-code"><code>&lt;div class="stats-card"&gt;
   &lt;div class="stats-row"&gt;
@@ -221,6 +255,17 @@
     &lt;/span&gt;
     &lt;button class="btn-nfo-update"&gt;
       &lt;i class="bi bi-magic"&gt;&lt;/i&gt; 補全 NFO
+    &lt;/button&gt;
+  &lt;/div&gt;
+
+  &lt;!-- Jellyfin Image Row --&gt;
+  &lt;div class="nfo-update-row"&gt;
+    &lt;span class="nfo-badge"&gt;
+      &lt;i class="bi bi-image"&gt;&lt;/i&gt;
+      需補齊圖片: &lt;strong&gt;8&lt;/strong&gt; 部
+    &lt;/span&gt;
+    &lt;button class="btn-nfo-update"&gt;
+      &lt;i class="bi bi-images"&gt;&lt;/i&gt; 補齊圖片
     &lt;/button&gt;
   &lt;/div&gt;
 &lt;/div&gt;</code></pre>

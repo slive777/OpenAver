@@ -605,7 +605,8 @@ class HTMLGenerator:
 \t\t\tvar lastSlash = path.lastIndexOf('/');
 \t\t\tif (lastSlash < 0) lastSlash = path.lastIndexOf('\\\\');
 \t\t\tvar folder = lastSlash >= 0 ? path.substring(0, lastSlash) : path;
-\t\t\tvar winPath = folder.replace('file:///', '').replace(/\\//g, '\\\\');
+\t\t\tvar stripped = folder.replace(/^file:\/\/\//, '');
+\t\t\tvar winPath = /^[A-Za-z]:/.test(stripped) ? stripped.replace(/\\//g, '\\\\') : stripped;
 \t\t\tnavigator.clipboard.writeText(winPath).then(function() {
 \t\t\t\tshowToast('已複製: ' + winPath);
 \t\t\t});

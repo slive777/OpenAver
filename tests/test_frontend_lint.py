@@ -322,3 +322,296 @@ class TestMotionInfra:
             f"發現 {len(violations)} 個直接 GSAP 呼叫（應透過 OpenAver.motion.*）:\n" +
             "\n".join(f"  - {v}" for v in violations)
         )
+
+
+class TestNoDuplicateNativeDialog:
+    """確認 duplicate modal 使用 Alpine state-driven pattern（不使用原生 showModal/close）"""
+
+    def test_no_show_modal_in_state_mixins(self):
+        """state/*.js 不應包含 showModal() 呼叫"""
+        state_dir = PROJECT_ROOT / "web/static/js/pages/search/state"
+        for js_file in state_dir.glob("*.js"):
+            content = js_file.read_text(encoding="utf-8")
+            assert "showModal()" not in content, \
+                f"{js_file.name} 仍包含原生 showModal() — 應改用 Alpine state"
+
+    def test_duplicate_modal_uses_modal_open_class(self):
+        """search.html 的 duplicate modal 應使用 :class=\"{ 'modal-open': ... }\" pattern"""
+        html_path = PROJECT_ROOT / "web/templates/search.html"
+        content = html_path.read_text(encoding="utf-8")
+        assert "duplicateModalOpen" in content, \
+            "search.html 未找到 duplicateModalOpen — duplicate modal 應使用 Alpine state"
+
+
+class TestTranslateAll:
+    """確認 translateAll 前端基礎設施完整"""
+
+    def test_translate_all_button_exists(self):
+        """search.html 包含 translateAll() 綁定且按鈕由 listMode 條件控制"""
+        html_file = PROJECT_ROOT / "web" / "templates" / "search.html"
+        content = html_file.read_text(encoding='utf-8')
+        assert 'translateAll()' in content, \
+            "search.html 缺少 translateAll() 綁定"
+        assert "listMode === 'search'" in content, \
+            "search.html 缺少 listMode === 'search' 條件（控制翻譯全部按鈕顯示）"
+
+    def test_translate_state_in_base(self):
+        """base.js 包含 translateState 物件定義"""
+        js_file = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "base.js"
+        content = js_file.read_text(encoding='utf-8')
+        assert 'translateState' in content, \
+            "base.js 缺少 translateState 物件定義"
+
+    def test_translate_all_in_batch(self):
+        """batch.js 包含 async translateAll method 定義"""
+        js_file = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "batch.js"
+        content = js_file.read_text(encoding='utf-8')
+        assert 'async translateAll' in content, \
+            "batch.js 缺少 async translateAll method 定義"
+
+    def test_is_cloud_search_mode_uses_list_mode(self):
+        """isCloudSearchMode 應依賴 listMode === 'search'，不依賴 fileList.length"""
+        js_file = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "base.js"
+        content = js_file.read_text(encoding='utf-8')
+        assert "listMode === 'search'" in content, \
+            "isCloudSearchMode 應使用 listMode === 'search'，不應依賴 fileList.length === 0"
+        assert "fileList.length === 0 && this.searchResults.length > 0" not in content, \
+            "isCloudSearchMode 不應使用 fileList.length === 0 條件（殘留 fileList 會使雲端搜尋模式失效）"
+
+
+class TestJellyfinFrontend:
+    """確認 Jellyfin 前端基礎設施完整"""
+
+    def test_jellyfin_toggle_in_settings(self):
+        """settings.html 包含 jellyfinMode 的 Alpine 綁定"""
+        html_file = PROJECT_ROOT / "web" / "templates" / "settings.html"
+        content = html_file.read_text(encoding='utf-8')
+        assert 'jellyfinMode' in content, \
+            "settings.html 缺少 jellyfinMode 綁定（Jellyfin 圖片模式開關）"
+
+    def test_jellyfin_update_in_scanner(self):
+        """scanner.html 包含 runJellyfinImageUpdate method"""
+        html_file = PROJECT_ROOT / "web" / "templates" / "scanner.html"
+        content = html_file.read_text(encoding='utf-8')
+        assert 'runJellyfinImageUpdate' in content, \
+            "scanner.html 缺少 runJellyfinImageUpdate（T6d Jellyfin 批次補齊）"
+
+
+class TestOpenLocalGuard:
+    """確認 openLocal() 綁定和 open_folder() API 的結構完整性（T5a / T5b）"""
+
+    def test_open_local_in_search(self):
+        """search.html 包含 openLocal( 綁定（Detail badge + Grid overlay 兩處）"""
+        html_file = PROJECT_ROOT / "web" / "templates" / "search.html"
+        content = html_file.read_text(encoding='utf-8')
+        assert 'openLocal(' in content, \
+            "search.html 缺少 openLocal( 綁定（T5b：Detail badge + Grid overlay）"
+
+    def test_open_local_in_showcase(self):
+        """showcase.html 包含 openLocal( 綁定（Grid overlay + Lightbox 兩處）"""
+        html_file = PROJECT_ROOT / "web" / "templates" / "showcase.html"
+        content = html_file.read_text(encoding='utf-8')
+        assert 'openLocal(' in content, \
+            "showcase.html 缺少 openLocal( 綁定（T5b：Grid overlay + Lightbox）"
+
+    def test_open_local_method_exists(self):
+        """result-card.js 和 showcase/core.js 均包含 openLocal(path) method 定義"""
+        result_card = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "result-card.js"
+        showcase_core = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "showcase" / "core.js"
+
+        rc_content = result_card.read_text(encoding='utf-8')
+        assert 'openLocal(path)' in rc_content, \
+            "result-card.js 缺少 openLocal(path) method 定義（T5b）"
+
+        sc_content = showcase_core.read_text(encoding='utf-8')
+        assert 'openLocal(path)' in sc_content, \
+            "showcase/core.js 缺少 openLocal(path) method 定義（T5b）"
+
+    def test_open_folder_pywebview_api(self):
+        """windows/pywebview_api.py 包含 def open_folder（T5a）"""
+        api_file = PROJECT_ROOT / "windows" / "pywebview_api.py"
+        content = api_file.read_text(encoding='utf-8')
+        assert 'def open_folder' in content, \
+            "pywebview_api.py 缺少 def open_folder（T5a）"
+
+    def test_no_stale_copy_local_path(self):
+        """search.html 不包含 copyLocalPath( 呼叫（確認舊 call 已清除）"""
+        html_file = PROJECT_ROOT / "web" / "templates" / "search.html"
+        content = html_file.read_text(encoding='utf-8')
+        assert 'copyLocalPath(' not in content, \
+            "search.html 仍包含 copyLocalPath( — T5b 應已將其改為 openLocal()"
+
+    def test_open_local_checks_return_value(self):
+        """openLocal() 的 .then() 必須檢查 open_folder 回傳值（不能無條件當成功）"""
+        for js_file in [
+            PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "result-card.js",
+            PROJECT_ROOT / "web" / "static" / "js" / "pages" / "showcase" / "core.js",
+        ]:
+            content = js_file.read_text(encoding='utf-8')
+            assert '.then(async (opened)' in content, \
+                f"{js_file.name} openLocal() 的 .then() 缺少 opened 參數檢查"
+
+    def test_open_local_cross_platform_path(self):
+        """openLocal() 必須偵測 Windows drive letter 而非一律轉反斜線"""
+        for js_file in [
+            PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "result-card.js",
+            PROJECT_ROOT / "web" / "static" / "js" / "pages" / "showcase" / "core.js",
+        ]:
+            content = js_file.read_text(encoding='utf-8')
+            assert 'displayPath' in content, \
+                f"{js_file.name} openLocal() 缺少跨平台路徑格式偵測（displayPath）"
+
+
+class TestPathContract:
+    """路徑契約守衛測試 — 確保路徑處理邏輯集中在 path_utils.py（T7.0）
+
+    4 個守衛測試掃描 production code 禁止模式（T7a-T7e 已全部修正通過）。
+    """
+
+    # 掃描範圍：core/ web/ windows/（排除 path_utils.py 本身）
+    _SCAN_DIRS = ['core', 'web', 'windows']
+    _ALLOWED_FILE = 'path_utils.py'
+
+    def _collect_py_files(self):
+        """收集 core/、web/、windows/ 下所有 .py 檔（排除 path_utils.py）"""
+        files = []
+        for dir_name in self._SCAN_DIRS:
+            scan_dir = PROJECT_ROOT / dir_name
+            if not scan_dir.exists():
+                continue
+            for py_file in scan_dir.rglob('*.py'):
+                if py_file.name == self._ALLOWED_FILE:
+                    continue
+                files.append(py_file)
+        return files
+
+    def test_no_raw_uri_strip(self):
+        """掃描 Python 檔，確認無 path[8:] 或 path[len('file:///'):]  手動 URI strip"""
+        # 符合 [8:] 或 [len('file:///'):]
+        pattern = r'''\[8:\]|\[len\(['"]file:///['"]\):\]'''
+        violations = []
+        for py_file in self._collect_py_files():
+            matches = find_pattern_in_file(py_file, pattern)
+            for line_num, line_content in matches:
+                violations.append(
+                    f"{py_file.relative_to(PROJECT_ROOT)}:{line_num} — {line_content[:80]}"
+                )
+        assert len(violations) == 0, (
+            f"發現 {len(violations)} 個手動 URI strip 違規（應改用 uri_to_fs_path()）:\n"
+            + "\n".join(f"  - {v}" for v in violations)
+        )
+
+    def test_no_manual_uri_construct(self):
+        """掃描 Python 檔，確認無 f\"file:///{ 手動 URI 建構"""
+        pattern = r'f["\']file:///'
+        violations = []
+        for py_file in self._collect_py_files():
+            matches = find_pattern_in_file(py_file, pattern)
+            for line_num, line_content in matches:
+                violations.append(
+                    f"{py_file.relative_to(PROJECT_ROOT)}:{line_num} — {line_content[:80]}"
+                )
+        assert len(violations) == 0, (
+            f"發現 {len(violations)} 個手動 URI 建構違規（應改用 to_file_uri()）:\n"
+            + "\n".join(f"  - {v}" for v in violations)
+        )
+
+    def test_no_shadow_path_helpers(self):
+        """掃描 Python 檔，確認無 def wsl_to_windows_path / def to_file_uri shadow helper"""
+        pattern = r'def wsl_to_windows_path|def to_file_uri'
+        violations = []
+        for py_file in self._collect_py_files():
+            matches = find_pattern_in_file(py_file, pattern)
+            for line_num, line_content in matches:
+                violations.append(
+                    f"{py_file.relative_to(PROJECT_ROOT)}:{line_num} — {line_content[:80]}"
+                )
+        assert len(violations) == 0, (
+            f"發現 {len(violations)} 個 shadow path helper 定義（應集中在 path_utils.py）:\n"
+            + "\n".join(f"  - {v}" for v in violations)
+        )
+
+    def test_path_to_display_js_no_optional_slash(self):
+        """pathToDisplay JS 工具不應使用 /? regex（會錯誤吸收路徑前導斜線）"""
+        # 搜尋所有 path-utils / pathUtils JS 檔
+        candidates = list(PROJECT_ROOT.rglob('path-utils.js')) + \
+                     list(PROJECT_ROOT.rglob('pathUtils.js'))
+        # 排除 venv/、node_modules/
+        js_files = [
+            f for f in candidates
+            if 'venv' not in f.parts and 'node_modules' not in f.parts
+        ]
+        if not js_files:
+            pytest.skip("pathToDisplay JS 工具尚未建立（T7d 前）")
+        violations = []
+        for js_file in js_files:
+            matches = find_pattern_in_file(js_file, r'\/\?')
+            for line_num, line_content in matches:
+                violations.append(
+                    f"{js_file.relative_to(PROJECT_ROOT)}:{line_num} — {line_content[:80]}"
+                )
+        assert len(violations) == 0, (
+            f"pathToDisplay 使用了 /? regex（會錯誤匹配路徑前導斜線）:\n"
+            + "\n".join(f"  - {v}" for v in violations)
+        )
+
+
+class TestSettingsSimplify:
+    """T4a 守衛 — Settings 不再包含版本/更新 UI"""
+
+    def test_settings_html_no_check_update(self):
+        """settings.html 不含 checkUpdate（已搬至 help）"""
+        html = (PROJECT_ROOT / 'web/templates/settings.html').read_text(encoding='utf-8')
+        assert 'checkUpdate' not in html, \
+            "settings.html 仍包含 checkUpdate — 應已搬至 /help"
+
+    def test_settings_js_no_dead_methods(self):
+        """settings.js 不含 loadVersion 及 restartTutorial（已搬至 help）"""
+        js = (PROJECT_ROOT / 'web/static/js/pages/settings.js').read_text(encoding='utf-8')
+        assert 'loadVersion' not in js, \
+            "settings.js 仍包含 loadVersion — 應已搬至 help.js"
+        assert 'restartTutorial' not in js, \
+            "settings.js 仍包含 restartTutorial — HTML row 刪除後為死碼"
+
+
+class TestHelpPage:
+    """T4b 守衛 — Help 頁必要元素"""
+
+    def test_help_js_exists(self):
+        """help.js 存在"""
+        assert (PROJECT_ROOT / 'web/static/js/pages/help.js').exists()
+
+    def test_help_html_has_alpine_scope(self):
+        """help.html 含 helpPage() Alpine scope"""
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        assert 'helpPage()' in html
+
+    def test_help_html_has_check_update(self):
+        """help.html 含 checkUpdate 按鈕"""
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        assert 'checkUpdate' in html
+
+    def test_help_js_no_defer(self):
+        """help.js script 不可帶 defer — 避免 Alpine 初始化時序問題"""
+        import re
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        matches = re.findall(r'<script[^>]*help\.js[^>]*>', html)
+        assert len(matches) == 1, \
+            f"help.html 應恰好有 1 個 help.js script tag，找到 {len(matches)} 個"
+        assert 'defer' not in matches[0], \
+            "help.js script tag 帶有 defer — Alpine 會在 helpPage() 定義前初始化"
+
+
+class TestScannerClearCache:
+    """清除快取守衛 — scanner 頁面必要元素"""
+
+    def test_scanner_html_has_clear_cache_method(self):
+        """scanner.html 含 clearCache() method"""
+        html = (PROJECT_ROOT / 'web/templates/scanner.html').read_text(encoding='utf-8')
+        assert 'clearCache()' in html
+
+    def test_scanner_html_has_delete_api_binding(self):
+        """scanner.html 含 DELETE /api/gallery/cache 呼叫"""
+        html = (PROJECT_ROOT / 'web/templates/scanner.html').read_text(encoding='utf-8')
+        assert "/api/gallery/cache" in html
+        assert "DELETE" in html
