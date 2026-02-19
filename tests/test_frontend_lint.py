@@ -590,3 +590,13 @@ class TestHelpPage:
         """help.html 含 checkUpdate 按鈕"""
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
         assert 'checkUpdate' in html
+
+    def test_help_js_no_defer(self):
+        """help.js script 不可帶 defer — 避免 Alpine 初始化時序問題"""
+        import re
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        matches = re.findall(r'<script[^>]*help\.js[^>]*>', html)
+        assert len(matches) == 1, \
+            f"help.html 應恰好有 1 個 help.js script tag，找到 {len(matches)} 個"
+        assert 'defer' not in matches[0], \
+            "help.js script tag 帶有 defer — Alpine 會在 helpPage() 定義前初始化"

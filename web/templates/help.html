@@ -30,8 +30,9 @@
                         @click="checkUpdate()"
                         :disabled="checkUpdateLoading">
                     <span x-show="checkUpdateLoading" class="loading loading-spinner loading-sm"></span>
+                    <span x-show="checkUpdateLoading">檢查中…</span>
                     <span x-show="!checkUpdateLoading"><i class="bi bi-cloud-download"></i></span>
-                    檢查更新
+                    <span x-show="!checkUpdateLoading">檢查更新</span>
                 </button>
                 <!-- 更新結果 inline -->
                 <template x-if="checkDone && !errorMsg && hasUpdate">
@@ -418,5 +419,5 @@
 
 {% endblock %}
 {% block extra_js %}
-<script defer src="/static/js/pages/help.js"></script>
+<script src="/static/js/pages/help.js"></script>
 {% endblock %}

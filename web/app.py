@@ -183,14 +183,18 @@ async def get_version():
 @app.get("/api/check-update")
 async def check_update():
     """手動檢查 GitHub 是否有新版本（保護隱私，不自動連網）"""
+    import asyncio
     import httpx
 
     current_version = VERSION
     github_api = "https://api.github.com/repos/slive777/OpenAver/releases/latest"
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(github_api, headers={"Accept": "application/vnd.github.v3+json"})
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await asyncio.wait_for(
+                client.get(github_api, headers={"Accept": "application/vnd.github.v3+json"}),
+                timeout=5.0,
+            )
 
             if resp.status_code == 404:
                 # 還沒有 release
@@ -212,7 +216,7 @@ async def check_update():
                 "latest_version": latest_version,
                 "download_url": download_url
             }
-    except httpx.TimeoutException:
+    except (httpx.TimeoutException, TimeoutError):
         return {"success": False, "error": "連線逾時"}
     except Exception as e:
         return {"success": False, "error": str(e)}
