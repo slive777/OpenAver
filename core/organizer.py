@@ -143,7 +143,17 @@ def _detect_suffixes(filename: str, keywords: list) -> str:
     return ''.join(matched)
 
 
-def format_string(template: str, data: Dict[str, Any]) -> str:
+FALLBACKS = {
+    'actor':  '未知女優',
+    'actors': '未知女優',
+    'maker':  '未知片商',
+    'title':  '未知標題',
+    'date':   '未知日期',
+    'year':   '未知年份',
+}
+
+
+def format_string(template: str, data: Dict[str, Any], use_fallback: bool = False) -> str:
     """
     根據模板格式化字串
 
@@ -155,14 +165,21 @@ def format_string(template: str, data: Dict[str, Any]) -> str:
     - {maker}: 片商
     - {date}: 發行日期
     - {year}: 年份
+    - {suffix}: 版本後綴（Fix-1）
+
+    Args:
+        use_fallback: True 時空值使用 FALLBACKS（僅資料夾層級傳 True）。
+                      False 時空值保持空字串（檔名格式用，避免 [未知片商] 等雜訊）。
     """
     result = template
+    fb = FALLBACKS if use_fallback else {}
 
-    # 番號
+    # 番號（保證非空，不需 fallback）
     result = result.replace('{num}', data.get('number', ''))
 
     # 標題
-    result = result.replace('{title}', data.get('title', ''))
+    title = data.get('title', '') or fb.get('title', '')
+    result = result.replace('{title}', title)
 
     # 演員
     actors = data.get('actors', [])
@@ -170,18 +187,19 @@ def format_string(template: str, data: Dict[str, Any]) -> str:
         result = result.replace('{actor}', actors[0])
         result = result.replace('{actors}', ', '.join(actors))
     else:
-        result = result.replace('{actor}', '')
-        result = result.replace('{actors}', '')
+        result = result.replace('{actor}', fb.get('actor', ''))
+        result = result.replace('{actors}', fb.get('actors', ''))
 
     # 片商
-    result = result.replace('{maker}', data.get('maker', ''))
+    maker = data.get('maker', '') or fb.get('maker', '')
+    result = result.replace('{maker}', maker)
 
     # 日期
     date = data.get('date', '')
-    result = result.replace('{date}', date)
-    result = result.replace('{year}', date[:4] if date else '')
+    result = result.replace('{date}', date or fb.get('date', ''))
+    result = result.replace('{year}', date[:4] if date else fb.get('year', ''))
 
-    # 版本後綴（如 "-4k-cd1"，無匹配時為空字串）
+    # 後綴（Fix-1，空值就是空字串，不需 fallback）
     result = result.replace('{suffix}', data.get('suffix', ''))
 
     return sanitize_filename(result.strip())
@@ -333,7 +351,8 @@ def organize_file(
         'new_filename': None,
         'cover_path': None,
         'nfo_path': None,
-        'error': None
+        'error': None,
+        'used_fallbacks': []
     }
 
     # 轉換路徑為當前環境格式
@@ -391,6 +410,17 @@ def organize_file(
     suffix = _detect_suffixes(original_filename, suffix_keywords)
     format_data['suffix'] = suffix
 
+    # 記錄哪些欄位用了 fallback（供前端 toast 提示）
+    used_fallbacks = []
+    if not format_data.get('actors'):
+        used_fallbacks.append('女優')
+    if not format_data.get('maker'):
+        used_fallbacks.append('片商')
+    if not format_data.get('date'):
+        used_fallbacks.append('日期')
+    if not format_data.get('title'):
+        used_fallbacks.append('標題')
+
     # 自動偵測字幕標記（如果 metadata 沒有指定）
     has_subtitle = metadata.get('has_subtitle')
     if has_subtitle is None:
@@ -411,7 +441,7 @@ def organize_file(
         path_parts = []
         for layer in layers[:3]:  # 限制最多 3 層
             if layer:
-                part = truncate_to_chars(format_string(layer, format_data), max_folder_chars)
+                part = truncate_to_chars(format_string(layer, format_data, use_fallback=True), max_folder_chars)
                 if part:
                     path_parts.append(part)
 
@@ -484,6 +514,7 @@ def organize_file(
         ):
             result['nfo_path'] = nfo_path
 
+        result['used_fallbacks'] = used_fallbacks
         result['success'] = True
 
     except Exception as e:
