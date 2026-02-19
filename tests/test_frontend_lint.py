@@ -377,3 +377,21 @@ class TestTranslateAll:
             "isCloudSearchMode 應使用 listMode === 'search'，不應依賴 fileList.length === 0"
         assert "fileList.length === 0 && this.searchResults.length > 0" not in content, \
             "isCloudSearchMode 不應使用 fileList.length === 0 條件（殘留 fileList 會使雲端搜尋模式失效）"
+
+
+class TestJellyfinFrontend:
+    """確認 Jellyfin 前端基礎設施完整"""
+
+    def test_jellyfin_toggle_in_settings(self):
+        """settings.html 包含 jellyfinMode 的 Alpine 綁定"""
+        html_file = PROJECT_ROOT / "web" / "templates" / "settings.html"
+        content = html_file.read_text(encoding='utf-8')
+        assert 'jellyfinMode' in content, \
+            "settings.html 缺少 jellyfinMode 綁定（Jellyfin 圖片模式開關）"
+
+    def test_jellyfin_update_in_scanner(self):
+        """scanner.html 包含 runJellyfinImageUpdate method"""
+        html_file = PROJECT_ROOT / "web" / "templates" / "scanner.html"
+        content = html_file.read_text(encoding='utf-8')
+        assert 'runJellyfinImageUpdate' in content, \
+            "scanner.html 缺少 runJellyfinImageUpdate（T6d Jellyfin 批次補齊）"

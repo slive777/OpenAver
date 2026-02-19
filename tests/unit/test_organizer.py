@@ -6,8 +6,9 @@ import json
 import pytest
 from pathlib import Path
 from unittest.mock import patch
+from PIL import Image
 
-from core.organizer import _detect_suffixes, format_string, organize_file
+from core.organizer import _detect_suffixes, format_string, organize_file, crop_to_poster, generate_nfo
 
 
 # ============ _detect_suffixes() 測試 ============
@@ -463,6 +464,179 @@ class TestOrganizeFallback:
         assert result["used_fallbacks"] == [], (
             f"create_folder=false 時 used_fallbacks 應為空，實際: {result['used_fallbacks']}"
         )
+
+
+
+# ============ Jellyfin 圖片模式測試 (Fix-6) ============
+
+def _make_test_image(tmp_path, width, height, name="cover.jpg"):
+    """建立指定尺寸的純色 JPEG 測試圖片"""
+    img_path = tmp_path / name
+    img = Image.new("RGB", (width, height), color=(128, 64, 32))
+    img.save(str(img_path), "JPEG")
+    return img_path
+
+
+def _mock_download_image_write_jpeg(url, save_path, referer=''):
+    """Mock download_image：寫出一個 800x538 JPEG 到 save_path（標準橫向封面尺寸）"""
+    img = Image.new("RGB", (800, 538), color=(200, 100, 50))
+    img.save(save_path, "JPEG")
+    return True
+
+
+def _make_jellyfin_config(jellyfin_mode):
+    return {
+        "create_folder": False,
+        "filename_format": "[{num}] {title}",
+        "download_cover": True,
+        "cover_filename": "poster.jpg",
+        "create_nfo": True,
+        "max_title_length": 50,
+        "max_filename_length": 60,
+        "suffix_keywords": [],
+        "jellyfin_mode": jellyfin_mode,
+    }
+
+
+class TestCropToPoster:
+    """crop_to_poster() 裁切邏輯單元測試"""
+
+    def test_crop_to_poster_landscape(self, tmp_path):
+        """800×538 橫向 → 裁切右側，產生直向 poster (w < h)"""
+        src = _make_test_image(tmp_path, 800, 538, "cover.jpg")
+        dst = tmp_path / "poster.jpg"
+
+        result = crop_to_poster(str(src), str(dst))
+
+        assert result is True
+        assert dst.exists()
+        with Image.open(dst) as img:
+            w, h = img.size
+        assert w < h, f"橫向圖片應裁切為直向，實際尺寸: {w}×{h}"
+
+    def test_crop_to_poster_square(self, tmp_path):
+        """500×500 方形 → 置中裁切，ratio ≈ 2:3"""
+        src = _make_test_image(tmp_path, 500, 500, "cover_sq.jpg")
+        dst = tmp_path / "poster_sq.jpg"
+
+        result = crop_to_poster(str(src), str(dst))
+
+        assert result is True
+        assert dst.exists()
+        with Image.open(dst) as img:
+            w, h = img.size
+        ratio = h / w
+        assert 1.4 <= ratio <= 1.6, f"方形裁切後比例應約 1.5，實際: {ratio:.3f} ({w}×{h})"
+
+    def test_crop_to_poster_portrait(self, tmp_path):
+        """380×538 直向 → 直接複製，不裁切（尺寸應不變）"""
+        src = _make_test_image(tmp_path, 380, 538, "cover_pt.jpg")
+        dst = tmp_path / "poster_pt.jpg"
+
+        result = crop_to_poster(str(src), str(dst))
+
+        assert result is True
+        assert dst.exists()
+        with Image.open(dst) as img:
+            w, h = img.size
+        assert (w, h) == (380, 538), f"直向圖片應直接複製（不裁切），實際尺寸: {w}×{h}"
+
+
+class TestOrganizeJellyfinMode:
+    """organize_file() jellyfin_mode 開/關 的整合測試"""
+
+    def test_organize_jellyfin_mode_on(self, tmp_path):
+        """jellyfin_mode=True → 產生 cover + fanart + poster 共 3 個圖片檔"""
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"fake mp4")
+
+        config = _make_jellyfin_config(jellyfin_mode=True)
+        metadata = {
+            "number": "SONE-205",
+            "title": "Test Title",
+            "actors": [],
+            "tags": [],
+            "maker": "S1",
+            "date": "2024-01-15",
+            "cover": "http://fake/cover.jpg",
+            "url": "",
+        }
+
+        with patch("core.organizer.download_image", side_effect=_mock_download_image_write_jpeg):
+            result = organize_file(str(src), metadata, config)
+
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+        assert result.get("cover_path") is not None, "未產生 cover_path"
+        assert result.get("fanart_path") is not None, "jellyfin_mode=True 應產生 fanart_path"
+        assert result.get("poster_path") is not None, "jellyfin_mode=True 應產生 poster_path"
+        assert Path(result["fanart_path"]).exists(), "fanart 檔案不存在"
+        assert Path(result["poster_path"]).exists(), "poster 檔案不存在"
+
+    def test_organize_jellyfin_mode_off(self, tmp_path):
+        """jellyfin_mode=False → 只產生主封面，不產生 fanart/poster"""
+        src = tmp_path / "SONE-205-B.mp4"
+        src.write_bytes(b"fake mp4")
+
+        config = _make_jellyfin_config(jellyfin_mode=False)
+        metadata = {
+            "number": "SONE-205",
+            "title": "Test Title B",
+            "actors": [],
+            "tags": [],
+            "maker": "S1",
+            "date": "2024-01-15",
+            "cover": "http://fake/cover.jpg",
+            "url": "",
+        }
+
+        with patch("core.organizer.download_image", side_effect=_mock_download_image_write_jpeg):
+            result = organize_file(str(src), metadata, config)
+
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+        assert result.get("cover_path") is not None, "應產生主封面 cover_path"
+        assert result.get("fanart_path") is None, "jellyfin_mode=False 不應產生 fanart_path"
+        assert result.get("poster_path") is None, "jellyfin_mode=False 不應產生 poster_path"
+
+
+class TestNfoPosterTag:
+    """generate_nfo() <poster> tag 正確性測試"""
+
+    def test_nfo_poster_tag_fixed(self, tmp_path):
+        """不論 jellyfin_mode，<poster> 不再指向 .png（舊 bug 確認修復）"""
+        nfo_path = tmp_path / "SONE-205.nfo"
+
+        result = generate_nfo(
+            number="SONE-205",
+            title="Test Title",
+            output_path=str(nfo_path),
+            has_poster=False,
+            has_fanart=False,
+        )
+
+        assert result is True
+        content = nfo_path.read_text(encoding="utf-8")
+        assert "<poster>SONE-205.jpg</poster>" in content, \
+            f"<poster> 應指向 .jpg（不帶後綴），實際內容包含: {[l for l in content.split(chr(10)) if 'poster' in l.lower()]}"
+        assert ".png" not in content, "<poster> 不應包含 .png（T6c 修復）"
+
+    def test_nfo_jellyfin_mode_tags(self, tmp_path):
+        """jellyfin_mode=True → <poster> 指向 -poster.jpg，<fanart> 指向 -fanart.jpg"""
+        nfo_path = tmp_path / "SONE-205.nfo"
+
+        result = generate_nfo(
+            number="SONE-205",
+            title="Test Title",
+            output_path=str(nfo_path),
+            has_poster=True,
+            has_fanart=True,
+        )
+
+        assert result is True
+        content = nfo_path.read_text(encoding="utf-8")
+        assert "<poster>SONE-205-poster.jpg</poster>" in content, \
+            f"jellyfin_mode 時 <poster> 應指向 -poster.jpg"
+        assert "<fanart>SONE-205-fanart.jpg</fanart>" in content, \
+            f"jellyfin_mode 時 <fanart> 應指向 -fanart.jpg"
 
 
 # ============ Config suffix_keywords 持久化測試 ============
