@@ -367,3 +367,34 @@
         font-size: 0.7rem;
     }
 }
+
+/* ==================== Suffix Tag 輸入 ==================== */
+
+.suffix-tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+
+.suffix-tag {
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+    color: var(--text-primary);
+    cursor: default;
+}
+
+.suffix-tag-remove {
+    cursor: pointer;
+    margin-left: 4px;
+    opacity: 0.5;
+}
+
+.suffix-tag-remove:hover {
+    opacity: 1;
+}
+
+.suffix-input-inline {
+    display: inline-flex;
+    gap: 2px;
+    align-items: center;
+}

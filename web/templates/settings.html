@@ -354,6 +354,33 @@
                         </div>
                     </div>
 
+                    <!-- 版本標記 -->
+                    <div class="settings-form-row">
+                        <label class="row-label">
+                            版本標記
+                            <small class="settings-hint">檔名含這些關鍵字時保留為 {suffix}</small>
+                        </label>
+                        <div class="flex-1 flex flex-col gap-1">
+                            <div class="suffix-tags-container">
+                                <template x-for="(kw, idx) in form.suffixKeywords" :key="idx">
+                                    <span class="badge badge-sm suffix-tag">
+                                        <span x-text="kw"></span>
+                                        <span class="suffix-tag-remove" @click="removeSuffix(idx)">&times;</span>
+                                    </span>
+                                </template>
+                                <div class="suffix-input-inline">
+                                    <input type="text" class="input input-bordered input-xs"
+                                        x-model="newSuffixInput"
+                                        placeholder="-4k"
+                                        @keydown.enter.prevent="addSuffix()"
+                                        style="width: 80px;">
+                                    <button class="btn btn-xs btn-outline" type="button"
+                                        @click="addSuffix()" :disabled="!newSuffixInput.trim()">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="settings-form-row">
                         <label class="row-label">檔案命名格式</label>
                         <div class="flex-1 flex flex-col gap-1">

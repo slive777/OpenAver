@@ -26,6 +26,7 @@ function settingsPage() {
             maxTitleLength: 80,
             maxFilenameLength: 200,
             videoExtensions: '.mp4, .avi, .mkv, .wmv, .rmvb, .flv, .mov, .m4v, .ts',
+            suffixKeywords: [],
 
             // Gallery
             avlistMode: 'image',
@@ -44,6 +45,7 @@ function settingsPage() {
         },
 
         // ===== UI State =====
+        newSuffixInput: '',
         ollamaStatus: '',
         modelStatus: '',
         geminiStatus: '',
@@ -97,14 +99,16 @@ function settingsPage() {
             { name: '{actors}', label: '女優(全)' },
             { name: '{maker}', label: '片商' },
             { name: '{date}', label: '日期' },
-            { name: '{year}', label: '年份' }
+            { name: '{year}', label: '年份' },
+            { name: '{suffix}', label: '後綴' },
         ],
         folderVariables: [
             { name: '{num}', label: '番號' },
             { name: '{actor}', label: '女優' },
             { name: '{maker}', label: '片商' },
             { name: '{title}', label: '標題' },
-            { name: '{year}', label: '年份' }
+            { name: '{year}', label: '年份' },
+            { name: '{suffix}', label: '後綴' },
         ],
         FOLDER_PREVIEW_DATA: {
             num: 'SSNI-618',
@@ -113,7 +117,8 @@ function settingsPage() {
             actors: '三上悠亞, 明日花',
             title: '絕對領域',
             date: '2024-01-15',
-            year: '2024'
+            year: '2024',
+            suffix: '-4k',
         },
 
         // ===== Computed Properties =====
@@ -265,6 +270,7 @@ function settingsPage() {
                     this.form.maxTitleLength = config.scraper.max_title_length;
                     this.form.maxFilenameLength = config.scraper.max_filename_length;
                     this.form.videoExtensions = config.scraper.video_extensions.join(', ');
+                    this.form.suffixKeywords = config.scraper?.suffix_keywords || ['-cd1', '-cd2', '-4k', '-uc'];
 
                     // Gallery
                     this.form.avlistMode = config.gallery?.default_mode || 'image';
@@ -326,7 +332,8 @@ function settingsPage() {
                     max_title_length: this.form.maxTitleLength,
                     max_filename_length: this.form.maxFilenameLength,
                     video_extensions: this.form.videoExtensions
-                        .split(',').map(s => s.trim()).filter(s => s)
+                        .split(',').map(s => s.trim()).filter(s => s),
+                    suffix_keywords: this.form.suffixKeywords,
                 };
 
                 // 更新 search
@@ -715,6 +722,22 @@ function settingsPage() {
                 html = html.replaceAll(v.name, `<span class="tag-badge">${v.label}</span>`);
             }
             return html;
+        },
+
+        addSuffix() {
+            let kw = this.newSuffixInput.trim().toLowerCase();
+            if (!kw) return;
+            if (!kw.startsWith('-') && !kw.startsWith('_')) {
+                kw = '-' + kw;
+            }
+            if (!this.form.suffixKeywords.includes(kw)) {
+                this.form.suffixKeywords.push(kw);
+            }
+            this.newSuffixInput = '';
+        },
+
+        removeSuffix(idx) {
+            this.form.suffixKeywords.splice(idx, 1);
         },
 
         // Dirty check modal — 儲存更改後離開
