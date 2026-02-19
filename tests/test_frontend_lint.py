@@ -440,3 +440,23 @@ class TestOpenLocalGuard:
         content = html_file.read_text(encoding='utf-8')
         assert 'copyLocalPath(' not in content, \
             "search.html 仍包含 copyLocalPath( — T5b 應已將其改為 openLocal()"
+
+    def test_open_local_checks_return_value(self):
+        """openLocal() 的 .then() 必須檢查 open_folder 回傳值（不能無條件當成功）"""
+        for js_file in [
+            PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "result-card.js",
+            PROJECT_ROOT / "web" / "static" / "js" / "pages" / "showcase" / "core.js",
+        ]:
+            content = js_file.read_text(encoding='utf-8')
+            assert '.then(async (opened)' in content, \
+                f"{js_file.name} openLocal() 的 .then() 缺少 opened 參數檢查"
+
+    def test_open_local_cross_platform_path(self):
+        """openLocal() 必須偵測 Windows drive letter 而非一律轉反斜線"""
+        for js_file in [
+            PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "result-card.js",
+            PROJECT_ROOT / "web" / "static" / "js" / "pages" / "showcase" / "core.js",
+        ]:
+            content = js_file.read_text(encoding='utf-8')
+            assert 'displayPath' in content, \
+                f"{js_file.name} openLocal() 缺少跨平台路徑格式偵測（displayPath）"

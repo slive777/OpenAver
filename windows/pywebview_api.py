@@ -160,14 +160,16 @@ class Api:
             if sys.platform == 'win32':
                 # /select, 會打開資料夾並選中該檔案
                 subprocess.Popen(['explorer', '/select,', path])
+                return True
             elif sys.platform == 'darwin':
                 # -R 會在 Finder 中顯示並選中該檔案
-                subprocess.run(['open', '-R', path])
+                result = subprocess.run(['open', '-R', path])
+                return result.returncode == 0
             else:
                 # Linux: 開啟所在資料夾
                 folder = os.path.dirname(path) if os.path.isfile(path) else path
-                subprocess.run(['xdg-open', folder])
-            return True
+                result = subprocess.run(['xdg-open', folder])
+                return result.returncode == 0
         except Exception:
             return False
 

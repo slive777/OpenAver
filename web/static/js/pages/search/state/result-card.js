@@ -194,27 +194,33 @@ window.SearchStateMixin_ResultCard = {
         // 1. 擷取資料夾路徑
         const lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
         const folder = lastSlash >= 0 ? path.substring(0, lastSlash) : path;
-        const winPath = folder.replace(/^file:\/\/\/?/, '').replace(/\//g, '\\');
+        // 跨平台路徑格式：Windows drive letter → 反斜線，其他 → 保留原格式
+        const stripped = folder.replace(/^file:\/\/\/?/, '');
+        const displayPath = /^[A-Za-z]:/.test(stripped) ? stripped.replace(/\//g, '\\') : stripped;
 
         // 2. 複製到剪貼簿
-        const clipboardOk = navigator.clipboard.writeText(winPath)
+        const clipboardOk = navigator.clipboard.writeText(displayPath)
             .then(() => true)
             .catch(() => false);
 
         // 3. PyWebView 桌面模式：額外開啟資料夾
         if (window.pywebview?.api?.open_folder) {
             window.pywebview.api.open_folder(path)
-                .then(async () => {
+                .then(async (opened) => {
                     const ok = await clipboardOk;
-                    this.showToast(ok ? '已開啟資料夾（路徑已複製）' : '已開啟資料夾', 'success');
+                    if (opened) {
+                        this.showToast(ok ? '已開啟資料夾（路徑已複製）' : '已開啟資料夾', 'success');
+                    } else {
+                        this.showToast(ok ? '已複製: ' + displayPath : '開啟資料夾失敗', ok ? 'success' : 'error');
+                    }
                 })
                 .catch(async () => {
                     const ok = await clipboardOk;
-                    this.showToast(ok ? '已複製: ' + winPath : '開啟資料夾失敗', ok ? 'success' : 'error');
+                    this.showToast(ok ? '已複製: ' + displayPath : '開啟資料夾失敗', ok ? 'success' : 'error');
                 });
         } else {
             clipboardOk.then(ok => {
-                this.showToast(ok ? '已複製: ' + winPath : '複製失敗', ok ? 'success' : 'error');
+                this.showToast(ok ? '已複製: ' + displayPath : '複製失敗', ok ? 'success' : 'error');
             });
         }
     },
