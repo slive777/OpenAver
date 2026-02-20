@@ -20,7 +20,7 @@ def client(temp_db, monkeypatch):
         return {
             "gallery": {
                 "directories": [
-                    "E:/media",
+                    "/home/user/media",
                     "C:/Videos",
                     "D:/AV",
                     "//NAS/share",
@@ -45,7 +45,7 @@ def populated_db(temp_db):
     # 插入測試影片資料
     videos = [
         Video(
-            path="file:///E:/media/SONE-205.mp4",
+            path="file:////home/user/media/SONE-205.mp4",
             number="SONE-205",
             title="Test Video 1",
             original_title="テストビデオ1",
@@ -54,7 +54,7 @@ def populated_db(temp_db):
             release_date="2024-01-15",
             tags=["単体作品", "ハイビジョン", "独占配信"],
             size_bytes=3145728000,
-            cover_path="file:///E:/media/SONE-205/poster.jpg",
+            cover_path="file:////home/user/media/SONE-205/poster.jpg",
             mtime=1705276800.0  # 2024-01-15 00:00:00 UTC
         ),
         Video(
@@ -165,7 +165,7 @@ class TestShowcaseVideosAPI:
         assert "mtime" in video1
 
     def test_cover_url_conversion_unix_path(self, client, populated_db, monkeypatch):
-        """測試 cover_url 正確轉換（Unix 路徑）"""
+        """測試 cover_url 正確轉換（Unix 路徑）— 使用真實 Unix 路徑，CI 環境無關"""
         from urllib.parse import unquote
 
         def mock_get_db_path():
@@ -175,8 +175,7 @@ class TestShowcaseVideosAPI:
         response = client.get("/api/showcase/videos")
         data = response.json()
 
-        # 第一筆：file:///E:/media/SONE-205/poster.jpg
-        # WSL 環境 normalize_path 會轉為 /mnt/e/media/SONE-205/poster.jpg
+        # 第一筆：file:////home/user/media/SONE-205/poster.jpg（真實 Unix 路徑，4 斜線）
         video1 = data["videos"][0]
         assert video1["cover_url"].startswith("/api/gallery/image?path=")
 
@@ -184,7 +183,7 @@ class TestShowcaseVideosAPI:
         path_param = video1["cover_url"].split("path=")[1]
         decoded_path = unquote(path_param)
 
-        # 驗證前導 / 保留（不是相對路徑 mnt/media/...）
+        # Unix 路徑必須以 / 開頭
         assert decoded_path.startswith("/"), f"Unix 路徑前導 / 丟失: {decoded_path}"
         assert "SONE-205" in decoded_path
         # URL encoded，路徑分隔符 / 會變成 %2F
@@ -395,11 +394,11 @@ class TestShowcaseDirectoryFiltering:
             return populated_db
         monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
 
-        # 只設定 E:/media，不包含 C:/Videos、D:/AV、//NAS/share
+        # 只設定 /home/user/media，不包含 C:/Videos、D:/AV、//NAS/share
         def mock_load_config():
             return {
                 "gallery": {
-                    "directories": ["E:/media"],
+                    "directories": ["/home/user/media"],
                     "path_mappings": {},
                 }
             }
