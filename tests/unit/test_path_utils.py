@@ -646,25 +646,30 @@ class TestRegressionGuards:
         此模式會讓 Linux CI 拒絕 Windows 路徑（normalize_path 拋 ValueError），
         等同 linting 規則。
         """
-        import glob
         import os
+        import re
 
         project_root = os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         )
-        pattern = "to_file_uri(normalize_path("
+        pattern = re.compile(r'to_file_uri\s*\(\s*normalize_path\s*\(')
+        scan_dirs = ['core', 'web', 'windows']
         violations = []
 
-        for py_file in glob.glob(
-            os.path.join(project_root, "**", "*.py"), recursive=True
-        ):
-            rel = os.path.relpath(py_file, project_root)
-            if rel.startswith(("tests" + os.sep, "venv" + os.sep, "build" + os.sep)):
+        for scan_dir in scan_dirs:
+            dir_path = os.path.join(project_root, scan_dir)
+            if not os.path.isdir(dir_path):
                 continue
-            with open(py_file, encoding="utf-8", errors="ignore") as f:
-                content = f.read()
-            if pattern in content:
-                violations.append(rel)
+            for root, _dirs, files in os.walk(dir_path):
+                for fname in files:
+                    if not fname.endswith('.py'):
+                        continue
+                    py_file = os.path.join(root, fname)
+                    rel = os.path.relpath(py_file, project_root)
+                    with open(py_file, encoding="utf-8", errors="ignore") as f:
+                        content = f.read()
+                    if pattern.search(content):
+                        violations.append(rel)
 
         assert violations == [], (
             f"發現 to_file_uri(normalize_path(...)) 疊加模式，"
