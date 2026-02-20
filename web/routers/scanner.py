@@ -196,7 +196,7 @@ def generate_avlist() -> Generator[str, None, None]:
         configured_dir_uris = set()
         for d in directories:
             try:
-                configured_dir_uris.add(to_file_uri(normalize_path(d), path_mappings))
+                configured_dir_uris.add(to_file_uri(d, path_mappings))
             except ValueError:
                 continue
 

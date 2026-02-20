@@ -615,3 +615,58 @@ class TestUriToFsPath:
         monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'linux')
         result = path_utils.uri_to_fs_path('file:///home/user/%E5%BD%B1%E7%89%87/test.mp4')
         assert result == '/home/user/影片/test.mp4'
+
+
+# ============ 回歸守衛測試（Phase 29 踩過的坑） ============
+
+class TestRegressionGuards:
+    """回歸守衛測試 — 防止已修復的錯誤模式重新出現"""
+
+    def test_to_file_uri_windows_path_any_platform(self):
+        """T2 回歸守衛：to_file_uri() 接受 Windows 路徑，不依賴 normalize_path()
+
+        根因：showcase.py 原本用 to_file_uri(normalize_path(d))，
+        Linux CI 下 normalize_path("E:/media") 拋 ValueError，
+        導致所有 directory 被 skip、11 個測試失敗。
+        """
+        result = path_utils.to_file_uri("E:/media")
+        assert result == "file:///E:/media"
+
+    def test_to_file_uri_unc_path_any_platform(self):
+        """UNC 正斜線直通守衛：to_file_uri() 接受正斜線 UNC，任何平台皆可
+
+        確保 //IP/share 格式在 Linux CI 和 Windows prod 都能正確轉換。
+        """
+        result = path_utils.to_file_uri("//192.168.1.177/share")
+        assert result == "file://///192.168.1.177/share"
+
+    def test_no_normalize_before_to_file_uri(self):
+        """靜態掃描守衛：確認專案中沒有 to_file_uri(normalize_path(...)) 疊加模式
+
+        此模式會讓 Linux CI 拒絕 Windows 路徑（normalize_path 拋 ValueError），
+        等同 linting 規則。
+        """
+        import glob
+        import os
+
+        project_root = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
+        pattern = "to_file_uri(normalize_path("
+        violations = []
+
+        for py_file in glob.glob(
+            os.path.join(project_root, "**", "*.py"), recursive=True
+        ):
+            rel = os.path.relpath(py_file, project_root)
+            if rel.startswith(("tests" + os.sep, "venv" + os.sep, "build" + os.sep)):
+                continue
+            with open(py_file, encoding="utf-8", errors="ignore") as f:
+                content = f.read()
+            if pattern in content:
+                violations.append(rel)
+
+        assert violations == [], (
+            f"發現 to_file_uri(normalize_path(...)) 疊加模式，"
+            f"請改用 to_file_uri(d, path_mappings)：{violations}"
+        )
