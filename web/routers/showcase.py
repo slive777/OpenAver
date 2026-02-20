@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.database import VideoRepository, get_db_path, init_db
-from core.path_utils import normalize_path, to_file_uri, is_path_under_dir, uri_to_fs_path
+from core.path_utils import to_file_uri, is_path_under_dir, uri_to_fs_path
 from core.logger import get_logger
 from web.routers.config import load_config
 
@@ -48,7 +48,7 @@ async def get_videos():
         configured_dir_uris = set()
         for d in directories:
             try:
-                configured_dir_uris.add(to_file_uri(normalize_path(d), path_mappings))
+                configured_dir_uris.add(to_file_uri(d, path_mappings))
             except ValueError:
                 continue
 

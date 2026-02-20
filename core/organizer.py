@@ -549,7 +549,11 @@ def organize_file(
     try:
         # 建立資料夾
         if config.get('create_folder', True):
-            os.makedirs(target_dir, exist_ok=True)
+            try:
+                os.makedirs(target_dir, exist_ok=True)
+            except PermissionError:
+                result['error'] = '無法建立資料夾，請確認目標路徑的寫入權限'
+                return result
             result['new_folder'] = target_dir
 
         # 移動並重命名檔案
@@ -609,6 +613,7 @@ def organize_file(
         result['success'] = True
 
     except Exception as e:
-        result['error'] = str(e)
+        logger.exception("organize_file 失敗: %s → %s", file_path, target_dir)
+        result['error'] = '檔案整理失敗，請查看日誌'
 
     return result

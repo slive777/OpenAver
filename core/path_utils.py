@@ -109,16 +109,24 @@ def to_windows_path(path: str) -> str:
     支援輸入：
     - /mnt/c/Users/... → C:\\Users\\...
     - C:\\Users\\... → C:\\Users\\... (不變)
+    - C:/Users/... → C:\\Users\\... (正斜線轉反斜線)
     - \\\\NAS\\share\\... → \\\\NAS\\share\\... (不變)
+    - //192.168.1.177/share/... → \\\\192.168.1.177\\share\\... (UNC 正斜線)
     - /home/... → \\\\wsl.localhost\\<distro>\\home\\... (需要知道 distro)
     """
     # 已經是 Windows 路徑
     if len(path) >= 2 and path[1] == ':':
-        return path
+        return path.replace('/', '\\')
 
     # UNC/SMB 路徑，不用轉換
     if path.startswith('\\\\'):
         return path
+
+    # UNC/SMB 正斜線格式：//server/share/... → \\server\share\...
+    # 先正規化成恆定 2 個前導斜線（防禦 ////server/... 異常輸入）
+    if path.startswith('//'):
+        normalized = '//' + path.lstrip('/')
+        return normalized.replace('/', '\\')
 
     # WSL mount 路徑: /mnt/c/... → C:\...
     match = re.match(r'^/mnt/([a-z])(/.*)?$', path)

@@ -208,6 +208,21 @@ class TestToWindowsPath:
         with pytest.raises(ValueError, match='無法存取 Unix 路徑'):
             path_utils.to_windows_path('/etc/passwd')
 
+    def test_unc_forward_slash_ip(self):
+        """正斜線 UNC + IP 位址轉反斜線"""
+        result = path_utils.to_windows_path('//192.168.1.177/media/video.mp4')
+        assert result == r'\\192.168.1.177\media\video.mp4'
+
+    def test_unc_extra_leading_slashes(self):
+        """多餘前導斜線先正規化再轉反斜線"""
+        result = path_utils.to_windows_path('////server/share/file.mp4')
+        assert result == r'\\server\share\file.mp4'
+
+    def test_drive_letter_forward_slash(self):
+        """C:/... 正斜線轉反斜線"""
+        result = path_utils.to_windows_path('C:/Users/peace/video.mp4')
+        assert result == r'C:\Users\peace\video.mp4'
+
 
 # ============ TestToUnixPath ============
 
@@ -490,8 +505,8 @@ class TestNormalizePathEdgeCases:
         """Windows 環境下，URL-encoded 路徑原樣通過（C:/My%20Videos/...）"""
         monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
         result = path_utils.normalize_path('C:/My%20Videos/test.mp4')
-        # to_windows_path 偵測到 path[1]==':' → 原樣回傳（未解 URL encoding）
-        assert result == 'C:/My%20Videos/test.mp4'
+        # to_windows_path 偵測到 path[1]==':' → 轉反斜線回傳（未解 URL encoding）
+        assert result == 'C:\\My%20Videos\\test.mp4'
 
     def test_normalize_path_unc(self, monkeypatch):
         """Windows 環境下，UNC 路徑原樣通過（\\\\server\\share\\...）"""
@@ -536,10 +551,10 @@ class TestUriToFsPath:
     """測試 uri_to_fs_path() — file:/// URI → 檔案系統路徑"""
 
     def test_windows_drive_letter(self, monkeypatch):
-        """Windows drive-letter: file:///C:/Videos/test.mp4 → C:/Videos/test.mp4（Windows 環境）"""
+        """Windows drive-letter: file:///C:/Videos/test.mp4 → C:\\Videos\\test.mp4（Windows 環境）"""
         monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
         result = path_utils.uri_to_fs_path('file:///C:/Videos/test.mp4')
-        assert result == 'C:/Videos/test.mp4'
+        assert result == 'C:\\Videos\\test.mp4'
 
     def test_unix_path_linux(self, monkeypatch):
         """Unix path: file:///home/user/test.mp4 → /home/user/test.mp4（Linux 環境）"""
@@ -554,10 +569,10 @@ class TestUriToFsPath:
         assert result == '/mnt/c/Videos/test.mp4'
 
     def test_url_encoded_spaces(self, monkeypatch):
-        """URL decode: file:///C:/My%20Videos/test.mp4 → C:/My Videos/test.mp4（Windows 環境）"""
+        """URL decode: file:///C:/My%20Videos/test.mp4 → C:\\My Videos\\test.mp4（Windows 環境）"""
         monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
         result = path_utils.uri_to_fs_path('file:///C:/My%20Videos/test.mp4')
-        assert result == 'C:/My Videos/test.mp4'
+        assert result == 'C:\\My Videos\\test.mp4'
 
     def test_non_file_uri_passthrough(self, monkeypatch):
         """非 file:/// 輸入原樣通過 normalize_path（Linux 環境）"""
@@ -574,14 +589,89 @@ class TestUriToFsPath:
         assert result == 'C:/Videos/test.mp4'
 
     def test_unc_path(self, monkeypatch):
-        """UNC path: file://///server/share/test.mp4 → //server/share/test.mp4（Windows 環境）"""
+        """UNC path: file://///server/share/test.mp4 → \\\\server\\share\\test.mp4（Windows 環境）"""
         monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
         result = path_utils.uri_to_fs_path('file://///server/share/test.mp4')
-        # 剝除 file:/// → //server/share/test.mp4，已有 // 前導，不補 /
-        assert result == '//server/share/test.mp4'
+        # 剝除 file:/// → //server/share/test.mp4，to_windows_path 轉換為 \\server\share\test.mp4
+        assert result == '\\\\server\\share\\test.mp4'
+
+    def test_unc_ip_windows_env(self, monkeypatch):
+        """UNC IP URI 在 Windows 環境轉為反斜線 UNC 路徑"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
+        result = path_utils.uri_to_fs_path('file://///192.168.1.177/media/video.mp4')
+        assert result == r'\\192.168.1.177\media\video.mp4'
+
+    def test_unc_roundtrip(self, monkeypatch):
+        """to_file_uri → uri_to_fs_path 雙向轉換應還原原始 UNC 路徑（Windows env）"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
+        unc_path = r'\\server\share\video.mp4'
+        uri = path_utils.to_file_uri(unc_path)
+        assert uri == 'file://///server/share/video.mp4'
+        result = path_utils.uri_to_fs_path(uri)
+        assert result == unc_path
 
     def test_url_encoded_cjk(self, monkeypatch):
         """URL decode CJK: file:///home/user/%E5%BD%B1%E7%89%87/test.mp4 → /home/user/影片/test.mp4"""
         monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'linux')
         result = path_utils.uri_to_fs_path('file:///home/user/%E5%BD%B1%E7%89%87/test.mp4')
         assert result == '/home/user/影片/test.mp4'
+
+
+# ============ 回歸守衛測試（Phase 29 踩過的坑） ============
+
+class TestRegressionGuards:
+    """回歸守衛測試 — 防止已修復的錯誤模式重新出現"""
+
+    def test_to_file_uri_windows_path_any_platform(self):
+        """T2 回歸守衛：to_file_uri() 接受 Windows 路徑，不依賴 normalize_path()
+
+        根因：showcase.py 原本用 to_file_uri(normalize_path(d))，
+        Linux CI 下 normalize_path("E:/media") 拋 ValueError，
+        導致所有 directory 被 skip、11 個測試失敗。
+        """
+        result = path_utils.to_file_uri("E:/media")
+        assert result == "file:///E:/media"
+
+    def test_to_file_uri_unc_path_any_platform(self):
+        """UNC 正斜線直通守衛：to_file_uri() 接受正斜線 UNC，任何平台皆可
+
+        確保 //IP/share 格式在 Linux CI 和 Windows prod 都能正確轉換。
+        """
+        result = path_utils.to_file_uri("//192.168.1.177/share")
+        assert result == "file://///192.168.1.177/share"
+
+    def test_no_normalize_before_to_file_uri(self):
+        """靜態掃描守衛：確認專案中沒有 to_file_uri(normalize_path(...)) 疊加模式
+
+        此模式會讓 Linux CI 拒絕 Windows 路徑（normalize_path 拋 ValueError），
+        等同 linting 規則。
+        """
+        import os
+        import re
+
+        project_root = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        )
+        pattern = re.compile(r'to_file_uri\s*\(\s*normalize_path\s*\(')
+        scan_dirs = ['core', 'web', 'windows']
+        violations = []
+
+        for scan_dir in scan_dirs:
+            dir_path = os.path.join(project_root, scan_dir)
+            if not os.path.isdir(dir_path):
+                continue
+            for root, _dirs, files in os.walk(dir_path):
+                for fname in files:
+                    if not fname.endswith('.py'):
+                        continue
+                    py_file = os.path.join(root, fname)
+                    rel = os.path.relpath(py_file, project_root)
+                    with open(py_file, encoding="utf-8", errors="ignore") as f:
+                        content = f.read()
+                    if pattern.search(content):
+                        violations.append(rel)
+
+        assert violations == [], (
+            f"發現 to_file_uri(normalize_path(...)) 疊加模式，"
+            f"請改用 to_file_uri(d, path_mappings)：{violations}"
+        )
