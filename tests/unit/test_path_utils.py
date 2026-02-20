@@ -208,6 +208,21 @@ class TestToWindowsPath:
         with pytest.raises(ValueError, match='無法存取 Unix 路徑'):
             path_utils.to_windows_path('/etc/passwd')
 
+    def test_unc_forward_slash_ip(self):
+        """正斜線 UNC + IP 位址轉反斜線"""
+        result = path_utils.to_windows_path('//192.168.1.177/media/video.mp4')
+        assert result == r'\\192.168.1.177\media\video.mp4'
+
+    def test_unc_extra_leading_slashes(self):
+        """多餘前導斜線先正規化再轉反斜線"""
+        result = path_utils.to_windows_path('////server/share/file.mp4')
+        assert result == r'\\server\share\file.mp4'
+
+    def test_drive_letter_forward_slash(self):
+        """C:/... 正斜線轉反斜線"""
+        result = path_utils.to_windows_path('C:/Users/peace/video.mp4')
+        assert result == r'C:\Users\peace\video.mp4'
+
 
 # ============ TestToUnixPath ============
 
@@ -490,8 +505,8 @@ class TestNormalizePathEdgeCases:
         """Windows 環境下，URL-encoded 路徑原樣通過（C:/My%20Videos/...）"""
         monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
         result = path_utils.normalize_path('C:/My%20Videos/test.mp4')
-        # to_windows_path 偵測到 path[1]==':' → 原樣回傳（未解 URL encoding）
-        assert result == 'C:/My%20Videos/test.mp4'
+        # to_windows_path 偵測到 path[1]==':' → 轉反斜線回傳（未解 URL encoding）
+        assert result == 'C:\\My%20Videos\\test.mp4'
 
     def test_normalize_path_unc(self, monkeypatch):
         """Windows 環境下，UNC 路徑原樣通過（\\\\server\\share\\...）"""
@@ -536,10 +551,10 @@ class TestUriToFsPath:
     """測試 uri_to_fs_path() — file:/// URI → 檔案系統路徑"""
 
     def test_windows_drive_letter(self, monkeypatch):
-        """Windows drive-letter: file:///C:/Videos/test.mp4 → C:/Videos/test.mp4（Windows 環境）"""
+        """Windows drive-letter: file:///C:/Videos/test.mp4 → C:\\Videos\\test.mp4（Windows 環境）"""
         monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
         result = path_utils.uri_to_fs_path('file:///C:/Videos/test.mp4')
-        assert result == 'C:/Videos/test.mp4'
+        assert result == 'C:\\Videos\\test.mp4'
 
     def test_unix_path_linux(self, monkeypatch):
         """Unix path: file:///home/user/test.mp4 → /home/user/test.mp4（Linux 環境）"""
@@ -554,10 +569,10 @@ class TestUriToFsPath:
         assert result == '/mnt/c/Videos/test.mp4'
 
     def test_url_encoded_spaces(self, monkeypatch):
-        """URL decode: file:///C:/My%20Videos/test.mp4 → C:/My Videos/test.mp4（Windows 環境）"""
+        """URL decode: file:///C:/My%20Videos/test.mp4 → C:\\My Videos\\test.mp4（Windows 環境）"""
         monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
         result = path_utils.uri_to_fs_path('file:///C:/My%20Videos/test.mp4')
-        assert result == 'C:/My Videos/test.mp4'
+        assert result == 'C:\\My Videos\\test.mp4'
 
     def test_non_file_uri_passthrough(self, monkeypatch):
         """非 file:/// 輸入原樣通過 normalize_path（Linux 環境）"""
@@ -574,11 +589,26 @@ class TestUriToFsPath:
         assert result == 'C:/Videos/test.mp4'
 
     def test_unc_path(self, monkeypatch):
-        """UNC path: file://///server/share/test.mp4 → //server/share/test.mp4（Windows 環境）"""
+        """UNC path: file://///server/share/test.mp4 → \\\\server\\share\\test.mp4（Windows 環境）"""
         monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
         result = path_utils.uri_to_fs_path('file://///server/share/test.mp4')
-        # 剝除 file:/// → //server/share/test.mp4，已有 // 前導，不補 /
-        assert result == '//server/share/test.mp4'
+        # 剝除 file:/// → //server/share/test.mp4，to_windows_path 轉換為 \\server\share\test.mp4
+        assert result == '\\\\server\\share\\test.mp4'
+
+    def test_unc_ip_windows_env(self, monkeypatch):
+        """UNC IP URI 在 Windows 環境轉為反斜線 UNC 路徑"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
+        result = path_utils.uri_to_fs_path('file://///192.168.1.177/media/video.mp4')
+        assert result == r'\\192.168.1.177\media\video.mp4'
+
+    def test_unc_roundtrip(self, monkeypatch):
+        """to_file_uri → uri_to_fs_path 雙向轉換應還原原始 UNC 路徑（Windows env）"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
+        unc_path = r'\\server\share\video.mp4'
+        uri = path_utils.to_file_uri(unc_path)
+        assert uri == 'file://///server/share/video.mp4'
+        result = path_utils.uri_to_fs_path(uri)
+        assert result == unc_path
 
     def test_url_encoded_cjk(self, monkeypatch):
         """URL decode CJK: file:///home/user/%E5%BD%B1%E7%89%87/test.mp4 → /home/user/影片/test.mp4"""
