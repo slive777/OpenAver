@@ -411,6 +411,44 @@ class TestShowcaseDirectoryFiltering:
         assert data["total"] == 1
         assert data["videos"][0]["number"] == "SONE-205"
 
+    def test_wsl_mount_path_filtering(self, client, temp_db, monkeypatch):
+        """WSL /mnt/c/ 設定值能正確匹配 DB 中的 file:///C:/ URI"""
+        repo = VideoRepository(temp_db)
+        repo.upsert_batch([
+            Video(
+                path="file:///C:/Videos/ABW-001.mp4",
+                number="ABW-001", title="WSL mount test",
+                actresses=["新ありな"], tags=[], size_bytes=0, mtime=0.0,
+            ),
+            Video(
+                path="file:///D:/AV/OTHER-001.mp4",
+                number="OTHER-001", title="Other drive",
+                actresses=[], tags=[], size_bytes=0, mtime=0.0,
+            ),
+        ])
+
+        def mock_get_db_path():
+            return temp_db
+        monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
+
+        # WSL 使用者設定 /mnt/c/Videos → to_file_uri 轉成 file:///C:/Videos
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": ["/mnt/c/Videos"],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.showcase.load_config", mock_load_config)
+
+        response = client.get("/api/showcase/videos")
+        data = response.json()
+
+        assert data["success"] is True
+        assert data["total"] == 1, f"應只命中 C:/Videos 底下的 1 筆，實際 {data['total']} 筆"
+        assert data["videos"][0]["number"] == "ABW-001"
+        assert "C:/Videos" in data["videos"][0]["path"], "回傳影片路徑應在 C:/Videos 底下"
+
     def test_prefix_collision_not_matched(self, client, temp_db, monkeypatch):
         """設定 E:/media 時，E:/media2 底下的影片不應被混入（前綴碰撞回歸測試）"""
         # 插入兩筆：一筆在 E:/media，一筆在 E:/media2（前綴碰撞候選）
