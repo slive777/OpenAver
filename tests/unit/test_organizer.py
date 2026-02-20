@@ -466,6 +466,91 @@ class TestOrganizeFallback:
         )
 
 
+# ============ organize_file() 錯誤處理測試 (T4 安全修正) ============
+
+class TestOrganizeErrorHandling:
+    """organize_file() 錯誤訊息安全性測試 — 確認固定訊息，不洩漏內部細節"""
+
+    def test_permission_error_returns_fixed_message(self, tmp_path):
+        """
+        os.makedirs 拋出 PermissionError 時：
+        - result['success'] == False（保持預設值）
+        - result['error'] 是固定中文訊息，不含 traceback 或 exception 字串
+        """
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"test")
+
+        config = {
+            "create_folder": True,
+            "folder_layers": ["{actor}"],
+            "filename_format": "[{num}] {title}",
+            "download_cover": False,
+            "cover_filename": "poster.jpg",
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+        metadata = {
+            "number": "SONE-205",
+            "title": "Test Title",
+            "actors": ["三上悠亞"],
+            "tags": [],
+            "maker": "S1",
+            "date": "2024-01-15",
+            "cover": "",
+            "url": "",
+        }
+
+        with patch("core.organizer.os.makedirs", side_effect=PermissionError("access denied")):
+            result = organize_file(str(src), metadata, config)
+
+        assert result["success"] is False
+        assert result["error"] == "無法建立資料夾，請確認目標路徑的寫入權限"
+        # 確認不含原始 exception 字串（安全規範）
+        assert "access denied" not in (result["error"] or "")
+        assert "PermissionError" not in (result["error"] or "")
+
+    def test_general_exception_returns_fixed_message(self, tmp_path):
+        """
+        shutil.move 拋出一般 Exception 時：
+        - result['success'] == False（保持預設值）
+        - result['error'] 是固定訊息 '檔案整理失敗，請查看日誌'，不含原始 exception 字串
+        """
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"test")
+
+        config = {
+            "create_folder": False,
+            "filename_format": "[{num}] {title}",
+            "download_cover": False,
+            "cover_filename": "poster.jpg",
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+        metadata = {
+            "number": "SONE-205",
+            "title": "Test Title",
+            "actors": [],
+            "tags": [],
+            "maker": "S1",
+            "date": "2024-01-15",
+            "cover": "",
+            "url": "",
+        }
+
+        secret_msg = "internal disk error XYZ-9999"
+        with patch("core.organizer.shutil.move", side_effect=OSError(secret_msg)):
+            result = organize_file(str(src), metadata, config)
+
+        assert result["success"] is False
+        assert result["error"] == "檔案整理失敗，請查看日誌"
+        # 確認不含原始 exception 字串（安全規範）
+        assert secret_msg not in (result["error"] or "")
+        assert "OSError" not in (result["error"] or "")
+
 
 # ============ Jellyfin 圖片模式測試 (Fix-6) ============
 
