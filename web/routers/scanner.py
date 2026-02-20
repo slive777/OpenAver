@@ -1,16 +1,16 @@
 """
-AVList API 路由 - 影片列表生成
+Scanner API 路由 - 影片列表生成
 """
 
 import json
 import os
 import sys
-from urllib.parse import unquote
+from urllib.parse import unquote, quote
 from datetime import datetime
 from pathlib import Path
 from typing import Generator
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse, HTMLResponse, Response, FileResponse
 
 # 加入 core 模組路徑
@@ -290,7 +290,7 @@ def generate_avlist() -> Generator[str, None, None]:
         generator.generate(
             all_videos,
             str(html_path),
-            title="AV List",
+            title="OpenAver Scanner",
             mode=default_mode,
             sort=default_sort,
             order=default_order,
@@ -339,7 +339,7 @@ async def generate():
 
 @router.get("/stats")
 async def get_stats():
-    """取得 AVList 統計資訊（從 SQLite 讀取）"""
+    """取得 Scanner 統計資訊（從 SQLite 讀取）"""
     try:
         db_path = get_db_path()
 
@@ -584,6 +584,149 @@ async def get_image(path: str = Query(..., description="圖片路徑")):
     media_type = mime_types.get(ext, 'application/octet-stream')
 
     return FileResponse(local_path, media_type=media_type)
+
+
+ALLOWED_VIDEO_EXTENSIONS = {
+    '.mp4', '.avi', '.mkv', '.wmv', '.flv', '.mov',
+    '.rmvb', '.rm', '.mpg', '.mpeg', '.vob', '.ts',
+    '.m2ts', '.divx', '.asf', '.m4v', '.webm',
+}
+
+
+@router.get("/video")
+async def get_video(request: Request, path: str = Query(..., description="影片路徑（file:/// URI 或 FS 路徑）")):
+    """代理影片請求，解決瀏覽器無法開啟 file:/// URI 的問題"""
+    # URL decode
+    path = unquote(path)
+
+    # 1. 轉換為 FS 路徑
+    local_path = uri_to_fs_path(path)
+
+    # 2. 解析 .. 和 symlink，防止路徑穿越攻擊（必須在 ext 檢查前，避免 symlink 繞過）
+    local_path = os.path.realpath(local_path)
+
+    # 3. 副檔名白名單（用 realpath 解析後的真實路徑）
+    ext = os.path.splitext(local_path)[1].lower()
+    if ext not in ALLOWED_VIDEO_EXTENSIONS:
+        logger.warning("get_video: 拒絕非影片副檔名請求 ext=%s", ext)
+        return Response(status_code=403, content="不允許的檔案類型")
+
+    # 4. 目錄白名單：只允許 gallery.directories 底下的檔案
+    config = load_config()
+    gallery_config = config.get('gallery', {})
+    directories = gallery_config.get('directories', [])
+    path_mappings = gallery_config.get('path_mappings', {})
+
+    file_uri = to_file_uri(local_path, path_mappings)
+    allowed = any(
+        is_path_under_dir(file_uri, to_file_uri(d, path_mappings))
+        for d in directories
+    )
+    if not allowed:
+        logger.warning("get_video: 拒絕白名單外路徑請求 uri=%s", file_uri)
+        return Response(status_code=403, content="路徑不在允許的資料夾範圍內")
+
+    # 5. 檔案存在性
+    if not os.path.exists(local_path):
+        return Response(status_code=404, content="檔案不存在")
+
+    # 6. MIME 類型映射
+    video_mime = {
+        '.mp4': 'video/mp4', '.mkv': 'video/x-matroska',
+        '.avi': 'video/x-msvideo', '.wmv': 'video/x-ms-wmv',
+        '.mov': 'video/quicktime', '.flv': 'video/x-flv',
+        '.webm': 'video/webm', '.m4v': 'video/x-m4v',
+        '.ts': 'video/mp2t', '.m2ts': 'video/mp2t',
+        '.mpg': 'video/mpeg', '.mpeg': 'video/mpeg',
+    }
+    media_type = video_mime.get(ext, 'application/octet-stream')
+
+    # 7. Range request 支援（影片 seek 必要）
+    file_size = os.path.getsize(local_path)
+    range_header = request.headers.get("range")
+
+    if range_header:
+        import re
+        range_match = re.match(r'bytes=(\d+)-(\d*)', range_header)
+        if range_match:
+            start = int(range_match.group(1))
+            end = int(range_match.group(2)) if range_match.group(2) else file_size - 1
+            end = min(end, file_size - 1)
+
+            # 無效 Range：start 超出檔案大小或 start > end
+            if start >= file_size or start > end:
+                return Response(
+                    status_code=416,
+                    headers={"Content-Range": f"bytes */{file_size}"},
+                )
+
+            chunk_size = end - start + 1
+
+            def iter_file():
+                with open(local_path, 'rb') as f:
+                    f.seek(start)
+                    remaining = chunk_size
+                    while remaining > 0:
+                        read_size = min(remaining, 65536)
+                        data = f.read(read_size)
+                        if not data:
+                            break
+                        remaining -= len(data)
+                        yield data
+
+            return StreamingResponse(
+                iter_file(),
+                status_code=206,
+                media_type=media_type,
+                headers={
+                    "Content-Range": f"bytes {start}-{end}/{file_size}",
+                    "Accept-Ranges": "bytes",
+                    "Content-Length": str(chunk_size),
+                    "Content-Disposition": "inline",
+                },
+            )
+
+    # 無 Range：完整回傳
+    return FileResponse(
+        local_path, media_type=media_type,
+        headers={
+            "Content-Disposition": "inline",
+            "Accept-Ranges": "bytes",
+        },
+    )
+
+
+@router.get("/player")
+async def video_player(path: str = Query(..., description="影片路徑（file:/// URI 或 FS 路徑）")):
+    """影片播放頁面 — 用 HTML5 <video> 標籤在新分頁播放"""
+    from html import escape as html_escape
+    video_url = f"/api/gallery/video?path={quote(path, safe='')}"
+
+    # 從路徑取檔名作為標題（escape 防 XSS）
+    filename = path.rsplit('/', 1)[-1].rsplit('\\', 1)[-1]
+    if filename.startswith('file:'):
+        filename = 'Video Player'
+    filename = html_escape(filename)
+
+    # video_url 也做 HTML escape（防禦性，避免 src 屬性注入）
+    video_url_safe = html_escape(video_url)
+
+    html = f"""<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>{filename} - OpenAver</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ background: #000; display: flex; align-items: center; justify-content: center; height: 100vh; }}
+        video {{ max-width: 100%; max-height: 100vh; }}
+    </style>
+</head>
+<body>
+    <video controls autoplay src="{video_url_safe}"></video>
+</body>
+</html>"""
+    return HTMLResponse(content=html)
 
 
 # === 女優名稱管理 API ===

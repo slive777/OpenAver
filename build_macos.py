@@ -232,10 +232,10 @@ Requirements:
 - Apple Silicon (M1/M2/M3/M4)
 
 First Run - IMPORTANT:
-See MACOS_ALPHA_README.txt for setup instructions.
+See MACOS_README.txt for setup instructions.
 
 Notes:
-- This is an Alpha release. Please report issues!
+- Please report any issues on GitHub!
 - Config: app/web/config.json
 - GitHub: https://github.com/slive777/OpenAver/issues
 '''

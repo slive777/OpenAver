@@ -109,7 +109,7 @@ OpenAver 支援兩種翻譯提供商：
 | 平台 | 檔案 | 狀態 |
 |------|------|------|
 | **Windows x64** | `OpenAver-vX.X.X-Windows-x64.zip` | ✅ 穩定版 |
-| **macOS arm64** | `OpenAver-vX.X.X-macOS-arm64-alpha.zip` | 🧪 Alpha |
+| **macOS arm64** | `OpenAver-vX.X.X-macOS-arm64.zip` | ✅ 正式版 |
 
 ### macOS 首次執行（重要）
 
@@ -136,7 +136,7 @@ OpenAver 支援兩種翻譯提供商：
 
 > 💡 設定完成後，之後可直接雙擊 `OpenAver.command` 執行。
 
-> ⚠️ macOS 版本為 Alpha，僅支援 Apple Silicon (M1/M2/M3/M4)。
+> ℹ️ macOS 版本僅支援 Apple Silicon (M1/M2/M3/M4)。
 > 如遇問題請至 [GitHub Issues](https://github.com/slive777/OpenAver/issues) 回報。
 
 ---

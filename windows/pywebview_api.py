@@ -70,7 +70,7 @@ class Api:
                 file_path = os.path.join(folder_path, f)
                 if os.path.isfile(file_path) and is_video_file(f):
                     files.append(file_path)
-            # 返回資料夾路徑和檔案列表（AVList 用 folder，Search 用 files）
+            # 返回資料夾路徑和檔案列表（Scanner 用 folder，Search 用 files）
             return {"folder": folder_path, "files": files}
         return None
 
@@ -183,7 +183,7 @@ def on_drop(e):
 
     # 收集所有項目
     expanded_paths = []  # 影片檔案路徑（給 search 用）
-    folder_paths = []    # 資料夾路徑（給 avlist 用）
+    folder_paths = []    # 資料夾路徑（給 scanner 用）
 
     for file_info in files:
         win_path = file_info.get('pywebviewFullPath', '')
@@ -191,7 +191,7 @@ def on_drop(e):
             continue
 
         if os.path.isdir(win_path):
-            # 記錄資料夾路徑（給 avlist 用）
+            # 記錄資料夾路徑（給 scanner 用）
             folder_paths.append(win_path)
             # 資料夾：展開第一層影片檔案（給 search 用）
             for f in os.listdir(win_path):
@@ -207,7 +207,7 @@ def on_drop(e):
         paths_json = json.dumps(expanded_paths)
         window.evaluate_js(f'if(typeof handlePyWebViewDrop === "function") handlePyWebViewDrop({paths_json})')
 
-    # 傳送資料夾路徑（avlist 頁面用）
+    # 傳送資料夾路徑（scanner 頁面用）
     if folder_paths:
         folders_json = json.dumps(folder_paths)
         window.evaluate_js(f'if(typeof handleFolderDrop === "function") handleFolderDrop({folders_json})')

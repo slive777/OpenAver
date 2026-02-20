@@ -343,12 +343,15 @@ function showcaseState() {
         playVideo(path) {
             if (window.pywebview && window.pywebview.api) {
                 window.pywebview.api.open_file(path)
+                    .then(opened => {
+                        if (!opened) this.showToast('播放失敗', 'error');
+                    })
                     .catch(err => {
                         console.error('Failed to open file:', err);
-                        window.open(path, '_blank');
+                        this.showToast('播放失敗', 'error');
                     });
             } else {
-                window.open(path, '_blank');
+                window.open('/api/gallery/player?path=' + encodeURIComponent(path), '_blank');
             }
         },
 

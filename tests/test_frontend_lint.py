@@ -556,6 +556,61 @@ class TestPathContract:
         )
 
 
+class TestVideoPlaybackGuard:
+    """確認影片播放走 API proxy，不直接開 file:/// URI（瀏覽器安全策略會靜默阻擋）"""
+
+    def test_no_window_open_file_uri_in_js(self):
+        """前端 JS 不應有 window.open 搭配 file:/// URI（應走 /api/gallery/player）"""
+        js_dirs = [
+            PROJECT_ROOT / "web" / "static" / "js" / "pages",
+            PROJECT_ROOT / "web" / "static" / "js" / "components",
+        ]
+        # window.open(path  或 window.open(file:/// 或 location.href = path（且 path 含 file:）
+        pattern = r'window\.open\s*\(\s*path\s*,'
+        violations = []
+        for js_dir in js_dirs:
+            if not js_dir.exists():
+                continue
+            for js_file in js_dir.rglob("*.js"):
+                matches = find_pattern_in_file(js_file, pattern)
+                for line_num, line_content in matches:
+                    violations.append(
+                        f"{js_file.relative_to(PROJECT_ROOT)}:{line_num} — {line_content[:80]}"
+                    )
+        assert len(violations) == 0, (
+            f"發現 {len(violations)} 個 window.open(path, ...) 直接開啟路徑（瀏覽器會阻擋 file:/// URI）:\n"
+            + "\n".join(f"  - {v}" for v in violations)
+            + "\n\n提示：瀏覽器模式應使用 /api/gallery/player?path= 代理播放"
+        )
+
+    def test_showcase_uses_api_player(self):
+        """showcase/core.js 的 playVideo() 瀏覽器分支必須走 /api/gallery/player"""
+        js_file = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "showcase" / "core.js"
+        content = js_file.read_text(encoding='utf-8')
+        assert '/api/gallery/player' in content, \
+            "showcase/core.js 缺少 /api/gallery/player — 瀏覽器模式應走 API proxy 播放"
+
+    def test_video_api_endpoint_exists(self):
+        """scanner.py 包含 /api/gallery/video 和 /api/gallery/player endpoint"""
+        py_file = PROJECT_ROOT / "web" / "routers" / "scanner.py"
+        content = py_file.read_text(encoding='utf-8')
+        assert 'async def get_video(' in content, \
+            "scanner.py 缺少 get_video endpoint（影片代理 API）"
+        assert 'async def video_player(' in content, \
+            "scanner.py 缺少 video_player endpoint（HTML5 播放頁面）"
+
+    def test_video_api_has_security_checks(self):
+        """get_video() 必須包含 realpath + 目錄白名單 + 副檔名白名單"""
+        py_file = PROJECT_ROOT / "web" / "routers" / "scanner.py"
+        content = py_file.read_text(encoding='utf-8')
+        assert 'os.path.realpath' in content, \
+            "get_video 缺少 realpath（防路徑穿越）"
+        assert 'ALLOWED_VIDEO_EXTENSIONS' in content, \
+            "get_video 缺少副檔名白名單"
+        assert 'is_path_under_dir' in content, \
+            "get_video 缺少目錄白名單檢查"
+
+
 class TestSettingsSimplify:
     """T4a 守衛 — Settings 不再包含版本/更新 UI"""
 

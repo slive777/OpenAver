@@ -502,3 +502,183 @@ class TestShowcaseDirectoryFiltering:
 
         assert data["success"] is True
         assert data["total"] == 0
+
+
+class TestVideoProxy:
+    """測試 GET /api/gallery/video 影片代理"""
+
+    def test_allowed_path_returns_200(self, client, tmp_path, monkeypatch):
+        """白名單內的影片路徑回傳 200"""
+        video = tmp_path / "test.mp4"
+        video.write_bytes(b'\x00' * 100)
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(tmp_path)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        response = client.get(f"/api/gallery/video?path={str(video)}")
+        assert response.status_code == 200
+        assert "video" in response.headers["content-type"]
+
+    def test_outside_dir_returns_403(self, client, tmp_path, monkeypatch):
+        """白名單外的路徑回傳 403"""
+        video = tmp_path / "test.mp4"
+        video.write_bytes(b'\x00' * 100)
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": ["/some/other/directory"],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        response = client.get(f"/api/gallery/video?path={str(video)}")
+        assert response.status_code == 403
+
+    def test_non_video_extension_returns_403(self, client, tmp_path, monkeypatch):
+        """非影片副檔名回傳 403"""
+        txt_file = tmp_path / "readme.txt"
+        txt_file.write_bytes(b'hello')
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(tmp_path)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        response = client.get(f"/api/gallery/video?path={str(txt_file)}")
+        assert response.status_code == 403
+
+    def test_not_found_returns_404(self, client, tmp_path, monkeypatch):
+        """檔案不存在回傳 404"""
+        nonexistent = tmp_path / "ghost.mp4"
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(tmp_path)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        response = client.get(f"/api/gallery/video?path={str(nonexistent)}")
+        assert response.status_code == 404
+
+    def test_range_request_returns_206(self, client, tmp_path, monkeypatch):
+        """Range request 回傳 206 Partial Content"""
+        video = tmp_path / "test.mp4"
+        video.write_bytes(b'\x00' * 1000)
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(tmp_path)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        response = client.get(
+            f"/api/gallery/video?path={str(video)}",
+            headers={"Range": "bytes=0-499"}
+        )
+        assert response.status_code == 206
+        assert response.headers["content-range"] == "bytes 0-499/1000"
+        assert len(response.content) == 500
+
+    def test_player_page_returns_html(self, client, tmp_path, monkeypatch):
+        """播放頁面回傳包含 <video> 標籤的 HTML"""
+        video = tmp_path / "test.mp4"
+        video.write_bytes(b'\x00' * 100)
+
+        response = client.get(f"/api/gallery/player?path={str(video)}")
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+        assert "<video" in response.text
+        assert "/api/gallery/video?path=" in response.text
+
+    def test_path_traversal_blocked(self, client, tmp_path, monkeypatch):
+        """路徑穿越 ../ 被 realpath 擋下回傳 403"""
+        # 建立 allowed_dir/sub/test.mp4
+        allowed_dir = tmp_path / "allowed"
+        allowed_dir.mkdir()
+        sub = allowed_dir / "sub"
+        sub.mkdir()
+        video = sub / "test.mp4"
+        video.write_bytes(b'\x00' * 100)
+
+        # 也在 tmp_path 根建立 secret.mp4（在 allowed_dir 之外）
+        secret = tmp_path / "secret.mp4"
+        secret.write_bytes(b'\x00' * 100)
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(allowed_dir)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        # 嘗試用 ../ 穿越到 allowed_dir 之外
+        traversal_path = str(allowed_dir / "sub" / ".." / ".." / "secret.mp4")
+        response = client.get(f"/api/gallery/video?path={traversal_path}")
+        assert response.status_code == 403, "路徑穿越應被 403 擋下"
+
+    def test_symlink_traversal_blocked(self, client, tmp_path, monkeypatch):
+        """symlink 穿越被 realpath 擋下回傳 403"""
+        # 建立 allowed_dir 和外部的 secret.mp4
+        allowed_dir = tmp_path / "allowed"
+        allowed_dir.mkdir()
+        secret = tmp_path / "secret.mp4"
+        secret.write_bytes(b'\x00' * 100)
+
+        # 在 allowed_dir 內建立指向 secret.mp4 的 symlink
+        symlink = allowed_dir / "link.mp4"
+        try:
+            symlink.symlink_to(secret)
+        except OSError:
+            pytest.skip("系統不支援 symlink")
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(allowed_dir)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        response = client.get(f"/api/gallery/video?path={str(symlink)}")
+        assert response.status_code == 403, "symlink 穿越應被 403 擋下"
+
+    def test_invalid_range_returns_416(self, client, tmp_path, monkeypatch):
+        """無效 Range（start 超出檔案大小）回傳 416"""
+        video = tmp_path / "test.mp4"
+        video.write_bytes(b'\x00' * 100)
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(tmp_path)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        response = client.get(
+            f"/api/gallery/video?path={str(video)}",
+            headers={"Range": "bytes=9999-"}
+        )
+        assert response.status_code == 416
