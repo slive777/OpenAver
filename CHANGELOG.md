@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6] - 2026-02-20
+
+### Fixed
+
+#### 🔗 UNC 路徑修正 (Phase 29)
+- **`to_windows_path()` 正斜線 UNC 支援** — `//server/share/...` 正確轉換為 `\\server\share\...`，修復 NAS 影片播放、開啟資料夾、Scraper 拖入失敗
+- **`to_windows_path()` 全反斜線輸出** — `C:/path` 一律轉為 `C:\path`，Windows Explorer 等原生 API 需要反斜線
+- **Showcase CI 11 tests 修復** — 移除多餘 `normalize_path()` 疊加，`to_file_uri()` 直接處理所有路徑格式
+- **`organize_file()` 安全修正** — PermissionError 獨立捕捉 + `str(e)` 改固定中文訊息，防止內部錯誤細節洩漏
+
+### Added
+- **UNC 路徑守衛測試** — `to_windows_path()` 正斜線 UNC / 多餘斜線正規化 / 雙向一致性
+- **WSL `/mnt/c/` → `file:///C:/` 整合測試** — 路徑轉換端到端驗證
+- **`organize_file()` 安全測試** — PermissionError + Exception 不洩漏原始訊息
+- **回歸守衛測試** — `to_file_uri()` 跨平台直通（不依賴 `normalize_path`）
+- **靜態守衛強化** — 掃描範圍收窄 + regex 比對精確化
+- **CLAUDE.md 路徑 Gotchas** — 文件化 `normalize_path + to_file_uri` 疊加陷阱、`to_windows_path` 全反斜線保證
+- `AGENTS.md` — Codex bot code review 指引
+
+---
+
 ## [0.3.5] - 2026-02-20
 
 ### Added
