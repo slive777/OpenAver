@@ -258,9 +258,12 @@ function settingsPage() {
                     if (layers.length >= 1) this.form.folderLayer3 = layers[layers.length - 1] || '';
                     if (layers.length >= 2) this.form.folderLayer2 = layers[layers.length - 2] || '';
                     if (layers.length >= 3) this.form.folderLayer1 = layers[layers.length - 3] || '';
-                    // 向後兼容：沒有 folder_layers 時從 folder_format 讀取
+                    // 向後兼容：沒有 folder_layers 時從 folder_format 拆分讀取
                     if (layers.length === 0 && config.scraper.folder_format) {
-                        this.form.folderLayer3 = config.scraper.folder_format;
+                        const parts = config.scraper.folder_format.replace(/\\/g, '/').split('/').filter(p => p.trim());
+                        if (parts.length >= 1) this.form.folderLayer3 = parts[parts.length - 1];
+                        if (parts.length >= 2) this.form.folderLayer2 = parts[parts.length - 2];
+                        if (parts.length >= 3) this.form.folderLayer1 = parts[parts.length - 3];
                     }
 
                     this.form.filenameFormat = config.scraper.filename_format;

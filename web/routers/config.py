@@ -28,7 +28,8 @@ CONFIG_DEFAULT_PATH = Path(__file__).parent.parent / "config.default.json"
 
 class ScraperConfig(BaseModel):
     create_folder: bool = True
-    folder_format: str = "{num}"
+    folder_layers: List[str] = ["{actor}"]
+    folder_format: str = "{actor}"
     filename_format: str = "{num} {title}"
     download_cover: bool = True
     cover_filename: str = "poster.jpg"
@@ -195,6 +196,13 @@ def load_config() -> dict:
                 }
                 need_save = True
                 logger.info("[Config] 遷移配置：添加 Gemini 支持")
+
+        # Migration: folder_format → folder_layers（舊版只存 folder_format）
+        s = raw_config.get('scraper', {})
+        if 'folder_layers' not in s and 'folder_format' in s:
+            fmt = s['folder_format'].replace('\\', '/')
+            s['folder_layers'] = [p.strip() for p in fmt.split('/') if p.strip()]
+            need_save = True
 
         # 確保 scraper.suffix_keywords 存在（Fix-1 版本標記）
         s = raw_config.get('scraper', {})
