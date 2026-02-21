@@ -361,33 +361,43 @@ if errorlevel 1 (
 pause
 '''
 
-    # README.txt - 純英文版本
-    readme_content = '''OpenAver - JAV Metadata Manager
-====================================
+    readme_content = '''===============================================
+  OpenAver Windows 安裝指南
+===============================================
 
-Usage:
-1. Double-click OpenAver.bat to launch
-2. Use OpenAver_Debug.bat for troubleshooting
+方法一：一行指令安裝（推薦）
 
-Requirements:
+  打開 PowerShell（搜尋 PowerShell → Enter），貼上：
+
+  irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex
+
+  安裝完成後雙擊桌面上的 OpenAver 捷徑啟動。
+
+===============================================
+
+方法二：手動安裝
+
+1. 解壓 ZIP 到任意資料夾
+2. 雙擊 OpenAver.bat 啟動
+3. 除錯用 OpenAver_Debug.bat
+
+[系統需求]
 - Windows 10/11 64-bit
 - Microsoft Edge WebView2 Runtime
-- Internet connection
+- 網路連線
 
-Notes:
-- First launch may take longer to load
-- Config: app\\web\\config.json
-- Logs: %USERPROFILE%\\OpenAver\\logs\\
+[注意事項]
+- 首次啟動可能較慢
+- 設定檔：app\\web\\config.json
+- 記錄檔：%USERPROFILE%\\OpenAver\\logs\\debug.log
 
-Troubleshooting:
-- Log file: %USERPROFILE%\\OpenAver\\logs\\debug.log
-- GitHub: https://github.com/your-repo/OpenAver/issues
+[回報問題]
+GitHub: https://github.com/slive777/OpenAver/issues
 '''
 
-    # 使用 ASCII 編碼（100% 安全）
     (root_dir / "OpenAver.bat").write_text(bat_content, encoding='ascii')
     (root_dir / "OpenAver_Debug.bat").write_text(debug_bat_content, encoding='ascii')
-    (root_dir / "README.txt").write_text(readme_content, encoding='ascii')
+    (root_dir / "README.txt").write_text(readme_content, encoding='utf-8')
 
     print("  Created: OpenAver.bat, OpenAver_Debug.bat, README.txt")
 

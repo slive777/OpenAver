@@ -242,10 +242,20 @@ Notes:
 
     # MACOS_README.txt
     macos_readme_content = '''===============================================
-  OpenAver macOS 首次執行指南
+  OpenAver macOS 安裝指南
 ===============================================
 
-⚠️ macOS 會封鎖網路下載的程式，請照以下步驟操作（只需一次）。
+方法一：一行指令安裝（推薦）
+
+  打開 Terminal（⌘ + 空白鍵 → 輸入 Terminal → Enter），貼上：
+
+  curl -fsSL https://raw.githubusercontent.com/slive777/OpenAver/main/install.sh | bash
+
+  安裝完成後執行 ~/OpenAver/OpenAver.command 啟動。
+
+===============================================
+
+方法二：手動安裝
 
 [步驟 1] 下載 ZIP
   - Safari 會自動解壓縮，檔案在「下載項目」資料夾

@@ -46,7 +46,7 @@ echo "   最新版本: $VERSION"
 if [[ -d "$INSTALL_DIR" ]]; then
     echo ""
     echo "⚠️  已偵測到現有安裝: $INSTALL_DIR"
-    read -p "   是否覆蓋安裝？(y/N) " -n 1 -r
+    read -p "   是否覆蓋安裝？(y/N) " -n 1 -r REPLY < /dev/tty
     echo ""
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         echo "取消安裝"
