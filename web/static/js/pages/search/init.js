@@ -13,23 +13,6 @@ document.addEventListener('DOMContentLoaded', function () {
         window.SearchCore.initDOM();
     }
 
-    // Fix 4b: 如果 Alpine bridge 未建立，補上 no-op 防止 file.js 呼叫時拋錯
-    if (!window.SearchCore.initProgress) {
-        window.SearchCore.initProgress = (query) => {
-            console.warn('[Init] initProgress called without Alpine bridge');
-        };
-    }
-    if (!window.SearchCore.updateLog) {
-        window.SearchCore.updateLog = (msg) => {
-            console.warn('[Init] updateLog called without Alpine bridge');
-        };
-    }
-    if (!window.SearchCore.handleSearchStatus) {
-        window.SearchCore.handleSearchStatus = (source, status) => {
-            console.warn('[Init] handleSearchStatus called without Alpine bridge');
-        };
-    }
-
     const { state, dom } = window.SearchCore;
 
     // T1b: 表單提交、導航按鈕、鍵盤導航已遷移到 Alpine（@submit.prevent, @click, @keydown.window）

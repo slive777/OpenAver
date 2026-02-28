@@ -25,36 +25,6 @@ window.SearchStateMixin_Bridge = {
             window.SearchUI.navigateResult = (delta) => this.navigate(delta);
         }
 
-        // Fix 1: 新增 file.js 需要的進度函數 bridge
-        if (window.SearchCore) {
-            window.SearchCore.initProgress = (query) => {
-                this.progressLog = '搜尋中...';
-                this.currentMode = '';
-                this.detailDone = 0;
-                this.detailTotal = 0;
-                this.currentQuery = query;
-            };
-            window.SearchCore.updateLog = (msg) => {
-                this.progressLog = msg;
-            };
-            window.SearchCore.handleSearchStatus = (source, status) => {
-                this.handleSearchStatus(source, status);
-            };
-        }
-
-        // T1c: 覆寫全域函數，指向 Alpine methods
-        window.translateWithAI = () => this.translateWithAI();
-        window.startEditTitle = () => this.startEditTitle();
-        window.confirmEditTitle = () => this.confirmEditTitle();
-        window.cancelEditTitle = () => this.cancelEditTitle();
-        window.startEditChineseTitle = () => this.startEditChineseTitle();
-        window.confirmEditChineseTitle = () => this.confirmEditChineseTitle();
-        window.cancelEditChineseTitle = () => this.cancelEditChineseTitle();
-        window.showAddTagInput = () => this.showAddTagInput();
-        window.confirmAddTag = () => this.confirmAddTag();
-        window.cancelAddTag = () => this.cancelAddTag();
-        window.removeUserTag = (tag) => this.removeUserTag(tag);
-
         // T1d: file.js functions now in Alpine
         if (window.SearchFile) {
             window.SearchFile.switchToFile = (index, position, showFullLoading) =>

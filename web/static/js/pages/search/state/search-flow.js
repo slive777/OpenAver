@@ -146,8 +146,7 @@ window.SearchStateMixin_SearchFlow = {
                             window.SearchUI.preloadImages(1, 5);
                         }
                         this.listMode = 'search';
-                        this.hasContent = true;
-                        window.SearchCore.updateClearButton();
+                        this.hasContent = this.searchResults.length > 0 || this.fileList.length > 0;
                         this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
                         // Reset edit states
                         this.coverError = '';
@@ -233,8 +232,7 @@ window.SearchStateMixin_SearchFlow = {
                     window.SearchUI.preloadImages(1, 5);
                 }
                 this.listMode = 'search';
-                this.hasContent = true;
-                window.SearchCore.updateClearButton();
+                this.hasContent = this.searchResults.length > 0 || this.fileList.length > 0;
                 this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
                 // Reset edit states
                 this.coverError = '';
@@ -311,6 +309,26 @@ window.SearchStateMixin_SearchFlow = {
         }
         this.requestId++;  // 讓進行中的 onmessage/onerror callback 失效
         // 也讓進行中的 fallbackSearch() 的 savedRequestId check 失效
+    },
+
+    /**
+     * 初始化搜尋進度顯示（T3.3: 從 bridge.js 搬移）
+     * @param {string} query - 搜尋番號
+     */
+    initProgress(query) {
+        this.progressLog = '搜尋中...';
+        this.currentMode = '';
+        this.detailDone = 0;
+        this.detailTotal = 0;
+        this.currentQuery = query;
+    },
+
+    /**
+     * 更新進度記錄文字（T3.3: 從 bridge.js 搬移）
+     * @param {string} msg - 進度訊息
+     */
+    updateLog(msg) {
+        this.progressLog = msg;
     },
 
     /**

@@ -43,7 +43,7 @@ window.SearchStateMixin_FileList = {
 
         if (showFullLoading) {
             window.SearchUI.showState('loading');
-            window.SearchCore.initProgress(file.number);
+            this.initProgress(file.number);
         } else {
             this.isSearchingFile = true;
             this.searchingFileDirection = position === 'first' ? 'next' : 'prev';
@@ -57,11 +57,11 @@ window.SearchStateMixin_FileList = {
                     const data = JSON.parse(event.data);
 
                     if (data.type === 'mode') {
-                        window.SearchCore.state.currentMode = data.mode;
-                        window.SearchCore.updateLog(`${window.SearchCore.MODE_TEXT[data.mode] || '搜尋'}...`);
+                        this.currentMode = data.mode;
+                        this.updateLog(`${window.SearchCore.MODE_TEXT[data.mode] || '搜尋'}...`);
                     }
                     else if (data.type === 'status') {
-                        window.SearchCore.handleSearchStatus(data.source, data.status);
+                        this.handleSearchStatus(data.source, data.status);
                     }
                     else if (data.type === 'result') {
                         eventSource.close();
@@ -274,7 +274,7 @@ window.SearchStateMixin_FileList = {
         batch.success = 0;
         batch.failed = 0;
 
-        window.SearchCore.updateClearButton();
+        this.hasContent = this.searchResults.length > 0 || this.fileList.length > 0;
 
         if (this.fileList.length > 0) {
             if (this.fileList[0].number) {

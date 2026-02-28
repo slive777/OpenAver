@@ -48,8 +48,8 @@ window.SearchStateMixin_Persistence = {
                 }
             }
 
-            // 同步 clear button（.hidden toggling + Alpine hasContent）
-            window.SearchCore.updateClearButton();
+            // 同步 clear button（直接計算 hasContent）
+            this.hasContent = this.searchResults.length > 0 || this.fileList.length > 0;
 
             console.log('[Alpine] State restored from sessionStorage');
         } catch (e) {

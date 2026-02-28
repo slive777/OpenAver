@@ -735,3 +735,92 @@ class TestPageLifecycleGuard:
         content = js_file.read_text(encoding='utf-8')
         assert '__registerPage' in content, \
             "showcase/core.js 缺少 __registerPage 呼叫 — Showcase lightbox cleanup lifecycle 會失效"
+
+
+class TestWindowGlobalCleanup:
+    """T3.3 守衛 — bridge.js 不再設定多餘的 window.xxx 全域函數"""
+
+    BRIDGE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/bridge.js"
+    FILE_LIST_JS = PROJECT_ROOT / "web/static/js/pages/search/state/file-list.js"
+    PERSISTENCE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/persistence.js"
+    SEARCH_FLOW_JS = PROJECT_ROOT / "web/static/js/pages/search/state/search-flow.js"
+    INIT_JS = PROJECT_ROOT / "web/static/js/pages/search/init.js"
+
+    def test_bridge_no_window_edit_tag_functions(self):
+        """bridge.js 不應設定 translateWithAI / startEditTitle / confirmEditTitle 等 11 個全域函數"""
+        content = self.BRIDGE_JS.read_text(encoding='utf-8')
+        forbidden = [
+            'window.translateWithAI',
+            'window.startEditTitle',
+            'window.confirmEditTitle',
+            'window.cancelEditTitle',
+            'window.startEditChineseTitle',
+            'window.confirmEditChineseTitle',
+            'window.cancelEditChineseTitle',
+            'window.showAddTagInput',
+            'window.confirmAddTag',
+            'window.cancelAddTag',
+            'window.removeUserTag',
+        ]
+        found = [f for f in forbidden if f in content]
+        assert len(found) == 0, (
+            f"bridge.js 仍設定 {len(found)} 個多餘全域函數（HTML 已用 Alpine @click）: {found}"
+        )
+
+    def test_bridge_no_window_searchcore_progress_bridge(self):
+        """bridge.js 不應設定 window.SearchCore.initProgress / updateLog / handleSearchStatus"""
+        content = self.BRIDGE_JS.read_text(encoding='utf-8')
+        forbidden = [
+            'window.SearchCore.initProgress',
+            'window.SearchCore.updateLog',
+            'window.SearchCore.handleSearchStatus',
+        ]
+        found = [f for f in forbidden if f in content]
+        assert len(found) == 0, (
+            f"bridge.js 仍設定 {len(found)} 個 SearchCore bridge（應由 file-list.js 直接呼叫 Alpine method）: {found}"
+        )
+
+    def test_file_list_calls_this_progress_methods(self):
+        """file-list.js 的 searchForFile() 應直接呼叫 this.initProgress / this.updateLog / this.handleSearchStatus"""
+        content = self.FILE_LIST_JS.read_text(encoding='utf-8')
+        assert 'this.initProgress(' in content, \
+            "file-list.js 缺少 this.initProgress() — 應直接呼叫 Alpine method，不透過 window.SearchCore"
+        assert 'this.updateLog(' in content, \
+            "file-list.js 缺少 this.updateLog() — 應直接呼叫 Alpine method，不透過 window.SearchCore"
+        assert 'this.handleSearchStatus(' in content, \
+            "file-list.js 缺少 this.handleSearchStatus() — 應直接呼叫 Alpine method，不透過 window.SearchCore"
+
+    def test_file_list_no_searchcore_progress_calls(self):
+        """file-list.js 不應再透過 window.SearchCore 呼叫進度函數"""
+        content = self.FILE_LIST_JS.read_text(encoding='utf-8')
+        forbidden = [
+            'window.SearchCore.initProgress',
+            'window.SearchCore.updateLog',
+            'window.SearchCore.handleSearchStatus',
+        ]
+        found = [f for f in forbidden if f in content]
+        assert len(found) == 0, (
+            f"file-list.js 仍透過 window.SearchCore 呼叫 {len(found)} 個進度函數: {found}"
+        )
+
+    def test_no_window_searchcore_update_clear_button(self):
+        """Alpine mixins 不應再呼叫 window.SearchCore.updateClearButton()"""
+        targets = [self.FILE_LIST_JS, self.PERSISTENCE_JS, self.SEARCH_FLOW_JS]
+        violations = []
+        for js_file in targets:
+            content = js_file.read_text(encoding='utf-8')
+            if 'window.SearchCore.updateClearButton' in content:
+                violations.append(js_file.name)
+        assert len(violations) == 0, (
+            f"以下檔案仍呼叫 window.SearchCore.updateClearButton()（應改為 this.hasContent = ...）: {violations}"
+        )
+
+    def test_init_no_progress_fallback(self):
+        """init.js 不應再包含 initProgress / updateLog / handleSearchStatus 的防呆 fallback"""
+        content = self.INIT_JS.read_text(encoding='utf-8')
+        forbidden = ['window.SearchCore.initProgress =', 'window.SearchCore.updateLog =',
+                     'window.SearchCore.handleSearchStatus =']
+        found = [f for f in forbidden if f in content]
+        assert len(found) == 0, (
+            f"init.js 仍包含 {len(found)} 個防呆 fallback（bridge 移除後不再需要）: {found}"
+        )
