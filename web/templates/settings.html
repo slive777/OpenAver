@@ -38,7 +38,9 @@
         </div>
     </div>
 
-    <form id="settingsForm" @submit.prevent="saveConfig">
+    <!-- 靜態 inert：HTML 渲染即生效，Alpine boot 前保護 -->
+    <!-- Alpine boot 後由 :inert binding 接管 -->
+    <form id="settingsForm" @submit.prevent="saveConfig" inert :inert="_configLoading">
         <!-- 1. 搜尋與刮削設定 (Search & Scraper) -->
         <div class="card mb-4">
             <div class="settings-card-header">

@@ -73,6 +73,7 @@ function settingsPage() {
         // ===== Dirty Check State =====
         savedState: null,
         pendingNavigationUrl: '',
+        _configLoading: true,  // 初始 true，loadConfig 完成後 false
 
         // ===== Constants =====
 
@@ -121,6 +122,7 @@ function settingsPage() {
 
         // ===== Computed Properties =====
         get isDirty() {
+            if (this._configLoading) return false;
             if (!this.savedState) return false;
             return JSON.stringify(this.form) !== JSON.stringify(this.savedState);
         },
@@ -220,6 +222,8 @@ function settingsPage() {
 
         // ===== Methods =====
         async loadConfig() {
+            // 鎖定表單（載入期間不可操作）
+            this._configLoading = true;
             // 清空快照（載入期間不判定 dirty）
             this.savedState = null;
 
@@ -303,6 +307,8 @@ function settingsPage() {
                 }
             } catch (e) {
                 console.error('載入設定失敗:', e);
+            } finally {
+                this._configLoading = false;
             }
         },
 

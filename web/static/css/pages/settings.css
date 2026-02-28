@@ -398,3 +398,11 @@
     gap: 2px;
     align-items: center;
 }
+
+/* ==================== Form Loading State ==================== */
+
+/* 載入期間視覺提示：半透明 + wait cursor */
+#settingsForm[inert] {
+    opacity: 0.6;
+    cursor: wait;
+}
