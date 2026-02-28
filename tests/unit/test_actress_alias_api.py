@@ -404,3 +404,26 @@ class TestNfoUpdaterActressFunctions:
 
         assert updated is False
         assert "無法解析" in msg
+
+    def test_replace_actress_in_nfo_with_bare_ampersand(self, tmp_path):
+        """含 bare & 的 NFO 應可解析、正確替換、回寫後仍是合法 XML"""
+        import xml.etree.ElementTree as ET
+        from core.nfo_updater import replace_actress_in_nfo
+
+        nfo_content = '<?xml version="1.0" encoding="UTF-8"?>\n<movie>\n  <actor><name>舊名</name></actor>\n  <trailer>https://example.com/video?sign=abc&t=123</trailer>\n</movie>'
+        nfo_path = tmp_path / "test.nfo"
+        nfo_path.write_text(nfo_content, encoding='utf-8')
+
+        updated, msg = replace_actress_in_nfo(str(nfo_path), "舊名", "新名")
+        assert updated is True
+
+        # 驗證回寫後文字替換正確
+        result = nfo_path.read_text(encoding='utf-8')
+        assert '新名' in result
+        assert '舊名' not in result
+
+        # 驗證回寫後是合法 XML（用標準 ET.parse，不經過 sanitizer）
+        tree = ET.parse(str(nfo_path))
+        root = tree.getroot()
+        actor_elem = root.find('.//actor/name')
+        assert actor_elem is not None and actor_elem.text == '新名'

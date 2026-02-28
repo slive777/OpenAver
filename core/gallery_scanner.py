@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from core.logger import get_logger
+from core.nfo_utils import sanitize_nfo_bytes
 from core.path_utils import to_file_uri
 
 logger = get_logger(__name__)
@@ -285,8 +286,9 @@ class VideoScanner:
     def parse_nfo(self, nfo_path: str) -> Optional[VideoInfo]:
         """讀取 NFO 檔案"""
         try:
-            tree = ET.parse(nfo_path)
-            root = tree.getroot()
+            raw = Path(nfo_path).read_bytes()
+            raw = sanitize_nfo_bytes(raw)
+            root = ET.fromstring(raw)
 
             info = VideoInfo()
 

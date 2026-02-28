@@ -294,6 +294,24 @@ class TestScanToSqlite:
 
         assert result['inserted'] == 1
 
+    def test_scan_nfo_with_bare_ampersand(self, temp_db, temp_video_dir):
+        """含 bare & 的 NFO 應可解析，actor 和 genre 正確讀取"""
+        video_path = create_video_file(temp_video_dir, "test.mp4")
+        nfo_content = '<?xml version="1.0" encoding="UTF-8"?>\n<movie>\n  <title>測試影片</title>\n  <num>ADN-700</num>\n  <maker>片商</maker>\n  <actor><name>女優A</name></actor>\n  <genre>劇情</genre>\n  <trailer>https://example.com/video?sign=abc&t=123</trailer>\n</movie>'
+        nfo_path = video_path.with_suffix('.nfo')
+        nfo_path.write_text(nfo_content, encoding='utf-8')
+
+        scanner = VideoScanner()
+        result = scanner.scan_to_sqlite(str(temp_video_dir), temp_db)
+
+        assert result['inserted'] == 1
+        repo = VideoRepository(temp_db)
+        videos = repo.get_all()
+        assert len(videos) == 1
+        assert videos[0].title == "測試影片"
+        assert "女優A" in videos[0].actresses
+        assert "劇情" in videos[0].tags
+
 
 class TestScanToSqliteIntegration:
     """scan_to_sqlite 整合測試"""

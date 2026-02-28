@@ -9,8 +9,12 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Generator
 
-from core.scraper import search_jav
+from core.logger import get_logger
+from core.nfo_utils import sanitize_nfo_bytes
 from core.path_utils import normalize_path, uri_to_fs_path
+from core.scraper import search_jav
+
+logger = get_logger(__name__)
 
 
 def needs_update(info: dict, has_nfo: bool = True) -> Tuple[bool, List[str]]:
@@ -116,10 +120,13 @@ def get_nfo_path_from_video(video_path: str) -> Optional[str]:
 def parse_nfo(nfo_path: str) -> Tuple[Optional[ET.ElementTree], Optional[ET.Element]]:
     """解析 NFO 檔案"""
     try:
-        tree = ET.parse(nfo_path)
-        root = tree.getroot()
+        raw = Path(nfo_path).read_bytes()
+        raw = sanitize_nfo_bytes(raw)
+        root = ET.fromstring(raw)
+        tree = ET.ElementTree(root)
         return tree, root
-    except Exception:
+    except Exception as e:
+        logger.warning(f"NFO 解析失敗: {nfo_path} - {e}")
         return None, None
 
 
