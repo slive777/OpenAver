@@ -25,7 +25,6 @@ window.SearchStateMixin_GridMode = {
         this.lightboxOpen = true;
         // 同步 currentIndex（讓 Detail 與 Grid 保持一致）
         this.currentIndex = index;
-        this._syncToCore({ skipFileList: true });
     },
 
     /**
@@ -59,7 +58,6 @@ window.SearchStateMixin_GridMode = {
         if (this.lightboxIndex > 0) {
             this.lightboxIndex--;
             this.currentIndex = this.lightboxIndex;
-            this._syncToCore({ skipFileList: true });
         }
     },
 
@@ -71,13 +69,11 @@ window.SearchStateMixin_GridMode = {
             // At actress photo → go to first cover
             this.lightboxIndex = 0;
             this.currentIndex = 0;
-            this._syncToCore({ skipFileList: true });
             return;
         }
         if (this.lightboxIndex < this.searchResults.length - 1) {
             this.lightboxIndex++;
             this.currentIndex = this.lightboxIndex;
-            this._syncToCore({ skipFileList: true });
         }
     },
 
@@ -128,7 +124,6 @@ window.SearchStateMixin_GridMode = {
     switchToDetail(index) {
         this.displayMode = 'detail';
         this.currentIndex = index;
-        this._syncToCore({ skipFileList: true });
         this.saveState();
     },
 

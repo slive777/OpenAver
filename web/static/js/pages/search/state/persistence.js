@@ -26,7 +26,6 @@ window.SearchStateMixin_Persistence = {
             if (this.appConfig?.search?.gallery_mode_enabled === false) {
                 this.displayMode = 'detail';
             }
-            this._syncToCore();
 
             // 還原搜尋框輸入值
             if (state.queryValue) {
@@ -45,7 +44,6 @@ window.SearchStateMixin_Persistence = {
                 if (currentFile?.searchResults?.length > 0) {
                     this.searchResults = currentFile.searchResults;
                     this.hasMoreResults = currentFile.hasMoreResults || false;
-                    this._syncToCore();
                     window.SearchUI.showState('result');
                 }
             }
@@ -83,19 +81,16 @@ window.SearchStateMixin_Persistence = {
             return;
         }
 
-        // 正常路徑：現有邏輯不變
-        // T1a: 從 core.js module vars 讀取（它們是 source of truth）
-        // Alpine state 可能是 stale（core.js 函數直接改 module vars，不經過 Alpine）
-        const coreState = window.SearchCore?.state;
+        // T3.2 Step 3: SearchCore.state 已代理 Alpine，直接用 Alpine state
         const state = {
-            searchResults: coreState?.searchResults ?? this.searchResults,
-            currentIndex: coreState?.currentIndex ?? this.currentIndex,
-            currentQuery: coreState?.currentQuery ?? this.currentQuery,
-            currentOffset: coreState?.currentOffset ?? this.currentOffset,
-            hasMoreResults: coreState?.hasMoreResults ?? this.hasMoreResults,
-            fileList: coreState?.fileList ?? this.fileList,
-            currentFileIndex: coreState?.currentFileIndex ?? this.currentFileIndex,
-            listMode: coreState?.listMode ?? this.listMode,
+            searchResults: this.searchResults,
+            currentIndex: this.currentIndex,
+            currentQuery: this.currentQuery,
+            currentOffset: this.currentOffset,
+            hasMoreResults: this.hasMoreResults,
+            fileList: this.fileList,
+            currentFileIndex: this.currentFileIndex,
+            listMode: this.listMode,
             queryValue: this.searchQuery,
             displayMode: this.displayMode,
             currentMode: this.currentMode,  // T3 fix: 持久化搜尋模式

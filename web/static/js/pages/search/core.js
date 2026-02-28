@@ -4,38 +4,13 @@
  */
 
 // === 狀態變數 ===
-let searchResults = [];
-let currentIndex = 0;
-
-// 分頁相關
-let currentQuery = '';
-let currentOffset = 0;
-let hasMoreResults = false;
-let isLoadingMore = false;
-let isSearchingFile = false;
+// T3.2 Step 4: 14 個 module vars 已刪除（searchResults, currentIndex, currentQuery,
+// currentOffset, hasMoreResults, isLoadingMore, isSearchingFile, fileList,
+// currentFileIndex, listMode, batchState, appConfig, isTranslating, currentMode）
+// 狀態現由 Alpine reactive proxy 管理（透過 SearchCore.state getter 存取）
 const PAGE_SIZE = 20;
 
-// 多檔案列表狀態
-let fileList = [];
-let currentFileIndex = 0;
-let listMode = null;  // 'file' | 'search' | null
-
-// 批次搜尋狀態
-let batchState = {
-    batchSize: 20,        // 每批數量
-    isProcessing: false,  // 是否正在處理批次
-    isPaused: false,      // 是否暫停（Phase 9.4 使用）
-    total: 0,             // 本批實際總數
-    processed: 0,         // 本批已處理數量
-    success: 0,           // 本批成功數量
-    failed: 0             // 本批失敗數量
-};
-
-// 翻譯功能
-let appConfig = null;
-let isTranslating = false;
-
-// 🆕 追蹤正在批次翻譯的片索引
+// 🆕 追蹤正在批次翻譯的片索引（T3.3 再處理）
 const batchTranslatingIndices = new Set();
 
 // 狀態保存 Key
@@ -86,15 +61,16 @@ function initDOM() {
 
 // === 載入應用設定 ===
 async function loadAppConfig() {
+    const state = window.SearchCore.state;
     try {
         const resp = await fetch('/api/config');
         const data = await resp.json();
         if (data.success) {
-            appConfig = data.data;
+            state.appConfig = data.data;
 
             // 更新我的最愛按鈕 tooltip
             if (dom.btnFavorite) {
-                const favoriteFolder = appConfig?.search?.favorite_folder || '系統下載資料夾';
+                const favoriteFolder = state.appConfig?.search?.favorite_folder || '系統下載資料夾';
                 dom.btnFavorite.title = `載入：${favoriteFolder}`;
             }
         }
@@ -143,17 +119,18 @@ async function translateWithOllama(text, mode, metadata = {}) {
  * NOTE: isTranslating state is managed by Alpine wrapper in state.js
  */
 async function _translateWithAI() {
+    const state = window.SearchCore.state;
     // T1c: isTranslating now managed by Alpine wrapper
     try {
         // === Gemini 模式：只翻譯當前片 ===
-        if (appConfig?.translate?.provider === 'gemini') {
+        if (state.appConfig?.translate?.provider === 'gemini') {
             let currentResult = null;
 
-            if (listMode === 'file' && fileList[currentFileIndex]) {
-                const results = fileList[currentFileIndex].searchResults || [];
-                currentResult = results[currentIndex];
+            if (state.listMode === 'file' && state.fileList[state.currentFileIndex]) {
+                const results = state.fileList[state.currentFileIndex].searchResults || [];
+                currentResult = results[state.currentIndex];
             } else {
-                currentResult = searchResults[currentIndex];
+                currentResult = state.searchResults[state.currentIndex];
             }
 
             if (!currentResult || !currentResult.title || !hasJapanese(currentResult.title)) {
@@ -167,10 +144,10 @@ async function _translateWithAI() {
 
             if (result.success && result.result) {
                 // 更新翻譯結果
-                if (listMode === 'file') {
-                    fileList[currentFileIndex].searchResults[currentIndex].translated_title = result.result;
+                if (state.listMode === 'file') {
+                    state.fileList[state.currentFileIndex].searchResults[state.currentIndex].translated_title = result.result;
                 } else {
-                    searchResults[currentIndex].translated_title = result.result;
+                    state.searchResults[state.currentIndex].translated_title = result.result;
                 }
                 // T1c: Alpine reactive will update UI automatically
                 console.log(`[Gemini] 翻譯完成: ${result.result}`);
@@ -186,9 +163,9 @@ async function _translateWithAI() {
         const batch = [];
         const batchMeta = [];
 
-        if (listMode === 'file') {
-            for (let fi = currentFileIndex; fi < fileList.length && batch.length < 1; fi++) {
-                const file = fileList[fi];
+        if (state.listMode === 'file') {
+            for (let fi = state.currentFileIndex; fi < state.fileList.length && batch.length < 1; fi++) {
+                const file = state.fileList[fi];
                 const results = file.searchResults || [];
 
                 for (let ri = 0; ri < results.length && batch.length < 1; ri++) {
@@ -200,8 +177,8 @@ async function _translateWithAI() {
                 }
             }
         } else {
-            for (let i = currentIndex; i < searchResults.length && batch.length < 1; i++) {
-                const result = searchResults[i];
+            for (let i = state.currentIndex; i < state.searchResults.length && batch.length < 1; i++) {
+                const result = state.searchResults[i];
                 if (result.title && hasJapanese(result.title) && !result.translated_title) {
                     batch.push(result);
                     batchMeta.push({ resultIndex: i });
@@ -215,7 +192,7 @@ async function _translateWithAI() {
 
         console.log(`[Ollama Batch] 批次翻譯 ${batch.length} 片`);
 
-        if (listMode !== 'file') {
+        if (state.listMode !== 'file') {
             batchMeta.forEach(meta => {
                 batchTranslatingIndices.add(meta.resultIndex);
             });
@@ -229,11 +206,11 @@ async function _translateWithAI() {
                 if (!trans) return;
                 const meta = batchMeta[i];
 
-                if (listMode === 'file') {
-                    fileList[meta.fileIndex].searchResults[meta.resultIndex].translated_title = trans;
+                if (state.listMode === 'file') {
+                    state.fileList[meta.fileIndex].searchResults[meta.resultIndex].translated_title = trans;
                     // T1c: Alpine reactive will update UI automatically
                 } else {
-                    searchResults[meta.resultIndex].translated_title = trans;
+                    state.searchResults[meta.resultIndex].translated_title = trans;
                     batchTranslatingIndices.delete(meta.resultIndex);
                     // T1c: Alpine reactive will update UI automatically
                 }
@@ -243,7 +220,7 @@ async function _translateWithAI() {
             saveState();
         }
 
-        if (listMode !== 'file') {
+        if (state.listMode !== 'file') {
             batchMeta.forEach(meta => {
                 batchTranslatingIndices.delete(meta.resultIndex);
             });
@@ -262,69 +239,11 @@ async function _translateWithAI() {
 // === 狀態保存/還原 ===
 
 function saveState() {
-    const state = {
-        searchResults,
-        currentIndex,
-        currentQuery,
-        currentOffset,
-        hasMoreResults,
-        fileList,
-        currentFileIndex,
-        listMode,
-        queryValue: dom.queryInput ? dom.queryInput.value : ''
-    };
-    sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
+    // T3.2: dead code — bridge.js 已覆寫此函數，Alpine persistence.js 接管
 }
 
 function restoreState() {
-    const saved = sessionStorage.getItem(STATE_KEY);
-    if (!saved) return false;
-
-    try {
-        const state = JSON.parse(saved);
-        searchResults = state.searchResults || [];
-        currentIndex = state.currentIndex || 0;
-        currentQuery = state.currentQuery || '';
-        currentOffset = state.currentOffset || 0;
-        hasMoreResults = state.hasMoreResults || false;
-        fileList = state.fileList || [];
-        currentFileIndex = state.currentFileIndex || 0;
-        listMode = state.listMode || null;
-        if (dom.queryInput) {
-            dom.queryInput.value = state.queryValue || '';
-        }
-
-        // 有內容才還原顯示
-        if (searchResults.length > 0) {
-            window.SearchUI.displayResult?.(searchResults[currentIndex]);
-            window.SearchUI.updateNavigation?.();
-            window.SearchUI.showState('result');
-
-            if (listMode === 'search') {
-                window.SearchFile?.renderSearchResultsList?.();
-            } else if (listMode === 'file') {
-                window.SearchFile?.renderFileList?.();
-            }
-            updateClearButton();
-            return true;
-        } else if (fileList.length > 0 && listMode === 'file') {
-            window.SearchFile?.renderFileList?.();
-            updateClearButton();
-            const currentFile = fileList[currentFileIndex];
-            if (currentFile && currentFile.searchResults && currentFile.searchResults.length > 0) {
-                searchResults = currentFile.searchResults;
-                hasMoreResults = currentFile.hasMoreResults || false;
-                window.SearchUI.displayResult?.(searchResults[currentIndex]);
-                window.SearchUI.updateNavigation?.();
-                window.SearchUI.showState('result');
-                return true;
-            }
-        }
-    } catch (e) {
-        console.error('還原狀態失敗:', e);
-        sessionStorage.removeItem(STATE_KEY);
-    }
-    return false;
+    // T3.2: dead code — bridge.js 已覆寫此函數，Alpine persistence.js 接管
 }
 
 function clearState() {
@@ -332,16 +251,17 @@ function clearState() {
 }
 
 function clearAll() {
-    searchResults = [];
-    currentIndex = 0;
-    currentQuery = '';
-    currentOffset = 0;
-    hasMoreResults = false;
-    fileList = [];
-    currentFileIndex = 0;
-    listMode = null;
+    const state = window.SearchCore.state;
+    state.searchResults = [];
+    state.currentIndex = 0;
+    state.currentQuery = '';
+    state.currentOffset = 0;
+    state.hasMoreResults = false;
+    state.fileList = [];
+    state.currentFileIndex = 0;
+    state.listMode = null;
     if (dom.queryInput) dom.queryInput.value = '';
-    isSearchingFile = false;
+    state.isSearchingFile = false;
 
     // 確保導航按鈕圖示正確
     if (dom.btnPrev) dom.btnPrev.innerHTML = '<i class="bi bi-chevron-left"></i>';
@@ -353,7 +273,8 @@ function clearAll() {
 }
 
 function updateClearButton() {
-    const hasContent = searchResults.length > 0 || fileList.length > 0;
+    const state = window.SearchCore.state;
+    const hasContent = state.searchResults.length > 0 || state.fileList.length > 0;
     // Alpine x-show 控制顯示/隱藏（classList 操作已移除）
     const el = document.querySelector('.search-container[x-data]');
     if (el && el._x_dataStack) {
@@ -373,11 +294,10 @@ const MODE_TEXT = {
     'uncensored': '無碼搜尋'
 };
 
-let currentMode = '';
+// T3.2 Step 4: let currentMode = '' 已刪除（改由 Alpine state 管理）
 
 // === 搜尋邏輯 ===
 // T1b: doSearch, fallbackSearch 已遷移到 Alpine state.js
-// 保留 module-level vars 供舊 JS 讀取
 
 // === 本地狀態查詢 ===
 
@@ -467,38 +387,14 @@ async function translateBatch(titles) {
 
 // === 暴露介面 ===
 window.SearchCore = {
-    // 狀態（供其他模組讀寫）
+    // 狀態（供其他模組讀寫）— T3.2: 代理 Alpine reactive proxy
     get state() {
-        return {
-            get searchResults() { return searchResults; },
-            set searchResults(v) { searchResults = v; },
-            get currentIndex() { return currentIndex; },
-            set currentIndex(v) { currentIndex = v; },
-            get currentQuery() { return currentQuery; },
-            set currentQuery(v) { currentQuery = v; },
-            get currentOffset() { return currentOffset; },
-            set currentOffset(v) { currentOffset = v; },
-            get hasMoreResults() { return hasMoreResults; },
-            set hasMoreResults(v) { hasMoreResults = v; },
-            get isLoadingMore() { return isLoadingMore; },
-            set isLoadingMore(v) { isLoadingMore = v; },
-            get isSearchingFile() { return isSearchingFile; },
-            set isSearchingFile(v) { isSearchingFile = v; },
-            get fileList() { return fileList; },
-            set fileList(v) { fileList = v; },
-            get currentFileIndex() { return currentFileIndex; },
-            set currentFileIndex(v) { currentFileIndex = v; },
-            get listMode() { return listMode; },
-            set listMode(v) { listMode = v; },
-            get appConfig() { return appConfig; },
-            get isTranslating() { return isTranslating; },
-            set isTranslating(v) { isTranslating = v; },
-            get currentMode() { return currentMode; },
-            set currentMode(v) { currentMode = v; },
-            get batchState() { return batchState; },
-            set batchState(v) { batchState = v; },
-            PAGE_SIZE
-        };
+        const el = document.querySelector('.search-container[x-data]');
+        if (el && el._x_dataStack) {
+            return Alpine.$data(el);  // 直接回傳 Alpine reactive proxy
+        }
+        // Alpine 未 boot 時回傳空物件（不應在正常使用情境發生）
+        return {};
     },
     // DOM 引用
     get dom() { return dom; },

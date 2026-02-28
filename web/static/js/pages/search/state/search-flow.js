@@ -129,7 +129,6 @@ window.SearchStateMixin_SearchFlow = {
                         this.hasMoreResults = data.has_more || false;
                         this.actressProfile = data.actress_profile || null;  // T2d: 寫入女優資料
                         this.listMode = 'search';
-                        this._syncToCore();
 
                         // 查詢本地狀態（非同步）
                         if (window.SearchCore?.checkLocalStatus) {
@@ -217,7 +216,6 @@ window.SearchStateMixin_SearchFlow = {
                 this.hasMoreResults = data.has_more || false;
                 this.actressProfile = data.actress_profile || null;  // T2d: 寫入女優資料
                 this.listMode = 'search';
-                this._syncToCore();
 
                 // 查詢本地狀態
                 if (window.SearchCore?.checkLocalStatus) {
@@ -289,7 +287,6 @@ window.SearchStateMixin_SearchFlow = {
             this.displayMode = snap.displayMode || 'detail';
             this.currentMode = snap.currentMode || '';
             this.errorText = snap.errorText || '';
-            this._syncToCore();
 
             // 還原顯示
             window.SearchUI.showState(snap.pageState);

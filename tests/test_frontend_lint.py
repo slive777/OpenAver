@@ -672,6 +672,39 @@ class TestScannerClearCache:
         assert "DELETE" in html
 
 
+class TestSearchCoreFacade:
+    """T3.2 守衛 — SearchCore.state 已降級為只讀 Alpine proxy façade"""
+
+    def test_search_core_state_uses_alpine_proxy(self):
+        """core.js 的 window.SearchCore.state getter 必須使用 Alpine.$data 代理"""
+        js_file = PROJECT_ROOT / "web/static/js/pages/search/core.js"
+        content = js_file.read_text(encoding='utf-8')
+        assert 'Alpine.$data' in content, (
+            "core.js 的 SearchCore.state getter 未使用 Alpine.$data — "
+            "T3.2 Step 1 應已將 state getter 改為代理 Alpine proxy"
+        )
+
+    def test_sync_to_core_is_noop(self):
+        """bridge.js 不含 coreState.xxx = 賦值（_syncToCore 已是 no-op）"""
+        js_file = PROJECT_ROOT / "web/static/js/pages/search/state/bridge.js"
+        content = js_file.read_text(encoding='utf-8')
+        # 匹配 coreState.xxx = （非 ?.、非 == 的賦值）
+        violations = re.findall(r'coreState\.\w+\s*=(?!=)', content)
+        assert len(violations) == 0, (
+            f"bridge.js 的 _syncToCore 仍含 {len(violations)} 個 coreState 賦值 "
+            f"（應已改為 no-op）: {violations}"
+        )
+
+    def test_persistence_no_corestate_fallback(self):
+        """persistence.js 的 saveState() 不含 coreState?. fallback（已改為直接用 Alpine state）"""
+        js_file = PROJECT_ROOT / "web/static/js/pages/search/state/persistence.js"
+        content = js_file.read_text(encoding='utf-8')
+        assert 'coreState?.' not in content, (
+            "persistence.js 仍含 coreState?. fallback — "
+            "T3.2 Step 3 應已移除，直接使用 Alpine this.xxx"
+        )
+
+
 class TestPageLifecycleGuard:
     """page-lifecycle.js 存在性守衛 — 確保 script tag 及三頁 __registerPage 呼叫不被移除"""
 
