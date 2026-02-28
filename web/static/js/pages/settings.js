@@ -209,15 +209,22 @@ function settingsPage() {
                 }
             });
 
-            // 暴露全域檢查函式（供 base.html sidebar 使用）
-            window.confirmLeavingSettings = (targetUrl) => {
-                if (this.isDirty) {
-                    this.pendingNavigationUrl = targetUrl;
+            // 接入 page lifecycle（取代 window.confirmLeavingSettings）
+            window.__registerPage({
+                beforeLeave: (href) => {
+                    if (!this.isDirty) return true;
+                    this.pendingNavigationUrl = href;
                     this.dirtyCheckModalOpen = true;
-                    return false;  // 阻止導航
+                    return false;
+                },
+                onBeforeUnload: () => {
+                    if (this.isDirty) return '您有未儲存的設定變更';
+                    return null;
+                },
+                cleanup: () => {
+                    if (this._toastTimer) clearTimeout(this._toastTimer);
                 }
-                return true;  // 允許導航
-            };
+            });
         },
 
         // ===== Methods =====
