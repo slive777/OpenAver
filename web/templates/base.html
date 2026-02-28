@@ -275,6 +275,8 @@
     sidebarCollapsed: {{ sidebar_collapsed|default(false)|tojson }},
     mobileMenuOpen: false,
     handleNavClick(event, href) {
+        // 開新分頁（Ctrl/Cmd-click, 中鍵）不觸發清理
+        if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) return;
         // search: 清理 SSE 連線（不阻止導航，只做 cleanup）
         if (typeof window.cleanupSearchBeforeLeave === 'function') {
             window.cleanupSearchBeforeLeave();

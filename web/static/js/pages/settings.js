@@ -243,6 +243,7 @@ function settingsPage() {
                     this.form.translateEnabled = config.translate.enabled;
                     this.form.translateProvider = config.translate.provider || 'ollama';
                     this.form.ollamaUrl = config.translate.ollama?.url || config.translate.ollama_url || 'http://localhost:11434';
+                    this.form.ollamaModel = config.translate.ollama?.model || config.translate.ollama_model || '';
                     this.form.geminiApiKey = config.translate.gemini?.api_key || '';
 
                     // Gemini model 預設填入
@@ -295,15 +296,17 @@ function settingsPage() {
                     this.form.defaultPage = defaultPage;
                     // sidebar_collapsed 已移除（由 Alpine $persist + localStorage 驅動）
 
-                    // 自動載入 Ollama 模型列表
+                    // 建立初始快照（dirty check 基準）— 必須在解鎖前建立
+                    this.savedState = JSON.parse(JSON.stringify(this.form));
+                    // 解鎖表單（config hydrate 完成）
+                    this._configLoading = false;
+
+                    // 背景載入 Ollama 模型列表（不阻塞表單）
                     const ollamaUrl = config.translate.ollama?.url || config.translate.ollama_url;
                     const ollamaModel = config.translate.ollama?.model || config.translate.ollama_model;
                     if (ollamaUrl && config.translate.provider === 'ollama') {
-                        await this.loadOllamaModels(ollamaUrl, ollamaModel);
+                        this.loadOllamaModels(ollamaUrl, ollamaModel);  // 不 await
                     }
-
-                    // 建立初始快照（dirty check 基準）
-                    this.savedState = JSON.parse(JSON.stringify(this.form));
                 }
             } catch (e) {
                 console.error('載入設定失敗:', e);

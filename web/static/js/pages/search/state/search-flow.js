@@ -195,8 +195,13 @@ window.SearchStateMixin_SearchFlow = {
         // T4: 重置 rotating border 動畫追蹤
         this._localBorderPlayed = {};
 
+        // 建立 AbortController（離頁時可取消）
+        this._fallbackAbortController = new AbortController();
+
         try {
-            const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+            const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`, {
+                signal: this._fallbackAbortController.signal
+            });
             const data = await response.json();
 
             // Fix 3: 檢查是否已被新搜尋取代
@@ -244,6 +249,8 @@ window.SearchStateMixin_SearchFlow = {
                 window.SearchUI.showState('error');
             }
         } catch (err) {
+            // AbortError：離頁或新搜尋取消，靜默忽略
+            if (err.name === 'AbortError') return;
             // Fix 3: 舊請求失敗不覆蓋新搜尋畫面
             if (savedRequestId !== this.requestId) return;
             this._searchSnapshot = null;
@@ -261,6 +268,11 @@ window.SearchStateMixin_SearchFlow = {
             this.activeEventSource = null;
         }
         this.requestId++;
+        // 取消進行中的 REST fallback fetch
+        if (this._fallbackAbortController) {
+            this._fallbackAbortController.abort();
+            this._fallbackAbortController = null;
+        }
 
         // 還原到搜尋前的狀態
         const snap = this._searchSnapshot;
@@ -294,6 +306,11 @@ window.SearchStateMixin_SearchFlow = {
         if (this.activeEventSource) {
             this.activeEventSource.close();
             this.activeEventSource = null;
+        }
+        // 取消進行中的 REST fallback fetch
+        if (this._fallbackAbortController) {
+            this._fallbackAbortController.abort();
+            this._fallbackAbortController = null;
         }
         this.requestId++;  // 讓進行中的 onmessage/onerror callback 失效
         // 也讓進行中的 fallbackSearch() 的 savedRequestId check 失效
