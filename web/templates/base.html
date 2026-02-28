@@ -277,14 +277,7 @@
     handleNavClick(event, href) {
         // 開新分頁（Ctrl/Cmd-click, 中鍵）不觸發清理
         if (event.ctrlKey || event.metaKey || event.shiftKey || event.button !== 0) return;
-        // search: 清理 SSE 連線（不阻止導航，只做 cleanup）
-        if (typeof window.cleanupSearchBeforeLeave === 'function') {
-            window.cleanupSearchBeforeLeave();
-        }
-        // settings: dirty-check（可能阻止導航）
-        if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings(href)) {
-            event.preventDefault();
-        } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner(href)) {
+        if (window.__leavePage && !window.__leavePage(href)) {
             event.preventDefault();
         }
     }
@@ -461,6 +454,8 @@
     <script defer src="/static/js/components/motion-prefs.js"></script>
     <!-- Motion Adapter — shared GSAP wrappers (T5) -->
     <script defer src="/static/js/components/motion-adapter.js"></script>
+    <!-- Page Lifecycle Manager (T2.1) -->
+    <script defer src="/static/js/components/page-lifecycle.js"></script>
 
     <!-- Alpine Plugins (must load before Alpine Core) -->
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js"></script>
