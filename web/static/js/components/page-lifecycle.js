@@ -62,14 +62,8 @@
             return true;
         }
 
-        // Compatibility shim：尚未 registerPage 的頁面走舊路徑
-        // （T2.2/T2.3/T2.4 完成後移除）
-        if (typeof window.cleanupSearchBeforeLeave === 'function') {
-            window.cleanupSearchBeforeLeave();
-        }
-        if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings(href)) {
-            return false;
-        }
+        // Compatibility shim：Scanner 尚未 registerPage，走舊路徑
+        // （Scanner 接入 lifecycle 後移除整個 shim）
         if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner(href)) {
             return false;
         }
