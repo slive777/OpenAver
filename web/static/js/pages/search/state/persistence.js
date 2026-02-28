@@ -61,6 +61,29 @@ window.SearchStateMixin_Persistence = {
     },
 
     saveState() {
+        // 搜尋進行中：用 _searchSnapshot 保存（上一輪完整一致狀態）
+        // 條件：snapshot 存在 + pageState 仍是 loading（覆蓋 SSE 和 REST fallback 兩條路徑）
+        if (this._searchSnapshot && this.pageState === 'loading') {
+            const snap = this._searchSnapshot;
+            const state = {
+                searchResults: snap.searchResults,
+                currentIndex: snap.currentIndex,
+                currentQuery: snap.currentQuery,
+                currentOffset: snap.currentOffset,
+                hasMoreResults: snap.hasMoreResults,
+                fileList: snap.fileList,
+                currentFileIndex: snap.currentFileIndex,
+                listMode: snap.listMode,
+                queryValue: snap.currentQuery,    // 上一輪的 query
+                displayMode: snap.displayMode,
+                currentMode: snap.currentMode,
+                actressProfile: snap.actressProfile
+            };
+            sessionStorage.setItem(this.STATE_KEY, JSON.stringify(state));
+            return;
+        }
+
+        // 正常路徑：現有邏輯不變
         // T1a: 從 core.js module vars 讀取（它們是 source of truth）
         // Alpine state 可能是 stale（core.js 函數直接改 module vars，不經過 Alpine）
         const coreState = window.SearchCore?.state;

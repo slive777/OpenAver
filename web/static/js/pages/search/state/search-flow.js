@@ -288,6 +288,18 @@ window.SearchStateMixin_SearchFlow = {
     },
 
     /**
+     * 離頁前清理 SSE（不還原 snapshot，因為離頁時會另外 saveState）
+     */
+    cleanupForNavigation() {
+        if (this.activeEventSource) {
+            this.activeEventSource.close();
+            this.activeEventSource = null;
+        }
+        this.requestId++;  // 讓進行中的 onmessage/onerror callback 失效
+        // 也讓進行中的 fallbackSearch() 的 savedRequestId check 失效
+    },
+
+    /**
      * 處理 SSE 狀態更新（T3b: 豐富化進度文字，顯示來源名稱）
      * @param {string} source - 來源（javbus/jav321/javdb/fc2/avsox/mode/done）
      * @param {string} status - 狀態字串

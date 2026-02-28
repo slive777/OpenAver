@@ -275,6 +275,11 @@
     sidebarCollapsed: {{ sidebar_collapsed|default(false)|tojson }},
     mobileMenuOpen: false,
     handleNavClick(event, href) {
+        // search: 清理 SSE 連線（不阻止導航，只做 cleanup）
+        if (typeof window.cleanupSearchBeforeLeave === 'function') {
+            window.cleanupSearchBeforeLeave();
+        }
+        // settings: dirty-check（可能阻止導航）
         if (typeof window.confirmLeavingSettings === 'function' && !window.confirmLeavingSettings(href)) {
             event.preventDefault();
         } else if (typeof window.confirmLeavingScanner === 'function' && !window.confirmLeavingScanner(href)) {
