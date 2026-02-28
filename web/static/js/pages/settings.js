@@ -210,21 +210,23 @@ function settingsPage() {
             });
 
             // 接入 page lifecycle（取代 window.confirmLeavingSettings）
-            window.__registerPage({
-                beforeLeave: (href) => {
-                    if (!this.isDirty) return true;
-                    this.pendingNavigationUrl = href;
-                    this.dirtyCheckModalOpen = true;
-                    return false;
-                },
-                onBeforeUnload: () => {
-                    if (this.isDirty) return '您有未儲存的設定變更';
-                    return null;
-                },
-                cleanup: () => {
-                    if (this._toastTimer) clearTimeout(this._toastTimer);
-                }
-            });
+            if (window.__registerPage) {
+                window.__registerPage({
+                    beforeLeave: (href) => {
+                        if (!this.isDirty) return true;
+                        this.pendingNavigationUrl = href;
+                        this.dirtyCheckModalOpen = true;
+                        return false;
+                    },
+                    onBeforeUnload: () => {
+                        if (this.isDirty) return '您有未儲存的設定變更';
+                        return null;
+                    },
+                    cleanup: () => {
+                        if (this._toastTimer) clearTimeout(this._toastTimer);
+                    }
+                });
+            }
         },
 
         // ===== Methods =====

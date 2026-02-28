@@ -53,13 +53,15 @@ function showcaseState() {
         // --- 生命週期 ---
         async init() {
             // 接入 page lifecycle：清理 lightbox timer 和 body class
-            window.__registerPage({
-                cleanup: () => {
-                    if (this.lightboxMoveTimer) clearTimeout(this.lightboxMoveTimer);
-                    if (this.toastTimer) clearTimeout(this.toastTimer);
-                    if (this.lightboxOpen) document.body.classList.remove('overflow-hidden');
-                }
-            });
+            if (window.__registerPage) {
+                window.__registerPage({
+                    cleanup: () => {
+                        if (this.lightboxMoveTimer) clearTimeout(this.lightboxMoveTimer);
+                        if (this.toastTimer) clearTimeout(this.toastTimer);
+                        if (this.lightboxOpen) document.body.classList.remove('overflow-hidden');
+                    }
+                });
+            }
 
             this.restoreState();        // M2c: 先恢復狀態
             const savedPage = this.page;

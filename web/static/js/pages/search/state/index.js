@@ -49,19 +49,21 @@ function searchPage() {
             this.setupAutoSave();
 
             // 7. 接入 page lifecycle（取代 cleanupSearchBeforeLeave + beforeunload）
-            window.__registerPage({
-                beforeLeave: () => {
-                    this.saveState();
-                    return true;  // search 不阻止導航，只做保存
-                },
-                onBeforeUnload: () => {
-                    this.saveState();
-                    return null;  // search 不觸發原生提示
-                },
-                cleanup: () => {
-                    this.cleanupForNavigation();  // 關 SSE + abort fallback + requestId++
-                }
-            });
+            if (window.__registerPage) {
+                window.__registerPage({
+                    beforeLeave: () => {
+                        this.saveState();
+                        return true;  // search 不阻止導航，只做保存
+                    },
+                    onBeforeUnload: () => {
+                        this.saveState();
+                        return null;  // search 不觸發原生提示
+                    },
+                    cleanup: () => {
+                        this.cleanupForNavigation();  // 關 SSE + abort fallback + requestId++
+                    }
+                });
+            }
 
             // 8. T1d: 監聽 pywebview-files 事件
             window.addEventListener('pywebview-files', async (e) => {

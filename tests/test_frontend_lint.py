@@ -670,3 +670,35 @@ class TestScannerClearCache:
         html = (PROJECT_ROOT / 'web/templates/scanner.html').read_text(encoding='utf-8')
         assert "/api/gallery/cache" in html
         assert "DELETE" in html
+
+
+class TestPageLifecycleGuard:
+    """page-lifecycle.js 存在性守衛 — 確保 script tag 及三頁 __registerPage 呼叫不被移除"""
+
+    def test_base_html_loads_page_lifecycle(self):
+        """base.html 必須引用 page-lifecycle.js"""
+        base_html = PROJECT_ROOT / "web" / "templates" / "base.html"
+        content = base_html.read_text(encoding='utf-8')
+        assert 'page-lifecycle.js' in content, \
+            "base.html 缺少 page-lifecycle.js script tag — 刪除會導致三頁 __registerPage 呼叫靜默失敗"
+
+    def test_settings_js_calls_register_page(self):
+        """settings.js 必須呼叫 __registerPage"""
+        js_file = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "settings.js"
+        content = js_file.read_text(encoding='utf-8')
+        assert '__registerPage' in content, \
+            "settings.js 缺少 __registerPage 呼叫 — dirty-check lifecycle 會失效"
+
+    def test_search_state_index_calls_register_page(self):
+        """search/state/index.js 必須呼叫 __registerPage"""
+        js_file = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "index.js"
+        content = js_file.read_text(encoding='utf-8')
+        assert '__registerPage' in content, \
+            "search/state/index.js 缺少 __registerPage 呼叫 — Search 離頁 save/cleanup 會失效"
+
+    def test_showcase_core_calls_register_page(self):
+        """showcase/core.js 必須呼叫 __registerPage"""
+        js_file = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "showcase" / "core.js"
+        content = js_file.read_text(encoding='utf-8')
+        assert '__registerPage' in content, \
+            "showcase/core.js 缺少 __registerPage 呼叫 — Showcase lightbox cleanup lifecycle 會失效"

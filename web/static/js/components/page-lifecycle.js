@@ -19,10 +19,14 @@
     // （使用者可能按「留下」→ 頁面不卸載 → hooks 必須保持完整）
     window.addEventListener('beforeunload', function (e) {
         if (_handlers.onBeforeUnload) {
-            var msg = _handlers.onBeforeUnload();
-            if (msg) {
-                e.preventDefault();
-                e.returnValue = msg;
+            try {
+                var msg = _handlers.onBeforeUnload();
+                if (msg) {
+                    e.preventDefault();
+                    e.returnValue = msg;
+                }
+            } catch (err) {
+                console.error('[page-lifecycle] onBeforeUnload error:', err);
             }
         }
     });
