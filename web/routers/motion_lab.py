@@ -70,6 +70,7 @@ async def motion_lab_data():
                 "maker": v.maker,
                 "release_date": v.release_date,
                 "cover_url": cover_url,
+                "tags": v.tags if v.tags else [],
             })
 
         return JSONResponse({
