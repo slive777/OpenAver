@@ -70,6 +70,7 @@ window.SearchStateMixin_Base = function() {
             visible: false
         },
         _timers: {},  // Timer registry：{ [key: string]: number }（setTimeout ID）
+        _abortControllers: {},  // Fetch AbortController registry：{ [key: string]: AbortController }（T4.3）
 
         // ===== T1d: File List State =====
         dragActive: false,

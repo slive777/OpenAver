@@ -961,3 +961,69 @@ class TestWindowGlobalCleanup:
         assert len(found) == 0, (
             f"init.js 仍包含 {len(found)} 個防呆 fallback（bridge 移除後不再需要）: {found}"
         )
+
+
+class TestFetchAbortController:
+    """T4.3 守衛 — fetch 可取消化（AbortController per-key）"""
+    BASE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/base.js"
+    SEARCH_FLOW_JS = PROJECT_ROOT / "web/static/js/pages/search/state/search-flow.js"
+    NAVIGATION_JS = PROJECT_ROOT / "web/static/js/pages/search/state/navigation.js"
+    BATCH_JS = PROJECT_ROOT / "web/static/js/pages/search/state/batch.js"
+    FILE_LIST_JS = PROJECT_ROOT / "web/static/js/pages/search/state/file-list.js"
+
+    def test_base_has_abort_controllers(self):
+        """base.js 必須有 _abortControllers: {} 初始值"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        assert '_abortControllers: {}' in content
+
+    def test_search_flow_has_get_abort_signal(self):
+        """search-flow.js 必須定義 _getAbortSignal method"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        assert '_getAbortSignal(' in content
+
+    def test_search_flow_has_abort_all_fetches(self):
+        """search-flow.js 必須定義 _abortAllFetches method"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        assert '_abortAllFetches(' in content
+
+    def test_cleanup_calls_abort_all_fetches(self):
+        """cleanupForNavigation() 必須呼叫 _abortAllFetches()"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        assert '_abortAllFetches()' in content
+
+    def test_load_more_uses_abort_signal(self):
+        """loadMore() 的 fetch 必須傳 signal"""
+        content = self.NAVIGATION_JS.read_text(encoding='utf-8')
+        assert "_getAbortSignal('loadMore')" in content
+
+    def test_load_more_handles_abort_error(self):
+        """loadMore() 的 catch 必須處理 AbortError"""
+        content = self.NAVIGATION_JS.read_text(encoding='utf-8')
+        assert 'AbortError' in content
+
+    def test_translate_all_uses_abort_signal(self):
+        """translateAll() 的 fetch 必須傳 signal"""
+        content = self.BATCH_JS.read_text(encoding='utf-8')
+        assert "_getAbortSignal('translateAll')" in content
+
+    def test_translate_all_handles_abort_error(self):
+        """translateAll() 的 catch 必須處理 AbortError"""
+        content = self.BATCH_JS.read_text(encoding='utf-8')
+        assert 'AbortError' in content
+
+    def test_set_file_list_uses_abort_signal(self):
+        """setFileList() 的 filter-files fetch 必須傳 signal"""
+        content = self.FILE_LIST_JS.read_text(encoding='utf-8')
+        assert "_getAbortSignal('setFileList')" in content
+
+    def test_set_file_list_handles_abort_error(self):
+        """setFileList() 的 filter-files catch 必須處理 AbortError"""
+        # 確認 file-list.js 的 filter-files catch 有 AbortError guard
+        # 用 content 中 AbortError 出現至少 2 次（setFileList + loadFavorite）
+        content = self.FILE_LIST_JS.read_text(encoding='utf-8')
+        assert content.count('AbortError') >= 2
+
+    def test_load_favorite_uses_abort_signal(self):
+        """loadFavorite() 的 fetch 必須傳 signal"""
+        content = self.FILE_LIST_JS.read_text(encoding='utf-8')
+        assert "_getAbortSignal('loadFavorite')" in content

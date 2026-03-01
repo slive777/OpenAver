@@ -58,7 +58,8 @@ window.SearchStateMixin_Navigation = {
 
         try {
             const response = await fetch(
-                `/api/search?q=${encodeURIComponent(this.currentQuery)}&offset=${newOffset}&limit=${this.PAGE_SIZE}`
+                `/api/search?q=${encodeURIComponent(this.currentQuery)}&offset=${newOffset}&limit=${this.PAGE_SIZE}`,
+                { signal: this._getAbortSignal('loadMore') }
             );
             const data = await response.json();
 
@@ -80,9 +81,11 @@ window.SearchStateMixin_Navigation = {
                 this.hasMoreResults = false;
             }
         } catch (err) {
+            if (err.name === 'AbortError') return;  // T4.3: 靜默忽略取消
             console.error('載入更多失敗:', err);
         } finally {
             this.isLoadingMore = false;
+            this._clearAbort('loadMore');  // T4.3: 操作完成清除 registry
         }
     },
 

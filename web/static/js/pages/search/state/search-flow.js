@@ -319,6 +319,9 @@ window.SearchStateMixin_SearchFlow = {
         // T4.2: 清除所有 setTimeout timer
         this._clearAllTimers();
 
+        // T4.3: 取消所有 fetch（loadMore / translateAll / setFileList / loadFavorite）
+        this._abortAllFetches();
+
         // T4.2: 讓 batch/translate 的 checkInterval 自清（setPaused=false 讓條件成立）
         this.batchState.isProcessing = false;
         this.batchState.isPaused = false;
@@ -380,6 +383,35 @@ window.SearchStateMixin_SearchFlow = {
     _clearAllTimers() {
         Object.values(this._timers).forEach(clearTimeout);
         this._timers = {};
+    },
+
+    // ===== T4.3: Fetch AbortController 集中追蹤方法 =====
+
+    /**
+     * 取得指定 key 的 AbortSignal（自動 abort 並取代同 key 的舊 controller）
+     * @param {string} key - fetch 識別碼（如 'loadMore', 'translateAll', 'setFileList', 'loadFavorite'）
+     * @returns {AbortSignal}
+     */
+    _getAbortSignal(key) {
+        if (this._abortControllers[key]) this._abortControllers[key].abort();
+        this._abortControllers[key] = new AbortController();
+        return this._abortControllers[key].signal;
+    },
+
+    /**
+     * 從 registry 移除指定 key 的 AbortController（fetch 完成後呼叫）
+     * @param {string} key - fetch 識別碼
+     */
+    _clearAbort(key) {
+        delete this._abortControllers[key];
+    },
+
+    /**
+     * 取消並清空所有 registry 中的 fetch（離頁時呼叫）
+     */
+    _abortAllFetches() {
+        Object.values(this._abortControllers).forEach(c => c.abort());
+        this._abortControllers = {};
     },
 
     /**
