@@ -1077,3 +1077,85 @@ class TestScannerDeadCodeGuard:
         content = self.SCANNER_HTML.read_text(encoding='utf-8')
         assert 'window.isGenerating' not in content, \
             "scanner.html 仍含 window.isGenerating — T5.2 應已移除所有死碼賦值"
+
+
+class TestSearchMigrationDeadCode:
+    """T5.3 守衛 — Search 遷移殘留清除（T5.3a + T5.3b）"""
+
+    CORE_JS = PROJECT_ROOT / "web/static/js/pages/search/core.js"
+    BRIDGE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/bridge.js"
+    FILE_JS = PROJECT_ROOT / "web/static/js/pages/search/file.js"
+
+    # ===== T5.3a 守衛 =====
+
+    def test_core_no_savestate_stub(self):
+        """core.js 不含 saveState / restoreState 空殼函數定義"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        assert 'function saveState()' not in content, \
+            "core.js 仍含 function saveState() 空殼 — T5.3a 應已刪除"
+        assert 'function restoreState()' not in content, \
+            "core.js 仍含 function restoreState() 空殼 — T5.3a 應已刪除"
+        assert 'T3.2: dead code' not in content, \
+            "core.js 仍含 T3.2 dead code 註解 — T5.3a 應已刪除"
+
+    def test_core_no_null_progress_slots(self):
+        """core.js 不含 initProgress / updateLog / handleSearchStatus null slot"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        assert 'initProgress: null' not in content, \
+            "core.js 仍含 initProgress: null slot — T5.3a 應已刪除"
+        assert 'updateLog: null' not in content, \
+            "core.js 仍含 updateLog: null slot — T5.3a 應已刪除"
+        assert 'handleSearchStatus: null' not in content, \
+            "core.js 仍含 handleSearchStatus: null slot — T5.3a 應已刪除"
+
+    def test_bridge_no_render_noop(self):
+        """bridge.js 不含 renderFileList / renderSearchResultsList no-op 覆寫"""
+        content = self.BRIDGE_JS.read_text(encoding='utf-8')
+        assert 'renderFileList' not in content, \
+            "bridge.js 仍含 renderFileList no-op 覆寫 — T5.3a 應已刪除"
+        assert 'renderSearchResultsList' not in content, \
+            "bridge.js 仍含 renderSearchResultsList no-op 覆寫 — T5.3a 應已刪除"
+
+    def test_file_no_render_stubs(self):
+        """file.js 不含 renderFileList / renderSearchResultsList 空函數定義"""
+        content = self.FILE_JS.read_text(encoding='utf-8')
+        assert 'renderFileList' not in content, \
+            "file.js 仍含 renderFileList 空函數定義 — T5.3a 應已刪除"
+        assert 'renderSearchResultsList' not in content, \
+            "file.js 仍含 renderSearchResultsList 空函數定義 — T5.3a 應已刪除"
+
+    # ===== T5.3b 守衛 =====
+
+    def test_core_no_dosearch_null_slot(self):
+        """core.js 不含 doSearch: null slot"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        assert 'doSearch: null' not in content, \
+            "core.js 仍含 doSearch: null slot — T5.3b 應已刪除"
+
+    def test_bridge_no_searchfile_stubs(self):
+        """bridge.js 不含 SearchFile bridge stub 轉發"""
+        content = self.BRIDGE_JS.read_text(encoding='utf-8')
+        assert 'window.SearchFile.switchToFile' not in content, \
+            "bridge.js 仍含 window.SearchFile.switchToFile — T5.3b 應已刪除"
+        assert 'window.SearchFile.searchAll' not in content, \
+            "bridge.js 仍含 window.SearchFile.searchAll — T5.3b 應已刪除"
+        assert 'window.SearchFile.scrapeAll' not in content, \
+            "bridge.js 仍含 window.SearchFile.scrapeAll — T5.3b 應已刪除"
+        assert 'window.SearchFile.setFileList' not in content, \
+            "bridge.js 仍含 window.SearchFile.setFileList — T5.3b 應已刪除"
+        assert 'window.SearchFile.handleFileDrop' not in content, \
+            "bridge.js 仍含 window.SearchFile.handleFileDrop — T5.3b 應已刪除"
+
+    def test_file_no_bridge_stubs(self):
+        """file.js 不含 bridge stub 空函數定義"""
+        content = self.FILE_JS.read_text(encoding='utf-8')
+        assert 'switchToFile: function()' not in content, \
+            "file.js 仍含 switchToFile: function() 空函數 — T5.3b 應已刪除"
+        assert 'searchAll: function()' not in content, \
+            "file.js 仍含 searchAll: function() 空函數 — T5.3b 應已刪除"
+        assert 'scrapeAll: function()' not in content, \
+            "file.js 仍含 scrapeAll: function() 空函數 — T5.3b 應已刪除"
+        assert 'setFileList: function()' not in content, \
+            "file.js 仍含 setFileList: function() 空函數 — T5.3b 應已刪除"
+        assert 'handleFileDrop: function()' not in content, \
+            "file.js 仍含 handleFileDrop: function() 空函數 — T5.3b 應已刪除"

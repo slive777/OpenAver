@@ -221,12 +221,4 @@ window.SearchFile = {
     parseFilenames,
     scrapeFile,
     detectSuffixes,
-    // Bridge stubs (overwritten by Alpine setupBridgeLayer)
-    switchToFile: function() {},
-    searchAll: function() {},
-    scrapeAll: function() {},
-    setFileList: function() {},
-    handleFileDrop: function() {},
-    renderFileList: function() {},
-    renderSearchResultsList: function() {}
 };

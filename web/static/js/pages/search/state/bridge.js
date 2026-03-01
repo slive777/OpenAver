@@ -16,25 +16,8 @@ window.SearchStateMixin_Bridge = {
             window.SearchCore.clearState = () => this.clearState();
         }
 
-        // T1b: 新增搜尋流程 bridge
-        // 讓舊 JS 可以觸發 Alpine 搜尋
-        if (window.SearchCore) {
-            window.SearchCore.doSearch = (query) => this.doSearch(query);
-        }
         if (window.SearchUI) {
             window.SearchUI.navigateResult = (delta) => this.navigate(delta);
-        }
-
-        // T1d: file.js functions now in Alpine
-        if (window.SearchFile) {
-            window.SearchFile.switchToFile = (index, position, showFullLoading) =>
-                this.switchToFile(index, position, showFullLoading);
-            window.SearchFile.searchAll = () => this.searchAll();
-            window.SearchFile.scrapeAll = () => this.scrapeAll();
-            window.SearchFile.setFileList = (paths) => this.setFileList(paths);
-            window.SearchFile.handleFileDrop = (files) => this.handleFileDrop(files);
-            window.SearchFile.renderFileList = () => {}; // no-op
-            window.SearchFile.renderSearchResultsList = () => {}; // no-op
         }
 
         // T6b: Toast bridge（供外部 JS 如 ui.js 的 showSourceToast 使用）

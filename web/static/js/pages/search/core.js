@@ -151,7 +151,7 @@ async function _translateWithAI() {
                 }
                 // T1c: Alpine reactive will update UI automatically
                 console.log(`[Gemini] 翻譯完成: ${result.result}`);
-                saveState();
+                window.SearchCore.saveState();
             } else {
                 throw new Error(result.error || '翻譯失敗');
             }
@@ -217,7 +217,7 @@ async function _translateWithAI() {
             });
 
             console.log(`[Ollama Batch] 完成 ${translations.filter(t => t).length} 片翻譯`);
-            saveState();
+            window.SearchCore.saveState();
         }
 
         if (state.listMode !== 'file') {
@@ -234,20 +234,6 @@ async function _translateWithAI() {
         // T1c: isTranslating cleanup handled by Alpine wrapper
         // T1c: UI updates handled by Alpine reactive
     }
-}
-
-// === 狀態保存/還原 ===
-
-function saveState() {
-    // T3.2: dead code — bridge.js 已覆寫此函數，Alpine persistence.js 接管
-}
-
-function restoreState() {
-    // T3.2: dead code — bridge.js 已覆寫此函數，Alpine persistence.js 接管
-}
-
-function clearState() {
-    sessionStorage.removeItem(STATE_KEY);
 }
 
 function clearAll() {
@@ -269,7 +255,7 @@ function clearAll() {
 
     window.SearchUI.showState('empty');
     updateClearButton();
-    clearState();
+    sessionStorage.removeItem(STATE_KEY);
 }
 
 function updateClearButton() {
@@ -420,16 +406,8 @@ window.SearchCore = {
     initDOM,
     // 函數
     loadAppConfig,
-    saveState,
-    restoreState,
-    clearState,
     clearAll,
     updateClearButton,
-    // T1b: 這些函數已遷移到 Alpine，保留 bridge 指向（在 state.js setupBridgeLayer() 設定）
-    doSearch: null,
-    initProgress: null,      // bridge 在 state.js 設定
-    updateLog: null,         // bridge 在 state.js 設定
-    handleSearchStatus: null, // bridge 在 state.js 設定
     hasJapanese,
     translateWithOllama,
     // T1c: Internal translate function (called by Alpine wrapper)
