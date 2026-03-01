@@ -182,7 +182,7 @@
         /**
          * Detail 進場：封面左滑入 + info 下淡入
          * @param {Element} detailEl - Detail 容器
-         * @param {object} params - { duration, easing, reducedMotionSim }
+         * @param {object} params - { duration, easing, reducedMotionSim, skipCover }
          * @returns {gsap.core.Timeline}
          */
         playDetailEntry: function (detailEl, params) {
@@ -209,17 +209,151 @@
             var ease = params.easing || 'power3.out';
             var detailSpeed = params.detailSpeed || 1;
 
-            if (cover) {
+            // skipCover: ghost transition 已處理封面動畫，只播 info 進場
+            var skipCover = params.skipCover === true;
+
+            if (cover && !skipCover) {
                 // C6: 不使用 rotationX/Y/Z，使用 x 軸位移
                 tl.from(cover, { x: -40, opacity: 0, duration: dur, ease: ease });
             }
             if (info) {
                 tl.from(info, { y: 30, opacity: 0, duration: dur * 0.8, ease: ease },
-                    cover ? ('-=' + (dur * 0.6)) : 0);
+                    (cover && !skipCover) ? ('-=' + (dur * 0.6)) : 0);
             }
 
             tl.timeScale(detailSpeed);
             return tl;
+        },
+
+        /**
+         * 在容器內擷取封面元素與其 bounding rect
+         * Grid 容器：.av-card-preview-img img（第 index 個）
+         * Detail 容器：.av-card-full-cover img
+         * @param {Element} containerEl - Grid 或 Detail 容器
+         * @param {number|null} index - Grid 中的卡片索引（Detail 傳 null）
+         * @returns {{ el: HTMLImageElement, rect: DOMRect }|null}
+         */
+        captureCoverRect: function (containerEl, index) {
+            if (!containerEl) return null;
+
+            var el = null;
+
+            // Detail 容器
+            var detailImg = containerEl.querySelector('.av-card-full-cover img');
+            if (detailImg) {
+                el = detailImg;
+            } else {
+                // Grid 容器 — 取第 index 個 .av-card-preview-img img
+                var imgs = containerEl.querySelectorAll('.av-card-preview-img img');
+                if (index != null && imgs[index]) {
+                    el = imgs[index];
+                }
+            }
+
+            if (!el) return null;
+
+            // 圖片未完成載入則降級
+            if (!el.complete) return null;
+
+            var rect = el.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return null;
+
+            return { el: el, rect: rect };
+        },
+
+        /**
+         * 建立封面 ghost img 節點，append 到 body
+         * @param {HTMLImageElement} sourceEl - 來源 img 元素
+         * @param {DOMRect} rect - 來源元素的 bounding rect
+         * @returns {HTMLImageElement} ghost element
+         */
+        createCoverGhost: function (sourceEl, rect) {
+            var ghost = document.createElement('img');
+            ghost.src = sourceEl.src;
+            ghost.className = 'motion-lab-ghost';
+
+            // 複製 source 的 border-radius
+            var computed = window.getComputedStyle(sourceEl);
+            ghost.style.position = 'fixed';
+            ghost.style.left = '0';
+            ghost.style.top = '0';
+            ghost.style.margin = '0';
+            ghost.style.pointerEvents = 'none';
+            ghost.style.zIndex = '2000';
+            ghost.style.willChange = 'transform, width, height';
+            ghost.style.transformOrigin = 'top left';
+            ghost.style.borderRadius = computed.borderRadius || '0px';
+            ghost.style.objectFit = 'cover';
+
+            document.body.appendChild(ghost);
+
+            // 以 GSAP 定位至來源位置
+            gsap.set(ghost, {
+                x: rect.left,
+                y: rect.top,
+                width: rect.width,
+                height: rect.height
+            });
+
+            return ghost;
+        },
+
+        /**
+         * Ghost 封面從 fromRect 飛到 toRect
+         * C1: onComplete 只 resolve，不改 Alpine 狀態
+         * C4: killTweensOf(ghost)
+         * C6: 禁止旋轉
+         * @param {HTMLImageElement} ghost - ghost 元素
+         * @param {DOMRect} fromRect - 起始位置
+         * @param {DOMRect} toRect - 目標位置
+         * @param {object} params - { duration, easing }
+         * @returns {Promise}
+         */
+        playSharedCoverTransition: function (ghost, fromRect, toRect, params) {
+            params = params || {};
+            var dur = params.duration || 0.38;
+            var ease = params.easing || 'power2.inOut';
+
+            // C4: 清除舊動畫
+            gsap.killTweensOf(ghost);
+
+            return new Promise(function (resolve) {
+                gsap.fromTo(ghost,
+                    {
+                        x: fromRect.left,
+                        y: fromRect.top,
+                        width: fromRect.width,
+                        height: fromRect.height
+                    },
+                    {
+                        x: toRect.left,
+                        y: toRect.top,
+                        width: toRect.width,
+                        height: toRect.height,
+                        duration: dur,
+                        ease: ease,
+                        onComplete: resolve  // C1: onComplete 只 resolve Promise
+                    }
+                );
+            });
+        },
+
+        /**
+         * 清除 ghost 並還原真實封面 opacity
+         * @param {HTMLImageElement} ghost - ghost 元素
+         * @param {HTMLImageElement|null} sourceEl - 來源封面 img（還原 opacity）
+         * @param {HTMLImageElement|null} targetEl - 目標封面 img（還原 opacity）
+         */
+        cleanupCoverGhost: function (ghost, sourceEl, targetEl) {
+            if (ghost && ghost.parentNode) {
+                ghost.remove();
+            }
+            var toRestore = [];
+            if (sourceEl) toRestore.push(sourceEl);
+            if (targetEl) toRestore.push(targetEl);
+            if (toRestore.length) {
+                gsap.set(toRestore, { opacity: 1 });
+            }
         },
 
         /**
@@ -299,14 +433,17 @@
          * @param {Element} detailEl - Detail 容器
          */
         resetAll: function (gridEl, detailEl) {
-            var allTargets = [];
-
             if (gridEl) {
                 var cards = gridEl.querySelectorAll('.av-card-preview');
                 gsap.killTweensOf(cards);
-                allTargets = allTargets.concat(Array.from(cards));
                 // 重置卡片 transform/opacity
                 gsap.set(cards, { clearProps: 'all' });
+                // 清除 ghost 轉場中途被設為 opacity:0 的封面 img
+                var gridImgs = gridEl.querySelectorAll('.av-card-preview-img img');
+                if (gridImgs.length) {
+                    gsap.killTweensOf(gridImgs);
+                    gsap.set(gridImgs, { clearProps: 'all' });
+                }
             }
 
             if (detailEl) {

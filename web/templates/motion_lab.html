@@ -405,6 +405,7 @@
          videos: [],
          loading: true,
          isNavigating: false,
+         isTransitioning: false,
 
          init() {
              this.fetchVideos();
@@ -466,13 +467,74 @@
              }
          },
 
-         onDetailEntry() {
+         async onDetailEntry() {
              if (!this.hasVideos || typeof window.MotionLab === 'undefined') return;
-             this.mode = 'detail';
-             this.$nextTick(() => {
+             if (this.isTransitioning) return;
+             this.isTransitioning = true;
+
+             var ghost = null;
+             var fromEl = null;
+             var toEl = null;
+
+             try {
+                 // reducedMotionSim 或系統 prefers-reduced-motion 時走降級路徑（無 ghost）
+                 const skipAnim = this.params.reducedMotionSim ||
+                     !!(window.OpenAver && window.OpenAver.prefersReducedMotion);
+
+                 // 量測 from rect（Grid 內的選中卡片封面）
+                 var fromCapture = null;
+                 if (!skipAnim) {
+                     const gridEl = this.$refs.grid;
+                     fromCapture = window.MotionLab.captureCoverRect(gridEl, this.selectedIndex);
+                     if (fromCapture) fromEl = fromCapture.el;
+                 }
+
+                 // 切換到 detail 模式
+                 this.mode = 'detail';
+
+                 await this.$nextTick();
+                 // 等待瀏覽器繪製完成
+                 await new Promise(r => requestAnimationFrame(r));
+
                  const detailEl = this.$refs.detail;
-                 if (detailEl) window.MotionLab.playDetailEntry(detailEl, this.params);
-             });
+                 if (!detailEl) return;
+
+                 if (fromCapture && !skipAnim) {
+                     // 量測 to rect（detail 封面）
+                     var toCapture = window.MotionLab.captureCoverRect(detailEl, null);
+
+                     if (toCapture) {
+                         toEl = toCapture.el;
+                         // 建 ghost、隱藏真實封面
+                         ghost = window.MotionLab.createCoverGhost(fromCapture.el, fromCapture.rect);
+                         gsap.set(fromCapture.el, { opacity: 0 });
+                         gsap.set(toEl, { opacity: 0 });
+
+                         // 執行 ghost 飛行動畫
+                         await window.MotionLab.playSharedCoverTransition(
+                             ghost, fromCapture.rect, toCapture.rect, this.params
+                         );
+
+                         // cleanup ghost、還原封面
+                         window.MotionLab.cleanupCoverGhost(ghost, fromEl, toEl);
+                         ghost = null;
+
+                         // 只播 info 進場
+                         window.MotionLab.playDetailEntry(detailEl, Object.assign({}, this.params, { skipCover: true }));
+                         return;
+                     }
+                 }
+
+                 // 降級：直接播完整 playDetailEntry（原有行為）
+                 window.MotionLab.playDetailEntry(detailEl, this.params);
+
+             } finally {
+                 // 確保 ghost 被清除（例外時）
+                 if (ghost) {
+                     window.MotionLab.cleanupCoverGhost(ghost, fromEl, toEl);
+                 }
+                 this.isTransitioning = false;
+             }
          },
 
          async onPrev() {
@@ -513,14 +575,84 @@
              }
          },
 
-         onToggleMode() {
-             const toDetail = this.mode === 'grid';
-             this.mode = toDetail ? 'detail' : 'grid';
-             if (toDetail && this.hasVideos && typeof window.MotionLab !== 'undefined') {
-                 this.$nextTick(() => {
+         async onToggleMode() {
+             if (!this.hasVideos || typeof window.MotionLab === 'undefined') return;
+
+             if (this.mode === 'grid') {
+                 // Grid → Detail: 走 onDetailEntry() 主流程
+                 await this.onDetailEntry();
+                 return;
+             }
+
+             // Detail → Grid
+             if (this.isTransitioning) return;
+             this.isTransitioning = true;
+
+             var ghost = null;
+             var fromEl = null;
+             var toEl = null;
+
+             try {
+                 const skipAnim = this.params.reducedMotionSim ||
+                    !!(window.OpenAver && window.OpenAver.prefersReducedMotion);
+
+                 var fromCapture = null;
+                 if (!skipAnim) {
                      const detailEl = this.$refs.detail;
-                     if (detailEl) window.MotionLab.playDetailEntry(detailEl, this.params);
-                 });
+                     fromCapture = window.MotionLab.captureCoverRect(detailEl, null);
+                     if (fromCapture) fromEl = fromCapture.el;
+                 }
+
+                 // 切換回 grid 模式
+                 this.mode = 'grid';
+
+                 await this.$nextTick();
+                 await new Promise(r => requestAnimationFrame(r));
+
+                 if (fromCapture && !skipAnim) {
+                     const gridEl = this.$refs.grid;
+                     // 找到目標卡片的封面，先 scrollIntoView 確保可量測
+                     const targetCards = gridEl ? gridEl.querySelectorAll('.av-card-preview') : [];
+                     const targetCard = targetCards[this.selectedIndex];
+                     if (targetCard) {
+                         targetCard.scrollIntoView({ block: 'nearest' });
+                         // 等一個 rAF 讓 scroll settle
+                         await new Promise(r => requestAnimationFrame(r));
+                     }
+
+                     var toCapture = window.MotionLab.captureCoverRect(gridEl, this.selectedIndex);
+
+                     if (toCapture) {
+                         toEl = toCapture.el;
+
+                         // 驗證目標 rect 在 viewport 內（負值或超出視口則降級）
+                         var tr = toCapture.rect;
+                         var vw = window.innerWidth;
+                         var vh = window.innerHeight;
+                         var rectValid = tr.right > 0 && tr.bottom > 0 && tr.left < vw && tr.top < vh;
+
+                         if (rectValid) {
+                             ghost = window.MotionLab.createCoverGhost(fromCapture.el, fromCapture.rect);
+                             gsap.set(fromCapture.el, { opacity: 0 });
+                             gsap.set(toEl, { opacity: 0 });
+
+                             await window.MotionLab.playSharedCoverTransition(
+                                 ghost, fromCapture.rect, toCapture.rect, this.params
+                             );
+
+                             window.MotionLab.cleanupCoverGhost(ghost, fromEl, toEl);
+                             ghost = null;
+                             return;
+                         }
+                     }
+                 }
+                 // 降級：直接切回 grid，無動畫（已在上方完成 mode 切換）
+
+             } finally {
+                 if (ghost) {
+                     window.MotionLab.cleanupCoverGhost(ghost, fromEl, toEl);
+                 }
+                 this.isTransitioning = false;
              }
          },
 
@@ -531,6 +663,11 @@
              window.MotionLab.resetAll(gridEl, detailEl);
              this.mode = 'grid';
              this.isNavigating = false;
+             this.isTransitioning = false;
+             // 清除殘留 ghost 節點
+             document.querySelectorAll('.motion-lab-ghost').forEach(function (el) {
+                 el.remove();
+             });
          }
      }"
      x-cloak>
