@@ -180,6 +180,71 @@
         },
 
         /**
+         * Detail→Grid 前：info 先淡出（約 120ms），讓封面轉場時 info 已消失
+         * C1: onComplete 只 resolve Promise
+         * C4: killTweensOf(infoEl)
+         * @param {Element} detailEl - Detail 容器
+         * @param {object} params - { reducedMotionSim }
+         * @returns {Promise}
+         */
+        playInfoExit: function (detailEl, params) {
+            params = params || {};
+            return new Promise(function (resolve) {
+                var infoEl = detailEl ? detailEl.querySelector('.av-card-full-info') : null;
+
+                // guard：info 不存在直接 resolve
+                if (!infoEl) {
+                    resolve();
+                    return;
+                }
+
+                // C4: 清除舊動畫
+                gsap.killTweensOf(infoEl);
+
+                // Reduced Motion 降級：瞬間設為 opacity:0 後 resolve
+                if (shouldSkip(params)) {
+                    gsap.set(infoEl, { opacity: 0 });
+                    resolve();
+                    return;
+                }
+
+                gsap.to(infoEl, {
+                    opacity: 0,
+                    duration: 0.12,
+                    ease: 'power2.in',
+                    onComplete: resolve  // C1: onComplete 只 resolve Promise
+                });
+            });
+        },
+
+        /**
+         * Ghost 落位後目標卡輕微 settle（scale 1.02 → 1）
+         * 非阻塞：fire-and-forget，不回傳 Promise
+         * C4: killTweensOf(cardEl)
+         * C6: 禁止旋轉
+         * @param {Element} cardEl - Grid 中的 .av-card-preview 元素
+         * @param {object} params - { reducedMotionSim }
+         */
+        playTargetSettle: function (cardEl, params) {
+            params = params || {};
+
+            // guard：元素不存在直接 return
+            if (!cardEl) return;
+
+            // Reduced Motion 降級：不播動畫，直接 return（不設任何 transform）
+            if (shouldSkip(params)) return;
+
+            // C4: 清除舊動畫
+            gsap.killTweensOf(cardEl);
+
+            // C6: 不使用旋轉，只用 scale
+            gsap.fromTo(cardEl,
+                { scale: 1.02 },
+                { scale: 1, duration: 0.18, ease: 'power2.out' }
+            );
+        },
+
+        /**
          * Detail 進場：封面左滑入 + info 下淡入
          * @param {Element} detailEl - Detail 容器
          * @param {object} params - { duration, easing, reducedMotionSim, skipCover }
@@ -287,12 +352,13 @@
 
             document.body.appendChild(ghost);
 
-            // 以 GSAP 定位至來源位置
+            // 以 GSAP 定位至來源位置，初始帶輕微陰影（離地感）
             gsap.set(ghost, {
                 x: rect.left,
                 y: rect.top,
                 width: rect.width,
-                height: rect.height
+                height: rect.height,
+                boxShadow: '0 4px 16px rgba(0,0,0,0.25)'
             });
 
             return ghost;
@@ -318,6 +384,7 @@
             gsap.killTweensOf(ghost);
 
             return new Promise(function (resolve) {
+                // 主飛行 tween（位置 + 大小）
                 gsap.fromTo(ghost,
                     {
                         x: fromRect.left,
@@ -335,6 +402,15 @@
                         onComplete: resolve  // C1: onComplete 只 resolve Promise
                     }
                 );
+
+                // 陰影 keyframes：起飛（0）→ 強化（50%）→ 落地（100%）
+                gsap.to(ghost, {
+                    keyframes: [
+                        { boxShadow: '0 12px 32px rgba(0,0,0,0.40)', duration: dur * 0.5 },
+                        { boxShadow: '0 2px 8px rgba(0,0,0,0.15)', duration: dur * 0.5 }
+                    ],
+                    ease: 'none'
+                });
             });
         },
 

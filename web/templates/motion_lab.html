@@ -648,6 +648,12 @@
                      return;
                  }
 
+                 // 先淡出 info（約 120ms），只在 Flip(Ghost) 路徑
+                 if (flipMode === 'Flip') {
+                     const detailElForExit = this.$refs.detail;
+                     await window.MotionLab.playInfoExit(detailElForExit, this.params);
+                 }
+
                  // 量測 from rect（Detail 側封面）
                  var fromCapture = null;
                  {
@@ -696,6 +702,10 @@
 
                              window.MotionLab.cleanupCoverGhost(ghost, fromEl, toEl);
                              ghost = null;
+                             // 目標卡落位 settle（非阻塞）
+                             if (targetCard) {
+                                 window.MotionLab.playTargetSettle(targetCard, this.params);
+                             }
                              return;
                          }
                      }
