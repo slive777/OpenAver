@@ -480,10 +480,47 @@
                  // reducedMotionSim 或系統 prefers-reduced-motion 時走降級路徑（無 ghost）
                  const skipAnim = this.params.reducedMotionSim ||
                      !!(window.OpenAver && window.OpenAver.prefersReducedMotion);
+                 const flipMode = this.params.flipMode || 'Flip';
 
-                 // 量測 from rect（Grid 內的選中卡片封面）
+                 // Level 2（skipAnim 或 flipMode=None）：量測前就能短路，不嘗試 ghost
+                 if (skipAnim || flipMode === 'None') {
+                     this.mode = 'detail';
+                     await this.$nextTick();
+                     await new Promise(r => requestAnimationFrame(r));
+                     const detailElL2 = this.$refs.detail;
+                     if (detailElL2) {
+                         window.MotionLab.playDetailEntry(detailElL2, Object.assign({}, this.params, { skipCover: true }));
+                     }
+                     return;
+                 }
+
+                 // flipMode === 'Crossfade'：強制走 Crossfade，不嘗試建 ghost
+                 if (flipMode === 'Crossfade') {
+                     const gridEl = this.$refs.grid;
+                     var cfFromCapture = window.MotionLab.captureCoverRect(gridEl, this.selectedIndex);
+                     var cfFromEl = cfFromCapture ? cfFromCapture.el : null;
+
+                     this.mode = 'detail';
+                     await this.$nextTick();
+                     await new Promise(r => requestAnimationFrame(r));
+
+                     const detailElCF = this.$refs.detail;
+                     if (!detailElCF) return;
+
+                     var cfToCapture = window.MotionLab.captureCoverRect(detailElCF, null);
+                     var cfToEl = cfToCapture ? cfToCapture.el : null;
+
+                     await window.MotionLab.playCrossfadeTransition(cfFromEl, cfToEl, this.params);
+                     // source 封面還原（grid 已不顯示，防殘留）
+                     if (cfFromEl) gsap.set(cfFromEl, { opacity: 1 });
+
+                     window.MotionLab.playDetailEntry(detailElCF, Object.assign({}, this.params, { skipCover: true }));
+                     return;
+                 }
+
+                 // flipMode === 'Flip'：嘗試 ghost 主路徑
                  var fromCapture = null;
-                 if (!skipAnim) {
+                 {
                      const gridEl = this.$refs.grid;
                      fromCapture = window.MotionLab.captureCoverRect(gridEl, this.selectedIndex);
                      if (fromCapture) fromEl = fromCapture.el;
@@ -499,7 +536,7 @@
                  const detailEl = this.$refs.detail;
                  if (!detailEl) return;
 
-                 if (fromCapture && !skipAnim) {
+                 if (fromCapture) {
                      // 量測 to rect（detail 封面）
                      var toCapture = window.MotionLab.captureCoverRect(detailEl, null);
 
@@ -525,8 +562,15 @@
                      }
                  }
 
-                 // 降級：直接播完整 playDetailEntry（原有行為）
-                 window.MotionLab.playDetailEntry(detailEl, this.params);
+                 // Flip 主路徑 ghost 量測失敗 → 降級到 Level 1 Crossfade
+                 {
+                     var fbFromEl = fromCapture ? fromCapture.el : null;
+                     var fbToCapture = window.MotionLab.captureCoverRect(detailEl, null);
+                     var fbToEl = fbToCapture ? fbToCapture.el : null;
+                     await window.MotionLab.playCrossfadeTransition(fbFromEl, fbToEl, this.params);
+                     if (fbFromEl) gsap.set(fbFromEl, { opacity: 1 });
+                     window.MotionLab.playDetailEntry(detailEl, Object.assign({}, this.params, { skipCover: true }));
+                 }
 
              } finally {
                  // 確保 ghost 被清除（例外時）
@@ -595,9 +639,18 @@
              try {
                  const skipAnim = this.params.reducedMotionSim ||
                     !!(window.OpenAver && window.OpenAver.prefersReducedMotion);
+                 const flipMode = this.params.flipMode || 'Flip';
 
+                 // Level 2（skipAnim 或 flipMode=None）：量測前短路，不嘗試 ghost 或 crossfade
+                 if (skipAnim || flipMode === 'None') {
+                     this.mode = 'grid';
+                     // 無動畫，直接結束
+                     return;
+                 }
+
+                 // 量測 from rect（Detail 側封面）
                  var fromCapture = null;
-                 if (!skipAnim) {
+                 {
                      const detailEl = this.$refs.detail;
                      fromCapture = window.MotionLab.captureCoverRect(detailEl, null);
                      if (fromCapture) fromEl = fromCapture.el;
@@ -609,7 +662,8 @@
                  await this.$nextTick();
                  await new Promise(r => requestAnimationFrame(r));
 
-                 if (fromCapture && !skipAnim) {
+                 // flipMode === 'Flip'：嘗試 ghost 主路徑
+                 if (flipMode === 'Flip' && fromCapture) {
                      const gridEl = this.$refs.grid;
                      // 找到目標卡片的封面，先 scrollIntoView 確保可量測
                      const targetCards = gridEl ? gridEl.querySelectorAll('.av-card-preview') : [];
@@ -646,7 +700,26 @@
                          }
                      }
                  }
-                 // 降級：直接切回 grid，無動畫（已在上方完成 mode 切換）
+
+                 // Crossfade 路徑（flipMode=Crossfade，或 flipMode=Flip 且 ghost 量測失敗）
+                 {
+                     const gridEl = this.$refs.grid;
+                     // scrollIntoView 讓目標可量測
+                     const targetCards = gridEl ? gridEl.querySelectorAll('.av-card-preview') : [];
+                     const targetCard = targetCards[this.selectedIndex];
+                     if (targetCard) {
+                         targetCard.scrollIntoView({ block: 'nearest' });
+                         await new Promise(r => requestAnimationFrame(r));
+                     }
+
+                     var cfFromEl = fromCapture ? fromCapture.el : null;
+                     var cfToCapture = window.MotionLab.captureCoverRect(gridEl, this.selectedIndex);
+                     var cfToEl = cfToCapture ? cfToCapture.el : null;
+
+                     await window.MotionLab.playCrossfadeTransition(cfFromEl, cfToEl, this.params);
+                     // 還原 source（detail 封面，grid 模式已不顯示，防殘留）
+                     if (cfFromEl) gsap.set(cfFromEl, { opacity: 1 });
+                 }
 
              } finally {
                  if (ghost) {

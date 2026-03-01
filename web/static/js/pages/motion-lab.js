@@ -339,6 +339,66 @@
         },
 
         /**
+         * Crossfade 封面轉場：target 淡入放大，source 輕微淡出
+         * C1: onComplete 只 resolve，不改 Alpine 狀態
+         * C4: killTweensOf(sourceEl, targetEl)
+         * C6: 禁止旋轉
+         * @param {HTMLImageElement|null} sourceEl - 來源封面 img（可為 null）
+         * @param {HTMLImageElement|null} targetEl - 目標封面 img（可為 null）
+         * @param {object} params - { duration, reducedMotionSim }
+         * @returns {Promise}
+         */
+        playCrossfadeTransition: function (sourceEl, targetEl, params) {
+            params = params || {};
+
+            return new Promise(function (resolve) {
+                // C4: 清除舊動畫
+                var targets = [sourceEl, targetEl].filter(Boolean);
+                if (targets.length) {
+                    gsap.killTweensOf(targets);
+                }
+
+                // targetEl 不存在 → 直接 resolve
+                if (!targetEl) {
+                    resolve();
+                    return;
+                }
+
+                // Reduced Motion 降級：gsap.set 瞬間完成
+                if (shouldSkip(params)) {
+                    gsap.set(targetEl, { opacity: 1, scale: 1 });
+                    if (sourceEl) gsap.set(sourceEl, { opacity: 1 });
+                    resolve();
+                    return;
+                }
+
+                var baseDur = params.duration || 0.6;
+                // 保持比例感：target 0.30s base，source 0.20s base，依 params.duration 等比縮放
+                var targetDur = 0.30 * (baseDur / 0.6);
+                var sourceDur = 0.20 * (baseDur / 0.6);
+
+                var tl = gsap.timeline({
+                    onComplete: resolve  // C1: onComplete 只 resolve Promise
+                });
+
+                // target cover：opacity 0, scale 0.94 → opacity 1, scale 1
+                // C6: 不使用 rotationX/Y/Z
+                tl.fromTo(targetEl,
+                    { opacity: 0, scale: 0.94 },
+                    { opacity: 1, scale: 1, duration: targetDur, ease: 'power2.out' }
+                );
+
+                // source cover：輕微淡出（若 sourceEl 存在）
+                if (sourceEl) {
+                    tl.to(sourceEl,
+                        { opacity: 0, duration: sourceDur, ease: 'power2.out' },
+                        0  // 與 target 動畫同時開始
+                    );
+                }
+            });
+        },
+
+        /**
          * 清除 ghost 並還原真實封面 opacity
          * @param {HTMLImageElement} ghost - ghost 元素
          * @param {HTMLImageElement|null} sourceEl - 來源封面 img（還原 opacity）
