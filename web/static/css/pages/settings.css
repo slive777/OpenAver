@@ -406,3 +406,17 @@
     opacity: 0.6;
     cursor: wait;
 }
+
+/* ==================== View Transition: theme 圓弧展開 ==================== */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation: none;
+    }
+}
