@@ -1,0 +1,747 @@
+{% extends "base.html" %}
+
+{% block title %}Motion Lab{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Motion Lab 沙盒頁樣式 */
+.motion-lab-container {
+    min-height: calc(100vh - 56px);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+}
+
+.motion-lab-header {
+    padding: 0.75rem 1rem;
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-shrink: 0;
+}
+
+.motion-lab-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.motion-lab-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: #f59e0b;
+    color: #1c1c1e;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.motion-lab-tab-bar {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.motion-lab-tab {
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.motion-lab-tab.active {
+    background: var(--accent-primary);
+    color: #fff;
+    border-color: var(--accent-primary);
+}
+
+.motion-lab-tab:not(.active):not(:disabled) {
+    background: transparent;
+    color: var(--text-secondary);
+    border-color: var(--border-light);
+}
+
+.motion-lab-tab:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: transparent;
+    color: var(--text-muted);
+    border-color: var(--border-light);
+}
+
+/* 控制面板 */
+.motion-lab-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-light);
+    flex-shrink: 0;
+    align-items: center;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.control-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.control-value {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--accent-primary);
+    min-width: 2.5rem;
+    text-align: right;
+}
+
+.control-slider {
+    width: 100px;
+    accent-color: var(--accent-primary);
+    cursor: pointer;
+}
+
+.control-select {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-light);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.control-checkbox {
+    accent-color: var(--accent-primary);
+    cursor: pointer;
+}
+
+.control-divider {
+    width: 1px;
+    height: 1.5rem;
+    background: var(--border-light);
+}
+
+/* 動作按鈕 */
+.control-btn {
+    padding: 0.3rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 5px;
+    border: 1px solid var(--border-light);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.control-btn:hover:not(:disabled) {
+    background: var(--accent-primary);
+    color: #fff;
+    border-color: var(--accent-primary);
+}
+
+.control-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.control-btn.primary {
+    background: var(--accent-primary);
+    color: #fff;
+    border-color: var(--accent-primary);
+}
+
+.control-btn.primary:hover:not(:disabled) {
+    opacity: 0.85;
+}
+
+.control-btn.danger {
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.control-btn.danger:hover:not(:disabled) {
+    background: #ef4444;
+    color: #fff;
+}
+
+/* 預覽區 */
+.motion-lab-preview {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0.75rem 1rem;
+    gap: 0.75rem;
+    min-height: 0;
+}
+
+/* 假搜尋框 */
+.motion-lab-search-bar {
+    flex-shrink: 0;
+    height: 44px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+    gap: 0.5rem;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.motion-lab-search-bar i {
+    font-size: 1rem;
+}
+
+/* Grid 區 */
+.motion-lab-grid {
+    flex: 1;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 0.75rem;
+    align-content: start;
+    min-height: 0;
+}
+
+/* Empty state */
+.motion-lab-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    gap: 0.75rem;
+}
+
+.motion-lab-empty i {
+    font-size: 3rem;
+    opacity: 0.5;
+}
+
+/* av-card-preview 與 search 頁保持一致結構 */
+.motion-lab-grid .av-card-preview {
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+}
+
+.motion-lab-grid .av-card-preview:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.motion-lab-grid .av-card-preview-img {
+    position: relative;
+    aspect-ratio: 3/2;
+    overflow: hidden;
+    background: var(--bg-tertiary);
+}
+
+.motion-lab-grid .av-card-preview-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.motion-lab-grid .av-card-preview-footer {
+    padding: 0.35rem 0.5rem;
+}
+
+.motion-lab-grid .av-num {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.motion-lab-grid .av-actress {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* No-cover placeholder */
+.av-card-no-cover {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    gap: 0.25rem;
+}
+
+.av-card-no-cover i {
+    font-size: 1.5rem;
+    opacity: 0.4;
+}
+
+/* Detail 區 */
+.motion-lab-detail {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.motion-lab-detail .av-card-full {
+    display: flex;
+    gap: 1.5rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+}
+
+.motion-lab-detail .av-card-full-cover {
+    flex: 0 0 280px;
+    position: relative;
+}
+
+.motion-lab-detail .av-card-full-cover img {
+    width: 100%;
+    border-radius: 6px;
+    display: block;
+    object-fit: cover;
+}
+
+.motion-lab-detail .av-card-full-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.motion-lab-detail .av-card-full-info h3 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+.motion-lab-detail .av-card-full-info .info-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+    font-size: 0.8rem;
+}
+
+.motion-lab-detail .av-card-full-info .info-label {
+    color: var(--text-muted);
+    flex-shrink: 0;
+    width: 4rem;
+}
+
+.motion-lab-detail .av-card-full-info .info-value {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* Loading 狀態 */
+.motion-lab-loading {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* 讓 x-show 正確工作（避免 Tailwind .hidden !important 衝突） */
+.motion-lab-container [x-cloak] { display: none !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="motion-lab-container"
+     x-data="{
+         tab: 'search',
+         mode: 'grid',
+         selectedIndex: 0,
+         params: {
+             duration: 0.6,
+             stagger: 0.05,
+             clipRevealDur: 0.5,
+             easing: 'back.out(1.2)',
+             flipMode: 'Flip',
+             reducedMotionSim: false,
+             speed: 0.5
+         },
+         videos: [],
+         loading: true,
+
+         init() {
+             this.fetchVideos();
+         },
+
+         async fetchVideos() {
+             try {
+                 const resp = await fetch('/api/motion-lab/data');
+                 const data = await resp.json();
+                 if (data.success) {
+                     this.videos = data.videos;
+                 }
+             } catch (e) {
+                 console.error('[MotionLab] fetchVideos 失敗:', e);
+             } finally {
+                 this.loading = false;
+             }
+         },
+
+         get hasVideos() {
+             return this.videos.length > 0;
+         },
+
+         get selectedVideo() {
+             return this.videos[this.selectedIndex] || this.videos[0] || null;
+         },
+
+         formatActresses(actresses) {
+             if (Array.isArray(actresses)) return actresses.slice(0, 2).join(', ');
+             return actresses || '';
+         },
+
+         onPlayBurst() {
+             if (!this.hasVideos || typeof window.MotionLab === 'undefined') return;
+             const gridEl = this.$refs.grid;
+             const searchBarEl = this.$refs.searchBar;
+             if (gridEl && searchBarEl) {
+                 const tl = window.MotionLab.playGridBurst(gridEl, searchBarEl, this.params);
+                 // 串接 clip-path reveal（burst 尾端重疊）
+                 if (tl) {
+                     window.MotionLab.playClipPathReveal(gridEl, this.params);
+                 }
+             }
+         },
+
+         onDetailEntry() {
+             if (!this.hasVideos || typeof window.MotionLab === 'undefined') return;
+             this.mode = 'detail';
+             this.$nextTick(() => {
+                 const detailEl = this.$refs.detail;
+                 if (detailEl) window.MotionLab.playDetailEntry(detailEl, this.params);
+             });
+         },
+
+         onPrev() {
+             if (!this.hasVideos || typeof window.MotionLab === 'undefined') return;
+             if (this.mode === 'detail' && this.selectedIndex > 0) {
+                 const detailEl = this.$refs.detail;
+                 const cardEl = detailEl ? detailEl.querySelector('.av-card-full') : null;
+                 if (cardEl) {
+                     window.MotionLab.playSlideOut(cardEl, 'right', this.params)
+                         .then(() => {
+                             this.selectedIndex--;
+                             this.$nextTick(() => window.MotionLab.playSlideIn(cardEl, 'left', this.params));
+                         });
+                 }
+             }
+         },
+
+         onNext() {
+             if (!this.hasVideos || typeof window.MotionLab === 'undefined') return;
+             if (this.mode === 'detail' && this.selectedIndex < this.videos.length - 1) {
+                 const detailEl = this.$refs.detail;
+                 const cardEl = detailEl ? detailEl.querySelector('.av-card-full') : null;
+                 if (cardEl) {
+                     window.MotionLab.playSlideOut(cardEl, 'left', this.params)
+                         .then(() => {
+                             this.selectedIndex++;
+                             this.$nextTick(() => window.MotionLab.playSlideIn(cardEl, 'right', this.params));
+                         });
+                 }
+             }
+         },
+
+         onToggleMode() {
+             this.mode = this.mode === 'grid' ? 'detail' : 'grid';
+         },
+
+         onReset() {
+             if (typeof window.MotionLab === 'undefined') return;
+             const gridEl = this.$refs.grid;
+             const detailEl = this.$refs.detail;
+             window.MotionLab.resetAll(gridEl, detailEl);
+             this.mode = 'grid';
+         }
+     }"
+     x-cloak>
+
+    <!-- Header -->
+    <div class="motion-lab-header">
+        <h4>
+            <i class="bi bi-magic"></i>
+            Motion Lab
+            <span class="motion-lab-badge">DEV</span>
+        </h4>
+
+        <!-- Tab Bar -->
+        <div class="motion-lab-tab-bar">
+            <button class="motion-lab-tab active"
+                    @click="tab = 'search'">
+                Search
+            </button>
+            <button class="motion-lab-tab"
+                    disabled
+                    title="後續 plan 啟用">
+                Showcase
+            </button>
+        </div>
+    </div>
+
+    <!-- 控制面板 -->
+    <div class="motion-lab-controls">
+
+        <!-- Duration slider -->
+        <div class="control-group">
+            <span class="control-label">Duration</span>
+            <input type="range" class="control-slider"
+                   min="0.2" max="2.0" step="0.05"
+                   x-model.number="params.duration">
+            <span class="control-value" x-text="params.duration.toFixed(2) + 's'"></span>
+        </div>
+
+        <!-- Stagger slider -->
+        <div class="control-group">
+            <span class="control-label">Stagger</span>
+            <input type="range" class="control-slider"
+                   min="0.01" max="0.2" step="0.01"
+                   x-model.number="params.stagger">
+            <span class="control-value" x-text="params.stagger.toFixed(2) + 's'"></span>
+        </div>
+
+        <!-- ClipReveal slider -->
+        <div class="control-group">
+            <span class="control-label">ClipReveal</span>
+            <input type="range" class="control-slider"
+                   min="0.2" max="1.0" step="0.05"
+                   x-model.number="params.clipRevealDur">
+            <span class="control-value" x-text="params.clipRevealDur.toFixed(2) + 's'"></span>
+        </div>
+
+        <!-- Speed slider -->
+        <div class="control-group">
+            <span class="control-label">Speed</span>
+            <input type="range" class="control-slider"
+                   min="0.1" max="2.0" step="0.1"
+                   x-model.number="params.speed">
+            <span class="control-value" x-text="params.speed.toFixed(1) + 'x'"></span>
+        </div>
+
+        <!-- Easing select -->
+        <div class="control-group">
+            <span class="control-label">Ease</span>
+            <select class="control-select" x-model="params.easing">
+                <option value="back.out(1.2)">back.out(1.2)</option>
+                <option value="power3.out">power3.out</option>
+                <option value="elastic.out(1,0.3)">elastic.out(1,0.3)</option>
+                <option value="power2.inOut">power2.inOut</option>
+                <option value="none">none</option>
+            </select>
+        </div>
+
+        <!-- Flip mode select -->
+        <div class="control-group">
+            <span class="control-label">Flip</span>
+            <select class="control-select" x-model="params.flipMode">
+                <option value="Flip">Flip</option>
+                <option value="Crossfade">Crossfade</option>
+                <option value="None">None</option>
+            </select>
+        </div>
+
+        <!-- Reduced Motion sim -->
+        <div class="control-group">
+            <input type="checkbox" class="control-checkbox"
+                   id="reducedMotionSim"
+                   x-model="params.reducedMotionSim">
+            <label for="reducedMotionSim" class="control-label" style="cursor:pointer">
+                Reduced Motion Sim
+            </label>
+        </div>
+
+        <div class="control-divider"></div>
+
+        <!-- Action buttons -->
+        <button class="control-btn primary"
+                :disabled="!hasVideos"
+                @click="onPlayBurst()">
+            <i class="bi bi-stars"></i> Play Burst
+        </button>
+
+        <button class="control-btn"
+                :disabled="!hasVideos"
+                @click="onDetailEntry()">
+            <i class="bi bi-card-image"></i> Detail Entry
+        </button>
+
+        <button class="control-btn"
+                :disabled="!hasVideos"
+                @click="onPrev()">
+            <i class="bi bi-chevron-left"></i> Prev
+        </button>
+
+        <button class="control-btn"
+                :disabled="!hasVideos"
+                @click="onNext()">
+            <i class="bi bi-chevron-right"></i> Next
+        </button>
+
+        <button class="control-btn"
+                :disabled="!hasVideos"
+                @click="onToggleMode()">
+            <i class="bi" :class="mode === 'grid' ? 'bi-card-image' : 'bi-grid-3x3'"></i>
+            <span x-text="mode === 'grid' ? 'Detail View' : 'Grid View'"></span>
+        </button>
+
+        <button class="control-btn danger"
+                @click="onReset()">
+            <i class="bi bi-arrow-counterclockwise"></i> Reset
+        </button>
+    </div>
+
+    <!-- 預覽區 -->
+    <div class="motion-lab-preview" x-ref="preview">
+
+        <!-- 假搜尋框（burst 起點） -->
+        <div class="motion-lab-search-bar" x-ref="searchBar">
+            <i class="bi bi-search"></i>
+            <span>假搜尋框 — burst 起點座標參照</span>
+        </div>
+
+        <!-- Loading -->
+        <div class="motion-lab-loading" x-show="loading">
+            <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite;"></i>
+            載入中...
+        </div>
+
+        <!-- Empty state -->
+        <div class="motion-lab-empty" x-show="!loading && !hasVideos">
+            <i class="bi bi-inbox"></i>
+            <span>資料庫無影片資料</span>
+            <span style="font-size:0.75rem; color: var(--text-muted);">請先掃描影片目錄</span>
+        </div>
+
+        <!-- Grid 區（tab=search && mode=grid） -->
+        <div class="motion-lab-grid"
+             x-ref="grid"
+             x-show="!loading && hasVideos && tab === 'search' && mode === 'grid'">
+            <template x-for="(video, index) in videos" :key="video.number + '_' + index">
+                <div class="av-card-preview"
+                     @click="selectedIndex = index; onDetailEntry()">
+                    <div class="av-card-preview-img">
+                        <template x-if="video.cover_url">
+                            <img :src="video.cover_url"
+                                 :alt="video.number"
+                                 loading="lazy"
+                                 style="width:100%; height:100%; object-fit:cover; display:block;">
+                        </template>
+                        <template x-if="!video.cover_url">
+                            <div class="av-card-no-cover">
+                                <i class="bi bi-image"></i>
+                                <span>無封面</span>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="av-card-preview-footer">
+                        <span class="av-num" x-text="video.number || '-'"></span>
+                        <span class="av-actress" x-text="formatActresses(video.actresses)"></span>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Detail 區（tab=search && mode=detail） -->
+        <div class="motion-lab-detail"
+             x-ref="detail"
+             x-show="!loading && hasVideos && tab === 'search' && mode === 'detail'">
+            <div class="av-card-full" x-show="selectedVideo">
+                <!-- 封面 -->
+                <div class="av-card-full-cover">
+                    <template x-if="selectedVideo && selectedVideo.cover_url">
+                        <img :src="selectedVideo.cover_url"
+                             :alt="selectedVideo?.number"
+                             loading="lazy">
+                    </template>
+                    <template x-if="selectedVideo && !selectedVideo.cover_url">
+                        <div class="av-card-no-cover" style="aspect-ratio:2/3; background: var(--bg-tertiary); border-radius:6px;">
+                            <i class="bi bi-image"></i>
+                            <span>無封面</span>
+                        </div>
+                    </template>
+                </div>
+                <!-- 資訊 -->
+                <div class="av-card-full-info">
+                    <h3 x-text="selectedVideo?.title || '（無標題）'"></h3>
+                    <div class="info-row">
+                        <span class="info-label">番號</span>
+                        <span class="info-value" x-text="selectedVideo?.number || '-'"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">女優</span>
+                        <span class="info-value" x-text="formatActresses(selectedVideo?.actresses)"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">廠商</span>
+                        <span class="info-value" x-text="selectedVideo?.maker || '-'"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">日期</span>
+                        <span class="info-value" x-text="selectedVideo?.release_date || '-'"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<style>
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<!-- GSDevTools — 沙盒 debug only（不放 base.html） -->
+<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.14/dist/GSDevTools.min.js"></script>
+<!-- Motion Lab 動畫控制（直接呼叫 GSAP，在 lint allowlist 內） -->
+<script defer src="/static/js/pages/motion-lab.js"></script>
+{% endblock %}

@@ -295,19 +295,28 @@ class TestMotionInfra:
 
     def test_no_direct_gsap_calls_in_pages(self):
         """頁面/元件 JS 不直接呼叫 GSAP API — 必須透過 motion adapter"""
+        # 共同根目錄，所有 allowed_files 相對路徑以此為基準
+        js_root = PROJECT_ROOT / "web" / "static" / "js"
         scan_dirs = [
-            PROJECT_ROOT / "web" / "static" / "js" / "pages",
-            PROJECT_ROOT / "web" / "static" / "js" / "components",
+            js_root / "pages",
+            js_root / "components",
         ]
         # motion-adapter.js 本身是合法 GSAP 呼叫點
-        allowed_files = {'motion-adapter.js'}
+        # motion-lab.js 和 search/animations.js 因動態座標計算需求，直接呼叫 GSAP
+        # 相對路徑以 js_root 為基準，包含 pages/ 或 components/ 前綴，避免跨目錄衝突
+        allowed_files = {
+            Path('components') / 'motion-adapter.js',   # components/motion-adapter.js
+            Path('pages') / 'motion-lab.js',            # pages/motion-lab.js（T1 新增）
+            Path('pages') / 'search' / 'animations.js', # pages/search/animations.js（T6 預先加入）
+        }
         violations = []
 
         for scan_dir in scan_dirs:
             if not scan_dir.exists():
                 continue
             for js_file in scan_dir.rglob("*.js"):
-                if js_file.name in allowed_files:
+                rel = js_file.relative_to(js_root)  # 相對於 js_root，非 scan_dir
+                if rel in allowed_files:
                     continue
                 matches = find_pattern_in_file(
                     js_file,
