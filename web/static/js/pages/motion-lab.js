@@ -658,6 +658,137 @@
         },
 
         /**
+         * Staging Burst：一批卡片從 staging card 位置飛到 grid slot
+         * 複用 playGridBurst 的 viewport 分流邏輯
+         * C4: killTweensOf(cards)
+         * C6: 不使用 rotationX/Y/Z
+         * C19: 飛行期間設高 zIndex（options.batchZ * 10 + 100），完成後重置
+         *
+         * @param {Element[]} cards   - 要 burst 的 grid 卡片 DOM 元素陣列
+         * @param {Element} stagingEl - staging card 元素（飛行起點）
+         * @param {object} options    - {
+         *     duration: 0.6,
+         *     ease: 'back.out(1.2)',
+         *     stagger: 0.05,
+         *     batchZ: 0,            // 批次 z-index 基底（C19）
+         *     reducedMotionSim: false
+         * }
+         * @returns {gsap.core.Timeline}
+         */
+        playStagingBurst: function (cards, stagingEl, options) {
+            options = options || {};
+            var tl = gsap.timeline({ id: 'stagingBurst' });
+
+            if (!cards || !cards.length) return tl;
+
+            // C4: 清除舊動畫
+            gsap.killTweensOf(cards);
+
+            // Reduced Motion 降級：瞬間到位
+            if (shouldSkip(options)) {
+                gsap.set(cards, { opacity: 1, x: 0, y: 0, scale: 1, zIndex: 'auto' });
+                return tl;
+            }
+
+            // null guard: staging card 不存在時 fallback
+            var stagingRect = stagingEl ? stagingEl.getBoundingClientRect() : null;
+
+            // staging card 已被隱藏（rect 歸零）時 fallback 到畫面中心
+            if (stagingRect && stagingRect.width === 0 && stagingRect.height === 0) {
+                stagingRect = null;
+            }
+
+            var dur = options.duration || options.burstDuration || 0.6;
+            var ease = options.ease || options.burstEase || 'back.out(1.2)';
+            var staggerVal = options.stagger || 0.05;
+            var batchZ = ((options.batchZ || 0) * 10) + 100;
+
+            // Viewport 分流：可視卡片 → burst 動畫，fold 以下 → 瞬間顯示
+            var viewportH = window.innerHeight;
+            var visible = [];
+            var offscreen = [];
+            Array.from(cards).forEach(function (card) {
+                if (card.getBoundingClientRect().top < viewportH) {
+                    visible.push(card);
+                } else {
+                    offscreen.push(card);
+                }
+            });
+
+            // fold 以下卡片直接顯示（gsap.set 瞬間到位）
+            if (offscreen.length) {
+                gsap.set(offscreen, { opacity: 1, x: 0, y: 0, scale: 1, zIndex: 'auto' });
+            }
+
+            if (!visible.length) return tl;
+
+            // 對每張可見卡片計算從 staging 位置的偏移
+            visible.forEach(function (card, i) {
+                var cardRect = card.getBoundingClientRect();
+
+                var dx = 0;
+                var dy = 0;
+                if (stagingRect) {
+                    dx = stagingRect.left - cardRect.left;
+                    dy = stagingRect.top - cardRect.top;
+                }
+
+                // C19: 飛行期間設高 z-index
+                gsap.set(card, { zIndex: batchZ });
+
+                // C6: 不使用旋轉，只用 x/y/scale/opacity
+                tl.fromTo(card,
+                    { x: dx, y: dy, scale: 0.8, opacity: 0 },
+                    {
+                        x: 0,
+                        y: 0,
+                        scale: 1,
+                        opacity: 1,
+                        duration: dur,
+                        ease: ease,
+                        delay: i * staggerVal,
+                        onComplete: (function (c) {
+                            return function () {
+                                gsap.set(c, { zIndex: 'auto' });
+                            };
+                        }(card))
+                    },
+                    0  // 所有卡片同時開始（個別 delay 控制 stagger）
+                );
+            });
+
+            return tl;
+        },
+
+        /**
+         * 封面 crossfade swap：imgEl opacity 0 → 1（快速淡入）
+         * C4: killTweensOf(imgEl)
+         * C6: 不使用旋轉
+         * @param {Element} imgEl - 封面 img 元素
+         * @param {object} options - { reducedMotionSim }
+         * @returns {gsap.core.Tween|null}
+         */
+        playCoverSwap: function (imgEl, options) {
+            options = options || {};
+
+            if (!imgEl) return null;
+
+            // C4: 清除舊動畫
+            gsap.killTweensOf(imgEl);
+
+            // Reduced Motion 降級：瞬間顯示
+            if (shouldSkip(options)) {
+                gsap.set(imgEl, { opacity: 1 });
+                return null;
+            }
+
+            return gsap.fromTo(imgEl,
+                { opacity: 0 },
+                { opacity: 1, duration: 0.15, ease: 'power2.out' }
+            );
+        },
+
+        /**
          * 初始化 GSDevTools（只在 GSDevTools 可用時執行）
          * @param {gsap.core.Timeline} timeline - 要載入到 DevTools 的 timeline
          */
