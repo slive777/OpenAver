@@ -346,6 +346,13 @@
             </div>
             </div>
 
+            <!-- T5: Stream Loading Strip -->
+            <div class="stream-progress" x-show="isStreaming && displayMode === 'grid'" x-transition>
+                <div class="stream-bar"
+                     :style="'width:' + (streamComplete ? 100 : (streamSlots.length > 0 ? Math.round(streamFilled.filter(Boolean).length / streamSlots.length * 100) : 0)) + '%'">
+                </div>
+            </div>
+
             <!-- T2a: Grid Mode（封面牆） -->
             <div class="search-grid ds-gallery-composition" x-show="displayMode === 'grid' && listMode === 'search'" x-cloak>
                 <!-- T2d: Hero Card（第一格）-->
@@ -609,6 +616,8 @@
 
     // === 主程式已移至 /static/js/pages/search/ ===
 </script>
+<!-- T5: 動畫模組（GSAP 已在 base.html defer 載入）— 必須在 state modules 之前 -->
+<script src="/static/js/pages/search/animations.js"></script>
 <!-- Alpine State Modules (must load before other JS) -->
 <script src="/static/js/pages/search/state/base.js"></script>
 <script src="/static/js/pages/search/state/persistence.js"></script>

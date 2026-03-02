@@ -136,6 +136,15 @@ window.SearchStateMixin_SearchFlow = {
                     this.displayMode = 'grid';      // C11: grid 可見條件 2
                     this.hasContent = true;
                     window.SearchUI.showState('result');  // C11: pageState='result'，正確 API
+                    // T5: Progress → skeleton grid 轉場（輕量整體淡入）
+                    this.$nextTick(() => {
+                        requestAnimationFrame(() => {
+                            const grid = document.querySelector('.search-grid');
+                            if (grid) {
+                                window.SearchAnimations?.playGridFadeIn?.(grid);
+                            }
+                        });
+                    });
                 }
                 // T4: result-item handler（C13 約束 — 必須 clone array）
                 else if (data.type === 'result-item') {
@@ -145,14 +154,28 @@ window.SearchStateMixin_SearchFlow = {
                         updated[slot] = item;
                         this.searchResults = updated;
                         this.streamFilled = this.streamFilled.map((v, i) => i === slot ? true : v);
-                        // T5 動畫 hook 預留（不在 T4 實作）
+                        // T5: 觸發單卡進場動畫
+                        this.$nextTick(() => {
+                            requestAnimationFrame(() => {
+                                // data-slot 由 T4 template `:data-slot="idx"` 渲染
+                                const grid = document.querySelector('.search-grid');
+                                const card = grid?.querySelector(
+                                    `.av-card-preview[data-slot="${slot}"]`
+                                );
+                                if (card) {
+                                    window.SearchAnimations?.playCardStreamIn?.(card);
+                                }
+                            });
+                        });
                     }
                 }
                 // T4: result-complete handler（C9 約束 — 失敗 slot 原地標記）
                 else if (data.type === 'result-complete') {
                     // Issue 1 fix: 不在此關閉 EventSource，讓後端的 fallback result 能送達
-                    this.isStreaming = false;
+                    // Fix: streamComplete 先設 true（bar → 100%），下一 tick 才關 isStreaming（觸發 x-transition 離場）
+                    // 同一 tick 設兩者會被 Alpine batch 成一次 DOM patch，bar 來不及 paint 100%
                     this.streamComplete = true;
+                    this.$nextTick(() => { this.isStreaming = false; });
                     this.hasMoreResults = data.has_more || false;
                     this.actressProfile = data.actress_profile || null;
                     // C9: 不用 filter()，失敗 slot 原地標記

@@ -1240,3 +1240,78 @@ class TestStreamState:
         content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
         assert 'this.streamComplete' in content, \
             "search-flow.js 缺少 streamComplete guard — T4 防止漸進路徑 result 覆蓋 searchResults"
+
+
+class TestAnimationHookup:
+    """T5 Frontend Animation Hookup 靜態守衛
+
+    確認 animations.js 載入順序、SearchAnimations window 物件、
+    動畫觸發 wiring 合約存在。
+    """
+
+    SEARCH_HTML = PROJECT_ROOT / "web/templates/search.html"
+    SEARCH_FLOW_JS = PROJECT_ROOT / "web/static/js/pages/search/state/search-flow.js"
+    ANIMATIONS_JS = PROJECT_ROOT / "web/static/js/pages/search/animations.js"
+    SEARCH_CSS = PROJECT_ROOT / "web/static/css/pages/search.css"
+
+    def test_animations_js_exists(self):
+        """search/animations.js 必須存在"""
+        assert self.ANIMATIONS_JS.exists(), \
+            "web/static/js/pages/search/animations.js 不存在 — T5 必須新建此檔案"
+
+    def test_animations_js_exposes_window_object(self):
+        """animations.js 暴露 window.SearchAnimations 物件"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'window.SearchAnimations' in content, \
+            "animations.js 缺少 window.SearchAnimations — 必須掛 window 物件供 search-flow.js 呼叫"
+
+    def test_animations_js_loaded_before_state_modules(self):
+        """animations.js script tag 在 state/base.js 之前（search.html 載入順序）"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        anim_pos = content.find('animations.js')
+        base_pos = content.find('state/base.js')
+        assert anim_pos != -1, \
+            "search.html 缺少 animations.js script tag"
+        assert base_pos != -1, \
+            "search.html 缺少 state/base.js script tag（預期已存在）"
+        assert anim_pos < base_pos, \
+            ("animations.js 必須在 state/base.js 之前載入 — "
+             "確保 window.SearchAnimations 在 SSE handler 執行前已掛上")
+
+    def test_search_flow_has_animation_trigger_in_result_item(self):
+        """result-item handler 包含 SearchAnimations?.playCardStreamIn 呼叫"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        assert 'SearchAnimations' in content, \
+            "search-flow.js 缺少 SearchAnimations 呼叫 — T5 需在 result-item handler 觸發動畫"
+        assert 'playCardStreamIn' in content, \
+            "search-flow.js 缺少 playCardStreamIn 呼叫 — T5 result-item 單卡進場動畫 wiring"
+
+    def test_search_flow_has_next_tick_in_result_item(self):
+        """result-item 的動畫觸發用 $nextTick + requestAnimationFrame（等 DOM patch）"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        assert '$nextTick' in content, \
+            "search-flow.js 缺少 $nextTick — T5 動畫觸發需等 Alpine DOM patch 完成"
+        assert 'requestAnimationFrame' in content, \
+            "search-flow.js 缺少 requestAnimationFrame — T5 確保 paint 在動畫 from 狀態前發生"
+
+    def test_loading_strip_html_exists(self):
+        """search.html 包含 stream-progress 元素（x-show="isStreaming"）"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        assert 'stream-progress' in content, \
+            "search.html 缺少 stream-progress 元素 — T5 loading strip HTML"
+        assert 'isStreaming' in content, \
+            "search.html 缺少 isStreaming 綁定 — loading strip 需用 x-show=\"isStreaming\""
+
+    def test_loading_strip_css_exists(self):
+        """search.css 包含 .stream-progress 和 .stream-bar class"""
+        content = self.SEARCH_CSS.read_text(encoding='utf-8')
+        assert '.stream-progress' in content, \
+            "search.css 缺少 .stream-progress class — T5 loading strip 樣式"
+        assert '.stream-bar' in content, \
+            "search.css 缺少 .stream-bar class — T5 loading strip 進度條樣式"
+
+    def test_animations_js_has_reduced_motion_guard(self):
+        """animations.js 檢查 prefersReducedMotion（Reduced Motion 降級）"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'prefersReducedMotion' in content, \
+            "animations.js 缺少 prefersReducedMotion 守衛 — Reduced Motion 時必須跳過動畫"

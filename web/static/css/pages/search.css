@@ -682,6 +682,22 @@
     100% { background-position: -200% 0; }
 }
 
+/* ==================== T5: Stream Loading Strip ==================== */
+.stream-progress {
+    height: 3px;
+    background: var(--color-base-300);
+    overflow: hidden;
+    margin: 0 1.5rem 0.5rem;
+    border-radius: var(--radius-full, 9999px);
+}
+
+.stream-bar {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: inherit;
+    transition: width 0.2s ease;
+}
+
 /* Hero Card 圖片覆寫：容器保持 3/2，圖片 contain 完整顯示 */
 /* 需匹配 theme.css :is(#ds-gallery-components, .ds-gallery-composition) 的 specificity */
 :is(#ds-gallery-components, .ds-gallery-composition) .hero-card .av-card-preview-img {
