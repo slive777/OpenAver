@@ -17,6 +17,12 @@ window.SearchStateMixin_Base = function() {
         isLoadingMore: false,
         isSearchingFile: false,
 
+        // ===== Stream 狀態（T4：actress/prefix 漸進流入） =====
+        streamSlots: [],          // seed 番號列表 ['SSIS-816', 'SSIS-815', ...]
+        streamFilled: [],         // boolean array，對應 slot 是否已填入
+        streamComplete: false,    // result-complete 已收到
+        isStreaming: false,       // seed 收到 ~ result-complete 收到期間為 true
+
         // ===== File List State =====
         fileList: [],
         currentFileIndex: 0,

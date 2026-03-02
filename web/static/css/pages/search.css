@@ -659,6 +659,29 @@
     cursor: pointer;
 }
 
+/* ==================== T4: Skeleton + Shimmer ==================== */
+.skeleton-cover {
+    aspect-ratio: 3/2;
+    background: var(--color-base-300);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.shimmer {
+    background: linear-gradient(
+        90deg,
+        var(--color-base-300) 25%,
+        var(--color-base-200) 50%,
+        var(--color-base-300) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
 /* Hero Card 圖片覆寫：容器保持 3/2，圖片 contain 完整顯示 */
 /* 需匹配 theme.css :is(#ds-gallery-components, .ds-gallery-composition) 的 specificity */
 :is(#ds-gallery-components, .ds-gallery-composition) .hero-card .av-card-preview-img {

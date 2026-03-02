@@ -1168,3 +1168,75 @@ class TestSearchMigrationDeadCode:
             "file.js 仍含 setFileList: function() 空函數 — T5.3b 應已刪除"
         assert 'handleFileDrop: function()' not in content, \
             "file.js 仍含 handleFileDrop: function() 空函數 — T5.3b 應已刪除"
+
+
+class TestStreamState:
+    """T4 Frontend State + Skeleton Grid 靜態守衛測試
+
+    確認 SSE stream state 的 contract 存在：
+    - base.js 宣告 stream state 欄位
+    - search-flow.js 處理三種 SSE 事件類型
+    - search.html 包含 skeleton template 綁定
+    - failed slot 使用 visibility 而非 x-show（C10 約束）
+    - search.css 包含 skeleton 動畫樣式
+    """
+
+    BASE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/base.js"
+    SEARCH_FLOW_JS = PROJECT_ROOT / "web/static/js/pages/search/state/search-flow.js"
+    SEARCH_HTML = PROJECT_ROOT / "web/templates/search.html"
+    SEARCH_CSS = PROJECT_ROOT / "web/static/css/pages/search.css"
+
+    def test_base_js_has_stream_state_fields(self):
+        """base.js 宣告四個 stream state 欄位：streamSlots、streamFilled、streamComplete、isStreaming"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        assert 'streamSlots' in content, \
+            "base.js 缺少 streamSlots 欄位宣告 — T4 stream state contract"
+        assert 'streamFilled' in content, \
+            "base.js 缺少 streamFilled 欄位宣告 — T4 stream state contract"
+        assert 'streamComplete' in content, \
+            "base.js 缺少 streamComplete 欄位宣告 — T4 stream state contract"
+        assert 'isStreaming' in content, \
+            "base.js 缺少 isStreaming 欄位宣告 — T4 stream state contract"
+
+    def test_search_flow_handles_seed_event(self):
+        """search-flow.js 包含 seed、result-item、result-complete 三種 SSE 事件 handler"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        assert "data.type === 'seed'" in content, \
+            "search-flow.js 缺少 data.type === 'seed' handler — T4 SSE protocol"
+        assert "data.type === 'result-item'" in content, \
+            "search-flow.js 缺少 data.type === 'result-item' handler — T4 SSE protocol"
+        assert "data.type === 'result-complete'" in content, \
+            "search-flow.js 缺少 data.type === 'result-complete' handler — T4 SSE protocol"
+
+    def test_search_html_has_skeleton_template(self):
+        """search.html 包含 :data-slot 屬性、_skeleton class 綁定、_failed 相關綁定"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        assert ':data-slot' in content, \
+            "search.html 缺少 :data-slot 屬性綁定 — T4 skeleton grid slot 識別"
+        assert '_skeleton' in content, \
+            "search.html 缺少 _skeleton class 綁定 — T4 skeleton grid 視覺"
+        assert '_failed' in content, \
+            "search.html 缺少 _failed 相關綁定 — T4 failed slot 視覺"
+
+    def test_failed_slot_uses_visibility_not_display(self):
+        """failed slot 使用 visibility: hidden 而非 x-show 結合 _failed（C10：保留 grid 空間）"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        assert 'visibility: hidden' in content or 'visibility:hidden' in content, \
+            ("search.html 缺少 visibility: hidden — "
+             "C10 約束：_failed slot 必須用 visibility 保留 grid 空間，不可用 x-show 隱藏")
+
+    def test_search_css_has_skeleton_styles(self):
+        """search.css 包含 .skeleton-cover class、.shimmer class、@keyframes shimmer"""
+        content = self.SEARCH_CSS.read_text(encoding='utf-8')
+        assert '.skeleton-cover' in content, \
+            "search.css 缺少 .skeleton-cover class — T4 skeleton overlay 樣式"
+        assert '.shimmer' in content, \
+            "search.css 缺少 .shimmer class — T4 shimmer 動畫樣式"
+        assert '@keyframes shimmer' in content, \
+            "search.css 缺少 @keyframes shimmer — T4 shimmer 動畫定義"
+
+    def test_search_flow_has_stream_guard(self):
+        """search-flow.js 的 result handler 包含 streamComplete guard（C12 約束）"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        assert 'this.streamComplete' in content, \
+            "search-flow.js 缺少 streamComplete guard — T4 防止漸進路徑 result 覆蓋 searchResults"

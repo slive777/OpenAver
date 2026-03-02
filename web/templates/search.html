@@ -370,22 +370,31 @@
                     </div>
                 </div>
 
-                <!-- 正常搜尋結果卡片 -->
-                <template x-for="(result, index) in searchResults" :key="result.number + '_' + index">
+                <!-- 正常搜尋結果卡片（T4：三態 skeleton / 正常 / failed） -->
+                <template x-for="(result, idx) in searchResults" :key="result.number + '_' + idx">
                     <div class="av-card-preview"
-                         @click="openLightbox(index)"
-                         :class="{ 'rotating-border-spotlight active once': shouldShowLocalBorder(result) }"
-                         @animationend.self="markLocalBorderPlayed(result?.number)">
+                         :data-slot="idx"
+                         :class="{
+                             'skeleton': result._skeleton,
+                             'failed-slot': result._failed,
+                             'rotating-border-spotlight active once': !result._skeleton && !result._failed && shouldShowLocalBorder(result)
+                         }"
+                         :style="result._failed ? 'visibility: hidden' : ''"
+                         @click="!result._skeleton && !result._failed && openLightbox(idx)"
+                         @animationend.self="!result._skeleton && !result._failed && markLocalBorderPlayed(result?.number)">
                         <div class="av-card-preview-img">
+                            <!-- T4: skeleton shimmer placeholder -->
+                            <div class="skeleton-cover shimmer" x-show="result._skeleton"></div>
+                            <!-- 正常狀態：封面圖（非 skeleton、非 failed 才顯示） -->
                             <img :src="result.cover ? `/api/proxy-image?url=${encodeURIComponent(result.cover)}` : ''"
                                  :alt="result.number"
                                  loading="lazy"
-                                 x-show="!_gridImageErrors.has(index)"
-                                 @error="markImageError(index)">
-                            <!-- Overlay Actions (Hover) -->
-                            <div class="av-card-preview-overlay">
+                                 x-show="!result._skeleton && !result._failed && !_gridImageErrors.has(idx)"
+                                 @error="!result._skeleton && !result._failed && markImageError(idx)">
+                            <!-- Overlay Actions (Hover) — 只在正常狀態顯示 -->
+                            <div class="av-card-preview-overlay" x-show="!result._skeleton && !result._failed">
                                 <button class="btn-glass-circle"
-                                        @click.stop="switchToDetail(index)"
+                                        @click.stop="switchToDetail(idx)"
                                         title="查看詳情">
                                     <i class="bi bi-info-circle"></i>
                                 </button>
@@ -397,12 +406,13 @@
                                 </button>
                             </div>
                         </div>
+                        <!-- footer 三態共用（番號 seed 就有，skeleton/正常/failed 均顯示） -->
                         <div class="av-card-preview-footer">
                             <div class="footer-default">
                                 <span class="av-num" x-text="result.number || '-'">-</span>
-                                <span class="av-actress" x-text="(result.actors || []).slice(0, 2).join(', ') || '未知'">未知</span>
+                                <span class="av-actress" x-show="!result._skeleton && !result._failed" x-text="(result.actors || []).slice(0, 2).join(', ') || '未知'">未知</span>
                             </div>
-                            <div class="footer-hover">
+                            <div class="footer-hover" x-show="!result._skeleton && !result._failed">
                                 <div class="hover-title" x-text="result.title || '未知標題'">未知標題</div>
                             </div>
                         </div>

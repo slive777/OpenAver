@@ -94,6 +94,11 @@ window.SearchStateMixin_SearchFlow = {
         this.displayMode = 'detail';  // T3a: 新搜尋重置顯示模式
         this._gridImageErrors = new Set();  // T6a: 清空 Grid 圖片錯誤記錄
         this.errorText = '';  // T6c: 清空上次的錯誤訊息
+        // T4: 重置 stream state（防競態 + 新搜尋乾淨起始）
+        this.isStreaming = false;
+        this.streamComplete = false;
+        this.streamSlots = [];
+        this.streamFilled = [];
 
         // 檔案列表由 x-show 自動隱藏（listMode=null, fileList=[]）
 
@@ -119,7 +124,92 @@ window.SearchStateMixin_SearchFlow = {
                 else if (data.type === 'status') {
                     this.handleSearchStatus(data.source, data.status);
                 }
+                // T4: seed handler（C11 約束）
+                else if (data.type === 'seed') {
+                    this.isStreaming = true;
+                    this.streamComplete = false;
+                    this.streamSlots = data.slots;
+                    this.streamFilled = new Array(data.slots.length).fill(false);
+                    this.searchResults = data.slots.map(num => ({ number: num, _skeleton: true }));
+                    this.currentIndex = 0;
+                    this.listMode = 'search';       // C11: grid 可見條件 1
+                    this.displayMode = 'grid';      // C11: grid 可見條件 2
+                    this.hasContent = true;
+                    window.SearchUI.showState('result');  // C11: pageState='result'，正確 API
+                }
+                // T4: result-item handler（C13 約束 — 必須 clone array）
+                else if (data.type === 'result-item') {
+                    const { slot, data: item } = data;
+                    if (slot >= 0 && slot < this.searchResults.length) {
+                        const updated = [...this.searchResults];
+                        updated[slot] = item;
+                        this.searchResults = updated;
+                        this.streamFilled = this.streamFilled.map((v, i) => i === slot ? true : v);
+                        // T5 動畫 hook 預留（不在 T4 實作）
+                    }
+                }
+                // T4: result-complete handler（C9 約束 — 失敗 slot 原地標記）
+                else if (data.type === 'result-complete') {
+                    // Issue 1 fix: 不在此關閉 EventSource，讓後端的 fallback result 能送達
+                    this.isStreaming = false;
+                    this.streamComplete = true;
+                    this.hasMoreResults = data.has_more || false;
+                    this.actressProfile = data.actress_profile || null;
+                    // C9: 不用 filter()，失敗 slot 原地標記
+                    // C13: map 回傳新 array，觸發 Alpine reactivity
+                    this.searchResults = this.searchResults.map(r =>
+                        r._skeleton ? { ...r, _skeleton: false, _failed: true } : r
+                    );
+                }
                 else if (data.type === 'result') {
+                    // T4: Stream guard — 漸進路徑的 result 決定最終狀態後關閉連線
+                    if (this.streamComplete) {
+                        const allFailed = this.searchResults.every(r => r._failed);
+                        if (allFailed && data.success && data.data && data.data.length > 0) {
+                            // Issue 1: Fallback 路徑（actress → keyword），用 result 資料完整替換
+                            this.searchResults = data.data;
+                            this.currentIndex = 0;
+                            this.hasMoreResults = data.has_more || false;
+                            this.actressProfile = data.actress_profile || null;
+                            this.listMode = 'search';
+                            if (data.mode) this.currentMode = data.mode;
+                            // 與傳統 result 路徑一致：尊重 gallery_mode_enabled 設定
+                            if ((data.mode === 'actress' || data.mode === 'prefix') && this.appConfig?.search?.gallery_mode_enabled && data.data.length >= 10) {
+                                this.displayMode = 'grid';
+                            } else {
+                                this.displayMode = 'detail';
+                            }
+                            // 重置 stream state（已不是 stream 模式）
+                            this.isStreaming = false;
+                            this.streamComplete = false;
+                            this.streamSlots = [];
+                            this.streamFilled = [];
+                            window.SearchUI.showState('result');
+                            this.hasContent = true;
+                            // Issue 2: 查詢本地狀態
+                            if (window.SearchCore?.checkLocalStatus) {
+                                window.SearchCore.checkLocalStatus(this.searchResults);
+                            }
+                        } else if (allFailed && (!data.success || !data.data || data.data.length === 0)) {
+                            // 全部失敗且無 fallback → 顯示 error
+                            this.errorText = '找不到資料';
+                            window.SearchUI.showState('error');
+                        } else {
+                            // 正常 stream 完成：只補充 metadata
+                            this.hasMoreResults = data.has_more || false;
+                            if (data.actress_profile) this.actressProfile = data.actress_profile;
+                            this.hasContent = this.searchResults.length > 0;
+                            // Issue 2: 查詢本地狀態（只對非 _failed 結果）
+                            if (window.SearchCore?.checkLocalStatus) {
+                                window.SearchCore.checkLocalStatus(this.searchResults.filter(r => !r._failed));
+                            }
+                        }
+                        this._searchSnapshot = null;
+                        eventSource.close();
+                        this._untrackConnection(eventSource);
+                        this.activeEventSource = null;
+                        return;
+                    }
                     eventSource.close();
                     this._untrackConnection(eventSource);
                     this.activeEventSource = null;
@@ -275,6 +365,12 @@ window.SearchStateMixin_SearchFlow = {
             this._fallbackAbortController.abort();
             this._fallbackAbortController = null;
         }
+
+        // T4: 清除 stream state（防殘留 skeleton）
+        this.isStreaming = false;
+        this.streamComplete = false;
+        this.streamSlots = [];
+        this.streamFilled = [];
 
         // 還原到搜尋前的狀態
         const snap = this._searchSnapshot;
