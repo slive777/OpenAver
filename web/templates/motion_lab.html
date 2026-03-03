@@ -251,6 +251,21 @@
     position: relative;
 }
 
+/* Rotating Border overlay：staging card 需要 overflow visible 讓 ::before 伸出邊界 */
+.motion-lab-grid .av-card-preview.rotating-border-spotlight {
+    overflow: visible;
+}
+
+/* Staging counter badge（staging card 內嵌版） */
+.staging-counter-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: var(--accent-primary);
+    color: #fff;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+}
+
 .motion-lab-grid .av-card-preview:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
@@ -525,13 +540,11 @@
          stagingRunning: false,
          _stagingTimers: [],
          _stagingBurstTimer: null,
-         _coverSwapDebounce: null,
          _burstBatchIndex: 0,
          _stagingRunId: 0,
          stagingCards: Array(12).fill(null),
          stagingCurrentCover: null,
          stagingCurrentNum: null,
-         stagingPulseActive: false,
 
          init() {
              this.fetchVideos();
@@ -977,10 +990,6 @@
                  clearTimeout(this._stagingBurstTimer);
                  this._stagingBurstTimer = null;
              }
-             if (this._coverSwapDebounce !== null) {
-                 clearTimeout(this._coverSwapDebounce);
-                 this._coverSwapDebounce = null;
-             }
              // 生成 token 遞增：使所有飛行中的 async callback 失效
              this._stagingRunId++;
              // 重置 staging state
@@ -992,7 +1001,6 @@
              this._burstBatchIndex = 0;
              this.stagingCurrentCover = null;
              this.stagingCurrentNum = null;
-             this.stagingPulseActive = false;
              // 清除 GSAP 殘留
              if (typeof window.MotionLab !== 'undefined') {
                  const stagingGridEl = this.$refs.stagingGrid;
@@ -1026,8 +1034,8 @@
              const stagingCardEl = this.$refs.stagingCard;
              if (!stagingGridEl) return;
 
-             // 取本批填入的 slot 對應 DOM 元素
-             const allCards = stagingGridEl.querySelectorAll('.av-card-preview');
+             // 取本批填入的 slot 對應 DOM 元素（排除 staging card 本身）
+             const allCards = stagingGridEl.querySelectorAll('.av-card-preview:not([data-staging])');
              const newCardEls = batch.map(function (item) {
                  return allCards[item.slot] || null;
              }).filter(Boolean);
@@ -1093,16 +1101,6 @@
                      if (imgEl && this.stagingCurrentCover) {
                          window.MotionLab.playCoverSwap(imgEl, { reducedMotionSim: this.params.reducedMotionSim });
                      }
-
-                     // C20: pulse 視覺回饋 debounce（僅 glow/pulse，不影響封面更新）
-                     if (this._coverSwapDebounce !== null) {
-                         clearTimeout(this._coverSwapDebounce);
-                     }
-                     this.stagingPulseActive = true;
-                     this._coverSwapDebounce = setTimeout(() => {
-                         this.stagingPulseActive = false;
-                         this._coverSwapDebounce = null;
-                     }, 150);
 
                      // 最後一張推完後 flush 剩餘 buffer
                      if (i === total - 1) {
@@ -1410,38 +1408,6 @@
             <span>假搜尋框 — burst 起點座標參照</span>
         </div>
 
-        <!-- Staging Card（tab=staging && stagingRunning 或已有資料時顯示） -->
-        <div class="staging-card-wrapper"
-             x-ref="stagingCard"
-             x-show="tab === 'staging' && (stagingRunning || stagingFilled > 0)">
-            <div class="staging-card" :class="{ 'staging-pulse-active': stagingPulseActive }">
-                <div class="staging-card-cover">
-                    <img x-ref="stagingImg"
-                         :src="stagingCurrentCover || ''"
-                         x-show="stagingCurrentCover"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
-                    <div class="av-card-no-cover" x-show="!stagingCurrentCover && stagingFilled === 0">
-                        <i class="bi bi-hourglass-split"></i>
-                        <span>等待中</span>
-                    </div>
-                    <div class="av-card-no-cover" x-show="!stagingCurrentCover && stagingFilled > 0">
-                        <i class="bi bi-image"></i>
-                        <span>無封面</span>
-                    </div>
-                </div>
-                <div class="staging-card-footer">
-                    <span class="av-num" x-text="stagingCurrentNum || '...'"></span>
-                    <span class="staging-badge"
-                          x-text="stagingFilled + ' / ' + stagingTotal"
-                          x-show="stagingFilled > 0"></span>
-                </div>
-            </div>
-            <!-- 蓄能回饋 debounce（C20）：pulse 在時間窗口內 -->
-            <div class="staging-pulse-hint" :style="stagingPulseActive ? '' : 'visibility:hidden'">
-                <i class="bi bi-arrow-down-circle" style="font-size:1.2rem; color:var(--accent-primary); animation: staging-pulse 0.8s ease-in-out infinite;"></i>
-            </div>
-        </div>
-
         <!-- Loading -->
         <div class="motion-lab-loading" x-show="loading">
             <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite;"></i>
@@ -1521,7 +1487,37 @@
         <div class="motion-lab-grid"
              x-ref="stagingGrid"
              x-show="tab === 'staging'">
-            <template x-for="(card, index) in stagingCards" :key="'staging_' + index">
+
+            <!-- Staging Card — grid slot 0，與普通卡片等寬 -->
+            <div class="av-card-preview rotating-border-spotlight"
+                 :class="{ active: stagingRunning && !params.reducedMotionSim }"
+                 x-ref="stagingCard"
+                 data-staging="true"
+                 x-show="stagingRunning || stagingFilled > 0"
+                 style="border-radius: 8px;">
+                <div class="av-card-preview-img">
+                    <img x-ref="stagingImg"
+                         :src="stagingCurrentCover || ''"
+                         x-show="stagingCurrentCover"
+                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                    <div class="av-card-no-cover" x-show="!stagingCurrentCover && stagingFilled === 0">
+                        <i class="bi bi-hourglass-split"></i>
+                        <span>等待中</span>
+                    </div>
+                    <div class="av-card-no-cover" x-show="!stagingCurrentCover && stagingFilled > 0">
+                        <i class="bi bi-image"></i>
+                        <span>無封面</span>
+                    </div>
+                </div>
+                <div class="av-card-preview-footer">
+                    <span class="av-num" x-text="stagingCurrentNum || '...'"></span>
+                    <span class="staging-counter-badge"
+                          x-text="stagingFilled + ' / ' + stagingTotal"
+                          x-show="stagingFilled > 0"></span>
+                </div>
+            </div>
+
+            <template x-for="(card, index) in stagingCards" :key="card ? card.path : 'empty_' + index">
                 <div class="av-card-preview">
                     <div class="av-card-preview-img">
                         <!-- skeleton 狀態 -->
@@ -1666,68 +1662,6 @@
     100% { background-position: -200% 0; }
 }
 
-/* Staging Card */
-.staging-card-wrapper {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
-    flex-shrink: 0;
-    margin: 0.5rem auto;
-}
-
-.staging-card {
-    width: 200px;
-    border-radius: 8px;
-    overflow: hidden;
-    background: var(--bg-secondary);
-    border: 2px solid var(--accent-primary);
-    box-shadow: 0 0 16px rgba(99, 102, 241, 0.3);
-}
-
-.staging-card-cover {
-    position: relative;
-    aspect-ratio: 3/2;
-    overflow: hidden;
-    background: var(--bg-tertiary);
-}
-
-.staging-card-footer {
-    padding: 0.35rem 0.5rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.staging-badge {
-    font-size: 0.65rem;
-    font-weight: 700;
-    background: var(--accent-primary);
-    color: #fff;
-    padding: 0.1rem 0.4rem;
-    border-radius: 4px;
-}
-
-.staging-pulse-hint {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-@keyframes staging-pulse {
-    0%, 100% { transform: translateY(0); opacity: 0.7; }
-    50%       { transform: translateY(4px); opacity: 1; }
-}
-
-/* C20: 蓄能回饋 debounce 視覺狀態 */
-.staging-card.staging-pulse-active {
-    box-shadow: 0 0 0 2px var(--accent-primary), 0 4px 20px rgba(var(--accent-primary-rgb, 99, 102, 241), 0.35);
-    transform: scale(1.03);
-    transition: box-shadow 0.1s ease-out, transform 0.1s ease-out;
-}
-.staging-card {
-    transition: box-shadow 0.15s ease-in, transform 0.15s ease-in;
-}
 </style>
 {% endblock %}
 
