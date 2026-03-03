@@ -581,6 +581,10 @@
          stagingCards: Array(12).fill(null),
          stagingCurrentCover: null,
          stagingCurrentNum: null,
+         stagingOverlayVisible: false,   // overlay staging card 是否存在於畫面（控制 x-show）
+         _allItemsArrived: false,        // 所有 result-item 已推入 buffer（消除 final flush timer）
+         _stagingExiting: false,         // exit 動畫進行中（防止 pulse killTweensOf 殺死 exit）
+         _pulseDebounceTimer: null,      // micro-pulse debounce timer（150ms）
 
          init() {
              this.fetchVideos();
@@ -1026,6 +1030,11 @@
                  clearTimeout(this._stagingBurstTimer);
                  this._stagingBurstTimer = null;
              }
+             // 清 micro-pulse debounce timer
+             if (this._pulseDebounceTimer !== null) {
+                 clearTimeout(this._pulseDebounceTimer);
+                 this._pulseDebounceTimer = null;
+             }
              // 生成 token 遞增：使所有飛行中的 async callback 失效
              this._stagingRunId++;
              // 重置 staging state
@@ -1037,6 +1046,9 @@
              this._burstBatchIndex = 0;
              this.stagingCurrentCover = null;
              this.stagingCurrentNum = null;
+             this.stagingOverlayVisible = false;
+             this._allItemsArrived = false;
+             this._stagingExiting = false;
              // 重置 staging card 寬度（由 onStagingBurst 動態量測設定）
              const stagingCardResetEl = this.$refs.stagingCard;
              if (stagingCardResetEl) {
@@ -1062,7 +1074,7 @@
              }
          },
 
-         async triggerMiniBurst(batch, runId) {
+         async triggerMiniBurst(batch, runId, isFinalBurst) {
              if (!batch || !batch.length) return;
              if (typeof window.MotionLab === 'undefined') return;
              // Race-safety: bail out if a reset happened before we started
@@ -1095,18 +1107,51 @@
              if (!newCardEls.length) return;
 
              const batchZ = this._burstBatchIndex++;
-             window.MotionLab.playStagingBurst(newCardEls, stagingCardEl, {
+             const tl = window.MotionLab.playStagingBurst(newCardEls, stagingCardEl, {
                  duration: this.stagingParams.burstDuration,
                  ease: this.stagingParams.burstEase,
                  stagger: 0.05,
                  batchZ: batchZ,
                  reducedMotionSim: this.params.reducedMotionSim
              });
+
+             if (isFinalBurst) {
+                 tl.then(() => {
+                     // [fix4 hook point]: this._collapsePhantomSlot(runId)
+                     // fix4 將在此掛入 Flip collapse，在 _triggerStagingExit 之前執行
+                     this._triggerStagingExit(runId);
+                 });
+             }
+             // isFinalBurst === false 時：fire-and-forget，不做額外處理
+         },
+
+         _triggerStagingExit(runId) {
+             if (this._stagingRunId !== runId) return;
+             // 清 pulse debounce：避免 exit 期間觸發 pulse
+             if (this._pulseDebounceTimer !== null) {
+                 clearTimeout(this._pulseDebounceTimer);
+                 this._pulseDebounceTimer = null;
+             }
+             // 標記 exit 進行中（雙重保護：playStagingPulse 開頭也會 check）
+             this._stagingExiting = true;
+             // 先停 rotating border（stagingRunning → false）
+             this.stagingRunning = false;
+             // 播 exit morph；onComplete 才設 stagingOverlayVisible = false
+             const cardEl = this.$refs.stagingCard;
+             const capturedRunId = runId;
+             window.MotionLab.playStagingExit(cardEl, {
+                 reducedMotionSim: this.params.reducedMotionSim
+             }, () => {
+                 // C1：onComplete 只做最終 state 收尾
+                 if (this._stagingRunId !== capturedRunId) return;
+                 this.stagingOverlayVisible = false;
+                 this._stagingExiting = false;
+             });
          },
 
          async onStagingBurst() {
              // guard: 防重複觸發
-             if (this.stagingRunning) return;
+             if (this.stagingRunning || this._stagingExiting) return;
              if (typeof window.MotionLab === 'undefined') return;
 
              // reset first（會遞增 _stagingRunId，使舊 async callbacks 失效）
@@ -1115,6 +1160,7 @@
              if (!this.videos.length) return;
 
              this.stagingRunning = true;
+             this.stagingOverlayVisible = true;
 
              // 動態量測 grid 卡片寬度，套到 staging card（§8）
              await this.$nextTick();
@@ -1123,6 +1169,10 @@
                  const cardWidth = firstGridCard.getBoundingClientRect().width;
                  this.$refs.stagingCard.style.width = cardWidth + 'px';
              }
+             // 播入場動畫
+             window.MotionLab.playStagingEntry(this.$refs.stagingCard, {
+                 reducedMotionSim: this.params.reducedMotionSim
+             });
 
              // 捕獲本次執行的 run token
              const runId = this._stagingRunId;
@@ -1162,30 +1212,35 @@
                          window.MotionLab.playCoverSwap(imgEl, { reducedMotionSim: this.params.reducedMotionSim });
                      }
 
-                     // 最後一張推完後 flush 剩餘 buffer
+                     // 第一張 pop，後續 micro-pulse（150ms debounce）
+                     if (i === 0) {
+                         window.MotionLab.playStagingPop(this.$refs.stagingCard, {
+                             reducedMotionSim: this.params.reducedMotionSim
+                         });
+                     } else {
+                         if (this._pulseDebounceTimer !== null) clearTimeout(this._pulseDebounceTimer);
+                         const capturedRunId = runId;
+                         this._pulseDebounceTimer = setTimeout(() => {
+                             if (this._stagingRunId !== capturedRunId) return;
+                             if (this._stagingExiting) return;  // exit 進行中，不觸發
+                             window.MotionLab.playStagingPulse(this.$refs.stagingCard, {
+                                 reducedMotionSim: this.params.reducedMotionSim
+                             });
+                             this._pulseDebounceTimer = null;
+                         }, 180);
+                     }
+
+                     // 最後一張到達：設 _allItemsArrived，讓 scheduleBurstTimer 統一處理
                      if (i === total - 1) {
-                         // 給最後一張 cover swap 時間
-                         const flushHandle = setTimeout(async () => {
-                             // Race-safety: 若 reset 已發生則放棄
-                             if (this._stagingRunId !== runId) return;
-                             if (this.stagingBuffer.length > 0) {
-                                 const remaining = [...this.stagingBuffer];
-                                 this.stagingBuffer = [];
-                                 await this.triggerMiniBurst(remaining, runId);
-                             }
-                             // Race-safety: 只在仍屬本次 run 時才清除 running flag
-                             if (this._stagingRunId === runId) {
-                                 this.stagingRunning = false;
-                             }
-                         }, batchInterval);
-                         this._stagingTimers.push(flushHandle);
+                         this._allItemsArrived = true;
+                         // 不排 final flush timer！scheduleBurstTimer 是唯一 flush owner
                      }
                  }, delay);
 
                  this._stagingTimers.push(handle);
              }
 
-             // 時間窗口 timer：定期 flush stagingBuffer（若達 minBatchCount）
+             // 時間窗口 timer：定期 flush stagingBuffer（唯一 flush owner）
              const scheduleBurstTimer = () => {
                  if (this._stagingBurstTimer !== null) {
                      clearTimeout(this._stagingBurstTimer);
@@ -1193,14 +1248,28 @@
                  this._stagingBurstTimer = setTimeout(async () => {
                      // Race-safety: 若 reset 已發生則停止排程
                      if (this._stagingRunId !== runId) return;
-                     if (this.stagingBuffer.length >= minBatchCount) {
-                         const batch = [...this.stagingBuffer];
-                         this.stagingBuffer = [];
-                         await this.triggerMiniBurst(batch, runId);
-                     }
-                     // 仍在運行中繼續排程
-                     if (this.stagingRunning && this._stagingRunId === runId) {
-                         scheduleBurstTimer();
+
+                     if (!this._allItemsArrived) {
+                         // 未全部到齊：只在達到 minBatchCount 時 flush
+                         if (this.stagingBuffer.length >= minBatchCount) {
+                             const batch = [...this.stagingBuffer];
+                             this.stagingBuffer = [];
+                             await this.triggerMiniBurst(batch, runId, false);
+                         }
+                         // 繼續排程
+                         if (this._stagingRunId === runId) scheduleBurstTimer();
+                     } else {
+                         // 全部已到齊
+                         if (this.stagingBuffer.length > 0) {
+                             // 有剩餘：flush 全部（不管 minBatchCount），isFinalBurst = true
+                             const batch = [...this.stagingBuffer];
+                             this.stagingBuffer = [];
+                             await this.triggerMiniBurst(batch, runId, true);
+                         } else {
+                             // buffer 已空：所有卡片已被之前的 flush 處理，直接 exit
+                             this._triggerStagingExit(runId);
+                         }
+                         // _allItemsArrived 路徑不再繼續排程（由 _triggerStagingExit 或 tl.then 接手）
                      }
                  }, batchInterval);
              };
@@ -1395,7 +1464,7 @@
 
         <!-- Staging Burst controls -->
         <button class="control-btn primary"
-                :disabled="stagingRunning || !hasVideos || tab !== 'staging'"
+                :disabled="stagingRunning || _stagingExiting || !hasVideos || tab !== 'staging'"
                 @click="onStagingBurst()">
             <i class="bi bi-collection-play-fill"></i> Staging Burst
         </button>
@@ -1545,7 +1614,7 @@
 
         <!-- Staging Anchor — 獨立中央容器（不佔 stagingGrid flow） -->
         <div class="staging-anchor"
-             x-show="tab === 'staging' && (stagingRunning || stagingFilled > 0)">
+             x-show="tab === 'staging' && stagingOverlayVisible">
             <div class="av-card-preview rotating-border-spotlight"
                  :class="{ active: stagingRunning && !params.reducedMotionSim }"
                  x-ref="stagingCard"

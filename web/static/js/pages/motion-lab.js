@@ -789,6 +789,92 @@
         },
 
         /**
+         * Staging Card 入場 morph：從縮小/透明展開（back.out 彈性感）
+         * C4: killTweensOf（入場是第一個動畫，無前序 tween 需保護）
+         * @param {Element} stagingCardEl - staging card DOM 元素
+         * @param {object} options - { reducedMotionSim }
+         */
+        playStagingEntry: function (stagingCardEl, options) {
+            options = options || {};
+            if (!stagingCardEl) return;
+            gsap.killTweensOf(stagingCardEl);
+            if (shouldSkip(options)) {
+                gsap.set(stagingCardEl, { scale: 1, opacity: 1 });
+                return;
+            }
+            gsap.fromTo(stagingCardEl,
+                { scale: 0.6, opacity: 0 },
+                { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(1.4)' }
+            );
+        },
+
+        /**
+         * 第一張 result-item 到達時的蓄能 pop
+         * 不用 killTweensOf：允許和入場動畫並存（入場 0.35s，pop 0.24s，重疊可接受）
+         * @param {Element} stagingCardEl - staging card DOM 元素
+         * @param {object} options - { reducedMotionSim }
+         */
+        playStagingPop: function (stagingCardEl, options) {
+            options = options || {};
+            if (!stagingCardEl) return;
+            if (shouldSkip(options)) return;
+            // 不 killTweensOf：允許和入場動畫並存
+            gsap.to(stagingCardEl, {
+                scale: 1.08, duration: 0.12, ease: 'power2.out',
+                yoyo: true, repeat: 1,
+                onComplete: function () {
+                    gsap.set(stagingCardEl, { scale: 1 });
+                }
+            });
+        },
+
+        /**
+         * 第 2 張起的 micro-pulse（150ms debounce 由 Alpine 側負責）
+         * 不用 killTweensOf：exit tween 若在進行中不能打斷
+         * Alpine 側的 _stagingExiting guard 為第一道防線
+         * @param {Element} stagingCardEl - staging card DOM 元素
+         * @param {object} options - { reducedMotionSim }
+         */
+        playStagingPulse: function (stagingCardEl, options) {
+            options = options || {};
+            if (!stagingCardEl) return;
+            if (shouldSkip(options)) return;
+            // 不 killTweensOf：exit tween 若在進行中不能打斷
+            gsap.to(stagingCardEl, {
+                scale: 1.04, duration: 0.08, ease: 'power2.out',
+                yoyo: true, repeat: 1
+            });
+        },
+
+        /**
+         * Staging Card exit morph：縮小 + 淡出
+         * C4: killTweensOf（exit 是最終動畫，需清場）
+         * C1: onComplete 是純動畫回調，state 由呼叫方 _triggerStagingExit 管理
+         * @param {Element} stagingCardEl - staging card DOM 元素
+         * @param {object} options - { reducedMotionSim }
+         * @param {Function} onComplete - 動畫完成後的回調
+         */
+        playStagingExit: function (stagingCardEl, options, onComplete) {
+            options = options || {};
+            if (!stagingCardEl) {
+                if (typeof onComplete === 'function') onComplete();
+                return;
+            }
+            gsap.killTweensOf(stagingCardEl);
+            if (shouldSkip(options)) {
+                gsap.set(stagingCardEl, { scale: 0.7, opacity: 0 });
+                if (typeof onComplete === 'function') onComplete();
+                return;
+            }
+            gsap.to(stagingCardEl, {
+                scale: 0.7, opacity: 0, duration: 0.3, ease: 'power2.in',
+                onComplete: function () {
+                    if (typeof onComplete === 'function') onComplete();
+                }
+            });
+        },
+
+        /**
          * 初始化 GSDevTools（只在 GSDevTools 可用時執行）
          * @param {gsap.core.Timeline} timeline - 要載入到 DevTools 的 timeline
          */
