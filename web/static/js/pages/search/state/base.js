@@ -23,6 +23,16 @@ window.SearchStateMixin_Base = function() {
         streamComplete: false,    // result-complete 已收到
         isStreaming: false,       // seed 收到 ~ result-complete 收到期間為 true
 
+        // ===== U2: Staging Buffer State（batching 用） =====
+        streamBuffer: [],        // 待 burst 的 result-item 暫存（{slot, data}[]）
+        streamBurstTimer: null,  // 時間窗口 timer ID（原生 setTimeout 回傳值）
+        streamBurstedSlots: [],  // 已 burst 到 grid 的 slot index（boolean array，長度與 streamSlots 一致）
+        stagingVisible: false,   // staging 容器可見性（獨立於 isStreaming）
+                                 // isStreaming 在 result-complete 後立即 false，
+                                 // 但 stagingVisible 等 exit morph onComplete 才 false（U3 接管）
+        // streamFilled 保留 — search.html L352 loading strip 仍在用
+        // U3 移除 loading strip 時一併移除 streamFilled
+
         // ===== File List State =====
         fileList: [],
         currentFileIndex: 0,

@@ -1197,6 +1197,23 @@ class TestStreamState:
             "base.js 缺少 streamComplete 欄位宣告 — T4 stream state contract"
         assert 'isStreaming' in content, \
             "base.js 缺少 isStreaming 欄位宣告 — T4 stream state contract"
+        # U2: 新增四個 staging buffer state 欄位守衛
+        assert 'streamBuffer' in content, \
+            "base.js 缺少 streamBuffer 欄位宣告 — U2 staging buffer state contract"
+        assert 'streamBurstTimer' in content, \
+            "base.js 缺少 streamBurstTimer 欄位宣告 — U2 timing window timer"
+        assert 'streamBurstedSlots' in content, \
+            "base.js 缺少 streamBurstedSlots 欄位宣告 — U2 burst tracking"
+        assert 'stagingVisible' in content, \
+            "base.js 缺少 stagingVisible 欄位宣告 — U2 staging 容器可見性"
+
+    def test_result_item_uses_stream_buffer(self):
+        """result-item handler 推入 streamBuffer，不直接更新 searchResults（U2 batching 約束）"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        assert 'streamBuffer' in content, \
+            "search-flow.js 缺少 streamBuffer 引用 — U2 batching 邏輯"
+        assert 'streamBurstTimer' in content, \
+            "search-flow.js 缺少 streamBurstTimer 引用 — U2 時間窗口 timer"
 
     def test_search_flow_handles_seed_event(self):
         """search-flow.js 包含 seed、result-item、result-complete 三種 SSE 事件 handler"""
@@ -1279,12 +1296,14 @@ class TestAnimationHookup:
              "確保 window.SearchAnimations 在 SSE handler 執行前已掛上")
 
     def test_search_flow_has_animation_trigger_in_result_item(self):
-        """result-item handler 包含 SearchAnimations?.playCardStreamIn 呼叫"""
+        """search-flow.js 包含 SearchAnimations 引用；U2 後動畫移至 flush 函數（hook point 給 U3）"""
         content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
         assert 'SearchAnimations' in content, \
-            "search-flow.js 缺少 SearchAnimations 呼叫 — T5 需在 result-item handler 觸發動畫"
-        assert 'playCardStreamIn' in content, \
-            "search-flow.js 缺少 playCardStreamIn 呼叫 — T5 result-item 單卡進場動畫 wiring"
+            "search-flow.js 缺少 SearchAnimations 引用 — playGridFadeIn 仍在 seed handler 使用"
+        # U2: playCardStreamIn 已從 result-item handler 移除，改由 U3 在 _flushStreamBuffer 接管
+        # 確認 U3 hook point 存在（flush 函數預留 miniBurst 觸發點）
+        assert 'U3: trigger playMiniBurst here' in content, \
+            "search-flow.js 缺少 U3 hook point 註解 — _flushStreamBuffer 應預留 '// U3: trigger playMiniBurst here'"
 
     def test_search_flow_has_next_tick_in_result_item(self):
         """result-item 的動畫觸發用 $nextTick + requestAnimationFrame（等 DOM patch）"""
