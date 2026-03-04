@@ -1117,8 +1117,6 @@
 
              if (isFinalBurst) {
                  tl.then(() => {
-                     // [fix4 hook point]: this._collapsePhantomSlot(runId)
-                     // fix4 將在此掛入 Flip collapse，在 _triggerStagingExit 之前執行
                      this._triggerStagingExit(runId);
                  });
              }
