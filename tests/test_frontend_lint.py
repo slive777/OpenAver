@@ -1447,3 +1447,35 @@ class TestAnimationHookup:
             "navigation.js 缺少 SearchAnimations 引用 — navigate() 應接入 slide 動畫"
         assert 'playSlideIn' in content, \
             "navigation.js 缺少 playSlideIn 引用 — navigate() 應觸發 slide-in 動畫"
+
+    # ===== U6: Integration + Cleanup Guards =====
+
+    def test_no_css_fadein_keyframes(self):
+        """search.css 不應包含 @keyframes fadeIn（已由 GSAP playDetailEntry 取代）"""
+        content = self.SEARCH_CSS.read_text(encoding='utf-8')
+        assert '@keyframes fadeIn' not in content, \
+            "search.css 仍包含 @keyframes fadeIn — U6 應移除（GSAP playDetailEntry 已取代此 CSS 動畫）"
+
+    def test_no_play_card_stream_in_in_search_animations(self):
+        """animations.js 不應包含 playCardStreamIn（已由 playMiniBurst 取代）"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'playCardStreamIn' not in content, \
+            "animations.js 仍包含 playCardStreamIn — U3 已由 playMiniBurst 取代，不應存在"
+
+    def test_all_animation_methods_consolidated(self):
+        """animations.js 包含所有 9 個預期動畫方法（U3/U4/U5 合併驗證）"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        expected_methods = [
+            'playMiniBurst',
+            'playCoverSwap',
+            'playStagingEntry',
+            'playStagingExit',
+            'playGridFadeIn',
+            'playDetailEntry',
+            'playGridToDetail',
+            'playDetailToGrid',
+            'playSlideIn',
+        ]
+        for method in expected_methods:
+            assert method in content, \
+                f"animations.js 缺少 {method} — 預期 9 個動畫方法全部存在"
