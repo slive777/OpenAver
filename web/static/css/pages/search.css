@@ -63,6 +63,19 @@
     color: var(--text-muted);
 }
 
+/* U8d: Cover loading shimmer placeholder */
+.cover-loading-placeholder {
+    position: absolute;
+    inset: 0;
+    background: var(--color-base-300);
+    z-index: 1;
+}
+
+.cover-loading-placeholder .shimmer {
+    position: absolute;
+    inset: 0;
+}
+
 .av-card-full-cover-img {
     width: 100%;
     height: 100%;

@@ -177,8 +177,13 @@
                              x-show="!coverError && current().cover"
                              :src="coverUrl()"
                              @error="handleCoverError()"
-                             @load="coverError = ''; _coverRetried = false"
+                             @load="_coverLoaded = true; coverError = ''; _coverRetried = false"
                              alt="封面">
+                        <!-- U8d: Cover loading shimmer -->
+                        <div x-show="!coverError && current().cover && !_coverLoaded"
+                             class="cover-loading-placeholder">
+                            <div class="shimmer"></div>
+                        </div>
                         <!-- 封面錯誤 -->
                         <div x-show="coverError" class="cover-error-placeholder">
                             <i class="bi bi-exclamation-triangle text-5xl text-warning"></i>

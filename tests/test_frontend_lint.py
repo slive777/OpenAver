@@ -1693,3 +1693,26 @@ class TestCoverStateGuard:
             "result-card.js 缺少 _setTimer — cover retry 必須使用 _setTimer 而非 raw setTimeout"
         assert 'coverRetry' in content, \
             "result-card.js 缺少 coverRetry — _setTimer 必須使用 'coverRetry' key"
+
+    # === U8d guard tests ===
+
+    SEARCH_HTML = PROJECT_ROOT / "web/templates/search.html"
+    SEARCH_CSS = PROJECT_ROOT / "web/static/css/pages/search.css"
+
+    def test_load_handler_sets_cover_loaded(self):
+        """search.html 的 @load handler 包含 _coverLoaded = true"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        assert '_coverLoaded = true' in content, \
+            "search.html 缺少 _coverLoaded = true — U8d 必須在 cover img @load handler 設定 _coverLoaded"
+
+    def test_shimmer_placeholder_in_html(self):
+        """search.html 包含 cover-loading-placeholder"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        assert 'cover-loading-placeholder' in content, \
+            "search.html 缺少 cover-loading-placeholder — U8d 必須新增 shimmer loading placeholder"
+
+    def test_shimmer_placeholder_in_css(self):
+        """search.css 包含 cover-loading-placeholder 樣式"""
+        content = self.SEARCH_CSS.read_text(encoding='utf-8')
+        assert 'cover-loading-placeholder' in content, \
+            "search.css 缺少 cover-loading-placeholder — U8d 必須新增 shimmer placeholder 樣式"
