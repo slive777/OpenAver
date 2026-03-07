@@ -219,9 +219,9 @@ class TestSearchActressResultCallback:
 
         ids = ['SONE-100', 'SONE-101', 'SONE-102']
         results_map = {
-            'SONE-100': {'number': 'SONE-100', 'actors': ['三上悠亜']},
-            'SONE-101': {'number': 'SONE-101', 'actors': ['三上悠亜']},
-            'SONE-102': {'number': 'SONE-102', 'actors': ['三上悠亜']},
+            'SONE-100': {'number': 'SONE-100', 'title': 'Title 100', 'actors': ['三上悠亜']},
+            'SONE-101': {'number': 'SONE-101', 'title': 'Title 101', 'actors': ['三上悠亜']},
+            'SONE-102': {'number': 'SONE-102', 'title': 'Title 102', 'actors': ['三上悠亜']},
         }
 
         mock_jb = make_mock_jb_actress(ids)
@@ -249,9 +249,9 @@ class TestSearchActressResultCallback:
 
         ids = ['SONE-100', 'SONE-101', 'SONE-102']
         results_map = {
-            'SONE-100': {'number': 'SONE-100', 'actors': ['三上悠亜']},
-            'SONE-101': {'number': 'SONE-101', 'actors': ['三上悠亜']},
-            'SONE-102': {'number': 'SONE-102', 'actors': ['三上悠亜']},
+            'SONE-100': {'number': 'SONE-100', 'title': 'Title 100', 'actors': ['三上悠亜']},
+            'SONE-101': {'number': 'SONE-101', 'title': 'Title 101', 'actors': ['三上悠亜']},
+            'SONE-102': {'number': 'SONE-102', 'title': 'Title 102', 'actors': ['三上悠亜']},
         }
 
         mock_jb = make_mock_jb_actress(ids)

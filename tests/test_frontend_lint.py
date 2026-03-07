@@ -1836,3 +1836,80 @@ class TestSearchAllRaceGuard:
             "_searchFileBackground 缺少 settle 函數 — 必須包裝 close 確保 Promise 可 resolve"
         assert 'originalClose' in method_body, \
             "_searchFileBackground 缺少 originalClose — 必須保存原始 close 再覆寫"
+
+
+class TestFailedSlotC30Guard:
+    """C30 guard: _failed slot 必須從導航、計數、lightbox 中排除
+
+    確認各 JS 方法在計算 navigation、indicator、file count 時
+    正確排除 _failed slot，避免用戶看到空白結果或導航到失敗項目。
+    """
+
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    NAVIGATION_JS = PROJECT_ROOT / "web/static/js/pages/search/state/navigation.js"
+    GRID_MODE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/grid-mode.js"
+    BASE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/base.js"
+    SEARCH_HTML = PROJECT_ROOT / "web/templates/search.html"
+
+    def test_navigate_skips_failed(self):
+        """navigate() 必須跳過 _failed slot，避免導航到空白結果 (C30)"""
+        content = self.NAVIGATION_JS.read_text(encoding='utf-8')
+        match = re.search(r'navigate\s*\(', content)
+        assert match, "navigation.js 缺少 navigate() 方法"
+        method_body = content[match.start():match.start() + 500]
+        assert '_failed' in method_body, "navigate() 必須包含 _failed skip 邏輯 (C30)"
+
+    def test_lightbox_nav_skips_failed(self):
+        """prevLightboxVideo / nextLightboxVideo 必須跳過 _failed slot (C30)"""
+        content = self.GRID_MODE_JS.read_text(encoding='utf-8')
+        for method_name in ['prevLightboxVideo', 'nextLightboxVideo']:
+            match = re.search(rf'{method_name}\s*\(', content)
+            assert match, f"grid-mode.js 缺少 {method_name}() 方法"
+            method_body = content[match.start():match.start() + 500]
+            assert '_failed' in method_body, f"{method_name}() 必須包含 _failed skip 邏輯 (C30)"
+
+    def test_nav_indicator_excludes_failed(self):
+        """navIndicatorText() 計算導航指示器時必須排除 _failed slot (C30)"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        match = re.search(r'navIndicatorText\s*\(', content)
+        assert match, "base.js 缺少 navIndicatorText() 方法"
+        method_body = content[match.start():match.start() + 500]
+        assert '_failed' in method_body, "navIndicatorText() 必須包含 _failed 排除邏輯 (C30)"
+
+    def test_can_go_prev_checks_failed(self):
+        """canGoPrev() 判斷是否可向前導航時必須考慮 _failed slot (C30)"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        match = re.search(r'canGoPrev\s*\(', content)
+        assert match, "base.js 缺少 canGoPrev() 方法"
+        method_body = content[match.start():match.start() + 300]
+        assert '_failed' in method_body, "canGoPrev() 必須包含 _failed 檢查邏輯 (C30)"
+
+    def test_can_go_next_checks_failed(self):
+        """canGoNext() 判斷是否可向後導航時必須考慮 _failed slot (C30)"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        match = re.search(r'canGoNext\s*\(', content)
+        assert match, "base.js 缺少 canGoNext() 方法"
+        method_body = content[match.start():match.start() + 300]
+        assert '_failed' in method_body, "canGoNext() 必須包含 _failed 檢查邏輯 (C30)"
+
+    def test_show_navigation_excludes_failed(self):
+        """showNavigation() 決定是否顯示導航 UI 時必須排除 _failed slot (C30)"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        match = re.search(r'showNavigation\s*\(', content)
+        assert match, "base.js 缺少 showNavigation() 方法"
+        method_body = content[match.start():match.start() + 300]
+        assert '_failed' in method_body, "showNavigation() 必須包含 _failed 排除邏輯 (C30)"
+
+    def test_file_count_text_excludes_failed(self):
+        """fileCountText() 顯示檔案數量時必須排除 _failed slot (C30)"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        match = re.search(r'fileCountText\s*\(', content)
+        assert match, "base.js 缺少 fileCountText() 方法"
+        method_body = content[match.start():match.start() + 500]
+        assert '_failed' in method_body, "fileCountText() 必須包含 _failed 排除邏輯 (C30)"
+
+    def test_lightbox_arrows_use_has_visible_methods(self):
+        """search.html lightbox 箭頭必須使用 hasVisiblePrev/Next() 而非 canGoPrev/Next() (C30)"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        assert 'hasVisiblePrev()' in content, "search.html 必須使用 hasVisiblePrev() (C30)"
+        assert 'hasVisibleNext()' in content, "search.html 必須使用 hasVisibleNext() (C30)"
