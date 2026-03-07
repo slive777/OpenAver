@@ -295,19 +295,28 @@ class TestMotionInfra:
 
     def test_no_direct_gsap_calls_in_pages(self):
         """頁面/元件 JS 不直接呼叫 GSAP API — 必須透過 motion adapter"""
+        # 共同根目錄，所有 allowed_files 相對路徑以此為基準
+        js_root = PROJECT_ROOT / "web" / "static" / "js"
         scan_dirs = [
-            PROJECT_ROOT / "web" / "static" / "js" / "pages",
-            PROJECT_ROOT / "web" / "static" / "js" / "components",
+            js_root / "pages",
+            js_root / "components",
         ]
         # motion-adapter.js 本身是合法 GSAP 呼叫點
-        allowed_files = {'motion-adapter.js'}
+        # motion-lab.js 和 search/animations.js 因動態座標計算需求，直接呼叫 GSAP
+        # 相對路徑以 js_root 為基準，包含 pages/ 或 components/ 前綴，避免跨目錄衝突
+        allowed_files = {
+            Path('components') / 'motion-adapter.js',   # components/motion-adapter.js
+            Path('pages') / 'motion-lab.js',            # pages/motion-lab.js（T1 新增）
+            Path('pages') / 'search' / 'animations.js', # pages/search/animations.js（T6 預先加入）
+        }
         violations = []
 
         for scan_dir in scan_dirs:
             if not scan_dir.exists():
                 continue
             for js_file in scan_dir.rglob("*.js"):
-                if js_file.name in allowed_files:
+                rel = js_file.relative_to(js_root)  # 相對於 js_root，非 scan_dir
+                if rel in allowed_files:
                     continue
                 matches = find_pattern_in_file(
                     js_file,
@@ -1159,3 +1168,762 @@ class TestSearchMigrationDeadCode:
             "file.js 仍含 setFileList: function() 空函數 — T5.3b 應已刪除"
         assert 'handleFileDrop: function()' not in content, \
             "file.js 仍含 handleFileDrop: function() 空函數 — T5.3b 應已刪除"
+
+
+class TestStreamState:
+    """T4 Frontend State + Skeleton Grid 靜態守衛測試
+
+    確認 SSE stream state 的 contract 存在：
+    - base.js 宣告 stream state 欄位
+    - search-flow.js 處理三種 SSE 事件類型
+    - search.html 包含 skeleton template 綁定
+    - failed slot 使用 visibility 而非 x-show（C10 約束）
+    - search.css 包含 skeleton 動畫樣式
+    """
+
+    BASE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/base.js"
+    SEARCH_FLOW_JS = PROJECT_ROOT / "web/static/js/pages/search/state/search-flow.js"
+    SEARCH_HTML = PROJECT_ROOT / "web/templates/search.html"
+    SEARCH_CSS = PROJECT_ROOT / "web/static/css/pages/search.css"
+
+    def test_base_js_has_stream_state_fields(self):
+        """base.js 宣告 stream state 欄位：streamSlots、streamComplete、isStreaming + U2 staging buffer + U3 staging display"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        assert 'streamSlots' in content, \
+            "base.js 缺少 streamSlots 欄位宣告 — T4 stream state contract"
+        assert 'streamComplete' in content, \
+            "base.js 缺少 streamComplete 欄位宣告 — T4 stream state contract"
+        assert 'isStreaming' in content, \
+            "base.js 缺少 isStreaming 欄位宣告 — T4 stream state contract"
+        # U2: 新增四個 staging buffer state 欄位守衛
+        assert 'streamBuffer' in content, \
+            "base.js 缺少 streamBuffer 欄位宣告 — U2 staging buffer state contract"
+        assert 'streamBurstTimer' in content, \
+            "base.js 缺少 streamBurstTimer 欄位宣告 — U2 timing window timer"
+        assert 'streamBurstedSlots' in content, \
+            "base.js 缺少 streamBurstedSlots 欄位宣告 — U2 burst tracking"
+        assert 'stagingVisible' in content, \
+            "base.js 缺少 stagingVisible 欄位宣告 — U2 staging 容器可見性"
+        # U3: streamFilled 已移除（loading strip 移除），新增 staging 顯示 state
+        assert 'streamFilled' not in content, \
+            "base.js 仍含 streamFilled 欄位 — U3 應已移除（loading strip 移除後成為死碼）"
+        assert 'stagingCover' in content, \
+            "base.js 缺少 stagingCover 欄位宣告 — U3 staging card 封面 URL"
+        assert 'stagingNumber' in content, \
+            "base.js 缺少 stagingNumber 欄位宣告 — U3 staging card 番號"
+        assert 'stagingReceivedCount' in content, \
+            "base.js 缺少 stagingReceivedCount 欄位宣告 — U3 staging card 計數"
+
+    def test_result_item_uses_stream_buffer(self):
+        """result-item handler 推入 streamBuffer，不直接更新 searchResults（U2 batching 約束）；U3 新增 staging state 更新"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        assert 'streamBuffer' in content, \
+            "search-flow.js 缺少 streamBuffer 引用 — U2 batching 邏輯"
+        assert 'streamBurstTimer' in content, \
+            "search-flow.js 缺少 streamBurstTimer 引用 — U2 時間窗口 timer"
+        # U3: result-item handler 更新 staging state
+        assert 'stagingCover' in content, \
+            "search-flow.js 缺少 stagingCover 引用 — U3 result-item handler 更新 staging display state"
+        assert 'stagingNumber' in content, \
+            "search-flow.js 缺少 stagingNumber 引用 — U3 result-item handler 更新 staging display state"
+
+    def test_search_flow_handles_seed_event(self):
+        """search-flow.js 包含 seed、result-item、result-complete 三種 SSE 事件 handler"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        assert "data.type === 'seed'" in content, \
+            "search-flow.js 缺少 data.type === 'seed' handler — T4 SSE protocol"
+        assert "data.type === 'result-item'" in content, \
+            "search-flow.js 缺少 data.type === 'result-item' handler — T4 SSE protocol"
+        assert "data.type === 'result-complete'" in content, \
+            "search-flow.js 缺少 data.type === 'result-complete' handler — T4 SSE protocol"
+
+    def test_search_html_has_skeleton_template(self):
+        """search.html 包含 :data-slot 屬性、_skeleton class 綁定、_failed 相關綁定"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        assert ':data-slot' in content, \
+            "search.html 缺少 :data-slot 屬性綁定 — T4 skeleton grid slot 識別"
+        assert '_skeleton' in content, \
+            "search.html 缺少 _skeleton class 綁定 — T4 skeleton grid 視覺"
+        assert '_failed' in content, \
+            "search.html 缺少 _failed 相關綁定 — T4 failed slot 視覺"
+
+    def test_failed_slot_uses_display_none(self):
+        """failed slot 使用 display: none 隱藏（C29 約束：_failed slot 完全移除佈局空間）"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        assert 'display: none' in content or 'display:none' in content, \
+            ("search.html 缺少 display: none — "
+             "C29 約束：_failed slot 必須用 display: none 完全隱藏")
+        assert 'visibility: hidden' not in content and 'visibility:hidden' not in content, \
+            ("search.html 仍包含 visibility: hidden — "
+             "C29 約束：已改用 display: none，不應殘留 visibility: hidden")
+
+    def test_search_css_has_skeleton_styles(self):
+        """search.css 包含 .skeleton-cover class、.shimmer class、@keyframes shimmer"""
+        content = self.SEARCH_CSS.read_text(encoding='utf-8')
+        assert '.skeleton-cover' in content, \
+            "search.css 缺少 .skeleton-cover class — T4 skeleton overlay 樣式"
+        assert '.shimmer' in content, \
+            "search.css 缺少 .shimmer class — T4 shimmer 動畫樣式"
+        assert '@keyframes shimmer' in content, \
+            "search.css 缺少 @keyframes shimmer — T4 shimmer 動畫定義"
+
+    def test_search_flow_has_stream_guard(self):
+        """search-flow.js 的 result handler 包含 streamComplete guard（C12 約束）"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        assert 'this.streamComplete' in content, \
+            "search-flow.js 缺少 streamComplete guard — T4 防止漸進路徑 result 覆蓋 searchResults"
+
+
+class TestAnimationHookup:
+    """T5 Frontend Animation Hookup 靜態守衛
+
+    確認 animations.js 載入順序、SearchAnimations window 物件、
+    動畫觸發 wiring 合約存在。
+    """
+
+    SEARCH_HTML = PROJECT_ROOT / "web/templates/search.html"
+    SEARCH_FLOW_JS = PROJECT_ROOT / "web/static/js/pages/search/state/search-flow.js"
+    ANIMATIONS_JS = PROJECT_ROOT / "web/static/js/pages/search/animations.js"
+    SEARCH_CSS = PROJECT_ROOT / "web/static/css/pages/search.css"
+
+    def test_animations_js_exists(self):
+        """search/animations.js 必須存在"""
+        assert self.ANIMATIONS_JS.exists(), \
+            "web/static/js/pages/search/animations.js 不存在 — T5 必須新建此檔案"
+
+    def test_animations_js_exposes_window_object(self):
+        """animations.js 暴露 window.SearchAnimations 物件"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'window.SearchAnimations' in content, \
+            "animations.js 缺少 window.SearchAnimations — 必須掛 window 物件供 search-flow.js 呼叫"
+
+    def test_animations_js_loaded_before_state_modules(self):
+        """animations.js script tag 在 state/base.js 之前（search.html 載入順序）"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        anim_pos = content.find('animations.js')
+        base_pos = content.find('state/base.js')
+        assert anim_pos != -1, \
+            "search.html 缺少 animations.js script tag"
+        assert base_pos != -1, \
+            "search.html 缺少 state/base.js script tag（預期已存在）"
+        assert anim_pos < base_pos, \
+            ("animations.js 必須在 state/base.js 之前載入 — "
+             "確保 window.SearchAnimations 在 SSE handler 執行前已掛上")
+
+    def test_search_flow_has_animation_trigger_in_result_item(self):
+        """search-flow.js 包含 SearchAnimations 引用；U3 後 playMiniBurst 在 _flushStreamBuffer 呼叫"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        assert 'SearchAnimations' in content, \
+            "search-flow.js 缺少 SearchAnimations 引用 — playGridFadeIn 仍在 seed handler 使用"
+        # U3: playMiniBurst 已接入 _flushStreamBuffer，hook point 註解已移除
+        assert 'playMiniBurst' in content, \
+            "search-flow.js 缺少 playMiniBurst 引用 — U3 _flushStreamBuffer 應呼叫 playMiniBurst"
+
+    def test_staging_card_html_exists(self):
+        """search.html 包含 staging-anchor overlay（.staging-card、stagingVisible + displayMode guard、stagingCover、stagingNumber、stagingReceivedCount）"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        assert 'staging-anchor' in content, \
+            "search.html 缺少 staging-anchor class — U3 staging overlay HTML"
+        assert 'staging-card' in content, \
+            "search.html 缺少 staging-card class — U3 staging card HTML"
+        assert 'stagingVisible' in content, \
+            "search.html 缺少 stagingVisible 綁定 — U3 staging card 可見性控制"
+        assert "displayMode === 'grid'" in content, \
+            "search.html staging x-show 缺少 displayMode === 'grid' guard — 切 detail view 時不該顯示 staging"
+        assert 'stagingCover' in content, \
+            "search.html 缺少 stagingCover 綁定 — U3 staging card 封面圖"
+        assert 'stagingNumber' in content, \
+            "search.html 缺少 stagingNumber 綁定 — U3 staging card 番號"
+        assert 'stagingReceivedCount' in content, \
+            "search.html 缺少 stagingReceivedCount 綁定 — U3 staging card 計數 badge"
+
+    def test_staging_card_css_exists(self):
+        """search.css 包含 staging card CSS（.staging-anchor、.staging-counter-badge）"""
+        content = self.SEARCH_CSS.read_text(encoding='utf-8')
+        assert '.staging-anchor' in content, \
+            "search.css 缺少 .staging-anchor class — U3 staging overlay 容器樣式"
+        assert '.staging-counter-badge' in content, \
+            "search.css 缺少 .staging-counter-badge class — U3 計數 badge 樣式"
+
+    def test_animations_js_has_play_mini_burst(self):
+        """animations.js 包含 playMiniBurst 方法（U3 mini-burst 動畫）"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'playMiniBurst' in content, \
+            "animations.js 缺少 playMiniBurst — U3 必須新增此方法（gsap.fromTo 偏移飛行）"
+
+    def test_animations_js_has_staging_animations(self):
+        """animations.js 包含 playStagingEntry、playStagingExit、playCoverSwap 方法"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'playStagingEntry' in content, \
+            "animations.js 缺少 playStagingEntry — U3 staging card 進場 morph"
+        assert 'playStagingExit' in content, \
+            "animations.js 缺少 playStagingExit — U3 staging card 退場 morph + onComplete"
+        assert 'playCoverSwap' in content, \
+            "animations.js 缺少 playCoverSwap — U3 staging card 封面替換動畫"
+
+    def test_flush_triggers_animation(self):
+        """search-flow.js 的 _flushStreamBuffer 包含 playMiniBurst 引用（U3 接 mini-burst 動畫）"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        assert '_flushStreamBuffer' in content, \
+            "search-flow.js 缺少 _flushStreamBuffer 方法 — U2/U3 batching 核心函數"
+        assert 'playMiniBurst' in content, \
+            "search-flow.js 缺少 playMiniBurst 呼叫 — U3 _flushStreamBuffer 必須觸發 mini-burst 動畫"
+
+    def test_animations_js_has_reduced_motion_guard(self):
+        """animations.js 檢查 prefersReducedMotion（Reduced Motion 降級）"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'prefersReducedMotion' in content, \
+            "animations.js 缺少 prefersReducedMotion 守衛 — Reduced Motion 時必須跳過動畫"
+
+    # ===== U4: Detail Entry + Grid-Detail Ghost Transition Guards =====
+
+    GRID_MODE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/grid-mode.js"
+
+    def test_animations_js_has_detail_entry(self):
+        """animations.js 包含 playDetailEntry 方法"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'playDetailEntry' in content, \
+            "animations.js 缺少 playDetailEntry — U4 detail entry 動畫（cover slide-in + info fade-in）"
+
+    def test_animations_js_has_grid_to_detail(self):
+        """animations.js 包含 playGridToDetail 方法"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'playGridToDetail' in content, \
+            "animations.js 缺少 playGridToDetail — U4 Grid->Detail ghost 轉場動畫"
+
+    def test_animations_js_has_detail_to_grid(self):
+        """animations.js 包含 playDetailToGrid 方法"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'playDetailToGrid' in content, \
+            "animations.js 缺少 playDetailToGrid — U4 Detail->Grid ghost 飛回動畫"
+
+    def test_grid_mode_switch_to_detail_has_animation(self):
+        """grid-mode.js switchToDetail 接入 ghost transition"""
+        content = self.GRID_MODE_JS.read_text(encoding='utf-8')
+        assert 'SearchAnimations' in content, \
+            "grid-mode.js 缺少 SearchAnimations 引用 — switchToDetail 應接入 ghost 轉場"
+        assert 'getBoundingClientRect' in content, \
+            "grid-mode.js 缺少 getBoundingClientRect — C17 step 1 capture rect"
+        assert '$nextTick' in content, \
+            "grid-mode.js 缺少 $nextTick — C17 step 3 animate after render"
+
+    def test_grid_mode_toggle_has_animation(self):
+        """grid-mode.js toggleDisplayMode 接入 ghost fly-back"""
+        content = self.GRID_MODE_JS.read_text(encoding='utf-8')
+        assert 'playDetailToGrid' in content, \
+            "grid-mode.js 缺少 playDetailToGrid — toggleDisplayMode Detail->Grid 應觸發 ghost 飛回"
+
+    def test_search_flow_exact_result_has_detail_entry(self):
+        """search-flow.js exact result 觸發 detail entry 動畫"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        assert 'playDetailEntry' in content, \
+            "search-flow.js 缺少 playDetailEntry — exact result 應觸發 detail entry 動畫"
+
+    def test_animations_js_has_ghost_cleanup(self):
+        """animations.js 包含 ghost 清除邏輯"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'data-search-ghost' in content, \
+            "animations.js 缺少 data-search-ghost attribute — ghost 元素需可識別以便清除"
+        assert 'remove()' in content or 'removeChild' in content, \
+            "animations.js 缺少 ghost 清除呼叫 — ghost 元素必須在動畫完成後移除"
+
+    # ===== U5: Detail Navigation Slide + Interrupt Guards =====
+
+    NAVIGATION_JS = PROJECT_ROOT / "web/static/js/pages/search/state/navigation.js"
+
+    def test_animations_js_has_slide_in(self):
+        """animations.js 包含 playSlideIn 方法（U5 導航滑動動畫）"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'playSlideIn' in content, \
+            "animations.js 缺少 playSlideIn — U5 detail 導航滑動動畫"
+
+    def test_navigation_has_kill_tweens(self):
+        """navigation.js 包含 killTweensOf（C18 interrupt 策略）"""
+        content = self.NAVIGATION_JS.read_text(encoding='utf-8')
+        assert 'killTweensOf' in content, \
+            "navigation.js 缺少 killTweensOf — C18 interrupt 策略需在導航時打斷舊動畫"
+
+    def test_navigation_has_slide_animation(self):
+        """navigation.js 接入 SearchAnimations slide 動畫"""
+        content = self.NAVIGATION_JS.read_text(encoding='utf-8')
+        assert 'SearchAnimations' in content, \
+            "navigation.js 缺少 SearchAnimations 引用 — navigate() 應接入 slide 動畫"
+        assert 'playSlideIn' in content, \
+            "navigation.js 缺少 playSlideIn 引用 — navigate() 應觸發 slide-in 動畫"
+
+    # ===== U6: Integration + Cleanup Guards =====
+
+    def test_no_css_fadein_keyframes(self):
+        """search.css 不應包含 @keyframes fadeIn（已由 GSAP playDetailEntry 取代）"""
+        content = self.SEARCH_CSS.read_text(encoding='utf-8')
+        assert '@keyframes fadeIn' not in content, \
+            "search.css 仍包含 @keyframes fadeIn — U6 應移除（GSAP playDetailEntry 已取代此 CSS 動畫）"
+
+    def test_no_play_card_stream_in_in_search_animations(self):
+        """animations.js 不應包含 playCardStreamIn（已由 playMiniBurst 取代）"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'playCardStreamIn' not in content, \
+            "animations.js 仍包含 playCardStreamIn — U3 已由 playMiniBurst 取代，不應存在"
+
+    def test_all_animation_methods_consolidated(self):
+        """animations.js 包含所有 9 個預期動畫方法（U3/U4/U5 合併驗證）"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        expected_methods = [
+            'playMiniBurst',
+            'playCoverSwap',
+            'playStagingEntry',
+            'playStagingExit',
+            'playGridFadeIn',
+            'playDetailEntry',
+            'playGridToDetail',
+            'playDetailToGrid',
+            'playSlideIn',
+        ]
+        for method in expected_methods:
+            assert method in content, \
+                f"animations.js 缺少 {method} — 預期 9 個動畫方法全部存在"
+
+    # ===== U7a: File Search Detail Entry Guard =====
+
+    FILE_LIST_JS = PROJECT_ROOT / "web/static/js/pages/search/state/file-list.js"
+
+    def test_file_search_result_has_detail_entry(self):
+        """U7a: file-list.js searchForFile() result triggers playDetailEntry"""
+        content = self.FILE_LIST_JS.read_text(encoding="utf-8")
+        assert "playDetailEntry" in content, (
+            "file-list.js must call playDetailEntry for file search results (U7a)"
+        )
+
+    # ===== U7b: File Switch Cached Slide Guards =====
+
+    def test_file_switch_cached_has_slide(self):
+        """U7b: file-list.js switchToFile() cached path triggers playSlideIn"""
+        content = self.FILE_LIST_JS.read_text(encoding="utf-8")
+        assert "playSlideIn" in content, (
+            "file-list.js must call playSlideIn for cached file switch (U7b)"
+        )
+
+    def test_file_switch_has_kill_tweens(self):
+        """U7b: file-list.js switchToFile() cached path interrupts old animation"""
+        content = self.FILE_LIST_JS.read_text(encoding="utf-8")
+        assert "killTweensOf" in content, (
+            "file-list.js must call killTweensOf for C18 interrupt in file switch (U7b)"
+        )
+
+    def test_play_slide_in_kills_child_tweens(self):
+        """Codex review: playSlideIn must kill child element tweens (cover/info) not just container"""
+        content = self.ANIMATIONS_JS.read_text(encoding="utf-8")
+        # Find the playSlideIn function definition (not the comment reference)
+        slide_in_start = content.find('playSlideIn: function')
+        assert slide_in_start != -1, "playSlideIn function definition not found in animations.js"
+        # Check that it references child selectors for kill
+        slide_in_body = content[slide_in_start:slide_in_start + 800]
+        assert 'av-card-full-cover' in slide_in_body, (
+            "playSlideIn must kill .av-card-full-cover child tweens (Codex review fix)"
+        )
+        assert 'av-card-full-info' in slide_in_body, (
+            "playSlideIn must kill .av-card-full-info child tweens (Codex review fix)"
+        )
+
+
+class TestCoverStateGuard:
+    """U8a Cover State 集中管理守衛
+
+    確認 base.js 有 _resetCoverState helper + state fields，
+    search-flow.js 有 _clearTimer method。
+    """
+
+    BASE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/base.js"
+    SEARCH_FLOW_JS = PROJECT_ROOT / "web/static/js/pages/search/state/search-flow.js"
+
+    def test_base_has_reset_cover_state(self):
+        """base.js 包含 _resetCoverState 定義"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        assert '_resetCoverState' in content, \
+            "base.js 缺少 _resetCoverState — U8a 必須新增集中式 cover state reset helper"
+
+    def test_reset_cover_state_increments_request_id(self):
+        """base.js 的 _resetCoverState 包含 _coverRequestId++"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        # 確認 _resetCoverState 方法體內有 _coverRequestId++
+        match = re.search(r'_resetCoverState\s*\(', content)
+        assert match, "base.js 缺少 _resetCoverState 方法定義"
+        method_body = content[match.start():match.start() + 500]
+        assert '_coverRequestId++' in method_body, \
+            "base.js _resetCoverState 缺少 _coverRequestId++ — 必須遞增 request ID"
+
+    def test_reset_cover_state_calls_clear_timer(self):
+        """base.js 的 _resetCoverState 包含 _clearTimer + coverRetry"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        match = re.search(r'_resetCoverState\s*\(', content)
+        assert match, "base.js 缺少 _resetCoverState 方法定義"
+        method_body = content[match.start():match.start() + 500]
+        assert '_clearTimer' in method_body, \
+            "base.js _resetCoverState 缺少 _clearTimer 呼叫 — 必須清除 coverRetry timer"
+        assert 'coverRetry' in method_body, \
+            "base.js _resetCoverState 缺少 coverRetry 參數 — _clearTimer 需指定 key"
+
+    def test_search_flow_has_clear_timer_method(self):
+        """search-flow.js 包含 _clearTimer method 定義"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        assert re.search(r'_clearTimer\s*\(\s*\w+\s*\)', content), \
+            "search-flow.js 缺少 _clearTimer(key) 方法定義 — U8a 必須新增單一 timer 清除方法"
+
+    def test_base_has_cover_request_id_field(self):
+        """base.js 包含 _coverRequestId 初始值"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        assert re.search(r'_coverRequestId\s*:\s*0', content), \
+            "base.js 缺少 _coverRequestId: 0 初始值 — U8a 必須新增 cover request ID 欄位"
+
+    def test_base_has_cover_loaded_field(self):
+        """base.js 包含 _coverLoaded 初始值"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        assert re.search(r'_coverLoaded\s*:\s*false', content), \
+            "base.js 缺少 _coverLoaded: false 初始值 — U8a 必須新增 cover loaded 欄位"
+
+    # === U8b guard tests ===
+
+    FILE_LIST_JS = PROJECT_ROOT / "web/static/js/pages/search/state/file-list.js"
+    NAVIGATION_JS = PROJECT_ROOT / "web/static/js/pages/search/state/navigation.js"
+    GRID_MODE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/grid-mode.js"
+    BATCH_JS = PROJECT_ROOT / "web/static/js/pages/search/state/batch.js"
+    PERSISTENCE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/persistence.js"
+
+    def test_file_list_reset_cover_state_count(self):
+        """file-list.js 包含至少 8 次 _resetCoverState 呼叫"""
+        content = self.FILE_LIST_JS.read_text(encoding='utf-8')
+        count = content.count('_resetCoverState')
+        assert count >= 8, (
+            f"file-list.js 只有 {count} 次 _resetCoverState（需至少 8 次: "
+            f"#4,#5,#6,#7,#8,#9,#10,#11）"
+        )
+
+    def test_navigation_reset_cover_state_count(self):
+        """navigation.js 包含至少 2 次 _resetCoverState 呼叫"""
+        content = self.NAVIGATION_JS.read_text(encoding='utf-8')
+        count = content.count('_resetCoverState')
+        assert count >= 2, (
+            f"navigation.js 只有 {count} 次 _resetCoverState（需至少 2 次: "
+            f"#1 navigate, #15 loadMore）"
+        )
+
+    def test_search_flow_reset_cover_state_count(self):
+        """search-flow.js 包含至少 4 次 _resetCoverState 呼叫"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        count = content.count('_resetCoverState')
+        assert count >= 4, (
+            f"search-flow.js 只有 {count} 次 _resetCoverState（需至少 4 次: "
+            f"#12 doSearch init, #13 traditional result, #14 fallback result, fallbackSearch）"
+        )
+
+    def test_no_bare_cover_error_reset(self):
+        """file-list/navigation/search-flow 中不應有裸 coverError = '' 純 reset 行"""
+        files_to_check = [self.FILE_LIST_JS, self.NAVIGATION_JS, self.SEARCH_FLOW_JS]
+        violations = []
+        for fpath in files_to_check:
+            content = fpath.read_text(encoding='utf-8')
+            for i, line in enumerate(content.splitlines(), 1):
+                # 匹配 coverError = '' 或 coverError = "" (純 reset，非 set error)
+                if re.search(r"""coverError\s*=\s*['"](['"])\s*;""", line):
+                    # 排除 _resetCoverState 方法定義本身
+                    if '_resetCoverState' in line:
+                        continue
+                    violations.append(f"{fpath.name}:{i} — {line.strip()}")
+        assert len(violations) == 0, (
+            f"發現 {len(violations)} 個裸 coverError = '' reset（應改用 _resetCoverState()）:\n" +
+            "\n".join(f"  - {v}" for v in violations)
+        )
+
+    def test_grid_mode_reset_cover_state(self):
+        """grid-mode.js 包含至少 1 次 _resetCoverState 呼叫"""
+        content = self.GRID_MODE_JS.read_text(encoding='utf-8')
+        count = content.count('_resetCoverState')
+        assert count >= 1, (
+            f"grid-mode.js 缺少 _resetCoverState（需至少 1 次: #16 switchToDetail）"
+        )
+
+    def test_batch_reset_cover_state(self):
+        """batch.js 包含至少 1 次 _resetCoverState 呼叫"""
+        content = self.BATCH_JS.read_text(encoding='utf-8')
+        count = content.count('_resetCoverState')
+        assert count >= 1, (
+            f"batch.js 缺少 _resetCoverState（需至少 1 次: #17 scrapeAll）"
+        )
+
+    def test_persistence_reset_cover_state(self):
+        """persistence.js 包含至少 1 次 _resetCoverState 呼叫"""
+        content = self.PERSISTENCE_JS.read_text(encoding='utf-8')
+        count = content.count('_resetCoverState')
+        assert count >= 1, (
+            f"persistence.js 缺少 _resetCoverState（需至少 1 次: #19 restoreState）"
+        )
+
+    # === U8c guard tests ===
+
+    RESULT_CARD_JS = PROJECT_ROOT / "web/static/js/pages/search/state/result-card.js"
+
+    def test_cover_error_has_get_attribute_guard(self):
+        """result-card.js 的 handleCoverError 內含 getAttribute"""
+        content = self.RESULT_CARD_JS.read_text(encoding='utf-8')
+        match = re.search(r'handleCoverError\s*\(', content)
+        assert match, "result-card.js 缺少 handleCoverError 方法定義"
+        method_body = content[match.start():match.start() + 800]
+        assert 'getAttribute' in method_body, \
+            "handleCoverError 缺少 getAttribute — Phase 1 stale guard 必須用 getAttribute('src') 比對"
+
+    def test_cover_error_has_cover_url_comparison(self):
+        """result-card.js 的 handleCoverError 內含 coverUrl"""
+        content = self.RESULT_CARD_JS.read_text(encoding='utf-8')
+        match = re.search(r'handleCoverError\s*\(', content)
+        assert match, "result-card.js 缺少 handleCoverError 方法定義"
+        method_body = content[match.start():match.start() + 800]
+        assert 'coverUrl' in method_body, \
+            "handleCoverError 缺少 coverUrl — Phase 1 stale guard 必須與 coverUrl() 比對"
+
+    def test_cover_error_has_request_id_guard(self):
+        """result-card.js 的 handleCoverError 內含 _coverRequestId"""
+        content = self.RESULT_CARD_JS.read_text(encoding='utf-8')
+        match = re.search(r'handleCoverError\s*\(', content)
+        assert match, "result-card.js 缺少 handleCoverError 方法定義"
+        method_body = content[match.start():match.start() + 800]
+        assert '_coverRequestId' in method_body, \
+            "handleCoverError 缺少 _coverRequestId — Phase 2 timer 競態守衛必須檢查 request ID"
+
+    def test_cover_retry_uses_set_timer(self):
+        """result-card.js 內含 _setTimer + coverRetry"""
+        content = self.RESULT_CARD_JS.read_text(encoding='utf-8')
+        assert '_setTimer' in content, \
+            "result-card.js 缺少 _setTimer — cover retry 必須使用 _setTimer 而非 raw setTimeout"
+        assert 'coverRetry' in content, \
+            "result-card.js 缺少 coverRetry — _setTimer 必須使用 'coverRetry' key"
+
+    # === U8d guard tests ===
+
+    SEARCH_HTML = PROJECT_ROOT / "web/templates/search.html"
+    SEARCH_CSS = PROJECT_ROOT / "web/static/css/pages/search.css"
+
+    def test_load_handler_sets_cover_loaded(self):
+        """search.html 的 @load handler 包含 _coverLoaded = true"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        assert '_coverLoaded = true' in content, \
+            "search.html 缺少 _coverLoaded = true — U8d 必須在 cover img @load handler 設定 _coverLoaded"
+
+    def test_shimmer_placeholder_in_html(self):
+        """search.html 包含 cover-loading-placeholder"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        assert 'cover-loading-placeholder' in content, \
+            "search.html 缺少 cover-loading-placeholder — U8d 必須新增 shimmer loading placeholder"
+
+    def test_shimmer_placeholder_in_css(self):
+        """search.css 包含 cover-loading-placeholder 樣式"""
+        content = self.SEARCH_CSS.read_text(encoding='utf-8')
+        assert 'cover-loading-placeholder' in content, \
+            "search.css 缺少 cover-loading-placeholder — U8d 必須新增 shimmer placeholder 樣式"
+
+    # === U8 Codex review fix guard tests ===
+
+    UI_JS = PROJECT_ROOT / "web/static/js/pages/search/ui.js"
+
+    def test_switch_source_reset_cover_state(self):
+        """ui.js 的 switchSource 包含 _resetCoverState（#20 cover-changing path）"""
+        content = self.UI_JS.read_text(encoding='utf-8')
+        assert '_resetCoverState' in content, (
+            "ui.js 缺少 _resetCoverState — switchSource 替換結果時必須重置 cover state（#20）"
+        )
+
+    def test_cover_error_guards_empty_cover_url(self):
+        """result-card.js 的 handleCoverError 在 _coverRetried 之前有 coverUrl 空值 early return"""
+        content = self.RESULT_CARD_JS.read_text(encoding='utf-8')
+        match = re.search(r'handleCoverError\s*\(', content)
+        assert match, "result-card.js 缺少 handleCoverError 方法定義"
+        method_body = content[match.start():match.start() + 800]
+        # coverUrl() 取值必須在 _coverRetried check 之前
+        cover_url_pos = method_body.find('coverUrl')
+        retried_pos = method_body.find('_coverRetried')
+        assert cover_url_pos != -1, \
+            "handleCoverError 缺少 coverUrl — 必須檢查空 coverUrl early return"
+        assert retried_pos != -1, \
+            "handleCoverError 缺少 _coverRetried"
+        assert cover_url_pos < retried_pos, (
+            "handleCoverError 的 coverUrl 檢查必須在 _coverRetried 之前 — "
+            "空 coverUrl 時應直接 return，避免 stale @error 觸發錯誤的 retry"
+        )
+
+
+class TestSearchAllRaceGuard:
+    """U10 guard: _searchFileBackground + searchAll 共享狀態競態保護"""
+
+    FILE_LIST_JS = PROJECT_ROOT / "web/static/js/pages/search/state/file-list.js"
+    BATCH_JS = PROJECT_ROOT / "web/static/js/pages/search/state/batch.js"
+
+    def test_search_file_background_exists(self):
+        """file-list.js 必須包含 _searchFileBackground 方法"""
+        content = self.FILE_LIST_JS.read_text(encoding='utf-8')
+        assert '_searchFileBackground' in content, \
+            "file-list.js 缺少 _searchFileBackground — U10a 必須新增背景搜尋方法"
+
+    def test_search_file_background_no_shared_state_writes(self):
+        """_searchFileBackground 不應讀寫共享 UI 狀態（只能操作 file 物件）"""
+        content = self.FILE_LIST_JS.read_text(encoding='utf-8')
+        match = re.search(r'_searchFileBackground\s*\(', content)
+        assert match, "file-list.js 缺少 _searchFileBackground 方法定義"
+        method_body = content[match.start():match.start() + 2000]
+
+        # 負面斷言：不應碰共享 UI 狀態
+        assert 'this.currentFileIndex' not in method_body, \
+            "_searchFileBackground 不應寫入 this.currentFileIndex — 背景搜尋不碰共享狀態"
+        assert 'this.currentIndex' not in method_body, \
+            "_searchFileBackground 不應寫入 this.currentIndex — 背景搜尋不碰共享狀態"
+        assert 'this.displayMode' not in method_body, \
+            "_searchFileBackground 不應寫入 this.displayMode — 背景搜尋不碰共享狀態"
+        assert 'window.SearchUI.showState' not in method_body, \
+            "_searchFileBackground 不應呼叫 window.SearchUI.showState — 背景搜尋不碰 UI"
+
+        # 特殊處理：排除 file.searchResults 誤判
+        assert 'this.searchResults' not in method_body, \
+            "_searchFileBackground 不應讀寫 this.searchResults — 背景搜尋只能操作 file.searchResults"
+
+        # 正面斷言：應操作 file 物件
+        assert 'file.searchResults' in method_body, \
+            "_searchFileBackground 必須寫入 file.searchResults — 結果存在 file 物件上"
+        assert 'file.searched' in method_body, \
+            "_searchFileBackground 必須寫入 file.searched — 標記搜尋完成"
+
+    def test_search_all_uses_background_search(self):
+        """batch.js 的 searchAll 必須使用 _searchFileBackground"""
+        content = self.BATCH_JS.read_text(encoding='utf-8')
+        assert '_searchFileBackground' in content, \
+            "batch.js 缺少 _searchFileBackground 呼叫 — U10b searchAll 必須改用背景搜尋"
+
+    def test_search_all_no_direct_switch_to_file_in_promise_all(self):
+        """searchAll 的 Promise.all(chunk.map 區塊內不應直接呼叫 switchToFile"""
+        content = self.BATCH_JS.read_text(encoding='utf-8')
+        match = re.search(r'Promise\.all\(chunk\.map', content)
+        assert match, "batch.js 缺少 Promise.all(chunk.map — searchAll 結構異常"
+        # 取到 })); 的區塊（約 500 字元）
+        block = content[match.start():match.start() + 500]
+        # 找到 })); 結束位置，截斷
+        end_marker = block.find('}));')
+        if end_marker != -1:
+            block = block[:end_marker + 3]
+        assert 'switchToFile' not in block, (
+            "searchAll 的 Promise.all(chunk.map) 內不應直接呼叫 switchToFile — "
+            "背景搜尋期間切換檔案會造成 UI 競態"
+        )
+
+    def test_search_file_background_no_ui_side_effects(self):
+        """_searchFileBackground 不應有 UI 副作用（switchToFile / showToast / alert）"""
+        content = self.FILE_LIST_JS.read_text(encoding='utf-8')
+        match = re.search(r'_searchFileBackground\s*\(', content)
+        assert match, "file-list.js 缺少 _searchFileBackground 方法定義"
+        method_body = content[match.start():match.start() + 2000]
+
+        assert 'switchToFile(' not in method_body, \
+            "_searchFileBackground 不應呼叫 switchToFile — 背景搜尋不切換 UI"
+        assert 'showToast(' not in method_body, \
+            "_searchFileBackground 不應呼叫 showToast — 背景搜尋不顯示 toast"
+        assert 'alert(' not in method_body, \
+            "_searchFileBackground 不應呼叫 alert — 背景搜尋不彈出對話框"
+
+    def test_search_file_background_has_close_wrapper(self):
+        """_searchFileBackground 必須有 close-wrapper（確保 forced-close 時 Promise settle）"""
+        content = self.FILE_LIST_JS.read_text(encoding='utf-8')
+        match = re.search(r'_searchFileBackground\s*\(', content)
+        assert match, "file-list.js 缺少 _searchFileBackground 方法定義"
+        method_body = content[match.start():match.start() + 2000]
+
+        assert 'settle' in method_body, \
+            "_searchFileBackground 缺少 settle 函數 — 必須包裝 close 確保 Promise 可 resolve"
+        assert 'originalClose' in method_body, \
+            "_searchFileBackground 缺少 originalClose — 必須保存原始 close 再覆寫"
+
+
+class TestFailedSlotC30Guard:
+    """C30 guard: _failed slot 必須從導航、計數、lightbox 中排除
+
+    確認各 JS 方法在計算 navigation、indicator、file count 時
+    正確排除 _failed slot，避免用戶看到空白結果或導航到失敗項目。
+    """
+
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    NAVIGATION_JS = PROJECT_ROOT / "web/static/js/pages/search/state/navigation.js"
+    GRID_MODE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/grid-mode.js"
+    BASE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/base.js"
+    SEARCH_HTML = PROJECT_ROOT / "web/templates/search.html"
+
+    def test_navigate_skips_failed(self):
+        """navigate() 必須跳過 _failed slot，避免導航到空白結果 (C30)"""
+        content = self.NAVIGATION_JS.read_text(encoding='utf-8')
+        match = re.search(r'navigate\s*\(', content)
+        assert match, "navigation.js 缺少 navigate() 方法"
+        method_body = content[match.start():match.start() + 500]
+        assert '_failed' in method_body, "navigate() 必須包含 _failed skip 邏輯 (C30)"
+
+    def test_lightbox_nav_skips_failed(self):
+        """prevLightboxVideo / nextLightboxVideo 必須跳過 _failed slot (C30)"""
+        content = self.GRID_MODE_JS.read_text(encoding='utf-8')
+        for method_name in ['prevLightboxVideo', 'nextLightboxVideo']:
+            match = re.search(rf'{method_name}\s*\(', content)
+            assert match, f"grid-mode.js 缺少 {method_name}() 方法"
+            method_body = content[match.start():match.start() + 500]
+            assert '_failed' in method_body, f"{method_name}() 必須包含 _failed skip 邏輯 (C30)"
+
+    def test_nav_indicator_excludes_failed(self):
+        """navIndicatorText() 計算導航指示器時必須排除 _failed slot (C30)"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        match = re.search(r'navIndicatorText\s*\(', content)
+        assert match, "base.js 缺少 navIndicatorText() 方法"
+        method_body = content[match.start():match.start() + 500]
+        assert '_failed' in method_body, "navIndicatorText() 必須包含 _failed 排除邏輯 (C30)"
+
+    def test_can_go_prev_checks_failed(self):
+        """canGoPrev() 判斷是否可向前導航時必須考慮 _failed slot (C30)"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        match = re.search(r'canGoPrev\s*\(', content)
+        assert match, "base.js 缺少 canGoPrev() 方法"
+        method_body = content[match.start():match.start() + 300]
+        assert '_failed' in method_body, "canGoPrev() 必須包含 _failed 檢查邏輯 (C30)"
+
+    def test_can_go_next_checks_failed(self):
+        """canGoNext() 判斷是否可向後導航時必須考慮 _failed slot (C30)"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        match = re.search(r'canGoNext\s*\(', content)
+        assert match, "base.js 缺少 canGoNext() 方法"
+        method_body = content[match.start():match.start() + 300]
+        assert '_failed' in method_body, "canGoNext() 必須包含 _failed 檢查邏輯 (C30)"
+
+    def test_show_navigation_excludes_failed(self):
+        """showNavigation() 決定是否顯示導航 UI 時必須排除 _failed slot (C30)"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        match = re.search(r'showNavigation\s*\(', content)
+        assert match, "base.js 缺少 showNavigation() 方法"
+        method_body = content[match.start():match.start() + 300]
+        assert '_failed' in method_body, "showNavigation() 必須包含 _failed 排除邏輯 (C30)"
+
+    def test_file_count_text_excludes_failed(self):
+        """fileCountText() 顯示檔案數量時必須排除 _failed slot (C30)"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        match = re.search(r'fileCountText\s*\(', content)
+        assert match, "base.js 缺少 fileCountText() 方法"
+        method_body = content[match.start():match.start() + 500]
+        assert '_failed' in method_body, "fileCountText() 必須包含 _failed 排除邏輯 (C30)"
+
+    def test_lightbox_arrows_use_has_visible_methods(self):
+        """search.html lightbox 箭頭必須使用 hasVisiblePrev/Next() 而非 canGoPrev/Next() (C30)"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        assert 'hasVisiblePrev()' in content, "search.html 必須使用 hasVisiblePrev() (C30)"
+        assert 'hasVisibleNext()' in content, "search.html 必須使用 hasVisibleNext() (C30)"
+
+    SEARCH_FLOW_JS = PROJECT_ROOT / "web/static/js/pages/search/state/search-flow.js"
+
+    def test_repoint_is_conditional(self):
+        """result-complete 的 currentIndex repoint 必須是條件式的：只在當前指向 _failed 時才 repoint (Codex review)"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        # 找到 repoint 區塊
+        idx = content.find('firstValid')
+        assert idx != -1, "search-flow.js 缺少 firstValid repoint 邏輯"
+        # 取 repoint 附近的程式碼區塊（往前 200 字元）
+        repoint_context = content[max(0, idx - 200):idx + 200]
+        # 確認有條件檢查：在 findIndex 之前先檢查當前 item 是否 _failed
+        assert 'currentResult' in repoint_context or 'this.searchResults[this.currentIndex]' in repoint_context, \
+            "repoint 必須先檢查當前 currentIndex 是否指向 _failed item，不可無條件覆蓋 (Codex review)"

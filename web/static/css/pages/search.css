@@ -63,18 +63,25 @@
     color: var(--text-muted);
 }
 
+/* U8d: Cover loading shimmer placeholder */
+.cover-loading-placeholder {
+    position: absolute;
+    inset: 0;
+    background: var(--color-base-300);
+    z-index: 1;
+}
+
+.cover-loading-placeholder .shimmer {
+    position: absolute;
+    inset: 0;
+}
+
 .av-card-full-cover-img {
     width: 100%;
     height: 100%;
     max-height: calc(100vh - 200px);
     object-fit: contain;  /* Search 不裁切 */
     filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
-    animation: fadeIn 0.5s ease-out;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.98); }
-    to { opacity: 1; transform: scale(1); }
 }
 
 /* 停用 hover 放大（Search 有導航按鈕，放大會干擾） */
@@ -657,6 +664,102 @@
 /* Grid Mode - Hero Card */
 .hero-card {
     cursor: pointer;
+}
+
+/* ==================== T4: Skeleton + Shimmer ==================== */
+.skeleton-cover {
+    aspect-ratio: 3/2;
+    background: var(--color-base-300);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.shimmer {
+    background: linear-gradient(
+        90deg,
+        var(--color-base-300) 25%,
+        var(--color-base-200) 50%,
+        var(--color-base-300) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ==================== U3: Staging Card (Overlay) ==================== */
+/* grid + staging overlay 的定位容器 */
+.grid-staging-wrapper {
+    position: relative;
+}
+
+/* Staging Anchor — overlay layer，浮在 grid 上方，不佔 flow 空間 */
+.staging-anchor {
+    position: absolute;
+    top: 0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    isolation: isolate;  /* 建立 stacking context，讓 ::before plate 在 grid 之上 */
+}
+
+/* 不透明遮罩 plate — 實色底板蓋住下面的 grid card，避免重疊眼花 */
+.staging-anchor::before {
+    content: '';
+    position: absolute;
+    inset: -0.5rem -1rem;
+    background: var(--color-base-100);
+    border-radius: var(--radius-lg);
+    z-index: -1;
+}
+
+[data-theme="dim"] .staging-anchor::before {
+    background: var(--color-base-200);
+}
+
+/* staging card 樣式由 theme.css .ds-gallery-composition 接管（圓角/shadow/footer/av-num 全一致）
+   寬度由 JS 動態同步 grid card */
+/* 禁用 staging card 的 hover 效果（不是互動元素，且 hover transform 會讓 burst 起點 rect 漂掉） */
+.staging-anchor .av-card-preview,
+.staging-anchor .av-card-preview:hover {
+    transform: none;
+    pointer-events: none;
+}
+.staging-anchor .av-card-preview:hover .av-card-preview-img img {
+    transform: none;
+}
+
+/* Progress log（staging anchor 內）— 實色，不半透明 */
+.staging-progress-log {
+    font-size: 0.75rem;
+    color: color-mix(in oklch, var(--color-base-content) 60%, transparent);
+    text-align: center;
+    padding: 0.25rem 0.75rem;
+    background: var(--color-base-200);
+    border-radius: var(--radius-sm);
+    pointer-events: none;
+}
+
+[data-theme="dim"] .staging-progress-log {
+    background: var(--color-base-300);
+}
+
+/* 計數 badge（參考 motion_lab.html L297-303 的 .staging-counter-badge） */
+.staging-counter-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: var(--color-primary);
+    color: var(--color-primary-content);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    white-space: nowrap;
 }
 
 /* Hero Card 圖片覆寫：容器保持 3/2，圖片 contain 完整顯示 */

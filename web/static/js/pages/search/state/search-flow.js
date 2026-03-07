@@ -21,6 +21,40 @@ window.SearchStateMixin_SearchFlow = {
         if (window.SearchCore?.clearAll) {
             window.SearchCore.clearAll();
         }
+        // 關閉進行中的 SSE 連線（防止舊事件重新填入 UI）
+        if (this.activeEventSource) {
+            this.activeEventSource.close();
+            this._untrackConnection(this.activeEventSource);
+            this.activeEventSource = null;
+        }
+        this.requestId++;  // 使所有殘留的 async callback 失效
+        // 取消進行中的 REST fallback fetch
+        if (this._fallbackAbortController) {
+            this._fallbackAbortController.abort();
+            this._fallbackAbortController = null;
+        }
+        // T4: 清除 stream state
+        this.isStreaming = false;
+        this.streamComplete = false;
+        this.streamSlots = [];
+        // U2: 清除 staging buffer + timer（C15 約束）
+        if (this.streamBurstTimer !== null) {
+            clearTimeout(this.streamBurstTimer);
+            this.streamBurstTimer = null;
+        }
+        // U3: 清除 cover swap debounce timer（C15 約束）
+        if (this._coverSwapTimer !== null) {
+            clearTimeout(this._coverSwapTimer);
+            this._coverSwapTimer = null;
+        }
+        this.streamBuffer = [];
+        this.streamBurstedSlots = [];
+        this.stagingVisible = false;
+        // U3: 重置 staging display state
+        this.stagingCover = '';
+        this.stagingNumber = '';
+        this.stagingReceivedCount = 0;
+        this._stagingCardWidth = 0;
         // 同步 Alpine state
         this.searchResults = [];
         this.currentIndex = 0;
@@ -82,6 +116,7 @@ window.SearchStateMixin_SearchFlow = {
         this.currentMode = '';
         this.detailDone = 0;
         this.detailTotal = 0;
+        this._resetCoverState();
         this.searchResults = [];
         this.currentIndex = 0;
         this.fileList = [];
@@ -94,6 +129,28 @@ window.SearchStateMixin_SearchFlow = {
         this.displayMode = 'detail';  // T3a: 新搜尋重置顯示模式
         this._gridImageErrors = new Set();  // T6a: 清空 Grid 圖片錯誤記錄
         this.errorText = '';  // T6c: 清空上次的錯誤訊息
+        // T4: 重置 stream state（防競態 + 新搜尋乾淨起始）
+        this.isStreaming = false;
+        this.streamComplete = false;
+        this.streamSlots = [];
+        // U2: 重置 staging buffer state（C15 約束）
+        this.streamBuffer = [];
+        if (this.streamBurstTimer !== null) {
+            clearTimeout(this.streamBurstTimer);
+            this.streamBurstTimer = null;
+        }
+        // U3: 清除 cover swap debounce timer（C15 約束）
+        if (this._coverSwapTimer !== null) {
+            clearTimeout(this._coverSwapTimer);
+            this._coverSwapTimer = null;
+        }
+        this.streamBurstedSlots = [];
+        this.stagingVisible = false;
+        // U3: 重置 staging display state
+        this.stagingCover = '';
+        this.stagingNumber = '';
+        this.stagingReceivedCount = 0;
+        this._stagingCardWidth = 0;
 
         // 檔案列表由 x-show 自動隱藏（listMode=null, fileList=[]）
 
@@ -119,7 +176,170 @@ window.SearchStateMixin_SearchFlow = {
                 else if (data.type === 'status') {
                     this.handleSearchStatus(data.source, data.status);
                 }
+                // T4: seed handler（C11 約束）
+                else if (data.type === 'seed') {
+                    this.isStreaming = true;
+                    this.streamComplete = false;
+                    this.streamSlots = data.slots;
+                    this.streamBurstedSlots = new Array(data.slots.length).fill(false);
+                    this.searchResults = data.slots.map(num => ({ number: num, _skeleton: true }));
+                    this.currentIndex = 0;
+                    this.listMode = 'search';       // C11: grid 可見條件 1
+                    this.displayMode = 'grid';      // C11: grid 可見條件 2
+                    this.hasContent = true;
+                    window.SearchUI.showState('result');  // C11: pageState='result'，正確 API
+                    // T5: Progress → skeleton grid 轉場（輕量整體淡入）
+                    this.$nextTick(() => {
+                        requestAnimationFrame(() => {
+                            const grid = document.querySelector('.search-grid');
+                            if (grid) {
+                                window.SearchAnimations?.playGridFadeIn?.(grid);
+                                // U3: 預量 grid card 寬度，供 staging card 首次顯示時同步
+                                const gridCard = grid.querySelector('.av-card-preview:not(.hero-card)');
+                                if (gridCard) {
+                                    this._stagingCardWidth = gridCard.getBoundingClientRect().width;
+                                }
+                            }
+                        });
+                    });
+                }
+                // T4: result-item handler（U2: 推入 buffer，不直接填入 grid）
+                else if (data.type === 'result-item') {
+                    const { slot, data: item } = data;
+                    if (slot >= 0 && slot < this.searchResults.length) {
+                        // U2: 推入 staging buffer（不直接修改 searchResults）
+                        this.streamBuffer.push({ slot, data: item });
+
+                        // U3: 更新 staging display state（C16 裝飾性）
+                        this.stagingCover = item.cover || '';
+                        this.stagingNumber = item.number || '';
+                        this.stagingReceivedCount++;
+
+                        // 首次顯示 staging 容器 → 觸發進場 morph
+                        const wasHidden = !this.stagingVisible;
+                        this.stagingVisible = true;
+
+                        if (wasHidden) {
+                            // 首次顯示：套用 seed 時預量的 grid card 寬度 + playStagingEntry
+                            this.$nextTick(() => {
+                                const stagingCardEl = this.$refs?.stagingCard;
+                                if (stagingCardEl && this._stagingCardWidth > 0) {
+                                    stagingCardEl.style.width = this._stagingCardWidth + 'px';
+                                }
+                                window.SearchAnimations?.playStagingEntry?.(stagingCardEl);
+                            });
+                        } else {
+                            // 後續到達：playCoverSwap debounce（C20：150ms 內多筆只觸發一次）
+                            if (this._coverSwapTimer !== null) {
+                                clearTimeout(this._coverSwapTimer);
+                            }
+                            this._coverSwapTimer = setTimeout(() => {
+                                this._coverSwapTimer = null;
+                                const stagingImgEl = this.$refs?.stagingImg;
+                                window.SearchAnimations?.playCoverSwap?.(stagingImgEl);
+                            }, 150);
+                        }
+
+                        // 啟動時間窗口 timer（若尚未排程）
+                        this._scheduleFlushTimer();
+                    }
+                }
+                // T4: result-complete handler（C9 約束 — 失敗 slot 原地標記）
+                else if (data.type === 'result-complete') {
+                    // Issue 1 fix: 不在此關閉 EventSource，讓後端的 fallback result 能送達
+                    this.streamComplete = true;
+                    // U2: 清除 burst timer（C15 約束）
+                    if (this.streamBurstTimer !== null) {
+                        clearTimeout(this.streamBurstTimer);
+                        this.streamBurstTimer = null;
+                    }
+                    // U3: 清除 cover swap debounce timer（C15 約束）
+                    if (this._coverSwapTimer !== null) {
+                        clearTimeout(this._coverSwapTimer);
+                        this._coverSwapTimer = null;
+                    }
+                    this.$nextTick(() => { this.isStreaming = false; });
+                    this.hasMoreResults = data.has_more || false;
+                    this.actressProfile = data.actress_profile || null;
+                    // C9: 不用 filter()，失敗 slot 原地標記
+                    // C13: map 回傳新 array，觸發 Alpine reactivity
+                    // 只標記「尚未 burst 的 _skeleton」（已 burst 的 slot 已填入真實資料）
+                    this.searchResults = this.searchResults.map(r =>
+                        r._skeleton ? { ...r, _skeleton: false, _failed: true } : r
+                    );
+                    // U3: flush 剩餘 streamBuffer（isFinal=true），chain exit morph
+                    if (this.streamBuffer.length > 0) {
+                        this._flushStreamBuffer(true);
+                    } else {
+                        // buffer 已空 → 直接觸發 exit morph
+                        this._triggerStagingExit();
+                    }
+                    // U11a: repoint currentIndex only if it points to a _failed slot (Codex review fix)
+                    const currentResult = this.searchResults[this.currentIndex];
+                    if (currentResult && currentResult._failed) {
+                        const firstValid = this.searchResults.findIndex(r => !r._failed);
+                        if (firstValid !== -1) {
+                            this.currentIndex = firstValid;
+                        }
+                    }
+                    // else: user already selected a valid item during streaming, don't override
+                }
                 else if (data.type === 'result') {
+                    // T4: Stream guard — 漸進路徑的 result 決定最終狀態後關閉連線
+                    if (this.streamComplete) {
+                        const allFailed = this.searchResults.every(r => r._failed);
+                        if (allFailed && data.success && data.data && data.data.length > 0) {
+                            // Issue 1: Fallback 路徑（actress → keyword），用 result 資料完整替換
+                            this._resetCoverState();
+                            this.searchResults = data.data;
+                            this.currentIndex = 0;
+                            this.hasMoreResults = data.has_more || false;
+                            this.actressProfile = data.actress_profile || null;
+                            this.listMode = 'search';
+                            if (data.mode) this.currentMode = data.mode;
+                            // 與傳統 result 路徑一致：尊重 gallery_mode_enabled 設定
+                            if ((data.mode === 'actress' || data.mode === 'prefix') && this.appConfig?.search?.gallery_mode_enabled && data.data.length >= 10) {
+                                this.displayMode = 'grid';
+                            } else {
+                                this.displayMode = 'detail';
+                            }
+                            // 重置 stream state（已不是 stream 模式）
+                            this.isStreaming = false;
+                            this.streamComplete = false;
+                            this.streamSlots = [];
+                            window.SearchUI.showState('result');
+                            // U4: detail entry animation (fire-and-forget, C17)
+                            this.$nextTick(() => {
+                                if (this.displayMode === 'detail') {
+                                    var detailEl = document.querySelector('.av-card-full');
+                                    window.SearchAnimations?.playDetailEntry?.(detailEl);
+                                }
+                            });
+                            this.hasContent = true;
+                            // Issue 2: 查詢本地狀態
+                            if (window.SearchCore?.checkLocalStatus) {
+                                window.SearchCore.checkLocalStatus(this.searchResults);
+                            }
+                        } else if (allFailed && (!data.success || !data.data || data.data.length === 0)) {
+                            // 全部失敗且無 fallback → 顯示 error
+                            this.errorText = '找不到資料';
+                            window.SearchUI.showState('error');
+                        } else {
+                            // 正常 stream 完成：只補充 metadata
+                            this.hasMoreResults = data.has_more || false;
+                            if (data.actress_profile) this.actressProfile = data.actress_profile;
+                            this.hasContent = this.searchResults.length > 0;
+                            // Issue 2: 查詢本地狀態（只對非 _failed 結果）
+                            if (window.SearchCore?.checkLocalStatus) {
+                                window.SearchCore.checkLocalStatus(this.searchResults.filter(r => !r._failed));
+                            }
+                        }
+                        this._searchSnapshot = null;
+                        eventSource.close();
+                        this._untrackConnection(eventSource);
+                        this.activeEventSource = null;
+                        return;
+                    }
                     eventSource.close();
                     this._untrackConnection(eventSource);
                     this.activeEventSource = null;
@@ -144,6 +364,13 @@ window.SearchStateMixin_SearchFlow = {
 
                         // 顯示結果
                         window.SearchUI.showState('result');
+                        // U4: detail entry animation (fire-and-forget, C17)
+                        this.$nextTick(() => {
+                            if (this.displayMode === 'detail') {
+                                var detailEl = document.querySelector('.av-card-full');
+                                window.SearchAnimations?.playDetailEntry?.(detailEl);
+                            }
+                        });
                         if (window.SearchUI?.preloadImages) {
                             window.SearchUI.preloadImages(1, 5);
                         }
@@ -151,7 +378,7 @@ window.SearchStateMixin_SearchFlow = {
                         this.hasContent = this.searchResults.length > 0 || this.fileList.length > 0;
                         this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
                         // Reset edit states
-                        this.coverError = '';
+                        this._resetCoverState();
                         this.editingTitle = false;
                         this.editingChineseTitle = false;
                         this.addingTag = false;
@@ -185,6 +412,28 @@ window.SearchStateMixin_SearchFlow = {
             eventSource.close();
             this._untrackConnection(eventSource);
             this.activeEventSource = null;
+            // T4: 清除 stream state（防 stream UI 殘留到 fallback）
+            this.isStreaming = false;
+            this.streamComplete = false;
+            this.streamSlots = [];
+            // U2: 清除 staging buffer + timer（進 fallback 前必須清乾淨）
+            if (this.streamBurstTimer !== null) {
+                clearTimeout(this.streamBurstTimer);
+                this.streamBurstTimer = null;
+            }
+            // U3: 清除 cover swap debounce timer
+            if (this._coverSwapTimer !== null) {
+                clearTimeout(this._coverSwapTimer);
+                this._coverSwapTimer = null;
+            }
+            this.streamBuffer = [];
+            this.streamBurstedSlots = [];
+            this.stagingVisible = false;
+            // U3: 重置 staging display state
+            this.stagingCover = '';
+            this.stagingNumber = '';
+            this.stagingReceivedCount = 0;
+        this._stagingCardWidth = 0;
             this.fallbackSearch(query, currentRequestId); // Fix 3: 傳入 requestId
         };
     },
@@ -233,6 +482,13 @@ window.SearchStateMixin_SearchFlow = {
 
                 // 顯示結果
                 window.SearchUI.showState('result');
+                // U4: detail entry animation (fire-and-forget, C17)
+                this.$nextTick(() => {
+                    if (this.displayMode === 'detail') {
+                        var detailEl = document.querySelector('.av-card-full');
+                        window.SearchAnimations?.playDetailEntry?.(detailEl);
+                    }
+                });
                 if (window.SearchUI?.preloadImages) {
                     window.SearchUI.preloadImages(1, 5);
                 }
@@ -240,7 +496,7 @@ window.SearchStateMixin_SearchFlow = {
                 this.hasContent = this.searchResults.length > 0 || this.fileList.length > 0;
                 this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
                 // Reset edit states
-                this.coverError = '';
+                this._resetCoverState();
                 this.editingTitle = false;
                 this.editingChineseTitle = false;
                 this.addingTag = false;
@@ -276,6 +532,29 @@ window.SearchStateMixin_SearchFlow = {
             this._fallbackAbortController = null;
         }
 
+        // T4: 清除 stream state（防殘留 skeleton）
+        this.isStreaming = false;
+        this.streamComplete = false;
+        this.streamSlots = [];
+        // U2: 清除 staging buffer + timer（C15 約束）
+        if (this.streamBurstTimer !== null) {
+            clearTimeout(this.streamBurstTimer);
+            this.streamBurstTimer = null;
+        }
+        // U3: 清除 cover swap debounce timer（C15 約束）
+        if (this._coverSwapTimer !== null) {
+            clearTimeout(this._coverSwapTimer);
+            this._coverSwapTimer = null;
+        }
+        this.streamBuffer = [];
+        this.streamBurstedSlots = [];
+        this.stagingVisible = false;
+        // U3: 重置 staging display state
+        this.stagingCover = '';
+        this.stagingNumber = '';
+        this.stagingReceivedCount = 0;
+        this._stagingCardWidth = 0;
+
         // 還原到搜尋前的狀態
         const snap = this._searchSnapshot;
         if (snap) {
@@ -300,6 +579,139 @@ window.SearchStateMixin_SearchFlow = {
         this._searchSnapshot = null;
     },
 
+    // ===== U2: Staging Buffer 私有方法 =====
+
+    /**
+     * 取出 streamBuffer 全部項目，批量填入 searchResults（單次 Alpine render）
+     * 契約：幂等（buffer 為空直接 return）；C13 clone array
+     * @param {boolean} [isFinal=false] - true 時 chain exit morph（result-complete 呼叫）
+     */
+    _flushStreamBuffer(isFinal = false) {
+        if (this.streamBuffer.length === 0) {
+            if (isFinal) this._triggerStagingExit();
+            return;
+        }
+
+        // 取出全部項目並清空 buffer
+        const items = this.streamBuffer.splice(0);
+        const flushedSlots = items.map(({ slot }) => slot);
+
+        // C13: clone array，單次更新 searchResults（避免多次 Alpine patch）
+        const clonedResults = [...this.searchResults];
+        for (const { slot, data } of items) {
+            if (slot >= 0 && slot < clonedResults.length) {
+                clonedResults[slot] = data;
+                // 標記 streamBurstedSlots
+                if (this.streamBurstedSlots && slot < this.streamBurstedSlots.length) {
+                    this.streamBurstedSlots[slot] = true;
+                }
+            }
+        }
+        this.searchResults = clonedResults;
+
+        // U3: playMiniBurst — 等 Alpine 渲染完成後找新卡片 DOM
+        const capturedRequestId = this.requestId;
+        this.$nextTick(() => {
+            // requestId guard：防止新搜尋後舊 flush 動畫污染
+            if (capturedRequestId !== this.requestId) return;
+
+            const stagingEl = this.$refs?.stagingCard;
+            const grid = document.querySelector('.search-grid');
+            if (!grid) {
+                if (isFinal) this._triggerStagingExit();
+                return;
+            }
+
+            // 找本批 flush 的卡片 DOM（按 data-slot 屬性匹配）
+            const cards = flushedSlots
+                .map(slot => grid.querySelector(`[data-slot="${slot}"]`))
+                .filter(Boolean);
+
+            if (!cards.length) {
+                if (isFinal) this._triggerStagingExit();
+                return;
+            }
+
+            // 動態同步 staging card 寬度：每批 burst 前量測 cards[0]（避免首次量到 0）
+            const stagingCardEl = this.$refs?.stagingCard;
+            if (cards[0] && stagingCardEl) {
+                const cardWidth = cards[0].getBoundingClientRect().width;
+                if (cardWidth > 0) {
+                    stagingCardEl.style.width = cardWidth + 'px';
+                }
+            }
+
+            // 呼叫 playMiniBurst（optional chaining，SearchAnimations 未載入時功能正常）
+            window.SearchAnimations?.playMiniBurst?.(cards, stagingEl, {
+                onComplete: isFinal ? () => { this._triggerStagingExit(); } : undefined
+            });
+
+            // SearchAnimations 不存在時，isFinal 直接觸發 exit
+            if (!window.SearchAnimations && isFinal) {
+                this._triggerStagingExit();
+            }
+        });
+    },
+
+    /**
+     * 觸發 staging exit morph（幂等）
+     * 契約：if (!this.stagingVisible) return（防止重複呼叫）
+     * onComplete → stagingVisible = false + 重置 staging display state
+     */
+    _triggerStagingExit() {
+        if (!this.stagingVisible) return;
+
+        const stagingEl = this.$refs?.stagingCard;
+        const self = this;
+
+        function onExitComplete() {
+            self.stagingVisible = false;
+            self.stagingCover = '';
+            self.stagingNumber = '';
+            self.stagingReceivedCount = 0;
+            self._stagingCardWidth = 0;
+        }
+
+        if (!window.SearchAnimations) {
+            onExitComplete();
+            return;
+        }
+
+        window.SearchAnimations?.playStagingExit?.(stagingEl, {
+            onComplete: onExitComplete
+        });
+
+        // playStagingExit 不存在時直接設 false
+        if (!window.SearchAnimations?.playStagingExit) {
+            onExitComplete();
+        }
+    },
+
+    /**
+     * 啟動時間窗口 timer（已有 timer 時不覆蓋）
+     * 混合模式：800ms 後若 buffer >= MIN_BATCH_COUNT 則 flush，否則繼續等
+     */
+    _scheduleFlushTimer() {
+        const BURST_INTERVAL = 800;  // ms
+        const MIN_BATCH_COUNT = 3;
+
+        if (this.streamBurstTimer !== null) return;  // 已有 timer，不覆蓋
+
+        const capturedRequestId = this.requestId;    // 捕獲到閉包（防 doSearch 競態）
+        this.streamBurstTimer = setTimeout(() => {
+            this.streamBurstTimer = null;
+            // requestId guard：doSearch() 已啟動新搜尋 → 舊 timer 靜默放棄
+            if (capturedRequestId !== this.requestId) return;
+            if (this.streamBuffer.length >= MIN_BATCH_COUNT) {
+                this._flushStreamBuffer();
+            } else if (this.streamBuffer.length > 0) {
+                // buffer 不足 MIN_BATCH_COUNT → 重新啟動等待
+                this._scheduleFlushTimer();
+            }
+            // buffer 為空 → 不再排程（result-complete 時處理）
+        }, BURST_INTERVAL);
+    },
+
     /**
      * 離頁前清理 SSE（不還原 snapshot，因為離頁時會另外 saveState）
      */
@@ -315,6 +727,29 @@ window.SearchStateMixin_SearchFlow = {
         }
         this.requestId++;  // 讓進行中的 onmessage/onerror callback 失效
         // 也讓進行中的 fallbackSearch() 的 savedRequestId check 失效
+
+        // T4: 清除 stream state
+        this.isStreaming = false;
+        this.streamComplete = false;
+        this.streamSlots = [];
+        // U2: 清除 staging buffer + timer（streamBurstTimer 不在 _timers registry，需獨立清）
+        if (this.streamBurstTimer !== null) {
+            clearTimeout(this.streamBurstTimer);
+            this.streamBurstTimer = null;
+        }
+        // U3: 清除 cover swap debounce timer（C15 約束）
+        if (this._coverSwapTimer !== null) {
+            clearTimeout(this._coverSwapTimer);
+            this._coverSwapTimer = null;
+        }
+        this.streamBuffer = [];
+        this.streamBurstedSlots = [];
+        this.stagingVisible = false;
+        // U3: 重置 staging display state
+        this.stagingCover = '';
+        this.stagingNumber = '';
+        this.stagingReceivedCount = 0;
+        this._stagingCardWidth = 0;
 
         // T4.2: 清除所有 setTimeout timer
         this._clearAllTimers();
@@ -383,6 +818,14 @@ window.SearchStateMixin_SearchFlow = {
     _clearAllTimers() {
         Object.values(this._timers).forEach(clearTimeout);
         this._timers = {};
+    },
+
+    // U8a: single timer clear
+    _clearTimer(key) {
+        if (this._timers[key]) {
+            clearTimeout(this._timers[key]);
+            delete this._timers[key];
+        }
     },
 
     // ===== T4.3: Fetch AbortController 集中追蹤方法 =====

@@ -10,7 +10,12 @@ window.SearchStateMixin_Navigation = {
      * @param {number} delta - 偏移量（-1 = 上一個，1 = 下一個）
      */
     navigate(delta) {
-        const newIndex = this.currentIndex + delta;
+        let newIndex = this.currentIndex + delta;
+
+        // U11b: skip _failed items (C30)
+        while (newIndex >= 0 && newIndex < this.searchResults.length && this.searchResults[newIndex]._failed) {
+            newIndex += delta;
+        }
 
         // 往左且已在第一個 → 切換到上一個檔案
         if (delta < 0 && newIndex < 0) {
@@ -35,11 +40,24 @@ window.SearchStateMixin_Navigation = {
 
         // 正常範圍內導航
         if (newIndex >= 0 && newIndex < this.searchResults.length) {
+            // C18: interrupt 舊動畫（不用 isNavigating lock，每次按鍵都立即回應）
+            var detailEl = document.querySelector('.av-card-full');
+            if (typeof gsap !== 'undefined' && detailEl) {
+                gsap.killTweensOf(detailEl);
+            }
+
+            // State change（Alpine re-render）
             this.currentIndex = newIndex;
 
-            // Reset cover error on navigation
-            this.coverError = '';
-            this._coverRetried = false;
+            // U8b: reset cover state on navigation
+            this._resetCoverState();
+
+            // U5: fire-and-forget slide-in 動畫（$nextTick 確保 Alpine patch 新內容後再動畫，C17 一致）
+            var direction = delta > 0 ? 'next' : 'prev';
+            this.$nextTick(() => {
+                var el = document.querySelector('.av-card-full');
+                window.SearchAnimations?.playSlideIn?.(el, direction);
+            });
 
             if (window.SearchUI?.preloadImages) {
                 window.SearchUI.preloadImages(this.currentIndex + 1, 3);
@@ -69,6 +87,7 @@ window.SearchStateMixin_Navigation = {
                 this.currentOffset = newOffset;
                 this.hasMoreResults = data.has_more;
                 this.currentIndex = this.searchResults.length - data.data.length;
+                this._resetCoverState();
 
                 if (window.SearchUI?.preloadImages) {
                     window.SearchUI.preloadImages(this.currentIndex + 1, 5);

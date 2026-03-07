@@ -5,6 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-03-08
+
+### Added
+
+#### 🎬 GSAP 搜尋頁動畫系統 (Phase 31)
+
+**Motion Infrastructure**
+- Motion Lab 沙盒頁（動畫選型與調參環境）
+- GSAP 3.12→3.14 升版
+
+**SSE 漸進搜尋協議**
+- Backend SSE Protocol — seed + result-item + result-complete 三階段事件
+- Frontend Skeleton Grid — seed 驅動 skeleton 卡片佈局
+- `search_partial()` 漸進回傳支援（result_callback 透傳）
+
+**Staging Card + Mini-Burst 動畫**
+- Staging Card 蓄能 UI — 封面預覽 + 計數 badge + rotating border
+- Mini-Burst 動畫 — 時間窗口 batching + 座標偏移飛入 grid
+- Stream Buffer 機制 — debounce flush + final-burst race 修正
+
+**Grid↔Detail 轉場**
+- Ghost Shared-Cover Transition — FLIP 動畫 + crossfade fallback
+- Detail Entry 動畫 — card full 進場 + info 滑入
+- Detail Navigation Slide — 左右滑動 + C18 interrupt（killTweensOf，無 lock）
+
+**Cover State Machine**
+- `_resetCoverState()` 集中式重置（16 條路徑統一）
+- `handleCoverError()` 雙階段 stale defense
+- Cover loading shimmer + `_coverLoaded` lifecycle
+
+**SearchAll 競態修正**
+- `_searchFileBackground()` 背景搜尋方法（不碰共享 UI 狀態）
+- `searchAll()` 並行安全（Promise.all 內只用背景搜尋）
+
+**_failed Slot 完整處理**
+- `display: none` 取代 `visibility: hidden`（CSS Grid 無留白）
+- 導航/Lightbox _failed skip（navigate + prevLightbox + nextLightbox）
+- 計數/canGo/navIndicator _failed-aware
+- `hasVisiblePrev()` / `hasVisibleNext()` Lightbox 箭頭方法
+
+#### ⚙️ Settings 動畫
+- Theme toggle 圓弧展開動畫
+
+#### 🧪 測試
+- `search_partial()` callback 行為測試
+- searchAll race guard tests（6 new）
+- C30 guard tests（9 new）— navigate/lightbox/canGo/counts/repoint
+- 測試總數 731
+
+### Changed
+- 後端 `search_prefix`/`search_actress` 統一 title 過濾（拒絕空殼結果）
+- File search 動畫整合（searchForFile → playDetailEntry, switchToFile → playSlideIn）
+
+### Fixed
+- Grid→Detail 封面偶發消失（ghost opacity 殘留 + 快取不觸發 @load）
+- Cover state machine：switchSource reset + empty coverUrl guard
+- searchAll 競態：背景搜尋不碰 currentFileIndex/searchResults/displayMode
+- _failed repoint 條件式修正（不覆蓋使用者已選中的項目）
+
+---
+
 ## [0.3.6] - 2026-02-20
 
 ### Fixed

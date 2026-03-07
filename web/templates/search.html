@@ -43,13 +43,13 @@
         <!-- Navigation Arrows -->
         <button class="lightbox-nav lightbox-nav-prev"
                 @click.stop="prevLightboxVideo()"
-                x-show="lightboxIndex >= 0 && (lightboxIndex > 0 || actressProfile)"
+                x-show="hasVisiblePrev()"
                 title="上一部 (←)">
             <i class="bi bi-chevron-left"></i>
         </button>
         <button class="lightbox-nav lightbox-nav-next"
                 @click.stop="nextLightboxVideo()"
-                x-show="lightboxIndex < searchResults.length - 1"
+                x-show="hasVisibleNext()"
                 title="下一部 (→)">
             <i class="bi bi-chevron-right"></i>
         </button>
@@ -177,8 +177,13 @@
                              x-show="!coverError && current().cover"
                              :src="coverUrl()"
                              @error="handleCoverError()"
-                             @load="coverError = ''; _coverRetried = false"
+                             @load="_coverLoaded = true; coverError = ''; _coverRetried = false"
                              alt="封面">
+                        <!-- U8d: Cover loading shimmer -->
+                        <div x-show="!coverError && current().cover && !_coverLoaded"
+                             class="cover-loading-placeholder">
+                            <div class="shimmer"></div>
+                        </div>
                         <!-- 封面錯誤 -->
                         <div x-show="coverError" class="cover-error-placeholder">
                             <i class="bi bi-exclamation-triangle text-5xl text-warning"></i>
@@ -206,12 +211,8 @@
                             <span x-show="isLoadingMore || (isSearchingFile && searchingFileDirection === 'next')" class="loading loading-spinner loading-sm"></span>
                         </button>
                         <div class="nav-indicator" id="navIndicator"
-                             x-show="showNavigation()">
-                            <span id="currentIndex"
-                                  x-text="fileList.length > 1 ? (currentFileIndex + 1) : (currentIndex + 1)">1</span> /
-                            <span id="totalCount"
-                                  x-text="fileList.length > 1 ? fileList.length : (hasMoreResults ? (searchResults.length + '+') : searchResults.length)">1</span>
-                        </div>
+                             x-show="showNavigation()"
+                             x-text="navIndicatorText()">1/1</div>
                     </div>
                 </div>
                 <div class="av-card-full-info">
@@ -346,6 +347,36 @@
             </div>
             </div>
 
+            <!-- U3: Grid + Staging Overlay 容器 -->
+            <div class="grid-staging-wrapper">
+                <!-- Staging Anchor — overlay layer，浮在 grid 上方，不佔 flow 空間 -->
+                <div class="staging-anchor ds-gallery-composition"
+                     x-show="stagingVisible && displayMode === 'grid'"
+                     x-cloak>
+                    <div class="av-card-preview staging-card" x-ref="stagingCard">
+                        <div class="av-card-preview-img">
+                            <img x-ref="stagingImg"
+                                 :src="stagingCover ? `/api/proxy-image?url=${encodeURIComponent(stagingCover)}` : ''"
+                                 x-show="stagingCover"
+                                 style="width:100%; height:100%; object-fit:cover; display:block;"
+                                 alt="">
+                            <div class="av-card-no-cover" x-show="!stagingCover">
+                                <i class="bi bi-hourglass-split"></i>
+                            </div>
+                        </div>
+                        <div class="av-card-preview-footer">
+                            <div class="footer-default">
+                                <span class="av-num" x-text="stagingNumber || '...'">...</span>
+                                <span class="staging-counter-badge"
+                                      x-show="stagingReceivedCount > 0"
+                                      x-text="stagingReceivedCount + ' / ' + streamSlots.length"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Progress log -->
+                    <div class="staging-progress-log" x-text="progressLog">搜尋中...</div>
+                </div>
+
             <!-- T2a: Grid Mode（封面牆） -->
             <div class="search-grid ds-gallery-composition" x-show="displayMode === 'grid' && listMode === 'search'" x-cloak>
                 <!-- T2d: Hero Card（第一格）-->
@@ -370,22 +401,31 @@
                     </div>
                 </div>
 
-                <!-- 正常搜尋結果卡片 -->
-                <template x-for="(result, index) in searchResults" :key="result.number + '_' + index">
+                <!-- 正常搜尋結果卡片（T4：三態 skeleton / 正常 / failed） -->
+                <template x-for="(result, idx) in searchResults" :key="result.number + '_' + idx">
                     <div class="av-card-preview"
-                         @click="openLightbox(index)"
-                         :class="{ 'rotating-border-spotlight active once': shouldShowLocalBorder(result) }"
-                         @animationend.self="markLocalBorderPlayed(result?.number)">
+                         :data-slot="idx"
+                         :class="{
+                             'skeleton': result._skeleton,
+                             'failed-slot': result._failed,
+                             'rotating-border-spotlight active once': !result._skeleton && !result._failed && shouldShowLocalBorder(result)
+                         }"
+                         :style="result._failed ? 'display: none' : ''"
+                         @click="!result._skeleton && !result._failed && openLightbox(idx)"
+                         @animationend.self="!result._skeleton && !result._failed && markLocalBorderPlayed(result?.number)">
                         <div class="av-card-preview-img">
+                            <!-- T4: skeleton shimmer placeholder -->
+                            <div class="skeleton-cover shimmer" x-show="result._skeleton"></div>
+                            <!-- 正常狀態：封面圖（非 skeleton、非 failed 才顯示） -->
                             <img :src="result.cover ? `/api/proxy-image?url=${encodeURIComponent(result.cover)}` : ''"
                                  :alt="result.number"
                                  loading="lazy"
-                                 x-show="!_gridImageErrors.has(index)"
-                                 @error="markImageError(index)">
-                            <!-- Overlay Actions (Hover) -->
-                            <div class="av-card-preview-overlay">
+                                 x-show="!result._skeleton && !result._failed && !_gridImageErrors.has(idx)"
+                                 @error="!result._skeleton && !result._failed && markImageError(idx)">
+                            <!-- Overlay Actions (Hover) — 只在正常狀態顯示 -->
+                            <div class="av-card-preview-overlay" x-show="!result._skeleton && !result._failed">
                                 <button class="btn-glass-circle"
-                                        @click.stop="switchToDetail(index)"
+                                        @click.stop="switchToDetail(idx)"
                                         title="查看詳情">
                                     <i class="bi bi-info-circle"></i>
                                 </button>
@@ -397,18 +437,20 @@
                                 </button>
                             </div>
                         </div>
+                        <!-- footer 三態共用（番號 seed 就有，skeleton/正常/failed 均顯示） -->
                         <div class="av-card-preview-footer">
                             <div class="footer-default">
                                 <span class="av-num" x-text="result.number || '-'">-</span>
-                                <span class="av-actress" x-text="(result.actors || []).slice(0, 2).join(', ') || '未知'">未知</span>
+                                <span class="av-actress" x-show="!result._skeleton && !result._failed" x-text="(result.actors || []).slice(0, 2).join(', ') || '未知'">未知</span>
                             </div>
-                            <div class="footer-hover">
+                            <div class="footer-hover" x-show="!result._skeleton && !result._failed">
                                 <div class="hover-title" x-text="result.title || '未知標題'">未知標題</div>
                             </div>
                         </div>
                     </div>
                 </template>
             </div>
+            </div><!-- /.grid-staging-wrapper -->
 
             <!-- 檔案列表（卡片外，下方獨立） -->
             <div class="file-list-section" id="fileListSection"
@@ -599,6 +641,8 @@
 
     // === 主程式已移至 /static/js/pages/search/ ===
 </script>
+<!-- T5: 動畫模組（GSAP 已在 base.html defer 載入）— 必須在 state modules 之前 -->
+<script src="/static/js/pages/search/animations.js"></script>
 <!-- Alpine State Modules (must load before other JS) -->
 <script src="/static/js/pages/search/state/base.js"></script>
 <script src="/static/js/pages/search/state/persistence.js"></script>

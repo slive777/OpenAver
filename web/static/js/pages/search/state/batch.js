@@ -63,21 +63,36 @@ window.SearchStateMixin_Batch = {
 
             const chunk = currentBatch.slice(i, Math.min(i + concurrency, currentBatch.length));
 
-            // 並行處理這一組
+            // U10b fix: 當前顯示的 file 在 chunk 中 → 預清理 cover state
+            // 防止 _searchFileBackground 寫入 file.searchResults 觸發 Alpine 被動更新時 cover 狀態不一致
+            if (this.listMode === 'file') {
+                const currentFile = this.fileList[this.currentFileIndex];
+                if (currentFile && chunk.includes(currentFile) && !currentFile.searched) {
+                    this._resetCoverState();
+                }
+            }
+
+            // U10b: 背景搜尋（不碰共享 UI 狀態）
             await Promise.all(chunk.map(async (file) => {
-                const index = this.fileList.indexOf(file);
-                await this.switchToFile(index, 'first', false);
+                await this._searchFileBackground(file);
 
                 if (file.searched && file.searchResults && file.searchResults.length > 0) {
                     batch.success++;
                 } else {
                     batch.failed++;
                 }
-
                 batch.processed++;
             }));
+
             // cleanup 在 chunk 執行中發生 → SSE 被關掉，Promise.all resolve 後檢查
             if (!batch.isProcessing) { aborted = true; break; }
+
+            // U10b: chunk 完成後，將 UI 指向最後一個搜到結果的 file（序列化 UI 更新）
+            const lastSuccessFile = [...chunk].reverse().find(f => f.searchResults?.length > 0);
+            if (lastSuccessFile) {
+                const lastIdx = this.fileList.indexOf(lastSuccessFile);
+                await this.switchToFile(lastIdx, 'first', false);
+            }
         }
 
         // 批次處理完成
@@ -202,7 +217,7 @@ window.SearchStateMixin_Batch = {
             this.currentFileIndex = index;
             this.searchResults = file.searchResults;
             this.currentIndex = 0;
-            this.coverError = '';
+            this._resetCoverState();
 
             const metadata = { ...file.searchResults[0] };
 

@@ -6,12 +6,41 @@ window.SearchStateMixin_GridMode = {
     // ===== Display Mode Toggle =====
 
     /**
-     * 切換 Detail ↔ Grid 模式
+     * 切換 Detail ↔ Grid 模式（U4: C17 三步動畫）
      */
     toggleDisplayMode() {
-        this.displayMode = this.displayMode === 'detail' ? 'grid' : 'detail';
+        var wasDetail = this.displayMode === 'detail';
+
+        // C17 step 1: capture BEFORE state change
+        var fromRect = null;
+        var coverSrc = null;
+        if (wasDetail) {
+            var detailEl = document.querySelector('.av-card-full');
+            var detailImg = detailEl ? detailEl.querySelector('.av-card-full-cover-img') : null;
+            if (detailImg && detailImg.complete && detailImg.getBoundingClientRect().width > 0) {
+                fromRect = detailImg.getBoundingClientRect();
+                coverSrc = detailImg.src;
+            }
+        }
+
+        // C17 step 2: state change (Alpine render)
+        this.displayMode = wasDetail ? 'grid' : 'detail';
         this._localBorderPlayed = {};  // T4: 切換模式時重置，讓動畫在新佈局重新標示
         this.saveState();
+
+        // C17 step 3: animate (fire-and-forget)
+        this.$nextTick(() => {
+            if (wasDetail && fromRect && coverSrc) {
+                // Detail -> Grid: ghost fly-back
+                var grid = document.querySelector('.search-grid');
+                var targetCard = grid ? grid.querySelector('[data-slot="' + this.currentIndex + '"]') : null;
+                window.SearchAnimations?.playDetailToGrid?.(fromRect, targetCard, { coverSrc: coverSrc });
+            } else if (!wasDetail) {
+                // Grid -> Detail: detail entry
+                var newDetailEl = document.querySelector('.av-card-full');
+                window.SearchAnimations?.playDetailEntry?.(newDetailEl);
+            }
+        });
     },
 
     // ===== Lightbox Control =====
@@ -56,8 +85,19 @@ window.SearchStateMixin_GridMode = {
             return;
         }
         if (this.lightboxIndex > 0) {
-            this.lightboxIndex--;
-            this.currentIndex = this.lightboxIndex;
+            // U11b: skip _failed items going backwards
+            let newIdx = this.lightboxIndex - 1;
+            while (newIdx >= 0 && this.searchResults[newIdx]._failed) {
+                newIdx--;
+            }
+            if (newIdx >= 0) {
+                this.lightboxIndex = newIdx;
+                this.currentIndex = newIdx;
+            } else if (this.actressProfile) {
+                // all items before current are _failed, jump to actress photo
+                this.lightboxIndex = -1;
+            }
+            // else: no valid items and no actress → don't move
         }
     },
 
@@ -66,14 +106,26 @@ window.SearchStateMixin_GridMode = {
      */
     nextLightboxVideo() {
         if (this.lightboxIndex === -1) {
-            // At actress photo → go to first cover
-            this.lightboxIndex = 0;
-            this.currentIndex = 0;
+            // U11b: from actress photo, find first non-_failed item
+            const firstValid = this.searchResults.findIndex(r => !r._failed);
+            if (firstValid !== -1) {
+                this.lightboxIndex = firstValid;
+                this.currentIndex = firstValid;
+            }
+            // else: no valid items → don't move
             return;
         }
         if (this.lightboxIndex < this.searchResults.length - 1) {
-            this.lightboxIndex++;
-            this.currentIndex = this.lightboxIndex;
+            // U11b: skip _failed items going forward
+            let newIdx = this.lightboxIndex + 1;
+            while (newIdx < this.searchResults.length && this.searchResults[newIdx]._failed) {
+                newIdx++;
+            }
+            if (newIdx < this.searchResults.length) {
+                this.lightboxIndex = newIdx;
+                this.currentIndex = newIdx;
+            }
+            // else: no more valid items → don't move
         }
     },
 
@@ -118,13 +170,39 @@ window.SearchStateMixin_GridMode = {
     // ===== Grid ↔ Detail 切換 =====
 
     /**
-     * 從 Grid 切換到 Detail 模式
+     * 從 Grid 切換到 Detail 模式（U4: C17 三步 ghost 轉場）
      * @param {number} index - 搜尋結果索引
      */
     switchToDetail(index) {
+        // 防禦：若 Lightbox 仍開啟，先關閉（避免覆蓋層影響 grid 卡片座標）
+        if (this.lightboxOpen) {
+            this.lightboxOpen = false;
+        }
+
+        // C17 step 1: capture source rect BEFORE state change
+        var grid = document.querySelector('.search-grid');
+        var card = grid ? grid.querySelector('[data-slot="' + index + '"]') : null;
+        var img = card ? card.querySelector('.av-card-preview-img img') : null;
+        var fromRect = (img && img.complete && img.getBoundingClientRect().width > 0)
+            ? img.getBoundingClientRect() : null;
+        var coverSrc = img ? img.src : null;
+
+        // C17 step 2: state change (Alpine render)
         this.displayMode = 'detail';
         this.currentIndex = index;
+        this._resetCoverState();
         this.saveState();
+
+        // C17 step 3: animate (fire-and-forget)
+        this.$nextTick(() => {
+            var detailEl = document.querySelector('.av-card-full');
+            if (fromRect && coverSrc) {
+                window.SearchAnimations?.playGridToDetail?.(fromRect, detailEl, { coverSrc: coverSrc });
+            } else {
+                // Ghost fallback: full detail entry
+                window.SearchAnimations?.playDetailEntry?.(detailEl);
+            }
+        });
     },
 
     /**

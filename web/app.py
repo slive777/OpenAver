@@ -47,6 +47,7 @@ from web.routers import scanner as scanner_router
 from web.routers import gemini as gemini_router
 from web.routers import filename as filename_router
 from web.routers import showcase as showcase_router
+from web.routers import motion_lab as motion_lab_router
 app.include_router(search_router.router)
 app.include_router(config_router.router)
 app.include_router(scraper_router.router)
@@ -55,6 +56,7 @@ app.include_router(scanner_router.router)
 app.include_router(gemini_router.router)
 app.include_router(filename_router.router)
 app.include_router(showcase_router.router)
+app.include_router(motion_lab_router.router)
 
 
 # ============ 輔助函數 ============

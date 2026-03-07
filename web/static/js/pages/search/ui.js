@@ -249,6 +249,8 @@ async function switchSource(alpineContext, number) {
                 // 更新 Alpine state（Alpine template 自動反應）
                 if (alpineContext.searchResults.length > 0) {
                     alpineContext.searchResults[alpineContext.currentIndex] = variant;
+                    // U8 fix: cover 可能改變，重置 cover state（#20）
+                    alpineContext._resetCoverState();
                 }
 
                 // 跨來源時顯示 Toast

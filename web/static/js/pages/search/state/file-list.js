@@ -15,6 +15,7 @@ window.SearchStateMixin_FileList = {
             this.searchResults = [];
             this.hasMoreResults = false;
             this.currentIndex = 0;
+            this._resetCoverState();
             this.coverError = `無法識別番號: ${file.filename}`;
             window.SearchUI.showState('result');
             return;
@@ -23,16 +24,29 @@ window.SearchStateMixin_FileList = {
         if (!file.searched) {
             await this.searchForFile(file, position, showFullLoading);
         } else if (file.searchResults && file.searchResults.length > 0) {
+            // U7b: C18 interrupt old animation
+            var detailEl = document.querySelector('.av-card-full');
+            if (typeof gsap !== 'undefined' && detailEl) {
+                gsap.killTweensOf(detailEl);
+            }
+
             this.searchResults = file.searchResults;
             this.hasMoreResults = file.hasMoreResults || false;
             this.currentIndex = position === 'last' ? this.searchResults.length - 1 : 0;
-            this.coverError = '';
+            this._resetCoverState();
 
             window.SearchUI.showState('result');
+            // U7b: slide-in animation (C22: direction from position hint)
+            var direction = position === 'first' ? 'next' : 'prev';
+            this.$nextTick(() => {
+                var el = document.querySelector('.av-card-full');
+                window.SearchAnimations?.playSlideIn?.(el, direction);
+            });
         } else {
             this.searchResults = [];
             this.hasMoreResults = false;
             this.currentIndex = 0;
+            this._resetCoverState();
             this.coverError = `找不到 ${file.number} 的資料`;
             window.SearchUI.showState('result');
         }
@@ -79,7 +93,7 @@ window.SearchStateMixin_FileList = {
                             this.searchResults = data.data;
                             this.hasMoreResults = file.hasMoreResults;
                             this.currentIndex = position === 'last' ? this.searchResults.length - 1 : 0;
-                            this.coverError = '';
+                            this._resetCoverState();
 
                             // T4: File search 後查詢本地狀態
                             if (window.SearchCore?.checkLocalStatus) {
@@ -87,9 +101,17 @@ window.SearchStateMixin_FileList = {
                             }
 
                             window.SearchUI.showState('result');
+                            // U7a: detail entry animation (same as cloud search, C17 fire-and-forget)
+                            this.$nextTick(() => {
+                                if (this.displayMode === 'detail') {
+                                    var detailEl = document.querySelector('.av-card-full');
+                                    window.SearchAnimations?.playDetailEntry?.(detailEl);
+                                }
+                            });
                         } else {
                             file.searched = true;
                             file.searchResults = [];
+                            this._resetCoverState();
                             this.coverError = `找不到 ${file.number} 的資料`;
 
                             // 重置共享狀態
@@ -108,6 +130,7 @@ window.SearchStateMixin_FileList = {
                         this.searchingFileDirection = null;
                         file.searched = true;
                         file.searchResults = [];
+                        this._resetCoverState();
                         this.coverError = data.message || '搜尋失敗';
 
                         this.searchResults = [];
@@ -129,6 +152,7 @@ window.SearchStateMixin_FileList = {
                 this.searchingFileDirection = null;
                 file.searched = true;
                 file.searchResults = [];
+                this._resetCoverState();
                 this.coverError = '連線錯誤，請稍後再試';
 
                 this.searchResults = [];
@@ -141,12 +165,73 @@ window.SearchStateMixin_FileList = {
         });
     },
 
+    /**
+     * 背景搜尋單一檔案（不影響 UI 共享狀態）
+     * 只寫入 file.searchResults / file.hasMoreResults / file.searched
+     * @param {Object} file - 檔案物件（必須有 file.number）
+     * @returns {Promise<void>} 保證 resolve（不 reject）
+     */
+    async _searchFileBackground(file) {
+        if (file.searched) return;
+
+        return new Promise((resolve) => {
+            let settled = false;
+            const settle = () => { if (!settled) { settled = true; resolve(); } };
+
+            const eventSource = this._trackConnection(new EventSource(`/api/search/stream?q=${encodeURIComponent(file.number)}`));
+
+            // Close-wrapper: 覆寫 close()，確保 _closeAllConnections() forced-close 時 Promise 也能 settle
+            const originalClose = eventSource.close.bind(eventSource);
+            eventSource.close = () => { originalClose(); settle(); };
+
+            eventSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    if (data.type === 'result') {
+                        this._untrackConnection(eventSource);
+                        eventSource.close();
+
+                        if (data.success && data.data && data.data.length > 0) {
+                            file.searchResults = data.data;
+                            file.hasMoreResults = data.has_more || false;
+                            file.searched = true;
+                        } else {
+                            file.searched = true;
+                            file.searchResults = [];
+                        }
+                    }
+                    else if (data.type === 'error') {
+                        this._untrackConnection(eventSource);
+                        eventSource.close();
+                        file.searched = true;
+                        file.searchResults = [];
+                    }
+                    // seed / result-item / status / mode: 忽略（背景模式不需要漸進 UI）
+                } catch (err) {
+                    console.error('Background search parse error:', err);
+                    this._untrackConnection(eventSource);
+                    eventSource.close();
+                    file.searched = true;
+                    file.searchResults = [];
+                }
+            };
+
+            eventSource.onerror = () => {
+                this._untrackConnection(eventSource);
+                eventSource.close();
+                file.searched = true;
+                file.searchResults = [];
+            };
+        });
+    },
+
     switchToSearchResult(index) {
         if (index < 0 || index >= this.searchResults.length) return;
         this.currentIndex = index;
 
-        // Reset cover error on switch
-        this.coverError = '';
+        // U8b: reset cover state on switch
+        this._resetCoverState();
     },
 
     enterNumber(index) {

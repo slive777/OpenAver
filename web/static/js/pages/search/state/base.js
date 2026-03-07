@@ -2,7 +2,7 @@
  * SearchState - Base Mixin
  * 包含：data 初始值、constants、computed methods、file list helpers
  */
-window.SearchStateMixin_Base = function() {
+window.SearchStateMixin_Base = function () {
     return {
         // ===== Page State =====
         pageState: 'empty',  // 'empty' | 'loading' | 'result' | 'error'
@@ -16,6 +16,26 @@ window.SearchStateMixin_Base = function() {
         hasMoreResults: false,
         isLoadingMore: false,
         isSearchingFile: false,
+
+        // ===== Stream 狀態（T4：actress/prefix 漸進流入） =====
+        streamSlots: [],          // seed 番號列表 ['SSIS-816', 'SSIS-815', ...]
+        streamComplete: false,    // result-complete 已收到
+        isStreaming: false,       // seed 收到 ~ result-complete 收到期間為 true
+
+        // ===== U2: Staging Buffer State（batching 用） =====
+        streamBuffer: [],        // 待 burst 的 result-item 暫存（{slot, data}[]）
+        streamBurstTimer: null,  // 時間窗口 timer ID（原生 setTimeout 回傳值）
+        streamBurstedSlots: [],  // 已 burst 到 grid 的 slot index（boolean array，長度與 streamSlots 一致）
+        stagingVisible: false,   // staging 容器可見性（獨立於 isStreaming）
+        // isStreaming 在 result-complete 後立即 false，
+        // 但 stagingVisible 等 exit morph onComplete 才 false
+
+        // ===== U3: Staging Card 顯示 State（裝飾性，C16） =====
+        stagingCover: '',           // staging card 封面 URL（最新到達的 result-item）
+        stagingNumber: '',          // staging card 番號（最新到達的 result-item）
+        stagingReceivedCount: 0,    // staging card 已收到計數（badge 用）
+        _coverSwapTimer: null,      // cover swap debounce timer ID（C20 約束）
+        _stagingCardWidth: 0,       // seed 時預量的 grid card 寬度（staging 首次顯示同步用）
 
         // ===== File List State =====
         fileList: [],
@@ -58,6 +78,8 @@ window.SearchStateMixin_Base = function() {
         newTagValue: '',
         coverError: '',
         _coverRetried: false,
+        _coverRequestId: 0,
+        _coverLoaded: false,
         // ===== Fix-1: Duplicate State =====
         duplicateTarget: '',  // duplicate modal 顯示的目標檔名
         duplicateModalOpen: false,  // Alpine state for duplicate modal
@@ -138,30 +160,57 @@ window.SearchStateMixin_Base = function() {
         },
 
         canGoPrev() {
-            return this.currentIndex > 0 || this.currentFileIndex > 0;
+            if (this.listMode === 'file') {
+                // 同層級：前方有非 _failed item
+                const hasPrevVisible = this.searchResults.slice(0, this.currentIndex).some(r => !r._failed);
+                // 跨檔案：可退到上一個檔案
+                return hasPrevVisible || this.currentFileIndex > 0;
+            }
+            return this.searchResults.slice(0, this.currentIndex).some(r => !r._failed);
         },
 
         canGoNext() {
-            return this.currentIndex < this.searchResults.length - 1 ||
-                   this.hasMoreResults ||
-                   this.currentFileIndex < this.fileList.length - 1;
+            if (this.listMode === 'file') {
+                const hasNextVisible = this.searchResults.slice(this.currentIndex + 1).some(r => !r._failed);
+                return hasNextVisible || this.hasMoreResults || this.currentFileIndex < this.fileList.length - 1;
+            }
+            return this.searchResults.slice(this.currentIndex + 1).some(r => !r._failed) || this.hasMoreResults;
+        },
+
+        hasVisiblePrev() {
+            if (this.lightboxIndex === -1) return false;  // 已在 actress photo 最左
+            if (this.lightboxIndex === 0) return !!this.actressProfile;  // 可跳到 actress
+            // lightboxIndex > 0：前方有非 _failed item 或有 actressProfile
+            const hasPrevVisible = this.searchResults.slice(0, this.lightboxIndex).some(r => !r._failed);
+            return hasPrevVisible || !!this.actressProfile;
+        },
+
+        hasVisibleNext() {
+            if (this.lightboxIndex === -1) {
+                // 從 actress photo 看有沒有可見 item
+                return this.searchResults.some(r => !r._failed);
+            }
+            return this.searchResults.slice(this.lightboxIndex + 1).some(r => !r._failed);
         },
 
         showNavigation() {
-            const hasMultipleResults = this.searchResults.length > 1 || this.hasMoreResults;
+            const visibleCount = this.searchResults.filter(r => !r._failed).length;
+            const hasMultipleResults = visibleCount > 1 || this.hasMoreResults;
             const hasMultipleFiles = this.fileList.length > 1;
             return hasMultipleResults || hasMultipleFiles;
         },
 
         navIndicatorText() {
             if (this.fileList.length > 1) {
+                // file 模式：維持原邏輯
                 return `${this.currentFileIndex + 1}/${this.fileList.length}`;
-            } else {
-                const total = this.hasMoreResults
-                    ? this.searchResults.length + '+'
-                    : this.searchResults.length;
-                return `${this.currentIndex + 1}/${total}`;
             }
+            // search 模式：排除 _failed
+            const visibleItems = this.searchResults.filter(r => !r._failed);
+            // position: 在 visibleItems 中，原始 index <= currentIndex 的數量
+            const position = this.searchResults.slice(0, this.currentIndex + 1).filter(r => !r._failed).length;
+            const total = this.hasMoreResults ? visibleItems.length + '+' : visibleItems.length;
+            return `${position}/${total}`;
         },
 
         detailProgressPercent() {
@@ -174,12 +223,10 @@ window.SearchStateMixin_Base = function() {
         fileCountText() {
             if (this.listMode === 'file') {
                 return `檔案 ${this.currentFileIndex + 1}/${this.fileList.length}`;
-            } else {
-                const total = this.hasMoreResults
-                    ? this.searchResults.length + '+'
-                    : this.searchResults.length;
-                return `搜尋結果 (${total})`;
             }
+            const visibleCount = this.searchResults.filter(r => !r._failed).length;
+            const total = this.hasMoreResults ? visibleCount + '+' : visibleCount;
+            return `搜尋結果 (${total})`;
         },
 
         searchAllButtonText() {
@@ -299,6 +346,26 @@ window.SearchStateMixin_Base = function() {
         closeDuplicateModal() {
             this.duplicateModalOpen = false;
             this.duplicateTarget = '';
+        },
+
+        // U8a: centralized cover state reset
+        _resetCoverState() {
+            this._coverRequestId++;
+            this._coverRetried = false;
+            this._coverLoaded = false;
+            this.coverError = '';
+            this._clearTimer('coverRetry');
+
+            // 防禦：若圖片已在瀏覽器快取中（同 URL 不重觸 @load），
+            // 下一 tick 檢查 complete 狀態，避免 shimmer 永遠遮蓋封面
+            var requestId = this._coverRequestId;
+            this.$nextTick(() => {
+                if (this._coverRequestId !== requestId) return;  // 已被後續重置取代
+                var img = this.$refs.coverImg;
+                if (img && img.complete && img.naturalWidth > 0 && !this._coverLoaded) {
+                    this._coverLoaded = true;
+                }
+            });
         },
     };
 };

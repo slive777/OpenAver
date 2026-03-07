@@ -1,0 +1,1801 @@
+{% extends "base.html" %}
+
+{% block title %}Motion Lab{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Motion Lab 沙盒頁樣式 */
+.motion-lab-container {
+    min-height: calc(100vh - 56px);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+}
+
+.motion-lab-header {
+    padding: 0.75rem 1rem;
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-shrink: 0;
+}
+
+.motion-lab-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.motion-lab-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: #f59e0b;
+    color: #1c1c1e;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.motion-lab-tab-bar {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.motion-lab-tab {
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.motion-lab-tab.active {
+    background: var(--accent-primary);
+    color: #fff;
+    border-color: var(--accent-primary);
+}
+
+.motion-lab-tab:not(.active):not(:disabled) {
+    background: transparent;
+    color: var(--text-secondary);
+    border-color: var(--border-light);
+}
+
+.motion-lab-tab:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: transparent;
+    color: var(--text-muted);
+    border-color: var(--border-light);
+}
+
+/* 控制面板 */
+.motion-lab-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.25rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-light);
+    flex-shrink: 0;
+    align-items: center;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.control-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.control-value {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--accent-primary);
+    min-width: 2.5rem;
+    text-align: right;
+}
+
+.control-slider {
+    width: 100px;
+    accent-color: var(--accent-primary);
+    cursor: pointer;
+}
+
+.control-select {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-light);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.control-checkbox {
+    accent-color: var(--accent-primary);
+    cursor: pointer;
+}
+
+.control-divider {
+    width: 1px;
+    height: 1.5rem;
+    background: var(--border-light);
+}
+
+/* 動作按鈕 */
+.control-btn {
+    padding: 0.3rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 5px;
+    border: 1px solid var(--border-light);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.control-btn:hover:not(:disabled) {
+    background: var(--accent-primary);
+    color: #fff;
+    border-color: var(--accent-primary);
+}
+
+.control-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.control-btn.primary {
+    background: var(--accent-primary);
+    color: #fff;
+    border-color: var(--accent-primary);
+}
+
+.control-btn.primary:hover:not(:disabled) {
+    opacity: 0.85;
+}
+
+.control-btn.danger {
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.control-btn.danger:hover:not(:disabled) {
+    background: #ef4444;
+    color: #fff;
+}
+
+/* 預覽區 */
+.motion-lab-preview {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0.75rem 1rem;
+    gap: 0.75rem;
+    min-height: 0;
+    position: relative;
+}
+
+/* 假搜尋框 */
+.motion-lab-search-bar {
+    flex-shrink: 0;
+    height: 44px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+    gap: 0.5rem;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.motion-lab-search-bar i {
+    font-size: 1rem;
+}
+
+/* Grid 區 */
+.motion-lab-grid {
+    flex: 1;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    align-content: start;
+    min-height: 0;
+}
+
+/* Empty state */
+.motion-lab-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    gap: 0.75rem;
+}
+
+.motion-lab-empty i {
+    font-size: 3rem;
+    opacity: 0.5;
+}
+
+/* av-card-preview 與 search 頁保持一致結構 */
+.motion-lab-grid .av-card-preview {
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+}
+
+/* Staging Anchor — overlay layer，浮在 preview 區上方，不佔 flex flow 空間 */
+.staging-anchor {
+    position: absolute;
+    top: 60px;          /* 搜尋框下方（搜尋框 44px 高 + 12px padding + 4px gap） */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    pointer-events: none;   /* 不攔截 grid 互動 */
+}
+
+.staging-anchor .av-card-preview {
+    min-width: 280px;
+    position: relative;
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    pointer-events: auto;   /* staging card 本身可正常互動與動畫渲染 */
+}
+
+.staging-anchor .av-card-preview-img {
+    position: relative;
+    aspect-ratio: 3/2;
+    overflow: hidden;
+    background: var(--bg-tertiary);
+}
+
+.staging-anchor .av-card-preview-footer {
+    padding: 0.35rem 0.5rem;
+}
+
+.staging-anchor .av-num {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Staging counter badge（staging card 內嵌版） */
+.staging-counter-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: var(--accent-primary);
+    color: #fff;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+}
+
+.motion-lab-grid .av-card-preview:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.motion-lab-grid .av-card-preview-img {
+    position: relative;
+    aspect-ratio: 3/2;
+    overflow: hidden;
+    background: var(--bg-tertiary);
+}
+
+.motion-lab-grid .av-card-preview-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.motion-lab-grid .av-card-preview-footer {
+    padding: 0.35rem 0.5rem;
+}
+
+.motion-lab-grid .av-num {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.motion-lab-grid .av-actress {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* No-cover placeholder */
+.av-card-no-cover {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    gap: 0.25rem;
+}
+
+.av-card-no-cover i {
+    font-size: 1.5rem;
+    opacity: 0.4;
+}
+
+/* Detail 區 */
+.motion-lab-detail {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.motion-lab-detail .av-card-full {
+    gap: 0;
+    padding: 0;
+    border-radius: var(--fluent-radius-xl);
+}
+
+.motion-lab-detail .av-card-full-cover {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+}
+
+.motion-lab-detail .av-card-full-cover-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 400px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.motion-lab-detail .av-card-full-cover-img {
+    width: 100%;
+    height: 100%;
+    max-height: calc(100vh - 200px);
+    object-fit: contain;
+    display: block;
+}
+
+.motion-lab-detail .av-card-full-info {
+    flex: 0 0 320px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem;
+    min-width: 0;
+}
+
+.motion-lab-detail .av-card-full-info .info-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+    font-size: 0.8rem;
+}
+
+.motion-lab-detail .av-card-full-info .info-label {
+    color: var(--text-muted);
+    flex-shrink: 0;
+    width: 4rem;
+}
+
+.motion-lab-detail .av-card-full-info .info-value {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* Detail: header / body / footer 三段 */
+.motion-lab-detail .av-card-full-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    flex-shrink: 0;
+}
+
+.motion-lab-detail .av-card-full-header .av-num {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    flex: 1;
+}
+
+.motion-lab-detail .av-card-full-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.motion-lab-detail .av-card-full-footer {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-light);
+    flex-shrink: 0;
+}
+
+.motion-lab-detail .av-card-full-footer-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.motion-lab-detail .av-card-full-footer-content .info-label {
+    font-size: 0.75rem;
+}
+
+.motion-lab-detail .av-card-full-footer-content .info-value {
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.motion-lab-detail .badge.tag-badge {
+    display: inline-block;
+    padding: 0.15rem 0.45rem;
+    border-radius: var(--fluent-radius-sm);
+    font-size: 0.7rem;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    margin: 0.1rem 0.15rem 0.1rem 0;
+}
+
+/* Nav 按鈕（複製自 search.css L96-L139，scope 為 .motion-lab-detail） */
+.motion-lab-detail .av-card-full-cover-wrapper .nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 64px;
+    background: rgba(0, 0, 0, 0.6);
+    border: none;
+    color: var(--text-inverse);
+    font-size: 1.4rem;
+    cursor: pointer;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    z-index: 10;
+    border-radius: var(--fluent-radius-md);
+    box-shadow: var(--fluent-shadow-4);
+}
+
+.motion-lab-detail .av-card-full-cover-wrapper .nav-btn:hover {
+    background: rgba(0, 0, 0, 0.8);
+    transform: translateY(-50%) scale(1.05);
+}
+
+.motion-lab-detail .av-card-full-cover-wrapper .nav-btn.prev { left: 10px; }
+.motion-lab-detail .av-card-full-cover-wrapper .nav-btn.next { right: 10px; }
+
+/* Nav indicator */
+.motion-lab-detail .av-card-full-cover-wrapper .nav-indicator {
+    position: absolute;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.6);
+    color: var(--text-inverse);
+    padding: 2px 10px;
+    border-radius: var(--fluent-radius-xl);
+    font-size: 0.8rem;
+}
+
+/* Loading 狀態 */
+.motion-lab-loading {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* 讓 x-show 正確工作（避免 Tailwind .hidden !important 衝突） */
+.motion-lab-container [x-cloak] { display: none !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="motion-lab-container"
+     x-data="{
+         tab: 'search',
+         mode: 'grid',
+         selectedIndex: 0,
+         params: {
+             duration: 0.6,
+             stagger: 0.05,
+             clipRevealDur: 0.5,
+             easing: 'back.out(1.2)',
+             flipMode: 'Flip',
+             reducedMotionSim: false,
+             speed: 0.5,
+             detailSpeed: 1.5,
+             streamStyle: 'fadeScale',
+             streamInterval: 300
+         },
+         videos: [],
+         loading: true,
+         isNavigating: false,
+         isTransitioning: false,
+         streamCards: Array(12).fill(null),
+         streamRunning: false,
+         _streamTimers: [],
+
+         // Staging Burst 沙盒 state
+         stagingParams: {
+             batchInterval: 800,
+             minBatchCount: 3,
+             burstEase: 'back.out(1.2)',
+             burstDuration: 0.6,
+             coverInterval: 300,
+         },
+         stagingBuffer: [],
+         stagingFilled: 0,
+         stagingTotal: 12,
+         stagingRunning: false,
+         _stagingTimers: [],
+         _stagingBurstTimer: null,
+         _burstBatchIndex: 0,
+         _stagingRunId: 0,
+         stagingCards: Array(12).fill(null),
+         stagingCurrentCover: null,
+         stagingCurrentNum: null,
+         stagingOverlayVisible: false,   // overlay staging card 是否存在於畫面（控制 x-show）
+         _allItemsArrived: false,        // 所有 result-item 已推入 buffer（消除 final flush timer）
+         _stagingExiting: false,         // exit 動畫進行中（防止 pulse killTweensOf 殺死 exit）
+         _pulseDebounceTimer: null,      // micro-pulse debounce timer（150ms）
+
+         init() {
+             this.fetchVideos();
+             // 鍵盤 ←/→ 快捷鍵
+             this._onKeyDown = (e) => {
+                 if (this.mode !== 'detail') return;
+                 // 排除表單元素，避免劫持 slider/select/input 的方向鍵
+                 const tag = e.target.tagName;
+                 if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || tag === 'BUTTON' || e.target.isContentEditable) return;
+                 if (e.key === 'ArrowLeft') this.onPrev();
+                 if (e.key === 'ArrowRight') this.onNext();
+             };
+             window.addEventListener('keydown', this._onKeyDown);
+         },
+
+         destroy() {
+             if (this._onKeyDown) {
+                 window.removeEventListener('keydown', this._onKeyDown);
+             }
+         },
+
+         async fetchVideos() {
+             try {
+                 const resp = await fetch('/api/motion-lab/data');
+                 const data = await resp.json();
+                 if (data.success) {
+                     this.videos = data.videos;
+                 }
+             } catch (e) {
+                 console.error('[MotionLab] fetchVideos 失敗:', e);
+             } finally {
+                 this.loading = false;
+             }
+         },
+
+         get hasVideos() {
+             return this.videos.length > 0;
+         },
+
+         get selectedVideo() {
+             return this.videos[this.selectedIndex] || this.videos[0] || null;
+         },
+
+         formatActresses(actresses) {
+             if (Array.isArray(actresses)) return actresses.slice(0, 2).join(', ');
+             return actresses || '';
+         },
+
+         formatActressesDetail(actresses) {
+             if (Array.isArray(actresses)) return actresses.join(', ');
+             return actresses || '';
+         },
+
+         onPlayBurst() {
+             if (!this.hasVideos || typeof window.MotionLab === 'undefined') return;
+             const gridEl = this.$refs.grid;
+             const searchBarEl = this.$refs.searchBar;
+             if (gridEl && searchBarEl) {
+                 const tl = window.MotionLab.playGridBurst(gridEl, searchBarEl, this.params);
+                 // 串接 clip-path reveal（burst 尾端重疊）
+                 if (tl) {
+                     window.MotionLab.playClipPathReveal(gridEl, this.params);
+                 }
+             }
+         },
+
+         async onDetailEntry() {
+             if (!this.hasVideos || typeof window.MotionLab === 'undefined') return;
+             if (this.isTransitioning) return;
+             this.isTransitioning = true;
+
+             var ghost = null;
+             var fromEl = null;
+             var toEl = null;
+
+             try {
+                 // reducedMotionSim 或系統 prefers-reduced-motion 時走降級路徑（無 ghost）
+                 const skipAnim = this.params.reducedMotionSim ||
+                     !!(window.OpenAver && window.OpenAver.prefersReducedMotion);
+                 const flipMode = this.params.flipMode || 'Flip';
+
+                 // Level 2（skipAnim 或 flipMode=None）：量測前就能短路，不嘗試 ghost
+                 if (skipAnim || flipMode === 'None') {
+                     this.mode = 'detail';
+                     await this.$nextTick();
+                     await new Promise(r => requestAnimationFrame(r));
+                     const detailElL2 = this.$refs.detail;
+                     if (detailElL2) {
+                         // 預隱藏 info，避免 nextTick+rAF 到 playDetailEntry 之間閃現
+                         var l2InfoEl = detailElL2.querySelector('.av-card-full-info');
+                         if (l2InfoEl) gsap.set(l2InfoEl, { opacity: 0 });
+                         window.MotionLab.playDetailEntry(detailElL2, Object.assign({}, this.params, { skipCover: true }));
+                     }
+                     return;
+                 }
+
+                 // flipMode === 'Crossfade'：強制走 Crossfade，不嘗試建 ghost
+                 if (flipMode === 'Crossfade') {
+                     const gridEl = this.$refs.grid;
+                     var cfFromCapture = window.MotionLab.captureCoverRect(gridEl, this.selectedIndex);
+                     var cfFromEl = cfFromCapture ? cfFromCapture.el : null;
+
+                     this.mode = 'detail';
+                     await this.$nextTick();
+                     await new Promise(r => requestAnimationFrame(r));
+
+                     const detailElCF = this.$refs.detail;
+                     if (!detailElCF) return;
+
+                     // 預隱藏 info，避免轉場期間閃現
+                     var cfInfoEl = detailElCF.querySelector('.av-card-full-info');
+                     if (cfInfoEl) gsap.set(cfInfoEl, { opacity: 0 });
+
+                     var cfToCapture = window.MotionLab.captureCoverRect(detailElCF, null);
+                     var cfToEl = cfToCapture ? cfToCapture.el : null;
+
+                     await window.MotionLab.playCrossfadeTransition(cfFromEl, cfToEl, this.params);
+                     // source 封面還原（grid 已不顯示，防殘留）
+                     if (cfFromEl) gsap.set(cfFromEl, { opacity: 1 });
+
+                     window.MotionLab.playDetailEntry(detailElCF, Object.assign({}, this.params, { skipCover: true }));
+                     return;
+                 }
+
+                 // flipMode === 'Flip'：嘗試 ghost 主路徑
+                 var fromCapture = null;
+                 {
+                     const gridEl = this.$refs.grid;
+                     fromCapture = window.MotionLab.captureCoverRect(gridEl, this.selectedIndex);
+                     if (fromCapture) fromEl = fromCapture.el;
+                 }
+
+                 // 切換到 detail 模式
+                 this.mode = 'detail';
+
+                 await this.$nextTick();
+                 // 等待瀏覽器繪製完成
+                 await new Promise(r => requestAnimationFrame(r));
+
+                 const detailEl = this.$refs.detail;
+                 if (!detailEl) return;
+
+                 // 預隱藏 info，避免轉場期間閃現
+                 var infoEl = detailEl.querySelector('.av-card-full-info');
+                 if (infoEl) gsap.set(infoEl, { opacity: 0 });
+
+                 if (fromCapture) {
+                     // 量測 to rect（detail 封面）
+                     var toCapture = window.MotionLab.captureCoverRect(detailEl, null);
+
+                     if (toCapture) {
+                         toEl = toCapture.el;
+                         // 建 ghost、隱藏真實封面
+                         ghost = window.MotionLab.createCoverGhost(fromCapture.el, fromCapture.rect);
+                         gsap.set(fromCapture.el, { opacity: 0 });
+                         gsap.set(toEl, { opacity: 0 });
+
+                         // 執行 ghost 飛行動畫
+                         await window.MotionLab.playSharedCoverTransition(
+                             ghost, fromCapture.rect, toCapture.rect, this.params
+                         );
+
+                         // cleanup ghost、還原封面
+                         window.MotionLab.cleanupCoverGhost(ghost, fromEl, toEl);
+                         ghost = null;
+
+                         // 只播 info 進場
+                         window.MotionLab.playDetailEntry(detailEl, Object.assign({}, this.params, { skipCover: true }));
+                         return;
+                     }
+                 }
+
+                 // Flip 主路徑 ghost 量測失敗 → 降級到 Level 1 Crossfade
+                 {
+                     var fbFromEl = fromCapture ? fromCapture.el : null;
+                     var fbToCapture = window.MotionLab.captureCoverRect(detailEl, null);
+                     var fbToEl = fbToCapture ? fbToCapture.el : null;
+                     await window.MotionLab.playCrossfadeTransition(fbFromEl, fbToEl, this.params);
+                     if (fbFromEl) gsap.set(fbFromEl, { opacity: 1 });
+                     window.MotionLab.playDetailEntry(detailEl, Object.assign({}, this.params, { skipCover: true }));
+                 }
+
+             } finally {
+                 // 確保 ghost 被清除（例外時）
+                 if (ghost) {
+                     window.MotionLab.cleanupCoverGhost(ghost, fromEl, toEl);
+                 }
+                 this.isTransitioning = false;
+             }
+         },
+
+         async onPrev() {
+             if (!this.hasVideos || typeof window.MotionLab === 'undefined') return;
+             if (this.mode !== 'detail' || this.selectedIndex <= 0) return;
+             if (this.isTransitioning) return;
+             if (this.isNavigating) return;
+             this.isNavigating = true;
+             try {
+                 const detailEl = this.$refs.detail;
+                 const cardEl = detailEl ? detailEl.querySelector('.av-card-full') : null;
+                 if (!cardEl) return;
+                 await window.MotionLab.playSlideOut(cardEl, 'prev', this.params);
+                 this.selectedIndex--;
+                 await this.$nextTick();
+                 const tweenPrev = window.MotionLab.playSlideIn(cardEl, 'prev', this.params);
+                 if (tweenPrev) await tweenPrev;
+             } finally {
+                 this.isNavigating = false;
+             }
+         },
+
+         async onNext() {
+             if (!this.hasVideos || typeof window.MotionLab === 'undefined') return;
+             if (this.mode !== 'detail' || this.selectedIndex >= this.videos.length - 1) return;
+             if (this.isTransitioning) return;
+             if (this.isNavigating) return;
+             this.isNavigating = true;
+             try {
+                 const detailEl = this.$refs.detail;
+                 const cardEl = detailEl ? detailEl.querySelector('.av-card-full') : null;
+                 if (!cardEl) return;
+                 await window.MotionLab.playSlideOut(cardEl, 'next', this.params);
+                 this.selectedIndex++;
+                 await this.$nextTick();
+                 const tweenNext = window.MotionLab.playSlideIn(cardEl, 'next', this.params);
+                 if (tweenNext) await tweenNext;
+             } finally {
+                 this.isNavigating = false;
+             }
+         },
+
+         async onToggleMode() {
+             if (!this.hasVideos || typeof window.MotionLab === 'undefined') return;
+
+             if (this.mode === 'grid') {
+                 // Grid → Detail: 走 onDetailEntry() 主流程
+                 await this.onDetailEntry();
+                 return;
+             }
+
+             // Detail → Grid
+             if (this.isTransitioning) return;
+             this.isTransitioning = true;
+
+             var ghost = null;
+             var fromEl = null;
+             var toEl = null;
+
+             try {
+                 const skipAnim = this.params.reducedMotionSim ||
+                    !!(window.OpenAver && window.OpenAver.prefersReducedMotion);
+                 const flipMode = this.params.flipMode || 'Flip';
+
+                 // Level 2（skipAnim 或 flipMode=None）：量測前短路，不嘗試 ghost 或 crossfade
+                 if (skipAnim || flipMode === 'None') {
+                     this.mode = 'grid';
+                     // 無動畫，直接結束
+                     return;
+                 }
+
+                 // 先淡出 info（約 120ms），只在 Flip(Ghost) 路徑
+                 if (flipMode === 'Flip') {
+                     const detailElForExit = this.$refs.detail;
+                     await window.MotionLab.playInfoExit(detailElForExit, this.params);
+                 }
+
+                 // 量測 from rect（Detail 側封面）
+                 var fromCapture = null;
+                 {
+                     const detailEl = this.$refs.detail;
+                     fromCapture = window.MotionLab.captureCoverRect(detailEl, null);
+                     if (fromCapture) fromEl = fromCapture.el;
+                 }
+
+                 // 切換回 grid 模式
+                 this.mode = 'grid';
+
+                 await this.$nextTick();
+                 await new Promise(r => requestAnimationFrame(r));
+
+                 // flipMode === 'Flip'：嘗試 ghost 主路徑
+                 if (flipMode === 'Flip' && fromCapture) {
+                     const gridEl = this.$refs.grid;
+                     // 找到目標卡片的封面，先 scrollIntoView 確保可量測
+                     const targetCards = gridEl ? gridEl.querySelectorAll('.av-card-preview') : [];
+                     const targetCard = targetCards[this.selectedIndex];
+                     if (targetCard) {
+                         targetCard.scrollIntoView({ block: 'nearest' });
+                         // 等一個 rAF 讓 scroll settle
+                         await new Promise(r => requestAnimationFrame(r));
+                     }
+
+                     var toCapture = window.MotionLab.captureCoverRect(gridEl, this.selectedIndex);
+
+                     if (toCapture) {
+                         toEl = toCapture.el;
+
+                         // 驗證目標 rect 在 viewport 內（負值或超出視口則降級）
+                         var tr = toCapture.rect;
+                         var vw = window.innerWidth;
+                         var vh = window.innerHeight;
+                         var rectValid = tr.right > 0 && tr.bottom > 0 && tr.left < vw && tr.top < vh;
+
+                         if (rectValid) {
+                             ghost = window.MotionLab.createCoverGhost(fromCapture.el, fromCapture.rect);
+                             gsap.set(fromCapture.el, { opacity: 0 });
+                             gsap.set(toEl, { opacity: 0 });
+
+                             await window.MotionLab.playSharedCoverTransition(
+                                 ghost, fromCapture.rect, toCapture.rect, this.params
+                             );
+
+                             window.MotionLab.cleanupCoverGhost(ghost, fromEl, toEl);
+                             ghost = null;
+                             // 目標卡落位 settle（非阻塞）
+                             if (targetCard) {
+                                 window.MotionLab.playTargetSettle(targetCard, this.params);
+                             }
+                             return;
+                         }
+                     }
+                 }
+
+                 // Crossfade 路徑（flipMode=Crossfade，或 flipMode=Flip 且 ghost 量測失敗）
+                 {
+                     const gridEl = this.$refs.grid;
+                     // scrollIntoView 讓目標可量測
+                     const targetCards = gridEl ? gridEl.querySelectorAll('.av-card-preview') : [];
+                     const targetCard = targetCards[this.selectedIndex];
+                     if (targetCard) {
+                         targetCard.scrollIntoView({ block: 'nearest' });
+                         await new Promise(r => requestAnimationFrame(r));
+                     }
+
+                     var cfFromEl = fromCapture ? fromCapture.el : null;
+                     var cfToCapture = window.MotionLab.captureCoverRect(gridEl, this.selectedIndex);
+                     var cfToEl = cfToCapture ? cfToCapture.el : null;
+
+                     await window.MotionLab.playCrossfadeTransition(cfFromEl, cfToEl, this.params);
+                     // 還原 source（detail 封面，grid 模式已不顯示，防殘留）
+                     if (cfFromEl) gsap.set(cfFromEl, { opacity: 1 });
+                 }
+
+             } finally {
+                 if (ghost) {
+                     window.MotionLab.cleanupCoverGhost(ghost, fromEl, toEl);
+                 }
+                 this.isTransitioning = false;
+             }
+         },
+
+         onReset() {
+             if (typeof window.MotionLab === 'undefined') return;
+             const gridEl = this.$refs.grid;
+             const detailEl = this.$refs.detail;
+             window.MotionLab.resetAll(gridEl, detailEl);
+             this.mode = 'grid';
+             this.isNavigating = false;
+             this.isTransitioning = false;
+             // 清除殘留 ghost 節點
+             document.querySelectorAll('.motion-lab-ghost').forEach(function (el) {
+                 el.remove();
+             });
+         },
+
+         onResetStream() {
+             // 清除所有待執行的 setTimeout
+             this._streamTimers.forEach(function (handle) {
+                 clearTimeout(handle);
+             });
+             this._streamTimers = [];
+             // 重置 streamCards 為 12 個 null（觸發 Alpine reactivity）
+             this.streamCards = Array(12).fill(null);
+             this.streamRunning = false;
+             // 清除 GSAP 殘留（stream grid）
+             if (typeof window.MotionLab !== 'undefined') {
+                 const streamGridEl = this.$refs.streamGrid;
+                 if (streamGridEl) {
+                     window.MotionLab.resetAll(streamGridEl, null);
+                 }
+             }
+         },
+
+         async onStreamIn() {
+             // guard：防重複觸發
+             if (this.streamRunning) return;
+             if (!this.videos.length) return;
+
+             // 先 reset 確保乾淨狀態
+             this.onResetStream();
+
+             this.streamRunning = true;
+
+             const count = Math.min(12, this.videos.length);
+             const baseInterval = this.params.streamInterval;
+
+             for (let i = 0; i < count; i++) {
+                 const videoObj = this.videos[i];
+                 // 隨機間隔：baseInterval ± 30%
+                 const jitter = baseInterval * 0.3;
+                 const delay = Math.max(0, i * baseInterval + (Math.random() * jitter * 2 - jitter));
+
+                 const handle = setTimeout(async () => {
+                     // Alpine reactivity：clone 後重新賦值
+                     const updated = [...this.streamCards];
+                     updated[i] = videoObj;
+                     this.streamCards = updated;
+
+                     // 等待 Alpine 更新 DOM，再觸發動畫
+                     await this.$nextTick();
+                     await new Promise(r => requestAnimationFrame(r));
+
+                     const streamGridEl = this.$refs.streamGrid;
+                     if (!streamGridEl) return;
+                     const cardEl = streamGridEl.querySelectorAll('.av-card-preview')[i];
+                     if (!cardEl) return;
+
+                     if (typeof window.MotionLab !== 'undefined') {
+                         window.MotionLab.playCardStreamIn(cardEl, this.params.streamStyle, this.params);
+                     }
+
+                     // 最後一張填入後解除 streamRunning
+                     if (i === count - 1) {
+                         this.streamRunning = false;
+                     }
+                 }, delay);
+
+                 this._streamTimers.push(handle);
+             }
+
+             // 若 videos 不足 12 筆，最後一個 timer 完成後解除 running
+             // （count < 12 時，count-1 的 setTimeout 已在上面設 streamRunning=false）
+             // 若 count === 0，確保 streamRunning 解除（已在 guard return 前處理）
+         },
+
+         onResetStaging() {
+             // 清除所有 staging timers
+             this._stagingTimers.forEach(function (handle) {
+                 clearTimeout(handle);
+             });
+             this._stagingTimers = [];
+             if (this._stagingBurstTimer !== null) {
+                 clearTimeout(this._stagingBurstTimer);
+                 this._stagingBurstTimer = null;
+             }
+             // 清 micro-pulse debounce timer
+             if (this._pulseDebounceTimer !== null) {
+                 clearTimeout(this._pulseDebounceTimer);
+                 this._pulseDebounceTimer = null;
+             }
+             // 生成 token 遞增：使所有飛行中的 async callback 失效
+             this._stagingRunId++;
+             // 重置 staging state
+             this.stagingCards = Array(12).fill(null);
+             this.stagingBuffer = [];
+             this.stagingFilled = 0;
+             this.stagingTotal = 12;
+             this.stagingRunning = false;
+             this._burstBatchIndex = 0;
+             this.stagingCurrentCover = null;
+             this.stagingCurrentNum = null;
+             this.stagingOverlayVisible = false;
+             this._allItemsArrived = false;
+             this._stagingExiting = false;
+             // 重置 staging card 寬度（由 onStagingBurst 動態量測設定）
+             const stagingCardResetEl = this.$refs.stagingCard;
+             if (stagingCardResetEl) {
+                 stagingCardResetEl.style.width = '';
+             }
+             // 清除 GSAP 殘留
+             if (typeof window.MotionLab !== 'undefined') {
+                 const stagingGridEl = this.$refs.stagingGrid;
+                 if (stagingGridEl) {
+                     window.MotionLab.resetAll(stagingGridEl, null);
+                 }
+                 // 清理 staging anchor 內 staging card 的 GSAP 殘留
+                 const stagingCardEl = this.$refs.stagingCard;
+                 if (stagingCardEl) {
+                     gsap.killTweensOf(stagingCardEl);
+                     gsap.set(stagingCardEl, { clearProps: 'transform,opacity,zIndex' });
+                     const stagingImgEl = this.$refs.stagingImg;
+                     if (stagingImgEl) {
+                         gsap.killTweensOf(stagingImgEl);
+                         gsap.set(stagingImgEl, { clearProps: 'opacity' });
+                     }
+                 }
+             }
+         },
+
+         async triggerMiniBurst(batch, runId, isFinalBurst) {
+             if (!batch || !batch.length) return;
+             if (typeof window.MotionLab === 'undefined') return;
+             // Race-safety: bail out if a reset happened before we started
+             if (runId !== undefined && this._stagingRunId !== runId) return;
+
+             // C13: clone + reassign for Alpine reactivity
+             const updated = [...this.stagingCards];
+             batch.forEach(function (item) {
+                 updated[item.slot] = item.video;
+             });
+             this.stagingCards = updated;
+
+             // 等待 Alpine DOM 更新
+             await this.$nextTick();
+             await new Promise(r => requestAnimationFrame(r));
+
+             // Race-safety: bail out if a reset happened during await
+             if (runId !== undefined && this._stagingRunId !== runId) return;
+
+             const stagingGridEl = this.$refs.stagingGrid;
+             const stagingCardEl = this.$refs.stagingCard;
+             if (!stagingGridEl) return;
+
+             // 取本批填入的 slot 對應 DOM 元素（排除 staging card 本身）
+             const allCards = stagingGridEl.querySelectorAll('.av-card-preview');
+             const newCardEls = batch.map(function (item) {
+                 return allCards[item.slot] || null;
+             }).filter(Boolean);
+
+             if (!newCardEls.length) return;
+
+             const batchZ = this._burstBatchIndex++;
+             const tl = window.MotionLab.playStagingBurst(newCardEls, stagingCardEl, {
+                 duration: this.stagingParams.burstDuration,
+                 ease: this.stagingParams.burstEase,
+                 stagger: 0.05,
+                 batchZ: batchZ,
+                 reducedMotionSim: this.params.reducedMotionSim
+             });
+
+             if (isFinalBurst) {
+                 tl.then(() => {
+                     this._triggerStagingExit(runId);
+                 });
+             }
+             // isFinalBurst === false 時：fire-and-forget，不做額外處理
+         },
+
+         _triggerStagingExit(runId) {
+             if (this._stagingRunId !== runId) return;
+             // 清 pulse debounce：避免 exit 期間觸發 pulse
+             if (this._pulseDebounceTimer !== null) {
+                 clearTimeout(this._pulseDebounceTimer);
+                 this._pulseDebounceTimer = null;
+             }
+             // 標記 exit 進行中（雙重保護：playStagingPulse 開頭也會 check）
+             this._stagingExiting = true;
+             // 先停 rotating border（stagingRunning → false）
+             this.stagingRunning = false;
+             // 播 exit morph；onComplete 才設 stagingOverlayVisible = false
+             const cardEl = this.$refs.stagingCard;
+             const capturedRunId = runId;
+             window.MotionLab.playStagingExit(cardEl, {
+                 reducedMotionSim: this.params.reducedMotionSim
+             }, () => {
+                 // C1：onComplete 只做最終 state 收尾
+                 if (this._stagingRunId !== capturedRunId) return;
+                 this.stagingOverlayVisible = false;
+                 this._stagingExiting = false;
+             });
+         },
+
+         async onStagingBurst() {
+             // guard: 防重複觸發
+             if (this.stagingRunning || this._stagingExiting) return;
+             if (typeof window.MotionLab === 'undefined') return;
+
+             // reset first（會遞增 _stagingRunId，使舊 async callbacks 失效）
+             this.onResetStaging();
+
+             if (!this.videos.length) return;
+
+             this.stagingRunning = true;
+             this.stagingOverlayVisible = true;
+
+             // 動態量測 grid 卡片寬度，套到 staging card（§8）
+             await this.$nextTick();
+             const firstGridCard = this.$refs.stagingGrid.querySelector('.av-card-preview');
+             if (firstGridCard && this.$refs.stagingCard) {
+                 const cardWidth = firstGridCard.getBoundingClientRect().width;
+                 this.$refs.stagingCard.style.width = cardWidth + 'px';
+             }
+             // 播入場動畫
+             window.MotionLab.playStagingEntry(this.$refs.stagingCard, {
+                 reducedMotionSim: this.params.reducedMotionSim
+             });
+
+             // 捕獲本次執行的 run token
+             const runId = this._stagingRunId;
+
+             const total = Math.min(this.stagingTotal, this.videos.length);
+             this.stagingTotal = total;
+             const coverInterval = this.stagingParams.coverInterval;
+             const batchInterval = this.stagingParams.batchInterval;
+             const minBatchCount = this.stagingParams.minBatchCount;
+
+             // 逐張推入 stagingBuffer（模擬 SSE result-item 到達）
+             for (let i = 0; i < total; i++) {
+                 const videoObj = this.videos[i];
+                 const delay = i * coverInterval;
+
+                 const handle = setTimeout(async () => {
+                     // Race-safety: 若 reset 已發生則放棄
+                     if (this._stagingRunId !== runId) return;
+
+                     // 推入 buffer
+                     this.stagingBuffer = [...this.stagingBuffer, { slot: i, video: videoObj }];
+                     this.stagingFilled = this.stagingFilled + 1;
+
+                     // 更新 staging card 顯示（最新封面 + 番號）— 立即執行
+                     this.stagingCurrentNum = videoObj.number || null;
+                     this.stagingCurrentCover = videoObj.cover_url || null;
+
+                     // 等 Alpine 更新 DOM 再播封面 swap 動畫（立即，每次到達都播）
+                     await this.$nextTick();
+                     await new Promise(r => requestAnimationFrame(r));
+
+                     // Race-safety: 再次確認 await 後未被 reset
+                     if (this._stagingRunId !== runId) return;
+
+                     const imgEl = this.$refs.stagingImg;
+                     if (imgEl && this.stagingCurrentCover) {
+                         window.MotionLab.playCoverSwap(imgEl, { reducedMotionSim: this.params.reducedMotionSim });
+                     }
+
+                     // 第一張 pop，後續 micro-pulse（150ms debounce）
+                     if (i === 0) {
+                         window.MotionLab.playStagingPop(this.$refs.stagingCard, {
+                             reducedMotionSim: this.params.reducedMotionSim
+                         });
+                     } else {
+                         if (this._pulseDebounceTimer !== null) clearTimeout(this._pulseDebounceTimer);
+                         const capturedRunId = runId;
+                         this._pulseDebounceTimer = setTimeout(() => {
+                             if (this._stagingRunId !== capturedRunId) return;
+                             if (this._stagingExiting) return;  // exit 進行中，不觸發
+                             window.MotionLab.playStagingPulse(this.$refs.stagingCard, {
+                                 reducedMotionSim: this.params.reducedMotionSim
+                             });
+                             this._pulseDebounceTimer = null;
+                         }, 180);
+                     }
+
+                     // 最後一張到達：設 _allItemsArrived，讓 scheduleBurstTimer 統一處理
+                     if (i === total - 1) {
+                         this._allItemsArrived = true;
+                         // 不排 final flush timer！scheduleBurstTimer 是唯一 flush owner
+                     }
+                 }, delay);
+
+                 this._stagingTimers.push(handle);
+             }
+
+             // 時間窗口 timer：定期 flush stagingBuffer（唯一 flush owner）
+             const scheduleBurstTimer = () => {
+                 if (this._stagingBurstTimer !== null) {
+                     clearTimeout(this._stagingBurstTimer);
+                 }
+                 this._stagingBurstTimer = setTimeout(async () => {
+                     // Race-safety: 若 reset 已發生則停止排程
+                     if (this._stagingRunId !== runId) return;
+
+                     if (!this._allItemsArrived) {
+                         // 未全部到齊：只在達到 minBatchCount 時 flush
+                         if (this.stagingBuffer.length >= minBatchCount) {
+                             const batch = [...this.stagingBuffer];
+                             this.stagingBuffer = [];
+                             await this.triggerMiniBurst(batch, runId, false);
+                         }
+                         // 繼續排程
+                         if (this._stagingRunId === runId) scheduleBurstTimer();
+                     } else {
+                         // 全部已到齊
+                         if (this.stagingBuffer.length > 0) {
+                             // 有剩餘：flush 全部（不管 minBatchCount），isFinalBurst = true
+                             const batch = [...this.stagingBuffer];
+                             this.stagingBuffer = [];
+                             await this.triggerMiniBurst(batch, runId, true);
+                         } else {
+                             // buffer 已空：所有卡片已被之前的 flush 處理，直接 exit
+                             this._triggerStagingExit(runId);
+                         }
+                         // _allItemsArrived 路徑不再繼續排程（由 _triggerStagingExit 或 tl.then 接手）
+                     }
+                 }, batchInterval);
+             };
+             scheduleBurstTimer();
+         }
+     }"
+     x-cloak>
+
+    <!-- Header -->
+    <div class="motion-lab-header">
+        <h4>
+            <i class="bi bi-magic"></i>
+            Motion Lab
+            <span class="motion-lab-badge">DEV</span>
+        </h4>
+
+        <!-- Tab Bar -->
+        <div class="motion-lab-tab-bar">
+            <button class="motion-lab-tab"
+                    :class="{ active: tab === 'search' }"
+                    @click="tab = 'search'; onResetStaging()">
+                Search
+            </button>
+            <button class="motion-lab-tab"
+                    :class="{ active: tab === 'stream' }"
+                    @click="tab = 'stream'; onResetStream(); onResetStaging()">
+                Stream
+            </button>
+            <button class="motion-lab-tab"
+                    :class="{ active: tab === 'staging' }"
+                    @click="tab = 'staging'; onResetStaging()">
+                Staging Burst
+            </button>
+        </div>
+    </div>
+
+    <!-- 控制面板 -->
+    <div class="motion-lab-controls">
+
+        <!-- Duration slider -->
+        <div class="control-group">
+            <span class="control-label">Duration</span>
+            <input type="range" class="control-slider"
+                   min="0.2" max="2.0" step="0.05"
+                   x-model.number="params.duration">
+            <span class="control-value" x-text="params.duration.toFixed(2) + 's'"></span>
+        </div>
+
+        <!-- Stagger slider -->
+        <div class="control-group">
+            <span class="control-label">Stagger</span>
+            <input type="range" class="control-slider"
+                   min="0.01" max="0.2" step="0.01"
+                   x-model.number="params.stagger">
+            <span class="control-value" x-text="params.stagger.toFixed(2) + 's'"></span>
+        </div>
+
+        <!-- ClipReveal slider -->
+        <div class="control-group">
+            <span class="control-label">ClipReveal</span>
+            <input type="range" class="control-slider"
+                   min="0.2" max="1.0" step="0.05"
+                   x-model.number="params.clipRevealDur">
+            <span class="control-value" x-text="params.clipRevealDur.toFixed(2) + 's'"></span>
+        </div>
+
+        <!-- Burst speed slider -->
+        <div class="control-group">
+            <span class="control-label">Burst</span>
+            <input type="range" class="control-slider"
+                   min="0.1" max="2.0" step="0.1"
+                   x-model.number="params.speed">
+            <span class="control-value" x-text="params.speed.toFixed(1) + 'x'"></span>
+        </div>
+
+        <!-- Detail speed slider -->
+        <div class="control-group">
+            <span class="control-label">Detail</span>
+            <input type="range" class="control-slider"
+                   min="0.5" max="2.0" step="0.1"
+                   x-model.number="params.detailSpeed">
+            <span class="control-value" x-text="params.detailSpeed.toFixed(1) + 'x'"></span>
+        </div>
+
+        <!-- Easing select -->
+        <div class="control-group">
+            <span class="control-label">Ease</span>
+            <select class="control-select" x-model="params.easing">
+                <option value="back.out(1.2)">back.out(1.2)</option>
+                <option value="power3.out">power3.out</option>
+                <option value="elastic.out(1,0.3)">elastic.out(1,0.3)</option>
+                <option value="power2.inOut">power2.inOut</option>
+                <option value="none">none</option>
+            </select>
+        </div>
+
+        <!-- Flip mode select -->
+        <div class="control-group">
+            <span class="control-label">Flip</span>
+            <select class="control-select" x-model="params.flipMode">
+                <option value="Flip">Flip</option>
+                <option value="Crossfade">Crossfade</option>
+                <option value="None">None</option>
+            </select>
+        </div>
+
+        <!-- Reduced Motion sim -->
+        <div class="control-group">
+            <input type="checkbox" class="control-checkbox"
+                   id="reducedMotionSim"
+                   x-model="params.reducedMotionSim">
+            <label for="reducedMotionSim" class="control-label" style="cursor:pointer">
+                Reduced Motion Sim
+            </label>
+        </div>
+
+        <div class="control-divider"></div>
+
+        <!-- Action buttons (Search tab only) -->
+        <button class="control-btn primary"
+                :disabled="!hasVideos || tab !== 'search'"
+                @click="onPlayBurst()">
+            <i class="bi bi-stars"></i> Play Burst
+        </button>
+
+        <button class="control-btn"
+                :disabled="!hasVideos || tab !== 'search'"
+                @click="onDetailEntry()">
+            <i class="bi bi-card-image"></i> Detail Entry
+        </button>
+
+        <button class="control-btn"
+                :disabled="!hasVideos || isNavigating || isTransitioning || tab !== 'search'"
+                @click="onPrev()">
+            <i class="bi bi-chevron-left"></i> Prev
+        </button>
+
+        <button class="control-btn"
+                :disabled="!hasVideos || isNavigating || isTransitioning || tab !== 'search'"
+                @click="onNext()">
+            <i class="bi bi-chevron-right"></i> Next
+        </button>
+
+        <button class="control-btn"
+                :disabled="!hasVideos || tab !== 'search'"
+                @click="onToggleMode()">
+            <i class="bi" :class="mode === 'grid' ? 'bi-card-image' : 'bi-grid-3x3'"></i>
+            <span x-text="mode === 'grid' ? 'Detail View' : 'Grid View'"></span>
+        </button>
+
+        <button class="control-btn danger"
+                :disabled="tab !== 'search'"
+                @click="onReset()">
+            <i class="bi bi-arrow-counterclockwise"></i> Reset
+        </button>
+
+        <div class="control-divider"></div>
+
+        <!-- Stream controls -->
+        <button class="control-btn primary"
+                :disabled="streamRunning || !hasVideos || tab !== 'stream'"
+                @click="onStreamIn()">
+            <i class="bi bi-play-fill"></i> Stream In
+        </button>
+
+        <button class="control-btn danger"
+                :disabled="tab !== 'stream'"
+                @click="onResetStream()">
+            <i class="bi bi-arrow-counterclockwise"></i> Reset Stream
+        </button>
+
+        <!-- Stream Style -->
+        <div class="control-group">
+            <span class="control-label">Style</span>
+            <select class="control-select" x-model="params.streamStyle">
+                <option value="fadeScale">fadeScale</option>
+                <option value="fadeUp">fadeUp</option>
+                <option value="reveal">reveal</option>
+            </select>
+        </div>
+
+        <!-- Stream Interval -->
+        <div class="control-group">
+            <span class="control-label">Interval</span>
+            <input type="range" class="control-slider"
+                   min="100" max="800" step="50"
+                   x-model.number="params.streamInterval">
+            <span class="control-value" x-text="params.streamInterval + 'ms'"></span>
+        </div>
+
+        <div class="control-divider"></div>
+
+        <!-- Staging Burst controls -->
+        <button class="control-btn primary"
+                :disabled="stagingRunning || _stagingExiting || !hasVideos || tab !== 'staging'"
+                @click="onStagingBurst()">
+            <i class="bi bi-collection-play-fill"></i> Staging Burst
+        </button>
+
+        <button class="control-btn danger"
+                :disabled="tab !== 'staging'"
+                @click="onResetStaging()">
+            <i class="bi bi-arrow-counterclockwise"></i> Reset
+        </button>
+
+        <!-- Batch Interval -->
+        <div class="control-group" :style="tab !== 'staging' ? 'opacity:0.4' : ''">
+            <span class="control-label">Batch ms</span>
+            <input type="range" class="control-slider"
+                   min="500" max="1500" step="100"
+                   :disabled="tab !== 'staging'"
+                   x-model.number="stagingParams.batchInterval">
+            <span class="control-value" x-text="stagingParams.batchInterval + 'ms'"></span>
+        </div>
+
+        <!-- Min Batch Count -->
+        <div class="control-group" :style="tab !== 'staging' ? 'opacity:0.4' : ''">
+            <span class="control-label">Min Batch</span>
+            <input type="range" class="control-slider"
+                   min="1" max="5" step="1"
+                   :disabled="tab !== 'staging'"
+                   x-model.number="stagingParams.minBatchCount">
+            <span class="control-value" x-text="stagingParams.minBatchCount"></span>
+        </div>
+
+        <!-- Cover Interval -->
+        <div class="control-group" :style="tab !== 'staging' ? 'opacity:0.4' : ''">
+            <span class="control-label">Cover ms</span>
+            <input type="range" class="control-slider"
+                   min="100" max="500" step="50"
+                   :disabled="tab !== 'staging'"
+                   x-model.number="stagingParams.coverInterval">
+            <span class="control-value" x-text="stagingParams.coverInterval + 'ms'"></span>
+        </div>
+
+        <!-- Burst Ease -->
+        <div class="control-group" :style="tab !== 'staging' ? 'opacity:0.4' : ''">
+            <span class="control-label">Burst Ease</span>
+            <select class="control-select"
+                    :disabled="tab !== 'staging'"
+                    x-model="stagingParams.burstEase">
+                <option value="back.out(1.2)">back.out(1.2)</option>
+                <option value="power3.out">power3.out</option>
+                <option value="elastic.out(1,0.5)">elastic.out(1,0.5)</option>
+            </select>
+        </div>
+
+        <!-- Burst Duration -->
+        <div class="control-group" :style="tab !== 'staging' ? 'opacity:0.4' : ''">
+            <span class="control-label">Burst dur</span>
+            <input type="range" class="control-slider"
+                   min="0.3" max="1.0" step="0.05"
+                   :disabled="tab !== 'staging'"
+                   x-model.number="stagingParams.burstDuration">
+            <span class="control-value" x-text="stagingParams.burstDuration.toFixed(2) + 's'"></span>
+        </div>
+    </div>
+
+    <!-- 預覽區 -->
+    <div class="motion-lab-preview" x-ref="preview">
+
+        <!-- 假搜尋框（burst 起點） -->
+        <div class="motion-lab-search-bar" x-ref="searchBar">
+            <i class="bi bi-search"></i>
+            <span>假搜尋框 — burst 起點座標參照</span>
+        </div>
+
+        <!-- Loading -->
+        <div class="motion-lab-loading" x-show="loading">
+            <i class="bi bi-arrow-repeat" style="animation: spin 1s linear infinite;"></i>
+            載入中...
+        </div>
+
+        <!-- Empty state -->
+        <div class="motion-lab-empty" x-show="!loading && !hasVideos">
+            <i class="bi bi-inbox"></i>
+            <span>資料庫無影片資料</span>
+            <span style="font-size:0.75rem; color: var(--text-muted);">請先掃描影片目錄</span>
+        </div>
+
+        <!-- Grid 區（tab=search && mode=grid） -->
+        <div class="motion-lab-grid"
+             x-ref="grid"
+             x-show="!loading && hasVideos && tab === 'search' && mode === 'grid'">
+            <template x-for="(video, index) in videos" :key="video.number + '_' + index">
+                <div class="av-card-preview"
+                     @click="selectedIndex = index; onDetailEntry()">
+                    <div class="av-card-preview-img">
+                        <template x-if="video.cover_url">
+                            <img :src="video.cover_url"
+                                 :alt="video.number"
+                                 loading="lazy"
+                                 style="width:100%; height:100%; object-fit:cover; display:block;">
+                        </template>
+                        <template x-if="!video.cover_url">
+                            <div class="av-card-no-cover">
+                                <i class="bi bi-image"></i>
+                                <span>無封面</span>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="av-card-preview-footer">
+                        <span class="av-num" x-text="video.number || '-'"></span>
+                        <span class="av-actress" x-text="formatActresses(video.actresses)"></span>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Stream Grid 區（tab=stream） -->
+        <div class="motion-lab-grid"
+             x-ref="streamGrid"
+             x-show="tab === 'stream'">
+            <template x-for="(card, index) in streamCards" :key="'stream_' + index">
+                <div class="av-card-preview">
+                    <div class="av-card-preview-img">
+                        <!-- skeleton 狀態 -->
+                        <template x-if="card === null">
+                            <div class="skeleton-cover shimmer"></div>
+                        </template>
+                        <!-- 填入狀態：有封面 -->
+                        <template x-if="card !== null && card.cover_url">
+                            <img :src="card.cover_url" :alt="card.number" loading="lazy"
+                                 style="width:100%; height:100%; object-fit:cover; display:block;">
+                        </template>
+                        <!-- 填入狀態：無封面 -->
+                        <template x-if="card !== null && !card.cover_url">
+                            <div class="av-card-no-cover">
+                                <i class="bi bi-image"></i>
+                                <span>無封面</span>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="av-card-preview-footer">
+                        <span class="av-num"
+                              x-text="card !== null ? (card.number || '-') : (videos[index]?.number || '#' + (index + 1))">
+                        </span>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Staging Anchor — 獨立中央容器（不佔 stagingGrid flow） -->
+        <div class="staging-anchor"
+             x-show="tab === 'staging' && stagingOverlayVisible">
+            <div class="av-card-preview rotating-border-spotlight"
+                 :class="{ active: stagingRunning && !params.reducedMotionSim }"
+                 x-ref="stagingCard"
+                 style="border-radius: 8px;">
+                <div class="av-card-preview-img">
+                    <img x-ref="stagingImg"
+                         :src="stagingCurrentCover || ''"
+                         x-show="stagingCurrentCover"
+                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                    <div class="av-card-no-cover" x-show="!stagingCurrentCover && stagingFilled === 0">
+                        <i class="bi bi-hourglass-split"></i>
+                        <span>等待中</span>
+                    </div>
+                    <div class="av-card-no-cover" x-show="!stagingCurrentCover && stagingFilled > 0">
+                        <i class="bi bi-image"></i>
+                        <span>無封面</span>
+                    </div>
+                </div>
+                <div class="av-card-preview-footer">
+                    <span class="av-num" x-text="stagingCurrentNum || '...'"></span>
+                    <span class="staging-counter-badge"
+                          x-text="stagingFilled + ' / ' + stagingTotal"
+                          x-show="stagingFilled > 0"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Staging Burst Grid 區（tab=staging） -->
+        <div class="motion-lab-grid"
+             x-ref="stagingGrid"
+             x-show="tab === 'staging'">
+
+            <template x-for="(card, index) in stagingCards" :key="card ? card.path : 'empty_' + index">
+                <div class="av-card-preview">
+                    <div class="av-card-preview-img">
+                        <!-- skeleton 狀態 -->
+                        <template x-if="card === null">
+                            <div class="skeleton-cover shimmer"></div>
+                        </template>
+                        <!-- 填入狀態：有封面 -->
+                        <template x-if="card !== null && card.cover_url">
+                            <img :src="card.cover_url" :alt="card.number" loading="lazy"
+                                 style="width:100%; height:100%; object-fit:cover; display:block;">
+                        </template>
+                        <!-- 填入狀態：無封面 -->
+                        <template x-if="card !== null && !card.cover_url">
+                            <div class="av-card-no-cover">
+                                <i class="bi bi-image"></i>
+                                <span>無封面</span>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="av-card-preview-footer">
+                        <span class="av-num"
+                              x-text="card !== null ? (card.number || '-') : ('#' + (index + 1))">
+                        </span>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Detail 區（tab=search && mode=detail） -->
+        <div class="motion-lab-detail"
+             x-ref="detail"
+             x-show="!loading && hasVideos && tab === 'search' && mode === 'detail'">
+            <div class="av-card-full" x-show="selectedVideo">
+                <!-- 封面 -->
+                <div class="av-card-full-cover">
+                    <div class="av-card-full-cover-wrapper">
+                        <template x-if="selectedVideo && selectedVideo.cover_url">
+                            <img class="av-card-full-cover-img"
+                                 :src="selectedVideo.cover_url"
+                                 :alt="selectedVideo?.number"
+                                 loading="lazy">
+                        </template>
+                        <template x-if="selectedVideo && !selectedVideo.cover_url">
+                            <div class="av-card-no-cover">
+                                <i class="bi bi-image"></i>
+                                <span>無封面</span>
+                            </div>
+                        </template>
+                        <!-- Nav 按鈕 -->
+                        <button class="nav-btn prev"
+                                x-show="selectedIndex > 0 && !isNavigating && !isTransitioning"
+                                @click="onPrev()"
+                                title="上一個 (←)">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                        <button class="nav-btn next"
+                                x-show="selectedIndex < videos.length - 1 && !isNavigating && !isTransitioning"
+                                @click="onNext()"
+                                title="下一個 (→)">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                        <div class="nav-indicator">
+                            <span x-text="selectedIndex + 1"></span> /
+                            <span x-text="videos.length"></span>
+                        </div>
+                    </div>
+                </div>
+                <!-- 資訊：header / body / footer 三段 -->
+                <div class="av-card-full-info">
+                    <!-- Header：番號 + 來源切換（佔位，disabled） -->
+                    <div class="av-card-full-header">
+                        <h4 class="av-num" x-text="selectedVideo?.number || '-'"></h4>
+                        <button class="info-icon-btn" title="切換版本" disabled>
+                            <i class="bi bi-arrow-repeat"></i>
+                        </button>
+                    </div>
+                    <!-- Body：演員、發行日期、片商、標籤 -->
+                    <div class="av-card-full-body">
+                        <div class="info-row">
+                            <span class="info-label">演員</span>
+                            <span class="info-value" x-text="formatActressesDetail(selectedVideo?.actresses)"></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">發行日期</span>
+                            <span class="info-value" x-text="selectedVideo?.release_date || '-'"></span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">片商</span>
+                            <span class="info-value" x-text="selectedVideo?.maker || '-'"></span>
+                        </div>
+                        <div class="info-row" x-show="(selectedVideo?.tags || []).length > 0">
+                            <span class="info-label">標籤</span>
+                            <span class="info-value">
+                                <template x-for="tag in (selectedVideo?.tags || [])" :key="tag">
+                                    <span class="badge tag-badge" x-text="tag"></span>
+                                </template>
+                            </span>
+                        </div>
+                    </div>
+                    <!-- Footer：標題（最底部） -->
+                    <div class="av-card-full-footer">
+                        <div class="av-card-full-footer-content">
+                            <span class="info-label">標題</span>
+                            <span class="info-value" x-text="selectedVideo?.title || '（無標題）'"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<style>
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Stream-in Skeleton */
+.skeleton-cover {
+    width: 100%;
+    aspect-ratio: 3/2;
+    background: var(--bg-tertiary);
+    border-radius: 0;
+}
+
+.shimmer {
+    background: linear-gradient(
+        90deg,
+        var(--bg-tertiary) 25%,
+        var(--bg-secondary) 50%,
+        var(--bg-tertiary) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<!-- GSDevTools — 沙盒 debug only（不放 base.html） -->
+<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.14/dist/GSDevTools.min.js"></script>
+<!-- Motion Lab 動畫控制（直接呼叫 GSAP，在 lint allowlist 內） -->
+<script defer src="/static/js/pages/motion-lab.js"></script>
+{% endblock %}

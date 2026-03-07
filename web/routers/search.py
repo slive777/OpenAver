@@ -320,16 +320,29 @@ async def search_stream(
     proxy_url = config.get('search', {}).get('proxy_url', '')
 
     status_queue = Queue()
+    sent_seed = False
 
     def status_callback(source: str, status: str):
-        """狀態回調：放入佇列"""
-        status_queue.put({'source': source, 'status': status})
+        """狀態回調：放入佇列（type='status'）"""
+        status_queue.put({'type': 'status', 'source': source, 'status': status})
+
+    def result_callback(slot: int, data):
+        """結果回調：seed（slot=-1）或 result-item（slot>=0）放入佇列"""
+        nonlocal sent_seed
+        if slot == -1:
+            if sent_seed:
+                return  # 雙 seed 保護：prefix→actress fallback 不送第二個 seed
+            sent_seed = True
+            status_queue.put({'type': 'seed', 'slots': data})
+        else:
+            status_queue.put({'type': 'result-item', 'slot': slot, 'data': data})
 
     def run_search():
         """在背景執行搜尋"""
-        return smart_search(q, limit=limit, offset=offset, status_callback=status_callback, uncensored_mode=uncensored_mode, proxy_url=proxy_url)
+        return smart_search(q, limit=limit, offset=offset, status_callback=status_callback, uncensored_mode=uncensored_mode, proxy_url=proxy_url, result_callback=result_callback)
 
     async def event_generator():
+        nonlocal sent_seed
         # 偵測模式
         mode = _detect_mode(q)
         yield f"data: {json.dumps({'type': 'mode', 'mode': mode})}\n\n"
@@ -342,22 +355,39 @@ async def search_stream(
             # 持續讀取狀態更新
             while not future.done():
                 try:
-                    # 非阻塞讀取
+                    # 非阻塞讀取：drain queue，依 type 分支處理
                     while not status_queue.empty():
-                        status = status_queue.get_nowait()
-                        yield f"data: {json.dumps({'type': 'status', **status})}\n\n"
+                        item = status_queue.get_nowait()
+                        event_type = item.get('type')
+                        if event_type == 'status':
+                            yield f"data: {json.dumps({'type': 'status', 'source': item['source'], 'status': item['status']})}\n\n"
+                        elif event_type == 'seed':
+                            yield f"data: {json.dumps({'type': 'seed', 'mode': mode, 'total': len(item['slots']), 'slots': item['slots']})}\n\n"
+                        elif event_type == 'result-item':
+                            yield f"data: {json.dumps({'type': 'result-item', 'slot': item['slot'], 'data': item['data']})}\n\n"
                     await asyncio.sleep(0.1)
                 except Exception:
                     break
 
-            # 讀取剩餘狀態
+            # 讀取剩餘佇列（搜尋完成後可能還有 result-item）
             while not status_queue.empty():
-                status = status_queue.get_nowait()
-                yield f"data: {json.dumps({'type': 'status', **status})}\n\n"
+                item = status_queue.get_nowait()
+                event_type = item.get('type')
+                if event_type == 'status':
+                    yield f"data: {json.dumps({'type': 'status', 'source': item['source'], 'status': item['status']})}\n\n"
+                elif event_type == 'seed':
+                    yield f"data: {json.dumps({'type': 'seed', 'mode': mode, 'total': len(item['slots']), 'slots': item['slots']})}\n\n"
+                elif event_type == 'result-item':
+                    yield f"data: {json.dumps({'type': 'result-item', 'slot': item['slot'], 'data': item['data']})}\n\n"
 
             # 取得結果
             try:
                 results = future.result()
+
+                # 從實際結果更新 mode（smart_search 內部可能 fallback，
+                # 例如 prefix→actress 或 actress→keyword）
+                if results and results[0].get('_mode'):
+                    mode = results[0]['_mode']
 
                 # Consistency check（與 REST 相同邏輯）
                 actress_profile = None
@@ -373,6 +403,17 @@ async def search_stream(
                 # 判斷是否還有更多結果
                 has_more = mode in ('prefix', 'actress') and len(results) >= limit
 
+                # 若漸進路徑被使用，先送 result-complete（供 T4 消費者用）
+                if sent_seed:
+                    complete_response = {
+                        'type': 'result-complete',
+                        'total': len(results),
+                        'has_more': has_more,
+                        'actress_profile': actress_profile
+                    }
+                    yield f"data: {json.dumps(complete_response)}\n\n"
+
+                # 永遠送傳統 result event（向後相容，前端的 source of truth）
                 response = {
                     'type': 'result',
                     'success': bool(results),
@@ -383,7 +424,6 @@ async def search_stream(
                     'has_more': has_more,
                     'actress_profile': actress_profile
                 }
-
                 yield f"data: {json.dumps(response)}\n\n"
 
             except Exception as e:
