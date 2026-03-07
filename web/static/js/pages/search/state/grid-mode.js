@@ -174,6 +174,11 @@ window.SearchStateMixin_GridMode = {
      * @param {number} index - 搜尋結果索引
      */
     switchToDetail(index) {
+        // 防禦：若 Lightbox 仍開啟，先關閉（避免覆蓋層影響 grid 卡片座標）
+        if (this.lightboxOpen) {
+            this.lightboxOpen = false;
+        }
+
         // C17 step 1: capture source rect BEFORE state change
         var grid = document.querySelector('.search-grid');
         var card = grid ? grid.querySelector('[data-slot="' + index + '"]') : null;

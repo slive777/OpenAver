@@ -2,7 +2,7 @@
  * SearchState - Base Mixin
  * 包含：data 初始值、constants、computed methods、file list helpers
  */
-window.SearchStateMixin_Base = function() {
+window.SearchStateMixin_Base = function () {
     return {
         // ===== Page State =====
         pageState: 'empty',  // 'empty' | 'loading' | 'result' | 'error'
@@ -27,8 +27,8 @@ window.SearchStateMixin_Base = function() {
         streamBurstTimer: null,  // 時間窗口 timer ID（原生 setTimeout 回傳值）
         streamBurstedSlots: [],  // 已 burst 到 grid 的 slot index（boolean array，長度與 streamSlots 一致）
         stagingVisible: false,   // staging 容器可見性（獨立於 isStreaming）
-                                 // isStreaming 在 result-complete 後立即 false，
-                                 // 但 stagingVisible 等 exit morph onComplete 才 false
+        // isStreaming 在 result-complete 後立即 false，
+        // 但 stagingVisible 等 exit morph onComplete 才 false
 
         // ===== U3: Staging Card 顯示 State（裝飾性，C16） =====
         stagingCover: '',           // staging card 封面 URL（最新到達的 result-item）
@@ -355,6 +355,17 @@ window.SearchStateMixin_Base = function() {
             this._coverLoaded = false;
             this.coverError = '';
             this._clearTimer('coverRetry');
+
+            // 防禦：若圖片已在瀏覽器快取中（同 URL 不重觸 @load），
+            // 下一 tick 檢查 complete 狀態，避免 shimmer 永遠遮蓋封面
+            var requestId = this._coverRequestId;
+            this.$nextTick(() => {
+                if (this._coverRequestId !== requestId) return;  // 已被後續重置取代
+                var img = this.$refs.coverImg;
+                if (img && img.complete && img.naturalWidth > 0 && !this._coverLoaded) {
+                    this._coverLoaded = true;
+                }
+            });
         },
     };
 };

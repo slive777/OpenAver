@@ -363,6 +363,9 @@
             if (!detailEl) return null;
             if (typeof gsap === 'undefined') return null;
 
+            // 防禦：清除前一次 ghost 動畫殘留的 opacity:0 / data-ghost-hidden
+            cleanupStaleGhosts();
+
             var cover = detailEl.querySelector('.av-card-full-cover');
             var info = detailEl.querySelector('.av-card-full-info');
 
@@ -577,6 +580,9 @@
         playSlideIn: function (containerEl, direction) {
             if (!containerEl) return null;
             if (typeof gsap === 'undefined') return null;
+
+            // 防禦：清除前一次 ghost 動畫殘留的 opacity:0 / data-ghost-hidden
+            cleanupStaleGhosts();
 
             // C4: 清除舊動畫（C18 interrupt 核心 — 打斷殘留 tween）
             gsap.killTweensOf(containerEl);
