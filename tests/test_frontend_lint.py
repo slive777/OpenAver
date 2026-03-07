@@ -1247,12 +1247,15 @@ class TestStreamState:
         assert '_failed' in content, \
             "search.html 缺少 _failed 相關綁定 — T4 failed slot 視覺"
 
-    def test_failed_slot_uses_visibility_not_display(self):
-        """failed slot 使用 visibility: hidden 而非 x-show 結合 _failed（C10：保留 grid 空間）"""
+    def test_failed_slot_uses_display_none(self):
+        """failed slot 使用 display: none 隱藏（C29 約束：_failed slot 完全移除佈局空間）"""
         content = self.SEARCH_HTML.read_text(encoding='utf-8')
-        assert 'visibility: hidden' in content or 'visibility:hidden' in content, \
-            ("search.html 缺少 visibility: hidden — "
-             "C10 約束：_failed slot 必須用 visibility 保留 grid 空間，不可用 x-show 隱藏")
+        assert 'display: none' in content or 'display:none' in content, \
+            ("search.html 缺少 display: none — "
+             "C29 約束：_failed slot 必須用 display: none 完全隱藏")
+        assert 'visibility: hidden' not in content and 'visibility:hidden' not in content, \
+            ("search.html 仍包含 visibility: hidden — "
+             "C29 約束：已改用 display: none，不應殘留 visibility: hidden")
 
     def test_search_css_has_skeleton_styles(self):
         """search.css 包含 .skeleton-cover class、.shimmer class、@keyframes shimmer"""

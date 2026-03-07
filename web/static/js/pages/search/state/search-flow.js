@@ -274,6 +274,12 @@ window.SearchStateMixin_SearchFlow = {
                         // buffer 已空 → 直接觸發 exit morph
                         this._triggerStagingExit();
                     }
+                    // U11a: repoint currentIndex to first non-_failed item (must be AFTER flush)
+                    const firstValid = this.searchResults.findIndex(r => !r._failed);
+                    if (firstValid !== -1) {
+                        this.currentIndex = firstValid;
+                    }
+                    // else: all _failed → keep currentIndex as-is, fallback path handles it
                 }
                 else if (data.type === 'result') {
                     // T4: Stream guard — 漸進路徑的 result 決定最終狀態後關閉連線

@@ -414,7 +414,7 @@
                              'failed-slot': result._failed,
                              'rotating-border-spotlight active once': !result._skeleton && !result._failed && shouldShowLocalBorder(result)
                          }"
-                         :style="result._failed ? 'visibility: hidden' : ''"
+                         :style="result._failed ? 'display: none' : ''"
                          @click="!result._skeleton && !result._failed && openLightbox(idx)"
                          @animationend.self="!result._skeleton && !result._failed && markLocalBorderPlayed(result?.number)">
                         <div class="av-card-preview-img">
