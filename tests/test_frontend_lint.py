@@ -1913,3 +1913,17 @@ class TestFailedSlotC30Guard:
         content = self.SEARCH_HTML.read_text(encoding='utf-8')
         assert 'hasVisiblePrev()' in content, "search.html 必須使用 hasVisiblePrev() (C30)"
         assert 'hasVisibleNext()' in content, "search.html 必須使用 hasVisibleNext() (C30)"
+
+    SEARCH_FLOW_JS = PROJECT_ROOT / "web/static/js/pages/search/state/search-flow.js"
+
+    def test_repoint_is_conditional(self):
+        """result-complete 的 currentIndex repoint 必須是條件式的：只在當前指向 _failed 時才 repoint (Codex review)"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        # 找到 repoint 區塊
+        idx = content.find('firstValid')
+        assert idx != -1, "search-flow.js 缺少 firstValid repoint 邏輯"
+        # 取 repoint 附近的程式碼區塊（往前 200 字元）
+        repoint_context = content[max(0, idx - 200):idx + 200]
+        # 確認有條件檢查：在 findIndex 之前先檢查當前 item 是否 _failed
+        assert 'currentResult' in repoint_context or 'this.searchResults[this.currentIndex]' in repoint_context, \
+            "repoint 必須先檢查當前 currentIndex 是否指向 _failed item，不可無條件覆蓋 (Codex review)"

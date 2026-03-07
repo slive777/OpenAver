@@ -274,12 +274,15 @@ window.SearchStateMixin_SearchFlow = {
                         // buffer 已空 → 直接觸發 exit morph
                         this._triggerStagingExit();
                     }
-                    // U11a: repoint currentIndex to first non-_failed item (must be AFTER flush)
-                    const firstValid = this.searchResults.findIndex(r => !r._failed);
-                    if (firstValid !== -1) {
-                        this.currentIndex = firstValid;
+                    // U11a: repoint currentIndex only if it points to a _failed slot (Codex review fix)
+                    const currentResult = this.searchResults[this.currentIndex];
+                    if (currentResult && currentResult._failed) {
+                        const firstValid = this.searchResults.findIndex(r => !r._failed);
+                        if (firstValid !== -1) {
+                            this.currentIndex = firstValid;
+                        }
                     }
-                    // else: all _failed → keep currentIndex as-is, fallback path handles it
+                    // else: user already selected a valid item during streaming, don't override
                 }
                 else if (data.type === 'result') {
                     // T4: Stream guard — 漸進路徑的 result 決定最終狀態後關閉連線
