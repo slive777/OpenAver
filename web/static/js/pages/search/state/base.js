@@ -78,6 +78,8 @@ window.SearchStateMixin_Base = function() {
         newTagValue: '',
         coverError: '',
         _coverRetried: false,
+        _coverRequestId: 0,
+        _coverLoaded: false,
         // ===== Fix-1: Duplicate State =====
         duplicateTarget: '',  // duplicate modal 顯示的目標檔名
         duplicateModalOpen: false,  // Alpine state for duplicate modal
@@ -319,6 +321,15 @@ window.SearchStateMixin_Base = function() {
         closeDuplicateModal() {
             this.duplicateModalOpen = false;
             this.duplicateTarget = '';
+        },
+
+        // U8a: centralized cover state reset
+        _resetCoverState() {
+            this._coverRequestId++;
+            this._coverRetried = false;
+            this._coverLoaded = false;
+            this.coverError = '';
+            this._clearTimer('coverRetry');
         },
     };
 };

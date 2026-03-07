@@ -809,6 +809,14 @@ window.SearchStateMixin_SearchFlow = {
         this._timers = {};
     },
 
+    // U8a: single timer clear
+    _clearTimer(key) {
+        if (this._timers[key]) {
+            clearTimeout(this._timers[key]);
+            delete this._timers[key];
+        }
+    },
+
     // ===== T4.3: Fetch AbortController 集中追蹤方法 =====
 
     /**

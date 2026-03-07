@@ -1521,3 +1521,59 @@ class TestAnimationHookup:
         assert 'av-card-full-info' in slide_in_body, (
             "playSlideIn must kill .av-card-full-info child tweens (Codex review fix)"
         )
+
+
+class TestCoverStateGuard:
+    """U8a Cover State 集中管理守衛
+
+    確認 base.js 有 _resetCoverState helper + state fields，
+    search-flow.js 有 _clearTimer method。
+    """
+
+    BASE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/base.js"
+    SEARCH_FLOW_JS = PROJECT_ROOT / "web/static/js/pages/search/state/search-flow.js"
+
+    def test_base_has_reset_cover_state(self):
+        """base.js 包含 _resetCoverState 定義"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        assert '_resetCoverState' in content, \
+            "base.js 缺少 _resetCoverState — U8a 必須新增集中式 cover state reset helper"
+
+    def test_reset_cover_state_increments_request_id(self):
+        """base.js 的 _resetCoverState 包含 _coverRequestId++"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        # 確認 _resetCoverState 方法體內有 _coverRequestId++
+        match = re.search(r'_resetCoverState\s*\(', content)
+        assert match, "base.js 缺少 _resetCoverState 方法定義"
+        method_body = content[match.start():match.start() + 500]
+        assert '_coverRequestId++' in method_body, \
+            "base.js _resetCoverState 缺少 _coverRequestId++ — 必須遞增 request ID"
+
+    def test_reset_cover_state_calls_clear_timer(self):
+        """base.js 的 _resetCoverState 包含 _clearTimer + coverRetry"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        match = re.search(r'_resetCoverState\s*\(', content)
+        assert match, "base.js 缺少 _resetCoverState 方法定義"
+        method_body = content[match.start():match.start() + 500]
+        assert '_clearTimer' in method_body, \
+            "base.js _resetCoverState 缺少 _clearTimer 呼叫 — 必須清除 coverRetry timer"
+        assert 'coverRetry' in method_body, \
+            "base.js _resetCoverState 缺少 coverRetry 參數 — _clearTimer 需指定 key"
+
+    def test_search_flow_has_clear_timer_method(self):
+        """search-flow.js 包含 _clearTimer method 定義"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        assert re.search(r'_clearTimer\s*\(\s*\w+\s*\)', content), \
+            "search-flow.js 缺少 _clearTimer(key) 方法定義 — U8a 必須新增單一 timer 清除方法"
+
+    def test_base_has_cover_request_id_field(self):
+        """base.js 包含 _coverRequestId 初始值"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        assert re.search(r'_coverRequestId\s*:\s*0', content), \
+            "base.js 缺少 _coverRequestId: 0 初始值 — U8a 必須新增 cover request ID 欄位"
+
+    def test_base_has_cover_loaded_field(self):
+        """base.js 包含 _coverLoaded 初始值"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        assert re.search(r'_coverLoaded\s*:\s*false', content), \
+            "base.js 缺少 _coverLoaded: false 初始值 — U8a 必須新增 cover loaded 欄位"
