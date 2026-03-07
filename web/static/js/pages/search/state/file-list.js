@@ -165,6 +165,63 @@ window.SearchStateMixin_FileList = {
         });
     },
 
+    /**
+     * 背景搜尋單一檔案（不影響 UI 共享狀態）
+     * 只寫入 file.searchResults / file.hasMoreResults / file.searched
+     * @param {Object} file - 檔案物件（必須有 file.number）
+     * @returns {Promise<void>} 保證 resolve（不 reject）
+     */
+    async _searchFileBackground(file) {
+        if (file.searched) return;
+
+        return new Promise((resolve) => {
+            let settled = false;
+            const settle = () => { if (!settled) { settled = true; resolve(); } };
+
+            const eventSource = this._trackConnection(new EventSource(`/api/search/stream?q=${encodeURIComponent(file.number)}`));
+
+            // Close-wrapper: 覆寫 close()，確保 _closeAllConnections() forced-close 時 Promise 也能 settle
+            const originalClose = eventSource.close.bind(eventSource);
+            eventSource.close = () => { originalClose(); settle(); };
+
+            eventSource.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+
+                    if (data.type === 'result') {
+                        this._untrackConnection(eventSource);
+                        eventSource.close();
+
+                        if (data.success && data.data && data.data.length > 0) {
+                            file.searchResults = data.data;
+                            file.hasMoreResults = data.has_more || false;
+                            file.searched = true;
+                        } else {
+                            file.searched = true;
+                            file.searchResults = [];
+                        }
+                    }
+                    else if (data.type === 'error') {
+                        this._untrackConnection(eventSource);
+                        eventSource.close();
+                        file.searched = true;
+                        file.searchResults = [];
+                    }
+                    // seed / result-item / status / mode: 忽略（背景模式不需要漸進 UI）
+                } catch (err) {
+                    console.error('Background search parse error:', err);
+                }
+            };
+
+            eventSource.onerror = () => {
+                this._untrackConnection(eventSource);
+                eventSource.close();
+                file.searched = true;
+                file.searchResults = [];
+            };
+        });
+    },
+
     switchToSearchResult(index) {
         if (index < 0 || index >= this.searchResults.length) return;
         this.currentIndex = index;
