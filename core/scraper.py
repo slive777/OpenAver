@@ -384,7 +384,7 @@ def search_prefix(prefix: str, limit: int = 20, offset: int = 0, status_callback
                      status_callback('javbus', f'details:{completed_count}/{len(target_ids)}')
                 try:
                     data = future.result()
-                    if data:
+                    if data and data.get('title'):
                         results.append(data)
                         if result_callback:
                             result_callback(idx, data)
@@ -451,7 +451,7 @@ def search_actress(name: str, limit: int = 20, offset: int = 0, status_callback:
                         idx, num = futures[future]
                         try:
                             data = future.result()
-                            if data:
+                            if data and data.get('title'):
                                 results.append(data)
                                 if result_callback:
                                     result_callback(idx, data)
