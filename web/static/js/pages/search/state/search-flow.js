@@ -37,15 +37,24 @@ window.SearchStateMixin_SearchFlow = {
         this.isStreaming = false;
         this.streamComplete = false;
         this.streamSlots = [];
-        this.streamFilled = [];
         // U2: 清除 staging buffer + timer（C15 約束）
         if (this.streamBurstTimer !== null) {
             clearTimeout(this.streamBurstTimer);
             this.streamBurstTimer = null;
         }
+        // U3: 清除 cover swap debounce timer（C15 約束）
+        if (this._coverSwapTimer !== null) {
+            clearTimeout(this._coverSwapTimer);
+            this._coverSwapTimer = null;
+        }
         this.streamBuffer = [];
         this.streamBurstedSlots = [];
         this.stagingVisible = false;
+        // U3: 重置 staging display state
+        this.stagingCover = '';
+        this.stagingNumber = '';
+        this.stagingReceivedCount = 0;
+        this._stagingCardWidth = 0;
         // 同步 Alpine state
         this.searchResults = [];
         this.currentIndex = 0;
@@ -123,15 +132,24 @@ window.SearchStateMixin_SearchFlow = {
         this.isStreaming = false;
         this.streamComplete = false;
         this.streamSlots = [];
-        this.streamFilled = [];
         // U2: 重置 staging buffer state（C15 約束）
         this.streamBuffer = [];
         if (this.streamBurstTimer !== null) {
             clearTimeout(this.streamBurstTimer);
             this.streamBurstTimer = null;
         }
+        // U3: 清除 cover swap debounce timer（C15 約束）
+        if (this._coverSwapTimer !== null) {
+            clearTimeout(this._coverSwapTimer);
+            this._coverSwapTimer = null;
+        }
         this.streamBurstedSlots = [];
         this.stagingVisible = false;
+        // U3: 重置 staging display state
+        this.stagingCover = '';
+        this.stagingNumber = '';
+        this.stagingReceivedCount = 0;
+        this._stagingCardWidth = 0;
 
         // 檔案列表由 x-show 自動隱藏（listMode=null, fileList=[]）
 
@@ -162,7 +180,6 @@ window.SearchStateMixin_SearchFlow = {
                     this.isStreaming = true;
                     this.streamComplete = false;
                     this.streamSlots = data.slots;
-                    this.streamFilled = new Array(data.slots.length).fill(false);
                     this.streamBurstedSlots = new Array(data.slots.length).fill(false);
                     this.searchResults = data.slots.map(num => ({ number: num, _skeleton: true }));
                     this.currentIndex = 0;
@@ -176,6 +193,11 @@ window.SearchStateMixin_SearchFlow = {
                             const grid = document.querySelector('.search-grid');
                             if (grid) {
                                 window.SearchAnimations?.playGridFadeIn?.(grid);
+                                // U3: 預量 grid card 寬度，供 staging card 首次顯示時同步
+                                const gridCard = grid.querySelector('.av-card-preview:not(.hero-card)');
+                                if (gridCard) {
+                                    this._stagingCardWidth = gridCard.getBoundingClientRect().width;
+                                }
                             }
                         });
                     });
@@ -186,10 +208,37 @@ window.SearchStateMixin_SearchFlow = {
                     if (slot >= 0 && slot < this.searchResults.length) {
                         // U2: 推入 staging buffer（不直接修改 searchResults）
                         this.streamBuffer.push({ slot, data: item });
-                        // 保持 loading strip 可用（streamFilled 仍更新）
-                        this.streamFilled = this.streamFilled.map((v, i) => i === slot ? true : v);
-                        // 顯示 staging 容器
+
+                        // U3: 更新 staging display state（C16 裝飾性）
+                        this.stagingCover = item.cover || '';
+                        this.stagingNumber = item.number || '';
+                        this.stagingReceivedCount++;
+
+                        // 首次顯示 staging 容器 → 觸發進場 morph
+                        const wasHidden = !this.stagingVisible;
                         this.stagingVisible = true;
+
+                        if (wasHidden) {
+                            // 首次顯示：套用 seed 時預量的 grid card 寬度 + playStagingEntry
+                            this.$nextTick(() => {
+                                const stagingCardEl = this.$refs?.stagingCard;
+                                if (stagingCardEl && this._stagingCardWidth > 0) {
+                                    stagingCardEl.style.width = this._stagingCardWidth + 'px';
+                                }
+                                window.SearchAnimations?.playStagingEntry?.(stagingCardEl);
+                            });
+                        } else {
+                            // 後續到達：playCoverSwap debounce（C20：150ms 內多筆只觸發一次）
+                            if (this._coverSwapTimer !== null) {
+                                clearTimeout(this._coverSwapTimer);
+                            }
+                            this._coverSwapTimer = setTimeout(() => {
+                                this._coverSwapTimer = null;
+                                const stagingImgEl = this.$refs?.stagingImg;
+                                window.SearchAnimations?.playCoverSwap?.(stagingImgEl);
+                            }, 150);
+                        }
+
                         // 啟動時間窗口 timer（若尚未排程）
                         this._scheduleFlushTimer();
                     }
@@ -197,17 +246,16 @@ window.SearchStateMixin_SearchFlow = {
                 // T4: result-complete handler（C9 約束 — 失敗 slot 原地標記）
                 else if (data.type === 'result-complete') {
                     // Issue 1 fix: 不在此關閉 EventSource，讓後端的 fallback result 能送達
-                    // Fix: streamComplete 先設 true（bar → 100%），下一 tick 才關 isStreaming（觸發 x-transition 離場）
-                    // 同一 tick 設兩者會被 Alpine batch 成一次 DOM patch，bar 來不及 paint 100%
                     this.streamComplete = true;
-                    // U2: 清除 timer（C15 約束）
+                    // U2: 清除 burst timer（C15 約束）
                     if (this.streamBurstTimer !== null) {
                         clearTimeout(this.streamBurstTimer);
                         this.streamBurstTimer = null;
                     }
-                    // U2: flush 剩餘 streamBuffer（最後一批，不管 MIN_BATCH_COUNT）
-                    if (this.streamBuffer.length > 0) {
-                        this._flushStreamBuffer();
+                    // U3: 清除 cover swap debounce timer（C15 約束）
+                    if (this._coverSwapTimer !== null) {
+                        clearTimeout(this._coverSwapTimer);
+                        this._coverSwapTimer = null;
                     }
                     this.$nextTick(() => { this.isStreaming = false; });
                     this.hasMoreResults = data.has_more || false;
@@ -218,8 +266,13 @@ window.SearchStateMixin_SearchFlow = {
                     this.searchResults = this.searchResults.map(r =>
                         r._skeleton ? { ...r, _skeleton: false, _failed: true } : r
                     );
-                    // U2: staging 容器隱藏（U3 接管 exit morph 後，此行由 onComplete 回調呼叫）
-                    this.stagingVisible = false;
+                    // U3: flush 剩餘 streamBuffer（isFinal=true），chain exit morph
+                    if (this.streamBuffer.length > 0) {
+                        this._flushStreamBuffer(true);
+                    } else {
+                        // buffer 已空 → 直接觸發 exit morph
+                        this._triggerStagingExit();
+                    }
                 }
                 else if (data.type === 'result') {
                     // T4: Stream guard — 漸進路徑的 result 決定最終狀態後關閉連線
@@ -243,7 +296,6 @@ window.SearchStateMixin_SearchFlow = {
                             this.isStreaming = false;
                             this.streamComplete = false;
                             this.streamSlots = [];
-                            this.streamFilled = [];
                             window.SearchUI.showState('result');
                             this.hasContent = true;
                             // Issue 2: 查詢本地狀態
@@ -335,19 +387,28 @@ window.SearchStateMixin_SearchFlow = {
             eventSource.close();
             this._untrackConnection(eventSource);
             this.activeEventSource = null;
-            // T4: 清除 stream state（防 loading strip / stream UI 殘留到 fallback）
+            // T4: 清除 stream state（防 stream UI 殘留到 fallback）
             this.isStreaming = false;
             this.streamComplete = false;
             this.streamSlots = [];
-            this.streamFilled = [];
             // U2: 清除 staging buffer + timer（進 fallback 前必須清乾淨）
             if (this.streamBurstTimer !== null) {
                 clearTimeout(this.streamBurstTimer);
                 this.streamBurstTimer = null;
             }
+            // U3: 清除 cover swap debounce timer
+            if (this._coverSwapTimer !== null) {
+                clearTimeout(this._coverSwapTimer);
+                this._coverSwapTimer = null;
+            }
             this.streamBuffer = [];
             this.streamBurstedSlots = [];
             this.stagingVisible = false;
+            // U3: 重置 staging display state
+            this.stagingCover = '';
+            this.stagingNumber = '';
+            this.stagingReceivedCount = 0;
+        this._stagingCardWidth = 0;
             this.fallbackSearch(query, currentRequestId); // Fix 3: 傳入 requestId
         };
     },
@@ -443,15 +504,24 @@ window.SearchStateMixin_SearchFlow = {
         this.isStreaming = false;
         this.streamComplete = false;
         this.streamSlots = [];
-        this.streamFilled = [];
         // U2: 清除 staging buffer + timer（C15 約束）
         if (this.streamBurstTimer !== null) {
             clearTimeout(this.streamBurstTimer);
             this.streamBurstTimer = null;
         }
+        // U3: 清除 cover swap debounce timer（C15 約束）
+        if (this._coverSwapTimer !== null) {
+            clearTimeout(this._coverSwapTimer);
+            this._coverSwapTimer = null;
+        }
         this.streamBuffer = [];
         this.streamBurstedSlots = [];
         this.stagingVisible = false;
+        // U3: 重置 staging display state
+        this.stagingCover = '';
+        this.stagingNumber = '';
+        this.stagingReceivedCount = 0;
+        this._stagingCardWidth = 0;
 
         // 還原到搜尋前的狀態
         const snap = this._searchSnapshot;
@@ -482,12 +552,17 @@ window.SearchStateMixin_SearchFlow = {
     /**
      * 取出 streamBuffer 全部項目，批量填入 searchResults（單次 Alpine render）
      * 契約：幂等（buffer 為空直接 return）；C13 clone array
+     * @param {boolean} [isFinal=false] - true 時 chain exit morph（result-complete 呼叫）
      */
-    _flushStreamBuffer() {
-        if (this.streamBuffer.length === 0) return;
+    _flushStreamBuffer(isFinal = false) {
+        if (this.streamBuffer.length === 0) {
+            if (isFinal) this._triggerStagingExit();
+            return;
+        }
 
         // 取出全部項目並清空 buffer
         const items = this.streamBuffer.splice(0);
+        const flushedSlots = items.map(({ slot }) => slot);
 
         // C13: clone array，單次更新 searchResults（避免多次 Alpine patch）
         const clonedResults = [...this.searchResults];
@@ -502,7 +577,82 @@ window.SearchStateMixin_SearchFlow = {
         }
         this.searchResults = clonedResults;
 
-        // U3: trigger playMiniBurst here
+        // U3: playMiniBurst — 等 Alpine 渲染完成後找新卡片 DOM
+        const capturedRequestId = this.requestId;
+        this.$nextTick(() => {
+            // requestId guard：防止新搜尋後舊 flush 動畫污染
+            if (capturedRequestId !== this.requestId) return;
+
+            const stagingEl = this.$refs?.stagingCard;
+            const grid = document.querySelector('.search-grid');
+            if (!grid) {
+                if (isFinal) this._triggerStagingExit();
+                return;
+            }
+
+            // 找本批 flush 的卡片 DOM（按 data-slot 屬性匹配）
+            const cards = flushedSlots
+                .map(slot => grid.querySelector(`[data-slot="${slot}"]`))
+                .filter(Boolean);
+
+            if (!cards.length) {
+                if (isFinal) this._triggerStagingExit();
+                return;
+            }
+
+            // 動態同步 staging card 寬度：每批 burst 前量測 cards[0]（避免首次量到 0）
+            const stagingCardEl = this.$refs?.stagingCard;
+            if (cards[0] && stagingCardEl) {
+                const cardWidth = cards[0].getBoundingClientRect().width;
+                if (cardWidth > 0) {
+                    stagingCardEl.style.width = cardWidth + 'px';
+                }
+            }
+
+            // 呼叫 playMiniBurst（optional chaining，SearchAnimations 未載入時功能正常）
+            window.SearchAnimations?.playMiniBurst?.(cards, stagingEl, {
+                onComplete: isFinal ? () => { this._triggerStagingExit(); } : undefined
+            });
+
+            // SearchAnimations 不存在時，isFinal 直接觸發 exit
+            if (!window.SearchAnimations && isFinal) {
+                this._triggerStagingExit();
+            }
+        });
+    },
+
+    /**
+     * 觸發 staging exit morph（幂等）
+     * 契約：if (!this.stagingVisible) return（防止重複呼叫）
+     * onComplete → stagingVisible = false + 重置 staging display state
+     */
+    _triggerStagingExit() {
+        if (!this.stagingVisible) return;
+
+        const stagingEl = this.$refs?.stagingCard;
+        const self = this;
+
+        function onExitComplete() {
+            self.stagingVisible = false;
+            self.stagingCover = '';
+            self.stagingNumber = '';
+            self.stagingReceivedCount = 0;
+            self._stagingCardWidth = 0;
+        }
+
+        if (!window.SearchAnimations) {
+            onExitComplete();
+            return;
+        }
+
+        window.SearchAnimations?.playStagingExit?.(stagingEl, {
+            onComplete: onExitComplete
+        });
+
+        // playStagingExit 不存在時直接設 false
+        if (!window.SearchAnimations?.playStagingExit) {
+            onExitComplete();
+        }
     },
 
     /**
@@ -550,15 +700,24 @@ window.SearchStateMixin_SearchFlow = {
         this.isStreaming = false;
         this.streamComplete = false;
         this.streamSlots = [];
-        this.streamFilled = [];
         // U2: 清除 staging buffer + timer（streamBurstTimer 不在 _timers registry，需獨立清）
         if (this.streamBurstTimer !== null) {
             clearTimeout(this.streamBurstTimer);
             this.streamBurstTimer = null;
         }
+        // U3: 清除 cover swap debounce timer（C15 約束）
+        if (this._coverSwapTimer !== null) {
+            clearTimeout(this._coverSwapTimer);
+            this._coverSwapTimer = null;
+        }
         this.streamBuffer = [];
         this.streamBurstedSlots = [];
         this.stagingVisible = false;
+        // U3: 重置 staging display state
+        this.stagingCover = '';
+        this.stagingNumber = '';
+        this.stagingReceivedCount = 0;
+        this._stagingCardWidth = 0;
 
         // T4.2: 清除所有 setTimeout timer
         this._clearAllTimers();

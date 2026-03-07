@@ -19,7 +19,6 @@ window.SearchStateMixin_Base = function() {
 
         // ===== Stream 狀態（T4：actress/prefix 漸進流入） =====
         streamSlots: [],          // seed 番號列表 ['SSIS-816', 'SSIS-815', ...]
-        streamFilled: [],         // boolean array，對應 slot 是否已填入
         streamComplete: false,    // result-complete 已收到
         isStreaming: false,       // seed 收到 ~ result-complete 收到期間為 true
 
@@ -29,9 +28,14 @@ window.SearchStateMixin_Base = function() {
         streamBurstedSlots: [],  // 已 burst 到 grid 的 slot index（boolean array，長度與 streamSlots 一致）
         stagingVisible: false,   // staging 容器可見性（獨立於 isStreaming）
                                  // isStreaming 在 result-complete 後立即 false，
-                                 // 但 stagingVisible 等 exit morph onComplete 才 false（U3 接管）
-        // streamFilled 保留 — search.html L352 loading strip 仍在用
-        // U3 移除 loading strip 時一併移除 streamFilled
+                                 // 但 stagingVisible 等 exit morph onComplete 才 false
+
+        // ===== U3: Staging Card 顯示 State（裝飾性，C16） =====
+        stagingCover: '',           // staging card 封面 URL（最新到達的 result-item）
+        stagingNumber: '',          // staging card 番號（最新到達的 result-item）
+        stagingReceivedCount: 0,    // staging card 已收到計數（badge 用）
+        _coverSwapTimer: null,      // cover swap debounce timer ID（C20 約束）
+        _stagingCardWidth: 0,       // seed 時預量的 grid card 寬度（staging 首次顯示同步用）
 
         // ===== File List State =====
         fileList: [],

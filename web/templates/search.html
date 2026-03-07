@@ -346,12 +346,35 @@
             </div>
             </div>
 
-            <!-- T5: Stream Loading Strip -->
-            <div class="stream-progress" x-show="isStreaming && displayMode === 'grid'" x-transition>
-                <div class="stream-bar"
-                     :style="'width:' + (streamComplete ? 100 : (streamSlots.length > 0 ? Math.round(streamFilled.filter(Boolean).length / streamSlots.length * 100) : 0)) + '%'">
+            <!-- U3: Grid + Staging Overlay 容器 -->
+            <div class="grid-staging-wrapper">
+                <!-- Staging Anchor — overlay layer，浮在 grid 上方，不佔 flow 空間 -->
+                <div class="staging-anchor ds-gallery-composition"
+                     x-show="stagingVisible && displayMode === 'grid'"
+                     x-cloak>
+                    <div class="av-card-preview staging-card" x-ref="stagingCard">
+                        <div class="av-card-preview-img">
+                            <img x-ref="stagingImg"
+                                 :src="stagingCover ? `/api/proxy-image?url=${encodeURIComponent(stagingCover)}` : ''"
+                                 x-show="stagingCover"
+                                 style="width:100%; height:100%; object-fit:cover; display:block;"
+                                 alt="">
+                            <div class="av-card-no-cover" x-show="!stagingCover">
+                                <i class="bi bi-hourglass-split"></i>
+                            </div>
+                        </div>
+                        <div class="av-card-preview-footer">
+                            <div class="footer-default">
+                                <span class="av-num" x-text="stagingNumber || '...'">...</span>
+                                <span class="staging-counter-badge"
+                                      x-show="stagingReceivedCount > 0"
+                                      x-text="stagingReceivedCount + ' / ' + streamSlots.length"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Progress log -->
+                    <div class="staging-progress-log" x-text="progressLog">搜尋中...</div>
                 </div>
-            </div>
 
             <!-- T2a: Grid Mode（封面牆） -->
             <div class="search-grid ds-gallery-composition" x-show="displayMode === 'grid' && listMode === 'search'" x-cloak>
@@ -426,6 +449,7 @@
                     </div>
                 </template>
             </div>
+            </div><!-- /.grid-staging-wrapper -->
 
             <!-- 檔案列表（卡片外，下方獨立） -->
             <div class="file-list-section" id="fileListSection"

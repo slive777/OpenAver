@@ -1187,12 +1187,10 @@ class TestStreamState:
     SEARCH_CSS = PROJECT_ROOT / "web/static/css/pages/search.css"
 
     def test_base_js_has_stream_state_fields(self):
-        """base.js 宣告四個 stream state 欄位：streamSlots、streamFilled、streamComplete、isStreaming"""
+        """base.js 宣告 stream state 欄位：streamSlots、streamComplete、isStreaming + U2 staging buffer + U3 staging display"""
         content = self.BASE_JS.read_text(encoding='utf-8')
         assert 'streamSlots' in content, \
             "base.js 缺少 streamSlots 欄位宣告 — T4 stream state contract"
-        assert 'streamFilled' in content, \
-            "base.js 缺少 streamFilled 欄位宣告 — T4 stream state contract"
         assert 'streamComplete' in content, \
             "base.js 缺少 streamComplete 欄位宣告 — T4 stream state contract"
         assert 'isStreaming' in content, \
@@ -1206,14 +1204,28 @@ class TestStreamState:
             "base.js 缺少 streamBurstedSlots 欄位宣告 — U2 burst tracking"
         assert 'stagingVisible' in content, \
             "base.js 缺少 stagingVisible 欄位宣告 — U2 staging 容器可見性"
+        # U3: streamFilled 已移除（loading strip 移除），新增 staging 顯示 state
+        assert 'streamFilled' not in content, \
+            "base.js 仍含 streamFilled 欄位 — U3 應已移除（loading strip 移除後成為死碼）"
+        assert 'stagingCover' in content, \
+            "base.js 缺少 stagingCover 欄位宣告 — U3 staging card 封面 URL"
+        assert 'stagingNumber' in content, \
+            "base.js 缺少 stagingNumber 欄位宣告 — U3 staging card 番號"
+        assert 'stagingReceivedCount' in content, \
+            "base.js 缺少 stagingReceivedCount 欄位宣告 — U3 staging card 計數"
 
     def test_result_item_uses_stream_buffer(self):
-        """result-item handler 推入 streamBuffer，不直接更新 searchResults（U2 batching 約束）"""
+        """result-item handler 推入 streamBuffer，不直接更新 searchResults（U2 batching 約束）；U3 新增 staging state 更新"""
         content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
         assert 'streamBuffer' in content, \
             "search-flow.js 缺少 streamBuffer 引用 — U2 batching 邏輯"
         assert 'streamBurstTimer' in content, \
             "search-flow.js 缺少 streamBurstTimer 引用 — U2 時間窗口 timer"
+        # U3: result-item handler 更新 staging state
+        assert 'stagingCover' in content, \
+            "search-flow.js 缺少 stagingCover 引用 — U3 result-item handler 更新 staging display state"
+        assert 'stagingNumber' in content, \
+            "search-flow.js 缺少 stagingNumber 引用 — U3 result-item handler 更新 staging display state"
 
     def test_search_flow_handles_seed_event(self):
         """search-flow.js 包含 seed、result-item、result-complete 三種 SSE 事件 handler"""
@@ -1296,38 +1308,63 @@ class TestAnimationHookup:
              "確保 window.SearchAnimations 在 SSE handler 執行前已掛上")
 
     def test_search_flow_has_animation_trigger_in_result_item(self):
-        """search-flow.js 包含 SearchAnimations 引用；U2 後動畫移至 flush 函數（hook point 給 U3）"""
+        """search-flow.js 包含 SearchAnimations 引用；U3 後 playMiniBurst 在 _flushStreamBuffer 呼叫"""
         content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
         assert 'SearchAnimations' in content, \
             "search-flow.js 缺少 SearchAnimations 引用 — playGridFadeIn 仍在 seed handler 使用"
-        # U2: playCardStreamIn 已從 result-item handler 移除，改由 U3 在 _flushStreamBuffer 接管
-        # 確認 U3 hook point 存在（flush 函數預留 miniBurst 觸發點）
-        assert 'U3: trigger playMiniBurst here' in content, \
-            "search-flow.js 缺少 U3 hook point 註解 — _flushStreamBuffer 應預留 '// U3: trigger playMiniBurst here'"
+        # U3: playMiniBurst 已接入 _flushStreamBuffer，hook point 註解已移除
+        assert 'playMiniBurst' in content, \
+            "search-flow.js 缺少 playMiniBurst 引用 — U3 _flushStreamBuffer 應呼叫 playMiniBurst"
 
-    def test_search_flow_has_next_tick_in_result_item(self):
-        """result-item 的動畫觸發用 $nextTick + requestAnimationFrame（等 DOM patch）"""
-        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
-        assert '$nextTick' in content, \
-            "search-flow.js 缺少 $nextTick — T5 動畫觸發需等 Alpine DOM patch 完成"
-        assert 'requestAnimationFrame' in content, \
-            "search-flow.js 缺少 requestAnimationFrame — T5 確保 paint 在動畫 from 狀態前發生"
-
-    def test_loading_strip_html_exists(self):
-        """search.html 包含 stream-progress 元素（x-show="isStreaming"）"""
+    def test_staging_card_html_exists(self):
+        """search.html 包含 staging-anchor overlay（.staging-card、stagingVisible + displayMode guard、stagingCover、stagingNumber、stagingReceivedCount）"""
         content = self.SEARCH_HTML.read_text(encoding='utf-8')
-        assert 'stream-progress' in content, \
-            "search.html 缺少 stream-progress 元素 — T5 loading strip HTML"
-        assert 'isStreaming' in content, \
-            "search.html 缺少 isStreaming 綁定 — loading strip 需用 x-show=\"isStreaming\""
+        assert 'staging-anchor' in content, \
+            "search.html 缺少 staging-anchor class — U3 staging overlay HTML"
+        assert 'staging-card' in content, \
+            "search.html 缺少 staging-card class — U3 staging card HTML"
+        assert 'stagingVisible' in content, \
+            "search.html 缺少 stagingVisible 綁定 — U3 staging card 可見性控制"
+        assert "displayMode === 'grid'" in content, \
+            "search.html staging x-show 缺少 displayMode === 'grid' guard — 切 detail view 時不該顯示 staging"
+        assert 'stagingCover' in content, \
+            "search.html 缺少 stagingCover 綁定 — U3 staging card 封面圖"
+        assert 'stagingNumber' in content, \
+            "search.html 缺少 stagingNumber 綁定 — U3 staging card 番號"
+        assert 'stagingReceivedCount' in content, \
+            "search.html 缺少 stagingReceivedCount 綁定 — U3 staging card 計數 badge"
 
-    def test_loading_strip_css_exists(self):
-        """search.css 包含 .stream-progress 和 .stream-bar class"""
+    def test_staging_card_css_exists(self):
+        """search.css 包含 staging card CSS（.staging-anchor、.staging-counter-badge）"""
         content = self.SEARCH_CSS.read_text(encoding='utf-8')
-        assert '.stream-progress' in content, \
-            "search.css 缺少 .stream-progress class — T5 loading strip 樣式"
-        assert '.stream-bar' in content, \
-            "search.css 缺少 .stream-bar class — T5 loading strip 進度條樣式"
+        assert '.staging-anchor' in content, \
+            "search.css 缺少 .staging-anchor class — U3 staging overlay 容器樣式"
+        assert '.staging-counter-badge' in content, \
+            "search.css 缺少 .staging-counter-badge class — U3 計數 badge 樣式"
+
+    def test_animations_js_has_play_mini_burst(self):
+        """animations.js 包含 playMiniBurst 方法（U3 mini-burst 動畫）"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'playMiniBurst' in content, \
+            "animations.js 缺少 playMiniBurst — U3 必須新增此方法（gsap.fromTo 偏移飛行）"
+
+    def test_animations_js_has_staging_animations(self):
+        """animations.js 包含 playStagingEntry、playStagingExit、playCoverSwap 方法"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'playStagingEntry' in content, \
+            "animations.js 缺少 playStagingEntry — U3 staging card 進場 morph"
+        assert 'playStagingExit' in content, \
+            "animations.js 缺少 playStagingExit — U3 staging card 退場 morph + onComplete"
+        assert 'playCoverSwap' in content, \
+            "animations.js 缺少 playCoverSwap — U3 staging card 封面替換動畫"
+
+    def test_flush_triggers_animation(self):
+        """search-flow.js 的 _flushStreamBuffer 包含 playMiniBurst 引用（U3 接 mini-burst 動畫）"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        assert '_flushStreamBuffer' in content, \
+            "search-flow.js 缺少 _flushStreamBuffer 方法 — U2/U3 batching 核心函數"
+        assert 'playMiniBurst' in content, \
+            "search-flow.js 缺少 playMiniBurst 呼叫 — U3 _flushStreamBuffer 必須觸發 mini-burst 動畫"
 
     def test_animations_js_has_reduced_motion_guard(self):
         """animations.js 檢查 prefersReducedMotion（Reduced Motion 降級）"""
