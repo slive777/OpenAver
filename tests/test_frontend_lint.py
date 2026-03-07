@@ -1490,3 +1490,19 @@ class TestAnimationHookup:
         assert "playDetailEntry" in content, (
             "file-list.js must call playDetailEntry for file search results (U7a)"
         )
+
+    # ===== U7b: File Switch Cached Slide Guards =====
+
+    def test_file_switch_cached_has_slide(self):
+        """U7b: file-list.js switchToFile() cached path triggers playSlideIn"""
+        content = self.FILE_LIST_JS.read_text(encoding="utf-8")
+        assert "playSlideIn" in content, (
+            "file-list.js must call playSlideIn for cached file switch (U7b)"
+        )
+
+    def test_file_switch_has_kill_tweens(self):
+        """U7b: file-list.js switchToFile() cached path interrupts old animation"""
+        content = self.FILE_LIST_JS.read_text(encoding="utf-8")
+        assert "killTweensOf" in content, (
+            "file-list.js must call killTweensOf for C18 interrupt in file switch (U7b)"
+        )

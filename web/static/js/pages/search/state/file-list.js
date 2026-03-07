@@ -23,12 +23,24 @@ window.SearchStateMixin_FileList = {
         if (!file.searched) {
             await this.searchForFile(file, position, showFullLoading);
         } else if (file.searchResults && file.searchResults.length > 0) {
+            // U7b: C18 interrupt old animation
+            var detailEl = document.querySelector('.av-card-full');
+            if (typeof gsap !== 'undefined' && detailEl) {
+                gsap.killTweensOf(detailEl);
+            }
+
             this.searchResults = file.searchResults;
             this.hasMoreResults = file.hasMoreResults || false;
             this.currentIndex = position === 'last' ? this.searchResults.length - 1 : 0;
             this.coverError = '';
 
             window.SearchUI.showState('result');
+            // U7b: slide-in animation (C22: direction from position hint)
+            var direction = position === 'first' ? 'next' : 'prev';
+            this.$nextTick(() => {
+                var el = document.querySelector('.av-card-full');
+                window.SearchAnimations?.playSlideIn?.(el, direction);
+            });
         } else {
             this.searchResults = [];
             this.hasMoreResults = false;
