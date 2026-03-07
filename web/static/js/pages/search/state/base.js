@@ -160,30 +160,57 @@ window.SearchStateMixin_Base = function() {
         },
 
         canGoPrev() {
-            return this.currentIndex > 0 || this.currentFileIndex > 0;
+            if (this.listMode === 'file') {
+                // 同層級：前方有非 _failed item
+                const hasPrevVisible = this.searchResults.slice(0, this.currentIndex).some(r => !r._failed);
+                // 跨檔案：可退到上一個檔案
+                return hasPrevVisible || this.currentFileIndex > 0;
+            }
+            return this.searchResults.slice(0, this.currentIndex).some(r => !r._failed);
         },
 
         canGoNext() {
-            return this.currentIndex < this.searchResults.length - 1 ||
-                   this.hasMoreResults ||
-                   this.currentFileIndex < this.fileList.length - 1;
+            if (this.listMode === 'file') {
+                const hasNextVisible = this.searchResults.slice(this.currentIndex + 1).some(r => !r._failed);
+                return hasNextVisible || this.hasMoreResults || this.currentFileIndex < this.fileList.length - 1;
+            }
+            return this.searchResults.slice(this.currentIndex + 1).some(r => !r._failed) || this.hasMoreResults;
+        },
+
+        hasVisiblePrev() {
+            if (this.lightboxIndex === -1) return false;  // 已在 actress photo 最左
+            if (this.lightboxIndex === 0) return !!this.actressProfile;  // 可跳到 actress
+            // lightboxIndex > 0：前方有非 _failed item 或有 actressProfile
+            const hasPrevVisible = this.searchResults.slice(0, this.lightboxIndex).some(r => !r._failed);
+            return hasPrevVisible || !!this.actressProfile;
+        },
+
+        hasVisibleNext() {
+            if (this.lightboxIndex === -1) {
+                // 從 actress photo 看有沒有可見 item
+                return this.searchResults.some(r => !r._failed);
+            }
+            return this.searchResults.slice(this.lightboxIndex + 1).some(r => !r._failed);
         },
 
         showNavigation() {
-            const hasMultipleResults = this.searchResults.length > 1 || this.hasMoreResults;
+            const visibleCount = this.searchResults.filter(r => !r._failed).length;
+            const hasMultipleResults = visibleCount > 1 || this.hasMoreResults;
             const hasMultipleFiles = this.fileList.length > 1;
             return hasMultipleResults || hasMultipleFiles;
         },
 
         navIndicatorText() {
             if (this.fileList.length > 1) {
+                // file 模式：維持原邏輯
                 return `${this.currentFileIndex + 1}/${this.fileList.length}`;
-            } else {
-                const total = this.hasMoreResults
-                    ? this.searchResults.length + '+'
-                    : this.searchResults.length;
-                return `${this.currentIndex + 1}/${total}`;
             }
+            // search 模式：排除 _failed
+            const visibleItems = this.searchResults.filter(r => !r._failed);
+            // position: 在 visibleItems 中，原始 index <= currentIndex 的數量
+            const position = this.searchResults.slice(0, this.currentIndex + 1).filter(r => !r._failed).length;
+            const total = this.hasMoreResults ? visibleItems.length + '+' : visibleItems.length;
+            return `${position}/${total}`;
         },
 
         detailProgressPercent() {
@@ -196,12 +223,10 @@ window.SearchStateMixin_Base = function() {
         fileCountText() {
             if (this.listMode === 'file') {
                 return `檔案 ${this.currentFileIndex + 1}/${this.fileList.length}`;
-            } else {
-                const total = this.hasMoreResults
-                    ? this.searchResults.length + '+'
-                    : this.searchResults.length;
-                return `搜尋結果 (${total})`;
             }
+            const visibleCount = this.searchResults.filter(r => !r._failed).length;
+            const total = this.hasMoreResults ? visibleCount + '+' : visibleCount;
+            return `搜尋結果 (${total})`;
         },
 
         searchAllButtonText() {
