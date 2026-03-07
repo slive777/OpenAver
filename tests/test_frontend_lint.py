@@ -1745,3 +1745,91 @@ class TestCoverStateGuard:
             "handleCoverError 的 coverUrl 檢查必須在 _coverRetried 之前 — "
             "空 coverUrl 時應直接 return，避免 stale @error 觸發錯誤的 retry"
         )
+
+
+class TestSearchAllRaceGuard:
+    """U10 guard: _searchFileBackground + searchAll 共享狀態競態保護"""
+
+    FILE_LIST_JS = PROJECT_ROOT / "web/static/js/pages/search/state/file-list.js"
+    BATCH_JS = PROJECT_ROOT / "web/static/js/pages/search/state/batch.js"
+
+    def test_search_file_background_exists(self):
+        """file-list.js 必須包含 _searchFileBackground 方法"""
+        content = self.FILE_LIST_JS.read_text(encoding='utf-8')
+        assert '_searchFileBackground' in content, \
+            "file-list.js 缺少 _searchFileBackground — U10a 必須新增背景搜尋方法"
+
+    def test_search_file_background_no_shared_state_writes(self):
+        """_searchFileBackground 不應讀寫共享 UI 狀態（只能操作 file 物件）"""
+        content = self.FILE_LIST_JS.read_text(encoding='utf-8')
+        match = re.search(r'_searchFileBackground\s*\(', content)
+        assert match, "file-list.js 缺少 _searchFileBackground 方法定義"
+        method_body = content[match.start():match.start() + 2000]
+
+        # 負面斷言：不應碰共享 UI 狀態
+        assert 'this.currentFileIndex' not in method_body, \
+            "_searchFileBackground 不應寫入 this.currentFileIndex — 背景搜尋不碰共享狀態"
+        assert 'this.currentIndex' not in method_body, \
+            "_searchFileBackground 不應寫入 this.currentIndex — 背景搜尋不碰共享狀態"
+        assert 'this.displayMode' not in method_body, \
+            "_searchFileBackground 不應寫入 this.displayMode — 背景搜尋不碰共享狀態"
+        assert 'window.SearchUI.showState' not in method_body, \
+            "_searchFileBackground 不應呼叫 window.SearchUI.showState — 背景搜尋不碰 UI"
+
+        # 特殊處理：排除 file.searchResults 誤判
+        assert 'this.searchResults' not in method_body, \
+            "_searchFileBackground 不應讀寫 this.searchResults — 背景搜尋只能操作 file.searchResults"
+
+        # 正面斷言：應操作 file 物件
+        assert 'file.searchResults' in method_body, \
+            "_searchFileBackground 必須寫入 file.searchResults — 結果存在 file 物件上"
+        assert 'file.searched' in method_body, \
+            "_searchFileBackground 必須寫入 file.searched — 標記搜尋完成"
+
+    def test_search_all_uses_background_search(self):
+        """batch.js 的 searchAll 必須使用 _searchFileBackground"""
+        content = self.BATCH_JS.read_text(encoding='utf-8')
+        assert '_searchFileBackground' in content, \
+            "batch.js 缺少 _searchFileBackground 呼叫 — U10b searchAll 必須改用背景搜尋"
+
+    def test_search_all_no_direct_switch_to_file_in_promise_all(self):
+        """searchAll 的 Promise.all(chunk.map 區塊內不應直接呼叫 switchToFile"""
+        content = self.BATCH_JS.read_text(encoding='utf-8')
+        match = re.search(r'Promise\.all\(chunk\.map', content)
+        assert match, "batch.js 缺少 Promise.all(chunk.map — searchAll 結構異常"
+        # 取到 })); 的區塊（約 500 字元）
+        block = content[match.start():match.start() + 500]
+        # 找到 })); 結束位置，截斷
+        end_marker = block.find('}));')
+        if end_marker != -1:
+            block = block[:end_marker + 3]
+        assert 'switchToFile' not in block, (
+            "searchAll 的 Promise.all(chunk.map) 內不應直接呼叫 switchToFile — "
+            "背景搜尋期間切換檔案會造成 UI 競態"
+        )
+
+    def test_search_file_background_no_ui_side_effects(self):
+        """_searchFileBackground 不應有 UI 副作用（switchToFile / showToast / alert）"""
+        content = self.FILE_LIST_JS.read_text(encoding='utf-8')
+        match = re.search(r'_searchFileBackground\s*\(', content)
+        assert match, "file-list.js 缺少 _searchFileBackground 方法定義"
+        method_body = content[match.start():match.start() + 2000]
+
+        assert 'switchToFile(' not in method_body, \
+            "_searchFileBackground 不應呼叫 switchToFile — 背景搜尋不切換 UI"
+        assert 'showToast(' not in method_body, \
+            "_searchFileBackground 不應呼叫 showToast — 背景搜尋不顯示 toast"
+        assert 'alert(' not in method_body, \
+            "_searchFileBackground 不應呼叫 alert — 背景搜尋不彈出對話框"
+
+    def test_search_file_background_has_close_wrapper(self):
+        """_searchFileBackground 必須有 close-wrapper（確保 forced-close 時 Promise settle）"""
+        content = self.FILE_LIST_JS.read_text(encoding='utf-8')
+        match = re.search(r'_searchFileBackground\s*\(', content)
+        assert match, "file-list.js 缺少 _searchFileBackground 方法定義"
+        method_body = content[match.start():match.start() + 2000]
+
+        assert 'settle' in method_body, \
+            "_searchFileBackground 缺少 settle 函數 — 必須包裝 close 確保 Promise 可 resolve"
+        assert 'originalClose' in method_body, \
+            "_searchFileBackground 缺少 originalClose — 必須保存原始 close 再覆寫"
