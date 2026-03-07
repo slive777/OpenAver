@@ -15,6 +15,7 @@ window.SearchStateMixin_FileList = {
             this.searchResults = [];
             this.hasMoreResults = false;
             this.currentIndex = 0;
+            this._resetCoverState();
             this.coverError = `無法識別番號: ${file.filename}`;
             window.SearchUI.showState('result');
             return;
@@ -32,7 +33,7 @@ window.SearchStateMixin_FileList = {
             this.searchResults = file.searchResults;
             this.hasMoreResults = file.hasMoreResults || false;
             this.currentIndex = position === 'last' ? this.searchResults.length - 1 : 0;
-            this.coverError = '';
+            this._resetCoverState();
 
             window.SearchUI.showState('result');
             // U7b: slide-in animation (C22: direction from position hint)
@@ -45,6 +46,7 @@ window.SearchStateMixin_FileList = {
             this.searchResults = [];
             this.hasMoreResults = false;
             this.currentIndex = 0;
+            this._resetCoverState();
             this.coverError = `找不到 ${file.number} 的資料`;
             window.SearchUI.showState('result');
         }
@@ -91,7 +93,7 @@ window.SearchStateMixin_FileList = {
                             this.searchResults = data.data;
                             this.hasMoreResults = file.hasMoreResults;
                             this.currentIndex = position === 'last' ? this.searchResults.length - 1 : 0;
-                            this.coverError = '';
+                            this._resetCoverState();
 
                             // T4: File search 後查詢本地狀態
                             if (window.SearchCore?.checkLocalStatus) {
@@ -109,6 +111,7 @@ window.SearchStateMixin_FileList = {
                         } else {
                             file.searched = true;
                             file.searchResults = [];
+                            this._resetCoverState();
                             this.coverError = `找不到 ${file.number} 的資料`;
 
                             // 重置共享狀態
@@ -127,6 +130,7 @@ window.SearchStateMixin_FileList = {
                         this.searchingFileDirection = null;
                         file.searched = true;
                         file.searchResults = [];
+                        this._resetCoverState();
                         this.coverError = data.message || '搜尋失敗';
 
                         this.searchResults = [];
@@ -148,6 +152,7 @@ window.SearchStateMixin_FileList = {
                 this.searchingFileDirection = null;
                 file.searched = true;
                 file.searchResults = [];
+                this._resetCoverState();
                 this.coverError = '連線錯誤，請稍後再試';
 
                 this.searchResults = [];
@@ -164,8 +169,8 @@ window.SearchStateMixin_FileList = {
         if (index < 0 || index >= this.searchResults.length) return;
         this.currentIndex = index;
 
-        // Reset cover error on switch
-        this.coverError = '';
+        // U8b: reset cover state on switch
+        this._resetCoverState();
     },
 
     enterNumber(index) {

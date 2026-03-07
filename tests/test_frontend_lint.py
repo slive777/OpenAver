@@ -1577,3 +1577,80 @@ class TestCoverStateGuard:
         content = self.BASE_JS.read_text(encoding='utf-8')
         assert re.search(r'_coverLoaded\s*:\s*false', content), \
             "base.js 缺少 _coverLoaded: false 初始值 — U8a 必須新增 cover loaded 欄位"
+
+    # === U8b guard tests ===
+
+    FILE_LIST_JS = PROJECT_ROOT / "web/static/js/pages/search/state/file-list.js"
+    NAVIGATION_JS = PROJECT_ROOT / "web/static/js/pages/search/state/navigation.js"
+    GRID_MODE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/grid-mode.js"
+    BATCH_JS = PROJECT_ROOT / "web/static/js/pages/search/state/batch.js"
+    PERSISTENCE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/persistence.js"
+
+    def test_file_list_reset_cover_state_count(self):
+        """file-list.js 包含至少 8 次 _resetCoverState 呼叫"""
+        content = self.FILE_LIST_JS.read_text(encoding='utf-8')
+        count = content.count('_resetCoverState')
+        assert count >= 8, (
+            f"file-list.js 只有 {count} 次 _resetCoverState（需至少 8 次: "
+            f"#4,#5,#6,#7,#8,#9,#10,#11）"
+        )
+
+    def test_navigation_reset_cover_state_count(self):
+        """navigation.js 包含至少 2 次 _resetCoverState 呼叫"""
+        content = self.NAVIGATION_JS.read_text(encoding='utf-8')
+        count = content.count('_resetCoverState')
+        assert count >= 2, (
+            f"navigation.js 只有 {count} 次 _resetCoverState（需至少 2 次: "
+            f"#1 navigate, #15 loadMore）"
+        )
+
+    def test_search_flow_reset_cover_state_count(self):
+        """search-flow.js 包含至少 4 次 _resetCoverState 呼叫"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        count = content.count('_resetCoverState')
+        assert count >= 4, (
+            f"search-flow.js 只有 {count} 次 _resetCoverState（需至少 4 次: "
+            f"#12 doSearch init, #13 traditional result, #14 fallback result, fallbackSearch）"
+        )
+
+    def test_no_bare_cover_error_reset(self):
+        """file-list/navigation/search-flow 中不應有裸 coverError = '' 純 reset 行"""
+        files_to_check = [self.FILE_LIST_JS, self.NAVIGATION_JS, self.SEARCH_FLOW_JS]
+        violations = []
+        for fpath in files_to_check:
+            content = fpath.read_text(encoding='utf-8')
+            for i, line in enumerate(content.splitlines(), 1):
+                # 匹配 coverError = '' 或 coverError = "" (純 reset，非 set error)
+                if re.search(r"""coverError\s*=\s*['"](['"])\s*;""", line):
+                    # 排除 _resetCoverState 方法定義本身
+                    if '_resetCoverState' in line:
+                        continue
+                    violations.append(f"{fpath.name}:{i} — {line.strip()}")
+        assert len(violations) == 0, (
+            f"發現 {len(violations)} 個裸 coverError = '' reset（應改用 _resetCoverState()）:\n" +
+            "\n".join(f"  - {v}" for v in violations)
+        )
+
+    def test_grid_mode_reset_cover_state(self):
+        """grid-mode.js 包含至少 1 次 _resetCoverState 呼叫"""
+        content = self.GRID_MODE_JS.read_text(encoding='utf-8')
+        count = content.count('_resetCoverState')
+        assert count >= 1, (
+            f"grid-mode.js 缺少 _resetCoverState（需至少 1 次: #16 switchToDetail）"
+        )
+
+    def test_batch_reset_cover_state(self):
+        """batch.js 包含至少 1 次 _resetCoverState 呼叫"""
+        content = self.BATCH_JS.read_text(encoding='utf-8')
+        count = content.count('_resetCoverState')
+        assert count >= 1, (
+            f"batch.js 缺少 _resetCoverState（需至少 1 次: #17 scrapeAll）"
+        )
+
+    def test_persistence_reset_cover_state(self):
+        """persistence.js 包含至少 1 次 _resetCoverState 呼叫"""
+        content = self.PERSISTENCE_JS.read_text(encoding='utf-8')
+        count = content.count('_resetCoverState')
+        assert count >= 1, (
+            f"persistence.js 缺少 _resetCoverState（需至少 1 次: #19 restoreState）"
+        )

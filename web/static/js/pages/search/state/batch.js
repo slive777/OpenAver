@@ -202,7 +202,7 @@ window.SearchStateMixin_Batch = {
             this.currentFileIndex = index;
             this.searchResults = file.searchResults;
             this.currentIndex = 0;
-            this.coverError = '';
+            this._resetCoverState();
 
             const metadata = { ...file.searchResults[0] };
 

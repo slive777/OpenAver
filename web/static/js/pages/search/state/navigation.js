@@ -44,9 +44,8 @@ window.SearchStateMixin_Navigation = {
             // State change（Alpine re-render）
             this.currentIndex = newIndex;
 
-            // Reset cover error on navigation
-            this.coverError = '';
-            this._coverRetried = false;
+            // U8b: reset cover state on navigation
+            this._resetCoverState();
 
             // U5: fire-and-forget slide-in 動畫（$nextTick 確保 Alpine patch 新內容後再動畫，C17 一致）
             var direction = delta > 0 ? 'next' : 'prev';
@@ -83,6 +82,7 @@ window.SearchStateMixin_Navigation = {
                 this.currentOffset = newOffset;
                 this.hasMoreResults = data.has_more;
                 this.currentIndex = this.searchResults.length - data.data.length;
+                this._resetCoverState();
 
                 if (window.SearchUI?.preloadImages) {
                     window.SearchUI.preloadImages(this.currentIndex + 1, 5);

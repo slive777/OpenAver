@@ -116,6 +116,7 @@ window.SearchStateMixin_SearchFlow = {
         this.currentMode = '';
         this.detailDone = 0;
         this.detailTotal = 0;
+        this._resetCoverState();
         this.searchResults = [];
         this.currentIndex = 0;
         this.fileList = [];
@@ -280,6 +281,7 @@ window.SearchStateMixin_SearchFlow = {
                         const allFailed = this.searchResults.every(r => r._failed);
                         if (allFailed && data.success && data.data && data.data.length > 0) {
                             // Issue 1: Fallback 路徑（actress → keyword），用 result 資料完整替換
+                            this._resetCoverState();
                             this.searchResults = data.data;
                             this.currentIndex = 0;
                             this.hasMoreResults = data.has_more || false;
@@ -367,7 +369,7 @@ window.SearchStateMixin_SearchFlow = {
                         this.hasContent = this.searchResults.length > 0 || this.fileList.length > 0;
                         this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
                         // Reset edit states
-                        this.coverError = '';
+                        this._resetCoverState();
                         this.editingTitle = false;
                         this.editingChineseTitle = false;
                         this.addingTag = false;
@@ -485,7 +487,7 @@ window.SearchStateMixin_SearchFlow = {
                 this.hasContent = this.searchResults.length > 0 || this.fileList.length > 0;
                 this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
                 // Reset edit states
-                this.coverError = '';
+                this._resetCoverState();
                 this.editingTitle = false;
                 this.editingChineseTitle = false;
                 this.addingTag = false;

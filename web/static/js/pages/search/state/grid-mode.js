@@ -162,6 +162,7 @@ window.SearchStateMixin_GridMode = {
         // C17 step 2: state change (Alpine render)
         this.displayMode = 'detail';
         this.currentIndex = index;
+        this._resetCoverState();
         this.saveState();
 
         // C17 step 3: animate (fire-and-forget)
