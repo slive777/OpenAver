@@ -238,16 +238,36 @@ window.SearchStateMixin_ResultCard = {
     // ===== T1c: Cover Error =====
 
     handleCoverError() {
-        // Fix 4: 一次自動重試（cache bust）
+        const img = this.$refs.coverImg;
+        if (!img) return;
+
+        // PHASE 1: First failure — getAttribute stale guard
         if (!this._coverRetried) {
+            const attrSrc = img.getAttribute('src') || '';
+            const expected = this.coverUrl();
+            if (expected && attrSrc !== expected) {
+                return; // Stale @error from previous cover
+            }
+
             this._coverRetried = true;
-            const img = this.$refs.coverImg;
-            if (img && img.src) {
+            if (img.src) {
                 const sep = img.src.includes('?') ? '&' : '?';
                 img.src = img.src + sep + '_t=' + Date.now();
-                return; // 不設 coverError，讓重試有機會成功
+
+                const requestId = this._coverRequestId;
+                this._setTimer('coverRetry', () => {
+                    if (this._coverRequestId !== requestId) return;
+                    if (this._coverRetried && !this.coverError) {
+                        this._coverRetried = false;
+                        this.coverError = '封面載入失敗';
+                    }
+                }, 5000);
+                return;
             }
         }
+
+        // PHASE 2: Second failure (retry also failed)
+        this._clearTimer('coverRetry');
         this._coverRetried = false;
         this.coverError = '封面載入失敗';
     },

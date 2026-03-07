@@ -1654,3 +1654,42 @@ class TestCoverStateGuard:
         assert count >= 1, (
             f"persistence.js 缺少 _resetCoverState（需至少 1 次: #19 restoreState）"
         )
+
+    # === U8c guard tests ===
+
+    RESULT_CARD_JS = PROJECT_ROOT / "web/static/js/pages/search/state/result-card.js"
+
+    def test_cover_error_has_get_attribute_guard(self):
+        """result-card.js 的 handleCoverError 內含 getAttribute"""
+        content = self.RESULT_CARD_JS.read_text(encoding='utf-8')
+        match = re.search(r'handleCoverError\s*\(', content)
+        assert match, "result-card.js 缺少 handleCoverError 方法定義"
+        method_body = content[match.start():match.start() + 800]
+        assert 'getAttribute' in method_body, \
+            "handleCoverError 缺少 getAttribute — Phase 1 stale guard 必須用 getAttribute('src') 比對"
+
+    def test_cover_error_has_cover_url_comparison(self):
+        """result-card.js 的 handleCoverError 內含 coverUrl"""
+        content = self.RESULT_CARD_JS.read_text(encoding='utf-8')
+        match = re.search(r'handleCoverError\s*\(', content)
+        assert match, "result-card.js 缺少 handleCoverError 方法定義"
+        method_body = content[match.start():match.start() + 800]
+        assert 'coverUrl' in method_body, \
+            "handleCoverError 缺少 coverUrl — Phase 1 stale guard 必須與 coverUrl() 比對"
+
+    def test_cover_error_has_request_id_guard(self):
+        """result-card.js 的 handleCoverError 內含 _coverRequestId"""
+        content = self.RESULT_CARD_JS.read_text(encoding='utf-8')
+        match = re.search(r'handleCoverError\s*\(', content)
+        assert match, "result-card.js 缺少 handleCoverError 方法定義"
+        method_body = content[match.start():match.start() + 800]
+        assert '_coverRequestId' in method_body, \
+            "handleCoverError 缺少 _coverRequestId — Phase 2 timer 競態守衛必須檢查 request ID"
+
+    def test_cover_retry_uses_set_timer(self):
+        """result-card.js 內含 _setTimer + coverRetry"""
+        content = self.RESULT_CARD_JS.read_text(encoding='utf-8')
+        assert '_setTimer' in content, \
+            "result-card.js 缺少 _setTimer — cover retry 必須使用 _setTimer 而非 raw setTimeout"
+        assert 'coverRetry' in content, \
+            "result-card.js 缺少 coverRetry — _setTimer 必須使用 'coverRetry' key"
