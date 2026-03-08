@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 from PIL import Image
 
-from core.organizer import _detect_suffixes, format_string, organize_file, crop_to_poster, generate_nfo
+from core.organizer import _detect_suffixes, format_string, organize_file, crop_to_poster, generate_nfo, extract_chinese_title, download_image
 
 
 # ============ _detect_suffixes() 測試 ============
@@ -757,3 +757,86 @@ class TestConfigSuffixKeywordsPersistence:
         with open(temp_config_path, "r", encoding="utf-8") as f:
             saved_data = json.load(f)
         assert saved_data["scraper"]["suffix_keywords"] == custom_keywords
+
+
+# ============ extract_chinese_title() 測試 ============
+
+class TestExtractChineseTitle:
+    def test_mixed_title(self):
+        result = extract_chinese_title("Beauty Girl ABP-001 美少女初登場.mp4", "ABP-001")
+        assert result == "Beauty Girl 美少女初登場"
+
+    def test_jp_or_zh_only(self):
+        result = extract_chinese_title("美少女初登場.mp4", "ABP-001")
+        assert result == "美少女初登場"
+
+    def test_english_only(self):
+        result = extract_chinese_title("Beauty Girl.mp4", "ABP-001")
+        assert result is None
+
+    def test_empty_and_none(self):
+        assert extract_chinese_title("", "ABP-001") is None
+        assert extract_chinese_title(None, "ABP-001") is None
+
+    def test_with_actors_removal(self):
+        # 結尾帶有演員名，會被移除
+        result = extract_chinese_title("ABP-001 美少女 三上悠亞.mp4", "ABP-001", actors=["三上悠亞"])
+        assert result == "美少女"
+
+
+# ============ generate_nfo() 補充測試 ============
+
+class TestGenerateNfoAdditional:
+    def test_essential_tags_exist(self, tmp_path):
+        nfo_path = tmp_path / "test.nfo"
+        result = generate_nfo(
+            number="TEST-001",
+            title="測試標題",
+            actors=["女優A", "女優B"],
+            output_path=str(nfo_path)
+        )
+        assert result is True
+        content = nfo_path.read_text(encoding="utf-8")
+        assert "<title>[TEST-001]測試標題</title>" in content
+        assert "<num>TEST-001</num>" in content
+        assert "<name>女優A</name>" in content
+        assert "<name>女優B</name>" in content
+
+
+# ============ download_image() 測試 ============
+
+class TestDownloadImage:
+    @patch("core.organizer.requests.get")
+    def test_download_success(self, mock_get, tmp_path):
+        mock_resp = mock_get.return_value
+        mock_resp.status_code = 200
+        mock_resp.content = b"fake_image_data_that_is_long_enough_to_pass_the_length_check_which_is_1000_bytes_" * 15
+        
+        save_path = tmp_path / "cover.jpg"
+        result = download_image("http://example.com/cover.jpg", str(save_path))
+        
+        assert result is True
+        assert save_path.exists()
+        assert save_path.read_bytes() == mock_resp.content
+        mock_get.assert_called_once()
+
+    @patch("core.organizer.requests.get")
+    def test_download_fail_status(self, mock_get, tmp_path):
+        mock_resp = mock_get.return_value
+        mock_resp.status_code = 404
+        
+        save_path = tmp_path / "cover.jpg"
+        result = download_image("http://example.com/cover.jpg", str(save_path))
+        
+        assert result is False
+        assert not save_path.exists()
+
+    @patch("core.organizer.requests.get")
+    def test_download_exception(self, mock_get, tmp_path):
+        mock_get.side_effect = Exception("network error")
+        
+        save_path = tmp_path / "cover.jpg"
+        result = download_image("http://example.com/cover.jpg", str(save_path))
+        
+        assert result is False
+        assert not save_path.exists()

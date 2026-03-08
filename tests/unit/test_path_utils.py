@@ -360,6 +360,20 @@ class TestExpandEnvVars:
         result = path_utils.expand_env_vars('/home/user/test')
         assert result == '/home/user/test'
 
+    def test_tilde_expands_to_home(self, monkeypatch):
+        """~ 展開結果應包含實際 HOME 路徑"""
+        import os
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'linux')
+        result = path_utils.expand_env_vars('~/test_dir')
+        home = os.path.expanduser('~')
+        assert result == os.path.join(home, 'test_dir')
+
+    def test_plain_path_passthrough(self, monkeypatch):
+        """沒有環境變數的普通路徑，直接 normalize 回傳"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'linux')
+        result = path_utils.expand_env_vars('/var/log/syslog')
+        assert result == '/var/log/syslog'
+
 
 # ============ TestGetEnvironment ============
 
@@ -543,6 +557,19 @@ class TestIsPathUnderDir:
     def test_unrelated_path(self):
         from core.path_utils import is_path_under_dir
         assert is_path_under_dir("file:///C:/Videos/video.mp4", "file:///E:/media") is False
+
+    def test_dot_dot_traversal_attempt(self):
+        """路徑包含 .. 但字串比對仍在 prefix 下（函數做字串比對不做 resolve）"""
+        from core.path_utils import is_path_under_dir
+        # file:///E:/media/../secrets 字串以 file:///E:/media/ 開頭，所以回傳 True
+        # 注意：此函數僅做字串前綴比對，呼叫端需自行 resolve 路徑
+        assert is_path_under_dir("file:///E:/media/../secrets", "file:///E:/media") is True
+
+    def test_dot_dot_escape_prefix(self):
+        """.. 導致實際路徑離開目錄，但因前綴不匹配所以 False"""
+        from core.path_utils import is_path_under_dir
+        # 路徑 file:///E:/other 不在 file:///E:/media 下
+        assert is_path_under_dir("file:///E:/other/../escape", "file:///E:/media") is False
 
 
 # ============ TestUriToFsPath ============

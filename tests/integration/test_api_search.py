@@ -481,8 +481,39 @@ class TestSearchStreamSSE:
             assert 'source' in event
             assert 'status' in event
 
-class TestFilterFilesStrmExemption:
-    """Test /api/search/filter-files with .strm min_size exemption"""
+class TestFilterFiles:
+    """Test /api/search/filter-files"""
+
+    def test_filter_files_basic(self, client, tmp_path, monkeypatch):
+        """基本過濾功能測試"""
+        # 建立一個合格影片
+        p1 = tmp_path / "good.mp4"
+        p1.write_bytes(b'x' * (1 * 1024 * 1024 + 1))
+        
+        # 建立一個副檔名不符的
+        p2 = tmp_path / "bad.txt"
+        p2.write_bytes(b'x')
+        
+        # 不存在的檔案
+        p3 = tmp_path / "not_exist.mp4"
+        
+        test_config = {
+            "scraper": {"video_extensions": [".mp4"]},
+            "gallery": {"min_size_mb": 1},
+        }
+        monkeypatch.setattr("web.routers.config.load_config", lambda: test_config)
+        
+        response = client.post(
+            "/api/search/filter-files",
+            json={"paths": [str(p1), str(p2), str(p3)]}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert len(data["files"]) == 1
+        assert str(p1) in data["files"]
+        assert data["rejected"]["extension"] == 1
+        assert data["rejected"]["not_found"] == 1
 
     def test_strm_not_filtered_by_min_size(self, client, tmp_path, monkeypatch):
         """.strm file should NOT be filtered by min_size setting"""
@@ -535,6 +566,60 @@ class TestFilterFilesStrmExemption:
         assert len(data["files"]) == 0, \
             "Small .mp4 file should be filtered by min_size"
         assert data["rejected"]["size"] == 1
+
+
+class TestFavoriteFiles:
+    """Test /api/search/favorite-files"""
+
+    def test_get_favorite_files_success(self, client, tmp_path, monkeypatch):
+        """測試取得我的最愛資料夾檔案成功"""
+        fav_dir = tmp_path / "fav"
+        fav_dir.mkdir()
+        
+        video_file = fav_dir / "test_fav.mp4"
+        video_file.write_bytes(b'x' * (1 * 1024 * 1024 + 1))
+        
+        txt_file = fav_dir / "test.txt"
+        txt_file.write_bytes(b'hello')
+        
+        test_config = {
+            "scraper": {"video_extensions": [".mp4"]},
+            "gallery": {"min_size_mb": 1},
+            "search": {"favorite_folder": str(fav_dir)}
+        }
+        monkeypatch.setattr("web.routers.config.load_config", lambda: test_config)
+        
+        response = client.get("/api/search/favorite-files")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert len(data["files"]) == 1
+        assert "test_fav.mp4" in data["files"][0]
+
+    def test_get_favorite_files_empty(self, client, tmp_path, monkeypatch):
+        """測試取得空目錄時返回錯誤訊息"""
+        fav_dir = tmp_path / "fav_empty"
+        fav_dir.mkdir()
+        
+        test_config = {"search": {"favorite_folder": str(fav_dir)}}
+        monkeypatch.setattr("web.routers.config.load_config", lambda: test_config)
+        
+        response = client.get("/api/search/favorite-files")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert "無有效影片" in data["error"]
+
+    def test_get_favorite_files_not_found(self, client, monkeypatch):
+        """測試目標目錄不存在時的防呆"""
+        test_config = {"search": {"favorite_folder": "/path/not/exists/123"}}
+        monkeypatch.setattr("web.routers.config.load_config", lambda: test_config)
+        
+        response = client.get("/api/search/favorite-files")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert "不存在" in data["error"]
 
 
 class TestSearchStreamSSEProtocol:

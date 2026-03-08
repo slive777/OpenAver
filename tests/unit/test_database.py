@@ -10,7 +10,10 @@ from core.database import (
     get_connection,
     init_db,
     Video,
-    ActressAlias
+    ActressAlias,
+    migrate_json_to_sqlite,
+    ActressAliasRepository,
+    VideoRepository
 )
 from core.gallery_scanner import VideoInfo
 
@@ -381,3 +384,95 @@ def test_actress_alias_to_dict():
     assert d['old_name'] == 'miru'
     assert d['new_name'] == '坂道みる'
     assert d['applied_count'] == 5
+
+
+# ============ migrate_json_to_sqlite 測試 ============
+
+def test_migrate_json_to_sqlite_success(tmp_path):
+    """測試正常遷移與 idempotency"""
+    db_path = tmp_path / "test.db"
+    json_path = tmp_path / "cache.json"
+    
+    # 準備假的 json cache 資料
+    fake_cache = {
+        "_metadata": {"version": 1},
+        "file:///videos/test1.mp4": {
+            "mtime": 100.0,
+            "nfo_mtime": 200.0,
+            "info": {
+                "path": "file:///videos/test1.mp4",
+                "title": "Title 1",
+                "num": "TEST-001"
+            }
+        }
+    }
+    json_path.write_text(json.dumps(fake_cache))
+    
+    # 第一次遷移
+    result1 = migrate_json_to_sqlite(json_path, db_path, delete_on_success=False)
+    assert result1['migrated'] == 1
+    assert result1['skipped'] == 1
+    assert result1['errors'] == 0
+    
+    # 檢查 mtime/nfo_mtime 預設值
+    repo = VideoRepository(db_path)
+    video = repo.get_by_path("file:///videos/test1.mp4")
+    assert video.mtime == 100.0
+    assert video.nfo_mtime == 200.0
+    
+    # 第2次遷移，測試重複匯入（idempotency）
+    result2 = migrate_json_to_sqlite(json_path, db_path, delete_on_success=False)
+    assert result2['migrated'] == 1  # 依然算 migrated 因為它會 UPSERT（updated計數+1）
+    # 但總數仍為 1
+    assert repo.count() == 1
+
+
+def test_migrate_json_to_sqlite_invalid_json(tmp_path):
+    """測試損壞的 json 檔案"""
+    db_path = tmp_path / "test.db"
+    json_path = tmp_path / "bad.json"
+    json_path.write_text("{bad json")
+    
+    result = migrate_json_to_sqlite(json_path, db_path, delete_on_success=False)
+    assert result['errors'] == 1
+
+
+# ============ ActressAliasRepository 測試 ============
+
+def test_actress_alias_repository_crud(tmp_path):
+    """測試 ActressAliasRepository 完整 CRUD 流程"""
+    db_path = tmp_path / "actress.db"
+    init_db(db_path)
+    
+    repo = ActressAliasRepository(db_path)
+    
+    # 剛開始有5筆種子資料
+    initial = repo.get_all()
+    assert len(initial) == 5
+    
+    # Add
+    new_id = repo.add("old1", "new1")
+    assert new_id > 0
+    
+    # Add duplicate (should fail and return -1)
+    dup_id = repo.add("old1", "new2")
+    assert dup_id == -1
+    
+    all_data = repo.get_all()
+    assert len(all_data) == 6
+    # 找出剛新增的
+    added = next(x for x in all_data if x.old_name == "old1")
+    assert added.applied_count == 0
+    
+    # Increment
+    repo.increment_applied_count(new_id, 3)
+    updated = next(x for x in repo.get_all() if x.id == new_id)
+    assert updated.applied_count == 3
+    
+    # Delete
+    success = repo.delete(new_id)
+    assert success is True
+    
+    # Verify deletion
+    assert len(repo.get_all()) == 5
+
