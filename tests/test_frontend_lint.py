@@ -1880,7 +1880,7 @@ class TestFailedSlotC30Guard:
         for method_name in ['prevLightboxVideo', 'nextLightboxVideo']:
             match = re.search(rf'{method_name}\s*\(', content)
             assert match, f"grid-mode.js 缺少 {method_name}() 方法"
-            method_body = content[match.start():match.start() + 500]
+            method_body = content[match.start():match.start() + 600]
             assert '_failed' in method_body, f"{method_name}() 必須包含 _failed skip 邏輯 (C30)"
 
     def test_nav_indicator_excludes_failed(self):
@@ -2099,4 +2099,72 @@ class TestGridSettlePulse:
         assert 'rotation' not in code_only, (
             "playGridSettle 包含 rotation — "
             "C6 約束：不使用 rotationX / rotationY / rotationZ"
+        )
+
+
+class TestHeroImageErrorGuard:
+    """A6-1 Hero Card / Lightbox 圖片錯誤狀態管理守衛
+
+    確認 Hero Card 和 Lightbox 的 @error handler 不直接修改 DOM，
+    改用 Alpine state 管理錯誤狀態。
+    """
+
+    SEARCH_HTML = PROJECT_ROOT / "web/templates/search.html"
+    BASE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/base.js"
+    SEARCH_FLOW_JS = PROJECT_ROOT / "web/static/js/pages/search/state/search-flow.js"
+
+    def test_hero_card_no_target_src_in_error(self):
+        """search.html 中 Hero Card img 的 @error 不包含 target.src 或 .src ="""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        # 找到 hero-card class 屬性（排除註解）
+        match = re.search(r'class="[^"]*hero-card[^"]*"', content)
+        assert match, "search.html 缺少 hero-card class 區塊"
+        # 取 hero-card 區塊（往後 800 字元足以覆蓋 img tag）
+        hero_block = content[match.start():match.start() + 800]
+        # 提取 @error 屬性值
+        error_match = re.search(r'@error="([^"]*)"', hero_block)
+        assert error_match, "hero-card 區塊缺少 @error handler"
+        error_value = error_match.group(1)
+        assert 'target.src' not in error_value and '.src =' not in error_value, (
+            f"hero-card @error 仍包含 DOM 修改（target.src / .src =）：{error_value}\n"
+            "A6-1 要求改用 Alpine state（_heroCardImageError = true）"
+        )
+
+    def test_hero_card_no_onerror_null(self):
+        """search.html 中 Hero Card img 的 @error 不包含 onerror"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        match = re.search(r'class="[^"]*hero-card[^"]*"', content)
+        assert match, "search.html 缺少 hero-card class 區塊"
+        hero_block = content[match.start():match.start() + 800]
+        error_match = re.search(r'@error="([^"]*)"', hero_block)
+        assert error_match, "hero-card 區塊缺少 @error handler"
+        error_value = error_match.group(1)
+        assert 'onerror' not in error_value, (
+            f"hero-card @error 仍包含 onerror=null：{error_value}\n"
+            "A6-1 要求移除 onerror=null，改用 Alpine state 管理"
+        )
+
+    def test_base_has_hero_image_error_states(self):
+        """base.js 包含 _heroCardImageError 和 _heroLightboxImageError 兩個 field"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        assert '_heroCardImageError' in content, (
+            "base.js 缺少 _heroCardImageError — A6-1 必須新增 Hero Card 圖片錯誤 state"
+        )
+        assert '_heroLightboxImageError' in content, (
+            "base.js 缺少 _heroLightboxImageError — A6-1 必須新增 Lightbox 圖片錯誤 state"
+        )
+
+    def test_do_search_resets_hero_image_errors(self):
+        """search-flow.js 的 doSearch 方法區段包含兩個 error state 的重置"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        match = re.search(r'async\s+doSearch', content)
+        assert match, "search-flow.js 缺少 doSearch 方法定義"
+        method_body = content[match.start():match.start() + 2000]
+        assert '_heroCardImageError' in method_body and '= false' in method_body, (
+            "search-flow.js doSearch 缺少 _heroCardImageError = false 重置 — "
+            "A6-1 新搜尋必須清空 Hero Card 圖片錯誤"
+        )
+        assert '_heroLightboxImageError' in method_body and '= false' in method_body, (
+            "search-flow.js doSearch 缺少 _heroLightboxImageError = false 重置 — "
+            "A6-1 新搜尋必須清空 Lightbox 圖片錯誤"
         )

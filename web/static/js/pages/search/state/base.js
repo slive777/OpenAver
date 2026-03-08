@@ -128,6 +128,10 @@ window.SearchStateMixin_Base = function () {
         // Grid 模式圖片錯誤追蹤
         _gridImageErrors: new Set(),
 
+        // ===== A6-1: Hero Card / Lightbox 圖片錯誤追蹤 =====
+        _heroCardImageError: false,
+        _heroLightboxImageError: false,
+
         // ===== Constants =====
         PAGE_SIZE: 20,
         MODE_TEXT: {

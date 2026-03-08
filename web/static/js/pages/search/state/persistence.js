@@ -34,6 +34,9 @@ window.SearchStateMixin_Persistence = {
 
             // U8b: 清除封面狀態（防止還原時殘留舊狀態）
             this._resetCoverState();
+            // A6-1: 還原時清除舊 hero image error state
+            this._heroCardImageError = false;
+            this._heroLightboxImageError = false;
 
             // 還原顯示狀態（透過舊 JS 的 showState 同時處理 .hidden + Alpine pageState）
             if (this.searchResults.length > 0) {

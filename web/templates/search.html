@@ -36,7 +36,14 @@
                          ? (actressProfile?.img ? `/api/proxy-image?url=${encodeURIComponent(actressProfile.img)}` : '')
                          : (currentLightboxVideo()?.cover ? `/api/proxy-image?url=${encodeURIComponent(currentLightboxVideo().cover)}` : '')"
                      :alt="actressLightboxMode() ? actressProfile?.name : currentLightboxVideo()?.number"
-                     @error="$event.target.onerror=null; $event.target.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22 fill=%22%23666%22><rect width=%22400%22 height=%22300%22 fill=%22%23222%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2216%22>No Image</text></svg>'">
+                     x-show="!_heroLightboxImageError"
+                     @error="_heroLightboxImageError = true">
+                <!-- A6-1: Lightbox fallback placeholder -->
+                <div x-show="_heroLightboxImageError"
+                     class="cover-error-placeholder">
+                    <i class="bi bi-image text-5xl"></i>
+                    <p class="mt-2">No Image</p>
+                </div>
             </div>
         </div>
 
@@ -387,7 +394,14 @@
                         <img :src="actressProfile?.img ? `/api/proxy-image?url=${encodeURIComponent(actressProfile.img)}` : ''"
                              :alt="actressProfile?.name"
                              loading="lazy"
-                             @error="$event.target.onerror=null; $event.target.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22360%22 height=%22508%22 fill=%22%23666%22><rect width=%22360%22 height=%22508%22 fill=%22%23222%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2216%22>No Image</text></svg>'">
+                             x-show="!_heroCardImageError"
+                             @error="_heroCardImageError = true">
+                        <!-- A6-1: Hero Card fallback placeholder -->
+                        <div x-show="_heroCardImageError"
+                             class="av-card-no-cover">
+                            <i class="bi bi-image"></i>
+                            <span>No Image</span>
+                        </div>
                     </div>
                     <div class="av-card-preview-footer">
                         <div class="footer-default">

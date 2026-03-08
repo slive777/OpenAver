@@ -68,6 +68,8 @@ window.SearchStateMixin_SearchFlow = {
         this.pageState = 'empty';
         this.hasContent = false;
         this.errorText = '';  // T6c: 清空錯誤訊息
+        this._heroCardImageError = false;   // A6-1: 清空 Hero Card 圖片錯誤
+        this._heroLightboxImageError = false; // A6-1: 清空 Lightbox 圖片錯誤
     },
 
     // ===== T1b: Search Methods =====
@@ -125,6 +127,8 @@ window.SearchStateMixin_SearchFlow = {
         this.actressProfile = null;  // T2d: 清空上次的女優資料
         this.displayMode = 'detail';  // T3a: 新搜尋重置顯示模式
         this._gridImageErrors = new Set();  // T6a: 清空 Grid 圖片錯誤記錄
+        this._heroCardImageError = false;   // A6-1: 清空 Hero Card 圖片錯誤
+        this._heroLightboxImageError = false; // A6-1: 清空 Lightbox 圖片錯誤
         this.errorText = '';  // T6c: 清空上次的錯誤訊息
         // T4: 重置 stream state（防競態 + 新搜尋乾淨起始）
         this.isStreaming = false;

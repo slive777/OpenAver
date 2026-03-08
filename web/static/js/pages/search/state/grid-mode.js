@@ -49,6 +49,7 @@ window.SearchStateMixin_GridMode = {
      * @param {number} index - 搜尋結果索引
      */
     openLightbox(index) {
+        this._heroLightboxImageError = false;  // A6-1: 重置圖片錯誤狀態
         this.lightboxIndex = index;
         this.lightboxOpen = true;
         // 同步 currentIndex（讓 Detail 與 Grid 保持一致）
@@ -66,6 +67,7 @@ window.SearchStateMixin_GridMode = {
      * 開啟 Actress Lightbox（Hero Card 專用）
      */
     openActressLightbox() {
+        this._heroLightboxImageError = false;  // A6-1: 重置圖片錯誤狀態
         this.lightboxIndex = -1;
         this.lightboxOpen = true;
     },
@@ -78,6 +80,7 @@ window.SearchStateMixin_GridMode = {
             // Already at actress photo (leftmost) — do nothing
             return;
         }
+        this._heroLightboxImageError = false;  // A6-1: 切換時重置圖片錯誤
         if (this.lightboxIndex === 0 && this.actressProfile) {
             // At first cover and actress profile exists → go to actress photo
             this.lightboxIndex = -1;
@@ -104,6 +107,7 @@ window.SearchStateMixin_GridMode = {
      * Lightbox 下一部
      */
     nextLightboxVideo() {
+        this._heroLightboxImageError = false;  // A6-1: 切換時重置圖片錯誤
         if (this.lightboxIndex === -1) {
             // U11b: from actress photo, find first non-_failed item
             const firstValid = this.searchResults.findIndex(r => !r._failed);
