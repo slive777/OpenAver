@@ -955,6 +955,16 @@ body {
     border: 1px solid var(--border-light);
 }
 
+/* B15: Flip 動畫期間關掉 CSS transition，避免搶 transform 控制權 */
+.ds-gallery-composition .flip-guard .av-card-preview {
+    transition: box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard),
+                border-color var(--fluent-duration-fast) var(--fluent-ease-standard) !important;
+}
+.ds-gallery-composition .flip-guard .av-card-preview:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
 /* Preview Card - 發光邊 Hover */
 :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview:hover {
     transform: translateY(-4px) scale(1.01);

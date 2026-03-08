@@ -206,43 +206,100 @@ function showcaseState() {
         },
 
         /**
-         * B7/B13: 排序動畫共用 helper — change → playEntry
+         * B7/B15: 排序動畫共用 helper — flip-guard → capture → change → Flip reorder
          * @param {Function} changeFn - 執行 data change 的函數
          */
         _sortWithFlip(changeFn) {
-            // Step 1: data change（保存頁碼，因 applyFilterAndSort 會重置 page=1）
             var savedPage = this.page;
+            var grid = null;
+            var positionMap = null;
+
+            // Step 0: capture（僅 grid mode）
+            if (this.mode === 'grid') {
+                grid = document.querySelector('.showcase-grid');
+                if (grid) {
+                    grid.classList.add('flip-guard');
+                    void grid.offsetHeight;  // force reflow
+                    positionMap = window.ShowcaseAnimations?.capturePositions?.(grid) || null;
+                }
+            }
+
+            // Step 1: data change
             changeFn();
             this.page = savedPage;
             this.updatePagination();
             this.saveState();
 
-            // Step 2: 排序後播放進場動畫（僅 grid mode）
-            if (this.mode === 'grid') {
+            // Step 2: animate
+            if (grid && positionMap) {
                 var gen = ++this._animGeneration;
                 this.$nextTick(() => { requestAnimationFrame(() => {
-                    if (this._animGeneration !== gen) return;  // stale
-                    var grid = document.querySelector('.showcase-grid');
+                    if (this._animGeneration !== gen) {
+                        grid.classList.remove('flip-guard');
+                        return;
+                    }
+                    var result = window.ShowcaseAnimations?.playFlipReorder?.(grid, positionMap);
+                    if (!result) {
+                        // fallback: Flip 回傳 null（delta 全零、reduced motion 等）
+                        grid.classList.remove('flip-guard');
+                        window.ShowcaseAnimations?.playEntry?.(grid);
+                    }
+                    // flip-guard 由 playFlipReorder 的 onComplete 移除
+                }); });
+            } else if (grid) {
+                // capture 失敗 fallback
+                grid.classList.remove('flip-guard');
+                var gen = ++this._animGeneration;
+                this.$nextTick(() => { requestAnimationFrame(() => {
+                    if (this._animGeneration !== gen) return;
                     window.ShowcaseAnimations?.playEntry?.(grid);
                 }); });
             }
         },
 
         /**
-         * B8/B14: 篩選動畫共用 helper — change → playEntry
+         * B8/B15: 篩選動畫共用 helper — flip-guard → capture → change → Flip filter
          * onSearchChange() 和 searchFromMetadata() 共用
          */
         _animateFilter() {
+            var grid = null;
+            var state = null;
+
+            // Step 0: capture（僅 grid mode）
+            if (this.mode === 'grid') {
+                grid = document.querySelector('.showcase-grid');
+                if (grid) {
+                    grid.classList.add('flip-guard');
+                    void grid.offsetHeight;  // force reflow
+                    state = window.ShowcaseAnimations?.captureFlipState?.(grid) || null;
+                }
+            }
+
             // Step 1: data change
             this.applyFilterAndSort();
             this.saveState();
 
-            // Step 2: 篩選後播放進場動畫（僅 grid mode）
-            if (this.mode === 'grid') {
+            // Step 2: animate
+            if (grid && state) {
                 var gen = ++this._animGeneration;
                 this.$nextTick(() => { requestAnimationFrame(() => {
-                    if (this._animGeneration !== gen) return;  // stale
-                    var grid = document.querySelector('.showcase-grid');
+                    if (this._animGeneration !== gen) {
+                        grid.classList.remove('flip-guard');
+                        return;
+                    }
+                    var result = window.ShowcaseAnimations?.playFlipFilter?.(grid, state);
+                    if (!result) {
+                        grid.classList.remove('flip-guard');
+                        window.ShowcaseAnimations?.playEntry?.(grid);
+                    }
+                    // flip-guard 由 playFlipFilter 的 onComplete 移除
+                }); });
+            } else if (grid) {
+                // capture 失敗 fallback
+                grid.classList.remove('flip-guard');
+                var gen = ++this._animGeneration;
+                this.$nextTick(() => { requestAnimationFrame(() => {
+                    if (this._animGeneration !== gen) return;
                     window.ShowcaseAnimations?.playEntry?.(grid);
                 }); });
             }
@@ -254,6 +311,10 @@ function showcaseState() {
          * @param {number} [targetPage] - 目標頁碼（goToPage 用，prevPage/nextPage 不傳）
          */
         _animatePageChange(direction, targetPage) {
+            // 清理可能殘留的 flip-guard（sort/filter 動畫被翻頁打斷時）
+            var grid = document.querySelector('.showcase-grid');
+            if (grid) grid.classList.remove('flip-guard');
+
             // 計算目標頁碼
             var newPage = targetPage;
             if (newPage === undefined) {

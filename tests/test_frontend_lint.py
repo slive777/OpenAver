@@ -2584,8 +2584,8 @@ class TestShowcaseAnimationsGuard:
             "B12 必須在動畫後恢復 CSS hover 效果"
         )
 
-    def test_core_js_sort_helper_uses_play_entry(self):
-        """B13: core.js 排序動畫改用 playEntry（取代 capturePositions + playFlipReorder）"""
+    def test_core_js_sort_helper_uses_flip_reorder(self):
+        """B15: core.js 排序動畫恢復 Flip reorder（加 flip-guard 修正 CSS transition 衝突）"""
         content = self.CORE_JS.read_text(encoding='utf-8')
         lines = content.split('\n')
         # 用 brace counting 提取 _sortWithFlip 方法體
@@ -2606,17 +2606,17 @@ class TestShowcaseAnimationsGuard:
         assert method_lines, (
             "showcase/core.js 找不到 _sortWithFlip 方法定義"
         )
-        assert 'playEntry' in method_body, (
-            "showcase/core.js _sortWithFlip 缺少 playEntry — "
-            "B13 排序後必須用 playEntry stagger fade-in"
+        assert 'capturePositions' in method_body, (
+            "showcase/core.js _sortWithFlip 缺少 capturePositions — "
+            "B15 排序前必須捕獲卡片位置快照"
         )
-        assert 'capturePositions' not in method_body, (
-            "showcase/core.js _sortWithFlip 仍包含 capturePositions — "
-            "B13 應移除手動位置捕獲（改用 playEntry）"
+        assert 'playFlipReorder' in method_body, (
+            "showcase/core.js _sortWithFlip 缺少 playFlipReorder — "
+            "B15 排序後必須用 Flip reorder 洗牌動畫"
         )
-        assert 'playFlipReorder' not in method_body, (
-            "showcase/core.js _sortWithFlip 仍包含 playFlipReorder — "
-            "B13 應移除 Flip reorder 動畫（改用 playEntry）"
+        assert 'flip-guard' in method_body, (
+            "showcase/core.js _sortWithFlip 缺少 flip-guard — "
+            "B15 Flip 期間必須加 flip-guard 關掉 CSS transition"
         )
 
     def test_core_js_on_sort_change_has_mode_guard(self):
@@ -2781,8 +2781,8 @@ class TestShowcaseAnimationsGuard:
 
     # --- B14 守衛 ---
 
-    def test_core_js_animate_filter_uses_play_entry(self):
-        """B14: core.js _animateFilter 改用 playEntry（取代 captureFlipState + playFlipFilter）"""
+    def test_core_js_animate_filter_uses_flip_filter(self):
+        """B15: core.js 篩選動畫恢復 Flip filter（加 flip-guard 修正 CSS transition 衝突）"""
         content = self.CORE_JS.read_text(encoding='utf-8')
         lines = content.split('\n')
         # brace-counting 提取 _animateFilter 方法體
@@ -2801,17 +2801,17 @@ class TestShowcaseAnimationsGuard:
                     break
         method_body = '\n'.join(method_lines)
         assert method_lines, "showcase/core.js 找不到 _animateFilter 方法定義"
-        assert 'playEntry' in method_body, (
-            "showcase/core.js _animateFilter 缺少 playEntry — "
-            "B14 篩選後必須用 playEntry stagger fade-in"
+        assert 'captureFlipState' in method_body, (
+            "showcase/core.js _animateFilter 缺少 captureFlipState — "
+            "B15 篩選前必須捕獲 Flip 狀態快照"
         )
-        assert 'captureFlipState' not in method_body, (
-            "showcase/core.js _animateFilter 仍包含 captureFlipState — "
-            "B14 應移除 Flip 狀態捕獲（改用 playEntry）"
+        assert 'playFlipFilter' in method_body, (
+            "showcase/core.js _animateFilter 缺少 playFlipFilter — "
+            "B15 篩選後必須用 Flip 進出場動畫"
         )
-        assert 'playFlipFilter' not in method_body, (
-            "showcase/core.js _animateFilter 仍包含 playFlipFilter — "
-            "B14 應移除 Flip 篩選動畫（改用 playEntry）"
+        assert 'flip-guard' in method_body, (
+            "showcase/core.js _animateFilter 缺少 flip-guard — "
+            "B15 Flip 期間必須加 flip-guard 關掉 CSS transition"
         )
 
     def test_core_js_animate_filter_has_generation_guard(self):
@@ -3132,6 +3132,131 @@ class TestShowcaseAnimationsGuard:
         assert '_animGeneration' in nearby, (
             "showcase/core.js cleanup 缺少 _animGeneration 遞增 — "
             "B13 離頁時必須使 pending deferred callback 失效"
+        )
+
+    # --- B15 守衛 ---
+
+    def test_theme_css_has_flip_guard_rule(self):
+        """B15: theme.css 包含 .flip-guard 規則，Flip 期間關掉 CSS transition"""
+        theme_css = (PROJECT_ROOT / "web/static/css/theme.css").read_text(encoding='utf-8')
+        assert 'flip-guard' in theme_css, (
+            "theme.css 缺少 .flip-guard 規則 — "
+            "B15 必須在 Flip 期間關掉 .av-card-preview 的 transition: transform"
+        )
+        assert 'transform: none' in theme_css, (
+            "theme.css .flip-guard 缺少 transform: none — "
+            "B15 必須在 Flip 期間關掉 hover 的 transform"
+        )
+
+    def test_core_js_sort_adds_flip_guard_class(self):
+        """B15: core.js _sortWithFlip 在 Flip 期間管理 flip-guard class"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        # brace-counting 提取 _sortWithFlip 方法體
+        in_method = False
+        method_lines = []
+        brace_count = 0
+        for line in lines:
+            stripped = line.strip()
+            if not in_method and '_sortWithFlip' in stripped and 'changeFn' in stripped and stripped.endswith('{'):
+                in_method = True
+                brace_count = 0
+            if in_method:
+                method_lines.append(line)
+                brace_count += line.count('{') - line.count('}')
+                if brace_count <= 0 and len(method_lines) > 1:
+                    break
+        method_body = '\n'.join(method_lines)
+        assert method_lines, "showcase/core.js 找不到 _sortWithFlip 方法定義"
+        assert 'flip-guard' in method_body, (
+            "showcase/core.js _sortWithFlip 缺少 flip-guard 管理 — "
+            "B15 Flip 期間必須加 flip-guard class 關掉 CSS transition"
+        )
+
+    def test_core_js_filter_adds_flip_guard_class(self):
+        """B15: core.js _animateFilter 在 Flip 期間管理 flip-guard class"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        # brace-counting 提取 _animateFilter 方法體
+        in_method = False
+        method_lines = []
+        brace_count = 0
+        for line in lines:
+            stripped = line.strip()
+            if not in_method and '_animateFilter' in stripped and '{' in stripped and stripped.endswith('{'):
+                in_method = True
+                brace_count = 0
+            if in_method:
+                method_lines.append(line)
+                brace_count += line.count('{') - line.count('}')
+                if brace_count <= 0 and len(method_lines) > 1:
+                    break
+        method_body = '\n'.join(method_lines)
+        assert method_lines, "showcase/core.js 找不到 _animateFilter 方法定義"
+        assert 'flip-guard' in method_body, (
+            "showcase/core.js _animateFilter 缺少 flip-guard 管理 — "
+            "B15 Flip 期間必須加 flip-guard class 關掉 CSS transition"
+        )
+
+    def test_core_js_page_change_cleans_flip_guard(self):
+        """B15: core.js _animatePageChange 清理殘留 flip-guard 但不使用 Flip 動畫"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        # brace-counting 提取 _animatePageChange 方法體
+        in_method = False
+        method_lines = []
+        brace_count = 0
+        for line in lines:
+            stripped = line.strip()
+            if not in_method and '_animatePageChange' in stripped and '{' in stripped and stripped.endswith('{'):
+                in_method = True
+                brace_count = 0
+            if in_method:
+                method_lines.append(line)
+                brace_count += line.count('{') - line.count('}')
+                if brace_count <= 0 and len(method_lines) > 1:
+                    break
+        method_body = '\n'.join(method_lines)
+        assert method_lines, "showcase/core.js 找不到 _animatePageChange 方法定義"
+        assert 'flip-guard' in method_body, (
+            "showcase/core.js _animatePageChange 缺少 flip-guard 清理 — "
+            "翻頁時必須清理 sort/filter 動畫被打斷後殘留的 flip-guard"
+        )
+        assert 'capturePositions' not in method_body, (
+            "showcase/core.js _animatePageChange 不應包含 capturePositions — "
+            "翻頁用 playEntry，不使用 Flip 排序動畫"
+        )
+        assert 'captureFlipState' not in method_body, (
+            "showcase/core.js _animatePageChange 不應包含 captureFlipState — "
+            "翻頁用 playEntry，不使用 Flip 篩選動畫"
+        )
+
+    def test_play_flip_filter_returns_tweens(self):
+        """B15: playFlipFilter 的 onEnter/onLeave 必須 return tween 供 Flip timeline 管理"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        # brace-counting 提取 playFlipFilter 方法體
+        in_method = False
+        method_lines = []
+        brace_count = 0
+        for line in lines:
+            if not in_method and 'playFlipFilter' in line and 'function' in line:
+                in_method = True
+                brace_count = 0
+            if in_method:
+                method_lines.append(line)
+                brace_count += line.count('{') - line.count('}')
+                if brace_count <= 0 and len(method_lines) > 1:
+                    break
+        method_body = '\n'.join(method_lines)
+        assert method_lines, "showcase/animations.js 找不到 playFlipFilter 方法定義"
+        assert 'return gsap.fromTo' in method_body, (
+            "showcase/animations.js playFlipFilter onEnter 缺少 return — "
+            "必須 return tween 供 Flip timeline 管理進場動畫"
+        )
+        assert 'return gsap.to' in method_body, (
+            "showcase/animations.js playFlipFilter onLeave 缺少 return — "
+            "必須 return tween 供 Flip timeline 管理出場動畫"
         )
 
     # --- B10 守衛 ---

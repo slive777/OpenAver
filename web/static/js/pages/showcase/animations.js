@@ -2,11 +2,11 @@
  * ShowcaseAnimations — /showcase 頁面動畫模組
  *
  * 暴露 window.ShowcaseAnimations 物件，提供：
- *   - playEntry(gridEl, params)                B6: 進場動畫（B13 後也用於排序/翻頁）
- *   - capturePositions(gridEl)                  B12: 捕獲手動位置快照（B13 後 core.js 不再呼叫）
- *   - playFlipReorder(gridEl, positionMap, params) B12: 排序洗牌手動動畫（B13 後 core.js 不再呼叫）
- *   - playFlipFilter(gridEl, state, params)     B8: 篩選進出場 Flip 動畫（B14 後 core.js 不再呼叫）
- *   - captureFlipState(gridEl)                  B8: 捕獲 Flip 狀態快照（B14 後 core.js 不再呼叫）
+ *   - playEntry(gridEl, params)                B6: 進場動畫（B13 後也用於翻頁）
+ *   - capturePositions(gridEl)                  B12: 捕獲手動位置快照（B15 恢復 core.js 呼叫）
+ *   - playFlipReorder(gridEl, positionMap, params) B12: 排序洗牌手動動畫（B15 恢復 core.js 呼叫）
+ *   - playFlipFilter(gridEl, state, params)     B8: 篩選進出場 Flip 動畫（B15 恢復 core.js 呼叫）
+ *   - captureFlipState(gridEl)                  B8: 捕獲 Flip 狀態快照（B15 恢復 core.js 呼叫）
  *   - playPageOut(gridEl, direction, params)    B9: 分頁離場動畫（B13 後 core.js 不再呼叫）
  *   - playPageIn(gridEl, direction, params)     B9: 分頁進場動畫（B13 後 core.js 不再呼叫）
  *   - playModeCrossfade(oldMode, newMode, params) B10: 模式切換 crossfade
@@ -160,7 +160,12 @@
 
             if (!tweens.length) return null;
 
-            var tl = gsap.timeline({ id: 'showcaseReorder' });
+            var tl = gsap.timeline({
+                id: 'showcaseReorder',
+                onComplete: function () {
+                    gridEl.classList.remove('flip-guard');
+                }
+            });
             tweens.forEach(function (t) {
                 tl.fromTo(t.card,
                     { x: t.dx, y: t.dy },
@@ -207,16 +212,17 @@
                 prune: true,
                 simple: true,
                 onEnter: function (els) {
-                    gsap.fromTo(els,
+                    return gsap.fromTo(els,
                         { opacity: 0, scale: 0.85 },
                         { opacity: 1, scale: 1, duration: dur * 0.8, ease: 'power2.out' }
                     );
                 },
                 onLeave: function (els) {
-                    gsap.to(els, { opacity: 0, scale: 0.85, duration: dur * 0.6, ease: 'power2.in' });
+                    return gsap.to(els, { opacity: 0, scale: 0.85, duration: dur * 0.6, ease: 'power2.in' });
                 },
                 onComplete: function () {
                     gsap.set(cards, { clearProps: 'transform' });
+                    gridEl.classList.remove('flip-guard');
                 }
             });
         },
