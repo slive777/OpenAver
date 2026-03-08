@@ -34,6 +34,20 @@
         return !!(window.OpenAver?.prefersReducedMotion);
     }
 
+    // A4: 註冊 CustomEase "settle" 曲線（與 motion-lab.js 相同，重複 create 無害）
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof CustomEase !== 'undefined') {
+            try {
+                if (!CustomEase._initted && typeof gsap !== 'undefined') {
+                    gsap.registerPlugin(CustomEase);
+                }
+                CustomEase.create("settle", "M0,0 C0.14,0 0.27,0.87 0.5,1 0.75,1 0.86,0.98 1,1");
+            } catch (e) {
+                // settle ease 註冊失敗時 playGridSettle 會 fallback 到 power2.out
+            }
+        }
+    });
+
     // ===== U4: Ghost Helpers (private to IIFE) =====
 
     /**
@@ -606,6 +620,93 @@
                 { x: xFrom, opacity: 0 },
                 { x: 0, opacity: 1, duration: 0.3, ease: 'power3.out' }
             );
+        },
+
+        /**
+         * Grid Settle Pulse：staging exit 完成後，對前 N 排 grid 卡片做極輕微 scale pulse
+         * 營造「結果穩定落位」的收尾感。
+         *
+         * 動畫目標是 .av-card-preview-img（不是 .av-card-preview），
+         * 避免覆蓋 .av-card-preview:hover 的 CSS transform。
+         * Row bucketing 使用 2px tolerance（Math.round(top/2)*2）。
+         *
+         * C4：開頭 gsap.killTweensOf 清舊動畫。
+         * C6：不使用 rotation，只用 scale。
+         *
+         * @param {Element} gridEl - .search-grid 容器
+         * @param {object} [options] - { duration, scale, ease, rows }
+         * @returns {gsap.core.Timeline|null}
+         */
+        playGridSettle: function (gridEl, options) {
+            options = options || {};
+            if (!gridEl) return null;
+            if (typeof gsap === 'undefined') return null;
+
+            var cards = gridEl.querySelectorAll('.av-card-preview');
+            if (!cards.length) return null;
+
+            // 動畫目標是 .av-card-preview-img（不是 .av-card-preview），
+            // 因為 .av-card-preview:hover 有 CSS transform（theme.css），
+            // GSAP 寫 inline scale 會覆蓋 hover 效果
+            var imgTargets = [];
+            cards.forEach(function (card) {
+                var img = card.querySelector('.av-card-preview-img');
+                if (img) imgTargets.push(img);
+            });
+            if (!imgTargets.length) return null;
+
+            // C4: 清除舊動畫
+            gsap.killTweensOf(imgTargets);
+
+            // Reduced Motion 降級
+            if (shouldSkip()) {
+                gsap.set(imgTargets, { scale: 1 });
+                return null;
+            }
+
+            var dur = options.duration || 0.4;
+            var scaleVal = options.scale || 1.03;
+            var ease = options.ease || 'settle';
+            var rowCount = options.rows || 2;
+
+            // CustomEase fallback：若 settle ease 未註冊，fallback 到 power2.out
+            if (ease === 'settle' && typeof CustomEase === 'undefined') {
+                ease = 'power2.out';
+            }
+
+            // Row bucketing：2px tolerance，避免子像素差異
+            var rowMap = {};
+            imgTargets.forEach(function (img, i) {
+                var card = cards[i];
+                var top = card.getBoundingClientRect().top;
+                var rowKey = Math.round(top / 2) * 2;
+                if (!rowMap[rowKey]) rowMap[rowKey] = [];
+                rowMap[rowKey].push(img);
+            });
+
+            // 按 rowKey 升序排列
+            var sortedKeys = Object.keys(rowMap).map(Number).sort(function (a, b) { return a - b; });
+
+            // 只取前 N 行
+            var targetKeys = sortedKeys.slice(0, rowCount);
+            if (!targetKeys.length) return null;
+
+            // 建立 timeline
+            var tl = gsap.timeline({ id: 'gridSettle' });
+
+            targetKeys.forEach(function (key, rowIdx) {
+                var rowImgs = rowMap[key];
+                // 同行卡片同時，跨行 0.06s 延遲
+                tl.fromTo(rowImgs,
+                    { scale: scaleVal },
+                    { scale: 1, duration: dur, ease: ease },
+                    rowIdx * 0.06  // position parameter
+                );
+            });
+
+            // C6: 不使用 rotationX/Y/Z，只用 scale
+
+            return tl;
         }
     };
 })();

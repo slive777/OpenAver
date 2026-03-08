@@ -2023,3 +2023,80 @@ class TestRotatingBorderOnceRemoved:
             "shouldShowLocalBorder 仍引用 _localBorderPlayed — "
             "A2A3 應簡化為只檢查 result?._localStatus?.exists"
         )
+
+
+class TestGridSettlePulse:
+    """A4 守衛 — Grid Settle Pulse 落地
+
+    確認 animations.js 暴露 playGridSettle 方法、search-flow.js 的
+    onExitComplete 呼叫 playGridSettle、CustomEase "settle" 曲線已註冊、
+    以及 C4/C6 約束遵守。
+    """
+
+    ANIMATIONS_JS = PROJECT_ROOT / "web/static/js/pages/search/animations.js"
+    SEARCH_FLOW_JS = PROJECT_ROOT / "web/static/js/pages/search/state/search-flow.js"
+
+    def test_animations_exposes_play_grid_settle(self):
+        """animations.js 包含 playGridSettle 方法定義"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'playGridSettle' in content, (
+            "animations.js 缺少 playGridSettle — "
+            "A4 必須新增此方法（Grid Settle Pulse 落地動畫）"
+        )
+
+    def test_search_flow_calls_play_grid_settle(self):
+        """search-flow.js 的 onExitComplete 或 _triggerStagingExit 區段呼叫 playGridSettle"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        # 找方法定義（不是呼叫點 this._triggerStagingExit()）
+        match = re.search(r'_triggerStagingExit\s*\(\s*\)\s*\{', content)
+        assert match, (
+            "search-flow.js 缺少 _triggerStagingExit 方法定義"
+        )
+        # 取足夠大的方法體區段（包含 onExitComplete callback + $nextTick）
+        trigger_body = content[match.start():match.start() + 1000]
+        assert 'playGridSettle' in trigger_body, (
+            "search-flow.js 的 _triggerStagingExit / onExitComplete 缺少 playGridSettle 呼叫 — "
+            "A4 staging exit 完成後應觸發 Grid Settle Pulse"
+        )
+
+    def test_animations_registers_settle_custom_ease(self):
+        """animations.js 包含 CustomEase.create("settle" 註冊"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'CustomEase.create("settle"' in content, (
+            "animations.js 缺少 CustomEase.create(\"settle\" — "
+            "A4 必須註冊 settle 自訂曲線供 playGridSettle 使用"
+        )
+
+    def test_play_grid_settle_has_kill_tweens_of(self):
+        """animations.js 的 playGridSettle 方法體包含 killTweensOf（C4 約束）"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        # 找方法定義（不是 JSDoc 註解中的提及）
+        match = re.search(r'playGridSettle:\s*function', content)
+        assert match, (
+            "animations.js 缺少 playGridSettle 方法定義"
+        )
+        method_body = content[match.start():match.start() + 3000]
+        assert 'killTweensOf' in method_body, (
+            "playGridSettle 缺少 killTweensOf — "
+            "C4 約束：每個動畫開頭必須 gsap.killTweensOf(target) 清舊動畫"
+        )
+
+    def test_play_grid_settle_no_rotation(self):
+        """animations.js 的 playGridSettle 方法體不包含 rotation（C6 約束）"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        # 找方法定義（不是 JSDoc 註解中的提及）
+        match = re.search(r'playGridSettle:\s*function', content)
+        assert match, (
+            "animations.js 缺少 playGridSettle 方法定義"
+        )
+        method_body = content[match.start():match.start() + 3000]
+        # 排除註解行，只檢查實際程式碼中的 rotation 屬性
+        code_lines = [
+            line for line in method_body.split('\n')
+            if line.strip() and not line.strip().startswith('//')
+        ]
+        code_only = '\n'.join(code_lines)
+        assert 'rotation' not in code_only, (
+            "playGridSettle 包含 rotation — "
+            "C6 約束：不使用 rotationX / rotationY / rotationZ"
+        )

@@ -664,6 +664,14 @@ window.SearchStateMixin_SearchFlow = {
             self.stagingNumber = '';
             self.stagingReceivedCount = 0;
             self._stagingCardWidth = 0;
+
+            // A4: Grid Settle Pulse（fire-and-forget）
+            self.$nextTick(function () {
+                requestAnimationFrame(function () {
+                    var grid = document.querySelector('.search-grid');
+                    window.SearchAnimations?.playGridSettle?.(grid);
+                });
+            });
         }
 
         if (!window.SearchAnimations) {
