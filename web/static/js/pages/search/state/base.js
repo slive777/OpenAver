@@ -132,6 +132,9 @@ window.SearchStateMixin_Base = function () {
         _heroCardImageError: false,
         _heroLightboxImageError: false,
 
+        // ===== A7-Prod: Hero Slot 預留 =====
+        _heroSlotReserved: false,
+
         // ===== Constants =====
         PAGE_SIZE: 20,
         MODE_TEXT: {

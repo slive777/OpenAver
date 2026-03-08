@@ -35,7 +35,11 @@
     }
 
     // A4: 註冊 CustomEase "settle" 曲線（與 motion-lab.js 相同，重複 create 無害）
+    // A7-Prod: 註冊 Flip plugin（base.html L452 已載入 CDN）
     document.addEventListener('DOMContentLoaded', function () {
+        if (typeof gsap !== 'undefined' && typeof Flip !== 'undefined') {
+            gsap.registerPlugin(Flip);
+        }
         if (typeof CustomEase !== 'undefined') {
             try {
                 if (!CustomEase._initted && typeof gsap !== 'undefined') {
@@ -620,6 +624,28 @@
                 { x: xFrom, opacity: 0 },
                 { x: 0, opacity: 1, duration: 0.3, ease: 'power3.out' }
             );
+        },
+
+        /**
+         * A7-Prod: Hero Slot Flip 移除 — actressProfile 為 null 時平滑補位
+         *
+         * Fire-and-forget，不回傳 Promise。
+         * 參考 motion-lab.js L929-944，簡化版。
+         *
+         * @param {object} flipState - Flip.getState() 的回傳值（DOM 變更前捕獲）
+         * @param {object} [options] - { duration, ease }
+         */
+        playHeroRemove: function (flipState, options) {
+            options = options || {};
+            if (!flipState) return;
+            if (typeof Flip === 'undefined') return;
+            if (shouldSkip()) return;
+            var dur = options.duration || 0.4;
+            var ease = options.ease || 'power2.out';
+            Flip.from(flipState, {
+                duration: dur,
+                ease: ease
+            });
         },
 
         /**

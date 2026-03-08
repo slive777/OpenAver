@@ -385,31 +385,39 @@
 
             <!-- T2a: Grid Mode（封面牆） -->
             <div class="search-grid ds-gallery-composition" x-show="displayMode === 'grid' && listMode === 'search'" x-cloak>
-                <!-- T2d: Hero Card（第一格）-->
+                <!-- T2d: Hero Card（第一格）— A7-Prod: actressProfile || _heroSlotReserved 時顯示 -->
                 <div class="av-card-preview hero-card"
-                     x-show="actressProfile"
+                     x-show="actressProfile || _heroSlotReserved"
                      x-cloak
-                     @click="openActressLightbox()">
+                     @click="actressProfile && openActressLightbox()">
                     <div class="av-card-preview-img">
+                        <!-- A7-Prod: 正常態（actressProfile 有值） -->
                         <img :src="actressProfile?.img ? `/api/proxy-image?url=${encodeURIComponent(actressProfile.img)}` : ''"
                              :alt="actressProfile?.name"
                              loading="lazy"
-                             x-show="!_heroCardImageError"
+                             x-show="actressProfile && !_heroCardImageError"
                              @error="if (actressProfile?.img) _heroCardImageError = true">
                         <!-- A6-1: Hero Card fallback placeholder -->
-                        <div x-show="_heroCardImageError"
+                        <div x-show="actressProfile && _heroCardImageError"
                              class="av-card-no-cover">
                             <i class="bi bi-image"></i>
                             <span>No Image</span>
                         </div>
+                        <!-- A7-Prod: skeleton 預留態（shimmer） -->
+                        <div class="skeleton-cover shimmer" x-show="!actressProfile && _heroSlotReserved"></div>
                     </div>
                     <div class="av-card-preview-footer">
-                        <div class="footer-default">
+                        <!-- A7-Prod: 正常態 footer -->
+                        <div class="footer-default" x-show="actressProfile">
                             <span class="av-num" x-text="actressProfile?.birth || '-'">-</span>
                             <span class="av-actress" x-text="actressProfile?.height || ''"></span>
                         </div>
-                        <div class="footer-hover">
+                        <div class="footer-hover" x-show="actressProfile">
                             <div class="hover-title" x-text="[actressProfile?.name_en || '', actressProfile?.name || '', actressProfile?.age ? actressProfile?.age + '歲' : '', actressProfile?.cup ? actressProfile?.cup + '罩杯' : '', actressProfile?.bust || '', actressProfile?.waist || '', actressProfile?.hip || '', actressProfile?.hometown || '', actressProfile?.hobby || ''].filter(Boolean).join(' · ') || '-'"></div>
+                        </div>
+                        <!-- A7-Prod: skeleton 預留態 footer -->
+                        <div class="footer-default" x-show="!actressProfile && _heroSlotReserved">
+                            <span class="av-num" x-text="currentQuery || '...'">...</span>
                         </div>
                     </div>
                 </div>

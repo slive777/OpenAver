@@ -70,6 +70,7 @@ window.SearchStateMixin_SearchFlow = {
         this.errorText = '';  // T6c: 清空錯誤訊息
         this._heroCardImageError = false;   // A6-1: 清空 Hero Card 圖片錯誤
         this._heroLightboxImageError = false; // A6-1: 清空 Lightbox 圖片錯誤
+        this._heroSlotReserved = false;      // A7-Prod: 清空 Hero Slot 預留
     },
 
     // ===== T1b: Search Methods =====
@@ -129,6 +130,7 @@ window.SearchStateMixin_SearchFlow = {
         this._gridImageErrors = new Set();  // T6a: 清空 Grid 圖片錯誤記錄
         this._heroCardImageError = false;   // A6-1: 清空 Hero Card 圖片錯誤
         this._heroLightboxImageError = false; // A6-1: 清空 Lightbox 圖片錯誤
+        this._heroSlotReserved = false;      // A7-Prod: 重置 Hero Slot 預留
         this.errorText = '';  // T6c: 清空上次的錯誤訊息
         // T4: 重置 stream state（防競態 + 新搜尋乾淨起始）
         this.isStreaming = false;
@@ -180,6 +182,7 @@ window.SearchStateMixin_SearchFlow = {
                 // T4: seed handler（C11 約束）
                 else if (data.type === 'seed') {
                     this.isStreaming = true;
+                    this._heroSlotReserved = true;  // A7-Prod: 所有送 seed 的搜尋一律預留 Hero slot
                     this.streamComplete = false;
                     this.streamSlots = data.slots;
                     this.streamBurstedSlots = new Array(data.slots.length).fill(false);
@@ -263,6 +266,7 @@ window.SearchStateMixin_SearchFlow = {
                     this.hasMoreResults = data.has_more || false;
                     this.actressProfile = data.actress_profile || null;
                     if (this.actressProfile) this._heroCardImageError = false;  // A6-1 fix: actressProfile 到達，重新嘗試載入
+                    // A7-Prod: result-complete 不拆 Hero placeholder — 最終命運由 result 事件決定
                     // C9: 不用 filter()，失敗 slot 原地標記
                     // C13: map 回傳新 array，觸發 Alpine reactivity
                     // 只標記「尚未 burst 的 _skeleton」（已 burst 的 slot 已填入真實資料）
@@ -298,6 +302,16 @@ window.SearchStateMixin_SearchFlow = {
                             this.hasMoreResults = data.has_more || false;
                             this.actressProfile = data.actress_profile || null;
                             if (this.actressProfile) this._heroCardImageError = false;  // A6-1 fix: actressProfile 到達，重新嘗試載入
+                            // A7-Prod: fallback 路徑 — 無 actressProfile 且 _heroSlotReserved 時 Flip 移除
+                            if (!this.actressProfile && this._heroSlotReserved) {
+                                var gridElFb = document.querySelector('.search-grid');
+                                var flipTargetsFb = gridElFb ? gridElFb.children : [];
+                                var flipStateFb = (typeof Flip !== 'undefined') ? Flip.getState(flipTargetsFb) : null;
+                                this._heroSlotReserved = false;
+                                this.$nextTick(() => {
+                                    window.SearchAnimations?.playHeroRemove?.(flipStateFb);
+                                });
+                            }
                             this.listMode = 'search';
                             if (data.mode) this.currentMode = data.mode;
                             // 與傳統 result 路徑一致：尊重 gallery_mode_enabled 設定
@@ -325,6 +339,8 @@ window.SearchStateMixin_SearchFlow = {
                             }
                         } else if (allFailed && (!data.success || !data.data || data.data.length === 0)) {
                             // 全部失敗且無 fallback → 顯示 error
+                            // A7-Prod: 清理 _heroSlotReserved（頁面將切到 error state）
+                            this._heroSlotReserved = false;
                             this.errorText = '找不到資料';
                             window.SearchUI.showState('error');
                         } else {
@@ -333,6 +349,17 @@ window.SearchStateMixin_SearchFlow = {
                             if (data.actress_profile) {
                                 this.actressProfile = data.actress_profile;
                                 this._heroCardImageError = false;  // A6-1 fix: actressProfile 到達，重新嘗試載入
+                                // A7-Prod: actressProfile 到達 → Hero 填充內容（保持 _heroSlotReserved = true）
+                            }
+                            // A7-Prod: 無 actressProfile 且 _heroSlotReserved → Flip 移除 Hero placeholder
+                            if (!this.actressProfile && this._heroSlotReserved) {
+                                var gridEl = document.querySelector('.search-grid');
+                                var flipTargets = gridEl ? gridEl.children : [];
+                                var flipState = (typeof Flip !== 'undefined') ? Flip.getState(flipTargets) : null;
+                                this._heroSlotReserved = false;
+                                this.$nextTick(() => {
+                                    window.SearchAnimations?.playHeroRemove?.(flipState);
+                                });
                             }
                             this.hasContent = this.searchResults.length > 0;
                             // Issue 2: 查詢本地狀態（只對非 _failed 結果）
@@ -473,6 +500,17 @@ window.SearchStateMixin_SearchFlow = {
                 this.hasMoreResults = data.has_more || false;
                 this.actressProfile = data.actress_profile || null;  // T2d: 寫入女優資料
                 if (this.actressProfile) this._heroCardImageError = false;  // A6-1 fix: actressProfile 到達，重新嘗試載入
+                // A7-Prod Issue 2: fallbackSearch 處理 _heroSlotReserved
+                // SSE 可能已送過 seed（_heroSlotReserved = true），之後 SSE 斷線走 fallback
+                if (!this.actressProfile && this._heroSlotReserved) {
+                    var gridEl = document.querySelector('.search-grid');
+                    var flipTargets = gridEl ? gridEl.children : [];
+                    var flipState = (typeof Flip !== 'undefined') ? Flip.getState(flipTargets) : null;
+                    this._heroSlotReserved = false;  // Alpine 移除 Hero placeholder DOM
+                    this.$nextTick(() => {
+                        window.SearchAnimations?.playHeroRemove?.(flipState);
+                    });
+                }
                 this.listMode = 'search';
 
                 // 查詢本地狀態
@@ -507,6 +545,10 @@ window.SearchStateMixin_SearchFlow = {
                 this.addingTag = false;
             } else {
                 this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋失敗）
+                // A7-Prod Issue 2: fallback 失敗時也要清理 _heroSlotReserved
+                if (this._heroSlotReserved) {
+                    this._heroSlotReserved = false;
+                }
                 this.errorText = data.error || '找不到資料';  // T6c: Alpine state
                 window.SearchUI.showState('error');
             }
@@ -559,6 +601,7 @@ window.SearchStateMixin_SearchFlow = {
         this.stagingNumber = '';
         this.stagingReceivedCount = 0;
         this._stagingCardWidth = 0;
+        this._heroSlotReserved = false;  // A7-Prod: 重置 Hero Slot 預留
 
         // 還原到搜尋前的狀態
         const snap = this._searchSnapshot;

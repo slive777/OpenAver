@@ -2215,3 +2215,130 @@ class TestLightboxModeNormalization:
             "grid-mode.js openActressLightbox 缺少 actressProfile guard — "
             "A6-2 無女優資料時不應開啟 actress lightbox"
         )
+
+
+class TestHeroSlotReservation:
+    """A7-Prod 守衛 — Hero Slot 一律預留落地
+
+    確認 seed handler 設定 _heroSlotReserved、search.html Hero Card
+    x-show 包含 _heroSlotReserved、animations.js 暴露 playHeroRemove、
+    result-complete 不拆 placeholder、result handler 統一處理 _heroSlotReserved。
+    """
+
+    BASE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/base.js"
+    SEARCH_FLOW_JS = PROJECT_ROOT / "web/static/js/pages/search/state/search-flow.js"
+    SEARCH_HTML = PROJECT_ROOT / "web/templates/search.html"
+    ANIMATIONS_JS = PROJECT_ROOT / "web/static/js/pages/search/animations.js"
+
+    def test_seed_handler_sets_hero_slot_reserved(self):
+        """search-flow.js seed handler 包含 _heroSlotReserved = true"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        # 找 seed handler
+        match = re.search(r"data\.type\s*===?\s*['\"]seed['\"]", content)
+        assert match, "search-flow.js 缺少 seed handler"
+        seed_block = content[match.start():match.start() + 1000]
+        assert '_heroSlotReserved' in seed_block and '= true' in seed_block, (
+            "search-flow.js seed handler 缺少 _heroSlotReserved = true — "
+            "A7-Prod 所有送 seed 的搜尋必須預留 Hero slot"
+        )
+
+    def test_hero_card_xshow_includes_hero_slot_reserved(self):
+        """search.html Hero Card x-show 包含 _heroSlotReserved"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        match = re.search(r'class="[^"]*hero-card[^"]*"', content)
+        assert match, "search.html 缺少 hero-card class 區塊"
+        hero_block = content[max(0, match.start() - 200):match.start() + 200]
+        assert '_heroSlotReserved' in hero_block, (
+            "search.html Hero Card x-show 缺少 _heroSlotReserved 條件 — "
+            "A7-Prod Hero Card 應在 actressProfile || _heroSlotReserved 時顯示"
+        )
+
+    def test_animations_exposes_play_hero_remove(self):
+        """animations.js 包含 playHeroRemove 方法定義"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert re.search(r'playHeroRemove\s*:', content), (
+            "animations.js 缺少 playHeroRemove 方法 — "
+            "A7-Prod 必須新增此方法（Flip 補位動畫）"
+        )
+
+    def test_result_complete_does_not_remove_hero_slot(self):
+        """search-flow.js result-complete handler 不拆 Hero placeholder（由 result 事件決定）"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        match = re.search(r"data\.type\s*===?\s*['\"]result-complete['\"]", content)
+        assert match, "search-flow.js 缺少 result-complete handler"
+        rc_block = content[match.start():match.start() + 1500]
+        # result-complete 不應包含 _heroSlotReserved = false（拆除邏輯）
+        assert '_heroSlotReserved = false' not in rc_block, (
+            "search-flow.js result-complete handler 不應拆除 Hero placeholder — "
+            "A7-Prod Hero slot 最終命運由 result 事件決定"
+        )
+
+    def test_fallback_search_handles_hero_slot_no_actress(self):
+        """search-flow.js fallbackSearch 成功但無 actressProfile 時移除 _heroSlotReserved"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        match = re.search(r'async\s+fallbackSearch\s*\(', content)
+        assert match, "search-flow.js 缺少 fallbackSearch 方法"
+        fb_block = content[match.start():match.start() + 3000]
+        assert '_heroSlotReserved' in fb_block, (
+            "search-flow.js fallbackSearch 缺少 _heroSlotReserved 處理 — "
+            "A7-Prod SSE 斷線走 fallback 時，無 actressProfile 必須移除 Hero placeholder"
+        )
+
+    def test_fallback_search_hero_slot_flip_remove(self):
+        """search-flow.js fallbackSearch 的 _heroSlotReserved 移除包含 Flip 動畫"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        match = re.search(r'async\s+fallbackSearch\s*\(', content)
+        assert match, "search-flow.js 缺少 fallbackSearch 方法"
+        fb_block = content[match.start():match.start() + 3000]
+        assert 'playHeroRemove' in fb_block, (
+            "search-flow.js fallbackSearch 的 _heroSlotReserved 移除缺少 playHeroRemove 呼叫 — "
+            "A7-Prod 必須透過 Flip 動畫平滑移除 Hero placeholder"
+        )
+
+    def test_result_event_handles_hero_slot_in_normal_stream(self):
+        """search-flow.js result 事件（正常 stream 路徑）統一處理 _heroSlotReserved"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        # 找 streamComplete 後的 result handler 中的正常路徑
+        # 正常 stream 完成路徑在 "正常 stream 完成：只補充 metadata" 附近
+        assert '正常 stream 完成' in content, (
+            "search-flow.js 缺少正常 stream 完成路徑的註解標記"
+        )
+        normal_idx = content.index('正常 stream 完成')
+        normal_block = content[normal_idx:normal_idx + 2000]
+        assert '_heroSlotReserved' in normal_block, (
+            "search-flow.js result 事件正常 stream 路徑缺少 _heroSlotReserved 處理 — "
+            "A7-Prod Hero slot 最終命運由 result 事件決定"
+        )
+        # 驗證包含 Flip 移除邏輯（playHeroRemove）
+        assert 'playHeroRemove' in normal_block, (
+            "search-flow.js result 事件正常 stream 路徑缺少 playHeroRemove — "
+            "A7-Prod 無 actressProfile 時必須 Flip 移除 Hero placeholder"
+        )
+
+    def test_result_event_allFailed_fallback_handles_hero_slot(self):
+        """search-flow.js result 事件 allFailed+fallback 路徑處理 _heroSlotReserved"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        # allFailed fallback 路徑在 "Issue 1: Fallback 路徑" 附近
+        assert 'Issue 1: Fallback' in content, (
+            "search-flow.js 缺少 allFailed fallback 路徑的註解標記"
+        )
+        fb_idx = content.index('Issue 1: Fallback')
+        fb_block = content[fb_idx:fb_idx + 2000]
+        assert '_heroSlotReserved' in fb_block, (
+            "search-flow.js result 事件 allFailed+fallback 路徑缺少 _heroSlotReserved 處理 — "
+            "A7-Prod fallback 替換結果時必須處理 Hero slot"
+        )
+
+    def test_result_event_allFailed_no_fallback_cleans_hero_slot(self):
+        """search-flow.js result 事件全失敗無 fallback 路徑清理 _heroSlotReserved"""
+        content = self.SEARCH_FLOW_JS.read_text(encoding='utf-8')
+        # 全失敗無 fallback 路徑在 "全部失敗且無 fallback" 附近
+        assert '全部失敗且無 fallback' in content, (
+            "search-flow.js 缺少全失敗無 fallback 路徑的註解標記"
+        )
+        nf_idx = content.index('全部失敗且無 fallback')
+        nf_block = content[nf_idx:nf_idx + 500]
+        assert '_heroSlotReserved' in nf_block, (
+            "search-flow.js result 事件全失敗無 fallback 路徑缺少 _heroSlotReserved 清理 — "
+            "A7-Prod 切到 error state 前必須清理 Hero slot"
+        )
