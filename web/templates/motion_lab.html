@@ -639,6 +639,10 @@
              flipDuration: 0.5,
              flipEase: 'power2.inOut',
              flipPrune: true,
+             filterQuery: '',
+             filterEnterStyle: 'opacityScale',
+             filterLeaveStyle: 'opacityScale',
+             filterDuration: 0.4,
          },
 
          init() {
@@ -1952,6 +1956,62 @@
                    :disabled="tab !== 'showcase'"
                    x-model="showcaseParams.flipPrune">
             <span class="control-label" style="cursor:pointer">Prune</span>
+        </div>
+
+        <div class="control-divider"></div>
+
+        <!-- Filter Search Input -->
+        <div class="control-group" :style="tab !== 'showcase' ? 'opacity:0.4' : ''">
+            <span class="control-label">Filter</span>
+            <input type="text" class="control-input"
+                   placeholder="Filter by name..."
+                   :disabled="tab !== 'showcase'"
+                   x-model="showcaseParams.filterQuery"
+                   @input.debounce.300ms="
+                       var query = showcaseParams.filterQuery.trim().toLowerCase();
+                       var filterFn = function(card) {
+                           if (!query) return true;
+                           return card.dataset.name.toLowerCase().includes(query);
+                       };
+                       MotionLab.playFlipFilter($refs.showcaseGrid, filterFn, {
+                           duration: showcaseParams.filterDuration,
+                           enterStyle: showcaseParams.filterEnterStyle,
+                           leaveStyle: showcaseParams.filterLeaveStyle,
+                           reducedMotionSim: reducedMotionSim
+                       });
+                   ">
+        </div>
+
+        <!-- Leave Style -->
+        <div class="control-group" :style="tab !== 'showcase' ? 'opacity:0.4' : ''">
+            <span class="control-label">Leave Style</span>
+            <select class="control-select"
+                    :disabled="tab !== 'showcase'"
+                    x-model="showcaseParams.filterLeaveStyle">
+                <option value="opacityScale">opacity+scale</option>
+                <option value="opacityOnly">opacity only</option>
+            </select>
+        </div>
+
+        <!-- Enter Style -->
+        <div class="control-group" :style="tab !== 'showcase' ? 'opacity:0.4' : ''">
+            <span class="control-label">Enter Style</span>
+            <select class="control-select"
+                    :disabled="tab !== 'showcase'"
+                    x-model="showcaseParams.filterEnterStyle">
+                <option value="opacityScale">opacity+scale</option>
+                <option value="fadeUp">fadeUp</option>
+            </select>
+        </div>
+
+        <!-- Filter Duration -->
+        <div class="control-group" :style="tab !== 'showcase' ? 'opacity:0.4' : ''">
+            <span class="control-label">Filter Duration</span>
+            <input type="range" class="control-slider"
+                   min="0.3" max="0.6" step="0.05"
+                   :disabled="tab !== 'showcase'"
+                   x-model.number="showcaseParams.filterDuration">
+            <span class="control-value" x-text="showcaseParams.filterDuration.toFixed(2) + 's'"></span>
         </div>
     </div>
 

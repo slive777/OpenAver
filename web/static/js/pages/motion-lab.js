@@ -1077,6 +1077,81 @@
         },
 
         /**
+         * Showcase Grid 篩選動畫：Flip onEnter/onLeave
+         * C18: Flip.killFlipsOf 中斷進行中的 Flip
+         * @param {Element} gridEl - .showcase-grid 容器（x-ref="showcaseGrid"）
+         * @param {function} filterFn - 接收 card element，回傳 boolean（true=顯示）
+         * @param {object} params - { duration, enterStyle, leaveStyle, reducedMotionSim }
+         * @returns {gsap.core.Timeline|null}
+         */
+        playFlipFilter: function (gridEl, filterFn, params) {
+            params = params || {};
+            if (!gridEl) return null;
+
+            var allCards = gridEl.querySelectorAll('.av-card-preview');
+            if (!allCards.length) return null;
+
+            // Reduced Motion 降級
+            if (shouldSkip(params)) {
+                Array.from(allCards).forEach(function (card) {
+                    card.style.display = filterFn(card) ? '' : 'none';
+                });
+                return null;
+            }
+
+            // C18: 中斷進行中的 Flip
+            Flip.killFlipsOf(allCards);
+
+            // 1. Capture state
+            var state = Flip.getState(allCards, { props: 'opacity' });
+
+            // 2. 套用 filter（toggle display）
+            Array.from(allCards).forEach(function (card) {
+                card.style.display = filterFn(card) ? '' : 'none';
+            });
+
+            // 3. Flip.from with onEnter/onLeave
+            var dur = params.duration || 0.4;
+            var enterStyle = params.enterStyle || 'opacityScale';
+            var leaveStyle = params.leaveStyle || 'opacityScale';
+
+            return Flip.from(state, {
+                duration: dur,
+                ease: 'power2.inOut',
+                absolute: true,
+                prune: true,
+                simple: true,
+                onEnter: function (els) {
+                    // enterStyle branching
+                    if (enterStyle === 'fadeUp') {
+                        return gsap.fromTo(els,
+                            { opacity: 0, y: 20 },
+                            { opacity: 1, y: 0, duration: dur * 0.8, ease: 'power2.out' });
+                    }
+                    // default: opacityScale
+                    return gsap.fromTo(els,
+                        { opacity: 0, scale: 0.85 },
+                        { opacity: 1, scale: 1, duration: dur * 0.8, ease: 'power2.out' });
+                },
+                onLeave: function (els) {
+                    // leaveStyle branching
+                    if (leaveStyle === 'opacityOnly') {
+                        return gsap.to(els,
+                            { opacity: 0, duration: dur * 0.6, ease: 'power2.in' });
+                    }
+                    // default: opacityScale
+                    return gsap.to(els,
+                        { opacity: 0, scale: 0.85, duration: dur * 0.6, ease: 'power2.in' });
+                },
+                onComplete: function () {
+                    var visible = gridEl.querySelectorAll(
+                        '.av-card-preview:not([style*="display: none"])');
+                    gsap.set(visible, { clearProps: 'transform' });
+                }
+            });
+        },
+
+        /**
          * Showcase Grid 入場動畫：stagger 依序淡入
          * C4: killTweensOf(cards)
          * C6: 不使用 rotationX/Y/Z
