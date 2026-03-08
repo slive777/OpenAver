@@ -618,7 +618,9 @@ def test_search_api_graceful_failure(mock_search_actress):
 
         assert data['success'] is True  # 搜尋結果正常
         assert data['actress_profile'] is None  # 資料卡為空
-        assert len(data['data']) > 0  # 有搜尋結果
+        assert isinstance(data['data'], list)
+        assert len(data['data']) == 3  # mock 會提供 3 筆結果
+        assert data['data'][0]['number'] == 'SONE-205'
 
 
 def test_search_api_variant_id_no_profile():

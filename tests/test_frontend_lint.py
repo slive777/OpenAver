@@ -1206,33 +1206,28 @@ class TestStreamState:
     SEARCH_HTML = PROJECT_ROOT / "web/templates/search.html"
     SEARCH_CSS = PROJECT_ROOT / "web/static/css/pages/search.css"
 
-    def test_base_js_has_stream_state_fields(self):
-        """base.js 宣告 stream state 欄位：streamSlots、streamComplete、isStreaming + U2 staging buffer + U3 staging display"""
+    def test_base_js_core_stream_state(self):
+        """base.js 宣告核心 stream state 欄位"""
         content = self.BASE_JS.read_text(encoding='utf-8')
-        assert 'streamSlots' in content, \
-            "base.js 缺少 streamSlots 欄位宣告 — T4 stream state contract"
-        assert 'streamComplete' in content, \
-            "base.js 缺少 streamComplete 欄位宣告 — T4 stream state contract"
-        assert 'isStreaming' in content, \
-            "base.js 缺少 isStreaming 欄位宣告 — T4 stream state contract"
-        # U2: 新增四個 staging buffer state 欄位守衛
-        assert 'streamBuffer' in content, \
-            "base.js 缺少 streamBuffer 欄位宣告 — U2 staging buffer state contract"
-        assert 'streamBurstTimer' in content, \
-            "base.js 缺少 streamBurstTimer 欄位宣告 — U2 timing window timer"
-        assert 'streamBurstedSlots' in content, \
-            "base.js 缺少 streamBurstedSlots 欄位宣告 — U2 burst tracking"
-        assert 'stagingVisible' in content, \
-            "base.js 缺少 stagingVisible 欄位宣告 — U2 staging 容器可見性"
-        # U3: streamFilled 已移除（loading strip 移除），新增 staging 顯示 state
-        assert 'streamFilled' not in content, \
-            "base.js 仍含 streamFilled 欄位 — U3 應已移除（loading strip 移除後成為死碼）"
-        assert 'stagingCover' in content, \
-            "base.js 缺少 stagingCover 欄位宣告 — U3 staging card 封面 URL"
-        assert 'stagingNumber' in content, \
-            "base.js 缺少 stagingNumber 欄位宣告 — U3 staging card 番號"
-        assert 'stagingReceivedCount' in content, \
-            "base.js 缺少 stagingReceivedCount 欄位宣告 — U3 staging card 計數"
+        assert 'streamSlots' in content, "缺少 streamSlots 宣告"
+        assert 'streamComplete' in content, "缺少 streamComplete 宣告"
+        assert 'isStreaming' in content, "缺少 isStreaming 宣告"
+
+    def test_base_js_staging_buffer_state(self):
+        """base.js 宣告 U2 staging buffer state 欄位"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        assert 'streamBuffer' in content, "缺少 streamBuffer 宣告"
+        assert 'streamBurstTimer' in content, "缺少 streamBurstTimer 宣告"
+        assert 'streamBurstedSlots' in content, "缺少 streamBurstedSlots 宣告"
+        assert 'stagingVisible' in content, "缺少 stagingVisible 宣告"
+
+    def test_base_js_staging_display_state(self):
+        """base.js 宣告 U3 staging display state 欄位，並確保已移除 streamFilled"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        assert 'streamFilled' not in content, "仍含 streamFilled — 應已移除"
+        assert 'stagingCover' in content, "缺少 stagingCover 宣告"
+        assert 'stagingNumber' in content, "缺少 stagingNumber 宣告"
+        assert 'stagingReceivedCount' in content, "缺少 stagingReceivedCount 宣告"
 
     def test_result_item_uses_stream_buffer(self):
         """result-item handler 推入 streamBuffer，不直接更新 searchResults（U2 batching 約束）；U3 新增 staging state 更新"""

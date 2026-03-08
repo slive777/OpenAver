@@ -142,6 +142,9 @@ class TestD2PassScraper:
 
         assert video is not None
         assert video.source == "d2pass"
+        assert video.title == "キャットウォーク ..."
+        assert len(video.actresses) == 1
+        assert video.actresses[0].name == "鈴木さとみ"
         # 驗證第一次呼叫的 URL 包含 caribbeancom
         first_call_url = mock_get.call_args_list[0][0][0]
         assert "caribbeancom" in first_call_url
@@ -162,6 +165,10 @@ class TestD2PassScraper:
                 video = scraper.search("082912_01")
 
         assert video is not None
+        assert video.source == "d2pass"
+        assert video.title == "素人AV面接 ..."
+        assert len(video.actresses) == 1
+        assert video.actresses[0].name == "堀川麻紀"
         # 驗證第一次呼叫的 URL 包含 10musume
         first_call_url = mock_get.call_args_list[0][0][0]
         assert "10musume" in first_call_url
@@ -207,6 +214,9 @@ class TestD2PassScraper:
                 video = scraper.search("020924-001")
 
         assert video is not None
+        assert video.title == "テスト動画"
+        assert len(video.actresses) == 1
+        assert video.actresses[0].name == "テスト"
         assert video.cover_url == "https://www.caribbeancom.com/moviepages/020924-001/images/l_l.jpg"
 
     def test_d2pass_1pondo_cover_fallback(self, scraper):
@@ -226,6 +236,9 @@ class TestD2PassScraper:
                 video = scraper.search("042324_001")
 
         assert video is not None
+        assert video.title == "テスト動画"
+        assert len(video.actresses) == 1
+        assert video.actresses[0].name == "テスト"
         assert video.cover_url == "https://www.1pondo.tv/assets/sample/042324_001/str.jpg"
 
 
@@ -320,7 +333,8 @@ class TestDMMScraper:
                 video = dmm_scraper.search("SONE-205")
 
         assert video is not None
-        # 快取命中 → 不呼叫 search query；payload 中不含 legacySearchPPV
+        assert video.title == "成人への卒業"
+        assert video.number == "SONE-205"
         for call_args in mock_post.call_args_list:
             payload = call_args[1].get('json', {}) if call_args[1] else {}
             query_str = payload.get('query', '')
@@ -344,10 +358,14 @@ class TestDMMScraper:
                 video = dmm_scraper.search("SONE-205")
 
         assert video is not None
-        assert video.number != ""
-        assert video.title != ""
+        assert video.number == "SONE-205"
+        assert video.title == "成人への卒業"
         assert video.source == "dmm"
         assert "dmm.co.jp" in video.detail_url
+        assert video.date == "2024-03-19"
+        assert len(video.actresses) == 1
+        assert video.actresses[0].name == "Nana Miho"
+        assert video.maker == "S1 NO.1 STYLE"
 
     def test_dmm_cache_isolation(self, dmm_scraper, tmp_path):
         """搜尋成功後 cache 寫入 tmp_path，不污染 project root"""
@@ -656,8 +674,8 @@ class TestDMMTags:
             video = dmm_scraper.search("SONE-205")
 
         assert video is not None
-        assert video.title != ''
-        assert video.cover_url != ''
+        assert video.title == "成人への卒業"
+        assert video.cover_url == "https://pics.dmm.co.jp/sone205pl.jpg"
         assert video.source == 'dmm'
         assert video.tags == []
 

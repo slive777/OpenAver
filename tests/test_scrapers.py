@@ -57,18 +57,22 @@ def test_search_valid_number(scraper_cls, test_number):
     if video:  # external network dependency
         assert isinstance(video, Video)
         if scraper_cls == FC2Scraper:
-            assert "FC2" in video.number
+            assert video.number.startswith("FC2-PPV-") or "FC2" in video.number.upper()
             assert "1723984" in video.number
-            assert video.title != ""
+            assert isinstance(video.title, str) and len(video.title) > 0
         elif scraper_cls == JAV321Scraper:
-            assert "MIDV" in video.number.upper()
-            assert len(getattr(video, 'actresses', [])) > 0
+            assert video.number.upper().startswith("MIDV")
+            actresses = getattr(video, 'actresses', [])
+            assert isinstance(actresses, list) and len(actresses) > 0
+            assert isinstance(actresses[0], Actress)
         elif scraper_cls == JavDBScraper:
             assert video.number == test_number
-            assert len(getattr(video, 'tags', [])) > 0
+            tags = getattr(video, 'tags', [])
+            assert isinstance(tags, list) and len(tags) > 0
+            assert isinstance(tags[0], str)
         else:
             assert video.number == test_number
-            assert video.title != ""
+            assert isinstance(video.title, str) and len(video.title) > 0
         assert video.source == scraper.source_name
 
 # ========== Task 1 爬蟲測試 ==========
@@ -108,6 +112,8 @@ class TestJAV321Scraper:
             assert len(results) <= 5
             for video in results:
                 assert isinstance(video, Video)
+                assert isinstance(video.title, str) and len(video.title) > 0
+                assert video.number is not None and len(video.number) > 0
 
 
 class TestJavDBScraper:
@@ -122,6 +128,7 @@ class TestJavDBScraper:
         video = scraper.search("SONE-205")
 
         if video:
+            assert isinstance(video.cover_url, str)
             assert any(d in video.cover_url for d in ["jdbimgs", "javdb", "jdbstatic"])
 
 
@@ -160,6 +167,7 @@ class TestAVSOXScraper:
         domain = scraper._get_working_domain()
 
         if domain:  # 網路依賴
+            assert isinstance(domain, str)
             assert domain.startswith("https://")
             assert "avsox" in domain
 
@@ -170,7 +178,8 @@ class TestAVSOXScraper:
         if video:  # 網路依賴
             assert isinstance(video, Video)
             assert video.source == "avsox"
-            assert len(video.actresses) > 0
+            assert isinstance(video.actresses, list) and len(video.actresses) > 0
+            assert isinstance(video.actresses[0], Actress)
 
     def test_search_censored_number_returns_none(self, scraper):
         """測試：有碼番號應返回 None（AVSOX 主要收錄無碼）"""
@@ -236,9 +245,9 @@ class TestMultiSourceIntegration:
             assert hasattr(scraper, 'normalize_number')
             assert hasattr(scraper, 'source_name')
 
-            # 確認 source_name 是字串
+            # 確認 source_name 是有效的非空字串
             assert isinstance(scraper.source_name, str)
-            assert scraper.source_name != ""
+            assert len(scraper.source_name.strip()) > 0
 
     def test_scraper_source_names_unique(self):
         """測試：各爬蟲來源名稱唯一"""
