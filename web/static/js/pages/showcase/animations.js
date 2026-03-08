@@ -57,7 +57,61 @@
          * @returns {null}
          */
         playEntry: function (gridEl, params) {
-            return null;
+            params = params || {};
+
+            // null guard
+            if (!gridEl) return null;
+
+            // GSAP guard（CDN 故障降級）
+            if (typeof gsap === 'undefined') return null;
+
+            var cards = gridEl.querySelectorAll('.av-card-preview');
+            if (!cards.length) return null;
+
+            // C4: 清除舊動畫
+            gsap.killTweensOf(cards);
+
+            // Reduced Motion 降級：瞬間顯示
+            if (shouldSkip()) {
+                gsap.set(cards, { opacity: 1, y: 0, scale: 1 });
+                return null;
+            }
+
+            var dur = params.duration || 0.5;
+            var staggerVal = params.stagger || 0.04;
+            var ease = params.easing || 'power3.out';
+
+            // Viewport 分流：fold 以下卡片瞬間顯示
+            var viewportH = window.innerHeight;
+            var visible = [];
+            var offscreen = [];
+            Array.from(cards).forEach(function (card) {
+                if (card.getBoundingClientRect().top < viewportH) {
+                    visible.push(card);
+                } else {
+                    offscreen.push(card);
+                }
+            });
+
+            if (offscreen.length) {
+                gsap.set(offscreen, { opacity: 1, y: 0, scale: 1 });
+            }
+
+            if (!visible.length) return null;
+
+            // 設定初始狀態
+            var fromVars = { opacity: 0, y: 20 };
+            gsap.set(visible, fromVars);
+
+            var tl = gsap.timeline({ id: 'showcaseEntry' });
+            tl.to(visible, { opacity: 1, y: 0, duration: dur, ease: ease, stagger: staggerVal });
+
+            // 動畫結束後清除 inline styles
+            tl.eventCallback('onComplete', function () {
+                gsap.set(visible, { clearProps: 'transform,opacity' });
+            });
+
+            return tl;
         },
 
         /**

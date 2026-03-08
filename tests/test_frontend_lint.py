@@ -308,6 +308,7 @@ class TestMotionInfra:
             Path('components') / 'motion-adapter.js',   # components/motion-adapter.js
             Path('pages') / 'motion-lab.js',            # pages/motion-lab.js（T1 新增）
             Path('pages') / 'search' / 'animations.js', # pages/search/animations.js（T6 預先加入）
+            Path('pages') / 'showcase' / 'animations.js', # pages/showcase/animations.js（B6 動畫模組）
         }
         violations = []
 
@@ -2448,4 +2449,57 @@ class TestShowcaseAnimationsGuard:
         assert 'Flip.min.js' not in content, (
             "showcase.html 不應載入 Flip.min.js — "
             "base.html 已全站載入 Flip CDN，不應重複"
+        )
+
+    # --- B6 守衛 ---
+    CORE_JS = PROJECT_ROOT / "web/static/js/pages/showcase/core.js"
+
+    def test_play_entry_not_placeholder(self):
+        """B6: playEntry 已從 placeholder 替換為完整實作"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'gsap.killTweensOf' in content, (
+            "showcase/animations.js playEntry 缺少 gsap.killTweensOf — "
+            "B6 必須包含 C4 清除舊動畫"
+        )
+        assert 'getBoundingClientRect' in content, (
+            "showcase/animations.js playEntry 缺少 getBoundingClientRect — "
+            "B6 必須包含 viewport 分流邏輯"
+        )
+        assert 'gsap.set' in content, (
+            "showcase/animations.js playEntry 缺少 gsap.set — "
+            "B6 必須包含 offscreen 瞬間到位 + Reduced Motion 降級"
+        )
+
+    def test_core_js_calls_play_entry(self):
+        """B6: core.js 包含 playEntry 呼叫"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        assert 'playEntry' in content, (
+            "showcase/core.js 缺少 playEntry — "
+            "B6 init() 必須呼叫 ShowcaseAnimations.playEntry"
+        )
+        assert 'ShowcaseAnimations' in content, (
+            "showcase/core.js 缺少 ShowcaseAnimations — "
+            "B6 必須透過 window.ShowcaseAnimations 全域物件呼叫"
+        )
+
+    def test_core_js_play_entry_has_mode_guard(self):
+        """B6: core.js playEntry 呼叫包含 mode guard"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        # 找到包含 playEntry 的行，往上搜尋最近的 if 條件
+        play_entry_indices = [i for i, line in enumerate(lines) if 'playEntry' in line]
+        assert play_entry_indices, (
+            "showcase/core.js 找不到 playEntry — B6 必須呼叫動畫"
+        )
+        found_mode_guard = False
+        for idx in play_entry_indices:
+            # 檢查前 5 行內是否包含 mode 檢查
+            start = max(0, idx - 5)
+            nearby = '\n'.join(lines[start:idx + 1])
+            if 'mode' in nearby:
+                found_mode_guard = True
+                break
+        assert found_mode_guard, (
+            "showcase/core.js playEntry 附近缺少 mode guard — "
+            "B6 必須在 mode === 'grid' 時才觸發動畫"
         )

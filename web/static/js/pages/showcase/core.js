@@ -69,6 +69,14 @@ function showcaseState() {
             this.applyFilterAndSort();  // M4a: 套用搜尋篩選（會重置 page=1）
             this.page = savedPage;      // 恢復儲存的頁碼
             this.updatePagination();    // 重新分頁（會 clamp 超出範圍的頁碼）
+
+            // B6: 初始載入進場動畫（僅 grid mode）
+            if (this.mode === 'grid') {
+                this.$nextTick(() => { requestAnimationFrame(() => {
+                    var grid = document.querySelector('.showcase-grid');
+                    window.ShowcaseAnimations?.playEntry?.(grid);
+                }); });
+            }
         },
 
         // --- 狀態恢復 (M2c) ---
