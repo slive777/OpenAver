@@ -642,7 +642,15 @@
             if (!gridEl) return null;
             if (typeof gsap === 'undefined') return null;
 
-            var cards = gridEl.querySelectorAll('.av-card-preview');
+            var allCards = gridEl.querySelectorAll('.av-card-preview');
+            if (!allCards.length) return null;
+
+            // A4 fix: 過濾 display:none 的卡片（_failed slot），
+            // 避免 getBoundingClientRect() 回傳 0-size rect 污染 row bucketing
+            var cards = [];
+            allCards.forEach(function (card) {
+                if (card.offsetHeight > 0) cards.push(card);
+            });
             if (!cards.length) return null;
 
             // 動畫目標是 .av-card-preview-img（不是 .av-card-preview），

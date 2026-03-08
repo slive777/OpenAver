@@ -657,6 +657,7 @@ window.SearchStateMixin_SearchFlow = {
 
         const stagingEl = this.$refs?.stagingCard;
         const self = this;
+        const capturedRequestId = this.requestId;  // A4 fix: 捕獲 searchId 防競態
 
         function onExitComplete() {
             self.stagingVisible = false;
@@ -666,8 +667,11 @@ window.SearchStateMixin_SearchFlow = {
             self._stagingCardWidth = 0;
 
             // A4: Grid Settle Pulse（fire-and-forget）
+            // requestId guard：搜尋 A 的 exit callback 晚於搜尋 B 開始時跳過
             self.$nextTick(function () {
+                if (capturedRequestId !== self.requestId) return;
                 requestAnimationFrame(function () {
+                    if (capturedRequestId !== self.requestId) return;
                     var grid = document.querySelector('.search-grid');
                     window.SearchAnimations?.playGridSettle?.(grid);
                 });
