@@ -83,9 +83,6 @@ window.SearchStateMixin_SearchFlow = {
         }
         if (!query) return;
 
-        // T4: 重置 rotating border 動畫追蹤（新搜尋允許重新觸發）
-        this._localBorderPlayed = {};
-
         // 2. 取消現有搜尋
         this.cancelSearch();
 
@@ -444,9 +441,6 @@ window.SearchStateMixin_SearchFlow = {
      * @param {number} savedRequestId - 保存的請求 ID（防競態）
      */
     async fallbackSearch(query, savedRequestId) {
-        // T4: 重置 rotating border 動畫追蹤
-        this._localBorderPlayed = {};
-
         // 建立 AbortController（離頁時可取消）
         this._fallbackAbortController = new AbortController();
 

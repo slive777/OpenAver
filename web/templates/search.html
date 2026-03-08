@@ -169,8 +169,7 @@
             <!-- AV Card Full：封面 + 資訊並排（Detail 模式） -->
             <div class="av-card-full rotating-border-spotlight"
                  x-show="displayMode === 'detail'"
-                 :class="{ 'active once': shouldShowLocalBorder(current()) }"
-                 @animationend.self="markLocalBorderPlayed(current()?.number)">
+                 :class="{ 'active': shouldShowLocalBorder(current()) }">
                 <div class="av-card-full-cover">
                     <div class="av-card-full-cover-wrapper">
                         <img id="resultCover" x-ref="coverImg" class="av-card-full-cover-img"
@@ -408,11 +407,10 @@
                          :class="{
                              'skeleton': result._skeleton,
                              'failed-slot': result._failed,
-                             'rotating-border-spotlight active once': !result._skeleton && !result._failed && shouldShowLocalBorder(result)
+                             'rotating-border-spotlight active': !result._skeleton && !result._failed && shouldShowLocalBorder(result)
                          }"
                          :style="result._failed ? 'display: none' : ''"
-                         @click="!result._skeleton && !result._failed && openLightbox(idx)"
-                         @animationend.self="!result._skeleton && !result._failed && markLocalBorderPlayed(result?.number)">
+                         @click="!result._skeleton && !result._failed && openLightbox(idx)">
                         <div class="av-card-preview-img">
                             <!-- T4: skeleton shimmer placeholder -->
                             <div class="skeleton-cover shimmer" x-show="result._skeleton"></div>

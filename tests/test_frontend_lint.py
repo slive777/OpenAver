@@ -1942,3 +1942,84 @@ class TestFailedSlotC30Guard:
         # 確認有條件檢查：在 findIndex 之前先檢查當前 item 是否 _failed
         assert 'currentResult' in repoint_context or 'this.searchResults[this.currentIndex]' in repoint_context, \
             "repoint 必須先檢查當前 currentIndex 是否指向 _failed item，不可無條件覆蓋 (Codex review)"
+
+
+class TestRotatingBorderOnceRemoved:
+    """A2A3 守衛 — 確認 .once 變體及相關追蹤邏輯已完全移除"""
+
+    ROTATING_BORDER_CSS = PROJECT_ROOT / "web/static/css/components/rotating-border.css"
+    SEARCH_HTML = PROJECT_ROOT / "web/templates/search.html"
+    STATE_DIR = PROJECT_ROOT / "web/static/js/pages/search/state"
+    BASE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/base.js"
+
+    def test_no_once_class_in_css(self):
+        """rotating-border.css 不應包含 .once selector"""
+        content = self.ROTATING_BORDER_CSS.read_text(encoding='utf-8')
+        matches = find_pattern_in_file(self.ROTATING_BORDER_CSS, r'\.once')
+        assert len(matches) == 0, (
+            f"rotating-border.css 仍包含 .once selector（應已在 A2A3 移除）:\n" +
+            "\n".join(f"  L{ln}: {line}" for ln, line in matches)
+        )
+
+    def test_no_animationend_in_search_html(self):
+        """search.html 不應包含 rotating-border 相關的 @animationend handler"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        assert 'markLocalBorderPlayed' not in content, (
+            "search.html 仍包含 markLocalBorderPlayed — "
+            "A2A3 應已完全移除 rotating-border 的 animationend 追蹤邏輯"
+        )
+        assert '@animationend' not in content, (
+            "search.html 仍包含 @animationend handler — "
+            "A2A3 應已移除 rotating-border 的所有 animationend handler"
+        )
+
+    def test_no_once_class_in_search_html(self):
+        """search.html 的 rotating-border :class 綁定不應包含 'active once' 模式"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        assert 'active once' not in content, (
+            "search.html 仍包含 'active once' 模式 — "
+            "A2A3 應已移除 .once 變體，:class 綁定只需 'active'"
+        )
+
+    def test_no_markLocalBorderPlayed_in_js(self):
+        """state/ 目錄下的 JS 檔案不應包含 markLocalBorderPlayed"""
+        violations = []
+        for js_file in self.STATE_DIR.glob("*.js"):
+            matches = find_pattern_in_file(js_file, r'markLocalBorderPlayed')
+            for ln, line in matches:
+                violations.append(f"{js_file.name}:{ln} — {line[:80]}")
+        assert len(violations) == 0, (
+            f"state/ JS 仍包含 markLocalBorderPlayed（應已在 A2A3 移除）:\n" +
+            "\n".join(f"  - {v}" for v in violations)
+        )
+
+    def test_no_localBorderPlayed_in_js(self):
+        """state/ 目錄下的 JS 檔案不應包含 _localBorderPlayed"""
+        violations = []
+        for js_file in self.STATE_DIR.glob("*.js"):
+            matches = find_pattern_in_file(js_file, r'_localBorderPlayed')
+            for ln, line in matches:
+                violations.append(f"{js_file.name}:{ln} — {line[:80]}")
+        assert len(violations) == 0, (
+            f"state/ JS 仍包含 _localBorderPlayed（應已在 A2A3 移除）:\n" +
+            "\n".join(f"  - {v}" for v in violations)
+        )
+
+    def test_shouldShowLocalBorder_still_exists(self):
+        """base.js 應仍包含 shouldShowLocalBorder 方法（簡化但未刪除）"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        assert 'shouldShowLocalBorder' in content, (
+            "base.js 缺少 shouldShowLocalBorder 方法 — "
+            "A2A3 應簡化此方法而非刪除"
+        )
+
+    def test_shouldShowLocalBorder_no_played_reference(self):
+        """base.js 的 shouldShowLocalBorder 不應引用 _localBorderPlayed"""
+        content = self.BASE_JS.read_text(encoding='utf-8')
+        match = re.search(r'shouldShowLocalBorder\s*\(', content)
+        assert match, "base.js 缺少 shouldShowLocalBorder 方法"
+        method_body = content[match.start():match.start() + 300]
+        assert '_localBorderPlayed' not in method_body, (
+            "shouldShowLocalBorder 仍引用 _localBorderPlayed — "
+            "A2A3 應簡化為只檢查 result?._localStatus?.exists"
+        )

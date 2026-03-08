@@ -25,7 +25,6 @@ window.SearchStateMixin_GridMode = {
 
         // C17 step 2: state change (Alpine render)
         this.displayMode = wasDetail ? 'grid' : 'detail';
-        this._localBorderPlayed = {};  // T4: 切換模式時重置，讓動畫在新佈局重新標示
         this.saveState();
 
         // C17 step 3: animate (fire-and-forget)
