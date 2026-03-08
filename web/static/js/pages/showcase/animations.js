@@ -2,13 +2,13 @@
  * ShowcaseAnimations — /showcase 頁面動畫模組
  *
  * 暴露 window.ShowcaseAnimations 物件，提供：
- *   - playEntry(gridEl, params)                B6: 初始載入進場動畫
- *   - capturePositions(gridEl)                  B12: 捕獲手動位置快照（排序用）
- *   - playFlipReorder(gridEl, positionMap, params) B12: 排序洗牌手動動畫（取代 Flip）
+ *   - playEntry(gridEl, params)                B6: 進場動畫（B13 後也用於排序/翻頁）
+ *   - capturePositions(gridEl)                  B12: 捕獲手動位置快照（B13 後 core.js 不再呼叫）
+ *   - playFlipReorder(gridEl, positionMap, params) B12: 排序洗牌手動動畫（B13 後 core.js 不再呼叫）
  *   - playFlipFilter(gridEl, state, params)     B8: 篩選進出場 Flip 動畫
  *   - captureFlipState(gridEl)                  B8: 捕獲 Flip 狀態快照（篩選用）
- *   - playPageOut(gridEl, direction, params)    B9: 分頁離場動畫
- *   - playPageIn(gridEl, direction, params)     B9: 分頁進場動畫
+ *   - playPageOut(gridEl, direction, params)    B9: 分頁離場動畫（B13 後 core.js 不再呼叫）
+ *   - playPageIn(gridEl, direction, params)     B9: 分頁進場動畫（B13 後 core.js 不再呼叫）
  *   - playModeCrossfade(oldMode, newMode, params) B10: 模式切換 crossfade
  *
  * B5 骨架：所有方法為 placeholder，return null。

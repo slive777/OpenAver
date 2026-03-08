@@ -41,6 +41,7 @@ function showcaseState() {
         page: 1,
         perPage: 90,
         totalPages: 1,
+        _animGeneration: 0,  // B13: 防止 stale deferred callback
 
         // --- Computed ---
         get currentLightboxVideo() {
@@ -56,6 +57,7 @@ function showcaseState() {
             if (window.__registerPage) {
                 window.__registerPage({
                     cleanup: () => {
+                        this._animGeneration++;  // B13: 使 pending deferred callback 失效
                         if (this.lightboxMoveTimer) clearTimeout(this.lightboxMoveTimer);
                         if (this.toastTimer) clearTimeout(this.toastTimer);
                         if (this.lightboxOpen) document.body.classList.remove('overflow-hidden');
@@ -72,7 +74,9 @@ function showcaseState() {
 
             // B6: 初始載入進場動畫（僅 grid mode）
             if (this.mode === 'grid') {
+                var gen = ++this._animGeneration;
                 this.$nextTick(() => { requestAnimationFrame(() => {
+                    if (this._animGeneration !== gen) return;  // stale
                     var grid = document.querySelector('.showcase-grid');
                     window.ShowcaseAnimations?.playEntry?.(grid);
                 }); });
@@ -202,29 +206,24 @@ function showcaseState() {
         },
 
         /**
-         * B7: 排序動畫共用 helper — capture → change → animate
+         * B7/B13: 排序動畫共用 helper — change → playEntry
          * @param {Function} changeFn - 執行 data change 的函數
          */
         _sortWithFlip(changeFn) {
-            // Mode guard：僅 grid mode 觸發動畫
-            var grid = null;
-            var state = null;
-            if (this.mode === 'grid') {
-                grid = document.querySelector('.showcase-grid');
-                state = window.ShowcaseAnimations?.capturePositions?.(grid) || null;
-            }
-
-            // Step 2: data change（保存頁碼，因 applyFilterAndSort 會重置 page=1）
+            // Step 1: data change（保存頁碼，因 applyFilterAndSort 會重置 page=1）
             var savedPage = this.page;
             changeFn();
             this.page = savedPage;
             this.updatePagination();
-            this.saveState();  // 在 page 恢復後才持久化，避免 localStorage 寫入 page=1
+            this.saveState();
 
-            // Step 3: animate（$nextTick + rAF 雙層 defer）
-            if (state && grid) {
+            // Step 2: 排序後播放進場動畫（僅 grid mode）
+            if (this.mode === 'grid') {
+                var gen = ++this._animGeneration;
                 this.$nextTick(() => { requestAnimationFrame(() => {
-                    window.ShowcaseAnimations?.playFlipReorder?.(grid, state);
+                    if (this._animGeneration !== gen) return;  // stale
+                    var grid = document.querySelector('.showcase-grid');
+                    window.ShowcaseAnimations?.playEntry?.(grid);
                 }); });
             }
         },
@@ -255,50 +254,31 @@ function showcaseState() {
         },
 
         /**
-         * B9: 分頁動畫攔截 — playPageOut → 換頁 → playPageIn
+         * B9/B13: 分頁動畫 — state-first + playEntry
          * @param {string} direction - 'next' | 'prev'
          * @param {number} [targetPage] - 目標頁碼（goToPage 用，prevPage/nextPage 不傳）
          */
         _animatePageChange(direction, targetPage) {
-            var self = this;
-
             // 計算目標頁碼
             var newPage = targetPage;
             if (newPage === undefined) {
                 newPage = direction === 'next' ? this.page + 1 : this.page - 1;
             }
 
-            // Mode guard：非 grid mode 直接換頁不播動畫
-            if (this.mode !== 'grid') {
-                this.page = newPage;
-                this.updatePagination();
-                this.saveState();
-                window.scrollTo(0, 0);
-                return;
-            }
+            // State mutation FIRST（不再困在回調中）
+            this.page = newPage;
+            this.updatePagination();
+            this.saveState();
+            window.scrollTo(0, 0);
 
-            // Grid mode：playPageOut → onComplete 內換頁 + playPageIn
-            var grid = document.querySelector('.showcase-grid');
-            var result = window.ShowcaseAnimations?.playPageOut?.(grid, direction, {
-                onComplete: function () {
-                    self.page = newPage;
-                    self.updatePagination();
-                    self.saveState();
-                    window.scrollTo(0, 0);
-
-                    // $nextTick + rAF 等 Alpine 渲染完成再播進場動畫
-                    self.$nextTick(function () { requestAnimationFrame(function () {
-                        window.ShowcaseAnimations?.playPageIn?.(grid, direction);
-                    }); });
-                }
-            });
-
-            // playPageOut 返回 null（GSAP 未載入等）：fallback 直接換頁
-            if (result == null) {
-                this.page = newPage;
-                this.updatePagination();
-                this.saveState();
-                window.scrollTo(0, 0);
+            // Grid mode：播放進場動畫
+            if (this.mode === 'grid') {
+                var gen = ++this._animGeneration;
+                this.$nextTick(() => { requestAnimationFrame(() => {
+                    if (this._animGeneration !== gen) return;  // stale
+                    var grid = document.querySelector('.showcase-grid');
+                    window.ShowcaseAnimations?.playEntry?.(grid);
+                }); });
             }
         },
 

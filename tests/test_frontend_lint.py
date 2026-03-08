@@ -2584,8 +2584,8 @@ class TestShowcaseAnimationsGuard:
             "B12 必須在動畫後恢復 CSS hover 效果"
         )
 
-    def test_core_js_on_sort_change_has_position_capture(self):
-        """B12: core.js 排序動畫使用 capturePositions（取代 captureFlipState）"""
+    def test_core_js_sort_helper_uses_play_entry(self):
+        """B13: core.js 排序動畫改用 playEntry（取代 capturePositions + playFlipReorder）"""
         content = self.CORE_JS.read_text(encoding='utf-8')
         lines = content.split('\n')
         # 用 brace counting 提取 _sortWithFlip 方法體
@@ -2606,17 +2606,21 @@ class TestShowcaseAnimationsGuard:
         assert method_lines, (
             "showcase/core.js 找不到 _sortWithFlip 方法定義"
         )
-        assert 'capturePositions' in method_body, (
-            "showcase/core.js _sortWithFlip 缺少 capturePositions — "
-            "B12 排序前必須用手動位置捕獲"
+        assert 'playEntry' in method_body, (
+            "showcase/core.js _sortWithFlip 缺少 playEntry — "
+            "B13 排序後必須用 playEntry stagger fade-in"
         )
-        assert 'playFlipReorder' in method_body, (
-            "showcase/core.js _sortWithFlip 缺少 playFlipReorder — "
-            "B12 排序後必須播放動畫"
+        assert 'capturePositions' not in method_body, (
+            "showcase/core.js _sortWithFlip 仍包含 capturePositions — "
+            "B13 應移除手動位置捕獲（改用 playEntry）"
+        )
+        assert 'playFlipReorder' not in method_body, (
+            "showcase/core.js _sortWithFlip 仍包含 playFlipReorder — "
+            "B13 應移除 Flip reorder 動畫（改用 playEntry）"
         )
 
     def test_core_js_on_sort_change_has_mode_guard(self):
-        """B12: core.js 排序動畫包含 mode guard"""
+        """B13: core.js 排序動畫包含 mode guard"""
         content = self.CORE_JS.read_text(encoding='utf-8')
         lines = content.split('\n')
         # 用 brace counting 提取 _sortWithFlip 方法體
@@ -2639,7 +2643,7 @@ class TestShowcaseAnimationsGuard:
         )
         assert 'mode' in method_body, (
             "showcase/core.js _sortWithFlip 缺少 mode guard — "
-            "B12 必須在 mode === 'grid' 時才觸發排序動畫"
+            "B13 必須在 mode === 'grid' 時才觸發排序動畫"
         )
 
     def test_sort_with_flip_preserves_page(self):
@@ -2928,6 +2932,148 @@ class TestShowcaseAnimationsGuard:
                 f"showcase/core.js {method_name} 包含 behavior — "
                 "B9 翻頁不應使用 smooth scroll，避免與 stagger-in 時序衝突"
             )
+
+    # --- B13 守衛 ---
+
+    def test_core_js_animate_page_change_uses_play_entry(self):
+        """B13: core.js _animatePageChange 改用 playEntry（取代 playPageOut/playPageIn 鏈）"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        # 用 brace counting 提取 _animatePageChange 方法體
+        in_method = False
+        method_lines = []
+        brace_count = 0
+        for line in lines:
+            stripped = line.strip()
+            if not in_method and '_animatePageChange' in stripped and '{' in stripped and stripped.endswith('{'):
+                in_method = True
+                brace_count = 0
+            if in_method:
+                method_lines.append(line)
+                brace_count += line.count('{') - line.count('}')
+                if brace_count <= 0 and len(method_lines) > 1:
+                    break
+        method_body = '\n'.join(method_lines)
+        assert method_lines, (
+            "showcase/core.js 找不到 _animatePageChange 方法定義"
+        )
+        assert 'playEntry' in method_body, (
+            "showcase/core.js _animatePageChange 缺少 playEntry — "
+            "B13 翻頁必須用 playEntry stagger fade-in"
+        )
+        assert 'playPageOut' not in method_body, (
+            "showcase/core.js _animatePageChange 仍包含 playPageOut — "
+            "B13 應移除離場動畫（state-first + playEntry）"
+        )
+        assert 'playPageIn' not in method_body, (
+            "showcase/core.js _animatePageChange 仍包含 playPageIn — "
+            "B13 應移除進場動畫（改用 playEntry）"
+        )
+
+    def test_core_js_animate_page_change_no_on_complete_trap(self):
+        """B13: core.js _animatePageChange 不將 state mutation 困在 onComplete callback"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        # 用 brace counting 提取 _animatePageChange 方法體
+        in_method = False
+        method_lines = []
+        brace_count = 0
+        for line in lines:
+            stripped = line.strip()
+            if not in_method and '_animatePageChange' in stripped and '{' in stripped and stripped.endswith('{'):
+                in_method = True
+                brace_count = 0
+            if in_method:
+                method_lines.append(line)
+                brace_count += line.count('{') - line.count('}')
+                if brace_count <= 0 and len(method_lines) > 1:
+                    break
+        method_body = '\n'.join(method_lines)
+        assert method_lines, (
+            "showcase/core.js 找不到 _animatePageChange 方法定義"
+        )
+        assert 'onComplete' not in method_body, (
+            "showcase/core.js _animatePageChange 仍包含 onComplete — "
+            "B13 必須 state-first，不可將 page mutation 困在回調中"
+        )
+
+    def test_core_js_has_anim_generation_guard(self):
+        """B13: core.js 包含動畫排程 generation token 防止 stale callback"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        assert '_animGeneration' in content, (
+            "showcase/core.js 缺少 _animGeneration — "
+            "B13 必須用 generation token 防止高頻互動的 stale deferred callback"
+        )
+
+    def test_core_js_sort_helper_has_generation_guard(self):
+        """B13: core.js _sortWithFlip 使用 generation token 防止 stale callback"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        in_method = False
+        method_lines = []
+        brace_count = 0
+        for line in lines:
+            stripped = line.strip()
+            if not in_method and '_sortWithFlip' in stripped and 'changeFn' in stripped and stripped.endswith('{'):
+                in_method = True
+                brace_count = 0
+            if in_method:
+                method_lines.append(line)
+                brace_count += line.count('{') - line.count('}')
+                if brace_count <= 0 and len(method_lines) > 1:
+                    break
+        method_body = '\n'.join(method_lines)
+        assert method_lines, "showcase/core.js 找不到 _sortWithFlip 方法定義"
+        assert '_animGeneration' in method_body, (
+            "showcase/core.js _sortWithFlip 缺少 _animGeneration guard — "
+            "B13 高頻排序時必須用 generation token 使舊 callback 失效"
+        )
+
+    def test_core_js_animate_page_change_has_generation_guard(self):
+        """B13: core.js _animatePageChange 使用 generation token 防止 stale callback"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        in_method = False
+        method_lines = []
+        brace_count = 0
+        for line in lines:
+            stripped = line.strip()
+            if (not in_method and '_animatePageChange' in stripped
+                    and ('direction' in stripped or 'targetPage' in stripped)
+                    and '{' in stripped):
+                in_method = True
+                brace_count = 0
+            if in_method:
+                method_lines.append(line)
+                brace_count += line.count('{') - line.count('}')
+                if brace_count <= 0 and len(method_lines) > 1:
+                    break
+        method_body = '\n'.join(method_lines)
+        assert method_lines, "showcase/core.js 找不到 _animatePageChange 方法定義"
+        assert '_animGeneration' in method_body, (
+            "showcase/core.js _animatePageChange 缺少 _animGeneration guard — "
+            "B13 高頻翻頁時必須用 generation token 使舊 callback 失效"
+        )
+
+    def test_core_js_cleanup_invalidates_generation(self):
+        """B13: core.js cleanup 遞增 _animGeneration 使離頁時 pending callback 失效"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        # Find cleanup block
+        cleanup_idx = None
+        for i, line in enumerate(lines):
+            if 'cleanup' in line and ('=>' in line or 'function' in line):
+                cleanup_idx = i
+                break
+        assert cleanup_idx is not None, (
+            "showcase/core.js 找不到 cleanup callback"
+        )
+        # Check nearby lines (within cleanup block, roughly 10 lines)
+        nearby = '\n'.join(lines[cleanup_idx:cleanup_idx + 10])
+        assert '_animGeneration' in nearby, (
+            "showcase/core.js cleanup 缺少 _animGeneration 遞增 — "
+            "B13 離頁時必須使 pending deferred callback 失效"
+        )
 
     # --- B10 守衛 ---
 
