@@ -117,11 +117,42 @@
         /**
          * B7: 排序洗牌 Flip 動畫
          * @param {Element} gridEl - .showcase-grid 容器
+         * @param {Object} state - captureFlipState 回傳的 Flip 狀態快照
          * @param {Object} params - 動畫參數
-         * @returns {null}
+         * @returns {Flip|null}
          */
-        playFlipReorder: function (gridEl, params) {
-            return null;
+        playFlipReorder: function (gridEl, state, params) {
+            params = params || {};
+
+            // null guard
+            if (!gridEl || !state) return null;
+
+            // Flip guard
+            if (typeof Flip === 'undefined' || typeof gsap === 'undefined') return null;
+
+            var cards = gridEl.querySelectorAll('.av-card-preview');
+            if (!cards.length) return null;
+
+            // Reduced Motion 降級：Alpine 已完成 DOM 更新，不需額外處理
+            if (shouldSkip()) return null;
+
+            // C18: 中斷進行中的 Flip 動畫
+            Flip.killFlipsOf(cards);
+
+            var dur = params.duration || 0.5;
+            var ease = params.ease || 'power2.inOut';
+
+            // Flip.from — 從舊位置動畫到新位置
+            return Flip.from(state, {
+                duration: dur,
+                ease: ease,
+                absolute: true,
+                prune: true,
+                simple: true,
+                onComplete: function () {
+                    gsap.set(cards, { clearProps: 'transform' });
+                }
+            });
         },
 
         /**
@@ -136,12 +167,21 @@
         },
 
         /**
-         * B8: 捕獲 Flip 狀態快照
+         * B7/B8: 捕獲 Flip 狀態快照
          * @param {Element} gridEl - .showcase-grid 容器
-         * @returns {null}
+         * @returns {Object|null} Flip state 物件
          */
         captureFlipState: function (gridEl) {
-            return null;
+            // null guard
+            if (!gridEl) return null;
+
+            // Flip guard
+            if (typeof Flip === 'undefined') return null;
+
+            var cards = gridEl.querySelectorAll('.av-card-preview');
+            if (!cards.length) return null;
+
+            return Flip.getState(cards, { props: 'opacity', simple: true });
         },
 
         /**

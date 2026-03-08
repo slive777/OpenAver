@@ -190,14 +190,42 @@ function showcaseState() {
         },
 
         onSortChange() {
-            this.applyFilterAndSort();
-            this.saveState();  // M2c: 持久化狀態
+            this._sortWithFlip(() => {
+                this.applyFilterAndSort();
+                this.saveState();
+            });
         },
 
         toggleOrder() {
-            this.order = this.order === 'asc' ? 'desc' : 'asc';
-            this.applyFilterAndSort();
-            this.saveState();  // M2c: 持久化狀態
+            this._sortWithFlip(() => {
+                this.order = this.order === 'asc' ? 'desc' : 'asc';
+                this.applyFilterAndSort();
+                this.saveState();
+            });
+        },
+
+        /**
+         * B7: 排序動畫共用 helper — capture → change → animate
+         * @param {Function} changeFn - 執行 data change 的函數
+         */
+        _sortWithFlip(changeFn) {
+            // Mode guard：僅 grid mode 觸發動畫
+            var grid = null;
+            var state = null;
+            if (this.mode === 'grid') {
+                grid = document.querySelector('.showcase-grid');
+                state = window.ShowcaseAnimations?.captureFlipState?.(grid) || null;
+            }
+
+            // Step 2: data change
+            changeFn();
+
+            // Step 3: animate（$nextTick + rAF 雙層 defer）
+            if (state && grid) {
+                this.$nextTick(() => { requestAnimationFrame(() => {
+                    window.ShowcaseAnimations?.playFlipReorder?.(grid, state);
+                }); });
+            }
         },
 
         onPerPageChange() {

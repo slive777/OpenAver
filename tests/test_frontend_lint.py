@@ -2503,3 +2503,65 @@ class TestShowcaseAnimationsGuard:
             "showcase/core.js playEntry 附近缺少 mode guard — "
             "B6 必須在 mode === 'grid' 時才觸發動畫"
         )
+
+    # --- B7 守衛 ---
+
+    def test_capture_flip_state_not_placeholder(self):
+        """B7: captureFlipState 已從 placeholder 替換為完整實作"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'Flip.getState' in content, (
+            "showcase/animations.js captureFlipState 缺少 Flip.getState — "
+            "B7 必須包含實際捕獲邏輯"
+        )
+        assert '.av-card-preview' in content, (
+            "showcase/animations.js captureFlipState 缺少 .av-card-preview — "
+            "B7 必須查詢卡片元素"
+        )
+
+    def test_play_flip_reorder_not_placeholder(self):
+        """B7: playFlipReorder 已從 placeholder 替換為完整實作"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'Flip.from' in content, (
+            "showcase/animations.js playFlipReorder 缺少 Flip.from — "
+            "B7 必須包含 Flip 動畫"
+        )
+        assert 'Flip.killFlipsOf' in content, (
+            "showcase/animations.js playFlipReorder 缺少 Flip.killFlipsOf — "
+            "B7 必須包含 C18 中斷進行中動畫"
+        )
+        assert 'clearProps' in content, (
+            "showcase/animations.js playFlipReorder 缺少 clearProps — "
+            "B7 必須在動畫後恢復 CSS hover 效果"
+        )
+
+    def test_core_js_on_sort_change_has_flip(self):
+        """B7: core.js 包含排序動畫攔截"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        assert 'captureFlipState' in content, (
+            "showcase/core.js 缺少 captureFlipState — "
+            "B7 排序前必須捕獲 Flip 狀態"
+        )
+        assert 'playFlipReorder' in content, (
+            "showcase/core.js 缺少 playFlipReorder — "
+            "B7 排序後必須播放 Flip 動畫"
+        )
+
+    def test_core_js_on_sort_change_has_mode_guard(self):
+        """B7: core.js 排序動畫包含 mode guard"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        flip_indices = [i for i, line in enumerate(lines) if 'captureFlipState' in line]
+        assert flip_indices, (
+            "showcase/core.js 找不到 captureFlipState — B7 必須呼叫動畫"
+        )
+        found_mode_guard = False
+        for idx in flip_indices:
+            start = max(0, idx - 5)
+            nearby = '\n'.join(lines[start:idx + 1])
+            if 'mode' in nearby:
+                found_mode_guard = True
+                break
+        assert found_mode_guard, (
+            "showcase/core.js captureFlipState 附近缺少 mode guard — "
+            "B7 必須在 mode === 'grid' 時才觸發排序動畫"
+        )
