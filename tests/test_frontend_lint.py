@@ -2824,3 +2824,54 @@ class TestShowcaseAnimationsGuard:
                 f"showcase/core.js {method_name} 包含 behavior — "
                 "B9 翻頁不應使用 smooth scroll，避免與 stagger-in 時序衝突"
             )
+
+    # --- B10 守衛 ---
+
+    def test_play_mode_crossfade_not_placeholder(self):
+        """B10: playModeCrossfade 已從 placeholder 替換為完整實作"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        # 用 brace counting 提取 playModeCrossfade 方法體
+        in_method = False
+        method_lines = []
+        brace_count = 0
+        for line in lines:
+            if not in_method and 'playModeCrossfade' in line and 'function' in line:
+                in_method = True
+                brace_count = 0
+            if in_method:
+                method_lines.append(line)
+                brace_count += line.count('{') - line.count('}')
+                if brace_count <= 0 and len(method_lines) > 1:
+                    break
+        method_body = '\n'.join(method_lines)
+        # 確認不是 placeholder
+        body_lines = [l.strip() for l in method_lines[1:] if l.strip() and l.strip() != '},' and l.strip() != '}']
+        assert not (len(body_lines) == 1 and body_lines[0] == 'return null;'), (
+            "showcase/animations.js playModeCrossfade 仍是 placeholder — "
+            "B10 必須替換為完整實作"
+        )
+        assert 'gsap.fromTo' in method_body, (
+            "showcase/animations.js playModeCrossfade 缺少 gsap.fromTo — "
+            "B10 必須包含 opacity crossfade 動畫"
+        )
+        assert 'clearProps' in method_body, (
+            "showcase/animations.js playModeCrossfade 缺少 clearProps — "
+            "B10 必須在動畫結束後清除 inline opacity"
+        )
+
+    def test_core_js_switch_mode_calls_play_mode_crossfade(self):
+        """B10: core.js switchMode 包含 playModeCrossfade 呼叫"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        assert 'playModeCrossfade' in content, (
+            "showcase/core.js 缺少 playModeCrossfade — "
+            "B10 switchMode 必須呼叫 ShowcaseAnimations.playModeCrossfade"
+        )
+
+    def test_core_js_switch_mode_uses_optional_chaining(self):
+        """B10: core.js switchMode 使用 optional chaining 安全呼叫"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        assert 'ShowcaseAnimations?.playModeCrossfade?.(' in content, (
+            "showcase/core.js 缺少 ShowcaseAnimations?.playModeCrossfade?.( — "
+            "B10 必須使用 optional chaining 確保 animations.js 未載入時安全降級"
+        )

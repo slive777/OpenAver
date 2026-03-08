@@ -8,7 +8,7 @@
  *   - captureFlipState(gridEl)                  B8: 捕獲 Flip 狀態快照
  *   - playPageOut(gridEl, direction, params)    B9: 分頁離場動畫
  *   - playPageIn(gridEl, direction, params)     B9: 分頁進場動畫
- *   - playModeCrossfade(outEl, inEl, params)    B10: 模式切換 crossfade
+ *   - playModeCrossfade(oldMode, newMode, params) B10: 模式切換 crossfade
  *
  * B5 骨架：所有方法為 placeholder，return null。
  * B6-B10 逐步填入實作。
@@ -330,13 +330,28 @@
 
         /**
          * B10: 模式切換 crossfade
-         * @param {Element} outEl - 離場容器
-         * @param {Element} inEl - 進場容器
-         * @param {Object} params - 動畫參數
-         * @returns {null}
+         * @param {string} oldMode - 離場模式名稱 ('grid'|'table'|'list')
+         * @param {string} newMode - 進場模式名稱 ('grid'|'table'|'list')
+         * @param {Object} params - 動畫參數（保留擴展性）
+         * @returns {gsap.core.Tween|null}
          */
-        playModeCrossfade: function (outEl, inEl, params) {
-            return null;
+        playModeCrossfade: function (oldMode, newMode, params) {
+            if (shouldSkip()) return null;
+            if (typeof gsap === 'undefined') return null;
+
+            var selectors = {
+                grid: '.showcase-grid',
+                table: '.showcase-table-wrapper',
+                list: '.showcase-list-wrapper'
+            };
+
+            var newEl = document.querySelector(selectors[newMode]);
+            if (!newEl) return null;
+
+            return gsap.fromTo(newEl,
+                { opacity: 0 },
+                { opacity: 1, duration: 0.2, ease: 'power2.out', clearProps: 'opacity' }
+            );
         }
     };
 

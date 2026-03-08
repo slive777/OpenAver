@@ -308,8 +308,13 @@ function showcaseState() {
 
         switchMode(m) {
             if (!['grid', 'table', 'list'].includes(m)) return;
+            if (m === this.mode) return;
+            var oldMode = this.mode;
             this.mode = m;
             this.saveState();  // M2c: 持久化狀態
+            this.$nextTick(() => {
+                window.ShowcaseAnimations?.playModeCrossfade?.(oldMode, m);
+            });
         },
 
         // Card Info 切換 (M3i)
