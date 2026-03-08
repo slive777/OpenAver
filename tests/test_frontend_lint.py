@@ -2565,3 +2565,108 @@ class TestShowcaseAnimationsGuard:
             "showcase/core.js captureFlipState 附近缺少 mode guard — "
             "B7 必須在 mode === 'grid' 時才觸發排序動畫"
         )
+
+    # --- B8 守衛 ---
+
+    def test_play_flip_filter_not_placeholder(self):
+        """B8: playFlipFilter 已從 placeholder 替換為完整實作"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        assert 'Flip.from' in content, (
+            "showcase/animations.js playFlipFilter 缺少 Flip.from — "
+            "B8 必須包含 Flip 動畫核心"
+        )
+        assert 'onEnter' in content, (
+            "showcase/animations.js playFlipFilter 缺少 onEnter — "
+            "B8 必須包含進場動畫回調"
+        )
+        assert 'onLeave' in content, (
+            "showcase/animations.js playFlipFilter 缺少 onLeave — "
+            "B8 必須包含出場動畫回調"
+        )
+        assert 'clearProps' in content, (
+            "showcase/animations.js playFlipFilter 缺少 clearProps — "
+            "B8 必須在動畫後恢復 CSS hover 效果"
+        )
+
+    def test_core_js_has_animate_filter_method(self):
+        """B8: core.js 包含 _animateFilter 共用篩選動畫方法"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        assert '_animateFilter' in content, (
+            "showcase/core.js 缺少 _animateFilter — "
+            "B8 必須提供共用篩選動畫方法"
+        )
+
+    def test_core_js_on_search_change_calls_animate_filter(self):
+        """B8: core.js onSearchChange 呼叫 _animateFilter"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        # 找到 onSearchChange 方法區塊
+        in_method = False
+        method_lines = []
+        brace_count = 0
+        for line in lines:
+            if 'onSearchChange' in line and ('(' in line or ':' in line):
+                in_method = True
+                brace_count = 0
+            if in_method:
+                method_lines.append(line)
+                brace_count += line.count('{') - line.count('}')
+                if brace_count <= 0 and len(method_lines) > 1:
+                    break
+        method_body = '\n'.join(method_lines)
+        assert '_animateFilter' in method_body, (
+            "showcase/core.js onSearchChange 缺少 _animateFilter — "
+            "B8 必須透過共用方法觸發篩選動畫"
+        )
+
+    def test_core_js_search_from_metadata_calls_animate_filter(self):
+        """B8: core.js searchFromMetadata 呼叫 _animateFilter 且不直接呼叫 applyFilterAndSort"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        # 找到 searchFromMetadata 方法定義（帶 { 的行）
+        in_method = False
+        method_lines = []
+        brace_count = 0
+        for line in lines:
+            stripped = line.strip()
+            if not in_method and 'searchFromMetadata' in stripped and '{' in stripped and stripped.endswith('{'):
+                in_method = True
+                brace_count = 0
+            if in_method:
+                method_lines.append(line)
+                brace_count += line.count('{') - line.count('}')
+                if brace_count <= 0 and len(method_lines) > 1:
+                    break
+        method_body = '\n'.join(method_lines)
+        assert '_animateFilter' in method_body, (
+            "showcase/core.js searchFromMetadata 缺少 _animateFilter — "
+            "B8 必須透過共用方法觸發篩選動畫"
+        )
+        assert 'applyFilterAndSort' not in method_body, (
+            "showcase/core.js searchFromMetadata 不應直接呼叫 applyFilterAndSort — "
+            "B8 必須透過 _animateFilter 間接呼叫，避免繞過動畫攔截"
+        )
+
+    def test_core_js_animate_filter_has_mode_guard(self):
+        """B8: core.js _animateFilter 包含 mode guard"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        # 找到 _animateFilter 方法定義（帶 { 結尾的行）
+        in_method = False
+        method_lines = []
+        brace_count = 0
+        for line in lines:
+            stripped = line.strip()
+            if not in_method and '_animateFilter' in stripped and '{' in stripped and stripped.endswith('{'):
+                in_method = True
+                brace_count = 0
+            if in_method:
+                method_lines.append(line)
+                brace_count += line.count('{') - line.count('}')
+                if brace_count <= 0 and len(method_lines) > 1:
+                    break
+        method_body = '\n'.join(method_lines)
+        assert 'mode' in method_body, (
+            "showcase/core.js _animateFilter 缺少 mode guard — "
+            "B8 必須在 mode === 'grid' 時才觸發篩選動畫"
+        )

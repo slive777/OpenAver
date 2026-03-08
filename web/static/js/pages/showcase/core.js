@@ -184,9 +184,8 @@ function showcaseState() {
 
         // --- 互動邏輯 (M2a 只定義骨架，M4 才實作完整邏輯) ---
         onSearchChange() {
-            // M2a 只觸發狀態更新，實際搜尋邏輯 M4 實作
-            this.applyFilterAndSort();
-            this.saveState();  // M2c: 持久化狀態
+            // B8: 透過 _animateFilter 觸發篩選動畫
+            this._animateFilter();
         },
 
         onSortChange() {
@@ -224,6 +223,31 @@ function showcaseState() {
             if (state && grid) {
                 this.$nextTick(() => { requestAnimationFrame(() => {
                     window.ShowcaseAnimations?.playFlipReorder?.(grid, state);
+                }); });
+            }
+        },
+
+        /**
+         * B8: 篩選動畫共用 helper — capture → change → animate
+         * onSearchChange() 和 searchFromMetadata() 共用
+         */
+        _animateFilter() {
+            // Mode guard：僅 grid mode 捕獲狀態和觸發動畫
+            var grid = null;
+            var state = null;
+            if (this.mode === 'grid') {
+                grid = document.querySelector('.showcase-grid');
+                state = window.ShowcaseAnimations?.captureFlipState?.(grid) || null;
+            }
+
+            // Step 2: data change
+            this.applyFilterAndSort();
+            this.saveState();
+
+            // Step 3: animate（$nextTick + rAF 雙層 defer）
+            if (state && grid) {
+                this.$nextTick(() => { requestAnimationFrame(() => {
+                    window.ShowcaseAnimations?.playFlipFilter?.(grid, state);
                 }); });
             }
         },
@@ -435,8 +459,8 @@ function showcaseState() {
         searchFromMetadata(term) {
             this.closeLightbox();
             this.search = term;
-            this.applyFilterAndSort();
-            this.saveState();
+            // B8: 透過 _animateFilter 觸發篩選動畫
+            this._animateFilter();
         },
 
         prevLightboxVideo() {

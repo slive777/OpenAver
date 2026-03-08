@@ -163,7 +163,45 @@
          * @returns {null}
          */
         playFlipFilter: function (gridEl, state, params) {
-            return null;
+            params = params || {};
+
+            // null guard
+            if (!gridEl || !state) return null;
+
+            // Flip guard
+            if (typeof Flip === 'undefined' || typeof gsap === 'undefined') return null;
+
+            var cards = gridEl.querySelectorAll('.av-card-preview');
+            if (!cards.length) return null;
+
+            // Reduced Motion 降級：Alpine 已完成 DOM 更新，不需額外處理
+            if (shouldSkip()) return null;
+
+            // C18: 中斷進行中的 Flip 動畫
+            Flip.killFlipsOf(cards);
+
+            var dur = params.duration || 0.4;
+
+            // Flip.from — 含 onEnter/onLeave 進出場回調
+            return Flip.from(state, {
+                duration: dur,
+                ease: 'power2.inOut',
+                absolute: true,
+                prune: true,
+                simple: true,
+                onEnter: function (els) {
+                    gsap.fromTo(els,
+                        { opacity: 0, scale: 0.85 },
+                        { opacity: 1, scale: 1, duration: dur * 0.8, ease: 'power2.out' }
+                    );
+                },
+                onLeave: function (els) {
+                    gsap.to(els, { opacity: 0, scale: 0.85, duration: dur * 0.6, ease: 'power2.in' });
+                },
+                onComplete: function () {
+                    gsap.set(cards, { clearProps: 'transform' });
+                }
+            });
         },
 
         /**
