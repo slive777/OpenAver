@@ -252,6 +252,54 @@ function showcaseState() {
             }
         },
 
+        /**
+         * B9: 分頁動畫攔截 — playPageOut → 換頁 → playPageIn
+         * @param {string} direction - 'next' | 'prev'
+         * @param {number} [targetPage] - 目標頁碼（goToPage 用，prevPage/nextPage 不傳）
+         */
+        _animatePageChange(direction, targetPage) {
+            var self = this;
+
+            // 計算目標頁碼
+            var newPage = targetPage;
+            if (newPage === undefined) {
+                newPage = direction === 'next' ? this.page + 1 : this.page - 1;
+            }
+
+            // Mode guard：非 grid mode 直接換頁不播動畫
+            if (this.mode !== 'grid') {
+                this.page = newPage;
+                this.updatePagination();
+                this.saveState();
+                window.scrollTo(0, 0);
+                return;
+            }
+
+            // Grid mode：playPageOut → onComplete 內換頁 + playPageIn
+            var grid = document.querySelector('.showcase-grid');
+            var result = window.ShowcaseAnimations?.playPageOut?.(grid, direction, {
+                onComplete: function () {
+                    self.page = newPage;
+                    self.updatePagination();
+                    self.saveState();
+                    window.scrollTo(0, 0);
+
+                    // $nextTick + rAF 等 Alpine 渲染完成再播進場動畫
+                    self.$nextTick(function () { requestAnimationFrame(function () {
+                        window.ShowcaseAnimations?.playPageIn?.(grid, direction);
+                    }); });
+                }
+            });
+
+            // playPageOut 返回 null（GSAP 未載入等）：fallback 直接換頁
+            if (result == null) {
+                this.page = newPage;
+                this.updatePagination();
+                this.saveState();
+                window.scrollTo(0, 0);
+            }
+        },
+
         onPerPageChange() {
             this.page = 1;
             this.updatePagination();
@@ -271,17 +319,13 @@ function showcaseState() {
 
         prevPage() {
             if (this.page > 1) {
-                this.page--;
-                this.updatePagination();
-                this.saveState();  // M2c: 持久化狀態
+                this._animatePageChange('prev');
             }
         },
 
         nextPage() {
             if (this.page < this.totalPages) {
-                this.page++;
-                this.updatePagination();
-                this.saveState();  // M2c: 持久化狀態
+                this._animatePageChange('next');
             }
         },
 
@@ -289,10 +333,9 @@ function showcaseState() {
         goToPage(p) {
             const num = parseInt(p);
             if (Number.isNaN(num) || num < 1 || num > this.totalPages) return;
-            this.page = num;
-            this.updatePagination();
-            this.saveState();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (num === this.page) return;
+            var direction = num > this.page ? 'next' : 'prev';
+            this._animatePageChange(direction, num);
         },
 
         // --- 資料處理 (M2a 基本實作，M4 完整化) ---

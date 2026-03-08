@@ -2670,3 +2670,157 @@ class TestShowcaseAnimationsGuard:
             "showcase/core.js _animateFilter 缺少 mode guard — "
             "B8 必須在 mode === 'grid' 時才觸發篩選動畫"
         )
+
+    # --- B9 守衛 ---
+
+    def test_play_page_out_not_placeholder(self):
+        """B9: playPageOut 已從 placeholder 替換為完整實作"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        # 用 brace counting 提取 playPageOut 方法體
+        in_method = False
+        method_lines = []
+        brace_count = 0
+        for line in lines:
+            if not in_method and 'playPageOut' in line and 'function' in line:
+                in_method = True
+                brace_count = 0
+            if in_method:
+                method_lines.append(line)
+                brace_count += line.count('{') - line.count('}')
+                if brace_count <= 0 and len(method_lines) > 1:
+                    break
+        method_body = '\n'.join(method_lines)
+        # 確認不是 placeholder
+        body_lines = [l.strip() for l in method_lines[1:] if l.strip() and l.strip() != '},' and l.strip() != '}']
+        assert not (len(body_lines) == 1 and body_lines[0] == 'return null;'), (
+            "showcase/animations.js playPageOut 仍是 placeholder — "
+            "B9 必須替換為完整實作"
+        )
+        assert 'gsap.killTweensOf' in method_body, (
+            "showcase/animations.js playPageOut 缺少 gsap.killTweensOf — "
+            "B9 必須包含 C4 清除舊動畫"
+        )
+        assert 'onComplete' in method_body, (
+            "showcase/animations.js playPageOut 缺少 onComplete — "
+            "B9 必須支援離場結束回調供 core.js 使用"
+        )
+
+    def test_play_page_in_not_placeholder(self):
+        """B9: playPageIn 已從 placeholder 替換為完整實作"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        # 用 brace counting 提取 playPageIn 方法體
+        in_method = False
+        method_lines = []
+        brace_count = 0
+        for line in lines:
+            if not in_method and 'playPageIn' in line and 'function' in line:
+                in_method = True
+                brace_count = 0
+            if in_method:
+                method_lines.append(line)
+                brace_count += line.count('{') - line.count('}')
+                if brace_count <= 0 and len(method_lines) > 1:
+                    break
+        method_body = '\n'.join(method_lines)
+        # 確認不是 placeholder
+        body_lines = [l.strip() for l in method_lines[1:] if l.strip() and l.strip() != '},' and l.strip() != '}']
+        assert not (len(body_lines) == 1 and body_lines[0] == 'return null;'), (
+            "showcase/animations.js playPageIn 仍是 placeholder — "
+            "B9 必須替換為完整實作"
+        )
+        assert 'clearProps' in method_body, (
+            "showcase/animations.js playPageIn 缺少 clearProps — "
+            "B9 必須在動畫結束後清除 inline styles"
+        )
+        assert 'stagger' in method_body, (
+            "showcase/animations.js playPageIn 缺少 stagger — "
+            "B9 必須包含 stagger 滑入效果"
+        )
+
+    def test_core_js_has_animate_page_change(self):
+        """B9: core.js 包含 _animatePageChange 方法"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        assert '_animatePageChange' in content, (
+            "showcase/core.js 缺少 _animatePageChange — "
+            "B9 必須提供分頁動畫攔截方法"
+        )
+
+    def test_core_js_animate_page_change_has_mode_guard(self):
+        """B9: core.js _animatePageChange 包含 mode guard"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        # 用 brace counting 提取 _animatePageChange 方法體
+        in_method = False
+        method_lines = []
+        brace_count = 0
+        for line in lines:
+            stripped = line.strip()
+            if not in_method and '_animatePageChange' in stripped and '{' in stripped and stripped.endswith('{'):
+                in_method = True
+                brace_count = 0
+            if in_method:
+                method_lines.append(line)
+                brace_count += line.count('{') - line.count('}')
+                if brace_count <= 0 and len(method_lines) > 1:
+                    break
+        method_body = '\n'.join(method_lines)
+        assert 'mode' in method_body, (
+            "showcase/core.js _animatePageChange 缺少 mode guard — "
+            "B9 必須在非 grid mode 時直接換頁不播動畫"
+        )
+
+    def test_core_js_prev_next_page_call_animate_page_change(self):
+        """B9: core.js prevPage/nextPage 呼叫 _animatePageChange"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+        # 提取 prevPage 方法體
+        for method_name in ['prevPage', 'nextPage']:
+            in_method = False
+            method_lines = []
+            brace_count = 0
+            for line in lines:
+                stripped = line.strip()
+                if not in_method and method_name in stripped and '{' in stripped and stripped.endswith('{'):
+                    in_method = True
+                    brace_count = 0
+                if in_method:
+                    method_lines.append(line)
+                    brace_count += line.count('{') - line.count('}')
+                    if brace_count <= 0 and len(method_lines) > 1:
+                        break
+            method_body = '\n'.join(method_lines)
+            assert '_animatePageChange' in method_body, (
+                f"showcase/core.js {method_name} 缺少 _animatePageChange — "
+                "B9 必須透過 _animatePageChange 觸發分頁動畫"
+            )
+
+    def test_core_js_uses_sync_scroll_to(self):
+        """B9: core.js 使用同步 scrollTo(0, 0) 而非 smooth scroll"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        assert 'scrollTo(0, 0)' in content, (
+            "showcase/core.js 缺少 scrollTo(0, 0) — "
+            "B9 翻頁必須使用同步捲動"
+        )
+        lines = content.split('\n')
+        # 確認 _animatePageChange 和 goToPage 方法體不包含 behavior（排除 smooth scroll）
+        for method_name in ['_animatePageChange', 'goToPage']:
+            in_method = False
+            method_lines = []
+            brace_count = 0
+            for line in lines:
+                stripped = line.strip()
+                if not in_method and method_name in stripped and '{' in stripped and stripped.endswith('{'):
+                    in_method = True
+                    brace_count = 0
+                if in_method:
+                    method_lines.append(line)
+                    brace_count += line.count('{') - line.count('}')
+                    if brace_count <= 0 and len(method_lines) > 1:
+                        break
+            method_body = '\n'.join(method_lines)
+            assert 'behavior' not in method_body, (
+                f"showcase/core.js {method_name} 包含 behavior — "
+                "B9 翻頁不應使用 smooth scroll，避免與 stagger-in 時序衝突"
+            )

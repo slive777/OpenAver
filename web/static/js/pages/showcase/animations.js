@@ -230,7 +230,49 @@
          * @returns {null}
          */
         playPageOut: function (gridEl, direction, params) {
-            return null;
+            params = params || {};
+
+            // null guard
+            if (!gridEl) return null;
+
+            // GSAP guard（CDN 故障降級）
+            if (typeof gsap === 'undefined') return null;
+
+            var cards = gridEl.querySelectorAll('.av-card-preview');
+            if (!cards.length) return null;
+
+            // C4: 清除舊動畫
+            gsap.killTweensOf(cards);
+
+            // Reduced Motion 降級：瞬間隱藏 + 立即 onComplete
+            if (shouldSkip()) {
+                gsap.set(cards, { opacity: 0 });
+                if (params.onComplete) params.onComplete();
+                return null;
+            }
+
+            var dur = params.duration || 0.3;
+            var staggerVal = params.stagger || 0.02;
+            // 方向邏輯：next → 向左滑出（x: -20），prev → 向右滑出（x: 20）
+            var xShift = direction === 'next' ? -20 : 20;
+            var staggerFrom = direction === 'next' ? 'start' : 'end';
+
+            var tl = gsap.timeline({ id: 'showcasePageOut' });
+
+            tl.to(cards, {
+                opacity: 0,
+                x: xShift,
+                duration: dur * 0.6,
+                ease: 'power2.in',
+                stagger: { each: staggerVal, from: staggerFrom }
+            });
+
+            // 離場結束後呼叫 onComplete 供 core.js 換頁
+            tl.eventCallback('onComplete', function () {
+                if (params.onComplete) params.onComplete();
+            });
+
+            return tl;
         },
 
         /**
@@ -241,7 +283,49 @@
          * @returns {null}
          */
         playPageIn: function (gridEl, direction, params) {
-            return null;
+            params = params || {};
+
+            // null guard
+            if (!gridEl) return null;
+
+            // GSAP guard（CDN 故障降級）
+            if (typeof gsap === 'undefined') return null;
+
+            var cards = gridEl.querySelectorAll('.av-card-preview');
+            if (!cards.length) return null;
+
+            // C4: 清除舊動畫
+            gsap.killTweensOf(cards);
+
+            // Reduced Motion 降級：瞬間顯示
+            if (shouldSkip()) {
+                gsap.set(cards, { opacity: 1, x: 0 });
+                return null;
+            }
+
+            var dur = params.duration || 0.3;
+            var staggerVal = params.stagger || 0.02;
+            // 起始位置：反向偏移（next → 從右側 x: 20，prev → 從左側 x: -20）
+            var xStart = direction === 'next' ? 20 : -20;
+            var staggerFrom = direction === 'next' ? 'start' : 'end';
+
+            // 設定起始位置
+            gsap.set(cards, { x: xStart, opacity: 0 });
+
+            var tl = gsap.timeline({ id: 'showcasePageIn' });
+
+            tl.to(cards, {
+                opacity: 1,
+                x: 0,
+                duration: dur,
+                ease: 'power3.out',
+                stagger: { each: staggerVal, from: staggerFrom },
+                onComplete: function () {
+                    gsap.set(cards, { clearProps: 'transform,opacity' });
+                }
+            });
+
+            return tl;
         },
 
         /**
