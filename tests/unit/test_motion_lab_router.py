@@ -8,11 +8,8 @@ from core.database import init_db, Video, VideoRepository
 
 # temp_db fixture 定義於 tests/unit/conftest.py
 
-
 @pytest.fixture
-def populated_db(temp_db):
-    """填入 35 筆測試資料（超過 30 筆，用於測試 LIMIT）"""
-    repo = VideoRepository(temp_db)
+def populated_db(make_populated_db):
     videos = []
     for i in range(35):
         videos.append(Video(
@@ -27,8 +24,7 @@ def populated_db(temp_db):
             cover_path=f"file:///C:/Videos/TEST-{i:03d}/cover.jpg",
             mtime=1705276800.0 + i,
         ))
-    repo.upsert_batch(videos)
-    return temp_db
+    return make_populated_db(videos)
 
 
 class TestMotionLabDataAPI:

@@ -32,6 +32,18 @@ def temp_config_path(tmp_path, monkeypatch):
     return p
 
 
+# ============ Scraper Test Helpers ============
+
+@pytest.fixture
+def make_mock_search_jav():
+    """Helper fixture to create a mock search_jav function based on a results_map."""
+    def _make(results_map):
+        def mock_fn(num, source='javbus'):
+            return results_map.get(num)
+        return mock_fn
+    return _make
+
+
 # ============ 跨平台環境 Fixtures ============
 
 @pytest.fixture

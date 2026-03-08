@@ -29,11 +29,6 @@ def make_mock_jb_actress(ids):
     return mock_jb
 
 
-def make_mock_search_jav(results_map):
-    """Return mock search_jav that maps num -> result dict."""
-    def mock_fn(num, source='javbus'):
-        return results_map.get(num)
-    return mock_fn
 
 
 # ============ search_prefix result_callback 測試 ============
@@ -41,7 +36,7 @@ def make_mock_search_jav(results_map):
 class TestSearchPrefixResultCallback:
     """測試 search_prefix() 的 result_callback 行為"""
 
-    def test_result_callback_none_default_no_error(self):
+    def test_result_callback_none_default_no_error(self, make_mock_search_jav):
         """result_callback=None（預設）不會拋出錯誤，行為與現在完全相同"""
         from core.scraper import search_prefix
 
@@ -61,7 +56,7 @@ class TestSearchPrefixResultCallback:
             results = search_prefix('SONE', limit=20)
             assert isinstance(results, list)
 
-    def test_seed_sent_after_found(self):
+    def test_seed_sent_after_found(self, make_mock_search_jav):
         """result_callback(-1, target_ids) 應在 found:N 後被呼叫一次"""
         from core.scraper import search_prefix
 
@@ -91,7 +86,7 @@ class TestSearchPrefixResultCallback:
         assert seed_slot == -1
         assert set(seed_data) == set(ids)
 
-    def test_slot_index_matches_target_ids_order(self):
+    def test_slot_index_matches_target_ids_order(self, make_mock_search_jav):
         """result-item slot index 必須對應 target_ids 的原始 index"""
         from core.scraper import search_prefix
 
@@ -125,7 +120,7 @@ class TestSearchPrefixResultCallback:
                 f"but got {data['number']}"
             )
 
-    def test_empty_target_ids_no_seed(self):
+    def test_empty_target_ids_no_seed(self, make_mock_search_jav):
         """found:0 時不應呼叫 result_callback(-1, [])"""
         from core.scraper import search_prefix
 
@@ -143,7 +138,7 @@ class TestSearchPrefixResultCallback:
         seed_calls = [(s, d) for s, d in callback_calls if s == -1]
         assert len(seed_calls) == 0, f"Should not send seed for empty results, but got {seed_calls}"
 
-    def test_result_item_not_called_for_none_data(self):
+    def test_result_item_not_called_for_none_data(self, make_mock_search_jav):
         """search_jav 回傳 None 時不應呼叫 result_callback(idx, None)"""
         from core.scraper import search_prefix
 
@@ -169,7 +164,7 @@ class TestSearchPrefixResultCallback:
         for slot, data in item_calls:
             assert data is not None, "result_callback should not be called with None data"
 
-    def test_jvav_unavailable_no_callback(self):
+    def test_jvav_unavailable_no_callback(self, make_mock_search_jav):
         """JVAV_AVAILABLE=False 時 (JavDB fallback), result_callback 不應被呼叫"""
         from core.scraper import search_prefix
 
@@ -195,7 +190,7 @@ class TestSearchPrefixResultCallback:
 class TestSearchActressResultCallback:
     """測試 search_actress() 的 result_callback 行為"""
 
-    def test_result_callback_none_default_no_error(self):
+    def test_result_callback_none_default_no_error(self, make_mock_search_jav):
         """result_callback=None（預設）不會拋出錯誤"""
         from core.scraper import search_actress
 
@@ -213,7 +208,7 @@ class TestSearchActressResultCallback:
             results = search_actress('三上悠亜', limit=20)
             assert isinstance(results, list)
 
-    def test_seed_sent_after_found(self):
+    def test_seed_sent_after_found(self, make_mock_search_jav):
         """result_callback(-1, target_ids) 應在 JavBus found:N 後被呼叫一次"""
         from core.scraper import search_actress
 
@@ -243,7 +238,7 @@ class TestSearchActressResultCallback:
         assert seed_slot == -1
         assert set(seed_data) == set(ids)
 
-    def test_slot_index_matches_target_ids_order(self):
+    def test_slot_index_matches_target_ids_order(self, make_mock_search_jav):
         """result-item slot index 必須對應 target_ids 的原始 index"""
         from core.scraper import search_actress
 
@@ -275,7 +270,7 @@ class TestSearchActressResultCallback:
                 f"Slot {slot} should be {expected_number}, got {data['number']}"
             )
 
-    def test_javdb_fallback_no_seed(self):
+    def test_javdb_fallback_no_seed(self, make_mock_search_jav):
         """JavDB fallback 路徑 (JVAV 可用但 JavBus 找不到) 不應呼叫 result_callback"""
         from core.scraper import search_actress
 
@@ -300,7 +295,7 @@ class TestSearchActressResultCallback:
 
         assert callback_calls == [], f"JavDB fallback should not call result_callback, got {callback_calls}"
 
-    def test_jvav_unavailable_no_callback(self):
+    def test_jvav_unavailable_no_callback(self, make_mock_search_jav):
         """JVAV_AVAILABLE=False 時 (JavDB fallback), result_callback 不應被呼叫"""
         from core.scraper import search_actress
 
@@ -326,7 +321,7 @@ class TestSearchActressResultCallback:
 class TestSmartSearchResultCallback:
     """測試 smart_search() 的 result_callback 透傳行為"""
 
-    def test_result_callback_passthrough_actress_mode(self):
+    def test_result_callback_passthrough_actress_mode(self, make_mock_search_jav):
         """smart_search 在 actress 模式下應透傳 result_callback 給 search_actress"""
         from core.scraper import smart_search
 
@@ -347,7 +342,7 @@ class TestSmartSearchResultCallback:
         assert received_callbacks.get('actress_callback') is my_callback, \
             "smart_search should pass result_callback to search_actress"
 
-    def test_result_callback_passthrough_prefix_mode(self):
+    def test_result_callback_passthrough_prefix_mode(self, make_mock_search_jav):
         """smart_search 在 prefix 模式下應透傳 result_callback 給 search_prefix"""
         from core.scraper import smart_search
 
@@ -368,7 +363,7 @@ class TestSmartSearchResultCallback:
         assert received_callbacks.get('prefix_callback') is my_callback, \
             "smart_search should pass result_callback to search_prefix"
 
-    def test_result_callback_not_passed_to_exact_mode(self):
+    def test_result_callback_not_passed_to_exact_mode(self, make_mock_search_jav):
         """exact 搜尋模式下 result_callback 不應影響（callback 不被呼叫）"""
         from core.scraper import smart_search
 
@@ -388,7 +383,7 @@ class TestSmartSearchResultCallback:
         assert callback_calls == [], \
             f"result_callback should not be called in exact mode, got {callback_calls}"
 
-    def test_result_callback_none_default_smart_search(self):
+    def test_result_callback_none_default_smart_search(self, make_mock_search_jav):
         """smart_search result_callback=None 不應改變行為"""
         from core.scraper import smart_search
 
@@ -402,7 +397,7 @@ class TestSmartSearchResultCallback:
             results = smart_search('SONE-100')
             assert isinstance(results, list)
 
-    def test_smart_search_prefix_fallback_does_not_pass_callback(self):
+    def test_smart_search_prefix_fallback_does_not_pass_callback(self, make_mock_search_jav):
         """prefix→actress fallback 時，actress call 不應收到 result_callback（避免 stale seed）"""
         from core.scraper import smart_search
 
@@ -429,7 +424,7 @@ class TestSmartSearchResultCallback:
             "prefix→actress fallback must NOT pass result_callback to search_actress " \
             f"(got {actress_received_callback.get('callback')})"
 
-    def test_smart_search_passes_result_callback_to_actress_direct(self):
+    def test_smart_search_passes_result_callback_to_actress_direct(self, make_mock_search_jav):
         """smart_search 在 actress 模式下（非 fallback）應透傳 result_callback 給 search_actress"""
         from core.scraper import smart_search
 

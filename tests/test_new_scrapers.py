@@ -369,10 +369,6 @@ class TestDMMScraper:
 class TestProxyAPI:
     """Proxy 測試 API 端點測試"""
 
-    @pytest.fixture
-    def client(self):
-        return TestClient(app)
-
     def test_proxy_test_endpoint_success(self, client):
         """Proxy 回傳 200 → success=True, reason='ok'"""
         mock_resp = MagicMock()

@@ -8,51 +8,18 @@ from core.database import init_db, Video, VideoRepository, ActressAliasRepositor
 
 # temp_db fixture 定義於 tests/unit/conftest.py
 
+@pytest.fixture
+def client(make_client, populated_db):
+    return make_client(["core.database.get_db_path", "web.routers.scanner.get_db_path"], mock_db_path=populated_db)
 
 @pytest.fixture
-def client(temp_db, monkeypatch):
-    """建立測試客戶端，使用臨時資料庫"""
-    def mock_get_db_path():
-        return temp_db
-
-    monkeypatch.setattr("core.database.get_db_path", mock_get_db_path)
-    monkeypatch.setattr("web.routers.scanner.get_db_path", mock_get_db_path)
-
-    from web.app import app
-    return TestClient(app)
-
-
-@pytest.fixture
-def populated_db(temp_db):
-    """預先填入測試資料的資料庫"""
-    repo = VideoRepository(temp_db)
-
-    # 插入測試影片資料
+def populated_db(make_populated_db):
     videos = [
-        Video(
-            path="/mnt/media/SONE-205.mp4",
-            number="SONE-205",
-            title="Test Video 1",
-            actresses=["miru", "other actress"],
-            mtime=100.0
-        ),
-        Video(
-            path="/mnt/media/SONE-206.mp4",
-            number="SONE-206",
-            title="Test Video 2",
-            actresses=["miru"],
-            mtime=200.0
-        ),
-        Video(
-            path="/mnt/media/ABW-001.mp4",
-            number="ABW-001",
-            title="Test Video 3",
-            actresses=["other actress"],
-            mtime=300.0
-        ),
+        Video(path="/mnt/media/SONE-205.mp4", number="SONE-205", title="Test Video 1", actresses=["miru", "other actress"], mtime=100.0),
+        Video(path="/mnt/media/SONE-206.mp4", number="SONE-206", title="Test Video 2", actresses=["miru"], mtime=200.0),
+        Video(path="/mnt/media/ABW-001.mp4", number="ABW-001", title="Test Video 3", actresses=["other actress"], mtime=300.0),
     ]
-    repo.upsert_batch(videos)
-    return temp_db
+    return make_populated_db(videos)
 
 
 # === ActressAliasRepository 測試 ===

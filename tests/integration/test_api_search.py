@@ -192,23 +192,10 @@ class TestSearchSources:
 
 # ============ SSE Stream 協議測試 ============
 
-def _parse_sse_events(response_text: str) -> list:
-    """解析 SSE response text，返回所有 event data 的列表。"""
-    events = []
-    for line in response_text.strip().split('\n'):
-        if line.startswith('data: '):
-            try:
-                event_data = json.loads(line[6:])
-                events.append(event_data)
-            except json.JSONDecodeError:
-                pass
-    return events
-
-
 class TestSearchStreamSSE:
     """測試 /api/search/stream SSE 協議行為"""
 
-    def test_exact_mode_sends_result_event(self, client):
+    def test_exact_mode_sends_result_event(self, client, parse_sse_events):
         """exact 番號搜尋應送傳統 result event，不受 seed/result-item 影響（C8）"""
         mock_result = {
             'number': 'SSIS-816',
@@ -228,7 +215,7 @@ class TestSearchStreamSSE:
         with patch('web.routers.search.smart_search', side_effect=mock_smart_search):
             response = client.get('/api/search/stream?q=SSIS-816')
 
-        events = _parse_sse_events(response.text)
+        events = parse_sse_events(response.text)
         result_events = [e for e in events if e.get('type') == 'result']
 
         assert len(result_events) == 1, f"Exact mode should have exactly 1 result event, got {result_events}"
@@ -245,7 +232,7 @@ class TestSearchStreamSSE:
         assert not any(e.get('type') == 'result-complete' for e in events), \
             "Exact mode should not send result-complete event"
 
-    def test_actress_mode_sends_seed_result_items_complete(self, client):
+    def test_actress_mode_sends_seed_result_items_complete(self, client, parse_sse_events):
         """actress 模式下 SSE 應依序送出 seed → N 個 result-item → result-complete → result"""
         ids = ['SONE-100', 'SONE-101', 'SONE-102']
         items = {
@@ -273,7 +260,7 @@ class TestSearchStreamSSE:
         with patch('web.routers.search.smart_search', side_effect=mock_smart_search):
             response = client.get('/api/search/stream?q=三上悠亜')
 
-        events = _parse_sse_events(response.text)
+        events = parse_sse_events(response.text)
 
         # Should have a seed event
         seed_events = [e for e in events if e.get('type') == 'seed']
@@ -320,7 +307,7 @@ class TestSearchStreamSSE:
         assert complete_idx < result_idx, \
             "result-complete must appear before result event in the stream"
 
-    def test_javdb_fallback_sends_result_event(self, client):
+    def test_javdb_fallback_sends_result_event(self, client, parse_sse_events):
         """JavDB fallback（no result_callback called）應走傳統 result event（C12）"""
         results = [
             {'number': 'SONE-100', 'actors': ['三上悠亜']},
@@ -339,7 +326,7 @@ class TestSearchStreamSSE:
         with patch('web.routers.search.smart_search', side_effect=mock_smart_search):
             response = client.get('/api/search/stream?q=三上悠亜')
 
-        events = _parse_sse_events(response.text)
+        events = parse_sse_events(response.text)
 
         # Should have traditional result event
         result_events = [e for e in events if e.get('type') == 'result']
@@ -354,7 +341,7 @@ class TestSearchStreamSSE:
         assert not any(e.get('type') == 'result-complete' for e in events), \
             "JavDB fallback should not send result-complete event"
 
-    def test_double_seed_protection(self, client):
+    def test_double_seed_protection(self, client, parse_sse_events):
         """prefix→actress fallback 修正後：fallback 不傳 result_callback，只有一個 seed
         且最終 result event 包含正確資料"""
         ids1 = ['SONE-100', 'SONE-101']
@@ -372,7 +359,7 @@ class TestSearchStreamSSE:
         with patch('web.routers.search.smart_search', side_effect=mock_smart_search):
             response = client.get('/api/search/stream?q=SONE')
 
-        events = _parse_sse_events(response.text)
+        events = parse_sse_events(response.text)
 
         # Exactly one seed event
         seed_events = [e for e in events if e.get('type') == 'seed']
@@ -394,7 +381,7 @@ class TestSearchStreamSSE:
         assert len(complete_events) == 1, \
             f"Must have result-complete when seed was sent, got {len(complete_events)}"
 
-    def test_always_sends_result_event_with_incremental(self, client):
+    def test_always_sends_result_event_with_incremental(self, client, parse_sse_events):
         """當 sent_seed=True 時，SSE 流必須包含 result-complete（前）和 result（後）兩個事件"""
         ids = ['IPZZ-100', 'IPZZ-101']
         items_list = [
@@ -415,7 +402,7 @@ class TestSearchStreamSSE:
         with patch('web.routers.search.smart_search', side_effect=mock_smart_search):
             response = client.get('/api/search/stream?q=IPZZ')
 
-        events = _parse_sse_events(response.text)
+        events = parse_sse_events(response.text)
         event_types = [e.get('type') for e in events]
 
         # Both result-complete and result must be present
@@ -440,7 +427,7 @@ class TestSearchStreamSSE:
         assert 'has_more' in result_event
         assert 'actress_profile' in result_event
 
-    def test_result_complete_has_actress_profile_and_has_more(self, client):
+    def test_result_complete_has_actress_profile_and_has_more(self, client, parse_sse_events):
         """result-complete event 應包含 actress_profile 和 has_more 欄位"""
         ids = ['SONE-100', 'SONE-101', 'SONE-102']
         items_list = [
@@ -465,7 +452,7 @@ class TestSearchStreamSSE:
              patch('core.actress_scraper.get_actress_profile', return_value=mock_profile):
             response = client.get('/api/search/stream?q=桜空もも')
 
-        events = _parse_sse_events(response.text)
+        events = parse_sse_events(response.text)
         complete_events = [e for e in events if e.get('type') == 'result-complete']
         assert len(complete_events) == 1
 
@@ -473,7 +460,7 @@ class TestSearchStreamSSE:
         assert 'has_more' in complete_event
         assert 'actress_profile' in complete_event
 
-    def test_status_events_have_type_field(self, client):
+    def test_status_events_have_type_field(self, client, parse_sse_events):
         """status event 應包含 type 欄位"""
         def mock_smart_search(q, limit=20, offset=0, status_callback=None,
                               result_callback=None, **kwargs):
@@ -485,7 +472,7 @@ class TestSearchStreamSSE:
         with patch('web.routers.search.smart_search', side_effect=mock_smart_search):
             response = client.get('/api/search/stream?q=TESTXYZ')
 
-        events = _parse_sse_events(response.text)
+        events = parse_sse_events(response.text)
         status_events = [e for e in events if e.get('type') == 'status']
         assert len(status_events) >= 1, "Should have at least 1 status event"
 
@@ -553,7 +540,7 @@ class TestFilterFilesStrmExemption:
 class TestSearchStreamSSEProtocol:
     """測試 /api/search/stream SSE 協議行為 — seed event 結構與欄位"""
 
-    def test_seed_event_has_mode_total_slots(self, client):
+    def test_seed_event_has_mode_total_slots(self, client, parse_sse_events):
         """seed event 應包含 mode、total、slots 欄位"""
         ids = ['SONE-100', 'SONE-101']
 
@@ -568,7 +555,7 @@ class TestSearchStreamSSEProtocol:
         with patch('web.routers.search.smart_search', side_effect=mock_smart_search):
             response = client.get('/api/search/stream?q=SONE')
 
-        events = _parse_sse_events(response.text)
+        events = parse_sse_events(response.text)
         seed_events = [e for e in events if e.get('type') == 'seed']
         assert len(seed_events) == 1
 

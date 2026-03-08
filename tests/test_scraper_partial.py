@@ -15,11 +15,6 @@ from unittest.mock import patch, MagicMock
 
 # ============ Helpers ============
 
-def make_mock_search_jav(results_map):
-    """Return mock search_jav that maps num -> result dict."""
-    def mock_fn(num, source='javbus'):
-        return results_map.get(num)
-    return mock_fn
 
 
 # ============ search_partial result_callback tests ============
@@ -27,7 +22,7 @@ def make_mock_search_jav(results_map):
 class TestSearchPartialCallback:
     """Tests for search_partial() callback behaviour."""
 
-    def test_search_partial_calls_seed_callback(self):
+    def test_search_partial_calls_seed_callback(self, make_mock_search_jav):
         """seed callback (-1, candidates) should be called exactly once."""
         from core.scraper import search_partial
 
@@ -54,7 +49,7 @@ class TestSearchPartialCallback:
         assert seed_slot == -1
         assert seed_data == ['IPZZ-030', 'IPZZ-031']
 
-    def test_search_partial_calls_result_item_callback(self):
+    def test_search_partial_calls_result_item_callback(self, make_mock_search_jav):
         """Each successful result should trigger result_callback(idx, data) with idx >= 0."""
         from core.scraper import search_partial
 
@@ -82,7 +77,7 @@ class TestSearchPartialCallback:
             assert data is not None, "result-item data should not be None"
             assert data.get('title'), "result-item data should have a title"
 
-    def test_search_partial_no_callback_backward_compat(self):
+    def test_search_partial_no_callback_backward_compat(self, make_mock_search_jav):
         """Calling search_partial without callbacks should not raise and should return a list."""
         from core.scraper import search_partial
 
@@ -100,7 +95,7 @@ class TestSearchPartialCallback:
         assert isinstance(results, list)
         assert len(results) == 2
 
-    def test_search_partial_deterministic_slot_mapping(self):
+    def test_search_partial_deterministic_slot_mapping(self, make_mock_search_jav):
         """idx in result-item callback must correspond to candidates[idx], regardless of as_completed order."""
         from core.scraper import search_partial
 
@@ -144,7 +139,7 @@ class TestSearchPartialCallback:
 class TestSmartSearchPartialPassthrough:
     """Test that smart_search() passes callbacks to search_partial()."""
 
-    def test_smart_search_partial_passes_callback(self):
+    def test_smart_search_partial_passes_callback(self, make_mock_search_jav):
         """smart_search in partial mode should pass result_callback and status_callback to search_partial."""
         from core.scraper import smart_search
 
@@ -175,7 +170,7 @@ class TestSmartSearchPartialPassthrough:
 class TestSearchPartialStatusEvents:
     """Tests for status_callback event uniqueness."""
 
-    def test_search_partial_status_callback_events(self):
+    def test_search_partial_status_callback_events(self, make_mock_search_jav):
         """status_callback should emit exactly one ('javbus','searching') and one ('done','found:N')."""
         from core.scraper import search_partial
 
@@ -215,7 +210,7 @@ class TestSearchPartialStatusEvents:
         assert len(done_calls) == 1, \
             f"Expected exactly 1 ('done',...), got {len(done_calls)}"
 
-    def test_smart_search_partial_no_duplicate_status(self):
+    def test_smart_search_partial_no_duplicate_status(self, make_mock_search_jav):
         """smart_search in partial mode should not duplicate status events."""
         from core.scraper import smart_search
 

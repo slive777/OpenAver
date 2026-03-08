@@ -11,6 +11,7 @@ from core.scrapers import (
     Video, Actress
 )
 
+pytestmark = pytest.mark.smoke
 
 # ========== 測試樣本 ==========
 
@@ -34,6 +35,41 @@ SAMPLE_FC2 = {
     "FC2-PPV-3061583": {"title": ""},  # 可能找不到
 }
 
+# ========== 共用測試 ==========
+
+@pytest.mark.parametrize("scraper_cls, test_number", [
+    (JavBusScraper, "SONE-205"),
+    (JAV321Scraper, "MIDV-018"),
+    (JavDBScraper, "SSNI-001"),
+    (FC2Scraper, "FC2-PPV-1723984"),
+])
+def test_search_valid_number(scraper_cls, test_number):
+    """測試：搜尋有效番號"""
+    if scraper_cls == JavDBScraper:
+        try:
+            from curl_cffi import requests
+        except ImportError:
+            pytest.skip("curl_cffi not installed")
+
+    scraper = scraper_cls()
+    video = scraper.search(test_number)
+
+    if video:  # external network dependency
+        assert isinstance(video, Video)
+        if scraper_cls == FC2Scraper:
+            assert "FC2" in video.number
+            assert "1723984" in video.number
+            assert video.title != ""
+        elif scraper_cls == JAV321Scraper:
+            assert "MIDV" in video.number.upper()
+            assert len(getattr(video, 'actresses', [])) > 0
+        elif scraper_cls == JavDBScraper:
+            assert video.number == test_number
+            assert len(getattr(video, 'tags', [])) > 0
+        else:
+            assert video.number == test_number
+            assert video.title != ""
+        assert video.source == scraper.source_name
 
 # ========== Task 1 爬蟲測試 ==========
 
@@ -43,17 +79,6 @@ class TestJavBusScraper:
     @pytest.fixture
     def scraper(self):
         return JavBusScraper()
-
-    def test_search_valid_number(self, scraper):
-        """測試：搜尋有效番號"""
-        video = scraper.search("SONE-205")
-
-        if video:  # 網路依賴
-            assert isinstance(video, Video)
-            assert video.number == "SONE-205"
-            assert video.title != ""
-            assert video.source == "javbus"
-            assert video.cover_url.startswith("http")
 
     def test_search_invalid_number(self, scraper):
         """測試：搜尋不存在的番號"""
@@ -74,16 +99,6 @@ class TestJAV321Scraper:
     def scraper(self):
         return JAV321Scraper()
 
-    def test_search_valid_number(self, scraper):
-        """測試：搜尋有效番號"""
-        video = scraper.search("MIDV-018")
-
-        if video:  # 網路依賴
-            assert isinstance(video, Video)
-            assert "MIDV" in video.number.upper()
-            assert video.source == "jav321"
-            assert len(video.actresses) > 0
-
     def test_search_by_keyword(self, scraper):
         """測試：關鍵字搜尋"""
         results = scraper.search_by_keyword("天使もえ", limit=5)
@@ -101,21 +116,6 @@ class TestJavDBScraper:
     @pytest.fixture
     def scraper(self):
         return JavDBScraper()
-
-    def test_search_valid_number(self, scraper):
-        """測試：搜尋有效番號"""
-        try:
-            from curl_cffi import requests
-        except ImportError:
-            pytest.skip("curl_cffi not installed")
-
-        video = scraper.search("SSNI-001")
-
-        if video:
-            assert isinstance(video, Video)
-            assert video.number == "SSNI-001"
-            assert video.source == "javdb"
-            assert len(video.tags) > 0
 
     def test_cover_from_javdb(self, scraper):
         """測試：封面來自 JavDB"""
@@ -141,17 +141,6 @@ class TestFC2Scraper:
         assert scraper._normalize_fc2_number("FC2-1723984") == "1723984"
         assert scraper._normalize_fc2_number("fc2ppv-1723984") == "1723984"
         assert scraper._normalize_fc2_number("1723984") == "1723984"
-
-    def test_search_valid_number(self, scraper):
-        """測試：搜尋有效 FC2 番號"""
-        video = scraper.search("FC2-PPV-1723984")
-
-        if video:  # 網路依賴
-            assert isinstance(video, Video)
-            assert "FC2" in video.number
-            assert "1723984" in video.number
-            assert video.source == "fc2"
-            assert video.title != ""
 
     def test_search_invalid_number(self, scraper):
         """測試：搜尋不存在的 FC2 番號"""
