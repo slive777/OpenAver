@@ -1019,6 +1019,64 @@
         },
 
         /**
+         * Showcase Grid Flip 排序洗牌動畫
+         * C18: Flip.killFlipsOf 中斷進行中動畫
+         * @param {Element} gridEl - .showcase-grid 容器（x-ref="showcaseGrid"）
+         * @param {function} sortFn - Array.sort 比較函數
+         * @param {object} params - { duration, ease, prune, reducedMotionSim }
+         * @returns {Flip|null}
+         */
+        playFlipReorder: function (gridEl, sortFn, params) {
+            params = params || {};
+            if (!gridEl) return null;
+
+            var cards = gridEl.querySelectorAll('.av-card-preview');
+            if (!cards.length) return null;
+
+            // Reduced Motion 降級：DOM reorder 仍執行，不播動畫
+            if (shouldSkip(params)) {
+                var reordered = sortFn === 'reverse'
+                    ? Array.from(cards).reverse()
+                    : Array.from(cards).sort(sortFn);
+                reordered.forEach(function (card) { gridEl.appendChild(card); });
+                return null;
+            }
+
+            // C18: 中斷進行中的 Flip 動畫
+            Flip.killFlipsOf(cards);
+
+            // 1. Capture state BEFORE DOM reorder
+            var state = Flip.getState(cards, {
+                props: 'opacity',
+                simple: true
+            });
+
+            // 2. Reorder DOM（直接操作，不用 Alpine x-for）
+            var sorted = sortFn === 'reverse'
+                ? Array.from(cards).reverse()
+                : Array.from(cards).sort(sortFn);
+            sorted.forEach(function (card) {
+                gridEl.appendChild(card);
+            });
+
+            // 3. Flip.from — 動畫從舊位置到新位置
+            var dur = params.duration || 0.5;
+            var ease = params.ease || 'power2.inOut';
+
+            return Flip.from(state, {
+                duration: dur,
+                ease: ease,
+                absolute: true,
+                prune: params.prune !== false,
+                simple: true,
+                onComplete: function () {
+                    // 清除 inline transform，恢復 CSS hover
+                    gsap.set(cards, { clearProps: 'transform' });
+                }
+            });
+        },
+
+        /**
          * Showcase Grid 入場動畫：stagger 依序淡入
          * C4: killTweensOf(cards)
          * C6: 不使用 rotationX/Y/Z
