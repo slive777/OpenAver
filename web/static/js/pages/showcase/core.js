@@ -640,7 +640,6 @@ function showcaseState() {
             // 同步關閉 lightbox（跳過動畫，後面馬上做 filter 動畫）
             if (typeof gsap !== 'undefined') {
                 gsap.getById('showcaseLightboxOpen')?.kill();
-                gsap.getById('showcaseLightboxClose')?.kill();
                 gsap.getById('showcaseLightboxSwitch')?.kill();
             }
             var lightboxEl = document.querySelector('.showcase-lightbox');

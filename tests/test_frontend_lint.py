@@ -2383,18 +2383,17 @@ class TestShowcaseAnimationsGuard:
         )
 
     def test_animations_js_has_all_method_stubs(self):
-        """animations.js 包含全部 8 個方法"""
+        """animations.js 包含全部 6 個方法"""
         content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
         methods = [
             'playEntry', 'playFlipReorder', 'playFlipFilter',
             'captureFlipState', 'capturePositions',
-            'playPageOut', 'playPageIn',
             'playModeCrossfade',
         ]
         missing = [m for m in methods if m not in content]
         assert not missing, (
             f"showcase/animations.js 缺少方法: {', '.join(missing)} — "
-            "B5 必須包含全部 8 個方法"
+            "B5 必須包含全部 6 個方法"
         )
 
     def test_animations_js_registers_flip(self):
@@ -2839,72 +2838,6 @@ class TestShowcaseAnimationsGuard:
         )
 
     # --- B9 守衛 ---
-
-    def test_play_page_out_not_placeholder(self):
-        """B9: playPageOut 已從 placeholder 替換為完整實作"""
-        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
-        lines = content.split('\n')
-        # 用 brace counting 提取 playPageOut 方法體
-        in_method = False
-        method_lines = []
-        brace_count = 0
-        for line in lines:
-            if not in_method and 'playPageOut' in line and 'function' in line:
-                in_method = True
-                brace_count = 0
-            if in_method:
-                method_lines.append(line)
-                brace_count += line.count('{') - line.count('}')
-                if brace_count <= 0 and len(method_lines) > 1:
-                    break
-        method_body = '\n'.join(method_lines)
-        # 確認不是 placeholder
-        body_lines = [l.strip() for l in method_lines[1:] if l.strip() and l.strip() != '},' and l.strip() != '}']
-        assert not (len(body_lines) == 1 and body_lines[0] == 'return null;'), (
-            "showcase/animations.js playPageOut 仍是 placeholder — "
-            "B9 必須替換為完整實作"
-        )
-        assert 'gsap.killTweensOf' in method_body, (
-            "showcase/animations.js playPageOut 缺少 gsap.killTweensOf — "
-            "B9 必須包含 C4 清除舊動畫"
-        )
-        assert 'onComplete' in method_body, (
-            "showcase/animations.js playPageOut 缺少 onComplete — "
-            "B9 必須支援離場結束回調供 core.js 使用"
-        )
-
-    def test_play_page_in_not_placeholder(self):
-        """B9: playPageIn 已從 placeholder 替換為完整實作"""
-        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
-        lines = content.split('\n')
-        # 用 brace counting 提取 playPageIn 方法體
-        in_method = False
-        method_lines = []
-        brace_count = 0
-        for line in lines:
-            if not in_method and 'playPageIn' in line and 'function' in line:
-                in_method = True
-                brace_count = 0
-            if in_method:
-                method_lines.append(line)
-                brace_count += line.count('{') - line.count('}')
-                if brace_count <= 0 and len(method_lines) > 1:
-                    break
-        method_body = '\n'.join(method_lines)
-        # 確認不是 placeholder
-        body_lines = [l.strip() for l in method_lines[1:] if l.strip() and l.strip() != '},' and l.strip() != '}']
-        assert not (len(body_lines) == 1 and body_lines[0] == 'return null;'), (
-            "showcase/animations.js playPageIn 仍是 placeholder — "
-            "B9 必須替換為完整實作"
-        )
-        assert 'clearProps' in method_body, (
-            "showcase/animations.js playPageIn 缺少 clearProps — "
-            "B9 必須在動畫結束後清除 inline styles"
-        )
-        assert 'stagger' in method_body, (
-            "showcase/animations.js playPageIn 缺少 stagger — "
-            "B9 必須包含 stagger 滑入效果"
-        )
 
     def test_core_js_has_animate_page_change(self):
         """B9: core.js 包含 _animatePageChange 方法"""
@@ -3790,4 +3723,44 @@ class TestLightboxStateFirstGuard:
         assert '_lightboxGeneration++' in cleanup_section, (
             "B19 違規：showcase init() cleanup 缺少 _lightboxGeneration++ — "
             "離頁時 pending $nextTick lightbox callback 不會被 invalidate"
+        )
+
+
+class TestPlayLightboxCloseRemoved:
+    """C1: playLightboxClose 已移除（dead code — closeLightbox 使用 instant close）"""
+
+    def test_search_animations_no_play_lightbox_close(self):
+        content = (PROJECT_ROOT / "web/static/js/pages/search/animations.js").read_text(encoding='utf-8')
+        assert 'playLightboxClose' not in content, (
+            "C1 違規：search/animations.js 仍包含 playLightboxClose — "
+            "此函式零呼叫者，closeLightbox 使用 instant close"
+        )
+
+    def test_showcase_animations_no_play_lightbox_close(self):
+        content = (PROJECT_ROOT / "web/static/js/pages/showcase/animations.js").read_text(encoding='utf-8')
+        assert 'playLightboxClose' not in content, (
+            "C1 違規：showcase/animations.js 仍包含 playLightboxClose — "
+            "此函式零呼叫者，closeLightbox 使用 instant close"
+        )
+
+    def test_showcase_core_no_lightbox_close_timeline_kill(self):
+        content = (PROJECT_ROOT / "web/static/js/pages/showcase/core.js").read_text(encoding='utf-8')
+        assert "getById('showcaseLightboxClose')" not in content, (
+            "C1 違規：showcase/core.js 仍引用 showcaseLightboxClose timeline — "
+            "該 timeline 從未被建立，防禦性 kill 是 dead code"
+        )
+
+
+class TestPlayPageOutInRemoved:
+    """C2: playPageOut/playPageIn 已移除（dead since B13，_animatePageChange 使用 playEntry）"""
+
+    def test_showcase_animations_no_play_page_out_in(self):
+        content = (PROJECT_ROOT / "web/static/js/pages/showcase/animations.js").read_text(encoding='utf-8')
+        assert 'playPageOut' not in content, (
+            "C2 違規：showcase/animations.js 仍包含 playPageOut — "
+            "B13 後 dead code，_animatePageChange 已改用 playEntry"
+        )
+        assert 'playPageIn' not in content, (
+            "C2 違規：showcase/animations.js 仍包含 playPageIn — "
+            "B13 後 dead code，_animatePageChange 已改用 playEntry"
         )

@@ -7,8 +7,6 @@
  *   - playFlipReorder(gridEl, positionMap, params) B12: 排序洗牌手動動畫（B15 恢復 core.js 呼叫）
  *   - playFlipFilter(gridEl, state, params)     B8: 篩選進出場 Flip 動畫（B15 恢復 core.js 呼叫）
  *   - captureFlipState(gridEl)                  B8: 捕獲 Flip 狀態快照（B15 恢復 core.js 呼叫）
- *   - playPageOut(gridEl, direction, params)    B9: 分頁離場動畫（B13 後 core.js 不再呼叫）
- *   - playPageIn(gridEl, direction, params)     B9: 分頁進場動畫（B13 後 core.js 不再呼叫）
  *   - playModeCrossfade(oldMode, newMode, params) B10: 模式切換 crossfade
  *
  * B5 骨架：所有方法為 placeholder，return null。
@@ -273,112 +271,6 @@
         },
 
         /**
-         * B9: 分頁離場動畫
-         * @param {Element} gridEl - .showcase-grid 容器
-         * @param {string} direction - 'next' | 'prev'
-         * @param {Object} params - 動畫參數
-         * @returns {null}
-         */
-        playPageOut: function (gridEl, direction, params) {
-            params = params || {};
-
-            // null guard
-            if (!gridEl) return null;
-
-            // GSAP guard（CDN 故障降級）
-            if (typeof gsap === 'undefined') return null;
-
-            var cards = gridEl.querySelectorAll('.av-card-preview');
-            if (!cards.length) return null;
-
-            // C4: 清除舊動畫
-            gsap.killTweensOf(cards);
-
-            // Reduced Motion 降級：瞬間隱藏 + 立即 onComplete
-            if (shouldSkip()) {
-                gsap.set(cards, { opacity: 0 });
-                if (params.onComplete) params.onComplete();
-                return null;
-            }
-
-            var dur = params.duration || 0.3;
-            var staggerVal = params.stagger || 0.02;
-            // 方向邏輯：next → 向左滑出（x: -20），prev → 向右滑出（x: 20）
-            var xShift = direction === 'next' ? -20 : 20;
-            var staggerFrom = direction === 'next' ? 'start' : 'end';
-
-            var tl = gsap.timeline({ id: 'showcasePageOut' });
-
-            tl.to(cards, {
-                opacity: 0,
-                x: xShift,
-                duration: dur * 0.6,
-                ease: 'power2.in',
-                stagger: { each: staggerVal, from: staggerFrom }
-            });
-
-            // 離場結束後呼叫 onComplete 供 core.js 換頁
-            tl.eventCallback('onComplete', function () {
-                if (params.onComplete) params.onComplete();
-            });
-
-            return tl;
-        },
-
-        /**
-         * B9: 分頁進場動畫
-         * @param {Element} gridEl - .showcase-grid 容器
-         * @param {string} direction - 'next' | 'prev'
-         * @param {Object} params - 動畫參數
-         * @returns {null}
-         */
-        playPageIn: function (gridEl, direction, params) {
-            params = params || {};
-
-            // null guard
-            if (!gridEl) return null;
-
-            // GSAP guard（CDN 故障降級）
-            if (typeof gsap === 'undefined') return null;
-
-            var cards = gridEl.querySelectorAll('.av-card-preview');
-            if (!cards.length) return null;
-
-            // C4: 清除舊動畫
-            gsap.killTweensOf(cards);
-
-            // Reduced Motion 降級：瞬間顯示
-            if (shouldSkip()) {
-                gsap.set(cards, { opacity: 1, x: 0 });
-                return null;
-            }
-
-            var dur = params.duration || 0.3;
-            var staggerVal = params.stagger || 0.02;
-            // 起始位置：反向偏移（next → 從右側 x: 20，prev → 從左側 x: -20）
-            var xStart = direction === 'next' ? 20 : -20;
-            var staggerFrom = direction === 'next' ? 'start' : 'end';
-
-            // 設定起始位置
-            gsap.set(cards, { x: xStart, opacity: 0 });
-
-            var tl = gsap.timeline({ id: 'showcasePageIn' });
-
-            tl.to(cards, {
-                opacity: 1,
-                x: 0,
-                duration: dur,
-                ease: 'power3.out',
-                stagger: { each: staggerVal, from: staggerFrom },
-                onComplete: function () {
-                    gsap.set(cards, { clearProps: 'transform,opacity' });
-                }
-            });
-
-            return tl;
-        },
-
-        /**
          * B10: 模式切換 crossfade
          * @param {string} oldMode - 離場模式名稱 ('grid'|'table'|'list')
          * @param {string} newMode - 進場模式名稱 ('grid'|'table'|'list')
@@ -467,64 +359,6 @@
                     '-=0.08'
                 );
             }
-
-            return tl;
-        },
-
-        /**
-         * B16: Lightbox 退場動畫 — content 縮小淡出 + backdrop 淡出
-         *
-         * closeLightbox 先播動畫，onComplete 後才翻 state。
-         *
-         * C4: killTweensOf 清舊動畫
-         * C6: 不使用 rotation
-         * C21: .gsap-animating class 暫時關掉 CSS transition
-         *
-         * @param {Element} lightboxEl - .showcase-lightbox 元素
-         * @param {object} [options] - { onComplete }
-         * @returns {gsap.core.Timeline|null}
-         */
-        playLightboxClose: function (lightboxEl, options) {
-            options = options || {};
-
-            if (!lightboxEl) return null;
-            if (typeof gsap === 'undefined') return null;
-            if (shouldSkip()) return null;
-
-            var content = lightboxEl.querySelector('.lightbox-content');
-
-            // C4: 清除舊動畫
-            gsap.killTweensOf(lightboxEl);
-            if (content) gsap.killTweensOf(content);
-
-            // C21: 暫時關掉 CSS transition
-            lightboxEl.classList.add('gsap-animating');
-
-            var tl = gsap.timeline({
-                id: 'showcaseLightboxClose',
-                onComplete: function () {
-                    lightboxEl.classList.remove('gsap-animating');
-                    if (typeof options.onComplete === 'function') options.onComplete();
-                },
-                onInterrupt: function () {
-                    lightboxEl.classList.remove('gsap-animating');
-                }
-            });
-
-            // 1. Content card shrink + fade-out
-            if (content) {
-                tl.fromTo(content,
-                    { scale: 1, opacity: 1 },
-                    { scale: 0.95, opacity: 0, duration: 0.2, ease: 'power2.in' }
-                );
-            }
-
-            // 2. Backdrop fade-out
-            tl.fromTo(lightboxEl,
-                { opacity: 1 },
-                { opacity: 0, duration: 0.25, ease: 'power2.in' },
-                content ? '-=0.1' : 0
-            );
 
             return tl;
         },

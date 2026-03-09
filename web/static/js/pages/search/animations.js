@@ -12,7 +12,6 @@
  *   - playDetailToGrid(fromRect, targetCardEl, options)  Detail→Grid ghost 飛回
  *   - playSlideIn(containerEl, direction)              detail 導航滑入動畫（C18 interrupt）
  *   - playLightboxOpen(lightboxEl, options)             lightbox 進場動畫（backdrop + content + cover）
- *   - playLightboxClose(lightboxEl, options)            lightbox 退場動畫（content + backdrop）
  *   - playLightboxSwitch(contentEl, direction, options) lightbox 導航 crossfade + micro slide
  *
  * C2：此檔案是 pages/ 目錄下被允許直接呼叫 GSAP 的兩個檔案之一
@@ -811,64 +810,6 @@
                     '-=0.08'
                 );
             }
-
-            return tl;
-        },
-
-        /**
-         * Lightbox 退場動畫：content 縮小淡出 + backdrop 淡出
-         *
-         * 關鍵設計：closeLightbox 先播動畫，onComplete 後才翻 state（lightboxOpen = false）。
-         *
-         * C4：開頭 killTweensOf 清舊動畫。
-         * C6：不使用 rotation。
-         * C21：用 .gsap-animating class 暫時關掉 CSS transition。
-         *
-         * @param {Element} lightboxEl - .showcase-lightbox 元素
-         * @param {object} [options] - { onComplete }
-         * @returns {gsap.core.Timeline|null}
-         */
-        playLightboxClose: function (lightboxEl, options) {
-            options = options || {};
-
-            if (!lightboxEl) return null;
-            if (typeof gsap === 'undefined') return null;
-            if (shouldSkip()) return null;
-
-            var content = lightboxEl.querySelector('.lightbox-content');
-
-            // C4: 清除舊動畫
-            gsap.killTweensOf(lightboxEl);
-            if (content) gsap.killTweensOf(content);
-
-            // C21: 暫時關掉 CSS transition
-            lightboxEl.classList.add('gsap-animating');
-
-            var tl = gsap.timeline({
-                id: 'lightboxClose',
-                onComplete: function () {
-                    lightboxEl.classList.remove('gsap-animating');
-                    if (typeof options.onComplete === 'function') options.onComplete();
-                },
-                onInterrupt: function () {
-                    lightboxEl.classList.remove('gsap-animating');
-                }
-            });
-
-            // 1. Content card shrink + fade-out
-            if (content) {
-                tl.fromTo(content,
-                    { scale: 1, opacity: 1 },
-                    { scale: 0.95, opacity: 0, duration: 0.2, ease: 'power2.in' }
-                );
-            }
-
-            // 2. Backdrop fade-out
-            tl.fromTo(lightboxEl,
-                { opacity: 1 },
-                { opacity: 0, duration: 0.25, ease: 'power2.in' },
-                content ? '-=0.1' : 0
-            );
 
             return tl;
         },
