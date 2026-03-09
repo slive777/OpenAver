@@ -651,7 +651,6 @@
     window.handlePyWebViewDrop = function (paths) {
         // 統一轉為陣列
         const pathList = Array.isArray(paths) ? paths : [paths];
-        console.log('PyWebView drop:', pathList.length, '個檔案');
 
         // 觸發自定義事件，讓主程式處理
         window.dispatchEvent(new CustomEvent('pywebview-files', {

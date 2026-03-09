@@ -305,11 +305,13 @@ window.SearchStateMixin_Batch = {
                     this.showToast(`⚠️ ${fields} 資訊未取得，已使用預設值`, 'warning');
                 }
             } else {
-                alert(`${file.filename} 處理失敗: ${result.error || '未知錯誤'}`);
+                console.error('[Scrape]', file.filename, result.error);
+                alert(`${file.filename} 處理失敗`);
                 file.scrapeStatus = 'failed';
             }
         } catch (err) {
-            alert(`${file.filename} 處理失敗: ${err.message}`);
+            console.error('[Scrape]', file.filename, err);
+            alert(`${file.filename} 處理失敗`);
             file.scrapeStatus = 'failed';
         }
 

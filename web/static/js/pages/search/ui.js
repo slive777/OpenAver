@@ -40,7 +40,7 @@ async function loadSourceConfig() {
         // 更新來源順序
         if (data.order && Array.isArray(data.order)) {
             SOURCE_ORDER = data.order;
-            console.log('[SourceConfig] 已從 API 載入 SOURCE_ORDER:', SOURCE_ORDER);
+
         }
 
         // 從 sources 更新顯示名稱
@@ -121,7 +121,6 @@ async function ensureCached(state, number) {
         return;
     }
 
-    console.log(`[SwitchSource] 懶加載查詢: ${source} - ${number}`);
 
     try {
         const resp = await fetch(`/api/search?q=${encodeURIComponent(number)}&mode=exact&source=${source}`);
@@ -158,7 +157,7 @@ async function ensureCached(state, number) {
                 }
 
                 state.cache[source] = variants.length > 0 ? variants : [{ ...firstResult, _source: source }];
-                console.log(`[SwitchSource] ${source} 共 ${variants.length} 個版本`);
+
             }
         } else {
             // 沒資料
@@ -226,7 +225,7 @@ async function switchSource(alpineContext, number) {
             // 檢查是否循環回起點
             const currentPos = `${state.sourceIdx}:${state.variantIdx}`;
             if (currentPos === startPos) {
-                console.log('[SwitchSource] 循環完畢，回到起點');
+
                 // Trigger shake animation via Alpine state
                 alpineContext.switchSourceShake = true;
                 setTimeout(() => {
@@ -261,12 +260,12 @@ async function switchSource(alpineContext, number) {
                 // 保存狀態
                 alpineContext.saveState();
 
-                console.log(`[SwitchSource] 切換到 ${source} 第 ${state.variantIdx + 1} 版`);
+
                 return;
             }
 
             // 沒資料，繼續下一個位置
-            console.log(`[SwitchSource] ${source} 無資料，繼續...`);
+
         }
     } catch (err) {
         console.error('[SwitchSource] 切換失敗:', err);

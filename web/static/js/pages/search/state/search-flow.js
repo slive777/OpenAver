@@ -558,7 +558,8 @@ window.SearchStateMixin_SearchFlow = {
             // Fix 3: 舊請求失敗不覆蓋新搜尋畫面
             if (savedRequestId !== this.requestId) return;
             this._searchSnapshot = null;
-            this.errorText = '網路錯誤: ' + err.message;  // T6c: Alpine state
+            console.error('[Search]', err);
+            this.errorText = '網路錯誤，請重試';  // T6c: Alpine state
             window.SearchUI.showState('error');
         }
     },

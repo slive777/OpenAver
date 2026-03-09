@@ -435,7 +435,8 @@ window.SearchStateMixin_FileList = {
             const result = await resp.json();
 
             if (!result.success) {
-                alert(result.error || '載入失敗');
+                console.error('[LoadFavorite]', result.error);
+                alert('載入失敗，請重試');
                 return;
             }
 
@@ -451,7 +452,8 @@ window.SearchStateMixin_FileList = {
 
         } catch (err) {
             if (err.name === 'AbortError') return;  // T4.3: 靜默忽略取消
-            alert('載入失敗：' + err.message);
+            console.error('[LoadFavorite]', err);
+            alert('載入失敗，請重試');
         } finally {
             this.isLoadingFavorite = false;
             this._clearAbort('loadFavorite', loadFavoriteSignal);  // T4.3: 操作完成清除 registry（比對 signal 避免刪掉新請求）

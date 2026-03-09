@@ -137,7 +137,6 @@ async function _translateWithAI() {
                 throw new Error('當前片無需翻譯');
             }
 
-            console.log(`[Gemini] 單片翻譯: ${currentResult.title}`);
 
             // 調用單片翻譯 API
             const result = await translateWithOllama(currentResult.title, 'translate', currentResult);
@@ -150,7 +149,7 @@ async function _translateWithAI() {
                     state.searchResults[state.currentIndex].translated_title = result.result;
                 }
                 // T1c: Alpine reactive will update UI automatically
-                console.log(`[Gemini] 翻譯完成: ${result.result}`);
+
                 window.SearchCore.saveState();
             } else {
                 throw new Error(result.error || '翻譯失敗');
@@ -190,7 +189,6 @@ async function _translateWithAI() {
             throw new Error('無需翻譯的日文標題');
         }
 
-        console.log(`[Ollama Batch] 批次翻譯 ${batch.length} 片`);
 
         if (state.listMode !== 'file') {
             batchMeta.forEach(meta => {
@@ -216,7 +214,7 @@ async function _translateWithAI() {
                 }
             });
 
-            console.log(`[Ollama Batch] 完成 ${translations.filter(t => t).length} 片翻譯`);
+
             window.SearchCore.saveState();
         }
 

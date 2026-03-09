@@ -3364,3 +3364,108 @@ class TestMotionLabShowcase:
             "motion-lab.js 缺少 playPageTransition — "
             "B4 必須在 Motion Lab 提供分頁切換 demo"
         )
+
+
+# ====================================================================
+# D1 Guards: 錯誤訊息收斂 + console.log 清理
+# ====================================================================
+
+class TestSearchErrorMessageGuard:
+    """D1 守衛：search 頁面 JS 的 alert / errorText 不可暴露 err.message 技術細節"""
+
+    SEARCH_JS_DIR = PROJECT_ROOT / 'web' / 'static' / 'js' / 'pages' / 'search'
+
+    def _collect_js_files(self):
+        """收集 search 目錄下所有 .js 檔案（含子目錄）"""
+        return list(self.SEARCH_JS_DIR.rglob('*.js'))
+
+    @staticmethod
+    def _is_console_or_throw(line: str) -> bool:
+        """排除 console.error / console.warn / throw 中的合法使用"""
+        stripped = line.strip()
+        if stripped.startswith('console.error') or stripped.startswith('console.warn'):
+            return True
+        if stripped.startswith('throw '):
+            return True
+        # 也排除 JS 註解行
+        if stripped.startswith('//'):
+            return True
+        return False
+
+    def test_no_err_message_in_alert(self):
+        """alert() 內不可含 err.message / error.message / result.error"""
+        pattern = r'alert\s*\([^)]*(?:err\.message|error\.message|result\.error)'
+        all_violations = []
+        for js_file in self._collect_js_files():
+            violations = find_pattern_in_file(
+                js_file, pattern,
+                exclude_lines=lambda line, _: self._is_console_or_throw(line)
+            )
+            for line_num, line_content in violations:
+                all_violations.append(f"  {js_file.relative_to(PROJECT_ROOT)}:{line_num}: {line_content}")
+
+        assert not all_violations, (
+            "D1 守衛違規：alert() 內暴露技術錯誤訊息\n"
+            + "\n".join(all_violations)
+            + "\n\n修正：alert 只顯示友善中文提示，技術細節降級到 console.error"
+        )
+
+    def test_no_err_message_in_errorText(self):
+        """this.errorText = 內不可含 err.message / error.message"""
+        pattern = r'this\.errorText\s*=\s*.*(?:err\.message|error\.message)'
+        all_violations = []
+        for js_file in self._collect_js_files():
+            violations = find_pattern_in_file(
+                js_file, pattern,
+                exclude_lines=lambda line, _: self._is_console_or_throw(line)
+            )
+            for line_num, line_content in violations:
+                all_violations.append(f"  {js_file.relative_to(PROJECT_ROOT)}:{line_num}: {line_content}")
+
+        assert not all_violations, (
+            "D1 守衛違規：errorText 暴露技術錯誤訊息\n"
+            + "\n".join(all_violations)
+            + "\n\n修正：errorText 只顯示友善中文提示，技術細節降級到 console.error"
+        )
+
+
+class TestSearchConsoleLogGuard:
+    """D1 守衛：search 頁面程式碼不可含 console.log"""
+
+    SEARCH_JS_DIR = PROJECT_ROOT / 'web' / 'static' / 'js' / 'pages' / 'search'
+    SEARCH_HTML = PROJECT_ROOT / 'web' / 'templates' / 'search.html'
+
+    def _collect_scan_files(self):
+        """收集所有需掃描的檔案：search/*.js + search.html"""
+        files = list(self.SEARCH_JS_DIR.rglob('*.js'))
+        if self.SEARCH_HTML.exists():
+            files.append(self.SEARCH_HTML)
+        return files
+
+    @staticmethod
+    def _is_comment_line(line: str, _line_num: int) -> bool:
+        """排除 JS 註解行（// 開頭）和 HTML 註解"""
+        stripped = line.strip()
+        if stripped.startswith('//'):
+            return True
+        if '<!--' in stripped:
+            return True
+        return False
+
+    def test_no_console_log(self):
+        """search 頁面程式碼不可含 console.log("""
+        pattern = r'console\.log\s*\('
+        all_violations = []
+        for scan_file in self._collect_scan_files():
+            violations = find_pattern_in_file(
+                scan_file, pattern,
+                exclude_lines=self._is_comment_line
+            )
+            for line_num, line_content in violations:
+                all_violations.append(f"  {scan_file.relative_to(PROJECT_ROOT)}:{line_num}: {line_content}")
+
+        assert not all_violations, (
+            "D1 守衛違規：search 頁面殘留 console.log\n"
+            + "\n".join(all_violations)
+            + "\n\n修正：移除 console.log，保留 console.error / console.warn"
+        )

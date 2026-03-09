@@ -139,7 +139,7 @@ window.SearchStateMixin_ResultCard = {
             // translated_title 已寫入 searchResult object → Alpine reactive 自動更新
         } catch (error) {
             console.error('[Translate] 翻譯失敗:', error);
-            alert('翻譯失敗：' + error.message);
+            alert('翻譯失敗，請重試');
         } finally {
             this.isTranslating = false;
         }

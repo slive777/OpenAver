@@ -59,7 +59,7 @@ window.SearchStateMixin_Persistence = {
                 this.lightboxIndex = -1;
             }
 
-            console.log('[Alpine] State restored from sessionStorage');
+
         } catch (e) {
             console.error('[Alpine] 還原狀態失敗:', e);
             sessionStorage.removeItem(this.STATE_KEY);
