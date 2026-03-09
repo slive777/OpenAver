@@ -184,6 +184,15 @@ function showcaseState() {
             this.applyFilterAndSort();
             this.page = savedPage;
             this.updatePagination();
+            // B17: retry 成功後播放進場動畫
+            if (this.mode === 'grid' && !this.error) {
+                var gen = ++this._animGeneration;
+                this.$nextTick(() => { requestAnimationFrame(() => {
+                    if (this._animGeneration !== gen) return;
+                    var grid = document.querySelector('.showcase-grid');
+                    window.ShowcaseAnimations?.playEntry?.(grid);
+                }); });
+            }
         },
 
         // --- 互動邏輯 (M2a 只定義骨架，M4 才實作完整邏輯) ---
@@ -342,6 +351,15 @@ function showcaseState() {
             this.page = 1;
             this.updatePagination();
             this.saveState();  // M2c: 持久化狀態
+            // B17: 切換每頁數量後播放進場動畫
+            if (this.mode === 'grid') {
+                var gen = ++this._animGeneration;
+                this.$nextTick(() => { requestAnimationFrame(() => {
+                    if (this._animGeneration !== gen) return;
+                    var grid = document.querySelector('.showcase-grid');
+                    window.ShowcaseAnimations?.playEntry?.(grid);
+                }); });
+            }
         },
 
         switchMode(m) {
