@@ -42,6 +42,7 @@ function showcaseState() {
         perPage: 90,
         totalPages: 1,
         _animGeneration: 0,  // B13: 防止 stale deferred callback
+        _lightboxAnimating: false,  // B16: Lightbox 動畫進行中 guard
 
         // --- Computed ---
         get currentLightboxVideo() {
@@ -532,6 +533,9 @@ function showcaseState() {
 
         // --- Lightbox (M3a) ---
         openLightbox(index) {
+            // B16: 動畫進行中 guard
+            if (this._lightboxAnimating) return;
+
             this.lightboxIndex = index;
             this.lightboxOpen = true;
             document.body.classList.add('overflow-hidden');
@@ -546,17 +550,59 @@ function showcaseState() {
             // 重置起始位置
             this.lightboxStartX = 0;
             this.lightboxStartY = 0;
+
+            // B16: GSAP 進場動畫（fire-and-forget）
+            var self = this;
+            this.$nextTick(() => {
+                var lightboxEl = document.querySelector('.showcase-lightbox');
+                if (!lightboxEl) return;
+                self._lightboxAnimating = true;
+                var tl = window.ShowcaseAnimations?.playLightboxOpen?.(lightboxEl, {
+                    onComplete: function () {
+                        self._lightboxAnimating = false;
+                    }
+                });
+                if (!tl) {
+                    self._lightboxAnimating = false;
+                }
+            });
         },
 
         closeLightbox() {
-            this.lightboxOpen = false;
-            document.body.classList.remove('overflow-hidden');
-            this.lightboxIndex = -1;
-            this.lightboxStartX = 0;
-            this.lightboxStartY = 0;
-            if (this.lightboxMoveTimer) clearTimeout(this.lightboxMoveTimer);
-            this.lightboxMoveTimer = null;
-            this.lightboxMoveEnabled = false;
+            // B16: 動畫進行中 guard
+            if (this._lightboxAnimating) return;
+
+            var self = this;
+
+            /** B16: 所有 cleanup 邏輯（動畫 onComplete 或 fallback 共用） */
+            function doCleanup() {
+                self._lightboxAnimating = false;
+                self.lightboxOpen = false;
+                self.lightboxIndex = -1;
+                document.body.classList.remove('overflow-hidden');
+                if (self.lightboxMoveTimer) {
+                    clearTimeout(self.lightboxMoveTimer);
+                    self.lightboxMoveTimer = null;
+                }
+                self.lightboxMoveEnabled = false;
+                self.lightboxStartX = 0;
+                self.lightboxStartY = 0;
+            }
+
+            // B16: GSAP 退場動畫 — 先播動畫，onComplete 才翻 state
+            var lightboxEl = document.querySelector('.showcase-lightbox');
+            if (lightboxEl && window.ShowcaseAnimations?.playLightboxClose) {
+                this._lightboxAnimating = true;
+                var tl = window.ShowcaseAnimations.playLightboxClose(lightboxEl, {
+                    onComplete: doCleanup
+                });
+                if (!tl) {
+                    doCleanup();
+                }
+            } else {
+                // 無 GSAP fallback：直接 cleanup
+                doCleanup();
+            }
         },
 
         // Metadata 點擊搜尋 (M3f)
@@ -568,30 +614,92 @@ function showcaseState() {
         },
 
         prevLightboxVideo() {
+            // B16: 動畫進行中 guard
+            if (this._lightboxAnimating) return;
+
             if (this.lightboxIndex > 0) {
-                this.lightboxIndex--;
-                // 重置 Smart Close 狀態
-                this.lightboxMoveEnabled = false;
-                if (this.lightboxMoveTimer) clearTimeout(this.lightboxMoveTimer);
-                this.lightboxMoveTimer = setTimeout(() => {
-                    this.lightboxMoveEnabled = true;
-                }, 1000);
-                this.lightboxStartX = 0;
-                this.lightboxStartY = 0;
+                var self = this;
+                var newIdx = this.lightboxIndex - 1;
+
+                /** Smart Close 重置邏輯 */
+                function resetSmartClose() {
+                    self.lightboxMoveEnabled = false;
+                    if (self.lightboxMoveTimer) clearTimeout(self.lightboxMoveTimer);
+                    self.lightboxMoveTimer = setTimeout(function () {
+                        self.lightboxMoveEnabled = true;
+                    }, 1000);
+                    self.lightboxStartX = 0;
+                    self.lightboxStartY = 0;
+                }
+
+                // B16: GSAP 切換動畫
+                var contentEl = document.querySelector('.showcase-lightbox .lightbox-content');
+                if (contentEl && window.ShowcaseAnimations?.playLightboxSwitch) {
+                    this._lightboxAnimating = true;
+                    var tl = window.ShowcaseAnimations.playLightboxSwitch(contentEl, 'prev', {
+                        onMidpoint: function () {
+                            self.lightboxIndex = newIdx;
+                            resetSmartClose();
+                        },
+                        onComplete: function () {
+                            self._lightboxAnimating = false;
+                        }
+                    });
+                    if (!tl) {
+                        this._lightboxAnimating = false;
+                        this.lightboxIndex = newIdx;
+                        resetSmartClose();
+                    }
+                } else {
+                    // 無 GSAP fallback：直接切換
+                    this.lightboxIndex = newIdx;
+                    resetSmartClose();
+                }
             }
         },
 
         nextLightboxVideo() {
+            // B16: 動畫進行中 guard
+            if (this._lightboxAnimating) return;
+
             if (this.lightboxIndex < this.filteredVideos.length - 1) {
-                this.lightboxIndex++;
-                // 重置 Smart Close 狀態
-                this.lightboxMoveEnabled = false;
-                if (this.lightboxMoveTimer) clearTimeout(this.lightboxMoveTimer);
-                this.lightboxMoveTimer = setTimeout(() => {
-                    this.lightboxMoveEnabled = true;
-                }, 1000);
-                this.lightboxStartX = 0;
-                this.lightboxStartY = 0;
+                var self = this;
+                var newIdx = this.lightboxIndex + 1;
+
+                /** Smart Close 重置邏輯 */
+                function resetSmartClose() {
+                    self.lightboxMoveEnabled = false;
+                    if (self.lightboxMoveTimer) clearTimeout(self.lightboxMoveTimer);
+                    self.lightboxMoveTimer = setTimeout(function () {
+                        self.lightboxMoveEnabled = true;
+                    }, 1000);
+                    self.lightboxStartX = 0;
+                    self.lightboxStartY = 0;
+                }
+
+                // B16: GSAP 切換動畫
+                var contentEl = document.querySelector('.showcase-lightbox .lightbox-content');
+                if (contentEl && window.ShowcaseAnimations?.playLightboxSwitch) {
+                    this._lightboxAnimating = true;
+                    var tl = window.ShowcaseAnimations.playLightboxSwitch(contentEl, 'next', {
+                        onMidpoint: function () {
+                            self.lightboxIndex = newIdx;
+                            resetSmartClose();
+                        },
+                        onComplete: function () {
+                            self._lightboxAnimating = false;
+                        }
+                    });
+                    if (!tl) {
+                        this._lightboxAnimating = false;
+                        this.lightboxIndex = newIdx;
+                        resetSmartClose();
+                    }
+                } else {
+                    // 無 GSAP fallback：直接切換
+                    this.lightboxIndex = newIdx;
+                    resetSmartClose();
+                }
             }
         },
 

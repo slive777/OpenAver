@@ -410,9 +410,15 @@
     transform: scale(1);
 }
 
-/* D2: GSAP Lightbox 動畫期間關掉 CSS transition（C21） */
+/* D2: GSAP Lightbox 動畫期間關掉 CSS transition（C21） — search 頁面 */
 .search-container .showcase-lightbox.gsap-animating,
 .search-container .showcase-lightbox.gsap-animating .lightbox-content {
+    transition: none !important;
+}
+
+/* B16: GSAP Lightbox 動畫期間關掉 CSS transition（C21） — showcase 頁面 */
+.showcase-container .showcase-lightbox.gsap-animating,
+.showcase-container .showcase-lightbox.gsap-animating .lightbox-content {
     transition: none !important;
 }
 
