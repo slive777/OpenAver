@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-03-11
+
+### Added
+
+#### 🎬 GSAP Showcase 動效系統 (Phase 33)
+
+**Showcase 頁面全面 GSAP 動效**
+- 初始載入 Settle 動畫（scale pulse，不碰 opacity 不閃爍）
+- 分頁切換 stagger out/in + 自動 scrollTo 頂部
+- 篩選進出場 Flip 動畫（onEnter/onLeave）
+- 排序洗牌 Flip 動畫（captureFlipState + reorder）
+- 模式切換 crossfade（Grid/Table/List 淡入）
+- Lightbox 開啟/關閉/切換 GSAP 動效 + animating guard
+
+**Search 頁面動效增強**
+- Lightbox GSAP 動效（open/close/switch）
+- 頁面返回 Settle 動畫（與 Showcase 一致的 scale pulse）
+- playGridSettle C21 防護（clearProps + onInterrupt）
+
+**Motion Lab 沙盒**
+- 新增 /motion-lab 頁面，用於動畫原型開發與調參
+- 包含：初始載入、排序洗牌、篩選進出場、分頁切換 demo
+
+### Changed
+
+#### ⚡ Alpine 效能優化
+
+- **F1**: `videos[]` / `filteredVideos[]` 移出 Alpine reactive scope，改為 closure 變數（6000 筆不再建立 Proxy）
+- **F2**: Grid mode 禁用 perPage=0「全部」選項，三個攔截點自動降級為 120
+
+### Fixed
+
+#### 🐛 閃爍根治
+
+- **F3**: `playSettle` 取代 `playEntry` 初始載入（scale-only pulse，不碰 opacity → 不閃）
+- **F3**: 移除 `x-init="init()"` 雙重呼叫（Alpine 3 自動呼叫 init 方法，同時存在導致 double init）
+- **CI**: `TestIsVideoFile` 在 Ubuntu CI 缺 pywebview 時 skip（Windows-only 套件）
+
+#### 🧪 測試套件整合 (Phase 32)
+
+- **U12**: 影片副檔名統一 — `core/video_extensions.py` Single Source of Truth
+- **U13**: 測試去重 + conftest 統一 + 結構歸位（778 → 740 tests）
+- **U14**: 覆蓋率補強（740 → 803 tests）— validators / scanner / config / API 安全
+- **U15**: 品質修正 — 弱斷言加強 + 過大測試拆分
+
 ## [0.4.1] - 2026-03-08
 
 ### Changed
