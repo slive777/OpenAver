@@ -78,7 +78,7 @@
 
             var dur = params.duration || 0.8;
             var scaleVal = params.scale || 1.06;
-            var maxRows = params.rows || 2;
+            var maxRows = params.rows || 3;
             var ease = (typeof CustomEase !== 'undefined' && gsap.parseEase('showcaseSettle'))
                 ? 'showcaseSettle' : 'power2.out';
 

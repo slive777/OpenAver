@@ -703,7 +703,7 @@
             var dur = options.duration || 0.8;
             var scaleVal = options.scale || 1.06;
             var ease = options.ease || 'settle';
-            var rowCount = options.rows || 2;
+            var rowCount = options.rows || 3;
 
             // CustomEase fallback：若 settle ease 未註冊，fallback 到 power2.out
             if (ease === 'settle' && typeof CustomEase === 'undefined') {
