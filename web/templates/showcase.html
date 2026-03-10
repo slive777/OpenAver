@@ -159,8 +159,9 @@
                            @click.prevent="perPage = 90; onPerPageChange(); perPageOpen = false">90 部</a>
                         <a href="#" class="dropdown-item" :class="{ 'active': perPage == 120 }"
                            @click.prevent="perPage = 120; onPerPageChange(); perPageOpen = false">120 部</a>
-                        <a href="#" class="dropdown-item" :class="{ 'active': perPage == 0 }"
-                           @click.prevent="perPage = 0; onPerPageChange(); perPageOpen = false">全部</a>
+                        <a href="#" class="dropdown-item"
+                           :class="{ 'active': perPage == 0, 'disabled pointer-events-none opacity-40': mode === 'grid' }"
+                           @click.prevent="if (mode !== 'grid') { perPage = 0; onPerPageChange(); perPageOpen = false }">全部</a>
                     </div>
                 </div>
             </div>

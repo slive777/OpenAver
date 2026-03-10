@@ -3938,3 +3938,64 @@ class TestShowcaseReactiveScopeGuard:
                     f"F1 違規：core.js L{i+1} 有 '_filteredVideos =' 但附近無 filteredCount 同步 — "
                     f"每次 _filteredVideos 賦值後必須更新 this.filteredCount: {line.strip()}"
                 )
+
+
+class TestGridPerPageGuard:
+    """F2: Grid mode 禁用「全部」(perPage=0) 守衛測試"""
+
+    CORE_JS = PROJECT_ROOT / 'web' / 'static' / 'js' / 'pages' / 'showcase' / 'core.js'
+    SHOWCASE_HTML = PROJECT_ROOT / 'web' / 'templates' / 'showcase.html'
+
+    def test_guard1_updatePagination_has_grid_perPage0_guard(self):
+        """Guard 1: updatePagination 必須含 grid+perPage=0 降級邏輯"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+
+        # 找到 updatePagination 方法體
+        match = re.search(r'updatePagination\s*\(\s*\)\s*\{', content)
+        assert match, "找不到 updatePagination 方法"
+
+        # 取得方法體（到下一個同層級的方法為止）
+        start = match.start()
+        body = content[start:start + 800]
+
+        # 必須同時包含 mode/grid 參考和 perPage=0 降級
+        has_grid_check = bool(re.search(r"mode\s*===?\s*['\"]grid['\"]", body))
+        has_perpage0_downgrade = bool(re.search(r'perPage\s*=\s*120', body))
+
+        assert has_grid_check, (
+            "F2 違規：updatePagination() 缺少 grid mode 檢查 — "
+            "grid mode 下 perPage=0 必須降級為 120"
+        )
+        assert has_perpage0_downgrade, (
+            "F2 違規：updatePagination() 缺少 perPage=0 降級邏輯 — "
+            "grid mode 下 perPage=0 必須降級為 120（this.perPage = 120）"
+        )
+
+    def test_guard2_dropdown_all_has_mode_condition(self):
+        """Guard 2: 「全部」dropdown item 必須有 mode 條件"""
+        content = self.SHOWCASE_HTML.read_text(encoding='utf-8')
+        lines = content.split('\n')
+
+        # 找到包含 perPage = 0 或 perPage == 0 的行（全部選項）
+        perpage0_lines = []
+        for i, line in enumerate(lines):
+            if re.search(r'perPage\s*==?\s*0', line):
+                perpage0_lines.append((i, line))
+
+        assert perpage0_lines, "找不到 perPage=0 的 dropdown item"
+
+        # 至少有一行（全部選項的元素）包含 mode 相關條件
+        # 檢查該行及前後 2 行的上下文
+        found_mode_guard = False
+        for line_idx, _ in perpage0_lines:
+            context_start = max(0, line_idx - 2)
+            context_end = min(len(lines), line_idx + 3)
+            context = '\n'.join(lines[context_start:context_end])
+            if re.search(r"mode\s*[!=]==?\s*['\"]grid['\"]", context):
+                found_mode_guard = True
+                break
+
+        assert found_mode_guard, (
+            "F2 違規：showcase.html 的「全部」dropdown item (perPage=0) 缺少 mode 條件 — "
+            "grid mode 下「全部」選項必須 disabled 或隱藏"
+        )

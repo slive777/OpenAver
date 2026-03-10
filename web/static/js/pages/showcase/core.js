@@ -124,6 +124,10 @@ function showcaseState() {
             this.search = urlParams.get('search') || state.search || '';
             this.mode = urlParams.get('mode') || state.mode || 'grid';
             if (!['grid', 'table', 'list'].includes(this.mode)) this.mode = 'grid';
+            // F2: grid + perPage=0 組合降級
+            if (this.mode === 'grid' && this.perPage === 0) {
+                this.perPage = 120;
+            }
         },
 
         // --- 狀態持久化 (M2c) ---
@@ -383,6 +387,11 @@ function showcaseState() {
             if (m === this.mode) return;
             var oldMode = this.mode;
             this.mode = m;
+            // F2: 切到 grid 時若 perPage=0 則降級
+            if (m === 'grid' && this.perPage == 0) {
+                this.perPage = 120;
+                this.updatePagination();
+            }
             this.saveState();  // M2c: 持久化狀態
             this.$nextTick(() => {
                 window.ShowcaseAnimations?.playModeCrossfade?.(oldMode, m);
@@ -517,6 +526,10 @@ function showcaseState() {
         },
 
         updatePagination() {
+            // F2: grid mode 禁用「全部」— perPage=0 降級為 120
+            if (parseInt(this.perPage) === 0 && this.mode === 'grid') {
+                this.perPage = 120;
+            }
             const perPage = Math.max(0, parseInt(this.perPage) || 0);
             if (perPage === 0) {
                 this.paginatedVideos = _filteredVideos;
