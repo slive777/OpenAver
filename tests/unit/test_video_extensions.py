@@ -1,4 +1,5 @@
 """test_video_extensions.py - core/video_extensions.py unit tests"""
+import importlib.util
 import pytest
 
 
@@ -168,6 +169,10 @@ class TestConstants:
         assert isinstance(ZERO_SIZE_EXTENSIONS, frozenset)
 
 
+@pytest.mark.skipif(
+    not importlib.util.find_spec("webview"),
+    reason="pywebview not installed (Windows-only)"
+)
 class TestIsVideoFile:
     """is_video_file() from pywebview_api tests"""
 
