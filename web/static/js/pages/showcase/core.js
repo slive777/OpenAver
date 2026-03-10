@@ -76,17 +76,17 @@ function showcaseState() {
             this.restoreState();        // M2c: 先恢復狀態
             const savedPage = this.page;
             await this.fetchVideos();
-            this.applyFilterAndSort();  // M4a: 套用搜尋篩選（會重置 page=1）
-            this.page = savedPage;      // 恢復儲存的頁碼
-            this.updatePagination();    // 重新分頁（會 clamp 超出範圍的頁碼）
+            this.applyFilterAndSort(true);  // M4a: 套用搜尋篩選（跳過 pagination，下面統一處理）
+            this.page = savedPage;          // 恢復儲存的頁碼
+            this.updatePagination();        // 單次分頁（會 clamp 超出範圍的頁碼）
 
-            // B6: 初始載入進場動畫（僅 grid mode）
+            // Settle: 初次載入用 settle（不碰 opacity → 不閃）
             if (this.mode === 'grid') {
                 var gen = ++this._animGeneration;
                 this.$nextTick(() => { requestAnimationFrame(() => {
                     if (this._animGeneration !== gen) return;  // stale
                     var grid = document.querySelector('.showcase-grid');
-                    window.ShowcaseAnimations?.playEntry?.(grid);
+                    window.ShowcaseAnimations?.playSettle?.(grid);
                 }); });
             }
         },
@@ -202,16 +202,16 @@ function showcaseState() {
             this.error = '';
             const savedPage = this.page;
             await this.fetchVideos();
-            this.applyFilterAndSort();
+            this.applyFilterAndSort(true);  // 跳過 pagination，下面統一處理
             this.page = savedPage;
             this.updatePagination();
-            // B17: retry 成功後播放進場動畫
+            // Settle: retry 也用 settle（不碰 opacity → 不閃）
             if (this.mode === 'grid' && !this.error) {
                 var gen = ++this._animGeneration;
                 this.$nextTick(() => { requestAnimationFrame(() => {
                     if (this._animGeneration !== gen) return;
                     var grid = document.querySelector('.showcase-grid');
-                    window.ShowcaseAnimations?.playEntry?.(grid);
+                    window.ShowcaseAnimations?.playSettle?.(grid);
                 }); });
             }
         },
@@ -426,7 +426,7 @@ function showcaseState() {
         },
 
         // --- 資料處理 (M2a 基本實作，M4 完整化) ---
-        applyFilterAndSort() {
+        applyFilterAndSort(skipPagination) {
             // --- 搜尋篩選 (M4a) ---
             if (this.search && this.search.trim()) {
                 // 分割多個關鍵字（用空格分隔，過濾空字串）
@@ -522,8 +522,10 @@ function showcaseState() {
             });
 
             // --- 重置頁碼並更新分頁 ---
-            this.page = 1;
-            this.updatePagination();
+            if (!skipPagination) {
+                this.page = 1;
+                this.updatePagination();
+            }
         },
 
         updatePagination() {

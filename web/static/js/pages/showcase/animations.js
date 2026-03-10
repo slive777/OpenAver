@@ -55,6 +55,81 @@
          * @param {Object} params - 動畫參數
          * @returns {null}
          */
+        /**
+         * 初次載入 settle 動畫 — 卡片 scale 脈衝「落定」
+         * 不碰 opacity → 不閃。用於 init() / retry() 等已 paint 的場景。
+         * @param {Element} gridEl - .showcase-grid 容器
+         * @param {Object} params - { duration, scale, rows }
+         * @returns {gsap.core.Timeline|null}
+         */
+        playSettle: function (gridEl, params) {
+            params = params || {};
+
+            if (!gridEl) return null;
+            if (typeof gsap === 'undefined') return null;
+
+            var cards = gridEl.querySelectorAll('.av-card-preview');
+            if (!cards.length) return null;
+
+            // C4: 清除舊動畫
+            gsap.killTweensOf(cards);
+
+            if (shouldSkip()) return null;
+
+            var dur = params.duration || 0.8;
+            var scaleVal = params.scale || 1.06;
+            var maxRows = params.rows || 2;
+            var ease = (typeof CustomEase !== 'undefined' && gsap.parseEase('showcaseSettle'))
+                ? 'showcaseSettle' : 'power2.out';
+
+            // Row bucketing：依 top 位置分組（2px 容差）
+            var viewportH = window.innerHeight;
+            var buckets = [];
+            Array.from(cards).forEach(function (card) {
+                var rect = card.getBoundingClientRect();
+                if (rect.top >= viewportH) return;  // fold 以下跳過
+                var img = card.querySelector('.av-card-preview-img');
+                if (!img) return;
+                var top = Math.round(rect.top);
+                var found = false;
+                for (var b = 0; b < buckets.length; b++) {
+                    if (Math.abs(buckets[b].top - top) < 2) {
+                        buckets[b].imgs.push(img);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) buckets.push({ top: top, imgs: [img] });
+            });
+
+            // 依 top 排序
+            buckets.sort(function (a, b) { return a.top - b.top; });
+
+            // 只取前 maxRows 行
+            var rows = buckets.slice(0, maxRows);
+            if (!rows.length) return null;
+
+            var tl = gsap.timeline({ id: 'showcaseSettle' });
+
+            rows.forEach(function (row, rowIdx) {
+                // C4: 清除 img 上的舊動畫
+                gsap.killTweensOf(row.imgs);
+                tl.fromTo(row.imgs,
+                    { scale: scaleVal },
+                    { scale: 1, duration: dur, ease: ease },
+                    rowIdx * 0.06  // 行間 stagger 60ms
+                );
+            });
+
+            tl.eventCallback('onComplete', function () {
+                rows.forEach(function (row) {
+                    gsap.set(row.imgs, { clearProps: 'transform' });
+                });
+            });
+
+            return tl;
+        },
+
         playEntry: function (gridEl, params) {
             params = params || {};
 
