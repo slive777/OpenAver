@@ -3,13 +3,17 @@
  * M2a: 基本骨架 + API 載入 + Image Grid 渲染
  */
 
+// F1: 大陣列移出 Alpine reactive scope — Alpine 不追蹤
+var _videos = [];
+var _filteredVideos = [];
+
 function showcaseState() {
     return {
         // --- 狀態變數 ---
         loading: true,
         error: '',           // 錯誤訊息（API 失敗時顯示）
-        videos: [],           // 全部影片資料（從 API 載入）
-        filteredVideos: [],   // 搜尋/排序後的結果
+        videoCount: 0,        // _videos.length 的 reactive scalar
+        filteredCount: 0,     // _filteredVideos.length 的 reactive scalar
         paginatedVideos: [],  // 當前頁顯示的影片
 
         // Lightbox 狀態 (M3a)
@@ -45,12 +49,13 @@ function showcaseState() {
         _lightboxAnimating: false,  // B16: Lightbox 動畫進行中 guard
         _lightboxGeneration: 0,    // B19: invalidation token for deferred $nextTick lightbox callbacks
 
-        // --- Computed ---
-        get currentLightboxVideo() {
-            if (this.lightboxIndex >= 0 && this.lightboxIndex < this.filteredVideos.length) {
-                return this.filteredVideos[this.lightboxIndex];
-            }
-            return null;
+        currentLightboxVideo: null,
+
+        // F1: helper — 更新 lightboxIndex + currentLightboxVideo 一致性
+        _setLightboxIndex(idx) {
+            this.lightboxIndex = idx;
+            this.currentLightboxVideo = (idx >= 0 && idx < _filteredVideos.length)
+                ? _filteredVideos[idx] : null;
         },
 
         // --- 生命週期 ---
@@ -155,24 +160,32 @@ function showcaseState() {
             try {
                 const resp = await fetch('/api/showcase/videos');
                 if (!resp.ok) {
-                    this.videos = [];
-                    this.filteredVideos = [];
+                    _videos = [];
+                    this.videoCount = 0;
+                    _filteredVideos = [];
+                    this.filteredCount = 0;
                     this.error = `伺服器錯誤 (${resp.status})`;
                     return;
                 }
                 const data = await resp.json();
                 if (!data.success) {
-                    this.videos = [];
-                    this.filteredVideos = [];
+                    _videos = [];
+                    this.videoCount = 0;
+                    _filteredVideos = [];
+                    this.filteredCount = 0;
                     this.error = data.error || '載入失敗';
                     return;
                 }
-                this.videos = data.videos || [];
-                this.filteredVideos = this.videos;
+                _videos = data.videos || [];
+                this.videoCount = _videos.length;
+                _filteredVideos = _videos;
+                this.filteredCount = _filteredVideos.length;
             } catch (e) {
                 console.error('Failed to fetch videos:', e);
-                this.videos = [];
-                this.filteredVideos = [];
+                _videos = [];
+                this.videoCount = 0;
+                _filteredVideos = [];
+                this.filteredCount = 0;
                 this.error = '無法連線到伺服器';
             } finally {
                 this.loading = false;
@@ -409,7 +422,7 @@ function showcaseState() {
                 // 分割多個關鍵字（用空格分隔，過濾空字串）
                 const terms = this.search.toLowerCase().trim().split(/\s+/).filter(t => t.length > 0);
 
-                this.filteredVideos = this.videos.filter(video => {
+                _filteredVideos = _videos.filter(video => {
                     // 建立所有可搜尋欄位的組合文字（對應原版 L1216）
                     // API 欄位名稱對應：otitle → original_title, actor → actresses, num → number, genre → tags, date → release_date
                     const searchable = [
@@ -433,13 +446,15 @@ function showcaseState() {
                         return (numNorm && numNorm.includes(termNorm)) || searchable.includes(term);
                     });
                 });
+                this.filteredCount = _filteredVideos.length;
             } else {
                 // 空搜尋：回傳全部影片
-                this.filteredVideos = [...this.videos];
+                _filteredVideos = [..._videos];
+                this.filteredCount = _filteredVideos.length;
             }
 
             // --- 排序 (M4b) ---
-            this.filteredVideos.sort((a, b) => {
+            _filteredVideos.sort((a, b) => {
                 // 1. 女優卡置頂邏輯（原版 L1230-1234）
                 //    備註：Showcase 頁面目前不會有 actress: 開頭的路徑（該機制屬於女優 Gallery）
                 //    保留此邏輯以確保與原版行為 100% 一致，未來 24-migrate-3 若整合女優 Gallery 時需要
@@ -504,16 +519,16 @@ function showcaseState() {
         updatePagination() {
             const perPage = Math.max(0, parseInt(this.perPage) || 0);
             if (perPage === 0) {
-                this.paginatedVideos = this.filteredVideos;
+                this.paginatedVideos = _filteredVideos;
                 this.totalPages = 1;
                 this.page = 1;
             } else {
-                this.totalPages = Math.max(1, Math.ceil(this.filteredVideos.length / perPage));
+                this.totalPages = Math.max(1, Math.ceil(_filteredVideos.length / perPage));
                 // clamp page 到有效範圍
                 if (this.page > this.totalPages) this.page = this.totalPages;
                 if (this.page < 1) this.page = 1;
                 const start = (this.page - 1) * perPage;
-                this.paginatedVideos = this.filteredVideos.slice(start, start + perPage);
+                this.paginatedVideos = _filteredVideos.slice(start, start + perPage);
             }
         },
 
@@ -550,7 +565,7 @@ function showcaseState() {
                 var direction = index > oldIndex ? 'next' : 'prev';
 
                 // B19: state-first — 立即更新 state，避免 C18 interrupt 吞掉 index mutation
-                this.lightboxIndex = index;
+                this._setLightboxIndex(index);
 
                 // Smart Close 重置
                 this.lightboxMoveEnabled = false;
@@ -579,7 +594,7 @@ function showcaseState() {
                 return;
             }
 
-            this.lightboxIndex = index;
+            this._setLightboxIndex(index);
             this.lightboxOpen = true;
             document.body.classList.add('overflow-hidden');
 
@@ -624,7 +639,7 @@ function showcaseState() {
             if (lbEl) lbEl.classList.remove('gsap-animating');
             this._lightboxAnimating = false;
             this.lightboxOpen = false;
-            this.lightboxIndex = -1;
+            this._setLightboxIndex(-1);
             document.body.classList.remove('overflow-hidden');
             if (this.lightboxMoveTimer) {
                 clearTimeout(this.lightboxMoveTimer);
@@ -647,7 +662,7 @@ function showcaseState() {
             this._lightboxAnimating = false;
             this._lightboxGeneration++;  // B19: invalidate pending $nextTick lightbox callbacks
             this.lightboxOpen = false;
-            this.lightboxIndex = -1;
+            this._setLightboxIndex(-1);
             document.body.classList.remove('overflow-hidden');
             if (this.lightboxMoveTimer) {
                 clearTimeout(this.lightboxMoveTimer);
@@ -676,7 +691,7 @@ function showcaseState() {
                 var newIdx = this.lightboxIndex - 1;
 
                 // B19: state-first — 立即更新 state，避免 C18 interrupt 吞掉 index mutation
-                this.lightboxIndex = newIdx;
+                this._setLightboxIndex(newIdx);
 
                 /** Smart Close 重置邏輯 */
                 function resetSmartClose() {
@@ -718,12 +733,12 @@ function showcaseState() {
             var lbEl = document.querySelector('.showcase-lightbox');
             if (lbEl) lbEl.classList.remove('gsap-animating');
 
-            if (this.lightboxIndex < this.filteredVideos.length - 1) {
+            if (this.lightboxIndex < _filteredVideos.length - 1) {
                 var self = this;
                 var newIdx = this.lightboxIndex + 1;
 
                 // B19: state-first — 立即更新 state，避免 C18 interrupt 吞掉 index mutation
-                this.lightboxIndex = newIdx;
+                this._setLightboxIndex(newIdx);
 
                 /** Smart Close 重置邏輯 */
                 function resetSmartClose() {

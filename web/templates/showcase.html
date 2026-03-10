@@ -13,13 +13,13 @@
      @keydown.window="handleKeydown($event)">
 
     <!-- Loading State (初始顯示) -->
-    <div class="state-page" x-show="loading && videos.length === 0">
+    <div class="state-page" x-show="loading && videoCount === 0">
         <i class="bi bi-hourglass-split state-page-icon"></i>
         <p class="state-page-text">載入影片列表中...</p>
     </div>
 
     <!-- Empty State (API 回傳空資料時) -->
-    <div class="state-page" x-show="!loading && !error && videos.length === 0">
+    <div class="state-page" x-show="!loading && !error && videoCount === 0">
         <i class="bi bi-collection-play state-page-icon"></i>
         <p class="state-page-text">尚未產生影片列表</p>
         <div class="empty-actions">
@@ -41,7 +41,7 @@
     </div>
 
     <!-- Main Content (API 載入後顯示) -->
-    <div x-show="!error && videos.length > 0" x-cloak>
+    <div x-show="!error && videoCount > 0" x-cloak>
 
         <!-- Toolbar -->
         <div class="showcase-toolbar">
@@ -170,10 +170,10 @@
         <div class="showcase-status-bar">
             <span class="status-total">
                 <template x-if="!search">
-                    <span>共 <b x-text="filteredVideos.length"></b> 部影片</span>
+                    <span>共 <b x-text="filteredCount"></b> 部影片</span>
                 </template>
                 <template x-if="search">
-                    <span>搜尋 "<b x-text="search"></b>" — 找到 <b x-text="filteredVideos.length"></b> 部</span>
+                    <span>搜尋 "<b x-text="search"></b>" — 找到 <b x-text="filteredCount"></b> 部</span>
                 </template>
             </span>
             <div class="status-pagination" x-show="totalPages > 1">
@@ -391,7 +391,7 @@
             </button>
             <button class="lightbox-nav lightbox-nav-next"
                     @click.stop="nextLightboxVideo()"
-                    x-show="lightboxIndex < filteredVideos.length - 1"
+                    x-show="lightboxIndex < filteredCount - 1"
                     title="下一部 (→)">
                 <i class="bi bi-chevron-right"></i>
             </button>

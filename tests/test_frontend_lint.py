@@ -3617,7 +3617,10 @@ class TestLightboxStateFirstGuard:
             body = self._extract_function(content, func)
             assert body, f"{func} 函數未找到 in showcase/core.js"
             switch_pos = body.find('playLightboxSwitch')
+            # F1: _setLightboxIndex 也是合法的 state-first 更新
             update_pos = body.find('this.lightboxIndex =')
+            if update_pos == -1:
+                update_pos = body.find('_setLightboxIndex(')
             assert update_pos != -1 and switch_pos != -1, (
                 f"{func} 缺少必要的 lightboxIndex 更新或 playLightboxSwitch 呼叫"
             )
@@ -3653,7 +3656,10 @@ class TestLightboxStateFirstGuard:
             assert switch_section_start != -1, f"{filename} openLightbox 缺少 switch 路徑"
             switch_section = body[switch_section_start:]
             switch_pos = switch_section.find('playLightboxSwitch')
+            # F1: _setLightboxIndex(index) 也是合法的 state-first 更新
             update_pos = switch_section.find('lightboxIndex = index')
+            if update_pos == -1:
+                update_pos = switch_section.find('_setLightboxIndex(index)')
             assert update_pos != -1 and switch_pos != -1, (
                 f"{filename} openLightbox switch 路徑缺少 lightboxIndex 更新或 playLightboxSwitch 呼叫"
             )
@@ -3764,3 +3770,171 @@ class TestPlayPageOutInRemoved:
             "C2 違規：showcase/animations.js 仍包含 playPageIn — "
             "B13 後 dead code，_animatePageChange 已改用 playEntry"
         )
+
+
+class TestShowcaseReactiveScopeGuard:
+    """F1: videos/filteredVideos 移出 Alpine reactive scope — 守衛測試"""
+
+    CORE_JS = PROJECT_ROOT / "web/static/js/pages/showcase/core.js"
+    SHOWCASE_HTML = PROJECT_ROOT / "web/templates/showcase.html"
+
+    def _get_return_block(self):
+        """Extract the return { ... } block from showcaseState()."""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        # Find 'return {' and extract until matching '};'
+        start = content.find('return {')
+        assert start != -1, "Cannot find 'return {' in core.js"
+        brace_depth = 0
+        end = start
+        for i in range(start, len(content)):
+            if content[i] == '{':
+                brace_depth += 1
+            elif content[i] == '}':
+                brace_depth -= 1
+                if brace_depth == 0:
+                    end = i + 1
+                    break
+        return content[start:end]
+
+    def test_guard1_no_videos_in_return_object(self):
+        """Guard 1: showcaseState() return object 不包含 videos: 或 filteredVideos: 屬性"""
+        block = self._get_return_block()
+        lines = block.split('\n')
+        for i, line in enumerate(lines, 1):
+            assert not re.search(r'^\s*videos\s*:', line), (
+                f"F1 違規：return object 第 {i} 行仍包含 'videos:' 屬性 — "
+                "應移至閉包變數 _videos"
+            )
+            assert not re.search(r'^\s*filteredVideos\s*:', line), (
+                f"F1 違規：return object 第 {i} 行仍包含 'filteredVideos:' 屬性 — "
+                "應移至閉包變數 _filteredVideos"
+            )
+
+    def test_guard2_has_count_scalars(self):
+        """Guard 2: return object 包含 videoCount: 和 filteredCount:"""
+        block = self._get_return_block()
+        assert re.search(r'^\s*videoCount\s*:', block, re.MULTILINE), (
+            "F1 違規：return object 缺少 'videoCount:' — "
+            "需要 scalar reactive 給 template 綁定"
+        )
+        assert re.search(r'^\s*filteredCount\s*:', block, re.MULTILINE), (
+            "F1 違規：return object 缺少 'filteredCount:' — "
+            "需要 scalar reactive 給 template 綁定"
+        )
+
+    def test_guard3_no_getter_currentLightboxVideo(self):
+        """Guard 3: currentLightboxVideo 不是 getter，應為 reactive property"""
+        block = self._get_return_block()
+        assert 'get currentLightboxVideo()' not in block, (
+            "F1 違規：return object 仍有 'get currentLightboxVideo()' getter — "
+            "應改為 'currentLightboxVideo: null' reactive property"
+        )
+        assert re.search(r'^\s*currentLightboxVideo\s*:', block, re.MULTILINE), (
+            "F1 違規：return object 缺少 'currentLightboxVideo:' property — "
+            "應為手動更新的 reactive property"
+        )
+
+    def test_guard4_no_videos_length_in_template(self):
+        """Guard 4: showcase.html 不包含 videos.length 或 filteredVideos.length"""
+        content = self.SHOWCASE_HTML.read_text(encoding='utf-8')
+        assert 'videos.length' not in content, (
+            "F1 違規：showcase.html 仍引用 'videos.length' — "
+            "應改用 videoCount"
+        )
+        assert 'filteredVideos.length' not in content, (
+            "F1 違規：showcase.html 仍引用 'filteredVideos.length' — "
+            "應改用 filteredCount"
+        )
+
+    def test_guard5_no_bare_videos_in_template(self):
+        """Guard 5: showcase.html 不引用 bare videos 或 filteredVideos"""
+        content = self.SHOWCASE_HTML.read_text(encoding='utf-8')
+        # Match 'videos' or 'filteredVideos' but exclude allowed compounds
+        for i, line in enumerate(content.split('\n'), 1):
+            # Remove allowed patterns first, then check for bare references
+            cleaned = line
+            for allowed in ['paginatedVideos', 'currentLightboxVideo', 'videoCount', 'filteredCount',
+                            'fetchVideos', 'filteredVideos', 'prevLightboxVideo', 'nextLightboxVideo',
+                            'openLightbox', 'closeLightbox', 'playVideo']:
+                cleaned = cleaned.replace(allowed, '')
+            # Now check for bare 'videos' (word boundary)
+            if re.search(r'\bvideos\b', cleaned):
+                pytest.fail(
+                    f"F1 違規：showcase.html L{i} 引用 bare 'videos' — "
+                    f"應改用 videoCount 或 paginatedVideos: {line.strip()}"
+                )
+
+    def test_guard6_closure_variables_exist(self):
+        """Guard 6: core.js 有 var _videos 和 var _filteredVideos 在 showcaseState() 之前"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        func_pos = content.find('function showcaseState()')
+        assert func_pos != -1, "Cannot find 'function showcaseState()' in core.js"
+        before_func = content[:func_pos]
+        assert re.search(r'\bvar\s+_videos\b', before_func), (
+            "F1 違規：core.js 缺少 'var _videos' 在 showcaseState() 之前 — "
+            "大陣列應為閉包變數"
+        )
+        assert re.search(r'\bvar\s+_filteredVideos\b', before_func), (
+            "F1 違規：core.js 缺少 'var _filteredVideos' 在 showcaseState() 之前 — "
+            "大陣列應為閉包變數"
+        )
+
+    def _find_statement_end(self, lines, start_idx):
+        """Find the end line of a statement starting at start_idx.
+
+        For multi-line statements (e.g., _filteredVideos = _videos.filter(video => { ... })),
+        track brace/paren nesting to find the actual end of the statement.
+        Returns the index of the last line of the statement.
+        """
+        depth = 0
+        for j in range(start_idx, min(start_idx + 50, len(lines))):
+            for ch in lines[j]:
+                if ch in '({':
+                    depth += 1
+                elif ch in ')}':
+                    depth -= 1
+            # Statement ends when we return to depth 0 (or never went deeper)
+            if depth <= 0 and j > start_idx:
+                return j
+            if depth == 0 and ';' in lines[j]:
+                return j
+        return start_idx
+
+    def test_guard7_count_sync_after_assignment(self):
+        """Guard 7: 每個 _videos = 賦值附近有 videoCount 同步；_filteredVideos = 附近有 filteredCount 同步"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        lines = content.split('\n')
+
+        # Check _videos = assignments
+        for i, line in enumerate(lines):
+            # Match _videos = but not _filteredVideos =
+            if re.search(r'\b_videos\s*=', line) and not re.search(r'_filteredVideos', line):
+                # Skip var declaration
+                if re.search(r'^\s*var\s+_videos', line):
+                    continue
+                # Find statement end for multi-line expressions
+                stmt_end = self._find_statement_end(lines, i)
+                # Check within 3 lines after statement end for videoCount
+                nearby = '\n'.join(lines[max(0, i-3):stmt_end+4])
+                assert 'videoCount' in nearby, (
+                    f"F1 違規：core.js L{i+1} 有 '_videos =' 但附近無 videoCount 同步 — "
+                    f"每次 _videos 賦值後必須更新 this.videoCount: {line.strip()}"
+                )
+
+        # Check _filteredVideos = assignments
+        for i, line in enumerate(lines):
+            if re.search(r'\b_filteredVideos\s*=', line):
+                # Skip var declaration
+                if re.search(r'^\s*var\s+_filteredVideos', line):
+                    continue
+                # Skip sort (in-place, no length change)
+                if '.sort(' in line:
+                    continue
+                # Find statement end for multi-line expressions
+                stmt_end = self._find_statement_end(lines, i)
+                # Check within 3 lines after statement end for filteredCount
+                nearby = '\n'.join(lines[max(0, i-3):stmt_end+4])
+                assert 'filteredCount' in nearby, (
+                    f"F1 違規：core.js L{i+1} 有 '_filteredVideos =' 但附近無 filteredCount 同步 — "
+                    f"每次 _filteredVideos 賦值後必須更新 this.filteredCount: {line.strip()}"
+                )
