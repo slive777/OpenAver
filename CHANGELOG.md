@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2026-03-13
+
+### Added
+
+#### 📺 流暢轉場動畫系統完善
+- Showcase 和搜尋頁面轉場動畫
+- 分頁、篩選、排序時自然過渡
+- 載入時柔和脈衝效果
+- 詳細面板淡入淡出
+- 模式切換流暢動畫
+
+### Changed
+
+#### 🚀 安裝體驗全面改善
+- 自動化安裝腳本（curl / PowerShell）— 無需手動解決系統安全限制
+- README 新增詳細 5 步手動安裝流程
+- 新增 Debug 腳本（Windows OpenAver_Debug.bat / macOS OpenAver_Debug.command）
+
+### Fixed
+
+#### 💎 穩定性與效能
+- 修正初始載入時的畫面閃爍
+- macOS launcher 完全脫離 TTY（nohup 實作）
+- 大量資料（6000+ 筆影片）時頁面反應更快
+- OpenAver_Debug.command 補充環境變數（OPENAVER_DEBUG=1）
+- README 疑難排解大幅擴充（Windows/macOS 分別說明）
+
+---
+
 ## [0.4.2] - 2026-03-11
 
 ### Added
