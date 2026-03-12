@@ -23,7 +23,14 @@ OpenAver 是一個基於 Web 技術的桌面應用程式，旨在幫助您輕鬆
 <details>
 <summary>更多截圖</summary>
 
-![Demo](docs/screenshots/demo.gif)
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+  <div flex="1">
+    <img src="docs/screenshots/demo.gif" width="100%" alt="Search Demo">
+  </div>
+  <div flex="1">
+    <img src="docs/screenshots/demo2.gif" width="100%" alt="Showcase Demo">
+  </div>
+</div>
 
 | 搜尋結果 | Showcase Grid | Showcase 詳細 |
 |----------|---------------|---------------|
@@ -96,48 +103,46 @@ OpenAver 支援兩種翻譯提供商：
 
 ## 🛠️ 技術架構
 
-- **Backend**: FastAPI (Python)
-- **Frontend**: Jinja2 + DaisyUI + Tailwind CSS + Alpine.js + Fluent Design 2
+- **Backend**: FastAPI (Python 3.10+)
+- **Frontend**: Jinja2 + DaisyUI + Tailwind CSS + Alpine.js 3.x + GSAP 3.14+ + Fluent Design 2
+- **Animation**: GSAP (Showcase/Search pages) + Motion Adapter (reduced-motion support)
 - **Desktop**: PyWebView (Windows/macOS)
 - **Database**: SQLite (WAL mode)
-- **Testing**: Pytest (564 tests)
+- **Testing**: Pytest (803+ tests)
 
-## 📥 下載
+## 📥 安裝
 
-從 [GitHub Releases](https://github.com/slive777/OpenAver/releases/latest) 下載最新版本：
+### 推薦方式：一行安裝（自動處理所有平台配置）
 
-| 平台 | 檔案 | 狀態 |
-|------|------|------|
-| **Windows x64** | `OpenAver-vX.X.X-Windows-x64.zip` | ✅ 穩定版 |
-| **macOS arm64** | `OpenAver-vX.X.X-macOS-arm64.zip` | ✅ 正式版 |
+**macOS**:
+```bash
+curl -fsSL https://raw.githubusercontent.com/slive777/OpenAver/main/install.sh | bash
+```
 
-### macOS 首次執行（重要）
+**Windows** (PowerShell):
+```powershell
+irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex
+```
 
-⚠️ macOS 會封鎖網路下載的程式，請照以下步驟操作（只需一次）。
+安裝指令會自動：
+- 偵測系統架構並下載最新版本
+- 移除 macOS 隔離標記（無需手動 `xattr` 指令）
+- 解除 Windows 下載安全限制（無需手動 Unblock）
+- 建立桌面快捷方式（Windows）
+- 保留設定與日誌檔案（升級時）
 
-1. **下載 ZIP** — Safari 會自動解壓縮，檔案在「下載項目」資料夾
+### 備用方式：手動下載 ZIP
 
-2. **開啟終端機** — 按 `⌘ + 空白鍵` 開啟 Spotlight，輸入 `Terminal` 按 Enter
+如果網路環境無法執行指令（公司代理等），可從 [GitHub Releases](https://github.com/slive777/OpenAver/releases/latest) 手動下載：
 
-3. **進入資料夾**（複製貼上）：
-   ```bash
-   cd ~/Downloads/OpenAver-*-macOS-*
-   ```
+| 平台 | 檔案 |
+|------|------|
+| **Windows x64** | `OpenAver-vX.X.X-Windows-x64.zip` |
+| **macOS arm64** | `OpenAver-vX.X.X-macOS-arm64.zip` |
 
-4. **解除安全封鎖**（必做）：
-   ```bash
-   xattr -dr com.apple.quarantine .
-   ```
-
-5. **啟動程式**：
-   ```bash
-   ./OpenAver.command
-   ```
-
-> 💡 設定完成後，之後可直接雙擊 `OpenAver.command` 執行。
+**⚠️ 手動 ZIP 安裝** — 需額外步驟解除平台安全限制，見下方「疑難排解 (ZIP 安裝)」。
 
 > ℹ️ macOS 版本僅支援 Apple Silicon (M1/M2/M3/M4)。
-> 如遇問題請至 [GitHub Issues](https://github.com/slive777/OpenAver/issues) 回報。
 
 ---
 
@@ -171,24 +176,80 @@ uvicorn web.app:app --reload --host 0.0.0.0 --port 8000
 python windows/launcher.py
 ```
 
-## ❓ 疑難排解 (Troubleshooting)
+## ❓ 疑難排解
 
-### 1. 程式無法啟動 / 閃退 (Windows)
+> 💡 如果您使用上方推薦的 **curl 一行安裝**，以下步驟通常不需要。疑難排解僅適用於手動 ZIP 安裝。
+
+### ZIP 安裝專用
+
+#### 1. Windows 程式無法啟動 / 閃退
+
 **原因**: Windows 安全機制 (Mark of the Web) 封鎖了從網路下載的執行檔或 DLL。
+
 **解法**:
-1. 對下載的 `OpenAver-Windows-x64.zip` 點擊 **右鍵** -> **內容**。
-2. 在下方勾選 **「解除封鎖 (Unblock)」**，然後按確定。
-3. 重新解壓縮並執行 `OpenAver.bat`。
+1. 對下載的 `OpenAver-Windows-x64.zip` 點擊 **右鍵** -> **內容**
+2. 在下方勾選 **「解除封鎖 (Unblock)」**，然後按確定
+3. 重新解壓縮並執行 `OpenAver.bat`
+
 *或者使用 7-Zip 軟體進行解壓縮，通常可避開此問題。*
 
-### 2. 介面顯示異常 / 空白 / 沒有毛玻璃特效
-**原因**: 缺少 WebView2 Runtime 或 GPU 加速支援不足（常見於 Windows 10 或虛擬機）。
-**解法**:
-請下載並安裝 [Microsoft Edge WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703)。
+**程式啟動後的使用**:
+- **OpenAver.bat** - 正常啟動（顯示啟動提示，無詳細日誌）
+- **OpenAver_Debug.bat** - 調試版本（顯示控制台，輸出詳細日誌）
 
-### 3. macOS 無法開啟 / 安全性警告
+**遇到問題時，請執行 OpenAver_Debug.bat**：
+1. 雙擊 `OpenAver_Debug.bat` 啟動程式
+2. 控制台會顯示詳細的錯誤訊息
+3. 同時日誌檔案保存在：`%USERPROFILE%\OpenAver\logs\debug.log`
+4. 將控制台輸出或日誌內容附加到 [GitHub Issue](https://github.com/slive777/OpenAver/issues) 中報告
+
+#### 2. macOS 無法開啟 / 安全性警告
+
 **原因**: macOS Gatekeeper 阻擋未簽名的應用程式。
-**解法**: 請參考上方「[macOS 首次執行](#macos-首次執行重要)」章節，使用終端機執行 `xattr` 指令解除封鎖。
+
+**完整安裝步驟** (複製貼上執行):
+
+**[步驟 1]** 下載 ZIP
+- Safari 會自動解壓縮，檔案在「下載項目」資料夾
+
+**[步驟 2]** 開啟終端機
+- 按 ⌘ + 空白鍵 開啟 Spotlight
+- 輸入 Terminal 並按 Enter
+
+**[步驟 3]** 進入資料夾（複製貼上以下指令）
+```bash
+cd ~/Downloads/OpenAver
+```
+
+**[步驟 4]** 解除安全封鎖（必做）
+```bash
+xattr -dr com.apple.quarantine .
+```
+
+**[步驟 5]** 啟動程式
+```bash
+./OpenAver.command
+```
+
+💡 設定完成後，之後可直接雙擊 `OpenAver.command` 執行。
+
+**程式啟動後的使用**:
+- **OpenAver.command** - 正常啟動（無日誌輸出，後台執行）
+- **OpenAver_Debug.command** - 調試版本（在終端機顯示詳細日誌）
+
+**遇到問題時，請執行 OpenAver_Debug.command**：
+1. 雙擊 `OpenAver_Debug.command`（或在 Terminal 執行 `./OpenAver_Debug.command`）
+2. 終端機會顯示詳細的日誌輸出
+3. 日誌檔案同時保存在：`~/OpenAver/logs/debug.log`
+4. 將日誌內容附加到 [GitHub Issue](https://github.com/slive777/OpenAver/issues) 中報告
+
+### 所有安裝方式均適用
+
+#### 介面顯示異常 / 空白 / 沒有毛玻璃特效
+
+**原因**: 缺少 WebView2 Runtime 或 GPU 加速支援不足（常見於 Windows 10 或虛擬機）。
+
+**解法**: 請下載並安裝 [Microsoft Edge WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703)。
 
 ## 💬 社群
 
@@ -198,22 +259,29 @@ python windows/launcher.py
 
 ## 🐛 回報問題
 
-如果您遇到問題或發現 Bug，請協助回報：
+遇到問題或發現 Bug？請透過以下管道回報，幫助我們改進：
 
-### 回報方式
-1. 前往 [GitHub Issues](https://github.com/slive777/OpenAver/issues)
-2. 點擊「New Issue」建立新問題
-3. 請提供以下資訊：
-   - 問題描述（發生什麼錯誤？）
-   - 重現步驟（如何觸發這個問題？）
-   - 您的環境（Windows 版本、是否使用打包版）
-   - **日誌檔案**（如果有）
+### 📌 一般問題 / 功能建議
+→ [GitHub Issues](https://github.com/slive777/OpenAver/issues)
+- 適用於開發者查詢、功能討論
+- 問題與解決方案留檔可供他人參考
+
+**回報格式**：
+- 問題描述（發生什麼錯誤？）
+- 重現步驟（如何觸發這個問題？）
+- 您的環境（OS 版本、是否使用打包版）
+- 日誌檔案（如果有）
+
+### 🔒 NSFW / 隱私敏感問題
+→ [Telegram 群組](https://t.me/+J-U2l96gv0FjZTBl)
+- 私密頻道，支援直接上傳敏感截圖 / 影片
+- 適合不便公開的內容
 
 ### 取得日誌檔案（Windows 打包版）
 1. 執行 `OpenAver_Debug.bat`
 2. 重現問題
 3. 日誌位置：`%USERPROFILE%\OpenAver\logs\debug.log`
-4. 將日誌檔案附加到 Issue
+4. 將日誌檔案附加到 GitHub Issue 或 Telegram
 
 ---
 

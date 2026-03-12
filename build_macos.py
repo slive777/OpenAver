@@ -202,25 +202,52 @@ def create_launcher_scripts():
 
     root_dir = BUILD_DIR / "OpenAver"
 
-    # OpenAver.command - 雙擊執行的啟動腳本
+    # OpenAver.command - 正常啟動（無日誌輸出）
     command_content = '''#!/bin/bash
 cd "$(dirname "$0")"
 
+# 設置 PYTHONPATH
+export PYTHONPATH="$(pwd)/app:$PYTHONPATH"
+
+# 使用 PyWebView 啟動（nohup 完全脫離 tty，避免 Terminal 殘留輸出）
+nohup ./python/bin/python3 -c "
+import sys
+sys.path.insert(0, 'app')
+from windows.standalone import main
+main()
+" >/dev/null 2>&1 &
+exit 0
+'''
+
+    # OpenAver_Debug.command - 調試版本（顯示日誌 + debug 環境變數）
+    debug_command_content = '''#!/bin/bash
+cd "$(dirname "$0")"
+
+# 建立日誌目錄
+mkdir -p "$HOME/OpenAver/logs"
+LOG_FILE="$HOME/OpenAver/logs/debug.log"
+
 echo "=============================="
-echo "   OpenAver Starting..."
+echo "   OpenAver Debug Mode"
 echo "=============================="
+echo "日誌位置: $LOG_FILE"
 echo ""
 
 # 設置 PYTHONPATH
 export PYTHONPATH="$(pwd)/app:$PYTHONPATH"
 
-# 使用 PyWebView 啟動
+# Debug 環境變數：啟用 console debug level + unbuffered output + pywebview 日誌
+export OPENAVER_DEBUG=1
+export PYTHONUNBUFFERED=1
+export PYWEBVIEW_LOG=debug
+
+# 使用 PyWebView 啟動（前台執行，記錄日誌）
 ./python/bin/python3 -c "
 import sys
 sys.path.insert(0, 'app')
 from windows.standalone import main
 main()
-"
+" 2>&1 | tee "$LOG_FILE"
 '''
 
     # README.txt
@@ -277,6 +304,18 @@ Notes:
 
 💡 設定完成後，之後可直接雙擊 OpenAver.command 執行。
 
+[啟動腳本說明]
+
+OpenAver.command — 正常啟動，無日誌輸出（程式在背景運行，Terminal 視窗可關閉）
+OpenAver_Debug.command — 調試模式，Terminal 顯示完整日誌，同時輸出到 ~/OpenAver/logs/debug.log
+
+[故障排除]
+
+如果程式無法啟動，請使用 OpenAver_Debug.command 查看詳細日誌：
+  1. 雙擊 OpenAver_Debug.command（或在 Terminal 執行）
+  2. Terminal 會即時顯示日誌，同時寫入 ~/OpenAver/logs/debug.log
+  3. 將日誌內容附加到 GitHub Issue
+
 [注意事項]
 - 未經 Apple 簽名（首次執行會有安全警告）
 - 僅支援 Apple Silicon (M1/M2/M3/M4)
@@ -288,13 +327,16 @@ GitHub: https://github.com/slive777/OpenAver/issues
     # 寫入檔案
     command_file = root_dir / "OpenAver.command"
     command_file.write_text(command_content, encoding='utf-8')
-    # 設置可執行權限
     os.chmod(command_file, 0o755)
+
+    debug_command_file = root_dir / "OpenAver_Debug.command"
+    debug_command_file.write_text(debug_command_content, encoding='utf-8')
+    os.chmod(debug_command_file, 0o755)
 
     (root_dir / "README.txt").write_text(readme_content, encoding='utf-8')
     (root_dir / "MACOS_README.txt").write_text(macos_readme_content, encoding='utf-8')
 
-    print("  Created: OpenAver.command, README.txt, MACOS_README.txt")
+    print("  Created: OpenAver.command, OpenAver_Debug.command, README.txt, MACOS_README.txt")
 
 
 def optimize_package():
