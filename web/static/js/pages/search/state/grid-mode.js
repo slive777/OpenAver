@@ -49,6 +49,11 @@ window.SearchStateMixin_GridMode = {
      * @param {number} index - 搜尋結果索引
      */
     openLightbox(index) {
+        // F2: cancel pending delayed clear from previous close
+        if (this.lightboxCloseTimer) {
+            clearTimeout(this.lightboxCloseTimer);
+            this.lightboxCloseTimer = null;
+        }
         if (this._lightboxAnimating) return;  // D2: guard
         if (this.lightboxOpen && this.lightboxIndex === index) return;  // 同一張，不動作
 
@@ -107,6 +112,12 @@ window.SearchStateMixin_GridMode = {
      * 關閉 Lightbox
      */
     closeLightbox() {
+        // F2: cancel pending delayed clear from previous close
+        if (this.lightboxCloseTimer) {
+            clearTimeout(this.lightboxCloseTimer);
+            this.lightboxCloseTimer = null;
+        }
+
         this._lightboxGeneration++;  // B19: invalidate pending $nextTick lightbox callbacks
         // Instant close — kill any in-progress lightbox animations, then sync close
         if (typeof gsap !== 'undefined') {
@@ -117,6 +128,18 @@ window.SearchStateMixin_GridMode = {
         if (lbEl) lbEl.classList.remove('gsap-animating');
         this._lightboxAnimating = false;
         this.lightboxOpen = false;
+
+        // F2: delay state clearing until CSS transition completes (250ms)
+        // Keep currentLightboxVideo intact during fade-out, then clear after
+        // Generation-guarded to prevent stale callback from clearing newly-opened lightbox
+        var self = this;
+        var gen = this._lightboxGeneration;  // capture current generation
+        this.lightboxCloseTimer = setTimeout(() => {
+            if (self._lightboxGeneration === gen && !self.lightboxOpen) {
+                self.lightboxIndex = -1;
+            }
+            self.lightboxCloseTimer = null;
+        }, 250);
     },
 
     /**

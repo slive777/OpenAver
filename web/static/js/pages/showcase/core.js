@@ -653,7 +653,7 @@ function showcaseState() {
         },
 
         closeLightbox() {
-            // F2: cancel pending delayed clear from searchFromMetadata
+            // F2: cancel pending delayed clear from previous close / searchFromMetadata
             if (this.lightboxCloseTimer) {
                 clearTimeout(this.lightboxCloseTimer);
                 this.lightboxCloseTimer = null;
@@ -669,7 +669,6 @@ function showcaseState() {
             if (lbEl) lbEl.classList.remove('gsap-animating');
             this._lightboxAnimating = false;
             this.lightboxOpen = false;
-            this._setLightboxIndex(-1);
             document.body.classList.remove('overflow-hidden');
             if (this.lightboxMoveTimer) {
                 clearTimeout(this.lightboxMoveTimer);
@@ -678,6 +677,18 @@ function showcaseState() {
             this.lightboxMoveEnabled = false;
             this.lightboxStartX = 0;
             this.lightboxStartY = 0;
+
+            // F2: delay state clearing until CSS transition completes (250ms)
+            // Keep currentLightboxVideo intact during fade-out, then clear after
+            // Generation-guarded to prevent stale callback from clearing newly-opened lightbox
+            var self = this;
+            var gen = this._lightboxGeneration;  // capture current generation
+            this.lightboxCloseTimer = setTimeout(() => {
+                if (self._lightboxGeneration === gen && !self.lightboxOpen) {
+                    self._setLightboxIndex(-1);
+                }
+                self.lightboxCloseTimer = null;
+            }, 250);
         },
 
         // Metadata 點擊搜尋 (M3f)
