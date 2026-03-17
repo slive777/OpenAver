@@ -1,5 +1,5 @@
 import json
-from web.routers.config import AppConfig
+from core.config import AppConfig
 
 def test_get_config(client, temp_config_path):
     """測試獲取設定"""

@@ -508,7 +508,7 @@ class TestFilterFiles:
             "scraper": {"video_extensions": [".mp4"]},
             "gallery": {"min_size_mb": 1},
         }
-        monkeypatch.setattr("web.routers.config.load_config", lambda: test_config)
+        monkeypatch.setattr("core.config.load_config", lambda: test_config)
         
         response = client.post(
             "/api/search/filter-files",
@@ -536,7 +536,7 @@ class TestFilterFiles:
 
         def mock_load_config():
             return test_config
-        monkeypatch.setattr("web.routers.config.load_config", mock_load_config)
+        monkeypatch.setattr("core.config.load_config", mock_load_config)
 
         response = client.post(
             "/api/search/filter-files",
@@ -562,7 +562,7 @@ class TestFilterFiles:
 
         def mock_load_config():
             return test_config
-        monkeypatch.setattr("web.routers.config.load_config", mock_load_config)
+        monkeypatch.setattr("core.config.load_config", mock_load_config)
 
         response = client.post(
             "/api/search/filter-files",
@@ -594,7 +594,7 @@ class TestFavoriteFiles:
             "gallery": {"min_size_mb": 1},
             "search": {"favorite_folder": str(fav_dir)}
         }
-        monkeypatch.setattr("web.routers.config.load_config", lambda: test_config)
+        monkeypatch.setattr("core.config.load_config", lambda: test_config)
         
         response = client.get("/api/search/favorite-files")
         assert response.status_code == 200
@@ -609,7 +609,7 @@ class TestFavoriteFiles:
         fav_dir.mkdir()
         
         test_config = {"search": {"favorite_folder": str(fav_dir)}}
-        monkeypatch.setattr("web.routers.config.load_config", lambda: test_config)
+        monkeypatch.setattr("core.config.load_config", lambda: test_config)
         
         response = client.get("/api/search/favorite-files")
         assert response.status_code == 200
@@ -620,7 +620,7 @@ class TestFavoriteFiles:
     def test_get_favorite_files_not_found(self, client, monkeypatch):
         """測試目標目錄不存在時的防呆"""
         test_config = {"search": {"favorite_folder": "/path/not/exists/123"}}
-        monkeypatch.setattr("web.routers.config.load_config", lambda: test_config)
+        monkeypatch.setattr("core.config.load_config", lambda: test_config)
         
         response = client.get("/api/search/favorite-files")
         assert response.status_code == 200

@@ -12,7 +12,7 @@ from typing import Optional
 from core.organizer import organize_file
 from core.scraper import search_jav
 from core.logger import get_logger
-from web.routers.config import load_config
+from core.config import load_config
 
 logger = get_logger(__name__)
 

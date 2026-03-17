@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from core.database import VideoRepository, get_db_path, init_db
 from core.path_utils import to_file_uri, is_path_under_dir, uri_to_fs_path
 from core.logger import get_logger
-from web.routers.config import load_config
+from core.config import load_config
 
 logger = get_logger(__name__)
 

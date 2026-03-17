@@ -61,7 +61,7 @@ app.include_router(motion_lab_router.router)
 
 def get_common_context(request: Request) -> dict:
     """取得共用的模板 Context (包含設定)"""
-    from web.routers.config import load_config
+    from core.config import load_config
     config = load_config()
 
     # Font size mapping
@@ -85,7 +85,7 @@ def get_common_context(request: Request) -> dict:
 @app.get("/")
 async def index(request: Request):
     """首頁 - 重定向到預設頁面"""
-    from web.routers.config import load_config
+    from core.config import load_config
     config = load_config()
     default_page = config.get('general', {}).get('default_page', 'search')
 

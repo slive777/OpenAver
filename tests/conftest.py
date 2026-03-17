@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
 import json
-from web.routers import config
+from core import config as core_config
 
 @pytest.fixture
 def temp_config_path(tmp_path, monkeypatch):
@@ -13,15 +13,15 @@ def temp_config_path(tmp_path, monkeypatch):
     d = tmp_path / "config"
     d.mkdir()
     p = d / "test_config.json"
-    
+
     # Write default config
-    default_config = config.AppConfig().model_dump()
+    default_config = core_config.AppConfig().model_dump()
     with open(p, 'w', encoding='utf-8') as f:
         json.dump(default_config, f)
-        
-    # Monkeypatch the global CONFIG_PATH variable in the module
-    monkeypatch.setattr(config, "CONFIG_PATH", p)
-    
+
+    # Monkeypatch the global CONFIG_PATH variable in core.config module
+    monkeypatch.setattr(core_config, "CONFIG_PATH", p)
+
     return p
 
 

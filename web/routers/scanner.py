@@ -36,7 +36,7 @@ from core.path_utils import normalize_path, to_file_uri, is_path_under_dir, uri_
 from core.nfo_updater import check_cache_needs_update, update_videos_generator, apply_actress_aliases_generator
 from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite, ActressAliasRepository
 from core.organizer import generate_jellyfin_images
-from web.routers.config import load_config
+from core.config import load_config
 from pydantic import BaseModel
 from core.logger import get_logger
 

@@ -129,7 +129,7 @@ def search(
         }
 
     # 讀取設定（無碼模式 + proxy）
-    from web.routers.config import load_config
+    from core.config import load_config
     config = load_config()
     uncensored_mode = config.get('search', {}).get('uncensored_mode_enabled', False)
     proxy_url = config.get('search', {}).get('proxy_url', '')
@@ -320,7 +320,7 @@ async def search_stream(
         return StreamingResponse(error_gen(), media_type="text/event-stream")
 
     # 讀取設定（無碼模式 + proxy）
-    from web.routers.config import load_config
+    from core.config import load_config
     config = load_config()
     uncensored_mode = config.get('search', {}).get('uncensored_mode_enabled', False)
     proxy_url = config.get('search', {}).get('proxy_url', '')
@@ -482,7 +482,7 @@ async def get_favorite_files() -> dict:
             "total": 50
         }
     """
-    from web.routers.config import load_config
+    from core.config import load_config
     from core.path_utils import expand_env_vars, get_environment
 
     config = load_config()
@@ -571,7 +571,7 @@ async def filter_files(request: Request) -> dict:
             "total_rejected": 0
         }
     """
-    from web.routers.config import load_config
+    from core.config import load_config
     from core.path_utils import normalize_path
 
     data = await request.json()

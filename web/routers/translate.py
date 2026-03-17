@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 import httpx
 
-from web.routers.config import load_config
+from core.config import load_config
 from core.translate_service import create_translate_service
 from core.scrapers.utils import has_japanese
 from core.logger import get_logger
