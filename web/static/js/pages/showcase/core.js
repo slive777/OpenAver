@@ -7,6 +7,29 @@
 var _videos = [];
 var _filteredVideos = [];
 
+/**
+ * T20 fallback helper — Lightbox timeline kill
+ *
+ * 優先委派給 ShowcaseAnimations.killLightboxAnimations（animations.js 已封裝 C18 邏輯）。
+ * 若 animations.js 未載入但 gsap 仍可用（例如 CDN 載入時序差異），直接用 gsap.getById 清理
+ * 進行中的 timeline，避免 stale callback 在 lightbox 關閉後繼續操作 DOM / state。
+ *
+ * @param {Object} [options={}]
+ * @param {boolean} [options.killOpen=true]   是否 kill showcaseLightboxOpen timeline
+ * @param {boolean} [options.killSwitch=true] 是否 kill showcaseLightboxSwitch timeline
+ */
+function _killLightboxTimelines(options) {
+    if (window.ShowcaseAnimations?.killLightboxAnimations) {
+        window.ShowcaseAnimations.killLightboxAnimations(options);
+    } else if (typeof gsap !== 'undefined') {
+        var opts = options || {};
+        var killOpen  = opts.killOpen  !== false;
+        var killSwitch = opts.killSwitch !== false;
+        if (killOpen)   gsap.getById('showcaseLightboxOpen')?.kill();
+        if (killSwitch) gsap.getById('showcaseLightboxSwitch')?.kill();
+    }
+}
+
 function showcaseState() {
     return {
         // --- 狀態變數 ---
@@ -582,7 +605,7 @@ function showcaseState() {
             if (this.lightboxOpen && this.lightboxIndex !== index) {
                 var self = this;
                 // C18: interrupt — kill 舊 switch timeline（含 onComplete callback）
-                window.ShowcaseAnimations?.killLightboxAnimations?.({ killOpen: false, killSwitch: true });
+                _killLightboxTimelines({ killOpen: false, killSwitch: true });
                 var oldIndex = this.lightboxIndex;
                 var direction = index > oldIndex ? 'next' : 'prev';
 
@@ -659,7 +682,7 @@ function showcaseState() {
 
             this._lightboxGeneration++;  // B19: invalidate pending $nextTick lightbox callbacks
             // Instant close — kill any in-progress lightbox animations, then sync cleanup
-            window.ShowcaseAnimations?.killLightboxAnimations?.();
+            _killLightboxTimelines();
             var lbEl = document.querySelector('.showcase-lightbox');
             if (lbEl) lbEl.classList.remove('gsap-animating');
             this._lightboxAnimating = false;
@@ -695,7 +718,7 @@ function showcaseState() {
             }
 
             // 同步關閉 lightbox（跳過動畫，後面馬上做 filter 動畫）
-            window.ShowcaseAnimations?.killLightboxAnimations?.();
+            _killLightboxTimelines();
             var lightboxEl = document.querySelector('.showcase-lightbox');
             if (lightboxEl) lightboxEl.classList.remove('gsap-animating');
             this._lightboxAnimating = false;
@@ -731,7 +754,7 @@ function showcaseState() {
 
         prevLightboxVideo() {
             // C18: interrupt — kill open + switch timeline（進場動畫未完也要打斷）
-            window.ShowcaseAnimations?.killLightboxAnimations?.();
+            _killLightboxTimelines();
             this._lightboxAnimating = false;
             var lbEl = document.querySelector('.showcase-lightbox');
             if (lbEl) lbEl.classList.remove('gsap-animating');
@@ -775,7 +798,7 @@ function showcaseState() {
 
         nextLightboxVideo() {
             // C18: interrupt — kill open + switch timeline（進場動畫未完也要打斷）
-            window.ShowcaseAnimations?.killLightboxAnimations?.();
+            _killLightboxTimelines();
             this._lightboxAnimating = false;
             var lbEl = document.querySelector('.showcase-lightbox');
             if (lbEl) lbEl.classList.remove('gsap-animating');

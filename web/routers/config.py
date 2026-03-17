@@ -21,9 +21,8 @@ from pydantic import BaseModel
 import httpx
 
 from core.logger import get_logger
+from core import config as _core_config
 from core.config import (
-    CONFIG_PATH,
-    CONFIG_DEFAULT_PATH,
     AppConfig,
     ScraperConfig,
     SearchConfig,
@@ -70,8 +69,8 @@ async def update_config(config: AppConfig) -> dict:
 async def reset_config() -> dict:
     """恢復原廠設定 - 刪除 config.json"""
     try:
-        if CONFIG_PATH.exists():
-            CONFIG_PATH.unlink()
+        if _core_config.CONFIG_PATH.exists():
+            _core_config.CONFIG_PATH.unlink()
         _reset_translate_service()  # 清除舊服務實例
         return {"success": True, "message": "已恢復預設設定"}
     except Exception as e:

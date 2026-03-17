@@ -3266,11 +3266,40 @@ class TestShowcaseAnimationsGuard:
         )
 
     def test_core_js_no_direct_gsap_getById(self):
-        """T20: core.js 不得直接呼叫 gsap.getById（應透過 ShowcaseAnimations.killLightboxAnimations）"""
+        """T20: core.js 不得在 _killLightboxTimelines 之外直接呼叫 gsap.getById
+
+        _killLightboxTimelines 是 T20 fallback helper，允許在其函數體內使用 gsap.getById
+        作為 ShowcaseAnimations 未載入時的安全降級。其他位置的直接呼叫仍被禁止。
+        """
+        import re
         content = self.CORE_JS.read_text(encoding='utf-8')
-        assert 'gsap.getById(' not in content, (
-            "showcase/core.js 仍有直接 gsap.getById( 呼叫 — "
-            "T20 必須全部替換為 window.ShowcaseAnimations?.killLightboxAnimations?.()"
+
+        # 從 content 中移除 _killLightboxTimelines 整個函數定義（允許其中的 gsap.getById fallback）
+        # 使用 brace-counting 找到函數的真實結束位置（處理巢狀 if/else 的 {} ）
+        func_start = content.find('function _killLightboxTimelines(')
+        if func_start != -1:
+            brace_start = content.index('{', func_start)
+            depth = 0
+            pos = brace_start
+            while pos < len(content):
+                if content[pos] == '{':
+                    depth += 1
+                elif content[pos] == '}':
+                    depth -= 1
+                    if depth == 0:
+                        func_end = pos + 1
+                        break
+                pos += 1
+            else:
+                func_end = len(content)
+            stripped = content[:func_start] + content[func_end:]
+        else:
+            stripped = content
+
+        assert 'gsap.getById(' not in stripped, (
+            "showcase/core.js 在 _killLightboxTimelines 之外仍有直接 gsap.getById( 呼叫 — "
+            "T20 規定只有 _killLightboxTimelines fallback 可直接使用 gsap.getById，"
+            "其他位置應透過 _killLightboxTimelines() 或 window.ShowcaseAnimations?.killLightboxAnimations?.()"
         )
 
 
@@ -3479,21 +3508,21 @@ class TestLightboxAnimationGuard:
             )
 
     def test_prev_next_use_getById_not_killTweensOf_showcase(self):
-        """showcase/core.js 的 prevLightboxVideo/nextLightboxVideo 用 killLightboxAnimations kill（T20 後改為委派）"""
+        """showcase/core.js 的 prevLightboxVideo/nextLightboxVideo 用 _killLightboxTimelines kill（T20 後改為委派）"""
         content = self._read_file(self.SHOWCASE_CORE)
         for func in ['prevLightboxVideo', 'nextLightboxVideo']:
             body = self._extract_function(content, func)
             assert body, f"{func} 函數未找到 in showcase/core.js"
-            # T20: 改為透過 ShowcaseAnimations.killLightboxAnimations 委派
-            assert 'killLightboxAnimations' in body, (
-                f"C18 守衛違規：showcase/core.js {func} 缺少 killLightboxAnimations 呼叫\n"
-                "修正：透過 window.ShowcaseAnimations?.killLightboxAnimations?.() 打斷動畫"
+            # T20: 改為透過 _killLightboxTimelines() 委派（封裝 ShowcaseAnimations + gsap fallback）
+            assert '_killLightboxTimelines' in body, (
+                f"C18 守衛違規：showcase/core.js {func} 缺少 _killLightboxTimelines 呼叫\n"
+                "修正：透過 _killLightboxTimelines() 打斷動畫"
             )
-            # 確認無直接 getById + 無 killTweensOf
+            # 確認無直接 killTweensOf
             interrupt_section = body[:500]
             assert 'killTweensOf' not in interrupt_section, (
                 f"C18 守衛違規：showcase/core.js {func} 仍使用 killTweensOf\n"
-                "修正：改用 window.ShowcaseAnimations?.killLightboxAnimations?.()"
+                "修正：改用 _killLightboxTimelines()"
             )
 
     def test_esc_calls_closeLightbox_search(self):
@@ -3533,14 +3562,14 @@ class TestLightboxAnimationGuard:
         )
 
     def test_closeLightbox_has_getById_kill_showcase(self):
-        """showcase closeLightbox 自身包含 killLightboxAnimations（T20 後改為委派，instant close 清理動畫）"""
+        """showcase closeLightbox 自身包含 _killLightboxTimelines（T20 後改為 private helper 委派，instant close 清理動畫）"""
         content = self._read_file(self.SHOWCASE_CORE)
         body = self._extract_function(content, 'closeLightbox')
         assert body, "closeLightbox 函數未找到 in showcase/core.js"
-        # T20: 改為透過 ShowcaseAnimations.killLightboxAnimations 委派
-        assert 'killLightboxAnimations' in body, (
-            "C18 守衛違規：showcase closeLightbox 缺少 killLightboxAnimations 呼叫\n"
-            "修正：instant close 需透過 window.ShowcaseAnimations?.killLightboxAnimations?.() kill 動畫"
+        # T20: 改為透過 _killLightboxTimelines() 委派（封裝 ShowcaseAnimations + gsap fallback）
+        assert '_killLightboxTimelines' in body, (
+            "C18 守衛違規：showcase closeLightbox 缺少 _killLightboxTimelines 呼叫\n"
+            "修正：instant close 需透過 _killLightboxTimelines() kill 動畫"
         )
 
     def test_openLightbox_same_index_noop_search(self):
@@ -3586,21 +3615,21 @@ class TestLightboxAnimationGuard:
         )
 
     def test_searchFromMetadata_sync_cleanup(self):
-        """showcase/core.js searchFromMetadata 用 killLightboxAnimations kill + 同步設定 lightboxOpen = false（T20 後改為委派）"""
+        """showcase/core.js searchFromMetadata 用 _killLightboxTimelines kill + 同步設定 lightboxOpen = false（T20 後改為 private helper 委派）"""
         content = self._read_file(self.SHOWCASE_CORE)
         body = self._extract_function(content, 'searchFromMetadata')
         assert body, "searchFromMetadata 函數未找到 in showcase/core.js"
-        # T20: 改為透過 ShowcaseAnimations.killLightboxAnimations 委派
-        assert 'killLightboxAnimations' in body, (
-            "C18 守衛違規：showcase/core.js searchFromMetadata 缺少 killLightboxAnimations 呼叫\n"
-            "修正：透過 window.ShowcaseAnimations?.killLightboxAnimations?.() kill 所有 showcase lightbox timeline"
+        # T20: 改為透過 _killLightboxTimelines() 委派（封裝 ShowcaseAnimations + gsap fallback）
+        assert '_killLightboxTimelines' in body, (
+            "C18 守衛違規：showcase/core.js searchFromMetadata 缺少 _killLightboxTimelines 呼叫\n"
+            "修正：透過 _killLightboxTimelines() kill 所有 showcase lightbox timeline"
         )
         # 確認 lightboxOpen = false 在函數體直接層級（非 callback）
-        # 檢查 lightboxOpen = false 出現在 killLightboxAnimations 之後
-        kill_idx = body.find('killLightboxAnimations')
+        # 檢查 lightboxOpen = false 出現在 _killLightboxTimelines 之後
+        kill_idx = body.find('_killLightboxTimelines')
         lightboxOpen_idx = body.find('lightboxOpen = false')
         assert lightboxOpen_idx > kill_idx, (
-            "C18 守衛違規：searchFromMetadata 的 lightboxOpen = false 應在 killLightboxAnimations 呼叫之後同步設定"
+            "C18 守衛違規：searchFromMetadata 的 lightboxOpen = false 應在 _killLightboxTimelines 呼叫之後同步設定"
         )
 
 
