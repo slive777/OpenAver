@@ -45,11 +45,13 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/gallery", tags=["gallery"])
 
 
+def _sse_event(data: dict) -> str:
+    """將 dict 編碼為 SSE 格式的單條 message。"""
+    return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
 def generate_avlist() -> Generator[str, None, None]:
     """產生影片列表（SSE 串流）- 使用 SQLite 儲存"""
-
-    def send(data: dict):
-        return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
 
     try:
         # 載入設定
@@ -72,7 +74,7 @@ def generate_avlist() -> Generator[str, None, None]:
         default_theme = config.get('general', {}).get('theme', 'light')
 
         if not directories:
-            yield send({"type": "error", "message": "未設定掃描資料夾"})
+            yield _sse_event({"type": "error", "message": "未設定掃描資料夾"})
             return
 
         logger.info(f"[Gallery] 開始生成，目錄數: {len(directories)}")
@@ -86,19 +88,19 @@ def generate_avlist() -> Generator[str, None, None]:
         cache_path = output_path / output_filename.replace('.html', '_cache.json')
         db_path = get_db_path()
 
-        yield send({"type": "log", "level": "info", "message": f"輸出路徑: {html_path}"})
+        yield _sse_event({"type": "log", "level": "info", "message": f"輸出路徑: {html_path}"})
 
         # 檢查是否需要遷移 JSON cache 到 SQLite
         if cache_path.exists() and not db_path.exists():
-            yield send({"type": "log", "level": "info", "message": "遷移 JSON cache 到 SQLite..."})
+            yield _sse_event({"type": "log", "level": "info", "message": "遷移 JSON cache 到 SQLite..."})
             migrate_result = migrate_json_to_sqlite(cache_path, db_path, delete_on_success=True)
-            yield send({"type": "log", "level": "info", "message": f"遷移完成: {migrate_result['migrated']} 筆"})
+            yield _sse_event({"type": "log", "level": "info", "message": f"遷移完成: {migrate_result['migrated']} 筆"})
 
         # 初始化資料庫
         init_db(db_path)
         repo = VideoRepository(db_path)
 
-        yield send({"type": "log", "level": "info", "message": f"資料庫筆數: {repo.count()}"})
+        yield _sse_event({"type": "log", "level": "info", "message": f"資料庫筆數: {repo.count()}"})
 
         # 初始化掃描器
         scanner = VideoScanner(path_mappings=path_mappings)
@@ -117,10 +119,10 @@ def generate_avlist() -> Generator[str, None, None]:
                 normalized_dir = normalize_path(directory)
             except ValueError as e:
                 logger.exception("路徑轉換失敗: %s", directory)
-                yield send({"type": "log", "level": "warn", "message": "路徑轉換失敗"})
+                yield _sse_event({"type": "log", "level": "warn", "message": "路徑轉換失敗"})
                 continue
 
-            yield send({
+            yield _sse_event({
                 "type": "progress",
                 "status": f"掃描: {directory}",
                 "current": idx,
@@ -128,7 +130,7 @@ def generate_avlist() -> Generator[str, None, None]:
             })
 
             if not os.path.exists(normalized_dir):
-                yield send({"type": "log", "level": "warn", "message": f"資料夾不存在: {directory}"})
+                yield _sse_event({"type": "log", "level": "warn", "message": f"資料夾不存在: {directory}"})
                 continue
 
             try:
@@ -138,10 +140,10 @@ def generate_avlist() -> Generator[str, None, None]:
                 all_files = fast_scan_directory(normalized_dir, video_extensions, min_size_bytes)
 
                 if not all_files:
-                    yield send({"type": "log", "level": "info", "message": f"{directory}: 沒有影片檔案"})
+                    yield _sse_event({"type": "log", "level": "info", "message": f"{directory}: 沒有影片檔案"})
                     continue
 
-                yield send({"type": "log", "level": "info", "message": f"{directory}: 找到 {len(all_files)} 個檔案"})
+                yield _sse_event({"type": "log", "level": "info", "message": f"{directory}: 找到 {len(all_files)} 個檔案"})
 
                 # 取得現有 mtime 索引
                 db_index = repo.get_mtime_index()
@@ -169,7 +171,7 @@ def generate_avlist() -> Generator[str, None, None]:
                 if deleted_paths:
                     deleted_count = repo.delete_by_paths(deleted_paths)
                     total_deleted += deleted_count
-                    yield send({"type": "log", "level": "info", "message": f"  清理 {deleted_count} 個已刪除檔案"})
+                    yield _sse_event({"type": "log", "level": "info", "message": f"  清理 {deleted_count} 個已刪除檔案"})
 
                 # 掃描並寫入需要更新的檔案
                 videos_to_upsert = []
@@ -178,7 +180,7 @@ def generate_avlist() -> Generator[str, None, None]:
 
                 for i, file_info in enumerate(needs_scan, 1):
                     video_name = os.path.basename(file_info['path'])
-                    yield send({"type": "log", "level": "info", "message": f"  [{i}/{len(needs_scan)}] {video_name}"})
+                    yield _sse_event({"type": "log", "level": "info", "message": f"  [{i}/{len(needs_scan)}] {video_name}"})
 
                     try:
                         video_info = scanner.scan_file(file_info['path'], None)
@@ -190,7 +192,7 @@ def generate_avlist() -> Generator[str, None, None]:
                         cache_misses += 1
                     except Exception as e:
                         logger.exception("掃描檔案失敗: %s", file_info.get('path', ''))
-                        yield send({"type": "log", "level": "warn", "message": f"  [{i}] 掃描發生錯誤，已跳過"})
+                        yield _sse_event({"type": "log", "level": "warn", "message": f"  [{i}] 掃描發生錯誤，已跳過"})
 
                 # 批次寫入
                 if videos_to_upsert:
@@ -200,14 +202,14 @@ def generate_avlist() -> Generator[str, None, None]:
 
                 logger.info(f"[Gallery] {directory}: {len(all_files)} 個檔案，快取命中 {cache_hits}")
 
-                yield send({
+                yield _sse_event({
                     "type": "log",
                     "level": "info",
                     "message": f"{directory}: {len(all_files)} 部 (快取: {cache_hits}, 新增/更新: {cache_misses})"
                 })
             except Exception as e:
                 logger.exception("掃描資料夾失敗: %s", directory)
-                yield send({"type": "log", "level": "error", "message": "掃描發生錯誤，已跳過此資料夾"})
+                yield _sse_event({"type": "log", "level": "error", "message": "掃描發生錯誤，已跳過此資料夾"})
 
         # 建立「當前設定資料夾」URI 集合，用於過濾 DB 記錄
         # DB 保留所有歷史資料當 cache，但只輸出當前設定的資料夾
@@ -227,7 +229,7 @@ def generate_avlist() -> Generator[str, None, None]:
         aliases = alias_repo.get_all()
 
         if aliases:
-            yield send({"type": "log", "level": "info",
+            yield _sse_event({"type": "log", "level": "info",
                         "message": f"套用 {len(aliases)} 筆女優別名..."})
 
             db_updated = False
@@ -237,7 +239,7 @@ def generate_avlist() -> Generator[str, None, None]:
                     if msg.get('db_updated', 0) > 0:
                         db_updated = True
                     continue  # 不轉發 done 事件
-                yield send(msg)
+                yield _sse_event(msg)
 
             # 如果有更新，重新取得影片資料（同樣只保留當前設定資料夾）
             if db_updated:
@@ -288,16 +290,16 @@ def generate_avlist() -> Generator[str, None, None]:
                     "paths": session_stats['paths']
                 }
                 if session_update['count'] > 0:
-                    yield send({
+                    yield _sse_event({
                         "type": "log",
                         "level": "warn",
                         "message": f"發現 {session_update['count']} 部新增影片資訊不全"
                     })
 
-        yield send({"type": "log", "level": "info", "message": f"資料庫總筆數: {repo.count()}"})
+        yield _sse_event({"type": "log", "level": "info", "message": f"資料庫總筆數: {repo.count()}"})
 
         # 產生 HTML
-        yield send({
+        yield _sse_event({
             "type": "progress",
             "status": "產生網頁...",
             "current": total_dirs,
@@ -316,7 +318,7 @@ def generate_avlist() -> Generator[str, None, None]:
             theme=default_theme
         )
 
-        yield send({
+        yield _sse_event({
             "type": "progress",
             "status": "完成",
             "current": total_dirs + 1,
@@ -325,7 +327,7 @@ def generate_avlist() -> Generator[str, None, None]:
 
         logger.info(f"[Gallery] 完成，新增 {total_inserted}，更新 {total_updated}，刪除 {total_deleted}")
 
-        yield send({
+        yield _sse_event({
             "type": "done",
             "video_count": len(all_videos),
             "output_path": str(html_path),
@@ -339,7 +341,7 @@ def generate_avlist() -> Generator[str, None, None]:
 
     except Exception as e:
         logger.error("產生影片列表失敗: %s", e)
-        yield send({"type": "error", "message": "產生影片列表失敗"})
+        yield _sse_event({"type": "error", "message": "產生影片列表失敗"})
 
 
 @router.get("/generate")
@@ -449,21 +451,18 @@ async def check_update():
 def generate_nfo_update() -> Generator[str, None, None]:
     """NFO 更新生成器（SSE 串流）- 使用 SQLite"""
 
-    def send(data: dict):
-        return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
-
     try:
         db_path = get_db_path()
 
         if not db_path.exists():
-            yield send({"type": "error", "message": "資料庫不存在，請先產生列表"})
+            yield _sse_event({"type": "error", "message": "資料庫不存在，請先產生列表"})
             return
 
         repo = VideoRepository(db_path)
         all_videos = repo.get_all()
 
         if not all_videos:
-            yield send({"type": "done", "message": "沒有影片資料", "updated": 0})
+            yield _sse_event({"type": "done", "message": "沒有影片資料", "updated": 0})
             return
 
         # 建構相容 check_cache_needs_update 的格式
@@ -484,11 +483,11 @@ def generate_nfo_update() -> Generator[str, None, None]:
         # 檢查需要更新的影片
         stats = check_cache_needs_update(cache)
         if stats['need_update'] == 0:
-            yield send({"type": "done", "message": "沒有需要更新的影片", "updated": 0})
+            yield _sse_event({"type": "done", "message": "沒有需要更新的影片", "updated": 0})
             return
 
         paths_to_update = stats['paths']
-        yield send({
+        yield _sse_event({
             "type": "log",
             "level": "info",
             "message": f"執行 NFO 檢查 ({len(paths_to_update)} 部)..."
@@ -496,16 +495,16 @@ def generate_nfo_update() -> Generator[str, None, None]:
 
         # 執行更新
         for msg in update_videos_generator(cache, paths_to_update):
-            yield send(msg)
+            yield _sse_event(msg)
 
-        yield send({
+        yield _sse_event({
             "type": "done",
             "message": "更新完成，建議重新產生網頁以更新資料庫",
         })
 
     except Exception as e:
         logger.error("NFO 更新失敗: %s", e)
-        yield send({"type": "error", "message": "NFO 更新失敗"})
+        yield _sse_event({"type": "error", "message": "NFO 更新失敗"})
 
 
 @router.get("/update")
@@ -834,14 +833,11 @@ async def get_actress_stats(name: str = Query(..., description="女優名稱")):
 def generate_apply_actress_aliases() -> Generator[str, None, None]:
     """套用女優別名生成器（SSE 串流）"""
 
-    def send(data: dict):
-        return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
-
     try:
         db_path = get_db_path()
 
         if not db_path.exists():
-            yield send({"type": "error", "message": "資料庫不存在"})
+            yield _sse_event({"type": "error", "message": "資料庫不存在"})
             return
 
         init_db(db_path)
@@ -850,10 +846,10 @@ def generate_apply_actress_aliases() -> Generator[str, None, None]:
 
         aliases = alias_repo.get_all()
         if not aliases:
-            yield send({"type": "done", "message": "沒有別名對照", "stats": {}})
+            yield _sse_event({"type": "done", "message": "沒有別名對照", "stats": {}})
             return
 
-        yield send({
+        yield _sse_event({
             "type": "log",
             "level": "info",
             "message": f"開始套用 {len(aliases)} 筆別名對照..."
@@ -861,16 +857,16 @@ def generate_apply_actress_aliases() -> Generator[str, None, None]:
 
         # 執行套用
         for msg in apply_actress_aliases_generator(aliases, video_repo, alias_repo):
-            yield send(msg)
+            yield _sse_event(msg)
 
-        yield send({
+        yield _sse_event({
             "type": "done",
             "message": "套用完成！建議重新產生列表以更新封面。"
         })
 
     except Exception as e:
         logger.error("套用女優別名失敗: %s", e)
-        yield send({"type": "error", "message": "套用女優別名失敗"})
+        yield _sse_event({"type": "error", "message": "套用女優別名失敗"})
 
 
 @router.get("/apply-actress-aliases")
@@ -923,14 +919,11 @@ def check_jellyfin_images_needed(repo: VideoRepository) -> dict:
 def generate_jellyfin_images_stream() -> Generator[str, None, None]:
     """SSE 串流：批次為影片產生 poster + fanart"""
 
-    def send(data: dict):
-        return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
-
     try:
         db_path = get_db_path()
 
         if not db_path.exists():
-            yield send({"type": "error", "message": "資料庫不存在，請先產生列表"})
+            yield _sse_event({"type": "error", "message": "資料庫不存在，請先產生列表"})
             return
 
         repo = VideoRepository(db_path)
@@ -939,17 +932,17 @@ def generate_jellyfin_images_stream() -> Generator[str, None, None]:
         total = len(items)
 
         if total == 0:
-            yield send({"type": "done", "message": "沒有需要補齊的影片", "updated": 0})
+            yield _sse_event({"type": "done", "message": "沒有需要補齊的影片", "updated": 0})
             return
 
-        yield send({"type": "log", "level": "info", "message": f"需補齊 {total} 部影片的 Jellyfin 圖片..."})
+        yield _sse_event({"type": "log", "level": "info", "message": f"需補齊 {total} 部影片的 Jellyfin 圖片..."})
 
         for i, item in enumerate(items, 1):
             cover = item['cover_path']
             num = item['number']
             stem = item['base_stem']
 
-            yield send({
+            yield _sse_event({
                 "type": "progress",
                 "current": i,
                 "total": total,
@@ -959,18 +952,18 @@ def generate_jellyfin_images_stream() -> Generator[str, None, None]:
             img_result = generate_jellyfin_images(cover, stem)
 
             if not img_result['fanart']:
-                yield send({"type": "log", "level": "warn", "message": f"{num} fanart 複製失敗"})
+                yield _sse_event({"type": "log", "level": "warn", "message": f"{num} fanart 複製失敗"})
 
             if img_result['poster']:
-                yield send({"type": "log", "level": "info", "message": f"✓ {num} poster + fanart"})
+                yield _sse_event({"type": "log", "level": "info", "message": f"✓ {num} poster + fanart"})
             else:
-                yield send({"type": "log", "level": "warn", "message": f"{num} poster 裁切失敗"})
+                yield _sse_event({"type": "log", "level": "warn", "message": f"{num} poster 裁切失敗"})
 
-        yield send({"type": "done", "message": f"完成！已補齊 {total} 部影片的 Jellyfin 圖片"})
+        yield _sse_event({"type": "done", "message": f"完成！已補齊 {total} 部影片的 Jellyfin 圖片"})
 
     except Exception as e:
         logger.error("產生 Jellyfin 圖片失敗: %s", e)
-        yield send({"type": "error", "message": "產生 Jellyfin 圖片失敗"})
+        yield _sse_event({"type": "error", "message": "產生 Jellyfin 圖片失敗"})
 
 
 @router.get("/jellyfin-check")
