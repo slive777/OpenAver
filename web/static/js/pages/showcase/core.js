@@ -582,9 +582,7 @@ function showcaseState() {
             if (this.lightboxOpen && this.lightboxIndex !== index) {
                 var self = this;
                 // C18: interrupt — kill 舊 switch timeline（含 onComplete callback）
-                if (typeof gsap !== 'undefined') {
-                    gsap.getById('showcaseLightboxSwitch')?.kill();
-                }
+                window.ShowcaseAnimations?.killLightboxAnimations?.({ killOpen: false, killSwitch: true });
                 var oldIndex = this.lightboxIndex;
                 var direction = index > oldIndex ? 'next' : 'prev';
 
@@ -661,10 +659,7 @@ function showcaseState() {
 
             this._lightboxGeneration++;  // B19: invalidate pending $nextTick lightbox callbacks
             // Instant close — kill any in-progress lightbox animations, then sync cleanup
-            if (typeof gsap !== 'undefined') {
-                gsap.getById('showcaseLightboxOpen')?.kill();
-                gsap.getById('showcaseLightboxSwitch')?.kill();
-            }
+            window.ShowcaseAnimations?.killLightboxAnimations?.();
             var lbEl = document.querySelector('.showcase-lightbox');
             if (lbEl) lbEl.classList.remove('gsap-animating');
             this._lightboxAnimating = false;
@@ -700,10 +695,7 @@ function showcaseState() {
             }
 
             // 同步關閉 lightbox（跳過動畫，後面馬上做 filter 動畫）
-            if (typeof gsap !== 'undefined') {
-                gsap.getById('showcaseLightboxOpen')?.kill();
-                gsap.getById('showcaseLightboxSwitch')?.kill();
-            }
+            window.ShowcaseAnimations?.killLightboxAnimations?.();
             var lightboxEl = document.querySelector('.showcase-lightbox');
             if (lightboxEl) lightboxEl.classList.remove('gsap-animating');
             this._lightboxAnimating = false;
@@ -739,10 +731,7 @@ function showcaseState() {
 
         prevLightboxVideo() {
             // C18: interrupt — kill open + switch timeline（進場動畫未完也要打斷）
-            if (typeof gsap !== 'undefined') {
-                gsap.getById('showcaseLightboxOpen')?.kill();
-                gsap.getById('showcaseLightboxSwitch')?.kill();
-            }
+            window.ShowcaseAnimations?.killLightboxAnimations?.();
             this._lightboxAnimating = false;
             var lbEl = document.querySelector('.showcase-lightbox');
             if (lbEl) lbEl.classList.remove('gsap-animating');
@@ -786,10 +775,7 @@ function showcaseState() {
 
         nextLightboxVideo() {
             // C18: interrupt — kill open + switch timeline（進場動畫未完也要打斷）
-            if (typeof gsap !== 'undefined') {
-                gsap.getById('showcaseLightboxOpen')?.kill();
-                gsap.getById('showcaseLightboxSwitch')?.kill();
-            }
+            window.ShowcaseAnimations?.killLightboxAnimations?.();
             this._lightboxAnimating = false;
             var lbEl = document.querySelector('.showcase-lightbox');
             if (lbEl) lbEl.classList.remove('gsap-animating');
