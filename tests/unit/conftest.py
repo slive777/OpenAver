@@ -8,6 +8,23 @@ from fastapi.testclient import TestClient
 
 from core.database import init_db, VideoRepository, Video
 
+
+@pytest.fixture
+def client():
+    """FastAPI Test Client（unit 層使用）"""
+    from web.app import app
+    return TestClient(app)
+
+
+@pytest.fixture
+def make_mock_search_jav():
+    """Helper fixture to create a mock search_jav function based on a results_map."""
+    def _make(results_map):
+        def mock_fn(num, source='javbus'):
+            return results_map.get(num)
+        return mock_fn
+    return _make
+
 @pytest.fixture
 def temp_db():
     """建立臨時資料庫"""

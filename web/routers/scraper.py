@@ -1,20 +1,18 @@
 """
 Scraper API 路由 - 單檔刮削
+
+端點：
+- POST /api/scrape-single  — 單一影片刮削（搜尋元數據、建資料夾、重命名、下載封面、產生 NFO）
 """
 
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional
-import sys
-from pathlib import Path
-
-# 加入 core 模組路徑
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.organizer import organize_file
 from core.scraper import search_jav
 from core.logger import get_logger
-from web.routers.config import load_config
+from core.config import load_config
 
 logger = get_logger(__name__)
 

@@ -102,7 +102,7 @@ class TestMotionLabDataAPI:
 
         data = response.json()
         assert data["success"] is True
-        assert len(data["videos"]) > 0
+        assert len(data["videos"]) == 30  # 35 筆 DB，限制 30 筆
 
         # 所有有封面的影片，cover_url 必須包含 /api/gallery/image?path=
         for video in data["videos"]:

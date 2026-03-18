@@ -1,5 +1,14 @@
 """
 搜尋 API 路由
+
+端點：
+- GET  /api/proxy-image              — 代理外部圖片請求（解決防盜鏈問題）
+- GET  /api/search                   — 搜尋 JAV 資訊（REST，支援番號/女優/局部番號）
+- GET  /api/search/stream            — 搜尋 JAV 資訊（SSE 串流，即時回報狀態與結果）
+- GET  /api/search/sources           — 取得可用的搜尋來源列表
+- GET  /api/search/favorite-files    — 取得我的最愛資料夾的影片檔案列表
+- POST /api/search/filter-files      — 過濾檔案列表（移除非影片或過小檔案）
+- GET  /api/search/local-status      — 批次查詢番號在本地庫的存在狀態
 """
 
 from fastapi import APIRouter, Query, Request
@@ -13,11 +22,7 @@ from collections import Counter
 from queue import Queue
 from threading import Thread
 
-import sys
 from pathlib import Path
-
-# 加入 core 模組路徑
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.logger import get_logger
 from core.video_extensions import ZERO_SIZE_EXTENSIONS, get_video_extensions
@@ -124,7 +129,7 @@ def search(
         }
 
     # 讀取設定（無碼模式 + proxy）
-    from web.routers.config import load_config
+    from core.config import load_config
     config = load_config()
     uncensored_mode = config.get('search', {}).get('uncensored_mode_enabled', False)
     proxy_url = config.get('search', {}).get('proxy_url', '')
@@ -315,7 +320,7 @@ async def search_stream(
         return StreamingResponse(error_gen(), media_type="text/event-stream")
 
     # 讀取設定（無碼模式 + proxy）
-    from web.routers.config import load_config
+    from core.config import load_config
     config = load_config()
     uncensored_mode = config.get('search', {}).get('uncensored_mode_enabled', False)
     proxy_url = config.get('search', {}).get('proxy_url', '')
@@ -477,7 +482,7 @@ async def get_favorite_files() -> dict:
             "total": 50
         }
     """
-    from web.routers.config import load_config
+    from core.config import load_config
     from core.path_utils import expand_env_vars, get_environment
 
     config = load_config()
@@ -566,7 +571,7 @@ async def filter_files(request: Request) -> dict:
             "total_rejected": 0
         }
     """
-    from web.routers.config import load_config
+    from core.config import load_config
     from core.path_utils import normalize_path
 
     data = await request.json()

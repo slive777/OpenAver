@@ -1,11 +1,12 @@
 """爬蟲共用工具"""
-import logging
 import re
 import time
 import requests
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 # 全域設定

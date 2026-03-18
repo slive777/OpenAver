@@ -424,8 +424,9 @@ def organize_file(
     # 轉換路徑為當前環境格式
     try:
         file_path = normalize_path(file_path)
-    except ValueError as e:
-        result['error'] = str(e)
+    except ValueError:
+        logger.exception("normalize_path 失敗")
+        result['error'] = '路徑格式不支援，請確認路徑設定'
         return result
 
     if not os.path.exists(file_path):

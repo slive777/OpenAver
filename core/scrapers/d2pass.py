@@ -1,11 +1,12 @@
 """D2Pass 聯合爬蟲（1Pondo / Caribbeancom / 10musume）"""
 import json
-import logging
 import re
 import requests
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 from .base import BaseScraper
 from .models import Video, Actress, ScraperConfig
 from .utils import rate_limit

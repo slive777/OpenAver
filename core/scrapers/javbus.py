@@ -1,9 +1,10 @@
 """JavBus 爬蟲（透過 jvav 庫）"""
-import logging
 from typing import Optional
 from .base import BaseScraper
 
-logger = logging.getLogger(__name__)
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 from .models import Video, Actress
 from .utils import rate_limit
 

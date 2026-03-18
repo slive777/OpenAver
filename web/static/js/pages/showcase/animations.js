@@ -487,6 +487,23 @@
             );
 
             return tl;
+        },
+
+        /**
+         * T20: C18 interrupt — kill lightbox timelines
+         *
+         * 封裝 lightboxOpen / lightboxSwitch 兩條 timeline 的 kill 邏輯，
+         * 確保 core.js 不直接依賴 GSAP 內部 timeline ID。
+         *
+         * @param {object} [options] - { killOpen: true, killSwitch: true }
+         */
+        killLightboxAnimations: function (options) {
+            options = options || {};
+            var killOpen = options.killOpen !== false;
+            var killSwitch = options.killSwitch !== false;
+            if (typeof gsap === 'undefined') return;
+            if (killOpen) gsap.getById('showcaseLightboxOpen')?.kill();
+            if (killSwitch) gsap.getById('showcaseLightboxSwitch')?.kill();
         }
     };
 

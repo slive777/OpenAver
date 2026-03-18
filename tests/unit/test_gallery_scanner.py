@@ -35,8 +35,7 @@ class TestGalleryScanner:
         assert info.maker == "TestMaker"
         assert info.date == "2023-01-01"
         assert info.actor == "Actor1,Actor2"
-        assert "Tag1" in info.genre
-        assert "Tag2" in info.genre
+        assert sorted(info.genre.split(",")) == sorted(["Tag1", "Tag2"])
 
     def test_parse_nfo_invalid(self, scanner, tmp_path):
         # 標籤未閉合的無效 XML

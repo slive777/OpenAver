@@ -87,16 +87,22 @@ scrapers/
 
 ## 輔助服務
 
-### `search_gallery_service.py`
-**搜尋結果展示服務**
-- 連接 `scraper` 與 `gallery_generator` 的橋樑。
-- 將網路搜尋結果轉換為 Gallery HTML 格式以便在前端展示。
-- 實作「女優卡 (Hero Card)」邏輯：當搜尋結果主要集中在某位女優時，自動抓取並置頂顯示該女優的個人資料。
-
 ### `actress_scraper.py`
 **女優資料爬蟲**
 - 負責從 JavBus 抓取女優的詳細個人資料（身高、三圍、生日等）。
-- 用於 `search_gallery_service.py` 生成女優卡。
+- 供女優卡（Hero Card）功能使用。
+
+### `gfriends_lookup.py`
+**gfriends GitHub CDN 女優頭像查表**
+- 透過片商映射 + jsDelivr CDN HEAD request 定位女優圖片，不下載 Filetree.json、不 clone repo。
+- 維護 `MAKER_TO_GFRIENDS` 對照表，將 maker 名稱映射到 gfriends `Content/` 子資料夾。
+- `lookup_gfriends(name, makers)` — 依片商優先順序嘗試，最終以 `9-AVDBS` 兜底。
+
+### `graphis_scraper.py`
+**Graphis Profile 文字解析**
+- 從 `graphis.ne.jp` 搜尋並抓取女優高品質照片及個人資料。
+- `scrape_graphis_photo(name)` — 回傳頭像 URL（360×508）、背景 URL（1185×835）及英文名、年齡、身高、三圍等欄位。
+- `_parse_graphis_profile(html)` — 解析 `model.php` 詳情頁 HTML，提取結構化 profile 欄位。
 
 ### `nfo_updater.py`
 **NFO 批次更新器**
@@ -111,3 +117,22 @@ scrapers/
 - 解決 Windows、WSL (Windows Subsystem for Linux)、Linux 與 macOS 之間的路徑格式差異。
 - 支援將 WSL 路徑轉換為 Windows 可讀取的 `file:///` 格式，確保在 Windows 瀏覽器中能直接開啟本地檔案。
 - `uri_to_fs_path()` — file:// URI → 當前環境 FS 路徑轉換。
+
+### `video_extensions.py`
+**影片副檔名 Single Source of Truth**
+- 集中定義所有影片副檔名常數，其他模組一律從此處 import，不得各自硬編碼。
+- `DEFAULT_VIDEO_EXTENSIONS` — 預設支援的副檔名 tuple（穩定順序）。
+- `SAFE_PROXY_EXTENSIONS` — HTTP 檔案代理安全白名單（frozenset），不受用戶設定影響。
+- `ZERO_SIZE_EXTENSIONS` — 不受 min_size 過濾的副檔名（如 `.strm`）。
+- `normalize_extensions(exts)` — 正規化副檔名清單（strip、lowercase、補前導點）。
+- `get_video_extensions(config)` / `get_proxy_extensions(config)` — 從 config 讀取，附 fallback。
+
+### `nfo_utils.py`
+**NFO 檔案工具函數**
+- `sanitize_nfo_bytes(raw)` — 修正 NFO 中非法的 bare `&`，使 malformed XML 可被正常解析。在 bytes 層級操作，保留 CDATA 區塊原封不動。
+
+### `logger.py`
+**統一日誌模組**
+- `setup_logging(log_dir, console_level)` — 初始化日誌系統（由 `standalone.py` 呼叫一次），設定 RotatingFileHandler（10MB × 5 份）與 Console Handler。
+- `get_logger(name)` — 取得指定模組的 logger，統一使用 `OpenAver.*` 命名空間。
+- `set_console_level(level)` — 動態調整 console 輸出等級（Debug 模式使用）。

@@ -30,6 +30,16 @@
     "favorite_folder": "",
     "proxy_url": ""
   },
+  "source_links": {
+    "dmm": true,
+    "d2pass": true,
+    "heyzo": true,
+    "fc2": true,
+    "javbus": false,
+    "jav321": false,
+    "javdb": false,
+    "avsox": false
+  },
   "translate": {
     "enabled": false,
     "provider": "ollama",

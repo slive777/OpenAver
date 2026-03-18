@@ -551,6 +551,43 @@ class TestOrganizeErrorHandling:
         assert secret_msg not in (result["error"] or "")
         assert "OSError" not in (result["error"] or "")
 
+    def test_normalize_path_error_no_leak(self, tmp_path):
+        """
+        normalize_path 拋出 ValueError 時：
+        - result['error'] 為固定中文訊息，不含原始路徑細節
+        """
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"test")
+
+        config = {
+            "create_folder": False,
+            "filename_format": "[{num}] {title}",
+            "download_cover": False,
+            "cover_filename": "poster.jpg",
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+        metadata = {
+            "number": "SONE-205",
+            "title": "Test Title",
+            "actors": [],
+            "tags": [],
+            "maker": "S1",
+            "date": "2024-01-15",
+            "cover": "",
+            "url": "",
+        }
+
+        with patch("core.organizer.normalize_path",
+                   side_effect=ValueError(r"WSL 環境不支援 SMB 路徑: \\192.168.1.177\share")):
+            result = organize_file(str(src), metadata, config)
+
+        assert result["success"] is False
+        assert "192.168.1.177" not in (result["error"] or "")
+        assert result["error"] == "路徑格式不支援，請確認路徑設定"
+
 
 # ============ Jellyfin 圖片模式測試 (Fix-6) ============
 

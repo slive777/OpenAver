@@ -129,6 +129,33 @@ class Api:
         except Exception:
             return False
 
+    def open_url(self, url: str) -> bool:
+        """用系統預設瀏覽器開啟 URL
+
+        僅接受 http:// 或 https:// 開頭的 URL，其他 scheme 一律拒絕。
+        任何例外均捕捉並回傳 False，不讓異常傳播。
+
+        Args:
+            url: 要開啟的 URL 字串
+
+        Returns:
+            True 表示成功呼叫系統 API，False 表示驗證失敗或系統呼叫拋出例外
+        """
+        if not isinstance(url, str) or not url.startswith(('http://', 'https://')):
+            return False
+        try:
+            if sys.platform == 'win32':
+                os.startfile(url)
+                return True
+            elif sys.platform == 'darwin':
+                result = subprocess.run(['open', url])
+                return result.returncode == 0
+            else:
+                result = subprocess.run(['xdg-open', url])
+                return result.returncode == 0
+        except Exception:
+            return False
+
     def open_folder(self, path):
         """用系統檔案管理員開啟檔案所在資料夾
 

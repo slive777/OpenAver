@@ -1,4 +1,10 @@
-"""NFO 檔案工具函數"""
+"""
+NFO 檔案工具函數。
+
+提供底層工具函式供 gallery_scanner 和 nfo_updater 共用，
+主要包含 sanitize_nfo_bytes（修正 NFO 中不合規的裸露 & 字元以通過 XML 解析）
+及相關正則 pattern。
+"""
 
 import re
 

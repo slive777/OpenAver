@@ -20,6 +20,24 @@ from web.app import app
 
 
 # ============================================================
+# 共用 Helper
+# ============================================================
+
+def _make_video(source: str, number: str = "TEST-001") -> Video:
+    return Video(
+        number=number,
+        title="Test Title",
+        actresses=[],
+        date="2024-01-01",
+        maker="Test Maker",
+        cover_url="",
+        tags=[],
+        source=source,
+        detail_url="https://example.com",
+    )
+
+
+# ============================================================
 # 共用 Mock Data
 # ============================================================
 
@@ -444,22 +462,9 @@ class TestProxyAPI:
 class TestPipeline:
     """Pipeline routing 測試（mock scraper.search，驗證路由邏輯）"""
 
-    def _make_video(self, source: str, number: str = "TEST-001") -> Video:
-        return Video(
-            number=number,
-            title="Test Title",
-            actresses=[],
-            date="2024-01-01",
-            maker="Test Maker",
-            cover_url="",
-            tags=[],
-            source=source,
-            detail_url="https://example.com",
-        )
-
     def test_uncensored_detection_d2pass(self):
         """日期_底線格式番號 → 自動走無碼路徑 → D2PassScraper 被呼叫"""
-        mock_video = self._make_video("d2pass", "120415_201")
+        mock_video = _make_video("d2pass", "120415_201")
 
         with patch.object(D2PassScraper, 'search', return_value=mock_video) as mock_d2:
             with patch('core.scrapers.utils.rate_limit'):
@@ -471,7 +476,7 @@ class TestPipeline:
 
     def test_uncensored_detection_heyzo(self):
         """HEYZO- 前綴番號 → 自動走無碼路徑 → HEYZOScraper 被呼叫"""
-        mock_video = self._make_video("heyzo", "HEYZO-0783")
+        mock_video = _make_video("heyzo", "HEYZO-0783")
 
         with patch.object(D2PassScraper, 'search', return_value=None):
             with patch.object(HEYZOScraper, 'search', return_value=mock_video) as mock_heyzo:
@@ -500,7 +505,7 @@ class TestPipeline:
 
     def test_dmm_top1_when_proxy(self):
         """有 proxy_url 且搜尋番號格式 → DMM 優先於 variant IDs"""
-        mock_video = self._make_video("dmm", "SONE-205")
+        mock_video = _make_video("dmm", "SONE-205")
 
         with patch.object(DMMScraper, 'search', return_value=mock_video) as mock_dmm:
             with patch('core.scrapers.utils.rate_limit'):
@@ -512,7 +517,7 @@ class TestPipeline:
 
     def test_uncensored_mode_fast_path_fc2(self):
         """uncensored_mode=True + FC2 前綴 → D2PassScraper 不被呼叫"""
-        mock_video = self._make_video("fc2", "FC2-PPV-1234567")
+        mock_video = _make_video("fc2", "FC2-PPV-1234567")
 
         from core.scrapers.fc2 import FC2Scraper
         from core.scrapers.avsox import AVSOXScraper
@@ -529,7 +534,7 @@ class TestPipeline:
 
     def test_uncensored_mode_fast_path_heyzo(self):
         """uncensored_mode=True + HEYZO 前綴 → D2PassScraper 不被呼叫"""
-        mock_video = self._make_video("heyzo", "HEYZO-0783")
+        mock_video = _make_video("heyzo", "HEYZO-0783")
 
         from core.scrapers.fc2 import FC2Scraper
         from core.scrapers.avsox import AVSOXScraper
@@ -723,24 +728,11 @@ class TestDMMTags:
 class TestFastPathRouting:
     """Fast-path routing 測試 — FC2/HEYZO 前綴直接路由到正確來源"""
 
-    def _make_video(self, source: str, number: str = "TEST-001") -> Video:
-        return Video(
-            number=number,
-            title="Test Title",
-            actresses=[],
-            date="2024-01-01",
-            maker="Test Maker",
-            cover_url="",
-            tags=[],
-            source=source,
-            detail_url="https://example.com",
-        )
-
     def test_fast_path_fc2(self):
         """FC2 前綴 → D2PassScraper 不被呼叫，FC2Scraper 被呼叫"""
         from core.scrapers.fc2 import FC2Scraper
         from core.scrapers.avsox import AVSOXScraper
-        mock_video = self._make_video("fc2", "FC2-PPV-1234567")
+        mock_video = _make_video("fc2", "FC2-PPV-1234567")
 
         with patch.object(D2PassScraper, 'search', return_value=None) as mock_d2:
             with patch.object(HEYZOScraper, 'search', return_value=None) as mock_heyzo:
@@ -759,7 +751,7 @@ class TestFastPathRouting:
         """HEYZO 前綴 → D2PassScraper 不被呼叫，HEYZOScraper 被呼叫"""
         from core.scrapers.fc2 import FC2Scraper
         from core.scrapers.avsox import AVSOXScraper
-        mock_video = self._make_video("heyzo", "HEYZO-0783")
+        mock_video = _make_video("heyzo", "HEYZO-0783")
 
         with patch.object(D2PassScraper, 'search', return_value=None) as mock_d2:
             with patch.object(HEYZOScraper, 'search', return_value=mock_video) as mock_heyzo:
@@ -776,7 +768,7 @@ class TestFastPathRouting:
 
     def test_fast_path_d2pass_unchanged(self):
         """D2Pass 日期格式 → D2PassScraper 被呼叫（完整路由不變）"""
-        mock_video = self._make_video("d2pass", "120415_201")
+        mock_video = _make_video("d2pass", "120415_201")
 
         with patch.object(D2PassScraper, 'search', return_value=mock_video) as mock_d2:
             with patch('core.scrapers.utils.rate_limit'):

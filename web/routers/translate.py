@@ -1,5 +1,9 @@
 """
 翻譯 API 路由
+
+端點：
+- POST /api/translate        — 翻譯或優化單一標題（日文→中文 或 清理中文，支援 Ollama/Gemini）
+- POST /api/translate-batch  — 批次翻譯多個標題（自動跳過非日文，支援 Ollama/Gemini）
 """
 
 from fastapi import APIRouter
@@ -7,7 +11,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 import httpx
 
-from web.routers.config import load_config
+from core.config import load_config
 from core.translate_service import create_translate_service
 from core.scrapers.utils import has_japanese
 from core.logger import get_logger

@@ -18,9 +18,11 @@ class TestConfigAPI:
         }
         default_path.write_text(json.dumps(default_data))
         
-        # Mock module variables
-        monkeypatch.setattr("web.routers.config.CONFIG_PATH", config_path)
-        monkeypatch.setattr("web.routers.config.CONFIG_DEFAULT_PATH", default_path)
+        # Mock module variables（core.config は load_config/save_config が参照する実体）
+        # web.routers.config は _core_config.CONFIG_PATH で動態参照するため、
+        # core.config.CONFIG_PATH を差し替えるだけで DELETE /api/config も正しく動く
+        monkeypatch.setattr("core.config.CONFIG_PATH", config_path)
+        monkeypatch.setattr("core.config.CONFIG_DEFAULT_PATH", default_path)
         
         # Mock reset_translate_service dependency to do nothing
         monkeypatch.setattr("web.routers.config._reset_translate_service", lambda: None)

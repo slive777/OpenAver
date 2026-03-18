@@ -44,6 +44,43 @@
                     <i class="bi bi-image text-5xl"></i>
                     <p class="mt-2">No Image</p>
                 </div>
+                <!-- cover-actions: 封面失敗時按鈕仍可用（返回詳情、開啟資料夾等不依賴圖片） -->
+                <div class="cover-actions">
+                    <button class="lb-action-btn"
+                            @click="actressLightboxMode() ? closeLightbox() : switchToDetail(lightboxIndex)"
+                            data-tooltip="返回詳情" aria-label="返回詳情">
+                        <i class="bi bi-arrow-return-left"></i>
+                    </button>
+                    <button class="lb-action-btn"
+                            @click="openLocal(currentLightboxVideo()?._localStatus?.paths?.[0] || '')"
+                            x-show="currentLightboxVideo()?._localStatus?.exists"
+                            data-tooltip="開啟資料夾" aria-label="開啟資料夾">
+                        <i class="bi bi-folder2-open"></i>
+                    </button>
+                    <button class="lb-action-btn"
+                            @click="openSourceUrl(currentLightboxVideo()?.url || '')"
+                            x-show="!actressLightboxMode()
+                                    && appConfig?.source_links?.[currentLightboxVideo()?.source]
+                                    && currentLightboxVideo()?.url"
+                            data-tooltip="開啟來源頁面" aria-label="開啟來源頁面">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- lightbox-metadata: actress mode 時隱藏 -->
+            <div class="lightbox-metadata" x-show="!actressLightboxMode()">
+                <div class="lb-title" x-text="currentLightboxVideo()?.title || '-'"></div>
+                <div class="lb-actor" x-text="(currentLightboxVideo()?.actors || []).join(', ') || '-'"></div>
+                <div class="lb-meta">
+                    <span x-text="currentLightboxVideo()?.number || '-'"></span>
+                    <span x-show="currentLightboxVideo()?.maker" x-text="currentLightboxVideo()?.maker"></span>
+                    <span x-show="currentLightboxVideo()?.date" x-text="currentLightboxVideo()?.date"></span>
+                </div>
+                <div class="lb-tags" x-show="(currentLightboxVideo()?.tags || []).length > 0">
+                    <template x-for="tag in (currentLightboxVideo()?.tags || [])" :key="tag">
+                        <span class="lb-tag" x-text="tag"></span>
+                    </template>
+                </div>
             </div>
         </div>
 

@@ -1,9 +1,10 @@
 """JAV321 爬蟲"""
-import logging
 import re
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from .base import BaseScraper

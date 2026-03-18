@@ -1,5 +1,10 @@
 """
-Gallery Scanner - 掃描資料夾、讀取 NFO、解析檔名
+Gallery Scanner — 負責掃描資料夾、解析檔名與讀取 NFO 元資料。
+
+與 gallery_generator.py 的分工：scanner 專注於檔案系統遍歷、檔名解析
+（parse_filename）、NFO 讀取（parse_nfo）及寫入 SQLite（scan_to_sqlite）；
+generator 則負責靜態 HTML 的輸出。VideoScanner 是主要入口，
+核心方法為 parse_filename、parse_nfo、scan_file、scan_to_sqlite。
 """
 
 import json

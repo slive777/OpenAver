@@ -341,6 +341,15 @@
                     <img :src="currentLightboxVideo?.cover_url"
                          :alt="currentLightboxVideo?.number"
                          @error="$event.target.onerror=null; $event.target.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22 fill=%22%23666%22><rect width=%22400%22 height=%22300%22 fill=%22%23222%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2216%22>No Image</text></svg>'">
+                    <!-- Cover Action Buttons -->
+                    <div class="cover-actions">
+                        <button class="lb-action-btn" @click="playVideo(currentLightboxVideo?.path)" data-tooltip="播放" aria-label="播放">
+                            <i class="bi bi-play-fill"></i>
+                        </button>
+                        <button class="lb-action-btn" @click="openLocal(currentLightboxVideo?.path)" data-tooltip="開啟資料夾" aria-label="開啟資料夾">
+                            <i class="bi bi-folder2-open"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Metadata Panel（緊湊版，匹配原版 gallery） -->
@@ -362,23 +371,15 @@
                             <a href="#" class="lb-link" @click.prevent="searchFromMetadata(currentLightboxVideo?.maker)" x-text="currentLightboxVideo?.maker"></a>
                         </span>
                         <span x-show="currentLightboxVideo?.release_date" x-text="currentLightboxVideo?.release_date"></span>
+                        <span class="lb-size" x-show="currentLightboxVideo?.size"
+                              x-text="formatSize(currentLightboxVideo?.size || 0)"></span>
                     </div>
                     <div class="lb-tags" x-show="currentLightboxVideo?.tags">
                         <template x-for="tag in (currentLightboxVideo?.tags || '').split(',').filter(t => t.trim())" :key="tag">
                             <a href="#" class="lb-tag lb-link" @click.prevent="searchFromMetadata(tag.trim())" x-text="tag.trim()"></a>
                         </template>
                     </div>
-                    <div class="lb-footer">
-                        <div class="lb-actions">
-                            <button class="lb-btn" @click="playVideo(currentLightboxVideo?.path)">
-                                <i class="bi bi-play-fill"></i> 播放
-                            </button>
-                            <button class="lb-btn" @click="openLocal(currentLightboxVideo?.path)">
-                                <i class="bi bi-folder2-open"></i> 資料夾
-                            </button>
-                        </div>
-                        <span class="lb-size" x-text="formatSize(currentLightboxVideo?.size || 0)"></span>
-                    </div>
+
                 </div>
             </div>
 

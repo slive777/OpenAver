@@ -14,30 +14,56 @@ pip install pytest pytest-asyncio pytest-mock httpx
 ```
 tests/
 ├── conftest.py              # 全域 Fixtures
-├── test_api_config.py       # Config API 整合測試
-├── test_smoke.py            # 基本煙霧測試（番號提取、爬蟲連通）
-├── test_scrapers.py         # 6 個爬蟲模組測試（Phase 16）
+├── test_frontend_lint.py    # 前端靜態檔案 lint 測試
 │
 ├── unit/                    # 單元測試（不需網路）
-│   ├── test_scraper_parser.py    # 番號解析測試
-│   ├── test_path_utils.py        # 跨平台路徑轉換測試
-│   └── test_translate_service.py # 翻譯服務抽象層測試
+│   ├── conftest.py
+│   ├── test_actress_alias_api.py
+│   ├── test_database.py
+│   ├── test_gallery_scanner.py
+│   ├── test_local_status_api.py
+│   ├── test_motion_lab_router.py
+│   ├── test_organizer.py
+│   ├── test_path_utils.py
+│   ├── test_scanner_sqlite.py
+│   ├── test_scraper_callbacks.py
+│   ├── test_scraper_parser.py
+│   ├── test_scraper_partial.py
+│   ├── test_scraper_validators.py
+│   ├── test_showcase_api.py
+│   ├── test_translate_service.py
+│   ├── test_utils_extended.py
+│   ├── test_video_extensions.py
+│   └── test_video_repository.py
 │
 ├── integration/             # 整合測試（使用 Mock）
-│   ├── test_api_search.py        # 搜尋 API 測試
-│   └── test_api_gallery.py       # Gallery API 測試
+│   ├── conftest.py
+│   ├── test_actress_profile.py
+│   ├── test_api_config.py
+│   ├── test_api_config_endpoints.py
+│   ├── test_api_filename.py
+│   ├── test_api_gallery.py
+│   ├── test_api_scanner.py
+│   ├── test_api_search.py
+│   ├── test_api_translate.py
+│   └── test_new_scrapers.py
 │
 ├── smoke/                   # 煙霧測試（需網路/服務）
-│   ├── test_scraper_live.py      # 6 個爬蟲連通測試
-│   ├── test_translate_live.py    # Ollama 翻譯連通測試
-│   ├── test_batch_api.py         # 批次翻譯 API 測試
-│   ├── test_gemini_safety_settings.py  # Gemini 安全設定測試
-│   └── test_translate_gemini_manual.py # Gemini 手動測試
+│   ├── conftest.py
+│   ├── test_batch_api.py
+│   ├── test_gemini_safety_settings.py
+│   ├── test_scraper_live.py
+│   ├── test_scrapers.py
+│   ├── test_translate_gemini_manual.py
+│   └── test_translate_live.py
 │
 ├── fixtures/                # Mock 測試資料
 │   └── responses/
 │       ├── javbus/SONE-103.json
 │       └── javdb/actress_search.json
+│
+├── mock_data/               # Mock JSON 資料
+│   └── mikami_profile.json
 │
 └── samples/                 # 番號解析測試樣本
     ├── basic/               # 基本格式 (SONE-103.mp4)
@@ -57,15 +83,15 @@ pytest tests/unit/ -v
 # 整合測試（使用 Mock）
 pytest tests/integration/ -v
 
-# 基本煙霧測試
-pytest tests/test_smoke.py tests/test_scrapers.py -v
+# 單元 + 整合（CI 標準）
+pytest tests/ -v --ignore=tests/smoke -m "not smoke"
 ```
 
 ### 完整測試（需網路）
 
 ```bash
-# 所有測試
-pytest
+# 所有測試（含 smoke）
+pytest tests/ -v
 
 # 只跑煙霧測試（爬蟲連通）
 pytest -m smoke -v
@@ -74,9 +100,6 @@ pytest -m smoke -v
 ### 特定測試
 
 ```bash
-# Config API 測試
-pytest tests/test_api_config.py -v
-
 # 番號解析測試
 pytest tests/unit/test_scraper_parser.py -v
 
@@ -86,8 +109,8 @@ pytest tests/unit/test_path_utils.py -v
 # 翻譯服務測試
 pytest tests/unit/test_translate_service.py -v
 
-# 6 個爬蟲模組測試
-pytest tests/test_scrapers.py -v
+# Config API 測試
+pytest tests/integration/test_api_config.py -v
 
 # 爬蟲連通測試（需網路）
 pytest tests/smoke/test_scraper_live.py -v -m smoke
@@ -104,6 +127,11 @@ pytest tests/smoke/test_scraper_live.py -v -m smoke
 | `test_scraper_parser.py` | `extract_number()`, `normalize_number()` |
 | `test_path_utils.py` | 跨平台路徑轉換 (WSL/Windows/Linux/Mac) |
 | `test_translate_service.py` | 翻譯服務工廠、配置處理 |
+| `test_scraper_validators.py` | 爬蟲資料驗證邏輯 |
+| `test_scraper_partial.py` | 爬蟲部分結果處理 |
+| `test_database.py` | 資料庫操作 |
+| `test_organizer.py` | 檔案整理邏輯 |
+| `test_video_repository.py` | 影片資料存取層 |
 
 ### 整合測試 (`integration/`)
 
@@ -113,6 +141,11 @@ pytest tests/smoke/test_scraper_live.py -v -m smoke
 |------|----------|
 | `test_api_search.py` | 搜尋 API、模式切換、分頁 |
 | `test_api_gallery.py` | 圖片代理、Gallery 統計 |
+| `test_api_config.py` | Config API 整合測試 |
+| `test_api_scanner.py` | 掃描 API 測試 |
+| `test_api_translate.py` | 翻譯 API 測試 |
+| `test_actress_profile.py` | 女優資料 scraper 測試 |
+| `test_new_scrapers.py` | 新增爬蟲模組測試 |
 
 ### 煙霧測試 (`smoke/`)
 
@@ -120,23 +153,11 @@ pytest tests/smoke/test_scraper_live.py -v -m smoke
 
 | 檔案 | 測試內容 | 前提條件 |
 |------|----------|----------|
-| `test_scraper_live.py` | 6 個爬蟲連通性 | 網路 |
+| `test_scraper_live.py` | 爬蟲連通性 | 網路 |
+| `test_scrapers.py` | 6 個爬蟲模組測試 | 網路 |
 | `test_translate_live.py` | Ollama 翻譯 | Ollama 服務 |
 | `test_batch_api.py` | 批次翻譯 API | FastAPI + Ollama |
 | `test_gemini_safety_settings.py` | Gemini 安全設定 | Gemini API Key |
-
-### 爬蟲模組測試 (`test_scrapers.py`)
-
-Phase 16 新增的 6 個爬蟲模組測試：
-
-| 爬蟲 | 測試內容 | 備註 |
-|------|----------|------|
-| JavBusScraper | 番號搜尋、正規化 | 需 jvav 套件 |
-| JAV321Scraper | 番號搜尋、關鍵字搜尋 | |
-| JavDBScraper | 番號搜尋、封面來源 | 需 curl_cffi |
-| DMMScraper | 番號解析、前綴轉換、快取 | 需日本 VPN |
-| FC2Scraper | FC2 番號正規化、搜尋 | |
-| AVSOXScraper | 無碼番號搜尋 | |
 
 ## Fixtures
 

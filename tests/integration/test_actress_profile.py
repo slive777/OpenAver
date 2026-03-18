@@ -15,6 +15,14 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 
+@pytest.fixture(autouse=True)
+def clear_actress_cache():
+    from core.actress_scraper import _cache
+    _cache.clear()
+    yield
+    _cache.clear()
+
+
 # ============================================================================
 # 共用測試 HTML 常數
 # ============================================================================
@@ -135,9 +143,6 @@ def test_get_actress_profile_both_sources():
     """測試雙來源合併邏輯（Mock）"""
     from core.actress_scraper import get_actress_profile, _cache
 
-    # 清空 cache
-    _cache.clear()
-
     # Mock Graphis 回傳照片
     def mock_graphis(name):
         return {
@@ -179,9 +184,6 @@ def test_get_actress_profile_javbus_only():
     """測試只有 JavBus 有資料（Mock）"""
     from core.actress_scraper import get_actress_profile, _cache
 
-    # 清空 cache
-    _cache.clear()
-
     def mock_javbus(name):
         return {
             'name': name,
@@ -204,9 +206,6 @@ def test_get_actress_profile_javbus_only():
 def test_get_actress_profile_graphis_only():
     """測試只有 Graphis 有資料（Mock）"""
     from core.actress_scraper import get_actress_profile, _cache
-
-    # 清空 cache
-    _cache.clear()
 
     def mock_graphis(name):
         return {
@@ -231,9 +230,6 @@ def test_get_actress_profile_both_fail():
     """測試雙來源都失敗（Mock）"""
     from core.actress_scraper import get_actress_profile, _cache
 
-    # 清空 cache
-    _cache.clear()
-
     with patch('core.graphis_scraper.scrape_graphis_photo', return_value=None), \
          patch('core.actress_scraper.scrape_actress_profile', return_value=None):
 
@@ -248,9 +244,6 @@ def test_get_actress_profile_both_fail():
 def test_get_actress_profile_cache_hit():
     """測試 cache 命中（Mock）"""
     from core.actress_scraper import get_actress_profile, _cache
-
-    # 清空 cache
-    _cache.clear()
 
     def mock_graphis(name):
         return {
@@ -289,9 +282,6 @@ def test_get_actress_profile_cache_hit():
 def test_get_actress_profile_cache_expired():
     """測試 cache 過期（Mock）"""
     from core.actress_scraper import get_actress_profile, _cache, _CACHE_TTL
-
-    # 清空 cache
-    _cache.clear()
 
     def mock_graphis(name):
         return {
@@ -334,9 +324,6 @@ def test_get_actress_profile_cache_expired():
 def test_get_actress_profile_cache_name_normalization():
     """測試 cache key 名稱正規化（Mock）"""
     from core.actress_scraper import get_actress_profile, _cache
-
-    # 清空 cache
-    _cache.clear()
 
     def mock_graphis(name):
         return {
@@ -504,13 +491,8 @@ def mock_actress_profile():
     return mock_fn
 
 
-def test_search_api_actress_with_profile(mock_search_actress, mock_actress_profile):
+def test_search_api_actress_with_profile(client, mock_search_actress, mock_actress_profile):
     """測試女優搜尋 API（有 actress_profile）"""
-    from fastapi.testclient import TestClient
-    from web.app import app
-
-    client = TestClient(app)
-
     with patch('web.routers.search.search_actress', side_effect=mock_search_actress), \
          patch('core.actress_scraper.get_actress_profile', side_effect=mock_actress_profile):
 
@@ -525,13 +507,8 @@ def test_search_api_actress_with_profile(mock_search_actress, mock_actress_profi
         assert 'graphis.ne.jp' in data['actress_profile']['img']
 
 
-def test_search_api_exact_no_profile():
+def test_search_api_exact_no_profile(client):
     """測試番號搜尋（無 actress_profile）"""
-    from fastapi.testclient import TestClient
-    from web.app import app
-
-    client = TestClient(app)
-
     def mock_search_jav(q, **kwargs):
         return {'number': 'SONE-205', 'actors': ['桜空もも']}
 
@@ -545,13 +522,8 @@ def test_search_api_exact_no_profile():
         assert data['actress_profile'] is None
 
 
-def test_search_api_mixed_results_no_profile():
+def test_search_api_mixed_results_no_profile(client):
     """測試混合結果（consistency < 80%）"""
-    from fastapi.testclient import TestClient
-    from web.app import app
-
-    client = TestClient(app)
-
     def mock_smart_search(q, **kwargs):
         return [
             {'number': 'FUGA-001', 'actors': ['古川いおり']},
@@ -581,13 +553,8 @@ def test_search_api_mixed_results_no_profile():
         assert data['actress_profile'] is None  # 未通過 consistency check
 
 
-def test_search_api_few_results_no_profile():
+def test_search_api_few_results_no_profile(client):
     """測試結果 < 3 筆（不觸發）"""
-    from fastapi.testclient import TestClient
-    from web.app import app
-
-    client = TestClient(app)
-
     def mock_smart_search(q, **kwargs):
         return [
             {'number': 'SONE-205', 'actors': ['桜空もも']},
@@ -602,13 +569,8 @@ def test_search_api_few_results_no_profile():
         assert data['actress_profile'] is None  # < 3 筆不觸發
 
 
-def test_search_api_graceful_failure(mock_search_actress):
+def test_search_api_graceful_failure(client, mock_search_actress):
     """測試雙來源失敗時不影響搜尋結果"""
-    from fastapi.testclient import TestClient
-    from web.app import app
-
-    client = TestClient(app)
-
     # Mock 雙來源都失敗
     with patch('web.routers.search.search_actress', side_effect=mock_search_actress), \
          patch('core.actress_scraper.get_actress_profile', return_value=None):
@@ -623,13 +585,8 @@ def test_search_api_graceful_failure(mock_search_actress):
         assert data['data'][0]['number'] == 'SONE-205'
 
 
-def test_search_api_variant_id_no_profile():
+def test_search_api_variant_id_no_profile(client):
     """測試 variant_id 路徑有 actress_profile 欄位"""
-    from fastapi.testclient import TestClient
-    from web.app import app
-
-    client = TestClient(app)
-
     def mock_search_variant(variant_id, q):
         return {'number': 'SONE-205', 'actors': ['桜空もも']}
 
@@ -641,13 +598,8 @@ def test_search_api_variant_id_no_profile():
         assert data['actress_profile'] is None  # variant_id 路徑不觸發
 
 
-def test_sse_includes_actress_profile(mock_search_actress, mock_actress_profile):
+def test_sse_includes_actress_profile(client, mock_search_actress, mock_actress_profile):
     """SSE result event 應包含 actress_profile"""
-    from fastapi.testclient import TestClient
-    from web.app import app
-
-    client = TestClient(app)
-
     with patch('web.routers.search.smart_search', side_effect=mock_search_actress), \
          patch('core.actress_scraper.get_actress_profile', side_effect=mock_actress_profile):
 
@@ -933,8 +885,6 @@ def test_get_actress_profile_gfriends_wins():
     """gfriends 圖片優先級最高：img 應為 gfriends URL，而非 graphis/javbus"""
     from core.actress_scraper import get_actress_profile, _cache
 
-    _cache.clear()
-
     gfriends_url = 'https://cdn.jsdelivr.net/gh/gfriends/gfriends@master/Content/7-S1/桜空もも.jpg'
 
     with patch('core.graphis_scraper.scrape_graphis_photo', return_value=_make_graphis_result()), \
@@ -954,8 +904,6 @@ def test_get_actress_profile_graphis_text_wins():
     """graphis 文字欄位優先於 javbus（age/height/cup）"""
     from core.actress_scraper import get_actress_profile, _cache
 
-    _cache.clear()
-
     with patch('core.graphis_scraper.scrape_graphis_photo', return_value=_make_graphis_result(age=28, height='160cm', cup='G')), \
          patch('core.actress_scraper.scrape_actress_profile', return_value=_make_javbus_result(age=27, height='155cm', cup='F')), \
          patch('core.gfriends_lookup.lookup_gfriends', return_value=None):
@@ -973,8 +921,6 @@ def test_get_actress_profile_name_en():
     """graphis name_en 正確傳遞到最終結果"""
     from core.actress_scraper import get_actress_profile, _cache
 
-    _cache.clear()
-
     with patch('core.graphis_scraper.scrape_graphis_photo', return_value=_make_graphis_result(name_en='Momo Sakurazora')), \
          patch('core.actress_scraper.scrape_actress_profile', return_value=_make_javbus_result()), \
          patch('core.gfriends_lookup.lookup_gfriends', return_value=None):
@@ -988,8 +934,6 @@ def test_get_actress_profile_name_en():
 def test_get_actress_profile_birth_javbus_only():
     """birth/hometown 只來自 javbus，不被 graphis 覆蓋"""
     from core.actress_scraper import get_actress_profile, _cache
-
-    _cache.clear()
 
     javbus_birth = '1996-12-03'
     javbus_hometown = '東京都'
@@ -1014,7 +958,6 @@ def test_get_actress_profile_birth_javbus_only():
 def test_get_actress_profile_gfriends_only():
     """gfriends 有圖但 javbus/graphis 都沒資料 → 仍回傳 minimal profile"""
     from core.actress_scraper import get_actress_profile, _cache
-    _cache.clear()
 
     gfriends_url = 'https://cdn.jsdelivr.net/gh/gfriends/gfriends@master/Content/7-S1/桜空もも.jpg'
 
@@ -1033,13 +976,8 @@ def test_get_actress_profile_gfriends_only():
 # Router makers 傳遞測試
 # ============================================================================
 
-def test_search_api_passes_makers_to_profile():
+def test_search_api_passes_makers_to_profile(client):
     """REST /api/search 路徑：_extract_top_makers 的結果應傳給 get_actress_profile"""
-    from fastapi.testclient import TestClient
-    from web.app import app
-
-    client = TestClient(app)
-
     def mock_smart_search(q, **kwargs):
         return [
             {'number': 'SONE-205', 'actors': ['桜空もも']},
@@ -1072,13 +1010,8 @@ def test_search_api_passes_makers_to_profile():
         assert 'S1' in makers_arg
 
 
-def test_sse_passes_makers_to_profile():
+def test_sse_passes_makers_to_profile(client):
     """SSE /api/search/stream 路徑：_extract_top_makers 的結果應傳給 get_actress_profile"""
-    from fastapi.testclient import TestClient
-    from web.app import app
-
-    client = TestClient(app)
-
     def mock_smart_search(q, **kwargs):
         return [
             {'number': 'SONE-205', 'actors': ['桜空もも']},

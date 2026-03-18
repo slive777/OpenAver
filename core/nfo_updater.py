@@ -339,10 +339,11 @@ def update_videos_generator(
         try:
             metadata = search_jav(num)
         except Exception as e:
+            logger.exception("搜尋 JAV 資料失敗: %s", num)
             yield {
                 'type': 'log',
                 'level': 'error',
-                'message': f'[{i}] {num}: 搜尋錯誤 - {e}'
+                'message': f'[{i}] {num}: 搜尋發生錯誤'
             }
             stats['failed'] += 1
             continue
@@ -375,10 +376,11 @@ def update_videos_generator(
                 }
                 stats['skipped'] += 1
         except Exception as e:
+            logger.exception("更新 NFO 失敗: %s", num)
             yield {
                 'type': 'log',
                 'level': 'error',
-                'message': f'[{i}] {num}: 更新失敗 - {e}'
+                'message': f'[{i}] {num}: 更新 NFO 發生錯誤'
             }
             stats['failed'] += 1
 
@@ -489,11 +491,12 @@ def apply_actress_aliases_generator(
                             'message': f'  NFO 更新: {video.number or video.path}'
                         }
                 except Exception as e:
+                    logger.exception("替換 NFO 女優名稱失敗: %s", video.number or video.path)
                     stats['failed'] += 1
                     yield {
                         'type': 'log',
                         'level': 'error',
-                        'message': f'  NFO 錯誤: {video.number or video.path} - {e}'
+                        'message': f'  NFO 更新發生錯誤: {video.number or video.path}'
                     }
 
             # 更新 SQLite
@@ -502,11 +505,12 @@ def apply_actress_aliases_generator(
                     stats['db_updated'] += 1
                     alias_applied += 1
             except Exception as e:
+                logger.exception("更新 DB 女優名稱失敗: %s", video.number or video.path)
                 stats['failed'] += 1
                 yield {
                     'type': 'log',
                     'level': 'error',
-                    'message': f'  DB 錯誤: {video.number or video.path} - {e}'
+                    'message': f'  DB 更新發生錯誤: {video.number or video.path}'
                 }
 
         # 更新 applied_count

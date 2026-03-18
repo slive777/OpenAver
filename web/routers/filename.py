@@ -1,5 +1,8 @@
 """
 檔名解析 API 路由
+
+端點：
+- POST /api/parse-filename  — 批次解析檔名，提取番號與字幕標記
 """
 
 from fastapi import APIRouter

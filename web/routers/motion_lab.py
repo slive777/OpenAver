@@ -3,15 +3,10 @@ Motion Lab router — 動畫沙盒頁
 與 /design-system 相同，直接公開（開源專案不需 debug guard）
 """
 
-import sys
-from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-
-# 加入 core 模組路徑
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.database import VideoRepository, get_db_path, init_db
 from core.path_utils import uri_to_fs_path

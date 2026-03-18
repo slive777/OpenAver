@@ -95,10 +95,7 @@ def get_logger(name: str) -> logging.Logger:
         Logger 實例
     """
     # 使用 OpenAver 作為 parent logger
-    if name.startswith('core.') or name.startswith('web.'):
-        logger_name = f"OpenAver.{name}"
-    else:
-        logger_name = f"OpenAver.{name}"
+    logger_name = f"OpenAver.{name}"
 
     return logging.getLogger(logger_name)
 

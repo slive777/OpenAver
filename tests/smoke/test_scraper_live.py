@@ -55,6 +55,12 @@ class TestOldAPIConnectivity:
             pytest.skip("所有爬蟲來源無法連線（可能被網站封鎖或網路問題）")
 
         assert result.get('number'), "無番號返回"
+        assert result.get('title') not in (None, ""), \
+            f"標題為空或 None，實際值: {result.get('title')!r}"
+        # search_jav 透過 to_legacy_dict() 回傳，女優欄位名稱為 'actors'（字串列表）
+        actors = result.get('actors', [])
+        assert isinstance(actors, list), \
+            f"'actors' 欄位應為 list，實際型別: {type(actors).__name__}"
 
 
 # ========== 新爬蟲模組連通測試 ==========

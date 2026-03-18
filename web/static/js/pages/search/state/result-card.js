@@ -223,6 +223,24 @@ window.SearchStateMixin_ResultCard = {
         }
     },
 
+    // ===== T18c: Source Link =====
+
+    openSourceUrl(url) {
+        if (!url || typeof url !== 'string') return;
+        if (!url.startsWith('http://') && !url.startsWith('https://')) return;
+        if (window.pywebview?.api?.open_url) {
+            window.pywebview.api.open_url(url).then(ok => {
+                if (ok) {
+                    this.showToast('已開啟瀏覽器', 'success');
+                } else {
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                }
+            }).catch(() => window.open(url, '_blank', 'noopener,noreferrer'));
+        } else {
+            window.open(url, '_blank', 'noopener,noreferrer');
+        }
+    },
+
     // ===== T6b: Toast =====
 
     showToast(message, type = 'success', duration = 2500) {

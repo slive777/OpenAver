@@ -1,4 +1,10 @@
-"""SQLite 資料庫管理模組"""
+"""
+SQLite 資料庫管理模組。
+
+啟用 WAL mode 提升並發讀寫效能。VideoRepository 負責影片記錄的 CRUD，
+ActressAliasRepository 負責演員別名的維護。`init_db` 在每次啟動時自動執行
+schema migration，無需手動管理資料庫版本。
+"""
 import sqlite3
 import json
 from dataclasses import dataclass, field, asdict

@@ -5,14 +5,14 @@ Gemini API 路由 - 提供測試和模型查詢功能
 - POST /api/gemini/test - 測試 API Key 並獲取可用模型
 """
 
-import logging
+from core.logger import get_logger
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import httpx
 from typing import List
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/gemini", tags=["gemini"])
 

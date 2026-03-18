@@ -172,6 +172,26 @@ class TestGalleryView:
         assert response.status_code == 200
         assert 'text/html' in response.headers.get('content-type', '')
 
+    def test_view_list_exception_no_leak(self, client, mocker, tmp_path):
+        """open() 拋出 Exception 時：500 且 body 不含原始 exception 訊息"""
+        # 建立 HTML 檔案以通過 glob 查找
+        html_file = tmp_path / "gallery_output.html"
+        html_file.write_text('<html><body>Test</body></html>', encoding='utf-8')
+
+        mocker.patch('web.routers.scanner.load_config', return_value={
+            'gallery': {'output_dir': str(tmp_path)}
+        })
+
+        # Mock open 拋出含敏感路徑的 exception
+        mocker.patch('builtins.open', side_effect=Exception("secret internal path /home/user/data"))
+
+        response = client.get('/api/gallery/view')
+
+        assert response.status_code == 500
+        assert "secret internal path" not in response.text
+        assert "/home/user" not in response.text
+        assert "載入失敗" in response.text
+
 
 # ============ Check Update 測試 ============
 
