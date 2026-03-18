@@ -141,3 +141,37 @@ def test_open_url_none(api_module, api_instance, monkeypatch):
     result = api_instance.open_url(None)
     assert result is False
     mock_startfile.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Case 8: macOS subprocess returns non-zero → False
+# ---------------------------------------------------------------------------
+def test_open_url_macos_nonzero_returncode(api_module, api_instance, monkeypatch):
+    """macOS で open コマンドが非ゼロ終了した場合 False を返す"""
+    monkeypatch.setattr(sys, 'platform', 'darwin')
+
+    mock_result = MagicMock()
+    mock_result.returncode = 1
+    mock_run = MagicMock(return_value=mock_result)
+    monkeypatch.setattr(api_module.subprocess, 'run', mock_run)
+
+    result = api_instance.open_url("https://example.com")
+    assert result is False
+    mock_run.assert_called_once_with(['open', 'https://example.com'])
+
+
+# ---------------------------------------------------------------------------
+# Case 9: Linux subprocess returns zero → True
+# ---------------------------------------------------------------------------
+def test_open_url_linux_success(api_module, api_instance, monkeypatch):
+    """Linux で xdg-open が正常終了した場合 True を返す"""
+    monkeypatch.setattr(sys, 'platform', 'linux')
+
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_run = MagicMock(return_value=mock_result)
+    monkeypatch.setattr(api_module.subprocess, 'run', mock_run)
+
+    result = api_instance.open_url("https://example.com")
+    assert result is True
+    mock_run.assert_called_once_with(['xdg-open', 'https://example.com'])

@@ -146,11 +146,13 @@ class Api:
         try:
             if sys.platform == 'win32':
                 os.startfile(url)
+                return True
             elif sys.platform == 'darwin':
-                subprocess.run(['open', url])
+                result = subprocess.run(['open', url])
+                return result.returncode == 0
             else:
-                subprocess.run(['xdg-open', url])
-            return True
+                result = subprocess.run(['xdg-open', url])
+                return result.returncode == 0
         except Exception:
             return False
 

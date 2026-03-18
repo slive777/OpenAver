@@ -44,8 +44,8 @@
                     <i class="bi bi-image text-5xl"></i>
                     <p class="mt-2">No Image</p>
                 </div>
-                <!-- cover-actions: 封面圖正常時才顯示，避免按鈕浮在錯誤佔位符上 -->
-                <div class="cover-actions" x-show="!_heroLightboxImageError">
+                <!-- cover-actions: 封面失敗時按鈕仍可用（返回詳情、開啟資料夾等不依賴圖片） -->
+                <div class="cover-actions">
                     <button class="lb-action-btn"
                             @click="actressLightboxMode() ? closeLightbox() : switchToDetail(lightboxIndex)"
                             data-tooltip="返回詳情" aria-label="返回詳情">
