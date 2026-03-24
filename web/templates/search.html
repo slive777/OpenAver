@@ -99,6 +99,47 @@
         </button>
     </div>
 
+    <!-- T7: Sample Lightbox（純圖模式，獨立 overlay） -->
+    <div class="sample-lightbox"
+         :class="{ 'show': sampleLightboxOpen }"
+         @click.self="closeSampleLightbox()">
+
+        <!-- Close Button -->
+        <button class="lightbox-close"
+                @click="closeSampleLightbox()"
+                title="關閉 (ESC)">
+            <i class="bi bi-x-lg"></i>
+        </button>
+
+        <!-- Sample Image（純圖，無 metadata） -->
+        <div class="sample-lightbox-img-wrap">
+            <img :src="sampleLightboxOpen && (current().sample_images || [])[sampleLightboxIndex]
+                       ? `/api/proxy-image?url=${encodeURIComponent((current().sample_images || [])[sampleLightboxIndex])}`
+                       : ''"
+                 :alt="'樣品圖 ' + (sampleLightboxIndex + 1)"
+                 class="sample-lightbox-img">
+        </div>
+
+        <!-- [n/total] 計數器 -->
+        <div class="sample-lightbox-counter"
+             x-text="(sampleLightboxIndex + 1) + ' / ' + (current().sample_images || []).length">
+        </div>
+
+        <!-- 左右導航 -->
+        <button class="lightbox-nav lightbox-nav-prev"
+                @click.stop="prevSample()"
+                x-show="sampleLightboxIndex > 0"
+                title="上一張 (←)">
+            <i class="bi bi-chevron-left"></i>
+        </button>
+        <button class="lightbox-nav lightbox-nav-next"
+                @click.stop="nextSample()"
+                x-show="sampleLightboxIndex < (current().sample_images || []).length - 1"
+                title="下一張 (→)">
+            <i class="bi bi-chevron-right"></i>
+        </button>
+    </div>
+
     <!-- 搜尋框 -->
     <div class="search-bar">
         <form id="searchForm" @submit.prevent="doSearch()">
@@ -256,6 +297,21 @@
                         <div class="nav-indicator" id="navIndicator"
                              x-show="showNavigation()"
                              x-text="navIndicatorText()">1/1</div>
+                    </div>
+                    <!-- T7: Sample Images 縮圖列 -->
+                    <div class="sample-strip"
+                         x-show="displayMode === 'detail' && (current().sample_images || []).length > 0"
+                         x-cloak>
+                        <template x-for="(url, idx) in (current().sample_images || [])" :key="url">
+                            <button class="sample-thumb-btn"
+                                    @click="openSampleLightbox(idx)"
+                                    :title="'樣品圖 ' + (idx + 1)">
+                                <img :src="`/api/proxy-image?url=${encodeURIComponent(url)}`"
+                                     :alt="'樣品圖 ' + (idx + 1)"
+                                     loading="lazy"
+                                     class="sample-thumb-img">
+                            </button>
+                        </template>
                     </div>
                 </div>
                 <div class="av-card-full-info">
