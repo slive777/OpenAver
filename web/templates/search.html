@@ -287,6 +287,22 @@
                         <span class="info-label">片商</span>
                         <span class="info-value" id="resultMaker" x-text="current().maker || '-'">-</span>
                     </div>
+                    <div class="info-row" x-show="current().director">
+                        <span class="info-label">導演</span>
+                        <span class="info-value" x-text="current().director">-</span>
+                    </div>
+                    <div class="info-row" x-show="current().duration">
+                        <span class="info-label">片長</span>
+                        <span class="info-value" x-text="current().duration + ' 分鐘'">-</span>
+                    </div>
+                    <div class="info-row" x-show="current().label">
+                        <span class="info-label">發行商</span>
+                        <span class="info-value" x-text="current().label">-</span>
+                    </div>
+                    <div class="info-row" x-show="current().series">
+                        <span class="info-label">系列</span>
+                        <span class="info-value" x-text="current().series">-</span>
+                    </div>
                     <div class="info-row">
                         <span class="info-label">標籤</span>
                         <span class="info-value" id="resultTags">
