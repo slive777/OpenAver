@@ -231,9 +231,12 @@ class JavBusScraper(BaseScraper):
                     if a.get_text(strip=True)
                 ]
 
-            # Actresses
+            # Actresses — 同 tags，fallback 到下一個 <p>
             if labels["actresses"] in text:
                 actress_links = p.find_all("a")
+                if not actress_links and i + 1 < len(paragraphs):
+                    actress_links = paragraphs[i + 1].find_all("a")
+                    i += 1
                 result["actresses"] = [
                     a.get_text(strip=True) for a in actress_links
                     if a.get_text(strip=True)

@@ -659,3 +659,113 @@ class TestSearchByKeyword:
                 results = scraper_zh.search_by_keyword("SNOS")
         # BAD-001 跳過，SNOS-092 成功
         assert len(results) == 1
+
+
+# ============================================================
+# BC-24: 真實 JavBus HTML 結構 — 演員 <a> 在 next-<p>，中間夾 <ul>
+# ============================================================
+
+REAL_ACTRESS_STRUCTURE_HTML = '''
+<html><body>
+<h3>WAAA-506 嫁の連れ子...</h3>
+<a class="bigImage" href="https://pics.javbus.com/cover/waaa506pl.jpg">
+  <img title="WAAA-506..." src="thumb.jpg">
+</a>
+<div class="col-md-3 info">
+  <p><span class="header">識別碼:</span> <a>WAAA-506</a></p>
+  <p><span class="header">發行日期:</span> 2025-03-28</p>
+  <p><span class="header">長度:</span> 156分鐘</p>
+  <p><span class="header">製作商:</span> <a href="/studio/2p">ワンズファクトリー</a></p>
+  <p><span class="header">發行商:</span> <a href="/label/2r">WANZ</a></p>
+  <p><span class="header">類別:</span></p>
+  <p>
+    <a href="/genre/4o">高畫質</a>
+    <a href="/genre/f">單體作品</a>
+    <a href="/genre/4">中出</a>
+  </p>
+  <p><span class="header">演員:</span></p>
+  <ul><li>some list item</li></ul>
+  <p>
+    <a href="/star/11xv">小坂七香</a>
+  </p>
+</div>
+</body></html>
+'''
+
+REAL_MULTI_ACTRESS_HTML = '''
+<html><body>
+<h3>TEST-001 多女優測試</h3>
+<a class="bigImage" href="https://pics.javbus.com/cover/test001pl.jpg">
+  <img title="TEST-001" src="thumb.jpg">
+</a>
+<div class="col-md-3 info">
+  <p><span class="header">識別碼:</span> <a>TEST-001</a></p>
+  <p><span class="header">發行日期:</span> 2025-01-01</p>
+  <p><span class="header">製作商:</span> <a href="/studio/x">TestStudio</a></p>
+  <p><span class="header">發行商:</span> <a href="/label/y">TestLabel</a></p>
+  <p><span class="header">類別:</span></p>
+  <p>
+    <a href="/genre/1">Tag1</a>
+  </p>
+  <p><span class="header">演員:</span></p>
+  <ul><li>expand</li></ul>
+  <p>
+    <a href="/star/aaa">渚あいり</a>
+    <a href="/star/bbb">橋本ありな</a>
+    <a href="/star/ccc">三上悠亜</a>
+  </p>
+</div>
+</body></html>
+'''
+
+
+class TestRealActressStructure:
+    """BC-24: 真實 JavBus HTML 結構 — 演員 <a> 在 next-<p>，中間夾 <ul>"""
+
+    def test_single_actress_next_p_with_ul(self):
+        """真實結構：演員標籤 <p> + <ul> + 演員連結 <p>"""
+        from core.scrapers.javbus import JavBusScraper
+        with patch("core.scrapers.javbus.rate_limit"):
+            scraper = JavBusScraper()
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.text = REAL_ACTRESS_STRUCTURE_HTML
+            scraper._session.get = MagicMock(return_value=mock_resp)
+
+            video = scraper.search('WAAA-506')
+            assert video is not None
+            assert len(video.actresses) == 1
+            assert video.actresses[0].name == '小坂七香'
+
+    def test_multi_actress_next_p_with_ul(self):
+        """真實結構多女優：3 個 <a> 在 next-<p>"""
+        from core.scrapers.javbus import JavBusScraper
+        with patch("core.scrapers.javbus.rate_limit"):
+            scraper = JavBusScraper()
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.text = REAL_MULTI_ACTRESS_HTML
+            scraper._session.get = MagicMock(return_value=mock_resp)
+
+            video = scraper.search('TEST-001')
+            assert video is not None
+            assert len(video.actresses) == 3
+            names = [a.name for a in video.actresses]
+            assert '渚あいり' in names
+            assert '橋本ありな' in names
+            assert '三上悠亜' in names
+
+    def test_same_p_actress_still_works(self):
+        """確認 same-<p> 路徑不被破壞（用現有 ZH_TW_HTML）"""
+        from core.scrapers.javbus import JavBusScraper
+        with patch("core.scrapers.javbus.rate_limit"):
+            scraper = JavBusScraper()
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.text = ZH_TW_HTML
+            scraper._session.get = MagicMock(return_value=mock_resp)
+
+            video = scraper.search('SNOS-143')
+            assert video is not None
+            assert len(video.actresses) >= 1
+            assert video.actresses[0].name == '渚あいり'
