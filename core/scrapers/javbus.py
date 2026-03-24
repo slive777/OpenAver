@@ -243,15 +243,92 @@ class JavBusScraper(BaseScraper):
 
         return result
 
-    def search_by_keyword(self, keyword: str, limit: int = 20) -> list[Video]:
+    def _build_search_url(self, keyword: str, page: int = 1, search_type: int = 0) -> str:
         """
-        關鍵字搜尋（目前不支援，回傳空列表）
+        組建搜尋 URL。
+
+        URL 格式：
+          第 1 頁：/search/{keyword}
+          第 N 頁：/search/{keyword}/{N}
+          前綴搜尋：上述 URL 後加 &type=1
+        """
+        prefix = self._get_lang_prefix()
+        base = f"{self.BASE_URL}{prefix}/search/{keyword}"
+        if page > 1:
+            base += f"/{page}"
+        if search_type > 0:
+            base += f"&type={search_type}"
+        return base
+
+    def _parse_search_ids(self, soup) -> list[str]:
+        """從搜尋結果頁解析番號列表。"""
+        ids = []
+        waterfall = soup.find(id="waterfall")
+        if not waterfall:
+            return []
+        for card in waterfall.find_all("a", class_="movie-box"):
+            # 優先從 <date> 元素取番號（第一個 date 是番號，第二個是日期）
+            dates = card.find_all("date")
+            if dates:
+                number = dates[0].get_text(strip=True)
+                if number:
+                    ids.append(number)
+            else:
+                # fallback：從 href 最後一段提取
+                href = card.get("href", "")
+                if href:
+                    number = href.rstrip("/").split("/")[-1]
+                    if number:
+                        ids.append(number)
+        return ids
+
+    def get_ids_from_search(self, keyword: str, page: int = 1, search_type: int = 0) -> list[str]:
+        """
+        輕量版搜尋：只回傳番號列表，不 fetch 每筆詳情。
+
+        Args:
+            keyword: 搜尋關鍵字或前綴
+            page: 頁碼（從 1 開始）
+            search_type: 0=一般搜尋，1=前綴搜尋（&type=1）
+
+        Returns:
+            番號列表（list[str]）
+
+        Raises:
+            TimeoutError: 請求超時
+        """
+        url = self._build_search_url(keyword, page, search_type)
+        try:
+            resp = self._session.get(url, timeout=self.config.timeout)
+        except requests.Timeout:
+            raise TimeoutError(f"Search request timed out for keyword: {keyword}")
+        if resp.status_code != 200:
+            return []
+        soup = BeautifulSoup(resp.text, "html.parser")
+        return self._parse_search_ids(soup)
+
+    def search_by_keyword(self, keyword: str, limit: int = 20, page: int = 1) -> list[Video]:
+        """
+        關鍵字搜尋，回傳 Video 列表。
+
+        先呼叫 get_ids_from_search 取番號列表，再逐一呼叫 search() 取完整詳情。
+        單筆 search 失敗（ValueError / TimeoutError）時跳過，不中斷整體。
 
         Args:
             keyword: 搜尋關鍵字
-            limit: 最大結果數（保留參數，供 Task 3 實作用）
+            limit: 最大結果數
+            page: 搜尋結果頁碼
 
         Returns:
-            空列表（優雅降級）
+            Video 列表
         """
-        return []
+        ids = self.get_ids_from_search(keyword, page=page)
+        results: list[Video] = []
+        for num_id in ids[:limit]:
+            try:
+                video = self.search(num_id)
+                if video:
+                    results.append(video)
+            except (ValueError, TimeoutError):
+                continue
+        return results

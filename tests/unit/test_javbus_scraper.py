@@ -495,24 +495,167 @@ class TestBC13UnknownLang:
 
 
 # ============================================================
-# search_by_keyword: 永遠回傳空 list
-# ============================================================
-
-class TestSearchByKeyword:
-    def test_search_by_keyword_returns_empty_list(self, scraper_zh):
-        result = scraper_zh.search_by_keyword("渚あいり")
-        assert result == []
-
-    def test_search_by_keyword_with_limit(self, scraper_zh):
-        result = scraper_zh.search_by_keyword("test", limit=10)
-        assert isinstance(result, list)
-        assert len(result) == 0
-
-
-# ============================================================
 # source name
 # ============================================================
 
 class TestSourceName:
     def test_source_name(self, scraper_zh):
         assert scraper_zh.source_name == "javbus"
+
+
+# ============================================================
+# Search HTML Fixtures (T3)
+# ============================================================
+
+SEARCH_RESULTS_HTML = '''
+<html><body>
+<div id="waterfall" class="masonry">
+  <div class="item masonry-brick">
+    <a class="movie-box" href="https://www.javbus.com/SNOS-143">
+      <div class="photo-frame"><img src="/pics/thumb/xxx.jpg" title="Title 1"></div>
+      <div class="photo-info">
+        <span>Title 1<br>
+          <date>SNOS-143</date> / <date>2026-03-19</date>
+        </span>
+      </div>
+    </a>
+  </div>
+  <div class="item masonry-brick">
+    <a class="movie-box" href="https://www.javbus.com/SNOS-092">
+      <div class="photo-frame"><img src="/pics/thumb/yyy.jpg" title="Title 2"></div>
+      <div class="photo-info">
+        <span>Title 2<br>
+          <date>SNOS-092</date> / <date>2026-02-19</date>
+        </span>
+      </div>
+    </a>
+  </div>
+  <div class="item masonry-brick">
+    <a class="movie-box" href="https://www.javbus.com/SNOS-067">
+      <div class="photo-frame"><img src="/pics/thumb/zzz.jpg" title="Title 3"></div>
+      <div class="photo-info">
+        <span>Title 3<br>
+          <date>SNOS-067</date> / <date>2026-01-22</date>
+        </span>
+      </div>
+    </a>
+  </div>
+</div>
+</body></html>
+'''
+
+EMPTY_SEARCH_HTML = '''
+<html><body>
+<div class="alert alert-danger">沒有找到任何結果</div>
+</body></html>
+'''
+
+
+# ============================================================
+# BC-14~BC-19: get_ids_from_search
+# ============================================================
+
+class TestGetIdsFromSearch:
+    """BC-14~BC-19: get_ids_from_search 各場景"""
+
+    def test_parse_ids_from_search_results(self, scraper_zh):
+        """BC-14: 正常搜尋回傳番號列表"""
+        scraper_zh._session.get = MagicMock(
+            return_value=make_response(SEARCH_RESULTS_HTML)
+        )
+        ids = scraper_zh.get_ids_from_search("SNOS")
+        assert ids == ["SNOS-143", "SNOS-092", "SNOS-067"]
+
+    def test_empty_search_results(self, scraper_zh):
+        """BC-15: 空結果頁回傳空 list"""
+        scraper_zh._session.get = MagicMock(
+            return_value=make_response(EMPTY_SEARCH_HTML)
+        )
+        ids = scraper_zh.get_ids_from_search("NOMATCH")
+        assert ids == []
+
+    def test_http_404_returns_empty(self, scraper_zh):
+        """BC-16: HTTP 404 回傳空 list"""
+        scraper_zh._session.get = MagicMock(
+            return_value=make_response("", status_code=404)
+        )
+        ids = scraper_zh.get_ids_from_search("SNOS")
+        assert ids == []
+
+    def test_timeout_raises(self, scraper_zh):
+        """BC-17: Timeout 拋出 TimeoutError"""
+        scraper_zh._session.get = MagicMock(side_effect=requests.Timeout())
+        with pytest.raises(TimeoutError):
+            scraper_zh.get_ids_from_search("SNOS")
+
+    def test_search_type_1_url(self, scraper_zh):
+        """BC-18: search_type=1 URL 包含 &type=1"""
+        url = scraper_zh._build_search_url("SONE", page=1, search_type=1)
+        assert "&type=1" in url
+        assert "/search/SONE" in url
+        # page=1 不應出現 /1
+        assert "/1" not in url.split("/search/SONE")[1].split("&")[0]
+
+    def test_page_2_url(self, scraper_zh):
+        """BC-19a: page=2 URL 包含 /2"""
+        url = scraper_zh._build_search_url("SONE", page=2, search_type=0)
+        assert "/search/SONE/2" in url
+        assert "&type=" not in url
+
+    def test_page_2_type_1_url(self, scraper_zh):
+        """BC-19b: page=2 + type=1 URL 正確（番號/2&type=1）"""
+        url = scraper_zh._build_search_url("SONE", page=2, search_type=1)
+        assert "/search/SONE/2&type=1" in url
+
+
+# ============================================================
+# BC-20~BC-23: search_by_keyword
+# ============================================================
+
+class TestSearchByKeyword:
+    """BC-20~BC-23: search_by_keyword 各場景"""
+
+    def test_returns_video_list(self, scraper_zh):
+        """BC-20: search_by_keyword 回傳 Video 列表"""
+        from core.scrapers.models import Video
+        mock_video = MagicMock(spec=Video)
+
+        with patch.object(scraper_zh, "get_ids_from_search", return_value=["SNOS-143", "SNOS-092"]):
+            with patch.object(scraper_zh, "search", return_value=mock_video):
+                results = scraper_zh.search_by_keyword("SNOS")
+        assert len(results) == 2
+
+    def test_limit_truncates(self, scraper_zh):
+        """BC-21: limit 截斷結果"""
+        from core.scrapers.models import Video
+        mock_video = MagicMock(spec=Video)
+
+        with patch.object(scraper_zh, "get_ids_from_search", return_value=["SNOS-143", "SNOS-092", "SNOS-067"]):
+            with patch.object(scraper_zh, "search", return_value=mock_video):
+                results = scraper_zh.search_by_keyword("SNOS", limit=2)
+        assert len(results) == 2
+
+    def test_empty_ids_returns_empty(self, scraper_zh):
+        """BC-22: 無 ID 回傳空 list"""
+        with patch.object(scraper_zh, "get_ids_from_search", return_value=[]):
+            results = scraper_zh.search_by_keyword("NOMATCH")
+        assert results == []
+
+    def test_search_failure_skipped(self, scraper_zh):
+        """BC-23: 單筆 search 失敗（ValueError/TimeoutError）不影響其他"""
+        from core.scrapers.models import Video
+        mock_video = MagicMock(spec=Video)
+
+        call_count = 0
+        def mock_search(num_id):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise ValueError("bad number")
+            return mock_video
+
+        with patch.object(scraper_zh, "get_ids_from_search", return_value=["BAD-001", "SNOS-092"]):
+            with patch.object(scraper_zh, "search", side_effect=mock_search):
+                results = scraper_zh.search_by_keyword("SNOS")
+        # BAD-001 跳過，SNOS-092 成功
+        assert len(results) == 1
