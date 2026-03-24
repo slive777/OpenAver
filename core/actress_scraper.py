@@ -1,6 +1,7 @@
 """
 女優爬蟲 - 從 JavBus 抓取女優個人檔案
-使用 jvav 套件進行搜尋，再手動帶 cookie 解析詳情頁
+若 jvav 套件可用則透過其 check_star_exists() 取得 star_id；不可用時回傳 None。
+（jvav 非必要依賴；Phase 35 的主 JavBus scraper 已改用 requests + BeautifulSoup）
 """
 
 import re
