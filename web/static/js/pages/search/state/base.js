@@ -119,6 +119,7 @@ window.SearchStateMixin_Base = function () {
         // ===== T7: Sample Lightbox State =====
         sampleLightboxOpen: false,   // Sample Lightbox 顯示狀態
         sampleLightboxIndex: 0,      // 當前顯示的 sample 索引（0-based）
+        _sampleTouchStartX: null,    // T7-fix: touch swipe 起始 X 座標
 
         // ===== T2a: Display Mode State =====
         displayMode: 'detail',     // 'detail' | 'grid'

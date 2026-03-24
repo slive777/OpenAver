@@ -102,7 +102,9 @@
     <!-- T7: Sample Lightbox（純圖模式，獨立 overlay） -->
     <div class="sample-lightbox"
          :class="{ 'show': sampleLightboxOpen }"
-         @click.self="closeSampleLightbox()">
+         @click.self="closeSampleLightbox()"
+         @touchstart="_sampleTouchStart($event)"
+         @touchend="_sampleTouchEnd($event)">
 
         <!-- Close Button -->
         <button class="lightbox-close"

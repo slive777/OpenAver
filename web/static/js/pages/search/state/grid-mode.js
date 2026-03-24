@@ -394,5 +394,29 @@ window.SearchStateMixin_GridMode = {
         if (this.sampleLightboxIndex < images.length - 1) {
             this.sampleLightboxIndex++;
         }
+    },
+
+    // ===== T7-fix: Sample Lightbox touch swipe =====
+
+    /**
+     * touchstart — 記錄起始 X 座標
+     */
+    _sampleTouchStart(event) {
+        this._sampleTouchStartX = event.touches[0].clientX;
+    },
+
+    /**
+     * touchend — 計算滑動方向，最小 50px 防誤觸
+     */
+    _sampleTouchEnd(event) {
+        if (this._sampleTouchStartX === null || this._sampleTouchStartX === undefined) return;
+        const dx = event.changedTouches[0].clientX - this._sampleTouchStartX;
+        this._sampleTouchStartX = null;
+        if (Math.abs(dx) < 50) return;
+        if (dx > 0) {
+            this.prevSample();
+        } else {
+            this.nextSample();
+        }
     }
 };
