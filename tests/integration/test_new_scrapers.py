@@ -399,6 +399,219 @@ class TestDMMScraper:
 
 
 # ============================================================
+# DMM_DETAIL_RESPONSE_FULL — 包含所有新欄位的完整 fixture
+# ============================================================
+
+DMM_DETAIL_RESPONSE_FULL = {
+    "data": {
+        "ppvContent": {
+            "id": "sone00205",
+            "title": "成人への卒業",
+            "description": "テスト",
+            "packageImage": {"largeUrl": "https://pics.dmm.co.jp/sone205pl.jpg"},
+            "makerReleasedAt": "2024-03-19T00:00:00+09:00",
+            "duration": 8966,
+            "actresses": [{"name": "Nana Miho"}],
+            "directors": [{"name": "前田文豪"}],
+            "series": {"name": "S1 系列"},
+            "maker": {"name": "S1 NO.1 STYLE"},
+            "makerContentId": "SONE-205",
+            "sampleImages": [
+                {"imageUrl": "https://a.jpg"},
+                {"imageUrl": "https://b.jpg"},
+            ],
+        }
+    }
+}
+
+
+class TestDMMScraperNewFields:
+    """DMM 爬蟲新欄位測試（director / duration / series / label / sample_images）"""
+
+    @pytest.fixture
+    def dmm_scraper(self, tmp_path, monkeypatch):
+        import core.scrapers.dmm as dmm_module
+        monkeypatch.setattr(dmm_module, "CACHE_FILE", tmp_path / "dmm_content_ids.json")
+        monkeypatch.setattr(dmm_module, "PREFIX_FILE", tmp_path / "dmm_prefix_hints.json")
+        config = ScraperConfig(proxy_url="http://test-proxy:8080")
+        return DMMScraper(config)
+
+    def _fetch(self, dmm_scraper, response_data, probe_return=([], "S1 NO.1 STYLE")):
+        """Helper：用 mock response 呼叫 search，回傳 Video"""
+        detail_resp = _make_mock_resp(status_code=200, json_data=response_data)
+        with patch.object(dmm_scraper._session, 'post', return_value=detail_resp), \
+             patch.object(dmm_scraper, '_probe_genres', return_value=probe_return), \
+             patch('core.scrapers.utils.rate_limit'):
+            return dmm_scraper.search("SONE-205")
+
+    # ------------------------------------------------------------------
+    # Happy path — all fields present
+    # ------------------------------------------------------------------
+
+    def test_all_new_fields_happy_path(self, dmm_scraper):
+        """duration / director / series / label / sample_images 全部正常"""
+        video = self._fetch(dmm_scraper, DMM_DETAIL_RESPONSE_FULL)
+
+        assert video is not None
+        # duration: 8966 // 60 == 149
+        assert video.duration == 149
+        # director
+        assert video.director == "前田文豪"
+        # series
+        assert video.series == "S1 系列"
+        # label from probe
+        assert video.label == "S1 NO.1 STYLE"
+        # sample_images
+        assert video.sample_images == ["https://a.jpg", "https://b.jpg"]
+
+    # ------------------------------------------------------------------
+    # duration edge cases
+    # ------------------------------------------------------------------
+
+    def test_duration_null(self, dmm_scraper):
+        """duration=null → Video.duration is None"""
+        data = {
+            "data": {
+                "ppvContent": {
+                    **DMM_DETAIL_RESPONSE_FULL["data"]["ppvContent"],
+                    "duration": None,
+                }
+            }
+        }
+        video = self._fetch(dmm_scraper, data)
+        assert video is not None
+        assert video.duration is None
+
+    def test_duration_zero(self, dmm_scraper):
+        """duration=0 → Video.duration == 0"""
+        data = {
+            "data": {
+                "ppvContent": {
+                    **DMM_DETAIL_RESPONSE_FULL["data"]["ppvContent"],
+                    "duration": 0,
+                }
+            }
+        }
+        video = self._fetch(dmm_scraper, data)
+        assert video is not None
+        assert video.duration == 0
+
+    # ------------------------------------------------------------------
+    # director edge cases
+    # ------------------------------------------------------------------
+
+    def test_directors_empty_list(self, dmm_scraper):
+        """directors=[] → Video.director == ''"""
+        data = {
+            "data": {
+                "ppvContent": {
+                    **DMM_DETAIL_RESPONSE_FULL["data"]["ppvContent"],
+                    "directors": [],
+                }
+            }
+        }
+        video = self._fetch(dmm_scraper, data)
+        assert video is not None
+        assert video.director == ""
+
+    def test_directors_null(self, dmm_scraper):
+        """directors=null → Video.director == ''"""
+        data = {
+            "data": {
+                "ppvContent": {
+                    **DMM_DETAIL_RESPONSE_FULL["data"]["ppvContent"],
+                    "directors": None,
+                }
+            }
+        }
+        video = self._fetch(dmm_scraper, data)
+        assert video is not None
+        assert video.director == ""
+
+    # ------------------------------------------------------------------
+    # series edge cases
+    # ------------------------------------------------------------------
+
+    def test_series_null(self, dmm_scraper):
+        """series=null → Video.series == ''"""
+        data = {
+            "data": {
+                "ppvContent": {
+                    **DMM_DETAIL_RESPONSE_FULL["data"]["ppvContent"],
+                    "series": None,
+                }
+            }
+        }
+        video = self._fetch(dmm_scraper, data)
+        assert video is not None
+        assert video.series == ""
+
+    # ------------------------------------------------------------------
+    # label edge cases (from _probe_genres return value)
+    # ------------------------------------------------------------------
+
+    def test_label_from_probe(self, dmm_scraper):
+        """probe 回傳 label → Video.label 正確設定"""
+        video = self._fetch(dmm_scraper, DMM_DETAIL_RESPONSE_FULL,
+                            probe_return=([], "S1 NO.1 STYLE"))
+        assert video is not None
+        assert video.label == "S1 NO.1 STYLE"
+
+    def test_label_probe_empty(self, dmm_scraper):
+        """probe 回傳 '' → Video.label == ''"""
+        video = self._fetch(dmm_scraper, DMM_DETAIL_RESPONSE_FULL,
+                            probe_return=([], ""))
+        assert video is not None
+        assert video.label == ""
+
+    # ------------------------------------------------------------------
+    # sample_images edge cases
+    # ------------------------------------------------------------------
+
+    def test_sample_images_null(self, dmm_scraper):
+        """sampleImages=null → video.sample_images == []"""
+        data = {
+            "data": {
+                "ppvContent": {
+                    **DMM_DETAIL_RESPONSE_FULL["data"]["ppvContent"],
+                    "sampleImages": None,
+                }
+            }
+        }
+        video = self._fetch(dmm_scraper, data)
+        assert video is not None
+        assert video.sample_images == []
+
+    def test_sample_images_empty_list(self, dmm_scraper):
+        """sampleImages=[] → video.sample_images == []"""
+        data = {
+            "data": {
+                "ppvContent": {
+                    **DMM_DETAIL_RESPONSE_FULL["data"]["ppvContent"],
+                    "sampleImages": [],
+                }
+            }
+        }
+        video = self._fetch(dmm_scraper, data)
+        assert video is not None
+        assert video.sample_images == []
+
+    def test_sample_images_missing_imageUrl_filtered(self, dmm_scraper):
+        """sampleImages=[{}] → imageUrl 缺失的項目被過濾 → sample_images == []"""
+        data = {
+            "data": {
+                "ppvContent": {
+                    **DMM_DETAIL_RESPONSE_FULL["data"]["ppvContent"],
+                    "sampleImages": [{}],
+                }
+            }
+        }
+        video = self._fetch(dmm_scraper, data)
+        assert video is not None
+        assert video.sample_images == []
+
+
+# ============================================================
 # Class 4: TestProxyAPI
 # ============================================================
 

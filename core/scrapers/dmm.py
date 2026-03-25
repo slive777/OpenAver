@@ -58,6 +58,7 @@ class DMMScraper(BaseScraper):
                 series { name }
                 maker { name }
                 makerContentId
+                sampleImages { imageUrl }
             }
         }
     """
@@ -387,9 +388,21 @@ class DMMScraper(BaseScraper):
                 release_date = release_date.split('T')[0]
 
             # T5a: GraphQL probe → T5b: HTML fallback
-            tags, _label = self._probe_genres(content_id)
+            tags, label = self._probe_genres(content_id)
             if not tags:
                 tags = self._fetch_tags_from_html(content_id)
+
+            # 新欄位提取
+            directors_list = item.get('directors') or []
+            director = directors_list[0]['name'] if directors_list else ''
+
+            raw_duration = item.get('duration')
+            duration = raw_duration // 60 if raw_duration is not None else None
+
+            series = (item.get('series') or {}).get('name', '')
+
+            raw_samples = item.get('sampleImages') or []
+            sample_images = [s['imageUrl'] for s in raw_samples if s.get('imageUrl')]
 
             video = Video(
                 number=item.get('makerContentId', ''),
@@ -401,6 +414,11 @@ class DMMScraper(BaseScraper):
                 tags=tags,
                 source=self.source_name,
                 detail_url=f"https://www.dmm.co.jp/digital/videoa/-/detail/=/cid={content_id}/",
+                director=director,
+                duration=duration,
+                label=label,
+                series=series,
+                sample_images=sample_images,
             )
 
             return video
