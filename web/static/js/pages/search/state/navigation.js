@@ -10,6 +10,9 @@ window.SearchStateMixin_Navigation = {
      * @param {number} delta - 偏移量（-1 = 上一個，1 = 下一個）
      */
     navigate(delta) {
+        // T7: nav-btn 點擊觸發 navigate 時，自動關閉 Sample Lightbox
+        if (this.sampleLightboxOpen) this.closeSampleLightbox();
+
         let newIndex = this.currentIndex + delta;
 
         // U11b: skip _failed items (C30)
@@ -135,6 +138,26 @@ window.SearchStateMixin_Navigation = {
                 this.nextLightboxVideo();
                 return;
             }
+        }
+
+        // T7: Sample Lightbox 鍵盤導航（Grid Lightbox 已排除後處理，兩者不同時為 true）
+        if (this.sampleLightboxOpen) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                this.closeSampleLightbox();
+                return;
+            }
+            if (event.key === 'ArrowLeft') {
+                event.preventDefault();
+                this.prevSample();
+                return;
+            }
+            if (event.key === 'ArrowRight') {
+                event.preventDefault();
+                this.nextSample();
+                return;
+            }
+            return;
         }
 
         // Detail 模式導航（Grid 模式不觸發）

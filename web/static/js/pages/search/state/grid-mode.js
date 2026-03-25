@@ -356,5 +356,67 @@ window.SearchStateMixin_GridMode = {
      */
     markImageError(index) {
         this._gridImageErrors = new Set([...this._gridImageErrors, index]);
+    },
+
+    // ===== T7: Sample Lightbox Methods =====
+
+    /**
+     * 開啟 Sample Lightbox
+     * @param {number} idx - 樣品圖索引（0-based）
+     */
+    openSampleLightbox(idx) {
+        this.sampleLightboxIndex = idx;
+        this.sampleLightboxOpen = true;
+    },
+
+    /**
+     * 關閉 Sample Lightbox
+     */
+    closeSampleLightbox() {
+        this.sampleLightboxOpen = false;
+        // 無狀態記憶：關閉後不保留 index（下次開啟從點擊的縮圖重新設定）
+    },
+
+    /**
+     * Sample Lightbox 上一張
+     */
+    prevSample() {
+        if (this.sampleLightboxIndex > 0) {
+            this.sampleLightboxIndex--;
+        }
+    },
+
+    /**
+     * Sample Lightbox 下一張
+     */
+    nextSample() {
+        var images = this.current().sample_images || [];
+        if (this.sampleLightboxIndex < images.length - 1) {
+            this.sampleLightboxIndex++;
+        }
+    },
+
+    // ===== T7-fix: Sample Lightbox touch swipe =====
+
+    /**
+     * touchstart — 記錄起始 X 座標
+     */
+    _sampleTouchStart(event) {
+        this._sampleTouchStartX = event.touches[0].clientX;
+    },
+
+    /**
+     * touchend — 計算滑動方向，最小 50px 防誤觸
+     */
+    _sampleTouchEnd(event) {
+        if (this._sampleTouchStartX === null || this._sampleTouchStartX === undefined) return;
+        const dx = event.changedTouches[0].clientX - this._sampleTouchStartX;
+        this._sampleTouchStartX = null;
+        if (Math.abs(dx) < 50) return;
+        if (dx > 0) {
+            this.prevSample();
+        } else {
+            this.nextSample();
+        }
     }
 };

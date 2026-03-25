@@ -8,7 +8,6 @@ python-multipart>=0.0.6
 requests>=2.31.0
 beautifulsoup4>=4.12.0
 lxml>=4.9.0
-jvav>=0.5.0
 curl_cffi>=0.6.0  # JavDB compatibility
 
 # WebSocket
@@ -24,3 +23,4 @@ pytest-mock>=3.12.0
 httpx>=0.25.0
 mypy>=1.0.0
 types-requests
+pytest-playwright>=0.4.0  # e2e testing

@@ -23,6 +23,11 @@ class Video(BaseModel):
     tags: list[str] = Field(default_factory=list, description="標籤/類別")
     source: str = Field(default="", description="資料來源 (javbus/jav321/javdb)")
     detail_url: str = Field(default="", description="詳情頁 URL")
+    director: str = Field(default="", description="導演")
+    duration: Optional[int] = Field(default=None, description="片長（分鐘）")
+    label: str = Field(default="", description="發行商/レーベル")
+    series: str = Field(default="", description="系列/シリーズ")
+    sample_images: list[str] = Field(default_factory=list, description="樣品圖像 URL")
 
     # 選用欄位（Task 5 會加入）
     rating: Optional[float] = None
@@ -40,6 +45,11 @@ class Video(BaseModel):
             'tags': self.tags,
             'source': self.source,
             'url': self.detail_url,
+            'director': self.director,
+            'duration': self.duration,
+            'label': self.label,
+            'series': self.series,
+            'sample_images': self.sample_images,
         }
 
 

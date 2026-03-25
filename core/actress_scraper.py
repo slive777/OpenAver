@@ -1,24 +1,76 @@
 """
 女優爬蟲 - 從 JavBus 抓取女優個人檔案
-使用 jvav 套件進行搜尋，再手動帶 cookie 解析詳情頁
+
+透過自建 searchstar 請求取得 star_id。
+（Phase 35 的主 JavBus scraper 已改用 requests + BeautifulSoup）
 """
 
 import re
+import urllib.parse
 import requests
 from datetime import datetime
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple
 
 from bs4 import BeautifulSoup
 from core.logger import get_logger
 
 logger = get_logger(__name__)
 
-# 嘗試載入 jvav（JavBus API）
-try:
-    from jvav import JavBusUtil
-    JVAV_AVAILABLE = True
-except ImportError:
-    JVAV_AVAILABLE = False
+# JavBus 請求 headers（與 JavBusScraper._session.headers 對齊）
+_JAVBUS_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/605.1.15 (KHTML, like Gecko) "
+        "Version/17.5 Safari/605.1.15"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "zh-CN,zh-Hans;q=0.9",
+    "Accept-Encoding": "gzip, deflate",
+    "Connection": "keep-alive",
+}
+
+
+def _search_star_on_javbus(name: str) -> Optional[Tuple[str, str]]:
+    """
+    搜尋 JavBus searchstar 端點，回傳 (star_id, star_name) 或 None。
+
+    Args:
+        name: 女優名字（日文或英文）
+
+    Returns:
+        (star_id, star_name) 若找到；None 若未找到或發生任何錯誤（fail-open）
+    """
+    try:
+        url = f"https://www.javbus.com/searchstar/{urllib.parse.quote(name)}"
+        resp = requests.get(url, headers=_JAVBUS_HEADERS, timeout=15)
+        if resp.status_code != 200:
+            return None
+
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        box = soup.select_one('.avatar-box.text-center')
+        if not box:
+            return None
+
+        a_tag = box.find('a')
+        if not a_tag:
+            return None
+
+        href = a_tag.get('href', '')
+        if 'star/' not in href:
+            return None
+
+        star_id = href.split('star/')[1]
+        if not star_id:
+            return None
+
+        img_tag = box.find('img')
+        star_name = img_tag.get('title', name) if img_tag else name
+
+        return (star_id, star_name)
+
+    except Exception as e:
+        logger.error(f"[actress_scraper] _search_star_on_javbus({name!r}) error: {e}")
+        return None
 
 
 def scrape_actress_profile(name: str) -> Optional[Dict]:
@@ -47,36 +99,21 @@ def scrape_actress_profile(name: str) -> Optional[Dict]:
     if not name or not name.strip():
         return None
 
-    if not JVAV_AVAILABLE:
-        return None
-
     name = name.strip()
 
     try:
-        jb = JavBusUtil()
-
-        # 檢查 jvav 是否有 check_star_exists 方法（版本相容性）
-        if not hasattr(jb, 'check_star_exists'):
-            logger.error("[actress_scraper] jvav 版本過舊，缺少 check_star_exists 方法")
+        # Step 1: 搜尋女優取得 star_id
+        search_result = _search_star_on_javbus(name)
+        if not search_result:
             return None
 
-        # Step 1: 使用 jvav 搜尋女優，取得 star_id
-        code, search_result = jb.check_star_exists(name)
-        if code != 200 or not search_result:
-            return None
+        star_id, star_name = search_result
 
-        star_id = search_result.get('star_id')
-        star_name = search_result.get('star_name', name)
-
-        if not star_id:
-            return None
-
-        # Step 2: 手動帶 cookie 獲取女優詳情頁（jvav 的 send_req 不處理 cookie）
+        # Step 2: 帶 cookie 獲取女優詳情頁
         detail_url = f"https://www.javbus.com/star/{star_id}"
-        headers = jb.get_headers()
         cookies = {'existmag': 'all'}  # JavBus 年齡驗證 cookie
 
-        resp = requests.get(detail_url, headers=headers, cookies=cookies, timeout=15)
+        resp = requests.get(detail_url, headers=_JAVBUS_HEADERS, cookies=cookies, timeout=15)
         if resp.status_code != 200:
             return None
 

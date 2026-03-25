@@ -106,7 +106,7 @@ async def search_page(request: Request):
     """搜尋頁面"""
     context = get_common_context(request)
     context["page"] = "search"
-    return templates.TemplateResponse("search.html", context)
+    return templates.TemplateResponse(request, "search.html", context)
 
 
 @app.get("/scraper")
@@ -114,7 +114,7 @@ async def scraper_page(request: Request):
     """刮削器頁面"""
     context = get_common_context(request)
     context["page"] = "scraper"
-    return templates.TemplateResponse("scraper.html", context)
+    return templates.TemplateResponse(request, "scraper.html", context)
 
 
 @app.get("/updater")
@@ -122,7 +122,7 @@ async def updater_page(request: Request):
     """更新器頁面"""
     context = get_common_context(request)
     context["page"] = "updater"
-    return templates.TemplateResponse("updater.html", context)
+    return templates.TemplateResponse(request, "updater.html", context)
 
 
 @app.get("/scanner")
@@ -130,7 +130,7 @@ async def scanner_page(request: Request):
     """Scanner 頁面"""
     context = get_common_context(request)
     context["page"] = "scanner"
-    return templates.TemplateResponse("scanner.html", context)
+    return templates.TemplateResponse(request, "scanner.html", context)
 
 
 @app.get("/gallery")
@@ -144,7 +144,7 @@ async def showcase_page(request: Request):
     """Showcase 頁面"""
     context = get_common_context(request)
     context["page"] = "showcase"
-    return templates.TemplateResponse("showcase.html", context)
+    return templates.TemplateResponse(request, "showcase.html", context)
 
 
 @app.get("/settings")
@@ -152,7 +152,7 @@ async def settings_page(request: Request):
     """設定頁面"""
     context = get_common_context(request)
     context["page"] = "settings"
-    return templates.TemplateResponse("settings.html", context)
+    return templates.TemplateResponse(request, "settings.html", context)
 
 
 @app.get("/help")
@@ -160,7 +160,7 @@ async def help_page(request: Request):
     """使用說明頁面"""
     context = get_common_context(request)
     context["page"] = "help"
-    return templates.TemplateResponse("help.html", context)
+    return templates.TemplateResponse(request, "help.html", context)
 
 
 @app.get("/design-system")
@@ -168,7 +168,7 @@ async def design_system_page(request: Request):
     """設計系統展示頁面"""
     context = get_common_context(request)
     context["page"] = "design-system"
-    return templates.TemplateResponse("design-system.html", context)
+    return templates.TemplateResponse(request, "design-system.html", context)
 
 
 # ============ API 路由（稍後移到 routers/）============

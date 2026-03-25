@@ -15,18 +15,24 @@ from concurrent.futures import ThreadPoolExecutor
 
 # ============ Fixtures ============
 
-def make_mock_jb_prefix(ids):
-    """Mock JavBusUtil for prefix search."""
-    mock_jb = MagicMock()
-    mock_jb.get_ids_from_page.return_value = (200, ids)
-    return mock_jb
+def make_mock_scraper_prefix(ids):
+    """Mock JavBusScraper for prefix search.
+    Returns ids on the first call, then [] on subsequent calls (simulates single page).
+    """
+    mock_scraper = MagicMock()
+    mock_scraper.get_ids_from_search.side_effect = [ids, []]
+    return mock_scraper
 
 
-def make_mock_jb_actress(ids):
-    """Mock JavBusUtil for actress search."""
-    mock_jb = MagicMock()
-    mock_jb.get_ids_by_star_name.return_value = (200, ids)
-    return mock_jb
+def make_mock_scraper_actress(ids_per_page):
+    """Mock JavBusScraper for actress search (multi-page).
+    ids_per_page: list of list[str] — each inner list is one page of IDs.
+    For single page, pass [ids].
+    """
+    mock_scraper = MagicMock()
+    # side_effect 讓每次呼叫回傳下一頁，用完後回傳 []
+    mock_scraper.get_ids_from_search.side_effect = list(ids_per_page) + [[]]
+    return mock_scraper
 
 
 
@@ -47,10 +53,9 @@ class TestSearchPrefixResultCallback:
             'SONE-102': {'number': 'SONE-102', 'title': 'Title 102'},
         }
 
-        mock_jb = make_mock_jb_prefix(ids)
+        mock_scraper = make_mock_scraper_prefix(ids)
 
-        with patch('core.scraper.JVAV_AVAILABLE', True), \
-             patch('core.scraper.JavBusUtil', return_value=mock_jb), \
+        with patch('core.scraper.JavBusScraper', return_value=mock_scraper), \
              patch('core.scraper.search_jav', side_effect=make_mock_search_jav(results_map)):
             # No result_callback passed — should not raise
             results = search_prefix('SONE', limit=20)
@@ -66,14 +71,13 @@ class TestSearchPrefixResultCallback:
             'SONE-101': {'number': 'SONE-101', 'title': 'Title 101'},
         }
 
-        mock_jb = make_mock_jb_prefix(ids)
+        mock_scraper = make_mock_scraper_prefix(ids)
         callback_calls = []
 
         def result_callback(slot, data):
             callback_calls.append((slot, data))
 
-        with patch('core.scraper.JVAV_AVAILABLE', True), \
-             patch('core.scraper.JavBusUtil', return_value=mock_jb), \
+        with patch('core.scraper.JavBusScraper', return_value=mock_scraper), \
              patch('core.scraper.search_jav', side_effect=make_mock_search_jav(results_map)):
             search_prefix('SONE', limit=20, result_callback=result_callback)
 
@@ -97,14 +101,13 @@ class TestSearchPrefixResultCallback:
             'SONE-102': {'number': 'SONE-102', 'title': 'Title 102'},
         }
 
-        mock_jb = make_mock_jb_prefix(ids)
+        mock_scraper = make_mock_scraper_prefix(ids)
         callback_calls = []
 
         def result_callback(slot, data):
             callback_calls.append((slot, data))
 
-        with patch('core.scraper.JVAV_AVAILABLE', True), \
-             patch('core.scraper.JavBusUtil', return_value=mock_jb), \
+        with patch('core.scraper.JavBusScraper', return_value=mock_scraper), \
              patch('core.scraper.search_jav', side_effect=make_mock_search_jav(results_map)):
             search_prefix('SONE', limit=20, result_callback=result_callback)
 
@@ -124,15 +127,13 @@ class TestSearchPrefixResultCallback:
         """found:0 時不應呼叫 result_callback(-1, [])"""
         from core.scraper import search_prefix
 
-        mock_jb = MagicMock()
-        mock_jb.get_ids_from_page.return_value = (200, [])  # empty ids
+        mock_scraper = make_mock_scraper_prefix([])  # empty ids
         callback_calls = []
 
         def result_callback(slot, data):
             callback_calls.append((slot, data))
 
-        with patch('core.scraper.JVAV_AVAILABLE', True), \
-             patch('core.scraper.JavBusUtil', return_value=mock_jb):
+        with patch('core.scraper.JavBusScraper', return_value=mock_scraper):
             search_prefix('SONE', limit=20, result_callback=result_callback)
 
         seed_calls = [(s, d) for s, d in callback_calls if s == -1]
@@ -148,14 +149,13 @@ class TestSearchPrefixResultCallback:
             'SONE-FAIL': None,  # scraper fails for this one
         }
 
-        mock_jb = make_mock_jb_prefix(ids)
+        mock_scraper = make_mock_scraper_prefix(ids)
         callback_calls = []
 
         def result_callback(slot, data):
             callback_calls.append((slot, data))
 
-        with patch('core.scraper.JVAV_AVAILABLE', True), \
-             patch('core.scraper.JavBusUtil', return_value=mock_jb), \
+        with patch('core.scraper.JavBusScraper', return_value=mock_scraper), \
              patch('core.scraper.search_jav', side_effect=make_mock_search_jav(results_map)):
             search_prefix('SONE', limit=20, result_callback=result_callback)
 
@@ -164,25 +164,48 @@ class TestSearchPrefixResultCallback:
         for slot, data in item_calls:
             assert data is not None, "result_callback should not be called with None data"
 
-    def test_jvav_unavailable_no_callback(self, make_mock_search_jav):
-        """JVAV_AVAILABLE=False 時 (JavDB fallback), result_callback 不應被呼叫"""
+    def test_search_prefix_cross_page_boundary(self, make_mock_search_jav):
+        """offset=20 + limit=20 需要跨頁抓取，不能只拿 10 筆"""
         from core.scraper import search_prefix
 
-        callback_calls = []
-
-        def result_callback(slot, data):
-            callback_calls.append((slot, data))
+        # 模擬兩頁：page 1 有 30 筆，page 2 有 30 筆
+        page1_ids = [f'SONE-{i:03d}' for i in range(1, 31)]   # SONE-001 ~ SONE-030
+        page2_ids = [f'SONE-{i:03d}' for i in range(31, 61)]  # SONE-031 ~ SONE-060
 
         mock_scraper = MagicMock()
-        mock_video = MagicMock()
-        mock_video.to_legacy_dict.return_value = {'number': 'SONE-100', 'title': 'Title'}
-        mock_scraper.search_by_keyword.return_value = [mock_video]
+        mock_scraper.get_ids_from_search.side_effect = [page1_ids, page2_ids, []]
 
-        with patch('core.scraper.JVAV_AVAILABLE', False), \
-             patch('core.scraper.JavDBScraper', return_value=mock_scraper):
-            results = search_prefix('SONE', limit=20, result_callback=result_callback)
+        # 每筆 search_jav 都回傳有效結果
+        all_ids = page1_ids + page2_ids
+        results_map = {num: {'number': num, 'title': f'Title {num}'} for num in all_ids}
 
-        assert callback_calls == [], f"result_callback should not be called in JavDB fallback path, got {callback_calls}"
+        with patch('core.scraper.JavBusScraper', return_value=mock_scraper), \
+             patch('core.scraper.search_jav', side_effect=make_mock_search_jav(results_map)):
+            results = search_prefix('SONE', limit=20, offset=20)
+
+        # offset=20 意味著跳過前 20 筆，應該拿到 SONE-021 ~ SONE-040（20 筆）
+        assert len(results) == 20, f"Expected 20 results, got {len(results)}"
+
+    def test_search_prefix_results_sorted_by_date(self, make_mock_search_jav):
+        """同步 API 回傳結果應按日期排序"""
+        from core.scraper import search_prefix
+
+        ids = ['SONE-100', 'SONE-101', 'SONE-102']
+        results_map = {
+            'SONE-100': {'number': 'SONE-100', 'title': 'T1', 'date': '2025-01-01'},
+            'SONE-101': {'number': 'SONE-101', 'title': 'T2', 'date': '2025-03-01'},
+            'SONE-102': {'number': 'SONE-102', 'title': 'T3', 'date': '2025-02-01'},
+        }
+
+        mock_scraper = MagicMock()
+        mock_scraper.get_ids_from_search.side_effect = [ids, []]
+
+        with patch('core.scraper.JavBusScraper', return_value=mock_scraper), \
+             patch('core.scraper.search_jav', side_effect=make_mock_search_jav(results_map)):
+            results = search_prefix('SONE', limit=20)
+
+        dates = [r['date'] for r in results]
+        assert dates == sorted(dates, reverse=True), f"Results not sorted by date: {dates}"
 
 
 # ============ search_actress result_callback 測試 ============
@@ -200,10 +223,9 @@ class TestSearchActressResultCallback:
             'SONE-101': {'number': 'SONE-101', 'title': 'Title 101', 'actors': ['三上悠亜']},
         }
 
-        mock_jb = make_mock_jb_actress(ids)
+        mock_scraper = make_mock_scraper_actress([ids])
 
-        with patch('core.scraper.JVAV_AVAILABLE', True), \
-             patch('core.scraper.JavBusUtil', return_value=mock_jb), \
+        with patch('core.scraper.JavBusScraper', return_value=mock_scraper), \
              patch('core.scraper.search_jav', side_effect=make_mock_search_jav(results_map)):
             results = search_actress('三上悠亜', limit=20)
             assert isinstance(results, list)
@@ -219,15 +241,14 @@ class TestSearchActressResultCallback:
             'SONE-102': {'number': 'SONE-102', 'title': 'Title 102', 'actors': ['三上悠亜']},
         }
 
-        mock_jb = make_mock_jb_actress(ids)
+        mock_scraper = make_mock_scraper_actress([ids])
         callback_calls = []
 
         def result_callback(slot, data):
             callback_calls.append((slot, data))
 
         # limit=3 ensures target_ids is exactly ids (no extra page fetching)
-        with patch('core.scraper.JVAV_AVAILABLE', True), \
-             patch('core.scraper.JavBusUtil', return_value=mock_jb), \
+        with patch('core.scraper.JavBusScraper', return_value=mock_scraper), \
              patch('core.scraper.search_jav', side_effect=make_mock_search_jav(results_map)):
             search_actress('三上悠亜', limit=3, result_callback=result_callback)
 
@@ -249,15 +270,14 @@ class TestSearchActressResultCallback:
             'SONE-102': {'number': 'SONE-102', 'title': 'Title 102', 'actors': ['三上悠亜']},
         }
 
-        mock_jb = make_mock_jb_actress(ids)
+        mock_scraper = make_mock_scraper_actress([ids])
         callback_calls = []
 
         def result_callback(slot, data):
             callback_calls.append((slot, data))
 
         # limit=3 ensures target_ids is exactly 3 items (no extra page fetching)
-        with patch('core.scraper.JVAV_AVAILABLE', True), \
-             patch('core.scraper.JavBusUtil', return_value=mock_jb), \
+        with patch('core.scraper.JavBusScraper', return_value=mock_scraper), \
              patch('core.scraper.search_jav', side_effect=make_mock_search_jav(results_map)):
             search_actress('三上悠亜', limit=3, result_callback=result_callback)
 
@@ -271,7 +291,7 @@ class TestSearchActressResultCallback:
             )
 
     def test_javdb_fallback_no_seed(self, make_mock_search_jav):
-        """JavDB fallback 路徑 (JVAV 可用但 JavBus 找不到) 不應呼叫 result_callback"""
+        """JavDB fallback 路徑 (JavBus 找不到) 不應呼叫 result_callback"""
         from core.scraper import search_actress
 
         callback_calls = []
@@ -279,41 +299,19 @@ class TestSearchActressResultCallback:
         def result_callback(slot, data):
             callback_calls.append((slot, data))
 
-        mock_jb = MagicMock()
-        # JavBus finds nothing — triggers JavDB fallback
-        mock_jb.get_ids_by_star_name.return_value = (200, [])
+        # JavBusScraper returns empty list — triggers JavDB fallback
+        mock_scraper = make_mock_scraper_actress([[]])
 
         mock_db_scraper = MagicMock()
         mock_video = MagicMock()
         mock_video.to_legacy_dict.return_value = {'number': 'SONE-100', 'actors': ['三上悠亜']}
         mock_db_scraper.search_by_keyword.return_value = [mock_video]
 
-        with patch('core.scraper.JVAV_AVAILABLE', True), \
-             patch('core.scraper.JavBusUtil', return_value=mock_jb), \
+        with patch('core.scraper.JavBusScraper', return_value=mock_scraper), \
              patch('core.scraper.JavDBScraper', return_value=mock_db_scraper):
             results = search_actress('三上悠亜', limit=20, result_callback=result_callback)
 
         assert callback_calls == [], f"JavDB fallback should not call result_callback, got {callback_calls}"
-
-    def test_jvav_unavailable_no_callback(self, make_mock_search_jav):
-        """JVAV_AVAILABLE=False 時 (JavDB fallback), result_callback 不應被呼叫"""
-        from core.scraper import search_actress
-
-        callback_calls = []
-
-        def result_callback(slot, data):
-            callback_calls.append((slot, data))
-
-        mock_scraper = MagicMock()
-        mock_video = MagicMock()
-        mock_video.to_legacy_dict.return_value = {'number': 'SONE-100', 'actors': ['三上悠亜']}
-        mock_scraper.search_by_keyword.return_value = [mock_video]
-
-        with patch('core.scraper.JVAV_AVAILABLE', False), \
-             patch('core.scraper.JavDBScraper', return_value=mock_scraper):
-            results = search_actress('三上悠亜', limit=20, result_callback=result_callback)
-
-        assert callback_calls == [], f"result_callback should not be called when JVAV unavailable, got {callback_calls}"
 
 
 # ============ smart_search result_callback 透傳測試 ============

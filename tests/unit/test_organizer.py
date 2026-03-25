@@ -871,9 +871,290 @@ class TestDownloadImage:
     @patch("core.organizer.requests.get")
     def test_download_exception(self, mock_get, tmp_path):
         mock_get.side_effect = Exception("network error")
-        
+
         save_path = tmp_path / "cover.jpg"
         result = download_image("http://example.com/cover.jpg", str(save_path))
-        
+
         assert result is False
         assert not save_path.exists()
+
+
+# ============ generate_nfo() 新欄位測試 (T5b) ============
+
+class TestGenerateNfoNewFields:
+    """generate_nfo() 新增 director/duration/series/uniqueid 欄位測試"""
+
+    def test_nfo_director_filled(self, tmp_path):
+        """director 有值 → <director>イナバール</director>"""
+        nfo_path = tmp_path / "SNOS-143.nfo"
+        result = generate_nfo(
+            number="SNOS-143",
+            title="テスト",
+            output_path=str(nfo_path),
+            director="イナバール",
+        )
+        assert result is True
+        content = nfo_path.read_text(encoding="utf-8")
+        assert "<director>イナバール</director>" in content
+
+    def test_nfo_director_empty(self, tmp_path):
+        """director 空字串 → <director></director>（保留空標籤）"""
+        nfo_path = tmp_path / "SNOS-143.nfo"
+        result = generate_nfo(
+            number="SNOS-143",
+            title="テスト",
+            output_path=str(nfo_path),
+            director="",
+        )
+        assert result is True
+        content = nfo_path.read_text(encoding="utf-8")
+        assert "<director></director>" in content
+
+    def test_nfo_duration_filled(self, tmp_path):
+        """duration=119 → <runtime>119</runtime>"""
+        nfo_path = tmp_path / "SNOS-143.nfo"
+        result = generate_nfo(
+            number="SNOS-143",
+            title="テスト",
+            output_path=str(nfo_path),
+            duration=119,
+        )
+        assert result is True
+        content = nfo_path.read_text(encoding="utf-8")
+        assert "<runtime>119</runtime>" in content
+
+    def test_nfo_duration_none(self, tmp_path):
+        """duration=None → <runtime></runtime>（保留空標籤）"""
+        nfo_path = tmp_path / "SNOS-143.nfo"
+        result = generate_nfo(
+            number="SNOS-143",
+            title="テスト",
+            output_path=str(nfo_path),
+            duration=None,
+        )
+        assert result is True
+        content = nfo_path.read_text(encoding="utf-8")
+        assert "<runtime></runtime>" in content
+
+    def test_nfo_duration_zero(self, tmp_path):
+        """duration=0 → <runtime>0</runtime>（0 是有效值，不能當 falsy 跳過）"""
+        nfo_path = tmp_path / "SNOS-143.nfo"
+        result = generate_nfo(
+            number="SNOS-143",
+            title="テスト",
+            output_path=str(nfo_path),
+            duration=0,
+        )
+        assert result is True
+        content = nfo_path.read_text(encoding="utf-8")
+        assert "<runtime>0</runtime>" in content
+
+    def test_nfo_series_filled(self, tmp_path):
+        """series 有值 → <set><name>ハプニングバーNTR</name></set>"""
+        nfo_path = tmp_path / "SNOS-143.nfo"
+        result = generate_nfo(
+            number="SNOS-143",
+            title="テスト",
+            output_path=str(nfo_path),
+            series="ハプニングバーNTR",
+        )
+        assert result is True
+        content = nfo_path.read_text(encoding="utf-8")
+        assert "<set><name>ハプニングバーNTR</name></set>" in content
+
+    def test_nfo_series_empty(self, tmp_path):
+        """series 空字串 → <set></set>（保留空標籤，Kodi/Emby 相容）"""
+        nfo_path = tmp_path / "SNOS-143.nfo"
+        result = generate_nfo(
+            number="SNOS-143",
+            title="テスト",
+            output_path=str(nfo_path),
+            series="",
+        )
+        assert result is True
+        content = nfo_path.read_text(encoding="utf-8")
+        assert "<set></set>" in content
+
+    def test_nfo_uniqueid(self, tmp_path):
+        """uniqueid 永遠存在 → <uniqueid type="home" default="true">SNOS-143</uniqueid>"""
+        nfo_path = tmp_path / "SNOS-143.nfo"
+        result = generate_nfo(
+            number="SNOS-143",
+            title="テスト",
+            output_path=str(nfo_path),
+        )
+        assert result is True
+        content = nfo_path.read_text(encoding="utf-8")
+        assert '<uniqueid type="home" default="true">SNOS-143</uniqueid>' in content
+
+    def test_nfo_director_special_chars(self, tmp_path):
+        """director 含特殊字元 → html.escape 正確轉義"""
+        nfo_path = tmp_path / "SNOS-143.nfo"
+        result = generate_nfo(
+            number="SNOS-143",
+            title="テスト",
+            output_path=str(nfo_path),
+            director="A&B<C>",
+        )
+        assert result is True
+        content = nfo_path.read_text(encoding="utf-8")
+        assert "<director>A&amp;B&lt;C&gt;</director>" in content
+        assert "<director>A&B<C></director>" not in content
+
+
+# ============ organize_file() extrafanart 測試 (T5b) ============
+
+class TestOrganizeExtrafanart:
+    """organize_file() jellyfin_mode 下 extrafanart/ 目錄建立與下載測試"""
+
+    def _make_jellyfin_config_with_nfo(self, jellyfin_mode: bool, create_folder: bool = True) -> dict:
+        return {
+            "create_folder": create_folder,
+            "filename_format": "[{num}] {title}",
+            "download_cover": True,
+            "cover_filename": "poster.jpg",
+            "create_nfo": True,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+            "jellyfin_mode": jellyfin_mode,
+        }
+
+    def _make_metadata_with_samples(self, sample_images=None) -> dict:
+        return {
+            "number": "SNOS-143",
+            "title": "テスト",
+            "actors": [],
+            "tags": [],
+            "maker": "S1",
+            "date": "2024-01-15",
+            "cover": "http://fake/cover.jpg",
+            "url": "",
+            "sample_images": sample_images if sample_images is not None else [
+                "http://fake/sample1.jpg",
+                "http://fake/sample2.jpg",
+            ],
+        }
+
+    def test_extrafanart_created_in_jellyfin_mode(self, tmp_path):
+        """jellyfin_mode=True + create_folder=True + sample_images → extrafanart/ 建立 + fanart1.jpg 存在"""
+        src = tmp_path / "SNOS-143.mp4"
+        src.write_bytes(b"fake mp4")
+
+        config = self._make_jellyfin_config_with_nfo(jellyfin_mode=True, create_folder=True)
+        metadata = self._make_metadata_with_samples(["http://fake/s1.jpg", "http://fake/s2.jpg"])
+
+        with patch("core.organizer.download_image", side_effect=_mock_download_image_write_jpeg):
+            result = organize_file(str(src), metadata, config)
+
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+        # create_folder=True → 影片在 per-video 子目錄內，extrafanart 也在該子目錄下
+        video_dir = Path(result["new_folder"])
+        extrafanart_dir = video_dir / "extrafanart"
+        assert extrafanart_dir.exists(), "extrafanart/ 目錄應被建立"
+        assert (extrafanart_dir / "fanart1.jpg").exists(), "fanart1.jpg 應被下載"
+        assert (extrafanart_dir / "fanart2.jpg").exists(), "fanart2.jpg 應被下載"
+
+    def test_extrafanart_empty_list_no_dir(self, tmp_path):
+        """jellyfin_mode=True + sample_images=[] → 不建立 extrafanart/ 目錄"""
+        src = tmp_path / "SNOS-143.mp4"
+        src.write_bytes(b"fake mp4")
+
+        config = self._make_jellyfin_config_with_nfo(jellyfin_mode=True)
+        metadata = self._make_metadata_with_samples(sample_images=[])
+
+        with patch("core.organizer.download_image", side_effect=_mock_download_image_write_jpeg):
+            result = organize_file(str(src), metadata, config)
+
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+        extrafanart_dir = tmp_path / "extrafanart"
+        assert not extrafanart_dir.exists(), "sample_images=[] 時不應建立 extrafanart/ 目錄"
+
+    def test_extrafanart_not_in_normal_mode(self, tmp_path):
+        """jellyfin_mode=False → 不下載 sample images，不建立 extrafanart/"""
+        src = tmp_path / "SNOS-143.mp4"
+        src.write_bytes(b"fake mp4")
+
+        config = self._make_jellyfin_config_with_nfo(jellyfin_mode=False)
+        metadata = self._make_metadata_with_samples(["http://fake/s1.jpg"])
+
+        with patch("core.organizer.download_image", side_effect=_mock_download_image_write_jpeg):
+            result = organize_file(str(src), metadata, config)
+
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+        extrafanart_dir = tmp_path / "extrafanart"
+        assert not extrafanart_dir.exists(), "jellyfin_mode=False 時不應建立 extrafanart/ 目錄"
+
+    def test_extrafanart_single_failure_continues(self, tmp_path):
+        """其中一張下載失敗，其他張繼續下載，organize 仍 success=True"""
+        src = tmp_path / "SNOS-143.mp4"
+        src.write_bytes(b"fake mp4")
+
+        config = self._make_jellyfin_config_with_nfo(jellyfin_mode=True, create_folder=True)
+        metadata = self._make_metadata_with_samples([
+            "http://fake/s1.jpg",
+            "http://fake/s2_fail.jpg",
+            "http://fake/s3.jpg",
+        ])
+
+        call_count = [0]
+
+        def mock_download_partial(url, save_path, referer=''):
+            call_count[0] += 1
+            if "s2_fail" in url:
+                raise Exception("模擬下載失敗")
+            _mock_download_image_write_jpeg(url, save_path, referer)
+            return True
+
+        with patch("core.organizer.download_image", side_effect=mock_download_partial):
+            result = organize_file(str(src), metadata, config)
+
+        assert result["success"] is True, f"單張失敗不應導致整體失敗: {result.get('error')}"
+        video_dir = Path(result["new_folder"])
+        extrafanart_dir = video_dir / "extrafanart"
+        assert extrafanart_dir.exists(), "extrafanart/ 應被建立"
+        assert (extrafanart_dir / "fanart1.jpg").exists(), "fanart1.jpg 應成功下載"
+        assert not (extrafanart_dir / "fanart2.jpg").exists(), "fanart2.jpg 應失敗（不存在）"
+        assert (extrafanart_dir / "fanart3.jpg").exists(), "fanart3.jpg 應繼續下載成功"
+
+    def test_extrafanart_independent_of_cover(self, tmp_path):
+        """cover 下載失敗，extrafanart 仍獨立下載（不依賴 cover_path）"""
+        src = tmp_path / "SNOS-143.mp4"
+        src.write_bytes(b"fake mp4")
+
+        config = self._make_jellyfin_config_with_nfo(jellyfin_mode=True, create_folder=True)
+        metadata = self._make_metadata_with_samples(["http://fake/s1.jpg"])
+
+        def mock_download_cover_fail(url, save_path, referer=''):
+            # cover 下載失敗，sample image 下載成功
+            if "cover" in url:
+                return False
+            _mock_download_image_write_jpeg(url, save_path, referer)
+            return True
+
+        with patch("core.organizer.download_image", side_effect=mock_download_cover_fail):
+            result = organize_file(str(src), metadata, config)
+
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+        assert result.get("cover_path") is None, "cover 下載失敗，cover_path 應為 None"
+        video_dir = Path(result["new_folder"])
+        extrafanart_dir = video_dir / "extrafanart"
+        assert extrafanart_dir.exists(), "cover 失敗不影響 extrafanart/ 建立"
+        assert (extrafanart_dir / "fanart1.jpg").exists(), "cover 失敗不影響 sample image 下載"
+
+    def test_extrafanart_skipped_without_create_folder(self, tmp_path):
+        """jellyfin_mode=True + create_folder=False → 不建立 extrafanart/（防止多片互蓋）"""
+        src = tmp_path / "SNOS-143.mp4"
+        src.write_bytes(b"fake mp4")
+
+        config = self._make_jellyfin_config_with_nfo(jellyfin_mode=True, create_folder=False)
+        metadata = self._make_metadata_with_samples(["http://fake/s1.jpg", "http://fake/s2.jpg"])
+
+        with patch("core.organizer.download_image", side_effect=_mock_download_image_write_jpeg):
+            result = organize_file(str(src), metadata, config)
+
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+        extrafanart_dir = tmp_path / "extrafanart"
+        assert not extrafanart_dir.exists(), (
+            "create_folder=False 時不應建立 extrafanart/（多片共用目錄會互相覆蓋 fanart1.jpg）"
+        )

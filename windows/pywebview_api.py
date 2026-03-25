@@ -10,7 +10,10 @@ import webview
 from pathlib import Path
 from core.path_utils import uri_to_fs_path
 from core.video_extensions import DEFAULT_VIDEO_EXTENSIONS, get_video_extensions
+from core.logger import get_logger
 from webview.dom import DOMEventHandler
+
+logger = get_logger(__name__)
 
 # 支援的影片副檔名（from core.video_extensions Single Source of Truth）
 VIDEO_EXTENSIONS = set(DEFAULT_VIDEO_EXTENSIONS)
@@ -114,7 +117,8 @@ class Api:
             try:
                 subprocess.Popen([player, path])
                 return True
-            except Exception:
+            except Exception as e:
+                logger.warning(f"[pywebview] custom player failed for {path!r} (player={player!r}): {e}; falling back to OS default")
                 pass  # fallback 到系統預設
 
         # 跨平台開啟檔案
@@ -126,7 +130,8 @@ class Api:
             else:
                 subprocess.run(['xdg-open', path])
             return True
-        except Exception:
+        except Exception as e:
+            logger.error(f"[pywebview] open_file failed for {path!r}: {e}")
             return False
 
     def open_url(self, url: str) -> bool:
@@ -153,7 +158,8 @@ class Api:
             else:
                 result = subprocess.run(['xdg-open', url])
                 return result.returncode == 0
-        except Exception:
+        except Exception as e:
+            logger.error(f"[pywebview] open_url failed for {url!r}: {e}")
             return False
 
     def open_folder(self, path):
@@ -191,7 +197,8 @@ class Api:
                 folder = os.path.dirname(path) if os.path.isfile(path) else path
                 result = subprocess.run(['xdg-open', folder])
                 return result.returncode == 0
-        except Exception:
+        except Exception as e:
+            logger.error(f"[pywebview] open_folder failed for {path!r}: {e}")
             return False
 
     def _get_video_extensions(self):
@@ -206,8 +213,8 @@ class Api:
                     with open(config_path, 'r', encoding='utf-8') as f:
                         config = json.load(f)
                         return get_video_extensions(config)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[pywebview] _get_video_extensions failed to read config: {e}; falling back to DEFAULT_VIDEO_EXTENSIONS")
         return set(DEFAULT_VIDEO_EXTENSIONS)
 
     def _get_player_path(self):
@@ -223,8 +230,8 @@ class Api:
                     with open(config_path, 'r', encoding='utf-8') as f:
                         config = json.load(f)
                         return config.get('showcase', {}).get('player', '')
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[pywebview] _get_player_path failed to read config: {e}; falling back to empty string (OS default player)")
         return ''
 
 
@@ -240,8 +247,8 @@ def _load_config_extensions():
                 with open(config_path, 'r', encoding='utf-8') as f:
                     config = json.load(f)
                     return get_video_extensions(config)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"[pywebview] _load_config_extensions failed to read config: {e}; falling back to DEFAULT_VIDEO_EXTENSIONS")
     return set(DEFAULT_VIDEO_EXTENSIONS)
 
 

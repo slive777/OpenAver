@@ -226,6 +226,38 @@ def check_subtitle(filename: str) -> bool:
     return False
 
 
+def strip_number_prefix(title: str, number: str) -> str:
+    """
+    剝除片名開頭的番號前綴。
+
+    Args:
+        title: 原始片名（可能帶番號前綴，如 "START-424 市役所の..."）
+        number: 番號（如 "START-424"）
+
+    Returns:
+        剝除番號前綴後的片名。title 為 None/空 → ""；number 為空 → 原 title。
+
+    Examples:
+        >>> strip_number_prefix("START-424 市役所の窓口勤務の...", "START-424")
+        '市役所の窓口勤務の...'
+        >>> strip_number_prefix("START424 市役所の窓口勤務の...", "START-424")
+        '市役所の窓口勤務の...'
+    """
+    if not title:
+        return ""
+    if not number:
+        return title
+
+    # 先嘗試有 dash 形式（精確匹配），再嘗試無 dash 形式（備用）
+    for candidate in (number, number.replace('-', '')):
+        pattern = r'^\s*' + re.escape(candidate) + r'(?![A-Za-z0-9])\s*'
+        result = re.sub(pattern, '', title, flags=re.IGNORECASE)
+        if result != title:
+            return result
+
+    return title
+
+
 def format_number(number: str) -> str:
     """
     格式化番號為標準格式

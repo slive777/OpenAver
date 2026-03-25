@@ -54,7 +54,6 @@ PACKAGES_COMMON = [
     "requests",
     "beautifulsoup4",
     "lxml",
-    "jvav",
     "curl_cffi",
     "websockets",
     "pillow",

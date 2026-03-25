@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-03-25
+
+### Added
+
+#### 🔧 JavBus Scraper 完全重寫 (Phase 35-1)
+- 移除 jvav 第三方依賴，自行實作 JavBus scraper（requests + BeautifulSoup）
+- 精準搜尋支援所有欄位解析（欄位名 mapping，非位置推斷）
+- 模糊搜尋實作（關鍵字 / 前綴 / 女優名搜尋，含分頁支援）
+- 多語言預留（zh-tw / ja / en，預設繁中）
+- actress_scraper 同步移除 jvav，改用自建 searchstar 請求
+
+#### 📊 Video Model 擴充
+- 新增 director（導演）、duration（片長）、label（發行商）、series（系列）、sample_images（樣品圖像）欄位
+- Merge policy 擴充 — source=auto 模式下新欄位不被丟棄
+
+#### 🖼️ Sample Images Gallery + Lightbox (Phase 35-2)
+- Detail 模式封面下方新增 sample images 縮圖列（水平可滾動）
+- 點擊縮圖開啟 Sample Lightbox（純圖模式，左右鍵 / swipe 切換，計數器顯示）
+- 方向鍵語意不變 — Detail 模式下左右永遠切換影片，Lightbox 內切換 sample
+
+#### 📋 Detail 模式新增欄位展示
+- 搜尋頁 Detail 模式展示導演、片長、發行商、系列（有值才顯示）
+
+#### 📦 Organizer NFO 擴充 + extrafanart
+- NFO 新增 `<runtime>`、`<director>`、`<set>`（系列）、`<uniqueid>`
+- jellyfin_mode 時自動下載 sample images 至 `extrafanart/` 子目錄
+
+#### 🧪 測試基礎設施
+- 首次引入 Playwright E2E 測試（`tests/e2e/`）— Detail 新欄位、Sample Lightbox、方向鍵導航
+- JavBus Smoke Test — 精準搜尋新欄位驗證 + 模糊搜尋 + 多語言 tags 差異
+- 測試總數 1007 → 1073（+66）
+
+### Changed
+- JavBus / JavDB title 剝除番號前綴（統一顯示）
+- CI workflow 排除 e2e 測試（需 Playwright 環境）
+- 一般開發測試命令更新為 `-m "not smoke and not e2e"`
+
+### Fixed
+- JavBus actresses 解析補 next-`<p>` fallback（部分頁面結構差異）
+- extrafanart 覆蓋修正（已存在時不重複下載）
+- Sample Strip 比例縮放 + Alpine 初始化修正 + Active 高亮
+- 跨頁分頁結果排序 + logger 補齊
+
+### Removed
+- **jvav 第三方依賴完全移除**（requirements.txt、mypy.ini、actress_scraper、facade 層）
+
+---
+
 ## [0.4.4] - 2026-03-19
 
 ### Added

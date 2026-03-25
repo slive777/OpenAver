@@ -280,7 +280,9 @@
         if (window.__leavePage && !window.__leavePage(href)) {
             event.preventDefault();
         }
-    }
+    },
+    sampleLightboxOpen: false,
+    sampleLightboxIndex: 0
 }"
      x-init="$watch('sidebarCollapsed', configSync('sidebar_collapsed'))"
      :class="{ 'sidebar-collapsed': sidebarCollapsed }"

@@ -42,5 +42,5 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-test.txt
 
-      - name: Run tests (unit + integration only, no smoke)
-        run: pytest tests/ -v --ignore=tests/smoke -m "not smoke"
+      - name: Run tests (unit + integration only, no smoke/e2e)
+        run: pytest tests/ -v --ignore=tests/smoke --ignore=tests/e2e -m "not smoke and not e2e"

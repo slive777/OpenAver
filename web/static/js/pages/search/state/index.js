@@ -74,6 +74,15 @@ function searchPage() {
             window.addEventListener('pywebview-files', async (e) => {
                 await this.setFileList(e.detail.paths);
             });
+
+            // 9. Issue-2: resize / 導航時更新封面高度 CSS variable
+            window.addEventListener('resize', () => this._updateCoverHeight());
+            this.$watch('currentIndex', () => {
+                this.$nextTick(() => this._updateCoverHeight());
+            });
+            this.$watch('searchResults', () => {
+                setTimeout(() => this._updateCoverHeight(), 500);
+            });
         },
 
     };

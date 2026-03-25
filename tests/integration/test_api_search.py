@@ -7,7 +7,7 @@ test_api_search.py - 搜尋 API 整合測試
 import pytest
 import json
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, call
 
 
 def load_fixture(filename: str) -> dict:
@@ -657,3 +657,195 @@ class TestSearchStreamSSEProtocol:
         assert 'slots' in seed, "seed event must have 'slots' field"
         assert seed['total'] == len(ids)
         assert seed['slots'] == ids
+
+
+# ============ T5a — 新欄位透傳 + proxy-image Referer ============
+
+class TestSearchNewFields:
+    """測試 T5a 新欄位（director/duration/label/series/sample_images）透傳"""
+
+    def test_search_result_contains_new_fields(self, client, mocker):
+        """REST GET /api/search?mode=exact 回傳 data[0] 含新欄位"""
+        mock_data = load_fixture('responses/javbus/SONE-103.json')
+        mocker.patch('web.routers.search.search_jav', return_value=mock_data)
+
+        response = client.get('/api/search', params={'q': 'SONE-103', 'mode': 'exact'})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is True
+        assert len(data['data']) == 1
+        item = data['data'][0]
+
+        # 驗證所有新欄位存在
+        assert 'director' in item, "director key must be present"
+        assert 'duration' in item, "duration key must be present"
+        assert 'label' in item, "label key must be present"
+        assert 'series' in item, "series key must be present"
+        assert 'sample_images' in item, "sample_images key must be present"
+
+        # 驗證值正確
+        assert item['director'] == 'イナバール'
+        assert item['duration'] == 119
+        assert item['label'] == 'S1 NO.1 STYLE'
+        assert item['series'] == ''
+        assert isinstance(item['sample_images'], list)
+        assert len(item['sample_images']) == 3
+
+    def test_new_fields_empty_values_still_present(self, client, mocker):
+        """新欄位空值時，key 仍必須出現在 response 中（前端可安全 access data.director ?? ""）"""
+        mock_data = {
+            'number': 'FAKE-001',
+            'title': 'Some Title',
+            'cover': '',
+            'actors': [],
+            'maker': '',
+            'tags': [],
+            'date': '',
+            'source': 'javbus',
+            'url': '',
+            'director': '',
+            'duration': None,
+            'label': '',
+            'series': '',
+            'sample_images': [],
+        }
+        mocker.patch('web.routers.search.search_jav', return_value=mock_data)
+
+        response = client.get('/api/search', params={'q': 'FAKE-001', 'mode': 'exact'})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is True
+        item = data['data'][0]
+
+        # 空值時 key 仍須存在
+        assert 'director' in item
+        assert 'duration' in item
+        assert 'label' in item
+        assert 'series' in item
+        assert 'sample_images' in item
+
+        # 值為空
+        assert item['director'] == ''
+        assert item['duration'] is None
+        assert item['label'] == ''
+        assert item['series'] == ''
+        assert item['sample_images'] == []
+
+    def test_sse_result_item_contains_new_fields(self, client, parse_sse_events):
+        """SSE result-item event 的 data 應包含新欄位"""
+        ids = ['SONE-103']
+        item_with_new_fields = {
+            'number': 'SONE-103',
+            'title': '新人 専属19歳AVデビュー 石川澪',
+            'actors': ['石川澪'],
+            'director': 'イナバール',
+            'duration': 119,
+            'label': 'S1 NO.1 STYLE',
+            'series': '',
+            'sample_images': [
+                'https://awsimgsrc.dmm.co.jp/pics_dig/mono/movie/adult/sone103/sone103jp-1.jpg',
+            ],
+        }
+
+        def mock_smart_search(q, limit=20, offset=0, status_callback=None,
+                              result_callback=None, **kwargs):
+            if result_callback:
+                result_callback(-1, ids)
+                result_callback(0, item_with_new_fields)
+            if status_callback:
+                status_callback('done', 'found:1')
+            return [item_with_new_fields]
+
+        with patch('web.routers.search.smart_search', side_effect=mock_smart_search):
+            response = client.get('/api/search/stream?q=SONE-103')
+
+        events = parse_sse_events(response.text)
+        item_events = [e for e in events if e.get('type') == 'result-item']
+        assert len(item_events) == 1
+
+        item_data = item_events[0]['data']
+        assert 'director' in item_data, "SSE result-item data must have director"
+        assert 'duration' in item_data, "SSE result-item data must have duration"
+        assert 'label' in item_data, "SSE result-item data must have label"
+        assert 'series' in item_data, "SSE result-item data must have series"
+        assert 'sample_images' in item_data, "SSE result-item data must have sample_images"
+        assert item_data['director'] == 'イナバール'
+        assert item_data['duration'] == 119
+
+
+class TestProxyImageReferer:
+    """測試 /api/proxy-image DMM 樣品圖像 Referer 設定"""
+
+    def _make_mock_response(self, content=b'\xff\xd8\xff', content_type='image/jpeg'):
+        """建立 mock requests.Response"""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.content = content
+        mock_resp.headers = {'Content-Type': content_type}
+        return mock_resp
+
+    def test_proxy_image_dmm_sample_referer(self, client):
+        """`awsimgsrc.dmm.co.jp` URL 發送請求時 Referer 應為 https://www.dmm.co.jp/"""
+        url = 'https://awsimgsrc.dmm.co.jp/pics_dig/mono/movie/adult/sone103/sone103jp-1.jpg'
+
+        with patch('web.routers.search.requests.get', return_value=self._make_mock_response()) as mock_get:
+            response = client.get('/api/proxy-image', params={'url': url})
+
+        assert response.status_code == 200
+        mock_get.assert_called_once()
+        _, call_kwargs = mock_get.call_args
+        headers_sent = call_kwargs.get('headers', {})
+        assert headers_sent.get('Referer') == 'https://www.dmm.co.jp/', \
+            f"Expected Referer 'https://www.dmm.co.jp/', got '{headers_sent.get('Referer')}'"
+
+    def test_proxy_image_pics_dmm_referer(self, client):
+        """`pics.dmm.co.jp` URL 發送請求時 Referer 應為 https://www.dmm.co.jp/"""
+        url = 'https://pics.dmm.co.jp/mono/movie/adult/sone103/sone103jp-3.jpg'
+
+        with patch('web.routers.search.requests.get', return_value=self._make_mock_response()) as mock_get:
+            response = client.get('/api/proxy-image', params={'url': url})
+
+        assert response.status_code == 200
+        mock_get.assert_called_once()
+        _, call_kwargs = mock_get.call_args
+        headers_sent = call_kwargs.get('headers', {})
+        assert headers_sent.get('Referer') == 'https://www.dmm.co.jp/', \
+            f"Expected Referer 'https://www.dmm.co.jp/', got '{headers_sent.get('Referer')}'"
+
+    def test_proxy_image_javbus_referer(self, client):
+        """`javbus.com` URL 發送請求時 Referer 應為 https://www.javbus.com/"""
+        url = 'https://www.javbus.com/pics/cover/abc.jpg'
+
+        with patch('web.routers.search.requests.get', return_value=self._make_mock_response()) as mock_get:
+            response = client.get('/api/proxy-image', params={'url': url})
+
+        assert response.status_code == 200
+        mock_get.assert_called_once()
+        _, call_kwargs = mock_get.call_args
+        headers_sent = call_kwargs.get('headers', {})
+        assert headers_sent.get('Referer') == 'https://www.javbus.com/'
+
+    def test_proxy_image_unknown_domain_no_referer(self, client):
+        """未知 domain 發送請求時 Referer 應為空字串（仍正常代理）"""
+        url = 'https://cdn.example.com/image.jpg'
+
+        with patch('web.routers.search.requests.get', return_value=self._make_mock_response()) as mock_get:
+            response = client.get('/api/proxy-image', params={'url': url})
+
+        assert response.status_code == 200
+        mock_get.assert_called_once()
+        _, call_kwargs = mock_get.call_args
+        headers_sent = call_kwargs.get('headers', {})
+        assert headers_sent.get('Referer') == ''
+
+    def test_proxy_image_external_failure_returns_404(self, client):
+        """外部請求失敗時應回傳 HTTP 404 空 body"""
+        url = 'https://awsimgsrc.dmm.co.jp/pics_dig/mono/movie/adult/sone103/sone103jp-1.jpg'
+
+        with patch('web.routers.search.requests.get', side_effect=Exception('timeout')):
+            response = client.get('/api/proxy-image', params={'url': url})
+
+        assert response.status_code == 404
+        assert response.content == b''

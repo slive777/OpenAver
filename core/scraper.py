@@ -24,12 +24,6 @@ from core.scrapers import (
 )
 from core.scrapers.utils import extract_number as _new_extract_number
 
-# 嘗試載入 jvav（部分高階搜尋仍依賴此庫）
-try:
-    from jvav import JavBusUtil
-    JVAV_AVAILABLE = True
-except ImportError:
-    JVAV_AVAILABLE = False
 
 
 # ============ 全域設定 ============
@@ -270,7 +264,17 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '') -> Option
             updates['cover_url'] = backup_video.cover_url
         if not main_video.tags and backup_video.tags:
             updates['tags'] = backup_video.tags
-            
+        if not main_video.director and backup_video.director:
+            updates['director'] = backup_video.director
+        if main_video.duration is None and backup_video.duration is not None:
+            updates['duration'] = backup_video.duration
+        if not main_video.label and backup_video.label:
+            updates['label'] = backup_video.label
+        if not main_video.series and backup_video.series:
+            updates['series'] = backup_video.series
+        if not main_video.sample_images and backup_video.sample_images:
+            updates['sample_images'] = backup_video.sample_images
+
         if updates:
             main_video = main_video.model_copy(update=updates)
 
@@ -331,14 +335,7 @@ def search_partial(partial: str,
 
 
 def search_prefix(prefix: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, result_callback: Optional[Callable[[int, Any], None]] = None) -> List[Dict[str, Any]]:
-    """前綴搜尋 (Delegate to JavBusUtil for list functionality)"""
-    if not JVAV_AVAILABLE:
-        # Fallback: 使用 JavDB 關鍵字搜尋（無 as_completed，不呼叫 result_callback）
-        scraper = JavDBScraper()
-        videos = scraper.search_by_keyword(prefix, limit=limit)
-        return [v.to_legacy_dict() for v in videos]
-
-    # 使用 jvav (Code borrowed from original scraper.py)
+    """前綴搜尋"""
     results = []
     prefix = prefix.strip().upper()
 
@@ -346,32 +343,37 @@ def search_prefix(prefix: str, limit: int = 20, offset: int = 0, status_callback
         status_callback('javbus', 'searching')
 
     try:
-        jb = JavBusUtil()
-        page = (offset // 30) + 1
+        scraper = JavBusScraper()
+        start_page = (offset // 30) + 1
         skip_in_page = offset % 30
+        pages_needed = ((limit + skip_in_page) // 30) + 2
 
-        search_url = f'https://www.javbus.com/search/{prefix}&type=1'
-        code, ids = jb.get_ids_from_page(search_url, page=page)
+        all_ids: List[str] = []
+        for page in range(start_page, start_page + pages_needed):
+            ids = scraper.get_ids_from_search(prefix, page=page, search_type=1)
+            if ids:
+                all_ids.extend(ids)
+                if len(all_ids) >= limit + skip_in_page:
+                    break
+            else:
+                break
 
-        if code != 200 or not ids:
-             if status_callback:
-                 status_callback('javbus', 'found:0')
-             return []
+        if not all_ids:
+            if status_callback:
+                status_callback('javbus', 'found:0')
+            return []
 
-        target_ids = ids[skip_in_page:][:limit]
+        target_ids = all_ids[skip_in_page:][:limit]
 
         if status_callback:
             status_callback('javbus', f'found:{len(target_ids)}')
             status_callback('javbus', 'fetching_details')
 
-        # Seed callback: 通知前端準備 skeleton grid（空 target_ids 不送）
         if target_ids and result_callback:
             result_callback(-1, target_ids)
 
         completed_count = 0
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-            # 只用 JavBus 來源，避免 fan out 到所有爬蟲
-            # 記錄 slot index 以支援 result_callback 正確定位
             futures = {}
             for idx, num in enumerate(target_ids):
                 future = executor.submit(search_jav, num, 'javbus')
@@ -381,7 +383,7 @@ def search_prefix(prefix: str, limit: int = 20, offset: int = 0, status_callback
                 idx, num = futures[future]
                 completed_count += 1
                 if status_callback:
-                     status_callback('javbus', f'details:{completed_count}/{len(target_ids)}')
+                    status_callback('javbus', f'details:{completed_count}/{len(target_ids)}')
                 try:
                     data = future.result()
                     if data and data.get('title'):
@@ -392,79 +394,72 @@ def search_prefix(prefix: str, limit: int = 20, offset: int = 0, status_callback
                     logger.error('search_prefix: %s failed', num)
                 time.sleep(REQUEST_DELAY)
 
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error('search_prefix failed: %s', e)
 
     if status_callback:
         status_callback('done', f'found:{len(results)}')
 
-    return results # 這裡不需再排序，JavBus 返回的本身就是按日期排序
+    return sort_results_by_date(results)
 
 
 def search_actress(name: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, result_callback: Optional[Callable[[int, Any], None]] = None) -> List[Dict[str, Any]]:
     """女優搜尋"""
-    # 嘗試使用新版 Jav321Scraper 或 JavDBScraper 做關鍵字搜尋
-    # 但舊版是用 jvav 的 get_ids_by_star_name 來精確抓取女優作品列表
-    # 為了最佳相容性，若有 jvav 則優先使用，否則 fallback 到關鍵字搜尋
+    try:
+        if status_callback:
+            status_callback('javbus', 'searching')
 
-    if JVAV_AVAILABLE:
-        # 使用 jvav 邏輯 (簡化版)
-        try:
-             if status_callback: status_callback('javbus', 'searching')
-             jb = JavBusUtil()
-             start_page = (offset // 30) + 1
-             skip_in_page = offset % 30
-             pages_needed = ((limit + skip_in_page) // 30) + 2
+        scraper = JavBusScraper()
+        start_page = (offset // 30) + 1
+        skip_in_page = offset % 30
+        pages_needed = ((limit + skip_in_page) // 30) + 2
 
-             all_ids = []
-             for page in range(start_page, start_page + pages_needed):
-                 code, ids = jb.get_ids_by_star_name(name, page)
-                 if code == 200 and ids:
-                     all_ids.extend(ids)
-                     if len(all_ids) >= limit + skip_in_page:
-                         break
-                 else:
-                     break
+        all_ids = []
+        for page in range(start_page, start_page + pages_needed):
+            ids = scraper.get_ids_from_search(name, page=page)
+            if ids:
+                all_ids.extend(ids)
+                if len(all_ids) >= limit + skip_in_page:
+                    break
+            else:
+                break
 
-             if all_ids:
-                 # 跳過 offset 對應的部分
-                 all_ids = all_ids[skip_in_page:]
+        if all_ids:
+            all_ids = all_ids[skip_in_page:]
+            target_ids = all_ids[:limit]
 
-                 if status_callback: status_callback('javbus', f'found:{len(all_ids[:limit])}')
-                 results = []
+            if status_callback:
+                status_callback('javbus', f'found:{len(target_ids)}')
 
-                 target_ids = all_ids[:limit]
+            if target_ids and result_callback:
+                result_callback(-1, target_ids)
 
-                 # Seed callback: 通知前端準備 skeleton grid（空 target_ids 不送）
-                 if target_ids and result_callback:
-                     result_callback(-1, target_ids)
+            results = []
+            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+                futures = {}
+                for idx, num in enumerate(target_ids):
+                    future = executor.submit(search_jav, num, 'javbus')
+                    futures[future] = (idx, num)
 
-                 with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-                    # 只用 JavBus 來源，避免 fan out 到所有爬蟲
-                    # 記錄 slot index 以支援 result_callback 正確定位
-                    futures = {}
-                    for idx, num in enumerate(target_ids):
-                        future = executor.submit(search_jav, num, 'javbus')
-                        futures[future] = (idx, num)
+                for future in as_completed(futures):
+                    idx, num = futures[future]
+                    try:
+                        data = future.result()
+                        if data and data.get('title'):
+                            results.append(data)
+                            if result_callback:
+                                result_callback(idx, data)
+                    except Exception:
+                        logger.error('search_actress: %s failed', num)
 
-                    for future in as_completed(futures):
-                        idx, num = futures[future]
-                        try:
-                            data = future.result()
-                            if data and data.get('title'):
-                                results.append(data)
-                                if result_callback:
-                                    result_callback(idx, data)
-                        except Exception:
-                            logger.error('search_actress: %s failed', num)
-                 if status_callback: status_callback('done', f'found:{len(results)}')
-                 return sort_results_by_date(results)
+            if status_callback:
+                status_callback('done', f'found:{len(results)}')
+            return sort_results_by_date(results)
 
-        except Exception:
-            pass
+    except Exception as e:
+        logger.error('search_actress failed: %s', e)
 
-    # Fallback: 使用 JavDB 關鍵字搜尋 (通常效果不錯)
-    # JavDB fallback 無 as_completed 機制，不呼叫 result_callback
+    # Fallback: JavDB 關鍵字搜尋（JavBus 失敗時）
     if status_callback:
         status_callback('javdb', 'searching')
 
@@ -474,7 +469,7 @@ def search_actress(name: str, limit: int = 20, offset: int = 0, status_callback:
 
     if status_callback:
         status_callback('done', f'found:{len(results)}')
-        
+
     return results
 
 
@@ -494,78 +489,43 @@ def search_jav321_keyword(keyword: str, limit: int = 20, status_callback: Option
 
 
 def get_all_variant_ids(number: str) -> List[str]:
-    """獲取變體 ID (依賴 jvav)"""
-    if not JVAV_AVAILABLE:
-        return []
-    
+    """獲取變體 ID"""
     number = normalize_number(number)
     variant_ids = []
-    
+
     try:
-        jb = JavBusUtil()
-        search_url = f'https://www.javbus.com/search/{number}&type=0'
-        code, ids = jb.get_ids_from_page(search_url, page=1)
-        if code == 200 and ids:
-            # 過濾出真正匹配的番號
+        scraper = JavBusScraper()
+        ids = scraper.get_ids_from_search(number, page=1, search_type=0)
+        if ids:
             number_normalized = number.upper().replace('-', '')
             for id in ids:
                 base_id = id.split('_')[0]
                 if base_id.upper().replace('-', '') == number_normalized:
                     variant_ids.append(id)
-
-            # 按日期排序（新的在前）- 帶日期後綴的會排在前面
             variant_ids.sort(reverse=True)
-    except Exception:
-        pass
-        
+    except Exception as e:
+        logger.error('get_all_variant_ids failed: %s', e)
+
     return variant_ids
 
 
 def search_by_variant_id(variant_id: str, base_number: str) -> Optional[Dict[str, Any]]:
     """搜索變體"""
-    # 直接用 JavBusScraper，但 JavBusScraper 目前只能搜標準番號
-    # 這裡我們 trick 一下，JavBusScraper.search 其實是調用 jvav.get_av_by_id
-    # 如果傳入的是 variant_id，JavBusScraper 的 validate_number 可能會失敗
-    # 所以直接用 jvav
-    if not JVAV_AVAILABLE:
-        return None
-        
     try:
-        jb = JavBusUtil()
-        code, data = jb.get_av_by_id(variant_id, False, False)
-        if code == 200 and data:
-            # 手動轉 old format，因為沒經過 Video model
-            data['source'] = 'javbus'
+        scraper = JavBusScraper()
+        video = scraper._fetch_by_id(variant_id)
+        if video:
+            result = video.to_legacy_dict()
+            # 用 base_number 覆蓋（保持與舊邏輯一致）
+            result['number'] = base_number
             # 補 maker
-            if not data.get('maker'):
-                data['maker'] = get_maker_by_prefix(base_number)
-            
-            # 轉換 legacy structure if needed (jb return is mostly compatible)
-            # jb returns: title, img, date, stars(list of dict/str), tags, maker
-            # legacy needs: actors (list of names)
-            
-            actors = []
-            for s in data.get('stars', []):
-                if isinstance(s, dict):
-                    actors.append(s.get('name', ''))
-                elif isinstance(s, str):
-                    actors.append(s)
-            
-            return {
-                'number': base_number,
-                'title': data.get('title', ''),
-                'actors': actors,
-                'date': data.get('date', ''),
-                'maker': data.get('maker', ''),
-                'cover': data.get('img', ''),
-                'tags': data.get('tags', []),
-                'source': 'javbus',
-                'url': data.get('url', ''),
-                '_source': 'javbus',
-                '_variant_id': variant_id
-            }
-    except Exception:
-        pass
+            if not result.get('maker'):
+                result['maker'] = get_maker_by_prefix(base_number)
+            result['_source'] = 'javbus'
+            result['_variant_id'] = variant_id
+            return result
+    except Exception as e:
+        logger.error('search_by_variant_id failed: %s', e)
     return None
 
 

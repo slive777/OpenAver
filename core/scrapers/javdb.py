@@ -9,7 +9,7 @@ from urllib.parse import quote
 from bs4 import BeautifulSoup
 from .base import BaseScraper
 from .models import Video, Actress
-from .utils import rate_limit
+from .utils import rate_limit, strip_number_prefix
 
 # 嘗試載入 curl_cffi
 try:
@@ -112,9 +112,10 @@ class JavDBScraper(BaseScraper):
 
             soup = BeautifulSoup(detail_html, 'html.parser')
 
-            # 標題
+            # 標題（用 get_text(separator=' ') 把嵌入換行轉空格，再剝番號前綴）
             title_elem = soup.select_one('.video-detail h2, .title.is-4')
-            title = title_elem.text.strip() if title_elem else ''
+            title = title_elem.get_text(separator=' ', strip=True) if title_elem else ''
+            title = strip_number_prefix(title, number)
 
             # 封面
             cover_elem = soup.select_one('.video-cover img, .column-video-cover img')

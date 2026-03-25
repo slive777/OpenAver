@@ -1,6 +1,6 @@
 # Testing Guide
 
-OpenAver 使用 `pytest` 作為測試框架。測試套件分為三層：單元測試、整合測試、煙霧測試。
+OpenAver 使用 `pytest` 作為測試框架。測試套件分為四層：單元測試、整合測試、煙霧測試、E2E 測試。
 
 ## 前置準備
 
@@ -52,10 +52,16 @@ tests/
 │   ├── conftest.py
 │   ├── test_batch_api.py
 │   ├── test_gemini_safety_settings.py
+│   ├── test_javbus_smoke.py
 │   ├── test_scraper_live.py
 │   ├── test_scrapers.py
 │   ├── test_translate_gemini_manual.py
 │   └── test_translate_live.py
+│
+├── e2e/                     # 瀏覽器端對端測試（需真實瀏覽器 + 網路）
+│   ├── __init__.py
+│   ├── conftest.py          # Session-scoped FastAPI server（port 8001）
+│   └── test_search_e2e.py   # 搜尋頁完整流程（Detail 新欄位 / Sample Lightbox / 方向鍵導航）
 │
 ├── fixtures/                # Mock 測試資料
 │   └── responses/
@@ -84,7 +90,15 @@ pytest tests/unit/ -v
 pytest tests/integration/ -v
 
 # 單元 + 整合（CI 標準）
-pytest tests/ -v --ignore=tests/smoke -m "not smoke"
+pytest tests/ -v --ignore=tests/smoke --ignore=tests/e2e -m "not smoke and not e2e"
+```
+
+### E2E 測試（需 Playwright + 網路）
+
+```bash
+# E2E 測試（需先安裝 Playwright + Chromium，需網路 + JavBus 可連）
+source venv/bin/activate && pip install pytest-playwright && playwright install chromium
+pytest tests/e2e/ -v -m e2e
 ```
 
 ### 完整測試（需網路）
@@ -155,9 +169,20 @@ pytest tests/smoke/test_scraper_live.py -v -m smoke
 |------|----------|----------|
 | `test_scraper_live.py` | 爬蟲連通性 | 網路 |
 | `test_scrapers.py` | 6 個爬蟲模組測試 | 網路 |
+| `test_javbus_smoke.py` | JavBus scraper 連通 + 欄位驗證 | 網路 + JavBus 可連 |
 | `test_translate_live.py` | Ollama 翻譯 | Ollama 服務 |
 | `test_batch_api.py` | 批次翻譯 API | FastAPI + Ollama |
 | `test_gemini_safety_settings.py` | Gemini 安全設定 | Gemini API Key |
+
+### E2E 測試 (`e2e/`)
+
+需要真實瀏覽器（Playwright Chromium）+ 真實網路連線：
+
+| 檔案 | 測試內容 | 前提條件 |
+|------|----------|----------|
+| `test_search_e2e.py` | Detail 新欄位顯示、Sample Lightbox 互動、方向鍵導航 | 網路 + JavBus + Playwright Chromium |
+
+無網路 / JavBus 無回應時自動 SKIP（不 FAIL）。
 
 ## Fixtures
 

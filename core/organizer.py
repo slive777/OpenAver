@@ -307,7 +307,10 @@ def generate_nfo(
     has_subtitle: bool = False,
     output_path: str = '',
     has_poster: bool = False,
-    has_fanart: bool = False
+    has_fanart: bool = False,
+    director: str = '',
+    duration: Optional[int] = None,
+    series: str = '',
 ) -> bool:
     """
     生成 NFO 檔案
@@ -340,17 +343,23 @@ def generate_nfo(
     poster_suffix = '-poster' if has_poster else ''
     fanart_suffix = '-fanart' if has_fanart else ''
 
+    set_tag = (
+        f"<set><name>{html.escape(series)}</name></set>" if series else "<set></set>"
+    )
+    runtime_tag = f"<runtime>{duration}</runtime>" if duration is not None else "<runtime></runtime>"
+    director_tag = f"<director>{html.escape(director)}</director>" if director else "<director></director>"
+
     nfo_content = f'''<?xml version="1.0" encoding="utf-8"?>
 <movie>
   <title>{html.escape(display_title)}</title>
   <originaltitle>{html.escape(original_title)}</originaltitle>
-  <set></set>
+  {set_tag}
   <studio>{html.escape(maker)}</studio>
   <year>{html.escape(year)}</year>
   <premiered>{html.escape(date)}</premiered>
   <plot></plot>
-  <runtime></runtime>
-  <director></director>
+  {runtime_tag}
+  {director_tag}
   <poster>{html.escape(basename)}{poster_suffix}.jpg</poster>
   <thumb>{html.escape(basename)}.jpg</thumb>
   <fanart>{html.escape(basename)}{fanart_suffix}.jpg</fanart>
@@ -382,6 +391,7 @@ def generate_nfo(
   <release>{html.escape(date)}</release>
   <cover></cover>
   <website>{html.escape(url)}</website>
+  <uniqueid type="home" default="true">{html.escape(number)}</uniqueid>
 </movie>'''
 
     try:
@@ -589,6 +599,23 @@ def organize_file(
             if crop_to_poster(cover_jpg, poster_path):
                 result['poster_path'] = poster_path
 
+        # extrafanart 下載（jellyfin_mode 專屬，需 create_folder=True 才有 per-video 目錄）
+        # create_folder=False 時多片共用同一資料夾，fanart1.jpg 會互相覆蓋，故禁用
+        if config.get('jellyfin_mode') and config.get('create_folder'):
+            sample_images = metadata.get('sample_images', [])
+            if sample_images:
+                extrafanart_dir = os.path.join(target_dir, 'extrafanart')
+                try:
+                    os.makedirs(extrafanart_dir, exist_ok=True)
+                    for i, url in enumerate(sample_images, 1):
+                        try:
+                            dest = os.path.join(extrafanart_dir, f'fanart{i}.jpg')
+                            download_image(url, dest)
+                        except Exception as e:
+                            logger.warning(f"extrafanart {i} 下載失敗: {e}")
+                except Exception as e:
+                    logger.warning(f"extrafanart 目錄建立失敗: {e}")
+
         # 生成 NFO（檔名跟隨影片命名）
         nfo_path = os.path.join(target_dir, filename_base + '.nfo')
         tags = metadata.get('tags', [])
@@ -607,6 +634,9 @@ def organize_file(
             output_path=nfo_path,
             has_poster=bool(result.get('poster_path')),
             has_fanart=bool(result.get('fanart_path')),
+            director=metadata.get('director', ''),
+            duration=metadata.get('duration'),
+            series=metadata.get('series', ''),
         ):
             result['nfo_path'] = nfo_path
 

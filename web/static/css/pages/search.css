@@ -803,3 +803,100 @@
     background: var(--color-warning);
     color: var(--color-warning-content);
 }
+
+/* ==================== T7: Sample Images 縮圖列 ==================== */
+.sample-strip {
+    display: flex;
+    flex-direction: row;
+    gap: 0.35rem;
+    overflow-x: auto;
+    padding: 0.5rem 0.25rem;
+    scrollbar-width: thin;
+    /* 不佔滿封面欄高度，自然 shrink */
+    /* Fix D：分隔線 */
+    border-top: 1px solid var(--stroke-subtle);
+}
+
+.sample-thumb-btn {
+    flex-shrink: 0;
+    padding: 0;
+    background: none;
+    cursor: pointer;
+    overflow: hidden;
+    /* Fix D：border + 圓角修正（--fluent-radius-sm 未定義，改用 --radius-xs = 4px） */
+    border: 1px solid var(--stroke-subtle);
+    border-radius: var(--radius-xs);
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard),
+                transform var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.sample-thumb-btn:hover {
+    opacity: 0.85;
+    transform: scale(1.05);
+}
+
+/* Fix C：active 高亮（outline 不影響 box model，不觸發 layout shift） */
+.sample-thumb-active {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
+}
+
+/* Fix B：比例縮放（覆蓋 theme.css `.av-card-full-cover img` specificity 0-1-1）
+   --cover-height: 由 JS (_updateCoverHeight) 在封面載入 / 導航 / resize 後動態設定，
+                   預設 400px（對應 .av-card-full-cover-wrapper 的 min-height）
+   --sample-thumb-ratio: 縮圖高度佔封面高度的比例（小數），預設 0.18 ≈ 18%
+   例：封面高 500px → 縮圖高 90px（clamp 上限 120px 保護超大視窗） */
+.sample-strip .sample-thumb-img {
+    height: clamp(48px, calc(var(--cover-height, 400px) * var(--sample-thumb-ratio, 0.18)), 120px);
+    width: auto;
+    display: block;
+    object-fit: cover;
+    transition: none;   /* 覆蓋 theme.css 的 transform transition */
+}
+
+/* ==================== T7: Sample Lightbox ==================== */
+.sample-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1050;   /* 高於 Grid Lightbox (1000)，確保 Sample LB 在最上層 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.85);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0s linear 0.2s;
+}
+
+.sample-lightbox.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.2s ease, visibility 0s linear 0s;
+}
+
+.sample-lightbox-img-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 90vw;
+    max-height: 85vh;
+}
+
+.sample-lightbox-img {
+    max-width: 100%;
+    max-height: 85vh;
+    object-fit: contain;
+}
+
+.sample-lightbox-counter {
+    position: absolute;
+    bottom: 1.5rem;
+    right: 2rem;
+    background: rgba(0, 0, 0, 0.6);
+    color: var(--text-inverse);
+    padding: 0.2rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+}

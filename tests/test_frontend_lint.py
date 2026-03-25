@@ -406,6 +406,13 @@ class TestJellyfinFrontend:
         assert 'runJellyfinImageUpdate' in content, \
             "scanner.html 缺少 runJellyfinImageUpdate（T6d Jellyfin 批次補齊）"
 
+    def test_jellyfin_settings_hint_has_extrafanart(self):
+        """settings.html Jellyfin 模式描述文字應包含 extrafanart/ 說明（T5b）"""
+        html_file = PROJECT_ROOT / "web" / "templates" / "settings.html"
+        content = html_file.read_text(encoding='utf-8')
+        assert 'extrafanart' in content, \
+            "settings.html Jellyfin 圖片模式描述缺少 extrafanart/ 說明（T5b）"
+
 
 class TestOpenLocalGuard:
     """確認 openLocal() 綁定和 open_folder() API 的結構完整性（T5a / T5b）"""
@@ -4082,4 +4089,116 @@ class TestGridPerPageGuard:
         assert has_grid_check and has_downgrade, (
             "F2 違規：switchMode() 缺少 grid+perPage=0 降級 — "
             "切到 grid 時若 perPage=0 必須降級為 120"
+        )
+
+
+class TestSampleLightboxTemplateGuard:
+    """Fix A (T7-fix)：Sample Lightbox 模板位置回歸守衛
+
+    靜態確認 sampleLightboxOpen / sampleLightboxIndex 只出現在 search.html
+    及 base.html（body x-data fallback）中，且 .sample-lightbox overlay
+    在 searchPage() x-data scope 範圍內。
+
+    base.html 例外說明：body[x-data] 加入 sampleLightboxOpen/sampleLightboxIndex
+    fallback 是必要的。Alpine 嵌套 scope 初始化期間，body scope 偶爾會在
+    子 x-data（searchPage()）建立前先評估子元素的 binding，導致
+    ReferenceError: sampleLightboxOpen is not defined。Fallback 提供安全預設值，
+    不影響 searchPage() scope 的正常運作（子 scope 覆蓋父 scope）。
+
+    此 guard 防止未來模板重構時 .sample-lightbox 被移出正確 scope。
+    不驗證 runtime Alpine 初始化（需手動 DevTools 確認）。
+    """
+
+    SEARCH_HTML = PROJECT_ROOT / 'web' / 'templates' / 'search.html'
+    BASE_HTML = PROJECT_ROOT / 'web' / 'templates' / 'base.html'
+    TEMPLATES_DIR = PROJECT_ROOT / 'web' / 'templates'
+
+    def test_sampleLightboxOpen_only_in_search_html(self):
+        """sampleLightboxOpen 不應出現在 search.html / base.html 以外的模板
+
+        base.html 允許出現：body x-data fallback（防止 Alpine 嵌套 scope ReferenceError）
+        """
+        pattern = re.compile(r'sampleLightboxOpen|sampleLightboxIndex')
+        violations = []
+
+        for tmpl in self.TEMPLATES_DIR.glob('**/*.html'):
+            if tmpl in (self.SEARCH_HTML, self.BASE_HTML):
+                continue
+            content = tmpl.read_text(encoding='utf-8')
+            if pattern.search(content):
+                violations.append(str(tmpl.relative_to(PROJECT_ROOT)))
+
+        assert not violations, (
+            "Fix A 違規：sampleLightboxOpen/sampleLightboxIndex 出現在 search.html/base.html 以外的模板 — "
+            f"請確認這些 state 只存在於 searchPage() scope 或 body fallback：{violations}"
+        )
+
+    def test_sample_lightbox_inside_searchPage_scope(self):
+        """search.html 中 .sample-lightbox 必須在 x-data=\"searchPage()\" 的 div 之後（scope 內）"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        lines = content.split('\n')
+
+        # 找到 x-data="searchPage()" 的行號
+        search_page_line = None
+        for i, line in enumerate(lines):
+            if 'x-data="searchPage()"' in line:
+                search_page_line = i
+                break
+
+        assert search_page_line is not None, (
+            "Fix A 違規：search.html 找不到 x-data=\"searchPage()\" — "
+            "searchPage() Alpine 組件必須存在"
+        )
+
+        # 找到 sample-lightbox 的行號
+        sample_lightbox_line = None
+        for i, line in enumerate(lines):
+            if 'class="sample-lightbox"' in line:
+                sample_lightbox_line = i
+                break
+
+        assert sample_lightbox_line is not None, (
+            "Fix A 違規：search.html 找不到 .sample-lightbox 元素 — "
+            "Sample Lightbox overlay 必須存在於 search.html"
+        )
+
+        # .sample-lightbox 必須在 searchPage() x-data scope 之後（行號較大）
+        assert sample_lightbox_line > search_page_line, (
+            f"Fix A 違規：.sample-lightbox（L{sample_lightbox_line + 1}）在 "
+            f"x-data=\"searchPage()\"（L{search_page_line + 1}）之前 — "
+            "sample-lightbox overlay 必須在 searchPage() x-data scope 內"
+        )
+
+    def test_sample_lightbox_uses_searchPage_state(self):
+        """search.html 的 .sample-lightbox 必須引用 sampleLightboxOpen（確認綁定存在）"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+
+        # .sample-lightbox 必須有 sampleLightboxOpen 綁定（:class 或 x-show）
+        has_open_binding = bool(re.search(
+            r'sampleLightboxOpen',
+            content
+        ))
+        assert has_open_binding, (
+            "Fix A 違規：search.html 的 .sample-lightbox 缺少 sampleLightboxOpen 綁定 — "
+            "overlay 必須用 sampleLightboxOpen 控制顯示"
+        )
+
+    def test_sample_thumb_active_binding_in_x_for(self):
+        """Fix C：sample-thumb-btn 的 :class active 綁定必須在 x-for template 內"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+
+        # 確認 sample-thumb-active 綁定存在
+        assert 'sample-thumb-active' in content, (
+            "Fix C 違規：search.html 缺少 sample-thumb-active class 綁定 — "
+            "縮圖 active 高亮需要在 .sample-thumb-btn 加 :class=\"{ 'sample-thumb-active': ... }\""
+        )
+
+        # 確認 :class 綁定引用了正確的 state
+        has_correct_binding = bool(re.search(
+            r":class=.*sample-thumb-active.*sampleLightboxOpen.*sampleLightboxIndex",
+            content
+        ))
+        assert has_correct_binding, (
+            "Fix C 違規：sample-thumb-active 的 :class 綁定格式不正確 — "
+            "必須形如 :class=\"{ 'sample-thumb-active': sampleLightboxOpen && sampleLightboxIndex === idx }\""
         )
