@@ -111,6 +111,31 @@
                     </div>
                 </div>
 
+                <!-- 主要搜尋來源 -->
+                <div class="settings-form-row">
+                    <label class="row-label">
+                        主要搜尋來源
+                        <small class="settings-hint">精確搜尋優先使用的資料庫</small>
+                    </label>
+                    <div class="flex gap-4">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" class="radio radio-primary radio-sm"
+                                   name="primarySource" value="javbus"
+                                   x-model="form.primarySource">
+                            <span class="label-text">JavBus</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer"
+                               :class="{ 'opacity-50': !isDmmAvailable() }">
+                            <input type="radio" class="radio radio-primary radio-sm"
+                                   name="primarySource" value="dmm"
+                                   x-model="form.primarySource"
+                                   :disabled="!isDmmAvailable()">
+                            <span class="label-text">DMM</span>
+                            <small class="settings-hint" x-show="!isDmmAvailable()">(需設定 Proxy)</small>
+                        </label>
+                    </div>
+                </div>
+
                 <!-- 我的最愛資料夾 -->
                 <div class="settings-form-row">
                     <label class="row-label">

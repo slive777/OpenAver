@@ -8,6 +8,7 @@ function settingsPage() {
             uncensoredModeEnabled: false,
             searchFavoriteFolder: '',
             proxyUrl: '',
+            primarySource: 'javbus',
 
             // Translate
             translateEnabled: false,
@@ -247,6 +248,7 @@ function settingsPage() {
                     this.form.uncensoredModeEnabled = config.search?.uncensored_mode_enabled || false;
                     this.form.searchFavoriteFolder = config.search?.favorite_folder || '';
                     this.form.proxyUrl = config.search?.proxy_url || '';
+                    this.form.primarySource = config.search?.primary_source || 'javbus';
 
                     // Translate
                     this.form.translateEnabled = config.translate.enabled;
@@ -362,7 +364,8 @@ function settingsPage() {
                     gallery_mode_enabled: this.form.galleryModeEnabled,
                     uncensored_mode_enabled: this.form.uncensoredModeEnabled,
                     favorite_folder: this.form.searchFavoriteFolder.trim(),
-                    proxy_url: this.form.proxyUrl.trim()
+                    proxy_url: this.form.proxyUrl.trim(),
+                    primary_source: this.form.primarySource,
                 };
 
                 // 更新 translate
