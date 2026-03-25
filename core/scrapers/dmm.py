@@ -226,7 +226,7 @@ class DMMScraper(BaseScraper):
 
             _sample_images_supported = True
             raw_samples = item.get('sampleImages') or []
-            return [re.sub(r'-(\d+)\.jpg$', r'jp-\1.jpg', s['imageUrl']) for s in raw_samples if s.get('imageUrl')]
+            return [re.sub(r'(?<!jp)-(\d+)\.jpg$', r'jp-\1.jpg', s['imageUrl']) for s in raw_samples if s.get('imageUrl')]
 
         except Exception:
             return []

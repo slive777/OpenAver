@@ -1380,6 +1380,22 @@ class TestDMMTags:
 
         assert result == ["https://example.com/sample.png"]
 
+    def test_sample_images_probe_already_high_res_idempotent(self, dmm_scraper, monkeypatch):
+        """已是高解析度 jp-N.jpg → 不重複轉換（冪等性）"""
+        import core.scrapers.dmm as dmm_module
+        monkeypatch.setattr(dmm_module, '_sample_images_supported', None)
+
+        success_resp = _make_mock_resp(status_code=200, json_data={
+            "data": {"ppvContent": {"sampleImages": [
+                {"imageUrl": "https://pics.dmm.co.jp/digital/video/ipzz00698/ipzz00698jp-1.jpg"},
+            ]}}
+        })
+        with patch.object(dmm_scraper._session, 'post', return_value=success_resp):
+            result = dmm_scraper._probe_sample_images("ipzz00698")
+
+        # Should NOT become ipzz00698jpjp-1.jpg
+        assert result == ["https://pics.dmm.co.jp/digital/video/ipzz00698/ipzz00698jp-1.jpg"]
+
     def test_sample_images_probe_cache_false_skip(self, dmm_scraper, monkeypatch):
         """_sample_images_supported=False → 不發請求"""
         import core.scrapers.dmm as dmm_module
