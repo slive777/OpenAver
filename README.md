@@ -329,9 +329,9 @@ python build.py
 
 OpenAver 使用並感謝以下開源專案：
 
-- **[jvav](https://github.com/akynazh/jvav)** - JAV 元數據刮削工具庫，提供 JavBus/JavDB/JavLib 等多來源支援
 - **[FastAPI](https://fastapi.tiangolo.com/)** - 現代化的 Python Web 框架
 - **[PyWebView](https://pywebview.flowrl.com/)** - 輕量級的跨平台桌面應用框架
+- **[GSAP](https://gsap.com/)** - 高效能 JavaScript 動畫引擎
 - **[DaisyUI](https://daisyui.com/)** - Tailwind CSS 元件庫
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS 框架
 - **[Alpine.js](https://alpinejs.dev/)** - 輕量級 JavaScript 框架
