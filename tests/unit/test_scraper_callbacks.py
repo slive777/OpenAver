@@ -325,7 +325,7 @@ class TestSmartSearchResultCallback:
 
         received_callbacks = {}
 
-        def mock_search_actress(name, limit=20, offset=0, status_callback=None, result_callback=None):
+        def mock_search_actress(name, limit=20, offset=0, status_callback=None, result_callback=None, **kwargs):
             received_callbacks['actress_callback'] = result_callback
             return [{'number': 'SONE-100', 'actors': ['三上悠亜'], '_mode': 'actress'}]
 
@@ -405,7 +405,7 @@ class TestSmartSearchResultCallback:
             # Prefix search returns empty → triggers fallback to actress
             return []
 
-        def mock_search_actress(name, limit=20, offset=0, status_callback=None, result_callback=None):
+        def mock_search_actress(name, limit=20, offset=0, status_callback=None, result_callback=None, **kwargs):
             actress_received_callback['callback'] = result_callback
             return [{'number': 'SONE-100', 'actors': ['三上悠亜'], '_mode': 'actress'}]
 
@@ -428,7 +428,7 @@ class TestSmartSearchResultCallback:
 
         received_callbacks = {}
 
-        def mock_search_actress(name, limit=20, offset=0, status_callback=None, result_callback=None):
+        def mock_search_actress(name, limit=20, offset=0, status_callback=None, result_callback=None, **kwargs):
             received_callbacks['actress_callback'] = result_callback
             return [{'number': 'SONE-100', 'actors': ['三上悠亜'], '_mode': 'actress'}]
 

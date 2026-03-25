@@ -413,8 +413,29 @@ def search_prefix(prefix: str, limit: int = 20, offset: int = 0, status_callback
     return sort_results_by_date(results)
 
 
-def search_actress(name: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, result_callback: Optional[Callable[[int, Any], None]] = None) -> List[Dict[str, Any]]:
+def search_actress(name: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, result_callback: Optional[Callable[[int, Any], None]] = None, primary_source: str = 'javbus', proxy_url: str = '') -> List[Dict[str, Any]]:
     """女優搜尋"""
+    # DMM routing: when primary_source='dmm' and proxy is available, try DMM first
+    fuzzy_source = _get_fuzzy_source(primary_source, proxy_url)
+    if fuzzy_source == 'dmm':
+        if status_callback:
+            status_callback('dmm', 'searching')
+        dmm_config = ScraperConfig(proxy_url=proxy_url)
+        dmm_scraper = DMMScraper(dmm_config)
+        videos = dmm_scraper.search_by_keyword(name, limit=limit)
+        if videos:
+            results = [v.to_legacy_dict() for v in videos]
+            # SSE 漸進回報：先送 seed（slot=-1），再逐筆送 result-item
+            if result_callback:
+                seed_ids = [r.get('number', '') for r in results]
+                result_callback(-1, seed_ids)
+                for i, r in enumerate(results):
+                    result_callback(i, r)
+            if status_callback:
+                status_callback('done', f'found:{len(results)}')
+            return results
+        # DMM returned nothing → fall through to JavBus path
+
     try:
         if status_callback:
             status_callback('javbus', 'searching')
@@ -676,7 +697,7 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
              # Fallback to actress（不透傳 result_callback：prefix 的 seed 已送出，
              # actress fallback 不可送第二個 seed，避免 slot index 錯位）
              if status_callback: status_callback('mode', 'actress')
-             results = search_actress(query, limit=limit, status_callback=status_callback)
+             results = search_actress(query, limit=limit, status_callback=status_callback, primary_source=primary_source, proxy_url=proxy_url)
              if results: mode = 'actress'
 
         if not results:
@@ -703,12 +724,18 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
                 results = [v.to_legacy_dict() for v in videos]
                 for r in results:
                     r['_mode'] = 'fuzzy'
+                # SSE 漸進回報：先送 seed（slot=-1），再逐筆送 result-item
+                if result_callback:
+                    seed_ids = [r.get('number', '') for r in results]
+                    result_callback(-1, seed_ids)
+                    for i, r in enumerate(results):
+                        result_callback(i, r)
                 if status_callback:
                     status_callback('done', f'found:{len(results)}')
                 return results
             # DMM returned nothing → fall through to JavBus
 
-        results = search_actress(query, limit=limit, offset=offset, status_callback=status_callback, result_callback=result_callback)
+        results = search_actress(query, limit=limit, offset=offset, status_callback=status_callback, result_callback=result_callback, primary_source=primary_source, proxy_url=proxy_url)
         mode = 'actress'
 
         if not results:

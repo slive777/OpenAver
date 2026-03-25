@@ -814,6 +814,79 @@ class TestPipeline:
         assert _get_fuzzy_source('javbus', '') == 'javbus'
         assert _get_fuzzy_source('javbus', 'http://proxy') == 'javbus'
 
+    def test_exact_mode_passes_primary_source(self):
+        """REST mode=exact → search_jav() 收到 primary_source（不再被忽略）"""
+        from unittest.mock import patch
+        from fastapi.testclient import TestClient
+        from web.app import app
+        from core.scraper import search_jav as real_search_jav
+
+        client = TestClient(app)
+
+        captured_kwargs = {}
+
+        def fake_search_jav(number, source='auto', proxy_url='', primary_source='javbus'):
+            captured_kwargs['primary_source'] = primary_source
+            captured_kwargs['proxy_url'] = proxy_url
+            return None  # no result needed; we only check kwargs
+
+        with patch('core.config.load_config', return_value={
+            'search': {
+                'proxy_url': 'http://test-proxy:8080',
+                'primary_source': 'dmm',
+                'uncensored_mode_enabled': False,
+            }
+        }):
+            with patch('web.routers.search.search_jav', side_effect=fake_search_jav):
+                client.get("/api/search", params={"q": "SONE-205", "mode": "exact"})
+
+        assert captured_kwargs.get('primary_source') == 'dmm', (
+            "mode=exact branch must pass primary_source to search_jav(); "
+            f"got {captured_kwargs.get('primary_source')!r}"
+        )
+
+    def test_search_actress_dmm_routing(self):
+        """search_actress(primary_source='dmm', proxy_url=...) → DMM search_by_keyword 先被呼叫"""
+        from core.scraper import search_actress
+
+        mock_video = _make_video("dmm", "SONE-205")
+        mock_video_dict = mock_video.to_legacy_dict()
+
+        with patch.object(DMMScraper, 'search_by_keyword', return_value=[mock_video]) as mock_dmm_kw:
+            with patch.object(JavBusScraper, 'get_ids_from_search', return_value=[]) as mock_jb:
+                results = search_actress(
+                    "未歩なな",
+                    limit=10,
+                    primary_source='dmm',
+                    proxy_url='http://test-proxy:8080',
+                )
+
+        mock_dmm_kw.assert_called_once()
+        # JavBus should NOT be called since DMM returned results
+        mock_jb.assert_not_called()
+        assert len(results) == 1
+        assert results[0]['source'] == 'dmm'
+
+    def test_search_actress_dmm_fallback_to_javbus(self):
+        """search_actress(primary_source='dmm') → DMM 無結果時 fallback 到 JavBus"""
+        from core.scraper import search_actress
+        from core.scrapers.javdb import JavDBScraper
+
+        # DMM returns nothing → should fall through to JavBus path
+        with patch.object(DMMScraper, 'search_by_keyword', return_value=[]) as mock_dmm_kw:
+            with patch.object(JavBusScraper, 'get_ids_from_search', return_value=[]) as mock_jb:
+                with patch.object(JavDBScraper, 'search_by_keyword', return_value=[]) as mock_javdb_kw:
+                    results = search_actress(
+                        "未歩なな",
+                        limit=10,
+                        primary_source='dmm',
+                        proxy_url='http://test-proxy:8080',
+                    )
+
+        mock_dmm_kw.assert_called_once()
+        # After DMM returns nothing, JavBus path should be tried
+        mock_jb.assert_called()
+
 
 # ============================================================
 # Mock Data — DMM Search List

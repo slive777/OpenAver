@@ -146,12 +146,12 @@ def search(
             results = [data] if data else []
         else:
             # 精確搜索（使用 smart_search 的 exact 模式）
-            data = search_jav(q, proxy_url=proxy_url)
+            data = search_jav(q, proxy_url=proxy_url, primary_source=primary_source)
             results = [data] if data else []
     elif mode == "partial":
         results = search_partial(q)
     elif mode == "actress":
-        results = search_actress(q, limit=limit, offset=offset)
+        results = search_actress(q, limit=limit, offset=offset, primary_source=primary_source, proxy_url=proxy_url)
     else:
         results = smart_search(q, limit=limit, offset=offset, proxy_url=proxy_url)
 
