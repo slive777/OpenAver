@@ -133,10 +133,11 @@ def search(
     config = load_config()
     uncensored_mode = config.get('search', {}).get('uncensored_mode_enabled', False)
     proxy_url = config.get('search', {}).get('proxy_url', '')
+    primary_source = config.get('search', {}).get('primary_source', 'javbus')
 
     # 自動模式使用 smart_search
     if mode == "auto":
-        results = smart_search(q, limit=limit, offset=offset, uncensored_mode=uncensored_mode, proxy_url=proxy_url)
+        results = smart_search(q, limit=limit, offset=offset, uncensored_mode=uncensored_mode, proxy_url=proxy_url, primary_source=primary_source)
     elif mode == "exact":
         if source:
             # 指定來源搜索
@@ -324,6 +325,7 @@ async def search_stream(
     config = load_config()
     uncensored_mode = config.get('search', {}).get('uncensored_mode_enabled', False)
     proxy_url = config.get('search', {}).get('proxy_url', '')
+    primary_source = config.get('search', {}).get('primary_source', 'javbus')
 
     status_queue = Queue()
     sent_seed = False
@@ -345,7 +347,7 @@ async def search_stream(
 
     def run_search():
         """在背景執行搜尋"""
-        return smart_search(q, limit=limit, offset=offset, status_callback=status_callback, uncensored_mode=uncensored_mode, proxy_url=proxy_url, result_callback=result_callback)
+        return smart_search(q, limit=limit, offset=offset, status_callback=status_callback, uncensored_mode=uncensored_mode, proxy_url=proxy_url, result_callback=result_callback, primary_source=primary_source)
 
     async def event_generator():
         nonlocal sent_seed

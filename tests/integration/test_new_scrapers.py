@@ -706,12 +706,12 @@ class TestPipeline:
         mock_heyzo.assert_called()
 
     def test_dmm_top1_when_proxy(self):
-        """有 proxy_url 且搜尋番號格式 → DMM 優先於 variant IDs"""
+        """primary_source='dmm' + proxy_url + 番號格式 → DMM Top-1 shortcut 被觸發"""
         mock_video = _make_video("dmm", "SONE-205")
 
         with patch.object(DMMScraper, 'search', return_value=mock_video) as mock_dmm:
             with patch('core.scrapers.utils.rate_limit'):
-                results = smart_search("SONE-205", proxy_url="http://proxy:8080")
+                results = smart_search("SONE-205", proxy_url="http://proxy:8080", primary_source="dmm")
 
         mock_dmm.assert_called()
         assert len(results) >= 1
@@ -733,6 +733,86 @@ class TestPipeline:
 
         assert len(results) == 1
         mock_d2.assert_not_called()
+
+    def test_primary_source_javbus_skips_dmm_shortcut(self):
+        """primary_source='javbus'（預設）→ 不走 DMM Top-1 shortcut，走 search_jav(auto)"""
+        mock_video = _make_video("javbus", "SONE-205")
+        with patch('core.scraper.search_jav', return_value=mock_video.to_legacy_dict()) as mock_sj:
+            with patch.object(DMMScraper, 'search') as mock_dmm:
+                with patch('core.scraper.get_all_variant_ids', return_value=[]):
+                    results = smart_search("SONE-205", proxy_url="http://proxy:8080", primary_source="javbus")
+        # DMM shortcut should NOT be called directly
+        mock_dmm.assert_not_called()
+        # search_jav(auto) should be called
+        mock_sj.assert_called()
+
+    def test_dmm_top1_when_proxy_primary_dmm(self):
+        """primary_source='dmm' + proxy → DMM Top-1 shortcut"""
+        mock_video = _make_video("dmm", "SONE-205")
+        with patch.object(DMMScraper, 'search', return_value=mock_video) as mock_dmm:
+            with patch('core.scrapers.utils.rate_limit'):
+                results = smart_search("SONE-205", proxy_url="http://proxy:8080", primary_source="dmm")
+        mock_dmm.assert_called()
+        assert len(results) >= 1
+        assert results[0]['_mode'] == 'exact'
+
+    def test_primary_source_dmm_no_proxy_fallback(self):
+        """primary_source='dmm' + 無 proxy → search_jav(auto) 不含 DMM"""
+        mock_video = _make_video("javbus", "SONE-205")
+        with patch('core.scraper.search_jav', return_value=mock_video.to_legacy_dict()) as mock_sj:
+            with patch('core.scraper.get_all_variant_ids', return_value=[]):
+                results = smart_search("SONE-205", proxy_url="", primary_source="dmm")
+        # Should still work via search_jav(auto)
+        mock_sj.assert_called()
+
+    def test_merge_priority_dmm(self):
+        """primary_source='dmm' → DMM 為 main_video"""
+        from core.scrapers.jav321 import JAV321Scraper
+        from core.scrapers.javdb import JavDBScraper
+        from core.scrapers.fc2 import FC2Scraper
+        from core.scrapers.avsox import AVSOXScraper
+        dmm_video = _make_video("dmm", "SONE-205")
+        javbus_video = _make_video("javbus", "SONE-205")
+
+        with patch.object(DMMScraper, 'search', return_value=dmm_video), \
+             patch.object(JavBusScraper, 'search', return_value=javbus_video), \
+             patch.object(JAV321Scraper, 'search', return_value=None), \
+             patch.object(JavDBScraper, 'search', return_value=None), \
+             patch.object(FC2Scraper, 'search', return_value=None), \
+             patch.object(AVSOXScraper, 'search', return_value=None), \
+             patch('core.scrapers.utils.rate_limit'):
+            result = search_jav("SONE-205", proxy_url="http://proxy:8080", primary_source="dmm")
+
+        assert result['_source'] == 'dmm'
+
+    def test_merge_priority_javbus(self):
+        """primary_source='javbus' → JavBus 為 main_video（即使 DMM 也有結果）"""
+        from core.scrapers.jav321 import JAV321Scraper
+        from core.scrapers.javdb import JavDBScraper
+        from core.scrapers.fc2 import FC2Scraper
+        from core.scrapers.avsox import AVSOXScraper
+        dmm_video = _make_video("dmm", "SONE-205")
+        javbus_video = _make_video("javbus", "SONE-205")
+
+        with patch.object(DMMScraper, 'search', return_value=dmm_video), \
+             patch.object(JavBusScraper, 'search', return_value=javbus_video), \
+             patch.object(JAV321Scraper, 'search', return_value=None), \
+             patch.object(JavDBScraper, 'search', return_value=None), \
+             patch.object(FC2Scraper, 'search', return_value=None), \
+             patch.object(AVSOXScraper, 'search', return_value=None), \
+             patch('core.scrapers.utils.rate_limit'):
+            result = search_jav("SONE-205", proxy_url="http://proxy:8080", primary_source="javbus")
+
+        assert result['_source'] == 'javbus'
+
+    def test_get_fuzzy_source_dmm_no_proxy(self):
+        """primary_source='dmm' + 無 proxy → fallback to javbus"""
+        from core.scraper import _get_fuzzy_source
+        assert _get_fuzzy_source('dmm', '') == 'javbus'
+        assert _get_fuzzy_source('dmm', None) == 'javbus'
+        assert _get_fuzzy_source('dmm', 'http://proxy') == 'dmm'
+        assert _get_fuzzy_source('javbus', '') == 'javbus'
+        assert _get_fuzzy_source('javbus', 'http://proxy') == 'javbus'
 
 
 # ============================================================

@@ -168,7 +168,15 @@ def expand_partial_number(partial: str) -> List[str]:
 
 # ============ 核心搜尋函數 ============
 
-def search_jav(number: str, source: str = 'auto', proxy_url: str = '') -> Optional[Dict[str, Any]]:
+def _get_fuzzy_source(primary_source: str, proxy_url: str) -> str:
+    """決定實際使用的模糊搜尋來源（含降級）"""
+    if primary_source == 'dmm' and not proxy_url:
+        logger.info("[Search] primary_source=dmm but no proxy, fallback to javbus")
+        return 'javbus'
+    return primary_source
+
+
+def search_jav(number: str, source: str = 'auto', proxy_url: str = '', primary_source: str = 'javbus') -> Optional[Dict[str, Any]]:
     """
     搜尋 JAV 資訊（向後相容函數）
     """
@@ -233,10 +241,12 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '') -> Option
 
     # 合併邏輯
     main_video = None
-    if 'dmm' in all_data:
+    if primary_source == 'dmm' and 'dmm' in all_data:
         main_video = all_data['dmm']
     elif 'javbus' in all_data:
         main_video = all_data['javbus']
+    elif 'dmm' in all_data:
+        main_video = all_data['dmm']
     elif 'jav321' in all_data:
         main_video = all_data['jav321']
     else:
@@ -546,7 +556,7 @@ def _get_uncensored_sources(search_term: str) -> list[str]:
         return ['d2pass', 'heyzo', 'fc2', 'avsox']
 
 
-def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, uncensored_mode: bool = False, proxy_url: str = '', result_callback: Optional[Callable[[int, Any], None]] = None) -> List[Dict[str, Any]]:
+def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, uncensored_mode: bool = False, proxy_url: str = '', result_callback: Optional[Callable[[int, Any], None]] = None, primary_source: str = 'javbus') -> List[Dict[str, Any]]:
     """
     智慧搜尋：自動判斷搜尋類型並執行
 
@@ -619,8 +629,8 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
         if offset > 0:
             return []
 
-        # DMM Top-1（proxy 有值時精確搜尋優先用 DMM）
-        if proxy_url:
+        # DMM Top-1（primary_source='dmm' 且有 proxy 時精確搜尋優先用 DMM）
+        if primary_source == 'dmm' and proxy_url:
             if status_callback:
                 status_callback('dmm', 'searching')
             res = search_jav(query, source='dmm', proxy_url=proxy_url)
@@ -644,7 +654,7 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
                 return [res]
 
         # 一般搜尋
-        res = search_jav(query, proxy_url=proxy_url)
+        res = search_jav(query, proxy_url=proxy_url, primary_source=primary_source)
         results = [res] if res else []
         if status_callback: status_callback('done', f'found:{len(results)}')
         for r in results: r['_mode'] = 'exact'
@@ -680,6 +690,24 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
 
     # 4. 女優/關鍵字搜尋
     else:
+        # 模糊搜尋路由
+        fuzzy_source = _get_fuzzy_source(primary_source, proxy_url)
+        if fuzzy_source == 'dmm':
+            # DMM keyword search
+            if status_callback:
+                status_callback('dmm', 'searching')
+            dmm_config = ScraperConfig(proxy_url=proxy_url)
+            dmm_scraper = DMMScraper(dmm_config)
+            videos = dmm_scraper.search_by_keyword(query, limit=limit)
+            if videos:
+                results = [v.to_legacy_dict() for v in videos]
+                for r in results:
+                    r['_mode'] = 'fuzzy'
+                if status_callback:
+                    status_callback('done', f'found:{len(results)}')
+                return results
+            # DMM returned nothing → fall through to JavBus
+
         results = search_actress(query, limit=limit, offset=offset, status_callback=status_callback, result_callback=result_callback)
         mode = 'actress'
 
@@ -687,6 +715,6 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
             if status_callback: status_callback('mode', 'keyword')
             results = search_jav321_keyword(query, limit=limit, status_callback=status_callback)
             if results: mode = 'keyword'
-            
+
         for r in results: r['_mode'] = mode
         return results
