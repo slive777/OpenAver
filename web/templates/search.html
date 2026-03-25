@@ -332,6 +332,12 @@
                         <i class="bi bi-arrow-repeat" x-show="!isSwitchingSource"></i>
                         <span x-show="isSwitchingSource" class="loading loading-spinner loading-sm"></span>
                     </button>
+                    <button class="info-icon-btn"
+                            @click="openSourceUrl(current()?.url || '')"
+                            x-show="appConfig?.source_links?.[current()?.source] && current()?.url"
+                            title="開啟來源頁面">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </button>
                 </div>
                 <div class="av-card-full-body">
                     <div class="info-row">
