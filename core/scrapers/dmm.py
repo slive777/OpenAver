@@ -618,23 +618,33 @@ class DMMScraper(BaseScraper):
             results = []
             for item in contents:
                 content_id = item.get('id', '')
-                actresses = [
-                    Actress(name=a['name'])
-                    for a in (item.get('actresses') or [])
-                    if a.get('name')
-                ]
-                video = Video(
-                    number=self._content_id_to_number(content_id),
-                    title=item.get('title', ''),
-                    actresses=actresses,
-                    maker=(item.get('maker') or {}).get('name', ''),
-                    cover_url=(item.get('packageImage') or {}).get('largeUrl', ''),
-                    source=self.source_name,
-                    detail_url=f"https://www.dmm.co.jp/digital/videoa/-/detail/=/cid={content_id}/",
-                )
-                results.append(video)
+                if not content_id:
+                    continue
 
-            rate_limit(self.config.delay)
+                # Enrichment: 逐筆 _fetch_by_id 取得完整 Video
+                try:
+                    video = self._fetch_by_id(content_id)
+                except Exception:
+                    video = None
+                if video is None:
+                    # Fallback: 從搜尋結果建構 shallow Video
+                    actresses = [
+                        Actress(name=a['name'])
+                        for a in (item.get('actresses') or [])
+                        if a.get('name')
+                    ]
+                    video = Video(
+                        number=self._content_id_to_number(content_id),
+                        title=item.get('title', ''),
+                        actresses=actresses,
+                        maker=(item.get('maker') or {}).get('name', ''),
+                        cover_url=(item.get('packageImage') or {}).get('largeUrl', ''),
+                        source=self.source_name,
+                        detail_url=f"https://www.dmm.co.jp/digital/videoa/-/detail/=/cid={content_id}/",
+                    )
+                results.append(video)
+                rate_limit(self.config.delay)
+
             return results
 
         except Exception:

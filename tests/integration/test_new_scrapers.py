@@ -949,20 +949,22 @@ class TestDMMSearchByKeyword:
         """mock response → 回傳 2 個 Video 物件"""
         mock_resp = _make_mock_resp(status_code=200, json_data=DMM_SEARCH_LIST_RESPONSE)
 
-        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp):
-            with patch('core.scrapers.utils.rate_limit'):
-                results = dmm_scraper.search_by_keyword("未歩なな")
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp), \
+             patch.object(dmm_scraper, '_fetch_by_id', return_value=None), \
+             patch('core.scrapers.utils.rate_limit'):
+            results = dmm_scraper.search_by_keyword("未歩なな")
 
         assert len(results) == 2
 
-    # 3. verify each field
+    # 3. verify each field (fallback path — _fetch_by_id returns None)
     def test_keyword_video_fields(self, dmm_scraper):
         """各欄位正確對應：title, cover_url, actresses, maker, source, number, detail_url"""
         mock_resp = _make_mock_resp(status_code=200, json_data=DMM_SEARCH_LIST_RESPONSE)
 
-        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp):
-            with patch('core.scrapers.utils.rate_limit'):
-                results = dmm_scraper.search_by_keyword("未歩なな")
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp), \
+             patch.object(dmm_scraper, '_fetch_by_id', return_value=None), \
+             patch('core.scrapers.utils.rate_limit'):
+            results = dmm_scraper.search_by_keyword("未歩なな")
 
         v0 = results[0]
         assert v0.number == "SONE-205"
@@ -984,9 +986,10 @@ class TestDMMSearchByKeyword:
     def test_keyword_number_format(self, dmm_scraper):
         """content_id → 標準番號格式（strip leading zeros + uppercase）"""
         mock_resp = _make_mock_resp(status_code=200, json_data=DMM_SEARCH_LIST_RESPONSE)
-        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp):
-            with patch('core.scrapers.utils.rate_limit'):
-                results = dmm_scraper.search_by_keyword("未歩なな")
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp), \
+             patch.object(dmm_scraper, '_fetch_by_id', return_value=None), \
+             patch('core.scrapers.utils.rate_limit'):
+            results = dmm_scraper.search_by_keyword("未歩なな")
         # sone00205 → SONE-205 (not SONE-00205)
         assert results[0].number == "SONE-205"
         # sone00300 → SONE-300
@@ -1073,9 +1076,10 @@ class TestDMMSearchByKeyword:
         }
         mock_resp = _make_mock_resp(status_code=200, json_data=no_actress_resp)
 
-        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp):
-            with patch('core.scrapers.utils.rate_limit'):
-                results = dmm_scraper.search_by_keyword("テスト")
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp), \
+             patch.object(dmm_scraper, '_fetch_by_id', return_value=None), \
+             patch('core.scrapers.utils.rate_limit'):
+            results = dmm_scraper.search_by_keyword("テスト")
 
         assert len(results) == 1
         assert results[0].actresses == []
@@ -1100,9 +1104,10 @@ class TestDMMSearchByKeyword:
         }
         mock_resp = _make_mock_resp(status_code=200, json_data=no_cover_resp)
 
-        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp):
-            with patch('core.scrapers.utils.rate_limit'):
-                results = dmm_scraper.search_by_keyword("テスト")
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp), \
+             patch.object(dmm_scraper, '_fetch_by_id', return_value=None), \
+             patch('core.scrapers.utils.rate_limit'):
+            results = dmm_scraper.search_by_keyword("テスト")
 
         assert len(results) == 1
         assert results[0].cover_url == ""
@@ -1112,13 +1117,81 @@ class TestDMMSearchByKeyword:
         """limit 參數被正確傳入 GraphQL variables"""
         mock_resp = _make_mock_resp(status_code=200, json_data=DMM_SEARCH_LIST_RESPONSE)
 
-        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp) as mock_post:
-            with patch('core.scrapers.utils.rate_limit'):
-                dmm_scraper.search_by_keyword("未歩なな", limit=5)
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp) as mock_post, \
+             patch.object(dmm_scraper, '_fetch_by_id', return_value=None), \
+             patch('core.scrapers.utils.rate_limit'):
+            dmm_scraper.search_by_keyword("未歩なな", limit=5)
 
-        call_kwargs = mock_post.call_args[1]
+        # First call is the list query; check its variables
+        call_kwargs = mock_post.call_args_list[0][1]
         payload = call_kwargs.get('json', {})
         assert payload['variables']['limit'] == 5
+
+    # 11. enrichment — _fetch_by_id called per item
+    def test_keyword_enrichment_calls_fetch_by_id(self, dmm_scraper):
+        """search_by_keyword 對每筆結果呼叫 _fetch_by_id"""
+        list_resp = _make_mock_resp(status_code=200, json_data=DMM_SEARCH_LIST_RESPONSE)
+        enriched_video1 = Video(number="SONE-205", title="Full Title 1", source="dmm",
+                                date="2024-03-19", director="Director1", duration=149,
+                                tags=["tag1"], sample_images=["https://img1.jpg"])
+        enriched_video2 = Video(number="SONE-300", title="Full Title 2", source="dmm",
+                                date="2024-05-01", director="Director2", duration=120)
+
+        with patch.object(dmm_scraper._session, 'post', return_value=list_resp), \
+             patch.object(dmm_scraper, '_fetch_by_id', side_effect=[enriched_video1, enriched_video2]) as mock_fetch, \
+             patch('core.scrapers.utils.rate_limit'):
+            results = dmm_scraper.search_by_keyword("test")
+
+        assert mock_fetch.call_count == 2
+        mock_fetch.assert_any_call("sone00205")
+        mock_fetch.assert_any_call("sone00300")
+        assert results[0].date == "2024-03-19"
+        assert results[0].director == "Director1"
+        assert results[1].date == "2024-05-01"
+
+    # 12. enrichment fallback — _fetch_by_id returns None → shallow Video
+    def test_keyword_enrichment_fallback_on_fetch_fail(self, dmm_scraper):
+        """_fetch_by_id 返回 None → fallback 到 shallow Video"""
+        list_resp = _make_mock_resp(status_code=200, json_data=DMM_SEARCH_LIST_RESPONSE)
+
+        with patch.object(dmm_scraper._session, 'post', return_value=list_resp), \
+             patch.object(dmm_scraper, '_fetch_by_id', return_value=None), \
+             patch('core.scrapers.utils.rate_limit'):
+            results = dmm_scraper.search_by_keyword("test")
+
+        assert len(results) == 2
+        assert results[0].title == "成人への卒業"
+        assert results[0].number == "SONE-205"
+        assert results[0].date == ""
+        assert results[0].tags == []
+
+    def test_keyword_enrichment_fallback_on_fetch_raise(self, dmm_scraper):
+        """_fetch_by_id 拋 exception → per-item catch，不清空整批結果"""
+        list_resp = _make_mock_resp(status_code=200, json_data=DMM_SEARCH_LIST_RESPONSE)
+
+        with patch.object(dmm_scraper._session, 'post', return_value=list_resp), \
+             patch.object(dmm_scraper, '_fetch_by_id', side_effect=TimeoutError('boom')), \
+             patch('core.scrapers.utils.rate_limit'):
+            results = dmm_scraper.search_by_keyword("test")
+
+        # Should still get 2 shallow fallback results (not [])
+        assert len(results) == 2
+        assert results[0].title == "成人への卒業"
+        assert results[0].date == ""  # not enriched
+
+    # 13. rate_limit called per item (not once for the whole batch)
+    def test_keyword_rate_limit_per_item(self, dmm_scraper):
+        """rate_limit 逐筆呼叫（不是整批一次）"""
+        list_resp = _make_mock_resp(status_code=200, json_data=DMM_SEARCH_LIST_RESPONSE)
+        enriched = Video(number="SONE-205", title="test", source="dmm")
+
+        with patch.object(dmm_scraper._session, 'post', return_value=list_resp), \
+             patch.object(dmm_scraper, '_fetch_by_id', return_value=enriched), \
+             patch('core.scrapers.dmm.rate_limit') as mock_rl:
+            dmm_scraper.search_by_keyword("test")
+
+        # 2 items in DMM_SEARCH_LIST_RESPONSE → rate_limit called 2 times
+        assert mock_rl.call_count == 2
 
     def test_uncensored_mode_fast_path_heyzo(self):
         """uncensored_mode=True + HEYZO 前綴 → D2PassScraper 不被呼叫"""
