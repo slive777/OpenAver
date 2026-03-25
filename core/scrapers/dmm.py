@@ -71,6 +71,22 @@ class DMMScraper(BaseScraper):
         }
     """
 
+    SEARCH_LIST_QUERY = """
+        query AvSearch($limit: Int!, $offset: Int!, $sort: ContentSearchPPVSort!, $queryWord: String) {
+            legacySearchPPV(limit: $limit, offset: $offset, sort: $sort, queryWord: $queryWord) {
+                result {
+                    contents {
+                        id
+                        title
+                        packageImage { largeUrl }
+                        actresses { name }
+                        maker { name }
+                    }
+                }
+            }
+        }
+    """
+
     # 獨立 probe query — 與 DETAIL_QUERY 分離，失敗不影響主流程
     GENRES_PROBE_QUERY = """
         query ProbeGenres($id: ID!) {
@@ -490,6 +506,58 @@ class DMMScraper(BaseScraper):
         return None
 
     def search_by_keyword(self, keyword: str, limit: int = 20) -> list[Video]:
-        """關鍵字搜尋（目前僅支援番號）"""
-        result = self.search(keyword)
-        return [result] if result else []
+        """關鍵字搜尋（女優名、片商名等日文關鍵字）"""
+        if not self.config.proxy_url:
+            return []
+
+        try:
+            payload = {
+                'query': self.SEARCH_LIST_QUERY,
+                'variables': {
+                    'limit': limit,
+                    'offset': 0,
+                    'sort': 'RELEASE_DATE',
+                    'queryWord': keyword,
+                }
+            }
+            response = self._session.post(
+                self.API_URL,
+                json=payload,
+                timeout=self.config.timeout,
+            )
+
+            if response.status_code != 200:
+                return []
+
+            data = response.json()
+            if not data.get('data') or not data['data'].get('legacySearchPPV'):
+                return []
+
+            contents = data['data']['legacySearchPPV']['result']['contents']
+            if not contents:
+                return []
+
+            results = []
+            for item in contents:
+                content_id = item.get('id', '')
+                actresses = [
+                    Actress(name=a['name'])
+                    for a in (item.get('actresses') or [])
+                    if a.get('name')
+                ]
+                video = Video(
+                    number=content_id,
+                    title=item.get('title', ''),
+                    actresses=actresses,
+                    maker=(item.get('maker') or {}).get('name', ''),
+                    cover_url=(item.get('packageImage') or {}).get('largeUrl', ''),
+                    source=self.source_name,
+                    detail_url=f"https://www.dmm.co.jp/digital/videoa/-/detail/=/cid={content_id}/",
+                )
+                results.append(video)
+
+            rate_limit(self.config.delay)
+            return results
+
+        except Exception:
+            return []

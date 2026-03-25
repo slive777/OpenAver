@@ -745,6 +745,212 @@ class TestPipeline:
         assert len(results) == 1
         mock_d2.assert_not_called()
 
+
+# ============================================================
+# Mock Data — DMM Search List
+# ============================================================
+
+DMM_SEARCH_LIST_RESPONSE = {
+    "data": {
+        "legacySearchPPV": {
+            "result": {
+                "contents": [
+                    {
+                        "id": "sone00205",
+                        "title": "成人への卒業",
+                        "packageImage": {"largeUrl": "https://pics.dmm.co.jp/sone205pl.jpg"},
+                        "actresses": [{"name": "未歩なな"}],
+                        "maker": {"name": "S1 NO.1 STYLE"},
+                    },
+                    {
+                        "id": "sone00300",
+                        "title": "第二作品",
+                        "packageImage": {"largeUrl": "https://pics.dmm.co.jp/sone300pl.jpg"},
+                        "actresses": [{"name": "星宮一花"}, {"name": "三上悠亜"}],
+                        "maker": {"name": "S1 NO.1 STYLE"},
+                    },
+                ]
+            }
+        }
+    }
+}
+
+
+# ============================================================
+# Class 6: TestDMMSearchByKeyword
+# ============================================================
+
+class TestDMMSearchByKeyword:
+    """DMM search_by_keyword() 單元測試（全 mock）"""
+
+    @pytest.fixture
+    def dmm_scraper(self, tmp_path, monkeypatch):
+        import core.scrapers.dmm as dmm_module
+        monkeypatch.setattr(dmm_module, "CACHE_FILE", tmp_path / "dmm_content_ids.json")
+        monkeypatch.setattr(dmm_module, "PREFIX_FILE", tmp_path / "dmm_prefix_hints.json")
+        config = ScraperConfig(proxy_url="http://test-proxy:8080")
+        return DMMScraper(config)
+
+    # 1. no proxy → []
+    def test_keyword_no_proxy(self):
+        """無 proxy_url → search_by_keyword 立即返回 []，不發請求"""
+        scraper = DMMScraper()  # no proxy_url
+
+        with patch.object(scraper._session, 'post') as mock_post:
+            result = scraper.search_by_keyword("未歩なな")
+
+        assert result == []
+        mock_post.assert_not_called()
+
+    # 2. mock response → 2 Videos
+    def test_keyword_returns_multiple(self, dmm_scraper):
+        """mock response → 回傳 2 個 Video 物件"""
+        mock_resp = _make_mock_resp(status_code=200, json_data=DMM_SEARCH_LIST_RESPONSE)
+
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp):
+            with patch('core.scrapers.utils.rate_limit'):
+                results = dmm_scraper.search_by_keyword("未歩なな")
+
+        assert len(results) == 2
+
+    # 3. verify each field
+    def test_keyword_video_fields(self, dmm_scraper):
+        """各欄位正確對應：title, cover_url, actresses, maker, source, number, detail_url"""
+        mock_resp = _make_mock_resp(status_code=200, json_data=DMM_SEARCH_LIST_RESPONSE)
+
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp):
+            with patch('core.scrapers.utils.rate_limit'):
+                results = dmm_scraper.search_by_keyword("未歩なな")
+
+        v0 = results[0]
+        assert v0.number == "sone00205"
+        assert v0.title == "成人への卒業"
+        assert v0.cover_url == "https://pics.dmm.co.jp/sone205pl.jpg"
+        assert len(v0.actresses) == 1
+        assert v0.actresses[0].name == "未歩なな"
+        assert v0.maker == "S1 NO.1 STYLE"
+        assert v0.source == "dmm"
+        assert "sone00205" in v0.detail_url
+
+        v1 = results[1]
+        assert v1.number == "sone00300"
+        assert len(v1.actresses) == 2
+        assert v1.actresses[0].name == "星宮一花"
+        assert v1.actresses[1].name == "三上悠亜"
+
+    # 4. contents=[] → []
+    def test_keyword_empty_results(self, dmm_scraper):
+        """contents=[] → 回傳空列表"""
+        empty_resp = {
+            "data": {
+                "legacySearchPPV": {
+                    "result": {"contents": []}
+                }
+            }
+        }
+        mock_resp = _make_mock_resp(status_code=200, json_data=empty_resp)
+
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp):
+            results = dmm_scraper.search_by_keyword("xyz")
+
+        assert results == []
+
+    # 5. HTTP 500 → []
+    def test_keyword_http_error(self, dmm_scraper):
+        """HTTP 500 → 回傳空列表"""
+        mock_resp = _make_mock_resp(status_code=500)
+
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp):
+            results = dmm_scraper.search_by_keyword("未歩なな")
+
+        assert results == []
+
+    # 6. data=null → []
+    def test_keyword_data_null(self, dmm_scraper):
+        """data=null in response → 回傳空列表"""
+        null_resp = {"data": None}
+        mock_resp = _make_mock_resp(status_code=200, json_data=null_resp)
+
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp):
+            results = dmm_scraper.search_by_keyword("未歩なな")
+
+        assert results == []
+
+    # 7. requests.Timeout → []
+    def test_keyword_network_exception(self, dmm_scraper):
+        """requests.Timeout → 回傳空列表（不 raise）"""
+        with patch.object(dmm_scraper._session, 'post', side_effect=requests.Timeout):
+            results = dmm_scraper.search_by_keyword("未歩なな")
+
+        assert results == []
+
+    # 8. actresses=[] → Video.actresses==[]
+    def test_keyword_actresses_empty(self, dmm_scraper):
+        """actresses=[] → Video.actresses 為空列表"""
+        no_actress_resp = {
+            "data": {
+                "legacySearchPPV": {
+                    "result": {
+                        "contents": [{
+                            "id": "test00001",
+                            "title": "テスト",
+                            "packageImage": {"largeUrl": "https://example.com/cover.jpg"},
+                            "actresses": [],
+                            "maker": {"name": "TestMaker"},
+                        }]
+                    }
+                }
+            }
+        }
+        mock_resp = _make_mock_resp(status_code=200, json_data=no_actress_resp)
+
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp):
+            with patch('core.scrapers.utils.rate_limit'):
+                results = dmm_scraper.search_by_keyword("テスト")
+
+        assert len(results) == 1
+        assert results[0].actresses == []
+
+    # 9. packageImage=null → cover_url==""
+    def test_keyword_cover_null(self, dmm_scraper):
+        """packageImage=null → cover_url 為空字串"""
+        no_cover_resp = {
+            "data": {
+                "legacySearchPPV": {
+                    "result": {
+                        "contents": [{
+                            "id": "test00002",
+                            "title": "テスト2",
+                            "packageImage": None,
+                            "actresses": [{"name": "テスト女優"}],
+                            "maker": {"name": "TestMaker"},
+                        }]
+                    }
+                }
+            }
+        }
+        mock_resp = _make_mock_resp(status_code=200, json_data=no_cover_resp)
+
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp):
+            with patch('core.scrapers.utils.rate_limit'):
+                results = dmm_scraper.search_by_keyword("テスト")
+
+        assert len(results) == 1
+        assert results[0].cover_url == ""
+
+    # 10. limit is passed to GraphQL variables
+    def test_keyword_limit_passed(self, dmm_scraper):
+        """limit 參數被正確傳入 GraphQL variables"""
+        mock_resp = _make_mock_resp(status_code=200, json_data=DMM_SEARCH_LIST_RESPONSE)
+
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp) as mock_post:
+            with patch('core.scrapers.utils.rate_limit'):
+                dmm_scraper.search_by_keyword("未歩なな", limit=5)
+
+        call_kwargs = mock_post.call_args[1]
+        payload = call_kwargs.get('json', {})
+        assert payload['variables']['limit'] == 5
+
     def test_uncensored_mode_fast_path_heyzo(self):
         """uncensored_mode=True + HEYZO 前綴 → D2PassScraper 不被呼叫"""
         mock_video = _make_video("heyzo", "HEYZO-0783")
