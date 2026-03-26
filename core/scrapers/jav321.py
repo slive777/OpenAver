@@ -12,6 +12,16 @@ from .models import Video, Actress
 from .utils import get_html, post_html, rate_limit
 
 
+def _find_next_a_before_next_b(b_tag):
+    """找 <b> 後面、下一個 <b> 之前的第一個 <a>，避免跨欄位誤抓。"""
+    for sib in b_tag.next_siblings:
+        if getattr(sib, 'name', None) == 'b':
+            break  # 到了下一個欄位，停止
+        if getattr(sib, 'name', None) == 'a':
+            return sib
+    return None
+
+
 class JAV321Scraper(BaseScraper):
     """
     JAV321 爬蟲
@@ -106,6 +116,43 @@ class JAV321Scraper(BaseScraper):
                 if tag:
                     tags.append(tag)
 
+            # 補齊欄位：maker、duration、series（從 .col-md-9 解析）
+            maker = ''
+            duration: Optional[int] = None
+            series = ''
+
+            col9 = soup.select_one('.col-md-9')
+            if col9:
+                for b in col9.find_all('b'):
+                    label = b.get_text(strip=True)
+                    if label == 'メーカー':
+                        a_tag = _find_next_a_before_next_b(b)
+                        maker = a_tag.get_text(strip=True) if a_tag else ''
+                    elif label == '収録時間':
+                        sibling = b.next_sibling
+                        if sibling:
+                            text = str(sibling)
+                            m = re.search(r'(\d+)', text)
+                            if m:
+                                duration = int(m.group(1))
+                    elif label == 'シリーズ':
+                        a_tag = _find_next_a_before_next_b(b)
+                        series = a_tag.get_text(strip=True) if a_tag else ''
+
+            # sample_images：跳過封面（href 結尾 /0）
+            sample_images = []
+            for a_tag in soup.select('a[href*="/snapshot/"]'):
+                href = a_tag.get('href', '')
+                if href.endswith('/0'):
+                    continue
+                img = a_tag.find('img')
+                if img:
+                    src = img.get('src', '')
+                    if src and src.startswith('http'):
+                        sample_images.append(src)
+                    elif src:
+                        sample_images.append(urljoin('https://www.jav321.com', src))
+
             if not title and not cover_url:
                 return None
 
@@ -114,11 +161,14 @@ class JAV321Scraper(BaseScraper):
                 title=title,
                 actresses=actresses,
                 date=date,
-                maker='',  # JAV321 沒有 maker
+                maker=maker,
                 cover_url=str(cover_url) if cover_url else "",
                 tags=tags,
                 source=self.source_name,
                 detail_url=f'https://www.jav321.com/video/{number.lower()}',
+                duration=duration,
+                series=series,
+                sample_images=sample_images,
             )
 
             rate_limit(self.config.delay)
