@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-03-27
+
+### Added
+
+#### 🔍 DMM Scraper 增強 (Phase 36-1)
+- DMM 精準搜尋補齊所有新欄位（director、duration、label、series、sample_images）
+- DMM 模糊搜尋實作（legacySearchPPV 關鍵字搜尋，支援日文女優名/片商名）
+- DMM 模糊搜尋 per-item enrichment（逐筆補齊完整欄位）
+- DMM 模糊搜尋漸進 SSE 回報（ThreadPoolExecutor + as_completed 即時回傳）
+
+#### ⚙️ 來源優先設定 (Phase 36-2)
+- Config 新增 `primary_source` 設定（javbus/dmm 切換）
+- Facade 層精準搜尋 merge 優先權依設定切換
+- DMM 模糊搜尋路由 + 無 proxy 自動降級至 JavBus
+- Settings UI 新增「主要來源」radio 切換（JavBus/DMM）
+- Detail 模式新增 Source Link 按鈕（復用 Lightbox source_links config）
+
+#### 📊 其他來源欄位補齊 (Phase 36-3)
+- Jav321 補齊 maker、duration、series、sample_images
+- AVSOX 補齊 duration、series
+- HEYZO 補齊 duration、series、sample_images（tags 一併修正）
+- FC2 補齊 sample_images
+- D2Pass 補齊 duration、series、sample_images + caribbeancom HTML fallback
+
+### Fixed
+- DMM sample images 升級為高解析度（CDN URL pattern `-N.jpg` → `jp-N.jpg`）
+- DMM sample images URL regex 加 negative lookbehind 防止雙重轉換
+- DMM 模糊搜尋 hero card `_mode` 修正（`fuzzy` → `actress`）
+- HEYZO XPath 修正（duration / gallery / tags / series 全部匹配真實 DOM）
+- D2Pass caribbeancom JSON 404 時 HTML fallback 解析完整 Video
+
+### Changed
+- 測試總數 1073 → 1171（+98）
+
 ## [0.5.0] - 2026-03-25
 
 ### Added
