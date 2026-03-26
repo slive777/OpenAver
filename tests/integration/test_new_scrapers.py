@@ -68,8 +68,8 @@ HEYZO_EN_HTML = b"""
 </head>
 <body>
 <table class="movieInfo">
-<tr><th>Series</th><td>Premium Collection</td></tr>
-<tr><th>Actress Type</th><td><a>Cute</a> <a>Slender</a></td></tr>
+<tr><td>Series</td><td>Premium Collection</td></tr>
+<tr><td>Type</td><td><a>Cute</a> <a>Slender</a></td></tr>
 </table>
 </body>
 </html>

@@ -30,8 +30,8 @@ BASE_JSON_LD = {
 def make_html(json_ld: dict, table_extra: str = "", gallery_html: str = "") -> bytes:
     """Build an en.heyzo.com-like HTML page with JSON-LD and optional table rows.
 
-    The Series cell uses plain text (no <a>) to match the actual HEYZO English page,
-    which is what the existing XPath '...td[1]/text()' expects.
+    Reflects actual HEYZO DOM: table.movieInfo uses <td><td> pairs (no <th>).
+    Duration lives in table.downloads, not table.movieInfo.
     """
     json_str = json.dumps(json_ld)
     html = f"""\
@@ -41,11 +41,11 @@ def make_html(json_ld: dict, table_extra: str = "", gallery_html: str = "") -> b
 </head><body>
 <table class="movieInfo">
   <tbody>
-    <tr><th>Series</th><td>テストシリーズ</td></tr>
-    <tr><th>Type</th><td><a href="/type/1">美乳</a></td></tr>
-    {table_extra}
+    <tr><td>Series</td><td>テストシリーズ</td></tr>
+    <tr><td>Type</td><td><a href="/type/1">美乳</a></td></tr>
   </tbody>
 </table>
+{table_extra}
 {gallery_html}
 </body></html>
 """
@@ -53,15 +53,37 @@ def make_html(json_ld: dict, table_extra: str = "", gallery_html: str = "") -> b
 
 
 GALLERY_HTML = """\
-<div class="movie-gallery">
-  <a href="/contents/3000/0783/gallery/001.jpg"><img src="/contents/3000/0783/gallery/001s.jpg"></a>
-  <a href="/contents/3000/0783/gallery/002.jpg"><img src="/contents/3000/0783/gallery/002s.jpg"></a>
+<script>var dir_gallery = "/contents/3000/0783/gallery/";</script>
+<div class="sample-images yoxview">
+  <h1>Gallery</h1>
+  <script>document.write('<img src="'+dir_gallery+'thumbnail_001.jpg">');</script>
+  <script>document.write('<img src="'+dir_gallery+'thumbnail_002.jpg">');</script>
 </div>
+"""
+
+DURATION_JS = """\
+<script>
+heyzo.duration = function(){
+  var o = Object();
+  o = {"full":"01:07:57","1":"00:19:33"};
+  return o;
+};
+</script>
+"""
+
+INVALID_DURATION_JS = """\
+<script>
+heyzo.duration = function(){
+  var o = Object();
+  o = {"full":"--:--:--"};
+  return o;
+};
+</script>
 """
 
 FULL_FIELDS_CONTENT = make_html(
     BASE_JSON_LD,
-    table_extra='<tr><th>Duration</th><td>01:07:57</td></tr>',
+    table_extra=DURATION_JS,
     gallery_html=GALLERY_HTML,
 )
 
@@ -73,33 +95,19 @@ NO_DURATION_CONTENT = make_html(
 
 INVALID_DURATION_CONTENT = make_html(
     BASE_JSON_LD,
-    table_extra='<tr><th>Duration</th><td>--:--:--</td></tr>',
+    table_extra=INVALID_DURATION_JS,
     gallery_html=GALLERY_HTML,
 )
 
 NO_SERIES_CONTENT = make_html(
-    {**BASE_JSON_LD},
-    table_extra='<tr><th>Duration</th><td>01:07:57</td></tr>',
+    BASE_JSON_LD,
+    table_extra=DURATION_JS,
     gallery_html=GALLERY_HTML,
-)
-# Override series row to show "-----"
-NO_SERIES_CONTENT = (
-    b'<html><head><meta charset="utf-8">'
-    b'<script type="application/ld+json">'
-    + json.dumps(BASE_JSON_LD).encode()
-    + b"</script></head><body>"
-    b'<table class="movieInfo"><tbody>'
-    b"<tr><th>Series</th><td>-----</td></tr>"
-    b"<tr><th>Type</th><td></td></tr>"
-    b"<tr><th>Duration</th><td>01:07:57</td></tr>"
-    b"</tbody></table>"
-    + GALLERY_HTML.encode()
-    + b"</body></html>"
-)
+).replace("テストシリーズ".encode("utf-8"), b"-----")
 
 NO_GALLERY_CONTENT = make_html(
     BASE_JSON_LD,
-    table_extra='<tr><th>Duration</th><td>01:07:57</td></tr>',
+    table_extra=DURATION_JS,
     gallery_html="",
 )
 

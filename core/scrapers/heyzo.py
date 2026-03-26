@@ -91,7 +91,7 @@ class HEYZOScraper(BaseScraper):
 
             # Series
             series = html.xpath(
-                '//table[@class="movieInfo"]//th[contains(text(),"Series")]/following-sibling::td[1]/text()'
+                '//table[@class="movieInfo"]//tr/td[contains(text(),"Series")]/following-sibling::td[1]/text()'
             )
             series_text = series[0].strip() if series else ''
             # Filter out placeholder values like "-----" or "---"
@@ -99,39 +99,33 @@ class HEYZOScraper(BaseScraper):
                 series_text = ''
             result['series'] = series_text
 
-            # Tags（Actress Type 欄位）
+            # Tags（Type 欄位）
             tags = html.xpath(
-                '//table[@class="movieInfo"]//th[contains(text(),"Type")]/following-sibling::td[1]//a/text()'
+                '//table[@class="movieInfo"]//tr/td[contains(text(),"Type")]/following-sibling::td[1]//a/text()'
             )
             result['tags'] = [t.strip() for t in tags if t.strip()]
 
-            # Duration（格式 HH:MM:SS → 分鐘整數）
-            dur_texts = html.xpath(
-                '//table[@class="movieInfo"]//th[contains(text(),"Duration")]/following-sibling::td[1]/text()'
-            )
-            if dur_texts:
+            # Duration（從 JS 變數 heyzo.duration 提取 "full":"HH:MM:SS"）
+            html_text = html_content.decode('utf-8', errors='replace')
+            dur_match = re.search(r'"full"\s*:\s*"(\d{2}):(\d{2}):(\d{2})"', html_text)
+            if dur_match:
                 try:
-                    parts = dur_texts[0].strip().split(':')
-                    if len(parts) == 3:
-                        h, m, s = map(int, parts)
-                        result['duration'] = h * 60 + m
-                    elif len(parts) == 2:
-                        m, s = map(int, parts)
-                        result['duration'] = m
-                except (ValueError, IndexError):
+                    h, m = int(dur_match.group(1)), int(dur_match.group(2))
+                    result['duration'] = h * 60 + m
+                except ValueError:
                     pass
 
-            # Sample images（gallery <a href> の完整圖）
-            gallery_hrefs = html.xpath('//div[@class="movie-gallery"]//a/@href')
-            images = []
-            for href in gallery_hrefs:
-                if href.startswith('//'):
-                    images.append('https:' + href)
-                elif href.startswith('/'):
-                    images.append('https://en.heyzo.com' + href)
-                else:
-                    images.append(href)
-            result['sample_images'] = images
+            # Sample images（gallery は JS document.write で生成、dir_gallery + thumbnail 連番から構築）
+            dir_match = re.search(r'dir_gallery\s*=\s*"(/contents/[^"]+)"', html_text)
+            if dir_match:
+                dir_gallery = dir_match.group(1)
+                # sample-images セクション内の thumbnail_NNN.jpg から NNN を抽出
+                si_idx = html_text.find('sample-images')
+                if si_idx >= 0:
+                    section = html_text[si_idx:si_idx + 5000]
+                    gallery_nums = re.findall(r'thumbnail_(\d{3})\.jpg', section)
+                    for num in gallery_nums:
+                        result['sample_images'].append(f"https://en.heyzo.com{dir_gallery}{num}.jpg")
 
         except Exception as e:
             logger.debug(f"HEYZO table parse error: {e}")
