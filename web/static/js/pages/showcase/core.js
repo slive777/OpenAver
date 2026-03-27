@@ -73,6 +73,14 @@ function showcaseState() {
         _lightboxAnimating: false,  // B16: Lightbox 動畫進行中 guard
         _lightboxGeneration: 0,    // B19: invalidation token for deferred $nextTick lightbox callbacks
 
+        // Sample Gallery 狀態 (T7)
+        sampleGalleryOpen: false,
+        sampleGalleryImages: [],
+        sampleGalleryIndex: 0,
+        _sgTouchStartX: null,
+        _sgAnimating: false,      // C21 guard
+        _sgGeneration: 0,         // stale callback 防護
+
         currentLightboxVideo: null,
 
         // F1: helper — 更新 lightboxIndex + currentLightboxVideo 一致性
@@ -712,6 +720,96 @@ function showcaseState() {
             }, 250);
         },
 
+        // ==================== Sample Gallery Methods (T7) ====================
+
+        openSampleGallery(images, startIdx) {
+            if (!images || images.length === 0) return;
+            this.sampleGalleryImages = images;
+            this.sampleGalleryIndex = startIdx || 0;
+            this._sgGeneration++;
+            this.sampleGalleryOpen = true;
+        },
+
+        closeSampleGallery() {
+            this.sampleGalleryOpen = false;
+            // 不影響 lightboxOpen 狀態（lightbox 維持開啟）
+        },
+
+        prevSampleGallery() {
+            if (this.sampleGalleryIndex <= 0) return;
+            var prevIdx = this.sampleGalleryIndex - 1;
+            this._sgGeneration++;
+            var gen = this._sgGeneration;
+            this.sampleGalleryIndex = prevIdx;
+            // C17: state-first，$nextTick 後播動畫
+            var self = this;
+            this.$nextTick(() => {
+                if (self._sgGeneration !== gen) return; // stale check
+                var imgEl = document.querySelector('.sg-main-img');
+                if (imgEl && window.ShowcaseAnimations) {
+                    window.ShowcaseAnimations.playSampleGallerySwitch(imgEl, 'prev', {});
+                }
+            });
+        },
+
+        nextSampleGallery() {
+            if (this.sampleGalleryIndex >= this.sampleGalleryImages.length - 1) return;
+            var nextIdx = this.sampleGalleryIndex + 1;
+            this._sgGeneration++;
+            var gen = this._sgGeneration;
+            this.sampleGalleryIndex = nextIdx;
+            // C17: state-first，$nextTick 後播動畫
+            var self = this;
+            this.$nextTick(() => {
+                if (self._sgGeneration !== gen) return; // stale check
+                var imgEl = document.querySelector('.sg-main-img');
+                if (imgEl && window.ShowcaseAnimations) {
+                    window.ShowcaseAnimations.playSampleGallerySwitch(imgEl, 'next', {});
+                }
+            });
+        },
+
+        jumpSampleGallery(idx) {
+            if (idx === this.sampleGalleryIndex) return;
+            var direction = idx > this.sampleGalleryIndex ? 'next' : 'prev';
+            this._sgGeneration++;
+            var gen = this._sgGeneration;
+            this.sampleGalleryIndex = idx;
+            // C17: state-first，$nextTick 後播動畫
+            var self = this;
+            this.$nextTick(() => {
+                if (self._sgGeneration !== gen) return; // stale check
+                var imgEl = document.querySelector('.sg-main-img');
+                if (imgEl && window.ShowcaseAnimations) {
+                    window.ShowcaseAnimations.playSampleGallerySwitch(imgEl, direction, {});
+                }
+            });
+        },
+
+        _sgTouchStart(e) {
+            if (e.touches && e.touches.length > 0) {
+                this._sgTouchStartX = e.touches[0].clientX;
+            }
+        },
+
+        _sgTouchEnd(e) {
+            if (this._sgTouchStartX === null) return;
+            var endX = e.changedTouches && e.changedTouches.length > 0
+                ? e.changedTouches[0].clientX
+                : null;
+            if (endX === null) { this._sgTouchStartX = null; return; }
+            var delta = endX - this._sgTouchStartX;
+            this._sgTouchStartX = null;
+            if (Math.abs(delta) < 50) return; // swipe threshold
+            if (delta < 0) {
+                this.nextSampleGallery(); // swipe left → next
+            } else {
+                this.prevSampleGallery(); // swipe right → prev
+            }
+        },
+
+        // ==================== End Sample Gallery Methods ====================
+
         // Metadata 點擊搜尋 (M3f)
         searchFromMetadata(term) {
             // F2: cancel pending delayed clear from previous close
@@ -988,7 +1086,19 @@ function showcaseState() {
             // 3. 轉大寫統一處理
             const key = e.key.toUpperCase();
 
-            // 4. Lightbox 開啟時的快捷鍵（優先處理）
+            // 4. Sample Gallery 開啟時的快捷鍵（最高優先，在 lightbox 之前攔截）(T7)
+            if (this.sampleGalleryOpen) {
+                if (key === 'ESCAPE') {
+                    this.closeSampleGallery();
+                } else if (key === 'ARROWLEFT') {
+                    this.prevSampleGallery();
+                } else if (key === 'ARROWRIGHT') {
+                    this.nextSampleGallery();
+                }
+                return; // Sample Gallery 開啟時阻止其他快捷鍵（包括 lightbox 導航）
+            }
+
+            // 5. Lightbox 開啟時的快捷鍵（優先處理）
             if (this.lightboxOpen) {
                 if (key === 'ESCAPE') {
                     this.closeLightbox();  // closeLightbox handles kill + cleanup + generation++
@@ -1000,7 +1110,7 @@ function showcaseState() {
                 return; // Lightbox 開啟時阻止其他快捷鍵
             }
 
-            // 5. 非 Lightbox 狀態的快捷鍵
+            // 6. 非 Lightbox 狀態的快捷鍵
             if (key === 'S' && this.mode === 'grid') {
                 // S 鍵：切換 Card Info（僅 Grid 模式，已完成於 M3i）
                 this.toggleInfo();

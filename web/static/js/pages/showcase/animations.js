@@ -504,6 +504,54 @@
             if (typeof gsap === 'undefined') return;
             if (killOpen) gsap.getById('showcaseLightboxOpen')?.kill();
             if (killSwitch) gsap.getById('showcaseLightboxSwitch')?.kill();
+        },
+
+        /**
+         * T7: Sample Gallery 圖片切換動畫
+         *
+         * C18: killTweensOf — 打斷舊動畫
+         * C21: gsap-animating guard — 動畫期間禁用 CSS transition
+         * Reduced Motion: shouldSkip() 降級（無動畫，state 已更新，圖片立即切換）
+         *
+         * @param {Element} imgEl - .sg-main-img 元素
+         * @param {'next'|'prev'} direction - 切換方向
+         * @param {object} [options] - { onComplete }
+         * @returns {gsap.core.Tween|null}
+         */
+        playSampleGallerySwitch: function (imgEl, direction, options) {
+            options = options || {};
+
+            if (!imgEl) return null;
+            if (typeof gsap === 'undefined') return null;
+            if (shouldSkip()) return null;
+
+            // C18: 打斷舊動畫
+            gsap.killTweensOf(imgEl);
+
+            // C21: 暫時關掉 imgEl 的 CSS transition（imgEl 本身有 transition）
+            imgEl.classList.add('gsap-animating');
+
+            var xIn = direction === 'next' ? 30 : -30;
+
+            var tween = gsap.fromTo(imgEl,
+                { opacity: 0, x: xIn },
+                {
+                    opacity: 1,
+                    x: 0,
+                    duration: 0.22,
+                    ease: 'power2.out',
+                    clearProps: 'transform,opacity',
+                    onComplete: function () {
+                        imgEl.classList.remove('gsap-animating');
+                        if (typeof options.onComplete === 'function') options.onComplete();
+                    },
+                    onInterrupt: function () {
+                        imgEl.classList.remove('gsap-animating');
+                    }
+                }
+            );
+
+            return tween;
         }
     };
 

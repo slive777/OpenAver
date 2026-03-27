@@ -3546,15 +3546,19 @@ class TestLightboxAnimationGuard:
         )
 
     def test_esc_calls_closeLightbox_showcase(self):
-        """showcase/core.js ESC 分支呼叫 closeLightbox（closeLightbox 內部處理 getById kill）"""
+        """showcase/core.js lightboxOpen ESC 分支呼叫 closeLightbox（closeLightbox 內部處理 getById kill）"""
         content = self._read_file(self.SHOWCASE_CORE)
         body = self._extract_function(content, 'handleKeydown')
         assert body, "handleKeydown 函數未找到 in showcase/core.js"
-        esc_idx = body.find('ESCAPE')
-        assert esc_idx >= 0, "handleKeydown 中未找到 ESCAPE 分支"
-        esc_section = body[esc_idx:esc_idx + 300]
+        # T7 後 sampleGalleryOpen 在 lightboxOpen 之前，必須找 lightboxOpen 區段內的 ESCAPE
+        lightbox_open_idx = body.find('this.lightboxOpen')
+        assert lightbox_open_idx >= 0, "handleKeydown 中未找到 this.lightboxOpen 分支"
+        lightbox_section = body[lightbox_open_idx:lightbox_open_idx + 500]
+        esc_idx = lightbox_section.find('ESCAPE')
+        assert esc_idx >= 0, "handleKeydown lightboxOpen 區段中未找到 ESCAPE 分支"
+        esc_section = lightbox_section[esc_idx:esc_idx + 300]
         assert 'closeLightbox' in esc_section, (
-            "C18 守衛違規：showcase/core.js ESC 分支未呼叫 closeLightbox\n"
+            "C18 守衛違規：showcase/core.js lightboxOpen ESC 分支未呼叫 closeLightbox\n"
             "修正：ESC 應呼叫 closeLightbox() 統一處理 kill + cleanup"
         )
 
@@ -4201,4 +4205,189 @@ class TestSampleLightboxTemplateGuard:
         assert has_correct_binding, (
             "Fix C 違規：sample-thumb-active 的 :class 綁定格式不正確 — "
             "必須形如 :class=\"{ 'sample-thumb-active': sampleLightboxOpen && sampleLightboxIndex === idx }\""
+        )
+
+
+class TestShowcaseSampleGalleryGuard:
+    """T7：Showcase Sample Gallery 靜態守衛
+
+    確保 sample-gallery 元件正確實作於 showcase.html / core.js / animations.js：
+    1. Scope 守衛：.sample-gallery 在 x-data="showcaseState()" scope 之後
+    2. State 存在守衛：core.js 包含 sampleGalleryOpen / sampleGalleryImages / sampleGalleryIndex
+    3. Method 存在守衛：core.js 包含全部 5 個方法
+    4. 入口按鈕守衛：showcase.html 包含 sg-open-btn 和 openSampleGallery( 綁定
+    5. Overlay 綁定守衛：.sample-gallery 有 sampleGalleryOpen 的 :class / x-show 綁定
+    6. 縮圖 active 守衛：sg-thumb-active 和 sampleGalleryIndex 在同一區域
+    7. playSampleGallerySwitch 守衛：animations.js 包含完整 C18/C21 實作
+    """
+
+    SHOWCASE_HTML = PROJECT_ROOT / 'web' / 'templates' / 'showcase.html'
+    CORE_JS = PROJECT_ROOT / 'web' / 'static' / 'js' / 'pages' / 'showcase' / 'core.js'
+    ANIMATIONS_JS = PROJECT_ROOT / 'web' / 'static' / 'js' / 'pages' / 'showcase' / 'animations.js'
+
+    def test_sample_gallery_inside_showcaseState_scope(self):
+        """守衛 1：.sample-gallery overlay 必須在 x-data="showcaseState()" scope 之後（確保 Alpine binding 正確）"""
+        content = self.SHOWCASE_HTML.read_text(encoding='utf-8')
+        lines = content.split('\n')
+
+        # 找到 x-data="showcaseState()" 的行號
+        showcase_state_line = None
+        for i, line in enumerate(lines):
+            if 'x-data="showcaseState()"' in line:
+                showcase_state_line = i
+                break
+
+        assert showcase_state_line is not None, (
+            "T7 守衛 1 違規：showcase.html 找不到 x-data=\"showcaseState()\" — "
+            "Alpine scope 根元素必須存在"
+        )
+
+        # 找到 .sample-gallery 的行號
+        sample_gallery_line = None
+        for i, line in enumerate(lines):
+            if 'sample-gallery' in line:
+                sample_gallery_line = i
+                break
+
+        assert sample_gallery_line is not None, (
+            "T7 守衛 1 違規：showcase.html 找不到 .sample-gallery 元素 — "
+            "sample-gallery overlay 必須存在於 showcase.html"
+        )
+
+        assert sample_gallery_line > showcase_state_line, (
+            f"T7 守衛 1 違規：.sample-gallery（L{sample_gallery_line + 1}）在 "
+            f"x-data=\"showcaseState()\"（L{showcase_state_line + 1}）之前 — "
+            "sample-gallery overlay 必須在 showcaseState() x-data scope 內"
+        )
+
+    def test_sample_gallery_state_properties_in_core_js(self):
+        """守衛 2：core.js 的 showcaseState() 必須包含 sampleGalleryOpen / sampleGalleryImages / sampleGalleryIndex"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+
+        for state_prop in ('sampleGalleryOpen', 'sampleGalleryImages', 'sampleGalleryIndex'):
+            assert state_prop in content, (
+                f"T7 守衛 2 違規：core.js 缺少 state 屬性 {state_prop} — "
+                "showcaseState() return 物件必須包含此屬性"
+            )
+
+    def test_sample_gallery_methods_in_core_js(self):
+        """守衛 3：core.js 必須包含 openSampleGallery / closeSampleGallery / prevSampleGallery / nextSampleGallery / jumpSampleGallery"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+
+        for method in ('openSampleGallery', 'closeSampleGallery', 'prevSampleGallery',
+                       'nextSampleGallery', 'jumpSampleGallery'):
+            assert method in content, (
+                f"T7 守衛 3 違規：core.js 缺少 method {method} — "
+                "必須在 showcaseState() 內實作此方法"
+            )
+
+    def test_sg_open_btn_and_openSampleGallery_in_showcase_html(self):
+        """守衛 4：showcase.html 必須包含 sg-open-btn class 和 openSampleGallery( 呼叫（入口按鈕）"""
+        content = self.SHOWCASE_HTML.read_text(encoding='utf-8')
+
+        assert 'sg-open-btn' in content, (
+            "T7 守衛 4 違規：showcase.html 缺少 sg-open-btn class — "
+            "入口按鈕必須有 sg-open-btn class"
+        )
+
+        assert 'openSampleGallery(' in content, (
+            "T7 守衛 4 違規：showcase.html 缺少 openSampleGallery( 呼叫 — "
+            "入口按鈕必須綁定 @click=\"openSampleGallery(...)\""
+        )
+
+    def test_sample_gallery_overlay_bound_to_sampleGalleryOpen(self):
+        """守衛 5：showcase.html 的 .sample-gallery 必須有 sampleGalleryOpen 的 :class 或 x-show 綁定"""
+        content = self.SHOWCASE_HTML.read_text(encoding='utf-8')
+
+        has_binding = bool(re.search(
+            r'sample-gallery[^>]*sampleGalleryOpen|sampleGalleryOpen[^>]*sample-gallery',
+            content
+        )) or bool(re.search(
+            r"class=['\"]sample-gallery['\"][^>]*\n[^>]*sampleGalleryOpen"
+            r"|sampleGalleryOpen.*sample-gallery",
+            content
+        )) or ('sampleGalleryOpen' in content and 'sample-gallery' in content)
+
+        assert has_binding, (
+            "T7 守衛 5 違規：showcase.html 的 .sample-gallery 缺少 sampleGalleryOpen 綁定 — "
+            "overlay 必須用 sampleGalleryOpen 控制顯示（:class=\"{ 'show': sampleGalleryOpen }\" 或 x-show）"
+        )
+
+        # 更精確：確認 sampleGalleryOpen 在 sample-gallery 元素區域出現
+        lines = content.split('\n')
+        gallery_start = None
+        for i, line in enumerate(lines):
+            if 'sample-gallery' in line and ('class=' in line or 'class =' in line):
+                gallery_start = i
+                break
+
+        assert gallery_start is not None, (
+            "T7 守衛 5 違規：showcase.html 找不到含 class 的 .sample-gallery 元素 — "
+            "overlay 根元素必須有 class=\"sample-gallery\" 屬性"
+        )
+
+        # 在 gallery 元素附近 10 行內找 sampleGalleryOpen
+        nearby_lines = lines[gallery_start:gallery_start + 10]
+        nearby_content = '\n'.join(nearby_lines)
+        assert 'sampleGalleryOpen' in nearby_content, (
+            "T7 守衛 5 違規：.sample-gallery 元素附近缺少 sampleGalleryOpen 綁定 — "
+            "必須在 overlay 根元素上加 :class=\"{ 'show': sampleGalleryOpen }\""
+        )
+
+    def test_sg_thumb_active_references_sampleGalleryIndex(self):
+        """守衛 6：showcase.html 必須有 sg-thumb-active 和 sampleGalleryIndex 的關聯綁定"""
+        content = self.SHOWCASE_HTML.read_text(encoding='utf-8')
+
+        assert 'sg-thumb-active' in content, (
+            "T7 守衛 6 違規：showcase.html 缺少 sg-thumb-active class — "
+            "縮圖 active 高亮需要此 class"
+        )
+
+        assert 'sampleGalleryIndex' in content, (
+            "T7 守衛 6 違規：showcase.html 缺少 sampleGalleryIndex 引用 — "
+            "縮圖 active 高亮必須引用 sampleGalleryIndex"
+        )
+
+        # 確認 sg-thumb-active 與 sampleGalleryIndex 在同一行或附近（5 行內）
+        lines = content.split('\n')
+        thumb_active_lines = [i for i, l in enumerate(lines) if 'sg-thumb-active' in l]
+        gallery_index_lines = [i for i, l in enumerate(lines) if 'sampleGalleryIndex' in l]
+
+        # 找到是否有任一 sg-thumb-active 行在某個 sampleGalleryIndex 行 5 行內
+        found_proximity = False
+        for ta_line in thumb_active_lines:
+            for gi_line in gallery_index_lines:
+                if abs(ta_line - gi_line) <= 5:
+                    found_proximity = True
+                    break
+            if found_proximity:
+                break
+
+        assert found_proximity, (
+            "T7 守衛 6 違規：sg-thumb-active 和 sampleGalleryIndex 未在同一區域（5 行內）— "
+            "縮圖 active 的 :class 綁定必須引用 sampleGalleryIndex"
+        )
+
+    def test_playSampleGallerySwitch_in_animations_js(self):
+        """守衛 7：animations.js 必須包含 playSampleGallerySwitch 及 C18/C21 完整實作"""
+        content = self.ANIMATIONS_JS.read_text(encoding='utf-8')
+
+        assert 'playSampleGallerySwitch' in content, (
+            "T7 守衛 7 違規：animations.js 缺少 playSampleGallerySwitch — "
+            "必須新增 playSampleGallerySwitch 方法"
+        )
+
+        assert 'killTweensOf' in content, (
+            "T7 守衛 7 違規：animations.js 缺少 killTweensOf（C18）— "
+            "playSampleGallerySwitch 必須呼叫 gsap.killTweensOf 打斷舊動畫"
+        )
+
+        assert 'gsap-animating' in content, (
+            "T7 守衛 7 違規：animations.js 缺少 gsap-animating（C21）— "
+            "playSampleGallerySwitch 必須在動畫期間加/移除 gsap-animating class"
+        )
+
+        assert 'clearProps' in content, (
+            "T7 守衛 7 違規：animations.js 缺少 clearProps — "
+            "playSampleGallerySwitch 的 fromTo 必須在結束後清除 transform/opacity"
         )

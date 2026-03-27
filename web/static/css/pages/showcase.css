@@ -1117,3 +1117,210 @@
     position: relative;
     z-index: 1;
 }
+
+/* ==================== Sample Gallery (T7) ==================== */
+
+/* Overlay — 初始隱藏，高於 showcase-lightbox（z-index: 1000）*/
+.sample-gallery {
+    position: fixed;
+    inset: 0;
+    z-index: 1500;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+
+    /* 初始隱藏 */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.sample-gallery.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: all;
+    transition-delay: 0s;
+}
+
+/* 主圖包裝 */
+.sample-gallery .sg-main-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 auto;
+    max-height: calc(100vh - 100px);
+    width: 100%;
+    padding: 0 3rem;
+}
+
+/* 主圖 */
+.sample-gallery .sg-main-img {
+    max-width: 100%;
+    max-height: calc(100vh - 160px);
+    object-fit: contain;
+    display: block;
+    border-radius: 4px;
+    user-select: none;
+}
+
+/* 縮圖列 */
+.sample-gallery .sg-thumbs {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    height: 80px;
+    overflow-x: auto;
+    white-space: nowrap;
+    flex-shrink: 0;
+    align-items: center;
+}
+
+.sample-gallery .sg-thumbs::-webkit-scrollbar {
+    height: 4px;
+}
+
+.sample-gallery .sg-thumbs::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+}
+
+/* 縮圖按鈕 */
+.sample-gallery .sg-thumb-btn {
+    flex-shrink: 0;
+    width: 60px;
+    height: 60px;
+    padding: 0;
+    background: none;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color 0.15s ease, opacity 0.15s ease;
+    opacity: 0.6;
+}
+
+.sample-gallery .sg-thumb-btn:hover {
+    opacity: 0.9;
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* 縮圖 active 高亮 */
+.sample-gallery .sg-thumb-active {
+    border-color: var(--accent);
+    opacity: 1;
+}
+
+.sample-gallery .sg-thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    pointer-events: none;
+}
+
+/* 計數器 */
+.sample-gallery .sg-counter {
+    position: absolute;
+    top: 1rem;
+    right: 4rem;
+    background: rgba(0, 0, 0, 0.55);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.8rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
+    pointer-events: none;
+    user-select: none;
+}
+
+/* 關閉按鈕 */
+.sample-gallery .sg-close {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    width: 2.25rem;
+    height: 2.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    font-size: 1rem;
+    z-index: 10;
+}
+
+.sample-gallery .sg-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 1);
+}
+
+/* 左右導航箭頭 */
+.sample-gallery .sg-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    font-size: 1.1rem;
+    z-index: 10;
+    /* 避免縮圖列遮到箭頭 */
+    margin-bottom: 40px;
+}
+
+.sample-gallery .sg-nav:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 1);
+}
+
+.sample-gallery .sg-prev {
+    left: 0.75rem;
+}
+
+.sample-gallery .sg-next {
+    right: 0.75rem;
+}
+
+/* 入口按鈕（在 lightbox metadata 內，pill 風格） */
+.sg-open-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.8rem;
+    border-radius: 999px;
+    border: 1px solid var(--glow-primary);
+    background: var(--glow-subtle);
+    color: var(--accent);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+    white-space: nowrap;
+}
+
+.sg-open-btn:hover {
+    background: var(--glow-primary);
+    border-color: var(--accent);
+}
+
+/* C21 guard：GSAP 動畫期間禁用 sg-main-img 的 CSS transition */
+.sample-gallery .sg-main-img.gsap-animating {
+    transition: none !important;
+}

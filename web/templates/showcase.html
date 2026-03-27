@@ -414,6 +414,12 @@
                             <a href="#" class="lb-tag lb-link" @click.prevent="searchFromMetadata(tag.trim())" x-text="tag.trim()"></a>
                         </template>
                     </div>
+                    <!-- Sample Gallery 入口按鈕 (T7) -->
+                    <button class="sg-open-btn"
+                            x-show="(currentLightboxVideo?.sample_images || []).length > 0"
+                            @click="openSampleGallery(currentLightboxVideo.sample_images, 0)"
+                            x-text="'查看樣品圖 (' + (currentLightboxVideo?.sample_images || []).length + ')'">
+                    </button>
 
                 </div>
             </div>
@@ -432,6 +438,56 @@
                 <i class="bi bi-chevron-right"></i>
             </button>
         </div>
+
+    <!-- Sample Gallery Overlay (T7) -->
+    <div class="sample-gallery"
+         :class="{ 'show': sampleGalleryOpen }"
+         @click.self="closeSampleGallery()"
+         @touchstart.passive="_sgTouchStart($event)"
+         @touchend.passive="_sgTouchEnd($event)">
+
+        <!-- 關閉按鈕 -->
+        <button class="sg-close" @click="closeSampleGallery()" title="關閉 (ESC)">
+            <i class="bi bi-x-lg"></i>
+        </button>
+
+        <!-- 計數器 -->
+        <div class="sg-counter"
+             x-text="(sampleGalleryIndex + 1) + ' / ' + sampleGalleryImages.length"></div>
+
+        <!-- 主圖 -->
+        <div class="sg-main-wrap">
+            <img class="sg-main-img"
+                 :src="sampleGalleryImages[sampleGalleryIndex]"
+                 :alt="'樣品圖 ' + (sampleGalleryIndex + 1)"
+                 @click.stop>
+        </div>
+
+        <!-- 左右導航 -->
+        <button class="sg-nav sg-prev"
+                x-show="sampleGalleryIndex > 0"
+                @click.stop="prevSampleGallery()"
+                title="上一張 (←)">
+            <i class="bi bi-chevron-left"></i>
+        </button>
+        <button class="sg-nav sg-next"
+                x-show="sampleGalleryIndex < sampleGalleryImages.length - 1"
+                @click.stop="nextSampleGallery()"
+                title="下一張 (→)">
+            <i class="bi bi-chevron-right"></i>
+        </button>
+
+        <!-- 縮圖列 -->
+        <div class="sg-thumbs">
+            <template x-for="(url, idx) in sampleGalleryImages" :key="url">
+                <button class="sg-thumb-btn"
+                        :class="{ 'sg-thumb-active': idx === sampleGalleryIndex }"
+                        @click.stop="jumpSampleGallery(idx)">
+                    <img class="sg-thumb-img" :src="url" :alt="'縮圖 ' + (idx + 1)">
+                </button>
+            </template>
+        </div>
+    </div>
 
     </div>
 
