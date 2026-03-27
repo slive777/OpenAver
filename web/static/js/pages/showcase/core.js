@@ -468,7 +468,10 @@ function showcaseState() {
                         video.maker,
                         video.tags,
                         video.release_date,
-                        video.path
+                        video.path,
+                        video.director,
+                        video.series,
+                        video.label
                     ].filter(Boolean).join(' ').toLowerCase();
 
                     // 番號的正規化版本（移除空格和連字號）

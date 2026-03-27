@@ -113,3 +113,31 @@ class TestSearchLightboxMetadataGuard:
         html = self._html()
         assert "lb-meta-extra" in html, \
             "search.html 缺少 lb-meta-extra（Lightbox 新 meta 列）"
+
+
+SHOWCASE_CORE_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "showcase" / "core.js"
+
+
+class TestShowcaseCoreJsSearchableFields:
+    """T5: 確保 showcase/core.js applyFilterAndSort 的 searchable fields 包含新欄位"""
+
+    def _js(self):
+        return SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+
+    def test_searchable_includes_director(self):
+        """searchable fields 包含 video.director"""
+        js = self._js()
+        assert "video.director" in js, \
+            "showcase/core.js applyFilterAndSort searchable 缺少 video.director"
+
+    def test_searchable_includes_series(self):
+        """searchable fields 包含 video.series"""
+        js = self._js()
+        assert "video.series" in js, \
+            "showcase/core.js applyFilterAndSort searchable 缺少 video.series"
+
+    def test_searchable_includes_label(self):
+        """searchable fields 包含 video.label"""
+        js = self._js()
+        assert "video.label" in js, \
+            "showcase/core.js applyFilterAndSort searchable 缺少 video.label"

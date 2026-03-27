@@ -121,6 +121,76 @@ class TestNeedsUpdateNewFields:
         assert missing == []
 
 
+
+# ============================================================
+# scanner.py info dict 格式守衛
+# ============================================================
+
+class TestScannerInfoDictNewFields:
+    """確保 scanner.py 建構的 info dict 包含新欄位，不造成永久 needs_update"""
+
+    def _make_scanner_info(self, **overrides) -> dict:
+        """模擬 scanner.py 三處 info dict 建構（含新欄位）。"""
+        base = {
+            'title': 'テストタイトル',
+            'date': '2024-01-01',
+            'actor': '女優A',
+            'genre': 'ジャンルA',
+            'maker': '片商A',
+            'num': 'TEST-001',
+            'director': '監督A',
+            'duration': 90,
+            'series': 'シリーズA',
+            'label': 'labelA',
+        }
+        base.update(overrides)
+        return base
+
+    def test_full_info_dict_not_missing_new_fields(self):
+        """scanner 完整 info dict（含新欄位）→ needs_update 不回報新欄位缺失"""
+        info = self._make_scanner_info()
+        need, missing = needs_update(info, has_nfo=True)
+        for field in ('director', 'duration', 'series', 'label'):
+            assert field not in missing, f"新欄位 '{field}' 不應在 missing 中"
+
+    def test_old_style_info_dict_missing_new_fields(self):
+        """舊格式 info dict（缺新欄位）→ needs_update 回報新欄位缺失（驗證修正前的問題）"""
+        old_style = {
+            'title': 'テストタイトル',
+            'date': '2024-01-01',
+            'actor': '女優A',
+            'genre': 'ジャンルA',
+            'maker': '片商A',
+            'num': 'TEST-001',
+            # 缺 director, duration, series, label
+        }
+        need, missing = needs_update(old_style, has_nfo=True)
+        assert need is True
+        for field in ('director', 'series', 'label'):
+            assert field in missing, f"舊格式 dict 應缺少 '{field}'"
+        assert 'duration' in missing, "舊格式 dict 應缺少 'duration'"
+
+    def test_new_fields_with_empty_string_still_missing(self):
+        """scanner 傳入空字串的新欄位 → 仍被列為缺失"""
+        info = self._make_scanner_info(director='', series='', label='')
+        need, missing = needs_update(info, has_nfo=True)
+        assert 'director' in missing
+        assert 'series' in missing
+        assert 'label' in missing
+
+    def test_duration_none_from_db_still_missing(self):
+        """DB 中 duration=None（未抓到）→ needs_update 列為缺失"""
+        info = self._make_scanner_info(duration=None)
+        need, missing = needs_update(info, has_nfo=True)
+        assert 'duration' in missing
+
+    def test_duration_zero_from_db_not_missing(self):
+        """DB 中 duration=0（有效值）→ needs_update 不列為缺失"""
+        info = self._make_scanner_info(duration=0)
+        need, missing = needs_update(info, has_nfo=True)
+        assert 'duration' not in missing
+
+
 # ============================================================
 # update_nfo_file() 測試
 # ============================================================

@@ -280,7 +280,11 @@ def generate_avlist() -> Generator[str, None, None]:
                             'actor': ','.join(video.actresses) if video.actresses else '',
                             'genre': ','.join(video.tags) if video.tags else '',
                             'maker': video.maker,
-                            'num': video.number or ''
+                            'num': video.number or '',
+                            'director': video.director or '',
+                            'duration': video.duration,
+                            'series': video.series or '',
+                            'label': video.label or '',
                         }
                     }
             if session_cache:
@@ -423,7 +427,11 @@ async def check_update():
                     'actor': ','.join(v.actresses) if v.actresses else '',
                     'genre': ','.join(v.tags) if v.tags else '',
                     'maker': v.maker,
-                    'num': v.number or ''
+                    'num': v.number or '',
+                    'director': v.director or '',
+                    'duration': v.duration,
+                    'series': v.series or '',
+                    'label': v.label or '',
                 }
             }
 
@@ -476,7 +484,11 @@ def generate_nfo_update() -> Generator[str, None, None]:
                     'actor': ','.join(v.actresses) if v.actresses else '',
                     'genre': ','.join(v.tags) if v.tags else '',
                     'maker': v.maker,
-                    'num': v.number or ''
+                    'num': v.number or '',
+                    'director': v.director or '',
+                    'duration': v.duration,
+                    'series': v.series or '',
+                    'label': v.label or '',
                 }
             }
 
