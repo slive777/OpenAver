@@ -400,6 +400,143 @@ class TestShowcaseVideosAPI:
         assert data["total"] == 0
 
 
+class TestShowcaseMetadataFields:
+    """T3: 驗證 /api/showcase/videos 回傳含 director/duration/series/label 欄位"""
+
+    @pytest.fixture
+    def populated_db_with_meta(self, make_populated_db):
+        """含有 director/duration/series/label 資料的 DB"""
+        videos = [
+            Video(
+                path="file:////home/user/media/SONE-205.mp4",
+                number="SONE-205",
+                title="Full Meta Video",
+                original_title="",
+                actresses=["坂道みる"],
+                maker="S1 NO.1 STYLE",
+                release_date="2024-01-15",
+                tags=["単体作品"],
+                size_bytes=3145728000,
+                cover_path="",
+                mtime=1705276800.0,
+                director="山田太郎",
+                duration=120,
+                series="素人シリーズ",
+                label="S1",
+            ),
+            Video(
+                path="file:///C:/Videos/ABW-001.mp4",
+                number="ABW-001",
+                title="Empty Meta Video",
+                original_title="",
+                actresses=[],
+                maker="",
+                release_date="",
+                tags=[],
+                size_bytes=0,
+                cover_path="",
+                mtime=0.0,
+                director="",
+                duration=None,
+                series=None,
+                label="",
+            ),
+        ]
+        return make_populated_db(videos)
+
+    def test_new_fields_present_in_response(self, client, populated_db_with_meta, monkeypatch):
+        """API 回傳每個 video 物件都包含 director/duration/series/label 欄位"""
+        def mock_get_db_path():
+            return populated_db_with_meta
+        monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
+
+        response = client.get("/api/showcase/videos")
+        assert response.status_code == 200
+
+        data = response.json()
+        for video in data["videos"]:
+            assert "director" in video, "回應缺少 director 欄位"
+            assert "duration" in video, "回應缺少 duration 欄位"
+            assert "series" in video, "回應缺少 series 欄位"
+            assert "label" in video, "回應缺少 label 欄位"
+
+    def test_duration_is_int_when_present(self, client, populated_db_with_meta, monkeypatch):
+        """duration 有值時為 int（非字串）"""
+        def mock_get_db_path():
+            return populated_db_with_meta
+        monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
+
+        response = client.get("/api/showcase/videos")
+        data = response.json()
+
+        video1 = data["videos"][0]
+        assert video1["duration"] == 120
+        assert isinstance(video1["duration"], int)
+
+    def test_duration_is_none_when_absent(self, client, populated_db_with_meta, monkeypatch):
+        """duration 無值時為 None（前端 x-show 自動隱藏）"""
+        def mock_get_db_path():
+            return populated_db_with_meta
+        monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
+
+        response = client.get("/api/showcase/videos")
+        data = response.json()
+
+        video2 = data["videos"][1]
+        assert video2["duration"] is None
+
+    def test_director_empty_string_when_absent(self, client, populated_db_with_meta, monkeypatch):
+        """director 無值時為空字串（不是 None）"""
+        def mock_get_db_path():
+            return populated_db_with_meta
+        monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
+
+        response = client.get("/api/showcase/videos")
+        data = response.json()
+
+        video2 = data["videos"][1]
+        assert video2["director"] == ""
+
+    def test_series_empty_string_when_absent(self, client, populated_db_with_meta, monkeypatch):
+        """series 為 None 時回傳空字串（v.series or ''）"""
+        def mock_get_db_path():
+            return populated_db_with_meta
+        monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
+
+        response = client.get("/api/showcase/videos")
+        data = response.json()
+
+        video2 = data["videos"][1]
+        assert video2["series"] == ""
+
+    def test_label_empty_string_when_absent(self, client, populated_db_with_meta, monkeypatch):
+        """label 無值時為空字串"""
+        def mock_get_db_path():
+            return populated_db_with_meta
+        monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
+
+        response = client.get("/api/showcase/videos")
+        data = response.json()
+
+        video2 = data["videos"][1]
+        assert video2["label"] == ""
+
+    def test_full_meta_values_returned_correctly(self, client, populated_db_with_meta, monkeypatch):
+        """有值時 director/duration/series/label 正確回傳"""
+        def mock_get_db_path():
+            return populated_db_with_meta
+        monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
+
+        response = client.get("/api/showcase/videos")
+        data = response.json()
+
+        video1 = data["videos"][0]
+        assert video1["director"] == "山田太郎"
+        assert video1["duration"] == 120
+        assert video1["series"] == "素人シリーズ"
+        assert video1["label"] == "S1"
+
+
 class TestShowcaseDirectoryFiltering:
     """測試 Showcase 只回傳「當前設定資料夾」底下的影片"""
 

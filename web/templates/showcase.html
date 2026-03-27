@@ -245,6 +245,15 @@
                                 <b>日期：</b><span x-text="video.release_date"></span>
                             </span>
                         </div>
+                        <div class="info-row" x-show="video.series">
+                            <b>系列：</b>
+                            <a class="info-link" href="#"
+                               @click.prevent.stop="searchFromMetadata(video.series)"
+                               x-text="video.series"></a>
+                        </div>
+                        <div class="info-row" x-show="video.duration">
+                            <b>片長：</b><span x-text="video.duration ? video.duration + ' 分鐘' : ''"></span>
+                        </div>
                         <div class="info-tags" x-show="video.tags">
                             <template x-for="tag in (video.tags || '').split(',').filter(t => t.trim())" :key="tag">
                                 <a class="tag info-link" href="#"
@@ -268,6 +277,8 @@
                             <th class="table-col-title">標題</th>
                             <th class="table-col-actor">女優</th>
                             <th class="table-col-maker">片商</th>
+                            <th class="table-col-director">導演</th>
+                            <th class="table-col-duration">片長</th>
                             <th class="table-col-date">日期</th>
                             <th class="table-col-tags">標籤</th>
                             <th class="table-col-size">大小</th>
@@ -283,6 +294,8 @@
                                 <td class="table-cell-title" x-text="video.title || '未知標題'"></td>
                                 <td class="table-cell-actor" x-text="video.actresses || '未知'"></td>
                                 <td class="table-cell-maker" x-text="video.maker || '-'"></td>
+                                <td class="table-cell-director" x-text="video.director || '-'"></td>
+                                <td class="table-cell-duration" x-text="video.duration ? video.duration + ' 分' : '-'"></td>
                                 <td class="table-cell-date" x-text="video.release_date || '-'"></td>
                                 <td class="table-cell-tags">
                                     <template x-if="video.tags">
@@ -373,6 +386,28 @@
                         <span x-show="currentLightboxVideo?.release_date" x-text="currentLightboxVideo?.release_date"></span>
                         <span class="lb-size" x-show="currentLightboxVideo?.size"
                               x-text="formatSize(currentLightboxVideo?.size || 0)"></span>
+                    </div>
+                    <div class="lb-meta lb-meta-extra">
+                        <span x-show="currentLightboxVideo?.director">
+                            <b>導演：</b>
+                            <a href="#" class="lb-link"
+                               @click.prevent="searchFromMetadata(currentLightboxVideo?.director)"
+                               x-text="currentLightboxVideo?.director"></a>
+                        </span>
+                        <span x-show="currentLightboxVideo?.duration"
+                              x-text="currentLightboxVideo?.duration ? currentLightboxVideo.duration + ' 分鐘' : ''"></span>
+                        <span x-show="currentLightboxVideo?.series">
+                            <b>系列：</b>
+                            <a href="#" class="lb-link"
+                               @click.prevent="searchFromMetadata(currentLightboxVideo?.series)"
+                               x-text="currentLightboxVideo?.series"></a>
+                        </span>
+                        <span x-show="currentLightboxVideo?.label">
+                            <b>發行：</b>
+                            <a href="#" class="lb-link"
+                               @click.prevent="searchFromMetadata(currentLightboxVideo?.label)"
+                               x-text="currentLightboxVideo?.label"></a>
+                        </span>
                     </div>
                     <div class="lb-tags" x-show="currentLightboxVideo?.tags">
                         <template x-for="tag in (currentLightboxVideo?.tags || '').split(',').filter(t => t.trim())" :key="tag">

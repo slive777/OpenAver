@@ -73,7 +73,11 @@ async def get_videos():
                 "tags": ','.join(v.tags) if v.tags else '',              # 逗號分隔字串
                 "size": v.size_bytes,
                 "cover_url": cover_url,                                  # /api/gallery/image?path=...
-                "mtime": int(v.mtime) if v.mtime else 0                  # Unix timestamp 整數
+                "mtime": int(v.mtime) if v.mtime else 0,                 # Unix timestamp 整數
+                "director": v.director or '',
+                "duration": v.duration,                                  # Optional[int]，None 時前端 x-show 隱藏
+                "series": v.series or '',
+                "label": v.label or '',
             })
 
         return JSONResponse({
