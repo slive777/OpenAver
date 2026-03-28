@@ -406,6 +406,43 @@ def generate_nfo(
         return False
 
 
+def find_subtitle_files(video_path: str) -> List[str]:
+    """
+    找出與影片同名的字幕檔（.srt/.ass/.ssa）。
+
+    匹配規則：
+    - {stem}.srt / {stem}.ass / {stem}.ssa  （完全同名）
+    - {stem}.*.srt / {stem}.*.ass / {stem}.*.ssa  （帶語言後綴，如 .cht.srt）
+
+    不匹配：
+    - 不同名字幕（bbb.srt）
+    - 底線分隔（aaa_chs.srt）
+
+    Args:
+        video_path: 影片完整路徑
+
+    Returns:
+        符合規則的字幕路徑列表（影片不存在時回傳空列表）
+    """
+    p = Path(video_path)
+    if not p.parent.exists():
+        return []
+
+    stem = p.stem
+    # escape glob 特殊字元（如 [ ] ? *），防止檔名被誤解讀
+    from glob import escape as glob_escape
+    stem_esc = glob_escape(stem)
+    results = []
+    for ext in ('srt', 'ass', 'ssa'):
+        # 完全同名：aaa.srt
+        for match in p.parent.glob(f"{stem_esc}.{ext}"):
+            results.append(str(match))
+        # 帶語言後綴：aaa.*.srt（.cht.srt, .chs.srt 等）
+        for match in p.parent.glob(f"{stem_esc}.*.{ext}"):
+            results.append(str(match))
+    return results
+
+
 def organize_file(
     file_path: str,
     metadata: Dict[str, Any],
@@ -511,8 +548,10 @@ def organize_file(
 
     # 自動偵測字幕標記（如果 metadata 沒有指定）
     has_subtitle = metadata.get('has_subtitle')
+    subtitle_files = []
     if has_subtitle is None:
-        has_subtitle = check_subtitle(original_filename)
+        subtitle_files = find_subtitle_files(file_path)
+        has_subtitle = check_subtitle(original_filename) or bool(subtitle_files)
 
     # 計算目標路徑
     if config.get('create_folder', True):
@@ -578,6 +617,20 @@ def organize_file(
                 result['duplicate_target'] = os.path.basename(target_path)
                 return result
             shutil.move(file_path, target_path)
+
+            # 搬移字幕檔（影片有搬移時才執行）
+            # fallback：metadata 有 has_subtitle 時上面沒呼叫 find_subtitle_files
+            subs_to_move = subtitle_files if subtitle_files else find_subtitle_files(file_path)
+            video_stem = Path(file_path).stem
+            for sub_path in subs_to_move:
+                try:
+                    sub_name = os.path.basename(sub_path)
+                    sub_suffix = sub_name[len(video_stem):]  # e.g. ".cht.srt" or ".srt"
+                    sub_target = os.path.join(target_dir, filename_base + sub_suffix)
+                    shutil.move(sub_path, sub_target)
+                except Exception as e:
+                    logger.warning(f"字幕搬移失敗 {sub_path}: {e}")
+
         result['new_filename'] = target_path
 
         # 下載封面（檔名跟隨影片命名）

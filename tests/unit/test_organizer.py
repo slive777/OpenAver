@@ -1198,3 +1198,315 @@ class TestOrganizeExtrafanart:
         assert not extrafanart_dir.exists(), (
             "create_folder=False 時不應建立 extrafanart/（多片共用目錄會互相覆蓋 fanart1.jpg）"
         )
+
+
+# ============ find_subtitle_files() 測試 (T37d-1) ============
+
+from core.organizer import find_subtitle_files
+
+
+class TestFindSubtitleFiles:
+    """find_subtitle_files() 的單元測試"""
+
+    def test_find_srt_same_name(self, tmp_path):
+        """同名 .srt 找到"""
+        video = tmp_path / "aaa.mp4"
+        video.write_bytes(b"fake")
+        sub = tmp_path / "aaa.srt"
+        sub.write_text("subtitle content")
+
+        result = find_subtitle_files(str(video))
+
+        assert str(sub) in result
+
+    def test_find_ass_same_name(self, tmp_path):
+        """同名 .ass 找到"""
+        video = tmp_path / "aaa.mp4"
+        video.write_bytes(b"fake")
+        sub = tmp_path / "aaa.ass"
+        sub.write_text("subtitle content")
+
+        result = find_subtitle_files(str(video))
+
+        assert str(sub) in result
+
+    def test_find_ssa_same_name(self, tmp_path):
+        """同名 .ssa 找到"""
+        video = tmp_path / "aaa.mp4"
+        video.write_bytes(b"fake")
+        sub = tmp_path / "aaa.ssa"
+        sub.write_text("subtitle content")
+
+        result = find_subtitle_files(str(video))
+
+        assert str(sub) in result
+
+    def test_find_lang_suffix_srt(self, tmp_path):
+        """帶語言後綴 .cht.srt 找到"""
+        video = tmp_path / "aaa.mp4"
+        video.write_bytes(b"fake")
+        sub = tmp_path / "aaa.cht.srt"
+        sub.write_text("subtitle content")
+
+        result = find_subtitle_files(str(video))
+
+        assert str(sub) in result
+
+    def test_find_multiple_subtitles(self, tmp_path):
+        """多個字幕（.srt + .cht.srt）都回傳"""
+        video = tmp_path / "aaa.mp4"
+        video.write_bytes(b"fake")
+        sub1 = tmp_path / "aaa.srt"
+        sub1.write_text("subtitle 1")
+        sub2 = tmp_path / "aaa.cht.srt"
+        sub2.write_text("subtitle 2")
+
+        result = find_subtitle_files(str(video))
+
+        assert str(sub1) in result
+        assert str(sub2) in result
+        assert len(result) == 2
+
+    def test_exclude_different_name_srt(self, tmp_path):
+        """不同名字幕 bbb.srt 不包含"""
+        video = tmp_path / "aaa.mp4"
+        video.write_bytes(b"fake")
+        sub = tmp_path / "bbb.srt"
+        sub.write_text("subtitle content")
+
+        result = find_subtitle_files(str(video))
+
+        assert str(sub) not in result
+        assert result == []
+
+    def test_exclude_underscore_suffix(self, tmp_path):
+        """底線分隔 aaa_chs.srt 不包含"""
+        video = tmp_path / "aaa.mp4"
+        video.write_bytes(b"fake")
+        sub = tmp_path / "aaa_chs.srt"
+        sub.write_text("subtitle content")
+
+        result = find_subtitle_files(str(video))
+
+        assert str(sub) not in result
+        assert result == []
+
+    def test_no_subtitles_returns_empty(self, tmp_path):
+        """無字幕回傳空列表"""
+        video = tmp_path / "aaa.mp4"
+        video.write_bytes(b"fake")
+
+        result = find_subtitle_files(str(video))
+
+        assert result == []
+
+    def test_nonexistent_video_returns_empty(self, tmp_path):
+        """影片路徑不存在回傳空列表"""
+        nonexistent = str(tmp_path / "nonexistent.mp4")
+
+        result = find_subtitle_files(nonexistent)
+
+        assert result == []
+
+
+# ============ organize_file() 字幕搬移測試 (T37d-1) ============
+
+class TestOrganizeSubtitle:
+    """organize_file() 字幕偵測 + 搬移整合測試"""
+
+    def _make_config(self, tmp_path, create_folder=False):
+        return {
+            "create_folder": create_folder,
+            "filename_format": "[{num}] {title}",
+            "download_cover": False,
+            "cover_filename": "poster.jpg",
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+
+    def _make_metadata(self):
+        return {
+            "number": "SONE-205",
+            "title": "Test Title",
+            "actors": [],
+            "tags": [],
+            "maker": "S1",
+            "date": "2024-01-15",
+            "cover": "",
+            "url": "",
+        }
+
+    def test_subtitle_moves_with_video(self, tmp_path):
+        """organize 成功搬移後，字幕跟隨（字幕在目標目錄，名稱正確）"""
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"fake mp4")
+        sub = tmp_path / "SONE-205.srt"
+        sub.write_text("subtitle")
+
+        config = self._make_config(tmp_path)
+        metadata = self._make_metadata()
+
+        result = organize_file(str(src), metadata, config)
+
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+        # 影片搬移了（同目錄重命名）
+        target_dir = Path(result["new_filename"]).parent
+        # 字幕應出現在目標目錄，並以新檔名命名
+        new_video_stem = Path(result["new_filename"]).stem
+        expected_sub = target_dir / f"{new_video_stem}.srt"
+        assert expected_sub.exists(), f"字幕應搬移到 {expected_sub}"
+        # 原字幕不應在原位（已搬移）
+        assert not sub.exists(), "原始字幕應已搬離原位置"
+
+    def test_subtitle_with_lang_suffix_moves_correctly(self, tmp_path):
+        """帶語言後綴的字幕搬移後名稱正確（new-name.cht.srt）"""
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"fake mp4")
+        sub = tmp_path / "SONE-205.cht.srt"
+        sub.write_text("subtitle cht")
+
+        config = self._make_config(tmp_path)
+        metadata = self._make_metadata()
+
+        result = organize_file(str(src), metadata, config)
+
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+        target_dir = Path(result["new_filename"]).parent
+        new_video_stem = Path(result["new_filename"]).stem
+        expected_sub = target_dir / f"{new_video_stem}.cht.srt"
+        assert expected_sub.exists(), f"帶語言後綴的字幕應搬移到 {expected_sub}"
+
+    def test_subtitle_not_moved_on_duplicate(self, tmp_path):
+        """organize 影片 duplicate → 字幕留原處不搬"""
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"source content")
+        # 建立已存在的目標檔（造成 duplicate）
+        existing_target = tmp_path / "[SONE-205] Test Title.mp4"
+        existing_target.write_bytes(b"existing content")
+        # 字幕
+        sub = tmp_path / "SONE-205.srt"
+        sub.write_text("subtitle")
+
+        config = self._make_config(tmp_path)
+        metadata = self._make_metadata()
+
+        result = organize_file(str(src), metadata, config)
+
+        assert result.get("duplicate") is True
+        assert result["success"] is False
+        # 字幕應仍在原處
+        assert sub.exists(), "duplicate 時字幕不應被搬移"
+
+    def test_subtitle_move_failure_warning_continues(self, tmp_path):
+        """字幕搬移失敗 → warning，後續繼續（封面/NFO 正常產生）"""
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"fake mp4")
+        sub = tmp_path / "SONE-205.srt"
+        sub.write_text("subtitle")
+
+        config = {
+            "create_folder": False,
+            "filename_format": "[{num}] {title}",
+            "download_cover": True,
+            "create_nfo": True,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+        metadata = {
+            "number": "SONE-205",
+            "title": "Test Title",
+            "actors": [],
+            "tags": [],
+            "maker": "S1",
+            "date": "2024-01-15",
+            "cover": "http://fake/cover.jpg",
+            "url": "",
+        }
+
+        import shutil as _shutil_real
+        _real_move = _shutil_real.move
+
+        def selective_move(src_path, dst_path):
+            if str(src_path).endswith(".srt"):
+                raise OSError("字幕搬移模擬失敗")
+            return _real_move(src_path, dst_path)
+
+        with patch("core.organizer.shutil.move", side_effect=selective_move), \
+             patch("core.organizer.download_image", return_value=False):
+            result = organize_file(str(src), metadata, config)
+
+        # 影片整理應仍成功（字幕失敗不影響）
+        assert result["success"] is True, f"字幕失敗不應影響 organize 成功: {result.get('error')}"
+
+    def test_check_subtitle_true_no_file_has_subtitle_true(self, tmp_path):
+        """check_subtitle() 回傳 True 但無字幕檔 → has_subtitle = True，NFO 有中文字幕 tag"""
+        # 檔名含 "-C" → check_subtitle 回傳 True
+        src = tmp_path / "SONE-205-C.mp4"
+        src.write_bytes(b"fake mp4")
+
+        config = {
+            "create_folder": False,
+            "filename_format": "[{num}] {title}",
+            "download_cover": False,
+            "create_nfo": True,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+        metadata = {
+            "number": "SONE-205",
+            "title": "Test Title",
+            "actors": [],
+            "tags": [],
+            "maker": "S1",
+            "date": "2024-01-15",
+            "cover": "",
+            "url": "",
+        }
+
+        result = organize_file(str(src), metadata, config)
+
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+        # NFO 應包含中文字幕 tag
+        if result.get("nfo_path"):
+            nfo_content = Path(result["nfo_path"]).read_text(encoding="utf-8")
+            assert "中文字幕" in nfo_content, "check_subtitle=True 時 NFO 應包含中文字幕 tag"
+
+    def test_find_subtitle_true_has_subtitle_true(self, tmp_path):
+        """find_subtitle_files() 找到字幕 → has_subtitle = True（即使 check_subtitle() 為 False）"""
+        # 檔名無字幕標記（check_subtitle 為 False），但有 .srt 檔
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"fake mp4")
+        sub = tmp_path / "SONE-205.srt"
+        sub.write_text("subtitle")
+
+        config = {
+            "create_folder": False,
+            "filename_format": "[{num}] {title}",
+            "download_cover": False,
+            "create_nfo": True,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+        metadata = {
+            "number": "SONE-205",
+            "title": "Test Title",
+            "actors": [],
+            "tags": [],
+            "maker": "S1",
+            "date": "2024-01-15",
+            "cover": "",
+            "url": "",
+        }
+
+        result = organize_file(str(src), metadata, config)
+
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+        # NFO 應包含中文字幕 tag（因為有字幕檔）
+        if result.get("nfo_path"):
+            nfo_content = Path(result["nfo_path"]).read_text(encoding="utf-8")
+            assert "中文字幕" in nfo_content, "有字幕檔時 NFO 應包含中文字幕 tag"
