@@ -328,15 +328,15 @@ class TestDMMScraper:
         config = ScraperConfig(proxy_url="http://test-proxy:8080")
         return DMMScraper(config)
 
-    def test_dmm_proxy_required(self):
-        """無 proxy_url 時 search 立即返回 None，不發任何請求"""
-        scraper = DMMScraper()  # 無 proxy_url
+    def test_dmm_no_proxy_session_proxies_not_set(self):
+        """無 proxy_url 時 session.proxies 不被設定（直連模式）
 
-        with patch.object(scraper._session, 'post') as mock_post:
-            result = scraper.search("SONE-205")
-
-        assert result is None
-        mock_post.assert_not_called()
+        37d T3：guard 已移至呼叫端（scraper.py），DMMScraper 建立即執行。
+        本測試確認 proxy_url='' 時 session.proxies 為空（不設定 proxy）。
+        """
+        scraper = DMMScraper()  # 無 proxy_url → 直連模式
+        assert not scraper._session.proxies, \
+            "proxy_url='' 時 session.proxies 不應被設定"
 
     def test_dmm_cache_hit(self, dmm_scraper, tmp_path, monkeypatch):
         """快取命中時不呼叫 search query（detail query + probe query，不超過 2 次）"""
@@ -935,16 +935,16 @@ class TestDMMSearchByKeyword:
         config = ScraperConfig(proxy_url="http://test-proxy:8080")
         return DMMScraper(config)
 
-    # 1. no proxy → []
-    def test_keyword_no_proxy(self):
-        """無 proxy_url → search_by_keyword 立即返回 []，不發請求"""
+    # 1. no proxy → session.proxies not set (direct mode)
+    def test_keyword_no_proxy_session_not_set(self):
+        """無 proxy_url → session.proxies 不設定（直連模式）
+
+        37d T3：guard 已移至呼叫端（scraper.py），DMMScraper 建立即執行。
+        本測試確認 proxy_url='' 時 session.proxies 為空。
+        """
         scraper = DMMScraper()  # no proxy_url
-
-        with patch.object(scraper._session, 'post') as mock_post:
-            result = scraper.search_by_keyword("未歩なな")
-
-        assert result == []
-        mock_post.assert_not_called()
+        assert not scraper._session.proxies, \
+            "proxy_url='' 時 session.proxies 不應被設定"
 
     # 2. mock response → 2 Videos
     def test_keyword_returns_multiple(self, dmm_scraper):

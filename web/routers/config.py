@@ -231,7 +231,17 @@ class ProxyTestRequest(BaseModel):
 def test_proxy(request: ProxyTestRequest) -> dict:
     """測試 Proxy 連線（透過 DMM GraphQL endpoint 驗證）"""
     import requests
-    proxies = {'http': request.proxy_url, 'https': request.proxy_url}
+
+    is_direct = request.proxy_url.strip().lower() == 'direct'
+    if is_direct:
+        proxies = {}
+        success_message = "直連測試成功（DMM 可達）"
+        non_jp_message = "直連可達，但 DMM 回傳 403（非日本 IP，建議使用 Proxy）"
+    else:
+        proxies = {'http': request.proxy_url, 'https': request.proxy_url}
+        success_message = "Proxy 連線成功（DMM 可達）"
+        non_jp_message = "Proxy 連線成功，但 DMM 回傳 403（可能非日本 IP）"
+
     try:
         resp = requests.post(
             "https://api.video.dmm.co.jp/graphql",
@@ -241,14 +251,14 @@ def test_proxy(request: ProxyTestRequest) -> dict:
             timeout=10
         )
         if resp.status_code == 200:
-            return {"success": True, "reason": "ok", "message": "Proxy 連線成功（DMM 可達）"}
+            return {"success": True, "reason": "ok", "message": success_message}
         elif resp.status_code == 403:
-            return {"success": False, "reason": "non_jp", "message": "Proxy 連線成功，但 DMM 回傳 403（可能非日本 IP）"}
+            return {"success": False, "reason": "non_jp", "message": non_jp_message}
         else:
             return {"success": False, "reason": "unexpected_status", "message": f"DMM 回傳異常狀態碼: {resp.status_code}"}
     except requests.exceptions.Timeout:
         return {"success": False, "reason": "unreachable", "message": "連線失敗: 連線逾時"}
     except requests.exceptions.ConnectionError:
-        return {"success": False, "reason": "unreachable", "message": "連線失敗: 無法連線到 Proxy"}
+        return {"success": False, "reason": "unreachable", "message": "連線失敗: 無法連線到目標主機"}
     except Exception:
-        return {"success": False, "reason": "unreachable", "message": "連線失敗: 請檢查 Proxy 網址格式"}
+        return {"success": False, "reason": "unreachable", "message": "連線失敗: 請檢查輸入格式"}

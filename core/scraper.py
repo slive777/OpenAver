@@ -106,9 +106,23 @@ def expand_partial_number(partial: str) -> List[str]:
 
 # ============ 核心搜尋函數 ============
 
+def _is_dmm_enabled(proxy_url: str) -> bool:
+    """空字串 → False；'direct' / 真 proxy → True"""
+    return bool(proxy_url and proxy_url.strip())
+
+
+def _dmm_proxy_url(proxy_url: str) -> str:
+    """'direct'（大小寫不敏感）→ ''（直連）；其他 → 原值"""
+    if not proxy_url:
+        return ''
+    if proxy_url.strip().lower() == 'direct':
+        return ''
+    return proxy_url
+
+
 def _get_fuzzy_source(primary_source: str, proxy_url: str) -> str:
     """決定實際使用的模糊搜尋來源（含降級）"""
-    if primary_source == 'dmm' and not proxy_url:
+    if primary_source == 'dmm' and not _is_dmm_enabled(proxy_url):
         logger.info("[Search] primary_source=dmm but no proxy, fallback to javbus")
         return 'javbus'
     return primary_source
@@ -128,8 +142,8 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '', primary_s
         logger.warning(f"[Search] 未知來源: {source}")
         return None
 
-    # DMM 需要 proxy，有 proxy_url 才建立
-    dmm_config = ScraperConfig(proxy_url=proxy_url) if proxy_url else None
+    # DMM 需要日本 IP（proxy 或 direct），有啟用才建立
+    dmm_config = ScraperConfig(proxy_url=_dmm_proxy_url(proxy_url)) if _is_dmm_enabled(proxy_url) else None
 
     # 決定要跑哪些爬蟲
     scrapers = []
@@ -405,7 +419,7 @@ def search_actress(name: str, limit: int = 20, offset: int = 0, status_callback:
     if fuzzy_source == 'dmm':
         if status_callback:
             status_callback('dmm', 'searching')
-        dmm_config = ScraperConfig(proxy_url=proxy_url)
+        dmm_config = ScraperConfig(proxy_url=_dmm_proxy_url(proxy_url))
         dmm_scraper = DMMScraper(dmm_config)
         dmm_results = _dmm_keyword_search_progressive(
             dmm_scraper, name, limit, status_callback, result_callback
@@ -628,8 +642,8 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
         if offset > 0:
             return []
 
-        # DMM Top-1（primary_source='dmm' 且有 proxy 時精確搜尋優先用 DMM）
-        if primary_source == 'dmm' and proxy_url:
+        # DMM Top-1（primary_source='dmm' 且 DMM 已啟用時精確搜尋優先用 DMM）
+        if primary_source == 'dmm' and _is_dmm_enabled(proxy_url):
             if status_callback:
                 status_callback('dmm', 'searching')
             res = search_jav(query, source='dmm', proxy_url=proxy_url)
@@ -695,7 +709,7 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
             # DMM keyword search (progressive)
             if status_callback:
                 status_callback('dmm', 'searching')
-            dmm_config = ScraperConfig(proxy_url=proxy_url)
+            dmm_config = ScraperConfig(proxy_url=_dmm_proxy_url(proxy_url))
             dmm_scraper = DMMScraper(dmm_config)
             dmm_results = _dmm_keyword_search_progressive(
                 dmm_scraper, query, limit, status_callback, result_callback

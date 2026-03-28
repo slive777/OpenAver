@@ -102,7 +102,7 @@
                         <div class="variable-input-group">
                             <input type="text" class="input input-bordered input-sm flex-1"
                                 x-model="form.proxyUrl"
-                                placeholder="http://帳號:密碼@主機:埠號">
+                                placeholder="http://位址:埠號 — 已有日本 IP 可輸入 direct">
                             <button class="btn btn-sm btn-outline" type="button"
                                 @click="testProxy()"
                                 :disabled="!form.proxyUrl.trim() || testProxyLoading">

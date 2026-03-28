@@ -4291,6 +4291,15 @@ class TestSampleGalleryTemplateGuard:
         )
 
 
+class TestProxyDirectGuard:
+    """37d T3 守衛 — settings.html proxy placeholder 包含 direct 提示"""
+
+    def test_settings_proxy_placeholder_has_direct(self):
+        html = (PROJECT_ROOT / 'web/templates/settings.html').read_text(encoding='utf-8')
+        assert 'direct' in html.lower(), \
+            "settings.html proxy placeholder 應包含 direct 提示"
+
+
 class TestShowcaseSampleGalleryGuard:
     """T7：Showcase Sample Gallery 靜態守衛
 

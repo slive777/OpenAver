@@ -540,10 +540,6 @@ class DMMScraper(BaseScraper):
         Returns:
             Video 物件，找不到返回 None
         """
-        # DMM 需要 proxy（日本 IP），無 proxy 時直接跳過
-        if not self.config.proxy_url:
-            return None
-
         # 正規化番號
         number = self.normalize_number(number)
         number_upper = number.upper()
@@ -589,9 +585,6 @@ class DMMScraper(BaseScraper):
         供 facade 層 ThreadPoolExecutor enrichment 使用。
         不呼叫 _fetch_by_id（不做 enrichment）。
         """
-        if not self.config.proxy_url:
-            return []
-
         try:
             payload = {
                 'query': self.SEARCH_LIST_QUERY,
@@ -647,9 +640,6 @@ class DMMScraper(BaseScraper):
 
     def search_by_keyword(self, keyword: str, limit: int = 20) -> list[Video]:
         """關鍵字搜尋（女優名、片商名等日文關鍵字）"""
-        if not self.config.proxy_url:
-            return []
-
         try:
             payload = {
                 'query': self.SEARCH_LIST_QUERY,
