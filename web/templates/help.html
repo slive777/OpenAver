@@ -88,6 +88,8 @@
             <ul>
                 <li>搜尋後可切換為封面牆顯示，點擊封面開啟 Lightbox</li>
                 <li><strong>Lightbox</strong>：全螢幕檢視封面，<kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd> 鍵導航，<kbd class="kbd kbd-sm">Esc</kbd> 關閉</li>
+                <li>Lightbox 顯示導演、片長、系列、Label 等詳細資訊（有資料時才會出現）</li>
+                <li>點擊「劇照」按鈕可開啟劇照瀏覽，支援鍵盤 <kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd> 切換和觸控滑動</li>
             </ul>
 
             <h6 class="mt-4">版本標記 Badge</h6>
@@ -222,6 +224,13 @@
                 <li><strong>Dark Mode</strong>：自動跟隨 Web App 的主題設定</li>
             </ul>
 
+            <h6 class="mt-4">字幕檔自動偵測</h6>
+            <ul>
+                <li>整理影片時，自動偵測同目錄下同名的字幕檔（<code>.srt</code>、<code>.ass</code>、<code>.ssa</code>）</li>
+                <li>影片搬移成功後，字幕會一起帶到目標資料夾，保留語言後綴（如 <code>.cht.srt</code>）</li>
+                <li>偵測到字幕時，NFO 會自動加上「中文字幕」標記</li>
+            </ul>
+
             <h6 class="mt-4">Jellyfin 圖片模式</h6>
             <ul>
                 <li>在<strong>設定頁</strong>開啟後，掃描時自動產生 <code>-poster.jpg</code> + <code>-fanart.jpg</code></li>
@@ -254,6 +263,9 @@
             <h6 class="mt-4">其他功能</h6>
             <ul>
                 <li>Lightbox 全螢幕封面檢視（<kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd> 導航）</li>
+                <li>Lightbox 顯示導演、片長、系列、Label 等詳細資訊</li>
+                <li>Table 模式新增「導演」和「片長」欄位</li>
+                <li>Lightbox 可開啟劇照瀏覽（點擊「劇照」按鈕）</li>
                 <li>每頁顯示數量可在<strong>設定頁</strong>調整</li>
             </ul>
         </div>
@@ -352,6 +364,24 @@
                 <li><strong>AVSOX</strong>：無碼通用來源</li>
             </ul>
 
+            <h6 class="mt-4">預設搜尋來源</h6>
+            <ul>
+                <li>在設定頁可將 <strong>JavBus</strong> 或 <strong>DMM</strong> 設為主要搜尋來源</li>
+                <li>選為主來源後，精確番號搜尋會優先使用該來源的資料</li>
+            </ul>
+
+            <h6 class="mt-4">DMM 模糊搜尋</h6>
+            <ul>
+                <li>在搜尋框輸入日文女優名或片商名時，會同時觸發 DMM 模糊搜尋</li>
+                <li>前提：DMM 已啟用（需設定 Proxy 或使用 <code>direct</code> 模式）</li>
+            </ul>
+
+            <h6 class="mt-4">Proxy direct 模式</h6>
+            <ul>
+                <li>如果您已連接日本 VPN 或本身位於日本，不需要另外設定 Proxy</li>
+                <li>只要在設定頁的 Proxy 欄位輸入 <code>direct</code>，即可直接啟用 DMM 功能</li>
+            </ul>
+
             <h6 class="mt-4">切換模式</h6>
             <ul>
                 <li>在<strong>設定頁</strong>開啟「無碼模式」toggle，搜尋時將優先使用無碼來源</li>
@@ -406,6 +436,7 @@
             <h6 class="mt-4">DMM 無法搜尋</h6>
             <ul>
                 <li>DMM 需要日本 IP，請在<strong>設定頁</strong> → Proxy 欄位填入日本 IP 代理</li>
+                <li>若已連接 VPN 或日本網路，也可以在 Proxy 欄位輸入 <code>direct</code> 直接啟用，不需要填寫 Proxy 位址。</li>
             </ul>
 
             <h6 class="mt-4">翻譯無回應</h6>

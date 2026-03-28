@@ -4549,3 +4549,40 @@ class TestShowcaseSampleGalleryGuard:
             f"lb-header（L{lb_header_line + 1}～L{lb_header_close_line + 1}）內 — "
             "入口按鈕必須在 .lb-header 開始與結束之間"
         )
+
+
+class TestHelpPageGuard:
+    """37d T4 守衛 — help.html 包含 Phase 36/37 新功能說明"""
+
+    def test_help_has_primary_source(self):
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        assert '預設搜尋來源' in html or '主要搜尋來源' in html
+
+    def test_help_has_dmm_fuzzy_search(self):
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        assert '模糊搜尋' in html
+
+    def test_help_has_direct_mode(self):
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        assert 'direct' in html.lower()
+
+    def test_help_has_lightbox_director(self):
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        assert '導演' in html
+
+    def test_help_has_sample_gallery(self):
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        assert '劇照' in html
+
+    def test_help_has_table_duration(self):
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        assert '片長' in html
+
+    def test_help_has_subtitle_move(self):
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        assert '字幕' in html
+
+    def test_troubleshoot_direct(self):
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        # direct 至少在 Scraper 來源說明和疑難排解各出現一次
+        assert html.lower().count('direct') >= 2
