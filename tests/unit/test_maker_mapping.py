@@ -7,6 +7,7 @@ test_maker_mapping.py - core/maker_mapping.py 單元測試
 - normalize_maker_name(): 查表命中/無對照/空字串/None
 - save_prefix_entry(): 寫入後 reload 含新值，name 層未被污染，IOError 靜默
 - get_maker_by_prefix(): prefix hit 不呼叫 JavDB，無字母前綴回傳空字串
+- Video.to_legacy_dict(): maker 欄位套用 normalize_maker_name()
 """
 
 import json
@@ -328,3 +329,66 @@ class TestGetMakerByPrefix:
             result = mm.get_maker_by_prefix("ZZUNKNOWN-001")
 
         assert result == ""
+
+
+# ============ Video.to_legacy_dict() maker normalize ============
+
+class TestVideoToLegacyDictMaker:
+    """Video.to_legacy_dict() 的 maker 欄位應套用 normalize_maker_name()"""
+
+    # name_mapping 供 mock 使用
+    MOCK_NAME_MAPPING = {
+        "エスワン ナンバーワンスタイル": "S1",
+        "S1 NO.1 STYLE": "S1",
+        "ムーディーズ": "Moodyz",
+    }
+
+    @pytest.fixture(autouse=True)
+    def patch_name_mapping(self, monkeypatch):
+        """mock load_name_mapping 回傳固定 dict，不讀真實檔案"""
+        import core.maker_mapping as mm
+        monkeypatch.setattr(mm, "_cache", None)
+        monkeypatch.setattr(
+            mm, "load_name_mapping",
+            lambda: self.MOCK_NAME_MAPPING,
+        )
+
+    def _make_video(self, maker):
+        from core.scrapers.models import Video
+        return Video(number="SONE-001", maker=maker)
+
+    def test_katakana_maker_is_normalized(self):
+        """maker = 片假名長名 → to_legacy_dict()['maker'] 為 canonical 短名"""
+        v = self._make_video("エスワン ナンバーワンスタイル")
+        assert v.to_legacy_dict()["maker"] == "S1"
+
+    def test_english_long_name_is_normalized(self):
+        """maker = 英文長名 → to_legacy_dict()['maker'] 為 canonical 短名"""
+        v = self._make_video("S1 NO.1 STYLE")
+        assert v.to_legacy_dict()["maker"] == "S1"
+
+    def test_unknown_maker_returns_original(self):
+        """maker 無對照 → to_legacy_dict()['maker'] 保留原值"""
+        v = self._make_video("本中")
+        assert v.to_legacy_dict()["maker"] == "本中"
+
+    def test_empty_maker_returns_empty(self):
+        """maker = '' → to_legacy_dict()['maker'] 為 ''"""
+        v = self._make_video("")
+        assert v.to_legacy_dict()["maker"] == ""
+
+    def test_none_maker_returns_empty(self):
+        """maker = None → to_legacy_dict()['maker'] 為 ''（型別防禦）"""
+        from core.scrapers.models import Video
+        # Video.maker 有 default=""，需用 model_construct 繞過 validation
+        v = Video.model_construct(number="SONE-001", maker=None,
+                                  title="", actresses=[], date="",
+                                  cover_url="", tags=[], source="",
+                                  detail_url="", director="", duration=None,
+                                  label="", series="", sample_images=[])
+        assert v.to_legacy_dict()["maker"] == ""
+
+    def test_already_canonical_maker_unchanged(self):
+        """maker 已是 canonical（如 'S1'）→ 無對照時保留原值"""
+        v = self._make_video("S1")
+        assert v.to_legacy_dict()["maker"] == "S1"

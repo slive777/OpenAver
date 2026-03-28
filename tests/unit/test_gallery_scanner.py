@@ -1,5 +1,6 @@
 import pytest
 from pathlib import Path
+from unittest.mock import patch
 from core.gallery_scanner import VideoScanner
 
 class TestGalleryScanner:
@@ -130,3 +131,67 @@ class TestGalleryScanner:
         # 資料夾裡沒圖片
         found = scanner.find_cover_image(str(video_path))
         assert found == ""
+
+
+# ============ normalize_maker() 兩步邏輯 ============
+
+class TestNormalizeMaker:
+    """VideoScanner.normalize_maker() 的 name mapping → prefix fallback 兩步邏輯"""
+
+    MOCK_NAME_MAPPING = {
+        "エスワン ナンバーワンスタイル": "S1",
+        "ムーディーズ": "Moodyz",
+    }
+    MOCK_PREFIX_MAPPING = {
+        "SONE": "S1",
+        "MIAA": "Moodyz",
+    }
+
+    @pytest.fixture
+    def scanner(self):
+        """建立 VideoScanner，mock load_name_mapping + load_prefix_mapping"""
+        with patch("core.gallery_scanner.load_name_mapping",
+                   return_value=self.MOCK_NAME_MAPPING), \
+             patch("core.gallery_scanner.load_prefix_mapping",
+                   return_value=self.MOCK_PREFIX_MAPPING):
+            return VideoScanner()
+
+    def test_name_mapping_hit_skips_prefix(self, scanner):
+        """Step 1 name mapping 命中 → 回傳 name 結果，不查 prefix"""
+        result = scanner.normalize_maker("SONE-123", "エスワン ナンバーワンスタイル")
+        assert result == "S1"
+
+    def test_name_mapping_miss_prefix_hit(self, scanner):
+        """Step 1 miss → Step 2 prefix 命中 → 回傳 prefix 結果"""
+        result = scanner.normalize_maker("MIAA-456", "SomeMaker")
+        assert result == "Moodyz"
+
+    def test_both_miss_returns_original(self, scanner):
+        """name + prefix 都 miss → 回傳原值"""
+        result = scanner.normalize_maker("ZZXX-001", "UnknownMaker")
+        assert result == "UnknownMaker"
+
+    def test_empty_maker_skips_name_mapping(self, scanner):
+        """maker 為空 → 跳過 name mapping → 走 prefix（prefix 命中）"""
+        result = scanner.normalize_maker("MIAA-456", "")
+        # maker 空字串：name mapping skip，prefix 命中 MIAA → Moodyz
+        assert result == "Moodyz"
+
+    def test_empty_num_name_mapping_miss_returns_original(self, scanner):
+        """num 為空且 name mapping miss → 回傳原值（不查 prefix）"""
+        result = scanner.normalize_maker("", "UnknownMaker")
+        assert result == "UnknownMaker"
+
+    def test_empty_num_name_mapping_hit(self, scanner):
+        """num 為空但 name mapping 命中 → Step 1 直接回傳（不依賴 num）"""
+        result = scanner.normalize_maker("", "エスワン ナンバーワンスタイル")
+        assert result == "S1"
+
+    def test_name_mapping_empty_dict_falls_through_to_prefix(self):
+        """name_mapping 為空 dict → Step 1 無命中 → Step 2 prefix fallback 正常"""
+        with patch("core.gallery_scanner.load_name_mapping", return_value={}), \
+             patch("core.gallery_scanner.load_prefix_mapping",
+                   return_value=self.MOCK_PREFIX_MAPPING):
+            sc = VideoScanner()
+        result = sc.normalize_maker("SONE-123", "AnyMaker")
+        assert result == "S1"

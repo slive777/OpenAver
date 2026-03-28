@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from core.logger import get_logger
-from core.maker_mapping import load_prefix_mapping
+from core.maker_mapping import load_name_mapping, load_prefix_mapping
 from core.nfo_utils import sanitize_nfo_bytes
 from core.path_utils import to_file_uri
 from core.video_extensions import DEFAULT_VIDEO_EXTENSIONS, ZERO_SIZE_EXTENSIONS
@@ -203,12 +203,19 @@ class VideoScanner:
         self._compiled_formats = self._compile_naming_formats()
         self.path_mappings = path_mappings or {}
         self.prefix_mapping = load_prefix_mapping()
+        self.name_mapping = load_name_mapping()
 
     def normalize_maker(self, num: str, maker: str) -> str:
-        """根據番號前綴正規化片商名稱
+        """根據 name mapping 和番號前綴正規化片商名稱
 
-        優先使用 maker_mapping.json 中的映射（番號前綴 -> 標準片商名）
+        Step 1: name mapping（直接對照片商名，不依賴 num）
+        Step 2: prefix mapping（從番號前綴查詢，作為 fallback）
         """
+        # Step 1: name mapping（不依賴 num）
+        if maker and maker in self.name_mapping:
+            return self.name_mapping[maker]
+
+        # Step 2: prefix mapping（fallback）
         if not num or not self.prefix_mapping:
             return maker
 

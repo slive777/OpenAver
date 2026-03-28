@@ -35,12 +35,13 @@ class Video(BaseModel):
 
     def to_legacy_dict(self) -> dict[str, object]:
         """轉換成舊格式（向後相容）"""
+        from core.maker_mapping import normalize_maker_name
         return {
             'number': self.number,
             'title': self.title,
             'actors': [a.name for a in self.actresses],
             'date': self.date,
-            'maker': self.maker,
+            'maker': normalize_maker_name(self.maker),
             'cover': self.cover_url,
             'tags': self.tags,
             'source': self.source,

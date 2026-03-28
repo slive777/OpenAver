@@ -47,6 +47,7 @@ MAKER_TO_GFRIENDS = {
     # ── x 系列 ──
     "Das!": "x-DAS",
     "KMP": "x-KMP",
+    "SCOOP": "x-KMP",
     "SCOOP（KMP）": "x-KMP",
     "KMPVR-彩-": "x-KMP",
     "Wanz Factory": "x-WANZ",
