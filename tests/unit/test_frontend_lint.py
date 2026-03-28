@@ -54,11 +54,11 @@ class TestShowcaseMetadataGuard:
         assert "currentLightboxVideo?.label" in html, \
             "showcase.html 缺少 currentLightboxVideo?.label 綁定（Lightbox）"
 
-    def test_lb_meta_extra_div_exists(self):
-        """Lightbox 含 lb-meta-extra div（新增的 meta 列）"""
+    def test_lb_details_div_exists(self):
+        """Lightbox 含 lb-details div（37b 合併後的 meta 列）"""
         html = self._html()
-        assert "lb-meta-extra" in html, \
-            "showcase.html 缺少 lb-meta-extra（Lightbox 新 meta 列）"
+        assert "lb-details" in html, \
+            "showcase.html 缺少 lb-details（Lightbox 合併 meta 列，37b-layout）"
 
     def test_search_from_metadata_used_for_director(self):
         """director 可點擊觸發 searchFromMetadata"""
@@ -108,11 +108,11 @@ class TestSearchLightboxMetadataGuard:
         assert "currentLightboxVideo()?.label" in html, \
             "search.html 缺少 currentLightboxVideo()?.label 綁定（Lightbox）"
 
-    def test_lb_meta_extra_div_exists(self):
-        """Lightbox 含 lb-meta-extra div（新增的 meta 列）"""
+    def test_lb_details_div_exists(self):
+        """Lightbox 含 lb-details div（37b 合併後的 meta 列）"""
         html = self._html()
-        assert "lb-meta-extra" in html, \
-            "search.html 缺少 lb-meta-extra（Lightbox 新 meta 列）"
+        assert "lb-details" in html, \
+            "search.html 缺少 lb-details（Lightbox 合併 meta 列，37b-layout）"
 
 
 SHOWCASE_CORE_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "showcase" / "core.js"

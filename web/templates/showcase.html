@@ -367,10 +367,21 @@
 
                 <!-- Metadata Panel（緊湊版，匹配原版 gallery） -->
                 <div class="lightbox-metadata">
-                    <div class="lb-title" x-text="currentLightboxVideo?.title || '未知標題'"></div>
+                    <!-- Row 1: Header (title + sample gallery button) -->
+                    <div class="lb-header">
+                        <div class="lb-title" x-text="currentLightboxVideo?.title || '未知標題'"></div>
+                        <!-- Sample Gallery 入口按鈕 (T7) -->
+                        <button class="sg-open-btn"
+                                x-show="(currentLightboxVideo?.sample_images || []).length > 0"
+                                @click="openSampleGallery(currentLightboxVideo.sample_images, 0)"
+                                x-text="'劇照 (' + (currentLightboxVideo?.sample_images || []).length + ')'">
+                        </button>
+                    </div>
+                    <!-- Row 2: Original Title (showcase only) -->
                     <div class="lb-otitle"
                          x-show="currentLightboxVideo?.original_title"
                          x-text="currentLightboxVideo?.original_title"></div>
+                    <!-- Row 3: Actresses -->
                     <div class="lb-actor" x-show="currentLightboxVideo?.actresses">
                         <template x-for="(actress, idx) in (currentLightboxVideo?.actresses || '').split(',').filter(a => a.trim())" :key="actress">
                             <span>
@@ -378,48 +389,47 @@
                             </span>
                         </template>
                     </div>
-                    <div class="lb-meta">
+                    <!-- Row 4: Details (merged) -->
+                    <!-- 分隔符 " · " 內嵌於各 span 開頭，隨 x-show 一起顯示/隱藏，避免孤立 · -->
+                    <div class="lb-details">
                         <span x-text="currentLightboxVideo?.number || '未知'"></span>
                         <span x-show="currentLightboxVideo?.maker">
-                            <a href="#" class="lb-link" @click.prevent="searchFromMetadata(currentLightboxVideo?.maker)" x-text="currentLightboxVideo?.maker"></a>
+                            &nbsp;·&nbsp;<a href="#" class="lb-link" @click.prevent="searchFromMetadata(currentLightboxVideo?.maker)" x-text="currentLightboxVideo?.maker"></a>
                         </span>
-                        <span x-show="currentLightboxVideo?.release_date" x-text="currentLightboxVideo?.release_date"></span>
-                        <span class="lb-size" x-show="currentLightboxVideo?.size"
-                              x-text="formatSize(currentLightboxVideo?.size || 0)"></span>
-                    </div>
-                    <div class="lb-meta lb-meta-extra">
                         <span x-show="currentLightboxVideo?.director">
-                            <b>導演：</b>
+                            &nbsp;·&nbsp;<b>導演：</b>
                             <a href="#" class="lb-link"
                                @click.prevent="searchFromMetadata(currentLightboxVideo?.director)"
                                x-text="currentLightboxVideo?.director"></a>
                         </span>
-                        <span x-show="currentLightboxVideo?.duration"
-                              x-text="currentLightboxVideo?.duration ? currentLightboxVideo.duration + ' 分鐘' : ''"></span>
+                        <span x-show="currentLightboxVideo?.duration">
+                            &nbsp;·&nbsp;<span x-text="currentLightboxVideo?.duration ? currentLightboxVideo.duration + ' 分鐘' : ''"></span>
+                        </span>
                         <span x-show="currentLightboxVideo?.series">
-                            <b>系列：</b>
+                            &nbsp;·&nbsp;<b>系列：</b>
                             <a href="#" class="lb-link"
                                @click.prevent="searchFromMetadata(currentLightboxVideo?.series)"
                                x-text="currentLightboxVideo?.series"></a>
                         </span>
-                        <span x-show="currentLightboxVideo?.label">
-                            <b>發行：</b>
+                        <span x-show="currentLightboxVideo?.label && currentLightboxVideo?.label !== currentLightboxVideo?.maker">
+                            &nbsp;·&nbsp;<b>發行：</b>
                             <a href="#" class="lb-link"
                                @click.prevent="searchFromMetadata(currentLightboxVideo?.label)"
                                x-text="currentLightboxVideo?.label"></a>
                         </span>
+                        <span x-show="currentLightboxVideo?.release_date">
+                            &nbsp;·&nbsp;<span x-text="currentLightboxVideo?.release_date"></span>
+                        </span>
+                        <span class="lb-size" x-show="currentLightboxVideo?.size">
+                            &nbsp;·&nbsp;<span x-text="formatSize(currentLightboxVideo?.size || 0)"></span>
+                        </span>
                     </div>
+                    <!-- Row 5: Tags -->
                     <div class="lb-tags" x-show="currentLightboxVideo?.tags">
                         <template x-for="tag in (currentLightboxVideo?.tags || '').split(',').filter(t => t.trim())" :key="tag">
                             <a href="#" class="lb-tag lb-link" @click.prevent="searchFromMetadata(tag.trim())" x-text="tag.trim()"></a>
                         </template>
                     </div>
-                    <!-- Sample Gallery 入口按鈕 (T7) -->
-                    <button class="sg-open-btn"
-                            x-show="(currentLightboxVideo?.sample_images || []).length > 0"
-                            @click="openSampleGallery(currentLightboxVideo.sample_images, 0)"
-                            x-text="'查看樣品圖 (' + (currentLightboxVideo?.sample_images || []).length + ')'">
-                    </button>
 
                 </div>
             </div>

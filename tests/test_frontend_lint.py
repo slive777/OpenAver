@@ -4209,20 +4209,35 @@ class TestSampleGalleryTemplateGuard:
         )
 
     def test_sg_open_btn_in_lightbox_metadata(self):
-        """T8：search.html 含 sg-open-btn，且其行號在 class=\"lightbox-metadata\" 之後"""
+        """T8：search.html 含 sg-open-btn，且其行號在 class=\"lb-header\" 內（開始行與結束行之間）"""
         content = self.SEARCH_HTML.read_text(encoding='utf-8')
         lines = content.split('\n')
 
-        # 找到 lightbox-metadata 行號
-        lightbox_metadata_line = None
+        # 找到 lb-header 開始行號
+        lb_header_line = None
         for i, line in enumerate(lines):
-            if 'class="lightbox-metadata"' in line:
-                lightbox_metadata_line = i
+            if 'lb-header' in line:
+                lb_header_line = i
                 break
 
-        assert lightbox_metadata_line is not None, (
-            "T8 違規：search.html 找不到 class=\"lightbox-metadata\" — "
-            "Grid Lightbox metadata 區塊必須存在"
+        assert lb_header_line is not None, (
+            "T8 違規：search.html 找不到 lb-header — "
+            "Grid Lightbox metadata 標題行必須存在"
+        )
+
+        # 找到 lb-header 容器的閉合 </div>（用深度計數器追蹤巢狀）
+        lb_header_close_line = None
+        depth = 0
+        for i in range(lb_header_line, len(lines)):
+            ln = lines[i]
+            depth += ln.count('<div') - ln.count('</div>')
+            if i > lb_header_line and depth <= 0:
+                lb_header_close_line = i
+                break
+
+        assert lb_header_close_line is not None, (
+            "T8 違規：search.html lb-header 找不到對應的 </div> — "
+            "lb-header 容器必須正確閉合"
         )
 
         # 找到 sg-open-btn 行號
@@ -4234,13 +4249,29 @@ class TestSampleGalleryTemplateGuard:
 
         assert sg_open_btn_line is not None, (
             "T8 違規：search.html 找不到 sg-open-btn — "
-            "Grid Lightbox 必須在 .lb-tags 之後含 Sample Gallery 入口按鈕"
+            "Grid Lightbox 必須在 .lb-header 內含 Sample Gallery 入口按鈕"
         )
 
-        assert sg_open_btn_line > lightbox_metadata_line, (
-            f"T8 違規：sg-open-btn（L{sg_open_btn_line + 1}）在 "
-            f"lightbox-metadata（L{lightbox_metadata_line + 1}）之前 — "
-            "入口按鈕必須在 .lightbox-metadata 內部"
+        assert lb_header_line < sg_open_btn_line < lb_header_close_line, (
+            f"T8 違規：sg-open-btn（L{sg_open_btn_line + 1}）不在 "
+            f"lb-header（L{lb_header_line + 1}～L{lb_header_close_line + 1}）內 — "
+            "入口按鈕必須在 .lb-header 開始與結束之間"
+        )
+
+    def test_lb_meta_extra_removed_from_search_html(self):
+        """37b-layout 守衛：search.html 不應殘留 lb-meta-extra class"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        assert 'lb-meta-extra' not in content, (
+            "37b-layout 違規：search.html 仍含 lb-meta-extra — "
+            "合併後應改用 .lb-details，lb-meta-extra 已廢棄"
+        )
+
+    def test_lb_header_in_search_html(self):
+        """37b-layout 守衛：search.html 應含 lb-header class"""
+        content = self.SEARCH_HTML.read_text(encoding='utf-8')
+        assert 'lb-header' in content, (
+            "37b-layout 違規：search.html 缺少 lb-header — "
+            "標題行容器（標題 + 樣品圖按鈕）必須存在"
         )
 
 
@@ -4426,4 +4457,70 @@ class TestShowcaseSampleGalleryGuard:
         assert 'clearProps' in content, (
             "T7 守衛 7 違規：animations.js 缺少 clearProps — "
             "playSampleGallerySwitch 的 fromTo 必須在結束後清除 transform/opacity"
+        )
+
+    def test_lb_meta_extra_removed_from_showcase_html(self):
+        """37b-layout 守衛：showcase.html 不應殘留 lb-meta-extra class"""
+        content = self.SHOWCASE_HTML.read_text(encoding='utf-8')
+        assert 'lb-meta-extra' not in content, (
+            "37b-layout 違規：showcase.html 仍含 lb-meta-extra — "
+            "合併後應改用 .lb-details，lb-meta-extra 已廢棄"
+        )
+
+    def test_lb_header_in_showcase_html(self):
+        """37b-layout 守衛：showcase.html 應含 lb-header class"""
+        content = self.SHOWCASE_HTML.read_text(encoding='utf-8')
+        assert 'lb-header' in content, (
+            "37b-layout 違規：showcase.html 缺少 lb-header — "
+            "標題行容器（標題 + 樣品圖按鈕）必須存在"
+        )
+
+    def test_sg_open_btn_inside_lb_header_in_showcase_html(self):
+        """37b-layout 守衛：showcase.html 的 sg-open-btn 必須在 lb-header 開始與結束之間"""
+        content = self.SHOWCASE_HTML.read_text(encoding='utf-8')
+        lines = content.split('\n')
+
+        # 找到 lb-header 開始行號
+        lb_header_line = None
+        for i, line in enumerate(lines):
+            if 'lb-header' in line:
+                lb_header_line = i
+                break
+
+        assert lb_header_line is not None, (
+            "37b-layout 違規：showcase.html 找不到 lb-header — "
+            "標題行容器必須存在"
+        )
+
+        # 找到 lb-header 容器的閉合 </div>（用深度計數器追蹤巢狀）
+        lb_header_close_line = None
+        depth = 0
+        for i in range(lb_header_line, len(lines)):
+            ln = lines[i]
+            depth += ln.count('<div') - ln.count('</div>')
+            if i > lb_header_line and depth <= 0:
+                lb_header_close_line = i
+                break
+
+        assert lb_header_close_line is not None, (
+            "37b-layout 違規：showcase.html lb-header 找不到對應的 </div> — "
+            "lb-header 容器必須正確閉合"
+        )
+
+        # 找到 sg-open-btn 行號
+        sg_open_btn_line = None
+        for i, line in enumerate(lines):
+            if 'sg-open-btn' in line:
+                sg_open_btn_line = i
+                break
+
+        assert sg_open_btn_line is not None, (
+            "37b-layout 違規：showcase.html 找不到 sg-open-btn — "
+            "入口按鈕必須有 sg-open-btn class"
+        )
+
+        assert lb_header_line < sg_open_btn_line < lb_header_close_line, (
+            f"37b-layout 違規：sg-open-btn（L{sg_open_btn_line + 1}）不在 "
+            f"lb-header（L{lb_header_line + 1}～L{lb_header_close_line + 1}）內 — "
+            "入口按鈕必須在 .lb-header 開始與結束之間"
         )

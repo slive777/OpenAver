@@ -69,37 +69,47 @@
             </div>
             <!-- lightbox-metadata: actress mode 時隱藏 -->
             <div class="lightbox-metadata" x-show="!actressLightboxMode()">
-                <div class="lb-title" x-text="currentLightboxVideo()?.title || '-'"></div>
+                <!-- Row 1: Header (title + sample gallery button) -->
+                <div class="lb-header">
+                    <div class="lb-title" x-text="currentLightboxVideo()?.title || '-'"></div>
+                    <!-- T8: Sample Gallery 入口按鈕 -->
+                    <button class="sg-open-btn"
+                            x-show="(currentLightboxVideo()?.sample_images || []).length > 0"
+                            @click="openSampleGallery((currentLightboxVideo()?.sample_images || []).map(url => '/api/proxy-image?url=' + encodeURIComponent(url)), 0)"
+                            x-text="'劇照 (' + (currentLightboxVideo()?.sample_images || []).length + ')'">
+                    </button>
+                </div>
+                <!-- Row 3: Actresses -->
                 <div class="lb-actor" x-text="(currentLightboxVideo()?.actors || []).join(', ') || '-'"></div>
-                <div class="lb-meta">
+                <!-- Row 4: Details (merged) -->
+                <!-- 分隔符 " · " 內嵌於各 span 開頭，隨 x-show 一起顯示/隱藏，避免孤立 · -->
+                <div class="lb-details">
                     <span x-text="currentLightboxVideo()?.number || '-'"></span>
-                    <span x-show="currentLightboxVideo()?.maker" x-text="currentLightboxVideo()?.maker"></span>
-                    <span x-show="currentLightboxVideo()?.date" x-text="currentLightboxVideo()?.date"></span>
-                </div>
-                <div class="lb-meta lb-meta-extra">
+                    <span x-show="currentLightboxVideo()?.maker">
+                        &nbsp;·&nbsp;<span x-text="currentLightboxVideo()?.maker"></span>
+                    </span>
                     <span x-show="currentLightboxVideo()?.director">
-                        <b>導演：</b><span x-text="currentLightboxVideo()?.director"></span>
+                        &nbsp;·&nbsp;<b>導演：</b><span x-text="currentLightboxVideo()?.director"></span>
                     </span>
-                    <span x-show="currentLightboxVideo()?.duration"
-                          x-text="currentLightboxVideo()?.duration ? currentLightboxVideo().duration + ' 分鐘' : ''"></span>
+                    <span x-show="currentLightboxVideo()?.duration">
+                        &nbsp;·&nbsp;<span x-text="currentLightboxVideo()?.duration ? currentLightboxVideo().duration + ' 分鐘' : ''"></span>
+                    </span>
                     <span x-show="currentLightboxVideo()?.series">
-                        <b>系列：</b><span x-text="currentLightboxVideo()?.series"></span>
+                        &nbsp;·&nbsp;<b>系列：</b><span x-text="currentLightboxVideo()?.series"></span>
                     </span>
-                    <span x-show="currentLightboxVideo()?.label">
-                        <b>發行：</b><span x-text="currentLightboxVideo()?.label"></span>
+                    <span x-show="currentLightboxVideo()?.label && currentLightboxVideo()?.label !== currentLightboxVideo()?.maker">
+                        &nbsp;·&nbsp;<b>發行：</b><span x-text="currentLightboxVideo()?.label"></span>
+                    </span>
+                    <span x-show="currentLightboxVideo()?.date">
+                        &nbsp;·&nbsp;<span x-text="currentLightboxVideo()?.date"></span>
                     </span>
                 </div>
+                <!-- Row 5: Tags -->
                 <div class="lb-tags" x-show="(currentLightboxVideo()?.tags || []).length > 0">
                     <template x-for="tag in (currentLightboxVideo()?.tags || [])" :key="tag">
                         <span class="lb-tag" x-text="tag"></span>
                     </template>
                 </div>
-                <!-- T8: Sample Gallery 入口按鈕 -->
-                <button class="sg-open-btn"
-                        x-show="(currentLightboxVideo()?.sample_images || []).length > 0"
-                        @click="openSampleGallery((currentLightboxVideo()?.sample_images || []).map(url => '/api/proxy-image?url=' + encodeURIComponent(url)), 0)"
-                        x-text="'查看樣品圖 (' + (currentLightboxVideo()?.sample_images || []).length + ')'">
-                </button>
             </div>
         </div>
 

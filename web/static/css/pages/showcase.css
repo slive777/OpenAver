@@ -470,16 +470,25 @@
     border-top: 1px solid var(--stroke-subtle);
 }
 
+/* Header row: title + sample gallery button */
+.lightbox-metadata .lb-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+    flex-wrap: wrap;
+}
+
 /* Title */
 .lightbox-metadata .lb-title {
     font-size: 0.9375rem;
     font-weight: 600;
     color: var(--text-primary);
     line-height: 1.4;
-    margin-bottom: 0.25rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
 }
 
 /* Original Title */
@@ -513,6 +522,17 @@
     content: " · ";
     margin: 0 0.35em;
 }
+
+/* Details: merged meta row (number · maker · director · duration · series · label · date · size) */
+.lightbox-metadata .lb-details {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+/* 分隔符由 HTML 中各 span 內部開頭的 " · " 控制，隨 x-show 一起顯示/隱藏 */
 
 /* Tags — pill flex wrap */
 .lightbox-metadata .lb-tags {
@@ -1298,12 +1318,12 @@
     right: 0.75rem;
 }
 
-/* 入口按鈕（在 lightbox metadata 內，pill 風格） */
+/* 入口按鈕（在 lightbox metadata .lb-header 內，pill 風格） */
 .sg-open-btn {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    margin-top: 0.5rem;
+    flex-shrink: 0;
     padding: 0.25rem 0.75rem;
     font-size: 0.8rem;
     border-radius: 999px;
