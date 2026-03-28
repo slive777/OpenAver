@@ -7,7 +7,6 @@ generator 則負責靜態 HTML 的輸出。VideoScanner 是主要入口，
 核心方法為 parse_filename、parse_nfo、scan_file、scan_to_sqlite。
 """
 
-import json
 import os
 import re
 import time
@@ -17,29 +16,12 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from core.logger import get_logger
+from core.maker_mapping import load_prefix_mapping
 from core.nfo_utils import sanitize_nfo_bytes
 from core.path_utils import to_file_uri
 from core.video_extensions import DEFAULT_VIDEO_EXTENSIONS, ZERO_SIZE_EXTENSIONS
 
 logger = get_logger(__name__)
-
-
-def load_maker_mapping() -> Dict[str, str]:
-    """載入片商映射檔（番號前綴 -> 片商名稱）"""
-    # 嘗試多個路徑
-    possible_paths = [
-        Path(__file__).parent.parent / "maker_mapping.json",  # ../maker_mapping.json
-        Path(__file__).parent / "maker_mapping.json",          # ./maker_mapping.json
-    ]
-
-    for mapping_path in possible_paths:
-        if mapping_path.exists():
-            try:
-                with open(mapping_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except (json.JSONDecodeError, IOError):
-                pass
-    return {}
 
 
 @dataclass
@@ -220,14 +202,14 @@ class VideoScanner:
         self.naming_formats = naming_formats or self.DEFAULT_NAMING_FORMATS
         self._compiled_formats = self._compile_naming_formats()
         self.path_mappings = path_mappings or {}
-        self.maker_mapping = load_maker_mapping()
+        self.prefix_mapping = load_prefix_mapping()
 
     def normalize_maker(self, num: str, maker: str) -> str:
         """根據番號前綴正規化片商名稱
 
         優先使用 maker_mapping.json 中的映射（番號前綴 -> 標準片商名）
         """
-        if not num or not self.maker_mapping:
+        if not num or not self.prefix_mapping:
             return maker
 
         # 提取番號前綴（移除數字部分）
@@ -235,8 +217,8 @@ class VideoScanner:
         prefix_match = re.match(r'^([A-Za-z]+)', num)
         if prefix_match:
             prefix = prefix_match.group(1).upper()
-            if prefix in self.maker_mapping:
-                return self.maker_mapping[prefix]
+            if prefix in self.prefix_mapping:
+                return self.prefix_mapping[prefix]
 
         return maker
 

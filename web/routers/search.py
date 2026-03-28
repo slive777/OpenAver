@@ -19,16 +19,16 @@ import requests
 import json
 import asyncio
 from collections import Counter
+from pathlib import Path
 from queue import Queue
 from threading import Thread
-
-from pathlib import Path
 
 from core.logger import get_logger
 from core.video_extensions import ZERO_SIZE_EXTENSIONS, get_video_extensions
 logger = get_logger(__name__)
 
 from core.database import VideoRepository, get_db_path, init_db
+from core.maker_mapping import load_prefix_mapping
 from core.scraper import (
     search_jav, smart_search, is_partial_number, is_number_format,
     is_prefix_only, search_partial, search_actress, search_prefix,
@@ -38,14 +38,8 @@ from core.scrapers.utils import SOURCE_ORDER, SOURCE_NAMES
 
 router = APIRouter(prefix="/api", tags=["search"])
 
-# 載入 maker_mapping.json（啟動時一次性載入）
-_MAKER_MAPPING = {}
-_maker_mapping_path = Path(__file__).parent.parent.parent / "maker_mapping.json"
-try:
-    if _maker_mapping_path.exists():
-        _MAKER_MAPPING = json.loads(_maker_mapping_path.read_text(encoding='utf-8'))
-except Exception:
-    _MAKER_MAPPING = {}
+# 載入片商前綴對照表（啟動時一次性載入）
+_MAKER_MAPPING = load_prefix_mapping()
 
 
 @router.get("/proxy-image")

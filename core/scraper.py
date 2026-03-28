@@ -6,7 +6,6 @@ Scraper 模組（向後相容層）
 """
 import re
 import time
-import json
 from pathlib import Path
 
 from core.logger import get_logger
@@ -23,7 +22,7 @@ from core.scrapers import (
     Video, ScraperConfig, BaseScraper
 )
 from core.scrapers.utils import extract_number as _new_extract_number
-
+from core.maker_mapping import get_maker_by_prefix
 
 
 # ============ 全域設定 ============
@@ -37,11 +36,6 @@ SCRAPER_CLASSES: List[Type[BaseScraper]] = [
     FC2Scraper, AVSOXScraper,
     D2PassScraper, HEYZOScraper,
 ]
-
-# 片商對照表檔案路徑
-MAKER_MAPPING_FILE = Path(__file__).parent.parent / "maker_mapping.json"
-_maker_mapping_cache: Dict[str, str] = {}
-_maker_mapping_loaded = False
 
 
 # ============ 輔助函數 (與舊版相容) ============
@@ -77,62 +71,6 @@ def is_prefix_only(s: str) -> bool:
     """判斷是否為純前綴 (如 IPZZ, SONE)"""
     s = s.strip().upper()
     return bool(re.match(r'^[A-Z]{2,6}$', s))
-
-
-def load_maker_mapping() -> Dict[str, str]:
-    """載入片商對照表"""
-    global _maker_mapping_cache, _maker_mapping_loaded
-    if _maker_mapping_loaded:
-        return _maker_mapping_cache
-
-    if MAKER_MAPPING_FILE.exists():
-        try:
-            with open(MAKER_MAPPING_FILE, 'r', encoding='utf-8') as f:
-                _maker_mapping_cache = json.load(f)
-        except (json.JSONDecodeError, IOError):
-            _maker_mapping_cache = {}
-    _maker_mapping_loaded = True
-    return _maker_mapping_cache
-
-
-def save_maker_mapping(mapping: Dict[str, str]) -> None:
-    """儲存片商對照表"""
-    global _maker_mapping_cache, _maker_mapping_loaded
-    try:
-        with open(MAKER_MAPPING_FILE, 'w', encoding='utf-8') as f:
-            json.dump(mapping, f, ensure_ascii=False, indent=2)
-        _maker_mapping_cache = mapping
-        _maker_mapping_loaded = True
-    except IOError:
-        pass
-
-
-def get_maker_by_prefix(number: str) -> str:
-    """
-    從對照表查片商，沒有則查 JavDB 並更新對照表
-    """
-    mapping = load_maker_mapping()
-    match = re.match(r'^([A-Za-z]+)', number)
-    if not match:
-        return ""
-
-    prefix = match.group(1).upper()
-    if prefix in mapping:
-        return mapping[prefix]
-
-    # 查 JavDB
-    try:
-        scraper = JavDBScraper()
-        # 這裡可能會觸發網路請求，如果是測試環境可能會失敗，加 try-except
-        video = scraper.search(number)
-        if video and video.maker and not re.match(r'^\d{4}(-\d{2}){0,2}$', video.maker):
-            mapping[prefix] = video.maker
-            save_maker_mapping(mapping)
-            return video.maker
-    except Exception:
-        pass
-
-    return ""
 
 
 def sort_results_by_date(results: List[Dict[str, Any]], reverse: bool = True) -> List[Dict[str, Any]]:
