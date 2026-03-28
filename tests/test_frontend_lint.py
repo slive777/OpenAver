@@ -793,6 +793,22 @@ class TestPageLifecycleGuard:
             "scanner.html 缺少 __registerPage 呼叫 — Scanner lifecycle 未接入統一機制"
 
 
+class TestSettingsSourceBadge:
+    """37d T2 守衛 — Settings radio 區塊已移除，badge 改為 primarySource 選擇器"""
+
+    def test_settings_html_no_radio_primary_source(self):
+        """settings.html 不含獨立的主要搜尋來源 radio 區塊"""
+        html = (PROJECT_ROOT / 'web/templates/settings.html').read_text(encoding='utf-8')
+        assert 'name="primarySource"' not in html, \
+            "settings.html 仍含 radio name=primarySource — 應已改為 badge 選擇器"
+
+    def test_settings_html_badge_binds_primary_source(self):
+        """settings.html source badge 仍綁 form.primarySource（badge 選擇器）"""
+        html = (PROJECT_ROOT / 'web/templates/settings.html').read_text(encoding='utf-8')
+        assert 'primarySource' in html, \
+            "settings.html 缺少 primarySource 綁定 — badge 選擇器應綁定 form.primarySource"
+
+
 class TestScannerLifecycleGuard:
     """T5.1 守衛 — Scanner 已接入 __registerPage，不再使用舊 shim"""
 

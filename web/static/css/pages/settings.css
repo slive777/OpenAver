@@ -303,6 +303,12 @@
     text-decoration: line-through;
 }
 
+/* 主要來源選中狀態：ring highlight + 加粗 */
+#settings-components .source-badge.source-primary {
+    box-shadow: 0 0 0 2px var(--accent, oklch(0.65 0.18 250));
+    font-weight: 600;
+}
+
 /* 有碼/無碼分隔符 */
 #settings-components .source-badge-sep {
     opacity: 0.3;
