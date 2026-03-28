@@ -7,6 +7,7 @@ generator 則負責靜態 HTML 的輸出。VideoScanner 是主要入口，
 核心方法為 parse_filename、parse_nfo、scan_file、scan_to_sqlite。
 """
 
+import json
 import os
 import re
 import time

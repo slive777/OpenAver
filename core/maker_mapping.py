@@ -38,7 +38,8 @@ def _load_raw() -> dict:
         if not isinstance(data, dict):
             data = {}
         _cache = data
-    except (json.JSONDecodeError, IOError, OSError):
+    except (json.JSONDecodeError, IOError, OSError) as e:
+        logger.warning("maker_mapping: 無法載入 %s，回傳空 dict（%s）", MAKER_MAPPING_FILE, e)
         _cache = {}
 
     return _cache
@@ -113,8 +114,8 @@ def save_prefix_entry(prefix: str, maker: str) -> None:
 
         with open(MAKER_MAPPING_FILE, "w", encoding="utf-8") as f:
             json.dump(raw, f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("maker_mapping: 寫入 %s 失敗，略過（%s）", MAKER_MAPPING_FILE, e)
     finally:
         # 無論成功失敗，讓 cache 失效（下次 load 重讀）
         _cache = None
@@ -141,9 +142,10 @@ def get_maker_by_prefix(number: str) -> str:
         scraper = JavDBScraper()
         video = scraper.search(number)
         if video and video.maker and not re.match(r"^\d{4}(-\d{2}){0,2}$", video.maker):
-            save_prefix_entry(prefix, video.maker)
-            return video.maker
-    except Exception:
-        pass
+            normalized = normalize_maker_name(video.maker)
+            save_prefix_entry(prefix, normalized)
+            return normalized
+    except Exception as e:
+        logger.debug("maker_mapping: JavDB fallback 失敗（%s）", e)
 
     return ""

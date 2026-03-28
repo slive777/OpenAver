@@ -1,7 +1,27 @@
+import ast
 import pytest
 from pathlib import Path
 from unittest.mock import patch
 from core.gallery_scanner import VideoScanner
+
+
+# ============ 靜態守衛：確保 import json 存在 ============
+
+class TestGalleryScannerImports:
+    def test_import_json_present(self):
+        """靜態守衛：gallery_scanner.py 必須 import json（防止再次誤刪）"""
+        source = Path(__file__).parent.parent.parent / "core" / "gallery_scanner.py"
+        tree = ast.parse(source.read_text(encoding="utf-8"))
+        imported_names = {
+            alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Import)
+            for alias in node.names
+        }
+        assert "json" in imported_names, (
+            "core/gallery_scanner.py 缺少 `import json`；"
+            "load_cache/save_cache 依賴此模組"
+        )
 
 class TestGalleryScanner:
     @pytest.fixture

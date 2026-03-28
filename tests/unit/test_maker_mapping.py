@@ -330,6 +330,41 @@ class TestGetMakerByPrefix:
 
         assert result == ""
 
+    def test_javdb_fallback_saves_normalized_name(self, new_format_file, monkeypatch):
+        """JavDB fallback 寫入 prefix_mapping 的值必須經過 normalize_maker_name()
+
+        模擬 JavDB 回傳片假名長名（如 "エスワン ナンバーワンスタイル"），
+        name_mapping 有對應的 canonical 短名（如 "S1"）。
+        驗證 save_prefix_entry 存入的是 canonical 短名，
+        且 get_maker_by_prefix 回傳 canonical 短名。
+        """
+        import core.maker_mapping as mm
+        monkeypatch.setattr(mm, "MAKER_MAPPING_FILE", new_format_file)
+        monkeypatch.setattr(mm, "_cache", None)
+
+        # new_format_file 的 name_mapping 中 "エスワン ナンバーワンスタイル" → "S1"
+        mock_video = MagicMock()
+        mock_video.maker = "エスワン ナンバーワンスタイル"  # 片假名長名（JavDB 原始值）
+
+        mock_scraper_instance = MagicMock()
+        mock_scraper_instance.search.return_value = mock_video
+
+        mock_javdb_cls = MagicMock(return_value=mock_scraper_instance)
+
+        with patch("core.scrapers.JavDBScraper", mock_javdb_cls):
+            result = mm.get_maker_by_prefix("SONE-001")
+
+        # 回傳值應是 canonical 短名，而非片假名長名
+        assert result == "S1"
+
+        # 重新載入 prefix_mapping，確認寫入的也是 canonical 短名
+        mm._cache = None
+        prefix_map = mm.load_prefix_mapping()
+        assert prefix_map.get("SONE") == "S1", (
+            "save_prefix_entry 應存 canonical 短名 'S1'，"
+            f"實際存了 '{prefix_map.get('SONE')}'"
+        )
+
 
 # ============ Video.to_legacy_dict() maker normalize ============
 
