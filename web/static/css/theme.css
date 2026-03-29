@@ -4,7 +4,7 @@
 /* ========== 全局主題變數 ========== */
 :root {
     /* Display Font for Design System */
-    --font-display: 'Space Grotesk', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-display: 'Space Grotesk', 'Plus Jakarta Sans', 'Hiragino Sans', 'Yu Gothic UI', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
 
     /* ===== Error Colors ===== */
     --color-error: #ff3b30;  /* Apple HIG Red */
@@ -96,7 +96,7 @@
 /* 應用背景色過渡 */
 body {
     transition: background-color var(--duration-normal) var(--fluent-ease-standard), color var(--duration-normal) var(--fluent-ease-standard);
-    font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: "Plus Jakarta Sans", "Hiragino Sans", "Yu Gothic UI", "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 /* Utility: text-muted class */

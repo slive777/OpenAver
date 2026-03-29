@@ -520,6 +520,18 @@ def _get_nested(d: dict, dotted_key: str):
     return cur
 
 
+def _get_all_leaf_keys(d: dict, prefix: str = "") -> list:
+    """動態讀取 dict 中所有 leaf key（dot-notation 格式）"""
+    keys = []
+    for k, v in d.items():
+        full = f"{prefix}.{k}" if prefix else k
+        if isinstance(v, dict):
+            keys.extend(_get_all_leaf_keys(v, full))
+        else:
+            keys.append(full)
+    return keys
+
+
 class TestHelpI18nKeyCompleteness:
     """確認 zh_TW.json 和 en.json 都含有所有 help.* key"""
 
@@ -552,3 +564,33 @@ class TestHelpI18nKeyCompleteness:
         assert has_markup, (
             f"Key {key!r} in zh_TW.json expected HTML markup but got: {value!r}"
         )
+
+
+# ============ All locales key completeness ============
+
+_ZH_TW_ALL_KEYS = (
+    _get_all_leaf_keys(json.loads((LOCALES_ROOT / "zh_TW.json").read_text(encoding="utf-8")))
+    if (LOCALES_ROOT / "zh_TW.json").exists()
+    else []
+)
+
+
+class TestAllLocalesKeyCompleteness:
+    """所有 locale 必須包含 zh_TW 的每個 leaf key（動態讀取，不依賴靜態列表）"""
+
+    @pytest.mark.parametrize("locale_file,locale_name", [
+        ("zh_CN.json", "zh_CN"),
+        ("ja.json", "ja"),
+        ("en.json", "en"),
+    ])
+    @pytest.mark.parametrize("key", _ZH_TW_ALL_KEYS)
+    def test_key_exists(self, locale_file, locale_name, key):
+        locale_path = LOCALES_ROOT / locale_file
+        if not locale_path.exists():
+            pytest.skip(f"{locale_file} not yet created (T7 pending)")
+        data = json.loads(locale_path.read_text(encoding="utf-8"))
+        value = _get_nested(data, key)
+        assert value is not None, f"Missing key in {locale_file}: {key}"
+        assert isinstance(value, str), f"Non-string value in {locale_file}: {key}"
+        # Note: empty string is allowed — some locales legitimately use empty
+        # suffix/prefix strings (e.g. English has no grammatical classifiers)
