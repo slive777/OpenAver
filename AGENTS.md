@@ -24,6 +24,22 @@
 - `document.querySelector('[x-data]')` without a scoped selector (e.g. `.search-container[x-data]`) is a bug — it selects the sidebar instead of the page component.
 - Alpine methods in templates must be called with `()` — `:disabled="!canGoPrev"` is wrong, `:disabled="!canGoPrev()"` is correct.
 
+### i18n
+
+- Strategy: **source locale only + milestone sync**. During development PRs, only `locales/zh_TW.json` is required to be updated.
+- Missing keys or entire subtrees in `zh_CN.json`, `ja.json`, or `en.json` during development **are not findings**.
+- **Flag these**:
+  - hardcoded Chinese UI text in HTML/JS that should use `t()` / `window.t()`
+  - `t()` / `window.t()` referencing keys missing from `zh_TW.json`
+  - HTML-containing translations rendered without `| safe`
+- **Out of scope for i18n review**:
+  - `showToast()`, `alert()`, `confirm()`
+  - SSE messages
+  - `console.*`
+  - technical terms such as NFO, API Key, Jellyfin, Proxy
+  - browser/platform built-in text
+- At milestone/release, all 4 locales must have identical key sets.
+
 ### General code quality
 
 - No `console.log` left in production JavaScript (except intentional debug modes).

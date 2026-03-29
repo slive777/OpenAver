@@ -1,0 +1,624 @@
+{
+  "nav": {
+    "search": "検索",
+    "scanner": "リスト生成",
+    "showcase": "ブラウズ",
+    "help": "ヘルプ",
+    "help_title": "使い方",
+    "settings": "設定",
+    "toggle_sidebar": "開閉"
+  },
+  "common": {
+    "locale": {
+      "zh-TW": "繁",
+      "zh-CN": "简",
+      "ja": "あ",
+      "en": "EN"
+    },
+    "action": {
+      "confirm": "確認",
+      "cancel": "キャンセル"
+    }
+  },
+  "search": {
+    "page_title": "検索",
+    "drag_overlay": {
+      "hint": "ここにドロップして番号を検索"
+    },
+    "placeholder": {
+      "query": "番号、女優名またはファイルをドロップ...",
+      "tag": "タグ名"
+    },
+    "hint": {
+      "partial_search": "ヒント：IPZZ-03 のような部分番号で 030〜039 を検索できます。女優名でも検索可能"
+    },
+    "action": {
+      "search": "検索",
+      "cancel_search": "検索をキャンセル",
+      "clear": "クリア",
+      "toggle_grid": "グリッド表示に切替",
+      "toggle_detail": "詳細表示に切替",
+      "add_files": "ファイルを追加",
+      "add_folder": "フォルダを追加",
+      "favorite": "お気に入り",
+      "load_favorite": "お気に入りフォルダを読み込む",
+      "add_tag": "タグを追加",
+      "edit_title": "タイトルを編集",
+      "translate_ai": "AI 翻訳",
+      "edit_chinese_title": "中国語タイトルを編集",
+      "switch_source": "バージョン切替",
+      "open_source_url": "ソースページを開く",
+      "open_folder": "フォルダを開く",
+      "back_to_detail": "詳細に戻る"
+    },
+    "empty": {
+      "hint": "番号を入力して検索、またはファイルを追加",
+      "drag_hint": "ファイルやフォルダを直接ドロップすることもできます"
+    },
+    "error": {
+      "hint": "番号の形式を確認するか、しばらくしてから再試行してください"
+    },
+    "nav": {
+      "prev": "前へ (←)",
+      "next": "次へ (→)"
+    },
+    "label": {
+      "actor": "出演者",
+      "date": "発売日",
+      "maker": "メーカー",
+      "director": "監督",
+      "duration": "収録時間",
+      "label": "レーベル",
+      "series": "シリーズ",
+      "tags": "タグ",
+      "title": "タイトル",
+      "chinese_title": "中国語タイトル",
+      "chinese_title_ai": "中国語タイトル (AI)"
+    },
+    "unit": {
+      "minutes": "分"
+    },
+    "badge": {
+      "subtitle": "中国語字幕"
+    },
+    "lightbox": {
+      "close": "閉じる (ESC)",
+      "prev": "前の作品 (←)",
+      "next": "次の作品 (→)"
+    },
+    "gallery": {
+      "prev": "前の画像 (←)",
+      "next": "次の画像 (→)",
+      "sample_prefix": "サンプル"
+    },
+    "grid": {
+      "sample_prefix": "サンプル画像",
+      "thumb_prefix": "サムネイル",
+      "detail_title": "詳細を見る",
+      "unknown_actor": "不明",
+      "unknown_title": "タイトル不明"
+    },
+    "cover": {
+      "alt": "カバー"
+    },
+    "local": {
+      "has_local": "ローカルに存在（クリックしてフォルダを開く）",
+      "has_local_count": "ローカルに {count} バージョン存在（クリックしてフォルダを開く）"
+    },
+    "filelist": {
+      "search_all_title": "未検索のファイルをすべて検索",
+      "translate_all_title": "すべての日本語タイトルを翻訳",
+      "scrape_all_title": "検索済みのファイルをすべて生成",
+      "scrape_all": "すべて生成",
+      "processing_prefix": "処理中",
+      "remove_file": "このファイルを削除",
+      "scrape_nfo": "NFO + カバーを生成",
+      "failed": "失敗",
+      "retry": "再試行",
+      "enter_number": "番号を手動入力"
+    },
+    "duplicate": {
+      "title": "ファイルが重複しています",
+      "body": "対象ファイルはすでに存在します。続行すると上書きされます：",
+      "explanation": "これは同じ作品に複数バージョン（CD1/CD2、4K、UC）がある場合に発生します。",
+      "instruction": "<strong>設定 → 高度なスクレイプ設定 → バージョンマーク</strong> でキーワードを追加し、ファイル命名形式に <code class=\"badge badge-sm\">{suffix}</code> 変数が含まれていることを確認してください。",
+      "acknowledge": "了解",
+      "go_settings": "設定へ"
+    }
+  },
+  "settings": {
+    "page_title": "設定",
+    "header": {
+      "title": "設定",
+      "font_size_prefix": "フォントサイズ",
+      "switch_dark": "ダークモードに切替",
+      "switch_light": "ライトモードに切替",
+      "locale_prefix": "言語"
+    },
+    "section": {
+      "search": "検索・スクレイプ",
+      "scraper_advanced": "高度なスクレイプ設定",
+      "gallery_advanced": "高度な表示設定",
+      "system": "システム設定"
+    },
+    "search": {
+      "gallery_mode": "女優ギャラリーモード",
+      "uncensored_mode": "無修正モード",
+      "default_source_hint": "デフォルト検索ソース",
+      "proxy_dmm_hint": "DMM は日本 IP が必要",
+      "proxy_placeholder": "http://ユーザー:パスワード@ホスト:ポート — 日本 IP があれば direct と入力",
+      "favorite_folder_label": "お気に入りフォルダ",
+      "favorite_folder_hint": "よく使うフォルダをワンクリックで読み込み",
+      "favorite_folder_placeholder": "空欄 = システムのダウンロードフォルダ",
+      "favorite_folder_example_prefix": "例：C:\\Users\\&lt;ユーザー名&gt;\\Downloads"
+    },
+    "translate": {
+      "enabled_label": "タイトル翻訳を有効にする",
+      "provider_label": "翻訳サービス",
+      "ollama_local": "（ローカル）",
+      "gemini_cloud": "（Google クラウド）",
+      "model_label": "モデル",
+      "test_connection_placeholder": "先に接続テストを行ってください",
+      "test_model_title": "モデルをテスト",
+      "test_translation_title": "翻訳機能をテスト",
+      "test_apikey_placeholder": "先に API Key をテストしてください",
+      "gemini_free_hint": "無料で申請可能",
+      "security_title": "セキュリティ注意：",
+      "security_item1": "API Key は config.json に平文で保存されます",
+      "security_item2": "config.json を他人に共有しないでください",
+      "security_item3_prefix": "取り消す場合は",
+      "security_item3_suffix": "で再生成してください"
+    },
+    "scraper": {
+      "suffix_keywords_label": "バージョンマーク",
+      "suffix_keywords_hint": "ファイル名にこれらのキーワードが含まれる場合 {suffix} として保持",
+      "create_folder_label": "フォルダを作成",
+      "folder_layers_label": "フォルダ階層",
+      "folder_layer_outer": "外層",
+      "folder_layer_middle": "中間層",
+      "folder_layer_inner": "内層",
+      "preview_prefix": "プレビュー",
+      "filename_format_label": "ファイル命名形式",
+      "max_title_length_label": "タイトル長さ制限",
+      "unit_chars": "文字",
+      "max_filename_length_label": "ファイル名長さ制限",
+      "path_length_help_aria": "Windows パス長さの説明",
+      "path_length_help_line1": "Windows のデフォルトパス上限は 260 文字です（Windows 10 1607+ / Windows 11 対応）。",
+      "path_length_help_line2": "長いファイル名が必要な場合は、<strong>管理者として</strong> PowerShell を開いて実行：",
+      "path_length_help_line3": "再起動後に有効になります。",
+      "path_length_help_line4": "macOS / Linux にはこの制限はありませんが、macOS/Linux で生成した長いファイル名を LongPathsEnabled が無効な Windows に移動すると失敗する場合があります。",
+      "video_extensions_label": "動画拡張子",
+      "video_extensions_hint": "カンマ区切り",
+      "jellyfin_mode_label": "Jellyfin 画像モード",
+      "jellyfin_mode_hint": "{stem}-poster.jpg + {stem}-fanart.jpg + extrafanart/ サンプル画像を自動生成"
+    },
+    "gallery": {
+      "output_dir_label": "出力ディレクトリ",
+      "select_folder_title": "フォルダを選択",
+      "output_filename_label": "出力ファイル名",
+      "default_mode_label": "デフォルト表示モード",
+      "mode_image": "画像モード",
+      "mode_detail": "詳細モード",
+      "mode_text": "テキストモード",
+      "default_sort_label": "デフォルト並び替え",
+      "sort_date": "発売日",
+      "sort_mdate": "更新日",
+      "sort_num": "番号",
+      "sort_title": "タイトル",
+      "sort_actor": "出演者",
+      "sort_maker": "メーカー",
+      "sort_size": "ファイルサイズ",
+      "order_desc": "降順",
+      "order_asc": "昇順",
+      "items_per_page_label": "1ページあたりの表示数",
+      "all": "すべて",
+      "min_size_label": "最小動画サイズ",
+      "min_size_hint": "0 = フィルタなし"
+    },
+    "system": {
+      "default_page_label": "起動時に開くページ",
+      "player_label": "動画プレイヤー",
+      "player_placeholder": "空欄 = システムデフォルトを使用",
+      "player_hint_prefix": "例：",
+      "reset_label": "すべての設定をリセット",
+      "reset_hint": "すべてのカスタム設定を削除してデフォルトに戻す"
+    },
+    "action": {
+      "test": "テスト",
+      "variable": "変数",
+      "reset": "デフォルトにリセット",
+      "save": "設定を保存"
+    },
+    "var": {
+      "num": "番号",
+      "title": "タイトル",
+      "actor": "女優",
+      "actors": "女優(全員)",
+      "maker": "メーカー",
+      "date": "日付",
+      "year": "年",
+      "suffix": "サフィックス"
+    },
+    "dirty_modal": {
+      "title": "未保存の変更",
+      "body": "保存されていない変更があります。どうしますか？",
+      "discard": "保存しない",
+      "save": "変更を保存"
+    }
+  },
+  "scanner": {
+    "page_title": "リスト生成",
+    "drag_overlay": {
+      "hint": "フォルダを追加するにはドロップ"
+    },
+    "folder": {
+      "section_title": "スキャンフォルダ",
+      "select_title": "フォルダを選択",
+      "manual_title": "手動入力",
+      "placeholder": "フォルダパスを入力...",
+      "empty_line1": "フォルダが追加されていません",
+      "empty_line2": "上のボタンをクリックするかフォルダをドラッグ",
+      "remove_title": "削除",
+      "output_prefix": "出力:",
+      "settings_link": "設定",
+      "copy_path": "パスをコピー"
+    },
+    "terminal": {
+      "filter_all": "すべて",
+      "filter_all_title": "すべて表示",
+      "filter_error": "エラー",
+      "filter_error_title": "エラーのみ表示",
+      "filter_warn": "警告",
+      "filter_warn_title": "警告のみ表示",
+      "copy_title": "ログをコピー",
+      "clear_display_title": "画面をクリア（リロード後に復元）",
+      "clear_all_title": "すべてクリア（履歴含む）"
+    },
+    "stats": {
+      "cached_prefix": "キャッシュ動画:",
+      "cached_suffix": "本",
+      "clear_cache_title": "キャッシュをクリア",
+      "nfo_prefix": "補完が必要:",
+      "nfo_suffix": "本",
+      "nfo_update_title": "NFO情報を補完",
+      "jellyfin_prefix": "画像補完が必要:",
+      "jellyfin_suffix": "本",
+      "jellyfin_update_title": "Jellyfin poster + fanart を補完",
+      "last_run_prefix": "最終実行: ",
+      "last_added": "({count}本追加)",
+      "generate_idle": "ページ生成",
+      "generate_loading": "生成中...",
+      "nfo_idle": "NFO補完",
+      "nfo_loading": "補完中...",
+      "jellyfin_idle": "画像補完",
+      "jellyfin_loading": "補完中...",
+      "btn_done": "完了"
+    },
+    "alias": {
+      "section_title": "女優名管理",
+      "collapse_title": "展開/折りたたむ",
+      "label_old": "旧名前",
+      "placeholder_old": "例: miru",
+      "label_new": "新名前",
+      "placeholder_new": "例: 坂道みる",
+      "loading": "読み込み中...",
+      "empty": "エイリアスがありません",
+      "applied": "({count}件適用済み)",
+      "delete_title": "削除"
+    },
+    "dirty_modal": {
+      "title": "未保存の変更",
+      "body": "フォルダリストを変更しましたが、ページを生成していません。どうしますか？",
+      "cancel": "キャンセル",
+      "discard": "変更を破棄",
+      "save": "保存して終了"
+    },
+    "clear_cache_modal": {
+      "title": "動画キャッシュをクリア",
+      "body_prefix": "この操作はキャッシュされた全動画メタデータ（計",
+      "body_suffix": "本）を削除します。次回は再スキャンが必要です。よろしいですか？",
+      "cancel": "キャンセル",
+      "confirm": "削除する"
+    }
+  },
+  "showcase": {
+    "page_title": "動画ブラウズ",
+    "placeholder": {
+      "search": "番号・女優名・タイトルを検索..."
+    },
+    "action": {
+      "clear_search": "検索をクリア",
+      "search": "検索",
+      "toggle_order": "並び順を切替",
+      "toggle_info": "情報を表示/非表示 (S)",
+      "play_video": "動画を開く",
+      "play": "再生"
+    },
+    "toolbar": {
+      "sort_prefix": "並び替え",
+      "mode_prefix": "表示",
+      "per_page_prefix": "件数"
+    },
+    "sort": {
+      "date": "日付",
+      "num": "番号",
+      "title": "タイトル",
+      "actor": "女優",
+      "maker": "メーカー",
+      "size": "サイズ",
+      "mdate": "更新日時",
+      "random": "ランダム"
+    },
+    "mode": {
+      "grid": "グリッド",
+      "table": "テーブル",
+      "list": "リスト"
+    },
+    "unit": {
+      "videos": "本",
+      "minutes": "分",
+      "minutes_abbr": "分"
+    },
+    "per_page": {
+      "all": "すべて"
+    },
+    "status": {
+      "total_prefix": "全",
+      "total_suffix": "本",
+      "search_prefix": "\"",
+      "search_middle": "\" の検索結果：",
+      "search_suffix": "本"
+    },
+    "nav": {
+      "prev_page": "前のページ",
+      "next_page": "次のページ"
+    },
+    "grid": {
+      "unknown_actor": "不明",
+      "unknown_title": "タイトル不明",
+      "unknown_size": "不明"
+    },
+    "label": {
+      "actor": "出演者",
+      "maker": "メーカー",
+      "date": "日付",
+      "series": "シリーズ",
+      "duration": "収録時間",
+      "director": "監督",
+      "label": "レーベル"
+    },
+    "table": {
+      "col_number": "番号",
+      "col_title": "タイトル",
+      "col_actor": "女優",
+      "col_maker": "メーカー",
+      "col_director": "監督",
+      "col_duration": "時間",
+      "col_date": "日付",
+      "col_tags": "タグ",
+      "col_size": "サイズ"
+    },
+    "lightbox": {
+      "close": "閉じる (ESC)",
+      "prev": "前の作品 (←)",
+      "next": "次の作品 (→)",
+      "unknown_number": "不明"
+    },
+    "gallery": {
+      "prev": "前の画像 (←)",
+      "next": "次の画像 (→)",
+      "sample_prefix": "サンプル",
+      "sample_alt": "サンプル画像",
+      "thumb_alt": "サムネイル"
+    },
+    "shortcut": {
+      "switch_mode": "表示切替",
+      "toggle_info": "情報表示",
+      "pagination": "ページ送り",
+      "close": "閉じる"
+    }
+  },
+  "help": {
+    "hero": {
+      "page_title": "使い方",
+      "subtitle": "JAV メタデータ管理ツール",
+      "privacy": "🔒 完全ローカル — ユーザーデータを収集しません",
+      "btn_tutorial": "チュートリアルを再表示",
+      "btn_check_update": "確認中…",
+      "btn_check_update_idle": "アップデートを確認",
+      "update_available_prefix": "新バージョン",
+      "update_available_suffix": "利用可能",
+      "up_to_date": "最新バージョンです"
+    },
+    "search": {
+      "title": "検索機能",
+      "h6_methods": "対応する検索方法",
+      "h6_dragdrop": "ファイルのドロップ",
+      "h6_grid": "グリッドモード（カバーウォール）",
+      "h6_badge": "バージョンバッジ",
+      "method_full": "<strong>完全な番号</strong>：例 <code>SONE-001</code>、完全一致検索",
+      "method_partial": "<strong>部分番号</strong>：例 <code>SONE-0</code>、001～009 を検索",
+      "method_series": "<strong>シリーズ検索</strong>：例 <code>SONE</code>、シリーズ最新作を検索",
+      "method_actress": "<strong>女優名</strong>：例 <code>河北彩花</code>、その女優の作品を検索",
+      "drag_auto": "動画ファイルをウィンドウにドロップして番号を自動抽出・検索",
+      "drag_batch": "複数ファイルのバッチ処理に対応（一度に最大 20 個）",
+      "drag_generate": "検索成功後、「生成」をクリックしてファイル名変更・カバーダウンロード・フォルダ作成・NFO 生成",
+      "grid_switch": "検索後にカバーウォール表示に切り替え可能、カバーをクリックして Lightbox を開く",
+      "grid_lightbox": "<strong>Lightbox</strong>：全画面カバー表示。<kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> でナビゲート、<kbd class=\"kbd kbd-sm\">Esc</kbd> で閉じる",
+      "grid_detail": "Lightbox には監督・再生時間・シリーズ・レーベルなどの詳細情報を表示（データがある場合のみ）",
+      "grid_gallery": "「サンプル」ボタンでサンプル画像ギャラリーを開く。キーボード <kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> とスワイプに対応",
+      "badge_keywords": "ファイル名に <code>-4k</code> や <code>-uc</code> などのキーワードが含まれると、結果カードにカラーバッジが表示される"
+    },
+    "batch": {
+      "title": "バッチファイル検索",
+      "h6_add": "複数ファイルの追加",
+      "h6_favorite": "お気に入りフォルダ",
+      "h6_pause": "一時停止と再開",
+      "h6_generate_all": "すべて生成",
+      "h6_badge": "バージョンタグの保持",
+      "add_folder": "<strong>フォルダをドロップ</strong>：フォルダ内の動画ファイルを自動スキャン",
+      "add_filter": "<strong>自動フィルタ</strong>：動画以外のファイルや設定サイズ未満のファイルを除外",
+      "add_batch": "<strong>バッチ検索</strong>：1 バッチ 20 ファイル、同時 2 リクエスト",
+      "add_progress": "<strong>進捗表示</strong>：リアルタイム進捗表示（例：処理中 15/100）",
+      "fav_settings": "<strong>設定ページ</strong>でよく使うフォルダパスを設定",
+      "fav_load": "「⭐ お気に入り」ボタンをクリックして即時読み込み",
+      "fav_auto": "自動的に最初の 20 ファイルの検索を開始",
+      "pause_pause": "バッチ検索中に「一時停止」ボタンをクリック",
+      "pause_resume": "「再開」をクリックして停止位置から再開",
+      "generate_all": "バッチ検索完了後、成功した結果のリネーム / フォルダ作成 / NFO を一括実行",
+      "badge_suffix": "ファイル名内の <code>-cd1</code>、<code>-4k</code> などは自動的に <code>{suffix}</code> として保持される"
+    },
+    "format": {
+      "title": "フォーマット変数一覧",
+      "h6_default": "デフォルトフォーマット",
+      "h6_fallback": "フォールバックルール",
+      "col_var": "変数",
+      "col_desc": "説明",
+      "col_example": "例",
+      "col_fallback": "フォルダフォールバック",
+      "var_num_desc": "番号",
+      "var_title_desc": "タイトル",
+      "var_actor_desc": "最初の女優",
+      "var_actors_desc": "全女優",
+      "var_maker_desc": "メーカー",
+      "var_date_desc": "発売日",
+      "var_year_desc": "年",
+      "var_suffix_desc": "バージョンタグ",
+      "fallback_unknown_title": "タイトル不明",
+      "fallback_unknown_actor": "女優不明",
+      "fallback_unknown_maker": "メーカー不明",
+      "fallback_unknown_date": "日付不明",
+      "fallback_unknown_year": "年不明",
+      "fallback_empty": "空の場合は省略",
+      "default_filename": "ファイル名：<code>[{num}][{maker}] {title}{suffix}</code>",
+      "default_folder": "フォルダ：<code>{actor}</code>",
+      "fallback_folder_rule": "フォルダレベルはフォールバック値（例：「女優不明」）を使用してパスが空にならないようにする",
+      "fallback_filename_rule": "ファイル名はフォールバックを使用しない。変数が空の場合は省略される"
+    },
+    "gallery": {
+      "title": "女優ギャラリーモード",
+      "h6_trigger": "自動起動条件",
+      "h6_features": "機能",
+      "h6_diff": "グリッドモードとギャラリーモードの違い",
+      "trigger_count": "検索結果が 10 作品以上",
+      "trigger_consistency": "80% 以上の作品が同じ女優（一貫性チェック）",
+      "trigger_setting": "設定でギャラリーモードを有効化",
+      "feat_hero": "<strong>ヒーローカード</strong>：女優プロフィールを表示（カップ、身長、スリーサイズ、誕生日）",
+      "feat_browse": "<strong>ギャラリーブラウズ</strong>：カバー画像で作品一覧を表示",
+      "feat_back": "<strong>すばやく戻る</strong>：「← 詳細に戻る」をクリックして通常モードに戻る",
+      "diff_gallery": "<strong>ギャラリーモード</strong>（自動）：結果が 10 以上かつ女優が一致する場合に自動切替",
+      "diff_grid": "<strong>グリッドモード</strong>（手動）：どの検索結果もカバーウォール表示に手動切替可能",
+      "diff_grid_nav": "グリッドモードは Lightbox ナビゲーションに対応（<kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> で切替）"
+    },
+    "scanner": {
+      "title": "動画リスト生成（Scanner）",
+      "h6_features": "機能",
+      "h6_output": "出力ファイル",
+      "h6_subtitle": "字幕自動検出",
+      "h6_jellyfin": "Jellyfin 画像モード",
+      "feat_scan": "ローカル動画フォルダをスキャンして美しい HTML 展示ページを生成",
+      "feat_nfo": "NFO ファイルを自動で読み込みメタデータを表示",
+      "feat_nfo_fill": "「NFO 補完」に対応：欠損した NFO ファイルを自動検索",
+      "feat_terminal": "内蔵 Mini Terminal でリアルタイム処理進捗を表示",
+      "output_html": "<strong>index.html</strong>：任意のブラウザで開ける静的ページ",
+      "output_copy": "<strong>自動コピー</strong>：カバー画像と NFO を出力ディレクトリにコピー",
+      "output_darkmode": "<strong>ダークモード</strong>：Web App のテーマ設定に自動追従",
+      "subtitle_detect": "動画整理時に同じディレクトリ内の同名字幕ファイルを自動検出（<code>.srt</code>、<code>.ass</code>、<code>.ssa</code>）",
+      "subtitle_move": "動画の移動成功後、字幕も一緒に移動。言語サフィックスを保持（例：<code>.cht.srt</code>）",
+      "subtitle_nfo": "字幕を検出すると NFO に「中国語字幕」タグが自動追加される",
+      "jellyfin_enable": "<strong>設定ページ</strong>で有効化後、スキャン時に自動で <code>-poster.jpg</code> + <code>-fanart.jpg</code> を生成",
+      "jellyfin_showcase": "スキャン完了後、<code>/showcase</code> ページで生成結果を閲覧可能"
+    },
+    "showcase": {
+      "title": "動画ブラウザ（Showcase）",
+      "h6_modes": "表示モード",
+      "h6_sort": "ソートと検索",
+      "h6_other": "その他の機能",
+      "intro": "Scanner 完了後、<code>/showcase</code> ページで動画ライブラリを閲覧できます。",
+      "mode_grid": "<strong>グリッドモード</strong>：カバーウォール表示、クリックで Lightbox を開く",
+      "mode_list": "<strong>リストモード</strong>：コンパクトなリスト、素早い閲覧に最適",
+      "mode_table": "<strong>テーブルモード</strong>：完全なメタデータをテーブルで表示",
+      "sort_sort": "<strong>ソート</strong>：日付 / 番号 / タイトル / 女優 / メーカー / サイズ / 更新日 / ランダム",
+      "sort_search": "<strong>検索</strong>：番号、女優、タイトルなどのキーワードで絞り込み",
+      "other_lightbox": "Lightbox 全画面カバー表示（<kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> でナビゲート）",
+      "other_lightbox_detail": "Lightbox には監督・再生時間・シリーズ・レーベルなどの詳細情報を表示",
+      "other_table_cols": "テーブルモードに「監督」と「再生時間」列を追加",
+      "other_gallery": "Lightbox からサンプル画像ギャラリーを開く（「サンプル」ボタンをクリック）",
+      "other_per_page": "1 ページの表示数は<strong>設定ページ</strong>で調整可能"
+    },
+    "shortcuts": {
+      "title": "キーボードショートカット",
+      "h6_search": "検索ページ",
+      "h6_showcase": "ブラウズページ（Showcase）",
+      "search_hint": "検索ボックスにフォーカスがある間はすべてのショートカットが無効になります。",
+      "col_key": "キー",
+      "col_context": "状況",
+      "col_action": "動作",
+      "ctx_lightbox_open": "Lightbox が開いているとき",
+      "ctx_lightbox_closed": "Lightbox が閉じているとき",
+      "action_close_lightbox": "Lightbox を閉じる",
+      "action_prev_next_video": "前 / 次の動画",
+      "search_arrow2_ctx": "詳細モード、Lightbox が閉じているとき",
+      "search_arrow2_action": "前 / 次の結果に切り替え",
+      "showcase_arrow_action": "前 / 次のページ",
+      "showcase_a_action": "表示モードを循環切替（グリッド → リスト → テーブル）",
+      "showcase_s_ctx": "グリッドモード、Lightbox が閉じているとき",
+      "showcase_s_action": "カード情報の表示 / 非表示"
+    },
+    "scraper": {
+      "title": "スクレイパーのソース",
+      "h6_censored": "有修正ソース",
+      "h6_uncensored": "無修正ソース",
+      "h6_default_source": "デフォルト検索ソース",
+      "h6_dmm_fuzzy": "DMM あいまい検索",
+      "h6_proxy_direct": "Proxy ダイレクトモード",
+      "h6_toggle": "モード切替",
+      "h6_format": "番号フォーマット例",
+      "censored_dmm": "<strong>DMM</strong>：日本 IP Proxy が必要（<strong>設定ページ</strong> → Proxy フィールド）",
+      "censored_others": "<strong>JavBus</strong>、<strong>Jav321</strong>、<strong>JavDB</strong>：直接使用可能",
+      "uncensored_d2pass": "<strong>D2Pass</strong>：1Pondo / Caribbeancom / 10musume の 3 サイトをカバー",
+      "uncensored_heyzo": "<strong>HEYZO</strong>：独立ソース",
+      "uncensored_fc2": "<strong>FC2</strong>：FC2-PPV 専用",
+      "uncensored_avsox": "<strong>AVSOX</strong>：汎用無修正ソース",
+      "default_source_set": "設定ページで <strong>JavBus</strong> または <strong>DMM</strong> をメイン検索ソースに設定可能",
+      "default_source_effect": "メインソースに設定すると、完全一致検索でそのソースのデータが優先される",
+      "dmm_fuzzy_trigger": "検索ボックスに日本語の女優名やメーカー名を入力すると DMM あいまい検索も同時にトリガーされる",
+      "dmm_fuzzy_prereq": "前提：DMM が有効になっていること（Proxy または <code>direct</code> モードが必要）",
+      "proxy_direct_vpn": "日本の VPN に接続中、または日本にいる場合、別途 Proxy を設定する必要はありません",
+      "proxy_direct_how": "設定ページの Proxy フィールドに <code>direct</code> と入力するだけで DMM を直接有効化できます",
+      "toggle_uncensored": "<strong>設定ページ</strong>で「無修正モード」トグルを有効にすると、検索時に無修正ソースが優先される",
+      "col_source": "ソース",
+      "col_format": "フォーマット",
+      "col_example": "例"
+    },
+    "troubleshooting": {
+      "title": "トラブルシューティング",
+      "h6_crash": "アプリが起動しない / クラッシュする（Windows）",
+      "h6_display": "UI 表示の異常 / 空白画面",
+      "h6_report": "問題の報告",
+      "h6_dmm": "DMM 検索が機能しない",
+      "h6_translate": "翻訳が応答しない",
+      "crash_cause": "<strong>原因</strong>：Windows のセキュリティがインターネットからダウンロードしたファイルをブロックしました。",
+      "crash_fix_label": "<strong>解決方法</strong>：",
+      "crash_fix_1": "ダウンロードした ZIP を右クリック → プロパティ",
+      "crash_fix_2": "「ブロックの解除」にチェックを入れ、OK をクリック",
+      "crash_fix_3": "再展開してアプリを実行",
+      "display_cause": "<strong>原因</strong>：WebView2 Runtime が不足しています（Windows 10 や仮想マシンでよく見られます）。",
+      "display_fix": "<strong>解決方法</strong>：<a href=\"https://go.microsoft.com/fwlink/p/?LinkId=2124703\" target=\"_blank\">Microsoft Edge WebView2 Runtime</a> をダウンロードしてインストールしてください。",
+      "report_log_path": "<strong>ログの場所</strong>：<code>%USERPROFILE%\\OpenAver\\logs\\debug.log</code>",
+      "report_debug_label": "<strong>デバッグモードを実行</strong>：",
+      "report_debug_1": "<code>OpenAver_Debug.bat</code> を実行",
+      "report_debug_2": "問題を再現する",
+      "report_debug_3": "ログファイルとエラーメッセージを <a href=\"https://github.com/slive777/OpenAver/issues\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub Issues</a> に報告",
+      "dmm_proxy": "DMM には日本 IP が必要です。<strong>設定ページ</strong> → Proxy フィールドに日本のプロキシを入力してください",
+      "dmm_direct": "VPN や日本のネットワークに接続済みの場合、Proxy フィールドに <code>direct</code> と入力するだけで有効化できます。Proxy アドレスは不要です。",
+      "translate_ollama": "<strong>Ollama</strong>：Ollama アプリが起動していることを確認してください（Windows では手動起動が必要）",
+      "translate_gemini": "<strong>Gemini</strong>：<strong>設定ページ</strong>で API Key が正しく設定されていることを確認"
+    },
+    "js": {
+      "version_load_failed": "読み込み失敗",
+      "check_update_failed": "確認に失敗しました。後でもう一度お試しください",
+      "check_update_network_error": "ネットワークエラー。後でもう一度お試しください"
+    }
+  }
+}

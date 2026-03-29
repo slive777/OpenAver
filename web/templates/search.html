@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}搜尋 - OpenAver{% endblock %}
+{% block title %}{{ t('search.page_title') }} - OpenAver{% endblock %}
 
 {% block extra_css %}
 <link href="/static/css/pages/search.css" rel="stylesheet">
@@ -13,7 +13,7 @@
     <div class="drag-overlay" id="dragOverlay" :class="{ active: dragActive }">
         <div class="drag-overlay-content">
             <i class="bi bi-file-earmark-play"></i>
-            <p>放開以搜尋番號</p>
+            <p>{{ t('search.drag_overlay.hint') }}</p>
         </div>
     </div>
 
@@ -26,7 +26,7 @@
             <!-- Close Button -->
             <button class="lightbox-close"
                     @click="closeLightbox()"
-                    title="關閉 (ESC)">
+                    title="{{ t('search.lightbox.close') }}">
                 <i class="bi bi-x-lg"></i>
             </button>
 
@@ -48,13 +48,13 @@
                 <div class="cover-actions">
                     <button class="lb-action-btn"
                             @click="actressLightboxMode() ? closeLightbox() : switchToDetail(lightboxIndex)"
-                            data-tooltip="返回詳情" aria-label="返回詳情">
+                            data-tooltip="{{ t('search.action.back_to_detail') }}" aria-label="{{ t('search.action.back_to_detail') }}">
                         <i class="bi bi-arrow-return-left"></i>
                     </button>
                     <button class="lb-action-btn"
                             @click="openLocal(currentLightboxVideo()?._localStatus?.paths?.[0] || '')"
                             x-show="currentLightboxVideo()?._localStatus?.exists"
-                            data-tooltip="開啟資料夾" aria-label="開啟資料夾">
+                            data-tooltip="{{ t('search.action.open_folder') }}" aria-label="{{ t('search.action.open_folder') }}">
                         <i class="bi bi-folder2-open"></i>
                     </button>
                     <button class="lb-action-btn"
@@ -62,7 +62,7 @@
                             x-show="!actressLightboxMode()
                                     && appConfig?.source_links?.[currentLightboxVideo()?.source]
                                     && currentLightboxVideo()?.url"
-                            data-tooltip="開啟來源頁面" aria-label="開啟來源頁面">
+                            data-tooltip="{{ t('search.action.open_source_url') }}" aria-label="{{ t('search.action.open_source_url') }}">
                         <i class="bi bi-box-arrow-up-right"></i>
                     </button>
                 </div>
@@ -76,7 +76,7 @@
                     <button class="sg-open-btn"
                             x-show="(currentLightboxVideo()?.sample_images || []).length > 0"
                             @click="openSampleGallery((currentLightboxVideo()?.sample_images || []).map(url => '/api/proxy-image?url=' + encodeURIComponent(url)), 0)"
-                            x-text="'劇照 (' + (currentLightboxVideo()?.sample_images || []).length + ')'">
+                            x-text="t('search.gallery.sample_prefix') + ' (' + (currentLightboxVideo()?.sample_images || []).length + ')'">
                     </button>
                 </div>
                 <!-- Row 3: Actresses -->
@@ -89,16 +89,16 @@
                         &nbsp;·&nbsp;<span x-text="currentLightboxVideo()?.maker"></span>
                     </span>
                     <span x-show="currentLightboxVideo()?.director">
-                        &nbsp;·&nbsp;<b>導演：</b><span x-text="currentLightboxVideo()?.director"></span>
+                        &nbsp;·&nbsp;<b>{{ t('search.label.director') }}：</b><span x-text="currentLightboxVideo()?.director"></span>
                     </span>
                     <span x-show="currentLightboxVideo()?.duration">
-                        &nbsp;·&nbsp;<span x-text="currentLightboxVideo()?.duration ? currentLightboxVideo().duration + ' 分鐘' : ''"></span>
+                        &nbsp;·&nbsp;<span x-text="currentLightboxVideo()?.duration ? currentLightboxVideo().duration + ' ' + t('search.unit.minutes') : ''"></span>
                     </span>
                     <span x-show="currentLightboxVideo()?.series">
-                        &nbsp;·&nbsp;<b>系列：</b><span x-text="currentLightboxVideo()?.series"></span>
+                        &nbsp;·&nbsp;<b>{{ t('search.label.series') }}：</b><span x-text="currentLightboxVideo()?.series"></span>
                     </span>
                     <span x-show="currentLightboxVideo()?.label && currentLightboxVideo()?.label !== currentLightboxVideo()?.maker">
-                        &nbsp;·&nbsp;<b>發行：</b><span x-text="currentLightboxVideo()?.label"></span>
+                        &nbsp;·&nbsp;<b>{{ t('search.label.label') }}：</b><span x-text="currentLightboxVideo()?.label"></span>
                     </span>
                     <span x-show="currentLightboxVideo()?.date">
                         &nbsp;·&nbsp;<span x-text="currentLightboxVideo()?.date"></span>
@@ -117,13 +117,13 @@
         <button class="lightbox-nav lightbox-nav-prev"
                 @click.stop="prevLightboxVideo()"
                 x-show="hasVisiblePrev()"
-                title="上一部 (←)">
+                title="{{ t('search.lightbox.prev') }}">
             <i class="bi bi-chevron-left"></i>
         </button>
         <button class="lightbox-nav lightbox-nav-next"
                 @click.stop="nextLightboxVideo()"
                 x-show="hasVisibleNext()"
-                title="下一部 (→)">
+                title="{{ t('search.lightbox.next') }}">
             <i class="bi bi-chevron-right"></i>
         </button>
     </div>
@@ -136,7 +136,7 @@
          @touchend.passive="_sgTouchEnd($event)">
 
         <!-- 關閉按鈕 -->
-        <button class="sg-close" @click="closeSampleGallery()" title="關閉 (ESC)">
+        <button class="sg-close" @click="closeSampleGallery()" title="{{ t('search.lightbox.close') }}">
             <i class="bi bi-x-lg"></i>
         </button>
 
@@ -148,7 +148,7 @@
         <div class="sg-main-wrap">
             <img class="sg-main-img"
                  :src="sampleGalleryImages[sampleGalleryIndex]"
-                 :alt="'樣品圖 ' + (sampleGalleryIndex + 1)"
+                 :alt="t('search.grid.sample_prefix') + ' ' + (sampleGalleryIndex + 1)"
                  @click.stop>
         </div>
 
@@ -156,13 +156,13 @@
         <button class="sg-nav sg-prev"
                 x-show="sampleGalleryIndex > 0"
                 @click.stop="prevSampleGallery()"
-                title="上一張 (←)">
+                title="{{ t('search.gallery.prev') }}">
             <i class="bi bi-chevron-left"></i>
         </button>
         <button class="sg-nav sg-next"
                 x-show="sampleGalleryIndex < sampleGalleryImages.length - 1"
                 @click.stop="nextSampleGallery()"
-                title="下一張 (→)">
+                title="{{ t('search.gallery.next') }}">
             <i class="bi bi-chevron-right"></i>
         </button>
 
@@ -172,7 +172,7 @@
                 <button class="sg-thumb-btn"
                         :class="{ 'sg-thumb-active': idx === sampleGalleryIndex }"
                         @click.stop="jumpSampleGallery(idx)">
-                    <img class="sg-thumb-img" :src="url" :alt="'縮圖 ' + (idx + 1)">
+                    <img class="sg-thumb-img" :src="url" :alt="t('search.grid.thumb_prefix') + ' ' + (idx + 1)">
                 </button>
             </template>
         </div>
@@ -183,14 +183,14 @@
         <form id="searchForm" @submit.prevent="doSearch()">
             <div class="spotlight-search">
                 <i class="bi bi-search search-icon-left"></i>
-                <input type="text" id="searchQuery" name="q" placeholder="搜尋番號、女優或拖入檔案..." autocomplete="off" x-model="searchQuery" x-ref="searchQuery">
+                <input type="text" id="searchQuery" name="q" placeholder="{{ t('search.placeholder.query') }}" autocomplete="off" x-model="searchQuery" x-ref="searchQuery">
                 <div class="search-actions-right">
                     <!-- 取消搜尋按鈕（loading 狀態顯示） -->
                     <button type="button"
                             x-show="pageState === 'loading'"
                             @click="cancelSearch()"
                             class="btn-icon"
-                            title="取消搜尋">
+                            title="{{ t('search.action.cancel_search') }}">
                         <i class="bi bi-x-lg"></i>
                     </button>
                     <!-- T2a/T3a: Grid / Detail Toggle -->
@@ -198,13 +198,13 @@
                             class="btn-icon rotating-border-spotlight active"
                             x-show="listMode === 'search' && appConfig?.search?.gallery_mode_enabled !== false && (currentMode === 'actress' || currentMode === 'prefix')"
                             @click="toggleDisplayMode()"
-                            :title="displayMode === 'detail' ? '切換到圖片模式' : '切換到詳細模式'">
+                            :title="displayMode === 'detail' ? t('search.action.toggle_grid') : t('search.action.toggle_detail')">
                         <i class="bi" :class="displayMode === 'detail' ? 'bi-grid-3x3' : 'bi-list-ul'"></i>
                     </button>
-                    <button type="button" id="btnClear" class="btn-icon" x-show="hasContent" x-cloak @click="clearAll()" title="清空">
+                    <button type="button" id="btnClear" class="btn-icon" x-show="hasContent" x-cloak @click="clearAll()" title="{{ t('search.action.clear') }}">
                         <i class="bi bi-x-lg"></i>
                     </button>
-                    <button type="submit" id="btnSubmit" class="btn-icon active" title="搜尋">
+                    <button type="submit" id="btnSubmit" class="btn-icon active" title="{{ t('search.action.search') }}">
                         <i class="bi bi-arrow-right"></i>
                     </button>
                 </div>
@@ -212,7 +212,7 @@
         </form>
         <div class="search-hint">
             <i class="bi bi-lightbulb"></i>
-            提示：輸入局部番號如 <code>IPZZ-03</code> 可搜尋 030~039，輸入女優名可搜尋其作品
+            {{ t('search.hint.partial_search') }}
         </div>
     </div>
 
@@ -221,21 +221,21 @@
         <!-- 初始狀態 -->
         <div id="emptyState" class="state-page w-full" x-show="pageState === 'empty'">
             <i class="bi bi-film state-page-icon"></i>
-            <p class="state-page-text">輸入番號搜尋，或加入影片檔案</p>
+            <p class="state-page-text">{{ t('search.empty.hint') }}</p>
             <div class="empty-actions">
                 <button class="btn btn-sm btn-outline btn-primary" id="btnAddFiles" @click="addFiles()">
-                    <i class="bi bi-file-earmark-plus"></i> 加入檔案
+                    <i class="bi bi-file-earmark-plus"></i> {{ t('search.action.add_files') }}
                 </button>
                 <button class="btn btn-sm btn-outline btn-primary" id="btnAddFolder" @click="addFolder()">
-                    <i class="bi bi-folder-plus"></i> 加入資料夾
+                    <i class="bi bi-folder-plus"></i> {{ t('search.action.add_folder') }}
                 </button>
-                <button class="btn btn-sm btn-outline btn-warning" id="btnFavorite" @click="loadFavorite()" :disabled="isLoadingFavorite" title="載入我的最愛資料夾">
+                <button class="btn btn-sm btn-outline btn-warning" id="btnFavorite" @click="loadFavorite()" :disabled="isLoadingFavorite" title="{{ t('search.action.load_favorite') }}">
                     <template x-if="!isLoadingFavorite"><i class="bi bi-star-fill"></i></template>
                     <span x-show="isLoadingFavorite" class="loading loading-spinner loading-sm"></span>
-                    <span x-text="isLoadingFavorite ? '' : '我的最愛'">我的最愛</span>
+                    <span x-text="isLoadingFavorite ? '' : t('search.action.favorite')">{{ t('search.action.favorite') }}</span>
                 </button>
             </div>
-            <small class="state-page-hint">也可直接拖入檔案或資料夾</small>
+            <small class="state-page-hint">{{ t('search.empty.drag_hint') }}</small>
         </div>
 
         <!-- 載入中 - 進度指示器 -->
@@ -263,14 +263,14 @@
         <div id="errorState" class="state-page error w-full" x-show="pageState === 'error'" x-cloak>
             <i class="bi bi-exclamation-triangle state-page-icon"></i>
             <p class="state-page-text error-text" id="errorMessage" x-text="errorText || '搜尋失敗'">搜尋失敗</p>
-            <small class="state-page-hint">請檢查番號格式或稍後再試</small>
+            <small class="state-page-hint">{{ t('search.error.hint') }}</small>
             <!-- 多檔案模式導航 -->
             <div class="error-nav" x-show="fileList.length > 1" id="errorNav">
                 <button class="btn btn-sm btn-outline btn-neutral"
                         id="errorBtnPrev"
                         :disabled="!canGoPrev()"
                         @click="navigate(-1)"
-                        title="上一個 (←)">
+                        title="{{ t('search.nav.prev') }}">
                     <i class="bi bi-chevron-left"></i>
                 </button>
                 <span class="error-nav-indicator" id="errorNavIndicator" x-text="navIndicatorText()">1/5</span>
@@ -278,7 +278,7 @@
                         id="errorBtnNext"
                         :disabled="!canGoNext()"
                         @click="navigate(1)"
-                        title="下一個 (→)">
+                        title="{{ t('search.nav.next') }}">
                     <i class="bi bi-chevron-right"></i>
                 </button>
             </div>
@@ -300,7 +300,7 @@
                              :src="coverUrl()"
                              @error="handleCoverError()"
                              @load="_coverLoaded = true; coverError = ''; _coverRetried = false; _updateCoverHeight()"
-                             alt="封面">
+                             alt="{{ t('search.cover.alt') }}">
                         <!-- U8d: Cover loading shimmer -->
                         <div x-show="!coverError && current().cover && !_coverLoaded"
                              class="cover-loading-placeholder">
@@ -310,7 +310,7 @@
                         <div x-show="coverError" class="cover-error-placeholder">
                             <i class="bi bi-exclamation-triangle text-5xl text-warning"></i>
                             <p x-text="coverError" class="mt-2"></p>
-                            <small>請檢查番號格式或稍後再試</small>
+                            <small>{{ t('search.error.hint') }}</small>
                         </div>
                         <!-- 無封面 -->
                         <div x-show="!coverError && !current().cover" class="cover-error-placeholder">
@@ -320,7 +320,7 @@
                                 x-show="showNavigation()"
                                 :disabled="!canGoPrev() || (isSearchingFile && searchingFileDirection === 'prev')"
                                 @click="navigate(-1)"
-                                title="上一個 (←)">
+                                title="{{ t('search.nav.prev') }}">
                             <i x-show="!(isSearchingFile && searchingFileDirection === 'prev')" class="bi bi-chevron-left"></i>
                             <span x-show="isSearchingFile && searchingFileDirection === 'prev'" class="loading loading-spinner loading-sm"></span>
                         </button>
@@ -328,7 +328,7 @@
                                 x-show="showNavigation()"
                                 :disabled="!canGoNext() || isLoadingMore || (isSearchingFile && searchingFileDirection === 'next')"
                                 @click="navigate(1)"
-                                title="下一個 (→)">
+                                title="{{ t('search.nav.next') }}">
                             <i x-show="!isLoadingMore && !(isSearchingFile && searchingFileDirection === 'next')" class="bi bi-chevron-right"></i>
                             <span x-show="isLoadingMore || (isSearchingFile && searchingFileDirection === 'next')" class="loading loading-spinner loading-sm"></span>
                         </button>
@@ -344,9 +344,9 @@
                             <button class="sample-thumb-btn"
                                     @click="openSampleGallery((current().sample_images || []).map(u => '/api/proxy-image?url=' + encodeURIComponent(u)), idx)"
                                     :class="{ 'sample-thumb-active': sampleGalleryOpen && sampleGalleryIndex === idx }"
-                                    :title="'樣品圖 ' + (idx + 1)">
+                                    :title="t('search.grid.sample_prefix') + ' ' + (idx + 1)">
                                 <img :src="`/api/proxy-image?url=${encodeURIComponent(url)}`"
-                                     :alt="'樣品圖 ' + (idx + 1)"
+                                     :alt="t('search.grid.sample_prefix') + ' ' + (idx + 1)"
                                      loading="lazy"
                                      class="sample-thumb-img">
                             </button>
@@ -362,7 +362,7 @@
                           @click="openLocal(current()._localStatus?.paths?.[0])">📁</span>
                     <button id="switchSourceBtn" class="info-icon-btn"
                             @click="switchSource()"
-                            title="切換版本"
+                            title="{{ t('search.action.switch_source') }}"
                             :disabled="isSwitchingSource"
                             :class="{ 'shake': switchSourceShake }">
                         <i class="bi bi-arrow-repeat" x-show="!isSwitchingSource"></i>
@@ -371,44 +371,44 @@
                     <button class="info-icon-btn"
                             @click="openSourceUrl(current()?.url || '')"
                             x-show="appConfig?.source_links?.[current()?.source] && current()?.url"
-                            title="開啟來源頁面">
+                            title="{{ t('search.action.open_source_url') }}">
                         <i class="bi bi-box-arrow-up-right"></i>
                     </button>
                 </div>
                 <div class="av-card-full-body">
                     <div class="info-row">
-                        <span class="info-label">演員</span>
+                        <span class="info-label">{{ t('search.label.actor') }}</span>
                         <span class="info-value" id="resultActors" x-text="(current().actors || []).join(', ') || '-'">-</span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">發行日期</span>
+                        <span class="info-label">{{ t('search.label.date') }}</span>
                         <span class="info-value" id="resultDate" x-text="current().date || '-'">-</span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">片商</span>
+                        <span class="info-label">{{ t('search.label.maker') }}</span>
                         <span class="info-value" id="resultMaker" x-text="current().maker || '-'">-</span>
                     </div>
                     <div class="info-row" x-show="current().director">
-                        <span class="info-label">導演</span>
+                        <span class="info-label">{{ t('search.label.director') }}</span>
                         <span class="info-value" x-text="current().director">-</span>
                     </div>
                     <div class="info-row" x-show="current().duration">
-                        <span class="info-label">片長</span>
-                        <span class="info-value" x-text="current().duration + ' 分鐘'">-</span>
+                        <span class="info-label">{{ t('search.label.duration') }}</span>
+                        <span class="info-value" x-text="current().duration + ' ' + t('search.unit.minutes')">-</span>
                     </div>
                     <div class="info-row" x-show="current().label">
-                        <span class="info-label">發行商</span>
+                        <span class="info-label">{{ t('search.label.label') }}</span>
                         <span class="info-value" x-text="current().label">-</span>
                     </div>
                     <div class="info-row" x-show="current().series">
-                        <span class="info-label">系列</span>
+                        <span class="info-label">{{ t('search.label.series') }}</span>
                         <span class="info-value" x-text="current().series">-</span>
                     </div>
                     <div class="info-row">
-                        <span class="info-label">標籤</span>
+                        <span class="info-label">{{ t('search.label.tags') }}</span>
                         <span class="info-value" id="resultTags">
                             <!-- 字幕標籤 -->
-                            <span x-show="hasSubtitle()" class="badge tag-badge subtitle">中文字幕</span>
+                            <span x-show="hasSubtitle()" class="badge tag-badge subtitle">{{ t('search.badge.subtitle') }}</span>
                             <!-- Fix-1: 版本標記 badges -->
                             <template x-for="sfx in currentSuffixes()" :key="sfx">
                                 <span class="badge tag-badge suffix-badge" x-text="sfx"></span>
@@ -425,12 +425,12 @@
                                 </span>
                             </template>
                             <!-- 新增標籤按鈕 -->
-                            <button x-show="!addingTag" @click="showAddTagInput()" class="btn btn-sm tag-add-btn" title="新增標籤">+</button>
+                            <button x-show="!addingTag" @click="showAddTagInput()" class="btn btn-sm tag-add-btn" title="{{ t('search.action.add_tag') }}">+</button>
                             <!-- 新增標籤輸入框 -->
                             <span x-show="addingTag" class="tag-input-wrapper">
                                 <input type="text" x-ref="tagInput" x-model="newTagValue"
                                        @keydown.enter="confirmAddTag()" @keydown.escape="cancelAddTag()"
-                                       class="tag-input" placeholder="標籤名稱" maxlength="20">
+                                       class="tag-input" placeholder="{{ t('search.placeholder.tag') }}" maxlength="20">
                                 <button @click="confirmAddTag()" class="btn btn-sm tag-confirm">✓</button>
                                 <button @click="cancelAddTag()" class="btn btn-sm tag-cancel">✕</button>
                             </span>
@@ -439,17 +439,17 @@
                 </div>
                 <div class="av-card-full-footer">
                     <div class="av-card-full-footer-content">
-                        <span class="info-label">標題</span>
+                        <span class="info-label">{{ t('search.label.title') }}</span>
                         <!-- 顯示模式 -->
                         <div class="info-value-with-actions" id="titleContainer" x-show="!editingTitle">
                             <span class="info-value" id="resultTitle" x-text="current().title || '-'">-</span>
                             <div class="av-card-full-footer-actions">
-                                <button id="editTitleBtn" class="info-icon-btn" @click="startEditTitle()" title="編輯標題">
+                                <button id="editTitleBtn" class="info-icon-btn" @click="startEditTitle()" title="{{ t('search.action.edit_title') }}">
                                     <i :class="current()._titleEdited ? 'bi bi-pencil-fill text-success' : 'bi bi-pencil text-muted'"></i>
                                 </button>
                                 <button id="translateBtn" class="info-icon-btn"
                                         x-show="canTranslate() && !isTranslating"
-                                        @click="translateWithAI()" title="AI 翻譯">
+                                        @click="translateWithAI()" title="{{ t('search.action.translate_ai') }}">
                                     <i class="bi bi-translate"></i>
                                 </button>
                                 <span id="translateSpinner" class="loading loading-spinner loading-sm"
@@ -464,10 +464,10 @@
                                       class="textarea textarea-bordered info-value flex-1 min-w-0 resize-none"
                                       rows="3"></textarea>
                             <div class="av-card-full-footer-actions">
-                                <button class="info-icon-btn text-success" @click="confirmEditTitle()" title="確認">
+                                <button class="info-icon-btn text-success" @click="confirmEditTitle()" title="{{ t('common.action.confirm') }}">
                                     <i class="bi bi-check-lg"></i>
                                 </button>
-                                <button class="info-icon-btn text-error" @click="cancelEditTitle()" title="取消">
+                                <button class="info-icon-btn text-error" @click="cancelEditTitle()" title="{{ t('common.action.cancel') }}">
                                     <i class="bi bi-x-lg"></i>
                                 </button>
                             </div>
@@ -476,12 +476,12 @@
                     <!-- 中文標題 -->
                     <div id="chineseTitleRow" class="av-card-full-footer-content mt-2"
                          x-show="hasChineseTitle()">
-                        <span class="info-label" id="chineseTitleLabel" x-text="chineseTitleLabel()">中文片名</span>
+                        <span class="info-label" id="chineseTitleLabel" x-text="chineseTitleLabel()">{{ t('search.label.chinese_title') }}</span>
                         <!-- 顯示模式 -->
                         <div class="info-value-with-actions" id="chineseTitleContainer" x-show="!editingChineseTitle">
                             <span class="info-value text-success" id="resultChineseTitle" x-text="chineseTitleText()">-</span>
                             <div class="av-card-full-footer-actions">
-                                <button id="editChineseTitleBtn" class="info-icon-btn" @click="startEditChineseTitle()" title="編輯中文片名">
+                                <button id="editChineseTitleBtn" class="info-icon-btn" @click="startEditChineseTitle()" title="{{ t('search.action.edit_chinese_title') }}">
                                     <i :class="current()._chineseTitleEdited ? 'bi bi-pencil-fill text-success' : 'bi bi-pencil text-muted'"></i>
                                 </button>
                             </div>
@@ -494,10 +494,10 @@
                                       class="textarea textarea-bordered info-value text-success flex-1 min-w-0 resize-none"
                                       rows="2"></textarea>
                             <div class="av-card-full-footer-actions">
-                                <button class="info-icon-btn text-success" @click="confirmEditChineseTitle()" title="確認">
+                                <button class="info-icon-btn text-success" @click="confirmEditChineseTitle()" title="{{ t('common.action.confirm') }}">
                                     <i class="bi bi-check-lg"></i>
                                 </button>
-                                <button class="info-icon-btn text-error" @click="cancelEditChineseTitle()" title="取消">
+                                <button class="info-icon-btn text-error" @click="cancelEditChineseTitle()" title="{{ t('common.action.cancel') }}">
                                     <i class="bi bi-x-lg"></i>
                                 </button>
                             </div>
@@ -600,13 +600,13 @@
                             <div class="av-card-preview-overlay" x-show="!result._skeleton && !result._failed">
                                 <button class="btn-glass-circle"
                                         @click.stop="switchToDetail(idx)"
-                                        title="查看詳情">
+                                        title="{{ t('search.grid.detail_title') }}">
                                     <i class="bi bi-info-circle"></i>
                                 </button>
                                 <button class="btn-glass-circle"
                                         @click.stop="openLocal(result._localStatus?.paths?.[0] || '')"
                                         x-show="result._localStatus?.exists"
-                                        title="開啟資料夾">
+                                        title="{{ t('search.action.open_folder') }}">
                                     <i class="bi bi-folder2-open"></i>
                                 </button>
                             </div>
@@ -615,10 +615,10 @@
                         <div class="av-card-preview-footer">
                             <div class="footer-default">
                                 <span class="av-num" x-text="result.number || '-'">-</span>
-                                <span class="av-actress" x-show="!result._skeleton && !result._failed" x-text="(result.actors || []).slice(0, 2).join(', ') || '未知'">未知</span>
+                                <span class="av-actress" x-show="!result._skeleton && !result._failed" x-text="(result.actors || []).slice(0, 2).join(', ') || t('search.grid.unknown_actor')">{{ t('search.grid.unknown_actor') }}</span>
                             </div>
                             <div class="footer-hover" x-show="!result._skeleton && !result._failed">
-                                <div class="hover-title" x-text="result.title || '未知標題'">未知標題</div>
+                                <div class="hover-title" x-text="result.title || t('search.grid.unknown_title')">{{ t('search.grid.unknown_title') }}</div>
                             </div>
                         </div>
                     </div>
@@ -636,7 +636,7 @@
                             x-show="listMode === 'file'"
                             @click="searchAll()"
                             :disabled="searchAllDisabled()"
-                            title="搜尋所有未搜尋的檔案">
+                            title="{{ t('search.filelist.search_all_title') }}">
                             <i :class="searchAllButtonIcon()"></i>
                             <span x-text="searchAllButtonText()">搜尋全部</span>
                         </button>
@@ -644,7 +644,7 @@
                             x-show="listMode === 'search'"
                             @click="translateAll()"
                             :disabled="translateAllDisabled()"
-                            title="翻譯所有日文標題">
+                            title="{{ t('search.filelist.translate_all_title') }}">
                             <i :class="translateAllButtonIcon()"></i>
                             <span x-text="translateAllButtonText()">翻譯全部</span>
                         </button>
@@ -652,8 +652,8 @@
                             x-show="listMode === 'file'"
                             @click="scrapeAll()"
                             :disabled="isScrapeAllProcessing"
-                            title="產生所有已搜尋的檔案">
-                            <span x-show="!isScrapeAllProcessing"><i class="bi bi-folder-plus"></i> 產生全部</span>
+                            title="{{ t('search.filelist.scrape_all_title') }}">
+                            <span x-show="!isScrapeAllProcessing"><i class="bi bi-folder-plus"></i> {{ t('search.filelist.scrape_all') }}</span>
                             <span x-show="isScrapeAllProcessing" class="loading loading-spinner loading-sm"></span>
                         </button>
                     </div>
@@ -667,7 +667,7 @@
                              :style="'width:' + batchPercent() + '%'"></div>
                     </div>
                     <small class="batch-progress-text" id="batchProgressText"
-                           x-text="'處理中 ' + batchState.processed + '/' + batchState.total">處理中 0/0</small>
+                           x-text="t('search.filelist.processing_prefix') + ' ' + batchState.processed + '/' + batchState.total">{{ t('search.filelist.processing_prefix') }} 0/0</small>
                 </div>
 
                 <!-- 檔案列表 -->
@@ -678,7 +678,7 @@
                             <!-- 移除按鈕 -->
                             <button class="btn btn-link btn-sm p-0 btn-remove-file text-muted"
                                     @click.stop="removeFile(i)"
-                                    title="移除此檔案">
+                                    title="{{ t('search.filelist.remove_file') }}">
                                 <i class="bi bi-x"></i>
                             </button>
 
@@ -696,7 +696,7 @@
                             <button x-show="canScrapeFile(file) && !file.isScraping && file.scrapeStatus !== 'done'"
                                     @click.stop="scrapeSingle(i)"
                                     class="btn btn-sm btn-outline btn-success btn-scrape-single"
-                                    title="產生 NFO + 封面">
+                                    title="{{ t('search.filelist.scrape_nfo') }}">
                                 <i class="bi bi-folder-plus"></i>
                             </button>
 
@@ -713,15 +713,15 @@
                             <button x-show="file.scrapeStatus === 'failed'"
                                     @click.stop="scrapeSingle(i)"
                                     class="btn btn-sm btn-error btn-scrape-single"
-                                    title="重試">
-                                失敗
+                                    title="{{ t('search.filelist.retry') }}">
+                                {{ t('search.filelist.failed') }}
                             </button>
 
                             <!-- 動作按鈕：手動輸入番號 -->
                             <button x-show="needsNumberInput(file)"
                                     @click.stop="enterNumber(i)"
                                     class="btn btn-sm btn-outline btn-warning btn-enter-number"
-                                    title="手動輸入番號">
+                                    title="{{ t('search.filelist.enter_number') }}">
                                 <i class="bi bi-pencil"></i>
                             </button>
                         </div>
@@ -779,15 +779,15 @@
             @click.self="closeDuplicateModal()">
         <div class="modal-box fluent-modal-box">
             <h3 class="fluent-modal-title">
-                <i class="bi bi-exclamation-triangle"></i> 檔案重複
+                <i class="bi bi-exclamation-triangle"></i> {{ t('search.duplicate.title') }}
             </h3>
-            <p class="py-2">目標檔案已存在，繼續會覆蓋原有檔案：</p>
+            <p class="py-2">{{ t('search.duplicate.body') }}</p>
             <p class="text-sm opacity-70" x-text="duplicateTarget"></p>
-            <p class="py-2">這通常發生在同一部影片有多個版本（CD1/CD2、4K、UC）時。</p>
-            <p class="py-2">請到 <strong>設定 → 進階刮削設定 → 版本標記</strong>，新增關鍵字並確認檔案命名格式包含 <code class="badge badge-sm">{suffix}</code> 變數。</p>
+            <p class="py-2">{{ t('search.duplicate.explanation') }}</p>
+            <p class="py-2">{{ t('search.duplicate.instruction') | safe }}</p>
             <div class="modal-action">
-                <button class="btn btn-sm" @click="closeDuplicateModal()">了解</button>
-                <a href="/settings" class="btn btn-sm btn-primary">前往設定</a>
+                <button class="btn btn-sm" @click="closeDuplicateModal()">{{ t('search.duplicate.acknowledge') }}</button>
+                <a href="/settings" class="btn btn-sm btn-primary">{{ t('search.duplicate.go_settings') }}</a>
             </div>
         </div>
     </dialog>

@@ -115,13 +115,16 @@ class GeneralFieldRequest(BaseModel):
 @router.put("/config/general/{field}")
 async def update_general_field(field: str, request: GeneralFieldRequest) -> dict:
     """更新 general 區塊單一欄位（輕量端點，供 UI toggle 即時同步）"""
-    allowed = {"sidebar_collapsed", "theme", "font_size"}
+    allowed = {"sidebar_collapsed", "theme", "font_size", "locale"}
     if field not in allowed:
         return {"success": False, "error": f"不允許更新欄位: {field}"}
     try:
         config = load_config()
         if "general" not in config:
             config["general"] = {}
+        if field == "locale" and request.value not in ("zh-TW", "zh-CN", "ja", "en"):
+            logger.warning("嘗試設定不支援的語系: %s", request.value)
+            return {"success": False, "error": "不支援的語系"}
         config["general"][field] = request.value
         save_config(config)
         return {"success": True}

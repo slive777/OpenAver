@@ -1055,7 +1055,7 @@ function showcaseState() {
 
         // 格式化檔案大小（bytes → GB/MB）
         formatSize(bytes) {
-            if (!bytes || bytes === 0) return '未知';
+            if (!bytes || bytes === 0) return window.t('showcase.grid.unknown_size');
             const gb = bytes / (1024 * 1024 * 1024);
             if (gb >= 1) {
                 return `${gb.toFixed(2)} GB`;

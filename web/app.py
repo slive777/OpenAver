@@ -61,13 +61,34 @@ app.include_router(motion_lab_router.router)
 
 def get_common_context(request: Request) -> dict:
     """取得共用的模板 Context (包含設定)"""
-    from core.config import load_config
+    from core.config import load_config, save_config
+    from core.i18n import t as _t, get_merged_translations, detect_locale_from_accept_language
     config = load_config()
 
     # Font size mapping
     FONT_SIZE_MAP = {"xs": 13, "sm": 14, "md": 16, "lg": 18, "xl": 20}
     font_size = config.get('general', {}).get('font_size', 'md')
     font_size_px = FONT_SIZE_MAP.get(font_size, 16)
+
+    # i18n: 取得 locale，首次偵測時從 Accept-Language 推斷並寫入 config
+    locale = config.get('general', {}).get('locale') or ''
+    if not locale:
+        locale = detect_locale_from_accept_language(
+            request.headers.get('accept-language', '')
+        )
+        # 首次偵測：寫入 config 避免每次 request 重新偵測
+        try:
+            if 'general' not in config:
+                config['general'] = {}
+            config['general']['locale'] = locale
+            save_config(config)
+        except Exception as e:
+            logger.warning("[i18n] 首次偵測語系寫入 config 失敗: %s", e)
+
+    merged_translations = get_merged_translations(locale)
+
+    def _t_bound(key, **params):
+        return _t(key, locale=locale, **params)
 
     return {
         "request": request,
@@ -76,7 +97,10 @@ def get_common_context(request: Request) -> dict:
         "sidebar_collapsed": config.get('general', {}).get('sidebar_collapsed', False),
         "font_size": font_size,
         "font_size_px": font_size_px,
-        "version": VERSION
+        "version": VERSION,
+        "locale": locale,
+        "merged_translations": merged_translations,
+        "t": _t_bound,
     }
 
 

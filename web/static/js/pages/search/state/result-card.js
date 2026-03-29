@@ -44,8 +44,8 @@ window.SearchStateMixin_ResultCard = {
 
     chineseTitleLabel() {
         const c = this.current();
-        if (c.translated_title) return '中文片名 (AI)';
-        return '中文片名';
+        if (c.translated_title) return window.t('search.label.chinese_title_ai');
+        return window.t('search.label.chinese_title');
     },
 
     chineseTitleText() {
@@ -77,8 +77,8 @@ window.SearchStateMixin_ResultCard = {
         const status = this.current()?._localStatus;
         if (!status || !status.exists) return '';
         return status.count > 1
-            ? `本地已有 ${status.count} 個版本（點擊開啟資料夾）`
-            : '本地已有（點擊開啟資料夾）';
+            ? window.t('search.local.has_local_count', { count: status.count })
+            : window.t('search.local.has_local');
     },
 
     // ===== T1c: Title Edit Methods =====

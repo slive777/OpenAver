@@ -407,11 +407,14 @@ class TestJellyfinFrontend:
             "scanner.html 缺少 runJellyfinImageUpdate（T6d Jellyfin 批次補齊）"
 
     def test_jellyfin_settings_hint_has_extrafanart(self):
-        """settings.html Jellyfin 模式描述文字應包含 extrafanart/ 說明（T5b）"""
+        """settings.html Jellyfin 模式描述文字應包含 extrafanart/ 說明（T5b）
+        i18n 後文字移至 locale JSON，檢查 zh_TW.json 或 HTML 中含 extrafanart"""
         html_file = PROJECT_ROOT / "web" / "templates" / "settings.html"
-        content = html_file.read_text(encoding='utf-8')
-        assert 'extrafanart' in content, \
-            "settings.html Jellyfin 圖片模式描述缺少 extrafanart/ 說明（T5b）"
+        html_content = html_file.read_text(encoding='utf-8')
+        locale_file = PROJECT_ROOT / "locales" / "zh_TW.json"
+        locale_content = locale_file.read_text(encoding='utf-8') if locale_file.exists() else ''
+        assert 'extrafanart' in html_content or 'extrafanart' in locale_content, \
+            "settings.html 或 locales/zh_TW.json Jellyfin 圖片模式描述缺少 extrafanart/ 說明（T5b）"
 
 
 class TestOpenLocalGuard:
@@ -3958,7 +3961,8 @@ class TestShowcaseReactiveScopeGuard:
             cleaned = line
             for allowed in ['paginatedVideos', 'currentLightboxVideo', 'videoCount', 'filteredCount',
                             'fetchVideos', 'prevLightboxVideo', 'nextLightboxVideo',
-                            'openLightbox', 'closeLightbox', 'playVideo']:
+                            'openLightbox', 'closeLightbox', 'playVideo',
+                            'showcase.unit.videos']:
                 cleaned = cleaned.replace(allowed, '')
             # Now check for bare 'videos' (word boundary)
             if re.search(r'\bvideos\b', cleaned):
@@ -4295,9 +4299,12 @@ class TestProxyDirectGuard:
     """37d T3 守衛 — settings.html proxy placeholder 包含 direct 提示"""
 
     def test_settings_proxy_placeholder_has_direct(self):
+        """i18n 後 placeholder 文字移至 locale JSON，檢查 zh_TW.json 或 HTML"""
         html = (PROJECT_ROOT / 'web/templates/settings.html').read_text(encoding='utf-8')
-        assert 'direct' in html.lower(), \
-            "settings.html proxy placeholder 應包含 direct 提示"
+        locale_file = PROJECT_ROOT / 'locales' / 'zh_TW.json'
+        locale_content = locale_file.read_text(encoding='utf-8') if locale_file.exists() else ''
+        assert 'direct' in html.lower() or 'direct' in locale_content.lower(), \
+            "settings.html 或 locales/zh_TW.json proxy placeholder 應包含 direct 提示"
 
 
 class TestShowcaseSampleGalleryGuard:
@@ -4552,15 +4559,25 @@ class TestShowcaseSampleGalleryGuard:
 
 
 class TestHelpPageGuard:
-    """37d T4 守衛 — help.html 包含 Phase 36/37 新功能說明"""
+    """37d T4 守衛 — help.html 包含 Phase 36/37 新功能說明
+    38a T6 更新：文字已移至 i18n key，改為驗證 HTML 有對應 t() 呼叫 + zh_TW.json 含對應字串"""
+
+    def _zh_tw(self):
+        import json
+        return json.loads((PROJECT_ROOT / 'locales/zh_TW.json').read_text(encoding='utf-8'))
 
     def test_help_has_primary_source(self):
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
-        assert '預設搜尋來源' in html or '主要搜尋來源' in html
+        # 文字已 i18n，改驗證 t() key 出現在模板中
+        assert 'help.scraper.h6_default_source' in html
+        zh = self._zh_tw()
+        assert '預設搜尋來源' in zh['help']['scraper']['h6_default_source']
 
     def test_help_has_dmm_fuzzy_search(self):
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
-        assert '模糊搜尋' in html
+        assert 'help.scraper.h6_dmm_fuzzy' in html
+        zh = self._zh_tw()
+        assert '模糊搜尋' in zh['help']['scraper']['h6_dmm_fuzzy']
 
     def test_help_has_direct_mode(self):
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
@@ -4568,19 +4585,27 @@ class TestHelpPageGuard:
 
     def test_help_has_lightbox_director(self):
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
-        assert '導演' in html
+        assert 'help.showcase.other_lightbox_detail' in html
+        zh = self._zh_tw()
+        assert '導演' in zh['help']['showcase']['other_lightbox_detail']
 
     def test_help_has_sample_gallery(self):
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
-        assert '劇照' in html
+        assert 'help.showcase.other_gallery' in html
+        zh = self._zh_tw()
+        assert '劇照' in zh['help']['showcase']['other_gallery']
 
     def test_help_has_table_duration(self):
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
-        assert '片長' in html
+        assert 'help.showcase.other_table_cols' in html
+        zh = self._zh_tw()
+        assert '片長' in zh['help']['showcase']['other_table_cols']
 
     def test_help_has_subtitle_move(self):
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
-        assert '字幕' in html
+        assert 'help.scanner.subtitle_move' in html
+        zh = self._zh_tw()
+        assert '字幕' in zh['help']['scanner']['subtitle_move']
 
     def test_troubleshoot_direct(self):
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')

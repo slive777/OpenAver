@@ -8,36 +8,36 @@ class SpotlightTutorial {
             {
                 id: 'search',
                 target: '.spotlight-search',
-                title: '💡 搜尋功能',
-                content: '輸入番號（如 SONE-001）或女優名稱<br>也可拖入檔案，自動提取番號並搜尋',
+                title: window.t('tutorial.step1_title'),
+                content: window.t('tutorial.step1_content'),
                 position: 'bottom'
             },
             {
                 id: 'files',
                 target: '#btnAddFiles',
-                title: '📁 批次處理',
-                content: '加入多個檔案，一次搜尋 20 個<br>支援我的最愛資料夾快速載入',
+                title: window.t('tutorial.step2_title'),
+                content: window.t('tutorial.step2_content'),
                 position: 'right'
             },
             {
                 id: 'scanner',
                 target: '#sidebar a[href="/scanner"]',
-                title: '📝 列表生成',
-                content: '掃描本地資料夾，生成精美的 HTML 展示頁<br>自動補全 NFO 檔案',
+                title: window.t('tutorial.step3_title'),
+                content: window.t('tutorial.step3_content'),
                 position: 'right'
             },
             {
                 id: 'settings',
                 target: '#sidebar a[href="/settings"]',
-                title: '⚙️ 個人化設定',
-                content: '切換 Dark Mode、設定我的最愛資料夾<br>調整介面與功能偏好',
+                title: window.t('tutorial.step4_title'),
+                content: window.t('tutorial.step4_content'),
                 position: 'right'
             },
             {
                 id: 'samples',
                 target: '#emptyState',
-                title: '🎬 立即體驗！',
-                content: '拖放 <code>教學檔案</code> 資料夾<br>或其中任一 <code>.mp4</code> 檔案到此視窗<br><br><small class="text-muted">內含 11 個真實可搜尋的範例</small>',
+                title: window.t('tutorial.step5_title'),
+                content: window.t('tutorial.step5_content'),
                 position: 'bottom',
                 large: true
             }
@@ -82,7 +82,7 @@ class SpotlightTutorial {
             <div class="tutorial-card" id="tutorialCard">
                 <div class="tutorial-card-header">
                     <h5 id="tutorialTitle"></h5>
-                    <button class="tutorial-close" id="tutorialClose" title="關閉">
+                    <button class="tutorial-close" id="tutorialClose" title="${window.t('tutorial.close')}">
                         <i class="bi bi-x-lg"></i>
                     </button>
                 </div>
@@ -92,8 +92,8 @@ class SpotlightTutorial {
                 <div class="tutorial-card-footer">
                     <span class="tutorial-progress" id="tutorialProgress"></span>
                     <div class="tutorial-actions">
-                        <button class="btn btn-sm btn-outline-secondary" id="tutorialSkip">跳過</button>
-                        <button class="btn btn-sm btn-primary" id="tutorialNext">下一步 →</button>
+                        <button class="btn btn-sm btn-outline-secondary" id="tutorialSkip">${window.t('tutorial.skip')}</button>
+                        <button class="btn btn-sm btn-primary" id="tutorialNext">${window.t('tutorial.next')}</button>
                     </div>
                 </div>
             </div>
@@ -162,7 +162,7 @@ class SpotlightTutorial {
         document.getElementById('tutorialProgress').textContent = `${stepIndex + 1} / ${this.steps.length}`;
 
         const btnNext = document.getElementById('tutorialNext');
-        btnNext.innerHTML = stepIndex === this.steps.length - 1 ? '完成 🎉' : '下一步 →';
+        btnNext.innerHTML = stepIndex === this.steps.length - 1 ? window.t('tutorial.done') : window.t('tutorial.next');
 
         this.positionCard(target, step.position, isInSidebar);
 

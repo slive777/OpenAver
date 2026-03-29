@@ -46,6 +46,9 @@ function settingsPage() {
             defaultPage: 'search'
         },
 
+        // ===== i18n State =====
+        locale: (window.__locale || 'zh-TW'),
+
         // ===== UI State =====
         newSuffixInput: '',
         showPathHelp: false,
@@ -92,24 +95,28 @@ function settingsPage() {
             'avsox':   'AVSOX',
         },
 
-        formatVariables: [
-            { name: '{num}', label: '番號' },
-            { name: '{title}', label: '標題' },
-            { name: '{actor}', label: '女優' },
-            { name: '{actors}', label: '女優(全)' },
-            { name: '{maker}', label: '片商' },
-            { name: '{date}', label: '日期' },
-            { name: '{year}', label: '年份' },
-            { name: '{suffix}', label: '後綴' },
-        ],
-        folderVariables: [
-            { name: '{num}', label: '番號' },
-            { name: '{actor}', label: '女優' },
-            { name: '{maker}', label: '片商' },
-            { name: '{title}', label: '標題' },
-            { name: '{year}', label: '年份' },
-            { name: '{suffix}', label: '後綴' },
-        ],
+        get formatVariables() {
+            return [
+                { name: '{num}', label: window.t('settings.var.num') },
+                { name: '{title}', label: window.t('settings.var.title') },
+                { name: '{actor}', label: window.t('settings.var.actor') },
+                { name: '{actors}', label: window.t('settings.var.actors') },
+                { name: '{maker}', label: window.t('settings.var.maker') },
+                { name: '{date}', label: window.t('settings.var.date') },
+                { name: '{year}', label: window.t('settings.var.year') },
+                { name: '{suffix}', label: window.t('settings.var.suffix') },
+            ];
+        },
+        get folderVariables() {
+            return [
+                { name: '{num}', label: window.t('settings.var.num') },
+                { name: '{actor}', label: window.t('settings.var.actor') },
+                { name: '{maker}', label: window.t('settings.var.maker') },
+                { name: '{title}', label: window.t('settings.var.title') },
+                { name: '{year}', label: window.t('settings.var.year') },
+                { name: '{suffix}', label: window.t('settings.var.suffix') },
+            ];
+        },
         FOLDER_PREVIEW_DATA: {
             num: 'SSNI-618',
             maker: 'SOD',
@@ -231,6 +238,30 @@ function settingsPage() {
         },
 
         // ===== Methods =====
+        async cycleLocale() {
+            if (this.isDirty) {
+                if (!confirm('您有未儲存的變更，切換語系後將遺失。確定繼續？')) return;
+            }
+            const order = ['zh-TW', 'zh-CN', 'ja', 'en'];
+            const idx = order.indexOf(this.locale);
+            const next = order[(idx + 1) % order.length];
+            try {
+                const resp = await fetch('/api/config/general/locale', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ value: next })
+                });
+                const result = await resp.json();
+                if (result.success) {
+                    location.reload();
+                } else {
+                    console.warn('[i18n] cycleLocale failed:', result.error);
+                }
+            } catch (e) {
+                console.error('[i18n] cycleLocale error:', e);
+            }
+        },
+
         async loadConfig() {
             // 鎖定表單（載入期間不可操作）
             this._configLoading = true;

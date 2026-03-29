@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-TW"
+<html lang="{{ locale|default('zh-TW') }}"
       data-theme="{{ theme|default('light') }}"
       style="font-size: {{ font_size_px|default(16) }}px"
       x-data="{ theme: '{{ theme|default('light') }}', fontSize: '{{ font_size|default('md') }}' }"
@@ -269,6 +269,25 @@
     </style>
 
     {% block extra_css %}{% endblock %}
+
+    <!-- i18n: 注入合併後的完整字典 + window.t() -->
+    <script>
+      window.__locale = {{ locale|default('zh-TW')|tojson }};
+      window.__i18n = {{ merged_translations|default({})|tojson }};
+      window.t = function(key, params) {
+          params = params || {};
+          var keys = key.split('.');
+          var val = window.__i18n;
+          for (var i = 0; i < keys.length; i++) {
+              if (val == null) break;
+              val = val[keys[i]];
+          }
+          if (typeof val !== 'string') return '[' + key + ']';
+          return val.replace(/\{(\w+)\}/g, function(_, k) {
+              return Object.prototype.hasOwnProperty.call(params, k) ? params[k] : '{' + k + '}';
+          });
+      };
+    </script>
 </head>
 
 <body x-data="{
@@ -349,31 +368,31 @@
                 <li class="nav-item">
                     <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search"
                        @click="handleNavClick($event, $el.href)">
-                        <i class="bi bi-search"></i> 搜尋
+                        <i class="bi bi-search"></i> {{ t('nav.search') }}
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if page == 'scanner' %}active{% endif %}" href="/scanner"
                        @click="handleNavClick($event, $el.href)">
-                        <i class="bi bi-list-ul"></i> 列表生成
+                        <i class="bi bi-list-ul"></i> {{ t('nav.scanner') }}
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if page == 'showcase' %}active{% endif %}" href="/showcase"
                        @click="handleNavClick($event, $el.href)">
-                        <i class="bi bi-collection-play"></i> 瀏覽
+                        <i class="bi bi-collection-play"></i> {{ t('nav.showcase') }}
                     </a>
                 </li>
                 <li class="nav-item mt-3">
                     <a class="nav-link {% if page == 'help' %}active{% endif %}" href="/help"
                        @click="handleNavClick($event, $el.href)">
-                        <i class="bi bi-question-circle"></i> 說明
+                        <i class="bi bi-question-circle"></i> {{ t('nav.help') }}
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings"
                        @click="handleNavClick($event, $el.href)">
-                        <i class="bi bi-gear"></i> 設定
+                        <i class="bi bi-gear"></i> {{ t('nav.settings') }}
                     </a>
                 </li>
             </ul>
@@ -388,28 +407,28 @@
         <div class="sidebar-header">
             <button class="sidebar-toggle"
                     @click="sidebarCollapsed = !sidebarCollapsed"
-                    title="展開/收合">
+                    title="{{ t('nav.toggle_sidebar') }}">
                 <i class="bi bi-list"></i>
             </button>
             <span class="sidebar-brand"><img src="/static/favicon.svg" alt="Logo" style="width: 20px; height: 20px;"></span>
         </div>
         <ul class="flex flex-col flex-grow">
             <li class="nav-item">
-                <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search" title="搜尋"
+                <a class="nav-link {% if page == 'search' %}active{% endif %}" href="/search" title="{{ t('nav.search') }}"
                    @click="handleNavClick($event, $el.href)">
                     <i class="bi bi-search"></i>
-                    <span class="nav-text">搜尋</span>
+                    <span class="nav-text">{{ t('nav.search') }}</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if page == 'scanner' %}active{% endif %}" href="/scanner" title="列表生成"
+                <a class="nav-link {% if page == 'scanner' %}active{% endif %}" href="/scanner" title="{{ t('nav.scanner') }}"
                    @click="handleNavClick($event, $el.href)">
                     <i class="bi bi-list-ul"></i>
-                    <span class="nav-text">列表生成</span>
+                    <span class="nav-text">{{ t('nav.scanner') }}</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link rotating-border-spotlight {% if page == 'showcase' %}active{% endif %} {% if showcase_has_content %}active{% endif %}" href="/showcase" title="瀏覽"
+                <a class="nav-link rotating-border-spotlight {% if page == 'showcase' %}active{% endif %} {% if showcase_has_content %}active{% endif %}" href="/showcase" title="{{ t('nav.showcase') }}"
                    @search:local-match.window="
                        $el.classList.remove('pulse-once');
                        void $el.offsetWidth;  // force reflow to replay animation
@@ -422,21 +441,21 @@
                    "
                    @click="handleNavClick($event, $el.href)">
                     <i class="bi bi-collection-play"></i>
-                    <span class="nav-text">瀏覽</span>
+                    <span class="nav-text">{{ t('nav.showcase') }}</span>
                 </a>
             </li>
             <li class="nav-item mt-auto">
-                <a class="nav-link {% if page == 'help' %}active{% endif %}" href="/help" title="使用說明"
+                <a class="nav-link {% if page == 'help' %}active{% endif %}" href="/help" title="{{ t('nav.help_title') }}"
                    @click="handleNavClick($event, $el.href)">
                     <i class="bi bi-question-circle"></i>
-                    <span class="nav-text">說明</span>
+                    <span class="nav-text">{{ t('nav.help') }}</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings" title="設定"
+                <a class="nav-link {% if page == 'settings' %}active{% endif %}" href="/settings" title="{{ t('nav.settings') }}"
                    @click="handleNavClick($event, $el.href)">
                     <i class="bi bi-gear"></i>
-                    <span class="nav-text">設定</span>
+                    <span class="nav-text">{{ t('nav.settings') }}</span>
                 </a>
             </li>
         </ul>

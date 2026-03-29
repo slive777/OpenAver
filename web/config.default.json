@@ -73,6 +73,7 @@
     "theme": "light",
     "sidebar_collapsed": false,
     "tutorial_completed": false,
-    "font_size": "md"
+    "font_size": "md",
+    "locale": "zh-TW"
   }
 }

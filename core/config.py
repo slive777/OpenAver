@@ -10,7 +10,7 @@ core/config.py — 設定載入 / 儲存 / 遷移邏輯
 
 import json
 from pathlib import Path
-from typing import Optional, List
+from typing import Literal, Optional, List
 
 from pydantic import BaseModel
 
@@ -111,6 +111,7 @@ class GeneralConfig(BaseModel):
     sidebar_collapsed: bool = False  # 側邊欄預設收合 (僅影響 Desktop)
     tutorial_completed: bool = False  # 新手引導是否已完成
     font_size: str = "md"  # 全站字體大小: xs, sm, md, lg, xl
+    locale: Literal["zh-TW", "zh-CN", "ja", "en"] = "zh-TW"  # 介面語系
 
 
 class AppConfig(BaseModel):

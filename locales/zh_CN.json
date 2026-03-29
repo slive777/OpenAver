@@ -1,0 +1,624 @@
+{
+  "nav": {
+    "search": "搜索",
+    "scanner": "列表生成",
+    "showcase": "浏览",
+    "help": "说明",
+    "help_title": "使用说明",
+    "settings": "设置",
+    "toggle_sidebar": "展开/收合"
+  },
+  "common": {
+    "locale": {
+      "zh-TW": "繁",
+      "zh-CN": "简",
+      "ja": "あ",
+      "en": "EN"
+    },
+    "action": {
+      "confirm": "确认",
+      "cancel": "取消"
+    }
+  },
+  "search": {
+    "page_title": "搜索",
+    "drag_overlay": {
+      "hint": "放开以搜索番号"
+    },
+    "placeholder": {
+      "query": "搜索番号、女优或拖入文件...",
+      "tag": "标签名称"
+    },
+    "hint": {
+      "partial_search": "提示：输入局部番号如 IPZZ-03 可搜索 030~039，输入女优名可搜索其作品"
+    },
+    "action": {
+      "search": "搜索",
+      "cancel_search": "取消搜索",
+      "clear": "清空",
+      "toggle_grid": "切换到图片模式",
+      "toggle_detail": "切换到详细模式",
+      "add_files": "加入文件",
+      "add_folder": "加入文件夹",
+      "favorite": "我的最爱",
+      "load_favorite": "载入我的最爱文件夹",
+      "add_tag": "新增标签",
+      "edit_title": "编辑标题",
+      "translate_ai": "AI 翻译",
+      "edit_chinese_title": "编辑中文片名",
+      "switch_source": "切换版本",
+      "open_source_url": "打开来源页面",
+      "open_folder": "打开文件夹",
+      "back_to_detail": "返回详情"
+    },
+    "empty": {
+      "hint": "输入番号搜索，或加入影片文件",
+      "drag_hint": "也可直接拖入文件或文件夹"
+    },
+    "error": {
+      "hint": "请检查番号格式或稍后再试"
+    },
+    "nav": {
+      "prev": "上一个 (←)",
+      "next": "下一个 (→)"
+    },
+    "label": {
+      "actor": "演员",
+      "date": "发行日期",
+      "maker": "片商",
+      "director": "导演",
+      "duration": "片长",
+      "label": "发行商",
+      "series": "系列",
+      "tags": "标签",
+      "title": "标题",
+      "chinese_title": "中文片名",
+      "chinese_title_ai": "中文片名 (AI)"
+    },
+    "unit": {
+      "minutes": "分钟"
+    },
+    "badge": {
+      "subtitle": "中文字幕"
+    },
+    "lightbox": {
+      "close": "关闭 (ESC)",
+      "prev": "上一部 (←)",
+      "next": "下一部 (→)"
+    },
+    "gallery": {
+      "prev": "上一张 (←)",
+      "next": "下一张 (→)",
+      "sample_prefix": "剧照"
+    },
+    "grid": {
+      "sample_prefix": "样品图",
+      "thumb_prefix": "缩图",
+      "detail_title": "查看详情",
+      "unknown_actor": "未知",
+      "unknown_title": "未知标题"
+    },
+    "cover": {
+      "alt": "封面"
+    },
+    "local": {
+      "has_local": "本地已有（点击打开文件夹）",
+      "has_local_count": "本地已有 {count} 个版本（点击打开文件夹）"
+    },
+    "filelist": {
+      "search_all_title": "搜索所有未搜索的文件",
+      "translate_all_title": "翻译所有日文标题",
+      "scrape_all_title": "生成所有已搜索的文件",
+      "scrape_all": "生成全部",
+      "processing_prefix": "处理中",
+      "remove_file": "移除此文件",
+      "scrape_nfo": "生成 NFO + 封面",
+      "failed": "失败",
+      "retry": "重试",
+      "enter_number": "手动输入番号"
+    },
+    "duplicate": {
+      "title": "文件重复",
+      "body": "目标文件已存在，继续会覆盖原有文件：",
+      "explanation": "这通常发生在同一部影片有多个版本（CD1/CD2、4K、UC）时。",
+      "instruction": "请到 <strong>设置 → 高级刮削设置 → 版本标记</strong>，新增关键字并确认文件命名格式包含 <code class=\"badge badge-sm\">{suffix}</code> 变量。",
+      "acknowledge": "了解",
+      "go_settings": "前往设置"
+    }
+  },
+  "settings": {
+    "page_title": "设置",
+    "header": {
+      "title": "设置",
+      "font_size_prefix": "字体大小",
+      "switch_dark": "切换至深色模式",
+      "switch_light": "切换至浅色模式",
+      "locale_prefix": "语言"
+    },
+    "section": {
+      "search": "搜索与刮削",
+      "scraper_advanced": "高级刮削设置",
+      "gallery_advanced": "高级显示选项",
+      "system": "系统设置"
+    },
+    "search": {
+      "gallery_mode": "女优画廊模式",
+      "uncensored_mode": "无码模式",
+      "default_source_hint": "默认搜索来源",
+      "proxy_dmm_hint": "DMM 需要日本 IP",
+      "proxy_placeholder": "http://账号:密码@主机:端口 — 已有日本 IP 可输入 direct",
+      "favorite_folder_label": "我的最爱文件夹",
+      "favorite_folder_hint": "一键载入常用文件夹",
+      "favorite_folder_placeholder": "留空 = 系统下载文件夹",
+      "favorite_folder_example_prefix": "示例：C:\\Users\\&lt;你的用户名&gt;\\Downloads"
+    },
+    "translate": {
+      "enabled_label": "启用标题翻译",
+      "provider_label": "翻译服务",
+      "ollama_local": "（本地）",
+      "gemini_cloud": "（Google 云端）",
+      "model_label": "模型",
+      "test_connection_placeholder": "请先测试连接",
+      "test_model_title": "测试模型",
+      "test_translation_title": "测试翻译功能",
+      "test_apikey_placeholder": "请先测试 API Key",
+      "gemini_free_hint": "可免费申请",
+      "security_title": "安全提示：",
+      "security_item1": "API Key 将以明文存储在 config.json",
+      "security_item2": "请勿将 config.json 分享给他人",
+      "security_item3_prefix": "如需撤销，请前往",
+      "security_item3_suffix": "重新生成"
+    },
+    "scraper": {
+      "suffix_keywords_label": "版本标记",
+      "suffix_keywords_hint": "文件名含这些关键字时保留为 {suffix}",
+      "create_folder_label": "建立文件夹",
+      "folder_layers_label": "文件夹层级",
+      "folder_layer_outer": "外层",
+      "folder_layer_middle": "中层",
+      "folder_layer_inner": "内层",
+      "preview_prefix": "预览",
+      "filename_format_label": "文件命名格式",
+      "max_title_length_label": "标题长度限制",
+      "unit_chars": "字符",
+      "max_filename_length_label": "文件名长度限制",
+      "path_length_help_aria": "Windows 路径长度说明",
+      "path_length_help_line1": "Windows 默认路径上限为 260 字符（适用 Windows 10 1607+ / Windows 11）。",
+      "path_length_help_line2": "若需更长文件名，以<strong>管理员身份</strong>打开 PowerShell 执行：",
+      "path_length_help_line3": "重启后生效。",
+      "path_length_help_line4": "macOS / Linux 不受此限制，但从 macOS/Linux 生成的长文件名移至未启用 LongPathsEnabled 的 Windows 仍可能失败。",
+      "video_extensions_label": "视频扩展名",
+      "video_extensions_hint": "以逗号分隔",
+      "jellyfin_mode_label": "Jellyfin 图片模式",
+      "jellyfin_mode_hint": "自动生成 {stem}-poster.jpg + {stem}-fanart.jpg + extrafanart/ 样品图像"
+    },
+    "gallery": {
+      "output_dir_label": "输出目录",
+      "select_folder_title": "选择文件夹",
+      "output_filename_label": "输出文件名",
+      "default_mode_label": "默认显示模式",
+      "mode_image": "图片模式",
+      "mode_detail": "详细模式",
+      "mode_text": "文字模式",
+      "default_sort_label": "默认排序",
+      "sort_date": "发售日期",
+      "sort_mdate": "修改日期",
+      "sort_num": "番号",
+      "sort_title": "片名",
+      "sort_actor": "演员",
+      "sort_maker": "片商",
+      "sort_size": "文件大小",
+      "order_desc": "递减",
+      "order_asc": "递增",
+      "items_per_page_label": "每页显示数量",
+      "all": "全部",
+      "min_size_label": "最小视频尺寸",
+      "min_size_hint": "0 = 不过滤"
+    },
+    "system": {
+      "default_page_label": "启动时打开页面",
+      "player_label": "视频播放器",
+      "player_placeholder": "留空使用系统默认",
+      "player_hint_prefix": "例如:",
+      "reset_label": "重置所有设置",
+      "reset_hint": "删除所有自定义设置，恢复默认值"
+    },
+    "action": {
+      "test": "测试",
+      "variable": "变量",
+      "reset": "重置为默认值",
+      "save": "保存设置"
+    },
+    "var": {
+      "num": "番号",
+      "title": "标题",
+      "actor": "女优",
+      "actors": "女优(全)",
+      "maker": "片商",
+      "date": "日期",
+      "year": "年份",
+      "suffix": "后缀"
+    },
+    "dirty_modal": {
+      "title": "未保存的更改",
+      "body": "您有修改尚未保存，要如何处理？",
+      "discard": "不保存",
+      "save": "保存更改"
+    }
+  },
+  "scanner": {
+    "page_title": "列表生成",
+    "drag_overlay": {
+      "hint": "放开以添加文件夹"
+    },
+    "folder": {
+      "section_title": "扫描文件夹",
+      "select_title": "选择文件夹",
+      "manual_title": "手动输入",
+      "placeholder": "输入文件夹路径...",
+      "empty_line1": "尚未添加任何文件夹",
+      "empty_line2": "点击上方按钮或拖曳文件夹至此",
+      "remove_title": "移除",
+      "output_prefix": "输出:",
+      "settings_link": "设定",
+      "copy_path": "复制路径"
+    },
+    "terminal": {
+      "filter_all": "全部",
+      "filter_all_title": "显示全部",
+      "filter_error": "错误",
+      "filter_error_title": "仅显示错误",
+      "filter_warn": "警告",
+      "filter_warn_title": "仅显示警告",
+      "copy_title": "复制日志",
+      "clear_display_title": "清除画面（刷新后恢复）",
+      "clear_all_title": "清除全部（包含历史）"
+    },
+    "stats": {
+      "cached_prefix": "缓存影片:",
+      "cached_suffix": "部",
+      "clear_cache_title": "清除缓存",
+      "nfo_prefix": "需补全:",
+      "nfo_suffix": "部",
+      "nfo_update_title": "补全 NFO 信息",
+      "jellyfin_prefix": "需补齐图片:",
+      "jellyfin_suffix": "部",
+      "jellyfin_update_title": "补齐 Jellyfin poster + fanart",
+      "last_run_prefix": "上次执行: ",
+      "last_added": "(新增 {count} 部)",
+      "generate_idle": "生成网页",
+      "generate_loading": "生成中...",
+      "nfo_idle": "补全 NFO",
+      "nfo_loading": "补全中...",
+      "jellyfin_idle": "补齐图片",
+      "jellyfin_loading": "补齐中...",
+      "btn_done": "已完成"
+    },
+    "alias": {
+      "section_title": "女优名称管理",
+      "collapse_title": "展开/收起",
+      "label_old": "旧名称",
+      "placeholder_old": "例：miru",
+      "label_new": "新名称",
+      "placeholder_new": "例：坂道みる",
+      "loading": "载入中...",
+      "empty": "暂无别名对照",
+      "applied": "(已应用 {count})",
+      "delete_title": "删除"
+    },
+    "dirty_modal": {
+      "title": "尚未保存的更改",
+      "body": "您修改了文件夹列表但尚未生成网页，要如何处理？",
+      "cancel": "取消",
+      "discard": "放弃更改",
+      "save": "保存并离开"
+    },
+    "clear_cache_modal": {
+      "title": "清除影片缓存",
+      "body_prefix": "此操作将删除所有已缓存的影片元数据（共",
+      "body_suffix": "部），下次需重新扫描才能恢复。确定要清除吗？",
+      "cancel": "取消",
+      "confirm": "确认删除"
+    }
+  },
+  "showcase": {
+    "page_title": "影片浏览",
+    "placeholder": {
+      "search": "搜索番号、女优、标题..."
+    },
+    "action": {
+      "clear_search": "清除搜索",
+      "search": "搜索",
+      "toggle_order": "切换排序方向",
+      "toggle_info": "显示/隐藏信息 (S)",
+      "play_video": "打开影片",
+      "play": "播放"
+    },
+    "toolbar": {
+      "sort_prefix": "排序",
+      "mode_prefix": "模式",
+      "per_page_prefix": "每页"
+    },
+    "sort": {
+      "date": "日期",
+      "num": "番号",
+      "title": "标题",
+      "actor": "女优",
+      "maker": "片商",
+      "size": "大小",
+      "mdate": "修改时间",
+      "random": "随机"
+    },
+    "mode": {
+      "grid": "图片",
+      "table": "详细",
+      "list": "文字"
+    },
+    "unit": {
+      "videos": "部",
+      "minutes": "分钟",
+      "minutes_abbr": "分"
+    },
+    "per_page": {
+      "all": "全部"
+    },
+    "status": {
+      "total_prefix": "共",
+      "total_suffix": "部影片",
+      "search_prefix": "搜索 \"",
+      "search_middle": "\" — 找到",
+      "search_suffix": "部"
+    },
+    "nav": {
+      "prev_page": "上一页",
+      "next_page": "下一页"
+    },
+    "grid": {
+      "unknown_actor": "未知",
+      "unknown_title": "未知标题",
+      "unknown_size": "未知"
+    },
+    "label": {
+      "actor": "演员",
+      "maker": "片商",
+      "date": "日期",
+      "series": "系列",
+      "duration": "片长",
+      "director": "导演",
+      "label": "发行"
+    },
+    "table": {
+      "col_number": "番号",
+      "col_title": "标题",
+      "col_actor": "女优",
+      "col_maker": "片商",
+      "col_director": "导演",
+      "col_duration": "片长",
+      "col_date": "日期",
+      "col_tags": "标签",
+      "col_size": "大小"
+    },
+    "lightbox": {
+      "close": "关闭 (ESC)",
+      "prev": "上一部 (←)",
+      "next": "下一部 (→)",
+      "unknown_number": "未知"
+    },
+    "gallery": {
+      "prev": "上一张 (←)",
+      "next": "下一张 (→)",
+      "sample_prefix": "剧照",
+      "sample_alt": "样品图",
+      "thumb_alt": "缩图"
+    },
+    "shortcut": {
+      "switch_mode": "切换模式",
+      "toggle_info": "显示信息",
+      "pagination": "翻页",
+      "close": "关闭"
+    }
+  },
+  "help": {
+    "hero": {
+      "page_title": "使用说明",
+      "subtitle": "JAV 影片元数据管理工具",
+      "privacy": "🔒 纯本地应用程序，不收集用户数据",
+      "btn_tutorial": "重看新手引导",
+      "btn_check_update": "检查中…",
+      "btn_check_update_idle": "检查更新",
+      "update_available_prefix": "新版本",
+      "update_available_suffix": "可用",
+      "up_to_date": "已是最新版本"
+    },
+    "search": {
+      "title": "搜索功能",
+      "h6_methods": "支持的搜索方式",
+      "h6_dragdrop": "拖放文件",
+      "h6_grid": "Grid 模式（封面墙）",
+      "h6_badge": "版本标记 Badge",
+      "method_full": "<strong>完整番号</strong>：如 <code>SONE-001</code>，精确搜索单一作品",
+      "method_partial": "<strong>部分番号</strong>：如 <code>SONE-0</code>，搜索 001~009",
+      "method_series": "<strong>系列搜索</strong>：如 <code>SONE</code>，搜索该系列最新作品",
+      "method_actress": "<strong>女优名</strong>：如 <code>河北彩花</code>，搜索该演员作品",
+      "drag_auto": "将影片文件拖入窗口，自动提取番号并搜索",
+      "drag_batch": "支持多文件批次处理（一次 20 个）",
+      "drag_generate": "搜索成功后可点「生成」更改文件名、下载封面和建立文件夹与 NFO",
+      "grid_switch": "搜索后可切换为封面墙显示，点击封面开启 Lightbox",
+      "grid_lightbox": "<strong>Lightbox</strong>：全屏检视封面，<kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> 键导航，<kbd class=\"kbd kbd-sm\">Esc</kbd> 关闭",
+      "grid_detail": "Lightbox 显示导演、片长、系列、Label 等详细信息（有数据时才会出现）",
+      "grid_gallery": "点击「剧照」按钮可开启剧照浏览，支持键盘 <kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> 切换和触控滑动",
+      "badge_keywords": "文件名含 <code>-4k</code>、<code>-uc</code> 等关键字时，结果卡片自动显示彩色 badge"
+    },
+    "batch": {
+      "title": "批次文件搜索",
+      "h6_add": "加入多个文件",
+      "h6_favorite": "我的最爱文件夹",
+      "h6_pause": "暂停与继续",
+      "h6_generate_all": "生成全部",
+      "h6_badge": "版本标记保留",
+      "add_folder": "<strong>拖入文件夹</strong>：自动扫描文件夹内的影片文件",
+      "add_filter": "<strong>自动过滤</strong>：排除非影片文件与小于设定大小的文件",
+      "add_batch": "<strong>批次搜索</strong>：每批 20 个文件，并发 2 个请求",
+      "add_progress": "<strong>进度显示</strong>：即时显示搜索进度（如：处理 15/100）",
+      "fav_settings": "在<strong>设置页</strong>设置常用文件夹路径",
+      "fav_load": "点击「⭐ 我的最爱」按钮一键载入",
+      "fav_auto": "自动开始搜索前 20 个文件",
+      "pause_pause": "批次搜索时可点击「暂停」按钮",
+      "pause_resume": "点击「继续」从暂停处恢复",
+      "generate_all": "批次搜索完成后，可一次执行所有成功结果的重命名 / 建文件夹 / NFO",
+      "badge_suffix": "文件名中的 <code>-cd1</code>、<code>-4k</code> 等会自动保留为 <code>{suffix}</code>"
+    },
+    "format": {
+      "title": "格式变量一览表",
+      "h6_default": "默认格式",
+      "h6_fallback": "Fallback 规则",
+      "col_var": "变量",
+      "col_desc": "说明",
+      "col_example": "范例",
+      "col_fallback": "文件夹 fallback",
+      "var_num_desc": "番号",
+      "var_title_desc": "标题",
+      "var_actor_desc": "第一位演员",
+      "var_actors_desc": "所有演员",
+      "var_maker_desc": "片商",
+      "var_date_desc": "发行日期",
+      "var_year_desc": "年份",
+      "var_suffix_desc": "版本标记",
+      "fallback_unknown_title": "未知标题",
+      "fallback_unknown_actor": "未知女优",
+      "fallback_unknown_maker": "未知片商",
+      "fallback_unknown_date": "未知日期",
+      "fallback_unknown_year": "未知年份",
+      "fallback_empty": "空则消失",
+      "default_filename": "文件名：<code>[{num}][{maker}] {title}{suffix}</code>",
+      "default_folder": "文件夹：<code>{actor}</code>",
+      "fallback_folder_rule": "文件夹层级会使用 fallback 值（如「未知女优」），避免路径为空",
+      "fallback_filename_rule": "文件名不使用 fallback，变量为空时直接省略"
+    },
+    "gallery": {
+      "title": "女优画廊模式",
+      "h6_trigger": "自动触发条件",
+      "h6_features": "功能特色",
+      "h6_diff": "Grid Mode 与 Gallery Mode 差异",
+      "trigger_count": "搜索结果 > 10 部作品",
+      "trigger_consistency": "80% 以上作品有相同女优（演员一致性检查）",
+      "trigger_setting": "在 Settings 启用「画廊模式」",
+      "feat_hero": "<strong>Hero Card</strong>：显示女优个人资料（罩杯、身高、三围、生日）",
+      "feat_browse": "<strong>画廊浏览</strong>：以封面图方式展示作品列表",
+      "feat_back": "<strong>快速返回</strong>：点击「← 返回详细资料」回到一般模式",
+      "diff_gallery": "<strong>Gallery Mode</strong>（自动触发）：搜索结果 > 10 部且女优一致时自动切换",
+      "diff_grid": "<strong>Grid Mode</strong>（手动切换）：任何搜索结果都可手动切换为封面墙显示",
+      "diff_grid_nav": "Grid Mode 支持 Lightbox 导航（<kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> 切换）"
+    },
+    "scanner": {
+      "title": "影片列表生成 (Scanner)",
+      "h6_features": "功能说明",
+      "h6_output": "输出文件",
+      "h6_subtitle": "字幕文件自动检测",
+      "h6_jellyfin": "Jellyfin 图片模式",
+      "feat_scan": "扫描本地影片文件夹，生成精美的 HTML 展示页",
+      "feat_nfo": "自动读取 NFO 文件并显示元数据",
+      "feat_nfo_fill": "支持「NFO 补全」：自动搜索缺失的 NFO 文件",
+      "feat_terminal": "内建 Mini Terminal 显示即时处理进度",
+      "output_html": "<strong>index.html</strong>：可在浏览器开启的静态页面",
+      "output_copy": "<strong>自动复制</strong>：封面图与 NFO 复制到输出目录",
+      "output_darkmode": "<strong>Dark Mode</strong>：自动跟随 Web App 的主题设置",
+      "subtitle_detect": "整理影片时，自动检测同目录下同名的字幕文件（<code>.srt</code>、<code>.ass</code>、<code>.ssa</code>）",
+      "subtitle_move": "影片移动成功后，字幕会一起带到目标文件夹，保留语言后缀（如 <code>.cht.srt</code>）",
+      "subtitle_nfo": "检测到字幕时，NFO 会自动加上「中文字幕」标记",
+      "jellyfin_enable": "在<strong>设置页</strong>开启后，扫描时自动生成 <code>-poster.jpg</code> + <code>-fanart.jpg</code>",
+      "jellyfin_showcase": "扫描完成后可至 <code>/showcase</code> 页面浏览生成结果"
+    },
+    "showcase": {
+      "title": "影片浏览 (Showcase)",
+      "h6_modes": "显示模式",
+      "h6_sort": "排序与搜索",
+      "h6_other": "其他功能",
+      "intro": "Scanner 扫描完成后，可至 <code>/showcase</code> 页面浏览影片库。",
+      "mode_grid": "<strong>图片模式（Grid）</strong>：封面墙显示，点击开启 Lightbox",
+      "mode_list": "<strong>文字模式（List）</strong>：精简列表，适合快速浏览",
+      "mode_table": "<strong>详细模式（Table）</strong>：含完整元数据的表格显示",
+      "sort_sort": "<strong>排序</strong>：日期 / 番号 / 标题 / 女优 / 片商 / 大小 / 修改时间 / 随机",
+      "sort_search": "<strong>搜索</strong>：支持番号、女优、标题等关键字筛选",
+      "other_lightbox": "Lightbox 全屏封面检视（<kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> 导航）",
+      "other_lightbox_detail": "Lightbox 显示导演、片长、系列、Label 等详细信息",
+      "other_table_cols": "Table 模式新增「导演」和「片长」栏",
+      "other_gallery": "Lightbox 可开启剧照浏览（点击「剧照」按钮）",
+      "other_per_page": "每页显示数量可在<strong>设置页</strong>调整"
+    },
+    "shortcuts": {
+      "title": "快捷键",
+      "h6_search": "搜索页",
+      "h6_showcase": "浏览页 (Showcase)",
+      "search_hint": "搜索框聚焦时所有快捷键停用，避免干扰输入。",
+      "col_key": "按键",
+      "col_context": "情境",
+      "col_action": "动作",
+      "ctx_lightbox_open": "Lightbox 开启时",
+      "ctx_lightbox_closed": "Lightbox 关闭时",
+      "action_close_lightbox": "关闭 Lightbox",
+      "action_prev_next_video": "上 / 下一部影片",
+      "search_arrow2_ctx": "Detail 模式，Lightbox 关闭",
+      "search_arrow2_action": "切换上 / 下一个结果",
+      "showcase_arrow_action": "上 / 下一页",
+      "showcase_a_action": "循环切换模式（图片 → 文字 → 详细）",
+      "showcase_s_ctx": "Grid 模式，Lightbox 关闭",
+      "showcase_s_action": "显示 / 隐藏卡片信息"
+    },
+    "scraper": {
+      "title": "Scraper 来源说明",
+      "h6_censored": "有码来源",
+      "h6_uncensored": "无码来源",
+      "h6_default_source": "默认搜索来源",
+      "h6_dmm_fuzzy": "DMM 模糊搜索",
+      "h6_proxy_direct": "Proxy direct 模式",
+      "h6_toggle": "切换模式",
+      "h6_format": "番号格式范例",
+      "censored_dmm": "<strong>DMM</strong>：需设置日本 IP Proxy（<strong>设置页</strong> → Proxy 栏）",
+      "censored_others": "<strong>JavBus</strong>、<strong>Jav321</strong>、<strong>JavDB</strong>：直接可用",
+      "uncensored_d2pass": "<strong>D2Pass</strong>：涵盖 1Pondo / Caribbeancom / 10musume 三站",
+      "uncensored_heyzo": "<strong>HEYZO</strong>：独立来源",
+      "uncensored_fc2": "<strong>FC2</strong>：FC2-PPV 专用",
+      "uncensored_avsox": "<strong>AVSOX</strong>：无码通用来源",
+      "default_source_set": "在设置页可将 <strong>JavBus</strong> 或 <strong>DMM</strong> 设为主要搜索来源",
+      "default_source_effect": "选为主来源后，精确番号搜索会优先使用该来源的数据",
+      "dmm_fuzzy_trigger": "在搜索框输入日文女优名或片商名时，会同时触发 DMM 模糊搜索",
+      "dmm_fuzzy_prereq": "前提：DMM 已启用（需设置 Proxy 或使用 <code>direct</code> 模式）",
+      "proxy_direct_vpn": "如果您已连接日本 VPN 或本身位于日本，不需要另外设置 Proxy",
+      "proxy_direct_how": "只要在设置页的 Proxy 栏输入 <code>direct</code>，即可直接启用 DMM 功能",
+      "toggle_uncensored": "在<strong>设置页</strong>开启「无码模式」toggle，搜索时将优先使用无码来源",
+      "col_source": "来源",
+      "col_format": "格式",
+      "col_example": "范例"
+    },
+    "troubleshooting": {
+      "title": "疑难排解",
+      "h6_crash": "程序无法启动 / 闪退 (Windows)",
+      "h6_display": "界面显示异常 / 空白",
+      "h6_report": "需要回报问题",
+      "h6_dmm": "DMM 无法搜索",
+      "h6_translate": "翻译无回应",
+      "crash_cause": "<strong>原因</strong>：Windows 安全机制封锁了从网络下载的文件。",
+      "crash_fix_label": "<strong>解法</strong>：",
+      "crash_fix_1": "对下载的 ZIP 文件点击右键 → 属性",
+      "crash_fix_2": "勾选「解除封锁 (Unblock)」，按确定",
+      "crash_fix_3": "重新解压缩并执行",
+      "display_cause": "<strong>原因</strong>：缺少 WebView2 Runtime（常见于 Windows 10 或虚拟机）。",
+      "display_fix": "<strong>解法</strong>：下载并安装 <a href=\"https://go.microsoft.com/fwlink/p/?LinkId=2124703\" target=\"_blank\">Microsoft Edge WebView2 Runtime</a>。",
+      "report_log_path": "<strong>日志位置</strong>：<code>%USERPROFILE%\\OpenAver\\logs\\debug.log</code>",
+      "report_debug_label": "<strong>执行 Debug 模式</strong>：",
+      "report_debug_1": "执行 <code>OpenAver_Debug.bat</code>",
+      "report_debug_2": "重现问题",
+      "report_debug_3": "将日志文件与错误信息回报到 <a href=\"https://github.com/slive777/OpenAver/issues\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub Issues</a>",
+      "dmm_proxy": "DMM 需要日本 IP，请在<strong>设置页</strong> → Proxy 栏填入日本 IP 代理",
+      "dmm_direct": "若已连接 VPN 或日本网络，也可以在 Proxy 栏输入 <code>direct</code> 直接启用，不需要填写 Proxy 地址。",
+      "translate_ollama": "<strong>Ollama</strong>：确认 Ollama 应用程序已启动（Windows 需手动开启）",
+      "translate_gemini": "<strong>Gemini</strong>：确认 API Key 已在<strong>设置页</strong>正确设置"
+    },
+    "js": {
+      "version_load_failed": "无法载入",
+      "check_update_failed": "检查失败，请稍后再试",
+      "check_update_network_error": "无法连接，请稍后再试"
+    }
+  }
+}

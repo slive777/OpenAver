@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}列表生成 - OpenAver{% endblock %}
+{% block title %}{{ t('scanner.page_title') }} - OpenAver{% endblock %}
 
 {% block extra_css %}
 <link href="/static/css/pages/scanner.css" rel="stylesheet">
@@ -17,12 +17,12 @@
     <div class="drag-overlay" id="dragOverlay" x-show="showDragOverlay" x-transition.opacity>
         <div class="drag-overlay-content">
             <i class="bi bi-folder-plus"></i>
-            <p>放開以加入資料夾</p>
+            <p>{{ t('scanner.drag_overlay.hint') }}</p>
         </div>
     </div>
     <!-- Header -->
     <div class="avlist-header">
-        <h4><i class="bi bi-list-ul"></i> 列表生成</h4>
+        <h4><i class="bi bi-list-ul"></i> {{ t('scanner.page_title') }}</h4>
         <div class="stats" id="headerStats"></div>
     </div>
 
@@ -30,13 +30,13 @@
     <div class="avlist-card">
         <div class="avlist-card-header">
             <div class="title">
-                <i class="bi bi-folder"></i> <span>掃描資料夾</span>
+                <i class="bi bi-folder"></i> <span>{{ t('scanner.folder.section_title') }}</span>
             </div>
             <div class="actions">
-                <button class="btn-icon" @click="selectFolder()" title="選擇資料夾">
+                <button class="btn-icon" @click="selectFolder()" title="{{ t('scanner.folder.select_title') }}">
                     <i class="bi bi-folder-plus"></i>
                 </button>
-                <button class="btn-icon" @click="toggleManualInput()" title="手動輸入">
+                <button class="btn-icon" @click="toggleManualInput()" title="{{ t('scanner.folder.manual_title') }}">
                     <i class="bi bi-keyboard"></i>
                 </button>
             </div>
@@ -48,7 +48,7 @@
                 style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-light);">
                 <input type="text" class="input input-bordered input-sm" id="manualPath"
                        x-ref="manualPathInput"
-                       x-model="manualPath" placeholder="輸入資料夾路徑..."
+                       x-model="manualPath" placeholder="{{ t('scanner.folder.placeholder') }}"
                        @keypress.enter="addManualPath()">
                 <button class="btn btn-sm btn-primary" @click="addManualPath()">
                     <i class="bi bi-plus"></i>
@@ -60,8 +60,8 @@
                 <!-- Empty State -->
                 <div x-show="directories.length === 0" class="folder-empty">
                     <i class="bi bi-folder-plus"></i>
-                    <p>尚未加入任何資料夾</p>
-                    <p>點擊上方按鈕或拖曳資料夾至此</p>
+                    <p>{{ t('scanner.folder.empty_line1') }}</p>
+                    <p>{{ t('scanner.folder.empty_line2') }}</p>
                 </div>
 
                 <!-- Folder Items -->
@@ -70,7 +70,7 @@
                         <i class="bi bi-folder folder-icon"></i>
                         <span class="folder-path" x-text="dir"></span>
                         <button class="btn btn-sm btn-outline btn-error btn-remove"
-                                @click="removeDirectory(idx)" title="移除">
+                                @click="removeDirectory(idx)" title="{{ t('scanner.folder.remove_title') }}">
                             <i class="bi bi-x"></i>
                         </button>
                     </div>
@@ -82,10 +82,10 @@
         <div class="output-info">
             <div class="path">
                 <i class="bi bi-file-earmark-code"></i>
-                輸出: <code id="outputPathDisplay" x-text="outputPathDisplay"></code>
+                {{ t('scanner.folder.output_prefix') }} <code id="outputPathDisplay" x-text="outputPathDisplay"></code>
             </div>
             <a href="/settings" class="settings-link">
-                <i class="bi bi-gear"></i> 設定
+                <i class="bi bi-gear"></i> {{ t('scanner.folder.settings_link') }}
             </a>
         </div>
 
@@ -99,8 +99,8 @@
             <!-- Done Actions (hidden until complete) -->
             <div id="doneActions" class="done-actions" x-show="doneActionsVisible">
                 <button class="btn-hero btn-hero-secondary" id="btnCopyPath"
-                        @click="copyOutputPath()" title="複製路徑">
-                    <i class="bi bi-clipboard"></i> 複製路徑
+                        @click="copyOutputPath()" title="{{ t('scanner.folder.copy_path') }}">
+                    <i class="bi bi-clipboard"></i> {{ t('scanner.folder.copy_path') }}
                 </button>
             </div>
         </div>
@@ -114,28 +114,28 @@
             <!-- T7d: Filter Badges -->
             <div class="log-filter-group">
                 <button class="log-filter-btn" :class="{ active: logFilter === 'all' }"
-                        @click="logFilter = 'all'" title="顯示全部">
-                    全部
+                        @click="logFilter = 'all'" title="{{ t('scanner.terminal.filter_all_title') }}">
+                    {{ t('scanner.terminal.filter_all') }}
                 </button>
                 <button class="log-filter-btn" :class="{ active: logFilter === 'error' }"
-                        @click="logFilter = 'error'" title="僅顯示錯誤">
-                    錯誤
+                        @click="logFilter = 'error'" title="{{ t('scanner.terminal.filter_error_title') }}">
+                    {{ t('scanner.terminal.filter_error') }}
                 </button>
                 <button class="log-filter-btn" :class="{ active: logFilter === 'warn' }"
-                        @click="logFilter = 'warn'" title="僅顯示警告">
-                    警告
+                        @click="logFilter = 'warn'" title="{{ t('scanner.terminal.filter_warn_title') }}">
+                    {{ t('scanner.terminal.filter_warn') }}
                 </button>
             </div>
 
             <!-- T7d: Action Buttons -->
             <div class="log-actions">
-                <button class="log-action-btn" @click="copyLogs()" title="複製日誌">
+                <button class="log-action-btn" @click="copyLogs()" title="{{ t('scanner.terminal.copy_title') }}">
                     <i class="bi bi-clipboard"></i>
                 </button>
-                <button class="log-action-btn" @click="clearLogsDisplay()" title="清除畫面（重整後恢復）">
+                <button class="log-action-btn" @click="clearLogsDisplay()" title="{{ t('scanner.terminal.clear_display_title') }}">
                     <i class="bi bi-eraser"></i>
                 </button>
-                <button class="log-action-btn" @click="confirmClearAll()" title="清除全部（包含歷史）">
+                <button class="log-action-btn" @click="confirmClearAll()" title="{{ t('scanner.terminal.clear_all_title') }}">
                     <i class="bi bi-trash"></i>
                 </button>
             </div>
@@ -151,9 +151,9 @@
         <div class="stats-row">
             <div class="stat-item">
                 <i class="bi bi-collection-play"></i>
-                <span>快取影片: <span class="stat-value" id="statTotal" x-text="statTotal"></span> 部</span>
+                <span>{{ t('scanner.stats.cached_prefix') }} <span class="stat-value" id="statTotal" x-text="statTotal"></span> {{ t('scanner.stats.cached_suffix') }}</span>
                 <button class="btn btn-ghost btn-xs" @click="clearCacheModalOpen = true"
-                        :disabled="isBusy" title="清除快取">
+                        :disabled="isBusy" title="{{ t('scanner.stats.clear_cache_title') }}">
                     <i class="bi bi-trash3"></i>
                 </button>
             </div>
@@ -163,24 +163,24 @@
         <div class="nfo-update-row" id="statNeedUpdate" x-show="nfoUpdateVisible">
             <span class="nfo-badge">
                 <i class="bi bi-exclamation-circle"></i>
-                需補全: <strong id="updateCount" x-text="nfoNeedUpdateCount"></strong> 部
+                {{ t('scanner.stats.nfo_prefix') }} <strong id="updateCount" x-text="nfoNeedUpdateCount"></strong> {{ t('scanner.stats.nfo_suffix') }}
             </span>
             <button class="btn-nfo-update" @click="runNfoUpdate()" id="btnUpdate"
                     x-bind:disabled="nfoUpdateButtonDisabled"
                     x-html="nfoUpdateButtonText"
-                    title="補全 NFO 資訊">
+                    title="{{ t('scanner.stats.nfo_update_title') }}">
             </button>
         </div>
         <!-- Jellyfin 圖片補齊列（只在 jellyfin_mode 開啟時顯示） -->
         <div class="nfo-update-row" x-show="jellyfinImageVisible">
             <span class="nfo-badge">
                 <i class="bi bi-image"></i>
-                需補齊圖片: <strong x-text="jellyfinImageCount"></strong> 部
+                {{ t('scanner.stats.jellyfin_prefix') }} <strong x-text="jellyfinImageCount"></strong> {{ t('scanner.stats.jellyfin_suffix') }}
             </span>
             <button class="btn-nfo-update" @click="runJellyfinImageUpdate()"
                     x-bind:disabled="isGenerating"
                     x-html="jellyfinImageButtonText"
-                    title="補齊 Jellyfin poster + fanart">
+                    title="{{ t('scanner.stats.jellyfin_update_title') }}">
             </button>
         </div>
     </div>
@@ -189,9 +189,9 @@
     <div class="actress-alias-card" id="actressAliasCard">
         <div class="actress-alias-header">
             <div class="title">
-                <i class="bi bi-person-badge"></i> <span>女優名稱管理</span>
+                <i class="bi bi-person-badge"></i> <span>{{ t('scanner.alias.section_title') }}</span>
             </div>
-            <button class="btn-icon btn-collapse" @click="toggleAliasCard()" title="展開/收起">
+            <button class="btn-icon btn-collapse" @click="toggleAliasCard()" title="{{ t('scanner.alias.collapse_title') }}">
                 <i class="bi" :class="aliasCardCollapsed ? 'bi-chevron-down' : 'bi-chevron-up'"></i>
             </button>
         </div>
@@ -201,15 +201,15 @@
             <div class="alias-form">
                 <div class="alias-form-row">
                     <div class="alias-input-group">
-                        <label>舊名稱</label>
-                        <input type="text" x-model="aliasForm.oldName" placeholder="例：miru"
+                        <label>{{ t('scanner.alias.label_old') }}</label>
+                        <input type="text" x-model="aliasForm.oldName" placeholder="{{ t('scanner.alias.placeholder_old') }}"
                                @input="previewAliasCount()">
                         <span class="alias-count" x-text="aliasForm.oldCount"></span>
                     </div>
                     <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
                     <div class="alias-input-group">
-                        <label>新名稱</label>
-                        <input type="text" x-model="aliasForm.newName" placeholder="例：坂道みる"
+                        <label>{{ t('scanner.alias.label_new') }}</label>
+                        <input type="text" x-model="aliasForm.newName" placeholder="{{ t('scanner.alias.placeholder_new') }}"
                                @input="previewAliasCount()">
                         <span class="alias-count" x-text="aliasForm.newCount"></span>
                     </div>
@@ -225,7 +225,7 @@
             <div class="alias-list">
                 <!-- 載入中 -->
                 <div class="alias-list-loading" x-show="aliasListLoading">
-                    <span class="loading loading-spinner loading-sm"></span> 載入中...
+                    <span class="loading loading-spinner loading-sm"></span> {{ t('scanner.alias.loading') }}
                 </div>
 
                 <!-- 錯誤訊息 -->
@@ -233,7 +233,7 @@
 
                 <!-- 空狀態 -->
                 <div class="alias-list-empty" x-show="!aliasListLoading && !aliasListError && aliasList.length === 0">
-                    尚無別名對照
+                    {{ t('scanner.alias.empty') }}
                 </div>
 
                 <!-- 別名項目 -->
@@ -242,8 +242,8 @@
                         <span class="alias-old" x-text="alias.old_name"></span>
                         <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
                         <span class="alias-new" x-text="alias.new_name"></span>
-                        <span class="alias-applied" x-text="alias.applied_count > 0 ? `(已套用 ${alias.applied_count})` : ''"></span>
-                        <button class="btn-alias-delete" @click="deleteActressAlias(alias.id)" title="刪除">
+                        <span class="alias-applied" x-text="alias.applied_count > 0 ? window.t('scanner.alias.applied', { count: alias.applied_count }) : ''"></span>
+                        <button class="btn-alias-delete" @click="deleteActressAlias(alias.id)" title="{{ t('scanner.alias.delete_title') }}">
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
@@ -259,20 +259,20 @@
             @click.self="dirtyCheckCancel()">
         <div class="modal-box fluent-modal-box">
             <h3 class="fluent-modal-title">
-                <i class="bi bi-exclamation-triangle"></i> 尚未儲存的變更
+                <i class="bi bi-exclamation-triangle"></i> {{ t('scanner.dirty_modal.title') }}
             </h3>
             <p class="fluent-modal-body">
-                您有修改資料夾清單但未產生網頁，要如何處理？
+                {{ t('scanner.dirty_modal.body') }}
             </p>
             <div class="modal-action fluent-modal-actions">
                 <button type="button" class="btn btn-ghost" @click="dirtyCheckCancel()">
-                    取消
+                    {{ t('scanner.dirty_modal.cancel') }}
                 </button>
                 <button type="button" class="btn btn-error" @click="dirtyCheckDiscard()">
-                    放棄變更
+                    {{ t('scanner.dirty_modal.discard') }}
                 </button>
                 <button type="button" class="btn btn-primary" @click="dirtyCheckSave()">
-                    儲存並離開
+                    {{ t('scanner.dirty_modal.save') }}
                 </button>
             </div>
         </div>
@@ -284,21 +284,20 @@
             @click.self="clearCacheModalOpen = false">
         <div class="modal-box fluent-modal-box">
             <h3 class="fluent-modal-title">
-                <i class="bi bi-exclamation-triangle text-warning"></i> 清除影片快取
+                <i class="bi bi-exclamation-triangle text-warning"></i> {{ t('scanner.clear_cache_modal.title') }}
             </h3>
             <p class="fluent-modal-body">
-                此操作將刪除所有已快取的影片元數據（共 <strong x-text="statTotal"></strong> 部），
-                下次需重新掃描才能恢復。確定要清除嗎？
+                {{ t('scanner.clear_cache_modal.body_prefix') }} <strong x-text="statTotal"></strong> {{ t('scanner.clear_cache_modal.body_suffix') }}
             </p>
             <div class="modal-action fluent-modal-actions">
                 <button type="button" class="btn btn-ghost" @click="clearCacheModalOpen = false">
-                    取消
+                    {{ t('scanner.clear_cache_modal.cancel') }}
                 </button>
                 <button type="button" class="btn btn-error" @click="clearCache()"
                         :disabled="clearCacheLoading">
                     <span x-show="clearCacheLoading" class="loading loading-spinner loading-xs"></span>
                     <span x-show="!clearCacheLoading"><i class="bi bi-trash3"></i></span>
-                    確認刪除
+                    {{ t('scanner.clear_cache_modal.confirm') }}
                 </button>
             </div>
         </div>
@@ -453,19 +452,19 @@ function scannerPage() {
 
     get generateButtonText() {
         if (this.state === 'generating') {
-            return '<span class="loading loading-spinner loading-sm"></span> 產生中...';
+            return '<span class="loading loading-spinner loading-sm"></span> ' + window.t('scanner.stats.generate_loading');
         }
-        return '<i class="bi bi-play-fill"></i> 產生網頁';
+        return '<i class="bi bi-play-fill"></i> ' + window.t('scanner.stats.generate_idle');
     },
 
     get nfoUpdateButtonText() {
         if (this.state === 'nfoUpdating') {
-            return '<span class="loading loading-spinner loading-sm"></span> 補全中...';
+            return '<span class="loading loading-spinner loading-sm"></span> ' + window.t('scanner.stats.nfo_loading');
         }
         if (this.nfoNeedUpdateCount > 0) {
-            return `<i class="bi bi-magic"></i> 補全 NFO`;
+            return '<i class="bi bi-magic"></i> ' + window.t('scanner.stats.nfo_idle');
         }
-        return '<i class="bi bi-check-lg"></i> 已完成';
+        return '<i class="bi bi-check-lg"></i> ' + window.t('scanner.stats.btn_done');
     },
 
     get nfoUpdateButtonDisabled() {
@@ -475,12 +474,12 @@ function scannerPage() {
 
     get jellyfinImageButtonText() {
         if (this.state === 'jellyfinUpdating') {
-            return '<span class="loading loading-spinner loading-sm"></span> 補齊中...';
+            return '<span class="loading loading-spinner loading-sm"></span> ' + window.t('scanner.stats.jellyfin_loading');
         }
         if (this.jellyfinImageCount > 0) {
-            return '<i class="bi bi-images"></i> 補齊圖片';
+            return '<i class="bi bi-images"></i> ' + window.t('scanner.stats.jellyfin_idle');
         }
-        return '<i class="bi bi-check-lg"></i> 已完成';
+        return '<i class="bi bi-check-lg"></i> ' + window.t('scanner.stats.btn_done');
     },
 
     // ===== Lifecycle =====
@@ -618,9 +617,9 @@ function scannerPage() {
                             hour: '2-digit',
                             minute: '2-digit'
                         });
-                        let runInfo = `上次執行: ${timeStr}`;
+                        let runInfo = window.t('scanner.stats.last_run_prefix') + timeStr;
                         if (stats.last_added !== null && stats.last_added !== undefined) {
-                            runInfo += ` (新增 ${stats.last_added} 部)`;
+                            runInfo += ' ' + window.t('scanner.stats.last_added', { count: stats.last_added });
                         }
                         this.statLastRun = runInfo;
                     }

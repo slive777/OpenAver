@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 from core.logger import get_logger
+from core.config import load_config
 
 logger = get_logger(__name__)
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -36,6 +37,20 @@ SCRAPER_CLASSES: List[Type[BaseScraper]] = [
     FC2Scraper, AVSOXScraper,
     D2PassScraper, HEYZOScraper,
 ]
+
+# JavBus 語系對應表（zh-CN 無簡中版，沿用繁中 zh-tw）
+_LOCALE_TO_JAVBUS = {"zh-TW": "zh-tw", "zh-CN": "zh-tw", "ja": "ja", "en": "en"}
+
+
+def _get_javbus_lang() -> str:
+    """從 config 讀取 locale 並轉換為 JavBus lang code"""
+    try:
+        config = load_config()
+        locale = config.get('general', {}).get('locale', 'zh-TW')
+        return _LOCALE_TO_JAVBUS.get(locale, "zh-tw")
+    except Exception as e:
+        logger.warning("[i18n] 讀取 locale config 失敗，使用預設語系: %s", e)
+        return "zh-tw"
 
 
 # ============ 輔助函數 (與舊版相容) ============
@@ -148,7 +163,8 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '', primary_s
     # 決定要跑哪些爬蟲
     scrapers = []
     if source == 'auto':
-        base = [cls() for cls in SCRAPER_CLASSES]
+        lang = _get_javbus_lang()
+        base = [JavBusScraper(lang=lang) if cls is JavBusScraper else cls() for cls in SCRAPER_CLASSES]
         if dmm_config:
             scrapers = [DMMScraper(dmm_config)] + base
         else:
@@ -156,7 +172,7 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '', primary_s
     elif source == 'dmm':
         scrapers = [DMMScraper(dmm_config)] if dmm_config else []
     elif source == 'javbus':
-        scrapers = [JavBusScraper()]
+        scrapers = [JavBusScraper(lang=_get_javbus_lang())]
     elif source == 'jav321':
         scrapers = [JAV321Scraper()]
     elif source == 'javdb':
@@ -305,7 +321,7 @@ def search_prefix(prefix: str, limit: int = 20, offset: int = 0, status_callback
         status_callback('javbus', 'searching')
 
     try:
-        scraper = JavBusScraper()
+        scraper = JavBusScraper(lang=_get_javbus_lang())
         start_page = (offset // 30) + 1
         skip_in_page = offset % 30
         pages_needed = ((limit + skip_in_page) // 30) + 2
@@ -432,7 +448,7 @@ def search_actress(name: str, limit: int = 20, offset: int = 0, status_callback:
         if status_callback:
             status_callback('javbus', 'searching')
 
-        scraper = JavBusScraper()
+        scraper = JavBusScraper(lang=_get_javbus_lang())
         start_page = (offset // 30) + 1
         skip_in_page = offset % 30
         pages_needed = ((limit + skip_in_page) // 30) + 2
@@ -517,7 +533,7 @@ def get_all_variant_ids(number: str) -> List[str]:
     variant_ids = []
 
     try:
-        scraper = JavBusScraper()
+        scraper = JavBusScraper(lang=_get_javbus_lang())
         ids = scraper.get_ids_from_search(number, page=1, search_type=0)
         if ids:
             number_normalized = number.upper().replace('-', '')
@@ -535,7 +551,7 @@ def get_all_variant_ids(number: str) -> List[str]:
 def search_by_variant_id(variant_id: str, base_number: str) -> Optional[Dict[str, Any]]:
     """搜索變體"""
     try:
-        scraper = JavBusScraper()
+        scraper = JavBusScraper(lang=_get_javbus_lang())
         video = scraper._fetch_by_id(variant_id)
         if video:
             result = video.to_legacy_dict()

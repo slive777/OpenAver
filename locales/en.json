@@ -1,0 +1,624 @@
+{
+  "nav": {
+    "search": "Search",
+    "scanner": "Scanner",
+    "showcase": "Showcase",
+    "help": "Help",
+    "help_title": "Help Guide",
+    "settings": "Settings",
+    "toggle_sidebar": "Toggle Sidebar"
+  },
+  "common": {
+    "locale": {
+      "zh-TW": "繁",
+      "zh-CN": "简",
+      "ja": "あ",
+      "en": "EN"
+    },
+    "action": {
+      "confirm": "Confirm",
+      "cancel": "Cancel"
+    }
+  },
+  "search": {
+    "page_title": "Search",
+    "drag_overlay": {
+      "hint": "Drop to search by ID"
+    },
+    "placeholder": {
+      "query": "Search ID, actress or drop files...",
+      "tag": "Tag name"
+    },
+    "hint": {
+      "partial_search": "Tip: Enter partial ID like IPZZ-03 to search 030–039; enter an actress name to find her works"
+    },
+    "action": {
+      "search": "Search",
+      "cancel_search": "Cancel Search",
+      "clear": "Clear",
+      "toggle_grid": "Switch to Grid View",
+      "toggle_detail": "Switch to Detail View",
+      "add_files": "Add Files",
+      "add_folder": "Add Folder",
+      "favorite": "Favorites",
+      "load_favorite": "Load Favorite Folder",
+      "add_tag": "Add Tag",
+      "edit_title": "Edit Title",
+      "translate_ai": "AI Translate",
+      "edit_chinese_title": "Edit Chinese Title",
+      "switch_source": "Switch Version",
+      "open_source_url": "Open Source Page",
+      "open_folder": "Open Folder",
+      "back_to_detail": "Back to Detail"
+    },
+    "empty": {
+      "hint": "Enter an ID to search, or add video files",
+      "drag_hint": "You can also drag and drop files or folders"
+    },
+    "error": {
+      "hint": "Please check the ID format or try again later"
+    },
+    "nav": {
+      "prev": "Previous (←)",
+      "next": "Next (→)"
+    },
+    "label": {
+      "actor": "Actress",
+      "date": "Release Date",
+      "maker": "Maker",
+      "director": "Director",
+      "duration": "Duration",
+      "label": "Label",
+      "series": "Series",
+      "tags": "Tags",
+      "title": "Title",
+      "chinese_title": "Chinese Title",
+      "chinese_title_ai": "Chinese Title (AI)"
+    },
+    "unit": {
+      "minutes": "min"
+    },
+    "badge": {
+      "subtitle": "Chinese Subtitles"
+    },
+    "lightbox": {
+      "close": "Close (ESC)",
+      "prev": "Previous (←)",
+      "next": "Next (→)"
+    },
+    "gallery": {
+      "prev": "Previous (←)",
+      "next": "Next (→)",
+      "sample_prefix": "Sample"
+    },
+    "grid": {
+      "sample_prefix": "Sample Image",
+      "thumb_prefix": "Thumbnail",
+      "detail_title": "View Detail",
+      "unknown_actor": "Unknown",
+      "unknown_title": "Unknown Title"
+    },
+    "cover": {
+      "alt": "Cover"
+    },
+    "local": {
+      "has_local": "Available locally (click to open folder)",
+      "has_local_count": "{count} local versions available (click to open folder)"
+    },
+    "filelist": {
+      "search_all_title": "Search all unsearched files",
+      "translate_all_title": "Translate all Japanese titles",
+      "scrape_all_title": "Generate all searched files",
+      "scrape_all": "Generate All",
+      "processing_prefix": "Processing",
+      "remove_file": "Remove this file",
+      "scrape_nfo": "Generate NFO + Cover",
+      "failed": "Failed",
+      "retry": "Retry",
+      "enter_number": "Enter ID manually"
+    },
+    "duplicate": {
+      "title": "Duplicate File",
+      "body": "The target file already exists. Continuing will overwrite it:",
+      "explanation": "This usually happens when the same title has multiple versions (CD1/CD2, 4K, UC).",
+      "instruction": "Go to <strong>Settings → Advanced Scrape Settings → Version Tags</strong>, add keywords and make sure the file naming format includes the <code class=\"badge badge-sm\">{suffix}</code> variable.",
+      "acknowledge": "Got it",
+      "go_settings": "Go to Settings"
+    }
+  },
+  "settings": {
+    "page_title": "Settings",
+    "header": {
+      "title": "Settings",
+      "font_size_prefix": "Font size",
+      "switch_dark": "Switch to dark mode",
+      "switch_light": "Switch to light mode",
+      "locale_prefix": "Locale"
+    },
+    "section": {
+      "search": "Search & Scrape",
+      "scraper_advanced": "Advanced Scrape Settings",
+      "gallery_advanced": "Advanced Display Options",
+      "system": "System Settings"
+    },
+    "search": {
+      "gallery_mode": "Actress Gallery Mode",
+      "uncensored_mode": "Uncensored Mode",
+      "default_source_hint": "Default search source",
+      "proxy_dmm_hint": "DMM requires Japan IP",
+      "proxy_placeholder": "http://user:pass@host:port — enter direct if you already have Japan IP",
+      "favorite_folder_label": "Favorite Folder",
+      "favorite_folder_hint": "Load a commonly used folder with one click",
+      "favorite_folder_placeholder": "Leave blank = system Downloads folder",
+      "favorite_folder_example_prefix": "Example: C:\\Users\\&lt;your username&gt;\\Downloads"
+    },
+    "translate": {
+      "enabled_label": "Enable Title Translation",
+      "provider_label": "Translation Service",
+      "ollama_local": "(Local)",
+      "gemini_cloud": "(Google Cloud)",
+      "model_label": "Model",
+      "test_connection_placeholder": "Test connection first",
+      "test_model_title": "Test Model",
+      "test_translation_title": "Test Translation",
+      "test_apikey_placeholder": "Test API Key first",
+      "gemini_free_hint": "Free to sign up",
+      "security_title": "Security Notice:",
+      "security_item1": "API Key is stored in plain text in config.json",
+      "security_item2": "Do not share config.json with others",
+      "security_item3_prefix": "To revoke, go to",
+      "security_item3_suffix": "to regenerate"
+    },
+    "scraper": {
+      "suffix_keywords_label": "Version Tags",
+      "suffix_keywords_hint": "Keep as {suffix} when filename contains these keywords",
+      "create_folder_label": "Create Folder",
+      "folder_layers_label": "Folder Layers",
+      "folder_layer_outer": "Outer",
+      "folder_layer_middle": "Middle",
+      "folder_layer_inner": "Inner",
+      "preview_prefix": "Preview",
+      "filename_format_label": "File Naming Format",
+      "max_title_length_label": "Title Length Limit",
+      "unit_chars": "chars",
+      "max_filename_length_label": "Filename Length Limit",
+      "path_length_help_aria": "Windows path length info",
+      "path_length_help_line1": "Windows default path limit is 260 characters (Windows 10 1607+ / Windows 11).",
+      "path_length_help_line2": "For longer filenames, open PowerShell <strong>as Administrator</strong> and run:",
+      "path_length_help_line3": "Reboot required for changes to take effect.",
+      "path_length_help_line4": "macOS / Linux have no such limit, but long filenames generated on macOS/Linux may still fail on Windows without LongPathsEnabled.",
+      "video_extensions_label": "Video Extensions",
+      "video_extensions_hint": "Comma-separated",
+      "jellyfin_mode_label": "Jellyfin Image Mode",
+      "jellyfin_mode_hint": "Auto-generate {stem}-poster.jpg + {stem}-fanart.jpg + extrafanart/ sample images"
+    },
+    "gallery": {
+      "output_dir_label": "Output Directory",
+      "select_folder_title": "Select Folder",
+      "output_filename_label": "Output Filename",
+      "default_mode_label": "Default Display Mode",
+      "mode_image": "Image Mode",
+      "mode_detail": "Detail Mode",
+      "mode_text": "Text Mode",
+      "default_sort_label": "Default Sort",
+      "sort_date": "Release Date",
+      "sort_mdate": "Modified Date",
+      "sort_num": "ID",
+      "sort_title": "Title",
+      "sort_actor": "Actress",
+      "sort_maker": "Maker",
+      "sort_size": "File Size",
+      "order_desc": "Descending",
+      "order_asc": "Ascending",
+      "items_per_page_label": "Items per Page",
+      "all": "All",
+      "min_size_label": "Minimum Video Size",
+      "min_size_hint": "0 = no filter"
+    },
+    "system": {
+      "default_page_label": "Default Page on Startup",
+      "player_label": "Video Player",
+      "player_placeholder": "Leave blank for system default",
+      "player_hint_prefix": "E.g.:",
+      "reset_label": "Reset All Settings",
+      "reset_hint": "Delete all custom settings and restore defaults"
+    },
+    "action": {
+      "test": "Test",
+      "variable": "Variable",
+      "reset": "Reset to Default",
+      "save": "Save Settings"
+    },
+    "var": {
+      "num": "ID",
+      "title": "Title",
+      "actor": "Actress",
+      "actors": "Actresses",
+      "maker": "Maker",
+      "date": "Date",
+      "year": "Year",
+      "suffix": "Suffix"
+    },
+    "dirty_modal": {
+      "title": "Unsaved Changes",
+      "body": "You have unsaved changes. What would you like to do?",
+      "discard": "Discard",
+      "save": "Save Changes"
+    }
+  },
+  "scanner": {
+    "page_title": "Scanner",
+    "drag_overlay": {
+      "hint": "Drop to add folder"
+    },
+    "folder": {
+      "section_title": "Scan Folders",
+      "select_title": "Select Folder",
+      "manual_title": "Manual Input",
+      "placeholder": "Enter folder path...",
+      "empty_line1": "No folders added yet",
+      "empty_line2": "Click the button above or drag a folder here",
+      "remove_title": "Remove",
+      "output_prefix": "Output:",
+      "settings_link": "Settings",
+      "copy_path": "Copy Path"
+    },
+    "terminal": {
+      "filter_all": "All",
+      "filter_all_title": "Show all",
+      "filter_error": "Errors",
+      "filter_error_title": "Show errors only",
+      "filter_warn": "Warnings",
+      "filter_warn_title": "Show warnings only",
+      "copy_title": "Copy logs",
+      "clear_display_title": "Clear display (restored on reload)",
+      "clear_all_title": "Clear all (including history)"
+    },
+    "stats": {
+      "cached_prefix": "Cached videos:",
+      "cached_suffix": "",
+      "clear_cache_title": "Clear cache",
+      "nfo_prefix": "Needs updating:",
+      "nfo_suffix": "",
+      "nfo_update_title": "Complete NFO info",
+      "jellyfin_prefix": "Missing images:",
+      "jellyfin_suffix": "",
+      "jellyfin_update_title": "Generate Jellyfin poster + fanart",
+      "last_run_prefix": "Last run: ",
+      "last_added": "({count} added)",
+      "generate_idle": "Generate",
+      "generate_loading": "Generating...",
+      "nfo_idle": "Update NFO",
+      "nfo_loading": "Updating...",
+      "jellyfin_idle": "Fix Images",
+      "jellyfin_loading": "Fixing...",
+      "btn_done": "Done"
+    },
+    "alias": {
+      "section_title": "Actress Name Aliases",
+      "collapse_title": "Expand/Collapse",
+      "label_old": "Old Name",
+      "placeholder_old": "e.g. miru",
+      "label_new": "New Name",
+      "placeholder_new": "e.g. 坂道みる",
+      "loading": "Loading...",
+      "empty": "No aliases defined",
+      "applied": "({count} applied)",
+      "delete_title": "Delete"
+    },
+    "dirty_modal": {
+      "title": "Unsaved Changes",
+      "body": "You have modified the folder list but haven't generated the page yet. What would you like to do?",
+      "cancel": "Cancel",
+      "discard": "Discard Changes",
+      "save": "Save and Leave"
+    },
+    "clear_cache_modal": {
+      "title": "Clear Video Cache",
+      "body_prefix": "This will delete all cached video metadata (",
+      "body_suffix": " videos). You will need to re-scan next time. Are you sure?",
+      "cancel": "Cancel",
+      "confirm": "Delete"
+    }
+  },
+  "showcase": {
+    "page_title": "Browse",
+    "placeholder": {
+      "search": "Search ID, actress, title..."
+    },
+    "action": {
+      "clear_search": "Clear Search",
+      "search": "Search",
+      "toggle_order": "Toggle Sort Order",
+      "toggle_info": "Show/Hide Info (S)",
+      "play_video": "Open Video",
+      "play": "Play"
+    },
+    "toolbar": {
+      "sort_prefix": "Sort",
+      "mode_prefix": "Mode",
+      "per_page_prefix": "Per page"
+    },
+    "sort": {
+      "date": "Date",
+      "num": "ID",
+      "title": "Title",
+      "actor": "Actress",
+      "maker": "Maker",
+      "size": "Size",
+      "mdate": "Modified",
+      "random": "Random"
+    },
+    "mode": {
+      "grid": "Grid",
+      "table": "Table",
+      "list": "List"
+    },
+    "unit": {
+      "videos": "",
+      "minutes": "min",
+      "minutes_abbr": "min"
+    },
+    "per_page": {
+      "all": "All"
+    },
+    "status": {
+      "total_prefix": "",
+      "total_suffix": "videos",
+      "search_prefix": "Search \"",
+      "search_middle": "\" — Found",
+      "search_suffix": ""
+    },
+    "nav": {
+      "prev_page": "Previous",
+      "next_page": "Next"
+    },
+    "grid": {
+      "unknown_actor": "Unknown",
+      "unknown_title": "Unknown Title",
+      "unknown_size": "Unknown"
+    },
+    "label": {
+      "actor": "Actress",
+      "maker": "Maker",
+      "date": "Date",
+      "series": "Series",
+      "duration": "Duration",
+      "director": "Director",
+      "label": "Label"
+    },
+    "table": {
+      "col_number": "ID",
+      "col_title": "Title",
+      "col_actor": "Actress",
+      "col_maker": "Maker",
+      "col_director": "Director",
+      "col_duration": "Duration",
+      "col_date": "Date",
+      "col_tags": "Tags",
+      "col_size": "Size"
+    },
+    "lightbox": {
+      "close": "Close (ESC)",
+      "prev": "Previous (←)",
+      "next": "Next (→)",
+      "unknown_number": "Unknown"
+    },
+    "gallery": {
+      "prev": "Previous (←)",
+      "next": "Next (→)",
+      "sample_prefix": "Sample",
+      "sample_alt": "Sample Image",
+      "thumb_alt": "Thumbnail"
+    },
+    "shortcut": {
+      "switch_mode": "Switch Mode",
+      "toggle_info": "Toggle Info",
+      "pagination": "Pagination",
+      "close": "Close"
+    }
+  },
+  "help": {
+    "hero": {
+      "page_title": "Help Guide",
+      "subtitle": "JAV Metadata Management Tool",
+      "privacy": "🔒 Local app only — no user data collected",
+      "btn_tutorial": "Restart Tutorial",
+      "btn_check_update": "Checking…",
+      "btn_check_update_idle": "Check for Updates",
+      "update_available_prefix": "New version",
+      "update_available_suffix": "available",
+      "up_to_date": "You are up to date"
+    },
+    "search": {
+      "title": "Search",
+      "h6_methods": "Supported Search Methods",
+      "h6_dragdrop": "Drag & Drop Files",
+      "h6_grid": "Grid Mode (Cover Wall)",
+      "h6_badge": "Version Badge",
+      "method_full": "<strong>Full ID</strong>: e.g. <code>SONE-001</code>, exact match",
+      "method_partial": "<strong>Partial ID</strong>: e.g. <code>SONE-0</code>, searches 001–009",
+      "method_series": "<strong>Series Search</strong>: e.g. <code>SONE</code>, finds latest in series",
+      "method_actress": "<strong>Actress Name</strong>: e.g. <code>Kaho Imai</code>, finds her works",
+      "drag_auto": "Drag video files into the window to auto-extract ID and search",
+      "drag_batch": "Supports batch processing of multiple files (up to 20 at once)",
+      "drag_generate": "After a successful search, click 'Generate' to rename files, download covers and create folders with NFO",
+      "grid_switch": "After searching, switch to cover wall view; click a cover to open Lightbox",
+      "grid_lightbox": "<strong>Lightbox</strong>: Full-screen cover view; use <kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> to navigate, <kbd class=\"kbd kbd-sm\">Esc</kbd> to close",
+      "grid_detail": "Lightbox shows director, duration, series, label and more (only when data is available)",
+      "grid_gallery": "Click the 'Stills' button to browse sample images; supports keyboard <kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> and touch swipe",
+      "badge_keywords": "When a filename contains keywords like <code>-4k</code> or <code>-uc</code>, a colored badge appears on the result card"
+    },
+    "batch": {
+      "title": "Batch File Search",
+      "h6_add": "Add Multiple Files",
+      "h6_favorite": "Favorite Folder",
+      "h6_pause": "Pause & Resume",
+      "h6_generate_all": "Generate All",
+      "h6_badge": "Version Tag Preservation",
+      "add_folder": "<strong>Drop Folder</strong>: Automatically scans video files in the folder",
+      "add_filter": "<strong>Auto Filter</strong>: Excludes non-video files and files below the size threshold",
+      "add_batch": "<strong>Batch Search</strong>: 20 files per batch, 2 concurrent requests",
+      "add_progress": "<strong>Progress Display</strong>: Real-time progress (e.g. Processing 15/100)",
+      "fav_settings": "Set your frequently used folder path on the <strong>Settings page</strong>",
+      "fav_load": "Click the '⭐ Favorites' button to load it instantly",
+      "fav_auto": "Automatically begins searching the first 20 files",
+      "pause_pause": "Click the 'Pause' button during batch search",
+      "pause_resume": "Click 'Resume' to continue from where it paused",
+      "generate_all": "After batch search completes, rename files, create folders, and generate NFO for all successful results at once",
+      "badge_suffix": "Tags like <code>-cd1</code> or <code>-4k</code> in filenames are automatically preserved as <code>{suffix}</code>"
+    },
+    "format": {
+      "title": "Format Variables Reference",
+      "h6_default": "Default Format",
+      "h6_fallback": "Fallback Rules",
+      "col_var": "Variable",
+      "col_desc": "Description",
+      "col_example": "Example",
+      "col_fallback": "Folder Fallback",
+      "var_num_desc": "ID",
+      "var_title_desc": "Title",
+      "var_actor_desc": "First actress",
+      "var_actors_desc": "All actresses",
+      "var_maker_desc": "Maker",
+      "var_date_desc": "Release date",
+      "var_year_desc": "Year",
+      "var_suffix_desc": "Version tag",
+      "fallback_unknown_title": "Unknown Title",
+      "fallback_unknown_actor": "Unknown Actress",
+      "fallback_unknown_maker": "Unknown Maker",
+      "fallback_unknown_date": "Unknown Date",
+      "fallback_unknown_year": "Unknown Year",
+      "fallback_empty": "Omitted if empty",
+      "default_filename": "Filename: <code>[{num}][{maker}] {title}{suffix}</code>",
+      "default_folder": "Folder: <code>{actor}</code>",
+      "fallback_folder_rule": "Folder levels use fallback values (e.g. 'Unknown Actress') to avoid empty paths",
+      "fallback_filename_rule": "Filename does not use fallback; variables are omitted when empty"
+    },
+    "gallery": {
+      "title": "Actress Gallery Mode",
+      "h6_trigger": "Auto-trigger Conditions",
+      "h6_features": "Features",
+      "h6_diff": "Grid Mode vs Gallery Mode",
+      "trigger_count": "Search results > 10 works",
+      "trigger_consistency": "80%+ works share the same actress (consistency check)",
+      "trigger_setting": "Enable 'Gallery Mode' in Settings",
+      "feat_hero": "<strong>Hero Card</strong>: Shows actress profile (cup size, height, measurements, birthday)",
+      "feat_browse": "<strong>Gallery Browse</strong>: Displays works list as cover images",
+      "feat_back": "<strong>Quick Return</strong>: Click '← Back to Detail' to return to normal mode",
+      "diff_gallery": "<strong>Gallery Mode</strong> (auto): Switches automatically when results > 10 and actress is consistent",
+      "diff_grid": "<strong>Grid Mode</strong> (manual): Any search result can be manually switched to cover wall view",
+      "diff_grid_nav": "Grid Mode supports Lightbox navigation (<kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> to switch)"
+    },
+    "scanner": {
+      "title": "Video List Generator (Scanner)",
+      "h6_features": "Features",
+      "h6_output": "Output Files",
+      "h6_subtitle": "Subtitle Auto-detection",
+      "h6_jellyfin": "Jellyfin Image Mode",
+      "feat_scan": "Scans local video folders and generates a beautiful HTML showcase page",
+      "feat_nfo": "Automatically reads NFO files and displays metadata",
+      "feat_nfo_fill": "Supports 'NFO Fill': automatically searches for missing NFO files",
+      "feat_terminal": "Built-in Mini Terminal shows real-time processing progress",
+      "output_html": "<strong>index.html</strong>: A static page that can be opened in any browser",
+      "output_copy": "<strong>Auto Copy</strong>: Cover images and NFO files are copied to the output directory",
+      "output_darkmode": "<strong>Dark Mode</strong>: Automatically follows the Web App theme setting",
+      "subtitle_detect": "When organizing videos, automatically detects subtitle files with the same name in the same directory (<code>.srt</code>, <code>.ass</code>, <code>.ssa</code>)",
+      "subtitle_move": "After a video is moved successfully, subtitles are moved with it, preserving language suffixes (e.g. <code>.cht.srt</code>)",
+      "subtitle_nfo": "When subtitles are detected, NFO is automatically tagged with 'Chinese Subtitles'",
+      "jellyfin_enable": "Once enabled on the <strong>Settings page</strong>, scanning automatically generates <code>-poster.jpg</code> + <code>-fanart.jpg</code>",
+      "jellyfin_showcase": "After scanning, browse results on the <code>/showcase</code> page"
+    },
+    "showcase": {
+      "title": "Video Browser (Showcase)",
+      "h6_modes": "Display Modes",
+      "h6_sort": "Sort & Search",
+      "h6_other": "Other Features",
+      "intro": "After Scanner finishes, browse your video library at the <code>/showcase</code> page.",
+      "mode_grid": "<strong>Grid Mode</strong>: Cover wall view, click to open Lightbox",
+      "mode_list": "<strong>List Mode</strong>: Compact list, ideal for quick browsing",
+      "mode_table": "<strong>Table Mode</strong>: Full metadata in a table layout",
+      "sort_sort": "<strong>Sort</strong>: Date / ID / Title / Actress / Maker / Size / Modified / Random",
+      "sort_search": "<strong>Search</strong>: Filter by ID, actress, title and more",
+      "other_lightbox": "Lightbox full-screen cover view (<kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> to navigate)",
+      "other_lightbox_detail": "Lightbox shows director, duration, series, label and more",
+      "other_table_cols": "Table mode adds 'Director' and 'Duration' columns",
+      "other_gallery": "Lightbox can open sample image gallery (click 'Stills' button)",
+      "other_per_page": "Items per page can be adjusted on the <strong>Settings page</strong>"
+    },
+    "shortcuts": {
+      "title": "Keyboard Shortcuts",
+      "h6_search": "Search Page",
+      "h6_showcase": "Browse Page (Showcase)",
+      "search_hint": "All shortcuts are disabled when the search box is focused.",
+      "col_key": "Key",
+      "col_context": "Context",
+      "col_action": "Action",
+      "ctx_lightbox_open": "Lightbox open",
+      "ctx_lightbox_closed": "Lightbox closed",
+      "action_close_lightbox": "Close Lightbox",
+      "action_prev_next_video": "Previous / Next video",
+      "search_arrow2_ctx": "Detail mode, Lightbox closed",
+      "search_arrow2_action": "Switch to prev / next result",
+      "showcase_arrow_action": "Previous / Next page",
+      "showcase_a_action": "Cycle display mode (Grid → List → Table)",
+      "showcase_s_ctx": "Grid mode, Lightbox closed",
+      "showcase_s_action": "Show / Hide card info"
+    },
+    "scraper": {
+      "title": "Scraper Sources",
+      "h6_censored": "Censored Sources",
+      "h6_uncensored": "Uncensored Sources",
+      "h6_default_source": "Default Search Source",
+      "h6_dmm_fuzzy": "DMM Fuzzy Search",
+      "h6_proxy_direct": "Proxy Direct Mode",
+      "h6_toggle": "Toggle Mode",
+      "h6_format": "ID Format Examples",
+      "censored_dmm": "<strong>DMM</strong>: Requires a Japanese IP proxy (<strong>Settings page</strong> → Proxy field)",
+      "censored_others": "<strong>JavBus</strong>, <strong>Jav321</strong>, <strong>JavDB</strong>: Available directly",
+      "uncensored_d2pass": "<strong>D2Pass</strong>: Covers 1Pondo / Caribbeancom / 10musume",
+      "uncensored_heyzo": "<strong>HEYZO</strong>: Standalone source",
+      "uncensored_fc2": "<strong>FC2</strong>: FC2-PPV dedicated",
+      "uncensored_avsox": "<strong>AVSOX</strong>: General uncensored source",
+      "default_source_set": "You can set <strong>JavBus</strong> or <strong>DMM</strong> as the primary search source on the Settings page",
+      "default_source_effect": "Once set as primary, exact ID searches will prefer data from that source",
+      "dmm_fuzzy_trigger": "Entering a Japanese actress or maker name in the search box also triggers DMM fuzzy search",
+      "dmm_fuzzy_prereq": "Prerequisite: DMM must be enabled (requires Proxy or <code>direct</code> mode)",
+      "proxy_direct_vpn": "If you are already connected to a Japan VPN or are located in Japan, no extra Proxy setup is needed",
+      "proxy_direct_how": "Simply enter <code>direct</code> in the Proxy field on the Settings page to enable DMM directly",
+      "toggle_uncensored": "Enable the 'Uncensored Mode' toggle on the <strong>Settings page</strong> to prioritize uncensored sources",
+      "col_source": "Source",
+      "col_format": "Format",
+      "col_example": "Example"
+    },
+    "troubleshooting": {
+      "title": "Troubleshooting",
+      "h6_crash": "App Won't Start / Crashes (Windows)",
+      "h6_display": "UI Display Issues / Blank Screen",
+      "h6_report": "Reporting a Problem",
+      "h6_dmm": "DMM Search Not Working",
+      "h6_translate": "Translation Not Responding",
+      "crash_cause": "<strong>Cause</strong>: Windows security has blocked files downloaded from the internet.",
+      "crash_fix_label": "<strong>Fix</strong>:",
+      "crash_fix_1": "Right-click the downloaded ZIP → Properties",
+      "crash_fix_2": "Check 'Unblock', then click OK",
+      "crash_fix_3": "Re-extract and run the app",
+      "display_cause": "<strong>Cause</strong>: Missing WebView2 Runtime (common on Windows 10 or VMs).",
+      "display_fix": "<strong>Fix</strong>: Download and install <a href=\"https://go.microsoft.com/fwlink/p/?LinkId=2124703\" target=\"_blank\">Microsoft Edge WebView2 Runtime</a>.",
+      "report_log_path": "<strong>Log location</strong>: <code>%USERPROFILE%\\OpenAver\\logs\\debug.log</code>",
+      "report_debug_label": "<strong>Run Debug Mode</strong>:",
+      "report_debug_1": "Run <code>OpenAver_Debug.bat</code>",
+      "report_debug_2": "Reproduce the issue",
+      "report_debug_3": "Report the log file and error message to <a href=\"https://github.com/slive777/OpenAver/issues\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub Issues</a>",
+      "dmm_proxy": "DMM requires a Japanese IP; enter a Japanese proxy in the <strong>Settings page</strong> → Proxy field",
+      "dmm_direct": "If you are already on a VPN or Japan network, you can also enter <code>direct</code> in the Proxy field to enable it without a proxy address.",
+      "translate_ollama": "<strong>Ollama</strong>: Confirm the Ollama application is running (Windows requires manual launch)",
+      "translate_gemini": "<strong>Gemini</strong>: Confirm the API Key is correctly set on the <strong>Settings page</strong>"
+    },
+    "js": {
+      "version_load_failed": "Failed to load",
+      "check_update_failed": "Check failed, please try again later",
+      "check_update_network_error": "Network error, please try again later"
+    }
+  }
+}

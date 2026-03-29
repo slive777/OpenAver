@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}影片瀏覽 - OpenAver{% endblock %}
+{% block title %}{{ t('showcase.page_title') }} - OpenAver{% endblock %}
 
 {% block extra_css %}
 <link href="/static/css/pages/showcase.css" rel="stylesheet">
@@ -48,19 +48,19 @@
                 <div class="spotlight-search">
                     <i class="bi bi-search search-icon-left"></i>
                     <input type="text"
-                           placeholder="搜尋番號、女優、標題..."
+                           placeholder="{{ t('showcase.placeholder.search') }}"
                            x-model="search"
                            @input.debounce.300ms="onSearchChange()">
                     <div class="search-actions-right">
                         <button class="btn-icon"
                                 x-show="search !== ''"
                                 @click="search = ''; onSearchChange()"
-                                title="清除搜尋">
+                                title="{{ t('showcase.action.clear_search') }}">
                             <i class="bi bi-x-lg"></i>
                         </button>
                         <button class="btn-icon active"
                                 @click="onSearchChange()"
-                                title="搜尋">
+                                title="{{ t('showcase.action.search') }}">
                             <i class="bi bi-arrow-right"></i>
                         </button>
                     </div>
@@ -73,38 +73,38 @@
                     <div class="toolbar-dropdown-wrap" @click.outside="sortOpen = false">
                         <button class="btn-icon"
                                 @click="sortOpen = !sortOpen; modeOpen = false; perPageOpen = false"
-                                :title="'排序: ' + sort"
+                                :title="t('showcase.toolbar.sort_prefix') + ': ' + sort"
                                 :class="{ 'active': sortOpen }">
                             <i class="bi bi-funnel"></i>
                         </button>
                         <div class="toolbar-dropdown" x-show="sortOpen" x-transition.opacity.duration.150ms @click.stop>
                             <a href="#" class="dropdown-item" :class="{ 'active': sort === 'date' }"
                                @click.prevent="sort = 'date'; onSortChange(); sortOpen = false">
-                                <i class="bi bi-calendar"></i> 日期</a>
+                                <i class="bi bi-calendar"></i> {{ t('showcase.sort.date') }}</a>
                             <a href="#" class="dropdown-item" :class="{ 'active': sort === 'num' }"
                                @click.prevent="sort = 'num'; onSortChange(); sortOpen = false">
-                                <i class="bi bi-hash"></i> 番號</a>
+                                <i class="bi bi-hash"></i> {{ t('showcase.sort.num') }}</a>
                             <a href="#" class="dropdown-item" :class="{ 'active': sort === 'title' }"
                                @click.prevent="sort = 'title'; onSortChange(); sortOpen = false">
-                                <i class="bi bi-type"></i> 標題</a>
+                                <i class="bi bi-type"></i> {{ t('showcase.sort.title') }}</a>
                             <a href="#" class="dropdown-item" :class="{ 'active': sort === 'actor' }"
                                @click.prevent="sort = 'actor'; onSortChange(); sortOpen = false">
-                                <i class="bi bi-person"></i> 女優</a>
+                                <i class="bi bi-person"></i> {{ t('showcase.sort.actor') }}</a>
                             <a href="#" class="dropdown-item" :class="{ 'active': sort === 'maker' }"
                                @click.prevent="sort = 'maker'; onSortChange(); sortOpen = false">
-                                <i class="bi bi-building"></i> 片商</a>
+                                <i class="bi bi-building"></i> {{ t('showcase.sort.maker') }}</a>
                             <a href="#" class="dropdown-item" :class="{ 'active': sort === 'size' }"
                                @click.prevent="sort = 'size'; onSortChange(); sortOpen = false">
-                                <i class="bi bi-file-earmark"></i> 大小</a>
+                                <i class="bi bi-file-earmark"></i> {{ t('showcase.sort.size') }}</a>
                             <a href="#" class="dropdown-item" :class="{ 'active': sort === 'mdate' }"
                                @click.prevent="sort = 'mdate'; onSortChange(); sortOpen = false">
-                                <i class="bi bi-clock"></i> 修改時間</a>
+                                <i class="bi bi-clock"></i> {{ t('showcase.sort.mdate') }}</a>
                             <a href="#" class="dropdown-item" :class="{ 'active': sort === 'random' }"
                                @click.prevent="sort = 'random'; onSortChange(); sortOpen = false">
-                                <i class="bi bi-shuffle"></i> 隨機</a>
+                                <i class="bi bi-shuffle"></i> {{ t('showcase.sort.random') }}</a>
                         </div>
                     </div>
-                    <button class="btn-icon" @click="toggleOrder()" title="切換排序方向">
+                    <button class="btn-icon" @click="toggleOrder()" title="{{ t('showcase.action.toggle_order') }}">
                         <i class="bi" :class="order === 'asc' ? 'bi-sort-up' : 'bi-sort-down'"></i>
                     </button>
                 </div>
@@ -113,20 +113,20 @@
                 <div class="toolbar-dropdown-wrap" @click.outside="modeOpen = false">
                     <button class="btn-icon"
                             @click="modeOpen = !modeOpen; sortOpen = false; perPageOpen = false"
-                            :title="'模式: ' + (mode === 'grid' ? '圖片' : mode === 'table' ? '詳細' : '文字')"
+                            :title="t('showcase.toolbar.mode_prefix') + ': ' + (mode === 'grid' ? t('showcase.mode.grid') : mode === 'table' ? t('showcase.mode.table') : t('showcase.mode.list'))"
                             :class="{ 'active': modeOpen }">
                         <i class="bi" :class="mode === 'grid' ? 'bi-grid-3x3' : mode === 'table' ? 'bi-table' : 'bi-list-ul'"></i>
                     </button>
                     <div class="toolbar-dropdown" x-show="modeOpen" x-transition.opacity.duration.150ms @click.stop>
                         <a href="#" class="dropdown-item" :class="{ 'active': mode === 'grid' }"
                            @click.prevent="switchMode('grid'); modeOpen = false">
-                            <i class="bi bi-grid-3x3"></i> 圖片</a>
+                            <i class="bi bi-grid-3x3"></i> {{ t('showcase.mode.grid') }}</a>
                         <a href="#" class="dropdown-item" :class="{ 'active': mode === 'table' }"
                            @click.prevent="switchMode('table'); modeOpen = false">
-                            <i class="bi bi-table"></i> 詳細</a>
+                            <i class="bi bi-table"></i> {{ t('showcase.mode.table') }}</a>
                         <a href="#" class="dropdown-item" :class="{ 'active': mode === 'list' }"
                            @click.prevent="switchMode('list'); modeOpen = false">
-                            <i class="bi bi-list-ul"></i> 文字</a>
+                            <i class="bi bi-list-ul"></i> {{ t('showcase.mode.list') }}</a>
                     </div>
                 </div>
 
@@ -135,7 +135,7 @@
                         x-show="mode === 'grid'"
                         :class="{ 'active': infoVisible }"
                         @click="toggleInfo()"
-                        title="顯示/隱藏資訊 (S)">
+                        title="{{ t('showcase.action.toggle_info') }}">
                     <i class="bi bi-eye"></i>
                 </button>
 
@@ -143,24 +143,24 @@
                 <div class="toolbar-dropdown-wrap" @click.outside="perPageOpen = false">
                     <button class="btn-icon"
                             @click="perPageOpen = !perPageOpen; sortOpen = false; modeOpen = false"
-                            :title="'每頁: ' + (perPage == 0 ? '全部' : perPage + ' 部')"
+                            :title="t('showcase.toolbar.per_page_prefix') + ': ' + (perPage == 0 ? t('showcase.per_page.all') : perPage + ' ' + t('showcase.unit.videos'))"
                             :class="{ 'active': perPageOpen }">
                         <i class="bi bi-list-nested"></i>
                     </button>
                     <div class="toolbar-dropdown" x-show="perPageOpen" x-transition.opacity.duration.150ms @click.stop>
                         <a href="#" class="dropdown-item" :class="{ 'active': perPage == 30 }"
-                           @click.prevent="perPage = 30; onPerPageChange(); perPageOpen = false">30 部</a>
+                           @click.prevent="perPage = 30; onPerPageChange(); perPageOpen = false">30 {{ t('showcase.unit.videos') }}</a>
                         <a href="#" class="dropdown-item" :class="{ 'active': perPage == 45 }"
-                           @click.prevent="perPage = 45; onPerPageChange(); perPageOpen = false">45 部</a>
+                           @click.prevent="perPage = 45; onPerPageChange(); perPageOpen = false">45 {{ t('showcase.unit.videos') }}</a>
                         <a href="#" class="dropdown-item" :class="{ 'active': perPage == 60 }"
-                           @click.prevent="perPage = 60; onPerPageChange(); perPageOpen = false">60 部</a>
+                           @click.prevent="perPage = 60; onPerPageChange(); perPageOpen = false">60 {{ t('showcase.unit.videos') }}</a>
                         <a href="#" class="dropdown-item" :class="{ 'active': perPage == 90 }"
-                           @click.prevent="perPage = 90; onPerPageChange(); perPageOpen = false">90 部</a>
+                           @click.prevent="perPage = 90; onPerPageChange(); perPageOpen = false">90 {{ t('showcase.unit.videos') }}</a>
                         <a href="#" class="dropdown-item" :class="{ 'active': perPage == 120 }"
-                           @click.prevent="perPage = 120; onPerPageChange(); perPageOpen = false">120 部</a>
+                           @click.prevent="perPage = 120; onPerPageChange(); perPageOpen = false">120 {{ t('showcase.unit.videos') }}</a>
                         <a href="#" class="dropdown-item"
                            :class="{ 'active': perPage == 0, 'disabled pointer-events-none opacity-40': mode === 'grid' }"
-                           @click.prevent="if (mode !== 'grid') { perPage = 0; onPerPageChange(); perPageOpen = false }">全部</a>
+                           @click.prevent="if (mode !== 'grid') { perPage = 0; onPerPageChange(); perPageOpen = false }">{{ t('showcase.per_page.all') }}</a>
                     </div>
                 </div>
             </div>
@@ -170,20 +170,20 @@
         <div class="showcase-status-bar">
             <span class="status-total">
                 <template x-if="!search">
-                    <span>共 <b x-text="filteredCount"></b> 部影片</span>
+                    <span>{{ t('showcase.status.total_prefix') }} <b x-text="filteredCount"></b> {{ t('showcase.status.total_suffix') }}</span>
                 </template>
                 <template x-if="search">
-                    <span>搜尋 "<b x-text="search"></b>" — 找到 <b x-text="filteredCount"></b> 部</span>
+                    <span>{{ t('showcase.status.search_prefix') }}<b x-text="search"></b>{{ t('showcase.status.search_middle') }} <b x-text="filteredCount"></b> {{ t('showcase.status.search_suffix') }}</span>
                 </template>
             </span>
             <div class="status-pagination" x-show="totalPages > 1">
-                <button class="page-btn" @click="prevPage()" :disabled="page === 1">← 上一頁</button>
+                <button class="page-btn" @click="prevPage()" :disabled="page === 1">← {{ t('showcase.nav.prev_page') }}</button>
                 <select class="page-select" x-model.number="page" @change="goToPage(page)">
                     <template x-for="p in totalPages" :key="p">
                         <option :value="p" x-text="`${p} / ${totalPages}`" :selected="p === page"></option>
                     </template>
                 </select>
-                <button class="page-btn" @click="nextPage()" :disabled="page === totalPages">下一頁 →</button>
+                <button class="page-btn" @click="nextPage()" :disabled="page === totalPages">{{ t('showcase.nav.next_page') }} →</button>
             </div>
         </div>
 
@@ -201,12 +201,12 @@
                         <div class="av-card-preview-overlay">
                             <button class="btn-glass-circle"
                                     @click.stop="playVideo(video.path)"
-                                    title="開啟影片">
+                                    title="{{ t('showcase.action.play_video') }}">
                                 <i class="bi bi-play-fill"></i>
                             </button>
                             <button class="btn-glass-circle"
                                     @click.stop="openLocal(video.path)"
-                                    title="開啟資料夾">
+                                    title="{{ t('search.action.open_folder') }}">
                                 <i class="bi bi-folder2-open"></i>
                             </button>
                         </div>
@@ -214,17 +214,17 @@
                     <div class="av-card-preview-footer">
                         <div class="footer-default">
                             <span class="av-num" x-text="video.number"></span>
-                            <span class="av-actress" x-text="video.actresses || '未知'"></span>
+                            <span class="av-actress" x-text="video.actresses || t('showcase.grid.unknown_actor')"></span>
                         </div>
                         <div class="footer-hover" x-show="!infoVisible">
-                            <div class="hover-title" x-text="video.title || '未知標題'"></div>
+                            <div class="hover-title" x-text="video.title || t('showcase.grid.unknown_title')"></div>
                         </div>
                     </div>
                     <!-- Card Info 展開區 (M3i) — footer 同層，展開時撐高卡片 -->
                     <div class="card-info" x-show="infoVisible" x-cloak @click.stop>
-                        <div class="info-title" x-text="video.title || '未知標題'"></div>
+                        <div class="info-title" x-text="video.title || t('showcase.grid.unknown_title')"></div>
                         <div class="info-row" x-show="video.actresses">
-                            <b>演員：</b>
+                            <b>{{ t('showcase.label.actor') }}：</b>
                             <template x-for="(actress, i) in (video.actresses || '').split(',').filter(a => a.trim())" :key="actress">
                                 <span>
                                     <span x-show="i > 0">, </span>
@@ -236,23 +236,23 @@
                         </div>
                         <div class="info-row info-meta">
                             <span x-show="video.maker">
-                                <b>片商：</b>
+                                <b>{{ t('showcase.label.maker') }}：</b>
                                 <a class="info-link" href="#"
                                    @click.prevent.stop="searchFromMetadata(video.maker)"
                                    x-text="video.maker"></a>
                             </span>
                             <span x-show="video.release_date">
-                                <b>日期：</b><span x-text="video.release_date"></span>
+                                <b>{{ t('showcase.label.date') }}：</b><span x-text="video.release_date"></span>
                             </span>
                         </div>
                         <div class="info-row" x-show="video.series">
-                            <b>系列：</b>
+                            <b>{{ t('showcase.label.series') }}：</b>
                             <a class="info-link" href="#"
                                @click.prevent.stop="searchFromMetadata(video.series)"
                                x-text="video.series"></a>
                         </div>
                         <div class="info-row" x-show="video.duration">
-                            <b>片長：</b><span x-text="video.duration ? video.duration + ' 分鐘' : ''"></span>
+                            <b>{{ t('showcase.label.duration') }}：</b><span x-text="video.duration ? video.duration + ' ' + t('showcase.unit.minutes') : ''"></span>
                         </div>
                         <div class="info-tags" x-show="video.tags">
                             <template x-for="tag in (video.tags || '').split(',').filter(t => t.trim())" :key="tag">
@@ -273,15 +273,15 @@
                     <thead>
                         <tr>
                             <th class="table-col-index">#</th>
-                            <th class="table-col-number">番號</th>
-                            <th class="table-col-title">標題</th>
-                            <th class="table-col-actor">女優</th>
-                            <th class="table-col-maker">片商</th>
-                            <th class="table-col-director">導演</th>
-                            <th class="table-col-duration">片長</th>
-                            <th class="table-col-date">日期</th>
-                            <th class="table-col-tags">標籤</th>
-                            <th class="table-col-size">大小</th>
+                            <th class="table-col-number">{{ t('showcase.table.col_number') }}</th>
+                            <th class="table-col-title">{{ t('showcase.table.col_title') }}</th>
+                            <th class="table-col-actor">{{ t('showcase.table.col_actor') }}</th>
+                            <th class="table-col-maker">{{ t('showcase.table.col_maker') }}</th>
+                            <th class="table-col-director">{{ t('showcase.table.col_director') }}</th>
+                            <th class="table-col-duration">{{ t('showcase.table.col_duration') }}</th>
+                            <th class="table-col-date">{{ t('showcase.table.col_date') }}</th>
+                            <th class="table-col-tags">{{ t('showcase.table.col_tags') }}</th>
+                            <th class="table-col-size">{{ t('showcase.table.col_size') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -291,11 +291,11 @@
                                 <td class="table-cell-number">
                                     <span class="table-number-highlight" x-text="video.number"></span>
                                 </td>
-                                <td class="table-cell-title" x-text="video.title || '未知標題'"></td>
-                                <td class="table-cell-actor" x-text="video.actresses || '未知'"></td>
+                                <td class="table-cell-title" x-text="video.title || t('showcase.grid.unknown_title')"></td>
+                                <td class="table-cell-actor" x-text="video.actresses || t('showcase.grid.unknown_actor')"></td>
                                 <td class="table-cell-maker" x-text="video.maker || '-'"></td>
                                 <td class="table-cell-director" x-text="video.director || '-'"></td>
-                                <td class="table-cell-duration" x-text="video.duration ? video.duration + ' 分' : '-'"></td>
+                                <td class="table-cell-duration" x-text="video.duration ? video.duration + ' ' + t('showcase.unit.minutes_abbr') : '-'"></td>
                                 <td class="table-cell-date" x-text="video.release_date || '-'"></td>
                                 <td class="table-cell-tags">
                                     <template x-if="video.tags">
@@ -328,7 +328,7 @@
                 <template x-for="(video, index) in paginatedVideos" :key="video.path">
                     <li class="list-item" @click="openLightbox(getCurrentFilteredIndex(index))">
                         <span class="list-number" x-text="video.number"></span>
-                        <span class="list-title" x-text="video.title || '未知標題'"></span>
+                        <span class="list-title" x-text="video.title || t('showcase.grid.unknown_title')"></span>
                         <span class="list-actor" x-show="video.actresses" x-text="`(${video.actresses})`"></span>
                     </li>
                 </template>
@@ -345,7 +345,7 @@
                 <!-- Close Button -->
                 <button class="lightbox-close"
                         @click="closeLightbox()"
-                        title="關閉 (ESC)">
+                        title="{{ t('showcase.lightbox.close') }}">
                     <i class="bi bi-x-lg"></i>
                 </button>
 
@@ -356,10 +356,10 @@
                          @error="$event.target.onerror=null; $event.target.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22 fill=%22%23666%22><rect width=%22400%22 height=%22300%22 fill=%22%23222%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2216%22>No Image</text></svg>'">
                     <!-- Cover Action Buttons -->
                     <div class="cover-actions">
-                        <button class="lb-action-btn" @click="playVideo(currentLightboxVideo?.path)" data-tooltip="播放" aria-label="播放">
+                        <button class="lb-action-btn" @click="playVideo(currentLightboxVideo?.path)" data-tooltip="{{ t('showcase.action.play') }}" aria-label="{{ t('showcase.action.play') }}">
                             <i class="bi bi-play-fill"></i>
                         </button>
-                        <button class="lb-action-btn" @click="openLocal(currentLightboxVideo?.path)" data-tooltip="開啟資料夾" aria-label="開啟資料夾">
+                        <button class="lb-action-btn" @click="openLocal(currentLightboxVideo?.path)" data-tooltip="{{ t('search.action.open_folder') }}" aria-label="{{ t('search.action.open_folder') }}">
                             <i class="bi bi-folder2-open"></i>
                         </button>
                     </div>
@@ -369,12 +369,12 @@
                 <div class="lightbox-metadata">
                     <!-- Row 1: Header (title + sample gallery button) -->
                     <div class="lb-header">
-                        <div class="lb-title" x-text="currentLightboxVideo?.title || '未知標題'"></div>
+                        <div class="lb-title" x-text="currentLightboxVideo?.title || t('showcase.grid.unknown_title')"></div>
                         <!-- Sample Gallery 入口按鈕 (T7) -->
                         <button class="sg-open-btn"
                                 x-show="(currentLightboxVideo?.sample_images || []).length > 0"
                                 @click="openSampleGallery(currentLightboxVideo.sample_images, 0)"
-                                x-text="'劇照 (' + (currentLightboxVideo?.sample_images || []).length + ')'">
+                                x-text="t('showcase.gallery.sample_prefix') + ' (' + (currentLightboxVideo?.sample_images || []).length + ')'">
                         </button>
                     </div>
                     <!-- Row 2: Original Title (showcase only) -->
@@ -392,27 +392,27 @@
                     <!-- Row 4: Details (merged) -->
                     <!-- 分隔符 " · " 內嵌於各 span 開頭，隨 x-show 一起顯示/隱藏，避免孤立 · -->
                     <div class="lb-details">
-                        <span x-text="currentLightboxVideo?.number || '未知'"></span>
+                        <span x-text="currentLightboxVideo?.number || t('showcase.lightbox.unknown_number')"></span>
                         <span x-show="currentLightboxVideo?.maker">
                             &nbsp;·&nbsp;<a href="#" class="lb-link" @click.prevent="searchFromMetadata(currentLightboxVideo?.maker)" x-text="currentLightboxVideo?.maker"></a>
                         </span>
                         <span x-show="currentLightboxVideo?.director">
-                            &nbsp;·&nbsp;<b>導演：</b>
+                            &nbsp;·&nbsp;<b>{{ t('showcase.label.director') }}：</b>
                             <a href="#" class="lb-link"
                                @click.prevent="searchFromMetadata(currentLightboxVideo?.director)"
                                x-text="currentLightboxVideo?.director"></a>
                         </span>
                         <span x-show="currentLightboxVideo?.duration">
-                            &nbsp;·&nbsp;<span x-text="currentLightboxVideo?.duration ? currentLightboxVideo.duration + ' 分鐘' : ''"></span>
+                            &nbsp;·&nbsp;<span x-text="currentLightboxVideo?.duration ? currentLightboxVideo.duration + ' ' + t('showcase.unit.minutes') : ''"></span>
                         </span>
                         <span x-show="currentLightboxVideo?.series">
-                            &nbsp;·&nbsp;<b>系列：</b>
+                            &nbsp;·&nbsp;<b>{{ t('showcase.label.series') }}：</b>
                             <a href="#" class="lb-link"
                                @click.prevent="searchFromMetadata(currentLightboxVideo?.series)"
                                x-text="currentLightboxVideo?.series"></a>
                         </span>
                         <span x-show="currentLightboxVideo?.label && currentLightboxVideo?.label !== currentLightboxVideo?.maker">
-                            &nbsp;·&nbsp;<b>發行：</b>
+                            &nbsp;·&nbsp;<b>{{ t('showcase.label.label') }}：</b>
                             <a href="#" class="lb-link"
                                @click.prevent="searchFromMetadata(currentLightboxVideo?.label)"
                                x-text="currentLightboxVideo?.label"></a>
@@ -438,13 +438,13 @@
             <button class="lightbox-nav lightbox-nav-prev"
                     @click.stop="prevLightboxVideo()"
                     x-show="lightboxIndex > 0"
-                    title="上一部 (←)">
+                    title="{{ t('showcase.lightbox.prev') }}">
                 <i class="bi bi-chevron-left"></i>
             </button>
             <button class="lightbox-nav lightbox-nav-next"
                     @click.stop="nextLightboxVideo()"
                     x-show="lightboxIndex < filteredCount - 1"
-                    title="下一部 (→)">
+                    title="{{ t('showcase.lightbox.next') }}">
                 <i class="bi bi-chevron-right"></i>
             </button>
         </div>
@@ -457,7 +457,7 @@
          @touchend.passive="_sgTouchEnd($event)">
 
         <!-- 關閉按鈕 -->
-        <button class="sg-close" @click="closeSampleGallery()" title="關閉 (ESC)">
+        <button class="sg-close" @click="closeSampleGallery()" title="{{ t('showcase.lightbox.close') }}">
             <i class="bi bi-x-lg"></i>
         </button>
 
@@ -469,7 +469,7 @@
         <div class="sg-main-wrap">
             <img class="sg-main-img"
                  :src="sampleGalleryImages[sampleGalleryIndex]"
-                 :alt="'樣品圖 ' + (sampleGalleryIndex + 1)"
+                 :alt="t('showcase.gallery.sample_alt') + ' ' + (sampleGalleryIndex + 1)"
                  @click.stop>
         </div>
 
@@ -477,13 +477,13 @@
         <button class="sg-nav sg-prev"
                 x-show="sampleGalleryIndex > 0"
                 @click.stop="prevSampleGallery()"
-                title="上一張 (←)">
+                title="{{ t('showcase.gallery.prev') }}">
             <i class="bi bi-chevron-left"></i>
         </button>
         <button class="sg-nav sg-next"
                 x-show="sampleGalleryIndex < sampleGalleryImages.length - 1"
                 @click.stop="nextSampleGallery()"
-                title="下一張 (→)">
+                title="{{ t('showcase.gallery.next') }}">
             <i class="bi bi-chevron-right"></i>
         </button>
 
@@ -493,7 +493,7 @@
                 <button class="sg-thumb-btn"
                         :class="{ 'sg-thumb-active': idx === sampleGalleryIndex }"
                         @click.stop="jumpSampleGallery(idx)">
-                    <img class="sg-thumb-img" :src="url" :alt="'縮圖 ' + (idx + 1)">
+                    <img class="sg-thumb-img" :src="url" :alt="t('showcase.gallery.thumb_alt') + ' ' + (idx + 1)">
                 </button>
             </template>
         </div>
@@ -520,10 +520,10 @@
     <!-- Shortcut Hint (M4c) -->
     <div class="shortcut-hint">
         <span class="hint-text">
-            <kbd>A</kbd> 切換模式 ·
-            <kbd>S</kbd> 顯示資訊 ·
-            <kbd>←</kbd> <kbd>→</kbd> 翻頁 ·
-            <kbd>ESC</kbd> 關閉
+            <kbd>A</kbd> {{ t('showcase.shortcut.switch_mode') }} ·
+            <kbd>S</kbd> {{ t('showcase.shortcut.toggle_info') }} ·
+            <kbd>←</kbd> <kbd>→</kbd> {{ t('showcase.shortcut.pagination') }} ·
+            <kbd>ESC</kbd> {{ t('showcase.shortcut.close') }}
         </span>
     </div>
 </div>
