@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-03-29
+
+### Added
+
+#### 🌐 UI 多語系 i18n (Phase 38a)
+- 四語系支援：繁體中文（zh-TW）、簡體中文（zh-CN）、日文（ja）、英文（en）
+- `core/i18n.py` 翻譯核心模組：`t()` fallback chain、`get_merged_translations()`、Accept-Language 偵測
+- `locales/` 四語系 JSON（~477 個 key），涵蓋所有頁面靜態 UI 文字
+- Settings 頁語系切換按鈕（繁 → 简 → あ → EN 循環），Fluent-glass 外觀
+- `base.html` 注入 `window.__i18n` + `window.t()` 供前端 JS 使用
+- JavBus scraper 語系連動（locale → lang 參數自動對應）
+- 字體 fallback 加入 Hiragino Sans / Yu Gothic UI / Noto Sans JP（日文假名支援）
+- i18n 完整性測試（477 key × 3 locale = 1431 parametrize 測試）
+- `<html lang>` 動態跟隨語系設定
+- `PUT /api/config/general/locale` 加 enum 白名單驗證
+- Settings 語系切換整合 dirty-check 保護
+
+### Changed
+- 測試總數 1366 → 3282（+1916）
+- AGENTS.md 新增 i18n review policy
+
 ## [0.5.5] - 2026-03-28
 
 ### Added
