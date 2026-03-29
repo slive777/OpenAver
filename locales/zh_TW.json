@@ -126,6 +126,126 @@
       "go_settings": "前往設定"
     }
   },
+  "settings": {
+    "page_title": "設定",
+    "header": {
+      "title": "設定",
+      "font_size_prefix": "字體大小",
+      "switch_dark": "切換至深色模式",
+      "switch_light": "切換至淺色模式",
+      "locale_prefix": "語系"
+    },
+    "section": {
+      "search": "搜尋與刮削",
+      "scraper_advanced": "進階刮削設定",
+      "gallery_advanced": "進階顯示選項",
+      "system": "系統設定"
+    },
+    "search": {
+      "gallery_mode": "女優畫廊模式",
+      "uncensored_mode": "無碼模式",
+      "default_source_hint": "預設搜尋來源",
+      "proxy_dmm_hint": "DMM 需要日本 IP",
+      "proxy_placeholder": "http://帳號:密碼@主機:埠號 — 已有日本 IP 可輸入 direct",
+      "favorite_folder_label": "我的最愛資料夾",
+      "favorite_folder_hint": "一鍵載入常用資料夾",
+      "favorite_folder_placeholder": "留空 = 系統下載資料夾",
+      "favorite_folder_example_prefix": "範例：C:\\Users\\&lt;你的使用者名稱&gt;\\下載"
+    },
+    "translate": {
+      "enabled_label": "啟用標題翻譯",
+      "provider_label": "翻譯服務",
+      "ollama_local": "（本地）",
+      "gemini_cloud": "（Google 雲端）",
+      "model_label": "模型",
+      "test_connection_placeholder": "請先測試連線",
+      "test_model_title": "測試模型",
+      "test_translation_title": "測試翻譯功能",
+      "test_apikey_placeholder": "請先測試 API Key",
+      "gemini_free_hint": "可免費申請",
+      "security_title": "安全提示：",
+      "security_item1": "API Key 將以明文存儲在 config.json",
+      "security_item2": "請勿將 config.json 分享給他人",
+      "security_item3_prefix": "如需撤銷，請前往",
+      "security_item3_suffix": "重新生成"
+    },
+    "scraper": {
+      "suffix_keywords_label": "版本標記",
+      "suffix_keywords_hint": "檔名含這些關鍵字時保留為 {suffix}",
+      "create_folder_label": "建立資料夾",
+      "folder_layers_label": "資料夾層級",
+      "folder_layer_outer": "外層",
+      "folder_layer_middle": "中層",
+      "folder_layer_inner": "內層",
+      "preview_prefix": "預覽",
+      "filename_format_label": "檔案命名格式",
+      "max_title_length_label": "標題長度限制",
+      "unit_chars": "字元",
+      "max_filename_length_label": "檔名長度限制",
+      "path_length_help_aria": "Windows 路徑長度說明",
+      "path_length_help_line1": "Windows 預設路徑上限為 260 字元（適用 Windows 10 1607+ / Windows 11）。",
+      "path_length_help_line2": "若需更長檔名，以<strong>系統管理員身分</strong>開啟 PowerShell 執行：",
+      "path_length_help_line3": "重開機後生效。",
+      "path_length_help_line4": "macOS / Linux 不受此限制，但從 macOS/Linux 產生的長檔名搬到未啟用 LongPathsEnabled 的 Windows 仍可能失敗。",
+      "video_extensions_label": "影片副檔名",
+      "video_extensions_hint": "以逗號分隔",
+      "jellyfin_mode_label": "Jellyfin 圖片模式",
+      "jellyfin_mode_hint": "自動產生 {stem}-poster.jpg + {stem}-fanart.jpg + extrafanart/ 樣品圖像"
+    },
+    "gallery": {
+      "output_dir_label": "輸出目錄",
+      "select_folder_title": "選擇資料夾",
+      "output_filename_label": "輸出檔名",
+      "default_mode_label": "預設顯示模式",
+      "mode_image": "圖片模式",
+      "mode_detail": "詳細模式",
+      "mode_text": "文字模式",
+      "default_sort_label": "預設排序",
+      "sort_date": "發售日期",
+      "sort_mdate": "修改日期",
+      "sort_num": "番號",
+      "sort_title": "片名",
+      "sort_actor": "演員",
+      "sort_maker": "片商",
+      "sort_size": "檔案大小",
+      "order_desc": "遞減",
+      "order_asc": "遞增",
+      "items_per_page_label": "每頁顯示數量",
+      "all": "全部",
+      "min_size_label": "最小影片尺寸",
+      "min_size_hint": "0 = 不過濾"
+    },
+    "system": {
+      "default_page_label": "啟動時開啟頁面",
+      "player_label": "影片播放器",
+      "player_placeholder": "留空使用系統預設",
+      "player_hint_prefix": "例如:",
+      "reset_label": "重置所有設定",
+      "reset_hint": "刪除所有自訂設定，恢復預設值"
+    },
+    "action": {
+      "test": "測試",
+      "variable": "變數",
+      "reset": "重置為預設值",
+      "save": "儲存設定"
+    },
+    "var": {
+      "num": "番號",
+      "title": "標題",
+      "actor": "女優",
+      "actors": "女優(全)",
+      "maker": "片商",
+      "date": "日期",
+      "year": "年份",
+      "suffix": "後綴"
+    },
+    "dirty_modal": {
+      "title": "尚未儲存的變更",
+      "body": "您有修改尚未儲存，要如何處理？",
+      "discard": "不儲存",
+      "save": "儲存更改"
+    }
+  },
   "showcase": {
     "page_title": "影片瀏覽",
     "placeholder": {

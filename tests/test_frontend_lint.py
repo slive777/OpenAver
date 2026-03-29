@@ -407,11 +407,14 @@ class TestJellyfinFrontend:
             "scanner.html 缺少 runJellyfinImageUpdate（T6d Jellyfin 批次補齊）"
 
     def test_jellyfin_settings_hint_has_extrafanart(self):
-        """settings.html Jellyfin 模式描述文字應包含 extrafanart/ 說明（T5b）"""
+        """settings.html Jellyfin 模式描述文字應包含 extrafanart/ 說明（T5b）
+        i18n 後文字移至 locale JSON，檢查 zh_TW.json 或 HTML 中含 extrafanart"""
         html_file = PROJECT_ROOT / "web" / "templates" / "settings.html"
-        content = html_file.read_text(encoding='utf-8')
-        assert 'extrafanart' in content, \
-            "settings.html Jellyfin 圖片模式描述缺少 extrafanart/ 說明（T5b）"
+        html_content = html_file.read_text(encoding='utf-8')
+        locale_file = PROJECT_ROOT / "locales" / "zh_TW.json"
+        locale_content = locale_file.read_text(encoding='utf-8') if locale_file.exists() else ''
+        assert 'extrafanart' in html_content or 'extrafanart' in locale_content, \
+            "settings.html 或 locales/zh_TW.json Jellyfin 圖片模式描述缺少 extrafanart/ 說明（T5b）"
 
 
 class TestOpenLocalGuard:
@@ -4296,9 +4299,12 @@ class TestProxyDirectGuard:
     """37d T3 守衛 — settings.html proxy placeholder 包含 direct 提示"""
 
     def test_settings_proxy_placeholder_has_direct(self):
+        """i18n 後 placeholder 文字移至 locale JSON，檢查 zh_TW.json 或 HTML"""
         html = (PROJECT_ROOT / 'web/templates/settings.html').read_text(encoding='utf-8')
-        assert 'direct' in html.lower(), \
-            "settings.html proxy placeholder 應包含 direct 提示"
+        locale_file = PROJECT_ROOT / 'locales' / 'zh_TW.json'
+        locale_content = locale_file.read_text(encoding='utf-8') if locale_file.exists() else ''
+        assert 'direct' in html.lower() or 'direct' in locale_content.lower(), \
+            "settings.html 或 locales/zh_TW.json proxy placeholder 應包含 direct 提示"
 
 
 class TestShowcaseSampleGalleryGuard:

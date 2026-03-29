@@ -126,6 +126,126 @@
       "go_settings": "設定へ"
     }
   },
+  "settings": {
+    "page_title": "設定",
+    "header": {
+      "title": "設定",
+      "font_size_prefix": "フォントサイズ",
+      "switch_dark": "ダークモードに切替",
+      "switch_light": "ライトモードに切替",
+      "locale_prefix": "言語"
+    },
+    "section": {
+      "search": "検索・スクレイプ",
+      "scraper_advanced": "高度なスクレイプ設定",
+      "gallery_advanced": "高度な表示設定",
+      "system": "システム設定"
+    },
+    "search": {
+      "gallery_mode": "女優ギャラリーモード",
+      "uncensored_mode": "無修正モード",
+      "default_source_hint": "デフォルト検索ソース",
+      "proxy_dmm_hint": "DMM は日本 IP が必要",
+      "proxy_placeholder": "http://ユーザー:パスワード@ホスト:ポート — 日本 IP があれば direct と入力",
+      "favorite_folder_label": "お気に入りフォルダ",
+      "favorite_folder_hint": "よく使うフォルダをワンクリックで読み込み",
+      "favorite_folder_placeholder": "空欄 = システムのダウンロードフォルダ",
+      "favorite_folder_example_prefix": "例：C:\\Users\\&lt;ユーザー名&gt;\\Downloads"
+    },
+    "translate": {
+      "enabled_label": "タイトル翻訳を有効にする",
+      "provider_label": "翻訳サービス",
+      "ollama_local": "（ローカル）",
+      "gemini_cloud": "（Google クラウド）",
+      "model_label": "モデル",
+      "test_connection_placeholder": "先に接続テストを行ってください",
+      "test_model_title": "モデルをテスト",
+      "test_translation_title": "翻訳機能をテスト",
+      "test_apikey_placeholder": "先に API Key をテストしてください",
+      "gemini_free_hint": "無料で申請可能",
+      "security_title": "セキュリティ注意：",
+      "security_item1": "API Key は config.json に平文で保存されます",
+      "security_item2": "config.json を他人に共有しないでください",
+      "security_item3_prefix": "取り消す場合は",
+      "security_item3_suffix": "で再生成してください"
+    },
+    "scraper": {
+      "suffix_keywords_label": "バージョンマーク",
+      "suffix_keywords_hint": "ファイル名にこれらのキーワードが含まれる場合 {suffix} として保持",
+      "create_folder_label": "フォルダを作成",
+      "folder_layers_label": "フォルダ階層",
+      "folder_layer_outer": "外層",
+      "folder_layer_middle": "中間層",
+      "folder_layer_inner": "内層",
+      "preview_prefix": "プレビュー",
+      "filename_format_label": "ファイル命名形式",
+      "max_title_length_label": "タイトル長さ制限",
+      "unit_chars": "文字",
+      "max_filename_length_label": "ファイル名長さ制限",
+      "path_length_help_aria": "Windows パス長さの説明",
+      "path_length_help_line1": "Windows のデフォルトパス上限は 260 文字です（Windows 10 1607+ / Windows 11 対応）。",
+      "path_length_help_line2": "長いファイル名が必要な場合は、<strong>管理者として</strong> PowerShell を開いて実行：",
+      "path_length_help_line3": "再起動後に有効になります。",
+      "path_length_help_line4": "macOS / Linux にはこの制限はありませんが、macOS/Linux で生成した長いファイル名を LongPathsEnabled が無効な Windows に移動すると失敗する場合があります。",
+      "video_extensions_label": "動画拡張子",
+      "video_extensions_hint": "カンマ区切り",
+      "jellyfin_mode_label": "Jellyfin 画像モード",
+      "jellyfin_mode_hint": "{stem}-poster.jpg + {stem}-fanart.jpg + extrafanart/ サンプル画像を自動生成"
+    },
+    "gallery": {
+      "output_dir_label": "出力ディレクトリ",
+      "select_folder_title": "フォルダを選択",
+      "output_filename_label": "出力ファイル名",
+      "default_mode_label": "デフォルト表示モード",
+      "mode_image": "グリッドモード",
+      "mode_detail": "詳細モード",
+      "mode_text": "テキストモード",
+      "default_sort_label": "デフォルト並び替え",
+      "sort_date": "発売日",
+      "sort_mdate": "更新日",
+      "sort_num": "番号",
+      "sort_title": "タイトル",
+      "sort_actor": "出演者",
+      "sort_maker": "メーカー",
+      "sort_size": "ファイルサイズ",
+      "order_desc": "降順",
+      "order_asc": "昇順",
+      "items_per_page_label": "1ページあたりの表示数",
+      "all": "すべて",
+      "min_size_label": "最小動画サイズ",
+      "min_size_hint": "0 = フィルタなし"
+    },
+    "system": {
+      "default_page_label": "起動時に開くページ",
+      "player_label": "動画プレイヤー",
+      "player_placeholder": "空欄 = システムデフォルトを使用",
+      "player_hint_prefix": "例：",
+      "reset_label": "すべての設定をリセット",
+      "reset_hint": "すべてのカスタム設定を削除してデフォルトに戻す"
+    },
+    "action": {
+      "test": "テスト",
+      "variable": "変数",
+      "reset": "デフォルトにリセット",
+      "save": "設定を保存"
+    },
+    "var": {
+      "num": "番号",
+      "title": "タイトル",
+      "actor": "女優",
+      "actors": "女優(全員)",
+      "maker": "メーカー",
+      "date": "日付",
+      "year": "年",
+      "suffix": "サフィックス"
+    },
+    "dirty_modal": {
+      "title": "未保存の変更",
+      "body": "保存されていない変更があります。どうしますか？",
+      "discard": "保存しない",
+      "save": "変更を保存"
+    }
+  },
   "showcase": {
     "page_title": "動画ブラウズ",
     "placeholder": {

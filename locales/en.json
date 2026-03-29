@@ -126,6 +126,126 @@
       "go_settings": "Go to Settings"
     }
   },
+  "settings": {
+    "page_title": "Settings",
+    "header": {
+      "title": "Settings",
+      "font_size_prefix": "Font size",
+      "switch_dark": "Switch to dark mode",
+      "switch_light": "Switch to light mode",
+      "locale_prefix": "Locale"
+    },
+    "section": {
+      "search": "Search & Scrape",
+      "scraper_advanced": "Advanced Scrape Settings",
+      "gallery_advanced": "Advanced Display Options",
+      "system": "System Settings"
+    },
+    "search": {
+      "gallery_mode": "Actress Gallery Mode",
+      "uncensored_mode": "Uncensored Mode",
+      "default_source_hint": "Default search source",
+      "proxy_dmm_hint": "DMM requires Japan IP",
+      "proxy_placeholder": "http://user:pass@host:port — enter direct if you already have Japan IP",
+      "favorite_folder_label": "Favorite Folder",
+      "favorite_folder_hint": "Load a commonly used folder with one click",
+      "favorite_folder_placeholder": "Leave blank = system Downloads folder",
+      "favorite_folder_example_prefix": "Example: C:\\Users\\&lt;your username&gt;\\Downloads"
+    },
+    "translate": {
+      "enabled_label": "Enable Title Translation",
+      "provider_label": "Translation Service",
+      "ollama_local": "(Local)",
+      "gemini_cloud": "(Google Cloud)",
+      "model_label": "Model",
+      "test_connection_placeholder": "Test connection first",
+      "test_model_title": "Test Model",
+      "test_translation_title": "Test Translation",
+      "test_apikey_placeholder": "Test API Key first",
+      "gemini_free_hint": "Free to sign up",
+      "security_title": "Security Notice:",
+      "security_item1": "API Key is stored in plain text in config.json",
+      "security_item2": "Do not share config.json with others",
+      "security_item3_prefix": "To revoke, go to",
+      "security_item3_suffix": "to regenerate"
+    },
+    "scraper": {
+      "suffix_keywords_label": "Version Tags",
+      "suffix_keywords_hint": "Keep as {suffix} when filename contains these keywords",
+      "create_folder_label": "Create Folder",
+      "folder_layers_label": "Folder Layers",
+      "folder_layer_outer": "Outer",
+      "folder_layer_middle": "Middle",
+      "folder_layer_inner": "Inner",
+      "preview_prefix": "Preview",
+      "filename_format_label": "File Naming Format",
+      "max_title_length_label": "Title Length Limit",
+      "unit_chars": "chars",
+      "max_filename_length_label": "Filename Length Limit",
+      "path_length_help_aria": "Windows path length info",
+      "path_length_help_line1": "Windows default path limit is 260 characters (Windows 10 1607+ / Windows 11).",
+      "path_length_help_line2": "For longer filenames, open PowerShell <strong>as Administrator</strong> and run:",
+      "path_length_help_line3": "Reboot required for changes to take effect.",
+      "path_length_help_line4": "macOS / Linux have no such limit, but long filenames generated on macOS/Linux may still fail on Windows without LongPathsEnabled.",
+      "video_extensions_label": "Video Extensions",
+      "video_extensions_hint": "Comma-separated",
+      "jellyfin_mode_label": "Jellyfin Image Mode",
+      "jellyfin_mode_hint": "Auto-generate {stem}-poster.jpg + {stem}-fanart.jpg + extrafanart/ sample images"
+    },
+    "gallery": {
+      "output_dir_label": "Output Directory",
+      "select_folder_title": "Select Folder",
+      "output_filename_label": "Output Filename",
+      "default_mode_label": "Default Display Mode",
+      "mode_image": "Image Mode",
+      "mode_detail": "Detail Mode",
+      "mode_text": "Text Mode",
+      "default_sort_label": "Default Sort",
+      "sort_date": "Release Date",
+      "sort_mdate": "Modified Date",
+      "sort_num": "ID",
+      "sort_title": "Title",
+      "sort_actor": "Actress",
+      "sort_maker": "Maker",
+      "sort_size": "File Size",
+      "order_desc": "Descending",
+      "order_asc": "Ascending",
+      "items_per_page_label": "Items per Page",
+      "all": "All",
+      "min_size_label": "Minimum Video Size",
+      "min_size_hint": "0 = no filter"
+    },
+    "system": {
+      "default_page_label": "Default Page on Startup",
+      "player_label": "Video Player",
+      "player_placeholder": "Leave blank for system default",
+      "player_hint_prefix": "E.g.:",
+      "reset_label": "Reset All Settings",
+      "reset_hint": "Delete all custom settings and restore defaults"
+    },
+    "action": {
+      "test": "Test",
+      "variable": "Variable",
+      "reset": "Reset to Default",
+      "save": "Save Settings"
+    },
+    "var": {
+      "num": "ID",
+      "title": "Title",
+      "actor": "Actress",
+      "actors": "Actresses",
+      "maker": "Maker",
+      "date": "Date",
+      "year": "Year",
+      "suffix": "Suffix"
+    },
+    "dirty_modal": {
+      "title": "Unsaved Changes",
+      "body": "You have unsaved changes. What would you like to do?",
+      "discard": "Discard",
+      "save": "Save Changes"
+    }
+  },
   "showcase": {
     "page_title": "Browse",
     "placeholder": {
