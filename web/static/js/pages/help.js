@@ -20,7 +20,7 @@ function helpPage() {
                 const data = await resp.json();
                 if (data.success) this.appVersion = `v${data.version}`;
             } catch (e) {
-                this.appVersion = '無法載入';
+                this.appVersion = window.t('help.js.version_load_failed');
             }
         },
 
@@ -36,10 +36,10 @@ function helpPage() {
                     this.latestVersion = data.latest_version || '';
                     this.downloadUrl = data.download_url || '';
                 } else {
-                    this.errorMsg = '檢查失敗，請稍後再試';
+                    this.errorMsg = window.t('help.js.check_update_failed');
                 }
             } catch (e) {
-                this.errorMsg = '無法連線，請稍後再試';
+                this.errorMsg = window.t('help.js.check_update_network_error');
             } finally {
                 this.checkUpdateLoading = false;
                 this.checkDone = true;

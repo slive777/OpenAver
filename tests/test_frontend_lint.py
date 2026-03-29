@@ -4559,15 +4559,25 @@ class TestShowcaseSampleGalleryGuard:
 
 
 class TestHelpPageGuard:
-    """37d T4 守衛 — help.html 包含 Phase 36/37 新功能說明"""
+    """37d T4 守衛 — help.html 包含 Phase 36/37 新功能說明
+    38a T6 更新：文字已移至 i18n key，改為驗證 HTML 有對應 t() 呼叫 + zh_TW.json 含對應字串"""
+
+    def _zh_tw(self):
+        import json
+        return json.loads((PROJECT_ROOT / 'locales/zh_TW.json').read_text(encoding='utf-8'))
 
     def test_help_has_primary_source(self):
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
-        assert '預設搜尋來源' in html or '主要搜尋來源' in html
+        # 文字已 i18n，改驗證 t() key 出現在模板中
+        assert 'help.scraper.h6_default_source' in html
+        zh = self._zh_tw()
+        assert '預設搜尋來源' in zh['help']['scraper']['h6_default_source']
 
     def test_help_has_dmm_fuzzy_search(self):
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
-        assert '模糊搜尋' in html
+        assert 'help.scraper.h6_dmm_fuzzy' in html
+        zh = self._zh_tw()
+        assert '模糊搜尋' in zh['help']['scraper']['h6_dmm_fuzzy']
 
     def test_help_has_direct_mode(self):
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
@@ -4575,19 +4585,27 @@ class TestHelpPageGuard:
 
     def test_help_has_lightbox_director(self):
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
-        assert '導演' in html
+        assert 'help.showcase.other_lightbox_detail' in html
+        zh = self._zh_tw()
+        assert '導演' in zh['help']['showcase']['other_lightbox_detail']
 
     def test_help_has_sample_gallery(self):
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
-        assert '劇照' in html
+        assert 'help.showcase.other_gallery' in html
+        zh = self._zh_tw()
+        assert '劇照' in zh['help']['showcase']['other_gallery']
 
     def test_help_has_table_duration(self):
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
-        assert '片長' in html
+        assert 'help.showcase.other_table_cols' in html
+        zh = self._zh_tw()
+        assert '片長' in zh['help']['showcase']['other_table_cols']
 
     def test_help_has_subtitle_move(self):
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
-        assert '字幕' in html
+        assert 'help.scanner.subtitle_move' in html
+        zh = self._zh_tw()
+        assert '字幕' in zh['help']['scanner']['subtitle_move']
 
     def test_troubleshoot_direct(self):
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')

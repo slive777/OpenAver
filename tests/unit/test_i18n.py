@@ -243,3 +243,312 @@ class TestDetectLocaleFromAcceptLanguage:
         """zh-TW 出現時，即使也有 zh-CN，以 zh-TW 優先（任何含 zh-TW 的 header）"""
         result = detect_locale_from_accept_language("zh-TW;q=0.9,zh-CN;q=0.8,en;q=0.7")
         assert result == "zh-TW"
+
+
+# ============ help.* key coverage ============
+
+import json
+from pathlib import Path
+
+LOCALES_ROOT = Path(__file__).parent.parent.parent / "locales"
+
+# Flat list of all help.* keys that must exist in both zh_TW and en
+HELP_KEYS = [
+    # hero
+    "help.hero.page_title",
+    "help.hero.subtitle",
+    "help.hero.privacy",
+    "help.hero.btn_tutorial",
+    "help.hero.btn_check_update",
+    "help.hero.btn_check_update_idle",
+    "help.hero.update_available_prefix",
+    "help.hero.update_available_suffix",
+    "help.hero.up_to_date",
+    # search
+    "help.search.title",
+    "help.search.h6_methods",
+    "help.search.h6_dragdrop",
+    "help.search.h6_grid",
+    "help.search.h6_badge",
+    "help.search.method_full",
+    "help.search.method_partial",
+    "help.search.method_series",
+    "help.search.method_actress",
+    "help.search.drag_auto",
+    "help.search.drag_batch",
+    "help.search.drag_generate",
+    "help.search.grid_switch",
+    "help.search.grid_lightbox",
+    "help.search.grid_detail",
+    "help.search.grid_gallery",
+    "help.search.badge_keywords",
+    # batch
+    "help.batch.title",
+    "help.batch.h6_add",
+    "help.batch.h6_favorite",
+    "help.batch.h6_pause",
+    "help.batch.h6_generate_all",
+    "help.batch.h6_badge",
+    "help.batch.add_folder",
+    "help.batch.add_filter",
+    "help.batch.add_batch",
+    "help.batch.add_progress",
+    "help.batch.fav_settings",
+    "help.batch.fav_load",
+    "help.batch.fav_auto",
+    "help.batch.pause_pause",
+    "help.batch.pause_resume",
+    "help.batch.generate_all",
+    "help.batch.badge_suffix",
+    # format
+    "help.format.title",
+    "help.format.h6_default",
+    "help.format.h6_fallback",
+    "help.format.col_var",
+    "help.format.col_desc",
+    "help.format.col_example",
+    "help.format.col_fallback",
+    "help.format.var_num_desc",
+    "help.format.var_title_desc",
+    "help.format.var_actor_desc",
+    "help.format.var_actors_desc",
+    "help.format.var_maker_desc",
+    "help.format.var_date_desc",
+    "help.format.var_year_desc",
+    "help.format.var_suffix_desc",
+    "help.format.fallback_unknown_title",
+    "help.format.fallback_unknown_actor",
+    "help.format.fallback_unknown_maker",
+    "help.format.fallback_unknown_date",
+    "help.format.fallback_unknown_year",
+    "help.format.fallback_empty",
+    "help.format.default_filename",
+    "help.format.default_folder",
+    "help.format.fallback_folder_rule",
+    "help.format.fallback_filename_rule",
+    # gallery
+    "help.gallery.title",
+    "help.gallery.h6_trigger",
+    "help.gallery.h6_features",
+    "help.gallery.h6_diff",
+    "help.gallery.trigger_count",
+    "help.gallery.trigger_consistency",
+    "help.gallery.trigger_setting",
+    "help.gallery.feat_hero",
+    "help.gallery.feat_browse",
+    "help.gallery.feat_back",
+    "help.gallery.diff_gallery",
+    "help.gallery.diff_grid",
+    "help.gallery.diff_grid_nav",
+    # scanner
+    "help.scanner.title",
+    "help.scanner.h6_features",
+    "help.scanner.h6_output",
+    "help.scanner.h6_subtitle",
+    "help.scanner.h6_jellyfin",
+    "help.scanner.feat_scan",
+    "help.scanner.feat_nfo",
+    "help.scanner.feat_nfo_fill",
+    "help.scanner.feat_terminal",
+    "help.scanner.output_html",
+    "help.scanner.output_copy",
+    "help.scanner.output_darkmode",
+    "help.scanner.subtitle_detect",
+    "help.scanner.subtitle_move",
+    "help.scanner.subtitle_nfo",
+    "help.scanner.jellyfin_enable",
+    "help.scanner.jellyfin_showcase",
+    # showcase
+    "help.showcase.title",
+    "help.showcase.h6_modes",
+    "help.showcase.h6_sort",
+    "help.showcase.h6_other",
+    "help.showcase.intro",
+    "help.showcase.mode_grid",
+    "help.showcase.mode_list",
+    "help.showcase.mode_table",
+    "help.showcase.sort_sort",
+    "help.showcase.sort_search",
+    "help.showcase.other_lightbox",
+    "help.showcase.other_lightbox_detail",
+    "help.showcase.other_table_cols",
+    "help.showcase.other_gallery",
+    "help.showcase.other_per_page",
+    # shortcuts
+    "help.shortcuts.title",
+    "help.shortcuts.h6_search",
+    "help.shortcuts.h6_showcase",
+    "help.shortcuts.search_hint",
+    "help.shortcuts.col_key",
+    "help.shortcuts.col_context",
+    "help.shortcuts.col_action",
+    "help.shortcuts.ctx_lightbox_open",
+    "help.shortcuts.ctx_lightbox_closed",
+    "help.shortcuts.action_close_lightbox",
+    "help.shortcuts.action_prev_next_video",
+    "help.shortcuts.search_arrow2_ctx",
+    "help.shortcuts.search_arrow2_action",
+    "help.shortcuts.showcase_arrow_action",
+    "help.shortcuts.showcase_a_action",
+    "help.shortcuts.showcase_s_ctx",
+    "help.shortcuts.showcase_s_action",
+    # scraper
+    "help.scraper.title",
+    "help.scraper.h6_censored",
+    "help.scraper.h6_uncensored",
+    "help.scraper.h6_default_source",
+    "help.scraper.h6_dmm_fuzzy",
+    "help.scraper.h6_proxy_direct",
+    "help.scraper.h6_toggle",
+    "help.scraper.h6_format",
+    "help.scraper.censored_dmm",
+    "help.scraper.censored_others",
+    "help.scraper.uncensored_d2pass",
+    "help.scraper.uncensored_heyzo",
+    "help.scraper.uncensored_fc2",
+    "help.scraper.uncensored_avsox",
+    "help.scraper.default_source_set",
+    "help.scraper.default_source_effect",
+    "help.scraper.dmm_fuzzy_trigger",
+    "help.scraper.dmm_fuzzy_prereq",
+    "help.scraper.proxy_direct_vpn",
+    "help.scraper.proxy_direct_how",
+    "help.scraper.toggle_uncensored",
+    "help.scraper.col_source",
+    "help.scraper.col_format",
+    "help.scraper.col_example",
+    # troubleshooting
+    "help.troubleshooting.title",
+    "help.troubleshooting.h6_crash",
+    "help.troubleshooting.h6_display",
+    "help.troubleshooting.h6_report",
+    "help.troubleshooting.h6_dmm",
+    "help.troubleshooting.h6_translate",
+    "help.troubleshooting.crash_cause",
+    "help.troubleshooting.crash_fix_label",
+    "help.troubleshooting.crash_fix_1",
+    "help.troubleshooting.crash_fix_2",
+    "help.troubleshooting.crash_fix_3",
+    "help.troubleshooting.display_cause",
+    "help.troubleshooting.display_fix",
+    "help.troubleshooting.report_log_path",
+    "help.troubleshooting.report_debug_label",
+    "help.troubleshooting.report_debug_1",
+    "help.troubleshooting.report_debug_2",
+    "help.troubleshooting.report_debug_3",
+    "help.troubleshooting.dmm_proxy",
+    "help.troubleshooting.dmm_direct",
+    "help.troubleshooting.translate_ollama",
+    "help.troubleshooting.translate_gemini",
+    # js
+    "help.js.version_load_failed",
+    "help.js.check_update_failed",
+    "help.js.check_update_network_error",
+]
+
+# Keys whose zh_TW values must contain HTML markup
+HELP_HTML_KEYS = [
+    "help.search.method_full",
+    "help.search.method_partial",
+    "help.search.method_series",
+    "help.search.method_actress",
+    "help.search.grid_lightbox",
+    "help.search.grid_gallery",
+    "help.search.badge_keywords",
+    "help.batch.add_folder",
+    "help.batch.add_filter",
+    "help.batch.add_batch",
+    "help.batch.add_progress",
+    "help.batch.fav_settings",
+    "help.batch.badge_suffix",
+    "help.format.default_filename",
+    "help.format.default_folder",
+    "help.gallery.feat_hero",
+    "help.gallery.feat_browse",
+    "help.gallery.feat_back",
+    "help.gallery.diff_gallery",
+    "help.gallery.diff_grid",
+    "help.gallery.diff_grid_nav",
+    "help.scanner.output_html",
+    "help.scanner.output_copy",
+    "help.scanner.output_darkmode",
+    "help.scanner.subtitle_detect",
+    "help.scanner.subtitle_move",
+    "help.scanner.jellyfin_enable",
+    "help.scanner.jellyfin_showcase",
+    "help.showcase.intro",
+    "help.showcase.mode_grid",
+    "help.showcase.mode_list",
+    "help.showcase.mode_table",
+    "help.showcase.sort_sort",
+    "help.showcase.sort_search",
+    "help.showcase.other_lightbox",
+    "help.showcase.other_per_page",
+    "help.scraper.censored_dmm",
+    "help.scraper.censored_others",
+    "help.scraper.uncensored_d2pass",
+    "help.scraper.uncensored_heyzo",
+    "help.scraper.uncensored_fc2",
+    "help.scraper.uncensored_avsox",
+    "help.scraper.default_source_set",
+    "help.scraper.dmm_fuzzy_prereq",
+    "help.scraper.proxy_direct_how",
+    "help.scraper.toggle_uncensored",
+    "help.troubleshooting.crash_cause",
+    "help.troubleshooting.crash_fix_label",
+    "help.troubleshooting.display_cause",
+    "help.troubleshooting.display_fix",
+    "help.troubleshooting.report_log_path",
+    "help.troubleshooting.report_debug_label",
+    "help.troubleshooting.report_debug_1",
+    "help.troubleshooting.report_debug_3",
+    "help.troubleshooting.dmm_proxy",
+    "help.troubleshooting.dmm_direct",
+    "help.troubleshooting.translate_ollama",
+    "help.troubleshooting.translate_gemini",
+]
+
+
+def _get_nested(d: dict, dotted_key: str):
+    """從 dict 取得 dot-notation key，找不到回傳 None"""
+    keys = dotted_key.split(".")
+    cur = d
+    for k in keys:
+        if not isinstance(cur, dict) or k not in cur:
+            return None
+        cur = cur[k]
+    return cur
+
+
+class TestHelpI18nKeyCompleteness:
+    """確認 zh_TW.json 和 en.json 都含有所有 help.* key"""
+
+    @pytest.fixture(autouse=True)
+    def _load_real_locales(self):
+        zh_tw_path = LOCALES_ROOT / "zh_TW.json"
+        en_path = LOCALES_ROOT / "en.json"
+        self.zh_tw = json.loads(zh_tw_path.read_text(encoding="utf-8"))
+        self.en = json.loads(en_path.read_text(encoding="utf-8"))
+
+    @pytest.mark.parametrize("key", HELP_KEYS)
+    def test_key_exists_in_zh_tw(self, key):
+        value = _get_nested(self.zh_tw, key)
+        assert value is not None, f"Missing key in zh_TW.json: {key}"
+        assert isinstance(value, str) and value != "", f"Empty value in zh_TW.json: {key}"
+
+    @pytest.mark.parametrize("key", HELP_KEYS)
+    def test_key_exists_in_en(self, key):
+        value = _get_nested(self.en, key)
+        assert value is not None, f"Missing key in en.json: {key}"
+        assert isinstance(value, str) and value != "", f"Empty value in en.json: {key}"
+
+    @pytest.mark.parametrize("key", HELP_HTML_KEYS)
+    def test_html_key_contains_markup_in_zh_tw(self, key):
+        """含 HTML markup 的 key，zh_TW 版本確實含有 HTML tag"""
+        value = _get_nested(self.zh_tw, key)
+        assert value is not None, f"Missing key in zh_TW.json: {key}"
+        has_markup = ("<strong>" in value or "<code>" in value
+                      or "<kbd" in value or "<a " in value)
+        assert has_markup, (
+            f"Key {key!r} in zh_TW.json expected HTML markup but got: {value!r}"
+        )

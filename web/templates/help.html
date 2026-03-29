@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}使用說明 - OpenAver{% endblock %}
+{% block title %}{{ t('help.hero.page_title') }} - OpenAver{% endblock %}
 
 {% block extra_css %}
 <link href="/static/css/pages/help.css" rel="stylesheet">
@@ -15,34 +15,34 @@
                 <i class="bi bi-info-circle"></i>
                 <span>OpenAver <span x-text="appVersion || 'v{{ version }}'">v{{ version }}</span></span>
             </h2>
-            <p class="text-base-content/60 text-sm mb-1">JAV 影片元數據管理工具</p>
+            <p class="text-base-content/60 text-sm mb-1">{{ t('help.hero.subtitle') }}</p>
             <p class="text-base-content/60 text-sm mb-3">
-                🔒 純本地應用程式，不蒐集使用者資料
+                {{ t('help.hero.privacy') }}
             </p>
             <div class="flex flex-wrap items-center gap-2">
                 <!-- 主 CTA -->
                 <button class="btn btn-primary btn-sm"
                         @click="window.location.href = '/search?tutorial=restart'">
-                    <i class="bi bi-play-circle"></i> 重看新手引導
+                    <i class="bi bi-play-circle"></i> {{ t('help.hero.btn_tutorial') }}
                 </button>
                 <!-- 次 CTA -->
                 <button class="btn btn-outline btn-neutral btn-sm"
                         @click="checkUpdate()"
                         :disabled="checkUpdateLoading">
                     <span x-show="checkUpdateLoading" class="loading loading-spinner loading-sm"></span>
-                    <span x-show="checkUpdateLoading">檢查中…</span>
+                    <span x-show="checkUpdateLoading">{{ t('help.hero.btn_check_update') }}</span>
                     <span x-show="!checkUpdateLoading"><i class="bi bi-cloud-download"></i></span>
-                    <span x-show="!checkUpdateLoading">檢查更新</span>
+                    <span x-show="!checkUpdateLoading">{{ t('help.hero.btn_check_update_idle') }}</span>
                 </button>
                 <!-- 更新結果 inline -->
                 <template x-if="checkDone && !errorMsg && hasUpdate">
                     <a :href="downloadUrl" target="_blank" rel="noopener noreferrer" class="text-success text-sm">
-                        <i class="bi bi-download"></i> 新版本 <span x-text="latestVersion"></span> 可用
+                        <i class="bi bi-download"></i> {{ t('help.hero.update_available_prefix') }} <span x-text="latestVersion"></span> {{ t('help.hero.update_available_suffix') }}
                     </a>
                 </template>
                 <template x-if="checkDone && !errorMsg && !hasUpdate">
                     <span class="text-base-content/50 text-sm">
-                        <i class="bi bi-check-circle"></i> 已是最新版本
+                        <i class="bi bi-check-circle"></i> {{ t('help.hero.up_to_date') }}
                     </span>
                 </template>
                 <template x-if="checkDone && errorMsg">
@@ -67,34 +67,34 @@
     <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
-                <i class="bi bi-search"></i> 搜尋功能
+                <i class="bi bi-search"></i> {{ t('help.search.title') }}
             </h2>
-            <h6>支援的搜尋方式</h6>
+            <h6>{{ t('help.search.h6_methods') }}</h6>
             <ul>
-                <li><strong>完整番號</strong>：如 <code>SONE-001</code>，精確搜尋單一作品</li>
-                <li><strong>部分番號</strong>：如 <code>SONE-0</code>，搜尋 001~009</li>
-                <li><strong>系列搜尋</strong>：如 <code>SONE</code>，搜尋該系列最新作品</li>
-                <li><strong>女優名</strong>：如 <code>河北彩花</code>，搜尋該演員作品</li>
+                <li>{{ t('help.search.method_full') | safe }}</li>
+                <li>{{ t('help.search.method_partial') | safe }}</li>
+                <li>{{ t('help.search.method_series') | safe }}</li>
+                <li>{{ t('help.search.method_actress') | safe }}</li>
             </ul>
 
-            <h6 class="mt-4">拖放檔案</h6>
+            <h6 class="mt-4">{{ t('help.search.h6_dragdrop') }}</h6>
             <ul>
-                <li>將影片檔案拖入視窗，自動提取番號並搜尋</li>
-                <li>支援多檔案批次處理（一次 20 個）</li>
-                <li>搜尋成功後可點「產生」更改檔名、下載封面和建立資料夾與 NFO</li>
+                <li>{{ t('help.search.drag_auto') }}</li>
+                <li>{{ t('help.search.drag_batch') }}</li>
+                <li>{{ t('help.search.drag_generate') }}</li>
             </ul>
 
-            <h6 class="mt-4">Grid 模式（封面牆）</h6>
+            <h6 class="mt-4">{{ t('help.search.h6_grid') }}</h6>
             <ul>
-                <li>搜尋後可切換為封面牆顯示，點擊封面開啟 Lightbox</li>
-                <li><strong>Lightbox</strong>：全螢幕檢視封面，<kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd> 鍵導航，<kbd class="kbd kbd-sm">Esc</kbd> 關閉</li>
-                <li>Lightbox 顯示導演、片長、系列、Label 等詳細資訊（有資料時才會出現）</li>
-                <li>點擊「劇照」按鈕可開啟劇照瀏覽，支援鍵盤 <kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd> 切換和觸控滑動</li>
+                <li>{{ t('help.search.grid_switch') }}</li>
+                <li>{{ t('help.search.grid_lightbox') | safe }}</li>
+                <li>{{ t('help.search.grid_detail') }}</li>
+                <li>{{ t('help.search.grid_gallery') | safe }}</li>
             </ul>
 
-            <h6 class="mt-4">版本標記 Badge</h6>
+            <h6 class="mt-4">{{ t('help.search.h6_badge') }}</h6>
             <ul>
-                <li>檔名含 <code>-4k</code>、<code>-uc</code> 等關鍵字時，結果卡片自動顯示彩色 badge</li>
+                <li>{{ t('help.search.badge_keywords') | safe }}</li>
             </ul>
         </div>
     </div>
@@ -103,37 +103,37 @@
     <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
-                <i class="bi bi-files"></i> 批次檔案搜尋
+                <i class="bi bi-files"></i> {{ t('help.batch.title') }}
             </h2>
-            <h6>加入多個檔案</h6>
+            <h6>{{ t('help.batch.h6_add') }}</h6>
             <ul>
-                <li><strong>拖入資料夾</strong>：自動掃描資料夾內的影片檔案</li>
-                <li><strong>自動過濾</strong>：排除非影片檔與小於設定大小的檔案</li>
-                <li><strong>批次搜尋</strong>：每批 20 個檔案，並發 2 個請求</li>
-                <li><strong>進度顯示</strong>：即時顯示搜尋進度（如：處理 15/100）</li>
+                <li>{{ t('help.batch.add_folder') | safe }}</li>
+                <li>{{ t('help.batch.add_filter') | safe }}</li>
+                <li>{{ t('help.batch.add_batch') | safe }}</li>
+                <li>{{ t('help.batch.add_progress') | safe }}</li>
             </ul>
 
-            <h6 class="mt-4">我的最愛資料夾</h6>
+            <h6 class="mt-4">{{ t('help.batch.h6_favorite') }}</h6>
             <ul>
-                <li>在<strong>設定頁</strong>設定常用資料夾路徑</li>
-                <li>點擊「⭐ 我的最愛」按鈕一鍵載入</li>
-                <li>自動開始搜尋前 20 個檔案</li>
+                <li>{{ t('help.batch.fav_settings') | safe }}</li>
+                <li>{{ t('help.batch.fav_load') }}</li>
+                <li>{{ t('help.batch.fav_auto') }}</li>
             </ul>
 
-            <h6 class="mt-4">暫停與繼續</h6>
+            <h6 class="mt-4">{{ t('help.batch.h6_pause') }}</h6>
             <ul>
-                <li>批次搜尋時可點擊「暫停」按鈕</li>
-                <li>點擊「繼續」從暫停處恢復</li>
+                <li>{{ t('help.batch.pause_pause') }}</li>
+                <li>{{ t('help.batch.pause_resume') }}</li>
             </ul>
 
-            <h6 class="mt-4">產生全部</h6>
+            <h6 class="mt-4">{{ t('help.batch.h6_generate_all') }}</h6>
             <ul>
-                <li>批次搜尋完成後，可一次執行所有成功結果的重命名 / 建資料夾 / NFO</li>
+                <li>{{ t('help.batch.generate_all') }}</li>
             </ul>
 
-            <h6 class="mt-4">版本標記保留</h6>
+            <h6 class="mt-4">{{ t('help.batch.h6_badge') }}</h6>
             <ul>
-                <li>檔名中的 <code>-cd1</code>、<code>-4k</code> 等會自動保留為 <code>{suffix}</code></li>
+                <li>{{ t('help.batch.badge_suffix') | safe }}</li>
             </ul>
         </div>
     </div>
@@ -142,34 +142,34 @@
     <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
-                <i class="bi bi-braces"></i> 格式變數一覽表
+                <i class="bi bi-braces"></i> {{ t('help.format.title') }}
             </h2>
             <div class="overflow-x-auto">
                 <table class="table table-sm">
                     <thead>
-                        <tr><th>變數</th><th>說明</th><th>範例</th><th>資料夾 fallback</th></tr>
+                        <tr><th>{{ t('help.format.col_var') }}</th><th>{{ t('help.format.col_desc') }}</th><th>{{ t('help.format.col_example') }}</th><th>{{ t('help.format.col_fallback') }}</th></tr>
                     </thead>
                     <tbody>
-                        <tr><td><code>{num}</code></td><td>番號</td><td>SONE-205</td><td>—</td></tr>
-                        <tr><td><code>{title}</code></td><td>標題</td><td>新人出道...</td><td>未知標題</td></tr>
-                        <tr><td><code>{actor}</code></td><td>第一位演員</td><td>三上悠亜</td><td>未知女優</td></tr>
-                        <tr><td><code>{actors}</code></td><td>所有演員</td><td>三上悠亜, 明日花</td><td>未知女優</td></tr>
-                        <tr><td><code>{maker}</code></td><td>片商</td><td>S1</td><td>未知片商</td></tr>
-                        <tr><td><code>{date}</code></td><td>發行日期</td><td>2024-01-15</td><td>未知日期</td></tr>
-                        <tr><td><code>{year}</code></td><td>年份</td><td>2024</td><td>未知年份</td></tr>
-                        <tr><td><code>{suffix}</code></td><td>版本標記</td><td>-4k</td><td>空則消失</td></tr>
+                        <tr><td><code>{num}</code></td><td>{{ t('help.format.var_num_desc') }}</td><td>SONE-205</td><td>—</td></tr>
+                        <tr><td><code>{title}</code></td><td>{{ t('help.format.var_title_desc') }}</td><td>新人出道...</td><td>{{ t('help.format.fallback_unknown_title') }}</td></tr>
+                        <tr><td><code>{actor}</code></td><td>{{ t('help.format.var_actor_desc') }}</td><td>三上悠亜</td><td>{{ t('help.format.fallback_unknown_actor') }}</td></tr>
+                        <tr><td><code>{actors}</code></td><td>{{ t('help.format.var_actors_desc') }}</td><td>三上悠亜, 明日花</td><td>{{ t('help.format.fallback_unknown_actor') }}</td></tr>
+                        <tr><td><code>{maker}</code></td><td>{{ t('help.format.var_maker_desc') }}</td><td>S1</td><td>{{ t('help.format.fallback_unknown_maker') }}</td></tr>
+                        <tr><td><code>{date}</code></td><td>{{ t('help.format.var_date_desc') }}</td><td>2024-01-15</td><td>{{ t('help.format.fallback_unknown_date') }}</td></tr>
+                        <tr><td><code>{year}</code></td><td>{{ t('help.format.var_year_desc') }}</td><td>2024</td><td>{{ t('help.format.fallback_unknown_year') }}</td></tr>
+                        <tr><td><code>{suffix}</code></td><td>{{ t('help.format.var_suffix_desc') }}</td><td>-4k</td><td>{{ t('help.format.fallback_empty') }}</td></tr>
                     </tbody>
                 </table>
             </div>
-            <h6 class="mt-4">預設格式</h6>
+            <h6 class="mt-4">{{ t('help.format.h6_default') }}</h6>
             <ul>
-                <li>檔名：<code>[{num}][{maker}] {title}{suffix}</code></li>
-                <li>資料夾：<code>{actor}</code></li>
+                <li>{{ t('help.format.default_filename') | safe }}</li>
+                <li>{{ t('help.format.default_folder') | safe }}</li>
             </ul>
-            <h6 class="mt-4">Fallback 規則</h6>
+            <h6 class="mt-4">{{ t('help.format.h6_fallback') }}</h6>
             <ul>
-                <li>資料夾層級會使用 fallback 值（如「未知女優」），避免路徑為空</li>
-                <li>檔名不使用 fallback，變數為空時直接省略</li>
+                <li>{{ t('help.format.fallback_folder_rule') }}</li>
+                <li>{{ t('help.format.fallback_filename_rule') }}</li>
             </ul>
         </div>
     </div>
@@ -178,27 +178,27 @@
     <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
-                <i class="bi bi-person-circle"></i> 女優畫廊模式
+                <i class="bi bi-person-circle"></i> {{ t('help.gallery.title') }}
             </h2>
-            <h6>自動觸發條件</h6>
+            <h6>{{ t('help.gallery.h6_trigger') }}</h6>
             <ul>
-                <li>搜尋結果 > 10 部作品</li>
-                <li>80% 以上作品有相同女優（演員一致性檢查）</li>
-                <li>在 Settings 啟用「畫廊模式」</li>
+                <li>{{ t('help.gallery.trigger_count') }}</li>
+                <li>{{ t('help.gallery.trigger_consistency') }}</li>
+                <li>{{ t('help.gallery.trigger_setting') }}</li>
             </ul>
 
-            <h6 class="mt-4">功能特色</h6>
+            <h6 class="mt-4">{{ t('help.gallery.h6_features') }}</h6>
             <ul>
-                <li><strong>Hero Card</strong>：顯示女優個人資料（罩杯、身高、三圍、生日）</li>
-                <li><strong>畫廊瀏覽</strong>：以封面圖方式展示作品列表</li>
-                <li><strong>快速返回</strong>：點擊「← 返回詳細資料」回到一般模式</li>
+                <li>{{ t('help.gallery.feat_hero') | safe }}</li>
+                <li>{{ t('help.gallery.feat_browse') | safe }}</li>
+                <li>{{ t('help.gallery.feat_back') | safe }}</li>
             </ul>
 
-            <h6 class="mt-4">Grid Mode 與 Gallery Mode 差異</h6>
+            <h6 class="mt-4">{{ t('help.gallery.h6_diff') }}</h6>
             <ul>
-                <li><strong>Gallery Mode</strong>（自動觸發）：搜尋結果 > 10 部且女優一致時自動切換</li>
-                <li><strong>Grid Mode</strong>（手動切換）：任何搜尋結果都可手動切換為封面牆顯示</li>
-                <li>Grid Mode 支援 Lightbox 導航（<kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd> 切換）</li>
+                <li>{{ t('help.gallery.diff_gallery') | safe }}</li>
+                <li>{{ t('help.gallery.diff_grid') | safe }}</li>
+                <li>{{ t('help.gallery.diff_grid_nav') | safe }}</li>
             </ul>
         </div>
     </div>
@@ -207,34 +207,34 @@
     <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
-                <i class="bi bi-file-earmark-code"></i> 影片列表生成 (Scanner)
+                <i class="bi bi-file-earmark-code"></i> {{ t('help.scanner.title') }}
             </h2>
-            <h6>功能說明</h6>
+            <h6>{{ t('help.scanner.h6_features') }}</h6>
             <ul>
-                <li>掃描本地影片資料夾，生成精美的 HTML 展示頁</li>
-                <li>自動讀取 NFO 檔案並顯示元數據</li>
-                <li>支援「NFO 補全」：自動搜尋缺失的 NFO 檔案</li>
-                <li>內建 Mini Terminal 顯示即時處理進度</li>
+                <li>{{ t('help.scanner.feat_scan') }}</li>
+                <li>{{ t('help.scanner.feat_nfo') }}</li>
+                <li>{{ t('help.scanner.feat_nfo_fill') }}</li>
+                <li>{{ t('help.scanner.feat_terminal') }}</li>
             </ul>
 
-            <h6 class="mt-4">輸出檔案</h6>
+            <h6 class="mt-4">{{ t('help.scanner.h6_output') }}</h6>
             <ul>
-                <li><strong>index.html</strong>：可在瀏覽器開啟的靜態頁面</li>
-                <li><strong>自動複製</strong>：封面圖與 NFO 複製到輸出目錄</li>
-                <li><strong>Dark Mode</strong>：自動跟隨 Web App 的主題設定</li>
+                <li>{{ t('help.scanner.output_html') | safe }}</li>
+                <li>{{ t('help.scanner.output_copy') | safe }}</li>
+                <li>{{ t('help.scanner.output_darkmode') | safe }}</li>
             </ul>
 
-            <h6 class="mt-4">字幕檔自動偵測</h6>
+            <h6 class="mt-4">{{ t('help.scanner.h6_subtitle') }}</h6>
             <ul>
-                <li>整理影片時，自動偵測同目錄下同名的字幕檔（<code>.srt</code>、<code>.ass</code>、<code>.ssa</code>）</li>
-                <li>影片搬移成功後，字幕會一起帶到目標資料夾，保留語言後綴（如 <code>.cht.srt</code>）</li>
-                <li>偵測到字幕時，NFO 會自動加上「中文字幕」標記</li>
+                <li>{{ t('help.scanner.subtitle_detect') | safe }}</li>
+                <li>{{ t('help.scanner.subtitle_move') | safe }}</li>
+                <li>{{ t('help.scanner.subtitle_nfo') }}</li>
             </ul>
 
-            <h6 class="mt-4">Jellyfin 圖片模式</h6>
+            <h6 class="mt-4">{{ t('help.scanner.h6_jellyfin') }}</h6>
             <ul>
-                <li>在<strong>設定頁</strong>開啟後，掃描時自動產生 <code>-poster.jpg</code> + <code>-fanart.jpg</code></li>
-                <li>掃描完成後可至 <code>/showcase</code> 頁面瀏覽生成結果</li>
+                <li>{{ t('help.scanner.jellyfin_enable') | safe }}</li>
+                <li>{{ t('help.scanner.jellyfin_showcase') | safe }}</li>
             </ul>
         </div>
     </div>
@@ -243,30 +243,30 @@
     <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
-                <i class="bi bi-collection-play"></i> 影片瀏覽 (Showcase)
+                <i class="bi bi-collection-play"></i> {{ t('help.showcase.title') }}
             </h2>
-            <p>Scanner 掃描完成後，可至 <code>/showcase</code> 頁面瀏覽影片庫。</p>
+            <p>{{ t('help.showcase.intro') | safe }}</p>
 
-            <h6 class="mt-4">顯示模式</h6>
+            <h6 class="mt-4">{{ t('help.showcase.h6_modes') }}</h6>
             <ul>
-                <li><strong>圖片模式（Grid）</strong>：封面牆顯示，點擊開啟 Lightbox</li>
-                <li><strong>文字模式（List）</strong>：精簡列表，適合快速瀏覽</li>
-                <li><strong>詳細模式（Table）</strong>：含完整元數據的表格顯示</li>
+                <li>{{ t('help.showcase.mode_grid') | safe }}</li>
+                <li>{{ t('help.showcase.mode_list') | safe }}</li>
+                <li>{{ t('help.showcase.mode_table') | safe }}</li>
             </ul>
 
-            <h6 class="mt-4">排序與搜尋</h6>
+            <h6 class="mt-4">{{ t('help.showcase.h6_sort') }}</h6>
             <ul>
-                <li><strong>排序</strong>：日期 / 番號 / 標題 / 女優 / 片商 / 大小 / 修改時間 / 隨機</li>
-                <li><strong>搜尋</strong>：支援番號、女優、標題等關鍵字篩選</li>
+                <li>{{ t('help.showcase.sort_sort') | safe }}</li>
+                <li>{{ t('help.showcase.sort_search') | safe }}</li>
             </ul>
 
-            <h6 class="mt-4">其他功能</h6>
+            <h6 class="mt-4">{{ t('help.showcase.h6_other') }}</h6>
             <ul>
-                <li>Lightbox 全螢幕封面檢視（<kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd> 導航）</li>
-                <li>Lightbox 顯示導演、片長、系列、Label 等詳細資訊</li>
-                <li>Table 模式新增「導演」和「片長」欄位</li>
-                <li>Lightbox 可開啟劇照瀏覽（點擊「劇照」按鈕）</li>
-                <li>每頁顯示數量可在<strong>設定頁</strong>調整</li>
+                <li>{{ t('help.showcase.other_lightbox') | safe }}</li>
+                <li>{{ t('help.showcase.other_lightbox_detail') }}</li>
+                <li>{{ t('help.showcase.other_table_cols') }}</li>
+                <li>{{ t('help.showcase.other_gallery') }}</li>
+                <li>{{ t('help.showcase.other_per_page') | safe }}</li>
             </ul>
         </div>
     </div>
@@ -275,67 +275,67 @@
     <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
-                <i class="bi bi-keyboard"></i> 快捷鍵
+                <i class="bi bi-keyboard"></i> {{ t('help.shortcuts.title') }}
             </h2>
 
-            <h6>搜尋頁</h6>
-            <p class="text-base-content/60 text-sm mb-2">搜尋框聚焦時所有快捷鍵停用，避免干擾輸入。</p>
+            <h6>{{ t('help.shortcuts.h6_search') }}</h6>
+            <p class="text-base-content/60 text-sm mb-2">{{ t('help.shortcuts.search_hint') }}</p>
             <div class="overflow-x-auto">
                 <table class="table table-sm">
                     <thead>
-                        <tr><th>按鍵</th><th>情境</th><th>動作</th></tr>
+                        <tr><th>{{ t('help.shortcuts.col_key') }}</th><th>{{ t('help.shortcuts.col_context') }}</th><th>{{ t('help.shortcuts.col_action') }}</th></tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><kbd class="kbd kbd-sm">Esc</kbd></td>
-                            <td>Lightbox 開啟時</td>
-                            <td>關閉 Lightbox</td>
+                            <td>{{ t('help.shortcuts.ctx_lightbox_open') }}</td>
+                            <td>{{ t('help.shortcuts.action_close_lightbox') }}</td>
                         </tr>
                         <tr>
                             <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
-                            <td>Lightbox 開啟時</td>
-                            <td>上 / 下一部影片</td>
+                            <td>{{ t('help.shortcuts.ctx_lightbox_open') }}</td>
+                            <td>{{ t('help.shortcuts.action_prev_next_video') }}</td>
                         </tr>
                         <tr>
                             <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
-                            <td>Detail 模式，Lightbox 關閉</td>
-                            <td>切換上 / 下一個結果</td>
+                            <td>{{ t('help.shortcuts.search_arrow2_ctx') }}</td>
+                            <td>{{ t('help.shortcuts.search_arrow2_action') }}</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            <h6 class="mt-4">瀏覽頁 (Showcase)</h6>
+            <h6 class="mt-4">{{ t('help.shortcuts.h6_showcase') }}</h6>
             <div class="overflow-x-auto">
                 <table class="table table-sm">
                     <thead>
-                        <tr><th>按鍵</th><th>情境</th><th>動作</th></tr>
+                        <tr><th>{{ t('help.shortcuts.col_key') }}</th><th>{{ t('help.shortcuts.col_context') }}</th><th>{{ t('help.shortcuts.col_action') }}</th></tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
-                            <td>Lightbox 關閉時</td>
-                            <td>上 / 下一頁</td>
+                            <td>{{ t('help.shortcuts.ctx_lightbox_closed') }}</td>
+                            <td>{{ t('help.shortcuts.showcase_arrow_action') }}</td>
                         </tr>
                         <tr>
                             <td><kbd class="kbd kbd-sm">A</kbd></td>
-                            <td>Lightbox 關閉時</td>
-                            <td>循環切換模式（圖片 → 文字 → 詳細）</td>
+                            <td>{{ t('help.shortcuts.ctx_lightbox_closed') }}</td>
+                            <td>{{ t('help.shortcuts.showcase_a_action') }}</td>
                         </tr>
                         <tr>
                             <td><kbd class="kbd kbd-sm">S</kbd></td>
-                            <td>Grid 模式，Lightbox 關閉</td>
-                            <td>顯示 / 隱藏卡片資訊</td>
+                            <td>{{ t('help.shortcuts.showcase_s_ctx') }}</td>
+                            <td>{{ t('help.shortcuts.showcase_s_action') }}</td>
                         </tr>
                         <tr>
                             <td><kbd class="kbd kbd-sm">Esc</kbd></td>
-                            <td>Lightbox 開啟時</td>
-                            <td>關閉 Lightbox</td>
+                            <td>{{ t('help.shortcuts.ctx_lightbox_open') }}</td>
+                            <td>{{ t('help.shortcuts.action_close_lightbox') }}</td>
                         </tr>
                         <tr>
                             <td><kbd class="kbd kbd-sm">←</kbd> <kbd class="kbd kbd-sm">→</kbd></td>
-                            <td>Lightbox 開啟時</td>
-                            <td>上 / 下一部影片</td>
+                            <td>{{ t('help.shortcuts.ctx_lightbox_open') }}</td>
+                            <td>{{ t('help.shortcuts.action_prev_next_video') }}</td>
                         </tr>
                     </tbody>
                 </table>
@@ -347,51 +347,51 @@
     <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
-                <i class="bi bi-globe"></i> Scraper 來源說明
+                <i class="bi bi-globe"></i> {{ t('help.scraper.title') }}
             </h2>
 
-            <h6>有碼來源</h6>
+            <h6>{{ t('help.scraper.h6_censored') }}</h6>
             <ul>
-                <li><strong>DMM</strong>：需設定日本 IP Proxy（<strong>設定頁</strong> → Proxy 欄位）</li>
-                <li><strong>JavBus</strong>、<strong>Jav321</strong>、<strong>JavDB</strong>：直接可用</li>
+                <li>{{ t('help.scraper.censored_dmm') | safe }}</li>
+                <li>{{ t('help.scraper.censored_others') | safe }}</li>
             </ul>
 
-            <h6 class="mt-4">無碼來源</h6>
+            <h6 class="mt-4">{{ t('help.scraper.h6_uncensored') }}</h6>
             <ul>
-                <li><strong>D2Pass</strong>：涵蓋 1Pondo / Caribbeancom / 10musume 三站</li>
-                <li><strong>HEYZO</strong>：獨立來源</li>
-                <li><strong>FC2</strong>：FC2-PPV 專用</li>
-                <li><strong>AVSOX</strong>：無碼通用來源</li>
+                <li>{{ t('help.scraper.uncensored_d2pass') | safe }}</li>
+                <li>{{ t('help.scraper.uncensored_heyzo') | safe }}</li>
+                <li>{{ t('help.scraper.uncensored_fc2') | safe }}</li>
+                <li>{{ t('help.scraper.uncensored_avsox') | safe }}</li>
             </ul>
 
-            <h6 class="mt-4">預設搜尋來源</h6>
+            <h6 class="mt-4">{{ t('help.scraper.h6_default_source') }}</h6>
             <ul>
-                <li>在設定頁可將 <strong>JavBus</strong> 或 <strong>DMM</strong> 設為主要搜尋來源</li>
-                <li>選為主來源後，精確番號搜尋會優先使用該來源的資料</li>
+                <li>{{ t('help.scraper.default_source_set') | safe }}</li>
+                <li>{{ t('help.scraper.default_source_effect') }}</li>
             </ul>
 
-            <h6 class="mt-4">DMM 模糊搜尋</h6>
+            <h6 class="mt-4">{{ t('help.scraper.h6_dmm_fuzzy') }}</h6>
             <ul>
-                <li>在搜尋框輸入日文女優名或片商名時，會同時觸發 DMM 模糊搜尋</li>
-                <li>前提：DMM 已啟用（需設定 Proxy 或使用 <code>direct</code> 模式）</li>
+                <li>{{ t('help.scraper.dmm_fuzzy_trigger') }}</li>
+                <li>{{ t('help.scraper.dmm_fuzzy_prereq') | safe }}</li>
             </ul>
 
-            <h6 class="mt-4">Proxy direct 模式</h6>
+            <h6 class="mt-4">{{ t('help.scraper.h6_proxy_direct') }}</h6>
             <ul>
-                <li>如果您已連接日本 VPN 或本身位於日本，不需要另外設定 Proxy</li>
-                <li>只要在設定頁的 Proxy 欄位輸入 <code>direct</code>，即可直接啟用 DMM 功能</li>
+                <li>{{ t('help.scraper.proxy_direct_vpn') }}</li>
+                <li>{{ t('help.scraper.proxy_direct_how') | safe }}</li>
             </ul>
 
-            <h6 class="mt-4">切換模式</h6>
+            <h6 class="mt-4">{{ t('help.scraper.h6_toggle') }}</h6>
             <ul>
-                <li>在<strong>設定頁</strong>開啟「無碼模式」toggle，搜尋時將優先使用無碼來源</li>
+                <li>{{ t('help.scraper.toggle_uncensored') | safe }}</li>
             </ul>
 
-            <h6 class="mt-4">番號格式範例</h6>
+            <h6 class="mt-4">{{ t('help.scraper.h6_format') }}</h6>
             <div class="overflow-x-auto">
                 <table class="table table-sm">
                     <thead>
-                        <tr><th>來源</th><th>格式</th><th>範例</th></tr>
+                        <tr><th>{{ t('help.scraper.col_source') }}</th><th>{{ t('help.scraper.col_format') }}</th><th>{{ t('help.scraper.col_example') }}</th></tr>
                     </thead>
                     <tbody>
                         <tr><td>Caribbeancom</td><td><code>DDMMYY-NNN</code></td><td><code>010125-001</code></td></tr>
@@ -408,41 +408,40 @@
     <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
-                <i class="bi bi-question-circle"></i> 疑難排解
+                <i class="bi bi-question-circle"></i> {{ t('help.troubleshooting.title') }}
             </h2>
-            <h6>程式無法啟動 / 閃退 (Windows)</h6>
-            <p><strong>原因</strong>：Windows 安全機制封鎖了從網路下載的檔案。</p>
-            <p><strong>解法</strong>：</p>
+            <h6>{{ t('help.troubleshooting.h6_crash') }}</h6>
+            <p>{{ t('help.troubleshooting.crash_cause') | safe }}</p>
+            <p>{{ t('help.troubleshooting.crash_fix_label') | safe }}</p>
             <ol>
-                <li>對下載的 ZIP 檔點擊右鍵 → 內容</li>
-                <li>勾選「解除封鎖 (Unblock)」，按確定</li>
-                <li>重新解壓縮並執行</li>
+                <li>{{ t('help.troubleshooting.crash_fix_1') }}</li>
+                <li>{{ t('help.troubleshooting.crash_fix_2') }}</li>
+                <li>{{ t('help.troubleshooting.crash_fix_3') }}</li>
             </ol>
 
-            <h6 class="mt-4">介面顯示異常 / 空白</h6>
-            <p><strong>原因</strong>：缺少 WebView2 Runtime（常見於 Windows 10 或虛擬機）。</p>
-            <p><strong>解法</strong>：下載並安裝 <a href="https://go.microsoft.com/fwlink/p/?LinkId=2124703"
-                    target="_blank">Microsoft Edge WebView2 Runtime</a>。</p>
+            <h6 class="mt-4">{{ t('help.troubleshooting.h6_display') }}</h6>
+            <p>{{ t('help.troubleshooting.display_cause') | safe }}</p>
+            <p>{{ t('help.troubleshooting.display_fix') | safe }}</p>
 
-            <h6 class="mt-4">需要回報問題</h6>
-            <p><strong>日誌位置</strong>：<code>%USERPROFILE%\OpenAver\logs\debug.log</code></p>
-            <p><strong>執行 Debug 模式</strong>：</p>
+            <h6 class="mt-4">{{ t('help.troubleshooting.h6_report') }}</h6>
+            <p>{{ t('help.troubleshooting.report_log_path') | safe }}</p>
+            <p>{{ t('help.troubleshooting.report_debug_label') | safe }}</p>
             <ol>
-                <li>執行 <code>OpenAver_Debug.bat</code></li>
-                <li>重現問題</li>
-                <li>將日誌檔案與錯誤訊息回報到 <a href="https://github.com/slive777/OpenAver/issues" target="_blank" rel="noopener noreferrer">GitHub Issues</a></li>
+                <li>{{ t('help.troubleshooting.report_debug_1') | safe }}</li>
+                <li>{{ t('help.troubleshooting.report_debug_2') }}</li>
+                <li>{{ t('help.troubleshooting.report_debug_3') | safe }}</li>
             </ol>
 
-            <h6 class="mt-4">DMM 無法搜尋</h6>
+            <h6 class="mt-4">{{ t('help.troubleshooting.h6_dmm') }}</h6>
             <ul>
-                <li>DMM 需要日本 IP，請在<strong>設定頁</strong> → Proxy 欄位填入日本 IP 代理</li>
-                <li>若已連接 VPN 或日本網路，也可以在 Proxy 欄位輸入 <code>direct</code> 直接啟用，不需要填寫 Proxy 位址。</li>
+                <li>{{ t('help.troubleshooting.dmm_proxy') | safe }}</li>
+                <li>{{ t('help.troubleshooting.dmm_direct') | safe }}</li>
             </ul>
 
-            <h6 class="mt-4">翻譯無回應</h6>
+            <h6 class="mt-4">{{ t('help.troubleshooting.h6_translate') }}</h6>
             <ul>
-                <li><strong>Ollama</strong>：確認 Ollama 應用程式已啟動（Windows 需手動開啟）</li>
-                <li><strong>Gemini</strong>：確認 API Key 已在<strong>設定頁</strong>正確設定</li>
+                <li>{{ t('help.troubleshooting.translate_ollama') | safe }}</li>
+                <li>{{ t('help.troubleshooting.translate_gemini') | safe }}</li>
             </ul>
         </div>
     </div>
