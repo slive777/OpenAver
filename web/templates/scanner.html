@@ -452,19 +452,19 @@ function scannerPage() {
 
     get generateButtonText() {
         if (this.state === 'generating') {
-            return '<span class="loading loading-spinner loading-sm"></span> 產生中...';
+            return '<span class="loading loading-spinner loading-sm"></span> ' + window.t('scanner.stats.generate_loading');
         }
-        return '<i class="bi bi-play-fill"></i> 產生網頁';
+        return '<i class="bi bi-play-fill"></i> ' + window.t('scanner.stats.generate_idle');
     },
 
     get nfoUpdateButtonText() {
         if (this.state === 'nfoUpdating') {
-            return '<span class="loading loading-spinner loading-sm"></span> 補全中...';
+            return '<span class="loading loading-spinner loading-sm"></span> ' + window.t('scanner.stats.nfo_loading');
         }
         if (this.nfoNeedUpdateCount > 0) {
-            return `<i class="bi bi-magic"></i> 補全 NFO`;
+            return '<i class="bi bi-magic"></i> ' + window.t('scanner.stats.nfo_idle');
         }
-        return '<i class="bi bi-check-lg"></i> 已完成';
+        return '<i class="bi bi-check-lg"></i> ' + window.t('scanner.stats.btn_done');
     },
 
     get nfoUpdateButtonDisabled() {
@@ -474,12 +474,12 @@ function scannerPage() {
 
     get jellyfinImageButtonText() {
         if (this.state === 'jellyfinUpdating') {
-            return '<span class="loading loading-spinner loading-sm"></span> 補齊中...';
+            return '<span class="loading loading-spinner loading-sm"></span> ' + window.t('scanner.stats.jellyfin_loading');
         }
         if (this.jellyfinImageCount > 0) {
-            return '<i class="bi bi-images"></i> 補齊圖片';
+            return '<i class="bi bi-images"></i> ' + window.t('scanner.stats.jellyfin_idle');
         }
-        return '<i class="bi bi-check-lg"></i> 已完成';
+        return '<i class="bi bi-check-lg"></i> ' + window.t('scanner.stats.btn_done');
     },
 
     // ===== Lifecycle =====

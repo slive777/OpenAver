@@ -285,7 +285,14 @@
       "jellyfin_suffix": "本",
       "jellyfin_update_title": "Jellyfin poster + fanart を補完",
       "last_run_prefix": "最終実行: ",
-      "last_added": "({count}本追加)"
+      "last_added": "({count}本追加)",
+      "generate_idle": "ページ生成",
+      "generate_loading": "生成中...",
+      "nfo_idle": "NFO補完",
+      "nfo_loading": "補完中...",
+      "jellyfin_idle": "画像補完",
+      "jellyfin_loading": "補完中...",
+      "btn_done": "完了"
     },
     "alias": {
       "section_title": "女優名管理",

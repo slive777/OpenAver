@@ -285,7 +285,14 @@
       "jellyfin_suffix": "",
       "jellyfin_update_title": "Generate Jellyfin poster + fanart",
       "last_run_prefix": "Last run: ",
-      "last_added": "({count} added)"
+      "last_added": "({count} added)",
+      "generate_idle": "Generate",
+      "generate_loading": "Generating...",
+      "nfo_idle": "Update NFO",
+      "nfo_loading": "Updating...",
+      "jellyfin_idle": "Fix Images",
+      "jellyfin_loading": "Fixing...",
+      "btn_done": "Done"
     },
     "alias": {
       "section_title": "Actress Name Aliases",

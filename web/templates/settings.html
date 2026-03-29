@@ -26,15 +26,6 @@
                     </button>
                 </template>
             </div>
-            <!-- Theme Toggle -->
-            <div class="settings-theme-toggle">
-                <button class="theme-toggle-btn"
-                        @click="toggleThemeWithTransition($event, () => { theme = (theme === 'light' ? 'dim' : 'light') })"
-                        :title="theme === 'light' ? window.t('settings.header.switch_dark') : window.t('settings.header.switch_light')"
-                        type="button">
-                    <i class="bi" :class="theme === 'light' ? 'bi-moon-stars' : 'bi-sun'"></i>
-                </button>
-            </div>
             <!-- Locale Toggle -->
             <div class="settings-locale-toggle">
                 <button class="locale-toggle-btn"
@@ -42,6 +33,15 @@
                         x-text="{'zh-TW':'繁','zh-CN':'简','ja':'あ','en':'EN'}[locale] || '繁'"
                         @click="cycleLocale()"
                         :title="window.t('settings.header.locale_prefix') + ': ' + locale">
+                </button>
+            </div>
+            <!-- Theme Toggle -->
+            <div class="settings-theme-toggle">
+                <button class="theme-toggle-btn"
+                        @click="toggleThemeWithTransition($event, () => { theme = (theme === 'light' ? 'dim' : 'light') })"
+                        :title="theme === 'light' ? window.t('settings.header.switch_dark') : window.t('settings.header.switch_light')"
+                        type="button">
+                    <i class="bi" :class="theme === 'light' ? 'bi-moon-stars' : 'bi-sun'"></i>
                 </button>
             </div>
         </div>

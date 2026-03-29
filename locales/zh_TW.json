@@ -285,7 +285,14 @@
       "jellyfin_suffix": "部",
       "jellyfin_update_title": "補齊 Jellyfin poster + fanart",
       "last_run_prefix": "上次執行: ",
-      "last_added": "(新增 {count} 部)"
+      "last_added": "(新增 {count} 部)",
+      "generate_idle": "產生網頁",
+      "generate_loading": "產生中...",
+      "nfo_idle": "補全 NFO",
+      "nfo_loading": "補全中...",
+      "jellyfin_idle": "補齊圖片",
+      "jellyfin_loading": "補齊中...",
+      "btn_done": "已完成"
     },
     "alias": {
       "section_title": "女優名稱管理",
