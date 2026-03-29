@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settings 語系切換整合 dirty-check 保護
 
 ### Changed
-- 測試總數 1366 → 3282（+1916）
+- 測試總數 1366 → 1420（+54）
 - AGENTS.md 新增 i18n review policy
 
 ## [0.5.5] - 2026-03-28
