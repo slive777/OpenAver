@@ -14,6 +14,116 @@
       "zh-CN": "简",
       "ja": "あ",
       "en": "EN"
+    },
+    "action": {
+      "confirm": "确认",
+      "cancel": "取消"
+    }
+  },
+  "search": {
+    "page_title": "搜索",
+    "drag_overlay": {
+      "hint": "放开以搜索番号"
+    },
+    "placeholder": {
+      "query": "搜索番号、女优或拖入文件...",
+      "tag": "标签名称"
+    },
+    "hint": {
+      "partial_search": "提示：输入局部番号如 IPZZ-03 可搜索 030~039，输入女优名可搜索其作品"
+    },
+    "action": {
+      "search": "搜索",
+      "cancel_search": "取消搜索",
+      "clear": "清空",
+      "toggle_grid": "切换到图片模式",
+      "toggle_detail": "切换到详细模式",
+      "add_files": "加入文件",
+      "add_folder": "加入文件夹",
+      "favorite": "我的最爱",
+      "load_favorite": "载入我的最爱文件夹",
+      "add_tag": "新增标签",
+      "edit_title": "编辑标题",
+      "translate_ai": "AI 翻译",
+      "edit_chinese_title": "编辑中文片名",
+      "switch_source": "切换版本",
+      "open_source_url": "打开来源页面",
+      "open_folder": "打开文件夹",
+      "back_to_detail": "返回详情"
+    },
+    "empty": {
+      "hint": "输入番号搜索，或加入影片文件",
+      "drag_hint": "也可直接拖入文件或文件夹"
+    },
+    "error": {
+      "hint": "请检查番号格式或稍后再试"
+    },
+    "nav": {
+      "prev": "上一个 (←)",
+      "next": "下一个 (→)"
+    },
+    "label": {
+      "actor": "演员",
+      "date": "发行日期",
+      "maker": "片商",
+      "director": "导演",
+      "duration": "片长",
+      "label": "发行商",
+      "series": "系列",
+      "tags": "标签",
+      "title": "标题",
+      "chinese_title": "中文片名",
+      "chinese_title_ai": "中文片名 (AI)"
+    },
+    "unit": {
+      "minutes": "分钟"
+    },
+    "badge": {
+      "subtitle": "中文字幕"
+    },
+    "lightbox": {
+      "close": "关闭 (ESC)",
+      "prev": "上一部 (←)",
+      "next": "下一部 (→)"
+    },
+    "gallery": {
+      "prev": "上一张 (←)",
+      "next": "下一张 (→)",
+      "sample_prefix": "剧照"
+    },
+    "grid": {
+      "sample_prefix": "样品图",
+      "thumb_prefix": "缩图",
+      "detail_title": "查看详情",
+      "unknown_actor": "未知",
+      "unknown_title": "未知标题"
+    },
+    "cover": {
+      "alt": "封面"
+    },
+    "local": {
+      "has_local": "本地已有（点击打开文件夹）",
+      "has_local_count": "本地已有 {count} 个版本（点击打开文件夹）"
+    },
+    "filelist": {
+      "search_all_title": "搜索所有未搜索的文件",
+      "translate_all_title": "翻译所有日文标题",
+      "scrape_all_title": "生成所有已搜索的文件",
+      "scrape_all": "生成全部",
+      "processing_prefix": "处理中",
+      "remove_file": "移除此文件",
+      "scrape_nfo": "生成 NFO + 封面",
+      "failed": "失败",
+      "retry": "重试",
+      "enter_number": "手动输入番号"
+    },
+    "duplicate": {
+      "title": "文件重复",
+      "body": "目标文件已存在，继续会覆盖原有文件：",
+      "explanation": "这通常发生在同一部影片有多个版本（CD1/CD2、4K、UC）时。",
+      "instruction": "请到 <strong>设置 → 高级刮削设置 → 版本标记</strong>，新增关键字并确认文件命名格式包含 <code class=\"badge badge-sm\">{suffix}</code> 变量。",
+      "acknowledge": "了解",
+      "go_settings": "前往设置"
     }
   }
 }

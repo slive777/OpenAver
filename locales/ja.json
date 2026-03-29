@@ -14,6 +14,116 @@
       "zh-CN": "简",
       "ja": "あ",
       "en": "EN"
+    },
+    "action": {
+      "confirm": "確認",
+      "cancel": "キャンセル"
+    }
+  },
+  "search": {
+    "page_title": "検索",
+    "drag_overlay": {
+      "hint": "ここにドロップして番号を検索"
+    },
+    "placeholder": {
+      "query": "番号、女優名またはファイルをドロップ...",
+      "tag": "タグ名"
+    },
+    "hint": {
+      "partial_search": "ヒント：IPZZ-03 のような部分番号で 030〜039 を検索できます。女優名でも検索可能"
+    },
+    "action": {
+      "search": "検索",
+      "cancel_search": "検索をキャンセル",
+      "clear": "クリア",
+      "toggle_grid": "グリッド表示に切替",
+      "toggle_detail": "詳細表示に切替",
+      "add_files": "ファイルを追加",
+      "add_folder": "フォルダを追加",
+      "favorite": "お気に入り",
+      "load_favorite": "お気に入りフォルダを読み込む",
+      "add_tag": "タグを追加",
+      "edit_title": "タイトルを編集",
+      "translate_ai": "AI 翻訳",
+      "edit_chinese_title": "中国語タイトルを編集",
+      "switch_source": "バージョン切替",
+      "open_source_url": "ソースページを開く",
+      "open_folder": "フォルダを開く",
+      "back_to_detail": "詳細に戻る"
+    },
+    "empty": {
+      "hint": "番号を入力して検索、またはファイルを追加",
+      "drag_hint": "ファイルやフォルダを直接ドロップすることもできます"
+    },
+    "error": {
+      "hint": "番号の形式を確認するか、しばらくしてから再試行してください"
+    },
+    "nav": {
+      "prev": "前へ (←)",
+      "next": "次へ (→)"
+    },
+    "label": {
+      "actor": "出演者",
+      "date": "発売日",
+      "maker": "メーカー",
+      "director": "監督",
+      "duration": "収録時間",
+      "label": "レーベル",
+      "series": "シリーズ",
+      "tags": "タグ",
+      "title": "タイトル",
+      "chinese_title": "中国語タイトル",
+      "chinese_title_ai": "中国語タイトル (AI)"
+    },
+    "unit": {
+      "minutes": "分"
+    },
+    "badge": {
+      "subtitle": "中国語字幕"
+    },
+    "lightbox": {
+      "close": "閉じる (ESC)",
+      "prev": "前の作品 (←)",
+      "next": "次の作品 (→)"
+    },
+    "gallery": {
+      "prev": "前の画像 (←)",
+      "next": "次の画像 (→)",
+      "sample_prefix": "サンプル"
+    },
+    "grid": {
+      "sample_prefix": "サンプル画像",
+      "thumb_prefix": "サムネイル",
+      "detail_title": "詳細を見る",
+      "unknown_actor": "不明",
+      "unknown_title": "タイトル不明"
+    },
+    "cover": {
+      "alt": "カバー"
+    },
+    "local": {
+      "has_local": "ローカルに存在（クリックしてフォルダを開く）",
+      "has_local_count": "ローカルに {count} バージョン存在（クリックしてフォルダを開く）"
+    },
+    "filelist": {
+      "search_all_title": "未検索のファイルをすべて検索",
+      "translate_all_title": "すべての日本語タイトルを翻訳",
+      "scrape_all_title": "検索済みのファイルをすべて生成",
+      "scrape_all": "すべて生成",
+      "processing_prefix": "処理中",
+      "remove_file": "このファイルを削除",
+      "scrape_nfo": "NFO + カバーを生成",
+      "failed": "失敗",
+      "retry": "再試行",
+      "enter_number": "番号を手動入力"
+    },
+    "duplicate": {
+      "title": "ファイルが重複しています",
+      "body": "対象ファイルはすでに存在します。続行すると上書きされます：",
+      "explanation": "これは同じ作品に複数バージョン（CD1/CD2、4K、UC）がある場合に発生します。",
+      "instruction": "<strong>設定 → 高度なスクレイプ設定 → バージョンマーク</strong> でキーワードを追加し、ファイル命名形式に <code class=\"badge badge-sm\">{suffix}</code> 変数が含まれていることを確認してください。",
+      "acknowledge": "了解",
+      "go_settings": "設定へ"
     }
   }
 }

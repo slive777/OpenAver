@@ -14,6 +14,116 @@
       "zh-CN": "简",
       "ja": "あ",
       "en": "EN"
+    },
+    "action": {
+      "confirm": "Confirm",
+      "cancel": "Cancel"
+    }
+  },
+  "search": {
+    "page_title": "Search",
+    "drag_overlay": {
+      "hint": "Drop to search by ID"
+    },
+    "placeholder": {
+      "query": "Search ID, actress or drop files...",
+      "tag": "Tag name"
+    },
+    "hint": {
+      "partial_search": "Tip: Enter partial ID like IPZZ-03 to search 030–039; enter an actress name to find her works"
+    },
+    "action": {
+      "search": "Search",
+      "cancel_search": "Cancel Search",
+      "clear": "Clear",
+      "toggle_grid": "Switch to Grid View",
+      "toggle_detail": "Switch to Detail View",
+      "add_files": "Add Files",
+      "add_folder": "Add Folder",
+      "favorite": "Favorites",
+      "load_favorite": "Load Favorite Folder",
+      "add_tag": "Add Tag",
+      "edit_title": "Edit Title",
+      "translate_ai": "AI Translate",
+      "edit_chinese_title": "Edit Chinese Title",
+      "switch_source": "Switch Version",
+      "open_source_url": "Open Source Page",
+      "open_folder": "Open Folder",
+      "back_to_detail": "Back to Detail"
+    },
+    "empty": {
+      "hint": "Enter an ID to search, or add video files",
+      "drag_hint": "You can also drag and drop files or folders"
+    },
+    "error": {
+      "hint": "Please check the ID format or try again later"
+    },
+    "nav": {
+      "prev": "Previous (←)",
+      "next": "Next (→)"
+    },
+    "label": {
+      "actor": "Actress",
+      "date": "Release Date",
+      "maker": "Maker",
+      "director": "Director",
+      "duration": "Duration",
+      "label": "Label",
+      "series": "Series",
+      "tags": "Tags",
+      "title": "Title",
+      "chinese_title": "Chinese Title",
+      "chinese_title_ai": "Chinese Title (AI)"
+    },
+    "unit": {
+      "minutes": "min"
+    },
+    "badge": {
+      "subtitle": "Chinese Subtitles"
+    },
+    "lightbox": {
+      "close": "Close (ESC)",
+      "prev": "Previous (←)",
+      "next": "Next (→)"
+    },
+    "gallery": {
+      "prev": "Previous (←)",
+      "next": "Next (→)",
+      "sample_prefix": "Sample"
+    },
+    "grid": {
+      "sample_prefix": "Sample Image",
+      "thumb_prefix": "Thumbnail",
+      "detail_title": "View Detail",
+      "unknown_actor": "Unknown",
+      "unknown_title": "Unknown Title"
+    },
+    "cover": {
+      "alt": "Cover"
+    },
+    "local": {
+      "has_local": "Available locally (click to open folder)",
+      "has_local_count": "{count} local versions available (click to open folder)"
+    },
+    "filelist": {
+      "search_all_title": "Search all unsearched files",
+      "translate_all_title": "Translate all Japanese titles",
+      "scrape_all_title": "Generate all searched files",
+      "scrape_all": "Generate All",
+      "processing_prefix": "Processing",
+      "remove_file": "Remove this file",
+      "scrape_nfo": "Generate NFO + Cover",
+      "failed": "Failed",
+      "retry": "Retry",
+      "enter_number": "Enter ID manually"
+    },
+    "duplicate": {
+      "title": "Duplicate File",
+      "body": "The target file already exists. Continuing will overwrite it:",
+      "explanation": "This usually happens when the same title has multiple versions (CD1/CD2, 4K, UC).",
+      "instruction": "Go to <strong>Settings → Advanced Scrape Settings → Version Tags</strong>, add keywords and make sure the file naming format includes the <code class=\"badge badge-sm\">{suffix}</code> variable.",
+      "acknowledge": "Got it",
+      "go_settings": "Go to Settings"
     }
   }
 }
