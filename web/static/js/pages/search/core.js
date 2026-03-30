@@ -269,15 +269,6 @@ function updateClearButton() {
 // === 進度指示器 ===
 // T1b: initProgress, updateLog, updateDetailProgress, handleSearchStatus 已遷移到 Alpine state.js
 
-const MODE_TEXT = {
-    'exact': '完整番號搜尋',
-    'partial': '部分番號搜尋',
-    'prefix': '系列搜尋',
-    'actress': '模糊搜尋',
-    'keyword': '全文搜尋',
-    'uncensored': '無碼搜尋'
-};
-
 // T3.2 Step 4: let currentMode = '' 已刪除（改由 Alpine state 管理）
 
 // === 搜尋邏輯 ===
@@ -413,7 +404,6 @@ window.SearchCore = {
     translateBatch,
     // 檢查是否正在批次翻譯
     isBatchTranslating: (index) => batchTranslatingIndices.has(index),
-    MODE_TEXT,
     // 本地狀態查詢
     checkLocalStatus
 };

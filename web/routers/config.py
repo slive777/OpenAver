@@ -35,6 +35,7 @@ from core.config import (
     load_config,
     save_config,
 )
+from core.translate_service import LANGUAGE_PROMPTS
 
 logger = get_logger(__name__)
 
@@ -127,6 +128,8 @@ async def update_general_field(field: str, request: GeneralFieldRequest) -> dict
             return {"success": False, "error": "不支援的語系"}
         config["general"][field] = request.value
         save_config(config)
+        if field == "locale":
+            _reset_translate_service()
         return {"success": True}
     except Exception as e:
         logger.error("更新設定欄位失敗: %s", e)
@@ -193,13 +196,18 @@ async def test_ollama_model(request: OllamaTestRequest) -> dict:
     try:
         url = request.url.rstrip('/')
 
+        config = load_config()
+        locale = config.get("general", {}).get("locale", "zh-TW")
+        lang_config = LANGUAGE_PROMPTS.get(locale, LANGUAGE_PROMPTS["zh-TW"])
+        lang_name = lang_config["name"]
+
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
                 f"{url}/api/chat",
                 json={
                     "model": request.model,
                     "messages": [
-                        {"role": "user", "content": "將以下日文翻譯成繁體中文，只輸出翻譯結果：新人女優デビュー"}
+                        {"role": "user", "content": f"將以下日文翻譯成{lang_name}，只輸出翻譯結果：新人女優デビュー"}
                     ],
                     "stream": False,
                     "options": {

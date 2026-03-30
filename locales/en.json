@@ -73,7 +73,7 @@
       "tags": "Tags",
       "title": "Title",
       "chinese_title": "Chinese Title",
-      "chinese_title_ai": "Chinese Title (AI)"
+      "chinese_title_ai": "AI Translated Title"
     },
     "unit": {
       "minutes": "min"
@@ -105,6 +105,24 @@
       "has_local": "Available locally (click to open folder)",
       "has_local_count": "{count} local versions available (click to open folder)"
     },
+    "button": {
+      "search_all": "Search All",
+      "continue": "Continue",
+      "pause": "Pause",
+      "retry_failed": "Retry Failed ({count})",
+      "search_range": "Search {start}-{end} / {total}",
+      "translating_progress": "Translating ({processed}/{total})",
+      "translate_all_count": "Translate All ({count})",
+      "searching": "Searching..."
+    },
+    "mode": {
+      "exact": "Exact ID Search",
+      "partial": "Partial ID Search",
+      "prefix": "Series Search",
+      "actress": "Fuzzy Search",
+      "keyword": "Full-text Search",
+      "uncensored": "Uncensored Search"
+    },
     "filelist": {
       "search_all_title": "Search all unsearched files",
       "translate_all_title": "Translate all Japanese titles",
@@ -115,7 +133,13 @@
       "scrape_nfo": "Generate NFO + Cover",
       "failed": "Failed",
       "retry": "Retry",
-      "enter_number": "Enter ID manually"
+      "enter_number": "Enter ID manually",
+      "file_count": "File {current}/{total}",
+      "result_count": "Results ({count})",
+      "unrecognized": "Cannot identify ID: {filename}",
+      "not_found": "No data found for {number}",
+      "search_failed": "Search Failed",
+      "connection_error": "Connection error, please try again later"
     },
     "duplicate": {
       "title": "Duplicate File",
@@ -244,6 +268,25 @@
       "body": "You have unsaved changes. What would you like to do?",
       "discard": "Discard",
       "save": "Save Changes"
+    },
+    "status": {
+      "loading_models": "Loading models...",
+      "connecting": "Connecting...",
+      "testing": "Testing...",
+      "connection_failed": "Connection failed",
+      "no_models": "No models available",
+      "n_models": "{count} models",
+      "enter_url": "Enter URL",
+      "enter_api_key": "Enter API Key",
+      "select_model": "Select a model",
+      "network_error": "✗ Network error",
+      "connect_failed": "Connection failed",
+      "connected_n_models": "Connected, {count} models",
+      "enter_api_key_first": "Enter API Key first",
+      "gemini_n_flash_models": "Found {count} Flash models",
+      "test_failed": "Test failed: {msg}",
+      "testing_translation": "Testing translation...",
+      "translation_success": "Translation test passed! ({translation})"
     }
   },
   "scanner": {
@@ -620,5 +663,21 @@
       "check_update_failed": "Check failed, please try again later",
       "check_update_network_error": "Network error, please try again later"
     }
+  },
+  "tutorial": {
+    "close": "Close",
+    "skip": "Skip",
+    "next": "Next →",
+    "done": "Done 🎉",
+    "step1_title": "💡 Search",
+    "step1_content": "Enter an ID (e.g. SONE-001) or actress name<br>You can also drop files to auto-extract IDs and search",
+    "step2_title": "📁 Batch Processing",
+    "step2_content": "Add multiple files and search 20 at once<br>Quick load from your favorite folders",
+    "step3_title": "📝 List Generation",
+    "step3_content": "Scan local folders to generate an HTML showcase page<br>Auto-complete NFO files",
+    "step4_title": "⚙️ Settings",
+    "step4_content": "Toggle Dark Mode, set favorite folders<br>Customize your interface and features",
+    "step5_title": "🎬 Try It Now!",
+    "step5_content": "Drop the <code>Tutorial</code> folder<br>or any <code>.mp4</code> file into this window<br><br><small class=\"text-muted\">Contains 11 real searchable examples</small>"
   }
 }

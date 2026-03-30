@@ -112,7 +112,7 @@ window.SearchStateMixin_SearchFlow = {
 
         // 5. 初始化狀態（修正 1: 使用 showState）
         window.SearchUI.showState('loading');
-        this.progressLog = '搜尋中...';
+        this.progressLog = window.t('search.button.searching');
         this.currentMode = '';
         this.detailDone = 0;
         this.detailTotal = 0;
@@ -174,7 +174,9 @@ window.SearchStateMixin_SearchFlow = {
 
                 if (data.type === 'mode') {
                     this.currentMode = data.mode;
-                    this.progressLog = `${this.MODE_TEXT[data.mode] || data.mode}...`;
+                    const _modeKey2 = 'search.mode.' + data.mode;
+                    const _modeTxt2 = window.t(_modeKey2);
+                    this.progressLog = `${_modeTxt2.charAt(0) === '[' ? data.mode : _modeTxt2}...`;
                 }
                 else if (data.type === 'status') {
                     this.handleSearchStatus(data.source, data.status);
@@ -927,7 +929,7 @@ window.SearchStateMixin_SearchFlow = {
      * @param {string} query - 搜尋番號
      */
     initProgress(query) {
-        this.progressLog = '搜尋中...';
+        this.progressLog = window.t('search.button.searching');
         this.currentMode = '';
         this.detailDone = 0;
         this.detailTotal = 0;
@@ -951,7 +953,9 @@ window.SearchStateMixin_SearchFlow = {
         // Mode 切換事件（不變）
         if (source === 'mode') {
             this.currentMode = status;
-            this.progressLog = `${this.MODE_TEXT[status] || status}...`;
+            const _modeKey3 = 'search.mode.' + status;
+            const _modeTxt3 = window.t(_modeKey3);
+            this.progressLog = `${_modeTxt3.charAt(0) === '[' ? status : _modeTxt3}...`;
             return;
         }
 

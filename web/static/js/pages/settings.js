@@ -471,7 +471,7 @@ function settingsPage() {
         async loadOllamaModels(url, savedModel = '') {
             if (!url) return;
 
-            this.ollamaStatus = '<span class="text-base-content/50">載入模型中...</span>';
+            this.ollamaStatus = `<span class="text-base-content/50">${window.t('settings.status.loading_models')}</span>`;
 
             try {
                 const resp = await fetch(`/api/ollama/models?url=${encodeURIComponent(url)}`);
@@ -487,12 +487,12 @@ function settingsPage() {
                         this.form.ollamaModel = result.models[0];
                     }
 
-                    this.ollamaStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${result.models.length} 個模型</span>`;
+                    this.ollamaStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.n_models', {count: result.models.length})}</span>`;
                 } else {
-                    this.ollamaStatus = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> ${result.error || '無法連線'}</span>`;
+                    this.ollamaStatus = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> ${result.error || window.t('settings.status.connection_failed')}</span>`;
                 }
             } catch (e) {
-                this.ollamaStatus = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> 無法連線</span>`;
+                this.ollamaStatus = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> ${window.t('settings.status.connection_failed')}</span>`;
             }
         },
 
@@ -501,7 +501,7 @@ function settingsPage() {
 
             this.testProxyLoading = true;
             this.proxyStatusOk = false;
-            this.proxyStatus = '測試中...';
+            this.proxyStatus = window.t('settings.status.testing');
 
             try {
                 const resp = await fetch('/api/proxy/test', {
@@ -518,7 +518,7 @@ function settingsPage() {
                     this.proxyStatus = `✗ ${result.message}`;
                 }
             } catch (e) {
-                this.proxyStatus = '✗ 網路錯誤，請稍後再試';
+                this.proxyStatus = window.t('settings.status.network_error');
             } finally {
                 this.testProxyLoading = false;
             }
@@ -528,12 +528,12 @@ function settingsPage() {
             const url = this.form.ollamaUrl.trim();
 
             if (!url) {
-                this.ollamaStatus = '<span class="text-error">請輸入 URL</span>';
+                this.ollamaStatus = `<span class="text-error">${window.t('settings.status.enter_url')}</span>`;
                 return;
             }
 
             this.testOllamaLoading = true;
-            this.ollamaStatus = '<span class="text-base-content/50">連線中...</span>';
+            this.ollamaStatus = `<span class="text-base-content/50">${window.t('settings.status.connecting')}</span>`;
 
             try {
                 const resp = await fetch(`/api/ollama/models?url=${encodeURIComponent(url)}`);
@@ -545,9 +545,9 @@ function settingsPage() {
                         ? this.form.ollamaModel
                         : result.models[0];
 
-                    this.ollamaStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> 已連線，${result.models.length} 個模型</span>`;
+                    this.ollamaStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: result.models.length})}</span>`;
                 } else {
-                    this.ollamaStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${result.error || '無可用模型'}</span>`;
+                    this.ollamaStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${result.error || window.t('settings.status.no_models')}</span>`;
                     this.ollamaModels = [];
                 }
             } catch (e) {
@@ -563,12 +563,12 @@ function settingsPage() {
             const model = this.form.ollamaModel;
 
             if (!url || !model) {
-                this.modelStatus = '<span class="text-error">請先選擇模型</span>';
+                this.modelStatus = `<span class="text-error">${window.t('settings.status.select_model')}</span>`;
                 return;
             }
 
             this.testModelLoading = true;
-            this.modelStatus = '<span class="text-base-content/50">測試中...</span>';
+            this.modelStatus = `<span class="text-base-content/50">${window.t('settings.status.testing')}</span>`;
 
             try {
                 const resp = await fetch('/api/ollama/test', {
@@ -594,12 +594,12 @@ function settingsPage() {
             const apiKey = this.form.geminiApiKey;
 
             if (!apiKey) {
-                this.geminiStatus = '<span class="text-error"><i class="bi bi-x-circle"></i> 請輸入 API Key</span>';
+                this.geminiStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.enter_api_key')}</span>`;
                 return;
             }
 
             this.testGeminiLoading = true;
-            this.geminiStatus = '<span class="text-base-content/50">連線中...</span>';
+            this.geminiStatus = `<span class="text-base-content/50">${window.t('settings.status.connecting')}</span>`;
 
             try {
                 const response = await fetch('/api/gemini/test', {
@@ -611,7 +611,7 @@ function settingsPage() {
                 const data = await response.json();
 
                 if (data.success) {
-                    this.geminiStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> 找到 ${data.count} 個 Flash 模型</span>`;
+                    this.geminiStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.gemini_n_flash_models', {count: data.count})}</span>`;
                     this.geminiModels = data.models;
 
                     // Set first model as default if none selected
@@ -619,7 +619,7 @@ function settingsPage() {
                         this.form.geminiModel = data.models[0].name;
                     }
                 } else {
-                    this.geminiStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${data.error || '連接失敗'}</span>`;
+                    this.geminiStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${data.error || window.t('settings.status.connect_failed')}</span>`;
                     this.geminiModels = [];
                     this.geminiModelStatus = '';
                 }
@@ -635,17 +635,17 @@ function settingsPage() {
             const model = this.form.geminiModel;
 
             if (!apiKey) {
-                this.geminiModelStatus = '<span class="text-error"><i class="bi bi-x-circle"></i> 請先輸入 API Key</span>';
+                this.geminiModelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.enter_api_key_first')}</span>`;
                 return;
             }
 
             if (!model) {
-                this.geminiModelStatus = '<span class="text-error"><i class="bi bi-x-circle"></i> 請先選擇模型</span>';
+                this.geminiModelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.select_model')}</span>`;
                 return;
             }
 
             this.testGeminiTranslateLoading = true;
-            this.geminiModelStatus = '<span class="text-base-content/50">測試翻譯中...</span>';
+            this.geminiModelStatus = `<span class="text-base-content/50">${window.t('settings.status.testing_translation')}</span>`;
 
             try {
                 const response = await fetch('/api/gemini/test-translate', {
@@ -660,12 +660,12 @@ function settingsPage() {
                 const data = await response.json();
 
                 if (data.success) {
-                    this.geminiModelStatus = `<span class="text-success"><i class="bi bi-check-circle-fill"></i> 翻譯測試成功！ (${data.translation})</span>`;
+                    this.geminiModelStatus = `<span class="text-success"><i class="bi bi-check-circle-fill"></i> ${window.t('settings.status.translation_success', {translation: data.translation})}</span>`;
                 } else {
                     this.geminiModelStatus = `<span class="text-error"><i class="bi bi-exclamation-triangle-fill"></i> ${data.error}</span>`;
                 }
             } catch (error) {
-                this.geminiModelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> 測試失敗: ${error.message}</span>`;
+                this.geminiModelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.test_failed', {msg: error.message})}</span>`;
             } finally {
                 this.testGeminiTranslateLoading = false;
             }

@@ -73,7 +73,7 @@
       "tags": "标签",
       "title": "标题",
       "chinese_title": "中文片名",
-      "chinese_title_ai": "中文片名 (AI)"
+      "chinese_title_ai": "AI 翻译标题"
     },
     "unit": {
       "minutes": "分钟"
@@ -105,6 +105,24 @@
       "has_local": "本地已有（点击打开文件夹）",
       "has_local_count": "本地已有 {count} 个版本（点击打开文件夹）"
     },
+    "button": {
+      "search_all": "搜索全部",
+      "continue": "继续",
+      "pause": "暂停",
+      "retry_failed": "重试失败 ({count})",
+      "search_range": "搜索 {start}-{end} / {total}",
+      "translating_progress": "翻译中 ({processed}/{total})",
+      "translate_all_count": "翻译全部 ({count})",
+      "searching": "搜索中..."
+    },
+    "mode": {
+      "exact": "完整番号搜索",
+      "partial": "部分番号搜索",
+      "prefix": "系列搜索",
+      "actress": "模糊搜索",
+      "keyword": "全文搜索",
+      "uncensored": "无码搜索"
+    },
     "filelist": {
       "search_all_title": "搜索所有未搜索的文件",
       "translate_all_title": "翻译所有日文标题",
@@ -115,7 +133,13 @@
       "scrape_nfo": "生成 NFO + 封面",
       "failed": "失败",
       "retry": "重试",
-      "enter_number": "手动输入番号"
+      "enter_number": "手动输入番号",
+      "file_count": "文件 {current}/{total}",
+      "result_count": "搜索结果 ({count})",
+      "unrecognized": "无法识别番号: {filename}",
+      "not_found": "找不到 {number} 的资料",
+      "search_failed": "搜索失败",
+      "connection_error": "连接错误，请稍后再试"
     },
     "duplicate": {
       "title": "文件重复",
@@ -244,6 +268,25 @@
       "body": "您有修改尚未保存，要如何处理？",
       "discard": "不保存",
       "save": "保存更改"
+    },
+    "status": {
+      "loading_models": "加载模型中...",
+      "connecting": "连接中...",
+      "testing": "测试中...",
+      "connection_failed": "无法连接",
+      "no_models": "无可用模型",
+      "n_models": "{count} 个模型",
+      "enter_url": "请输入 URL",
+      "enter_api_key": "请输入 API Key",
+      "select_model": "请先选择模型",
+      "network_error": "✗ 网络错误，请稍后再试",
+      "connect_failed": "连接失败",
+      "connected_n_models": "已连接，{count} 个模型",
+      "enter_api_key_first": "请先输入 API Key",
+      "gemini_n_flash_models": "找到 {count} 个 Flash 模型",
+      "test_failed": "测试失败: {msg}",
+      "testing_translation": "测试翻译中...",
+      "translation_success": "翻译测试成功！ ({translation})"
     }
   },
   "scanner": {
@@ -620,5 +663,21 @@
       "check_update_failed": "检查失败，请稍后再试",
       "check_update_network_error": "无法连接，请稍后再试"
     }
+  },
+  "tutorial": {
+    "close": "关闭",
+    "skip": "跳过",
+    "next": "下一步 →",
+    "done": "完成 🎉",
+    "step1_title": "💡 搜索功能",
+    "step1_content": "输入番号（如 SONE-001）或女优名称<br>也可拖入文件，自动提取番号并搜索",
+    "step2_title": "📁 批量处理",
+    "step2_content": "加入多个文件，一次搜索 20 个<br>支持收藏文件夹快速载入",
+    "step3_title": "📝 列表生成",
+    "step3_content": "扫描本地文件夹，生成精美的 HTML 展示页<br>自动补全 NFO 文件",
+    "step4_title": "⚙️ 个性化设置",
+    "step4_content": "切换 Dark Mode、设置收藏文件夹<br>调整界面与功能偏好",
+    "step5_title": "🎬 立即体验！",
+    "step5_content": "拖放 <code>教学文件</code> 文件夹<br>或其中任一 <code>.mp4</code> 文件到此窗口<br><br><small class=\"text-muted\">内含 11 个真实可搜索的范例</small>"
   }
 }

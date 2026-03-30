@@ -43,7 +43,7 @@ def get_translate_service():
     """
     獲取翻譯服務實例（單例）
 
-    使用單例模式避免重複初始化 Ollama 連線
+    locale 變更時由 config router 呼叫 reset_translate_service() 重建。
 
     Returns:
         TranslateService 實例
@@ -52,7 +52,8 @@ def get_translate_service():
     if _translate_service is None:
         config = load_config()
         translate_config = config.get("translate", {})
-        _translate_service = create_translate_service(translate_config)
+        locale = config.get("general", {}).get("locale", "zh-TW")
+        _translate_service = create_translate_service(translate_config, locale)
     return _translate_service
 
 

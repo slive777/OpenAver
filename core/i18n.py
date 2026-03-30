@@ -128,33 +128,41 @@ def get_merged_translations(locale: str) -> dict:
 def detect_locale_from_accept_language(accept_language: str) -> str:
     """
     解析 HTTP Accept-Language header，回傳 SUPPORTED_LOCALES 之一。
-    無法解析或對應不到時回傳 "en"（非 FALLBACK_LOCALE，因為首次偵測對象通常非繁中用戶）。
-
-    規則：
-    - zh-TW 或 zh-Hant → zh-TW
-    - zh-CN 或 zh-Hans → zh-CN
-    - zh（無 TW/Hant 限定） → zh-CN
-    - ja → ja
-    - en 或其他 / 空 → en
+    尊重 q-value 權重（RFC 7231），高優先語言優先匹配。
+    無法解析或對應不到時回傳 "en"。
     """
     if not accept_language or not accept_language.strip():
         return "en"
 
-    header = accept_language.lower()
+    # 解析每個語言標籤及其 q-value，按權重降序排列
+    entries = []
+    for part in accept_language.split(","):
+        part = part.strip().lower()
+        if not part:
+            continue
+        if ";q=" in part:
+            lang, q = part.split(";q=", 1)
+            try:
+                weight = float(q.strip())
+            except ValueError:
+                weight = 0.0
+        else:
+            lang = part
+            weight = 1.0
+        entries.append((lang.strip(), weight))
+    entries.sort(key=lambda x: x[1], reverse=True)
 
-    # 依優先序檢查（zh-TW 先於 zh-CN 先於 zh）
-    if "zh-tw" in header or "zh-hant" in header:
-        return "zh-TW"
-    if "zh-cn" in header or "zh-hans" in header:
-        return "zh-CN"
-    if "ja" in header:
-        # 確認是 ja 語系（ja 或 ja-JP 等），非其他含 "ja" 的字串
-        if re.search(r"\bja\b|ja-", header):
+    # 按權重順序匹配
+    for lang, _ in entries:
+        if lang in ("zh-tw", "zh-hant"):
+            return "zh-TW"
+        if lang in ("zh-cn", "zh-hans"):
+            return "zh-CN"
+        if lang == "zh":
+            return "zh-CN"
+        if lang == "ja" or lang.startswith("ja-"):
             return "ja"
-    # zh（無 region）→ zh-CN
-    if re.search(r"\bzh\b", header):
-        return "zh-CN"
-    if "en" in header:
-        return "en"
+        if lang == "en" or lang.startswith("en-"):
+            return "en"
 
     return "en"

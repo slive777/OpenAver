@@ -16,7 +16,7 @@ window.SearchStateMixin_FileList = {
             this.hasMoreResults = false;
             this.currentIndex = 0;
             this._resetCoverState();
-            this.coverError = `無法識別番號: ${file.filename}`;
+            this.coverError = window.t('search.filelist.unrecognized', { filename: file.filename });
             window.SearchUI.showState('result');
             return;
         }
@@ -47,7 +47,7 @@ window.SearchStateMixin_FileList = {
             this.hasMoreResults = false;
             this.currentIndex = 0;
             this._resetCoverState();
-            this.coverError = `找不到 ${file.number} 的資料`;
+            this.coverError = window.t('search.filelist.not_found', { number: file.number });
             window.SearchUI.showState('result');
         }
     },
@@ -72,7 +72,9 @@ window.SearchStateMixin_FileList = {
 
                     if (data.type === 'mode') {
                         this.currentMode = data.mode;
-                        this.updateLog(`${window.SearchCore.MODE_TEXT[data.mode] || '搜尋'}...`);
+                        const _modeKey1 = 'search.mode.' + data.mode;
+                        const _modeTxt1 = window.t(_modeKey1);
+                        this.updateLog(`${_modeTxt1.charAt(0) === '[' ? data.mode : _modeTxt1}...`);
                     }
                     else if (data.type === 'status') {
                         this.handleSearchStatus(data.source, data.status);
@@ -112,7 +114,7 @@ window.SearchStateMixin_FileList = {
                             file.searched = true;
                             file.searchResults = [];
                             this._resetCoverState();
-                            this.coverError = `找不到 ${file.number} 的資料`;
+                            this.coverError = window.t('search.filelist.not_found', { number: file.number });
 
                             // 重置共享狀態
                             this.searchResults = [];
@@ -131,7 +133,7 @@ window.SearchStateMixin_FileList = {
                         file.searched = true;
                         file.searchResults = [];
                         this._resetCoverState();
-                        this.coverError = data.message || '搜尋失敗';
+                        this.coverError = data.message || window.t('search.filelist.search_failed');
 
                         this.searchResults = [];
                         this.hasMoreResults = false;
@@ -153,7 +155,7 @@ window.SearchStateMixin_FileList = {
                 file.searched = true;
                 file.searchResults = [];
                 this._resetCoverState();
-                this.coverError = '連線錯誤，請稍後再試';
+                this.coverError = window.t('search.filelist.connection_error');
 
                 this.searchResults = [];
                 this.hasMoreResults = false;

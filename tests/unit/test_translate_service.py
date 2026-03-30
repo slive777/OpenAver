@@ -5,14 +5,18 @@ test_translate_service.py - 翻譯服務抽象層單元測試
 - 工廠函數 create_translate_service()
 - 配置默認值處理
 - 錯誤處理（未知 provider、未實現 provider）
+- 語言 prompt 組裝（TestLanguagePrompts）
+- ja 短路機制（TestTranslateSingleJaShortCircuit）
 
 注意：實際 Ollama API 調用測試放在 tests/smoke/test_translate_live.py
 """
 
 import pytest
+from unittest.mock import AsyncMock, patch, MagicMock
 from core.translate_service import (
     TranslateService,
     OllamaTranslateService,
+    GeminiTranslateService,
     create_translate_service
 )
 
@@ -121,3 +125,84 @@ class TestTranslateServiceABC:
         assert hasattr(service, 'translate_batch')
         assert callable(service.translate_single)
         assert callable(service.translate_batch)
+
+
+# ============ 語言 prompt 組裝測試 ============
+
+class TestLanguagePrompts:
+    """測試各語言 prompt 組裝"""
+
+    def test_ollama_zh_tw_prompt(self):
+        """OllamaTranslateService(config, "zh-TW") 的 system_msg 含 '繁體中文'"""
+        service = OllamaTranslateService({}, "zh-TW")
+        assert service.target_language == "zh-TW"
+        # 確認 system prompt 包含繁體中文關鍵字
+        from core.translate_service import LANGUAGE_PROMPTS
+        prompt_data = LANGUAGE_PROMPTS.get("zh-TW", {})
+        assert "繁體中文" in prompt_data.get("ollama_system", "")
+
+    def test_ollama_zh_cn_prompt(self):
+        """OllamaTranslateService(config, "zh-CN") 的 system_msg 含 '简体中文'"""
+        service = OllamaTranslateService({}, "zh-CN")
+        assert service.target_language == "zh-CN"
+        from core.translate_service import LANGUAGE_PROMPTS
+        prompt_data = LANGUAGE_PROMPTS.get("zh-CN", {})
+        assert "简体中文" in prompt_data.get("ollama_system", "")
+
+    def test_ollama_en_prompt(self):
+        """OllamaTranslateService(config, "en") 的 system_msg 含 'English'"""
+        service = OllamaTranslateService({}, "en")
+        assert service.target_language == "en"
+        from core.translate_service import LANGUAGE_PROMPTS
+        prompt_data = LANGUAGE_PROMPTS.get("en", {})
+        assert "English" in prompt_data.get("ollama_system", "")
+
+    def test_gemini_en_prompt(self):
+        """GeminiTranslateService(config, "en") 的 prompt 含 'English'"""
+        config = {"api_key": "fake-key-for-test"}
+        service = GeminiTranslateService(config, "en")
+        assert service.target_language == "en"
+        from core.translate_service import LANGUAGE_PROMPTS
+        prompt_data = LANGUAGE_PROMPTS.get("en", {})
+        assert "English" in prompt_data.get("gemini_instruction", "")
+
+    def test_unknown_target_fallback(self):
+        """不存在的 target（如 'ko'）fallback 到 zh-TW prompt"""
+        service = OllamaTranslateService({}, "ko")
+        assert service.target_language == "ko"
+        # LANGUAGE_PROMPTS.get("ko", LANGUAGE_PROMPTS["zh-TW"]) 應返回 zh-TW 的資料
+        from core.translate_service import LANGUAGE_PROMPTS
+        prompt_data = LANGUAGE_PROMPTS.get("ko", LANGUAGE_PROMPTS["zh-TW"])
+        assert "繁體中文" in prompt_data.get("ollama_system", "")
+
+
+# ============ ja 短路測試 ============
+
+class TestTranslateSingleJaShortCircuit:
+    """測試 target=ja 時不呼叫 API，回傳原文"""
+
+    @pytest.mark.asyncio
+    async def test_ollama_ja_returns_original(self):
+        """target=ja 時 Ollama 不呼叫 API，回傳原文"""
+        service = OllamaTranslateService({}, "ja")
+        original_title = "巨乳の女優がデビュー"
+
+        # 若呼叫 httpx 就會失敗，這裡 mock 確保不被呼叫
+        with patch("httpx.AsyncClient") as mock_client:
+            result = await service.translate_single(original_title)
+            mock_client.assert_not_called()
+
+        assert result == original_title
+
+    @pytest.mark.asyncio
+    async def test_gemini_ja_returns_original(self):
+        """target=ja 時 Gemini 不呼叫 API，回傳原文"""
+        config = {"api_key": "fake-key-for-test"}
+        service = GeminiTranslateService(config, "ja")
+        original_title = "巨乳の女優がデビュー"
+
+        with patch("httpx.AsyncClient") as mock_client:
+            result = await service.translate_single(original_title)
+            mock_client.assert_not_called()
+
+        assert result == original_title

@@ -106,7 +106,7 @@ window.SearchStateMixin_Base = function () {
 
         // ===== Progress State =====
         currentMode: '',
-        progressLog: '搜尋中...',
+        progressLog: '',
         detailDone: 0,
         detailTotal: 0,
 
@@ -148,14 +148,6 @@ window.SearchStateMixin_Base = function () {
 
         // ===== Constants =====
         PAGE_SIZE: 20,
-        MODE_TEXT: {
-            'exact': '完整番號搜尋',
-            'partial': '部分番號搜尋',
-            'prefix': '系列搜尋',
-            'actress': '模糊搜尋',
-            'keyword': '全文搜尋',
-            'uncensored': '無碼搜尋'
-        },
         SOURCE_NAME: {
             'javbus': 'JavBus',
             'jav321': 'Jav321',
@@ -236,11 +228,14 @@ window.SearchStateMixin_Base = function () {
 
         fileCountText() {
             if (this.listMode === 'file') {
-                return `檔案 ${this.currentFileIndex + 1}/${this.fileList.length}`;
+                return window.t('search.filelist.file_count', {
+                    current: this.currentFileIndex + 1,
+                    total: this.fileList.length
+                });
             }
             const visibleCount = this.searchResults.filter(r => !r._failed).length;
             const total = this.hasMoreResults ? visibleCount + '+' : visibleCount;
-            return `搜尋結果 (${total})`;
+            return window.t('search.filelist.result_count', { count: total });
         },
 
         searchAllButtonText() {
@@ -250,18 +245,18 @@ window.SearchStateMixin_Base = function () {
             const batch = this.batchState;
 
             if (searchableFiles.length === 0 && failedFiles.length === 0) {
-                return '搜尋全部';
+                return window.t('search.button.search_all');
             }
             if (batch.isProcessing) {
-                return batch.isPaused ? '繼續' : '暫停';
+                return batch.isPaused ? window.t('search.button.continue') : window.t('search.button.pause');
             }
             if (searchableFiles.length === 0 && failedFiles.length > 0) {
-                return `重試失敗 (${failedFiles.length})`;
+                return window.t('search.button.retry_failed', { count: failedFiles.length });
             }
             const searchedCount = totalWithNumber - searchableFiles.length;
             const start = searchedCount + 1;
             const end = Math.min(searchedCount + batch.batchSize, totalWithNumber);
-            return `搜尋 ${start}-${end} / ${totalWithNumber}`;
+            return window.t('search.button.search_range', { start, end, total: totalWithNumber });
         },
 
         searchAllButtonIcon() {
@@ -290,10 +285,12 @@ window.SearchStateMixin_Base = function () {
         translateAllButtonText() {
             const ts = this.translateState;
             if (ts.isProcessing) {
-                return ts.isPaused ? '繼續' : `翻譯中 ${ts.processed}/${ts.total}`;
+                return ts.isPaused
+                    ? window.t('search.button.continue')
+                    : window.t('search.button.translating_progress', { processed: ts.processed, total: ts.total });
             }
             const count = this.searchResults.filter(r => r.title && window.SearchCore?.hasJapanese(r.title) && !r.translated_title).length;
-            return `翻譯全部 (${count})`;
+            return window.t('search.button.translate_all_count', { count });
         },
 
         translateAllButtonIcon() {

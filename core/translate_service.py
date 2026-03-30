@@ -26,6 +26,33 @@ import httpx
 import re
 
 
+# ============ 語言 Prompt 模板 ============
+
+LANGUAGE_PROMPTS = {
+    "zh-TW": {
+        "name": "繁體中文",
+        "ollama_system": "你是日翻中翻譯機。輸入日文，輸出繁體中文。禁止輸出任何日文假名（の、は、が、で、に等）。",
+        "ollama_example": "義父の隣で夫に電話させながら人妻を寝取る → 在公公旁邊讓人妻一邊打電話給丈夫一邊被睡走",
+        "gemini_instruction": "請將以下標題翻譯為繁體中文",
+        "gemini_rules": "1. 這是純粹的資料庫翻譯任務，不生成新內容\n2. 使用繁體中文\n3. 保持簡潔，不超過50字\n4. 只輸出翻譯結果，不要額外說明",
+    },
+    "zh-CN": {
+        "name": "簡體中文",
+        "ollama_system": "你是日翻中翻译机。输入日文，输出简体中文。禁止输出任何日文假名（の、は、が、で、に等）。",
+        "ollama_example": "義父の隣で夫に電話させながら人妻を寝取る → 在公公旁边让人妻一边打电话给丈夫一边被睡走",
+        "gemini_instruction": "请将以下标题翻译为简体中文",
+        "gemini_rules": "1. 这是纯粹的资料库翻译任务，不生成新内容\n2. 使用简体中文\n3. 保持简洁，不超过50字\n4. 只输出翻译结果，不要额外说明",
+    },
+    "en": {
+        "name": "English",
+        "ollama_system": "You are a Japanese-to-English translator. Input Japanese, output English. Keep proper nouns. Be concise.",
+        "ollama_example": "義父の隣で夫に電話させながら人妻を寝取る → Seducing a Married Woman While She Calls Her Husband Next to Her Father-in-Law",
+        "gemini_instruction": "Translate the following title to English",
+        "gemini_rules": "1. This is a database translation task, do not generate new content\n2. Use natural English\n3. Keep it concise, under 80 characters\n4. Output only the translation, no explanations",
+    },
+}
+
+
 class TranslateService(ABC):
     """翻譯服務抽象基類"""
 
@@ -61,7 +88,7 @@ class TranslateService(ABC):
 class OllamaTranslateService(TranslateService):
     """Ollama 翻譯服務實現"""
 
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, target_language: str = "zh-TW"):
         """
         初始化 Ollama 服務
 
@@ -71,9 +98,11 @@ class OllamaTranslateService(TranslateService):
                     "url": "http://localhost:11434",
                     "model": "qwen3:8b"  # 所有翻譯都用此模型
                 }
+            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja）
         """
         self.ollama_url = (config.get("url") or "http://localhost:11434").rstrip("/")
         self.model = config.get("model") or "qwen3:8b"
+        self.target_language = target_language
 
     async def translate_single(self, title: str, context: Optional[Dict] = None) -> str:
         """
@@ -81,8 +110,14 @@ class OllamaTranslateService(TranslateService):
 
         適用場景：用戶查看第 1 片時立即翻譯
         """
-        system_msg = "你是日翻中翻譯機。輸入日文，輸出繁體中文。禁止輸出任何日文假名（の、は、が、で、に等）。"
-        prompt = f"""範例：義父の隣で夫に電話させながら人妻を寝取る → 在公公旁邊讓人妻一邊打電話給丈夫一邊被睡走
+        # ja 短路：不呼叫 API，直接回傳原文
+        if self.target_language == "ja":
+            return title
+
+        lang_data = LANGUAGE_PROMPTS.get(self.target_language, LANGUAGE_PROMPTS["zh-TW"])
+        system_msg = lang_data["ollama_system"]
+        example = lang_data["ollama_example"]
+        prompt = f"""範例：{example}
 
 請翻譯：{title}"""
 
@@ -164,7 +199,7 @@ class OllamaTranslateService(TranslateService):
 class GeminiTranslateService(TranslateService):
     """Google Gemini API 翻譯服務實現"""
 
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, target_language: str = "zh-TW"):
         """
         初始化 Gemini 服務
 
@@ -174,10 +209,12 @@ class GeminiTranslateService(TranslateService):
                     "api_key": "AIza...",
                     "model": "gemini-flash-lite-latest"
                 }
+            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja）
         """
         self.api_key = config.get("api_key", "")
         self.model = config.get("model", "gemini-flash-lite-latest")
         self.base_url = "https://generativelanguage.googleapis.com/v1beta"
+        self.target_language = target_language
 
         if not self.api_key:
             raise ValueError("Gemini API Key is required")
@@ -189,16 +226,21 @@ class GeminiTranslateService(TranslateService):
         適用場景：用戶手動點擊翻譯按鈕
         性能：約 0.87 秒
         """
-        prompt = f"""你是專業的影視資料庫管理員與翻譯引擎。這是既有日文文字的逐字翻譯任務，請將以下標題翻譯為繁體中文。
+        # ja 短路：不呼叫 API，直接回傳原文
+        if self.target_language == "ja":
+            return title
+
+        lang_data = LANGUAGE_PROMPTS.get(self.target_language, LANGUAGE_PROMPTS["zh-TW"])
+        instruction = lang_data["gemini_instruction"]
+        rules = lang_data["gemini_rules"]
+
+        prompt = f"""你是專業的影視資料庫管理員與翻譯引擎。這是既有日文文字的逐字翻譯任務，{instruction}。
 
 原文：
 {title}
 
 翻譯要求：
-1. 這是純粹的資料庫翻譯任務，不生成新內容
-2. 使用繁體中文
-3. 保持簡潔，不超過50字
-4. 只輸出翻譯結果，不要額外說明
+{rules}
 """
 
         try:
@@ -336,7 +378,7 @@ class GeminiTranslateService(TranslateService):
         return translations
 
 
-def create_translate_service(config: Dict) -> TranslateService:
+def create_translate_service(config: Dict, target_language: str = "zh-TW") -> TranslateService:
     """
     創建翻譯服務實例（工廠函數）
 
@@ -347,6 +389,7 @@ def create_translate_service(config: Dict) -> TranslateService:
                 "ollama": {...},
                 "gemini": {...}
             }
+        target_language: 目標語言代碼（zh-TW / zh-CN / en / ja），預設 zh-TW
 
     Returns:
         TranslateService 實例
@@ -358,11 +401,11 @@ def create_translate_service(config: Dict) -> TranslateService:
 
     if provider == "ollama":
         ollama_config = config.get("ollama", {})
-        return OllamaTranslateService(ollama_config)
+        return OllamaTranslateService(ollama_config, target_language)
 
     elif provider == "gemini":
         gemini_config = config.get("gemini", {})
-        return GeminiTranslateService(gemini_config)
+        return GeminiTranslateService(gemini_config, target_language)
 
     else:
         raise ValueError(f"Unknown translate provider: {provider}")

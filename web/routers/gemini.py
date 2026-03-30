@@ -6,6 +6,8 @@ Gemini API 路由 - 提供測試和模型查詢功能
 """
 
 from core.logger import get_logger
+from core.config import load_config
+from core.translate_service import LANGUAGE_PROMPTS
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -188,12 +190,17 @@ async def test_gemini_translate(request: TestTranslateRequest):
     # 使用安全的測試標題（不會觸發內容過濾）
     test_title = "新人女優デビュー"
 
+    config = load_config()
+    locale = config.get("general", {}).get("locale", "zh-TW")
+    lang_config = LANGUAGE_PROMPTS.get(locale, LANGUAGE_PROMPTS["zh-TW"])
+    lang_name = lang_config["name"]
+
     try:
         # 構建翻譯請求
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{request.model}:generateContent"
         headers = {"x-goog-api-key": request.api_key}
         payload = {
-            "contents": [{"parts": [{"text": f"請將以下日文翻譯成繁體中文：{test_title}"}]}],
+            "contents": [{"parts": [{"text": f"請將以下日文翻譯成{lang_name}：{test_title}"}]}],
             "generationConfig": {
                 "temperature": 0.3,
                 "maxOutputTokens": 50

@@ -73,7 +73,7 @@
       "tags": "標籤",
       "title": "標題",
       "chinese_title": "中文片名",
-      "chinese_title_ai": "中文片名 (AI)"
+      "chinese_title_ai": "AI 翻譯標題"
     },
     "unit": {
       "minutes": "分鐘"
@@ -105,6 +105,24 @@
       "has_local": "本地已有（點擊開啟資料夾）",
       "has_local_count": "本地已有 {count} 個版本（點擊開啟資料夾）"
     },
+    "button": {
+      "search_all": "搜尋全部",
+      "continue": "繼續",
+      "pause": "暫停",
+      "retry_failed": "重試失敗 ({count})",
+      "search_range": "搜尋 {start}-{end} / {total}",
+      "translating_progress": "翻譯中 ({processed}/{total})",
+      "translate_all_count": "翻譯全部 ({count})",
+      "searching": "搜尋中..."
+    },
+    "mode": {
+      "exact": "完整番號搜尋",
+      "partial": "部分番號搜尋",
+      "prefix": "系列搜尋",
+      "actress": "模糊搜尋",
+      "keyword": "全文搜尋",
+      "uncensored": "無碼搜尋"
+    },
     "filelist": {
       "search_all_title": "搜尋所有未搜尋的檔案",
       "translate_all_title": "翻譯所有日文標題",
@@ -115,7 +133,13 @@
       "scrape_nfo": "產生 NFO + 封面",
       "failed": "失敗",
       "retry": "重試",
-      "enter_number": "手動輸入番號"
+      "enter_number": "手動輸入番號",
+      "file_count": "檔案 {current}/{total}",
+      "result_count": "搜尋結果 ({count})",
+      "unrecognized": "無法識別番號: {filename}",
+      "not_found": "找不到 {number} 的資料",
+      "search_failed": "搜尋失敗",
+      "connection_error": "連線錯誤，請稍後再試"
     },
     "duplicate": {
       "title": "檔案重複",
@@ -244,6 +268,25 @@
       "body": "您有修改尚未儲存，要如何處理？",
       "discard": "不儲存",
       "save": "儲存更改"
+    },
+    "status": {
+      "loading_models": "載入模型中...",
+      "connecting": "連線中...",
+      "testing": "測試中...",
+      "testing_translation": "測試翻譯中...",
+      "connection_failed": "無法連線",
+      "connect_failed": "連接失敗",
+      "no_models": "無可用模型",
+      "n_models": "{count} 個模型",
+      "connected_n_models": "已連線，{count} 個模型",
+      "gemini_n_flash_models": "找到 {count} 個 Flash 模型",
+      "enter_url": "請輸入 URL",
+      "enter_api_key": "請輸入 API Key",
+      "enter_api_key_first": "請先輸入 API Key",
+      "select_model": "請先選擇模型",
+      "network_error": "✗ 網路錯誤，請稍後再試",
+      "translation_success": "翻譯測試成功！ ({translation})",
+      "test_failed": "測試失敗: {msg}"
     }
   },
   "scanner": {
