@@ -72,7 +72,9 @@ window.SearchStateMixin_FileList = {
 
                     if (data.type === 'mode') {
                         this.currentMode = data.mode;
-                        this.updateLog(`${window.t('search.mode.' + data.mode)}...`);
+                        const _modeKey1 = 'search.mode.' + data.mode;
+                        const _modeTxt1 = window.t(_modeKey1);
+                        this.updateLog(`${_modeTxt1.charAt(0) === '[' ? data.mode : _modeTxt1}...`);
                     }
                     else if (data.type === 'status') {
                         this.handleSearchStatus(data.source, data.status);

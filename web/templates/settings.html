@@ -174,7 +174,7 @@
                                     <input type="text" class="input input-bordered input-sm flex-1" id="ollamaUrl"
                                         x-model="form.ollamaUrl"
                                         :disabled="!form.translateEnabled">
-                                    <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testOllamaBtn"
+                                    <button class="btn btn-sm btn-outline" type="button" id="testOllamaBtn"
                                         @click="testOllamaConnection()"
                                         :disabled="!form.translateEnabled || testOllamaLoading">
                                         <span x-show="testOllamaLoading" class="loading loading-spinner loading-sm"></span>
@@ -199,7 +199,7 @@
                                             <option :value="model" x-text="model"></option>
                                         </template>
                                     </select>
-                                    <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testModelBtn"
+                                    <button class="btn btn-sm btn-outline" type="button" id="testModelBtn"
                                         @click="testModel()" title="{{ t('settings.translate.test_model_title') }}"
                                         :disabled="!form.translateEnabled || testModelLoading">
                                         <span x-show="testModelLoading" class="loading loading-spinner loading-sm"></span>
@@ -223,7 +223,7 @@
                                     <input type="password" class="input input-bordered input-sm flex-1" id="geminiApiKey"
                                         x-model="form.geminiApiKey" placeholder="AIza..."
                                         :disabled="!form.translateEnabled">
-                                    <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testGeminiBtn"
+                                    <button class="btn btn-sm btn-outline" type="button" id="testGeminiBtn"
                                         @click="testGeminiConnection()"
                                         :disabled="!form.translateEnabled || testGeminiLoading">
                                         <span x-show="testGeminiLoading" class="loading loading-spinner loading-sm"></span>
@@ -266,7 +266,7 @@
                                             <option :value="model.name" x-text="model.name"></option>
                                         </template>
                                     </select>
-                                    <button class="btn btn-sm btn-outline btn-neutral" type="button" id="testGeminiTranslateBtn"
+                                    <button class="btn btn-sm btn-outline" type="button" id="testGeminiTranslateBtn"
                                         @click="testGeminiTranslation()" title="{{ t('settings.translate.test_translation_title') }}"
                                         :disabled="!form.translateEnabled || geminiModels.length === 0 || testGeminiTranslateLoading">
                                         <span x-show="testGeminiTranslateLoading" class="loading loading-spinner loading-sm"></span>
