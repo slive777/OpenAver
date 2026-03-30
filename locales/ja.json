@@ -73,7 +73,7 @@
       "tags": "タグ",
       "title": "タイトル",
       "chinese_title": "中国語タイトル",
-      "chinese_title_ai": "中国語タイトル (AI)"
+      "chinese_title_ai": "AI 翻訳タイトル"
     },
     "unit": {
       "minutes": "分"

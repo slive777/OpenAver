@@ -73,7 +73,7 @@
       "tags": "标签",
       "title": "标题",
       "chinese_title": "中文片名",
-      "chinese_title_ai": "中文片名 (AI)"
+      "chinese_title_ai": "AI 翻译标题"
     },
     "unit": {
       "minutes": "分钟"

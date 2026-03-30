@@ -87,3 +87,74 @@ class TestConfigAPI:
         
         saved_config = json.loads(mock_config_path.read_text())
         assert saved_config.get("general", {}).get("tutorial_completed") is False
+
+
+class TestLocaleChangeResetsTranslateService:
+    """locale 變更應觸發 translate service reset（auto 模式依賴 locale）"""
+
+    @pytest.fixture
+    def mock_config_path(self, tmp_path, monkeypatch):
+        """Mock CONFIG_PATH，初始化含 general.locale 的 config"""
+        config_path = tmp_path / "config.json"
+        default_path = tmp_path / "config.default.json"
+
+        config_data = {
+            "general": {"locale": "zh-TW", "theme": "light", "sidebar_collapsed": False,
+                        "tutorial_completed": False, "font_size": "md", "default_page": "search"},
+            "translate": {"enabled": False, "provider": "ollama",
+                          "batch_size": 10,
+                          "ollama": {"url": "http://localhost:11434", "model": "qwen3:8b"},
+                          "gemini": {"api_key": "", "model": "gemini-flash-lite-latest"}},
+        }
+        config_path.write_text(json.dumps(config_data))
+        default_path.write_text(json.dumps(config_data))
+
+        monkeypatch.setattr("core.config.CONFIG_PATH", config_path)
+        monkeypatch.setattr("core.config.CONFIG_DEFAULT_PATH", default_path)
+
+        return config_path
+
+    def test_locale_change_calls_reset_translate_service(self, client, mock_config_path, monkeypatch):
+        """PUT /api/config/general/locale 成功後呼叫 _reset_translate_service()"""
+        reset_called = []
+
+        def fake_reset():
+            reset_called.append(True)
+
+        monkeypatch.setattr("web.routers.config._reset_translate_service", fake_reset)
+
+        resp = client.put("/api/config/general/locale", json={"value": "en"})
+
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+        assert len(reset_called) == 1, "locale 變更後應呼叫一次 _reset_translate_service()"
+
+    def test_other_field_change_does_not_call_reset(self, client, mock_config_path, monkeypatch):
+        """PUT /api/config/general/theme 不應呼叫 _reset_translate_service()"""
+        reset_called = []
+
+        def fake_reset():
+            reset_called.append(True)
+
+        monkeypatch.setattr("web.routers.config._reset_translate_service", fake_reset)
+
+        resp = client.put("/api/config/general/theme", json={"value": "dark"})
+
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+        assert len(reset_called) == 0, "theme 變更不應呼叫 _reset_translate_service()"
+
+    def test_invalid_locale_does_not_call_reset(self, client, mock_config_path, monkeypatch):
+        """不支援的 locale 失敗後不應呼叫 _reset_translate_service()"""
+        reset_called = []
+
+        def fake_reset():
+            reset_called.append(True)
+
+        monkeypatch.setattr("web.routers.config._reset_translate_service", fake_reset)
+
+        resp = client.put("/api/config/general/locale", json={"value": "ko"})
+
+        assert resp.status_code == 200
+        assert resp.json()["success"] is False
+        assert len(reset_called) == 0, "失敗的 locale 設定不應呼叫 reset"

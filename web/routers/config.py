@@ -127,6 +127,8 @@ async def update_general_field(field: str, request: GeneralFieldRequest) -> dict
             return {"success": False, "error": "不支援的語系"}
         config["general"][field] = request.value
         save_config(config)
+        if field == "locale":
+            _reset_translate_service()
         return {"success": True}
     except Exception as e:
         logger.error("更新設定欄位失敗: %s", e)
