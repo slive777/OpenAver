@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-03-31
+
+### Added
+
+#### 🌐 i18n 補齊 + 翻譯目標語言 (Phase 38c)
+- Search 頁動態按鈕 / 標籤 i18n 補齊（searchAll / translateAll / fileCount / MODE_TEXT / cover error 共 20 key）
+- 翻譯功能自動跟隨 UI 語系：繁中→繁中翻譯、簡中→簡中翻譯、英文→英文翻譯
+- `LANGUAGE_PROMPTS` 三語系 prompt 模板（Ollama + Gemini）
+- 日文 locale 自動跳過翻譯（原始標題本身即日文，不呼叫 API）
+- Settings 翻譯測試按鈕跟隨語系（Ollama / Gemini test prompt 動態切換）
+- Settings 連線狀態訊息 i18n（17 key）
+- Tutorial 新手教學四語系補齊（14 key）
+- i18n 測試零 warnings（所有 locale 欠債清零）
+
+### Fixed
+- Search 頁 MODE_TEXT 未知 mode graceful fallback（不再顯示 `[search.mode.xxx]`）
+- Settings 翻譯測試按鈕 dark mode 文字不可見（移除 `btn-neutral`）
+- `chinese_title_ai` label 改為「AI 翻譯標題」（翻譯結果可能非中文）
+- locale 變更時翻譯 service singleton 正確重建
+
+### Changed
+- 測試總數 1420 → 1430（+10）
+
 ## [0.6.0] - 2026-03-29
 
 ### Added
