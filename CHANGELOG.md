@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-04-01
+
+### Added
+
+#### 🤖 Agentic AI API 平台 (Phase 38b)
+- `POST /api/batch-search` — 批量番號搜尋，一次多筆結構化回傳
+- `POST /api/gallery/generate-from-ids` — 番號列表產生自訂 Gallery HTML，封面自動 base64 嵌入（可分享）
+- `POST /api/enrich-single` — 舊片原地補完（fill_missing / db_to_sidecar / refresh_full），不搬移不改名
+- `POST /api/collection/sql` — Read-only SQL 查詢收藏資料庫，12 層安全防護
+- `GET /api/capabilities` — Self-describing AI manifest，一個 curl 就能學會使用 OpenAver
+- `GET /api/search` 新增 `since` 日期過濾 + `discovery` 輕量探索模式
+- Help 頁 Hero Card 右欄新增 AI 整合入口（Terminal box + 一鍵複製 curl）
+- `skill_setup` 欄位建議 agent 註冊為 SKILL.md
+- Gallery HTML 封面嵌入：Referer 自動補齊（JavBus/DMM/Jav321）+ embed 統計
+
+### Fixed
+- `generate-from-ids` scrape 路徑封面欄位名修正（`cover_url` → `cover`，對齊 legacy dict）
+- `enrich-single` DB path/cover_path 寫入格式修正（file:/// URI 契約）
+- `enrich-single` NFO 寫入時自動偵測字幕（`find_subtitle_files`）
+- `enrich-single` config 區段修正（`config["search"]` 取代 `config["scraper"]`）
+- `_missing_fields` series 空字串視為缺失（與 director/label 一致）
+
+### Changed
+- 測試總數 1430 → 1634（+204）
+
 ## [0.6.1] - 2026-03-31
 
 ### Added

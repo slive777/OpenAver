@@ -11,3 +11,42 @@
 [data-theme="dim"] .help-card {
     background: color-mix(in oklch, var(--color-base-200) 60%, transparent);
 }
+
+/* ========== AI 整合入口 — Terminal box（固定深色，不隨 theme 切換）========== */
+
+.hero-terminal {
+    background: oklch(20% 0.01 250);
+    color: oklch(85% 0.02 180);
+    border: 1px solid oklch(30% 0.01 250);
+    border-radius: var(--fluent-radius-lg, 8px);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', ui-monospace, monospace;
+    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+    position: relative;
+}
+
+.terminal-prompt {
+    color: oklch(55% 0.15 160);  /* 低飽和青綠，暗示終端指令 */
+    margin-right: 0.4em;
+    user-select: none;
+}
+
+.terminal-copy-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: oklch(65% 0.02 180);
+    font-size: 0.85rem;
+    padding: 0.15rem 0.3rem;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+}
+
+.terminal-copy-btn:hover {
+    color: oklch(90% 0.04 180);
+    background: oklch(30% 0.01 250);
+}

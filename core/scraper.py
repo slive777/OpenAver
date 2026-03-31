@@ -275,7 +275,8 @@ def search_jav_single_source(number: str, source: str, proxy_url: str = '') -> O
 
 def search_partial(partial: str,
                    status_callback: Optional[Callable[[str, str], None]] = None,
-                   result_callback: Optional[Callable[[int, Any], None]] = None) -> List[Dict[str, Any]]:
+                   result_callback: Optional[Callable[[int, Any], None]] = None,
+                   discovery_only: bool = False) -> List[Dict[str, Any]]:
     """局部搜尋"""
     candidates = expand_partial_number(partial)
     results = []
@@ -286,6 +287,11 @@ def search_partial(partial: str,
     # Seed callback: 通知前端準備 skeleton grid
     if candidates and result_callback:
         result_callback(-1, candidates)
+
+    if discovery_only:
+        if status_callback:
+            status_callback('done', f'found:{len(candidates)}')
+        return [{'number': num, 'title': ''} for num in candidates]
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         # 記錄 slot index 以支援 result_callback 正確定位
@@ -312,7 +318,7 @@ def search_partial(partial: str,
     return sort_results_by_date(results)
 
 
-def search_prefix(prefix: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, result_callback: Optional[Callable[[int, Any], None]] = None) -> List[Dict[str, Any]]:
+def search_prefix(prefix: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, result_callback: Optional[Callable[[int, Any], None]] = None, discovery_only: bool = False) -> List[Dict[str, Any]]:
     """前綴搜尋"""
     results = []
     prefix = prefix.strip().upper()
@@ -345,6 +351,13 @@ def search_prefix(prefix: str, limit: int = 20, offset: int = 0, status_callback
 
         if status_callback:
             status_callback('javbus', f'found:{len(target_ids)}')
+
+        if discovery_only:
+            if status_callback:
+                status_callback('done', f'found:{len(target_ids)}')
+            return [{'number': num, 'title': ''} for num in target_ids]
+
+        if status_callback:
             status_callback('javbus', 'fetching_details')
 
         if target_ids and result_callback:
@@ -428,11 +441,11 @@ def _dmm_keyword_search_progressive(
     return results
 
 
-def search_actress(name: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, result_callback: Optional[Callable[[int, Any], None]] = None, primary_source: str = 'javbus', proxy_url: str = '') -> List[Dict[str, Any]]:
+def search_actress(name: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, result_callback: Optional[Callable[[int, Any], None]] = None, primary_source: str = 'javbus', proxy_url: str = '', discovery_only: bool = False) -> List[Dict[str, Any]]:
     """女優搜尋"""
     # DMM routing: when primary_source='dmm' and proxy is available, try DMM first
     fuzzy_source = _get_fuzzy_source(primary_source, proxy_url)
-    if fuzzy_source == 'dmm':
+    if fuzzy_source == 'dmm' and not discovery_only:
         if status_callback:
             status_callback('dmm', 'searching')
         dmm_config = ScraperConfig(proxy_url=_dmm_proxy_url(proxy_url))
@@ -469,6 +482,11 @@ def search_actress(name: str, limit: int = 20, offset: int = 0, status_callback:
 
             if status_callback:
                 status_callback('javbus', f'found:{len(target_ids)}')
+
+            if discovery_only:
+                if status_callback:
+                    status_callback('done', f'found:{len(target_ids)}')
+                return [{'number': num, 'title': ''} for num in target_ids]
 
             if target_ids and result_callback:
                 result_callback(-1, target_ids)
@@ -585,7 +603,7 @@ def _get_uncensored_sources(search_term: str) -> list[str]:
         return ['d2pass', 'heyzo', 'fc2', 'avsox']
 
 
-def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, uncensored_mode: bool = False, proxy_url: str = '', result_callback: Optional[Callable[[int, Any], None]] = None, primary_source: str = 'javbus') -> List[Dict[str, Any]]:
+def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, uncensored_mode: bool = False, proxy_url: str = '', result_callback: Optional[Callable[[int, Any], None]] = None, primary_source: str = 'javbus', discovery_only: bool = False) -> List[Dict[str, Any]]:
     """
     智慧搜尋：自動判斷搜尋類型並執行
 
@@ -692,13 +710,13 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
     # 2. 局部搜尋
     elif is_partial_number(query):
         if offset > 0: return []
-        results = search_partial(query, status_callback=status_callback, result_callback=result_callback)
+        results = search_partial(query, status_callback=status_callback, result_callback=result_callback, discovery_only=discovery_only)
         for r in results: r['_mode'] = 'partial'
         return results
 
     # 3. 前綴搜尋
     elif is_prefix_only(query):
-        results = search_prefix(query, limit=limit, offset=offset, status_callback=status_callback, result_callback=result_callback)
+        results = search_prefix(query, limit=limit, offset=offset, status_callback=status_callback, result_callback=result_callback, discovery_only=discovery_only)
         mode = 'prefix'
 
         if not results:
@@ -721,7 +739,7 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
     else:
         # 模糊搜尋路由
         fuzzy_source = _get_fuzzy_source(primary_source, proxy_url)
-        if fuzzy_source == 'dmm':
+        if fuzzy_source == 'dmm' and not discovery_only:
             # DMM keyword search (progressive)
             if status_callback:
                 status_callback('dmm', 'searching')
@@ -736,10 +754,10 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
                 return dmm_results
             # DMM returned nothing → fall through to JavBus
 
-        results = search_actress(query, limit=limit, offset=offset, status_callback=status_callback, result_callback=result_callback, primary_source=primary_source, proxy_url=proxy_url)
+        results = search_actress(query, limit=limit, offset=offset, status_callback=status_callback, result_callback=result_callback, primary_source=primary_source, proxy_url=proxy_url, discovery_only=discovery_only)
         mode = 'actress'
 
-        if not results:
+        if not results and not discovery_only:
             if status_callback: status_callback('mode', 'keyword')
             results = search_jav321_keyword(query, limit=limit, status_callback=status_callback)
             if results: mode = 'keyword'

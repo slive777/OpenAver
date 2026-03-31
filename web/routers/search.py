@@ -22,6 +22,9 @@ from collections import Counter
 from pathlib import Path
 from queue import Queue
 from threading import Thread
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from pydantic import BaseModel
 
 from core.logger import get_logger
 from core.video_extensions import ZERO_SIZE_EXTENSIONS, get_video_extensions
@@ -80,7 +83,9 @@ def search(
     source: Optional[str] = Query(None, description="指定來源: javbus/jav321/javdb/fc2/avsox"),
     variant_id: Optional[str] = Query(None, description="變體 ID: 用於切換版本"),
     limit: int = Query(20, description="每頁結果數", ge=1, le=50),
-    offset: int = Query(0, description="跳過前 N 個結果（用於分頁）", ge=0)
+    offset: int = Query(0, description="跳過前 N 個結果（用於分頁）", ge=0),
+    since: Optional[str] = Query(None, description="日期過濾（YYYY-MM-DD），只回傳此日期之後的結果"),
+    discovery: bool = Query(False, description="輕量探索模式：只取番號+標題，不取封面/女優詳情")
 ) -> dict:
     """
     搜尋 JAV 資訊
@@ -104,16 +109,23 @@ def search(
     if not q or len(q) < 2:
         return {"success": False, "error": "請輸入有效的搜尋關鍵字", "data": [], "total": 0}
 
+    # 驗證 since 格式
+    if since is not None:
+        if not re.match(r'^\d{4}-\d{2}-\d{2}$', since):
+            return JSONResponse(status_code=400, content={"success": False, "error": "since 參數格式錯誤，需為 YYYY-MM-DD"})
+
     # 驗證 source 參數
     if source is not None:
         valid_sources = {'auto', 'dmm', 'javbus', 'jav321', 'javdb', 'd2pass', 'heyzo', 'fc2', 'avsox'}
         if source not in valid_sources:
-            return JSONResponse(status_code=400, content={"error": f"未知來源: {source}"})
+            return JSONResponse(status_code=400, content={"success": False, "error": f"未知來源: {source}"})
 
     # 如果指定了 variant_id，直接搜索該版本
     if variant_id:
         data = search_by_variant_id(variant_id, q)
         results = [data] if data else []
+        if since:
+            results = [r for r in results if not r.get('date') or r['date'] >= since]
         return {
             "success": bool(results),
             "data": results,
@@ -129,9 +141,13 @@ def search(
     proxy_url = config.get('search', {}).get('proxy_url', '')
     primary_source = config.get('search', {}).get('primary_source', 'javbus')
 
+    # discovery 僅在明確指定 actress/partial/prefix 模式時生效
+    # auto 不含：auto 內部自動選路，discovery_only 會干擾 keyword fallback
+    use_discovery = discovery and mode in ('actress', 'partial', 'prefix')
+
     # 自動模式使用 smart_search
     if mode == "auto":
-        results = smart_search(q, limit=limit, offset=offset, uncensored_mode=uncensored_mode, proxy_url=proxy_url, primary_source=primary_source)
+        results = smart_search(q, limit=limit, offset=offset, uncensored_mode=uncensored_mode, proxy_url=proxy_url, primary_source=primary_source, discovery_only=use_discovery)
     elif mode == "exact":
         if source:
             # 指定來源搜索
@@ -143,18 +159,22 @@ def search(
             data = search_jav(q, proxy_url=proxy_url, primary_source=primary_source)
             results = [data] if data else []
     elif mode == "partial":
-        results = search_partial(q)
+        results = search_partial(q, discovery_only=use_discovery)
     elif mode == "actress":
-        results = search_actress(q, limit=limit, offset=offset, primary_source=primary_source, proxy_url=proxy_url)
+        results = search_actress(q, limit=limit, offset=offset, primary_source=primary_source, proxy_url=proxy_url, discovery_only=use_discovery)
     else:
-        results = smart_search(q, limit=limit, offset=offset, proxy_url=proxy_url)
+        results = smart_search(q, limit=limit, offset=offset, proxy_url=proxy_url, discovery_only=use_discovery)
 
     detected_mode = mode if mode != "auto" else _detect_mode(q)
 
+    # since post-filter: 保留 date >= since 的結果（缺 date 或空 date 保留）
+    if since and results:
+        results = [r for r in results if not r.get('date') or r['date'] >= since]
+
     if results:
-        # Consistency check（僅 actress/prefix 模式觸發）
+        # discovery 模式不觸發 actress_profile / consistency check
         actress_profile = None
-        if detected_mode in ('actress', 'prefix'):
+        if not use_discovery and detected_mode in ('actress', 'prefix'):
             top_actor = _analyze_top_actor(results, threshold=0.8, min_samples=3)
             if top_actor:
                 logger.info(f"[Actress Profile] Fetching profile for: {top_actor}")
@@ -166,7 +186,7 @@ def search(
         # 判斷是否還有更多結果（prefix/actress 模式且結果數 = limit）
         has_more = detected_mode in ('prefix', 'actress') and len(results) >= limit
 
-        return {
+        response_data = {
             "success": True,
             "data": results,
             "total": len(results),
@@ -175,8 +195,12 @@ def search(
             "has_more": has_more,
             "actress_profile": actress_profile
         }
+        # discovery flag 只在實際走 discovery 路徑時才標記（auto→exact 不算）
+        if use_discovery and detected_mode in ('actress', 'partial', 'prefix'):
+            response_data["discovery"] = True
+        return response_data
 
-    return {
+    base_response = {
         "success": False,
         "error": f"找不到 {q} 的資料",
         "data": [],
@@ -185,6 +209,9 @@ def search(
         "has_more": False,
         "actress_profile": None
     }
+    if use_discovery and detected_mode in ('actress', 'partial', 'prefix'):
+        base_response["discovery"] = True
+    return base_response
 
 
 def _extract_top_makers(results: list) -> list:
@@ -293,6 +320,82 @@ def _analyze_top_actor(results: List[Dict], threshold: float = 0.8, min_samples:
     else:
         logger.info(f"[Consistency] Ratio {ratio:.1%} < {threshold:.0%}, skip actress_profile")
         return None
+
+
+_BATCH_MAX_WORKERS = 2
+
+
+class BatchSearchRequest(BaseModel):
+    numbers: List[str]
+    include_covers: bool = True
+
+
+@router.post("/batch-search", summary="批量番號搜尋")
+def batch_search(body: BatchSearchRequest) -> dict:
+    """
+    批量番號搜尋
+
+    - **numbers**: 番號列表（必填，最多 50 筆）
+    - **include_covers**: 是否回傳封面 URL（預設 true）
+
+    回傳：
+    ```json
+    {
+      "results": {
+        "SONE-205": {"found": true, "title": "...", "cover_url": "..."},
+        "FAKE-999": {"found": false}
+      },
+      "summary": {"total": 2, "found": 1, "not_found": 1}
+    }
+    ```
+    """
+    numbers = list(dict.fromkeys(
+        n.strip().upper() for n in body.numbers if isinstance(n, str) and n.strip()
+    ))
+
+    if not numbers:
+        return JSONResponse(status_code=400, content={"success": False, "error": "numbers 不可為空"})
+
+    if len(numbers) > 50:
+        return JSONResponse(status_code=422, content={"success": False, "error": "最多支援 50 筆批量搜尋"})
+
+    from core.config import load_config
+    config = load_config()
+    proxy_url = config.get('search', {}).get('proxy_url', '')
+    primary_source = config.get('search', {}).get('primary_source', 'javbus')
+
+    results = {}
+
+    def _search_one(num: str):
+        try:
+            data = smart_search(num, limit=1, proxy_url=proxy_url, primary_source=primary_source)
+            if data:
+                entry = dict(data[0])
+                entry['found'] = True
+                return num, entry
+        except Exception:
+            logger.error('batch_search: %s failed', num)
+        return num, {'found': False}
+
+    with ThreadPoolExecutor(max_workers=_BATCH_MAX_WORKERS) as executor:
+        futures = {executor.submit(_search_one, num): num for num in numbers}
+        for future in as_completed(futures):
+            num, entry = future.result()
+            results[num] = entry
+
+    if not body.include_covers:
+        for entry in results.values():
+            entry.pop('cover_url', None)
+
+    found_count = sum(1 for e in results.values() if e.get('found'))
+    return {
+        "results": results,
+        "summary": {
+            "total": len(numbers),
+            "found": found_count,
+            "not_found": len(numbers) - found_count
+        }
+    }
 
 
 @router.get("/search/stream")

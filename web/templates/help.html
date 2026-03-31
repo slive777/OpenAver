@@ -10,55 +10,78 @@
 <div class="help-container container mx-auto px-4 max-w-screen-2xl" x-data="helpPage()">
     <!-- Hero Card — 置頂區 -->
     <div class="card help-card fluent-rounded-xl mb-4">
-        <div class="card-body">
-            <h2 class="card-title text-lg">
-                <i class="bi bi-info-circle"></i>
-                <span>OpenAver <span x-text="appVersion || 'v{{ version }}'">v{{ version }}</span></span>
-            </h2>
-            <p class="text-base-content/60 text-sm mb-1">{{ t('help.hero.subtitle') }}</p>
-            <p class="text-base-content/60 text-sm mb-3">
-                {{ t('help.hero.privacy') }}
-            </p>
-            <div class="flex flex-wrap items-center gap-2">
-                <!-- 主 CTA -->
-                <button class="btn btn-primary btn-sm"
-                        @click="window.location.href = '/search?tutorial=restart'">
-                    <i class="bi bi-play-circle"></i> {{ t('help.hero.btn_tutorial') }}
-                </button>
-                <!-- 次 CTA -->
-                <button class="btn btn-outline btn-neutral btn-sm"
-                        @click="checkUpdate()"
-                        :disabled="checkUpdateLoading">
-                    <span x-show="checkUpdateLoading" class="loading loading-spinner loading-sm"></span>
-                    <span x-show="checkUpdateLoading">{{ t('help.hero.btn_check_update') }}</span>
-                    <span x-show="!checkUpdateLoading"><i class="bi bi-cloud-download"></i></span>
-                    <span x-show="!checkUpdateLoading">{{ t('help.hero.btn_check_update_idle') }}</span>
-                </button>
-                <!-- 更新結果 inline -->
-                <template x-if="checkDone && !errorMsg && hasUpdate">
-                    <a :href="downloadUrl" target="_blank" rel="noopener noreferrer" class="text-success text-sm">
-                        <i class="bi bi-download"></i> {{ t('help.hero.update_available_prefix') }} <span x-text="latestVersion"></span> {{ t('help.hero.update_available_suffix') }}
+        <div class="card-body flex flex-col lg:flex-row">
+            <!-- 左欄：現有內容不動 -->
+            <div class="flex-1">
+                <h2 class="card-title text-lg">
+                    <i class="bi bi-info-circle"></i>
+                    <span>OpenAver <span x-text="appVersion || 'v{{ version }}'">v{{ version }}</span></span>
+                </h2>
+                <p class="text-base-content/60 text-sm mb-1">{{ t('help.hero.subtitle') }}</p>
+                <p class="text-base-content/60 text-sm mb-3">
+                    {{ t('help.hero.privacy') }}
+                </p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <!-- 主 CTA -->
+                    <button class="btn btn-primary btn-sm"
+                            @click="window.location.href = '/search?tutorial=restart'">
+                        <i class="bi bi-play-circle"></i> {{ t('help.hero.btn_tutorial') }}
+                    </button>
+                    <!-- 次 CTA -->
+                    <button class="btn btn-outline btn-neutral btn-sm"
+                            @click="checkUpdate()"
+                            :disabled="checkUpdateLoading">
+                        <span x-show="checkUpdateLoading" class="loading loading-spinner loading-sm"></span>
+                        <span x-show="checkUpdateLoading">{{ t('help.hero.btn_check_update') }}</span>
+                        <span x-show="!checkUpdateLoading"><i class="bi bi-cloud-download"></i></span>
+                        <span x-show="!checkUpdateLoading">{{ t('help.hero.btn_check_update_idle') }}</span>
+                    </button>
+                    <!-- 更新結果 inline -->
+                    <template x-if="checkDone && !errorMsg && hasUpdate">
+                        <a :href="downloadUrl" target="_blank" rel="noopener noreferrer" class="text-success text-sm">
+                            <i class="bi bi-download"></i> {{ t('help.hero.update_available_prefix') }} <span x-text="latestVersion"></span> {{ t('help.hero.update_available_suffix') }}
+                        </a>
+                    </template>
+                    <template x-if="checkDone && !errorMsg && !hasUpdate">
+                        <span class="text-base-content/50 text-sm">
+                            <i class="bi bi-check-circle"></i> {{ t('help.hero.up_to_date') }}
+                        </span>
+                    </template>
+                    <template x-if="checkDone && errorMsg">
+                        <span class="text-error text-sm">
+                            <i class="bi bi-exclamation-circle"></i> <span x-text="errorMsg"></span>
+                        </span>
+                    </template>
+                    <!-- 外部連結 -->
+                    <a class="btn btn-ghost btn-sm" href="https://github.com/slive777/OpenAver"
+                       target="_blank" rel="noopener noreferrer">
+                        <i class="bi bi-github"></i> GitHub
                     </a>
-                </template>
-                <template x-if="checkDone && !errorMsg && !hasUpdate">
-                    <span class="text-base-content/50 text-sm">
-                        <i class="bi bi-check-circle"></i> {{ t('help.hero.up_to_date') }}
-                    </span>
-                </template>
-                <template x-if="checkDone && errorMsg">
-                    <span class="text-error text-sm">
-                        <i class="bi bi-exclamation-circle"></i> <span x-text="errorMsg"></span>
-                    </span>
-                </template>
-                <!-- 外部連結 -->
-                <a class="btn btn-ghost btn-sm" href="https://github.com/slive777/OpenAver"
-                   target="_blank" rel="noopener noreferrer">
-                    <i class="bi bi-github"></i> GitHub
-                </a>
-                <a class="btn btn-ghost btn-sm" href="https://t.me/+J-U2l96gv0FjZTBl"
-                   target="_blank" rel="noopener noreferrer">
-                    <i class="bi bi-telegram"></i> Telegram
-                </a>
+                    <a class="btn btn-ghost btn-sm" href="https://t.me/+J-U2l96gv0FjZTBl"
+                       target="_blank" rel="noopener noreferrer">
+                        <i class="bi bi-telegram"></i> Telegram
+                    </a>
+                </div>
+            </div>
+            <!-- 右欄：AI 整合入口 -->
+            <div class="flex-1 lg:pl-6 mt-4 lg:mt-0">
+                <div class="hero-terminal relative">
+                    <span class="terminal-prompt">$</span>
+                    curl -s {{ base_url }}/api/capabilities
+                    <button class="terminal-copy-btn" @click="copyCurlCommand()">
+                        <span x-show="!curlCopied">📋</span>
+                        <span x-show="curlCopied">✓</span>
+                    </button>
+                </div>
+                <p class="text-sm text-base-content/70 mt-3">
+                    {{ t('help.hero.ai_instruction') }}
+                </p>
+                <p class="text-xs text-base-content/50 mt-1">
+                    Claude Code · Cursor · Codex 等
+                </p>
+                <p class="text-xs text-base-content/40 mt-0.5">
+                    {{ t('help.hero.ai_hint_unsupported') }}
+                </p>
             </div>
         </div>
     </div>

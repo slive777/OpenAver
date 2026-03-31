@@ -20,14 +20,17 @@ Scanner API 路由 - 影片列表生成
 - GET  /api/gallery/jellyfin-update       — 批次產生 Jellyfin poster + fanart（SSE 串流）
 """
 
+import base64
 import json
 import os
+import requests
+from datetime import datetime
 from urllib.parse import unquote, quote
 from pathlib import Path
-from typing import Generator
+from typing import Generator, List, Optional
 
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import StreamingResponse, HTMLResponse, Response, FileResponse
+from fastapi.responses import StreamingResponse, HTMLResponse, Response, FileResponse, JSONResponse
 
 from core.gallery_scanner import VideoScanner, fast_scan_directory, VideoInfo
 from core.video_extensions import get_proxy_extensions, get_video_extensions
@@ -35,8 +38,9 @@ from core.gallery_generator import HTMLGenerator
 from core.path_utils import normalize_path, to_file_uri, is_path_under_dir, uri_to_fs_path
 from core.nfo_updater import check_cache_needs_update, update_videos_generator, apply_actress_aliases_generator
 from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite, ActressAliasRepository
-from core.organizer import generate_jellyfin_images
+from core.organizer import generate_jellyfin_images, HEADERS as _EMBED_HEADERS
 from core.config import load_config
+from core.scraper import smart_search
 from pydantic import BaseModel
 from core.logger import get_logger
 
@@ -1004,3 +1008,224 @@ async def jellyfin_image_update():
             "Connection": "keep-alive",
         }
     )
+
+
+_MIME_MAP = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+}
+
+
+_REFERER_MAP = {
+    'javbus.com': 'https://www.javbus.com/',
+    'dmm.co.jp': 'https://www.dmm.co.jp/',
+    'jav321.com': 'https://www.jav321.com/',
+}
+
+_MIN_IMAGE_SIZE = 1000  # bytes — 小於此視為無效（防空白/錯誤頁）
+
+
+def _embed_cover(img_ref: str) -> str:
+    """將圖片 URL/路徑轉為 data URI。失敗時回傳原值。"""
+    if not img_ref or img_ref.startswith('data:'):
+        return img_ref
+
+    try:
+        if img_ref.startswith('file:///'):
+            local_path = uri_to_fs_path(img_ref)
+            data = Path(local_path).read_bytes()
+        elif img_ref.startswith(('http://', 'https://')):
+            headers = _EMBED_HEADERS.copy()
+            for domain, referer in _REFERER_MAP.items():
+                if domain in img_ref:
+                    headers['Referer'] = referer
+                    break
+
+            resp = requests.get(img_ref, headers=headers, timeout=15)
+            if resp.status_code != 200:
+                logger.warning('封面嵌入失敗 [HTTP %s] %s', resp.status_code, img_ref[:100])
+                return img_ref
+            if len(resp.content) < _MIN_IMAGE_SIZE:
+                logger.warning('封面嵌入失敗 [內容過小 %d bytes] %s', len(resp.content), img_ref[:100])
+                return img_ref
+            data = resp.content
+        else:
+            return img_ref
+
+        # MIME: HTTP 時優先用 Content-Type，其他 fallback 副檔名
+        mime = 'image/jpeg'
+        if img_ref.startswith(('http://', 'https://')):
+            ct = resp.headers.get('Content-Type', '')
+            if ct.startswith('image/'):
+                mime = ct.split(';')[0].strip()
+        if mime == 'image/jpeg':
+            ext = Path(img_ref.split('?')[0]).suffix.lower()
+            mime = _MIME_MAP.get(ext, 'image/jpeg')
+
+        b64 = base64.b64encode(data).decode('ascii')
+        return f'data:{mime};base64,{b64}'
+    except Exception as e:
+        logger.warning('封面嵌入失敗 [%s] %s', type(e).__name__, img_ref[:100])
+        return img_ref
+
+
+class GenerateFromIdsRequest(BaseModel):
+    numbers: List[str]
+    title: str = "Custom Gallery"
+    mode: str = "image"
+    sort: str = "date"
+    embed_covers: bool = True
+
+
+_VALID_MODES = {"image", "detail", "text"}
+_VALID_SORTS = {"date", "num", "title"}
+
+
+@router.post("/generate-from-ids", summary="番號列表產生自訂 Gallery HTML")
+def generate_from_ids(body: GenerateFromIdsRequest):
+    """
+    根據番號列表產生自訂 Gallery HTML 頁面。
+
+    - DB 有資料的番號直接組裝；DB 沒有的即時 scrape。
+    - 輸出路徑：output/gallery_custom_{timestamp}.html
+
+    回傳：
+    ```json
+    {
+      "success": true,
+      "html_path": "/abs/path/to/gallery_custom_20260331_120000.html",
+      "video_count": 12,
+      "missing": ["FAKE-999"]
+    }
+    ```
+    """
+    numbers = [n.strip() for n in body.numbers if isinstance(n, str) and n.strip()]
+
+    if not numbers:
+        return JSONResponse(status_code=400, content={"success": False, "error": "numbers 不可為空"})
+
+    if len(numbers) > 100:
+        return JSONResponse(status_code=422, content={"success": False, "error": "最多支援 100 筆"})
+
+    if body.mode not in _VALID_MODES:
+        return JSONResponse(status_code=422, content={
+            "success": False,
+            "error": f"mode 必須是 {sorted(_VALID_MODES)} 之一"
+        })
+
+    if body.sort not in _VALID_SORTS:
+        return JSONResponse(status_code=422, content={
+            "success": False,
+            "error": f"sort 必須是 {sorted(_VALID_SORTS)} 之一"
+        })
+
+    config = load_config()
+    gallery_config = config.get('gallery', {})
+    output_dir = gallery_config.get('output_dir', 'output')
+    theme = config.get('general', {}).get('theme', 'light')
+
+    # 查 DB
+    try:
+        db_path = get_db_path()
+        repo = VideoRepository(db_path)
+        db_results = repo.get_by_numbers(numbers)
+    except Exception as e:
+        logger.error('generate_from_ids: DB 查詢失敗: %s', e)
+        return JSONResponse(status_code=500, content={"success": False, "error": "資料庫查詢失敗"})
+
+    all_videos: List[VideoInfo] = []
+    missing: List[str] = []
+
+    for num in numbers:
+        db_videos = db_results.get(num)
+        if db_videos:
+            v = db_videos[0]
+            info = VideoInfo(
+                path=v.path,
+                title=v.title or '',
+                originaltitle=v.original_title or '',
+                actor=','.join(v.actresses) if v.actresses else '',
+                num=v.number or num,
+                maker=v.maker or '',
+                date=v.release_date or '',
+                genre=','.join(v.tags) if v.tags else '',
+                size=v.size_bytes or 0,
+                mtime=int(v.mtime * 10000000 + 116444736000000000) if v.mtime else 0,
+                img=v.cover_path or ''
+            )
+            all_videos.append(info)
+        else:
+            # DB miss → 即時 scrape
+            try:
+                scrape_results = smart_search(num, limit=1)
+            except Exception as e:
+                logger.error('generate_from_ids: scrape %s failed: %s', num, e)
+                scrape_results = []
+
+            if scrape_results:
+                r = scrape_results[0]
+                info = VideoInfo(
+                    path='',
+                    title=r.get('title', ''),
+                    originaltitle=r.get('original_title', ''),
+                    actor=','.join(r.get('actors', [])) if isinstance(r.get('actors'), list) else r.get('actors', ''),
+                    num=r.get('number', num),
+                    maker=r.get('maker', ''),
+                    date=r.get('date', ''),
+                    genre=','.join(r.get('genres', [])) if isinstance(r.get('genres'), list) else r.get('genre', ''),
+                    size=0,
+                    mtime=0,
+                    img=r.get('cover', '') or r.get('cover_url', '')
+                )
+                all_videos.append(info)
+            else:
+                missing.append(num)
+
+    # 封面嵌入（embed_covers=True 時將 img 轉為 data URI）
+    embedded_count = 0
+    embed_failed_count = 0
+    if body.embed_covers:
+        for info in all_videos:
+            if info.img:
+                original = info.img
+                info.img = _embed_cover(info.img)
+                if info.img.startswith('data:'):
+                    embedded_count += 1
+                elif original:  # 有原圖但 embed 失敗
+                    embed_failed_count += 1
+
+    # 確保輸出目錄存在
+    project_root = Path(__file__).parent.parent.parent
+    output_path = project_root / output_dir
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    html_filename = f'gallery_custom_{timestamp}.html'
+    html_path = output_path / html_filename
+
+    try:
+        generator = HTMLGenerator()
+        generator.generate(
+            all_videos,
+            str(html_path),
+            title=body.title,
+            mode=body.mode,
+            sort=body.sort,
+            theme=theme,
+        )
+    except Exception as e:
+        logger.error('generate_from_ids: HTML 產生失敗: %s', e)
+        return JSONResponse(status_code=500, content={"success": False, "error": "HTML 產生失敗"})
+
+    result = {
+        "success": True,
+        "html_path": str(html_path),
+        "video_count": len(all_videos),
+        "missing": missing,
+    }
+    if body.embed_covers:
+        result["embedded_count"] = embedded_count
+        result["embed_failed_count"] = embed_failed_count
+    return result

@@ -1,8 +1,9 @@
 // Help 頁面 Alpine.js 元件
 function helpPage() {
     return {
-        // State（結構化，不用 x-html — CR-3）
+        // State
         appVersion: '',
+        curlCopied: false,
         checkUpdateLoading: false,
         hasUpdate: false,
         latestVersion: '',
@@ -22,6 +23,29 @@ function helpPage() {
             } catch (e) {
                 this.appVersion = window.t('help.js.version_load_failed');
             }
+        },
+
+        copyCurlCommand() {
+            const cmd = `curl -s ${window.location.origin}/api/capabilities`;
+            const onSuccess = () => {
+                this.curlCopied = true;
+                setTimeout(() => this.curlCopied = false, 800);
+            };
+            if (navigator.clipboard?.writeText) {
+                navigator.clipboard.writeText(cmd).then(onSuccess).catch(() => this._fallbackCopy(cmd));
+            } else {
+                this._fallbackCopy(cmd);
+            }
+        },
+
+        _fallbackCopy(text) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.cssText = 'position:fixed;top:-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); this.curlCopied = true; setTimeout(() => this.curlCopied = false, 800); } catch(e) {}
+            ta.remove();
         },
 
         async checkUpdate() {

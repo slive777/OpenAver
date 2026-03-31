@@ -849,3 +849,316 @@ class TestProxyImageReferer:
 
         assert response.status_code == 404
         assert response.content == b''
+
+
+# ============ since 日期過濾 ============
+
+class TestSearchSince:
+    """測試 GET /api/search?since=YYYY-MM-DD 日期後過濾"""
+
+    def test_since_invalid_format_returns_400(self, client):
+        """since 格式不符 YYYY-MM-DD → 400"""
+        response = client.get('/api/search', params={'q': 'SONE', 'since': 'abc'})
+        assert response.status_code == 400
+        data = response.json()
+        assert 'error' in data
+        assert 'since' in data['error']
+
+    def test_since_invalid_format_slash_returns_400(self, client):
+        """since 2026/01/01 格式不符 → 400"""
+        response = client.get('/api/search', params={'q': 'SONE', 'since': '2026/01/01'})
+        assert response.status_code == 400
+
+    def test_since_filters_old_results(self, client, mocker):
+        """since=2026-01-01 應過濾 date < 2026-01-01 的結果"""
+        mock_results = [
+            {'number': 'SONE-100', 'title': 'Old', 'date': '2025-12-31'},
+            {'number': 'SONE-101', 'title': 'New', 'date': '2026-01-15'},
+        ]
+        mocker.patch('web.routers.search.smart_search', return_value=mock_results)
+
+        response = client.get('/api/search', params={'q': 'SONE', 'since': '2026-01-01'})
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is True
+        numbers = [r['number'] for r in data['data']]
+        assert 'SONE-101' in numbers
+        assert 'SONE-100' not in numbers
+
+    def test_since_keeps_results_without_date(self, client, mocker):
+        """缺 date 的結果應保留（保守策略）"""
+        mock_results = [
+            {'number': 'SONE-100', 'title': 'No date'},
+            {'number': 'SONE-101', 'title': 'With date', 'date': '2026-02-01'},
+        ]
+        mocker.patch('web.routers.search.smart_search', return_value=mock_results)
+
+        response = client.get('/api/search', params={'q': 'SONE', 'since': '2026-01-01'})
+        assert response.status_code == 200
+        data = response.json()
+        numbers = [r['number'] for r in data['data']]
+        assert 'SONE-100' in numbers  # no date → kept
+        assert 'SONE-101' in numbers
+
+    def test_since_keeps_results_with_empty_date(self, client, mocker):
+        """date 為空字串的結果應保留"""
+        mock_results = [
+            {'number': 'SONE-200', 'title': 'Empty date', 'date': ''},
+        ]
+        mocker.patch('web.routers.search.smart_search', return_value=mock_results)
+
+        response = client.get('/api/search', params={'q': 'SONE', 'since': '2026-01-01'})
+        assert response.status_code == 200
+        data = response.json()
+        assert any(r['number'] == 'SONE-200' for r in data['data'])
+
+    def test_since_all_filtered_returns_not_found(self, client, mocker):
+        """since 過濾後無結果 → success: false"""
+        mock_results = [
+            {'number': 'SONE-100', 'title': 'Old', 'date': '2020-01-01'},
+        ]
+        mocker.patch('web.routers.search.smart_search', return_value=mock_results)
+
+        response = client.get('/api/search', params={'q': 'SONE', 'since': '2026-01-01'})
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is False
+
+    def test_since_no_filter_when_absent(self, client, mocker):
+        """不帶 since 時結果不過濾（向後相容）"""
+        mock_results = [
+            {'number': 'SONE-100', 'title': 'Old', 'date': '2020-01-01'},
+        ]
+        mocker.patch('web.routers.search.smart_search', return_value=mock_results)
+
+        response = client.get('/api/search', params={'q': 'SONE'})
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is True
+        assert any(r['number'] == 'SONE-100' for r in data['data'])
+
+
+# ============ discovery 參數 ============
+
+class TestSearchDiscovery:
+    """測試 GET /api/search?discovery=true"""
+
+    def test_discovery_true_sets_flag_in_response(self, client, mocker):
+        """discovery=true 時回傳包含 discovery: true"""
+        mocker.patch('web.routers.search.search_actress', return_value=[
+            {'number': 'SONE-100', 'title': ''}
+        ])
+        response = client.get('/api/search', params={'q': '三上悠亜', 'mode': 'actress', 'discovery': 'true'})
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('discovery') is True
+
+    def test_discovery_calls_search_actress_with_discovery_only(self, client, mocker):
+        """discovery=true + mode=actress 時呼叫 search_actress(discovery_only=True)"""
+        received = {}
+
+        def mock_search_actress(q, limit=20, offset=0, discovery_only=False, **kwargs):
+            received['discovery_only'] = discovery_only
+            return [{'number': 'SONE-100', 'title': ''}]
+
+        mocker.patch('web.routers.search.search_actress', side_effect=mock_search_actress)
+        client.get('/api/search', params={'q': '三上悠亜', 'mode': 'actress', 'discovery': 'true'})
+        assert received.get('discovery_only') is True
+
+    def test_discovery_false_does_not_set_flag(self, client, mocker):
+        """discovery=false（預設）回傳不包含 discovery 欄位"""
+        mocker.patch('web.routers.search.smart_search', return_value=[
+            {'number': 'SONE-100', 'title': 'Title'}
+        ])
+        response = client.get('/api/search', params={'q': '三上悠亜'})
+        assert response.status_code == 200
+        data = response.json()
+        assert 'discovery' not in data
+
+    def test_discovery_with_exact_mode_ignores_discovery(self, client, mocker):
+        """discovery=true + mode=exact 忽略 discovery（正常精確搜尋）"""
+        mock_data = {'number': 'SONE-103', 'title': 'Some Title'}
+        mocker.patch('web.routers.search.search_jav', return_value=mock_data)
+
+        response = client.get('/api/search', params={
+            'q': 'SONE-103', 'mode': 'exact', 'discovery': 'true'
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is True
+        assert 'discovery' not in data  # exact mode: no discovery flag
+
+    def test_discovery_no_results_returns_discovery_flag(self, client, mocker):
+        """discovery=true + mode=actress 無結果時仍回傳 discovery: true"""
+        mocker.patch('web.routers.search.search_actress', return_value=[])
+        response = client.get('/api/search', params={'q': '三上悠亜', 'mode': 'actress', 'discovery': 'true'})
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('discovery') is True
+        assert data['success'] is False
+
+    def test_discovery_auto_mode_ignored(self, client, mocker):
+        """discovery=true + mode=auto → 忽略 discovery（auto 不在白名單）"""
+        mocker.patch('web.routers.search.smart_search', return_value=[])
+        response = client.get('/api/search', params={'q': '三上悠亜', 'discovery': 'true'})
+        assert response.status_code == 200
+        data = response.json()
+        assert 'discovery' not in data
+
+    def test_discovery_auto_mode_with_number_format_ignores_discovery(self, client, mocker):
+        """discovery=true + auto mode + 番號格式 → smart_search 走 exact 路徑，回傳完整結果"""
+        mock_result = {'number': 'SONE-100', 'title': 'Full Title', '_mode': 'exact'}
+
+        received = {}
+
+        def mock_smart_search(q, limit=20, offset=0, discovery_only=False, **kwargs):
+            received['discovery_only'] = discovery_only
+            received['q'] = q
+            return [mock_result]
+
+        mocker.patch('web.routers.search.smart_search', side_effect=mock_smart_search)
+
+        # auto mode（不帶 mode 參數）+ 番號格式 + discovery=true
+        response = client.get('/api/search', params={'q': 'SONE-100', 'discovery': 'true'})
+        assert response.status_code == 200
+        data = response.json()
+
+        # smart_search 被呼叫（auto 路徑，非直接走 search_jav）
+        assert received.get('q') == 'SONE-100', \
+            "smart_search should be called with the query"
+
+        # 回傳完整搜尋結果（success: true，data 含完整番號資料）
+        assert data['success'] is True
+        assert data['total'] >= 1
+        assert data['data'][0]['number'] == 'SONE-100'
+
+        # auto mode 偵測到番號格式，detected_mode 應為 exact
+        assert data.get('mode') == 'exact', \
+            f"Auto mode with number format should detect as exact, got {data.get('mode')}"
+
+        # exact 路徑不應帶 discovery flag
+        assert 'discovery' not in data, \
+            "auto→exact path should not include discovery flag in response"
+
+
+# ============ POST /api/batch-search ============
+
+class TestBatchSearch:
+    """測試 POST /api/batch-search"""
+
+    def test_batch_search_empty_list_returns_400(self, client):
+        """空 numbers → 400"""
+        response = client.post('/api/batch-search', json={'numbers': []})
+        assert response.status_code == 400
+        data = response.json()
+        assert 'error' in data
+
+    def test_batch_search_over_50_returns_422(self, client):
+        """超過 50 筆 → 422"""
+        numbers = [f'SONE-{i:03d}' for i in range(51)]
+        response = client.post('/api/batch-search', json={'numbers': numbers})
+        assert response.status_code == 422
+        data = response.json()
+        assert 'error' in data
+
+    def test_batch_search_found_and_not_found(self, client, mocker):
+        """1 found + 1 not found → results + summary 正確"""
+        def mock_smart_search(q, limit=1, **kwargs):
+            if q == 'SONE-205':
+                return [{'number': 'SONE-205', 'title': 'Found Title', 'cover_url': 'http://example.com/cover.jpg'}]
+            return []
+
+        mocker.patch('web.routers.search.smart_search', side_effect=mock_smart_search)
+
+        response = client.post('/api/batch-search', json={'numbers': ['SONE-205', 'FAKE-999']})
+        assert response.status_code == 200
+        data = response.json()
+
+        assert 'results' in data
+        assert 'summary' in data
+        assert data['results']['SONE-205']['found'] is True
+        assert 'title' in data['results']['SONE-205']
+        assert data['results']['FAKE-999']['found'] is False
+        assert data['summary']['total'] == 2
+        assert data['summary']['found'] == 1
+        assert data['summary']['not_found'] == 1
+
+    def test_batch_search_include_covers_false_removes_cover_url(self, client, mocker):
+        """include_covers=false 從結果刪除 cover_url"""
+        def mock_smart_search(q, limit=1, **kwargs):
+            return [{'number': q, 'title': 'Title', 'cover_url': 'http://example.com/cover.jpg'}]
+
+        mocker.patch('web.routers.search.smart_search', side_effect=mock_smart_search)
+
+        response = client.post('/api/batch-search', json={
+            'numbers': ['SONE-100'],
+            'include_covers': False
+        })
+        assert response.status_code == 200
+        data = response.json()
+        assert 'cover_url' not in data['results']['SONE-100']
+
+    def test_batch_search_include_covers_true_keeps_cover_url(self, client, mocker):
+        """include_covers=true（預設）保留 cover_url"""
+        def mock_smart_search(q, limit=1, **kwargs):
+            return [{'number': q, 'title': 'Title', 'cover_url': 'http://example.com/cover.jpg'}]
+
+        mocker.patch('web.routers.search.smart_search', side_effect=mock_smart_search)
+
+        response = client.post('/api/batch-search', json={'numbers': ['SONE-100']})
+        assert response.status_code == 200
+        data = response.json()
+        assert 'cover_url' in data['results']['SONE-100']
+
+    def test_batch_search_all_not_found(self, client, mocker):
+        """全部找不到仍正常回傳 summary.found=0"""
+        mocker.patch('web.routers.search.smart_search', return_value=[])
+
+        response = client.post('/api/batch-search', json={'numbers': ['FAKE-001', 'FAKE-002']})
+        assert response.status_code == 200
+        data = response.json()
+        assert data['summary']['found'] == 0
+        assert data['summary']['not_found'] == 2
+        assert data['summary']['total'] == 2
+
+    def test_batch_search_response_structure(self, client, mocker):
+        """回傳結構符合規範"""
+        mocker.patch('web.routers.search.smart_search', return_value=[
+            {'number': 'SONE-100', 'title': 'Title'}
+        ])
+
+        response = client.post('/api/batch-search', json={'numbers': ['SONE-100']})
+        assert response.status_code == 200
+        data = response.json()
+
+        assert 'results' in data
+        assert 'summary' in data
+        assert isinstance(data['results'], dict)
+        assert 'total' in data['summary']
+        assert 'found' in data['summary']
+        assert 'not_found' in data['summary']
+
+    def test_batch_search_dedup_numbers(self, client, mocker):
+        """重複番號去重：["SONE-100", "SONE-100", "SONE-101"] 只呼叫 smart_search 兩次"""
+        def mock_smart_search(q, limit=1, **kwargs):
+            return [{'number': q, 'title': f'Title for {q}', 'found': True}]
+
+        mock = mocker.patch('web.routers.search.smart_search', side_effect=mock_smart_search)
+
+        response = client.post('/api/batch-search', json={
+            'numbers': ['SONE-100', 'SONE-100', 'SONE-101']
+        })
+        assert response.status_code == 200
+        data = response.json()
+
+        # smart_search 只被呼叫 2 次（去重後）
+        assert mock.call_count == 2, \
+            f"Expected 2 calls (deduped), got {mock.call_count}"
+
+        # results 有 2 個 key（SONE-100 和 SONE-101）
+        assert set(data['results'].keys()) == {'SONE-100', 'SONE-101'}, \
+            f"Expected keys {{SONE-100, SONE-101}}, got {set(data['results'].keys())}"
+
+        # summary.total 是去重後的數量（2），不是原始輸入數量（3）
+        assert data['summary']['total'] == 2, \
+            f"Expected summary.total == 2 (deduped), got {data['summary']['total']}"

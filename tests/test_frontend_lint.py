@@ -696,6 +696,26 @@ class TestHelpPage:
         assert 'defer' not in matches[0], \
             "help.js script tag 帶有 defer — Alpine 會在 helpPage() 定義前初始化"
 
+    def test_help_html_has_hero_terminal(self):
+        """help.html 右欄含 .hero-terminal Terminal box（T3b 守衛）"""
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        assert 'hero-terminal' in html, \
+            "help.html 缺少 hero-terminal — T3b 右欄 Terminal box 未實作"
+
+    def test_help_has_clipboard_copy(self):
+        """help.js 含 clipboard copy 功能（T3b 守衛）"""
+        js = (PROJECT_ROOT / 'web/static/js/pages/help.js').read_text(encoding='utf-8')
+        assert 'copyCurlCommand' in js, \
+            "help.js 缺少 copyCurlCommand — T3b 一鍵複製功能未實作"
+        assert 'execCommand' in js, \
+            "help.js 缺少 execCommand fallback — 非 HTTPS 環境無法複製"
+
+    def test_help_html_has_ai_instruction_i18n(self):
+        """help.html 含 help.hero.ai_instruction i18n key（T3b 守衛）"""
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        assert 'help.hero.ai_instruction' in html, \
+            "help.html 缺少 help.hero.ai_instruction i18n key — T3b 右欄說明文字未實作"
+
 
 class TestScannerClearCache:
     """清除快取守衛 — scanner 頁面必要元素"""

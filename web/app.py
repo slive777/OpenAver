@@ -18,6 +18,7 @@ setup_logging()
 
 logger = get_logger(__name__)
 
+
 # 路徑設定
 BASE_DIR = Path(__file__).parent
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -46,6 +47,8 @@ from web.routers import gemini as gemini_router
 from web.routers import filename as filename_router
 from web.routers import showcase as showcase_router
 from web.routers import motion_lab as motion_lab_router
+from web.routers import capabilities as capabilities_router
+from web.routers import collection as collection_router
 app.include_router(search_router.router)
 app.include_router(config_router.router)
 app.include_router(scraper_router.router)
@@ -55,6 +58,8 @@ app.include_router(gemini_router.router)
 app.include_router(filename_router.router)
 app.include_router(showcase_router.router)
 app.include_router(motion_lab_router.router)
+app.include_router(capabilities_router.router)
+app.include_router(collection_router.router)
 
 
 # ============ 輔助函數 ============
@@ -184,6 +189,7 @@ async def help_page(request: Request):
     """使用說明頁面"""
     context = get_common_context(request)
     context["page"] = "help"
+    context["base_url"] = str(request.base_url).rstrip("/")
     return templates.TemplateResponse(request, "help.html", context)
 
 

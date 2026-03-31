@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional
 
+from core.enricher import enrich_single
 from core.organizer import organize_file
 from core.scraper import search_jav
 from core.logger import get_logger
@@ -94,3 +95,39 @@ def scrape_single(request: ScrapeRequest) -> dict:
         }
 
     return result
+
+
+class EnrichRequest(BaseModel):
+    file_path: str
+    number: str
+    mode: str = "fill_missing"
+    write_nfo: bool = True
+    write_cover: bool = True
+    write_extrafanart: bool = False
+    overwrite_existing: bool = False
+
+
+@router.post("/enrich-single")
+def enrich_single_endpoint(request: EnrichRequest) -> dict:
+    config = load_config()
+    search_cfg = config.get("search", {})
+    proxy_url = search_cfg.get("proxy_url", "")
+    primary_source = search_cfg.get("primary_source", "javbus")
+
+    try:
+        result = enrich_single(
+            file_path=request.file_path,
+            number=request.number,
+            mode=request.mode,
+            write_nfo=request.write_nfo,
+            write_cover=request.write_cover,
+            write_extrafanart=request.write_extrafanart,
+            overwrite_existing=request.overwrite_existing,
+            proxy_url=proxy_url,
+            primary_source=primary_source,
+        )
+        from dataclasses import asdict
+        return asdict(result)
+    except Exception:
+        logger.exception("enrich_single_endpoint 失敗")
+        return {"success": False, "error": "enrich 處理失敗，請查閱日誌"}

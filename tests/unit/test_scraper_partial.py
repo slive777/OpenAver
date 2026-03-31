@@ -145,7 +145,7 @@ class TestSmartSearchPartialPassthrough:
 
         received_callbacks = {}
 
-        def mock_search_partial(partial, status_callback=None, result_callback=None):
+        def mock_search_partial(partial, status_callback=None, result_callback=None, **kwargs):
             received_callbacks['result_callback'] = result_callback
             received_callbacks['status_callback'] = status_callback
             return []
