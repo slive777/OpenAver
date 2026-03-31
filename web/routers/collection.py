@@ -65,6 +65,10 @@ def validate_sql(sql: str) -> Optional[str]:
     if re.search(r"\bload_extension\b", sql, re.IGNORECASE):
         return "SQL 語句不合法"
 
+    # 層 6.5：禁止引號包裹的識別符（防繞過表白名單）
+    if re.search(r'"[^"]+"|`[^`]+`|\[[^\]]+\]', sql):
+        return "SQL 語句不合法"
+
     # 層 7：表白名單
     # 提取所有表名：FROM/JOIN 後的第一個識別符，以及 FROM 子句中逗號分隔的後續表名。
     # 逗號掃描從每個 FROM 關鍵字位置往後進行，避免誤抓 SELECT 欄位列表中的逗號。

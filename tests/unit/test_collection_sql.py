@@ -235,6 +235,37 @@ class TestLayer7TableWhitelist:
         assert err is None
 
 
+# ── 層 6.5：引號包裹識別符 ────────────────────────────────────────────────────
+
+class TestQuotedIdentifiers:
+    def test_double_quoted_table_rejected(self):
+        """雙引號包裹的表名 → 拒絕（防繞過白名單）"""
+        validate = _get_validate()
+        err = validate('SELECT * FROM "sqlite_sequence"')
+        assert err is not None
+        assert "不合法" in err
+
+    def test_backtick_quoted_table_rejected(self):
+        """反引號包裹的表名 → 拒絕"""
+        validate = _get_validate()
+        err = validate("SELECT * FROM `secret_table`")
+        assert err is not None
+        assert "不合法" in err
+
+    def test_bracket_quoted_table_rejected(self):
+        """方括號包裹的表名 → 拒絕"""
+        validate = _get_validate()
+        err = validate("SELECT * FROM [videos]")
+        assert err is not None
+        assert "不合法" in err
+
+    def test_single_quoted_string_still_works(self):
+        """單引號字串值（WHERE LIKE）→ 不受影響"""
+        validate = _get_validate()
+        err = validate("SELECT * FROM videos WHERE actresses LIKE '%明日花%'")
+        assert err is None
+
+
 # ── 層 8：DB 不存在 ───────────────────────────────────────────────────────────
 
 class TestLayer8DbNotExist:
