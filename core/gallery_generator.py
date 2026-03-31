@@ -2,6 +2,7 @@
 Gallery Generator - 生成 HTML 列表
 """
 
+import html
 import json
 from pathlib import Path
 from typing import List
@@ -97,7 +98,7 @@ class HTMLGenerator:
 <head>
 \t<meta charset="utf-8">
 \t<meta name="viewport" content="width=device-width, initial-scale=1">
-\t<title>{title}</title>
+\t<title>{html.escape(title)}</title>
 \t<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 {self._get_css()}
 </head>

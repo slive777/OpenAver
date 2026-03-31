@@ -945,24 +945,24 @@ class TestSearchDiscovery:
 
     def test_discovery_true_sets_flag_in_response(self, client, mocker):
         """discovery=true 時回傳包含 discovery: true"""
-        mocker.patch('web.routers.search.smart_search', return_value=[
+        mocker.patch('web.routers.search.search_actress', return_value=[
             {'number': 'SONE-100', 'title': ''}
         ])
-        response = client.get('/api/search', params={'q': '三上悠亜', 'discovery': 'true'})
+        response = client.get('/api/search', params={'q': '三上悠亜', 'mode': 'actress', 'discovery': 'true'})
         assert response.status_code == 200
         data = response.json()
         assert data.get('discovery') is True
 
-    def test_discovery_calls_smart_search_with_discovery_only(self, client, mocker):
-        """discovery=true 時呼叫 smart_search(discovery_only=True)"""
+    def test_discovery_calls_search_actress_with_discovery_only(self, client, mocker):
+        """discovery=true + mode=actress 時呼叫 search_actress(discovery_only=True)"""
         received = {}
 
-        def mock_smart_search(q, limit=20, offset=0, discovery_only=False, **kwargs):
+        def mock_search_actress(q, limit=20, offset=0, discovery_only=False, **kwargs):
             received['discovery_only'] = discovery_only
             return [{'number': 'SONE-100', 'title': ''}]
 
-        mocker.patch('web.routers.search.smart_search', side_effect=mock_smart_search)
-        client.get('/api/search', params={'q': '三上悠亜', 'discovery': 'true'})
+        mocker.patch('web.routers.search.search_actress', side_effect=mock_search_actress)
+        client.get('/api/search', params={'q': '三上悠亜', 'mode': 'actress', 'discovery': 'true'})
         assert received.get('discovery_only') is True
 
     def test_discovery_false_does_not_set_flag(self, client, mocker):
@@ -989,13 +989,21 @@ class TestSearchDiscovery:
         assert 'discovery' not in data  # exact mode: no discovery flag
 
     def test_discovery_no_results_returns_discovery_flag(self, client, mocker):
-        """discovery=true 無結果時仍回傳 discovery: true"""
-        mocker.patch('web.routers.search.smart_search', return_value=[])
-        response = client.get('/api/search', params={'q': '三上悠亜', 'discovery': 'true'})
+        """discovery=true + mode=actress 無結果時仍回傳 discovery: true"""
+        mocker.patch('web.routers.search.search_actress', return_value=[])
+        response = client.get('/api/search', params={'q': '三上悠亜', 'mode': 'actress', 'discovery': 'true'})
         assert response.status_code == 200
         data = response.json()
         assert data.get('discovery') is True
         assert data['success'] is False
+
+    def test_discovery_auto_mode_ignored(self, client, mocker):
+        """discovery=true + mode=auto → 忽略 discovery（auto 不在白名單）"""
+        mocker.patch('web.routers.search.smart_search', return_value=[])
+        response = client.get('/api/search', params={'q': '三上悠亜', 'discovery': 'true'})
+        assert response.status_code == 200
+        data = response.json()
+        assert 'discovery' not in data
 
     def test_discovery_auto_mode_with_number_format_ignores_discovery(self, client, mocker):
         """discovery=true + auto mode + 番號格式 → smart_search 走 exact 路徑，回傳完整結果"""
@@ -1027,6 +1035,10 @@ class TestSearchDiscovery:
         # auto mode 偵測到番號格式，detected_mode 應為 exact
         assert data.get('mode') == 'exact', \
             f"Auto mode with number format should detect as exact, got {data.get('mode')}"
+
+        # exact 路徑不應帶 discovery flag
+        assert 'discovery' not in data, \
+            "auto→exact path should not include discovery flag in response"
 
 
 # ============ POST /api/batch-search ============

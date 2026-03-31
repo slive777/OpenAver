@@ -112,13 +112,13 @@ def search(
     # 驗證 since 格式
     if since is not None:
         if not re.match(r'^\d{4}-\d{2}-\d{2}$', since):
-            return JSONResponse(status_code=400, content={"error": "since 參數格式錯誤，需為 YYYY-MM-DD"})
+            return JSONResponse(status_code=400, content={"success": False, "error": "since 參數格式錯誤，需為 YYYY-MM-DD"})
 
     # 驗證 source 參數
     if source is not None:
         valid_sources = {'auto', 'dmm', 'javbus', 'jav321', 'javdb', 'd2pass', 'heyzo', 'fc2', 'avsox'}
         if source not in valid_sources:
-            return JSONResponse(status_code=400, content={"error": f"未知來源: {source}"})
+            return JSONResponse(status_code=400, content={"success": False, "error": f"未知來源: {source}"})
 
     # 如果指定了 variant_id，直接搜索該版本
     if variant_id:
@@ -141,8 +141,9 @@ def search(
     proxy_url = config.get('search', {}).get('proxy_url', '')
     primary_source = config.get('search', {}).get('primary_source', 'javbus')
 
-    # discovery 僅在 auto/actress/partial/prefix 模式下生效；exact/uncensored 忽略
-    use_discovery = discovery and mode not in ('exact',)
+    # discovery 僅在明確指定 actress/partial/prefix 模式時生效
+    # auto 不含：auto 內部自動選路，discovery_only 會干擾 keyword fallback
+    use_discovery = discovery and mode in ('actress', 'partial', 'prefix')
 
     # 自動模式使用 smart_search
     if mode == "auto":
@@ -194,7 +195,8 @@ def search(
             "has_more": has_more,
             "actress_profile": actress_profile
         }
-        if use_discovery:
+        # discovery flag 只在實際走 discovery 路徑時才標記（auto→exact 不算）
+        if use_discovery and detected_mode in ('actress', 'partial', 'prefix'):
             response_data["discovery"] = True
         return response_data
 
@@ -207,7 +209,7 @@ def search(
         "has_more": False,
         "actress_profile": None
     }
-    if use_discovery:
+    if use_discovery and detected_mode in ('actress', 'partial', 'prefix'):
         base_response["discovery"] = True
     return base_response
 
@@ -348,14 +350,14 @@ def batch_search(body: BatchSearchRequest) -> dict:
     ```
     """
     numbers = list(dict.fromkeys(
-        n.strip() for n in body.numbers if isinstance(n, str) and n.strip()
+        n.strip().upper() for n in body.numbers if isinstance(n, str) and n.strip()
     ))
 
     if not numbers:
-        return JSONResponse(status_code=400, content={"error": "numbers 不可為空"})
+        return JSONResponse(status_code=400, content={"success": False, "error": "numbers 不可為空"})
 
     if len(numbers) > 50:
-        return JSONResponse(status_code=422, content={"error": "最多支援 50 筆批量搜尋"})
+        return JSONResponse(status_code=422, content={"success": False, "error": "最多支援 50 筆批量搜尋"})
 
     from core.config import load_config
     config = load_config()

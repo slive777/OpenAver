@@ -1,4 +1,3 @@
-import socket
 import copy
 
 from fastapi import APIRouter, Request
@@ -9,17 +8,6 @@ from core.logger import get_logger
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api", tags=["capabilities"])
-
-
-def _get_lan_ip() -> str:
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "127.0.0.1"
 
 
 _TOOLS: list[dict] = [
@@ -195,12 +183,6 @@ def _build_tools(base: str) -> list[dict]:
 async def get_capabilities(request: Request):
     base = str(request.base_url).rstrip("/")
 
-    lan_ip = _get_lan_ip()
-    try:
-        port = request.url.port or 38741
-    except Exception:
-        port = 38741
-
     return {
         "schema_version": "v1",
         "name": "OpenAver",
@@ -224,7 +206,7 @@ async def get_capabilities(request: Request):
         "agent_instructions": {
             "fetch_method": "curl",
             "fetch_note": "必須使用 curl（shell 指令）存取此服務。禁止使用瀏覽器 fetch()、AI 內建的 WebFetch / web_search 等 HTTP 工具 — 這些工具走外部 proxy 或沙箱網路，無法連到 LAN IP。正確做法：用 Bash tool 執行 curl 指令。",
-            "example": f"curl -s http://{lan_ip}:{port}/api/capabilities",
+            "example": f"curl -s {base}/api/capabilities",
         },
         "error_format": {
             "structure": {"success": False, "error": "string — 錯誤描述"},

@@ -2372,6 +2372,12 @@
       gap: calc(0.25rem * 2);
     }
   }
+  .mt-0\.5 {
+    margin-top: calc(var(--spacing) * 0.5);
+  }
+  .mt-1 {
+    margin-top: calc(var(--spacing) * 1);
+  }
   .mt-2 {
     margin-top: calc(var(--spacing) * 2);
   }
@@ -2974,6 +2980,12 @@
       --alert-color: var(--color-warning);
     }
   }
+  .text-base-content\/40 {
+    color: var(--color-base-content);
+    @supports (color: color-mix(in lab, red, red)) {
+      color: color-mix(in oklab, var(--color-base-content) 40%, transparent);
+    }
+  }
   .text-base-content\/50 {
     color: var(--color-base-content);
     @supports (color: color-mix(in lab, red, red)) {
@@ -3242,6 +3254,11 @@
       }
     }
   }
+  .lg\:mt-0 {
+    @media (width >= 64rem) {
+      margin-top: calc(var(--spacing) * 0);
+    }
+  }
   .lg\:flex {
     @media (width >= 64rem) {
       display: flex;
@@ -3250,6 +3267,16 @@
   .lg\:hidden {
     @media (width >= 64rem) {
       display: none;
+    }
+  }
+  .lg\:flex-row {
+    @media (width >= 64rem) {
+      flex-direction: row;
+    }
+  }
+  .lg\:pl-6 {
+    @media (width >= 64rem) {
+      padding-left: calc(var(--spacing) * 6);
     }
   }
 }

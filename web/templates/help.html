@@ -64,14 +64,13 @@
                 </div>
             </div>
             <!-- 右欄：AI 整合入口 -->
-            <div class="flex-1 lg:border-l lg:border-base-content/10 lg:pl-6 mt-4 lg:mt-0">
-                <div class="hero-terminal relative" x-data="{ copied: false }">
+            <div class="flex-1 lg:pl-6 mt-4 lg:mt-0">
+                <div class="hero-terminal relative">
                     <span class="terminal-prompt">$</span>
-                    curl -s http://{{ lan_ip }}:{{ port }}/api/capabilities
-                    <button class="terminal-copy-btn"
-                            @click="try { navigator.clipboard.writeText(`curl -s ${window.location.origin}/api/capabilities`); copied = true; setTimeout(() => copied = false, 800); } catch(e) {}">
-                        <span x-show="!copied">📋</span>
-                        <span x-show="copied">✓</span>
+                    curl -s {{ base_url }}/api/capabilities
+                    <button class="terminal-copy-btn" @click="copyCurlCommand()">
+                        <span x-show="!curlCopied">📋</span>
+                        <span x-show="curlCopied">✓</span>
                     </button>
                 </div>
                 <p class="text-sm text-base-content/70 mt-3">

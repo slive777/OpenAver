@@ -702,11 +702,13 @@ class TestHelpPage:
         assert 'hero-terminal' in html, \
             "help.html 缺少 hero-terminal — T3b 右欄 Terminal box 未實作"
 
-    def test_help_html_has_clipboard_copy(self):
-        """help.html 含 clipboard.writeText 複製指令（T3b 守衛）"""
-        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
-        assert 'clipboard.writeText' in html, \
-            "help.html 缺少 clipboard.writeText — T3b 一鍵複製功能未實作"
+    def test_help_has_clipboard_copy(self):
+        """help.js 含 clipboard copy 功能（T3b 守衛）"""
+        js = (PROJECT_ROOT / 'web/static/js/pages/help.js').read_text(encoding='utf-8')
+        assert 'copyCurlCommand' in js, \
+            "help.js 缺少 copyCurlCommand — T3b 一鍵複製功能未實作"
+        assert 'execCommand' in js, \
+            "help.js 缺少 execCommand fallback — 非 HTTPS 環境無法複製"
 
     def test_help_html_has_ai_instruction_i18n(self):
         """help.html 含 help.hero.ai_instruction i18n key（T3b 守衛）"""

@@ -130,13 +130,13 @@ class TestCapabilitiesEndpoint:
                 f"Tool '{tool['name']}' example does not reference base_url"
             )
 
-    def test_lan_ip_fallback_on_socket_error(self):
-        """LAN IP 偵測失敗時 fallback 到 127.0.0.1"""
-        from web.routers.capabilities import _get_lan_ip
-        with patch("web.routers.capabilities.socket") as mock_socket:
-            mock_socket.socket.side_effect = OSError("no network")
-            ip = _get_lan_ip()
-        assert ip == "127.0.0.1"
+    def test_agent_instructions_example_uses_base_url(self, client):
+        """agent_instructions.example 使用 request.base_url"""
+        data = client.get("/api/capabilities").json()
+        example = data["agent_instructions"]["example"]
+        base_url = data["base_url"]
+        assert base_url in example, \
+            "agent_instructions.example 應包含 request.base_url"
 
     def test_integration_notes_exist(self, client):
         data = client.get("/api/capabilities").json()
