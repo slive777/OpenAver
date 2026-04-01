@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3] - 2026-04-02
+
+### Changed
+
+#### 🔧 開發流程穩定化 (Phase 38d)
+- 測試分層修正：integration mock-only 測試搬回 unit（296→210 integration、1030→1111 unit）
+- rate_limit mock patch target 修正 — 全套測試 4:02 → 1:29
+- E2E 場景清單（17 UI + 5 Agentic AI API 場景）+ App 操作指南
+- Agentic AI 驗證：Haiku 即可正確操作 capabilities API
+- .gitignore 加入 .playwright-mcp/
+- 測試總數 1326 → 1321（-5 重複刪除）
+
 ## [0.6.2] - 2026-04-01
 
 ### Added
