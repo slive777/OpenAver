@@ -54,6 +54,23 @@ OpenAver runs entirely on your local machine:
 
 ## ✨ Features
 
+### 🤖 AI-Ready API
+
+Your AI assistant can now operate your library directly:
+
+- "Search STARS-123, ABP-456, SSIS-789 for me" — multi-source aggregation
+- "Fill in the missing NFO for these 10 old files" — in-place enrichment, no rename, no move
+- "Which series did I download the most this year?" — SQL queries on your collection
+- "Turn the IDs mentioned in this article into a visual gallery" — auto-embedded cover HTML
+
+No SDK. No docs to read. One curl, and your AI learns every endpoint:
+
+```bash
+curl http://localhost:38741/api/capabilities
+```
+
+Works with any MCP / function-calling compatible AI tool.
+
 ### 🔍 Spotlight Search
 
 What sets OpenAver apart is its **multi-source aggregation**: a single query simultaneously searches JavBus, JavDB, Jav321, DMM, D2Pass, and HEYZO, merging results in real time.
@@ -102,6 +119,20 @@ Translation language automatically follows the UI locale setting (Traditional Ch
 - Your API key is stored in plaintext in `web/config.json`
 - **Do not share `config.json` or upload it to a public location**
 - To revoke: visit [Google AI Studio](https://aistudio.google.com/apikey) and regenerate your key
+
+### 🤖 Agentic AI Support
+
+OpenAver's self-describing API works with all major AI tools:
+
+| Method | Tools | Notes |
+|--------|-------|-------|
+| **CLI** | Claude Code, Codex CLI, Gemini CLI, Aider, etc. | Just `curl` from the terminal — all CLI agents supported |
+| **IDE** | Cursor, GitHub Copilot in VS Code, Windsurf, Trae, Google Antigravity, etc. | Agent mode / MCP to call local API |
+| **Desktop App** | Codex App, Claude Cowork, OpenClaw | ⭐ Cover images rendered inline — best experience |
+
+> 💡 **Recommended**: **Codex App** (free tier available) — cover images embedded directly in responses for at-a-glance browsing.
+
+> ⚡ **Small-model friendly**: The capabilities manifest is optimized for lightweight models — Gemini Flash / GPT-4o mini / Claude Haiku can all operate every endpoint correctly.
 
 ## 🛠️ Tech Stack
 

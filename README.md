@@ -56,6 +56,23 @@ OpenAver 是純本地應用程式：
 
 ## ✨ 核心功能
 
+### 🤖 AI-Ready API
+
+你的 AI 助手現在能直接操作你的片庫：
+
+- 「幫我搜 STARS-123, ABP-456, SSIS-789 的完整資訊」— 多來源聚合搜尋
+- 「把這 10 部舊片的 NFO 補齊」— 原地補完，不搬移不改名
+- 「我今年抓最多的系列作品是哪個？」— SQL 查詢收藏資料庫
+- 「幫我把這篇文章提到的番號做成圖文並茂的網頁」— 封面自動嵌入 HTML
+
+不需要 SDK，不需要讀文件。一行 curl，AI 自學所有端點：
+
+```bash
+curl http://localhost:38741/api/capabilities
+```
+
+支援任何 MCP / function-calling 相容的 AI 工具。
+
 ### 🔍 Spotlight Search (搜尋)
 - **多來源聚合**: 同時搜尋 JavBus, Jav321, JavDB, DMM, D2Pass, HEYZO 等多個來源。
 - **Gallery Style**: 現代化的 Hero Detail 介面，以大圖和毛玻璃特效呈現影片資訊。
@@ -84,20 +101,6 @@ OpenAver 是純本地應用程式：
 - **檔案過濾**: 設定最小影片尺寸 (MB)，自動排除過小檔案。
 - **多語系 UI**: 四語系支援（繁中 / 简中 / 日文 / 英文），語系切換按鈕即時切換所有介面文字。
 
-### 🤖 AI 整合
-
-OpenAver 內建 Agentic AI API，任何 AI agent 一個 curl 即可學會使用：
-
-- `GET /api/capabilities` — Self-describing manifest，回傳所有可用端點說明
-- `POST /api/batch-search` — 批量番號搜尋，結構化回傳
-- `POST /api/enrich-single` — 舊片原地補完（不搬移不改名）
-- `POST /api/collection/sql` — Read-only SQL 查詢收藏資料庫
-
-**快速上手（一行 curl）：**
-```bash
-curl http://localhost:38741/api/capabilities
-```
-
 ### 🌐 翻譯功能
 
 OpenAver 支援兩種翻譯提供商：
@@ -118,6 +121,20 @@ OpenAver 支援兩種翻譯提供商：
 - API Key 以明文存儲在 `web/config.json`
 - **請勿將 config.json 分享給他人或上傳至公開位置**
 - 如需撤銷：前往 [Google AI Studio](https://aistudio.google.com/apikey) 重新生成
+
+### 🤖 Agentic AI 支援
+
+OpenAver 的 self-describing API 相容於所有主流 AI 工具：
+
+| 使用方式 | 工具 | 說明 |
+|----------|------|------|
+| **CLI** | Claude Code, Codex CLI, Gemini CLI, Aider 等 | 終端機直接 `curl`，所有 CLI agent 皆支援 |
+| **IDE** | Cursor, GitHub Copilot in VS Code, Windsurf, Trae, Google Antigravity 等 | Agent 模式 / MCP 呼叫本地 API |
+| **桌面 App** | Codex App, Claude Cowork, OpenClaw | ⭐ 回覆內直接顯示封面圖片，體驗最佳 |
+
+> 💡 **推薦**：**Codex App**（免費帳號可用）— 回覆中直接嵌入封面圖片，搜尋結果一目瞭然。
+
+> ⚡ **小模型友善**：capabilities manifest 已針對輕量模型優化，Gemini Flash / GPT-4o mini / Claude Haiku 皆可正確操作所有端點。
 
 ## 🛠️ 技術架構
 
