@@ -953,6 +953,7 @@ def check_jellyfin_images_needed(repo: VideoRepository) -> dict:
 
 def generate_jellyfin_images_stream() -> Generator[str, None, None]:
     """SSE 串流：批次為影片產生 poster + fanart"""
+    global _jellyfin_cache_result, _jellyfin_cache_time
 
     try:
         db_path = get_db_path()
@@ -967,6 +968,8 @@ def generate_jellyfin_images_stream() -> Generator[str, None, None]:
         total = len(items)
 
         if total == 0:
+            _jellyfin_cache_result = None
+            _jellyfin_cache_time = 0
             yield _sse_event({"type": "done", "message": "沒有需要補齊的影片", "updated": 0})
             return
 
@@ -995,7 +998,6 @@ def generate_jellyfin_images_stream() -> Generator[str, None, None]:
                 yield _sse_event({"type": "log", "level": "warn", "message": f"{num} poster 裁切失敗"})
 
         # T3(40c): 清空快取，讓下次 check 反映最新圖片狀態
-        global _jellyfin_cache_result, _jellyfin_cache_time
         _jellyfin_cache_result = None
         _jellyfin_cache_time = 0
         yield _sse_event({"type": "done", "message": f"完成！已補齊 {total} 部影片的 Jellyfin 圖片"})

@@ -736,7 +736,12 @@ function scannerPage() {
                 signal: controller.signal
             });
             const data = await resp.json();
-            if (data.success && data.data.need_update > 0) {
+            if (!data.success) {
+                console.error('Jellyfin check API error:', data.error);
+                this.jellyfinCheckState = 'idle';
+                return;
+            }
+            if (data.data.need_update > 0) {
                 this.jellyfinImageCount = data.data.need_update;
                 this.jellyfinImageVisible = true;
             } else {
