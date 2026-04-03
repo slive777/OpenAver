@@ -43,6 +43,7 @@ Thumbs.db
 
 # Logs
 *.log
+logs/
 
 # Local config (使用者特定設定)
 web/config.json

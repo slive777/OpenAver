@@ -268,3 +268,202 @@ class TestGenerateFromIds:
         assert 'html_path' in data
         assert 'video_count' in data
         assert 'missing' in data
+
+
+# ============ GET /api/gallery/jellyfin-check ============
+
+class TestJellyfinCheck:
+    """測試 GET /api/gallery/jellyfin-check"""
+
+    @pytest.fixture(autouse=True)
+    def reset_jellyfin_cache(self):
+        """每個測試前後重置 jellyfin 快取，避免測試間污染"""
+        import web.routers.scanner as scanner_mod
+        scanner_mod._jellyfin_cache_result = None
+        scanner_mod._jellyfin_cache_time = 0
+        yield
+        scanner_mod._jellyfin_cache_result = None
+        scanner_mod._jellyfin_cache_time = 0
+
+    def test_jellyfin_check_no_db(self, client, monkeypatch):
+        """DB 不存在時，回傳 need_update: 0，不呼叫 check_jellyfin_images_needed"""
+        from unittest.mock import MagicMock, patch
+
+        mock_db_path = MagicMock()
+        mock_db_path.exists.return_value = False
+
+        mock_check = MagicMock()
+
+        with patch('web.routers.scanner.get_db_path', return_value=mock_db_path), \
+             patch('web.routers.scanner.check_jellyfin_images_needed', mock_check):
+            response = client.get('/api/gallery/jellyfin-check')
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is True
+        assert data['data']['need_update'] == 0
+        mock_check.assert_not_called()
+
+    def test_jellyfin_check_has_updates(self, client, monkeypatch):
+        """DB 存在，check_jellyfin_images_needed 回傳 need_update: 5"""
+        from unittest.mock import MagicMock, patch
+
+        mock_db_path = MagicMock()
+        mock_db_path.exists.return_value = True
+
+        mock_repo = MagicMock()
+        check_result = {'need_update': 5, 'items': [{'cover_path': f'/a/{i}.jpg', 'base_stem': f'/a/{i}', 'number': f'SONE-{i:03d}'} for i in range(5)]}
+
+        with patch('web.routers.scanner.get_db_path', return_value=mock_db_path), \
+             patch('web.routers.scanner.VideoRepository', return_value=mock_repo), \
+             patch('web.routers.scanner.check_jellyfin_images_needed', return_value=check_result):
+            response = client.get('/api/gallery/jellyfin-check')
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is True
+        assert data['data']['need_update'] == 5
+
+    def test_jellyfin_check_no_updates(self, client, monkeypatch):
+        """DB 存在，check_jellyfin_images_needed 回傳 need_update: 0"""
+        from unittest.mock import MagicMock, patch
+
+        mock_db_path = MagicMock()
+        mock_db_path.exists.return_value = True
+
+        mock_repo = MagicMock()
+        check_result = {'need_update': 0, 'items': []}
+
+        with patch('web.routers.scanner.get_db_path', return_value=mock_db_path), \
+             patch('web.routers.scanner.VideoRepository', return_value=mock_repo), \
+             patch('web.routers.scanner.check_jellyfin_images_needed', return_value=check_result):
+            response = client.get('/api/gallery/jellyfin-check')
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is True
+        assert data['data']['need_update'] == 0
+
+    def test_jellyfin_check_exception(self, client, monkeypatch):
+        """check_jellyfin_images_needed 拋出例外時，回傳 success: false，HTTP 200"""
+        from unittest.mock import MagicMock, patch
+
+        mock_db_path = MagicMock()
+        mock_db_path.exists.return_value = True
+
+        mock_repo = MagicMock()
+
+        with patch('web.routers.scanner.get_db_path', return_value=mock_db_path), \
+             patch('web.routers.scanner.VideoRepository', return_value=mock_repo), \
+             patch('web.routers.scanner.check_jellyfin_images_needed', side_effect=RuntimeError('IO error')):
+            response = client.get('/api/gallery/jellyfin-check')
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is False
+        assert 'error' in data
+        assert data['error'] == '檢查 Jellyfin 圖片狀態失敗'
+
+    def test_jellyfin_check_uses_to_thread(self):
+        """靜態掃描確認 scanner.py 使用 asyncio.to_thread 包裝同步呼叫"""
+        import pathlib
+        scanner_src = (pathlib.Path(__file__).parents[2] / 'web' / 'routers' / 'scanner.py').read_text(encoding='utf-8')
+        assert 'asyncio.to_thread(check_jellyfin_images_needed' in scanner_src
+
+    # ---- T3(40c): TTL 快取相關測試 ----
+
+    def test_jellyfin_check_cache_hit(self, client, monkeypatch):
+        """TTL 內命中快取，check_jellyfin_images_needed 不被呼叫"""
+        import time
+        import web.routers.scanner as scanner_mod
+        from unittest.mock import MagicMock, patch
+
+        mock_db_path = MagicMock()
+        mock_db_path.exists.return_value = True
+
+        # 注入有效快取（10 秒前寫入，TTL=60 秒未到期）
+        monkeypatch.setattr(scanner_mod, '_jellyfin_cache_result', {'need_update': 7, 'items': []})
+        monkeypatch.setattr(scanner_mod, '_jellyfin_cache_time', time.time() - 10)
+
+        mock_check = MagicMock()
+
+        with patch('web.routers.scanner.get_db_path', return_value=mock_db_path), \
+             patch('web.routers.scanner.check_jellyfin_images_needed', mock_check):
+            response = client.get('/api/gallery/jellyfin-check')
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is True
+        assert data['data']['need_update'] == 7
+        mock_check.assert_not_called()
+
+    def test_jellyfin_check_cache_expired(self, client, monkeypatch):
+        """TTL 過期（> 60s）後重新呼叫 check_jellyfin_images_needed"""
+        import time
+        import web.routers.scanner as scanner_mod
+        from unittest.mock import MagicMock, patch
+
+        mock_db_path = MagicMock()
+        mock_db_path.exists.return_value = True
+
+        mock_repo = MagicMock()
+
+        # 注入過期快取（61 秒前寫入）
+        monkeypatch.setattr(scanner_mod, '_jellyfin_cache_result', {'need_update': 3, 'items': []})
+        monkeypatch.setattr(scanner_mod, '_jellyfin_cache_time', time.time() - 61)
+
+        new_result = {'need_update': 99, 'items': []}
+
+        with patch('web.routers.scanner.get_db_path', return_value=mock_db_path), \
+             patch('web.routers.scanner.VideoRepository', return_value=mock_repo), \
+             patch('web.routers.scanner.check_jellyfin_images_needed', return_value=new_result) as mock_check:
+            response = client.get('/api/gallery/jellyfin-check')
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is True
+        assert data['data']['need_update'] == 99
+        mock_check.assert_called_once()
+
+    def test_jellyfin_check_no_db_no_cache_write(self, client, monkeypatch):
+        """DB 不存在時 early-return，不更新快取"""
+        import web.routers.scanner as scanner_mod
+        from unittest.mock import MagicMock, patch
+
+        mock_db_path = MagicMock()
+        mock_db_path.exists.return_value = False
+
+        # 確保快取為 None
+        monkeypatch.setattr(scanner_mod, '_jellyfin_cache_result', None)
+        monkeypatch.setattr(scanner_mod, '_jellyfin_cache_time', 0)
+
+        with patch('web.routers.scanner.get_db_path', return_value=mock_db_path):
+            response = client.get('/api/gallery/jellyfin-check')
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is True
+        assert data['data']['need_update'] == 0
+        # DB 不存在時不寫入快取
+        assert scanner_mod._jellyfin_cache_result is None
+
+    def test_jellyfin_cache_cleared_after_update_static(self):
+        """靜態掃描確認 generate_jellyfin_images_stream 在 done 路徑清空快取"""
+        import pathlib
+        scanner_src = (pathlib.Path(__file__).parents[2] / 'web' / 'routers' / 'scanner.py').read_text(encoding='utf-8')
+        assert '_jellyfin_cache_result = None' in scanner_src
+
+    def test_jellyfin_cache_cleared_after_clear_cache_static(self):
+        """靜態掃描確認 clear_cache 中有清空 _jellyfin_cache_result"""
+        import pathlib
+        scanner_src = (pathlib.Path(__file__).parents[2] / 'web' / 'routers' / 'scanner.py').read_text(encoding='utf-8')
+        # 確認 clear_cache 和 generate_jellyfin_images_stream 兩個函數都有清空快取的程式碼
+        assert scanner_src.count('_jellyfin_cache_result = None') >= 2
+
+    def test_jellyfin_cache_cleared_after_generate_avlist_static(self):
+        """T3(40c) Codex fix: 靜態掃描確認 generate_avlist 正常和例外路徑都清空 jellyfin 快取"""
+        import pathlib
+        scanner_src = (pathlib.Path(__file__).parents[2] / 'web' / 'routers' / 'scanner.py').read_text(encoding='utf-8')
+        # T3(40c) Codex fix 後應有 4 處：
+        #   clear_cache + generate_jellyfin_images_stream + generate_avlist(done) + generate_avlist(except)
+        assert scanner_src.count('_jellyfin_cache_result = None') >= 4

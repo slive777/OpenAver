@@ -660,6 +660,17 @@
     border: 1px solid var(--border-light);
 }
 
+/* Demo panel — rotating-border-spotlight 等 demo 容器使用 */
+.ds-demo-panel {
+    padding: 1rem 1.5rem;
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+}
+
+.ds-demo-panel--lg {
+    padding: 1.5rem 2rem;
+}
+
 /* ==================== AV Cards 拼貼佈局 (Mosaic) ==================== */
 .ds-card-mosaic {
     display: grid;

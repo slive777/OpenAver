@@ -3982,14 +3982,14 @@ body {
 :is(#ds-gallery-components, .ds-gallery-composition) .avlist-card-body {
   padding: 0;
 }
-:is(#ds-gallery-components, .ds-gallery-composition) .manual-input {
+.manual-input {
   display: none;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border-light);
   gap: 0.5rem;
   background: var(--bg-body);
 }
-:is(#ds-gallery-components, .ds-gallery-composition) .manual-input input {
+.manual-input input {
   flex: 1;
 }
 :is(#ds-gallery-components, .ds-gallery-composition) .folder-list {

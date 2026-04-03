@@ -4,6 +4,22 @@
 
 {% block extra_css %}
 <link href="/static/css/pages/design-system.css" rel="stylesheet">
+<!-- Production page CSS — loaded so DS demos always render identical to the real pages.
+     All selectors in search.css and showcase.css are either scoped to their own class
+     names or are the exact classes being demonstrated (e.g. .dropdown-item, .page-select).
+     No broad naked-element selectors (img, a, p, …) exist in these files.
+     Design decision: prefer live coupling over duplicating rules in design-system.css. -->
+<link href="/static/css/pages/search.css" rel="stylesheet">
+<link href="/static/css/pages/showcase.css" rel="stylesheet">
+<!-- settings.css note: the file header marks it "非共用，不納入 Design System".
+     Loaded to support Source Badge + Font Size demos in #settings-components scope.
+     Some selectors (.settings-container, .settings-header) are NOT scoped to
+     #settings-components — acceptable today because DS markup has no matching
+     elements. Avoid introducing those unscoped classes in future DS demos. -->
+<link href="/static/css/pages/settings.css" rel="stylesheet">
+<!-- help.css: provides .hero-terminal / .terminal-prompt / .terminal-copy-btn.
+     All selectors are scoped class names — no pollution risk. -->
+<link href="/static/css/pages/help.css" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
@@ -32,6 +48,8 @@
         <a href="#ds-navigation">Navigation</a>
         <a href="#ds-rotating-border">Rotating Border</a>
         <a href="#ds-feedback">Feedback</a>
+        <a href="#ds-showcase-elements">Showcase Elements</a>
+        <a href="#ds-search-elements">Search Elements</a>
     </nav>
 
     <!-- 右側內容 -->
@@ -1818,6 +1836,54 @@
   &lt;/div&gt;
 &lt;/div&gt;</code></pre>
             </div>
+
+            <!-- Subsection: Hero Terminal -->
+            <!-- CSS source: help.css (loaded in extra_css above) -->
+            <div class="ds-subsection" x-data="{ curlCopied: false }">
+                <h3>Hero Terminal</h3>
+                <p class="ds-desc">
+                    來源：<code>help.html</code> Hero Card 右欄的 AI 整合入口指令框。
+                    <strong>固定深色背景（<code>oklch(20% 0.01 250)</code>），不隨 Light / Dark theme 切換</strong>，
+                    確保終端外觀在任何主題下一致。
+                    右上角有複製按鈕，點擊後圖示切換為 ✓，1.5 秒後自動復原。
+                </p>
+
+                <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+                    <div class="hero-terminal relative">
+                        <span class="terminal-prompt">$</span>
+                        curl http://localhost:7080/api/capabilities
+                        <button class="terminal-copy-btn"
+                                @click="curlCopied = true; setTimeout(() => curlCopied = false, 1500)"
+                                title="複製指令">
+                            <span x-show="!curlCopied">📋</span>
+                            <span x-show="curlCopied">✓</span>
+                        </button>
+                    </div>
+                    <small style="color: var(--text-muted); display: block; margin-top: 0.5rem;">
+                        ↑ Light 與 Dark 模式下皆呈現相同的深色終端外觀
+                    </small>
+                </div>
+
+                <pre class="ds-code"><code>&lt;div class="hero-terminal relative" x-data="{ curlCopied: false }"&gt;
+  &lt;span class="terminal-prompt"&gt;$&lt;/span&gt;
+  curl http://localhost:7080/api/capabilities
+  &lt;button class="terminal-copy-btn"
+          @click="curlCopied = true; setTimeout(() =&gt; curlCopied = false, 1500)"&gt;
+    &lt;span x-show="!curlCopied"&gt;📋&lt;/span&gt;
+    &lt;span x-show="curlCopied"&gt;✓&lt;/span&gt;
+  &lt;/button&gt;
+&lt;/div&gt;</code></pre>
+
+                <div class="ds-note" style="margin-top: 1rem;">
+                    <strong>技術細節：</strong>
+                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                        <li><code>.hero-terminal</code>：背景硬編碼 <code>oklch(20% 0.01 250)</code>，不受 <code>[data-theme]</code> 影響</li>
+                        <li><code>.terminal-prompt</code>：低飽和青綠 <code>oklch(55% 0.15 160)</code>，<code>user-select: none</code></li>
+                        <li><code>.terminal-copy-btn</code>：絕對定位右上角，<code>:hover</code> 有背景高亮</li>
+                        <li>此頁 CSS 由局部 <code>&lt;style&gt;</code> 提供；production 版定義見 <code>help.css</code> 行 17–52</li>
+                    </ul>
+                </div>
+            </div>
         </section>
 
         <!-- 區塊 8: Progress & Feedback (accent-bar 樣式) -->
@@ -2108,15 +2174,13 @@
                 <div class="ds-card-demo">
                     <div class="d-flex gap-3 flex-wrap align-items-center">
                         <!-- Inactive 狀態 -->
-                        <div class="rotating-border-spotlight"
-                             style="padding: 1.5rem 2rem; background: var(--bg-card); border-radius: var(--radius-md);">
+                        <div class="rotating-border-spotlight ds-demo-panel ds-demo-panel--lg">
                             <h5 style="margin: 0; color: var(--text-primary);">Inactive State</h5>
                             <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary); font-size: 0.875rem;">沒有旋轉效果</p>
                         </div>
 
                         <!-- Active 狀態 -->
-                        <div class="rotating-border-spotlight active"
-                             style="padding: 1.5rem 2rem; background: var(--bg-card); border-radius: var(--radius-md);">
+                        <div class="rotating-border-spotlight active ds-demo-panel ds-demo-panel--lg">
                             <h5 style="margin: 0; color: var(--text-primary);">Active State</h5>
                             <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary); font-size: 0.875rem;">正在旋轉</p>
                         </div>
@@ -2232,16 +2296,13 @@
                 <p class="ds-desc">可選的速度變體，用於不同強調程度</p>
                 <div class="ds-card-demo">
                     <div class="d-flex gap-3 flex-wrap">
-                        <div class="rotating-border-spotlight speed-slow active"
-                             style="padding: 1rem 1.5rem; background: var(--bg-card); border-radius: var(--radius-md);">
+                        <div class="rotating-border-spotlight speed-slow active ds-demo-panel">
                             <small style="color: var(--text-muted);">Slow (4s)</small>
                         </div>
-                        <div class="rotating-border-spotlight active"
-                             style="padding: 1rem 1.5rem; background: var(--bg-card); border-radius: var(--radius-md);">
+                        <div class="rotating-border-spotlight active ds-demo-panel">
                             <small style="color: var(--text-muted);">Normal (2.5s)</small>
                         </div>
-                        <div class="rotating-border-spotlight speed-fast active"
-                             style="padding: 1rem 1.5rem; background: var(--bg-card); border-radius: var(--radius-md);">
+                        <div class="rotating-border-spotlight speed-fast active ds-demo-panel">
                             <small style="color: var(--text-muted);">Fast (1.5s)</small>
                         </div>
                     </div>
@@ -2259,12 +2320,10 @@
                 <p class="ds-desc">單次旋轉 modifier，動畫播放完後自動停止，適用於提示類場景</p>
                 <div class="ds-card-demo">
                     <div class="d-flex gap-3 flex-wrap align-items-center">
-                        <div class="rotating-border-spotlight active once"
-                             style="padding: 1rem 1.5rem; background: var(--bg-card); border-radius: var(--radius-md);">
+                        <div class="rotating-border-spotlight active once ds-demo-panel">
                             <small style="color: var(--text-muted);">.once（5 圈停止）</small>
                         </div>
-                        <div class="rotating-border-spotlight active pulse-once"
-                             style="padding: 1rem 1.5rem; background: var(--bg-card); border-radius: var(--radius-md);">
+                        <div class="rotating-border-spotlight active pulse-once ds-demo-panel">
                             <small style="color: var(--text-muted);">.pulse-once（1 圈停止）</small>
                         </div>
                     </div>
@@ -2331,6 +2390,403 @@
                     </button>
                 </div>
             </div>
+        </section>
+
+        <!-- Showcase Elements -->
+        <section id="ds-showcase-elements" class="ds-section glass">
+            <h2>Showcase Elements</h2>
+            <p class="ds-note">Showcase 頁面專屬元件：Toolbar Dropdown、Status Bar + Pagination、Table Mode、List Mode</p>
+
+            <!-- Toolbar Dropdown -->
+            <div class="ds-subsection">
+                <h3>Toolbar Dropdown</h3>
+                <p class="ds-desc">工具列下拉選單，包含三種變體：排序（Sort）、顯示模式（Mode）、每頁數量（Per-page）。使用 <code>.toolbar-dropdown-wrap</code> + <code>.toolbar-dropdown</code> 搭配 Alpine.js <code>x-show</code> 控制開關。</p>
+
+                <div style="display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start; padding: 1rem 0;">
+
+                    <!-- Sort Dropdown -->
+                    <div x-data="{ open: false, selected: 'date' }" style="position: relative;">
+                        <p style="font-size: 0.75rem; color: var(--color-text-muted); margin-bottom: 0.5rem;">Sort</p>
+                        <div class="toolbar-dropdown-wrap" @click.outside="open = false">
+                            <button class="btn-icon" @click="open = !open" :class="{ 'active': open }" type="button" title="排序">
+                                <i class="bi bi-funnel"></i>
+                            </button>
+                            <div class="toolbar-dropdown" x-show="open" x-transition.opacity.duration.150ms @click.stop>
+                                <a href="#" class="dropdown-item" :class="{ 'active': selected === 'date' }"
+                                   @click.prevent="selected = 'date'; open = false">
+                                    <i class="bi bi-calendar"></i> 日期</a>
+                                <a href="#" class="dropdown-item" :class="{ 'active': selected === 'num' }"
+                                   @click.prevent="selected = 'num'; open = false">
+                                    <i class="bi bi-hash"></i> 品番</a>
+                                <a href="#" class="dropdown-item" :class="{ 'active': selected === 'title' }"
+                                   @click.prevent="selected = 'title'; open = false">
+                                    <i class="bi bi-type"></i> 標題</a>
+                                <a href="#" class="dropdown-item" :class="{ 'active': selected === 'actor' }"
+                                   @click.prevent="selected = 'actor'; open = false">
+                                    <i class="bi bi-person"></i> 演員</a>
+                                <a href="#" class="dropdown-item" :class="{ 'active': selected === 'maker' }"
+                                   @click.prevent="selected = 'maker'; open = false">
+                                    <i class="bi bi-building"></i> 廠商</a>
+                                <a href="#" class="dropdown-item" :class="{ 'active': selected === 'size' }"
+                                   @click.prevent="selected = 'size'; open = false">
+                                    <i class="bi bi-file-earmark"></i> 大小</a>
+                                <a href="#" class="dropdown-item" :class="{ 'active': selected === 'mdate' }"
+                                   @click.prevent="selected = 'mdate'; open = false">
+                                    <i class="bi bi-clock"></i> 修改日期</a>
+                                <a href="#" class="dropdown-item" :class="{ 'active': selected === 'random' }"
+                                   @click.prevent="selected = 'random'; open = false">
+                                    <i class="bi bi-shuffle"></i> 隨機</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mode Dropdown -->
+                    <div x-data="{ open: false, selected: 'grid' }" style="position: relative;">
+                        <p style="font-size: 0.75rem; color: var(--color-text-muted); margin-bottom: 0.5rem;">Mode</p>
+                        <div class="toolbar-dropdown-wrap" @click.outside="open = false">
+                            <button class="btn-icon" @click="open = !open" :class="{ 'active': open }" type="button" title="顯示模式">
+                                <i class="bi" :class="selected === 'grid' ? 'bi-grid-3x3' : selected === 'table' ? 'bi-table' : 'bi-list-ul'"></i>
+                            </button>
+                            <div class="toolbar-dropdown" x-show="open" x-transition.opacity.duration.150ms @click.stop>
+                                <a href="#" class="dropdown-item" :class="{ 'active': selected === 'grid' }"
+                                   @click.prevent="selected = 'grid'; open = false">
+                                    <i class="bi bi-grid-3x3"></i> 格狀</a>
+                                <a href="#" class="dropdown-item" :class="{ 'active': selected === 'table' }"
+                                   @click.prevent="selected = 'table'; open = false">
+                                    <i class="bi bi-table"></i> 表格</a>
+                                <a href="#" class="dropdown-item" :class="{ 'active': selected === 'list' }"
+                                   @click.prevent="selected = 'list'; open = false">
+                                    <i class="bi bi-list-ul"></i> 清單</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Per-page Dropdown -->
+                    <div x-data="{ open: false, selected: 30, mode: 'grid' }" style="position: relative;">
+                        <p style="font-size: 0.75rem; color: var(--color-text-muted); margin-bottom: 0.5rem;">Per-page</p>
+                        <div class="toolbar-dropdown-wrap" @click.outside="open = false">
+                            <button class="btn-icon" @click="open = !open" :class="{ 'active': open }" type="button" title="每頁數量">
+                                <i class="bi bi-list-nested"></i>
+                            </button>
+                            <div class="toolbar-dropdown" x-show="open" x-transition.opacity.duration.150ms @click.stop>
+                                <a href="#" class="dropdown-item" :class="{ 'active': selected == 30 }"
+                                   @click.prevent="selected = 30; open = false">30 部</a>
+                                <a href="#" class="dropdown-item" :class="{ 'active': selected == 45 }"
+                                   @click.prevent="selected = 45; open = false">45 部</a>
+                                <a href="#" class="dropdown-item" :class="{ 'active': selected == 60 }"
+                                   @click.prevent="selected = 60; open = false">60 部</a>
+                                <a href="#" class="dropdown-item" :class="{ 'active': selected == 90 }"
+                                   @click.prevent="selected = 90; open = false">90 部</a>
+                                <a href="#" class="dropdown-item" :class="{ 'active': selected == 120 }"
+                                   @click.prevent="selected = 120; open = false">120 部</a>
+                                <a href="#" class="dropdown-item"
+                                   :class="{ 'active': selected == 0, 'disabled pointer-events-none opacity-40': mode === 'grid' }"
+                                   @click.prevent="if (mode !== 'grid') { selected = 0; open = false }">全部</a>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Status Bar + Pagination -->
+            <div class="ds-subsection">
+                <h3>Status Bar + Pagination</h3>
+                <p class="ds-desc">Showcase 頁面固定於內容區頂端的狀態列，左側顯示統計資訊，右側顯示分頁控制。使用 <code>.showcase-status-bar</code>、<code>.status-total</code>、<code>.status-pagination</code>、<code>.page-btn</code>、<code>.page-select</code>。</p>
+
+                <div style="position: relative; overflow: hidden; border-radius: 0.5rem; border: 1px solid var(--color-border);">
+                    <div class="showcase-status-bar">
+                        <span class="status-total">
+                            <span>共 <b>128</b> 部影片</span>
+                        </span>
+                        <div class="status-pagination">
+                            <button class="page-btn" disabled>← 上一頁</button>
+                            <select class="page-select">
+                                <option value="1">1 / 5</option>
+                                <option value="2">2 / 5</option>
+                                <option value="3">3 / 5</option>
+                                <option value="4">4 / 5</option>
+                                <option value="5">5 / 5</option>
+                            </select>
+                            <button class="page-btn">下一頁 →</button>
+                        </div>
+                    </div>
+                </div>
+                <p class="ds-desc" style="margin-top: 0.75rem;">
+                    <code>.page-btn</code> 加上 <code>disabled</code> attribute 呈現禁用狀態（如上方「上一頁」按鈕）；<code>.page-select</code> 為頁碼選擇器。
+                </p>
+            </div>
+
+            <!-- Table Mode -->
+            <div class="ds-subsection">
+                <h3>Table Mode</h3>
+                <p class="ds-desc">表格模式使用 <code>.showcase-table-wrapper</code> + <code>.table-scroll-container</code> 實現水平捲動。每列使用 <code>.table-row-clickable</code> 提供 hover 互動效果。標籤欄使用 <code>.table-tags-wrapper</code> + <code>.table-tag</code> + <code>.table-tag-more</code> 呈現 tag 群組。</p>
+
+                <div class="showcase-table-wrapper">
+                    <div class="table-scroll-container">
+                        <table class="table table-zebra table-pin-rows">
+                            <thead>
+                                <tr>
+                                    <th class="table-col-index">#</th>
+                                    <th class="table-col-number">品番</th>
+                                    <th class="table-col-title">標題</th>
+                                    <th class="table-col-actor">演員</th>
+                                    <th class="table-col-maker">廠商</th>
+                                    <th class="table-col-director">導演</th>
+                                    <th class="table-col-duration">時長</th>
+                                    <th class="table-col-date">日期</th>
+                                    <th class="table-col-tags">標籤</th>
+                                    <th class="table-col-size">大小</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="table-row-clickable">
+                                    <td class="table-cell-index">1</td>
+                                    <td class="table-cell-number">
+                                        <span class="table-number-highlight">ABC-001</span>
+                                    </td>
+                                    <td class="table-cell-title">示範影片標題 A</td>
+                                    <td class="table-cell-actor">示範演員</td>
+                                    <td class="table-cell-maker">示範廠商</td>
+                                    <td class="table-cell-director">示範導演</td>
+                                    <td class="table-cell-duration">120 分</td>
+                                    <td class="table-cell-date">2024-01-15</td>
+                                    <td class="table-cell-tags">
+                                        <div class="table-tags-wrapper">
+                                            <span class="table-tag">劇情</span>
+                                            <span class="table-tag">高清</span>
+                                            <span class="table-tag">中文字幕</span>
+                                            <span class="table-tag-more">+2</span>
+                                        </div>
+                                    </td>
+                                    <td class="table-cell-size">
+                                        <span class="table-size-mono">4.2 GB</span>
+                                    </td>
+                                </tr>
+                                <tr class="table-row-clickable">
+                                    <td class="table-cell-index">2</td>
+                                    <td class="table-cell-number">
+                                        <span class="table-number-highlight">DEF-002</span>
+                                    </td>
+                                    <td class="table-cell-title">示範影片標題 B</td>
+                                    <td class="table-cell-actor">示範演員 A, 示範演員 B</td>
+                                    <td class="table-cell-maker">示範廠商</td>
+                                    <td class="table-cell-director">-</td>
+                                    <td class="table-cell-duration">95 分</td>
+                                    <td class="table-cell-date">2024-02-20</td>
+                                    <td class="table-cell-tags">
+                                        <div class="table-tags-wrapper">
+                                            <span class="table-tag">動作</span>
+                                            <span class="table-tag">4K</span>
+                                        </div>
+                                    </td>
+                                    <td class="table-cell-size">
+                                        <span class="table-size-mono">8.7 GB</span>
+                                    </td>
+                                </tr>
+                                <tr class="table-row-clickable">
+                                    <td class="table-cell-index">3</td>
+                                    <td class="table-cell-number">
+                                        <span class="table-number-highlight">GHI-003</span>
+                                    </td>
+                                    <td class="table-cell-title">示範影片標題 C</td>
+                                    <td class="table-cell-actor">示範演員 A</td>
+                                    <td class="table-cell-maker">另一廠商</td>
+                                    <td class="table-cell-director">示範導演 B</td>
+                                    <td class="table-cell-duration">-</td>
+                                    <td class="table-cell-date">2024-03-10</td>
+                                    <td class="table-cell-tags">
+                                        <span class="text-muted">-</span>
+                                    </td>
+                                    <td class="table-cell-size">
+                                        <span class="table-size-mono">2.1 GB</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- List Mode -->
+            <div class="ds-subsection">
+                <h3>List Mode</h3>
+                <p class="ds-desc">清單模式使用 <code>.showcase-list-wrapper</code> + <code>.showcase-list</code>（<code>&lt;ul&gt;</code>）呈現精簡文字列表。每筆包含 <code>.list-number</code>（品番）、<code>.list-title</code>（標題）、<code>.list-actor</code>（演員），<code>.list-item</code> 具備 hover 互動效果。</p>
+
+                <div class="showcase-list-wrapper">
+                    <ul class="showcase-list">
+                        <li class="list-item">
+                            <span class="list-number">ABC-001</span>
+                            <span class="list-title">示範影片標題 A</span>
+                            <span class="list-actor">(示範演員)</span>
+                        </li>
+                        <li class="list-item">
+                            <span class="list-number">DEF-002</span>
+                            <span class="list-title">示範影片標題 B</span>
+                            <span class="list-actor">(示範演員 A, 示範演員 B)</span>
+                        </li>
+                        <li class="list-item">
+                            <span class="list-number">GHI-003</span>
+                            <span class="list-title">示範影片標題 C</span>
+                            <span class="list-actor">(示範演員 A)</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Search Elements -->
+        <section id="ds-search-elements" class="ds-section glass">
+            <h2>Search Elements</h2>
+            <p class="ds-note">Search 頁面專屬元件：Sample Gallery、Shimmer Loading、Cover Actions、Sample Strip</p>
+
+            <!-- Sample Gallery Overlay -->
+            <div class="ds-subsection">
+                <h3>Sample Gallery Overlay</h3>
+                <p class="ds-desc">
+                    全螢幕 sample 圖瀏覽 overlay（<code>.sample-gallery</code>）。原本是 <code>position: fixed; inset: 0</code>，demo 中以相對定位容器模擬。
+                    支援主圖顯示、左右導航、計數器、縮圖列。<code>.show</code> class 控制可見性。
+                </p>
+                <div x-data="{ sgOpen: true, sgIndex: 1 }" style="position: relative; height: 420px; overflow: hidden; background: #000; border-radius: 0.5rem;">
+                    <!-- toggle button outside overlay -->
+                    <button
+                        @click="sgOpen = !sgOpen"
+                        style="position: absolute; top: 0.75rem; left: 0.75rem; z-index: 10; padding: 0.35rem 0.8rem; background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 0.375rem; cursor: pointer; font-size: 0.8rem;"
+                        type="button"
+                        x-text="sgOpen ? '隱藏 Gallery (.show off)' : '顯示 Gallery (.show on)'">
+                    </button>
+
+                    <div class="sample-gallery" :class="{ 'show': sgOpen }" style="position: absolute; inset: 0;">
+                        <!-- 關閉按鈕 -->
+                        <button class="sg-close" @click="sgOpen = false" title="關閉">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+
+                        <!-- 計數器 -->
+                        <div class="sg-counter" x-text="(sgIndex + 1) + ' / 5'"></div>
+
+                        <!-- 主圖 -->
+                        <div class="sg-main-wrap">
+                            <div class="sg-main-img" style="background: var(--color-base-300); width: 100%; height: 260px; display: flex; align-items: center; justify-content: center; color: var(--color-base-content); font-size: 0.9rem; border-radius: 0.25rem;">
+                                Sample Image <span x-text="sgIndex + 1" style="margin-left: 0.3em;"></span>
+                            </div>
+                        </div>
+
+                        <!-- 左右導航 -->
+                        <button class="sg-nav sg-prev" x-show="sgIndex > 0" @click.stop="sgIndex--" title="上一張">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                        <button class="sg-nav sg-next" x-show="sgIndex < 4" @click.stop="sgIndex++" title="下一張">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+
+                        <!-- 縮圖列 -->
+                        <div class="sg-thumbs">
+                            <template x-for="n in [0,1,2,3,4]" :key="n">
+                                <button class="sg-thumb-btn" :class="{ 'sg-thumb-active': n === sgIndex }" @click.stop="sgIndex = n">
+                                    <div class="sg-thumb-img" style="background: var(--color-base-300); width: 60px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: var(--color-base-content); border-radius: 0.2rem;" x-text="n + 1"></div>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                <p class="ds-desc" style="margin-top: 0.75rem;">
+                    Classes：<code>.sample-gallery</code> <code>.show</code> <code>.sg-close</code> <code>.sg-counter</code>
+                    <code>.sg-main-wrap</code> <code>.sg-main-img</code> <code>.sg-nav</code> <code>.sg-prev</code> <code>.sg-next</code>
+                    <code>.sg-thumbs</code> <code>.sg-thumb-btn</code> <code>.sg-thumb-active</code> <code>.sg-thumb-img</code>
+                </p>
+            </div>
+
+            <!-- Shimmer / Skeleton Loading -->
+            <div class="ds-subsection">
+                <h3>Shimmer / Skeleton Loading</h3>
+                <p class="ds-desc">
+                    載入中佔位動畫。兩種使用情境：
+                    (1) <code>.cover-loading-placeholder &gt; .shimmer</code>（詳情封面佔位，<code>position: absolute; inset: 0</code>）；
+                    (2) <code>.skeleton-cover.shimmer</code>（grid card 封面佔位，<code>aspect-ratio: 3/2</code>）。
+                    動畫由 <code>search.css</code> 的 <code>@keyframes shimmer</code> 提供，此處不重複定義。
+                </p>
+                <!-- Note: shimmer animation requires search.css -->
+                <div style="display: flex; gap: 2rem; flex-wrap: wrap; align-items: flex-start; margin-top: 0.75rem;">
+                    <!-- 情境 1: cover-loading-placeholder -->
+                    <div>
+                        <p class="ds-desc" style="margin-bottom: 0.4rem; font-size: 0.8rem;">情境 1：<code>.cover-loading-placeholder &gt; .shimmer</code>（詳情封面）</p>
+                        <div style="position: relative; width: 220px; height: 148px; background: var(--color-base-300); border-radius: 0.375rem; overflow: hidden;">
+                            <div class="cover-loading-placeholder">
+                                <div class="shimmer"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 情境 2: skeleton-cover shimmer -->
+                    <div>
+                        <p class="ds-desc" style="margin-bottom: 0.4rem; font-size: 0.8rem;">情境 2：<code>.skeleton-cover.shimmer</code>（grid card 封面）</p>
+                        <div style="width: 180px;">
+                            <div class="skeleton-cover shimmer"></div>
+                        </div>
+                    </div>
+                </div>
+                <p class="ds-desc" style="margin-top: 0.75rem;">
+                    Classes：<code>.cover-loading-placeholder</code> <code>.shimmer</code> <code>.skeleton-cover</code>
+                </p>
+            </div>
+
+            <!-- Lightbox Cover-Actions -->
+            <div class="ds-subsection">
+                <h3>Lightbox Cover-Actions</h3>
+                <p class="ds-desc">
+                    封面圖上的 glass-circle 按鈕群組（<code>.cover-actions</code>）。
+                    CSS 選擇器為 <code>.lightbox-cover .cover-actions</code>，必須保留 <code>.lightbox-cover</code> 父容器。
+                    預設 <code>opacity: 0</code>，hover <code>.lightbox-cover</code> 時 fade in。
+                    Tooltip 由 CSS <code>::after</code> 從 <code>data-tooltip</code> 屬性讀取，不需 JS。
+                </p>
+                <div style="display: inline-block;">
+                    <div class="lightbox-cover" style="position: relative; width: 240px; height: 160px; background: var(--color-base-300); border-radius: 0.5rem; overflow: hidden; cursor: pointer;">
+                        <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--color-base-content); font-size: 0.85rem;">
+                            Hover me
+                        </div>
+                        <div class="cover-actions">
+                            <button class="lb-action-btn" data-tooltip="返回詳情" aria-label="返回詳情" type="button">
+                                <i class="bi bi-arrow-return-left"></i>
+                            </button>
+                            <button class="lb-action-btn" data-tooltip="開啟資料夾" aria-label="開啟資料夾" type="button">
+                                <i class="bi bi-folder2-open"></i>
+                            </button>
+                            <button class="lb-action-btn" data-tooltip="來源網址" aria-label="來源網址" type="button">
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <p class="ds-desc" style="margin-top: 0.75rem;">
+                    Classes：<code>.lightbox-cover</code>（父容器）<code>.cover-actions</code> <code>.lb-action-btn</code>
+                    屬性：<code>data-tooltip</code>
+                </p>
+            </div>
+
+            <!-- Sample Strip -->
+            <div class="ds-subsection">
+                <h3>Sample Strip</h3>
+                <p class="ds-desc">
+                    水平可捲動縮圖列（<code>.sample-strip</code>）。每張縮圖為 <code>.sample-thumb-btn</code>，active 狀態加 <code>.sample-thumb-active</code>（outline 高亮）。
+                    縮圖高度由 <code>clamp(48px, calc(var(--cover-height, 400px) * 0.18), 120px)</code> 計算；demo 容器設 <code>--cover-height: 400px</code> 讓計算正確。
+                </p>
+                <div style="--cover-height: 400px; max-width: 600px; border: 1px solid var(--color-base-300); border-radius: 0.375rem; padding: 0.5rem; overflow: hidden;" x-data="{ activeThumb: 2 }">
+                    <div class="sample-strip">
+                        <template x-for="n in [0,1,2,3,4,5,6,7]" :key="n">
+                            <button class="sample-thumb-btn" :class="{ 'sample-thumb-active': n === activeThumb }" @click="activeThumb = n" type="button" :title="'Sample ' + (n + 1)">
+                                <div class="sample-thumb-img" style="background: var(--color-base-300); width: 160px; height: 72px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: var(--color-base-content); border-radius: 0.2rem;" x-text="'Sample ' + (n + 1)"></div>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+                <p class="ds-desc" style="margin-top: 0.75rem;">
+                    Classes：<code>.sample-strip</code> <code>.sample-thumb-btn</code> <code>.sample-thumb-active</code> <code>.sample-thumb-img</code>
+                    CSS var：<code>--cover-height</code>
+                </p>
+            </div>
+
         </section>
     </div>
 </div>

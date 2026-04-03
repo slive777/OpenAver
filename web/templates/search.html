@@ -145,7 +145,7 @@
              x-text="(sampleGalleryIndex + 1) + ' / ' + sampleGalleryImages.length"></div>
 
         <!-- 主圖 -->
-        <div class="sg-main-wrap">
+        <div class="sg-main-wrap" @click.self="closeSampleGallery()">
             <img class="sg-main-img"
                  :src="sampleGalleryImages[sampleGalleryIndex]"
                  :alt="t('search.grid.sample_prefix') + ' ' + (sampleGalleryIndex + 1)"

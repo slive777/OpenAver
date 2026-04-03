@@ -611,3 +611,211 @@
   &lt;/button&gt;
 &lt;/div&gt;</code></pre>
 </div>
+
+<!-- D.10: Source Badge Row -->
+<div class="ds-subsection"
+     x-data="{ primary: 'javbus', dmmDisabled: true }">
+    <h3>10. Source Badge Row</h3>
+    <p class="ds-desc">
+        來源狀態列，位於「無碼模式」toggle 下方。有三種狀態：
+        <strong>未啟用</strong>（opacity 0.35，預設）、
+        <strong><code>.source-active</code></strong>（主要來源，accent 顏色）、
+        <strong><code>.source-dmm-disabled</code></strong>（無 proxy 停用，opacity 0.25 + 刪除線）。
+        有碼 badge 可點擊切換主要來源；分隔符 <code>.source-badge-sep</code> 隔開有碼與無碼區段。
+    </p>
+
+    <!-- id="settings-components" is required: settings.css line 4 scopes its .hidden override to
+         #settings-components to avoid overriding Tailwind .hidden globally. The demo wrapper must
+         carry this id so Source Badge styles apply correctly. This is a deliberate coupling —
+         settings.css ships this guard precisely so it can be safely loaded on pages like this. -->
+    <div class="ds-card-demo" id="settings-components" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <div class="source-badges-row mt-2">
+            <small class="settings-hint" style="margin-right: 0.5rem;">主要來源</small>
+
+            <!-- 有碼：JavBus（可點擊切換 primary） -->
+            <span class="inline-flex items-center gap-0.5"
+                  @click="primary = 'javbus'">
+                <span class="text-xs cursor-pointer"
+                      :class="{ 'opacity-30': false }"
+                      x-text="primary === 'javbus' ? '●' : '○'"></span>
+                <span class="badge badge-sm source-badge cursor-pointer"
+                      :class="{ 'source-active': primary === 'javbus' }">JavBus</span>
+            </span>
+
+            <!-- 有碼：DMM（可停用 / 可切換） -->
+            <span class="inline-flex items-center gap-0.5"
+                  @click="!dmmDisabled && (primary = 'dmm')">
+                <span class="text-xs"
+                      :class="{ 'opacity-30': dmmDisabled }"
+                      x-text="primary === 'dmm' ? '●' : '○'"></span>
+                <span class="badge badge-sm source-badge"
+                      :class="{
+                          'source-active': primary === 'dmm' && !dmmDisabled,
+                          'source-dmm-disabled': dmmDisabled,
+                          'cursor-pointer': !dmmDisabled
+                      }">DMM</span>
+            </span>
+
+            <!-- 有碼：Jav321（不可切換 primary，只有啟用/未啟用） -->
+            <span class="badge badge-sm source-badge"
+                  :class="{ 'source-active': primary === 'jav321' }">Jav321</span>
+
+            <!-- 分隔符：有碼 / 無碼 -->
+            <span class="source-badge-sep">|</span>
+
+            <!-- 無碼：AVSOX -->
+            <span class="badge badge-sm source-badge source-active">AVSOX</span>
+
+            <!-- 無碼：FC2 -->
+            <span class="badge badge-sm source-badge">FC2</span>
+        </div>
+
+        <!-- 切換狀態控制按鈕（demo 專用） -->
+        <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+            <small style="color: var(--text-muted);">切換示範：</small>
+            <button class="btn btn-xs btn-outline" @click="primary = 'javbus'; dmmDisabled = true">JavBus 為主 + DMM 停用</button>
+            <button class="btn btn-xs btn-outline" @click="primary = 'javbus'; dmmDisabled = false">JavBus 為主 + DMM 可用</button>
+            <button class="btn btn-xs btn-outline" @click="primary = 'dmm'; dmmDisabled = false">DMM 為主</button>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;!-- 父層需有 id="settings-components"（CSS scope guard）--&gt;
+&lt;div class="source-badges-row"&gt;
+  &lt;!-- 有碼：可切換 primary --&gt;
+  &lt;span class="inline-flex items-center gap-0.5"&gt;
+    &lt;span x-text="primary === src ? '●' : '○'"&gt;&lt;/span&gt;
+    &lt;span class="badge badge-sm source-badge"
+          :class="{
+            'source-active': primary === src,
+            'source-dmm-disabled': src === 'dmm' &amp;&amp; !dmmAvail,
+            'cursor-pointer': src === 'javbus' || dmmAvail
+          }"&gt;來源名稱&lt;/span&gt;
+  &lt;/span&gt;
+
+  &lt;!-- 分隔符 --&gt;
+  &lt;span class="source-badge-sep"&gt;|&lt;/span&gt;
+
+  &lt;!-- 無碼：僅啟用狀態 --&gt;
+  &lt;span class="badge badge-sm source-badge source-active"&gt;無碼來源&lt;/span&gt;
+&lt;/div&gt;</code></pre>
+</div>
+
+<!-- D.11: Font Size Control -->
+<div class="ds-subsection"
+     x-data="{ fontSize: 'md' }">
+    <h3>11. Font Size Control</h3>
+    <p class="ds-desc">
+        Settings header 右上角的 5 段字型大小快速切換器（xs / sm / md / lg / xl）。
+        按鈕文字統一顯示「A」，但各自套用對應的 <code>font-size</code>，視覺上呈現從小到大的漸變。
+        active 狀態套用 <code>.active</code> class，顯示 accent 背景色。
+    </p>
+
+    <div class="ds-card-demo" style="max-width: 400px; margin: 0 auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; align-items: flex-start;">
+        <div class="font-size-control">
+            <template x-for="s in [{k:'xs',l:'A'},{k:'sm',l:'A'},{k:'md',l:'A'},{k:'lg',l:'A'},{k:'xl',l:'A'}]" :key="s.k">
+                <button type="button"
+                        class="font-size-btn"
+                        :class="{ active: fontSize === s.k }"
+                        :style="'font-size:' + {xs:'0.7rem',sm:'0.8rem',md:'0.9rem',lg:'1.05rem',xl:'1.2rem'}[s.k]"
+                        @click="fontSize = s.k"
+                        :title="'字型大小：' + s.k"
+                        x-text="s.l">
+                </button>
+            </template>
+        </div>
+        <small style="color: var(--text-muted);">目前選擇：<code x-text="fontSize"></code></small>
+    </div>
+
+    <pre class="ds-code"><code>&lt;div class="font-size-control"&gt;
+  &lt;template x-for="s in [{k:'xs',l:'A'},{k:'sm',l:'A'},{k:'md',l:'A'},{k:'lg',l:'A'},{k:'xl',l:'A'}]"&gt;
+    &lt;button type="button"
+            class="font-size-btn"
+            :class="{ active: fontSize === s.k }"
+            :style="'font-size:' + {xs:'0.7rem',sm:'0.8rem',md:'0.9rem',lg:'1.05rem',xl:'1.2rem'}[s.k]"
+            @click="fontSize = s.k"
+            x-text="s.l"&gt;
+    &lt;/button&gt;
+  &lt;/template&gt;
+&lt;/div&gt;</code></pre>
+</div>
+
+<!-- D.12: User Tag Editor -->
+<div class="ds-subsection"
+     x-data="{
+         tags: ['劇情', '高清'],
+         userTags: ['我的標籤'],
+         addingTag: false,
+         newTagValue: '',
+         removeUserTag(tag) { this.userTags = this.userTags.filter(t => t !== tag); },
+         showAddTagInput() { this.addingTag = true; this.$nextTick(() => this.$refs.tagInputDemo && this.$refs.tagInputDemo.focus()); },
+         confirmAddTag() {
+             const v = this.newTagValue.trim();
+             if (v && !this.userTags.includes(v)) this.userTags.push(v);
+             this.newTagValue = '';
+             this.addingTag = false;
+         },
+         cancelAddTag() { this.newTagValue = ''; this.addingTag = false; }
+     }">
+    <h3>12. User Tag Editor</h3>
+    <p class="ds-desc">
+        來源：<code>search.html</code> 詳情面板的標籤編輯器。
+        分為系統 tag（<code>.tag-badge</code>，唯讀）和用戶 tag（<code>.tag-badge.user-tag</code>，可刪除）。
+        點「+」顯示輸入框，輸入後按 ✓ 或 Enter 新增；點 × 刪除 user tag；Escape 取消。
+    </p>
+
+    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <span class="info-value" style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
+            <!-- 系統 tag（唯讀） -->
+            <template x-for="tag in tags" :key="tag">
+                <span class="badge tag-badge" x-text="tag"></span>
+            </template>
+
+            <!-- 用戶 tag（可刪除） -->
+            <template x-for="tag in userTags" :key="'u_' + tag">
+                <span class="badge tag-badge user-tag">
+                    <span x-text="tag"></span>
+                    <span class="tag-remove" @click="removeUserTag(tag)">&times;</span>
+                </span>
+            </template>
+
+            <!-- 新增按鈕 -->
+            <button x-show="!addingTag" @click="showAddTagInput()" class="btn btn-sm tag-add-btn" title="新增標籤">+</button>
+
+            <!-- 新增輸入框 -->
+            <span x-show="addingTag" class="tag-input-wrapper">
+                <input type="text"
+                       x-ref="tagInputDemo"
+                       x-model="newTagValue"
+                       @keydown.enter="confirmAddTag()"
+                       @keydown.escape="cancelAddTag()"
+                       class="tag-input"
+                       placeholder="輸入標籤"
+                       maxlength="20">
+                <button @click="confirmAddTag()" class="btn btn-sm tag-confirm">✓</button>
+                <button @click="cancelAddTag()" class="btn btn-sm tag-cancel">✕</button>
+            </span>
+        </span>
+    </div>
+
+    <pre class="ds-code"><code>&lt;!-- 系統 tag（唯讀）--&gt;
+&lt;span class="badge tag-badge" x-text="tag"&gt;&lt;/span&gt;
+
+&lt;!-- 用戶 tag（可刪除）--&gt;
+&lt;span class="badge tag-badge user-tag"&gt;
+  &lt;span x-text="tag"&gt;&lt;/span&gt;
+  &lt;span class="tag-remove" @click="removeUserTag(tag)"&gt;&amp;times;&lt;/span&gt;
+&lt;/span&gt;
+
+&lt;!-- 新增按鈕 --&gt;
+&lt;button x-show="!addingTag" @click="showAddTagInput()"
+        class="btn btn-sm tag-add-btn"&gt;+&lt;/button&gt;
+
+&lt;!-- 新增輸入框 --&gt;
+&lt;span x-show="addingTag" class="tag-input-wrapper"&gt;
+  &lt;input type="text" x-model="newTagValue"
+         @keydown.enter="confirmAddTag()" @keydown.escape="cancelAddTag()"
+         class="tag-input" placeholder="輸入標籤"&gt;
+  &lt;button @click="confirmAddTag()" class="btn btn-sm tag-confirm"&gt;✓&lt;/button&gt;
+  &lt;button @click="cancelAddTag()" class="btn btn-sm tag-cancel"&gt;✕&lt;/button&gt;
+&lt;/span&gt;</code></pre>
+</div>

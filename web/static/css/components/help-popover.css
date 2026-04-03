@@ -1,5 +1,10 @@
 /* Help Popover — inline question-circle + 浮動說明框 */
 
+/* Popover 錨點容器（提供 position: relative 以支援 .help-popover 絕對定位） */
+.popover-anchor {
+    position: relative;
+}
+
 /* 觸發按鈕 */
 .help-popover-btn {
     cursor: pointer;

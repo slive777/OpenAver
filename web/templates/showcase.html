@@ -338,8 +338,7 @@
         <!-- Lightbox (M3a) -->
         <div class="showcase-lightbox"
              :class="{ 'show': lightboxOpen }"
-             @click="handleLightboxBackdropClick($event)"
-             @mousemove="handleLightboxMousemove($event)">
+             @click="handleLightboxBackdropClick($event)">
 
             <div class="lightbox-content" @click.stop>
                 <!-- Close Button -->
@@ -466,7 +465,7 @@
              x-text="(sampleGalleryIndex + 1) + ' / ' + sampleGalleryImages.length"></div>
 
         <!-- 主圖 -->
-        <div class="sg-main-wrap">
+        <div class="sg-main-wrap" @click.self="closeSampleGallery()">
             <img class="sg-main-img"
                  :src="sampleGalleryImages[sampleGalleryIndex]"
                  :alt="t('showcase.gallery.sample_alt') + ' ' + (sampleGalleryIndex + 1)"

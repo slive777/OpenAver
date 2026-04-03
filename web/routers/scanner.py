@@ -20,9 +20,11 @@ Scanner API 路由 - 影片列表生成
 - GET  /api/gallery/jellyfin-update       — 批次產生 Jellyfin poster + fanart（SSE 串流）
 """
 
+import asyncio
 import base64
 import json
 import os
+import time
 import requests
 from datetime import datetime
 from urllib.parse import unquote, quote
@@ -47,6 +49,10 @@ from core.logger import get_logger
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/gallery", tags=["gallery"])
+
+# T3(40c): Jellyfin check TTL 快取（60 秒）
+_jellyfin_cache_result: dict | None = None
+_jellyfin_cache_time: float = 0
 
 
 def _sse_event(data: dict) -> str:
@@ -335,6 +341,11 @@ def generate_avlist() -> Generator[str, None, None]:
 
         logger.info(f"[Gallery] 完成，新增 {total_inserted}，更新 {total_updated}，刪除 {total_deleted}")
 
+        # T3(40c) Codex fix: generate 後清空 jellyfin check 快取
+        global _jellyfin_cache_result, _jellyfin_cache_time
+        _jellyfin_cache_result = None
+        _jellyfin_cache_time = 0
+
         yield _sse_event({
             "type": "done",
             "video_count": len(all_videos),
@@ -349,6 +360,10 @@ def generate_avlist() -> Generator[str, None, None]:
 
     except Exception as e:
         logger.error("產生影片列表失敗: %s", e)
+        # T3(40c) Codex fix: exception 路徑也清空快取（DB 可能已被修改）
+        # global 已在 try 區塊宣告，此處直接賦值即可
+        _jellyfin_cache_result = None
+        _jellyfin_cache_time = 0
         yield _sse_event({"type": "error", "message": "產生影片列表失敗"})
 
 
@@ -402,6 +417,10 @@ async def clear_cache():
 
         repo = VideoRepository(db_path)
         deleted = repo.clear_all()
+        # T3(40c): 清空 jellyfin check 快取
+        global _jellyfin_cache_result, _jellyfin_cache_time
+        _jellyfin_cache_result = None
+        _jellyfin_cache_time = 0
         return {"success": True, "deleted": deleted}
     except Exception as e:
         logger.error("清除快取失敗: %s", e)
@@ -934,6 +953,7 @@ def check_jellyfin_images_needed(repo: VideoRepository) -> dict:
 
 def generate_jellyfin_images_stream() -> Generator[str, None, None]:
     """SSE 串流：批次為影片產生 poster + fanart"""
+    global _jellyfin_cache_result, _jellyfin_cache_time
 
     try:
         db_path = get_db_path()
@@ -948,6 +968,8 @@ def generate_jellyfin_images_stream() -> Generator[str, None, None]:
         total = len(items)
 
         if total == 0:
+            _jellyfin_cache_result = None
+            _jellyfin_cache_time = 0
             yield _sse_event({"type": "done", "message": "沒有需要補齊的影片", "updated": 0})
             return
 
@@ -975,6 +997,9 @@ def generate_jellyfin_images_stream() -> Generator[str, None, None]:
             else:
                 yield _sse_event({"type": "log", "level": "warn", "message": f"{num} poster 裁切失敗"})
 
+        # T3(40c): 清空快取，讓下次 check 反映最新圖片狀態
+        _jellyfin_cache_result = None
+        _jellyfin_cache_time = 0
         yield _sse_event({"type": "done", "message": f"完成！已補齊 {total} 部影片的 Jellyfin 圖片"})
 
     except Exception as e:
@@ -985,12 +1010,23 @@ def generate_jellyfin_images_stream() -> Generator[str, None, None]:
 @router.get("/jellyfin-check")
 async def jellyfin_image_check():
     """檢查多少影片需要補齊 Jellyfin 圖片"""
+    global _jellyfin_cache_result, _jellyfin_cache_time
     try:
         db_path = get_db_path()
         if not db_path.exists():
             return {"success": True, "data": {"need_update": 0}}
+
+        # T3(40c): TTL 快取命中
+        if _jellyfin_cache_result is not None and time.time() - _jellyfin_cache_time < 60:
+            return {"success": True, "data": {"need_update": _jellyfin_cache_result['need_update']}}
+
         repo = VideoRepository(db_path)
-        result = check_jellyfin_images_needed(repo)
+        result = await asyncio.to_thread(check_jellyfin_images_needed, repo)
+
+        # T3(40c): 更新快取
+        _jellyfin_cache_result = result
+        _jellyfin_cache_time = time.time()
+
         return {"success": True, "data": {"need_update": result['need_update']}}
     except Exception as e:
         logger.error("檢查 Jellyfin 圖片狀態失敗: %s", e)

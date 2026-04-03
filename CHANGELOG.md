@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.4] - 2026-04-04
+
+### Added
+
+#### 🔧 Scanner 改善 (Phase 40c)
+- Jellyfin 圖片檢查改為手動觸發（AbortController + 三狀態機）
+- jellyfin-check TTL 60 秒快取（HDD NAS 用戶重複點擊不再重跑全量掃描）
+
+#### 📦 打包修復 + 文件 (Phase 38e)
+- 「下載劇照」拆分為獨立設定，與 Jellyfin 模式解耦
+- 新增 README_EN.md 英文版 + 繁中版語系切換連結
+- README.md 繁中版內容更新（v0.6.x 功能同步）
+
+### Changed
+
+#### 🎨 前端品質改善 (Phase 40a–40d)
+- Design System 各頁元件 Demo 補齊（Showcase / Search / Settings / Help / Motion Lab）
+- 頁面生命週期強化：interval 具名 ref + timer/listener 記憶體洩漏清理 + settings lifecycle gate
+- Showcase Lightbox 關閉行為對齊 Search（移除 mousemove anti-pattern + 1 秒延遲門控）
+- Showcase 鍵盤 preventDefault + 動畫 optional chaining 對齊 Search
+- Sample Gallery 背景點擊關閉修正（sg-main-wrap @click.self）
+
+### Fixed
+
+#### 🐛 關鍵修復
+- 打包遺漏 locales 目錄（i18n 所有 UI 文字全空修復）
+- jellyfin_image_check asyncio.to_thread 消除 event loop 阻塞
+- NFO 補全移除 series/label 必查 + Jellyfin 封面提示優化
+- Inline Style 清理 + DS scope guard 移除
+
 ## [0.6.3] - 2026-04-02
 
 ### Changed

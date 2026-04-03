@@ -50,9 +50,10 @@ window.SearchStateMixin_Batch = {
             // 支援暫停
             if (batch.isPaused) {
                 await new Promise(resolve => {
-                    const checkInterval = setInterval(() => {
+                    this._batchCheckInterval = setInterval(() => {
                         if (!batch.isPaused) {
-                            clearInterval(checkInterval);
+                            clearInterval(this._batchCheckInterval);
+                            this._batchCheckInterval = null;
                             resolve();
                         }
                     }, 100);
@@ -144,9 +145,10 @@ window.SearchStateMixin_Batch = {
         for (const result of translatableResults) {
             if (ts.isPaused) {
                 await new Promise(resolve => {
-                    const checkInterval = setInterval(() => {
+                    this._translateCheckInterval = setInterval(() => {
                         if (!ts.isPaused) {
-                            clearInterval(checkInterval);
+                            clearInterval(this._translateCheckInterval);
+                            this._translateCheckInterval = null;
                             resolve();
                         }
                     }, 100);

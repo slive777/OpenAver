@@ -854,7 +854,7 @@ body {
 }
 
 /* Manual Input Row */
-:is(#ds-gallery-components, .ds-gallery-composition) .manual-input {
+.manual-input {
     display: none; /* 由 JS 控制 */
     padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--border-light);
@@ -862,7 +862,7 @@ body {
     background: var(--bg-body);
 }
 
-:is(#ds-gallery-components, .ds-gallery-composition) .manual-input input {
+.manual-input input {
     flex: 1;
 }
 
@@ -2239,4 +2239,14 @@ body.fluent-canvas:not(.ds-page)::before {
         radial-gradient(ellipse 100% 60% at 50% -10%, rgba(var(--ds-glow-rgb), 0.06), transparent),
         radial-gradient(ellipse 70% 50% at 100% 100%, oklch(55% 0.15 260 / 0.05), transparent),
         var(--bg-body);
+}
+
+/* ==================== Utility Classes ==================== */
+
+/* 圖片填滿容器（等同 CSS object-fit: cover + display: block） */
+.img-cover-fill {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }

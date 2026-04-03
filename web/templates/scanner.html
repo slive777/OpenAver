@@ -44,8 +44,7 @@
 
         <div class="avlist-card-body">
             <!-- Manual Input (hidden by default) -->
-            <div class="manual-input" x-show="manualInputVisible"
-                style="padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-light);">
+            <div class="manual-input" x-show="manualInputVisible">
                 <input type="text" class="input input-bordered input-sm" id="manualPath"
                        x-ref="manualPathInput"
                        x-model="manualPath" placeholder="{{ t('scanner.folder.placeholder') }}"
@@ -170,6 +169,33 @@
                     x-html="nfoUpdateButtonText"
                     title="{{ t('scanner.stats.nfo_update_title') }}">
             </button>
+        </div>
+        <!-- T2(40c): Jellyfin 圖片檢查觸發列 -->
+        <!-- T3(40c) Codex fix: x-show 改為 !jellyfinImageVisible，done 狀態仍顯示觸發列 -->
+        <div class="nfo-update-row"
+             x-show="config?.scraper?.jellyfin_mode && !jellyfinImageVisible">
+            <span class="nfo-badge">
+                <i class="bi bi-image"></i>
+                <span x-show="jellyfinCheckState === 'idle'">
+                    {{ t('scanner.stats.jellyfin_check_idle_label') }}
+                </span>
+                <span x-show="jellyfinCheckState === 'checking'">
+                    {{ t('scanner.stats.jellyfin_checking') }}
+                </span>
+                <span x-show="jellyfinCheckState === 'done'">
+                    {{ t('scanner.stats.jellyfin_check_done_ok') }}
+                </span>
+            </span>
+            <button class="btn-nfo-update"
+                    @click="checkJellyfinImages()"
+                    :disabled="jellyfinCheckState === 'checking' || isGenerating"
+                    x-show="jellyfinCheckState !== 'checking'">
+                <i class="bi bi-search"></i>
+                <span x-show="jellyfinCheckState === 'idle'">{{ t('scanner.stats.jellyfin_check_btn') }}</span>
+                <span x-show="jellyfinCheckState === 'done'">{{ t('scanner.stats.jellyfin_check_btn') }}</span>
+            </button>
+            <span x-show="jellyfinCheckState === 'checking'"
+                  class="loading loading-spinner loading-sm"></span>
         </div>
         <!-- Jellyfin 圖片補齊列（只在 jellyfin_mode 開啟時顯示） -->
         <div class="nfo-update-row" x-show="jellyfinImageVisible">
@@ -426,6 +452,8 @@ function scannerPage() {
     jellyfinImageCount: 0,
     jellyfinImageVisible: false,
     showJellyfinHelp: false,
+    jellyfinCheckState: 'idle',   // T2(40c): 'idle' | 'checking' | 'done'
+    _jellyfinCheckController: null,
 
     // ===== T7b: EventSource 管理 =====
     eventSource: null,
@@ -509,7 +537,6 @@ function scannerPage() {
         // 初始載入
         await this.loadConfig();
         this.loadStats();
-        this.checkJellyfinImages();
 
         // T7b: 恢復日誌（確保 DOM 已渲染）
         await this.$nextTick();
@@ -526,7 +553,16 @@ function scannerPage() {
                             this.dirtyCheckModalOpen = true;
                             return false;
                         } else {
-                            return confirm(guard.message + '確定要離開嗎？');
+                            const ok = confirm(guard.message + '確定要離開嗎？');
+                            if (ok) {
+                                // T2(40c): 離頁確認後 abort jellyfin check
+                                if (this._jellyfinCheckController) {
+                                    this._jellyfinCheckController.abort();
+                                    this._jellyfinCheckController = null;
+                                }
+                                this.jellyfinCheckState = 'idle';
+                            }
+                            return ok;
                         }
                     }
                     return true;
@@ -541,6 +577,12 @@ function scannerPage() {
                     clearTimeout(this._toastTimer);
                     clearTimeout(this.logTimer);
                     clearTimeout(this.previewDebounceTimer);
+                    // T2(40c): abort jellyfin check fetch
+                    if (this._jellyfinCheckController) {
+                        this._jellyfinCheckController.abort();
+                        this._jellyfinCheckController = null;
+                    }
+                    this.jellyfinCheckState = 'idle';
                 }
             });
         }
@@ -553,6 +595,14 @@ function scannerPage() {
             return {
                 shouldWarn: true,
                 message: '生成正在進行中，離開將會中斷操作！',
+                useModal: false
+            };
+        }
+        // T2(40c): Jellyfin check 進行中觸發離頁確認
+        if (this.jellyfinCheckState === 'checking') {
+            return {
+                shouldWarn: true,
+                message: 'Jellyfin 圖片檢查進行中，離開將會中斷！',
                 useModal: false
             };
         }
@@ -657,6 +707,7 @@ function scannerPage() {
                 this.statsVisible = false;
                 this.nfoUpdateVisible = false;
                 this.jellyfinImageVisible = false;
+                this.jellyfinCheckState = 'idle';
                 this.clearCacheModalOpen = false;
             } else {
                 this.showToast('清除失敗: ' + (result.error || '未知錯誤'), 'error');
@@ -671,18 +722,44 @@ function scannerPage() {
     // ===== T6d: Jellyfin Image Check =====
     async checkJellyfinImages() {
         if (!this.config?.scraper?.jellyfin_mode) return;
+
+        // T2(40c): 取消上一次未完成的請求（防重複點擊）
+        if (this._jellyfinCheckController) {
+            this._jellyfinCheckController.abort();
+        }
+        const controller = new AbortController();
+        this._jellyfinCheckController = controller;
+        this.jellyfinCheckState = 'checking';
+
         try {
-            const resp = await fetch('/api/gallery/jellyfin-check');
+            const resp = await fetch('/api/gallery/jellyfin-check', {
+                signal: controller.signal
+            });
             const data = await resp.json();
-            if (data.success && data.data.need_update > 0) {
+            if (!data.success) {
+                console.error('Jellyfin check API error:', data.error);
+                this.jellyfinCheckState = 'idle';
+                return;
+            }
+            if (data.data.need_update > 0) {
                 this.jellyfinImageCount = data.data.need_update;
                 this.jellyfinImageVisible = true;
             } else {
                 this.jellyfinImageCount = 0;
                 this.jellyfinImageVisible = false;
             }
+            this.jellyfinCheckState = 'done';
         } catch (e) {
-            console.error('Jellyfin check 失敗:', e);
+            if (e.name === 'AbortError') {
+                this.jellyfinCheckState = 'idle';
+                return;
+            }
+            console.error('Jellyfin check failed:', e);
+            this.jellyfinCheckState = 'idle';
+        } finally {
+            if (this._jellyfinCheckController === controller) {
+                this._jellyfinCheckController = null;
+            }
         }
     },
 
@@ -1046,7 +1123,6 @@ function scannerPage() {
 
                     // 刷新統計（不含 NFO 檢查）
                     this.loadStats();
-                    this.checkJellyfinImages();
 
                     // 更新資料夾快照（generate 成功視為儲存）
                     this.folderSnapshot = JSON.stringify(this.directories);
@@ -1193,14 +1269,16 @@ function scannerPage() {
                     localStorage.setItem('avlist_generating', 'false');
                     localStorage.setItem('avlist_last_status', data.message || '完成');
 
+                    // T3(40c) Codex fix: update 完成後重設 jellyfin check 狀態，讓觸發列重新出現
+                    this.jellyfinImageVisible = false;
+                    this.jellyfinImageCount = 0;
+                    this.jellyfinCheckState = 'idle';
+
                     this.showToast('補齊完成！', 'success');
                     if (data.message) {
                         this.addLog('info', data.message);
                     }
                     this.flushLogs();
-
-                    // 重新檢查實際檔案狀態（部分失敗時仍有缺圖）
-                    this.checkJellyfinImages();
                 } else if (data.type === 'error') {
                     this.eventSource.close();
                     this.eventSource = null;

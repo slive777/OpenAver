@@ -65,7 +65,7 @@
                     </label>
                 </div>
 
-                <div class="settings-form-group" style="position: relative;">
+                <div class="settings-form-group popover-anchor">
                     <label class="settings-label">
                         <input type="checkbox" class="toggle toggle-primary"
                                x-model="form.downloadSampleImages">
@@ -458,7 +458,7 @@
 
                     <div class="settings-form-row">
                         <label class="row-label" for="maxFilenameLength">{{ t('settings.scraper.max_filename_length_label') }}</label>
-                        <div class="input-group-inline" style="position: relative;">
+                        <div class="input-group-inline popover-anchor">
                             <input type="number" class="input input-bordered input-sm" id="maxFilenameLength"
                                 x-model.number="form.maxFilenameLength" min="50" max="255">
                             <span class="input-suffix">{{ t('settings.scraper.unit_chars') }}</span>

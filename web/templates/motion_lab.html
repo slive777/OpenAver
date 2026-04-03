@@ -557,6 +557,142 @@
 @media (max-width: 480px) {
     .motion-lab-container .showcase-grid { grid-template-columns: 1fr; padding: 1rem; }
 }
+
+/* ===== CSS Animations Tab — 內聯 critical CSS（search.css + showcase.css 未在 motion-lab 載入）===== */
+
+/* Shimmer Pulse（from search.css L670–690） */
+.css-anim-demos .skeleton-cover {
+    aspect-ratio: 3/2;
+    background: var(--color-base-300);
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.css-anim-demos .shimmer {
+    background: linear-gradient(
+        90deg,
+        var(--color-base-300) 25%,
+        var(--color-base-200) 50%,
+        var(--color-base-300) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+}
+/* @keyframes shimmer 定義於檔尾全域 style block，此處不重複宣告 */
+
+/* Cover-Actions Reveal（from showcase.css L554–627） */
+.css-anim-demos .lightbox-cover .cover-actions {
+    position: absolute;
+    bottom: 0;
+    left: 0; right: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    padding-bottom: 20px;
+    gap: 12px;
+    background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 60%, transparent 100%);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-out);
+}
+.css-anim-demos .lightbox-cover:hover .cover-actions,
+.css-anim-demos .lightbox-cover:focus-within .cover-actions {
+    opacity: 1;
+}
+.css-anim-demos .lb-action-btn {
+    position: relative;
+    width: 46px; height: 46px;
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: white;
+    font-size: 1.125rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: background var(--duration-fast) var(--ease-out),
+                border-color var(--duration-fast) var(--ease-out),
+                transform var(--duration-fast) var(--ease-out),
+                box-shadow var(--duration-fast) var(--ease-out);
+}
+.css-anim-demos .lb-action-btn:hover {
+    background: rgba(255,255,255,0.3);
+    border-color: rgba(255,255,255,0.6);
+    transform: scale(1.08);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+}
+.css-anim-demos .lb-action-btn:active {
+    transform: scale(0.95);
+}
+.css-anim-demos .lb-action-btn[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    padding: 0.25rem 0.625rem;
+    background: rgba(0,0,0,0.75);
+    color: white;
+    font-size: 0.75rem;
+    border-radius: var(--radius-sm);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-out);
+}
+.css-anim-demos .lb-action-btn[data-tooltip]:hover::after,
+.css-anim-demos .lb-action-btn[data-tooltip]:focus-visible::after {
+    opacity: 1;
+}
+
+/* Dropdown Appear（from showcase.css L74–128） */
+.css-anim-demos .toolbar-dropdown-wrap {
+    position: relative;
+}
+.css-anim-demos .toolbar-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 0.5rem;
+    min-width: 150px;
+    background: var(--surface-2);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    padding: 0.375rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    z-index: 200;
+}
+.css-anim-demos .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.4rem 0.625rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    transition: background var(--duration-fast) var(--ease-out),
+                color var(--duration-fast) var(--ease-out);
+    white-space: nowrap;
+}
+.css-anim-demos .dropdown-item:hover {
+    background: var(--glow-subtle);
+    color: var(--text-primary);
+}
+.css-anim-demos .dropdown-item.active {
+    background: var(--accent);
+    color: var(--color-primary-content);
+    font-weight: 500;
+}
+.css-anim-demos .dropdown-item i {
+    font-size: 0.9375rem;
+    flex-shrink: 0;
+    width: 1.125rem;
+    text-align: center;
+}
 </style>
 {% endblock %}
 
@@ -1524,6 +1660,11 @@
                     @click="tab = 'popover'">
                 Popover
             </button>
+            <button class="motion-lab-tab"
+                    :class="{ active: tab === 'css-animations' }"
+                    @click="tab = 'css-animations'">
+                CSS Animations
+            </button>
         </div>
     </div>
 
@@ -2094,7 +2235,7 @@
                             <img :src="video.cover_url"
                                  :alt="video.number"
                                  loading="lazy"
-                                 style="width:100%; height:100%; object-fit:cover; display:block;">
+                                 class="img-cover-fill">
                         </template>
                         <template x-if="!video.cover_url">
                             <div class="av-card-no-cover">
@@ -2125,7 +2266,7 @@
                         <!-- 填入狀態：有封面 -->
                         <template x-if="card !== null && card.cover_url">
                             <img :src="card.cover_url" :alt="card.number" loading="lazy"
-                                 style="width:100%; height:100%; object-fit:cover; display:block;">
+                                 class="img-cover-fill">
                         </template>
                         <!-- 填入狀態：無封面 -->
                         <template x-if="card !== null && !card.cover_url">
@@ -2155,7 +2296,7 @@
                     <img x-ref="stagingImg"
                          :src="stagingCurrentCover || ''"
                          x-show="stagingCurrentCover"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                     <div class="av-card-no-cover" x-show="!stagingCurrentCover && stagingFilled === 0">
                         <i class="bi bi-hourglass-split"></i>
                         <span>等待中</span>
@@ -2189,7 +2330,7 @@
                         <!-- 填入狀態：有封面 -->
                         <template x-if="card !== null && card.cover_url">
                             <img :src="card.cover_url" :alt="card.number" loading="lazy"
-                                 style="width:100%; height:100%; object-fit:cover; display:block;">
+                                 class="img-cover-fill">
                         </template>
                         <!-- 填入狀態：無封面 -->
                         <template x-if="card !== null && !card.cover_url">
@@ -2220,7 +2361,7 @@
                             <img :src="video.cover_url"
                                  :alt="video.number"
                                  loading="lazy"
-                                 style="width:100%; height:100%; object-fit:cover; display:block;">
+                                 class="img-cover-fill">
                         </template>
                         <template x-if="!video.cover_url">
                             <div class="av-card-no-cover">
@@ -2255,7 +2396,7 @@
                     <!-- 填充態：模擬 actressProfile 圖片 -->
                     <img :src="heroActressProfile?.cover_url || ''"
                          x-show="_heroFilled && heroActressProfile?.cover_url"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                     <!-- 填充態：無封面 -->
                     <div class="av-card-no-cover"
                          x-show="_heroFilled && heroActressProfile && !heroActressProfile.cover_url">
@@ -2280,7 +2421,7 @@
                         <!-- 填入狀態：有封面 -->
                         <template x-if="card !== null && card.cover_url">
                             <img :src="card.cover_url" :alt="card.number" loading="lazy"
-                                 style="width:100%; height:100%; object-fit:cover; display:block;">
+                                 class="img-cover-fill">
                         </template>
                         <!-- 填入狀態：無封面 -->
                         <template x-if="card !== null && !card.cover_url">
@@ -2309,7 +2450,7 @@
                     <img src="/static/img/showcase/sc-1.jpg"
                          alt="Showcase 1"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">fanart11 #14</span>
@@ -2320,7 +2461,7 @@
                     <img src="/static/img/showcase/sc-2.jpg"
                          alt="Showcase 2"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">fanart12 #7</span>
@@ -2331,7 +2472,7 @@
                     <img src="/static/img/showcase/sc-3.jpg"
                          alt="Showcase 3"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">fanart13 #19</span>
@@ -2342,7 +2483,7 @@
                     <img src="/static/img/showcase/sc-4.jpg"
                          alt="Showcase 4"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">miru SONE-830 #3</span>
@@ -2353,7 +2494,7 @@
                     <img src="/static/img/showcase/sc-5.jpg"
                          alt="Showcase 5"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">miru SONE-920 #11</span>
@@ -2364,7 +2505,7 @@
                     <img src="/static/img/showcase/sc-6.jpg"
                          alt="Showcase 6"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">七ツ森りり SONE-917 #16</span>
@@ -2375,7 +2516,7 @@
                     <img src="/static/img/showcase/sc-7.jpg"
                          alt="Showcase 7"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">三田真鈴 SONE-671 #1</span>
@@ -2386,7 +2527,7 @@
                     <img src="/static/img/showcase/sc-8.jpg"
                          alt="Showcase 8"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">五日市芽依 WAAA-557 #20</span>
@@ -2397,7 +2538,7 @@
                     <img src="/static/img/showcase/sc-9.jpg"
                          alt="Showcase 9"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">五芭 FOCS-257 #8</span>
@@ -2408,7 +2549,7 @@
                     <img src="/static/img/showcase/sc-10.jpg"
                          alt="Showcase 10"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">佐々木さき IPZZ-709 #5</span>
@@ -2419,7 +2560,7 @@
                     <img src="/static/img/showcase/sc-11.jpg"
                          alt="Showcase 11"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">倉本すみれ HMN-713 #18</span>
@@ -2430,7 +2571,7 @@
                     <img src="/static/img/showcase/sc-12.jpg"
                          alt="Showcase 12"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">吉高寧々 FNS-089 #12</span>
@@ -2441,7 +2582,7 @@
                     <img src="/static/img/showcase/sc-13.jpg"
                          alt="Showcase 13"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">天馬ゆい LULU-198 #6</span>
@@ -2452,7 +2593,7 @@
                     <img src="/static/img/showcase/sc-14.jpg"
                          alt="Showcase 14"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">宮下玲奈 MIDA-241 #9</span>
@@ -2463,7 +2604,7 @@
                     <img src="/static/img/showcase/sc-15.jpg"
                          alt="Showcase 15"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">小倉由菜 START-344 #15</span>
@@ -2474,7 +2615,7 @@
                     <img src="/static/img/showcase/sc-16.jpg"
                          alt="Showcase 16"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">小倉由菜 START-370 #2</span>
@@ -2485,7 +2626,7 @@
                     <img src="/static/img/showcase/sc-17.jpg"
                          alt="Showcase 17"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">小倉由菜 START-453 #10</span>
@@ -2496,7 +2637,7 @@
                     <img src="/static/img/showcase/sc-18.jpg"
                          alt="Showcase 18"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">小倉由菜 唯井まひろ START-368 #17</span>
@@ -2507,7 +2648,7 @@
                     <img src="/static/img/showcase/sc-19.jpg"
                          alt="Showcase 19"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">小坂七香 SONE-238 #4</span>
@@ -2518,7 +2659,7 @@
                     <img src="/static/img/showcase/sc-20.jpg"
                          alt="Showcase 20"
                          loading="lazy"
-                         style="width:100%; height:100%; object-fit:cover; display:block;">
+                         class="img-cover-fill">
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">小島みなみ JUR-002 #13</span>
@@ -2569,6 +2710,98 @@
                 背景色 <code>--color-base-200</code> 自動跟隨 Light/Dark 主題 ·
                 陰影 <code>--fluent-shadow-4</code> · 圓角 <code>--fluent-radius-xl</code> (12px)
             </p>
+        </div>
+
+        <!-- CSS Animations 區（tab=css-animations） — Shimmer Pulse / Cover-Actions Reveal / Dropdown Appear -->
+        <div x-show="tab === 'css-animations'"
+             x-cloak
+             class="css-anim-demos"
+             style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2.5rem; padding: 2rem;">
+
+            <!-- Demo 1: Shimmer Pulse -->
+            <div>
+                <h5 style="color: var(--text-primary); font-weight: 600; margin: 0 0 1rem;">Shimmer Pulse — Skeleton Loading Animation</h5>
+                <div style="display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap;">
+                    <!-- Card grid 封面佔位 -->
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-start;">
+                        <div class="skeleton-cover shimmer" style="width: 200px;"></div>
+                        <small style="color: var(--text-muted); font-size: 0.7rem;">Card grid 封面佔位（<code>.skeleton-cover.shimmer</code>）</small>
+                    </div>
+                    <!-- 詳情封面佔位 -->
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-start;">
+                        <div style="position: relative; width: 280px; aspect-ratio: 3/2;">
+                            <div class="shimmer" style="position: absolute; inset: 0; border-radius: var(--radius-sm);"></div>
+                        </div>
+                        <small style="color: var(--text-muted); font-size: 0.7rem;">詳情封面佔位（inline <code>.shimmer</code>）</small>
+                    </div>
+                </div>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin: 1rem 0 0;">
+                    keyframe 定義：<code>search.css</code> 行 687 ·
+                    timing：<code>1.5s ease-in-out infinite</code> · auto-play loop，無需觸發
+                </p>
+            </div>
+
+            <!-- Demo 2: Cover-Actions Reveal -->
+            <div>
+                <h5 style="color: var(--text-primary); font-weight: 600; margin: 0 0 1rem;">Cover-Actions Reveal — Gradient Overlay + Glass Buttons</h5>
+                <div class="lightbox-cover" style="position: relative; width: 280px; aspect-ratio: 3/2; overflow: hidden; border-radius: 8px; background: #444; cursor: pointer; display: block;">
+                    <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #3a3a4a 0%, #555566 50%, #3a3a4a 100%);"></div>
+                    <div class="cover-actions">
+                        <button class="lb-action-btn" data-tooltip="返回詳情" type="button">
+                            <i class="bi bi-arrow-return-left"></i>
+                        </button>
+                        <button class="lb-action-btn" data-tooltip="開資料夾" type="button">
+                            <i class="bi bi-folder2-open"></i>
+                        </button>
+                        <button class="lb-action-btn" data-tooltip="來源網址" type="button">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                        </button>
+                    </div>
+                </div>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin: 1rem 0 0;">
+                    hover 封面圖，<code>.cover-actions</code> gradient overlay fade in（<code>opacity: 0 → 1</code>） ·
+                    hover button：<code>scale(1.08)</code> + glass highlight ·
+                    CSS-only tooltip via <code>data-tooltip</code>（定義：<code>showcase.css</code> 行 555–627）
+                </p>
+            </div>
+
+            <!-- Demo 3: Dropdown Appear -->
+            <div>
+                <h5 style="color: var(--text-primary); font-weight: 600; margin: 0 0 1rem;">Dropdown Appear — Alpine x-transition Opacity Fade</h5>
+                <div x-data="{ open: false, selected: 'date' }" style="position: relative; display: inline-block;">
+                    <div class="toolbar-dropdown-wrap" @click.outside="open = false">
+                        <button type="button"
+                                class="btn-icon"
+                                @click="open = !open"
+                                :class="{ 'active': open }">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+                        <div class="toolbar-dropdown"
+                             x-show="open"
+                             x-transition.opacity.duration.150ms
+                             @click.stop>
+                            <a href="#" class="dropdown-item"
+                               :class="{ 'active': selected === 'date' }"
+                               @click.prevent="selected = 'date'; open = false">
+                                <i class="bi bi-calendar"></i> 日期</a>
+                            <a href="#" class="dropdown-item"
+                               :class="{ 'active': selected === 'num' }"
+                               @click.prevent="selected = 'num'; open = false">
+                                <i class="bi bi-sort-numeric-down"></i> 番號</a>
+                            <a href="#" class="dropdown-item"
+                               :class="{ 'active': selected === 'name' }"
+                               @click.prevent="selected = 'name'; open = false">
+                                <i class="bi bi-sort-alpha-down"></i> 名稱</a>
+                        </div>
+                    </div>
+                </div>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin: 1rem 0 0;">
+                    opacity fade via <code>x-transition.opacity.duration.150ms</code> ·
+                    active item 套用 <code>.dropdown-item.active</code>（accent 背景色） ·
+                    <code>.dropdown-item</code> hover transition 定義：<code>showcase.css</code> 行 106–108
+                </p>
+            </div>
+
         </div>
 
         <!-- Detail 區（tab=search && mode=detail） -->

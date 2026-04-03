@@ -66,22 +66,29 @@ function searchPage() {
                             clearTimeout(this.lightboxCloseTimer);
                             this.lightboxCloseTimer = null;
                         }
+                        // T2(40b): 移除 window listeners
+                        if (this._pywebviewFilesHandler) {
+                            window.removeEventListener('pywebview-files', this._pywebviewFilesHandler);
+                        }
+                        if (this._resizeHandler) {
+                            window.removeEventListener('resize', this._resizeHandler);
+                        }
                     }
                 });
             }
 
             // 8. T1d: 監聽 pywebview-files 事件
-            window.addEventListener('pywebview-files', async (e) => {
-                await this.setFileList(e.detail.paths);
-            });
+            this._pywebviewFilesHandler = async (e) => { await this.setFileList(e.detail.paths); };
+            window.addEventListener('pywebview-files', this._pywebviewFilesHandler);
 
             // 9. Issue-2: resize / 導航時更新封面高度 CSS variable
-            window.addEventListener('resize', () => this._updateCoverHeight());
+            this._resizeHandler = () => this._updateCoverHeight();
+            window.addEventListener('resize', this._resizeHandler);
             this.$watch('currentIndex', () => {
                 this.$nextTick(() => this._updateCoverHeight());
             });
             this.$watch('searchResults', () => {
-                setTimeout(() => this._updateCoverHeight(), 500);
+                this._setTimer('updateCoverHeight', () => this._updateCoverHeight(), 500);
             });
         },
 

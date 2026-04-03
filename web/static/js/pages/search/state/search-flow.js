@@ -820,6 +820,10 @@ window.SearchStateMixin_SearchFlow = {
         // T4.3: 取消所有 fetch（loadMore / translateAll / setFileList / loadFavorite）
         this._abortAllFetches();
 
+        // T1(40b): 立即清除 batch/translate 暫停等待 interval（消除 100ms 競態窗口）
+        if (this._batchCheckInterval) { clearInterval(this._batchCheckInterval); this._batchCheckInterval = null; }
+        if (this._translateCheckInterval) { clearInterval(this._translateCheckInterval); this._translateCheckInterval = null; }
+
         // T4.2: 讓 batch/translate 的 checkInterval 自清（setPaused=false 讓條件成立）
         this.batchState.isProcessing = false;
         this.batchState.isPaused = false;

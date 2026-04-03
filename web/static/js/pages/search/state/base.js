@@ -92,6 +92,10 @@ window.SearchStateMixin_Base = function () {
             visible: false
         },
         _timers: {},  // Timer registry：{ [key: string]: number }（setTimeout ID）
+        _batchCheckInterval: null,      // T1(40b): batch searchAll 暫停等待 interval ref
+        _translateCheckInterval: null,  // T1(40b): translateAll 暫停等待 interval ref
+        _pywebviewFilesHandler: null,  // T2(40b): pywebview-files listener ref
+        _resizeHandler: null,          // T2(40b): resize listener ref
         _abortControllers: {},  // Fetch AbortController registry：{ [key: string]: AbortController }（T4.3）
 
         // ===== T1d: File List State =====
