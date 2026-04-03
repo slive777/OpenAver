@@ -1717,6 +1717,107 @@
   &lt;/tbody&gt;
 &lt;/table&gt;</code></pre>
             </div>
+
+            <!-- Subsection: Help Popover -->
+            <div class="ds-subsection" x-data="{ showDemo1: false, showDemo2: false, showDemo3: false }">
+                <h3>Help Popover</h3>
+                <p class="ds-desc">inline question-circle + 浮動說明框，用於表單欄位的輔助說明</p>
+
+                <!-- Demo 區 -->
+                <div style="display: flex; flex-wrap: wrap; gap: 2rem; margin-top: 1rem; align-items: flex-start;">
+
+                    <!-- Demo 1: 基本（Settings 下載劇照風格）-->
+                    <div style="position: relative; display: inline-flex; align-items: center;">
+                        <span style="font-size: 0.875rem; color: var(--text-secondary);">下載劇照</span>
+                        <button type="button" class="help-popover-btn"
+                                @click="showDemo1 = !showDemo1"
+                                :aria-expanded="showDemo1">
+                            <i class="bi bi-question-circle"></i>
+                        </button>
+                        <div x-show="showDemo1" x-cloak x-transition
+                             @click.outside="showDemo1 = false"
+                             class="help-popover">
+                            <small class="help-popover__body">
+                                基本說明文字範例：下載劇照時會同時抓取高解析度樣本圖。
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Demo 2: 含 code block（路徑長度限制風格）-->
+                    <div style="position: relative; display: inline-flex; align-items: center;">
+                        <span style="font-size: 0.875rem; color: var(--text-secondary);">路徑長度限制</span>
+                        <button type="button" class="help-popover-btn"
+                                @click="showDemo2 = !showDemo2"
+                                :aria-expanded="showDemo2">
+                            <i class="bi bi-question-circle"></i>
+                        </button>
+                        <div x-show="showDemo2" x-cloak x-transition
+                             @click.outside="showDemo2 = false"
+                             class="help-popover">
+                            <small class="help-popover__body">
+                                Windows 預設路徑長度限制為 260 字元，可執行以下指令解除限制：
+                            </small>
+                            <pre class="help-popover__code"><code>Set-ItemProperty -Path 'HKLM:\...' -Name 'LongPathsEnabled' -Value 1</code></pre>
+                            <small class="help-popover__body">
+                                執行後需重新啟動 Windows 才能生效。
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Demo 3: 含 icon（Scanner Jellyfin 風格）-->
+                    <div style="position: relative; display: inline-flex; align-items: center; gap: 0.4rem; color: var(--color-warning); font-weight: 500;">
+                        <i class="bi bi-image"></i>
+                        <span style="font-size: 0.875rem;">Jellyfin 封面補齊</span>
+                        <button type="button" class="help-popover-btn"
+                                @click="showDemo3 = !showDemo3"
+                                :aria-expanded="showDemo3">
+                            <i class="bi bi-question-circle"></i>
+                        </button>
+                        <div x-show="showDemo3" x-cloak x-transition
+                             @click.outside="showDemo3 = false"
+                             class="help-popover">
+                            <small class="help-popover__body">
+                                Jellyfin 模式下，掃描時會自動補齊缺失的封面圖片。<br>
+                                更新前請確認 Jellyfin 伺服器已啟動並可連線。
+                            </small>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- 技術說明 -->
+                <div class="ds-note" style="margin-top: 1.5rem;">
+                    <strong>技術細節：</strong>
+                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                        <li>使用 <code>.help-popover-btn</code>（觸發按鈕）+ <code>.help-popover</code>（浮動框）</li>
+                        <li>說明文字容器：<code>.help-popover__body</code>；code block：<code>.help-popover__code</code></li>
+                        <li>背景色 <code>--color-base-200</code> 為 DaisyUI 變數，<strong>自動跟隨 Light/Dark 主題切換</strong></li>
+                        <li>陰影 <code>--fluent-shadow-4</code>（Light 模式較淺，Dark 模式自動加深）</li>
+                        <li>父層容器需有 <code>position: relative</code>（inline 元素可用 wrapper div 提供）</li>
+                        <li>Alpine <code>x-transition</code> 提供淡入淡出效果；<code>@click.outside</code> 點外部自動關閉</li>
+                    </ul>
+                </div>
+
+                <!-- 程式碼範例 -->
+                <pre class="ds-code" style="margin-top: 1.5rem;"><code>&lt;!-- 父層容器需 position: relative --&gt;
+&lt;div style="position: relative;"&gt;
+  &lt;!-- 觸發按鈕 --&gt;
+  &lt;button type="button" class="help-popover-btn"
+          @click="showHelp = !showHelp"
+          :aria-expanded="showHelp"&gt;
+    &lt;i class="bi bi-question-circle"&gt;&lt;/i&gt;
+  &lt;/button&gt;
+
+  &lt;!-- 浮動說明框 --&gt;
+  &lt;div x-show="showHelp" x-cloak x-transition
+       @click.outside="showHelp = false"
+       class="help-popover"&gt;
+    &lt;small class="help-popover__body"&gt;說明文字&lt;/small&gt;
+    &lt;!-- 可選 code block --&gt;
+    &lt;pre class="help-popover__code"&gt;&lt;code&gt;指令範例&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+            </div>
         </section>
 
         <!-- 區塊 8: Progress & Feedback (accent-bar 樣式) -->

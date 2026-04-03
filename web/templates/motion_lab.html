@@ -1519,6 +1519,11 @@
                     @click="tab = 'showcase'; onResetStaging(); onResetHero()">
                 Showcase
             </button>
+            <button class="motion-lab-tab"
+                    :class="{ active: tab === 'popover' }"
+                    @click="tab = 'popover'">
+                Popover
+            </button>
         </div>
     </div>
 
@@ -2519,6 +2524,51 @@
                     <span class="av-num">小島みなみ JUR-002 #13</span>
                 </div>
             </div>
+        </div>
+
+        <!-- Popover 區（tab=popover） — Alpine x-transition enter/leave demo -->
+        <div x-show="tab === 'popover'"
+             x-cloak
+             style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.5rem; padding: 2rem;"
+             x-data="{ showPopover1: false, showPopover2: false }">
+            <h5 style="color: var(--text-primary); font-weight: 600; margin: 0;">Help Popover — Alpine x-transition demo</h5>
+            <!-- Demo 1: 基本 -->
+            <div style="position: relative; display: inline-flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 0.875rem; color: var(--text-secondary); background: var(--color-base-200); padding: 0.5rem 1rem; border-radius: var(--fluent-radius-md);">表單欄位標籤</span>
+                <button type="button" class="help-popover-btn"
+                        @click="showPopover1 = !showPopover1"
+                        :aria-expanded="showPopover1">
+                    <i class="bi bi-question-circle"></i>
+                </button>
+                <div x-show="showPopover1" x-cloak x-transition
+                     @click.outside="showPopover1 = false"
+                     class="help-popover">
+                    <small class="help-popover__body">
+                        這是一個基本的 help popover 範例。<br>
+                        使用 Alpine <code>x-transition</code> 實現淡入淡出效果，點擊外部自動關閉。
+                    </small>
+                </div>
+            </div>
+            <!-- Demo 2: 含 code block -->
+            <div style="position: relative; display: inline-flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 0.875rem; color: var(--text-secondary); background: var(--color-base-200); padding: 0.5rem 1rem; border-radius: var(--fluent-radius-md);">進階欄位（含程式碼）</span>
+                <button type="button" class="help-popover-btn"
+                        @click="showPopover2 = !showPopover2"
+                        :aria-expanded="showPopover2">
+                    <i class="bi bi-question-circle"></i>
+                </button>
+                <div x-show="showPopover2" x-cloak x-transition
+                     @click.outside="showPopover2 = false"
+                     class="help-popover">
+                    <small class="help-popover__body">含 code block 的說明框：</small>
+                    <pre class="help-popover__code"><code>Set-ItemProperty -Path 'HKLM:\...' -Value 1</code></pre>
+                    <small class="help-popover__body">執行後重新啟動生效。</small>
+                </div>
+            </div>
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0;">
+                背景色 <code>--color-base-200</code> 自動跟隨 Light/Dark 主題 ·
+                陰影 <code>--fluent-shadow-4</code> · 圓角 <code>--fluent-radius-xl</code> (12px)
+            </p>
         </div>
 
         <!-- Detail 區（tab=search && mode=detail） -->

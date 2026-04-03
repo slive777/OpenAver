@@ -141,3 +141,57 @@ class TestShowcaseCoreJsSearchableFields:
         js = self._js()
         assert "video.label" in js, \
             "showcase/core.js applyFilterAndSort searchable 缺少 video.label"
+
+
+SETTINGS_HTML = Path(__file__).parent.parent.parent / "web" / "templates" / "settings.html"
+SCANNER_HTML = Path(__file__).parent.parent.parent / "web" / "templates" / "scanner.html"
+
+
+class TestHelpPopoverGuard:
+    """38e: 守衛 help-popover CSS class 的使用，防止殘留 inline style"""
+
+    def _settings(self):
+        return SETTINGS_HTML.read_text(encoding="utf-8")
+
+    def _scanner(self):
+        return SCANNER_HTML.read_text(encoding="utf-8")
+
+    def test_settings_has_help_popover_class_at_least_twice(self):
+        """settings.html 含 class="help-popover" 至少 2 處"""
+        html = self._settings()
+        count = html.count('class="help-popover"')
+        assert count >= 2, \
+            f"settings.html 應含 class=\"help-popover\" 至少 2 處，實際 {count} 處"
+
+    def test_settings_has_help_popover_btn_class_at_least_twice(self):
+        """settings.html 含 class="help-popover-btn" 至少 2 處"""
+        html = self._settings()
+        count = html.count('class="help-popover-btn"')
+        assert count >= 2, \
+            f"settings.html 應含 class=\"help-popover-btn\" 至少 2 處，實際 {count} 處"
+
+    def test_scanner_has_help_popover_class(self):
+        """scanner.html 含 class="help-popover" 至少 1 處"""
+        html = self._scanner()
+        count = html.count('class="help-popover"')
+        assert count >= 1, \
+            f"scanner.html 應含 class=\"help-popover\" 至少 1 處，實際 {count} 處"
+
+    def test_scanner_has_help_popover_btn_class(self):
+        """scanner.html 含 class="help-popover-btn" 至少 1 處"""
+        html = self._scanner()
+        count = html.count('class="help-popover-btn"')
+        assert count >= 1, \
+            f"scanner.html 應含 class=\"help-popover-btn\" 至少 1 處，實際 {count} 處"
+
+    def test_settings_no_broken_shadow_token(self):
+        """settings.html 不含 box-shadow: var(--shadow-4)（未定義的 token）"""
+        html = self._settings()
+        assert "box-shadow: var(--shadow-4)" not in html, \
+            "settings.html 含殘留 box-shadow: var(--shadow-4)（應改為 --fluent-shadow-4）"
+
+    def test_scanner_no_broken_shadow_token(self):
+        """scanner.html 不含 box-shadow: var(--shadow-4)（未定義的 token）"""
+        html = self._scanner()
+        assert "box-shadow: var(--shadow-4)" not in html, \
+            "scanner.html 含殘留 box-shadow: var(--shadow-4)（應改為 --fluent-shadow-4）"

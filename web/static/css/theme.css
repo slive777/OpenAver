@@ -1234,6 +1234,10 @@ body {
 }
 
 /* NFO Badge - 琥珀色警告 badge */
+.nfo-badge {
+    position: relative;  /* 支援 .help-popover 絕對定位 */
+}
+
 :is(#ds-gallery-components, .ds-gallery-composition) .nfo-badge {
     display: flex;
     align-items: center;
