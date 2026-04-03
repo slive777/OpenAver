@@ -42,11 +42,7 @@ function showcaseState() {
         // Lightbox 狀態 (M3a)
         lightboxOpen: false,
         lightboxIndex: -1,              // 指向 filteredVideos 的索引
-        lightboxMoveEnabled: false,     // Smart Close: 延遲啟用
-        lightboxMoveTimer: null,
         lightboxCloseTimer: null,       // F2: generation-guarded delayed clear timer
-        lightboxStartX: 0,
-        lightboxStartY: 0,
 
         // Toast 狀態 (M3h)
         toastVisible: false,
@@ -98,7 +94,6 @@ function showcaseState() {
                     cleanup: () => {
                         this._animGeneration++;       // B13: 使 pending deferred callback 失效
                         this._lightboxGeneration++;   // B19: invalidate pending $nextTick lightbox callbacks
-                        if (this.lightboxMoveTimer) clearTimeout(this.lightboxMoveTimer);
                         if (this.lightboxCloseTimer) clearTimeout(this.lightboxCloseTimer);  // F2: cleanup delayed clear timer
                         if (this.toastTimer) clearTimeout(this.toastTimer);
                         if (this.lightboxOpen) document.body.classList.remove('overflow-hidden');
@@ -623,15 +618,6 @@ function showcaseState() {
                 // B19: state-first — 立即更新 state，避免 C18 interrupt 吞掉 index mutation
                 this._setLightboxIndex(index);
 
-                // Smart Close 重置
-                this.lightboxMoveEnabled = false;
-                if (this.lightboxMoveTimer) clearTimeout(this.lightboxMoveTimer);
-                this.lightboxMoveTimer = setTimeout(function () {
-                    self.lightboxMoveEnabled = true;
-                }, 1000);
-                this.lightboxStartX = 0;
-                this.lightboxStartY = 0;
-
                 // B19: 動畫（state 已更新，$nextTick 後 Alpine 已 patch DOM）
                 var lbGen = ++this._lightboxGeneration;
                 this.$nextTick(function () {
@@ -653,17 +639,6 @@ function showcaseState() {
             this._setLightboxIndex(index);
             this.lightboxOpen = true;
             document.body.classList.add('overflow-hidden');
-
-            // Smart Close: 延遲 1000ms 後才啟用滑鼠關閉
-            this.lightboxMoveEnabled = false;
-            if (this.lightboxMoveTimer) clearTimeout(this.lightboxMoveTimer);
-            this.lightboxMoveTimer = setTimeout(() => {
-                this.lightboxMoveEnabled = true;
-            }, 1000);
-
-            // 重置起始位置
-            this.lightboxStartX = 0;
-            this.lightboxStartY = 0;
 
             // B16: GSAP 進場動畫（fire-and-forget）
             var self = this;
@@ -699,13 +674,6 @@ function showcaseState() {
             this._lightboxAnimating = false;
             this.lightboxOpen = false;
             document.body.classList.remove('overflow-hidden');
-            if (this.lightboxMoveTimer) {
-                clearTimeout(this.lightboxMoveTimer);
-                this.lightboxMoveTimer = null;
-            }
-            this.lightboxMoveEnabled = false;
-            this.lightboxStartX = 0;
-            this.lightboxStartY = 0;
 
             // F2: delay state clearing until CSS transition completes (250ms)
             // Keep currentLightboxVideo intact during fade-out, then clear after
@@ -826,13 +794,6 @@ function showcaseState() {
             this._lightboxGeneration++;  // B19: invalidate pending $nextTick lightbox callbacks
             this.lightboxOpen = false;
             document.body.classList.remove('overflow-hidden');
-            if (this.lightboxMoveTimer) {
-                clearTimeout(this.lightboxMoveTimer);
-                this.lightboxMoveTimer = null;
-            }
-            this.lightboxMoveEnabled = false;
-            this.lightboxStartX = 0;
-            this.lightboxStartY = 0;
 
             // F2: delay state clearing until CSS transition completes (250ms)
             // Keep currentLightboxVideo intact during fade-out, then clear after
@@ -867,18 +828,6 @@ function showcaseState() {
                 // B19: state-first — 立即更新 state，避免 C18 interrupt 吞掉 index mutation
                 this._setLightboxIndex(newIdx);
 
-                /** Smart Close 重置邏輯 */
-                function resetSmartClose() {
-                    self.lightboxMoveEnabled = false;
-                    if (self.lightboxMoveTimer) clearTimeout(self.lightboxMoveTimer);
-                    self.lightboxMoveTimer = setTimeout(function () {
-                        self.lightboxMoveEnabled = true;
-                    }, 1000);
-                    self.lightboxStartX = 0;
-                    self.lightboxStartY = 0;
-                }
-                resetSmartClose();
-
                 // B19: 動畫（state 已更新，$nextTick 後 Alpine 已 patch DOM）
                 var lbGen = ++this._lightboxGeneration;
                 this.$nextTick(function () {
@@ -910,18 +859,6 @@ function showcaseState() {
 
                 // B19: state-first — 立即更新 state，避免 C18 interrupt 吞掉 index mutation
                 this._setLightboxIndex(newIdx);
-
-                /** Smart Close 重置邏輯 */
-                function resetSmartClose() {
-                    self.lightboxMoveEnabled = false;
-                    if (self.lightboxMoveTimer) clearTimeout(self.lightboxMoveTimer);
-                    self.lightboxMoveTimer = setTimeout(function () {
-                        self.lightboxMoveEnabled = true;
-                    }, 1000);
-                    self.lightboxStartX = 0;
-                    self.lightboxStartY = 0;
-                }
-                resetSmartClose();
 
                 // B19: 動畫（state 已更新，$nextTick 後 Alpine 已 patch DOM）
                 var lbGen = ++this._lightboxGeneration;
@@ -958,9 +895,6 @@ function showcaseState() {
          * - 如果不是卡片 → 關閉 lightbox
          */
         handleLightboxBackdropClick(e) {
-            // Smart Close: 只有點擊到 backdrop 且已啟用時才處理
-            if (!this.lightboxMoveEnabled) return;
-
             // 如果點擊的是 lightbox-content 內部，不處理
             if (e.target.closest('.lightbox-content')) return;
 
@@ -983,32 +917,6 @@ function showcaseState() {
                 // 不是卡片，關閉 lightbox
                 this.closeLightbox();
             }
-        },
-
-        // Smart Close: 滑鼠移動距離檢測
-        handleLightboxMousemove(e) {
-            if (!this.lightboxOpen) return;
-            if (!this.lightboxMoveEnabled) return;
-
-            // 如果滑鼠在 .lightbox-content 或 nav 按鈕上，不關閉
-            if (e.target.closest('.lightbox-content') || e.target.closest('.lightbox-nav')) return;
-
-            // 記錄起始位置（第一次離開內容區）
-            if (this.lightboxStartX === 0 && this.lightboxStartY === 0) {
-                this.lightboxStartX = e.clientX;
-                this.lightboxStartY = e.clientY;
-                return;
-            }
-
-            // 檢查移動距離，需超過 200px 才關閉
-            const dist = Math.sqrt(
-                Math.pow(e.clientX - this.lightboxStartX, 2) +
-                Math.pow(e.clientY - this.lightboxStartY, 2)
-            );
-            if (dist < 200) return;
-
-            // 滑鼠在背景區域移動超過 200px，關閉 Lightbox
-            this.closeLightbox();
         },
 
         // 工具方法：從 paginatedVideos 的 index 映射到 filteredVideos 的 index

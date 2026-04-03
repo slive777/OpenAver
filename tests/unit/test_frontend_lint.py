@@ -586,3 +586,25 @@ class TestJellyfinCheckI18nKeys:
         zh_tw = self._zh_tw()
         val = self._get_nested(zh_tw, "scanner.stats.jellyfin_check_done_ok")
         assert val, "zh_TW.json 缺少 scanner.stats.jellyfin_check_done_ok"
+
+
+class TestSmartCloseRemovedGuard:
+    """Phase 40d-T1: Showcase Smart Close 系統移除守衛"""
+
+    CORE_JS = Path(__file__).parents[2] / 'web' / 'static' / 'js' / 'pages' / 'showcase' / 'core.js'
+    SHOWCASE_HTML = Path(__file__).parents[2] / 'web' / 'templates' / 'showcase.html'
+
+    def test_no_mousemove_handler_in_showcase_html(self):
+        """showcase.html 不應包含 handleLightboxMousemove binding"""
+        content = self.SHOWCASE_HTML.read_text(encoding='utf-8')
+        assert 'handleLightboxMousemove' not in content
+
+    def test_no_lightbox_move_enabled_in_core_js(self):
+        """core.js 不應包含 lightboxMoveEnabled（Smart Close 門控已移除）"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        assert 'lightboxMoveEnabled' not in content
+
+    def test_no_lightbox_move_timer_in_core_js(self):
+        """core.js 不應包含 lightboxMoveTimer（Smart Close timer 已移除）"""
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        assert 'lightboxMoveTimer' not in content
