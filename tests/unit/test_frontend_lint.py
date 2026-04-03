@@ -257,3 +257,69 @@ class TestInlineStyleCleanup:
         matches = pattern.findall(html)
         assert len(matches) == 0, \
             f"design-system.html 仍有 {len(matches)} 處 padding+bg-card+border-radius inline pattern，應改用 class=\"... ds-demo-panel\""
+
+
+BATCH_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state" / "batch.js"
+SEARCH_FLOW_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state" / "search-flow.js"
+BASE_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state" / "base.js"
+
+
+class TestBatchIntervalGuard:
+    """T1(40b): 守衛 batch/translate checkInterval 具名 ref + cleanupForNavigation 明確清理"""
+
+    def _batch(self):
+        return BATCH_JS.read_text(encoding="utf-8")
+
+    def _search_flow(self):
+        return SEARCH_FLOW_JS.read_text(encoding="utf-8")
+
+    def _base(self):
+        return BASE_JS.read_text(encoding="utf-8")
+
+    def test_batch_check_interval_assigned(self):
+        """batch.js searchAll() 使用 this._batchCheckInterval = setInterval"""
+        js = self._batch()
+        assert "this._batchCheckInterval = setInterval" in js, \
+            "batch.js searchAll() 應將 setInterval 賦值給 this._batchCheckInterval（具名 ref）"
+
+    def test_translate_check_interval_assigned(self):
+        """batch.js translateAll() 使用 this._translateCheckInterval = setInterval"""
+        js = self._batch()
+        assert "this._translateCheckInterval = setInterval" in js, \
+            "batch.js translateAll() 應將 setInterval 賦值給 this._translateCheckInterval（具名 ref）"
+
+    def test_batch_interval_self_clear(self):
+        """batch.js searchAll() 內 clearInterval(this._batchCheckInterval) 自清"""
+        js = self._batch()
+        assert "clearInterval(this._batchCheckInterval)" in js, \
+            "batch.js searchAll() 應在條件成立時 clearInterval(this._batchCheckInterval)"
+
+    def test_translate_interval_self_clear(self):
+        """batch.js translateAll() 內 clearInterval(this._translateCheckInterval) 自清"""
+        js = self._batch()
+        assert "clearInterval(this._translateCheckInterval)" in js, \
+            "batch.js translateAll() 應在條件成立時 clearInterval(this._translateCheckInterval)"
+
+    def test_cleanup_clears_batch_interval(self):
+        """search-flow.js cleanupForNavigation() 明確清除 this._batchCheckInterval"""
+        js = self._search_flow()
+        assert "clearInterval(this._batchCheckInterval)" in js, \
+            "search-flow.js cleanupForNavigation() 應明確 clearInterval(this._batchCheckInterval)"
+
+    def test_cleanup_clears_translate_interval(self):
+        """search-flow.js cleanupForNavigation() 明確清除 this._translateCheckInterval"""
+        js = self._search_flow()
+        assert "clearInterval(this._translateCheckInterval)" in js, \
+            "search-flow.js cleanupForNavigation() 應明確 clearInterval(this._translateCheckInterval)"
+
+    def test_base_declares_batch_check_interval(self):
+        """base.js state 初始化包含 _batchCheckInterval 欄位"""
+        js = self._base()
+        assert "_batchCheckInterval" in js, \
+            "base.js 應在初始 state 宣告 _batchCheckInterval: null"
+
+    def test_base_declares_translate_check_interval(self):
+        """base.js state 初始化包含 _translateCheckInterval 欄位"""
+        js = self._base()
+        assert "_translateCheckInterval" in js, \
+            "base.js 應在初始 state 宣告 _translateCheckInterval: null"
