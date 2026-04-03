@@ -459,3 +459,11 @@ class TestJellyfinCheck:
         scanner_src = (pathlib.Path(__file__).parents[2] / 'web' / 'routers' / 'scanner.py').read_text(encoding='utf-8')
         # 確認 clear_cache 和 generate_jellyfin_images_stream 兩個函數都有清空快取的程式碼
         assert scanner_src.count('_jellyfin_cache_result = None') >= 2
+
+    def test_jellyfin_cache_cleared_after_generate_avlist_static(self):
+        """T3(40c) Codex fix: 靜態掃描確認 generate_avlist 正常和例外路徑都清空 jellyfin 快取"""
+        import pathlib
+        scanner_src = (pathlib.Path(__file__).parents[2] / 'web' / 'routers' / 'scanner.py').read_text(encoding='utf-8')
+        # T3(40c) Codex fix 後應有 4 處：
+        #   clear_cache + generate_jellyfin_images_stream + generate_avlist(done) + generate_avlist(except)
+        assert scanner_src.count('_jellyfin_cache_result = None') >= 4

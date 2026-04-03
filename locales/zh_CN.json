@@ -332,6 +332,7 @@
       "jellyfin_check_btn": "检查 Jellyfin 图片",
       "jellyfin_check_idle_label": "Jellyfin 专用封面尚未检查",
       "jellyfin_checking": "检查中...",
+      "jellyfin_check_done_ok": "已检查，全部正常",
       "last_run_prefix": "上次执行: ",
       "last_added": "(新增 {count} 部)",
       "generate_idle": "生成网页",

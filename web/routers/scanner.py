@@ -341,6 +341,11 @@ def generate_avlist() -> Generator[str, None, None]:
 
         logger.info(f"[Gallery] 完成，新增 {total_inserted}，更新 {total_updated}，刪除 {total_deleted}")
 
+        # T3(40c) Codex fix: generate 後清空 jellyfin check 快取
+        global _jellyfin_cache_result, _jellyfin_cache_time
+        _jellyfin_cache_result = None
+        _jellyfin_cache_time = 0
+
         yield _sse_event({
             "type": "done",
             "video_count": len(all_videos),
@@ -355,6 +360,10 @@ def generate_avlist() -> Generator[str, None, None]:
 
     except Exception as e:
         logger.error("產生影片列表失敗: %s", e)
+        # T3(40c) Codex fix: exception 路徑也清空快取（DB 可能已被修改）
+        # global 已在 try 區塊宣告，此處直接賦值即可
+        _jellyfin_cache_result = None
+        _jellyfin_cache_time = 0
         yield _sse_event({"type": "error", "message": "產生影片列表失敗"})
 
 

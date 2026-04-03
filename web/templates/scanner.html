@@ -171,8 +171,9 @@
             </button>
         </div>
         <!-- T2(40c): Jellyfin 圖片檢查觸發列 -->
+        <!-- T3(40c) Codex fix: x-show 改為 !jellyfinImageVisible，done 狀態仍顯示觸發列 -->
         <div class="nfo-update-row"
-             x-show="config?.scraper?.jellyfin_mode && jellyfinCheckState !== 'done'">
+             x-show="config?.scraper?.jellyfin_mode && !jellyfinImageVisible">
             <span class="nfo-badge">
                 <i class="bi bi-image"></i>
                 <span x-show="jellyfinCheckState === 'idle'">
@@ -181,13 +182,17 @@
                 <span x-show="jellyfinCheckState === 'checking'">
                     {{ t('scanner.stats.jellyfin_checking') }}
                 </span>
+                <span x-show="jellyfinCheckState === 'done'">
+                    {{ t('scanner.stats.jellyfin_check_done_ok') }}
+                </span>
             </span>
             <button class="btn-nfo-update"
                     @click="checkJellyfinImages()"
                     :disabled="jellyfinCheckState === 'checking' || isGenerating"
-                    x-show="jellyfinCheckState === 'idle'">
+                    x-show="jellyfinCheckState !== 'checking'">
                 <i class="bi bi-search"></i>
-                {{ t('scanner.stats.jellyfin_check_btn') }}
+                <span x-show="jellyfinCheckState === 'idle'">{{ t('scanner.stats.jellyfin_check_btn') }}</span>
+                <span x-show="jellyfinCheckState === 'done'">{{ t('scanner.stats.jellyfin_check_btn') }}</span>
             </button>
             <span x-show="jellyfinCheckState === 'checking'"
                   class="loading loading-spinner loading-sm"></span>
@@ -1258,6 +1263,11 @@ function scannerPage() {
 
                     localStorage.setItem('avlist_generating', 'false');
                     localStorage.setItem('avlist_last_status', data.message || '完成');
+
+                    // T3(40c) Codex fix: update 完成後重設 jellyfin check 狀態，讓觸發列重新出現
+                    this.jellyfinImageVisible = false;
+                    this.jellyfinImageCount = 0;
+                    this.jellyfinCheckState = 'idle';
 
                     this.showToast('補齊完成！', 'success');
                     if (data.message) {

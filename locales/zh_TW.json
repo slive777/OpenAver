@@ -344,6 +344,7 @@
       "jellyfin_check_btn": "檢查 Jellyfin 圖片",
       "jellyfin_check_idle_label": "Jellyfin 專用封面尚未檢查",
       "jellyfin_checking": "檢查中...",
+      "jellyfin_check_done_ok": "已檢查，全部正常",
       "btn_done": "已完成"
     },
     "alias": {

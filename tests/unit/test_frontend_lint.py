@@ -516,6 +516,34 @@ class TestJellyfinCheckManualGuard:
         assert count >= 2, \
             f"scanner.html jellyfinCheckState = 'idle' 出現 {count} 次，期望 >= 2（cleanup + clearCache）"
 
+    def test_trigger_row_xshow_uses_jellyfin_image_visible(self):
+        """T3(40c) Codex fix: 觸發列 x-show 改為 !jellyfinImageVisible 而非 jellyfinCheckState !== 'done'"""
+        html = self._html()
+        assert "config?.scraper?.jellyfin_mode && !jellyfinImageVisible" in html, \
+            "scanner.html 觸發列 x-show 應使用 !jellyfinImageVisible（而非 jellyfinCheckState !== 'done'）"
+        assert "config?.scraper?.jellyfin_mode && jellyfinCheckState !== 'done'" not in html, \
+            "scanner.html 觸發列 x-show 仍使用舊的 jellyfinCheckState !== 'done' 條件"
+
+    def test_trigger_row_done_state_text_present(self):
+        """T3(40c) Codex fix: 觸發列包含 done 狀態顯示文字"""
+        html = self._html()
+        assert "jellyfinCheckState === 'done'" in html, \
+            "scanner.html 觸發列缺少 done 狀態文字顯示"
+        assert "jellyfin_check_done_ok" in html, \
+            "scanner.html 觸發列缺少 jellyfin_check_done_ok i18n key 引用"
+
+    def test_jellyfin_update_done_resets_check_state(self):
+        """T3(40c) Codex fix: jellyfin-update done handler 重設 jellyfinCheckState = 'idle'"""
+        html = self._html()
+        # 確認 runJellyfinImageUpdate 的 done 分支有三個重設欄位
+        assert "this.jellyfinImageVisible = false" in html, \
+            "scanner.html runJellyfinImageUpdate done 缺少 jellyfinImageVisible = false 重設"
+        assert "this.jellyfinImageCount = 0" in html, \
+            "scanner.html runJellyfinImageUpdate done 缺少 jellyfinImageCount = 0 重設"
+        # jellyfinCheckState = 'idle' 重設（update done 分支使用 this. 前綴）
+        assert "this.jellyfinCheckState = 'idle'" in html, \
+            "scanner.html runJellyfinImageUpdate done 缺少 this.jellyfinCheckState = 'idle' 重設"
+
 
 class TestJellyfinCheckI18nKeys:
     """40c-T2: 確認新增 i18n key 存在於 zh_TW.json"""
@@ -552,3 +580,9 @@ class TestJellyfinCheckI18nKeys:
         zh_tw = self._zh_tw()
         val = self._get_nested(zh_tw, "scanner.stats.jellyfin_checking")
         assert val, "zh_TW.json 缺少 scanner.stats.jellyfin_checking"
+
+    def test_jellyfin_check_done_ok_key_exists(self):
+        """T3(40c) Codex fix: 確認 jellyfin_check_done_ok i18n key 存在"""
+        zh_tw = self._zh_tw()
+        val = self._get_nested(zh_tw, "scanner.stats.jellyfin_check_done_ok")
+        assert val, "zh_TW.json 缺少 scanner.stats.jellyfin_check_done_ok"

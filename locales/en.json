@@ -332,6 +332,7 @@
       "jellyfin_check_btn": "Check Jellyfin Images",
       "jellyfin_check_idle_label": "Jellyfin cover status not checked yet",
       "jellyfin_checking": "Checking...",
+      "jellyfin_check_done_ok": "Checked — all images present",
       "last_run_prefix": "Last run: ",
       "last_added": "({count} added)",
       "generate_idle": "Generate",
