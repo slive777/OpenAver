@@ -4,9 +4,22 @@
 
 {% block extra_css %}
 <link href="/static/css/pages/design-system.css" rel="stylesheet">
+<!-- Production page CSS — loaded so DS demos always render identical to the real pages.
+     All selectors in search.css and showcase.css are either scoped to their own class
+     names or are the exact classes being demonstrated (e.g. .dropdown-item, .page-select).
+     No broad naked-element selectors (img, a, p, …) exist in these files.
+     Design decision: prefer live coupling over duplicating rules in design-system.css. -->
 <link href="/static/css/pages/search.css" rel="stylesheet">
 <link href="/static/css/pages/showcase.css" rel="stylesheet">
+<!-- settings.css note: the file header marks it "非共用，不納入 Design System".
+     Loaded to support Source Badge + Font Size demos in #settings-components scope.
+     Some selectors (.settings-container, .settings-header) are NOT scoped to
+     #settings-components — acceptable today because DS markup has no matching
+     elements. Avoid introducing those unscoped classes in future DS demos. -->
 <link href="/static/css/pages/settings.css" rel="stylesheet">
+<!-- help.css: provides .hero-terminal / .terminal-prompt / .terminal-copy-btn.
+     All selectors are scoped class names — no pollution risk. -->
+<link href="/static/css/pages/help.css" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
@@ -1825,44 +1838,8 @@
             </div>
 
             <!-- Subsection: Hero Terminal -->
+            <!-- CSS source: help.css (loaded in extra_css above) -->
             <div class="ds-subsection" x-data="{ curlCopied: false }">
-                <!-- 局部 CSS：help.css 未在 design-system 頁面載入，此處補充 .hero-terminal 相關樣式 -->
-                <style>
-                .hero-terminal {
-                    background: oklch(20% 0.01 250);
-                    color: oklch(85% 0.02 180);
-                    border: 1px solid oklch(30% 0.01 250);
-                    border-radius: var(--fluent-radius-lg, 8px);
-                    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
-                    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', ui-monospace, monospace;
-                    font-size: 0.9rem;
-                    padding: 0.75rem 1rem;
-                    position: relative;
-                }
-                .terminal-prompt {
-                    color: oklch(55% 0.15 160);
-                    margin-right: 0.4em;
-                    user-select: none;
-                }
-                .terminal-copy-btn {
-                    position: absolute;
-                    top: 0.5rem;
-                    right: 0.5rem;
-                    background: transparent;
-                    border: none;
-                    cursor: pointer;
-                    color: oklch(65% 0.02 180);
-                    font-size: 0.85rem;
-                    padding: 0.15rem 0.3rem;
-                    border-radius: 4px;
-                    transition: color 0.15s, background 0.15s;
-                }
-                .terminal-copy-btn:hover {
-                    color: oklch(90% 0.04 180);
-                    background: oklch(30% 0.01 250);
-                }
-                </style>
-
                 <h3>Hero Terminal</h3>
                 <p class="ds-desc">
                     來源：<code>help.html</code> Hero Card 右欄的 AI 整合入口指令框。

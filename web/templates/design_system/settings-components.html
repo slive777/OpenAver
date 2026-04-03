@@ -624,7 +624,10 @@
         有碼 badge 可點擊切換主要來源；分隔符 <code>.source-badge-sep</code> 隔開有碼與無碼區段。
     </p>
 
-    <!-- demo 容器必須套 id="settings-components"，因 settings.css 的選擇器有 #settings-components scope guard -->
+    <!-- id="settings-components" is required: settings.css line 4 scopes its .hidden override to
+         #settings-components to avoid overriding Tailwind .hidden globally. The demo wrapper must
+         carry this id so Source Badge styles apply correctly. This is a deliberate coupling —
+         settings.css ships this guard precisely so it can be safely loaded on pages like this. -->
     <div class="ds-card-demo" id="settings-components" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
         <div class="source-badges-row mt-2">
             <small class="settings-hint" style="margin-right: 0.5rem;">主要來源</small>
