@@ -135,8 +135,8 @@ class TestNoHardcodedColors:
         html_files = [f for f in templates_dir.glob("*.html")]
 
         for html_file in html_files:
-            # 跳過 design-system.html (參考頁)
-            if html_file.name == "design-system.html":
+            # 跳過參考頁（design-system / motion-lab 是 demo 用途）
+            if html_file.name in ("design-system.html", "motion_lab.html"):
                 continue
 
             # 回參照確保同型引號閉合，避免 url('...') 巢狀引號漏判
