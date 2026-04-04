@@ -865,6 +865,129 @@ class TestVideoProxy:
             "scanner.py get_video() should use get_proxy_extensions from core.video_extensions"
 
 
+class TestImageProxy:
+    """get_image() 安全防護 — regression tests"""
+
+    @pytest.fixture
+    def client(self):
+        from web.app import app
+        return TestClient(app)
+
+    def test_image_in_whitelist_200(self, client, tmp_path, monkeypatch):
+        """白名單內的 .jpg 圖片回傳 200"""
+        allowed_dir = tmp_path / "gallery"
+        allowed_dir.mkdir()
+        img = allowed_dir / "cover.jpg"
+        img.write_bytes(b'\xff\xd8\xff' + b'\x00' * 100)
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(allowed_dir)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        response = client.get(f"/api/gallery/image?path={str(img)}")
+        assert response.status_code == 200, "白名單內圖片應回傳 200"
+
+    def test_image_outside_whitelist_403(self, client, tmp_path, monkeypatch):
+        """白名單外的路徑回傳 403"""
+        allowed_dir = tmp_path / "gallery"
+        allowed_dir.mkdir()
+        outside_dir = tmp_path / "secret"
+        outside_dir.mkdir()
+        img = outside_dir / "secret.jpg"
+        img.write_bytes(b'\xff\xd8\xff' + b'\x00' * 100)
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(allowed_dir)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        response = client.get(f"/api/gallery/image?path={str(img)}")
+        assert response.status_code == 403, "白名單外路徑應被 403 擋下"
+
+    def test_image_path_traversal_403(self, client, tmp_path, monkeypatch):
+        """../ 路徑穿越被 realpath 擋下回傳 403"""
+        allowed_dir = tmp_path / "gallery"
+        allowed_dir.mkdir()
+        sub = allowed_dir / "sub"
+        sub.mkdir()
+
+        # secret.jpg 在 allowed_dir 之外
+        secret = tmp_path / "secret.jpg"
+        secret.write_bytes(b'\xff\xd8\xff' + b'\x00' * 100)
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(allowed_dir)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        # 用 ../ 穿越到 allowed_dir 之外
+        traversal_path = str(allowed_dir / "sub" / ".." / ".." / "secret.jpg")
+        response = client.get(f"/api/gallery/image?path={traversal_path}")
+        assert response.status_code == 403, "路徑穿越應被 403 擋下"
+
+    def test_image_non_image_extension_403(self, client, tmp_path, monkeypatch):
+        """非圖片副檔名（.py、.txt）回傳 403"""
+        allowed_dir = tmp_path / "gallery"
+        allowed_dir.mkdir()
+        py_file = allowed_dir / "exploit.py"
+        py_file.write_bytes(b"import os")
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(allowed_dir)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        response = client.get(f"/api/gallery/image?path={str(py_file)}")
+        assert response.status_code == 403, ".py 副檔名應被 403 擋下"
+
+        txt_file = allowed_dir / "config.txt"
+        txt_file.write_bytes(b"secret=abc")
+        response = client.get(f"/api/gallery/image?path={str(txt_file)}")
+        assert response.status_code == 403, ".txt 副檔名應被 403 擋下"
+
+    def test_image_symlink_traversal_blocked(self, client, tmp_path, monkeypatch):
+        """symlink 穿越被 realpath 擋下回傳 403"""
+        allowed_dir = tmp_path / "gallery"
+        allowed_dir.mkdir()
+        secret = tmp_path / "secret.jpg"
+        secret.write_bytes(b'\xff\xd8\xff' + b'\x00' * 100)
+
+        symlink = allowed_dir / "link.jpg"
+        try:
+            symlink.symlink_to(secret)
+        except OSError:
+            pytest.skip("系統不支援 symlink")
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(allowed_dir)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        response = client.get(f"/api/gallery/image?path={str(symlink)}")
+        assert response.status_code == 403, "symlink 穿越應被 403 擋下"
+
+
 class TestSampleImagesAPI:
     """sample_images 欄位 — Showcase API integration 測試"""
 

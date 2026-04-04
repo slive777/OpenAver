@@ -270,6 +270,28 @@ _TOOLS: list[dict] = [
         "note": "actresses 和 tags 是 JSON 字串，用 LIKE '%name%' 或 json_each() 查詢",
         "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"sql\":\"SELECT COUNT(*) as total FROM videos\"}}' {base}/api/collection/sql",
     },
+    {
+        "name": "jellyfin_check",
+        "description": (
+            "檢查本地收藏中有多少影片缺少 Jellyfin poster/fanart 圖片，回傳待更新數量。"
+            " update 操作（批次產生圖片）為 SSE 串流，不適合 AI 直接呼叫，需透過 UI 操作。"
+        ),
+        "method": "GET",
+        "path": "/api/gallery/jellyfin-check",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "output_schema": {
+            "success": "boolean",
+            "data": "{need_update: integer} — 缺少 Jellyfin 圖片的影片數量",
+        },
+        "side_effect": False,
+        "confirmation_required": False,
+        "retry_safe": True,
+        "_example_template": "curl '{base}/api/gallery/jellyfin-check'",
+    },
 ]
 
 

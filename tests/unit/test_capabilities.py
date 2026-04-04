@@ -35,6 +35,7 @@ EXPECTED_TOOL_NAMES = {
     "parse_filename",
     "enrich_single",
     "collection_sql",
+    "jellyfin_check",
 }
 
 REQUIRED_TOOL_FIELDS = [
@@ -81,9 +82,9 @@ class TestCapabilitiesEndpoint:
         data = client.get("/api/capabilities").json()
         assert "retry_hint" in data["error_format"]
 
-    def test_tools_count_is_8(self, client):
+    def test_tools_count_is_9(self, client):
         data = client.get("/api/capabilities").json()
-        assert len(data["tools"]) == 8
+        assert len(data["tools"]) == 9
 
     def test_all_tool_names_present(self, client):
         data = client.get("/api/capabilities").json()

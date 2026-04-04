@@ -620,10 +620,10 @@ async def get_image(path: str = Query(..., description="圖片路徑")):
     except ValueError:
         local_path = path  # 無法轉換時使用原路徑
 
-    if not os.path.exists(local_path):
-        return Response(status_code=404, content=f"Not found: {local_path}")
+    # 1. 解析 .. 和 symlink，防止路徑穿越攻擊
+    local_path = os.path.realpath(local_path)
 
-    # 檢測 MIME 類型
+    # 2. 副檔名白名單（只允許圖片格式）
     ext = os.path.splitext(local_path)[1].lower()
     mime_types = {
         '.jpg': 'image/jpeg',
@@ -633,8 +633,30 @@ async def get_image(path: str = Query(..., description="圖片路徑")):
         '.webp': 'image/webp',
         '.bmp': 'image/bmp',
     }
-    media_type = mime_types.get(ext, 'application/octet-stream')
+    if ext not in mime_types:
+        logger.warning("get_image: 拒絕非圖片副檔名請求 ext=%s", ext)
+        return Response(status_code=403, content="不允許的檔案類型")
 
+    # 3. 目錄白名單：只允許 gallery.directories 底下的檔案
+    config = load_config()
+    gallery_config = config.get('gallery', {})
+    directories = gallery_config.get('directories', [])
+    path_mappings = gallery_config.get('path_mappings', {})
+
+    file_uri = to_file_uri(local_path, path_mappings)
+    allowed = any(
+        is_path_under_dir(file_uri, to_file_uri(d, path_mappings))
+        for d in directories
+    )
+    if not allowed:
+        logger.warning("get_image: 拒絕白名單外路徑請求 uri=%s", file_uri)
+        return Response(status_code=403, content="路徑不在允許的資料夾範圍內")
+
+    # 4. 檔案存在性
+    if not os.path.exists(local_path):
+        return Response(status_code=404, content="檔案不存在")
+
+    media_type = mime_types[ext]
     return FileResponse(local_path, media_type=media_type)
 
 

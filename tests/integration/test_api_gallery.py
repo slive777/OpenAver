@@ -17,39 +17,55 @@ from unittest.mock import MagicMock, patch
 class TestImageProxy:
     """測試圖片代理 API /api/gallery/image"""
 
-    def test_image_proxy_local_file(self, client, tmp_path):
+    def test_image_proxy_local_file(self, client, tmp_path, mocker):
         """本地圖片檔案代理"""
         # 建立測試圖片
         test_image = tmp_path / "test.jpg"
         test_image.write_bytes(b'\xff\xd8\xff\xe0' + b'\x00' * 100)  # JPEG magic bytes
+
+        mocker.patch('web.routers.scanner.load_config', return_value={
+            'gallery': {'directories': [str(tmp_path)], 'path_mappings': {}},
+        })
 
         response = client.get('/api/gallery/image', params={'path': str(test_image)})
 
         assert response.status_code == 200
         assert response.headers['content-type'] == 'image/jpeg'
 
-    def test_image_proxy_png(self, client, tmp_path):
+    def test_image_proxy_png(self, client, tmp_path, mocker):
         """PNG 圖片代理"""
         test_image = tmp_path / "test.png"
         # PNG magic bytes
         test_image.write_bytes(b'\x89PNG\r\n\x1a\n' + b'\x00' * 100)
+
+        mocker.patch('web.routers.scanner.load_config', return_value={
+            'gallery': {'directories': [str(tmp_path)], 'path_mappings': {}},
+        })
 
         response = client.get('/api/gallery/image', params={'path': str(test_image)})
 
         assert response.status_code == 200
         assert response.headers['content-type'] == 'image/png'
 
-    def test_image_proxy_not_found(self, client):
-        """圖片不存在應返回 404"""
-        response = client.get('/api/gallery/image', params={'path': '/nonexistent/image.jpg'})
+    def test_image_proxy_not_found(self, client, tmp_path, mocker):
+        """圖片不存在應返回 404（路徑在白名單內但檔案不存在）"""
+        mocker.patch('web.routers.scanner.load_config', return_value={
+            'gallery': {'directories': [str(tmp_path)], 'path_mappings': {}},
+        })
+
+        response = client.get('/api/gallery/image', params={'path': str(tmp_path / 'nonexistent.jpg')})
 
         assert response.status_code == 404
 
-    def test_image_proxy_webp(self, client, tmp_path):
+    def test_image_proxy_webp(self, client, tmp_path, mocker):
         """WebP 圖片代理"""
         test_image = tmp_path / "test.webp"
         # WebP magic bytes (RIFF....WEBP)
         test_image.write_bytes(b'RIFF\x00\x00\x00\x00WEBP' + b'\x00' * 100)
+
+        mocker.patch('web.routers.scanner.load_config', return_value={
+            'gallery': {'directories': [str(tmp_path)], 'path_mappings': {}},
+        })
 
         response = client.get('/api/gallery/image', params={'path': str(test_image)})
 
@@ -60,24 +76,32 @@ class TestImageProxy:
 class TestImageProxyPathConversion:
     """測試圖片代理路徑轉換"""
 
-    def test_unix_path(self, client, tmp_path):
+    def test_unix_path(self, client, tmp_path, mocker):
         """Unix 風格路徑"""
         test_image = tmp_path / "unix_test.jpg"
         test_image.write_bytes(b'\xff\xd8\xff\xe0' + b'\x00' * 50)
 
         unix_path = str(test_image)  # 已經是 Unix 風格
 
+        mocker.patch('web.routers.scanner.load_config', return_value={
+            'gallery': {'directories': [str(tmp_path)], 'path_mappings': {}},
+        })
+
         response = client.get('/api/gallery/image', params={'path': unix_path})
 
         assert response.status_code == 200
 
-    def test_url_encoded_path(self, client, tmp_path):
+    def test_url_encoded_path(self, client, tmp_path, mocker):
         """URL 編碼路徑"""
         test_image = tmp_path / "test image.jpg"
         test_image.write_bytes(b'\xff\xd8\xff\xe0' + b'\x00' * 50)
 
         from urllib.parse import quote
         encoded_path = quote(str(test_image))
+
+        mocker.patch('web.routers.scanner.load_config', return_value={
+            'gallery': {'directories': [str(tmp_path)], 'path_mappings': {}},
+        })
 
         response = client.get('/api/gallery/image', params={'path': encoded_path})
 
