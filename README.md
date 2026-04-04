@@ -1,14 +1,9 @@
-<p align="center">
-  <img src="docs/logo.svg" alt="OpenAver Logo" width="200">
-</p>
-
 <h1 align="center">OpenAver</h1>
 
 <p align="center">
-  <strong>現代化的 JAV 影片元數據管理工具 (Modern JAV Metadata Manager)</strong>
+  <strong>不需要 Docker，不需要命令列 — Win/Mac 一行安裝，打開就是完整圖形介面的 JAV 元數據管理工具。</strong><br>
+  多來源聚合搜尋 · 精美 HTML 展示列表 · Jellyfin 整合 · AI API 一句話操作你的片庫
 </p>
-
-OpenAver 是一個基於 Web 技術的桌面應用程式，旨在幫助您輕鬆管理、刮削和生成 JAV 影片的元數據與展示列表。
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)
@@ -16,138 +11,32 @@ OpenAver 是一個基於 Web 技術的桌面應用程式，旨在幫助您輕鬆
 ![Tests](https://github.com/slive777/OpenAver/actions/workflows/test.yml/badge.svg)
 ![GitHub Release](https://img.shields.io/github/v/release/slive777/OpenAver)
 
-**🌐 [English](README_EN.md)** | 繁體中文
+**[English](README_EN.md)** | 繁體中文
 
-## 📸 截圖預覽
+**100% 本地運行** — 不蒐集資料、不上傳任何檔案資訊，網路請求僅用於刮削公開元數據。
 
-![Home](docs/screenshots/home.jpg)
+## 截圖預覽
+
+![Search Hero Detail](docs/screenshots/home.png)
 
 <details>
 <summary>更多截圖</summary>
 
-| Search Demo | Showcase Demo |
-|-------------|---------------|
-| ![Search Demo](docs/screenshots/demo.gif) | ![Showcase Demo](docs/screenshots/demo2.gif) |
+| Search Demo | 女優搜尋 Gallery |
+|-------------|------------------|
+| ![Search Demo](docs/screenshots/demo2.gif) | ![Search](docs/screenshots/search-detail.png) |
 
-| 搜尋結果 | Showcase Grid | Showcase 詳細 |
-|----------|---------------|---------------|
-| ![Search](docs/screenshots/search-detail.png) | ![Grid](docs/screenshots/showcase-grid.png) | ![Detail](docs/screenshots/showcase-detail.png) |
+| Showcase Grid | Showcase 詳細 |
+|---------------|---------------|
+| ![Grid](docs/screenshots/showcase-grid.png) | ![Detail](docs/screenshots/showcase-detail.png) |
 
 </details>
 
-## ⚠️ 免責聲明
-
-本專案僅供個人學習研究使用，請使用者遵守：
-- 尊重網站服務條款
-- 合理控制請求頻率
-- 不用於商業目的
-
-使用本專案造成的任何後果由使用者自行承擔。
-
-## 🔒 隱私聲明
-
-OpenAver 是純本地應用程式：
-- ✅ 不蒐集使用者資料
-- ✅ 不上傳檔案資訊到遠端伺服器
-- ✅ 所有操作在您的電腦本地執行
-- ⚠️ 網路請求僅用於刮削公開影片元數據
-
 ---
 
-## ✨ 核心功能
+## 安裝
 
-### 🤖 AI-Ready API
-
-你的 AI 助手現在能直接操作你的片庫：
-
-- 「幫我搜 STARS-123, ABP-456, SSIS-789 的完整資訊」— 多來源聚合搜尋
-- 「把這 10 部舊片的 NFO 補齊」— 原地補完，不搬移不改名
-- 「我今年抓最多的系列作品是哪個？」— SQL 查詢收藏資料庫
-- 「幫我把這篇文章提到的番號做成圖文並茂的網頁」— 封面自動嵌入 HTML
-
-不需要 SDK，不需要讀文件。一行 curl，AI 自學所有端點：
-
-```bash
-curl http://localhost:38741/api/capabilities
-```
-
-支援任何 MCP / function-calling 相容的 AI 工具。
-
-### 🔍 Spotlight Search (搜尋)
-- **多來源聚合**: 同時搜尋 JavBus, Jav321, JavDB, DMM, D2Pass, HEYZO 等多個來源。
-- **Gallery Style**: 現代化的 Hero Detail 介面，以大圖和毛玻璃特效呈現影片資訊。
-- **智慧搜尋**: 支援番號自動標準化、前綴搜尋、女優搜尋。
-- **版本標記**: 自動偵測 UC/LEAK/4K 等後綴，`{suffix}` 格式變數支援。
-- **女優畫廊模式 (Beta)**: 女優搜尋結果 > 10 片時自動切換為 Gallery 瀏覽，顯示女優個人資料 Hero Card。
-- **本地檔案搜尋優化**:
-  - 拖入檔案自動過濾（副檔名 + 大小）
-  - 批次搜尋（20 個一批，並發 2 個）
-  - 暫停/繼續功能 + 批次翻譯
-  - 我的最愛資料夾一鍵載入
-  - 開啟資料夾（系統檔案管理員整合）
-
-### 📝 Scanner (掃描與列表生成)
-- **靜態 HTML**: 掃描本地影片資料夾，生成精美的靜態 HTML 索引檔。
-- **Mini-Terminal**: 內嵌式終端機視窗，即時顯示掃描與處理進度。
-- **NFO 補全**: 自動檢測並補全缺失的 NFO 檔案。
-- **Jellyfin 圖片模式**: 自動生成 poster/thumb/fanart 供 Jellyfin 使用。
-- **快取管理**: 一鍵清除掃描快取，支援兩步確認。
-
-### ⚙️ Settings (設定)
-- **Dark Mode**: 全站支援深色模式，並自動同步至生成的 Viewer。
-- **翻譯服務**: 支援 Ollama（本地）和 Gemini（Google）兩種翻譯提供商。
-- **路徑管理**: 靈活設定輸出路徑與檔案命名規則，支援 `{suffix}` 格式變數。
-- **我的最愛資料夾**: 設定常用資料夾，一鍵載入並自動搜尋。
-- **檔案過濾**: 設定最小影片尺寸 (MB)，自動排除過小檔案。
-- **多語系 UI**: 四語系支援（繁中 / 简中 / 日文 / 英文），語系切換按鈕即時切換所有介面文字。
-
-### 🌐 翻譯功能
-
-OpenAver 支援兩種翻譯提供商：
-
-| 提供商 | 特點 | 速度 |
-|--------|------|------|
-| **Ollama（本地）** | 免費、無 API 限制、需本地 GPU | ~0.5 秒/片 |
-| **Gemini（Google）** | 雲端 API、免費額度 15 RPM | ~0.1 秒/片 |
-
-**翻譯語系跟隨 UI 語系（38c）：**
-- UI 切換至繁中 → 翻譯輸出繁體中文
-- UI 切換至简中 → 翻譯輸出簡體中文
-- UI 切換至英文 → 翻譯輸出英文
-- UI 切換至日文 → 跳過翻譯（原始標題本身即日文，不呼叫 API）
-
-**⚠️ Gemini API Key 安全提示**
-
-- API Key 以明文存儲在 `web/config.json`
-- **請勿將 config.json 分享給他人或上傳至公開位置**
-- 如需撤銷：前往 [Google AI Studio](https://aistudio.google.com/apikey) 重新生成
-
-### 🤖 Agentic AI 支援
-
-OpenAver 的 self-describing API 相容於所有主流 AI 工具：
-
-| 使用方式 | 工具 | 說明 |
-|----------|------|------|
-| **CLI** | Claude Code, Codex CLI, Gemini CLI, Aider 等 | 終端機直接 `curl`，所有 CLI agent 皆支援 |
-| **IDE** | Cursor, GitHub Copilot in VS Code, Windsurf, Trae, Google Antigravity 等 | Agent 模式 / MCP 呼叫本地 API |
-| **桌面 App** | Codex App, Claude Cowork, OpenClaw | ⭐ 回覆內直接顯示封面圖片，體驗最佳 |
-
-> 💡 **推薦**：**Codex App**（免費帳號可用）— 回覆中直接嵌入封面圖片，搜尋結果一目瞭然。
-
-> ⚡ **小模型友善**：capabilities manifest 已針對輕量模型優化，Gemini Flash / GPT-4o mini / Claude Haiku 皆可正確操作所有端點。
-
-## 🛠️ 技術架構
-
-- **Backend**: FastAPI (Python 3.10+)
-- **Frontend**: Jinja2 + DaisyUI + Tailwind CSS + Alpine.js 3.x + GSAP 3.14+ + Fluent Design 2
-- **Animation**: GSAP (Showcase/Search pages) + Motion Adapter (reduced-motion support)
-- **Desktop**: PyWebView (Windows/macOS)
-- **Database**: SQLite (WAL mode)
-- **Testing**: Pytest (1600+ tests)
-
-## 📥 安裝
-
-### 推薦方式：一行安裝（自動處理所有平台配置）
+### 推薦方式：一行安裝
 
 **macOS**:
 ```bash
@@ -161,50 +50,111 @@ irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex
 
 安裝指令會自動：
 - 偵測系統架構並下載最新版本
-- 移除 macOS 隔離標記（無需手動 `xattr` 指令）
-- 解除 Windows 下載安全限制（無需手動 Unblock）
+- 解除平台安全限制（macOS quarantine / Windows Mark of the Web）
 - 建立桌面快捷方式（Windows）
 - 保留設定與日誌檔案（升級時）
-- 清除舊版 Python runtime（避免套件混版）
 
 ### 備用方式：手動下載 ZIP
 
-如果網路環境無法執行指令（公司代理等），可從 [GitHub Releases](https://github.com/slive777/OpenAver/releases/latest) 手動下載：
+從 [GitHub Releases](https://github.com/slive777/OpenAver/releases/latest) 下載：
 
 | 平台 | 檔案 |
 |------|------|
 | **Windows x64** | `OpenAver-vX.X.X-Windows-x64.zip` |
 | **macOS arm64** | `OpenAver-vX.X.X-macOS-arm64.zip` |
 
-**⚠️ 手動 ZIP 安裝** — 需額外步驟解除平台安全限制，見下方「疑難排解 (ZIP 安裝)」。
-
+> ⚠️ 手動 ZIP 安裝需額外步驟解除安全限制，見下方「疑難排解」。
 > ℹ️ macOS 版本僅支援 Apple Silicon (M1/M2/M3/M4)。
+
+首次開啟會自動進入新手導覽，帶你完成資料夾與基本設定，不需要先讀文件。
 
 ---
 
-## 🚀 快速開始（原始碼）
+## 核心功能
 
-### 前置需求
-- Python 3.10+ (原始碼執行)
-- Chrome/Edge (用於 PyWebView)
-- **Microsoft Edge WebView2 Runtime** (Windows 10/VM 必備)
+### 🔍 Spotlight Search (搜尋)
+- **多來源聯合搜尋**: 同時搜尋 JavBus, Jav321, JavDB, DMM, D2Pass, HEYZO，一次查完所有來源。
+- **大圖詳情頁**: 封面、劇照、演員、標籤集中顯示，不用反覆切頁找資訊。
+- **智慧搜尋**: 番號、女優名、系列、片商都能搜，搜尋結果自動比對本地片庫並標示已收藏。
+- **版本自動辨識**: 自動識別 UC/LEAK/4K 等版本差異，整理檔名時不用手動補。
+- **女優畫廊模式 (Beta)**: 女優搜尋結果 > 10 片時自動切換為 Gallery 瀏覽，顯示女優個人資料 Hero Card。
+- **劇照瀏覽**: 搜尋結果直接瀏覽完整劇照。
+- **本地檔案批次搜尋**: 拖入影片檔案或資料夾，自動辨識番號並批次查詢影片資訊、封面與劇照。
 
-### 安裝
+### 📝 Scanner (掃描與列表生成)
+- **Showcase 展示列表**: 掃描本地影片資料夾，自動生成精美的互動式展示頁面（流暢動效 + 毛玻璃特效 + Lightbox 劇照瀏覽）。
+- **即時進度視窗**: 掃描到哪裡、補了哪些資料，畫面上直接看得到。
+- **NFO 補全**: 自動檢測並補全缺失的 NFO 檔案。
+- **字幕偵測**: 影片搬移時自動偵測並搬移同目錄字幕檔。
+- **Jellyfin 圖片模式**: 自動生成 poster/thumb/fanart 供 Jellyfin 使用。
+- **靜態 HTML 匯出**: 同時生成獨立的 HTML 索引檔，不需部署伺服器也能離線瀏覽。
+
+### 🌐 AI 翻譯
+- 日文標題一鍵翻譯為你的 UI 語系（繁中 / 简中 / 英文），日文模式跳過翻譯。
+- 支援 **Ollama**（本地 GPU，免費無限制）和 **Gemini Flash**（Google 雲端，有免費額度）。
+
+### ⚙️ Settings (設定)
+- **Dark Mode**: 全站深色模式，自動同步至生成的展示列表。
+- **路徑管理**: 靈活設定輸出路徑與檔案命名規則，支援 `{suffix}` 格式變數。
+- **我的最愛資料夾**: 設定常用資料夾，一鍵載入並自動搜尋。
+- **多語系 UI**: 繁中 / 简中 / 日文 / 英文，即時切換。
+
+### 🤖 AI-Ready API
+
+你的 AI 助手現在能直接操作你的片庫：
+
+- 「幫我搜 STARS-123, ABP-456, SSIS-789 的完整資訊」— 多來源聯合搜尋
+- 「把這 10 部舊片的 NFO 補齊」— 原地補完，不搬移不改名
+- 「我今年抓最多的系列作品是哪個？」— SQL 查詢收藏資料庫
+- 「幫我把這篇文章提到的番號做成圖文並茂的網頁」— 封面自動嵌入 HTML
+
+不需要 SDK，不需要讀文件。一行 curl，AI 自學所有端點：
+
 ```bash
-# 1. Clone 專案
-git clone https://github.com/slive777/OpenAver.git
-cd OpenAver
-
-# 2. 建立虛擬環境
-python3 -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# 3. 安裝依賴
-pip install -r requirements.txt
+curl http://localhost:<port>/api/capabilities
 ```
 
-### 啟動
+> Port 和完整 URL 可在 Settings 頁面的「AI API」區塊查看。
+
+支援任何 MCP / function-calling 相容的 AI 工具：
+
+| 使用方式 | 工具 | 說明 |
+|----------|------|------|
+| **CLI** | Claude Code, Codex CLI, Gemini CLI, Aider 等 | 終端機直接 `curl`，所有 CLI agent 皆支援 |
+| **IDE** | Cursor, GitHub Copilot in VS Code, Windsurf, Trae, Google Antigravity 等 | Agent 模式 / MCP 呼叫本地 API |
+| **桌面 App** | Codex App, Claude Cowork, OpenClaw | ⭐ 回覆內直接顯示封面圖片，體驗最佳 |
+
+> 💡 **推薦**：**Codex App**（免費帳號可用）— 回覆中直接嵌入封面圖片，搜尋結果一目瞭然。
+
+> ⚡ **小模型友善**：capabilities manifest 已針對輕量模型優化，Gemini Flash / GPT-4o mini / Claude Haiku 皆可正確操作所有端點。
+
+---
+
+## 開發者指南
+
+### 技術架構
+
+| 層級 | 技術 |
+|------|------|
+| **Backend** | FastAPI (Python 3.10+) |
+| **Frontend** | Jinja2 + DaisyUI + Tailwind CSS + Alpine.js 3.x + Fluent Design 2 |
+| **Animation** | GSAP 3.14+ + Motion Adapter (reduced-motion support) |
+| **Desktop** | PyWebView (Windows/macOS) |
+| **Database** | SQLite (WAL mode) |
+| **Testing** | Pytest (1600+ tests) |
+
+### 從原始碼執行
+
+**前置需求**: Python 3.10+、Chrome/Edge、[WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703) (Windows 10/VM)
+
 ```bash
+# Clone + 建立虛擬環境 + 安裝依賴
+git clone https://github.com/slive777/OpenAver.git
+cd OpenAver
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
 # 開發模式 (Hot Reload)
 uvicorn web.app:app --reload --host 0.0.0.0 --port 8000
 
@@ -212,134 +162,14 @@ uvicorn web.app:app --reload --host 0.0.0.0 --port 8000
 python windows/launcher.py
 ```
 
-## ❓ 疑難排解
-
-> 💡 如果您使用上方推薦的 **curl 一行安裝**，以下步驟通常不需要。疑難排解僅適用於手動 ZIP 安裝。
-
-### 升級注意事項（ZIP 手動安裝）
-
-覆蓋安裝可能殘留舊版 Python 套件，導致啟動失敗或版本衝突。**升級前請先刪除 `python` 資料夾**，再解壓覆蓋：
-
-- **Windows**: 刪除 `%USERPROFILE%\OpenAver\python\` 資料夾
-- **macOS**: 刪除 `~/OpenAver/python/` 資料夾
-
-> 💡 使用 curl / PowerShell 一行安裝會自動處理，無需手動操作。
-
-### ZIP 安裝專用
-
-#### 1. Windows 程式無法啟動 / 閃退
-
-**原因**: Windows 安全機制 (Mark of the Web) 封鎖了從網路下載的執行檔或 DLL。
-
-**解法**:
-1. 對下載的 `OpenAver-Windows-x64.zip` 點擊 **右鍵** -> **內容**
-2. 在下方勾選 **「解除封鎖 (Unblock)」**，然後按確定
-3. 重新解壓縮並執行 `OpenAver.bat`
-
-*或者使用 7-Zip 軟體進行解壓縮，通常可避開此問題。*
-
-**程式啟動後的使用**:
-- **OpenAver.bat** - 正常啟動（顯示啟動提示，無詳細日誌）
-- **OpenAver_Debug.bat** - 調試版本（顯示控制台，輸出詳細日誌）
-
-**遇到問題時，請執行 OpenAver_Debug.bat**：
-1. 雙擊 `OpenAver_Debug.bat` 啟動程式
-2. 控制台會顯示詳細的錯誤訊息
-3. 同時日誌檔案保存在：`%USERPROFILE%\OpenAver\logs\debug.log`
-4. 將控制台輸出或日誌內容附加到 [GitHub Issue](https://github.com/slive777/OpenAver/issues) 中報告
-
-#### 2. macOS 無法開啟 / 安全性警告
-
-**原因**: macOS Gatekeeper 阻擋未簽名的應用程式。
-
-**完整安裝步驟** (複製貼上執行):
-
-**[步驟 1]** 下載 ZIP
-- Safari 會自動解壓縮，檔案在「下載項目」資料夾
-
-**[步驟 2]** 開啟終端機
-- 按 ⌘ + 空白鍵 開啟 Spotlight
-- 輸入 Terminal 並按 Enter
-
-**[步驟 3]** 進入資料夾（複製貼上以下指令）
-```bash
-cd ~/Downloads/OpenAver
-```
-
-**[步驟 4]** 解除安全封鎖（必做）
-```bash
-xattr -dr com.apple.quarantine .
-```
-
-**[步驟 5]** 啟動程式
-```bash
-./OpenAver.command
-```
-
-💡 設定完成後，之後可直接雙擊 `OpenAver.command` 執行。
-
-**程式啟動後的使用**:
-- **OpenAver.command** - 正常啟動（無日誌輸出，後台執行）
-- **OpenAver_Debug.command** - 調試版本（在終端機顯示詳細日誌）
-
-**遇到問題時，請執行 OpenAver_Debug.command**：
-1. 雙擊 `OpenAver_Debug.command`（或在 Terminal 執行 `./OpenAver_Debug.command`）
-2. 終端機會顯示詳細的日誌輸出
-3. 日誌檔案同時保存在：`~/OpenAver/logs/debug.log`
-4. 將日誌內容附加到 [GitHub Issue](https://github.com/slive777/OpenAver/issues) 中報告
-
-### 所有安裝方式均適用
-
-#### 介面顯示異常 / 空白 / 沒有毛玻璃特效
-
-**原因**: 缺少 WebView2 Runtime 或 GPU 加速支援不足（常見於 Windows 10 或虛擬機）。
-
-**解法**: 請下載並安裝 [Microsoft Edge WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703)。
-
-## 💬 社群
-
-加入 [Telegram 群組](https://t.me/+J-U2l96gv0FjZTBl) 與其他使用者交流討論！
-
----
-
-## 🐛 回報問題
-
-遇到問題或發現 Bug？請透過以下管道回報，幫助我們改進：
-
-### 📌 一般問題 / 功能建議
-→ [GitHub Issues](https://github.com/slive777/OpenAver/issues)
-- 適用於開發者查詢、功能討論
-- 問題與解決方案留檔可供他人參考
-
-**回報格式**：
-- 問題描述（發生什麼錯誤？）
-- 重現步驟（如何觸發這個問題？）
-- 您的環境（OS 版本、是否使用打包版）
-- 日誌檔案（如果有）
-
-### 🔒 NSFW / 隱私敏感問題
-→ [Telegram 群組](https://t.me/+J-U2l96gv0FjZTBl)
-- 私密頻道，支援直接上傳敏感截圖 / 影片
-- 適合不便公開的內容
-
-### 取得日誌檔案（Windows 打包版）
-1. 執行 `OpenAver_Debug.bat`
-2. 重現問題
-3. 日誌位置：`%USERPROFILE%\OpenAver\logs\debug.log`
-4. 將日誌檔案附加到 GitHub Issue 或 Telegram
-
----
-
-## 🧪 執行測試
-
-本專案包含 API 整合測試與核心邏輯單元測試。
+### 執行測試
 
 ```bash
 source venv/bin/activate
 pytest
 ```
 
-## 📂 目錄結構
+### 目錄結構
 
 ```
 OpenAver/
@@ -348,26 +178,91 @@ OpenAver/
 │   ├── templates/      # HTML Templates (DaisyUI + Fluent Design 2)
 │   └── static/         # CSS/JS Assets (Modular JS, Theme CSS)
 ├── core/               # 核心邏輯
-│   ├── scrapers/               # 模組化爬蟲 (JavBus/JavDB/Jav321/FC2/AVSOX/DMM/D2Pass/HEYZO)
-│   ├── database.py             # SQLite 資料層 (WAL mode)
-│   ├── organizer.py            # 檔案整理 + fallback 空值防護
-│   ├── path_utils.py           # 跨平台路徑處理 (file:// URI)
-│   ├── i18n.py                 # 多語系翻譯核心 (t() / fallback chain)
-│   └── translate_service.py    # AI 翻譯 (Ollama/Gemini)
+│   ├── scrapers/       # 模組化爬蟲 (JavBus/JavDB/Jav321/FC2/AVSOX/DMM/D2Pass/HEYZO)
+│   ├── database.py     # SQLite 資料層 (WAL mode)
+│   ├── organizer.py    # 檔案整理 + fallback 空值防護
+│   ├── path_utils.py   # 跨平台路徑處理 (file:// URI)
+│   ├── i18n.py         # 多語系翻譯核心 (t() / fallback chain)
+│   └── translate_service.py  # AI 翻譯 (Ollama/Gemini)
 ├── locales/            # 四語系 JSON (zh_TW/zh_CN/ja/en)
 ├── tests/              # 測試代碼 (Pytest)
 └── windows/            # Windows 啟動器 (PyWebView)
 ```
 
-## 打包 Windows 應用程式
+### 打包 Windows 應用程式
 
 ```bash
-# 確保在 venv 環境下執行
 source venv/bin/activate
 python build.py
 ```
 
-## 🙏 致謝 (Acknowledgements)
+---
+
+## 疑難排解
+
+> 💡 如果您使用上方推薦的 **一行安裝**，以下步驟通常不需要。疑難排解僅適用於手動 ZIP 安裝。
+
+### 升級注意事項（ZIP 手動安裝）
+
+覆蓋安裝可能殘留舊版 Python 套件，導致啟動失敗。**升級前請先刪除 `python` 資料夾**：
+
+- **Windows**: 刪除 `%USERPROFILE%\OpenAver\python\`
+- **macOS**: 刪除 `~/OpenAver/python/`
+
+### Windows 程式無法啟動 / 閃退
+
+**原因**: Windows Mark of the Web 封鎖了從網路下載的執行檔。
+
+**解法**:
+1. 對下載的 ZIP 點擊 **右鍵** → **內容**
+2. 勾選 **「解除封鎖 (Unblock)」** → 確定
+3. 重新解壓縮並執行 `OpenAver.bat`
+
+*或者使用 7-Zip 解壓縮，通常可避開此問題。*
+
+**啟動腳本**:
+- `OpenAver.bat` — 正常啟動
+- `OpenAver_Debug.bat` — 調試版本（顯示詳細日誌），日誌檔案：`%USERPROFILE%\OpenAver\logs\debug.log`
+
+### macOS 無法開啟 / 安全性警告
+
+**原因**: macOS Gatekeeper 阻擋未簽名的應用程式。
+
+在終端機依序執行：
+```bash
+cd ~/Downloads/OpenAver
+xattr -dr com.apple.quarantine .
+./OpenAver.command
+```
+
+設定完成後，之後可直接雙擊 `OpenAver.command` 執行。
+
+**啟動腳本**:
+- `OpenAver.command` — 正常啟動
+- `OpenAver_Debug.command` — 調試版本，日誌檔案：`~/OpenAver/logs/debug.log`
+
+### 介面顯示異常 / 空白（所有安裝方式）
+
+**原因**: 缺少 WebView2 Runtime（常見於 Windows 10 或虛擬機）。
+
+**解法**: 下載並安裝 [Microsoft Edge WebView2 Runtime](https://go.microsoft.com/fwlink/p/?LinkId=2124703)。
+
+---
+
+## 社群與回報問題
+
+加入 [Telegram 群組](https://t.me/+J-U2l96gv0FjZTBl) 與其他使用者交流討論！
+
+| 管道 | 適用情境 |
+|------|----------|
+| [GitHub Issues](https://github.com/slive777/OpenAver/issues) | Bug 回報、功能建議、開發討論 |
+| [Telegram 群組](https://t.me/+J-U2l96gv0FjZTBl) | 隱私敏感問題、截圖/影片直傳 |
+
+**回報時請附上**: 問題描述、重現步驟、OS 版本、日誌檔案（執行 Debug 版啟動腳本取得）。
+
+---
+
+## 致謝
 
 OpenAver 使用並感謝以下開源專案：
 
@@ -378,8 +273,20 @@ OpenAver 使用並感謝以下開源專案：
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS 框架
 - **[Alpine.js](https://alpinejs.dev/)** - 輕量級 JavaScript 框架
 
-特別感謝所有為這些專案做出貢獻的開發者們。
-
 ## License
 
 MIT License
+
+---
+
+<details>
+<summary>⚠️ 免責聲明</summary>
+
+本專案僅供個人學習研究使用，請使用者遵守：
+- 尊重網站服務條款
+- 合理控制請求頻率
+- 不用於商業目的
+
+使用本專案造成的任何後果由使用者自行承擔。
+
+</details>
