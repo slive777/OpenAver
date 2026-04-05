@@ -250,25 +250,64 @@ main()
 " 2>&1 | tee "$LOG_FILE"
 '''
 
-    # README.txt
-    readme_content = '''OpenAver - JAV Metadata Manager
-====================================
+    readme_en = '''===============================================
+  OpenAver macOS Setup Guide
+===============================================
 
-Requirements:
+Option 1: One-Line Install (Recommended)
+
+  Open Terminal (Cmd + Space -> type "Terminal" -> Enter), paste:
+
+  curl -fsSL https://raw.githubusercontent.com/slive777/OpenAver/main/install.sh | bash
+
+  After install, run ~/OpenAver/OpenAver.command to launch.
+
+===============================================
+
+Option 2: Manual Install
+
+[Step 1] Download ZIP
+  - Safari auto-extracts it to your Downloads folder
+
+[Step 2] Open Terminal
+  - Press Cmd + Space to open Spotlight
+  - Type "Terminal" and press Enter
+
+[Step 3] Navigate to the folder (copy & paste)
+  cd ~/Downloads/OpenAver
+
+[Step 4] Remove security quarantine (required)
+  xattr -dr com.apple.quarantine .
+
+[Step 5] Launch
+  ./OpenAver.command
+
+===============================================
+
+After initial setup, you can double-click OpenAver.command directly.
+
+[Startup Scripts]
+
+OpenAver.command       — Normal launch (runs in background, Terminal can be closed)
+OpenAver_Debug.command — Debug mode, logs to Terminal and ~/OpenAver/logs/debug.log
+
+[Troubleshooting]
+
+If the app won't start, use OpenAver_Debug.command:
+  1. Double-click OpenAver_Debug.command (or run in Terminal)
+  2. Terminal shows live logs, also saved to ~/OpenAver/logs/debug.log
+  3. Attach the log content to your GitHub Issue
+
+[Requirements]
 - macOS 13+ (Ventura or later)
-- Apple Silicon (M1/M2/M3/M4)
+- Apple Silicon (M1/M2/M3/M4) only
 
-First Run - IMPORTANT:
-See MACOS_README.txt for setup instructions.
-
-Notes:
-- Please report any issues on GitHub!
-- Config: app/web/config.json
-- GitHub: https://github.com/slive777/OpenAver/issues
+[Report Issues]
+GitHub: https://github.com/slive777/OpenAver/issues
+Telegram: https://t.me/+J-U2l96gv0FjZTBl
 '''
 
-    # MACOS_README.txt
-    macos_readme_content = '''===============================================
+    readme_zh = '''===============================================
   OpenAver macOS 安裝指南
 ===============================================
 
@@ -302,11 +341,11 @@ Notes:
 
 ===============================================
 
-💡 設定完成後，之後可直接雙擊 OpenAver.command 執行。
+設定完成後，之後可直接雙擊 OpenAver.command 執行。
 
 [啟動腳本說明]
 
-OpenAver.command — 正常啟動，無日誌輸出（程式在背景運行，Terminal 視窗可關閉）
+OpenAver.command       — 正常啟動，無日誌輸出（程式在背景運行，Terminal 視窗可關閉）
 OpenAver_Debug.command — 調試模式，Terminal 顯示完整日誌，同時輸出到 ~/OpenAver/logs/debug.log
 
 [故障排除]
@@ -322,6 +361,7 @@ OpenAver_Debug.command — 調試模式，Terminal 顯示完整日誌，同時�
 
 [回報問題]
 GitHub: https://github.com/slive777/OpenAver/issues
+Telegram: https://t.me/+J-U2l96gv0FjZTBl
 '''
 
     # 寫入檔案
@@ -333,10 +373,10 @@ GitHub: https://github.com/slive777/OpenAver/issues
     debug_command_file.write_text(debug_command_content, encoding='utf-8')
     os.chmod(debug_command_file, 0o755)
 
-    (root_dir / "README.txt").write_text(readme_content, encoding='utf-8')
-    (root_dir / "MACOS_README.txt").write_text(macos_readme_content, encoding='utf-8')
+    (root_dir / "README.txt").write_text(readme_en, encoding='utf-8')
+    (root_dir / "README_zh.txt").write_text(readme_zh, encoding='utf-8')
 
-    print("  Created: OpenAver.command, OpenAver_Debug.command, README.txt, MACOS_README.txt")
+    print("  Created: OpenAver.command, OpenAver_Debug.command, README.txt, README_zh.txt")
 
 
 def optimize_package():

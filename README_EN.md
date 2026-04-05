@@ -104,8 +104,8 @@ Most metadata fields (actress, maker, label, tags) are already in English from t
 
 Your AI assistant can operate your library directly:
 
-- "Search STARS-123, ABP-456, SSIS-789 for me" — multi-source aggregation
-- "Fill in the missing NFO for these 10 old files" — in-place enrichment, no rename, no move
+- "Search SAME-123, PRED-456, IPZZ-789 for me" — multi-source aggregation
+- "Fill in the missing NFO in D:\av" — in-place enrichment, no rename, no move
 - "Which series did I download the most this year?" — SQL queries on your collection
 - "Turn the IDs in this article into a visual gallery" — auto-embedded cover HTML
 
@@ -123,11 +123,11 @@ Works with any MCP / function-calling compatible AI tool:
 |--------|-------|-------|
 | **CLI** | Claude Code, Codex CLI, Gemini CLI, Aider, etc. | Just `curl` from the terminal — all CLI agents supported |
 | **IDE** | Cursor, GitHub Copilot in VS Code, Windsurf, Trae, Google Antigravity, etc. | Agent mode / MCP to call local API |
-| **Desktop App** | Codex App, Claude Cowork, OpenClaw | ⭐ Cover images rendered inline — best experience |
+| **Desktop App** | Codex App, Claude Cowork, OpenClaw | No dev environment needed, works out of the box |
 
-> 💡 **Recommended**: **Codex App** (free tier available) — cover images embedded directly in responses for at-a-glance browsing.
+> 💡 **Recommended**: **OpenAI Codex App** (Win/Mac, free tier available) — the only AI tool that renders cover images directly in the conversation. Easy to install, works out of the box.
 
-> ⚡ **Small-model friendly**: The capabilities manifest is optimized for lightweight models — Gemini Flash / GPT-4o mini / Claude Haiku can all operate every endpoint correctly.
+> ⚡ **Small-model friendly**: The capabilities manifest is optimized for lightweight models — Gemini Flash / GPT-5.4 mini / Claude Haiku can all operate every endpoint correctly.
 
 ---
 
@@ -190,11 +190,12 @@ OpenAver/
 └── windows/            # Windows launcher (PyWebView)
 ```
 
-### Building the Windows Package
+### Building Packages
 
 ```bash
 source venv/bin/activate
-python build.py
+python build.py          # Windows
+python build_macos.py    # macOS
 ```
 
 ---

@@ -385,7 +385,51 @@ if errorlevel 1 (
 pause
 '''
 
-    readme_content = '''===============================================
+    readme_en = '''===============================================
+  OpenAver Windows Setup Guide
+===============================================
+
+Option 1: One-Line Install (Recommended)
+
+  Open PowerShell (search "PowerShell" -> Enter), paste:
+
+  irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex
+
+  After install, double-click the OpenAver shortcut on your desktop.
+
+===============================================
+
+Option 2: Manual Install
+
+  !! IMPORTANT: Use 7-Zip or WinRAR to extract !!
+  Windows built-in extraction keeps "Mark of the Web",
+  which blocks the app from running.
+
+1. Extract ZIP with 7-Zip / WinRAR
+2. Double-click OpenAver.bat to launch
+3. Use OpenAver_Debug.bat for troubleshooting
+
+  If you already extracted with Windows built-in:
+  Right-click the ZIP -> Properties -> check "Unblock" -> OK,
+  then re-extract.
+
+[Requirements]
+- Windows 10/11 64-bit
+- Microsoft Edge WebView2 Runtime
+  https://go.microsoft.com/fwlink/p/?LinkId=2124703
+- Internet connection
+
+[Notes]
+- First launch may take a moment
+- Config: app\\web\\config.json
+- Logs: %USERPROFILE%\\OpenAver\\logs\\debug.log
+
+[Report Issues]
+GitHub: https://github.com/slive777/OpenAver/issues
+Telegram: https://t.me/+J-U2l96gv0FjZTBl
+'''
+
+    readme_zh = '''===============================================
   OpenAver Windows 安裝指南
 ===============================================
 
@@ -401,13 +445,22 @@ pause
 
 方法二：手動安裝
 
-1. 解壓 ZIP 到任意資料夾
+  !! 重要：請使用 7-Zip 或 WinRAR 解壓 !!
+  Windows 內建解壓縮會保留「網路標記」(Mark of the Web)，
+  導致程式無法正常執行。
+
+1. 用 7-Zip / WinRAR 解壓 ZIP
 2. 雙擊 OpenAver.bat 啟動
 3. 除錯用 OpenAver_Debug.bat
+
+  如果已經用內建解壓縮：
+  對 ZIP 按右鍵 → 內容 → 勾選「解除封鎖」→ 確定，
+  再重新解壓。
 
 [系統需求]
 - Windows 10/11 64-bit
 - Microsoft Edge WebView2 Runtime
+  https://go.microsoft.com/fwlink/p/?LinkId=2124703
 - 網路連線
 
 [注意事項]
@@ -417,13 +470,15 @@ pause
 
 [回報問題]
 GitHub: https://github.com/slive777/OpenAver/issues
+Telegram: https://t.me/+J-U2l96gv0FjZTBl
 '''
 
     (root_dir / "OpenAver.bat").write_text(bat_content, encoding='ascii')
     (root_dir / "OpenAver_Debug.bat").write_text(debug_bat_content, encoding='ascii')
-    (root_dir / "README.txt").write_text(readme_content, encoding='utf-8')
+    (root_dir / "README.txt").write_text(readme_en, encoding='utf-8')
+    (root_dir / "README_zh.txt").write_text(readme_zh, encoding='utf-8')
 
-    print("  Created: OpenAver.bat, OpenAver_Debug.bat, README.txt")
+    print("  Created: OpenAver.bat, OpenAver_Debug.bat, README.txt, README_zh.txt")
 
 
 def get_directory_size(path):

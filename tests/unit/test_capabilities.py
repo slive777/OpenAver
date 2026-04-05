@@ -20,6 +20,7 @@ REQUIRED_TOP_LEVEL_FIELDS = [
     "quick_check",
     "network",
     "agent_instructions",
+    "image_display",
     "error_format",
     "tools",
     "examples",
@@ -35,6 +36,7 @@ EXPECTED_TOOL_NAMES = {
     "parse_filename",
     "enrich_single",
     "collection_sql",
+    "proxy_image",
     "jellyfin_check",
 }
 
@@ -82,9 +84,9 @@ class TestCapabilitiesEndpoint:
         data = client.get("/api/capabilities").json()
         assert "retry_hint" in data["error_format"]
 
-    def test_tools_count_is_9(self, client):
+    def test_tools_count_is_10(self, client):
         data = client.get("/api/capabilities").json()
-        assert len(data["tools"]) == 9
+        assert len(data["tools"]) == 10
 
     def test_all_tool_names_present(self, client):
         data = client.get("/api/capabilities").json()

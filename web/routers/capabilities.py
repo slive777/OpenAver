@@ -271,6 +271,23 @@ _TOOLS: list[dict] = [
         "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"sql\":\"SELECT COUNT(*) as total FROM videos\"}}' {base}/api/collection/sql",
     },
     {
+        "name": "proxy_image",
+        "description": "代理下載遠端圖片 — 解決 Cloudflare / 防盜鏈問題。搜尋結果的 cover 和 sample_images URL 是遠端直連，AI agent 直接 curl 會被擋。必須透過此端點下載。",
+        "method": "GET",
+        "path": "/api/proxy-image",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "遠端圖片 URL（從搜尋結果的 cover 或 sample_images 欄位取得）"},
+            },
+            "required": ["url"],
+        },
+        "output_schema": "binary — 圖片二進位資料（Content-Type: image/jpeg）。失敗時回傳 404 空回應。",
+        "side_effect": False,
+        "retry_safe": True,
+        "_example_template": "curl -o cover.jpg '{base}/api/proxy-image?url=https://pics.dmm.co.jp/digital/video/ssis00221/ssis00221pl.jpg'",
+    },
+    {
         "name": "jellyfin_check",
         "description": (
             "檢查本地收藏中有多少影片缺少 Jellyfin poster/fanart 圖片，回傳待更新數量。"
@@ -334,6 +351,28 @@ async def get_capabilities(request: Request):
             "fetch_method": "curl",
             "fetch_note": "必須使用 curl（shell 指令）存取此服務。禁止使用瀏覽器 fetch()、AI 內建的 WebFetch / web_search 等 HTTP 工具 — 這些工具走外部 proxy 或沙箱網路，無法連到 LAN IP。正確做法：用 Bash tool 執行 curl 指令。",
             "example": f"curl -s {base}/api/capabilities",
+        },
+        "image_display": {
+            "description": "如何在對話中顯示搜尋結果的封面 / 劇照圖片",
+            "problem": "搜尋結果的 cover 和 sample_images 是遠端 URL。AI agent 直接 curl 遠端 URL 會被 Cloudflare / 防盜鏈擋掉（回傳 HTML 而非圖片）。",
+            "solution": "透過 /api/proxy-image 下載圖片到本地，再用本地絕對路徑嵌入回覆。",
+            "steps": [
+                "1. 搜尋取得 cover / sample_images URL",
+                "2. curl -o <local_path> '<base_url>/api/proxy-image?url=<remote_url>' 下載到本地",
+                "3. 用 Markdown 圖片語法嵌入回覆：![番號 封面](<local_absolute_path>)",
+            ],
+            "rules": [
+                "禁止直接 curl 遠端圖片 URL — 一定會被擋",
+                "一律透過 /api/proxy-image 代理下載",
+                "下載到本地後用絕對路徑顯示（不要用遠端 URL 嵌入）",
+            ],
+            "codex_app": {
+                "description": "Codex App（OpenAI 桌面應用）專用指引 — 目前唯一支援對話內嵌圖片的 GUI agent",
+                "temp_dir": "C:/Codex/tmp/openaver-images/",
+                "display_format": "![SONE-205 cover](C:/Codex/tmp/openaver-images/SONE-205-cover.jpg)",
+                "naming": "<number>-cover.jpg 或 <number>-sample-<N>.jpg",
+                "note": "路徑不可含空格。OpenAver 的番號與檔名不含空格，可安全使用。",
+            },
         },
         "error_format": {
             "structure": {"success": False, "error": "string — 錯誤描述"},
@@ -415,6 +454,16 @@ async def get_capabilities(request: Request):
                     "2. POST /api/enrich-single（mode: db_to_sidecar）從 DB 重建 NFO",
                 ],
                 "confirmation_rule": "db_to_sidecar 純本地操作，不打外站。會寫入 NFO 檔",
+            },
+            {
+                "scenario": "顯示封面圖片（對話內嵌入）",
+                "description": "用戶要求看某部片的封面或劇照，AI 在回覆中直接顯示圖片",
+                "steps": [
+                    "1. GET /api/search?q=SONE-205 → 取得 cover URL",
+                    "2. curl -o /tmp/SONE-205-cover.jpg '<base_url>/api/proxy-image?url=<cover_url>' 下載到本地",
+                    "3. 回覆中嵌入 ![SONE-205 封面](/tmp/SONE-205-cover.jpg)",
+                ],
+                "confirmation_rule": "純查詢 + 下載圖片，不需確認",
             },
             {
                 "scenario": "收藏統計",

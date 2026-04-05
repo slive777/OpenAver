@@ -103,8 +103,8 @@ irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex
 
 你的 AI 助手現在能直接操作你的片庫：
 
-- 「幫我搜 STARS-123, ABP-456, SSIS-789 的完整資訊」— 多來源聯合搜尋
-- 「把這 10 部舊片的 NFO 補齊」— 原地補完，不搬移不改名
+- 「幫我搜 SAME-123, PRED-456, IPZZ-789 的完整資訊」— 多來源聯合搜尋
+- 「把 D:\av 的 NFO 資料補齊」— 原地補完，不搬移不改名
 - 「我今年抓最多的系列作品是哪個？」— SQL 查詢收藏資料庫
 - 「幫我把這篇文章提到的番號做成圖文並茂的網頁」— 封面自動嵌入 HTML
 
@@ -122,11 +122,11 @@ curl http://localhost:<port>/api/capabilities
 |----------|------|------|
 | **CLI** | Claude Code, Codex CLI, Gemini CLI, Aider 等 | 終端機直接 `curl`，所有 CLI agent 皆支援 |
 | **IDE** | Cursor, GitHub Copilot in VS Code, Windsurf, Trae, Google Antigravity 等 | Agent 模式 / MCP 呼叫本地 API |
-| **桌面 App** | Codex App, Claude Cowork, OpenClaw | ⭐ 回覆內直接顯示封面圖片，體驗最佳 |
+| **桌面 App** | Codex App, Claude Cowork, OpenClaw | 不需開發環境，開箱即用 |
 
-> 💡 **推薦**：**Codex App**（免費帳號可用）— 回覆中直接嵌入封面圖片，搜尋結果一目瞭然。
+> 💡 **推薦**：**OpenAI Codex App**（Win/Mac，免費方案可用）— 目前唯一能在對話中直接顯示封面圖片的 AI 工具，安裝簡單，開箱即用。
 
-> ⚡ **小模型友善**：capabilities manifest 已針對輕量模型優化，Gemini Flash / GPT-4o mini / Claude Haiku 皆可正確操作所有端點。
+> ⚡ **小模型友善**：capabilities manifest 已針對輕量模型優化，Gemini Flash / GPT-5.4 mini / Claude Haiku 皆可正確操作所有端點。
 
 ---
 
@@ -189,11 +189,12 @@ OpenAver/
 └── windows/            # Windows 啟動器 (PyWebView)
 ```
 
-### 打包 Windows 應用程式
+### 打包應用程式
 
 ```bash
 source venv/bin/activate
-python build.py
+python build.py          # Windows
+python build_macos.py    # macOS
 ```
 
 ---
