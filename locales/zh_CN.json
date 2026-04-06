@@ -483,7 +483,18 @@
       "update_available_suffix": "可用",
       "up_to_date": "已是最新版本",
       "ai_instruction": "粘贴给 AI 智能体即可操作 OpenAver",
-      "ai_hint_unsupported": "不适用网页版聊天"
+      "ai_hint_unsupported": "不适用网页版聊天",
+      "ai_tools": "贴给 AI agent 就能操作 OpenAver — Claude Code · Cursor · Codex 等"
+    },
+    "workflow": {
+      "title": "第一次使用？先看这 3 步",
+      "subtitle": "照着左侧三个页面操作，从找资料到展示收藏",
+      "step1_title": "搜索影片信息",
+      "step1_desc": "用番号找到封面与影片资料",
+      "step2_title": "生成展示墙",
+      "step2_desc": "扫描文件夹并建立收藏页",
+      "step3_title": "浏览收藏",
+      "step3_desc": "用海报墙方式浏览你的收藏"
     },
     "search": {
       "title": "搜索功能",

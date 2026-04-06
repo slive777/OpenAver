@@ -483,7 +483,18 @@
       "update_available_suffix": "利用可能",
       "up_to_date": "最新バージョンです",
       "ai_instruction": "AIエージェントに貼り付けるだけでOpenAverを操作できます",
-      "ai_hint_unsupported": "ウェブ版チャットには非対応"
+      "ai_hint_unsupported": "ウェブ版チャットには非対応",
+      "ai_tools": "AI エージェントに貼り付けて OpenAver を操作 — Claude Code · Cursor · Codex など"
+    },
+    "workflow": {
+      "title": "初めてですか？3ステップで始めましょう",
+      "subtitle": "左側の3つのページに沿って、検索から展示まで",
+      "step1_title": "動画情報を検索",
+      "step1_desc": "品番でカバーとメタデータを取得",
+      "step2_title": "ショーケースを生成",
+      "step2_desc": "フォルダをスキャンしてコレクションページを作成",
+      "step3_title": "コレクションを閲覧",
+      "step3_desc": "ポスター形式でコレクションを閲覧"
     },
     "search": {
       "title": "検索機能",

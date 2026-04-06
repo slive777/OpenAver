@@ -483,7 +483,18 @@
       "update_available_suffix": "available",
       "up_to_date": "You are up to date",
       "ai_instruction": "Paste to AI agent to control OpenAver",
-      "ai_hint_unsupported": "Not supported in web chat"
+      "ai_hint_unsupported": "Not supported in web chat",
+      "ai_tools": "Paste to any AI agent to operate OpenAver — Claude Code · Cursor · Codex etc."
+    },
+    "workflow": {
+      "title": "First time? Follow these 3 steps",
+      "subtitle": "Use the three pages on the left sidebar, from search to showcase",
+      "step1_title": "Search Video Info",
+      "step1_desc": "Find covers and metadata by video ID",
+      "step2_title": "Generate Showcase",
+      "step2_desc": "Scan folders and build a collection page",
+      "step3_title": "Browse Collection",
+      "step3_desc": "Browse your collection in poster wall view"
     },
     "search": {
       "title": "Search",
