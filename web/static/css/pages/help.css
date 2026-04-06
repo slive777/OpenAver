@@ -50,3 +50,33 @@
     color: oklch(90% 0.04 180);
     background: oklch(30% 0.01 250);
 }
+
+/* ========== 工作流程 ========== */
+
+.workflow-arrow {
+    color: oklch(0.65 0.13 160);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
+    min-width: 1.5rem;
+}
+
+.workflow-step-num {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: oklch(0.55 0.13 160);
+    color: oklch(0.95 0 0);
+    margin-right: 0.3rem;
+}
+
+.workflow-step-icon {
+    font-size: 1.5rem;
+}

@@ -485,6 +485,16 @@
       "ai_instruction": "貼給 AI agent 就能操作 OpenAver",
       "ai_hint_unsupported": "不適用網頁版聊天"
     },
+    "workflow": {
+      "title": "第一次使用？先看這 3 步",
+      "subtitle": "照著左側三個頁面操作，從找資料到展示收藏",
+      "step1_title": "搜尋影片資訊",
+      "step1_desc": "用番號找到封面與影片資料",
+      "step2_title": "生成展示牆",
+      "step2_desc": "掃描資料夾並建立收藏頁",
+      "step3_title": "瀏覽收藏",
+      "step3_desc": "用海報牆方式瀏覽你的收藏"
+    },
     "search": {
       "title": "搜尋功能",
       "h6_methods": "支援的搜尋方式",
