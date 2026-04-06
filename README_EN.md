@@ -13,6 +13,8 @@
 
 **English** | [繁體中文](README.md)
 
+The core workflow spans three pages: 🔍 Search video info → 📋 Generate showcase → 🎬 Browse collection
+
 **100% local** — no data collection, no uploads. Network requests are only used to scrape publicly available metadata.
 
 ## Screenshots
