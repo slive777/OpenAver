@@ -358,3 +358,32 @@ class TestDMMSearchByKeyword:
              patch('core.scrapers.dmm.rate_limit'):
             dmm_scraper.search_by_keyword_with_ids("test")
         mock_fetch.assert_not_called()
+
+    # ============================================================
+    # T5: offset 參數傳遞測試
+    # ============================================================
+
+    def test_keyword_with_ids_offset_passed(self, dmm_scraper):
+        """search_by_keyword_with_ids(offset=40) → GraphQL variables.offset == 40"""
+        mock_resp = _make_mock_resp(status_code=200, json_data=DMM_SEARCH_LIST_RESPONSE)
+
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp) as mock_post, \
+             patch('core.scrapers.dmm.rate_limit'):
+            dmm_scraper.search_by_keyword_with_ids("未歩なな", limit=20, offset=40)
+
+        call_kwargs = mock_post.call_args_list[0][1]
+        payload = call_kwargs.get('json', {})
+        assert payload['variables']['offset'] == 40
+
+    def test_keyword_offset_passed(self, dmm_scraper):
+        """search_by_keyword(offset=40) → GraphQL variables.offset == 40"""
+        mock_resp = _make_mock_resp(status_code=200, json_data=DMM_SEARCH_LIST_RESPONSE)
+
+        with patch.object(dmm_scraper._session, 'post', return_value=mock_resp) as mock_post, \
+             patch.object(dmm_scraper, '_fetch_by_id', return_value=None), \
+             patch('core.scrapers.dmm.rate_limit'):
+            dmm_scraper.search_by_keyword("未歩なな", limit=20, offset=40)
+
+        call_kwargs = mock_post.call_args_list[0][1]
+        payload = call_kwargs.get('json', {})
+        assert payload['variables']['offset'] == 40

@@ -582,7 +582,7 @@ class DMMScraper(BaseScraper):
         # 4. 完全失敗
         return None
 
-    def search_by_keyword_with_ids(self, keyword: str, limit: int = 20) -> list[tuple[str, Video]]:
+    def search_by_keyword_with_ids(self, keyword: str, limit: int = 20, offset: int = 0) -> list[tuple[str, Video]]:
         """
         關鍵字搜尋（輕量版）— 回傳 (content_id, shallow_Video) tuples。
         供 facade 層 ThreadPoolExecutor enrichment 使用。
@@ -593,7 +593,7 @@ class DMMScraper(BaseScraper):
                 'query': self.SEARCH_LIST_QUERY,
                 'variables': {
                     'limit': limit,
-                    'offset': 0,
+                    'offset': offset,
                     'sort': 'RELEASE_DATE',
                     'queryWord': keyword,
                 }
@@ -641,14 +641,14 @@ class DMMScraper(BaseScraper):
         except Exception:
             return []
 
-    def search_by_keyword(self, keyword: str, limit: int = 20) -> list[Video]:
+    def search_by_keyword(self, keyword: str, limit: int = 20, offset: int = 0) -> list[Video]:
         """關鍵字搜尋（女優名、片商名等日文關鍵字）"""
         try:
             payload = {
                 'query': self.SEARCH_LIST_QUERY,
                 'variables': {
                     'limit': limit,
-                    'offset': 0,
+                    'offset': offset,
                     'sort': 'RELEASE_DATE',
                     'queryWord': keyword,
                 }
