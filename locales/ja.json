@@ -195,7 +195,8 @@
       "openai_compatible": "OpenAI 互換",
       "openai_api_key_placeholder": "空白 = Authorization ヘッダーなし",
       "openai_api_key_hint": "ローカル LLM は空白可、クラウドサービスは API Key が必要",
-      "openai_model_placeholder": "例: gpt-4o-mini"
+      "openai_model_placeholder": "例: gpt-4o-mini",
+      "openai_custom_model": "カスタム..."
     },
     "scraper": {
       "suffix_keywords_label": "バージョンマーク",
@@ -295,6 +296,10 @@
       "translation_success": "翻訳テスト成功！ ({translation})",
       "openai_connection_failed": "接続失敗",
       "openai_http_error": "HTTPリクエスト失敗",
+      "openai_auth_failed": "認証失敗、API Key を確認してください",
+      "openai_forbidden": "アクセス権限がありません",
+      "openai_not_found": "APIエンドポイントが見つかりません、Base URL を確認してください",
+      "openai_rate_limited": "レート制限超過、後でもう一度お試しください",
       "openai_missing_base_url": "Base URL を入力してください",
       "openai_missing_model": "モデル名を入力してください",
       "openai_connection_timeout": "接続タイムアウト",

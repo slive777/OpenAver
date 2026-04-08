@@ -195,7 +195,8 @@
       "openai_compatible": "OpenAI Compatible",
       "openai_api_key_placeholder": "Leave blank = no Authorization header",
       "openai_api_key_hint": "Local LLMs can leave empty; cloud services require an API Key",
-      "openai_model_placeholder": "e.g. gpt-4o-mini"
+      "openai_model_placeholder": "e.g. gpt-4o-mini",
+      "openai_custom_model": "Custom..."
     },
     "scraper": {
       "suffix_keywords_label": "Version Tags",
@@ -295,6 +296,10 @@
       "translation_success": "Translation test passed! ({translation})",
       "openai_connection_failed": "Connection failed",
       "openai_http_error": "HTTP request failed",
+      "openai_auth_failed": "Authentication failed, check API Key",
+      "openai_forbidden": "Access forbidden",
+      "openai_not_found": "API endpoint not found, check Base URL",
+      "openai_rate_limited": "Rate limit exceeded, try again later",
       "openai_missing_base_url": "Please enter Base URL",
       "openai_missing_model": "Please enter model name",
       "openai_connection_timeout": "Connection timeout",

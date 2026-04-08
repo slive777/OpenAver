@@ -66,6 +66,7 @@ function settingsPage() {
         openaiStatus: '',
         openaiModelStatus: '',
         openaiModels: [],
+        openaiUseCustomModel: false,
         fetchingOpenaiModels: false,
         testingOpenaiTranslate: false,
         // Toast state
@@ -312,6 +313,11 @@ function settingsPage() {
                     // 自動測試 Gemini（如果有 API Key 且是 gemini provider）
                     if (config.translate.gemini?.api_key && config.translate.provider === 'gemini') {
                         setTimeout(() => this.testGeminiConnection(), 100);
+                    }
+
+                    // 自動 fetch OpenAI models（如果有 base_url 且是 openai provider）
+                    if (config.translate.openai?.base_url && config.translate.provider === 'openai') {
+                        setTimeout(() => this.fetchOpenAIModels(), 100);
                     }
 
                     // Scraper
@@ -720,17 +726,17 @@ function settingsPage() {
                     this.openaiModels = data.models;
                     this.openaiStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.models.length})}</span>`;
 
-                    // 如果目前模型不在列表中，清空讓用戶從 datalist 選
-                    if (!this.openaiModels.includes(this.form.openaiModel)) {
-                        this.form.openaiModel = '';
+                    // 若目前是自訂模式，保持不動；否則若 model 不在清單中，選第一個
+                    if (!this.openaiUseCustomModel && !this.openaiModels.includes(this.form.openaiModel)) {
+                        this.form.openaiModel = this.openaiModels[0];
                     }
                 } else {
-                    this.openaiModels = [];
+                    // 不清空 openaiModels — 保留舊清單
                     const errorKey = `settings.status.openai_${data.error || 'connection_failed'}`;
                     this.openaiStatus = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> ${window.t(errorKey)}</span>`;
                 }
             } catch (error) {
-                this.openaiModels = [];
+                // 不清空 openaiModels — 保留舊清單
                 this.openaiStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.openai_connection_failed')}</span>`;
             } finally {
                 this.fetchingOpenaiModels = false;

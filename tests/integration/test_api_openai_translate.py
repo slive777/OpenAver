@@ -93,7 +93,7 @@ class TestOpenAIModels:
         assert data["error"] == "missing_base_url"
 
     def test_models_http_error(self):
-        """HTTP 403 from upstream → success=False, error is fixed key (no status code leak)."""
+        """HTTP 403 from upstream → success=False, error key is 'forbidden'."""
         resp = _make_http_response(403)
         mock_cm = _make_mock_client(get_response=resp)
 
@@ -106,7 +106,55 @@ class TestOpenAIModels:
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is False
-        assert data["error"] == "http_error"
+        assert data["error"] == "forbidden"
+
+    def test_models_auth_failed(self):
+        """HTTP 401 → success=False, error='auth_failed'."""
+        resp = _make_http_response(401)
+        mock_cm = _make_mock_client(get_response=resp)
+
+        with patch("web.routers.openai_translate.httpx.AsyncClient", return_value=mock_cm):
+            response = client.post("/api/openai/models", json={
+                "base_url": "http://localhost:8080",
+                "api_key": "bad-key"
+            })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert data["error"] == "auth_failed"
+
+    def test_models_not_found(self):
+        """HTTP 404 → success=False, error='not_found'."""
+        resp = _make_http_response(404)
+        mock_cm = _make_mock_client(get_response=resp)
+
+        with patch("web.routers.openai_translate.httpx.AsyncClient", return_value=mock_cm):
+            response = client.post("/api/openai/models", json={
+                "base_url": "http://localhost:8080",
+                "api_key": ""
+            })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert data["error"] == "not_found"
+
+    def test_models_rate_limited(self):
+        """HTTP 429 → success=False, error='rate_limited'."""
+        resp = _make_http_response(429)
+        mock_cm = _make_mock_client(get_response=resp)
+
+        with patch("web.routers.openai_translate.httpx.AsyncClient", return_value=mock_cm):
+            response = client.post("/api/openai/models", json={
+                "base_url": "http://localhost:8080",
+                "api_key": "test-key"
+            })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert data["error"] == "rate_limited"
 
     def test_models_timeout(self):
         """Timeout → success=False, error is a fixed string (no exception text)."""
@@ -172,7 +220,7 @@ class TestOpenAITranslate:
         assert data["translation"]  # non-empty
 
     def test_translate_http_error(self):
-        """HTTP 401 → success=False, error is fixed key (no status code leak)."""
+        """HTTP 401 → success=False, error='auth_failed'."""
         resp = _make_http_response(401)
         mock_cm = _make_mock_client(post_response=resp)
 
@@ -181,6 +229,78 @@ class TestOpenAITranslate:
             response = client.post("/api/openai/test", json={
                 "base_url": "http://localhost:8080",
                 "api_key": "bad",
+                "model": "my-model"
+            })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert data["error"] == "auth_failed"
+
+    def test_translate_forbidden(self):
+        """HTTP 403 → success=False, error='forbidden'."""
+        resp = _make_http_response(403)
+        mock_cm = _make_mock_client(post_response=resp)
+
+        with patch("web.routers.openai_translate.httpx.AsyncClient", return_value=mock_cm), \
+             patch("web.routers.openai_translate.load_config", return_value={"general": {"locale": "zh-TW"}}):
+            response = client.post("/api/openai/test", json={
+                "base_url": "http://localhost:8080",
+                "api_key": "bad",
+                "model": "my-model"
+            })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert data["error"] == "forbidden"
+
+    def test_translate_not_found(self):
+        """HTTP 404 → success=False, error='not_found'."""
+        resp = _make_http_response(404)
+        mock_cm = _make_mock_client(post_response=resp)
+
+        with patch("web.routers.openai_translate.httpx.AsyncClient", return_value=mock_cm), \
+             patch("web.routers.openai_translate.load_config", return_value={"general": {"locale": "zh-TW"}}):
+            response = client.post("/api/openai/test", json={
+                "base_url": "http://localhost:8080",
+                "api_key": "",
+                "model": "my-model"
+            })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert data["error"] == "not_found"
+
+    def test_translate_rate_limited(self):
+        """HTTP 429 → success=False, error='rate_limited'."""
+        resp = _make_http_response(429)
+        mock_cm = _make_mock_client(post_response=resp)
+
+        with patch("web.routers.openai_translate.httpx.AsyncClient", return_value=mock_cm), \
+             patch("web.routers.openai_translate.load_config", return_value={"general": {"locale": "zh-TW"}}):
+            response = client.post("/api/openai/test", json={
+                "base_url": "http://localhost:8080",
+                "api_key": "test-key",
+                "model": "my-model"
+            })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is False
+        assert data["error"] == "rate_limited"
+
+    def test_translate_server_error(self):
+        """HTTP 500 → success=False, error='http_error' (generic fallback)."""
+        resp = _make_http_response(500)
+        mock_cm = _make_mock_client(post_response=resp)
+
+        with patch("web.routers.openai_translate.httpx.AsyncClient", return_value=mock_cm), \
+             patch("web.routers.openai_translate.load_config", return_value={"general": {"locale": "zh-TW"}}):
+            response = client.post("/api/openai/test", json={
+                "base_url": "http://localhost:8080",
+                "api_key": "",
                 "model": "my-model"
             })
 

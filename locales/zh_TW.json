@@ -195,7 +195,8 @@
       "openai_compatible": "OpenAI 相容",
       "openai_api_key_placeholder": "留空 = 不送 Authorization header",
       "openai_api_key_hint": "本地 LLM 可留空，雲端服務需填入 API Key",
-      "openai_model_placeholder": "e.g. gpt-4o-mini"
+      "openai_model_placeholder": "e.g. gpt-4o-mini",
+      "openai_custom_model": "自訂..."
     },
     "scraper": {
       "suffix_keywords_label": "版本標記",
@@ -295,6 +296,10 @@
       "test_failed": "測試失敗: {msg}",
       "openai_connection_failed": "連線失敗",
       "openai_http_error": "HTTP 請求失敗",
+      "openai_auth_failed": "認證失敗，請檢查 API Key",
+      "openai_forbidden": "無存取權限",
+      "openai_not_found": "API 端點不存在，請確認 Base URL",
+      "openai_rate_limited": "請求頻率超限，請稍後再試",
       "openai_missing_base_url": "請輸入 Base URL",
       "openai_missing_model": "請輸入模型名稱",
       "openai_connection_timeout": "連線逾時",

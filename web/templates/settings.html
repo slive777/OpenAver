@@ -339,21 +339,38 @@
                             </div>
                         </div>
 
-                        <!-- Model (datalist) + Test Translate -->
+                        <!-- Model (select/input dual mode) + Test Translate -->
                         <div class="settings-form-row">
                             <label class="row-label" x-text="window.t('settings.translate.model_label')"></label>
                             <div class="flex-1 flex flex-col gap-1">
                                 <div class="variable-input-group">
-                                    <input type="text" class="input input-bordered input-sm flex-1"
-                                        list="openaiModelList"
-                                        x-model="form.openaiModel"
-                                        :placeholder="window.t('settings.translate.openai_model_placeholder')"
-                                        :disabled="!form.translateEnabled">
-                                    <datalist id="openaiModelList">
-                                        <template x-for="m in openaiModels" :key="m">
-                                            <option :value="m"></option>
-                                        </template>
-                                    </datalist>
+                                    <!-- select 模式：有 models 且非自訂模式 -->
+                                    <template x-if="openaiModels.length > 0 && !openaiUseCustomModel">
+                                        <select class="select select-bordered select-sm flex-1"
+                                            x-model="form.openaiModel"
+                                            @change="if ($event.target.value === '__custom__') { openaiUseCustomModel = true; form.openaiModel = ''; }"
+                                            :disabled="!form.translateEnabled">
+                                            <template x-for="m in openaiModels" :key="m">
+                                                <option :value="m" x-text="m"></option>
+                                            </template>
+                                            <option value="__custom__" x-text="window.t('settings.translate.openai_custom_model') || 'Custom...'"></option>
+                                        </select>
+                                    </template>
+                                    <!-- input 模式：無 models 或自訂模式 -->
+                                    <template x-if="openaiModels.length === 0 || openaiUseCustomModel">
+                                        <div class="flex gap-1 items-center flex-1">
+                                            <input type="text" class="input input-bordered input-sm flex-1"
+                                                x-model="form.openaiModel"
+                                                :placeholder="window.t('settings.translate.openai_model_placeholder')"
+                                                :disabled="!form.translateEnabled">
+                                            <button x-show="openaiUseCustomModel && openaiModels.length > 0"
+                                                class="btn btn-xs btn-ghost"
+                                                type="button"
+                                                @click="openaiUseCustomModel = false; form.openaiModel = openaiModels[0] || '';">
+                                                <i class="bi bi-list-ul"></i>
+                                            </button>
+                                        </div>
+                                    </template>
                                     <button class="btn btn-sm btn-outline" type="button"
                                         @click="testOpenAITranslation()"
                                         :disabled="!form.translateEnabled || testingOpenaiTranslate || !form.openaiBaseUrl.trim() || !form.openaiModel.trim()">

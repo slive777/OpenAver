@@ -195,7 +195,8 @@
       "openai_compatible": "OpenAI 兼容",
       "openai_api_key_placeholder": "留空 = 不送 Authorization header",
       "openai_api_key_hint": "本地 LLM 可留空，云端服务需填入 API Key",
-      "openai_model_placeholder": "e.g. gpt-4o-mini"
+      "openai_model_placeholder": "e.g. gpt-4o-mini",
+      "openai_custom_model": "自定义..."
     },
     "scraper": {
       "suffix_keywords_label": "版本标记",
@@ -295,6 +296,10 @@
       "translation_success": "翻译测试成功！ ({translation})",
       "openai_connection_failed": "连接失败",
       "openai_http_error": "HTTP 请求失败",
+      "openai_auth_failed": "认证失败，请检查 API Key",
+      "openai_forbidden": "无访问权限",
+      "openai_not_found": "API 端点不存在，请确认 Base URL",
+      "openai_rate_limited": "请求频率超限，请稍后再试",
       "openai_missing_base_url": "请输入 Base URL",
       "openai_missing_model": "请输入模型名称",
       "openai_connection_timeout": "连接超时",

@@ -82,8 +82,19 @@ async def fetch_openai_models(request: ModelsRequest):
         return ModelsResponse(success=True, models=models)
 
     except httpx.HTTPStatusError as e:
-        logger.warning("[OpenAI] 查詢模型列表失敗: HTTP %s", e.response.status_code)
-        return ModelsResponse(success=False, error="http_error")
+        sc = e.response.status_code
+        if sc == 401:
+            error_key = "auth_failed"
+        elif sc == 403:
+            error_key = "forbidden"
+        elif sc == 404:
+            error_key = "not_found"
+        elif sc == 429:
+            error_key = "rate_limited"
+        else:
+            error_key = "http_error"
+        logger.warning("[OpenAI] 請求失敗: HTTP %s", sc)
+        return ModelsResponse(success=False, error=error_key)
 
     except httpx.TimeoutException:
         logger.warning("[OpenAI] 查詢模型列表逾時")
@@ -175,8 +186,19 @@ async def test_openai_translate(request: TestTranslateRequest):
             return TestTranslateResponse(success=False, error="unknown_response_format")
 
     except httpx.HTTPStatusError as e:
-        logger.warning("[OpenAI] 測試翻譯失敗: HTTP %s", e.response.status_code)
-        return TestTranslateResponse(success=False, error="http_error")
+        sc = e.response.status_code
+        if sc == 401:
+            error_key = "auth_failed"
+        elif sc == 403:
+            error_key = "forbidden"
+        elif sc == 404:
+            error_key = "not_found"
+        elif sc == 429:
+            error_key = "rate_limited"
+        else:
+            error_key = "http_error"
+        logger.warning("[OpenAI] 請求失敗: HTTP %s", sc)
+        return TestTranslateResponse(success=False, error=error_key)
 
     except httpx.TimeoutException:
         logger.warning("[OpenAI] 測試翻譯逾時")
