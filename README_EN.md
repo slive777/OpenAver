@@ -93,7 +93,7 @@ On first launch, a built-in setup wizard walks you through folder configuration 
 
 ### 🌐 AI Translation
 Most metadata fields (actress, maker, label, tags) are already in English from the source — but titles remain in Japanese. AI translation fills that gap automatically.
-- Supports **Ollama** (local GPU, free & unlimited) and **Gemini Flash** (Google cloud, free tier available).
+- Supports **Ollama** (local GPU, free & unlimited), **Gemini Flash** (Google cloud, free tier available), and **OpenAI API Compatible** (OpenRouter, any compatible endpoint).
 - Translation language follows your UI locale (English, Traditional Chinese, Simplified Chinese). Japanese locale skips translation since titles are already in Japanese.
 
 ### ⚙️ Settings
@@ -186,7 +186,7 @@ OpenAver/
 │   ├── organizer.py    # File organizer + null-value fallback guards
 │   ├── path_utils.py   # Cross-platform path handling (file:// URI)
 │   ├── i18n.py         # i18n core (t() / fallback chain)
-│   └── translate_service.py  # AI translation (Ollama/Gemini)
+│   └── translate_service.py  # AI translation (Ollama/Gemini/OpenAI Compatible)
 ├── locales/            # 4-locale JSON (zh_TW/zh_CN/ja/en)
 ├── tests/              # Test suite (Pytest)
 └── windows/            # Windows launcher (PyWebView)

@@ -93,7 +93,7 @@ irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex
 
 ### 🌐 AI 翻譯
 - 日文標題一鍵翻譯為你的 UI 語系（繁中 / 简中 / 英文），日文模式跳過翻譯。
-- 支援 **Ollama**（本地 GPU，免費無限制）和 **Gemini Flash**（Google 雲端，有免費額度）。
+- 支援 **Ollama**（本地 GPU，免費無限制）、**Gemini Flash**（Google 雲端，有免費額度）和 **OpenAI API Compatible**（OpenRouter、任意相容端點）。
 
 ### ⚙️ Settings (設定)
 - **Dark Mode**: 全站深色模式，自動同步至生成的展示列表。
@@ -185,7 +185,7 @@ OpenAver/
 │   ├── organizer.py    # 檔案整理 + fallback 空值防護
 │   ├── path_utils.py   # 跨平台路徑處理 (file:// URI)
 │   ├── i18n.py         # 多語系翻譯核心 (t() / fallback chain)
-│   └── translate_service.py  # AI 翻譯 (Ollama/Gemini)
+│   └── translate_service.py  # AI 翻譯 (Ollama/Gemini/OpenAI Compatible)
 ├── locales/            # 四語系 JSON (zh_TW/zh_CN/ja/en)
 ├── tests/              # 測試代碼 (Pytest)
 └── windows/            # Windows 啟動器 (PyWebView)

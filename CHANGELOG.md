@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### 🔌 OpenAI Compatible 翻譯 Provider (Phase 39a-T2)
-- 新增 OpenAI Compatible 翻譯 Provider — 支援任意 OpenAI 相容 API 端點（Perplexity Pro、OpenRouter、本地 LLM 等）
+- 新增 OpenAI Compatible 翻譯 Provider — 支援任意 OpenAI 相容 API 端點（OpenRouter、本地 LLM 等）
 - Settings 頁新增 OpenAI Compatible 設定區塊（Base URL + API Key + Model 選擇）
 
 #### 🔍 搜尋改善 (Phase 39a-T4)
