@@ -200,7 +200,7 @@ window.SearchStateMixin_Base = function () {
                 // 從 actress photo 看有沒有可見 item
                 return this.searchResults.some(r => !r._failed);
             }
-            return this.searchResults.slice(this.lightboxIndex + 1).some(r => !r._failed);
+            return this.searchResults.slice(this.lightboxIndex + 1).some(r => !r._failed) || this.hasMoreResults;
         },
 
         showNavigation() {

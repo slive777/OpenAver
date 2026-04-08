@@ -89,10 +89,10 @@
     "gallery": {
       "prev": "Previous (←)",
       "next": "Next (→)",
-      "sample_prefix": "Sample"
+      "sample_prefix": "Stills"
     },
     "grid": {
-      "sample_prefix": "Sample Image",
+      "sample_prefix": "Stills",
       "thumb_prefix": "Thumbnail",
       "detail_title": "View Detail",
       "unknown_actor": "Unknown",
@@ -113,7 +113,8 @@
       "search_range": "Search {start}-{end} / {total}",
       "translating_progress": "Translating ({processed}/{total})",
       "translate_all_count": "Translate All ({count})",
-      "searching": "Searching..."
+      "searching": "Searching...",
+      "load_more": "Load more"
     },
     "mode": {
       "exact": "Exact ID Search",
@@ -191,7 +192,12 @@
       "security_item1": "API Key is stored in plain text in config.json",
       "security_item2": "Do not share config.json with others",
       "security_item3_prefix": "To revoke, go to",
-      "security_item3_suffix": "to regenerate"
+      "security_item3_suffix": "to regenerate",
+      "openai_compatible": "OpenAI Compatible",
+      "openai_api_key_placeholder": "Leave blank = no Authorization header",
+      "openai_api_key_hint": "Local LLMs can leave empty; cloud services require an API Key",
+      "openai_model_placeholder": "e.g. gpt-4o-mini",
+      "openai_custom_model": "Custom..."
     },
     "scraper": {
       "suffix_keywords_label": "Version Tags",
@@ -215,8 +221,8 @@
       "video_extensions_hint": "Comma-separated",
       "jellyfin_mode_label": "Jellyfin Image Mode",
       "jellyfin_mode_hint": "Auto-generate {stem}-poster.jpg + {stem}-fanart.jpg (for Jellyfin library)",
-      "download_sample_images_label": "Download Sample Images (extrafanart)",
-      "download_sample_images_hint": "Download screenshots to extrafanart/ during organize (requires Create Folder enabled)"
+      "download_sample_images_label": "Download Stills (extrafanart)",
+      "download_sample_images_hint": "Download stills to extrafanart/ during organize (requires Create Folder enabled)"
     },
     "gallery": {
       "output_dir_label": "Output Directory",
@@ -288,7 +294,20 @@
       "gemini_n_flash_models": "Found {count} Flash models",
       "test_failed": "Test failed: {msg}",
       "testing_translation": "Testing translation...",
-      "translation_success": "Translation test passed! ({translation})"
+      "translation_success": "Translation test passed! ({translation})",
+      "openai_connection_failed": "Connection failed",
+      "openai_http_error": "HTTP request failed",
+      "openai_auth_failed": "Authentication failed, check API Key",
+      "openai_forbidden": "Access forbidden",
+      "openai_not_found": "API endpoint not found, check Base URL",
+      "openai_rate_limited": "Rate limit exceeded, try again later",
+      "openai_missing_base_url": "Please enter Base URL",
+      "openai_missing_model": "Please enter model name",
+      "openai_connection_timeout": "Connection timeout",
+      "openai_api_error": "API returned an error",
+      "openai_translate_failed": "Translation test failed",
+      "openai_unknown_response_format": "Unknown response format",
+      "ja_skip": "Japanese mode: translation skipped"
     }
   },
   "scanner": {
@@ -460,8 +479,8 @@
     "gallery": {
       "prev": "Previous (←)",
       "next": "Next (→)",
-      "sample_prefix": "Sample",
-      "sample_alt": "Sample Image",
+      "sample_prefix": "Stills",
+      "sample_alt": "Stills",
       "thumb_alt": "Thumbnail"
     },
     "shortcut": {
@@ -679,7 +698,8 @@
       "dmm_proxy": "DMM requires a Japanese IP; enter a Japanese proxy in the <strong>Settings page</strong> → Proxy field",
       "dmm_direct": "If you are already on a VPN or Japan network, you can also enter <code>direct</code> in the Proxy field to enable it without a proxy address.",
       "translate_ollama": "<strong>Ollama</strong>: Confirm the Ollama application is running (Windows requires manual launch)",
-      "translate_gemini": "<strong>Gemini</strong>: Confirm the API Key is correctly set on the <strong>Settings page</strong>"
+      "translate_gemini": "<strong>Gemini</strong>: Confirm the API Key is correctly set on the <strong>Settings page</strong>",
+      "translate_openai": "<strong>OpenAI Compatible</strong>: Check that the Base URL and model name are correct"
     },
     "js": {
       "version_load_failed": "Failed to load",

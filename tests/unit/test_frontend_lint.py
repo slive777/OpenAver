@@ -639,3 +639,183 @@ class TestShowcaseKeyboardGuard:
         block = self._extract_block(content, '// 5. Lightbox 開啟時的快捷鍵')
         assert 'e.preventDefault()' in block, \
             "lightbox keyboard 分支缺少 e.preventDefault()"
+
+
+class TestGeminiLocaleKeyGuard:
+    """39a-T3: 守衛 settings.js 不再使用 gemini_n_flash_models locale key"""
+
+    def _js(self):
+        return SETTINGS_JS.read_text(encoding="utf-8")
+
+    def test_settings_js_no_gemini_n_flash_models(self):
+        """settings.js 不應出現 gemini_n_flash_models（已替換為 connected_n_models）"""
+        js = self._js()
+        assert "gemini_n_flash_models" not in js, \
+            "settings.js 仍含 gemini_n_flash_models，應改為 connected_n_models"
+
+
+GRID_MODE_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state" / "grid-mode.js"
+
+
+class TestLoadMoreButton:
+    """39a-T4: 守衛 Grid Load More 按鈕 + hasVisibleNext + nextLightboxVideo loadMore 觸發"""
+
+    def _html(self):
+        return SEARCH_HTML.read_text(encoding="utf-8")
+
+    def _base(self):
+        return BASE_JS.read_text(encoding="utf-8")
+
+    def _grid_mode(self):
+        return GRID_MODE_JS.read_text(encoding="utf-8")
+
+    def _locale(self, name):
+        return json.loads((LOCALES_ROOT / name).read_text(encoding="utf-8"))
+
+    def _get_nested(self, d, dotted_key):
+        keys = dotted_key.split(".")
+        cur = d
+        for k in keys:
+            if not isinstance(cur, dict) or k not in cur:
+                return None
+            cur = cur[k]
+        return cur
+
+    # --- search.html ---
+
+    def test_html_load_more_click_binding(self):
+        """search.html grid-staging-wrapper 內含 loadMore() 的 @click 綁定"""
+        html = self._html()
+        assert '@click="loadMore()"' in html, \
+            'search.html 缺少 @click="loadMore()" 綁定（Load More 按鈕）'
+
+    def test_html_load_more_i18n_ref(self):
+        """search.html 含 t('search.button.load_more') 引用"""
+        html = self._html()
+        assert "t('search.button.load_more')" in html, \
+            "search.html 缺少 t('search.button.load_more') i18n 引用"
+
+    def test_html_load_more_xshow_condition(self):
+        """search.html Load More 按鈕 x-show 含 hasMoreResults && !isLoadingMore && displayMode === 'grid'"""
+        html = self._html()
+        assert "hasMoreResults && !isLoadingMore && displayMode === 'grid'" in html, \
+            "search.html Load More 按鈕缺少正確的 x-show 條件（hasMoreResults && !isLoadingMore && displayMode === 'grid'）"
+
+    # --- base.js ---
+
+    def test_base_has_visible_next_checks_has_more_results(self):
+        """base.js hasVisibleNext() 含 hasMoreResults 判斷"""
+        js = self._base()
+        assert "hasMoreResults" in js, \
+            "base.js hasVisibleNext() 缺少 hasMoreResults 判斷"
+
+    # --- grid-mode.js ---
+
+    def test_grid_mode_next_lightbox_video_calls_load_more(self):
+        """grid-mode.js nextLightboxVideo() 含 loadMore() 呼叫"""
+        js = self._grid_mode()
+        assert "this.loadMore()" in js, \
+            "grid-mode.js nextLightboxVideo() 缺少 this.loadMore() 呼叫"
+
+    # --- locale files ---
+
+    def test_all_locales_have_load_more_key(self):
+        """四個 locale 檔案均含 search.button.load_more key"""
+        for locale_file in ["zh_TW.json", "zh_CN.json", "en.json", "ja.json"]:
+            data = self._locale(locale_file)
+            val = self._get_nested(data, "search.button.load_more")
+            assert val, f"{locale_file} 缺少 search.button.load_more key"
+
+
+NAVIGATION_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state" / "navigation.js"
+
+
+class TestCodexFixes:
+    """39a Codex review 修正守衛"""
+
+    def _navigation_js(self):
+        return NAVIGATION_JS.read_text(encoding="utf-8")
+
+    def _settings_js(self):
+        return SETTINGS_JS.read_text(encoding="utf-8")
+
+    def test_loadmore_no_currentindex_assignment(self):
+        """F1：loadMore() 成功分支不含 this.currentIndex = 賦值"""
+        js = self._navigation_js()
+        # 找到 loadMore 函數體，截取到 finally 區塊結束
+        start = js.find("async loadMore()")
+        assert start != -1, "navigation.js 找不到 async loadMore() 函數"
+        # 截取 loadMore 函數體（到函數結尾）
+        func_body = js[start:]
+        # 找到 finally { ... } 後的第一個右大括號（函數結束）
+        finally_pos = func_body.find("finally {")
+        if finally_pos != -1:
+            # 截取 loadMore 函數範圍：從函數開始到 finally 區塊後的 } 結尾
+            end_pos = func_body.find("}", finally_pos + len("finally {"))
+            # 再找外層函數的 }
+            end_pos = func_body.find("},", end_pos + 1)
+            func_body = func_body[:end_pos] if end_pos != -1 else func_body
+        # 確認函數體內不含 this.currentIndex = 賦值（有空格的賦值語句）
+        assert "this.currentIndex =" not in func_body, \
+            "navigation.js loadMore() 成功分支不應含 this.currentIndex = 賦值（破壞 shared state contract）"
+
+    def test_gemini_model_fallback_includes_check(self):
+        """F2：testGeminiConnection() 成功後包含 includes() 檢查舊 model 是否在 allowlist"""
+        js = self._settings_js()
+        assert "modelNames.includes(this.form.geminiModel)" in js or \
+               "includes(this.form.geminiModel)" in js, \
+            "settings.js testGeminiConnection() 成功後應含 includes(this.form.geminiModel) allowlist 檢查"
+
+
+class TestOpenAIErrorI18nGuard:
+    """39a-PR-fix P1: 守衛 fetchOpenAIModels/testOpenAITranslation error 使用 window.t(errorKey) 翻譯"""
+
+    def _js(self):
+        return SETTINGS_JS.read_text(encoding="utf-8")
+
+    def test_fetch_models_error_uses_i18n(self):
+        """fetchOpenAIModels() error 分支使用 settings.status.openai_ 動態 errorKey 拼接"""
+        js = self._js()
+        # 截取 fetchOpenAIModels 函數體
+        start = js.find("async fetchOpenAIModels()")
+        assert start != -1, "settings.js 找不到 async fetchOpenAIModels() 函數"
+        # 截取到下一個 async 函數起點（保守估計）
+        next_async = js.find("async ", start + 1)
+        func_body = js[start:next_async] if next_async != -1 else js[start:]
+        assert "settings.status.openai_" in func_body, \
+            "settings.js fetchOpenAIModels() error 分支應包含 settings.status.openai_ 動態 key 拼接"
+
+    def test_translate_error_uses_i18n(self):
+        """testOpenAITranslation() error 分支使用 settings.status.openai_ 動態 errorKey 拼接"""
+        js = self._js()
+        start = js.find("async testOpenAITranslation()")
+        assert start != -1, "settings.js 找不到 async testOpenAITranslation() 函數"
+        next_async = js.find("async ", start + 1)
+        func_body = js[start:next_async] if next_async != -1 else js[start:]
+        assert "settings.status.openai_" in func_body, \
+            "settings.js testOpenAITranslation() error 分支應包含 settings.status.openai_ 動態 key 拼接"
+
+    def test_fetch_catch_uses_i18n(self):
+        """fetchOpenAIModels() catch 分支使用 window.t('settings.status.openai_connection_failed')"""
+        js = self._js()
+        assert "window.t('settings.status.openai_connection_failed')" in js, \
+            "settings.js fetchOpenAIModels() catch 分支應使用 window.t('settings.status.openai_connection_failed')，不顯示裸 error.message"
+
+
+class TestAutoFetchDirtyStateGuard:
+    """39a-PR-fix P2: 守衛 auto-fallback 後同步 savedState，防止誤觸 dirty state"""
+
+    def _js(self):
+        return SETTINGS_JS.read_text(encoding="utf-8")
+
+    def test_gemini_fallback_syncs_saved_state(self):
+        """testGeminiConnection() auto-fallback 後同步 savedState.geminiModel"""
+        js = self._js()
+        assert "this.savedState.geminiModel" in js, \
+            "settings.js testGeminiConnection() auto-fallback 後應同步 this.savedState.geminiModel，否則 isDirty 誤判"
+
+    def test_openai_fallback_syncs_saved_state(self):
+        """fetchOpenAIModels() auto-assign 後同步 savedState.openaiModel"""
+        js = self._js()
+        assert "this.savedState.openaiModel" in js, \
+            "settings.js fetchOpenAIModels() auto-assign 後應同步 this.savedState.openaiModel，否則 isDirty 誤判"

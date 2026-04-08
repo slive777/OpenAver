@@ -17,6 +17,9 @@ function settingsPage() {
             ollamaModel: '',
             geminiApiKey: '',
             geminiModel: '',
+            openaiBaseUrl: '',
+            openaiApiKey: '',
+            openaiModel: 'gpt-4o-mini',
 
             // Scraper
             createFolder: true,
@@ -60,6 +63,12 @@ function settingsPage() {
         geminiModelStatus: '',
         ollamaModels: [],
         geminiModels: [],
+        openaiStatus: '',
+        openaiModelStatus: '',
+        openaiModels: [],
+        openaiUseCustomModel: false,
+        fetchingOpenaiModels: false,
+        testingOpenaiTranslate: false,
         // Toast state
         _toast: { message: '', type: 'success', visible: false },
         _toastTimer: null,
@@ -296,9 +305,19 @@ function settingsPage() {
                         this.form.geminiModel = config.translate.gemini.model;
                     }
 
+                    // OpenAI Compatible
+                    this.form.openaiBaseUrl = config.translate.openai?.base_url || '';
+                    this.form.openaiApiKey = config.translate.openai?.api_key || '';
+                    this.form.openaiModel = config.translate.openai?.model || 'gpt-4o-mini';
+
                     // 自動測試 Gemini（如果有 API Key 且是 gemini provider）
                     if (config.translate.gemini?.api_key && config.translate.provider === 'gemini') {
                         setTimeout(() => this.testGeminiConnection(), 100);
+                    }
+
+                    // 自動 fetch OpenAI models（如果有 base_url 且是 openai provider）
+                    if (config.translate.openai?.base_url && config.translate.provider === 'openai') {
+                        setTimeout(() => this.fetchOpenAIModels(), 100);
                     }
 
                     // Scraper
@@ -415,6 +434,11 @@ function settingsPage() {
                     gemini: {
                         api_key: this.form.geminiApiKey,
                         model: this.form.geminiModel || 'gemini-flash-lite-latest'
+                    },
+                    openai: {
+                        base_url: this.form.openaiBaseUrl.trim(),
+                        api_key: this.form.openaiApiKey,
+                        model: this.form.openaiModel.trim() || 'gpt-4o-mini'
                     }
                 };
 
@@ -615,12 +639,15 @@ function settingsPage() {
                 const data = await response.json();
 
                 if (data.success) {
-                    this.geminiStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.gemini_n_flash_models', {count: data.count})}</span>`;
+                    this.geminiStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.count})}</span>`;
                     this.geminiModels = data.models;
 
-                    // Set first model as default if none selected
-                    if (!this.form.geminiModel && data.models.length > 0) {
+                    // 如果當前 model 不在 allowlist，自動選第一個
+                    const modelNames = data.models.map(m => m.name);
+                    if (data.models.length > 0 && !modelNames.includes(this.form.geminiModel)) {
                         this.form.geminiModel = data.models[0].name;
+                        // auto-fallback 不算用戶修改，同步快照避免 isDirty 誤判
+                        if (this.savedState) this.savedState.geminiModel = this.form.geminiModel;
                     }
                 } else {
                     this.geminiStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${data.error || window.t('settings.status.connect_failed')}</span>`;
@@ -672,6 +699,108 @@ function settingsPage() {
                 this.geminiModelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.test_failed', {msg: error.message})}</span>`;
             } finally {
                 this.testGeminiTranslateLoading = false;
+            }
+        },
+
+        async fetchOpenAIModels() {
+            const baseUrl = this.form.openaiBaseUrl.trim();
+
+            if (!baseUrl) {
+                this.openaiStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.enter_url')}</span>`;
+                return;
+            }
+
+            this.fetchingOpenaiModels = true;
+            this.openaiStatus = `<span class="text-base-content/50">${window.t('settings.status.connecting')}</span>`;
+
+            try {
+                const response = await fetch('/api/openai/models', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        base_url: baseUrl,
+                        api_key: this.form.openaiApiKey
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.models && data.models.length > 0) {
+                    this.openaiModels = data.models;
+                    this.openaiStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.models.length})}</span>`;
+
+                    // model 不在清單中 → 切換到自訂模式（保留用戶的 custom model）
+                    if (!this.openaiModels.includes(this.form.openaiModel)) {
+                        if (this.form.openaiModel) {
+                            this.openaiUseCustomModel = true;
+                        } else {
+                            this.form.openaiModel = this.openaiModels[0];
+                            // auto-assign 不算用戶修改，同步快照避免 isDirty 誤判
+                            if (this.savedState) this.savedState.openaiModel = this.form.openaiModel;
+                        }
+                    }
+                } else {
+                    // 不清空 openaiModels — 保留舊清單
+                    const errorKey = `settings.status.openai_${data.error || 'connection_failed'}`;
+                    this.openaiStatus = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> ${window.t(errorKey)}</span>`;
+                }
+            } catch (error) {
+                // 不清空 openaiModels — 保留舊清單
+                this.openaiStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.openai_connection_failed')}</span>`;
+            } finally {
+                this.fetchingOpenaiModels = false;
+            }
+        },
+
+        async testOpenAITranslation() {
+            const baseUrl = this.form.openaiBaseUrl.trim();
+            const model = this.form.openaiModel.trim();
+
+            if (!baseUrl) {
+                this.openaiModelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.enter_url')}</span>`;
+                return;
+            }
+
+            if (!model) {
+                this.openaiModelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.select_model')}</span>`;
+                return;
+            }
+
+            this.testingOpenaiTranslate = true;
+            this.openaiModelStatus = `<span class="text-base-content/50">${window.t('settings.status.testing_translation')}</span>`;
+
+            try {
+                const response = await fetch('/api/openai/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        base_url: baseUrl,
+                        api_key: this.form.openaiApiKey,
+                        model: model
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const escapeHtml = (text) => {
+                        const div = document.createElement('div');
+                        div.textContent = text;
+                        return div.innerHTML;
+                    };
+                    if (data.translation === 'ja_skip') {
+                        this.openaiModelStatus = `<span class="text-info"><i class="bi bi-info-circle"></i> ${window.t('settings.status.ja_skip')}</span>`;
+                    } else {
+                        this.openaiModelStatus = `<span class="text-success"><i class="bi bi-check-circle-fill"></i> ${escapeHtml(data.translation)}</span>`;
+                    }
+                } else {
+                    const errorKey = `settings.status.openai_${data.error || 'translate_failed'}`;
+                    this.openaiModelStatus = `<span class="text-error"><i class="bi bi-exclamation-triangle-fill"></i> ${window.t(errorKey)}</span>`;
+                }
+            } catch (error) {
+                this.openaiModelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.openai_translate_failed')}</span>`;
+            } finally {
+                this.testingOpenaiTranslate = false;
             }
         },
 

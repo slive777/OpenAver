@@ -400,13 +400,14 @@ def _dmm_keyword_search_progressive(
     limit: int,
     status_callback,
     result_callback,
+    offset: int = 0,
 ) -> Optional[List[Dict[str, Any]]]:
     """DMM keyword search with progressive enrichment (mirrors JavBus pattern).
 
     Returns a list of result dicts on success, or None if DMM returned nothing
     (caller should fall through to JavBus).
     """
-    pairs = dmm_scraper.search_by_keyword_with_ids(query, limit=limit)
+    pairs = dmm_scraper.search_by_keyword_with_ids(query, limit=limit, offset=offset)
     if not pairs:
         return None
 
@@ -451,7 +452,7 @@ def search_actress(name: str, limit: int = 20, offset: int = 0, status_callback:
         dmm_config = ScraperConfig(proxy_url=_dmm_proxy_url(proxy_url))
         dmm_scraper = DMMScraper(dmm_config)
         dmm_results = _dmm_keyword_search_progressive(
-            dmm_scraper, name, limit, status_callback, result_callback
+            dmm_scraper, name, limit, status_callback, result_callback, offset=offset
         )
         if dmm_results is not None:
             return dmm_results
@@ -746,7 +747,7 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
             dmm_config = ScraperConfig(proxy_url=_dmm_proxy_url(proxy_url))
             dmm_scraper = DMMScraper(dmm_config)
             dmm_results = _dmm_keyword_search_progressive(
-                dmm_scraper, query, limit, status_callback, result_callback
+                dmm_scraper, query, limit, status_callback, result_callback, offset=offset
             )
             if dmm_results is not None:
                 for r in dmm_results:

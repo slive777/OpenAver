@@ -86,14 +86,14 @@ window.SearchStateMixin_Navigation = {
             const data = await response.json();
 
             if (response.ok && data.success && data.data && data.data.length > 0) {
+                const newBatchStart = this.searchResults.length;
                 this.searchResults = this.searchResults.concat(data.data);
                 this.currentOffset = newOffset;
                 this.hasMoreResults = data.has_more;
-                this.currentIndex = this.searchResults.length - data.data.length;
                 this._resetCoverState();
 
                 if (window.SearchUI?.preloadImages) {
-                    window.SearchUI.preloadImages(this.currentIndex + 1, 5);
+                    window.SearchUI.preloadImages(newBatchStart + 1, 5);
                 }
 
                 // T4: Load more 後查詢本地狀態

@@ -92,7 +92,7 @@
       "sample_prefix": "剧照"
     },
     "grid": {
-      "sample_prefix": "样品图",
+      "sample_prefix": "剧照",
       "thumb_prefix": "缩图",
       "detail_title": "查看详情",
       "unknown_actor": "未知",
@@ -113,7 +113,8 @@
       "search_range": "搜索 {start}-{end} / {total}",
       "translating_progress": "翻译中 ({processed}/{total})",
       "translate_all_count": "翻译全部 ({count})",
-      "searching": "搜索中..."
+      "searching": "搜索中...",
+      "load_more": "载入更多"
     },
     "mode": {
       "exact": "完整番号搜索",
@@ -191,7 +192,12 @@
       "security_item1": "API Key 将以明文存储在 config.json",
       "security_item2": "请勿将 config.json 分享给他人",
       "security_item3_prefix": "如需撤销，请前往",
-      "security_item3_suffix": "重新生成"
+      "security_item3_suffix": "重新生成",
+      "openai_compatible": "OpenAI 兼容",
+      "openai_api_key_placeholder": "留空 = 不送 Authorization header",
+      "openai_api_key_hint": "本地 LLM 可留空，云端服务需填入 API Key",
+      "openai_model_placeholder": "e.g. gpt-4o-mini",
+      "openai_custom_model": "自定义..."
     },
     "scraper": {
       "suffix_keywords_label": "版本标记",
@@ -288,7 +294,20 @@
       "gemini_n_flash_models": "找到 {count} 个 Flash 模型",
       "test_failed": "测试失败: {msg}",
       "testing_translation": "测试翻译中...",
-      "translation_success": "翻译测试成功！ ({translation})"
+      "translation_success": "翻译测试成功！ ({translation})",
+      "openai_connection_failed": "连接失败",
+      "openai_http_error": "HTTP 请求失败",
+      "openai_auth_failed": "认证失败，请检查 API Key",
+      "openai_forbidden": "无访问权限",
+      "openai_not_found": "API 端点不存在，请确认 Base URL",
+      "openai_rate_limited": "请求频率超限，请稍后再试",
+      "openai_missing_base_url": "请输入 Base URL",
+      "openai_missing_model": "请输入模型名称",
+      "openai_connection_timeout": "连接超时",
+      "openai_api_error": "API 返回错误",
+      "openai_translate_failed": "翻译测试失败",
+      "openai_unknown_response_format": "未知的响应格式",
+      "ja_skip": "日文模式：跳过翻译"
     }
   },
   "scanner": {
@@ -461,7 +480,7 @@
       "prev": "上一张 (←)",
       "next": "下一张 (→)",
       "sample_prefix": "剧照",
-      "sample_alt": "样品图",
+      "sample_alt": "剧照",
       "thumb_alt": "缩图"
     },
     "shortcut": {
@@ -679,7 +698,8 @@
       "dmm_proxy": "DMM 需要日本 IP，请在<strong>设置页</strong> → Proxy 栏填入日本 IP 代理",
       "dmm_direct": "若已连接 VPN 或日本网络，也可以在 Proxy 栏输入 <code>direct</code> 直接启用，不需要填写 Proxy 地址。",
       "translate_ollama": "<strong>Ollama</strong>：确认 Ollama 应用程序已启动（Windows 需手动开启）",
-      "translate_gemini": "<strong>Gemini</strong>：确认 API Key 已在<strong>设置页</strong>正确设置"
+      "translate_gemini": "<strong>Gemini</strong>：确认 API Key 已在<strong>设置页</strong>正确设置",
+      "translate_openai": "<strong>OpenAI Compatible</strong>：确认 Base URL 和模型名称正确"
     },
     "js": {
       "version_load_failed": "无法载入",

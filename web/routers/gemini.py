@@ -18,6 +18,13 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/gemini", tags=["gemini"])
 
+ALLOWED_GEMINI_MODELS = [
+    "gemini-flash-lite-latest",
+    "gemini-flash-latest",
+    "gemma-4-26b-a4b-it",
+    "gemma-4-31b-it",
+]
+
 
 class TestRequest(BaseModel):
     """測試 Gemini API Key 請求"""
@@ -59,9 +66,8 @@ async def test_gemini_connection(request: TestRequest):
 
     測試流程：
     1. 調用 Gemini API 獲取模型列表
-    2. 過濾出 Flash 系列模型
-    3. 排序（latest 優先）
-    4. 返回模型列表
+    2. 以 ALLOWED_GEMINI_MODELS allowlist 過濾（保持 allowlist 定義順序）
+    3. 返回模型列表
 
     Args:
         request: 包含 API Key 的請求
@@ -83,29 +89,26 @@ async def test_gemini_connection(request: TestRequest):
 
         data = response.json()
 
-        # 過濾 Flash 系列模型
-        flash_models = []
+        # 以 allowlist 過濾並保持 allowlist 順序
+        api_models = {}
         for model in data.get("models", []):
             name = model.get("name", "").replace("models/", "")
+            api_models[name] = model
 
-            # 只保留 flash 系列，排除 pro 和 embedding
-            if is_flash_model(name):
-                flash_models.append(ModelInfo(
-                    name=name,
-                    display_name=model.get("displayName", name),
+        allowed_models = []
+        for allowed_name in ALLOWED_GEMINI_MODELS:
+            if allowed_name in api_models:
+                model = api_models[allowed_name]
+                allowed_models.append(ModelInfo(
+                    name=allowed_name,
+                    display_name=model.get("displayName", allowed_name),
                     description=model.get("description", "")[:100]  # 限制長度
                 ))
 
-        # 排序：lite-latest 優先（最推薦），其他 latest 次之
-        flash_models.sort(key=lambda m: (
-            0 if "lite-latest" in m.name else (1 if "latest" in m.name else 2),
-            m.name
-        ))
-
         return TestResponse(
             success=True,
-            models=flash_models,
-            count=len(flash_models)
+            models=allowed_models,
+            count=len(allowed_models)
         )
 
     except httpx.HTTPStatusError as e:
@@ -138,37 +141,6 @@ async def test_gemini_connection(request: TestRequest):
             error="測試 Gemini 連線失敗"
         )
 
-
-def is_flash_model(model_name: str) -> bool:
-    """
-    判斷是否為 flash 系列模型
-
-    過濾規則：
-    - 必須包含 "flash"
-    - 排除 "pro" 系列
-    - 排除 "embedding" 模型
-
-    Args:
-        model_name: 模型名稱
-
-    Returns:
-        bool: 是否為 flash 系列
-    """
-    name_lower = model_name.lower()
-
-    # 必須包含 flash
-    if "flash" not in name_lower:
-        return False
-
-    # 排除 pro 系列
-    if "pro" in name_lower:
-        return False
-
-    # 排除 embedding 模型
-    if "embedding" in name_lower:
-        return False
-
-    return True
 
 
 @router.post("/test-translate", response_model=TestTranslateResponse)

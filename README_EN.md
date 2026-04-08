@@ -76,12 +76,12 @@ On first launch, a built-in setup wizard walks you through folder configuration 
 
 ### 🔍 Spotlight Search
 - **Multi-Source Aggregation**: One query simultaneously searches JavBus, JavDB, Jav321, DMM, D2Pass, and HEYZO.
-- **Detail View**: Cover, sample images, actress, tags — all in one place, no tab-hopping.
+- **Detail View**: Cover, stills, actress, tags — all in one place, no tab-hopping.
 - **Smart Search**: Search by ID, actress name, series, or maker — results are matched against your local library and marked if already in your collection.
 - **Version Detection**: Automatically identifies UC/LEAK/4K variants — no manual renaming needed.
 - **Actress Gallery Mode (Beta)**: When an actress search returns 10+ titles, the view switches to a gallery layout with a full profile Hero Card.
-- **Sample Gallery**: Browse full sample images directly from search results.
-- **Local Batch Search**: Drag in video files or folders — automatically extracts IDs and batch-searches for metadata, covers, and sample images.
+- **Sample Gallery**: Browse full stills directly from search results.
+- **Local Batch Search**: Drag in video files or folders — automatically extracts IDs and batch-searches for metadata, covers, and stills.
 
 ### 📝 Scanner
 - **Showcase Pages**: Scan a local video folder and generate beautiful, interactive showcase pages (smooth animations + frosted-glass effects + Lightbox gallery).
@@ -93,7 +93,7 @@ On first launch, a built-in setup wizard walks you through folder configuration 
 
 ### 🌐 AI Translation
 Most metadata fields (actress, maker, label, tags) are already in English from the source — but titles remain in Japanese. AI translation fills that gap automatically.
-- Supports **Ollama** (local GPU, free & unlimited) and **Gemini Flash** (Google cloud, free tier available).
+- Supports **Ollama** (local GPU, free & unlimited), **Gemini Flash** (Google cloud, free tier available), and **OpenAI API Compatible** (OpenRouter, any compatible endpoint).
 - Translation language follows your UI locale (English, Traditional Chinese, Simplified Chinese). Japanese locale skips translation since titles are already in Japanese.
 
 ### ⚙️ Settings
@@ -186,7 +186,7 @@ OpenAver/
 │   ├── organizer.py    # File organizer + null-value fallback guards
 │   ├── path_utils.py   # Cross-platform path handling (file:// URI)
 │   ├── i18n.py         # i18n core (t() / fallback chain)
-│   └── translate_service.py  # AI translation (Ollama/Gemini)
+│   └── translate_service.py  # AI translation (Ollama/Gemini/OpenAI Compatible)
 ├── locales/            # 4-locale JSON (zh_TW/zh_CN/ja/en)
 ├── tests/              # Test suite (Pytest)
 └── windows/            # Windows launcher (PyWebView)

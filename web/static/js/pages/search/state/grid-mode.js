@@ -252,8 +252,12 @@ window.SearchStateMixin_GridMode = {
             while (newIdx < this.searchResults.length && this.searchResults[newIdx]._failed) {
                 newIdx++;
             }
-            if (newIdx >= this.searchResults.length) return;  // no more valid items → don't move
+            if (newIdx >= this.searchResults.length) {
+                if (this.hasMoreResults && !this.isLoadingMore) this.loadMore();
+                return;
+            }
         } else {
+            if (this.hasMoreResults && !this.isLoadingMore) this.loadMore();
             return;  // at last item → don't move
         }
 

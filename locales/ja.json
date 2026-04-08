@@ -113,7 +113,8 @@
       "search_range": "検索 {start}-{end} / {total}",
       "translating_progress": "翻訳中 ({processed}/{total})",
       "translate_all_count": "すべて翻訳 ({count})",
-      "searching": "検索中..."
+      "searching": "検索中...",
+      "load_more": "もっと読み込む"
     },
     "mode": {
       "exact": "完全品番検索",
@@ -191,7 +192,12 @@
       "security_item1": "API Key は config.json に平文で保存されます",
       "security_item2": "config.json を他人に共有しないでください",
       "security_item3_prefix": "取り消す場合は",
-      "security_item3_suffix": "で再生成してください"
+      "security_item3_suffix": "で再生成してください",
+      "openai_compatible": "OpenAI 互換",
+      "openai_api_key_placeholder": "空白 = Authorization ヘッダーなし",
+      "openai_api_key_hint": "ローカル LLM は空白可、クラウドサービスは API Key が必要",
+      "openai_model_placeholder": "例: gpt-4o-mini",
+      "openai_custom_model": "カスタム..."
     },
     "scraper": {
       "suffix_keywords_label": "バージョンマーク",
@@ -288,7 +294,20 @@
       "gemini_n_flash_models": "{count} 個の Flash モデル",
       "test_failed": "テスト失敗: {msg}",
       "testing_translation": "翻訳テスト中...",
-      "translation_success": "翻訳テスト成功！ ({translation})"
+      "translation_success": "翻訳テスト成功！ ({translation})",
+      "openai_connection_failed": "接続失敗",
+      "openai_http_error": "HTTPリクエスト失敗",
+      "openai_auth_failed": "認証失敗、API Key を確認してください",
+      "openai_forbidden": "アクセス権限がありません",
+      "openai_not_found": "APIエンドポイントが見つかりません、Base URL を確認してください",
+      "openai_rate_limited": "レート制限超過、後でもう一度お試しください",
+      "openai_missing_base_url": "Base URL を入力してください",
+      "openai_missing_model": "モデル名を入力してください",
+      "openai_connection_timeout": "接続タイムアウト",
+      "openai_api_error": "API エラー",
+      "openai_translate_failed": "翻訳テスト失敗",
+      "openai_unknown_response_format": "不明なレスポンス形式",
+      "ja_skip": "日本語モード：翻訳スキップ"
     }
   },
   "scanner": {
@@ -679,7 +698,8 @@
       "dmm_proxy": "DMM には日本 IP が必要です。<strong>設定ページ</strong> → Proxy フィールドに日本のプロキシを入力してください",
       "dmm_direct": "VPN や日本のネットワークに接続済みの場合、Proxy フィールドに <code>direct</code> と入力するだけで有効化できます。Proxy アドレスは不要です。",
       "translate_ollama": "<strong>Ollama</strong>：Ollama アプリが起動していることを確認してください（Windows では手動起動が必要）",
-      "translate_gemini": "<strong>Gemini</strong>：<strong>設定ページ</strong>で API Key が正しく設定されていることを確認"
+      "translate_gemini": "<strong>Gemini</strong>：<strong>設定ページ</strong>で API Key が正しく設定されていることを確認",
+      "translate_openai": "<strong>OpenAI Compatible</strong>：Base URL とモデル名が正しいか確認してください"
     },
     "js": {
       "version_load_failed": "読み込み失敗",

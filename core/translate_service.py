@@ -378,6 +378,97 @@ class GeminiTranslateService(TranslateService):
         return translations
 
 
+class OpenAICompatibleTranslateService(TranslateService):
+    """OpenAI Compatible API 翻譯服務實現（支援 OpenAI、Perplexity、OpenRouter、本地 LLM 等）"""
+
+    def __init__(self, config: Dict, target_language: str = "zh-TW"):
+        """
+        初始化 OpenAI Compatible 服務
+
+        Args:
+            config: OpenAI Compatible 配置字典
+                {
+                    "base_url": "https://api.openai.com/v1",
+                    "api_key": "sk-xxx",  # 可為空（本地 LLM 不需要）
+                    "model": "gpt-4o-mini"
+                }
+            target_language: 目標語言代碼（zh-TW / zh-CN / en / ja）
+        """
+        self.base_url = (config.get("base_url") or "").rstrip("/")
+        self.api_key = config.get("api_key", "")
+        self.model = config.get("model") or "gpt-4o-mini"
+        self.target_language = target_language
+
+    async def translate_single(self, title: str, context: Optional[Dict] = None) -> str:
+        """
+        單片翻譯
+
+        使用 OpenAI Chat Completions API 格式
+        """
+        # ja 短路：不呼叫 API，直接回傳原文
+        if self.target_language == "ja":
+            return title
+
+        lang_data = LANGUAGE_PROMPTS.get(self.target_language, LANGUAGE_PROMPTS["zh-TW"])
+        instruction = lang_data["gemini_instruction"]
+        rules = lang_data["gemini_rules"]
+
+        prompt = f"""你是專業的影視資料庫管理員與翻譯引擎。這是既有日文文字的逐字翻譯任務，{instruction}。
+
+原文：
+{title}
+
+翻譯要求：
+{rules}
+"""
+
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        payload = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.3,
+            "max_tokens": 100
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=headers,
+                    json=payload
+                )
+                resp.raise_for_status()
+
+            data = resp.json()
+            choices = data.get("choices")
+            if not choices:
+                logger.error("[OpenAI] Response missing 'choices': %s", data)
+                return ""
+            result = choices[0]["message"]["content"].strip()
+            return result
+
+        except Exception as e:
+            logger.error("[OpenAI] Single translation failed: %s", e)
+            return ""
+
+    async def translate_batch(self, titles: List[str], context: Optional[Dict] = None) -> List[str]:
+        """
+        批次翻譯 - 逐片翻譯確保穩定性
+        """
+        if not titles:
+            return []
+
+        results = []
+        for title in titles:
+            result = await self.translate_single(title, context)
+            results.append(result)
+
+        return results
+
+
 def create_translate_service(config: Dict, target_language: str = "zh-TW") -> TranslateService:
     """
     創建翻譯服務實例（工廠函數）
@@ -385,9 +476,10 @@ def create_translate_service(config: Dict, target_language: str = "zh-TW") -> Tr
     Args:
         config: translate 配置字典
             {
-                "provider": "ollama" | "gemini",
+                "provider": "ollama" | "gemini" | "openai",
                 "ollama": {...},
-                "gemini": {...}
+                "gemini": {...},
+                "openai": {...}
             }
         target_language: 目標語言代碼（zh-TW / zh-CN / en / ja），預設 zh-TW
 
@@ -406,6 +498,10 @@ def create_translate_service(config: Dict, target_language: str = "zh-TW") -> Tr
     elif provider == "gemini":
         gemini_config = config.get("gemini", {})
         return GeminiTranslateService(gemini_config, target_language)
+
+    elif provider == "openai":
+        openai_config = config.get("openai", {})
+        return OpenAICompatibleTranslateService(openai_config, target_language)
 
     else:
         raise ValueError(f"Unknown translate provider: {provider}")

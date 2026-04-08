@@ -624,6 +624,14 @@
                     </div>
                 </template>
             </div>
+            <!-- Load More 按鈕 -->
+            <div class="text-center py-4"
+                 x-show="hasMoreResults && !isLoadingMore && displayMode === 'grid'"
+                 x-cloak>
+                <button class="btn btn-outline btn-sm" @click="loadMore()">
+                    <span x-text="t('search.button.load_more')"></span>
+                </button>
+            </div>
             </div><!-- /.grid-staging-wrapper -->
 
             <!-- 檔案列表（卡片外，下方獨立） -->
