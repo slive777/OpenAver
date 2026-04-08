@@ -10,7 +10,7 @@ from core.logger import get_logger
 from core.config import load_config
 from core.translate_service import LANGUAGE_PROMPTS
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel
 import httpx
 from typing import List, Optional
@@ -63,7 +63,7 @@ async def fetch_openai_models(request: ModelsRequest):
         ModelsResponse: 包含成功狀態和模型列表
     """
     if not request.base_url.strip():
-        raise HTTPException(status_code=400, detail="base_url is required")
+        return ModelsResponse(success=False, error="missing_base_url")
 
     base_url = request.base_url.rstrip("/")
     headers = {}
@@ -82,17 +82,16 @@ async def fetch_openai_models(request: ModelsRequest):
         return ModelsResponse(success=True, models=models)
 
     except httpx.HTTPStatusError as e:
-        error_msg = f"HTTP {e.response.status_code}"
-        logger.warning("[OpenAI] 查詢模型列表失敗: %s", error_msg)
-        return ModelsResponse(success=False, error=error_msg)
+        logger.warning("[OpenAI] 查詢模型列表失敗: HTTP %s", e.response.status_code)
+        return ModelsResponse(success=False, error="http_error")
 
     except httpx.TimeoutException:
         logger.warning("[OpenAI] 查詢模型列表逾時")
-        return ModelsResponse(success=False, error="Connection timeout")
+        return ModelsResponse(success=False, error="connection_timeout")
 
     except Exception as e:
         logger.warning("[OpenAI] 查詢模型列表失敗: %s", e)
-        return ModelsResponse(success=False, error=str(e))
+        return ModelsResponse(success=False, error="connection_failed")
 
 
 @router.post("/test", response_model=TestTranslateResponse)
@@ -109,16 +108,24 @@ async def test_openai_translate(request: TestTranslateRequest):
         TestTranslateResponse: 包含翻譯結果或錯誤訊息
     """
     if not request.base_url.strip():
-        raise HTTPException(status_code=400, detail="base_url is required")
+        return TestTranslateResponse(success=False, error="missing_base_url")
 
     if not request.model.strip():
-        raise HTTPException(status_code=400, detail="model is required")
+        return TestTranslateResponse(success=False, error="missing_model")
 
     # 使用安全的測試標題（與 gemini.py 行 191 相同）
     test_title = "新人女優デビュー"
 
     config = load_config()
     locale = config.get("general", {}).get("locale", "zh-TW")
+
+    # F2: ja short-circuit — 與 translate_service.py 的行為保持一致
+    if locale == "ja":
+        return TestTranslateResponse(
+            success=True,
+            translation="ja_skip"
+        )
+
     lang_data = LANGUAGE_PROMPTS.get(locale, LANGUAGE_PROMPTS["zh-TW"])
     instruction = lang_data["gemini_instruction"]
     rules = lang_data["gemini_rules"]
@@ -161,27 +168,20 @@ async def test_openai_translate(request: TestTranslateRequest):
             return TestTranslateResponse(success=True, translation=translation)
 
         elif "error" in data:
-            error_msg = data["error"].get("message", "Unknown error") if isinstance(data["error"], dict) else str(data["error"])
-            return TestTranslateResponse(success=False, error=error_msg)
+            logger.warning("[OpenAI] 測試翻譯 API 回傳錯誤: %s", data["error"])
+            return TestTranslateResponse(success=False, error="api_error")
 
         else:
-            return TestTranslateResponse(success=False, error="未知的響應格式")
+            return TestTranslateResponse(success=False, error="unknown_response_format")
 
     except httpx.HTTPStatusError as e:
-        try:
-            error_data = e.response.json()
-            if isinstance(error_data.get("error"), dict):
-                error_msg = error_data["error"].get("message", f"HTTP {e.response.status_code}")
-            else:
-                error_msg = str(error_data.get("error", f"HTTP {e.response.status_code}"))
-        except Exception:
-            error_msg = f"HTTP {e.response.status_code}"
-
-        return TestTranslateResponse(success=False, error=error_msg)
+        logger.warning("[OpenAI] 測試翻譯失敗: HTTP %s", e.response.status_code)
+        return TestTranslateResponse(success=False, error="http_error")
 
     except httpx.TimeoutException:
-        return TestTranslateResponse(success=False, error="連接超時（15秒）")
+        logger.warning("[OpenAI] 測試翻譯逾時")
+        return TestTranslateResponse(success=False, error="connection_timeout")
 
     except Exception as e:
         logger.error("[OpenAI] 測試翻譯失敗: %s", e)
-        return TestTranslateResponse(success=False, error=str(e))
+        return TestTranslateResponse(success=False, error="translate_failed")

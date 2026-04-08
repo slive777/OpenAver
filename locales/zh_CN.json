@@ -292,7 +292,16 @@
       "gemini_n_flash_models": "找到 {count} 个 Flash 模型",
       "test_failed": "测试失败: {msg}",
       "testing_translation": "测试翻译中...",
-      "translation_success": "翻译测试成功！ ({translation})"
+      "translation_success": "翻译测试成功！ ({translation})",
+      "openai_connection_failed": "连接失败",
+      "openai_http_error": "HTTP 请求失败",
+      "openai_missing_base_url": "请输入 Base URL",
+      "openai_missing_model": "请输入模型名称",
+      "openai_connection_timeout": "连接超时",
+      "openai_api_error": "API 返回错误",
+      "openai_translate_failed": "翻译测试失败",
+      "openai_unknown_response_format": "未知的响应格式",
+      "ja_skip": "日文模式：跳过翻译"
     }
   },
   "scanner": {

@@ -726,11 +726,12 @@ function settingsPage() {
                     }
                 } else {
                     this.openaiModels = [];
-                    this.openaiStatus = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> ${data.error || window.t('settings.status.connection_failed')}</span>`;
+                    const errorKey = `settings.status.openai_${data.error || 'connection_failed'}`;
+                    this.openaiStatus = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> ${window.t(errorKey)}</span>`;
                 }
             } catch (error) {
                 this.openaiModels = [];
-                this.openaiStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${error.message}</span>`;
+                this.openaiStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.openai_connection_failed')}</span>`;
             } finally {
                 this.fetchingOpenaiModels = false;
             }
@@ -767,12 +768,22 @@ function settingsPage() {
                 const data = await response.json();
 
                 if (data.success) {
-                    this.openaiModelStatus = `<span class="text-success"><i class="bi bi-check-circle-fill"></i> ${window.t('settings.status.translation_success', {translation: data.translation})}</span>`;
+                    const escapeHtml = (text) => {
+                        const div = document.createElement('div');
+                        div.textContent = text;
+                        return div.innerHTML;
+                    };
+                    if (data.translation === 'ja_skip') {
+                        this.openaiModelStatus = `<span class="text-info"><i class="bi bi-info-circle"></i> ${window.t('settings.status.ja_skip')}</span>`;
+                    } else {
+                        this.openaiModelStatus = `<span class="text-success"><i class="bi bi-check-circle-fill"></i> ${escapeHtml(data.translation)}</span>`;
+                    }
                 } else {
-                    this.openaiModelStatus = `<span class="text-error"><i class="bi bi-exclamation-triangle-fill"></i> ${data.error}</span>`;
+                    const errorKey = `settings.status.openai_${data.error || 'translate_failed'}`;
+                    this.openaiModelStatus = `<span class="text-error"><i class="bi bi-exclamation-triangle-fill"></i> ${window.t(errorKey)}</span>`;
                 }
             } catch (error) {
-                this.openaiModelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.test_failed', {msg: error.message})}</span>`;
+                this.openaiModelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.openai_translate_failed')}</span>`;
             } finally {
                 this.testingOpenaiTranslate = false;
             }

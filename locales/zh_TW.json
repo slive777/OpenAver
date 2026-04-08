@@ -292,7 +292,16 @@
       "select_model": "請先選擇模型",
       "network_error": "✗ 網路錯誤，請稍後再試",
       "translation_success": "翻譯測試成功！ ({translation})",
-      "test_failed": "測試失敗: {msg}"
+      "test_failed": "測試失敗: {msg}",
+      "openai_connection_failed": "連線失敗",
+      "openai_http_error": "HTTP 請求失敗",
+      "openai_missing_base_url": "請輸入 Base URL",
+      "openai_missing_model": "請輸入模型名稱",
+      "openai_connection_timeout": "連線逾時",
+      "openai_api_error": "API 回傳錯誤",
+      "openai_translate_failed": "翻譯測試失敗",
+      "openai_unknown_response_format": "未知的回應格式",
+      "ja_skip": "日文模式：跳過翻譯"
     }
   },
   "scanner": {

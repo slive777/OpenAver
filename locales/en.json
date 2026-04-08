@@ -292,7 +292,16 @@
       "gemini_n_flash_models": "Found {count} Flash models",
       "test_failed": "Test failed: {msg}",
       "testing_translation": "Testing translation...",
-      "translation_success": "Translation test passed! ({translation})"
+      "translation_success": "Translation test passed! ({translation})",
+      "openai_connection_failed": "Connection failed",
+      "openai_http_error": "HTTP request failed",
+      "openai_missing_base_url": "Please enter Base URL",
+      "openai_missing_model": "Please enter model name",
+      "openai_connection_timeout": "Connection timeout",
+      "openai_api_error": "API returned an error",
+      "openai_translate_failed": "Translation test failed",
+      "openai_unknown_response_format": "Unknown response format",
+      "ja_skip": "Japanese mode: translation skipped"
     }
   },
   "scanner": {

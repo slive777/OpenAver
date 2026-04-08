@@ -292,7 +292,16 @@
       "gemini_n_flash_models": "{count} 個の Flash モデル",
       "test_failed": "テスト失敗: {msg}",
       "testing_translation": "翻訳テスト中...",
-      "translation_success": "翻訳テスト成功！ ({translation})"
+      "translation_success": "翻訳テスト成功！ ({translation})",
+      "openai_connection_failed": "接続失敗",
+      "openai_http_error": "HTTPリクエスト失敗",
+      "openai_missing_base_url": "Base URL を入力してください",
+      "openai_missing_model": "モデル名を入力してください",
+      "openai_connection_timeout": "接続タイムアウト",
+      "openai_api_error": "API エラー",
+      "openai_translate_failed": "翻訳テスト失敗",
+      "openai_unknown_response_format": "不明なレスポンス形式",
+      "ja_skip": "日本語モード：翻訳スキップ"
     }
   },
   "scanner": {
