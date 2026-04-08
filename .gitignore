@@ -66,6 +66,9 @@ web/static/css/tailwind.css
 # Playwright MCP
 .playwright-mcp/
 
+# Codex
+.codex
+
 # Node (package install artifacts)
 node_modules/
 package-lock.json
