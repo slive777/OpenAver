@@ -19,8 +19,8 @@ logger = get_logger(__name__)
 router = APIRouter(prefix="/api/gemini", tags=["gemini"])
 
 ALLOWED_GEMINI_MODELS = [
-    "gemini-2.0-flash-lite-latest",
-    "gemini-2.0-flash-latest",
+    "gemini-flash-lite-latest",
+    "gemini-flash-latest",
     "gemma-4-26b-a4b-it",
     "gemma-4-31b-it",
 ]

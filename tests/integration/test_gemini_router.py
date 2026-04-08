@@ -67,8 +67,8 @@ def _make_api_models(*names: str) -> dict:
 
 
 ALLOWLIST = [
-    "gemini-2.0-flash-lite-latest",
-    "gemini-2.0-flash-latest",
+    "gemini-flash-lite-latest",
+    "gemini-flash-latest",
     "gemma-4-26b-a4b-it",
     "gemma-4-31b-it",
 ]
@@ -107,7 +107,7 @@ class TestGeminiAllowlist:
         """BC2: API 回傳缺少部分 allowlist model → response 只含有回傳的 model，不補假資料。"""
         # Only 2 of the 4 are returned
         body = _make_api_models(
-            "gemini-2.0-flash-lite-latest",
+            "gemini-flash-lite-latest",
             "gemma-4-31b-it",
         )
         resp = _make_http_response(200, body)
@@ -121,9 +121,9 @@ class TestGeminiAllowlist:
         assert data["success"] is True
         assert data["count"] == 2
         names = [m["name"] for m in data["models"]]
-        assert "gemini-2.0-flash-lite-latest" in names
+        assert "gemini-flash-lite-latest" in names
         assert "gemma-4-31b-it" in names
-        assert "gemini-2.0-flash-latest" not in names
+        assert "gemini-flash-latest" not in names
         assert "gemma-4-26b-a4b-it" not in names
 
     def test_non_allowlist_models_filtered_out(self):
@@ -203,8 +203,8 @@ class TestGeminiAllowlist:
         body = {
             "models": [
                 {
-                    "name": "models/gemini-2.0-flash-lite-latest",
-                    "displayName": "Gemini 2.0 Flash Lite Latest",
+                    "name": "models/gemini-flash-lite-latest",
+                    "displayName": "Gemini Flash Lite Latest",
                     "description": "",
                 }
             ]
@@ -219,4 +219,4 @@ class TestGeminiAllowlist:
         data = response.json()
         assert data["success"] is True
         assert data["count"] == 1
-        assert data["models"][0]["name"] == "gemini-2.0-flash-lite-latest"
+        assert data["models"][0]["name"] == "gemini-flash-lite-latest"
