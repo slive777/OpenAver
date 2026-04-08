@@ -485,3 +485,54 @@ class TestMigrationPrimarySource:
         result = load_config()
 
         assert result["search"]["primary_source"] == "javbus"
+
+
+# ============ test_migration_openai ============
+
+class TestMigrationOpenAI:
+    """openai 嵌套補齊 migration（Task T2）"""
+
+    def test_translate_openai_migration(self, tmp_path, monkeypatch):
+        """舊設定無 openai 區段 → migration 後自動補齊預設值"""
+        config_path = tmp_path / "config.json"
+        _write_config(config_path, {
+            "translate": {
+                "enabled": False,
+                "ollama": {"url": "http://localhost:11434", "model": "qwen3:8b"},
+                "gemini": {"api_key": "", "model": "gemini-flash-lite-latest"},
+            }
+        })
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
+
+        result = load_config()
+
+        assert "openai" in result["translate"]
+        openai = result["translate"]["openai"]
+        assert openai["base_url"] == ""
+        assert openai["api_key"] == ""
+        assert openai["model"] == "gpt-4o-mini"
+
+    def test_translate_openai_not_overwrite_existing(self, tmp_path, monkeypatch):
+        """openai 嵌套已存在 → 不覆蓋用戶設定"""
+        config_path = tmp_path / "config.json"
+        _write_config(config_path, {
+            "translate": {
+                "enabled": True,
+                "provider": "openai",
+                "openai": {
+                    "base_url": "https://api.openai.com/v1",
+                    "api_key": "sk-test",
+                    "model": "gpt-4o"
+                }
+            }
+        })
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
+
+        result = load_config()
+
+        openai = result["translate"]["openai"]
+        assert openai["base_url"] == "https://api.openai.com/v1"
+        assert openai["api_key"] == "sk-test"
+        assert openai["model"] == "gpt-4o"

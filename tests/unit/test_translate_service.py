@@ -17,6 +17,7 @@ from core.translate_service import (
     TranslateService,
     OllamaTranslateService,
     GeminiTranslateService,
+    OpenAICompatibleTranslateService,
     create_translate_service
 )
 
@@ -206,3 +207,277 @@ class TestTranslateSingleJaShortCircuit:
             mock_client.assert_not_called()
 
         assert result == original_title
+
+
+# ============ OpenAICompatibleTranslateService 測試 ============
+
+class TestOpenAICompatibleTranslateService:
+    """測試 OpenAI Compatible 翻譯服務"""
+
+    def test_trailing_slash_removed(self):
+        """base_url 尾斜線自動移除"""
+        service = OpenAICompatibleTranslateService({"base_url": "http://host/v1/"})
+        assert service.base_url == "http://host/v1"
+
+    def test_trailing_slash_removed_multiple(self):
+        """多重尾斜線自動移除"""
+        service = OpenAICompatibleTranslateService({"base_url": "http://host/v1///"})
+        assert service.base_url == "http://host/v1"
+
+    def test_default_model(self):
+        """預設 model 為 gpt-4o-mini"""
+        service = OpenAICompatibleTranslateService({})
+        assert service.model == "gpt-4o-mini"
+
+    def test_custom_model(self):
+        """自定義 model 正確設置"""
+        service = OpenAICompatibleTranslateService({"model": "llama3"})
+        assert service.model == "llama3"
+
+    def test_api_key_empty_by_default(self):
+        """api_key 預設為空字串"""
+        service = OpenAICompatibleTranslateService({})
+        assert service.api_key == ""
+
+    @pytest.mark.asyncio
+    async def test_ja_short_circuit(self):
+        """target=ja 時不呼叫 HTTP，直接回傳原文"""
+        service = OpenAICompatibleTranslateService(
+            {"base_url": "http://localhost/v1", "model": "m"},
+            "ja"
+        )
+        original_title = "テスト"
+
+        with patch("httpx.AsyncClient") as mock_client:
+            result = await service.translate_single(original_title)
+            mock_client.assert_not_called()
+
+        assert result == original_title
+
+    @pytest.mark.asyncio
+    async def test_api_key_empty_no_auth_header(self):
+        """api_key 為空時不送 Authorization header"""
+        service = OpenAICompatibleTranslateService(
+            {"base_url": "http://localhost/v1", "api_key": "", "model": "m"},
+            "zh-TW"
+        )
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "新人女演員出道"}}]
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        captured_headers = {}
+
+        async def mock_post(url, headers=None, json=None):
+            captured_headers.update(headers or {})
+            return mock_response
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.post = AsyncMock(side_effect=mock_post)
+        mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
+        mock_client_instance.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("core.translate_service.httpx.AsyncClient", return_value=mock_client_instance):
+            result = await service.translate_single("新人女優デビュー")
+
+        assert "Authorization" not in captured_headers
+        assert result == "新人女演員出道"
+
+    @pytest.mark.asyncio
+    async def test_api_key_present_auth_header(self):
+        """api_key 有值時送 Authorization: Bearer xxx"""
+        service = OpenAICompatibleTranslateService(
+            {"base_url": "http://localhost/v1", "api_key": "sk-test123", "model": "m"},
+            "zh-TW"
+        )
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "新人女演員出道"}}]
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        captured_headers = {}
+
+        async def mock_post(url, headers=None, json=None):
+            captured_headers.update(headers or {})
+            return mock_response
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.post = AsyncMock(side_effect=mock_post)
+        mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
+        mock_client_instance.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("core.translate_service.httpx.AsyncClient", return_value=mock_client_instance):
+            await service.translate_single("新人女優デビュー")
+
+        assert captured_headers.get("Authorization") == "Bearer sk-test123"
+
+    @pytest.mark.asyncio
+    async def test_translate_single_url_no_double_slash(self):
+        """POST URL 無雙斜線（base_url 無尾斜線後拼接 /chat/completions）"""
+        service = OpenAICompatibleTranslateService(
+            {"base_url": "http://host/v1/", "model": "m"},
+            "zh-TW"
+        )
+
+        captured_url = {}
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "test"}}]
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        async def mock_post(url, headers=None, json=None):
+            captured_url["url"] = url
+            return mock_response
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.post = AsyncMock(side_effect=mock_post)
+        mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
+        mock_client_instance.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("core.translate_service.httpx.AsyncClient", return_value=mock_client_instance):
+            await service.translate_single("テスト")
+
+        assert captured_url["url"] == "http://host/v1/chat/completions"
+        assert "//" not in captured_url["url"].replace("://", "")
+
+    @pytest.mark.asyncio
+    async def test_translate_single_success(self):
+        """mock 200 + OpenAI format → 回翻譯結果"""
+        service = OpenAICompatibleTranslateService(
+            {"base_url": "http://localhost/v1", "model": "gpt-4o-mini"},
+            "zh-TW"
+        )
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "  新人女演員出道  "}}]
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.post = AsyncMock(return_value=mock_response)
+        mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
+        mock_client_instance.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("core.translate_service.httpx.AsyncClient", return_value=mock_client_instance):
+            result = await service.translate_single("新人女優デビュー")
+
+        assert result == "新人女演員出道"
+
+    @pytest.mark.asyncio
+    async def test_translate_single_http_error(self):
+        """mock 401 → 回 ''，不拋例外"""
+        import httpx as _httpx
+
+        service = OpenAICompatibleTranslateService(
+            {"base_url": "http://localhost/v1", "model": "m"},
+            "zh-TW"
+        )
+
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+        http_error = _httpx.HTTPStatusError(
+            "401 Unauthorized",
+            request=MagicMock(),
+            response=mock_response
+        )
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.post = AsyncMock(side_effect=http_error)
+        mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
+        mock_client_instance.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("core.translate_service.httpx.AsyncClient", return_value=mock_client_instance):
+            result = await service.translate_single("テスト")
+
+        assert result == ""
+
+    @pytest.mark.asyncio
+    async def test_translate_single_bad_response(self):
+        """mock 200 + {error: ...}（無 choices）→ 回 ''"""
+        service = OpenAICompatibleTranslateService(
+            {"base_url": "http://localhost/v1", "model": "m"},
+            "zh-TW"
+        )
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"error": "model not found"}
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client_instance = MagicMock()
+        mock_client_instance.post = AsyncMock(return_value=mock_response)
+        mock_client_instance.__aenter__ = AsyncMock(return_value=mock_client_instance)
+        mock_client_instance.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("core.translate_service.httpx.AsyncClient", return_value=mock_client_instance):
+            result = await service.translate_single("テスト")
+
+        assert result == ""
+
+    @pytest.mark.asyncio
+    async def test_translate_batch(self):
+        """mock translate_single → batch 循環正確"""
+        service = OpenAICompatibleTranslateService(
+            {"base_url": "http://localhost/v1", "model": "m"},
+            "zh-TW"
+        )
+
+        call_count = 0
+        side_effects = ["翻譯A", "翻譯B"]
+
+        async def mock_translate_single(title, context=None):
+            nonlocal call_count
+            result = side_effects[call_count]
+            call_count += 1
+            return result
+
+        service.translate_single = mock_translate_single
+
+        results = await service.translate_batch(["タイトルA", "タイトルB"])
+
+        assert len(results) == 2
+        assert results[0] == "翻譯A"
+        assert results[1] == "翻譯B"
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_translate_batch_empty(self):
+        """空列表 → 回空列表"""
+        service = OpenAICompatibleTranslateService({}, "zh-TW")
+        results = await service.translate_batch([])
+        assert results == []
+
+
+class TestFactoryOpenAI:
+    """測試 factory openai branch"""
+
+    def test_factory_openai(self):
+        """create_translate_service 回傳 OpenAICompatibleTranslateService"""
+        config = {
+            "provider": "openai",
+            "openai": {"base_url": "http://localhost/v1", "model": "gpt-4o-mini"}
+        }
+        service = create_translate_service(config)
+        assert isinstance(service, OpenAICompatibleTranslateService)
+
+    def test_factory_openai_inherits_translate_service(self):
+        """OpenAICompatibleTranslateService 是 TranslateService 子類"""
+        assert issubclass(OpenAICompatibleTranslateService, TranslateService)
+
+    def test_factory_openai_empty_base_url_no_error(self):
+        """base_url 為空時 factory 層不拋錯（讓 translate_single 在 HTTP 階段失敗）"""
+        config = {"provider": "openai", "openai": {"base_url": "", "model": "m"}}
+        service = create_translate_service(config)
+        assert isinstance(service, OpenAICompatibleTranslateService)
+        assert service.base_url == ""

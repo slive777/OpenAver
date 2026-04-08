@@ -17,6 +17,9 @@ function settingsPage() {
             ollamaModel: '',
             geminiApiKey: '',
             geminiModel: '',
+            openaiBaseUrl: '',
+            openaiApiKey: '',
+            openaiModel: 'gpt-4o-mini',
 
             // Scraper
             createFolder: true,
@@ -60,6 +63,11 @@ function settingsPage() {
         geminiModelStatus: '',
         ollamaModels: [],
         geminiModels: [],
+        openaiStatus: '',
+        openaiModelStatus: '',
+        openaiModels: [],
+        fetchingOpenaiModels: false,
+        testingOpenaiTranslate: false,
         // Toast state
         _toast: { message: '', type: 'success', visible: false },
         _toastTimer: null,
@@ -296,6 +304,11 @@ function settingsPage() {
                         this.form.geminiModel = config.translate.gemini.model;
                     }
 
+                    // OpenAI Compatible
+                    this.form.openaiBaseUrl = config.translate.openai?.base_url || '';
+                    this.form.openaiApiKey = config.translate.openai?.api_key || '';
+                    this.form.openaiModel = config.translate.openai?.model || 'gpt-4o-mini';
+
                     // 自動測試 Gemini（如果有 API Key 且是 gemini provider）
                     if (config.translate.gemini?.api_key && config.translate.provider === 'gemini') {
                         setTimeout(() => this.testGeminiConnection(), 100);
@@ -415,6 +428,11 @@ function settingsPage() {
                     gemini: {
                         api_key: this.form.geminiApiKey,
                         model: this.form.geminiModel || 'gemini-flash-lite-latest'
+                    },
+                    openai: {
+                        base_url: this.form.openaiBaseUrl.trim(),
+                        api_key: this.form.openaiApiKey,
+                        model: this.form.openaiModel.trim() || 'gpt-4o-mini'
                     }
                 };
 
@@ -672,6 +690,91 @@ function settingsPage() {
                 this.geminiModelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.test_failed', {msg: error.message})}</span>`;
             } finally {
                 this.testGeminiTranslateLoading = false;
+            }
+        },
+
+        async fetchOpenAIModels() {
+            const baseUrl = this.form.openaiBaseUrl.trim();
+
+            if (!baseUrl) {
+                this.openaiStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.enter_url')}</span>`;
+                return;
+            }
+
+            this.fetchingOpenaiModels = true;
+            this.openaiStatus = `<span class="text-base-content/50">${window.t('settings.status.connecting')}</span>`;
+
+            try {
+                const response = await fetch('/api/openai/models', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        base_url: baseUrl,
+                        api_key: this.form.openaiApiKey
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.models && data.models.length > 0) {
+                    this.openaiModels = data.models;
+                    this.openaiStatus = `<span class="text-success"><i class="bi bi-check-circle"></i> ${window.t('settings.status.connected_n_models', {count: data.models.length})}</span>`;
+
+                    // 如果目前模型不在列表中，設為第一個
+                    if (!this.openaiModels.includes(this.form.openaiModel)) {
+                        this.form.openaiModel = this.openaiModels[0];
+                    }
+                } else {
+                    this.openaiModels = [];
+                    this.openaiStatus = `<span class="text-warning"><i class="bi bi-exclamation-circle"></i> ${data.error || window.t('settings.status.connection_failed')}</span>`;
+                }
+            } catch (error) {
+                this.openaiModels = [];
+                this.openaiStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${error.message}</span>`;
+            } finally {
+                this.fetchingOpenaiModels = false;
+            }
+        },
+
+        async testOpenAITranslation() {
+            const baseUrl = this.form.openaiBaseUrl.trim();
+            const model = this.form.openaiModel.trim();
+
+            if (!baseUrl) {
+                this.openaiModelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.enter_url')}</span>`;
+                return;
+            }
+
+            if (!model) {
+                this.openaiModelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.select_model')}</span>`;
+                return;
+            }
+
+            this.testingOpenaiTranslate = true;
+            this.openaiModelStatus = `<span class="text-base-content/50">${window.t('settings.status.testing_translation')}</span>`;
+
+            try {
+                const response = await fetch('/api/openai/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        base_url: baseUrl,
+                        api_key: this.form.openaiApiKey,
+                        model: model
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.openaiModelStatus = `<span class="text-success"><i class="bi bi-check-circle-fill"></i> ${window.t('settings.status.translation_success', {translation: data.translation})}</span>`;
+                } else {
+                    this.openaiModelStatus = `<span class="text-error"><i class="bi bi-exclamation-triangle-fill"></i> ${data.error}</span>`;
+                }
+            } catch (error) {
+                this.openaiModelStatus = `<span class="text-error"><i class="bi bi-x-circle"></i> ${window.t('settings.status.test_failed', {msg: error.message})}</span>`;
+            } finally {
+                this.testingOpenaiTranslate = false;
             }
         },
 

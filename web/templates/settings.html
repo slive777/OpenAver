@@ -182,6 +182,7 @@
                             :disabled="!form.translateEnabled">
                             <option value="ollama">Ollama{{ t('settings.translate.ollama_local') }}</option>
                             <option value="gemini">Gemini{{ t('settings.translate.gemini_cloud') }}</option>
+                            <option value="openai" x-text="t('settings.translate.openai_compatible')">OpenAI Compatible</option>
                         </select>
                     </div>
 
@@ -297,6 +298,73 @@
                                     </button>
                                 </div>
                                 <small class="settings-hint" x-html="geminiModelStatus"></small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- OpenAI Compatible 設定 -->
+                    <div id="openaiFields" x-show="form.translateProvider === 'openai'" x-cloak>
+                        <!-- Base URL + Test Connection -->
+                        <div class="settings-form-row">
+                            <label class="row-label" x-text="'Base URL'"></label>
+                            <div class="flex-1 flex flex-col gap-1">
+                                <div class="variable-input-group">
+                                    <input type="text" class="input input-bordered input-sm flex-1"
+                                        x-model="form.openaiBaseUrl"
+                                        placeholder="https://api.openai.com/v1"
+                                        :disabled="!form.translateEnabled">
+                                    <button class="btn btn-sm btn-outline" type="button"
+                                        @click="fetchOpenAIModels()"
+                                        :disabled="!form.translateEnabled || fetchingOpenaiModels">
+                                        <span x-show="fetchingOpenaiModels" class="loading loading-spinner loading-sm"></span>
+                                        <template x-if="!fetchingOpenaiModels">
+                                            <i class="bi bi-plug"></i>
+                                        </template>
+                                        <span x-text="fetchingOpenaiModels ? '' : ' ' + window.t('settings.action.test')"></span>
+                                    </button>
+                                </div>
+                                <small class="settings-hint" x-html="openaiStatus"></small>
+                            </div>
+                        </div>
+
+                        <!-- API Key -->
+                        <div class="settings-form-row">
+                            <label class="row-label">API Key</label>
+                            <div class="flex-1 flex flex-col gap-1">
+                                <input type="password" class="input input-bordered input-sm"
+                                    x-model="form.openaiApiKey"
+                                    :placeholder="window.t('settings.translate.openai_api_key_placeholder')"
+                                    :disabled="!form.translateEnabled">
+                                <small class="settings-hint" x-text="window.t('settings.translate.openai_api_key_hint')"></small>
+                            </div>
+                        </div>
+
+                        <!-- Model (datalist) + Test Translate -->
+                        <div class="settings-form-row">
+                            <label class="row-label" x-text="window.t('settings.translate.model_label')"></label>
+                            <div class="flex-1 flex flex-col gap-1">
+                                <div class="variable-input-group">
+                                    <input type="text" class="input input-bordered input-sm flex-1"
+                                        list="openaiModelList"
+                                        x-model="form.openaiModel"
+                                        :placeholder="window.t('settings.translate.openai_model_placeholder')"
+                                        :disabled="!form.translateEnabled">
+                                    <datalist id="openaiModelList">
+                                        <template x-for="m in openaiModels" :key="m">
+                                            <option :value="m"></option>
+                                        </template>
+                                    </datalist>
+                                    <button class="btn btn-sm btn-outline" type="button"
+                                        @click="testOpenAITranslation()"
+                                        :disabled="!form.translateEnabled || testingOpenaiTranslate || !form.openaiBaseUrl.trim() || !form.openaiModel.trim()">
+                                        <span x-show="testingOpenaiTranslate" class="loading loading-spinner loading-sm"></span>
+                                        <template x-if="!testingOpenaiTranslate">
+                                            <i class="bi bi-chat-dots"></i>
+                                        </template>
+                                        <span x-text="testingOpenaiTranslate ? '' : ' ' + window.t('settings.action.test')"></span>
+                                    </button>
+                                </div>
+                                <small class="settings-hint" x-html="openaiModelStatus"></small>
                             </div>
                         </div>
                     </div>

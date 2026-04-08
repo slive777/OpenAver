@@ -90,3 +90,30 @@ class TestTranslateConfigRoundTrip:
         updated = response.json()["data"]
         assert updated["translate"]["enabled"] is True
         assert updated["translate"]["provider"] == "gemini"
+
+    def test_openai_config_roundtrip(self, client, temp_config_path):
+        """translate.openai 設定在 round-trip 後應完整保留"""
+        response = client.get("/api/config")
+        assert response.status_code == 200
+        config_data = response.json()["data"]
+
+        config_data["translate"]["provider"] = "openai"
+        config_data["translate"]["openai"] = {
+            "base_url": "https://api.openai.com/v1",
+            "api_key": "sk-test-roundtrip",
+            "model": "gpt-4o"
+        }
+
+        response = client.put("/api/config", json=config_data)
+        assert response.status_code == 200
+        assert response.json()["success"] is True
+
+        response = client.get("/api/config")
+        assert response.status_code == 200
+        updated = response.json()["data"]
+
+        assert updated["translate"]["provider"] == "openai"
+        openai_cfg = updated["translate"]["openai"]
+        assert openai_cfg["base_url"] == "https://api.openai.com/v1"
+        assert openai_cfg["api_key"] == "sk-test-roundtrip"
+        assert openai_cfg["model"] == "gpt-4o"

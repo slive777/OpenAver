@@ -191,7 +191,11 @@
       "security_item1": "API Key is stored in plain text in config.json",
       "security_item2": "Do not share config.json with others",
       "security_item3_prefix": "To revoke, go to",
-      "security_item3_suffix": "to regenerate"
+      "security_item3_suffix": "to regenerate",
+      "openai_compatible": "OpenAI Compatible",
+      "openai_api_key_placeholder": "Leave blank = no Authorization header",
+      "openai_api_key_hint": "Local LLMs can leave empty; cloud services require an API Key",
+      "openai_model_placeholder": "e.g. gpt-4o-mini"
     },
     "scraper": {
       "suffix_keywords_label": "Version Tags",
@@ -679,7 +683,8 @@
       "dmm_proxy": "DMM requires a Japanese IP; enter a Japanese proxy in the <strong>Settings page</strong> → Proxy field",
       "dmm_direct": "If you are already on a VPN or Japan network, you can also enter <code>direct</code> in the Proxy field to enable it without a proxy address.",
       "translate_ollama": "<strong>Ollama</strong>: Confirm the Ollama application is running (Windows requires manual launch)",
-      "translate_gemini": "<strong>Gemini</strong>: Confirm the API Key is correctly set on the <strong>Settings page</strong>"
+      "translate_gemini": "<strong>Gemini</strong>: Confirm the API Key is correctly set on the <strong>Settings page</strong>",
+      "translate_openai": "<strong>OpenAI Compatible</strong>: Check that the Base URL and model name are correct"
     },
     "js": {
       "version_load_failed": "Failed to load",

@@ -191,7 +191,11 @@
       "security_item1": "API Key 將以明文存儲在 config.json",
       "security_item2": "請勿將 config.json 分享給他人",
       "security_item3_prefix": "如需撤銷，請前往",
-      "security_item3_suffix": "重新生成"
+      "security_item3_suffix": "重新生成",
+      "openai_compatible": "OpenAI 相容",
+      "openai_api_key_placeholder": "留空 = 不送 Authorization header",
+      "openai_api_key_hint": "本地 LLM 可留空，雲端服務需填入 API Key",
+      "openai_model_placeholder": "e.g. gpt-4o-mini"
     },
     "scraper": {
       "suffix_keywords_label": "版本標記",
@@ -679,7 +683,8 @@
       "dmm_proxy": "DMM 需要日本 IP，請在<strong>設定頁</strong> → Proxy 欄位填入日本 IP 代理",
       "dmm_direct": "若已連接 VPN 或日本網路，也可以在 Proxy 欄位輸入 <code>direct</code> 直接啟用，不需要填寫 Proxy 位址。",
       "translate_ollama": "<strong>Ollama</strong>：確認 Ollama 應用程式已啟動（Windows 需手動開啟）",
-      "translate_gemini": "<strong>Gemini</strong>：確認 API Key 已在<strong>設定頁</strong>正確設定"
+      "translate_gemini": "<strong>Gemini</strong>：確認 API Key 已在<strong>設定頁</strong>正確設定",
+      "translate_openai": "<strong>OpenAI Compatible</strong>：確認 Base URL 和模型名稱正確"
     },
     "js": {
       "version_load_failed": "無法載入",

@@ -76,14 +76,22 @@ class GeminiConfig(BaseModel):
     model: str = "gemini-flash-lite-latest"  # 預設使用 latest 別名（自動路由可用版本）
 
 
+class OpenAIConfig(BaseModel):
+    """串接結構：OpenAI Compatible 配置"""
+    base_url: str = ""   # e.g. "https://api.openai.com/v1"
+    api_key: str = ""    # 可為空（本地 LLM 不需要）
+    model: str = "gpt-4o-mini"
+
+
 class TranslateConfig(BaseModel):
     enabled: bool = False
-    provider: str = "ollama"  # "ollama" | "gemini"
+    provider: str = "ollama"  # "ollama" | "gemini" | "openai"
     batch_size: int = 10  # 批次翻譯大小
 
     # 嵌套結構
     ollama: OllamaConfig = OllamaConfig()
     gemini: GeminiConfig = GeminiConfig()
+    openai: OpenAIConfig = OpenAIConfig()
 
     # 舊字段（保留向後兼容）
     ollama_url: Optional[str] = None
@@ -215,6 +223,16 @@ def load_config() -> dict:
                 }
                 need_save = True
                 logger.info("[Config] 遷移配置：添加 Gemini 支持")
+
+            # Task T2：確保 openai 嵌套存在（OpenAI Compatible 支援遷移）
+            if 'openai' not in t:
+                t['openai'] = {
+                    'base_url': '',
+                    'api_key': '',
+                    'model': 'gpt-4o-mini'
+                }
+                need_save = True
+                logger.info("[Config] 遷移配置：添加 OpenAI Compatible 支持")
 
         # Migration: folder_format → folder_layers（舊版只存 folder_format）
         s = raw_config.get('scraper', {})
