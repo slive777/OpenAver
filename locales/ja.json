@@ -113,7 +113,8 @@
       "search_range": "検索 {start}-{end} / {total}",
       "translating_progress": "翻訳中 ({processed}/{total})",
       "translate_all_count": "すべて翻訳 ({count})",
-      "searching": "検索中..."
+      "searching": "検索中...",
+      "load_more": "もっと読み込む"
     },
     "mode": {
       "exact": "完全品番検索",

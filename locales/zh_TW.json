@@ -113,7 +113,8 @@
       "search_range": "搜尋 {start}-{end} / {total}",
       "translating_progress": "翻譯中 ({processed}/{total})",
       "translate_all_count": "翻譯全部 ({count})",
-      "searching": "搜尋中..."
+      "searching": "搜尋中...",
+      "load_more": "載入更多"
     },
     "mode": {
       "exact": "完整番號搜尋",

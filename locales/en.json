@@ -113,7 +113,8 @@
       "search_range": "Search {start}-{end} / {total}",
       "translating_progress": "Translating ({processed}/{total})",
       "translate_all_count": "Translate All ({count})",
-      "searching": "Searching..."
+      "searching": "Searching...",
+      "load_more": "Load more"
     },
     "mode": {
       "exact": "Exact ID Search",

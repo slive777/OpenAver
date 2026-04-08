@@ -113,7 +113,8 @@
       "search_range": "搜索 {start}-{end} / {total}",
       "translating_progress": "翻译中 ({processed}/{total})",
       "translate_all_count": "翻译全部 ({count})",
-      "searching": "搜索中..."
+      "searching": "搜索中...",
+      "load_more": "载入更多"
     },
     "mode": {
       "exact": "完整番号搜索",

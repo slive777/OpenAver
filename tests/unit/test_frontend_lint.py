@@ -652,3 +652,76 @@ class TestGeminiLocaleKeyGuard:
         js = self._js()
         assert "gemini_n_flash_models" not in js, \
             "settings.js 仍含 gemini_n_flash_models，應改為 connected_n_models"
+
+
+GRID_MODE_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state" / "grid-mode.js"
+
+
+class TestLoadMoreButton:
+    """39a-T4: 守衛 Grid Load More 按鈕 + hasVisibleNext + nextLightboxVideo loadMore 觸發"""
+
+    def _html(self):
+        return SEARCH_HTML.read_text(encoding="utf-8")
+
+    def _base(self):
+        return BASE_JS.read_text(encoding="utf-8")
+
+    def _grid_mode(self):
+        return GRID_MODE_JS.read_text(encoding="utf-8")
+
+    def _locale(self, name):
+        return json.loads((LOCALES_ROOT / name).read_text(encoding="utf-8"))
+
+    def _get_nested(self, d, dotted_key):
+        keys = dotted_key.split(".")
+        cur = d
+        for k in keys:
+            if not isinstance(cur, dict) or k not in cur:
+                return None
+            cur = cur[k]
+        return cur
+
+    # --- search.html ---
+
+    def test_html_load_more_click_binding(self):
+        """search.html grid-staging-wrapper 內含 loadMore() 的 @click 綁定"""
+        html = self._html()
+        assert '@click="loadMore()"' in html, \
+            'search.html 缺少 @click="loadMore()" 綁定（Load More 按鈕）'
+
+    def test_html_load_more_i18n_ref(self):
+        """search.html 含 t('search.button.load_more') 引用"""
+        html = self._html()
+        assert "t('search.button.load_more')" in html, \
+            "search.html 缺少 t('search.button.load_more') i18n 引用"
+
+    def test_html_load_more_xshow_condition(self):
+        """search.html Load More 按鈕 x-show 含 hasMoreResults && !isLoadingMore && displayMode === 'grid'"""
+        html = self._html()
+        assert "hasMoreResults && !isLoadingMore && displayMode === 'grid'" in html, \
+            "search.html Load More 按鈕缺少正確的 x-show 條件（hasMoreResults && !isLoadingMore && displayMode === 'grid'）"
+
+    # --- base.js ---
+
+    def test_base_has_visible_next_checks_has_more_results(self):
+        """base.js hasVisibleNext() 含 hasMoreResults 判斷"""
+        js = self._base()
+        assert "hasMoreResults" in js, \
+            "base.js hasVisibleNext() 缺少 hasMoreResults 判斷"
+
+    # --- grid-mode.js ---
+
+    def test_grid_mode_next_lightbox_video_calls_load_more(self):
+        """grid-mode.js nextLightboxVideo() 含 loadMore() 呼叫"""
+        js = self._grid_mode()
+        assert "this.loadMore()" in js, \
+            "grid-mode.js nextLightboxVideo() 缺少 this.loadMore() 呼叫"
+
+    # --- locale files ---
+
+    def test_all_locales_have_load_more_key(self):
+        """四個 locale 檔案均含 search.button.load_more key"""
+        for locale_file in ["zh_TW.json", "zh_CN.json", "en.json", "ja.json"]:
+            data = self._locale(locale_file)
+            val = self._get_nested(data, "search.button.load_more")
+            assert val, f"{locale_file} 缺少 search.button.load_more key"
