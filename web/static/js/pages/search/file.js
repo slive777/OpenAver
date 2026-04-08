@@ -95,7 +95,7 @@ function extractChineseTitle(filename, number, actors = []) {
     name = name.replace(/\s+[\u4e00-\u9fff]{2,4}$/, '');
     name = name.trim();
 
-    if (name && hasChinese(name) && !window.SearchCore.hasJapanese(name)) {
+    if (name && hasChinese(name) && !/[\u3040-\u309F\u30A0-\u30FF]/.test(name)) {
         return name;
     }
     return null;

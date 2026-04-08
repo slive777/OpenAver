@@ -2,7 +2,75 @@
  * SearchState - Batch Mixin
  * 包含：批次操作（searchAll, scrapeAll, scrapeSingle）
  */
+
+// T4: 追蹤正在批次翻譯的片索引（從 core.js 搬移）
+const batchTranslatingIndices = new Set();
+
+/**
+ * 批次翻譯（調用 /api/translate-batch）— 從 core.js 搬移
+ * @param {Array<string>} titles - 日文標題列表
+ * @returns {Promise<Array<string>>} 繁體中文翻譯列表
+ */
+async function translateBatchHelper(titles) {
+    try {
+        const resp = await fetch('/api/translate-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                titles: titles,
+                batch_size: 1
+            })
+        });
+
+        if (!resp.ok) {
+            throw new Error(`HTTP ${resp.status}`);
+        }
+
+        const data = await resp.json();
+        return data.translations || [];
+
+    } catch (error) {
+        console.error('[Progressive] 批次翻譯失敗:', error);
+        return [];
+    }
+}
+
 window.SearchStateMixin_Batch = {
+    isBatchTranslating(index) {
+        return batchTranslatingIndices.has(index);
+    },
+
+    _addBatchTranslatingIndex(index) {
+        batchTranslatingIndices.add(index);
+    },
+
+    _deleteBatchTranslatingIndex(index) {
+        batchTranslatingIndices.delete(index);
+    },
+
+    async translateBatch(titles) {
+        return translateBatchHelper(titles);
+    },
+
+    async translateWithOllama(text, mode, metadata = {}) {
+        try {
+            const resp = await fetch('/api/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text: text,
+                    mode: mode,
+                    actors: metadata.actors || [],
+                    number: metadata.number || ''
+                })
+            });
+            return await resp.json();
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    },
+
+
     async searchAll() {
         const batch = this.batchState;
 
@@ -124,7 +192,7 @@ window.SearchStateMixin_Batch = {
         }
 
         const translatableResults = this.searchResults.filter(
-            r => r.title && window.SearchCore.hasJapanese(r.title) && !r.translated_title
+            r => r.title && this.hasJapanese(r.title) && !r.translated_title
         );
 
         if (translatableResults.length === 0) {
@@ -230,8 +298,8 @@ window.SearchStateMixin_Batch = {
                 const chineseFromFile = file.chineseTitle;
                 const appConfig = this.appConfig;
                 if (appConfig?.translate?.enabled && !chineseFromFile &&
-                    metadata.title && window.SearchCore.hasJapanese(metadata.title)) {
-                    const tr = await window.SearchCore.translateWithOllama(metadata.title, 'translate', metadata);
+                    metadata.title && this.hasJapanese(metadata.title)) {
+                    const tr = await this.translateWithOllama(metadata.title, 'translate', metadata);
                     if (tr.success) metadata.translated_title = tr.result;
                 }
 
@@ -285,8 +353,8 @@ window.SearchStateMixin_Batch = {
             const chineseFromFile = file.chineseTitle;
             const appConfig = this.appConfig;
             if (appConfig?.translate?.enabled && !chineseFromFile &&
-                metadata.title && window.SearchCore.hasJapanese(metadata.title)) {
-                const tr = await window.SearchCore.translateWithOllama(metadata.title, 'translate', metadata);
+                metadata.title && this.hasJapanese(metadata.title)) {
+                const tr = await this.translateWithOllama(metadata.title, 'translate', metadata);
                 if (tr.success) metadata.translated_title = tr.result;
             }
 

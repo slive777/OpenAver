@@ -170,16 +170,14 @@ async function ensureCached(state, number) {
 }
 
 /**
- * T6b: 顯示來源切換提示（透過 bridge 呼叫 Alpine toast）
+ * T6b: 顯示來源切換提示（直接使用 alpineContext，T4 後無需 bridge）
+ * @param {Object} alpineContext - Alpine component context
+ * @param {string} source - 來源 ID
  */
-function showSourceToast(source) {
+function showSourceToast(alpineContext, source) {
     const name = SOURCE_NAMES[source] || source;
     const msg = `來自 ${name}`;
-
-    // T6b fix: 透過 bridge 呼叫，減少對 Alpine instance 的耦合
-    if (window.SearchUI?.showToast) {
-        window.SearchUI.showToast(msg, 'info', 2000);
-    }
+    alpineContext.showToast(msg, 'info', 2000);
 }
 
 // V1d: shakeButton() 已移除，改用 Alpine reactive class binding
@@ -254,7 +252,7 @@ async function switchSource(alpineContext, number) {
 
                 // 跨來源時顯示 Toast
                 if (changedSource) {
-                    showSourceToast(source);
+                    showSourceToast(alpineContext, source);
                 }
 
                 // 保存狀態
@@ -275,33 +273,15 @@ async function switchSource(alpineContext, number) {
 }
 
 // === 狀態切換 ===
-
-function showState(state) {
-    // Alpine x-show 控制顯示/隱藏（classList 操作已移除）
-    const el = document.querySelector('.search-container[x-data]');
-    if (el && el._x_dataStack) {
-        Alpine.$data(el).pageState = state;
-    }
-}
+// T4: showState 已移除（改為各 mixin 直接 this.pageState = x）
 
 // === 結果顯示 ===
 // T1c: displayResult 遷移至 Alpine（已由 template binding 接管）
-// 保留 bridge stub 供 file.js 使用（T1d 才完全移除）
 
 // === 導航 ===
-
-function preloadImages(startIndex, count = 5) {
-    const { state } = window.SearchCore;
-    for (let i = startIndex; i < Math.min(startIndex + count, state.searchResults.length); i++) {
-        if (state.searchResults[i] && state.searchResults[i].cover) {
-            const img = new Image();
-            img.src = `/api/proxy-image?url=${encodeURIComponent(state.searchResults[i].cover)}`;
-        }
-    }
-}
+// T4: preloadImages 已搬入 state/navigation.js mixin method
 
 // T1c: updateNavigation 已遷移至 Alpine computed（showNavigation, navIndicatorText, canGoPrev, canGoNext）
-// Bridge stub 在 window.SearchUI 中提供 no-op 給 file.js
 
 // === 標題編輯功能 ===
 // T1c: 所有編輯函數已遷移至 Alpine state.js
@@ -321,9 +301,6 @@ function preloadImages(startIndex, count = 5) {
 
 // === 暴露介面 ===
 window.SearchUI = {
-    showState,
-    preloadImages,
-    navigateResult: null,  // 在 state.js setupBridgeLayer() 設定
     loadSourceConfig,
     getSourceOrder
 };

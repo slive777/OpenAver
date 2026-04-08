@@ -6,6 +6,18 @@ window.SearchStateMixin_Navigation = {
     // ===== Navigation Methods =====
 
     /**
+     * 預載下幾張圖片（從 ui.js 搬移）
+     */
+    preloadImages(startIndex, count = 5) {
+        for (let i = startIndex; i < Math.min(startIndex + count, this.searchResults.length); i++) {
+            if (this.searchResults[i]?.cover) {
+                const img = new Image();
+                img.src = `/api/proxy-image?url=${encodeURIComponent(this.searchResults[i].cover)}`;
+            }
+        }
+    },
+
+    /**
      * 導航到相對位置
      * @param {number} delta - 偏移量（-1 = 上一個，1 = 下一個）
      */
@@ -62,9 +74,7 @@ window.SearchStateMixin_Navigation = {
                 window.SearchAnimations?.playSlideIn?.(el, direction);
             });
 
-            if (window.SearchUI?.preloadImages) {
-                window.SearchUI.preloadImages(this.currentIndex + 1, 3);
-            }
+            this.preloadImages(this.currentIndex + 1, 3);
         }
     },
 
@@ -92,14 +102,10 @@ window.SearchStateMixin_Navigation = {
                 this.hasMoreResults = data.has_more;
                 this._resetCoverState();
 
-                if (window.SearchUI?.preloadImages) {
-                    window.SearchUI.preloadImages(newBatchStart + 1, 5);
-                }
+                this.preloadImages(newBatchStart + 1, 5);
 
                 // T4: Load more 後查詢本地狀態
-                if (window.SearchCore?.checkLocalStatus) {
-                    window.SearchCore.checkLocalStatus(this.searchResults);
-                }
+                this.checkLocalStatus(this.searchResults);
             } else {
                 this.hasMoreResults = false;
             }

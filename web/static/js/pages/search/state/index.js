@@ -5,9 +5,7 @@
  * 全站最後一個 Alpine 遷移：Search 頁面狀態容器
  *
  * 設計原則：
- * - T1a 階段只建立骨架，不遷移邏輯（保持現有功能可用）
- * - Bridge Layer：Alpine state ↔ 舊 window.SearchCore namespace
- * - 逐步在 T1b-T1d 遷移各模組功能
+ * - T4 完成後：SearchCore + bridge.js 已消除，所有邏輯在 Alpine mixin
  */
 function searchPage() {
     return {
@@ -18,37 +16,66 @@ function searchPage() {
         ...window.SearchStateMixin_Persistence,
         ...window.SearchStateMixin_SearchFlow,
         ...window.SearchStateMixin_Navigation,
+        ...window.SearchStateMixin_Batch,
         ...window.SearchStateMixin_ResultCard,
         ...window.SearchStateMixin_FileList,
-        ...window.SearchStateMixin_Batch,
-        ...window.SearchStateMixin_Bridge,
         ...window.SearchStateMixin_GridMode,
+
+        // ===== T4: 拖拽事件（從 init.js 搬移）=====
+        _initDragEvents() {
+            let dragCounter = 0;
+
+            document.addEventListener('dragover', (e) => {
+                e.preventDefault();
+            });
+
+            document.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                dragCounter++;
+                if (e.dataTransfer.types.includes('Files')) {
+                    this.dragActive = true;
+                }
+            });
+
+            document.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                dragCounter--;
+                if (dragCounter === 0) {
+                    this.dragActive = false;
+                }
+            });
+
+            document.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dragCounter = 0;
+                this.dragActive = false;
+                // PyWebView 環境由 Python 端處理
+                if (typeof window.pywebview === 'undefined') {
+                    this.handleFileDrop(e.dataTransfer.files);
+                }
+            });
+        },
 
         // ===== Lifecycle =====
         async init() {
-            // 1. 初始化舊 JS 的 DOM references（必須在 DOM ready 後）
-            if (window.SearchCore?.initDOM) {
-                window.SearchCore.initDOM();
-            }
-
-            // 2. 載入應用設定
+            // 1. 載入應用設定
             await this.loadAppConfig();
 
-            // 3. 載入來源配置（供版本切換用）
+            // 2. 載入來源配置（供版本切換用）
             if (window.SearchUI?.loadSourceConfig) {
                 await window.SearchUI.loadSourceConfig();
             }
 
-            // 4. 還原 sessionStorage 狀態
+            // 3. 還原 sessionStorage 狀態
             this.restoreState();
 
-            // 5. 建立 Bridge Layer：舊 JS 可透過 window.SearchCore.state 讀寫 Alpine state
-            this.setupBridgeLayer();
+            // 4. 建立拖拽事件（從 init.js 搬移）
+            this._initDragEvents();
 
-            // 6. Watch state 變化並自動儲存
+            // 5. Watch state 變化並自動儲存
             this.setupAutoSave();
 
-            // 7. 接入 page lifecycle（取代 cleanupSearchBeforeLeave + beforeunload）
+            // 6. 接入 page lifecycle（取代 cleanupSearchBeforeLeave + beforeunload）
             if (window.__registerPage) {
                 window.__registerPage({
                     beforeLeave: () => {
@@ -77,11 +104,11 @@ function searchPage() {
                 });
             }
 
-            // 8. T1d: 監聽 pywebview-files 事件
+            // 7. T1d: 監聽 pywebview-files 事件
             this._pywebviewFilesHandler = async (e) => { await this.setFileList(e.detail.paths); };
             window.addEventListener('pywebview-files', this._pywebviewFilesHandler);
 
-            // 9. Issue-2: resize / 導航時更新封面高度 CSS variable
+            // 8. Issue-2: resize / 導航時更新封面高度 CSS variable
             this._resizeHandler = () => this._updateCoverHeight();
             window.addEventListener('resize', this._resizeHandler);
             this.$watch('currentIndex', () => {

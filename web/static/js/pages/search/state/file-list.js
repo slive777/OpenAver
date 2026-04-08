@@ -17,7 +17,7 @@ window.SearchStateMixin_FileList = {
             this.currentIndex = 0;
             this._resetCoverState();
             this.coverError = window.t('search.filelist.unrecognized', { filename: file.filename });
-            window.SearchUI.showState('result');
+            this.pageState = 'result';
             return;
         }
 
@@ -35,7 +35,7 @@ window.SearchStateMixin_FileList = {
             this.currentIndex = position === 'last' ? this.searchResults.length - 1 : 0;
             this._resetCoverState();
 
-            window.SearchUI.showState('result');
+            this.pageState = 'result';
             // U7b: slide-in animation (C22: direction from position hint)
             var direction = position === 'first' ? 'next' : 'prev';
             this.$nextTick(() => {
@@ -48,7 +48,7 @@ window.SearchStateMixin_FileList = {
             this.currentIndex = 0;
             this._resetCoverState();
             this.coverError = window.t('search.filelist.not_found', { number: file.number });
-            window.SearchUI.showState('result');
+            this.pageState = 'result';
         }
     },
 
@@ -56,7 +56,7 @@ window.SearchStateMixin_FileList = {
         this.isSearchingFile = true;
 
         if (showFullLoading) {
-            window.SearchUI.showState('loading');
+            this.pageState = 'loading';
             this.initProgress(file.number);
         } else {
             this.isSearchingFile = true;
@@ -98,11 +98,9 @@ window.SearchStateMixin_FileList = {
                             this._resetCoverState();
 
                             // T4: File search 後查詢本地狀態
-                            if (window.SearchCore?.checkLocalStatus) {
-                                window.SearchCore.checkLocalStatus(this.searchResults);
-                            }
+                            this.checkLocalStatus(this.searchResults);
 
-                            window.SearchUI.showState('result');
+                            this.pageState = 'result';
                             // U7a: detail entry animation (same as cloud search, C17 fire-and-forget)
                             this.$nextTick(() => {
                                 if (this.displayMode === 'detail') {
@@ -121,7 +119,7 @@ window.SearchStateMixin_FileList = {
                             this.hasMoreResults = false;
                             this.currentIndex = 0;
 
-                            window.SearchUI.showState('result');
+                            this.pageState = 'result';
                         }
                         resolve();
                     }
@@ -139,7 +137,7 @@ window.SearchStateMixin_FileList = {
                         this.hasMoreResults = false;
                         this.currentIndex = 0;
 
-                        window.SearchUI.showState('result');
+                        this.pageState = 'result';
                         resolve();
                     }
                 } catch (err) {
@@ -161,7 +159,7 @@ window.SearchStateMixin_FileList = {
                 this.hasMoreResults = false;
                 this.currentIndex = 0;
 
-                window.SearchUI.showState('result');
+                this.pageState = 'result';
                 resolve();
             };
         });
@@ -388,7 +386,7 @@ window.SearchStateMixin_FileList = {
 
         if (!number) {
             this.errorText = '無法從檔名識別番號';  // T6c: Alpine state
-            window.SearchUI.showState('error');
+            this.pageState = 'error';
             return;
         }
 

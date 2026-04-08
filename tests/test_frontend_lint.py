@@ -734,26 +734,23 @@ class TestScannerClearCache:
 
 
 class TestSearchCoreFacade:
-    """T3.2 守衛 — SearchCore.state 已降級為只讀 Alpine proxy façade"""
+    """T3.2 守衛 → T4 更新：SearchCore facade 已完全消除"""
 
     def test_search_core_state_uses_alpine_proxy(self):
-        """core.js 的 window.SearchCore.state getter 必須使用 Alpine.$data 代理"""
+        """T4 完成後：core.js 不含 Alpine.$data（state getter 已刪除）"""
         js_file = PROJECT_ROOT / "web/static/js/pages/search/core.js"
+        if not js_file.exists():
+            return  # core.js 已刪除，通過
         content = js_file.read_text(encoding='utf-8')
-        assert 'Alpine.$data' in content, (
-            "core.js 的 SearchCore.state getter 未使用 Alpine.$data — "
-            "T3.2 Step 1 應已將 state getter 改為代理 Alpine proxy"
+        assert 'Alpine.$data' not in content, (
+            "core.js 仍含 Alpine.$data — T4 完成後 SearchCore.state getter 應已刪除"
         )
 
     def test_sync_to_core_is_noop(self):
-        """bridge.js 不含 coreState.xxx = 賦值（_syncToCore 已是 no-op）"""
+        """T4 完成後：bridge.js 已刪除"""
         js_file = PROJECT_ROOT / "web/static/js/pages/search/state/bridge.js"
-        content = js_file.read_text(encoding='utf-8')
-        # 匹配 coreState.xxx = （非 ?.、非 == 的賦值）
-        violations = re.findall(r'coreState\.\w+\s*=(?!=)', content)
-        assert len(violations) == 0, (
-            f"bridge.js 的 _syncToCore 仍含 {len(violations)} 個 coreState 賦值 "
-            f"（應已改為 no-op）: {violations}"
+        assert not js_file.exists(), (
+            "state/bridge.js 仍存在 — T4 Step 8 應已刪除此檔案"
         )
 
     def test_persistence_no_corestate_fallback(self):
@@ -766,16 +763,17 @@ class TestSearchCoreFacade:
         )
 
     def test_search_core_has_legacy_state_fallback(self):
-        """core.js 的 window.SearchCore 必須包含 _legacyState fallback（Alpine 未 boot 時的安全預設值）"""
+        """T4 完成後：core.js 不含 _legacyState（整個 SearchCore 物件已刪除）"""
         js_file = PROJECT_ROOT / "web/static/js/pages/search/core.js"
+        if not js_file.exists():
+            return  # core.js 已刪除，通過
         content = js_file.read_text(encoding='utf-8')
-        assert '_legacyState' in content, (
-            "core.js 缺少 _legacyState — SearchCore.state getter 在 Alpine 未 boot 時"
-            "必須回傳有穩定形狀的物件（含 searchResults: [], fileList: [] 等）"
+        assert '_legacyState' not in content, (
+            "core.js 仍含 _legacyState — T4 完成後 SearchCore 物件應已刪除"
         )
-        # 確認 _legacyState 包含關鍵欄位
-        assert 'searchResults: []' in content, "_legacyState 缺少 searchResults: []"
-        assert 'fileList: []' in content, "_legacyState 缺少 fileList: []"
+        assert 'window.SearchCore = {' not in content, (
+            "core.js 仍含 window.SearchCore = { — T4 完成後整個 facade 應已刪除"
+        )
 
 
 class TestPageLifecycleGuard:
@@ -999,7 +997,9 @@ class TestWindowGlobalCleanup:
     INIT_JS = PROJECT_ROOT / "web/static/js/pages/search/init.js"
 
     def test_bridge_no_window_edit_tag_functions(self):
-        """bridge.js 不應設定 translateWithAI / startEditTitle / confirmEditTitle 等 11 個全域函數"""
+        """bridge.js 不應設定 translateWithAI / startEditTitle 等全域函數（T4：bridge.js 已刪除）"""
+        if not self.BRIDGE_JS.exists():
+            return  # T4 已刪除 bridge.js，通過
         content = self.BRIDGE_JS.read_text(encoding='utf-8')
         forbidden = [
             'window.translateWithAI',
@@ -1020,7 +1020,9 @@ class TestWindowGlobalCleanup:
         )
 
     def test_bridge_no_window_searchcore_progress_bridge(self):
-        """bridge.js 不應設定 window.SearchCore.initProgress / updateLog / handleSearchStatus"""
+        """bridge.js 不應設定 window.SearchCore.initProgress 等（T4：bridge.js 已刪除）"""
+        if not self.BRIDGE_JS.exists():
+            return  # T4 已刪除 bridge.js，通過
         content = self.BRIDGE_JS.read_text(encoding='utf-8')
         forbidden = [
             'window.SearchCore.initProgress',
@@ -1068,7 +1070,9 @@ class TestWindowGlobalCleanup:
         )
 
     def test_init_no_progress_fallback(self):
-        """init.js 不應再包含 initProgress / updateLog / handleSearchStatus 的防呆 fallback"""
+        """init.js 不應再包含 initProgress 等防呆 fallback（T4：init.js 已刪除）"""
+        if not self.INIT_JS.exists():
+            return  # T4 已刪除 init.js，通過
         content = self.INIT_JS.read_text(encoding='utf-8')
         forbidden = ['window.SearchCore.initProgress =', 'window.SearchCore.updateLog =',
                      'window.SearchCore.handleSearchStatus =']
@@ -1186,7 +1190,9 @@ class TestSearchMigrationDeadCode:
             "core.js 仍含 handleSearchStatus: null slot — T5.3a 應已刪除"
 
     def test_bridge_no_render_noop(self):
-        """bridge.js 不含 renderFileList / renderSearchResultsList no-op 覆寫"""
+        """bridge.js 不含 renderFileList / renderSearchResultsList no-op 覆寫（T4：bridge.js 已刪除）"""
+        if not self.BRIDGE_JS.exists():
+            return  # T4 已刪除 bridge.js，通過
         content = self.BRIDGE_JS.read_text(encoding='utf-8')
         assert 'renderFileList' not in content, \
             "bridge.js 仍含 renderFileList no-op 覆寫 — T5.3a 應已刪除"
@@ -1210,7 +1216,9 @@ class TestSearchMigrationDeadCode:
             "core.js 仍含 doSearch: null slot — T5.3b 應已刪除"
 
     def test_bridge_no_searchfile_stubs(self):
-        """bridge.js 不含 SearchFile bridge stub 轉發"""
+        """bridge.js 不含 SearchFile bridge stub 轉發（T4：bridge.js 已刪除）"""
+        if not self.BRIDGE_JS.exists():
+            return  # T4 已刪除 bridge.js，通過
         content = self.BRIDGE_JS.read_text(encoding='utf-8')
         assert 'window.SearchFile.switchToFile' not in content, \
             "bridge.js 仍含 window.SearchFile.switchToFile — T5.3b 應已刪除"
@@ -4632,3 +4640,114 @@ class TestHelpPageGuard:
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
         # direct 至少在 Scraper 來源說明和疑難排解各出現一次
         assert html.lower().count('direct') >= 2
+
+
+class TestT4SearchCoreElimination:
+    """T4 守衛 — 消除 window.SearchCore + _x_dataStack + 刪除 bridge.js
+
+    這些測試在實作完成前為 RED phase（FAIL），實作完成後應全部 PASS。
+    """
+
+    SEARCH_DIR = PROJECT_ROOT / "web/static/js/pages/search"
+    STATE_DIR = PROJECT_ROOT / "web/static/js/pages/search/state"
+    SEARCH_HTML = PROJECT_ROOT / "web/templates/search.html"
+    CORE_JS = PROJECT_ROOT / "web/static/js/pages/search/core.js"
+    UI_JS = PROJECT_ROOT / "web/static/js/pages/search/ui.js"
+    INIT_JS = PROJECT_ROOT / "web/static/js/pages/search/init.js"
+    BRIDGE_JS = PROJECT_ROOT / "web/static/js/pages/search/state/bridge.js"
+
+    def _read_state_files(self):
+        """讀取所有 state/*.js 檔案內容（dict: filename -> content）"""
+        result = {}
+        for f in self.STATE_DIR.glob("*.js"):
+            result[f.name] = f.read_text(encoding='utf-8')
+        return result
+
+    def test_no_window_searchcore_in_state_mixins(self):
+        """state/*.js 中 window.SearchCore 引用必須為 0"""
+        state_files = self._read_state_files()
+        violations = []
+        for name, content in state_files.items():
+            if name == 'bridge.js':
+                continue  # bridge.js 本身就是要刪的，跳過
+            count = content.count('window.SearchCore')
+            if count > 0:
+                violations.append(f"{name}: {count} 處")
+        assert len(violations) == 0, (
+            f"state/*.js 仍含 window.SearchCore 引用（T4 應完全消除）:\n"
+            + "\n".join(f"  {v}" for v in violations)
+        )
+
+    def test_no_x_datastack_anywhere(self):
+        """整個 search/ 目錄下 _x_dataStack 引用必須為 0"""
+        violations = []
+        for f in self.SEARCH_DIR.rglob("*.js"):
+            content = f.read_text(encoding='utf-8')
+            count = content.count('_x_dataStack')
+            if count > 0:
+                rel = f.relative_to(self.SEARCH_DIR)
+                violations.append(f"{rel}: {count} 處")
+        assert len(violations) == 0, (
+            f"search/ 目錄下仍含 _x_dataStack 引用（T4 應完全消除）:\n"
+            + "\n".join(f"  {v}" for v in violations)
+        )
+
+    def test_bridge_js_deleted(self):
+        """bridge.js 必須已刪除"""
+        assert not self.BRIDGE_JS.exists(), (
+            "state/bridge.js 仍存在 — T4 Step 8 應已刪除此檔案"
+        )
+
+    def test_no_initdom_in_core(self):
+        """core.js 不含 function initDOM() 或 let dom = {} 定義"""
+        if not self.CORE_JS.exists():
+            return  # core.js 已刪除，通過
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        assert 'function initDOM()' not in content, (
+            "core.js 仍含 function initDOM() — T4 Step 7 應已刪除"
+        )
+        assert 'let dom = {}' not in content, (
+            "core.js 仍含 let dom = {} — T4 Step 7 應已刪除"
+        )
+
+    def test_no_showstate_via_searchui(self):
+        """state/*.js 中不含 window.SearchUI.showState 呼叫"""
+        state_files = self._read_state_files()
+        violations = []
+        for name, content in state_files.items():
+            count = content.count('window.SearchUI.showState')
+            if count > 0:
+                violations.append(f"{name}: {count} 處")
+        assert len(violations) == 0, (
+            f"state/*.js 仍含 window.SearchUI.showState 呼叫（T4 應改為 this.pageState = x）:\n"
+            + "\n".join(f"  {v}" for v in violations)
+        )
+
+    def test_search_html_no_bridge_script_tag(self):
+        """search.html 的 extra_js block 不含 bridge.js script tag"""
+        html = self.SEARCH_HTML.read_text(encoding='utf-8')
+        assert 'bridge.js' not in html, (
+            "search.html 仍含 bridge.js script tag — T4 Step 8 應已移除"
+        )
+
+    def test_no_window_searchcore_object_definition(self):
+        """core.js 不含 window.SearchCore = { 物件定義（T4 完成後整個 facade 應刪除）"""
+        if not self.CORE_JS.exists():
+            return  # core.js 已刪除，通過
+        content = self.CORE_JS.read_text(encoding='utf-8')
+        assert 'window.SearchCore = {' not in content, (
+            "core.js 仍含 window.SearchCore = { 定義 — T4 完成後應刪除整個 SearchCore facade"
+        )
+
+    def test_no_preload_images_via_searchui_in_state(self):
+        """state/*.js 中不含 window.SearchUI.preloadImages 呼叫"""
+        state_files = self._read_state_files()
+        violations = []
+        for name, content in state_files.items():
+            count = content.count('window.SearchUI.preloadImages') + content.count('window.SearchUI?.preloadImages')
+            if count > 0:
+                violations.append(f"{name}: {count} 處")
+        assert len(violations) == 0, (
+            f"state/*.js 仍含 window.SearchUI.preloadImages 呼叫（T4 應改為 this.preloadImages(...)）:\n"
+            + "\n".join(f"  {v}" for v in violations)
+        )

@@ -41,14 +41,14 @@ window.SearchStateMixin_Persistence = {
             // 還原顯示狀態（透過舊 JS 的 showState 同時處理 .hidden + Alpine pageState）
             var hasResult = false;
             if (this.searchResults.length > 0) {
-                window.SearchUI.showState('result');
+                this.pageState = 'result';
                 hasResult = true;
             } else if (this.fileList.length > 0 && this.listMode === 'file') {
                 const currentFile = this.fileList[this.currentFileIndex];
                 if (currentFile?.searchResults?.length > 0) {
                     this.searchResults = currentFile.searchResults;
                     this.hasMoreResults = currentFile.hasMoreResults || false;
-                    window.SearchUI.showState('result');
+                    this.pageState = 'result';
                     hasResult = true;
                 }
             }

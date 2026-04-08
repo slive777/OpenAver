@@ -286,6 +286,52 @@ window.SearchStateMixin_Base = function () {
             return this.listMode === 'search' && this.searchResults.length > 0;
         },
 
+        hasJapanese(text) {
+            return /[\u3040-\u309F\u30A0-\u30FF]/.test(text);
+        },
+
+        async checkLocalStatus(results) {
+            // 收集所有有效番號
+            const numbers = results
+                .map(r => r.number)
+                .filter(n => n)
+                .join(',');
+
+            if (!numbers) return;
+
+            try {
+                const resp = await fetch(`/api/search/local-status?numbers=${encodeURIComponent(numbers)}`);
+                if (!resp.ok) {
+                    console.warn('[LocalStatus] API 請求失敗:', resp.status);
+                    return;
+                }
+
+                const data = await resp.json();
+
+                // 更新搜尋結果的本地狀態
+                results.forEach(result => {
+                    if (result.number) {
+                        result._localStatus = data[result.number] || data[result.number?.toUpperCase()];
+                    }
+                });
+
+                // 收集有本地匹配的番號
+                const localMatchNumbers = results
+                    .filter(r => r._localStatus?.exists)
+                    .map(r => r.number);
+
+                // 觸發跨 scope 事件（通知 sidebar + 卡片）
+                if (localMatchNumbers.length > 0) {
+                    window.dispatchEvent(new CustomEvent('search:local-match', {
+                        detail: { numbers: localMatchNumbers }
+                    }));
+                }
+
+            } catch (err) {
+                console.error('[LocalStatus] 查詢失敗:', err);
+            }
+        },
+
         translateAllButtonText() {
             const ts = this.translateState;
             if (ts.isProcessing) {
@@ -293,7 +339,7 @@ window.SearchStateMixin_Base = function () {
                     ? window.t('search.button.continue')
                     : window.t('search.button.translating_progress', { processed: ts.processed, total: ts.total });
             }
-            const count = this.searchResults.filter(r => r.title && window.SearchCore?.hasJapanese(r.title) && !r.translated_title).length;
+            const count = this.searchResults.filter(r => r.title && this.hasJapanese(r.title) && !r.translated_title).length;
             return window.t('search.button.translate_all_count', { count });
         },
 
@@ -309,7 +355,7 @@ window.SearchStateMixin_Base = function () {
             const ts = this.translateState;
             if (ts.isProcessing) return false;
             if (!this.appConfig?.translate?.enabled) return true;
-            const count = this.searchResults.filter(r => r.title && window.SearchCore?.hasJapanese(r.title) && !r.translated_title).length;
+            const count = this.searchResults.filter(r => r.title && this.hasJapanese(r.title) && !r.translated_title).length;
             return count === 0;
         },
 

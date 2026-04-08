@@ -3,24 +3,29 @@
  * 包含：搜尋流程（doSearch, fallbackSearch, cancelSearch, handleSearchStatus）
  */
 window.SearchStateMixin_SearchFlow = {
-    // ===== Methods (Placeholder for T1b-T1d) =====
+    // ===== Methods =====
     async loadAppConfig() {
-        // 呼叫舊 JS 的 loadAppConfig（T1a 階段不重寫）
-        if (window.SearchCore?.loadAppConfig) {
-            await window.SearchCore.loadAppConfig();
-            // 同步到 Alpine state
-            const coreState = window.SearchCore.state;
-            if (coreState) {
-                this.appConfig = coreState.appConfig;
+        // T4: inline 直接 fetch，消除 SearchCore.loadAppConfig 委派
+        try {
+            const resp = await fetch('/api/config');
+            const data = await resp.json();
+            if (data.success) {
+                this.appConfig = data.data;
+                // btnFavorite tooltip 由 Alpine :title binding 管理
+                this.$nextTick(() => {
+                    if (this.$refs.btnFavorite) {
+                        const favoriteFolder = this.appConfig?.search?.favorite_folder || '系統下載資料夾';
+                        this.$refs.btnFavorite.title = `載入：${favoriteFolder}`;
+                    }
+                });
             }
+        } catch (e) {
+            console.error('載入設定失敗:', e);
         }
     },
 
     clearAll() {
-        // 呼叫舊 JS 的 clearAll（T1a 階段不重寫）
-        if (window.SearchCore?.clearAll) {
-            window.SearchCore.clearAll();
-        }
+        // T4: 移除 clearAll 委派，直接用 Alpine state 操作
         // 關閉進行中的 SSE 連線（防止舊事件重新填入 UI）
         if (this.activeEventSource) {
             this.activeEventSource.close();
@@ -111,7 +116,7 @@ window.SearchStateMixin_SearchFlow = {
         };
 
         // 5. 初始化狀態（修正 1: 使用 showState）
-        window.SearchUI.showState('loading');
+        this.pageState = 'loading';
         this.progressLog = window.t('search.button.searching');
         this.currentMode = '';
         this.detailDone = 0;
@@ -193,7 +198,7 @@ window.SearchStateMixin_SearchFlow = {
                     this.listMode = 'search';       // C11: grid 可見條件 1
                     this.displayMode = 'grid';      // C11: grid 可見條件 2
                     this.hasContent = true;
-                    window.SearchUI.showState('result');  // C11: pageState='result'，正確 API
+                    this.pageState = 'result';  // C11: pageState='result'，正確 API
                     // T5: Progress → skeleton grid 轉場（輕量整體淡入）
                     this.$nextTick(() => {
                         requestAnimationFrame(() => {
@@ -326,7 +331,7 @@ window.SearchStateMixin_SearchFlow = {
                             this.isStreaming = false;
                             this.streamComplete = false;
                             this.streamSlots = [];
-                            window.SearchUI.showState('result');
+                            this.pageState = 'result';
                             // U4: detail entry animation (fire-and-forget, C17)
                             this.$nextTick(() => {
                                 if (this.displayMode === 'detail') {
@@ -336,15 +341,13 @@ window.SearchStateMixin_SearchFlow = {
                             });
                             this.hasContent = true;
                             // Issue 2: 查詢本地狀態
-                            if (window.SearchCore?.checkLocalStatus) {
-                                window.SearchCore.checkLocalStatus(this.searchResults);
-                            }
+                            this.checkLocalStatus(this.searchResults);
                         } else if (allFailed && (!data.success || !data.data || data.data.length === 0)) {
                             // 全部失敗且無 fallback → 顯示 error
                             // A7-Prod: 清理 _heroSlotReserved（頁面將切到 error state）
                             this._heroSlotReserved = false;
                             this.errorText = '找不到資料';
-                            window.SearchUI.showState('error');
+                            this.pageState = 'error';
                         } else {
                             // 正常 stream 完成：只補充 metadata
                             this.hasMoreResults = data.has_more || false;
@@ -365,9 +368,7 @@ window.SearchStateMixin_SearchFlow = {
                             }
                             this.hasContent = this.searchResults.length > 0;
                             // Issue 2: 查詢本地狀態（只對非 _failed 結果）
-                            if (window.SearchCore?.checkLocalStatus) {
-                                window.SearchCore.checkLocalStatus(this.searchResults.filter(r => !r._failed));
-                            }
+                            this.checkLocalStatus(this.searchResults.filter(r => !r._failed));
                         }
                         this._searchSnapshot = null;
                         eventSource.close();
@@ -389,9 +390,7 @@ window.SearchStateMixin_SearchFlow = {
                         this.listMode = 'search';
 
                         // 查詢本地狀態（非同步）
-                        if (window.SearchCore?.checkLocalStatus) {
-                            window.SearchCore.checkLocalStatus(this.searchResults);
-                        }
+                        this.checkLocalStatus(this.searchResults);
 
                         // T2b/T3a: 模糊搜尋自動切 Grid（actress/prefix ≥10 筆）
                         if ((this.currentMode === 'actress' || this.currentMode === 'prefix') && this.appConfig?.search?.gallery_mode_enabled && data.data.length >= 10) {
@@ -399,7 +398,7 @@ window.SearchStateMixin_SearchFlow = {
                         }
 
                         // 顯示結果
-                        window.SearchUI.showState('result');
+                        this.pageState = 'result';
                         // U4: detail entry animation (fire-and-forget, C17)
                         this.$nextTick(() => {
                             if (this.displayMode === 'detail') {
@@ -407,9 +406,7 @@ window.SearchStateMixin_SearchFlow = {
                                 window.SearchAnimations?.playDetailEntry?.(detailEl);
                             }
                         });
-                        if (window.SearchUI?.preloadImages) {
-                            window.SearchUI.preloadImages(1, 5);
-                        }
+                        this.preloadImages(1, 5);
                         this.listMode = 'search';
                         this.hasContent = this.searchResults.length > 0 || this.fileList.length > 0;
                         this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
@@ -421,7 +418,7 @@ window.SearchStateMixin_SearchFlow = {
                     } else {
                         this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋失敗）
                         this.errorText = '找不到資料';  // T6c: Alpine state
-                        window.SearchUI.showState('error');
+                        this.pageState = 'error';
                     }
                 }
                 else if (data.type === 'error') {
@@ -430,7 +427,7 @@ window.SearchStateMixin_SearchFlow = {
                     this.activeEventSource = null;
                     this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋錯誤）
                     this.errorText = data.message || '搜尋失敗';  // T6c: Alpine state
-                    window.SearchUI.showState('error');
+                    this.pageState = 'error';
                 }
             } catch (err) {
                 console.error('Parse error:', err);
@@ -516,9 +513,7 @@ window.SearchStateMixin_SearchFlow = {
                 this.listMode = 'search';
 
                 // 查詢本地狀態
-                if (window.SearchCore?.checkLocalStatus) {
-                    window.SearchCore.checkLocalStatus(this.searchResults);
-                }
+                this.checkLocalStatus(this.searchResults);
 
                 // T2b/T3a: 模糊搜尋自動切 Grid（actress/prefix ≥10 筆）
                 if ((data.mode === 'actress' || data.mode === 'prefix') && this.appConfig?.search?.gallery_mode_enabled && data.data.length >= 10) {
@@ -526,7 +521,7 @@ window.SearchStateMixin_SearchFlow = {
                 }
 
                 // 顯示結果
-                window.SearchUI.showState('result');
+                this.pageState = 'result';
                 // U4: detail entry animation (fire-and-forget, C17)
                 this.$nextTick(() => {
                     if (this.displayMode === 'detail') {
@@ -534,9 +529,7 @@ window.SearchStateMixin_SearchFlow = {
                         window.SearchAnimations?.playDetailEntry?.(detailEl);
                     }
                 });
-                if (window.SearchUI?.preloadImages) {
-                    window.SearchUI.preloadImages(1, 5);
-                }
+                this.preloadImages(1, 5);
                 this.listMode = 'search';
                 this.hasContent = this.searchResults.length > 0 || this.fileList.length > 0;
                 this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
@@ -552,7 +545,7 @@ window.SearchStateMixin_SearchFlow = {
                     this._heroSlotReserved = false;
                 }
                 this.errorText = data.error || '找不到資料';  // T6c: Alpine state
-                window.SearchUI.showState('error');
+                this.pageState = 'error';
             }
         } catch (err) {
             // AbortError：離頁或新搜尋取消，靜默忽略
@@ -562,7 +555,7 @@ window.SearchStateMixin_SearchFlow = {
             this._searchSnapshot = null;
             console.error('[Search]', err);
             this.errorText = '網路錯誤，請重試';  // T6c: Alpine state
-            window.SearchUI.showState('error');
+            this.pageState = 'error';
         }
     },
 
@@ -623,9 +616,9 @@ window.SearchStateMixin_SearchFlow = {
             this.errorText = snap.errorText || '';
 
             // 還原顯示
-            window.SearchUI.showState(snap.pageState);
+            this.pageState = snap.pageState;
         } else {
-            window.SearchUI.showState('empty');
+            this.pageState = 'empty';
         }
         this._searchSnapshot = null;
     },

@@ -65,8 +65,8 @@ window.SearchStateMixin_ResultCard = {
                !this.chineseTitle() &&
                !c.translated_title &&
                c.title &&
-               window.SearchCore?.hasJapanese(c.title) &&
-               !window.SearchCore?.isBatchTranslating(this.currentIndex);
+               this.hasJapanese(c.title) &&
+               !this.isBatchTranslating(this.currentIndex);
     },
 
     hasLocalBadge() {
@@ -134,14 +134,112 @@ window.SearchStateMixin_ResultCard = {
         if (this.isTranslating) return;
         this.isTranslating = true;
         try {
-            // 呼叫 core.js 的實際翻譯邏輯（已去除 DOM 操作）
-            await window.SearchCore._translateWithAI();
-            // translated_title 已寫入 searchResult object → Alpine reactive 自動更新
+            await this._translateWithAILogic();
         } catch (error) {
             console.error('[Translate] 翻譯失敗:', error);
             alert('翻譯失敗，請重試');
         } finally {
             this.isTranslating = false;
+        }
+    },
+
+    /**
+     * 核心翻譯邏輯（從 core.js._translateWithAI 搬移）
+     * Gemini 模式：只翻譯當前片
+     * Ollama 模式：批次翻譯從當前位置開始的 1 片
+     */
+    async _translateWithAILogic() {
+        // === Gemini 模式：只翻譯當前片 ===
+        if (this.appConfig?.translate?.provider === 'gemini') {
+            let currentResult = null;
+
+            if (this.listMode === 'file' && this.fileList[this.currentFileIndex]) {
+                const results = this.fileList[this.currentFileIndex].searchResults || [];
+                currentResult = results[this.currentIndex];
+            } else {
+                currentResult = this.searchResults[this.currentIndex];
+            }
+
+            if (!currentResult || !currentResult.title || !this.hasJapanese(currentResult.title)) {
+                throw new Error('當前片無需翻譯');
+            }
+
+            const result = await this.translateWithOllama(currentResult.title, 'translate', currentResult);
+
+            if (result.success && result.result) {
+                if (this.listMode === 'file') {
+                    this.fileList[this.currentFileIndex].searchResults[this.currentIndex].translated_title = result.result;
+                } else {
+                    this.searchResults[this.currentIndex].translated_title = result.result;
+                }
+                this.saveState();
+            } else {
+                throw new Error(result.error || '翻譯失敗');
+            }
+
+            return;  // Gemini 模式結束
+        }
+
+        // === Ollama 模式：批次翻譯 1 片 ===
+        const batch = [];
+        const batchMeta = [];
+
+        if (this.listMode === 'file') {
+            for (let fi = this.currentFileIndex; fi < this.fileList.length && batch.length < 1; fi++) {
+                const file = this.fileList[fi];
+                const results = file.searchResults || [];
+
+                for (let ri = 0; ri < results.length && batch.length < 1; ri++) {
+                    const result = results[ri];
+                    if (result.title && this.hasJapanese(result.title) && !result.translated_title) {
+                        batch.push(result);
+                        batchMeta.push({ fileIndex: fi, resultIndex: ri });
+                    }
+                }
+            }
+        } else {
+            for (let i = this.currentIndex; i < this.searchResults.length && batch.length < 1; i++) {
+                const result = this.searchResults[i];
+                if (result.title && this.hasJapanese(result.title) && !result.translated_title) {
+                    batch.push(result);
+                    batchMeta.push({ resultIndex: i });
+                }
+            }
+        }
+
+        if (batch.length === 0) {
+            throw new Error('無需翻譯的日文標題');
+        }
+
+        if (this.listMode !== 'file') {
+            batchMeta.forEach(meta => {
+                this._addBatchTranslatingIndex(meta.resultIndex);
+            });
+        }
+
+        const titles = batch.map(r => r.title);
+        const translations = await this.translateBatch(titles);
+
+        if (translations && translations.length > 0) {
+            translations.forEach((trans, i) => {
+                if (!trans) return;
+                const meta = batchMeta[i];
+
+                if (this.listMode === 'file') {
+                    this.fileList[meta.fileIndex].searchResults[meta.resultIndex].translated_title = trans;
+                } else {
+                    this.searchResults[meta.resultIndex].translated_title = trans;
+                    this._deleteBatchTranslatingIndex(meta.resultIndex);
+                }
+            });
+
+            this.saveState();
+        }
+
+        if (this.listMode !== 'file') {
+            batchMeta.forEach(meta => {
+                this._deleteBatchTranslatingIndex(meta.resultIndex);
+            });
         }
     },
 
