@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.5] - 2026-04-09
+
+### Added
+
+#### 🔌 OpenAI Compatible 翻譯 Provider (Phase 39a-T2)
+- 新增 OpenAI Compatible 翻譯 Provider — 支援任意 OpenAI 相容 API 端點（Perplexity Pro、OpenRouter、本地 LLM 等）
+- Settings 頁新增 OpenAI Compatible 設定區塊（Base URL + API Key + Model 選擇）
+
+#### 🔍 搜尋改善 (Phase 39a-T4)
+- Grid 模式底部新增「載入更多」按鈕
+- Lightbox 最後一張按 Next 自動觸發載入更多
+
+#### ⚙️ Gemini 精簡 (Phase 39a-T3)
+- Gemini model 下拉精簡為 4 個推薦 model（allowlist 取代動態過濾）
+
+### Changed
+- locale 劇照用詞統一：「Sample Image」→「Stills」、「樣品圖」→「劇照」
+- README_EN 用詞同步對齊
+
+### Fixed
+
+#### 🐛 關鍵修復
+- DMM 分頁 offset 寫死 0 — 搜尋第二頁以後結果重複 (T5)
+- OpenAI Settings UI：select 切換 + 錯誤細化 + auto-fetch + custom model 持久化
+- XSS 修正 + ja locale short-circuit
+- loadMore() shared state desync — Lightbox/Grid/Detail currentIndex 不再被靜默修改
+- Gemini model fallback — 舊 model 不在 allowlist 時自動選第一個
+
 ## [0.6.4] - 2026-04-04
 
 ### Added
