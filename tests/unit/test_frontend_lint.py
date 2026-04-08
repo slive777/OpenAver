@@ -146,6 +146,7 @@ class TestShowcaseCoreJsSearchableFields:
 
 SETTINGS_HTML = Path(__file__).parent.parent.parent / "web" / "templates" / "settings.html"
 SCANNER_HTML = Path(__file__).parent.parent.parent / "web" / "templates" / "scanner.html"
+SCANNER_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "scanner.js"
 MOTION_LAB_HTML = Path(__file__).parent.parent.parent / "web" / "templates" / "motion_lab.html"
 DESIGN_SYSTEM_HTML = Path(__file__).parent.parent.parent / "web" / "templates" / "design-system.html"
 THEME_CSS = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "theme.css"
@@ -447,48 +448,51 @@ class TestJellyfinCheckManualGuard:
     def _html(self):
         return SCANNER_HTML.read_text(encoding="utf-8")
 
+    def _js(self):
+        return SCANNER_JS.read_text(encoding="utf-8")
+
     def test_no_auto_trigger_in_init(self):
         """init() 後的 loadStats 呼叫後，不應緊接 checkJellyfinImages()"""
         # 確認 checkJellyfinImages() 只透過 @click 觸發，不在 init() 或 loadStats 後出現
-        html = self._html()
-        assert "this.loadStats();\n        this.checkJellyfinImages();" not in html, \
-            "scanner.html init() 仍含自動觸發 checkJellyfinImages()"
+        js = self._js()
+        assert "this.loadStats();\n        this.checkJellyfinImages();" not in js, \
+            "scanner.js init() 仍含自動觸發 checkJellyfinImages()"
 
     def test_jellyfin_check_state_declared(self):
         """Alpine data 宣告 jellyfinCheckState 欄位"""
-        html = self._html()
-        assert "jellyfinCheckState: 'idle'" in html, \
-            "scanner.html 缺少 jellyfinCheckState: 'idle' 初始化宣告"
+        js = self._js()
+        assert "jellyfinCheckState: 'idle'" in js, \
+            "scanner.js 缺少 jellyfinCheckState: 'idle' 初始化宣告"
 
     def test_jellyfin_check_controller_declared(self):
         """Alpine data 宣告 _jellyfinCheckController 欄位"""
-        html = self._html()
-        assert "_jellyfinCheckController: null" in html, \
-            "scanner.html 缺少 _jellyfinCheckController: null 初始化宣告"
+        js = self._js()
+        assert "_jellyfinCheckController: null" in js, \
+            "scanner.js 缺少 _jellyfinCheckController: null 初始化宣告"
 
     def test_abort_controller_used_in_check(self):
         """checkJellyfinImages() 建立 AbortController"""
-        html = self._html()
-        assert "new AbortController()" in html, \
-            "scanner.html checkJellyfinImages() 缺少 new AbortController()"
+        js = self._js()
+        assert "new AbortController()" in js, \
+            "scanner.js checkJellyfinImages() 缺少 new AbortController()"
 
     def test_abort_called_in_cleanup(self):
         """cleanup 回呼內含 _jellyfinCheckController.abort()"""
-        html = self._html()
-        assert "_jellyfinCheckController.abort()" in html, \
-            "scanner.html cleanup 缺少 _jellyfinCheckController.abort()"
+        js = self._js()
+        assert "_jellyfinCheckController.abort()" in js, \
+            "scanner.js cleanup 缺少 _jellyfinCheckController.abort()"
 
     def test_jellyfin_check_state_reset_in_cleanup(self):
         """cleanup 回呼補上 jellyfinCheckState = 'idle' 重設"""
-        html = self._html()
-        assert "jellyfinCheckState = 'idle'" in html, \
-            "scanner.html cleanup 缺少 jellyfinCheckState = 'idle' 重設"
+        js = self._js()
+        assert "jellyfinCheckState = 'idle'" in js, \
+            "scanner.js cleanup 缺少 jellyfinCheckState = 'idle' 重設"
 
     def test_should_warn_checks_jellyfin_checking(self):
         """shouldWarnBeforeLeave() 含 jellyfinCheckState === 'checking' 判斷"""
-        html = self._html()
-        assert "jellyfinCheckState === 'checking'" in html, \
-            "scanner.html shouldWarnBeforeLeave() 缺少 jellyfinCheckState === 'checking' 判斷"
+        js = self._js()
+        assert "jellyfinCheckState === 'checking'" in js, \
+            "scanner.js shouldWarnBeforeLeave() 缺少 jellyfinCheckState === 'checking' 判斷"
 
     def test_trigger_button_click_handler(self):
         """觸發按鈕 @click 呼叫 checkJellyfinImages()"""
@@ -498,23 +502,23 @@ class TestJellyfinCheckManualGuard:
 
     def test_no_auto_trigger_after_generate(self):
         """generate SSE done 事件後無自動呼叫 checkJellyfinImages()"""
-        html = self._html()
+        js = self._js()
         # loadStats 後面不應接 checkJellyfinImages（generate 路徑）
-        assert "this.loadStats();\n                    this.checkJellyfinImages();" not in html, \
-            "scanner.html generate done 路徑仍自動呼叫 checkJellyfinImages()"
+        assert "this.loadStats();\n                    this.checkJellyfinImages();" not in js, \
+            "scanner.js generate done 路徑仍自動呼叫 checkJellyfinImages()"
 
     def test_clear_cache_resets_jellyfin_state(self):
         """clearCache 成功後含 jellyfinCheckState = 'idle' 重設"""
-        html = self._html()
+        js = self._js()
         # jellyfinImageVisible = false 後緊接 jellyfinCheckState = 'idle'
-        assert "jellyfinImageVisible = false" in html, \
-            "scanner.html clearCache 缺少 jellyfinImageVisible = false"
+        assert "jellyfinImageVisible = false" in js, \
+            "scanner.js clearCache 缺少 jellyfinImageVisible = false"
         # jellyfinCheckState = 'idle' 在 clearCache 函數中也必須出現
         # （在 shouldWarnBeforeLeave 和 beforeLeave 都有，此守衛確認 clearCache 路徑有）
         # 用計數確認至少 2 處（cleanup + clearCache，shouldWarnBeforeLeave 判斷不算 assignment）
-        count = html.count("jellyfinCheckState = 'idle'")
+        count = js.count("jellyfinCheckState = 'idle'")
         assert count >= 2, \
-            f"scanner.html jellyfinCheckState = 'idle' 出現 {count} 次，期望 >= 2（cleanup + clearCache）"
+            f"scanner.js jellyfinCheckState = 'idle' 出現 {count} 次，期望 >= 2（cleanup + clearCache）"
 
     def test_trigger_row_xshow_uses_jellyfin_image_visible(self):
         """T3(40c) Codex fix: 觸發列 x-show 改為 !jellyfinImageVisible 而非 jellyfinCheckState !== 'done'"""
@@ -534,15 +538,15 @@ class TestJellyfinCheckManualGuard:
 
     def test_jellyfin_update_done_resets_check_state(self):
         """T3(40c) Codex fix: jellyfin-update done handler 重設 jellyfinCheckState = 'idle'"""
-        html = self._html()
+        js = self._js()
         # 確認 runJellyfinImageUpdate 的 done 分支有三個重設欄位
-        assert "this.jellyfinImageVisible = false" in html, \
-            "scanner.html runJellyfinImageUpdate done 缺少 jellyfinImageVisible = false 重設"
-        assert "this.jellyfinImageCount = 0" in html, \
-            "scanner.html runJellyfinImageUpdate done 缺少 jellyfinImageCount = 0 重設"
+        assert "this.jellyfinImageVisible = false" in js, \
+            "scanner.js runJellyfinImageUpdate done 缺少 jellyfinImageVisible = false 重設"
+        assert "this.jellyfinImageCount = 0" in js, \
+            "scanner.js runJellyfinImageUpdate done 缺少 jellyfinImageCount = 0 重設"
         # jellyfinCheckState = 'idle' 重設（update done 分支使用 this. 前綴）
-        assert "this.jellyfinCheckState = 'idle'" in html, \
-            "scanner.html runJellyfinImageUpdate done 缺少 this.jellyfinCheckState = 'idle' 重設"
+        assert "this.jellyfinCheckState = 'idle'" in js, \
+            "scanner.js runJellyfinImageUpdate done 缺少 this.jellyfinCheckState = 'idle' 重設"
 
 
 class TestJellyfinCheckI18nKeys:
@@ -890,3 +894,53 @@ class TestMotionLabStateGuard:
         for tag in matches:
             assert "defer" not in tag, \
                 f"motion_lab.html 載入 motion-lab-state.js 的 script tag 不應含 defer 屬性：{tag}"
+
+
+class TestScannerStateGuard:
+    """39b-T2: 守衛 scanner.html inline script 已抽離至 scanner.js"""
+
+    def _html(self):
+        return SCANNER_HTML.read_text(encoding="utf-8")
+
+    def test_scanner_extra_js_uses_scanner_js(self):
+        """scanner.html 的 extra_js block 含 scanner.js 引用，且 inline <script> 不超過 10 行"""
+        import re
+        html = self._html()
+        # 擷取 {% block extra_js %} 到 {% endblock %} 之間的內容
+        pattern = re.compile(r'\{%-?\s*block extra_js\s*-?%\}(.*?)\{%-?\s*endblock\s*-?%\}', re.DOTALL)
+        match = pattern.search(html)
+        assert match is not None, "scanner.html 找不到 {% block extra_js %} 區段"
+        block_content = match.group(1)
+
+        # 必須包含 scanner.js 引用
+        assert 'scanner.js' in block_content, \
+            "scanner.html {% block extra_js %} 缺少 scanner.js script 引用"
+        assert '<script src="/static/js/pages/scanner.js"></script>' in block_content, \
+            "scanner.html {% block extra_js %} 應含 <script src=\"/static/js/pages/scanner.js\"></script>"
+
+        # inline <script> 行數不超過 10 行（防止 inline JS 悄悄重新引入）
+        inline_scripts = re.findall(r'<script(?:\s[^>]*)?>.*?</script>', block_content, re.DOTALL)
+        for script_tag in inline_scripts:
+            # 排除有 src 屬性的外部 script
+            if 'src=' in script_tag:
+                continue
+            line_count = script_tag.count('\n') + 1
+            assert line_count <= 10, \
+                f"scanner.html extra_js 區段含超過 10 行的 inline <script>（{line_count} 行），應將 JS 移至 scanner.js"
+
+    def test_scanner_no_inline_script(self):
+        """scanner.html 的 extra_js 區段不含超過 10 行的 inline script"""
+        import re
+        html = self._html()
+        pattern = re.compile(r'\{%-?\s*block extra_js\s*-?%\}(.*?)\{%-?\s*endblock\s*-?%\}', re.DOTALL)
+        match = pattern.search(html)
+        assert match is not None, "scanner.html 找不到 {% block extra_js %} 區段"
+        block_content = match.group(1)
+        # 確認區段內沒有 inline script（只有含 src 的外部 script 標籤）
+        inline_scripts = re.findall(r'<script(?:\s[^>]*)?>.*?</script>', block_content, re.DOTALL)
+        for script_tag in inline_scripts:
+            if 'src=' in script_tag:
+                continue
+            line_count = script_tag.count('\n') + 1
+            assert line_count <= 10, \
+                f"scanner.html extra_js 含超過 10 行 inline script（{line_count} 行）"

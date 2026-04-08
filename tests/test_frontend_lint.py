@@ -401,11 +401,11 @@ class TestJellyfinFrontend:
             "settings.html 缺少 jellyfinMode 綁定（Jellyfin 圖片模式開關）"
 
     def test_jellyfin_update_in_scanner(self):
-        """scanner.html 包含 runJellyfinImageUpdate method"""
-        html_file = PROJECT_ROOT / "web" / "templates" / "scanner.html"
-        content = html_file.read_text(encoding='utf-8')
+        """scanner.js 包含 runJellyfinImageUpdate method"""
+        js_file = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "scanner.js"
+        content = js_file.read_text(encoding='utf-8')
         assert 'runJellyfinImageUpdate' in content, \
-            "scanner.html 缺少 runJellyfinImageUpdate（T6d Jellyfin 批次補齊）"
+            "scanner.js 缺少 runJellyfinImageUpdate（T6d Jellyfin 批次補齊）"
 
     def test_jellyfin_settings_hint_has_extrafanart(self):
         """settings.html Jellyfin 模式描述文字應包含 extrafanart/ 說明（T5b）
@@ -722,15 +722,15 @@ class TestScannerClearCache:
     """清除快取守衛 — scanner 頁面必要元素"""
 
     def test_scanner_html_has_clear_cache_method(self):
-        """scanner.html 含 clearCache() method"""
-        html = (PROJECT_ROOT / 'web/templates/scanner.html').read_text(encoding='utf-8')
-        assert 'clearCache()' in html
+        """scanner.js 含 clearCache() method"""
+        js = (PROJECT_ROOT / 'web/static/js/pages/scanner.js').read_text(encoding='utf-8')
+        assert 'clearCache()' in js
 
     def test_scanner_html_has_delete_api_binding(self):
-        """scanner.html 含 DELETE /api/gallery/cache 呼叫"""
-        html = (PROJECT_ROOT / 'web/templates/scanner.html').read_text(encoding='utf-8')
-        assert "/api/gallery/cache" in html
-        assert "DELETE" in html
+        """scanner.js 含 DELETE /api/gallery/cache 呼叫"""
+        js = (PROJECT_ROOT / 'web/static/js/pages/scanner.js').read_text(encoding='utf-8')
+        assert "/api/gallery/cache" in js
+        assert "DELETE" in js
 
 
 class TestSearchCoreFacade:
@@ -810,11 +810,11 @@ class TestPageLifecycleGuard:
             "showcase/core.js 缺少 __registerPage 呼叫 — Showcase lightbox cleanup lifecycle 會失效"
 
     def test_scanner_html_calls_register_page(self):
-        """scanner.html 必須呼叫 __registerPage"""
-        html_file = PROJECT_ROOT / "web" / "templates" / "scanner.html"
-        content = html_file.read_text(encoding='utf-8')
+        """scanner.js 必須呼叫 __registerPage"""
+        js_file = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "scanner.js"
+        content = js_file.read_text(encoding='utf-8')
         assert '__registerPage' in content, \
-            "scanner.html 缺少 __registerPage 呼叫 — Scanner lifecycle 未接入統一機制"
+            "scanner.js 缺少 __registerPage 呼叫 — Scanner lifecycle 未接入統一機制"
 
 
 class TestSettingsSourceBadge:
