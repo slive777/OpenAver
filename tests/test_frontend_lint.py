@@ -678,9 +678,9 @@ class TestHelpPage:
         assert (PROJECT_ROOT / 'web/static/js/pages/help.js').exists()
 
     def test_help_html_has_alpine_scope(self):
-        """help.html 含 helpPage() Alpine scope"""
+        """help.html 含 helpPage Alpine scope"""
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
-        assert 'helpPage()' in html
+        assert 'helpPage' in html
 
     def test_help_html_has_check_update(self):
         """help.html 含 checkUpdate 按鈕"""
@@ -4211,16 +4211,16 @@ class TestSampleGalleryTemplateGuard:
         content = self.SEARCH_HTML.read_text(encoding='utf-8')
         lines = content.split('\n')
 
-        # 找到 x-data="searchPage()" 的行號
+        # 找到 x-data="searchPage" 的行號
         search_page_line = None
         for i, line in enumerate(lines):
-            if 'x-data="searchPage()"' in line:
+            if 'x-data="searchPage"' in line:
                 search_page_line = i
                 break
 
         assert search_page_line is not None, (
-            "T8 違規：search.html 找不到 x-data=\"searchPage()\" — "
-            "searchPage() Alpine 組件必須存在"
+            "T8 違規：search.html 找不到 x-data=\"searchPage\" — "
+            "searchPage Alpine 組件必須存在"
         )
 
         # 找到 class="sample-gallery" 的行號
@@ -4237,8 +4237,8 @@ class TestSampleGalleryTemplateGuard:
 
         assert sample_gallery_line > search_page_line, (
             f"T8 違規：.sample-gallery（L{sample_gallery_line + 1}）在 "
-            f"x-data=\"searchPage()\"（L{search_page_line + 1}）之前 — "
-            "sample-gallery overlay 必須在 searchPage() x-data scope 內"
+            f"x-data=\"searchPage\"（L{search_page_line + 1}）之前 — "
+            "sample-gallery overlay 必須在 searchPage x-data scope 內"
         )
 
     def test_old_sample_lightbox_html_absent(self):
@@ -4350,15 +4350,15 @@ class TestShowcaseSampleGalleryGuard:
         content = self.SHOWCASE_HTML.read_text(encoding='utf-8')
         lines = content.split('\n')
 
-        # 找到 x-data="showcaseState()" 的行號
+        # 找到 x-data="showcaseState" 的行號
         showcase_state_line = None
         for i, line in enumerate(lines):
-            if 'x-data="showcaseState()"' in line:
+            if 'x-data="showcaseState"' in line:
                 showcase_state_line = i
                 break
 
         assert showcase_state_line is not None, (
-            "T7 守衛 1 違規：showcase.html 找不到 x-data=\"showcaseState()\" — "
+            "T7 守衛 1 違規：showcase.html 找不到 x-data=\"showcaseState\" — "
             "Alpine scope 根元素必須存在"
         )
 
@@ -4376,8 +4376,8 @@ class TestShowcaseSampleGalleryGuard:
 
         assert sample_gallery_line > showcase_state_line, (
             f"T7 守衛 1 違規：.sample-gallery（L{sample_gallery_line + 1}）在 "
-            f"x-data=\"showcaseState()\"（L{showcase_state_line + 1}）之前 — "
-            "sample-gallery overlay 必須在 showcaseState() x-data scope 內"
+            f"x-data=\"showcaseState\"（L{showcase_state_line + 1}）之前 — "
+            "sample-gallery overlay 必須在 showcaseState x-data scope 內"
         )
 
     def test_sample_gallery_state_properties_in_core_js(self):

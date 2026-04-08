@@ -930,3 +930,7 @@ function settingsPage() {
         }
     };
 }
+
+document.addEventListener('alpine:init', () => {
+    Alpine.data('settingsPage', settingsPage);
+});

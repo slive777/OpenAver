@@ -838,10 +838,10 @@ class TestMotionLabStateGuard:
         return MOTION_LAB_STATE_JS.read_text(encoding="utf-8")
 
     def test_motion_lab_html_uses_factory(self):
-        """motion_lab.html 含 x-data="motionLabPage()" """
+        """motion_lab.html 含 x-data="motionLabPage" """
         html = self._html()
-        assert 'x-data="motionLabPage()"' in html, \
-            'motion_lab.html 應含 x-data="motionLabPage()"（inline x-data 已移除）'
+        assert 'x-data="motionLabPage"' in html, \
+            'motion_lab.html 應含 x-data="motionLabPage"（Alpine.data() 已正式註冊，去括號）'
 
     def test_motion_lab_html_no_inline_xdata_block(self):
         """motion_lab.html 的 x-data 屬性值不超過 100 字元（確保 inline 已移除）"""

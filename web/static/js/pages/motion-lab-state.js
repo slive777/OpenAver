@@ -915,3 +915,7 @@ function motionLabPage() {
         }
     };
 }
+
+document.addEventListener('alpine:init', () => {
+    Alpine.data('motionLabPage', motionLabPage);
+});

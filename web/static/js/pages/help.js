@@ -71,3 +71,7 @@ function helpPage() {
         },
     };
 }
+
+document.addEventListener('alpine:init', () => {
+    Alpine.data('helpPage', helpPage);
+});

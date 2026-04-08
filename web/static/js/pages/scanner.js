@@ -1122,3 +1122,7 @@ window.handleFolderDrop = function (folderPaths) {
         window.addScannerFolder(folderPath);
     }
 };
+
+document.addEventListener('alpine:init', () => {
+    Alpine.data('scannerPage', scannerPage);
+});

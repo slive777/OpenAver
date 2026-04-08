@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="search-container ds-page" x-data="searchPage()" @keydown.window="handleKeydown($event)">
+<div class="search-container ds-page" x-data="searchPage" @keydown.window="handleKeydown($event)">
     <!-- 拖拽覆蓋層（必須在 x-data scope 內） -->
     <div class="drag-overlay" id="dragOverlay" :class="{ active: dragActive }">
         <div class="drag-overlay-content">

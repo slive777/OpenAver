@@ -94,3 +94,7 @@ function searchPage() {
 
     };
 }
+
+document.addEventListener('alpine:init', () => {
+    Alpine.data('searchPage', searchPage);
+});

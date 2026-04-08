@@ -1048,3 +1048,7 @@ function showcaseState() {
         }
     };
 }
+
+document.addEventListener('alpine:init', () => {
+    Alpine.data('showcaseState', showcaseState);
+});
