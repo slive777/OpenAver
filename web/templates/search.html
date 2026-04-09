@@ -117,14 +117,20 @@
         <button class="lightbox-nav lightbox-nav-prev"
                 @click.stop="prevLightboxVideo()"
                 x-show="hasVisiblePrev()"
+                :disabled="isLoadingMore"
+                :class="{ 'opacity-50': isLoadingMore }"
                 title="{{ t('search.lightbox.prev') }}">
-            <i class="bi bi-chevron-left"></i>
+            <i x-show="!isLoadingMore" class="bi bi-chevron-left"></i>
+            <span x-show="isLoadingMore" class="loading loading-spinner loading-sm"></span>
         </button>
         <button class="lightbox-nav lightbox-nav-next"
                 @click.stop="nextLightboxVideo()"
                 x-show="hasVisibleNext()"
+                :disabled="isLoadingMore"
+                :class="{ 'opacity-50': isLoadingMore }"
                 title="{{ t('search.lightbox.next') }}">
-            <i class="bi bi-chevron-right"></i>
+            <i x-show="!isLoadingMore" class="bi bi-chevron-right"></i>
+            <span x-show="isLoadingMore" class="loading loading-spinner loading-sm"></span>
         </button>
     </div>
 

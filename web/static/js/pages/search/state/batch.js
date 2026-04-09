@@ -283,6 +283,12 @@ window.SearchStateMixin_Batch = {
         this.scrapeProgress.processed = 0;
         this.scrapeProgress.isProcessing = true;
 
+        // 重設 progress bar 初始寬度（GSAP 上次殘留的 inline style）
+        this.$nextTick(() => {
+            const barEl = document.getElementById('scrapeProgressBar');
+            if (barEl) barEl.style.width = '0%';
+        });
+
         let successCount = 0;
         let failCount = 0;
         let duplicateCount = 0;

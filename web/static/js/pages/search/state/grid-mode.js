@@ -257,6 +257,8 @@ window.SearchStateMixin_GridMode = {
                 if (this.hasMoreResults && !this.isLoadingMore) {
                     const result = await this.loadMore('lightbox');
                     if (!result || result.loadedCount === 0) return;
+                    // await 期間 lightbox 可能被關閉 — 在 state mutation 前檢查
+                    if (!this.lightboxOpen) return;
                     // C17 state-first
                     this._heroLightboxImageError = false;
                     this.currentIndex = result.oldLength;
@@ -282,6 +284,8 @@ window.SearchStateMixin_GridMode = {
             if (this.hasMoreResults && !this.isLoadingMore) {
                 const result = await this.loadMore('lightbox');
                 if (!result || result.loadedCount === 0) return;
+                // await 期間 lightbox 可能被關閉 — 在 state mutation 前檢查
+                if (!this.lightboxOpen) return;
                 // C17 state-first
                 this._heroLightboxImageError = false;
                 this.currentIndex = result.oldLength;
