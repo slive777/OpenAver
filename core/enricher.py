@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional
 
-from core.database import Video, VideoRepository
+from core.database import Video, VideoRepository, get_connection
 from core.logger import get_logger
 from core.nfo_updater import parse_nfo
 from core.organizer import download_image, find_subtitle_files, generate_nfo
@@ -344,10 +344,33 @@ def enrich_single(
     )
 
     # DB upsert 在寫檔後執行，才能知道本地封面路徑
-    # db_to_sidecar 不打 scraper 也不更新 DB
+    # db_to_sidecar 不打 scraper 也不更新 DB（metadata 不變）
     if mode in ("refresh_full", "fill_missing") and source_used not in ("db", "nfo", ""):
         local_cover = str(Path(fs_path).with_suffix(".jpg")) if cover_written else ""
-        _db_upsert(repo, number, fs_path, meta, local_cover_path=local_cover)
+        nfo_path = Path(fs_path).with_suffix(".nfo")
+        nfo_mtime = nfo_path.stat().st_mtime if nfo_path.exists() else 0.0
+        _db_upsert(repo, number, fs_path, meta, local_cover_path=local_cover,
+                   nfo_mtime=nfo_mtime)
+
+    # nfo_mtime 獨立更新：不論 mode/source，只要 NFO 存在就同步 DB
+    # 避免 analysis 永遠視為 missing_nfo
+    nfo_path = Path(fs_path).with_suffix(".nfo")
+    if nfo_path.exists():
+        conn = None
+        try:
+            path_uri = to_file_uri(fs_path)
+            nfo_mt = nfo_path.stat().st_mtime
+            conn = get_connection(repo.db_path)
+            conn.execute(
+                "UPDATE videos SET nfo_mtime = ? WHERE path = ? AND (nfo_mtime IS NULL OR nfo_mtime = 0)",
+                (nfo_mt, path_uri),
+            )
+            conn.commit()
+        except Exception as e:
+            logger.warning("nfo_mtime 更新失敗 (%s): %s", number, e)
+        finally:
+            if conn:
+                conn.close()
 
     return EnrichResult(
         success=True,
@@ -363,6 +386,7 @@ def enrich_single(
 def _db_upsert(
     repo: VideoRepository, number: str, fs_path: str, meta: dict,
     local_cover_path: str = "",
+    nfo_mtime: float = 0.0,
 ) -> None:
     """更新 DB 記錄。fs_path 必須是已解析的 FS 路徑（非 file:/// URI）。"""
     try:
@@ -394,6 +418,7 @@ def _db_upsert(
             duration=meta.get("duration"),
             cover_path=cover_uri,
             release_date=meta.get("release_date", ""),
+            nfo_mtime=nfo_mtime,
         )
         repo.upsert(video)
     except Exception as e:
