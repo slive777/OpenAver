@@ -1174,3 +1174,38 @@ class TestScrapeToastI18nGuard:
                 f"{locale}.json 缺少 key: {dotted}"
             assert isinstance(val, str) and len(val) > 0, \
                 f"{locale}.json {dotted} 值不可為空字串"
+
+
+class TestNavigateLoadMore:
+    """T3b 守衛：navigate() 在最後一片時 await loadMore + state-first slide"""
+
+    NAVIGATION_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state" / "navigation.js"
+
+    def _js(self):
+        return self.NAVIGATION_JS.read_text(encoding="utf-8")
+
+    def _navigate_body(self):
+        """截取 navigate() 函數體"""
+        js = self._js()
+        start = js.find("navigate(delta)")
+        assert start != -1, "navigation.js 找不到 navigate(delta) 函數"
+        return js[start:start + 3000]
+
+    def test_navigate_is_async(self):
+        js = self._js()
+        assert "async navigate(delta)" in js
+
+    def test_navigate_awaits_load_more_detail(self):
+        body = self._navigate_body()
+        assert "await this.loadMore('detail')" in body
+
+    def test_navigate_sets_currentindex_from_result(self):
+        body = self._navigate_body()
+        assert "this.currentIndex = result.oldLength" in body
+
+    def test_navigate_plays_slide_in_after_loadmore(self):
+        body = self._navigate_body()
+        state_pos = body.find("this.currentIndex = result.oldLength")
+        slide_in_pos = body.find("playSlideIn", state_pos if state_pos != -1 else 0)
+        assert state_pos != -1 and slide_in_pos != -1
+        assert state_pos < slide_in_pos

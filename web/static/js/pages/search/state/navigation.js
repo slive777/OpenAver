@@ -21,7 +21,7 @@ window.SearchStateMixin_Navigation = {
      * 導航到相對位置
      * @param {number} delta - 偏移量（-1 = 上一個，1 = 下一個）
      */
-    navigate(delta) {
+    async navigate(delta) {
         // T8: nav-btn 點擊觸發 navigate 時，自動關閉 Sample Gallery
         if (this.sampleGalleryOpen) this.closeSampleGallery();
 
@@ -43,7 +43,14 @@ window.SearchStateMixin_Navigation = {
         // 往右且到最後一個
         if (delta > 0 && newIndex >= this.searchResults.length) {
             if (this.hasMoreResults && !this.isLoadingMore) {
-                this.loadMore();
+                const result = await this.loadMore('detail');
+                if (!result || result.loadedCount === 0) return;
+                // C17 state-first：先改 index，再 $nextTick 播動畫
+                this.currentIndex = result.oldLength;
+                this.$nextTick(() => {
+                    var el = document.querySelector('.av-card-full');
+                    window.SearchAnimations?.playSlideIn?.(el, 'next');
+                });
                 return;
             }
             if (this.currentFileIndex < this.fileList.length - 1) {
