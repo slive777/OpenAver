@@ -401,3 +401,184 @@ def test_write_nfo_passes_user_tags_to_generate_nfo():
             db_path.unlink()
         if os.path.exists(video_path):
             os.unlink(video_path)
+
+
+# ── T5: organize_file 分離 + scrape_single DB upsert ─────────────────────────
+
+def test_organize_file_separates_user_tags_in_nfo():
+    """T5-RED1: organize_file 呼叫 generate_nfo 時 user_tags 分開寫 <user_tag>，不混入 <tag>"""
+    import tempfile, os
+    from pathlib import Path
+    from unittest.mock import patch, MagicMock
+
+    # 建立假影片檔案
+    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+        video_path = f.name
+
+    from core.organizer import generate_nfo as real_generate_nfo
+    captured_nfo_path = []
+
+    def fake_generate_nfo(**kwargs):
+        path = kwargs.get('output_path', '')
+        captured_nfo_path.append(path)
+        return real_generate_nfo(**kwargs)
+
+    try:
+        metadata = {
+            'number': 'ABC-001',
+            'title': 'テスト',
+            'original_title': '',
+            'actors': [],
+            'tags': ['HD', '單體作品'],
+            'user_tags': ['★5', '足'],
+            'date': '2024-01-01',
+            'maker': 'SOD',
+            'url': '',
+            'director': '',
+            'duration': None,
+            'series': '',
+            'label': '',
+            'cover': '',
+            'sample_images': [],
+        }
+
+        scraper_config = {
+            'output_dir': tempfile.gettempdir(),
+            'folder_name_template': '{number}',
+        }
+
+        with patch('core.organizer.shutil.move') as mock_move, \
+             patch('core.organizer.download_image') as mock_dl, \
+             patch('core.organizer.generate_nfo', side_effect=fake_generate_nfo):
+            mock_move.return_value = None
+
+            from core.organizer import organize_file
+            result = organize_file(video_path, metadata, scraper_config)
+
+        assert len(captured_nfo_path) > 0, "generate_nfo 沒被呼叫"
+        nfo_path = captured_nfo_path[0]
+        assert os.path.exists(nfo_path), f"NFO 不存在: {nfo_path}"
+
+        content = Path(nfo_path).read_text(encoding='utf-8')
+
+        assert '<user_tag>★5</user_tag>' in content, "★5 應在 <user_tag>"
+        assert '<user_tag>足</user_tag>' in content, "足 應在 <user_tag>"
+        assert '<tag>★5</tag>' not in content, "★5 不應在 <tag>"
+        assert '<tag>足</tag>' not in content, "足 不應在 <tag>"
+
+        if os.path.exists(nfo_path):
+            os.unlink(nfo_path)
+    finally:
+        if os.path.exists(video_path):
+            os.unlink(video_path)
+
+
+def test_organize_file_no_user_tags_no_regression():
+    """T5-RED2: metadata 無 user_tags 時，NFO 不含 <user_tag>（不回歸）"""
+    import tempfile, os
+    from pathlib import Path
+    from unittest.mock import patch
+
+    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+        video_path = f.name
+
+    from core.organizer import generate_nfo as real_generate_nfo
+    captured_nfo_path = []
+
+    def fake_generate_nfo(**kwargs):
+        path = kwargs.get('output_path', '')
+        captured_nfo_path.append(path)
+        return real_generate_nfo(**kwargs)
+
+    try:
+        metadata = {
+            'number': 'ABC-001',
+            'title': 'テスト',
+            'original_title': '',
+            'actors': [],
+            'tags': ['HD'],
+            # 無 user_tags key
+            'date': '2024-01-01',
+            'maker': 'SOD',
+            'url': '',
+            'director': '',
+            'duration': None,
+            'series': '',
+            'label': '',
+            'cover': '',
+            'sample_images': [],
+        }
+
+        scraper_config = {
+            'output_dir': tempfile.gettempdir(),
+            'folder_name_template': '{number}',
+        }
+
+        with patch('core.organizer.shutil.move'), \
+             patch('core.organizer.download_image'), \
+             patch('core.organizer.generate_nfo', side_effect=fake_generate_nfo):
+
+            from core.organizer import organize_file
+            organize_file(video_path, metadata, scraper_config)
+
+        assert len(captured_nfo_path) > 0, "generate_nfo 沒被呼叫"
+        nfo_path = captured_nfo_path[0]
+        assert os.path.exists(nfo_path), f"NFO 不存在: {nfo_path}"
+
+        content = Path(nfo_path).read_text(encoding='utf-8')
+        assert '<user_tag>' not in content, "無 user_tags 時不應有 <user_tag>"
+
+        if os.path.exists(nfo_path):
+            os.unlink(nfo_path)
+    finally:
+        if os.path.exists(video_path):
+            os.unlink(video_path)
+
+
+def test_scrape_single_upserts_user_tags_to_db():
+    """T5-RED3: scrape_single 成功後，VideoRepository.update_user_tags 被呼叫"""
+    import tempfile, os
+    from unittest.mock import patch, MagicMock
+    from fastapi.testclient import TestClient
+
+    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
+        video_path = f.name
+
+    try:
+        fake_result = {
+            'success': True,
+            'duplicate': False,
+            'new_filename': video_path,
+            'new_folder': tempfile.gettempdir(),
+            'original_path': video_path,
+            'cover_path': '',
+            'nfo_path': '',
+        }
+
+        mock_repo = MagicMock()
+        mock_repo.get_by_path.return_value = None  # DB 中無現有記錄
+
+        with patch('web.routers.scraper.organize_file', return_value=fake_result), \
+             patch('web.routers.scraper.VideoRepository', return_value=mock_repo), \
+             patch('web.routers.scraper.load_config', return_value={'scraper': {}}):
+            from web.app import app
+            client = TestClient(app)
+            resp = client.post('/api/scrape-single', json={
+                'file_path': video_path,
+                'number': 'ABC-001',
+                'metadata': {
+                    'number': 'ABC-001',
+                    'title': 'テスト',
+                    'tags': ['HD'],
+                    'user_tags': ['★5'],
+                    'cover': '',
+                },
+            })
+
+        assert resp.status_code == 200
+        mock_repo.update_user_tags.assert_called_once()
+        call_args = mock_repo.update_user_tags.call_args
+        assert '★5' in call_args[0][1], f"update_user_tags 的 user_tags 應含 '★5'，實際: {call_args}"
+    finally:
+        if os.path.exists(video_path):
+            os.unlink(video_path)

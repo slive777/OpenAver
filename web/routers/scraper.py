@@ -14,8 +14,10 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Literal, Optional
 
+from core.database import VideoRepository
 from core.enricher import enrich_single
 from core.organizer import organize_file
+from core.path_utils import to_file_uri
 from core.scraper import search_jav
 from core.logger import get_logger
 from core.config import load_config
@@ -98,6 +100,21 @@ def scrape_single(request: ScrapeRequest) -> dict:
             "duplicate": True,
             "duplicate_target": result.get('duplicate_target', ''),
         }
+
+    # scrape 成功後：若 metadata 含 user_tags，寫入 DB（與現有值取聯集）
+    if result.get('success') and metadata.get('user_tags'):
+        try:
+            user_tags = metadata['user_tags']
+            new_filename = result.get('new_filename', '')
+            if new_filename:
+                path_uri = to_file_uri(new_filename)
+                repo = VideoRepository()
+                existing = repo.get_by_path(path_uri)
+                existing_user_tags = existing.user_tags if existing else []
+                merged = existing_user_tags + [t for t in user_tags if t not in existing_user_tags]
+                repo.update_user_tags(path_uri, merged)
+        except Exception:
+            logger.warning("scrape_single: DB upsert user_tags 失敗，result 仍回傳", exc_info=True)
 
     return result
 
