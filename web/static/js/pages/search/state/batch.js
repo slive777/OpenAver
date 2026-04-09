@@ -374,15 +374,42 @@ window.SearchStateMixin_Batch = {
                     const fields = result.used_fallbacks.join('、');
                     this.showToast(`⚠️ ${fields} 資訊未取得，已使用預設值`, 'warning');
                 }
+                // 動畫：成功 pop-in + row flash
+                this.$nextTick(() => {
+                    const rows = document.querySelectorAll('#fileList .file-item');
+                    const rowEl = rows[index];
+                    if (!rowEl) return;
+                    const btn = [...rowEl.querySelectorAll('.btn-scrape-single')]
+                        .find(b => b.offsetParent !== null);
+                    window.SearchAnimations?.playOrganizeSuccess?.(btn, rowEl);
+                });
             } else {
                 console.error('[Scrape]', file.filename, result.error);
                 alert(`${file.filename} 處理失敗`);
                 file.scrapeStatus = 'failed';
+                // 動畫：失敗 shake
+                this.$nextTick(() => {
+                    const rows = document.querySelectorAll('#fileList .file-item');
+                    const rowEl = rows[index];
+                    if (!rowEl) return;
+                    const btn = [...rowEl.querySelectorAll('.btn-scrape-single')]
+                        .find(b => b.offsetParent !== null);
+                    window.SearchAnimations?.playOrganizeFail?.(btn);
+                });
             }
         } catch (err) {
             console.error('[Scrape]', file.filename, err);
             alert(`${file.filename} 處理失敗`);
             file.scrapeStatus = 'failed';
+            // 動畫：失敗 shake
+            this.$nextTick(() => {
+                const rows = document.querySelectorAll('#fileList .file-item');
+                const rowEl = rows[index];
+                if (!rowEl) return;
+                const btn = [...rowEl.querySelectorAll('.btn-scrape-single')]
+                    .find(b => b.offsetParent !== null);
+                window.SearchAnimations?.playOrganizeFail?.(btn);
+            });
         }
 
         file.isScraping = false;

@@ -926,6 +926,61 @@
             );
 
             return tween;
+        },
+
+        /**
+         * T2a: 單片整理成功動畫 — checkmark pop-in + row 綠色 flash
+         *
+         * C4/C18: killTweensOf 先打斷舊動畫
+         * shouldSkip() guard: prefers-reduced-motion 時直接 return null
+         *
+         * @param {Element|null} btnEl - 可見的 .btn-scrape-single 按鈕元素
+         * @param {Element|null} rowEl - .file-item row 元素
+         * @returns {null}
+         */
+        playOrganizeSuccess: function (btnEl, rowEl) {
+            if (typeof gsap === 'undefined') return null;
+            gsap.killTweensOf(btnEl);
+            if (rowEl) gsap.killTweensOf(rowEl);
+            if (shouldSkip()) return null;
+
+            // checkmark pop-in
+            if (btnEl) {
+                gsap.fromTo(btnEl,
+                    { scale: 0, opacity: 0 },
+                    { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(1.7)', clearProps: 'transform,opacity' }
+                );
+            }
+
+            // row green flash
+            if (rowEl) {
+                gsap.fromTo(rowEl,
+                    { backgroundColor: 'rgba(0, 200, 100, 0.15)' },
+                    { backgroundColor: 'transparent', duration: 0.8, ease: 'power2.out', clearProps: 'backgroundColor' }
+                );
+            }
+        },
+
+        /**
+         * T2a: 單片整理失敗動畫 — 按鈕 shake
+         *
+         * C4/C18: killTweensOf 先打斷舊動畫
+         * shouldSkip() guard: prefers-reduced-motion 時直接 return null
+         *
+         * @param {Element|null} btnEl - 可見的 .btn-scrape-single 按鈕元素
+         * @returns {null}
+         */
+        playOrganizeFail: function (btnEl) {
+            if (typeof gsap === 'undefined') return null;
+            gsap.killTweensOf(btnEl);
+            if (shouldSkip()) return null;
+
+            if (btnEl) {
+                gsap.fromTo(btnEl,
+                    { x: -4 },
+                    { x: 4, duration: 0.08, repeat: 3, yoyo: true, ease: 'power1.inOut', clearProps: 'transform' }
+                );
+            }
         }
     };
 })();
