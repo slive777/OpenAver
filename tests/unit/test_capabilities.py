@@ -38,6 +38,8 @@ EXPECTED_TOOL_NAMES = {
     "collection_sql",
     "collection_analysis",
     "collection_analysis_groups",
+    "fix_numbers_preview",
+    "fix_numbers_apply",
     "proxy_image",
     "jellyfin_check",
 }
@@ -86,9 +88,9 @@ class TestCapabilitiesEndpoint:
         data = client.get("/api/capabilities").json()
         assert "retry_hint" in data["error_format"]
 
-    def test_tools_count_is_12(self, client):
+    def test_tools_count_is_14(self, client):
         data = client.get("/api/capabilities").json()
-        assert len(data["tools"]) == 12
+        assert len(data["tools"]) == 14
 
     def test_all_tool_names_present(self, client):
         data = client.get("/api/capabilities").json()

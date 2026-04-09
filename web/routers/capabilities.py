@@ -348,6 +348,61 @@ _TOOLS: list[dict] = [
         "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"group\":\"no_nfo\",\"limit\":50}}' {base}/api/collection/analysis/groups",
     },
     {
+        "name": "fix_numbers_preview",
+        "description": "預覽收藏庫中符合異常番號修正規則的影片清單。支援 4 種規則：digit_prefix（開頭多餘數字）、TK_prefix、K9_prefix、R_prefix。不修改任何資料，回傳待修正清單供 fix_numbers_apply 使用",
+        "method": "POST",
+        "path": "/api/collection/fix-numbers/preview",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "rules": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["digit_prefix", "TK_prefix", "K9_prefix", "R_prefix"],
+                    },
+                    "description": "要套用的規則名稱（空陣列或省略 = 全部 4 條規則）",
+                },
+            },
+            "required": [],
+        },
+        "output_schema": {
+            "rules_applied": "[string] — 實際套用的規則名稱",
+            "affected": "[{id, old_number, new_number, rule, path}] — 待修正影片清單",
+            "total": "integer — 符合條件的總筆數",
+        },
+        "side_effect": False,
+        "confirmation_required": False,
+        "retry_safe": True,
+        "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"rules\":[]}}' {base}/api/collection/fix-numbers/preview",
+    },
+    {
+        "name": "fix_numbers_apply",
+        "description": "執行番號修正：將 fix_numbers_preview 回傳的異常番號永久更新到 DB。**此操作直接修改 DB 的 number 欄位，不可逆。必須先呼叫 preview 確認範圍，並讓用戶確認後再執行。** apply 內部會重新驗證每個 ID，已被其他途徑修正的番號不會被覆蓋",
+        "method": "POST",
+        "path": "/api/collection/fix-numbers/apply",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "ids": {
+                    "type": "array",
+                    "items": {"type": "integer"},
+                    "description": "要修正的影片 ID 清單（從 fix_numbers_preview 的 affected[].id 取得）",
+                },
+            },
+            "required": ["ids"],
+        },
+        "output_schema": {
+            "updated": "integer — 成功更新的筆數",
+            "failed": "integer — 跳過或失敗的筆數（ID 不存在、或番號已不符合規則）",
+        },
+        "side_effect": True,
+        "confirmation_required": True,
+        "idempotent": False,
+        "retry_safe": False,
+        "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"ids\":[42,55,78]}}' {base}/api/collection/fix-numbers/apply",
+    },
+    {
         "name": "proxy_image",
         "description": "代理下載遠端圖片 — 解決 Cloudflare / 防盜鏈問題。搜尋結果的 cover 和 sample_images URL 是遠端直連，AI agent 直接 curl 會被擋。必須透過此端點下載。",
         "method": "GET",

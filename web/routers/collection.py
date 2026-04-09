@@ -14,7 +14,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from core.database import get_db_path
+from core.database import get_connection, get_db_path
 from core.logger import get_logger
 from core.scraper import is_number_format
 
@@ -57,6 +57,21 @@ def _is_corrupted_number(number) -> bool:
     return any(re.match(rule["pattern"], upper) for rule in CORRUPTION_RULES)
 
 
+def _get_fixed_number(number) -> Optional[str]:
+    """
+    遍歷 CORRUPTION_RULES，找第一個 match，回傳 fix_group 對應的 capture group。
+    不 match → 回傳 None。供 preview 和 apply 共用。
+    """
+    if number is None:
+        return None
+    upper = number.upper()
+    for rule in CORRUPTION_RULES:
+        m = re.match(rule["pattern"], upper)
+        if m:
+            return m.group(rule["fix_group"])
+    return None
+
+
 def _has_japanese_tags(tags_json) -> bool:
     """判斷 tags JSON 字串中是否含有假名字元（None-safe，非法 JSON 返回 False）"""
     if not tags_json:
@@ -88,6 +103,14 @@ class AnalysisGroupRequest(BaseModel):
     ]
     limit: int = Field(default=50, ge=1, le=200)
     exclude_western: bool = True
+
+
+class FixNumbersPreviewRequest(BaseModel):
+    rules: List[str] = []
+
+
+class FixNumbersApplyRequest(BaseModel):
+    ids: List[int]
 
 
 # ── SQL 驗證邏輯（可獨立測試）────────────────────────────────────────────────
@@ -477,6 +500,149 @@ def collection_analysis_groups(request: AnalysisGroupRequest) -> dict:
 
     except Exception as e:
         logger.error("[collection/analysis/groups] 非預期錯誤: %s", e)
+        return {"success": False, "error": "內部錯誤，請稍後再試"}
+
+    finally:
+        if conn:
+            conn.close()
+
+
+# ── POST /api/collection/fix-numbers/preview ─────────────────────────────────
+
+@router.post("/fix-numbers/preview")
+def fix_numbers_preview(request: FixNumbersPreviewRequest) -> dict:
+    """
+    預覽哪些番號符合 corruption 修正規則（read-only）。
+
+    - rules 為空 → 套用全部 4 條規則
+    - rules 含無效名稱 → HTTP 400
+    - 回傳 {rules_applied, affected, total}
+    """
+    valid_names = {rule["name"] for rule in CORRUPTION_RULES}
+
+    # 驗證 rules 名稱
+    if request.rules:
+        invalid = [r for r in request.rules if r not in valid_names]
+        if invalid:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "success": False,
+                    "error": f"無效的規則名稱：{invalid}。有效名稱：{sorted(valid_names)}",
+                },
+            )
+
+    rules_to_apply = (
+        CORRUPTION_RULES
+        if not request.rules
+        else [r for r in CORRUPTION_RULES if r["name"] in request.rules]
+    )
+    rules_applied = [r["name"] for r in rules_to_apply]
+
+    db_path = get_db_path()
+    if not db_path.exists():
+        return {"success": False, "error": "資料庫尚未初始化"}
+
+    conn = None
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        conn.execute("PRAGMA query_only = ON")
+        conn.execute("PRAGMA busy_timeout = 5000")
+        cur = conn.cursor()
+
+        rows = cur.execute("SELECT id, number, path FROM videos").fetchall()
+
+        affected = []
+        for id_, number, path in rows:
+            if number is None:
+                continue
+            upper = number.upper()
+            for rule in rules_to_apply:
+                m = re.match(rule["pattern"], upper)
+                if m:
+                    new_number = m.group(rule["fix_group"])
+                    affected.append({
+                        "id":         id_,
+                        "old_number": number,
+                        "new_number": new_number,
+                        "rule":       rule["name"],
+                        "path":       path,
+                    })
+                    break  # 取第一條符合的規則
+
+        return {
+            "rules_applied": rules_applied,
+            "affected":      affected,
+            "total":         len(affected),
+        }
+
+    except Exception as e:
+        logger.error("[collection/fix-numbers/preview] 非預期錯誤: %s", e)
+        return {"success": False, "error": "內部錯誤，請稍後再試"}
+
+    finally:
+        if conn:
+            conn.close()
+
+
+# ── POST /api/collection/fix-numbers/apply ───────────────────────────────────
+
+@router.post("/fix-numbers/apply")
+def fix_numbers_apply(request: FixNumbersApplyRequest) -> dict:
+    """
+    執行番號修正：對指定 ID 清單逐一重新驗證後執行 UPDATE。
+
+    - ids 為空 → 直接回傳 {updated: 0, failed: 0}
+    - 每個 ID 重新從 DB 讀取 number，仍符合規則才 UPDATE，否則計入 failed
+    - 回傳 {updated, failed}
+    """
+    if not request.ids:
+        return {"updated": 0, "failed": 0}
+
+    db_path = get_db_path()
+    if not db_path.exists():
+        return {"success": False, "error": "資料庫尚未初始化"}
+
+    updated = 0
+    failed = 0
+    conn = None
+    try:
+        conn = get_connection(db_path)
+        cur = conn.cursor()
+
+        for vid_id in request.ids:
+            # 重新從 DB 讀取當前番號（防禦性驗證）
+            row = cur.execute("SELECT number FROM videos WHERE id = ?", (vid_id,)).fetchone()
+            if row is None:
+                # ID 不存在
+                failed += 1
+                continue
+
+            current_number = row[0]
+            if not _is_corrupted_number(current_number):
+                # 番號已不符合規則（被其他途徑修正，或原本就正常）
+                failed += 1
+                continue
+
+            new_number = _get_fixed_number(current_number)
+            if new_number is None:
+                # 理論上不會到這裡（_is_corrupted_number 已確認），但防禦
+                failed += 1
+                continue
+
+            cur.execute(
+                "UPDATE videos SET number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (new_number, vid_id),
+            )
+            updated += 1
+
+        conn.commit()
+        return {"updated": updated, "failed": failed}
+
+    except Exception as e:
+        logger.error("[collection/fix-numbers/apply] 非預期錯誤: %s", e)
+        if conn:
+            conn.rollback()
         return {"success": False, "error": "內部錯誤，請稍後再試"}
 
     finally:
