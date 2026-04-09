@@ -42,6 +42,7 @@
       "add_folder": "フォルダを追加",
       "favorite": "お気に入り",
       "load_favorite": "お気に入りフォルダを読み込む",
+      "load_favorite_folder": "読み込む：{folder}",
       "add_tag": "タグを追加",
       "edit_title": "タイトルを編集",
       "translate_ai": "AI 翻訳",

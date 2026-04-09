@@ -394,19 +394,14 @@ function scannerPage() {
 
     // ===== Folder Management =====
     async selectFolder() {
-        console.log('[AVList] selectFolder called');
-
         if (typeof window.pywebview === 'undefined' || !window.pywebview.api) {
-            console.log('[AVList] PyWebView not available');
             this.toggleManualInput();
             alert('此功能需要在桌面應用程式中使用');
             return;
         }
 
         try {
-            console.log('[AVList] Calling select_folder...');
             const result = await window.pywebview.api.select_folder();
-            console.log('[AVList] select_folder result:', result);
 
             if (result && result.folder) {
                 this.addFolderPath(result.folder);
@@ -417,8 +412,6 @@ function scannerPage() {
                 if (folderPath) {
                     this.addFolderPath(folderPath);
                 }
-            } else {
-                console.log('[AVList] No folder selected');
             }
         } catch (e) {
             console.error('[AVList] 選取資料夾失敗:', e);
@@ -426,13 +419,10 @@ function scannerPage() {
     },
 
     addFolderPath(folderPath) {
-        console.log('[AVList] addFolderPath called with:', folderPath);
         if (!this.directories.includes(folderPath)) {
             this.directories.push(folderPath);
             this.configDirty = true;
-            console.log('[AVList] Folder added successfully');
         } else {
-            console.log('[AVList] Folder already in list');
             alert('此資料夾已在列表中');
         }
     },
@@ -469,7 +459,6 @@ function scannerPage() {
     handleDragEnter(e) {
         e.preventDefault();
         this.dragCounter++;
-        console.log('[AVList] dragenter, counter:', this.dragCounter);
         if (this.dragCounter === 1) {
             this.showDragOverlay = true;
         }
@@ -478,7 +467,6 @@ function scannerPage() {
     handleDragLeave(e) {
         e.preventDefault();
         this.dragCounter--;
-        console.log('[AVList] dragleave, counter:', this.dragCounter);
         if (this.dragCounter === 0) {
             this.showDragOverlay = false;
         }
@@ -488,7 +476,6 @@ function scannerPage() {
         e.preventDefault();
         this.dragCounter = 0;
         this.showDragOverlay = false;
-        console.log('[AVList] drop event fired');
     },
 
     // ===== Dirty Check Modal Actions =====
@@ -1105,10 +1092,7 @@ function scannerPage() {
 
 // PyWebView 拖曳處理
 window.handleFolderDrop = function (folderPaths) {
-    console.log('[AVList] handleFolderDrop called with:', folderPaths);
-
     if (!folderPaths || folderPaths.length === 0) {
-        console.log('[AVList] handleFolderDrop: empty or null folderPaths');
         return;
     }
 
@@ -1118,7 +1102,6 @@ window.handleFolderDrop = function (folderPaths) {
     }
 
     for (const folderPath of folderPaths) {
-        console.log('[AVList] Processing folder:', folderPath);
         window.addScannerFolder(folderPath);
     }
 };

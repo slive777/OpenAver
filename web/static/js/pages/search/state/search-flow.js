@@ -14,8 +14,8 @@ window.SearchStateMixin_SearchFlow = {
                 // btnFavorite tooltip 由 Alpine :title binding 管理
                 this.$nextTick(() => {
                     if (this.$refs.btnFavorite) {
-                        const favoriteFolder = this.appConfig?.search?.favorite_folder || '系統下載資料夾';
-                        this.$refs.btnFavorite.title = `載入：${favoriteFolder}`;
+                        const favoriteFolder = this.appConfig?.search?.favorite_folder || window.t('search.action.load_favorite');
+                        this.$refs.btnFavorite.title = window.t('search.action.load_favorite_folder', { folder: favoriteFolder });
                     }
                 });
             }
@@ -76,6 +76,17 @@ window.SearchStateMixin_SearchFlow = {
         this._heroCardImageError = false;   // A6-1: 清空 Hero Card 圖片錯誤
         this._heroLightboxImageError = false; // A6-1: 清空 Lightbox 圖片錯誤
         this._heroSlotReserved = false;      // A7-Prod: 清空 Hero Slot 預留
+        // Runtime UI state reset
+        this.isSearchingFile = false;
+        this.searchingFileDirection = null;
+        this.currentMode = '';
+        this.progressLog = '';
+        this.detailDone = 0;
+        this.detailTotal = 0;
+        this.displayMode = 'detail';
+        this.lightboxOpen = false;
+        this.lightboxIndex = 0;
+        this.actressProfile = null;
     },
 
     // ===== T1b: Search Methods =====

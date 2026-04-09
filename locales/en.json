@@ -42,6 +42,7 @@
       "add_folder": "Add Folder",
       "favorite": "Favorites",
       "load_favorite": "Load Favorite Folder",
+      "load_favorite_folder": "Load: {folder}",
       "add_tag": "Add Tag",
       "edit_title": "Edit Title",
       "translate_ai": "AI Translate",

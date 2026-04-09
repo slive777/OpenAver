@@ -42,6 +42,7 @@
       "add_folder": "加入資料夾",
       "favorite": "我的最愛",
       "load_favorite": "載入我的最愛資料夾",
+      "load_favorite_folder": "載入：{folder}",
       "add_tag": "新增標籤",
       "edit_title": "編輯標題",
       "translate_ai": "AI 翻譯",

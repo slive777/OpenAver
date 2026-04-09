@@ -42,6 +42,7 @@
       "add_folder": "加入文件夹",
       "favorite": "我的最爱",
       "load_favorite": "载入我的最爱文件夹",
+      "load_favorite_folder": "载入：{folder}",
       "add_tag": "新增标签",
       "edit_title": "编辑标题",
       "translate_ai": "AI 翻译",
