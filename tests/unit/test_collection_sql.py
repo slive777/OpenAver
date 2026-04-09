@@ -502,3 +502,38 @@ class TestHappyPathValidation:
         validate = _get_validate()
         err = validate("SELECT old_name, new_name FROM actress_aliases")
         assert err is None
+
+
+# ── 層 6.5：字串字面值含 [] 的 False Positive 修正 ──────────────────────────────
+
+class TestLayer65StringLiterals:
+    def test_string_value_with_brackets(self):
+        """WHERE actresses = '[]' → 字串值含 [] 不應被擋"""
+        validate = _get_validate()
+        err = validate("SELECT * FROM videos WHERE actresses = '[]'")
+        assert err is None
+
+    def test_string_value_with_escaped_quotes_and_brackets(self):
+        """WHERE title = 'Bob''s []' → 含 '' 轉義的字串值內有 [] 不應被擋"""
+        validate = _get_validate()
+        err = validate("SELECT * FROM videos WHERE title = 'Bob''s []'")
+        assert err is None
+
+    def test_bracket_identifier_still_blocked(self):
+        """SELECT * FROM [videos] → 方括號識別符仍應被擋（regression guard）"""
+        validate = _get_validate()
+        err = validate("SELECT * FROM [videos]")
+        assert err is not None
+        assert "不合法" in err
+
+    def test_string_value_with_hd_brackets(self):
+        """WHERE tag = '[HD]' → 單一字串值的方括號內容不應被擋"""
+        validate = _get_validate()
+        err = validate("SELECT * FROM videos WHERE tag = '[HD]'")
+        assert err is None
+
+    def test_multiple_string_values_with_brackets(self):
+        """WHERE a = '[]' AND b = '[test]' → 多個字串值含 [] 不應被擋"""
+        validate = _get_validate()
+        err = validate("SELECT * FROM videos WHERE a = '[]' AND b = '[test]'")
+        assert err is None

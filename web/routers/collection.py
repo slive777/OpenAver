@@ -33,6 +33,11 @@ class SqlRequest(BaseModel):
 
 # ── SQL 驗證邏輯（可獨立測試）────────────────────────────────────────────────
 
+def _strip_string_literals(sql: str) -> str:
+    """移除單引號字串內容（含 '' 轉義），保留結構"""
+    return re.sub(r"'(?:''|[^'])*'", "''", sql)
+
+
 def validate_sql(sql: str) -> Optional[str]:
     """
     驗證 SQL 字串是否符合安全規範（層 1–7）。
@@ -66,7 +71,8 @@ def validate_sql(sql: str) -> Optional[str]:
         return "SQL 語句不合法"
 
     # 層 6.5：禁止引號包裹的識別符（防繞過表白名單）
-    if re.search(r'"[^"]+"|`[^`]+`|\[[^\]]+\]', sql):
+    sql_no_strings = _strip_string_literals(sql)
+    if re.search(r'"[^"]+"|`[^`]+`|\[[^\]]+\]', sql_no_strings):
         return "SQL 語句不合法"
 
     # 層 7：表白名單
