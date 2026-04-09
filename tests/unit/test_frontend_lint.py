@@ -716,10 +716,10 @@ class TestLoadMoreButton:
     # --- grid-mode.js ---
 
     def test_grid_mode_next_lightbox_video_calls_load_more(self):
-        """grid-mode.js nextLightboxVideo() 含 loadMore() 呼叫"""
+        """grid-mode.js nextLightboxVideo() 含 await this.loadMore('lightbox') 呼叫（T3c）"""
         js = self._grid_mode()
-        assert "this.loadMore()" in js, \
-            "grid-mode.js nextLightboxVideo() 缺少 this.loadMore() 呼叫"
+        assert "await this.loadMore('lightbox')" in js, \
+            "grid-mode.js nextLightboxVideo() 缺少 await this.loadMore('lightbox') 呼叫（T3c fire-and-forget 已改為 await）"
 
     # --- locale files ---
 
@@ -1209,3 +1209,52 @@ class TestNavigateLoadMore:
         slide_in_pos = body.find("playSlideIn", state_pos if state_pos != -1 else 0)
         assert state_pos != -1 and slide_in_pos != -1
         assert state_pos < slide_in_pos
+
+
+class TestNextLightboxLoadMore:
+    """T3c 守衛：nextLightboxVideo() 在最後一片時 await loadMore + state-first crossfade"""
+
+    def _js(self):
+        return GRID_MODE_JS.read_text(encoding="utf-8")
+
+    def _next_lightbox_body(self):
+        """截取 nextLightboxVideo() 函數體"""
+        js = self._js()
+        start = js.find("nextLightboxVideo()")
+        assert start != -1, "grid-mode.js 找不到 nextLightboxVideo() 函數"
+        return js[start:start + 3000]
+
+    def test_next_lightbox_is_async(self):
+        """T3c: nextLightboxVideo() 必須是 async（await loadMore 需要）"""
+        js = self._js()
+        assert "async nextLightboxVideo()" in js, \
+            "grid-mode.js nextLightboxVideo() 應改為 async（T3c await loadMore 需要）"
+
+    def test_next_lightbox_awaits_load_more_lightbox(self):
+        """T3c: nextLightboxVideo() 使用 await this.loadMore('lightbox')"""
+        body = self._next_lightbox_body()
+        assert "await this.loadMore('lightbox')" in body, \
+            "grid-mode.js nextLightboxVideo() 缺少 await this.loadMore('lightbox')（T3c fire-and-forget 已改為 await）"
+
+    def test_next_lightbox_sets_current_index(self):
+        """T3c: nextLightboxVideo() loadMore 成功後設定 currentIndex = result.oldLength（state-first）"""
+        body = self._next_lightbox_body()
+        assert "this.currentIndex = result.oldLength" in body, \
+            "grid-mode.js nextLightboxVideo() 缺少 this.currentIndex = result.oldLength（T3c state-first）"
+
+    def test_next_lightbox_sets_lightbox_index(self):
+        """T3c: nextLightboxVideo() loadMore 成功後設定 lightboxIndex = result.oldLength（state-first）"""
+        body = self._next_lightbox_body()
+        assert "this.lightboxIndex = result.oldLength" in body, \
+            "grid-mode.js nextLightboxVideo() 缺少 this.lightboxIndex = result.oldLength（T3c state-first）"
+
+    def test_next_lightbox_plays_switch_after_state(self):
+        """T3c: nextLightboxVideo() loadMore 成功後 playLightboxSwitch 在 state 更新之後（animate 在 state 後）"""
+        body = self._next_lightbox_body()
+        state_pos = body.find("this.currentIndex = result.oldLength")
+        switch_pos = body.find("playLightboxSwitch", state_pos if state_pos != -1 else 0)
+        assert state_pos != -1, "nextLightboxVideo() 缺少 this.currentIndex = result.oldLength"
+        assert switch_pos != -1, \
+            "nextLightboxVideo() loadMore 成功後缺少 playLightboxSwitch（T3c 動畫觸發缺失）"
+        assert state_pos < switch_pos, \
+            "T3c 違反 state-first：currentIndex 更新必須在 playLightboxSwitch 之前"

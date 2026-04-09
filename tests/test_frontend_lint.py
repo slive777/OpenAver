@@ -3533,7 +3533,7 @@ class TestLightboxAnimationGuard:
     def _extract_function(content, func_name):
         """粗略擷取函數內容（從函數名到下一個同級函數或檔案結尾）"""
         # 找到函數定義行
-        pattern = re.compile(r'^\s*' + re.escape(func_name) + r'\s*\(', re.MULTILINE)
+        pattern = re.compile(r'^\s*(?:async\s+)?' + re.escape(func_name) + r'\s*\(', re.MULTILINE)
         match = pattern.search(content)
         if not match:
             return ''
@@ -3723,7 +3723,7 @@ class TestLightboxStateFirstGuard:
     @staticmethod
     def _extract_function(content, func_name):
         """粗略擷取函數內容（從函數名到下一個同級函數或檔案結尾）"""
-        pattern = re.compile(r'^\s*' + re.escape(func_name) + r'\s*\(', re.MULTILINE)
+        pattern = re.compile(r'^\s*(?:async\s+)?' + re.escape(func_name) + r'\s*\(', re.MULTILINE)
         match = pattern.search(content)
         if not match:
             return ''
