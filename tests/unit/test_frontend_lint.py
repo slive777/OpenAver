@@ -2,6 +2,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 SHOWCASE_HTML = Path(__file__).parent.parent.parent / "web" / "templates" / "showcase.html"
 
 
@@ -1135,7 +1137,6 @@ class TestScrapeProgressI18nGuard:
             "search.html 未引用 search.filelist.organizing_prefix（請確認 scrape progress section 已插入）"
 
 
-import pytest
 
 
 class TestScrapeToastI18nGuard:
@@ -1174,6 +1175,18 @@ class TestScrapeToastI18nGuard:
                 f"{locale}.json 缺少 key: {dotted}"
             assert isinstance(val, str) and len(val) > 0, \
                 f"{locale}.json {dotted} 值不可為空字串"
+
+
+SEARCH_STATE_DIR = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state"
+
+
+class TestNoAlertInSearchJs:
+    """39c-T2c: search state JS 不應使用原生 alert()，改用 showToast"""
+
+    def test_no_alert_in_batch_js(self):
+        content = (SEARCH_STATE_DIR / "batch.js").read_text(encoding="utf-8")
+        assert "alert(" not in content, \
+            "batch.js 含原生 alert()，應改用 this.showToast()"
 
 
 class TestNavigateLoadMore:
