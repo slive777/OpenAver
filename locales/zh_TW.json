@@ -486,7 +486,11 @@
       "close": "關閉 (ESC)",
       "prev": "上一部 (←)",
       "next": "下一部 (→)",
-      "unknown_number": "未知"
+      "unknown_number": "未知",
+      "add_tag": "新增標籤",
+      "tag_placeholder": "標籤名稱",
+      "tag_api_failed": "標籤儲存失敗，請稍後再試",
+      "user_tags_label": "自訂標籤"
     },
     "gallery": {
       "prev": "上一張 (←)",

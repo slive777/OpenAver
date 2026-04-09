@@ -486,7 +486,11 @@
       "close": "Close (ESC)",
       "prev": "Previous (←)",
       "next": "Next (→)",
-      "unknown_number": "Unknown"
+      "unknown_number": "Unknown",
+      "add_tag": "Add Tag",
+      "tag_placeholder": "Tag name",
+      "tag_api_failed": "Failed to save tag, please try again",
+      "user_tags_label": "Custom Tags"
     },
     "gallery": {
       "prev": "Previous (←)",

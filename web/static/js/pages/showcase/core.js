@@ -79,11 +79,16 @@ function showcaseState() {
 
         currentLightboxVideo: null,
 
+        // User Tags 狀態 (T4)
+        addingLbTag: false,
+        newLbTagValue: '',
+
         // F1: helper — 更新 lightboxIndex + currentLightboxVideo 一致性
         _setLightboxIndex(idx) {
             this.lightboxIndex = idx;
             this.currentLightboxVideo = (idx >= 0 && idx < _filteredVideos.length)
                 ? _filteredVideos[idx] : null;
+            this.addingLbTag = false;  // 切換影片時重置輸入框
         },
 
         // --- 生命週期 ---
@@ -666,6 +671,7 @@ function showcaseState() {
                 this.lightboxCloseTimer = null;
             }
 
+            this.addingLbTag = false;    // 關閉 lightbox 時重置 user tag 輸入框
             this._lightboxGeneration++;  // B19: invalidate pending $nextTick lightbox callbacks
             // Instant close — kill any in-progress lightbox animations, then sync cleanup
             _killLightboxTimelines();
@@ -970,6 +976,87 @@ function showcaseState() {
             }
             const mb = bytes / (1024 * 1024);
             return `${mb.toFixed(2)} MB`;
+        },
+
+        // ==================== User Tags in Lightbox (T4) ====================
+
+        // 展開 inline 輸入框並 focus
+        showAddLbTagInput() {
+            this.addingLbTag = true;
+            this.newLbTagValue = '';
+            this.$nextTick(() => this.$refs.lbTagInput?.focus());
+        },
+
+        // 確認新增 tag — 呼叫 POST /api/user-tags
+        async confirmAddLbTag() {
+            const tag = (this.newLbTagValue || '').trim();
+            if (!tag) {
+                this.addingLbTag = false;
+                return;
+            }
+            if (!this.currentLightboxVideo?.path) {
+                this.addingLbTag = false;
+                return;
+            }
+            const existingTags = this.currentLightboxVideo.user_tags || [];
+            if (existingTags.includes(tag)) {
+                // 重複 tag，靜默忽略
+                this.addingLbTag = false;
+                this.newLbTagValue = '';
+                return;
+            }
+            try {
+                const resp = await fetch('/api/user-tags', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        file_path: this.currentLightboxVideo.path,
+                        add: [tag],
+                    }),
+                });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const data = await resp.json();
+                if (data.success) {
+                    this.currentLightboxVideo.user_tags = data.user_tags;
+                } else {
+                    throw new Error(data.error || 'API failed');
+                }
+            } catch (e) {
+                this.showToast(window.t('showcase.lightbox.tag_api_failed'), 'error');
+            } finally {
+                this.addingLbTag = false;
+                this.newLbTagValue = '';
+            }
+        },
+
+        // 取消輸入框
+        cancelAddLbTag() {
+            this.addingLbTag = false;
+            this.newLbTagValue = '';
+        },
+
+        // 刪除 user tag — 呼叫 POST /api/user-tags {remove: [tag]}
+        async removeLbUserTag(tag) {
+            if (!this.currentLightboxVideo?.path) return;
+            try {
+                const resp = await fetch('/api/user-tags', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        file_path: this.currentLightboxVideo.path,
+                        remove: [tag],
+                    }),
+                });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const data = await resp.json();
+                if (data.success) {
+                    this.currentLightboxVideo.user_tags = data.user_tags;
+                } else {
+                    throw new Error(data.error || 'API failed');
+                }
+            } catch (e) {
+                this.showToast(window.t('showcase.lightbox.tag_api_failed'), 'error');
+            }
         },
 
         // --- Toast 通知 (M3h) ---

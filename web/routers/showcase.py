@@ -84,6 +84,7 @@ async def get_videos():
                 "series": v.series or '',
                 "label": v.label or '',
                 "sample_images": sample_urls,
+                "user_tags": v.user_tags or [],              # list[str]，空時回空 list
             })
 
         return JSONResponse({

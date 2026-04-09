@@ -430,6 +430,44 @@
                         </template>
                     </div>
 
+                    <!-- Row 6: User Tags (T4) -->
+                    <div class="lb-user-tags"
+                         x-show="(currentLightboxVideo?.user_tags?.length || 0) > 0 || addingLbTag">
+                        <!-- User tag badges with × remove button -->
+                        <template x-for="tag in (currentLightboxVideo?.user_tags || [])" :key="tag">
+                            <span class="lb-user-tag">
+                                <span x-text="tag"></span>
+                                <button class="lb-tag-remove"
+                                        @click.stop="removeLbUserTag(tag)"
+                                        :title="tag">×</button>
+                            </span>
+                        </template>
+
+                        <!-- + 新增按鈕（有 path 才顯示） -->
+                        <button class="lb-tag-add-btn"
+                                x-show="!addingLbTag && !!currentLightboxVideo?.path"
+                                @click.stop="showAddLbTagInput()"
+                                :title="t('showcase.lightbox.add_tag')">+</button>
+
+                        <!-- Inline 輸入框 -->
+                        <span class="lb-tag-input-wrapper" x-show="addingLbTag">
+                            <input class="lb-tag-input"
+                                   x-ref="lbTagInput"
+                                   x-model="newLbTagValue"
+                                   type="text"
+                                   maxlength="20"
+                                   :placeholder="t('showcase.lightbox.tag_placeholder')"
+                                   @keydown.enter.stop="confirmAddLbTag()"
+                                   @keydown.escape.stop="cancelAddLbTag()">
+                            <button class="lb-tag-confirm"
+                                    @click.stop="confirmAddLbTag()"
+                                    title="✓">✓</button>
+                            <button class="lb-tag-cancel"
+                                    @click.stop="cancelAddLbTag()"
+                                    title="✕">✕</button>
+                        </span>
+                    </div>
+
                 </div>
             </div>
 

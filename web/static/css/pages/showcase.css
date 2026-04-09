@@ -1344,3 +1344,96 @@
 .sample-gallery .sg-main-img.gsap-animating {
     transition: none !important;
 }
+
+/* === User Tags in Lightbox (T4) === */
+
+/* 整個 user tags 容器 — flex wrap，與 lb-tags 間距一致 */
+.lightbox-metadata .lb-user-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.5rem;
+}
+
+/* 單個 user tag badge — accent 色背景，與 scraper tag 明顯區分 */
+.lb-user-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.15rem 0.5rem;
+    background: var(--accent);
+    color: var(--text-inverse);
+    border-radius: 999px;
+    font-size: 0.6875rem;
+}
+
+/* × 刪除按鈕 */
+.lb-tag-remove {
+    cursor: pointer;
+    opacity: 0.7;
+    line-height: 1;
+    padding: 0;
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 0.75rem;
+}
+
+.lb-tag-remove:hover {
+    opacity: 1;
+}
+
+/* + 新增按鈕 — dashed border */
+.lb-tag-add-btn {
+    padding: 1px 6px;
+    font-size: 0.7rem;
+    line-height: 1.4;
+    background: transparent;
+    border: 1px dashed var(--text-muted);
+    color: var(--text-muted);
+    border-radius: var(--radius-sm, 4px);
+    cursor: pointer;
+}
+
+.lb-tag-add-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* 輸入框包裝 */
+.lb-tag-input-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+/* 輸入框 */
+.lb-tag-input {
+    width: 80px;
+    padding: 1px 4px;
+    font-size: 0.7rem;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm, 4px);
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+/* ✓ 確認 / ✕ 取消按鈕 */
+.lb-tag-confirm,
+.lb-tag-cancel {
+    padding: 0 4px;
+    font-size: 0.7rem;
+    line-height: 1.2;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.lb-tag-confirm {
+    color: var(--color-success);
+}
+
+.lb-tag-cancel {
+    color: var(--color-error);
+}

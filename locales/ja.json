@@ -486,7 +486,11 @@
       "close": "閉じる (ESC)",
       "prev": "前の作品 (←)",
       "next": "次の作品 (→)",
-      "unknown_number": "不明"
+      "unknown_number": "不明",
+      "add_tag": "タグを追加",
+      "tag_placeholder": "タグ名",
+      "tag_api_failed": "タグの保存に失敗しました",
+      "user_tags_label": "カスタムタグ"
     },
     "gallery": {
       "prev": "前の画像 (←)",
