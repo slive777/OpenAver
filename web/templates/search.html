@@ -628,7 +628,7 @@
             <div class="text-center py-4"
                  x-show="hasMoreResults && !isLoadingMore && displayMode === 'grid'"
                  x-cloak>
-                <button class="btn btn-outline btn-sm" @click="loadMore()">
+                <button class="btn btn-outline btn-sm" @click="gridLoadMore()">
                     <span x-text="t('search.button.load_more')"></span>
                 </button>
             </div>

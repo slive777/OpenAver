@@ -1007,6 +1007,63 @@
                 ease: 'power2.out',
                 overwrite: 'auto'
             });
+        },
+
+        /**
+         * T3a: Grid Load More append cascade
+         * 新卡片 stagger fade-in + 微上移，offscreen 卡片瞬間顯示
+         *
+         * C4/C18: killTweensOf 先打斷舊動畫
+         * shouldSkip() guard: prefers-reduced-motion 時直接 gsap.set 到位
+         * clearProps: 防止 inline transform 干擾 CSS hover（C21 預防）
+         *
+         * @param {Element[]} newCards - 新批次卡片 DOM 元素陣列
+         * @param {object} [options] - 可選動畫參數
+         * @param {number} [options.duration=0.35] - 單張動畫時長（秒）
+         * @param {number} [options.stagger=0.03] - 卡片間隔（秒）
+         * @param {string} [options.ease='power2.out'] - GSAP ease
+         * @returns {null|gsap.core.Tween}
+         */
+        playAppendCascade: function (newCards, options) {
+            options = options || {};
+            if (!newCards || !newCards.length) return null;
+            if (typeof gsap === 'undefined') return null;
+
+            gsap.killTweensOf(newCards);
+
+            if (shouldSkip()) {
+                gsap.set(newCards, { opacity: 1, y: 0 });
+                return null;
+            }
+
+            var viewportH = window.innerHeight;
+            var visible = [];
+            var offscreen = [];
+            Array.from(newCards).forEach(function (card) {
+                if (card.getBoundingClientRect().top < viewportH) {
+                    visible.push(card);
+                } else {
+                    offscreen.push(card);
+                }
+            });
+
+            if (offscreen.length) {
+                gsap.set(offscreen, { opacity: 1, y: 0 });
+            }
+
+            if (!visible.length) return null;
+
+            return gsap.fromTo(visible,
+                { opacity: 0, y: 16 },
+                {
+                    opacity: 1,
+                    y: 0,
+                    duration: options.duration || 0.35,
+                    stagger: options.stagger || 0.03,
+                    ease: options.ease || 'power2.out',
+                    clearProps: 'transform,opacity'
+                }
+            );
         }
     };
 })();

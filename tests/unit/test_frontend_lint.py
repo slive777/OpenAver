@@ -688,10 +688,10 @@ class TestLoadMoreButton:
     # --- search.html ---
 
     def test_html_load_more_click_binding(self):
-        """search.html grid-staging-wrapper 內含 loadMore() 的 @click 綁定"""
+        """search.html grid-staging-wrapper 內含 gridLoadMore() 的 @click 綁定"""
         html = self._html()
-        assert '@click="loadMore()"' in html, \
-            'search.html 缺少 @click="loadMore()" 綁定（Load More 按鈕）'
+        assert '@click="gridLoadMore()"' in html, \
+            'search.html 缺少 @click="gridLoadMore()" 綁定（Load More 按鈕）'
 
     def test_html_load_more_i18n_ref(self):
         """search.html 含 t('search.button.load_more') 引用"""
@@ -730,8 +730,49 @@ class TestLoadMoreButton:
             val = self._get_nested(data, "search.button.load_more")
             assert val, f"{locale_file} 缺少 search.button.load_more key"
 
+    # --- T3a 守衛 ---
+
+    def _navigation_js(self):
+        return NAVIGATION_JS.read_text(encoding="utf-8")
+
+    def _animations_js(self):
+        return ANIMATIONS_JS.read_text(encoding="utf-8")
+
+    def test_loadmore_has_trigger_parameter(self):
+        """T3a: navigation.js loadMore 函數簽名含 trigger 參數"""
+        js = self._navigation_js()
+        assert "async loadMore(trigger" in js, \
+            "navigation.js 缺少 async loadMore(trigger ...) 簽名（T3a 需加 trigger 參數）"
+
+    def test_loadmore_returns_result_object(self):
+        """T3a: navigation.js loadMore 成功分支回傳 { loadedCount, oldLength }"""
+        js = self._navigation_js()
+        start = js.find("async loadMore(trigger")
+        assert start != -1, "navigation.js 找不到 async loadMore(trigger 函數"
+        func_body = js[start:]
+        finally_pos = func_body.find("finally {")
+        if finally_pos != -1:
+            end_pos = func_body.find("}", finally_pos + len("finally {"))
+            end_pos = func_body.find("},", end_pos + 1)
+            func_body = func_body[:end_pos] if end_pos != -1 else func_body
+        assert "return { loadedCount" in func_body, \
+            "navigation.js loadMore() 成功分支缺少 return { loadedCount ... } 回傳值（T3a 需回傳 append 結果）"
+
+    def test_grid_load_more_exists(self):
+        """T3a: navigation.js 含 async gridLoadMore() 函數"""
+        js = self._navigation_js()
+        assert "async gridLoadMore()" in js, \
+            "navigation.js 缺少 async gridLoadMore() 函數（T3a Grid 按鈕入口）"
+
+    def test_animations_has_play_append_cascade(self):
+        """T3a: animations.js 含 playAppendCascade 函數"""
+        js = self._animations_js()
+        assert "playAppendCascade" in js, \
+            "animations.js 缺少 playAppendCascade（T3a append cascade 動畫）"
+
 
 NAVIGATION_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state" / "navigation.js"
+ANIMATIONS_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "animations.js"
 
 
 class TestCodexFixes:
@@ -747,8 +788,8 @@ class TestCodexFixes:
         """F1：loadMore() 成功分支不含 this.currentIndex = 賦值"""
         js = self._navigation_js()
         # 找到 loadMore 函數體，截取到 finally 區塊結束
-        start = js.find("async loadMore()")
-        assert start != -1, "navigation.js 找不到 async loadMore() 函數"
+        start = js.find("async loadMore(trigger")
+        assert start != -1, "navigation.js 找不到 async loadMore(trigger ...) 函數"
         # 截取 loadMore 函數體（到函數結尾）
         func_body = js[start:]
         # 找到 finally { ... } 後的第一個右大括號（函數結束）

@@ -80,11 +80,14 @@ window.SearchStateMixin_Navigation = {
 
     /**
      * 載入更多結果
+     * @param {string} trigger - 呼叫入口（'detail' | 'grid' | 'lightbox'），預設 'detail'
+     * @returns {{ loadedCount: number, oldLength: number }|null}
      */
-    async loadMore() {
-        if (this.isLoadingMore || !this.hasMoreResults || !this.currentQuery) return;
+    async loadMore(trigger = 'detail') {
+        if (this.isLoadingMore || !this.hasMoreResults || !this.currentQuery) return null;
 
         this.isLoadingMore = true;
+        const oldLength = this.searchResults.length;
         const newOffset = this.currentOffset + this.PAGE_SIZE;
         const loadMoreSignal = this._getAbortSignal('loadMore');
 
@@ -96,26 +99,48 @@ window.SearchStateMixin_Navigation = {
             const data = await response.json();
 
             if (response.ok && data.success && data.data && data.data.length > 0) {
-                const newBatchStart = this.searchResults.length;
+                const loadedCount = data.data.length;
                 this.searchResults = this.searchResults.concat(data.data);
                 this.currentOffset = newOffset;
                 this.hasMoreResults = data.has_more;
                 this._resetCoverState();
 
-                this.preloadImages(newBatchStart + 1, 5);
+                this.preloadImages(oldLength + 1, 5);
 
                 // T4: Load more 後查詢本地狀態
                 this.checkLocalStatus(this.searchResults);
+
+                // 不動 currentIndex — 由呼叫端根據 trigger 自行處理
+                return { loadedCount, oldLength };
             } else {
                 this.hasMoreResults = false;
+                return null;
             }
         } catch (err) {
-            if (err.name === 'AbortError') return;  // T4.3: 靜默忽略取消
+            if (err.name === 'AbortError') return null;  // T4.3: 靜默忽略取消
             console.error('載入更多失敗:', err);
+            return null;
         } finally {
             this.isLoadingMore = false;
             this._clearAbort('loadMore', loadMoreSignal);  // T4.3: 操作完成清除 registry（比對 signal 避免刪掉新請求）
         }
+    },
+
+    /**
+     * T3a: Grid 按鈕入口 — await loadMore 後播 append cascade 動畫
+     * 不動 currentIndex（保留用戶目前選取）
+     */
+    async gridLoadMore() {
+        const result = await this.loadMore('grid');
+        if (!result || result.loadedCount === 0) return;
+        // Grid: 不動 currentIndex — 保留用戶目前選取
+        this.$nextTick(() => {
+            const gridEl = document.querySelector('.search-grid');
+            if (!gridEl) return;
+            const newCards = Array.from(gridEl.querySelectorAll('[data-slot]'))
+                .filter(el => parseInt(el.getAttribute('data-slot'), 10) >= result.oldLength);
+            window.SearchAnimations?.playAppendCascade?.(newCards);
+        });
     },
 
     /**
