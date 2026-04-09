@@ -107,7 +107,7 @@
       "has_local_count": "本地已有 {count} 个版本（点击打开文件夹）"
     },
     "button": {
-      "search_all": "搜索全部",
+      "search_all": "批量搜索",
       "continue": "继续",
       "pause": "暂停",
       "retry_failed": "重试失败 ({count})",
@@ -126,13 +126,14 @@
       "uncensored": "无码搜索"
     },
     "filelist": {
-      "search_all_title": "搜索所有未搜索的文件",
+      "search_all_title": "搜索所有尚未搜索的文件",
       "translate_all_title": "翻译所有日文标题",
-      "scrape_all_title": "生成所有已搜索的文件",
-      "scrape_all": "生成全部",
+      "scrape_all_title": "整理所有已搜索的文件（重命名 + 建文件夹 + NFO）",
+      "scrape_all": "批量整理",
       "processing_prefix": "处理中",
+      "organizing_prefix": "整理中",
       "remove_file": "移除此文件",
-      "scrape_nfo": "生成 NFO + 封面",
+      "scrape_nfo": "整理此片",
       "failed": "失败",
       "retry": "重试",
       "enter_number": "手动输入番号",
@@ -142,6 +143,15 @@
       "not_found": "找不到 {number} 的资料",
       "search_failed": "搜索失败",
       "connection_error": "连接错误，请稍后再试"
+    },
+    "toast": {
+      "no_searchable_files": "没有需要搜索的文件",
+      "search_complete": "批量搜索完成：成功 {success}，失败 {failed}",
+      "no_scrapable_files": "没有可整理的文件",
+      "scrape_complete": "批量整理完成：成功 {success}，失败 {failed}",
+      "scrape_complete_dup": "批量整理完成：成功 {success}，失败 {failed}，重复 {duplicate}",
+      "no_search_results": "此文件没有搜索结果",
+      "scrape_failed": "{filename} 整理失败"
     },
     "duplicate": {
       "title": "文件重复",
@@ -528,7 +538,7 @@
       "method_actress": "<strong>女优名</strong>：如 <code>河北彩花</code>，搜索该演员作品",
       "drag_auto": "将影片文件拖入窗口，自动提取番号并搜索",
       "drag_batch": "支持多文件批次处理（一次 20 个）",
-      "drag_generate": "搜索成功后可点「生成」更改文件名、下载封面和建立文件夹与 NFO",
+      "drag_generate": "搜索成功后可点「整理此片」重命名文件、下载封面、建立文件夹与 NFO",
       "grid_switch": "搜索后可切换为封面墙显示，点击封面开启 Lightbox",
       "grid_lightbox": "<strong>Lightbox</strong>：全屏检视封面，<kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> 键导航，<kbd class=\"kbd kbd-sm\">Esc</kbd> 关闭",
       "grid_detail": "Lightbox 显示导演、片长、系列、Label 等详细信息（有数据时才会出现）",
@@ -540,7 +550,7 @@
       "h6_add": "加入多个文件",
       "h6_favorite": "我的最爱文件夹",
       "h6_pause": "暂停与继续",
-      "h6_generate_all": "生成全部",
+      "h6_generate_all": "批量整理",
       "h6_badge": "版本标记保留",
       "add_folder": "<strong>拖入文件夹</strong>：自动扫描文件夹内的影片文件",
       "add_filter": "<strong>自动过滤</strong>：排除非影片文件与小于设定大小的文件",
@@ -551,7 +561,7 @@
       "fav_auto": "自动开始搜索前 20 个文件",
       "pause_pause": "批次搜索时可点击「暂停」按钮",
       "pause_resume": "点击「继续」从暂停处恢复",
-      "generate_all": "批次搜索完成后，可一次执行所有成功结果的重命名 / 建文件夹 / NFO",
+      "generate_all": "批次搜索完成后，可一次整理所有成功结果（重命名、建文件夹、下载封面、写 NFO）",
       "badge_suffix": "文件名中的 <code>-cd1</code>、<code>-4k</code> 等会自动保留为 <code>{suffix}</code>"
     },
     "format": {

@@ -98,7 +98,7 @@ window.SearchStateMixin_Batch = {
             failedFiles.forEach(f => { f.searched = false; f.searchResults = []; });
             targetFiles = failedFiles;
         } else {
-            alert('沒有需要搜尋的檔案');
+            this.showToast(window.t('search.toast.no_searchable_files'), 'info');
             return;
         }
 
@@ -171,7 +171,8 @@ window.SearchStateMixin_Batch = {
 
         // 顯示完成統計（cleanup 中斷時不顯示）
         if (!aborted) {
-            alert(`批次搜尋完成！\n成功: ${batch.success}\n失敗: ${batch.failed}`);
+            const type = (batch.failed > 0) ? 'warning' : 'success';
+            this.showToast(window.t('search.toast.search_complete', { success: batch.success, failed: batch.failed }), type, 4000);
         }
 
         // 重置 total
@@ -271,11 +272,22 @@ window.SearchStateMixin_Batch = {
         );
 
         if (scrapableFiles.length === 0) {
-            alert('沒有可處理的檔案');
+            this.showToast(window.t('search.toast.no_scrapable_files'), 'info');
             return;
         }
 
         this.isScrapeAllProcessing = true;
+
+        // T2b: 初始化 scrape progress
+        this.scrapeProgress.total = scrapableFiles.length;
+        this.scrapeProgress.processed = 0;
+        this.scrapeProgress.isProcessing = true;
+
+        // 重設 progress bar 初始寬度（GSAP 上次殘留的 inline style）
+        this.$nextTick(() => {
+            const barEl = document.getElementById('scrapeProgressBar');
+            if (barEl) barEl.style.width = '0%';
+        });
 
         let successCount = 0;
         let failCount = 0;
@@ -308,6 +320,13 @@ window.SearchStateMixin_Batch = {
                     file.scrapeStatus = 'duplicate';
                     file.isScraping = false;  // 必須清除，否則 spinner 永遠轉（L144 的清除被 continue 跳過）
                     duplicateCount++;
+                    // T2b: duplicate 仍算已處理（不播動畫）
+                    this.scrapeProgress.processed++;
+                    const dupePercent = this.scrapePercent();
+                    this.$nextTick(() => {
+                        const barEl = document.getElementById('scrapeProgressBar');
+                        window.SearchAnimations?.playProgressUpdate?.(barEl, dupePercent);
+                    });
                     continue;
                 }
                 if (result.success) {
@@ -329,18 +348,44 @@ window.SearchStateMixin_Batch = {
             }
 
             file.isScraping = false;
+
+            // T2b: 每輪完成後更新進度條 + per-file row 動畫
+            this.scrapeProgress.processed++;
+            const percent = this.scrapePercent();
+            this.$nextTick(() => {
+                const barEl = document.getElementById('scrapeProgressBar');
+                window.SearchAnimations?.playProgressUpdate?.(barEl, percent);
+                // per-file row 動畫（複用 T2a）
+                const rows = document.querySelectorAll('#fileList .file-item');
+                const rowEl = rows[this.fileList.indexOf(file)];
+                if (rowEl) {
+                    const btn = [...rowEl.querySelectorAll('.btn-scrape-single')]
+                        .find(b => b.offsetParent !== null);
+                    if (file.scrapeStatus === 'done') {
+                        window.SearchAnimations?.playOrganizeSuccess?.(btn, rowEl);
+                    } else if (file.scrapeStatus === 'failed') {
+                        window.SearchAnimations?.playOrganizeFail?.(btn);
+                    }
+                    // duplicate：不播動畫（已在 duplicate 路徑處理）
+                }
+            });
         }
 
         this.isScrapeAllProcessing = false;
+        this.scrapeProgress.isProcessing = false;
 
-        alert(`批次處理完成！\n成功: ${successCount}\n失敗: ${failCount}` +
-            (duplicateCount ? `\n重複: ${duplicateCount}（請到設定 → 版本標記）` : ''));
+        const scrapeType = (failCount > 0) ? 'warning' : 'success';
+        if (duplicateCount > 0) {
+            this.showToast(window.t('search.toast.scrape_complete_dup', { success: successCount, failed: failCount, duplicate: duplicateCount }), scrapeType, 4000);
+        } else {
+            this.showToast(window.t('search.toast.scrape_complete', { success: successCount, failed: failCount }), scrapeType, 4000);
+        }
     },
 
     async scrapeSingle(index) {
         const file = this.fileList[index];
         if (!file || !file.searchResults || file.searchResults.length === 0) {
-            alert('此檔案沒有搜尋結果');
+            this.showToast(window.t('search.toast.no_search_results'), 'info');
             return;
         }
 
@@ -374,15 +419,42 @@ window.SearchStateMixin_Batch = {
                     const fields = result.used_fallbacks.join('、');
                     this.showToast(`⚠️ ${fields} 資訊未取得，已使用預設值`, 'warning');
                 }
+                // 動畫：成功 pop-in + row flash
+                this.$nextTick(() => {
+                    const rows = document.querySelectorAll('#fileList .file-item');
+                    const rowEl = rows[index];
+                    if (!rowEl) return;
+                    const btn = [...rowEl.querySelectorAll('.btn-scrape-single')]
+                        .find(b => b.offsetParent !== null);
+                    window.SearchAnimations?.playOrganizeSuccess?.(btn, rowEl);
+                });
             } else {
                 console.error('[Scrape]', file.filename, result.error);
-                alert(`${file.filename} 處理失敗`);
+                this.showToast(window.t('search.toast.scrape_failed', { filename: file.filename }), 'error');
                 file.scrapeStatus = 'failed';
+                // 動畫：失敗 shake
+                this.$nextTick(() => {
+                    const rows = document.querySelectorAll('#fileList .file-item');
+                    const rowEl = rows[index];
+                    if (!rowEl) return;
+                    const btn = [...rowEl.querySelectorAll('.btn-scrape-single')]
+                        .find(b => b.offsetParent !== null);
+                    window.SearchAnimations?.playOrganizeFail?.(btn);
+                });
             }
         } catch (err) {
             console.error('[Scrape]', file.filename, err);
-            alert(`${file.filename} 處理失敗`);
+            this.showToast(window.t('search.toast.scrape_failed', { filename: file.filename }), 'error');
             file.scrapeStatus = 'failed';
+            // 動畫：失敗 shake
+            this.$nextTick(() => {
+                const rows = document.querySelectorAll('#fileList .file-item');
+                const rowEl = rows[index];
+                if (!rowEl) return;
+                const btn = [...rowEl.querySelectorAll('.btn-scrape-single')]
+                    .find(b => b.offsetParent !== null);
+                window.SearchAnimations?.playOrganizeFail?.(btn);
+            });
         }
 
         file.isScraping = false;

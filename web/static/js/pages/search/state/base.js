@@ -104,6 +104,13 @@ window.SearchStateMixin_Base = function () {
         searchingFileDirection: null,  // 'next' | 'prev' — for searchForFile btn spinner
         isScrapeAllProcessing: false,  // scrapeAll spinner
 
+        // ===== T2b: Scrape Progress State =====
+        scrapeProgress: {
+            processed: 0,
+            total: 0,
+            isProcessing: false
+        },
+
         // ===== V1d: Source Switching State =====
         isSwitchingSource: false,      // 切換來源中（控制 spinner + disabled）
         switchSourceShake: false,      // 觸發抖動動畫（無其他版本時）
@@ -363,6 +370,13 @@ window.SearchStateMixin_Base = function () {
             const batch = this.batchState;
             if (batch.total === 0) return 0;
             return Math.round((batch.processed / batch.total) * 100);
+        },
+
+        // ===== T2b: Scrape Progress Computed =====
+        scrapePercent() {
+            const sp = this.scrapeProgress;
+            if (sp.total === 0) return 0;
+            return Math.round((sp.processed / sp.total) * 100);
         },
 
         // ===== T1d: File List Helper Methods =====

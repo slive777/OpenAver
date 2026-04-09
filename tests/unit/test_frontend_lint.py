@@ -2,6 +2,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 SHOWCASE_HTML = Path(__file__).parent.parent.parent / "web" / "templates" / "showcase.html"
 
 
@@ -688,10 +690,10 @@ class TestLoadMoreButton:
     # --- search.html ---
 
     def test_html_load_more_click_binding(self):
-        """search.html grid-staging-wrapper 內含 loadMore() 的 @click 綁定"""
+        """search.html grid-staging-wrapper 內含 gridLoadMore() 的 @click 綁定"""
         html = self._html()
-        assert '@click="loadMore()"' in html, \
-            'search.html 缺少 @click="loadMore()" 綁定（Load More 按鈕）'
+        assert '@click="gridLoadMore()"' in html, \
+            'search.html 缺少 @click="gridLoadMore()" 綁定（Load More 按鈕）'
 
     def test_html_load_more_i18n_ref(self):
         """search.html 含 t('search.button.load_more') 引用"""
@@ -716,10 +718,10 @@ class TestLoadMoreButton:
     # --- grid-mode.js ---
 
     def test_grid_mode_next_lightbox_video_calls_load_more(self):
-        """grid-mode.js nextLightboxVideo() 含 loadMore() 呼叫"""
+        """grid-mode.js nextLightboxVideo() 含 await this.loadMore('lightbox') 呼叫（T3c）"""
         js = self._grid_mode()
-        assert "this.loadMore()" in js, \
-            "grid-mode.js nextLightboxVideo() 缺少 this.loadMore() 呼叫"
+        assert "await this.loadMore('lightbox')" in js, \
+            "grid-mode.js nextLightboxVideo() 缺少 await this.loadMore('lightbox') 呼叫（T3c fire-and-forget 已改為 await）"
 
     # --- locale files ---
 
@@ -730,8 +732,49 @@ class TestLoadMoreButton:
             val = self._get_nested(data, "search.button.load_more")
             assert val, f"{locale_file} 缺少 search.button.load_more key"
 
+    # --- T3a 守衛 ---
+
+    def _navigation_js(self):
+        return NAVIGATION_JS.read_text(encoding="utf-8")
+
+    def _animations_js(self):
+        return ANIMATIONS_JS.read_text(encoding="utf-8")
+
+    def test_loadmore_has_trigger_parameter(self):
+        """T3a: navigation.js loadMore 函數簽名含 trigger 參數"""
+        js = self._navigation_js()
+        assert "async loadMore(trigger" in js, \
+            "navigation.js 缺少 async loadMore(trigger ...) 簽名（T3a 需加 trigger 參數）"
+
+    def test_loadmore_returns_result_object(self):
+        """T3a: navigation.js loadMore 成功分支回傳 { loadedCount, oldLength }"""
+        js = self._navigation_js()
+        start = js.find("async loadMore(trigger")
+        assert start != -1, "navigation.js 找不到 async loadMore(trigger 函數"
+        func_body = js[start:]
+        finally_pos = func_body.find("finally {")
+        if finally_pos != -1:
+            end_pos = func_body.find("}", finally_pos + len("finally {"))
+            end_pos = func_body.find("},", end_pos + 1)
+            func_body = func_body[:end_pos] if end_pos != -1 else func_body
+        assert "return { loadedCount" in func_body, \
+            "navigation.js loadMore() 成功分支缺少 return { loadedCount ... } 回傳值（T3a 需回傳 append 結果）"
+
+    def test_grid_load_more_exists(self):
+        """T3a: navigation.js 含 async gridLoadMore() 函數"""
+        js = self._navigation_js()
+        assert "async gridLoadMore()" in js, \
+            "navigation.js 缺少 async gridLoadMore() 函數（T3a Grid 按鈕入口）"
+
+    def test_animations_has_play_append_cascade(self):
+        """T3a: animations.js 含 playAppendCascade 函數"""
+        js = self._animations_js()
+        assert "playAppendCascade" in js, \
+            "animations.js 缺少 playAppendCascade（T3a append cascade 動畫）"
+
 
 NAVIGATION_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state" / "navigation.js"
+ANIMATIONS_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "animations.js"
 
 
 class TestCodexFixes:
@@ -747,8 +790,8 @@ class TestCodexFixes:
         """F1：loadMore() 成功分支不含 this.currentIndex = 賦值"""
         js = self._navigation_js()
         # 找到 loadMore 函數體，截取到 finally 區塊結束
-        start = js.find("async loadMore()")
-        assert start != -1, "navigation.js 找不到 async loadMore() 函數"
+        start = js.find("async loadMore(trigger")
+        assert start != -1, "navigation.js 找不到 async loadMore(trigger ...) 函數"
         # 截取 loadMore 函數體（到函數結尾）
         func_body = js[start:]
         # 找到 finally { ... } 後的第一個右大括號（函數結束）
@@ -962,3 +1005,269 @@ class TestScannerStateGuard:
             line_count = script_tag.count('\n') + 1
             assert line_count <= 10, \
                 f"scanner.html extra_js 含超過 10 行 inline script（{line_count} 行）"
+
+
+class TestCtaI18nGuard:
+    """39c-T1: 守衛 CTA 文案重構 — 四語系 5 個核心 key 的新值"""
+
+    # 5 個核心 CTA key 的預期新值（各語系）
+    EXPECTED = {
+        "zh_TW.json": {
+            "search.button.search_all": "批次搜尋",
+            "search.filelist.scrape_all": "批次整理",
+            "search.filelist.scrape_nfo": "整理此片",
+            "help.batch.h6_generate_all": "批次整理",
+            "search.filelist.scrape_all_title": "整理所有已搜尋的檔案（重命名 + 建資料夾 + NFO）",
+        },
+        "zh_CN.json": {
+            "search.button.search_all": "批量搜索",
+            "search.filelist.scrape_all": "批量整理",
+            "search.filelist.scrape_nfo": "整理此片",
+            "help.batch.h6_generate_all": "批量整理",
+            "search.filelist.scrape_all_title": "整理所有已搜索的文件（重命名 + 建文件夹 + NFO）",
+        },
+        "en.json": {
+            "search.button.search_all": "Batch Search",
+            "search.filelist.scrape_all": "Batch Organize",
+            "search.filelist.scrape_nfo": "Organize",
+            "help.batch.h6_generate_all": "Batch Organize",
+            "search.filelist.scrape_all_title": "Organize all searched files (rename + folder + NFO)",
+        },
+        "ja.json": {
+            "search.button.search_all": "一括検索",
+            "search.filelist.scrape_all": "一括整理",
+            "search.filelist.scrape_nfo": "この作品を整理",
+            "help.batch.h6_generate_all": "一括整理",
+            "search.filelist.scrape_all_title": "検索済みのファイルをすべて整理（リネーム + フォルダ作成 + NFO）",
+        },
+    }
+
+    def _locale(self, name):
+        return json.loads((LOCALES_ROOT / name).read_text(encoding="utf-8"))
+
+    def _get_nested(self, d, dotted_key):
+        keys = dotted_key.split(".")
+        cur = d
+        for k in keys:
+            if not isinstance(cur, dict) or k not in cur:
+                return None
+            cur = cur[k]
+        return cur
+
+    def test_zh_tw_cta_keys(self):
+        """zh_TW.json 5 個 CTA key 新值正確"""
+        data = self._locale("zh_TW.json")
+        for key, expected in self.EXPECTED["zh_TW.json"].items():
+            actual = self._get_nested(data, key)
+            assert actual == expected, \
+                f"zh_TW.json {key} 期望 {expected!r}，實際 {actual!r}"
+
+    def test_zh_cn_cta_keys(self):
+        """zh_CN.json 5 個 CTA key 新值正確"""
+        data = self._locale("zh_CN.json")
+        for key, expected in self.EXPECTED["zh_CN.json"].items():
+            actual = self._get_nested(data, key)
+            assert actual == expected, \
+                f"zh_CN.json {key} 期望 {expected!r}，實際 {actual!r}"
+
+    def test_en_cta_keys(self):
+        """en.json 5 個 CTA key 新值正確"""
+        data = self._locale("en.json")
+        for key, expected in self.EXPECTED["en.json"].items():
+            actual = self._get_nested(data, key)
+            assert actual == expected, \
+                f"en.json {key} 期望 {expected!r}，實際 {actual!r}"
+
+    def test_ja_cta_keys(self):
+        """ja.json 5 個 CTA key 新值正確"""
+        data = self._locale("ja.json")
+        for key, expected in self.EXPECTED["ja.json"].items():
+            actual = self._get_nested(data, key)
+            assert actual == expected, \
+                f"ja.json {key} 期望 {expected!r}，實際 {actual!r}"
+
+
+class TestScrapeProgressI18nGuard:
+    """39c-T2b: 守衛 scrape progress 進度文字 — 四語系 organizing_prefix key"""
+
+    EXPECTED = {
+        "zh_TW.json": {
+            "search.filelist.organizing_prefix": "整理中",
+        },
+        "zh_CN.json": {
+            "search.filelist.organizing_prefix": "整理中",
+        },
+        "en.json": {
+            "search.filelist.organizing_prefix": "Organizing",
+        },
+        "ja.json": {
+            "search.filelist.organizing_prefix": "整理中",
+        },
+    }
+
+    def _locale(self, name):
+        return json.loads((LOCALES_ROOT / name).read_text(encoding="utf-8"))
+
+    def _get_nested(self, d, dotted_key):
+        keys = dotted_key.split(".")
+        cur = d
+        for k in keys:
+            if not isinstance(cur, dict) or k not in cur:
+                return None
+            cur = cur[k]
+        return cur
+
+    def test_all_locales_have_organizing_prefix(self):
+        """四語系 JSON 都有 search.filelist.organizing_prefix key 且值正確"""
+        for locale_file, keys in self.EXPECTED.items():
+            data = self._locale(locale_file)
+            for key, expected in keys.items():
+                actual = self._get_nested(data, key)
+                assert actual is not None, \
+                    f"{locale_file} 缺少 key: {key}"
+                assert actual != "", \
+                    f"{locale_file} {key} 值不可為空字串"
+                assert actual == expected, \
+                    f"{locale_file} {key} 期望 {expected!r}，實際 {actual!r}"
+
+    def test_search_html_uses_organizing_prefix(self):
+        """search.html 包含 organizing_prefix 字串（確認 HTML 已引用此 key）"""
+        search_html = (LOCALES_ROOT.parent / "web" / "templates" / "search.html").read_text(encoding="utf-8")
+        assert "organizing_prefix" in search_html, \
+            "search.html 未引用 search.filelist.organizing_prefix（請確認 scrape progress section 已插入）"
+
+
+
+
+class TestScrapeToastI18nGuard:
+    """39c-T2c: 守衛批次完成 toast — 四語系 7 個 search.toast.* keys 存在且非空"""
+
+    EXPECTED_KEYS = [
+        'no_searchable_files',
+        'search_complete',
+        'no_scrapable_files',
+        'scrape_complete',
+        'scrape_complete_dup',
+        'no_search_results',
+        'scrape_failed',
+    ]
+
+    def _locale(self, name):
+        return json.loads((LOCALES_ROOT / name).read_text(encoding="utf-8"))
+
+    def _get_nested(self, d, dotted_key):
+        keys = dotted_key.split(".")
+        cur = d
+        for k in keys:
+            if not isinstance(cur, dict) or k not in cur:
+                return None
+            cur = cur[k]
+        return cur
+
+    @pytest.mark.parametrize('locale', ['zh_TW', 'zh_CN', 'en', 'ja'])
+    def test_all_locales_have_toast_keys(self, locale):
+        """四語系 search.toast.* 必須全部存在且非空"""
+        data = self._locale(f"{locale}.json")
+        for key in self.EXPECTED_KEYS:
+            dotted = f"search.toast.{key}"
+            val = self._get_nested(data, dotted)
+            assert val is not None, \
+                f"{locale}.json 缺少 key: {dotted}"
+            assert isinstance(val, str) and len(val) > 0, \
+                f"{locale}.json {dotted} 值不可為空字串"
+
+
+SEARCH_STATE_DIR = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state"
+
+
+class TestNoAlertInSearchJs:
+    """39c-T2c: search state JS 不應使用原生 alert()，改用 showToast"""
+
+    def test_no_alert_in_batch_js(self):
+        content = (SEARCH_STATE_DIR / "batch.js").read_text(encoding="utf-8")
+        assert "alert(" not in content, \
+            "batch.js 含原生 alert()，應改用 this.showToast()"
+
+
+class TestNavigateLoadMore:
+    """T3b 守衛：navigate() 在最後一片時 await loadMore + state-first slide"""
+
+    NAVIGATION_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state" / "navigation.js"
+
+    def _js(self):
+        return self.NAVIGATION_JS.read_text(encoding="utf-8")
+
+    def _navigate_body(self):
+        """截取 navigate() 函數體"""
+        js = self._js()
+        start = js.find("navigate(delta)")
+        assert start != -1, "navigation.js 找不到 navigate(delta) 函數"
+        return js[start:start + 3000]
+
+    def test_navigate_is_async(self):
+        js = self._js()
+        assert "async navigate(delta)" in js
+
+    def test_navigate_awaits_load_more_detail(self):
+        body = self._navigate_body()
+        assert "await this.loadMore('detail')" in body
+
+    def test_navigate_sets_currentindex_from_result(self):
+        body = self._navigate_body()
+        assert "this.currentIndex = result.oldLength" in body
+
+    def test_navigate_plays_slide_in_after_loadmore(self):
+        body = self._navigate_body()
+        state_pos = body.find("this.currentIndex = result.oldLength")
+        slide_in_pos = body.find("playSlideIn", state_pos if state_pos != -1 else 0)
+        assert state_pos != -1 and slide_in_pos != -1
+        assert state_pos < slide_in_pos
+
+
+class TestNextLightboxLoadMore:
+    """T3c 守衛：nextLightboxVideo() 在最後一片時 await loadMore + state-first crossfade"""
+
+    def _js(self):
+        return GRID_MODE_JS.read_text(encoding="utf-8")
+
+    def _next_lightbox_body(self):
+        """截取 nextLightboxVideo() 函數體"""
+        js = self._js()
+        start = js.find("nextLightboxVideo()")
+        assert start != -1, "grid-mode.js 找不到 nextLightboxVideo() 函數"
+        return js[start:start + 3000]
+
+    def test_next_lightbox_is_async(self):
+        """T3c: nextLightboxVideo() 必須是 async（await loadMore 需要）"""
+        js = self._js()
+        assert "async nextLightboxVideo()" in js, \
+            "grid-mode.js nextLightboxVideo() 應改為 async（T3c await loadMore 需要）"
+
+    def test_next_lightbox_awaits_load_more_lightbox(self):
+        """T3c: nextLightboxVideo() 使用 await this.loadMore('lightbox')"""
+        body = self._next_lightbox_body()
+        assert "await this.loadMore('lightbox')" in body, \
+            "grid-mode.js nextLightboxVideo() 缺少 await this.loadMore('lightbox')（T3c fire-and-forget 已改為 await）"
+
+    def test_next_lightbox_sets_current_index(self):
+        """T3c: nextLightboxVideo() loadMore 成功後設定 currentIndex = result.oldLength（state-first）"""
+        body = self._next_lightbox_body()
+        assert "this.currentIndex = result.oldLength" in body, \
+            "grid-mode.js nextLightboxVideo() 缺少 this.currentIndex = result.oldLength（T3c state-first）"
+
+    def test_next_lightbox_sets_lightbox_index(self):
+        """T3c: nextLightboxVideo() loadMore 成功後設定 lightboxIndex = result.oldLength（state-first）"""
+        body = self._next_lightbox_body()
+        assert "this.lightboxIndex = result.oldLength" in body, \
+            "grid-mode.js nextLightboxVideo() 缺少 this.lightboxIndex = result.oldLength（T3c state-first）"
+
+    def test_next_lightbox_plays_switch_after_state(self):
+        """T3c: nextLightboxVideo() loadMore 成功後 playLightboxSwitch 在 state 更新之後（animate 在 state 後）"""
+        body = self._next_lightbox_body()
+        state_pos = body.find("this.currentIndex = result.oldLength")
+        switch_pos = body.find("playLightboxSwitch", state_pos if state_pos != -1 else 0)
+        assert state_pos != -1, "nextLightboxVideo() 缺少 this.currentIndex = result.oldLength"
+        assert switch_pos != -1, \
+            "nextLightboxVideo() loadMore 成功後缺少 playLightboxSwitch（T3c 動畫觸發缺失）"
+        assert state_pos < switch_pos, \
+            "T3c 違反 state-first：currentIndex 更新必須在 playLightboxSwitch 之前"

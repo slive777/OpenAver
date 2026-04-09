@@ -107,7 +107,7 @@
       "has_local_count": "{count} local versions available (click to open folder)"
     },
     "button": {
-      "search_all": "Search All",
+      "search_all": "Batch Search",
       "continue": "Continue",
       "pause": "Pause",
       "retry_failed": "Retry Failed ({count})",
@@ -126,13 +126,14 @@
       "uncensored": "Uncensored Search"
     },
     "filelist": {
-      "search_all_title": "Search all unsearched files",
+      "search_all_title": "Search all files not yet searched",
       "translate_all_title": "Translate all Japanese titles",
-      "scrape_all_title": "Generate all searched files",
-      "scrape_all": "Generate All",
+      "scrape_all_title": "Organize all searched files (rename + folder + NFO)",
+      "scrape_all": "Batch Organize",
       "processing_prefix": "Processing",
+      "organizing_prefix": "Organizing",
       "remove_file": "Remove this file",
-      "scrape_nfo": "Generate NFO + Cover",
+      "scrape_nfo": "Organize",
       "failed": "Failed",
       "retry": "Retry",
       "enter_number": "Enter ID manually",
@@ -142,6 +143,15 @@
       "not_found": "No data found for {number}",
       "search_failed": "Search Failed",
       "connection_error": "Connection error, please try again later"
+    },
+    "toast": {
+      "no_searchable_files": "No files to search",
+      "search_complete": "Batch search complete: {success} succeeded, {failed} failed",
+      "no_scrapable_files": "No files to organize",
+      "scrape_complete": "Batch organize complete: {success} succeeded, {failed} failed",
+      "scrape_complete_dup": "Batch organize complete: {success} succeeded, {failed} failed, {duplicate} duplicates",
+      "no_search_results": "No search results for this file",
+      "scrape_failed": "Failed to organize {filename}"
     },
     "duplicate": {
       "title": "Duplicate File",
@@ -528,7 +538,7 @@
       "method_actress": "<strong>Actress Name</strong>: e.g. <code>Kaho Imai</code>, finds her works",
       "drag_auto": "Drag video files into the window to auto-extract ID and search",
       "drag_batch": "Supports batch processing of multiple files (up to 20 at once)",
-      "drag_generate": "After a successful search, click 'Generate' to rename files, download covers and create folders with NFO",
+      "drag_generate": "After a successful search, click 'Organize' to rename files, download covers, create folders and write NFO",
       "grid_switch": "After searching, switch to cover wall view; click a cover to open Lightbox",
       "grid_lightbox": "<strong>Lightbox</strong>: Full-screen cover view; use <kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> to navigate, <kbd class=\"kbd kbd-sm\">Esc</kbd> to close",
       "grid_detail": "Lightbox shows director, duration, series, label and more (only when data is available)",
@@ -540,7 +550,7 @@
       "h6_add": "Add Multiple Files",
       "h6_favorite": "Favorite Folder",
       "h6_pause": "Pause & Resume",
-      "h6_generate_all": "Generate All",
+      "h6_generate_all": "Batch Organize",
       "h6_badge": "Version Tag Preservation",
       "add_folder": "<strong>Drop Folder</strong>: Automatically scans video files in the folder",
       "add_filter": "<strong>Auto Filter</strong>: Excludes non-video files and files below the size threshold",
@@ -551,7 +561,7 @@
       "fav_auto": "Automatically begins searching the first 20 files",
       "pause_pause": "Click the 'Pause' button during batch search",
       "pause_resume": "Click 'Resume' to continue from where it paused",
-      "generate_all": "After batch search completes, rename files, create folders, and generate NFO for all successful results at once",
+      "generate_all": "After batch search completes, organize all successful results at once (rename, create folders, download covers, write NFO)",
       "badge_suffix": "Tags like <code>-cd1</code> or <code>-4k</code> in filenames are automatically preserved as <code>{suffix}</code>"
     },
     "format": {

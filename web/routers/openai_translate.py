@@ -176,6 +176,8 @@ async def test_openai_translate(request: TestTranslateRequest):
         choices = data.get("choices")
         if choices and len(choices) > 0:
             translation = choices[0]["message"]["content"].strip()
+            if not translation:
+                return TestTranslateResponse(success=False, error="empty_response")
             return TestTranslateResponse(success=True, translation=translation)
 
         elif "error" in data:

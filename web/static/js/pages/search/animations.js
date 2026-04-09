@@ -926,6 +926,144 @@
             );
 
             return tween;
+        },
+
+        /**
+         * T2a: 單片整理成功動畫 — checkmark pop-in + row 綠色 flash
+         *
+         * C4/C18: killTweensOf 先打斷舊動畫
+         * shouldSkip() guard: prefers-reduced-motion 時直接 return null
+         *
+         * @param {Element|null} btnEl - 可見的 .btn-scrape-single 按鈕元素
+         * @param {Element|null} rowEl - .file-item row 元素
+         * @returns {null}
+         */
+        playOrganizeSuccess: function (btnEl, rowEl) {
+            if (typeof gsap === 'undefined') return null;
+            gsap.killTweensOf(btnEl);
+            if (rowEl) gsap.killTweensOf(rowEl);
+            if (shouldSkip()) return null;
+
+            // checkmark pop-in
+            if (btnEl) {
+                gsap.fromTo(btnEl,
+                    { scale: 0, opacity: 0 },
+                    { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(1.7)', clearProps: 'transform,opacity' }
+                );
+            }
+
+            // row green flash
+            if (rowEl) {
+                gsap.fromTo(rowEl,
+                    { backgroundColor: 'rgba(0, 200, 100, 0.15)' },
+                    { backgroundColor: 'transparent', duration: 0.8, ease: 'power2.out', clearProps: 'backgroundColor' }
+                );
+            }
+        },
+
+        /**
+         * T2a: 單片整理失敗動畫 — 按鈕 shake
+         *
+         * C4/C18: killTweensOf 先打斷舊動畫
+         * shouldSkip() guard: prefers-reduced-motion 時直接 return null
+         *
+         * @param {Element|null} btnEl - 可見的 .btn-scrape-single 按鈕元素
+         * @returns {null}
+         */
+        playOrganizeFail: function (btnEl) {
+            if (typeof gsap === 'undefined') return null;
+            gsap.killTweensOf(btnEl);
+            if (shouldSkip()) return null;
+
+            if (btnEl) {
+                gsap.fromTo(btnEl,
+                    { x: -4 },
+                    { x: 4, duration: 0.08, repeat: 3, yoyo: true, ease: 'power1.inOut', clearProps: 'transform' }
+                );
+            }
+        },
+
+        /**
+         * T2b: 批次整理進度條更新動畫 — GSAP smooth width
+         *
+         * C4/C18: killTweensOf 先打斷舊動畫
+         * shouldSkip() guard: prefers-reduced-motion 時直接 gsap.set 到位
+         *
+         * @param {Element|null} barEl - #scrapeProgressBar 元素
+         * @param {number} percent - 目標寬度百分比（0-100）
+         * @returns {null|gsap.core.Tween}
+         */
+        playProgressUpdate: function (barEl, percent) {
+            if (typeof gsap === 'undefined') return null;
+            if (!barEl) return null;
+            gsap.killTweensOf(barEl);
+            if (shouldSkip()) {
+                gsap.set(barEl, { width: percent + '%' });
+                return null;
+            }
+            return gsap.to(barEl, {
+                width: percent + '%',
+                duration: 0.3,
+                ease: 'power2.out',
+                overwrite: 'auto'
+            });
+        },
+
+        /**
+         * T3a: Grid Load More append cascade
+         * 新卡片 stagger fade-in + 微上移，offscreen 卡片瞬間顯示
+         *
+         * C4/C18: killTweensOf 先打斷舊動畫
+         * shouldSkip() guard: prefers-reduced-motion 時直接 gsap.set 到位
+         * clearProps: 防止 inline transform 干擾 CSS hover（C21 預防）
+         *
+         * @param {Element[]} newCards - 新批次卡片 DOM 元素陣列
+         * @param {object} [options] - 可選動畫參數
+         * @param {number} [options.duration=0.35] - 單張動畫時長（秒）
+         * @param {number} [options.stagger=0.03] - 卡片間隔（秒）
+         * @param {string} [options.ease='power2.out'] - GSAP ease
+         * @returns {null|gsap.core.Tween}
+         */
+        playAppendCascade: function (newCards, options) {
+            options = options || {};
+            if (!newCards || !newCards.length) return null;
+            if (typeof gsap === 'undefined') return null;
+
+            gsap.killTweensOf(newCards);
+
+            if (shouldSkip()) {
+                gsap.set(newCards, { opacity: 1, y: 0 });
+                return null;
+            }
+
+            var viewportH = window.innerHeight;
+            var visible = [];
+            var offscreen = [];
+            Array.from(newCards).forEach(function (card) {
+                if (card.getBoundingClientRect().top < viewportH) {
+                    visible.push(card);
+                } else {
+                    offscreen.push(card);
+                }
+            });
+
+            if (offscreen.length) {
+                gsap.set(offscreen, { opacity: 1, y: 0 });
+            }
+
+            if (!visible.length) return null;
+
+            return gsap.fromTo(visible,
+                { opacity: 0, y: 16 },
+                {
+                    opacity: 1,
+                    y: 0,
+                    duration: options.duration || 0.35,
+                    stagger: options.stagger || 0.03,
+                    ease: options.ease || 'power2.out',
+                    clearProps: 'transform,opacity'
+                }
+            );
         }
     };
 })();

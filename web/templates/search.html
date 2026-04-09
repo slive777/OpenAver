@@ -117,14 +117,20 @@
         <button class="lightbox-nav lightbox-nav-prev"
                 @click.stop="prevLightboxVideo()"
                 x-show="hasVisiblePrev()"
+                :disabled="isLoadingMore"
+                :class="{ 'opacity-50': isLoadingMore }"
                 title="{{ t('search.lightbox.prev') }}">
-            <i class="bi bi-chevron-left"></i>
+            <i x-show="!isLoadingMore" class="bi bi-chevron-left"></i>
+            <span x-show="isLoadingMore" class="loading loading-spinner loading-sm"></span>
         </button>
         <button class="lightbox-nav lightbox-nav-next"
                 @click.stop="nextLightboxVideo()"
                 x-show="hasVisibleNext()"
+                :disabled="isLoadingMore"
+                :class="{ 'opacity-50': isLoadingMore }"
                 title="{{ t('search.lightbox.next') }}">
-            <i class="bi bi-chevron-right"></i>
+            <i x-show="!isLoadingMore" class="bi bi-chevron-right"></i>
+            <span x-show="isLoadingMore" class="loading loading-spinner loading-sm"></span>
         </button>
     </div>
 
@@ -628,7 +634,7 @@
             <div class="text-center py-4"
                  x-show="hasMoreResults && !isLoadingMore && displayMode === 'grid'"
                  x-cloak>
-                <button class="btn btn-outline btn-sm" @click="loadMore()">
+                <button class="btn btn-outline btn-sm" @click="gridLoadMore()">
                     <span x-text="t('search.button.load_more')"></span>
                 </button>
             </div>
@@ -676,6 +682,16 @@
                     </div>
                     <small class="batch-progress-text" id="batchProgressText"
                            x-text="t('search.filelist.processing_prefix') + ' ' + batchState.processed + '/' + batchState.total">{{ t('search.filelist.processing_prefix') }} 0/0</small>
+                </div>
+
+                <!-- 批次整理進度條 -->
+                <div class="batch-progress" id="scrapeProgress"
+                     x-show="scrapeProgress.isProcessing">
+                    <div class="batch-progress-bar">
+                        <div class="batch-progress-fill" id="scrapeProgressBar"></div>
+                    </div>
+                    <small class="batch-progress-text" id="scrapeProgressText"
+                           x-text="t('search.filelist.organizing_prefix') + ' ' + scrapeProgress.processed + '/' + scrapeProgress.total">{{ t('search.filelist.organizing_prefix') }} 0/0</small>
                 </div>
 
                 <!-- 檔案列表 -->

@@ -107,7 +107,7 @@
       "has_local_count": "ローカルに {count} バージョン存在（クリックしてフォルダを開く）"
     },
     "button": {
-      "search_all": "すべて検索",
+      "search_all": "一括検索",
       "continue": "続行",
       "pause": "一時停止",
       "retry_failed": "失敗を再試行 ({count})",
@@ -126,13 +126,14 @@
       "uncensored": "無修正検索"
     },
     "filelist": {
-      "search_all_title": "未検索のファイルをすべて検索",
+      "search_all_title": "未検索のファイルをすべて一括検索",
       "translate_all_title": "すべての日本語タイトルを翻訳",
-      "scrape_all_title": "検索済みのファイルをすべて生成",
-      "scrape_all": "すべて生成",
+      "scrape_all_title": "検索済みのファイルをすべて整理（リネーム + フォルダ作成 + NFO）",
+      "scrape_all": "一括整理",
       "processing_prefix": "処理中",
+      "organizing_prefix": "整理中",
       "remove_file": "このファイルを削除",
-      "scrape_nfo": "NFO + カバーを生成",
+      "scrape_nfo": "この作品を整理",
       "failed": "失敗",
       "retry": "再試行",
       "enter_number": "番号を手動入力",
@@ -142,6 +143,15 @@
       "not_found": "{number} のデータが見つかりません",
       "search_failed": "検索失敗",
       "connection_error": "接続エラー、後でもう一度お試しください"
+    },
+    "toast": {
+      "no_searchable_files": "検索するファイルがありません",
+      "search_complete": "一括検索完了：成功 {success}、失敗 {failed}",
+      "no_scrapable_files": "整理するファイルがありません",
+      "scrape_complete": "一括整理完了：成功 {success}、失敗 {failed}",
+      "scrape_complete_dup": "一括整理完了：成功 {success}、失敗 {failed}、重複 {duplicate}",
+      "no_search_results": "このファイルの検索結果がありません",
+      "scrape_failed": "{filename} の整理に失敗しました"
     },
     "duplicate": {
       "title": "ファイルが重複しています",
@@ -528,7 +538,7 @@
       "method_actress": "<strong>女優名</strong>：例 <code>河北彩花</code>、その女優の作品を検索",
       "drag_auto": "動画ファイルをウィンドウにドロップして番号を自動抽出・検索",
       "drag_batch": "複数ファイルのバッチ処理に対応（一度に最大 20 個）",
-      "drag_generate": "検索成功後、「生成」をクリックしてファイル名変更・カバーダウンロード・フォルダ作成・NFO 生成",
+      "drag_generate": "検索成功後、「この作品を整理」をクリックしてファイル名変更・カバーダウンロード・フォルダ作成・NFO 書き込み",
       "grid_switch": "検索後にカバーウォール表示に切り替え可能、カバーをクリックして Lightbox を開く",
       "grid_lightbox": "<strong>Lightbox</strong>：全画面カバー表示。<kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> でナビゲート、<kbd class=\"kbd kbd-sm\">Esc</kbd> で閉じる",
       "grid_detail": "Lightbox には監督・再生時間・シリーズ・レーベルなどの詳細情報を表示（データがある場合のみ）",
@@ -540,7 +550,7 @@
       "h6_add": "複数ファイルの追加",
       "h6_favorite": "お気に入りフォルダ",
       "h6_pause": "一時停止と再開",
-      "h6_generate_all": "すべて生成",
+      "h6_generate_all": "一括整理",
       "h6_badge": "バージョンタグの保持",
       "add_folder": "<strong>フォルダをドロップ</strong>：フォルダ内の動画ファイルを自動スキャン",
       "add_filter": "<strong>自動フィルタ</strong>：動画以外のファイルや設定サイズ未満のファイルを除外",
@@ -551,7 +561,7 @@
       "fav_auto": "自動的に最初の 20 ファイルの検索を開始",
       "pause_pause": "バッチ検索中に「一時停止」ボタンをクリック",
       "pause_resume": "「再開」をクリックして停止位置から再開",
-      "generate_all": "バッチ検索完了後、成功した結果のリネーム / フォルダ作成 / NFO を一括実行",
+      "generate_all": "バッチ検索完了後、成功した結果をまとめて整理（リネーム・フォルダ作成・カバーダウンロード・NFO 書き込み）",
       "badge_suffix": "ファイル名内の <code>-cd1</code>、<code>-4k</code> などは自動的に <code>{suffix}</code> として保持される"
     },
     "format": {

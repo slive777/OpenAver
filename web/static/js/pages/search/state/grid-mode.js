@@ -230,7 +230,7 @@ window.SearchStateMixin_GridMode = {
     /**
      * Lightbox 下一部
      */
-    nextLightboxVideo() {
+    async nextLightboxVideo() {
         // C18: interrupt — kill open + switch timeline（進場動畫未完也要打斷）
         if (typeof gsap !== 'undefined') {
             gsap.getById('lightboxOpen')?.kill();
@@ -253,11 +253,57 @@ window.SearchStateMixin_GridMode = {
                 newIdx++;
             }
             if (newIdx >= this.searchResults.length) {
-                if (this.hasMoreResults && !this.isLoadingMore) this.loadMore();
+                // T3c: await loadMore + state-first crossfade（skip _failed 後越界）
+                if (this.hasMoreResults && !this.isLoadingMore) {
+                    const result = await this.loadMore('lightbox');
+                    if (!result || result.loadedCount === 0) return;
+                    // await 期間 lightbox 可能被關閉 — 在 state mutation 前檢查
+                    if (!this.lightboxOpen) return;
+                    // C17 state-first
+                    this._heroLightboxImageError = false;
+                    this.currentIndex = result.oldLength;
+                    this.lightboxIndex = result.oldLength;
+                    // generation guard（await 期間 lightbox 可能被關閉）
+                    var lbGen = ++this._lightboxGeneration;
+                    this.$nextTick(() => {
+                        if (this._lightboxGeneration !== lbGen) return;
+                        var content = document.querySelector('.lightbox-content');
+                        if (content && window.SearchAnimations?.playLightboxSwitch) {
+                            this._lightboxAnimating = true;
+                            var tl = window.SearchAnimations.playLightboxSwitch(content, 'next', {
+                                onComplete: () => { this._lightboxAnimating = false; }
+                            });
+                            if (!tl) this._lightboxAnimating = false;
+                        }
+                    });
+                }
                 return;
             }
         } else {
-            if (this.hasMoreResults && !this.isLoadingMore) this.loadMore();
+            // T3c: await loadMore + state-first crossfade（已在最後一片）
+            if (this.hasMoreResults && !this.isLoadingMore) {
+                const result = await this.loadMore('lightbox');
+                if (!result || result.loadedCount === 0) return;
+                // await 期間 lightbox 可能被關閉 — 在 state mutation 前檢查
+                if (!this.lightboxOpen) return;
+                // C17 state-first
+                this._heroLightboxImageError = false;
+                this.currentIndex = result.oldLength;
+                this.lightboxIndex = result.oldLength;
+                // generation guard（await 期間 lightbox 可能被關閉）
+                var lbGen = ++this._lightboxGeneration;
+                this.$nextTick(() => {
+                    if (this._lightboxGeneration !== lbGen) return;
+                    var content = document.querySelector('.lightbox-content');
+                    if (content && window.SearchAnimations?.playLightboxSwitch) {
+                        this._lightboxAnimating = true;
+                        var tl = window.SearchAnimations.playLightboxSwitch(content, 'next', {
+                            onComplete: () => { this._lightboxAnimating = false; }
+                        });
+                        if (!tl) this._lightboxAnimating = false;
+                    }
+                });
+            }
             return;  // at last item → don't move
         }
 

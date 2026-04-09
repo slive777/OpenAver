@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.7] - 2026-04-09
+
+### Added
+
+#### 🎨 CTA 文案重構 (Phase 39c-T1)
+- 四語系 CTA 按鈕文案統一改為「整理」語意（「產生全部」→「批次整理」、「產生 NFO + 封面」→「整理此片」）
+- tooltip 加上具體說明（重命名 + 建資料夾 + NFO）
+- Help 頁說明文字同步更新
+
+#### ✨ 整理動效回饋 (Phase 39c-T2)
+- 單片整理成功 checkmark pop-in + row 綠色 flash 動畫
+- 單片整理失敗按鈕 shake 動畫
+- 批次整理進度條即時 smooth 更新 + per-file 動效回饋
+- `alert()` 阻斷式彈窗全面替換為非阻斷 toast 通知（7 處）
+
+#### 🚀 Load More 三入口動畫 (Phase 39c-T3)
+- Grid「載入更多」：新卡片 stagger fade-in cascade
+- Detail next 到最後一片：自動載入 + slide 換場到第 21 片
+- Lightbox next 到最後一片：自動載入 + crossfade 到第 21 片
+- `loadMore()` 重構為三入口共用基礎（trigger 參數 + 回傳值）
+
+### Fixed
+- Lightbox close race condition — await 期間關閉後不再偷改 currentIndex
+- 批次整理進度條第二次執行不再殘留上次 width
+- Lightbox prev/next arrow 加 loading 回饋（disabled + spinner）
+
 ## [0.6.6] - 2026-04-09
 
 ### Changed
