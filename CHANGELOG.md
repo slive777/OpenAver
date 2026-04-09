@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.6] - 2026-04-09
+
+### Changed
+
+#### 🏗️ Alpine.js 技術債清理 (Phase 39b)
+- motion_lab.html 914 行 inline x-data 抽離 → `motion-lab-state.js`
+- scanner.html 1126 行 inline script 抽離 → `scanner.js`
+- 6 頁面統一改用 `Alpine.data()` 正式註冊（取代 window 全域函數）
+- Search 頁消除 `window.SearchCore`（47→0 處）、`_x_dataStack`（6→0 處）循環委派
+- 刪除 `bridge.js`、`init.js`；`core.js` 精簡為常數
+- `window.SearchUI.showState()` 27 處改為 Alpine reactive 直接賦值
+
+### Fixed
+- Search `clearAll()` 補齊 10 個 runtime UI state 欄位 reset（lightboxOpen、displayMode 等）
+- scanner.js 移除 10 個 production console.log
+- `loadAppConfig()` tooltip 改走 i18n（新增 `search.action.load_favorite_folder`）
+
 ## [0.6.5] - 2026-04-09
 
 ### Added
