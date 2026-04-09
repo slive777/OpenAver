@@ -98,7 +98,7 @@ window.SearchStateMixin_Batch = {
             failedFiles.forEach(f => { f.searched = false; f.searchResults = []; });
             targetFiles = failedFiles;
         } else {
-            alert('沒有需要搜尋的檔案');
+            this.showToast(window.t('search.toast.no_searchable_files'), 'info');
             return;
         }
 
@@ -171,7 +171,8 @@ window.SearchStateMixin_Batch = {
 
         // 顯示完成統計（cleanup 中斷時不顯示）
         if (!aborted) {
-            alert(`批次搜尋完成！\n成功: ${batch.success}\n失敗: ${batch.failed}`);
+            const type = (batch.failed > 0) ? 'warning' : 'success';
+            this.showToast(window.t('search.toast.search_complete', { success: batch.success, failed: batch.failed }), type, 4000);
         }
 
         // 重置 total
@@ -271,7 +272,7 @@ window.SearchStateMixin_Batch = {
         );
 
         if (scrapableFiles.length === 0) {
-            alert('沒有可處理的檔案');
+            this.showToast(window.t('search.toast.no_scrapable_files'), 'info');
             return;
         }
 
@@ -367,14 +368,18 @@ window.SearchStateMixin_Batch = {
         this.isScrapeAllProcessing = false;
         this.scrapeProgress.isProcessing = false;
 
-        alert(`批次處理完成！\n成功: ${successCount}\n失敗: ${failCount}` +
-            (duplicateCount ? `\n重複: ${duplicateCount}（請到設定 → 版本標記）` : ''));
+        const scrapeType = (failCount > 0) ? 'warning' : 'success';
+        if (duplicateCount > 0) {
+            this.showToast(window.t('search.toast.scrape_complete_dup', { success: successCount, failed: failCount, duplicate: duplicateCount }), scrapeType, 4000);
+        } else {
+            this.showToast(window.t('search.toast.scrape_complete', { success: successCount, failed: failCount }), scrapeType, 4000);
+        }
     },
 
     async scrapeSingle(index) {
         const file = this.fileList[index];
         if (!file || !file.searchResults || file.searchResults.length === 0) {
-            alert('此檔案沒有搜尋結果');
+            this.showToast(window.t('search.toast.no_search_results'), 'info');
             return;
         }
 
@@ -419,7 +424,7 @@ window.SearchStateMixin_Batch = {
                 });
             } else {
                 console.error('[Scrape]', file.filename, result.error);
-                alert(`${file.filename} 處理失敗`);
+                this.showToast(window.t('search.toast.scrape_failed', { filename: file.filename }), 'error');
                 file.scrapeStatus = 'failed';
                 // 動畫：失敗 shake
                 this.$nextTick(() => {
@@ -433,7 +438,7 @@ window.SearchStateMixin_Batch = {
             }
         } catch (err) {
             console.error('[Scrape]', file.filename, err);
-            alert(`${file.filename} 處理失敗`);
+            this.showToast(window.t('search.toast.scrape_failed', { filename: file.filename }), 'error');
             file.scrapeStatus = 'failed';
             // 動畫：失敗 shake
             this.$nextTick(() => {

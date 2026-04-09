@@ -1092,3 +1092,44 @@ class TestScrapeProgressI18nGuard:
         search_html = (LOCALES_ROOT.parent / "web" / "templates" / "search.html").read_text(encoding="utf-8")
         assert "organizing_prefix" in search_html, \
             "search.html 未引用 search.filelist.organizing_prefix（請確認 scrape progress section 已插入）"
+
+
+import pytest
+
+
+class TestScrapeToastI18nGuard:
+    """39c-T2c: 守衛批次完成 toast — 四語系 7 個 search.toast.* keys 存在且非空"""
+
+    EXPECTED_KEYS = [
+        'no_searchable_files',
+        'search_complete',
+        'no_scrapable_files',
+        'scrape_complete',
+        'scrape_complete_dup',
+        'no_search_results',
+        'scrape_failed',
+    ]
+
+    def _locale(self, name):
+        return json.loads((LOCALES_ROOT / name).read_text(encoding="utf-8"))
+
+    def _get_nested(self, d, dotted_key):
+        keys = dotted_key.split(".")
+        cur = d
+        for k in keys:
+            if not isinstance(cur, dict) or k not in cur:
+                return None
+            cur = cur[k]
+        return cur
+
+    @pytest.mark.parametrize('locale', ['zh_TW', 'zh_CN', 'en', 'ja'])
+    def test_all_locales_have_toast_keys(self, locale):
+        """四語系 search.toast.* 必須全部存在且非空"""
+        data = self._locale(f"{locale}.json")
+        for key in self.EXPECTED_KEYS:
+            dotted = f"search.toast.{key}"
+            val = self._get_nested(data, dotted)
+            assert val is not None, \
+                f"{locale}.json 缺少 key: {dotted}"
+            assert isinstance(val, str) and len(val) > 0, \
+                f"{locale}.json {dotted} 值不可為空字串"

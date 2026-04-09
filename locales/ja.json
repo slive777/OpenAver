@@ -144,6 +144,15 @@
       "search_failed": "検索失敗",
       "connection_error": "接続エラー、後でもう一度お試しください"
     },
+    "toast": {
+      "no_searchable_files": "検索するファイルがありません",
+      "search_complete": "一括検索完了：成功 {success}、失敗 {failed}",
+      "no_scrapable_files": "整理するファイルがありません",
+      "scrape_complete": "一括整理完了：成功 {success}、失敗 {failed}",
+      "scrape_complete_dup": "一括整理完了：成功 {success}、失敗 {failed}、重複 {duplicate}",
+      "no_search_results": "このファイルの検索結果がありません",
+      "scrape_failed": "{filename} の整理に失敗しました"
+    },
     "duplicate": {
       "title": "ファイルが重複しています",
       "body": "対象ファイルはすでに存在します。続行すると上書きされます：",

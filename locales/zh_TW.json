@@ -144,6 +144,15 @@
       "search_failed": "搜尋失敗",
       "connection_error": "連線錯誤，請稍後再試"
     },
+    "toast": {
+      "no_searchable_files": "沒有需要搜尋的檔案",
+      "search_complete": "批次搜尋完成：成功 {success}，失敗 {failed}",
+      "no_scrapable_files": "沒有可整理的檔案",
+      "scrape_complete": "批次整理完成：成功 {success}，失敗 {failed}",
+      "scrape_complete_dup": "批次整理完成：成功 {success}，失敗 {failed}，重複 {duplicate}",
+      "no_search_results": "此檔案沒有搜尋結果",
+      "scrape_failed": "{filename} 整理失敗"
+    },
     "duplicate": {
       "title": "檔案重複",
       "body": "目標檔案已存在，繼續會覆蓋原有檔案：",

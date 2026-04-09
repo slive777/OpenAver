@@ -144,6 +144,15 @@
       "search_failed": "Search Failed",
       "connection_error": "Connection error, please try again later"
     },
+    "toast": {
+      "no_searchable_files": "No files to search",
+      "search_complete": "Batch search complete: {success} succeeded, {failed} failed",
+      "no_scrapable_files": "No files to organize",
+      "scrape_complete": "Batch organize complete: {success} succeeded, {failed} failed",
+      "scrape_complete_dup": "Batch organize complete: {success} succeeded, {failed} failed, {duplicate} duplicates",
+      "no_search_results": "No search results for this file",
+      "scrape_failed": "Failed to organize {filename}"
+    },
     "duplicate": {
       "title": "Duplicate File",
       "body": "The target file already exists. Continuing will overwrite it:",
