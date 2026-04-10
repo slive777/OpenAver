@@ -140,9 +140,11 @@ class TestGalleryScanner:
     def test_find_cover_image_any_image(self, scanner, tmp_path):
         video_path = tmp_path / "TEST-005.mp4"
         # 既沒有同名，也沒有 poster/fanart，只有隨機命名的 JPG
+        # L4 安全 fallback：目錄 1 mp4 + 1 jpg → 命中
+        video_path.touch()
         cover_path = tmp_path / "random_image.jpg"
         cover_path.touch()
-        
+
         found = scanner.find_cover_image(str(video_path))
         assert found == str(cover_path)
 

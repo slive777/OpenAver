@@ -19,7 +19,7 @@ from typing import Dict, List, Optional, Tuple
 from core.logger import get_logger
 from core.maker_mapping import load_name_mapping, load_prefix_mapping
 from core.nfo_utils import sanitize_nfo_bytes
-from core.path_utils import to_file_uri
+from core.path_utils import normalize_path, to_file_uri, uri_to_fs_path
 from core.video_extensions import DEFAULT_VIDEO_EXTENSIONS, ZERO_SIZE_EXTENSIONS
 
 logger = get_logger(__name__)
@@ -45,6 +45,7 @@ class VideoInfo:
     label: str = ""
     sample_images: List[str] = field(default_factory=list)
     user_tags: List[str] = field(default_factory=list)
+    nfo_thumb: Optional[str] = None  # 暫存用途，不序列化進 DB/cache
 
     def to_dict(self) -> dict:
         return {
@@ -207,6 +208,8 @@ class VideoScanner:
         self.path_mappings = path_mappings or {}
         self.prefix_mapping = load_prefix_mapping()
         self.name_mapping = load_name_mapping()
+        # key: dir path str → (sorted videos list, sorted images list)
+        self._dir_scan_cache: Dict[str, Tuple[List[str], List[str]]] = {}
 
     def normalize_maker(self, num: str, maker: str) -> str:
         """根據 name mapping 和番號前綴正規化片商名稱
@@ -375,35 +378,125 @@ class VideoScanner:
             if label_elem is not None and label_elem.text:
                 info.label = label_elem.text.strip()
 
+            # <thumb> 元素（相對路徑/絕對路徑/URL，供 find_cover_image L3 使用）
+            thumb_elem = root.find('thumb')
+            if thumb_elem is not None and thumb_elem.text:
+                info.nfo_thumb = thumb_elem.text.strip()
+
             return info
 
         except Exception as e:
             logger.warning(f"  [!] NFO 讀取失敗: {nfo_path} - {e}")
             return None
 
-    def find_cover_image(self, video_path: str) -> str:
-        """尋找封面圖片"""
+    def _scan_dir(self, video_dir: Path) -> Tuple[List[str], List[str]]:
+        """一次 scandir 取得目錄下所有影片和圖片，結果 cache 避免重複 IO。
+
+        Returns:
+            (sorted_videos, sorted_images) — 各自排序後的路徑字串列表
+        """
+        key = str(video_dir)
+        if key in self._dir_scan_cache:
+            return self._dir_scan_cache[key]
+
+        videos: List[str] = []
+        images: List[str] = []
+        try:
+            with os.scandir(video_dir) as entries:
+                for entry in entries:
+                    if not entry.is_file(follow_symlinks=False):
+                        continue
+                    ext = os.path.splitext(entry.name)[1].lower()
+                    if ext in VIDEO_EXTENSIONS:
+                        videos.append(entry.path)
+                    elif ext in IMAGE_EXTENSIONS:
+                        images.append(entry.path)
+            videos.sort()
+            images.sort()
+        except OSError as e:
+            logger.warning(f"  [!] 掃描目錄失敗: {video_dir} - {e}")
+            videos, images = [], []
+
+        self._dir_scan_cache[key] = (videos, images)
+        return videos, images
+
+    def _resolve_thumb_path(self, thumb_val: str, nfo_dir: Path) -> Optional[str]:
+        """解析 NFO <thumb> 值為當前環境可用的 FS 路徑。
+
+        5-case 跨平台辨識（不使用 Path.is_absolute()）：
+          1. URL (http:// / https://) → None（跳過）
+          2. file:/// URI → uri_to_fs_path()
+          3. Windows drive letter (path[1] == ':') → normalize_path()
+          4. UNC (\\\\... 或 //...) → normalize_path()（WSL backslash 會拋 ValueError）
+          5. POSIX 絕對 (/) 或相對 → 直接或 nfo_dir / val
+
+        Returns:
+            FS 路徑字串（Path.is_file() 驗證存在），或 None
+        """
+        if not thumb_val:
+            return None
+
+        # Case 1: URL → skip
+        if thumb_val.startswith(('http://', 'https://')):
+            return None
+
+        try:
+            # Case 2: file:/// URI
+            if thumb_val.startswith('file://'):
+                fs = uri_to_fs_path(thumb_val)
+            # Case 3: Windows drive letter
+            elif len(thumb_val) >= 2 and thumb_val[1] == ':':
+                fs = normalize_path(thumb_val)
+            # Case 4: UNC 路徑（backslash 或 forward-slash）
+            elif thumb_val.startswith(('\\\\', '//')):
+                fs = normalize_path(thumb_val)
+            # Case 5: POSIX 絕對路徑
+            elif thumb_val.startswith('/'):
+                fs = thumb_val
+            # Case 5: 相對路徑
+            else:
+                fs = str(nfo_dir / thumb_val)
+        except ValueError:
+            # WSL 環境下 backslash UNC 會拋 ValueError → fall through
+            return None
+
+        return fs if Path(fs).is_file() else None
+
+    def find_cover_image(self, video_path: str, nfo_thumb: Optional[str] = None) -> str:
+        """尋找封面圖片（4 層 fallback）
+
+        L1: 同名圖片（{stem}{ext}）
+        L2: 標準名稱（fanart/poster/cover/folder）
+        L3: NFO <thumb> 跨平台路徑解析
+        L4: 安全 fallback — 僅在 mp4==1 AND 0<img<=2 雙條件下回傳 sorted 第一張
+        """
         video_path = Path(video_path)
         video_dir = video_path.parent
         video_stem = video_path.stem
 
-        # 優先尋找同名圖片
+        # L1: 同名圖片
         for ext in IMAGE_EXTENSIONS:
             img_path = video_dir / f"{video_stem}{ext}"
             if img_path.exists():
                 return str(img_path)
 
-        # 尋找 fanart, poster, cover, folder
+        # L2: 標準名稱
         for name in ['fanart', 'poster', 'cover', 'folder']:
             for ext in IMAGE_EXTENSIONS:
                 img_path = video_dir / f"{name}{ext}"
                 if img_path.exists():
                     return str(img_path)
 
-        # 尋找目錄中第一張圖片
-        for ext in IMAGE_EXTENSIONS:
-            for img_path in video_dir.glob(f"*{ext}"):
-                return str(img_path)
+        # L3: NFO <thumb>
+        if nfo_thumb:
+            resolved = self._resolve_thumb_path(nfo_thumb, video_dir)
+            if resolved:
+                return resolved
+
+        # L4: 安全 fallback — 雙條件：mp4==1 AND 0<img<=2
+        videos, images = self._scan_dir(video_dir)
+        if len(videos) == 1 and 0 < len(images) <= 2:
+            return images[0]  # sorted first
 
         return ""
 
@@ -458,6 +551,7 @@ class VideoScanner:
                 info.series = nfo_info.series or info.series
                 info.label = nfo_info.label or info.label
                 info.user_tags = nfo_info.user_tags or []
+                info.nfo_thumb = nfo_info.nfo_thumb
 
         # 如果 NFO 沒有資料，從檔名解析
         if not info.title or not info.num:
@@ -473,7 +567,7 @@ class VideoScanner:
         info.maker = self.normalize_maker(info.num, info.maker)
 
         # 尋找封面圖片
-        img_path = self.find_cover_image(str(video_path))
+        img_path = self.find_cover_image(str(video_path), nfo_thumb=info.nfo_thumb)
         if img_path:
             if base_path:
                 try:
