@@ -167,11 +167,10 @@ window.SearchStateMixin_ResultCard = {
             const result = await this.translateWithOllama(currentResult.title, 'translate', currentResult);
 
             if (result.success && result.result) {
-                if (this.listMode === 'file') {
-                    this.fileList[this.currentFileIndex].searchResults[this.currentIndex].translated_title = result.result;
-                } else {
-                    this.searchResults[this.currentIndex].translated_title = result.result;
-                }
+                // 41d-T5: 用 captured currentResult ref 避免 await 期間切檔 race
+                // currentResult 在 L158/L160 已捕獲為 searchResults 元素的 object reference，
+                // 直接賦值即更新原陣列元素，無需 re-index this.fileList[this.currentFileIndex]
+                currentResult.translated_title = result.result;
                 this.saveState();
             } else {
                 throw new Error(result.error || '翻譯失敗');
