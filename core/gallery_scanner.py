@@ -454,8 +454,12 @@ class VideoScanner:
             elif thumb_val.startswith('/'):
                 fs = thumb_val
             # Case 5: 相對路徑
+            # 注意：third-party Windows-authored NFO 的相對路徑可能用 backslash
+            # 例如 "covers\poster.jpg"，在 POSIX 必須先轉 forward slash 才能正確拼接。
+            # 這裡的 replace('\\', '/') 是處理 NFO 第三方內容字串的標準化，
+            # 不是 FS 路徑轉換（CLAUDE.md 禁止清單禁的是對 FS 路徑用 replace，性質不同）。
             else:
-                fs = str(nfo_dir / thumb_val)
+                fs = str(nfo_dir / thumb_val.replace('\\', '/'))
         except ValueError:
             # WSL 環境下 backslash UNC 會拋 ValueError → fall through
             return None

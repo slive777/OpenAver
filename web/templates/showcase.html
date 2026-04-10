@@ -198,7 +198,8 @@
                     <div class="av-card-preview-img">
                         <img :src="video.cover_url"
                              :alt="video.number"
-                             loading="lazy">
+                             loading="lazy"
+                             @error="handleCoverError(video, $event)">
                         <div class="av-card-preview-overlay">
                             <button class="btn-glass-circle"
                                     @click.stop="playVideo(video.path)"
@@ -360,7 +361,7 @@
                 <div class="lightbox-cover">
                     <img :src="currentLightboxVideo?.cover_url"
                          :alt="currentLightboxVideo?.number"
-                         @error="$event.target.onerror=null; $event.target.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22 fill=%22%23666%22><rect width=%22400%22 height=%22300%22 fill=%22%23222%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2216%22>No Image</text></svg>'">
+                         @error="handleCoverError(currentLightboxVideo, $event)">
                     <!-- Cover Action Buttons -->
                     <div class="cover-actions">
                         <button class="lb-action-btn" @click="playVideo(currentLightboxVideo?.path)" data-tooltip="{{ t('showcase.action.play') }}" aria-label="{{ t('showcase.action.play') }}">

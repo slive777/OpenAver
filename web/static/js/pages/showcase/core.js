@@ -1111,6 +1111,16 @@ function showcaseState() {
             }
         },
 
+        // Stale cover handler — 圖片載入失敗時 downgrade has_cover，
+        // 觸發 Alpine reactive：enrich icon 自動出現、missing-cover class 套用、
+        // 點 enrich 後自動走 refresh_full 補封面。
+        handleCoverError(video, event) {
+            if (!video) return;
+            video.has_cover = false;  // 觸發 reactive — enrich icon 自動出現 + missing-cover class 套用
+            event.target.onerror = null;  // 防止 placeholder 失敗無限迴圈
+            event.target.src = 'data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22 fill=%22%23666%22><rect width=%22400%22 height=%22300%22 fill=%22%23222%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2216%22>No Image</text></svg>';
+        },
+
         // --- Toast 通知 (M3h) ---
         showToast(msg, type = 'success', duration = 2500) {
             this.toastMessage = msg;

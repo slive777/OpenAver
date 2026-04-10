@@ -174,6 +174,18 @@ class TestL3NfoThumb:
             )
         assert result is None
 
+    def test_e25_windows_style_relative_thumb(self, tmp_path):
+        """E25: Windows-authored NFO 相對路徑 'covers\\poster.jpg' 在 POSIX 應正確解析"""
+        covers_dir = tmp_path / "covers"
+        covers_dir.mkdir()
+        poster = covers_dir / "poster.jpg"
+        poster.write_bytes(b"")
+
+        scanner = VideoScanner()
+        # 第三方 Windows-authored NFO 的 <thumb> 值
+        result = scanner._resolve_thumb_path("covers\\poster.jpg", tmp_path)
+        assert result == str(poster)
+
     def test_e3_l3_takes_priority_over_l4(self, tmp_path):
         """L3 命中時不走到 L4（確保 fallback 優先順序正確）"""
         (tmp_path / "abc-123.mp4").write_bytes(b"")
