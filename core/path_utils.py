@@ -260,6 +260,15 @@ def to_file_uri(fs_path: str, path_mappings: dict = None) -> str:
 
     Returns:
         file:/// 格式的 URI
+
+    Notes:
+        - mapping branch 只在 CURRENT_ENV == 'wsl' 且有 path_mappings 時生效。
+        - 大小寫敏感（known limitation, T7）：startswith 比對是 case-sensitive，
+          與 T6 reverse_path_mapping 對稱，沿用相同 limitation 標記。
+        - 命中 boundary check（T7 P1 fix）：tail 必須為空或以 separator 開頭，
+          避免 /home/user/share 誤命中 /home/user/share2。
+        - trailing separator normalize（T7 P2 fix）：wsl_prefix 與 win_prefix 結尾的
+          / 或 \\ 會被 rstrip('/\\\\') 清掉，避免拼接時缺斜線或雙斜線。
     """
     # 統一使用正斜線
     abs_path = fs_path.replace(chr(92), '/')
@@ -283,12 +292,23 @@ def to_file_uri(fs_path: str, path_mappings: dict = None) -> str:
 
     # 其他 Unix 路徑：使用 path_mappings 轉換
     if path_mappings and CURRENT_ENV == 'wsl':
+        SEPS = ('/', '\\')
         # 嘗試找到匹配的映射
         for wsl_prefix, win_prefix in path_mappings.items():
-            if abs_path.startswith(wsl_prefix):
-                win_path = win_prefix + abs_path[len(wsl_prefix):]
-                win_path = win_path.replace(chr(92), '/')
-                return f"file:///{win_path}"
+            # T7 P2 fix: strip trailing separators（charset rstrip）
+            wsl_clean = wsl_prefix.rstrip('/\\')
+            win_clean = win_prefix.rstrip('/\\')
+
+            if not abs_path.startswith(wsl_clean):
+                continue
+            tail = abs_path[len(wsl_clean):]
+            # T7 P1 fix: boundary check（tail 必須為空或以 separator 開頭）
+            if tail and tail[0] not in SEPS:
+                continue  # boundary fail（e.g. share vs share2）
+
+            win_path = win_clean + tail
+            win_path = win_path.replace(chr(92), '/')
+            return f"file:///{win_path}"
 
     # Fallback：直接用原路徑
     return f"file:///{abs_path}"

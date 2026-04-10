@@ -502,6 +502,71 @@ class TestToFileUri:
         # 不匹配，直接返回原路徑
         assert result == 'file:////home/user/test.mp4'
 
+    # -------- T7 P1 boundary check --------
+
+    def test_p1_boundary_share_vs_share2(self, monkeypatch):
+        """P1 主案例：wsl_prefix /home/user/share 不應命中 /home/user/share2/..."""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        mappings = {'/home/user/share': '//NAS/share'}
+        result = path_utils.to_file_uri('/home/user/share2/video.mp4', mappings)
+        # 期望：fallback 為原路徑 file:/// 形式
+        assert result == 'file:////home/user/share2/video.mp4'
+        # 注意：abs_path 是 POSIX 路徑（不以 / 結尾），fallback 走 L294 → file:/// + abs_path
+        # = file:/// + /home/user/share2/video.mp4 = file:////home/user/share2/video.mp4（4 個斜線）
+
+    def test_p1_boundary_share_vs_sharex(self, monkeypatch):
+        """P1 變體：share vs sharex（無 separator）"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        mappings = {'/home/user/share': '//NAS/share'}
+        result = path_utils.to_file_uri('/home/user/sharex/video.mp4', mappings)
+        assert result == 'file:////home/user/sharex/video.mp4'
+
+    # -------- T7 P2 trailing slash --------
+
+    def test_p2_wsl_prefix_trailing_slash(self, monkeypatch):
+        """P2 主案例：wsl_prefix 帶 trailing /，結果不缺斜線"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        mappings = {'/home/user/share/': '//NAS/share'}
+        result = path_utils.to_file_uri('/home/user/share/video.mp4', mappings)
+        assert result == 'file://///NAS/share/video.mp4'
+
+    def test_p2_win_prefix_trailing_slash(self, monkeypatch):
+        """P2 變體：win_prefix 帶 trailing /，結果不雙斜線"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        mappings = {'/home/user/share': '//NAS/share/'}
+        result = path_utils.to_file_uri('/home/user/share/video.mp4', mappings)
+        assert result == 'file://///NAS/share/video.mp4'
+
+    def test_p2_both_prefixes_trailing_slash(self, monkeypatch):
+        """P2 兩邊都有 trailing /，結果正確"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        mappings = {'/home/user/share/': '//NAS/share/'}
+        result = path_utils.to_file_uri('/home/user/share/video.mp4', mappings)
+        assert result == 'file://///NAS/share/video.mp4'
+
+    # -------- T7 edge cases --------
+
+    def test_exact_prefix_match(self, monkeypatch):
+        """edge：abs_path 完全等於 wsl_prefix（NAS 根本身）→ 應命中"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        mappings = {'/home/user/share': '//NAS/share'}
+        result = path_utils.to_file_uri('/home/user/share', mappings)
+        assert result == 'file://///NAS/share'
+
+    def test_no_mapping_fallback(self, monkeypatch):
+        """edge：path_mappings 不命中時 fallback 為 file:/// + 原路徑"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        mappings = {'/home/user/share': '//NAS/share'}
+        result = path_utils.to_file_uri('/home/user/other/video.mp4', mappings)
+        assert result == 'file:////home/user/other/video.mp4'
+
+    def test_non_wsl_env_no_mapping_branch(self, monkeypatch):
+        """edge：CURRENT_ENV='linux' 不走 mapping branch，直接 fallback"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'linux')
+        mappings = {'/home/user/share': '//NAS/share'}
+        result = path_utils.to_file_uri('/home/user/share/video.mp4', mappings)
+        assert result == 'file:////home/user/share/video.mp4'
+
 
 class TestToFileUriPlainUnix:
     """測試 to_file_uri() 對純 Unix 路徑的處理（無 path_mappings）"""
