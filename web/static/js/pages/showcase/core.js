@@ -8,9 +8,14 @@ var _videos = [];
 var _filteredVideos = [];
 
 // 41c B-lite: 無封面 placeholder SVG (cover 載入失敗時 handleCoverError 換上)
-// viewBox 800x600 對齊 lightbox 4:3，grid card aspect-ratio:3/2 會 crop 上下少許但不影響 icon/text 居中
-// 設計：暗色漸層背景 + 中央 image-frame icon (邊框+太陽+山形) + 底部「無封面」字樣
-// 文字維持精簡 — 互動 CTA 交給既有的 enrich icon，不在 placeholder 內塞長文案
+// viewBox 800x600 對齊 lightbox 4:3，grid card aspect-ratio:3/2 會 crop 上下少許但不影響 icon 居中
+// 設計：暗色漸層背景 + 中央 image-frame icon (邊框+太陽+山形)
+//
+// 41d-T4: 純圖示 empty state，不含文字。
+// 理由：_NO_COVER_PLACEHOLDER 是 module-level IIFE，JS 載入時 window.t() i18n 函數
+// 尚未就緒，無法呼叫；hardcoded 中文違反 i18n 規則。image-frame icon 是業界通用的
+// no-image pattern，視覺語意已足夠清晰，互動 CTA 交給既有的 enrich icon。
+// 若未來必須加文字說明，需改為 lazy generation function（延遲至 i18n 初始化後呼叫）。
 var _NO_COVER_PLACEHOLDER = (function () {
     var svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 600'>"
         + "<defs><linearGradient id='bg' x1='0' y1='0' x2='0' y2='1'>"
@@ -24,7 +29,6 @@ var _NO_COVER_PLACEHOLDER = (function () {
         + "<circle cx='68' cy='56' r='18' fill='rgba(255,255,255,0.18)' stroke='none'/>"
         + "<path d='M 26 158 L 100 84 L 156 134 L 218 78 L 218 174 L 26 174 Z' fill='rgba(255,255,255,0.10)'/>"
         + "</g>"
-        + "<text x='400' y='450' text-anchor='middle' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif' font-size='32' font-weight='500' fill='rgba(255,255,255,0.42)' letter-spacing='0.12em'>無封面</text>"
         + "</svg>";
     return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
 })();
