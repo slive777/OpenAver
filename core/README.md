@@ -50,10 +50,12 @@ scrapers/
 ### `gallery_scanner.py`
 **檔案掃描與解析**
 - 負責掃描本地資料夾，識別影片檔案與 NFO 檔案。
-- 定義了核心資料結構 `VideoInfo`。
-- 實作了高效的目錄掃描邏輯（支援快取）。
+- 定義了核心資料結構 `VideoInfo`（含 `nfo_thumb` 欄位記錄 NFO 內 `<thumb>` 原始值）。
+- 實作了高效的目錄掃描邏輯（`_dir_scan_cache` 目錄級快取避免同一目錄重複 listdir）。
 - 包含檔名解析邏輯，能從檔名中提取番號、片名等資訊。
 - 支援從 NFO 讀取既有的影片資訊。
+- `find_cover_image()` — 4 層 smart fallback：L1 同名圖、L2 標準名（fanart/poster/thumb）、L3 NFO `<thumb>` 跨平台路徑解析、L4 `len(videos)==1 AND 0<len(images)<=2` 雙條件安全 fallback。修正平鋪資料夾跨片污染 bug。
+- `_resolve_thumb_path()` — NFO `<thumb>` 5-case 跨平台解析（http(s) URL / `file:` URI / Windows drive letter / UNC / POSIX 相對或絕對路徑）。
 
 ### `organizer.py`
 **檔案整理工具**
@@ -69,7 +71,10 @@ scrapers/
 **SQLite 資料層**
 - WAL mode 高效讀寫。
 - `VideoRepository` — 影片快取 CRUD + `clear_all()` 一鍵清除。
-- `init_db()` — Schema 初始化 + 遷移。
+- `init_db()` — Schema 初始化 + 遷移（41b 加 `user_tags` 欄位的 ALTER TABLE migration）。
+- `user_tags` JSON 欄位 — 用戶自訂標籤（評分、書籤、分類），與 scraper `tags` 完全分離，scraper refresh 不覆蓋。
+- **UPSERT 保留契約**：`upsert()` 收到 `user_tags='[]'` 時**不覆蓋** DB 既有值（避免 refresh_full 流程吞掉用戶標籤）。
+- `update_user_tags(path, tags)` — 安全更新方法，只更新 user_tags 欄位 + `updated_at`，不動其他欄位。
 
 ### `translate_service.py`
 **AI 翻譯服務**
@@ -109,14 +114,17 @@ scrapers/
 - 檢查現有影片的 NFO 檔案是否缺少關鍵欄位（如片商、演員、日期、系列等）。
 - 自動調用 `scraper` 補全缺失的元數據並回寫 NFO（XML patch，僅填空欄位不覆蓋）。
 - 支援 SSE (Server-Sent Events) 進度串流回報。
-- `parse_nfo()` 也被 `enricher.py` 共用。
+- `parse_nfo()` 也被 `enricher.py` 共用，能正確解析 NFO 的 `<user_tag>` 元素（與 scraper `<tag>` 完全獨立）。
+- `update_nfo_user_tags(nfo_path, add, remove)` — surgical update：只增刪 `<user_tag>` 元素，其他欄位完全不動。NFO 不存在時**回傳 False，不建空殼**（避免污染未刮削的影片目錄）。
+- `<user_tag>` 與 `<tag>` 在 NFO 中完全分離：scraper 標籤寫 `<tag>`，用戶標籤寫 `<user_tag>`，互不混淆。
 - 不寫封面、不寫 extrafanart、不更新 DB。
 
 ### `enricher.py`
 **單一影片原地補完**（`POST /api/enrich-single`，Agentic AI 用）
 - 三種模式：`fill_missing`（DB→NFO→scraper 逐層補齊）、`db_to_sidecar`（僅從 DB 寫出）、`refresh_full`（強制重抓覆蓋）。
 - 可寫 NFO（full rewrite via `organizer.generate_nfo()`）、封面、extrafanart。
-- `fill_missing` / `refresh_full` 模式會同步更新 SQLite DB。
+- `fill_missing` / `refresh_full` 模式會同步更新 SQLite DB，包含 `nfo_mtime` 同步（避免 collection_analysis 的 missing_nfo 計數不減）。
+- 支援 `source` / `javbus_lang` 參數透傳給 scraper（指定來源 + 切換 JavBus 語系）。
 - 依賴 `nfo_updater.parse_nfo()` 讀取既有 NFO、`organizer.py` 寫出檔案。
 
 ## 工具函式
@@ -126,6 +134,8 @@ scrapers/
 - 解決 Windows、WSL (Windows Subsystem for Linux)、Linux 與 macOS 之間的路徑格式差異。
 - 支援將 WSL 路徑轉換為 Windows 可讀取的 `file:///` 格式，確保在 Windows 瀏覽器中能直接開啟本地檔案。
 - `uri_to_fs_path()` — file:// URI → 當前環境 FS 路徑轉換。
+- `to_file_uri(fs_path, path_mappings)` — 正向映射：FS 路徑 → file:// URI（含 path_mappings 用於 WSL 環境）。內含 boundary check（避免 `/home/user/share` 誤命中 `/home/user/share2`）+ trailing separator normalize（charset rstrip）。
+- `reverse_path_mapping(fs_path, path_mappings)` — `to_file_uri` 的反向操作：把 Windows/UNC FS 路徑轉回 WSL local mount path。同樣具備 boundary check + trailing normalize 對稱保護。三區模型 Zone 1 的責任聚集點，業務層不應自行做路徑分隔符替換。
 
 ### `video_extensions.py`
 **影片副檔名 Single Source of Truth**

@@ -42,11 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **T8** Capabilities：補揭露 3 個 GET endpoint（`get_user_tags` / `showcase_videos` / `showcase_video`）— POST/GET 對等性 + Showcase 業務層查詢揭露給 AI agent
 
 #### 🧪 Tests
-- 全套 1430 → 2045 tests passed（+615）
-- 41a 新增：collection_sql regression、batch-enrich SSE 11 test、fix-numbers 3 test、analysis 5 test
-- 41b 新增：user_tags unit 18 + integration 38
-- 41c 新增：cover_image 33 test、showcase API 12 test
-- 41d 新增：reverse_path_mapping 20 test（10 baseline + 10 boundary/trailing）、to_file_uri 8 test、user_tags integration 4 test、capabilities 3 test、frontend guard 1 test gap fix
+- 全套 1818 → 2045 tests passed（+227 個 test functions；pytest collect 含 parametrize 展開）
+- 41a 新增：collection_sql regression、batch-enrich SSE 11 test、fix-numbers 12 unit + 3 integration、analysis 23 unit + 5 integration
+- 41b 新增：user_tags unit 18 + integration 42 + search 整合 9 + frontend guard 17
+- 41c 新增：cover_image 33 test（4 層 fallback × 5-case 跨平台）、showcase API 12 test
+- 41d 新增：path_utils 28 test（reverse_path_mapping 10 baseline + 10 P1/P2 boundary + to_file_uri 8 對稱）、user_tags integration 4、capabilities 2、frontend guard 1 test gap fix
 
 ### Fixed
 - SQL API `[]` false positive（單引號字面值內的 `[]` 不再被擋）
