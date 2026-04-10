@@ -1275,6 +1275,7 @@ class TestNextLightboxLoadMore:
 
 RESULT_CARD_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state" / "result-card.js"
 PATH_UTILS_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "components" / "path-utils.js"
+FILE_LIST_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state" / "file-list.js"
 
 
 class TestUserTagsApiGuard:
@@ -1330,11 +1331,23 @@ class TestUserTagsApiGuard:
         assert "async removeUserTag(" in content, \
             "result-card.js removeUserTag() 應改為 async（API fetch 需要）"
 
-    def test_confirm_add_tag_uses_path_to_file_uri(self):
-        """confirmAddTag() 使用 pathToFileUri() 轉換路徑"""
+    def test_result_card_does_not_use_path_to_file_uri(self):
+        """result-card.js 不再呼叫 pathToFileUri()（路徑契約：禁止 JS 手刻 file:///）"""
         content = self._result_card()
-        assert "pathToFileUri" in content, \
-            "result-card.js 缺少 pathToFileUri() 呼叫（file_path 需轉換為 file:/// URI）"
+        assert "pathToFileUri" not in content, \
+            "result-card.js 仍呼叫 pathToFileUri()，違反路徑契約：前端應直接傳 file.path，讓後端正規化"
+
+    def test_path_utils_does_not_have_path_to_file_uri(self):
+        """path-utils.js 不含 pathToFileUri 函數定義（已刪除，防止誤用）"""
+        content = self._path_utils()
+        assert "pathToFileUri" not in content, \
+            "path-utils.js 仍含 pathToFileUri 函數，應已刪除（WSL 環境下會產生錯誤 URI）"
+
+    def test_path_utils_still_has_path_to_display(self):
+        """path-utils.js 仍保留 pathToDisplay 函數"""
+        content = self._path_utils()
+        assert "pathToDisplay" in content, \
+            "path-utils.js 缺少 pathToDisplay 函數（用於前端顯示路徑）"
 
     def test_confirm_add_tag_no_direct_push(self):
         """confirmAddTag() 不再直接 c.user_tags.push(tag)（已改為 API response 更新）"""
@@ -1361,31 +1374,29 @@ class TestUserTagsApiGuard:
         assert "fileList[currentFileIndex]?.path" in html, \
             "search.html + 按鈕缺少 fileList[currentFileIndex]?.path guard"
 
-    def test_path_utils_has_path_to_file_uri(self):
-        """path-utils.js 含 pathToFileUri 函數定義"""
-        content = self._path_utils()
-        assert "pathToFileUri" in content, \
-            "path-utils.js 缺少 pathToFileUri 函數（Zone 1 → Zone 2 轉換）"
+    def test_user_tags_stored_at_file_level(self):
+        """confirmAddTag/removeUserTag 更新 fileList[currentFileIndex].user_tags（P2: file-level）"""
+        content = self._result_card()
+        assert "fileList[this.currentFileIndex].user_tags" in content, \
+            "result-card.js 未將 user_tags 寫入 fileList[currentFileIndex].user_tags（應為 file-level）"
 
-    def test_path_to_file_uri_handles_windows_path(self):
-        """path-utils.js pathToFileUri 含 Windows 路徑（C:\）處理邏輯"""
-        content = self._path_utils()
-        # 確認有 Windows drive letter 判斷
-        assert "file:///" in content, \
-            "path-utils.js pathToFileUri 缺少 file:/// 前綴建構（Windows 路徑）"
+    def test_current_user_tags_method_exists(self):
+        """result-card.js 含 currentUserTags() helper（P2: file-level user_tags）"""
+        content = self._result_card()
+        assert "currentUserTags()" in content, \
+            "result-card.js 缺少 currentUserTags() method（P2: user_tags 應從 file-level 讀取）"
 
-    def test_path_to_file_uri_handles_unc_path(self):
-        """path-utils.js pathToFileUri 含 UNC 路徑（\\server）處理邏輯"""
-        content = self._path_utils()
-        # 確認有 UNC 路徑判斷（startsWith 或 \\\\ 判斷）
-        assert "file://" in content, \
-            "path-utils.js pathToFileUri 缺少 file:// 前綴建構（UNC 路徑）"
+    def test_template_uses_current_user_tags(self):
+        """search.html 用戶標籤 template 使用 currentUserTags()（P2）"""
+        html = self._html()
+        assert "currentUserTags()" in html, \
+            "search.html 用戶標籤 template 仍用 current().user_tags，應改為 currentUserTags()"
 
-    def test_path_to_file_uri_idempotent_guard(self):
-        """path-utils.js pathToFileUri 含 file:// 冪等性判斷"""
-        content = self._path_utils()
-        assert "startsWith('file://')" in content, \
-            "path-utils.js pathToFileUri 缺少 idempotent 判斷（已是 file:// 則原樣回傳）"
+    def test_set_file_list_initializes_user_tags(self):
+        """file-list.js setFileList 給每個 file 初始化 user_tags: []（P2）"""
+        content = (FILE_LIST_JS).read_text(encoding="utf-8")
+        assert "user_tags: []" in content, \
+            "file-list.js setFileList 未初始化 user_tags: []（切換 file 前 user_tags 為 undefined）"
 
     def test_tag_api_failed_key_exists_all_locales(self):
         """四語系 search.error.tag_api_failed key 都存在"""
@@ -1399,3 +1410,12 @@ class TestUserTagsApiGuard:
         content = self._result_card()
         assert "fetchUserTagsForCurrent" in content, \
             "result-card.js 缺少 fetchUserTagsForCurrent() 方法（策略二：前端補查 user_tags）"
+
+    def test_fetch_user_tags_writes_to_file_level(self):
+        """fetchUserTagsForCurrent 把結果寫入 fileList[currentFileIndex].user_tags（P2）"""
+        content = self._result_card()
+        start = content.find("async fetchUserTagsForCurrent()")
+        assert start != -1, "result-card.js 找不到 fetchUserTagsForCurrent()"
+        func_body = content[start:start + 800]
+        assert "fileList[this.currentFileIndex].user_tags" in func_body, \
+            "fetchUserTagsForCurrent 未寫入 fileList[currentFileIndex].user_tags（P2: file-level）"

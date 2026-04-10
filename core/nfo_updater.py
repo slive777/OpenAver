@@ -17,6 +17,42 @@ from core.scraper import search_jav
 logger = get_logger(__name__)
 
 
+def update_nfo_user_tags(nfo_path: str, user_tags: List[str]) -> bool:
+    """
+    Surgical update — 只改 <user_tag> 元素，保留 NFO 中所有其他內容。
+
+    這避免了用 generate_nfo() 全量重寫 NFO 時清掉 <website>、
+    <tag>中文字幕</tag>、sidecar 欄位等既有資料的問題。
+
+    Args:
+        nfo_path: NFO 檔案路徑（native FS path）
+        user_tags: 完整的 user_tags 列表（取代現有所有 <user_tag> 元素）
+
+    Returns:
+        True 代表寫入成功，False 代表 NFO 不存在或解析失敗。
+        stub 場景（NFO 不存在）：回傳 False，不建立空殼 NFO。
+    """
+    if not os.path.exists(nfo_path):
+        return False
+    try:
+        raw = Path(nfo_path).read_bytes()
+        raw = sanitize_nfo_bytes(raw)
+        root = ET.fromstring(raw)
+        # 移除所有現有 <user_tag>
+        for old in list(root.findall("user_tag")):
+            root.remove(old)
+        # 新增 <user_tag>
+        for tag in user_tags:
+            elem = ET.SubElement(root, "user_tag")
+            elem.text = tag
+        tree = ET.ElementTree(root)
+        tree.write(nfo_path, encoding="utf-8", xml_declaration=True)
+        return True
+    except Exception as e:
+        logger.warning("[update_nfo_user_tags] NFO 更新失敗: %s — %s", nfo_path, e)
+        return False
+
+
 def needs_update(info: dict, has_nfo: bool = True) -> Tuple[bool, List[str]]:
     """檢查影片是否需要更新
 

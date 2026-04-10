@@ -353,7 +353,8 @@ window.SearchStateMixin_FileList = {
                 chineseTitle: window.SearchFile.extractChineseTitle(filename, result.number),
                 searchResults: [],
                 hasMoreResults: false,
-                searched: false
+                searched: false,
+                user_tags: []
             };
         });
         this.currentFileIndex = 0;

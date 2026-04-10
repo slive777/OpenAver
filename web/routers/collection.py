@@ -17,11 +17,12 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from core.database import VideoRepository, get_connection, get_db_path
+from core.config import load_config
+from core.database import Video, VideoRepository, get_connection, get_db_path
 from core.logger import get_logger
-from core.organizer import generate_nfo
-from core.path_utils import uri_to_fs_path
-from core.scraper import is_number_format
+from core.nfo_updater import update_nfo_user_tags
+from core.path_utils import CURRENT_ENV, to_file_uri, uri_to_fs_path
+from core.scraper import extract_number, is_number_format
 
 logger = get_logger(__name__)
 
@@ -657,6 +658,61 @@ def fix_numbers_apply(request: FixNumbersApplyRequest) -> dict:
 
 # ── /api/user-tags router ─────────────────────────────────────────────────────
 
+
+def _resolve_user_tag_paths(input_path: str) -> tuple[str, str]:
+    """同時取得 (canonical_uri, local_fs_path)。
+
+    user_tags 端點需要兩個不同 view 的相同檔案：
+    - **canonical_uri**: 透過 forward path_mappings 產生 DB key（與 scanner.py 一致）
+    - **local_fs_path**: 當前環境**可實際存取**的 FS 路徑（用於 is_file/NFO read-write）
+
+    這兩個 view 在 WSL 部署 + 自訂 path_mappings 的場景必須分開：
+    - DB 存的是 UNC URI（forward map：/home/user/nas → //NAS-SERVER/share）
+    - 但 WSL 程序實際開檔得用 /home/user/nas/... 這個 mount path
+    - uri_to_fs_path() 不知道 path_mappings 反向映射，所以單獨用它無法取得本地路徑
+
+    Returns:
+        (canonical_uri, local_fs_path) — 任一為空字串時表示無效輸入
+    """
+    if not input_path:
+        return ("", "")
+
+    config = load_config()
+    path_mappings = config.get("gallery", {}).get("path_mappings", {}) or {}
+
+    try:
+        fs_normalized = uri_to_fs_path(input_path)
+    except Exception:
+        return ("", "")
+
+    canonical_uri = to_file_uri(fs_normalized, path_mappings)
+
+    # local_fs_path：
+    # - native path 輸入 → 直接用 fs_normalized（已 normalize 為當前 env 形式）
+    # - URI 輸入 + WSL + 有 mappings → 反向映射 UNC → /home/user/nas/...
+    # - 其他 → fs_normalized
+    local_fs_path = fs_normalized
+    if input_path.startswith("file://") and CURRENT_ENV == "wsl" and path_mappings:
+        # 反向映射：fs_normalized 可能是 //NAS-SERVER/share/... 或 \\NAS-SERVER\share\...
+        for local_prefix, win_prefix in path_mappings.items():
+            win_fwd = win_prefix.replace("\\", "/")
+            win_bs = win_prefix.replace("/", "\\")
+            if fs_normalized.startswith(win_fwd):
+                local_fs_path = local_prefix + fs_normalized[len(win_fwd):]
+                break
+            if fs_normalized.startswith(win_bs):
+                local_fs_path = local_prefix + fs_normalized[len(win_bs):].replace("\\", "/")
+                break
+
+    return (canonical_uri, local_fs_path)
+
+
+def _normalize_to_uri(p: str) -> str:
+    """Backward-compat: 只取 canonical URI（不需要 local FS path 的呼叫端用）。"""
+    canonical, _ = _resolve_user_tag_paths(p)
+    return canonical
+
+
 user_tags_router = APIRouter(prefix="/api", tags=["user-tags"])
 
 
@@ -673,7 +729,7 @@ def post_user_tags(request: UserTagsRequest) -> dict:
 
     資料流：
     1. get_by_path(file_path) 查 DB
-    2. 不存在 → {success: false, error: "..."}
+    2. 不存在 → 自動建立 stub 紀錄（從檔名解析 number），用於 Search 拖入但未掃描的檔案
     3. 合併 add / 移除 remove（去重，remove 優先）
     4. update_user_tags(file_path, merged) 更新 DB
     5. 重寫 NFO（失敗不阻擋回傳）
@@ -682,10 +738,43 @@ def post_user_tags(request: UserTagsRequest) -> dict:
     db_path = get_db_path()
     repo = VideoRepository(db_path)
 
-    # 1. 查 DB
-    video = repo.get_by_path(request.file_path)
+    # 0. 解析路徑 — 同時取得 canonical URI（DB key）+ local FS path（filesystem 操作）
+    if not request.file_path:
+        return {"success": False, "error": "file_path 不可為空"}
+    file_path, local_fs_path = _resolve_user_tag_paths(request.file_path)
+    if not file_path:
+        return {"success": False, "error": "file_path 格式無效"}
+
+    # 1. 查 DB；不存在則自動建立 stub 紀錄
+    video = repo.get_by_path(file_path)
     if video is None:
-        return {"success": False, "error": "影片不存在"}
+        if not local_fs_path or not Path(local_fs_path).is_file():
+            return {"success": False, "error": "檔案不存在"}
+
+        filename = Path(local_fs_path).name
+        try:
+            mtime = Path(local_fs_path).stat().st_mtime
+            size_bytes = Path(local_fs_path).stat().st_size
+        except Exception:
+            mtime = 0.0
+            size_bytes = 0
+
+        stub = Video(
+            path=file_path,
+            number=extract_number(filename) or "",
+            title=Path(local_fs_path).stem,
+            mtime=mtime,
+            size_bytes=size_bytes,
+        )
+        try:
+            repo.upsert(stub)
+        except Exception as e:
+            logger.warning("[user-tags] 建立 stub 紀錄失敗: %s", e)
+            return {"success": False, "error": "建立 DB 紀錄失敗"}
+
+        video = repo.get_by_path(file_path)
+        if video is None:
+            return {"success": False, "error": "建立 DB 紀錄失敗"}
 
     # 2. 去重合併（remove 優先）
     existing = list(video.user_tags)
@@ -701,32 +790,15 @@ def post_user_tags(request: UserTagsRequest) -> dict:
     merged_tags = [t for t in after_add if t not in request.remove]
 
     # 3. 更新 DB
-    updated = repo.update_user_tags(request.file_path, merged_tags)
+    updated = repo.update_user_tags(file_path, merged_tags)
     if not updated:
         return {"success": False, "error": "DB 更新失敗"}
 
-    # 4. 重寫 NFO（失敗不阻擋回傳）
+    # 4. Surgical NFO update — 用 local_fs_path（WSL mapped mount 場景下與 DB key 不同）
     nfo_updated = False
     try:
-        fs_path = uri_to_fs_path(request.file_path)
-        nfo_path = str(Path(fs_path).with_suffix(".nfo"))
-        nfo_updated = generate_nfo(
-            number=video.number or "",
-            title=video.title,
-            original_title=video.original_title or "",
-            actors=video.actresses,
-            tags=video.tags,
-            date=video.release_date or "",
-            maker=video.maker or "",
-            url="",
-            has_subtitle=False,
-            output_path=nfo_path,
-            director=video.director or "",
-            duration=video.duration,
-            series=video.series or "",
-            label=video.label or "",
-            user_tags=merged_tags,
-        )
+        nfo_path = str(Path(local_fs_path).with_suffix(".nfo"))
+        nfo_updated = update_nfo_user_tags(nfo_path, merged_tags)
     except Exception as e:
         logger.warning("[user-tags] NFO 寫入失敗（忽略）: %s", e)
 
@@ -738,13 +810,15 @@ def get_user_tags(file_path: str = Query(...)) -> dict:
     """
     查詢指定 file_path 的現有 user_tags。
 
+    接受 file:/// URI 或 native FS 路徑（自動正規化）。
     不存在時回傳 {user_tags: [], file_path: "..."}（HTTP 200）。
     """
     db_path = get_db_path()
     repo = VideoRepository(db_path)
 
-    video = repo.get_by_path(file_path)
+    normalized = _normalize_to_uri(file_path)
+    video = repo.get_by_path(normalized)
     if video is None:
-        return {"user_tags": [], "file_path": file_path}
+        return {"user_tags": [], "file_path": normalized}
 
-    return {"user_tags": video.user_tags, "file_path": file_path}
+    return {"user_tags": video.user_tags, "file_path": normalized}

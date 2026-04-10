@@ -424,7 +424,7 @@
                                 <span class="badge tag-badge" x-text="tag"></span>
                             </template>
                             <!-- 用戶標籤 -->
-                            <template x-for="tag in (current().user_tags || [])" :key="'u_' + tag">
+                            <template x-for="tag in currentUserTags()" :key="'u_' + tag">
                                 <span class="badge tag-badge user-tag">
                                     <span x-text="tag"></span>
                                     <span class="tag-remove" @click="removeUserTag(tag)">&times;</span>

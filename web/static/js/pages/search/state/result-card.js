@@ -245,6 +245,17 @@ window.SearchStateMixin_ResultCard = {
 
     // ===== T1c: User Tags =====
 
+    /**
+     * 取得當前 file 的 user_tags（file-level，非 result-level）(P2)
+     * user_tags 是 file-level metadata，與哪個候選結果無關。
+     */
+    currentUserTags() {
+        if (this.listMode === 'file') {
+            return this.fileList?.[this.currentFileIndex]?.user_tags || [];
+        }
+        return [];
+    },
+
     showAddTagInput() {
         this.newTagValue = '';
         this.addingTag = true;
@@ -261,17 +272,16 @@ window.SearchStateMixin_ResultCard = {
         }
 
         const file = this.fileList?.[this.currentFileIndex];
-        const filePath = file?.path ? window.pathToFileUri(file.path) : '';
+        const filePath = file?.path || '';
         if (!filePath) {
             this.showToast(window.t('search.error.tag_api_failed'), 'error');
             this.addingTag = false;
             return;
         }
 
-        const c = this.current();
-        if (!c.user_tags) c.user_tags = [];
-        // E5: 前端去重，避免無謂 API call
-        if (c.user_tags.includes(tag)) {
+        // E5: 前端去重，避免無謂 API call（P2: 用 file-level user_tags）
+        const existingTags = this.fileList[this.currentFileIndex].user_tags || [];
+        if (existingTags.includes(tag)) {
             this.addingTag = false;
             this.newTagValue = '';
             return;
@@ -285,7 +295,8 @@ window.SearchStateMixin_ResultCard = {
             });
             const data = await resp.json();
             if (data.success) {
-                c.user_tags = data.user_tags;
+                // P2: 更新 file-level user_tags
+                this.fileList[this.currentFileIndex].user_tags = data.user_tags;
                 this.saveState();
             } else {
                 this.showToast(window.t('search.error.tag_api_failed'), 'error');
@@ -303,11 +314,8 @@ window.SearchStateMixin_ResultCard = {
     },
 
     async removeUserTag(tag) {
-        const c = this.current();
-        if (!c.user_tags) return;
-
         const file = this.fileList?.[this.currentFileIndex];
-        const filePath = file?.path ? window.pathToFileUri(file.path) : '';
+        const filePath = file?.path || '';
         if (!filePath) {
             this.showToast(window.t('search.error.tag_api_failed'), 'error');
             return;
@@ -321,7 +329,8 @@ window.SearchStateMixin_ResultCard = {
             });
             const data = await resp.json();
             if (data.success) {
-                c.user_tags = data.user_tags;
+                // P2: 更新 file-level user_tags
+                this.fileList[this.currentFileIndex].user_tags = data.user_tags;
                 this.saveState();
             } else {
                 this.showToast(window.t('search.error.tag_api_failed'), 'error');
@@ -332,25 +341,23 @@ window.SearchStateMixin_ResultCard = {
     },
 
     /**
-     * 補查當前結果的 user_tags（策略二：前端 lazy fetch）(41b-T3)
+     * 補查當前 file 的 user_tags（策略二：前端 lazy fetch）(41b-T3)
      * 只在 listMode === 'file' 且有 file.path 時補查；靜默忽略失敗。
      * 觸發時機：切換 file 索引、頁面載入時。
      * 注意：不要在每次 current() 呼叫時觸發（避免大量 API 請求）。
+     * P2: 寫入 fileList[currentFileIndex].user_tags（file-level）
      */
     async fetchUserTagsForCurrent() {
         if (this.listMode !== 'file') return;
         const file = this.fileList?.[this.currentFileIndex];
         if (!file?.path) return;
 
-        const uri = window.pathToFileUri(file.path);
-        if (!uri) return;
-
         try {
-            const resp = await fetch(`/api/user-tags?file_path=${encodeURIComponent(uri)}`);
+            const resp = await fetch(`/api/user-tags?file_path=${encodeURIComponent(file.path)}`);
             const data = await resp.json();
-            const c = this.current();
-            if (c && Array.isArray(data.user_tags)) {
-                c.user_tags = data.user_tags;
+            if (Array.isArray(data.user_tags)) {
+                // P2: 寫入 file-level user_tags
+                this.fileList[this.currentFileIndex].user_tags = data.user_tags;
             }
         } catch {
             // E9: 靜默忽略，不阻擋搜尋結果顯示

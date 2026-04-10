@@ -432,7 +432,7 @@
 
                     <!-- Row 6: User Tags (T4) -->
                     <div class="lb-user-tags"
-                         x-show="(currentLightboxVideo?.user_tags?.length || 0) > 0 || addingLbTag">
+                         x-show="!!currentLightboxVideo?.path">
                         <!-- User tag badges with × remove button -->
                         <template x-for="tag in (currentLightboxVideo?.user_tags || [])" :key="tag">
                             <span class="lb-user-tag">
