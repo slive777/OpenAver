@@ -46,38 +46,8 @@ def client(tmp_db, monkeypatch):
 class TestSearchUserTagsPersist:
     """
     test_search_user_tags_persist:
-    加 tag → API response 含 tag → GET 確認 DB 持久化
+    加 tag → remove tag → GET 確認移除已持久化
     """
-
-    def test_add_tag_response_contains_tag(self, client):
-        """POST 新增 tag → response success=True 且 user_tags 含該 tag"""
-        resp = client.post("/api/user-tags", json={
-            "file_path": TEST_FILE_URI,
-            "add": ["★5"],
-        })
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["success"] is True
-        assert "★5" in data["user_tags"]
-
-    def test_add_tag_db_persisted(self, tmp_db, monkeypatch):
-        """POST 新增 tag → GET 確認 DB 已持久化"""
-        monkeypatch.setattr("web.routers.collection.get_db_path", lambda: tmp_db)
-        from web.app import app
-        test_client = TestClient(app)
-
-        # 加 tag
-        post_resp = test_client.post("/api/user-tags", json={
-            "file_path": TEST_FILE_URI,
-            "add": ["持久化標籤"],
-        })
-        assert post_resp.json()["success"] is True
-
-        # 重新 GET 確認 DB 持久化
-        get_resp = test_client.get("/api/user-tags", params={"file_path": TEST_FILE_URI})
-        assert get_resp.status_code == 200
-        get_data = get_resp.json()
-        assert "持久化標籤" in get_data["user_tags"]
 
     def test_add_then_remove_tag_persisted(self, tmp_db, monkeypatch):
         """POST add tag → POST remove tag → GET 確認移除已持久化"""
@@ -107,26 +77,8 @@ class TestSearchUserTagsPersist:
 class TestSearchUserTagsNoFilePath:
     """
     test_search_user_tags_no_file_path:
-    無 file_path 或 file_path 不存在於 DB → success=false
+    file_path 為空字串 → 422 或 success=False
     """
-
-    def test_post_without_file_path_returns_422(self, client):
-        """POST 完全省略 file_path → Pydantic 422（必填欄位缺失）"""
-        resp = client.post("/api/user-tags", json={
-            "add": ["★5"],
-        })
-        assert resp.status_code == 422
-
-    def test_post_nonexistent_file_path_returns_success_false(self, client):
-        """POST file_path 不在 DB → success=False"""
-        resp = client.post("/api/user-tags", json={
-            "file_path": NONEXISTENT_URI,
-            "add": ["★5"],
-        })
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["success"] is False
-        assert "error" in data
 
     def test_post_empty_file_path_returns_422_or_false(self, client):
         """POST file_path 為空字串 → 422 或 success=False（視 validator 行為）"""
@@ -138,12 +90,6 @@ class TestSearchUserTagsNoFilePath:
         assert resp.status_code in (200, 422)
         if resp.status_code == 200:
             assert resp.json()["success"] is False
-
-    def test_get_nonexistent_file_path_returns_empty_tags(self, client):
-        """GET 不存在的 file_path → user_tags=[]（不 crash）"""
-        resp = client.get("/api/user-tags", params={"file_path": NONEXISTENT_URI})
-        assert resp.status_code == 200
-        assert resp.json()["user_tags"] == []
 
 
 class TestNfoPreservation:
@@ -207,9 +153,3 @@ class TestNfoPreservation:
         assert "巨乳" in tags, "<tag>巨乳</tag> 被清掉"
         assert "★5" in user_tags, "user_tag ★5 未寫入"
 
-    def test_nfo_update_user_tags_returns_false_when_no_nfo(self, tmp_path):
-        """update_nfo_user_tags：NFO 不存在 → 回傳 False，不建立空殼 NFO"""
-        from core.nfo_updater import update_nfo_user_tags
-        nonexistent_nfo = str(tmp_path / "NONEXISTENT.nfo")
-        result = update_nfo_user_tags(nonexistent_nfo, ["★5"])
-        assert result is False

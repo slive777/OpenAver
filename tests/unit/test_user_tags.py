@@ -582,3 +582,16 @@ def test_scrape_single_upserts_user_tags_to_db():
     finally:
         if os.path.exists(video_path):
             os.unlink(video_path)
+
+
+# ── NFO updater ───────────────────────────────────────────────────────────────
+
+class TestUserTagsNfoUpdater:
+    """update_nfo_user_tags 邊界條件測試"""
+
+    def test_nfo_update_user_tags_returns_false_when_no_nfo(self, tmp_path):
+        """update_nfo_user_tags：NFO 不存在 → 回傳 False，不建立空殼 NFO"""
+        from core.nfo_updater import update_nfo_user_tags
+        nonexistent_nfo = str(tmp_path / "NONEXISTENT.nfo")
+        result = update_nfo_user_tags(nonexistent_nfo, ["★5"])
+        assert result is False

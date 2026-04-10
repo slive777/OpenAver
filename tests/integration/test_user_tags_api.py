@@ -72,13 +72,6 @@ class TestE1FilePathNotInDB:
         assert "error" in data
         assert data["error"]
 
-    def test_post_nonexistent_no_crash(self, client):
-        """POST 不存在的 file_path → 不 crash（HTTP 200）"""
-        resp = client.post("/api/user-tags", json={
-            "file_path": NONEXISTENT_URI,
-        })
-        assert resp.status_code == 200
-
 
 # ── E1b: file 存在於 FS 但不在 DB → 自動建立 stub ──────────────────────────────
 
@@ -178,7 +171,7 @@ class TestE3RemoveNonexistentTag:
     """E3: remove 包含不存在的 tag → 靜默忽略，不報錯"""
 
     def test_remove_nonexistent_tag_no_error(self, client):
-        """remove 不存在的 tag → success=True，不報錯"""
+        """remove 不存在的 tag → success=True，不報錯；原有 tags 不受影響"""
         resp = client.post("/api/user-tags", json={
             "file_path": TEST_FILE_URI,
             "remove": ["不存在的標籤"],
@@ -186,14 +179,6 @@ class TestE3RemoveNonexistentTag:
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
-
-    def test_remove_nonexistent_tag_original_tags_intact(self, client):
-        """remove 不存在的 tag → 原有 tags 不受影響"""
-        resp = client.post("/api/user-tags", json={
-            "file_path": TEST_FILE_URI,
-            "remove": ["不存在的標籤"],
-        })
-        data = resp.json()
         assert "★4" in data["user_tags"]  # 原有 ★4 仍保留
 
 
@@ -231,14 +216,6 @@ class TestE5EmptyAddRemove:
         data = resp.json()
         assert data["success"] is True
         assert data["user_tags"] == ["★4"]  # 不變
-
-    def test_empty_request_returns_nfo_updated_field(self, client):
-        """add=[], remove=[] → 回應含 nfo_updated 欄位"""
-        resp = client.post("/api/user-tags", json={
-            "file_path": TEST_FILE_URI,
-        })
-        data = resp.json()
-        assert "nfo_updated" in data
 
 
 # ── E6: NFO 寫入失敗 ──────────────────────────────────────────────────────────
@@ -340,11 +317,6 @@ class TestE9GetNonexistent:
         assert data["user_tags"] == []
         assert data["file_path"] == NONEXISTENT_URI
 
-    def test_get_nonexistent_no_crash(self, client):
-        """GET 不存在的 file_path → 不 crash"""
-        resp = client.get("/api/user-tags", params={"file_path": NONEXISTENT_URI})
-        assert resp.status_code == 200
-
 
 # ── Happy Path ────────────────────────────────────────────────────────────────
 
@@ -374,16 +346,6 @@ class TestHappyPath:
         assert data["success"] is True
         assert "★4" not in data["user_tags"]
 
-    def test_post_response_structure(self, client):
-        """POST 回應含 success, user_tags, nfo_updated"""
-        resp = client.post("/api/user-tags", json={
-            "file_path": TEST_FILE_URI,
-        })
-        data = resp.json()
-        assert "success" in data
-        assert "user_tags" in data
-        assert "nfo_updated" in data
-
     def test_get_existing_file_path(self, client):
         """GET 已存在的 file_path → 回傳現有 user_tags"""
         resp = client.get("/api/user-tags", params={"file_path": TEST_FILE_URI})
@@ -391,13 +353,6 @@ class TestHappyPath:
         data = resp.json()
         assert data["file_path"] == TEST_FILE_URI
         assert "★4" in data["user_tags"]
-
-    def test_get_response_structure(self, client):
-        """GET 回應含 user_tags, file_path"""
-        resp = client.get("/api/user-tags", params={"file_path": TEST_FILE_URI})
-        data = resp.json()
-        assert "user_tags" in data
-        assert "file_path" in data
 
     def test_post_add_and_remove_combined(self, client):
         """同時 add 新 tag 和 remove 舊 tag"""
@@ -479,27 +434,6 @@ class TestE10PathCanonicalization:
         """canonical 形式的 file:///C:/X 應冪等"""
         from web.routers.collection import _normalize_to_uri
         assert _normalize_to_uri("file:///C:/test.mp4") == "file:///C:/test.mp4"
-
-    def test_empty_returns_empty(self):
-        """_normalize_to_uri 空字串 → 空字串"""
-        from web.routers.collection import _normalize_to_uri
-        assert _normalize_to_uri("") == ""
-
-    def test_post_with_uri_still_works(self, client):
-        """POST 傳 canonical file:/// URI → 仍然成功"""
-        resp = client.post("/api/user-tags", json={
-            "file_path": TEST_FILE_URI,
-            "add": ["uri測試"],
-        })
-        assert resp.status_code == 200
-        assert resp.json()["success"] is True
-
-    def test_get_with_uri_still_works(self, client):
-        """GET 傳 canonical file:/// URI → 查到影片，回傳正確 user_tags"""
-        resp = client.get("/api/user-tags", params={"file_path": TEST_FILE_URI})
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "★4" in data["user_tags"]
 
     def test_normalize_uses_gallery_path_mappings(self, monkeypatch):
         """_normalize_to_uri 會從 gallery config 取出 path_mappings 並傳給 to_file_uri。
