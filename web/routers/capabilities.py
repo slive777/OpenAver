@@ -543,9 +543,14 @@ _TOOLS: list[dict] = [
     {
         "name": "showcase_videos",
         "description": (
-            "列出當前 Showcase 設定資料夾下所有影片（含 has_cover/has_nfo enrich 狀態 + 完整 metadata）。"
-            "比 collection_sql 更直接：路徑映射、cover URL、enrich 狀態都已預先計算。"
-            "適合 AI 做收藏概觀、診斷缺資料的影片、批次操作前的探索。"
+            "列出當前 Showcase 設定資料夾下「所有」影片，每筆含 19 欄位 enrich 過的完整 metadata。"
+            " ⚠️ 高 token 成本：回整個 configured directory（可能數百到數千筆）一次回完，無分頁。"
+            " Routing 規則（依優先級）："
+            " (1) 已知具體 path → 用 `showcase_video`（單筆，省 token）；"
+            " (2) 只需 ID/path 篩選、統計、條件查詢 → 用 `collection_sql`（自訂 SELECT）"
+            " 或 `collection_analysis`（預設 5 種診斷分組）；"
+            " (3) 僅在「真的需要全庫概觀」時才用本 tool（例如 diagnose 缺資料的影片總覽、"
+            " 批次操作前的全量探索）。"
         ),
         "method": "GET",
         "path": "/api/showcase/videos",
@@ -556,12 +561,32 @@ _TOOLS: list[dict] = [
         },
         "output_schema": {
             "success": "boolean",
-            "videos": (
-                "[VideoCard] — 每筆含 path/title/original_title/number/actresses/maker/release_date/"
-                "tags/size/cover_url/mtime/director/duration/series/label/sample_images/user_tags/"
-                "has_cover/has_nfo（19 欄位）"
-            ),
-            "total": "integer",
+            "total": "integer — videos 陣列長度",
+            "videos": {
+                "type": "array",
+                "description": "影片清單；每筆 item 為 19 欄位 dict",
+                "item_fields": {
+                    "path": "string — file:/// URI（DB key 格式，可作為 showcase_video 查詢輸入）",
+                    "title": "string",
+                    "original_title": "string",
+                    "number": "string — 番號（可能為空字串）",
+                    "actresses": "string — ⚠️ 逗號分隔字串，**不是** array（例：'女優A,女優B'）",
+                    "maker": "string",
+                    "release_date": "string — YYYY-MM-DD（可能為空字串）",
+                    "tags": "string — ⚠️ 逗號分隔字串，**不是** array",
+                    "size": "integer — 檔案 bytes",
+                    "cover_url": "string — 後端代理 URL（/api/gallery/image?path=...），可直接 <img> 顯示",
+                    "mtime": "integer — Unix timestamp（秒）",
+                    "director": "string",
+                    "duration": "integer | null — 秒；null 時前端隱藏",
+                    "series": "string",
+                    "label": "string",
+                    "sample_images": "array[string] — 劇照 gallery image URLs（真正的 array）",
+                    "user_tags": "array[string] — 用戶自訂標籤（真正的 array，可空）",
+                    "has_cover": "boolean — DB 初判 cover_path 非空（不做 IO 檢查）",
+                    "has_nfo": "boolean — nfo_mtime > 0（41a 寫入契約）",
+                },
+            },
         },
         "side_effect": False,
         "retry_safe": True,
@@ -570,10 +595,12 @@ _TOOLS: list[dict] = [
     {
         "name": "showcase_video",
         "description": (
-            "By-path 單筆查詢 Showcase 影片資料。比 collection_sql WHERE path=... 更省 prompt token，"
-            "回傳 schema 已 enrich（cover_url、has_cover、has_nfo、user_tags 等）。"
-            "用於 enrich-single / scrape-single 後刷新單張卡片，或 AI 拿到 SQL 結果後取單筆完整資料。"
-            "影片不在 configured directory 或 DB 內回 404。"
+            "By-path 單筆查詢 Showcase 影片資料（showcase_videos 的單筆版本）。"
+            " 比 `collection_sql WHERE path=...` 更省 prompt token，且回傳 schema 已 enrich"
+            "（cover_url、has_cover、has_nfo 已預先計算）。"
+            " 適合：(a) 前端 enrich-single / scrape-single 後刷新單張卡片；"
+            " (b) AI 從 collection_sql 結果拿到 path 後取單筆完整 metadata。"
+            " 影片不在 configured directory 或 DB 內回 404。"
         ),
         "method": "GET",
         "path": "/api/showcase/video",
@@ -586,7 +613,13 @@ _TOOLS: list[dict] = [
         },
         "output_schema": {
             "success": "boolean",
-            "video": "VideoCard — 同 showcase_videos 單筆 schema（19 欄位）",
+            "video": (
+                "object — 19 欄位 dict，schema 同 showcase_videos.videos.item_fields"
+                "（path/title/original_title/number/actresses[csv⚠️]/maker/release_date/tags[csv⚠️]/"
+                "size/cover_url/mtime/director/duration/series/label/sample_images[array]/"
+                "user_tags[array]/has_cover/has_nfo）。注意 actresses 和 tags 是逗號分隔字串，"
+                "其餘標記為 array 的欄位才是真正的 array。"
+            ),
         },
         "side_effect": False,
         "retry_safe": True,
