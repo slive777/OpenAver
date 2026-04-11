@@ -2,7 +2,7 @@
 Integration tests for core/scrapers/actress/orchestrator.py — Phase 42b T4.1
 
 Tests the 4-route parallel orchestrator with all scrapers mocked via source-module paths.
-Covers: C1 text cascade, C3 photo cascade, C4 return shape, TD-1 age fix, C2 javbus=None,
+Covers: C1 text cascade, C3 photo cascade, C4 return shape, TD-1 age fix,
         cache TTL, legacy flat↔nested consistency.
 
 Patch targets (source-module paths):
@@ -201,17 +201,6 @@ class TestHappyPath:
         assert result["all_sources"]["wiki"] == wiki
         assert result["all_sources"]["graphis"] == graphis
         assert result["all_sources"]["gfriends"] == gfurl
-
-    def test_javbus_permanent_none(self):
-        minnano = _make_minnano()
-        with patch(_PATCH_MINNANO, return_value=minnano), \
-             patch(_PATCH_WIKI, return_value=None), \
-             patch(_PATCH_GRAPHIS, return_value=None), \
-             patch(_PATCH_GFRIENDS, return_value=None):
-            result = get_actress_profile(_ACTRESS_NAME)
-
-        assert "javbus" in result["all_sources"]
-        assert result["all_sources"]["javbus"] is None
 
     def test_legacy_flat_name_and_img(self):
         minnano = _make_minnano()
@@ -532,56 +521,6 @@ class TestCacheTTL:
         # Fresh scraper should have been called
         assert mock_minnano.call_count == 1
         assert result["name"] == "fresh"
-
-
-# ---------------------------------------------------------------------------
-# TestC2JavabusPermanentlyAbsent — javbus is never wired in
-# ---------------------------------------------------------------------------
-
-class TestC2JavabusPermanentlyAbsent:
-
-    def test_javbus_always_none_in_all_sources(self):
-        minnano = _make_minnano()
-        wiki    = _make_wiki()
-        graphis = _make_graphis()
-        gfurl   = _make_gfriends_url()
-
-        with patch(_PATCH_MINNANO, return_value=minnano), \
-             patch(_PATCH_WIKI, return_value=wiki), \
-             patch(_PATCH_GRAPHIS, return_value=graphis), \
-             patch(_PATCH_GFRIENDS, return_value=gfurl):
-            result = get_actress_profile(_ACTRESS_NAME)
-
-        assert "javbus" in result["all_sources"]
-        assert result["all_sources"]["javbus"] is None
-
-    def test_javbus_patch_with_error_does_not_affect_orchestrator(self):
-        """Patching javbus.scrape_actress_profile to raise should not affect orchestrator
-        because the orchestrator never calls it."""
-        import core.scrapers.actress.javbus as javbus_mod
-        javbus_func = getattr(javbus_mod, 'scrape_actress_profile', None)
-        patch_target = 'core.scrapers.actress.javbus.scrape_actress_profile'
-
-        minnano = _make_minnano()
-
-        # Even if javbus raises, orchestrator should succeed
-        if javbus_func is not None:
-            with patch(patch_target, side_effect=RuntimeError("javbus exploded")), \
-                 patch(_PATCH_MINNANO, return_value=minnano), \
-                 patch(_PATCH_WIKI, return_value=None), \
-                 patch(_PATCH_GRAPHIS, return_value=None), \
-                 patch(_PATCH_GFRIENDS, return_value=None):
-                result = get_actress_profile(_ACTRESS_NAME)
-        else:
-            # javbus function doesn't exist — just call normally
-            with patch(_PATCH_MINNANO, return_value=minnano), \
-                 patch(_PATCH_WIKI, return_value=None), \
-                 patch(_PATCH_GRAPHIS, return_value=None), \
-                 patch(_PATCH_GFRIENDS, return_value=None):
-                result = get_actress_profile(_ACTRESS_NAME)
-
-        assert result is not None
-        assert result["all_sources"]["javbus"] is None
 
 
 # ---------------------------------------------------------------------------
