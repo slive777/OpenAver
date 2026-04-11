@@ -262,8 +262,9 @@ class TestC1Cascade:
 
         assert result["primary_text_source"] == "graphis"
         assert result["text"] == graphis
-        # Graphis has no name_ja key
-        assert result["name"] is None
+        # Bug 2 fix: name falls back to queried name (text.name is "" in _make_graphis,
+        # so the final fallback is the queried `name` arg)
+        assert result["name"] == _ACTRESS_NAME  # queried name fallback via text.name or name arg
         # Graphis has name_en
         assert result["name_en"] == graphis["name_en"]
         # Graphis has no birth key
@@ -442,7 +443,9 @@ class TestLegacyFlatConsistency:
         assert result["age"] == result["current_age"]
         text = result.get("text")
         if text is not None:
-            assert result["name"] == text.get("name_ja")
+            # name cascades: text.name_ja → text.name → queried name arg
+            expected_name = text.get("name_ja") or text.get("name") or _ACTRESS_NAME
+            assert result["name"] == expected_name
             assert result["birth"] == text.get("birth")
 
     def test_consistency_full_happy_path(self):
@@ -579,3 +582,168 @@ class TestC2JavabusPermanentlyAbsent:
 
         assert result is not None
         assert result["all_sources"]["javbus"] is None
+
+
+# ---------------------------------------------------------------------------
+# TestMeaningfulTextFilter — Bug 1 regression: shell source must not suppress richer fallback
+# ---------------------------------------------------------------------------
+
+class TestMeaningfulTextFilter:
+    """Bug 1 regression: shell/empty text source must not suppress richer fallback."""
+
+    def test_wiki_shell_does_not_suppress_graphis(self):
+        """Wiki returning shell dict (name_ja only, no text fields) must not
+        win C1 cascade over a Graphis source with actual data."""
+        wiki_shell = {
+            "name_ja": _ACTRESS_NAME,
+            "nickname": "",
+            "birth": "",
+            "hometown": "",
+            "height": "",
+            "bust": "", "waist": "", "hip": "",
+            "cup": "",
+            "blood": "",
+            "exclusive_makers": "",
+            "debut_year": "",
+            "photo_url": "https://upload.wikimedia.org/shell.jpg",
+            "photo_needs_resize": True,
+            "photo_license": "Commons",
+        }
+        graphis = _make_graphis()  # has birth, height, BWH, etc.
+
+        with patch(_PATCH_MINNANO, return_value=None), \
+             patch(_PATCH_WIKI, return_value=wiki_shell), \
+             patch(_PATCH_GRAPHIS, return_value=graphis), \
+             patch(_PATCH_GFRIENDS, return_value=None):
+            result = get_actress_profile(_ACTRESS_NAME)
+
+        assert result is not None
+        # Graphis (with real data) must win C1, not the wiki shell
+        assert result["primary_text_source"] == "graphis"
+        assert result["text"] == graphis
+        # But wiki dict is still stored in all_sources for reference
+        assert result["all_sources"]["wiki"] == wiki_shell
+
+    def test_minnano_shell_does_not_suppress_wiki(self):
+        """Parallel safety: if minnano returns a shell (no meaningful text), wiki wins."""
+        minnano_shell = {
+            "name_ja": _ACTRESS_NAME,
+            "name_hiragana": "",
+            "name_romaji": "",
+            "aliases": [],
+            "birth": "",
+            "hometown": "",
+            "height": "",
+            "bust": "", "waist": "", "hip": "",
+            "cup": "",
+            "blood": "",
+            "agency": "",
+            "hobby": "",
+            "debut_work": "",
+            "blog_url": "",
+            "official_url": "",
+            "tags": [],
+            "photo_url": "https://www.minnano-av.com/shell.jpg",
+        }
+        wiki = _make_wiki()
+
+        with patch(_PATCH_MINNANO, return_value=minnano_shell), \
+             patch(_PATCH_WIKI, return_value=wiki), \
+             patch(_PATCH_GRAPHIS, return_value=None), \
+             patch(_PATCH_GFRIENDS, return_value=None):
+            result = get_actress_profile(_ACTRESS_NAME)
+
+        assert result is not None
+        assert result["primary_text_source"] == "wiki"
+
+    def test_all_shells_no_text_source(self):
+        """All text sources return shells (no meaningful text) → primary_text_source None.
+        minnano_shell/wiki_shell are truthy dicts, so orchestrator edge-case guard
+        (not any([...])) does NOT fire early-return None. Result is non-None but
+        primary_text_source=None and text=None; name falls back to queried arg."""
+        minnano_shell = {"name_ja": _ACTRESS_NAME}
+        wiki_shell = {"name_ja": _ACTRESS_NAME}
+
+        with patch(_PATCH_MINNANO, return_value=minnano_shell), \
+             patch(_PATCH_WIKI, return_value=wiki_shell), \
+             patch(_PATCH_GRAPHIS, return_value=None), \
+             patch(_PATCH_GFRIENDS, return_value=None):
+            result = get_actress_profile(_ACTRESS_NAME)
+
+        # minnano_shell is truthy → not any([...]) guard does not fire
+        # but neither shell has meaningful text, so cascade picks no text source
+        assert result is not None
+        assert result["primary_text_source"] is None
+        assert result["text"] is None
+        assert result["current_age"] is None
+        # Bug 2 fix: name falls back to queried arg when text is None
+        assert result["name"] == _ACTRESS_NAME
+
+    def test_minnano_aliases_only_wins_c1_over_wiki(self):
+        """Codex 2nd review: Minnano's C1 primary value is aliases/agency/debut_work/
+        tags/blog_url/official_url — not just birth/BWH. A Minnano result that has
+        ONLY aliases (no birth/size) must still win C1 cascade over a richer Wiki.
+
+        Regression for the Codex review where _MEANINGFUL_TEXT_FIELDS was missing
+        Minnano-only fields, causing valid Minnano results to be treated as shells."""
+        minnano_aliases_only = {
+            "name_ja": _ACTRESS_NAME,
+            "name_hiragana": "あかりつむぎ",
+            "name_romaji": "Akari Tsumugi",
+            "aliases": [  # 9 known aliases — classic Phase 43 auto-populate target
+                {"ja": "別名1", "hiragana": "べつめい1", "romaji": "Betsumei 1"},
+                {"ja": "別名2", "hiragana": "べつめい2", "romaji": "Betsumei 2"},
+            ],
+            "birth": "",         # intentionally empty — Minnano parser failed to grab
+            "hometown": "",
+            "height": "", "bust": "", "waist": "", "hip": "", "cup": "", "blood": "",
+            "agency": "",        # also empty
+            "hobby": "",
+            "debut_work": "",
+            "blog_url": "", "official_url": "",
+            "tags": [],
+            "photo_url": "",
+        }
+        wiki = _make_wiki()  # has birth, height, BWH — "richer" in the Wiki sense
+
+        with patch(_PATCH_MINNANO, return_value=minnano_aliases_only), \
+             patch(_PATCH_WIKI, return_value=wiki), \
+             patch(_PATCH_GRAPHIS, return_value=None), \
+             patch(_PATCH_GFRIENDS, return_value=None):
+            result = get_actress_profile(_ACTRESS_NAME)
+
+        assert result is not None
+        # C1 cascade: Minnano wins because aliases is non-empty (C1 primary value proposition)
+        assert result["primary_text_source"] == "minnano"
+        assert result["text"] == minnano_aliases_only
+        # Phase 43 auto-populate consumers reach aliases via all_sources.minnano.aliases
+        assert len(result["all_sources"]["minnano"]["aliases"]) == 2
+        # Wiki is still stored for reference but not the text source
+        assert result["all_sources"]["wiki"] == wiki
+
+    def test_minnano_agency_only_wins_c1(self):
+        """Same logic as above but with only agency field populated — proves the
+        whole Minnano-specific field set is honored, not just aliases."""
+        minnano_agency_only = {
+            "name_ja": _ACTRESS_NAME,
+            "name_hiragana": "", "name_romaji": "",
+            "aliases": [],
+            "birth": "", "hometown": "",
+            "height": "", "bust": "", "waist": "", "hip": "", "cup": "", "blood": "",
+            "agency": "プレステージ",  # only this
+            "hobby": "", "debut_work": "",
+            "blog_url": "", "official_url": "",
+            "tags": [],
+            "photo_url": "",
+        }
+        graphis = _make_graphis()
+
+        with patch(_PATCH_MINNANO, return_value=minnano_agency_only), \
+             patch(_PATCH_WIKI, return_value=None), \
+             patch(_PATCH_GRAPHIS, return_value=graphis), \
+             patch(_PATCH_GFRIENDS, return_value=None):
+            result = get_actress_profile(_ACTRESS_NAME)
+
+        assert result is not None
+        assert result["primary_text_source"] == "minnano"
+        assert result["text"]["agency"] == "プレステージ"

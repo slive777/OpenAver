@@ -300,7 +300,86 @@ def test_kijima_airi_graceful_fallback():
 
 
 # ---------------------------------------------------------------------------
-# 8. C3 — no photo HTTP in the scraper module
+# 8. Bug 1 fix — parser returns None when infobox has no meaningful text fields
+# ---------------------------------------------------------------------------
+
+def test_parse_wiki_ja_html_no_meaningful_fields_returns_none():
+    """Parser must return None when infobox has no text fields (fix for Bug 1).
+    Labels 職業 and 所属 are not in the elif chain, so no meaningful field is set."""
+    html = """
+    <html><body>
+    <table class="infobox biography">
+      <tr><th>職業</th><td>歌手</td></tr>
+      <tr><th>所属</th><td>フリー</td></tr>
+    </table>
+    </body></html>
+    """
+    result = _parse_wiki_ja_html(html, "テスト女優")
+    assert result is None, \
+        "parser must return None when no text fields (birth/height/BWH/hometown/etc.) extracted"
+
+
+def test_parse_wiki_ja_html_photo_only_returns_none():
+    """Infobox with only a photo (no text fields) must return None.
+    photo_url alone is not sufficient — it could be a wrong-person image."""
+    html = """
+    <html><body>
+    <table class="infobox biography">
+      <tr>
+        <td>
+          <img src="//upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Photo.jpg/220px-Photo.jpg"
+               width="220" height="300" />
+        </td>
+      </tr>
+    </table>
+    </body></html>
+    """
+    result = _parse_wiki_ja_html(html, "テスト女優")
+    assert result is None, \
+        "parser must return None when only photo is found (no text profile fields)"
+
+
+# ---------------------------------------------------------------------------
+# 9. Bug 3 fix — standalone 身長 row (without 体重) still yields height
+# ---------------------------------------------------------------------------
+
+_STANDALONE_HEIGHT_HTML = """
+<html><body>
+<table class="infobox biography">
+  <tr><th>身長</th><td>160 cm</td></tr>
+  <tr><th>生年月日</th><td>1998年3月31日</td></tr>
+</table>
+</body></html>
+"""
+
+
+def test_standalone_shincho_row_parses_height():
+    """Bug 3: standalone 身長 row (without 体重) must still yield height."""
+    result = _parse_wiki_ja_html(_STANDALONE_HEIGHT_HTML, "テスト女優")
+    assert result is not None, "expected non-None result for standalone 身長 row"
+    assert result["height"] == "160cm", \
+        f"expected '160cm' from standalone 身長 row, got {result.get('height')!r}"
+    assert result["birth"] == "1998-03-31"
+
+
+def test_standalone_shincho_combined_row_still_works():
+    """Existing combined 身長 / 体重 row must still parse height correctly."""
+    html = """
+    <html><body>
+    <table class="infobox biography">
+      <tr><th>身長 / 体重</th><td>157 cm / 45 kg</td></tr>
+      <tr><th>生年月日</th><td>1998年3月31日</td></tr>
+    </table>
+    </body></html>
+    """
+    result = _parse_wiki_ja_html(html, "テスト女優")
+    assert result is not None
+    assert result["height"] == "157cm", \
+        f"expected '157cm' from combined 身長/体重 row, got {result.get('height')!r}"
+
+
+# ---------------------------------------------------------------------------
+# 10. C3 — no photo HTTP in the scraper module
 # ---------------------------------------------------------------------------
 
 def test_scrape_wiki_ja_no_photo_download():

@@ -16,6 +16,31 @@ from core.logger import get_logger
 
 logger = get_logger(__name__)
 
+# Fields that count as "meaningful text" for C1 cascade eligibility.
+# A source dict needs at least one of these to be considered text-authoritative.
+# The list is the UNION of text-profile fields across all three sources (Minnano,
+# Wiki, Graphis) — a source wins C1 if it provides ANY non-empty profile datum.
+_MEANINGFUL_TEXT_FIELDS = (
+    # Common / Wiki / Graphis / Minnano — physical + biographical
+    "birth", "height", "bust", "waist", "hip", "cup", "blood",
+    "hometown", "hobby",
+    # Wiki-specific
+    "nickname", "exclusive_makers", "debut_year",
+    # Minnano-specific — the C1 primary value proposition
+    # (Minnano is chosen as C1 primary mostly because of these richer fields)
+    "aliases", "agency", "debut_work", "tags", "blog_url", "official_url",
+)
+
+
+def _has_meaningful_text(result: Optional[Dict]) -> bool:
+    """True if source dict has at least one non-empty text profile field.
+    name_ja / photo_url / photo_license alone do NOT count — those can come from
+    the input arg or a shell parse on a non-AV page. Python truthiness handles
+    both string fields ('' → False) and list fields ([] → False) uniformly."""
+    if not result:
+        return False
+    return any(result.get(k) for k in _MEANINGFUL_TEXT_FIELDS)
+
 # Cache 結構（模組層級變數）
 _cache = {}          # key: str (正規化女優名), value: dict (profile + timestamp)
 _CACHE_TTL = 3600    # 1 小時
@@ -115,13 +140,14 @@ def get_actress_profile(name: str, makers: list = None) -> Optional[Dict]:
         return None
 
     # C1 — text primary source cascade: Minnano → Wikipedia → Graphis → None
-    if minnano_result:
+    # Each source must have meaningful text fields to be eligible (not just name_ja shell)
+    if _has_meaningful_text(minnano_result):
         primary_text_source = "minnano"
         text = minnano_result
-    elif wiki_result:
+    elif _has_meaningful_text(wiki_result):
         primary_text_source = "wiki"
         text = wiki_result
-    elif graphis_result:
+    elif _has_meaningful_text(graphis_result):
         primary_text_source = "graphis"
         text = graphis_result
     else:
@@ -167,7 +193,7 @@ def get_actress_profile(name: str, makers: list = None) -> Optional[Dict]:
         # === LEGACY flat shortcuts (derived) ===
         # Existing template/JS/test assertions depend on these keys.
         # Phase 43 can hard-cut these later.
-        "name":     (text or {}).get("name_ja"),
+        "name":     (text or {}).get("name_ja") or (text or {}).get("name") or name,
         "name_en":  (text or {}).get("name_romaji") or (text or {}).get("name_en"),
         "img":      photo_url,                          # template: actress_profile.img
         "backdrop": backdrop_url,                       # template: actress_profile.backdrop

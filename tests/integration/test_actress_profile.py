@@ -1033,8 +1033,8 @@ def test_get_actress_profile_gfriends_only():
         result = get_actress_profile("桜空もも", makers=['S1'])
 
         assert result is not None
-        # T4.3: name comes from text cascade winner; with all text sources None, name is None
-        assert result['name'] is None
+        # Bug 2 fix: name falls back to queried name arg when all text sources are None
+        assert result['name'] == '桜空もも'
         assert result['img'] == gfriends_url
 
 

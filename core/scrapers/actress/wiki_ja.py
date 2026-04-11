@@ -119,8 +119,9 @@ def _parse_wiki_ja_html(html: str, name: str) -> Optional[Dict]:
             if m:
                 result["blood"] = m.group(1)
 
-        elif "身長" in label and "体重" in label:
-            # Only parse the metric row (contains "cm"), skip imperial (ft/in)
+        elif "身長" in label:
+            # Handle both "身長 / 体重" combined row AND standalone "身長" row.
+            # Prefer metric (cm); imperial (ft/in) is skipped by the cm regex check.
             if re.search(r"\d+\s*cm", value):
                 m = re.search(r"(\d+)\s*cm", value)
                 if m:
@@ -169,11 +170,15 @@ def _parse_wiki_ja_html(html: str, name: str) -> Optional[Dict]:
             result["photo_url"] = raw_url
             break
 
-    # Return None if we couldn't parse anything meaningful
-    if not result["birth"] and not result["height"] and not result["bust"]:
-        logger.debug(f"[wiki_ja] infobox found but no usable fields for {name}")
-        # Still return partial result (graceful fallback for non-AV pages)
-        return result
+    # Return None if we couldn't parse anything meaningful.
+    # Shell results (name_ja only, maybe photo) are not good enough —
+    # they would suppress richer fallback sources in the orchestrator cascade.
+    meaningful_fields = ("birth", "height", "bust", "waist", "hip", "cup",
+                         "blood", "hometown", "nickname", "exclusive_makers",
+                         "debut_year")
+    if not any(result.get(k) for k in meaningful_fields):
+        logger.debug(f"[wiki_ja] infobox found but no usable text fields for {name}")
+        return None
 
     return result
 
