@@ -416,3 +416,72 @@ def test_scrape_wiki_ja_no_photo_download():
         assert photo_url not in call_urls, (
             f"photo_url was fetched (C3 violation): {photo_url}"
         )
+
+
+# ---------------------------------------------------------------------------
+# 11. T7.2 — 別名 field + photo alt guard (Finding A + B from T6-wiki-ja.md)
+# ---------------------------------------------------------------------------
+
+def test_parses_bieimei_row_momonogi_kana():
+    """Finding A: 桃乃木かな 別名 = 松嶋真麻（單名）"""
+    name = "桃乃木かな"
+    fixture_path = FIXTURE_DIR / f"wiki_ja_{name}.html"
+    if not fixture_path.exists():
+        pytest.skip(f"fixture not found: {fixture_path}")
+    html = _load_fixture(name)
+    result = _parse_wiki_ja_html(html, name)
+    assert result is not None
+    assert result.get("other_names") == ["松嶋真麻"], (
+        f"expected ['松嶋真麻'], got {result.get('other_names')!r}"
+    )
+
+
+def test_parses_bieimei_row_kijima_airi_multiple():
+    """Finding A/E: 希島あいり 別名 = '希岛爱理 、希島愛理(中華圏名)'
+    Japanese comma 分隔、不清洗 (中華圏名) 括號"""
+    name = "希島あいり"
+    fixture_path = FIXTURE_DIR / f"wiki_ja_{name}.html"
+    if not fixture_path.exists():
+        pytest.skip(f"fixture not found: {fixture_path}")
+    html = _load_fixture(name)
+    result = _parse_wiki_ja_html(html, name)
+    assert result is not None
+    other = result.get("other_names")
+    assert isinstance(other, list)
+    assert len(other) >= 2, f"expected >=2 names, got {other!r}"
+    assert "希岛爱理" in other, f"missing 希岛爱理 in {other!r}"
+    # 括號說明不清洗 — 第二個元素仍含 (中華圏名)
+    assert any("希島愛理" in s for s in other), f"missing 希島愛理 in {other!r}"
+
+
+def test_no_bieimei_row_returns_empty_list():
+    """明里つむぎ 無 別名 row → other_names == []"""
+    name = "明里つむぎ"
+    fixture_path = FIXTURE_DIR / f"wiki_ja_{name}.html"
+    if not fixture_path.exists():
+        pytest.skip(f"fixture not found: {fixture_path}")
+    html = _load_fixture(name)
+    result = _parse_wiki_ja_html(html, name)
+    assert result is not None
+    assert result.get("other_names") == [], (
+        f"expected [], got {result.get('other_names')!r}"
+    )
+
+
+def test_photo_alt_guard_prefers_human_photo_suzumori_remu():
+    """Finding B: 涼森れむ infobox 有 [220 alt='(2025年5月撮影)' 人像]
+    + [180 alt='' Remu_sign.jpg]，加 alt guard 後仍選人像"""
+    name = "涼森れむ"
+    fixture_path = FIXTURE_DIR / f"wiki_ja_{name}.html"
+    if not fixture_path.exists():
+        pytest.skip(f"fixture not found: {fixture_path}")
+    html = _load_fixture(name)
+    result = _parse_wiki_ja_html(html, name)
+    assert result is not None
+    photo_url = result.get("photo_url", "")
+    assert photo_url, "expected a photo_url"
+    # 不是簽名
+    assert "Remu_sign" not in photo_url, f"signature selected: {photo_url!r}"
+    assert "sign" not in photo_url.lower(), f"signature-like URL: {photo_url!r}"
+    # 是人像
+    assert "Trend_Girls" in photo_url, f"human photo not selected: {photo_url!r}"
