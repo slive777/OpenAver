@@ -753,14 +753,15 @@ def test_lookup_gfriends_all_miss():
 
 
 def test_lookup_gfriends_ai_fix_prefix():
-    """{name}.jpg 非 200，AI-Fix-{name}.jpg 命中 → 回傳 AI-Fix URL"""
+    """AI-Fix-{name}.jpg 優先命中 → 回傳 AI-Fix URL（T7.1 翻轉後 AI-Fix 先試）"""
     from core.scrapers.actress.gfriends import lookup_gfriends, CDN_BASE
 
     with patch('requests.head') as mock_head:
         miss_resp = MagicMock(status_code=403)
         hit_resp = MagicMock(status_code=200)
-        # Top1 (7-S1): {name}.jpg miss, AI-Fix hit
-        mock_head.side_effect = [miss_resp, hit_resp]
+        # Top1 (7-S1): AI-Fix hit → return (不再試原版)
+        # miss_resp 保留作為 safety net，正常情況下不會被消費
+        mock_head.side_effect = [hit_resp, miss_resp]
 
         result = lookup_gfriends("桜空もも", makers=["S1"])
 
