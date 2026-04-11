@@ -14,6 +14,32 @@ import json
 import pytest
 from unittest.mock import patch, MagicMock
 
+# ---------------------------------------------------------------------------
+# Datetime freeze (for TD-1: current_age computed from birth via datetime.now)
+# ---------------------------------------------------------------------------
+from datetime import datetime as _real_datetime
+
+# Frozen instant for age computation: 2026-04-11 (current project date)
+_FROZEN_NOW = _real_datetime(2026, 4, 11, 0, 0, 0)
+
+
+class _FrozenDatetime(_real_datetime):
+    """datetime subclass with now() overridden to a frozen instant.
+    strptime/other methods inherited from real datetime."""
+    @classmethod
+    def now(cls, tz=None):
+        return _FROZEN_NOW
+
+
+@pytest.fixture(autouse=True)
+def _freeze_orchestrator_datetime(monkeypatch):
+    """Autouse: freeze datetime.now() as seen by
+    core.scrapers.actress.orchestrator._compute_age_from_birth."""
+    monkeypatch.setattr(
+        "core.scrapers.actress.orchestrator.datetime",
+        _FrozenDatetime,
+    )
+
 
 @pytest.fixture(autouse=True)
 def clear_actress_cache():
@@ -143,15 +169,16 @@ def test_get_actress_profile_both_sources():
     """測試雙來源合併邏輯（Mock）"""
     from core.scrapers.actress.orchestrator import get_actress_profile, _cache
 
-    # Mock Graphis 回傳照片
+    # Mock Graphis 回傳照片（含 birth 供 TD-1 age 計算）
     def mock_graphis(name):
         return {
             'name': name,
             'prof_url': 'https://graphis.ne.jp/prof.jpg',
-            'backdrop_url': 'https://graphis.ne.jp/model.jpg'
+            'backdrop_url': 'https://graphis.ne.jp/model.jpg',
+            'birth': '1997-12-03',
         }
 
-    # Mock JavBus 回傳資料
+    # Mock JavBus 回傳資料（新 orchestrator 不呼叫 javbus，留作舊 patch chain 參考）
     def mock_javbus(name):
         return {
             'name': name,
@@ -173,9 +200,9 @@ def test_get_actress_profile_both_sources():
         assert result['img'] == 'https://graphis.ne.jp/prof.jpg'
         assert result['backdrop'] == 'https://graphis.ne.jp/model.jpg'
 
-        # JavBus 資料保留
-        assert result['birth'] == '1996-12-03'
-        assert result['age'] == 29
+        # graphis text wins cascade (minnano/wiki mocked None by T4.3)
+        assert result['birth'] == '1997-12-03'   # from graphis (via text cascade)
+        assert result['age'] == 28                # TD-1: from birth 1997-12-03 + frozen 2026-04-11
         assert result['height'] == '160cm'
         assert result['cup'] == 'G'
 
@@ -850,6 +877,7 @@ def _make_graphis_result(name="桜空もも", **overrides):
         'prof_url': 'https://graphis.ne.jp/prof.jpg',
         'backdrop_url': 'https://graphis.ne.jp/model.jpg',
         'name_en': 'Momo Sakurazora',
+        'birth': '1997-12-03',  # TD-1: birth 1997-12-03 + frozen 2026-04-11 → age 28
         'age': 28,
         'height': '160cm',
         'cup': 'G',
@@ -901,7 +929,12 @@ def test_get_actress_profile_gfriends_wins():
 
 
 def test_get_actress_profile_graphis_text_wins():
-    """graphis 文字欄位優先於 javbus（age/height/cup）"""
+    """graphis 文字欄位優先（age/height/cup）
+    NOTE (T4.2 semantic shift): Post-T3 orchestrator has no javbus route.
+    After T4.3 adds minnano/wiki mocks → None, graphis wins the C1 cascade as the
+    only available text source (not "beats javbus" anymore, just "graphis fallback").
+    age == 28 is still correct: _compute_age_from_birth('1997-12-03') under frozen 2026-04-11.
+    """
     from core.scrapers.actress.orchestrator import get_actress_profile, _cache
 
     with patch('core.scrapers.actress.graphis.scrape_graphis_photo', return_value=_make_graphis_result(age=28, height='160cm', cup='G')), \
