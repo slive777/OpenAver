@@ -92,10 +92,12 @@ scrapers/
 
 ## 輔助服務
 
-### `scrapers/actress/` (orchestrator + javbus)
+### `scrapers/actress/` (orchestrator + 4 sources)
 **女優資料爬蟲**
-- 負責從 JavBus 抓取女優的詳細個人資料（身高、三圍、生日等）。
-- 供女優卡（Hero Card）功能使用。
+- Orchestrator 並行 4 路：Minnano-AV / Wikipedia JP / Graphis / gfriends
+- C1 text cascade：Minnano → Wiki → Graphis
+- 供女優卡（Hero Card）功能使用
+- Phase 42e（2026-04-11）起不再使用 JavBus actress 路徑；影片 pipeline 的 `scrapers/javbus.py` 不受影響
 
 ### `scrapers/actress/gfriends.py`
 **gfriends GitHub CDN 女優頭像查表**
