@@ -178,7 +178,7 @@ def search(
             top_actor = _analyze_top_actor(results, threshold=0.8, min_samples=3)
             if top_actor:
                 logger.info(f"[Actress Profile] Fetching profile for: {top_actor}")
-                from core.actress_scraper import get_actress_profile
+                from core.scrapers.actress.orchestrator import get_actress_profile
                 actress_profile = get_actress_profile(top_actor, makers=_extract_top_makers(results))
                 if not actress_profile:
                     logger.info(f"[Actress Profile] Not found for: {top_actor}")
@@ -500,7 +500,7 @@ async def search_stream(
                     top_actor = _analyze_top_actor(results, threshold=0.8, min_samples=3)
                     if top_actor:
                         logger.info(f"[Actress Profile] Fetching profile for: {top_actor}")
-                        from core.actress_scraper import get_actress_profile
+                        from core.scrapers.actress.orchestrator import get_actress_profile
                         actress_profile = get_actress_profile(top_actor, makers=_extract_top_makers(results))
                         if not actress_profile:
                             logger.info(f"[Actress Profile] Not found for: {top_actor}")

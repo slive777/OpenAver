@@ -92,18 +92,20 @@ scrapers/
 
 ## 輔助服務
 
-### `actress_scraper.py`
+### `scrapers/actress/` (orchestrator + 4 sources)
 **女優資料爬蟲**
-- 負責從 JavBus 抓取女優的詳細個人資料（身高、三圍、生日等）。
-- 供女優卡（Hero Card）功能使用。
+- Orchestrator 並行 4 路：Minnano-AV / Wikipedia JP / Graphis / gfriends
+- C1 text cascade：Minnano → Wiki → Graphis
+- 供女優卡（Hero Card）功能使用
+- Phase 42e（2026-04-11）起不再使用 JavBus actress 路徑；影片 pipeline 的 `scrapers/javbus.py` 不受影響
 
-### `gfriends_lookup.py`
+### `scrapers/actress/gfriends.py`
 **gfriends GitHub CDN 女優頭像查表**
 - 透過片商映射 + jsDelivr CDN HEAD request 定位女優圖片，不下載 Filetree.json、不 clone repo。
 - 維護 `MAKER_TO_GFRIENDS` 對照表，將 maker 名稱映射到 gfriends `Content/` 子資料夾。
 - `lookup_gfriends(name, makers)` — 依片商優先順序嘗試，最終以 `9-AVDBS` 兜底。
 
-### `graphis_scraper.py`
+### `scrapers/actress/graphis.py`
 **Graphis Profile 文字解析**
 - 從 `graphis.ne.jp` 搜尋並抓取女優高品質照片及個人資料。
 - `scrape_graphis_photo(name)` — 回傳頭像 URL（360×508）、背景 URL（1185×835）及英文名、年齡、身高、三圍等欄位。
