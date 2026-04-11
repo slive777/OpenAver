@@ -187,7 +187,6 @@ def get_actress_profile(name: str, makers: list = None) -> Optional[Dict]:
             "wiki":     wiki_result    or None,        # dict or None
             "graphis":  graphis_result or None,        # dict or None
             "gfriends": gfriends_url   or None,        # str URL or None
-            "javbus":   None,                          # C2: permanent None schema slot (Phase 42d)
         },
 
         # === LEGACY flat shortcuts (derived) ===
