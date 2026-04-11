@@ -83,7 +83,7 @@ _SEARCH_STAR_BAD_HREF_HTML = """
 
 def test_search_star_on_javbus_success():
     """成功：mock HTML 包含 .avatar-box.text-center，回傳 (star_id, star_name)"""
-    from core.actress_scraper import _search_star_on_javbus
+    from core.scrapers.actress.javbus import _search_star_on_javbus
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -107,7 +107,7 @@ def test_search_star_on_javbus_success():
 
 def test_search_star_on_javbus_not_found():
     """女優不存在：mock HTML 無 .avatar-box，回傳 None"""
-    from core.actress_scraper import _search_star_on_javbus
+    from core.scrapers.actress.javbus import _search_star_on_javbus
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -125,7 +125,7 @@ def test_search_star_on_javbus_not_found():
 
 def test_search_star_on_javbus_http_error():
     """HTTP 非 200：回傳 None"""
-    from core.actress_scraper import _search_star_on_javbus
+    from core.scrapers.actress.javbus import _search_star_on_javbus
 
     mock_resp = MagicMock()
     mock_resp.status_code = 404
@@ -139,7 +139,7 @@ def test_search_star_on_javbus_http_error():
 
 def test_search_star_on_javbus_http_500():
     """HTTP 500：回傳 None"""
-    from core.actress_scraper import _search_star_on_javbus
+    from core.scrapers.actress.javbus import _search_star_on_javbus
 
     mock_resp = MagicMock()
     mock_resp.status_code = 500
@@ -157,7 +157,7 @@ def test_search_star_on_javbus_http_500():
 
 def test_search_star_on_javbus_timeout():
     """Timeout：mock requests.get 拋 Timeout，回傳 None（fail-open）"""
-    from core.actress_scraper import _search_star_on_javbus
+    from core.scrapers.actress.javbus import _search_star_on_javbus
 
     with patch('requests.get', side_effect=requests.exceptions.Timeout("timeout")):
         result = _search_star_on_javbus("桜空もも")
@@ -171,7 +171,7 @@ def test_search_star_on_javbus_timeout():
 
 def test_search_star_on_javbus_bad_href():
     """解析失敗：href 不含 'star/'，回傳 None"""
-    from core.actress_scraper import _search_star_on_javbus
+    from core.scrapers.actress.javbus import _search_star_on_javbus
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -189,7 +189,7 @@ def test_search_star_on_javbus_bad_href():
 
 def test_search_star_on_javbus_multiple_results_takes_first():
     """多個 .avatar-box 結果：回傳第一個"""
-    from core.actress_scraper import _search_star_on_javbus
+    from core.scrapers.actress.javbus import _search_star_on_javbus
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -210,7 +210,7 @@ def test_search_star_on_javbus_multiple_results_takes_first():
 
 def test_search_star_on_javbus_request_exception():
     """網路錯誤：mock requests.get 拋 RequestException，回傳 None"""
-    from core.actress_scraper import _search_star_on_javbus
+    from core.scrapers.actress.javbus import _search_star_on_javbus
 
     with patch('requests.get', side_effect=requests.exceptions.ConnectionError("conn refused")):
         result = _search_star_on_javbus("桜空もも")
@@ -224,7 +224,7 @@ def test_search_star_on_javbus_request_exception():
 
 def test_javbus_headers_no_brotli():
     """_JAVBUS_HEADERS 不應宣告 br（專案無 brotli 依賴）"""
-    from core.actress_scraper import _JAVBUS_HEADERS
+    from core.scrapers.actress.javbus import _JAVBUS_HEADERS
     ae = _JAVBUS_HEADERS.get('Accept-Encoding', '')
     assert 'br' not in ae, f"Accept-Encoding 不應含 br: {ae!r}"
     assert 'gzip' in ae, f"Accept-Encoding 應含 gzip: {ae!r}"

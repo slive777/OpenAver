@@ -456,7 +456,7 @@ class TestSearchStreamSSE:
         mock_profile = {'name': '桜空もも', 'img': 'https://graphis.ne.jp/prof.jpg'}
 
         with patch('web.routers.search.smart_search', side_effect=mock_smart_search), \
-             patch('core.actress_scraper.get_actress_profile', return_value=mock_profile):
+             patch('core.scrapers.actress.orchestrator.get_actress_profile', return_value=mock_profile):
             response = client.get('/api/search/stream?q=桜空もも')
 
         events = parse_sse_events(response.text)
