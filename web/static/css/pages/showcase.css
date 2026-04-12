@@ -294,6 +294,80 @@
     }
 }
 
+/* ==================== Actress Card (T3) ==================== */
+
+.actress-card {
+    background: var(--bg-card);
+    border-radius: var(--fluent-radius-xl);
+    box-shadow: var(--fluent-shadow-2);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard),
+                box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.actress-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: var(--fluent-shadow-8);
+}
+
+.actress-card-photo {
+    aspect-ratio: 3 / 4;   /* portrait，比 video card 的 3/2 更窄 */
+    overflow: hidden;
+    background: var(--surface-1);
+    position: relative;
+}
+
+.actress-card-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.actress-card:hover .actress-card-photo img {
+    transform: scale(1.05);
+}
+
+/* 無照片 placeholder */
+.actress-no-photo {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 3rem;
+}
+
+.actress-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    gap: 0.5rem;
+}
+
+.actress-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.actress-count-badge {
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
 /* ==================== Card Footer Switch (M3e) ==================== */
 
 /* Footer 容器：支援雙層切換 */

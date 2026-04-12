@@ -45,21 +45,37 @@
         <!-- Toolbar -->
         <div class="showcase-toolbar">
             <div class="toolbar-section toolbar-search">
+                <!-- 模式切換 toggle (T3) -->
+                <button class="btn btn-ghost btn-sm"
+                        @click="toggleActressMode()"
+                        :disabled="(!showFavoriteActresses && search !== '') || (showFavoriteActresses && actressSearch !== '')"
+                        :class="{ 'opacity-40 pointer-events-none': (!showFavoriteActresses && search !== '') || (showFavoriteActresses && actressSearch !== '') }"
+                        :title="showFavoriteActresses ? t('showcase.mode.video') : t('showcase.mode.actress')">
+                    <i class="bi" :class="showFavoriteActresses ? 'bi-person' : 'bi-film'"></i>
+                </button>
                 <div class="spotlight-search">
                     <i class="bi bi-search search-icon-left"></i>
+                    <!-- 影片搜尋框 (CD-11) -->
                     <input type="text"
+                           x-show="!showFavoriteActresses"
                            placeholder="{{ t('showcase.placeholder.search') }}"
                            x-model="search"
                            @input.debounce.300ms="onSearchChange()">
+                    <!-- 女優搜尋框 (CD-11) -->
+                    <input type="text"
+                           x-show="showFavoriteActresses"
+                           :placeholder="t('showcase.search.actress')"
+                           x-model="actressSearch"
+                           @input.debounce.300ms="onActressSearchChange()">
                     <div class="search-actions-right">
                         <button class="btn-icon"
-                                x-show="search !== ''"
-                                @click="search = ''; onSearchChange()"
+                                x-show="(!showFavoriteActresses && search !== '') || (showFavoriteActresses && actressSearch !== '')"
+                                @click="showFavoriteActresses ? (actressSearch = '', onActressSearchChange()) : (search = '', onSearchChange())"
                                 title="{{ t('showcase.action.clear_search') }}">
                             <i class="bi bi-x-lg"></i>
                         </button>
                         <button class="btn-icon active"
-                                @click="onSearchChange()"
+                                @click="showFavoriteActresses ? onActressSearchChange() : onSearchChange()"
                                 title="{{ t('showcase.action.search') }}">
                             <i class="bi bi-arrow-right"></i>
                         </button>
@@ -67,7 +83,7 @@
                 </div>
             </div>
 
-            <div class="toolbar-section toolbar-controls">
+            <div class="toolbar-section toolbar-controls" x-show="!showFavoriteActresses">
                 <!-- 排序 -->
                 <div class="control-group">
                     <div class="toolbar-dropdown-wrap" @click.outside="sortOpen = false">
@@ -164,7 +180,50 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 女優模式 Toolbar Controls (T3) -->
+            <div class="toolbar-section toolbar-controls" x-show="showFavoriteActresses">
+                <div class="control-group">
+                    <!-- 女優排序 dropdown（6 選項） -->
+                    <div class="toolbar-dropdown-wrap" x-data="{ actressSortOpen: false }" @click.outside="actressSortOpen = false">
+                        <button class="btn-icon"
+                                @click="actressSortOpen = !actressSortOpen"
+                                :title="t('showcase.toolbar.sort_prefix') + ': ' + actressSort"
+                                :class="{ 'active': actressSortOpen }">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+                        <div class="toolbar-dropdown" x-show="actressSortOpen" x-transition.opacity.duration.150ms @click.stop>
+                            <a href="#" class="dropdown-item" :class="{ 'active': actressSort === 'video_count' }"
+                               @click.prevent="actressSort = 'video_count'; onActressSortChange(); actressSortOpen = false">
+                                <i class="bi bi-film"></i> {{ t('showcase.sort.actress.video_count') }}</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': actressSort === 'name' }"
+                               @click.prevent="actressSort = 'name'; onActressSortChange(); actressSortOpen = false">
+                                <i class="bi bi-type"></i> {{ t('showcase.sort.actress.name') }}</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': actressSort === 'added_at' }"
+                               @click.prevent="actressSort = 'added_at'; onActressSortChange(); actressSortOpen = false">
+                                <i class="bi bi-calendar-plus"></i> {{ t('showcase.sort.actress.added_at') }}</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': actressSort === 'age' }"
+                               @click.prevent="actressSort = 'age'; onActressSortChange(); actressSortOpen = false">
+                                <i class="bi bi-person"></i> {{ t('showcase.sort.actress.age') }}</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': actressSort === 'height' }"
+                               @click.prevent="actressSort = 'height'; onActressSortChange(); actressSortOpen = false">
+                                <i class="bi bi-arrow-up"></i> {{ t('showcase.sort.actress.height') }}</a>
+                            <a href="#" class="dropdown-item" :class="{ 'active': actressSort === 'cup' }"
+                               @click.prevent="actressSort = 'cup'; onActressSortChange(); actressSortOpen = false">
+                                <i class="bi bi-star"></i> {{ t('showcase.sort.actress.cup') }}</a>
+                        </div>
+                    </div>
+                    <!-- 升降序 toggle -->
+                    <button class="btn-icon" @click="toggleActressOrder()" title="{{ t('showcase.action.toggle_order') }}">
+                        <i class="bi" :class="actressOrder === 'asc' ? 'bi-sort-up' : 'bi-sort-down'"></i>
+                    </button>
+                </div>
+            </div>
         </div>
+
+        <!-- 影片模式：status bar + grid / table / list (CD-2: x-if 避免 Alpine 追蹤隱藏陣列 DOM) -->
+        <template x-if="!showFavoriteActresses">
+        <div>
 
         <!-- Status Bar (M3g) -->
         <div class="showcase-status-bar">
@@ -343,6 +402,50 @@
                 </template>
             </ul>
         </div>
+
+        </div>
+        </template><!-- end x-if="!showFavoriteActresses" -->
+
+        <!-- 女優模式：loading / empty state / actress grid (T3) -->
+        <template x-if="showFavoriteActresses">
+          <div>
+            <!-- Loading spinner -->
+            <div class="state-page" x-show="actressLoading">
+                <i class="bi bi-hourglass-split state-page-icon"></i>
+            </div>
+            <!-- Empty state -->
+            <div class="state-page" x-show="!actressLoading && actressCount === 0">
+                <i class="bi bi-person-heart state-page-icon"></i>
+                <p class="state-page-text" x-text="t('showcase.actress.empty')"></p>
+                <p class="state-page-text" x-text="t('showcase.actress.emptyHint')"></p>
+            </div>
+            <!-- Actress Grid -->
+            <div class="showcase-grid" x-show="!actressLoading && filteredActressCount > 0">
+                <template x-for="(actress, index) in paginatedActresses" :key="actress.name">
+                    <div class="actress-card"
+                         :data-flip-id="'actress:' + actress.name"
+                         @click="openActressLightbox(index)">
+                        <!-- Photo -->
+                        <div class="actress-card-photo">
+                            <template x-if="actress.photo_url">
+                                <img :src="actress.photo_url" :alt="actress.name" loading="lazy">
+                            </template>
+                            <template x-if="!actress.photo_url">
+                                <div class="actress-no-photo">
+                                    <i class="bi bi-person"></i>
+                                </div>
+                            </template>
+                        </div>
+                        <!-- Footer -->
+                        <div class="actress-card-footer">
+                            <span class="actress-name" x-text="actress.name"></span>
+                            <span class="actress-count-badge" x-text="actress.video_count + t('showcase.unit.videos_count')"></span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+          </div>
+        </template><!-- end x-if="showFavoriteActresses" -->
 
         <!-- Lightbox (M3a) -->
         <div class="showcase-lightbox"

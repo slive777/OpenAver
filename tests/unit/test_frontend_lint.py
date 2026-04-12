@@ -1689,3 +1689,94 @@ class TestUserTagsApiGuard:
                             "this.fileList?.[this.currentFileIndex]" in func_body)
         assert has_direct or has_captured_ref, \
             "fetchUserTagsForCurrent 未寫入 file-level user_tags（P2: 需有 fileList[idx].user_tags 或 captured ref file.user_tags）"
+
+
+class TestShowcaseActressTemplate:
+    """Phase 44a-T3: 守衛 showcase.html 含有女優模式 UI 結構"""
+
+    def _html(self):
+        return SHOWCASE_HTML.read_text(encoding="utf-8")
+
+    def test_toggle_actress_mode_button(self):
+        """toolbar search 區域含 toggleActressMode() binding"""
+        html = self._html()
+        assert "toggleActressMode()" in html, \
+            "showcase.html 缺少 toggleActressMode() binding（mode toggle button）"
+
+    def test_show_favorite_actresses_binding(self):
+        """showFavoriteActresses 出現於 template"""
+        html = self._html()
+        assert "showFavoriteActresses" in html, \
+            "showcase.html 缺少 showFavoriteActresses binding"
+
+    def test_actress_search_input(self):
+        """actressSearch x-model 存在於 template"""
+        html = self._html()
+        assert "actressSearch" in html, \
+            "showcase.html 缺少 actressSearch x-model（女優搜尋框）"
+
+    def test_actress_grid_x_for(self):
+        """paginatedActresses x-for 存在於 template"""
+        html = self._html()
+        assert "paginatedActresses" in html, \
+            "showcase.html 缺少 paginatedActresses x-for（女優 grid 迴圈）"
+
+    def test_actress_card_class(self):
+        """actress-card class 出現於 template"""
+        html = self._html()
+        assert "actress-card" in html, \
+            "showcase.html 缺少 actress-card class（女優卡片）"
+
+    def test_actress_card_flip_id(self):
+        """'actress:' data-flip-id pattern 出現於 template"""
+        html = self._html()
+        assert "'actress:'" in html, \
+            "showcase.html 缺少 'actress:' data-flip-id pattern（FLIP 動畫 key）"
+
+    def test_actress_card_click_opens_lightbox(self):
+        """openActressLightbox(index) binding 出現於 template"""
+        html = self._html()
+        assert "openActressLightbox(index)" in html, \
+            "showcase.html 缺少 openActressLightbox(index) binding（女優卡片點擊）"
+
+    def test_actress_loading_state(self):
+        """actressLoading binding 出現於 template"""
+        html = self._html()
+        assert "actressLoading" in html, \
+            "showcase.html 缺少 actressLoading binding（loading spinner）"
+
+    def test_actress_empty_state(self):
+        """actressCount === 0 條件出現於 template"""
+        html = self._html()
+        assert "actressCount === 0" in html, \
+            "showcase.html 缺少 actressCount === 0 條件（empty state）"
+
+    def test_actress_photo_url_binding(self):
+        """actress.photo_url 出現於 template"""
+        html = self._html()
+        assert "actress.photo_url" in html, \
+            "showcase.html 缺少 actress.photo_url binding（女優照片）"
+
+    def test_actress_no_photo_placeholder(self):
+        """actress-no-photo class 出現於 template"""
+        html = self._html()
+        assert "actress-no-photo" in html, \
+            "showcase.html 缺少 actress-no-photo class（無照片 placeholder）"
+
+    def test_actress_card_footer(self):
+        """actress-card-footer class 出現於 template"""
+        html = self._html()
+        assert "actress-card-footer" in html, \
+            "showcase.html 缺少 actress-card-footer class（卡片 footer）"
+
+    def test_actress_sort_dropdown(self):
+        """actress sort options 出現於 template（actressSort binding）"""
+        html = self._html()
+        assert "actressSort" in html, \
+            "showcase.html 缺少 actressSort binding（女優排序 dropdown）"
+
+    def test_video_controls_conditional(self):
+        """!showFavoriteActresses 條件用於 video controls 的 x-show"""
+        html = self._html()
+        assert "!showFavoriteActresses" in html, \
+            "showcase.html 缺少 !showFavoriteActresses（video controls x-show 條件）"
