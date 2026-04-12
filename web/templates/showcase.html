@@ -399,7 +399,7 @@
                                 <span>
                                     <span x-show="i > 0">, </span>
                                     <a class="info-link" href="#"
-                                       @click.prevent.stop="searchFromMetadata(actress.trim())"
+                                       @click.prevent.stop="searchFromMetadata(actress.trim(), 'actress')"
                                        x-text="actress.trim()"></a>
                                 </span>
                             </template>
@@ -708,7 +708,7 @@
                             <div class="lb-actor" x-show="currentLightboxVideo?.actresses">
                                 <template x-for="(actress, idx) in (currentLightboxVideo?.actresses || '').split(',').filter(a => a.trim())" :key="actress">
                                     <span>
-                                        <a href="#" class="lb-link" @click.prevent="searchFromMetadata(actress.trim())" x-text="actress.trim()"></a><span x-show="idx < (currentLightboxVideo?.actresses || '').split(',').filter(a => a.trim()).length - 1">, </span>
+                                        <a href="#" class="lb-link" @click.prevent="searchFromMetadata(actress.trim(), 'actress')" x-text="actress.trim()"></a><span x-show="idx < (currentLightboxVideo?.actresses || '').split(',').filter(a => a.trim()).length - 1">, </span>
                                     </span>
                                 </template>
                             </div>

@@ -108,6 +108,7 @@ def _actress_to_response(actress: Actress, video_count: int = 0) -> dict:
         "primary_text_source": actress.primary_text_source,
         "created_at": actress.created_at.isoformat() if actress.created_at else None,
         "video_count": video_count,
+        "is_favorite": True,
     }
 
 

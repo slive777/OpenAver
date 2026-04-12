@@ -1705,6 +1705,7 @@
 /* Grid Mode Hero Card — cursor pointer */
 .hero-card {
     cursor: pointer;
+    max-width: 280px;
 }
 
 /* Hero Card 圖片：contain 完整顯示（不裁切女優照片） */

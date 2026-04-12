@@ -970,7 +970,7 @@ class TestShowcasePreciseMatchState:
     def test_searchFromMetadata_triggers_preciseMatch(self):
         """_checkPreciseActressMatch 出現於 searchFromMetadata 區段"""
         js = self._js()
-        block = self._extract_fn_block(js, 'searchFromMetadata(term)')
+        block = self._extract_fn_block(js, 'searchFromMetadata(term')
         assert "_checkPreciseActressMatch" in block, \
             "showcase/core.js searchFromMetadata 缺少 _checkPreciseActressMatch 呼叫"
 

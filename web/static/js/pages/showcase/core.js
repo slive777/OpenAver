@@ -1422,7 +1422,7 @@ function showcaseState() {
         // ==================== End Sample Gallery Methods ====================
 
         // Metadata 點擊搜尋 (M3f)
-        searchFromMetadata(term) {
+        searchFromMetadata(term, type) {
             // F2: cancel pending delayed clear from previous close
             if (this.lightboxCloseTimer) {
                 clearTimeout(this.lightboxCloseTimer);
@@ -1455,7 +1455,11 @@ function showcaseState() {
 
             this.search = term;
             this._animateFilter();
-            this._checkPreciseActressMatch(term, 'metadata');
+            if (type === 'actress') {
+                this._checkPreciseActressMatch(term, 'metadata');
+            } else {
+                this._clearPreciseMatch();
+            }
         },
 
         // 44b-T4: Nav arrow visibility computed（同 /search base.js lines 205-219）
