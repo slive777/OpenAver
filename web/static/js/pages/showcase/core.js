@@ -1261,7 +1261,34 @@ function showcaseState() {
         },
 
         openHeroCardLightbox() {
-            // T4: will implement -1 sentinel lightbox for hero card
+            if (this._lightboxAnimating) return;
+            if (!this._matchedActress) return;
+            this._actressChipsExpanded = { aliases: false, info: false };
+            // ★ 直接賦值（不走 _setLightboxIndex(-1)）
+            // 理由：_setLightboxIndex 永遠設 currentLightboxActress = null（line 140）
+            // 直接賦值避免破壞 closeLightbox() 250ms delayed clear path
+            this.lightboxIndex = -1;
+            this.currentLightboxActress = this._matchedActress;
+            this.currentLightboxVideo = null;
+            this.addingLbTag = false;
+            this._videoChipsExpanded = false;
+            this.lightboxOpen = true;
+            document.body.classList.add('overflow-hidden');
+
+            // B19: 進場動畫（fire-and-forget，generation-guarded）
+            var lbGen = ++this._lightboxGeneration;
+            var self = this;
+            this.$nextTick(function () {
+                if (self._lightboxGeneration !== lbGen) return;
+                var el = document.querySelector('.showcase-lightbox');
+                if (window.ShowcaseAnimations && window.ShowcaseAnimations.playLightboxOpen) {
+                    self._lightboxAnimating = true;
+                    var tl = window.ShowcaseAnimations.playLightboxOpen(el, {
+                        onComplete: function () { self._lightboxAnimating = false; }
+                    });
+                    if (!tl) self._lightboxAnimating = false;
+                }
+            });
         },
 
         closeLightbox() {
@@ -1421,12 +1448,58 @@ function showcaseState() {
             this._checkPreciseActressMatch(term, 'metadata');
         },
 
+        // 44b-T4: Nav arrow visibility computed（同 /search base.js lines 205-219）
+        hasVisiblePrev() {
+            if (this.showFavoriteActresses) return this.actressLightboxIndex > 0;
+            if (this.lightboxIndex === -1) return false;
+            if (this.lightboxIndex === 0) {
+                return this._isPreciseActressMatch && !!this._matchedActress && !!this._matchedActress.is_favorite;
+            }
+            return this.lightboxIndex > 0;
+        },
+
+        hasVisibleNext() {
+            if (this.showFavoriteActresses) return this.actressLightboxIndex < this.filteredActressCount - 1;
+            if (this.lightboxIndex === -1) {
+                return _filteredVideos.length > 0;
+            }
+            return this.lightboxIndex < _filteredVideos.length - 1;
+        },
+
         prevLightboxVideo() {
             // C18: interrupt — kill open + switch timeline（進場動畫未完也要打斷）
             _killLightboxTimelines();
             this._lightboxAnimating = false;
             var lbEl = document.querySelector('.showcase-lightbox');
             if (lbEl) lbEl.classList.remove('gsap-animating');
+
+            // 44b: -1 sentinel — already at leftmost, do not move
+            if (this.lightboxIndex === -1) return;
+
+            // 44b: index 0 + hero card → retreat to -1
+            if (this.lightboxIndex === 0 && this._isPreciseActressMatch && this._matchedActress && this._matchedActress.is_favorite) {
+                var self = this;
+                // B19: state-first（直接賦值設 -1 sentinel state）
+                this.lightboxIndex = -1;
+                this.currentLightboxActress = this._matchedActress;
+                this.currentLightboxVideo = null;
+                this.addingLbTag = false;
+                this._videoChipsExpanded = false;
+
+                var lbGen = ++this._lightboxGeneration;
+                this.$nextTick(function () {
+                    if (self._lightboxGeneration !== lbGen) return;
+                    var contentEl = document.querySelector('.showcase-lightbox .lightbox-content');
+                    if (contentEl && window.ShowcaseAnimations && window.ShowcaseAnimations.playLightboxSwitch) {
+                        self._lightboxAnimating = true;
+                        var tl = window.ShowcaseAnimations.playLightboxSwitch(contentEl, 'prev', {
+                            onComplete: function () { self._lightboxAnimating = false; }
+                        });
+                        if (!tl) self._lightboxAnimating = false;
+                    }
+                });
+                return;
+            }
 
             if (this.lightboxIndex > 0) {
                 var self = this;
@@ -1459,6 +1532,28 @@ function showcaseState() {
             this._lightboxAnimating = false;
             var lbEl = document.querySelector('.showcase-lightbox');
             if (lbEl) lbEl.classList.remove('gsap-animating');
+
+            // 44b: from -1 (hero card) → jump to first video
+            if (this.lightboxIndex === -1) {
+                if (_filteredVideos.length === 0) return;
+                var self = this;
+                // B19: state-first（呼叫 _setLightboxIndex 設 video + 清 actress）
+                this._setLightboxIndex(0);
+
+                var lbGen = ++this._lightboxGeneration;
+                this.$nextTick(function () {
+                    if (self._lightboxGeneration !== lbGen) return;
+                    var contentEl = document.querySelector('.showcase-lightbox .lightbox-content');
+                    if (contentEl && window.ShowcaseAnimations && window.ShowcaseAnimations.playLightboxSwitch) {
+                        self._lightboxAnimating = true;
+                        var tl = window.ShowcaseAnimations.playLightboxSwitch(contentEl, 'next', {
+                            onComplete: function () { self._lightboxAnimating = false; }
+                        });
+                        if (!tl) self._lightboxAnimating = false;
+                    }
+                });
+                return;
+            }
 
             if (this.lightboxIndex < _filteredVideos.length - 1) {
                 var self = this;
@@ -1760,7 +1855,7 @@ function showcaseState() {
 
             // 5. Lightbox 開啟時的快捷鍵（按 content type 分發）
             if (this.lightboxOpen) {
-                if (this.currentLightboxActress) {
+                if (this.currentLightboxActress && this.showFavoriteActresses) {
                     // 女優 lightbox（優先級高）
                     if (key === 'ESCAPE') {
                         e.preventDefault();

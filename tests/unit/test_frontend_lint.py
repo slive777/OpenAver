@@ -2156,3 +2156,79 @@ class TestShowcaseActressI18n:
             data = self._locale(locale_file)
             val = self._get_nested(data, key)
             assert val is not None, f"{locale_file} 缺少 {key}"
+
+
+class TestShowcaseLightboxSentinel:
+    """Phase 44b-T4: Lightbox -1 sentinel nav guards"""
+
+    CORE_JS = Path(__file__).parents[2] / 'web' / 'static' / 'js' / 'pages' / 'showcase' / 'core.js'
+    SHOWCASE_HTML = Path(__file__).parents[2] / 'web' / 'templates' / 'showcase.html'
+
+    def _js(self):
+        return self.CORE_JS.read_text(encoding='utf-8')
+
+    def _html(self):
+        return self.SHOWCASE_HTML.read_text(encoding='utf-8')
+
+    def test_openHeroCardLightbox_exists(self):
+        """openHeroCardLightbox method exists and is not a stub"""
+        js = self._js()
+        assert "openHeroCardLightbox" in js, \
+            "showcase/core.js 缺少 openHeroCardLightbox 方法"
+        idx = js.find("openHeroCardLightbox")
+        block = js[idx:idx + 2000]
+        assert "lightboxIndex = -1" in block, \
+            "openHeroCardLightbox 缺少 lightboxIndex = -1 賦值（-1 sentinel 設置）"
+        assert "this.currentLightboxActress" in block, \
+            "openHeroCardLightbox 缺少 currentLightboxActress 賦值"
+
+    def test_hasVisiblePrev_exists(self):
+        """hasVisiblePrev computed exists"""
+        assert "hasVisiblePrev" in self._js(), \
+            "showcase/core.js 缺少 hasVisiblePrev computed（-1 sentinel nav arrow guard）"
+
+    def test_hasVisibleNext_exists(self):
+        """hasVisibleNext computed exists"""
+        assert "hasVisibleNext" in self._js(), \
+            "showcase/core.js 缺少 hasVisibleNext computed（-1 sentinel nav arrow guard）"
+
+    def test_prevLightboxVideo_has_sentinel_guard(self):
+        """prevLightboxVideo 含 lightboxIndex === -1 guard"""
+        js = self._js()
+        idx = js.find("prevLightboxVideo()")
+        assert idx != -1, "prevLightboxVideo method not found"
+        block = js[idx:idx + 1500]
+        assert "lightboxIndex === -1" in block, \
+            "prevLightboxVideo 缺少 lightboxIndex === -1 guard（-1 時不動）"
+        assert "is_favorite" in block, \
+            "prevLightboxVideo 缺少 is_favorite 條件（index 0 → -1 退回條件）"
+
+    def test_nextLightboxVideo_has_sentinel_transition(self):
+        """nextLightboxVideo 含 lightboxIndex === -1 跳到 index 0 的邏輯"""
+        js = self._js()
+        idx = js.find("nextLightboxVideo()")
+        assert idx != -1, "nextLightboxVideo method not found"
+        block = js[idx:idx + 1500]
+        assert "lightboxIndex === -1" in block, \
+            "nextLightboxVideo 缺少 lightboxIndex === -1 分支（hero card → 第一筆影片）"
+        assert "_setLightboxIndex" in block, \
+            "nextLightboxVideo -1 分支缺少 _setLightboxIndex（進入影片模式需標準 setter）"
+
+    def test_handleKeydown_uses_showFavoriteActresses(self):
+        """handleKeydown lightbox 分支使用 showFavoriteActresses 而非僅 currentLightboxActress"""
+        js = self._js()
+        idx = js.find("// 5. Lightbox 開啟時的快捷鍵")
+        assert idx != -1, "handleKeydown lightbox section anchor not found"
+        block = js[idx:idx + 1000]
+        assert "showFavoriteActresses" in block, \
+            "handleKeydown lightbox 分支缺少 showFavoriteActresses 判斷（影片模式 hero card 鍵盤導航會走錯分支）"
+
+    def test_removeActress_button_has_xshow_guard(self):
+        """removeActress button gated by x-show="showFavoriteActresses\""""
+        html = self._html()
+        idx = html.find("removeActress()")
+        assert idx != -1, "removeActress() handler not found in showcase.html"
+        # 找 removeActress button 的區塊（往前 300 字）
+        surrounding = html[max(0, idx - 300):idx + 100]
+        assert "showFavoriteActresses" in surrounding, \
+            "removeActress button 缺少 x-show=\"showFavoriteActresses\" guard（hero card lightbox 不應顯示移除按鈕）"

@@ -592,6 +592,7 @@
                                     <i class="bi bi-camera-reels"></i>
                                 </button>
                                 <button class="lb-action-btn lb-action-btn--danger"
+                                        x-show="showFavoriteActresses"
                                         @click.stop="removeActress()"
                                         :data-tooltip="t('showcase.actress.remove')"
                                         :aria-label="t('showcase.actress.remove')">
@@ -800,13 +801,13 @@
             <!-- Navigation Arrows OUTSIDE lightbox-content (44a T4: dispatch based on showFavoriteActresses) -->
             <button class="lightbox-nav lightbox-nav-prev"
                     @click.stop="showFavoriteActresses ? prevActressLightbox() : prevLightboxVideo()"
-                    x-show="showFavoriteActresses ? actressLightboxIndex > 0 : lightboxIndex > 0"
+                    x-show="showFavoriteActresses ? actressLightboxIndex > 0 : hasVisiblePrev()"
                     title="{{ t('showcase.lightbox.prev') }}">
                 <i class="bi bi-chevron-left"></i>
             </button>
             <button class="lightbox-nav lightbox-nav-next"
                     @click.stop="showFavoriteActresses ? nextActressLightbox() : nextLightboxVideo()"
-                    x-show="showFavoriteActresses ? actressLightboxIndex < filteredActressCount - 1 : lightboxIndex < filteredCount - 1"
+                    x-show="showFavoriteActresses ? actressLightboxIndex < filteredActressCount - 1 : hasVisibleNext()"
                     title="{{ t('showcase.lightbox.next') }}">
                 <i class="bi bi-chevron-right"></i>
             </button>
