@@ -25,6 +25,8 @@ from core.scrapers.actress.orchestrator import (
     get_cached_profile,
     get_actress_profile,
     _compute_age_from_birth as _compute_age,
+    _cache as _actress_cache,
+    _normalize_name as _normalize_actress_name,
 )
 from core.logger import get_logger
 
@@ -208,6 +210,7 @@ def add_favorite(req: FavoriteRequest):
 
     # DB save（ON CONFLICT DO UPDATE）
     repo.save(actress)
+    actress = repo.get_by_name(actress.name) or actress  # re-read for created_at
     logger.info("[actress] 收藏女優：%s", actress.name)
 
     # 5. 下載照片（photo_url 可能為 None，函數內部已有 guard）
@@ -293,6 +296,8 @@ def rescrape_actress(name: str):
     init_db()
     repo = ActressRepository()
 
+    # P1 fix: bypass cache — evict before scraping
+    _actress_cache.pop(_normalize_actress_name(name), None)
     result = get_actress_profile(name)
 
     if result.timed_out:
@@ -333,6 +338,7 @@ def rescrape_actress(name: str):
     )
 
     repo.save(actress)
+    actress = repo.get_by_name(actress.name) or actress  # re-read for created_at
     logger.info("[actress] 重抓女優資料：%s", actress.name)
 
     photo_downloaded = download_actress_photo(
