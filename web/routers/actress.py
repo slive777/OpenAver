@@ -209,7 +209,7 @@ def add_favorite(req: FavoriteRequest):
 
     # 5. 下載照片（photo_url 可能為 None，函數內部已有 guard）
     photo_downloaded = download_actress_photo(
-        name, profile.get("photo_url"), profile.get("photo_source")
+        actress.name, profile.get("photo_url"), profile.get("photo_source")
     )
 
     return JSONResponse(

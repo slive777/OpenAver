@@ -148,6 +148,7 @@ window.SearchStateMixin_Base = function () {
 
         // ===== T5: Actress Favorite State =====
         _actressFavoriteLoading: false,
+        _actressFavoriteGen: 0,
         _actressFavoriteTimer: null,
 
         // ===== Phase 43 T6: Actress Chips Expanded State =====
@@ -528,6 +529,7 @@ window.SearchStateMixin_Base = function () {
             const capturedProfile = this.actressProfile;
             const capturedName = this.actressProfile.name;
 
+            const gen = ++this._actressFavoriteGen;
             this._actressFavoriteLoading = true;
 
             // 10s 前端 timeout
@@ -582,7 +584,7 @@ window.SearchStateMixin_Base = function () {
                     console.error('[addFavoriteActress] 例外:', err);
                 }
             } finally {
-                this._actressFavoriteLoading = false;
+                if (this._actressFavoriteGen === gen) this._actressFavoriteLoading = false;
             }
         },
     };
