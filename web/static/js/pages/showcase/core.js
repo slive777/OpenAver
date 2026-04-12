@@ -180,6 +180,16 @@ function showcaseState() {
                 this._isPreciseActressMatch = true;
                 this._matchedActress = found;
                 this._preciseMatchSource = source;
+                // T5: hero card 出現動畫 — 只在 is_favorite 時觸發（card 才會 x-show=true）
+                if (found.is_favorite && !this.showFavoriteActresses) {
+                    var self = this;
+                    this.$nextTick(function () {
+                        requestAnimationFrame(function () {
+                            var heroEl = document.querySelector('.hero-card');
+                            window.ShowcaseAnimations?.playHeroCardAppear?.(heroEl);
+                        });
+                    });
+                }
             } else if (source === 'metadata') {
                 this._isPreciseActressMatch = true;
                 this._matchedActress = { name: capturedTerm, is_favorite: false };

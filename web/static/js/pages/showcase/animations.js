@@ -508,6 +508,37 @@
         },
 
         /**
+         * T5: Hero Card 出現動畫 — fade-in + slide-down from above
+         *
+         * Graceful fallback: GSAP 未載入或 shouldSkip() → return null，Alpine x-show 維持正常顯示。
+         * C4: killTweensOf 清舊動畫（避免重複搜尋時堆疊）
+         * clearProps: 動畫結束後清除 inline style（不污染 Alpine x-show 控制的 opacity/transform）
+         *
+         * @param {Element} el - .hero-card 元素
+         * @returns {gsap.core.Tween|null}
+         */
+        playHeroCardAppear: function (el) {
+            if (!el) return null;
+            if (typeof gsap === 'undefined') return null;
+
+            // C4: 清除舊動畫
+            gsap.killTweensOf(el);
+
+            if (shouldSkip()) return null;
+
+            return gsap.fromTo(el,
+                { opacity: 0, y: -20 },
+                {
+                    opacity: 1,
+                    y: 0,
+                    duration: 0.3,
+                    ease: 'power2.out',
+                    clearProps: 'transform,opacity'
+                }
+            );
+        },
+
+        /**
          * T7: Sample Gallery 圖片切換動畫
          *
          * C18: killTweensOf — 打斷舊動畫

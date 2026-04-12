@@ -296,8 +296,12 @@
         </div>
 
         <!-- Hero Card（影片模式精準匹配）— 複用 /search av-card-preview hero-card pattern -->
+        <!-- T5: enter 由 GSAP playHeroCardAppear 負責；leave 用 Alpine x-transition fade-up -->
         <div class="av-card-preview hero-card"
              x-show="!showFavoriteActresses && _isPreciseActressMatch && _matchedActress?.is_favorite"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="opacity-100 translate-y-0"
+             x-transition:leave-end="opacity-0 -translate-y-2"
              x-cloak
              @click="openHeroCardLightbox()">
           <div class="av-card-preview-img">
