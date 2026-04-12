@@ -340,14 +340,27 @@ function showcaseState() {
         toggleActressMode() {
             if (this.lightboxOpen) this.closeLightbox();
             this.showFavoriteActresses = !this.showFavoriteActresses;
+            var self = this;
+            var needEntry = false;
             if (this.showFavoriteActresses) {
-                this.search = '';  // 切到女優時清除影片搜尋
+                this.search = '';
                 if (_actresses.length === 0) {
                     this.loadActresses();
+                } else {
+                    needEntry = true;
                 }
             } else {
-                this.actressSearch = '';  // 切回影片時清除女優搜尋
+                this.actressSearch = '';
             }
+            var gen = ++this._animGeneration;
+            this.$nextTick(function () {
+                if (self._animGeneration !== gen) return;
+                window.ShowcaseAnimations?.playModeCrossfade?.('grid', 'grid');
+                if (needEntry) {
+                    var grid = document.querySelector('.showcase-grid');
+                    window.ShowcaseAnimations?.playEntry?.(grid);
+                }
+            });
             this.saveState();
         },
 
@@ -372,6 +385,14 @@ function showcaseState() {
                 }
                 _actresses = data.actresses || [];
                 this.applyActressFilterAndSort();
+                // 卡片進場動畫（applyActressFilterAndSort 更新 paginatedActresses，Alpine 渲染後呼叫）
+                var gen = ++this._animGeneration;
+                var self = this;
+                this.$nextTick(function () { requestAnimationFrame(function () {
+                    if (self._animGeneration !== gen) return;
+                    var grid = document.querySelector('.showcase-grid');
+                    window.ShowcaseAnimations?.playEntry?.(grid);
+                }); });
             } catch (e) {
                 console.error('[Showcase] Failed to fetch actresses:', e);
                 _actresses = [];

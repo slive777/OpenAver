@@ -139,7 +139,7 @@
             // GSAP guard（CDN 故障降級）
             if (typeof gsap === 'undefined') return null;
 
-            var cards = gridEl.querySelectorAll('.av-card-preview');
+            var cards = gridEl.querySelectorAll('.av-card-preview, .actress-card');
             if (!cards.length) return null;
 
             // C4: 清除舊動畫
@@ -204,7 +204,7 @@
             // GSAP guard
             if (typeof gsap === 'undefined') return null;
 
-            var cards = gridEl.querySelectorAll('.av-card-preview');
+            var cards = gridEl.querySelectorAll('.av-card-preview, .actress-card');
             if (!cards.length) return null;
 
             // Reduced Motion 降級
@@ -266,7 +266,7 @@
             // Flip guard
             if (typeof Flip === 'undefined' || typeof gsap === 'undefined') return null;
 
-            var cards = gridEl.querySelectorAll('.av-card-preview');
+            var cards = gridEl.querySelectorAll('.av-card-preview, .actress-card');
             if (!cards.length) return null;
 
             // Reduced Motion 降級：Alpine 已完成 DOM 更新，不需額外處理
@@ -315,7 +315,7 @@
          */
         capturePositions: function (gridEl) {
             if (!gridEl) return null;
-            var cards = gridEl.querySelectorAll('.av-card-preview');
+            var cards = gridEl.querySelectorAll('.av-card-preview, .actress-card');
             if (!cards.length) return null;
             var map = new Map();
             Array.from(cards).forEach(function (card) {
