@@ -361,6 +361,24 @@
     font-size: 3rem;
 }
 
+/* Actress card hover overlay (44c-T7) */
+.actress-card-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
+    pointer-events: none;
+}
+
+.actress-card:hover .actress-card-overlay {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 .actress-card-footer {
     position: relative;
     overflow: hidden;

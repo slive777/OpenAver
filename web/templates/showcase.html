@@ -471,6 +471,14 @@
                                     <i class="bi bi-person"></i>
                                 </div>
                             </template>
+                            <!-- Search films overlay (44c-T7) -->
+                            <div class="actress-card-overlay">
+                                <button class="btn-glass-circle"
+                                        @click.stop="searchActressFilms(actress.name)"
+                                        :title="t('showcase.actress.search_films')">
+                                    <i class="bi bi-camera-reels"></i>
+                                </button>
+                            </div>
                         </div>
                         <!-- Footer -->
                         <div class="actress-card-footer">
@@ -516,11 +524,10 @@
                             </div>
                             <div class="cover-actions">
                                 <button class="lb-action-btn"
-                                        @click.stop="rescrapeActress()"
-                                        :disabled="_rescraping"
-                                        :data-tooltip="t('showcase.actress.rescrape')"
-                                        :aria-label="t('showcase.actress.rescrape')">
-                                    <i class="bi" :class="_rescraping ? 'bi-arrow-clockwise spin' : 'bi-arrow-repeat'"></i>
+                                        @click.stop="searchActressFilms(currentLightboxActress?.name)"
+                                        :data-tooltip="t('showcase.actress.search_films')"
+                                        :aria-label="t('showcase.actress.search_films')">
+                                    <i class="bi bi-camera-reels"></i>
                                 </button>
                                 <button class="lb-action-btn lb-action-btn--danger"
                                         @click.stop="removeActress()"

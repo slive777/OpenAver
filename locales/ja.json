@@ -549,7 +549,8 @@
       "removeConfirm": "{name} を削除しますか？",
       "removeSuccess": "お気に入りから削除しました",
       "empty": "お気に入り女優がいません",
-      "emptyHint": "右上の + をクリックして追加してください"
+      "emptyHint": "右上の + をクリックして追加してください",
+      "search_films": "関連動画を検索"
     }
   },
   "help": {

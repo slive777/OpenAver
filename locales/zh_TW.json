@@ -549,7 +549,8 @@
       "removeConfirm": "確認移除 {name}？",
       "removeSuccess": "已從收藏移除",
       "empty": "尚未收藏任何女優",
-      "emptyHint": "點擊右上角 + 新增收藏"
+      "emptyHint": "點擊右上角 + 新增收藏",
+      "search_films": "搜尋相關影片"
     }
   },
   "help": {

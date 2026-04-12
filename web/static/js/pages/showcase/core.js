@@ -763,6 +763,18 @@ function showcaseState() {
             }
         },
 
+        // --- 44c T7: Search actress films ---
+        searchActressFilms(actressName) {
+            if (!actressName) return;
+            if (this.lightboxOpen) this.closeLightbox();
+            if (this.showFavoriteActresses) {
+                this.showFavoriteActresses = false;
+                this.actressSearch = '';
+            }
+            this.search = actressName;
+            this._animateFilter();
+        },
+
         // --- 44c T6: Active grid helper ---
         _getActiveGrid() {
             return this.showFavoriteActresses

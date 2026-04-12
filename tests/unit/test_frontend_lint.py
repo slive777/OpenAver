@@ -1906,16 +1906,29 @@ class TestShowcaseActressCRUD:
             "showcase.html 缺少 addFavoriteActress()（[+ 新增] 按鈕 @click handler）"
 
     def test_rescrape_handler_in_template(self):
-        """showcase.html 含 rescrapeActress() handler"""
+        """showcase.html lightbox cover-actions 不再有 rescrapeActress() handler（44c-T7 已移除按鈕）"""
         html = self._html()
-        assert "rescrapeActress()" in html, \
-            "showcase.html 缺少 rescrapeActress()（Row 6 重新抓取按鈕 @click handler）"
+        assert "rescrapeActress()" not in html, \
+            "showcase.html 仍含 rescrapeActress() handler（44c-T7 應已移除 lightbox 按鈕）"
 
     def test_remove_handler_in_template(self):
         """showcase.html 含 removeActress() handler"""
         html = self._html()
         assert "removeActress()" in html, \
             "showcase.html 缺少 removeActress()（Row 6 移除最愛按鈕 @click handler）"
+
+    def test_search_actress_films_method(self):
+        """core.js 含 searchActressFilms() 方法"""
+        js = self._js()
+        assert "searchActressFilms" in js, \
+            "showcase/core.js 缺少 searchActressFilms() 方法（女優搜尋影片功能）"
+
+    def test_search_films_handler_in_template(self):
+        """showcase.html 含 searchActressFilms() handler（lightbox + grid 各一處）"""
+        html = self._html()
+        count = html.count("searchActressFilms(")
+        assert count >= 2, \
+            f"showcase.html searchActressFilms() handler 出現次數不足（期望 >=2，實際 {count}）"
 
 
 class TestShowcaseActressCardFooter:
@@ -2004,6 +2017,7 @@ class TestShowcaseActressI18n:
         "showcase.actress.removeSuccess",
         "showcase.actress.empty",
         "showcase.actress.emptyHint",
+        "showcase.actress.search_films",
         "showcase.sort.actress.video_count",
         "showcase.sort.actress.name",
         "showcase.sort.actress.added_at",
