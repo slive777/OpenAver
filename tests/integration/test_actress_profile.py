@@ -465,24 +465,28 @@ def mock_search_actress():
 
 @pytest.fixture
 def mock_actress_profile():
-    """Mock 女優資料"""
+    """Mock 女優資料（回傳 ProfileResult namedtuple，T3 後的型別）"""
+    from core.scrapers.actress.orchestrator import ProfileResult
+
     def mock_fn(name, **kwargs):
         if name == '桜空もも':
-            return {
+            data = {
                 'name': '桜空もも',
                 'img': 'https://graphis.ne.jp/prof.jpg',
                 'backdrop': 'https://graphis.ne.jp/model.jpg',
                 'birth': '1996-12-03',
                 'age': 29
             }
-        return None
+            return ProfileResult(data=data, timed_out=False)
+        return ProfileResult(data=None, timed_out=False)
     return mock_fn
 
 
 def test_search_api_actress_with_profile(client, mock_search_actress, mock_actress_profile):
     """測試女優搜尋 API（有 actress_profile）"""
     with patch('web.routers.search.search_actress', side_effect=mock_search_actress), \
-         patch('core.scrapers.actress.orchestrator.get_actress_profile', side_effect=mock_actress_profile):
+         patch('core.scrapers.actress.orchestrator.get_actress_profile', side_effect=mock_actress_profile), \
+         patch('core.database.ActressRepository.get_by_name', return_value=None):
 
         resp = client.get("/api/search?q=桜空もも&mode=actress")
         data = resp.json()
@@ -559,9 +563,13 @@ def test_search_api_few_results_no_profile(client):
 
 def test_search_api_graceful_failure(client, mock_search_actress):
     """測試雙來源失敗時不影響搜尋結果"""
-    # Mock 雙來源都失敗
+    from core.scrapers.actress.orchestrator import ProfileResult
+
+    # Mock 雙來源都失敗（orchestrator 回傳 ProfileResult(data=None)）
     with patch('web.routers.search.search_actress', side_effect=mock_search_actress), \
-         patch('core.scrapers.actress.orchestrator.get_actress_profile', return_value=None):
+         patch('core.scrapers.actress.orchestrator.get_actress_profile',
+               return_value=ProfileResult(data=None, timed_out=False)), \
+         patch('core.database.ActressRepository.get_by_name', return_value=None):
 
         resp = client.get("/api/search?q=桜空もも&mode=actress")
         data = resp.json()
@@ -965,6 +973,8 @@ def test_get_actress_profile_gfriends_only():
 
 def test_search_api_passes_makers_to_profile(client):
     """REST /api/search 路徑：_extract_top_makers 的結果應傳給 get_actress_profile"""
+    from core.scrapers.actress.orchestrator import ProfileResult
+
     def mock_smart_search(q, **kwargs):
         return [
             {'number': 'SONE-205', 'actors': ['桜空もも']},
@@ -972,15 +982,16 @@ def test_search_api_passes_makers_to_profile(client):
             {'number': 'SONE-162', 'actors': ['桜空もも']},
         ]
 
-    mock_profile = MagicMock(return_value={
+    mock_profile = MagicMock(return_value=ProfileResult(data={
         'name': '桜空もも',
         'img': 'https://graphis.ne.jp/prof.jpg',
         'backdrop': 'https://graphis.ne.jp/model.jpg',
-    })
+    }, timed_out=False))
 
     # Patch smart_search in the router's own namespace (it's imported at module load time)
     with patch('web.routers.search.smart_search', side_effect=mock_smart_search), \
-         patch('core.scrapers.actress.orchestrator.get_actress_profile', mock_profile):
+         patch('core.scrapers.actress.orchestrator.get_actress_profile', mock_profile), \
+         patch('core.database.ActressRepository.get_by_name', return_value=None):
 
         resp = client.get("/api/search?q=桜空もも")
         data = resp.json()
@@ -999,6 +1010,8 @@ def test_search_api_passes_makers_to_profile(client):
 
 def test_sse_passes_makers_to_profile(client):
     """SSE /api/search/stream 路徑：_extract_top_makers 的結果應傳給 get_actress_profile"""
+    from core.scrapers.actress.orchestrator import ProfileResult
+
     def mock_smart_search(q, **kwargs):
         return [
             {'number': 'SONE-205', 'actors': ['桜空もも']},
@@ -1006,14 +1019,15 @@ def test_sse_passes_makers_to_profile(client):
             {'number': 'SONE-162', 'actors': ['桜空もも']},
         ]
 
-    mock_profile = MagicMock(return_value={
+    mock_profile = MagicMock(return_value=ProfileResult(data={
         'name': '桜空もも',
         'img': 'https://graphis.ne.jp/prof.jpg',
         'backdrop': 'https://graphis.ne.jp/model.jpg',
-    })
+    }, timed_out=False))
 
     with patch('web.routers.search.smart_search', side_effect=mock_smart_search), \
-         patch('core.scrapers.actress.orchestrator.get_actress_profile', mock_profile):
+         patch('core.scrapers.actress.orchestrator.get_actress_profile', mock_profile), \
+         patch('core.database.ActressRepository.get_by_name', return_value=None):
 
         response = client.get('/api/search/stream?q=桜空もも')
 

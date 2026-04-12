@@ -453,10 +453,15 @@ class TestSearchStreamSSE:
                 status_callback('done', f'found:{len(ids)}')
             return items_list
 
-        mock_profile = {'name': '桜空もも', 'img': 'https://graphis.ne.jp/prof.jpg'}
+        from core.scrapers.actress.orchestrator import ProfileResult
+        mock_profile = ProfileResult(
+            data={'name': '桜空もも', 'img': 'https://graphis.ne.jp/prof.jpg'},
+            timed_out=False
+        )
 
         with patch('web.routers.search.smart_search', side_effect=mock_smart_search), \
-             patch('core.scrapers.actress.orchestrator.get_actress_profile', return_value=mock_profile):
+             patch('core.scrapers.actress.orchestrator.get_actress_profile', return_value=mock_profile), \
+             patch('core.database.ActressRepository.get_by_name', return_value=None):
             response = client.get('/api/search/stream?q=桜空もも')
 
         events = parse_sse_events(response.text)
