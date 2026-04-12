@@ -364,17 +364,22 @@
 /* Actress card hover overlay (44c-T7) */
 .actress-card-overlay {
     position: absolute;
-    inset: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
     display: flex;
-    align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.35);
+    align-items: flex-end;
+    padding-bottom: 12px;
+    background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 60%, transparent 100%);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
     opacity: 0;
     transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
     pointer-events: none;
 }
 
-.actress-card:hover .actress-card-overlay {
+.actress-card:hover .actress-card-overlay,
+.actress-card:focus-within .actress-card-overlay {
     opacity: 1;
     pointer-events: auto;
 }
