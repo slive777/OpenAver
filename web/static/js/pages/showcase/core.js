@@ -613,6 +613,93 @@ function showcaseState() {
             return Math.max(0, tags.length - this._chipsLimit());
         },
 
+        // --- 44a T5: Actress CRUD ---
+
+        async addFavoriteActress() {
+            if (this._addingActress || !this._addActressName.trim()) return;
+            this._addingActress = true;
+            try {
+                const resp = await fetch('/api/actresses/favorite', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: this._addActressName.trim() }),
+                });
+                const data = await resp.json();
+                if (resp.status === 409) {
+                    this.showToast(window.t('showcase.actress.addDuplicate'), 'info');
+                } else if (resp.status === 404) {
+                    this.showToast(window.t('showcase.actress.addNotFound'), 'error');
+                } else if (resp.status === 504) {
+                    this.showToast(window.t('showcase.actress.addTimeout'), 'error');
+                } else if (data.success) {
+                    _actresses.push(data.actress);
+                    this.applyActressFilterAndSort();
+                    this._addDropdownOpen = false;
+                    this.showToast(window.t('showcase.actress.addSuccess'), 'success');
+                } else {
+                    this.showToast(window.t('showcase.actress.addNotFound'), 'error');
+                }
+            } catch (e) {
+                this.showToast(window.t('showcase.actress.addNotFound'), 'error');
+            } finally {
+                this._addingActress = false;
+                this._addActressName = '';
+            }
+        },
+
+        async rescrapeActress() {
+            if (this._rescraping || !this.currentLightboxActress) return;
+            this._rescraping = true;
+            const name = this.currentLightboxActress.name;
+            try {
+                const resp = await fetch(`/api/actresses/${encodeURIComponent(name)}/rescrape`, {
+                    method: 'POST',
+                });
+                const data = await resp.json();
+                if (data.success && data.actress) {
+                    Object.assign(this.currentLightboxActress, data.actress);
+                    // photo cache-bust：讓瀏覽器不用 cached image
+                    if (this.currentLightboxActress.photo_url) {
+                        this.currentLightboxActress.photo_url += '&t=' + Date.now();
+                    }
+                    // 同步更新 _actresses 中的對應項
+                    const idx = _actresses.findIndex(a => a.name === name);
+                    if (idx >= 0) Object.assign(_actresses[idx], data.actress);
+                    this.showToast(window.t('showcase.actress.rescrapeSuccess'), 'success');
+                } else {
+                    this.showToast(window.t('showcase.actress.rescrapeError') || data.error || 'Error', 'error');
+                }
+            } catch (e) {
+                this.showToast(window.t('showcase.actress.rescrapeError') || 'Error', 'error');
+            } finally {
+                this._rescraping = false;
+            }
+        },
+
+        async removeActress() {
+            if (!this.currentLightboxActress) return;
+            const name = this.currentLightboxActress.name;
+            const confirmed = window.confirm(window.t('showcase.actress.removeConfirm').replace('{name}', name));
+            if (!confirmed) return;
+            try {
+                const resp = await fetch(`/api/actresses/${encodeURIComponent(name)}`, {
+                    method: 'DELETE',
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    const idx = _actresses.findIndex(a => a.name === name);
+                    if (idx >= 0) _actresses.splice(idx, 1);
+                    this.applyActressFilterAndSort();
+                    this.closeActressLightbox();
+                    this.showToast(window.t('showcase.actress.removeSuccess'), 'success');
+                } else {
+                    this.showToast(data.error || 'Error', 'error');
+                }
+            } catch (e) {
+                this.showToast('Error', 'error');
+            }
+        },
+
         /**
          * B7/B15: 排序動畫共用 helper — flip-guard → capture → change → Flip reorder
          * @param {Function} changeFn - 執行 data change 的函數

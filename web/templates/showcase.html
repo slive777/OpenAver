@@ -217,6 +217,34 @@
                     <button class="btn-icon" @click="toggleActressOrder()" title="{{ t('showcase.action.toggle_order') }}">
                         <i class="bi" :class="actressOrder === 'asc' ? 'bi-sort-up' : 'bi-sort-down'"></i>
                     </button>
+                    <!-- [+ 新增] popover（女優模式專屬） -->
+                    <div class="dropdown dropdown-end"
+                         x-data
+                         :class="{ 'dropdown-open': _addDropdownOpen }"
+                         @click.outside="_addDropdownOpen = false">
+                        <button class="btn-icon"
+                                @click="_addDropdownOpen = !_addDropdownOpen"
+                                :title="t('showcase.actress.add')"
+                                :class="{ 'active': _addDropdownOpen }">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                        <div class="toolbar-dropdown dropdown-content" @click.stop>
+                            <div style="padding:8px; display:flex; gap:6px;">
+                                <input class="input input-sm input-bordered"
+                                       type="text"
+                                       x-model="_addActressName"
+                                       :placeholder="t('showcase.actress.addPlaceholder')"
+                                       @keydown.enter.prevent="addFavoriteActress()"
+                                       :disabled="_addingActress"
+                                       style="flex:1; min-width:160px;">
+                                <button class="btn btn-sm btn-primary"
+                                        @click.prevent="addFavoriteActress()"
+                                        :disabled="_addingActress || !_addActressName.trim()">
+                                    <i class="bi" :class="_addingActress ? 'bi-arrow-clockwise spin' : 'bi-check'"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -526,16 +554,17 @@
                                    rel="noopener"
                                    x-text="currentLightboxActress?.official_url"></a>
                             </div>
-                            <!-- Row 6: Action buttons — PLACEHOLDER (logic in T5) -->
+                            <!-- Row 6: Action buttons (T5) -->
                             <div class="lb-actress-actions" style="margin-top:8px; display:flex; gap:8px;">
                                 <button class="lb-tag-add-btn"
-                                        :disabled="_rescraping"
-                                        style="opacity:0.5;cursor:not-allowed;">
+                                        @click="rescrapeActress()"
+                                        :disabled="_rescraping">
                                     <i class="bi" :class="_rescraping ? 'bi-arrow-clockwise spin' : 'bi-arrow-repeat'"></i>
                                     {{ t('showcase.actress.rescrape') }}
                                 </button>
                                 <button class="lb-tag-add-btn"
-                                        style="opacity:0.5;cursor:not-allowed;color:var(--color-error);">
+                                        @click="removeActress()"
+                                        style="color:var(--color-error);">
                                     <i class="bi bi-trash"></i>
                                     {{ t('showcase.actress.remove') }}
                                 </button>

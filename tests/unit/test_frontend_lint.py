@@ -1860,3 +1860,59 @@ class TestShowcaseActressLightbox:
         js = self._js()
         assert "_visibleVideoTags" in js, \
             "showcase/core.js 缺少 _visibleVideoTags() 方法（video tag chips +N）"
+
+
+class TestShowcaseActressCRUD:
+    """Phase 44a-T5: Actress CRUD — addFavoriteActress / rescrapeActress / removeActress 守衛"""
+
+    def _html(self):
+        return SHOWCASE_HTML.read_text(encoding="utf-8")
+
+    def _js(self):
+        return SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+
+    # --- core.js method guards ---
+
+    def test_add_favorite_actress_method(self):
+        """core.js 含 addFavoriteActress() 方法"""
+        js = self._js()
+        assert "addFavoriteActress" in js, \
+            "showcase/core.js 缺少 addFavoriteActress() 方法（[+ 新增] 女優 CRUD）"
+
+    def test_rescrape_actress_method(self):
+        """core.js 含 rescrapeActress() 方法"""
+        js = self._js()
+        assert "rescrapeActress" in js, \
+            "showcase/core.js 缺少 rescrapeActress() 方法（[🔄 重新抓取] 女優 CRUD）"
+
+    def test_remove_actress_method(self):
+        """core.js 含 removeActress() 方法"""
+        js = self._js()
+        assert "removeActress" in js, \
+            "showcase/core.js 缺少 removeActress() 方法（[🗑 移除最愛] 女優 CRUD）"
+
+    # --- showcase.html popover guards ---
+
+    def test_add_popover_in_template(self):
+        """showcase.html 含 _addActressName binding（[+ 新增] popover input）"""
+        html = self._html()
+        assert "_addActressName" in html, \
+            "showcase.html 缺少 _addActressName（[+ 新增] popover 的 x-model binding）"
+
+    def test_add_handler_in_template(self):
+        """showcase.html 含 addFavoriteActress() handler"""
+        html = self._html()
+        assert "addFavoriteActress()" in html, \
+            "showcase.html 缺少 addFavoriteActress()（[+ 新增] 按鈕 @click handler）"
+
+    def test_rescrape_handler_in_template(self):
+        """showcase.html 含 rescrapeActress() handler"""
+        html = self._html()
+        assert "rescrapeActress()" in html, \
+            "showcase.html 缺少 rescrapeActress()（Row 6 重新抓取按鈕 @click handler）"
+
+    def test_remove_handler_in_template(self):
+        """showcase.html 含 removeActress() handler"""
+        html = self._html()
+        assert "removeActress()" in html, \
+            "showcase.html 缺少 removeActress()（Row 6 移除最愛按鈕 @click handler）"
