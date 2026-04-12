@@ -42,7 +42,7 @@
                 <div x-show="_heroLightboxImageError"
                      class="cover-error-placeholder">
                     <i class="bi bi-image text-5xl"></i>
-                    <p class="mt-2">No Image</p>
+                    <p class="mt-2" x-text="t('common.no_image')"></p>
                 </div>
                 <!-- cover-actions: 封面失敗時按鈕仍可用（返回詳情、開啟資料夾等不依賴圖片） -->
                 <div class="cover-actions">
@@ -641,7 +641,7 @@
                         <div x-show="actressProfile && _heroCardImageError"
                              class="av-card-no-cover">
                             <i class="bi bi-image"></i>
-                            <span>No Image</span>
+                            <span x-text="t('common.no_image')"></span>
                         </div>
                         <!-- A7-Prod: skeleton 預留態（shimmer） -->
                         <div class="skeleton-cover shimmer" x-show="!actressProfile && _heroSlotReserved"></div>

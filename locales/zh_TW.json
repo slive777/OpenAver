@@ -18,7 +18,8 @@
     "action": {
       "confirm": "確認",
       "cancel": "取消"
-    }
+    },
+    "no_image": "無圖片"
   },
   "search": {
     "page_title": "搜尋",

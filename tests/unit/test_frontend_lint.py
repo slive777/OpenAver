@@ -2232,3 +2232,25 @@ class TestShowcaseLightboxSentinel:
         surrounding = html[max(0, idx - 300):idx + 100]
         assert "showFavoriteActresses" in surrounding, \
             "removeActress button 缺少 x-show=\"showFavoriteActresses\" guard（hero card lightbox 不應顯示移除按鈕）"
+
+
+class TestShowcaseHeroCard:
+    """Phase 44b-T6: Showcase Hero Card i18n + structure guards"""
+
+    SHOWCASE_HTML = Path(__file__).parents[2] / 'web' / 'templates' / 'showcase.html'
+
+    def _html(self):
+        return self.SHOWCASE_HTML.read_text(encoding='utf-8')
+
+    def test_hero_card_container_in_html(self):
+        """hero-card class exists in showcase.html（Hero Card 容器存在）"""
+        assert 'hero-card' in self._html(), \
+            "showcase.html 缺少 hero-card class（Hero Card 容器未渲染）"
+
+    def test_hero_card_no_image_uses_i18n(self):
+        """Hero Card 圖片失敗 fallback 使用 t('common.no_image') 而非硬編碼"""
+        html = self._html()
+        assert "t('common.no_image')" in html, \
+            "showcase.html Hero Card fallback 應使用 t('common.no_image')，不可硬編碼 'No Image'"
+        assert "<span>No Image</span>" not in html, \
+            "showcase.html 仍有硬編碼 '<span>No Image</span>'，請改用 x-text=\"t('common.no_image')\""

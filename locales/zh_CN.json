@@ -18,7 +18,8 @@
     "action": {
       "confirm": "确认",
       "cancel": "取消"
-    }
+    },
+    "no_image": "无图片"
   },
   "search": {
     "page_title": "搜索",

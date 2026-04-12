@@ -18,7 +18,8 @@
     "action": {
       "confirm": "Confirm",
       "cancel": "Cancel"
-    }
+    },
+    "no_image": "No Image"
   },
   "search": {
     "page_title": "Search",

@@ -18,7 +18,8 @@
     "action": {
       "confirm": "確認",
       "cancel": "キャンセル"
-    }
+    },
+    "no_image": "画像なし"
   },
   "search": {
     "page_title": "検索",
