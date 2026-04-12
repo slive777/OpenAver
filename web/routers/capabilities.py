@@ -672,6 +672,27 @@ _TOOLS: list[dict] = [
         "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"name\":\"三上悠亜\"}}' {base}/api/actresses/favorite",
     },
     {
+        "name": "list_actresses",
+        "description": "列出所有已收藏女優，每筆含 video_count（本地收藏片數）、created_at（收藏時間）、照片 URL 等完整資料。適合 AI 查看用戶收藏總覽或依條件篩選女優。",
+        "method": "GET",
+        "path": "/api/actresses",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        "output_schema": {
+            "success": "boolean",
+            "actresses": "Actress[] — 完整女優資料陣列，每筆含 name/photo_url/video_count/created_at/is_favorite 等欄位",
+            "total": "integer — 收藏女優總數",
+        },
+        "side_effect": False,
+        "confirmation_required": False,
+        "idempotent": True,
+        "retry_safe": True,
+        "_example_template": "curl '{base}/api/actresses'",
+    },
+    {
         "name": "get_actress",
         "description": "查詢單一收藏女優資料（含本地照片 URL）",
         "method": "GET",

@@ -2261,3 +2261,15 @@ class TestShowcaseHeroCard:
             "showcase.html Hero Card fallback 應使用 t('common.no_image')，不可硬編碼 'No Image'"
         assert "<span>No Image</span>" not in html, \
             "showcase.html 仍有硬編碼 '<span>No Image</span>'，請改用 x-text=\"t('common.no_image')\""
+
+    def test_hero_card_animation_in_animations_js(self):
+        """playHeroCardAppear must exist in showcase animations.js"""
+        anim_js = (Path(__file__).parents[2] / 'web' / 'static' / 'js' / 'pages' / 'showcase' / 'animations.js').read_text(encoding='utf-8')
+        assert "playHeroCardAppear" in anim_js, \
+            "animations.js 缺少 playHeroCardAppear 方法"
+
+    def test_searchFromMetadata_actress_type_in_html(self):
+        """searchFromMetadata calls for actress tags must pass 'actress' type"""
+        html = self._html()
+        assert "searchFromMetadata(actress.trim(), 'actress')" in html, \
+            "showcase.html actress tag 的 searchFromMetadata 呼叫缺少 'actress' type 參數"
