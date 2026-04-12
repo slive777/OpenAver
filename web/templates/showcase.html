@@ -456,7 +456,7 @@
                 <p class="state-page-text" x-text="t('showcase.actress.emptyHint')"></p>
             </div>
             <!-- Actress Grid -->
-            <div class="showcase-grid" x-show="!actressLoading && filteredActressCount > 0">
+            <div class="actress-grid" x-show="!actressLoading && filteredActressCount > 0">
                 <template x-for="(actress, index) in paginatedActresses" :key="actress.name">
                     <div class="actress-card"
                          :data-flip-id="'actress:' + actress.name"

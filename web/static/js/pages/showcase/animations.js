@@ -358,6 +358,7 @@
 
             var selectors = {
                 grid: '.showcase-grid',
+                actress: '.actress-grid',
                 table: '.showcase-table-wrapper',
                 list: '.showcase-list-wrapper'
             };

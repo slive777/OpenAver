@@ -179,7 +179,7 @@ function showcaseState() {
                 var gen = ++this._animGeneration;
                 this.$nextTick(() => { requestAnimationFrame(() => {
                     if (this._animGeneration !== gen) return;  // stale
-                    var grid = document.querySelector('.showcase-grid');
+                    var grid = this._getActiveGrid();
                     window.ShowcaseAnimations?.playSettle?.(grid);
                 }); });
             }
@@ -311,7 +311,7 @@ function showcaseState() {
                 var gen = ++this._animGeneration;
                 this.$nextTick(() => { requestAnimationFrame(() => {
                     if (this._animGeneration !== gen) return;
-                    var grid = document.querySelector('.showcase-grid');
+                    var grid = this._getActiveGrid();
                     window.ShowcaseAnimations?.playSettle?.(grid);
                 }); });
             }
@@ -356,9 +356,13 @@ function showcaseState() {
             var gen = ++this._animGeneration;
             this.$nextTick(function () {
                 if (self._animGeneration !== gen) return;
-                window.ShowcaseAnimations?.playModeCrossfade?.('grid', 'grid');
+                if (self.showFavoriteActresses) {
+                    window.ShowcaseAnimations?.playModeCrossfade?.('grid', 'actress');
+                } else {
+                    window.ShowcaseAnimations?.playModeCrossfade?.('actress', 'grid');
+                }
                 if (needEntry) {
-                    var grid = document.querySelector('.showcase-grid');
+                    var grid = self._getActiveGrid();
                     window.ShowcaseAnimations?.playEntry?.(grid);
                 }
             });
@@ -391,7 +395,7 @@ function showcaseState() {
                 var self = this;
                 this.$nextTick(function () { requestAnimationFrame(function () {
                     if (self._animGeneration !== gen) return;
-                    var grid = document.querySelector('.showcase-grid');
+                    var grid = self._getActiveGrid();
                     window.ShowcaseAnimations?.playEntry?.(grid);
                 }); });
             } catch (e) {
@@ -759,6 +763,13 @@ function showcaseState() {
             }
         },
 
+        // --- 44c T6: Active grid helper ---
+        _getActiveGrid() {
+            return this.showFavoriteActresses
+                ? document.querySelector('.actress-grid')
+                : document.querySelector('.showcase-grid');
+        },
+
         /**
          * B7/B15: 排序動畫共用 helper — flip-guard → capture → change → Flip reorder
          * @param {Function} changeFn - 執行 data change 的函數
@@ -770,7 +781,7 @@ function showcaseState() {
 
             // Step 0: capture（僅 grid mode）
             if (this.mode === 'grid') {
-                grid = document.querySelector('.showcase-grid');
+                grid = this._getActiveGrid();
                 if (grid) {
                     grid.classList.add('flip-guard');
                     void grid.offsetHeight;  // force reflow
@@ -821,7 +832,7 @@ function showcaseState() {
 
             // Step 0: capture（僅 grid mode）
             if (this.mode === 'grid') {
-                grid = document.querySelector('.showcase-grid');
+                grid = this._getActiveGrid();
                 if (grid) {
                     grid.classList.add('flip-guard');
                     void grid.offsetHeight;  // force reflow
@@ -1406,7 +1417,9 @@ function showcaseState() {
             lightbox.style.display = '';
 
             // 檢查是否是卡片
-            const cardEl = elementBelow ? elementBelow.closest('.av-card-preview') : null;
+            const cardEl = elementBelow
+                ? (elementBelow.closest('.av-card-preview') || elementBelow.closest('.actress-card'))
+                : null;
             if (cardEl) {
                 // Click-through: 觸發該卡片的 click（切換到該影片）
                 cardEl.click();
