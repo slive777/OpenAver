@@ -75,6 +75,7 @@
 
 .toolbar-dropdown-wrap {
     position: relative;
+    z-index: 210;
 }
 
 .toolbar-dropdown {
@@ -82,7 +83,7 @@
     top: 100%;
     right: 0;
     margin-top: 0.5rem;
-    min-width: 150px;
+    min-width: 160px;
     background: var(--surface-2);
     border: 1px solid var(--stroke-default);
     border-radius: var(--radius-md);
@@ -106,6 +107,8 @@
     transition: background var(--duration-fast) var(--ease-out),
                 color var(--duration-fast) var(--ease-out);
     white-space: nowrap;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .dropdown-item:hover {
