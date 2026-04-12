@@ -359,7 +359,7 @@ function showcaseState() {
                 if (self.showFavoriteActresses) {
                     window.ShowcaseAnimations?.playModeCrossfade?.('grid', 'actress');
                 } else {
-                    window.ShowcaseAnimations?.playModeCrossfade?.('actress', 'grid');
+                    window.ShowcaseAnimations?.playModeCrossfade?.('actress', self.mode);
                 }
                 if (needEntry) {
                     var grid = self._getActiveGrid();
@@ -779,8 +779,8 @@ function showcaseState() {
             var grid = null;
             var positionMap = null;
 
-            // Step 0: capture（僅 grid mode）
-            if (this.mode === 'grid') {
+            // Step 0: capture（grid mode 或女優模式）
+            if (this.mode === 'grid' || this.showFavoriteActresses) {
                 grid = this._getActiveGrid();
                 if (grid) {
                     grid.classList.add('flip-guard');
