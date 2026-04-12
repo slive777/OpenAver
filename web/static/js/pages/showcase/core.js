@@ -563,6 +563,56 @@ function showcaseState() {
             });
         },
 
+        // --- 44a T4: Lightbox chips + metadata helpers ---
+
+        _chipsLimit() {
+            return window.innerWidth >= 768 ? 10 : 6;
+        },
+
+        _actressCoreMetadata() {
+            var a = this.currentLightboxActress; if (!a) return '';
+            var parts = [];
+            if (a.age) parts.push(a.age + window.t('search.unit.age'));
+            if (a.birth) parts.push(a.birth);
+            if (a.height) parts.push(a.height);
+            if (a.cup) parts.push(a.cup + window.t('search.unit.cup'));
+            if (a.bust && a.waist && a.hip) parts.push(a.bust + '-' + a.waist + '-' + a.hip);
+            return parts.join(' · ');
+        },
+
+        _allInfoChips() {
+            var a = this.currentLightboxActress; if (!a) return [];
+            return [].concat(a.tags || [], [a.hometown, a.nickname, a.agency, a.hobby, a.debut_work]).filter(Boolean);
+        },
+
+        _visibleAliases() {
+            var all = this.currentLightboxActress?.aliases || [];
+            return this._actressChipsExpanded.aliases ? all : all.slice(0, this._chipsLimit());
+        },
+
+        _aliasesOverflow() {
+            return Math.max(0, (this.currentLightboxActress?.aliases || []).length - this._chipsLimit());
+        },
+
+        _visibleInfoChips() {
+            var all = this._allInfoChips();
+            return this._actressChipsExpanded.info ? all : all.slice(0, this._chipsLimit());
+        },
+
+        _infoChipsOverflow() {
+            return Math.max(0, this._allInfoChips().length - this._chipsLimit());
+        },
+
+        _visibleVideoTags() {
+            var tags = (this.currentLightboxVideo?.tags || '').split(',').filter(function(t) { return t.trim(); });
+            return this._videoChipsExpanded ? tags : tags.slice(0, this._chipsLimit());
+        },
+
+        _videoTagsOverflow() {
+            var tags = (this.currentLightboxVideo?.tags || '').split(',').filter(function(t) { return t.trim(); });
+            return Math.max(0, tags.length - this._chipsLimit());
+        },
+
         /**
          * B7/B15: 排序動畫共用 helper — flip-guard → capture → change → Flip reorder
          * @param {Function} changeFn - 執行 data change 的函數

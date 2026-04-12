@@ -4265,7 +4265,7 @@ class TestSampleGalleryTemplateGuard:
         # 找到 lb-header 開始行號
         lb_header_line = None
         for i, line in enumerate(lines):
-            if 'lb-header' in line:
+            if '"lb-header"' in line:
                 lb_header_line = i
                 break
 
@@ -4544,7 +4544,7 @@ class TestShowcaseSampleGalleryGuard:
         # 找到 lb-header 開始行號
         lb_header_line = None
         for i, line in enumerate(lines):
-            if 'lb-header' in line:
+            if '"lb-header"' in line:
                 lb_header_line = i
                 break
 

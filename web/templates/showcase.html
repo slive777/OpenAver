@@ -453,154 +453,248 @@
              @click="handleLightboxBackdropClick($event)">
 
             <div class="lightbox-content" @click.stop>
-                <!-- Close Button -->
+                <!-- Close Button (shared between actress and video branches) -->
                 <button class="lightbox-close"
                         @click="closeLightbox()"
                         title="{{ t('showcase.lightbox.close') }}">
                     <i class="bi bi-x-lg"></i>
                 </button>
 
-                <!-- Cover Image -->
-                <div class="lightbox-cover">
-                    <img :src="currentLightboxVideo?.cover_url"
-                         :alt="currentLightboxVideo?.number"
-                         @error="handleCoverError(currentLightboxVideo, $event)">
-                    <!-- Cover Action Buttons -->
-                    <div class="cover-actions">
-                        <button class="lb-action-btn" @click="playVideo(currentLightboxVideo?.path)" data-tooltip="{{ t('showcase.action.play') }}" aria-label="{{ t('showcase.action.play') }}">
-                            <i class="bi bi-play-fill"></i>
-                        </button>
-                        <button class="lb-action-btn" @click="openLocal(currentLightboxVideo?.path)" data-tooltip="{{ t('search.action.open_folder') }}" aria-label="{{ t('search.action.open_folder') }}">
-                            <i class="bi bi-folder2-open"></i>
-                        </button>
-                        <button class="lb-action-btn"
-                                x-show="!currentLightboxVideo?.has_cover || !currentLightboxVideo?.has_nfo"
-                                :disabled="_enriching"
-                                @click.stop="enrichVideo(currentLightboxVideo)"
-                                data-tooltip="{{ t('showcase.action.enrich') }}"
-                                :aria-label="t('showcase.action.enrich')">
-                            <i class="bi" :class="_enriching ? 'bi-arrow-clockwise spin' : 'bi-search'"></i>
-                        </button>
-                    </div>
-                </div>
+                <!-- 44a T4: Actress Lightbox Branch -->
+                <template x-if="currentLightboxActress">
+                    <div style="display:contents">
+                        <!-- Actress Cover -->
+                        <div class="lightbox-cover">
+                            <img x-show="currentLightboxActress?.photo_url"
+                                 :src="currentLightboxActress?.photo_url"
+                                 :alt="currentLightboxActress?.name">
+                            <div class="actress-lb-cover-placeholder"
+                                 x-show="!currentLightboxActress?.photo_url">
+                                <i class="bi bi-person" style="font-size:4rem; opacity:0.3"></i>
+                            </div>
+                        </div>
 
-                <!-- Metadata Panel（緊湊版，匹配原版 gallery） -->
-                <div class="lightbox-metadata">
-                    <!-- Row 1: Header (title + sample gallery button) -->
-                    <div class="lb-header">
-                        <div class="lb-title" x-text="currentLightboxVideo?.title || t('showcase.grid.unknown_title')"></div>
-                        <!-- Sample Gallery 入口按鈕 (T7) -->
-                        <button class="sg-open-btn"
-                                x-show="(currentLightboxVideo?.sample_images || []).length > 0"
-                                @click="openSampleGallery(currentLightboxVideo.sample_images, 0)"
-                                x-text="t('showcase.gallery.sample_prefix') + ' (' + (currentLightboxVideo?.sample_images || []).length + ')'">
-                        </button>
+                        <!-- Actress Metadata Panel -->
+                        <div class="lightbox-metadata actress-lightbox-meta">
+                            <!-- Row 1: Header — name + name_en + heart icon -->
+                            <div class="actress-lb-header">
+                                <span class="lb-name" x-text="currentLightboxActress?.name"></span>
+                                <span class="lb-name-en"
+                                      x-show="currentLightboxActress?.name_en"
+                                      x-text="currentLightboxActress?.name_en"></span>
+                                <button class="btn-glass-circle is-favorite" style="cursor:default;pointer-events:none;" aria-label="favorite">
+                                    <i class="bi bi-heart-fill"></i>
+                                </button>
+                            </div>
+                            <!-- Row 2: Core metadata (age · birth · height · cup · BWH) -->
+                            <div class="lb-actress-core"
+                                 x-show="_actressCoreMetadata()"
+                                 x-text="_actressCoreMetadata()"></div>
+                            <!-- Row 3: Aliases chips +N -->
+                            <div class="lb-chips-row"
+                                 x-show="(currentLightboxActress?.aliases || []).length > 0">
+                                <template x-for="alias in _visibleAliases()" :key="alias">
+                                    <span class="lb-tag" x-text="alias"></span>
+                                </template>
+                                <span class="lb-tag lb-chips-more"
+                                      x-show="_aliasesOverflow() > 0 && !_actressChipsExpanded.aliases"
+                                      x-text="'+' + _aliasesOverflow()"
+                                      @click="_actressChipsExpanded.aliases = true"></span>
+                            </div>
+                            <!-- Row 4: Info chips +N (tags + hometown + nickname + agency + hobby + debut_work) -->
+                            <div class="lb-chips-row"
+                                 x-show="_allInfoChips().length > 0">
+                                <template x-for="chip in _visibleInfoChips()" :key="chip">
+                                    <span class="lb-tag" x-text="chip"></span>
+                                </template>
+                                <span class="lb-tag lb-chips-more"
+                                      x-show="_infoChipsOverflow() > 0 && !_actressChipsExpanded.info"
+                                      x-text="'+' + _infoChipsOverflow()"
+                                      @click="_actressChipsExpanded.info = true"></span>
+                            </div>
+                            <!-- Row 5: URLs -->
+                            <div class="lb-actress-urls"
+                                 x-show="currentLightboxActress?.blog_url || currentLightboxActress?.official_url">
+                                <a x-show="currentLightboxActress?.blog_url"
+                                   :href="currentLightboxActress?.blog_url?.startsWith('http') ? currentLightboxActress.blog_url : ''"
+                                   target="_blank"
+                                   rel="noopener"
+                                   x-text="currentLightboxActress?.blog_url"></a>
+                                <a x-show="currentLightboxActress?.official_url"
+                                   :href="currentLightboxActress?.official_url?.startsWith('http') ? currentLightboxActress.official_url : ''"
+                                   target="_blank"
+                                   rel="noopener"
+                                   x-text="currentLightboxActress?.official_url"></a>
+                            </div>
+                            <!-- Row 6: Action buttons — PLACEHOLDER (logic in T5) -->
+                            <div class="lb-actress-actions" style="margin-top:8px; display:flex; gap:8px;">
+                                <button class="lb-tag-add-btn"
+                                        :disabled="_rescraping"
+                                        style="opacity:0.5;cursor:not-allowed;">
+                                    <i class="bi" :class="_rescraping ? 'bi-arrow-clockwise spin' : 'bi-arrow-repeat'"></i>
+                                    {{ t('showcase.actress.rescrape') }}
+                                </button>
+                                <button class="lb-tag-add-btn"
+                                        style="opacity:0.5;cursor:not-allowed;color:var(--color-error);">
+                                    <i class="bi bi-trash"></i>
+                                    {{ t('showcase.actress.remove') }}
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <!-- Row 2: Original Title (showcase only) -->
-                    <div class="lb-otitle"
-                         x-show="currentLightboxVideo?.original_title"
-                         x-text="currentLightboxVideo?.original_title"></div>
-                    <!-- Row 3: Actresses -->
-                    <div class="lb-actor" x-show="currentLightboxVideo?.actresses">
-                        <template x-for="(actress, idx) in (currentLightboxVideo?.actresses || '').split(',').filter(a => a.trim())" :key="actress">
-                            <span>
-                                <a href="#" class="lb-link" @click.prevent="searchFromMetadata(actress.trim())" x-text="actress.trim()"></a><span x-show="idx < (currentLightboxVideo?.actresses || '').split(',').filter(a => a.trim()).length - 1">, </span>
-                            </span>
-                        </template>
-                    </div>
-                    <!-- Row 4: Details (merged) -->
-                    <!-- 分隔符 " · " 內嵌於各 span 開頭，隨 x-show 一起顯示/隱藏，避免孤立 · -->
-                    <div class="lb-details">
-                        <span x-text="currentLightboxVideo?.number || t('showcase.lightbox.unknown_number')"></span>
-                        <span x-show="currentLightboxVideo?.maker">
-                            &nbsp;·&nbsp;<a href="#" class="lb-link" @click.prevent="searchFromMetadata(currentLightboxVideo?.maker)" x-text="currentLightboxVideo?.maker"></a>
-                        </span>
-                        <span x-show="currentLightboxVideo?.director">
-                            &nbsp;·&nbsp;<b>{{ t('showcase.label.director') }}：</b>
-                            <a href="#" class="lb-link"
-                               @click.prevent="searchFromMetadata(currentLightboxVideo?.director)"
-                               x-text="currentLightboxVideo?.director"></a>
-                        </span>
-                        <span x-show="currentLightboxVideo?.duration">
-                            &nbsp;·&nbsp;<span x-text="currentLightboxVideo?.duration ? currentLightboxVideo.duration + ' ' + t('showcase.unit.minutes') : ''"></span>
-                        </span>
-                        <span x-show="currentLightboxVideo?.series">
-                            &nbsp;·&nbsp;<b>{{ t('showcase.label.series') }}：</b>
-                            <a href="#" class="lb-link"
-                               @click.prevent="searchFromMetadata(currentLightboxVideo?.series)"
-                               x-text="currentLightboxVideo?.series"></a>
-                        </span>
-                        <span x-show="currentLightboxVideo?.label && currentLightboxVideo?.label !== currentLightboxVideo?.maker">
-                            &nbsp;·&nbsp;<b>{{ t('showcase.label.label') }}：</b>
-                            <a href="#" class="lb-link"
-                               @click.prevent="searchFromMetadata(currentLightboxVideo?.label)"
-                               x-text="currentLightboxVideo?.label"></a>
-                        </span>
-                        <span x-show="currentLightboxVideo?.release_date">
-                            &nbsp;·&nbsp;<span x-text="currentLightboxVideo?.release_date"></span>
-                        </span>
-                        <span class="lb-size" x-show="currentLightboxVideo?.size">
-                            &nbsp;·&nbsp;<span x-text="formatSize(currentLightboxVideo?.size || 0)"></span>
-                        </span>
-                    </div>
-                    <!-- Row 5: Tags -->
-                    <div class="lb-tags" x-show="currentLightboxVideo?.tags">
-                        <template x-for="tag in (currentLightboxVideo?.tags || '').split(',').filter(t => t.trim())" :key="tag">
-                            <a href="#" class="lb-tag lb-link" @click.prevent="searchFromMetadata(tag.trim())" x-text="tag.trim()"></a>
-                        </template>
-                    </div>
+                </template>
 
-                    <!-- Row 6: User Tags (T4) -->
-                    <div class="lb-user-tags"
-                         x-show="!!currentLightboxVideo?.path">
-                        <!-- User tag badges with × remove button -->
-                        <template x-for="tag in (currentLightboxVideo?.user_tags || [])" :key="tag">
-                            <span class="lb-user-tag">
-                                <span x-text="tag"></span>
-                                <button class="lb-tag-remove"
-                                        @click.stop="removeLbUserTag(tag)"
-                                        :title="tag">×</button>
-                            </span>
-                        </template>
+                <!-- Video Lightbox Branch (wrapped in x-if to prevent 44b hero card conflict) -->
+                <template x-if="currentLightboxVideo && !currentLightboxActress">
+                    <div style="display:contents">
+                        <!-- Cover Image -->
+                        <div class="lightbox-cover">
+                            <img :src="currentLightboxVideo?.cover_url"
+                                 :alt="currentLightboxVideo?.number"
+                                 @error="handleCoverError(currentLightboxVideo, $event)">
+                            <!-- Cover Action Buttons -->
+                            <div class="cover-actions">
+                                <button class="lb-action-btn" @click="playVideo(currentLightboxVideo?.path)" data-tooltip="{{ t('showcase.action.play') }}" aria-label="{{ t('showcase.action.play') }}">
+                                    <i class="bi bi-play-fill"></i>
+                                </button>
+                                <button class="lb-action-btn" @click="openLocal(currentLightboxVideo?.path)" data-tooltip="{{ t('search.action.open_folder') }}" aria-label="{{ t('search.action.open_folder') }}">
+                                    <i class="bi bi-folder2-open"></i>
+                                </button>
+                                <button class="lb-action-btn"
+                                        x-show="!currentLightboxVideo?.has_cover || !currentLightboxVideo?.has_nfo"
+                                        :disabled="_enriching"
+                                        @click.stop="enrichVideo(currentLightboxVideo)"
+                                        data-tooltip="{{ t('showcase.action.enrich') }}"
+                                        :aria-label="t('showcase.action.enrich')">
+                                    <i class="bi" :class="_enriching ? 'bi-arrow-clockwise spin' : 'bi-search'"></i>
+                                </button>
+                            </div>
+                        </div>
 
-                        <!-- + 新增按鈕（有 path 才顯示） -->
-                        <button class="lb-tag-add-btn"
-                                x-show="!addingLbTag && !!currentLightboxVideo?.path"
-                                @click.stop="showAddLbTagInput()"
-                                :title="t('showcase.lightbox.add_tag')">+</button>
+                        <!-- Metadata Panel（緊湊版，匹配原版 gallery） -->
+                        <div class="lightbox-metadata">
+                            <!-- Row 1: Header (title + sample gallery button) -->
+                            <div class="lb-header">
+                                <div class="lb-title" x-text="currentLightboxVideo?.title || t('showcase.grid.unknown_title')"></div>
+                                <!-- Sample Gallery 入口按鈕 (T7) -->
+                                <button class="sg-open-btn"
+                                        x-show="(currentLightboxVideo?.sample_images || []).length > 0"
+                                        @click="openSampleGallery(currentLightboxVideo.sample_images, 0)"
+                                        x-text="t('showcase.gallery.sample_prefix') + ' (' + (currentLightboxVideo?.sample_images || []).length + ')'">
+                                </button>
+                            </div>
+                            <!-- Row 2: Original Title (showcase only) -->
+                            <div class="lb-otitle"
+                                 x-show="currentLightboxVideo?.original_title"
+                                 x-text="currentLightboxVideo?.original_title"></div>
+                            <!-- Row 3: Actresses -->
+                            <div class="lb-actor" x-show="currentLightboxVideo?.actresses">
+                                <template x-for="(actress, idx) in (currentLightboxVideo?.actresses || '').split(',').filter(a => a.trim())" :key="actress">
+                                    <span>
+                                        <a href="#" class="lb-link" @click.prevent="searchFromMetadata(actress.trim())" x-text="actress.trim()"></a><span x-show="idx < (currentLightboxVideo?.actresses || '').split(',').filter(a => a.trim()).length - 1">, </span>
+                                    </span>
+                                </template>
+                            </div>
+                            <!-- Row 4: Details (merged) -->
+                            <!-- 分隔符 " · " 內嵌於各 span 開頭，隨 x-show 一起顯示/隱藏，避免孤立 · -->
+                            <div class="lb-details">
+                                <span x-text="currentLightboxVideo?.number || t('showcase.lightbox.unknown_number')"></span>
+                                <span x-show="currentLightboxVideo?.maker">
+                                    &nbsp;·&nbsp;<a href="#" class="lb-link" @click.prevent="searchFromMetadata(currentLightboxVideo?.maker)" x-text="currentLightboxVideo?.maker"></a>
+                                </span>
+                                <span x-show="currentLightboxVideo?.director">
+                                    &nbsp;·&nbsp;<b>{{ t('showcase.label.director') }}：</b>
+                                    <a href="#" class="lb-link"
+                                       @click.prevent="searchFromMetadata(currentLightboxVideo?.director)"
+                                       x-text="currentLightboxVideo?.director"></a>
+                                </span>
+                                <span x-show="currentLightboxVideo?.duration">
+                                    &nbsp;·&nbsp;<span x-text="currentLightboxVideo?.duration ? currentLightboxVideo.duration + ' ' + t('showcase.unit.minutes') : ''"></span>
+                                </span>
+                                <span x-show="currentLightboxVideo?.series">
+                                    &nbsp;·&nbsp;<b>{{ t('showcase.label.series') }}：</b>
+                                    <a href="#" class="lb-link"
+                                       @click.prevent="searchFromMetadata(currentLightboxVideo?.series)"
+                                       x-text="currentLightboxVideo?.series"></a>
+                                </span>
+                                <span x-show="currentLightboxVideo?.label && currentLightboxVideo?.label !== currentLightboxVideo?.maker">
+                                    &nbsp;·&nbsp;<b>{{ t('showcase.label.label') }}：</b>
+                                    <a href="#" class="lb-link"
+                                       @click.prevent="searchFromMetadata(currentLightboxVideo?.label)"
+                                       x-text="currentLightboxVideo?.label"></a>
+                                </span>
+                                <span x-show="currentLightboxVideo?.release_date">
+                                    &nbsp;·&nbsp;<span x-text="currentLightboxVideo?.release_date"></span>
+                                </span>
+                                <span class="lb-size" x-show="currentLightboxVideo?.size">
+                                    &nbsp;·&nbsp;<span x-text="formatSize(currentLightboxVideo?.size || 0)"></span>
+                                </span>
+                            </div>
+                            <!-- Row 5: Tags (with +N chips, T4) -->
+                            <div class="lb-tags" x-show="currentLightboxVideo?.tags">
+                                <template x-for="tag in _visibleVideoTags()" :key="tag">
+                                    <a href="#" class="lb-tag lb-link" @click.prevent="searchFromMetadata(tag.trim())" x-text="tag.trim()"></a>
+                                </template>
+                                <span class="lb-tag lb-chips-more"
+                                      x-show="_videoTagsOverflow() > 0 && !_videoChipsExpanded"
+                                      x-text="'+' + _videoTagsOverflow()"
+                                      @click="_videoChipsExpanded = true"></span>
+                            </div>
 
-                        <!-- Inline 輸入框 -->
-                        <span class="lb-tag-input-wrapper" x-show="addingLbTag">
-                            <input class="lb-tag-input"
-                                   x-ref="lbTagInput"
-                                   x-model="newLbTagValue"
-                                   type="text"
-                                   maxlength="20"
-                                   :placeholder="t('showcase.lightbox.tag_placeholder')"
-                                   @keydown.enter.stop="confirmAddLbTag()"
-                                   @keydown.escape.stop="cancelAddLbTag()">
-                            <button class="lb-tag-confirm"
-                                    @click.stop="confirmAddLbTag()"
-                                    title="✓">✓</button>
-                            <button class="lb-tag-cancel"
-                                    @click.stop="cancelAddLbTag()"
-                                    title="✕">✕</button>
-                        </span>
+                            <!-- Row 6: User Tags (T4) -->
+                            <div class="lb-user-tags"
+                                 x-show="!!currentLightboxVideo?.path">
+                                <!-- User tag badges with × remove button -->
+                                <template x-for="tag in (currentLightboxVideo?.user_tags || [])" :key="tag">
+                                    <span class="lb-user-tag">
+                                        <span x-text="tag"></span>
+                                        <button class="lb-tag-remove"
+                                                @click.stop="removeLbUserTag(tag)"
+                                                :title="tag">×</button>
+                                    </span>
+                                </template>
+
+                                <!-- + 新增按鈕（有 path 才顯示） -->
+                                <button class="lb-tag-add-btn"
+                                        x-show="!addingLbTag && !!currentLightboxVideo?.path"
+                                        @click.stop="showAddLbTagInput()"
+                                        :title="t('showcase.lightbox.add_tag')">+</button>
+
+                                <!-- Inline 輸入框 -->
+                                <span class="lb-tag-input-wrapper" x-show="addingLbTag">
+                                    <input class="lb-tag-input"
+                                           x-ref="lbTagInput"
+                                           x-model="newLbTagValue"
+                                           type="text"
+                                           maxlength="20"
+                                           :placeholder="t('showcase.lightbox.tag_placeholder')"
+                                           @keydown.enter.stop="confirmAddLbTag()"
+                                           @keydown.escape.stop="cancelAddLbTag()">
+                                    <button class="lb-tag-confirm"
+                                            @click.stop="confirmAddLbTag()"
+                                            title="✓">✓</button>
+                                    <button class="lb-tag-cancel"
+                                            @click.stop="cancelAddLbTag()"
+                                            title="✕">✕</button>
+                                </span>
+                            </div>
+
+                        </div>
                     </div>
+                </template>
 
-                </div>
             </div>
 
-            <!-- Navigation Arrows OUTSIDE lightbox-content -->
+            <!-- Navigation Arrows OUTSIDE lightbox-content (44a T4: dispatch based on showFavoriteActresses) -->
             <button class="lightbox-nav lightbox-nav-prev"
-                    @click.stop="prevLightboxVideo()"
-                    x-show="lightboxIndex > 0"
+                    @click.stop="showFavoriteActresses ? prevActressLightbox() : prevLightboxVideo()"
+                    x-show="showFavoriteActresses ? actressLightboxIndex > 0 : lightboxIndex > 0"
                     title="{{ t('showcase.lightbox.prev') }}">
                 <i class="bi bi-chevron-left"></i>
             </button>
             <button class="lightbox-nav lightbox-nav-next"
-                    @click.stop="nextLightboxVideo()"
-                    x-show="lightboxIndex < filteredCount - 1"
+                    @click.stop="showFavoriteActresses ? nextActressLightbox() : nextLightboxVideo()"
+                    x-show="showFavoriteActresses ? actressLightboxIndex < filteredActressCount - 1 : lightboxIndex < filteredCount - 1"
                     title="{{ t('showcase.lightbox.next') }}">
                 <i class="bi bi-chevron-right"></i>
             </button>

@@ -1780,3 +1780,83 @@ class TestShowcaseActressTemplate:
         html = self._html()
         assert "!showFavoriteActresses" in html, \
             "showcase.html 缺少 !showFavoriteActresses（video controls x-show 條件）"
+
+
+class TestShowcaseActressLightbox:
+    """Phase 44a-T4: Actress Lightbox 5-row layout + chips +N + nav dispatch 守衛"""
+
+    def _html(self):
+        return SHOWCASE_HTML.read_text(encoding="utf-8")
+
+    def _js(self):
+        return SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+
+    # --- showcase.html x-if branches ---
+
+    def test_actress_x_if_branch(self):
+        """showcase.html 含 x-if="currentLightboxActress" 分支"""
+        html = self._html()
+        assert "currentLightboxActress" in html, \
+            "showcase.html 缺少 currentLightboxActress（女優 lightbox x-if 分支）"
+
+    def test_video_x_if_branch(self):
+        """showcase.html 含 currentLightboxVideo && !currentLightboxActress video branch"""
+        html = self._html()
+        assert "currentLightboxVideo && !currentLightboxActress" in html, \
+            "showcase.html 缺少 currentLightboxVideo && !currentLightboxActress（video x-if 包裝）"
+
+    def test_actress_lightbox_meta(self):
+        """showcase.html 含 actress-lightbox-meta class"""
+        html = self._html()
+        assert "actress-lightbox-meta" in html, \
+            "showcase.html 缺少 actress-lightbox-meta class（女優 lightbox metadata wrapper）"
+
+    def test_lb_chips_more(self):
+        """showcase.html 含 lb-chips-more class（chips +N badge）"""
+        html = self._html()
+        assert "lb-chips-more" in html, \
+            "showcase.html 缺少 lb-chips-more class（chips +N 展開 badge）"
+
+    def test_nav_actress_dispatch(self):
+        """showcase.html nav arrows 含 prevActressLightbox() dispatch"""
+        html = self._html()
+        assert "prevActressLightbox()" in html, \
+            "showcase.html nav arrows 缺少 prevActressLightbox() dispatch（showFavoriteActresses 模式）"
+
+    # --- core.js new methods ---
+
+    def test_actress_core_metadata_method(self):
+        """core.js 含 _actressCoreMetadata() 方法"""
+        js = self._js()
+        assert "_actressCoreMetadata" in js, \
+            "showcase/core.js 缺少 _actressCoreMetadata() 方法（Row 2 metadata 串接）"
+
+    def test_all_info_chips_method(self):
+        """core.js 含 _allInfoChips() 方法"""
+        js = self._js()
+        assert "_allInfoChips" in js, \
+            "showcase/core.js 缺少 _allInfoChips() 方法（Row 4 info chips 合併）"
+
+    def test_chips_limit_method(self):
+        """core.js 含 _chipsLimit() 方法"""
+        js = self._js()
+        assert "_chipsLimit" in js, \
+            "showcase/core.js 缺少 _chipsLimit() 方法（desktop 10 / mobile 6 chips 上限）"
+
+    def test_visible_aliases_method(self):
+        """core.js 含 _visibleAliases() 方法"""
+        js = self._js()
+        assert "_visibleAliases" in js, \
+            "showcase/core.js 缺少 _visibleAliases() 方法（Row 3 aliases chips 分頁）"
+
+    def test_visible_info_chips_method(self):
+        """core.js 含 _visibleInfoChips() 方法"""
+        js = self._js()
+        assert "_visibleInfoChips" in js, \
+            "showcase/core.js 缺少 _visibleInfoChips() 方法（Row 4 info chips 分頁）"
+
+    def test_visible_video_tags_method(self):
+        """core.js 含 _visibleVideoTags() 方法"""
+        js = self._js()
+        assert "_visibleVideoTags" in js, \
+            "showcase/core.js 缺少 _visibleVideoTags() 方法（video tag chips +N）"
