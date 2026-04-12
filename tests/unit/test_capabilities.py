@@ -47,6 +47,9 @@ EXPECTED_TOOL_NAMES = {
     "get_user_tags",
     "showcase_videos",
     "showcase_video",
+    "favorite_actress",
+    "get_actress",
+    "unfavorite_actress",
 }
 
 REQUIRED_TOOL_FIELDS = [
@@ -93,9 +96,9 @@ class TestCapabilitiesEndpoint:
         data = client.get("/api/capabilities").json()
         assert "retry_hint" in data["error_format"]
 
-    def test_tools_count_is_19(self, client):
+    def test_tools_count_is_22(self, client):
         data = client.get("/api/capabilities").json()
-        assert len(data["tools"]) == 19
+        assert len(data["tools"]) == 22
 
     def test_all_tool_names_present(self, client):
         data = client.get("/api/capabilities").json()

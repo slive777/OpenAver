@@ -78,7 +78,16 @@
       "chinese_title_ai": "AI 翻訳タイトル"
     },
     "unit": {
-      "minutes": "分"
+      "minutes": "分",
+      "age": "歳",
+      "cup": "カップ"
+    },
+    "actress": {
+      "add_favorite": "お気に入りに追加",
+      "favorited": "お気に入り済み",
+      "favorite_success": "お気に入りに追加しました",
+      "favorite_error": "追加に失敗しました。後でもう一度お試しください",
+      "favorite_timeout": "タイムアウトしました。後でもう一度お試しください"
     },
     "badge": {
       "subtitle": "中国語字幕"

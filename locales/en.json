@@ -78,7 +78,16 @@
       "chinese_title_ai": "AI Translated Title"
     },
     "unit": {
-      "minutes": "min"
+      "minutes": "min",
+      "age": " y/o",
+      "cup": " cup"
+    },
+    "actress": {
+      "add_favorite": "Add to favorites",
+      "favorited": "Favorited",
+      "favorite_success": "Added to favorites",
+      "favorite_error": "Failed to add, please try again",
+      "favorite_timeout": "Request timed out, please try again"
     },
     "badge": {
       "subtitle": "Chinese Subtitles"

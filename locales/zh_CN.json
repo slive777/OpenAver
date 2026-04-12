@@ -78,7 +78,16 @@
       "chinese_title_ai": "AI 翻译标题"
     },
     "unit": {
-      "minutes": "分钟"
+      "minutes": "分钟",
+      "age": "岁",
+      "cup": "罩杯"
+    },
+    "actress": {
+      "add_favorite": "收藏此女优",
+      "favorited": "已收藏",
+      "favorite_success": "已成功收藏",
+      "favorite_error": "收藏失败，请稍后再试",
+      "favorite_timeout": "收藏超时，请稍后再试"
     },
     "badge": {
       "subtitle": "中文字幕"

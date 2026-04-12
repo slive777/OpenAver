@@ -647,6 +647,70 @@ _TOOLS: list[dict] = [
         "retry_safe": True,
         "_example_template": "curl '{base}/api/gallery/jellyfin-check'",
     },
+    {
+        "name": "favorite_actress",
+        "description": "收藏女優：從本地快取或即時爬取女優資料並存入 DB + 下載照片到本地。寫入 DB + 下載照片到 output/Gfriends/",
+        "method": "POST",
+        "path": "/api/actresses/favorite",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "女優名（日文）"},
+                "makers": {"type": "array", "items": {"type": "string"}, "description": "片商名列表（可選，提升 gfriends 照片查詢精準度）"},
+            },
+            "required": ["name"],
+        },
+        "output_schema": {
+            "success": "boolean",
+            "actress": "Actress — 完整女優資料（含本地 photo_url）",
+            "photo_downloaded": "boolean — 照片是否成功下載",
+        },
+        "side_effect": True,
+        "confirmation_required": True,
+        "idempotent": False,
+        "retry_safe": False,
+        "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"name\":\"三上悠亜\"}}' {base}/api/actresses/favorite",
+    },
+    {
+        "name": "get_actress",
+        "description": "查詢單一收藏女優資料（含本地照片 URL）",
+        "method": "GET",
+        "path": "/api/actresses/{name}",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "女優名（URL path parameter）"},
+            },
+            "required": ["name"],
+        },
+        "output_schema": {
+            "actress": "Actress",
+            "is_favorite": "boolean — 固定 true（此端點只回傳已收藏女優）",
+        },
+        "retry_safe": True,
+        "_example_template": "curl '{base}/api/actresses/%E4%B8%89%E4%B8%8A%E6%82%A0%E4%BA%9C'",
+    },
+    {
+        "name": "unfavorite_actress",
+        "description": "取消收藏女優（從 DB 刪除 + 刪除本地照片）",
+        "method": "DELETE",
+        "path": "/api/actresses/{name}",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "女優名（URL path parameter）"},
+            },
+            "required": ["name"],
+        },
+        "output_schema": {
+            "success": "boolean",
+        },
+        "side_effect": True,
+        "confirmation_required": True,
+        "idempotent": True,
+        "retry_safe": True,
+        "_example_template": "curl -X DELETE '{base}/api/actresses/%E4%B8%89%E4%B8%8A%E6%82%A0%E4%BA%9C'",
+    },
 ]
 
 
