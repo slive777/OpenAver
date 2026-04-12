@@ -76,7 +76,7 @@ def _flatten_aliases(raw) -> list:
     return [a.get("ja", "") if isinstance(a, dict) else str(a) for a in raw]
 
 
-def _actress_to_response(actress: Actress) -> dict:
+def _actress_to_response(actress: Actress, video_count: int = 0) -> dict:
     """將 Actress dataclass 轉為 API response dict"""
     local_path = get_local_photo_path(actress.name)
     if local_path is not None:
@@ -106,6 +106,8 @@ def _actress_to_response(actress: Actress) -> dict:
         "photo_url": photo_url,
         "photo_source": actress.photo_source,
         "primary_text_source": actress.primary_text_source,
+        "created_at": actress.created_at.isoformat() if actress.created_at else None,
+        "video_count": video_count,
     }
 
 
@@ -246,6 +248,102 @@ def get_actress_photo(name: str):
     return Response(
         content=path.read_bytes(),
         media_type=media_type,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 端點五：GET /api/actresses — 列出所有已收藏女優（含 video_count）
+# NOTE：必須定義在 GET /{name} 之前！
+# ---------------------------------------------------------------------------
+
+@router.get("")
+def list_actresses():
+    """
+    列出所有已收藏女優，每筆含 video_count 和 created_at。
+    """
+    init_db()
+    repo = ActressRepository()
+    actresses = repo.get_all()
+    result = []
+    for actress in actresses:
+        video_count = repo.count_videos_for_actress(actress.name)
+        result.append(_actress_to_response(actress, video_count))
+    return JSONResponse(
+        status_code=200,
+        content={
+            "success": True,
+            "actresses": result,
+            "total": len(result),
+        }
+    )
+
+
+# ---------------------------------------------------------------------------
+# 端點六：POST /api/actresses/{name}/rescrape — 強制重抓女優資料
+# ---------------------------------------------------------------------------
+
+@router.post("/{name}/rescrape")
+def rescrape_actress(name: str):
+    """
+    強制重抓女優資料（bypass cache），覆蓋 DB + 照片。
+    name 不在 DB 時允許（直接 scrape + save 等同新增）。
+    """
+    init_db()
+    repo = ActressRepository()
+
+    result = get_actress_profile(name)
+
+    if result.timed_out:
+        return JSONResponse(
+            status_code=504,
+            content={"error": "timeout"}
+        )
+
+    if result.data is None:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "not_found"}
+        )
+
+    profile = result.data
+    text = profile.get("text") or {}
+
+    actress = Actress(
+        name=profile.get("name") or name,
+        name_en=profile.get("name_en"),
+        birth=text.get("birth"),
+        height=text.get("height"),
+        cup=text.get("cup"),
+        bust=_safe_int(text.get("bust")),
+        waist=_safe_int(text.get("waist")),
+        hip=_safe_int(text.get("hip")),
+        hometown=text.get("hometown"),
+        hobby=text.get("hobby"),
+        aliases=_flatten_aliases(text.get("aliases")),
+        agency=text.get("agency"),
+        debut_work=text.get("debut_work"),
+        tags=text.get("tags") or [],
+        nickname=text.get("nickname"),
+        blog_url=text.get("blog_url"),
+        official_url=text.get("official_url"),
+        photo_source=profile.get("photo_source"),
+        primary_text_source=profile.get("primary_text_source"),
+    )
+
+    repo.save(actress)
+    logger.info("[actress] 重抓女優資料：%s", actress.name)
+
+    photo_downloaded = download_actress_photo(
+        actress.name, profile.get("photo_url"), profile.get("photo_source")
+    )
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "success": True,
+            "actress": _actress_to_response(actress, 0),
+            "photo_downloaded": photo_downloaded,
+        }
     )
 
 
