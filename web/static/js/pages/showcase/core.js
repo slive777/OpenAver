@@ -865,6 +865,7 @@ function showcaseState() {
             }
             this.search = actressName;
             this._animateFilter();
+            this._checkPreciseActressMatch(actressName, 'metadata');
         },
 
         // --- 44c T6: Active grid helper ---

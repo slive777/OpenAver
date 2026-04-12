@@ -68,11 +68,12 @@ class TestActressListEndpoint:
         assert "三上悠亜" in names
         assert "明日花キララ" in names
 
-        # 每筆應含 video_count + created_at
+        # 每筆應含 video_count + created_at + is_favorite
         for actress_data in data["actresses"]:
             assert "video_count" in actress_data
             assert "created_at" in actress_data
             assert isinstance(actress_data["video_count"], int)
+            assert actress_data["is_favorite"] is True
 
     def test_list_video_count_exact_match(self, client_with_db):
         """video_count 使用 json_each 精確比對，不誤匹子字串"""

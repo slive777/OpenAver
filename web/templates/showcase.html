@@ -295,61 +295,53 @@
             </div>
         </div>
 
-        <!-- Hero Card（影片模式精準匹配）— 複用 /search av-card-preview hero-card pattern -->
-        <!-- T5: enter 由 GSAP playHeroCardAppear 負責；leave 用 Alpine x-transition fade-up -->
-        <div class="av-card-preview hero-card"
-             x-show="!showFavoriteActresses && _isPreciseActressMatch && _matchedActress?.is_favorite"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="opacity-100 translate-y-0"
-             x-transition:leave-end="opacity-0 -translate-y-2"
-             x-cloak
-             @click="openHeroCardLightbox()">
-          <div class="av-card-preview-img">
-            <!-- 正常態：女優照片 -->
-            <img :src="_matchedActress?.photo_url || ''"
-                 :alt="_matchedActress?.name"
-                 loading="lazy"
-                 x-show="_matchedActress && !_heroCardImageError"
-                 @error="if (_matchedActress?.photo_url) _heroCardImageError = true">
-            <!-- Fallback placeholder（同 /search search.html lines 641-645） -->
-            <div x-show="_matchedActress && _heroCardImageError"
-                 class="av-card-no-cover">
-              <i class="bi bi-image"></i>
-              <span x-text="t('common.no_image')"></span>
-            </div>
-            <!-- 愛心 overlay（showcase hero card 只顯示已收藏態） -->
-            <div class="av-card-preview-overlay always-visible"
-                 x-show="_matchedActress"
-                 @click.stop>
-              <button class="btn-glass-circle is-favorite"
-                      disabled
-                      :title="t('showcase.actress.favorited')">
-                <i class="bi bi-heart-fill"></i>
-              </button>
-            </div>
-          </div>
-          <!-- Footer（同 /search search.html lines 675-689） -->
-          <div class="av-card-preview-footer">
-            <!-- footer-default：name + age（同 /search av-num + av-actress pattern） -->
-            <div class="footer-default" x-show="_matchedActress">
-              <span class="av-num" x-text="_matchedActress?.name || '-'">-</span>
-              <span class="av-actress"
-                    x-text="_matchedActress?.age ? _matchedActress.age + t('search.unit.age') : ''"></span>
-            </div>
-            <!-- footer-hover：height · cup · BWH（同 /search footer-hover pattern） -->
-            <div class="footer-hover" x-show="_matchedActress">
-              <div class="hover-title"
-                   x-text="[
-                     _matchedActress?.height || '',
-                     _matchedActress?.cup ? _matchedActress.cup + t('search.unit.cup') : '',
-                     [_matchedActress?.bust, _matchedActress?.waist, _matchedActress?.hip].filter(Boolean).join('-')
-                   ].filter(Boolean).join(' · ') || '-'"></div>
-            </div>
-          </div>
-        </div>
-
         <!-- Image Grid -->
         <div class="showcase-grid" x-show="mode === 'grid'">
+            <!-- Hero Card（影片模式精準匹配）— grid 內第一個 child，同 /search pattern -->
+            <div class="av-card-preview hero-card"
+                 x-show="!showFavoriteActresses && _isPreciseActressMatch && _matchedActress?.is_favorite"
+                 x-transition:leave="transition ease-in duration-200"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 -translate-y-2"
+                 x-cloak
+                 @click="openHeroCardLightbox()">
+              <div class="av-card-preview-img">
+                <img :src="_matchedActress?.photo_url || ''"
+                     :alt="_matchedActress?.name"
+                     loading="lazy"
+                     x-show="_matchedActress && !_heroCardImageError"
+                     @error="if (_matchedActress?.photo_url) _heroCardImageError = true">
+                <div x-show="_matchedActress && _heroCardImageError"
+                     class="av-card-no-cover">
+                  <i class="bi bi-image"></i>
+                  <span x-text="t('common.no_image')"></span>
+                </div>
+                <div class="av-card-preview-overlay always-visible"
+                     x-show="_matchedActress"
+                     @click.stop>
+                  <button class="btn-glass-circle is-favorite"
+                          disabled
+                          :title="t('showcase.actress.favorited')">
+                    <i class="bi bi-heart-fill"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="av-card-preview-footer">
+                <div class="footer-default" x-show="_matchedActress">
+                  <span class="av-num" x-text="_matchedActress?.name || '-'">-</span>
+                  <span class="av-actress"
+                        x-text="_matchedActress?.age ? _matchedActress.age + t('search.unit.age') : ''"></span>
+                </div>
+                <div class="footer-hover" x-show="_matchedActress">
+                  <div class="hover-title"
+                       x-text="[
+                         _matchedActress?.height || '',
+                         _matchedActress?.cup ? _matchedActress.cup + t('search.unit.cup') : '',
+                         [_matchedActress?.bust, _matchedActress?.waist, _matchedActress?.hip].filter(Boolean).join('-')
+                       ].filter(Boolean).join(' · ') || '-'"></div>
+                </div>
+              </div>
+            </div>
             <template x-for="(video, index) in paginatedVideos" :key="video.path">
                 <div class="av-card-preview"
                      :class="{ 'missing-cover': !video.has_cover }"
