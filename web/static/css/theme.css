@@ -91,6 +91,11 @@
 
     /* Error 色系擴展（淡紅，delete hover） */
     --color-error-hover: #ff6b6b;     /* 柔和紅 - 刪除按鈕 hover */
+
+    /* ===== Components: Spotlight Search (44c-T8a) ===== */
+    --spotlight-width: 680px;         /* single source of truth for pill width */
+    --spotlight-left-slot: 3.5rem;    /* default left padding (search icon) */
+    --spotlight-right-slot: 6rem;     /* default right padding (action buttons) */
 }
 
 
@@ -192,7 +197,7 @@ body {
 .spotlight-search {
     position: relative;
     width: 100%;
-    max-width: 680px;
+    max-width: var(--spotlight-width);
     margin: 0 auto;
 }
 
@@ -210,10 +215,8 @@ body {
 .spotlight-search input {
     width: 100%;
     height: 3.5rem;
-    padding-left: 3.5rem;
-    /* Space for left icon */
-    padding-right: 6rem;
-    /* Space for right actions */
+    padding-left: var(--spotlight-left-slot);
+    padding-right: var(--spotlight-right-slot);
     border: 1px solid var(--border-light);
     border-radius: var(--radius-pill);
     /* Pill shape */
@@ -255,7 +258,9 @@ body {
     transform: translateY(-50%);
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 0.25rem;
+    width: calc(var(--spotlight-right-slot) - 0.5rem);
     z-index: 2;
 }
 

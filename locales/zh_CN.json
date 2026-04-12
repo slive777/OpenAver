@@ -18,7 +18,8 @@
     "action": {
       "confirm": "确认",
       "cancel": "取消"
-    }
+    },
+    "no_image": "无图片"
   },
   "search": {
     "page_title": "搜索",
@@ -441,17 +442,29 @@
       "maker": "片商",
       "size": "大小",
       "mdate": "修改时间",
-      "random": "随机"
+      "random": "随机",
+      "actress": {
+        "video_count": "作品数",
+        "name": "姓名",
+        "added_at": "收藏时间",
+        "age": "年龄",
+        "height": "身高",
+        "cup": "罩杯"
+      }
     },
     "mode": {
       "grid": "图片",
       "table": "详细",
-      "list": "文字"
+      "list": "文字",
+      "actress": "女优模式",
+      "video": "影片模式"
     },
     "unit": {
       "videos": "部",
       "minutes": "分钟",
-      "minutes_abbr": "分"
+      "minutes_abbr": "分",
+      "videos_count": " 部",
+      "films": "片"
     },
     "per_page": {
       "all": "全部"
@@ -518,6 +531,29 @@
     "enrich": {
       "success": "补资料完成",
       "failed": "补资料失败，请稍后再试"
+    },
+    "search": {
+      "actress": "搜索女优名称...",
+      "video": "搜索番号、女优、标题..."
+    },
+    "actress": {
+      "add": "+ 添加女优",
+      "addPlaceholder": "输入女优名称...",
+      "addSuccess": "已添加到收藏",
+      "addDuplicate": "已经收藏过了",
+      "addNotFound": "找不到此女优",
+      "addTimeout": "抓取超时，请稍后再试",
+      "rescrape": "重新抓取",
+      "rescrapeSuccess": "资料已更新",
+      "rescrapeError": "重新抓取失败",
+      "remove": "移除收藏",
+      "removeConfirm": "确认移除 {name}？",
+      "removeSuccess": "已从收藏移除",
+      "empty": "尚未收藏任何女优",
+      "emptyHint": "点击右上角 + 添加收藏",
+      "search_films": "搜尋相關影片",
+      "addFavorite": "加入收藏",
+      "favorited": "已收藏"
     }
   },
   "help": {

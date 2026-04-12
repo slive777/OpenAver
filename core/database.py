@@ -1047,3 +1047,18 @@ class ActressRepository:
             return bool(row and row[0] > 0)
         finally:
             conn.close()
+
+    def count_videos_for_actress(self, name: str) -> int:
+        """Count videos featuring this actress using json_each for exact matching."""
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute(
+                """SELECT COUNT(*) FROM videos, json_each(videos.actresses)
+                   WHERE json_valid(videos.actresses) AND json_each.value = ?""",
+                (name,)
+            )
+            return cursor.fetchone()[0]
+        except sqlite3.OperationalError:
+            return 0
+        finally:
+            conn.close()

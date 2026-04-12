@@ -139,7 +139,7 @@
             // GSAP guard（CDN 故障降級）
             if (typeof gsap === 'undefined') return null;
 
-            var cards = gridEl.querySelectorAll('.av-card-preview');
+            var cards = gridEl.querySelectorAll('.av-card-preview, .actress-card');
             if (!cards.length) return null;
 
             // C4: 清除舊動畫
@@ -204,7 +204,7 @@
             // GSAP guard
             if (typeof gsap === 'undefined') return null;
 
-            var cards = gridEl.querySelectorAll('.av-card-preview');
+            var cards = gridEl.querySelectorAll('.av-card-preview, .actress-card');
             if (!cards.length) return null;
 
             // Reduced Motion 降級
@@ -266,7 +266,7 @@
             // Flip guard
             if (typeof Flip === 'undefined' || typeof gsap === 'undefined') return null;
 
-            var cards = gridEl.querySelectorAll('.av-card-preview');
+            var cards = gridEl.querySelectorAll('.av-card-preview, .actress-card');
             if (!cards.length) return null;
 
             // Reduced Motion 降級：Alpine 已完成 DOM 更新，不需額外處理
@@ -315,7 +315,7 @@
          */
         capturePositions: function (gridEl) {
             if (!gridEl) return null;
-            var cards = gridEl.querySelectorAll('.av-card-preview');
+            var cards = gridEl.querySelectorAll('.av-card-preview, .actress-card');
             if (!cards.length) return null;
             var map = new Map();
             Array.from(cards).forEach(function (card) {
@@ -358,6 +358,7 @@
 
             var selectors = {
                 grid: '.showcase-grid',
+                actress: '.actress-grid',
                 table: '.showcase-table-wrapper',
                 list: '.showcase-list-wrapper'
             };
@@ -504,6 +505,37 @@
             if (typeof gsap === 'undefined') return;
             if (killOpen) gsap.getById('showcaseLightboxOpen')?.kill();
             if (killSwitch) gsap.getById('showcaseLightboxSwitch')?.kill();
+        },
+
+        /**
+         * T5: Hero Card 出現動畫 — fade-in + slide-down from above
+         *
+         * Graceful fallback: GSAP 未載入或 shouldSkip() → return null，Alpine x-show 維持正常顯示。
+         * C4: killTweensOf 清舊動畫（避免重複搜尋時堆疊）
+         * clearProps: 動畫結束後清除 inline style（不污染 Alpine x-show 控制的 opacity/transform）
+         *
+         * @param {Element} el - .hero-card 元素
+         * @returns {gsap.core.Tween|null}
+         */
+        playHeroCardAppear: function (el) {
+            if (!el) return null;
+            if (typeof gsap === 'undefined') return null;
+
+            // C4: 清除舊動畫
+            gsap.killTweensOf(el);
+
+            if (shouldSkip()) return null;
+
+            return gsap.fromTo(el,
+                { opacity: 0, y: -20 },
+                {
+                    opacity: 1,
+                    y: 0,
+                    duration: 0.3,
+                    ease: 'power2.out',
+                    clearProps: 'transform,opacity'
+                }
+            );
         },
 
         /**

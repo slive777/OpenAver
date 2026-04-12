@@ -161,6 +161,24 @@ class TestAddFavorite:
         resp = client.post("/api/actresses/favorite", json={"name": ""})
         assert resp.status_code == 422
 
+    def test_add_favorite_returns_real_video_count(self, client):
+        """成功收藏後，回應 actress.video_count 應為真實值（非硬編碼 0）"""
+        with patch("web.routers.actress.get_cached_profile", return_value=None), \
+             patch("web.routers.actress.get_actress_profile") as mock_get_profile, \
+             patch("web.routers.actress.download_actress_photo", return_value=True), \
+             patch("web.routers.actress.get_local_photo_path", return_value=None), \
+             patch("core.database.ActressRepository.count_videos_for_actress", return_value=5):
+
+            from core.scrapers.actress.orchestrator import ProfileResult
+            mock_get_profile.return_value = ProfileResult(data=MOCK_PROFILE, timed_out=False)
+
+            resp = client.post("/api/actresses/favorite", json={"name": ACTRESS_NAME})
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert data["actress"]["video_count"] == 5
+
 
 # ---------------------------------------------------------------------------
 # T2: GET /api/actresses/{name} — 查詢已收藏女優

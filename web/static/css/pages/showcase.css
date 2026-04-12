@@ -35,12 +35,11 @@
     /* Spacing */
     padding: 0.75rem 1.5rem;
 
-    /* Layout */
-    display: flex;
-    flex-wrap: wrap;
+    /* Layout — 3-column grid: [balance] [search] [controls] (44c-T8) */
+    display: grid;
+    grid-template-columns: 1fr var(--spotlight-width) 1fr;
     gap: 1rem;
     align-items: center;
-    justify-content: space-between;
 }
 
 /* Toolbar 區段 */
@@ -50,15 +49,16 @@
     gap: 0.75rem;
 }
 
-/* Search 區段 - 寬度撐滿 */
+/* Search 區段 — grid 中欄，永遠置中 (44c-T8) */
 .toolbar-search {
-    flex: 1;
-    min-width: 280px; /* 防止過窄 */
+    grid-column: 2;
+    width: 100%;
 }
 
-/* Controls 區段 - 自動寬度 */
+/* Controls 區段 — grid 右欄，靠右對齊 (44c-T8) */
 .toolbar-controls {
-    flex-shrink: 0;
+    grid-column: 3;
+    justify-self: end;
     flex-wrap: wrap;
 }
 
@@ -75,6 +75,7 @@
 
 .toolbar-dropdown-wrap {
     position: relative;
+    z-index: 210;
 }
 
 .toolbar-dropdown {
@@ -82,7 +83,7 @@
     top: 100%;
     right: 0;
     margin-top: 0.5rem;
-    min-width: 150px;
+    min-width: 160px;
     background: var(--surface-2);
     border: 1px solid var(--stroke-default);
     border-radius: var(--radius-md);
@@ -106,6 +107,8 @@
     transition: background var(--duration-fast) var(--ease-out),
                 color var(--duration-fast) var(--ease-out);
     white-space: nowrap;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .dropdown-item:hover {
@@ -292,6 +295,153 @@
         grid-template-columns: 1fr;
         padding: 1rem;
     }
+}
+
+/* ==================== Actress Grid — Collection Wall (44c-T6) ==================== */
+.actress-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.75rem;
+    padding: 1rem;
+    max-width: 100%;
+}
+
+@media (max-width: 480px) {
+    .actress-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.5rem;
+        padding: 0.75rem;
+    }
+}
+
+/* ==================== Actress Card (T3) ==================== */
+
+.actress-card {
+    background: var(--bg-card);
+    border-radius: var(--fluent-radius-xl);
+    box-shadow: var(--fluent-shadow-2);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard),
+                box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.actress-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: var(--fluent-shadow-8);
+}
+
+.actress-card-photo {
+    aspect-ratio: 3 / 4;   /* portrait，比 video card 的 3/2 更窄 */
+    overflow: hidden;
+    background: var(--surface-1);
+    position: relative;
+}
+
+.actress-card-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.actress-card:hover .actress-card-photo img {
+    transform: scale(1.05);
+}
+
+/* 無照片 placeholder */
+.actress-no-photo {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 3rem;
+}
+
+/* Actress card hover overlay (44c-T7) */
+.actress-card-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    padding-bottom: 12px;
+    background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 60%, transparent 100%);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    opacity: 0;
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
+    pointer-events: none;
+}
+
+.actress-card:hover .actress-card-overlay,
+.actress-card:focus-within .actress-card-overlay {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.actress-card-footer {
+    position: relative;
+    overflow: hidden;
+    height: 2.5rem;
+    padding: 0 0.75rem;
+}
+
+.actress-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.actress-count-badge {
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* Actress Card Footer — three-column layout + hover swap (44c-T2, CD-3) */
+.actress-card-footer .footer-default {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+    gap: 0.5rem;
+}
+
+.actress-card-footer .footer-default .av-num {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.actress-sort-indicator {
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.actress-card:hover .footer-hover {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.actress-card:hover .footer-default {
+    opacity: 0;
 }
 
 /* ==================== Card Footer Switch (M3e) ==================== */
@@ -607,6 +757,24 @@
     transform: scale(0.95);
 }
 
+/* Danger modifier — red tint for remove button (44c-T3) */
+.lb-action-btn--danger {
+    border-color: rgba(255, 100, 100, 0.5);
+    color: var(--color-error-hover);
+}
+
+.lb-action-btn--danger:hover {
+    background: rgba(255, 100, 100, 0.25);
+    border-color: rgba(255, 100, 100, 0.7);
+}
+
+/* Touch fallback — cover-actions always visible on touch devices (44c-T3) */
+@media (pointer: coarse) {
+    .lightbox-cover .cover-actions {
+        opacity: 1;
+    }
+}
+
 /* CSS Tooltip — 桌機輔助，觸控裝置不依賴 */
 .lb-action-btn[data-tooltip]::after {
     content: attr(data-tooltip);
@@ -711,24 +879,21 @@
 }
 
 /* ==================== Responsive: Toolbar ==================== */
-/* 小螢幕：Toolbar 垂直排列 */
+/* 小螢幕：Toolbar 單欄堆疊 (44c-T8) */
 @media (max-width: 768px) {
     .showcase-toolbar {
-        flex-direction: column;
-        align-items: stretch;
+        grid-template-columns: 1fr;
         gap: 0.75rem;
         padding: 1rem;
     }
 
-    .toolbar-section {
-        width: 100%;
-    }
-
     .toolbar-search {
-        min-width: auto;
+        grid-column: 1;
     }
 
     .toolbar-controls {
+        grid-column: 1;
+        justify-self: stretch;
         justify-content: space-between;
     }
 }
@@ -1448,4 +1613,136 @@
 .av-card-preview-overlay {
     opacity: 1;
     pointer-events: auto;
+}
+
+/* ==================== Phase 44a T4: Actress Lightbox ==================== */
+.actress-lightbox-meta .actress-lb-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.actress-lightbox-meta .lb-name-en { font-size: 0.9em; opacity: 0.7; }
+.actress-lightbox-meta .lb-actress-core { font-size: 0.95em; margin: 8px 0; opacity: 0.85; }
+.actress-lightbox-meta .lb-chips-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.actress-lightbox-meta .lb-chips-more {
+    cursor: pointer; font-size: 0.85em; padding: 2px 8px;
+    border-radius: 12px; border: 1px solid currentColor; opacity: 0.6;
+}
+.actress-lightbox-meta .lb-chips-more:hover { opacity: 1; }
+.actress-lightbox-meta .lb-actress-urls { margin-top: 8px; }
+.actress-lightbox-meta .lb-actress-urls a { display: block; font-size: 0.8em; word-break: break-all; opacity: 0.7; }
+.actress-lightbox-meta .lb-actress-urls a:hover { opacity: 1; text-decoration: underline; }
+
+/* Actress Lightbox no-photo placeholder */
+.actress-lb-cover-placeholder {
+    display: flex; align-items: center; justify-content: center;
+    min-width: min(60vw, 600px); min-height: min(58vh, 460px);
+}
+
+/* Row 1 heart icon */
+.actress-lb-header .btn-glass-circle { width: 32px; height: 32px; font-size: 1rem; margin-left: auto; }
+.actress-lb-header .btn-glass-circle.is-favorite { color: var(--color-favorite); cursor: default; pointer-events: none; }
+
+/* lb-chips-more shared rule for video lightbox tags +N */
+.lightbox-metadata .lb-chips-more {
+    cursor: pointer; font-size: 0.85em; padding: 2px 8px;
+    border-radius: 12px; border: 1px solid currentColor; opacity: 0.6;
+}
+
+/* ==================== Mode Toggle Capsule (44c-T4) ==================== */
+
+.spotlight-search .mode-toggle {
+    position: absolute;
+    left: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    padding: 2px;
+}
+
+.mode-toggle-btn {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    transition: all 0.15s ease;
+}
+
+.mode-toggle-btn.active {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: var(--text-primary);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.mode-toggle-btn:not(.active):hover {
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.mode-toggle-btn:disabled {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+/* Variant: mode-toggle — wider left slot for capsule toggle (44c-T8) */
+.spotlight-search--mode-toggle {
+    --spotlight-left-slot: 5.5rem;
+}
+.lightbox-metadata .lb-chips-more:hover { opacity: 1; }
+
+/* ==================== Phase 44b T3: Hero Card ==================== */
+
+/* Grid Mode Hero Card — cursor pointer */
+.hero-card {
+    cursor: pointer;
+}
+
+/* Hero Card 圖片：contain 完整顯示（不裁切女優照片） */
+:is(#ds-gallery-components, .ds-gallery-composition) .hero-card .av-card-preview-img {
+    background: var(--bg-card, rgba(0, 0, 0, 0.05));
+}
+
+:is(#ds-gallery-components, .ds-gallery-composition) .hero-card .av-card-preview-img img {
+    object-fit: contain;
+    transform-origin: center center;
+}
+
+/* Hero Card 愛心 overlay 常駐（已收藏時不需 hover） */
+.hero-card .av-card-preview-overlay.always-visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* 已收藏愛心按鈕 — 紅色，不可點擊 */
+.hero-card .btn-glass-circle.is-favorite {
+    color: var(--color-favorite);
+    cursor: default;
+}
+
+/* No-cover fallback placeholder（Hero Card 圖片載入失敗） */
+.av-card-no-cover {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    gap: 0.25rem;
+}
+
+.av-card-no-cover i {
+    font-size: 1.5rem;
+    opacity: 0.4;
 }

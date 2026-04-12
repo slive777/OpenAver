@@ -18,7 +18,8 @@
     "action": {
       "confirm": "Confirm",
       "cancel": "Cancel"
-    }
+    },
+    "no_image": "No Image"
   },
   "search": {
     "page_title": "Search",
@@ -441,17 +442,29 @@
       "maker": "Maker",
       "size": "Size",
       "mdate": "Modified",
-      "random": "Random"
+      "random": "Random",
+      "actress": {
+        "video_count": "Film Count",
+        "name": "Name",
+        "added_at": "Date Added",
+        "age": "Age",
+        "height": "Height",
+        "cup": "Cup"
+      }
     },
     "mode": {
       "grid": "Grid",
       "table": "Table",
-      "list": "List"
+      "list": "List",
+      "actress": "Actress Mode",
+      "video": "Video Mode"
     },
     "unit": {
       "videos": "",
       "minutes": "min",
-      "minutes_abbr": "min"
+      "minutes_abbr": "min",
+      "videos_count": "",
+      "films": ""
     },
     "per_page": {
       "all": "All"
@@ -518,6 +531,29 @@
     "enrich": {
       "success": "Enriched successfully",
       "failed": "Enrich failed, please try again"
+    },
+    "search": {
+      "actress": "Search actress name...",
+      "video": "Search ID, actress, title..."
+    },
+    "actress": {
+      "add": "+ Add Actress",
+      "addPlaceholder": "Enter actress name...",
+      "addSuccess": "Added to favorites",
+      "addDuplicate": "Already in favorites",
+      "addNotFound": "Actress not found",
+      "addTimeout": "Scrape timed out, please try again",
+      "rescrape": "Re-scrape",
+      "rescrapeSuccess": "Info updated",
+      "rescrapeError": "Re-scrape failed",
+      "remove": "Remove Favorite",
+      "removeConfirm": "Remove {name}?",
+      "removeSuccess": "Removed from favorites",
+      "empty": "No favorite actresses yet",
+      "emptyHint": "Click + in the top right to add one",
+      "search_films": "Search related films",
+      "addFavorite": "Add to favorites",
+      "favorited": "Favorited"
     }
   },
   "help": {

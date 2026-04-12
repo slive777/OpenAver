@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.3] - 2026-04-13
+
+### Added
+
+#### 🎯 44 — Actress Showcase 模式 + 精準匹配 Hero Card
+- **Showcase 女優模式**：toolbar 切換影片 Grid ↔ 女優收藏 Grid，含搜尋、排序（名稱/年齡/罩杯/身高/新增日期）
+- **女優卡片**：160px/220px 密集 Grid，三欄 footer（名稱 + 年齡/排序指標 + 影片數），hover 顯示身體數據
+- **女優 Lightbox**：5-row 佈局（照片+愛心 / metadata / aliases chips / info chips / URL 連結），chips +N 收合展開
+- **CRUD 操作**：加入收藏（POST favorite）、重新抓取（rescrape）、移除收藏（DELETE）、搜尋相關影片（bi-camera-reels）
+- **精準匹配 Hero Card**：搜尋框輸入已收藏女優名 → 搜尋框出現 ♥，Grid 上方顯示 hero card（照片 + 年齡 + 身體數據）
+- **搜尋框愛心 Icon**：metadata tag 點擊未收藏女優 → ♡ 可點擊加入收藏 → ♥ + hero card 出現
+- **Lightbox -1 Sentinel 導航**：hero card lightbox ↔ 影片 lightbox 左右鍵無縫切換
+- **GSAP 動畫**：女優模式 crossfade 切換、卡片 entry stagger、排序 FLIP、hero card 出現/消失過渡
+- **Segmented Mode Toggle**：glass capsule 設計（bi-film | bi-person 圖示）
+- **`GET /api/actresses`** 列表端點 — video_count + is_favorite
+- **i18n 四語系同步**：女優模式 + hero card 所有 UI 文字 + `common.no_image` 共用 key
+- **Capabilities**：rescrape 端點揭露
+
+### Fixed
+- **`is_favorite` API contract**：`_actress_to_response()` 補上 `is_favorite: True`（DB 中的女優即收藏）
+- **Hero card 寬度**：從 `.showcase-grid` 外移入 grid 內（同 /search pattern），grid 自動控制寬度
+- **Metadata scope**：`searchFromMetadata(term, type)` 只有 actress tag 觸發精準匹配，片商/系列/標籤不再誤觸
+- **`searchActressFilms` 入口**：補上 `_checkPreciseActressMatch` 呼叫
+- **`toggleActressMode` state leak**：切換模式時清除精準匹配狀態
+- **ja.json typo**：`showcase.actress.favorited` 中文→日文修正
+- **Dropdown hit area**：全寬 items + z-index 堆疊修正
+- **Grid overlay**：bottom-aligned + focus-within 鍵盤修正
+- **POST favorite/rescrape**：回傳真實 video_count
+
+### Tests
+- 全套 2167 → 2317 tests passed（+150 net）
+- 新增：actress showcase API 11 + CSS spotlight 4 + frontend lint 109 + integration 1 + capabilities 1
+
 ## [0.7.2] - 2026-04-12
 
 ### Added

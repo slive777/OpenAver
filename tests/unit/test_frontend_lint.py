@@ -647,6 +647,397 @@ class TestShowcaseKeyboardGuard:
             "lightbox keyboard 分支缺少 e.preventDefault()"
 
 
+class TestShowcaseActressState:
+    """Phase 44a-T2: Showcase 女優模式 Alpine state 守衛"""
+
+    def _js(self):
+        return SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+
+    # --- Module-level arrays ---
+    def test_module_level_actresses_declared(self):
+        """var _actresses = [] 存在於 module scope"""
+        js = self._js()
+        assert "var _actresses = []" in js, \
+            "showcase/core.js 缺少 module-level var _actresses = []"
+
+    def test_module_level_filtered_actresses_declared(self):
+        """var _filteredActresses = [] 存在於 module scope"""
+        js = self._js()
+        assert "var _filteredActresses = []" in js, \
+            "showcase/core.js 缺少 module-level var _filteredActresses = []"
+
+    # --- Alpine state properties ---
+    def test_state_has_show_favorite_actresses(self):
+        """showFavoriteActresses 出現於 Alpine state"""
+        js = self._js()
+        assert "showFavoriteActresses" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 showFavoriteActresses"
+
+    def test_state_has_actress_count(self):
+        """actressCount 出現於 Alpine state"""
+        js = self._js()
+        assert "actressCount" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 actressCount"
+
+    def test_state_has_filtered_actress_count(self):
+        """filteredActressCount 出現於 Alpine state"""
+        js = self._js()
+        assert "filteredActressCount" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 filteredActressCount"
+
+    def test_state_has_paginated_actresses(self):
+        """paginatedActresses 出現於 Alpine state"""
+        js = self._js()
+        assert "paginatedActresses" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 paginatedActresses"
+
+    def test_state_has_actress_search(self):
+        """actressSearch 出現於 Alpine state"""
+        js = self._js()
+        assert "actressSearch" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 actressSearch"
+
+    def test_state_has_actress_sort(self):
+        """actressSort 出現於 Alpine state"""
+        js = self._js()
+        assert "actressSort" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 actressSort"
+
+    def test_state_has_actress_order(self):
+        """actressOrder 出現於 Alpine state"""
+        js = self._js()
+        assert "actressOrder" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 actressOrder"
+
+    def test_state_has_actress_loading(self):
+        """actressLoading 出現於 Alpine state"""
+        js = self._js()
+        assert "actressLoading" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 actressLoading"
+
+    def test_state_has_actress_lightbox_index(self):
+        """actressLightboxIndex 出現於 Alpine state"""
+        js = self._js()
+        assert "actressLightboxIndex" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 actressLightboxIndex"
+
+    def test_state_has_current_lightbox_actress(self):
+        """currentLightboxActress 出現於 Alpine state"""
+        js = self._js()
+        assert "currentLightboxActress" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 currentLightboxActress"
+
+    def test_state_has_actress_chips_expanded(self):
+        """_actressChipsExpanded 出現於 Alpine state"""
+        js = self._js()
+        assert "_actressChipsExpanded" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 _actressChipsExpanded"
+
+    def test_state_has_add_actress_name(self):
+        """_addActressName 出現於 Alpine state"""
+        js = self._js()
+        assert "_addActressName" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 _addActressName"
+
+    def test_state_has_adding_actress(self):
+        """_addingActress 出現於 Alpine state"""
+        js = self._js()
+        assert "_addingActress" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 _addingActress"
+
+    def test_state_has_add_dropdown_open(self):
+        """_addDropdownOpen 出現於 Alpine state"""
+        js = self._js()
+        assert "_addDropdownOpen" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 _addDropdownOpen"
+
+    def test_state_has_rescraping(self):
+        """_rescraping 出現於 Alpine state"""
+        js = self._js()
+        assert "_rescraping" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 _rescraping"
+
+    def test_state_has_video_chips_expanded(self):
+        """_videoChipsExpanded 出現於 Alpine state"""
+        js = self._js()
+        assert "_videoChipsExpanded" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 _videoChipsExpanded"
+
+    # --- Core methods ---
+    def test_toggle_actress_mode_defined(self):
+        """toggleActressMode 方法存在"""
+        js = self._js()
+        assert "toggleActressMode" in js, \
+            "showcase/core.js 缺少方法 toggleActressMode"
+
+    def test_load_actresses_defined(self):
+        """loadActresses 方法存在"""
+        js = self._js()
+        assert "loadActresses" in js, \
+            "showcase/core.js 缺少方法 loadActresses"
+
+    def test_apply_actress_filter_and_sort_defined(self):
+        """applyActressFilterAndSort 方法存在"""
+        js = self._js()
+        assert "applyActressFilterAndSort" in js, \
+            "showcase/core.js 缺少方法 applyActressFilterAndSort"
+
+    def test_on_actress_search_change_defined(self):
+        """onActressSearchChange 方法存在"""
+        js = self._js()
+        assert "onActressSearchChange" in js, \
+            "showcase/core.js 缺少方法 onActressSearchChange"
+
+    def test_on_actress_sort_change_defined(self):
+        """onActressSortChange 方法存在"""
+        js = self._js()
+        assert "onActressSortChange" in js, \
+            "showcase/core.js 缺少方法 onActressSortChange"
+
+    def test_toggle_actress_order_defined(self):
+        """toggleActressOrder 方法存在"""
+        js = self._js()
+        assert "toggleActressOrder" in js, \
+            "showcase/core.js 缺少方法 toggleActressOrder"
+
+    # --- Lightbox methods ---
+    def test_open_actress_lightbox_defined(self):
+        """openActressLightbox 方法存在"""
+        js = self._js()
+        assert "openActressLightbox" in js, \
+            "showcase/core.js 缺少方法 openActressLightbox"
+
+    def test_close_actress_lightbox_defined(self):
+        """closeActressLightbox 方法存在"""
+        js = self._js()
+        assert "closeActressLightbox" in js, \
+            "showcase/core.js 缺少方法 closeActressLightbox"
+
+    def test_prev_actress_lightbox_defined(self):
+        """prevActressLightbox 方法存在"""
+        js = self._js()
+        assert "prevActressLightbox" in js, \
+            "showcase/core.js 缺少方法 prevActressLightbox"
+
+    def test_next_actress_lightbox_defined(self):
+        """nextActressLightbox 方法存在"""
+        js = self._js()
+        assert "nextActressLightbox" in js, \
+            "showcase/core.js 缺少方法 nextActressLightbox"
+
+    def test_set_actress_lightbox_index_defined(self):
+        """_setActressLightboxIndex 方法存在"""
+        js = self._js()
+        assert "_setActressLightboxIndex" in js, \
+            "showcase/core.js 缺少方法 _setActressLightboxIndex"
+
+    # --- Sort logic ---
+    def test_cup_rank_defined(self):
+        """cupRank 出現於排序邏輯"""
+        js = self._js()
+        assert "cupRank" in js, \
+            "showcase/core.js applyActressFilterAndSort 缺少 cupRank 排序定義"
+
+    # --- _setLightboxIndex mutual exclusion ---
+    def test_set_lightbox_index_clears_actress(self):
+        """_setLightboxIndex 內含 currentLightboxActress = null"""
+        js = self._js()
+        assert "currentLightboxActress = null" in js, \
+            "showcase/core.js _setLightboxIndex 缺少 this.currentLightboxActress = null（互斥保證）"
+
+    def test_set_lightbox_index_resets_video_chips(self):
+        """_setLightboxIndex 內含 _videoChipsExpanded = false"""
+        js = self._js()
+        assert "_videoChipsExpanded = false" in js, \
+            "showcase/core.js _setLightboxIndex 缺少 this._videoChipsExpanded = false（reset chips）"
+
+    # --- saveState / restoreState ---
+    def test_save_state_includes_actress_mode(self):
+        """saveState 內含 showFavoriteActresses key"""
+        js = self._js()
+        assert "showFavoriteActresses: this.showFavoriteActresses" in js, \
+            "showcase/core.js saveState() 缺少 showFavoriteActresses key"
+
+    def test_save_state_includes_actress_sort(self):
+        """saveState 內含 actressSort key"""
+        js = self._js()
+        assert "actressSort: this.actressSort" in js, \
+            "showcase/core.js saveState() 缺少 actressSort key"
+
+    def test_save_state_includes_actress_order(self):
+        """saveState 內含 actressOrder key"""
+        js = self._js()
+        assert "actressOrder: this.actressOrder" in js, \
+            "showcase/core.js saveState() 缺少 actressOrder key"
+
+    def test_restore_state_restores_actress_mode(self):
+        """restoreState 內含 showFavoriteActresses 還原邏輯"""
+        js = self._js()
+        assert "showFavoriteActresses === true" in js, \
+            "showcase/core.js restoreState() 缺少 showFavoriteActresses === true（strict equality 還原）"
+
+    def test_restore_state_restores_actress_sort(self):
+        """restoreState 內含 actressSort 還原邏輯"""
+        js = self._js()
+        assert "state.actressSort" in js, \
+            "showcase/core.js restoreState() 缺少 state.actressSort 還原邏輯"
+
+    def test_restore_state_restores_actress_order(self):
+        """restoreState 內含 actressOrder 還原邏輯"""
+        js = self._js()
+        assert "state.actressOrder" in js, \
+            "showcase/core.js restoreState() 缺少 state.actressOrder 還原邏輯"
+
+    # --- handleKeydown dispatch ---
+    def test_keydown_dispatches_actress_lightbox(self):
+        """handleKeydown 內含 currentLightboxActress 判斷"""
+        js = self._js()
+        assert "this.currentLightboxActress" in js, \
+            "showcase/core.js handleKeydown 缺少 currentLightboxActress 判斷分支"
+
+    def test_keydown_prev_actress_lightbox_present(self):
+        """handleKeydown 內含 prevActressLightbox() 呼叫"""
+        js = self._js()
+        assert "this.prevActressLightbox()" in js, \
+            "showcase/core.js handleKeydown 缺少 this.prevActressLightbox() 呼叫"
+
+    def test_keydown_next_actress_lightbox_present(self):
+        """handleKeydown 內含 nextActressLightbox() 呼叫"""
+        js = self._js()
+        assert "this.nextActressLightbox()" in js, \
+            "showcase/core.js handleKeydown 缺少 this.nextActressLightbox() 呼叫"
+
+
+class TestShowcasePreciseMatchState:
+    """Phase 44b-T1: Showcase 精準匹配 Alpine state 守衛"""
+
+    def _js(self):
+        return SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+
+    def _extract_fn_block(self, content, fn_anchor):
+        """提取從 fn_anchor 開始到下一個頂層逗號的函數區塊"""
+        start = content.find(fn_anchor)
+        if start == -1:
+            return ''
+        return content[start:start + 2000]
+
+    # --- Module-level flag ---
+    def test_actressesLoaded_flag_exists(self):
+        """var _actressesLoaded 存在於 module scope"""
+        js = self._js()
+        assert "var _actressesLoaded" in js, \
+            "showcase/core.js 缺少 module-level var _actressesLoaded"
+
+    # --- Alpine state properties ---
+    def test_isPreciseActressMatch_state_exists(self):
+        """_isPreciseActressMatch 出現於 Alpine state"""
+        js = self._js()
+        assert "_isPreciseActressMatch" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 _isPreciseActressMatch"
+
+    def test_matchedActress_state_exists(self):
+        """_matchedActress 出現於 Alpine state"""
+        js = self._js()
+        assert "_matchedActress" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 _matchedActress"
+
+    def test_preciseMatchSource_state_exists(self):
+        """_preciseMatchSource 出現於 Alpine state"""
+        js = self._js()
+        assert "_preciseMatchSource" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 _preciseMatchSource"
+
+    def test_favoriteHeartLoading_state_exists(self):
+        """_favoriteHeartLoading 出現於 Alpine state"""
+        js = self._js()
+        assert "_favoriteHeartLoading" in js, \
+            "showcase/core.js 缺少 Alpine state 屬性 _favoriteHeartLoading"
+
+    # --- Methods ---
+    def test_checkPreciseActressMatch_method_exists(self):
+        """_checkPreciseActressMatch 方法存在於 core.js"""
+        js = self._js()
+        assert "_checkPreciseActressMatch" in js, \
+            "showcase/core.js 缺少 _checkPreciseActressMatch 方法"
+
+    def test_clearPreciseMatch_method_exists(self):
+        """_clearPreciseMatch 方法存在於 core.js"""
+        js = self._js()
+        assert "_clearPreciseMatch" in js, \
+            "showcase/core.js 缺少 _clearPreciseMatch 方法"
+
+    # --- Trigger points ---
+    def test_searchFromMetadata_triggers_preciseMatch(self):
+        """_checkPreciseActressMatch 出現於 searchFromMetadata 區段"""
+        js = self._js()
+        block = self._extract_fn_block(js, 'searchFromMetadata(term')
+        assert "_checkPreciseActressMatch" in block, \
+            "showcase/core.js searchFromMetadata 缺少 _checkPreciseActressMatch 呼叫"
+
+    def test_onSearchChange_triggers_preciseMatch(self):
+        """_checkPreciseActressMatch 出現於 onSearchChange 區段"""
+        js = self._js()
+        block = self._extract_fn_block(js, 'onSearchChange()')
+        assert "_checkPreciseActressMatch" in block, \
+            "showcase/core.js onSearchChange 缺少 _checkPreciseActressMatch 呼叫"
+
+    def test_onSearchChange_clears_preciseMatch(self):
+        """_clearPreciseMatch 出現於 onSearchChange 區段"""
+        js = self._js()
+        block = self._extract_fn_block(js, 'onSearchChange()')
+        assert "_clearPreciseMatch" in block, \
+            "showcase/core.js onSearchChange 缺少 _clearPreciseMatch 呼叫"
+
+    # --- Stale guard pattern ---
+    def test_stale_guard_pattern(self):
+        """capturedTerm 出現於 core.js（stale guard 標誌）"""
+        js = self._js()
+        assert "capturedTerm" in js, \
+            "showcase/core.js 缺少 capturedTerm stale guard pattern"
+
+    # --- Lazy load flag ---
+    def test_loadActresses_sets_loaded_flag(self):
+        """_actressesLoaded = true 出現於 core.js（懶載 flag 設定）"""
+        js = self._js()
+        assert "_actressesLoaded = true" in js, \
+            "showcase/core.js loadActresses() 缺少 _actressesLoaded = true"
+
+    def _html(self):
+        return SHOWCASE_HTML.read_text(encoding="utf-8")
+
+    # --- 44b-T2: Heart icon ---
+    def test_addFavoriteFromSearch_method_exists(self):
+        """44b-T2: addFavoriteFromSearch method must exist in core.js"""
+        assert "addFavoriteFromSearch" in self._js(), \
+            "Missing addFavoriteFromSearch method in showcase core.js"
+
+    def test_heart_button_in_html(self):
+        """44b-T2: heart button calling addFavoriteFromSearch must exist in showcase.html"""
+        assert "addFavoriteFromSearch" in self._html(), \
+            "Missing addFavoriteFromSearch call in showcase.html"
+
+    def test_heart_button_preciseMatch_condition(self):
+        """44b-T2: heart button must be gated by _isPreciseActressMatch"""
+        assert "_isPreciseActressMatch" in self._html(), \
+            "Heart button missing _isPreciseActressMatch condition in showcase.html"
+
+    def test_heart_icon_loading_state(self):
+        """44b-T2: addFavoriteFromSearch must handle _favoriteHeartLoading"""
+        js = self._js()
+        idx = js.find("addFavoriteFromSearch")
+        assert idx != -1, "addFavoriteFromSearch not found"
+        block = js[idx:idx+2000]
+        assert "_favoriteHeartLoading" in block, \
+            "addFavoriteFromSearch must use _favoriteHeartLoading for loading state"
+
+    def test_toggleActressMode_clears_preciseMatch(self):
+        """44b: toggleActressMode must call _clearPreciseMatch when entering actress mode"""
+        js = self._js()
+        block = self._extract_fn_block(js, 'toggleActressMode()')
+        assert "_clearPreciseMatch" in block, \
+            "toggleActressMode must call _clearPreciseMatch to avoid state leak when clearing search"
+
+
 class TestGeminiLocaleKeyGuard:
     """39a-T3: 守衛 settings.js 不再使用 gemini_n_flash_models locale key"""
 
@@ -1428,3 +1819,457 @@ class TestUserTagsApiGuard:
                             "this.fileList?.[this.currentFileIndex]" in func_body)
         assert has_direct or has_captured_ref, \
             "fetchUserTagsForCurrent 未寫入 file-level user_tags（P2: 需有 fileList[idx].user_tags 或 captured ref file.user_tags）"
+
+
+class TestShowcaseActressTemplate:
+    """Phase 44a-T3: 守衛 showcase.html 含有女優模式 UI 結構"""
+
+    def _html(self):
+        return SHOWCASE_HTML.read_text(encoding="utf-8")
+
+    def test_toggle_actress_mode_button(self):
+        """toolbar search 區域含 toggleActressMode() binding"""
+        html = self._html()
+        assert "toggleActressMode()" in html, \
+            "showcase.html 缺少 toggleActressMode() binding（mode toggle button）"
+
+    def test_show_favorite_actresses_binding(self):
+        """showFavoriteActresses 出現於 template"""
+        html = self._html()
+        assert "showFavoriteActresses" in html, \
+            "showcase.html 缺少 showFavoriteActresses binding"
+
+    def test_actress_search_input(self):
+        """actressSearch x-model 存在於 template"""
+        html = self._html()
+        assert "actressSearch" in html, \
+            "showcase.html 缺少 actressSearch x-model（女優搜尋框）"
+
+    def test_actress_grid_x_for(self):
+        """paginatedActresses x-for 存在於 template"""
+        html = self._html()
+        assert "paginatedActresses" in html, \
+            "showcase.html 缺少 paginatedActresses x-for（女優 grid 迴圈）"
+
+    def test_actress_card_class(self):
+        """actress-card class 出現於 template"""
+        html = self._html()
+        assert "actress-card" in html, \
+            "showcase.html 缺少 actress-card class（女優卡片）"
+
+    def test_actress_card_flip_id(self):
+        """'actress:' data-flip-id pattern 出現於 template"""
+        html = self._html()
+        assert "'actress:'" in html, \
+            "showcase.html 缺少 'actress:' data-flip-id pattern（FLIP 動畫 key）"
+
+    def test_actress_card_click_opens_lightbox(self):
+        """openActressLightbox(index) binding 出現於 template"""
+        html = self._html()
+        assert "openActressLightbox(index)" in html, \
+            "showcase.html 缺少 openActressLightbox(index) binding（女優卡片點擊）"
+
+    def test_actress_loading_state(self):
+        """actressLoading binding 出現於 template"""
+        html = self._html()
+        assert "actressLoading" in html, \
+            "showcase.html 缺少 actressLoading binding（loading spinner）"
+
+    def test_actress_empty_state(self):
+        """actressCount === 0 條件出現於 template"""
+        html = self._html()
+        assert "actressCount === 0" in html, \
+            "showcase.html 缺少 actressCount === 0 條件（empty state）"
+
+    def test_actress_photo_url_binding(self):
+        """actress.photo_url 出現於 template"""
+        html = self._html()
+        assert "actress.photo_url" in html, \
+            "showcase.html 缺少 actress.photo_url binding（女優照片）"
+
+    def test_actress_no_photo_placeholder(self):
+        """actress-no-photo class 出現於 template"""
+        html = self._html()
+        assert "actress-no-photo" in html, \
+            "showcase.html 缺少 actress-no-photo class（無照片 placeholder）"
+
+    def test_actress_card_footer(self):
+        """actress-card-footer class 出現於 template"""
+        html = self._html()
+        assert "actress-card-footer" in html, \
+            "showcase.html 缺少 actress-card-footer class（卡片 footer）"
+
+    def test_actress_sort_dropdown(self):
+        """actress sort options 出現於 template（actressSort binding）"""
+        html = self._html()
+        assert "actressSort" in html, \
+            "showcase.html 缺少 actressSort binding（女優排序 dropdown）"
+
+    def test_video_controls_conditional(self):
+        """!showFavoriteActresses 條件用於 video controls 的 x-show"""
+        html = self._html()
+        assert "!showFavoriteActresses" in html, \
+            "showcase.html 缺少 !showFavoriteActresses（video controls x-show 條件）"
+
+
+class TestShowcaseActressLightbox:
+    """Phase 44a-T4: Actress Lightbox 5-row layout + chips +N + nav dispatch 守衛"""
+
+    def _html(self):
+        return SHOWCASE_HTML.read_text(encoding="utf-8")
+
+    def _js(self):
+        return SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+
+    # --- showcase.html x-if branches ---
+
+    def test_actress_x_if_branch(self):
+        """showcase.html 含 x-if="currentLightboxActress" 分支"""
+        html = self._html()
+        assert "currentLightboxActress" in html, \
+            "showcase.html 缺少 currentLightboxActress（女優 lightbox x-if 分支）"
+
+    def test_video_x_if_branch(self):
+        """showcase.html 含 currentLightboxVideo && !currentLightboxActress video branch"""
+        html = self._html()
+        assert "currentLightboxVideo && !currentLightboxActress" in html, \
+            "showcase.html 缺少 currentLightboxVideo && !currentLightboxActress（video x-if 包裝）"
+
+    def test_actress_lightbox_meta(self):
+        """showcase.html 含 actress-lightbox-meta class"""
+        html = self._html()
+        assert "actress-lightbox-meta" in html, \
+            "showcase.html 缺少 actress-lightbox-meta class（女優 lightbox metadata wrapper）"
+
+    def test_lb_chips_more(self):
+        """showcase.html 含 lb-chips-more class（chips +N badge）"""
+        html = self._html()
+        assert "lb-chips-more" in html, \
+            "showcase.html 缺少 lb-chips-more class（chips +N 展開 badge）"
+
+    def test_nav_actress_dispatch(self):
+        """showcase.html nav arrows 含 prevActressLightbox() dispatch"""
+        html = self._html()
+        assert "prevActressLightbox()" in html, \
+            "showcase.html nav arrows 缺少 prevActressLightbox() dispatch（showFavoriteActresses 模式）"
+
+    # --- core.js new methods ---
+
+    def test_actress_core_metadata_method(self):
+        """core.js 含 _actressCoreMetadata() 方法"""
+        js = self._js()
+        assert "_actressCoreMetadata" in js, \
+            "showcase/core.js 缺少 _actressCoreMetadata() 方法（Row 2 metadata 串接）"
+
+    def test_all_info_chips_method(self):
+        """core.js 含 _allInfoChips() 方法"""
+        js = self._js()
+        assert "_allInfoChips" in js, \
+            "showcase/core.js 缺少 _allInfoChips() 方法（Row 4 info chips 合併）"
+
+    def test_chips_limit_method(self):
+        """core.js 含 _chipsLimit() 方法"""
+        js = self._js()
+        assert "_chipsLimit" in js, \
+            "showcase/core.js 缺少 _chipsLimit() 方法（desktop 10 / mobile 6 chips 上限）"
+
+    def test_visible_aliases_method(self):
+        """core.js 含 _visibleAliases() 方法"""
+        js = self._js()
+        assert "_visibleAliases" in js, \
+            "showcase/core.js 缺少 _visibleAliases() 方法（Row 3 aliases chips 分頁）"
+
+    def test_visible_info_chips_method(self):
+        """core.js 含 _visibleInfoChips() 方法"""
+        js = self._js()
+        assert "_visibleInfoChips" in js, \
+            "showcase/core.js 缺少 _visibleInfoChips() 方法（Row 4 info chips 分頁）"
+
+    def test_visible_video_tags_method(self):
+        """core.js 含 _visibleVideoTags() 方法"""
+        js = self._js()
+        assert "_visibleVideoTags" in js, \
+            "showcase/core.js 缺少 _visibleVideoTags() 方法（video tag chips +N）"
+
+
+class TestShowcaseActressCRUD:
+    """Phase 44a-T5: Actress CRUD — addFavoriteActress / rescrapeActress / removeActress 守衛"""
+
+    def _html(self):
+        return SHOWCASE_HTML.read_text(encoding="utf-8")
+
+    def _js(self):
+        return SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+
+    # --- core.js method guards ---
+
+    def test_add_favorite_actress_method(self):
+        """core.js 含 addFavoriteActress() 方法"""
+        js = self._js()
+        assert "addFavoriteActress" in js, \
+            "showcase/core.js 缺少 addFavoriteActress() 方法（[+ 新增] 女優 CRUD）"
+
+    def test_rescrape_actress_method(self):
+        """core.js 含 rescrapeActress() 方法"""
+        js = self._js()
+        assert "rescrapeActress" in js, \
+            "showcase/core.js 缺少 rescrapeActress() 方法（[🔄 重新抓取] 女優 CRUD）"
+
+    def test_remove_actress_method(self):
+        """core.js 含 removeActress() 方法"""
+        js = self._js()
+        assert "removeActress" in js, \
+            "showcase/core.js 缺少 removeActress() 方法（[🗑 移除最愛] 女優 CRUD）"
+
+    # --- showcase.html popover guards ---
+
+    def test_add_popover_in_template(self):
+        """showcase.html 含 _addActressName binding（[+ 新增] popover input）"""
+        html = self._html()
+        assert "_addActressName" in html, \
+            "showcase.html 缺少 _addActressName（[+ 新增] popover 的 x-model binding）"
+
+    def test_add_handler_in_template(self):
+        """showcase.html 含 addFavoriteActress() handler"""
+        html = self._html()
+        assert "addFavoriteActress()" in html, \
+            "showcase.html 缺少 addFavoriteActress()（[+ 新增] 按鈕 @click handler）"
+
+    def test_rescrape_handler_in_template(self):
+        """showcase.html lightbox cover-actions 不再有 rescrapeActress() handler（44c-T7 已移除按鈕）"""
+        html = self._html()
+        assert "rescrapeActress()" not in html, \
+            "showcase.html 仍含 rescrapeActress() handler（44c-T7 應已移除 lightbox 按鈕）"
+
+    def test_remove_handler_in_template(self):
+        """showcase.html 含 removeActress() handler"""
+        html = self._html()
+        assert "removeActress()" in html, \
+            "showcase.html 缺少 removeActress()（Row 6 移除最愛按鈕 @click handler）"
+
+    def test_search_actress_films_method(self):
+        """core.js 含 searchActressFilms() 方法"""
+        js = self._js()
+        assert "searchActressFilms" in js, \
+            "showcase/core.js 缺少 searchActressFilms() 方法（女優搜尋影片功能）"
+
+    def test_search_films_handler_in_template(self):
+        """showcase.html 含 searchActressFilms() handler（lightbox + grid 各一處）"""
+        html = self._html()
+        count = html.count("searchActressFilms(")
+        assert count >= 2, \
+            f"showcase.html searchActressFilms() handler 出現次數不足（期望 >=2，實際 {count}）"
+
+
+class TestShowcaseActressCardFooter:
+    """Phase 44c-T2: Actress Card Footer 三欄 + hover 守衛"""
+
+    def _html(self):
+        return SHOWCASE_HTML.read_text(encoding="utf-8")
+
+    def _js(self):
+        return SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+
+    def test_actress_footer_default_three_cols(self):
+        """showcase.html actress card footer 含 footer-default 三欄結構"""
+        html = self._html()
+        assert "footer-default" in html and "_actressCardMiddle" in html, \
+            "showcase.html actress-card-footer 缺少 footer-default 三欄結構或 _actressCardMiddle 綁定"
+
+    def test_actress_footer_hover(self):
+        """showcase.html actress card footer 含 footer-hover + _actressHoverInfo 綁定"""
+        html = self._html()
+        assert "footer-hover" in html and "_actressHoverInfo" in html, \
+            "showcase.html actress-card-footer 缺少 footer-hover 層或 _actressHoverInfo 綁定"
+
+    def test_actress_card_middle_method(self):
+        """core.js 含 _actressCardMiddle() 方法"""
+        js = self._js()
+        assert "_actressCardMiddle" in js, \
+            "showcase/core.js 缺少 _actressCardMiddle() 方法（footer 動態排序指標）"
+
+    def test_actress_hover_info_method(self):
+        """core.js 含 _actressHoverInfo() 方法"""
+        js = self._js()
+        assert "_actressHoverInfo" in js, \
+            "showcase/core.js 缺少 _actressHoverInfo() 方法（footer hover 身體數據）"
+
+    def test_actress_hover_info_excludes_age(self):
+        """_actressHoverInfo 不包含 age（CD-7：age 在右欄不重複）"""
+        js = self._js()
+        import re
+        m = re.search(r'_actressHoverInfo\(actress\)\s*\{(.+?)^\s{8}\},', js, re.DOTALL | re.MULTILINE)
+        if m:
+            body = m.group(1)
+            assert "actress.age" not in body, \
+                "_actressHoverInfo 方法體不應包含 age（CD-7）"
+
+    def test_actress_card_middle_uses_actress_sort(self):
+        """_actressCardMiddle 讀取 actressSort 狀態"""
+        js = self._js()
+        assert "actressSort" in js, \
+            "showcase/core.js 缺少 actressSort 狀態（_actressCardMiddle 依賴）"
+
+
+class TestShowcaseActressI18n:
+    """Phase 44a-T7: 確保 4 個 locale 都含 showcase 女優相關新 keys"""
+
+    LOCALES_ROOT = Path(__file__).parent.parent.parent / "locales"
+
+    def _locale(self, name):
+        return json.loads((self.LOCALES_ROOT / name).read_text(encoding="utf-8"))
+
+    def _get_nested(self, d, dotted_key):
+        keys = dotted_key.split(".")
+        cur = d
+        for k in keys:
+            if not isinstance(cur, dict) or k not in cur:
+                return None
+            cur = cur[k]
+        return cur
+
+    @pytest.mark.parametrize("key", [
+        "showcase.mode.actress",
+        "showcase.mode.video",
+        "showcase.search.actress",
+        "showcase.search.video",
+        "showcase.actress.add",
+        "showcase.actress.addPlaceholder",
+        "showcase.actress.addSuccess",
+        "showcase.actress.addDuplicate",
+        "showcase.actress.addNotFound",
+        "showcase.actress.addTimeout",
+        "showcase.actress.rescrape",
+        "showcase.actress.rescrapeSuccess",
+        "showcase.actress.rescrapeError",
+        "showcase.actress.remove",
+        "showcase.actress.removeConfirm",
+        "showcase.actress.removeSuccess",
+        "showcase.actress.empty",
+        "showcase.actress.emptyHint",
+        "showcase.actress.search_films",
+        "showcase.sort.actress.video_count",
+        "showcase.sort.actress.name",
+        "showcase.sort.actress.added_at",
+        "showcase.sort.actress.age",
+        "showcase.sort.actress.height",
+        "showcase.sort.actress.cup",
+        "showcase.unit.videos_count",
+        "showcase.unit.films",
+    ])
+    def test_key_exists_all_locales(self, key):
+        """指定 key 在 4 個 locale 都存在且非 None"""
+        for locale_file in ["zh_TW.json", "zh_CN.json", "en.json", "ja.json"]:
+            data = self._locale(locale_file)
+            val = self._get_nested(data, key)
+            assert val is not None, f"{locale_file} 缺少 {key}"
+
+
+class TestShowcaseLightboxSentinel:
+    """Phase 44b-T4: Lightbox -1 sentinel nav guards"""
+
+    CORE_JS = Path(__file__).parents[2] / 'web' / 'static' / 'js' / 'pages' / 'showcase' / 'core.js'
+    SHOWCASE_HTML = Path(__file__).parents[2] / 'web' / 'templates' / 'showcase.html'
+
+    def _js(self):
+        return self.CORE_JS.read_text(encoding='utf-8')
+
+    def _html(self):
+        return self.SHOWCASE_HTML.read_text(encoding='utf-8')
+
+    def test_openHeroCardLightbox_exists(self):
+        """openHeroCardLightbox method exists and is not a stub"""
+        js = self._js()
+        assert "openHeroCardLightbox" in js, \
+            "showcase/core.js 缺少 openHeroCardLightbox 方法"
+        idx = js.find("openHeroCardLightbox")
+        block = js[idx:idx + 2000]
+        assert "lightboxIndex = -1" in block, \
+            "openHeroCardLightbox 缺少 lightboxIndex = -1 賦值（-1 sentinel 設置）"
+        assert "this.currentLightboxActress" in block, \
+            "openHeroCardLightbox 缺少 currentLightboxActress 賦值"
+
+    def test_hasVisiblePrev_exists(self):
+        """hasVisiblePrev computed exists"""
+        assert "hasVisiblePrev" in self._js(), \
+            "showcase/core.js 缺少 hasVisiblePrev computed（-1 sentinel nav arrow guard）"
+
+    def test_hasVisibleNext_exists(self):
+        """hasVisibleNext computed exists"""
+        assert "hasVisibleNext" in self._js(), \
+            "showcase/core.js 缺少 hasVisibleNext computed（-1 sentinel nav arrow guard）"
+
+    def test_prevLightboxVideo_has_sentinel_guard(self):
+        """prevLightboxVideo 含 lightboxIndex === -1 guard"""
+        js = self._js()
+        idx = js.find("prevLightboxVideo()")
+        assert idx != -1, "prevLightboxVideo method not found"
+        block = js[idx:idx + 1500]
+        assert "lightboxIndex === -1" in block, \
+            "prevLightboxVideo 缺少 lightboxIndex === -1 guard（-1 時不動）"
+        assert "is_favorite" in block, \
+            "prevLightboxVideo 缺少 is_favorite 條件（index 0 → -1 退回條件）"
+
+    def test_nextLightboxVideo_has_sentinel_transition(self):
+        """nextLightboxVideo 含 lightboxIndex === -1 跳到 index 0 的邏輯"""
+        js = self._js()
+        idx = js.find("nextLightboxVideo()")
+        assert idx != -1, "nextLightboxVideo method not found"
+        block = js[idx:idx + 1500]
+        assert "lightboxIndex === -1" in block, \
+            "nextLightboxVideo 缺少 lightboxIndex === -1 分支（hero card → 第一筆影片）"
+        assert "_setLightboxIndex" in block, \
+            "nextLightboxVideo -1 分支缺少 _setLightboxIndex（進入影片模式需標準 setter）"
+
+    def test_handleKeydown_uses_showFavoriteActresses(self):
+        """handleKeydown lightbox 分支使用 showFavoriteActresses 而非僅 currentLightboxActress"""
+        js = self._js()
+        idx = js.find("// 5. Lightbox 開啟時的快捷鍵")
+        assert idx != -1, "handleKeydown lightbox section anchor not found"
+        block = js[idx:idx + 1000]
+        assert "showFavoriteActresses" in block, \
+            "handleKeydown lightbox 分支缺少 showFavoriteActresses 判斷（影片模式 hero card 鍵盤導航會走錯分支）"
+
+    def test_removeActress_button_has_xshow_guard(self):
+        """removeActress button gated by x-show="showFavoriteActresses\""""
+        html = self._html()
+        idx = html.find("removeActress()")
+        assert idx != -1, "removeActress() handler not found in showcase.html"
+        # 找 removeActress button 的區塊（往前 300 字）
+        surrounding = html[max(0, idx - 300):idx + 100]
+        assert "showFavoriteActresses" in surrounding, \
+            "removeActress button 缺少 x-show=\"showFavoriteActresses\" guard（hero card lightbox 不應顯示移除按鈕）"
+
+
+class TestShowcaseHeroCard:
+    """Phase 44b-T6: Showcase Hero Card i18n + structure guards"""
+
+    SHOWCASE_HTML = Path(__file__).parents[2] / 'web' / 'templates' / 'showcase.html'
+
+    def _html(self):
+        return self.SHOWCASE_HTML.read_text(encoding='utf-8')
+
+    def test_hero_card_container_in_html(self):
+        """hero-card class exists in showcase.html（Hero Card 容器存在）"""
+        assert 'hero-card' in self._html(), \
+            "showcase.html 缺少 hero-card class（Hero Card 容器未渲染）"
+
+    def test_hero_card_no_image_uses_i18n(self):
+        """Hero Card 圖片失敗 fallback 使用 t('common.no_image') 而非硬編碼"""
+        html = self._html()
+        assert "t('common.no_image')" in html, \
+            "showcase.html Hero Card fallback 應使用 t('common.no_image')，不可硬編碼 'No Image'"
+        assert "<span>No Image</span>" not in html, \
+            "showcase.html 仍有硬編碼 '<span>No Image</span>'，請改用 x-text=\"t('common.no_image')\""
+
+    def test_hero_card_animation_in_animations_js(self):
+        """playHeroCardAppear must exist in showcase animations.js"""
+        anim_js = (Path(__file__).parents[2] / 'web' / 'static' / 'js' / 'pages' / 'showcase' / 'animations.js').read_text(encoding='utf-8')
+        assert "playHeroCardAppear" in anim_js, \
+            "animations.js 缺少 playHeroCardAppear 方法"
+
+    def test_searchFromMetadata_actress_type_in_html(self):
+        """searchFromMetadata calls for actress tags must pass 'actress' type"""
+        html = self._html()
+        assert "searchFromMetadata(actress.trim(), 'actress')" in html, \
+            "showcase.html actress tag 的 searchFromMetadata 呼叫缺少 'actress' type 參數"
