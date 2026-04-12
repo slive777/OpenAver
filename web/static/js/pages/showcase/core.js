@@ -6,6 +6,8 @@
 // F1: 大陣列移出 Alpine reactive scope — Alpine 不追蹤
 var _videos = [];
 var _filteredVideos = [];
+var _actresses = [];
+var _filteredActresses = [];
 
 // 41c B-lite: 無封面 placeholder SVG (cover 載入失敗時 handleCoverError 換上)
 // viewBox 800x600 對齊 lightbox 4:3，grid card aspect-ratio:3/2 會 crop 上下少許但不影響 icon 居中
@@ -105,6 +107,24 @@ function showcaseState() {
 
         currentLightboxVideo: null,
 
+        // 44a: 女優模式狀態
+        showFavoriteActresses: false,   // mode toggle，切換影片/女優 grid
+        actressCount: 0,                // mirror _actresses.length
+        filteredActressCount: 0,        // mirror _filteredActresses.length
+        paginatedActresses: [],         // CD-9：全量 = _filteredActresses，不分頁
+        actressSearch: '',              // 女優搜尋框（獨立於 search）
+        actressSort: 'video_count',     // 預設排序
+        actressOrder: 'desc',           // 預設降冪
+        actressLoading: false,          // 載入中
+        actressLightboxIndex: -1,       // 指向 _filteredActresses 的索引
+        currentLightboxActress: null,   // 當前 lightbox 女優；與 currentLightboxVideo 互斥
+        _actressChipsExpanded: { aliases: false, info: false },  // chips 展開狀態
+        _addActressName: '',            // + 新增 input
+        _addingActress: false,          // 新增 loading
+        _addDropdownOpen: false,        // + 新增 popover 開關
+        _rescraping: false,             // 重新抓取 loading
+        _videoChipsExpanded: false,     // 影片 tag chips +N 展開（T4 使用）
+
         // User Tags 狀態 (T4)
         addingLbTag: false,
         newLbTagValue: '',
@@ -117,7 +137,18 @@ function showcaseState() {
             this.lightboxIndex = idx;
             this.currentLightboxVideo = (idx >= 0 && idx < _filteredVideos.length)
                 ? _filteredVideos[idx] : null;
+            this.currentLightboxActress = null;   // ★ 44a 新增：video setter always clear actress
             this.addingLbTag = false;  // 切換影片時重置輸入框
+            this._videoChipsExpanded = false;     // ★ 44a 新增：影片切換時 reset chips 展開
+        },
+
+        // 44a: helper — 更新 actressLightboxIndex + currentLightboxActress 一致性
+        _setActressLightboxIndex(idx) {
+            this.actressLightboxIndex = idx;
+            this.currentLightboxActress = (idx >= 0 && idx < _filteredActresses.length)
+                ? _filteredActresses[idx] : null;
+            this.currentLightboxVideo = null;    // 互斥：清除影片
+            this._actressChipsExpanded = { aliases: false, info: false };
         },
 
         // --- 生命週期 ---
@@ -191,6 +222,10 @@ function showcaseState() {
                 this.perPage = 120;
                 this.saveState();
             }
+            // ★ 44a: 女優模式 — 只從 localStorage，不加 URL params（避免汙染 shareable link）
+            this.showFavoriteActresses = state.showFavoriteActresses === true;  // 嚴格 === true
+            this.actressSort = state.actressSort || 'video_count';
+            this.actressOrder = state.actressOrder || 'desc';
         },
 
         // --- 狀態持久化 (M2c) ---
@@ -202,6 +237,9 @@ function showcaseState() {
                 page: this.page,
                 search: this.search,
                 mode: this.mode,
+                showFavoriteActresses: this.showFavoriteActresses,  // ★ 44a
+                actressSort: this.actressSort,                      // ★ 44a
+                actressOrder: this.actressOrder,                    // ★ 44a
             };
             localStorage.setItem('showcase_state', JSON.stringify(state));
 
@@ -294,6 +332,234 @@ function showcaseState() {
             this._sortWithFlip(() => {
                 this.order = this.order === 'asc' ? 'desc' : 'asc';
                 this.applyFilterAndSort();
+            });
+        },
+
+        // --- 44a: 女優模式核心方法 ---
+
+        toggleActressMode() {
+            if (this.lightboxOpen) this.closeLightbox();
+            this.showFavoriteActresses = !this.showFavoriteActresses;
+            if (this.showFavoriteActresses) {
+                this.search = '';  // 切到女優時清除影片搜尋
+                if (_actresses.length === 0) {
+                    this.loadActresses();
+                }
+            } else {
+                this.actressSearch = '';  // 切回影片時清除女優搜尋
+            }
+            this.saveState();
+        },
+
+        async loadActresses() {
+            this.actressLoading = true;
+            try {
+                var resp = await fetch('/api/actresses');
+                if (!resp.ok) {
+                    _actresses = [];
+                    _filteredActresses = [];
+                    this.actressCount = 0;
+                    this.filteredActressCount = 0;
+                    return;
+                }
+                var data = await resp.json();
+                if (!data.success) {
+                    _actresses = [];
+                    _filteredActresses = [];
+                    this.actressCount = 0;
+                    this.filteredActressCount = 0;
+                    return;
+                }
+                _actresses = data.actresses || [];
+                this.applyActressFilterAndSort();
+            } catch (e) {
+                console.error('[Showcase] Failed to fetch actresses:', e);
+                _actresses = [];
+                _filteredActresses = [];
+                this.actressCount = 0;
+                this.filteredActressCount = 0;
+            } finally {
+                this.actressLoading = false;
+            }
+        },
+
+        applyActressFilterAndSort() {
+            // 1. Filter
+            var q = this.actressSearch.trim();
+            var filtered = _actresses;
+            if (q) {
+                var ql = q.toLowerCase();
+                filtered = _actresses.filter(function (a) {
+                    return a.name && a.name.toLowerCase().includes(ql);
+                });
+            }
+
+            // 2. Sort
+            var cupRank = { A:1, B:2, C:3, D:4, E:5, F:6, G:7, H:8, I:9, J:10, K:11 };
+            var sort = this.actressSort;
+            var order = this.actressOrder;
+            filtered = filtered.slice().sort(function (a, b) {
+                if (sort === 'name') {
+                    var cmp = a.name.localeCompare(b.name, 'ja');
+                    return order === 'asc' ? cmp : -cmp;
+                }
+                var va, vb;
+                if (sort === 'video_count') {
+                    va = a.video_count || 0;
+                    vb = b.video_count || 0;
+                } else if (sort === 'created_at') {
+                    va = a.created_at || '';
+                    vb = b.created_at || '';
+                } else if (sort === 'age') {
+                    va = a.age != null ? a.age : Infinity;
+                    vb = b.age != null ? b.age : Infinity;
+                } else if (sort === 'height') {
+                    var ha = parseInt(a.height);
+                    var hb = parseInt(b.height);
+                    va = isNaN(ha) ? Infinity : ha;
+                    vb = isNaN(hb) ? Infinity : hb;
+                } else if (sort === 'cup') {
+                    va = cupRank[a.cup] || Infinity;
+                    vb = cupRank[b.cup] || Infinity;
+                } else {
+                    va = a.video_count || 0;
+                    vb = b.video_count || 0;
+                }
+                // null-last：Infinity 值永遠排最後（不因 desc 翻轉）
+                if (va === Infinity && vb === Infinity) return 0;
+                if (va === Infinity) return 1;
+                if (vb === Infinity) return -1;
+                if (order === 'asc') {
+                    return va < vb ? -1 : va > vb ? 1 : 0;
+                } else {
+                    return va > vb ? -1 : va < vb ? 1 : 0;
+                }
+            });
+
+            // 3. Update state
+            _filteredActresses = filtered;
+            this.actressCount = _actresses.length;
+            this.filteredActressCount = _filteredActresses.length;
+            this.paginatedActresses = _filteredActresses;  // CD-9: 全量，不分頁
+        },
+
+        onActressSearchChange() {
+            this.applyActressFilterAndSort();
+        },
+
+        onActressSortChange() {
+            this._sortWithFlip(() => {
+                this.applyActressFilterAndSort();
+            });
+        },
+
+        toggleActressOrder() {
+            this._sortWithFlip(() => {
+                this.actressOrder = this.actressOrder === 'asc' ? 'desc' : 'asc';
+                this.applyActressFilterAndSort();
+            });
+        },
+
+        // --- 44a: 女優 Lightbox 方法 ---
+
+        openActressLightbox(index) {
+            if (this.lightboxCloseTimer) {
+                clearTimeout(this.lightboxCloseTimer);
+                this.lightboxCloseTimer = null;
+            }
+            if (this._lightboxAnimating) return;
+            if (this.lightboxOpen && this.actressLightboxIndex === index) return;
+
+            // 若已開啟（切換女優）
+            if (this.lightboxOpen && this.actressLightboxIndex !== index) {
+                _killLightboxTimelines({ killOpen: false, killSwitch: true });
+                var direction = index > this.actressLightboxIndex ? 'next' : 'prev';
+                this._setActressLightboxIndex(index);
+                var lbGen = ++this._lightboxGeneration;
+                var self = this;
+                this.$nextTick(function () {
+                    if (self._lightboxGeneration !== lbGen) return;
+                    var contentEl = document.querySelector('.showcase-lightbox .lightbox-content');
+                    if (contentEl && window.ShowcaseAnimations?.playLightboxSwitch) {
+                        self._lightboxAnimating = true;
+                        var tl = window.ShowcaseAnimations.playLightboxSwitch(contentEl, direction, {
+                            onComplete: function () { self._lightboxAnimating = false; }
+                        });
+                        if (!tl) self._lightboxAnimating = false;
+                    }
+                });
+                return;
+            }
+
+            this._setActressLightboxIndex(index);
+            this.lightboxOpen = true;
+            document.body.classList.add('overflow-hidden');
+
+            var self = this;
+            var lbGen = ++this._lightboxGeneration;
+            this.$nextTick(function () {
+                if (self._lightboxGeneration !== lbGen) return;
+                var lightboxEl = document.querySelector('.showcase-lightbox');
+                if (!lightboxEl) return;
+                self._lightboxAnimating = true;
+                var tl = window.ShowcaseAnimations?.playLightboxOpen?.(lightboxEl, {
+                    onComplete: function () { self._lightboxAnimating = false; }
+                });
+                if (!tl) self._lightboxAnimating = false;
+            });
+        },
+
+        closeActressLightbox() {
+            this.closeLightbox();
+        },
+
+        prevActressLightbox() {
+            _killLightboxTimelines();
+            this._lightboxAnimating = false;
+            var lbEl = document.querySelector('.showcase-lightbox');
+            if (lbEl) lbEl.classList.remove('gsap-animating');
+
+            if (this.actressLightboxIndex <= 0) return;
+            var newIdx = this.actressLightboxIndex - 1;
+            this._setActressLightboxIndex(newIdx);
+
+            var lbGen = ++this._lightboxGeneration;
+            var self = this;
+            this.$nextTick(function () {
+                if (self._lightboxGeneration !== lbGen) return;
+                var contentEl = document.querySelector('.showcase-lightbox .lightbox-content');
+                if (contentEl && window.ShowcaseAnimations?.playLightboxSwitch) {
+                    self._lightboxAnimating = true;
+                    var tl = window.ShowcaseAnimations.playLightboxSwitch(contentEl, 'prev', {
+                        onComplete: function () { self._lightboxAnimating = false; }
+                    });
+                    if (!tl) self._lightboxAnimating = false;
+                }
+            });
+        },
+
+        nextActressLightbox() {
+            _killLightboxTimelines();
+            this._lightboxAnimating = false;
+            var lbEl = document.querySelector('.showcase-lightbox');
+            if (lbEl) lbEl.classList.remove('gsap-animating');
+
+            if (this.actressLightboxIndex >= _filteredActresses.length - 1) return;
+            var newIdx = this.actressLightboxIndex + 1;
+            this._setActressLightboxIndex(newIdx);
+
+            var lbGen = ++this._lightboxGeneration;
+            var self = this;
+            this.$nextTick(function () {
+                if (self._lightboxGeneration !== lbGen) return;
+                var contentEl = document.querySelector('.showcase-lightbox .lightbox-content');
+                if (contentEl && window.ShowcaseAnimations?.playLightboxSwitch) {
+                    self._lightboxAnimating = true;
+                    var tl = window.ShowcaseAnimations.playLightboxSwitch(contentEl, 'next', {
+                        onComplete: function () { self._lightboxAnimating = false; }
+                    });
+                    if (!tl) self._lightboxAnimating = false;
+                }
             });
         },
 
@@ -1184,17 +1450,32 @@ function showcaseState() {
                 return; // Sample Gallery 開啟時阻止其他快捷鍵（包括 lightbox 導航）
             }
 
-            // 5. Lightbox 開啟時的快捷鍵（優先處理）
+            // 5. Lightbox 開啟時的快捷鍵（按 content type 分發）
             if (this.lightboxOpen) {
-                if (key === 'ESCAPE') {
-                    e.preventDefault();
-                    this.closeLightbox();  // closeLightbox handles kill + cleanup + generation++
-                } else if (key === 'ARROWLEFT') {
-                    e.preventDefault();
-                    this.prevLightboxVideo();
-                } else if (key === 'ARROWRIGHT') {
-                    e.preventDefault();
-                    this.nextLightboxVideo();
+                if (this.currentLightboxActress) {
+                    // 女優 lightbox（優先級高）
+                    if (key === 'ESCAPE') {
+                        e.preventDefault();
+                        this.closeLightbox();
+                    } else if (key === 'ARROWLEFT') {
+                        e.preventDefault();
+                        this.prevActressLightbox();
+                    } else if (key === 'ARROWRIGHT') {
+                        e.preventDefault();
+                        this.nextActressLightbox();
+                    }
+                } else {
+                    // 影片 lightbox（現有）
+                    if (key === 'ESCAPE') {
+                        e.preventDefault();
+                        this.closeLightbox();  // closeLightbox handles kill + cleanup + generation++
+                    } else if (key === 'ARROWLEFT') {
+                        e.preventDefault();
+                        this.prevLightboxVideo();
+                    } else if (key === 'ARROWRIGHT') {
+                        e.preventDefault();
+                        this.nextLightboxVideo();
+                    }
                 }
                 return; // Lightbox 開啟時阻止其他快捷鍵
             }
