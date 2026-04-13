@@ -2273,3 +2273,47 @@ class TestShowcaseHeroCard:
         html = self._html()
         assert "searchFromMetadata(actress.trim(), 'actress')" in html, \
             "showcase.html actress tag 的 searchFromMetadata 呼叫缺少 'actress' type 參數"
+
+
+class TestShowcaseAliasGuard:
+    """T5 (45-actress-alias): Frontend Guard — alias 展開注入守衛"""
+
+    def _js(self):
+        return SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+
+    def test_name_to_group_declaration_exists(self):
+        """_nameToGroup module-level 宣告必須存在於 core.js"""
+        js = self._js()
+        assert "var _nameToGroup = {}" in js, \
+            "core.js 缺少 module-level 'var _nameToGroup = {}' 宣告"
+
+    def test_actress_aliases_fetch_exists(self):
+        """/api/actress-aliases fetch 呼叫必須存在於 core.js"""
+        js = self._js()
+        assert "/api/actress-aliases" in js, \
+            "core.js 缺少 fetch('/api/actress-aliases') 呼叫"
+
+    def test_name_to_group_used_in_apply_actress_filter_and_sort(self):
+        """applyActressFilterAndSort 必須使用 _nameToGroup[a.name] 做 alias 展開"""
+        js = self._js()
+        assert "_nameToGroup[a.name]" in js, \
+            "core.js applyActressFilterAndSort 缺少 _nameToGroup[a.name] alias 展開邏輯"
+
+    def test_name_to_group_used_in_check_precise_actress_match(self):
+        """_checkPreciseActressMatch 必須使用 _nameToGroup 做 alias group 比對"""
+        js = self._js()
+        # 搜尋函數體中含 _nameToGroup 即可（函數宣告後都有使用）
+        assert "_nameToGroup" in js, \
+            "core.js 缺少 _nameToGroup（_checkPreciseActressMatch alias 展開未實作）"
+        # 確認精準匹配函數本身有用到 indexOf（alias group 查找的 sentinel）
+        func_start = js.find("async _checkPreciseActressMatch")
+        func_end = js.find("},", func_start)
+        func_body = js[func_start:func_end]
+        assert "_nameToGroup" in func_body, \
+            "core.js _checkPreciseActressMatch 函數體缺少 _nameToGroup 使用"
+
+    def test_name_to_group_used_in_apply_filter_and_sort_video_mode(self):
+        """applyFilterAndSort 影片模式必須使用 _nameToGroup[term] 做 alias 展開"""
+        js = self._js()
+        assert "_nameToGroup[term]" in js, \
+            "core.js applyFilterAndSort 影片模式缺少 _nameToGroup[term] alias 展開邏輯"

@@ -9,6 +9,7 @@ var _filteredVideos = [];
 var _actresses = [];
 var _filteredActresses = [];
 var _actressesLoaded = false;
+var _nameToGroup = {};  // { "舊名": ["新名", "舊名"], "新名": [...] } 雙向 alias map
 
 // 41c B-lite: 無封面 placeholder SVG (cover 載入失敗時 handleCoverError 換上)
 // viewBox 800x600 對齊 lightbox 4:3，grid card aspect-ratio:3/2 會 crop 上下少許但不影響 icon 居中
@@ -175,7 +176,10 @@ function showcaseState() {
             }
             if (this.search.trim() !== capturedTerm) return;
             this._heroCardImageError = false;
-            var found = _actresses.find(function(a) { return a.name === capturedTerm; });
+            var found = _actresses.find(function(a) {
+                var group = _nameToGroup[a.name] || [a.name];
+                return group.indexOf(capturedTerm) !== -1;
+            });
             if (found) {
                 this._isPreciseActressMatch = true;
                 this._matchedActress = found;
@@ -444,6 +448,24 @@ function showcaseState() {
                     return;
                 }
                 _actresses = data.actresses || [];
+                // 45: 並行 fetch alias map（失敗靜默退化，不阻塞女優列表）
+                try {
+                    var aliasResp = await fetch('/api/actress-aliases');
+                    if (aliasResp.ok) {
+                        var aliasData = await aliasResp.json();
+                        var groups = (aliasData && aliasData.groups) || [];
+                        _nameToGroup = {};
+                        groups.forEach(function(group) {
+                            var allNames = [group.primary_name].concat(group.aliases || []);
+                            allNames.forEach(function(n) { _nameToGroup[n] = allNames; });
+                        });
+                    } else {
+                        _nameToGroup = {};
+                    }
+                } catch (e) {
+                    console.warn('[Showcase] Failed to fetch actress aliases:', e);
+                    _nameToGroup = {};
+                }
                 this.applyActressFilterAndSort();
                 // 卡片進場動畫（applyActressFilterAndSort 更新 paginatedActresses，Alpine 渲染後呼叫）
                 var gen = ++this._animGeneration;
@@ -472,7 +494,8 @@ function showcaseState() {
             if (q) {
                 var ql = q.toLowerCase();
                 filtered = _actresses.filter(function (a) {
-                    return a.name && a.name.toLowerCase().includes(ql);
+                    var group = _nameToGroup[a.name] || [a.name];
+                    return group.some(function(n) { return n && n.toLowerCase().includes(ql); });
                 });
             }
 
@@ -1096,8 +1119,11 @@ function showcaseState() {
                     // 每個關鍵字都要匹配（AND 邏輯）
                     return terms.every(term => {
                         const termNorm = term.replace(/[\s\-]/g, '');
-                        // 番號模糊匹配 OR 一般欄位匹配
-                        return (numNorm && numNorm.includes(termNorm)) || searchable.includes(term);
+                        // 番號模糊匹配
+                        if (numNorm && numNorm.includes(termNorm)) return true;
+                        // alias 展開 match：搜尋詞反查 alias group，任一 alias name 命中即可
+                        var termNames = _nameToGroup[term] || [term];
+                        return termNames.some(function(n) { return searchable.includes(n.toLowerCase()); });
                     });
                 });
                 this.filteredCount = _filteredVideos.length;
