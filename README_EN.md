@@ -1,9 +1,18 @@
+<!-- OpenAver: open-source desktop GUI JAV metadata manager.
+No Docker, one-line install (Win/Mac), 6 scrape sources,
+Jellyfin/Emby compatible, actress favorites with alias deduplication,
+AI-operable REST API with capabilities manifest, 2400+ tests, MIT license. -->
+
 <h1 align="center">OpenAver</h1>
 
 <p align="center">
   <strong>No Docker, no CLI — one-line install for Win/Mac, full GUI JAV metadata manager out of the box.</strong><br>
-  Multi-source search · Beautiful HTML showcases · Jellyfin integration · AI API to manage your library with a single prompt
+  6-source unified search · Actress favorites & alias management · Interactive collection browser · Jellyfin integration · AI API to manage your library with a single prompt
 </p>
+
+<p align="center"><em>
+  Open-source desktop GUI for JAV metadata — one-line install, 6 scrape sources, actress favorites + alias system, Jellyfin/Emby ready, AI-operable REST API.
+</em></p>
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)
@@ -13,13 +22,17 @@
 
 **English** | [繁體中文](README.md)
 
-The core workflow spans three pages: 🔍 Search video info → 📋 Generate showcase → 🎬 Browse collection
+The core workflow spans three pages: 🔍 Search video info → 📋 Scan & build library → 🎬 Browse collection
 
 **100% local** — no data collection, no uploads. Network requests are only used to scrape publicly available metadata.
 
+**✨ Highlights**: Search 6 sources at once · Actress favorites with auto profile + alias expansion · One-click NFO & cover fill from the web · AI-operable library in natural language · Jellyfin / Emby cover auto-generation · 2400+ automated tests
+
 ## Screenshots
 
-![Search Hero Detail](docs/screenshots/home-en.png)
+| Search | Actress Collection |
+|--------|--------------------|
+| ![Search](docs/screenshots/home-en.png) | ![Actress](docs/screenshots/showcase-actress.png) |
 
 <details>
 <summary>More Screenshots</summary>
@@ -28,8 +41,8 @@ The core workflow spans three pages: 🔍 Search video info → 📋 Generate sh
 |-------------|-----------------|
 | ![Search Demo](docs/screenshots/demo2.gif) | ![Search](docs/screenshots/search-detail.png) |
 
-| Showcase Grid | Showcase Detail |
-|---------------|-----------------|
+| Showcase Video Mode | Showcase Detail |
+|---------------------|-----------------|
 | ![Grid](docs/screenshots/showcase-grid.png) | ![Detail](docs/screenshots/showcase-detail.png) |
 
 </details>
@@ -74,33 +87,35 @@ On first launch, a built-in setup wizard walks you through folder configuration 
 
 ## Features
 
-### 🔍 Spotlight Search
-- **Multi-Source Aggregation**: One query simultaneously searches JavBus, JavDB, Jav321, DMM, D2Pass, and HEYZO.
+### 🔍 Search
+- **Multi-Source Aggregation**: One query simultaneously searches JavBus, Jav321, JavDB, DMM, D2Pass, and HEYZO — all sources at once.
 - **Detail View**: Cover, stills, actress, tags — all in one place, no tab-hopping.
 - **Smart Search**: Search by ID, actress name, series, or maker — results are matched against your local library and marked if already in your collection.
+- **Actress Features**: Searching a favorited actress automatically shows her profile card; results can be added to your collection directly.
 - **Version Detection**: Automatically identifies UC/LEAK/4K variants — no manual renaming needed.
-- **Actress Gallery Mode (Beta)**: When an actress search returns 10+ titles, the view switches to a gallery layout with a full profile Hero Card.
-- **Sample Gallery**: Browse full stills directly from search results.
 - **Local Batch Search**: Drag in video files or folders — automatically extracts IDs and batch-searches for metadata, covers, and stills.
 
-### 📝 Scanner
-- **Showcase Pages**: Scan a local video folder and generate beautiful, interactive showcase pages (smooth animations + frosted-glass effects + Lightbox gallery).
-- **Live Progress**: See exactly what's being scanned and updated in real time.
-- **NFO Completion**: Automatically detects and fills in missing NFO metadata files.
+### 🎬 Showcase
+- **Video Mode**: Cover wall grid + detail Lightbox + search/filter/sort + stills browser — a full interactive collection viewer.
+- **Actress Mode**: Favorited actress grid + profile Lightbox + sort by cup size / age / height — one-click refresh to pull updated data.
+- **Visual Design**: GSAP animations + Fluent Design frosted-glass effects + Dark Mode, with SSR real-time rendering.
+
+### 📋 Scanner
+- **Scan & Build Library**: Scan local video folders, build a SQLite metadata database, automatically reads existing NFO files and covers.
+- **NFO & Cover Completion**: Detects missing NFO fields or files and fills them in from the web with one click.
+- **Actress Alias Management**: Add and edit aliases — searches automatically expand to all known names.
 - **Subtitle Detection**: Automatically detects and moves subtitle files when organizing videos.
-- **Jellyfin Integration**: Auto-generates `poster`, `thumb`, and `fanart` images in the format Jellyfin expects.
-- **Static HTML Export**: Also generates a standalone HTML index file — viewable offline without a server.
 
 ### 🌐 AI Translation
-Most metadata fields (actress, maker, label, tags) are already in English from the source — but titles remain in Japanese. AI translation fills that gap automatically.
+Translate Japanese titles into your UI locale (Traditional Chinese, Simplified Chinese, English) in one click — Japanese locale skips translation since titles are already in Japanese.
 - Supports **Ollama** (local GPU, free & unlimited), **Gemini Flash** (Google cloud, free tier available), and **OpenAI API Compatible** (OpenRouter, any compatible endpoint).
-- Translation language follows your UI locale (English, Traditional Chinese, Simplified Chinese). Japanese locale skips translation since titles are already in Japanese.
 
 ### ⚙️ Settings
-- **Dark Mode**: Full dark mode support, automatically applied to generated showcases.
+- **Multi-Language UI**: Traditional Chinese, Simplified Chinese, Japanese, English — instant switch.
 - **Path & Naming Rules**: Flexible output path configuration with `{suffix}` variable support.
 - **Favorites Folders**: Save frequently used folders for one-click batch loading.
-- **Multi-Language UI**: Traditional Chinese, Simplified Chinese, Japanese, English — instant switch.
+- **Jellyfin Image Mode**: Auto-generates `poster` and `fanart` in the format Jellyfin / Emby expects.
+- **Static HTML Export**: Generates a standalone HTML index file — viewable offline without a server.
 
 ### 🤖 AI-Ready API
 
@@ -131,6 +146,8 @@ Works with any MCP / function-calling compatible AI tool:
 
 > ⚡ **Small-model friendly**: The capabilities manifest is optimized for lightweight models — Gemini Flash / GPT-5.4 mini / Claude Haiku can all operate every endpoint correctly.
 
+> 🔍 Looking for a local video library tool that Claude / Codex / Gemini can operate directly? OpenAver is one of the few desktop GUI projects with a built-in capabilities manifest and full REST API.
+
 ---
 
 ## Developer Guide
@@ -144,7 +161,7 @@ Works with any MCP / function-calling compatible AI tool:
 | **Animation** | GSAP 3.14+ with Motion Adapter (respects `prefers-reduced-motion`) |
 | **Desktop Shell** | PyWebView (Windows / macOS) |
 | **Database** | SQLite (WAL mode) |
-| **Testing** | Pytest — 1600+ tests |
+| **Testing** | Pytest — 2400+ tests |
 
 ### Run from Source
 
