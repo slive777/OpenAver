@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 from core.maker_mapping import load_prefix_mapping
 
-from core.database import ActressRepository, Actress, init_db
+from core.database import ActressRepository, AliasRepository, Actress, init_db
 from core.actress_photo import download_actress_photo, get_local_photo_path, delete_local_photo
 from core.scrapers.actress.orchestrator import (
     get_cached_profile,
@@ -213,18 +213,33 @@ def add_favorite(req: FavoriteRequest):
     actress = repo.get_by_name(actress.name) or actress  # re-read for created_at
     logger.info("[actress] 收藏女優：%s", actress.name)
 
+    # Sync aliases to actress_aliases table
+    try:
+        alias_repo = AliasRepository()
+        sync_result = alias_repo.sync_from_favorite(
+            actress.name, actress.aliases or []
+        )
+        skipped_aliases = sync_result.get("skipped_aliases", [])
+        if skipped_aliases:
+            logger.warning("[actress] alias sync skipped: %s", skipped_aliases)
+    except Exception as e:
+        logger.warning("[actress] alias sync failed (non-blocking): %s", e)
+        skipped_aliases = []
+
     # 5. 下載照片（photo_url 可能為 None，函數內部已有 guard）
     photo_downloaded = download_actress_photo(
         actress.name, profile.get("photo_url"), profile.get("photo_source")
     )
 
-    video_count = repo.count_videos_for_actress(actress.name)
+    alias_repo = AliasRepository()
+    video_count = repo.count_videos_for_actress_names(alias_repo.resolve(actress.name))
     return JSONResponse(
         status_code=200,
         content={
             "success": True,
             "actress": _actress_to_response(actress, video_count),
             "photo_downloaded": photo_downloaded,
+            "skipped_aliases": skipped_aliases,
         }
     )
 
@@ -268,10 +283,11 @@ def list_actresses():
     """
     init_db()
     repo = ActressRepository()
+    alias_repo = AliasRepository()
     actresses = repo.get_all()
     result = []
     for actress in actresses:
-        video_count = repo.count_videos_for_actress(actress.name)
+        video_count = repo.count_videos_for_actress_names(alias_repo.resolve(actress.name))
         result.append(_actress_to_response(actress, video_count))
     return JSONResponse(
         status_code=200,
@@ -345,7 +361,13 @@ def rescrape_actress(name: str):
         actress.name, profile.get("photo_url"), profile.get("photo_source")
     )
 
-    video_count = repo.count_videos_for_actress(actress.name)
+    # P1 Codex fix: rescrape 後同步 alias index（與 add_favorite 同 pattern）
+    alias_repo = AliasRepository()
+    try:
+        alias_repo.sync_from_favorite(actress.name, actress.aliases or [])
+    except Exception:
+        logger.warning("[actress] rescrape alias sync failed: %s", actress.name)
+    video_count = repo.count_videos_for_actress_names(alias_repo.resolve(actress.name))
     return JSONResponse(
         status_code=200,
         content={

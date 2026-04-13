@@ -170,6 +170,35 @@
                     title="{{ t('scanner.stats.nfo_update_title') }}">
             </button>
         </div>
+        <!-- T10: Missing NFO/Cover Pill -->
+        <div class="nfo-update-row" x-show="missingPillVisible">
+            <span class="nfo-badge">
+                <i class="bi bi-file-earmark-x"></i>
+                <span x-text="missingPillLabel"></span>
+            </span>
+            <button class="btn-nfo-update" @click="runMissingEnrich()"
+                    x-bind:disabled="isBusy || missingItems.length === 0"
+                    x-html="missingEnrichButtonText">
+            </button>
+        </div>
+
+        <!-- T10: Resume Pill (未完成提示) -->
+        <div class="nfo-update-row" x-show="resumePillVisible">
+            <span class="nfo-badge">
+                <i class="bi bi-arrow-repeat"></i>
+                <span x-text="window.t('scanner.stats.missing_resume_label')"></span>
+                <strong x-text="missingItems.length"></strong>
+                <span x-text="window.t('scanner.stats.missing_resume_suffix')"></span>
+            </span>
+            <button class="btn-nfo-update" @click="resumeMissingEnrich()"
+                    x-bind:disabled="isBusy">
+                {{ t('scanner.stats.missing_resume_btn') }}
+            </button>
+            <button class="btn btn-ghost btn-xs" @click="dismissResume()">
+                {{ t('scanner.stats.missing_resume_dismiss') }}
+            </button>
+        </div>
+
         <!-- T2(40c): Jellyfin 圖片檢查觸發列 -->
         <!-- T3(40c) Codex fix: x-show 改為 !jellyfinImageVisible，done 狀態仍顯示觸發列 -->
         <div class="nfo-update-row"
@@ -238,58 +267,113 @@
         </div>
 
         <div class="actress-alias-body" x-show="!aliasCardCollapsed">
-            <!-- Add New Alias Form -->
-            <div class="alias-form">
-                <div class="alias-form-row">
-                    <div class="alias-input-group">
-                        <label>{{ t('scanner.alias.label_old') }}</label>
-                        <input type="text" x-model="aliasForm.oldName" placeholder="{{ t('scanner.alias.placeholder_old') }}"
-                               @input="previewAliasCount()">
-                        <span class="alias-count" x-text="aliasForm.oldCount"></span>
-                    </div>
-                    <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
-                    <div class="alias-input-group">
-                        <label>{{ t('scanner.alias.label_new') }}</label>
-                        <input type="text" x-model="aliasForm.newName" placeholder="{{ t('scanner.alias.placeholder_new') }}"
-                               @input="previewAliasCount()">
-                        <span class="alias-count" x-text="aliasForm.newCount"></span>
-                    </div>
-                    <button class="btn-alias-add" @click="addActressAlias()"
-                            :disabled="aliasForm.isAdding">
-                        <i class="bi bi-plus-lg"></i>
-                    </button>
+            <!-- 單一輸入框：篩選 + 新增 -->
+            <div class="alias-toolbar">
+                <div class="alias-input-wrap">
+                    <input type="text" class="input input-bordered input-sm"
+                           x-model="aliasInput"
+                           :placeholder="window.t('scanner.alias.search_placeholder')"
+                           @keydown.enter="createAliasGroup()">
+                    <i class="bi bi-search"></i>
                 </div>
-                <div class="alias-preview" x-html="aliasForm.previewMessage"></div>
+                <button class="btn btn-sm btn-primary" @click="createAliasGroup()" :disabled="newGroupAdding">
+                    <i class="bi bi-plus-lg"></i> {{ t('scanner.alias.add') }}
+                </button>
+                <button class="btn btn-sm btn-outline" @click="startOnlineSearch()" :disabled="onlineSearchLoading">
+                    <i class="bi bi-search"></i> {{ t('scanner.alias.online_search') }}
+                </button>
             </div>
 
-            <!-- Alias List -->
-            <div class="alias-list">
-                <!-- 載入中 -->
-                <div class="alias-list-loading" x-show="aliasListLoading">
+            <!-- 篩選提示 -->
+            <div class="alias-filter-hint" :class="{ visible: aliasInput.trim() }"
+                 x-show="aliasInput.trim()"
+                 x-text="window.t('scanner.alias.filter_hint').replace('{count}', filteredAliasRecords().length).replace('{name}', aliasInput.trim())">
+            </div>
+
+            <!-- 線上搜尋結果區 -->
+            <div class="alias-online-results" x-show="onlineSearchLoading || onlineSearchResults.length > 0 || onlineSearchDone">
+                <!-- Spinner -->
+                <div class="alias-list-loading" x-show="onlineSearchLoading">
                     <span class="loading loading-spinner loading-sm"></span> {{ t('scanner.alias.loading') }}
                 </div>
-
-                <!-- 錯誤訊息 -->
-                <div class="alias-list-error" x-show="aliasListError" x-text="aliasListError"></div>
-
-                <!-- 空狀態 -->
-                <div class="alias-list-empty" x-show="!aliasListLoading && !aliasListError && aliasList.length === 0">
-                    {{ t('scanner.alias.empty') }}
+                <!-- 無結果 -->
+                <div class="alias-list-empty" x-show="!onlineSearchLoading && onlineSearchResults.length === 0">
+                    {{ t('scanner.alias.no_results') }}
                 </div>
-
-                <!-- 別名項目 -->
-                <template x-for="alias in aliasList" :key="alias.id">
-                    <div class="alias-item">
-                        <span class="alias-old" x-text="alias.old_name"></span>
-                        <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
-                        <span class="alias-new" x-text="alias.new_name"></span>
-                        <span class="alias-applied" x-text="alias.applied_count > 0 ? window.t('scanner.alias.applied', { count: alias.applied_count }) : ''"></span>
-                        <button class="btn-alias-delete" @click="deleteActressAlias(alias.id)" title="{{ t('scanner.alias.delete_title') }}">
-                            <i class="bi bi-x-lg"></i>
-                        </button>
-                    </div>
+                <!-- checkbox 列表 -->
+                <template x-for="s in onlineSearchResults" :key="s">
+                    <label class="alias-online-item">
+                        <input type="checkbox" :value="s" x-model="onlineSearchSelected"> <span x-text="s"></span>
+                    </label>
                 </template>
+                <!-- 確認加入 -->
+                <button class="btn btn-sm btn-primary" x-show="onlineSearchResults.length > 0"
+                        @click="confirmOnlineSearch(onlineSearchTarget)">
+                    {{ t('scanner.alias.confirm') }}
+                </button>
             </div>
+
+            <!-- 載入中 -->
+            <div class="alias-list-loading" x-show="aliasRecordsLoading">
+                <span class="loading loading-spinner loading-sm"></span> {{ t('scanner.alias.loading') }}
+            </div>
+
+            <!-- 錯誤訊息 -->
+            <div class="alias-list-error" x-show="aliasRecordsError" x-text="aliasRecordsError"></div>
+
+            <!-- 空狀態 -->
+            <div class="alias-list-empty"
+                 x-show="!aliasRecordsLoading && !aliasRecordsError && filteredAliasRecords().length === 0">
+                {{ t('scanner.alias.empty') }}
+            </div>
+
+            <!-- Pill-based 群組列表 -->
+            <template x-for="group in filteredAliasRecords()" :key="group.primary_name">
+                <div class="alias-group-row">
+                    <!-- Primary pill -->
+                    <span class="alias-pill alias-pill-primary" x-text="group.primary_name"></span>
+
+                    <!-- Alias pills -->
+                    <template x-for="a in group.aliases" :key="a">
+                        <span class="alias-pill alias-pill-alias">
+                            <span x-text="a"></span>
+                            <button type="button" class="alias-pill-remove"
+                                    @click="removeAlias(group.primary_name, a)"
+                                    :title="window.t('scanner.alias.delete_alias_title')">✕</button>
+                        </span>
+                    </template>
+
+                    <!-- Inline add input -->
+                    <template x-if="addingAlias[group.primary_name] !== undefined">
+                        <span class="alias-add-inline">
+                            <input type="text"
+                                   x-model="addingAlias[group.primary_name]"
+                                   @keydown.enter="addAlias(group.primary_name)"
+                                   @keydown.escape="cancelAddAlias(group.primary_name)"
+                                   :placeholder="window.t('scanner.alias.alias_input_placeholder')">
+                            <button type="button" class="btn-cancel" @click="cancelAddAlias(group.primary_name)">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </span>
+                    </template>
+
+                    <!-- + 別名 button -->
+                    <button type="button" class="alias-add-btn"
+                            @click="showAddAliasInput(group.primary_name)"
+                            x-show="addingAlias[group.primary_name] === undefined">
+                        <i class="bi bi-plus" style="font-size:0.7rem"></i> {{ t('scanner.alias.add_alias') }}
+                    </button>
+
+                    <span class="alias-row-spacer"></span>
+
+                    <!-- 刪除整筆 -->
+                    <button type="button" class="alias-trash"
+                            @click="deleteAliasGroup(group.primary_name)"
+                            :title="window.t('scanner.alias.delete_group_title')">
+                        <i class="bi bi-trash3"></i>
+                    </button>
+                </div>
+            </template>
 
         </div>
     </div>

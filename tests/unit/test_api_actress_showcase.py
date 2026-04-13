@@ -250,7 +250,8 @@ class TestActressRescrapeEndpoint:
 
         with patch("web.routers.actress.get_actress_profile", return_value=mock_result), \
              patch("web.routers.actress.download_actress_photo", return_value=True), \
-             patch("core.database.ActressRepository.count_videos_for_actress", return_value=5):
+             patch("core.database.ActressRepository.count_videos_for_actress_names", return_value=5), \
+             patch("core.database.AliasRepository.resolve", return_value={"三上悠亜"}):
             response = client.post("/api/actresses/三上悠亜/rescrape")
 
         assert response.status_code == 200

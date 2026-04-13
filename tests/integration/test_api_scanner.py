@@ -467,3 +467,178 @@ class TestJellyfinCheck:
         # T3(40c) Codex fix 後應有 4 處：
         #   clear_cache + generate_jellyfin_images_stream + generate_avlist(done) + generate_avlist(except)
         assert scanner_src.count('_jellyfin_cache_result = None') >= 4
+
+
+class TestMissingCheckAPI:
+    """T10 — 測試 GET /api/gallery/missing-check 端點"""
+
+    def _make_db(self, tmp_path, videos):
+        """建立測試用 SQLite DB，插入指定影片資料"""
+        from core.database import init_db, VideoRepository, Video
+        db_path = tmp_path / "test.db"
+        init_db(db_path)
+        repo = VideoRepository(db_path)
+        for v in videos:
+            repo.upsert(v)
+        return db_path
+
+    def test_db_not_exist_returns_zero(self, client, tmp_path, monkeypatch):
+        """DB 不存在時回 {success: true, data: {total_missing: 0, items: []}}"""
+        from unittest.mock import patch
+        missing_path = tmp_path / "nonexistent.db"
+        with patch('web.routers.scanner.get_db_path', return_value=missing_path):
+            resp = client.get('/api/gallery/missing-check')
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data['success'] is True
+        assert data['data']['total_missing'] == 0
+        assert data['data']['items'] == []
+
+    def test_all_complete_returns_zero(self, client, tmp_path, monkeypatch):
+        """所有影片均有 NFO + 封面時，total_missing = 0"""
+        from unittest.mock import patch
+        from core.database import Video
+        from core.path_utils import to_file_uri
+        videos = [
+            Video(path=to_file_uri(str(tmp_path / "a.mp4")), number="AAA-001",
+                  cover_path="/covers/a.jpg", nfo_mtime=1234567890.0),
+            Video(path=to_file_uri(str(tmp_path / "b.mp4")), number="BBB-002",
+                  cover_path="/covers/b.jpg", nfo_mtime=1234567891.0),
+        ]
+        db_path = self._make_db(tmp_path, videos)
+        with patch('web.routers.scanner.get_db_path', return_value=db_path):
+            resp = client.get('/api/gallery/missing-check')
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data['success'] is True
+        assert data['data']['total_missing'] == 0
+        assert data['data']['missing_both'] == 0
+        assert data['data']['missing_nfo'] == 0
+        assert data['data']['missing_cover'] == 0
+        assert data['data']['items'] == []
+
+    def test_missing_both_counted(self, client, tmp_path, monkeypatch):
+        """cover_path='' 且 nfo_mtime=0 的影片計入 missing_both"""
+        from unittest.mock import patch
+        from core.database import Video
+        from core.path_utils import to_file_uri
+        videos = [
+            Video(path=to_file_uri(str(tmp_path / "a.mp4")), number="AAA-001",
+                  cover_path="", nfo_mtime=0.0),
+        ]
+        db_path = self._make_db(tmp_path, videos)
+        with patch('web.routers.scanner.get_db_path', return_value=db_path):
+            resp = client.get('/api/gallery/missing-check')
+        data = resp.json()
+        assert data['success'] is True
+        assert data['data']['missing_both'] == 1
+        assert data['data']['missing_nfo'] == 0
+        assert data['data']['missing_cover'] == 0
+        assert data['data']['total_missing'] == 1
+        assert len(data['data']['items']) == 1
+        assert data['data']['items'][0]['number'] == 'AAA-001'
+
+    def test_missing_nfo_only_counted(self, client, tmp_path, monkeypatch):
+        """nfo_mtime=0 但有封面 → 計入 missing_nfo"""
+        from unittest.mock import patch
+        from core.database import Video
+        from core.path_utils import to_file_uri
+        videos = [
+            Video(path=to_file_uri(str(tmp_path / "a.mp4")), number="AAA-001",
+                  cover_path="/covers/a.jpg", nfo_mtime=0.0),
+        ]
+        db_path = self._make_db(tmp_path, videos)
+        with patch('web.routers.scanner.get_db_path', return_value=db_path):
+            resp = client.get('/api/gallery/missing-check')
+        data = resp.json()
+        assert data['data']['missing_nfo'] == 1
+        assert data['data']['missing_both'] == 0
+        assert data['data']['missing_cover'] == 0
+        assert data['data']['total_missing'] == 1
+
+    def test_missing_cover_only_counted(self, client, tmp_path, monkeypatch):
+        """cover_path='' 但有 NFO → 計入 missing_cover"""
+        from unittest.mock import patch
+        from core.database import Video
+        from core.path_utils import to_file_uri
+        videos = [
+            Video(path=to_file_uri(str(tmp_path / "a.mp4")), number="AAA-001",
+                  cover_path="", nfo_mtime=1234567890.0),
+        ]
+        db_path = self._make_db(tmp_path, videos)
+        with patch('web.routers.scanner.get_db_path', return_value=db_path):
+            resp = client.get('/api/gallery/missing-check')
+        data = resp.json()
+        assert data['data']['missing_cover'] == 1
+        assert data['data']['missing_both'] == 0
+        assert data['data']['missing_nfo'] == 0
+        assert data['data']['total_missing'] == 1
+
+    def test_mixed_missing_counts_correct(self, client, tmp_path, monkeypatch):
+        """混合缺失類型：missing_both + missing_nfo + missing_cover 各自正確計數"""
+        from unittest.mock import patch
+        from core.database import Video
+        from core.path_utils import to_file_uri
+        videos = [
+            # missing both
+            Video(path=to_file_uri(str(tmp_path / "a.mp4")), number="AAA-001",
+                  cover_path="", nfo_mtime=0.0),
+            Video(path=to_file_uri(str(tmp_path / "b.mp4")), number="BBB-002",
+                  cover_path="", nfo_mtime=0.0),
+            # missing nfo only
+            Video(path=to_file_uri(str(tmp_path / "c.mp4")), number="CCC-003",
+                  cover_path="/covers/c.jpg", nfo_mtime=0.0),
+            # missing cover only
+            Video(path=to_file_uri(str(tmp_path / "d.mp4")), number="DDD-004",
+                  cover_path="", nfo_mtime=1234567890.0),
+            # complete
+            Video(path=to_file_uri(str(tmp_path / "e.mp4")), number="EEE-005",
+                  cover_path="/covers/e.jpg", nfo_mtime=1234567890.0),
+        ]
+        db_path = self._make_db(tmp_path, videos)
+        with patch('web.routers.scanner.get_db_path', return_value=db_path):
+            resp = client.get('/api/gallery/missing-check')
+        data = resp.json()
+        assert data['data']['missing_both'] == 2
+        assert data['data']['missing_nfo'] == 1
+        assert data['data']['missing_cover'] == 1
+        assert data['data']['total_missing'] == 4
+        assert len(data['data']['items']) == 4
+
+    def test_null_number_excluded(self, client, tmp_path, monkeypatch):
+        """number IS NULL 的記錄不計入 items（無法補完）"""
+        from unittest.mock import patch
+        from core.database import Video
+        from core.path_utils import to_file_uri
+        videos = [
+            Video(path=to_file_uri(str(tmp_path / "a.mp4")), number=None,
+                  cover_path="", nfo_mtime=0.0),
+            Video(path=to_file_uri(str(tmp_path / "b.mp4")), number="BBB-002",
+                  cover_path="", nfo_mtime=0.0),
+        ]
+        db_path = self._make_db(tmp_path, videos)
+        with patch('web.routers.scanner.get_db_path', return_value=db_path):
+            resp = client.get('/api/gallery/missing-check')
+        data = resp.json()
+        assert data['data']['total_missing'] == 1
+        assert len(data['data']['items']) == 1
+        assert data['data']['items'][0]['number'] == 'BBB-002'
+
+    def test_response_includes_file_path(self, client, tmp_path, monkeypatch):
+        """items 的每個元素包含 file_path 和 number"""
+        from unittest.mock import patch
+        from core.database import Video
+        from core.path_utils import to_file_uri
+        video_uri = to_file_uri(str(tmp_path / "a.mp4"))
+        videos = [
+            Video(path=video_uri, number="AAA-001",
+                  cover_path="", nfo_mtime=0.0),
+        ]
+        db_path = self._make_db(tmp_path, videos)
+        with patch('web.routers.scanner.get_db_path', return_value=db_path):
+            resp = client.get('/api/gallery/missing-check')
+        data = resp.json()
+        item = data['data']['items'][0]
+        assert 'file_path' in item
+        assert 'number' in item
+        assert item['number'] == 'AAA-001'

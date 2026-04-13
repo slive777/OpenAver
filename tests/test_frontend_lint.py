@@ -4751,3 +4751,77 @@ class TestT4SearchCoreElimination:
             f"state/*.js 仍含 window.SearchUI.preloadImages 呼叫（T4 應改為 this.preloadImages(...)）:\n"
             + "\n".join(f"  {v}" for v in violations)
         )
+
+
+class TestScannerMissingPillGuard:
+    """T10 守衛 — 缺 NFO/封面 pill + SSE 補完的靜態結構驗證"""
+
+    SCANNER_HTML = PROJECT_ROOT / "web" / "templates" / "scanner.html"
+    SCANNER_JS = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "scanner.js"
+    ZH_TW = PROJECT_ROOT / "locales" / "zh_TW.json"
+
+    def test_html_has_missing_pill_xshow(self):
+        """scanner.html 含 x-show="missingPillVisible" 綁定"""
+        html = self.SCANNER_HTML.read_text(encoding='utf-8')
+        assert 'missingPillVisible' in html, \
+            "scanner.html 缺少 missingPillVisible — T10 missing pill row 未加入"
+
+    def test_html_has_resume_pill_xshow(self):
+        """scanner.html 含 x-show="resumePillVisible" 綁定"""
+        html = self.SCANNER_HTML.read_text(encoding='utf-8')
+        assert 'resumePillVisible' in html, \
+            "scanner.html 缺少 resumePillVisible — T10 resume pill row 未加入"
+
+    def test_js_has_missing_pill_visible_state(self):
+        """scanner.js 含 missingPillVisible 狀態宣告"""
+        js = self.SCANNER_JS.read_text(encoding='utf-8')
+        assert 'missingPillVisible' in js, \
+            "scanner.js 缺少 missingPillVisible 狀態宣告 — T10 Alpine data 未加入"
+
+    def test_js_has_missing_items_state(self):
+        """scanner.js 含 missingItems 狀態宣告"""
+        js = self.SCANNER_JS.read_text(encoding='utf-8')
+        assert 'missingItems' in js, \
+            "scanner.js 缺少 missingItems 狀態宣告 — T10 Alpine data 未加入"
+
+    def test_js_has_resume_pill_visible_state(self):
+        """scanner.js 含 resumePillVisible 狀態宣告"""
+        js = self.SCANNER_JS.read_text(encoding='utf-8')
+        assert 'resumePillVisible' in js, \
+            "scanner.js 缺少 resumePillVisible 狀態宣告 — T10 Alpine data 未加入"
+
+    def test_js_has_run_missing_enrich_method(self):
+        """scanner.js 含 runMissingEnrich 方法"""
+        js = self.SCANNER_JS.read_text(encoding='utf-8')
+        assert 'runMissingEnrich' in js, \
+            "scanner.js 缺少 runMissingEnrich 方法 — T10 補完方法未加入"
+
+    def test_js_has_check_missing_method(self):
+        """scanner.js 含 checkMissing 方法"""
+        js = self.SCANNER_JS.read_text(encoding='utf-8')
+        assert 'checkMissing' in js, \
+            "scanner.js 缺少 checkMissing 方法 — T10 檢查方法未加入"
+
+    def test_js_is_generating_includes_enriching(self):
+        """scanner.js 的 isGenerating getter 包含 'enriching' 狀態"""
+        js = self.SCANNER_JS.read_text(encoding='utf-8')
+        assert 'enriching' in js, \
+            "scanner.js isGenerating 缺少 enriching 狀態 — T10 狀態機擴充未完成"
+
+    def test_js_clear_cache_resets_missing_state(self):
+        """scanner.js 的 clearCache() 含 missingPillVisible 重設"""
+        js = self.SCANNER_JS.read_text(encoding='utf-8')
+        assert 'missingPillVisible' in js, \
+            "scanner.js 缺少 missingPillVisible — clearCache() 重設未加入"
+
+    def test_i18n_has_missing_enrich_idle_key(self):
+        """locales/zh_TW.json 含 missing_enrich_idle key"""
+        content = self.ZH_TW.read_text(encoding='utf-8')
+        assert 'missing_enrich_idle' in content, \
+            "zh_TW.json 缺少 missing_enrich_idle key — T10 i18n 未加入"
+
+    def test_i18n_has_missing_resume_btn_key(self):
+        """locales/zh_TW.json 含 missing_resume_btn key"""
+        content = self.ZH_TW.read_text(encoding='utf-8')
+        assert 'missing_resume_btn' in content, \
+            "zh_TW.json 缺少 missing_resume_btn key — T10 i18n 未加入"

@@ -331,12 +331,18 @@ def _fetch_actress_profile_with_db(top_actor: str, makers: list) -> Optional[dic
     Returns:
         profile dict（前端 actressProfile），或 None（查無資料）
     """
-    from core.database import ActressRepository, init_db
+    from core.database import ActressRepository, AliasRepository, init_db
     from web.routers.actress import _actress_to_response  # 共用 serializer，避免重複邏輯
 
     init_db()
     repo = ActressRepository()
-    actress = repo.get_by_name(top_actor)
+    alias_repo = AliasRepository()
+    names = alias_repo.resolve(top_actor)  # set[str], miss → {top_actor}
+    actress = None
+    for n in names:
+        actress = repo.get_by_name(n)
+        if actress:
+            break
 
     if actress:
         # DB hit：組裝 actressProfile（前端 legacy flat shape 相容）

@@ -167,7 +167,8 @@ class TestAddFavorite:
              patch("web.routers.actress.get_actress_profile") as mock_get_profile, \
              patch("web.routers.actress.download_actress_photo", return_value=True), \
              patch("web.routers.actress.get_local_photo_path", return_value=None), \
-             patch("core.database.ActressRepository.count_videos_for_actress", return_value=5):
+             patch("core.database.ActressRepository.count_videos_for_actress_names", return_value=5), \
+             patch("core.database.AliasRepository.resolve", return_value={ACTRESS_NAME}):
 
             from core.scrapers.actress.orchestrator import ProfileResult
             mock_get_profile.return_value = ProfileResult(data=MOCK_PROFILE, timed_out=False)

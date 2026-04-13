@@ -2273,3 +2273,150 @@ class TestShowcaseHeroCard:
         html = self._html()
         assert "searchFromMetadata(actress.trim(), 'actress')" in html, \
             "showcase.html actress tag 的 searchFromMetadata 呼叫缺少 'actress' type 參數"
+
+
+class TestShowcaseAliasGuard:
+    """T5 (45-actress-alias): Frontend Guard — alias 展開注入守衛"""
+
+    def _js(self):
+        return SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+
+    def test_name_to_group_declaration_exists(self):
+        """_nameToGroup module-level 宣告必須存在於 core.js"""
+        js = self._js()
+        assert "var _nameToGroup = {}" in js, \
+            "core.js 缺少 module-level 'var _nameToGroup = {}' 宣告"
+
+    def test_actress_aliases_fetch_exists(self):
+        """/api/actress-aliases fetch 呼叫必須存在於 core.js"""
+        js = self._js()
+        assert "/api/actress-aliases" in js, \
+            "core.js 缺少 fetch('/api/actress-aliases') 呼叫"
+
+    def test_name_to_group_used_in_apply_actress_filter_and_sort(self):
+        """applyActressFilterAndSort 必須使用 _nameToGroup[a.name] 做 alias 展開"""
+        js = self._js()
+        assert "_nameToGroup[a.name]" in js, \
+            "core.js applyActressFilterAndSort 缺少 _nameToGroup[a.name] alias 展開邏輯"
+
+    def test_name_to_group_used_in_check_precise_actress_match(self):
+        """_checkPreciseActressMatch 必須使用 _nameToGroup 做 alias group 比對"""
+        js = self._js()
+        # 搜尋函數體中含 _nameToGroup 即可（函數宣告後都有使用）
+        assert "_nameToGroup" in js, \
+            "core.js 缺少 _nameToGroup（_checkPreciseActressMatch alias 展開未實作）"
+        # 確認精準匹配函數本身有用到 indexOf（alias group 查找的 sentinel）
+        func_start = js.find("async _checkPreciseActressMatch")
+        func_end = js.find("},", func_start)
+        func_body = js[func_start:func_end]
+        assert "_nameToGroup" in func_body, \
+            "core.js _checkPreciseActressMatch 函數體缺少 _nameToGroup 使用"
+
+    def test_name_to_group_used_in_apply_filter_and_sort_video_mode(self):
+        """applyFilterAndSort 影片模式必須使用 _nameToGroup[term] 做 alias 展開"""
+        js = self._js()
+        assert "_nameToGroup[term]" in js, \
+            "core.js applyFilterAndSort 影片模式缺少 _nameToGroup[term] alias 展開邏輯"
+
+
+# ---------------------------------------------------------------------------
+# T6: Scanner Alias UI v2 — 舊 token 移除 + 新 token 存在守衛
+# ---------------------------------------------------------------------------
+SCANNER_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "scanner.js"
+SCANNER_HTML = Path(__file__).parent.parent.parent / "web" / "templates" / "scanner.html"
+ZH_TW_JSON = Path(__file__).parent.parent.parent / "locales" / "zh_TW.json"
+
+
+class TestScannerAliasV2Guard:
+    """T6: 確認 scanner.js/html 舊 alias token 已移除、新 token 已存在"""
+
+    def _js(self):
+        return SCANNER_JS.read_text(encoding="utf-8")
+
+    def _html(self):
+        return SCANNER_HTML.read_text(encoding="utf-8")
+
+    def _zh_tw(self):
+        return json.loads(ZH_TW_JSON.read_text(encoding="utf-8"))
+
+    def test_scanner_js_no_alias_old_name(self):
+        """scanner.js 不含 alias.old_name（舊資料結構殘留）"""
+        js = self._js()
+        assert "alias.old_name" not in js, \
+            "scanner.js 仍含舊 alias.old_name，T6 替換不完整"
+
+    def test_scanner_js_no_alias_new_name(self):
+        """scanner.js 不含 alias.new_name（舊資料結構殘留）"""
+        js = self._js()
+        assert "alias.new_name" not in js, \
+            "scanner.js 仍含舊 alias.new_name，T6 替換不完整"
+
+    def test_scanner_js_no_old_endpoint(self):
+        """scanner.js 不含 api/gallery/actress-aliases（舊 endpoint 殘留）"""
+        js = self._js()
+        assert "api/gallery/actress-aliases" not in js, \
+            "scanner.js 仍含舊 endpoint /api/gallery/actress-aliases，T6 替換不完整"
+
+    def test_scanner_js_has_alias_records(self):
+        """scanner.js 含 aliasRecords（新 state 已宣告）"""
+        js = self._js()
+        assert "aliasRecords" in js, \
+            "scanner.js 缺少 aliasRecords state，T6 新 state 未宣告"
+
+    def test_scanner_html_no_alias_form_old_name(self):
+        """scanner.html 不含 aliasForm.oldName（舊 binding 殘留）"""
+        html = self._html()
+        assert "aliasForm.oldName" not in html, \
+            "scanner.html 仍含舊 aliasForm.oldName，T6 替換不完整"
+
+    def test_zh_tw_has_search_placeholder(self):
+        """zh_TW.json 含 scanner.alias.search_placeholder（新 i18n key）"""
+        data = self._zh_tw()
+        alias = data.get("scanner", {}).get("alias", {})
+        assert "search_placeholder" in alias, \
+            "zh_TW.json 缺少 scanner.alias.search_placeholder，T6 i18n 未更新"
+
+    # --- T8 guards: pill UI + unified input + x-model binding ---
+
+    def test_scanner_js_has_alias_input(self):
+        """scanner.js 含 aliasInput 統一輸入狀態（T8 合併 aliasSearch + newPrimaryName）"""
+        js = self._js()
+        assert "aliasInput" in js, \
+            "scanner.js 缺少 aliasInput 狀態變數"
+
+    def test_scanner_js_has_cancel_add_alias(self):
+        """scanner.js 含 cancelAddAlias 方法（T8 inline input cancel 按鈕）"""
+        js = self._js()
+        assert "cancelAddAlias" in js, \
+            "scanner.js 缺少 cancelAddAlias 方法"
+
+    def test_scanner_html_uses_x_model_for_inline_input(self):
+        """inline add input 使用 x-model 而非 :value+@input（修正 IME 競態）"""
+        html = self._html()
+        assert 'x-model="addingAlias[group.primary_name]"' in html, \
+            "scanner.html inline input 應使用 x-model 綁定，而非 :value+@input"
+
+    def test_scanner_html_no_stale_value_binding(self):
+        """:value="addingAlias[ 手動綁定不應存在（已改為 x-model）"""
+        html = self._html()
+        assert ':value="addingAlias[group.primary_name]"' not in html, \
+            "scanner.html 仍有 :value 手動綁定，應已被 x-model 取代"
+
+    def test_scanner_html_cancel_button_has_type(self):
+        """alias 區域的 btn-cancel 必須有 type='button'"""
+        html = self._html()
+        assert 'type="button" class="btn-cancel"' in html, \
+            "btn-cancel 缺少 type='button'"
+
+    def test_scanner_html_no_btn_confirm(self):
+        """btn-confirm 已移除（改為 Enter key only）"""
+        html = self._html()
+        assert 'btn-confirm' not in html, \
+            "scanner.html 不應含 btn-confirm（已改為 Enter only）"
+
+    def test_zh_tw_has_filter_hint(self):
+        """zh_TW.json 含 scanner.alias.filter_hint（T8 篩選提示）"""
+        data = self._zh_tw()
+        alias = data.get("scanner", {}).get("alias", {})
+        assert "filter_hint" in alias, \
+            "zh_TW.json 缺少 scanner.alias.filter_hint"

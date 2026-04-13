@@ -2,7 +2,7 @@
 SQLite 資料庫管理模組。
 
 啟用 WAL mode 提升並發讀寫效能。VideoRepository 負責影片記錄的 CRUD，
-ActressAliasRepository 負責演員別名的維護。`init_db` 在每次啟動時自動執行
+AliasRepository 負責新版平坦 group 別名維護。`init_db` 在每次啟動時自動執行
 schema migration，無需手動管理資料庫版本。
 """
 import sqlite3
@@ -11,6 +11,10 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Optional, List
 from datetime import datetime
+
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 def get_db_path() -> Path:
@@ -30,6 +34,61 @@ def get_connection(db_path: Path = None) -> sqlite3.Connection:
     # 啟用 WAL 模式以提升並發效能
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
+
+
+def _migrate_old_aliases(rows: list) -> list:
+    """將舊 directional alias rows 跟鏈合併為平坦 groups。
+
+    Args:
+        rows: list of (old_name, new_name) tuples from the old actress_aliases table
+
+    Returns:
+        list of dicts: [{"primary_name": str, "aliases": list[str]}, ...]
+    """
+    edges = {old: new for old, new in rows}  # old → new
+
+    visited: set = set()
+    groups: dict = {}  # endpoint → [members]
+
+    for start in list(edges.keys()):
+        if start in visited:
+            continue
+
+        chain: list = []
+        node = start
+        seen_in_chain: set = set()
+
+        while node in edges:
+            if node == edges[node]:
+                # 自我指向：A→A，跳過整個 start
+                logger.warning("Alias migration: self-reference '%s', skipping", node)
+                visited.add(node)
+                chain = []  # 清空，不產生 group
+                node = None
+                break
+            if node in seen_in_chain:
+                # 循環偵測：以當前 node 為 endpoint，中斷鏈
+                logger.warning("Alias migration: cycle detected at '%s', breaking chain", node)
+                break
+            chain.append(node)
+            seen_in_chain.add(node)
+            visited.add(node)
+            node = edges[node]
+
+        if node is None:
+            # 自我指向 — 跳過
+            continue
+
+        # node 是 endpoint（鏈的終點）；chain 是路徑上的節點（不含 endpoint）
+        aliases = [x for x in chain if x != node]
+        if aliases:
+            groups.setdefault(node, []).extend(aliases)
+
+    # 去重（匯流時多條鏈可能重複 append 同一名字）
+    return [
+        {"primary_name": pk, "aliases": list(dict.fromkeys(members))}
+        for pk, members in groups.items()
+    ]
 
 
 def init_db(db_path: Path = None) -> None:
@@ -75,21 +134,48 @@ def init_db(db_path: Path = None) -> None:
         CREATE INDEX IF NOT EXISTS idx_videos_maker ON videos(maker)
     """)
 
-    # 創建女優別名表
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS actress_aliases (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            old_name TEXT NOT NULL UNIQUE,
-            new_name TEXT NOT NULL,
-            applied_count INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    # 女優別名表 — 偵測舊 schema (old_name 欄位) 並執行跟鏈遷移
+    existing_alias_cols = {
+        row[1] for row in cursor.execute("PRAGMA table_info(actress_aliases)").fetchall()
+    }
+    if "old_name" in existing_alias_cols:
+        # 舊 schema：執行跟鏈遷移
+        logger.info("Detected old actress_aliases schema (old_name column); migrating…")
+        rows = cursor.execute(
+            "SELECT old_name, new_name FROM actress_aliases"
+        ).fetchall()
+        groups = _migrate_old_aliases(rows)
+        cursor.execute("ALTER TABLE actress_aliases RENAME TO actress_aliases_legacy")
+        cursor.execute("""
+            CREATE TABLE actress_aliases (
+                primary_name  TEXT PRIMARY KEY,
+                aliases       TEXT NOT NULL DEFAULT '[]',
+                source        TEXT NOT NULL DEFAULT 'manual',
+                created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        for g in groups:
+            cursor.execute(
+                """INSERT INTO actress_aliases (primary_name, aliases, source)
+                   VALUES (?, ?, 'manual')""",
+                (g["primary_name"], json.dumps(g["aliases"], ensure_ascii=False)),
+            )
+        logger.info("Migration complete: %d groups written to new actress_aliases table", len(groups))
+    else:
+        # 新 schema 或表不存在：直接 CREATE IF NOT EXISTS
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS actress_aliases (
+                primary_name  TEXT PRIMARY KEY,
+                aliases       TEXT NOT NULL DEFAULT '[]',
+                source        TEXT NOT NULL DEFAULT 'manual',
+                created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
-    # 創建索引
-    cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_actress_aliases_new_name ON actress_aliases(new_name)
-    """)
+    # 刪除舊 index（新 schema 不需要；IF EXISTS 保證 idempotent）
+    cursor.execute("DROP INDEX IF EXISTS idx_actress_aliases_new_name")
 
     # 創建女優資料表
     cursor.execute("""
@@ -117,18 +203,6 @@ def init_db(db_path: Path = None) -> None:
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-
-    # 插入種子資料（只在表格為空時插入，避免刪除後又重新插入）
-    cursor.execute("SELECT COUNT(*) FROM actress_aliases")
-    if cursor.fetchone()[0] == 0:
-        cursor.execute("""
-            INSERT INTO actress_aliases (old_name, new_name) VALUES
-            ('miru', '坂道みる'),
-            ('橋本ありな', '新ありな'),
-            ('河北彩伽', '河北彩花'),
-            ('天海こころ', '深田えいみ'),
-            ('心菜りお', '深田えいみ')
-        """)
 
     # Migration: 加入 Phase 37 新欄位
     existing_cols = {row[1] for row in cursor.execute("PRAGMA table_info(videos)").fetchall()}
@@ -637,49 +711,6 @@ class VideoRepository:
         finally:
             conn.close()
 
-    def update_actress_name(self, video_id: int, old_name: str, new_name: str) -> bool:
-        """更新影片的女優名稱
-
-        Args:
-            video_id: 影片 ID
-            old_name: 舊女優名稱
-            new_name: 新女優名稱
-
-        Returns:
-            bool: 是否成功更新
-        """
-        conn = self._get_connection()
-        cursor = conn.cursor()
-
-        try:
-            # 先取得目前的 actresses
-            cursor.execute("SELECT actresses FROM videos WHERE id = ?", (video_id,))
-            row = cursor.fetchone()
-            if not row or not row[0]:
-                return False
-
-            try:
-                actresses = json.loads(row[0])
-            except json.JSONDecodeError:
-                return False
-
-            # 替換名稱
-            if old_name not in actresses:
-                return False
-
-            actresses = [new_name if a == old_name else a for a in actresses]
-
-            # 更新
-            cursor.execute(
-                "UPDATE videos SET actresses = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                (json.dumps(actresses, ensure_ascii=False), video_id)
-            )
-            conn.commit()
-            return cursor.rowcount > 0
-        finally:
-            conn.close()
-
-
 def migrate_json_to_sqlite(json_path: Path, db_path: Path = None,
                            delete_on_success: bool = True) -> dict:
     """遷移 JSON cache 到 SQLite
@@ -758,33 +789,46 @@ def migrate_json_to_sqlite(json_path: Path, db_path: Path = None,
 
 
 @dataclass
-class ActressAlias:
-    """女優別名對照"""
-    id: Optional[int] = None
-    old_name: str = ""
-    new_name: str = ""
-    applied_count: int = 0
+class AliasRecord:
+    """新版女優別名資料模型（平坦 group schema）"""
+    primary_name: str = ""
+    aliases: List[str] = field(default_factory=list)  # JSON array
+    source: str = "manual"  # 'manual' | 'auto'
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     def to_dict(self) -> dict:
-        """轉為字典"""
+        """轉為字典（JSON 欄位序列化）"""
         data = asdict(self)
+        data["aliases"] = json.dumps(self.aliases, ensure_ascii=False)
         if self.created_at:
-            data['created_at'] = self.created_at.isoformat()
+            data["created_at"] = self.created_at.isoformat()
+        if self.updated_at:
+            data["updated_at"] = self.updated_at.isoformat()
         return data
 
     @classmethod
-    def from_row(cls, row: tuple, columns: List[str]) -> 'ActressAlias':
+    def from_row(cls, row: tuple, columns: List[str]) -> "AliasRecord":
         """從資料庫 row 建立"""
         data = dict(zip(columns, row))
-        if 'created_at' in data and data['created_at']:
-            if isinstance(data['created_at'], str):
-                data['created_at'] = datetime.fromisoformat(data['created_at'])
+        if "aliases" in data and data["aliases"]:
+            try:
+                data["aliases"] = json.loads(data["aliases"])
+            except json.JSONDecodeError:
+                data["aliases"] = []
+        else:
+            data["aliases"] = []
+        if "created_at" in data and data["created_at"]:
+            if isinstance(data["created_at"], str):
+                data["created_at"] = datetime.fromisoformat(data["created_at"])
+        if "updated_at" in data and data["updated_at"]:
+            if isinstance(data["updated_at"], str):
+                data["updated_at"] = datetime.fromisoformat(data["updated_at"])
         return cls(**data)
 
 
-class ActressAliasRepository:
-    """女優別名資料存取層"""
+class AliasRepository:
+    """新版女優別名資料存取層（平坦 group schema）"""
 
     def __init__(self, db_path: Path = None):
         self.db_path = db_path or get_db_path()
@@ -795,83 +839,341 @@ class ActressAliasRepository:
 
     def _get_columns(self) -> List[str]:
         """取得欄位名稱列表"""
-        return ['id', 'old_name', 'new_name', 'applied_count', 'created_at']
+        return ["primary_name", "aliases", "source", "created_at", "updated_at"]
 
-    def get_all(self) -> List[ActressAlias]:
-        """取得所有別名對照"""
+    # ------------------------------------------------------------------
+    # Read methods
+    # ------------------------------------------------------------------
+
+    def get_all(self) -> List[AliasRecord]:
+        """取得所有別名組，依 primary_name 排序"""
         conn = self._get_connection()
-        cursor = conn.cursor()
-
         try:
-            cursor.execute("SELECT * FROM actress_aliases ORDER BY id")
+            cursor = conn.execute(
+                "SELECT * FROM actress_aliases ORDER BY primary_name"
+            )
             rows = cursor.fetchall()
-            return [ActressAlias.from_row(row, self._get_columns()) for row in rows]
+            cols = self._get_columns()
+            return [AliasRecord.from_row(row, cols) for row in rows]
         finally:
             conn.close()
 
-    def add(self, old_name: str, new_name: str) -> int:
-        """新增別名對照
+    def get_by_primary(self, name: str) -> Optional[AliasRecord]:
+        """根據 primary_name 查詢；不存在回傳 None"""
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute(
+                "SELECT * FROM actress_aliases WHERE primary_name = ?", (name,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return AliasRecord.from_row(row, self._get_columns())
+            return None
+        finally:
+            conn.close()
 
-        Args:
-            old_name: 舊名稱（要被替換的）
-            new_name: 新名稱（替換成的）
+    def find_by_alias(self, alias: str) -> Optional[AliasRecord]:
+        """在 aliases JSON 陣列中搜尋；不存在回傳 None"""
+        conn = self._get_connection()
+        try:
+            cursor = conn.execute(
+                """SELECT aa.* FROM actress_aliases aa, json_each(aa.aliases)
+                   WHERE json_each.value = ?""",
+                (alias,),
+            )
+            row = cursor.fetchone()
+            if row:
+                return AliasRecord.from_row(row, self._get_columns())
+            return None
+        finally:
+            conn.close()
 
-        Returns:
-            int: 新增的 id，若已存在則返回 -1
+    def resolve(self, name: str) -> set:
         """
+        解析名稱：
+        - primary hit  → {primary_name} ∪ set(aliases)
+        - alias hit    → {primary_name} ∪ set(aliases)
+        - miss         → {name}
+        """
+        record = self.get_by_primary(name)
+        if record is None:
+            record = self.find_by_alias(name)
+        if record is None:
+            return {name}
+        return {record.primary_name} | set(record.aliases)
+
+    # ------------------------------------------------------------------
+    # Write methods — all use BEGIN EXCLUSIVE
+    # ------------------------------------------------------------------
+
+    def add(
+        self,
+        primary_name: str,
+        aliases: Optional[List[str]] = None,
+        source: str = "manual",
+    ) -> AliasRecord:
+        """
+        新增別名組。
+
+        Raises:
+            ValueError: primary_name 已存在（作為 primary 或 alias）
+        """
+        if aliases is None:
+            aliases = []
+
         conn = self._get_connection()
         cursor = conn.cursor()
-
         try:
+            cursor.execute("BEGIN EXCLUSIVE")
+
+            # 全域唯一檢查 primary_name
+            ok, msg = self._check_global_uniqueness_cursor(cursor, primary_name)
+            if not ok:
+                raise ValueError(msg)
+
+            # 全域唯一檢查每個 alias
+            for alias in aliases:
+                ok, msg = self._check_global_uniqueness_cursor(cursor, alias)
+                if not ok:
+                    raise ValueError(f"alias '{alias}': {msg}")
+
+            aliases_json = json.dumps(aliases, ensure_ascii=False)
             cursor.execute(
-                "INSERT INTO actress_aliases (old_name, new_name) VALUES (?, ?)",
-                (old_name, new_name)
+                """INSERT INTO actress_aliases (primary_name, aliases, source)
+                   VALUES (?, ?, ?)""",
+                (primary_name, aliases_json, source),
             )
             conn.commit()
-            return cursor.lastrowid
-        except sqlite3.IntegrityError:
-            # old_name 已存在
-            return -1
+        except Exception:
+            conn.rollback()
+            raise
         finally:
             conn.close()
 
-    def delete(self, id: int) -> bool:
-        """刪除別名對照
+        return self.get_by_primary(primary_name)
 
-        Args:
-            id: 別名對照 ID
+    def add_alias(self, primary_name: str, alias: str) -> tuple:
+        """
+        為既有 group 新增一個 alias。
 
         Returns:
-            bool: 是否成功刪除
+            (True, None)       — 成功
+            (False, error_msg) — 衝突
         """
         conn = self._get_connection()
         cursor = conn.cursor()
-
         try:
-            cursor.execute("DELETE FROM actress_aliases WHERE id = ?", (id,))
+            cursor.execute("BEGIN EXCLUSIVE")
+
+            # 確認 primary 存在
+            cursor.execute(
+                "SELECT aliases FROM actress_aliases WHERE primary_name = ?",
+                (primary_name,),
+            )
+            row = cursor.fetchone()
+            if row is None:
+                return False, f"'{primary_name}' 不存在"
+
+            # 全域唯一檢查（排除自己的 group）
+            ok, msg = self._check_global_uniqueness_cursor(
+                cursor, alias, exclude_primary=primary_name
+            )
+            if not ok:
+                conn.rollback()
+                return False, msg
+
+            current = json.loads(row[0]) if row[0] else []
+            if alias not in current:
+                current.append(alias)
+            cursor.execute(
+                """UPDATE actress_aliases
+                   SET aliases = ?, updated_at = CURRENT_TIMESTAMP
+                   WHERE primary_name = ?""",
+                (json.dumps(current, ensure_ascii=False), primary_name),
+            )
+            conn.commit()
+            return True, None
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def remove_alias(self, primary_name: str, alias: str) -> bool:
+        """
+        從 group 中移除一個 alias。
+
+        Returns:
+            True  — 成功移除
+            False — alias 不存在
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("BEGIN EXCLUSIVE")
+            cursor.execute(
+                "SELECT aliases FROM actress_aliases WHERE primary_name = ?",
+                (primary_name,),
+            )
+            row = cursor.fetchone()
+            if row is None:
+                return False
+            current = json.loads(row[0]) if row[0] else []
+            if alias not in current:
+                return False
+            current.remove(alias)
+            cursor.execute(
+                """UPDATE actress_aliases
+                   SET aliases = ?, updated_at = CURRENT_TIMESTAMP
+                   WHERE primary_name = ?""",
+                (json.dumps(current, ensure_ascii=False), primary_name),
+            )
+            conn.commit()
+            return True
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def delete(self, name: str) -> bool:
+        """
+        刪除 group。name 可為 primary 或 alias（先 resolve 取得 primary）。
+
+        Returns:
+            True  — 成功刪除
+            False — 不存在
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute("BEGIN EXCLUSIVE")
+
+            # 解析 primary_name
+            cursor.execute(
+                "SELECT primary_name FROM actress_aliases WHERE primary_name = ?",
+                (name,),
+            )
+            row = cursor.fetchone()
+            if row is None:
+                # 試 alias
+                cursor.execute(
+                    """SELECT aa.primary_name FROM actress_aliases aa, json_each(aa.aliases)
+                       WHERE json_each.value = ?""",
+                    (name,),
+                )
+                row = cursor.fetchone()
+            if row is None:
+                return False
+
+            primary = row[0]
+            cursor.execute(
+                "DELETE FROM actress_aliases WHERE primary_name = ?", (primary,)
+            )
             conn.commit()
             return cursor.rowcount > 0
+        except Exception:
+            conn.rollback()
+            raise
         finally:
             conn.close()
 
-    def increment_applied_count(self, id: int, count: int) -> None:
-        """增加套用次數
-
-        Args:
-            id: 別名對照 ID
-            count: 要增加的次數
+    def sync_from_favorite(
+        self, name: str, aliases: List[str], source: str = "auto"
+    ) -> dict:
         """
+        從 favorite 同步 alias group（resolve-first，CD-6）。
+
+        Returns:
+            {"primary_name": str, "skipped_aliases": list[str]}
+        """
+        # resolve name → 找到所屬 group (若有)
+        resolved = self.resolve(name)
+        target_record: Optional[AliasRecord] = None
+
+        if len(resolved) > 1 or (len(resolved) == 1 and name not in resolved):
+            # name 解析到某個 group
+            primary_in_resolved = next(
+                (n for n in resolved if self.get_by_primary(n) is not None), None
+            )
+            if primary_in_resolved:
+                target_record = self.get_by_primary(primary_in_resolved)
+        else:
+            target_record = self.get_by_primary(name)
+
+        target_primary = target_record.primary_name if target_record else name
+
         conn = self._get_connection()
         cursor = conn.cursor()
-
+        skipped: List[str] = []
         try:
-            cursor.execute(
-                "UPDATE actress_aliases SET applied_count = applied_count + ? WHERE id = ?",
-                (count, id)
-            )
+            cursor.execute("BEGIN EXCLUSIVE")
+
+            # 逐一檢查 incoming aliases
+            merged_aliases: List[str] = list(target_record.aliases) if target_record else []
+            for alias in aliases:
+                if alias == target_primary or alias in merged_aliases:
+                    continue
+                ok, _ = self._check_global_uniqueness_cursor(
+                    cursor, alias, exclude_primary=target_primary
+                )
+                if not ok:
+                    skipped.append(alias)
+                else:
+                    merged_aliases.append(alias)
+
+            aliases_json = json.dumps(merged_aliases, ensure_ascii=False)
+            if target_record is None:
+                cursor.execute(
+                    """INSERT INTO actress_aliases (primary_name, aliases, source)
+                       VALUES (?, ?, ?)""",
+                    (target_primary, aliases_json, source),
+                )
+            else:
+                cursor.execute(
+                    """UPDATE actress_aliases
+                       SET aliases = ?, source = ?, updated_at = CURRENT_TIMESTAMP
+                       WHERE primary_name = ?""",
+                    (aliases_json, source, target_primary),
+                )
             conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
         finally:
             conn.close()
+
+        return {"primary_name": target_primary, "skipped_aliases": skipped}
+
+    # ------------------------------------------------------------------
+    # Private helper — cursor-based uniqueness check (within transaction)
+    # ------------------------------------------------------------------
+
+    def _check_global_uniqueness_cursor(
+        self, cursor, name: str, exclude_primary: Optional[str] = None
+    ) -> tuple:
+        """
+        Same as _check_global_uniqueness but uses an existing cursor (within a transaction).
+        """
+        # Check primary_name
+        cursor.execute(
+            "SELECT primary_name FROM actress_aliases WHERE primary_name = ?", (name,)
+        )
+        row = cursor.fetchone()
+        if row and row[0] != exclude_primary:
+            return False, f"'{name}' 已是 primary_name"
+
+        # Check aliases (json_each)
+        cursor.execute(
+            """SELECT aa.primary_name FROM actress_aliases aa, json_each(aa.aliases)
+               WHERE json_each.value = ?""",
+            (name,),
+        )
+        row = cursor.fetchone()
+        if row and row[0] != exclude_primary:
+            return False, f"'{name}' 已經是 '{row[0]}' 的別名"
+
+        return True, None
 
 
 @dataclass
@@ -1048,17 +1350,28 @@ class ActressRepository:
         finally:
             conn.close()
 
-    def count_videos_for_actress(self, name: str) -> int:
-        """Count videos featuring this actress using json_each for exact matching."""
+    def count_videos_for_actress_names(self, names: set) -> int:
+        """Count videos where any actress name in `names` appears in the actresses JSON array.
+
+        Uses COUNT(DISTINCT videos.rowid) to avoid double-counting a video that
+        lists multiple aliases of the same actress.
+        """
+        if not names:
+            return 0
+        placeholders = ",".join("?" * len(names))
         conn = self._get_connection()
         try:
             cursor = conn.execute(
-                """SELECT COUNT(*) FROM videos, json_each(videos.actresses)
-                   WHERE json_valid(videos.actresses) AND json_each.value = ?""",
-                (name,)
+                f"""SELECT COUNT(DISTINCT videos.rowid) FROM videos, json_each(videos.actresses)
+                   WHERE json_valid(videos.actresses) AND json_each.value IN ({placeholders})""",
+                tuple(names),
             )
             return cursor.fetchone()[0]
         except sqlite3.OperationalError:
             return 0
         finally:
             conn.close()
+
+    def count_videos_for_actress(self, name: str) -> int:
+        """Count videos featuring this actress (backward-compatible single-name wrapper)."""
+        return self.count_videos_for_actress_names({name})

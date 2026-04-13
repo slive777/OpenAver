@@ -11,13 +11,10 @@ Scanner API 路由 - 影片列表生成
 - GET  /api/gallery/image                 — 代理圖片請求（解決 file:// 限制）
 - GET  /api/gallery/video                 — 代理影片請求，支援 Range 請求（影片 seek）
 - GET  /api/gallery/player                — 影片播放頁面（HTML5 player）
-- GET  /api/gallery/actress-aliases       — 取得所有女優別名對照
-- POST /api/gallery/actress-aliases       — 新增女優別名對照
-- DELETE /api/gallery/actress-aliases/{id} — 刪除指定女優別名對照
 - GET  /api/gallery/actress-stats         — 查詢指定女優名稱的片數
-- GET  /api/gallery/apply-actress-aliases — 批次套用女優別名到資料庫（SSE 串流）
 - GET  /api/gallery/jellyfin-check        — 檢查多少影片缺少 Jellyfin poster/fanart
 - GET  /api/gallery/jellyfin-update       — 批次產生 Jellyfin poster + fanart（SSE 串流）
+- GET  /api/gallery/missing-check         — 檢查缺少 NFO/封面的影片清單
 """
 
 import asyncio
@@ -38,8 +35,8 @@ from core.gallery_scanner import VideoScanner, fast_scan_directory, VideoInfo
 from core.video_extensions import get_proxy_extensions, get_video_extensions
 from core.gallery_generator import HTMLGenerator
 from core.path_utils import normalize_path, to_file_uri, is_path_under_dir, uri_to_fs_path
-from core.nfo_updater import check_cache_needs_update, update_videos_generator, apply_actress_aliases_generator
-from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite, ActressAliasRepository
+from core.nfo_updater import check_cache_needs_update, update_videos_generator
+from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite
 from core.organizer import generate_jellyfin_images, HEADERS as _EMBED_HEADERS
 from core.config import load_config
 from core.scraper import smart_search
@@ -233,28 +230,6 @@ def generate_avlist() -> Generator[str, None, None]:
         # 從 SQLite 取得影片，只保留當前設定資料夾底下的記錄
         all_db_videos = [v for v in repo.get_all()
                          if any(is_path_under_dir(v.path, uri) for uri in configured_dir_uris)]
-
-        # === 自動套用女優別名 ===
-        alias_repo = ActressAliasRepository(db_path)
-        aliases = alias_repo.get_all()
-
-        if aliases:
-            yield _sse_event({"type": "log", "level": "info",
-                        "message": f"套用 {len(aliases)} 筆女優別名..."})
-
-            db_updated = False
-            for msg in apply_actress_aliases_generator(aliases, repo, alias_repo):
-                # 過濾掉中間函數的 done 事件，避免前端誤判為最終結果
-                if msg.get('type') == 'done':
-                    if msg.get('db_updated', 0) > 0:
-                        db_updated = True
-                    continue  # 不轉發 done 事件
-                yield _sse_event(msg)
-
-            # 如果有更新，重新取得影片資料（同樣只保留當前設定資料夾）
-            if db_updated:
-                all_db_videos = [v for v in repo.get_all()
-                                 if any(is_path_under_dir(v.path, uri) for uri in configured_dir_uris)]
 
         # 轉換為 VideoInfo 格式供 HTMLGenerator 使用
         all_videos = []
@@ -477,6 +452,70 @@ async def check_update():
     except Exception as e:
         logger.error("檢查更新數量失敗: %s", e)
         return {"success": False, "error": "檢查更新數量失敗"}
+
+
+@router.get("/missing-check")
+async def check_missing():
+    """T10: 檢查 DB 中缺少 NFO 或封面的影片數量與清單"""
+    try:
+        db_path = get_db_path()
+
+        if not db_path.exists():
+            return {"success": True, "data": {"missing_both": 0, "missing_nfo": 0,
+                                               "missing_cover": 0, "total_missing": 0, "items": []}}
+
+        repo = VideoRepository(db_path)
+        all_videos = repo.get_all()
+
+        missing_both = 0
+        missing_nfo = 0
+        missing_cover = 0
+        items = []
+
+        for v in all_videos:
+            has_nfo = (v.nfo_mtime or 0) > 0
+            has_cover = bool(v.cover_path)
+            if has_nfo and has_cover:
+                continue
+            if not v.number:  # skip videos without number (cannot enrich)
+                continue
+            item = {"file_path": v.path, "number": v.number}
+            if not has_nfo and not has_cover:
+                missing_both += 1
+            elif not has_nfo:
+                missing_nfo += 1
+            else:
+                missing_cover += 1
+            items.append(item)
+
+        total_missing = missing_both + missing_nfo + missing_cover
+
+        # 若超過 500 筆僅回計數，不回 items（前端禁止自動補完）
+        if total_missing > 500:
+            return {
+                "success": True,
+                "data": {
+                    "missing_both": missing_both,
+                    "missing_nfo": missing_nfo,
+                    "missing_cover": missing_cover,
+                    "total_missing": total_missing,
+                    "items": None,
+                }
+            }
+
+        return {
+            "success": True,
+            "data": {
+                "missing_both": missing_both,
+                "missing_nfo": missing_nfo,
+                "missing_cover": missing_cover,
+                "total_missing": total_missing,
+                "items": items,
+            }
+        }
+    except Exception as e:
+        logger.error("檢查缺失 NFO/封面失敗: %s", e)
+        return {"success": False, "error": "檢查缺失 NFO/封面失敗"}
 
 
 def generate_nfo_update() -> Generator[str, None, None]:
@@ -798,77 +837,6 @@ async def video_player(path: str = Query(..., description="影片路徑（file:/
     return HTMLResponse(content=html)
 
 
-# === 女優名稱管理 API ===
-
-class ActressAliasRequest(BaseModel):
-    """新增女優別名請求"""
-    old_name: str
-    new_name: str
-
-
-@router.get("/actress-aliases")
-async def get_actress_aliases():
-    """取得所有別名對照"""
-    try:
-        db_path = get_db_path()
-        init_db(db_path)
-
-        alias_repo = ActressAliasRepository(db_path)
-        aliases = alias_repo.get_all()
-
-        return {
-            "success": True,
-            "data": [alias.to_dict() for alias in aliases]
-        }
-    except Exception as e:
-        logger.error("取得女優別名失敗: %s", e)
-        return {"success": False, "error": "取得女優別名失敗"}
-
-
-@router.post("/actress-aliases")
-async def add_actress_alias(request: ActressAliasRequest):
-    """新增別名對照"""
-    try:
-        if not request.old_name or not request.new_name:
-            return {"success": False, "error": "名稱不可為空"}
-
-        if request.old_name == request.new_name:
-            return {"success": False, "error": "新舊名稱不可相同"}
-
-        db_path = get_db_path()
-        init_db(db_path)
-
-        alias_repo = ActressAliasRepository(db_path)
-        new_id = alias_repo.add(request.old_name, request.new_name)
-
-        if new_id == -1:
-            return {"success": False, "error": "該舊名稱已存在"}
-
-        return {"success": True, "data": {"id": new_id}}
-    except Exception as e:
-        logger.error("新增女優別名失敗: %s", e)
-        return {"success": False, "error": "新增女優別名失敗"}
-
-
-@router.delete("/actress-aliases/{alias_id}")
-async def delete_actress_alias(alias_id: int):
-    """刪除別名對照"""
-    try:
-        db_path = get_db_path()
-        init_db(db_path)
-
-        alias_repo = ActressAliasRepository(db_path)
-        success = alias_repo.delete(alias_id)
-
-        if not success:
-            return {"success": False, "error": "找不到該別名對照"}
-
-        return {"success": True}
-    except Exception as e:
-        logger.error("刪除女優別名失敗: %s", e)
-        return {"success": False, "error": "刪除女優別名失敗"}
-
-
 @router.get("/actress-stats")
 async def get_actress_stats(name: str = Query(..., description="女優名稱")):
     """查詢某名字的片數"""
@@ -885,58 +853,6 @@ async def get_actress_stats(name: str = Query(..., description="女優名稱")):
     except Exception as e:
         logger.error("查詢女優片數失敗: %s", e)
         return {"success": False, "error": "查詢女優片數失敗"}
-
-
-def generate_apply_actress_aliases() -> Generator[str, None, None]:
-    """套用女優別名生成器（SSE 串流）"""
-
-    try:
-        db_path = get_db_path()
-
-        if not db_path.exists():
-            yield _sse_event({"type": "error", "message": "資料庫不存在"})
-            return
-
-        init_db(db_path)
-        video_repo = VideoRepository(db_path)
-        alias_repo = ActressAliasRepository(db_path)
-
-        aliases = alias_repo.get_all()
-        if not aliases:
-            yield _sse_event({"type": "done", "message": "沒有別名對照", "stats": {}})
-            return
-
-        yield _sse_event({
-            "type": "log",
-            "level": "info",
-            "message": f"開始套用 {len(aliases)} 筆別名對照..."
-        })
-
-        # 執行套用
-        for msg in apply_actress_aliases_generator(aliases, video_repo, alias_repo):
-            yield _sse_event(msg)
-
-        yield _sse_event({
-            "type": "done",
-            "message": "套用完成！建議重新產生列表以更新封面。"
-        })
-
-    except Exception as e:
-        logger.error("套用女優別名失敗: %s", e)
-        yield _sse_event({"type": "error", "message": "套用女優別名失敗"})
-
-
-@router.get("/apply-actress-aliases")
-async def apply_actress_aliases():
-    """執行批次更新（SSE 串流回傳進度）- 使用 GET 以支援 EventSource"""
-    return StreamingResponse(
-        generate_apply_actress_aliases(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-        }
-    )
 
 
 # === Jellyfin 圖片批次補齊 ===

@@ -36,10 +36,10 @@ def tmp_db(tmp_path):
          '[]', 'FC2', '[]', 3600, 1000000000)
     """)
 
-    # 插入測試別名
+    # 插入測試別名（新 schema）
     conn.execute("""
-        INSERT OR IGNORE INTO actress_aliases (old_name, new_name)
-        VALUES ('橋本ありな', '新ありな')
+        INSERT OR IGNORE INTO actress_aliases (primary_name, aliases, source)
+        VALUES ('新ありな', '["橋本ありな"]', 'manual')
     """)
 
     conn.commit()
@@ -102,14 +102,14 @@ class TestHappyPath:
     def test_actress_aliases_query(self, client):
         """SELECT FROM actress_aliases → 正確回傳別名資料"""
         resp = client.post("/api/collection/sql", json={
-            "sql": "SELECT old_name, new_name FROM actress_aliases WHERE old_name='橋本ありな'"
+            "sql": "SELECT primary_name, aliases FROM actress_aliases WHERE primary_name='新ありな'"
         })
         assert resp.status_code == 200
         data = resp.json()
         assert data["success"] is True
         assert data["count"] >= 1
-        assert "old_name" in data["columns"]
-        assert "new_name" in data["columns"]
+        assert "primary_name" in data["columns"]
+        assert "aliases" in data["columns"]
 
     def test_limit_restricts_rows(self, client):
         """limit=2 → 最多回傳 2 筆"""

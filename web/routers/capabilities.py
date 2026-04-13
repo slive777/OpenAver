@@ -758,6 +758,113 @@ _TOOLS: list[dict] = [
         "retry_safe": False,
         "_example_template": "curl -X POST '{base}/api/actresses/%E4%B8%89%E4%B8%8A%E6%82%A0%E4%BA%9C/rescrape'",
     },
+    {
+        "name": "alias_crud_read",
+        "description": (
+            "列出所有別名組或查詢單一別名組。"
+            " GET /api/actress-aliases 回傳所有 group（primary_name + aliases list）；"
+            " GET /api/actress-aliases/{name} 可用 primary_name 或 alias 查詢所屬 group。"
+            " 適合 AI 查看目前別名設定或確認某個名字是否已被收錄。"
+        ),
+        "method": "GET",
+        "path": "/api/actress-aliases",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "女優名（URL path parameter，可為 primary_name 或 alias）。省略時列出所有 group。",
+                },
+            },
+            "required": [],
+        },
+        "output_schema": {
+            "success": "boolean",
+            "groups": "AliasGroup[] — 列表時回傳；每筆含 primary_name/aliases/source/created_at/updated_at",
+            "total": "integer — 群組總數（列表時）",
+            "group": "AliasGroup — 單筆查詢時回傳",
+        },
+        "side_effect": False,
+        "confirmation_required": False,
+        "retry_safe": True,
+        "_example_template": "curl '{base}/api/actress-aliases'",
+    },
+    {
+        "name": "alias_crud_write",
+        "description": (
+            "別名 CRUD 寫入操作（建立 group、新增 alias、刪除 group、刪除 alias）。"
+            " ⚠️ 刪除整個 group 不可逆，必須先讓用戶確認再執行。"
+            " POST /api/actress-aliases 建立新 group；"
+            " POST /api/actress-aliases/{name}/alias 新增單一 alias；"
+            " DELETE /api/actress-aliases/{name} 刪除整個 group（name 可為 primary 或 alias）；"
+            " DELETE /api/actress-aliases/{name}/alias/{alias} 移除單一 alias。"
+        ),
+        "method": "POST",
+        "path": "/api/actress-aliases",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "primary_name": {
+                    "type": "string",
+                    "description": "主要名稱（必填，建立 group 時使用）",
+                },
+                "aliases": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "別名清單（可選，省略等同空 list）",
+                },
+                "alias": {
+                    "type": "string",
+                    "description": "單一別名（新增或刪除 alias 時使用）",
+                },
+            },
+            "required": [],
+        },
+        "output_schema": {
+            "success": "boolean",
+            "group": "AliasGroup — 建立或新增 alias 成功後的最新 group 資料",
+            "error": "string — 衝突或找不到時的錯誤訊息",
+        },
+        "side_effect": True,
+        "confirmation_required": True,
+        "retry_safe": False,
+        "_example_template": (
+            "curl -X POST -H 'Content-Type: application/json'"
+            " -d '{{\"primary_name\":\"橋本ありな\",\"aliases\":[\"新ありな\"]}}'"
+            " {base}/api/actress-aliases"
+        ),
+    },
+    {
+        "name": "alias_search_online",
+        "description": (
+            "呼叫 scraper orchestrator 搜尋女優，從 profile 提取建議別名列表。"
+            " 只查詢不寫入，適合 AI 先取得建議再讓用戶確認是否要呼叫 alias_crud_write 寫入。"
+            " 若 scraper 超時回 504；查無此女優回 suggested_aliases=[]。"
+        ),
+        "method": "POST",
+        "path": "/api/actress-aliases/search-online",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "女優名（日文）"},
+            },
+            "required": ["name"],
+        },
+        "output_schema": {
+            "success": "boolean",
+            "name": "string — 查詢名稱",
+            "suggested_aliases": "string[] — 建議別名清單（可空 list）",
+            "message": "string — 查無時說明訊息（可選）",
+        },
+        "side_effect": False,
+        "confirmation_required": False,
+        "retry_safe": True,
+        "_example_template": (
+            "curl -X POST -H 'Content-Type: application/json'"
+            " -d '{{\"name\":\"橋本ありな\"}}'"
+            " {base}/api/actress-aliases/search-online"
+        ),
+    },
 ]
 
 

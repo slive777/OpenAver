@@ -597,7 +597,9 @@ def test_search_api_variant_id_no_profile(client):
 def test_sse_includes_actress_profile(client, mock_search_actress, mock_actress_profile):
     """SSE result event 應包含 actress_profile"""
     with patch('web.routers.search.smart_search', side_effect=mock_search_actress), \
-         patch('core.scrapers.actress.orchestrator.get_actress_profile', side_effect=mock_actress_profile):
+         patch('core.scrapers.actress.orchestrator.get_actress_profile', side_effect=mock_actress_profile), \
+         patch('core.database.ActressRepository.get_by_name', return_value=None), \
+         patch('core.database.AliasRepository.resolve', side_effect=lambda n: {n}):
 
         response = client.get('/api/search/stream?q=桜空もも')
 

@@ -33,30 +33,33 @@ function scannerPage() {
     manualInputVisible: false,
     manualPath: '',
 
-    // ===== Alias State =====
+    // ===== Alias State (v2) =====
     aliasCardCollapsed: true,
-    aliasList: [],           // 別名列表 [{id, old_name, new_name, applied_count}]
-    aliasListLoading: false, // 載入狀態
-    aliasListError: '',      // 錯誤訊息
+    aliasRecords: [],            // [{primary_name, aliases, source, created_at, updated_at}]
+    aliasRecordsLoading: false,
+    aliasRecordsError: '',
+    aliasInput: '',              // 單一輸入：篩選 query / 新增主名
 
-    // ===== Alias Form State =====
-    aliasForm: {
-        oldName: '',
-        newName: '',
-        oldCount: '',       // 顯示文字（如 "5 部"）
-        newCount: '',
-        previewMessage: '', // HTML（含 icon）
-        isAdding: false     // 新增按鈕 disabled 狀態
-    },
+    // ===== New Group Form =====
+    newGroupAdding: false,
 
-    // ===== Alias Preview Debounce =====
-    previewDebounceTimer: null,
+    // ===== Add Alias Inline Input =====
+    addingAlias: {},             // { [primary_name]: 'input value' }
+    addingAliasLoading: {},      // { [primary_name]: bool }
+
+    // ===== Online Search =====
+    onlineSearchName: '',
+    onlineSearchLoading: false,
+    onlineSearchResults: [],     // suggested_aliases from API
+    onlineSearchSelected: [],    // checkbox values
+    onlineSearchTarget: '',      // 要加到哪個 primary_name
+    onlineSearchDone: false,     // 搜尋完成旗標（用於顯示「無搜尋建議」）
 
     // ===== T7b: State Machine =====
     state: 'idle',  // 'idle' | 'generating' | 'nfoUpdating' | 'done' | 'error'
 
     // ===== T7b: Progress =====
-    progressStatus: '準備中...',
+    progressStatus: '',
     progressCurrent: 0,
     progressTotal: 0,
 
@@ -84,6 +87,18 @@ function scannerPage() {
     jellyfinCheckState: 'idle',   // T2(40c): 'idle' | 'checking' | 'done'
     _jellyfinCheckController: null,
 
+    // ===== T10: Missing NFO/Cover Enrich =====
+    missingPillVisible: false,
+    missingBothCount: 0,
+    missingNfoCount: 0,
+    missingCoverCount: 0,
+    missingItems: [],           // [{file_path, number}]
+    missingEnrichOffset: 0,     // batch offset
+    missingEnrichSuccess: 0,
+    missingEnrichFailed: 0,
+    resumePillVisible: false,
+    _enrichAbortController: null,
+
     // ===== T7b: EventSource 管理 =====
     eventSource: null,
 
@@ -106,7 +121,8 @@ function scannerPage() {
     },
 
     get isGenerating() {
-        return this.state === 'generating' || this.state === 'nfoUpdating' || this.state === 'jellyfinUpdating';
+        return this.state === 'generating' || this.state === 'nfoUpdating'
+            || this.state === 'jellyfinUpdating' || this.state === 'enriching';
     },
 
     get isBusy() {
@@ -155,6 +171,28 @@ function scannerPage() {
         return '<i class="bi bi-check-lg"></i> ' + window.t('scanner.stats.btn_done');
     },
 
+    // ===== T10: Missing Pill Computed =====
+    get missingPillLabel() {
+        const parts = [];
+        if (this.missingBothCount > 0) {
+            parts.push(window.t('scanner.stats.missing_both_prefix') + ' ' + this.missingBothCount + window.t('scanner.stats.missing_suffix'));
+        }
+        if (this.missingNfoCount > 0) {
+            parts.push(window.t('scanner.stats.missing_nfo_prefix') + ' ' + this.missingNfoCount + window.t('scanner.stats.missing_suffix'));
+        }
+        if (this.missingCoverCount > 0) {
+            parts.push(window.t('scanner.stats.missing_cover_prefix') + ' ' + this.missingCoverCount + window.t('scanner.stats.missing_suffix'));
+        }
+        return parts.join(' ');
+    },
+
+    get missingEnrichButtonText() {
+        if (this.state === 'enriching') {
+            return '<span class="loading loading-spinner loading-sm"></span> ' + window.t('scanner.stats.missing_enrich_loading');
+        }
+        return '<i class="bi bi-file-earmark-plus"></i> ' + window.t('scanner.stats.missing_enrich_idle');
+    },
+
     // ===== Lifecycle =====
     async init() {
         // 覆蓋全域函數為 Alpine 版本
@@ -170,6 +208,21 @@ function scannerPage() {
         // T7b: 恢復日誌（確保 DOM 已渲染）
         await this.$nextTick();
         this.restoreLogs();
+
+        // T10: 觸發 missing check（loadStats 後）
+        this.checkMissing();
+
+        // T10: restore pending enrich
+        const pending = localStorage.getItem('avlist_enrich_pending');
+        if (pending) {
+            try {
+                const items = JSON.parse(pending);
+                if (Array.isArray(items) && items.length > 0) {
+                    this.missingItems = items;
+                    this.resumePillVisible = true;
+                }
+            } catch { localStorage.removeItem('avlist_enrich_pending'); }
+        }
 
         // T5.1: 接入統一 page lifecycle
         if (window.__registerPage) {
@@ -205,13 +258,20 @@ function scannerPage() {
                     if (this.eventSource) { this.eventSource.close(); this.eventSource = null; }
                     clearTimeout(this._toastTimer);
                     clearTimeout(this.logTimer);
-                    clearTimeout(this.previewDebounceTimer);
                     // T2(40c): abort jellyfin check fetch
                     if (this._jellyfinCheckController) {
                         this._jellyfinCheckController.abort();
                         this._jellyfinCheckController = null;
                     }
                     this.jellyfinCheckState = 'idle';
+                    // T10: save pending enrich items on leave
+                    if (this.state === 'enriching' && this.missingItems.length > this.missingEnrichOffset) {
+                        localStorage.setItem('avlist_enrich_pending', JSON.stringify(this.missingItems.slice(this.missingEnrichOffset)));
+                    }
+                    if (this._enrichAbortController) {
+                        this._enrichAbortController.abort();
+                        this._enrichAbortController = null;
+                    }
                 }
             });
         }
@@ -338,6 +398,11 @@ function scannerPage() {
                 this.jellyfinImageVisible = false;
                 this.jellyfinCheckState = 'idle';
                 this.clearCacheModalOpen = false;
+                // T10: reset missing pill state
+                this.missingPillVisible = false;
+                this.resumePillVisible = false;
+                this.missingItems = [];
+                localStorage.removeItem('avlist_enrich_pending');
             } else {
                 this.showToast('清除失敗: ' + (result.error || '未知錯誤'), 'error');
             }
@@ -740,6 +805,9 @@ function scannerPage() {
                     // 刷新統計（不含 NFO 檢查）
                     this.loadStats();
 
+                    // T10: 掃描完成後檢查缺失 NFO/封面
+                    this.checkMissing();
+
                     // 更新資料夾快照（generate 成功視為儲存）
                     this.folderSnapshot = JSON.stringify(this.directories);
                 } else if (data.type === 'error') {
@@ -921,6 +989,193 @@ function scannerPage() {
         }
     },
 
+    // ===== T10: Missing NFO/Cover Enrich Methods =====
+    async checkMissing() {
+        try {
+            const resp = await fetch('/api/gallery/missing-check');
+            const result = await resp.json();
+            if (!result.success) return;
+            const d = result.data;
+            if (d.total_missing > 0 && d.items !== null) {
+                this.missingBothCount = d.missing_both || 0;
+                this.missingNfoCount = d.missing_nfo || 0;
+                this.missingCoverCount = d.missing_cover || 0;
+                this.missingItems = d.items;
+                this.missingPillVisible = true;
+            } else if (d.total_missing > 500) {
+                // items is null — show count but disable button (handled via missingItems.length === 0)
+                this.missingBothCount = d.missing_both || 0;
+                this.missingNfoCount = d.missing_nfo || 0;
+                this.missingCoverCount = d.missing_cover || 0;
+                this.missingItems = [];
+                this.missingPillVisible = true;
+            } else {
+                this.missingPillVisible = false;
+            }
+        } catch (e) {
+            console.error('checkMissing failed:', e);
+        }
+    },
+
+    async runMissingEnrich() {
+        if (this.isGenerating || this.missingItems.length === 0) return;
+
+        this.state = 'enriching';
+        this.missingEnrichOffset = 0;
+        this.missingEnrichSuccess = 0;
+        this.missingEnrichFailed = 0;
+        this.progressStatus = window.t('scanner.stats.missing_enrich_loading');
+        this.progressCurrent = 0;
+        this.progressTotal = this.missingItems.length;
+        this.clearLogs();
+
+        const controller = new AbortController();
+        this._enrichAbortController = controller;
+
+        const items = this.missingItems.slice();  // snapshot
+
+        try {
+            while (this.missingEnrichOffset < items.length) {
+                const batch = items.slice(this.missingEnrichOffset, this.missingEnrichOffset + 20);
+
+                // Save remaining items to localStorage before each batch
+                localStorage.setItem('avlist_enrich_pending', JSON.stringify(items.slice(this.missingEnrichOffset)));
+
+                let resp;
+                try {
+                    resp = await fetch('/api/batch-enrich', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ items: batch, mode: 'fill_missing' }),
+                        signal: controller.signal,
+                    });
+                } catch (fetchErr) {
+                    if (fetchErr.name === 'AbortError') {
+                        // cleanup() already saved remaining items
+                        return;
+                    }
+                    this.addLog('error', '連線失敗: ' + fetchErr.message);
+                    this.flushLogs();
+                    this.state = 'error';
+                    // Save remaining
+                    localStorage.setItem('avlist_enrich_pending', JSON.stringify(items.slice(this.missingEnrichOffset)));
+                    this.showToast(window.t('scanner.stats.missing_enrich_disconnect'), 'error');
+                    return;
+                }
+
+                if (!resp.ok) {
+                    const errText = await resp.text().catch(() => '');
+                    this.addLog('error', window.t('scanner.stats.missing_enrich_batch_fail', { status: resp.status, error: errText }));
+                    this.flushLogs();
+                    this.state = 'error';
+                    localStorage.setItem('avlist_enrich_pending', JSON.stringify(items.slice(this.missingEnrichOffset)));
+                    this.showToast(window.t('scanner.stats.missing_enrich_error'), 'error');
+                    return;
+                }
+
+                // Read SSE stream
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let batchDone = false;
+
+                while (!batchDone) {
+                    let readResult;
+                    try {
+                        readResult = await reader.read();
+                    } catch (readErr) {
+                        if (readErr.name === 'AbortError') return;
+                        break;
+                    }
+                    const { done, value } = readResult;
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();  // keep incomplete last line
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        let event;
+                        try {
+                            event = JSON.parse(line.slice(6));
+                        } catch { continue; }
+
+                        if (event.type === 'progress') {
+                            this.progressStatus = event.status || window.t('scanner.stats.missing_enrich_loading');
+                            this.progressCurrent = this.missingEnrichOffset + (event.current || 0);
+                            this.progressTotal = items.length;
+                        } else if (event.type === 'result-item') {
+                            if (event.success) {
+                                this.missingEnrichSuccess++;
+                            } else {
+                                this.missingEnrichFailed++;
+                                this.addLog('warn', `失敗: ${event.number || ''} — ${event.error || ''}`);
+                            }
+                        } else if (event.type === 'log') {
+                            this.addLog(event.level || 'info', event.message || '');
+                        } else if (event.type === 'done') {
+                            batchDone = true;
+                        } else if (event.type === 'error') {
+                            this.addLog('error', '錯誤: ' + (event.message || ''));
+                            this.flushLogs();
+                            this.state = 'error';
+                            localStorage.setItem('avlist_enrich_pending', JSON.stringify(items.slice(this.missingEnrichOffset)));
+                            this.showToast(window.t('scanner.stats.missing_enrich_stream_error'), 'error');
+                            return;
+                        }
+                    }
+                }
+
+                // P1 fix: only advance offset if batch actually completed (got 'done' SSE event)
+                if (!batchDone) {
+                    this.state = 'error';
+                    localStorage.setItem('avlist_enrich_pending', JSON.stringify(items.slice(this.missingEnrichOffset)));
+                    this.showToast(window.t('scanner.stats.missing_enrich_disconnect'), 'error');
+                    return;
+                }
+
+                this.missingEnrichOffset += batch.length;
+                this.progressCurrent = this.missingEnrichOffset;
+            }
+
+            // All batches complete
+            localStorage.removeItem('avlist_enrich_pending');
+            this.state = 'done';
+            this.progressStatus = window.t('scanner.stats.missing_enrich_done');
+            const summary = this.missingEnrichFailed > 0
+                ? window.t('scanner.stats.missing_enrich_toast_mixed', { success: this.missingEnrichSuccess, failed: this.missingEnrichFailed })
+                : window.t('scanner.stats.missing_enrich_toast_success', { success: this.missingEnrichSuccess });
+            this.showToast(summary, this.missingEnrichFailed > 0 ? 'warn' : 'success');
+            this.flushLogs();
+            this.checkMissing();
+
+        } catch (e) {
+            if (e.name === 'AbortError') return;
+            console.error('runMissingEnrich error:', e);
+            this.state = 'error';
+            localStorage.setItem('avlist_enrich_pending', JSON.stringify(items.slice(this.missingEnrichOffset)));
+            this.showToast(window.t('scanner.stats.missing_enrich_interrupted'), 'error');
+        } finally {
+            if (this._enrichAbortController === controller) {
+                this._enrichAbortController = null;
+            }
+        }
+    },
+
+    resumeMissingEnrich() {
+        this.resumePillVisible = false;
+        localStorage.removeItem('avlist_enrich_pending');
+        this.runMissingEnrich();
+    },
+
+    dismissResume() {
+        this.resumePillVisible = false;
+        localStorage.removeItem('avlist_enrich_pending');
+        // P2 fix: re-fetch DB state to repopulate missingItems (不清空，讓 pill 按鈕可用)
+        this.checkMissing();
+    },
+
     // ===== T7b: Utility =====
     copyOutputPath() {
         if (!this.outputPath) return;
@@ -932,159 +1187,242 @@ function scannerPage() {
         });
     },
 
-    // ===== Alias: Card Toggle =====
+    // ===== Alias v2: Card Toggle =====
     toggleAliasCard() {
         this.aliasCardCollapsed = !this.aliasCardCollapsed;
 
         // 首次展開時載入別名列表
-        if (!this.aliasCardCollapsed && this.aliasList.length === 0) {
-            this.loadActressAliases();
+        if (!this.aliasCardCollapsed && this.aliasRecords.length === 0) {
+            this.loadAliasRecords();
         }
     },
 
-    // ===== Alias: Load List =====
-    async loadActressAliases() {
-        this.aliasListLoading = true;
-        this.aliasListError = '';
+    // ===== Alias v2: Load Records =====
+    async loadAliasRecords() {
+        this.aliasRecordsLoading = true;
+        this.aliasRecordsError = '';
 
         try {
-            const resp = await fetch('/api/gallery/actress-aliases');
+            const resp = await fetch('/api/actress-aliases');
             const result = await resp.json();
 
             if (result.success) {
-                this.aliasList = result.data || [];
+                this.aliasRecords = result.groups || [];
             } else {
-                this.aliasListError = '載入失敗: ' + (result.error || '未知錯誤');
+                this.aliasRecordsError = '載入失敗: ' + (result.error || '未知錯誤');
             }
         } catch (e) {
-            this.aliasListError = '載入失敗: ' + e.message;
+            this.aliasRecordsError = '載入失敗: ' + e.message;
         } finally {
-            this.aliasListLoading = false;
+            this.aliasRecordsLoading = false;
         }
     },
 
-    // ===== Alias: Preview Count (Debounce 300ms) =====
-    async previewAliasCount() {
-        // 清除舊計時器
-        if (this.previewDebounceTimer) {
-            clearTimeout(this.previewDebounceTimer);
-        }
-
-        // 重置顯示
-        this.aliasForm.oldCount = '';
-        this.aliasForm.newCount = '';
-        this.aliasForm.previewMessage = '';
-
-        this.previewDebounceTimer = setTimeout(async () => {
-            const oldName = this.aliasForm.oldName.trim();
-            const newName = this.aliasForm.newName.trim();
-
-            // 查詢舊名稱片數
-            if (oldName) {
-                try {
-                    const resp = await fetch(`/api/gallery/actress-stats?name=${encodeURIComponent(oldName)}`);
-                    const result = await resp.json();
-                    if (result.success) {
-                        this.aliasForm.oldCount = `${result.data.count} 部`;
-                    }
-                } catch (e) {
-                    // 忽略錯誤
-                }
-            }
-
-            // 查詢新名稱片數
-            if (newName) {
-                try {
-                    const resp = await fetch(`/api/gallery/actress-stats?name=${encodeURIComponent(newName)}`);
-                    const result = await resp.json();
-                    if (result.success) {
-                        this.aliasForm.newCount = `${result.data.count} 部`;
-                    }
-                } catch (e) {
-                    // 忽略錯誤
-                }
-            }
-
-            // 顯示預覽訊息
-            if (oldName && newName) {
-                const oldC = parseInt(this.aliasForm.oldCount) || 0;
-                if (oldC > 0) {
-                    // 使用 Alpine escapeHtml（x-html 會渲染 HTML，需手動 escape）
-                    const escapedOld = this.escapeHtml(oldName);
-                    const escapedNew = this.escapeHtml(newName);
-                    this.aliasForm.previewMessage =
-                        `<i class="bi bi-info-circle"></i> 將有 ${oldC} 部影片的 "${escapedOld}" 改為 "${escapedNew}"`;
-                }
-            }
-        }, 300);
+    // ===== Alias v2: Filtered Records (前端 filter) =====
+    filteredAliasRecords() {
+        const q = this.aliasInput.trim().toLowerCase();
+        if (!q) return this.aliasRecords;
+        return this.aliasRecords.filter(group => {
+            if (group.primary_name.toLowerCase().includes(q)) return true;
+            return (group.aliases || []).some(a => a.toLowerCase().includes(q));
+        });
     },
 
-    // ===== Alias: Add =====
-    async addActressAlias() {
-        const oldName = this.aliasForm.oldName.trim();
-        const newName = this.aliasForm.newName.trim();
+    // ===== Alias v2: Create Group =====
+    async createAliasGroup() {
+        const name = this.aliasInput.trim();
+        if (!name) return;
 
-        if (!oldName || !newName) {
-            this.showToast('請輸入舊名稱和新名稱');
-            return;
-        }
-
-        if (oldName === newName) {
-            this.showToast('新舊名稱不可相同');
-            return;
-        }
-
-        this.aliasForm.isAdding = true;
-
+        this.newGroupAdding = true;
         try {
-            const resp = await fetch('/api/gallery/actress-aliases', {
+            const resp = await fetch('/api/actress-aliases', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ old_name: oldName, new_name: newName })
+                body: JSON.stringify({ primary_name: name })
             });
             const result = await resp.json();
 
             if (result.success) {
-                this.showToast('已新增別名對照', 'success');
-                // 清空表單
-                this.aliasForm.oldName = '';
-                this.aliasForm.newName = '';
-                this.aliasForm.oldCount = '';
-                this.aliasForm.newCount = '';
-                this.aliasForm.previewMessage = '';
-                // 重新載入列表
-                this.loadActressAliases();
+                this.showToast('已新增別名組：' + name, 'success');
+                this.aliasInput = '';
+                await this.loadAliasRecords();
             } else {
                 this.showToast('新增失敗: ' + (result.error || '未知錯誤'), 'error');
             }
         } catch (e) {
             this.showToast('新增失敗: ' + e.message, 'error');
         } finally {
-            this.aliasForm.isAdding = false;
+            this.newGroupAdding = false;
         }
     },
 
-    // ===== Alias: Delete =====
-    async deleteActressAlias(id) {
-        if (!confirm('確定要刪除這個別名對照嗎？')) {
-            return;
-        }
+    // ===== Alias v2: Delete Group =====
+    async deleteAliasGroup(name) {
+        if (!confirm(`確定要刪除「${name}」的整筆別名組嗎？`)) return;
 
         try {
-            const resp = await fetch(`/api/gallery/actress-aliases/${id}`, {
+            const resp = await fetch(`/api/actress-aliases/${encodeURIComponent(name)}`, {
                 method: 'DELETE'
             });
             const result = await resp.json();
 
             if (result.success) {
-                this.showToast('已刪除', 'success');
-                this.loadActressAliases();
+                this.showToast('已刪除：' + name, 'success');
+                await this.loadAliasRecords();
             } else {
                 this.showToast('刪除失敗: ' + (result.error || '未知錯誤'), 'error');
             }
         } catch (e) {
             this.showToast('刪除失敗: ' + e.message, 'error');
         }
+    },
+
+    // ===== Alias v2: Show Add Alias Inline Input =====
+    showAddAliasInput(primary) {
+        this.addingAlias = { ...this.addingAlias, [primary]: '' };
+    },
+
+    // ===== Alias v2: Cancel Add Alias Inline Input =====
+    cancelAddAlias(primary) {
+        const updated = { ...this.addingAlias };
+        delete updated[primary];
+        this.addingAlias = updated;
+    },
+
+    // ===== Alias v2: Add Alias to Group (Enter key) =====
+    async addAlias(primary) {
+        const alias = (this.addingAlias[primary] || '').trim();
+        if (!alias) return;
+
+        this.addingAliasLoading = { ...this.addingAliasLoading, [primary]: true };
+        try {
+            const resp = await fetch(`/api/actress-aliases/${encodeURIComponent(primary)}/alias`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ alias })
+            });
+            const result = await resp.json();
+
+            if (result.success) {
+                // 清除 inline input
+                const updated = { ...this.addingAlias };
+                delete updated[primary];
+                this.addingAlias = updated;
+                await this.loadAliasRecords();
+            } else {
+                this.showToast(result.error || '新增別名失敗', 'error');
+            }
+        } catch (e) {
+            this.showToast('新增別名失敗: ' + e.message, 'error');
+        } finally {
+            const loading = { ...this.addingAliasLoading };
+            delete loading[primary];
+            this.addingAliasLoading = loading;
+        }
+    },
+
+    // ===== Alias v2: Remove Alias from Group =====
+    async removeAlias(primary, alias) {
+        try {
+            const resp = await fetch(
+                `/api/actress-aliases/${encodeURIComponent(primary)}/alias/${encodeURIComponent(alias)}`,
+                { method: 'DELETE' }
+            );
+            const result = await resp.json();
+
+            if (result.success) {
+                await this.loadAliasRecords();
+            } else {
+                this.showToast('移除失敗: ' + (result.error || '未知錯誤'), 'error');
+            }
+        } catch (e) {
+            this.showToast('移除失敗: ' + e.message, 'error');
+        }
+    },
+
+    // ===== Alias v2: Start Online Search =====
+    async startOnlineSearch() {
+        const name = this.aliasInput.trim();
+        if (!name) {
+            this.showToast('請先輸入主名稱再進行線上搜尋');
+            return;
+        }
+
+        this.onlineSearchTarget = name;
+        this.onlineSearchLoading = true;
+        this.onlineSearchResults = [];
+        this.onlineSearchSelected = [];
+        this.onlineSearchDone = false;
+
+        try {
+            const resp = await fetch('/api/actress-aliases/search-online', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            if (resp.status === 504) {
+                this.showToast('線上搜尋逾時', 'error');
+                return;
+            }
+            const result = await resp.json();
+
+            if (result.success) {
+                this.onlineSearchResults = result.suggested_aliases || [];
+            } else {
+                this.showToast('線上搜尋失敗: ' + (result.error || '未知錯誤'), 'error');
+            }
+        } catch (e) {
+            this.showToast('線上搜尋失敗: ' + e.message, 'error');
+        } finally {
+            this.onlineSearchLoading = false;
+            this.onlineSearchDone = true;
+        }
+    },
+
+    // ===== Alias v2: Confirm Online Search Selection =====
+    async confirmOnlineSearch(primary) {
+        const selected = [...this.onlineSearchSelected];
+        if (selected.length === 0) return;
+
+        // 確保 primary group 存在
+        const exists = this.aliasRecords.some(g => g.primary_name === primary);
+        if (!exists) {
+            // 先建立 group
+            const createResp = await fetch('/api/actress-aliases', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ primary_name: primary })
+            });
+            const createResult = await createResp.json();
+            if (!createResult.success) {
+                this.showToast('建立別名組失敗: ' + (createResult.error || '未知錯誤'), 'error');
+                return;
+            }
+        }
+
+        // 逐一加入選中的 alias
+        for (const alias of selected) {
+            try {
+                const resp = await fetch(`/api/actress-aliases/${encodeURIComponent(primary)}/alias`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ alias })
+                });
+                const result = await resp.json();
+                if (!result.success) {
+                    this.showToast(result.error || `加入 ${alias} 失敗`, 'error');
+                }
+            } catch (e) {
+                this.showToast(`加入 ${alias} 失敗: ` + e.message, 'error');
+            }
+        }
+
+        // 清空線上搜尋結果
+        this.onlineSearchResults = [];
+        this.onlineSearchSelected = [];
+        this.onlineSearchTarget = '';
+        this.onlineSearchDone = false;
+        await this.loadAliasRecords();
     },
 
   };
