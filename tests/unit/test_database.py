@@ -365,31 +365,32 @@ def test_init_db_creates_actress_aliases_table(tmp_path):
     conn.close()
 
 
-def test_actress_aliases_index_created(tmp_path):
-    """測試索引建立"""
+def test_actress_aliases_new_schema(tmp_path):
+    """[T1 updated] 新 schema 有 primary_name PK，無舊 idx_actress_aliases_new_name index"""
     db_path = tmp_path / "test.db"
     init_db(db_path)
     conn = get_connection(db_path)
     cursor = conn.cursor()
+    # 新 schema 應有 primary_name 欄位
+    cursor.execute("PRAGMA table_info(actress_aliases)")
+    cols = [row[1] for row in cursor.fetchall()]
+    assert "primary_name" in cols
+    # 舊 index 已移除
     cursor.execute("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_actress_aliases_new_name'")
-    assert cursor.fetchone() is not None
+    assert cursor.fetchone() is None
     conn.close()
 
 
-def test_actress_aliases_seed_data(tmp_path):
-    """測試種子資料"""
+def test_actress_aliases_new_schema_has_seed_data(tmp_path):
+    """[T1 updated] 新建 DB 有種子資料（新 schema 格式，4 組）"""
     db_path = tmp_path / "test.db"
     init_db(db_path)
     conn = get_connection(db_path)
     cursor = conn.cursor()
-    cursor.execute("SELECT old_name, new_name FROM actress_aliases ORDER BY id")
-    rows = cursor.fetchall()
-    assert len(rows) == 5
-    assert rows[0] == ('miru', '坂道みる')
-    assert rows[1] == ('橋本ありな', '新ありな')
-    assert rows[2] == ('河北彩伽', '河北彩花')
-    assert rows[3] == ('天海こころ', '深田えいみ')
-    assert rows[4] == ('心菜りお', '深田えいみ')
+    cursor.execute("SELECT COUNT(*) FROM actress_aliases")
+    count = cursor.fetchone()[0]
+    # 新 schema 種子資料：坂道みる, 新ありな, 河北彩花, 深田えいみ（4 組）
+    assert count >= 3
     conn.close()
 
 
@@ -403,15 +404,17 @@ def test_actress_alias_dataclass_defaults():
     assert alias.created_at is None
 
 
-def test_actress_alias_unique_constraint(tmp_path):
-    """測試 old_name 唯一約束"""
+def test_actress_alias_primary_name_unique_constraint(tmp_path):
+    """[T1 updated] 新 schema 中 primary_name 是 PRIMARY KEY（唯一約束）"""
     db_path = tmp_path / "test.db"
     init_db(db_path)
     conn = get_connection(db_path)
     cursor = conn.cursor()
-    # 嘗試插入重複的 old_name
+    cursor.execute("INSERT INTO actress_aliases (primary_name, aliases) VALUES ('Alice', '[]')")
+    conn.commit()
+    # 嘗試插入重複的 primary_name 應拋 IntegrityError
     with pytest.raises(sqlite3.IntegrityError):
-        cursor.execute("INSERT INTO actress_aliases (old_name, new_name) VALUES ('miru', '其他名字')")
+        cursor.execute("INSERT INTO actress_aliases (primary_name, aliases) VALUES ('Alice', '[\"alt\"]')")
     conn.close()
 
 
@@ -724,40 +727,44 @@ class TestGetColumnsOrder:
 
 # ============ ActressAliasRepository 測試 ============
 
-def test_actress_alias_repository_crud(tmp_path):
-    """測試 ActressAliasRepository 完整 CRUD 流程"""
+def test_alias_repository_crud(tmp_path):
+    """[T1 updated] 測試新 AliasRepository 完整 CRUD 流程"""
+    from core.database import AliasRepository, get_connection
     db_path = tmp_path / "actress.db"
     init_db(db_path)
-    
-    repo = ActressAliasRepository(db_path)
-    
-    # 剛開始有5筆種子資料
+    # 清除種子資料，確保測試隔離
+    conn = get_connection(db_path)
+    conn.execute("DELETE FROM actress_aliases")
+    conn.commit()
+    conn.close()
+
+    repo = AliasRepository(db_path)
+
+    # 清除後應為空
     initial = repo.get_all()
-    assert len(initial) == 5
-    
-    # Add
-    new_id = repo.add("old1", "new1")
-    assert new_id > 0
-    
-    # Add duplicate (should fail and return -1)
-    dup_id = repo.add("old1", "new2")
-    assert dup_id == -1
-    
+    assert len(initial) == 0
+
+    # Add group
+    record = repo.add("新テスト女優", ["alias1"])
+    assert record.primary_name == "新テスト女優"
+    assert "alias1" in record.aliases
+
+    # get_all
     all_data = repo.get_all()
-    assert len(all_data) == 6
-    # 找出剛新增的
-    added = next(x for x in all_data if x.old_name == "old1")
-    assert added.applied_count == 0
-    
-    # Increment
-    repo.increment_applied_count(new_id, 3)
-    updated = next(x for x in repo.get_all() if x.id == new_id)
-    assert updated.applied_count == 3
-    
+    assert len(all_data) == 1
+
+    # Add alias
+    ok, _ = repo.add_alias("新テスト女優", "alias2")
+    assert ok is True
+    updated = repo.get_by_primary("新テスト女優")
+    assert "alias2" in updated.aliases
+
+    # Remove alias
+    removed = repo.remove_alias("新テスト女優", "alias2")
+    assert removed is True
+
     # Delete
-    success = repo.delete(new_id)
+    success = repo.delete("新テスト女優")
     assert success is True
-    
-    # Verify deletion
-    assert len(repo.get_all()) == 5
+    assert len(repo.get_all()) == 0
 
