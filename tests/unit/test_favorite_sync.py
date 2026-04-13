@@ -83,6 +83,7 @@ def mock_actress_repo():
     actress = _make_actress_mock()
     repo.get_by_name.return_value = actress
     repo.count_videos_for_actress.return_value = 0
+    repo.count_videos_for_actress_names.return_value = 0
     return repo
 
 

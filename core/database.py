@@ -2,7 +2,7 @@
 SQLite 資料庫管理模組。
 
 啟用 WAL mode 提升並發讀寫效能。VideoRepository 負責影片記錄的 CRUD，
-ActressAliasRepository 負責演員別名的維護。`init_db` 在每次啟動時自動執行
+AliasRepository 負責新版平坦 group 別名維護。`init_db` 在每次啟動時自動執行
 schema migration，無需手動管理資料庫版本。
 """
 import sqlite3
@@ -724,49 +724,6 @@ class VideoRepository:
         finally:
             conn.close()
 
-    def update_actress_name(self, video_id: int, old_name: str, new_name: str) -> bool:
-        """更新影片的女優名稱
-
-        Args:
-            video_id: 影片 ID
-            old_name: 舊女優名稱
-            new_name: 新女優名稱
-
-        Returns:
-            bool: 是否成功更新
-        """
-        conn = self._get_connection()
-        cursor = conn.cursor()
-
-        try:
-            # 先取得目前的 actresses
-            cursor.execute("SELECT actresses FROM videos WHERE id = ?", (video_id,))
-            row = cursor.fetchone()
-            if not row or not row[0]:
-                return False
-
-            try:
-                actresses = json.loads(row[0])
-            except json.JSONDecodeError:
-                return False
-
-            # 替換名稱
-            if old_name not in actresses:
-                return False
-
-            actresses = [new_name if a == old_name else a for a in actresses]
-
-            # 更新
-            cursor.execute(
-                "UPDATE videos SET actresses = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                (json.dumps(actresses, ensure_ascii=False), video_id)
-            )
-            conn.commit()
-            return cursor.rowcount > 0
-        finally:
-            conn.close()
-
-
 def migrate_json_to_sqlite(json_path: Path, db_path: Path = None,
                            delete_on_success: bool = True) -> dict:
     """遷移 JSON cache 到 SQLite
@@ -845,235 +802,11 @@ def migrate_json_to_sqlite(json_path: Path, db_path: Path = None,
 
 
 @dataclass
-class ActressAlias:
-    """女優別名對照"""
-    id: Optional[int] = None
-    old_name: str = ""
-    new_name: str = ""
-    applied_count: int = 0
-    created_at: Optional[datetime] = None
-
-    def to_dict(self) -> dict:
-        """轉為字典"""
-        data = asdict(self)
-        if self.created_at:
-            data['created_at'] = self.created_at.isoformat()
-        return data
-
-    @classmethod
-    def from_row(cls, row: tuple, columns: List[str]) -> 'ActressAlias':
-        """從資料庫 row 建立"""
-        data = dict(zip(columns, row))
-        if 'created_at' in data and data['created_at']:
-            if isinstance(data['created_at'], str):
-                data['created_at'] = datetime.fromisoformat(data['created_at'])
-        return cls(**data)
-
-
-class ActressAliasRepository:
-    """女優別名資料存取層（T7 前兼容 shim；映射新 schema 的平坦 group 為舊 directional 格式）
-
-    NOTE: This class is a compatibility shim for existing code and tests.
-    It will be removed in T7 (plan-45 CD-10). New code should use AliasRepository.
-
-    ID encoding: synthetic id = rowid * 1000 + alias_index_in_group
-    Each (alias → primary) pair becomes one ActressAlias with a synthetic id.
-    """
-
-    def __init__(self, db_path: Path = None):
-        self.db_path = db_path or get_db_path()
-
-    def _get_connection(self) -> sqlite3.Connection:
-        """取得資料庫連線"""
-        return get_connection(self.db_path)
-
-    def _expand_rows(self, conn) -> List[ActressAlias]:
-        """展開新 schema 平坦 group 為舊式 directional alias 列表（synthetic id）"""
-        cursor = conn.execute(
-            "SELECT rowid, primary_name, aliases, applied_count, created_at "
-            "FROM actress_aliases ORDER BY rowid"
-        )
-        result = []
-        for rowid, primary_name, aliases_json, applied_count, created_at in cursor.fetchall():
-            try:
-                aliases = json.loads(aliases_json) if aliases_json else []
-            except json.JSONDecodeError:
-                aliases = []
-            if isinstance(applied_count, int):
-                ac = applied_count
-            else:
-                ac = 0
-            dt = None
-            if created_at and isinstance(created_at, str):
-                try:
-                    dt = datetime.fromisoformat(created_at)
-                except ValueError:
-                    pass
-            for i, alias in enumerate(aliases):
-                synthetic_id = rowid * 1000 + i
-                result.append(ActressAlias(
-                    id=synthetic_id,
-                    old_name=alias,
-                    new_name=primary_name,
-                    applied_count=ac,
-                    created_at=dt,
-                ))
-        return result
-
-    def get_all(self) -> List[ActressAlias]:
-        """取得所有別名對照（展開為舊式 directional 格式）"""
-        conn = self._get_connection()
-        try:
-            return self._expand_rows(conn)
-        finally:
-            conn.close()
-
-    def add(self, old_name: str, new_name: str) -> int:
-        """新增別名對照（old_name → new_name）。
-
-        Returns:
-            int: synthetic id，若 old_name 已存在（任何 group）則返回 -1
-        """
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        try:
-            cursor.execute("BEGIN EXCLUSIVE")
-
-            # Check if old_name already exists as ANY alias in any group
-            cursor.execute(
-                """SELECT aa.rowid, aa.primary_name, aa.aliases
-                   FROM actress_aliases aa, json_each(aa.aliases)
-                   WHERE json_each.value = ?""",
-                (old_name,),
-            )
-            if cursor.fetchone():
-                conn.rollback()
-                return -1
-
-            # Also check if old_name is a primary_name
-            cursor.execute(
-                "SELECT rowid FROM actress_aliases WHERE primary_name = ?", (old_name,)
-            )
-            if cursor.fetchone():
-                conn.rollback()
-                return -1
-
-            # Check if primary group for new_name exists
-            cursor.execute(
-                "SELECT rowid, aliases FROM actress_aliases WHERE primary_name = ?",
-                (new_name,),
-            )
-            row = cursor.fetchone()
-            if row:
-                rowid, aliases_json = row
-                try:
-                    aliases = json.loads(aliases_json) if aliases_json else []
-                except json.JSONDecodeError:
-                    aliases = []
-                alias_index = len(aliases)
-                aliases.append(old_name)
-                cursor.execute(
-                    "UPDATE actress_aliases SET aliases = ?, updated_at = CURRENT_TIMESTAMP WHERE rowid = ?",
-                    (json.dumps(aliases, ensure_ascii=False), rowid),
-                )
-            else:
-                cursor.execute(
-                    "INSERT INTO actress_aliases (primary_name, aliases, source) VALUES (?, ?, 'manual')",
-                    (new_name, json.dumps([old_name], ensure_ascii=False)),
-                )
-                rowid = cursor.lastrowid
-                alias_index = 0
-
-            conn.commit()
-            return rowid * 1000 + alias_index
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
-
-    def delete(self, id: int) -> bool:
-        """刪除別名對照（by synthetic id）。
-
-        Returns:
-            bool: True if deleted, False if not found
-        """
-        target_rowid = id // 1000
-        alias_index = id % 1000
-
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        try:
-            cursor.execute("BEGIN EXCLUSIVE")
-            cursor.execute(
-                "SELECT rowid, aliases FROM actress_aliases WHERE rowid = ?",
-                (target_rowid,),
-            )
-            row = cursor.fetchone()
-            if row is None:
-                conn.rollback()
-                return False
-
-            rowid, aliases_json = row
-            try:
-                aliases = json.loads(aliases_json) if aliases_json else []
-            except json.JSONDecodeError:
-                aliases = []
-
-            if alias_index >= len(aliases):
-                conn.rollback()
-                return False
-
-            aliases.pop(alias_index)
-            if aliases:
-                cursor.execute(
-                    "UPDATE actress_aliases SET aliases = ?, updated_at = CURRENT_TIMESTAMP WHERE rowid = ?",
-                    (json.dumps(aliases, ensure_ascii=False), rowid),
-                )
-            else:
-                # No aliases left → delete the whole group
-                cursor.execute("DELETE FROM actress_aliases WHERE rowid = ?", (rowid,))
-
-            conn.commit()
-            return True
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
-
-    def increment_applied_count(self, id: int, count: int) -> None:
-        """增加套用次數（T7 後移除；目前以 group 為單位更新 applied_count）
-
-        Args:
-            id: synthetic id（rowid * 1000 + alias_index）
-            count: 要增加的次數
-        """
-        target_rowid = id // 1000
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        try:
-            cursor.execute(
-                "UPDATE actress_aliases SET applied_count = applied_count + ? WHERE rowid = ?",
-                (count, target_rowid),
-            )
-            conn.commit()
-        finally:
-            conn.close()
-
-
-# ---------------------------------------------------------------------------
-# NEW: AliasRecord dataclass + AliasRepository (T1, plan-45)
-# Old ActressAlias / ActressAliasRepository kept above until T7 cleanup.
-# ---------------------------------------------------------------------------
-
-@dataclass
 class AliasRecord:
     """新版女優別名資料模型（平坦 group schema）"""
     primary_name: str = ""
     aliases: List[str] = field(default_factory=list)  # JSON array
     source: str = "manual"  # 'manual' | 'auto'
-    applied_count: int = 0  # compatibility field; removed in T7
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -1119,7 +852,7 @@ class AliasRepository:
 
     def _get_columns(self) -> List[str]:
         """取得欄位名稱列表"""
-        return ["primary_name", "aliases", "source", "applied_count", "created_at", "updated_at"]
+        return ["primary_name", "aliases", "source", "created_at", "updated_at"]
 
     # ------------------------------------------------------------------
     # Read methods

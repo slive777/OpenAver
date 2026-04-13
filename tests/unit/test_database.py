@@ -10,9 +10,7 @@ from core.database import (
     get_connection,
     init_db,
     Video,
-    ActressAlias,
     migrate_json_to_sqlite,
-    ActressAliasRepository,
     VideoRepository
 )
 from core.gallery_scanner import VideoInfo
@@ -394,16 +392,6 @@ def test_actress_aliases_new_schema_has_seed_data(tmp_path):
     conn.close()
 
 
-def test_actress_alias_dataclass_defaults():
-    """測試 ActressAlias 預設值"""
-    alias = ActressAlias()
-    assert alias.id is None
-    assert alias.old_name == ""
-    assert alias.new_name == ""
-    assert alias.applied_count == 0
-    assert alias.created_at is None
-
-
 def test_actress_alias_primary_name_unique_constraint(tmp_path):
     """[T1 updated] 新 schema 中 primary_name 是 PRIMARY KEY（唯一約束）"""
     db_path = tmp_path / "test.db"
@@ -416,16 +404,6 @@ def test_actress_alias_primary_name_unique_constraint(tmp_path):
     with pytest.raises(sqlite3.IntegrityError):
         cursor.execute("INSERT INTO actress_aliases (primary_name, aliases) VALUES ('Alice', '[\"alt\"]')")
     conn.close()
-
-
-def test_actress_alias_to_dict():
-    """測試 to_dict 方法"""
-    alias = ActressAlias(id=1, old_name='miru', new_name='坂道みる', applied_count=5)
-    d = alias.to_dict()
-    assert d['id'] == 1
-    assert d['old_name'] == 'miru'
-    assert d['new_name'] == '坂道みる'
-    assert d['applied_count'] == 5
 
 
 # ============ migrate_json_to_sqlite 測試 ============
@@ -725,7 +703,7 @@ class TestGetColumnsOrder:
         assert result.duration == 75
 
 
-# ============ ActressAliasRepository 測試 ============
+# ============ AliasRepository 測試 ============
 
 def test_alias_repository_crud(tmp_path):
     """[T1 updated] 測試新 AliasRepository 完整 CRUD 流程"""
