@@ -60,7 +60,9 @@ PACKAGES = [
 EXCLUDE_PACKAGES = {
     # 測試工具
     'pytest', 'pytest-asyncio', 'pytest-mock', 'pytest-cov',
+    'pytest-playwright',
     'coverage', 'pluggy', 'iniconfig',
+    'playwright',
 
     # 類型檢查工具
     'mypy', 'mypy-extensions', 'typed-ast', 'types-requests',
