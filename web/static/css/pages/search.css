@@ -19,6 +19,11 @@
     z-index: 100;
 }
 
+/* T9: search 右側最多 3 按鈕（toggle + clear + submit），需比 default 6rem 更寬 */
+.search-bar .spotlight-search {
+    --spotlight-right-slot: 8.5rem;
+}
+
 /* 結果區域（外層容器，包含所有狀態頁 + 結果卡片） */
 .result-area {
     flex: 1;
