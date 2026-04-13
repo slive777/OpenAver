@@ -288,10 +288,18 @@ def download_and_install_packages(python_dir: Path):
     print(f"  找到 {len(wheel_files)} 個 wheel, {len(tar_files)} 個 tar.gz")
 
     for wheel_file in wheel_files:
+        pkg_name = wheel_file.stem.split('-')[0].lower().replace('_', '-')
+        if pkg_name in EXCLUDE_PACKAGES:
+            print(f"  跳過（排除）: {wheel_file.name}")
+            continue
         print(f"  安裝: {wheel_file.name}")
         extract_wheel(wheel_file, site_packages)
 
     for tar_file in tar_files:
+        pkg_name = tar_file.name.split('-')[0].lower().replace('_', '-')
+        if pkg_name in EXCLUDE_PACKAGES:
+            print(f"  跳過（排除）: {tar_file.name}")
+            continue
         print(f"  安裝: {tar_file.name}")
         extract_tar_gz(tar_file, site_packages)
 
