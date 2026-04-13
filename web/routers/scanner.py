@@ -14,6 +14,7 @@ Scanner API 路由 - 影片列表生成
 - GET  /api/gallery/actress-stats         — 查詢指定女優名稱的片數
 - GET  /api/gallery/jellyfin-check        — 檢查多少影片缺少 Jellyfin poster/fanart
 - GET  /api/gallery/jellyfin-update       — 批次產生 Jellyfin poster + fanart（SSE 串流）
+- GET  /api/gallery/missing-check         — 檢查缺少 NFO/封面的影片清單
 """
 
 import asyncio
@@ -451,6 +452,70 @@ async def check_update():
     except Exception as e:
         logger.error("檢查更新數量失敗: %s", e)
         return {"success": False, "error": "檢查更新數量失敗"}
+
+
+@router.get("/missing-check")
+async def check_missing():
+    """T10: 檢查 DB 中缺少 NFO 或封面的影片數量與清單"""
+    try:
+        db_path = get_db_path()
+
+        if not db_path.exists():
+            return {"success": True, "data": {"missing_both": 0, "missing_nfo": 0,
+                                               "missing_cover": 0, "total_missing": 0, "items": []}}
+
+        repo = VideoRepository(db_path)
+        all_videos = repo.get_all()
+
+        missing_both = 0
+        missing_nfo = 0
+        missing_cover = 0
+        items = []
+
+        for v in all_videos:
+            has_nfo = (v.nfo_mtime or 0) > 0
+            has_cover = bool(v.cover_path)
+            if has_nfo and has_cover:
+                continue
+            if not v.number:  # skip videos without number (cannot enrich)
+                continue
+            item = {"file_path": v.path, "number": v.number}
+            if not has_nfo and not has_cover:
+                missing_both += 1
+            elif not has_nfo:
+                missing_nfo += 1
+            else:
+                missing_cover += 1
+            items.append(item)
+
+        total_missing = missing_both + missing_nfo + missing_cover
+
+        # 若超過 500 筆僅回計數，不回 items（前端禁止自動補完）
+        if total_missing > 500:
+            return {
+                "success": True,
+                "data": {
+                    "missing_both": missing_both,
+                    "missing_nfo": missing_nfo,
+                    "missing_cover": missing_cover,
+                    "total_missing": total_missing,
+                    "items": None,
+                }
+            }
+
+        return {
+            "success": True,
+            "data": {
+                "missing_both": missing_both,
+                "missing_nfo": missing_nfo,
+                "missing_cover": missing_cover,
+                "total_missing": total_missing,
+                "items": items,
+            }
+        }
+    except Exception as e:
+        logger.error("檢查缺失 NFO/封面失敗: %s", e)
+        return {"success": False, "error": "檢查缺失 NFO/封面失敗"}
 
 
 def generate_nfo_update() -> Generator[str, None, None]:

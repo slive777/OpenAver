@@ -170,6 +170,35 @@
                     title="{{ t('scanner.stats.nfo_update_title') }}">
             </button>
         </div>
+        <!-- T10: Missing NFO/Cover Pill -->
+        <div class="nfo-update-row" x-show="missingPillVisible">
+            <span class="nfo-badge">
+                <i class="bi bi-file-earmark-x"></i>
+                <span x-text="missingPillLabel"></span>
+            </span>
+            <button class="btn-nfo-update" @click="runMissingEnrich()"
+                    x-bind:disabled="isBusy || missingItems.length === 0"
+                    x-html="missingEnrichButtonText">
+            </button>
+        </div>
+
+        <!-- T10: Resume Pill (未完成提示) -->
+        <div class="nfo-update-row" x-show="resumePillVisible">
+            <span class="nfo-badge">
+                <i class="bi bi-arrow-repeat"></i>
+                <span x-text="window.t('scanner.stats.missing_resume_label')"></span>
+                <strong x-text="missingItems.length"></strong>
+                <span x-text="window.t('scanner.stats.missing_resume_suffix')"></span>
+            </span>
+            <button class="btn-nfo-update" @click="resumeMissingEnrich()"
+                    x-bind:disabled="isBusy">
+                {{ t('scanner.stats.missing_resume_btn') }}
+            </button>
+            <button class="btn btn-ghost btn-xs" @click="dismissResume()">
+                {{ t('scanner.stats.missing_resume_dismiss') }}
+            </button>
+        </div>
+
         <!-- T2(40c): Jellyfin 圖片檢查觸發列 -->
         <!-- T3(40c) Codex fix: x-show 改為 !jellyfinImageVisible，done 狀態仍顯示觸發列 -->
         <div class="nfo-update-row"

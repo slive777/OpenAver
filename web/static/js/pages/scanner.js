@@ -59,7 +59,7 @@ function scannerPage() {
     state: 'idle',  // 'idle' | 'generating' | 'nfoUpdating' | 'done' | 'error'
 
     // ===== T7b: Progress =====
-    progressStatus: '準備中...',
+    progressStatus: '',
     progressCurrent: 0,
     progressTotal: 0,
 
@@ -87,6 +87,18 @@ function scannerPage() {
     jellyfinCheckState: 'idle',   // T2(40c): 'idle' | 'checking' | 'done'
     _jellyfinCheckController: null,
 
+    // ===== T10: Missing NFO/Cover Enrich =====
+    missingPillVisible: false,
+    missingBothCount: 0,
+    missingNfoCount: 0,
+    missingCoverCount: 0,
+    missingItems: [],           // [{file_path, number}]
+    missingEnrichOffset: 0,     // batch offset
+    missingEnrichSuccess: 0,
+    missingEnrichFailed: 0,
+    resumePillVisible: false,
+    _enrichAbortController: null,
+
     // ===== T7b: EventSource 管理 =====
     eventSource: null,
 
@@ -109,7 +121,8 @@ function scannerPage() {
     },
 
     get isGenerating() {
-        return this.state === 'generating' || this.state === 'nfoUpdating' || this.state === 'jellyfinUpdating';
+        return this.state === 'generating' || this.state === 'nfoUpdating'
+            || this.state === 'jellyfinUpdating' || this.state === 'enriching';
     },
 
     get isBusy() {
@@ -158,6 +171,28 @@ function scannerPage() {
         return '<i class="bi bi-check-lg"></i> ' + window.t('scanner.stats.btn_done');
     },
 
+    // ===== T10: Missing Pill Computed =====
+    get missingPillLabel() {
+        const parts = [];
+        if (this.missingBothCount > 0) {
+            parts.push(window.t('scanner.stats.missing_both_prefix') + ' ' + this.missingBothCount + window.t('scanner.stats.missing_suffix'));
+        }
+        if (this.missingNfoCount > 0) {
+            parts.push(window.t('scanner.stats.missing_nfo_prefix') + ' ' + this.missingNfoCount + window.t('scanner.stats.missing_suffix'));
+        }
+        if (this.missingCoverCount > 0) {
+            parts.push(window.t('scanner.stats.missing_cover_prefix') + ' ' + this.missingCoverCount + window.t('scanner.stats.missing_suffix'));
+        }
+        return parts.join(' ');
+    },
+
+    get missingEnrichButtonText() {
+        if (this.state === 'enriching') {
+            return '<span class="loading loading-spinner loading-sm"></span> ' + window.t('scanner.stats.missing_enrich_loading');
+        }
+        return '<i class="bi bi-file-earmark-plus"></i> ' + window.t('scanner.stats.missing_enrich_idle');
+    },
+
     // ===== Lifecycle =====
     async init() {
         // 覆蓋全域函數為 Alpine 版本
@@ -173,6 +208,21 @@ function scannerPage() {
         // T7b: 恢復日誌（確保 DOM 已渲染）
         await this.$nextTick();
         this.restoreLogs();
+
+        // T10: 觸發 missing check（loadStats 後）
+        this.checkMissing();
+
+        // T10: restore pending enrich
+        const pending = localStorage.getItem('avlist_enrich_pending');
+        if (pending) {
+            try {
+                const items = JSON.parse(pending);
+                if (Array.isArray(items) && items.length > 0) {
+                    this.missingItems = items;
+                    this.resumePillVisible = true;
+                }
+            } catch { localStorage.removeItem('avlist_enrich_pending'); }
+        }
 
         // T5.1: 接入統一 page lifecycle
         if (window.__registerPage) {
@@ -214,6 +264,14 @@ function scannerPage() {
                         this._jellyfinCheckController = null;
                     }
                     this.jellyfinCheckState = 'idle';
+                    // T10: save pending enrich items on leave
+                    if (this.state === 'enriching' && this.missingItems.length > this.missingEnrichOffset) {
+                        localStorage.setItem('avlist_enrich_pending', JSON.stringify(this.missingItems.slice(this.missingEnrichOffset)));
+                    }
+                    if (this._enrichAbortController) {
+                        this._enrichAbortController.abort();
+                        this._enrichAbortController = null;
+                    }
                 }
             });
         }
@@ -340,6 +398,11 @@ function scannerPage() {
                 this.jellyfinImageVisible = false;
                 this.jellyfinCheckState = 'idle';
                 this.clearCacheModalOpen = false;
+                // T10: reset missing pill state
+                this.missingPillVisible = false;
+                this.resumePillVisible = false;
+                this.missingItems = [];
+                localStorage.removeItem('avlist_enrich_pending');
             } else {
                 this.showToast('清除失敗: ' + (result.error || '未知錯誤'), 'error');
             }
@@ -742,6 +805,9 @@ function scannerPage() {
                     // 刷新統計（不含 NFO 檢查）
                     this.loadStats();
 
+                    // T10: 掃描完成後檢查缺失 NFO/封面
+                    this.checkMissing();
+
                     // 更新資料夾快照（generate 成功視為儲存）
                     this.folderSnapshot = JSON.stringify(this.directories);
                 } else if (data.type === 'error') {
@@ -921,6 +987,193 @@ function scannerPage() {
             localStorage.setItem('avlist_generating', 'false');
             alert('發生錯誤: ' + e.message);
         }
+    },
+
+    // ===== T10: Missing NFO/Cover Enrich Methods =====
+    async checkMissing() {
+        try {
+            const resp = await fetch('/api/gallery/missing-check');
+            const result = await resp.json();
+            if (!result.success) return;
+            const d = result.data;
+            if (d.total_missing > 0 && d.items !== null) {
+                this.missingBothCount = d.missing_both || 0;
+                this.missingNfoCount = d.missing_nfo || 0;
+                this.missingCoverCount = d.missing_cover || 0;
+                this.missingItems = d.items;
+                this.missingPillVisible = true;
+            } else if (d.total_missing > 500) {
+                // items is null — show count but disable button (handled via missingItems.length === 0)
+                this.missingBothCount = d.missing_both || 0;
+                this.missingNfoCount = d.missing_nfo || 0;
+                this.missingCoverCount = d.missing_cover || 0;
+                this.missingItems = [];
+                this.missingPillVisible = true;
+            } else {
+                this.missingPillVisible = false;
+            }
+        } catch (e) {
+            console.error('checkMissing failed:', e);
+        }
+    },
+
+    async runMissingEnrich() {
+        if (this.isGenerating || this.missingItems.length === 0) return;
+
+        this.state = 'enriching';
+        this.missingEnrichOffset = 0;
+        this.missingEnrichSuccess = 0;
+        this.missingEnrichFailed = 0;
+        this.progressStatus = window.t('scanner.stats.missing_enrich_loading');
+        this.progressCurrent = 0;
+        this.progressTotal = this.missingItems.length;
+        this.clearLogs();
+
+        const controller = new AbortController();
+        this._enrichAbortController = controller;
+
+        const items = this.missingItems.slice();  // snapshot
+
+        try {
+            while (this.missingEnrichOffset < items.length) {
+                const batch = items.slice(this.missingEnrichOffset, this.missingEnrichOffset + 20);
+
+                // Save remaining items to localStorage before each batch
+                localStorage.setItem('avlist_enrich_pending', JSON.stringify(items.slice(this.missingEnrichOffset)));
+
+                let resp;
+                try {
+                    resp = await fetch('/api/batch-enrich', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ items: batch, mode: 'fill_missing' }),
+                        signal: controller.signal,
+                    });
+                } catch (fetchErr) {
+                    if (fetchErr.name === 'AbortError') {
+                        // cleanup() already saved remaining items
+                        return;
+                    }
+                    this.addLog('error', '連線失敗: ' + fetchErr.message);
+                    this.flushLogs();
+                    this.state = 'error';
+                    // Save remaining
+                    localStorage.setItem('avlist_enrich_pending', JSON.stringify(items.slice(this.missingEnrichOffset)));
+                    this.showToast(window.t('scanner.stats.missing_enrich_disconnect'), 'error');
+                    return;
+                }
+
+                if (!resp.ok) {
+                    const errText = await resp.text().catch(() => '');
+                    this.addLog('error', window.t('scanner.stats.missing_enrich_batch_fail', { status: resp.status, error: errText }));
+                    this.flushLogs();
+                    this.state = 'error';
+                    localStorage.setItem('avlist_enrich_pending', JSON.stringify(items.slice(this.missingEnrichOffset)));
+                    this.showToast(window.t('scanner.stats.missing_enrich_error'), 'error');
+                    return;
+                }
+
+                // Read SSE stream
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let batchDone = false;
+
+                while (!batchDone) {
+                    let readResult;
+                    try {
+                        readResult = await reader.read();
+                    } catch (readErr) {
+                        if (readErr.name === 'AbortError') return;
+                        break;
+                    }
+                    const { done, value } = readResult;
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop();  // keep incomplete last line
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        let event;
+                        try {
+                            event = JSON.parse(line.slice(6));
+                        } catch { continue; }
+
+                        if (event.type === 'progress') {
+                            this.progressStatus = event.status || window.t('scanner.stats.missing_enrich_loading');
+                            this.progressCurrent = this.missingEnrichOffset + (event.current || 0);
+                            this.progressTotal = items.length;
+                        } else if (event.type === 'result-item') {
+                            if (event.success) {
+                                this.missingEnrichSuccess++;
+                            } else {
+                                this.missingEnrichFailed++;
+                                this.addLog('warn', `失敗: ${event.number || ''} — ${event.error || ''}`);
+                            }
+                        } else if (event.type === 'log') {
+                            this.addLog(event.level || 'info', event.message || '');
+                        } else if (event.type === 'done') {
+                            batchDone = true;
+                        } else if (event.type === 'error') {
+                            this.addLog('error', '錯誤: ' + (event.message || ''));
+                            this.flushLogs();
+                            this.state = 'error';
+                            localStorage.setItem('avlist_enrich_pending', JSON.stringify(items.slice(this.missingEnrichOffset)));
+                            this.showToast(window.t('scanner.stats.missing_enrich_stream_error'), 'error');
+                            return;
+                        }
+                    }
+                }
+
+                // P1 fix: only advance offset if batch actually completed (got 'done' SSE event)
+                if (!batchDone) {
+                    this.state = 'error';
+                    localStorage.setItem('avlist_enrich_pending', JSON.stringify(items.slice(this.missingEnrichOffset)));
+                    this.showToast(window.t('scanner.stats.missing_enrich_disconnect'), 'error');
+                    return;
+                }
+
+                this.missingEnrichOffset += batch.length;
+                this.progressCurrent = this.missingEnrichOffset;
+            }
+
+            // All batches complete
+            localStorage.removeItem('avlist_enrich_pending');
+            this.state = 'done';
+            this.progressStatus = window.t('scanner.stats.missing_enrich_done');
+            const summary = this.missingEnrichFailed > 0
+                ? window.t('scanner.stats.missing_enrich_toast_mixed', { success: this.missingEnrichSuccess, failed: this.missingEnrichFailed })
+                : window.t('scanner.stats.missing_enrich_toast_success', { success: this.missingEnrichSuccess });
+            this.showToast(summary, this.missingEnrichFailed > 0 ? 'warn' : 'success');
+            this.flushLogs();
+            this.checkMissing();
+
+        } catch (e) {
+            if (e.name === 'AbortError') return;
+            console.error('runMissingEnrich error:', e);
+            this.state = 'error';
+            localStorage.setItem('avlist_enrich_pending', JSON.stringify(items.slice(this.missingEnrichOffset)));
+            this.showToast(window.t('scanner.stats.missing_enrich_interrupted'), 'error');
+        } finally {
+            if (this._enrichAbortController === controller) {
+                this._enrichAbortController = null;
+            }
+        }
+    },
+
+    resumeMissingEnrich() {
+        this.resumePillVisible = false;
+        localStorage.removeItem('avlist_enrich_pending');
+        this.runMissingEnrich();
+    },
+
+    dismissResume() {
+        this.resumePillVisible = false;
+        localStorage.removeItem('avlist_enrich_pending');
+        // P2 fix: re-fetch DB state to repopulate missingItems (不清空，讓 pill 按鈕可用)
+        this.checkMissing();
     },
 
     // ===== T7b: Utility =====
