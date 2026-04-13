@@ -389,16 +389,21 @@
       "btn_done": "已完成"
     },
     "alias": {
-      "section_title": "女優名稱管理",
+      "section_title": "女優別名管理",
       "collapse_title": "展開/收起",
-      "label_old": "舊名稱",
-      "placeholder_old": "例：miru",
-      "label_new": "新名稱",
-      "placeholder_new": "例：坂道みる",
+      "search_placeholder": "搜尋女優名...",
+      "add_placeholder": "輸入主名稱",
+      "add": "新增",
+      "online_search": "線上搜尋",
       "loading": "載入中...",
-      "empty": "尚無別名對照",
-      "applied": "(已套用 {count})",
-      "delete_title": "刪除"
+      "empty": "尚無別名記錄",
+      "no_results": "無搜尋建議",
+      "add_alias": "+ 加別名",
+      "alias_input_placeholder": "輸入別名",
+      "confirm": "確認加入",
+      "delete_group_title": "刪除此女優別名組",
+      "delete_alias_title": "移除此別名",
+      "error_conflict": "別名衝突"
     },
     "dirty_modal": {
       "title": "尚未儲存的變更",

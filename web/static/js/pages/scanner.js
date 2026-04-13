@@ -33,24 +33,28 @@ function scannerPage() {
     manualInputVisible: false,
     manualPath: '',
 
-    // ===== Alias State =====
+    // ===== Alias State (v2) =====
     aliasCardCollapsed: true,
-    aliasList: [],           // 別名列表 [{id, old_name, new_name, applied_count}]
-    aliasListLoading: false, // 載入狀態
-    aliasListError: '',      // 錯誤訊息
+    aliasRecords: [],            // [{primary_name, aliases, source, created_at, updated_at}]
+    aliasRecordsLoading: false,
+    aliasRecordsError: '',
+    aliasSearch: '',             // 前端 filter query
 
-    // ===== Alias Form State =====
-    aliasForm: {
-        oldName: '',
-        newName: '',
-        oldCount: '',       // 顯示文字（如 "5 部"）
-        newCount: '',
-        previewMessage: '', // HTML（含 icon）
-        isAdding: false     // 新增按鈕 disabled 狀態
-    },
+    // ===== New Group Form =====
+    newPrimaryName: '',
+    newGroupAdding: false,
 
-    // ===== Alias Preview Debounce =====
-    previewDebounceTimer: null,
+    // ===== Add Alias Inline Input =====
+    addingAlias: {},             // { [primary_name]: 'input value' }
+    addingAliasLoading: {},      // { [primary_name]: bool }
+
+    // ===== Online Search =====
+    onlineSearchName: '',
+    onlineSearchLoading: false,
+    onlineSearchResults: [],     // suggested_aliases from API
+    onlineSearchSelected: [],    // checkbox values
+    onlineSearchTarget: '',      // 要加到哪個 primary_name
+    onlineSearchDone: false,     // 搜尋完成旗標（用於顯示「無搜尋建議」）
 
     // ===== T7b: State Machine =====
     state: 'idle',  // 'idle' | 'generating' | 'nfoUpdating' | 'done' | 'error'
@@ -205,7 +209,6 @@ function scannerPage() {
                     if (this.eventSource) { this.eventSource.close(); this.eventSource = null; }
                     clearTimeout(this._toastTimer);
                     clearTimeout(this.logTimer);
-                    clearTimeout(this.previewDebounceTimer);
                     // T2(40c): abort jellyfin check fetch
                     if (this._jellyfinCheckController) {
                         this._jellyfinCheckController.abort();
@@ -932,159 +935,235 @@ function scannerPage() {
         });
     },
 
-    // ===== Alias: Card Toggle =====
+    // ===== Alias v2: Card Toggle =====
     toggleAliasCard() {
         this.aliasCardCollapsed = !this.aliasCardCollapsed;
 
         // 首次展開時載入別名列表
-        if (!this.aliasCardCollapsed && this.aliasList.length === 0) {
-            this.loadActressAliases();
+        if (!this.aliasCardCollapsed && this.aliasRecords.length === 0) {
+            this.loadAliasRecords();
         }
     },
 
-    // ===== Alias: Load List =====
-    async loadActressAliases() {
-        this.aliasListLoading = true;
-        this.aliasListError = '';
+    // ===== Alias v2: Load Records =====
+    async loadAliasRecords() {
+        this.aliasRecordsLoading = true;
+        this.aliasRecordsError = '';
 
         try {
-            const resp = await fetch('/api/gallery/actress-aliases');
+            const resp = await fetch('/api/actress-aliases');
             const result = await resp.json();
 
             if (result.success) {
-                this.aliasList = result.data || [];
+                this.aliasRecords = result.groups || [];
             } else {
-                this.aliasListError = '載入失敗: ' + (result.error || '未知錯誤');
+                this.aliasRecordsError = '載入失敗: ' + (result.error || '未知錯誤');
             }
         } catch (e) {
-            this.aliasListError = '載入失敗: ' + e.message;
+            this.aliasRecordsError = '載入失敗: ' + e.message;
         } finally {
-            this.aliasListLoading = false;
+            this.aliasRecordsLoading = false;
         }
     },
 
-    // ===== Alias: Preview Count (Debounce 300ms) =====
-    async previewAliasCount() {
-        // 清除舊計時器
-        if (this.previewDebounceTimer) {
-            clearTimeout(this.previewDebounceTimer);
-        }
-
-        // 重置顯示
-        this.aliasForm.oldCount = '';
-        this.aliasForm.newCount = '';
-        this.aliasForm.previewMessage = '';
-
-        this.previewDebounceTimer = setTimeout(async () => {
-            const oldName = this.aliasForm.oldName.trim();
-            const newName = this.aliasForm.newName.trim();
-
-            // 查詢舊名稱片數
-            if (oldName) {
-                try {
-                    const resp = await fetch(`/api/gallery/actress-stats?name=${encodeURIComponent(oldName)}`);
-                    const result = await resp.json();
-                    if (result.success) {
-                        this.aliasForm.oldCount = `${result.data.count} 部`;
-                    }
-                } catch (e) {
-                    // 忽略錯誤
-                }
-            }
-
-            // 查詢新名稱片數
-            if (newName) {
-                try {
-                    const resp = await fetch(`/api/gallery/actress-stats?name=${encodeURIComponent(newName)}`);
-                    const result = await resp.json();
-                    if (result.success) {
-                        this.aliasForm.newCount = `${result.data.count} 部`;
-                    }
-                } catch (e) {
-                    // 忽略錯誤
-                }
-            }
-
-            // 顯示預覽訊息
-            if (oldName && newName) {
-                const oldC = parseInt(this.aliasForm.oldCount) || 0;
-                if (oldC > 0) {
-                    // 使用 Alpine escapeHtml（x-html 會渲染 HTML，需手動 escape）
-                    const escapedOld = this.escapeHtml(oldName);
-                    const escapedNew = this.escapeHtml(newName);
-                    this.aliasForm.previewMessage =
-                        `<i class="bi bi-info-circle"></i> 將有 ${oldC} 部影片的 "${escapedOld}" 改為 "${escapedNew}"`;
-                }
-            }
-        }, 300);
+    // ===== Alias v2: Filtered Records (前端 filter) =====
+    filteredAliasRecords() {
+        const q = this.aliasSearch.trim().toLowerCase();
+        if (!q) return this.aliasRecords;
+        return this.aliasRecords.filter(group => {
+            if (group.primary_name.toLowerCase().includes(q)) return true;
+            return (group.aliases || []).some(a => a.toLowerCase().includes(q));
+        });
     },
 
-    // ===== Alias: Add =====
-    async addActressAlias() {
-        const oldName = this.aliasForm.oldName.trim();
-        const newName = this.aliasForm.newName.trim();
+    // ===== Alias v2: Create Group =====
+    async createAliasGroup() {
+        const name = this.newPrimaryName.trim();
+        if (!name) return;
 
-        if (!oldName || !newName) {
-            this.showToast('請輸入舊名稱和新名稱');
-            return;
-        }
-
-        if (oldName === newName) {
-            this.showToast('新舊名稱不可相同');
-            return;
-        }
-
-        this.aliasForm.isAdding = true;
-
+        this.newGroupAdding = true;
         try {
-            const resp = await fetch('/api/gallery/actress-aliases', {
+            const resp = await fetch('/api/actress-aliases', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ old_name: oldName, new_name: newName })
+                body: JSON.stringify({ primary_name: name })
             });
             const result = await resp.json();
 
             if (result.success) {
-                this.showToast('已新增別名對照', 'success');
-                // 清空表單
-                this.aliasForm.oldName = '';
-                this.aliasForm.newName = '';
-                this.aliasForm.oldCount = '';
-                this.aliasForm.newCount = '';
-                this.aliasForm.previewMessage = '';
-                // 重新載入列表
-                this.loadActressAliases();
+                this.showToast('已新增別名組：' + name, 'success');
+                this.newPrimaryName = '';
+                await this.loadAliasRecords();
             } else {
                 this.showToast('新增失敗: ' + (result.error || '未知錯誤'), 'error');
             }
         } catch (e) {
             this.showToast('新增失敗: ' + e.message, 'error');
         } finally {
-            this.aliasForm.isAdding = false;
+            this.newGroupAdding = false;
         }
     },
 
-    // ===== Alias: Delete =====
-    async deleteActressAlias(id) {
-        if (!confirm('確定要刪除這個別名對照嗎？')) {
-            return;
-        }
+    // ===== Alias v2: Delete Group =====
+    async deleteAliasGroup(name) {
+        if (!confirm(`確定要刪除「${name}」的整筆別名組嗎？`)) return;
 
         try {
-            const resp = await fetch(`/api/gallery/actress-aliases/${id}`, {
+            const resp = await fetch(`/api/actress-aliases/${encodeURIComponent(name)}`, {
                 method: 'DELETE'
             });
             const result = await resp.json();
 
             if (result.success) {
-                this.showToast('已刪除', 'success');
-                this.loadActressAliases();
+                this.showToast('已刪除：' + name, 'success');
+                await this.loadAliasRecords();
             } else {
                 this.showToast('刪除失敗: ' + (result.error || '未知錯誤'), 'error');
             }
         } catch (e) {
             this.showToast('刪除失敗: ' + e.message, 'error');
         }
+    },
+
+    // ===== Alias v2: Show Add Alias Inline Input =====
+    showAddAliasInput(primary) {
+        this.addingAlias = { ...this.addingAlias, [primary]: '' };
+    },
+
+    // ===== Alias v2: Add Alias to Group =====
+    async addAlias(primary) {
+        const alias = (this.addingAlias[primary] || '').trim();
+        if (!alias) return;
+
+        this.addingAliasLoading = { ...this.addingAliasLoading, [primary]: true };
+        try {
+            const resp = await fetch(`/api/actress-aliases/${encodeURIComponent(primary)}/alias`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ alias })
+            });
+            const result = await resp.json();
+
+            if (result.success) {
+                // 清除 inline input
+                const updated = { ...this.addingAlias };
+                delete updated[primary];
+                this.addingAlias = updated;
+                await this.loadAliasRecords();
+            } else {
+                this.showToast(result.error || '新增別名失敗', 'error');
+            }
+        } catch (e) {
+            this.showToast('新增別名失敗: ' + e.message, 'error');
+        } finally {
+            const loading = { ...this.addingAliasLoading };
+            delete loading[primary];
+            this.addingAliasLoading = loading;
+        }
+    },
+
+    // ===== Alias v2: Remove Alias from Group =====
+    async removeAlias(primary, alias) {
+        try {
+            const resp = await fetch(
+                `/api/actress-aliases/${encodeURIComponent(primary)}/alias/${encodeURIComponent(alias)}`,
+                { method: 'DELETE' }
+            );
+            const result = await resp.json();
+
+            if (result.success) {
+                await this.loadAliasRecords();
+            } else {
+                this.showToast('移除失敗: ' + (result.error || '未知錯誤'), 'error');
+            }
+        } catch (e) {
+            this.showToast('移除失敗: ' + e.message, 'error');
+        }
+    },
+
+    // ===== Alias v2: Start Online Search =====
+    async startOnlineSearch() {
+        const name = this.newPrimaryName.trim();
+        if (!name) {
+            this.showToast('請先輸入主名稱再進行線上搜尋');
+            return;
+        }
+
+        this.onlineSearchTarget = name;
+        this.onlineSearchLoading = true;
+        this.onlineSearchResults = [];
+        this.onlineSearchSelected = [];
+        this.onlineSearchDone = false;
+
+        try {
+            const resp = await fetch('/api/actress-aliases/search-online', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            if (resp.status === 504) {
+                this.showToast('線上搜尋逾時', 'error');
+                return;
+            }
+            const result = await resp.json();
+
+            if (result.success) {
+                this.onlineSearchResults = result.suggested_aliases || [];
+            } else {
+                this.showToast('線上搜尋失敗: ' + (result.error || '未知錯誤'), 'error');
+            }
+        } catch (e) {
+            this.showToast('線上搜尋失敗: ' + e.message, 'error');
+        } finally {
+            this.onlineSearchLoading = false;
+            this.onlineSearchDone = true;
+        }
+    },
+
+    // ===== Alias v2: Confirm Online Search Selection =====
+    async confirmOnlineSearch(primary) {
+        const selected = [...this.onlineSearchSelected];
+        if (selected.length === 0) return;
+
+        // 確保 primary group 存在
+        const exists = this.aliasRecords.some(g => g.primary_name === primary);
+        if (!exists) {
+            // 先建立 group
+            const createResp = await fetch('/api/actress-aliases', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ primary_name: primary })
+            });
+            const createResult = await createResp.json();
+            if (!createResult.success) {
+                this.showToast('建立別名組失敗: ' + (createResult.error || '未知錯誤'), 'error');
+                return;
+            }
+        }
+
+        // 逐一加入選中的 alias
+        for (const alias of selected) {
+            try {
+                const resp = await fetch(`/api/actress-aliases/${encodeURIComponent(primary)}/alias`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ alias })
+                });
+                const result = await resp.json();
+                if (!result.success) {
+                    this.showToast(result.error || `加入 ${alias} 失敗`, 'error');
+                }
+            } catch (e) {
+                this.showToast(`加入 ${alias} 失敗: ` + e.message, 'error');
+            }
+        }
+
+        // 清空線上搜尋結果
+        this.onlineSearchResults = [];
+        this.onlineSearchSelected = [];
+        this.onlineSearchTarget = '';
+        this.onlineSearchDone = false;
+        await this.loadAliasRecords();
     },
 
   };

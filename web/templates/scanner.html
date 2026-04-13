@@ -238,55 +238,106 @@
         </div>
 
         <div class="actress-alias-body" x-show="!aliasCardCollapsed">
-            <!-- Add New Alias Form -->
-            <div class="alias-form">
-                <div class="alias-form-row">
-                    <div class="alias-input-group">
-                        <label>{{ t('scanner.alias.label_old') }}</label>
-                        <input type="text" x-model="aliasForm.oldName" placeholder="{{ t('scanner.alias.placeholder_old') }}"
-                               @input="previewAliasCount()">
-                        <span class="alias-count" x-text="aliasForm.oldCount"></span>
-                    </div>
-                    <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
-                    <div class="alias-input-group">
-                        <label>{{ t('scanner.alias.label_new') }}</label>
-                        <input type="text" x-model="aliasForm.newName" placeholder="{{ t('scanner.alias.placeholder_new') }}"
-                               @input="previewAliasCount()">
-                        <span class="alias-count" x-text="aliasForm.newCount"></span>
-                    </div>
-                    <button class="btn-alias-add" @click="addActressAlias()"
-                            :disabled="aliasForm.isAdding">
-                        <i class="bi bi-plus-lg"></i>
-                    </button>
-                </div>
-                <div class="alias-preview" x-html="aliasForm.previewMessage"></div>
+            <!-- 搜尋 + 新增列 -->
+            <div class="alias-toolbar">
+                <input type="text" class="input input-bordered input-sm alias-search-input"
+                       x-model="aliasSearch"
+                       placeholder="{{ t('scanner.alias.search_placeholder') }}">
+                <input type="text" class="input input-bordered input-sm alias-add-input"
+                       x-model="newPrimaryName"
+                       placeholder="{{ t('scanner.alias.add_placeholder') }}"
+                       @keydown.enter="createAliasGroup()">
+                <button class="btn btn-sm btn-primary" @click="createAliasGroup()" :disabled="newGroupAdding">
+                    <i class="bi bi-plus-lg"></i> {{ t('scanner.alias.add') }}
+                </button>
+                <button class="btn btn-sm btn-outline" @click="startOnlineSearch()" :disabled="onlineSearchLoading">
+                    <i class="bi bi-search"></i> {{ t('scanner.alias.online_search') }}
+                </button>
             </div>
 
-            <!-- Alias List -->
-            <div class="alias-list">
-                <!-- 載入中 -->
-                <div class="alias-list-loading" x-show="aliasListLoading">
+            <!-- 線上搜尋結果區 -->
+            <div class="alias-online-results" x-show="onlineSearchLoading || onlineSearchResults.length > 0 || onlineSearchDone">
+                <!-- Spinner -->
+                <div class="alias-list-loading" x-show="onlineSearchLoading">
                     <span class="loading loading-spinner loading-sm"></span> {{ t('scanner.alias.loading') }}
                 </div>
-
-                <!-- 錯誤訊息 -->
-                <div class="alias-list-error" x-show="aliasListError" x-text="aliasListError"></div>
-
-                <!-- 空狀態 -->
-                <div class="alias-list-empty" x-show="!aliasListLoading && !aliasListError && aliasList.length === 0">
-                    {{ t('scanner.alias.empty') }}
+                <!-- 無結果 -->
+                <div class="alias-list-empty" x-show="!onlineSearchLoading && onlineSearchResults.length === 0">
+                    {{ t('scanner.alias.no_results') }}
                 </div>
+                <!-- checkbox 列表 -->
+                <template x-for="s in onlineSearchResults" :key="s">
+                    <label class="alias-online-item">
+                        <input type="checkbox" :value="s" x-model="onlineSearchSelected"> <span x-text="s"></span>
+                    </label>
+                </template>
+                <!-- 確認加入 -->
+                <button class="btn btn-sm btn-primary" x-show="onlineSearchResults.length > 0"
+                        @click="confirmOnlineSearch(onlineSearchTarget)">
+                    {{ t('scanner.alias.confirm') }}
+                </button>
+            </div>
 
-                <!-- 別名項目 -->
-                <template x-for="alias in aliasList" :key="alias.id">
-                    <div class="alias-item">
-                        <span class="alias-old" x-text="alias.old_name"></span>
-                        <span class="alias-arrow"><i class="bi bi-arrow-right"></i></span>
-                        <span class="alias-new" x-text="alias.new_name"></span>
-                        <span class="alias-applied" x-text="alias.applied_count > 0 ? window.t('scanner.alias.applied', { count: alias.applied_count }) : ''"></span>
-                        <button class="btn-alias-delete" @click="deleteActressAlias(alias.id)" title="{{ t('scanner.alias.delete_title') }}">
-                            <i class="bi bi-x-lg"></i>
-                        </button>
+            <!-- 載入中 -->
+            <div class="alias-list-loading" x-show="aliasRecordsLoading">
+                <span class="loading loading-spinner loading-sm"></span> {{ t('scanner.alias.loading') }}
+            </div>
+
+            <!-- 錯誤訊息 -->
+            <div class="alias-list-error" x-show="aliasRecordsError" x-text="aliasRecordsError"></div>
+
+            <!-- 空狀態 -->
+            <div class="alias-list-empty"
+                 x-show="!aliasRecordsLoading && !aliasRecordsError && filteredAliasRecords().length === 0">
+                {{ t('scanner.alias.empty') }}
+            </div>
+
+            <!-- 記錄列表 -->
+            <div class="alias-list">
+                <template x-for="group in filteredAliasRecords()" :key="group.primary_name">
+                    <div class="alias-group">
+                        <!-- primary name + 刪除整筆 -->
+                        <div class="alias-group-header">
+                            <span class="alias-primary-name" x-text="group.primary_name"></span>
+                            <button class="btn-icon btn-alias-delete-group"
+                                    @click="deleteAliasGroup(group.primary_name)"
+                                    title="{{ t('scanner.alias.delete_group_title') }}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                        <!-- alias chips -->
+                        <div class="alias-chips">
+                            <template x-for="a in group.aliases" :key="a">
+                                <span class="alias-chip">
+                                    <span x-text="a"></span>
+                                    <button class="alias-chip-remove"
+                                            @click="removeAlias(group.primary_name, a)"
+                                            :title="window.t('scanner.alias.delete_alias_title')">✕</button>
+                                </span>
+                            </template>
+                            <!-- 加別名 inline input -->
+                            <template x-if="addingAlias[group.primary_name] !== undefined">
+                                <span class="alias-chip alias-chip-input">
+                                    <input type="text" class="input input-bordered input-xs"
+                                           x-ref="aliasInput"
+                                           :value="addingAlias[group.primary_name]"
+                                           @input="addingAlias[group.primary_name] = $event.target.value"
+                                           @keydown.enter="addAlias(group.primary_name)"
+                                           placeholder="{{ t('scanner.alias.alias_input_placeholder') }}">
+                                    <button class="btn btn-xs btn-primary"
+                                            @click="addAlias(group.primary_name)"
+                                            :disabled="addingAliasLoading[group.primary_name]">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                </span>
+                            </template>
+                            <!-- + 加別名 button -->
+                            <button class="btn btn-xs btn-outline alias-add-chip-btn"
+                                    @click="showAddAliasInput(group.primary_name)"
+                                    x-show="addingAlias[group.primary_name] === undefined">
+                                {{ t('scanner.alias.add_alias') }}
+                            </button>
+                        </div>
                     </div>
                 </template>
             </div>
