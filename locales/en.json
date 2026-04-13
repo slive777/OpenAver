@@ -189,7 +189,6 @@
       "system": "System Settings"
     },
     "search": {
-      "gallery_mode": "Actress Gallery Mode",
       "uncensored_mode": "Uncensored Mode",
       "default_source_hint": "Default search source",
       "proxy_dmm_hint": "DMM requires Japan IP",
@@ -670,20 +669,20 @@
       "fallback_folder_rule": "Folder levels use fallback values (e.g. 'Unknown Actress') to avoid empty paths",
       "fallback_filename_rule": "Filename does not use fallback; variables are omitted when empty"
     },
-    "gallery": {
-      "title": "Actress Gallery Mode",
-      "h6_trigger": "Auto-trigger Conditions",
-      "h6_features": "Features",
-      "h6_diff": "Grid Mode vs Gallery Mode",
-      "trigger_count": "Search results > 10 works",
-      "trigger_consistency": "80%+ works share the same actress (consistency check)",
-      "trigger_setting": "Enable 'Gallery Mode' in Settings",
-      "feat_hero": "<strong>Hero Card</strong>: Shows actress profile (cup size, height, measurements, birthday)",
-      "feat_browse": "<strong>Gallery Browse</strong>: Displays works list as cover images",
-      "feat_back": "<strong>Quick Return</strong>: Click '← Back to Detail' to return to normal mode",
-      "diff_gallery": "<strong>Gallery Mode</strong> (auto): Switches automatically when results > 10 and actress is consistent",
-      "diff_grid": "<strong>Grid Mode</strong> (manual): Any search result can be manually switched to cover wall view",
-      "diff_grid_nav": "Grid Mode supports Lightbox navigation (<kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> to switch)"
+    "actress": {
+      "title": "Actress Features",
+      "h6_search": "Search Page",
+      "search_hero": "When searching a favorited actress name, a profile card (photo, age, height, measurements) appears above the search box",
+      "search_favorite": "Tap ♡ on any result card to add to favorites; favorited actresses are looked up locally without a network request",
+      "search_grid": "Actress search results with 10+ works automatically switch to cover-wall mode with Lightbox navigation",
+      "h6_showcase": "Showcase Page",
+      "showcase_toggle": "Toolbar toggle switches between film mode and actress mode (Film | Person icon)",
+      "showcase_grid": "Actress favorites grid with sorting by name, age, cup size, height, or date added",
+      "showcase_lightbox": "Actress Lightbox shows full profile, aliases, and links; supports rescrape and remove from favorites",
+      "h6_manage": "Favorites Management",
+      "manage_add": "Add favorites from Search or Showcase; profile photo is downloaded locally automatically",
+      "manage_alias": "Alias management: add and edit actress aliases on the Scanner page; all known aliases are expanded automatically during search",
+      "manage_enrich": "One-click rescrape on Showcase cards to refresh actress data"
     },
     "scanner": {
       "title": "Video List Generator (Scanner)",

@@ -333,8 +333,7 @@ window.SearchStateMixin_SearchFlow = {
                             }
                             this.listMode = 'search';
                             if (data.mode) this.currentMode = data.mode;
-                            // 與傳統 result 路徑一致：尊重 gallery_mode_enabled 設定
-                            if ((data.mode === 'actress' || data.mode === 'prefix') && this.appConfig?.search?.gallery_mode_enabled && data.data.length >= 10) {
+                            if ((data.mode === 'actress' || data.mode === 'prefix') && data.data.length >= 10) {
                                 this.displayMode = 'grid';
                             } else {
                                 this.displayMode = 'detail';
@@ -405,7 +404,7 @@ window.SearchStateMixin_SearchFlow = {
                         this.checkLocalStatus(this.searchResults);
 
                         // T2b/T3a: 模糊搜尋自動切 Grid（actress/prefix ≥10 筆）
-                        if ((this.currentMode === 'actress' || this.currentMode === 'prefix') && this.appConfig?.search?.gallery_mode_enabled && data.data.length >= 10) {
+                        if ((this.currentMode === 'actress' || this.currentMode === 'prefix') && data.data.length >= 10) {
                             this.displayMode = 'grid';
                         }
 
@@ -528,7 +527,7 @@ window.SearchStateMixin_SearchFlow = {
                 this.checkLocalStatus(this.searchResults);
 
                 // T2b/T3a: 模糊搜尋自動切 Grid（actress/prefix ≥10 筆）
-                if ((data.mode === 'actress' || data.mode === 'prefix') && this.appConfig?.search?.gallery_mode_enabled && data.data.length >= 10) {
+                if ((data.mode === 'actress' || data.mode === 'prefix') && data.data.length >= 10) {
                     this.displayMode = 'grid';
                 }
 

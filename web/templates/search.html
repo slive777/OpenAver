@@ -280,7 +280,7 @@
                     <!-- T2a/T3a: Grid / Detail Toggle -->
                     <button type="button"
                             class="btn-icon rotating-border-spotlight active"
-                            x-show="listMode === 'search' && appConfig?.search?.gallery_mode_enabled !== false && (currentMode === 'actress' || currentMode === 'prefix')"
+                            x-show="listMode === 'search' && (currentMode === 'actress' || currentMode === 'prefix')"
                             @click="toggleDisplayMode()"
                             :title="displayMode === 'detail' ? t('search.action.toggle_grid') : t('search.action.toggle_detail')">
                         <i class="bi" :class="displayMode === 'detail' ? 'bi-grid-3x3' : 'bi-list-ul'"></i>

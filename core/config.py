@@ -45,7 +45,6 @@ class ScraperConfig(BaseModel):
 
 class SearchConfig(BaseModel):
     search_filter: str = ""
-    gallery_mode_enabled: bool = True  # Grid 模式開關（toggle 可見 + 女優自動切 Grid）
     uncensored_mode_enabled: bool = False  # 無碼模式 - 只搜尋 AVSOX / FC2
     favorite_folder: str = ""  # 我的最愛資料夾 - 空字串 = 使用系統下載資料夾
     proxy_url: str = ""

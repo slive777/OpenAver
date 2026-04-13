@@ -189,7 +189,6 @@
       "system": "系統設定"
     },
     "search": {
-      "gallery_mode": "女優畫廊模式",
       "uncensored_mode": "無碼模式",
       "default_source_hint": "預設搜尋來源",
       "proxy_dmm_hint": "DMM 需要日本 IP",
@@ -670,20 +669,20 @@
       "fallback_folder_rule": "資料夾層級會使用 fallback 值（如「未知女優」），避免路徑為空",
       "fallback_filename_rule": "檔名不使用 fallback，變數為空時直接省略"
     },
-    "gallery": {
-      "title": "女優畫廊模式",
-      "h6_trigger": "自動觸發條件",
-      "h6_features": "功能特色",
-      "h6_diff": "Grid Mode 與 Gallery Mode 差異",
-      "trigger_count": "搜尋結果 > 10 部作品",
-      "trigger_consistency": "80% 以上作品有相同女優（演員一致性檢查）",
-      "trigger_setting": "在 Settings 啟用「畫廊模式」",
-      "feat_hero": "<strong>Hero Card</strong>：顯示女優個人資料（罩杯、身高、三圍、生日）",
-      "feat_browse": "<strong>畫廊瀏覽</strong>：以封面圖方式展示作品列表",
-      "feat_back": "<strong>快速返回</strong>：點擊「← 返回詳細資料」回到一般模式",
-      "diff_gallery": "<strong>Gallery Mode</strong>（自動觸發）：搜尋結果 > 10 部且女優一致時自動切換",
-      "diff_grid": "<strong>Grid Mode</strong>（手動切換）：任何搜尋結果都可手動切換為封面牆顯示",
-      "diff_grid_nav": "Grid Mode 支援 Lightbox 導航（<kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> 切換）"
+    "actress": {
+      "title": "女優功能",
+      "h6_search": "搜尋頁",
+      "search_hero": "搜尋已收藏女優名稱時，搜尋框上方顯示個人資料卡（照片、年齡、身高、三圍）",
+      "search_favorite": "搜尋結果卡片可直接點 ♡ 加入收藏，已收藏女優本地查詢不連網",
+      "search_grid": "女優搜尋結果超過 10 部時自動切換為封面牆模式，支援 Lightbox 導航",
+      "h6_showcase": "瀏覽頁",
+      "showcase_toggle": "工具列切換影片模式 ↔ 女優模式（片 | 人 圖示）",
+      "showcase_grid": "女優收藏 Grid，支援按名稱、年齡、罩杯、身高、新增日期排序",
+      "showcase_lightbox": "女優 Lightbox 顯示完整個人資料、別名、連結，可重新抓取或移除收藏",
+      "h6_manage": "收藏管理",
+      "manage_add": "從搜尋頁或瀏覽頁加入收藏，照片自動下載至本地",
+      "manage_alias": "別名管理：Scanner 頁面可新增、編輯女優別名，搜尋時自動展開所有已知名稱",
+      "manage_enrich": "瀏覽頁卡片可一鍵重新抓取（rescrape）更新女優資料"
     },
     "scanner": {
       "title": "影片列表生成 (Scanner)",

@@ -189,7 +189,6 @@
       "system": "系统设置"
     },
     "search": {
-      "gallery_mode": "女优画廊模式",
       "uncensored_mode": "无码模式",
       "default_source_hint": "默认搜索来源",
       "proxy_dmm_hint": "DMM 需要日本 IP",
@@ -670,20 +669,20 @@
       "fallback_folder_rule": "文件夹层级会使用 fallback 值（如「未知女优」），避免路径为空",
       "fallback_filename_rule": "文件名不使用 fallback，变量为空时直接省略"
     },
-    "gallery": {
-      "title": "女优画廊模式",
-      "h6_trigger": "自动触发条件",
-      "h6_features": "功能特色",
-      "h6_diff": "Grid Mode 与 Gallery Mode 差异",
-      "trigger_count": "搜索结果 > 10 部作品",
-      "trigger_consistency": "80% 以上作品有相同女优（演员一致性检查）",
-      "trigger_setting": "在 Settings 启用「画廊模式」",
-      "feat_hero": "<strong>Hero Card</strong>：显示女优个人资料（罩杯、身高、三围、生日）",
-      "feat_browse": "<strong>画廊浏览</strong>：以封面图方式展示作品列表",
-      "feat_back": "<strong>快速返回</strong>：点击「← 返回详细资料」回到一般模式",
-      "diff_gallery": "<strong>Gallery Mode</strong>（自动触发）：搜索结果 > 10 部且女优一致时自动切换",
-      "diff_grid": "<strong>Grid Mode</strong>（手动切换）：任何搜索结果都可手动切换为封面墙显示",
-      "diff_grid_nav": "Grid Mode 支持 Lightbox 导航（<kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> 切换）"
+    "actress": {
+      "title": "女优功能",
+      "h6_search": "搜索页",
+      "search_hero": "搜索已收藏女优名称时，搜索框上方显示个人资料卡（照片、年龄、身高、三围）",
+      "search_favorite": "搜索结果卡片可直接点 ♡ 加入收藏，已收藏女优本地查询不联网",
+      "search_grid": "女优搜索结果超过 10 部时自动切换为封面墙模式，支持 Lightbox 导航",
+      "h6_showcase": "浏览页",
+      "showcase_toggle": "工具栏切换影片模式 ↔ 女优模式（片 | 人 图示）",
+      "showcase_grid": "女优收藏 Grid，支持按名称、年龄、罩杯、身高、添加日期排序",
+      "showcase_lightbox": "女优 Lightbox 显示完整个人资料、别名、链接，可重新抓取或移除收藏",
+      "h6_manage": "收藏管理",
+      "manage_add": "从搜索页或浏览页加入收藏，照片自动下载至本地",
+      "manage_alias": "别名管理：Scanner 页面可新增、编辑女优别名，搜索时自动展开所有已知名称",
+      "manage_enrich": "浏览页卡片可一键重新抓取（rescrape）更新女优资料"
     },
     "scanner": {
       "title": "影片列表生成 (Scanner)",

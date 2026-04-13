@@ -22,11 +22,6 @@ window.SearchStateMixin_Persistence = {
             this.currentMode = state.currentMode || '';  // T3 fix: 還原搜尋模式
             this.actressProfile = state.actressProfile || null;  // T5: 恢復女優資料
 
-            // gallery_mode_enabled=false → 強制 detail mode
-            if (this.appConfig?.search?.gallery_mode_enabled === false) {
-                this.displayMode = 'detail';
-            }
-
             // 還原搜尋框輸入值
             if (state.queryValue) {
                 this.searchQuery = state.queryValue;

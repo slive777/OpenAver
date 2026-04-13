@@ -4,7 +4,6 @@ function settingsPage() {
         // ===== Form State =====
         form: {
             // Search
-            galleryModeEnabled: false,
             uncensoredModeEnabled: false,
             searchFavoriteFolder: '',
             proxyUrl: '',
@@ -288,7 +287,6 @@ function settingsPage() {
                     const config = result.data;
 
                     // Search
-                    this.form.galleryModeEnabled = config.search?.gallery_mode_enabled || false;
                     this.form.uncensoredModeEnabled = config.search?.uncensored_mode_enabled || false;
                     this.form.searchFavoriteFolder = config.search?.favorite_folder || '';
                     this.form.proxyUrl = config.search?.proxy_url || '';
@@ -419,7 +417,6 @@ function settingsPage() {
                 // 更新 search
                 config.search = {
                     ...config.search,
-                    gallery_mode_enabled: this.form.galleryModeEnabled,
                     uncensored_mode_enabled: this.form.uncensoredModeEnabled,
                     favorite_folder: this.form.searchFavoriteFolder.trim(),
                     proxy_url: this.form.proxyUrl.trim(),
