@@ -1697,6 +1697,7 @@
 /* Variant: mode-toggle — wider left slot for capsule toggle (44c-T8) */
 .spotlight-search--mode-toggle {
     --spotlight-left-slot: 5.5rem;
+    --spotlight-right-slot: 8.5rem;
 }
 .lightbox-metadata .lb-chips-more:hover { opacity: 1; }
 
