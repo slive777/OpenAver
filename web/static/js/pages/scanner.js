@@ -38,10 +38,9 @@ function scannerPage() {
     aliasRecords: [],            // [{primary_name, aliases, source, created_at, updated_at}]
     aliasRecordsLoading: false,
     aliasRecordsError: '',
-    aliasSearch: '',             // 前端 filter query
+    aliasInput: '',              // 單一輸入：篩選 query / 新增主名
 
     // ===== New Group Form =====
-    newPrimaryName: '',
     newGroupAdding: false,
 
     // ===== Add Alias Inline Input =====
@@ -968,7 +967,7 @@ function scannerPage() {
 
     // ===== Alias v2: Filtered Records (前端 filter) =====
     filteredAliasRecords() {
-        const q = this.aliasSearch.trim().toLowerCase();
+        const q = this.aliasInput.trim().toLowerCase();
         if (!q) return this.aliasRecords;
         return this.aliasRecords.filter(group => {
             if (group.primary_name.toLowerCase().includes(q)) return true;
@@ -978,7 +977,7 @@ function scannerPage() {
 
     // ===== Alias v2: Create Group =====
     async createAliasGroup() {
-        const name = this.newPrimaryName.trim();
+        const name = this.aliasInput.trim();
         if (!name) return;
 
         this.newGroupAdding = true;
@@ -992,7 +991,7 @@ function scannerPage() {
 
             if (result.success) {
                 this.showToast('已新增別名組：' + name, 'success');
-                this.newPrimaryName = '';
+                this.aliasInput = '';
                 await this.loadAliasRecords();
             } else {
                 this.showToast('新增失敗: ' + (result.error || '未知錯誤'), 'error');
@@ -1030,7 +1029,14 @@ function scannerPage() {
         this.addingAlias = { ...this.addingAlias, [primary]: '' };
     },
 
-    // ===== Alias v2: Add Alias to Group =====
+    // ===== Alias v2: Cancel Add Alias Inline Input =====
+    cancelAddAlias(primary) {
+        const updated = { ...this.addingAlias };
+        delete updated[primary];
+        this.addingAlias = updated;
+    },
+
+    // ===== Alias v2: Add Alias to Group (Enter key) =====
     async addAlias(primary) {
         const alias = (this.addingAlias[primary] || '').trim();
         if (!alias) return;
@@ -1083,7 +1089,7 @@ function scannerPage() {
 
     // ===== Alias v2: Start Online Search =====
     async startOnlineSearch() {
-        const name = this.newPrimaryName.trim();
+        const name = this.aliasInput.trim();
         if (!name) {
             this.showToast('請先輸入主名稱再進行線上搜尋');
             return;

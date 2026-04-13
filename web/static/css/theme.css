@@ -1363,116 +1363,233 @@ body {
     padding: 1rem;
 }
 
-/* Alias Form */
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-form {
-    margin-bottom: 1rem;
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-form-row {
-    display: flex;
-    align-items: flex-end;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-input-group {
-    flex: 1;
-    min-width: 120px;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-input-group label {
-    font-size: 0.7rem;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-weight: 600;
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-input-group input {
-    width: 100%;
-    transition: border-color var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-input-group input:focus {
-    border-color: var(--accent);
-    box-shadow:
-        0 0 0 4px var(--glow-subtle),
-        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent);
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-count {
-    font-size: 0.7rem;
-    color: var(--accent);
-    min-height: 1rem;
-    margin-top: 0.25rem;
-    font-weight: 600;
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-arrow {
-    color: var(--text-secondary);
-    font-size: 1rem;
-    padding-bottom: 0.5rem;
-    flex-shrink: 0;
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .btn-alias-add {
-    padding: 0.5rem 0.75rem;
-    background: var(--accent);
-    color: var(--color-primary-content);
-    border: none;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.1rem;
-    box-shadow: var(--fluent-shadow-2);
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .btn-alias-add:hover {
-    background: var(--accent-hover);
-    transform: translateY(-1px);
-    box-shadow:
-        0 0 0 2px var(--accent),
-        0 0 12px var(--glow-primary),
-        var(--fluent-shadow-4);
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .btn-alias-add:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-preview {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    margin-top: 0.5rem;
-    min-height: 1.25rem;
+/* Alias Toolbar — single input, dual purpose */
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-toolbar {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    margin-bottom: 0.75rem;
 }
 
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-preview i {
-    color: var(--accent);
-    font-size: 0.9rem;
+/* Combined input with search icon inside */
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-input-wrap {
+    flex: 1;
+    min-width: 0;
+    position: relative;
 }
 
-/* Alias List */
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-list {
-    max-height: 200px;
-    overflow-y: auto;
-    border: 1px solid var(--stroke-default);
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-input-wrap i {
+    position: absolute;
+    left: 0.625rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    pointer-events: none;
+    transition: color var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-input-wrap input {
+    width: 100%;
+    padding-left: 1.75rem;
+    font-size: 0.8rem;
+}
+
+/* Filter hint — shows when typing */
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-filter-hint {
+    font-size: 0.675rem;
+    color: var(--text-tertiary);
+    margin-top: 0.25rem;
+    margin-left: 0.25rem;
+    margin-bottom: 0.5rem;
+    display: none;
+}
+
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-filter-hint.visible {
+    display: block;
+}
+
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-filter-hint em {
+    font-style: normal;
+    color: var(--accent-pink);
+}
+
+/* Group Row */
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-group-row {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--stroke-subtle);
+    flex-wrap: wrap;
+}
+
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-group-row:last-child {
+    border-bottom: none;
+}
+
+/* Pills — shared base */
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.8rem;
+    line-height: 1.4;
+    white-space: nowrap;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    position: relative;
+}
+
+/* Primary pill */
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-pill-primary {
+    background: color-mix(in oklch, var(--accent-pink) 15%, transparent);
+    color: var(--accent-pink);
+    font-weight: 600;
+    font-size: 0.825rem;
+    border: 1px solid color-mix(in oklch, var(--accent-pink) 25%, transparent);
+}
+
+/* Alias pill */
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-pill-alias {
+    background: color-mix(in oklch, var(--color-base-content) 6%, transparent);
+    color: var(--text-secondary);
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 10%, transparent);
+}
+
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-pill-alias:hover {
+    background: color-mix(in oklch, var(--color-base-content) 10%, transparent);
+    color: var(--text-primary);
+    border-color: color-mix(in oklch, var(--color-base-content) 20%, transparent);
+}
+
+/* Delete ✕ on alias pill */
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-pill-remove {
+    width: 0;
+    overflow: hidden;
+    opacity: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    border: none;
+    background: none;
+    padding: 0;
+    margin-left: -0.125rem;
+}
+
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-pill-alias:hover .alias-pill-remove {
+    width: 14px;
+    opacity: 1;
+    margin-left: 0.125rem;
+}
+
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-pill-remove:hover {
+    color: var(--color-error);
+}
+
+/* + 別名 button */
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-add-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    border: 1px dashed color-mix(in oklch, var(--color-base-content) 12%, transparent);
+    background: transparent;
+    cursor: pointer;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    white-space: nowrap;
+}
+
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-add-btn:hover {
+    color: var(--accent-pink);
+    border-color: color-mix(in oklch, var(--accent-pink) 30%, transparent);
+    background: color-mix(in oklch, var(--accent-pink) 5%, transparent);
+}
+
+/* Inline add input */
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-add-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-add-inline input {
+    width: 120px;
+    height: 1.625rem;
+    font-size: 0.75rem;
+    padding: 0 0.5rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid color-mix(in oklch, var(--accent-pink) 30%, transparent);
+    background: color-mix(in oklch, var(--accent-pink) 5%, transparent);
+    color: var(--text-primary);
+    outline: none;
+}
+
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-add-inline input:focus {
+    border-color: var(--accent-pink);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent-pink) 12%, transparent);
+}
+
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-add-inline button {
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: none;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.12s ease;
+}
+
+
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-add-inline .btn-cancel {
+    background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
+    color: var(--text-secondary);
+}
+
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-add-inline .btn-cancel:hover {
+    background: color-mix(in oklch, var(--color-base-content) 15%, transparent);
+}
+
+/* Row spacer */
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-row-spacer {
+    flex: 1;
+    min-width: 0.5rem;
+}
+
+/* Trash button */
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-trash {
+    width: 1.625rem;
+    height: 1.625rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border-radius: var(--radius-sm);
-    background: var(--bg-body);
+    border: none;
+    background: transparent;
+    color: color-mix(in oklch, var(--color-base-content) 20%, transparent);
+    cursor: pointer;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+    flex-shrink: 0;
+    font-size: 0.8rem;
 }
 
+:is(#ds-gallery-components, .ds-gallery-composition) .alias-trash:hover {
+    color: var(--color-error);
+    background: color-mix(in oklch, var(--color-error) 10%, transparent);
+}
+
+/* Loading / Error / Empty states */
 :is(#ds-gallery-components, .ds-gallery-composition) .alias-list-empty,
 :is(#ds-gallery-components, .ds-gallery-composition) .alias-list-loading,
 :is(#ds-gallery-components, .ds-gallery-composition) .alias-list-error {
@@ -1491,101 +1608,6 @@ body {
 
 :is(#ds-gallery-components, .ds-gallery-composition) .alias-list-error {
     color: var(--color-error);
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-item {
-    display: flex;
-    align-items: center;
-    padding: 0.6rem 0.75rem;
-    gap: 0.5rem;
-    border-bottom: 1px solid var(--stroke-subtle);
-    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-item:last-child {
-    border-bottom: none;
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-item:hover {
-    background: color-mix(in oklch, var(--color-base-content) 3%, transparent);
-}
-
-/* Intentional hardcoded: 模擬 VS Code diff 配色（不使用 theme 變數） */
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-old {
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    font-size: 0.8rem;
-    color: #dcdcaa; /* VS Code 黃色 - 舊名稱（before/deleted） */
-    min-width: 80px;
-    font-weight: 500;
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-item .alias-arrow {
-    color: var(--text-muted);
-    font-size: 0.75rem;
-    padding: 0;
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-new {
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-    font-size: 0.8rem;
-    color: #6a9955; /* VS Code 綠色 - 新名稱（after/added） */
-    flex: 1;
-    font-weight: 500;
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-applied {
-    font-size: 0.7rem;
-    color: var(--text-secondary);
-    white-space: nowrap;
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .btn-alias-delete {
-    opacity: 0;
-    background: transparent;
-    border: none;
-    color: var(--color-error);
-    padding: 0.25rem;
-    cursor: pointer;
-    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard), color var(--fluent-duration-fast) var(--fluent-ease-standard), transform var(--fluent-duration-fast) var(--fluent-ease-standard);
-    font-size: 0.9rem;
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .alias-item:hover .btn-alias-delete {
-    opacity: 1;
-}
-
-:is(#ds-gallery-components, .ds-gallery-composition) .btn-alias-delete:hover {
-    color: var(--color-error-hover);
-    transform: scale(1.1);
-}
-
-/* Responsive: 小螢幕處理 */
-@media (max-width: 576px) {
-    :is(#ds-gallery-components, .ds-gallery-composition) .alias-form-row {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    :is(#ds-gallery-components, .ds-gallery-composition) .alias-input-group {
-        min-width: 100%;
-    }
-
-    :is(#ds-gallery-components, .ds-gallery-composition) .alias-arrow {
-        padding: 0;
-        align-self: center;
-        transform: rotate(90deg);
-    }
-
-    :is(#ds-gallery-components, .ds-gallery-composition) .btn-alias-add {
-        width: 100%;
-        padding: 0.75rem;
-    }
-
-    :is(#ds-gallery-components, .ds-gallery-composition) .alias-old,
-    :is(#ds-gallery-components, .ds-gallery-composition) .alias-new {
-        min-width: auto;
-        flex: 1;
-    }
 }
 
 /* ========== Components: Settings Form (D.9a) ========== */

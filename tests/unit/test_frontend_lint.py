@@ -2375,3 +2375,48 @@ class TestScannerAliasV2Guard:
         alias = data.get("scanner", {}).get("alias", {})
         assert "search_placeholder" in alias, \
             "zh_TW.json 缺少 scanner.alias.search_placeholder，T6 i18n 未更新"
+
+    # --- T8 guards: pill UI + unified input + x-model binding ---
+
+    def test_scanner_js_has_alias_input(self):
+        """scanner.js 含 aliasInput 統一輸入狀態（T8 合併 aliasSearch + newPrimaryName）"""
+        js = self._js()
+        assert "aliasInput" in js, \
+            "scanner.js 缺少 aliasInput 狀態變數"
+
+    def test_scanner_js_has_cancel_add_alias(self):
+        """scanner.js 含 cancelAddAlias 方法（T8 inline input cancel 按鈕）"""
+        js = self._js()
+        assert "cancelAddAlias" in js, \
+            "scanner.js 缺少 cancelAddAlias 方法"
+
+    def test_scanner_html_uses_x_model_for_inline_input(self):
+        """inline add input 使用 x-model 而非 :value+@input（修正 IME 競態）"""
+        html = self._html()
+        assert 'x-model="addingAlias[group.primary_name]"' in html, \
+            "scanner.html inline input 應使用 x-model 綁定，而非 :value+@input"
+
+    def test_scanner_html_no_stale_value_binding(self):
+        """:value="addingAlias[ 手動綁定不應存在（已改為 x-model）"""
+        html = self._html()
+        assert ':value="addingAlias[group.primary_name]"' not in html, \
+            "scanner.html 仍有 :value 手動綁定，應已被 x-model 取代"
+
+    def test_scanner_html_cancel_button_has_type(self):
+        """alias 區域的 btn-cancel 必須有 type='button'"""
+        html = self._html()
+        assert 'type="button" class="btn-cancel"' in html, \
+            "btn-cancel 缺少 type='button'"
+
+    def test_scanner_html_no_btn_confirm(self):
+        """btn-confirm 已移除（改為 Enter key only）"""
+        html = self._html()
+        assert 'btn-confirm' not in html, \
+            "scanner.html 不應含 btn-confirm（已改為 Enter only）"
+
+    def test_zh_tw_has_filter_hint(self):
+        """zh_TW.json 含 scanner.alias.filter_hint（T8 篩選提示）"""
+        data = self._zh_tw()
+        alias = data.get("scanner", {}).get("alias", {})
+        assert "filter_hint" in alias, \
+            "zh_TW.json 缺少 scanner.alias.filter_hint"
