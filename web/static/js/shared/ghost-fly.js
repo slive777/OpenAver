@@ -1,0 +1,245 @@
+(function () {
+    'use strict';
+
+    /**
+     * GhostFly — 跨頁面共用的封面 ghost 飛行動畫模組
+     *
+     * 提供 Grid ↔ Lightbox 封面飛行動畫，
+     * 以及底層 ghost 節點管理工具函式。
+     *
+     * 使用方式：
+     *   window.GhostFly.playGridToLightbox(fromRect, lightboxEl, options)
+     *   window.GhostFly.playLightboxToGrid(fromRect, targetCardEl, options)
+     */
+
+    // ─── Ghost 節點管理工具 ────────────────────────────────────────────────
+
+    /**
+     * 還原所有被 ghost 動畫隱藏的真實封面，並移除殘留 ghost 節點
+     */
+    function cleanupStaleGhosts() {
+        // 先還原所有被 ghost 動畫隱藏的真實封面 opacity
+        var hidden = document.querySelectorAll('[data-ghost-hidden]');
+        hidden.forEach(function (el) {
+            el.style.opacity = '1';
+            el.removeAttribute('data-ghost-hidden');
+        });
+
+        // 再移除殘留 ghost
+        var stale = document.querySelectorAll('[data-search-ghost]');
+        stale.forEach(function (el) { el.remove(); });
+    }
+
+    /**
+     * 建立封面 ghost img 節點，append 到 body
+     * @param {string} src - 圖片來源 URL
+     * @param {DOMRect} rect - 來源元素的 bounding rect
+     * @returns {HTMLImageElement|null} ghost element，或 null（建立失敗）
+     */
+    function createCoverGhost(src, rect) {
+        if (!src || !rect || rect.width === 0 || rect.height === 0) return null;
+
+        // 清除殘留 ghost
+        cleanupStaleGhosts();
+
+        var ghost = document.createElement('img');
+        ghost.src = src;
+        ghost.setAttribute('data-search-ghost', 'true');
+        ghost.style.position = 'fixed';
+        ghost.style.left = '0';
+        ghost.style.top = '0';
+        ghost.style.margin = '0';
+        ghost.style.pointerEvents = 'none';
+        ghost.style.zIndex = '2000';
+        ghost.style.willChange = 'transform, width, height';
+        ghost.style.transformOrigin = 'top left';
+        ghost.style.borderRadius = '8px';
+        ghost.style.objectFit = 'cover';
+
+        document.body.appendChild(ghost);
+
+        // 以 GSAP 定位至來源位置
+        if (typeof gsap !== 'undefined') {
+            gsap.set(ghost, {
+                x: rect.left,
+                y: rect.top,
+                width: rect.width,
+                height: rect.height,
+                boxShadow: '0 4px 16px rgba(0,0,0,0.25)'
+            });
+        }
+
+        return ghost;
+    }
+
+    /**
+     * 清除 ghost 並還原真實封面 opacity
+     * @param {HTMLImageElement} ghost - ghost 元素
+     * @param {...Element} restoreEls - 要還原 opacity 的元素
+     */
+    function cleanupGhost(ghost) {
+        var restoreEls = Array.prototype.slice.call(arguments, 1);
+        if (ghost && ghost.parentNode) {
+            ghost.remove();
+        }
+        if (typeof gsap !== 'undefined' && restoreEls.length) {
+            var valid = restoreEls.filter(Boolean);
+            if (valid.length) {
+                gsap.set(valid, { opacity: 1 });
+                valid.forEach(function (el) {
+                    el.removeAttribute('data-ghost-hidden');
+                });
+            }
+        }
+    }
+
+    // ─── 公開動畫函式 ──────────────────────────────────────────────────────
+
+    var GhostFly = {
+        createCoverGhost: createCoverGhost,
+        cleanupGhost: cleanupGhost,
+        cleanupStaleGhosts: cleanupStaleGhosts,
+
+        /**
+         * Grid → Lightbox ghost fly
+         * @param {DOMRect} fromRect - grid 卡片封面的 bounding rect（state 變前捕獲）
+         * @param {Element} lightboxEl - .showcase-lightbox 元素（$nextTick 後）
+         * @param {object} [options] - { coverSrc, onComplete }
+         * @returns {gsap.Timeline|null}
+         */
+        playGridToLightbox: function (fromRect, lightboxEl, options) {
+            options = options || {};
+            if (!lightboxEl || !fromRect) {
+                if (typeof options.onComplete === 'function') options.onComplete();
+                return null;
+            }
+            if (typeof gsap === 'undefined') {
+                if (typeof options.onComplete === 'function') options.onComplete();
+                return null;
+            }
+            if (window.OpenAver && window.OpenAver.prefersReducedMotion) {
+                if (typeof options.onComplete === 'function') options.onComplete();
+                return null;
+            }
+
+            var lbImg = lightboxEl.querySelector('.lightbox-cover img');
+            if (!lbImg) {
+                if (typeof options.onComplete === 'function') options.onComplete();
+                return null;
+            }
+
+            var toRect = lbImg.getBoundingClientRect();
+            if (!toRect || toRect.width === 0) {
+                if (typeof options.onComplete === 'function') options.onComplete();
+                return null;
+            }
+
+            var coverSrc = options.coverSrc || lbImg.src;
+            var ghost = createCoverGhost(coverSrc, fromRect);
+            if (!ghost) {
+                if (typeof options.onComplete === 'function') options.onComplete();
+                return null;
+            }
+
+            // 隱藏真實 lightbox 封面（ghost 飛行期間）
+            lbImg.setAttribute('data-ghost-hidden', '');
+            gsap.set(lbImg, { opacity: 0 });
+
+            var dur = 0.38;
+            var ease = 'power2.inOut';
+
+            var tl = gsap.timeline({ id: 'ghostGridToLightbox' });
+            tl.fromTo(ghost,
+                { x: fromRect.left, y: fromRect.top, width: fromRect.width, height: fromRect.height },
+                {
+                    x: toRect.left, y: toRect.top, width: toRect.width, height: toRect.height,
+                    duration: dur, ease: ease,
+                    onComplete: function () {
+                        cleanupGhost(ghost, lbImg);
+                        if (typeof options.onComplete === 'function') options.onComplete();
+                    }
+                }
+            );
+            gsap.to(ghost, {
+                keyframes: [
+                    { boxShadow: '0 12px 32px rgba(0,0,0,0.40)', duration: dur * 0.5 },
+                    { boxShadow: '0 2px 8px rgba(0,0,0,0.15)', duration: dur * 0.5 }
+                ],
+                ease: 'none'
+            });
+            return tl;
+        },
+
+        /**
+         * Lightbox → Grid ghost fly-back
+         * @param {DOMRect} fromRect - lightbox 封面的 bounding rect（lightboxOpen = false 前捕獲）
+         * @param {Element} targetCardEl - 目標 grid 卡片元素
+         * @param {object} [options] - { coverSrc }
+         * @returns {null} fire-and-forget
+         */
+        playLightboxToGrid: function (fromRect, targetCardEl, options) {
+            options = options || {};
+            if (!fromRect || !targetCardEl) return null;
+            if (typeof gsap === 'undefined') return null;
+            if (window.OpenAver && window.OpenAver.prefersReducedMotion) return null;
+
+            if (!fromRect.width || fromRect.width === 0) return null;
+
+            // 判斷目標卡片是否在 viewport 內
+            var targetImg = targetCardEl.querySelector('.av-card-preview-img img, .actress-card-photo img');
+            if (!targetImg) return null;
+
+            var toRect = targetImg.getBoundingClientRect();
+            if (!toRect || toRect.width === 0) return null;
+
+            var viewportH = window.innerHeight;
+            var viewportW = window.innerWidth;
+            var inViewport = (
+                toRect.top < viewportH && toRect.bottom > 0 &&
+                toRect.left < viewportW && toRect.right > 0
+            );
+
+            if (!inViewport) {
+                // 退化：直接 fade-out（不強制 scroll）
+                return null;
+            }
+
+            var coverSrc = options.coverSrc || targetImg.src;
+            var ghost = createCoverGhost(coverSrc, fromRect);
+            if (!ghost) return null;
+
+            // 隱藏 target cover 直到 ghost 到達
+            targetImg.setAttribute('data-ghost-hidden', '');
+            gsap.set(targetImg, { opacity: 0 });
+
+            var dur = 0.38;
+            var ease = 'power2.inOut';
+
+            gsap.killTweensOf(ghost);
+            gsap.fromTo(ghost,
+                { x: fromRect.left, y: fromRect.top, width: fromRect.width, height: fromRect.height },
+                {
+                    x: toRect.left, y: toRect.top, width: toRect.width, height: toRect.height,
+                    duration: dur, ease: ease,
+                    onComplete: function () {
+                        cleanupGhost(ghost, targetImg);
+                        gsap.fromTo(targetCardEl,
+                            { scale: 1.02 },
+                            { scale: 1, duration: 0.18, ease: 'power2.out' }
+                        );
+                    }
+                }
+            );
+            gsap.to(ghost, {
+                keyframes: [
+                    { boxShadow: '0 12px 32px rgba(0,0,0,0.40)', duration: dur * 0.5 },
+                    { boxShadow: '0 2px 8px rgba(0,0,0,0.15)', duration: dur * 0.5 }
+                ],
+                ease: 'none'
+            });
+            return null;  // fire-and-forget
+        }
+    };
+
+    window.GhostFly = GhostFly;
+})();

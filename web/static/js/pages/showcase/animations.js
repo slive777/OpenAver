@@ -429,8 +429,8 @@
                 );
             }
 
-            // 3. Cover image slide-up fade-in
-            if (coverImg) {
+            // 3. Cover image slide-up fade-in（ghost fly 時跳過）
+            if (coverImg && !options.skipCover) {
                 tl.fromTo(coverImg,
                     { y: 12, opacity: 0 },
                     { y: 0, opacity: 1, duration: 0.16, ease: 'power2.out' },

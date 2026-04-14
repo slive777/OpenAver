@@ -87,6 +87,19 @@ window.SearchStateMixin_GridMode = {
             return;
         }
 
+        // ★ C17 step 1: 在 state 變更前捕獲 fromRect（僅 grid → lightbox 首次開啟）
+        var fromRect = null;
+        var coverSrc = null;
+        if (!this.lightboxOpen && this.displayMode === 'grid') {
+            var grid = document.querySelector('.search-grid');
+            var card = grid ? grid.querySelector('[data-slot="' + index + '"]') : null;
+            var img = card ? card.querySelector('.av-card-preview-img img') : null;
+            if (img && img.complete && img.getBoundingClientRect().width > 0) {
+                fromRect = img.getBoundingClientRect();
+                coverSrc = img.src;
+            }
+        }
+
         this._heroLightboxImageError = false;  // A6-1: 重置圖片錯誤狀態
         this.lightboxIndex = index;
         var lightboxEl = document.querySelector('.showcase-lightbox');
@@ -97,15 +110,26 @@ window.SearchStateMixin_GridMode = {
 
         // D2: 進場動畫（fire-and-forget）
         var lbGen = ++this._lightboxGeneration;
-        this.$nextTick(() => {
-            if (this._lightboxGeneration !== lbGen) return;  // B19: stale
+        var self = this;
+        this.$nextTick(function () {
+            if (self._lightboxGeneration !== lbGen) return;  // B19: stale
             var el = document.querySelector('.showcase-lightbox');
-            if (window.SearchAnimations?.playLightboxOpen) {
-                this._lightboxAnimating = true;
-                var tl = window.SearchAnimations.playLightboxOpen(el, {
-                    onComplete: () => { this._lightboxAnimating = false; }
+            if (!el) return;
+            if (fromRect && window.GhostFly && window.GhostFly.playGridToLightbox) {
+                self._lightboxAnimating = true;
+                window.GhostFly.playGridToLightbox(fromRect, el, {
+                    coverSrc: coverSrc,
+                    onComplete: function () { self._lightboxAnimating = false; }
                 });
-                if (!tl) this._lightboxAnimating = false;
+                if (window.SearchAnimations && window.SearchAnimations.playLightboxOpen) {
+                    window.SearchAnimations.playLightboxOpen(el, { skipCover: true });
+                }
+            } else if (window.SearchAnimations && window.SearchAnimations.playLightboxOpen) {
+                self._lightboxAnimating = true;
+                var tl = window.SearchAnimations.playLightboxOpen(el, {
+                    onComplete: function () { self._lightboxAnimating = false; }
+                });
+                if (!tl) self._lightboxAnimating = false;
             }
         });
     },
@@ -126,13 +150,19 @@ window.SearchStateMixin_GridMode = {
         // Phase 43 T6: 重置 actress chips 展開狀態
         this._actressChipsExpanded = { aliases: false, info: false };
 
+        // ★ C11: fly-back capture
+        var closingIndex = this.lightboxIndex;
+        var lbEl = document.querySelector('.showcase-lightbox');
+        var lbImg = lbEl ? lbEl.querySelector('.lightbox-cover img') : null;
+        var flybackFromRect = lbImg ? lbImg.getBoundingClientRect() : null;
+        var flybackCoverSrc = lbImg ? lbImg.src : null;
+
         this._lightboxGeneration++;  // B19: invalidate pending $nextTick lightbox callbacks
         // Instant close — kill any in-progress lightbox animations, then sync close
         if (typeof gsap !== 'undefined') {
             gsap.getById('lightboxOpen')?.kill();
             gsap.getById('lightboxSwitch')?.kill();
         }
-        var lbEl = document.querySelector('.showcase-lightbox');
         if (lbEl) lbEl.classList.remove('gsap-animating');
         this._lightboxAnimating = false;
         this.lightboxOpen = false;
@@ -141,6 +171,17 @@ window.SearchStateMixin_GridMode = {
         // Keep currentLightboxVideo intact during fade-out, then clear after
         // Generation-guarded to prevent stale callback from clearing newly-opened lightbox
         var self = this;
+
+        // ★ Fly-back
+        if (closingIndex >= 0 && flybackFromRect && window.GhostFly && window.GhostFly.playLightboxToGrid) {
+            this.$nextTick(function () {
+                var grid = document.querySelector('.search-grid');
+                var cardEl = grid ? grid.querySelector('[data-slot="' + closingIndex + '"]') : null;
+                if (cardEl) {
+                    window.GhostFly.playLightboxToGrid(flybackFromRect, cardEl, { coverSrc: flybackCoverSrc });
+                }
+            });
+        }
         var gen = this._lightboxGeneration;  // capture current generation
         this.lightboxCloseTimer = setTimeout(() => {
             if (self._lightboxGeneration === gen && !self.lightboxOpen) {

@@ -2521,3 +2521,50 @@ class TestActressIconGuard:
         """scanner.html 不應有 bi-person-badge"""
         html = Path("web/templates/scanner.html").read_text(encoding="utf-8")
         assert "bi-person-badge" not in html, "scanner.html 仍有 bi-person-badge"
+
+
+class TestGhostFlyGuards:
+    """T8: Ghost Fly 架構守衛"""
+
+    def test_ghost_fly_js_exists(self):
+        """ghost-fly.js 檔案存在"""
+        assert Path("web/static/js/shared/ghost-fly.js").exists()
+
+    def test_ghost_fly_loaded_in_base_html(self):
+        """base.html 載入 ghost-fly.js"""
+        html = Path("web/templates/base.html").read_text(encoding="utf-8")
+        assert "ghost-fly.js" in html
+
+    def test_skip_cover_supported_in_showcase_animations(self):
+        """showcase/animations.js playLightboxOpen 支援 skipCover"""
+        js = Path("web/static/js/pages/showcase/animations.js").read_text(encoding="utf-8")
+        assert "skipCover" in js
+
+    def test_skip_cover_supported_in_search_animations(self):
+        """search/animations.js playLightboxOpen 支援 skipCover"""
+        js = Path("web/static/js/pages/search/animations.js").read_text(encoding="utf-8")
+        assert "skipCover" in js
+
+    def test_ghost_fly_fallback_exists_in_search_animations(self):
+        """search/animations.js 委派函式有 GhostFly fallback"""
+        js = Path("web/static/js/pages/search/animations.js").read_text(encoding="utf-8")
+        # createCoverGhost 應委派到 window.GhostFly
+        assert "window.GhostFly" in js
+        # 應有 else fallback（GhostFly 不存在時）
+        # 在 createCoverGhost / cleanupGhost / cleanupStaleGhosts 區域
+        lines = js.split('\n')
+        ghost_fly_refs = [i for i, line in enumerate(lines) if 'window.GhostFly' in line]
+        assert len(ghost_fly_refs) >= 3, "應有至少 3 個 window.GhostFly 引用（三個委派函式）"
+
+    def test_gsap_animating_before_lightbox_open(self):
+        """showcase/core.js 的 gsap-animating 在 lightboxOpen = true 之前"""
+        js = Path("web/static/js/pages/showcase/core.js").read_text(encoding="utf-8")
+        # 只在 openLightbox 函數區域內檢查順序
+        idx_fn = js.find("openLightbox(")
+        assert idx_fn > 0, "找不到 openLightbox 函數"
+        fn_scope = js[idx_fn:]
+        idx_animating = fn_scope.find("classList.add('gsap-animating')")
+        idx_open = fn_scope.find("this.lightboxOpen = true")
+        assert idx_animating > 0, "找不到 gsap-animating classList.add"
+        assert idx_open > 0, "找不到 lightboxOpen = true"
+        assert idx_animating < idx_open, "gsap-animating 應在 lightboxOpen = true 之前"

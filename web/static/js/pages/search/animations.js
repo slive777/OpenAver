@@ -61,29 +61,26 @@
      * 清除所有殘留的 ghost 元素（防止 re-entrant 呼叫留下殘影）
      */
     function cleanupStaleGhosts() {
-        // 先還原所有被 ghost 動畫隱藏的真實封面 opacity
-        var hidden = document.querySelectorAll('[data-ghost-hidden]');
-        hidden.forEach(function (el) {
-            el.style.opacity = '1';
-            el.removeAttribute('data-ghost-hidden');
-        });
-
-        // 再移除殘留 ghost
-        var stale = document.querySelectorAll('[data-search-ghost]');
-        stale.forEach(function (el) { el.remove(); });
+        if (window.GhostFly) {
+            window.GhostFly.cleanupStaleGhosts();
+        } else {
+            var hidden = document.querySelectorAll('[data-ghost-hidden]');
+            hidden.forEach(function (el) { el.style.opacity = '1'; el.removeAttribute('data-ghost-hidden'); });
+            var stale = document.querySelectorAll('[data-search-ghost]');
+            stale.forEach(function (el) { el.remove(); });
+        }
     }
 
     /**
-     * 建立封面 ghost img 節點，append 到 body
-     * 移植自 motion-lab.js L340-370，適配 /search
+     * GhostFly 不可用時的本地 fallback：建立封面 ghost img 節點，append 到 body
      * @param {string} src - 圖片來源 URL
      * @param {DOMRect} rect - 來源元素的 bounding rect
      * @returns {HTMLImageElement|null} ghost element，或 null（建立失敗）
      */
-    function createCoverGhost(src, rect) {
+    function _localCreateCoverGhost(src, rect) {
         if (!src || !rect || rect.width === 0 || rect.height === 0) return null;
+        if (typeof gsap === 'undefined') return null;
 
-        // 清除殘留 ghost
         cleanupStaleGhosts();
 
         var ghost = document.createElement('img');
@@ -99,40 +96,52 @@
         ghost.style.transformOrigin = 'top left';
         ghost.style.borderRadius = '8px';
         ghost.style.objectFit = 'cover';
-
         document.body.appendChild(ghost);
 
-        // 以 GSAP 定位至來源位置
-        if (typeof gsap !== 'undefined') {
-            gsap.set(ghost, {
-                x: rect.left,
-                y: rect.top,
-                width: rect.width,
-                height: rect.height,
-                boxShadow: '0 4px 16px rgba(0,0,0,0.25)'
-            });
-        }
+        gsap.set(ghost, {
+            x: rect.left,
+            y: rect.top,
+            width: rect.width,
+            height: rect.height,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.25)'
+        });
 
         return ghost;
     }
 
     /**
+     * 建立封面 ghost img 節點，append 到 body
+     * 委派至 window.GhostFly（T8），fallback 為本地實作
+     * @param {string} src - 圖片來源 URL
+     * @param {DOMRect} rect - 來源元素的 bounding rect
+     * @returns {HTMLImageElement|null} ghost element，或 null（建立失敗）
+     */
+    function createCoverGhost(src, rect) {
+        return window.GhostFly ? window.GhostFly.createCoverGhost(src, rect) : _localCreateCoverGhost(src, rect);
+    }
+
+    /**
      * 清除 ghost 並還原真實封面 opacity
+     * 委派至 window.GhostFly（T8），fallback 還原所有 restoreEls opacity
      * @param {HTMLImageElement} ghost - ghost 元素
      * @param {...Element} restoreEls - 要還原 opacity 的元素
      */
     function cleanupGhost(ghost) {
-        var restoreEls = Array.prototype.slice.call(arguments, 1);
-        if (ghost && ghost.parentNode) {
-            ghost.remove();
-        }
-        if (typeof gsap !== 'undefined' && restoreEls.length) {
-            var valid = restoreEls.filter(Boolean);
-            if (valid.length) {
-                gsap.set(valid, { opacity: 1 });
-                valid.forEach(function (el) {
-                    el.removeAttribute('data-ghost-hidden');
-                });
+        if (window.GhostFly) {
+            window.GhostFly.cleanupGhost.apply(null, arguments);
+        } else {
+            if (ghost && ghost.parentNode) ghost.remove();
+            var restoreEls = Array.prototype.slice.call(arguments, 1);
+            if (restoreEls.length) {
+                var valid = restoreEls.filter(Boolean);
+                if (valid.length) {
+                    if (typeof gsap !== 'undefined') {
+                        gsap.set(valid, { opacity: 1 });
+                    } else {
+                        valid.forEach(function (el) { el.style.opacity = '1'; });
+                    }
+                    valid.forEach(function (el) { el.removeAttribute('data-ghost-hidden'); });
+                }
             }
         }
     }
@@ -820,8 +829,8 @@
                 );
             }
 
-            // 3. Cover image slide-up fade-in
-            if (coverImg) {
+            // 3. Cover image slide-up fade-in（ghost fly 時跳過）
+            if (coverImg && !options.skipCover) {
                 tl.fromTo(coverImg,
                     { y: 12, opacity: 0 },
                     { y: 0, opacity: 1, duration: 0.16, ease: 'power2.out' },
