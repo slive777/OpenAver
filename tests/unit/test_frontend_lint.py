@@ -2444,3 +2444,63 @@ class TestUserTagCSSGuard:
         block = match.group(1)
         assert "--text-inverse" not in block, \
             ".lb-user-tag should use --color-primary-content, not --text-inverse"
+
+
+class TestShowcaseToolbarStructureGuard:
+    """T5: 確保影片模式 .toolbar-controls 直接子 .control-group 數量為 2"""
+
+    def _html(self):
+        return SHOWCASE_HTML.read_text(encoding="utf-8")
+
+    def test_video_mode_toolbar_has_two_control_groups(self):
+        """影片模式 .toolbar-controls 直接子 .control-group 應有 2 個
+
+        group 1: funnel + sort-dir
+        group 2: mode dropdown + eye button + perPage dropdown
+        """
+        html = self._html()
+
+        # 找到影片模式的 toolbar-controls（x-show="!showFavoriteActresses"）
+        # 用正則截取從開啟標籤到對應結尾 </div> 的區塊
+        # 先找到開啟的 div
+        start_pattern = re.compile(
+            r'<div[^>]+class="[^"]*toolbar-section toolbar-controls[^"]*"[^>]+x-show="!showFavoriteActresses"[^>]*>'
+        )
+        start_match = start_pattern.search(html)
+        assert start_match, (
+            "showcase.html 找不到影片模式 .toolbar-controls（x-show=\"!showFavoriteActresses\"）"
+        )
+
+        # 從開啟標籤後，追蹤 div 巢狀深度找到對應的結尾 </div>
+        pos = start_match.end()
+        depth = 1
+        tag_pattern = re.compile(r'<(/?)div[\s>]')
+        while depth > 0 and pos < len(html):
+            m = tag_pattern.search(html, pos)
+            if not m:
+                break
+            if m.group(1) == '/':
+                depth -= 1
+            else:
+                depth += 1
+            pos = m.end()
+
+        block = html[start_match.end():pos]
+
+        # 計算直接子 .control-group 數量：找開啟的 <div class="control-group">
+        # 只計算深度 1 的（直接子）
+        direct_groups = 0
+        depth = 0
+        tag_re = re.compile(r'<(/?)(div)(?:\s+([^>]*))?>')
+        for m in tag_re.finditer(block):
+            closing, tag, attrs = m.group(1), m.group(2), m.group(3) or ''
+            if closing:
+                depth -= 1
+            else:
+                if depth == 0 and 'control-group' in attrs:
+                    direct_groups += 1
+                depth += 1
+
+        assert direct_groups == 1, (
+            f"影片模式 .toolbar-controls 直接子 .control-group 應為 1 個（全部 5 icon 合併），實際為 {direct_groups} 個。"
+        )
