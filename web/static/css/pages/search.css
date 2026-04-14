@@ -550,7 +550,7 @@
 /* ==================== 用戶標籤樣式 ==================== */
 .tag-badge.user-tag {
     background: var(--accent);
-    color: var(--text-inverse);
+    color: var(--color-primary-content);
     cursor: default;
 }
 

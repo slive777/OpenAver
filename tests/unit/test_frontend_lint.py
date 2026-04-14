@@ -1,5 +1,6 @@
 """前端靜態守衛 — 確保 template 包含必要的 Alpine 綁定"""
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -2420,3 +2421,26 @@ class TestScannerAliasV2Guard:
         alias = data.get("scanner", {}).get("alias", {})
         assert "filter_hint" in alias, \
             "zh_TW.json 缺少 scanner.alias.filter_hint"
+
+
+class TestUserTagCSSGuard:
+    """T3: 確保 user-tag 選擇器不使用 --text-inverse（dark mode 對比度修正）"""
+
+    def test_search_user_tag_no_text_inverse(self):
+        """search.css 的 .tag-badge.user-tag 不使用 --text-inverse"""
+        css = Path("web/static/css/pages/search.css").read_text(encoding="utf-8")
+        # 截取 .tag-badge.user-tag 選擇器區塊
+        match = re.search(r'\.tag-badge\.user-tag\s*\{([^}]+)\}', css)
+        assert match, ".tag-badge.user-tag selector not found in search.css"
+        block = match.group(1)
+        assert "--text-inverse" not in block, \
+            ".tag-badge.user-tag should use --color-primary-content, not --text-inverse"
+
+    def test_showcase_lb_user_tag_no_text_inverse(self):
+        """showcase.css 的 .lb-user-tag 不使用 --text-inverse"""
+        css = Path("web/static/css/pages/showcase.css").read_text(encoding="utf-8")
+        match = re.search(r'\.lb-user-tag\s*\{([^}]+)\}', css)
+        assert match, ".lb-user-tag selector not found in showcase.css"
+        block = match.group(1)
+        assert "--text-inverse" not in block, \
+            ".lb-user-tag should use --color-primary-content, not --text-inverse"
