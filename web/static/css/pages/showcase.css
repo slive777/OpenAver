@@ -894,7 +894,13 @@
     .toolbar-controls {
         grid-column: 1;
         justify-self: stretch;
-        justify-content: space-between;
+        justify-content: flex-end;
+    }
+
+    /* 單一 .control-group 含 5 icon：允許在極窄視窗下整組折行 */
+    .toolbar-controls .control-group {
+        flex-wrap: wrap;
+        justify-content: flex-end;
     }
 }
 

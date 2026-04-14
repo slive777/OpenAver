@@ -436,6 +436,10 @@ function showcaseState() {
                 }
             } else {
                 needEntry = true;
+                var searchTerm = this.search.trim();
+                if (searchTerm) {
+                    this._checkPreciseActressMatch(searchTerm, 'manual');
+                }
             }
             var gen = ++this._animGeneration;
             this.$nextTick(function () {

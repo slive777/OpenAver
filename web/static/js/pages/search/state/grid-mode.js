@@ -159,6 +159,8 @@ window.SearchStateMixin_GridMode = {
         this._heroLightboxImageError = false;  // A6-1: 重置圖片錯誤狀態
         this._actressChipsExpanded = { aliases: false, info: false };  // Phase 43 T6: 重置 chips 展開狀態
         this.lightboxIndex = -1;
+        var lightboxEl = document.querySelector('.showcase-lightbox');
+        if (lightboxEl) lightboxEl.classList.add('gsap-animating');
         this.lightboxOpen = true;
 
         // D2: 進場動畫（fire-and-forget）
