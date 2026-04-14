@@ -1103,6 +1103,10 @@ class AliasRepository:
 
         target_primary = target_record.primary_name if target_record else name
 
+        # §46 guard: 無既有記錄 + 輸入 aliases 為空 → 不建空記錄
+        if target_record is None and not aliases:
+            return {"primary_name": target_primary, "skipped_aliases": []}
+
         conn = self._get_connection()
         cursor = conn.cursor()
         skipped: List[str] = []

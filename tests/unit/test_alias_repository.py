@@ -443,3 +443,27 @@ class TestSyncFromFavorite:
         record = repo.get_by_primary("NewActress")
         assert record is not None
         assert "alias1" in record.aliases
+
+    def test_sync_from_favorite_empty_aliases_no_insert(self, repo):
+        """§46 guard: 無既有記錄 + 空 aliases → 不建空記錄"""
+        result = repo.sync_from_favorite("NewActress", [])
+        assert result["primary_name"] == "NewActress"
+        assert result["skipped_aliases"] == []
+        assert repo.get_by_primary("NewActress") is None
+
+    def test_sync_from_favorite_with_aliases_inserts(self, repo):
+        """§46 guard 不觸發：無既有記錄 + 非空 aliases → 正常 INSERT"""
+        result = repo.sync_from_favorite("NewActress", ["alias1"])
+        assert result["primary_name"] == "NewActress"
+        record = repo.get_by_primary("NewActress")
+        assert record is not None
+        assert "alias1" in record.aliases
+
+    def test_sync_from_favorite_existing_record_merge_unaffected(self, repo):
+        """§46 guard 不觸發：有既有記錄 + 空 aliases → UPDATE 路徑正常執行"""
+        repo.add("ExistingActress", ["old_alias"])
+        result = repo.sync_from_favorite("ExistingActress", [])
+        assert result["primary_name"] == "ExistingActress"
+        record = repo.get_by_primary("ExistingActress")
+        assert record is not None
+        assert "old_alias" in record.aliases
