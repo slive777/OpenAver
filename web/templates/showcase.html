@@ -51,14 +51,12 @@
                         <button class="mode-toggle-btn"
                                 :class="{ 'active': !showFavoriteActresses }"
                                 @click="showFavoriteActresses && toggleActressMode()"
-                                :disabled="showFavoriteActresses && actressSearch !== ''"
                                 :title="t('showcase.mode.video')">
                             <i class="bi bi-film"></i>
                         </button>
                         <button class="mode-toggle-btn"
                                 :class="{ 'active': showFavoriteActresses }"
                                 @click="!showFavoriteActresses && toggleActressMode()"
-                                :disabled="!showFavoriteActresses && search !== ''"
                                 :title="t('showcase.mode.actress')">
                             <i class="bi bi-person"></i>
                         </button>

@@ -1689,11 +1689,6 @@
     background: rgba(255, 255, 255, 0.06);
 }
 
-.mode-toggle-btn:disabled {
-    opacity: 0.3;
-    pointer-events: none;
-}
-
 /* Variant: mode-toggle — wider left slot for capsule toggle (44c-T8) */
 .spotlight-search--mode-toggle {
     --spotlight-left-slot: 5.5rem;
