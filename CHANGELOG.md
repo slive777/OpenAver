@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.5] - 2026-04-16
+
+### Added
+
+#### 🎯 46 — UI Polish
+- **Ghost Fly 轉場**：Grid↔Lightbox 封面飛行動畫（共用 `ghost-fly.js` 模組，Search + Showcase 雙頁面支援）
+- **新手教學擴充為 7 步**：涵蓋搜尋、收藏、女優、Scanner、設定完整流程
+- **Floating Hearts 粒子特效**：Hero Card 已收藏愛心點擊時噴射心形粒子
+- **女優模式 camera icon**：切回影片模式時加 crossfade 動畫
+- **Toolbar 響應式統一**：影片模式 5 個 icon 整組同時換行，不再逐個掉落
+- **Alias Guard**：`sync_from_favorite()` 空 aliases 不再建空記錄
+- **README AI-Ready API 重寫**：多步驟工作流範例（top 20 女優收藏、別名 + tag、Gallery HTML）
+- **打包版 README 跨平台對齊**：Windows / macOS 疑難排解、啟動腳本說明補齊
+
+### Fixed
+- **User-tag dark mode 對比度**：`color: var(--text-inverse)` → `var(--color-primary-content)`
+- **GSAP Lightbox ease/scale 微調**：`scale 0.92 → 0.95`、`back.out → power2.out`、`gsap-animating` 時序提前
+- **狀態同步修正**：模式切換保留各自搜尋詞 + addFavorite/rescrape 後立即刷新 Grid + removeActress 後重算精準匹配
+- **女優 icon 統一**：`bi-person` → `bi-person-circle` 全站同步
+- **en.json 單位**：`showcase.unit.films` 補 "films" 單位
+- **模式切換 disabled binding 移除**：搜尋欄有文字時不再禁用切換按鈕
+
+### Tests
+- 全套 2416 → 2436 tests passed（+20 net）
+
 ## [0.7.4] - 2026-04-14
 
 ### Added
