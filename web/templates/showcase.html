@@ -315,7 +315,7 @@
                      x-show="_matchedActress"
                      @click.stop>
                   <button class="btn-glass-circle is-favorite"
-                          disabled
+                          @click.stop="window.GhostFly && GhostFly.floatingHearts($el)"
                           :title="t('showcase.actress.favorited')">
                     <i class="bi bi-heart-fill"></i>
                   </button>

@@ -238,6 +238,112 @@
                 ease: 'none'
             });
             return null;  // fire-and-forget
+        },
+
+        /**
+         * 已收藏愛心 Floating Hearts 粒子效果
+         * 點擊 is-favorite 按鈕時，從按鈕位置噴出浮動愛心粒子，向上漂移並淡出。
+         * 純裝飾，不改變收藏狀態。
+         *
+         * @param {Element} buttonEl - 按鈕 DOM 元素（$el from Alpine 模板）
+         */
+        floatingHearts: function (buttonEl) {
+            // Early return guard
+            if (!buttonEl || !buttonEl.getBoundingClientRect) return;
+
+            var reducedMotion = window.OpenAver && window.OpenAver.prefersReducedMotion;
+            var hasGsap = typeof gsap !== 'undefined';
+
+            // ── 1. Button pulse（C21 防幽靈動畫）────────────────────────────
+            if (hasGsap) {
+                // C21 race fix: kill any in-progress pulse before starting a new one.
+                // This ensures only one active pulse exists at a time, so the guard
+                // class lifecycle remains clean (add before, remove in onComplete).
+                gsap.killTweensOf(buttonEl);
+                // C21: 加 guard class 暫時關掉 CSS transform transition
+                buttonEl.classList.add('no-transform-transition');
+                gsap.fromTo(buttonEl,
+                    { scale: 1 },
+                    {
+                        scale: 1.3,
+                        duration: 0.15,
+                        ease: 'power2.out',
+                        yoyo: true,
+                        repeat: 1,
+                        onComplete: function () {
+                            buttonEl.classList.remove('no-transform-transition');
+                        }
+                    }
+                );
+            } else {
+                // CSS fallback pulse: force animation restart on rapid clicks.
+                // If the class is already present, remove it, trigger a reflow to
+                // flush the browser's style engine, then re-add it so the keyframe
+                // animation restarts from the beginning.
+                buttonEl.classList.remove('btn-heart-pulse');
+                void buttonEl.offsetWidth; // reflow
+                buttonEl.classList.add('btn-heart-pulse');
+                setTimeout(function () {
+                    buttonEl.classList.remove('btn-heart-pulse');
+                }, 300);
+            }
+
+            // ── 2. 粒子生成（reduced-motion 時跳過）─────────────────────────
+            if (reducedMotion) return;
+
+            var rect = buttonEl.getBoundingClientRect();
+            var centerX = rect.left + rect.width / 2;
+            var centerY = rect.top + rect.height / 2;
+
+            var count = Math.floor(Math.random() * 2) + 1; // 1–2 顆
+
+            for (var i = 0; i < count; i++) {
+                (function (delay) {
+                    setTimeout(function () {
+                        // ── 3. 粒子樣式與動畫 ─────────────────────────────
+                        var el = document.createElement('i');
+                        el.className = 'bi bi-heart-fill floating-heart-particle';
+
+                        var fontSize = Math.floor(Math.random() * 13) + 20; // 20–32px
+                        el.style.cssText = [
+                            'position:fixed',
+                            'left:' + centerX + 'px',
+                            'top:' + centerY + 'px',
+                            'pointer-events:none',
+                            'color:var(--color-favorite)',
+                            'font-size:' + fontSize + 'px',
+                            'z-index:9999',
+                            'opacity:1'
+                        ].join(';');
+
+                        document.body.appendChild(el);
+
+                        var yOffset = -(Math.random() * 40 + 80); // -80 to -120
+                        var xOffset = (Math.random() * 60 + 30) * (Math.random() < 0.5 ? 1 : -1); // ±30–90
+                        var duration = Math.random() * 0.3 + 0.8; // 0.8–1.1s
+
+                        if (hasGsap) {
+                            gsap.fromTo(el,
+                                { y: 0, x: 0, opacity: 1, scale: 0.8 },
+                                {
+                                    y: yOffset,
+                                    x: xOffset,
+                                    opacity: 0,
+                                    scale: 1.4,
+                                    duration: duration,
+                                    ease: 'power1.out',
+                                    onComplete: function () { el.remove(); }
+                                }
+                            );
+                        } else {
+                            // CSS fallback
+                            el.style.setProperty('--dx', xOffset + 'px');
+                            el.classList.add('floating-heart-fallback');
+                            el.addEventListener('animationend', function () { el.remove(); }, { once: true });
+                        }
+                    }, delay);
+                }(i * (Math.random() * 80))); // 0–80ms stagger
+            }
         }
     };
 

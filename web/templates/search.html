@@ -650,10 +650,10 @@
                              :class="actressProfile?.is_favorite ? 'always-visible' : ''"
                              x-show="actressProfile"
                              @click.stop>
-                            <!-- 已收藏：常駐實心愛心（CD-10：不可點擊，純指示） -->
+                            <!-- 已收藏：常駐實心愛心（有浮動愛心粒子效果） -->
                             <button class="btn-glass-circle is-favorite"
                                     x-show="actressProfile?.is_favorite"
-                                    disabled
+                                    @click.stop="window.GhostFly && GhostFly.floatingHearts($el)"
                                     :title="t('search.actress.favorited')">
                                 <i class="bi bi-heart-fill"></i>
                             </button>

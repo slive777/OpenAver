@@ -1725,10 +1725,10 @@
     pointer-events: auto;
 }
 
-/* 已收藏愛心按鈕 — 紅色，不可點擊 */
+/* 已收藏愛心按鈕 — 紅色，可點擊（浮動愛心粒子效果） */
 .hero-card .btn-glass-circle.is-favorite {
     color: var(--color-favorite);
-    cursor: default;
+    cursor: pointer;
 }
 
 /* No-cover fallback placeholder（Hero Card 圖片載入失敗） */
