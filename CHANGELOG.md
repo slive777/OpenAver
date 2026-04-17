@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.6] - 2026-04-18
+
+### Fixed
+- **Scanner 一鍵補完在缺資料 > 500 片時按鈕 disabled**：後端 `/api/gallery/missing-check` 移除 500 cap（原本超過 500 回 `items: null`，前端因此 disable 按鈕），現在永遠回完整清單。前端 `missingItems > 500` 時彈 confirm dialog 讓用戶明確同意後才啟動。Rate limit 由 `/api/batch-enrich` 自己的 20/batch + delay 處理
+- **Resume 流程改用 options pattern**：`resumeMissingEnrich()` 不再提前清 `localStorage.avlist_enrich_pending`，改由 `runMissingEnrich({ skipConfirm: true })` 統一管理清除時機（避免大批量 resume 被 confirm dialog 取消時丟失 pending 恢復點）
+
+### Added
+- **大批量 confirm dialog**：i18n 四語系新增 6 個 `scanner.stats.missing_enrich_confirm_*` keys（純文字，前端用 `<span x-text>` + `<strong x-text>` 組裝數字）
+
+### Tests
+- 全套 2436 → 2450 tests passed (+14 net)
+- 新增：backend `TestMissingCheckAPI` 4 個 500/501/5000 邊界測試 + frontend lint 5 個 guard tests（含 `resumeMissingEnrich` regex 函式體守護）
+
 ## [0.7.5] - 2026-04-16
 
 ### Added
