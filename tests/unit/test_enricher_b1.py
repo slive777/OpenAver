@@ -179,3 +179,116 @@ class TestDatabaseHelpers:
             f"反斜線 escape 失敗：期待 1，實際 {count}。"
             "Windows UNC path 中的反斜線應被正確 escape"
         )
+
+
+class TestFetchSamplesOnly:
+    """spec-48b §b3 — fetch_samples_only() 後端核心邏輯
+
+    - 檔案不存在 → success=False, 不寫磁碟, 不寫 DB
+    - search_jav 回傳 None → success=False, 不寫
+    - search_jav 成功但 sample_images=[] → success=True, extrafanart_written=0, 不寫 DB
+    - 下載成功 count>0 → success=True, DB update_sample_images 被呼叫
+    - _write_extrafanart 回傳 0（下載全部失敗）→ 不寫 DB
+    """
+
+    _SENTINEL = object()  # 用於區分「未傳 search_result」和「明確傳 None」
+
+    def _run_fetch(
+        self,
+        file_exists: bool = True,
+        search_result=_SENTINEL,
+        write_count: int = 0,
+        sample_images=None,
+    ):
+        """Helper：執行 fetch_samples_only 並回傳 (result, mock_repo)"""
+        from unittest.mock import patch, MagicMock
+        if sample_images is None:
+            sample_images = ["http://example.com/s1.jpg"]
+        if search_result is self._SENTINEL:
+            search_result = {
+                "number": "SONE-205",
+                "title": "Test",
+                "actors": [],
+                "cover": "http://example.com/cover.jpg",
+                "date": "2024-01-01",
+                "maker": "SOD",
+                "director": "",
+                "series": "",
+                "label": "",
+                "tags": [],
+                "sample_images": sample_images,
+                "source": "javbus",
+            }
+        with patch("os.path.exists", return_value=file_exists), \
+             patch("core.enricher.VideoRepository") as mock_repo_cls, \
+             patch("core.enricher.search_jav", return_value=search_result) as mock_search, \
+             patch("core.enricher._write_extrafanart", return_value=write_count) as mock_write:
+            mock_repo = MagicMock()
+            mock_repo_cls.return_value = mock_repo
+            from core.enricher import fetch_samples_only
+            result = fetch_samples_only(
+                file_path="/tmp/SONE-205.mp4",
+                number="SONE-205",
+            )
+            return result, mock_repo, mock_search, mock_write
+
+    def test_file_not_found_returns_failure(self):
+        """檔案不存在 → success=False, error, 不寫磁碟, 不寫 DB"""
+        result, mock_repo, mock_search, mock_write = self._run_fetch(file_exists=False)
+        assert result.success is False
+        assert result.error is not None
+        assert result.extrafanart_written == 0
+        mock_search.assert_not_called()
+        mock_write.assert_not_called()
+        mock_repo.update_sample_images.assert_not_called()
+
+    def test_search_jav_returns_none_returns_failure(self):
+        """search_jav 回傳 None → success=False, 不寫磁碟, 不寫 DB"""
+        result, mock_repo, mock_search, mock_write = self._run_fetch(
+            file_exists=True,
+            search_result=None,
+        )
+        assert result.success is False
+        assert result.extrafanart_written == 0
+        mock_write.assert_not_called()
+        mock_repo.update_sample_images.assert_not_called()
+
+    def test_empty_sample_images_no_db_write(self):
+        """scraper 成功但 sample_images=[] → success=True, extrafanart_written=0, 不寫 DB"""
+        result, mock_repo, _search, _write = self._run_fetch(
+            file_exists=True,
+            sample_images=[],   # scraper 回傳空劇照
+            write_count=0,
+        )
+        assert result.success is True
+        assert result.extrafanart_written == 0
+        mock_repo.update_sample_images.assert_not_called()
+
+    def test_download_success_updates_db(self):
+        """下載成功 count>0 → success=True, DB update_sample_images 被呼叫"""
+        result, mock_repo, _search, _write = self._run_fetch(
+            file_exists=True,
+            sample_images=["http://example.com/s1.jpg", "http://example.com/s2.jpg"],
+            write_count=2,
+        )
+        assert result.success is True
+        assert result.extrafanart_written == 2
+        # update_sample_images 被呼叫，path 應為 file:/// URI，sample_images 為 scraper 回傳的 URL 列表
+        mock_repo.update_sample_images.assert_called_once()
+        call_args = mock_repo.update_sample_images.call_args
+        path_arg = call_args[0][0]
+        samples_arg = call_args[0][1]
+        assert path_arg.startswith("file:///"), f"DB path 應為 file:/// URI，實際：{path_arg!r}"
+        assert "http://example.com/s1.jpg" in samples_arg
+
+    def test_write_extrafanart_returns_zero_no_db_write(self):
+        """_write_extrafanart 回傳 0（下載全部失敗）→ gate 不通，DB 不更新"""
+        result, mock_repo, _search, _write = self._run_fetch(
+            file_exists=True,
+            sample_images=["http://example.com/s1.jpg"],
+            write_count=0,   # 下載全部失敗，回傳 0
+        )
+        # success 仍為 True（scraping 本身成功，只是磁碟寫出 0 張）
+        # 或依實作 success=True 亦可，關鍵是 DB 不更新
+        assert result.extrafanart_written == 0
+        mock_repo.update_sample_images.assert_not_called()

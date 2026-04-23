@@ -449,3 +449,64 @@ def _db_upsert(
         repo.upsert(video)
     except Exception as e:
         logger.warning("DB upsert 失敗: %s", e)
+
+
+def _db_upsert_samples_only(repo: VideoRepository, fs_path: str, sample_images: list) -> None:
+    """只更新 DB 的 sample_images 欄位（不觸碰其他欄位）。"""
+    path_uri = to_file_uri(fs_path)
+    repo.update_sample_images(path_uri, sample_images)
+
+
+def fetch_samples_only(
+    file_path: str,
+    number: str,
+    proxy_url: str = "",
+    primary_source: str = "javbus",
+) -> EnrichResult:
+    """只補抓劇照：呼叫 scraper → 下載 extrafanart → 更新 DB sample_images。
+    不寫 NFO / cover / 其他欄位。
+    """
+    _empty = EnrichResult(
+        success=False,
+        nfo_written=False,
+        cover_written=False,
+        extrafanart_written=0,
+        fields_filled=[],
+        source_used="",
+        error=None,
+    )
+
+    try:
+        fs_path = uri_to_fs_path(file_path)
+    except Exception:
+        fs_path = file_path
+
+    if not os.path.exists(fs_path):
+        logger.warning("[fetch_samples_only] 檔案不存在: %s", fs_path)
+        _empty.error = "檔案不存在"
+        return _empty
+
+    meta = search_jav(number, proxy_url=proxy_url, primary_source=primary_source,
+                      source="auto", javbus_lang=None)
+    if not meta:
+        logger.warning("[fetch_samples_only] 找不到資料: %s", number)
+        _empty.error = f"找不到 {number} 的資料"
+        return _empty
+
+    sample_images = meta.get("sample_images", [])
+    count = _write_extrafanart(fs_path, sample_images, write_extrafanart=True)
+
+    if count > 0:
+        repo = VideoRepository()
+        _db_upsert_samples_only(repo, fs_path, sample_images)
+
+    logger.info("[fetch_samples_only] %s: %d samples downloaded", number, count)
+    return EnrichResult(
+        success=True,
+        nfo_written=False,
+        cover_written=False,
+        extrafanart_written=count,
+        fields_filled=[],
+        source_used=meta.get("source", ""),
+        error=None,
+    )
