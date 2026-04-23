@@ -324,6 +324,7 @@ BATCH_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "page
 SEARCH_FLOW_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state" / "search-flow.js"
 BASE_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state" / "base.js"
 SETTINGS_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "settings.js"
+SEARCH_FILE_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "file.js"
 
 
 class TestBatchIntervalGuard:
@@ -2833,3 +2834,55 @@ class TestLongPathWarning:
             "long_paths 警告訊息應提到「260」字元門檻（讓用戶理解原因）"
         assert "debug.log" in window, \
             "long_paths 警告訊息應提到「debug.log」（引導用戶查詳細清單）"
+
+
+class TestSearchFileJsSubtitleHelper:
+    """48a T2 a2 — 前端 extractChineseTitle 同步套用 stripSubtitleMarkers helper（對齊 Python 端）"""
+
+    def _js(self):
+        return SEARCH_FILE_JS.read_text(encoding="utf-8")
+
+    def test_strip_subtitle_markers_function_exists(self):
+        """file.js 應定義 stripSubtitleMarkers helper（對齊 Python strip_subtitle_markers）"""
+        js = self._js()
+        assert "function stripSubtitleMarkers(" in js, \
+            "file.js 缺少 stripSubtitleMarkers() 函式定義（應對齊 Python core/scrapers/utils.py::strip_subtitle_markers）"
+
+    def test_old_regex_removed(self):
+        """殘缺的舊 regex `/^中文字幕\\s*/` 不得留在 file.js（只剝開頭「中文字幕」會漏 [中字] 等變體）"""
+        js = self._js()
+        assert "/^中文字幕\\s*/" not in js, \
+            "file.js 仍保留殘缺的 `/^中文字幕\\s*/` regex，應改用 stripSubtitleMarkers()"
+
+    def test_extract_chinese_title_uses_strip_helper(self):
+        """extractChineseTitle() 應呼叫 stripSubtitleMarkers(name)，不再內嵌殘缺 regex"""
+        js = self._js()
+        start = js.find("function extractChineseTitle(")
+        assert start >= 0, "file.js 找不到 extractChineseTitle 函式定義"
+        # 找到函式開頭後的第一個 { ，往後掃直到配對的 }
+        brace_start = js.find("{", start)
+        assert brace_start >= 0
+        depth = 0
+        end = brace_start
+        for i in range(brace_start, len(js)):
+            ch = js[i]
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    end = i + 1
+                    break
+        body = js[start:end]
+        assert "stripSubtitleMarkers(name)" in body, \
+            "extractChineseTitle() 應呼叫 stripSubtitleMarkers(name) 剝除所有字幕標記變體"
+        assert "name.replace(/^中文字幕" not in body, \
+            "extractChineseTitle() 不應再內嵌殘缺 `/^中文字幕...` regex"
+
+    def test_subtitle_brackets_constant_present(self):
+        """file.js 應有 _SUBTITLE_BRACKETS / _SUBTITLE_TEXT_MARKERS 常數（對齊 Python _SUBTITLE_PATTERNS_*）"""
+        js = self._js()
+        assert "_SUBTITLE_BRACKETS" in js, \
+            "file.js 缺少 _SUBTITLE_BRACKETS 常數（對齊 Python 字幕 bracket pattern）"
+        assert "_SUBTITLE_TEXT_MARKERS" in js, \
+            "file.js 缺少 _SUBTITLE_TEXT_MARKERS 常數（對齊 Python 字幕純文字 pattern）"
