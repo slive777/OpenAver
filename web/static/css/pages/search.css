@@ -85,7 +85,7 @@
     width: 100%;
     height: 100%;
     max-height: calc(100vh - 200px);
-    object-fit: contain;  /* Search 不裁切 */
+    object-fit: contain !important;  /* Search 不裁切；!important 覆蓋 theme.css (0,1,1) specificity */
     filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
 }
 
