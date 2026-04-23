@@ -2795,3 +2795,41 @@ class TestIMEGuard:
         expr = handler_m.group(1)
         assert "preventDefault()" in expr, \
             f"id=\"searchQuery\" @keydown.enter handler 不含 preventDefault()（只用 return 無法阻擋 form submit，IME bug 會回來；目前 handler: {expr!r}）"
+
+
+class TestLongPathWarning:
+    """spec-48a §a5 — scanner.js long_paths 警告處理"""
+
+    def _js(self):
+        return SCANNER_JS.read_text(encoding="utf-8")
+
+    def test_scanner_js_handles_long_paths(self):
+        """scanner.js done event 處理須偵測 data.long_paths 並顯示警告 toast"""
+        js = self._js()
+        assert "long_paths" in js, \
+            "scanner.js 缺少 long_paths 處理（done event 應檢查 data.long_paths）"
+        assert "showToast" in js, \
+            "scanner.js 缺少 showToast 呼叫（既有功能,不應被移除）"
+
+    def test_long_path_warning_uses_warn_type_and_long_duration(self):
+        """long_paths 警告 toast 必須用 'warn' type + >=6000ms duration（延長顯示）"""
+        js = self._js()
+        # 定位 long_paths 判斷區塊（給出 300 字元窗口,足以涵蓋 if + showToast 完整呼叫）
+        idx = js.find("long_paths")
+        assert idx >= 0, "scanner.js 找不到 long_paths 引用"
+        window = js[idx:idx + 500]
+        assert "'warn'" in window or '"warn"' in window, \
+            "long_paths 警告 toast 應使用 'warn' type（與 L1150 既有風格一致）"
+        assert "6000" in window, \
+            "long_paths 警告 toast 應傳第三參數 duration=6000（延長顯示讓用戶看清楚）"
+
+    def test_long_path_warning_message_mentions_260_and_debug_log(self):
+        """警告訊息必須提到 260 字元門檻 + debug.log（用戶可循線追詳細清單）"""
+        js = self._js()
+        idx = js.find("long_paths")
+        assert idx >= 0
+        window = js[idx:idx + 500]
+        assert "260" in window, \
+            "long_paths 警告訊息應提到「260」字元門檻（讓用戶理解原因）"
+        assert "debug.log" in window, \
+            "long_paths 警告訊息應提到「debug.log」（引導用戶查詳細清單）"
