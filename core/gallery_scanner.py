@@ -720,6 +720,9 @@ class VideoScanner:
         inserted, updated = repo.upsert_batch(videos_to_upsert)
         logger.info(f"[*] 完成: 新增 {inserted}, 更新 {updated}, 刪除 {deleted_count}")
 
+        # §b1 AC#2: sample_images 孤兒清理 pass（CLI / 直接呼叫路徑覆蓋）
+        _run_sample_images_cleanup_pass(repo)
+
         return {
             'inserted': inserted,
             'updated': updated,
@@ -831,6 +834,55 @@ class VideoScanner:
             'deleted': deleted_count
         }
         return videos, stats
+
+
+def _validate_sample_images(sample_images: list, video_path: str = "") -> list:
+    """驗證 sample_images 中的 file:/// URI 對應磁碟檔案存在性。
+    不存在的項目剔除；uri_to_fs_path 轉換失敗也視為不存在（但 log warning）。
+    """
+    valid = []
+    for uri in sample_images:
+        try:
+            fs = uri_to_fs_path(uri)
+        except Exception as e:
+            logger.warning(
+                "uri_to_fs_path failed for sample_image; treating as missing. "
+                "video=%s uri=%r error=%s: %s",
+                video_path, uri, type(e).__name__, e,
+            )
+            continue
+        if os.path.exists(fs):
+            valid.append(uri)
+        else:
+            logger.debug(
+                "sample_image missing on disk; removing from DB. video=%s uri=%r fs=%s",
+                video_path, uri, fs,
+            )
+    return valid
+
+
+def _run_sample_images_cleanup_pass(repo) -> int:
+    """一次性孤兒清理 pass：驗證所有 Video row 的 sample_images URI，
+    不存在的剔除，寫回 DB。回傳清理的 row 數。
+    共用於 scan_to_sqlite() + generate_avlist() 兩個流程（Canonical Decision #4）。
+    """
+    all_videos = repo.get_all()
+    cleaned_count = 0
+    for video in all_videos:
+        if not video.sample_images:
+            continue
+        validated = _validate_sample_images(video.sample_images, video_path=video.path)
+        if validated != video.sample_images:
+            removed = len(video.sample_images) - len(validated)
+            logger.info(
+                "cleanup: removing %d orphan sample_images from video=%s",
+                removed, video.path,
+            )
+            repo.update_sample_images(video.path, validated)
+            cleaned_count += 1
+    if cleaned_count > 0:
+        logger.info("cleanup pass done: %d videos had orphan sample_images cleaned", cleaned_count)
+    return cleaned_count
 
 
 def main():

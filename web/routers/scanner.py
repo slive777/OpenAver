@@ -32,7 +32,7 @@ from typing import Any, Dict, Generator, List, Optional
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse, HTMLResponse, Response, FileResponse, JSONResponse
 
-from core.gallery_scanner import VideoScanner, fast_scan_directory, VideoInfo
+from core.gallery_scanner import VideoScanner, fast_scan_directory, VideoInfo, _run_sample_images_cleanup_pass
 from core.video_extensions import get_proxy_extensions, get_video_extensions
 from core.gallery_generator import HTMLGenerator
 from core.path_utils import normalize_path, to_file_uri, is_path_under_dir, uri_to_fs_path
@@ -335,6 +335,15 @@ def generate_avlist() -> Generator[str, None, None]:
                     })
 
         yield _sse_event({"type": "log", "level": "info", "message": f"資料庫總筆數: {repo.count()}"})
+
+        # §b1 AC#2: sample_images 孤兒清理 pass（Scanner UI 主路徑覆蓋，共用 helper）
+        try:
+            cleaned = _run_sample_images_cleanup_pass(repo)
+            if cleaned > 0:
+                yield _sse_event({"type": "log", "level": "info", "message": f"清除 {cleaned} 筆孤兒劇照記錄"})
+        except Exception as e:
+            logger.warning("sample_images cleanup pass failed: %s: %s", type(e).__name__, e)
+            # 失敗不中斷 scan 流程
 
         # 產生 HTML
         yield _sse_event({

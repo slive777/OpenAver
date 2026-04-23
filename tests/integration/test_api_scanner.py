@@ -922,3 +922,47 @@ class TestScannerGenerateLongPathsField:
         # 7. 附加斷言：done event 仍含 long_paths 欄位（契約 3 不回歸）
         done_payload = done_events[-1]
         assert 'long_paths' in done_payload, "partial scan 後 done payload 仍應含 long_paths 欄位"
+
+
+class TestGenerateAvlistCleanupPass:
+    """spec-48b §b1 AC#2 — /api/gallery/generate 主 UI 路徑也清孤兒 sample_images
+    驗證 generate_avlist() 在 SSE 流完成後，DB 中孤兒 URI 已被清除。
+    （Canonical Decision #4：雙流程覆蓋，Scanner UI 主路徑不呼叫 scan_to_sqlite）
+    """
+
+    def test_generate_avlist_calls_cleanup_pass(self, client, tmp_path, monkeypatch):
+        """呼叫 /api/gallery/generate 後，_run_sample_images_cleanup_pass 應被執行。
+        用 mock 確認 helper 有被呼叫（驗行為，不驗 DB 狀態，避免過重 fixture）。
+        """
+        from unittest.mock import patch, MagicMock
+        from pathlib import Path
+
+        scan_dir = tmp_path / "videos"
+        scan_dir.mkdir()
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        # Mock config
+        monkeypatch.setattr("web.routers.scanner.load_config", lambda: {
+            "gallery": {
+                "directories": [str(scan_dir)],
+                "output_dir": str(output_dir),
+                "path_mappings": {},
+                "min_size_mb": 0,
+            },
+            "general": {"theme": "light"},
+            "scraper": {"video_extensions": [".mp4"]},
+        })
+
+        # 驗證 _run_sample_images_cleanup_pass 被呼叫
+        with patch(
+            "web.routers.scanner._run_sample_images_cleanup_pass",
+            return_value=0,
+        ) as mock_cleanup:
+            response = client.get('/api/gallery/generate')
+
+        assert response.status_code == 200
+        mock_cleanup.assert_called_once(), (
+            "_run_sample_images_cleanup_pass 應在 generate_avlist() 中被呼叫一次。"
+            "若未呼叫，Scanner UI 主路徑不會清孤兒（Canonical Decision #4 雙流程覆蓋未達成）"
+        )

@@ -419,3 +419,134 @@ class TestEmitLongPathWarnings:
         with caplog.at_level(logging.WARNING, logger='web.routers.scanner'):
             _emit_long_path_warnings(logger, [])
         assert not any('[a5]' in r.message for r in caplog.records)
+
+
+class TestScannerSampleImagesValidationPass:
+    """spec-48b §b1 AC#2 — _validate_sample_images + _run_sample_images_cleanup_pass"""
+
+    def test_validate_keeps_existing_uri(self, tmp_path):
+        """磁碟存在的 URI → 保留在回傳 list"""
+        from unittest.mock import patch
+        from core.gallery_scanner import _validate_sample_images
+
+        # uri_to_fs_path 正常回傳路徑，os.path.exists 回傳 True
+        with patch("core.gallery_scanner.uri_to_fs_path", return_value="/fake/path/s1.jpg"), \
+             patch("os.path.exists", return_value=True):
+            result = _validate_sample_images(
+                ["file:///fake/path/s1.jpg"],
+                video_path="file:///fake/v1.mp4",
+            )
+
+        assert result == ["file:///fake/path/s1.jpg"], "磁碟存在的 URI 應保留"
+
+    def test_validate_drops_missing_uri(self, tmp_path):
+        """磁碟不存在的 URI → 從回傳 list 剔除"""
+        from unittest.mock import patch
+        from core.gallery_scanner import _validate_sample_images
+
+        with patch("core.gallery_scanner.uri_to_fs_path", return_value="/fake/path/missing.jpg"), \
+             patch("os.path.exists", return_value=False):
+            result = _validate_sample_images(
+                ["file:///fake/path/missing.jpg"],
+                video_path="file:///fake/v1.mp4",
+            )
+
+        assert result == [], "磁碟不存在的 URI 應剔除"
+
+    def test_validate_drops_conversion_failure(self, tmp_path):
+        """uri_to_fs_path 拋 Exception → 視為不存在剔除（並 log warning）"""
+        from unittest.mock import patch
+        from core.gallery_scanner import _validate_sample_images
+
+        with patch("core.gallery_scanner.uri_to_fs_path", side_effect=ValueError("環境不支援")), \
+             patch("core.gallery_scanner.logger") as mock_logger:
+            result = _validate_sample_images(
+                ["file:///bad/path.jpg"],
+                video_path="file:///fake/v1.mp4",
+            )
+
+        assert result == [], "轉換失敗的 URI 應剔除"
+        mock_logger.warning.assert_called_once()
+        call_args_str = str(mock_logger.warning.call_args)
+        assert "ValueError" in call_args_str, "warning log 應包含 exception 型別 ValueError"
+
+    def test_cleanup_pass_returns_count(self, tmp_path):
+        """3 部影片，2 部有孤兒（磁碟不存在），回傳 cleaned_count = 2"""
+        from unittest.mock import MagicMock, patch
+        from core.gallery_scanner import _run_sample_images_cleanup_pass
+
+        # 建立 mock repo
+        mock_repo = MagicMock()
+        video_with_orphan_1 = MagicMock()
+        video_with_orphan_1.path = "file:///A/v1.mp4"
+        video_with_orphan_1.sample_images = ["file:///A/extrafanart/s1.jpg"]
+
+        video_with_orphan_2 = MagicMock()
+        video_with_orphan_2.path = "file:///A/v2.mp4"
+        video_with_orphan_2.sample_images = ["file:///A/extrafanart/s2.jpg"]
+
+        video_clean = MagicMock()
+        video_clean.path = "file:///A/v3.mp4"
+        video_clean.sample_images = ["file:///A/extrafanart/s3.jpg"]  # 這個存在
+
+        mock_repo.get_all.return_value = [video_with_orphan_1, video_with_orphan_2, video_clean]
+
+        def fake_uri_to_fs_path(uri):
+            return uri.replace("file:///", "/")
+
+        # v1/v2 的 sample 不存在磁碟，v3 的存在
+        def fake_exists(path):
+            return "s3.jpg" in path  # 只有 s3.jpg 存在
+
+        with patch("core.gallery_scanner.uri_to_fs_path", side_effect=fake_uri_to_fs_path), \
+             patch("os.path.exists", side_effect=fake_exists):
+            count = _run_sample_images_cleanup_pass(mock_repo)
+
+        assert count == 2, f"期待 2 部影片被清理，實際 {count}"
+
+    def test_cleanup_pass_skips_videos_without_samples(self, tmp_path):
+        """影片 sample_images 為空 list → 不呼叫 repo.update_sample_images"""
+        from unittest.mock import MagicMock, patch
+        from core.gallery_scanner import _run_sample_images_cleanup_pass
+
+        mock_repo = MagicMock()
+        video_no_samples = MagicMock()
+        video_no_samples.path = "file:///A/v1.mp4"
+        video_no_samples.sample_images = []  # 空 list
+
+        mock_repo.get_all.return_value = [video_no_samples]
+
+        with patch("core.gallery_scanner.uri_to_fs_path"), \
+             patch("os.path.exists"):
+            count = _run_sample_images_cleanup_pass(mock_repo)
+
+        assert count == 0, "空 sample_images 的影片不應被計入 cleaned_count"
+        mock_repo.update_sample_images.assert_not_called()
+
+    def test_cleanup_pass_calls_update_sample_images(self, tmp_path):
+        """確認 repo.update_sample_images 被呼叫時傳入正確的 path + validated list"""
+        from unittest.mock import MagicMock, patch, call
+        from core.gallery_scanner import _run_sample_images_cleanup_pass
+
+        mock_repo = MagicMock()
+        video = MagicMock()
+        video.path = "file:///A/v1.mp4"
+        # 2 個 URI，只有第一個存在
+        video.sample_images = ["file:///A/ext/exist.jpg", "file:///A/ext/missing.jpg"]
+        mock_repo.get_all.return_value = [video]
+
+        def fake_uri_to_fs_path(uri):
+            return uri.replace("file:///", "/")
+
+        def fake_exists(path):
+            return "exist.jpg" in path  # 只有 exist.jpg 存在
+
+        with patch("core.gallery_scanner.uri_to_fs_path", side_effect=fake_uri_to_fs_path), \
+             patch("os.path.exists", side_effect=fake_exists):
+            _run_sample_images_cleanup_pass(mock_repo)
+
+        # 驗證 update_sample_images 被呼叫，且只傳入存在的 URI
+        mock_repo.update_sample_images.assert_called_once_with(
+            "file:///A/v1.mp4",
+            ["file:///A/ext/exist.jpg"],
+        )
