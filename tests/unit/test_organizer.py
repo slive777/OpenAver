@@ -821,6 +821,33 @@ class TestExtractChineseTitle:
         assert result == "美少女"
 
 
+class TestExtractChineseTitleSubtitleMarkers:
+    """spec-48a.md §a2 行為對照表 — 字幕標記 edge cases
+
+    T2 是 strip_subtitle_markers helper 的第一個實際使用場景。
+    本 class 的七個 case 不只驗證 T2 的 wiring，也間接守護 T1 helper
+    的 'bracket 先剝、長 pattern 優先' 順序契約：若該順序回歸，
+    case #6 的 【中文字幕】 剝除會殘留『中文字幕』四個字 → has_chinese=True
+    → 誤判為中文片名回傳 → 斷言 fail（預期 None）。
+    """
+
+    @pytest.mark.parametrize("filename, number, expected", [
+        ("ABC-123 純中文片名.mp4", "ABC-123", "純中文片名"),           # 1. 真片名保留
+        ("ABC-123 エロいやつ.mp4", "ABC-123", None),                   # 2. 純日文，無中文 → None
+        ("ABC-123 [中字] 正妹の中文版.mp4", "ABC-123", "正妹の中文版"), # 3. 剝字幕後真片名保留
+        ("[中字] ABC-123.mp4", "ABC-123", None),                       # 4. 修前: [中字]，修後: None
+        ("ABC-123-中字.mp4", "ABC-123", None),                         # 5. 修前: 殘留 -中字，修後: None
+        ("ABC-123【中文字幕】.mp4", "ABC-123", None),                  # 6. 字幕 bracket → None（守護順序契約）
+        ("ABC-123.mp4", "ABC-123", None),                              # 7. 無字幕無中文 → None
+    ])
+    def test_subtitle_marker_cases(self, filename, number, expected):
+        result = extract_chinese_title(filename, number)
+        assert result == expected, (
+            f"extract_chinese_title({filename!r}, {number!r}) = {result!r}，"
+            f"期望 {expected!r}"
+        )
+
+
 # ============ generate_nfo() 補充測試 ============
 
 class TestGenerateNfoAdditional:

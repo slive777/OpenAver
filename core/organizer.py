@@ -13,7 +13,7 @@ from PIL import Image
 from typing import Optional, Dict, Any, List
 
 from core.path_utils import normalize_path
-from core.scrapers.utils import has_chinese, check_subtitle
+from core.scrapers.utils import has_chinese, check_subtitle, strip_subtitle_markers
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -107,8 +107,8 @@ def extract_chinese_title(filename: str, number: str, actors: List[str] = None) 
     # 清理多餘空格
     name = re.sub(r'\s+', ' ', name).strip()
 
-    # 移除開頭的「中文字幕」標記
-    name = re.sub(r'^中文字幕\s*', '', name)
+    # 剝除字幕標記（bracket / 純文字 / -C 後綴）
+    name = strip_subtitle_markers(name)
 
     # 移除開頭和結尾的演員名
     if actors:
