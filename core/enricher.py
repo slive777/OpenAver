@@ -364,7 +364,7 @@ def enrich_single(
         nfo_path = Path(fs_path).with_suffix(".nfo")
         nfo_mtime = nfo_path.stat().st_mtime if nfo_path.exists() else 0.0
         _db_upsert(repo, number, fs_path, meta, local_cover_path=local_cover,
-                   nfo_mtime=nfo_mtime)
+                   nfo_mtime=nfo_mtime, extrafanart_written=extrafanart_written)
 
     # nfo_mtime 獨立更新：不論 mode/source，只要 NFO 存在就同步 DB
     # 避免 analysis 永遠視為 missing_nfo
@@ -401,6 +401,7 @@ def _db_upsert(
     repo: VideoRepository, number: str, fs_path: str, meta: dict,
     local_cover_path: str = "",
     nfo_mtime: float = 0.0,
+    extrafanart_written: int = 0,
 ) -> None:
     """更新 DB 記錄。fs_path 必須是已解析的 FS 路徑（非 file:/// URI）。"""
     try:
@@ -420,6 +421,13 @@ def _db_upsert(
         # 保留 DB 既有 user_tags（不被 scraper 覆蓋）
         preserved_user_tags = existing.user_tags if existing else []
 
+        # §b1: 只有磁碟真寫出 extrafanart 檔案才更新 DB sample_images；
+        # 否則保留現有值（等同 no-op），避免遠端 URL 污染 DB
+        if extrafanart_written > 0:
+            sample_imgs = meta.get("sample_images", [])
+        else:
+            sample_imgs = existing.sample_images if existing else []
+
         video = Video(
             path=path_uri,
             number=number,
@@ -432,7 +440,7 @@ def _db_upsert(
             label=meta.get("label", ""),
             tags=meta.get("tags", []),
             user_tags=preserved_user_tags,
-            sample_images=meta.get("sample_images", []),
+            sample_images=sample_imgs,
             duration=meta.get("duration"),
             cover_path=cover_uri,
             release_date=meta.get("release_date", ""),
