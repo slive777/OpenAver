@@ -8,6 +8,7 @@ Scraper API 路由 - 單檔刮削
 
 import asyncio
 import json
+import os
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -15,9 +16,9 @@ from pydantic import BaseModel
 from typing import List, Literal, Optional
 
 from core.database import VideoRepository
-from core.enricher import enrich_single
+from core.enricher import enrich_single, fetch_samples_only
 from core.organizer import organize_file
-from core.path_utils import to_file_uri
+from core.path_utils import to_file_uri, uri_to_fs_path
 from core.scraper import search_jav
 from core.logger import get_logger
 from core.config import load_config
@@ -175,6 +176,38 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
     except Exception:
         logger.exception("enrich_single_endpoint 失敗")
         return {"success": False, "error": "enrich 處理失敗，請查閱日誌"}
+
+
+class FetchSamplesRequest(BaseModel):
+    file_path: str
+    number: str
+
+
+@router.post("/scraper/fetch-samples")
+def fetch_samples_endpoint(req: FetchSamplesRequest) -> dict:
+    config = load_config()
+    search_cfg = config.get("search", {})
+    proxy_url = search_cfg.get("proxy_url", "")
+    primary_source = search_cfg.get("primary_source", "javbus")
+
+    folder_uri_prefix = to_file_uri(os.path.dirname(uri_to_fs_path(req.file_path))) + "/"
+    repo = VideoRepository()
+    count = repo.count_videos_in_folder(folder_uri_prefix)
+    if count > 1:
+        return {"success": False, "error": "multi_video_folder", "count": count, "extrafanart_written": 0}
+
+    try:
+        result = fetch_samples_only(
+            file_path=req.file_path,
+            number=req.number,
+            proxy_url=proxy_url,
+            primary_source=primary_source,
+        )
+        from dataclasses import asdict
+        return asdict(result)
+    except Exception:
+        logger.exception("fetch_samples_endpoint 失敗")
+        return {"success": False, "error": "fetch_samples 處理失敗，請查閱日誌"}
 
 
 @router.post("/batch-enrich")

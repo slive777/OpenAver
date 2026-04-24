@@ -13,7 +13,7 @@ from PIL import Image
 from typing import Optional, Dict, Any, List
 
 from core.path_utils import normalize_path
-from core.scrapers.utils import has_chinese, check_subtitle
+from core.scrapers.utils import has_chinese, check_subtitle, strip_subtitle_markers
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -107,8 +107,8 @@ def extract_chinese_title(filename: str, number: str, actors: List[str] = None) 
     # 清理多餘空格
     name = re.sub(r'\s+', ' ', name).strip()
 
-    # 移除開頭的「中文字幕」標記
-    name = re.sub(r'^中文字幕\s*', '', name)
+    # 剝除字幕標記（bracket / 純文字 / -C 後綴）
+    name = strip_subtitle_markers(name)
 
     # 移除開頭和結尾的演員名
     if actors:
@@ -151,6 +151,8 @@ FALLBACKS = {
     'title':  '未知標題',
     'date':   '未知日期',
     'year':   '未知年份',
+    'month':  '未知月份',
+    'day':    '未知日',
 }
 
 
@@ -166,6 +168,8 @@ def format_string(template: str, data: Dict[str, Any], use_fallback: bool = Fals
     - {maker}: 片商
     - {date}: 發行日期
     - {year}: 年份
+    - {month}: 月份（2位）
+    - {day}: 日（2位）
     - {suffix}: 版本後綴（Fix-1）
 
     Args:
@@ -199,6 +203,8 @@ def format_string(template: str, data: Dict[str, Any], use_fallback: bool = Fals
     date = data.get('date', '')
     result = result.replace('{date}', date or fb.get('date', ''))
     result = result.replace('{year}', date[:4] if date else fb.get('year', ''))
+    result = result.replace('{month}', date[5:7] if len(date) >= 7 else fb.get('month', ''))
+    result = result.replace('{day}',   date[8:10] if len(date) >= 10 else fb.get('day', ''))
 
     # 後綴（Fix-1，空值就是空字串，不需 fallback）
     result = result.replace('{suffix}', data.get('suffix', ''))
@@ -547,7 +553,14 @@ def organize_file(
             used_fallbacks.append('女優')
         if '{maker}' in folder_template and not format_data.get('maker'):
             used_fallbacks.append('片商')
-        if ('{date}' in folder_template or '{year}' in folder_template) and not format_data.get('date'):
+        date_val = format_data.get('date', '') or ''
+        date_missing = (
+            ('{date}' in folder_template and not date_val) or
+            ('{year}' in folder_template and len(date_val) < 4) or
+            ('{month}' in folder_template and len(date_val) < 7) or
+            ('{day}' in folder_template and len(date_val) < 10)
+        )
+        if date_missing:
             used_fallbacks.append('日期')
         if '{title}' in folder_template and not format_data.get('title'):
             used_fallbacks.append('標題')

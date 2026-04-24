@@ -686,6 +686,15 @@
                                         @click="openSampleGallery(currentLightboxVideo.sample_images, 0)"
                                         x-text="t('showcase.gallery.sample_prefix') + ' (' + (currentLightboxVideo?.sample_images || []).length + ')'">
                                 </button>
+                                <!-- §b3: 劇照補抓入口（無劇照時顯示） -->
+                                <button class="fetch-samples-btn"
+                                        x-show="(currentLightboxVideo?.sample_images || []).length === 0 && !_fetchSamplesLoading"
+                                        :disabled="!!_fetchSamplesFailed[currentLightboxVideo?.path]"
+                                        @click="fetchSamples(currentLightboxVideo)">
+                                    <i class="bi bi-cloud-download" aria-hidden="true"></i>
+                                    <span x-text="t('showcase.samples.fetch_btn')"></span>
+                                </button>
+                                <span x-show="_fetchSamplesLoading" x-text="t('showcase.samples.fetching')"></span>
                             </div>
                             <!-- Row 2: Original Title (showcase only) -->
                             <div class="lb-otitle"

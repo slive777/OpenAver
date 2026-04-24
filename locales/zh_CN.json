@@ -222,7 +222,7 @@
     },
     "scraper": {
       "suffix_keywords_label": "版本标记",
-      "suffix_keywords_hint": "文件名含这些关键字时保留为 {suffix}",
+      "suffix_keywords_hint": "文件名包含这些关键字时保留为 {suffix}，多个按列表顺序拼接",
       "create_folder_label": "建立文件夹",
       "folder_layers_label": "文件夹层级",
       "folder_layer_outer": "外层",
@@ -290,6 +290,8 @@
       "maker": "片商",
       "date": "日期",
       "year": "年份",
+      "month": "月份",
+      "day": "日",
       "suffix": "后缀"
     },
     "dirty_modal": {
@@ -583,6 +585,13 @@
       "search_films": "搜尋相關影片",
       "addFavorite": "加入收藏",
       "favorited": "已收藏"
+    },
+    "samples": {
+      "fetch_btn": "补剧照",
+      "fetching": "抓取中...",
+      "success": "剧照补抓完成",
+      "fetch_failed": "补抓剧照失败，请稍后再试",
+      "multi_video_error": "此文件夹有其他影片，补抓剧照会污染其他片，请先将影片移至独立文件夹再试"
     }
   },
   "help": {
@@ -663,12 +672,16 @@
       "var_maker_desc": "片商",
       "var_date_desc": "发行日期",
       "var_year_desc": "年份",
+      "var_month_desc": "月份（2位）",
+      "var_day_desc": "日（2位）",
       "var_suffix_desc": "版本标记",
       "fallback_unknown_title": "未知标题",
       "fallback_unknown_actor": "未知女优",
       "fallback_unknown_maker": "未知片商",
       "fallback_unknown_date": "未知日期",
       "fallback_unknown_year": "未知年份",
+      "fallback_unknown_month": "未知月份",
+      "fallback_unknown_day": "未知日",
       "fallback_empty": "空则消失",
       "default_filename": "文件名：<code>[{num}][{maker}] {title}{suffix}</code>",
       "default_folder": "文件夹：<code>{actor}</code>",

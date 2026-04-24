@@ -324,6 +324,7 @@ BATCH_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "page
 SEARCH_FLOW_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state" / "search-flow.js"
 BASE_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "state" / "base.js"
 SETTINGS_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "settings.js"
+SEARCH_FILE_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "search" / "file.js"
 
 
 class TestBatchIntervalGuard:
@@ -2756,3 +2757,400 @@ class TestMissingEnrichConfirmGuard:
             value = stats[key]
             assert "<" not in value and ">" not in value, \
                 f"{locale}.json scanner.stats.{key} 含 HTML tag（應純文字）: {value!r}"
+
+
+class TestIMEGuard:
+    """spec-48a §a4 — IME composition guard"""
+
+    def test_search_input_has_keydown_enter_handler(self):
+        """#searchQuery input 本身必須有 @keydown.enter handler（不是別的元素）"""
+        content = (Path(__file__).parent.parent.parent / "web" / "templates" / "search.html").read_text(encoding="utf-8")
+        m = re.search(r'<input\b[^>]*\bid="searchQuery"[^>]*>', content, re.DOTALL)
+        assert m, \
+            "search.html 找不到 id=\"searchQuery\" 的 <input> tag"
+        tag = m.group(0)
+        handler_m = re.search(r'@keydown\.enter(?:\.prevent)?="([^"]*)"', tag)
+        assert handler_m, \
+            "id=\"searchQuery\" input 缺少 @keydown.enter handler（handler 必須在 searchQuery input 上，不是別的元素）"
+
+    def test_handler_contains_iscomposing(self):
+        """#searchQuery @keydown.enter handler 必須含 isComposing guard"""
+        content = (Path(__file__).parent.parent.parent / "web" / "templates" / "search.html").read_text(encoding="utf-8")
+        m = re.search(r'<input\b[^>]*\bid="searchQuery"[^>]*>', content, re.DOTALL)
+        assert m, "search.html 找不到 id=\"searchQuery\" 的 <input> tag"
+        tag = m.group(0)
+        handler_m = re.search(r'@keydown\.enter(?:\.prevent)?="([^"]*)"', tag)
+        assert handler_m, "id=\"searchQuery\" input 缺少 @keydown.enter handler"
+        expr = handler_m.group(1)
+        assert "isComposing" in expr, \
+            f"id=\"searchQuery\" @keydown.enter handler 不含 isComposing guard（目前 handler: {expr!r}）"
+
+    def test_handler_contains_preventdefault(self):
+        """#searchQuery @keydown.enter handler 必須含 preventDefault()（防止 IME 確認觸發搜尋）"""
+        content = (Path(__file__).parent.parent.parent / "web" / "templates" / "search.html").read_text(encoding="utf-8")
+        m = re.search(r'<input\b[^>]*\bid="searchQuery"[^>]*>', content, re.DOTALL)
+        assert m, "search.html 找不到 id=\"searchQuery\" 的 <input> tag"
+        tag = m.group(0)
+        handler_m = re.search(r'@keydown\.enter(?:\.prevent)?="([^"]*)"', tag)
+        assert handler_m, "id=\"searchQuery\" input 缺少 @keydown.enter handler"
+        expr = handler_m.group(1)
+        assert "preventDefault()" in expr, \
+            f"id=\"searchQuery\" @keydown.enter handler 不含 preventDefault()（只用 return 無法阻擋 form submit，IME bug 會回來；目前 handler: {expr!r}）"
+
+
+class TestLongPathWarning:
+    """spec-48a §a5 — scanner.js long_paths 警告處理"""
+
+    def _js(self):
+        return SCANNER_JS.read_text(encoding="utf-8")
+
+    def test_scanner_js_handles_long_paths(self):
+        """scanner.js done event 處理須偵測 data.long_paths 並顯示警告 toast"""
+        js = self._js()
+        assert "long_paths" in js, \
+            "scanner.js 缺少 long_paths 處理（done event 應檢查 data.long_paths）"
+        assert "showToast" in js, \
+            "scanner.js 缺少 showToast 呼叫（既有功能,不應被移除）"
+
+    def test_long_path_warning_uses_warn_type_and_long_duration(self):
+        """long_paths 警告 toast 必須用 'warn' type + >=6000ms duration（延長顯示）"""
+        js = self._js()
+        # 定位 long_paths 判斷區塊（給出 300 字元窗口,足以涵蓋 if + showToast 完整呼叫）
+        idx = js.find("long_paths")
+        assert idx >= 0, "scanner.js 找不到 long_paths 引用"
+        window = js[idx:idx + 500]
+        assert "'warn'" in window or '"warn"' in window, \
+            "long_paths 警告 toast 應使用 'warn' type（與 L1150 既有風格一致）"
+        assert "6000" in window, \
+            "long_paths 警告 toast 應傳第三參數 duration=6000（延長顯示讓用戶看清楚）"
+
+    def test_long_path_warning_message_mentions_260_and_debug_log(self):
+        """警告訊息必須提到 260 字元門檻 + debug.log（用戶可循線追詳細清單）"""
+        js = self._js()
+        idx = js.find("long_paths")
+        assert idx >= 0
+        window = js[idx:idx + 500]
+        assert "260" in window, \
+            "long_paths 警告訊息應提到「260」字元門檻（讓用戶理解原因）"
+        assert "debug.log" in window, \
+            "long_paths 警告訊息應提到「debug.log」（引導用戶查詳細清單）"
+
+
+class TestSearchFileJsSubtitleHelper:
+    """48a T2 a2 — 前端 extractChineseTitle 同步套用 stripSubtitleMarkers helper（對齊 Python 端）"""
+
+    def _js(self):
+        return SEARCH_FILE_JS.read_text(encoding="utf-8")
+
+    def test_strip_subtitle_markers_function_exists(self):
+        """file.js 應定義 stripSubtitleMarkers helper（對齊 Python strip_subtitle_markers）"""
+        js = self._js()
+        assert "function stripSubtitleMarkers(" in js, \
+            "file.js 缺少 stripSubtitleMarkers() 函式定義（應對齊 Python core/scrapers/utils.py::strip_subtitle_markers）"
+
+    def test_old_regex_removed(self):
+        """殘缺的舊 regex `/^中文字幕\\s*/` 不得留在 file.js（只剝開頭「中文字幕」會漏 [中字] 等變體）"""
+        js = self._js()
+        assert "/^中文字幕\\s*/" not in js, \
+            "file.js 仍保留殘缺的 `/^中文字幕\\s*/` regex，應改用 stripSubtitleMarkers()"
+
+    def test_extract_chinese_title_uses_strip_helper(self):
+        """extractChineseTitle() 應呼叫 stripSubtitleMarkers(name)，不再內嵌殘缺 regex"""
+        js = self._js()
+        start = js.find("function extractChineseTitle(")
+        assert start >= 0, "file.js 找不到 extractChineseTitle 函式定義"
+        # 找到函式開頭後的第一個 { ，往後掃直到配對的 }
+        brace_start = js.find("{", start)
+        assert brace_start >= 0
+        depth = 0
+        end = brace_start
+        for i in range(brace_start, len(js)):
+            ch = js[i]
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    end = i + 1
+                    break
+        body = js[start:end]
+        assert "stripSubtitleMarkers(name)" in body, \
+            "extractChineseTitle() 應呼叫 stripSubtitleMarkers(name) 剝除所有字幕標記變體"
+        assert "name.replace(/^中文字幕" not in body, \
+            "extractChineseTitle() 不應再內嵌殘缺 `/^中文字幕...` regex"
+
+    def test_subtitle_brackets_constant_present(self):
+        """file.js 應有 _SUBTITLE_BRACKETS / _SUBTITLE_TEXT_MARKERS 常數（對齊 Python _SUBTITLE_PATTERNS_*）"""
+        js = self._js()
+        assert "_SUBTITLE_BRACKETS" in js, \
+            "file.js 缺少 _SUBTITLE_BRACKETS 常數（對齊 Python 字幕 bracket pattern）"
+        assert "_SUBTITLE_TEXT_MARKERS" in js, \
+            "file.js 缺少 _SUBTITLE_TEXT_MARKERS 常數（對齊 Python 字幕純文字 pattern）"
+
+
+class TestFetchSamplesButton:
+    """spec-48b §b3 b6 — 守衛 showcase.html fetch-samples-btn 的所有 Alpine 綁定合約"""
+
+    def _html(self):
+        return SHOWCASE_HTML.read_text(encoding="utf-8")
+
+    def _js(self):
+        return SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+
+    def _fetch_samples_btn_tag(self, html: str):
+        """從 showcase.html 抽出 fetch-samples-btn 的完整 <button ...> tag。
+        回傳 None 若不存在（讓後續測試明確 fail）。
+        """
+        m = re.search(
+            r'<button\b[^>]*class="[^"]*fetch-samples-btn[^"]*"[^>]*>',
+            html,
+            re.DOTALL,
+        )
+        return m.group(0) if m else None
+
+    def test_fetch_samples_btn_exists_in_lb_header(self):
+        """showcase.html lb-header 內含 class="fetch-samples-btn" 的 button element"""
+        html = self._html()
+        tag = self._fetch_samples_btn_tag(html)
+        assert tag is not None, (
+            "showcase.html 缺少 class=\"fetch-samples-btn\" 的 button element（lb-header 內）"
+        )
+
+    def test_fetch_samples_btn_has_x_show_with_sample_images_check(self):
+        """fetch-samples-btn 的 x-show 在同一個 button tag 上，且含 sample_images 長度檢查"""
+        html = self._html()
+        tag = self._fetch_samples_btn_tag(html)
+        assert tag is not None, "fetch-samples-btn element 不存在，無法檢查 x-show"
+        # x-show attribute 必須在同一個 <button> tag 內
+        assert 'x-show=' in tag, (
+            "fetch-samples-btn 缺少 x-show attribute（必須在同一個 button tag 上，非其他 element）"
+        )
+        # x-show 必須含 sample_images 長度判斷（確保只在無劇照時顯示）
+        assert 'sample_images' in tag, (
+            "fetch-samples-btn 的 x-show 未包含 sample_images 條件（應為 length === 0）"
+        )
+
+    def test_fetch_samples_btn_has_click_handler(self):
+        """fetch-samples-btn 的 @click 在同一個 button tag 上，且呼叫 fetchSamples"""
+        html = self._html()
+        tag = self._fetch_samples_btn_tag(html)
+        assert tag is not None, "fetch-samples-btn element 不存在，無法檢查 @click"
+        assert '@click=' in tag or '@click.' in tag, (
+            "fetch-samples-btn 缺少 @click handler（必須在同一個 button tag 上）"
+        )
+        assert 'fetchSamples' in tag, (
+            "fetch-samples-btn 的 @click handler 未呼叫 fetchSamples（確保點擊觸發正確 method）"
+        )
+
+    def test_fetch_samples_btn_has_disabled_binding(self):
+        """fetch-samples-btn 的 :disabled binding 在同一個 button tag 上，且含 _fetchSamplesFailed"""
+        html = self._html()
+        tag = self._fetch_samples_btn_tag(html)
+        assert tag is not None, "fetch-samples-btn element 不存在，無法檢查 :disabled"
+        assert ':disabled=' in tag, (
+            "fetch-samples-btn 缺少 :disabled binding（必須在同一個 button tag 上）"
+        )
+        assert '_fetchSamplesFailed' in tag, (
+            "fetch-samples-btn 的 :disabled 未包含 _fetchSamplesFailed（確保失敗後鎖住按鈕）"
+        )
+
+    def test_disabled_binding_uses_explicit_boolean_coercion(self):
+        """fetch-samples-btn 的 :disabled 表達式必須強制 boolean，
+        防止 Alpine 3 將 undefined 正規化為 '' 而設置 disabled attribute。
+
+        背景（gotchas.md §Alpine.js Gotchas 第 6 條）：
+          - _fetchSamplesFailed[path] 在 key 不存在時回傳 undefined（非 false）
+          - Alpine 3 將 undefined 正規化為 "" 存入 _x_bindings.disabled cache
+          - 對 boolean attr，"" 視為「屬性存在」→ disabled="" = disabled="disabled"
+          - 結果：fresh session 下按鈕無法點擊（b6 bug）
+
+        接受的正確模式：
+          - !!_fetchSamplesFailed[   （!! 強制 boolean，推薦）
+          - _fetchSamplesFailed[...] === true  （嚴格比較）
+
+        拒絕的錯誤模式：
+          - 裸 _fetchSamplesFailed[...]（無 boolean 強制）
+        """
+        html = self._html()
+        tag = self._fetch_samples_btn_tag(html)
+        assert tag is not None, "fetch-samples-btn element 不存在，無法檢查 :disabled 表達式"
+
+        # 提取 :disabled="..." 的值
+        m = re.search(r':disabled=["\']([^"\']*)["\']', tag)
+        assert m is not None, (
+            "fetch-samples-btn 缺少 :disabled binding，無法驗證 boolean 強制"
+        )
+        disabled_expr = m.group(1)
+
+        # 確認表達式含有 boolean 強制（!! 或 === true）
+        pattern = re.compile(
+            r'(!!\s*_fetchSamplesFailed\[|_fetchSamplesFailed\[.+?\]\s*===\s*true)'
+        )
+        assert pattern.search(disabled_expr), (
+            f"fetch-samples-btn :disabled 表達式缺少 boolean 強制（當前：{disabled_expr!r}）。\n"
+            "問題：_fetchSamplesFailed[path] 在 key 不存在時回傳 undefined，"
+            "Alpine 3 將 undefined 正規化為 '' → disabled='' → 按鈕無法點擊。\n"
+            "修法：改為 !!_fetchSamplesFailed[currentLightboxVideo?.path] 或 "
+            "_fetchSamplesFailed[...] === true。\n"
+            "詳見 feature/AI_COLLABORATION/gotchas.md §Alpine.js Gotchas 第 6 條。"
+        )
+
+    def test_fetch_samples_btn_has_x_text_for_i18n(self):
+        """fetch-samples-btn 或其子元素的 x-text 引用 showcase.samples.fetch_btn。
+
+        b6fix2 將 x-text 從 button tag 移至內部 <span>，以防 Alpine 覆蓋 innerHTML
+        （否則 <i> icon 會消失）。搜尋範圍從 button 起始標籤擴展至 btn_region 完整區段。
+        """
+        html = self._html()
+        m = re.search(
+            r'<button\b[^>]*class="[^"]*fetch-samples-btn[^"]*"[^>]*>',
+            html,
+            re.DOTALL,
+        )
+        assert m is not None, "fetch-samples-btn element 不存在，無法檢查 x-text"
+        close_tag_pos = html.find('</button>', m.end())
+        assert close_tag_pos > m.start(), "找不到 fetch-samples-btn 的 </button> 結束標籤"
+        btn_region = html[m.start():close_tag_pos + len('</button>')]
+        assert 'x-text=' in btn_region, (
+            "fetch-samples-btn 範圍內缺少 x-text binding（應綁定 i18n key，不可 hardcode 文字）"
+        )
+        assert 'showcase.samples.fetch_btn' in btn_region, (
+            "fetch-samples-btn 範圍內的 x-text 未引用 showcase.samples.fetch_btn i18n key"
+        )
+
+    def test_fetching_loading_span_exists_with_x_show(self):
+        """showcase.html 含 loading span（x-show="_fetchSamplesLoading"）"""
+        html = self._html()
+        # loading span 不需 element-bound regex（單一用途，位置緊鄰 button）
+        assert '_fetchSamplesLoading' in html, (
+            "showcase.html 缺少 _fetchSamplesLoading 參照（loading span 或 x-show）"
+        )
+        assert 'showcase.samples.fetching' in html, (
+            "showcase.html 缺少 showcase.samples.fetching i18n key 參照（loading span x-text）"
+        )
+
+    def test_core_js_has_fetch_samples_method(self):
+        """core.js 含 fetchSamples method 定義"""
+        js = self._js()
+        # 接受 async fetchSamples(video) { 或 fetchSamples(video) { 兩種形式
+        assert re.search(r'(?:async\s+)?fetchSamples\s*\(\s*video\s*\)\s*\{', js), (
+            "showcase/core.js 缺少 fetchSamples(video) method 定義"
+        )
+
+    def test_core_js_has_fetch_samples_loading_state(self):
+        """core.js Alpine data 含 _fetchSamplesLoading 初始化"""
+        js = self._js()
+        assert '_fetchSamplesLoading:' in js or '_fetchSamplesLoading :' in js, (
+            "showcase/core.js Alpine data 缺少 _fetchSamplesLoading 初始化宣告"
+        )
+
+    def test_core_js_has_fetch_samples_failed_state(self):
+        """core.js Alpine data 含 _fetchSamplesFailed 初始化"""
+        js = self._js()
+        assert '_fetchSamplesFailed:' in js or '_fetchSamplesFailed :' in js, (
+            "showcase/core.js Alpine data 缺少 _fetchSamplesFailed 初始化宣告"
+        )
+
+    def test_close_lightbox_resets_fetch_samples_failed(self):
+        """closeLightbox() 含 _fetchSamplesFailed = {} 重置（Canonical Decision #12）"""
+        js = self._js()
+        # 找 closeLightbox 函數體（從 "closeLightbox()" 到下一個頂層 method 的 "," 為止）
+        # 用寬鬆 grep 即可：_fetchSamplesFailed = {} 必須出現在 closeLightbox 上下文
+        # 精確做法：確認 closeLightbox 定義後有 _fetchSamplesFailed = {}
+        close_lb_idx = js.find('closeLightbox() {')
+        assert close_lb_idx >= 0, "core.js 找不到 closeLightbox() 方法"
+        # 從 closeLightbox() 之後找 _fetchSamplesFailed = {}（在合理的函數體範圍內）
+        # 截取 closeLightbox 後 2000 個字元（足夠覆蓋整個函數體）
+        close_lb_body = js[close_lb_idx: close_lb_idx + 2000]
+        assert '_fetchSamplesFailed = {}' in close_lb_body, (
+            "closeLightbox() 函數體內缺少 _fetchSamplesFailed = {}（關閉 Lightbox 應重置失敗記憶，"
+            "Canonical Decision #12）"
+        )
+
+    @pytest.mark.parametrize("locale", ["zh_TW", "zh_CN", "en", "ja"])
+    def test_locale_files_have_samples_keys(self, locale):
+        """4 個語系 locale file 均含 showcase.samples 的 5 個 key"""
+        locale_file = LOCALES_ROOT / f"{locale}.json"
+        assert locale_file.exists(), f"locale 檔案不存在: {locale_file}"
+        data = json.loads(locale_file.read_text(encoding="utf-8"))
+        showcase = data.get("showcase", {})
+        samples = showcase.get("samples", {})
+        required_keys = {
+            "fetch_btn",
+            "fetching",
+            "success",
+            "fetch_failed",
+            "multi_video_error",
+        }
+        missing = required_keys - set(samples.keys())
+        assert not missing, (
+            f"locales/{locale}.json showcase.samples 缺少 key: {sorted(missing)}"
+        )
+
+    def test_fetch_samples_btn_has_bootstrap_icon(self):
+        """fetch-samples-btn 內含 Bootstrap Icon class（bi bi-cloud-download）。
+
+        b6 原始按鈕為裸文字，b6fix2 替換為 Bootstrap Icon。
+        靜態守衛確保 icon markup 不被移除（防止未來誤刪或改回 emoji）。
+        """
+        html = self._html()
+        m = re.search(
+            r'<button\b[^>]*class="[^"]*fetch-samples-btn[^"]*"[^>]*>',
+            html,
+            re.DOTALL,
+        )
+        assert m is not None, "fetch-samples-btn button element 不存在"
+
+        close_tag_pos = html.find('</button>', m.end())
+        assert close_tag_pos > m.start(), "找不到 fetch-samples-btn 的 </button> 結束標籤"
+        btn_region = html[m.start():close_tag_pos + len('</button>')]
+
+        assert 'bi bi-cloud-download' in btn_region, (
+            "fetch-samples-btn 範圍內缺少 Bootstrap Icon（bi bi-cloud-download）。\n"
+            "b6fix2 要求以 <i class=\"bi bi-cloud-download\"> 取代 emoji ☁️。\n"
+            "確認 showcase.html 的 fetch-samples-btn 已加入 <i class=\"bi bi-cloud-download\" aria-hidden=\"true\"></i>。"
+        )
+
+    def test_fetch_samples_btn_no_emoji_fallback(self):
+        """fetch-samples-btn 範圍內不含 ☁️ emoji（U+2601 + 可選 U+FE0F）。
+
+        b6 原始按鈕文字為 '☁️ 補抓劇照'（emoji 前綴）。
+        b6fix2 移除 emoji，改用 Bootstrap Icon，並更新 4 語系 locale label。
+        靜態守衛：直接掃 showcase.html 的 fetch-samples-btn button region 不含 ☁ 字元。
+        此測試範圍僅限 template；locale JSON 值的 emoji 移除由
+        test_fetch_btn_locale_no_emoji 負責驗證。
+        """
+        html = self._html()
+        m = re.search(
+            r'<button\b[^>]*class="[^"]*fetch-samples-btn[^"]*"[^>]*>',
+            html,
+            re.DOTALL,
+        )
+        assert m is not None, "fetch-samples-btn button element 不存在"
+
+        close_tag_pos = html.find('</button>', m.end())
+        assert close_tag_pos > m.start(), "找不到 fetch-samples-btn 的 </button> 結束標籤"
+        btn_region = html[m.start():close_tag_pos + len('</button>')]
+
+        assert '☁' not in btn_region, (
+            "fetch-samples-btn 範圍內仍含 ☁ emoji（U+2601）。\n"
+            "b6fix2 應移除 hardcode emoji，改以 Bootstrap Icon <i class=\"bi bi-cloud-download\"> 替代。"
+        )
+
+    @pytest.mark.parametrize("locale", ["zh_TW", "zh_CN", "en", "ja"])
+    def test_fetch_btn_locale_no_emoji(self, locale):
+        """4 語系 locale JSON 的 showcase.samples.fetch_btn 值不含 ☁ emoji（U+2601）。
+
+        b6fix2 同步更新 4 個語系 fetch_btn label，移除 emoji 前綴。
+        此守衛確保 locale JSON 本身的 value 不含 ☁，
+        與 test_fetch_samples_btn_no_emoji_fallback（掃 template）互補。
+        """
+        locale_path = LOCALES_ROOT / f"{locale}.json"
+        with locale_path.open(encoding="utf-8") as f:
+            data = json.load(f)
+        value = data.get("showcase", {}).get("samples", {}).get("fetch_btn", "")
+        assert "☁" not in value, (
+            f"locales/{locale}.json showcase.samples.fetch_btn 仍含 ☁ emoji（U+2601）。\n"
+            f"當前值：{value!r}\n"
+            "b6fix2 應將 emoji 前綴從所有 4 語系 locale 值中移除。"
+        )

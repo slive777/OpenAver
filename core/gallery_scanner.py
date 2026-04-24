@@ -14,7 +14,7 @@ import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field, fields as dataclass_fields
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 from core.logger import get_logger
 from core.maker_mapping import load_name_mapping, load_prefix_mapping
@@ -84,15 +84,39 @@ IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')
 DEFAULT_CACHE_FILE = "gallery_cache.json"
 
 
-def fast_scan_directory(directory: str, extensions: set, min_size_bytes: int = 0) -> List[dict]:
+def fast_scan_directory(
+    directory: str,
+    extensions: set,
+    min_size_bytes: int = 0,
+    on_skip: Optional[Callable[[str, Exception], None]] = None,
+) -> List[dict]:
     """快速掃描目錄，一次取得所有檔案資訊
 
     使用 os.scandir() 替代 glob() + stat()，大幅減少系統呼叫次數
     同時收集 NFO 檔案的 mtime，用於偵測 NFO 更新
+
+    Args:
+        directory: 要掃描的根目錄
+        extensions: 目標副檔名集合（含點）
+        min_size_bytes: 最小檔案大小（bytes）
+        on_skip: 可選 callback，簽名 (path, exception) -> None。
+            每當內部 entry 或外層目錄因 OSError/PermissionError 被跳過時呼叫。
+            用於讓呼叫端捕捉「因長路徑/權限而無法存取」的檔案，因為這類 entry
+            根本不會進入回傳 results，僅透過 callback 讓呼叫端知道它們存在。
+            callback 本身拋的例外會被吞掉，不影響掃描進度。
     """
     logger.debug(f"[FastScan] 掃描目錄: {directory}")
     results = []
     nfo_mtimes = {}  # 記錄每個目錄中的 NFO mtime
+
+    def _safe_on_skip(p: str, exc: Exception) -> None:
+        if on_skip is None:
+            return
+        try:
+            on_skip(p, exc)
+        except Exception:
+            # callback 本身出錯不得影響掃描
+            pass
 
     def scan_recursive(path: str):
         try:
@@ -112,8 +136,8 @@ def fast_scan_directory(directory: str, extensions: set, min_size_bytes: int = 0
                                 # 記錄 NFO 的 mtime
                                 try:
                                     dir_nfos[stem] = entry.stat().st_mtime
-                                except OSError:
-                                    pass
+                                except OSError as e:
+                                    _safe_on_skip(entry.path, e)
                             elif ext in extensions:
                                 stat = entry.stat()
                                 if min_size_bytes <= 0 or ext in ZERO_SIZE_EXTENSIONS or stat.st_size >= min_size_bytes:
@@ -123,8 +147,9 @@ def fast_scan_directory(directory: str, extensions: set, min_size_bytes: int = 0
                                         'size': stat.st_size,
                                         'stem': stem
                                     })
-                    except (OSError, PermissionError):
-                        pass
+                    except (OSError, PermissionError) as e:
+                        # entry.path 是 os.DirEntry 的純拼接屬性，通常不會拋
+                        _safe_on_skip(entry.path, e)
 
                 # 將 NFO mtime 加入對應的影片資訊
                 for f in dir_files:
@@ -132,8 +157,8 @@ def fast_scan_directory(directory: str, extensions: set, min_size_bytes: int = 0
                     del f['stem']  # 不需要保留 stem
                     results.append(f)
 
-        except (OSError, PermissionError):
-            pass
+        except (OSError, PermissionError) as e:
+            _safe_on_skip(path, e)
 
     scan_recursive(directory)
     logger.debug(f"[FastScan] 找到 {len(results)} 個檔案")
@@ -695,6 +720,9 @@ class VideoScanner:
         inserted, updated = repo.upsert_batch(videos_to_upsert)
         logger.info(f"[*] 完成: 新增 {inserted}, 更新 {updated}, 刪除 {deleted_count}")
 
+        # §b1 AC#2: sample_images 孤兒清理 pass（CLI / 直接呼叫路徑覆蓋）
+        _run_sample_images_cleanup_pass(repo)
+
         return {
             'inserted': inserted,
             'updated': updated,
@@ -806,6 +834,73 @@ class VideoScanner:
             'deleted': deleted_count
         }
         return videos, stats
+
+
+def _validate_sample_images(sample_images: list, video_path: str = "") -> list:
+    """驗證 sample_images 中的 file:/// URI 對應磁碟檔案存在性。
+    不存在的項目剔除；uri_to_fs_path 轉換失敗也視為不存在（但 log warning）。
+    非 file:/// 且非 http:// / https:// 格式（相對路徑、絕對 FS 路徑等）原樣保留 —
+    cleanup pass 只管 file:/// URI 的磁碟失效情境。
+    http:// / https:// 遠端 URL 為 Codex P1 修前 scraper URL 污染，一律清除。
+    """
+    valid = []
+    non_file_purged = 0
+    for uri in sample_images:
+        # 清除 scraper 遠端 URL 污染（pre-fix bug 寫入的 http:// / https://）
+        if uri.startswith('http://') or uri.startswith('https://'):
+            non_file_purged += 1
+            continue
+        # 只 validate file:/// URI；其他格式（migration 帶入的相對路徑、
+        # 舊絕對 FS 路徑等）原樣保留，不做磁碟檢查
+        if not uri.startswith('file:///'):
+            valid.append(uri)
+            continue
+        try:
+            fs = uri_to_fs_path(uri)
+        except Exception as e:
+            logger.warning(
+                "uri_to_fs_path failed for sample_image; treating as missing. "
+                "video=%s uri=%r error=%s: %s",
+                video_path, uri, type(e).__name__, e,
+            )
+            continue
+        if os.path.exists(fs):
+            valid.append(uri)
+        else:
+            logger.debug(
+                "sample_image missing on disk; removing from DB. video=%s uri=%r fs=%s",
+                video_path, uri, fs,
+            )
+    if non_file_purged > 0:
+        logger.info(
+            "[sample_images cleanup] %s: purged %d non-file:// URI entries",
+            video_path, non_file_purged,
+        )
+    return valid
+
+
+def _run_sample_images_cleanup_pass(repo) -> int:
+    """一次性孤兒清理 pass：驗證所有 Video row 的 sample_images URI，
+    不存在的剔除，寫回 DB。回傳清理的 row 數。
+    共用於 scan_to_sqlite() + generate_avlist() 兩個流程（Canonical Decision #4）。
+    """
+    all_videos = repo.get_all()
+    cleaned_count = 0
+    for video in all_videos:
+        if not video.sample_images:
+            continue
+        validated = _validate_sample_images(video.sample_images, video_path=video.path)
+        if validated != video.sample_images:
+            removed = len(video.sample_images) - len(validated)
+            logger.info(
+                "cleanup: removing %d orphan sample_images from video=%s",
+                removed, video.path,
+            )
+            repo.update_sample_images(video.path, validated)
+            cleaned_count += 1
+    if cleaned_count > 0:
+        logger.info("cleanup pass done: %d videos had orphan sample_images cleaned", cleaned_count)
+    return cleaned_count
 
 
 def main():

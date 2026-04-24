@@ -155,6 +155,8 @@ async def get_format_variables() -> dict:
             {"name": "{maker}", "description": "片商", "example": "S1"},
             {"name": "{date}", "description": "發行日期", "example": "2024-01-15"},
             {"name": "{year}", "description": "年份", "example": "2024"},
+            {"name": "{month}", "description": "月份（2位）", "example": "01"},
+            {"name": "{day}", "description": "日（2位）", "example": "15"},
             {"name": "{suffix}", "description": "版本標記（自動偵測）", "example": "-4k"},
         ]
     }

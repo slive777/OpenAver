@@ -762,7 +762,7 @@ class TestVideoProxy:
         assert "/api/gallery/video?path=" in response.text
 
     def test_path_traversal_blocked(self, client, tmp_path, monkeypatch):
-        """路徑穿越 ../ 被 realpath 擋下回傳 403"""
+        """路徑穿越 ../ 被 normpath + 白名單兜底擋下回傳 403"""
         # 建立 allowed_dir/sub/test.mp4
         allowed_dir = tmp_path / "allowed"
         allowed_dir.mkdir()
@@ -790,7 +790,7 @@ class TestVideoProxy:
         assert response.status_code == 403, "路徑穿越應被 403 擋下"
 
     def test_symlink_traversal_blocked(self, client, tmp_path, monkeypatch):
-        """symlink 穿越被 realpath 擋下回傳 403"""
+        """symlink target 在白名單外應回 403：realpath 追蹤 symlink target 後若越界則拒絕"""
         # 建立 allowed_dir 和外部的 secret.mp4
         allowed_dir = tmp_path / "allowed"
         allowed_dir.mkdir()
@@ -813,8 +813,10 @@ class TestVideoProxy:
             }
         monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
 
+        # realpath 追蹤 symlink target 到白名單外 → 403
         response = client.get(f"/api/gallery/video?path={str(symlink)}")
-        assert response.status_code == 403, "symlink 穿越應被 403 擋下"
+        assert response.status_code == 403, \
+            "realpath 追蹤 symlink target：target 在白名單外應回傳 403"
 
     def test_invalid_range_returns_416(self, client, tmp_path, monkeypatch):
         """無效 Range（start 超出檔案大小）回傳 416"""
@@ -863,6 +865,91 @@ class TestVideoProxy:
         content = scanner_py.read_text(encoding='utf-8')
         assert 'get_proxy_extensions' in content, \
             "scanner.py get_video() should use get_proxy_extensions from core.video_extensions"
+
+    def test_endpoint_works_when_realpath_would_raise(self, client, tmp_path, monkeypatch):
+        """FUSE/WinFsp 相容：mock os.path.realpath 丟 OSError 時 endpoint 走 except 分支降級 normpath，仍回傳 200"""
+        import os
+        from unittest.mock import Mock
+
+        video = tmp_path / "test.mp4"
+        video.write_bytes(b'\x00' * 100)
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(tmp_path)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+        monkeypatch.setattr(os.path, "realpath", Mock(side_effect=OSError("WinError 1005")))
+
+        response = client.get(f"/api/gallery/video?path={str(video)}")
+        assert response.status_code == 200, \
+            "realpath OSError 時應降級 normpath，FUSE/WinFsp 掛載下 endpoint 應回傳 200 而非 500"
+
+    def test_video_fuse_symlink_fallback(self, client, tmp_path, monkeypatch):
+        """FUSE 環境 mock realpath raise OSError → 降級 normpath → symlink 在白名單內 → 200
+        明確記錄 FUSE 下接受 symlink escape 殘留風險（target 不被追蹤）"""
+        import os
+        from unittest.mock import Mock
+
+        allowed_dir = tmp_path / "gallery"
+        allowed_dir.mkdir()
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        target = outside / "target.mp4"
+        target.write_bytes(b'\x00' * 100)
+        link = allowed_dir / "link.mp4"
+        try:
+            link.symlink_to(target)
+        except OSError:
+            pytest.skip("系統不支援 symlink")
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(allowed_dir)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+        # mock realpath raise OSError（模擬 WinFsp GetFinalPathNameByHandle 失敗）
+        monkeypatch.setattr(os.path, "realpath", Mock(side_effect=OSError("WinError 1005")))
+
+        response = client.get(f"/api/gallery/video?path={str(link)}")
+        assert response.status_code == 200, \
+            "FUSE 降級 normpath 後 symlink 本身在白名單內應回 200（接受 FUSE 下 symlink escape 殘留風險）"
+
+    def test_normpath_resolves_traversal(self, client, tmp_path, monkeypatch):
+        """normpath 正確解析 .. 並交給白名單兜底：合法 .. → 200；穿越 → 403"""
+        allowed_dir = tmp_path / "allowed"
+        allowed_dir.mkdir()
+        sub = allowed_dir / "sub"
+        sub.mkdir()
+        video = allowed_dir / "cover.mp4"
+        video.write_bytes(b'\x00' * 100)
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(allowed_dir)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        # Case A: sub/../cover.mp4 → normpath → allowed_dir/cover.mp4 → 200
+        legal_path = str(sub / ".." / "cover.mp4")
+        response = client.get(f"/api/gallery/video?path={legal_path}")
+        assert response.status_code == 200, \
+            "合法 .. 移動（仍在白名單內）應回傳 200"
+
+        # Case B: allowed_dir/../../etc → normpath → 白名單外 → 403
+        traversal_path = str(allowed_dir / ".." / ".." / "etc" / "passwd.mp4")
+        response = client.get(f"/api/gallery/video?path={traversal_path}")
+        assert response.status_code == 403, \
+            "穿越出白名單的 .. 路徑應被 403 擋下"
 
 
 class TestImageProxy:
@@ -914,7 +1001,7 @@ class TestImageProxy:
         assert response.status_code == 403, "白名單外路徑應被 403 擋下"
 
     def test_image_path_traversal_403(self, client, tmp_path, monkeypatch):
-        """../ 路徑穿越被 realpath 擋下回傳 403"""
+        """../ 路徑穿越被 normpath + 白名單兜底擋下回傳 403"""
         allowed_dir = tmp_path / "gallery"
         allowed_dir.mkdir()
         sub = allowed_dir / "sub"
@@ -963,7 +1050,7 @@ class TestImageProxy:
         assert response.status_code == 403, ".txt 副檔名應被 403 擋下"
 
     def test_image_symlink_traversal_blocked(self, client, tmp_path, monkeypatch):
-        """symlink 穿越被 realpath 擋下回傳 403"""
+        """symlink target 在白名單外應回 403：realpath 追蹤 symlink target 後若越界則拒絕"""
         allowed_dir = tmp_path / "gallery"
         allowed_dir.mkdir()
         secret = tmp_path / "secret.jpg"
@@ -984,8 +1071,97 @@ class TestImageProxy:
             }
         monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
 
+        # realpath 追蹤 symlink target 到白名單外 → 403
         response = client.get(f"/api/gallery/image?path={str(symlink)}")
-        assert response.status_code == 403, "symlink 穿越應被 403 擋下"
+        assert response.status_code == 403, \
+            "realpath 追蹤 symlink target：target 在白名單外應回傳 403"
+
+    def test_endpoint_works_when_realpath_would_raise(self, client, tmp_path, monkeypatch):
+        """FUSE/WinFsp 相容：mock os.path.realpath 丟 OSError 時 endpoint 走 except 分支降級 normpath，仍回傳 200"""
+        import os
+        from unittest.mock import Mock
+
+        allowed_dir = tmp_path / "gallery"
+        allowed_dir.mkdir()
+        img = allowed_dir / "cover.jpg"
+        img.write_bytes(b'\xff\xd8\xff' + b'\x00' * 100)
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(allowed_dir)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+        monkeypatch.setattr(os.path, "realpath", Mock(side_effect=OSError("WinError 1005")))
+
+        response = client.get(f"/api/gallery/image?path={str(img)}")
+        assert response.status_code == 200, \
+            "realpath OSError 時應降級 normpath，FUSE/WinFsp 掛載下 endpoint 應回傳 200 而非 500"
+
+    def test_image_fuse_symlink_fallback(self, client, tmp_path, monkeypatch):
+        """FUSE 環境 mock realpath raise OSError → 降級 normpath → symlink 在白名單內 → 200
+        明確記錄 FUSE 下接受 symlink escape 殘留風險（target 不被追蹤）"""
+        import os
+        from unittest.mock import Mock
+
+        allowed_dir = tmp_path / "gallery"
+        allowed_dir.mkdir()
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        target = outside / "target.jpg"
+        target.write_bytes(b'\xff\xd8\xff' + b'\x00' * 100)
+        link = allowed_dir / "link.jpg"
+        try:
+            link.symlink_to(target)
+        except OSError:
+            pytest.skip("系統不支援 symlink")
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(allowed_dir)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+        # mock realpath raise OSError（模擬 WinFsp GetFinalPathNameByHandle 失敗）
+        monkeypatch.setattr(os.path, "realpath", Mock(side_effect=OSError("WinError 1005")))
+
+        response = client.get(f"/api/gallery/image?path={str(link)}")
+        assert response.status_code == 200, \
+            "FUSE 降級 normpath 後 symlink 本身在白名單內應回 200（接受 FUSE 下 symlink escape 殘留風險）"
+
+    def test_normpath_resolves_traversal(self, client, tmp_path, monkeypatch):
+        """normpath 正確解析 .. 並交給白名單兜底：合法 .. → 200；穿越 → 403"""
+        allowed_dir = tmp_path / "gallery"
+        allowed_dir.mkdir()
+        sub = allowed_dir / "sub"
+        sub.mkdir()
+        img = allowed_dir / "cover.jpg"
+        img.write_bytes(b'\xff\xd8\xff' + b'\x00' * 100)
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(allowed_dir)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        # Case A: sub/../cover.jpg → normpath → allowed_dir/cover.jpg → 200
+        legal_path = str(sub / ".." / "cover.jpg")
+        response = client.get(f"/api/gallery/image?path={legal_path}")
+        assert response.status_code == 200, \
+            "合法 .. 移動（仍在白名單內）應回傳 200"
+
+        # Case B: allowed_dir/../../etc → normpath → 白名單外 → 403
+        traversal_path = str(allowed_dir / ".." / ".." / "etc" / "passwd.jpg")
+        response = client.get(f"/api/gallery/image?path={traversal_path}")
+        assert response.status_code == 403, \
+            "穿越出白名單的 .. 路徑應被 403 擋下"
 
 
 class TestSampleImagesAPI:

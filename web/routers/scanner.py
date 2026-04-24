@@ -21,17 +21,18 @@ import asyncio
 import base64
 import json
 import os
+import sys
 import time
 import requests
 from datetime import datetime
 from urllib.parse import unquote, quote
 from pathlib import Path
-from typing import Generator, List, Optional
+from typing import Any, Dict, Generator, List, Optional
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse, HTMLResponse, Response, FileResponse, JSONResponse
 
-from core.gallery_scanner import VideoScanner, fast_scan_directory, VideoInfo
+from core.gallery_scanner import VideoScanner, fast_scan_directory, VideoInfo, _run_sample_images_cleanup_pass
 from core.video_extensions import get_proxy_extensions, get_video_extensions
 from core.gallery_generator import HTMLGenerator
 from core.path_utils import normalize_path, to_file_uri, is_path_under_dir, uri_to_fs_path
@@ -55,6 +56,27 @@ _jellyfin_cache_time: float = 0
 def _sse_event(data: dict) -> str:
     """將 dict 編碼為 SSE 格式的單條 message。"""
     return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _collect_long_paths(
+    all_files: List[Dict[str, Any]],
+    threshold: int = 260,
+) -> List[str]:
+    """a5: 從 fast_scan_directory 結果收集超過 threshold 的 path（純函數）。
+
+    呼叫端負責 platform gate（sys.platform == 'win32'）。
+    此 helper 不檢查平台，方便單元測試。
+    """
+    return [f['path'] for f in all_files if len(f['path']) > threshold]
+
+
+def _emit_long_path_warnings(logger_, long_paths: List[str]) -> None:
+    """a5: 把長路徑清單寫到 debug.log（空 list 時不輸出）。"""
+    if not long_paths:
+        return
+    logger_.warning(f"[a5] 發現 {len(long_paths)} 個路徑超過 260 字元：")
+    for p in long_paths:
+        logger_.warning(f"  {p}")
 
 
 def generate_avlist() -> Generator[str, None, None]:
@@ -117,6 +139,7 @@ def generate_avlist() -> Generator[str, None, None]:
         total_updated = 0
         total_deleted = 0
         session_added_paths = []  # 追蹤本次新增/變更的影片路徑
+        long_paths: list[str] = []  # a5: Windows 長路徑收集（只在 win32 填充）
 
         for idx, directory in enumerate(directories, 1):
             logger.info(f"[Gallery] 掃描: {directory}")
@@ -144,11 +167,25 @@ def generate_avlist() -> Generator[str, None, None]:
                 # 快速掃描取得檔案列表
                 min_size_bytes = min_size_mb * 1024 * 1024
                 video_extensions = get_video_extensions(config)
-                all_files = fast_scan_directory(normalized_dir, video_extensions, min_size_bytes)
+                # a5 Codex fix: 收集因 OSError/PermissionError 被跳過的路徑
+                # （含 Windows 長路徑觸發的 OSError — 這些 entry 根本不會進 all_files）
+                skipped_paths: list[str] = []
+                all_files = fast_scan_directory(
+                    normalized_dir,
+                    video_extensions,
+                    min_size_bytes,
+                    on_skip=lambda p, _e: skipped_paths.append(p),
+                )
 
-                if not all_files:
+                if not all_files and not skipped_paths:
                     yield _sse_event({"type": "log", "level": "info", "message": f"{directory}: 沒有影片檔案"})
                     continue
+
+                # a5: Windows 長路徑警告（gate 在呼叫端，不在 helper）
+                if sys.platform == 'win32':
+                    long_paths.extend(_collect_long_paths(all_files))
+                    # 把因長度而失敗的 skipped 路徑也納入警告（filter >260 過濾非長路徑失敗）
+                    long_paths.extend(p for p in skipped_paths if len(p) > 260)
 
                 yield _sse_event({"type": "log", "level": "info", "message": f"{directory}: 找到 {len(all_files)} 個檔案"})
 
@@ -173,12 +210,24 @@ def generate_avlist() -> Generator[str, None, None]:
                         needs_scan.append(file_info)
 
                 # 清理已刪除的檔案（限定在此目錄下）
-                normalized_dir_uri = to_file_uri(normalized_dir, path_mappings)
-                deleted_paths = [p for p in db_index.keys() if is_path_under_dir(p, normalized_dir_uri) and p not in current_paths]
-                if deleted_paths:
-                    deleted_count = repo.delete_by_paths(deleted_paths)
-                    total_deleted += deleted_count
-                    yield _sse_event({"type": "log", "level": "info", "message": f"  清理 {deleted_count} 個已刪除檔案"})
+                # a5 Codex fix: scan 不完整時（skipped_paths 非空）跳過 deletion 偵測
+                # current_paths 只含本次成功掃到的檔案；若有路徑因 OSError/PermissionError
+                # 被跳過，current_paths 就不是本目錄完整集合，用它做 diff 會把「原本存在
+                # 但這次沒掃到（因失敗）」的 DB 紀錄誤判為已刪除並清掉。
+                # partial scan 只做 insert/update，不能 infer 刪除。
+                if skipped_paths:
+                    yield _sse_event({
+                        "type": "log",
+                        "level": "warn",
+                        "message": f"  {directory}: {len(skipped_paths)} 個路徑讀取失敗，跳過刪除偵測以免誤刪（詳見 debug.log）"
+                    })
+                else:
+                    normalized_dir_uri = to_file_uri(normalized_dir, path_mappings)
+                    deleted_paths = [p for p in db_index.keys() if is_path_under_dir(p, normalized_dir_uri) and p not in current_paths]
+                    if deleted_paths:
+                        deleted_count = repo.delete_by_paths(deleted_paths)
+                        total_deleted += deleted_count
+                        yield _sse_event({"type": "log", "level": "info", "message": f"  清理 {deleted_count} 個已刪除檔案"})
 
                 # 掃描並寫入需要更新的檔案
                 videos_to_upsert = []
@@ -287,6 +336,15 @@ def generate_avlist() -> Generator[str, None, None]:
 
         yield _sse_event({"type": "log", "level": "info", "message": f"資料庫總筆數: {repo.count()}"})
 
+        # §b1 AC#2: sample_images 孤兒清理 pass（Scanner UI 主路徑覆蓋，共用 helper）
+        try:
+            cleaned = _run_sample_images_cleanup_pass(repo)
+            if cleaned > 0:
+                yield _sse_event({"type": "log", "level": "info", "message": f"清除 {cleaned} 筆孤兒劇照記錄"})
+        except Exception as e:
+            logger.warning("sample_images cleanup pass failed: %s: %s", type(e).__name__, e)
+            # 失敗不中斷 scan 流程
+
         # 產生 HTML
         yield _sse_event({
             "type": "progress",
@@ -316,6 +374,9 @@ def generate_avlist() -> Generator[str, None, None]:
 
         logger.info(f"[Gallery] 完成，新增 {total_inserted}，更新 {total_updated}，刪除 {total_deleted}")
 
+        # a5: 寫長路徑清單到 debug.log（helper 內部判斷空 list）
+        _emit_long_path_warnings(logger, long_paths)
+
         # T3(40c) Codex fix: generate 後清空 jellyfin check 快取
         global _jellyfin_cache_result, _jellyfin_cache_time
         _jellyfin_cache_result = None
@@ -326,6 +387,7 @@ def generate_avlist() -> Generator[str, None, None]:
             "video_count": len(all_videos),
             "output_path": str(html_path),
             "session_update": session_update,
+            "long_paths": long_paths,  # a5
             "stats": {
                 "inserted": total_inserted,
                 "updated": total_updated,
@@ -647,8 +709,14 @@ async def get_image(path: str = Query(..., description="圖片路徑")):
     except ValueError:
         local_path = path  # 無法轉換時使用原路徑
 
-    # 1. 解析 .. 和 symlink，防止路徑穿越攻擊
-    local_path = os.path.realpath(local_path)
+    # 1. 解析 .. 並追蹤 symlink target（realpath）；FUSE/WinFsp OSError 時降級 normpath
+    try:
+        local_path = os.path.realpath(local_path)
+    except OSError as e:
+        # FUSE / WinFsp / rclone mount 不支援 GetFinalPathNameByHandle
+        # 降級 normpath（純字串）；symlink escape 風險在 FUSE 環境接受
+        logger.warning("get_image: realpath 失敗（FUSE/WinFsp？），降級為 normpath path=%s err=%s", local_path, e)
+        local_path = os.path.normpath(local_path)
 
     # 2. 副檔名白名單（只允許圖片格式）
     ext = os.path.splitext(local_path)[1].lower()
@@ -696,10 +764,16 @@ async def get_video(request: Request, path: str = Query(..., description="影片
     # 1. 轉換為 FS 路徑
     local_path = uri_to_fs_path(path)
 
-    # 2. 解析 .. 和 symlink，防止路徑穿越攻擊（必須在 ext 檢查前，避免 symlink 繞過）
-    local_path = os.path.realpath(local_path)
+    # 2. 解析 .. 並追蹤 symlink target（realpath）；FUSE/WinFsp OSError 時降級 normpath
+    try:
+        local_path = os.path.realpath(local_path)
+    except OSError as e:
+        # FUSE / WinFsp / rclone mount 不支援 GetFinalPathNameByHandle
+        # 降級 normpath（純字串）；symlink escape 風險在 FUSE 環境接受
+        logger.warning("get_video: realpath 失敗（FUSE/WinFsp？），降級為 normpath path=%s err=%s", local_path, e)
+        local_path = os.path.normpath(local_path)
 
-    # 3. 副檔名白名單（用 realpath 解析後的真實路徑）
+    # 3. 副檔名白名單（用 realpath/normpath 解析後的路徑）
     #    使用 get_proxy_extensions() = user config ∩ SAFE_PROXY_EXTENSIONS
     config = load_config()
     allowed_extensions = get_proxy_extensions(config)

@@ -267,7 +267,7 @@
         <form id="searchForm" @submit.prevent="doSearch()">
             <div class="spotlight-search">
                 <i class="bi bi-search search-icon-left"></i>
-                <input type="text" id="searchQuery" name="q" placeholder="{{ t('search.placeholder.query') }}" autocomplete="off" x-model="searchQuery" x-ref="searchQuery">
+                <input type="text" id="searchQuery" name="q" placeholder="{{ t('search.placeholder.query') }}" autocomplete="off" x-model="searchQuery" x-ref="searchQuery" @keydown.enter="if ($event.isComposing) { $event.preventDefault(); return; }">
                 <div class="search-actions-right">
                     <!-- 取消搜尋按鈕（loading 狀態顯示） -->
                     <button type="button"

@@ -711,6 +711,45 @@ class VideoRepository:
         finally:
             conn.close()
 
+    def update_sample_images(self, path: str, sample_images: List[str]) -> bool:
+        """只更新 sample_images 欄位（§b1 scanner cleanup + §b3 fetch-samples 使用）"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE videos SET sample_images = ?, updated_at = CURRENT_TIMESTAMP WHERE path = ?",
+                (json.dumps(sample_images, ensure_ascii=False), path),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    def count_videos_in_folder(self, folder_uri_prefix: str) -> int:
+        """計算「直接在此目錄下」的影片數（不含子目錄）。
+        folder_uri_prefix 必須以 '/' 結尾，例如 'file:///A/'。
+        """
+        assert folder_uri_prefix.endswith('/'), "prefix 必須以 '/' 結尾"
+        # Python 側先 escape LIKE wildcards，順序：\ → % → _
+        # ESCAPE '\\' 子句只定義 escape 字元，不會自動處理參數
+        escaped = (folder_uri_prefix
+                   .replace('\\', '\\\\')
+                   .replace('%', '\\%')
+                   .replace('_', '\\_'))
+        conn = self._get_connection()
+        try:
+            row = conn.execute(
+                """
+                SELECT COUNT(*) FROM videos
+                WHERE path LIKE ? ESCAPE '\\'
+                  AND path NOT LIKE ? ESCAPE '\\'
+                """,
+                (escaped + '%', escaped + '%/%'),
+            ).fetchone()
+            return row[0] if row else 0
+        finally:
+            conn.close()
+
 def migrate_json_to_sqlite(json_path: Path, db_path: Path = None,
                            delete_on_success: bool = True) -> dict:
     """遷移 JSON cache 到 SQLite

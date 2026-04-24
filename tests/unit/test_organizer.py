@@ -55,6 +55,12 @@ class TestDetectSuffixes:
         assert "-cd1" in result
         assert "_uc" in result
 
+    def test_detect_suffixes_order_follows_keywords(self):
+        """多 keyword 時，輸出順序按 keyword 列表，不按檔名順序（canonical 化設計）"""
+        # keywords ['-cd1', '-4k']，檔名 '-4k-cd1' 反序
+        result = _detect_suffixes("ABC-123-4k-cd1.mp4", ["-cd1", "-4k"])
+        assert result == "-cd1-4k", f"預期按 keyword 列表順序 '-cd1-4k'，實際 {result!r}"
+
 
 # ============ format_string() 測試 ============
 
@@ -108,6 +114,90 @@ class TestFormatStringFallback:
     def test_format_string_has_value_no_fallback(self):
         result = format_string("{actor}", {"actors": ["三上悠亞"]}, use_fallback=True)
         assert result == "三上悠亞"
+
+    def test_format_string_fallback_month(self):
+        result = format_string("{month}", {"date": ""}, use_fallback=True)
+        assert result == "未知月份"
+
+    def test_format_string_fallback_day(self):
+        result = format_string("{day}", {"date": ""}, use_fallback=True)
+        assert result == "未知日"
+
+    def test_format_string_no_fallback_month(self):
+        result = format_string("{month}", {"date": ""})  # use_fallback=False
+        assert result == ""
+
+    def test_format_string_no_fallback_day(self):
+        result = format_string("{day}", {"date": ""})  # use_fallback=False
+        assert result == ""
+
+
+class TestFormatStringDateVariables:
+    """format_string() {year}/{month}/{day}/{date} 變數展開測試"""
+
+    def test_full_iso_date_year(self):
+        """完整 ISO 日期：{year} = "2015"""
+        result = format_string("{year}", {"date": "2015-06-01"})
+        assert result == "2015"
+
+    def test_full_iso_date_month(self):
+        """完整 ISO 日期：{month} = "06"""
+        result = format_string("{month}", {"date": "2015-06-01"})
+        assert result == "06"
+
+    def test_full_iso_date_day(self):
+        """完整 ISO 日期：{day} = "01"""
+        result = format_string("{day}", {"date": "2015-06-01"})
+        assert result == "01"
+
+    def test_full_iso_date_date(self):
+        """完整 ISO 日期：{date} = "2015-06-01"""
+        result = format_string("{date}", {"date": "2015-06-01"})
+        assert result == "2015-06-01"
+
+    def test_partial_date_year_month_only(self):
+        """部分日期 "2015-06"：{year}="2015" / {month}="06"""
+        year_result = format_string("{year}", {"date": "2015-06"})
+        month_result = format_string("{month}", {"date": "2015-06"})
+        assert year_result == "2015"
+        assert month_result == "06"
+
+    def test_partial_date_day_fallback_folder(self):
+        """部分日期 "2015-06"：{day} 走 folder fallback = "未知日"""
+        result = format_string("{day}", {"date": "2015-06"}, use_fallback=True)
+        assert result == "未知日"
+
+    def test_partial_date_day_fallback_filename(self):
+        """部分日期 "2015-06"：{day} 走 filename fallback = """""
+        result = format_string("{day}", {"date": "2015-06"}, use_fallback=False)
+        assert result == ""
+
+    def test_year_only_month_fallback_folder(self):
+        """純年份 "2015"：{month} 走 folder fallback = "未知月份"""
+        result = format_string("{month}", {"date": "2015"}, use_fallback=True)
+        assert result == "未知月份"
+
+    def test_year_only_day_fallback_folder(self):
+        """純年份 "2015"：{day} 走 folder fallback = "未知日"""
+        result = format_string("{day}", {"date": "2015"}, use_fallback=True)
+        assert result == "未知日"
+
+    def test_empty_date_all_fallback_folder(self):
+        """空字串：{year}/{month}/{day}/{date} 全部走 folder fallback"""
+        assert format_string("{year}", {"date": ""}, use_fallback=True) == "未知年份"
+        assert format_string("{month}", {"date": ""}, use_fallback=True) == "未知月份"
+        assert format_string("{day}", {"date": ""}, use_fallback=True) == "未知日"
+        assert format_string("{date}", {"date": ""}, use_fallback=True) == "未知日期"
+
+    def test_filename_format_ymd_full_date(self):
+        """{year}-{month}-{day} + 完整 date → 展開 "2015-06-01"""
+        result = format_string("{year}-{month}-{day}", {"date": "2015-06-01"})
+        assert result == "2015-06-01"
+
+    def test_filename_format_dmy_full_date(self):
+        """{day}_{month}_{year} (DMY) + 完整 date → 展開 "01_06_2015"""
+        result = format_string("{day}_{month}_{year}", {"date": "2015-06-01"})
+        assert result == "01_06_2015"
 
 
 # ============ organize_file() 整合測試 ============
@@ -465,6 +555,110 @@ class TestOrganizeFallback:
             f"create_folder=false 時 used_fallbacks 應為空，實際: {result['used_fallbacks']}"
         )
 
+    def test_partial_date_year_only_warns_for_month(self, tmp_path):
+        """date='2015'（僅年），folder 含 {month} → used_fallbacks 包含 '日期'（len < 7）"""
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"test")
+        config = {
+            "create_folder": True,
+            "folder_layers": ["{year}", "{month}"],
+            "filename_format": "[{num}] {title}",
+            "download_cover": False,
+            "cover_filename": "poster.jpg",
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+        metadata = {
+            "number": "SONE-205", "title": "Test Title",
+            "actors": ["三上悠亞"], "tags": [], "maker": "S1",
+            "date": "2015", "cover": "", "url": "",
+        }
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True
+        assert "日期" in result["used_fallbacks"], (
+            f"date='2015' + {{month}} 應 append '日期'，實際 used_fallbacks: {result['used_fallbacks']}"
+        )
+
+    def test_partial_date_year_month_warns_for_day(self, tmp_path):
+        """date='2015-06'（年月），folder 含 {day} → used_fallbacks 包含 '日期'（len < 10）"""
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"test")
+        config = {
+            "create_folder": True,
+            "folder_layers": ["{year}", "{month}", "{day}"],
+            "filename_format": "[{num}] {title}",
+            "download_cover": False,
+            "cover_filename": "poster.jpg",
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+        metadata = {
+            "number": "SONE-205", "title": "Test Title",
+            "actors": ["三上悠亞"], "tags": [], "maker": "S1",
+            "date": "2015-06", "cover": "", "url": "",
+        }
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True
+        assert "日期" in result["used_fallbacks"], (
+            f"date='2015-06' + {{day}} 應 append '日期'，實際 used_fallbacks: {result['used_fallbacks']}"
+        )
+
+    def test_partial_date_year_month_no_false_alarm(self, tmp_path):
+        """date='2015-06'（年月），folder 只含 {year}{month}（無 {day}）→ 無 '日期' fallback"""
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"test")
+        config = {
+            "create_folder": True,
+            "folder_layers": ["{year}", "{month}"],
+            "filename_format": "[{num}] {title}",
+            "download_cover": False,
+            "cover_filename": "poster.jpg",
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+        metadata = {
+            "number": "SONE-205", "title": "Test Title",
+            "actors": ["三上悠亞"], "tags": [], "maker": "S1",
+            "date": "2015-06", "cover": "", "url": "",
+        }
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True
+        assert "日期" not in result["used_fallbacks"], (
+            f"date='2015-06' 對 {{year}}{{month}} 不應 append '日期'，實際 used_fallbacks: {result['used_fallbacks']}"
+        )
+
+    def test_full_date_no_warn(self, tmp_path):
+        """date='2015-06-15'（完整），folder 含 {year}{month}{day} → used_fallbacks 不含 '日期'"""
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"test")
+        config = {
+            "create_folder": True,
+            "folder_layers": ["{year}", "{month}", "{day}"],
+            "filename_format": "[{num}] {title}",
+            "download_cover": False,
+            "cover_filename": "poster.jpg",
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+        metadata = {
+            "number": "SONE-205", "title": "Test Title",
+            "actors": ["三上悠亞"], "tags": [], "maker": "S1",
+            "date": "2015-06-15", "cover": "", "url": "",
+        }
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True
+        assert "日期" not in result["used_fallbacks"], (
+            f"date='2015-06-15' 完整日期不應 append '日期'，實際 used_fallbacks: {result['used_fallbacks']}"
+        )
+
 
 # ============ organize_file() 錯誤處理測試 (T4 安全修正) ============
 
@@ -819,6 +1013,36 @@ class TestExtractChineseTitle:
         # 結尾帶有演員名，會被移除
         result = extract_chinese_title("ABP-001 美少女 三上悠亞.mp4", "ABP-001", actors=["三上悠亞"])
         assert result == "美少女"
+
+
+class TestExtractChineseTitleSubtitleMarkers:
+    """spec-48a.md §a2 行為對照表 — 字幕標記 edge cases
+
+    T2 是 strip_subtitle_markers helper 的第一個實際使用場景。
+    本 class 的七個 case 不只驗證 T2 的 wiring，也間接守護 T1 helper
+    的 'bracket 先剝、長 pattern 優先' 順序契約：若該順序回歸，
+    case #6 的 【中文字幕】 剝除會殘留『中文字幕』四個字 → has_chinese=True
+    → 誤判為中文片名回傳 → 斷言 fail（預期 None）。
+    """
+
+    @pytest.mark.parametrize("filename, number, expected", [
+        ("ABC-123 純中文片名.mp4", "ABC-123", "純中文片名"),           # 1. 真片名保留
+        ("ABC-123 エロいやつ.mp4", "ABC-123", None),                   # 2. 純日文，無中文 → None
+        ("ABC-123 [中字] 正妹の中文版.mp4", "ABC-123", "正妹の中文版"), # 3. 剝字幕後真片名保留
+        ("[中字] ABC-123.mp4", "ABC-123", None),                       # 4. 修前: [中字]，修後: None
+        ("ABC-123-中字.mp4", "ABC-123", None),                         # 5. 修前: 殘留 -中字，修後: None
+        ("ABC-123【中文字幕】.mp4", "ABC-123", None),                  # 6. 字幕 bracket → None（守護順序契約）
+        ("ABC-123.mp4", "ABC-123", None),                              # 7. 無字幕無中文 → None
+        # 8-9. Codex 指出的 orphan 分隔符殘留 — 剝除 marker 後不應留下尾端 -/_
+        ("ABC-123 正妹の中文版-中字.mp4", "ABC-123", "正妹の中文版"),
+        ("ABC-123 正妹の中文版_中文字幕.mp4", "ABC-123", "正妹の中文版"),
+    ])
+    def test_subtitle_marker_cases(self, filename, number, expected):
+        result = extract_chinese_title(filename, number)
+        assert result == expected, (
+            f"extract_chinese_title({filename!r}, {number!r}) = {result!r}，"
+            f"期望 {expected!r}"
+        )
 
 
 # ============ generate_nfo() 補充測試 ============

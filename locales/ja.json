@@ -222,7 +222,7 @@
     },
     "scraper": {
       "suffix_keywords_label": "バージョンマーク",
-      "suffix_keywords_hint": "ファイル名にこれらのキーワードが含まれる場合 {suffix} として保持",
+      "suffix_keywords_hint": "ファイル名にこれらのキーワードが含まれる場合 {suffix} として保持されます（複数指定時はリスト順に連結）",
       "create_folder_label": "フォルダを作成",
       "folder_layers_label": "フォルダ階層",
       "folder_layer_outer": "外層",
@@ -290,6 +290,8 @@
       "maker": "メーカー",
       "date": "日付",
       "year": "年",
+      "month": "月",
+      "day": "日",
       "suffix": "サフィックス"
     },
     "dirty_modal": {
@@ -583,6 +585,13 @@
       "search_films": "関連動画を検索",
       "addFavorite": "お気に入りに追加",
       "favorited": "お気に入り済み"
+    },
+    "samples": {
+      "fetch_btn": "取得",
+      "fetching": "取得中...",
+      "success": "サンプル画像を取得しました",
+      "fetch_failed": "画像の取得に失敗しました。後でもう一度お試しください",
+      "multi_video_error": "このフォルダに他の動画があります。画像を取得すると他の動画に影響します。動画を専用フォルダに移動してからお試しください。"
     }
   },
   "help": {
@@ -663,12 +672,16 @@
       "var_maker_desc": "メーカー",
       "var_date_desc": "発売日",
       "var_year_desc": "年",
+      "var_month_desc": "月（2桁）",
+      "var_day_desc": "日（2桁）",
       "var_suffix_desc": "バージョンタグ",
       "fallback_unknown_title": "タイトル不明",
       "fallback_unknown_actor": "女優不明",
       "fallback_unknown_maker": "メーカー不明",
       "fallback_unknown_date": "日付不明",
       "fallback_unknown_year": "年不明",
+      "fallback_unknown_month": "月不明",
+      "fallback_unknown_day": "日不明",
       "fallback_empty": "空の場合は省略",
       "default_filename": "ファイル名：<code>[{num}][{maker}] {title}{suffix}</code>",
       "default_folder": "フォルダ：<code>{actor}</code>",

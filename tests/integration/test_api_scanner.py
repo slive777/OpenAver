@@ -730,3 +730,239 @@ class TestMissingCheckAPI:
         assert data['data']['items'] is not None
         assert isinstance(data['data']['items'], list)
         assert len(data['data']['items']) == 5000
+
+
+class TestScannerGenerateLongPathsField:
+    """spec-48a §a5 契約 3 — /api/gallery/generate SSE done event 必須含 long_paths key"""
+
+    def test_done_event_has_long_paths_key(self, client, tmp_path, monkeypatch, parse_sse_events):
+        """
+        SSE done event payload 必須含 long_paths 欄位（即使平台非 win32 也應為 [] 而非缺 key）。
+        用空資料夾讓掃描快速結束，重點驗證 payload 結構，不驗證內容。
+        """
+        scan_dir = tmp_path / "videos"
+        scan_dir.mkdir()
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        # Mock config — 單一空目錄，掃完即 done
+        monkeypatch.setattr("web.routers.scanner.load_config", lambda: {
+            "gallery": {
+                "directories": [str(scan_dir)],
+                "output_dir": str(output_dir),
+                "path_mappings": {},
+                "min_size_mb": 0,
+            },
+            "general": {"theme": "light"},
+            "scraper": {"video_extensions": [".mp4"]},
+        })
+
+        response = client.get('/api/gallery/generate')
+        assert response.status_code == 200
+
+        events = parse_sse_events(response.text)
+        done_events = [e for e in events if e.get('type') == 'done']
+        assert done_events, "SSE stream 未收到 done event"
+
+        done_payload = done_events[-1]
+        assert 'long_paths' in done_payload, (
+            "done SSE payload 缺少 long_paths 欄位"
+            "（實作可能漏掉 long_paths 參數或未抽 module-level helper）"
+        )
+        assert isinstance(done_payload['long_paths'], list), \
+            "long_paths 應為 list 型別"
+        # 非 win32 平台（CI / 開發機多為 linux）應為空 list
+        # win32 平台上空目錄也應為空 list
+        assert done_payload['long_paths'] == [], \
+            "空目錄 / 非 win32 平台下 long_paths 應為 []"
+
+    def test_skipped_long_paths_captured_via_on_skip(
+        self, client, tmp_path, monkeypatch, parse_sse_events
+    ):
+        """
+        Codex fix: 因 OSError（如 Windows 長路徑）被跳過的 entry 不會進 all_files，
+        必須透過 fast_scan_directory 的 on_skip callback 回收，再由 caller
+        以 len > 260 篩入 long_paths。若 caller 沒串 on_skip 或沒把 skipped
+        併進 long_paths，這個測試會 fail。
+        """
+        scan_dir = tmp_path / "videos"
+        scan_dir.mkdir()
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        monkeypatch.setattr("web.routers.scanner.load_config", lambda: {
+            "gallery": {
+                "directories": [str(scan_dir)],
+                "output_dir": str(output_dir),
+                "path_mappings": {},
+                "min_size_mb": 0,
+            },
+            "general": {"theme": "light"},
+            "scraper": {"video_extensions": [".mp4"]},
+        })
+
+        # 模擬平台 = win32，讓 long_paths 收集邏輯啟動
+        monkeypatch.setattr("web.routers.scanner.sys.platform", "win32")
+
+        # Stub fast_scan_directory：不掃真目錄，而是觸發 on_skip 兩次
+        # 一次長路徑（>260，應進 long_paths），一次短路徑（<260，不應進）
+        long_skip_path = "C:\\" + "a" * 280  # len > 260
+        short_skip_path = "C:\\short-denied.mp4"  # len < 260（權限拒絕，不是長路徑）
+
+        def stub_fast_scan(directory, extensions, min_size_bytes, on_skip=None):
+            if on_skip is not None:
+                on_skip(long_skip_path, OSError(206, "too long"))
+                on_skip(short_skip_path, PermissionError(13, "denied"))
+            return []  # 無檔案進 results
+
+        monkeypatch.setattr("web.routers.scanner.fast_scan_directory", stub_fast_scan)
+
+        response = client.get('/api/gallery/generate')
+        assert response.status_code == 200
+
+        events = parse_sse_events(response.text)
+        done_events = [e for e in events if e.get('type') == 'done']
+        assert done_events, "SSE stream 未收到 done event"
+
+        done_payload = done_events[-1]
+        long_paths = done_payload.get('long_paths', [])
+        assert long_skip_path in long_paths, (
+            f"skipped 的長路徑 {long_skip_path!r} 未被 caller 透過 on_skip 收集至 long_paths — "
+            f"可能 scanner.py 未傳 on_skip，或未把 skipped_paths filter >260 併入 long_paths"
+        )
+        assert short_skip_path not in long_paths, (
+            "短的 skipped 路徑（權限錯誤等非長路徑）不應被當作長路徑警告"
+        )
+
+    def test_partial_scan_skipped_paths_do_not_trigger_deletion(
+        self, client, tmp_path, monkeypatch, parse_sse_events
+    ):
+        """
+        Codex regression P1：當 fast_scan_directory 回傳 [] + 透過 on_skip 回報路徑失敗時，
+        掃描流程必須跳過 deletion 偵測，否則該目錄下既有 DB 紀錄會被全部誤刪。
+
+        控制流守護：
+          - 在 DB 預先塞一筆「位於掃描目錄下」的 Video 紀錄
+          - stub fast_scan_directory：只透過 on_skip 回報一筆長路徑、return []
+          - 跑完 /api/gallery/generate 後 DB 紀錄必須仍存在（未被誤刪）
+
+        若 scanner.py 漏 gate（在 skipped_paths 非空時仍走 deletion 區塊），
+        current_paths 會是空 set，該目錄下所有 DB 紀錄都會被 delete_by_paths 清掉，
+        這個斷言會 fail。
+        """
+        from unittest.mock import patch
+        from core.database import init_db, VideoRepository, Video
+        from core.path_utils import to_file_uri
+
+        # 1. 準備掃描目錄 + 輸出目錄
+        scan_dir = tmp_path / "videos"
+        scan_dir.mkdir()
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        # 2. 建立測試用 DB + 塞入一筆位於 scan_dir 下的既存紀錄
+        db_path = tmp_path / "test.db"
+        init_db(db_path)
+        repo = VideoRepository(db_path)
+
+        existing_fs_path = str(scan_dir / "existing_video.mp4")
+        existing_uri = to_file_uri(existing_fs_path)
+        existing_video = Video(
+            path=existing_uri,
+            number="EXIST-001",
+            title="既存影片",
+            mtime=1000000.0,
+            nfo_mtime=0.0,
+        )
+        repo.upsert(existing_video)
+
+        # 塞入前確認 DB 真的有這筆
+        pre_scan = repo.get_mtime_index()
+        assert existing_uri in pre_scan, "DB 預設記錄塞入失敗，測試前提不成立"
+
+        # 3. Stub fast_scan_directory：回傳 [] + on_skip 回報一筆長路徑
+        def stub_fast_scan(directory, extensions, min_size_bytes, on_skip=None):
+            if on_skip is not None:
+                long_path = str(scan_dir / ("x" * 280 + ".mp4"))  # > 260 chars
+                on_skip(long_path, OSError(206, "File name too long"))
+            return []
+
+        monkeypatch.setattr("web.routers.scanner.fast_scan_directory", stub_fast_scan)
+
+        # 4. Mock config：scan_dir 為唯一掃描目錄
+        monkeypatch.setattr("web.routers.scanner.load_config", lambda: {
+            "gallery": {
+                "directories": [str(scan_dir)],
+                "output_dir": str(output_dir),
+                "path_mappings": {},
+                "min_size_mb": 0,
+            },
+            "general": {"theme": "light"},
+            "scraper": {"video_extensions": [".mp4"]},
+        })
+
+        # 5. 把 scanner 內部用的 db_path 指向 tmp 測試 DB
+        #    （scanner.py 在 generate_avlist 中呼叫 get_db_path() 取得 DB 路徑）
+        with patch('web.routers.scanner.get_db_path', return_value=db_path):
+            response = client.get('/api/gallery/generate')
+            assert response.status_code == 200
+            events = parse_sse_events(response.text)
+            done_events = [e for e in events if e.get('type') == 'done']
+            assert done_events, "SSE stream 未收到 done event"
+
+            # 6. 關鍵斷言：scan 不完整（skipped_paths 非空 + all_files 為空）
+            #    時，既存 DB 紀錄必須仍存在
+            post_scan = repo.get_mtime_index()
+            assert existing_uri in post_scan, (
+                "partial scan（skipped_paths 非空、all_files 為空）誤刪了位於掃描目錄下的 "
+                "DB 紀錄！deletion 區塊必須 gate 在 `not skipped_paths` 才能避免把失敗而沒掃到的 "
+                "記錄誤判為已刪除。"
+            )
+
+        # 7. 附加斷言：done event 仍含 long_paths 欄位（契約 3 不回歸）
+        done_payload = done_events[-1]
+        assert 'long_paths' in done_payload, "partial scan 後 done payload 仍應含 long_paths 欄位"
+
+
+class TestGenerateAvlistCleanupPass:
+    """spec-48b §b1 AC#2 — /api/gallery/generate 主 UI 路徑也清孤兒 sample_images
+    驗證 generate_avlist() 在 SSE 流完成後，DB 中孤兒 URI 已被清除。
+    （Canonical Decision #4：雙流程覆蓋，Scanner UI 主路徑不呼叫 scan_to_sqlite）
+    """
+
+    def test_generate_avlist_calls_cleanup_pass(self, client, tmp_path, monkeypatch):
+        """呼叫 /api/gallery/generate 後，_run_sample_images_cleanup_pass 應被執行。
+        用 mock 確認 helper 有被呼叫（驗行為，不驗 DB 狀態，避免過重 fixture）。
+        """
+        from unittest.mock import patch, MagicMock
+        from pathlib import Path
+
+        scan_dir = tmp_path / "videos"
+        scan_dir.mkdir()
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        # Mock config
+        monkeypatch.setattr("web.routers.scanner.load_config", lambda: {
+            "gallery": {
+                "directories": [str(scan_dir)],
+                "output_dir": str(output_dir),
+                "path_mappings": {},
+                "min_size_mb": 0,
+            },
+            "general": {"theme": "light"},
+            "scraper": {"video_extensions": [".mp4"]},
+        })
+
+        # 驗證 _run_sample_images_cleanup_pass 被呼叫
+        with patch(
+            "web.routers.scanner._run_sample_images_cleanup_pass",
+            return_value=0,
+        ) as mock_cleanup:
+            response = client.get('/api/gallery/generate')
+
+        assert response.status_code == 200
+        mock_cleanup.assert_called_once(), (
+            "_run_sample_images_cleanup_pass 應在 generate_avlist() 中被呼叫一次。"
+            "若未呼叫，Scanner UI 主路徑不會清孤兒（Canonical Decision #4 雙流程覆蓋未達成）"
+        )

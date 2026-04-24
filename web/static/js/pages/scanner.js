@@ -801,6 +801,16 @@ function scannerPage() {
                     }
 
                     this.showToast(`成功產生 ${data.video_count} 部影片列表`, 'success');
+
+                    // a5: Windows 長路徑警告
+                    if (data.long_paths && data.long_paths.length > 0) {
+                        this.showToast(
+                            `本次掃描發現 ${data.long_paths.length} 個路徑超過 260 字元，可能無法讀取，詳細清單見 debug.log`,
+                            'warn',
+                            6000
+                        );
+                    }
+
                     this.flushLogs();
 
                     // 刷新統計（不含 NFO 檢查）

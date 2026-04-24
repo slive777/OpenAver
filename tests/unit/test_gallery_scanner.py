@@ -217,3 +217,449 @@ class TestNormalizeMaker:
             sc = VideoScanner()
         result = sc.normalize_maker("SONE-123", "AnyMaker")
         assert result == "S1"
+
+
+class TestFastScanDirectorySkipCallback:
+    """spec-48a §a5 Codex fix — fast_scan_directory on_skip callback
+
+    背景：Windows 長路徑觸發 os.DirEntry.stat()/.is_file() 拋 OSError，
+    導致 entry 根本不進 results。T5 的 _collect_long_paths(results) 只看「掃到」
+    的檔案，永遠抓不到「因長而失敗」的那批。on_skip callback 讓呼叫端能捕捉
+    這些被跳過的 entry.path，再由呼叫端以 >260 篩出長路徑加進警告。
+    """
+
+    def test_on_skip_called_on_inner_entry_oserror(self, tmp_path, monkeypatch):
+        """當 entry.is_file() 拋 OSError，on_skip 必須被呼叫且帶 entry.path"""
+        import os
+        from core.gallery_scanner import fast_scan_directory
+
+        # 建一個空目錄作為掃描根
+        scan_root = tmp_path / "scan"
+        scan_root.mkdir()
+
+        # 建一個 fake DirEntry：is_dir/is_file 均拋 OSError
+        class FakeBadEntry:
+            def __init__(self, path):
+                self.path = path
+                self.name = os.path.basename(path)
+
+            def is_dir(self, follow_symlinks=False):
+                raise OSError(206, "The filename or extension is too long")
+
+            def is_file(self, follow_symlinks=False):
+                raise OSError(206, "The filename or extension is too long")
+
+            def stat(self, follow_symlinks=True):
+                raise OSError(206, "The filename or extension is too long")
+
+        bad_entry_path = str(scan_root / ("longname" + "x" * 300 + ".mp4"))
+        fake_entry = FakeBadEntry(bad_entry_path)
+
+        # monkeypatch os.scandir — 僅對 scan_root 回傳 fake entry
+        real_scandir = os.scandir
+
+        class FakeScandirCtx:
+            def __init__(self, entries):
+                self._entries = entries
+
+            def __enter__(self):
+                return iter(self._entries)
+
+            def __exit__(self, *a):
+                return False
+
+        def fake_scandir(path):
+            if os.path.normpath(path) == os.path.normpath(str(scan_root)):
+                return FakeScandirCtx([fake_entry])
+            return real_scandir(path)
+
+        monkeypatch.setattr("core.gallery_scanner.os.scandir", fake_scandir)
+
+        calls = []
+        results = fast_scan_directory(
+            str(scan_root), {'.mp4'}, 0,
+            on_skip=lambda p, e: calls.append((p, type(e).__name__)),
+        )
+
+        # 結果：entry 沒進 results，但 on_skip 被呼叫一次
+        assert results == [], "拋 OSError 的 entry 不應進入 results"
+        assert len(calls) == 1, "on_skip 應被呼叫一次"
+        assert calls[0][0] == bad_entry_path, "on_skip 應收到 entry.path"
+        assert calls[0][1] == 'OSError', "on_skip 應收到實際的 exception 類型"
+
+    def test_on_skip_called_on_outer_scandir_oserror(self, tmp_path, monkeypatch):
+        """當外層 os.scandir() 自己拋 OSError（整個目錄無法開），on_skip 收到目錄路徑"""
+        import os
+        from core.gallery_scanner import fast_scan_directory
+
+        scan_root = tmp_path / "scan"
+        scan_root.mkdir()
+
+        def fake_scandir(path):
+            raise PermissionError(13, "Permission denied")
+
+        monkeypatch.setattr("core.gallery_scanner.os.scandir", fake_scandir)
+
+        calls = []
+        results = fast_scan_directory(
+            str(scan_root), {'.mp4'}, 0,
+            on_skip=lambda p, e: calls.append((p, type(e).__name__)),
+        )
+
+        assert results == []
+        assert len(calls) == 1, "外層 scandir 失敗 on_skip 應被呼叫一次"
+        assert calls[0][0] == str(scan_root)
+        assert calls[0][1] == 'PermissionError'
+
+    def test_on_skip_none_is_default_silent(self, tmp_path, monkeypatch):
+        """on_skip=None（或未傳）時完全靜默，保持既有 caller 行為不變"""
+        import os
+        from core.gallery_scanner import fast_scan_directory
+
+        scan_root = tmp_path / "scan"
+        scan_root.mkdir()
+
+        def fake_scandir(path):
+            raise PermissionError(13, "Permission denied")
+
+        monkeypatch.setattr("core.gallery_scanner.os.scandir", fake_scandir)
+
+        # 不傳 on_skip — 不應拋，回傳空 list
+        results = fast_scan_directory(str(scan_root), {'.mp4'}, 0)
+        assert results == []
+
+    def test_on_skip_callback_exception_does_not_break_scan(self, tmp_path, monkeypatch):
+        """callback 本身拋例外不得中斷掃描（safety net）"""
+        import os
+        from core.gallery_scanner import fast_scan_directory
+
+        scan_root = tmp_path / "scan"
+        scan_root.mkdir()
+
+        def fake_scandir(path):
+            raise OSError(206, "long path")
+
+        monkeypatch.setattr("core.gallery_scanner.os.scandir", fake_scandir)
+
+        def angry_callback(p, e):
+            raise RuntimeError("callback boom")
+
+        # 不應把 RuntimeError 傳出來
+        results = fast_scan_directory(str(scan_root), {'.mp4'}, 0, on_skip=angry_callback)
+        assert results == []
+
+
+class TestCollectLongPaths:
+    """spec-48a §a5 契約 1+2 — _collect_long_paths helper 行為"""
+
+    def test_path_over_260_detected(self):
+        from web.routers.scanner import _collect_long_paths
+        long = 'C:\\' + 'a' * 260  # len = 263
+        short = 'C:\\short.mp4'
+        result = _collect_long_paths([{'path': long}, {'path': short}])
+        assert result == [long], "只該抓到超過 260 的路徑"
+
+    def test_path_exactly_260_not_flagged(self):
+        """恰好 260 字元不算長路徑（> 260 而非 >= 260）"""
+        from web.routers.scanner import _collect_long_paths
+        exactly = 'C:\\' + 'a' * 257  # 3 + 257 = 260
+        assert len(exactly) == 260
+        assert _collect_long_paths([{'path': exactly}]) == []
+
+    def test_path_261_flagged(self):
+        from web.routers.scanner import _collect_long_paths
+        p = 'C:\\' + 'a' * 258  # 3 + 258 = 261
+        assert len(p) == 261
+        assert _collect_long_paths([{'path': p}]) == [p]
+
+    def test_empty_input(self):
+        from web.routers.scanner import _collect_long_paths
+        assert _collect_long_paths([]) == []
+
+    def test_custom_threshold(self):
+        """threshold 參數可覆寫（方便測試，實際 caller 用預設 260）"""
+        from web.routers.scanner import _collect_long_paths
+        p = 'C:\\' + 'a' * 10  # len = 13
+        assert _collect_long_paths([{'path': p}], threshold=5) == [p]
+        assert _collect_long_paths([{'path': p}], threshold=20) == []
+
+    def test_helper_does_not_check_platform(self):
+        """helper 本身不 gate 平台（gate 是呼叫端責任，見 Canonical #13）"""
+        from web.routers.scanner import _collect_long_paths
+        # 即使在 linux 上呼叫 helper 也會收集 — 這是刻意的，避免 helper 被平台綁死
+        long = 'C:\\' + 'a' * 300
+        # 不 monkeypatch sys.platform，直接在當前平台驗證 helper 無 platform 判斷
+        assert _collect_long_paths([{'path': long}]) == [long]
+
+
+class TestEmitLongPathWarnings:
+    """spec-48a §a5 契約 4 — _emit_long_path_warnings helper 行為"""
+
+    def test_warning_emitted_when_non_empty(self, caplog):
+        """非空 list 應輸出 [a5] warning 到 scanner logger"""
+        import logging
+        from core.logger import get_logger
+        from web.routers.scanner import _emit_long_path_warnings
+        logger = get_logger('web.routers.scanner')
+        long_paths = ['C:\\' + 'a' * 280, 'C:\\' + 'b' * 290]
+        with caplog.at_level(logging.WARNING, logger='web.routers.scanner'):
+            _emit_long_path_warnings(logger, long_paths)
+        messages = [r.message for r in caplog.records]
+        # 第一則 summary + 每個路徑各一則（共 3）
+        assert any('[a5]' in m and '2' in m for m in messages), "summary warning 缺失"
+        assert any('a' * 280 in m for m in messages), "第一個路徑未輸出"
+        assert any('b' * 290 in m for m in messages), "第二個路徑未輸出"
+
+    def test_silent_when_empty(self, caplog):
+        """空 list 應完全靜默（不輸出任何 record）"""
+        import logging
+        from core.logger import get_logger
+        from web.routers.scanner import _emit_long_path_warnings
+        logger = get_logger('web.routers.scanner')
+        with caplog.at_level(logging.WARNING, logger='web.routers.scanner'):
+            _emit_long_path_warnings(logger, [])
+        assert not any('[a5]' in r.message for r in caplog.records)
+
+
+class TestScannerSampleImagesValidationPass:
+    """spec-48b §b1 AC#2 — _validate_sample_images + _run_sample_images_cleanup_pass"""
+
+    def test_validate_keeps_existing_uri(self, tmp_path):
+        """磁碟存在的 URI → 保留在回傳 list"""
+        from unittest.mock import patch
+        from core.gallery_scanner import _validate_sample_images
+
+        # uri_to_fs_path 正常回傳路徑，os.path.exists 回傳 True
+        with patch("core.gallery_scanner.uri_to_fs_path", return_value="/fake/path/s1.jpg"), \
+             patch("os.path.exists", return_value=True):
+            result = _validate_sample_images(
+                ["file:///fake/path/s1.jpg"],
+                video_path="file:///fake/v1.mp4",
+            )
+
+        assert result == ["file:///fake/path/s1.jpg"], "磁碟存在的 URI 應保留"
+
+    def test_validate_drops_missing_uri(self, tmp_path):
+        """磁碟不存在的 URI → 從回傳 list 剔除"""
+        from unittest.mock import patch
+        from core.gallery_scanner import _validate_sample_images
+
+        with patch("core.gallery_scanner.uri_to_fs_path", return_value="/fake/path/missing.jpg"), \
+             patch("os.path.exists", return_value=False):
+            result = _validate_sample_images(
+                ["file:///fake/path/missing.jpg"],
+                video_path="file:///fake/v1.mp4",
+            )
+
+        assert result == [], "磁碟不存在的 URI 應剔除"
+
+    def test_validate_drops_conversion_failure(self, tmp_path):
+        """uri_to_fs_path 拋 Exception → 視為不存在剔除（並 log warning）"""
+        from unittest.mock import patch
+        from core.gallery_scanner import _validate_sample_images
+
+        with patch("core.gallery_scanner.uri_to_fs_path", side_effect=ValueError("環境不支援")), \
+             patch("core.gallery_scanner.logger") as mock_logger:
+            result = _validate_sample_images(
+                ["file:///bad/path.jpg"],
+                video_path="file:///fake/v1.mp4",
+            )
+
+        assert result == [], "轉換失敗的 URI 應剔除"
+        mock_logger.warning.assert_called_once()
+        call_args_str = str(mock_logger.warning.call_args)
+        assert "ValueError" in call_args_str, "warning log 應包含 exception 型別 ValueError"
+
+    def test_cleanup_pass_returns_count(self, tmp_path):
+        """3 部影片，2 部有孤兒（磁碟不存在），回傳 cleaned_count = 2"""
+        from unittest.mock import MagicMock, patch
+        from core.gallery_scanner import _run_sample_images_cleanup_pass
+
+        # 建立 mock repo
+        mock_repo = MagicMock()
+        video_with_orphan_1 = MagicMock()
+        video_with_orphan_1.path = "file:///A/v1.mp4"
+        video_with_orphan_1.sample_images = ["file:///A/extrafanart/s1.jpg"]
+
+        video_with_orphan_2 = MagicMock()
+        video_with_orphan_2.path = "file:///A/v2.mp4"
+        video_with_orphan_2.sample_images = ["file:///A/extrafanart/s2.jpg"]
+
+        video_clean = MagicMock()
+        video_clean.path = "file:///A/v3.mp4"
+        video_clean.sample_images = ["file:///A/extrafanart/s3.jpg"]  # 這個存在
+
+        mock_repo.get_all.return_value = [video_with_orphan_1, video_with_orphan_2, video_clean]
+
+        def fake_uri_to_fs_path(uri):
+            return uri.replace("file:///", "/")
+
+        # v1/v2 的 sample 不存在磁碟，v3 的存在
+        def fake_exists(path):
+            return "s3.jpg" in path  # 只有 s3.jpg 存在
+
+        with patch("core.gallery_scanner.uri_to_fs_path", side_effect=fake_uri_to_fs_path), \
+             patch("os.path.exists", side_effect=fake_exists):
+            count = _run_sample_images_cleanup_pass(mock_repo)
+
+        assert count == 2, f"期待 2 部影片被清理，實際 {count}"
+
+    def test_cleanup_pass_skips_videos_without_samples(self, tmp_path):
+        """影片 sample_images 為空 list → 不呼叫 repo.update_sample_images"""
+        from unittest.mock import MagicMock, patch
+        from core.gallery_scanner import _run_sample_images_cleanup_pass
+
+        mock_repo = MagicMock()
+        video_no_samples = MagicMock()
+        video_no_samples.path = "file:///A/v1.mp4"
+        video_no_samples.sample_images = []  # 空 list
+
+        mock_repo.get_all.return_value = [video_no_samples]
+
+        with patch("core.gallery_scanner.uri_to_fs_path"), \
+             patch("os.path.exists"):
+            count = _run_sample_images_cleanup_pass(mock_repo)
+
+        assert count == 0, "空 sample_images 的影片不應被計入 cleaned_count"
+        mock_repo.update_sample_images.assert_not_called()
+
+    def test_cleanup_pass_calls_update_sample_images(self, tmp_path):
+        """確認 repo.update_sample_images 被呼叫時傳入正確的 path + validated list"""
+        from unittest.mock import MagicMock, patch, call
+        from core.gallery_scanner import _run_sample_images_cleanup_pass
+
+        mock_repo = MagicMock()
+        video = MagicMock()
+        video.path = "file:///A/v1.mp4"
+        # 2 個 URI，只有第一個存在
+        video.sample_images = ["file:///A/ext/exist.jpg", "file:///A/ext/missing.jpg"]
+        mock_repo.get_all.return_value = [video]
+
+        def fake_uri_to_fs_path(uri):
+            return uri.replace("file:///", "/")
+
+        def fake_exists(path):
+            return "exist.jpg" in path  # 只有 exist.jpg 存在
+
+        with patch("core.gallery_scanner.uri_to_fs_path", side_effect=fake_uri_to_fs_path), \
+             patch("os.path.exists", side_effect=fake_exists):
+            _run_sample_images_cleanup_pass(mock_repo)
+
+        # 驗證 update_sample_images 被呼叫，且只傳入存在的 URI
+        mock_repo.update_sample_images.assert_called_once_with(
+            "file:///A/v1.mp4",
+            ["file:///A/ext/exist.jpg"],
+        )
+
+    def test_validate_preserves_relative_path(self, tmp_path):
+        """相對路徑（舊 CLI scan_directory(relative_path=True) 格式或 migration 帶入）
+        不應被 cleanup 誤刪。cleanup pass 只管 file:/// URI。
+        http:// / https:// 遠端 URL 為 Codex P1 pre-fix 污染，應被清除。"""
+        from core.gallery_scanner import _validate_sample_images
+        # 不用 mock uri_to_fs_path / os.path.exists — 驗證「從未呼叫」才是重點
+        result = _validate_sample_images(
+            [
+                "MOVIE-001/extrafanart/fanart1.jpg",  # 舊相對路徑 → 保留
+                "/mnt/d/legacy/abs/path.jpg",          # 舊絕對 FS 路徑 → 保留
+                "http://example.com/remote.jpg",       # 遠端 URL（Codex P1 污染）→ 清除
+                "https://cdn.example.com/s2.jpg",      # https 遠端 URL → 清除
+            ],
+            video_path="file:///fake/v.mp4",
+        )
+        assert result == [
+            "MOVIE-001/extrafanart/fanart1.jpg",
+            "/mnt/d/legacy/abs/path.jpg",
+        ], "非 file:/// URI 中，相對/絕對路徑保留，http:// / https:// 污染清除"
+
+    def test_validate_cleanup_reproduces_codex_scenario(self, tmp_path):
+        """Codex 報的最小重現：相對路徑在 cleanup pass 裡不應被當不存在檔案清掉。
+        直接跑 _run_sample_images_cleanup_pass，不 mock（用 MagicMock repo）。"""
+        from unittest.mock import MagicMock
+        from core.gallery_scanner import _run_sample_images_cleanup_pass
+
+        mock_repo = MagicMock()
+        video = MagicMock()
+        video.path = "file:///fake/v.mp4"
+        video.sample_images = ["MOVIE-001/extrafanart/fanart1.jpg"]  # Codex 重現的值
+        mock_repo.get_all.return_value = [video]
+
+        count = _run_sample_images_cleanup_pass(mock_repo)
+        assert count == 0, "相對路徑應保留，cleanup 不該觸發 update"
+        mock_repo.update_sample_images.assert_not_called()
+
+    def test_validate_purges_http_url_pollution(self, tmp_path):
+        """Codex P1: http:// / https:// 遠端 URL 為 pre-fix scraper URL 污染，一律清除。
+        seeds DB: valid file:///（disk exists）+ missing file:///（disk absent）+ http:// URL
+        asserts: only the valid file:/// URI survives."""
+        from unittest.mock import patch
+        from core.gallery_scanner import _validate_sample_images
+
+        mixed_samples = [
+            "file:///valid/extrafanart/fanart1.jpg",   # 磁碟存在 → 保留
+            "file:///missing/extrafanart/fanart2.jpg", # 磁碟不存在 → 剔除
+            "http://example.com/s1.jpg",               # scraper URL 污染 → 清除
+            "https://cdn.example.com/s2.jpg",          # scraper URL 污染 → 清除
+        ]
+
+        def fake_uri_to_fs_path(uri):
+            return uri.replace("file:///", "/")
+
+        def fake_exists(path):
+            return "valid" in path  # only /valid/... exists
+
+        with patch("core.gallery_scanner.uri_to_fs_path", side_effect=fake_uri_to_fs_path), \
+             patch("os.path.exists", side_effect=fake_exists):
+            result = _validate_sample_images(mixed_samples, video_path="file:///v1.mp4")
+
+        assert result == ["file:///valid/extrafanart/fanart1.jpg"], (
+            f"只有磁碟存在的 file:/// URI 應保留；missing + http:// 應全部清除。got: {result}"
+        )
+
+    def test_validate_purges_http_logged_at_info(self, tmp_path):
+        """Codex P1: purge http:// entries 時應 log INFO（讓 debug.log 可見）。"""
+        from unittest.mock import patch
+        from core.gallery_scanner import _validate_sample_images
+
+        with patch("core.gallery_scanner.logger") as mock_logger:
+            _validate_sample_images(
+                ["http://example.com/s1.jpg", "https://cdn.example.com/s2.jpg"],
+                video_path="file:///v1.mp4",
+            )
+
+        # logger.info 應被呼叫，且訊息包含 purged 計數
+        assert mock_logger.info.called, "purge http:// 項目時應呼叫 logger.info"
+        call_args_str = str(mock_logger.info.call_args_list)
+        assert "purged" in call_args_str, f"info log 應包含 'purged'，got: {call_args_str}"
+        assert "2" in call_args_str, f"purged 計數應為 2，got: {call_args_str}"
+
+    def test_cleanup_pass_purges_http_urls_end_to_end(self, tmp_path):
+        """Codex P1 end-to-end: _run_sample_images_cleanup_pass 透過 repo 清除 http:// 污染。
+        DB 最終 sample_images 只剩 file:///valid.jpg；missing + http:// 均被清除。"""
+        from unittest.mock import MagicMock, patch
+        from core.gallery_scanner import _run_sample_images_cleanup_pass
+
+        mock_repo = MagicMock()
+        video = MagicMock()
+        video.path = "file:///A/v1.mp4"
+        video.sample_images = [
+            "file:///A/extrafanart/fanart1.jpg",  # 磁碟存在 → 保留
+            "file:///A/extrafanart/fanart2.jpg",  # 磁碟不存在 → 剔除
+            "http://example.com/s1.jpg",           # scraper URL 污染 → 清除
+        ]
+        mock_repo.get_all.return_value = [video]
+
+        def fake_uri_to_fs_path(uri):
+            return uri.replace("file:///", "/")
+
+        def fake_exists(path):
+            return "fanart1.jpg" in path  # only fanart1.jpg exists on disk
+
+        with patch("core.gallery_scanner.uri_to_fs_path", side_effect=fake_uri_to_fs_path), \
+             patch("os.path.exists", side_effect=fake_exists):
+            count = _run_sample_images_cleanup_pass(mock_repo)
+
+        assert count == 1, f"1 部影片的 sample_images 應被更新，got: {count}"
+        mock_repo.update_sample_images.assert_called_once_with(
+            "file:///A/v1.mp4",
+            ["file:///A/extrafanart/fanart1.jpg"],
+        )

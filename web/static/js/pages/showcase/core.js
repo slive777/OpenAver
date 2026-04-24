@@ -165,6 +165,8 @@ function showcaseState() {
         _preciseMatchSource: null,
         _favoriteHeartLoading: false,
         _heroCardImageError: false,
+        _fetchSamplesLoading: false,
+        _fetchSamplesFailed: {},
 
         // F1: helper — 更新 lightboxIndex + currentLightboxVideo 一致性
         _setLightboxIndex(idx) {
@@ -1413,6 +1415,7 @@ function showcaseState() {
             }
 
             this.addingLbTag = false;    // 關閉 lightbox 時重置 user tag 輸入框
+            this._fetchSamplesFailed = {};
 
             // ★ C11: fly-back — 必須在 generation++ / lightboxOpen = false 之前捕獲
             var closingIndex = this.lightboxIndex;
@@ -1935,6 +1938,33 @@ function showcaseState() {
                 this.showToast(window.t('showcase.enrich.failed'), 'error');
             } finally {
                 this._enriching = false;
+            }
+        },
+
+        async fetchSamples(video) {
+            if (!video || !video.path || !video.number) return;
+            this._fetchSamplesLoading = true;
+            try {
+                const res = await fetch('/api/scraper/fetch-samples', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file_path: video.path, number: video.number })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    await this.refreshVideoData(video);
+                    this.showToast(window.t('showcase.samples.success'), 'success');
+                } else if (data.error === 'multi_video_folder') {
+                    this.showToast(window.t('showcase.samples.multi_video_error'), 'warn');
+                } else {
+                    this.showToast(window.t('showcase.samples.fetch_failed'), 'error');
+                    this._fetchSamplesFailed[video.path] = true;
+                }
+            } catch (e) {
+                this.showToast(window.t('showcase.samples.fetch_failed'), 'error');
+                this._fetchSamplesFailed[video.path] = true;
+            } finally {
+                this._fetchSamplesLoading = false;
             }
         },
 

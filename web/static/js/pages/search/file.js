@@ -66,6 +66,40 @@ function cleanSourceSuffix(text) {
     return text.trim();
 }
 
+// 字幕 pattern 常數（對齊 Python core/scrapers/utils.py::_SUBTITLE_PATTERNS_*）
+const _SUBTITLE_BRACKETS = ['[中文字幕]', '【中文字幕】', '[中字]', '【中字】'];
+const _SUBTITLE_TEXT_MARKERS = ['中文字幕', '中字', '字幕'];  // 長 pattern 先
+
+/**
+ * 剝除片名中的字幕標記（bracket / 純文字 / -C 後綴 / orphan 分隔符）
+ * 對齊 Python core/scrapers/utils.py::strip_subtitle_markers()
+ *
+ * 剝除順序：
+ *   1. Bracket（長 pattern 先）：[中文字幕] / 【中文字幕】 / [中字] / 【中字】
+ *   2. 純文字（詞根邊界 Unicode property escape，避免誤剝「幕後」「字幕員」複合詞）
+ *   2.5 Orphan 分隔符（marker 剝除後頭尾殘留的 - / _）
+ *   3. 後綴 -C / _C（後接非英數或 EOS）
+ *   4. trim
+ */
+function stripSubtitleMarkers(name) {
+    if (!name) return name;
+    // 1. Bracket
+    for (const bracket of _SUBTITLE_BRACKETS) {
+        name = name.split(bracket).join('');
+    }
+    // 2. 純文字（詞根邊界：前後非字母/數字 — 含 CJK 與 kana，用 \p{L}\p{N}）
+    for (const marker of _SUBTITLE_TEXT_MARKERS) {
+        const escaped = marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'gu');
+        name = name.replace(pattern, '');
+    }
+    // 2.5 marker 剝除後清頭尾 orphan -/_
+    name = name.replace(/^[-_]+|[-_]+$/g, '');
+    // 3. 後綴 -C / _C
+    name = name.replace(/[-_][Cc](?=[^A-Za-z0-9]|$)/g, '');
+    return name.trim();
+}
+
 /**
  * 從檔名提取中文片名
  */
@@ -82,7 +116,7 @@ function extractChineseTitle(filename, number, actors = []) {
 
     name = cleanSourceSuffix(name);
     name = name.replace(/\s+/g, ' ').trim();
-    name = name.replace(/^中文字幕\s*/, '');
+    name = stripSubtitleMarkers(name);
 
     if (actors && actors.length > 0) {
         for (const actor of actors) {
@@ -215,6 +249,7 @@ window.SearchFile = {
     checkSubtitle,
     hasChinese,
     cleanSourceSuffix,
+    stripSubtitleMarkers,
     extractChineseTitle,
     extractNumber,
     formatNumber,

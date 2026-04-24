@@ -621,11 +621,11 @@ class TestVideoPlaybackGuard:
             "scanner.py 缺少 video_player endpoint（HTML5 播放頁面）"
 
     def test_video_api_has_security_checks(self):
-        """get_video() 必須包含 realpath + 目錄白名單 + get_proxy_extensions 動態白名單"""
+        """get_video() 必須包含 normpath + 目錄白名單 + get_proxy_extensions 動態白名單"""
         py_file = PROJECT_ROOT / "web" / "routers" / "scanner.py"
         content = py_file.read_text(encoding='utf-8')
-        assert 'os.path.realpath' in content, \
-            "get_video 缺少 realpath（防路徑穿越）"
+        assert 'os.path.normpath' in content, \
+            "get_video 缺少 normpath（防路徑穿越）"
         assert 'get_proxy_extensions' in content, \
             "get_video 應使用 get_proxy_extensions（動態副檔名白名單）而非硬編碼 ALLOWED_VIDEO_EXTENSIONS"
         assert 'is_path_under_dir' in content, \

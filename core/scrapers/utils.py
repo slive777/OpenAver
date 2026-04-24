@@ -183,6 +183,11 @@ def has_chinese(text: str) -> bool:
     return False
 
 
+# 字幕 pattern 常數（單一真理來源，供 check_subtitle / strip_subtitle_markers 共用）
+_SUBTITLE_PATTERNS_UPPER = ['-C', '_C']
+_SUBTITLE_PATTERNS_CHINESE = ['中文字幕', '字幕', '中字', '[中字]', '【中字】']
+
+
 def check_subtitle(filename: str) -> bool:
     """
     檢查檔名是否包含字幕標記
@@ -209,21 +214,66 @@ def check_subtitle(filename: str) -> bool:
         return False
 
     upper = filename.upper()
-    patterns_upper = ['-C', '_C']
-    patterns_chinese = ['中文字幕', '字幕', '中字', '[中字]', '【中字】']
 
-    for p in patterns_upper:
+    for p in _SUBTITLE_PATTERNS_UPPER:
         idx = upper.find(p)
         if idx != -1:
             next_idx = idx + len(p)
             if next_idx >= len(upper) or not upper[next_idx].isalnum():
                 return True
 
-    for p in patterns_chinese:
+    for p in _SUBTITLE_PATTERNS_CHINESE:
         if p in filename:
             return True
 
     return False
+
+
+def strip_subtitle_markers(name: Optional[str]) -> Optional[str]:
+    """
+    剝除片名中的字幕標記（bracket 形式、純文字形式、後綴形式）。
+
+    剝除順序：
+    1. Bracket 形式（先長後短，避免殘留括號）：[中文字幕]、【中文字幕】、[中字]、【中字】
+    2. 純文字形式（詞根邊界 regex，避免誤剝「幕後」「字幕員」等複合詞）：
+       中文字幕、中字、字幕（長 pattern 先）
+    3. 後綴形式：[-_][Cc] 後接非英數邊界
+    4. strip() 頭尾空白（不 collapse 中間空格）
+
+    Args:
+        name: 原始片名（可為 None 或空字串）
+
+    Returns:
+        剝除字幕標記後的片名。None / "" passthrough。
+
+    Examples:
+        >>> strip_subtitle_markers("[中字] ABC-123")
+        'ABC-123'
+        >>> strip_subtitle_markers("ABC-123-C")
+        'ABC-123'
+        >>> strip_subtitle_markers("字幕員特典")
+        '字幕員特典'
+    """
+    if not name:
+        return name
+
+    # 1. Bracket 形式（長 pattern 先）
+    for bracket in ['[中文字幕]', '【中文字幕】', '[中字]', '【中字】']:
+        name = name.replace(bracket, '')
+
+    # 2. 純文字形式（長 pattern 先，詞根邊界避免複合詞誤剝）
+    for marker in ['中文字幕', '中字', '字幕']:
+        name = re.sub(rf'(?<![^\W_]){re.escape(marker)}(?![^\W_])', '', name)
+
+    # 2.5 marker 剝除後，清掉頭尾 orphan 的 -/_ 分隔符
+    # 例如「正妹の中文版-中字」剝「中字」後留「正妹の中文版-」，尾端 `-` 是 orphan
+    # 不動「-C/_C」組合 — 尾端 C 不匹配 [-_]+$
+    name = re.sub(r'^[-_]+|[-_]+$', '', name)
+
+    # 3. 後綴 -C / _C（後接非英數或字串結尾）
+    name = re.sub(r'[-_][Cc](?=[^A-Za-z0-9]|$)', '', name)
+
+    return name.strip()
 
 
 def strip_number_prefix(title: str, number: str) -> str:

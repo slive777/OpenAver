@@ -222,7 +222,7 @@
     },
     "scraper": {
       "suffix_keywords_label": "Version Tags",
-      "suffix_keywords_hint": "Keep as {suffix} when filename contains these keywords",
+      "suffix_keywords_hint": "Filenames containing these keywords are kept as {suffix}; multiple keywords concatenate in list order",
       "create_folder_label": "Create Folder",
       "folder_layers_label": "Folder Layers",
       "folder_layer_outer": "Outer",
@@ -290,6 +290,8 @@
       "maker": "Maker",
       "date": "Date",
       "year": "Year",
+      "month": "Month",
+      "day": "Day",
       "suffix": "Suffix"
     },
     "dirty_modal": {
@@ -583,6 +585,13 @@
       "search_films": "Search related films",
       "addFavorite": "Add to favorites",
       "favorited": "Favorited"
+    },
+    "samples": {
+      "fetch_btn": "Fetch Stills",
+      "fetching": "Fetching...",
+      "success": "Stills fetched successfully",
+      "fetch_failed": "Failed to fetch stills, please try again",
+      "multi_video_error": "This folder contains other videos. Fetching stills here may affect them. Please move the video to its own folder first."
     }
   },
   "help": {
@@ -663,12 +672,16 @@
       "var_maker_desc": "Maker",
       "var_date_desc": "Release date",
       "var_year_desc": "Year",
+      "var_month_desc": "Month (2-digit)",
+      "var_day_desc": "Day (2-digit)",
       "var_suffix_desc": "Version tag",
       "fallback_unknown_title": "Unknown Title",
       "fallback_unknown_actor": "Unknown Actress",
       "fallback_unknown_maker": "Unknown Maker",
       "fallback_unknown_date": "Unknown Date",
       "fallback_unknown_year": "Unknown Year",
+      "fallback_unknown_month": "Unknown Month",
+      "fallback_unknown_day": "Unknown Day",
       "fallback_empty": "Omitted if empty",
       "default_filename": "Filename: <code>[{num}][{maker}] {title}{suffix}</code>",
       "default_folder": "Folder: <code>{actor}</code>",

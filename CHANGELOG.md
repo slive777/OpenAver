@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.7] - 2026-04-25
+
+本版主要修正三大長期困擾用戶的問題：WinFsp/rclone 掛載磁碟 Showcase 封面全空白、刮削後劇照幽靈 URL 導致 Showcase 破圖、以及含字幕標記的檔名造成片名識別錯誤。同時新增 Showcase 燈箱一鍵補抓劇照入口，以及整理格式 `{month}`/`{day}` 兩個新變數。
+
+### Fixed
+
+#### 🐛 48a — 字幕標記 / Detail 封面 / IME / 長路徑修正
+- **中文字幕標記不再被誤認為片名**：`[中字]`、`【中文字幕】`、`-中字` 等標記在搜尋結果、翻譯功能、整理重命名中均正確剝除，不再導致片名亂掉或翻譯鈕消失（前後端同步修正）
+- **Detail 面板封面不再被裁切**：影片詳細資料的封面圖統一改為完整顯示（letterbox/pillarbox），與 Grid/燈箱風格一致
+- **中文/日文輸入法選字時不再誤觸搜尋**：輸入法組字過程中按 Enter 選字，不再提前送出搜尋
+- **掃描部分失敗時不誤刪既有紀錄**：資料夾有部分無法讀取（如權限問題）時，掃描結果不完整不再觸發誤刪紀錄（Codex P1 regression fix）
+
+#### 🐛 48b — 劇照幽靈 URL 根本修正 + 孤兒清理
+- **刮削後未下載劇照時不再寫入遠端 URL**：以往刮削完但劇照尚未下載時，資料庫會存入 scraper 的遠端 URL，導致 Showcase 劇照顯示為 403 錯誤；現在只有實際下載成功才寫入本機 file:/// URI
+- **補抓劇照後路徑正確**：在 Showcase 燈箱補抓劇照後，畫面立即更新且路徑正確，不再出現無法載入的情況
+- **孤兒劇照自動清理**：掃描時自動偵測並移除資料庫中磁碟上已不存在的劇照記錄，避免前端顯示破圖（非 file:/// 舊格式一律保留，避免誤刪舊資料）
+
+#### 🐛 48c — WinFsp / rclone 掛載磁碟相容
+- **使用 rclone + WinFsp 掛載磁碟不再顯示空白封面**：此前 `os.path.realpath()` 在 WinFsp 底層 API 不支援時直接拋 OSError 導致所有圖片/影片回傳 500 錯誤，現改為 `try: realpath except OSError: normpath` 降級 pattern，正常環境保留 symlink escape 保護、FUSE 環境降級支援
+- **部分日期整理時正確跳出警告**：scraper 只抓到 `2015-06`（無日）時，用戶用 `{day}` 變數整理會產生「未知日」資料夾，現會正確觸發 UI 警告 toast（Codex P2 fix）
+
+### Added
+
+#### ✨ Showcase 劇照補抓入口（48b）
+- **燈箱新增「補抓劇照」雲朵按鈕**：影片尚無劇照時，燈箱右上角顯示 pill 造型 + Bootstrap icon + Apple Blue 配色的補抓按鈕，一鍵從線上抓取；多片共用資料夾時提示先搬移再補抓
+- **新增 `POST /api/scraper/fetch-samples` 端點**：劇照補抓專用 API，含多片資料夾 gate 保護；Agentic AI capabilities 同步揭露（27 → 28 tools）
+
+#### ✨ 整理格式新增月份 / 日期變數（48c）
+- **`{month}` / `{day}` 格式變數**：資料夾與檔名整理範本可使用 `{month}`（2位月份）和 `{day}`（2位日期），補齊原有 `{year}` / `{date}`；用戶可自行組合 ISO (`{year}-{month}-{day}`)、DMY (`{day}/{month}/{year}`)、任意格式
+- **修正 {date} 未出現在資料夾層級變數選單**：原本 Settings 的資料夾層級變數選單漏列 `{date}`，用戶必須手動輸入（issue #28 報告者：smallghost）
+- **設定頁面 UI + 說明頁面 + 四語系 i18n 同步更新**
+
+#### ✨ Windows 長路徑警告（48a）
+- **掃描完成後顯示超長路徑警告**：Windows 上路徑超過 260 字元的檔案可能無法讀取，掃描結束後會以 toast 顯示數量並記錄詳細清單到 debug.log（macOS / Linux 不受影響）
+
+### Changed
+- **`_detect_suffixes` 拼接順序說明明確化**：確認「多個 keyword 時輸出按 keyword 列表順序拼接，不按檔名順序」為 canonical 化設計；`suffix_keywords_hint` 四語系補充說明
+
+### Tests
+- 全套 2436 → **2588 tests passed** (+152 net)
+
+### Known Issues（追蹤中）
+- `_validate_sample_images()` cleanup pass 在 FUSE 環境仍可能誤刪 DB 劇照 URI，追蹤於 `feature/48-polish-fixes/spec-48c.md` #10，v0.7.8 加 retry-then-soft-fail 修復
+
 ## [0.7.6] - 2026-04-18
 
 ### Fixed

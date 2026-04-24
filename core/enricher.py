@@ -210,23 +210,23 @@ def _write_extrafanart(
     fs_path: str,
     sample_images: List[str],
     write_extrafanart: bool,
-) -> int:
+) -> List[str]:
     if not write_extrafanart or not sample_images:
-        return 0
+        return []
 
     parent = Path(fs_path).parent
     extrafanart_dir = parent / "extrafanart"
     os.makedirs(str(extrafanart_dir), exist_ok=True)
 
-    count = 0
+    written_uris: List[str] = []
     for i, url in enumerate(sample_images):
         dest = str(extrafanart_dir / f"fanart{i+1}.jpg")
         try:
             if download_image(url, dest):
-                count += 1
+                written_uris.append(to_file_uri(dest))
         except Exception as e:
             logger.warning("extrafanart %d 下載失敗: %s", i + 1, e)
-    return count
+    return written_uris
 
 
 def enrich_single(
@@ -351,11 +351,12 @@ def enrich_single(
         overwrite_existing=overwrite_existing,
     )
 
-    extrafanart_written = _write_extrafanart(
+    written_uris = _write_extrafanart(
         fs_path=fs_path,
         sample_images=meta.get("sample_images", []),
         write_extrafanart=write_extrafanart,
     )
+    extrafanart_written = len(written_uris)
 
     # DB upsert 在寫檔後執行，才能知道本地封面路徑
     # db_to_sidecar 不打 scraper 也不更新 DB（metadata 不變）
@@ -364,7 +365,7 @@ def enrich_single(
         nfo_path = Path(fs_path).with_suffix(".nfo")
         nfo_mtime = nfo_path.stat().st_mtime if nfo_path.exists() else 0.0
         _db_upsert(repo, number, fs_path, meta, local_cover_path=local_cover,
-                   nfo_mtime=nfo_mtime)
+                   nfo_mtime=nfo_mtime, written_uris=written_uris)
 
     # nfo_mtime 獨立更新：不論 mode/source，只要 NFO 存在就同步 DB
     # 避免 analysis 永遠視為 missing_nfo
@@ -401,6 +402,7 @@ def _db_upsert(
     repo: VideoRepository, number: str, fs_path: str, meta: dict,
     local_cover_path: str = "",
     nfo_mtime: float = 0.0,
+    written_uris: List[str] = None,
 ) -> None:
     """更新 DB 記錄。fs_path 必須是已解析的 FS 路徑（非 file:/// URI）。"""
     try:
@@ -420,6 +422,13 @@ def _db_upsert(
         # 保留 DB 既有 user_tags（不被 scraper 覆蓋）
         preserved_user_tags = existing.user_tags if existing else []
 
+        # §b1 / Codex P1: 只有磁碟真寫出 extrafanart 檔案才更新 DB sample_images；
+        # 使用 written_uris（local file:/// URIs），不寫 scraper 遠端 URL
+        if written_uris:
+            sample_imgs = written_uris
+        else:
+            sample_imgs = existing.sample_images if existing else []
+
         video = Video(
             path=path_uri,
             number=number,
@@ -432,7 +441,7 @@ def _db_upsert(
             label=meta.get("label", ""),
             tags=meta.get("tags", []),
             user_tags=preserved_user_tags,
-            sample_images=meta.get("sample_images", []),
+            sample_images=sample_imgs,
             duration=meta.get("duration"),
             cover_path=cover_uri,
             release_date=meta.get("release_date", ""),
@@ -441,3 +450,64 @@ def _db_upsert(
         repo.upsert(video)
     except Exception as e:
         logger.warning("DB upsert 失敗: %s", e)
+
+
+def _db_upsert_samples_only(repo: VideoRepository, fs_path: str, sample_images: list) -> None:
+    """只更新 DB 的 sample_images 欄位（不觸碰其他欄位）。"""
+    path_uri = to_file_uri(fs_path)
+    repo.update_sample_images(path_uri, sample_images)
+
+
+def fetch_samples_only(
+    file_path: str,
+    number: str,
+    proxy_url: str = "",
+    primary_source: str = "javbus",
+) -> EnrichResult:
+    """只補抓劇照：呼叫 scraper → 下載 extrafanart → 更新 DB sample_images。
+    不寫 NFO / cover / 其他欄位。
+    """
+    _empty = EnrichResult(
+        success=False,
+        nfo_written=False,
+        cover_written=False,
+        extrafanart_written=0,
+        fields_filled=[],
+        source_used="",
+        error=None,
+    )
+
+    try:
+        fs_path = uri_to_fs_path(file_path)
+    except Exception:
+        fs_path = file_path
+
+    if not os.path.exists(fs_path):
+        logger.warning("[fetch_samples_only] 檔案不存在: %s", fs_path)
+        _empty.error = "檔案不存在"
+        return _empty
+
+    meta = search_jav(number, proxy_url=proxy_url, primary_source=primary_source,
+                      source="auto", javbus_lang=None)
+    if not meta:
+        logger.warning("[fetch_samples_only] 找不到資料: %s", number)
+        _empty.error = f"找不到 {number} 的資料"
+        return _empty
+
+    sample_images = meta.get("sample_images", [])
+    written_uris = _write_extrafanart(fs_path, sample_images, write_extrafanart=True)
+
+    if written_uris:
+        repo = VideoRepository()
+        _db_upsert_samples_only(repo, fs_path, written_uris)
+
+    logger.info("[fetch_samples_only] %s: %d samples downloaded", number, len(written_uris))
+    return EnrichResult(
+        success=True,
+        nfo_written=False,
+        cover_written=False,
+        extrafanart_written=len(written_uris),
+        fields_filled=[],
+        source_used=meta.get("source", ""),
+        error=None,
+    )
