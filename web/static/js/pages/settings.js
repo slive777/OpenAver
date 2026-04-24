@@ -115,6 +115,8 @@ function settingsPage() {
                 { name: '{maker}', label: window.t('settings.var.maker') },
                 { name: '{date}', label: window.t('settings.var.date') },
                 { name: '{year}', label: window.t('settings.var.year') },
+                { name: '{month}', label: window.t('settings.var.month') },
+                { name: '{day}', label: window.t('settings.var.day') },
                 { name: '{suffix}', label: window.t('settings.var.suffix') },
             ];
         },
@@ -124,7 +126,10 @@ function settingsPage() {
                 { name: '{actor}', label: window.t('settings.var.actor') },
                 { name: '{maker}', label: window.t('settings.var.maker') },
                 { name: '{title}', label: window.t('settings.var.title') },
+                { name: '{date}', label: window.t('settings.var.date') },
                 { name: '{year}', label: window.t('settings.var.year') },
+                { name: '{month}', label: window.t('settings.var.month') },
+                { name: '{day}', label: window.t('settings.var.day') },
                 { name: '{suffix}', label: window.t('settings.var.suffix') },
             ];
         },
@@ -136,6 +141,8 @@ function settingsPage() {
             title: '絕對領域',
             date: '2024-01-15',
             year: '2024',
+            month: '01',
+            day: '15',
             suffix: '-4k',
         },
 
