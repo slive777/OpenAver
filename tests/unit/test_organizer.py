@@ -55,6 +55,12 @@ class TestDetectSuffixes:
         assert "-cd1" in result
         assert "_uc" in result
 
+    def test_detect_suffixes_order_follows_keywords(self):
+        """多 keyword 時，輸出順序按 keyword 列表，不按檔名順序（canonical 化設計）"""
+        # keywords ['-cd1', '-4k']，檔名 '-4k-cd1' 反序
+        result = _detect_suffixes("ABC-123-4k-cd1.mp4", ["-cd1", "-4k"])
+        assert result == "-cd1-4k", f"預期按 keyword 列表順序 '-cd1-4k'，實際 {result!r}"
+
 
 # ============ format_string() 測試 ============
 
@@ -547,6 +553,110 @@ class TestOrganizeFallback:
         assert result["success"] is True
         assert result["used_fallbacks"] == [], (
             f"create_folder=false 時 used_fallbacks 應為空，實際: {result['used_fallbacks']}"
+        )
+
+    def test_partial_date_year_only_warns_for_month(self, tmp_path):
+        """date='2015'（僅年），folder 含 {month} → used_fallbacks 包含 '日期'（len < 7）"""
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"test")
+        config = {
+            "create_folder": True,
+            "folder_layers": ["{year}", "{month}"],
+            "filename_format": "[{num}] {title}",
+            "download_cover": False,
+            "cover_filename": "poster.jpg",
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+        metadata = {
+            "number": "SONE-205", "title": "Test Title",
+            "actors": ["三上悠亞"], "tags": [], "maker": "S1",
+            "date": "2015", "cover": "", "url": "",
+        }
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True
+        assert "日期" in result["used_fallbacks"], (
+            f"date='2015' + {{month}} 應 append '日期'，實際 used_fallbacks: {result['used_fallbacks']}"
+        )
+
+    def test_partial_date_year_month_warns_for_day(self, tmp_path):
+        """date='2015-06'（年月），folder 含 {day} → used_fallbacks 包含 '日期'（len < 10）"""
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"test")
+        config = {
+            "create_folder": True,
+            "folder_layers": ["{year}", "{month}", "{day}"],
+            "filename_format": "[{num}] {title}",
+            "download_cover": False,
+            "cover_filename": "poster.jpg",
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+        metadata = {
+            "number": "SONE-205", "title": "Test Title",
+            "actors": ["三上悠亞"], "tags": [], "maker": "S1",
+            "date": "2015-06", "cover": "", "url": "",
+        }
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True
+        assert "日期" in result["used_fallbacks"], (
+            f"date='2015-06' + {{day}} 應 append '日期'，實際 used_fallbacks: {result['used_fallbacks']}"
+        )
+
+    def test_partial_date_year_month_no_false_alarm(self, tmp_path):
+        """date='2015-06'（年月），folder 只含 {year}{month}（無 {day}）→ 無 '日期' fallback"""
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"test")
+        config = {
+            "create_folder": True,
+            "folder_layers": ["{year}", "{month}"],
+            "filename_format": "[{num}] {title}",
+            "download_cover": False,
+            "cover_filename": "poster.jpg",
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+        metadata = {
+            "number": "SONE-205", "title": "Test Title",
+            "actors": ["三上悠亞"], "tags": [], "maker": "S1",
+            "date": "2015-06", "cover": "", "url": "",
+        }
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True
+        assert "日期" not in result["used_fallbacks"], (
+            f"date='2015-06' 對 {{year}}{{month}} 不應 append '日期'，實際 used_fallbacks: {result['used_fallbacks']}"
+        )
+
+    def test_full_date_no_warn(self, tmp_path):
+        """date='2015-06-15'（完整），folder 含 {year}{month}{day} → used_fallbacks 不含 '日期'"""
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"test")
+        config = {
+            "create_folder": True,
+            "folder_layers": ["{year}", "{month}", "{day}"],
+            "filename_format": "[{num}] {title}",
+            "download_cover": False,
+            "cover_filename": "poster.jpg",
+            "create_nfo": False,
+            "max_title_length": 50,
+            "max_filename_length": 60,
+            "suffix_keywords": [],
+        }
+        metadata = {
+            "number": "SONE-205", "title": "Test Title",
+            "actors": ["三上悠亞"], "tags": [], "maker": "S1",
+            "date": "2015-06-15", "cover": "", "url": "",
+        }
+        result = organize_file(str(src), metadata, config)
+        assert result["success"] is True
+        assert "日期" not in result["used_fallbacks"], (
+            f"date='2015-06-15' 完整日期不應 append '日期'，實際 used_fallbacks: {result['used_fallbacks']}"
         )
 
 

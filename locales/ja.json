@@ -222,7 +222,7 @@
     },
     "scraper": {
       "suffix_keywords_label": "バージョンマーク",
-      "suffix_keywords_hint": "ファイル名にこれらのキーワードが含まれる場合 {suffix} として保持",
+      "suffix_keywords_hint": "ファイル名にこれらのキーワードが含まれる場合 {suffix} として保持されます（複数指定時はリスト順に連結）",
       "create_folder_label": "フォルダを作成",
       "folder_layers_label": "フォルダ階層",
       "folder_layer_outer": "外層",

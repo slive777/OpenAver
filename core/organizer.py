@@ -553,8 +553,14 @@ def organize_file(
             used_fallbacks.append('女優')
         if '{maker}' in folder_template and not format_data.get('maker'):
             used_fallbacks.append('片商')
-        if ('{date}' in folder_template or '{year}' in folder_template
-                or '{month}' in folder_template or '{day}' in folder_template) and not format_data.get('date'):
+        date_val = format_data.get('date', '') or ''
+        date_missing = (
+            ('{date}' in folder_template and not date_val) or
+            ('{year}' in folder_template and len(date_val) < 4) or
+            ('{month}' in folder_template and len(date_val) < 7) or
+            ('{day}' in folder_template and len(date_val) < 10)
+        )
+        if date_missing:
             used_fallbacks.append('日期')
         if '{title}' in folder_template and not format_data.get('title'):
             used_fallbacks.append('標題')

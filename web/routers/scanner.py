@@ -709,8 +709,14 @@ async def get_image(path: str = Query(..., description="圖片路徑")):
     except ValueError:
         local_path = path  # 無法轉換時使用原路徑
 
-    # 1. 解析 .. 防止路徑穿越攻擊（normpath 純字串、不 syscall，相容 FUSE/WinFsp）
-    local_path = os.path.normpath(local_path)
+    # 1. 解析 .. 並追蹤 symlink target（realpath）；FUSE/WinFsp OSError 時降級 normpath
+    try:
+        local_path = os.path.realpath(local_path)
+    except OSError as e:
+        # FUSE / WinFsp / rclone mount 不支援 GetFinalPathNameByHandle
+        # 降級 normpath（純字串）；symlink escape 風險在 FUSE 環境接受
+        logger.warning("get_image: realpath 失敗（FUSE/WinFsp？），降級為 normpath path=%s err=%s", local_path, e)
+        local_path = os.path.normpath(local_path)
 
     # 2. 副檔名白名單（只允許圖片格式）
     ext = os.path.splitext(local_path)[1].lower()
@@ -758,10 +764,16 @@ async def get_video(request: Request, path: str = Query(..., description="影片
     # 1. 轉換為 FS 路徑
     local_path = uri_to_fs_path(path)
 
-    # 2. 解析 .. 防止路徑穿越攻擊（normpath 純字串、不 syscall，必須在 ext 檢查前）
-    local_path = os.path.normpath(local_path)
+    # 2. 解析 .. 並追蹤 symlink target（realpath）；FUSE/WinFsp OSError 時降級 normpath
+    try:
+        local_path = os.path.realpath(local_path)
+    except OSError as e:
+        # FUSE / WinFsp / rclone mount 不支援 GetFinalPathNameByHandle
+        # 降級 normpath（純字串）；symlink escape 風險在 FUSE 環境接受
+        logger.warning("get_video: realpath 失敗（FUSE/WinFsp？），降級為 normpath path=%s err=%s", local_path, e)
+        local_path = os.path.normpath(local_path)
 
-    # 3. 副檔名白名單（用 normpath 解析後的路徑）
+    # 3. 副檔名白名單（用 realpath/normpath 解析後的路徑）
     #    使用 get_proxy_extensions() = user config ∩ SAFE_PROXY_EXTENSIONS
     config = load_config()
     allowed_extensions = get_proxy_extensions(config)

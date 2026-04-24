@@ -222,7 +222,7 @@
     },
     "scraper": {
       "suffix_keywords_label": "版本標記",
-      "suffix_keywords_hint": "檔名含這些關鍵字時保留為 {suffix}",
+      "suffix_keywords_hint": "檔名含這些關鍵字時保留為 {suffix}，多個按列表順序拼接",
       "create_folder_label": "建立資料夾",
       "folder_layers_label": "資料夾層級",
       "folder_layer_outer": "外層",

@@ -222,7 +222,7 @@
     },
     "scraper": {
       "suffix_keywords_label": "Version Tags",
-      "suffix_keywords_hint": "Keep as {suffix} when filename contains these keywords",
+      "suffix_keywords_hint": "Filenames containing these keywords are kept as {suffix}; multiple keywords concatenate in list order",
       "create_folder_label": "Create Folder",
       "folder_layers_label": "Folder Layers",
       "folder_layer_outer": "Outer",

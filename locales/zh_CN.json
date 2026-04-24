@@ -222,7 +222,7 @@
     },
     "scraper": {
       "suffix_keywords_label": "版本标记",
-      "suffix_keywords_hint": "文件名含这些关键字时保留为 {suffix}",
+      "suffix_keywords_hint": "文件名包含这些关键字时保留为 {suffix}，多个按列表顺序拼接",
       "create_folder_label": "建立文件夹",
       "folder_layers_label": "文件夹层级",
       "folder_layer_outer": "外层",
