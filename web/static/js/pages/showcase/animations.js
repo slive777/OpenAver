@@ -352,9 +352,16 @@
          * @param {Object} params - 動畫參數（保留擴展性）
          * @returns {gsap.core.Tween|null}
          */
-        playModeCrossfade: function (oldMode, newMode, params) {
-            if (shouldSkip()) return null;
-            if (typeof gsap === 'undefined') return null;
+        playModeCrossfade: function (oldMode, newMode, params, callbacks) {
+            var hasCb = !!(callbacks && callbacks.onOldFadeComplete);
+            if (shouldSkip()) {
+                if (hasCb) callbacks.onOldFadeComplete();
+                return null;
+            }
+            if (typeof gsap === 'undefined') {
+                if (hasCb) callbacks.onOldFadeComplete();
+                return null;
+            }
 
             var selectors = {
                 grid: '.showcase-grid',
@@ -363,13 +370,32 @@
                 list: '.showcase-list-wrapper'
             };
 
-            var newEl = document.querySelector(selectors[newMode]);
-            if (!newEl) return null;
+            var oldEl = oldMode ? document.querySelector(selectors[oldMode]) : null;
+            var newEl = newMode ? document.querySelector(selectors[newMode]) : null;
 
-            return gsap.fromTo(newEl,
-                { opacity: 0 },
-                { opacity: 1, duration: 0.2, ease: 'power2.out', clearProps: 'opacity' }
-            );
+            var tl = gsap.timeline();
+            // Phase 1: oldEl fade-out（只在有 callback 時觸發，避免破壞舊 caller 行為）
+            if (hasCb) {
+                if (oldEl) {
+                    tl.to(oldEl, {
+                        opacity: 0,
+                        duration: 0.15,
+                        ease: 'power2.in',
+                        clearProps: 'opacity',
+                        onComplete: function () { callbacks.onOldFadeComplete(); }
+                    });
+                } else {
+                    callbacks.onOldFadeComplete();
+                }
+            }
+            // Phase 2: newEl fade-in（舊 caller 行為保留）
+            if (newEl) {
+                tl.fromTo(newEl,
+                    { opacity: 0 },
+                    { opacity: 1, duration: 0.2, ease: 'power2.out', clearProps: 'opacity' }
+                );
+            }
+            return tl;
         },
 
         /**

@@ -427,37 +427,55 @@ function showcaseState() {
 
         toggleActressMode() {
             if (this.lightboxOpen) this.closeLightbox();
-            this.showFavoriteActresses = !this.showFavoriteActresses;
             var self = this;
-            var needEntry = false;
-            if (this.showFavoriteActresses) {
-                this._clearPreciseMatch();
-                if (_actresses.length === 0) {
-                    this.loadActresses();
-                } else {
-                    needEntry = true;
-                }
-            } else {
-                needEntry = true;
-                var searchTerm = this.search.trim();
-                if (searchTerm) {
-                    this._checkPreciseActressMatch(searchTerm, 'manual');
-                }
-            }
+            var isEnteringActress = !this.showFavoriteActresses;
+            var oldMode = isEnteringActress ? (this.mode || 'grid') : 'actress';
+            var newMode = isEnteringActress ? 'actress' : (this.mode || 'grid');
             var gen = ++this._animGeneration;
-            this.$nextTick(function () {
-                if (self._animGeneration !== gen) return;
-                if (self.showFavoriteActresses) {
-                    window.ShowcaseAnimations?.playModeCrossfade?.('grid', 'actress');
-                } else {
-                    window.ShowcaseAnimations?.playModeCrossfade?.('actress', self.mode);
-                }
-                if (needEntry) {
-                    var grid = self._getActiveGrid();
-                    window.ShowcaseAnimations?.playEntry?.(grid);
+
+            window.ShowcaseAnimations?.playModeCrossfade?.(oldMode, null, null, {
+                onOldFadeComplete: function () {
+                    if (self._animGeneration !== gen) return;
+                    // 翻轉（觸發 x-if 重新掛載 DOM）
+                    self.showFavoriteActresses = isEnteringActress;
+                    var needEntry = false;
+                    if (isEnteringActress) {
+                        self._clearPreciseMatch();
+                        if (_actresses.length === 0) {
+                            self.loadActresses();
+                        } else {
+                            needEntry = true;
+                        }
+                    } else {
+                        needEntry = true;
+                        var searchTerm = self.search.trim();
+                        if (searchTerm) {
+                            self._checkPreciseActressMatch(searchTerm, 'manual');
+                        }
+                    }
+                    // Phase 2: $nextTick 後 fade-in 新容器
+                    var gen2 = ++self._animGeneration;
+                    self.$nextTick(function () {
+                        if (self._animGeneration !== gen2) return;
+                        var newSelector = newMode === 'actress' ? '.actress-grid'
+                            : newMode === 'table' ? '.showcase-table-wrapper'
+                            : newMode === 'list' ? '.showcase-list-wrapper'
+                            : '.showcase-grid';
+                        var newEl = document.querySelector(newSelector);
+                        if (newEl && typeof gsap !== 'undefined') {
+                            gsap.fromTo(newEl,
+                                { opacity: 0 },
+                                { opacity: 1, duration: 0.2, ease: 'power2.out', clearProps: 'opacity' }
+                            );
+                        }
+                        if (needEntry) {
+                            var grid = self._getActiveGrid();
+                            window.ShowcaseAnimations?.playEntry?.(grid);
+                        }
+                    });
+                    self.saveState();
                 }
             });
-            this.saveState();
         },
 
         async loadActresses() {

@@ -3320,3 +3320,126 @@ class TestActressCoreMetadataVideoCount:
         data = json.loads((LOCALES_ROOT / "en.json").read_text(encoding="utf-8"))
         assert data["showcase"]["unit"]["films"] == " films", \
             f"en.json showcase.unit.films 應保留為 ' films'，目前 {data['showcase']['unit']['films']!r}"
+
+
+SHOWCASE_ANIMATIONS_JS = (
+    Path(__file__).parent.parent.parent
+    / "web" / "static" / "js" / "pages" / "showcase" / "animations.js"
+)
+
+
+class TestModeToggleFadeOutGuard:
+    """T1: 模式切換動畫補 fade-out（playModeCrossfade 4-arg + toggleActressMode callback 延遲翻轉）"""
+
+    def _core_js(self):
+        return SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+
+    def _anim_js(self):
+        return SHOWCASE_ANIMATIONS_JS.read_text(encoding="utf-8")
+
+    def _extract_method_body(self, js, method_name):
+        """抓取 Alpine state method（methodName(...) { ... }）函式主體，大括號平衡。"""
+        pattern = re.compile(
+            r'(?:^|\n)\s*' + re.escape(method_name) + r'\s*\([^)]*\)\s*\{',
+            re.DOTALL,
+        )
+        m = pattern.search(js)
+        assert m is not None, f"找不到 {method_name} 方法"
+        start = m.end()
+        depth = 1
+        i = start
+        while i < len(js) and depth > 0:
+            c = js[i]
+            if c == '{':
+                depth += 1
+            elif c == '}':
+                depth -= 1
+            i += 1
+        return js[start:i - 1]
+
+    def _extract_property_function_body(self, js, prop_name):
+        """抓取 propName: function (...) { ... } 形式的函式主體，大括號平衡。"""
+        pattern = re.compile(
+            r'\b' + re.escape(prop_name) + r'\s*:\s*function\s*\([^)]*\)\s*\{',
+            re.DOTALL,
+        )
+        m = pattern.search(js)
+        assert m is not None, f"找不到 {prop_name} property function"
+        start = m.end()
+        depth = 1
+        i = start
+        while i < len(js) and depth > 0:
+            c = js[i]
+            if c == '{':
+                depth += 1
+            elif c == '}':
+                depth -= 1
+            i += 1
+        return js[start:i - 1]
+
+    def test_play_mode_crossfade_has_callbacks_param(self):
+        """animations.js playModeCrossfade 簽名包含 4 個參數 (oldMode, newMode, params, callbacks)"""
+        js = self._anim_js()
+        assert re.search(
+            r'playModeCrossfade\s*:\s*function\s*\(\s*oldMode\s*,\s*newMode\s*,\s*params\s*,\s*callbacks\s*\)',
+            js,
+        ), "showcase/animations.js playModeCrossfade 缺少 callbacks 第 4 參數"
+
+    def test_play_mode_crossfade_old_fade_out(self):
+        """playModeCrossfade 函數體含 oldEl fade-out (tl.to(oldEl,...) + clearProps:'opacity')"""
+        js = self._anim_js()
+        body = self._extract_property_function_body(js, 'playModeCrossfade')
+        assert re.search(r'tl\s*\.\s*to\s*\(\s*oldEl', body), \
+            "playModeCrossfade 函數體缺少 oldEl fade-out (tl.to(oldEl,...))"
+        assert re.search(r"clearProps\s*:\s*['\"]opacity['\"]", body), \
+            "playModeCrossfade 函數體缺少 clearProps: 'opacity'（避免 CSS transition 殘留）"
+
+    def test_play_mode_crossfade_new_fade_in_preserved(self):
+        """playModeCrossfade 函數體保留 newEl fade-in（tl.fromTo(newEl,...) + clearProps:'opacity'）"""
+        js = self._anim_js()
+        body = self._extract_property_function_body(js, 'playModeCrossfade')
+        assert re.search(r'(?:tl\s*\.\s*)?fromTo\s*\(\s*newEl', body), \
+            "playModeCrossfade 函數體缺少 newEl fade-in (fromTo(newEl,...))"
+        # newEl 段落（從第一次 newEl 出現到結尾）必須有 clearProps
+        new_idx = body.find('newEl')
+        assert new_idx >= 0, "playModeCrossfade 函數體找不到 newEl 區段"
+        new_section = body[new_idx:]
+        assert re.search(r"clearProps\s*:\s*['\"]opacity['\"]", new_section), \
+            "playModeCrossfade newEl fade-in 段落缺少 clearProps: 'opacity'"
+
+    def test_toggle_actress_mode_uses_callback(self):
+        """toggleActressMode 函數體使用 onOldFadeComplete callback，不直接翻轉 showFavoriteActresses"""
+        js = self._core_js()
+        body = self._extract_method_body(js, 'toggleActressMode')
+        assert 'onOldFadeComplete' in body, \
+            "toggleActressMode 函數體缺少 onOldFadeComplete callback"
+        assert 'playModeCrossfade' in body, \
+            "toggleActressMode 函數體缺少 playModeCrossfade 呼叫"
+        assert not re.search(
+            r'this\.showFavoriteActresses\s*=\s*!\s*this\.showFavoriteActresses',
+            body,
+        ), "toggleActressMode 不應直接翻轉 this.showFavoriteActresses，應延遲到 callback 內"
+
+    def test_toggle_actress_mode_animgen_guard(self):
+        """toggleActressMode 函數體內 _animGeneration 出現 ≥ 2 次（外層 gen + 內層 gen2 race guard）"""
+        js = self._core_js()
+        body = self._extract_method_body(js, 'toggleActressMode')
+        count = len(re.findall(r'_animGeneration', body))
+        assert count >= 2, \
+            f"toggleActressMode 函數體 _animGeneration 出現次數應 ≥ 2 (外 gen + 內 gen2)，實際 {count}"
+
+    def test_old_caller_backward_compat(self):
+        """舊 caller (searchActressFilms / switchMode) 內 playModeCrossfade 呼叫保持 ≤3-arg，不含 onOldFadeComplete"""
+        js = self._core_js()
+        search_body = self._extract_method_body(js, 'searchActressFilms')
+        switch_body = self._extract_method_body(js, 'switchMode')
+        # 兩處都應呼叫 playModeCrossfade
+        assert 'playModeCrossfade' in search_body, \
+            "searchActressFilms 應仍呼叫 playModeCrossfade"
+        assert 'playModeCrossfade' in switch_body, \
+            "switchMode 應仍呼叫 playModeCrossfade"
+        # 兩處都不該帶 onOldFadeComplete（保持原 2-arg 行為）
+        assert 'onOldFadeComplete' not in search_body, \
+            "searchActressFilms 內 playModeCrossfade 呼叫不應帶 onOldFadeComplete（T1 範圍外，T7 處理）"
+        assert 'onOldFadeComplete' not in switch_body, \
+            "switchMode 內 playModeCrossfade 呼叫不應帶 onOldFadeComplete（保持影片模式內切換行為不變）"
