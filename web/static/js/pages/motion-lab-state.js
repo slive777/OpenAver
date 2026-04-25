@@ -631,8 +631,8 @@ function motionLabPage() {
                 if (!self.$refs || !self.$refs.pickerCandidatesArea || !self.$refs.pickerCoverImg) return;
                 const cards = Array.from(self.$refs.pickerCandidatesArea.querySelectorAll('.picker-candidate-card'));
                 const cover = self.$refs.pickerCoverImg;
-                if (typeof window.MotionLab !== 'undefined') {
-                    window.MotionLab.playPickerBurst(cards, cover, self.pickerParams, {
+                if (typeof window.BurstPicker !== 'undefined') {
+                    window.BurstPicker.playPickerBurst(cards, cover, self.pickerParams, {
                         streamMode: self.pickerParams.streamMode,
                         streamInterval: self.pickerParams.streamInterval,
                         floatTimerSink: self._pickerFloatTimers,
@@ -649,8 +649,8 @@ function motionLabPage() {
             const el = cards[i];
             if (!el) return;
             // kill float timer for this card (by pausing — we'll restart on hover out)
-            if (typeof window.MotionLab !== 'undefined') {
-                window.MotionLab.playPickerHoverIn(el, this.pickerParams);
+            if (typeof window.BurstPicker !== 'undefined') {
+                window.BurstPicker.playPickerHoverIn(el, this.pickerParams);
             }
         },
 
@@ -659,10 +659,10 @@ function motionLabPage() {
             const cards = this.$refs.pickerCandidatesArea.querySelectorAll('.picker-candidate-card');
             const el = cards[i];
             if (!el || el.dataset.pickerSettled !== '1') return;  // guard: burst mid-flight には何もしない
-            if (typeof window.MotionLab !== 'undefined') {
-                window.MotionLab.playPickerHoverOut(el, this.pickerParams);
+            if (typeof window.BurstPicker !== 'undefined') {
+                window.BurstPicker.playPickerHoverOut(el, this.pickerParams);
                 // Restart float for this card
-                const tl = window.MotionLab.playPickerFloat(el, this.pickerParams);
+                const tl = window.BurstPicker.playPickerFloat(el, this.pickerParams);
                 if (tl) this._pickerFloatTimers.push(tl);
             }
         },
@@ -682,10 +682,10 @@ function motionLabPage() {
                 if (t && typeof t.kill === 'function') t.kill();
             });
             this._pickerFloatTimers = [];
-            if (typeof window.MotionLab !== 'undefined') {
+            if (typeof window.BurstPicker !== 'undefined') {
                 // Simultaneously exit other cards + flip selected card to cover
-                window.MotionLab.playPickerExitAll(otherEls, self.pickerParams);
-                window.MotionLab.playPickerFlipReplace(selectedEl, cover, self.pickerParams, function () {
+                window.BurstPicker.playPickerExitAll(otherEls, self.pickerParams);
+                window.BurstPicker.playPickerFlipReplace(selectedEl, cover, self.pickerParams, function () {
                     if (self._pickerRunId !== runId) return;
                     // cover.src 已由 playPickerFlipReplace ghost-fly onComplete 替換，勿重複 cache-bust
                     console.log('[Picker] 已更換封面：', candidate ? candidate.img : '(unknown)');

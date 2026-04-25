@@ -3907,3 +3907,64 @@ class TestT4I18n:
         unit = self._showcase(data).get("unit", {})
         assert "actresses" in unit, f"{locale}: 缺 showcase.unit.actresses key"
         assert unit["actresses"], f"{locale}: showcase.unit.actresses 不可為空"
+
+
+# ─── 49b-T4a: BurstPicker 模組抽出守衛 ────────────────────────────────────────
+BURST_PICKER_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "shared" / "burst-picker.js"
+BASE_HTML_T4A = Path(__file__).parent.parent.parent / "web" / "templates" / "base.html"
+MOTION_LAB_JS_T4A = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "motion-lab.js"
+MOTION_LAB_STATE_JS_T4A = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "motion-lab-state.js"
+
+
+class TestBurstPickerGuard:
+    """49b-T4a: 守衛 BurstPicker 模組抽出（從 motion-lab.js → shared/burst-picker.js）"""
+
+    PICKER_METHODS = (
+        "playPickerBurst",
+        "playPickerFloat",
+        "playPickerHoverIn",
+        "playPickerHoverOut",
+        "playPickerFlipReplace",
+        "playPickerExitAll",
+        "playPickerReverseAll",
+    )
+
+    def test_burst_picker_js_exists_and_exposes_module(self):
+        """burst-picker.js 存在、IIFE 暴露 window.BurstPicker，含全部 7 個 playPicker* 方法"""
+        assert BURST_PICKER_JS.exists(), f"burst-picker.js 不存在：{BURST_PICKER_JS}"
+        js = BURST_PICKER_JS.read_text(encoding="utf-8")
+        assert "window.BurstPicker" in js, "burst-picker.js 未暴露 window.BurstPicker"
+        for method in self.PICKER_METHODS:
+            assert method + ":" in js, f"burst-picker.js 缺少 {method} 方法定義"
+
+    def test_base_html_loads_burst_picker(self):
+        """base.html 含 burst-picker.js script tag 且使用 defer"""
+        html = BASE_HTML_T4A.read_text(encoding="utf-8")
+        assert "/static/js/shared/burst-picker.js" in html, \
+            "base.html 缺少 /static/js/shared/burst-picker.js script 引用"
+        # 驗證 defer
+        pattern = re.compile(r'<script[^>]*burst-picker\.js[^>]*>')
+        matches = pattern.findall(html)
+        assert matches, "base.html 找不到 burst-picker.js script tag"
+        for tag in matches:
+            assert "defer" in tag, f"burst-picker.js script tag 應含 defer 屬性：{tag}"
+
+    def test_motion_lab_js_no_longer_defines_picker_methods(self):
+        """motion-lab.js 已不再內嵌 7 個 playPicker* 方法定義（僅 burst-picker.js 內有）"""
+        js = MOTION_LAB_JS_T4A.read_text(encoding="utf-8")
+        for method in self.PICKER_METHODS:
+            # 偵測 method 定義樣式 "playPickerBurst: function"
+            pattern = re.compile(re.escape(method) + r"\s*:\s*function")
+            matches = pattern.findall(js)
+            assert not matches, \
+                f"motion-lab.js 仍內嵌 {method} 方法定義（應只在 burst-picker.js）"
+
+    def test_motion_lab_state_calls_burst_picker_module(self):
+        """motion-lab-state.js 透過 window.BurstPicker.playPicker* 呼叫，而非 window.MotionLab.playPicker*"""
+        js = MOTION_LAB_STATE_JS_T4A.read_text(encoding="utf-8")
+        assert "window.BurstPicker.playPicker" in js, \
+            "motion-lab-state.js 應呼叫 window.BurstPicker.playPicker*"
+        # 確認舊 window.MotionLab.playPicker* 路徑已全部置換
+        legacy = re.findall(r"window\.MotionLab\.playPicker\w+", js)
+        assert not legacy, \
+            f"motion-lab-state.js 仍有舊呼叫 window.MotionLab.playPicker*：{legacy}"
