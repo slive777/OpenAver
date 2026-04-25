@@ -35,7 +35,7 @@ def test_download_success_and_get_local_path(gfriends_dir):
     """download_actress_photo() 成功下載後，get_local_photo_path() 能找到檔案"""
     mock_resp = make_mock_response(status_code=200, content_type="image/jpeg")
     with patch("core.actress_photo.requests.get", return_value=mock_resp):
-        result = download_actress_photo("田中美久", "https://example.com/photo.jpg", "gfriends")
+        result = download_actress_photo("田中美久", "https://raw.githubusercontent.com/photo.jpg", "gfriends")
 
     assert result is True
     assert gfriends_dir.exists()
@@ -59,7 +59,7 @@ def test_rescrape_old_file_deleted(gfriends_dir):
     # 再次下載，但這次 Content-Type 是 webp
     mock_resp = make_mock_response(status_code=200, content_type="image/webp")
     with patch("core.actress_photo.requests.get", return_value=mock_resp):
-        result = download_actress_photo("田中美久", "https://example.com/photo.webp", "gfriends")
+        result = download_actress_photo("田中美久", "https://raw.githubusercontent.com/photo.webp", "gfriends")
 
     assert result is True
     # 舊 .jpg 應該被刪掉
@@ -79,7 +79,7 @@ def test_download_requests_exception(gfriends_dir):
     """requests.get() 拋例外時，download_actress_photo() 回 False，不 re-raise"""
     import requests as req_module
     with patch("core.actress_photo.requests.get", side_effect=req_module.exceptions.ConnectionError("no conn")):
-        result = download_actress_photo("佐藤みき", "https://example.com/photo.jpg", "graphis")
+        result = download_actress_photo("佐藤みき", "https://www.graphis.ne.jp/photo.jpg", "graphis")
 
     assert result is False
 
@@ -91,7 +91,7 @@ def test_download_http_non_200(gfriends_dir):
     """HTTP status != 200 時回 False，不寫檔"""
     mock_resp = make_mock_response(status_code=404, content_type="text/html", content=b"not found")
     with patch("core.actress_photo.requests.get", return_value=mock_resp):
-        result = download_actress_photo("鈴木りん", "https://example.com/photo.jpg", "wiki")
+        result = download_actress_photo("鈴木りん", "https://upload.wikimedia.org/photo.jpg", "wiki")
 
     assert result is False
     # 目錄不存在或目錄為空（沒有寫任何檔案）
@@ -108,7 +108,7 @@ def test_delete_photo_then_get_returns_none(gfriends_dir):
     # 先下載一張
     mock_resp = make_mock_response(status_code=200, content_type="image/png")
     with patch("core.actress_photo.requests.get", return_value=mock_resp):
-        download_actress_photo("青山あかね", "https://example.com/photo.png", "minnano")
+        download_actress_photo("青山あかね", "https://www.minnano-av.com/photo.png", "minnano")
 
     # 確認下載成功
     assert get_local_photo_path("青山あかね") is not None
@@ -128,7 +128,7 @@ def test_special_chars_actress_name(gfriends_dir):
     """含 · 的女優名可正常下載與讀取；/ \\ : 等非法字元被替換為空格"""
     mock_resp = make_mock_response(status_code=200, content_type="image/jpeg")
     with patch("core.actress_photo.requests.get", return_value=mock_resp):
-        result = download_actress_photo("田中·ナナ", "https://example.com/photo.jpg", "gfriends")
+        result = download_actress_photo("田中·ナナ", "https://raw.githubusercontent.com/photo.jpg", "gfriends")
 
     assert result is True
     found = get_local_photo_path("田中·ナナ")
@@ -320,3 +320,105 @@ def test_crop_video_cover_unknown_spec_returns_none():
     from core.actress_photo import crop_video_cover
     result = crop_video_cover("/fake/path.jpg", crop_spec="v99")
     assert result is None
+
+
+# ===================================================================
+# Fix 4: SSRF 白名單測試
+# ===================================================================
+
+def test_download_actress_photo_rejects_non_whitelisted_host(gfriends_dir):
+    """photo_url host 不在白名單 → return False，不發 requests.get"""
+    with patch("core.actress_photo.requests.get") as mock_get:
+        result = download_actress_photo("テスト女優", "http://evil.com/x.jpg", "gfriends")
+    assert result is False
+    mock_get.assert_not_called()
+
+
+def test_download_actress_photo_rejects_bad_scheme(gfriends_dir):
+    """photo_url scheme 為 file:// → return False，不發 requests.get"""
+    with patch("core.actress_photo.requests.get") as mock_get:
+        result = download_actress_photo("テスト女優", "file:///etc/passwd", "graphis")
+    assert result is False
+    mock_get.assert_not_called()
+
+
+# ===================================================================
+# Fix 5: Atomic replace 測試
+# ===================================================================
+
+def test_download_actress_photo_failure_preserves_old(gfriends_dir):
+    """requests.get 拋例外時，舊檔仍存在（atomic replace 未執行）"""
+    gfriends_dir.mkdir(parents=True, exist_ok=True)
+    old_file = gfriends_dir / "田中美久.jpg"
+    old_file.write_bytes(b"old_data")
+
+    import requests as req_module
+    with patch("core.actress_photo.requests.get",
+               side_effect=req_module.exceptions.ConnectionError("fail")):
+        result = download_actress_photo("田中美久", "https://www.graphis.ne.jp/photo.jpg", "graphis")
+
+    assert result is False
+    # 舊檔仍存在（因為 download 失敗，atomic replace 未執行，舊檔未被刪除）
+    assert old_file.exists()
+    assert old_file.read_bytes() == b"old_data"
+
+
+def test_download_actress_photo_success_overwrites_old(gfriends_dir):
+    """下載成功時舊檔被刪、新檔寫入（副檔名依 Content-Type）"""
+    gfriends_dir.mkdir(parents=True, exist_ok=True)
+    old_file = gfriends_dir / "田中美久.jpg"
+    old_file.write_bytes(b"old_data")
+
+    mock_resp = make_mock_response(status_code=200, content_type="image/png",
+                                   content=b"new_png_data")
+    with patch("core.actress_photo.requests.get", return_value=mock_resp):
+        result = download_actress_photo("田中美久",
+                                        "https://www.graphis.ne.jp/photo.png", "graphis")
+
+    assert result is True
+    # 舊 .jpg 應該被刪掉
+    assert not old_file.exists()
+    # 新 .png 存在
+    new_file = gfriends_dir / "田中美久.png"
+    assert new_file.exists()
+    assert new_file.read_bytes() == b"new_png_data"
+
+
+# ===================================================================
+# Fix A (Codex round-2): 擴充 host 白名單 — jsdelivr / data.graphis
+# ===================================================================
+
+def test_download_actress_photo_accepts_jsdelivr_for_gfriends(gfriends_dir):
+    """gfriends source: cdn.jsdelivr.net URL 應通過白名單驗證並觸發下載"""
+    url = "https://cdn.jsdelivr.net/gh/gfriends/gfriends@master/Content/最高画質/photo.jpg"
+    mock_resp = make_mock_response(status_code=200, content_type="image/jpeg")
+    with patch("core.actress_photo.requests.get", return_value=mock_resp) as mock_get:
+        result = download_actress_photo("テスト女優A", url, "gfriends")
+    assert result is True
+    mock_get.assert_called_once()
+
+
+def test_download_actress_photo_accepts_data_graphis_subdomain(gfriends_dir):
+    """graphis source: data.graphis.ne.jp URL 應通過白名單驗證並觸發下載"""
+    url = "https://data.graphis.ne.jp/images/actr/profile/001234.jpg"
+    mock_resp = make_mock_response(status_code=200, content_type="image/jpeg")
+    with patch("core.actress_photo.requests.get", return_value=mock_resp) as mock_get:
+        result = download_actress_photo("テスト女優B", url, "graphis")
+    assert result is True
+    mock_get.assert_called_once()
+
+
+def test_download_actress_photo_rejects_non_whitelisted_still_blocked(gfriends_dir):
+    """evil.com 仍不在任何 source 白名單 — 確認 reject 邏輯未被破壞"""
+    with patch("core.actress_photo.requests.get") as mock_get:
+        result = download_actress_photo("テスト女優C", "http://evil.com/x.jpg", "gfriends")
+    assert result is False
+    mock_get.assert_not_called()
+
+
+def test_download_actress_photo_rejects_bad_scheme_still_blocked(gfriends_dir):
+    """file:// scheme 仍被拒絕 — 確認 scheme 檢查未被破壞"""
+    with patch("core.actress_photo.requests.get") as mock_get:
+        result = download_actress_photo("テスト女優D", "file:///etc/passwd", "graphis")
+    assert result is False
+    mock_get.assert_not_called()

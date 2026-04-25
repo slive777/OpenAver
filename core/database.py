@@ -750,6 +750,34 @@ class VideoRepository:
         finally:
             conn.close()
 
+    def is_known_cover_path(self, fs_path: str) -> bool:
+        """
+        驗證 fs_path 是否為 DB 中某個 video 的 cover_path（防任意檔案讀取）。
+
+        DB 存 cover_path 為 file:/// URI（gallery_scanner 透過 to_file_uri 寫入），
+        比對前先用 uri_to_fs_path() 雙邊正規化。
+        """
+        from core.path_utils import uri_to_fs_path
+        if not fs_path:
+            return False
+        conn = self._get_connection()
+        try:
+            rows = conn.execute(
+                "SELECT cover_path FROM videos WHERE cover_path != ''"
+            ).fetchall()
+        finally:
+            conn.close()
+        for row in rows:
+            db_cover = row[0] if not isinstance(row, tuple) else row[0]
+            if not db_cover:
+                continue
+            try:
+                if uri_to_fs_path(db_cover) == fs_path:
+                    return True
+            except Exception:
+                continue
+        return False
+
 def migrate_json_to_sqlite(json_path: Path, db_path: Path = None,
                            delete_on_success: bool = True) -> dict:
     """遷移 JSON cache 到 SQLite

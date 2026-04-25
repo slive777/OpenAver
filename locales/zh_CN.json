@@ -701,11 +701,11 @@
       "h6_showcase": "浏览页",
       "showcase_toggle": "工具栏切换影片模式 ↔ 女优模式（片 | 人 图示）",
       "showcase_grid": "女优收藏 Grid，支持按名称、年龄、罩杯、身高、添加日期排序",
-      "showcase_lightbox": "女优 Lightbox 显示完整个人资料、别名、链接，可重新抓取或移除收藏",
+      "showcase_lightbox": "灯箱可换照片或移除收藏",
       "h6_manage": "收藏管理",
       "manage_add": "从搜索页或浏览页加入收藏，照片自动下载至本地",
       "manage_alias": "别名管理：Scanner 页面可新增、编辑女优别名，搜索时自动展开所有已知名称",
-      "manage_enrich": "浏览页卡片可一键重新抓取（rescrape）更新女优资料",
+      "manage_enrich": "灯箱右上 🔄 可替换女优照片，候选来源含云端与本机影片封面",
       "manage_photo_path": "收藏女优的照片存放于 output/Gfriends/ 目录下"
     },
     "scanner": {

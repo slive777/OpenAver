@@ -2,9 +2,11 @@
 actress_photo.py — 女優照片下載 / 儲存 / 讀取 / 刪除 / 影片封面 crop
 """
 import io
+import os
 import requests
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 from core.logger import get_logger
 from core.organizer import sanitize_filename
@@ -40,6 +42,44 @@ REFERER_MAP: dict[str, str] = {
     "minnano": "https://www.minnano-av.com/",
 }
 
+# photo_source → 允許的 host 白名單
+PHOTO_HOST_WHITELIST: dict[str, set] = {
+    "graphis": {
+        "www.graphis.ne.jp",
+        "graphis.ne.jp",
+        "data.graphis.ne.jp",
+    },
+    "gfriends": {
+        "cdn.jsdelivr.net",
+        "raw.githubusercontent.com",
+        "github.com",
+    },
+    "wiki": {
+        "upload.wikimedia.org",
+        "ja.wikipedia.org",
+    },
+    "minnano": {
+        "www.minnano-av.com",
+        "minnano-av.com",
+    },
+}
+
+
+def _validate_photo_url(photo_url: str, photo_source: str) -> bool:
+    """
+    驗證 photo_url 是否符合來源白名單（SSRF 防禦）。
+    scheme 必須是 http/https，host 必須在對應 source 的白名單內。
+    """
+    try:
+        parsed = urlparse(photo_url)
+    except Exception as e:
+        logger.debug("[actress_photo] urlparse 失敗 url=%s err=%s", photo_url, e)
+        return False
+    if parsed.scheme not in ("http", "https"):
+        return False
+    allowed = PHOTO_HOST_WHITELIST.get(photo_source, set())
+    return parsed.hostname in allowed
+
 
 def download_actress_photo(name: str, photo_url: str, photo_source: str) -> bool:
     """
@@ -56,15 +96,22 @@ def download_actress_photo(name: str, photo_url: str, photo_source: str) -> bool
     if not photo_url:
         return False
 
-    GFRIENDS_DIR.mkdir(parents=True, exist_ok=True)
-    safe_name = sanitize_filename(name)
+    if not _validate_photo_url(photo_url, photo_source):
+        logger.warning("[actress_photo] URL 不在白名單 source=%s url=%s", photo_source, photo_url)
+        return False
 
-    # 刪除同名的舊檔（副檔名可能不同）
-    for old_file in GFRIENDS_DIR.glob(f"{safe_name}.*"):
-        try:
-            old_file.unlink()
-        except Exception as e:
-            logger.warning(f"[actress_photo] 刪除舊檔失敗 {old_file}: {e}")
+    safe_name = sanitize_filename(name)
+    GFRIENDS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # 推斷初始副檔名（從 URL fallback，download 後再依 Content-Type 修正）
+    url_path = photo_url.split("?")[0]
+    url_suffix = Path(url_path).suffix.lower()
+    ext = url_suffix if url_suffix in {".jpg", ".jpeg", ".png", ".webp", ".gif"} else ".jpg"
+    if ext == ".jpeg":
+        ext = ".jpg"
+
+    final_path = GFRIENDS_DIR / f"{safe_name}{ext}"
+    tmp_path = GFRIENDS_DIR / f".{safe_name}{ext}.download.tmp"
 
     try:
         headers = _HEADERS.copy()
@@ -72,33 +119,58 @@ def download_actress_photo(name: str, photo_url: str, photo_source: str) -> bool
         if referer:
             headers["Referer"] = referer
 
+        # 1. 下載到 tmp
         resp = requests.get(photo_url, headers=headers, timeout=15)
 
         if resp.status_code != 200:
-            logger.warning(
-                f"[actress_photo] 下載失敗，HTTP {resp.status_code}：{photo_url}"
-            )
+            logger.warning("[actress_photo] 下載失敗，HTTP %s：%s", resp.status_code, photo_url)
             return False
 
-        # 推斷副檔名
+        # 2. 依 Content-Type 確定副檔名
         content_type = resp.headers.get("Content-Type", "").split(";")[0].strip().lower()
-        ext = CONTENT_TYPE_MAP.get(content_type)
-        if not ext:
-            # fallback：從 URL 路徑最後一段取副檔名
-            url_path = photo_url.split("?")[0]
-            suffix = Path(url_path).suffix.lower()
-            ext = suffix if suffix in {".jpg", ".jpeg", ".png", ".webp", ".gif"} else ".jpg"
-        if ext == ".jpeg":
-            ext = ".jpg"
+        if not content_type.startswith("image/"):
+            logger.warning("[actress_photo] 非圖片 Content-Type=%s", content_type)
+            return False
+        ct_ext = CONTENT_TYPE_MAP.get(content_type)
+        if ct_ext:
+            ext = ct_ext
+            if ext == ".jpeg":
+                ext = ".jpg"
+            final_path = GFRIENDS_DIR / f"{safe_name}{ext}"
 
-        save_path = GFRIENDS_DIR / f"{safe_name}{ext}"
-        save_path.write_bytes(resp.content)
-        logger.info(f"[actress_photo] 下載完成：{save_path}")
+        # 3. 寫入 tmp
+        tmp_path = GFRIENDS_DIR / f".{safe_name}{ext}.download.tmp"
+        tmp_path.write_bytes(resp.content)
+
+        # 4. 下載成功才刪舊檔
+        for old in GFRIENDS_DIR.glob(f"{safe_name}.*"):
+            if old == tmp_path:
+                continue
+            try:
+                old.unlink()
+            except Exception as e:
+                logger.warning(
+                    "[actress_photo] 刪除舊檔失敗 path=%s err=%s",
+                    old, e,
+                )
+
+        # 5. atomic replace
+        os.replace(tmp_path, final_path)
+        logger.info("[actress_photo] 下載完成：%s", final_path)
         return True
 
     except Exception as e:
-        logger.warning(f"[actress_photo] 下載例外 ({name}): {e}")
+        logger.warning("[actress_photo] 下載例外 (%s): %s", name, e)
         return False
+    finally:
+        try:
+            if tmp_path.exists():
+                tmp_path.unlink()
+        except Exception as e:
+            logger.debug(
+                "[actress_photo] tmp 清理失敗 path=%s err=%s",
+                tmp_path, e,
+            )
 
 
 def get_local_photo_path(name: str) -> Optional[Path]:

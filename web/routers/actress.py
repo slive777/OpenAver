@@ -26,7 +26,7 @@ from core.maker_mapping import load_prefix_mapping
 from core.database import ActressRepository, AliasRepository, VideoRepository, Actress, init_db
 from core.actress_photo import download_actress_photo, get_local_photo_path, delete_local_photo, crop_video_cover, GFRIENDS_DIR
 from core.organizer import sanitize_filename
-from core.path_utils import to_file_uri, uri_to_fs_path
+from core.path_utils import to_file_uri, uri_to_fs_path, coerce_to_file_uri
 from core.scrapers.actress.orchestrator import (
     get_cached_profile,
     get_actress_profile,
@@ -406,11 +406,10 @@ async def list_photo_candidates(name: str):
             except Exception:
                 return (src, None)
 
-        tasks = [asyncio.ensure_future(fetch_source(src)) for src in cloud_sources]
-        if tasks:
-            done_set, _ = await asyncio.wait(tasks, return_when=asyncio.ALL_COMPLETED)
-            for task in done_set:
-                src, url = task.result()
+        if cloud_sources:
+            tasks = [asyncio.ensure_future(fetch_source(src)) for src in cloud_sources]
+            for coro in asyncio.as_completed(tasks):
+                src, url = await coro
                 if url and total < max_cloud:
                     event_data = json.dumps({
                         "source": src,
@@ -435,16 +434,12 @@ async def list_photo_candidates(name: str):
                 encoded_path = quote(cover_fs_path)
                 crop_url = f"/api/actresses/actress-crop?path={encoded_path}&spec=v1"
                 # Fix 2 (T2): video.path 在 DB 已是 file:/// URI（gallery_scanner.scan_file 透過 to_file_uri 寫入）
-                # 若萬一是 FS path（legacy / 異常），才包一次
-                video_path_str = str(video.path)
-                if video_path_str.startswith("file:///"):
-                    video_path_uri = video_path_str
-                else:
-                    try:
-                        video_path_uri = to_file_uri(video_path_str)
-                    except Exception as e:
-                        logger.warning("[actress] to_file_uri 轉換失敗 path=%s: %s", video.path, e)
-                        video_path_uri = video_path_str
+                # 若萬一是 FS path（legacy / 異常），coerce_to_file_uri 做 idempotent 轉換
+                try:
+                    video_path_uri = coerce_to_file_uri(str(video.path))
+                except Exception as e:
+                    logger.warning("[actress] coerce_to_file_uri 失敗 path=%s: %s", video.path, e)
+                    video_path_uri = str(video.path)
                 event_data = json.dumps({
                     "source": "local_crop",
                     "video_path": video_path_uri,
@@ -473,8 +468,13 @@ async def actress_crop(path: str, spec: str = "v1"):
     path: 本機 FS 路徑（URL-encoded）；若傳入 file:/// URI 也接受（防禦性轉換）
     spec: crop 規格版本（預設 v1）
     """
-    # Fix 4 (T2): 防禦性接受 URI 輸入，避免未來 caller 傳 file:/// URI 導致 Image.open 失敗
-    fs_path = uri_to_fs_path(path) if path.startswith("file:///") else path
+    # Fix 2 (T2): uri_to_fs_path 已 idempotent（非 URI 直接 normalize_path），直接呼叫
+    fs_path = uri_to_fs_path(path)
+    # Security: cover_path 必須是 DB 中某個 video 的 cover_path（防任意檔案讀取）
+    init_db()
+    video_repo = VideoRepository()
+    if not video_repo.is_known_cover_path(fs_path):
+        return Response(b"", status_code=403)
     result = await asyncio.to_thread(crop_video_cover, fs_path, spec)
     if result is None:
         return Response(b"", status_code=404)

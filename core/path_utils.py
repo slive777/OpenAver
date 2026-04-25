@@ -404,3 +404,15 @@ def is_path_under_dir(path: str, dir_uri: str) -> bool:
     # 確保 dir_uri 以 / 結尾再比對，避免前綴碰撞
     prefix = dir_uri if dir_uri.endswith('/') else dir_uri + '/'
     return path.startswith(prefix)
+
+def coerce_to_file_uri(value: str) -> str:
+    """Idempotent file URI 轉換：value 可能是 FS path 或已是 file:/// URI。
+
+    已是 file:/// 開頭→ 原樣回傳，否則 to_file_uri()。
+    用於 DB cover_path / video.path 這類格式不確定的場合，避免在 caller 做 startswith 判斷。
+    """
+    if not value:
+        return value
+    if value.startswith("file:///"):
+        return value
+    return to_file_uri(value)

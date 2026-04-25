@@ -469,7 +469,9 @@ class TestActressCrop:
         """crop_video_cover 回 bytes → 200 image/jpeg"""
         fake_jpeg = b"\xff\xd8\xff\xe0FAKE_JPEG"
 
-        with patch("web.routers.actress.crop_video_cover", return_value=fake_jpeg):
+        with patch("web.routers.actress.crop_video_cover", return_value=fake_jpeg), \
+             patch("web.routers.actress.VideoRepository") as mock_repo_cls:
+            mock_repo_cls.return_value.is_known_cover_path.return_value = True
             resp = client.get("/api/actresses/actress-crop?path=/fake/cover.jpg&spec=v1")
 
         assert resp.status_code == 200
@@ -478,7 +480,9 @@ class TestActressCrop:
 
     def test_actress_crop_not_found(self, client):
         """crop_video_cover 回 None → 404"""
-        with patch("web.routers.actress.crop_video_cover", return_value=None):
+        with patch("web.routers.actress.crop_video_cover", return_value=None), \
+             patch("web.routers.actress.VideoRepository") as mock_repo_cls:
+            mock_repo_cls.return_value.is_known_cover_path.return_value = True
             resp = client.get("/api/actresses/actress-crop?path=/nonexistent/cover.jpg&spec=v1")
 
         assert resp.status_code == 404
@@ -786,6 +790,39 @@ class TestSetActressPhoto:
         with patch("web.routers.actress.get_local_photo_path", return_value=None):
             get3 = client.get(f"/api/actresses/{ACTRESS_NAME}")
         assert get3.json()["actress"]["photo_source"] == "gfriends"
+
+    # ---- Fix 3: actress-crop 路徑驗證 ----
+
+    def test_actress_crop_rejects_unknown_path(self, client):
+        """actress-crop endpoint：任意路徑（不在 DB cover_path 中）→ 403"""
+        with patch("web.routers.actress.VideoRepository") as mock_repo_cls:
+            mock_repo = mock_repo_cls.return_value
+            mock_repo.is_known_cover_path.return_value = False
+            resp = client.get("/api/actresses/actress-crop?path=/evil/path.jpg&spec=v1")
+        assert resp.status_code == 403
+
+    def test_actress_crop_accepts_known_video_cover_path(self, client, tmp_path):
+        """actress-crop endpoint：DB 中已知 cover_path → 200"""
+        fake_jpeg = b"\xff\xd8\xff\xe0FAKE_JPEG"
+        with patch("web.routers.actress.VideoRepository") as mock_repo_cls, \
+             patch("web.routers.actress.crop_video_cover", return_value=fake_jpeg):
+            mock_repo = mock_repo_cls.return_value
+            mock_repo.is_known_cover_path.return_value = True
+            resp = client.get("/api/actresses/actress-crop?path=/known/cover.jpg&spec=v1")
+        assert resp.status_code == 200
+        assert resp.content == fake_jpeg
+
+    def test_actress_crop_accepts_uri_input(self, client, tmp_path):
+        """actress-crop endpoint：path 帶 file:/// URI 可正確處理（idempotent）"""
+        fake_jpeg = b"\xff\xd8\xff\xe0URI_JPEG"
+        with patch("web.routers.actress.VideoRepository") as mock_repo_cls, \
+             patch("web.routers.actress.crop_video_cover", return_value=fake_jpeg):
+            mock_repo = mock_repo_cls.return_value
+            mock_repo.is_known_cover_path.return_value = True
+            # 傳 file:/// URI，endpoint 應正確轉為 FS path 再查 DB
+            resp = client.get("/api/actresses/actress-crop?path=file:///known/cover.jpg&spec=v1")
+        assert resp.status_code == 200
+        assert resp.content == fake_jpeg
 
     # ---- 5b: Production-realistic — DB 存 file:/// URI，local_crop 仍能匹配 ----
 
