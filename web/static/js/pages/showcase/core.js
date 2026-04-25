@@ -433,49 +433,59 @@ function showcaseState() {
             var newMode = isEnteringActress ? 'actress' : (this.mode || 'grid');
             var gen = ++this._animGeneration;
 
-            window.ShowcaseAnimations?.playModeCrossfade?.(oldMode, null, null, {
-                onOldFadeComplete: function () {
-                    if (self._animGeneration !== gen) return;
-                    // 翻轉（觸發 x-if 重新掛載 DOM）
-                    self.showFavoriteActresses = isEnteringActress;
-                    var needEntry = false;
-                    if (isEnteringActress) {
-                        self._clearPreciseMatch();
-                        if (_actresses.length === 0) {
-                            self.loadActresses();
-                        } else {
-                            needEntry = true;
-                        }
+            // Codex P1: 抽出 callback body 作 fallback；若 playModeCrossfade 不可用直接同步呼叫
+            var flipAndFadeIn = function () {
+                if (self._animGeneration !== gen) return;
+                // 翻轉（觸發 x-if 重新掛載 DOM）
+                self.showFavoriteActresses = isEnteringActress;
+                var needEntry = false;
+                if (isEnteringActress) {
+                    self._clearPreciseMatch();
+                    if (_actresses.length === 0) {
+                        self.loadActresses();
                     } else {
                         needEntry = true;
-                        var searchTerm = self.search.trim();
-                        if (searchTerm) {
-                            self._checkPreciseActressMatch(searchTerm, 'manual');
-                        }
                     }
-                    // Phase 2: $nextTick 後 fade-in 新容器
-                    var gen2 = ++self._animGeneration;
-                    self.$nextTick(function () {
-                        if (self._animGeneration !== gen2) return;
-                        var newSelector = newMode === 'actress' ? '.actress-grid'
-                            : newMode === 'table' ? '.showcase-table-wrapper'
-                            : newMode === 'list' ? '.showcase-list-wrapper'
-                            : '.showcase-grid';
-                        var newEl = document.querySelector(newSelector);
-                        if (newEl && typeof gsap !== 'undefined') {
-                            gsap.fromTo(newEl,
-                                { opacity: 0 },
-                                { opacity: 1, duration: 0.2, ease: 'power2.out', clearProps: 'opacity' }
-                            );
-                        }
-                        if (needEntry) {
-                            var grid = self._getActiveGrid();
-                            window.ShowcaseAnimations?.playEntry?.(grid);
-                        }
-                    });
-                    self.saveState();
+                } else {
+                    needEntry = true;
+                    var searchTerm = self.search.trim();
+                    if (searchTerm) {
+                        self._checkPreciseActressMatch(searchTerm, 'manual');
+                    }
                 }
-            });
+                // Phase 2: $nextTick 後 fade-in 新容器
+                var gen2 = ++self._animGeneration;
+                self.$nextTick(function () {
+                    if (self._animGeneration !== gen2) return;
+                    var newSelector = newMode === 'actress' ? '.actress-grid'
+                        : newMode === 'table' ? '.showcase-table-wrapper'
+                        : newMode === 'list' ? '.showcase-list-wrapper'
+                        : '.showcase-grid';
+                    var newEl = document.querySelector(newSelector);
+                    // Codex P2: reduced-motion 跳過 inline fade-in（與 animations.js shouldSkip 同條件）
+                    if (newEl && typeof gsap !== 'undefined' && !window.OpenAver?.prefersReducedMotion) {
+                        gsap.fromTo(newEl,
+                            { opacity: 0 },
+                            { opacity: 1, duration: 0.2, ease: 'power2.out', clearProps: 'opacity' }
+                        );
+                    }
+                    if (needEntry) {
+                        var grid = self._getActiveGrid();
+                        window.ShowcaseAnimations?.playEntry?.(grid);
+                    }
+                });
+                self.saveState();
+            };
+
+            var fade = window.ShowcaseAnimations && window.ShowcaseAnimations.playModeCrossfade;
+            if (typeof fade === 'function') {
+                fade.call(window.ShowcaseAnimations, oldMode, null, null, {
+                    onOldFadeComplete: flipAndFadeIn
+                });
+            } else {
+                // P1 fallback: animations.js 不可用 → 直接同步翻轉 + 進入 fade-in（會被 reduced-motion / gsap-undef guard 自然降級）
+                flipAndFadeIn();
+            }
         },
 
         async loadActresses() {

@@ -3443,3 +3443,48 @@ class TestModeToggleFadeOutGuard:
             "searchActressFilms 內 playModeCrossfade 呼叫不應帶 onOldFadeComplete（T1 範圍外，T7 處理）"
         assert 'onOldFadeComplete' not in switch_body, \
             "switchMode 內 playModeCrossfade 呼叫不應帶 onOldFadeComplete（保持影片模式內切換行為不變）"
+
+    def test_toggle_actress_mode_handles_animations_unavailable(self):
+        """Codex P1: animations.js 不可用時 toggleActressMode 必須有 fallback path（不能讓 callback 永不觸發）"""
+        js = self._core_js()
+        body = self._extract_method_body(js, 'toggleActressMode')
+        # callback body 應抽成 named function（給 onOldFadeComplete 用、也給 fallback path 用）
+        assert re.search(
+            r'(?:function\s+\w*FadeIn\w*|var\s+\w*FadeIn\w*\s*=\s*function|\w*FadeIn\w*\s*=\s*function)',
+            body,
+        ), "toggleActressMode 應將 callback body 抽成 named function（如 flipAndFadeIn）以便 fallback 重用"
+        # 必須顯式檢查 playModeCrossfade 是否存在（不能單靠 optional chaining 短路）
+        assert re.search(
+            r'(?:typeof\s+\w+\s*===\s*[\'"]function[\'"]|window\.ShowcaseAnimations\s*&&\s*window\.ShowcaseAnimations\.playModeCrossfade)',
+            body,
+        ), "toggleActressMode 應顯式檢查 playModeCrossfade 是否可用（不能單靠 optional chaining）"
+        # 抽出來的 named function 應在函數體內被引用 ≥ 2 次（一次給 onOldFadeComplete、一次 fallback 直接呼叫）
+        # 找出第一個 *FadeIn* 識別字
+        m = re.search(r'\b(\w*[Ff]adeIn\w*)\b', body)
+        assert m is not None, "toggleActressMode 找不到 FadeIn 命名函數"
+        fname = m.group(1)
+        count = len(re.findall(r'\b' + re.escape(fname) + r'\b', body))
+        assert count >= 3, (
+            f"toggleActressMode 內 {fname} 應出現 ≥ 3 次"
+            f"（宣告 1 + onOldFadeComplete 引用 1 + fallback 同步呼叫 1），實際 {count}"
+        )
+
+    def test_toggle_actress_mode_reduced_motion_guard_on_fade_in(self):
+        """Codex P2: toggleActressMode 內 inline newEl fade-in 必須檢查 prefersReducedMotion（與 animations.js shouldSkip 同條件）"""
+        js = self._core_js()
+        body = self._extract_method_body(js, 'toggleActressMode')
+        # 函數體內必須有 prefersReducedMotion 檢查
+        assert 'prefersReducedMotion' in body, \
+            "toggleActressMode 函數體缺少 prefersReducedMotion guard（reduced-motion 應跳過 inline fade-in）"
+        # 具體：newEl fade-in 之前的 if 條件必須包含否定 prefersReducedMotion
+        assert re.search(
+            r'!\s*window\.OpenAver\??\.?\s*\??\.?\s*prefersReducedMotion',
+            body,
+        ), "toggleActressMode inline newEl fade-in guard 應包含 !window.OpenAver?.prefersReducedMotion"
+        # newEl fade-in 區塊（gsap.fromTo(newEl,...)）的 if 條件必須涵蓋 prefersReducedMotion
+        pattern = re.compile(
+            r'if\s*\([^)]*newEl[^)]*typeof\s+gsap[^)]*prefersReducedMotion[^)]*\)\s*\{[^}]*gsap\.fromTo\s*\(\s*newEl',
+            re.DOTALL,
+        )
+        assert pattern.search(body), \
+            "toggleActressMode inline newEl fade-in 的 if 條件應同時涵蓋 newEl + gsap + prefersReducedMotion"
