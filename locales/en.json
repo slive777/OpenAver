@@ -495,7 +495,8 @@
       "minutes": "min",
       "minutes_abbr": "min",
       "videos_count": "",
-      "films": " films"
+      "films": " films",
+      "actresses": "actresses"
     },
     "per_page": {
       "all": "All"
@@ -505,7 +506,11 @@
       "total_suffix": "videos",
       "search_prefix": "Search \"",
       "search_middle": "\" — Found",
-      "search_suffix": ""
+      "search_suffix": "",
+      "search_empty": "No matching films",
+      "search_actresses_prefix": "Found ",
+      "search_actresses_middle": " actresses for \"",
+      "search_actresses_suffix": "\""
     },
     "nav": {
       "prev_page": "Previous",
@@ -556,7 +561,7 @@
       "thumb_alt": "Thumbnail"
     },
     "shortcut": {
-      "switch_mode": "Switch Mode",
+      "switch_mode": "Switch view",
       "toggle_info": "Toggle Info",
       "pagination": "Pagination",
       "close": "Close"

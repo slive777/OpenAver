@@ -3273,8 +3273,9 @@ class TestShowcaseAnimationsGuard:
             "showcase/animations.js playModeCrossfade 仍是 placeholder — "
             "B10 必須替換為完整實作"
         )
-        assert 'gsap.fromTo' in method_body, (
-            "showcase/animations.js playModeCrossfade 缺少 gsap.fromTo — "
+        # 49a-T1: 重構為 timeline 模式後可用 tl.fromTo（同效）；接受任一 fromTo 變體
+        assert ('gsap.fromTo' in method_body or 'tl.fromTo' in method_body), (
+            "showcase/animations.js playModeCrossfade 缺少 fromTo 呼叫 — "
             "B10 必須包含 opacity crossfade 動畫"
         )
         assert 'clearProps' in method_body, (

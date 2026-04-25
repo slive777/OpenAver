@@ -3470,24 +3470,22 @@ class TestModeToggleFadeOutGuard:
         )
 
     def test_toggle_actress_mode_reduced_motion_guard_on_fade_in(self):
-        """Codex P2: toggleActressMode 內 inline newEl fade-in 必須檢查 prefersReducedMotion（與 animations.js shouldSkip 同條件）"""
+        """Codex P2: toggleActressMode 內 newEl fade-in 必須有 reduced-motion 防護。
+
+        49a-T4 起：原本的 inline `gsap.fromTo` 已重構為呼叫
+        `window.ShowcaseAnimations.playContainerFadeIn`，該 helper 內部的
+        `shouldSkip()` 已涵蓋 reduced-motion。本 test 接受兩種寫法擇一：
+        (a) inline guard（舊架構）— 函數體內含 `prefersReducedMotion` 檢查
+        (b) helper 委派（新架構）— 函數體內呼叫 `playContainerFadeIn`
+        """
         js = self._core_js()
         body = self._extract_method_body(js, 'toggleActressMode')
-        # 函數體內必須有 prefersReducedMotion 檢查
-        assert 'prefersReducedMotion' in body, \
-            "toggleActressMode 函數體缺少 prefersReducedMotion guard（reduced-motion 應跳過 inline fade-in）"
-        # 具體：newEl fade-in 之前的 if 條件必須包含否定 prefersReducedMotion
-        assert re.search(
-            r'!\s*window\.OpenAver\??\.?\s*\??\.?\s*prefersReducedMotion',
-            body,
-        ), "toggleActressMode inline newEl fade-in guard 應包含 !window.OpenAver?.prefersReducedMotion"
-        # newEl fade-in 區塊（gsap.fromTo(newEl,...)）的 if 條件必須涵蓋 prefersReducedMotion
-        pattern = re.compile(
-            r'if\s*\([^)]*newEl[^)]*typeof\s+gsap[^)]*prefersReducedMotion[^)]*\)\s*\{[^}]*gsap\.fromTo\s*\(\s*newEl',
-            re.DOTALL,
+        has_inline_guard = 'prefersReducedMotion' in body
+        has_helper_delegation = 'playContainerFadeIn' in body
+        assert has_inline_guard or has_helper_delegation, (
+            "toggleActressMode newEl fade-in 應走 inline prefersReducedMotion guard，"
+            "或委派 ShowcaseAnimations.playContainerFadeIn helper（後者 shouldSkip 已涵蓋）"
         )
-        assert pattern.search(body), \
-            "toggleActressMode inline newEl fade-in 的 if 條件應同時涵蓋 newEl + gsap + prefersReducedMotion"
 
 
 class TestAliasLiveQueryGuard:
@@ -3638,3 +3636,177 @@ class TestGhostFlyInFlightGuard:
             "showcase.html grid camera button 缺少 searchActressFilms(actress.name, $el) 呼叫"
         assert "searchActressFilms(currentLightboxActress?.name, $el)" in html, \
             "showcase.html lightbox camera button 缺少 searchActressFilms(currentLightboxActress?.name, $el) 呼叫"
+
+
+# ============================================================================
+# 49a-T4: 底部 footer 整合（status bar 移除 + 三段式 footer + i18n 同步）
+# ============================================================================
+
+LOCALES_DIR = Path(__file__).parent.parent.parent / "locales"
+LOCALE_FILES = ["zh_TW.json", "zh_CN.json", "en.json", "ja.json"]
+SHOWCASE_CSS = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "pages" / "showcase.css"
+
+
+class TestT4FooterStructure:
+    """49a-T4: 確保 showcase.html 已將 status bar 移除並改用三段式底部 footer"""
+
+    def _html(self):
+        return SHOWCASE_HTML.read_text(encoding="utf-8")
+
+    def _css(self):
+        return SHOWCASE_CSS.read_text(encoding="utf-8")
+
+    def test_status_bar_removed_from_showcase(self):
+        """showcase.html 不應再有 class=\"showcase-status-bar\"（已移至 footer，design-system 仍保留 demo）"""
+        html = self._html()
+        assert 'class="showcase-status-bar"' not in html, \
+            "showcase.html 仍含 class=\"showcase-status-bar\"，T4 應整塊刪除（design-system demo 不算）"
+
+    def test_footer_root_class_present(self):
+        """showcase.html 含底部 footer 容器 class=\"showcase-footer\""""
+        html = self._html()
+        assert 'class="showcase-footer"' in html, \
+            "showcase.html 缺少 class=\"showcase-footer\"（T4 三段式底部）"
+
+    def test_footer_three_columns_present(self):
+        """footer 三段：footer-left / footer-center / footer-right 全部存在"""
+        html = self._html()
+        for cls in ("footer-left", "footer-center", "footer-right"):
+            assert f'class="{cls}"' in html, \
+                f"showcase.html 缺少 class=\"{cls}\"（T4 三段式 footer 結構）"
+
+    def test_footer_left_has_mode_icons(self):
+        """footer-left 含影片 / 女優模式 icon（bi-film + bi-person-circle）"""
+        html = self._html()
+        # 取 footer 區塊（從 showcase-footer 開始 700 字元內）
+        idx = html.find('class="showcase-footer"')
+        assert idx >= 0, "showcase-footer 未找到，無法驗證 icon"
+        snippet = html[idx:idx + 4000]
+        assert "bi-film" in snippet, "footer-left 影片模式應含 bi-film icon（與 toolbar mode toggle 一致）"
+        assert "bi-person-circle" in snippet, "footer-left 女優模式應含 bi-person-circle icon"
+
+    def test_footer_center_has_four_kbd_shortcuts(self):
+        """footer-center 永遠顯示 4 組快捷鍵（A / S / ←→ / ESC）"""
+        html = self._html()
+        idx = html.find('class="footer-center"')
+        assert idx >= 0, "footer-center 未找到"
+        snippet = html[idx:idx + 1500]
+        for key in ("<kbd>A</kbd>", "<kbd>S</kbd>", "<kbd>ESC</kbd>"):
+            assert key in snippet, f"footer-center 缺少快捷鍵 {key}"
+        # 左右箭頭鍵
+        assert "<kbd>←</kbd>" in snippet and "<kbd>→</kbd>" in snippet, \
+            "footer-center 缺少 ←/→ kbd"
+
+    def test_footer_right_pager_x_show(self):
+        """footer-right 內 footer-pager 含 x-show=\"!showFavoriteActresses && totalPages > 1\""""
+        html = self._html()
+        assert 'class="footer-pager"' in html, "showcase.html 缺少 class=\"footer-pager\""
+        assert 'x-show="!showFavoriteActresses && totalPages > 1"' in html, \
+            "footer-pager 缺少 x-show=\"!showFavoriteActresses && totalPages > 1\" 條件綁定"
+
+    def test_footer_pager_buttons_and_select(self):
+        """footer-pager 包含 prevPage / nextPage 按鈕 + invisible page select (pageSelectFooter)"""
+        html = self._html()
+        idx = html.find('class="footer-pager"')
+        assert idx >= 0
+        snippet = html[idx:idx + 2500]
+        assert 'prevPage()' in snippet, "footer-pager 缺少 prevPage() 綁定"
+        assert 'nextPage()' in snippet, "footer-pager 缺少 nextPage() 綁定"
+        assert 'x-ref="pageSelectFooter"' in snippet, \
+            "footer-pager 缺少 x-ref=\"pageSelectFooter\"（隱藏 select）"
+        assert 'class="pager-current"' in snippet, "footer-pager 缺少 .pager-current 可點擊區"
+
+    def test_footer_no_x_data(self):
+        """footer 不可加 x-data（避免 nested Alpine scope 讓父級 state 變 undefined）"""
+        html = self._html()
+        idx = html.find('class="showcase-footer"')
+        assert idx >= 0
+        # 找到 .showcase-footer 所在 <div> 的起始位置（往前找最近的 '<div'）
+        div_start = html.rfind('<div', 0, idx)
+        assert div_start >= 0, "showcase-footer 找不到對應 <div> 起始 tag"
+        end = html.find('>', idx)
+        opening_tag = html[div_start:end + 1]
+        assert 'x-data' not in opening_tag, \
+            "showcase-footer 起始 tag 不可加 x-data（會建立 nested Alpine scope）"
+
+    def test_css_showcase_footer_rule_exists(self):
+        """showcase.css 含 .showcase-footer rule（position fixed bottom 三段式）"""
+        css = self._css()
+        assert ".showcase-footer" in css, "showcase.css 缺少 .showcase-footer 規則"
+        assert ".footer-left" in css, "showcase.css 缺少 .footer-left 規則"
+        assert ".footer-center" in css, "showcase.css 缺少 .footer-center 規則"
+        assert ".footer-right" in css, "showcase.css 缺少 .footer-right 規則"
+        assert ".footer-pager" in css, "showcase.css 缺少 .footer-pager 規則"
+
+    def test_css_responsive_hides_left_and_center(self):
+        """showcase.css responsive @media (max-width: 640px) 隱藏 footer-left + footer-center"""
+        css = self._css()
+        # 找 max-width: 640px 區塊
+        match = re.search(
+            r"@media\s*\(max-width:\s*640px\s*\)\s*\{([^@]*?\.footer-left[^@]*?)\}",
+            css,
+            re.DOTALL,
+        )
+        # 寬鬆驗證：只要 max-width:640px 的 media query 內出現 footer-left 與 footer-center 即可
+        media_match = re.search(
+            r"@media\s*\(max-width:\s*640px\s*\)\s*\{(.*?)\n\}",
+            css,
+            re.DOTALL,
+        )
+        assert media_match is not None, "showcase.css 缺少 @media (max-width: 640px) 區塊"
+        body = media_match.group(1)
+        assert ".footer-left" in body and ".footer-center" in body, \
+            "@media (max-width: 640px) 應隱藏 .footer-left 和 .footer-center"
+        assert "display: none" in body or "display:none" in body, \
+            "@media (max-width: 640px) 應有 display: none 規則"
+
+
+class TestT4I18n:
+    """49a-T4: 確保四語系新 i18n key 全部存在且 switch_mode 已改值"""
+
+    @staticmethod
+    def _load(locale):
+        return json.loads((LOCALES_DIR / locale).read_text(encoding="utf-8"))
+
+    @staticmethod
+    def _showcase(data):
+        return data.get("showcase", {})
+
+    @pytest.mark.parametrize("locale", LOCALE_FILES)
+    def test_switch_mode_updated(self, locale):
+        """showcase.shortcut.switch_mode 四語系皆已改值（不再為舊文案）"""
+        data = self._load(locale)
+        val = self._showcase(data).get("shortcut", {}).get("switch_mode")
+        assert val, f"{locale}: showcase.shortcut.switch_mode 缺值"
+        # zh 系列舊值「切換模式 / 切换模式」不應再出現
+        if locale == "zh_TW.json":
+            assert val == "切換顯示", f"{locale}: switch_mode 應為「切換顯示」（目前 {val!r}）"
+        elif locale == "zh_CN.json":
+            assert val == "切换显示", f"{locale}: switch_mode 應為「切换显示」（目前 {val!r}）"
+        elif locale == "en.json":
+            assert val == "Switch view", f"{locale}: switch_mode 應為 'Switch view'（目前 {val!r}）"
+        elif locale == "ja.json":
+            assert val == "表示切替", f"{locale}: switch_mode 應為「表示切替」（目前 {val!r}）"
+
+    @pytest.mark.parametrize("locale", LOCALE_FILES)
+    def test_status_search_empty_present(self, locale):
+        """showcase.status.search_empty 四語系皆有值"""
+        data = self._load(locale)
+        val = self._showcase(data).get("status", {}).get("search_empty")
+        assert val, f"{locale}: 缺 showcase.status.search_empty"
+
+    @pytest.mark.parametrize("locale", LOCALE_FILES)
+    def test_status_search_actresses_three_parts(self, locale):
+        """showcase.status.search_actresses_{prefix,middle,suffix} 四語系皆存在"""
+        data = self._load(locale)
+        status = self._showcase(data).get("status", {})
+        for key in ("search_actresses_prefix", "search_actresses_middle", "search_actresses_suffix"):
+            assert key in status, f"{locale}: 缺 showcase.status.{key}"
+
+    @pytest.mark.parametrize("locale", LOCALE_FILES)
+    def test_unit_actresses_present(self, locale):
+        """showcase.unit.actresses 四語系皆有值（女優計數單位）"""
+        data = self._load(locale)
+        unit = self._showcase(data).get("unit", {})
+        assert "actresses" in unit, f"{locale}: 缺 showcase.unit.actresses key"
+        assert unit["actresses"], f"{locale}: showcase.unit.actresses 不可為空"

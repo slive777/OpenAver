@@ -2490,9 +2490,12 @@
             </div>
 
             <!-- Status Bar + Pagination -->
+            <!-- ⚠️ 49a-T4 (v0.7.8)：此元件已從 showcase 主頁移除，改用底部 .showcase-footer 三段式統合
+                 (左 count + 中 shortcut + 右 pager)。此 demo 保留作為元件 reference / migration history，
+                 勿在新頁面再次使用 .showcase-status-bar / .page-btn / .page-select。 -->
             <div class="ds-subsection">
-                <h3>Status Bar + Pagination</h3>
-                <p class="ds-desc">Showcase 頁面固定於內容區頂端的狀態列，左側顯示統計資訊，右側顯示分頁控制。使用 <code>.showcase-status-bar</code>、<code>.status-total</code>、<code>.status-pagination</code>、<code>.page-btn</code>、<code>.page-select</code>。</p>
+                <h3>Status Bar + Pagination <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">(legacy reference — showcase 已改用底部 footer)</span></h3>
+                <p class="ds-desc">Showcase 頁面固定於內容區頂端的狀態列，左側顯示統計資訊，右側顯示分頁控制。使用 <code>.showcase-status-bar</code>、<code>.status-total</code>、<code>.status-pagination</code>、<code>.page-btn</code>、<code>.page-select</code>。<br><strong>⚠️ 注意：</strong>此元件自 v0.7.8 (49a-T4) 起已從 showcase 主頁移除，改由底部 <code>.showcase-footer</code> 三段式統合，此處保留作為元件 reference。</p>
 
                 <div style="position: relative; overflow: hidden; border-radius: 0.5rem; border: 1px solid var(--color-border);">
                     <div class="showcase-status-bar">

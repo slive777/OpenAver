@@ -8,7 +8,7 @@
     min-height: calc(100vh - 56px); /* 扣除 header */
     display: flex;
     flex-direction: column;
-    padding-bottom: 48px; /* 防止 shortcut-hint 遮擋最後一行卡片 (M4c) */
+    padding-bottom: 48px; /* 防止底部 .showcase-footer 遮擋最後一行卡片 (49a-T4 三段式 footer，高度約 40-44px) */
 
     /* Background Atmosphere — 對齊 Design System (design-system.css L6-11) */
     background:
@@ -130,6 +130,10 @@
 }
 
 /* ==================== Status Bar (M3g) ==================== */
+/* 49a-T4: status bar 已從 showcase 主頁移除（showcase.html 不再使用），
+   保留 CSS 是因為 design-system.html 仍引用 .showcase-status-bar / .status-total /
+   .status-pagination / .page-btn / .page-select 作為元件 reference demo。
+   勿在 showcase 主頁重新使用此元件，相關功能已整合至底部 .showcase-footer 三段式。 */
 
 .showcase-status-bar {
     display: flex;
@@ -1230,9 +1234,10 @@
         var(--bg-body);
 }
 
-/* ==================== Shortcut Hint (M4c) ==================== */
+/* ==================== Showcase Footer 三段式 (49a-T4) ==================== */
+/* 取代原 .shortcut-hint：左 count + 中 shortcut + 右 pager */
 
-.shortcut-hint {
+.showcase-footer {
     position: fixed;
     bottom: 0;
     left: 0;
@@ -1240,7 +1245,7 @@
     z-index: 50;
 
     /* 背景 - 使用 Design System token */
-    background: var(--bg-header); /* color-mix 85% transparency + backdrop-filter */
+    background: var(--bg-header);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-top: 1px solid var(--stroke-subtle);
@@ -1248,36 +1253,76 @@
     /* 間距 */
     padding: 0.5rem 1rem;
 
-    /* 布局 */
+    /* 三段 flexbox */
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+/* Left: count pill */
+.footer-left {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0; /* 允許 flex shrink */
+}
+
+.footer-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.footer-count i {
+    font-size: 0.9375rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.footer-count b {
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    padding: 0 2px;
+}
+
+/* Center: shortcut hint */
+.footer-center {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
     justify-content: center;
 }
 
-.hint-text {
-    font-size: 0.8125rem;
-    color: var(--text-muted); /* Design System token */
+.footer-center .hint-text {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     flex-wrap: wrap;
 }
 
-/* Keyboard Key Styling */
-.shortcut-hint kbd {
+/* Keyboard Key Styling — 對齊原 .shortcut-hint kbd 視覺 */
+.showcase-footer kbd {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     min-width: 1.75rem;
     padding: 0.125rem 0.375rem;
 
-    /* 視覺效果 */
     background: var(--surface-1);
     border: 1px solid var(--stroke-default);
     border-radius: var(--radius-sm);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 
-    /* 字體 */
     font-family: var(--font-mono);
     font-size: 0.75rem;
     font-weight: 600;
@@ -1285,13 +1330,78 @@
     line-height: 1;
 }
 
-/* 響應式：小螢幕隱藏提示文字（避免擠壓） */
+/* Right: pager pill */
+.footer-right {
+    display: flex;
+    align-items: center;
+}
+
+.footer-pager {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    position: relative;
+}
+
+.pager-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.75rem;
+    height: 1.75rem;
+    padding: 0 0.5rem;
+    background: transparent;
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+}
+
+.pager-btn:hover:not(:disabled) {
+    background: var(--glow-subtle);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.pager-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.pager-current {
+    font-size: 0.8125rem;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+    padding: 0 6px;
+    cursor: pointer;
+    user-select: none;
+    transition: color var(--duration-fast) var(--ease-out);
+}
+
+.pager-current:hover {
+    color: var(--accent);
+}
+
+.pager-current b {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* 響應式：手機 <640px 只留右側 pager */
 @media (max-width: 640px) {
-    .shortcut-hint {
+    .showcase-footer {
+        justify-content: flex-end;
+        padding: 0.4rem 0.75rem;
+    }
+    .footer-left,
+    .footer-center {
         display: none;
     }
     .showcase-container {
-        padding-bottom: 0;
+        padding-bottom: 44px;
     }
 }
 

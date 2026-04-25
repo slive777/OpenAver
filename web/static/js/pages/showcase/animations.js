@@ -612,6 +612,46 @@
             );
 
             return tween;
+        },
+
+        /**
+         * 49a-T1/T7：容器 fade-in（opacity 0 → 1）
+         * 用途：x-if 重新掛載新容器後在 $nextTick 內呼叫，與 playModeCrossfade
+         * 的 oldEl fade-out 階段配對。caller 必須是被新掛載到 DOM 的元素。
+         * reduced-motion 與 gsap undefined 時直接 no-op。
+         */
+        playContainerFadeIn: function (el, options) {
+            options = options || {};
+            if (!el) return null;
+            if (typeof gsap === 'undefined') return null;
+            if (shouldSkip()) return null;
+            var dur = (typeof options.duration === 'number') ? options.duration : 0.2;
+            var ease = options.ease || 'power2.out';
+            return gsap.fromTo(el,
+                { opacity: 0 },
+                { opacity: 1, duration: dur, ease: ease, clearProps: 'opacity' }
+            );
+        },
+
+        /**
+         * 49a-T7 降級：來源圖輕微 pulse（scale 1.05 yoyo）
+         * 用途：ghost fly 降級時對來源圖做視覺回饋，告知用戶點擊已被處理。
+         * gsap undefined 或 reduced-motion 時直接 no-op。
+         */
+        playSourcePulse: function (el, options) {
+            options = options || {};
+            if (!el) return null;
+            if (typeof gsap === 'undefined') return null;
+            if (shouldSkip()) return null;
+            var scale = (typeof options.scale === 'number') ? options.scale : 1.05;
+            var dur = (typeof options.duration === 'number') ? options.duration : 0.1;
+            return gsap.to(el, {
+                scale: scale,
+                duration: dur,
+                yoyo: true,
+                repeat: 1,
+                ease: 'power2.inOut'
+            });
         }
     };
 

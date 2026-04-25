@@ -269,26 +269,7 @@
         <template x-if="!showFavoriteActresses">
         <div>
 
-        <!-- Status Bar (M3g) -->
-        <div class="showcase-status-bar">
-            <span class="status-total">
-                <template x-if="!search">
-                    <span>{{ t('showcase.status.total_prefix') }} <b x-text="filteredCount"></b> {{ t('showcase.status.total_suffix') }}</span>
-                </template>
-                <template x-if="search">
-                    <span>{{ t('showcase.status.search_prefix') }}<b x-text="search"></b>{{ t('showcase.status.search_middle') }} <b x-text="filteredCount"></b> {{ t('showcase.status.search_suffix') }}</span>
-                </template>
-            </span>
-            <div class="status-pagination" x-show="totalPages > 1">
-                <button class="page-btn" @click="prevPage()" :disabled="page === 1">← {{ t('showcase.nav.prev_page') }}</button>
-                <select class="page-select" x-model.number="page" @change="goToPage(page)">
-                    <template x-for="p in totalPages" :key="p">
-                        <option :value="p" x-text="`${p} / ${totalPages}`" :selected="p === page"></option>
-                    </template>
-                </select>
-                <button class="page-btn" @click="nextPage()" :disabled="page === totalPages">{{ t('showcase.nav.next_page') }} →</button>
-            </div>
-        </div>
+        <!-- Status Bar 已於 v0.7.8 (49a-T4) 移除，統合至底部 .showcase-footer 三段式 -->
 
         <!-- Image Grid -->
         <div class="showcase-grid" x-show="mode === 'grid'">
@@ -887,14 +868,81 @@
         </div>
     </div>
 
-    <!-- Shortcut Hint (M4c) -->
-    <div class="shortcut-hint">
-        <span class="hint-text">
-            <kbd>A</kbd> {{ t('showcase.shortcut.switch_mode') }} ·
-            <kbd>S</kbd> {{ t('showcase.shortcut.toggle_info') }} ·
-            <kbd>←</kbd> <kbd>→</kbd> {{ t('showcase.shortcut.pagination') }} ·
-            <kbd>ESC</kbd> {{ t('showcase.shortcut.close') }}
-        </span>
+    <!-- Footer 三段式 (49a-T4)：左 count + 中 shortcut + 右 pager -->
+    <!-- ⚠️ 不可加 x-data（會建立 nested Alpine scope，讓 showFavoriteActresses / totalPages / filteredCount 等 state 全變 undefined）。
+         footer 在 showcase.html 頂層 x-data="showcaseState" 作用域內，直接用父級 state。 -->
+    <div class="showcase-footer">
+        <!-- Left: count pill + mode icon -->
+        <div class="footer-left">
+            <!-- 影片模式 -->
+            <template x-if="!showFavoriteActresses">
+                <span class="footer-count">
+                    <i class="bi bi-film"></i>
+                    <template x-if="!search">
+                        <span><b x-text="filteredCount"></b> {{ t('showcase.status.total_suffix') }}</span>
+                    </template>
+                    <template x-if="search && filteredCount > 0">
+                        <span>{{ t('showcase.status.search_prefix') }}<b x-text="search"></b>{{ t('showcase.status.search_middle') }} <b x-text="filteredCount"></b> {{ t('showcase.status.search_suffix') }}</span>
+                    </template>
+                    <template x-if="search && filteredCount === 0">
+                        <span x-text="t('showcase.status.search_empty')"></span>
+                    </template>
+                </span>
+            </template>
+            <!-- 女優模式 -->
+            <template x-if="showFavoriteActresses">
+                <span class="footer-count">
+                    <i class="bi bi-person-circle"></i>
+                    <template x-if="!actressSearch">
+                        <span><b x-text="filteredActressCount"></b> {{ t('showcase.unit.actresses') }}</span>
+                    </template>
+                    <template x-if="actressSearch && filteredActressCount > 0">
+                        <span>{{ t('showcase.status.search_actresses_prefix') }}<b x-text="filteredActressCount"></b>{{ t('showcase.status.search_actresses_middle') }}<b x-text="actressSearch"></b>{{ t('showcase.status.search_actresses_suffix') }}</span>
+                    </template>
+                </span>
+            </template>
+        </div>
+
+        <!-- Center: shortcut hint（永遠顯示）-->
+        <div class="footer-center">
+            <span class="hint-text">
+                <kbd>A</kbd> {{ t('showcase.shortcut.switch_mode') }} ·
+                <kbd>S</kbd> {{ t('showcase.shortcut.toggle_info') }} ·
+                <kbd>←</kbd> <kbd>→</kbd> {{ t('showcase.shortcut.pagination') }} ·
+                <kbd>ESC</kbd> {{ t('showcase.shortcut.close') }}
+            </span>
+        </div>
+
+        <!-- Right: pager pill（影片模式 + totalPages > 1 才顯示）-->
+        <div class="footer-right">
+            <div class="footer-pager" x-show="!showFavoriteActresses && totalPages > 1">
+                <button class="pager-btn"
+                        @click="prevPage()"
+                        :disabled="page === 1"
+                        :aria-label="t('showcase.nav.prev_page')"
+                        :title="t('showcase.nav.prev_page')">‹</button>
+                <span class="pager-current"
+                      @click="$refs.pageSelectFooter.click()"
+                      :title="t('showcase.shortcut.pagination')">
+                    <b x-text="page"></b>/<b x-text="totalPages"></b>
+                </span>
+                <select class="page-select" x-ref="pageSelectFooter"
+                        x-model.number="page"
+                        @change="goToPage(page)"
+                        tabindex="-1"
+                        aria-hidden="true"
+                        style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px">
+                    <template x-for="p in totalPages" :key="p">
+                        <option :value="p" x-text="p" :selected="p === page"></option>
+                    </template>
+                </select>
+                <button class="pager-btn"
+                        @click="nextPage()"
+                        :disabled="page === totalPages"
+                        :aria-label="t('showcase.nav.next_page')"
+                        :title="t('showcase.nav.next_page')">›</button>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

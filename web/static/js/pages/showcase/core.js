@@ -463,13 +463,8 @@ function showcaseState() {
                         : newMode === 'list' ? '.showcase-list-wrapper'
                         : '.showcase-grid';
                     var newEl = document.querySelector(newSelector);
-                    // Codex P2: reduced-motion 跳過 inline fade-in（與 animations.js shouldSkip 同條件）
-                    if (newEl && typeof gsap !== 'undefined' && !window.OpenAver?.prefersReducedMotion) {
-                        gsap.fromTo(newEl,
-                            { opacity: 0 },
-                            { opacity: 1, duration: 0.2, ease: 'power2.out', clearProps: 'opacity' }
-                        );
-                    }
+                    // Codex P2: reduced-motion / gsap missing 由 helper 內 shouldSkip / typeof 守衛處理
+                    window.ShowcaseAnimations?.playContainerFadeIn?.(newEl);
                     if (needEntry) {
                         var grid = self._getActiveGrid();
                         window.ShowcaseAnimations?.playEntry?.(grid);
@@ -1031,9 +1026,7 @@ function showcaseState() {
                 this.$nextTick(function () {
                     if (self._animGeneration !== gen) return;
                     var newEl = document.querySelector('.showcase-grid');
-                    if (newEl && typeof gsap !== 'undefined') {
-                        gsap.fromTo(newEl, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: 'power2.out', clearProps: 'opacity' });
-                    }
+                    window.ShowcaseAnimations?.playContainerFadeIn?.(newEl);
                     window.ShowcaseAnimations?.playEntry?.(self._getActiveGrid());
                 });
 
@@ -1096,15 +1089,10 @@ function showcaseState() {
                 } else {
                     // 降級流程：來源圖 pulse + 保留搜尋結果（搜尋欄 / empty state 已自動處理）
                     self._ghostFlyInFlight = false;
-                    if (fromEl && typeof gsap !== 'undefined') {
+                    if (fromEl) {
                         var pulseTarget = fromEl.closest('.actress-card')?.querySelector('.actress-card-photo img')
                             || fromEl.closest('.showcase-lightbox')?.querySelector('.lightbox-cover img');
-                        if (pulseTarget) {
-                            gsap.to(pulseTarget, {
-                                scale: 1.05, duration: 0.1, yoyo: true, repeat: 1,
-                                ease: 'power2.inOut'
-                            });
-                        }
+                        window.ShowcaseAnimations?.playSourcePulse?.(pulseTarget);
                     }
                 }
             } catch (e) {

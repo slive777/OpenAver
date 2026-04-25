@@ -495,7 +495,8 @@
       "minutes": "分钟",
       "minutes_abbr": "分",
       "videos_count": " 部",
-      "films": "部作品"
+      "films": "部作品",
+      "actresses": "位女优"
     },
     "per_page": {
       "all": "全部"
@@ -505,7 +506,11 @@
       "total_suffix": "部影片",
       "search_prefix": "搜索 \"",
       "search_middle": "\" — 找到",
-      "search_suffix": "部"
+      "search_suffix": "部",
+      "search_empty": "没有符合的影片",
+      "search_actresses_prefix": "找到 ",
+      "search_actresses_middle": " 位女优 \"",
+      "search_actresses_suffix": "\""
     },
     "nav": {
       "prev_page": "上一页",
@@ -556,7 +561,7 @@
       "thumb_alt": "缩图"
     },
     "shortcut": {
-      "switch_mode": "切换模式",
+      "switch_mode": "切换显示",
       "toggle_info": "显示信息",
       "pagination": "翻页",
       "close": "关闭"

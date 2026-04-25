@@ -499,7 +499,8 @@
       "minutes": "分鐘",
       "minutes_abbr": "分",
       "videos_count": " 部",
-      "films": "部作品"
+      "films": "部作品",
+      "actresses": "位女優"
     },
     "per_page": {
       "all": "全部"
@@ -509,7 +510,11 @@
       "total_suffix": "部影片",
       "search_prefix": "搜尋 \"",
       "search_middle": "\" — 找到",
-      "search_suffix": "部"
+      "search_suffix": "部",
+      "search_empty": "沒有符合的影片",
+      "search_actresses_prefix": "找到 ",
+      "search_actresses_middle": " 位女優 \"",
+      "search_actresses_suffix": "\""
     },
     "nav": {
       "prev_page": "上一頁",
@@ -560,7 +565,7 @@
       "thumb_alt": "縮圖"
     },
     "shortcut": {
-      "switch_mode": "切換模式",
+      "switch_mode": "切換顯示",
       "toggle_info": "顯示資訊",
       "pagination": "翻頁",
       "close": "關閉"

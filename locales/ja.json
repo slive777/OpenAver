@@ -495,7 +495,8 @@
       "minutes": "分",
       "minutes_abbr": "分",
       "videos_count": "本",
-      "films": "作品"
+      "films": "作品",
+      "actresses": "人"
     },
     "per_page": {
       "all": "すべて"
@@ -505,7 +506,11 @@
       "total_suffix": "本",
       "search_prefix": "\"",
       "search_middle": "\" の検索結果：",
-      "search_suffix": "本"
+      "search_suffix": "本",
+      "search_empty": "該当する作品はありません",
+      "search_actresses_prefix": "",
+      "search_actresses_middle": " 人 \"",
+      "search_actresses_suffix": "\""
     },
     "nav": {
       "prev_page": "前のページ",
