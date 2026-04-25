@@ -1320,12 +1320,8 @@
             var coverCX = coverRect.left + coverRect.width / 2;
             var coverCY = coverRect.top + coverRect.height / 2;
 
-            var usePhysics = (typeof Physics2DPlugin !== 'undefined');
-            var velocity = params.velocity || 400;
-            var angleStart = params.angleStart || 200;
-            var angleEnd = params.angleEnd || 340;
-            var gravity = params.gravity || 600;
-            var friction = params.friction || 0.04;
+            var arcOvershoot = (params.arcOvershoot !== undefined) ? params.arcOvershoot : 1.4;
+            var arcDuration = (params.arcDuration !== undefined) ? params.arcDuration : 0.6;
             var streamMode = opts.streamMode || 'instant';
             var streamInterval = opts.streamInterval || 300;
             var floatTimerSink = opts.floatTimerSink || [];
@@ -1342,64 +1338,32 @@
                 var startX = coverCX - elCX;
                 var startY = coverCY - elCY;
 
-                // 計算角度（N 等分 + jitter）
-                var n = els.length;
-                var angleRange = angleEnd - angleStart;
-                var baseAngle = angleStart + (angleRange / Math.max(n - 1, 1)) * index;
-                var jitter = (Math.random() - 0.5) * (angleRange / n) * 0.2;
-                var angle = baseAngle + jitter;
-
-                gsap.set(el, { x: startX, y: startY, opacity: 0, scale: 0.5 });
+                gsap.set(el, { x: startX, y: startY, scale: 0.5, opacity: 0.5, rotation: 0 });
 
                 var onBurstComplete = function () {
-                    // race token 檢查（settle 開始前）
+                    // race token 檢查
                     if (getRunId() !== runId) return;
-                    // settle 歸位：把 GSAP transform 拉回 layout baseline (x=0, y=0)
+                    // P2-3: 標記已落定，允許 hover 互動
+                    el.dataset.pickerSettled = '1';
+                    var tl = self.playPickerFloat(el, params);
+                    if (tl) floatTimerSink.push(tl);
+                };
+
+                try {
                     gsap.to(el, {
                         x: 0,
                         y: 0,
-                        duration: 0.25,
-                        ease: 'power2.out',
-                        onComplete: function () {
-                            // race token 再檢查（settle 進行中可能有新一輪 burst）
-                            if (getRunId() !== runId) return;
-                            // P2-3: 標記已落定，允許 hover 互動
-                            el.dataset.pickerSettled = '1';
-                            var tl = self.playPickerFloat(el, params);
-                            if (tl) floatTimerSink.push(tl);
-                        }
-                    });
-                };
-
-                if (usePhysics) {
-                    gsap.to(el, {
-                        physics2D: {
-                            velocity: velocity,
-                            angle: angle,
-                            gravity: gravity,
-                            friction: friction
-                        },
-                        opacity: 1,
                         scale: 1,
-                        duration: 1.2,
-                        ease: 'none',
+                        opacity: 1,
+                        rotation: 0,
+                        ease: 'back.out(' + arcOvershoot + ')',
+                        duration: arcDuration,
                         onComplete: onBurstComplete
                     });
-                } else {
-                    // Fallback：純 GSAP 計算 x/y 拋體位移
-                    var rad = (angle * Math.PI) / 180;
-                    var dist = velocity * 0.8;
-                    var tx = Math.cos(rad) * dist;
-                    var ty = Math.sin(rad) * dist;
-                    gsap.to(el, {
-                        x: '+=' + tx,
-                        y: '+=' + ty,
-                        opacity: 1,
-                        scale: 1,
-                        duration: 0.7,
-                        ease: 'power2.out',
-                        onComplete: onBurstComplete
-                    });
+                } catch (e) {
+                    // fallback：直接歸位
+                    gsap.set(el, { x: 0, y: 0, scale: 1, opacity: 1, rotation: 0 });
+                    onBurstComplete();
                 }
             }
 

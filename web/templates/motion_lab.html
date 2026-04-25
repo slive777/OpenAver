@@ -1294,54 +1294,24 @@
         <!-- ===== Photo Picker 控制項 ===== -->
         <div class="control-divider" x-show="tab === 'picker'">Photo Picker</div>
 
-        <!-- Velocity -->
+        <!-- Arc Overshoot -->
         <div class="control-group" :style="tab !== 'picker' ? 'opacity:0.4' : ''">
-            <span class="control-label">Velocity</span>
+            <span class="control-label">Arc Overshoot</span>
             <input type="range" class="control-slider"
-                   min="200" max="600" step="10"
+                   min="0.5" max="2.5" step="0.1"
                    :disabled="tab !== 'picker'"
-                   x-model.number="pickerParams.velocity">
-            <span class="control-value" x-text="pickerParams.velocity + 'px/s'"></span>
+                   x-model.number="pickerParams.arcOvershoot">
+            <span class="control-value" x-text="pickerParams.arcOvershoot.toFixed(1)"></span>
         </div>
 
-        <!-- Angle Start -->
+        <!-- Arc Duration -->
         <div class="control-group" :style="tab !== 'picker' ? 'opacity:0.4' : ''">
-            <span class="control-label">Angle Start</span>
+            <span class="control-label">Arc Duration</span>
             <input type="range" class="control-slider"
-                   min="0" max="180" step="5"
+                   min="0.3" max="1.2" step="0.05"
                    :disabled="tab !== 'picker'"
-                   x-model.number="pickerParams.angleStart">
-            <span class="control-value" x-text="pickerParams.angleStart + '°'"></span>
-        </div>
-
-        <!-- Angle End -->
-        <div class="control-group" :style="tab !== 'picker' ? 'opacity:0.4' : ''">
-            <span class="control-label">Angle End</span>
-            <input type="range" class="control-slider"
-                   min="0" max="180" step="5"
-                   :disabled="tab !== 'picker'"
-                   x-model.number="pickerParams.angleEnd">
-            <span class="control-value" x-text="pickerParams.angleEnd + '°'"></span>
-        </div>
-
-        <!-- Gravity -->
-        <div class="control-group" :style="tab !== 'picker' ? 'opacity:0.4' : ''">
-            <span class="control-label">Gravity</span>
-            <input type="range" class="control-slider"
-                   min="300" max="900" step="20"
-                   :disabled="tab !== 'picker'"
-                   x-model.number="pickerParams.gravity">
-            <span class="control-value" x-text="pickerParams.gravity + 'px/s²'"></span>
-        </div>
-
-        <!-- Friction -->
-        <div class="control-group" :style="tab !== 'picker' ? 'opacity:0.4' : ''">
-            <span class="control-label">Friction</span>
-            <input type="range" class="control-slider"
-                   min="0.01" max="0.1" step="0.005"
-                   :disabled="tab !== 'picker'"
-                   x-model.number="pickerParams.friction">
-            <span class="control-value" x-text="pickerParams.friction.toFixed(3)"></span>
+                   x-model.number="pickerParams.arcDuration">
+            <span class="control-value" x-text="pickerParams.arcDuration.toFixed(2) + 's'"></span>
         </div>
 
         <!-- Float Ampl Y -->

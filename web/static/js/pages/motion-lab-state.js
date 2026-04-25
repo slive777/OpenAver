@@ -86,11 +86,8 @@ function motionLabPage() {
 
         // Photo Picker 沙盒 state
         pickerParams: {
-            velocity: 400,
-            angleStart: 20,
-            angleEnd: 160,
-            gravity: 600,
-            friction: 0.04,
+            arcOvershoot: 1.4,
+            arcDuration: 0.6,
             floatAmplY: 8,
             floatAmplRot: 2.5,
             floatDuration: 1.5,
