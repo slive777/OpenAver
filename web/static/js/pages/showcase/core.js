@@ -86,6 +86,18 @@ function _killLightboxTimelines(options) {
 }
 
 function showcaseState() {
+    // 49b T4cd: Picker 動畫參數（T1 fix2 定案，2026-04-25）
+    // 供 BurstPicker.playPickerBurst/Float/HoverIn/HoverOut/ExitAll 使用
+    const _PICKER_PARAMS = {
+        arcOvershoot: 1.4,    // back.out 彈性係數（burst 爆射）
+        arcDuration:  0.6,    // burst 飛行時間（秒）
+        floatAmplY:   8,      // Float loop Y 幅度（px）
+        floatAmplRot: 2.5,    // Float loop 旋轉幅度（度）
+        floatDuration: 1.5,   // Float loop 基礎週期（秒）
+        hoverScale:   1.12,   // Hover 放大比例
+        exitGravity:  1200,   // 其他卡墜落重力（physics2D）
+    };
+
     return {
         // --- 狀態變數 ---
         loading: true,
@@ -152,6 +164,17 @@ function showcaseState() {
         _addingActress: false,          // 新增 loading
         _addDropdownOpen: false,        // + 新增 popover 開關
         _videoChipsExpanded: false,     // 影片 tag chips +N 展開（T4 使用）
+
+        // 49b T4cd: Actress Photo Picker 狀態
+        _pickerOpen: false,
+        _candidates: [],
+        _pickerLoading: false,
+        _pickerSelected: false,
+        _pickerCurrentSource: null,
+        _pickerFloatTweens: [],
+        _pickerRunId: 0,
+        _pickerSSE: null,
+        _pickerTimeoutTimer: null,
 
         // User Tags 狀態 (T4)
         addingLbTag: false,
@@ -2172,10 +2195,192 @@ function showcaseState() {
             }, duration);
         },
 
+        // --- 49b T4cd: Actress Photo Picker methods ---
+        /**
+         * 開啟候選卡 picker — async，遞增 runId，啟動 SSE，淡出 metadata
+         * 若已開且按 🔄：reset + 重抓
+         */
+        async openActressPicker() {
+            const name = this.currentLightboxActress?.name;
+            if (!name) return;
+
+            // Tear down any in-flight SSE/timer before starting a new one (refresh-while-open)
+            if (this._pickerSSE) { this._pickerSSE.close(); this._pickerSSE = null; }
+            if (this._pickerTimeoutTimer) { clearTimeout(this._pickerTimeoutTimer); this._pickerTimeoutTimer = null; }
+
+            if (this._pickerOpen) {
+                this._resetPicker();
+            }
+
+            this._pickerOpen = true;
+            this._pickerLoading = true;
+            this._pickerCurrentSource = this.currentLightboxActress?.photo_source || null;
+
+            // metadata 淡出（Row 1 actress-lb-header 保留）
+            this._fadeMetadataPanel(true);
+
+            this._pickerRunId++;
+            const runId = this._pickerRunId;
+
+            this._startPickerSSE(name, runId);
+        },
+
+        /**
+         * 啟動 EventSource，處理 candidate / done / error 事件 + 3s no-event timeout
+         */
+        _startPickerSSE(name, runId) {
+            const url = `/api/actresses/${encodeURIComponent(name)}/photo-candidates`;
+            const sse = new EventSource(url);
+            this._pickerSSE = sse;
+
+            const scheduleTimeout = () => {
+                clearTimeout(this._pickerTimeoutTimer);
+                this._pickerTimeoutTimer = setTimeout(() => {
+                    if (this._pickerRunId !== runId) return;
+                    sse.close();
+                    this._pickerLoading = false;
+                }, 3000);
+            };
+            scheduleTimeout();
+
+            sse.addEventListener('candidate', async (e) => {
+                if (this._pickerRunId !== runId) { sse.close(); return; }
+                try {
+                    const candidate = JSON.parse(e.data);
+                    this._candidates = [...this._candidates, candidate];
+                    await this.$nextTick();
+                    if (this._pickerRunId !== runId) return;
+
+                    const grid = this.$refs.pickerGrid;
+                    if (grid && typeof window.BurstPicker !== 'undefined') {
+                        const cards = grid.querySelectorAll('.picker-candidate-card');
+                        const newCard = cards[this._candidates.length - 1];
+                        if (newCard) {
+                            const coverEl = this.$el.querySelector('.lightbox-cover img');
+                            if (coverEl) {
+                                window.BurstPicker.playPickerBurst([newCard], coverEl, _PICKER_PARAMS, {
+                                    streamMode: 'instant',
+                                    streamInterval: 300,
+                                    floatTimerSink: this._pickerFloatTweens,
+                                    runId: runId,
+                                    getRunId: () => this._pickerRunId
+                                });
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.warn('[Picker] Failed to parse candidate:', err);
+                }
+                scheduleTimeout();
+            });
+
+            sse.addEventListener('done', () => {
+                if (this._pickerRunId !== runId) return;
+                sse.close();
+                this._pickerSSE = null;
+                this._pickerLoading = false;
+                clearTimeout(this._pickerTimeoutTimer);
+            });
+
+            sse.onerror = () => {
+                if (this._pickerRunId !== runId) return;
+                sse.close();
+                this._pickerLoading = false;
+                if (this._candidates.length === 0) {
+                    this._closePicker();
+                    if (typeof this.showToast === 'function') {
+                        this.showToast(window.t('showcase.actress.picker.error'), 'error');
+                    }
+                }
+            };
+        },
+
+        /**
+         * Hover in：放大 + glow（settled 後才生效）
+         */
+        _onPickerHoverIn(el, i) {
+            if (this._pickerSelected) return;
+            if (typeof window.BurstPicker !== 'undefined') {
+                window.BurstPicker.playPickerHoverIn(el, _PICKER_PARAMS);
+            }
+        },
+
+        /**
+         * Hover out：縮回原始尺寸
+         */
+        _onPickerHoverOut(el, i) {
+            if (this._pickerSelected) return;
+            if (typeof window.BurstPicker !== 'undefined') {
+                window.BurstPicker.playPickerHoverOut(el, _PICKER_PARAMS);
+            }
+        },
+
+        /**
+         * 選中卡片 — T4cd stub（僅鎖定 + 關閉 picker）
+         * T4e 將實作 POST /photo + FlipReplace + ExitAll + cache-bust + toast
+         */
+        async _onPickerSelect(candidate, i) {
+            if (this._pickerSelected) return;
+            this._pickerSelected = true;
+            // T4e implements POST /photo + FlipReplace + ExitAll + cache-bust + toast
+            this._closePicker();
+        },
+
+        /**
+         * 關閉 picker：停止 SSE、reset 狀態、metadata 淡入
+         */
+        _closePicker() {
+            this._pickerRunId++;   // invalidate any in-flight SSE callbacks
+            if (this._pickerSSE) {
+                this._pickerSSE.close();
+                this._pickerSSE = null;
+            }
+            clearTimeout(this._pickerTimeoutTimer);
+            this._pickerTimeoutTimer = null;
+            this._resetPicker();
+            this._fadeMetadataPanel(false);
+        },
+
+        /**
+         * 內部 reset：清空候選 + kill float tweens
+         */
+        _resetPicker() {
+            this._pickerOpen = false;
+            this._pickerLoading = false;
+            this._pickerSelected = false;
+            this._candidates = [];
+            this._pickerCurrentSource = null;
+            this._pickerFloatTweens.forEach(t => t && t.kill && t.kill());
+            this._pickerFloatTweens = [];
+        },
+
+        /**
+         * Metadata panel 淡出/淡入（Row 1 actress-lb-header 用 :not() 排除）
+         */
+        _fadeMetadataPanel(out) {
+            const meta = this.$el?.querySelector?.('.actress-lightbox-meta');
+            if (!meta || typeof gsap === 'undefined') return;
+            const rows = meta.querySelectorAll(':not(.actress-lb-header)');
+            if (rows.length === 0) return;
+            gsap.to(rows, {
+                opacity: out ? 0 : 1,
+                duration: 0.2,
+                ease: 'power2.out'
+            });
+        },
+
         // --- 快捷鍵 (M4c 完整實作) ---
         handleKeydown(e) {
             // 1. 輸入框中不處理快捷鍵
             if (e.target.tagName === 'INPUT') return;
+
+            // 49b T4cd: Picker 開啟時，Esc 優先關閉 picker（不冒泡到 lightbox close）
+            if (e.key === 'Escape' && this._pickerOpen) {
+                this._closePicker();
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
 
             // 2. modifier keys 停用（原版 L1667）
             if (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;

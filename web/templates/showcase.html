@@ -558,7 +558,8 @@
                                  x-show="!currentLightboxActress?.photo_url">
                                 <i class="bi bi-person-circle" style="font-size:4rem; opacity:0.3"></i>
                             </div>
-                            <div class="cover-actions">
+                            <div class="cover-actions"
+                                 :data-picker-open="_pickerOpen">
                                 <button class="lb-action-btn"
                                         x-show="actressLightboxSource === 'grid'"
                                         @click.stop="searchActressFilms(currentLightboxActress?.name, $el)"
@@ -574,6 +575,14 @@
                                         :data-tooltip="t('showcase.actress.remove')"
                                         :aria-label="t('showcase.actress.remove')">
                                     <i class="bi bi-trash"></i>
+                                </button>
+                                <!-- 換照片按鈕（49b T4cd）-->
+                                <button class="lb-action-btn"
+                                        x-show="currentLightboxActress?.is_favorite"
+                                        @click.stop="openActressPicker()"
+                                        :data-tooltip="t('showcase.actress.change_photo')"
+                                        :aria-label="t('showcase.actress.change_photo')">
+                                    <i class="bi bi-arrow-clockwise" :class="{ spin: _pickerLoading }"></i>
                                 </button>
                             </div>
                         </div>
@@ -631,6 +640,48 @@
                                    rel="noopener"
                                    x-text="currentLightboxActress?.official_url"></a>
                             </div>
+                        </div>
+
+                        <!-- Picker 候選展開區（49b T4cd）-->
+                        <div class="actress-picker-area"
+                             x-show="_pickerOpen"
+                             @click.stop
+                             @click.outside="_pickerOpen && _closePicker()">
+                            <div class="picker-current-source"
+                                 x-show="_pickerCurrentSource">
+                                <span x-text="t('showcase.actress.picker.current_source').replace('{source}', t('showcase.actress.picker.source_' + _pickerCurrentSource) || _pickerCurrentSource)"></span>
+                            </div>
+                            <div class="picker-candidates-grid" x-ref="pickerGrid">
+                                <template x-for="(c, i) in _candidates" :key="i">
+                                    <div class="picker-candidate-card"
+                                         @mouseenter="_onPickerHoverIn($el, i)"
+                                         @mouseleave="_onPickerHoverOut($el, i)"
+                                         @click.stop="_onPickerSelect(c, i)">
+                                        <img :src="c.thumb_url" class="picker-candidate-img" loading="lazy" :alt="c.source">
+                                        <div class="picker-source-badge"
+                                             x-text="t('showcase.actress.picker.source_' + c.source) || c.source"></div>
+                                        <div class="picker-tooltip"
+                                             x-text="t('showcase.actress.picker.tooltip_pick')"></div>
+                                    </div>
+                                </template>
+                            </div>
+                            <div x-show="_pickerLoading && _candidates.length === 0" class="picker-loading">
+                                <i class="bi bi-hourglass-split"></i>
+                                <span x-text="t('showcase.actress.picker.loading')"></span>
+                            </div>
+                            <div x-show="!_pickerLoading && _pickerOpen && _candidates.length === 0" class="picker-empty">
+                                <i class="bi bi-image"></i>
+                                <p x-text="t('showcase.actress.picker.empty')"></p>
+                                <p class="picker-empty-hint" x-text="t('showcase.actress.picker.empty_hint')"></p>
+                            </div>
+                            <button class="picker-refresh-btn"
+                                    x-show="_candidates.length > 0"
+                                    @click.stop="openActressPicker()"
+                                    :disabled="_pickerLoading"
+                                    :title="t('showcase.actress.change_photo')"
+                                    :aria-label="t('showcase.actress.change_photo')">
+                                <i class="bi bi-arrow-clockwise" :class="{ spin: _pickerLoading }"></i>
+                            </button>
                         </div>
                     </div>
                 </template>

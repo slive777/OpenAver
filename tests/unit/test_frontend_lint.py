@@ -3968,3 +3968,105 @@ class TestBurstPickerGuard:
         legacy = re.findall(r"window\.MotionLab\.playPicker\w+", js)
         assert not legacy, \
             f"motion-lab-state.js 仍有舊呼叫 window.MotionLab.playPicker*：{legacy}"
+
+
+# ─── 49b-T4cd: Actress Photo Picker UI/Alpine/SSE 整合守衛 ──────────────────
+SHOWCASE_CORE_JS_T4CD = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "showcase" / "core.js"
+SHOWCASE_CSS_T4CD = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "pages" / "showcase.css"
+
+
+class TestPickerIntegrationGuard:
+    """49b-T4cd: 守衛 Actress Photo Picker 在 Showcase Lightbox 的 UI + Alpine + SSE 整合"""
+
+    def _html(self):
+        return SHOWCASE_HTML.read_text(encoding="utf-8")
+
+    def _core_js(self):
+        return SHOWCASE_CORE_JS_T4CD.read_text(encoding="utf-8")
+
+    def _css(self):
+        return SHOWCASE_CSS_T4CD.read_text(encoding="utf-8")
+
+    def test_picker_button_in_cover_actions(self):
+        """🔄 button 出現在 cover-actions，含 i18n key + is_favorite guard"""
+        html = self._html()
+        assert "bi-arrow-clockwise" in html, \
+            "showcase.html 缺少 bi-arrow-clockwise icon（picker 🔄 button）"
+        assert "showcase.actress.change_photo" in html, \
+            "showcase.html 缺少 showcase.actress.change_photo i18n key"
+        assert "currentLightboxActress?.is_favorite" in html, \
+            "showcase.html 缺少 currentLightboxActress?.is_favorite x-show guard"
+
+    def test_picker_area_present(self):
+        """actress-picker-area 包含 grid / source-badge / loading / empty 必要結構"""
+        html = self._html()
+        for needle in (
+            "actress-picker-area",
+            "picker-candidates-grid",
+            "picker-source-badge",
+            "picker-loading",
+            "picker-empty",
+        ):
+            assert needle in html, f"showcase.html 缺少 {needle} 結構元素"
+
+    def test_picker_alpine_state_initialized(self):
+        """core.js 初始化 _pickerOpen / _pickerRunId / _candidates / _pickerSelected"""
+        js = self._core_js()
+        for needle in (
+            "_pickerOpen: false",
+            "_pickerRunId: 0",
+            "_candidates: []",
+            "_pickerSelected: false",
+        ):
+            assert needle in js, f"core.js 缺少 Alpine state 初始化：{needle}"
+
+    def test_picker_methods_defined(self):
+        """core.js 定義 5 個必要 picker method"""
+        js = self._core_js()
+        for method in (
+            "openActressPicker(",
+            "_startPickerSSE(",
+            "_closePicker(",
+            "_resetPicker(",
+            "_fadeMetadataPanel(",
+        ):
+            assert method in js, f"core.js 缺少 method 定義：{method}"
+
+    def test_picker_esc_priority(self):
+        """handleKeydown 中 Escape 必須優先檢查 _pickerOpen，再走原有邏輯"""
+        js = self._core_js()
+        # 規範：Escape 與 _pickerOpen 必須在 handleKeydown 內成對出現，且 _pickerOpen 優先
+        pattern = re.compile(r"Escape['\"].*?_pickerOpen", re.DOTALL)
+        assert pattern.search(js), \
+            "core.js handleKeydown 中 Escape 應優先檢查 this._pickerOpen"
+
+    def test_picker_params_constant(self):
+        """core.js 定義 _PICKER_PARAMS 常數，含 arcOvershoot / arcDuration"""
+        js = self._core_js()
+        assert "_PICKER_PARAMS" in js, "core.js 缺少 _PICKER_PARAMS 常數"
+        assert "arcOvershoot: 1.4" in js, \
+            "core.js _PICKER_PARAMS 缺少 arcOvershoot: 1.4"
+        assert "arcDuration:  0.6" in js or "arcDuration: 0.6" in js, \
+            "core.js _PICKER_PARAMS 缺少 arcDuration: 0.6"
+
+    def test_picker_css_rules_present(self):
+        """showcase.css 含 .picker-candidate-card opacity:0 + .actress-picker-area position:relative + spin keyframes"""
+        css = self._css()
+        assert ".picker-candidate-card" in css, \
+            "showcase.css 缺少 .picker-candidate-card 規則"
+        # picker-candidate-card 必須含 opacity: 0（防 1-frame paint glitch）
+        card_block = re.search(
+            r"\.picker-candidate-card\s*\{[^}]*\}", css, re.DOTALL
+        )
+        assert card_block, "找不到 .picker-candidate-card 樣式區塊"
+        assert "opacity: 0" in card_block.group(0), \
+            ".picker-candidate-card 缺少 opacity: 0（防 GSAP 起點 paint glitch）"
+        # actress-picker-area 必須 position: relative（refresh-btn absolute 定位依據）
+        area_block = re.search(
+            r"\.actress-picker-area\s*\{[^}]*\}", css, re.DOTALL
+        )
+        assert area_block, "找不到 .actress-picker-area 樣式區塊"
+        assert "position: relative" in area_block.group(0), \
+            ".actress-picker-area 缺少 position: relative"
+        assert "@keyframes spin" in css, \
+            "showcase.css 缺少 @keyframes spin 動畫"
