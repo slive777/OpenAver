@@ -56,6 +56,7 @@ EXPECTED_TOOL_NAMES = {
     "alias_crud_write",
     "alias_search_online",
     "fetch_samples",
+    "list_actress_photo_candidates",
 }
 
 REQUIRED_TOOL_FIELDS = [
@@ -102,9 +103,9 @@ class TestCapabilitiesEndpoint:
         data = client.get("/api/capabilities").json()
         assert "retry_hint" in data["error_format"]
 
-    def test_tools_count_is_28(self, client):
+    def test_tools_count_is_29(self, client):
         data = client.get("/api/capabilities").json()
-        assert len(data["tools"]) == 28
+        assert len(data["tools"]) == 29
 
     def test_all_tool_names_present(self, client):
         data = client.get("/api/capabilities").json()

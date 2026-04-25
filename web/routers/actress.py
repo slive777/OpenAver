@@ -10,17 +10,21 @@
 注意：photo/{name} 必須定義在 {name} 之前，否則 FastAPI 會將 "photo" 解析為 {name}。
 """
 
+import asyncio
+import json
+import random
 import re
 from typing import Optional, List
 from urllib.parse import quote
 
 from fastapi import APIRouter
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 from core.maker_mapping import load_prefix_mapping
 
-from core.database import ActressRepository, AliasRepository, Actress, init_db
-from core.actress_photo import download_actress_photo, get_local_photo_path, delete_local_photo
+from core.database import ActressRepository, AliasRepository, VideoRepository, Actress, init_db
+from core.actress_photo import download_actress_photo, get_local_photo_path, delete_local_photo, crop_video_cover
+from core.path_utils import to_file_uri
 from core.scrapers.actress.orchestrator import (
     get_cached_profile,
     get_actress_profile,
@@ -297,6 +301,163 @@ def list_actresses():
             "total": len(result),
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# Helper functions for photo-candidates SSE endpoint
+# 注意：必須放 module-level，不可嵌套在 generator 內
+# ---------------------------------------------------------------------------
+
+def _fetch_single_source(name: str, source: str) -> Optional[str]:
+    """
+    從指定雲端來源抓取女優照片 URL。
+    同步函數（用 asyncio.to_thread 呼叫）。
+
+    Returns:
+        URL str 或 None
+    """
+    try:
+        if source == "graphis":
+            from core.scrapers.actress.graphis import scrape_graphis_photo
+            r = scrape_graphis_photo(name)
+            return r.get("prof_url") if r else None
+        elif source == "gfriends":
+            from core.scrapers.actress.gfriends import lookup_gfriends
+            return lookup_gfriends(name, None)
+        elif source == "wiki":
+            from core.scrapers.actress.wiki_ja import scrape_wiki_ja
+            r = scrape_wiki_ja(name)
+            return r.get("photo_url") if r else None
+        elif source == "minnano":
+            from core.scrapers.actress.minnano_av import scrape_minnano_av
+            r = scrape_minnano_av(name)
+            return r.get("photo_url") if r else None
+        else:
+            return None
+    except Exception as e:
+        logger.warning("[actress] _fetch_single_source 失敗 source=%s: %s", source, e)
+        return None
+
+
+def _get_random_videos_with_covers(actress_name: str, count: int) -> list:
+    """
+    取得女優隨機影片（有封面的）。
+
+    Returns:
+        Video list（最多 count 筆，有 cover_path 且非空）
+    """
+    try:
+        init_db()
+        repo = VideoRepository()
+        videos = repo.get_videos_by_actress(actress_name)
+        with_covers = [v for v in videos if v.cover_path]
+        random.shuffle(with_covers)
+        return with_covers[:count]
+    except Exception as e:
+        logger.warning("[actress] _get_random_videos_with_covers 失敗: %s", e)
+        return []
+
+
+# ---------------------------------------------------------------------------
+# 端點七：GET /api/actresses/{name}/photo-candidates — SSE 候選照片串流
+# NOTE：必須定義在 GET /{name} 之前！
+# ---------------------------------------------------------------------------
+
+@router.get("/{name}/photo-candidates")
+async def list_photo_candidates(name: str):
+    """
+    SSE 串流回傳女優候選照片（最多 6 張）。
+    雲端 0–3 張並行抓取 + 本機影片封面 crop 補足至 6 張。
+    actress 不存在 → JSONResponse 404。
+    """
+    init_db()
+    repo = ActressRepository()
+    actress = repo.get_by_name(name)
+    if actress is None:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "not_found"}
+        )
+
+    current_source = actress.photo_source
+    cloud_sources = [s for s in ["graphis", "gfriends", "wiki", "minnano"] if s != current_source]
+
+    async def generate():
+        total = 0
+        max_cloud = 3
+
+        # 雲端並行抓取
+        async def fetch_source(src: str):
+            try:
+                url = await asyncio.wait_for(
+                    asyncio.to_thread(_fetch_single_source, name, src),
+                    timeout=5.0,
+                )
+                return (src, url)
+            except Exception:
+                return (src, None)
+
+        tasks = [asyncio.ensure_future(fetch_source(src)) for src in cloud_sources]
+        if tasks:
+            done_set, _ = await asyncio.wait(tasks, return_when=asyncio.ALL_COMPLETED)
+            for task in done_set:
+                src, url = task.result()
+                if url and total < max_cloud:
+                    event_data = json.dumps({
+                        "source": src,
+                        "thumb_url": url,
+                        "full_url": url,
+                    })
+                    yield f"event: candidate\ndata: {event_data}\n\n"
+                    total += 1
+
+        # 本機 crop 補足
+        needed = 6 - total
+        if needed > 0:
+            local_videos = await asyncio.to_thread(
+                _get_random_videos_with_covers, name, needed
+            )
+            for video in local_videos:
+                cover_path_str = str(video.cover_path)
+                encoded_path = quote(cover_path_str)
+                crop_url = f"/api/actresses/actress-crop?path={encoded_path}&spec=v1"
+                try:
+                    video_path_uri = to_file_uri(str(video.path))
+                except Exception as e:
+                    logger.warning("[actress] to_file_uri 轉換失敗 path=%s: %s", video.path, e)
+                    video_path_uri = str(video.path)
+                event_data = json.dumps({
+                    "source": "local_crop",
+                    "video_path": video_path_uri,
+                    "thumb_url": crop_url,
+                    "full_url": crop_url,
+                })
+                yield f"event: candidate\ndata: {event_data}\n\n"
+                total += 1
+
+        # done event
+        done_data = json.dumps({"total": total})
+        yield f"event: done\ndata: {done_data}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+# ---------------------------------------------------------------------------
+# 端點八：GET /api/actresses/actress-crop — on-demand 封面 crop
+# NOTE：必須定義在 GET /{name} 之前！
+# ---------------------------------------------------------------------------
+
+@router.get("/actress-crop")
+async def actress_crop(path: str, spec: str = "v1"):
+    """
+    對指定本機封面圖做 crop，回傳 JPEG bytes。
+    path: 本機 FS 路徑（URL-encoded）
+    spec: crop 規格版本（預設 v1）
+    """
+    result = await asyncio.to_thread(crop_video_cover, path, spec)
+    if result is None:
+        return Response(b"", status_code=404)
+    return Response(content=result, media_type="image/jpeg")
 
 
 # ---------------------------------------------------------------------------

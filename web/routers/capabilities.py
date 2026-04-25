@@ -900,6 +900,34 @@ _TOOLS: list[dict] = [
             " {base}/api/actress-aliases/search-online"
         ),
     },
+    {
+        "name": "list_actress_photo_candidates",
+        "description": (
+            "串流回傳女優候選照片列表（SSE）。"
+            "從 4 個雲端來源（graphis/gfriends/wiki/minnano）並行抓取，"
+            "加上本機影片封面 crop，最多 6 張。"
+            "每張照片準備好立即 push，前端即時展示。不修改資料庫。"
+        ),
+        "side_effect": False,
+        "method": "GET",
+        "path": "/api/actresses/{name}/photo-candidates",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "女優名稱（URL path parameter，需 URL encode）",
+                },
+            },
+            "required": ["name"],
+        },
+        "output_schema": {
+            "candidates": "SSE stream — event: candidate（重複 N 次）+ event: done",
+            "candidate_data": '{"source": str, "thumb_url": str, "full_url": str, "video_path"?: str}',
+            "done_data": '{"total": int}',
+        },
+        "_example_template": "curl -N '{base}/api/actresses/%E4%B8%89%E4%B8%8A%E6%82%A0%E4%BA%9C/photo-candidates'",
+    },
 ]
 
 

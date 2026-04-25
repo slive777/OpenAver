@@ -279,3 +279,211 @@ class TestGetActressPhoto:
             resp = client.get(f"/api/actresses/photo/{ACTRESS_NAME}")
 
         assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# T5: GET /api/actresses/{name}/photo-candidates — SSE 候選照片串流 (T2 新增)
+# ---------------------------------------------------------------------------
+
+def _parse_sse_events(text: str) -> list[dict]:
+    """解析 SSE 文字為 event list，每筆 {"event": str, "data": dict}"""
+    events = []
+    current_event = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("event:"):
+            current_event["event"] = line[len("event:"):].strip()
+        elif line.startswith("data:"):
+            import json as _json
+            current_event["data"] = _json.loads(line[len("data:"):].strip())
+        elif line == "" and current_event:
+            events.append(current_event)
+            current_event = {}
+    if current_event:
+        events.append(current_event)
+    return events
+
+
+class TestPhotoCandidates:
+    """GET /api/actresses/{name}/photo-candidates 測試"""
+
+    def _save_actress(self, client):
+        """Helper: 收藏 ACTRESS_NAME（photo_source='gfriends'，來自 MOCK_PROFILE）"""
+        with patch("web.routers.actress.get_cached_profile", return_value=MOCK_PROFILE), \
+             patch("web.routers.actress.get_actress_profile"), \
+             patch("web.routers.actress.download_actress_photo", return_value=True), \
+             patch("web.routers.actress.get_local_photo_path", return_value=None):
+            client.post("/api/actresses/favorite", json={"name": ACTRESS_NAME})
+
+    def _save_actress_with_source(self, client, photo_source):
+        """Helper: 收藏 ACTRESS_NAME，指定 photo_source"""
+        profile = {**MOCK_PROFILE, "photo_source": photo_source}
+        with patch("web.routers.actress.get_cached_profile", return_value=profile), \
+             patch("web.routers.actress.get_actress_profile"), \
+             patch("web.routers.actress.download_actress_photo", return_value=True), \
+             patch("web.routers.actress.get_local_photo_path", return_value=None):
+            client.post("/api/actresses/favorite", json={"name": ACTRESS_NAME})
+
+    def test_photo_candidates_actress_not_found(self, client):
+        """actress 不在 DB → 404 JSONResponse"""
+        resp = client.get("/api/actresses/不存在女優XYZ/photo-candidates")
+        assert resp.status_code == 404
+        data = resp.json()
+        assert data["error"] == "not_found"
+
+    def test_photo_candidates_sse_happy_path(self, client):
+        """actress 存在，雲端 mock 回 URL → SSE stream 含 candidate + done events"""
+        self._save_actress(client)
+
+        def mock_fetch(name, source):
+            return f"https://example.com/{source}/photo.jpg"
+
+        with patch("web.routers.actress._fetch_single_source", side_effect=mock_fetch), \
+             patch("web.routers.actress._get_random_videos_with_covers", return_value=[]):
+            resp = client.get(f"/api/actresses/{ACTRESS_NAME}/photo-candidates")
+
+        assert resp.status_code == 200
+        assert "text/event-stream" in resp.headers.get("content-type", "")
+
+        events = _parse_sse_events(resp.text)
+        event_names = [e["event"] for e in events]
+        assert "done" in event_names
+
+        candidates = [e for e in events if e["event"] == "candidate"]
+        # 雲端 mock 成功（gfriends 被過濾，因 photo_source=gfriends），最多 3 來源
+        assert len(candidates) <= 3
+        for c in candidates:
+            assert "source" in c["data"]
+            assert "thumb_url" in c["data"]
+            assert "full_url" in c["data"]
+
+        # done event 含 total
+        done_events = [e for e in events if e["event"] == "done"]
+        assert len(done_events) == 1
+        assert "total" in done_events[0]["data"]
+
+    def test_photo_candidates_cloud_fail_local_fallback(self, client):
+        """雲端全失敗 + 本機有影片 → SSE 仍回 local_crop candidates + done"""
+        self._save_actress(client)
+
+        # 建立假 Video
+        from unittest.mock import MagicMock as MM
+        fake_video = MM()
+        fake_video.cover_path = "/fake/cover.jpg"
+        fake_video.path = "/fake/video.mp4"
+
+        with patch("web.routers.actress._fetch_single_source", return_value=None), \
+             patch("web.routers.actress._get_random_videos_with_covers", return_value=[fake_video]), \
+             patch("web.routers.actress.to_file_uri", return_value="file:///fake/video.mp4"):
+            resp = client.get(f"/api/actresses/{ACTRESS_NAME}/photo-candidates")
+
+        assert resp.status_code == 200
+        events = _parse_sse_events(resp.text)
+
+        candidates = [e for e in events if e["event"] == "candidate"]
+        assert len(candidates) == 1
+        assert candidates[0]["data"]["source"] == "local_crop"
+        assert "thumb_url" in candidates[0]["data"]
+
+        done_events = [e for e in events if e["event"] == "done"]
+        assert done_events[0]["data"]["total"] == 1
+
+    def test_photo_candidates_total_zero_when_all_fail(self, client):
+        """雲端全失敗 + 本機無影片 → done: {total: 0}"""
+        self._save_actress(client)
+
+        with patch("web.routers.actress._fetch_single_source", return_value=None), \
+             patch("web.routers.actress._get_random_videos_with_covers", return_value=[]):
+            resp = client.get(f"/api/actresses/{ACTRESS_NAME}/photo-candidates")
+
+        assert resp.status_code == 200
+        events = _parse_sse_events(resp.text)
+        done_events = [e for e in events if e["event"] == "done"]
+        assert done_events[0]["data"]["total"] == 0
+
+    def test_photo_candidates_photo_source_none_tries_all_four(self, client):
+        """photo_source=None（legacy）時 4 來源全部嘗試"""
+        # 先收藏，photo_source 設為 None
+        with patch("web.routers.actress.get_cached_profile", return_value={**MOCK_PROFILE, "photo_source": None}), \
+             patch("web.routers.actress.get_actress_profile"), \
+             patch("web.routers.actress.download_actress_photo", return_value=True), \
+             patch("web.routers.actress.get_local_photo_path", return_value=None):
+            client.post("/api/actresses/favorite", json={"name": ACTRESS_NAME})
+
+        called_sources = []
+
+        def mock_fetch(name, source):
+            called_sources.append(source)
+            return None
+
+        with patch("web.routers.actress._fetch_single_source", side_effect=mock_fetch), \
+             patch("web.routers.actress._get_random_videos_with_covers", return_value=[]):
+            client.get(f"/api/actresses/{ACTRESS_NAME}/photo-candidates")
+
+        # 4 來源全部嘗試
+        assert set(called_sources) == {"graphis", "gfriends", "wiki", "minnano"}
+
+    def test_photo_candidates_excludes_current_source(self, client):
+        """photo_source='gfriends' 時 gfriends 不會被呼叫，剩 3 來源並行"""
+        self._save_actress(client)  # photo_source='gfriends'（MOCK_PROFILE 預設）
+
+        called_sources = []
+
+        def mock_fetch(name, source):
+            called_sources.append(source)
+            return None
+
+        with patch("web.routers.actress._fetch_single_source", side_effect=mock_fetch), \
+             patch("web.routers.actress._get_random_videos_with_covers", return_value=[]):
+            resp = client.get(f"/api/actresses/{ACTRESS_NAME}/photo-candidates")
+
+        assert resp.status_code == 200
+        assert "gfriends" not in called_sources
+        assert set(called_sources) == {"graphis", "wiki", "minnano"}
+
+    def test_photo_candidates_local_crop_tries_all_four(self, client):
+        """photo_source='local_crop' 時 4 雲端來源全試"""
+        self._save_actress_with_source(client, "local_crop")
+
+        called_sources = []
+
+        def mock_fetch(name, source):
+            called_sources.append(source)
+            return None
+
+        with patch("web.routers.actress._fetch_single_source", side_effect=mock_fetch), \
+             patch("web.routers.actress._get_random_videos_with_covers", return_value=[]):
+            client.get(f"/api/actresses/{ACTRESS_NAME}/photo-candidates")
+
+        assert set(called_sources) == {"graphis", "gfriends", "wiki", "minnano"}
+
+
+# ---------------------------------------------------------------------------
+# T6: GET /api/actresses/actress-crop — on-demand crop endpoint (T2 新增)
+# ---------------------------------------------------------------------------
+
+class TestActressCrop:
+    """GET /api/actresses/actress-crop 測試"""
+
+    def test_actress_crop_success(self, client):
+        """crop_video_cover 回 bytes → 200 image/jpeg"""
+        fake_jpeg = b"\xff\xd8\xff\xe0FAKE_JPEG"
+
+        with patch("web.routers.actress.crop_video_cover", return_value=fake_jpeg):
+            resp = client.get("/api/actresses/actress-crop?path=/fake/cover.jpg&spec=v1")
+
+        assert resp.status_code == 200
+        assert "image/jpeg" in resp.headers.get("content-type", "")
+        assert resp.content == fake_jpeg
+
+    def test_actress_crop_not_found(self, client):
+        """crop_video_cover 回 None → 404"""
+        with patch("web.routers.actress.crop_video_cover", return_value=None):
+            resp = client.get("/api/actresses/actress-crop?path=/nonexistent/cover.jpg&spec=v1")
+
+        assert resp.status_code == 404
+
+    def test_actress_crop_missing_path_returns_422(self, client):
+        """缺少 path 參數 → FastAPI 自動 422"""
+        resp = client.get("/api/actresses/actress-crop")
+        assert resp.status_code == 422

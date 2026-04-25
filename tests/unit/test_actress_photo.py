@@ -136,3 +136,187 @@ def test_special_chars_actress_name(gfriends_dir):
     # · 應被保留（不在 illegal_chars 中）
     assert "田中·ナナ" in found.stem
     assert found.exists()
+
+
+# ===================================================================
+# crop_video_cover 相關測試（T2 新增）
+# ===================================================================
+
+import io as _io
+
+
+def _make_fake_pil_image(width=200, height=300):
+    """建立假 PIL Image mock（不需 Pillow）"""
+    mock_img = MagicMock()
+    mock_img.size = (width, height)
+    mock_img.crop.return_value = mock_img
+    mock_img.convert.return_value = mock_img
+    # save 方法：把假 bytes 寫入 buffer
+    def fake_save(buf, format=None, quality=None):
+        buf.write(b"FAKE_JPEG_BYTES")
+    mock_img.save.side_effect = fake_save
+    return mock_img
+
+
+# -------------------------------------------------------------------
+# Test 7: crop_video_cover spec v1 — 裁切計算正確
+# -------------------------------------------------------------------
+def test_crop_video_cover_spec_v1_dimensions():
+    """spec v1: x 50~100%, y 0~80%, 取 3:4 portrait；呼叫 crop() 時框在正確範圍"""
+    import core.actress_photo as _mod
+
+    # 清空 cache 以免受其他測試污染
+    _mod._CROP_CACHE.clear()
+
+    mock_img = _make_fake_pil_image(width=400, height=500)
+
+    with patch.dict("sys.modules", {"PIL": MagicMock(), "PIL.Image": MagicMock()}):
+        with patch("core.actress_photo.io", _io):
+            # 直接 patch PIL.Image.open
+            with patch("builtins.__import__", side_effect=None):
+                pass
+
+    # 改用直接 mock PIL import
+    mock_pil = MagicMock()
+    mock_pil.Image.open.return_value = mock_img
+
+    with patch.dict("sys.modules", {"PIL": mock_pil, "PIL.Image": mock_pil.Image}):
+        _mod._CROP_CACHE.clear()
+        result = _mod.crop_video_cover("/fake/cover.jpg", "v1")
+
+    # 應有回傳值（bytes）
+    assert result is not None
+    assert isinstance(result, bytes)
+    # crop() 應被呼叫一次
+    mock_img.crop.assert_called_once()
+    # 取得 crop 呼叫的 box
+    (box,), _ = mock_img.crop.call_args
+    cx0, cy0, cx1, cy1 = box
+    # x0 應 >= 50% of 400 = 200（右半）
+    assert cx0 >= 200, f"crop x0 ({cx0}) should be >= 200 (50% of width)"
+    # y0 應 >= 0（在上 80% 範圍內，居中所以可能 > 0）
+    assert cy0 >= 0, f"crop y0 ({cy0}) should be >= 0"
+    # x1 應 <= 400
+    assert cx1 <= 400
+    # y1 應 <= 80% of 500 = 400
+    assert cy1 <= 400, f"crop y1 ({cy1}) should be <= 400 (80% of height)"
+    # 寬:高 約等於 3:4
+    crop_w = cx1 - cx0
+    crop_h = cy1 - cy0
+    ratio = crop_w / crop_h
+    assert abs(ratio - 3 / 4) < 0.05, f"aspect ratio {ratio} should be ~0.75 (3:4)"
+
+
+# -------------------------------------------------------------------
+# Test 8: cache hit — 不重複 open
+# -------------------------------------------------------------------
+def test_crop_video_cover_cache_hit():
+    """相同 (path, spec) 第二次呼叫直接回 cache，不呼叫 Image.open"""
+    import core.actress_photo as _mod
+
+    _mod._CROP_CACHE.clear()
+    fake_bytes = b"CACHED_JPEG"
+    _mod._CROP_CACHE[("/some/cover.jpg", "v1")] = fake_bytes
+
+    mock_pil = MagicMock()
+
+    with patch.dict("sys.modules", {"PIL": mock_pil, "PIL.Image": mock_pil.Image}):
+        result = _mod.crop_video_cover("/some/cover.jpg", "v1")
+
+    assert result == fake_bytes
+    # PIL.Image.open 不應被呼叫
+    mock_pil.Image.open.assert_not_called()
+
+
+# -------------------------------------------------------------------
+# Test 9: Pillow 未安裝 → None
+# -------------------------------------------------------------------
+def test_crop_video_cover_no_pillow(monkeypatch):
+    """PIL import 失敗時回 None，不拋例外"""
+    import core.actress_photo as _mod
+    import sys
+
+    _mod._CROP_CACHE.clear()
+
+    # 確保 PIL 不在 sys.modules（或強制 ImportError）
+    original_modules = sys.modules.copy()
+    # 移除 PIL（若已 import）
+    for key in list(sys.modules.keys()):
+        if key == "PIL" or key.startswith("PIL."):
+            sys.modules[key] = None  # type: ignore
+
+    try:
+        result = _mod.crop_video_cover("/nonexistent/cover.jpg", "v1")
+    finally:
+        # 還原
+        for key in list(sys.modules.keys()):
+            if key == "PIL" or key.startswith("PIL."):
+                if key in original_modules:
+                    sys.modules[key] = original_modules[key]
+                else:
+                    del sys.modules[key]
+
+    assert result is None
+
+
+# -------------------------------------------------------------------
+# Test 10: cover_path 不存在 → None
+# -------------------------------------------------------------------
+def test_crop_video_cover_file_not_found(tmp_path):
+    """cover_path 不存在時 crop_video_cover 回 None"""
+    import core.actress_photo as _mod
+
+    _mod._CROP_CACHE.clear()
+
+    mock_pil = MagicMock()
+    mock_pil.Image.open.side_effect = FileNotFoundError("no such file")
+
+    nonexistent = str(tmp_path / "does_not_exist.jpg")
+
+    with patch.dict("sys.modules", {"PIL": mock_pil, "PIL.Image": mock_pil.Image}):
+        result = _mod.crop_video_cover(nonexistent, "v1")
+
+    assert result is None
+
+
+# -------------------------------------------------------------------
+# Test 11: happy path — 真實 Pillow（若安裝）或 mock 完整流程
+# -------------------------------------------------------------------
+def test_crop_video_cover_happy_path(tmp_path):
+    """crop_video_cover 正常流程：開圖 → crop → JPEG bytes"""
+    import core.actress_photo as _mod
+
+    _mod._CROP_CACHE.clear()
+
+    # 建立假圖片檔（用 mock，不依賴真 Pillow）
+    fake_cover = tmp_path / "cover.jpg"
+    fake_cover.write_bytes(b"not_real_image")
+
+    fake_bytes = b"FAKE_CROPPED_JPEG"
+    mock_img = _make_fake_pil_image(width=800, height=600)
+
+    def fake_save(buf, format=None, quality=None):
+        buf.write(fake_bytes)
+    mock_img.save.side_effect = fake_save
+
+    mock_pil = MagicMock()
+    mock_pil.Image.open.return_value = mock_img
+
+    with patch.dict("sys.modules", {"PIL": mock_pil, "PIL.Image": mock_pil.Image}):
+        _mod._CROP_CACHE.clear()
+        result = _mod.crop_video_cover(str(fake_cover), "v1")
+
+    assert result is not None
+    assert result == fake_bytes
+    # 結果應被 cache
+    assert _mod._CROP_CACHE[(str(fake_cover), "v1")] == fake_bytes
+
+
+# -------------------------------------------------------------------
+# Test 12: 未知 crop_spec → None
+# -------------------------------------------------------------------
+def test_crop_video_cover_unknown_spec_returns_none():
+    """未知 crop_spec 回 None"""
+    from core.actress_photo import crop_video_cover
+    result = crop_video_cover("/fake/path.jpg", crop_spec="v99")
+    assert result is None

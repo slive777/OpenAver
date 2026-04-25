@@ -1,6 +1,7 @@
 """
-actress_photo.py — 女優照片下載 / 儲存 / 讀取 / 刪除
+actress_photo.py — 女優照片下載 / 儲存 / 讀取 / 刪除 / 影片封面 crop
 """
+import io
 import requests
 from pathlib import Path
 from typing import Optional
@@ -127,3 +128,82 @@ def delete_local_photo(name: str) -> bool:
     except Exception as e:
         logger.warning(f"[actress_photo] 刪除失敗 ({name}): {e}")
         return False
+
+
+# ---------------------------------------------------------------------------
+# 影片封面 Crop cache（進程生命期 in-memory cache）
+# key = (cover_path_str, crop_spec_str) → bytes
+# ---------------------------------------------------------------------------
+
+_CROP_CACHE: dict = {}
+
+
+def crop_video_cover(cover_path: str, crop_spec: str = "v1") -> Optional[bytes]:
+    """
+    從影片封面圖裁切出女優人像，回傳 JPEG bytes。
+
+    spec v1 裁切規格：
+        x: 右半部（50% ~ 100%）
+        y: 上 80%（0% ~ 80%）
+        → 在右半 x 上 80% 區域取中央 3:4 portrait（width:height = 3:4）
+        → 輸出 JPEG quality 85
+
+    Args:
+        cover_path: 本機 FS 路徑（非 URI）
+        crop_spec: 裁切規格版本，目前只支援 "v1"
+
+    Returns:
+        JPEG bytes，失敗回 None（不 raise）
+    """
+    cache_key = (cover_path, crop_spec)
+    if cache_key in _CROP_CACHE:
+        return _CROP_CACHE[cache_key]
+
+    try:
+        from PIL import Image
+    except ImportError:
+        logger.warning("[actress_photo] PIL/Pillow 未安裝，無法 crop 影片封面")
+        return None
+
+    try:
+        img = Image.open(cover_path)
+        img_w, img_h = img.size
+
+        if crop_spec == "v1":
+            # 右半 50%~100% x，上 0%~80% y
+            region_x0 = int(img_w * 0.5)
+            region_y0 = 0
+            region_x1 = img_w
+            region_y1 = int(img_h * 0.8)
+
+            region_w = region_x1 - region_x0
+            region_h = region_y1 - region_y0
+
+            # 在此 region 內取最大 3:4 portrait，置中
+            # 3:4 → target_w / target_h = 3 / 4
+            # 以 region 為限：
+            #   target_w = min(region_w, region_h * 3 / 4)
+            #   target_h = target_w * 4 / 3
+            target_w = min(region_w, int(region_h * 3 / 4))
+            target_h = int(target_w * 4 / 3)
+
+            # 置中計算 offset
+            cx = region_x0 + (region_w - target_w) // 2
+            cy = region_y0 + (region_h - target_h) // 2
+
+            crop_box = (cx, cy, cx + target_w, cy + target_h)
+            cropped = img.crop(crop_box)
+        else:
+            # 未知 spec：回 None
+            logger.warning("[actress_photo] 未知 crop_spec: %s", crop_spec)
+            return None
+
+        buf = io.BytesIO()
+        cropped.convert("RGB").save(buf, format="JPEG", quality=85)
+        result = buf.getvalue()
+        _CROP_CACHE[cache_key] = result
+        return result
+
+    except Exception as e:
+        logger.warning("[actress_photo] crop_video_cover 失敗 (%s): %s", cover_path, e)
+        return None
