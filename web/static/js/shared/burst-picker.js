@@ -292,7 +292,10 @@
                             if (ghost && ghost.parentNode) { ghost.remove(); }
 
                             // ── 5. 替換封面 src，等 load 後顯示並做 glow pulse ──
-                            var newSrc = selectedImg.src + '?t=' + Date.now();
+                            // 用 sep 判斷避免 selectedImg.src 已有 query 參數（如 local_crop
+                            // 的 ?path=...&spec=v1）變成 ?...?t=... 雙 ? malformed URL
+                            var sep = selectedImg.src.indexOf('?') >= 0 ? '&' : '?';
+                            var newSrc = selectedImg.src + sep + 't=' + Date.now();
                             coverImg.onload = function () {
                                 coverImg.onload = null;
                                 coverImg.classList.add('gsap-animating');

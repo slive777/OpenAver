@@ -591,7 +591,6 @@
       "favorited": "お気に入り済み",
       "change_photo": "写真を変更",
       "picker": {
-        "tooltip_pick": "クリックして交換",
         "empty": "候補写真が見つかりません",
         "empty_hint": "保存している動画が多いほど、ローカルの選択肢が増えます。",
         "loading": "候補を取得中…",

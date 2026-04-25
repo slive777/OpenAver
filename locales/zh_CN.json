@@ -591,7 +591,6 @@
       "favorited": "已收藏",
       "change_photo": "换照片",
       "picker": {
-        "tooltip_pick": "点击替换",
         "empty": "目前找不到候选照片",
         "empty_hint": "收藏影片越多，本机选项越丰富；也可直接替换文件夹中的图片",
         "loading": "抓取候选中…",

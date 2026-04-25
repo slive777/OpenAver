@@ -659,10 +659,10 @@
                                          @mouseleave="_onPickerHoverOut($el, i)"
                                          @click.stop="_onPickerSelect(c, i)">
                                         <img :src="c.thumb_url" class="picker-candidate-img" loading="lazy" :alt="c.source">
-                                        <div class="picker-source-badge"
-                                             x-text="t('showcase.actress.picker.source_' + c.source) || c.source"></div>
-                                        <div class="picker-tooltip"
-                                             x-text="t('showcase.actress.picker.tooltip_pick')"></div>
+                                        <div class="picker-source-badge">
+                                            <i class="bi bi-check-lg picker-check-icon"></i>
+                                            <span x-text="t('showcase.actress.picker.source_' + c.source) || c.source"></span>
+                                        </div>
                                     </div>
                                 </template>
                             </div>

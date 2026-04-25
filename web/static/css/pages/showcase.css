@@ -1962,23 +1962,19 @@
     text-overflow: ellipsis;
 }
 
-.picker-tooltip {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(0, 0, 0, 0.9);
-    color: #fff;
-    padding: 6px 8px;
-    border-radius: 4px;
-    font-size: 0.75em;
-    white-space: nowrap;
+.picker-check-icon {
     opacity: 0;
-    pointer-events: none;
+    margin-right: 3px;
+    font-size: 0.6rem;
     transition: opacity 0.15s;
 }
 
-.picker-candidate-card:hover .picker-tooltip {
+.picker-candidate-card:hover .picker-source-badge {
+    background: var(--accent-success, #22c55e);
+    color: #fff;
+}
+
+.picker-candidate-card:hover .picker-check-icon {
     opacity: 1;
 }
 

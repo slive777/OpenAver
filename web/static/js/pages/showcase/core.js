@@ -2441,13 +2441,14 @@ function showcaseState() {
          * Helper: 換照片成功後同步 _actresses 陣列對應 entry
          */
         _syncActressesArray(name, data) {
-            if (typeof _actresses === 'undefined' || !_actresses) return;
-            const idx = _actresses.findIndex(a => a.name === name);
-            if (idx >= 0 && data && data.photo_url) {
-                // In-place mutation: keeps _filteredActresses / paginatedActresses / currentLightboxActress
-                // (which share the same object reference) all in sync
-                _actresses[idx].photo_url = data.photo_url;
-                _actresses[idx].photo_source = data.photo_source;
+            if (!data || !data.photo_url) return;
+            // 透過 this.paginatedActresses（Alpine proxy）mutation，觸發 grid card :src 重渲染。
+            // 因 paginatedActresses[idx] 與 _actresses[idx]/_filteredActresses[idx] 共用 object
+            // reference（line 555/607/610），proxy mutation 會同步反映到三個陣列。
+            const idx = this.paginatedActresses.findIndex(a => a.name === name);
+            if (idx >= 0) {
+                this.paginatedActresses[idx].photo_url = data.photo_url;
+                this.paginatedActresses[idx].photo_source = data.photo_source;
             }
         },
 

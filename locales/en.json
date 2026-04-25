@@ -591,7 +591,6 @@
       "favorited": "Favorited",
       "change_photo": "Change Photo",
       "picker": {
-        "tooltip_pick": "Click to Replace",
         "empty": "No candidates found",
         "empty_hint": "More saved videos = more local options. You can also replace the image file directly.",
         "loading": "Fetching candidates…",
