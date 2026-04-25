@@ -588,7 +588,22 @@
       "emptyHint": "点击右上角 + 添加收藏",
       "search_films": "搜尋相關影片",
       "addFavorite": "加入收藏",
-      "favorited": "已收藏"
+      "favorited": "已收藏",
+      "change_photo": "换照片",
+      "picker": {
+        "tooltip_pick": "点击替换",
+        "empty": "目前找不到候选照片",
+        "empty_hint": "收藏影片越多，本机选项越丰富；也可直接替换文件夹中的图片",
+        "loading": "抓取候选中…",
+        "error": "抓取失败，请稍后再试",
+        "replaced": "已更换，随时可再换",
+        "current_source": "当前：{source}",
+        "source_local_crop": "本机",
+        "source_graphis": "Graphis",
+        "source_gfriends": "gfriends",
+        "source_wiki": "Wiki",
+        "source_minnano": "Minnano"
+      }
     },
     "samples": {
       "fetch_btn": "补剧照",

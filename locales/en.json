@@ -588,7 +588,22 @@
       "emptyHint": "Click + in the top right to add one",
       "search_films": "Search related films",
       "addFavorite": "Add to favorites",
-      "favorited": "Favorited"
+      "favorited": "Favorited",
+      "change_photo": "Change Photo",
+      "picker": {
+        "tooltip_pick": "Click to Replace",
+        "empty": "No candidates found",
+        "empty_hint": "More saved videos = more local options. You can also replace the image file directly.",
+        "loading": "Fetching candidates…",
+        "error": "Failed to fetch candidates",
+        "replaced": "Photo replaced. You can change it anytime.",
+        "current_source": "Current: {source}",
+        "source_local_crop": "Local",
+        "source_graphis": "Graphis",
+        "source_gfriends": "gfriends",
+        "source_wiki": "Wiki",
+        "source_minnano": "Minnano"
+      }
     },
     "samples": {
       "fetch_btn": "Fetch Stills",

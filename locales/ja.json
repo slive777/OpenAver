@@ -588,7 +588,22 @@
       "emptyHint": "右上の + をクリックして追加してください",
       "search_films": "関連動画を検索",
       "addFavorite": "お気に入りに追加",
-      "favorited": "お気に入り済み"
+      "favorited": "お気に入り済み",
+      "change_photo": "写真を変更",
+      "picker": {
+        "tooltip_pick": "クリックして交換",
+        "empty": "候補写真が見つかりません",
+        "empty_hint": "保存している動画が多いほど、ローカルの選択肢が増えます。",
+        "loading": "候補を取得中…",
+        "error": "取得に失敗しました",
+        "replaced": "写真を変更しました。いつでも再変更できます。",
+        "current_source": "現在：{source}",
+        "source_local_crop": "ローカル",
+        "source_graphis": "Graphis",
+        "source_gfriends": "gfriends",
+        "source_wiki": "Wiki",
+        "source_minnano": "Minnano"
+      }
     },
     "samples": {
       "fetch_btn": "取得",

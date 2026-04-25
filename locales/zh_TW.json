@@ -588,7 +588,22 @@
       "emptyHint": "點擊右上角 + 新增收藏",
       "search_films": "搜尋相關影片",
       "addFavorite": "加入收藏",
-      "favorited": "已收藏"
+      "favorited": "已收藏",
+      "change_photo": "換照片",
+      "picker": {
+        "tooltip_pick": "點擊替換",
+        "empty": "目前找不到候選照片",
+        "empty_hint": "收藏影片越多，本機選項越豐富；也可直接替換資料夾中的圖片",
+        "loading": "抓取候選中…",
+        "error": "抓取失敗，請稍後再試",
+        "replaced": "已更換，隨時可再換",
+        "current_source": "當前：{source}",
+        "source_local_crop": "本機",
+        "source_graphis": "Graphis",
+        "source_gfriends": "gfriends",
+        "source_wiki": "Wiki",
+        "source_minnano": "Minnano"
+      }
     },
     "samples": {
       "fetch_btn": "補劇照",
