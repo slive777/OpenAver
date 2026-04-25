@@ -2252,14 +2252,19 @@ function showcaseState() {
                 if (this._pickerRunId !== runId) { sse.close(); return; }
                 try {
                     const candidate = JSON.parse(e.data);
+                    // ⚠️ Race fix：必須在 push 後同步 capture myIndex，再 await。
+                    // 否則 SSE 一次連發多筆（local_crop 緊接 yield）時，所有 handler 在
+                    // await $nextTick 後 resume 看到的 _candidates.length 都是 N（最終值），
+                    // 會全部 pick cards[N-1]，導致中間 candidate 沒有 burst（停留 opacity: 0）。
                     this._candidates = [...this._candidates, candidate];
+                    const myIndex = this._candidates.length - 1;
                     await this.$nextTick();
                     if (this._pickerRunId !== runId) return;
 
                     const grid = this.$refs.pickerGrid;
                     if (grid && typeof window.BurstPicker !== 'undefined') {
                         const cards = grid.querySelectorAll('.picker-candidate-card');
-                        const newCard = cards[this._candidates.length - 1];
+                        const newCard = cards[myIndex];
                         if (newCard) {
                             const coverEl = this.$el.querySelector('.lightbox-cover img');
                             if (coverEl) {

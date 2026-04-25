@@ -4248,3 +4248,31 @@ class TestPickerIntegrationGuard:
         body = m.group(1)
         assert re.search(r"return\s+(new\s+Promise|Promise\.resolve)", body), \
             "playPickerExitAll 必須回傳 Promise（避免 _closePicker 立即 reset 清空 _candidates）"
+
+    def test_picker_sse_handler_captures_index_before_await(self):
+        """SSE candidate handler 必須在 push 後同步 capture myIndex，再 await $nextTick。
+        否則一次連發多筆 candidate（local_crop 緊接 yield）時，所有 handler resume 後
+        看到的 _candidates.length 都是最終值，會全部 pick cards[N-1]，導致中間 candidate
+        沒有 burst（停留 opacity:0 從 CSS 預設），用戶看不到那幾張卡。
+        """
+        js = self._core_js()
+        # 抓 _startPickerSSE 內 candidate handler 區塊
+        m = re.search(
+            r"sse\.addEventListener\(\s*['\"]candidate['\"]\s*,\s*async\s*\(?[^)]*\)?\s*=>\s*\{(.*?)\}\s*\)\s*;",
+            js, re.DOTALL,
+        )
+        assert m, "找不到 sse.addEventListener('candidate', ...) handler"
+        body = m.group(1)
+        # 必須有 myIndex 變數
+        assert re.search(r"const\s+myIndex\s*=\s*this\._candidates\.length\s*-\s*1", body), \
+            "candidate handler 必須在 push 後同步 capture myIndex（race fix）"
+        # myIndex 必須出現在 await 之前
+        idx_pos = body.find("const myIndex")
+        await_pos = body.find("await this.$nextTick")
+        assert 0 <= idx_pos < await_pos, \
+            "myIndex capture 必須在 await this.$nextTick() 之前（race fix）"
+        # newCard 必須使用 myIndex（不能再用 this._candidates.length - 1）
+        assert re.search(r"cards\[\s*myIndex\s*\]", body), \
+            "newCard 必須使用 cards[myIndex]，不可用 cards[this._candidates.length - 1]"
+        assert "cards[this._candidates.length - 1]" not in body, \
+            "candidate handler 不可使用 cards[this._candidates.length - 1]（race bug：所有 handler 拿到同一張卡）"
