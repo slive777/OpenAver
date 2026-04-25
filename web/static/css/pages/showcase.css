@@ -1669,10 +1669,6 @@
     min-width: min(60vw, 600px); min-height: min(58vh, 460px);
 }
 
-/* Row 1 heart icon */
-.actress-lb-header .btn-glass-circle { width: 32px; height: 32px; font-size: 1rem; margin-left: auto; }
-.actress-lb-header .btn-glass-circle.is-favorite { color: var(--color-favorite); cursor: default; pointer-events: none; }
-
 /* lb-chips-more shared rule for video lightbox tags +N */
 .lightbox-metadata .lb-chips-more {
     cursor: pointer; font-size: 0.85em; padding: 2px 8px;

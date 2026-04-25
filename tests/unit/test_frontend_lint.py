@@ -3226,3 +3226,21 @@ class TestFetchSamplesButton:
             f"當前值：{value!r}\n"
             "b6fix2 應將 emoji 前綴從所有 4 語系 locale 值中移除。"
         )
+
+
+class TestActressLightboxHeartRemoved:
+    """T6: Actress Lightbox header 純裝飾愛心 button + CSS 死碼移除守衛"""
+
+    def test_no_decorative_heart_button_in_actress_lightbox(self):
+        """showcase.html 不應再含 pointer-events:none 的 is-favorite 愛心裝飾 button"""
+        html = SHOWCASE_HTML.read_text(encoding="utf-8")
+        # 確認舊裝飾按鈕已移除（pointer-events:none + aria-label="favorite"）
+        pattern = r'<button[^>]*pointer-events:none[^>]*aria-label="favorite"'
+        assert not re.search(pattern, html), "decorative heart button should be removed"
+        # 同時確保 hero card 功能按鈕仍存在
+        assert 'GhostFly.floatingHearts' in html, "hero card floatingHearts button must remain"
+
+    def test_no_orphan_actress_lb_header_btn_glass_circle_css(self):
+        """showcase.css 不應再含 .actress-lb-header .btn-glass-circle 規則"""
+        css = Path("web/static/css/pages/showcase.css").read_text(encoding="utf-8")
+        assert '.actress-lb-header .btn-glass-circle' not in css, "orphan CSS should be removed"
