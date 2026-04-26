@@ -62,7 +62,16 @@ TMP_ZIP="$TMP_DIR/OpenAver.zip"
 curl -fSL --progress-bar "$DOWNLOAD_URL" -o "$TMP_ZIP"
 
 # --- 清除舊版 embedded Python（避免套件混版）---
+# macOS rm 對 advisory lock 不會 fail，必須事前用 pgrep 攔截，否則會悄悄混版
 if [[ -d "$INSTALL_DIR/python" ]]; then
+    if pgrep -f "$INSTALL_DIR/OpenAver.command" > /dev/null 2>&1 || \
+       pgrep -f "$INSTALL_DIR/python/bin" > /dev/null 2>&1; then
+        echo ""
+        echo "❌ 無法更新：OpenAver 目前正在執行。"
+        echo "   請先關閉 OpenAver 視窗，再重新執行安裝指令。"
+        echo "   Close OpenAver first, then re-run the installer."
+        exit 1
+    fi
     echo "🧹 清除舊版 Python runtime..."
     rm -rf "$INSTALL_DIR/python"
 fi

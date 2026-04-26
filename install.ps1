@@ -54,10 +54,19 @@ Invoke-WebRequest -Uri $DownloadUrl -OutFile $TmpZip
 $ProgressPreference = "Continue"
 
 # --- 清除舊版 embedded Python（避免套件混版）---
+# 若 OpenAver 仍在執行，python\pythonw.exe 會被鎖住，Remove-Item 會 throw
 $PythonDir = Join-Path $InstallDir "python"
 if (Test-Path $PythonDir) {
     Write-Host "🧹 清除舊版 Python runtime..."
-    Remove-Item $PythonDir -Recurse -Force
+    try {
+        Remove-Item $PythonDir -Recurse -Force -ErrorAction Stop
+    } catch {
+        Write-Host ""
+        Write-Host "❌ 無法更新：OpenAver 目前正在執行。" -ForegroundColor Red
+        Write-Host "   請先關閉 OpenAver 視窗，再重新執行安裝指令。" -ForegroundColor Yellow
+        Write-Host "   Close OpenAver first, then re-run the installer." -ForegroundColor Yellow
+        exit 1
+    }
 }
 
 # --- 解壓安裝（覆蓋程式檔案，保留用戶資料）---
