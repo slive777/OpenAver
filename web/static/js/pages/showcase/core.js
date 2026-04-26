@@ -662,8 +662,30 @@ function showcaseState() {
                 return;
             }
 
+            // ★ ghost fly — 在 state 變更前捕獲 fromRect（對齊 video mode openLightbox）
+            var fromRect = null;
+            var coverSrc = null;
+            if (!this.lightboxOpen) {
+                var gridEl = this._getActiveGrid();
+                if (gridEl) {
+                    var actress = _filteredActresses[index];
+                    var cardEl = actress
+                        ? gridEl.querySelector('[data-flip-id="actress:' + CSS.escape(actress.name) + '"]')
+                        : null;
+                    if (cardEl) {
+                        var imgEl = cardEl.querySelector('.actress-card-photo img');
+                        if (imgEl && imgEl.complete && imgEl.getBoundingClientRect().width > 0) {
+                            fromRect = imgEl.getBoundingClientRect();
+                            coverSrc = imgEl.src;
+                        }
+                    }
+                }
+            }
+
             this._setActressLightboxIndex(index);
             this.actressLightboxSource = 'grid';   // T5: 首次進入分支
+            var lightboxElPre = document.querySelector('.showcase-lightbox');
+            if (lightboxElPre) lightboxElPre.classList.add('gsap-animating');
             this.lightboxOpen = true;
             document.body.classList.add('overflow-hidden');
             // T3: fire-and-forget 即時查 aliases
@@ -675,11 +697,23 @@ function showcaseState() {
                 if (self._lightboxGeneration !== lbGen) return;
                 var lightboxEl = document.querySelector('.showcase-lightbox');
                 if (!lightboxEl) return;
-                self._lightboxAnimating = true;
-                var tl = window.ShowcaseAnimations?.playLightboxOpen?.(lightboxEl, {
-                    onComplete: function () { self._lightboxAnimating = false; }
-                });
-                if (!tl) self._lightboxAnimating = false;
+
+                if (fromRect && window.GhostFly && window.GhostFly.playGridToLightbox) {
+                    self._lightboxAnimating = true;
+                    window.GhostFly.playGridToLightbox(fromRect, lightboxEl, {
+                        coverSrc: coverSrc,
+                        onComplete: function () { self._lightboxAnimating = false; }
+                    });
+                    if (window.ShowcaseAnimations && window.ShowcaseAnimations.playLightboxOpen) {
+                        window.ShowcaseAnimations.playLightboxOpen(lightboxEl, { skipCover: true });
+                    }
+                } else {
+                    self._lightboxAnimating = true;
+                    var tl = window.ShowcaseAnimations?.playLightboxOpen?.(lightboxEl, {
+                        onComplete: function () { self._lightboxAnimating = false; }
+                    });
+                    if (!tl) self._lightboxAnimating = false;
+                }
             });
         },
 
