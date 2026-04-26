@@ -158,6 +158,8 @@ curl http://localhost:<port>/api/capabilities
 
 > 💻 **想讓 AI 預讀 repo、或自己擴充端點？** 所有端點定義在 [`web/routers/capabilities.py`](web/routers/capabilities.py) — AI agent clone repo 時會優先讀這個檔，不需要啟動服務就能學會所有工具。
 
+> 🪄 **進階玩家彩蛋：FC2 自動找女優。** FC2 影片幾乎都沒女優標記，但其中不少是後來轉有碼出道的熟面孔（白上咲花就是經典案例）。SQL 撈 actress 為空的片 → DeepFace（RetinaFace + ArcFace）對 Gfriends 庫比對 → `POST /api/user-tags` 寫回標記。50 行 Python 一個週末跑完全庫，發現喜歡的手動加最愛；未識別素人 DBSCAN 自建群組下次直接配對。
+
 ---
 
 ## 開發者指南
