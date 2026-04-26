@@ -86,6 +86,19 @@ function _killLightboxTimelines(options) {
 }
 
 function showcaseState() {
+    // 49b T4cd: Picker 動畫參數（T1 fix2 定案，2026-04-25）
+    // 供 BurstPicker.playPickerBurst/Float/HoverIn/HoverOut/ExitAll 使用
+    // 49c.T5fix.B：viewport bottom anchor 後 burst 距離增加 ~55%，timing 校正定案
+    const _PICKER_PARAMS = {
+        arcOvershoot: 1.3,    // V2 從 1.4 改 1.3：拉長後 overshoot 視覺強，略降
+        arcDuration:  0.75,   // V2 從 0.6 改 0.75：補償距離增加 ~+55%
+        floatAmplY:   8,      // Float loop Y 幅度（px）
+        floatAmplRot: 2.5,    // Float loop 旋轉幅度（度）
+        floatDuration: 1.5,   // Float loop 基礎週期（秒）
+        hoverScale:   1.08,   // V2 從 1.12 改 1.08：大卡上不過搶戲
+        exitGravity:  1200,   // 其他卡墜落重力（physics2D）
+    };
+
     return {
         // --- 狀態變數 ---
         loading: true,
@@ -145,12 +158,24 @@ function showcaseState() {
         actressLoading: false,          // 載入中
         actressLightboxIndex: -1,       // 指向 _filteredActresses 的索引
         currentLightboxActress: null,   // 當前 lightbox 女優；與 currentLightboxVideo 互斥
+        actressLightboxSource: null,    // T5: 'hero' | 'grid' | null — 進入路徑（CD-9）
+        _ghostFlyInFlight: false,       // T7: 跨模式 ghost fly 並發保護 flag（CD-13）
         _actressChipsExpanded: { aliases: false, info: false },  // chips 展開狀態
         _addActressName: '',            // + 新增 input
         _addingActress: false,          // 新增 loading
         _addDropdownOpen: false,        // + 新增 popover 開關
-        _rescraping: false,             // 重新抓取 loading
         _videoChipsExpanded: false,     // 影片 tag chips +N 展開（T4 使用）
+
+        // 49b T4cd: Actress Photo Picker 狀態
+        _pickerOpen: false,
+        _candidates: [],
+        _pickerLoading: false,
+        _pickerSelected: false,
+        _pickerCurrentSource: null,
+        _pickerFloatTweens: [],
+        _pickerRunId: 0,
+        _pickerSSE: null,
+        _pickerTimeoutTimer: null,
 
         // User Tags 狀態 (T4)
         addingLbTag: false,
@@ -426,37 +451,60 @@ function showcaseState() {
 
         toggleActressMode() {
             if (this.lightboxOpen) this.closeLightbox();
-            this.showFavoriteActresses = !this.showFavoriteActresses;
             var self = this;
-            var needEntry = false;
-            if (this.showFavoriteActresses) {
-                this._clearPreciseMatch();
-                if (_actresses.length === 0) {
-                    this.loadActresses();
+            var isEnteringActress = !this.showFavoriteActresses;
+            var oldMode = isEnteringActress ? (this.mode || 'grid') : 'actress';
+            var newMode = isEnteringActress ? 'actress' : (this.mode || 'grid');
+            var gen = ++this._animGeneration;
+
+            // Codex P1: 抽出 callback body 作 fallback；若 playModeCrossfade 不可用直接同步呼叫
+            var flipAndFadeIn = function () {
+                if (self._animGeneration !== gen) return;
+                // 翻轉（觸發 x-if 重新掛載 DOM）
+                self.showFavoriteActresses = isEnteringActress;
+                var needEntry = false;
+                if (isEnteringActress) {
+                    self._clearPreciseMatch();
+                    if (_actresses.length === 0) {
+                        self.loadActresses();
+                    } else {
+                        needEntry = true;
+                    }
                 } else {
                     needEntry = true;
+                    var searchTerm = self.search.trim();
+                    if (searchTerm) {
+                        self._checkPreciseActressMatch(searchTerm, 'manual');
+                    }
                 }
+                // Phase 2: $nextTick 後 fade-in 新容器
+                var gen2 = ++self._animGeneration;
+                self.$nextTick(function () {
+                    if (self._animGeneration !== gen2) return;
+                    var newSelector = newMode === 'actress' ? '.actress-grid'
+                        : newMode === 'table' ? '.showcase-table-wrapper'
+                        : newMode === 'list' ? '.showcase-list-wrapper'
+                        : '.showcase-grid';
+                    var newEl = document.querySelector(newSelector);
+                    // Codex P2: reduced-motion / gsap missing 由 helper 內 shouldSkip / typeof 守衛處理
+                    window.ShowcaseAnimations?.playContainerFadeIn?.(newEl);
+                    if (needEntry) {
+                        var grid = self._getActiveGrid();
+                        window.ShowcaseAnimations?.playEntry?.(grid);
+                    }
+                });
+                self.saveState();
+            };
+
+            var fade = window.ShowcaseAnimations && window.ShowcaseAnimations.playModeCrossfade;
+            if (typeof fade === 'function') {
+                fade.call(window.ShowcaseAnimations, oldMode, null, null, {
+                    onOldFadeComplete: flipAndFadeIn
+                });
             } else {
-                needEntry = true;
-                var searchTerm = this.search.trim();
-                if (searchTerm) {
-                    this._checkPreciseActressMatch(searchTerm, 'manual');
-                }
+                // P1 fallback: animations.js 不可用 → 直接同步翻轉 + 進入 fade-in（會被 reduced-motion / gsap-undef guard 自然降級）
+                flipAndFadeIn();
             }
-            var gen = ++this._animGeneration;
-            this.$nextTick(function () {
-                if (self._animGeneration !== gen) return;
-                if (self.showFavoriteActresses) {
-                    window.ShowcaseAnimations?.playModeCrossfade?.('grid', 'actress');
-                } else {
-                    window.ShowcaseAnimations?.playModeCrossfade?.('actress', self.mode);
-                }
-                if (needEntry) {
-                    var grid = self._getActiveGrid();
-                    window.ShowcaseAnimations?.playEntry?.(grid);
-                }
-            });
-            this.saveState();
         },
 
         async loadActresses() {
@@ -595,6 +643,9 @@ function showcaseState() {
                 _killLightboxTimelines({ killOpen: false, killSwitch: true });
                 var direction = index > this.actressLightboxIndex ? 'next' : 'prev';
                 this._setActressLightboxIndex(index);
+                this.actressLightboxSource = 'grid';   // T5: 切換女優分支
+                // T3: fire-and-forget 即時查 aliases
+                this._fetchLiveAliases(this.currentLightboxActress?.name, index);
                 var lbGen = ++this._lightboxGeneration;
                 var self = this;
                 this.$nextTick(function () {
@@ -611,9 +662,34 @@ function showcaseState() {
                 return;
             }
 
+            // ★ ghost fly — 在 state 變更前捕獲 fromRect（對齊 video mode openLightbox）
+            var fromRect = null;
+            var coverSrc = null;
+            if (!this.lightboxOpen) {
+                var gridEl = this._getActiveGrid();
+                if (gridEl) {
+                    var actress = _filteredActresses[index];
+                    var cardEl = actress
+                        ? gridEl.querySelector('[data-flip-id="actress:' + CSS.escape(actress.name) + '"]')
+                        : null;
+                    if (cardEl) {
+                        var imgEl = cardEl.querySelector('.actress-card-photo img');
+                        if (imgEl && imgEl.complete && imgEl.getBoundingClientRect().width > 0) {
+                            fromRect = imgEl.getBoundingClientRect();
+                            coverSrc = imgEl.src;
+                        }
+                    }
+                }
+            }
+
             this._setActressLightboxIndex(index);
+            this.actressLightboxSource = 'grid';   // T5: 首次進入分支
+            var lightboxElPre = document.querySelector('.showcase-lightbox');
+            if (lightboxElPre) lightboxElPre.classList.add('gsap-animating');
             this.lightboxOpen = true;
             document.body.classList.add('overflow-hidden');
+            // T3: fire-and-forget 即時查 aliases
+            this._fetchLiveAliases(this.currentLightboxActress?.name, index);
 
             var self = this;
             var lbGen = ++this._lightboxGeneration;
@@ -621,11 +697,23 @@ function showcaseState() {
                 if (self._lightboxGeneration !== lbGen) return;
                 var lightboxEl = document.querySelector('.showcase-lightbox');
                 if (!lightboxEl) return;
-                self._lightboxAnimating = true;
-                var tl = window.ShowcaseAnimations?.playLightboxOpen?.(lightboxEl, {
-                    onComplete: function () { self._lightboxAnimating = false; }
-                });
-                if (!tl) self._lightboxAnimating = false;
+
+                if (fromRect && window.GhostFly && window.GhostFly.playGridToLightbox) {
+                    self._lightboxAnimating = true;
+                    window.GhostFly.playGridToLightbox(fromRect, lightboxEl, {
+                        coverSrc: coverSrc,
+                        onComplete: function () { self._lightboxAnimating = false; }
+                    });
+                    if (window.ShowcaseAnimations && window.ShowcaseAnimations.playLightboxOpen) {
+                        window.ShowcaseAnimations.playLightboxOpen(lightboxEl, { skipCover: true });
+                    }
+                } else {
+                    self._lightboxAnimating = true;
+                    var tl = window.ShowcaseAnimations?.playLightboxOpen?.(lightboxEl, {
+                        onComplete: function () { self._lightboxAnimating = false; }
+                    });
+                    if (!tl) self._lightboxAnimating = false;
+                }
             });
         },
 
@@ -642,6 +730,8 @@ function showcaseState() {
             if (this.actressLightboxIndex <= 0) return;
             var newIdx = this.actressLightboxIndex - 1;
             this._setActressLightboxIndex(newIdx);
+            // P2 Codex: 方向鍵切換也要 fetch live alias，否則 SSOT 心智模型在切換時破功
+            this._fetchLiveAliases(this.currentLightboxActress?.name, newIdx);
 
             var lbGen = ++this._lightboxGeneration;
             var self = this;
@@ -667,6 +757,8 @@ function showcaseState() {
             if (this.actressLightboxIndex >= _filteredActresses.length - 1) return;
             var newIdx = this.actressLightboxIndex + 1;
             this._setActressLightboxIndex(newIdx);
+            // P2 Codex: 方向鍵切換也要 fetch live alias，否則 SSOT 心智模型在切換時破功
+            this._fetchLiveAliases(this.currentLightboxActress?.name, newIdx);
 
             var lbGen = ++this._lightboxGeneration;
             var self = this;
@@ -692,6 +784,10 @@ function showcaseState() {
         _actressCoreMetadata() {
             var a = this.currentLightboxActress; if (!a) return '';
             var parts = [];
+            // T2: video_count 前置（CD-3）
+            if (typeof a.video_count === 'number') {
+                parts.push(a.video_count + window.t('showcase.unit.films'));
+            }
             if (a.age) parts.push(a.age + window.t('search.unit.age'));
             if (a.birth) parts.push(a.birth);
             if (a.height) parts.push(a.height);
@@ -741,6 +837,36 @@ function showcaseState() {
 
         _aliasesOverflow() {
             return Math.max(0, (this.currentLightboxActress?.aliases || []).length - this._chipsLimit());
+        },
+
+        // 49a-T3: 開啟 Lightbox 時 async fetch 最新 aliases（Scanner SSOT）
+        // 200 才覆蓋 snapshot；404 / timeout / network error 保留 snapshot（fire-and-forget）
+        // §8.4 reactivity：用 Object.assign 建立新物件以觸發 Alpine deep watch
+        async _fetchLiveAliases(name, expectedIndex) {
+            if (!name) return;
+            var capturedName = name;
+            var self = this;
+            try {
+                var resp = await fetch('/api/actress-aliases/' + encodeURIComponent(capturedName), {
+                    signal: AbortSignal.timeout(3000)   // §8.5: Chrome 103+/Firefox 100+/Safari 15.4+
+                });
+                if (resp.status === 200) {
+                    var data = await resp.json();
+                    // Stale-check：lightbox 仍在 + 還是同一個女優 + (若指定) index 一致
+                    if (!self.lightboxOpen) return;
+                    if (self.currentLightboxActress?.name !== capturedName) return;
+                    if (expectedIndex !== null && expectedIndex !== undefined
+                        && self.actressLightboxIndex !== expectedIndex) return;
+                    var newAliases = (data && data.group && data.group.aliases) || [];
+                    self.currentLightboxActress = Object.assign({}, self.currentLightboxActress, {
+                        aliases: newAliases
+                    });
+                }
+                // 404 / 5xx → 保留 snapshot，靜默
+            } catch (e) {
+                // timeout / network error → 保留 snapshot，靜默
+                if (window.console && console.warn) console.warn('[T3] alias live fetch failed:', e);
+            }
         },
 
         _visibleInfoChips() {
@@ -834,40 +960,6 @@ function showcaseState() {
             }
         },
 
-        async rescrapeActress() {
-            if (this._rescraping || !this.currentLightboxActress) return;
-            this._rescraping = true;
-            const name = this.currentLightboxActress.name;
-            try {
-                const resp = await fetch(`/api/actresses/${encodeURIComponent(name)}/rescrape`, {
-                    method: 'POST',
-                });
-                const data = await resp.json();
-                if (data.success && data.actress) {
-                    // 先更新 _actresses 陣列（不論 lightbox 是否切換，grid 資料都要刷新）
-                    const idx = _actresses.findIndex(a => a.name === name);
-                    if (idx >= 0) {
-                        Object.assign(_actresses[idx], data.actress);
-                        this.applyActressFilterAndSort();
-                    }
-                    // stale guard：只在 lightbox 仍顯示同一位女優時更新 lightbox
-                    if (this.currentLightboxActress?.name === name) {
-                        Object.assign(this.currentLightboxActress, data.actress);
-                        if (this.currentLightboxActress.photo_url) {
-                            this.currentLightboxActress.photo_url += '?t=' + Date.now();
-                        }
-                    }
-                    this.showToast(window.t('showcase.actress.rescrapeSuccess'), 'success');
-                } else {
-                    this.showToast(window.t('showcase.actress.rescrapeError') || data.error || 'Error', 'error');
-                }
-            } catch (e) {
-                this.showToast(window.t('showcase.actress.rescrapeError') || 'Error', 'error');
-            } finally {
-                this._rescraping = false;
-            }
-        },
-
         async removeActress() {
             if (!this.currentLightboxActress) return;
             const name = this.currentLightboxActress.name;
@@ -902,29 +994,144 @@ function showcaseState() {
             }
         },
 
-        // --- 44c T7: Search actress films ---
-        searchActressFilms(actressName) {
+        // --- 44c T7: Search actress films（49a-T7：跨模式 Ghost Fly 動畫）---
+        async searchActressFilms(actressName, fromEl) {
             if (!actressName) return;
-            if (this.lightboxOpen) this.closeLightbox();
+            if (this._ghostFlyInFlight) return;   // CD-13: 連點保護
+            var self = this;
             var wasActressMode = this.showFavoriteActresses;
-            if (wasActressMode) {
-                this.showFavoriteActresses = false;
-                this.actressSearch = '';
-            }
-            this.search = actressName;
-            this._animateFilter();
-            this._checkPreciseActressMatch(actressName, 'metadata');
-            if (wasActressMode) {
-                var self = this;
+
+            // §8.3: 用 IIFE try/catch 包住主流程，避免 unhandled rejection；
+            //       任何 throw 也會 reset _ghostFlyInFlight 防卡死。
+            try {
+                // 捕獲來源 rect / coverSrc（必須在 closeLightbox / state 變更前）
+                var fromRect = null;
+                var coverSrc = null;
+                if (wasActressMode && fromEl) {
+                    var fromImg = fromEl.closest('.actress-card')?.querySelector('.actress-card-photo img')
+                        || fromEl.closest('.showcase-lightbox')?.querySelector('.lightbox-cover img');
+                    if (fromImg) {
+                        fromRect = fromImg.getBoundingClientRect();
+                        coverSrc = fromImg.src;
+                    }
+                }
+
+                if (this.lightboxOpen) this.closeLightbox();
+                if (wasActressMode) {
+                    this.showFavoriteActresses = false;
+                    this.actressSearch = '';
+                }
+                this.search = actressName;
+                this._animateFilter();
+
+                // 非女優模式 / 無 fromEl / 無 coverSrc → fallback 走原有同步行為
+                if (!wasActressMode || !fromRect || !coverSrc) {
+                    this._checkPreciseActressMatch(actressName, 'metadata');
+                    if (wasActressMode) {
+                        var gen0 = ++this._animGeneration;
+                        this.$nextTick(function () {
+                            if (self._animGeneration !== gen0) return;
+                            window.ShowcaseAnimations?.playModeCrossfade?.('actress', self.mode);
+                            if (self.mode === 'grid') {
+                                var grid0 = self._getActiveGrid();
+                                window.ShowcaseAnimations?.playEntry?.(grid0);
+                            }
+                        });
+                    }
+                    return;
+                }
+
+                // === Ghost Fly 主流程 ===
+                this._ghostFlyInFlight = true;
                 var gen = ++this._animGeneration;
+
+                // 淡出女優 grid（T1 playModeCrossfade 的 fade-out 部分）
+                window.ShowcaseAnimations?.playModeCrossfade?.('actress', null, null, {
+                    onOldFadeComplete: function () {}
+                });
+                // 影片 grid 淡入（$nextTick 後）
                 this.$nextTick(function () {
                     if (self._animGeneration !== gen) return;
-                    window.ShowcaseAnimations?.playModeCrossfade?.('actress', self.mode);
-                    if (self.mode === 'grid') {
-                        var grid = self._getActiveGrid();
-                        window.ShowcaseAnimations?.playEntry?.(grid);
-                    }
+                    var newEl = document.querySelector('.showcase-grid');
+                    window.ShowcaseAnimations?.playContainerFadeIn?.(newEl);
+                    window.ShowcaseAnimations?.playEntry?.(self._getActiveGrid());
                 });
+
+                // ⚠️ Gotcha：_checkPreciseActressMatch 依搜尋詞守衛 return（不重設 _isPreciseActressMatch），
+                //     所以 await 前先手動 reset false，避免讀到上一次搜尋的殘留 true。
+                self._isPreciseActressMatch = false;
+
+                await self._checkPreciseActressMatch(actressName, 'metadata');
+
+                // _animGeneration 比對：若 stale（多次點擊），中止主流程
+                if (self._animGeneration !== gen) {
+                    self._ghostFlyInFlight = false;
+                    return;
+                }
+
+                // 等 hero card DOM render（最多 500ms 輪詢）
+                var heroCardEl = null;
+                var TIMEOUT = 500;
+                var elapsed = 0;
+                var interval = 30;
+                await new Promise(function (resolve) {
+                    var checker = setInterval(function () {
+                        elapsed += interval;
+                        var hero = document.querySelector('.hero-card');
+                        if (hero && hero.getBoundingClientRect().width > 0) {
+                            heroCardEl = hero;
+                            clearInterval(checker);
+                            resolve();
+                        } else if (elapsed >= TIMEOUT) {
+                            clearInterval(checker);
+                            resolve();
+                        }
+                    }, interval);
+                });
+
+                // 再次 stale 檢查
+                if (self._animGeneration !== gen) {
+                    self._ghostFlyInFlight = false;
+                    return;
+                }
+
+                // CD-12: 降級條件（5 條件全通過才走主流程）
+                var canMainFlow = heroCardEl
+                    && self._isPreciseActressMatch
+                    && self._matchedActress
+                    && self._matchedActress.is_favorite !== false
+                    && coverSrc;
+
+                // 降級 helper：來源圖 pulse + 釋放 flag（搜尋欄 / empty state 已自動處理）
+                var doFallback = function () {
+                    self._ghostFlyInFlight = false;
+                    if (fromEl) {
+                        var pulseTarget = fromEl.closest('.actress-card')?.querySelector('.actress-card-photo img')
+                            || fromEl.closest('.showcase-lightbox')?.querySelector('.lightbox-cover img');
+                        window.ShowcaseAnimations?.playSourcePulse?.(pulseTarget);
+                    }
+                };
+
+                if (canMainFlow) {
+                    // P1 Codex: explicit availability check — optional chaining 缺失時 silent no-op，
+                    // onComplete/onFallback 都不會被呼叫，flag 永久 true → camera button 永久 disabled。
+                    if (typeof window.GhostFly?.playActressToHeroCard !== 'function') {
+                        doFallback();
+                        return;
+                    }
+                    // 主流程：ghost fly（已驗證存在，直接呼叫強化 callback 契約）
+                    window.GhostFly.playActressToHeroCard(fromRect, heroCardEl, {
+                        coverSrc: coverSrc,
+                        onComplete: function () { self._ghostFlyInFlight = false; },
+                        onFallback: function () { self._ghostFlyInFlight = false; }
+                    });
+                } else {
+                    doFallback();
+                }
+            } catch (e) {
+                // §8.3 防禦：任何 throw 都釋放 flag 防卡死
+                self._ghostFlyInFlight = false;
+                console.warn('[T7][searchActressFilms]', e);
             }
         },
 
@@ -1123,6 +1330,20 @@ function showcaseState() {
             if (num === this.page) return;
             var direction = num > this.page ? 'next' : 'prev';
             this._animatePageChange(direction, num);
+        },
+
+        /**
+         * 49a-T4 / Codex P2: 開啟隱藏 select 的 native picker
+         * 隱藏 select 用 .click() 在主流瀏覽器只 dispatch event 不會開 picker；
+         * showPicker() (Chrome 99+/FF 98+/Safari 16.4+) 才會真的彈出。
+         * 失敗（不支援 / non-user-gesture SecurityError）fallback 回 .click()。
+         */
+        openPagePicker(selectEl) {
+            if (!selectEl) return;
+            if (typeof selectEl.showPicker === 'function') {
+                try { selectEl.showPicker(); return; } catch (e) { /* fall through */ }
+            }
+            selectEl.click();
         },
 
         // --- 資料處理 (M2a 基本實作，M4 完整化) ---
@@ -1388,8 +1609,11 @@ function showcaseState() {
             this._videoChipsExpanded = false;
             var lightboxEl = document.querySelector('.showcase-lightbox');
             if (lightboxEl) lightboxEl.classList.add('gsap-animating');
+            this.actressLightboxSource = 'hero';   // T5: hero card 路徑
             this.lightboxOpen = true;
             document.body.classList.add('overflow-hidden');
+            // T3: fire-and-forget 即時查 aliases（hero card 路徑無 grid index）
+            this._fetchLiveAliases(this._matchedActress?.name, null);
 
             // B19: 進場動畫（fire-and-forget，generation-guarded）
             var lbGen = ++this._lightboxGeneration;
@@ -1414,11 +1638,18 @@ function showcaseState() {
                 this.lightboxCloseTimer = null;
             }
 
+            // 49b T4 fix: 若 picker 開啟中，先關閉 picker（避免 SSE/timer 洩漏到隱藏狀態）
+            if (this._pickerOpen) {
+                this._closePicker();
+            }
+
             this.addingLbTag = false;    // 關閉 lightbox 時重置 user tag 輸入框
             this._fetchSamplesFailed = {};
 
             // ★ C11: fly-back — 必須在 generation++ / lightboxOpen = false 之前捕獲
-            var closingIndex = this.lightboxIndex;
+            var closingIndex = this.showFavoriteActresses
+                ? this.actressLightboxIndex
+                : this.lightboxIndex;
             var lbEl = document.querySelector('.showcase-lightbox');
             var lbImg = lbEl ? lbEl.querySelector('.lightbox-cover img') : null;
             var flybackFromRect = lbImg ? lbImg.getBoundingClientRect() : null;
@@ -1442,6 +1673,7 @@ function showcaseState() {
             if (lbEl) lbEl.classList.remove('gsap-animating');
             this._lightboxAnimating = false;
             this.lightboxOpen = false;
+            this.actressLightboxSource = null;   // T5: reset 進入路徑
             document.body.classList.remove('overflow-hidden');
 
             // ★ Fly-back — 用快照的 flipId 在整個頁面搜尋，不依賴 mode 或活陣列
@@ -2005,10 +2237,340 @@ function showcaseState() {
             }, duration);
         },
 
+        // --- 49b T4cd: Actress Photo Picker methods ---
+        /**
+         * 開啟候選卡 picker — async，遞增 runId，啟動 SSE，淡出 metadata
+         * 若已開且按 🔄：reset + 重抓
+         */
+        async openActressPicker() {
+            const name = this.currentLightboxActress?.name;
+            if (!name) return;
+
+            // Tear down any in-flight SSE/timer before starting a new one (refresh-while-open)
+            if (this._pickerSSE) { this._pickerSSE.close(); this._pickerSSE = null; }
+            if (this._pickerTimeoutTimer) { clearTimeout(this._pickerTimeoutTimer); this._pickerTimeoutTimer = null; }
+
+            if (this._pickerOpen) {
+                this._resetPicker();
+            }
+
+            this._pickerOpen = true;
+            this._pickerLoading = true;
+            this._pickerCurrentSource = this.currentLightboxActress?.photo_source || null;
+
+            // metadata 淡出（Row 1 actress-lb-header 保留）
+            this._fadeMetadataPanel(true);
+
+            this._pickerRunId++;
+            const runId = this._pickerRunId;
+
+            this._startPickerSSE(name, runId);
+        },
+
+        /**
+         * 啟動 EventSource，處理 candidate / done / error 事件 + 3s no-event timeout
+         */
+        _startPickerSSE(name, runId) {
+            const url = `/api/actresses/${encodeURIComponent(name)}/photo-candidates`;
+            const sse = new EventSource(url);
+            this._pickerSSE = sse;
+
+            const scheduleTimeout = () => {
+                clearTimeout(this._pickerTimeoutTimer);
+                this._pickerTimeoutTimer = setTimeout(() => {
+                    if (this._pickerRunId !== runId) return;
+                    sse.close();
+                    this._pickerLoading = false;
+                }, 3000);
+            };
+            scheduleTimeout();
+
+            sse.addEventListener('candidate', async (e) => {
+                if (this._pickerRunId !== runId) { sse.close(); return; }
+                try {
+                    const candidate = JSON.parse(e.data);
+                    // ⚠️ Race fix：必須在 push 後同步 capture myIndex，再 await。
+                    // 否則 SSE 一次連發多筆（local_crop 緊接 yield）時，所有 handler 在
+                    // await $nextTick 後 resume 看到的 _candidates.length 都是 N（最終值），
+                    // 會全部 pick cards[N-1]，導致中間 candidate 沒有 burst（停留 opacity: 0）。
+                    this._candidates = [...this._candidates, candidate];
+                    const myIndex = this._candidates.length - 1;
+                    await this.$nextTick();
+                    if (this._pickerRunId !== runId) return;
+
+                    const grid = this.$refs.pickerGrid;
+                    if (grid && typeof window.BurstPicker !== 'undefined') {
+                        const cards = grid.querySelectorAll('.picker-candidate-card');
+                        const newCard = cards[myIndex];
+                        if (newCard) {
+                            // 用 $refs.pickerCoverImg 而非 $el.querySelector：在 @click handler 內
+                            // $el 是按鈕本身、不是 component root，querySelector 會 miss → cards 留 opacity:0
+                            const coverEl = this.$refs.pickerCoverImg;
+                            if (coverEl) {
+                                window.BurstPicker.playPickerBurst([newCard], coverEl, _PICKER_PARAMS, {
+                                    streamMode: 'instant',
+                                    streamInterval: 300,
+                                    floatTimerSink: this._pickerFloatTweens,
+                                    runId: runId,
+                                    getRunId: () => this._pickerRunId
+                                });
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.warn('[Picker] Failed to parse candidate:', err);
+                }
+                scheduleTimeout();
+            });
+
+            sse.addEventListener('done', () => {
+                if (this._pickerRunId !== runId) return;
+                sse.close();
+                this._pickerSSE = null;
+                this._pickerLoading = false;
+                clearTimeout(this._pickerTimeoutTimer);
+            });
+
+            sse.onerror = () => {
+                if (this._pickerRunId !== runId) return;
+                sse.close();
+                this._pickerLoading = false;
+                if (this._candidates.length === 0) {
+                    this._closePicker();
+                    if (typeof this.showToast === 'function') {
+                        this.showToast(window.t('showcase.actress.picker.error'), 'error');
+                    }
+                }
+            };
+        },
+
+        /**
+         * Hover in：放大 + glow（settled 後才生效）
+         */
+        _onPickerHoverIn(el, i) {
+            if (this._pickerSelected) return;
+            if (typeof window.BurstPicker !== 'undefined') {
+                window.BurstPicker.playPickerHoverIn(el, _PICKER_PARAMS);
+            }
+        },
+
+        /**
+         * Hover out：縮回原始尺寸 → 等待縮回完成後 restart float
+         * Codex P2 fix：playPickerFloat 內 killTweensOf 會殺掉同步啟動的 hover-out tween，
+         * 必須 await playPickerHoverOut 完成後再 startfloat，否則卡片停留在放大/glow 狀態。
+         */
+        async _onPickerHoverOut(el, i) {
+            if (this._pickerSelected) return;
+            if (typeof window.BurstPicker === 'undefined') return;
+            // Capture the card so a later mutation (cancel/select clearing _candidates) can't break us
+            const targetEl = el;
+            await window.BurstPicker.playPickerHoverOut(targetEl, _PICKER_PARAMS);
+            // Stale-check：hover-out 動畫期間若 picker 已關閉 / 已選中，不重啟 float
+            if (this._pickerSelected || !this._pickerOpen) return;
+            // 同樣防護：卡片可能已被 reset 從 DOM 移除
+            if (!targetEl.isConnected) return;
+            const tl = window.BurstPicker.playPickerFloat(targetEl, _PICKER_PARAMS);
+            if (tl) this._pickerFloatTweens.push(tl);
+        },
+
+        /**
+         * 選中卡片 — T4e 完整流程
+         * Race lock → POST /photo → Alpine 狀態同步 → FlipReplace + ExitAll → cache-bust src 同步 → toast
+         */
+        async _onPickerSelect(candidate, i) {
+            // AC-13 race lock：第一次 click 鎖定，其餘忽略
+            if (this._pickerSelected) return;
+            this._pickerSelected = true;
+
+            // 41d captured-reference pattern：在 await 前抓快照，await 後比對偵測 lightbox 切換
+            const capturedName = this.currentLightboxActress?.name;
+            if (!capturedName) {
+                this._pickerSelected = false;
+                return;
+            }
+
+            // DOM 節點解析：必須在 await 前取得（await 後可能已被 close/重繪）
+            const grid = this.$refs.pickerGrid;
+            const allCards = grid ? Array.from(grid.querySelectorAll('.picker-candidate-card')) : [];
+            const selectedCard = allCards[i] || null;
+            const otherCards = allCards.filter((_, j) => j !== i);
+            const coverImg = this.$refs.pickerCoverImg;
+
+            // Reduced-motion 偵測（系統層 + simulator）
+            const reduceMotion = (typeof window.matchMedia === 'function' &&
+                                  window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+            try {
+                const body = {
+                    source: candidate.source,
+                    url: candidate.full_url,
+                    video_path: candidate.video_path || null,
+                    crop_spec: 'v1',
+                };
+                const resp = await fetch(`/api/actresses/${encodeURIComponent(capturedName)}/photo`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                if (!resp.ok) throw new Error('replace_failed_' + resp.status);
+                const data = await resp.json();
+
+                // Stale check：await 期間用戶切換了 lightbox actress
+                if (!this.currentLightboxActress || this.currentLightboxActress.name !== capturedName) {
+                    // 仍同步背景 _actresses 陣列，但不再動 UI / 動畫
+                    this._syncActressesArray(capturedName, data);
+                    this._pickerSelected = false;
+                    return;
+                }
+
+                // Sync via _syncActressesArray (in-place mutation propagates to currentLightboxActress
+                // since it shares the _actresses[idx] reference per line 208-209).
+                this._syncActressesArray(capturedName, data);
+                // Defensive: if currentLightboxActress somehow holds a different object (e.g. cache),
+                // also mutate it in place to ensure :src / photo_source bindings update.
+                if (this.currentLightboxActress && this.currentLightboxActress.name === capturedName) {
+                    this.currentLightboxActress.photo_url = data.photo_url;
+                    this.currentLightboxActress.photo_source = data.photo_source;
+                }
+
+                // Reduced-motion 或 BurstPicker 未載入 → 直接更新 src + 關閉
+                if (reduceMotion || typeof window.BurstPicker === 'undefined') {
+                    if (coverImg && data.photo_url) {
+                        coverImg.src = data.photo_url;
+                    }
+                    this._closePicker();
+                    this.showToast(window.t('showcase.actress.picker.replaced'), 'success');
+                    return;
+                }
+
+                // 完整動畫：FlipReplace（await）→ src 同步至 backend persistent URL → ExitAll（fire-and-forget）
+                try {
+                    if (selectedCard && coverImg) {
+                        await window.BurstPicker.playPickerFlipReplace(selectedCard, coverImg, _PICKER_PARAMS);
+                        // FlipReplace 內部以 selectedImg.src 作為 ghost / 新 cover src（candidate 來源 URL）。
+                        // 動畫完成後覆蓋為後端 persistent endpoint（含 ?t= cache-bust），確保刷新後 cover 仍正確。
+                        if (data.photo_url) {
+                            coverImg.src = data.photo_url;
+                        }
+                    } else if (coverImg && data.photo_url) {
+                        coverImg.src = data.photo_url;
+                    }
+                    if (otherCards.length > 0) {
+                        await window.BurstPicker.playPickerExitAll(otherCards, _PICKER_PARAMS);
+                    }
+                } catch (animErr) {
+                    // 動畫失敗不應阻塞 success 路徑
+                    console.warn('[Picker] animation error', animErr);
+                    if (coverImg && data.photo_url) coverImg.src = data.photo_url;
+                }
+
+                this._closePicker();
+                this.showToast(window.t('showcase.actress.picker.replaced'), 'success');
+
+            } catch (e) {
+                this._pickerSelected = false;  // 失敗時解除鎖定
+                this._closePicker();
+                this.showToast(window.t('showcase.actress.picker.error'), 'error');
+            }
+        },
+
+        /**
+         * Helper: 換照片成功後同步 _actresses 陣列對應 entry
+         */
+        _syncActressesArray(name, data) {
+            if (!data || !data.photo_url) return;
+            // 透過 this.paginatedActresses（Alpine proxy）mutation，觸發 grid card :src 重渲染。
+            // 因 paginatedActresses[idx] 與 _actresses[idx]/_filteredActresses[idx] 共用 object
+            // reference（line 555/607/610），proxy mutation 會同步反映到三個陣列。
+            const idx = this.paginatedActresses.findIndex(a => a.name === name);
+            if (idx >= 0) {
+                this.paginatedActresses[idx].photo_url = data.photo_url;
+                this.paginatedActresses[idx].photo_source = data.photo_source;
+            }
+        },
+
+        /**
+         * 關閉 picker：停止 SSE、reset 狀態、metadata 淡入
+         */
+        _closePicker() {
+            this._pickerRunId++;   // invalidate any in-flight SSE callbacks
+            if (this._pickerSSE) {
+                this._pickerSSE.close();
+                this._pickerSSE = null;
+            }
+            clearTimeout(this._pickerTimeoutTimer);
+            this._pickerTimeoutTimer = null;
+            this._resetPicker();
+            this._fadeMetadataPanel(false);
+        },
+
+        /**
+         * 取消 picker（Esc / outside-click）— 播放 reverse 動畫後關閉
+         * 與 _closePicker() 區別：本方法走 motion-lab T1 reverse 視覺，封閉性更佳
+         */
+        async _cancelPicker() {
+            if (!this._pickerOpen || this._pickerSelected) return;  // 已選中走 _closePicker；避免重入
+            // Codex P2 fix：reverse 動畫期間（300ms）卡片仍可見，必須鎖住 _onPickerSelect 不被觸發
+            this._pickerSelected = true;
+            // 鎖住 SSE/timer 不再觸發
+            this._pickerRunId++;
+            if (this._pickerSSE) { this._pickerSSE.close(); this._pickerSSE = null; }
+            clearTimeout(this._pickerTimeoutTimer);
+            this._pickerTimeoutTimer = null;
+            // 抓現有候選卡，播 reverse 動畫
+            const grid = this.$refs?.pickerGrid;
+            const cards = grid ? Array.from(grid.querySelectorAll('.picker-candidate-card')) : [];
+            const coverImg = this.$refs.pickerCoverImg;
+            if (cards.length > 0 && typeof window.BurstPicker !== 'undefined' && window.BurstPicker.playPickerReverseAll) {
+                await new Promise((resolve) => {
+                    window.BurstPicker.playPickerReverseAll(cards, coverImg, _PICKER_PARAMS, resolve);
+                });
+            }
+            // 動畫完成後 reset 狀態（含解除 _pickerSelected lock）+ 淡入 metadata
+            this._resetPicker();
+            this._fadeMetadataPanel(false);
+        },
+
+        /**
+         * 內部 reset：清空候選 + kill float tweens
+         */
+        _resetPicker() {
+            this._pickerOpen = false;
+            this._pickerLoading = false;
+            this._pickerSelected = false;
+            this._candidates = [];
+            this._pickerCurrentSource = null;
+            this._pickerFloatTweens.forEach(t => t && t.kill && t.kill());
+            this._pickerFloatTweens = [];
+        },
+
+        /**
+         * Metadata panel 淡出/淡入（Row 1 actress-lb-header 用 :not() 排除）
+         */
+        _fadeMetadataPanel(out) {
+            const meta = this.$el?.querySelector?.('.actress-lightbox-meta');
+            if (!meta || typeof gsap === 'undefined') return;
+            const rows = meta.querySelectorAll(':scope > :not(.actress-lb-header)');
+            if (rows.length === 0) return;
+            OpenAver.motion.playFadeTo(rows, {
+                opacity: out ? 0 : 1,
+                duration: 0.2,
+                ease: 'power2.out'
+            });
+        },
+
         // --- 快捷鍵 (M4c 完整實作) ---
         handleKeydown(e) {
             // 1. 輸入框中不處理快捷鍵
             if (e.target.tagName === 'INPUT') return;
+
+            // 49b T4cd: Picker 開啟時，Esc 優先關閉 picker（不冒泡到 lightbox close）
+            if (e.key === 'Escape' && this._pickerOpen) {
+                this._cancelPicker();
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
 
             // 2. modifier keys 停用（原版 L1667）
             if (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;

@@ -352,9 +352,16 @@
          * @param {Object} params - 動畫參數（保留擴展性）
          * @returns {gsap.core.Tween|null}
          */
-        playModeCrossfade: function (oldMode, newMode, params) {
-            if (shouldSkip()) return null;
-            if (typeof gsap === 'undefined') return null;
+        playModeCrossfade: function (oldMode, newMode, params, callbacks) {
+            var hasCb = !!(callbacks && callbacks.onOldFadeComplete);
+            if (shouldSkip()) {
+                if (hasCb) callbacks.onOldFadeComplete();
+                return null;
+            }
+            if (typeof gsap === 'undefined') {
+                if (hasCb) callbacks.onOldFadeComplete();
+                return null;
+            }
 
             var selectors = {
                 grid: '.showcase-grid',
@@ -363,13 +370,32 @@
                 list: '.showcase-list-wrapper'
             };
 
-            var newEl = document.querySelector(selectors[newMode]);
-            if (!newEl) return null;
+            var oldEl = oldMode ? document.querySelector(selectors[oldMode]) : null;
+            var newEl = newMode ? document.querySelector(selectors[newMode]) : null;
 
-            return gsap.fromTo(newEl,
-                { opacity: 0 },
-                { opacity: 1, duration: 0.2, ease: 'power2.out', clearProps: 'opacity' }
-            );
+            var tl = gsap.timeline();
+            // Phase 1: oldEl fade-out（只在有 callback 時觸發，避免破壞舊 caller 行為）
+            if (hasCb) {
+                if (oldEl) {
+                    tl.to(oldEl, {
+                        opacity: 0,
+                        duration: 0.15,
+                        ease: 'power2.in',
+                        clearProps: 'opacity',
+                        onComplete: function () { callbacks.onOldFadeComplete(); }
+                    });
+                } else {
+                    callbacks.onOldFadeComplete();
+                }
+            }
+            // Phase 2: newEl fade-in（舊 caller 行為保留）
+            if (newEl) {
+                tl.fromTo(newEl,
+                    { opacity: 0 },
+                    { opacity: 1, duration: 0.2, ease: 'power2.out', clearProps: 'opacity' }
+                );
+            }
+            return tl;
         },
 
         /**
@@ -586,6 +612,46 @@
             );
 
             return tween;
+        },
+
+        /**
+         * 49a-T1/T7：容器 fade-in（opacity 0 → 1）
+         * 用途：x-if 重新掛載新容器後在 $nextTick 內呼叫，與 playModeCrossfade
+         * 的 oldEl fade-out 階段配對。caller 必須是被新掛載到 DOM 的元素。
+         * reduced-motion 與 gsap undefined 時直接 no-op。
+         */
+        playContainerFadeIn: function (el, options) {
+            options = options || {};
+            if (!el) return null;
+            if (typeof gsap === 'undefined') return null;
+            if (shouldSkip()) return null;
+            var dur = (typeof options.duration === 'number') ? options.duration : 0.2;
+            var ease = options.ease || 'power2.out';
+            return gsap.fromTo(el,
+                { opacity: 0 },
+                { opacity: 1, duration: dur, ease: ease, clearProps: 'opacity' }
+            );
+        },
+
+        /**
+         * 49a-T7 降級：來源圖輕微 pulse（scale 1.05 yoyo）
+         * 用途：ghost fly 降級時對來源圖做視覺回饋，告知用戶點擊已被處理。
+         * gsap undefined 或 reduced-motion 時直接 no-op。
+         */
+        playSourcePulse: function (el, options) {
+            options = options || {};
+            if (!el) return null;
+            if (typeof gsap === 'undefined') return null;
+            if (shouldSkip()) return null;
+            var scale = (typeof options.scale === 'number') ? options.scale : 1.05;
+            var dur = (typeof options.duration === 'number') ? options.duration : 0.1;
+            return gsap.to(el, {
+                scale: scale,
+                duration: dur,
+                yoyo: true,
+                repeat: 1,
+                ease: 'power2.inOut'
+            });
         }
     };
 

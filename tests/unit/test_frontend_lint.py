@@ -810,10 +810,10 @@ class TestShowcaseActressState:
             "showcase/core.js 缺少 Alpine state 屬性 _addDropdownOpen"
 
     def test_state_has_rescraping(self):
-        """_rescraping 出現於 Alpine state"""
+        """_rescraping 不在 Alpine state（49b-T5 已刪除 rescrape dead code）"""
         js = self._js()
-        assert "_rescraping" in js, \
-            "showcase/core.js 缺少 Alpine state 屬性 _rescraping"
+        assert "_rescraping" not in js, \
+            "showcase/core.js 仍含 _rescraping state（49b-T5 應已移除）"
 
     def test_state_has_video_chips_expanded(self):
         """_videoChipsExpanded 出現於 Alpine state"""
@@ -964,6 +964,78 @@ class TestShowcaseActressState:
         js = self._js()
         assert "this.nextActressLightbox()" in js, \
             "showcase/core.js handleKeydown 缺少 this.nextActressLightbox() 呼叫"
+
+
+class TestActressLightboxSourceGuard:
+    """49a-T5: Actress Lightbox source state guard（CD-9 顯式 state 取代物件 identity 判斷）
+
+    驗證：
+    - init state 含 actressLightboxSource: null
+    - openHeroCardLightbox 函數體設 'hero'
+    - openActressLightbox 函數體至少 2 處設 'grid'（首次進入 + 切換女優分支）
+    - closeLightbox 函數體 reset null
+    - showcase.html camera button 含 x-show="actressLightboxSource === 'grid'"
+    """
+
+    def _js(self):
+        return SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+
+    def _html(self):
+        return SHOWCASE_HTML.read_text(encoding="utf-8")
+
+    def _extract_method_body(self, js, method_name):
+        """抓取 Alpine state method（methodName(...) { ... }）函式主體，大括號平衡。"""
+        pattern = re.compile(
+            r'(?:^|\n)\s*' + re.escape(method_name) + r'\s*\([^)]*\)\s*\{',
+            re.DOTALL,
+        )
+        m = pattern.search(js)
+        assert m is not None, f"showcase/core.js 找不到 {method_name} 方法"
+        start = m.end()  # 位於 { 之後
+        depth = 1
+        i = start
+        while i < len(js) and depth > 0:
+            c = js[i]
+            if c == '{':
+                depth += 1
+            elif c == '}':
+                depth -= 1
+            i += 1
+        return js[start:i - 1]
+
+    def test_init_state_present(self):
+        """core.js Alpine state 含 actressLightboxSource: null（容忍空白）"""
+        js = self._js()
+        assert re.search(r'actressLightboxSource\s*:\s*null', js), \
+            "showcase/core.js 缺少 Alpine state 屬性 actressLightboxSource: null"
+
+    def test_open_hero_card_sets_hero(self):
+        """openHeroCardLightbox 函數體設 this.actressLightboxSource = 'hero'"""
+        js = self._js()
+        body = self._extract_method_body(js, 'openHeroCardLightbox')
+        assert re.search(r"this\.actressLightboxSource\s*=\s*['\"]hero['\"]", body), \
+            "showcase/core.js openHeroCardLightbox 函數體缺少 this.actressLightboxSource = 'hero'"
+
+    def test_open_actress_lightbox_sets_grid(self):
+        """openActressLightbox 函數體至少 2 處設 'grid'（首次進入 + 切換女優分支）"""
+        js = self._js()
+        body = self._extract_method_body(js, 'openActressLightbox')
+        matches = re.findall(r"this\.actressLightboxSource\s*=\s*['\"]grid['\"]", body)
+        assert len(matches) >= 2, \
+            f"showcase/core.js openActressLightbox 應至少 2 處設 'grid'（首次進入 + 切換女優），目前 {len(matches)} 處"
+
+    def test_close_resets_null(self):
+        """closeLightbox 函數體 reset this.actressLightboxSource = null"""
+        js = self._js()
+        body = self._extract_method_body(js, 'closeLightbox')
+        assert re.search(r"this\.actressLightboxSource\s*=\s*null", body), \
+            "showcase/core.js closeLightbox 函數體缺少 this.actressLightboxSource = null（reset）"
+
+    def test_camera_button_x_show_binding(self):
+        """showcase.html camera button 含 x-show=\"actressLightboxSource === 'grid'\""""
+        html = self._html()
+        assert "actressLightboxSource === 'grid'" in html, \
+            "showcase.html camera button 缺少 x-show=\"actressLightboxSource === 'grid'\" 綁定"
 
 
 class TestShowcasePreciseMatchState:
@@ -2068,10 +2140,10 @@ class TestShowcaseActressCRUD:
             "showcase/core.js 缺少 addFavoriteActress() 方法（[+ 新增] 女優 CRUD）"
 
     def test_rescrape_actress_method(self):
-        """core.js 含 rescrapeActress() 方法"""
+        """core.js 不含 rescrapeActress()（49b-T5 已刪除 dead code）"""
         js = self._js()
-        assert "rescrapeActress" in js, \
-            "showcase/core.js 缺少 rescrapeActress() 方法（[🔄 重新抓取] 女優 CRUD）"
+        assert "rescrapeActress" not in js, \
+            "showcase/core.js 仍含 rescrapeActress() 方法（49b-T5 應已刪除）"
 
     def test_remove_actress_method(self):
         """core.js 含 removeActress() 方法"""
@@ -2117,6 +2189,43 @@ class TestShowcaseActressCRUD:
         count = html.count("searchActressFilms(")
         assert count >= 2, \
             f"showcase.html searchActressFilms() handler 出現次數不足（期望 >=2，實際 {count}）"
+
+
+class TestRescrapeRemoved:
+    """Phase 49b-T5: rescrape dead code 守衛 — 確認已完全移除"""
+
+    CORE_JS = Path(__file__).parents[2] / 'web' / 'static' / 'js' / 'pages' / 'showcase' / 'core.js'
+    SHOWCASE_HTML = Path(__file__).parents[2] / 'web' / 'templates' / 'showcase.html'
+
+    def _js(self):
+        return self.CORE_JS.read_text(encoding='utf-8')
+
+    def _html(self):
+        return self.SHOWCASE_HTML.read_text(encoding='utf-8')
+
+    def test_rescrape_actress_not_in_js(self):
+        """core.js 不含 rescrapeActress（49b-T5 dead code 已刪除）"""
+        js = self._js()
+        assert "rescrapeActress" not in js, \
+            "showcase/core.js 仍含 rescrapeActress（49b-T5 應已完全移除）"
+
+    def test_rescraping_state_not_in_js(self):
+        """core.js 不含 _rescraping state（49b-T5 dead code 已刪除）"""
+        js = self._js()
+        assert "_rescraping" not in js, \
+            "showcase/core.js 仍含 _rescraping state（49b-T5 應已完全移除）"
+
+    def test_rescrape_url_not_in_js(self):
+        """core.js 不含 /rescrape fetch call（49b-T5 dead code 已刪除）"""
+        js = self._js()
+        assert "/rescrape" not in js, \
+            "showcase/core.js 仍含 /rescrape fetch call（49b-T5 應已完全移除）"
+
+    def test_rescrape_not_in_html(self):
+        """showcase.html 不含 rescrape 相關 handler（49b-T5 dead code 已刪除）"""
+        html = self._html()
+        assert "rescrape" not in html, \
+            "showcase.html 仍含 rescrape 相關 handler（49b-T5 應已完全移除）"
 
 
 class TestShowcaseActressCardFooter:
@@ -2197,9 +2306,6 @@ class TestShowcaseActressI18n:
         "showcase.actress.addDuplicate",
         "showcase.actress.addNotFound",
         "showcase.actress.addTimeout",
-        "showcase.actress.rescrape",
-        "showcase.actress.rescrapeSuccess",
-        "showcase.actress.rescrapeError",
         "showcase.actress.remove",
         "showcase.actress.removeConfirm",
         "showcase.actress.removeSuccess",
@@ -3154,3 +3260,1095 @@ class TestFetchSamplesButton:
             f"當前值：{value!r}\n"
             "b6fix2 應將 emoji 前綴從所有 4 語系 locale 值中移除。"
         )
+
+
+class TestActressLightboxHeartRemoved:
+    """T6: Actress Lightbox header 純裝飾愛心 button + CSS 死碼移除守衛"""
+
+    def test_no_decorative_heart_button_in_actress_lightbox(self):
+        """showcase.html 不應再含 pointer-events:none 的 is-favorite 愛心裝飾 button"""
+        html = SHOWCASE_HTML.read_text(encoding="utf-8")
+        # 確認舊裝飾按鈕已移除（pointer-events:none + aria-label="favorite"）
+        pattern = r'<button[^>]*pointer-events:none[^>]*aria-label="favorite"'
+        assert not re.search(pattern, html), "decorative heart button should be removed"
+        # 同時確保 hero card 功能按鈕仍存在
+        assert 'GhostFly.floatingHearts' in html, "hero card floatingHearts button must remain"
+
+    def test_no_orphan_actress_lb_header_btn_glass_circle_css(self):
+        """showcase.css 不應再含 .actress-lb-header .btn-glass-circle 規則"""
+        css = Path("web/static/css/pages/showcase.css").read_text(encoding="utf-8")
+        assert '.actress-lb-header .btn-glass-circle' not in css, "orphan CSS should be removed"
+
+
+class TestActressCoreMetadataVideoCount:
+    """T2: _actressCoreMetadata() 加 video_count 前置 + i18n showcase.unit.films 改值"""
+
+    def _js(self):
+        return SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+
+    def _extract_method_body(self, js, method_name):
+        """抓取 Alpine state method 函式主體（大括號平衡）。"""
+        pattern = re.compile(
+            r'(?:^|\n)\s*' + re.escape(method_name) + r'\s*\([^)]*\)\s*\{',
+            re.DOTALL,
+        )
+        m = pattern.search(js)
+        assert m is not None, f"showcase/core.js 找不到 {method_name} 方法"
+        start = m.end()
+        depth = 1
+        i = start
+        while i < len(js) and depth > 0:
+            c = js[i]
+            if c == '{':
+                depth += 1
+            elif c == '}':
+                depth -= 1
+            i += 1
+        return js[start:i - 1]
+
+    def test_video_count_pushed_first(self):
+        """_actressCoreMetadata 函數體前置 push video_count（在 age 之前）"""
+        js = self._js()
+        body = self._extract_method_body(js, '_actressCoreMetadata')
+        assert 'video_count' in body, \
+            "showcase/core.js _actressCoreMetadata 函數體缺少 video_count"
+        assert 'showcase.unit.films' in body, \
+            "showcase/core.js _actressCoreMetadata 函數體缺少 showcase.unit.films i18n key"
+
+        vc_push = re.search(r'parts\.push\([^)]*video_count[^)]*\)', body)
+        age_push = re.search(r'parts\.push\([^)]*\.age[^)]*\)', body)
+        assert vc_push is not None, \
+            "showcase/core.js _actressCoreMetadata 缺少 parts.push(...video_count...) 行"
+        assert age_push is not None, \
+            "showcase/core.js _actressCoreMetadata 缺少 parts.push(...age...) 行"
+        assert vc_push.start() < age_push.start(), \
+            "showcase/core.js _actressCoreMetadata video_count push 必須在 age push 之前（前置）"
+
+    def test_video_count_typeof_number_guard(self):
+        """_actressCoreMetadata 函數體含 typeof a.video_count === 'number' guard"""
+        js = self._js()
+        body = self._extract_method_body(js, '_actressCoreMetadata')
+        assert re.search(r"typeof\s+\w+\.video_count\s*===\s*['\"]number['\"]", body), \
+            "showcase/core.js _actressCoreMetadata 缺少 typeof a.video_count === 'number' guard"
+
+    def test_films_unit_zh_tw_value(self):
+        """locales/zh_TW.json showcase.unit.films == '部作品'"""
+        data = json.loads((LOCALES_ROOT / "zh_TW.json").read_text(encoding="utf-8"))
+        assert data["showcase"]["unit"]["films"] == "部作品", \
+            f"zh_TW.json showcase.unit.films 應為 '部作品'，目前 {data['showcase']['unit']['films']!r}"
+
+    def test_films_unit_zh_cn_value(self):
+        """locales/zh_CN.json showcase.unit.films == '部作品'"""
+        data = json.loads((LOCALES_ROOT / "zh_CN.json").read_text(encoding="utf-8"))
+        assert data["showcase"]["unit"]["films"] == "部作品", \
+            f"zh_CN.json showcase.unit.films 應為 '部作品'，目前 {data['showcase']['unit']['films']!r}"
+
+    def test_films_unit_ja_value(self):
+        """locales/ja.json showcase.unit.films == '作品'"""
+        data = json.loads((LOCALES_ROOT / "ja.json").read_text(encoding="utf-8"))
+        assert data["showcase"]["unit"]["films"] == "作品", \
+            f"ja.json showcase.unit.films 應為 '作品'，目前 {data['showcase']['unit']['films']!r}"
+
+    def test_films_unit_en_unchanged(self):
+        """locales/en.json showcase.unit.films == ' films'（保留前空格，不變）"""
+        data = json.loads((LOCALES_ROOT / "en.json").read_text(encoding="utf-8"))
+        assert data["showcase"]["unit"]["films"] == " films", \
+            f"en.json showcase.unit.films 應保留為 ' films'，目前 {data['showcase']['unit']['films']!r}"
+
+
+SHOWCASE_ANIMATIONS_JS = (
+    Path(__file__).parent.parent.parent
+    / "web" / "static" / "js" / "pages" / "showcase" / "animations.js"
+)
+
+
+class TestModeToggleFadeOutGuard:
+    """T1: 模式切換動畫補 fade-out（playModeCrossfade 4-arg + toggleActressMode callback 延遲翻轉）"""
+
+    def _core_js(self):
+        return SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+
+    def _anim_js(self):
+        return SHOWCASE_ANIMATIONS_JS.read_text(encoding="utf-8")
+
+    def _extract_method_body(self, js, method_name):
+        """抓取 Alpine state method（methodName(...) { ... }）函式主體，大括號平衡（容忍 async 前綴）。"""
+        pattern = re.compile(
+            r'(?:^|\n)\s*(?:async\s+)?' + re.escape(method_name) + r'\s*\([^)]*\)\s*\{',
+            re.DOTALL,
+        )
+        m = pattern.search(js)
+        assert m is not None, f"找不到 {method_name} 方法"
+        start = m.end()
+        depth = 1
+        i = start
+        while i < len(js) and depth > 0:
+            c = js[i]
+            if c == '{':
+                depth += 1
+            elif c == '}':
+                depth -= 1
+            i += 1
+        return js[start:i - 1]
+
+    def _extract_property_function_body(self, js, prop_name):
+        """抓取 propName: function (...) { ... } 形式的函式主體，大括號平衡。"""
+        pattern = re.compile(
+            r'\b' + re.escape(prop_name) + r'\s*:\s*function\s*\([^)]*\)\s*\{',
+            re.DOTALL,
+        )
+        m = pattern.search(js)
+        assert m is not None, f"找不到 {prop_name} property function"
+        start = m.end()
+        depth = 1
+        i = start
+        while i < len(js) and depth > 0:
+            c = js[i]
+            if c == '{':
+                depth += 1
+            elif c == '}':
+                depth -= 1
+            i += 1
+        return js[start:i - 1]
+
+    def test_play_mode_crossfade_has_callbacks_param(self):
+        """animations.js playModeCrossfade 簽名包含 4 個參數 (oldMode, newMode, params, callbacks)"""
+        js = self._anim_js()
+        assert re.search(
+            r'playModeCrossfade\s*:\s*function\s*\(\s*oldMode\s*,\s*newMode\s*,\s*params\s*,\s*callbacks\s*\)',
+            js,
+        ), "showcase/animations.js playModeCrossfade 缺少 callbacks 第 4 參數"
+
+    def test_play_mode_crossfade_old_fade_out(self):
+        """playModeCrossfade 函數體含 oldEl fade-out (tl.to(oldEl,...) + clearProps:'opacity')"""
+        js = self._anim_js()
+        body = self._extract_property_function_body(js, 'playModeCrossfade')
+        assert re.search(r'tl\s*\.\s*to\s*\(\s*oldEl', body), \
+            "playModeCrossfade 函數體缺少 oldEl fade-out (tl.to(oldEl,...))"
+        assert re.search(r"clearProps\s*:\s*['\"]opacity['\"]", body), \
+            "playModeCrossfade 函數體缺少 clearProps: 'opacity'（避免 CSS transition 殘留）"
+
+    def test_play_mode_crossfade_new_fade_in_preserved(self):
+        """playModeCrossfade 函數體保留 newEl fade-in（tl.fromTo(newEl,...) + clearProps:'opacity'）"""
+        js = self._anim_js()
+        body = self._extract_property_function_body(js, 'playModeCrossfade')
+        assert re.search(r'(?:tl\s*\.\s*)?fromTo\s*\(\s*newEl', body), \
+            "playModeCrossfade 函數體缺少 newEl fade-in (fromTo(newEl,...))"
+        # newEl 段落（從第一次 newEl 出現到結尾）必須有 clearProps
+        new_idx = body.find('newEl')
+        assert new_idx >= 0, "playModeCrossfade 函數體找不到 newEl 區段"
+        new_section = body[new_idx:]
+        assert re.search(r"clearProps\s*:\s*['\"]opacity['\"]", new_section), \
+            "playModeCrossfade newEl fade-in 段落缺少 clearProps: 'opacity'"
+
+    def test_toggle_actress_mode_uses_callback(self):
+        """toggleActressMode 函數體使用 onOldFadeComplete callback，不直接翻轉 showFavoriteActresses"""
+        js = self._core_js()
+        body = self._extract_method_body(js, 'toggleActressMode')
+        assert 'onOldFadeComplete' in body, \
+            "toggleActressMode 函數體缺少 onOldFadeComplete callback"
+        assert 'playModeCrossfade' in body, \
+            "toggleActressMode 函數體缺少 playModeCrossfade 呼叫"
+        assert not re.search(
+            r'this\.showFavoriteActresses\s*=\s*!\s*this\.showFavoriteActresses',
+            body,
+        ), "toggleActressMode 不應直接翻轉 this.showFavoriteActresses，應延遲到 callback 內"
+
+    def test_toggle_actress_mode_animgen_guard(self):
+        """toggleActressMode 函數體內 _animGeneration 出現 ≥ 2 次（外層 gen + 內層 gen2 race guard）"""
+        js = self._core_js()
+        body = self._extract_method_body(js, 'toggleActressMode')
+        count = len(re.findall(r'_animGeneration', body))
+        assert count >= 2, \
+            f"toggleActressMode 函數體 _animGeneration 出現次數應 ≥ 2 (外 gen + 內 gen2)，實際 {count}"
+
+    def test_old_caller_backward_compat(self):
+        """switchMode 內 playModeCrossfade 呼叫不含 onOldFadeComplete（保持影片模式內切換行為不變）。
+        searchActressFilms 自 T7 起為 async 並使用 onOldFadeComplete 觸發 ghost fly fade-out，
+        故僅驗證 switchMode 路徑不退化。"""
+        js = self._core_js()
+        search_body = self._extract_method_body(js, 'searchActressFilms')
+        switch_body = self._extract_method_body(js, 'switchMode')
+        # 兩處都應呼叫 playModeCrossfade
+        assert 'playModeCrossfade' in search_body, \
+            "searchActressFilms 應仍呼叫 playModeCrossfade"
+        assert 'playModeCrossfade' in switch_body, \
+            "switchMode 應仍呼叫 playModeCrossfade"
+        # switchMode 不該帶 onOldFadeComplete（保持原 2/3-arg 行為）
+        assert 'onOldFadeComplete' not in switch_body, \
+            "switchMode 內 playModeCrossfade 呼叫不應帶 onOldFadeComplete（保持影片模式內切換行為不變）"
+
+    def test_toggle_actress_mode_handles_animations_unavailable(self):
+        """Codex P1: animations.js 不可用時 toggleActressMode 必須有 fallback path（不能讓 callback 永不觸發）"""
+        js = self._core_js()
+        body = self._extract_method_body(js, 'toggleActressMode')
+        # callback body 應抽成 named function（給 onOldFadeComplete 用、也給 fallback path 用）
+        assert re.search(
+            r'(?:function\s+\w*FadeIn\w*|var\s+\w*FadeIn\w*\s*=\s*function|\w*FadeIn\w*\s*=\s*function)',
+            body,
+        ), "toggleActressMode 應將 callback body 抽成 named function（如 flipAndFadeIn）以便 fallback 重用"
+        # 必須顯式檢查 playModeCrossfade 是否存在（不能單靠 optional chaining 短路）
+        assert re.search(
+            r'(?:typeof\s+\w+\s*===\s*[\'"]function[\'"]|window\.ShowcaseAnimations\s*&&\s*window\.ShowcaseAnimations\.playModeCrossfade)',
+            body,
+        ), "toggleActressMode 應顯式檢查 playModeCrossfade 是否可用（不能單靠 optional chaining）"
+        # 抽出來的 named function 應在函數體內被引用 ≥ 2 次（一次給 onOldFadeComplete、一次 fallback 直接呼叫）
+        # 找出第一個 *FadeIn* 識別字
+        m = re.search(r'\b(\w*[Ff]adeIn\w*)\b', body)
+        assert m is not None, "toggleActressMode 找不到 FadeIn 命名函數"
+        fname = m.group(1)
+        count = len(re.findall(r'\b' + re.escape(fname) + r'\b', body))
+        assert count >= 3, (
+            f"toggleActressMode 內 {fname} 應出現 ≥ 3 次"
+            f"（宣告 1 + onOldFadeComplete 引用 1 + fallback 同步呼叫 1），實際 {count}"
+        )
+
+    def test_toggle_actress_mode_reduced_motion_guard_on_fade_in(self):
+        """Codex P2: toggleActressMode 內 newEl fade-in 必須有 reduced-motion 防護。
+
+        49a-T4 起：原本的 inline `gsap.fromTo` 已重構為呼叫
+        `window.ShowcaseAnimations.playContainerFadeIn`，該 helper 內部的
+        `shouldSkip()` 已涵蓋 reduced-motion。本 test 接受兩種寫法擇一：
+        (a) inline guard（舊架構）— 函數體內含 `prefersReducedMotion` 檢查
+        (b) helper 委派（新架構）— 函數體內呼叫 `playContainerFadeIn`
+        """
+        js = self._core_js()
+        body = self._extract_method_body(js, 'toggleActressMode')
+        has_inline_guard = 'prefersReducedMotion' in body
+        has_helper_delegation = 'playContainerFadeIn' in body
+        assert has_inline_guard or has_helper_delegation, (
+            "toggleActressMode newEl fade-in 應走 inline prefersReducedMotion guard，"
+            "或委派 ShowcaseAnimations.playContainerFadeIn helper（後者 shouldSkip 已涵蓋）"
+        )
+
+
+class TestAliasLiveQueryGuard:
+    """49a-T3: Actress Lightbox 別名即時查 guard
+
+    驗證：
+    - _fetchLiveAliases 方法存在
+    - 200 分支以 Object.assign 覆蓋 aliases（CD-4 + §8.4 reactivity）
+    - 404 / error / timeout 保留 snapshot（catch + 不覆蓋 fallback）
+    """
+
+    def _js(self):
+        return SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+
+    def _extract_method_body(self, js, method_name):
+        """抓取 Alpine state method 函式主體，大括號平衡（容忍 async 前綴）。"""
+        pattern = re.compile(
+            r'(?:^|\n)\s*(?:async\s+)?' + re.escape(method_name) + r'\s*\([^)]*\)\s*\{',
+            re.DOTALL,
+        )
+        m = pattern.search(js)
+        assert m is not None, f"showcase/core.js 找不到 {method_name} 方法"
+        start = m.end()
+        depth = 1
+        i = start
+        while i < len(js) and depth > 0:
+            c = js[i]
+            if c == '{':
+                depth += 1
+            elif c == '}':
+                depth -= 1
+            i += 1
+        return js[start:i - 1]
+
+    def test_fetch_live_aliases_method_exists(self):
+        """core.js 含 async _fetchLiveAliases 方法定義"""
+        js = self._js()
+        assert re.search(r'async\s+_fetchLiveAliases\s*\([^)]*\)\s*\{', js), \
+            "showcase/core.js 缺少 async _fetchLiveAliases(...) 方法定義"
+        # 必須呼叫 /api/actress-aliases/ 端點
+        body = self._extract_method_body(js, '_fetchLiveAliases')
+        assert "/api/actress-aliases/" in body, \
+            "_fetchLiveAliases 函數體缺少 /api/actress-aliases/ 端點呼叫"
+
+    def test_200_branch_uses_object_assign(self):
+        """200 分支用 Object.assign 覆蓋 currentLightboxActress.aliases（§8.4 Alpine reactivity）"""
+        js = self._js()
+        body = self._extract_method_body(js, '_fetchLiveAliases')
+        # 必須有 200 status 分支
+        assert re.search(r'(?:resp|response)\.status\s*===\s*200', body), \
+            "_fetchLiveAliases 缺少 resp.status === 200 分支"
+        # 必須用 Object.assign 建立新物件以觸發 Alpine deep watch（§8.4）
+        assert re.search(r'Object\.assign\s*\(', body), \
+            "_fetchLiveAliases 200 分支應用 Object.assign 建立新物件以觸發 Alpine reactivity（§8.4）"
+        # 覆蓋的目標必須是 aliases
+        assert re.search(r'aliases\s*:', body), \
+            "_fetchLiveAliases Object.assign 應指定 aliases 屬性"
+
+    def test_fallback_preserves_snapshot_on_error(self):
+        """error / timeout / 404 分支保留 snapshot（catch 區塊不覆蓋 aliases）"""
+        js = self._js()
+        body = self._extract_method_body(js, '_fetchLiveAliases')
+        # 必須有 try / catch 區塊（fallback contract）
+        assert re.search(r'\btry\s*\{', body), \
+            "_fetchLiveAliases 缺少 try 區塊（error fallback contract）"
+        assert re.search(r'\bcatch\s*\(', body), \
+            "_fetchLiveAliases 缺少 catch 區塊（error fallback contract）"
+        # 200 分支應用 if 包裹（亦即 404/其他狀態落入 implicit fallback：不執行覆蓋）
+        # 實作必須讓「非 200」 + 「catch」 不執行 Object.assign
+        # 用結構驗證：Object.assign 必須出現在 if (resp.status === 200) { ... } 區塊內
+        pattern = re.compile(
+            r'if\s*\(\s*(?:resp|response)\.status\s*===\s*200\s*\)\s*\{[^}]*?Object\.assign',
+            re.DOTALL,
+        )
+        assert pattern.search(body), \
+            "_fetchLiveAliases Object.assign 應位於 if (resp.status === 200) {...} 區塊內，避免非 200 分支誤覆蓋 snapshot"
+
+    def test_callsites_in_open_actress_and_hero(self):
+        """openActressLightbox（兩分支）+ openHeroCardLightbox 皆 fire-and-forget 呼叫 _fetchLiveAliases"""
+        js = self._js()
+        actress_body = self._extract_method_body(js, 'openActressLightbox')
+        # 至少 2 處（首次進入 + 切換女優）
+        actress_calls = re.findall(r'_fetchLiveAliases\s*\(', actress_body)
+        assert len(actress_calls) >= 2, \
+            f"openActressLightbox 應至少 2 處呼叫 _fetchLiveAliases（首次進入 + 切換女優），目前 {len(actress_calls)} 處"
+
+        hero_body = self._extract_method_body(js, 'openHeroCardLightbox')
+        assert re.search(r'_fetchLiveAliases\s*\(', hero_body), \
+            "openHeroCardLightbox 缺少 _fetchLiveAliases 呼叫"
+
+    def test_prev_next_actress_lightbox_refetch_aliases(self):
+        """Codex P2: prev/nextActressLightbox 在切換 index 後也須呼叫 _fetchLiveAliases，
+        否則方向鍵切換時 SSOT 心智模型破功（看到 stale snapshot）。"""
+        js = self._js()
+        for method in ('prevActressLightbox', 'nextActressLightbox'):
+            body = self._extract_method_body(js, method)
+            assert re.search(r'_fetchLiveAliases\s*\(', body), (
+                f"{method} 缺少 _fetchLiveAliases 呼叫（Codex P2 fix）— "
+                "方向鍵切換時不重抓 alias，違反 T3 SSOT 設計"
+            )
+
+
+GHOST_FLY_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "shared" / "ghost-fly.js"
+
+
+class TestGhostFlyInFlightGuard:
+    """49a-T7: 女優 → 影片跨模式 Ghost Fly 動畫並發保護 guard
+
+    驗證：
+    - core.js 初始化物件含 _ghostFlyInFlight: false（CD-13 並發 flag）
+    - ghost-fly.js 新增 playActressToHeroCard 方法（CD-11）
+    - searchActressFilms 為 async 並接受第二參數 fromEl
+    - showcase.html 兩個 camera button（grid + lightbox）皆綁 :disabled="_ghostFlyInFlight"
+    """
+
+    def _js(self):
+        return SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+
+    def _ghost_js(self):
+        return GHOST_FLY_JS.read_text(encoding="utf-8")
+
+    def _html(self):
+        return SHOWCASE_HTML.read_text(encoding="utf-8")
+
+    def test_ghost_fly_in_flight_state_present(self):
+        """core.js Alpine state 含 _ghostFlyInFlight: false（CD-13 並發 flag）"""
+        js = self._js()
+        assert re.search(r'_ghostFlyInFlight\s*:\s*false', js), \
+            "showcase/core.js 缺少 Alpine state 屬性 _ghostFlyInFlight: false"
+
+    def test_play_actress_to_hero_card_method_exists(self):
+        """ghost-fly.js 含 playActressToHeroCard 方法定義（CD-11）"""
+        js = self._ghost_js()
+        assert re.search(r'playActressToHeroCard\s*:\s*function', js), \
+            "ghost-fly.js 缺少 playActressToHeroCard: function 方法定義"
+
+    def test_search_actress_films_is_async_with_from_el(self):
+        """searchActressFilms 為 async 且簽名含第二個參數 fromEl"""
+        js = self._js()
+        assert re.search(
+            r'async\s+searchActressFilms\s*\(\s*actressName\s*,\s*fromEl\s*\)',
+            js,
+        ), "showcase/core.js searchActressFilms 應為 async 且簽名為 (actressName, fromEl)"
+
+    def test_camera_buttons_disabled_binding(self):
+        """showcase.html 兩個 camera button (grid L529 + lightbox L579) 皆綁 :disabled=\"_ghostFlyInFlight\""""
+        html = self._html()
+        # 計算 :disabled="_ghostFlyInFlight" 出現次數，應 ≥ 2
+        matches = re.findall(r':disabled\s*=\s*"_ghostFlyInFlight"', html)
+        assert len(matches) >= 2, \
+            f"showcase.html 至少 2 個 camera button 應綁 :disabled=\"_ghostFlyInFlight\"（grid + lightbox），目前 {len(matches)} 處"
+
+    def test_camera_buttons_pass_el_to_search(self):
+        """showcase.html 兩個 camera button 呼叫 searchActressFilms 時皆傳入 $el 參數"""
+        html = self._html()
+        # grid camera: searchActressFilms(actress.name, $el)
+        # lightbox camera: searchActressFilms(currentLightboxActress?.name, $el)
+        assert "searchActressFilms(actress.name, $el)" in html, \
+            "showcase.html grid camera button 缺少 searchActressFilms(actress.name, $el) 呼叫"
+        assert "searchActressFilms(currentLightboxActress?.name, $el)" in html, \
+            "showcase.html lightbox camera button 缺少 searchActressFilms(currentLightboxActress?.name, $el) 呼叫"
+
+    def test_search_actress_films_explicit_ghost_fly_availability_check(self):
+        """Codex P1: searchActressFilms 主流程前需 explicit check window.GhostFly?.playActressToHeroCard
+        是 function。optional chaining 缺失時 silent no-op，flag 永久 true → camera button 永久 disabled。
+        """
+        js = self._js()
+        body = self._extract_method_body(js, 'searchActressFilms')
+        assert re.search(
+            r"typeof\s+window\.GhostFly\??\.?playActressToHeroCard\s*!==\s*['\"]function['\"]",
+            body,
+        ), (
+            "searchActressFilms 缺少 explicit GhostFly availability check（Codex P1 fix）— "
+            "optional chaining 在缺失時 silent no-op，flag 卡死所有 camera button"
+        )
+
+    def _extract_method_body(self, js, name):
+        """共用 brace-counting 提取方法體（避免依賴外部 helper class）"""
+        m = re.search(r'(?:async\s+)?' + re.escape(name) + r'\s*\([^)]*\)\s*\{', js)
+        if not m:
+            return ''
+        start = m.end() - 1
+        depth = 0
+        for i, ch in enumerate(js[start:], start):
+            if ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    return js[start:i + 1]
+        return ''
+
+
+# ============================================================================
+# 49a-T4: 底部 footer 整合（status bar 移除 + 三段式 footer + i18n 同步）
+# ============================================================================
+
+LOCALES_DIR = Path(__file__).parent.parent.parent / "locales"
+LOCALE_FILES = ["zh_TW.json", "zh_CN.json", "en.json", "ja.json"]
+SHOWCASE_CSS = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "pages" / "showcase.css"
+
+
+class TestT4FooterStructure:
+    """49a-T4: 確保 showcase.html 已將 status bar 移除並改用三段式底部 footer"""
+
+    def _html(self):
+        return SHOWCASE_HTML.read_text(encoding="utf-8")
+
+    def _css(self):
+        return SHOWCASE_CSS.read_text(encoding="utf-8")
+
+    def test_status_bar_removed_from_showcase(self):
+        """showcase.html 不應再有 class=\"showcase-status-bar\"（已移至 footer，design-system 仍保留 demo）"""
+        html = self._html()
+        assert 'class="showcase-status-bar"' not in html, \
+            "showcase.html 仍含 class=\"showcase-status-bar\"，T4 應整塊刪除（design-system demo 不算）"
+
+    def test_footer_root_class_present(self):
+        """showcase.html 含底部 footer 容器 class=\"showcase-footer\""""
+        html = self._html()
+        assert 'class="showcase-footer"' in html, \
+            "showcase.html 缺少 class=\"showcase-footer\"（T4 三段式底部）"
+
+    def test_footer_three_columns_present(self):
+        """footer 三段：footer-left / footer-center / footer-right 全部存在"""
+        html = self._html()
+        for cls in ("footer-left", "footer-center", "footer-right"):
+            assert f'class="{cls}"' in html, \
+                f"showcase.html 缺少 class=\"{cls}\"（T4 三段式 footer 結構）"
+
+    def test_footer_left_has_mode_icons(self):
+        """footer-left 含影片 / 女優模式 icon（bi-film + bi-person-circle）"""
+        html = self._html()
+        # 取 footer 區塊（從 showcase-footer 開始 700 字元內）
+        idx = html.find('class="showcase-footer"')
+        assert idx >= 0, "showcase-footer 未找到，無法驗證 icon"
+        snippet = html[idx:idx + 4000]
+        assert "bi-film" in snippet, "footer-left 影片模式應含 bi-film icon（與 toolbar mode toggle 一致）"
+        assert "bi-person-circle" in snippet, "footer-left 女優模式應含 bi-person-circle icon"
+
+    def test_footer_center_has_four_kbd_shortcuts(self):
+        """footer-center 永遠顯示 4 組快捷鍵（A / S / ←→ / ESC）"""
+        html = self._html()
+        idx = html.find('class="footer-center"')
+        assert idx >= 0, "footer-center 未找到"
+        snippet = html[idx:idx + 1500]
+        for key in ("<kbd>A</kbd>", "<kbd>S</kbd>", "<kbd>ESC</kbd>"):
+            assert key in snippet, f"footer-center 缺少快捷鍵 {key}"
+        # 左右箭頭鍵
+        assert "<kbd>←</kbd>" in snippet and "<kbd>→</kbd>" in snippet, \
+            "footer-center 缺少 ←/→ kbd"
+
+    def test_footer_right_pager_x_show(self):
+        """footer-right 內 footer-pager 含 x-show=\"!showFavoriteActresses && totalPages > 1\""""
+        html = self._html()
+        assert 'class="footer-pager"' in html, "showcase.html 缺少 class=\"footer-pager\""
+        assert 'x-show="!showFavoriteActresses && totalPages > 1"' in html, \
+            "footer-pager 缺少 x-show=\"!showFavoriteActresses && totalPages > 1\" 條件綁定"
+
+    def test_footer_pager_buttons_and_select(self):
+        """footer-pager 包含 prevPage / nextPage 按鈕 + invisible page select (pageSelectFooter)"""
+        html = self._html()
+        idx = html.find('class="footer-pager"')
+        assert idx >= 0
+        snippet = html[idx:idx + 2500]
+        assert 'prevPage()' in snippet, "footer-pager 缺少 prevPage() 綁定"
+        assert 'nextPage()' in snippet, "footer-pager 缺少 nextPage() 綁定"
+        assert 'x-ref="pageSelectFooter"' in snippet, \
+            "footer-pager 缺少 x-ref=\"pageSelectFooter\"（隱藏 select）"
+        assert 'class="pager-current"' in snippet, "footer-pager 缺少 .pager-current 可點擊區"
+
+    def test_footer_no_x_data(self):
+        """footer 不可加 x-data（避免 nested Alpine scope 讓父級 state 變 undefined）"""
+        html = self._html()
+        idx = html.find('class="showcase-footer"')
+        assert idx >= 0
+        # 找到 .showcase-footer 所在 <div> 的起始位置（往前找最近的 '<div'）
+        div_start = html.rfind('<div', 0, idx)
+        assert div_start >= 0, "showcase-footer 找不到對應 <div> 起始 tag"
+        end = html.find('>', idx)
+        opening_tag = html[div_start:end + 1]
+        assert 'x-data' not in opening_tag, \
+            "showcase-footer 起始 tag 不可加 x-data（會建立 nested Alpine scope）"
+
+    def test_css_showcase_footer_rule_exists(self):
+        """showcase.css 含 .showcase-footer rule（position fixed bottom 三段式）"""
+        css = self._css()
+        assert ".showcase-footer" in css, "showcase.css 缺少 .showcase-footer 規則"
+        assert ".footer-left" in css, "showcase.css 缺少 .footer-left 規則"
+        assert ".footer-center" in css, "showcase.css 缺少 .footer-center 規則"
+        assert ".footer-right" in css, "showcase.css 缺少 .footer-right 規則"
+        assert ".footer-pager" in css, "showcase.css 缺少 .footer-pager 規則"
+
+    def test_open_page_picker_uses_show_picker(self):
+        """Codex P2: openPagePicker method 必須優先嘗試 showPicker()，再 fallback 到 .click()。
+        隱藏 select 用 .click() 在主流瀏覽器只 dispatch event 不會開 native picker（AC-7 fail）。
+        並驗證 pager-current @click 走的是 openPagePicker（不是直接 .click()）。
+        """
+        # JS method 端
+        js = SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+        assert re.search(r'openPagePicker\s*\(', js), \
+            "showcase/core.js 缺少 openPagePicker method 定義"
+        # 必須含 showPicker 嘗試
+        assert re.search(r'showPicker', js), \
+            "openPagePicker 缺少 showPicker() 嘗試（必要時才能開啟 native page picker）"
+        # HTML 端：pager-current 應呼叫 openPagePicker，不是直接 .click()
+        html = self._html()
+        idx = html.find('class="pager-current"')
+        assert idx >= 0, "showcase.html 缺少 .pager-current"
+        snippet = html[idx:idx + 400]
+        assert 'openPagePicker' in snippet, (
+            "pager-current @click 應呼叫 openPagePicker（而非 $refs.pageSelectFooter.click()）— "
+            "Codex P2 fix"
+        )
+
+    def test_css_responsive_hides_left_and_center(self):
+        """showcase.css responsive @media (max-width: 640px) 隱藏 footer-left + footer-center"""
+        css = self._css()
+        # 找 max-width: 640px 區塊
+        match = re.search(
+            r"@media\s*\(max-width:\s*640px\s*\)\s*\{([^@]*?\.footer-left[^@]*?)\}",
+            css,
+            re.DOTALL,
+        )
+        # 寬鬆驗證：只要 max-width:640px 的 media query 內出現 footer-left 與 footer-center 即可
+        media_match = re.search(
+            r"@media\s*\(max-width:\s*640px\s*\)\s*\{(.*?)\n\}",
+            css,
+            re.DOTALL,
+        )
+        assert media_match is not None, "showcase.css 缺少 @media (max-width: 640px) 區塊"
+        body = media_match.group(1)
+        assert ".footer-left" in body and ".footer-center" in body, \
+            "@media (max-width: 640px) 應隱藏 .footer-left 和 .footer-center"
+        assert "display: none" in body or "display:none" in body, \
+            "@media (max-width: 640px) 應有 display: none 規則"
+
+
+class TestT4I18n:
+    """49a-T4: 確保四語系新 i18n key 全部存在且 switch_mode 已改值"""
+
+    @staticmethod
+    def _load(locale):
+        return json.loads((LOCALES_DIR / locale).read_text(encoding="utf-8"))
+
+    @staticmethod
+    def _showcase(data):
+        return data.get("showcase", {})
+
+    @pytest.mark.parametrize("locale", LOCALE_FILES)
+    def test_switch_mode_updated(self, locale):
+        """showcase.shortcut.switch_mode 四語系皆已改值（不再為舊文案）"""
+        data = self._load(locale)
+        val = self._showcase(data).get("shortcut", {}).get("switch_mode")
+        assert val, f"{locale}: showcase.shortcut.switch_mode 缺值"
+        # zh 系列舊值「切換模式 / 切换模式」不應再出現
+        if locale == "zh_TW.json":
+            assert val == "切換顯示", f"{locale}: switch_mode 應為「切換顯示」（目前 {val!r}）"
+        elif locale == "zh_CN.json":
+            assert val == "切换显示", f"{locale}: switch_mode 應為「切换显示」（目前 {val!r}）"
+        elif locale == "en.json":
+            assert val == "Switch view", f"{locale}: switch_mode 應為 'Switch view'（目前 {val!r}）"
+        elif locale == "ja.json":
+            assert val == "表示切替", f"{locale}: switch_mode 應為「表示切替」（目前 {val!r}）"
+
+    @pytest.mark.parametrize("locale", LOCALE_FILES)
+    def test_status_search_empty_present(self, locale):
+        """showcase.status.search_empty 四語系皆有值"""
+        data = self._load(locale)
+        val = self._showcase(data).get("status", {}).get("search_empty")
+        assert val, f"{locale}: 缺 showcase.status.search_empty"
+
+    @pytest.mark.parametrize("locale", LOCALE_FILES)
+    def test_status_search_actresses_three_parts(self, locale):
+        """showcase.status.search_actresses_{prefix,middle,suffix} 四語系皆存在"""
+        data = self._load(locale)
+        status = self._showcase(data).get("status", {})
+        for key in ("search_actresses_prefix", "search_actresses_middle", "search_actresses_suffix"):
+            assert key in status, f"{locale}: 缺 showcase.status.{key}"
+
+    @pytest.mark.parametrize("locale", LOCALE_FILES)
+    def test_unit_actresses_present(self, locale):
+        """showcase.unit.actresses 四語系皆有值（女優計數單位）"""
+        data = self._load(locale)
+        unit = self._showcase(data).get("unit", {})
+        assert "actresses" in unit, f"{locale}: 缺 showcase.unit.actresses key"
+        assert unit["actresses"], f"{locale}: showcase.unit.actresses 不可為空"
+
+
+# ─── 49b-T4a: BurstPicker 模組抽出守衛 ────────────────────────────────────────
+BURST_PICKER_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "shared" / "burst-picker.js"
+BASE_HTML_T4A = Path(__file__).parent.parent.parent / "web" / "templates" / "base.html"
+MOTION_LAB_JS_T4A = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "motion-lab.js"
+MOTION_LAB_STATE_JS_T4A = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "motion-lab-state.js"
+
+
+class TestBurstPickerGuard:
+    """49b-T4a: 守衛 BurstPicker 模組抽出（從 motion-lab.js → shared/burst-picker.js）"""
+
+    PICKER_METHODS = (
+        "playPickerBurst",
+        "playPickerFloat",
+        "playPickerHoverIn",
+        "playPickerHoverOut",
+        "playPickerFlipReplace",
+        "playPickerExitAll",
+        "playPickerReverseAll",
+    )
+
+    def test_burst_picker_js_exists_and_exposes_module(self):
+        """burst-picker.js 存在、IIFE 暴露 window.BurstPicker，含全部 7 個 playPicker* 方法"""
+        assert BURST_PICKER_JS.exists(), f"burst-picker.js 不存在：{BURST_PICKER_JS}"
+        js = BURST_PICKER_JS.read_text(encoding="utf-8")
+        assert "window.BurstPicker" in js, "burst-picker.js 未暴露 window.BurstPicker"
+        for method in self.PICKER_METHODS:
+            assert method + ":" in js, f"burst-picker.js 缺少 {method} 方法定義"
+
+    def test_base_html_loads_burst_picker(self):
+        """base.html 含 burst-picker.js script tag 且使用 defer"""
+        html = BASE_HTML_T4A.read_text(encoding="utf-8")
+        assert "/static/js/shared/burst-picker.js" in html, \
+            "base.html 缺少 /static/js/shared/burst-picker.js script 引用"
+        # 驗證 defer
+        pattern = re.compile(r'<script[^>]*burst-picker\.js[^>]*>')
+        matches = pattern.findall(html)
+        assert matches, "base.html 找不到 burst-picker.js script tag"
+        for tag in matches:
+            assert "defer" in tag, f"burst-picker.js script tag 應含 defer 屬性：{tag}"
+
+    def test_motion_lab_js_no_longer_defines_picker_methods(self):
+        """motion-lab.js 已不再內嵌 7 個 playPicker* 方法定義（僅 burst-picker.js 內有）"""
+        js = MOTION_LAB_JS_T4A.read_text(encoding="utf-8")
+        for method in self.PICKER_METHODS:
+            # 偵測 method 定義樣式 "playPickerBurst: function"
+            pattern = re.compile(re.escape(method) + r"\s*:\s*function")
+            matches = pattern.findall(js)
+            assert not matches, \
+                f"motion-lab.js 仍內嵌 {method} 方法定義（應只在 burst-picker.js）"
+
+    def test_motion_lab_state_calls_burst_picker_module(self):
+        """motion-lab-state.js 透過 window.BurstPicker.playPicker* 呼叫，而非 window.MotionLab.playPicker*"""
+        js = MOTION_LAB_STATE_JS_T4A.read_text(encoding="utf-8")
+        assert "window.BurstPicker.playPicker" in js, \
+            "motion-lab-state.js 應呼叫 window.BurstPicker.playPicker*"
+        # 確認舊 window.MotionLab.playPicker* 路徑已全部置換
+        legacy = re.findall(r"window\.MotionLab\.playPicker\w+", js)
+        assert not legacy, \
+            f"motion-lab-state.js 仍有舊呼叫 window.MotionLab.playPicker*：{legacy}"
+
+
+# ─── 49b-T4cd: Actress Photo Picker UI/Alpine/SSE 整合守衛 ──────────────────
+SHOWCASE_CORE_JS_T4CD = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "showcase" / "core.js"
+SHOWCASE_CSS_T4CD = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "pages" / "showcase.css"
+
+
+class TestPickerIntegrationGuard:
+    """49b-T4cd: 守衛 Actress Photo Picker 在 Showcase Lightbox 的 UI + Alpine + SSE 整合"""
+
+    def _html(self):
+        return SHOWCASE_HTML.read_text(encoding="utf-8")
+
+    def _core_js(self):
+        return SHOWCASE_CORE_JS_T4CD.read_text(encoding="utf-8")
+
+    def _css(self):
+        return SHOWCASE_CSS_T4CD.read_text(encoding="utf-8")
+
+    def test_picker_button_in_cover_actions(self):
+        """🔄 button 出現在 cover-actions，含 i18n key + is_favorite guard"""
+        html = self._html()
+        assert "bi-arrow-clockwise" in html, \
+            "showcase.html 缺少 bi-arrow-clockwise icon（picker 🔄 button）"
+        assert "showcase.actress.change_photo" in html, \
+            "showcase.html 缺少 showcase.actress.change_photo i18n key"
+        assert "currentLightboxActress?.is_favorite" in html, \
+            "showcase.html 缺少 currentLightboxActress?.is_favorite x-show guard"
+
+    def test_picker_area_present(self):
+        """actress-picker-overlay 包含 grid / source-badge / loading / empty 必要結構"""
+        html = self._html()
+        for needle in (
+            "actress-picker-overlay",
+            "picker-candidates-grid",
+            "picker-source-badge",
+            "picker-loading",
+            "picker-empty",
+        ):
+            assert needle in html, f"showcase.html 缺少 {needle} 結構元素"
+
+    def test_picker_alpine_state_initialized(self):
+        """core.js 初始化 _pickerOpen / _pickerRunId / _candidates / _pickerSelected"""
+        js = self._core_js()
+        for needle in (
+            "_pickerOpen: false",
+            "_pickerRunId: 0",
+            "_candidates: []",
+            "_pickerSelected: false",
+        ):
+            assert needle in js, f"core.js 缺少 Alpine state 初始化：{needle}"
+
+    def test_picker_methods_defined(self):
+        """core.js 定義 5 個必要 picker method（49c T5fix.B：overlay 改純 CSS viewport-anchored，
+        退役 _positionPickerOverlay / _attachPickerResizeListener / _detachPickerResizeListener）"""
+        js = self._core_js()
+        for method in (
+            "openActressPicker(",
+            "_startPickerSSE(",
+            "_closePicker(",
+            "_resetPicker(",
+            "_fadeMetadataPanel(",
+        ):
+            assert method in js, f"core.js 缺少 method 定義：{method}"
+
+    def test_picker_esc_priority(self):
+        """handleKeydown 中 Escape 必須優先檢查 _pickerOpen，再走原有邏輯"""
+        js = self._core_js()
+        # 規範：Escape 與 _pickerOpen 必須在 handleKeydown 內成對出現，且 _pickerOpen 優先
+        pattern = re.compile(r"Escape['\"].*?_pickerOpen", re.DOTALL)
+        assert pattern.search(js), \
+            "core.js handleKeydown 中 Escape 應優先檢查 this._pickerOpen"
+
+    def test_picker_params_constant(self):
+        """core.js 定義 _PICKER_PARAMS 常數（49c T5fix.B：arcOvershoot 1.3 / arcDuration 0.75）"""
+        js = self._core_js()
+        assert "_PICKER_PARAMS" in js, "core.js 缺少 _PICKER_PARAMS 常數"
+        assert "arcOvershoot: 1.3" in js, \
+            "core.js _PICKER_PARAMS 缺少 arcOvershoot: 1.3（V2 從 1.4 改）"
+        assert "arcDuration:  0.75" in js or "arcDuration: 0.75" in js, \
+            "core.js _PICKER_PARAMS 缺少 arcDuration: 0.75（V2 從 0.6 改）"
+
+    def test_picker_css_rules_present(self):
+        """showcase.css 含 .picker-candidate-card opacity:0 + .actress-picker-overlay
+        fixed-position viewport-anchored overlay (bottom + width literal) + spin keyframes"""
+        css = self._css()
+        assert ".picker-candidate-card" in css, \
+            "showcase.css 缺少 .picker-candidate-card 規則"
+        # picker-candidate-card 必須含 opacity: 0（防 1-frame paint glitch）
+        # 49c T5fix.B：用 (?:^|\n) anchor 抓「裸」global rule，避開 .actress-picker-overlay
+        # 後代規則（descendant 不含 opacity:0，由全域 rule 提供）
+        card_block = re.search(
+            r"(?:^|\n)\.picker-candidate-card\s*\{[^}]*\}", css, re.DOTALL
+        )
+        assert card_block, "找不到 .picker-candidate-card 樣式區塊"
+        assert "opacity: 0" in card_block.group(0), \
+            ".picker-candidate-card 缺少 opacity: 0（防 GSAP 起點 paint glitch）"
+        # 49c T5fix.B：actress-picker-overlay 必須純 CSS viewport-anchored
+        area_block = re.search(
+            r"\.actress-picker-overlay\s*\{[^}]*\}", css, re.DOTALL
+        )
+        assert area_block, "找不到 .actress-picker-overlay 樣式區塊"
+        overlay_css = area_block.group(0)
+        assert "position: fixed" in overlay_css, \
+            ".actress-picker-overlay 缺少 position: fixed"
+        assert "bottom:" in overlay_css, \
+            ".actress-picker-overlay 缺少 bottom:（V2 viewport-anchored）"
+        assert "width:" in overlay_css, \
+            ".actress-picker-overlay 缺少 width:（V2 viewport-anchored）"
+        assert "@keyframes spin" in css, \
+            "showcase.css 缺少 @keyframes spin 動畫"
+
+    def test_picker_overlay_is_showcase_lightbox_direct_child(self):
+        """49c-T1 架構守衛：actress-picker-overlay 必須為 .showcase-lightbox 的 div 直接 child，
+        且不在 .lightbox-content 內（避免被 lightbox-content 的 transform/overflow context 影響）。
+        """
+        import html.parser as _html_parser
+
+        html_text = self._html()
+        # smoke check：T1 已 rename + overlay 存在
+        assert "actress-picker-area" not in html_text, \
+            "showcase.html 仍含 actress-picker-area（T1 應已 rename 為 actress-picker-overlay）"
+        assert "actress-picker-overlay" in html_text, \
+            "showcase.html 缺少 actress-picker-overlay（T1 markup 缺失）"
+
+        class _DivStackParser(_html_parser.HTMLParser):
+            """通用 div stack parser：每遇 <div> push class set；遇 </div> pop。
+            非 div 開合 tag 不影響 stack。
+            """
+            def __init__(self):
+                super().__init__()
+                self.div_stack = []  # list[set[str]]
+                self.overlay_ancestors = None  # 首次遇到 overlay 時的 stack 副本（不含 self）
+                self.found_overlay_in_lightbox_content = False
+
+            def handle_starttag(self, tag, attrs):
+                if tag != "div":
+                    return
+                attr_dict = dict(attrs)
+                classes = set(attr_dict.get("class", "").split())
+                if "actress-picker-overlay" in classes:
+                    # 記錄祖先（push 前的 stack 副本即為 ancestors）
+                    if self.overlay_ancestors is None:
+                        self.overlay_ancestors = [s.copy() for s in self.div_stack]
+                    if any("lightbox-content" in s for s in self.div_stack):
+                        self.found_overlay_in_lightbox_content = True
+                self.div_stack.append(classes)
+
+            def handle_endtag(self, tag):
+                if tag != "div":
+                    return
+                if self.div_stack:
+                    self.div_stack.pop()
+
+        parser = _DivStackParser()
+        parser.feed(html_text)
+        assert parser.overlay_ancestors is not None, \
+            "actress-picker-overlay 不存在於 markup 中（parser 未捕捉到 overlay div）"
+        assert not parser.found_overlay_in_lightbox_content, \
+            "actress-picker-overlay 仍在 lightbox-content 內（應為 .showcase-lightbox 直接 child）"
+        assert "showcase-lightbox" in parser.overlay_ancestors[-1], \
+            "actress-picker-overlay 的直接 parent div 應含 showcase-lightbox class"
+
+    def test_cancel_picker_no_el_query_selector(self):
+        """49c-T3 架構守衛：_cancelPicker 必須使用 $refs.pickerCoverImg，
+        不可用 $el.querySelector（DOM scope bug：$el 在 overlay 抽離後不再含 cover img）。
+        """
+        js = self._core_js()
+        m = re.search(
+            r"_cancelPicker\s*\([^)]*\)\s*\{(.*?)\n\s{8}\},",
+            js, re.DOTALL,
+        )
+        assert m, "core.js 找不到 _cancelPicker 方法定義"
+        body = m.group(1)
+        assert "$el.querySelector" not in body and "$el?.querySelector" not in body, \
+            "_cancelPicker 仍使用 $el.querySelector（CD-4：應改用 $refs.pickerCoverImg）"
+        assert "$refs.pickerCoverImg" in body, \
+            "_cancelPicker 缺少 $refs.pickerCoverImg（cover img DOM ref）"
+
+    # ----------------------------------------------------------------------
+    # 49b-T4e: select-and-replace flow guards
+    # ----------------------------------------------------------------------
+
+    def _picker_select_body(self):
+        """Extract _onPickerSelect method body (until next method or class boundary)."""
+        js = self._core_js()
+        m = re.search(
+            r"async\s+_onPickerSelect\s*\([^)]*\)\s*\{(.*?)\n\s{8}\},",
+            js, re.DOTALL,
+        )
+        assert m, "core.js 找不到 _onPickerSelect 方法定義"
+        return m.group(1)
+
+    def test_picker_select_makes_post_request(self):
+        """_onPickerSelect 必須 POST 至 /api/actresses/{name}/photo"""
+        body = self._picker_select_body()
+        assert "fetch(" in body, "_onPickerSelect 缺少 fetch() 呼叫"
+        assert "/api/actresses/" in body, \
+            "_onPickerSelect fetch URL 缺少 /api/actresses/"
+        assert "/photo" in body, \
+            "_onPickerSelect fetch URL 缺少 /photo"
+        assert "'POST'" in body or '"POST"' in body, \
+            "_onPickerSelect 缺少 method: 'POST'"
+
+    def test_picker_select_race_lock(self):
+        """_onPickerSelect 開頭必須有 race lock（檢查 + 設定 _pickerSelected）"""
+        body = self._picker_select_body()
+        assert re.search(r"if\s*\(\s*this\._pickerSelected\s*\)\s*return", body), \
+            "_onPickerSelect 缺少 if (this._pickerSelected) return; race guard"
+        assert re.search(r"this\._pickerSelected\s*=\s*true", body), \
+            "_onPickerSelect 缺少 this._pickerSelected = true; lock 設定"
+
+    def test_picker_select_captures_actress_name(self):
+        """_onPickerSelect 必須在 await 前 capture name 並做 stale 比對"""
+        body = self._picker_select_body()
+        assert "capturedName" in body, \
+            "_onPickerSelect 缺少 capturedName 快照變數"
+        assert "currentLightboxActress" in body, \
+            "_onPickerSelect 缺少 currentLightboxActress 參考"
+        # post-await stale 比對
+        assert re.search(r"currentLightboxActress.*?!==\s*capturedName", body, re.DOTALL) \
+            or re.search(r"name\s*!==\s*capturedName", body), \
+            "_onPickerSelect 缺少 post-await stale-name 比對"
+
+    def test_picker_select_uses_burst_picker_animations(self):
+        """_onPickerSelect 必須呼叫 BurstPicker.playPickerFlipReplace + playPickerExitAll"""
+        body = self._picker_select_body()
+        assert "playPickerFlipReplace" in body, \
+            "_onPickerSelect 缺少 BurstPicker.playPickerFlipReplace 呼叫"
+        assert "playPickerExitAll" in body, \
+            "_onPickerSelect 缺少 BurstPicker.playPickerExitAll 呼叫"
+        assert "typeof window.BurstPicker" in body, \
+            "_onPickerSelect 缺少 typeof window.BurstPicker 防禦性 guard"
+
+    def test_picker_select_reduced_motion_check(self):
+        """_onPickerSelect 必須尊重 prefers-reduced-motion"""
+        body = self._picker_select_body()
+        assert "prefers-reduced-motion" in body, \
+            "_onPickerSelect 缺少 prefers-reduced-motion 偵測"
+        assert "matchMedia" in body, \
+            "_onPickerSelect 缺少 window.matchMedia 呼叫"
+
+    def test_picker_select_uses_i18n_toasts(self):
+        """_onPickerSelect 必須使用 i18n key（picker.replaced + picker.error）"""
+        body = self._picker_select_body()
+        assert "showcase.actress.picker.replaced" in body, \
+            "_onPickerSelect 缺少 showcase.actress.picker.replaced i18n key"
+        assert "showcase.actress.picker.error" in body, \
+            "_onPickerSelect 缺少 showcase.actress.picker.error i18n key"
+        assert "showToast(" in body, \
+            "_onPickerSelect 缺少 showToast() 呼叫"
+
+    # ----------------------------------------------------------------------
+    # 49b-T4 Codex review fixes
+    # ----------------------------------------------------------------------
+
+    def test_picker_close_lightbox_teardown(self):
+        """closeLightbox 必須先檢查 _pickerOpen 並呼叫 _closePicker（避免 SSE/timer 洩漏）"""
+        js = self._core_js()
+        m = re.search(
+            r"closeLightbox\s*\(\s*\)\s*\{(.*?)\n\s{8}\},",
+            js, re.DOTALL,
+        )
+        assert m, "core.js 找不到 closeLightbox 方法定義"
+        body = m.group(1)
+        assert "_pickerOpen" in body, \
+            "closeLightbox 缺少 _pickerOpen guard（picker teardown）"
+        assert "_closePicker" in body, \
+            "closeLightbox 缺少 _closePicker() 呼叫（picker teardown）"
+
+    def test_picker_cancel_uses_reverse_all(self):
+        """_cancelPicker 必須存在且呼叫 BurstPicker.playPickerReverseAll"""
+        js = self._core_js()
+        assert "_cancelPicker" in js, \
+            "core.js 缺少 _cancelPicker 方法（Esc / outside-click 取消路徑）"
+        m = re.search(
+            r"_cancelPicker\s*\([^)]*\)\s*\{(.*?)\n\s{8}\},",
+            js, re.DOTALL,
+        )
+        assert m, "core.js _cancelPicker 方法定義格式無法解析"
+        body = m.group(1)
+        assert "playPickerReverseAll" in body, \
+            "_cancelPicker 缺少 BurstPicker.playPickerReverseAll 呼叫"
+
+    def test_picker_cancel_locks_selection_immediately(self):
+        """Codex P2: _cancelPicker 必須在 await 前設 _pickerSelected = true，
+        防止 reverse 動畫期間（300ms）卡片仍可被點擊觸發 _onPickerSelect。
+        """
+        js = self._core_js()
+        m = re.search(
+            r"_cancelPicker\s*\([^)]*\)\s*\{(.*?)\n\s{8}\},",
+            js, re.DOTALL,
+        )
+        assert m, "core.js _cancelPicker 方法定義格式無法解析"
+        body = m.group(1)
+        # interaction lock 必須在 await playPickerReverseAll 之前
+        lock_idx = body.find("_pickerSelected = true")
+        await_idx = body.find("playPickerReverseAll")
+        assert lock_idx >= 0, \
+            "_cancelPicker 缺少 _pickerSelected = true（reverse 動畫期間防 click 鎖）"
+        assert await_idx > lock_idx, \
+            "_cancelPicker 必須先設 _pickerSelected = true，再 await playPickerReverseAll"
+
+    def test_picker_hover_out_awaits_before_float_restart(self):
+        """Codex P2: _onPickerHoverOut 必須 async，await playPickerHoverOut 後才 restart float。
+        否則 playPickerFloat 內 killTweensOf 會殺掉同步啟動的 hover-out 縮回 tween，
+        卡片停留在放大/glow 狀態。
+        """
+        js = self._core_js()
+        # _onPickerHoverOut 必須是 async function
+        m = re.search(
+            r"async\s+_onPickerHoverOut\s*\([^)]*\)\s*\{(.*?)\n\s{8}\},",
+            js, re.DOTALL,
+        )
+        assert m, "_onPickerHoverOut 必須宣告為 async function（Codex P2 修正）"
+        body = m.group(1)
+        # 必須有 await playPickerHoverOut
+        assert re.search(r"await\s+window\.BurstPicker\.playPickerHoverOut", body), \
+            "_onPickerHoverOut 缺少 await playPickerHoverOut（縮回完成前不能 restart float）"
+        # await 後仍呼叫 playPickerFloat
+        await_idx = body.find("await window.BurstPicker.playPickerHoverOut")
+        float_idx = body.find("playPickerFloat")
+        assert await_idx >= 0 and float_idx > await_idx, \
+            "_onPickerHoverOut 必須先 await playPickerHoverOut 完成，再呼叫 playPickerFloat restart"
+
+    def test_burst_picker_hover_out_returns_promise(self):
+        """Codex P2: burst-picker.js playPickerHoverOut 必須回傳 Promise（caller 才能 await）"""
+        with open("web/static/js/shared/burst-picker.js", "r", encoding="utf-8") as f:
+            burst_js = f.read()
+        m = re.search(
+            r"playPickerHoverOut:\s*function\s*\([^)]*\)\s*\{(.*?)\n\s{8}\},",
+            burst_js, re.DOTALL,
+        )
+        assert m, "burst-picker.js 找不到 playPickerHoverOut 方法定義"
+        body = m.group(1)
+        # 必須回傳 Promise 或 Promise.resolve
+        assert re.search(r"return\s+(new\s+Promise|Promise\.resolve)", body), \
+            "playPickerHoverOut 必須回傳 Promise（new Promise(...) 或 Promise.resolve()）"
+        # Promise 必須包 onComplete callback
+        assert "onComplete" in body or "onComplete:" in body, \
+            "playPickerHoverOut 動畫分支應使用 onComplete: resolve 將 tween 完成事件接到 Promise"
+
+    def test_burst_picker_exit_all_returns_promise(self):
+        """Codex P1 (already covered by T4cd-fix): playPickerExitAll 必須回傳 Promise。
+        本測試額外明確檢查，避免未來 refactor 退回 fire-and-forget 而 _onPickerSelect 無法 await。
+        """
+        with open("web/static/js/shared/burst-picker.js", "r", encoding="utf-8") as f:
+            burst_js = f.read()
+        m = re.search(
+            r"playPickerExitAll:\s*function\s*\([^)]*\)\s*\{(.*?)\n\s{8}\},",
+            burst_js, re.DOTALL,
+        )
+        assert m, "burst-picker.js 找不到 playPickerExitAll 方法定義"
+        body = m.group(1)
+        assert re.search(r"return\s+(new\s+Promise|Promise\.resolve)", body), \
+            "playPickerExitAll 必須回傳 Promise（避免 _closePicker 立即 reset 清空 _candidates）"
+
+    def test_picker_sse_handler_captures_index_before_await(self):
+        """SSE candidate handler 必須在 push 後同步 capture myIndex，再 await $nextTick。
+        否則一次連發多筆 candidate（local_crop 緊接 yield）時，所有 handler resume 後
+        看到的 _candidates.length 都是最終值，會全部 pick cards[N-1]，導致中間 candidate
+        沒有 burst（停留 opacity:0 從 CSS 預設），用戶看不到那幾張卡。
+        """
+        js = self._core_js()
+        # 抓 _startPickerSSE 內 candidate handler 區塊
+        m = re.search(
+            r"sse\.addEventListener\(\s*['\"]candidate['\"]\s*,\s*async\s*\(?[^)]*\)?\s*=>\s*\{(.*?)\}\s*\)\s*;",
+            js, re.DOTALL,
+        )
+        assert m, "找不到 sse.addEventListener('candidate', ...) handler"
+        body = m.group(1)
+        # 必須有 myIndex 變數
+        assert re.search(r"const\s+myIndex\s*=\s*this\._candidates\.length\s*-\s*1", body), \
+            "candidate handler 必須在 push 後同步 capture myIndex（race fix）"
+        # myIndex 必須出現在 await 之前
+        idx_pos = body.find("const myIndex")
+        await_pos = body.find("await this.$nextTick")
+        assert 0 <= idx_pos < await_pos, \
+            "myIndex capture 必須在 await this.$nextTick() 之前（race fix）"
+        # newCard 必須使用 myIndex（不能再用 this._candidates.length - 1）
+        assert re.search(r"cards\[\s*myIndex\s*\]", body), \
+            "newCard 必須使用 cards[myIndex]，不可用 cards[this._candidates.length - 1]"
+        assert "cards[this._candidates.length - 1]" not in body, \
+            "candidate handler 不可使用 cards[this._candidates.length - 1]（race bug：所有 handler 拿到同一張卡）"

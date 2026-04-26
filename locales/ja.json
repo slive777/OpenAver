@@ -495,7 +495,8 @@
       "minutes": "分",
       "minutes_abbr": "分",
       "videos_count": "本",
-      "films": "本"
+      "films": "作品",
+      "actresses": "人"
     },
     "per_page": {
       "all": "すべて"
@@ -505,7 +506,11 @@
       "total_suffix": "本",
       "search_prefix": "\"",
       "search_middle": "\" の検索結果：",
-      "search_suffix": "本"
+      "search_suffix": "本",
+      "search_empty": "該当する作品はありません",
+      "search_actresses_prefix": "",
+      "search_actresses_middle": " 人 \"",
+      "search_actresses_suffix": "\""
     },
     "nav": {
       "prev_page": "前のページ",
@@ -544,7 +549,9 @@
       "add_tag": "タグを追加",
       "tag_placeholder": "タグ名",
       "tag_api_failed": "タグの保存に失敗しました",
-      "user_tags_label": "カスタムタグ"
+      "user_tags_label": "カスタムタグ",
+      "alias_label": "別名",
+      "alias_source_hint": "Scanner から同期"
     },
     "gallery": {
       "prev": "前の画像 (←)",
@@ -574,9 +581,6 @@
       "addDuplicate": "すでにお気に入りに登録済みです",
       "addNotFound": "女優が見つかりませんでした",
       "addTimeout": "スクレイピングがタイムアウトしました。後でもう一度お試しください",
-      "rescrape": "再スクレイプ",
-      "rescrapeSuccess": "情報を更新しました",
-      "rescrapeError": "再スクレイプに失敗しました",
       "remove": "お気に入りを解除",
       "removeConfirm": "{name} を削除しますか？",
       "removeSuccess": "お気に入りから削除しました",
@@ -584,7 +588,21 @@
       "emptyHint": "右上の + をクリックして追加してください",
       "search_films": "関連動画を検索",
       "addFavorite": "お気に入りに追加",
-      "favorited": "お気に入り済み"
+      "favorited": "お気に入り済み",
+      "change_photo": "写真を変更",
+      "picker": {
+        "empty": "候補写真が見つかりません",
+        "empty_hint": "保存している動画が多いほど、ローカルの選択肢が増えます。",
+        "loading": "候補を取得中…",
+        "error": "取得に失敗しました",
+        "replaced": "写真を変更しました。いつでも再変更できます。",
+        "current_source": "現在：{source}",
+        "source_local_crop": "ローカル",
+        "source_graphis": "Graphis",
+        "source_gfriends": "gfriends",
+        "source_wiki": "Wiki",
+        "source_minnano": "Minnano"
+      }
     },
     "samples": {
       "fetch_btn": "取得",
@@ -697,11 +715,11 @@
       "h6_showcase": "ショーケースページ",
       "showcase_toggle": "ツールバーで映画モード ↔ 女優モードを切替（映画 | 人物 アイコン）",
       "showcase_grid": "お気に入り女優グリッド。名前・年齢・カップ・身長・追加日でソート可能",
-      "showcase_lightbox": "女優 Lightbox に完全なプロフィール・別名・リンクを表示。再スクレイプやお気に入り解除が可能",
+      "showcase_lightbox": "ライトボックスで写真変更やお気に入り解除が可能",
       "h6_manage": "お気に入り管理",
       "manage_add": "検索ページまたはショーケースページからお気に入りに追加。プロフィール写真は自動でローカルに保存",
       "manage_alias": "別名管理：Scanner ページで女優の別名を追加・編集。検索時にすべての既知の別名が自動展開される",
-      "manage_enrich": "ショーケースカードのワンクリック再スクレイプで女優情報を最新に更新",
+      "manage_enrich": "ライトボックス右上の🔄で女優写真を変更（クラウドまたはローカル動画カバーから候補取得）",
       "manage_photo_path": "お気に入り女優の写真は output/Gfriends/ ディレクトリに保存されます"
     },
     "scanner": {

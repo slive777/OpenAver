@@ -50,12 +50,13 @@ EXPECTED_TOOL_NAMES = {
     "favorite_actress",
     "get_actress",
     "unfavorite_actress",
-    "rescrape_actress",
     "list_actresses",
     "alias_crud_read",
     "alias_crud_write",
     "alias_search_online",
     "fetch_samples",
+    "list_actress_photo_candidates",
+    "set_actress_photo",
 }
 
 REQUIRED_TOOL_FIELDS = [
@@ -102,9 +103,9 @@ class TestCapabilitiesEndpoint:
         data = client.get("/api/capabilities").json()
         assert "retry_hint" in data["error_format"]
 
-    def test_tools_count_is_28(self, client):
+    def test_tools_count_is_29(self, client):
         data = client.get("/api/capabilities").json()
-        assert len(data["tools"]) == 28
+        assert len(data["tools"]) == 29
 
     def test_all_tool_names_present(self, client):
         data = client.get("/api/capabilities").json()
@@ -248,3 +249,13 @@ class TestCapabilitiesEndpoint:
         assert tool.get("side_effect") is True
         assert tool.get("confirmation_required") is False
         assert tool.get("retry_safe") is True
+
+    def test_set_actress_photo_side_effect_flags(self, client):
+        """set_actress_photo 有正確的 side_effect / confirmation_required 旗標"""
+        data = client.get("/api/capabilities").json()
+        tools = {t["name"]: t for t in data["tools"]}
+        tool = tools.get("set_actress_photo")
+        assert tool is not None, "set_actress_photo tool 不存在"
+        assert tool.get("side_effect") is True
+        assert tool.get("confirmation_required") is True
+        assert "可逆" in tool["description"] or "覆蓋" in tool["description"]

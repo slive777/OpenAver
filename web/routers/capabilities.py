@@ -768,32 +768,6 @@ _TOOLS: list[dict] = [
         "_example_template": "curl -X DELETE '{base}/api/actresses/%E4%B8%89%E4%B8%8A%E6%82%A0%E4%BA%9C'",
     },
     {
-        "name": "rescrape_actress",
-        "description": "強制重新抓取女優資料並覆蓋 DB + 照片。⚠️ 此操作會覆蓋現有 DB 資料並刪除舊照片後重新下載，不可逆。必須先讓用戶確認再執行。",
-        "method": "POST",
-        "path": "/api/actresses/{name}/rescrape",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "description": "女優名（URL path parameter，需 URL encode）",
-                },
-            },
-            "required": ["name"],
-        },
-        "output_schema": {
-            "success": "boolean",
-            "actress": "Actress — 更新後的完整女優資料",
-            "photo_downloaded": "boolean — 新照片是否成功下載",
-        },
-        "side_effect": True,
-        "confirmation_required": True,
-        "idempotent": False,
-        "retry_safe": False,
-        "_example_template": "curl -X POST '{base}/api/actresses/%E4%B8%89%E4%B8%8A%E6%82%A0%E4%BA%9C/rescrape'",
-    },
-    {
         "name": "alias_crud_read",
         "description": (
             "列出所有別名組或查詢單一別名組。"
@@ -900,6 +874,73 @@ _TOOLS: list[dict] = [
             " {base}/api/actress-aliases/search-online"
         ),
     },
+    {
+        "name": "list_actress_photo_candidates",
+        "description": (
+            "串流回傳女優候選照片列表（SSE）。"
+            "從 4 個雲端來源（graphis/gfriends/wiki/minnano）並行抓取，"
+            "加上本機影片封面 crop，最多 6 張。"
+            "每張照片準備好立即 push，前端即時展示。不修改資料庫。"
+        ),
+        "side_effect": False,
+        "method": "GET",
+        "path": "/api/actresses/{name}/photo-candidates",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "女優名稱（URL path parameter，需 URL encode）",
+                },
+            },
+            "required": ["name"],
+        },
+        "output_schema": {
+            "candidates": "SSE stream — event: candidate（重複 N 次）+ event: done",
+            "candidate_data": '{"source": str, "thumb_url": str, "full_url": str, "video_path"?: str}',
+            "done_data": '{"total": int}',
+        },
+        "_example_template": "curl -N '{base}/api/actresses/%E4%B8%89%E4%B8%8A%E6%82%A0%E4%BA%9C/photo-candidates'",
+    },
+    {
+        "name": "set_actress_photo",
+        "description": (
+            "替換女優本機照片。接受雲端 URL（graphis/gfriends/wiki/minnano）或本機影片封面 crop（local_crop）。"
+            "⚠️ side effect：覆蓋本機照片檔案（先 glob 刪除舊副檔名再寫入新圖）。"
+            "可逆 — 隨時可再換；但舊檔案無備份。"
+            "執行前必須先確認用戶選擇的來源與 URL。"
+        ),
+        "method": "POST",
+        "path": "/api/actresses/{name}/photo",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "女優名稱（URL path parameter，需 URL encode）"},
+                "source": {
+                    "type": "string",
+                    "enum": ["graphis", "gfriends", "wiki", "minnano", "local_crop"],
+                    "description": "照片來源識別碼",
+                },
+                "url": {"type": "string", "description": "雲端照片 URL（source 為雲端來源時必填）"},
+                "video_path": {"type": "string", "description": "影片 file:/// URI（source=local_crop 時必填）"},
+                "crop_spec": {"type": "string", "description": "裁切規格，預設 v1（source=local_crop 時適用）"},
+            },
+            "required": ["name", "source"],
+        },
+        "output_schema": {
+            "photo_url": "string — 新照片路徑，含 ?t=timestamp cache-bust query",
+            "photo_source": "string — 實際使用的來源識別碼",
+        },
+        "side_effect": True,
+        "confirmation_required": True,
+        "idempotent": False,
+        "retry_safe": False,
+        "_example_template": (
+            "curl -X POST '{base}/api/actresses/%E4%B8%89%E4%B8%8A%E6%82%A0%E4%BA%9C/photo' "
+            "-H 'Content-Type: application/json' "
+            "-d '{{\"source\": \"graphis\", \"url\": \"https://example.com/photo.jpg\"}}'"
+        ),
+    },
 ]
 
 
@@ -940,8 +981,18 @@ async def get_capabilities(request: Request):
         },
         "agent_instructions": {
             "fetch_method": "curl",
-            "fetch_note": "必須使用 curl（shell 指令）存取此服務。禁止使用瀏覽器 fetch()、AI 內建的 WebFetch / web_search 等 HTTP 工具 — 這些工具走外部 proxy 或沙箱網路，無法連到 LAN IP。正確做法：用 Bash tool 執行 curl 指令。",
+            "fetch_note": "必須走 shell HTTP 工具（POSIX 用 curl，Windows 用 curl.exe 或 Invoke-RestMethod）存取此服務。禁止使用瀏覽器 fetch()、AI 內建的 WebFetch / web_search 等 HTTP 工具，因其常經由外部 proxy 或沙箱網路，無法可靠連到 localhost / LAN。",
             "example": f"curl -s {base}/api/capabilities",
+            "shell_compat": {
+                "preferred": {
+                    "posix": "curl",
+                    "windows": "curl.exe",
+                },
+                "alternative_windows": f"Invoke-RestMethod -Uri '{base}/api/batch-search' -Method POST -ContentType 'application/json' -Body '{{\"numbers\":[\"SONE-205\"]}}'",
+                "windows_gotcha": "PowerShell 內 curl 是 Invoke-WebRequest 的 alias，建議顯式呼叫 curl.exe；POST JSON body 引號易與 PS 字串規則打架，改用 Invoke-RestMethod -Body 較穩。",
+                "forbidden": ["fetch()", "WebFetch", "web_search"],
+                "forbidden_reason": "Browser-sandbox or external-proxy routing cannot reliably reach localhost or LAN services.",
+            },
         },
         "image_display": {
             "description": "如何在對話中顯示搜尋結果的封面 / 劇照圖片",

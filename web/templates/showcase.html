@@ -269,26 +269,7 @@
         <template x-if="!showFavoriteActresses">
         <div>
 
-        <!-- Status Bar (M3g) -->
-        <div class="showcase-status-bar">
-            <span class="status-total">
-                <template x-if="!search">
-                    <span>{{ t('showcase.status.total_prefix') }} <b x-text="filteredCount"></b> {{ t('showcase.status.total_suffix') }}</span>
-                </template>
-                <template x-if="search">
-                    <span>{{ t('showcase.status.search_prefix') }}<b x-text="search"></b>{{ t('showcase.status.search_middle') }} <b x-text="filteredCount"></b> {{ t('showcase.status.search_suffix') }}</span>
-                </template>
-            </span>
-            <div class="status-pagination" x-show="totalPages > 1">
-                <button class="page-btn" @click="prevPage()" :disabled="page === 1">← {{ t('showcase.nav.prev_page') }}</button>
-                <select class="page-select" x-model.number="page" @change="goToPage(page)">
-                    <template x-for="p in totalPages" :key="p">
-                        <option :value="p" x-text="`${p} / ${totalPages}`" :selected="p === page"></option>
-                    </template>
-                </select>
-                <button class="page-btn" @click="nextPage()" :disabled="page === totalPages">{{ t('showcase.nav.next_page') }} →</button>
-            </div>
-        </div>
+        <!-- Status Bar 已於 v0.7.8 (49a-T4) 移除，統合至底部 .showcase-footer 三段式 -->
 
         <!-- Image Grid -->
         <div class="showcase-grid" x-show="mode === 'grid'">
@@ -527,7 +508,9 @@
                             <!-- Search films overlay (44c-T7) -->
                             <div class="actress-card-overlay">
                                 <button class="btn-glass-circle"
-                                        @click.stop="searchActressFilms(actress.name)"
+                                        @click.stop="searchActressFilms(actress.name, $el)"
+                                        :disabled="_ghostFlyInFlight"
+                                        :class="{ 'opacity-50 cursor-not-allowed': _ghostFlyInFlight }"
                                         :title="t('showcase.actress.search_films')">
                                     <i class="bi bi-camera-reels"></i>
                                 </button>
@@ -568,16 +551,21 @@
                     <div style="display:contents">
                         <!-- Actress Cover -->
                         <div class="lightbox-cover">
-                            <img x-show="currentLightboxActress?.photo_url"
+                            <img x-ref="pickerCoverImg"
+                                 x-show="currentLightboxActress?.photo_url"
                                  :src="currentLightboxActress?.photo_url"
                                  :alt="currentLightboxActress?.name">
                             <div class="actress-lb-cover-placeholder"
                                  x-show="!currentLightboxActress?.photo_url">
                                 <i class="bi bi-person-circle" style="font-size:4rem; opacity:0.3"></i>
                             </div>
-                            <div class="cover-actions">
+                            <div class="cover-actions"
+                                 :data-picker-open="_pickerOpen">
                                 <button class="lb-action-btn"
-                                        @click.stop="searchActressFilms(currentLightboxActress?.name)"
+                                        x-show="actressLightboxSource === 'grid'"
+                                        @click.stop="searchActressFilms(currentLightboxActress?.name, $el)"
+                                        :disabled="_ghostFlyInFlight"
+                                        :class="{ 'opacity-50 cursor-not-allowed': _ghostFlyInFlight }"
                                         :data-tooltip="t('showcase.actress.search_films')"
                                         :aria-label="t('showcase.actress.search_films')">
                                     <i class="bi bi-camera-reels"></i>
@@ -588,6 +576,14 @@
                                         :data-tooltip="t('showcase.actress.remove')"
                                         :aria-label="t('showcase.actress.remove')">
                                     <i class="bi bi-trash"></i>
+                                </button>
+                                <!-- 換照片按鈕（49b T4cd）-->
+                                <button class="lb-action-btn"
+                                        x-show="currentLightboxActress?.is_favorite"
+                                        @click.stop="openActressPicker()"
+                                        :data-tooltip="t('showcase.actress.change_photo')"
+                                        :aria-label="t('showcase.actress.change_photo')">
+                                    <i class="bi bi-arrow-clockwise" :class="{ spin: _pickerLoading }"></i>
                                 </button>
                             </div>
                         </div>
@@ -600,9 +596,6 @@
                                 <span class="lb-name-en"
                                       x-show="currentLightboxActress?.name_en"
                                       x-text="currentLightboxActress?.name_en"></span>
-                                <button class="btn-glass-circle is-favorite" style="cursor:default;pointer-events:none;" aria-label="favorite">
-                                    <i class="bi bi-heart-fill"></i>
-                                </button>
                             </div>
                             <!-- Row 2: Core metadata (age · birth · height · cup · BWH) -->
                             <div class="lb-actress-core"
@@ -611,6 +604,10 @@
                             <!-- Row 3: Aliases chips +N -->
                             <div class="lb-chips-row"
                                  x-show="(currentLightboxActress?.aliases || []).length > 0">
+                                <!-- T3: alias label + tooltip -->
+                                <span class="lb-chips-label"
+                                      :title="t('showcase.lightbox.alias_source_hint')"
+                                      x-text="t('showcase.lightbox.alias_label')"></span>
                                 <template x-for="alias in _visibleAliases()" :key="alias">
                                     <span class="lb-tag" x-text="alias"></span>
                                 </template>
@@ -645,6 +642,7 @@
                                    x-text="currentLightboxActress?.official_url"></a>
                             </div>
                         </div>
+
                     </div>
                 </template>
 
@@ -798,6 +796,50 @@
 
             </div>
 
+            <!-- Picker Overlay（49c T1：z-axis overlay，fixed position；移出 lightbox-content） -->
+            <div x-ref="pickerArea"
+                 class="actress-picker-overlay"
+                 x-show="currentLightboxActress && _pickerOpen"
+                 @click.stop
+                 @click.outside="currentLightboxActress && _pickerOpen && _cancelPicker()">
+                <!-- 以下沿用原內部 children，class 不變 -->
+                <div class="picker-current-source"
+                     x-show="_pickerCurrentSource">
+                    <span x-text="t('showcase.actress.picker.current_source').replace('{source}', t('showcase.actress.picker.source_' + _pickerCurrentSource) || _pickerCurrentSource)"></span>
+                </div>
+                <div class="picker-candidates-grid" x-ref="pickerGrid">
+                    <template x-for="(c, i) in _candidates" :key="i">
+                        <div class="picker-candidate-card"
+                             @mouseenter="_onPickerHoverIn($el, i)"
+                             @mouseleave="_onPickerHoverOut($el, i)"
+                             @click.stop="_onPickerSelect(c, i)">
+                            <img :src="c.thumb_url" class="picker-candidate-img" loading="lazy" :alt="c.source">
+                            <div class="picker-source-badge">
+                                <i class="bi bi-check-lg picker-check-icon"></i>
+                                <span x-text="t('showcase.actress.picker.source_' + c.source) || c.source"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <div x-show="_pickerLoading && _candidates.length === 0" class="picker-loading">
+                    <i class="bi bi-hourglass-split"></i>
+                    <span x-text="t('showcase.actress.picker.loading')"></span>
+                </div>
+                <div x-show="!_pickerLoading && _pickerOpen && _candidates.length === 0" class="picker-empty">
+                    <i class="bi bi-image"></i>
+                    <p x-text="t('showcase.actress.picker.empty')"></p>
+                    <p class="picker-empty-hint" x-text="t('showcase.actress.picker.empty_hint')"></p>
+                </div>
+                <button class="picker-refresh-btn"
+                        x-show="_candidates.length > 0"
+                        @click.stop="openActressPicker()"
+                        :disabled="_pickerLoading"
+                        :title="t('showcase.actress.change_photo')"
+                        :aria-label="t('showcase.actress.change_photo')">
+                    <i class="bi bi-arrow-clockwise" :class="{ spin: _pickerLoading }"></i>
+                </button>
+            </div>
+
             <!-- Navigation Arrows OUTSIDE lightbox-content (44a T4: dispatch based on showFavoriteActresses) -->
             <button class="lightbox-nav lightbox-nav-prev"
                     @click.stop="showFavoriteActresses ? prevActressLightbox() : prevLightboxVideo()"
@@ -881,14 +923,80 @@
         </div>
     </div>
 
-    <!-- Shortcut Hint (M4c) -->
-    <div class="shortcut-hint">
-        <span class="hint-text">
-            <kbd>A</kbd> {{ t('showcase.shortcut.switch_mode') }} ·
-            <kbd>S</kbd> {{ t('showcase.shortcut.toggle_info') }} ·
-            <kbd>←</kbd> <kbd>→</kbd> {{ t('showcase.shortcut.pagination') }} ·
-            <kbd>ESC</kbd> {{ t('showcase.shortcut.close') }}
-        </span>
+    <!-- Footer 三段式 (49a-T4)：左 count + 中 shortcut + 右 pager -->
+    <!-- ⚠️ 不可加 x-data（會建立 nested Alpine scope，讓 showFavoriteActresses / totalPages / filteredCount 等 state 全變 undefined）。
+         footer 在 showcase.html 頂層 x-data="showcaseState" 作用域內，直接用父級 state。 -->
+    <div class="showcase-footer">
+        <!-- Left: count pill + mode icon -->
+        <div class="footer-left">
+            <!-- 影片模式 -->
+            <template x-if="!showFavoriteActresses">
+                <span class="footer-count">
+                    <i class="bi bi-film"></i>
+                    <template x-if="!search">
+                        <span><b x-text="filteredCount"></b> {{ t('showcase.status.total_suffix') }}</span>
+                    </template>
+                    <template x-if="search && filteredCount > 0">
+                        <span>{{ t('showcase.status.search_prefix') }}<b class="footer-search-term" x-text="search"></b>{{ t('showcase.status.search_middle') }} <b x-text="filteredCount"></b> {{ t('showcase.status.search_suffix') }}</span>
+                    </template>
+                    <template x-if="search && filteredCount === 0">
+                        <span x-text="t('showcase.status.search_empty')"></span>
+                    </template>
+                </span>
+            </template>
+            <!-- 女優模式（搜尋無結果時整個 pill 隱藏，依 plan-49a TASK-T4 邊界條件 #7 / Codex P2） -->
+            <template x-if="showFavoriteActresses && (!actressSearch || filteredActressCount > 0)">
+                <span class="footer-count footer-count--actress">
+                    <i class="bi bi-person-circle"></i>
+                    <template x-if="!actressSearch">
+                        <span><b x-text="filteredActressCount"></b> {{ t('showcase.unit.actresses') }}</span>
+                    </template>
+                    <template x-if="actressSearch && filteredActressCount > 0">
+                        <span>{{ t('showcase.status.search_actresses_prefix') }}<b x-text="filteredActressCount"></b>{{ t('showcase.status.search_actresses_middle') }}<b class="footer-search-term" x-text="actressSearch"></b>{{ t('showcase.status.search_actresses_suffix') }}</span>
+                    </template>
+                </span>
+            </template>
+        </div>
+
+        <!-- Center: shortcut hint（永遠顯示）-->
+        <div class="footer-center">
+            <span class="hint-text">
+                <kbd>A</kbd> {{ t('showcase.shortcut.switch_mode') }} ·
+                <kbd>S</kbd> {{ t('showcase.shortcut.toggle_info') }} ·
+                <kbd>←</kbd> <kbd>→</kbd> {{ t('showcase.shortcut.pagination') }} ·
+                <kbd>ESC</kbd> {{ t('showcase.shortcut.close') }}
+            </span>
+        </div>
+
+        <!-- Right: pager pill（影片模式 + totalPages > 1 才顯示）-->
+        <div class="footer-right">
+            <div class="footer-pager" x-show="!showFavoriteActresses && totalPages > 1">
+                <button class="pager-btn"
+                        @click="prevPage()"
+                        :disabled="page === 1"
+                        :aria-label="t('showcase.nav.prev_page')"
+                        :title="t('showcase.nav.prev_page')">‹</button>
+                <span class="pager-current"
+                      @click="openPagePicker($refs.pageSelectFooter)"
+                      :title="t('showcase.shortcut.pagination')">
+                    <b x-text="page"></b>/<b x-text="totalPages"></b>
+                </span>
+                <select class="page-select" x-ref="pageSelectFooter"
+                        @change="goToPage($event.target.value)"
+                        tabindex="-1"
+                        aria-hidden="true"
+                        style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px">
+                    <template x-for="p in totalPages" :key="p">
+                        <option :value="p" x-text="p" :selected="p === page"></option>
+                    </template>
+                </select>
+                <button class="pager-btn"
+                        @click="nextPage()"
+                        :disabled="page === totalPages"
+                        :aria-label="t('showcase.nav.next_page')"
+                        :title="t('showcase.nav.next_page')">›</button>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

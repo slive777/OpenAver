@@ -69,10 +69,11 @@ def test_init_db_creates_indexes(tmp_path):
     indexes = [row[0] for row in cursor.fetchall()]
     conn.close()
 
-    # 檢查三個索引是否存在
+    # 檢查四個索引是否存在
     assert 'idx_videos_number' in indexes
     assert 'idx_videos_path' in indexes
     assert 'idx_videos_maker' in indexes
+    assert 'idx_videos_cover_path' in indexes
 
 
 def test_init_db_idempotent(tmp_path):
@@ -412,7 +413,7 @@ def test_migrate_json_to_sqlite_success(tmp_path):
     """測試正常遷移與 idempotency"""
     db_path = tmp_path / "test.db"
     json_path = tmp_path / "cache.json"
-    
+
     # 準備假的 json cache 資料
     fake_cache = {
         "_metadata": {"version": 1},
@@ -427,19 +428,19 @@ def test_migrate_json_to_sqlite_success(tmp_path):
         }
     }
     json_path.write_text(json.dumps(fake_cache))
-    
+
     # 第一次遷移
     result1 = migrate_json_to_sqlite(json_path, db_path, delete_on_success=False)
     assert result1['migrated'] == 1
     assert result1['skipped'] == 1
     assert result1['errors'] == 0
-    
+
     # 檢查 mtime/nfo_mtime 預設值
     repo = VideoRepository(db_path)
     video = repo.get_by_path("file:///videos/test1.mp4")
     assert video.mtime == 100.0
     assert video.nfo_mtime == 200.0
-    
+
     # 第2次遷移，測試重複匯入（idempotency）
     result2 = migrate_json_to_sqlite(json_path, db_path, delete_on_success=False)
     assert result2['migrated'] == 1  # 依然算 migrated 因為它會 UPSERT（updated計數+1）

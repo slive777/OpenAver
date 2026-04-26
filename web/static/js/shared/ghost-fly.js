@@ -241,6 +241,94 @@
         },
 
         /**
+         * 49a-T7: 女優 → 影片跨模式 ghost fly（CD-11）
+         *
+         * 從女優卡片（grid 或 lightbox 封面）飛往影片模式 hero card 位置，
+         * 抵達時 hero card 做 glow pulse + scale settle（UX B3）。
+         *
+         * @param {DOMRect} fromRect - 來源元素 bounding rect（state 變前 / closeLightbox 前捕獲）
+         * @param {Element} heroCardEl - 目標 .hero-card 元素（render 完成後取得）
+         * @param {object} [options] - { coverSrc, onComplete, onFallback }
+         * @returns {gsap.Timeline|null}
+         */
+        playActressToHeroCard: function (fromRect, heroCardEl, options) {
+            options = options || {};
+            if (!fromRect || !heroCardEl) {
+                if (typeof options.onFallback === 'function') options.onFallback();
+                return null;
+            }
+            if (typeof gsap === 'undefined') {
+                if (typeof options.onFallback === 'function') options.onFallback();
+                return null;
+            }
+            if (window.OpenAver && window.OpenAver.prefersReducedMotion) {
+                if (typeof options.onComplete === 'function') options.onComplete();
+                return null;
+            }
+            var heroImg = heroCardEl.querySelector('.av-card-preview-img img');
+            if (!heroImg) {
+                if (typeof options.onFallback === 'function') options.onFallback();
+                return null;
+            }
+            var toRect = heroImg.getBoundingClientRect();
+            if (!toRect || toRect.width === 0) {
+                if (typeof options.onFallback === 'function') options.onFallback();
+                return null;
+            }
+            var coverSrc = options.coverSrc || fromRect._src;
+            var ghost = createCoverGhost(coverSrc, fromRect);
+            if (!ghost) {
+                if (typeof options.onFallback === 'function') options.onFallback();
+                return null;
+            }
+
+            // 隱藏真實 hero img（ghost 飛行期間）
+            heroImg.setAttribute('data-ghost-hidden', '');
+            gsap.set(heroImg, { opacity: 0 });
+
+            var dur = 0.55;
+            var ease = 'power2.inOut';
+            var tl = gsap.timeline({ id: 'ghostActressToHeroCard' });
+            tl.fromTo(ghost,
+                { x: fromRect.left, y: fromRect.top, width: fromRect.width, height: fromRect.height },
+                {
+                    x: toRect.left, y: toRect.top, width: toRect.width, height: toRect.height,
+                    duration: dur, ease: ease,
+                    onComplete: function () {
+                        cleanupGhost(ghost, heroImg);
+                        // UX B3: hero card glow pulse + scale settle
+                        // ⚠️ Gotcha C21：.av-card-preview 有 CSS transition: transform，
+                        // GSAP scale tween 完成後 clearProps 會觸發幽靈動畫。
+                        // 解法：tween 期間加 gsap-animating class 停用 CSS transition。
+                        var heroCard = heroCardEl;
+                        heroCard.classList.add('gsap-animating');
+                        gsap.timeline({
+                            onComplete: function () { heroCard.classList.remove('gsap-animating'); }
+                        })
+                            .fromTo(heroCard,
+                                { scale: 1.02 },
+                                { scale: 1.0, duration: 0.3, ease: 'power2.out', clearProps: 'transform' }
+                            )
+                            .fromTo(heroCard,
+                                { filter: 'drop-shadow(0 0 12px rgba(255,255,200,0.6))' },
+                                { filter: 'drop-shadow(0 0 0px rgba(0,0,0,0))', duration: 0.3, ease: 'power2.out', clearProps: 'filter' },
+                                '<'
+                            );
+                        if (typeof options.onComplete === 'function') options.onComplete();
+                    }
+                }
+            );
+            gsap.to(ghost, {
+                keyframes: [
+                    { boxShadow: '0 12px 32px rgba(0,0,0,0.40)', duration: dur * 0.5 },
+                    { boxShadow: '0 2px 8px rgba(0,0,0,0.15)', duration: dur * 0.5 }
+                ],
+                ease: 'none'
+            });
+            return tl;
+        },
+
+        /**
          * 已收藏愛心 Floating Hearts 粒子效果
          * 點擊 is-favorite 按鈕時，從按鈕位置噴出浮動愛心粒子，向上漂移並淡出。
          * 純裝飾，不改變收藏狀態。

@@ -8,7 +8,7 @@
     min-height: calc(100vh - 56px); /* 扣除 header */
     display: flex;
     flex-direction: column;
-    padding-bottom: 48px; /* 防止 shortcut-hint 遮擋最後一行卡片 (M4c) */
+    padding-bottom: 48px; /* 防止底部 .showcase-footer 遮擋最後一行卡片 (49a-T4 三段式 footer，高度約 40-44px) */
 
     /* Background Atmosphere — 對齊 Design System (design-system.css L6-11) */
     background:
@@ -130,6 +130,10 @@
 }
 
 /* ==================== Status Bar (M3g) ==================== */
+/* 49a-T4: status bar 已從 showcase 主頁移除（showcase.html 不再使用），
+   保留 CSS 是因為 design-system.html 仍引用 .showcase-status-bar / .status-total /
+   .status-pagination / .page-btn / .page-select 作為元件 reference demo。
+   勿在 showcase 主頁重新使用此元件，相關功能已整合至底部 .showcase-footer 三段式。 */
 
 .showcase-status-bar {
     display: flex;
@@ -569,6 +573,11 @@
 /* B16: GSAP Lightbox 動畫期間關掉 CSS transition（C21） — showcase 頁面 */
 .showcase-container .showcase-lightbox.gsap-animating,
 .showcase-container .showcase-lightbox.gsap-animating .lightbox-content {
+    transition: none !important;
+}
+
+/* 49a-T7: hero card glow pulse / scale settle 期間關掉 CSS transition（C21） */
+.hero-card.gsap-animating {
     transition: none !important;
 }
 
@@ -1225,17 +1234,20 @@
         var(--bg-body);
 }
 
-/* ==================== Shortcut Hint (M4c) ==================== */
+/* ==================== Showcase Footer 三段式 (49a-T4) ==================== */
+/* 取代原 .shortcut-hint：左 count + 中 shortcut + 右 pager */
 
-.shortcut-hint {
+.showcase-footer {
     position: fixed;
     bottom: 0;
-    left: 0;
+    /* 對齊 .main-content 的 margin-left 模式，避免被 sidebar (z-index 1000) 覆蓋左側 */
+    left: var(--sidebar-width, 200px);
     right: 0;
     z-index: 50;
+    transition: left var(--fluent-duration-normal, 0.2s) var(--fluent-ease-standard, ease);
 
     /* 背景 - 使用 Design System token */
-    background: var(--bg-header); /* color-mix 85% transparency + backdrop-filter */
+    background: var(--bg-header);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-top: 1px solid var(--stroke-subtle);
@@ -1243,36 +1255,84 @@
     /* 間距 */
     padding: 0.5rem 1rem;
 
-    /* 布局 */
+    /* 三段 flexbox；.footer-center 用 absolute 居中（fixed 本身即錨點） */
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    gap: 0.5rem;
 }
 
-.hint-text {
+/* sidebar collapsed 時 footer 跟著縮 left（同 .main-content 模式） */
+body.sidebar-collapsed .showcase-footer {
+    left: var(--sidebar-collapsed-width, 60px);
+}
+
+/* Left: count pill */
+.footer-left {
     font-size: 0.8125rem;
-    color: var(--text-muted); /* Design System token */
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0; /* 不縮減，解耦 left/right 讓 center absolute 居中 */
+}
+
+.footer-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.footer-count i {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.footer-count b {
+    font-size: 1.0625rem;   /* 17px 數字主導 */
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-weight: 700;       /* 600 → 700 */
+    padding: 0 2px;
+    line-height: 1;         /* 避免大字撐高 footer */
+}
+
+/* Center: shortcut hint — absolute 居中，解耦 left/right */
+.footer-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+    pointer-events: none; /* 不擋 flex 兩側點擊 */
+}
+
+.footer-center .hint-text {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     flex-wrap: wrap;
 }
 
-/* Keyboard Key Styling */
-.shortcut-hint kbd {
+/* Keyboard Key Styling — 對齊原 .shortcut-hint kbd 視覺 */
+.showcase-footer kbd {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     min-width: 1.75rem;
     padding: 0.125rem 0.375rem;
 
-    /* 視覺效果 */
     background: var(--surface-1);
     border: 1px solid var(--stroke-default);
     border-radius: var(--radius-sm);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 
-    /* 字體 */
     font-family: var(--font-mono);
     font-size: 0.75rem;
     font-weight: 600;
@@ -1280,14 +1340,123 @@
     line-height: 1;
 }
 
-/* 響應式：小螢幕隱藏提示文字（避免擠壓） */
+/* Right: pager pill */
+.footer-right {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.footer-pager {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    position: relative;
+}
+
+.pager-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.75rem;
+    height: 1.75rem;
+    padding: 0 0.5rem;
+    background: transparent;
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: all var(--duration-fast) var(--ease-out);
+}
+
+.pager-btn:hover:not(:disabled) {
+    background: var(--glow-subtle);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.pager-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.pager-current {
+    font-size: 0.8125rem;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+    padding: 0 6px;
+    cursor: pointer;
+    user-select: none;
+    transition: color var(--duration-fast) var(--ease-out);
+}
+
+.pager-current:hover {
+    color: var(--accent);
+}
+
+.pager-current b {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* 響應式：≤991.98px sidebar 隱藏，footer 也要回到 left:0（對齊 .main-content margin-left:0）*/
+@media (max-width: 991.98px) {
+    .showcase-footer,
+    body.sidebar-collapsed .showcase-footer {
+        left: 0;
+    }
+}
+
+/* 響應式：中段 shortcut hint — 768px 以下隱藏 */
+@media (max-width: 767px) {
+    .footer-center {
+        display: none;
+    }
+}
+
+/* 響應式：手機 <640px 只留右側 pager */
 @media (max-width: 640px) {
-    .shortcut-hint {
+    .showcase-footer {
+        justify-content: flex-end;
+        padding: 0.4rem 0.75rem;
+    }
+    .footer-left,
+    .footer-center {
         display: none;
     }
     .showcase-container {
-        padding-bottom: 0;
+        padding-bottom: 44px;
     }
+}
+
+/* label 文字（位/部/共 X 頁 等）視覺降階 */
+.footer-count > span {
+    font-size: 0.75rem;   /* 12px */
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+/* 女優模式：數字改粉色識別 */
+.footer-count--actress b {
+    color: var(--accent-pink);
+}
+
+/* 搜尋詞 <b> — 壓回正常字體，避免被 mono 17px 700 渲染 */
+.footer-count b.footer-search-term {
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 600;
+    color: var(--text-secondary);
+    line-height: inherit;
+    /* 限制搜尋詞長度，避免 footer-left 無上限撐寬撞上 absolute center（Codex P2） */
+    display: inline-block;
+    max-width: clamp(80px, 16vw, 200px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
 }
 
 /* ==================== Background Atmosphere ==================== */
@@ -1669,10 +1838,6 @@
     min-width: min(60vw, 600px); min-height: min(58vh, 460px);
 }
 
-/* Row 1 heart icon */
-.actress-lb-header .btn-glass-circle { width: 32px; height: 32px; font-size: 1rem; margin-left: auto; }
-.actress-lb-header .btn-glass-circle.is-favorite { color: var(--color-favorite); cursor: default; pointer-events: none; }
-
 /* lb-chips-more shared rule for video lightbox tags +N */
 .lightbox-metadata .lb-chips-more {
     cursor: pointer; font-size: 0.85em; padding: 2px 8px;
@@ -1775,4 +1940,269 @@
 .av-card-no-cover i {
     font-size: 1.5rem;
     opacity: 0.4;
+}
+
+/* 49a-T3: Actress Lightbox alias label（Row 3 chips 前方淡色標籤 + tooltip） */
+.lb-chips-row .lb-chips-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-right: 4px;
+    cursor: default;
+    align-self: center;
+}
+
+/* ── 49b T4cd / 49c T5fix.B (V2 viewport overlay)：Actress Photo Picker ── */
+.actress-picker-overlay {
+    position: fixed;
+    z-index: 1100;
+    bottom: 5vh;
+    left: max(10vw, calc(50vw - 600px));
+    width: min(80vw, 1200px);
+    pointer-events: auto;
+    padding: 12px;
+    box-sizing: border-box;          /* 顯式宣告，防 Tailwind preflight 失效時 width 計算偏差（gotchas） */
+}
+
+.actress-picker-overlay .picker-candidates-grid {
+    display: flex;
+    flex-wrap: nowrap;               /* desktop ≥1280 預設單行 */
+    justify-content: center;
+    gap: 20px;
+    overflow-x: visible;             /* 覆寫全域 overflow-x: auto */
+    overflow-y: visible;
+    margin-top: 0;                   /* V2 不再 -38px overlap */
+}
+
+.actress-picker-overlay .picker-candidate-card {
+    width: 150px;
+    aspect-ratio: 4 / 5;             /* 188px tall on 150 wide */
+    height: auto;                    /* 覆寫全域 height: 140px */
+    border-radius: 12px;
+    flex: 0 0 150px;                 /* 覆寫全域 flex: 0 0 100px */
+}
+
+.actress-picker-overlay .picker-candidate-img {
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
+}
+
+.picker-current-source {
+    font-size: 0.85em;
+    opacity: 0.8;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.picker-candidates-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+    padding: 4px 0;
+}
+
+/* 候選卡：opacity 0 + transition none（GSAP-only 防 1-frame paint glitch） */
+.picker-candidate-card {
+    position: relative;
+    flex: 0 0 100px;
+    width: 100px;
+    height: 140px;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    opacity: 0;
+    transition: none;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.picker-candidate-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.picker-source-badge {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 4px 6px;
+    background: rgba(0, 0, 0, 0.7);
+    font-size: 0.7em;
+    color: var(--text-inverse);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.picker-check-icon {
+    opacity: 0;
+    margin-right: 3px;
+    font-size: 0.6rem;
+    transition: opacity 0.15s;
+}
+
+.picker-candidate-card:hover .picker-source-badge {
+    background: var(--color-success);
+    color: var(--text-inverse);
+}
+
+.picker-candidate-card:hover .picker-check-icon {
+    opacity: 1;
+}
+
+.picker-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    font-size: 0.9em;
+    opacity: 0.7;
+    gap: 8px;
+}
+
+.picker-loading i {
+    font-size: 1.5em;
+}
+
+.picker-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    text-align: center;
+    opacity: 0.6;
+}
+
+.picker-empty i {
+    font-size: 2em;
+    margin-bottom: 8px;
+    opacity: 0.5;
+}
+
+.picker-empty p {
+    margin: 4px 0;
+    font-size: 0.9em;
+}
+
+.picker-empty-hint {
+    font-size: 0.8em;
+    opacity: 0.7;
+    margin-top: 8px;
+}
+
+.picker-refresh-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text-inverse);
+    transition: all 0.15s;
+}
+
+.picker-refresh-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.picker-refresh-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Cover-actions 淡出（picker open 時） */
+.lightbox-cover .cover-actions[data-picker-open="true"] {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+}
+
+/* 49c T5fix.B：tablet 兩行 wrap (768–1279px) */
+@media (min-width: 768px) and (max-width: 1279px) {
+    /* 49c Codex T5fix.B follow-up：強制 3 column 防 1024 5+1 / 1180-1279 6 卡單行
+     * 違反「tablet 兩行」contract（flex-wrap 在大寬度不會 wrap）。grid 明確契約。
+     */
+    .actress-picker-overlay .picker-candidates-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 140px);
+        justify-content: center;
+        gap: 16px;
+    }
+    .actress-picker-overlay .picker-candidate-card {
+        width: 140px;
+        flex: none;        /* grid 不需 flex */
+    }
+}
+
+/* 49c T5fix.B：mobile bottom-sheet (<768px)，從 <640 擴大涵蓋 phone + portrait tablet */
+@media (max-width: 767px) {
+    .actress-picker-overlay {
+        position: fixed;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: auto !important;
+        width: 100% !important;
+        z-index: 1100;
+        background: var(--surface-2);
+        border-top: 1px solid var(--stroke-default);
+        padding: 0.75rem 1rem;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        max-height: 50vh;
+        overflow-y: auto;
+    }
+    /* 49c T6 follow-up：mobile 也用 grid + repeat(3, minmax(0, 1fr)) 強制 3+3，
+     * 同 tablet pattern。flex-wrap 在 600-700 寬度範圍會 wrap 成 4+2 不平衡
+     * （相同 Codex P2 echo）。minmax(0, 1fr) 在極窄 phone (320px) 自動縮小卡片不溢出。
+     */
+    .actress-picker-overlay .picker-candidates-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        justify-content: center;
+        gap: 10px;
+    }
+    .actress-picker-overlay .picker-candidate-card {
+        width: 100%;
+        max-width: 130px;
+        flex: none;
+        justify-self: center;
+    }
+    .actress-picker-overlay .picker-current-source {
+        position: static;
+        background: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        color: inherit;
+        padding: 0;
+        margin-bottom: 8px;
+        pointer-events: auto;
+    }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.bi.spin,
+.picker-refresh-btn i.spin {
+    animation: spin 1s linear infinite;
 }

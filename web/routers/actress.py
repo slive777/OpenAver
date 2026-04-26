@@ -10,17 +10,23 @@
 注意：photo/{name} 必須定義在 {name} 之前，否則 FastAPI 會將 "photo" 解析為 {name}。
 """
 
+import asyncio
+import json
+import random
 import re
+import time
 from typing import Optional, List
 from urllib.parse import quote
 
 from fastapi import APIRouter
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 from core.maker_mapping import load_prefix_mapping
 
-from core.database import ActressRepository, AliasRepository, Actress, init_db
-from core.actress_photo import download_actress_photo, get_local_photo_path, delete_local_photo
+from core.database import ActressRepository, AliasRepository, VideoRepository, Actress, init_db
+from core.actress_photo import download_actress_photo, get_local_photo_path, delete_local_photo, crop_video_cover, GFRIENDS_DIR
+from core.organizer import sanitize_filename
+from core.path_utils import to_file_uri, uri_to_fs_path, coerce_to_file_uri
 from core.scrapers.actress.orchestrator import (
     get_cached_profile,
     get_actress_profile,
@@ -42,6 +48,13 @@ router = APIRouter(prefix="/api/actresses", tags=["actresses"])
 class FavoriteRequest(BaseModel):
     name: str
     makers: Optional[List[str]] = None
+
+
+class SetActressPhotoRequest(BaseModel):
+    source: str                          # "graphis"|"gfriends"|"wiki"|"minnano"|"local_crop"
+    url: Optional[str] = None            # 雲端來源：照片 URL（必填）
+    video_path: Optional[str] = None     # local_crop：影片 file:/// URI（必填）
+    crop_spec: Optional[str] = "v1"      # local_crop：裁切規格（預設 v1）
 
 
 # ---------------------------------------------------------------------------
@@ -300,82 +313,250 @@ def list_actresses():
 
 
 # ---------------------------------------------------------------------------
-# 端點六：POST /api/actresses/{name}/rescrape — 強制重抓女優資料
+# Helper functions for photo-candidates SSE endpoint
+# 注意：必須放 module-level，不可嵌套在 generator 內
 # ---------------------------------------------------------------------------
 
-@router.post("/{name}/rescrape")
-def rescrape_actress(name: str):
+def _fetch_single_source(name: str, source: str) -> Optional[str]:
     """
-    強制重抓女優資料（bypass cache），覆蓋 DB + 照片。
-    name 不在 DB 時允許（直接 scrape + save 等同新增）。
+    從指定雲端來源抓取女優照片 URL。
+    同步函數（用 asyncio.to_thread 呼叫）。
+
+    Returns:
+        URL str 或 None
+    """
+    try:
+        if source == "graphis":
+            from core.scrapers.actress.graphis import scrape_graphis_photo
+            r = scrape_graphis_photo(name)
+            return r.get("prof_url") if r else None
+        elif source == "gfriends":
+            from core.scrapers.actress.gfriends import lookup_gfriends
+            return lookup_gfriends(name, None)
+        elif source == "wiki":
+            from core.scrapers.actress.wiki_ja import scrape_wiki_ja
+            r = scrape_wiki_ja(name)
+            return r.get("photo_url") if r else None
+        elif source == "minnano":
+            from core.scrapers.actress.minnano_av import scrape_minnano_av
+            r = scrape_minnano_av(name)
+            return r.get("photo_url") if r else None
+        else:
+            return None
+    except Exception as e:
+        logger.warning("[actress] _fetch_single_source 失敗 source=%s: %s", source, e)
+        return None
+
+
+def _get_random_videos_with_covers(actress_name: str, count: int) -> list:
+    """
+    取得女優隨機影片（有封面的）。
+
+    Returns:
+        Video list（最多 count 筆，有 cover_path 且非空）
+    """
+    try:
+        init_db()
+        repo = VideoRepository()
+        videos = repo.get_videos_by_actress(actress_name)
+        with_covers = [v for v in videos if v.cover_path]
+        random.shuffle(with_covers)
+        return with_covers[:count]
+    except Exception as e:
+        logger.warning("[actress] _get_random_videos_with_covers 失敗: %s", e)
+        return []
+
+
+# ---------------------------------------------------------------------------
+# 端點七：GET /api/actresses/{name}/photo-candidates — SSE 候選照片串流
+# NOTE：必須定義在 GET /{name} 之前！
+# ---------------------------------------------------------------------------
+
+@router.get("/{name}/photo-candidates")
+async def list_photo_candidates(name: str):
+    """
+    SSE 串流回傳女優候選照片（最多 6 張）。
+    雲端 0–3 張並行抓取 + 本機影片封面 crop 補足至 6 張。
+    actress 不存在 → JSONResponse 404。
     """
     init_db()
     repo = ActressRepository()
-
-    # P1 fix: bypass cache — evict before scraping
-    _actress_cache.pop(_normalize_actress_name(name), None)
-    result = get_actress_profile(name)
-
-    if result.timed_out:
-        return JSONResponse(
-            status_code=504,
-            content={"error": "timeout"}
-        )
-
-    if result.data is None:
+    actress = repo.get_by_name(name)
+    if actress is None:
         return JSONResponse(
             status_code=404,
             content={"error": "not_found"}
         )
 
-    profile = result.data
-    text = profile.get("text") or {}
+    current_source = actress.photo_source
+    cloud_sources = [s for s in ["graphis", "gfriends", "wiki", "minnano"] if s != current_source]
 
-    actress = Actress(
-        name=profile.get("name") or name,
-        name_en=profile.get("name_en"),
-        birth=text.get("birth"),
-        height=text.get("height"),
-        cup=text.get("cup"),
-        bust=_safe_int(text.get("bust")),
-        waist=_safe_int(text.get("waist")),
-        hip=_safe_int(text.get("hip")),
-        hometown=text.get("hometown"),
-        hobby=text.get("hobby"),
-        aliases=_flatten_aliases(text.get("aliases")),
-        agency=text.get("agency"),
-        debut_work=text.get("debut_work"),
-        tags=text.get("tags") or [],
-        nickname=text.get("nickname"),
-        blog_url=text.get("blog_url"),
-        official_url=text.get("official_url"),
-        photo_source=profile.get("photo_source"),
-        primary_text_source=profile.get("primary_text_source"),
-    )
+    async def generate():
+        total = 0
+        max_cloud = 3
 
+        # 雲端並行抓取
+        async def fetch_source(src: str):
+            try:
+                url = await asyncio.wait_for(
+                    asyncio.to_thread(_fetch_single_source, name, src),
+                    timeout=5.0,
+                )
+                return (src, url)
+            except Exception:
+                return (src, None)
+
+        if cloud_sources:
+            tasks = [asyncio.ensure_future(fetch_source(src)) for src in cloud_sources]
+            for coro in asyncio.as_completed(tasks):
+                src, url = await coro
+                if url and total < max_cloud:
+                    event_data = json.dumps({
+                        "source": src,
+                        "thumb_url": url,
+                        "full_url": url,
+                    })
+                    yield f"event: candidate\ndata: {event_data}\n\n"
+                    total += 1
+
+        # 本機 crop 補足
+        needed = 6 - total
+        if needed > 0:
+            local_videos = await asyncio.to_thread(
+                _get_random_videos_with_covers, name, needed
+            )
+            for video in local_videos:
+                # Fix 1 (T2): cover_path 在 DB 存 file:/// URI，crop endpoint 需要 FS path
+                cover_fs_path = uri_to_fs_path(str(video.cover_path)) if video.cover_path else ""
+                if not cover_fs_path:
+                    # skip broken candidate，避免送空路徑的 URL
+                    continue
+                encoded_path = quote(cover_fs_path)
+                crop_url = f"/api/actresses/actress-crop?path={encoded_path}&spec=v1"
+                # Fix 2 (T2): video.path 在 DB 已是 file:/// URI（gallery_scanner.scan_file 透過 to_file_uri 寫入）
+                # 若萬一是 FS path（legacy / 異常），coerce_to_file_uri 做 idempotent 轉換
+                try:
+                    video_path_uri = coerce_to_file_uri(str(video.path))
+                except Exception as e:
+                    logger.warning("[actress] coerce_to_file_uri 失敗 path=%s: %s", video.path, e)
+                    video_path_uri = str(video.path)
+                event_data = json.dumps({
+                    "source": "local_crop",
+                    "video_path": video_path_uri,
+                    "thumb_url": crop_url,
+                    "full_url": crop_url,
+                })
+                yield f"event: candidate\ndata: {event_data}\n\n"
+                total += 1
+
+        # done event
+        done_data = json.dumps({"total": total})
+        yield f"event: done\ndata: {done_data}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+# ---------------------------------------------------------------------------
+# 端點八：GET /api/actresses/actress-crop — on-demand 封面 crop
+# NOTE：必須定義在 GET /{name} 之前！
+# ---------------------------------------------------------------------------
+
+@router.get("/actress-crop")
+async def actress_crop(path: str, spec: str = "v1"):
+    """
+    對指定本機封面圖做 crop，回傳 JPEG bytes。
+    path: 本機 FS 路徑（URL-encoded）；若傳入 file:/// URI 也接受（防禦性轉換）
+    spec: crop 規格版本（預設 v1）
+    """
+    # Fix 2 (T2): uri_to_fs_path 已 idempotent（非 URI 直接 normalize_path），直接呼叫
+    fs_path = uri_to_fs_path(path)
+    # Security: cover_path 必須是 DB 中某個 video 的 cover_path（防任意檔案讀取）
+    init_db()
+    video_repo = VideoRepository()
+    if not video_repo.is_known_cover_path(fs_path):
+        return Response(b"", status_code=403)
+    result = await asyncio.to_thread(crop_video_cover, fs_path, spec)
+    if result is None:
+        return Response(b"", status_code=404)
+    return Response(content=result, media_type="image/jpeg")
+
+
+# ---------------------------------------------------------------------------
+# 端點九：POST /api/actresses/{name}/photo — 設定女優照片
+# NOTE：必須定義在 GET /{name} 之前！
+# ---------------------------------------------------------------------------
+
+CLOUD_SOURCES = {"graphis", "gfriends", "wiki", "minnano"}
+
+
+@router.post("/{name}/photo")
+async def set_actress_photo(name: str, req: SetActressPhotoRequest):
+    """
+    設定女優照片。
+    - 雲端來源（graphis/gfriends/wiki/minnano）：下載並覆蓋本機照片
+    - local_crop：從影片封面 crop 後寫入 GFRIENDS_DIR
+    覆蓋時先 glob 刪舊副檔名，再寫入新圖。
+    更新 DB photo_source 欄位，回傳帶 cache-bust timestamp 的新 photo_url。
+    """
+    init_db()
+    repo = ActressRepository()
+    actress = repo.get_by_name(name)
+    if actress is None:
+        return JSONResponse(status_code=404, content={"error": "not_found"})
+
+    if req.source not in CLOUD_SOURCES and req.source != "local_crop":
+        return JSONResponse(status_code=400, content={"error": "unknown_source"})
+
+    if req.source in CLOUD_SOURCES:
+        if not req.url:
+            return JSONResponse(status_code=400, content={"error": "url_required"})
+        ok = await asyncio.to_thread(download_actress_photo, name, req.url, req.source)
+        if not ok:
+            return JSONResponse(status_code=500, content={"error": "download_failed"})
+
+    elif req.source == "local_crop":
+        if not req.video_path:
+            return JSONResponse(status_code=400, content={"error": "video_path_required"})
+        # file:/// URI → FS path（禁止手動 strip）
+        video_fs_path = uri_to_fs_path(req.video_path)
+        # 從 DB 取該影片的 cover_path
+        video_repo = VideoRepository()
+        videos = video_repo.get_videos_by_actress(name)
+        # Fix 3 (T3): v.path 在 DB 存 file:/// URI（gallery_scanner 用 to_file_uri 寫入），
+        # 比對前雙邊都正規化為 FS path，避免 URI vs FS path 永遠 fail
+        match = next(
+            (v for v in videos if uri_to_fs_path(str(v.path)) == video_fs_path),
+            None,
+        )
+        if match is None or not match.cover_path:
+            return JSONResponse(status_code=404, content={"error": "video_or_cover_not_found"})
+        # Fix 3 (T3): match.cover_path 也是 URI，傳給 crop_video_cover 前先轉 FS path
+        cover_fs_path = uri_to_fs_path(str(match.cover_path)) if match.cover_path else ""
+        if not cover_fs_path:
+            return JSONResponse(status_code=404, content={"error": "video_or_cover_not_found"})
+        # crop → bytes
+        crop_bytes = await asyncio.to_thread(
+            crop_video_cover, cover_fs_path, req.crop_spec or "v1"
+        )
+        if crop_bytes is None:
+            return JSONResponse(status_code=500, content={"error": "crop_failed"})
+        # glob 刪舊副檔名 + 寫入
+        safe = sanitize_filename(name)
+        GFRIENDS_DIR.mkdir(parents=True, exist_ok=True)
+        for old in GFRIENDS_DIR.glob(f"{safe}.*"):
+            old.unlink()
+        (GFRIENDS_DIR / f"{safe}.jpg").write_bytes(crop_bytes)
+
+    # 更新 photo_source + 回傳
+    actress.photo_source = req.source
     repo.save(actress)
-    actress = repo.get_by_name(actress.name) or actress  # re-read for created_at
-    logger.info("[actress] 重抓女優資料：%s", actress.name)
 
-    photo_downloaded = download_actress_photo(
-        actress.name, profile.get("photo_url"), profile.get("photo_source")
-    )
-
-    # P1 Codex fix: rescrape 後同步 alias index（與 add_favorite 同 pattern）
-    alias_repo = AliasRepository()
-    try:
-        alias_repo.sync_from_favorite(actress.name, actress.aliases or [])
-    except Exception:
-        logger.warning("[actress] rescrape alias sync failed: %s", actress.name)
-    video_count = repo.count_videos_for_actress_names(alias_repo.resolve(actress.name))
-    return JSONResponse(
-        status_code=200,
-        content={
-            "success": True,
-            "actress": _actress_to_response(actress, video_count),
-            "photo_downloaded": photo_downloaded,
-        }
-    )
+    t = int(time.time())
+    photo_url = f"/api/actresses/photo/{quote(name)}?t={t}"
+    return JSONResponse(status_code=200, content={
+        "photo_url": photo_url,
+        "photo_source": req.source,
+    })
 
 
 # ---------------------------------------------------------------------------

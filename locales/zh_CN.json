@@ -495,7 +495,8 @@
       "minutes": "分钟",
       "minutes_abbr": "分",
       "videos_count": " 部",
-      "films": "片"
+      "films": "部作品",
+      "actresses": "位女优"
     },
     "per_page": {
       "all": "全部"
@@ -505,7 +506,11 @@
       "total_suffix": "部影片",
       "search_prefix": "搜索 \"",
       "search_middle": "\" — 找到",
-      "search_suffix": "部"
+      "search_suffix": "部",
+      "search_empty": "没有符合的影片",
+      "search_actresses_prefix": "找到 ",
+      "search_actresses_middle": " 位女优 \"",
+      "search_actresses_suffix": "\""
     },
     "nav": {
       "prev_page": "上一页",
@@ -544,7 +549,9 @@
       "add_tag": "新增标签",
       "tag_placeholder": "标签名称",
       "tag_api_failed": "标签保存失败，请稍后再试",
-      "user_tags_label": "自定义标签"
+      "user_tags_label": "自定义标签",
+      "alias_label": "别名",
+      "alias_source_hint": "由 Scanner 同步"
     },
     "gallery": {
       "prev": "上一张 (←)",
@@ -554,7 +561,7 @@
       "thumb_alt": "缩图"
     },
     "shortcut": {
-      "switch_mode": "切换模式",
+      "switch_mode": "切换显示",
       "toggle_info": "显示信息",
       "pagination": "翻页",
       "close": "关闭"
@@ -574,9 +581,6 @@
       "addDuplicate": "已经收藏过了",
       "addNotFound": "找不到此女优",
       "addTimeout": "抓取超时，请稍后再试",
-      "rescrape": "重新抓取",
-      "rescrapeSuccess": "资料已更新",
-      "rescrapeError": "重新抓取失败",
       "remove": "移除收藏",
       "removeConfirm": "确认移除 {name}？",
       "removeSuccess": "已从收藏移除",
@@ -584,7 +588,21 @@
       "emptyHint": "点击右上角 + 添加收藏",
       "search_films": "搜尋相關影片",
       "addFavorite": "加入收藏",
-      "favorited": "已收藏"
+      "favorited": "已收藏",
+      "change_photo": "换照片",
+      "picker": {
+        "empty": "目前找不到候选照片",
+        "empty_hint": "收藏影片越多，本机选项越丰富；也可直接替换文件夹中的图片",
+        "loading": "抓取候选中…",
+        "error": "抓取失败，请稍后再试",
+        "replaced": "已更换，随时可再换",
+        "current_source": "当前：{source}",
+        "source_local_crop": "本机",
+        "source_graphis": "Graphis",
+        "source_gfriends": "gfriends",
+        "source_wiki": "Wiki",
+        "source_minnano": "Minnano"
+      }
     },
     "samples": {
       "fetch_btn": "补剧照",
@@ -697,11 +715,11 @@
       "h6_showcase": "浏览页",
       "showcase_toggle": "工具栏切换影片模式 ↔ 女优模式（片 | 人 图示）",
       "showcase_grid": "女优收藏 Grid，支持按名称、年龄、罩杯、身高、添加日期排序",
-      "showcase_lightbox": "女优 Lightbox 显示完整个人资料、别名、链接，可重新抓取或移除收藏",
+      "showcase_lightbox": "灯箱可换照片或移除收藏",
       "h6_manage": "收藏管理",
       "manage_add": "从搜索页或浏览页加入收藏，照片自动下载至本地",
       "manage_alias": "别名管理：Scanner 页面可新增、编辑女优别名，搜索时自动展开所有已知名称",
-      "manage_enrich": "浏览页卡片可一键重新抓取（rescrape）更新女优资料",
+      "manage_enrich": "灯箱右上 🔄 可替换女优照片，候选来源含云端与本机影片封面",
       "manage_photo_path": "收藏女优的照片存放于 output/Gfriends/ 目录下"
     },
     "scanner": {

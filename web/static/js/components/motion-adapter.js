@@ -95,6 +95,30 @@
             });
         },
 
+        /**
+         * 透明度補間（fade-to）
+         *
+         * 用法：OpenAver.motion.playFadeTo(elements, { opacity: 0, duration: 0.2, ease: 'power2.out' })
+         * 若 reduced-motion 啟用則直接設定最終值不播動畫。
+         */
+        playFadeTo: function (elements, opts) {
+            opts = opts || {};
+            var targetOpacity = opts.opacity !== undefined ? opts.opacity : 1;
+            if (!this._shouldAnimate()) {
+                gsap.set(elements, { opacity: targetOpacity });
+                if (typeof opts.onComplete === 'function') opts.onComplete();
+                return null;
+            }
+            return this._run(opts.ctx, function () {
+                return gsap.to(elements, {
+                    opacity: targetOpacity,
+                    duration: opts.duration || 0.3,
+                    ease: opts.ease || 'power2.out',
+                    onComplete: opts.onComplete || null
+                });
+            });
+        },
+
         /** Modal 彈出動畫 */
         playModal: function (element, opts) {
             opts = opts || {};

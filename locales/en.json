@@ -495,7 +495,8 @@
       "minutes": "min",
       "minutes_abbr": "min",
       "videos_count": "",
-      "films": " films"
+      "films": " films",
+      "actresses": "actresses"
     },
     "per_page": {
       "all": "All"
@@ -505,7 +506,11 @@
       "total_suffix": "videos",
       "search_prefix": "Search \"",
       "search_middle": "\" — Found",
-      "search_suffix": ""
+      "search_suffix": "",
+      "search_empty": "No matching films",
+      "search_actresses_prefix": "Found ",
+      "search_actresses_middle": " actresses for \"",
+      "search_actresses_suffix": "\""
     },
     "nav": {
       "prev_page": "Previous",
@@ -544,7 +549,9 @@
       "add_tag": "Add Tag",
       "tag_placeholder": "Tag name",
       "tag_api_failed": "Failed to save tag, please try again",
-      "user_tags_label": "Custom Tags"
+      "user_tags_label": "Custom Tags",
+      "alias_label": "Aliases",
+      "alias_source_hint": "Synced from Scanner"
     },
     "gallery": {
       "prev": "Previous (←)",
@@ -554,7 +561,7 @@
       "thumb_alt": "Thumbnail"
     },
     "shortcut": {
-      "switch_mode": "Switch Mode",
+      "switch_mode": "Switch view",
       "toggle_info": "Toggle Info",
       "pagination": "Pagination",
       "close": "Close"
@@ -574,9 +581,6 @@
       "addDuplicate": "Already in favorites",
       "addNotFound": "Actress not found",
       "addTimeout": "Scrape timed out, please try again",
-      "rescrape": "Re-scrape",
-      "rescrapeSuccess": "Info updated",
-      "rescrapeError": "Re-scrape failed",
       "remove": "Remove Favorite",
       "removeConfirm": "Remove {name}?",
       "removeSuccess": "Removed from favorites",
@@ -584,7 +588,21 @@
       "emptyHint": "Click + in the top right to add one",
       "search_films": "Search related films",
       "addFavorite": "Add to favorites",
-      "favorited": "Favorited"
+      "favorited": "Favorited",
+      "change_photo": "Change Photo",
+      "picker": {
+        "empty": "No candidates found",
+        "empty_hint": "More saved videos = more local options. You can also replace the image file directly.",
+        "loading": "Fetching candidates…",
+        "error": "Failed to fetch candidates",
+        "replaced": "Photo replaced. You can change it anytime.",
+        "current_source": "Current: {source}",
+        "source_local_crop": "Local",
+        "source_graphis": "Graphis",
+        "source_gfriends": "gfriends",
+        "source_wiki": "Wiki",
+        "source_minnano": "Minnano"
+      }
     },
     "samples": {
       "fetch_btn": "Fetch Stills",
@@ -697,11 +715,11 @@
       "h6_showcase": "Showcase Page",
       "showcase_toggle": "Toolbar toggle switches between film mode and actress mode (Film | Person icon)",
       "showcase_grid": "Actress favorites grid with sorting by name, age, cup size, height, or date added",
-      "showcase_lightbox": "Actress Lightbox shows full profile, aliases, and links; supports rescrape and remove from favorites",
+      "showcase_lightbox": "Lightbox supports changing photo or removing from favorites",
       "h6_manage": "Favorites Management",
       "manage_add": "Add favorites from Search or Showcase; profile photo is downloaded locally automatically",
       "manage_alias": "Alias management: add and edit actress aliases on the Scanner page; all known aliases are expanded automatically during search",
-      "manage_enrich": "One-click rescrape on Showcase cards to refresh actress data",
+      "manage_enrich": "Click 🔄 in lightbox to replace actress photo with cloud or local-video-cover candidates",
       "manage_photo_path": "Favorited actress photos are stored in the output/Gfriends/ directory"
     },
     "scanner": {

@@ -1,9 +1,15 @@
 """
-actress_photo.py — 女優照片下載 / 儲存 / 讀取 / 刪除
+actress_photo.py — 女優照片下載 / 儲存 / 讀取 / 刪除 / 影片封面 crop
 """
+import io
+import os
+import threading
 import requests
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
+
+from collections import OrderedDict
 
 from core.logger import get_logger
 from core.organizer import sanitize_filename
@@ -39,6 +45,44 @@ REFERER_MAP: dict[str, str] = {
     "minnano": "https://www.minnano-av.com/",
 }
 
+# photo_source → 允許的 host 白名單
+PHOTO_HOST_WHITELIST: dict[str, set] = {
+    "graphis": {
+        "www.graphis.ne.jp",
+        "graphis.ne.jp",
+        "data.graphis.ne.jp",
+    },
+    "gfriends": {
+        "cdn.jsdelivr.net",
+        "raw.githubusercontent.com",
+        "github.com",
+    },
+    "wiki": {
+        "upload.wikimedia.org",
+        "ja.wikipedia.org",
+    },
+    "minnano": {
+        "www.minnano-av.com",
+        "minnano-av.com",
+    },
+}
+
+
+def _validate_photo_url(photo_url: str, photo_source: str) -> bool:
+    """
+    驗證 photo_url 是否符合來源白名單（SSRF 防禦）。
+    scheme 必須是 http/https，host 必須在對應 source 的白名單內。
+    """
+    try:
+        parsed = urlparse(photo_url)
+    except Exception as e:
+        logger.debug("[actress_photo] urlparse 失敗 url=%s err=%s", photo_url, e)
+        return False
+    if parsed.scheme not in ("http", "https"):
+        return False
+    allowed = PHOTO_HOST_WHITELIST.get(photo_source, set())
+    return parsed.hostname in allowed
+
 
 def download_actress_photo(name: str, photo_url: str, photo_source: str) -> bool:
     """
@@ -55,15 +99,22 @@ def download_actress_photo(name: str, photo_url: str, photo_source: str) -> bool
     if not photo_url:
         return False
 
-    GFRIENDS_DIR.mkdir(parents=True, exist_ok=True)
-    safe_name = sanitize_filename(name)
+    if not _validate_photo_url(photo_url, photo_source):
+        logger.warning("[actress_photo] URL 不在白名單 source=%s url=%s", photo_source, photo_url)
+        return False
 
-    # 刪除同名的舊檔（副檔名可能不同）
-    for old_file in GFRIENDS_DIR.glob(f"{safe_name}.*"):
-        try:
-            old_file.unlink()
-        except Exception as e:
-            logger.warning(f"[actress_photo] 刪除舊檔失敗 {old_file}: {e}")
+    safe_name = sanitize_filename(name)
+    GFRIENDS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # 推斷初始副檔名（從 URL fallback，download 後再依 Content-Type 修正）
+    url_path = photo_url.split("?")[0]
+    url_suffix = Path(url_path).suffix.lower()
+    ext = url_suffix if url_suffix in {".jpg", ".jpeg", ".png", ".webp", ".gif"} else ".jpg"
+    if ext == ".jpeg":
+        ext = ".jpg"
+
+    final_path = GFRIENDS_DIR / f"{safe_name}{ext}"
+    tmp_path = GFRIENDS_DIR / f".{safe_name}{ext}.download.tmp"
 
     try:
         headers = _HEADERS.copy()
@@ -71,33 +122,58 @@ def download_actress_photo(name: str, photo_url: str, photo_source: str) -> bool
         if referer:
             headers["Referer"] = referer
 
+        # 1. 下載到 tmp
         resp = requests.get(photo_url, headers=headers, timeout=15)
 
         if resp.status_code != 200:
-            logger.warning(
-                f"[actress_photo] 下載失敗，HTTP {resp.status_code}：{photo_url}"
-            )
+            logger.warning("[actress_photo] 下載失敗，HTTP %s：%s", resp.status_code, photo_url)
             return False
 
-        # 推斷副檔名
+        # 2. 依 Content-Type 確定副檔名
         content_type = resp.headers.get("Content-Type", "").split(";")[0].strip().lower()
-        ext = CONTENT_TYPE_MAP.get(content_type)
-        if not ext:
-            # fallback：從 URL 路徑最後一段取副檔名
-            url_path = photo_url.split("?")[0]
-            suffix = Path(url_path).suffix.lower()
-            ext = suffix if suffix in {".jpg", ".jpeg", ".png", ".webp", ".gif"} else ".jpg"
-        if ext == ".jpeg":
-            ext = ".jpg"
+        if not content_type.startswith("image/"):
+            logger.warning("[actress_photo] 非圖片 Content-Type=%s", content_type)
+            return False
+        ct_ext = CONTENT_TYPE_MAP.get(content_type)
+        if ct_ext:
+            ext = ct_ext
+            if ext == ".jpeg":
+                ext = ".jpg"
+            final_path = GFRIENDS_DIR / f"{safe_name}{ext}"
 
-        save_path = GFRIENDS_DIR / f"{safe_name}{ext}"
-        save_path.write_bytes(resp.content)
-        logger.info(f"[actress_photo] 下載完成：{save_path}")
+        # 3. 寫入 tmp
+        tmp_path = GFRIENDS_DIR / f".{safe_name}{ext}.download.tmp"
+        tmp_path.write_bytes(resp.content)
+
+        # 4. 下載成功才刪舊檔
+        for old in GFRIENDS_DIR.glob(f"{safe_name}.*"):
+            if old == tmp_path:
+                continue
+            try:
+                old.unlink()
+            except Exception as e:
+                logger.warning(
+                    "[actress_photo] 刪除舊檔失敗 path=%s err=%s",
+                    old, e,
+                )
+
+        # 5. atomic replace
+        os.replace(tmp_path, final_path)
+        logger.info("[actress_photo] 下載完成：%s", final_path)
         return True
 
     except Exception as e:
-        logger.warning(f"[actress_photo] 下載例外 ({name}): {e}")
+        logger.warning("[actress_photo] 下載例外 (%s): %s", name, e)
         return False
+    finally:
+        try:
+            if tmp_path.exists():
+                tmp_path.unlink()
+        except Exception as e:
+            logger.debug(
+                "[actress_photo] tmp 清理失敗 path=%s err=%s",
+                tmp_path, e,
+            )
 
 
 def get_local_photo_path(name: str) -> Optional[Path]:
@@ -127,3 +203,115 @@ def delete_local_photo(name: str) -> bool:
     except Exception as e:
         logger.warning(f"[actress_photo] 刪除失敗 ({name}): {e}")
         return False
+
+
+# ---------------------------------------------------------------------------
+# 影片封面 Crop cache（進程生命期 in-memory LRU cache）
+# key = (cover_path_str, mtime_float, crop_spec_str) → bytes
+# 包含 mtime 確保 enrich 重生同路徑封面後不會取到 stale bytes
+# ---------------------------------------------------------------------------
+
+_CROP_CACHE: "OrderedDict[tuple, bytes]" = OrderedDict()
+_CROP_CACHE_MAXSIZE = 256
+_CROP_CACHE_LOCK = threading.Lock()
+
+
+def _cache_get(key: tuple) -> Optional[bytes]:
+    """LRU get：命中時將該 entry 搬到末端（最近使用）。thread-safe。"""
+    with _CROP_CACHE_LOCK:
+        if key in _CROP_CACHE:
+            _CROP_CACHE.move_to_end(key)
+            return _CROP_CACHE[key]
+        return None
+
+
+def _cache_put(key: tuple, value: bytes) -> None:
+    """LRU put：寫入 entry，超過 maxsize 時 evict 最舊的 entry。thread-safe。"""
+    with _CROP_CACHE_LOCK:
+        _CROP_CACHE[key] = value
+        _CROP_CACHE.move_to_end(key)
+        while len(_CROP_CACHE) > _CROP_CACHE_MAXSIZE:
+            _CROP_CACHE.popitem(last=False)
+
+
+def crop_video_cover(cover_path: str, crop_spec: str = "v1") -> Optional[bytes]:
+    """
+    從影片封面圖裁切出女優人像，回傳 JPEG bytes。
+
+    spec v1 裁切規格：
+        x: 右半部（50% ~ 100%）
+        y: 上 80%（0% ~ 80%）
+        → 在右半 x 上 80% 區域取中央 3:4 portrait（width:height = 3:4）
+        → 輸出 JPEG quality 85
+
+    Args:
+        cover_path: 本機 FS 路徑（非 URI）
+        crop_spec: 裁切規格版本，目前只支援 "v1"
+
+    Returns:
+        JPEG bytes，失敗回 None（不 raise）
+    """
+    # 取 mtime 作為 cache key 一部分（防 enrich 重生後拿到 stale bytes）
+    try:
+        mtime = os.stat(cover_path).st_mtime
+    except OSError:
+        # 檔案不存在或無法 stat → mtime=None → 跳過 cache，直接走主流程（會 fail 然後回 None）
+        mtime = None
+
+    if mtime is not None:
+        cache_key: Optional[tuple] = (cover_path, mtime, crop_spec)
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+    else:
+        cache_key = None
+
+    try:
+        from PIL import Image
+    except ImportError:
+        logger.warning("[actress_photo] PIL/Pillow 未安裝，無法 crop 影片封面")
+        return None
+
+    try:
+        img = Image.open(cover_path)
+        img_w, img_h = img.size
+
+        if crop_spec == "v1":
+            # 右半 50%~100% x，上 0%~80% y
+            region_x0 = int(img_w * 0.5)
+            region_y0 = 0
+            region_x1 = img_w
+            region_y1 = int(img_h * 0.8)
+
+            region_w = region_x1 - region_x0
+            region_h = region_y1 - region_y0
+
+            # 在此 region 內取最大 3:4 portrait，置中
+            # 3:4 → target_w / target_h = 3 / 4
+            # 以 region 為限：
+            #   target_w = min(region_w, region_h * 3 / 4)
+            #   target_h = target_w * 4 / 3
+            target_w = min(region_w, int(region_h * 3 / 4))
+            target_h = int(target_w * 4 / 3)
+
+            # 置中計算 offset
+            cx = region_x0 + (region_w - target_w) // 2
+            cy = region_y0 + (region_h - target_h) // 2
+
+            crop_box = (cx, cy, cx + target_w, cy + target_h)
+            cropped = img.crop(crop_box)
+        else:
+            # 未知 spec：回 None
+            logger.warning("[actress_photo] 未知 crop_spec: %s", crop_spec)
+            return None
+
+        buf = io.BytesIO()
+        cropped.convert("RGB").save(buf, format="JPEG", quality=85)
+        result = buf.getvalue()
+        if cache_key is not None:
+            _cache_put(cache_key, result)
+        return result
+
+    except Exception as e:
+        logger.warning("[actress_photo] crop_video_cover 失敗 (%s): %s", cover_path, e)
+        return None

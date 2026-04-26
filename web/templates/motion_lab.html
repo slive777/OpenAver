@@ -713,43 +713,48 @@
         <div class="motion-lab-tab-bar">
             <button class="motion-lab-tab"
                     :class="{ active: tab === 'search' }"
-                    @click="tab = 'search'; onResetStaging(); onResetHero()">
+                    @click="tab = 'search'; onResetStaging(); onResetHero(); onResetPicker()">
                 Search
             </button>
             <button class="motion-lab-tab"
                     :class="{ active: tab === 'stream' }"
-                    @click="tab = 'stream'; onResetStream(); onResetStaging(); onResetHero()">
+                    @click="tab = 'stream'; onResetStream(); onResetStaging(); onResetHero(); onResetPicker()">
                 Stream
             </button>
             <button class="motion-lab-tab"
                     :class="{ active: tab === 'staging' }"
-                    @click="tab = 'staging'; onResetStaging(); onResetHero()">
+                    @click="tab = 'staging'; onResetStaging(); onResetHero(); onResetPicker()">
                 Staging Burst
             </button>
             <button class="motion-lab-tab"
                     :class="{ active: tab === 'settle' }"
-                    @click="tab = 'settle'; onResetStaging(); onResetHero()">
+                    @click="tab = 'settle'; onResetStaging(); onResetHero(); onResetPicker()">
                 Settle
             </button>
             <button class="motion-lab-tab"
                     :class="{ active: tab === 'hero' }"
-                    @click="tab = 'hero'; onResetHero(); onResetStaging()">
+                    @click="tab = 'hero'; onResetHero(); onResetStaging(); onResetPicker()">
                 Hero Slot
             </button>
             <button class="motion-lab-tab"
                     :class="{ active: tab === 'showcase' }"
-                    @click="tab = 'showcase'; onResetStaging(); onResetHero()">
+                    @click="tab = 'showcase'; onResetStaging(); onResetHero(); onResetPicker()">
                 Showcase
             </button>
             <button class="motion-lab-tab"
                     :class="{ active: tab === 'popover' }"
-                    @click="tab = 'popover'">
+                    @click="tab = 'popover'; onResetPicker()">
                 Popover
             </button>
             <button class="motion-lab-tab"
                     :class="{ active: tab === 'css-animations' }"
-                    @click="tab = 'css-animations'">
+                    @click="tab = 'css-animations'; onResetPicker()">
                 CSS Animations
+            </button>
+            <button class="motion-lab-tab"
+                    :class="{ active: tab === 'picker' }"
+                    @click="tab = 'picker'; onResetStaging(); onResetHero()">
+                Photo Picker
             </button>
         </div>
     </div>
@@ -1284,6 +1289,101 @@
                    :disabled="tab !== 'showcase'"
                    x-model.number="showcaseParams.pageStagger">
             <span class="control-value" x-text="showcaseParams.pageStagger.toFixed(3) + 's'"></span>
+        </div>
+
+        <!-- ===== Photo Picker 控制項 ===== -->
+        <div class="control-divider" x-show="tab === 'picker'">Photo Picker</div>
+
+        <!-- Arc Overshoot -->
+        <div class="control-group" :style="tab !== 'picker' ? 'opacity:0.4' : ''">
+            <span class="control-label">Arc Overshoot</span>
+            <input type="range" class="control-slider"
+                   min="0.5" max="2.5" step="0.1"
+                   :disabled="tab !== 'picker'"
+                   x-model.number="pickerParams.arcOvershoot">
+            <span class="control-value" x-text="pickerParams.arcOvershoot.toFixed(1)"></span>
+        </div>
+
+        <!-- Arc Duration -->
+        <div class="control-group" :style="tab !== 'picker' ? 'opacity:0.4' : ''">
+            <span class="control-label">Arc Duration</span>
+            <input type="range" class="control-slider"
+                   min="0.3" max="1.2" step="0.05"
+                   :disabled="tab !== 'picker'"
+                   x-model.number="pickerParams.arcDuration">
+            <span class="control-value" x-text="pickerParams.arcDuration.toFixed(2) + 's'"></span>
+        </div>
+
+        <!-- Float Ampl Y -->
+        <div class="control-group" :style="tab !== 'picker' ? 'opacity:0.4' : ''">
+            <span class="control-label">Float Ampl Y</span>
+            <input type="range" class="control-slider"
+                   min="0" max="15" step="0.5"
+                   :disabled="tab !== 'picker'"
+                   x-model.number="pickerParams.floatAmplY">
+            <span class="control-value" x-text="pickerParams.floatAmplY + 'px'"></span>
+        </div>
+
+        <!-- Float Ampl Rot -->
+        <div class="control-group" :style="tab !== 'picker' ? 'opacity:0.4' : ''">
+            <span class="control-label">Float Ampl Rot</span>
+            <input type="range" class="control-slider"
+                   min="0" max="5" step="0.1"
+                   :disabled="tab !== 'picker'"
+                   x-model.number="pickerParams.floatAmplRot">
+            <span class="control-value" x-text="pickerParams.floatAmplRot.toFixed(1) + '°'"></span>
+        </div>
+
+        <!-- Float Duration -->
+        <div class="control-group" :style="tab !== 'picker' ? 'opacity:0.4' : ''">
+            <span class="control-label">Float Duration</span>
+            <input type="range" class="control-slider"
+                   min="0.8" max="3.0" step="0.1"
+                   :disabled="tab !== 'picker'"
+                   x-model.number="pickerParams.floatDuration">
+            <span class="control-value" x-text="pickerParams.floatDuration.toFixed(1) + 's'"></span>
+        </div>
+
+        <!-- Hover Scale -->
+        <div class="control-group" :style="tab !== 'picker' ? 'opacity:0.4' : ''">
+            <span class="control-label">Hover Scale</span>
+            <input type="range" class="control-slider"
+                   min="1.0" max="1.5" step="0.01"
+                   :disabled="tab !== 'picker'"
+                   x-model.number="pickerParams.hoverScale">
+            <span class="control-value" x-text="pickerParams.hoverScale.toFixed(2) + 'x'"></span>
+        </div>
+
+        <!-- Exit Gravity -->
+        <div class="control-group" :style="tab !== 'picker' ? 'opacity:0.4' : ''">
+            <span class="control-label">Exit Gravity</span>
+            <input type="range" class="control-slider"
+                   min="600" max="2000" step="50"
+                   :disabled="tab !== 'picker'"
+                   x-model.number="pickerParams.exitGravity">
+            <span class="control-value" x-text="pickerParams.exitGravity + 'px/s²'"></span>
+        </div>
+
+        <!-- Stream Mode -->
+        <div class="control-group" :style="tab !== 'picker' ? 'opacity:0.4' : ''">
+            <span class="control-label">Stream Mode</span>
+            <select class="control-slider"
+                    :disabled="tab !== 'picker'"
+                    x-model="pickerParams.streamMode">
+                <option value="stagger">Stagger</option>
+                <option value="instant">Instant</option>
+            </select>
+            <span class="control-value" x-text="pickerParams.streamMode"></span>
+        </div>
+
+        <!-- Stream Interval -->
+        <div class="control-group" :style="tab !== 'picker' ? 'opacity:0.4' : ''">
+            <span class="control-label">Stream Interval</span>
+            <input type="range" class="control-slider"
+                   min="100" max="500" step="50"
+                   :disabled="tab !== 'picker'"
+                   x-model.number="pickerParams.streamInterval">
+            <span class="control-value" x-text="pickerParams.streamInterval + 'ms'"></span>
         </div>
     </div>
 
@@ -1890,6 +1990,77 @@
 
         </div>
 
+        <!-- ===== Photo Picker Burst Section ===== -->
+        <div x-show="tab === 'picker'" class="motion-lab-preview picker-preview-wrap">
+
+            <!-- 模擬 lightbox（置中卡片，無 backdrop） -->
+            <div class="picker-mock-lightbox" :class="{ 'is-open': _pickerOpen }">
+                <!-- X 關閉按鈕（裝飾用，不綁邏輯，視覺對齊真 lightbox） -->
+                <button class="picker-mock-close" type="button" aria-hidden="true">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+
+                <!-- 上方：封面區（模擬 .lightbox-cover） -->
+                <div x-ref="pickerCoverArea" class="picker-cover-area">
+                    <img x-ref="pickerCoverImg"
+                         src="/static/img/picker-demo/cover.jpg"
+                         class="picker-cover-img"
+                         alt="封面（涼森れむ）">
+                    <!-- 🔄 觸發按鈕（沿用既有 cover-actions 樣式） -->
+                    <div class="cover-actions">
+                        <button class="lb-action-btn picker-refresh-btn"
+                                @click="onPickerBurst()"
+                                type="button"
+                                data-tooltip="重新爆射候選">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                        <button class="lb-action-btn"
+                                x-show="_pickerOpen"
+                                @click="onResetPicker()"
+                                type="button"
+                                data-tooltip="取消選擇">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    <!-- 當前來源 chip（右上） -->
+                    <div class="picker-current-source-label" x-show="_pickerOpen">
+                        當前：gfriends（示範）
+                    </div>
+                </div>
+
+                <!-- 下方：metadata 區（模擬 .lightbox-metadata.actress-lightbox-meta） -->
+                <div class="picker-meta-area">
+                    <!-- Row 1：名稱（picker 開啟時不淡出） -->
+                    <div class="picker-name-row">
+                        <span class="lb-name">涼森れむ</span>
+                        <span class="lb-name-en">Remu Suzumori</span>
+                    </div>
+
+                    <!-- 操作說明（picker 未開啟時顯示） -->
+                    <p class="picker-desc" x-show="!_pickerOpen">
+                        按封面 🔄 觸發爆射候選；漂浮後 Hover 或點擊選取。
+                    </p>
+
+                    <!-- 候選展開區（picker 開啟時顯示，模擬 metadata 淡出後 candidates 落入區域） -->
+                    <div x-ref="pickerCandidatesArea" class="picker-candidates-area">
+                        <template x-for="(c, i) in _pickerCandidates" :key="i">
+                            <div class="picker-candidate-card"
+                                 @mouseenter="onPickerHoverIn(i)"
+                                 @mouseleave="onPickerHoverOut(i)"
+                                 @click="onPickerSelect(i)">
+                                <img :src="c.img" class="picker-candidate-img" :alt="c.source">
+                                <div class="picker-source-badge"><i class="bi bi-check-circle-fill picker-check-icon"></i><span x-text="c.source"></span></div>
+                            </div>
+                        </template>
+                        <div x-show="_pickerCandidates.length === 0 && _pickerOpen" class="picker-empty">
+                            目前找不到候選照片
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
         <!-- Detail 區（tab=search && mode=detail） -->
         <div class="motion-lab-detail"
              x-ref="detail"
@@ -2014,6 +2185,232 @@
 
 .hero-card .av-card-preview-footer {
     background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+}
+
+/* ===== Photo Picker Burst 樣式 — 模擬 actress lightbox 形式 ===== */
+.picker-preview-wrap {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+/* Picker tab：候選卡 1 row 溢出 lightbox 邊界（fix3 需求 1） */
+.motion-lab-preview.picker-preview-wrap { overflow: visible; }
+
+/* 模擬 .lightbox-content：置中卡片，無 backdrop */
+.picker-mock-lightbox {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    width: min(560px, 90vw);
+    background: var(--surface-2);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--fluent-shadow-28);
+}
+
+/* X 關閉按鈕（裝飾用） */
+.picker-mock-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: var(--text-inverse, #fff);
+    font-size: 1rem;
+    cursor: default;
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0.6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Cover 區（模擬 .lightbox-cover） */
+.picker-cover-area {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.picker-cover-img {
+    max-width: 100%;
+    max-height: 380px;
+    object-fit: contain;
+    border-radius: var(--radius-sm);
+    display: block;
+}
+
+.picker-current-source-label {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+/* Metadata 區（模擬 .lightbox-metadata） */
+.picker-meta-area {
+    width: 100%;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--stroke-subtle);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.picker-name-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+}
+.picker-name-row .lb-name { font-size: 1.1rem; font-weight: 600; }
+.picker-name-row .lb-name-en { font-size: 0.9rem; opacity: 0.7; }
+
+.picker-desc {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+/* 候選展開區 — 在 metadata 區內 */
+.picker-candidates-area {
+    position: relative;
+    display: flex;
+    flex-wrap: nowrap;            /* 改：原 wrap → nowrap，6 卡強制 1 row */
+    gap: 0.75rem;
+    min-height: 100px;
+    justify-content: center;      /* 改：原 flex-start → center，溢出對稱左右 */
+    overflow: visible;            /* 新增：避免父 overflow 截斷 */
+}
+
+.picker-candidate-card {
+    position: relative;
+    width: 100px;
+    flex: 0 0 100px;  /* fix3: 防止 flex container 把 6 卡 shrink 到 lightbox 寬度（Codex P1）*/
+    cursor: pointer;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border-primary, var(--stroke-default));
+    will-change: transform;
+    /* CSS transition: none — GSAP 管理，避免 C21 幽靈動畫 */
+    transition: none;
+    /* fix3: 預設 opacity:0 避免 Alpine render 後、GSAP set 起點前的 1-frame paint
+       讓用戶誤看到「先到落點再跳回中央射出」的雙重出現 bug。
+       GSAP burst 起點 set 為 opacity:0.5 即接手顯示。 */
+    opacity: 0;
+}
+
+.picker-candidate-img {
+    width: 100%;
+    aspect-ratio: 3/4;
+    object-fit: cover;
+    object-position: 100% 20%;  /* 對 sc-N 橫式封面：右側 + 上方 20%（spec v1 right-crop） */
+    display: block;
+}
+
+.picker-source-badge {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    font-size: 0.65rem;
+    text-align: center;
+    padding: 2px 4px;
+    transition: background 0.15s;
+}
+
+/* fix3 需求 2：hover 時 badge 變綠 + 顯 check icon */
+.picker-check-icon {
+    opacity: 0;
+    margin-right: 3px;
+    font-size: 0.6rem;
+    transition: opacity 0.15s;
+}
+.picker-candidate-card:hover .picker-source-badge {
+    background: var(--accent-success, #22c55e);
+    color: #fff;
+}
+.picker-candidate-card:hover .picker-check-icon {
+    opacity: 1;
+}
+
+.picker-empty {
+    width: 100%;
+    text-align: center;
+    color: var(--text-muted);
+    padding: 1rem;
+    font-size: 0.85rem;
+}
+
+.picker-refresh-btn {
+    /* 繼承 lb-action-btn 樣式 */
+}
+
+/* ===== Task A：picker-open 時候選區輕蓋封面下緣 ~10% ===== */
+/* 方案 D：name-row 改 absolute overlay 貼到 cover 上，從 flow 移除；
+   candidates-area 因此緊貼 cover 下緣，-38px 真正壓入封面底部 10% */
+.picker-mock-lightbox.is-open {
+    gap: 0;  /* 拿掉 cover-area 與 meta-area 之間的 1rem flex gap */
+}
+
+.picker-mock-lightbox.is-open .picker-meta-area {
+    border-top: none;
+    padding-top: 0;
+    margin-top: 0;
+    gap: 0;
+    /* 不設 position：避免成為 .picker-name-row absolute 的 anchor，
+       讓 name chip 真正錨到 .picker-mock-lightbox（左上角） */
+}
+
+/* name-row chip 浮在 lightbox 左上角（錨點：.picker-mock-lightbox，已是 position:relative） */
+.picker-mock-lightbox.is-open .picker-name-row {
+    position: absolute;
+    top: 1.5rem;       /* lightbox padding 對應，視覺上貼齊封面左上角 */
+    left: 1.5rem;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 4px;
+    z-index: 10;
+    pointer-events: none;
+}
+.picker-mock-lightbox.is-open .picker-name-row .lb-name,
+.picker-mock-lightbox.is-open .picker-name-row .lb-name-en {
+    color: inherit;  /* chip 統一白字（dark bg 上） */
+}
+
+/* candidates-area 負 margin 上移，真正壓到封面下緣 ~38px（封面 max-height 380px 的 ~10%） */
+.picker-mock-lightbox.is-open .picker-candidates-area {
+    margin-top: -38px;
+    position: relative;
+    z-index: 5;
+}
+
+/* C21 配套：ghost-fly 飛行期間停用 cover-img CSS transition */
+.picker-cover-img.gsap-animating {
+    transition: none !important;
 }
 
 </style>

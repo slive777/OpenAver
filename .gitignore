@@ -21,6 +21,9 @@ archives/
 # Feature (功能開發文件)
 feature/
 
+# Tools (本地 dev/build 工具，不入版本控制)
+tools/
+
 # Claude Code (本地設定)
 .claude/
 

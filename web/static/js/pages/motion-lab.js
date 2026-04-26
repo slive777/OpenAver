@@ -1287,7 +1287,7 @@
             });
 
             return tl;
-        }
+        },
     };
 
     // 暴露到全域
@@ -1320,6 +1320,16 @@
             } catch (e) {
                 console.warn('[MotionLab] Flip 初始化失敗:', e);
             }
+        }
+        if (typeof Physics2DPlugin !== 'undefined') {
+            try {
+                gsap.registerPlugin(Physics2DPlugin, Flip);
+                console.log('[MotionLab] Physics2DPlugin 已載入');
+            } catch (e) {
+                console.warn('[MotionLab] Physics2DPlugin 初始化失敗:', e);
+            }
+        } else {
+            console.warn('[MotionLab] Physics2DPlugin 未載入，picker burst 將降級為純 GSAP tween');
         }
     });
 

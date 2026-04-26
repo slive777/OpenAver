@@ -133,6 +133,9 @@ def init_db(db_path: Path = None) -> None:
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_videos_maker ON videos(maker)
     """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_videos_cover_path ON videos(cover_path)
+    """)
 
     # 女優別名表 — 偵測舊 schema (old_name 欄位) 並執行跟鏈遷移
     existing_alias_cols = {
@@ -749,6 +752,37 @@ class VideoRepository:
             return row[0] if row else 0
         finally:
             conn.close()
+
+    def is_known_cover_path(self, fs_path: str) -> bool:
+        """
+        驗證 fs_path 是否為 DB 中某個 video 的 cover_path（防任意檔案讀取）。
+
+        DB 主要存 file:/// URI（gallery_scanner / enricher 寫入），但 legacy migrate 路徑
+        可能保留裸 FS 路徑（migrate_json_to_sqlite 未正規化）。為保留相容性，同時查兩種 key。
+        走 idx_videos_cover_path index（O(log N)）。
+        """
+        from core.path_utils import to_file_uri
+        if not fs_path:
+            return False
+        try:
+            uri = to_file_uri(fs_path)
+        except Exception:
+            uri = None
+        conn = self._get_connection()
+        try:
+            if uri is not None:
+                row = conn.execute(
+                    "SELECT 1 FROM videos WHERE cover_path IN (?, ?) LIMIT 1",
+                    (uri, fs_path)
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    "SELECT 1 FROM videos WHERE cover_path = ? LIMIT 1",
+                    (fs_path,)
+                ).fetchone()
+        finally:
+            conn.close()
+        return row is not None
 
 def migrate_json_to_sqlite(json_path: Path, db_path: Path = None,
                            delete_on_success: bool = True) -> dict:

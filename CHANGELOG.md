@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.8] - 2026-04-26
+
+本版聚焦在 Showcase 女優模式的全方位打磨：補齊模式切換動畫、新增女優照片更換功能（含 Physics2D burst picker）、Picker overlay 改為純 CSS viewport-anchored 全裝置適配、以及 Actress Lightbox ghost-fly 補全與 Footer 視覺重設計。
+
+### Added
+
+#### ✨ 49a — 女優模式動畫與燈箱強化
+- **模式切換補 fade-out 動畫**：切換影片↔女優模式時加入淡出動畫，搭配 `prefers-reduced-motion` 守衛，動效關閉時直接切換不閃爍
+- **Actress 燈箱 video_count 前置顯示**：女優燈箱第二行直接顯示出演影片數，不需展開才看到
+- **Alias 即時查詢 + tooltip**：女優燈箱別名欄位即時從後端拉取並顯示 tooltip，不再需要重新整理
+- **女優→影片跨模式 ghost-fly**：從女優燈箱切回影片時，封面執行 ghost fly 飛行動畫，降級環境自動跳過
+- **底部 Footer 三段式整合**：Footer 重構為左段（資料庫統計）+ 中段（搜尋詞）+ 右段（版本）三段式佈局
+
+#### ✨ 49b — 女優照片更換功能
+- **Actress 燈箱換照片入口**：燈箱新增更換照片按鈕，四語系支援（繁中/簡中/日文/英文）
+- **Physics2D Burst 動畫 picker**：點擊換照後彈出 burst 動畫 picker，6 張候選卡 back.out 單段彈出、settle tween + race token 雙重防抖、單行 nowrap 不換行
+- **後端 SSE photo-candidates 端點**：即時串流回傳候選照片，修正 SSE candidate handler race bug（中間候選卡不顯示）
+- **後端 `POST /api/actresses/{name}/photo`**：換照片 + 裁切（crop）一步到位
+- **BurstPicker 抽共用模組**：picker 邏輯提取為可複用模組 `burst-picker.js`
+
+#### ✨ 49c — Picker Overlay 跨裝置體驗
+- **Picker overlay 移出 lightbox-content**：overlay 從 lightbox 內移至 `<body>` 層級，純 CSS `position: fixed` viewport-anchored，避免被 lightbox 裁切
+- **卡片升級 150×200（4:5 比例）**：picker 候選卡尺寸調大，封面展示更清晰
+- **Tablet / Mobile 改 grid repeat(3)**：平板強制 3+3 兩行、手機底部 sheet 改 `grid` + `repeat(3, minmax(0, 1fr))`，不再溢出
+- **移除 picker-name-chip**：簡化 picker UI，姓名標籤從卡片上移除
+
+#### ✨ 49d — Actress Lightbox Ghost-fly 補全 + Footer 重設計
+- **Actress mode lightbox open 補 ghost-fly**：開啟女優燈箱時補上與影片模式對齊的 ghost-fly 動畫，`closeLightbox` closingIndex 按模式分流，補 actress mode fly-back
+- **Footer 視覺重設計**：數字改 17px monospace 700 加粗主導；影片數用 `--accent` 配色、女優數用 `--accent-pink`；label 降階為 caption 字級；搜尋詞加 `footer-search-term` 樣式壓回繼承色
+- **Footer 架構修正**：center 段改 `position: absolute` 居中解耦三段；left/right 加 `flex-shrink: 0`，三段互不推擠
+- **Footer 對齊 sidebar 修跑版**：修正 49a-T4 既有設計 bug（sidebar `z-index: 1000` 蓋住 footer 左側 60–200px），Codex P2 fix 補 `footer-search-term` max-width clamp
+
+### Fixed
+- **49a Codex P1+P2**：ghost flag 邊界、pager picker 守衛、actress 空資料容錯、alias refetch 時序
+- **49b Codex 8 issues**：P1 × 4（SSE race、候選卡去重、photo POST 路徑比對、crop 參數驗證）+ P2 × 4（文案、picker dismiss、UI 細節、型別守衛）
+- **49c Codex F1/F2/F3**：視覺對齊修正 + 守衛強化；picker DOM scope bug（`$el` → `$refs.pickerCoverImg`）；3 picker bug 一批（grid 不刷新 + hover tooltip + 雙 `?` URL）
+
+### Refactor
+- **BurstPicker 抽共用模組**（49b）：picker 邏輯集中管理，後續新增 picker 場景可直接複用
+- **移除 rescrape dead code**（49b）：清理未使用的 rescrape 路徑，減少維護負擔
+- **Picker overlay JS 定位 helper 退役**（49c）：V2 純 CSS 取代 JS 計算，移除 `_positionPickerOverlay()` helper
+- **刪除 /picker-lab dev sandbox**（49c）：開發驗測沙盒完成任務後清除，避免遺留路由
+
+### Tests
+- `TestPickerIntegrationGuard 22/22 pass`、`test_frontend_lint 439/439 pass`
+- 全套 2588 → **2705 tests passed**（+117 net；49b dedupe 2 個重複測試）
+- 兩個 pre-existing baseline failure（`TestNoHardcodedColors` / `TestMotionInfra _fadeMetadataPanel`）與 49 系列無關，追蹤中
+
 ## [0.7.7] - 2026-04-25
 
 本版主要修正三大長期困擾用戶的問題：WinFsp/rclone 掛載磁碟 Showcase 封面全空白、刮削後劇照幽靈 URL 導致 Showcase 破圖、以及含字幕標記的檔名造成片名識別錯誤。同時新增 Showcase 燈箱一鍵補抓劇照入口，以及整理格式 `{month}`/`{day}` 兩個新變數。

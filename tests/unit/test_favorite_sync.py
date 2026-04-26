@@ -2,8 +2,7 @@
 test_favorite_sync.py — T3: Favorite 同步
 
 測試 POST /api/actresses/favorite 成功後自動呼叫
-AliasRepository.sync_from_favorite()，並確認 POST /{name}/rescrape
-不觸發 sync。
+AliasRepository.sync_from_favorite()。
 
 策略：TestClient + monkeypatch mock 所有外部依賴。
 """
@@ -252,22 +251,3 @@ class TestFavoriteSyncException:
         assert data["skipped_aliases"] == []
 
 
-# ---------------------------------------------------------------------------
-# 5. Rescrape ALSO calls sync_from_favorite (P1 Codex fix)
-# ---------------------------------------------------------------------------
-
-class TestRescrapeSync:
-    """POST /{name}/rescrape 觸發 sync（與 favorite 同 pattern）"""
-
-    def test_rescrape_calls_sync(self, client, mock_alias_repo, monkeypatch):
-        """rescrape → AliasRepository.sync_from_favorite 被呼叫"""
-        resp = client.post("/api/actresses/橋本ありな/rescrape")
-        assert resp.status_code == 200
-
-        mock_alias_repo.sync_from_favorite.assert_called_once()
-
-    def test_rescrape_returns_success(self, client):
-        """rescrape 正常回傳 200"""
-        resp = client.post("/api/actresses/橋本ありな/rescrape")
-        assert resp.status_code == 200
-        assert resp.json()["success"] is True
