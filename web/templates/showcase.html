@@ -937,7 +937,7 @@
                         <span><b x-text="filteredCount"></b> {{ t('showcase.status.total_suffix') }}</span>
                     </template>
                     <template x-if="search && filteredCount > 0">
-                        <span>{{ t('showcase.status.search_prefix') }}<b x-text="search"></b>{{ t('showcase.status.search_middle') }} <b x-text="filteredCount"></b> {{ t('showcase.status.search_suffix') }}</span>
+                        <span>{{ t('showcase.status.search_prefix') }}<b class="footer-search-term" x-text="search"></b>{{ t('showcase.status.search_middle') }} <b x-text="filteredCount"></b> {{ t('showcase.status.search_suffix') }}</span>
                     </template>
                     <template x-if="search && filteredCount === 0">
                         <span x-text="t('showcase.status.search_empty')"></span>
@@ -946,13 +946,13 @@
             </template>
             <!-- 女優模式（搜尋無結果時整個 pill 隱藏，依 plan-49a TASK-T4 邊界條件 #7 / Codex P2） -->
             <template x-if="showFavoriteActresses && (!actressSearch || filteredActressCount > 0)">
-                <span class="footer-count">
+                <span class="footer-count footer-count--actress">
                     <i class="bi bi-person-circle"></i>
                     <template x-if="!actressSearch">
                         <span><b x-text="filteredActressCount"></b> {{ t('showcase.unit.actresses') }}</span>
                     </template>
                     <template x-if="actressSearch && filteredActressCount > 0">
-                        <span>{{ t('showcase.status.search_actresses_prefix') }}<b x-text="filteredActressCount"></b>{{ t('showcase.status.search_actresses_middle') }}<b x-text="actressSearch"></b>{{ t('showcase.status.search_actresses_suffix') }}</span>
+                        <span>{{ t('showcase.status.search_actresses_prefix') }}<b x-text="filteredActressCount"></b>{{ t('showcase.status.search_actresses_middle') }}<b class="footer-search-term" x-text="actressSearch"></b>{{ t('showcase.status.search_actresses_suffix') }}</span>
                     </template>
                 </span>
             </template>

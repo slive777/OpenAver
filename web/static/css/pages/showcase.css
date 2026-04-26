@@ -1240,9 +1240,11 @@
 .showcase-footer {
     position: fixed;
     bottom: 0;
-    left: 0;
+    /* 對齊 .main-content 的 margin-left 模式，避免被 sidebar (z-index 1000) 覆蓋左側 */
+    left: var(--sidebar-width, 200px);
     right: 0;
     z-index: 50;
+    transition: left var(--fluent-duration-normal, 0.2s) var(--fluent-ease-standard, ease);
 
     /* 背景 - 使用 Design System token */
     background: var(--bg-header);
@@ -1253,11 +1255,16 @@
     /* 間距 */
     padding: 0.5rem 1rem;
 
-    /* 三段 flexbox */
+    /* 三段 flexbox；.footer-center 用 absolute 居中（fixed 本身即錨點） */
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
+}
+
+/* sidebar collapsed 時 footer 跟著縮 left（同 .main-content 模式） */
+body.sidebar-collapsed .showcase-footer {
+    left: var(--sidebar-collapsed-width, 60px);
 }
 
 /* Left: count pill */
@@ -1267,7 +1274,7 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    min-width: 0; /* 允許 flex shrink */
+    flex-shrink: 0; /* 不縮減，解耦 left/right 讓 center absolute 居中 */
 }
 
 .footer-count {
@@ -1275,32 +1282,35 @@
     align-items: center;
     gap: 6px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .footer-count i {
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     color: var(--text-muted);
     flex-shrink: 0;
 }
 
 .footer-count b {
+    font-size: 1.0625rem;   /* 17px 數字主導 */
     color: var(--accent);
     font-family: var(--font-mono);
-    font-weight: 600;
+    font-weight: 700;       /* 600 → 700 */
     padding: 0 2px;
+    line-height: 1;         /* 避免大字撐高 footer */
 }
 
-/* Center: shortcut hint */
+/* Center: shortcut hint — absolute 居中，解耦 left/right */
 .footer-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
     font-size: 0.8125rem;
     color: var(--text-muted);
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    flex-wrap: wrap;
     justify-content: center;
+    pointer-events: none; /* 不擋 flex 兩側點擊 */
 }
 
 .footer-center .hint-text {
@@ -1334,6 +1344,7 @@
 .footer-right {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
 }
 
 .footer-pager {
@@ -1390,6 +1401,21 @@
     font-weight: 600;
 }
 
+/* 響應式：≤991.98px sidebar 隱藏，footer 也要回到 left:0（對齊 .main-content margin-left:0）*/
+@media (max-width: 991.98px) {
+    .showcase-footer,
+    body.sidebar-collapsed .showcase-footer {
+        left: 0;
+    }
+}
+
+/* 響應式：中段 shortcut hint — 768px 以下隱藏 */
+@media (max-width: 767px) {
+    .footer-center {
+        display: none;
+    }
+}
+
 /* 響應式：手機 <640px 只留右側 pager */
 @media (max-width: 640px) {
     .showcase-footer {
@@ -1403,6 +1429,34 @@
     .showcase-container {
         padding-bottom: 44px;
     }
+}
+
+/* label 文字（位/部/共 X 頁 等）視覺降階 */
+.footer-count > span {
+    font-size: 0.75rem;   /* 12px */
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+/* 女優模式：數字改粉色識別 */
+.footer-count--actress b {
+    color: var(--accent-pink);
+}
+
+/* 搜尋詞 <b> — 壓回正常字體，避免被 mono 17px 700 渲染 */
+.footer-count b.footer-search-term {
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 600;
+    color: var(--text-secondary);
+    line-height: inherit;
+    /* 限制搜尋詞長度，避免 footer-left 無上限撐寬撞上 absolute center（Codex P2） */
+    display: inline-block;
+    max-width: clamp(80px, 16vw, 200px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
 }
 
 /* ==================== Background Atmosphere ==================== */
