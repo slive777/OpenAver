@@ -2115,13 +2115,21 @@
         max-height: 50vh;
         overflow-y: auto;
     }
+    /* 49c T6 follow-up：mobile 也用 grid + repeat(3, minmax(0, 1fr)) 強制 3+3，
+     * 同 tablet pattern。flex-wrap 在 600-700 寬度範圍會 wrap 成 4+2 不平衡
+     * （相同 Codex P2 echo）。minmax(0, 1fr) 在極窄 phone (320px) 自動縮小卡片不溢出。
+     */
     .actress-picker-overlay .picker-candidates-grid {
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        justify-content: center;
         gap: 10px;
     }
     .actress-picker-overlay .picker-candidate-card {
-        width: 130px;
-        flex: 0 0 130px;
+        width: 100%;
+        max-width: 130px;
+        flex: none;
+        justify-self: center;
     }
     .actress-picker-overlay .picker-current-source {
         position: static;
