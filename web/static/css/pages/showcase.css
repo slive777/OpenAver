@@ -1915,6 +1915,7 @@
     position: relative;
     z-index: 5;
     overflow: visible;
+    justify-content: center;   /* 49c Codex F1 fix：對齊 motion-lab .picker-candidates-area，nowrap + visible 下兩側對稱溢出 */
 }
 
 /* 演員名 chip：浮 overlay 左上（對齊 motion-lab .picker-name-row 開啟態規格） */
@@ -1922,6 +1923,22 @@
     position: absolute;
     top: 1.5rem;
     left: 1.5rem;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 4px;
+    z-index: 10;
+    pointer-events: none;
+}
+
+/* 49c Codex F2 fix：來源 chip 在 overlay 內浮右上（對齊 motion-lab 規格），覆寫全域 flow 規則 */
+.actress-picker-overlay .picker-current-source {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    margin-bottom: 0;       /* 覆寫全域 8px，flow 已脫離 */
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
@@ -2098,6 +2115,17 @@
     }
     .actress-picker-overlay .picker-candidates-grid {
         margin-top: 0;
+    }
+    /* 49c Codex F2 fix：mobile bottom-sheet 還原 flow 排版 */
+    .actress-picker-overlay .picker-current-source {
+        position: static;
+        background: transparent;
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+        color: inherit;
+        padding: 0;
+        margin-bottom: 8px;
+        pointer-events: auto;
     }
 }
 

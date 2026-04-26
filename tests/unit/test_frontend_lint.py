@@ -4074,9 +4074,9 @@ class TestPickerIntegrationGuard:
         assert "@keyframes spin" in css, \
             "showcase.css 缺少 @keyframes spin 動畫"
 
-    def test_picker_overlay_not_inside_lightbox_content(self):
-        """49c-T1 架構守衛：actress-picker-overlay 必須抽離 .lightbox-content，
-        為 .showcase-lightbox 直接 child（避免被 lightbox-content 的 transform/overflow context 影響）。
+    def test_picker_overlay_is_showcase_lightbox_direct_child(self):
+        """49c-T1 架構守衛：actress-picker-overlay 必須為 .showcase-lightbox 的 div 直接 child，
+        且不在 .lightbox-content 內（避免被 lightbox-content 的 transform/overflow context 影響）。
         """
         import html.parser as _html_parser
 
@@ -4087,39 +4087,43 @@ class TestPickerIntegrationGuard:
         assert "actress-picker-overlay" in html_text, \
             "showcase.html 缺少 actress-picker-overlay（T1 markup 缺失）"
 
-        class _LbContentParser(_html_parser.HTMLParser):
+        class _DivStackParser(_html_parser.HTMLParser):
+            """通用 div stack parser：每遇 <div> push class set；遇 </div> pop。
+            非 div 開合 tag 不影響 stack。
+            """
             def __init__(self):
                 super().__init__()
-                self.depth = 0
-                self.inside = False
-                self.found_overlay = False
+                self.div_stack = []  # list[set[str]]
+                self.overlay_ancestors = None  # 首次遇到 overlay 時的 stack 副本（不含 self）
+                self.found_overlay_in_lightbox_content = False
 
             def handle_starttag(self, tag, attrs):
+                if tag != "div":
+                    return
                 attr_dict = dict(attrs)
                 classes = set(attr_dict.get("class", "").split())
-                if not self.inside:
-                    if tag == "div" and "lightbox-content" in classes:
-                        self.inside = True
-                        self.depth = 1
-                    return
-                # inside lightbox-content
                 if "actress-picker-overlay" in classes:
-                    self.found_overlay = True
-                if tag == "div":
-                    self.depth += 1
+                    # 記錄祖先（push 前的 stack 副本即為 ancestors）
+                    if self.overlay_ancestors is None:
+                        self.overlay_ancestors = [s.copy() for s in self.div_stack]
+                    if any("lightbox-content" in s for s in self.div_stack):
+                        self.found_overlay_in_lightbox_content = True
+                self.div_stack.append(classes)
 
             def handle_endtag(self, tag):
-                if not self.inside:
+                if tag != "div":
                     return
-                if tag == "div":
-                    self.depth -= 1
-                    if self.depth == 0:
-                        self.inside = False
+                if self.div_stack:
+                    self.div_stack.pop()
 
-        parser = _LbContentParser()
+        parser = _DivStackParser()
         parser.feed(html_text)
-        assert not parser.found_overlay, \
+        assert parser.overlay_ancestors is not None, \
+            "actress-picker-overlay 不存在於 markup 中（parser 未捕捉到 overlay div）"
+        assert not parser.found_overlay_in_lightbox_content, \
             "actress-picker-overlay 仍在 lightbox-content 內（應為 .showcase-lightbox 直接 child）"
+        assert "showcase-lightbox" in parser.overlay_ancestors[-1], \
+            "actress-picker-overlay 的直接 parent div 應含 showcase-lightbox class"
 
     def test_cancel_picker_no_el_query_selector(self):
         """49c-T3 架構守衛：_cancelPicker 必須使用 $refs.pickerCoverImg，
