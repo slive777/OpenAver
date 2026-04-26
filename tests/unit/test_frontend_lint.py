@@ -3998,10 +3998,10 @@ class TestPickerIntegrationGuard:
             "showcase.html 缺少 currentLightboxActress?.is_favorite x-show guard"
 
     def test_picker_area_present(self):
-        """actress-picker-area 包含 grid / source-badge / loading / empty 必要結構"""
+        """actress-picker-overlay 包含 grid / source-badge / loading / empty 必要結構"""
         html = self._html()
         for needle in (
-            "actress-picker-area",
+            "actress-picker-overlay",
             "picker-candidates-grid",
             "picker-source-badge",
             "picker-loading",
@@ -4021,7 +4021,7 @@ class TestPickerIntegrationGuard:
             assert needle in js, f"core.js 缺少 Alpine state 初始化：{needle}"
 
     def test_picker_methods_defined(self):
-        """core.js 定義 5 個必要 picker method"""
+        """core.js 定義 8 個必要 picker method（含 49c T3 新增 overlay 定位 + resize 生命週期）"""
         js = self._core_js()
         for method in (
             "openActressPicker(",
@@ -4029,6 +4029,9 @@ class TestPickerIntegrationGuard:
             "_closePicker(",
             "_resetPicker(",
             "_fadeMetadataPanel(",
+            "_positionPickerOverlay(",
+            "_attachPickerResizeListener(",
+            "_detachPickerResizeListener(",
         ):
             assert method in js, f"core.js 缺少 method 定義：{method}"
 
@@ -4050,7 +4053,7 @@ class TestPickerIntegrationGuard:
             "core.js _PICKER_PARAMS 缺少 arcDuration: 0.6"
 
     def test_picker_css_rules_present(self):
-        """showcase.css 含 .picker-candidate-card opacity:0 + .actress-picker-area position:relative + spin keyframes"""
+        """showcase.css 含 .picker-candidate-card opacity:0 + .actress-picker-overlay position:fixed + spin keyframes"""
         css = self._css()
         assert ".picker-candidate-card" in css, \
             "showcase.css 缺少 .picker-candidate-card 規則"
@@ -4061,15 +4064,78 @@ class TestPickerIntegrationGuard:
         assert card_block, "找不到 .picker-candidate-card 樣式區塊"
         assert "opacity: 0" in card_block.group(0), \
             ".picker-candidate-card 缺少 opacity: 0（防 GSAP 起點 paint glitch）"
-        # actress-picker-area 必須 position: relative（refresh-btn absolute 定位依據）
+        # actress-picker-overlay 必須 position: fixed（49c T2：抽離 lightbox-content，採 viewport 定位）
         area_block = re.search(
-            r"\.actress-picker-area\s*\{[^}]*\}", css, re.DOTALL
+            r"\.actress-picker-overlay\s*\{[^}]*\}", css, re.DOTALL
         )
-        assert area_block, "找不到 .actress-picker-area 樣式區塊"
-        assert "position: relative" in area_block.group(0), \
-            ".actress-picker-area 缺少 position: relative"
+        assert area_block, "找不到 .actress-picker-overlay 樣式區塊"
+        assert "position: fixed" in area_block.group(0), \
+            ".actress-picker-overlay 缺少 position: fixed"
         assert "@keyframes spin" in css, \
             "showcase.css 缺少 @keyframes spin 動畫"
+
+    def test_picker_overlay_not_inside_lightbox_content(self):
+        """49c-T1 架構守衛：actress-picker-overlay 必須抽離 .lightbox-content，
+        為 .showcase-lightbox 直接 child（避免被 lightbox-content 的 transform/overflow context 影響）。
+        """
+        import html.parser as _html_parser
+
+        html_text = self._html()
+        # smoke check：T1 已 rename + overlay 存在
+        assert "actress-picker-area" not in html_text, \
+            "showcase.html 仍含 actress-picker-area（T1 應已 rename 為 actress-picker-overlay）"
+        assert "actress-picker-overlay" in html_text, \
+            "showcase.html 缺少 actress-picker-overlay（T1 markup 缺失）"
+
+        class _LbContentParser(_html_parser.HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.depth = 0
+                self.inside = False
+                self.found_overlay = False
+
+            def handle_starttag(self, tag, attrs):
+                attr_dict = dict(attrs)
+                classes = set(attr_dict.get("class", "").split())
+                if not self.inside:
+                    if tag == "div" and "lightbox-content" in classes:
+                        self.inside = True
+                        self.depth = 1
+                    return
+                # inside lightbox-content
+                if "actress-picker-overlay" in classes:
+                    self.found_overlay = True
+                if tag == "div":
+                    self.depth += 1
+
+            def handle_endtag(self, tag):
+                if not self.inside:
+                    return
+                if tag == "div":
+                    self.depth -= 1
+                    if self.depth == 0:
+                        self.inside = False
+
+        parser = _LbContentParser()
+        parser.feed(html_text)
+        assert not parser.found_overlay, \
+            "actress-picker-overlay 仍在 lightbox-content 內（應為 .showcase-lightbox 直接 child）"
+
+    def test_cancel_picker_no_el_query_selector(self):
+        """49c-T3 架構守衛：_cancelPicker 必須使用 $refs.pickerCoverImg，
+        不可用 $el.querySelector（DOM scope bug：$el 在 overlay 抽離後不再含 cover img）。
+        """
+        js = self._core_js()
+        m = re.search(
+            r"_cancelPicker\s*\([^)]*\)\s*\{(.*?)\n\s{8}\},",
+            js, re.DOTALL,
+        )
+        assert m, "core.js 找不到 _cancelPicker 方法定義"
+        body = m.group(1)
+        assert "$el.querySelector" not in body and "$el?.querySelector" not in body, \
+            "_cancelPicker 仍使用 $el.querySelector（CD-4：應改用 $refs.pickerCoverImg）"
+        assert "$refs.pickerCoverImg" in body, \
+            "_cancelPicker 缺少 $refs.pickerCoverImg（cover img DOM ref）"
 
     # ----------------------------------------------------------------------
     # 49b-T4e: select-and-replace flow guards
