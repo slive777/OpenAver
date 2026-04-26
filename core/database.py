@@ -133,6 +133,9 @@ def init_db(db_path: Path = None) -> None:
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_videos_maker ON videos(maker)
     """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_videos_cover_path ON videos(cover_path)
+    """)
 
     # 女優別名表 — 偵測舊 schema (old_name 欄位) 並執行跟鏈遷移
     existing_alias_cols = {
@@ -754,29 +757,32 @@ class VideoRepository:
         """
         驗證 fs_path 是否為 DB 中某個 video 的 cover_path（防任意檔案讀取）。
 
-        DB 存 cover_path 為 file:/// URI（gallery_scanner 透過 to_file_uri 寫入），
-        比對前先用 uri_to_fs_path() 雙邊正規化。
+        DB 主要存 file:/// URI（gallery_scanner / enricher 寫入），但 legacy migrate 路徑
+        可能保留裸 FS 路徑（migrate_json_to_sqlite 未正規化）。為保留相容性，同時查兩種 key。
+        走 idx_videos_cover_path index（O(log N)）。
         """
-        from core.path_utils import uri_to_fs_path
+        from core.path_utils import to_file_uri
         if not fs_path:
             return False
+        try:
+            uri = to_file_uri(fs_path)
+        except Exception:
+            uri = None
         conn = self._get_connection()
         try:
-            rows = conn.execute(
-                "SELECT cover_path FROM videos WHERE cover_path != ''"
-            ).fetchall()
+            if uri is not None:
+                row = conn.execute(
+                    "SELECT 1 FROM videos WHERE cover_path IN (?, ?) LIMIT 1",
+                    (uri, fs_path)
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    "SELECT 1 FROM videos WHERE cover_path = ? LIMIT 1",
+                    (fs_path,)
+                ).fetchone()
         finally:
             conn.close()
-        for row in rows:
-            db_cover = row[0] if not isinstance(row, tuple) else row[0]
-            if not db_cover:
-                continue
-            try:
-                if uri_to_fs_path(db_cover) == fs_path:
-                    return True
-            except Exception:
-                continue
-        return False
+        return row is not None
 
 def migrate_json_to_sqlite(json_path: Path, db_path: Path = None,
                            delete_on_success: bool = True) -> dict:
