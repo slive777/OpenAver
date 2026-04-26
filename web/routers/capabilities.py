@@ -981,8 +981,18 @@ async def get_capabilities(request: Request):
         },
         "agent_instructions": {
             "fetch_method": "curl",
-            "fetch_note": "必須使用 curl（shell 指令）存取此服務。禁止使用瀏覽器 fetch()、AI 內建的 WebFetch / web_search 等 HTTP 工具 — 這些工具走外部 proxy 或沙箱網路，無法連到 LAN IP。正確做法：用 Bash tool 執行 curl 指令。",
+            "fetch_note": "必須走 shell HTTP 工具（POSIX 用 curl，Windows 用 curl.exe 或 Invoke-RestMethod）存取此服務。禁止使用瀏覽器 fetch()、AI 內建的 WebFetch / web_search 等 HTTP 工具，因其常經由外部 proxy 或沙箱網路，無法可靠連到 localhost / LAN。",
             "example": f"curl -s {base}/api/capabilities",
+            "shell_compat": {
+                "preferred": {
+                    "posix": "curl",
+                    "windows": "curl.exe",
+                },
+                "alternative_windows": f"Invoke-RestMethod -Uri '{base}/api/batch-search' -Method POST -ContentType 'application/json' -Body '{{\"numbers\":[\"SONE-205\"]}}'",
+                "windows_gotcha": "PowerShell 內 curl 是 Invoke-WebRequest 的 alias，建議顯式呼叫 curl.exe；POST JSON body 引號易與 PS 字串規則打架，改用 Invoke-RestMethod -Body 較穩。",
+                "forbidden": ["fetch()", "WebFetch", "web_search"],
+                "forbidden_reason": "Browser-sandbox or external-proxy routing cannot reliably reach localhost or LAN services.",
+            },
         },
         "image_display": {
             "description": "如何在對話中顯示搜尋結果的封面 / 劇照圖片",
