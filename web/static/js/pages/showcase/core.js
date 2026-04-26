@@ -88,15 +88,14 @@ function _killLightboxTimelines(options) {
 function showcaseState() {
     // 49b T4cd: Picker 動畫參數（T1 fix2 定案，2026-04-25）
     // 供 BurstPicker.playPickerBurst/Float/HoverIn/HoverOut/ExitAll 使用
-    // 49c.T4 [TBD]: overlay layout 落地後 timing 校正窗口在 T6 CDP；
-    //   候選方向見 plan-49c.md §T4（arcDuration / floatAmplY / exitGravity）
+    // 49c.T5fix.B：viewport bottom anchor 後 burst 距離增加 ~55%，timing 校正定案
     const _PICKER_PARAMS = {
-        arcOvershoot: 1.4,    // back.out 彈性係數（burst 爆射）
-        arcDuration:  0.6,    // burst 飛行時間（秒）
+        arcOvershoot: 1.3,    // V2 從 1.4 改 1.3：拉長後 overshoot 視覺強，略降
+        arcDuration:  0.75,   // V2 從 0.6 改 0.75：補償距離增加 ~+55%
         floatAmplY:   8,      // Float loop Y 幅度（px）
         floatAmplRot: 2.5,    // Float loop 旋轉幅度（度）
         floatDuration: 1.5,   // Float loop 基礎週期（秒）
-        hoverScale:   1.12,   // Hover 放大比例
+        hoverScale:   1.08,   // V2 從 1.12 改 1.08：大卡上不過搶戲
         exitGravity:  1200,   // 其他卡墜落重力（physics2D）
     };
 
@@ -177,7 +176,6 @@ function showcaseState() {
         _pickerRunId: 0,
         _pickerSSE: null,
         _pickerTimeoutTimer: null,
-        _pickerResizeHandler: null,
 
         // User Tags 狀態 (T4)
         addingLbTag: false,
@@ -1606,8 +1604,6 @@ function showcaseState() {
                 this.lightboxCloseTimer = null;
             }
 
-            // 49c T3: detach resize listener（雙保險，即使 _pickerOpen 為 false 也清乾淨）
-            this._detachPickerResizeListener();
             // 49b T4 fix: 若 picker 開啟中，先關閉 picker（避免 SSE/timer 洩漏到隱藏狀態）
             if (this._pickerOpen) {
                 this._closePicker();
@@ -2221,7 +2217,6 @@ function showcaseState() {
             if (this._pickerOpen) {
                 this._resetPicker();
             }
-            this._detachPickerResizeListener();
 
             this._pickerOpen = true;
             this._pickerLoading = true;
@@ -2229,57 +2224,11 @@ function showcaseState() {
 
             // metadata 淡出（Row 1 actress-lb-header 保留）
             this._fadeMetadataPanel(true);
-            await this.$nextTick();
-            this._positionPickerOverlay();
-            this._attachPickerResizeListener();
 
             this._pickerRunId++;
             const runId = this._pickerRunId;
 
             this._startPickerSSE(name, runId);
-        },
-
-        /**
-         * 49c T3: 動態定位 picker overlay — desktop 走 fixed-position 對齊 cover-area 下緣
-         * mobile (<640px) 主動清除 inline style 讓 @media bottom-sheet 接管
-         */
-        _positionPickerOverlay() {
-            const overlayEl = this.$refs.pickerArea;
-            if (!overlayEl) return;
-            if (window.innerWidth < 640) {
-                overlayEl.style.top   = '';
-                overlayEl.style.left  = '';
-                overlayEl.style.width = '';
-                return;
-            }
-            const coverArea = this.$refs.pickerCoverArea;
-            if (!coverArea) return;
-            const rect = coverArea.getBoundingClientRect();
-            overlayEl.style.top   = rect.bottom + 'px';
-            overlayEl.style.left  = rect.left   + 'px';
-            overlayEl.style.width = rect.width  + 'px';
-        },
-
-        /**
-         * 49c T3: window resize listener attach（picker 開啟時）
-         * 雙保險 guard：已 attach 則 early return，避免 double-attach 造成 listener leak
-         */
-        _attachPickerResizeListener() {
-            if (this._pickerResizeHandler) return;
-            this._pickerResizeHandler = () => {
-                if (this._pickerOpen) this._positionPickerOverlay();
-            };
-            window.addEventListener('resize', this._pickerResizeHandler);
-        },
-
-        /**
-         * 49c T3: window resize listener detach（picker 關閉 / lightbox teardown）
-         * null-guard 容許重複呼叫；4 個 detach path 任一順序皆安全
-         */
-        _detachPickerResizeListener() {
-            if (!this._pickerResizeHandler) return;
-            window.removeEventListener('resize', this._pickerResizeHandler);
-            this._pickerResizeHandler = null;
         },
 
         /**
@@ -2517,7 +2466,6 @@ function showcaseState() {
             this._pickerTimeoutTimer = null;
             this._resetPicker();
             this._fadeMetadataPanel(false);
-            this._detachPickerResizeListener();
         },
 
         /**
@@ -2545,7 +2493,6 @@ function showcaseState() {
             // 動畫完成後 reset 狀態（含解除 _pickerSelected lock）+ 淡入 metadata
             this._resetPicker();
             this._fadeMetadataPanel(false);
-            this._detachPickerResizeListener();
         },
 
         /**

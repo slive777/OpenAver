@@ -4021,7 +4021,8 @@ class TestPickerIntegrationGuard:
             assert needle in js, f"core.js 缺少 Alpine state 初始化：{needle}"
 
     def test_picker_methods_defined(self):
-        """core.js 定義 8 個必要 picker method（含 49c T3 新增 overlay 定位 + resize 生命週期）"""
+        """core.js 定義 5 個必要 picker method（49c T5fix.B：overlay 改純 CSS viewport-anchored，
+        退役 _positionPickerOverlay / _attachPickerResizeListener / _detachPickerResizeListener）"""
         js = self._core_js()
         for method in (
             "openActressPicker(",
@@ -4029,9 +4030,6 @@ class TestPickerIntegrationGuard:
             "_closePicker(",
             "_resetPicker(",
             "_fadeMetadataPanel(",
-            "_positionPickerOverlay(",
-            "_attachPickerResizeListener(",
-            "_detachPickerResizeListener(",
         ):
             assert method in js, f"core.js 缺少 method 定義：{method}"
 
@@ -4044,33 +4042,41 @@ class TestPickerIntegrationGuard:
             "core.js handleKeydown 中 Escape 應優先檢查 this._pickerOpen"
 
     def test_picker_params_constant(self):
-        """core.js 定義 _PICKER_PARAMS 常數，含 arcOvershoot / arcDuration"""
+        """core.js 定義 _PICKER_PARAMS 常數（49c T5fix.B：arcOvershoot 1.3 / arcDuration 0.75）"""
         js = self._core_js()
         assert "_PICKER_PARAMS" in js, "core.js 缺少 _PICKER_PARAMS 常數"
-        assert "arcOvershoot: 1.4" in js, \
-            "core.js _PICKER_PARAMS 缺少 arcOvershoot: 1.4"
-        assert "arcDuration:  0.6" in js or "arcDuration: 0.6" in js, \
-            "core.js _PICKER_PARAMS 缺少 arcDuration: 0.6"
+        assert "arcOvershoot: 1.3" in js, \
+            "core.js _PICKER_PARAMS 缺少 arcOvershoot: 1.3（V2 從 1.4 改）"
+        assert "arcDuration:  0.75" in js or "arcDuration: 0.75" in js, \
+            "core.js _PICKER_PARAMS 缺少 arcDuration: 0.75（V2 從 0.6 改）"
 
     def test_picker_css_rules_present(self):
-        """showcase.css 含 .picker-candidate-card opacity:0 + .actress-picker-overlay position:fixed + spin keyframes"""
+        """showcase.css 含 .picker-candidate-card opacity:0 + .actress-picker-overlay
+        fixed-position viewport-anchored overlay (bottom + width literal) + spin keyframes"""
         css = self._css()
         assert ".picker-candidate-card" in css, \
             "showcase.css 缺少 .picker-candidate-card 規則"
         # picker-candidate-card 必須含 opacity: 0（防 1-frame paint glitch）
+        # 49c T5fix.B：用 (?:^|\n) anchor 抓「裸」global rule，避開 .actress-picker-overlay
+        # 後代規則（descendant 不含 opacity:0，由全域 rule 提供）
         card_block = re.search(
-            r"\.picker-candidate-card\s*\{[^}]*\}", css, re.DOTALL
+            r"(?:^|\n)\.picker-candidate-card\s*\{[^}]*\}", css, re.DOTALL
         )
         assert card_block, "找不到 .picker-candidate-card 樣式區塊"
         assert "opacity: 0" in card_block.group(0), \
             ".picker-candidate-card 缺少 opacity: 0（防 GSAP 起點 paint glitch）"
-        # actress-picker-overlay 必須 position: fixed（49c T2：抽離 lightbox-content，採 viewport 定位）
+        # 49c T5fix.B：actress-picker-overlay 必須純 CSS viewport-anchored
         area_block = re.search(
             r"\.actress-picker-overlay\s*\{[^}]*\}", css, re.DOTALL
         )
         assert area_block, "找不到 .actress-picker-overlay 樣式區塊"
-        assert "position: fixed" in area_block.group(0), \
+        overlay_css = area_block.group(0)
+        assert "position: fixed" in overlay_css, \
             ".actress-picker-overlay 缺少 position: fixed"
+        assert "bottom:" in overlay_css, \
+            ".actress-picker-overlay 缺少 bottom:（V2 viewport-anchored）"
+        assert "width:" in overlay_css, \
+            ".actress-picker-overlay 缺少 width:（V2 viewport-anchored）"
         assert "@keyframes spin" in css, \
             "showcase.css 缺少 @keyframes spin 動畫"
 

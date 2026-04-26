@@ -1897,41 +1897,41 @@
     align-self: center;
 }
 
-/* ── 49b T4cd / 49c T2: Actress Photo Picker (z-axis overlay) ───── */
+/* ── 49b T4cd / 49c T5fix.B (V2 viewport overlay)：Actress Photo Picker ── */
 .actress-picker-overlay {
     position: fixed;
     z-index: 1100;
+    bottom: 5vh;
+    left: max(10vw, calc(50vw - 600px));
+    width: min(80vw, 1200px);
     pointer-events: auto;
     padding: 12px;
-    border-radius: 6px;
-    /* top / left / width 由 JS _positionPickerOverlay() 寫入 inline style；
-       mobile (<640px) 由下方 @media 覆寫為 bottom-sheet。
-       display 由 Alpine x-show 控制。 */
+    box-sizing: border-box;          /* 顯式宣告，防 Tailwind preflight 失效時 width 計算偏差（gotchas） */
 }
 
-/* 候選卡 grid：壓回 cover 下緣 -38px overlap（對齊 motion-lab .picker-candidates-area） */
 .actress-picker-overlay .picker-candidates-grid {
-    margin-top: -38px;
-    position: relative;
-    z-index: 5;
-    overflow: visible;
-    justify-content: center;   /* 49c Codex F1 fix：對齊 motion-lab .picker-candidates-area，nowrap + visible 下兩側對稱溢出 */
+    display: flex;
+    flex-wrap: nowrap;               /* desktop ≥1280 預設單行 */
+    justify-content: center;
+    gap: 20px;
+    overflow-x: visible;             /* 覆寫全域 overflow-x: auto */
+    overflow-y: visible;
+    margin-top: 0;                   /* V2 不再 -38px overlap */
 }
 
-/* 49c Codex F2 fix：來源 chip 在 overlay 內浮右上（對齊 motion-lab 規格），覆寫全域 flow 規則 */
-.actress-picker-overlay .picker-current-source {
-    position: absolute;
-    top: 1.5rem;
-    right: 1.5rem;
-    margin-bottom: 0;       /* 覆寫全域 8px，flow 已脫離 */
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    color: #fff;
-    padding: 4px 12px;
-    border-radius: 4px;
-    z-index: 10;
-    pointer-events: none;
+.actress-picker-overlay .picker-candidate-card {
+    width: 150px;
+    aspect-ratio: 4 / 5;             /* 188px tall on 150 wide */
+    height: auto;                    /* 覆寫全域 height: 140px */
+    border-radius: 12px;
+    flex: 0 0 150px;                 /* 覆寫全域 flex: 0 0 100px */
+}
+
+.actress-picker-overlay .picker-candidate-img {
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    border-radius: 12px;
 }
 
 .picker-current-source {
@@ -2081,13 +2081,25 @@
     transition: opacity 0.2s;
 }
 
-/* 49c T2 / CD-5: 窄螢幕 (<640px) bottom-sheet，覆寫 desktop inline style（!important 雙保險） */
-@media (max-width: 639px) {
+/* 49c T5fix.B：tablet 兩行 wrap (768–1279px) */
+@media (min-width: 768px) and (max-width: 1279px) {
+    .actress-picker-overlay .picker-candidates-grid {
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+    .actress-picker-overlay .picker-candidate-card {
+        width: 140px;
+        flex: 0 0 140px;
+    }
+}
+
+/* 49c T5fix.B：mobile bottom-sheet (<768px)，從 <640 擴大涵蓋 phone + portrait tablet */
+@media (max-width: 767px) {
     .actress-picker-overlay {
         position: fixed;
+        bottom: 0 !important;
         left: 0 !important;
         right: 0 !important;
-        bottom: 0 !important;
         top: auto !important;
         width: 100% !important;
         z-index: 1100;
@@ -2099,14 +2111,18 @@
         overflow-y: auto;
     }
     .actress-picker-overlay .picker-candidates-grid {
-        margin-top: 0;
+        flex-wrap: wrap;
+        gap: 10px;
     }
-    /* 49c Codex F2 fix：mobile bottom-sheet 還原 flow 排版 */
+    .actress-picker-overlay .picker-candidate-card {
+        width: 130px;
+        flex: 0 0 130px;
+    }
     .actress-picker-overlay .picker-current-source {
         position: static;
         background: transparent;
-        -webkit-backdrop-filter: none;
         backdrop-filter: none;
+        -webkit-backdrop-filter: none;
         color: inherit;
         padding: 0;
         margin-bottom: 8px;
