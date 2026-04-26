@@ -217,59 +217,6 @@ async def design_system_page(request: Request):
     return templates.TemplateResponse(request, "design-system.html", context)
 
 
-@app.get("/picker-lab")
-async def picker_lab_page(request: Request):
-    """49c Phase 1 — Actress photo picker dev sandbox。
-
-    完全模擬 /showcase actress lightbox 的視覺與 picker 流程，但圖片來源全本機
-    （actress photo + actress-crop endpoint），mock SSE 在前端模擬。用於 debug
-    生產環境 picker 不穩定問題。詳見 feature/49-showcase-polish/spec-49c.md。
-
-    取一個 favorited actress + 5 部影片 cover 作為 6 個 mock candidate。
-    """
-    from core.database import init_db, ActressRepository, VideoRepository
-    from urllib.parse import quote
-
-    init_db()
-    actress_repo = ActressRepository()
-    video_repo = VideoRepository()
-
-    # Actress 在 DB 即表示已收藏（is_favorite=True 是 API 層常數），photo_source 確保有照片
-    favored = [a for a in actress_repo.get_all() if a.photo_source]
-    if not favored:
-        return HTMLResponse(
-            "<h1>Picker Lab unavailable</h1>"
-            "<p>No favorited actress with photo found. Add one via /showcase first.</p>",
-            status_code=503,
-        )
-    actress = favored[0]
-
-    videos_with_covers = [v for v in video_repo.get_videos_by_actress(actress.name) if v.cover_path][:5]
-
-    photo_url = f"/api/actresses/photo/{quote(actress.name)}"
-    mock_candidates = [{
-        "source": "actress_photo",
-        "thumb_url": photo_url,
-        "full_url": photo_url,
-    }]
-    for v in videos_with_covers:
-        crop_url = f"/api/actresses/actress-crop?path={quote(str(v.cover_path))}&spec=v1"
-        mock_candidates.append({
-            "source": "local_crop",
-            "video_path": str(v.path),   # 已是 file:/// URI，不再二次 to_file_uri 包裹
-            "thumb_url": crop_url,
-            "full_url": crop_url,
-        })
-
-    context = get_common_context(request)
-    context["page"] = "picker-lab"
-    context["actress_name"] = actress.name
-    context["actress_photo_url"] = photo_url
-    context["mock_candidates"] = mock_candidates
-    context["current_source"] = actress.photo_source
-    return templates.TemplateResponse(request, "picker_lab.html", context)
-
-
 # ============ API 路由（稍後移到 routers/）============
 
 @app.get("/api/health")
