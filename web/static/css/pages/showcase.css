@@ -375,7 +375,7 @@
     justify-content: center;
     align-items: flex-end;
     padding-bottom: 12px;
-    background: linear-gradient(to top, var(--overlay-gradient) 0%, rgba(0,0,0,0.2) 60%, transparent 100%);
+    background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 60%, transparent 100%);
     border-radius: 0 0 var(--radius-sm) var(--radius-sm);
     opacity: 0;
     transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
@@ -2214,10 +2214,23 @@ body.sidebar-collapsed .showcase-footer {
 /* ==================== Phase 50 T5 §6 5 檢查點 — DaisyUI Component Override ==================== */
 /* Fluent 覆寫 .showcase-container 內 DaisyUI .btn / .input（charter §6 5 檢查點：radius/surface/stroke/shadow/hover-focus）*/
 /* CD-4 限制：scoped 在 .showcase-container 內，不影響其他頁面 */
+/* P1b fix: 補齊 Stroke token、Surface token、修正 Focus 為 2px outline + 4px glow（charter §6） */
+
+/* §6 Checkpoint 1 Radius: var(--fluent-radius-md) */
+/* §6 Checkpoint 2 Surface: DaisyUI variant 提供 .btn background；.input 補 var(--surface-1) */
+/* §6 Checkpoint 3 Stroke: border var(--stroke-default) + inset 0 1px 0 dual-layer 內框 */
+/* §6 Checkpoint 4 Shadow: var(--fluent-shadow-2)，hover 升 --fluent-shadow-4 */
+/* §6 Checkpoint 5 Hover/Focus: hover 升 shadow + translateY；focus 2px outline + 4px glow */
 
 .showcase-container .btn {
     border-radius: var(--fluent-radius-md);
-    box-shadow: var(--fluent-shadow-2);
+    /* Stroke: width/style only — 保留 DaisyUI variant border-color (.btn-outline.btn-primary 等) */
+    border-width: 1px;
+    border-style: solid;
+    /* Shadow: 底階 + dual-layer 內框 */
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-2);
     transition:
         background var(--fluent-duration-fast) var(--fluent-ease-standard),
         border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
@@ -2226,22 +2239,41 @@ body.sidebar-collapsed .showcase-footer {
 }
 
 .showcase-container .btn:hover:not(:disabled) {
-    box-shadow: var(--fluent-shadow-4);
+    /* hover 不覆寫 border-color，DaisyUI variant 自管 (.btn-outline.btn-primary primary 強調保留) */
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 12%, transparent),
+        var(--fluent-shadow-4);
     transform: translateY(-1px);
 }
 
 .showcase-container .btn:focus-visible {
-    outline: none;
-    box-shadow: var(--fluent-shadow-2), 0 0 0 3px var(--glow-primary);
+    /* Focus: 2px outline + 4px glow（charter §6 Checkpoint 5 精確規格） */
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-2),
+        0 0 0 4px var(--glow-primary);
 }
 
 .showcase-container .btn:active:not(:disabled) {
     transform: translateY(0);
-    box-shadow: var(--fluent-shadow-2);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 6%, transparent),
+        var(--fluent-shadow-2);
 }
 
 .showcase-container .input {
     border-radius: var(--fluent-radius-md);
+    /* Surface: 輸入框用 surface-1 基底（charter §6 Checkpoint 2） */
+    background: var(--surface-1);
+    /* Stroke: width/style only — 保留 DaisyUI .input-bordered variant border-color */
+    border-width: 1px;
+    border-style: solid;
+    /* Shadow: 輸入框底階（charter §6 Checkpoint 4） */
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 6%, transparent),
+        var(--fluent-shadow-2);
     transition:
         border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
         box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
@@ -2249,7 +2281,12 @@ body.sidebar-collapsed .showcase-footer {
 
 .showcase-container .input:focus,
 .showcase-container .input:focus-visible {
-    outline: none;
+    /* Focus: 2px outline + 4px glow（charter §6 Checkpoint 5 精確規格） */
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--glow-primary);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-2),
+        0 0 0 4px var(--glow-primary);
 }
