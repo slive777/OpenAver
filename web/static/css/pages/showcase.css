@@ -2210,3 +2210,46 @@ body.sidebar-collapsed .showcase-footer {
 .picker-refresh-btn i.spin {
     animation: spin 1s linear infinite;
 }
+
+/* ==================== Phase 50 T5 §6 5 檢查點 — DaisyUI Component Override ==================== */
+/* Fluent 覆寫 .showcase-container 內 DaisyUI .btn / .input（charter §6 5 檢查點：radius/surface/stroke/shadow/hover-focus）*/
+/* CD-4 限制：scoped 在 .showcase-container 內，不影響其他頁面 */
+
+.showcase-container .btn {
+    border-radius: var(--fluent-radius-md);
+    box-shadow: var(--fluent-shadow-2);
+    transition:
+        background var(--fluent-duration-fast) var(--fluent-ease-standard),
+        border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+        box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard),
+        transform var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.showcase-container .btn:hover:not(:disabled) {
+    box-shadow: var(--fluent-shadow-4);
+    transform: translateY(-1px);
+}
+
+.showcase-container .btn:focus-visible {
+    outline: none;
+    box-shadow: var(--fluent-shadow-2), 0 0 0 3px var(--glow-primary);
+}
+
+.showcase-container .btn:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: var(--fluent-shadow-2);
+}
+
+.showcase-container .input {
+    border-radius: var(--fluent-radius-md);
+    transition:
+        border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+        box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.showcase-container .input:focus,
+.showcase-container .input:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--glow-primary);
+}
