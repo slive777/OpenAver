@@ -517,8 +517,9 @@
 
     /* Smoke Backdrop — 匹配 gallery_generator.py 舊版風格 */
     background: var(--overlay-modal);
-    backdrop-filter: blur(var(--fluent-blur));
-    -webkit-backdrop-filter: blur(var(--fluent-blur));
+    /* charter §2 仲裁：lightbox backdrop 用 floating-control 12px (非 overlay 30px)，保留 grid spatial reference UX */
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
 
     /* 初始隱藏 */
     opacity: 0;
