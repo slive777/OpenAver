@@ -708,7 +708,7 @@
 .lightbox-metadata .lb-tag {
     padding: 0.15rem 0.5rem;
     background: var(--bg-body);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     font-size: 0.6875rem;
     color: var(--text-secondary);
     border: 1px solid var(--stroke-subtle);
@@ -1528,7 +1528,7 @@ body.sidebar-collapsed .showcase-footer {
     max-height: calc(100vh - 160px);
     object-fit: contain;
     display: block;
-    border-radius: 4px;
+    border-radius: var(--fluent-radius-md);
     user-select: none;
 }
 
@@ -1551,7 +1551,7 @@ body.sidebar-collapsed .showcase-footer {
 
 .sample-gallery .sg-thumbs::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
+    border-radius: var(--fluent-radius-sm);
 }
 
 /* 縮圖按鈕 */
@@ -1562,7 +1562,7 @@ body.sidebar-collapsed .showcase-footer {
     padding: 0;
     background: none;
     border: 2px solid transparent;
-    border-radius: 4px;
+    border-radius: var(--fluent-radius-md);
     cursor: pointer;
     overflow: hidden;
     transition: border-color 0.15s ease, opacity 0.15s ease;
@@ -1597,7 +1597,7 @@ body.sidebar-collapsed .showcase-footer {
     color: rgba(255, 255, 255, 0.9);
     font-size: 0.8rem;
     padding: 0.25rem 0.6rem;
-    border-radius: 12px;
+    border-radius: var(--radius-pill);
     pointer-events: none;
     user-select: none;
 }
@@ -1670,7 +1670,7 @@ body.sidebar-collapsed .showcase-footer {
     flex-shrink: 0;
     padding: 0.25rem 0.75rem;
     font-size: 0.8rem;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     border: 1px solid var(--glow-primary);
     background: var(--glow-subtle);
     color: var(--accent);
@@ -1692,7 +1692,7 @@ body.sidebar-collapsed .showcase-footer {
     flex-shrink: 0;
     padding: 0.25rem 0.75rem;
     font-size: 0.8rem;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     border: 1px solid color-mix(in oklch, var(--accent-secondary) 40%, transparent);
     background: color-mix(in oklch, var(--accent-secondary) 15%, transparent);
     color: var(--accent-secondary);
@@ -1736,7 +1736,7 @@ body.sidebar-collapsed .showcase-footer {
     padding: 0.15rem 0.5rem;
     background: var(--accent);
     color: var(--color-primary-content);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     font-size: 0.6875rem;
 }
 
@@ -1841,7 +1841,7 @@ body.sidebar-collapsed .showcase-footer {
 /* lb-chips-more shared rule for video lightbox tags +N */
 .lightbox-metadata .lb-chips-more {
     cursor: pointer; font-size: 0.85em; padding: 2px 8px;
-    border-radius: 12px; border: 1px solid currentColor; opacity: 0.6;
+    border-radius: var(--radius-md); border: 1px solid currentColor; opacity: 0.6;
 }
 
 /* ==================== Mode Toggle Capsule (44c-T4) ==================== */
@@ -1856,7 +1856,7 @@ body.sidebar-collapsed .showcase-footer {
     align-items: center;
     gap: 2px;
     background: rgba(255, 255, 255, 0.08);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     padding: 2px;
 }
 
