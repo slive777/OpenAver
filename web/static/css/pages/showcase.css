@@ -375,7 +375,7 @@
     justify-content: center;
     align-items: flex-end;
     padding-bottom: 12px;
-    background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 60%, transparent 100%);
+    background: linear-gradient(to top, var(--overlay-gradient) 0%, rgba(0,0,0,0.2) 60%, transparent 100%);
     border-radius: 0 0 var(--radius-sm) var(--radius-sm);
     opacity: 0;
     transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
@@ -516,7 +516,7 @@
     justify-content: center;
 
     /* Smoke Backdrop — 匹配 gallery_generator.py 舊版風格 */
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--overlay-modal);
     backdrop-filter: blur(var(--fluent-blur));
     -webkit-backdrop-filter: blur(var(--fluent-blur));
 
@@ -590,7 +590,7 @@
     height: 44px;
     border: none;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--overlay-control);
     backdrop-filter: blur(var(--fluent-blur-light));
     -webkit-backdrop-filter: blur(var(--fluent-blur-light));
     color: var(--text-inverse);
@@ -602,6 +602,7 @@
 }
 
 .lightbox-close:hover {
+    /* hover 升階 0.5 (charter §3 個案保留，控制按鈕 hover 強調) */
     background: rgba(0, 0, 0, 0.5);
     transform: scale(1.1);
 }
@@ -724,7 +725,7 @@
     align-items: flex-end;
     padding-bottom: 24px;
     gap: 12px;
-    background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 60%, transparent 100%);
+    background: linear-gradient(to top, var(--overlay-gradient) 0%, rgba(0,0,0,0.2) 60%, transparent 100%);
     border-radius: 0 0 var(--radius-sm) var(--radius-sm);
     opacity: 0;
     transition: opacity var(--duration-fast) var(--ease-out);
@@ -821,7 +822,7 @@
     height: 56px;
     border: none;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--overlay-control);
     backdrop-filter: blur(var(--fluent-blur-light));
     -webkit-backdrop-filter: blur(var(--fluent-blur-light));
     color: var(--text-inverse);
@@ -833,6 +834,7 @@
 }
 
 .lightbox-nav:hover {
+    /* hover 升階 0.5 (charter §3 個案保留，同 .lightbox-close:hover) */
     background: rgba(0, 0, 0, 0.5);
     transform: translateY(-50%) scale(1.1);
 }
@@ -1494,7 +1496,7 @@ body.sidebar-collapsed .showcase-footer {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.85);
+    background: var(--overlay-gallery);
     backdrop-filter: blur(var(--fluent-blur));
     -webkit-backdrop-filter: blur(var(--fluent-blur));
 
@@ -1594,7 +1596,7 @@ body.sidebar-collapsed .showcase-footer {
     position: absolute;
     top: 1rem;
     right: 4rem;
-    background: rgba(0, 0, 0, 0.55);
+    background: var(--overlay-gradient);
     color: rgba(255, 255, 255, 0.9);
     font-size: 0.8rem;
     padding: 0.25rem 0.6rem;
@@ -1608,7 +1610,7 @@ body.sidebar-collapsed .showcase-footer {
     position: absolute;
     top: 0.75rem;
     right: 0.75rem;
-    background: rgba(0, 0, 0, 0.45);
+    background: var(--overlay-control);
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 50%;
     width: 2.25rem;
@@ -1633,7 +1635,7 @@ body.sidebar-collapsed .showcase-footer {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(0, 0, 0, 0.45);
+    background: var(--overlay-control);
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 50%;
     width: 2.5rem;
