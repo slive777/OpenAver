@@ -5669,6 +5669,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 body.fluent-canvas:not(.ds-page) {
   background: radial-gradient(ellipse 100% 60% at 50% -10%, rgba(var(--ds-glow-rgb), 0.10), transparent), radial-gradient(ellipse 70% 50% at 100% 100%, oklch(55% 0.12 85 / 0.06), transparent), var(--bg-body);
+  backdrop-filter: blur(var(--fluent-blur-heavy));
+  -webkit-backdrop-filter: blur(var(--fluent-blur-heavy));
 }
 body.fluent-canvas:not(.ds-page) .main-content {
   background-color: transparent;
@@ -5740,6 +5742,8 @@ body.fluent-canvas:not(.ds-page)::before {
   --fluent-duration-normal: 250ms;
   --fluent-duration-slow: 300ms;
   --fluent-duration-slower: 400ms;
+  --fluent-duration-medium: 333ms;
+  --fluent-duration-emphasis: 500ms;
   --fluent-ease-decel: cubic-bezier(0, 0, 0, 1);
   --fluent-ease-accel: cubic-bezier(1, 0, 1, 1);
   --fluent-ease-standard: cubic-bezier(0.33, 0, 0.67, 1);
@@ -5748,7 +5752,13 @@ body.fluent-canvas:not(.ds-page)::before {
   --fluent-saturate: 140%;
   --fluent-acrylic-bg-light: rgba(255, 255, 255, 0.7);
   --fluent-acrylic-bg-dark: rgba(28, 28, 30, 0.7);
+  --fluent-blur-light: 12px;
+  --fluent-blur-heavy: 60px;
   --fluent-smoke: rgba(0, 0, 0, 0.4);
+  --overlay-gallery: rgba(0, 0, 0, 0.85);
+  --overlay-modal: rgba(0, 0, 0, 0.6);
+  --overlay-gradient: rgba(0, 0, 0, 0.55);
+  --overlay-control: rgba(0, 0, 0, 0.45);
 }
 [data-theme="dim"] {
   --fluent-shadow-2: 0px 0px 2px rgba(0, 0, 0, 0.24), 0px 1px 2px rgba(0, 0, 0, 0.28);
