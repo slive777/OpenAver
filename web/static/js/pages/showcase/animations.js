@@ -572,7 +572,7 @@
                     opacity: 1,
                     y: 0,
                     duration: 0.3,
-                    ease: 'power2.out',
+                    ease: 'fluent-decel',
                     clearProps: 'transform,opacity'
                 }
             );

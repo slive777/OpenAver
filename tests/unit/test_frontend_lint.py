@@ -2911,12 +2911,12 @@ class TestShowcaseAnimationsFluent:
         assert "power2.inOut" not in scope, "playSourcePulse 殘留 power2.inOut"
 
     # === playHeroCardAppear — 女優專屬白名單，不動 ===
-    def test_hero_card_appear_whitelist_not_touched(self):
-        """playHeroCardAppear 為女優專屬（plan D10 white-list），ease 不被本 phase 改"""
+    def test_hero_card_appear_uses_fluent_decel(self):
+        """Phase 51 T1.3a: playHeroCardAppear 試改 fluent-decel（plan-51 §2.1）"""
         scope = self._scoped("playHeroCardAppear", 800)
-        # 白名單保留 power2.out（spec scope 排除女優模式）
-        assert "ease: 'power2.out'" in scope, \
-            "playHeroCardAppear ease 不應被改（女優專屬 white-list）"
+        # 試改 fluent-decel；若用戶 dev-server 回報感受壞 → revert + re-tighten 到 power2.out + 重新加 white-list 註解
+        assert "ease: 'fluent-decel'" in scope, \
+            "playHeroCardAppear ease 應為 'fluent-decel'（Phase 51 T1.3a 試改）"
 
     # === Phase 50.x revert — playLightboxOpen 3 段保留 power2.out（charter §5 white-list 例外）===
     # 理由：playLightboxOpen 與 ghost-fly playGridToLightbox (0.38s power2.inOut, CD-3 觀察項)
