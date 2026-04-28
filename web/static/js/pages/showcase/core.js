@@ -2562,8 +2562,8 @@ function showcaseState() {
             if (rows.length === 0) return;
             OpenAver.motion.playFadeTo(rows, {
                 opacity: out ? 0 : 1,
-                duration: 0.2,
-                ease: 'power2.out'
+                duration: OpenAver.motion.DURATION.fast,
+                ease: out ? 'fluent-accel' : 'fluent-decel'
             });
         },
 
