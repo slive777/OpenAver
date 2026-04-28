@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-04-28
+
+本版聚焦在 Showcase 影片模式的視覺語言統一（Phase 50 Charter Pilot）。把 Fluent 2 的設計規範完整套用到 token、白名單、ease 三角色、§6 5 檢查點，並把 visual-charter 從一次性提案升級為正式的 ui-conventions 工作流文件，之後新做頁面有規範可循。對使用者而言介面更一致、動畫節奏更自然，沒有功能變化。
+
+*This release unifies the visual language across Showcase video mode (Phase 50 Charter Pilot) by applying Fluent 2 conventions to tokens, allow-lists, and the three-role ease system. No user-facing feature changes.*
+
+### Added
+
+#### 🎯 50.1 — Phase 1 靜態修齊（charter §1–§4 + §6）
+- 新增 Fluent token 一階對應（blur / shadow / radius / spacing / overlay color），整個 Showcase 視覺基準對齊 (commit 30ce8f2)
+- Blur / Shadow 三階分明，弱 / 中 / 強層級不再亂跳 (commit 6685c49)
+- Radius 改用 token，pill 形狀走白名單統一寫法 (commit 8139716)
+- Spacing 三層分明，6px 個案保留並逐個審判，避免一刀切 (commit 8b1c977)
+- Overlay 顏色 4 階 token 化，hover / active / disabled 不再各自為政 (commit e04812e)
+- DaisyUI 的 .btn / .input 在 Showcase 範圍內加 scoped Fluent 覆寫，第三方元件不污染全域 (commit 4afdc35)
+
+#### 🎯 50.2 — Phase 2 動畫修齊（charter §5 ease 三角色）
+- 新增 Fluent CustomEase 三角色（standard / decel / accel）並在 GSAP 註冊，動畫節奏統一語彙 (commit 9579801)
+- motion-adapter.js 5 處預設 ease 全部換成三角色 (commit 3b58dd8)
+- 進場動畫（playEntry stagger）改用 fluent-decel，視覺更自然 (commit 5c89afc)
+- 排序動畫（playFlipReorder）改用 fluent，標準互動節奏 (commit 7cfc4b6)
+- 篩選翻轉（playFlipFilter）三段拆 fluent / decel / accel (commit 9fb93b9)
+- 模式切換（playModeCrossfade）拆 fluent-accel + fluent-decel，淡出淡入手感對稱 (commit 06f2129)
+- Lightbox 開啟（playLightboxOpen）三段對齊 fluent-decel (commit 5c20842)
+- LightboxSwitch + SampleGallerySwitch 切換動畫換 fluent (commit 8ee3d56)
+- 容器淡入 / 來源 pulse（playContainerFadeIn / playSourcePulse）改 fluent (commit ef02b5b)
+- motion 模組新增 DURATION 三角色常數，業務 caller 全面套用，硬編碼 ms 從業務層消失 (commit e6586c6)
+- showcase.css 7 處 transition 硬編碼換成 fluent token (commit 9b286b1)
+
+### Fixed
+- 檔名截斷後尾端 `.` 在 Windows NTFS 被靜默剝除導致 `shutil.move` 失敗（#31），新增 win32-only 截斷後 rstrip helper，Mac / Linux / WSL ext4 行為不變 (commit f718f8f)
+- Search lightbox 在 Showcase 啟用時定位錯誤，回退 body.fluent-canvas 的 backdrop-filter 改寫 (commit de57171)
+- Lightbox backdrop 30px 模糊太重，UX 仲裁後降到 12px（覆蓋 charter §2 字面值）(commit e586a56)
+- playLightboxOpen 殘留動畫片段清理，加進 charter §5 white-list (commit 6f1d39e)
+- Codex review v3 Phase 1 P1a / P1b / P2 收斂 — Token 命名一致性、tailwind.css 隔離、白名單覆蓋邊界 (commit b37d5df)
+
+### Chore
+- tailwind.css 一次性重編，把 Phase 50 之前累積的 source drift（alias UI / .stack / .invisible / DaisyUI 5.5.17 升級殘留）帶入，避免污染 Phase 50 token diff (commit 197f9a0)
+
 ## [0.7.8] - 2026-04-26
 
 本版聚焦在 Showcase 女優模式的全方位打磨：補齊模式切換動畫、新增女優照片更換功能（含 Physics2D burst picker）、Picker overlay 改為純 CSS viewport-anchored 全裝置適配、以及 Actress Lightbox ghost-fly 補全與 Footer 視覺重設計。
