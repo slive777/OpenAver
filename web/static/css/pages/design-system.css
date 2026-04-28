@@ -1073,7 +1073,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: var(--space-2, 8px); /* §4 layout 8pt grid */
 }
 
 /* Collapse toggle */
@@ -1472,7 +1472,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: var(--space-2, 8px); /* §4 layout 8pt grid */
 }
 
 .ds-search-composition .ds-comp-file-count {
@@ -2079,7 +2079,7 @@
 .ds-toast-comparison code {
     font-size: 0.75rem;
     padding: 1px 4px;
-    border-radius: 3px;
+    border-radius: var(--fluent-radius-sm); /* §3 code badge 用 sm(2px) */
     background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
     color: var(--accent);
 }
