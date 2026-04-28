@@ -967,7 +967,7 @@
             if (rowEl) {
                 gsap.fromTo(rowEl,
                     { backgroundColor: 'rgba(0, 200, 100, 0.15)' },
-                    { backgroundColor: 'transparent', duration: 0.8, ease: 'power2.out', clearProps: 'backgroundColor' }
+                    { backgroundColor: 'transparent', duration: 0.8, ease: 'fluent-accel', clearProps: 'backgroundColor' }
                 );
             }
         },
