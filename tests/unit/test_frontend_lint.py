@@ -2921,16 +2921,33 @@ class TestShowcaseAnimationsFluent:
         assert "ease: 'power2.out'" in scope, \
             "playHeroCardAppear ease 不應被改（女優專屬 white-list）"
 
-    # === T2.6 — playLightboxOpen 3 段 ===
-    def test_play_lightbox_open_three_decel(self):
-        scope = self._scoped("playLightboxOpen", 2500)
-        assert scope.count("ease: 'fluent-decel'") >= 3, \
-            "playLightboxOpen backdrop+content+cover 三段 ease 應為 'fluent-decel'（×3）"
+    # === Phase 50.x revert — playLightboxOpen 3 段保留 power2.out（charter §5 white-list 例外）===
+    # 理由：playLightboxOpen 與 ghost-fly playGridToLightbox (0.38s power2.inOut, CD-3 觀察項)
+    # 並行播放，需保留 power 系曲線族避免節奏錯位。fluent-decel (0,0,0,1) 起步快終端慢
+    # 與 ghost-fly power2.inOut 終端慢視覺重疊，造成「最後一小段卡」。
+    def test_play_lightbox_open_three_power_out(self):
+        """三段（backdrop / content / cover）ease 為 power2.out（white-list 例外）"""
+        scope = self._scoped("playLightboxOpen", 4500)
+        assert scope.count("ease: 'power2.out'") >= 3, \
+            "playLightboxOpen backdrop+content+cover 三段 ease 應為 'power2.out'（×3，charter §5 white-list 例外，與 ghost-fly 並行段）"
 
-    def test_play_lightbox_open_no_legacy_power(self):
-        scope = self._scoped("playLightboxOpen", 2500)
-        assert "power2.out" not in scope, \
-            "playLightboxOpen 殘留 power2.out — Phase 50.2.6 未完成"
+    def test_play_lightbox_open_no_fluent_decel_in_three_phases(self):
+        """三段不應誤用 fluent-decel（與 ghost-fly power2.inOut 終端視覺重疊）"""
+        scope = self._scoped("playLightboxOpen", 4500)
+        assert "ease: 'fluent-decel'" not in scope, \
+            "playLightboxOpen 不應使用 'fluent-decel'（與 ghost-fly playGridToLightbox 並行段視覺重疊；white-list 例外用 power2.out）"
+
+    def test_play_lightbox_open_white_list_comment_present(self):
+        """white-list 例外註解必須留存（避免後續清 hardcoded duration 時誤改）"""
+        scope = self._scoped("playLightboxOpen", 4500)
+        assert "white-list" in scope or "ghost-fly" in scope, \
+            "playLightboxOpen 應有 charter §5 white-list / ghost-fly 並行段註解，標明 power2.out 為刻意保留"
+
+    def test_play_lightbox_open_clearprops_cleanup(self):
+        """onComplete + onInterrupt 補 clearProps 防連點殘留（Phase 50.x cleanup）"""
+        scope = self._scoped("playLightboxOpen", 4500)
+        assert scope.count("clearProps: 'transform,opacity'") >= 4, \
+            "playLightboxOpen onComplete + onInterrupt 應各有 content + coverImg 兩處 clearProps（共 4 處）"
 
     # === T2.4 — playFlipFilter (main + onEnter ×2 + onLeave) ===
     def test_play_flip_filter_main_fluent(self):

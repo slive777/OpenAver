@@ -433,24 +433,36 @@
                 id: 'showcaseLightboxOpen',
                 onComplete: function () {
                     lightboxEl.classList.remove('gsap-animating');
+                    // Phase 50.x cleanup: 清掉動畫過程中累積的 inline transform/opacity，
+                    // 避免被打斷時殘留半路狀態（用戶連點關開造成累積 stutter）
+                    if (content) gsap.set(content, { clearProps: 'transform,opacity' });
+                    if (coverImg && !options.skipCover) gsap.set(coverImg, { clearProps: 'transform,opacity' });
                     if (typeof options.onComplete === 'function') options.onComplete();
                 },
                 onInterrupt: function () {
                     lightboxEl.classList.remove('gsap-animating');
+                    // Phase 50.x cleanup: kill 中斷時 clearProps，避免殘留半路 transform/opacity
+                    if (content) gsap.set(content, { clearProps: 'transform,opacity' });
+                    if (coverImg && !options.skipCover) gsap.set(coverImg, { clearProps: 'transform,opacity' });
                 }
             });
+
+            // Phase 50.x: charter §5 white-list 例外 — 與 ghost-fly playGridToLightbox
+            // (0.38s power2.inOut, CD-3 觀察項) 並行段，保留 power 系曲線族避免節奏錯位。
+            // fluent-decel (0,0,0,1) 起步快終端慢與 ghost-fly power2.inOut 終端慢視覺重疊，
+            // 造成「最後一小段卡」；revert 為 power2.out + 原 duration 解套。
 
             // 1. Backdrop fade-in
             tl.fromTo(lightboxEl,
                 { opacity: 0 },
-                { opacity: 1, duration: OpenAver.motion.DURATION.fast, ease: 'fluent-decel' }
+                { opacity: 1, duration: 0.16, ease: 'power2.out' }
             );
 
             // 2. Content card scale pop-in
             if (content) {
                 tl.fromTo(content,
                     { scale: 0.95, opacity: 0, transformOrigin: 'center center' },
-                    { scale: 1, opacity: 1, duration: OpenAver.motion.DURATION.fast, ease: 'fluent-decel', transformOrigin: 'center center' },
+                    { scale: 1, opacity: 1, duration: 0.18, ease: 'power2.out', transformOrigin: 'center center' },
                     0.03
                 );
             }
@@ -459,7 +471,7 @@
             if (coverImg && !options.skipCover) {
                 tl.fromTo(coverImg,
                     { y: 12, opacity: 0 },
-                    { y: 0, opacity: 1, duration: OpenAver.motion.DURATION.fast, ease: 'fluent-decel' },
+                    { y: 0, opacity: 1, duration: 0.16, ease: 'power2.out' },
                     '-=0.08'
                 );
             }
