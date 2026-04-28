@@ -5757,6 +5757,7 @@ body.fluent-canvas:not(.ds-page)::before {
   --overlay-modal: rgba(0, 0, 0, 0.6);
   --overlay-gradient: rgba(0, 0, 0, 0.55);
   --overlay-control: rgba(0, 0, 0, 0.45);
+  --overlay-letterbox: rgba(0, 0, 0, 0.2);
 }
 [data-theme="dim"] {
   --fluent-shadow-2: 0px 0px 2px rgba(0, 0, 0, 0.24), 0px 1px 2px rgba(0, 0, 0, 0.28);
