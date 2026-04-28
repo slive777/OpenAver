@@ -375,7 +375,7 @@
     justify-content: center;
     align-items: flex-end;
     padding-bottom: 12px;
-    background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 60%, transparent 100%);
+    background: linear-gradient(to top, var(--overlay-gradient) 0%, rgba(0,0,0,0.2) 60%, transparent 100%); /* mid-stop optical fade */
     border-radius: 0 0 var(--radius-sm) var(--radius-sm);
     opacity: 0;
     transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
@@ -1833,10 +1833,10 @@ body.sidebar-collapsed .showcase-footer {
 .actress-lightbox-meta .actress-lb-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .actress-lightbox-meta .lb-name-en { font-size: 0.9em; opacity: 0.7; }
 .actress-lightbox-meta .lb-actress-core { font-size: 0.95em; margin: 8px 0; opacity: 0.85; }
-.actress-lightbox-meta .lb-chips-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.actress-lightbox-meta .lb-chips-row { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
 .actress-lightbox-meta .lb-chips-more {
     cursor: pointer; font-size: 0.85em; padding: 2px 8px;
-    border-radius: 12px; border: 1px solid currentColor; opacity: 0.6;
+    border-radius: var(--radius-md); border: 1px solid currentColor; opacity: 0.6;
 }
 .actress-lightbox-meta .lb-chips-more:hover { opacity: 1; }
 .actress-lightbox-meta .lb-actress-urls { margin-top: 8px; }
@@ -1988,7 +1988,7 @@ body.sidebar-collapsed .showcase-footer {
     width: 150px;
     aspect-ratio: 4 / 5;             /* 188px tall on 150 wide */
     height: auto;                    /* 覆寫全域 height: 140px */
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     flex: 0 0 150px;                 /* 覆寫全域 flex: 0 0 100px */
 }
 
@@ -1996,7 +1996,7 @@ body.sidebar-collapsed .showcase-footer {
     object-fit: cover;
     width: 100%;
     height: 100%;
-    border-radius: 12px;
+    border-radius: var(--radius-md);
 }
 
 .picker-current-source {
@@ -2005,7 +2005,7 @@ body.sidebar-collapsed .showcase-footer {
     margin-bottom: 8px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
 }
 
 .picker-candidates-grid {
@@ -2024,12 +2024,12 @@ body.sidebar-collapsed .showcase-footer {
     flex: 0 0 100px;
     width: 100px;
     height: 140px;
-    border-radius: 6px;
+    border-radius: var(--fluent-radius-lg);
     overflow: hidden;
     cursor: pointer;
     opacity: 0;
     transition: none;
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.2); /* sub-tier dim hint, below §3 4-stop overlay range */
 }
 
 .picker-candidate-img {
@@ -2044,8 +2044,8 @@ body.sidebar-collapsed .showcase-footer {
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 4px 6px;
-    background: rgba(0, 0, 0, 0.7);
+    padding: 4px 8px;
+    background: var(--overlay-badge);
     font-size: 0.7em;
     color: var(--text-inverse);
     text-align: center;
@@ -2058,7 +2058,7 @@ body.sidebar-collapsed .showcase-footer {
     opacity: 0;
     margin-right: 3px;
     font-size: 0.6rem;
-    transition: opacity 0.15s;
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .picker-candidate-card:hover .picker-source-badge {
@@ -2123,10 +2123,10 @@ body.sidebar-collapsed .showcase-footer {
     justify-content: center;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
+    border-radius: var(--fluent-radius-md);
     cursor: pointer;
     color: var(--text-inverse);
-    transition: all 0.15s;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .picker-refresh-btn:hover:not(:disabled) {
@@ -2143,7 +2143,7 @@ body.sidebar-collapsed .showcase-footer {
 .lightbox-cover .cover-actions[data-picker-open="true"] {
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s;
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 /* 49c T5fix.B：tablet 兩行 wrap (768–1279px) */

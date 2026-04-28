@@ -2726,35 +2726,32 @@ class TestFluentCustomEaseRegistered:
 
 
 class TestShowcaseCssTransitionTokens:
-    """Phase 50.2.10: showcase.css 影片模式 transition 硬編碼 → fluent token"""
+    """Phase 50.2.10 + 51.T1.2: showcase.css transition 硬編碼 → fluent token（影片 + 女優模式全段）"""
 
     def _css(self):
         return Path("web/static/css/pages/showcase.css").read_text(encoding="utf-8")
 
-    def test_no_hardcoded_transition_in_video_mode_range(self):
-        """影片模式範圍（L1500-L1900）transition 不應有硬編碼 0.15s/0.2s"""
+    def test_no_hardcoded_transition_in_showcase_css(self):
+        """整個 showcase.css 的 transition 都不應有硬編碼 0.X s（影片模式 Phase 50 + 女優 Phase 51 T1.2）"""
         lines = self._css().split("\n")
         violations = []
         for i, line in enumerate(lines, 1):
-            # 影片模式 transition 區段（plan T2.10 範圍 ~L1500-L1900）
-            if 1500 <= i <= 1900 and "transition:" in line:
-                # 殘留硬編碼 number+s 字面（排除 var(--...) reference）
+            if "transition:" in line:
                 import re
+                # 殘留硬編碼 number+s 字面（排除 var(--...) reference 與 transition: none）
                 if re.search(r"transition:[^;]*\b0?\.\d+s\b", line) and "var(--" not in line:
                     violations.append(f"L{i}: {line.strip()}")
         assert not violations, \
-            "影片模式 transition 殘留硬編碼數字：\n" + "\n".join(violations)
+            "showcase.css transition 殘留硬編碼數字：\n" + "\n".join(violations)
 
-    def test_actress_picker_transition_preserved(self):
-        """女優 picker 區（plan T2.10 範圍排除）保留硬編碼 transition"""
+    def test_actress_picker_transition_tokenized(self):
+        """Phase 51 T1.2: 女優 picker 三處 transition 已 token 化（fluent-duration-fast + fluent-ease-standard）"""
         css = self._css()
-        # picker-check-icon, picker-refresh-btn, picker-open cover-actions
-        assert "transition: opacity 0.15s;" in css, \
-            "picker-check-icon 0.15s 應保留（女優白名單）"
-        assert "transition: all 0.15s;" in css, \
-            "picker-refresh-btn 0.15s 應保留（女優白名單）"
-        assert "transition: opacity 0.2s;" in css, \
-            "picker-open cover-actions 0.2s 應保留（女優白名單）"
+        # picker-check-icon (opacity), picker-refresh-btn (all), picker-open cover-actions (opacity)
+        assert "transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard)" in css, \
+            "picker-check-icon / cover-actions opacity transition 應使用 fluent token"
+        assert "transition: all var(--fluent-duration-fast) var(--fluent-ease-standard)" in css, \
+            "picker-refresh-btn all transition 應使用 fluent token"
 
 
 class TestMotionDurationConstants:
