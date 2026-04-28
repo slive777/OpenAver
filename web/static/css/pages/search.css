@@ -146,7 +146,7 @@
     transform: translateX(-50%);
     background: var(--overlay-modal);
     color: var(--text-inverse);
-    padding: 2px 10px;
+    padding: 2px 8px;
     border-radius: var(--fluent-radius-xl);
     font-size: 0.8rem;
 }
@@ -177,7 +177,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 
 .file-list-header .file-count {
@@ -231,6 +231,7 @@
 
 .file-item .btn-scrape-single {
     flex-shrink: 0;
+    /* row inline btn optical 6px (btn-sm 12px padding 對 row inline 太寬，row 高度有限需獨立微調) */
     padding: 0 6px;
     font-size: 0.7rem;
     line-height: 1.4;
@@ -566,6 +567,7 @@
 }
 
 .tag-add-btn {
+    /* chip optical 6px (charter §4 micro chip 級例外保留，對齊 showcase .lb-tag-add-btn) */
     padding: 1px 6px;
     font-size: 0.7rem;
     line-height: 1;
@@ -894,7 +896,7 @@
 .actress-lightbox-meta .lb-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .actress-lightbox-meta .lb-name-en { font-size: 0.9em; opacity: 0.7; }
 .actress-lightbox-meta .lb-actress-core { font-size: 0.95em; margin: 8px 0; opacity: 0.85; }
-.actress-lightbox-meta .lb-chips-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.actress-lightbox-meta .lb-chips-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .actress-lightbox-meta .lb-chips-more {
     cursor: pointer; font-size: 0.85em; padding: 2px 8px;
     border-radius: var(--radius-md); border: 1px solid currentColor; opacity: 0.6;
