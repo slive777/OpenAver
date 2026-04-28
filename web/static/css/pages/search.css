@@ -14,8 +14,8 @@
     padding: 0.5rem 1rem;
     background: var(--bg-header);
     border-bottom: 1px solid var(--border-light);
-    backdrop-filter: blur(16px) saturate(130%);
-    -webkit-backdrop-filter: blur(16px) saturate(130%);
+    backdrop-filter: blur(var(--fluent-blur)) saturate(var(--fluent-saturate));
+    -webkit-backdrop-filter: blur(var(--fluent-blur)) saturate(var(--fluent-saturate));
     z-index: 100;
 }
 
@@ -54,7 +54,7 @@
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--overlay-letterbox);
 }
 
 /* Fix 3: 封面錯誤/無封面 placeholder 置中 */
@@ -86,6 +86,7 @@
     height: 100%;
     max-height: calc(100vh - 200px);
     object-fit: contain !important;  /* Search 不裁切；!important 覆蓋 theme.css (0,1,1) specificity */
+    /* §2 例外：drop-shadow 跟封面去背形狀走（非矩形 box-shadow），無法用 --fluent-shadow-* token（後者是完整 box-shadow 字串）；alpha 0.3 對齊 dim theme fluent-shadow key 0.28 ±0.02 */
     filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
 }
 
@@ -112,7 +113,7 @@
     transform: translateY(-50%);
     width: 44px;
     height: 64px;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--overlay-modal);
     border: none;
     color: var(--text-inverse);
     font-size: 1.4rem;
@@ -124,7 +125,7 @@
 }
 
 .av-card-full-cover-wrapper .nav-btn:hover {
-    background: rgba(0, 0, 0, 0.8);
+    background: var(--overlay-gallery);
     transform: translateY(-50%) scale(1.05);
 }
 
@@ -143,7 +144,7 @@
     bottom: 50px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--overlay-modal);
     color: var(--text-inverse);
     padding: 2px 10px;
     border-radius: var(--fluent-radius-xl);
@@ -399,8 +400,8 @@
     right: 0;
     bottom: 0;
     background: color-mix(in oklch, var(--color-base-100) 60%, transparent);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
     z-index: 9999;
     display: flex;
     align-items: center;
@@ -767,7 +768,7 @@
     background: var(--color-primary);
     color: var(--color-primary-content);
     padding: 0.1rem 0.4rem;
-    border-radius: 4px;
+    border-radius: var(--fluent-radius-md);
     white-space: nowrap;
 }
 
@@ -896,7 +897,7 @@
 .actress-lightbox-meta .lb-chips-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .actress-lightbox-meta .lb-chips-more {
     cursor: pointer; font-size: 0.85em; padding: 2px 8px;
-    border-radius: 12px; border: 1px solid currentColor; opacity: 0.6;
+    border-radius: var(--radius-md); border: 1px solid currentColor; opacity: 0.6;
 }
 .actress-lightbox-meta .lb-chips-more:hover { opacity: 1; }
 .actress-lightbox-meta .lb-actress-urls { margin-top: 8px; }
