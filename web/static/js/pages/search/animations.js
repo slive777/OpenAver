@@ -357,7 +357,7 @@
         /**
          * Skeleton grid 整體轉場淡入（seed 收到後、Progress → Grid 轉場）
          *
-         * 輕量整體淡入，讓 skeleton grid 出現時不突兀。（保留不改）
+         * 輕量整體淡入，讓 skeleton grid 出現時不突兀。
          *
          * @param {Element} gridEl - .search-grid 元素
          * @returns {gsap.core.Tween|null}
@@ -1030,9 +1030,9 @@
          *
          * @param {Element[]} newCards - 新批次卡片 DOM 元素陣列
          * @param {object} [options] - 可選動畫參數
-         * @param {number} [options.duration=0.35] - 單張動畫時長（秒）
+         * @param {number} [options.duration=DURATION.medium] - 單張動畫時長（秒）
          * @param {number} [options.stagger=0.03] - 卡片間隔（秒）
-         * @param {string} [options.ease='power2.out'] - GSAP ease
+         * @param {string} [options.ease='fluent-decel'] - GSAP ease
          * @returns {null|gsap.core.Tween}
          */
         playAppendCascade: function (newCards, options) {
