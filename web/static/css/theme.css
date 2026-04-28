@@ -320,7 +320,7 @@ body {
     position: absolute;
     inset: 0;
     background: oklch(0% 0 0 / 0.4);
-    backdrop-filter: blur(2px);
+    /* CD-52-8 T1.4.1: 移除 blur(2px)，overlay card-actions 不需 floating-control 三階 */
     opacity: 0;
     display: flex;
     align-items: center;

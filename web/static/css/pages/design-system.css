@@ -2190,8 +2190,8 @@
     background:
         radial-gradient(ellipse 80% 80% at 20% 50%, rgba(var(--ds-glow-rgb), 0.3), transparent),
         linear-gradient(135deg, oklch(65% 0.15 250 / 0.3) 0%, oklch(55% 0.12 85 / 0.2) 100%);
-    backdrop-filter: blur(16px) saturate(130%);
-    -webkit-backdrop-filter: blur(16px) saturate(130%);
+    backdrop-filter: blur(var(--fluent-blur)) saturate(130%);
+    -webkit-backdrop-filter: blur(var(--fluent-blur)) saturate(130%);
 }
 
 .ds-material-toolbar-label {
@@ -2367,8 +2367,8 @@
 .ds-page .showcase-toolbar {
     position: static;
     background: var(--bg-header);
-    backdrop-filter: blur(16px) saturate(130%);
-    -webkit-backdrop-filter: blur(16px) saturate(130%);
+    backdrop-filter: blur(var(--fluent-blur)) saturate(130%);
+    -webkit-backdrop-filter: blur(var(--fluent-blur)) saturate(130%);
     border-bottom: 1px solid var(--border-light);
     padding: 0.75rem 1.5rem;
     display: flex;
