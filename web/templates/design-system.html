@@ -679,6 +679,89 @@
                     </button>
                 </div>
             </div>
+
+            <!-- §1 Pill 999px 白名單 -->
+            <div class="ds-subsection">
+                <h3>§1 Pill 999px 白名單（5 類）</h3>
+                <p class="ds-desc">ui-conventions §1：<code>border-radius: 999px</code>（<code>--radius-pill</code>）限這 5 類使用，其他元件用 <code>var(--fluent-radius-*)</code> token。</p>
+                <div class="ds-pill-whitelist-grid">
+
+                    <!-- 1. spotlight-search -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo">
+                            <div class="ds-pill-demo-spotlight">
+                                <i class="bi bi-search"></i>
+                                <span>搜尋演員...</span>
+                            </div>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">類 1 · <code>.spotlight-search</code></span>
+                            <p class="ds-pill-card-desc">頁面頂部 Spotlight 搜尋框</p>
+                            <code class="ds-pill-card-token">--radius-pill: 999px</code>
+                        </div>
+                    </div>
+
+                    <!-- 2. btn-hero -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo">
+                            <button class="btn-hero btn-hero-primary" style="pointer-events: none;">
+                                <i class="bi bi-play-fill"></i> 開始掃描
+                            </button>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">類 2 · <code>.btn-hero</code></span>
+                            <p class="ds-pill-card-desc">Hero CTA 行動呼籲大按鈕</p>
+                            <code class="ds-pill-card-token">--radius-pill: 999px</code>
+                        </div>
+                    </div>
+
+                    <!-- 3. lb-tag / lb-user-tag -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo" style="display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center;">
+                            <span class="lb-tag">動作</span>
+                            <span class="lb-tag">喜劇</span>
+                            <span class="lb-user-tag">自訂標籤</span>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">類 3 · <code>.lb-tag</code> / <code>.lb-user-tag</code></span>
+                            <p class="ds-pill-card-desc">Lightbox 元資料 tag chips</p>
+                            <code class="ds-pill-card-token">--radius-pill: 999px</code>
+                        </div>
+                    </div>
+
+                    <!-- 4. badge -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo" style="display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center;">
+                            <span class="badge badge-primary">NEW</span>
+                            <span class="badge badge-secondary">HD</span>
+                            <span class="badge badge-accent">4K</span>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">類 4 · <code>.badge</code> 類</span>
+                            <p class="ds-pill-card-desc">數量徽章、狀態 badge</p>
+                            <code class="ds-pill-card-token">--radius-pill: 999px</code>
+                        </div>
+                    </div>
+
+                    <!-- 5. control action pill -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo" style="display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center;">
+                            <button class="sg-open-btn" style="pointer-events: none;">
+                                <i class="bi bi-images"></i> 樣本圖
+                            </button>
+                            <button class="fetch-samples-btn" style="pointer-events: none;">
+                                <i class="bi bi-download"></i> 取得
+                            </button>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">類 5 · <code>.sg-open-btn</code> / <code>.fetch-samples-btn</code> / <code>.mode-toggle</code></span>
+                            <p class="ds-pill-card-desc">Lightbox / control action pill</p>
+                            <code class="ds-pill-card-token">--radius-pill: 999px</code>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
         </section>
 
         <!-- 區塊 4: Form Controls (accent-bar 樣式) -->
