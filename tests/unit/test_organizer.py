@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 from PIL import Image
 
-from core.organizer import _detect_suffixes, format_string, organize_file, crop_to_poster, generate_nfo, extract_chinese_title, download_image
+from core.organizer import _detect_suffixes, format_string, organize_file, crop_to_poster, generate_nfo, extract_chinese_title, download_image, truncate_to_chars, truncate_title
 
 
 # ============ _detect_suffixes() 測試 ============
@@ -1824,3 +1824,48 @@ class TestOrganizeSubtitle:
         nfo_content = Path(result["nfo_path"]).read_text(encoding="utf-8")
         assert "中文字幕" in nfo_content, \
             "has_subtitle=False 但有 sidecar 字幕時，NFO 應包含中文字幕 tag"
+
+
+# ============ Issue #31 — Windows trailing-dot truncation ============
+
+class TestTruncateWindowsTrailingDot:
+    """Issue #31: 截斷後尾端 `...` 在 Windows 會被 NTFS 剝除，導致 shutil.move WinError 3"""
+
+    def test_truncate_to_chars_strips_trailing_dots_on_windows(self, monkeypatch):
+        monkeypatch.setattr('core.organizer.sys.platform', 'win32')
+        result = truncate_to_chars("僕が不在の5日間、彼女が他の男と朝から晩までヤリまくっていた胸糞映像 吉高寧々", 40)
+        assert not result.endswith('.'), f"Windows: 截斷結果不應以 . 結尾, got {result!r}"
+        assert not result.endswith(' '), f"Windows: 截斷結果不應以空格結尾, got {result!r}"
+
+    def test_truncate_to_chars_keeps_ellipsis_on_posix(self, monkeypatch):
+        monkeypatch.setattr('core.organizer.sys.platform', 'linux')
+        result = truncate_to_chars("a" * 100, 40)
+        assert result.endswith('...'), f"Non-Windows: 應保留 ... 後綴, got {result!r}"
+        assert len(result) == 40
+
+    def test_truncate_to_chars_no_change_when_under_limit(self, monkeypatch):
+        monkeypatch.setattr('core.organizer.sys.platform', 'win32')
+        result = truncate_to_chars("short", 60)
+        assert result == "short"
+
+    def test_truncate_title_strips_trailing_dots_on_windows(self, monkeypatch):
+        monkeypatch.setattr('core.organizer.sys.platform', 'win32')
+        result = truncate_title("a" * 100, 30)
+        assert not result.endswith('.'), f"Windows truncate_title 結果不應以 . 結尾, got {result!r}"
+
+    def test_truncate_title_keeps_ellipsis_on_posix(self, monkeypatch):
+        monkeypatch.setattr('core.organizer.sys.platform', 'darwin')
+        result = truncate_title("a" * 100, 30)
+        assert result.endswith('...')
+
+    def test_truncate_strips_trailing_space_before_dots_on_windows(self, monkeypatch):
+        # 文字剛好截在空格 + ... → "foo ..."  Windows 會剝成 "foo"
+        monkeypatch.setattr('core.organizer.sys.platform', 'win32')
+        # 構造一個截斷後變 "xxxxx ..." 的字串
+        text = "x" * 36 + " " + "yyy"  # 長度 40, 截到 max=40 不變; 設 max=39 → "xxxx..." 結尾無空格
+        # 直接驗證：任何長度都不應以 . 或空格結尾
+        for limit in (10, 20, 39, 50):
+            r = truncate_to_chars(text, limit)
+            if len(text) > limit and limit > 3:
+                assert not r.endswith('.') and not r.endswith(' '), \
+                    f"limit={limit}: got {r!r}"

@@ -26,8 +26,8 @@
 
     /* Acrylic 毛玻璃效果（Fluent Design 2 - Heavy Glass）*/
     background: var(--bg-header); /* color-mix 85% transparency */
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(var(--fluent-blur));
+    -webkit-backdrop-filter: blur(var(--fluent-blur));
 
     /* Border */
     border-bottom: 1px solid var(--border-light);
@@ -516,9 +516,10 @@
     justify-content: center;
 
     /* Smoke Backdrop — 匹配 gallery_generator.py 舊版風格 */
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: var(--overlay-modal);
+    /* charter §2 仲裁：lightbox backdrop 用 floating-control 12px (非 overlay 30px)，保留 grid spatial reference UX */
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
 
     /* 初始隱藏 */
     opacity: 0;
@@ -590,9 +591,9 @@
     height: 44px;
     border: none;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: var(--overlay-control);
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
     color: var(--text-inverse);
     font-size: 1.25rem;
     cursor: pointer;
@@ -602,6 +603,7 @@
 }
 
 .lightbox-close:hover {
+    /* hover 升階 0.5 (charter §3 個案保留，控制按鈕 hover 強調) */
     background: rgba(0, 0, 0, 0.5);
     transform: scale(1.1);
 }
@@ -708,7 +710,7 @@
 .lightbox-metadata .lb-tag {
     padding: 0.15rem 0.5rem;
     background: var(--bg-body);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     font-size: 0.6875rem;
     color: var(--text-secondary);
     border: 1px solid var(--stroke-subtle);
@@ -722,9 +724,9 @@
     display: flex;
     justify-content: center;
     align-items: flex-end;
-    padding-bottom: 20px;
+    padding-bottom: 24px;
     gap: 12px;
-    background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 60%, transparent 100%);
+    background: linear-gradient(to top, var(--overlay-gradient) 0%, rgba(0,0,0,0.2) 60%, transparent 100%);
     border-radius: 0 0 var(--radius-sm) var(--radius-sm);
     opacity: 0;
     transition: opacity var(--duration-fast) var(--ease-out);
@@ -742,13 +744,13 @@
     border: 1px solid rgba(255,255,255,0.4);
     border-radius: 50%;
     background: rgba(255,255,255,0.15);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
     color: white;
     font-size: 1.125rem;
     cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    box-shadow: var(--fluent-shadow-8);
     transition: background var(--duration-fast) var(--ease-out),
                 border-color var(--duration-fast) var(--ease-out),
                 transform var(--duration-fast) var(--ease-out),
@@ -759,7 +761,7 @@
     background: rgba(255,255,255,0.3);
     border-color: rgba(255,255,255,0.6);
     transform: scale(1.08);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+    box-shadow: var(--fluent-shadow-16);
 }
 
 .lb-action-btn:active {
@@ -821,9 +823,9 @@
     height: 56px;
     border: none;
     border-radius: 50%;
-    background: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: var(--overlay-control);
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
     color: var(--text-inverse);
     font-size: 1.5rem;
     cursor: pointer;
@@ -833,6 +835,7 @@
 }
 
 .lightbox-nav:hover {
+    /* hover 升階 0.5 (charter §3 個案保留，同 .lightbox-close:hover) */
     background: rgba(0, 0, 0, 0.5);
     transform: translateY(-50%) scale(1.1);
 }
@@ -1248,8 +1251,8 @@
 
     /* 背景 - 使用 Design System token */
     background: var(--bg-header);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
     border-top: 1px solid var(--stroke-subtle);
 
     /* 間距 */
@@ -1280,7 +1283,7 @@ body.sidebar-collapsed .showcase-footer {
 .footer-count {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px; /* micro: icon + 數字緊鄰，charter §4 micro 子網格 */
     white-space: nowrap;
 }
 
@@ -1331,7 +1334,7 @@ body.sidebar-collapsed .showcase-footer {
     background: var(--surface-1);
     border: 1px solid var(--stroke-default);
     border-radius: var(--radius-sm);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--fluent-shadow-2);
 
     font-family: var(--font-mono);
     font-size: 0.75rem;
@@ -1386,7 +1389,7 @@ body.sidebar-collapsed .showcase-footer {
     font-size: 0.8125rem;
     font-family: var(--font-mono);
     color: var(--text-secondary);
-    padding: 0 6px;
+    padding: 0 8px;
     cursor: pointer;
     user-select: none;
     transition: color var(--duration-fast) var(--ease-out);
@@ -1427,6 +1430,7 @@ body.sidebar-collapsed .showcase-footer {
         display: none;
     }
     .showcase-container {
+        /* layout 對齊 fixed footer 真實渲染高度 (charter §4 例外) */
         padding-bottom: 44px;
     }
 }
@@ -1493,15 +1497,16 @@ body.sidebar-collapsed .showcase-footer {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: var(--overlay-gallery);
+    backdrop-filter: blur(var(--fluent-blur));
+    -webkit-backdrop-filter: blur(var(--fluent-blur));
 
     /* 初始隱藏 */
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard),
+                visibility var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .sample-gallery.show {
@@ -1528,7 +1533,7 @@ body.sidebar-collapsed .showcase-footer {
     max-height: calc(100vh - 160px);
     object-fit: contain;
     display: block;
-    border-radius: 4px;
+    border-radius: var(--fluent-radius-md);
     user-select: none;
 }
 
@@ -1551,7 +1556,7 @@ body.sidebar-collapsed .showcase-footer {
 
 .sample-gallery .sg-thumbs::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
+    border-radius: var(--fluent-radius-sm);
 }
 
 /* 縮圖按鈕 */
@@ -1562,10 +1567,11 @@ body.sidebar-collapsed .showcase-footer {
     padding: 0;
     background: none;
     border: 2px solid transparent;
-    border-radius: 4px;
+    border-radius: var(--fluent-radius-md);
     cursor: pointer;
     overflow: hidden;
-    transition: border-color 0.15s ease, opacity 0.15s ease;
+    transition: border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+                opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
     opacity: 0.6;
 }
 
@@ -1593,11 +1599,11 @@ body.sidebar-collapsed .showcase-footer {
     position: absolute;
     top: 1rem;
     right: 4rem;
-    background: rgba(0, 0, 0, 0.55);
+    background: var(--overlay-gradient);
     color: rgba(255, 255, 255, 0.9);
     font-size: 0.8rem;
     padding: 0.25rem 0.6rem;
-    border-radius: 12px;
+    border-radius: var(--radius-pill);
     pointer-events: none;
     user-select: none;
 }
@@ -1607,7 +1613,7 @@ body.sidebar-collapsed .showcase-footer {
     position: absolute;
     top: 0.75rem;
     right: 0.75rem;
-    background: rgba(0, 0, 0, 0.45);
+    background: var(--overlay-control);
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 50%;
     width: 2.25rem;
@@ -1617,7 +1623,8 @@ body.sidebar-collapsed .showcase-footer {
     justify-content: center;
     color: rgba(255, 255, 255, 0.8);
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                color var(--fluent-duration-fast) var(--fluent-ease-standard);
     font-size: 1rem;
     z-index: 10;
 }
@@ -1632,7 +1639,7 @@ body.sidebar-collapsed .showcase-footer {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    background: rgba(0, 0, 0, 0.45);
+    background: var(--overlay-control);
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 50%;
     width: 2.5rem;
@@ -1642,7 +1649,8 @@ body.sidebar-collapsed .showcase-footer {
     justify-content: center;
     color: rgba(255, 255, 255, 0.8);
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                color var(--fluent-duration-fast) var(--fluent-ease-standard);
     font-size: 1.1rem;
     z-index: 10;
     /* 避免縮圖列遮到箭頭 */
@@ -1670,12 +1678,13 @@ body.sidebar-collapsed .showcase-footer {
     flex-shrink: 0;
     padding: 0.25rem 0.75rem;
     font-size: 0.8rem;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     border: 1px solid var(--glow-primary);
     background: var(--glow-subtle);
     color: var(--accent);
     cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
     white-space: nowrap;
 }
 
@@ -1692,12 +1701,13 @@ body.sidebar-collapsed .showcase-footer {
     flex-shrink: 0;
     padding: 0.25rem 0.75rem;
     font-size: 0.8rem;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     border: 1px solid color-mix(in oklch, var(--accent-secondary) 40%, transparent);
     background: color-mix(in oklch, var(--accent-secondary) 15%, transparent);
     color: var(--accent-secondary);
     cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
     white-space: nowrap;
 }
 
@@ -1736,7 +1746,7 @@ body.sidebar-collapsed .showcase-footer {
     padding: 0.15rem 0.5rem;
     background: var(--accent);
     color: var(--color-primary-content);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     font-size: 0.6875rem;
 }
 
@@ -1758,6 +1768,7 @@ body.sidebar-collapsed .showcase-footer {
 
 /* + 新增按鈕 — dashed border */
 .lb-tag-add-btn {
+    /* chip optical 6px (charter §4 micro chip 級例外保留) */
     padding: 1px 6px;
     font-size: 0.7rem;
     line-height: 1.4;
@@ -1841,7 +1852,7 @@ body.sidebar-collapsed .showcase-footer {
 /* lb-chips-more shared rule for video lightbox tags +N */
 .lightbox-metadata .lb-chips-more {
     cursor: pointer; font-size: 0.85em; padding: 2px 8px;
-    border-radius: 12px; border: 1px solid currentColor; opacity: 0.6;
+    border-radius: var(--radius-md); border: 1px solid currentColor; opacity: 0.6;
 }
 
 /* ==================== Mode Toggle Capsule (44c-T4) ==================== */
@@ -1856,7 +1867,7 @@ body.sidebar-collapsed .showcase-footer {
     align-items: center;
     gap: 2px;
     background: rgba(255, 255, 255, 0.08);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     padding: 2px;
 }
 
@@ -1872,15 +1883,15 @@ body.sidebar-collapsed .showcase-footer {
     align-items: center;
     justify-content: center;
     font-size: 0.9rem;
-    transition: all 0.15s ease;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .mode-toggle-btn.active {
     background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
     color: var(--text-primary);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--fluent-shadow-2);
 }
 
 .mode-toggle-btn:not(.active):hover {
@@ -2205,4 +2216,84 @@ body.sidebar-collapsed .showcase-footer {
 .bi.spin,
 .picker-refresh-btn i.spin {
     animation: spin 1s linear infinite;
+}
+
+/* ==================== Phase 50 T5 §6 5 檢查點 — DaisyUI Component Override ==================== */
+/* Fluent 覆寫 .showcase-container 內 DaisyUI .btn / .input（charter §6 5 檢查點：radius/surface/stroke/shadow/hover-focus）*/
+/* CD-4 限制：scoped 在 .showcase-container 內，不影響其他頁面 */
+/* P1b fix: 補齊 Stroke token、Surface token、修正 Focus 為 2px outline + 4px glow（charter §6） */
+
+/* §6 Checkpoint 1 Radius: var(--fluent-radius-md) */
+/* §6 Checkpoint 2 Surface: DaisyUI variant 提供 .btn background；.input 補 var(--surface-1) */
+/* §6 Checkpoint 3 Stroke: border var(--stroke-default) + inset 0 1px 0 dual-layer 內框 */
+/* §6 Checkpoint 4 Shadow: var(--fluent-shadow-2)，hover 升 --fluent-shadow-4 */
+/* §6 Checkpoint 5 Hover/Focus: hover 升 shadow + translateY；focus 2px outline + 4px glow */
+
+.showcase-container .btn {
+    border-radius: var(--fluent-radius-md);
+    /* Stroke: width/style only — 保留 DaisyUI variant border-color (.btn-outline.btn-primary 等) */
+    border-width: 1px;
+    border-style: solid;
+    /* Shadow: 底階 + dual-layer 內框 */
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-2);
+    transition:
+        background var(--fluent-duration-fast) var(--fluent-ease-standard),
+        border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+        box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard),
+        transform var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.showcase-container .btn:hover:not(:disabled) {
+    /* hover 不覆寫 border-color，DaisyUI variant 自管 (.btn-outline.btn-primary primary 強調保留) */
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 12%, transparent),
+        var(--fluent-shadow-4);
+    transform: translateY(-1px);
+}
+
+.showcase-container .btn:focus-visible {
+    /* Focus: 2px outline + 4px glow（charter §6 Checkpoint 5 精確規格） */
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-2),
+        0 0 0 4px var(--glow-primary);
+}
+
+.showcase-container .btn:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 6%, transparent),
+        var(--fluent-shadow-2);
+}
+
+.showcase-container .input {
+    border-radius: var(--fluent-radius-md);
+    /* Surface: 輸入框用 surface-1 基底（charter §6 Checkpoint 2） */
+    background: var(--surface-1);
+    /* Stroke: width/style only — 保留 DaisyUI .input-bordered variant border-color */
+    border-width: 1px;
+    border-style: solid;
+    /* Shadow: 輸入框底階（charter §6 Checkpoint 4） */
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 6%, transparent),
+        var(--fluent-shadow-2);
+    transition:
+        border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+        box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.showcase-container .input:focus,
+.showcase-container .input:focus-visible {
+    /* Focus: 2px outline + 4px glow（charter §6 Checkpoint 5 精確規格） */
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-color: var(--accent);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-2),
+        0 0 0 4px var(--glow-primary);
 }

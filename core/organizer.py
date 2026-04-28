@@ -5,6 +5,7 @@ Organizer 模組 - 檔案整理功能（重命名、資料夾、封面、NFO）
 
 import os
 import re
+import sys
 import shutil
 import requests
 import html
@@ -35,13 +36,21 @@ def sanitize_filename(name: str) -> str:
     return name
 
 
+def _strip_windows_trailing(name: str) -> str:
+    # Win32 directory creation silently strips trailing dots/spaces, so target
+    # path string and on-disk name diverge → shutil.move WinError 3. See #31.
+    if sys.platform == 'win32':
+        return name.rstrip('. ')
+    return name
+
+
 def truncate_title(title: str, max_len: int = 50) -> str:
     """截斷標題長度"""
     if not title:
         return ''
     if len(title) <= max_len:
         return title
-    return title[:max_len - 3] + '...'
+    return _strip_windows_trailing(title[:max_len - 3] + '...')
 
 
 def truncate_to_chars(text: str, max_chars: int = 60) -> str:
@@ -52,7 +61,7 @@ def truncate_to_chars(text: str, max_chars: int = 60) -> str:
         return text[:max_chars]
     if len(text) <= max_chars:
         return text
-    return text[:max_chars - 3] + '...'
+    return _strip_windows_trailing(text[:max_chars - 3] + '...')
 
 
 def clean_source_suffix(text: str) -> str:

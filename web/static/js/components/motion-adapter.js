@@ -9,7 +9,30 @@
 (function () {
     window.OpenAver = window.OpenAver || {};
 
+    // Phase 50.2.0: 註冊 Fluent CustomEase（charter §5 三角色）
+    // 同步 guarded register — base.html defer 順序保證 CustomEase plugin 已載入
+    if (typeof CustomEase !== 'undefined') {
+        CustomEase.create('fluent',       '0.33, 0, 0.67, 1');
+        CustomEase.create('fluent-decel', '0, 0, 0, 1');
+        CustomEase.create('fluent-accel', '1, 0, 1, 1');
+    } else {
+        console.warn('[motion-adapter] CustomEase plugin missing, fluent eases not registered');
+    }
+
     var motion = {
+
+        /**
+         * Phase 50.2.9: GSAP Duration 三角色常數（charter §5，CD-7 命名避讓既有 slow:300ms）
+         *
+         * 對應 input.css :root --fluent-duration-{fast,medium,emphasis}
+         * 業務 GSAP duration 透過 OpenAver.motion.DURATION.fast/medium/emphasis 讀取
+         * （不引入 ES module，沿用既有 IIFE / window.OpenAver pattern — CD-1）
+         */
+        DURATION: {
+            fast:     0.167,   // 微互動、hover、color/opacity 過場
+            medium:   0.333,   // 中等過場（panel 展開、tag 拉開）
+            emphasis: 0.5      // 強調級長過場（lightbox 主動畫、模式切換）
+        },
 
         /**
          * 建立頁面級動畫 context
@@ -50,9 +73,9 @@
                 return gsap.from(elements, {
                     y: opts.y !== undefined ? opts.y : 20,
                     opacity: 0,
-                    duration: opts.duration || 0.5,
+                    duration: opts.duration || motion.DURATION.emphasis,
                     stagger: opts.stagger || 0,
-                    ease: opts.ease || 'power3.out',
+                    ease: opts.ease || 'fluent-decel',
                     onComplete: opts.onComplete || null
                 });
             });
@@ -69,8 +92,8 @@
                 return gsap.to(elements, {
                     y: opts.y !== undefined ? opts.y : -10,
                     opacity: 0,
-                    duration: opts.duration || 0.3,
-                    ease: opts.ease || 'power2.in',
+                    duration: opts.duration || motion.DURATION.medium,
+                    ease: opts.ease || 'fluent-accel',
                     onComplete: opts.onComplete || null
                 });
             });
@@ -88,8 +111,8 @@
                     y: opts.y !== undefined ? opts.y : 30,
                     opacity: 0,
                     stagger: opts.stagger || 0.08,
-                    duration: opts.duration || 0.6,
-                    ease: opts.ease || 'power3.out',
+                    duration: opts.duration || motion.DURATION.emphasis,
+                    ease: opts.ease || 'fluent-decel',
                     onComplete: opts.onComplete || null
                 });
             });
@@ -98,7 +121,7 @@
         /**
          * 透明度補間（fade-to）
          *
-         * 用法：OpenAver.motion.playFadeTo(elements, { opacity: 0, duration: 0.2, ease: 'power2.out' })
+         * 用法：OpenAver.motion.playFadeTo(elements, { opacity: 0, duration: 0.2, ease: 'fluent' })
          * 若 reduced-motion 啟用則直接設定最終值不播動畫。
          */
         playFadeTo: function (elements, opts) {
@@ -112,8 +135,8 @@
             return this._run(opts.ctx, function () {
                 return gsap.to(elements, {
                     opacity: targetOpacity,
-                    duration: opts.duration || 0.3,
-                    ease: opts.ease || 'power2.out',
+                    duration: opts.duration || motion.DURATION.medium,
+                    ease: opts.ease || 'fluent',
                     onComplete: opts.onComplete || null
                 });
             });
@@ -130,11 +153,23 @@
                 return gsap.from(element, {
                     scale: 0.95,
                     opacity: 0,
-                    duration: opts.duration || 0.25,
-                    ease: opts.ease || 'power2.out',
+                    duration: opts.duration || motion.DURATION.fast,
+                    ease: opts.ease || 'fluent-decel',
                     onComplete: opts.onComplete || null
                 });
             });
+        },
+
+        /**
+         * 清除元素 inline GSAP props（替代直接呼叫 `gsap.set(el, { clearProps })`）。
+         * 用於 timeline.kill() 後同步重置 transform/opacity 等殘留，防連點 stutter。
+         * 不觸發動畫，純 sync prop 重置。
+         * @param {Element} element
+         * @param {string} props - GSAP clearProps 字串（如 'transform,opacity'）
+         */
+        clearProps: function (element, props) {
+            if (!element || typeof gsap === 'undefined') return;
+            gsap.set(element, { clearProps: props });
         },
 
         /**

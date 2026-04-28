@@ -2245,6 +2245,10 @@ body.fluent-canvas:not(.ds-page) {
         radial-gradient(ellipse 100% 60% at 50% -10%, rgba(var(--ds-glow-rgb), 0.10), transparent),
         radial-gradient(ellipse 70% 50% at 100% 100%, oklch(55% 0.12 85 / 0.06), transparent),
         var(--bg-body);
+    /* Phase 50.1.0 (30ce8f2) 加的 backdrop-filter 已 revert：會把 body 變成
+     * fixed-position 子孫的 containing block，導致 .showcase-lightbox
+     * (position:fixed; inset:0) 在 search 頁以 document 高度為基準置中而非 viewport。
+     * Token --fluent-blur-heavy 保留，待 Phase 51+ 評估在哪個元素 surface 啟用。 */
 }
 
 body.fluent-canvas:not(.ds-page) .main-content {

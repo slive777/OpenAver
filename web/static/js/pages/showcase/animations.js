@@ -151,9 +151,9 @@
                 return null;
             }
 
-            var dur = params.duration || 0.5;
+            var dur = params.duration || OpenAver.motion.DURATION.emphasis;
             var staggerVal = params.stagger || 0.04;
-            var ease = params.easing || 'power3.out';
+            var ease = params.easing || 'fluent-decel';
 
             // Viewport 分流：fold 以下卡片瞬間顯示
             var viewportH = window.innerHeight;
@@ -213,8 +213,8 @@
             // C18: 中斷進行中的動畫
             gsap.killTweensOf(cards);
 
-            var dur = params.duration || 0.5;
-            var ease = params.ease || 'power2.inOut';
+            var dur = params.duration || OpenAver.motion.DURATION.emphasis;
+            var ease = params.ease || 'fluent';
 
             // 計算 delta 並收集需要動畫的卡片
             var tweens = [];
@@ -275,12 +275,12 @@
             // C18: 中斷進行中的 Flip 動畫
             Flip.killFlipsOf(cards);
 
-            var dur = params.duration || 0.4;
+            var dur = params.duration || OpenAver.motion.DURATION.medium;
 
             // Flip.from — 含 onEnter/onLeave 進出場回調
             return Flip.from(state, {
                 duration: dur,
-                ease: 'power2.inOut',
+                ease: 'fluent',
                 absolute: true,
                 prune: true,
                 simple: true,
@@ -289,17 +289,17 @@
                     if (els.length > 10) {
                         return gsap.fromTo(els,
                             { opacity: 0 },
-                            { opacity: 1, duration: dur * 0.6, stagger: 0.02, ease: 'power2.out' }
+                            { opacity: 1, duration: dur * 0.6, stagger: 0.02, ease: 'fluent-decel' }
                         );
                     }
                     // 預設：scale + fade（少量卡片進場時效果好）
                     return gsap.fromTo(els,
                         { opacity: 0, scale: 0.85 },
-                        { opacity: 1, scale: 1, duration: dur * 0.8, ease: 'power2.out' }
+                        { opacity: 1, scale: 1, duration: dur * 0.8, ease: 'fluent-decel' }
                     );
                 },
                 onLeave: function (els) {
-                    return gsap.to(els, { opacity: 0, scale: 0.85, duration: dur * 0.6, ease: 'power2.in' });
+                    return gsap.to(els, { opacity: 0, scale: 0.85, duration: dur * 0.6, ease: 'fluent-accel' });
                 },
                 onComplete: function () {
                     gsap.set(cards, { clearProps: 'transform' });
@@ -379,8 +379,8 @@
                 if (oldEl) {
                     tl.to(oldEl, {
                         opacity: 0,
-                        duration: 0.15,
-                        ease: 'power2.in',
+                        duration: OpenAver.motion.DURATION.fast,
+                        ease: 'fluent-accel',
                         clearProps: 'opacity',
                         onComplete: function () { callbacks.onOldFadeComplete(); }
                     });
@@ -392,7 +392,7 @@
             if (newEl) {
                 tl.fromTo(newEl,
                     { opacity: 0 },
-                    { opacity: 1, duration: 0.2, ease: 'power2.out', clearProps: 'opacity' }
+                    { opacity: 1, duration: OpenAver.motion.DURATION.fast, ease: 'fluent-decel', clearProps: 'opacity' }
                 );
             }
             return tl;
@@ -433,12 +433,24 @@
                 id: 'showcaseLightboxOpen',
                 onComplete: function () {
                     lightboxEl.classList.remove('gsap-animating');
+                    // Phase 50.x cleanup: 清掉動畫過程中累積的 inline transform/opacity，
+                    // 避免被打斷時殘留半路狀態（用戶連點關開造成累積 stutter）
+                    if (content) gsap.set(content, { clearProps: 'transform,opacity' });
+                    if (coverImg && !options.skipCover) gsap.set(coverImg, { clearProps: 'transform,opacity' });
                     if (typeof options.onComplete === 'function') options.onComplete();
                 },
                 onInterrupt: function () {
                     lightboxEl.classList.remove('gsap-animating');
+                    // Phase 50.x cleanup: kill 中斷時 clearProps，避免殘留半路 transform/opacity
+                    if (content) gsap.set(content, { clearProps: 'transform,opacity' });
+                    if (coverImg && !options.skipCover) gsap.set(coverImg, { clearProps: 'transform,opacity' });
                 }
             });
+
+            // Phase 50.x: charter §5 white-list 例外 — 與 ghost-fly playGridToLightbox
+            // (0.38s power2.inOut, CD-3 觀察項) 並行段，保留 power 系曲線族避免節奏錯位。
+            // fluent-decel (0,0,0,1) 起步快終端慢與 ghost-fly power2.inOut 終端慢視覺重疊，
+            // 造成「最後一小段卡」；revert 為 power2.out + 原 duration 解套。
 
             // 1. Backdrop fade-in
             tl.fromTo(lightboxEl,
@@ -512,7 +524,7 @@
             // B19: 單相 slide-in（state-first 後 DOM 已是新內容，fade-out 會造成反向閃爍）
             tl.fromTo(contentEl,
                 { opacity: 0, x: xIn },
-                { opacity: 1, x: 0, duration: 0.25, ease: 'power2.out' }
+                { opacity: 1, x: 0, duration: OpenAver.motion.DURATION.fast, ease: 'fluent' }
             );
 
             return tl;
@@ -598,8 +610,8 @@
                 {
                     opacity: 1,
                     x: 0,
-                    duration: 0.22,
-                    ease: 'power2.out',
+                    duration: OpenAver.motion.DURATION.fast,
+                    ease: 'fluent',
                     clearProps: 'transform,opacity',
                     onComplete: function () {
                         imgEl.classList.remove('gsap-animating');
@@ -625,8 +637,8 @@
             if (!el) return null;
             if (typeof gsap === 'undefined') return null;
             if (shouldSkip()) return null;
-            var dur = (typeof options.duration === 'number') ? options.duration : 0.2;
-            var ease = options.ease || 'power2.out';
+            var dur = (typeof options.duration === 'number') ? options.duration : OpenAver.motion.DURATION.fast;
+            var ease = options.ease || 'fluent-decel';
             return gsap.fromTo(el,
                 { opacity: 0 },
                 { opacity: 1, duration: dur, ease: ease, clearProps: 'opacity' }
@@ -650,7 +662,7 @@
                 duration: dur,
                 yoyo: true,
                 repeat: 1,
-                ease: 'power2.inOut'
+                ease: 'fluent'
             });
         }
     };

@@ -55,6 +55,9 @@
   --fluent-duration-normal: 250ms;
   --fluent-duration-slow: 300ms;
   --fluent-duration-slower: 400ms;
+  /* Charter v2 §5 三角色補齊（CD-7 命名避讓既有 slow:300ms） */
+  --fluent-duration-medium: 333ms;       /* charter standard 中段過場 */
+  --fluent-duration-emphasis: 500ms;     /* charter 強調級長過場 */
 
   /* 動畫緩動函數 - Fluent 官方規範 */
   --fluent-ease-decel: cubic-bezier(0, 0, 0, 1);        /* 進入動畫 */
@@ -68,8 +71,18 @@
   --fluent-acrylic-bg-light: rgba(255, 255, 255, 0.7);
   --fluent-acrylic-bg-dark: rgba(28, 28, 30, 0.7);
 
+  /* Charter v2 §2 三階玻璃補齊 */
+  --fluent-blur-light: 12px;     /* floating-control 近景（貼合元件薄膜）*/
+  --fluent-blur-heavy: 60px;     /* canvas Mica 主畫布 */
+
   /* Smoke 遮罩 */
   --fluent-smoke: rgba(0, 0, 0, 0.4);
+
+  /* Charter v2 §3 角色色白名單 — Overlay 4 階 */
+  --overlay-gallery:  rgba(0, 0, 0, 0.85);  /* sample gallery 暗幕 */
+  --overlay-modal:    rgba(0, 0, 0, 0.6);   /* lightbox backdrop */
+  --overlay-gradient: rgba(0, 0, 0, 0.55);  /* card hover 漸層 bottom */
+  --overlay-control:  rgba(0, 0, 0, 0.45);  /* 浮在媒體上的控制按鈕 */
 }
 
 /* Dark Theme 陰影 - 更深的陰影 */

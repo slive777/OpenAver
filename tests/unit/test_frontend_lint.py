@@ -2686,6 +2686,294 @@ class TestActressIconGuard:
         assert "bi-person-badge" not in html, "scanner.html 仍有 bi-person-badge"
 
 
+class TestFluentCustomEaseRegistered:
+    """Phase 50.2.0: motion-adapter.js 同步註冊 fluent CustomEase 三角色"""
+
+    def _js(self):
+        return Path("web/static/js/components/motion-adapter.js").read_text(encoding="utf-8")
+
+    def test_fluent_standard_registered(self):
+        js = self._js()
+        assert "CustomEase.create('fluent'" in js, \
+            "motion-adapter.js 缺 CustomEase.create('fluent', ...) — charter §5 standard"
+
+    def test_fluent_decel_registered(self):
+        js = self._js()
+        assert "CustomEase.create('fluent-decel'" in js, \
+            "motion-adapter.js 缺 CustomEase.create('fluent-decel', ...) — charter §5 decel"
+
+    def test_fluent_accel_registered(self):
+        js = self._js()
+        assert "CustomEase.create('fluent-accel'" in js, \
+            "motion-adapter.js 缺 CustomEase.create('fluent-accel', ...) — charter §5 accel"
+
+    def test_register_is_guarded(self):
+        """guard 寫法避免 CustomEase plugin 載入失敗時 IIFE 炸掉"""
+        js = self._js()
+        assert "typeof CustomEase !== 'undefined'" in js, \
+            "fluent ease 註冊應用 typeof guard 包住"
+
+    def test_register_is_synchronous(self):
+        """同步註冊（不放 DOMContentLoaded handler，CD-2）"""
+        js = self._js()
+        # 註冊區段位於 IIFE 內、var motion 之前；不應出現 DOMContentLoaded wrapper 包裹 CustomEase.create
+        register_idx = js.find("CustomEase.create('fluent'")
+        dom_ready_idx = js.find("DOMContentLoaded")
+        # 若有 DOMContentLoaded（reduced-motion handler 等），其位置必須在 register 之後
+        if dom_ready_idx != -1:
+            assert register_idx < dom_ready_idx, \
+                "fluent CustomEase 註冊不應被 DOMContentLoaded handler 包住"
+
+
+class TestShowcaseCssTransitionTokens:
+    """Phase 50.2.10: showcase.css 影片模式 transition 硬編碼 → fluent token"""
+
+    def _css(self):
+        return Path("web/static/css/pages/showcase.css").read_text(encoding="utf-8")
+
+    def test_no_hardcoded_transition_in_video_mode_range(self):
+        """影片模式範圍（L1500-L1900）transition 不應有硬編碼 0.15s/0.2s"""
+        lines = self._css().split("\n")
+        violations = []
+        for i, line in enumerate(lines, 1):
+            # 影片模式 transition 區段（plan T2.10 範圍 ~L1500-L1900）
+            if 1500 <= i <= 1900 and "transition:" in line:
+                # 殘留硬編碼 number+s 字面（排除 var(--...) reference）
+                import re
+                if re.search(r"transition:[^;]*\b0?\.\d+s\b", line) and "var(--" not in line:
+                    violations.append(f"L{i}: {line.strip()}")
+        assert not violations, \
+            "影片模式 transition 殘留硬編碼數字：\n" + "\n".join(violations)
+
+    def test_actress_picker_transition_preserved(self):
+        """女優 picker 區（plan T2.10 範圍排除）保留硬編碼 transition"""
+        css = self._css()
+        # picker-check-icon, picker-refresh-btn, picker-open cover-actions
+        assert "transition: opacity 0.15s;" in css, \
+            "picker-check-icon 0.15s 應保留（女優白名單）"
+        assert "transition: all 0.15s;" in css, \
+            "picker-refresh-btn 0.15s 應保留（女優白名單）"
+        assert "transition: opacity 0.2s;" in css, \
+            "picker-open cover-actions 0.2s 應保留（女優白名單）"
+
+
+class TestMotionDurationConstants:
+    """Phase 50.2.9: motion.DURATION 三角色常數 + 業務 caller 套用 (CD-1)"""
+
+    def _adapter(self):
+        return Path("web/static/js/components/motion-adapter.js").read_text(encoding="utf-8")
+
+    def _animations(self):
+        return Path("web/static/js/pages/showcase/animations.js").read_text(encoding="utf-8")
+
+    def test_duration_constants_exposed(self):
+        """motion.DURATION 三角色常數透過 IIFE 暴露於 window.OpenAver.motion"""
+        js = self._adapter()
+        assert "DURATION:" in js, "motion-adapter.js 缺 DURATION: 物件定義"
+        # 三角色值對齊 charter §5 (167ms / 333ms / 500ms)
+        assert "fast:" in js and "0.167" in js, "DURATION.fast 應為 0.167 (charter §5 167ms)"
+        assert "medium:" in js and "0.333" in js, "DURATION.medium 應為 0.333 (charter §5 333ms)"
+        assert "emphasis:" in js and "0.5" in js, "DURATION.emphasis 應為 0.5 (charter §5 500ms)"
+
+    def test_adapter_callers_use_duration_constants(self):
+        """motion-adapter.js 內部 caller 使用 motion.DURATION.* 取代 hardcoded fallback"""
+        js = self._adapter()
+        assert js.count("motion.DURATION.") >= 4, \
+            "motion-adapter.js 至少 4 個 caller (playEnter/Leave/FadeTo/Modal/Stagger) 應走 motion.DURATION.*"
+
+    def test_animations_callers_use_duration_constants(self):
+        """showcase/animations.js 業務 caller 使用 OpenAver.motion.DURATION.*"""
+        js = self._animations()
+        assert js.count("OpenAver.motion.DURATION.") >= 8, \
+            "animations.js 至少 8 處 hardcoded duration 應改走 OpenAver.motion.DURATION.*"
+
+    def test_white_list_durations_preserved(self):
+        """白名單 hardcoded duration 不被誤改：
+        - showcaseSettle 招牌曲線 (charter §5 white-list)
+        - HeroCardAppear (女優專屬，plan D10)
+        - SourcePulse 0.1 (低於 DURATION.fast 不適合 bucket)"""
+        js = self._animations()
+        # showcaseSettle: var dur = params.duration || 0.8;
+        assert "params.duration || 0.8" in js, "playSettle (showcaseSettle) duration 0.8 不應被改"
+        # HeroCardAppear: duration: 0.3
+        hero_idx = js.find("playHeroCardAppear")
+        hero_scope = js[hero_idx : hero_idx + 800]
+        assert "duration: 0.3" in hero_scope, "playHeroCardAppear duration 0.3 (女優白名單) 不應被改"
+        # SourcePulse default 0.1 stays
+        pulse_idx = js.find("playSourcePulse")
+        pulse_scope = js[pulse_idx : pulse_idx + 800]
+        assert "options.duration : 0.1" in pulse_scope, \
+            "playSourcePulse default 0.1 (低於 fast bucket) 不應被改"
+
+
+class TestMotionAdapterFluentDefaults:
+    """Phase 50.2.1: motion-adapter.js 5 default ease → fluent 角色"""
+
+    def _js(self):
+        return Path("web/static/js/components/motion-adapter.js").read_text(encoding="utf-8")
+
+    def _scoped(self, fn_name):
+        """擷取從 fn_name 開頭到下一個 /** 區段間的 JS（function body 範圍）"""
+        js = self._js()
+        idx = js.find(fn_name + ":")
+        assert idx > 0, f"找不到 {fn_name}"
+        next_doc = js.find("/**", idx + 1)
+        return js[idx : next_doc if next_doc > 0 else idx + 800]
+
+    def test_play_enter_default_fluent_decel(self):
+        scope = self._scoped("playEnter")
+        assert "opts.ease || 'fluent-decel'" in scope, \
+            "playEnter default ease 應為 'fluent-decel'（charter §5 進場）"
+
+    def test_play_leave_default_fluent_accel(self):
+        scope = self._scoped("playLeave")
+        assert "opts.ease || 'fluent-accel'" in scope, \
+            "playLeave default ease 應為 'fluent-accel'（charter §5 離場）"
+
+    def test_play_stagger_default_fluent_decel(self):
+        scope = self._scoped("playStagger")
+        assert "opts.ease || 'fluent-decel'" in scope, \
+            "playStagger default ease 應為 'fluent-decel'（charter §5 進場 stagger）"
+
+    def test_play_fade_to_default_fluent(self):
+        scope = self._scoped("playFadeTo")
+        assert "opts.ease || 'fluent'" in scope and "opts.ease || 'fluent-decel'" not in scope, \
+            "playFadeTo default ease 應為 'fluent'（charter §5 standard）"
+
+    def test_play_modal_default_fluent_decel(self):
+        scope = self._scoped("playModal")
+        assert "opts.ease || 'fluent-decel'" in scope, \
+            "playModal default ease 應為 'fluent-decel'（charter §5 modal 彈出）"
+
+    def test_no_legacy_power_ease_defaults(self):
+        """confirm 沒有殘留的 power* default ease（在 motion-adapter.js 中）"""
+        js = self._js()
+        # 註解 / 文件字串若引用 power* 不算違規；但 default fallback 不應有
+        assert "opts.ease || 'power" not in js, \
+            "motion-adapter.js 殘留 power* default ease — 未完成 fluent 角色化"
+
+
+class TestShowcaseAnimationsFluent:
+    """Phase 50.2.2-2.8: showcase/animations.js 各動畫 ease → charter §5 fluent 角色"""
+
+    def _js(self):
+        return Path("web/static/js/pages/showcase/animations.js").read_text(encoding="utf-8")
+
+    def _scoped(self, fn_name, length=1500):
+        js = self._js()
+        idx = js.find(fn_name + ":")
+        assert idx > 0, f"找不到 {fn_name}"
+        return js[idx : idx + length]
+
+    # === T2.2 — playEntry → fluent-decel ===
+    def test_play_entry_default_fluent_decel(self):
+        scope = self._scoped("playEntry", 800)
+        assert "params.easing || 'fluent-decel'" in scope, \
+            "playEntry default ease 應為 'fluent-decel'（charter §5 進場）"
+
+    # === T2.3 — playFlipReorder → fluent (standard) ===
+    def test_play_flip_reorder_default_fluent(self):
+        scope = self._scoped("playFlipReorder", 1500)
+        assert "params.ease || 'fluent'" in scope, \
+            "playFlipReorder default ease 應為 'fluent'（charter §5 standard 互動）"
+
+    # === T2.5 — playModeCrossfade ===
+    def test_play_mode_crossfade_old_fluent_accel(self):
+        scope = self._scoped("playModeCrossfade", 2000)
+        assert "ease: 'fluent-accel'" in scope, \
+            "playModeCrossfade old fade-out 應為 'fluent-accel'（離場）"
+
+    def test_play_mode_crossfade_new_fluent_decel(self):
+        scope = self._scoped("playModeCrossfade", 2000)
+        assert "ease: 'fluent-decel'" in scope, \
+            "playModeCrossfade new fade-in 應為 'fluent-decel'（進場）"
+
+    # === T2.7 — playLightboxSwitch / playSampleGallerySwitch → fluent ===
+    def test_play_lightbox_switch_fluent(self):
+        scope = self._scoped("playLightboxSwitch", 1500)
+        assert "ease: 'fluent'" in scope, \
+            "playLightboxSwitch ease 應為 'fluent'（charter §5 standard 互動切換）"
+        assert "power2.out" not in scope, "playLightboxSwitch 殘留 power2.out"
+
+    def test_play_sample_gallery_switch_fluent(self):
+        scope = self._scoped("playSampleGallerySwitch", 1300)
+        assert "ease: 'fluent'" in scope, \
+            "playSampleGallerySwitch ease 應為 'fluent'（charter §5 standard 互動切換）"
+        assert "power2.out" not in scope, "playSampleGallerySwitch 殘留 power2.out"
+
+    # === T2.8 — playContainerFadeIn / playSourcePulse ===
+    def test_play_container_fade_in_default_fluent_decel(self):
+        scope = self._scoped("playContainerFadeIn", 800)
+        assert "options.ease || 'fluent-decel'" in scope, \
+            "playContainerFadeIn default ease 應為 'fluent-decel'（charter §5 進場）"
+
+    def test_play_source_pulse_fluent(self):
+        scope = self._scoped("playSourcePulse", 800)
+        assert "ease: 'fluent'" in scope, \
+            "playSourcePulse ease 應為 'fluent'（charter §5 standard yoyo pulse）"
+        assert "power2.inOut" not in scope, "playSourcePulse 殘留 power2.inOut"
+
+    # === playHeroCardAppear — 女優專屬白名單，不動 ===
+    def test_hero_card_appear_whitelist_not_touched(self):
+        """playHeroCardAppear 為女優專屬（plan D10 white-list），ease 不被本 phase 改"""
+        scope = self._scoped("playHeroCardAppear", 800)
+        # 白名單保留 power2.out（spec scope 排除女優模式）
+        assert "ease: 'power2.out'" in scope, \
+            "playHeroCardAppear ease 不應被改（女優專屬 white-list）"
+
+    # === Phase 50.x revert — playLightboxOpen 3 段保留 power2.out（charter §5 white-list 例外）===
+    # 理由：playLightboxOpen 與 ghost-fly playGridToLightbox (0.38s power2.inOut, CD-3 觀察項)
+    # 並行播放，需保留 power 系曲線族避免節奏錯位。fluent-decel (0,0,0,1) 起步快終端慢
+    # 與 ghost-fly power2.inOut 終端慢視覺重疊，造成「最後一小段卡」。
+    def test_play_lightbox_open_three_power_out(self):
+        """三段（backdrop / content / cover）ease 為 power2.out（white-list 例外）"""
+        scope = self._scoped("playLightboxOpen", 4500)
+        assert scope.count("ease: 'power2.out'") >= 3, \
+            "playLightboxOpen backdrop+content+cover 三段 ease 應為 'power2.out'（×3，charter §5 white-list 例外，與 ghost-fly 並行段）"
+
+    def test_play_lightbox_open_no_fluent_decel_in_three_phases(self):
+        """三段不應誤用 fluent-decel（與 ghost-fly power2.inOut 終端視覺重疊）"""
+        scope = self._scoped("playLightboxOpen", 4500)
+        assert "ease: 'fluent-decel'" not in scope, \
+            "playLightboxOpen 不應使用 'fluent-decel'（與 ghost-fly playGridToLightbox 並行段視覺重疊；white-list 例外用 power2.out）"
+
+    def test_play_lightbox_open_white_list_comment_present(self):
+        """white-list 例外註解必須留存（避免後續清 hardcoded duration 時誤改）"""
+        scope = self._scoped("playLightboxOpen", 4500)
+        assert "white-list" in scope or "ghost-fly" in scope, \
+            "playLightboxOpen 應有 charter §5 white-list / ghost-fly 並行段註解，標明 power2.out 為刻意保留"
+
+    def test_play_lightbox_open_clearprops_cleanup(self):
+        """onComplete + onInterrupt 補 clearProps 防連點殘留（Phase 50.x cleanup）"""
+        scope = self._scoped("playLightboxOpen", 4500)
+        assert scope.count("clearProps: 'transform,opacity'") >= 4, \
+            "playLightboxOpen onComplete + onInterrupt 應各有 content + coverImg 兩處 clearProps（共 4 處）"
+
+    # === T2.4 — playFlipFilter (main + onEnter ×2 + onLeave) ===
+    def test_play_flip_filter_main_fluent(self):
+        scope = self._scoped("playFlipFilter", 2000)
+        assert "ease: 'fluent'," in scope, \
+            "playFlipFilter Flip.from main ease 應為 'fluent'"
+
+    def test_play_flip_filter_on_enter_fluent_decel(self):
+        scope = self._scoped("playFlipFilter", 2000)
+        # 兩處 onEnter（>10 純 fade / ≤10 scale+fade）皆應為 fluent-decel
+        assert scope.count("ease: 'fluent-decel'") >= 2, \
+            "playFlipFilter onEnter（>10 / ≤10 兩個分支）ease 應為 'fluent-decel'（×2）"
+
+    def test_play_flip_filter_on_leave_fluent_accel(self):
+        scope = self._scoped("playFlipFilter", 2000)
+        assert "ease: 'fluent-accel'" in scope, \
+            "playFlipFilter onLeave ease 應為 'fluent-accel'（charter §5 離場）"
+
+    # === showcaseSettle 招牌曲線白名單 — 不動 ===
+    def test_showcase_settle_whitelist_preserved(self):
+        """showcaseSettle 是 charter §5 white-list 招牌曲線，必須保留"""
+        js = self._js()
+        assert 'CustomEase.create("showcaseSettle"' in js, \
+            "showcaseSettle 招牌曲線（white-list）不應被誤刪"
+
+
 class TestGhostFlyGuards:
     """T8: Ghost Fly 架構守衛"""
 
