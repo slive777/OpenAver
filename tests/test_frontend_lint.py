@@ -4909,3 +4909,31 @@ class TestScannerMissingPillGuard:
         content = self.ZH_TW.read_text(encoding='utf-8')
         assert 'missing_resume_btn' in content, \
             "zh_TW.json 缺少 missing_resume_btn key — T10 i18n 未加入"
+
+
+class TestGhostFlyPlayLightboxOpen:
+    """Phase 51 Phase 4 T4.1：GhostFly.playLightboxOpen 共用實作守衛
+
+    確認 ghost-fly.js 內 playLightboxOpen 函式存在 + cleanup 契約
+    （clearProps）+ opts.timelineId 介面已植入。
+    """
+
+    GHOST_FLY_JS = PROJECT_ROOT / 'web' / 'static' / 'js' / 'shared' / 'ghost-fly.js'
+
+    def test_ghost_fly_has_play_lightbox_open(self):
+        """ghost-fly.js 內 GhostFly.playLightboxOpen 函式存在"""
+        js = self.GHOST_FLY_JS.read_text(encoding='utf-8')
+        assert 'playLightboxOpen' in js, \
+            "ghost-fly.js 缺少 playLightboxOpen — Phase 51 T4.1 共用實作未加入"
+
+    def test_ghost_fly_play_lightbox_open_has_clearprops(self):
+        """playLightboxOpen 採 showcase 版 clearProps cleanup 契約（CD-51-14）"""
+        js = self.GHOST_FLY_JS.read_text(encoding='utf-8')
+        assert 'clearProps' in js, \
+            "ghost-fly.js playLightboxOpen 缺少 clearProps cleanup — CD-51-14 共同契約未植入"
+
+    def test_ghost_fly_play_lightbox_open_has_timeline_id_opt(self):
+        """playLightboxOpen 介面含 opts.timelineId（CD-51-16）"""
+        js = self.GHOST_FLY_JS.read_text(encoding='utf-8')
+        assert 'timelineId' in js, \
+            "ghost-fly.js playLightboxOpen 缺少 timelineId opt — CD-51-16 介面未植入"
