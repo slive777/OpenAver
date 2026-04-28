@@ -190,7 +190,7 @@
             }
 
             var dur = options.duration || 0.6;
-            var ease = options.ease || 'back.out(1.2)';
+            var ease = options.ease || 'fluent-decel';
             var staggerVal = options.stagger || 0.05;
             var batchZ = ((options.batchZ || 0) * 10) + 100;
 
