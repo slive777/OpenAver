@@ -35,8 +35,8 @@
 .motion-lab-badge {
     font-size: 0.65rem;
     font-weight: 700;
-    background: #f59e0b;
-    color: #1c1c1e;
+    background: var(--color-warning);
+    color: var(--color-base-content);
     padding: 0.1rem 0.4rem;
     border-radius: var(--fluent-radius-md);
     letter-spacing: 0.05em;
@@ -60,7 +60,7 @@
 
 .motion-lab-tab.active {
     background: var(--accent-primary);
-    color: #fff;
+    color: oklch(100% 0 0);
     border-color: var(--accent-primary);
 }
 
@@ -154,7 +154,7 @@
 
 .control-btn:hover:not(:disabled) {
     background: var(--accent-primary);
-    color: #fff;
+    color: oklch(100% 0 0);
     border-color: var(--accent-primary);
 }
 
@@ -165,7 +165,7 @@
 
 .control-btn.primary {
     background: var(--accent-primary);
-    color: #fff;
+    color: oklch(100% 0 0);
     border-color: var(--accent-primary);
 }
 
@@ -174,13 +174,13 @@
 }
 
 .control-btn.danger {
-    border-color: #ef4444;
-    color: #ef4444;
+    border-color: var(--color-error);
+    color: var(--color-error);
 }
 
 .control-btn.danger:hover:not(:disabled) {
-    background: #ef4444;
-    color: #fff;
+    background: var(--color-error);
+    color: oklch(100% 0 0);
 }
 
 /* 預覽區 */
@@ -297,7 +297,7 @@
     font-size: 0.65rem;
     font-weight: 700;
     background: var(--accent-primary);
-    color: #fff;
+    color: oklch(100% 0 0);
     padding: 0.1rem 0.4rem;
     border-radius: var(--fluent-radius-md);
 }
@@ -2269,7 +2269,7 @@
     top: 8px;
     right: 8px;
     background: rgba(0, 0, 0, 0.65);
-    color: #fff;
+    color: oklch(100% 0 0);
     font-size: 0.7rem;
     padding: 3px 8px;
     border-radius: var(--fluent-radius-md);
@@ -2343,7 +2343,7 @@
     left: 0;
     right: 0;
     background: rgba(0, 0, 0, 0.65);
-    color: #fff;
+    color: oklch(100% 0 0);
     font-size: 0.65rem;
     text-align: center;
     padding: 2px 4px;
@@ -2358,8 +2358,8 @@
     transition: opacity 0.15s;
 }
 .picker-candidate-card:hover .picker-source-badge {
-    background: var(--accent-success, #22c55e);
-    color: #fff;
+    background: var(--color-success);
+    color: oklch(100% 0 0);
 }
 .picker-candidate-card:hover .picker-check-icon {
     opacity: 1;
@@ -2401,7 +2401,7 @@
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(var(--fluent-blur-light));
     -webkit-backdrop-filter: blur(var(--fluent-blur-light));
-    color: #fff;
+    color: oklch(100% 0 0);
     padding: 4px 12px;
     border-radius: var(--fluent-radius-md);
     z-index: 10;
