@@ -634,7 +634,7 @@
 
             return gsap.fromTo(containerEl,
                 { x: xFrom, opacity: 0 },
-                { x: 0, opacity: 1, duration: 0.3, ease: 'power3.out' }
+                { x: 0, opacity: 1, duration: OpenAver.motion.DURATION.medium, ease: 'fluent-decel' }
             );
         },
 
