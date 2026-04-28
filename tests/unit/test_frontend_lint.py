@@ -2959,6 +2959,9 @@ class TestShowcaseAnimationsFluent:
             "showcase/animations.js playLightboxOpen 應 delegate window.GhostFly.playLightboxOpen（Phase 51 T4.2）"
         assert "showcaseLightboxOpen" in scope, \
             "showcase/animations.js playLightboxOpen delegate 應傳 timelineId: 'showcaseLightboxOpen'（保留 killLightboxAnimations 行為）"
+        # codex T4-P3：guard 須檢查 method 是 function，防 cache invalidation 下舊 GhostFly object 缺新 method 導致 TypeError
+        assert "typeof window.GhostFly?.playLightboxOpen === 'function'" in scope, \
+            "showcase/animations.js playLightboxOpen delegate 應用 typeof function guard（codex T4-P3）"
 
     def test_search_play_lightbox_open_delegates_to_ghost_fly(self):
         """Phase 51 T4.3: SearchAnimations.playLightboxOpen 改 delegate GhostFly.playLightboxOpen
@@ -2972,6 +2975,9 @@ class TestShowcaseAnimationsFluent:
         # 不應傳 'showcaseLightboxOpen' timelineId（search 沿用預設 'lightboxOpen'）
         assert "showcaseLightboxOpen" not in scope, \
             "search delegate 不應傳 timelineId 'showcaseLightboxOpen'（會破壞 grid-mode.js kill 路徑）"
+        # codex T4-P3：guard 須檢查 method 是 function，防 cache invalidation 下舊 GhostFly object 缺新 method 導致 TypeError
+        assert "typeof window.GhostFly?.playLightboxOpen === 'function'" in scope, \
+            "search/animations.js playLightboxOpen delegate 應用 typeof function guard（codex T4-P3）"
 
     def test_play_lightbox_open_clearprops_cleanup(self):
         """onComplete + onInterrupt 補 clearProps 防連點殘留（CD-51-14 共同契約，實作於 ghost-fly.js）"""

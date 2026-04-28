@@ -413,10 +413,15 @@
             // Phase 51 Phase 4 (T4.2): delegate to GhostFly.playLightboxOpen 共用實作。
             // timelineId 維持 'showcaseLightboxOpen' 以保留既有 killLightboxAnimations
             // (animations.js: this.killLightboxAnimations) 對 gsap.getById('showcaseLightboxOpen') 的查找。
-            return window.GhostFly ? window.GhostFly.playLightboxOpen(
-                lightboxEl,
-                Object.assign({ timelineId: 'showcaseLightboxOpen' }, options || {})
-            ) : null;
+            // typeof guard（codex T4-P3）：window.GhostFly 存在但 playLightboxOpen
+            // method 缺（cache invalidation 場景：舊 ghost-fly.js + 新 animations.js）
+            // 時 fallback null，避免 TypeError 直接炸掉 lightbox open。
+            return typeof window.GhostFly?.playLightboxOpen === 'function'
+                ? window.GhostFly.playLightboxOpen(
+                    lightboxEl,
+                    Object.assign({ timelineId: 'showcaseLightboxOpen' }, options || {})
+                )
+                : null;
         },
 
         /**

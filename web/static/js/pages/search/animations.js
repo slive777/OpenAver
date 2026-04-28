@@ -790,7 +790,12 @@
             // CD-51-14：共用實作採 showcase 版完整 cleanup 契約（onComplete/onInterrupt
             // 各對 content/coverImg 做 clearProps），對 search 為正向行為改善
             // （防連點殘留 stutter）。
-            return window.GhostFly ? window.GhostFly.playLightboxOpen(lightboxEl, options) : null;
+            // typeof guard（codex T4-P3）：window.GhostFly 存在但 playLightboxOpen
+            // method 缺（cache invalidation 場景：舊 ghost-fly.js + 新 animations.js）
+            // 時 fallback null，避免 TypeError 直接炸掉 lightbox open。
+            return typeof window.GhostFly?.playLightboxOpen === 'function'
+                ? window.GhostFly.playLightboxOpen(lightboxEl, options)
+                : null;
         },
 
         /**
