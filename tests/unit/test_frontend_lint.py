@@ -2725,6 +2725,38 @@ class TestFluentCustomEaseRegistered:
                 "fluent CustomEase 註冊不應被 DOMContentLoaded handler 包住"
 
 
+class TestShowcaseCssTransitionTokens:
+    """Phase 50.2.10: showcase.css 影片模式 transition 硬編碼 → fluent token"""
+
+    def _css(self):
+        return Path("web/static/css/pages/showcase.css").read_text(encoding="utf-8")
+
+    def test_no_hardcoded_transition_in_video_mode_range(self):
+        """影片模式範圍（L1500-L1900）transition 不應有硬編碼 0.15s/0.2s"""
+        lines = self._css().split("\n")
+        violations = []
+        for i, line in enumerate(lines, 1):
+            # 影片模式 transition 區段（plan T2.10 範圍 ~L1500-L1900）
+            if 1500 <= i <= 1900 and "transition:" in line:
+                # 殘留硬編碼 number+s 字面（排除 var(--...) reference）
+                import re
+                if re.search(r"transition:[^;]*\b0?\.\d+s\b", line) and "var(--" not in line:
+                    violations.append(f"L{i}: {line.strip()}")
+        assert not violations, \
+            "影片模式 transition 殘留硬編碼數字：\n" + "\n".join(violations)
+
+    def test_actress_picker_transition_preserved(self):
+        """女優 picker 區（plan T2.10 範圍排除）保留硬編碼 transition"""
+        css = self._css()
+        # picker-check-icon, picker-refresh-btn, picker-open cover-actions
+        assert "transition: opacity 0.15s;" in css, \
+            "picker-check-icon 0.15s 應保留（女優白名單）"
+        assert "transition: all 0.15s;" in css, \
+            "picker-refresh-btn 0.15s 應保留（女優白名單）"
+        assert "transition: opacity 0.2s;" in css, \
+            "picker-open cover-actions 0.2s 應保留（女優白名單）"
+
+
 class TestMotionDurationConstants:
     """Phase 50.2.9: motion.DURATION 三角色常數 + 業務 caller 套用 (CD-1)"""
 

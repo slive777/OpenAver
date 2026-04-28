@@ -1505,7 +1505,8 @@ body.sidebar-collapsed .showcase-footer {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard),
+                visibility var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .sample-gallery.show {
@@ -1569,7 +1570,8 @@ body.sidebar-collapsed .showcase-footer {
     border-radius: var(--fluent-radius-md);
     cursor: pointer;
     overflow: hidden;
-    transition: border-color 0.15s ease, opacity 0.15s ease;
+    transition: border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+                opacity var(--fluent-duration-fast) var(--fluent-ease-standard);
     opacity: 0.6;
 }
 
@@ -1621,7 +1623,8 @@ body.sidebar-collapsed .showcase-footer {
     justify-content: center;
     color: rgba(255, 255, 255, 0.8);
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                color var(--fluent-duration-fast) var(--fluent-ease-standard);
     font-size: 1rem;
     z-index: 10;
 }
@@ -1646,7 +1649,8 @@ body.sidebar-collapsed .showcase-footer {
     justify-content: center;
     color: rgba(255, 255, 255, 0.8);
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                color var(--fluent-duration-fast) var(--fluent-ease-standard);
     font-size: 1.1rem;
     z-index: 10;
     /* 避免縮圖列遮到箭頭 */
@@ -1679,7 +1683,8 @@ body.sidebar-collapsed .showcase-footer {
     background: var(--glow-subtle);
     color: var(--accent);
     cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
     white-space: nowrap;
 }
 
@@ -1701,7 +1706,8 @@ body.sidebar-collapsed .showcase-footer {
     background: color-mix(in oklch, var(--accent-secondary) 15%, transparent);
     color: var(--accent-secondary);
     cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
     white-space: nowrap;
 }
 
@@ -1877,7 +1883,7 @@ body.sidebar-collapsed .showcase-footer {
     align-items: center;
     justify-content: center;
     font-size: 0.9rem;
-    transition: all 0.15s ease;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .mode-toggle-btn.active {
