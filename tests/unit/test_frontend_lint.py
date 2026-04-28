@@ -4687,3 +4687,54 @@ class TestPickerIntegrationGuard:
             "newCard 必須使用 cards[myIndex]，不可用 cards[this._candidates.length - 1]"
         assert "cards[this._candidates.length - 1]" not in body, \
             "candidate handler 不可使用 cards[this._candidates.length - 1]（race bug：所有 handler 拿到同一張卡）"
+
+
+class TestSettingsCssHardcoded:
+    """Phase 52 T1.2.4: settings.css hardcoded 硬編碼守衛（防未來回潮）"""
+
+    def _css(self):
+        return Path("web/static/css/pages/settings.css").read_text(encoding="utf-8")
+
+    def test_no_hardcoded_transition_duration_in_settings_css(self):
+        """settings.css 所有 transition 不應有硬編碼數字秒數（須用 var(--fluent-duration-*)）
+
+        Pattern: transition 值含 0.Xs 或 .Xs 數字字面，且不含 var(--
+        允許：comments（// 或 /* 開頭行）中的說明文字
+        """
+        lines = self._css().split("\n")
+        violations = []
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            # 跳過純註釋行
+            if stripped.startswith("/*") or stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            if "transition:" in line:
+                # 尋找硬編碼數字秒數（0.Xs 或 .Xs），且不含 var(--
+                if re.search(r"transition:[^;]*\b0?\.\d+s\b", line) and "var(--" not in line:
+                    violations.append(f"L{i}: {line.strip()}")
+        assert not violations, (
+            "settings.css transition 殘留硬編碼數字秒數（應改用 var(--fluent-duration-*)）：\n"
+            + "\n".join(violations)
+        )
+
+    def test_no_hardcoded_blur_px_in_settings_css(self):
+        """settings.css 不應出現 hardcoded blur(Npx)（須用 token 或 CSS 變數）
+
+        守住未來修改不引入硬編碼 blur。（當前 settings.css 無 blur，此 guard 守住零基線）
+        """
+        css = self._css()
+        lines = css.split("\n")
+        violations = []
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            # 跳過純註釋行
+            if stripped.startswith("/*") or stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            # .settings-header backdrop-filter 使用 blur()，但那是 backdrop-filter 非 filter
+            # 只守 filter: blur(Npx) 形式（非 backdrop-filter）
+            if re.search(r"(?<!backdrop-)filter\s*:[^;]*blur\(\d+px\)", line):
+                violations.append(f"L{i}: {line.strip()}")
+        assert not violations, (
+            "settings.css 出現 hardcoded filter: blur(Npx)（請改用 CSS 變數）：\n"
+            + "\n".join(violations)
+        )
