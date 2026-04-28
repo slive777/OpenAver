@@ -2796,6 +2796,23 @@ class TestShowcaseAnimationsFluent:
         assert "params.ease || 'fluent'" in scope, \
             "playFlipReorder default ease 應為 'fluent'（charter §5 standard 互動）"
 
+    # === T2.4 — playFlipFilter (main + onEnter ×2 + onLeave) ===
+    def test_play_flip_filter_main_fluent(self):
+        scope = self._scoped("playFlipFilter", 2000)
+        assert "ease: 'fluent'," in scope, \
+            "playFlipFilter Flip.from main ease 應為 'fluent'"
+
+    def test_play_flip_filter_on_enter_fluent_decel(self):
+        scope = self._scoped("playFlipFilter", 2000)
+        # 兩處 onEnter（>10 純 fade / ≤10 scale+fade）皆應為 fluent-decel
+        assert scope.count("ease: 'fluent-decel'") >= 2, \
+            "playFlipFilter onEnter（>10 / ≤10 兩個分支）ease 應為 'fluent-decel'（×2）"
+
+    def test_play_flip_filter_on_leave_fluent_accel(self):
+        scope = self._scoped("playFlipFilter", 2000)
+        assert "ease: 'fluent-accel'" in scope, \
+            "playFlipFilter onLeave ease 應為 'fluent-accel'（charter §5 離場）"
+
     # === showcaseSettle 招牌曲線白名單 — 不動 ===
     def test_showcase_settle_whitelist_preserved(self):
         """showcaseSettle 是 charter §5 white-list 招牌曲線，必須保留"""

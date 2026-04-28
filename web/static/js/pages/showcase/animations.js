@@ -280,7 +280,7 @@
             // Flip.from — 含 onEnter/onLeave 進出場回調
             return Flip.from(state, {
                 duration: dur,
-                ease: 'power2.inOut',
+                ease: 'fluent',
                 absolute: true,
                 prune: true,
                 simple: true,
@@ -289,17 +289,17 @@
                     if (els.length > 10) {
                         return gsap.fromTo(els,
                             { opacity: 0 },
-                            { opacity: 1, duration: dur * 0.6, stagger: 0.02, ease: 'power2.out' }
+                            { opacity: 1, duration: dur * 0.6, stagger: 0.02, ease: 'fluent-decel' }
                         );
                     }
                     // 預設：scale + fade（少量卡片進場時效果好）
                     return gsap.fromTo(els,
                         { opacity: 0, scale: 0.85 },
-                        { opacity: 1, scale: 1, duration: dur * 0.8, ease: 'power2.out' }
+                        { opacity: 1, scale: 1, duration: dur * 0.8, ease: 'fluent-decel' }
                     );
                 },
                 onLeave: function (els) {
-                    return gsap.to(els, { opacity: 0, scale: 0.85, duration: dur * 0.6, ease: 'power2.in' });
+                    return gsap.to(els, { opacity: 0, scale: 0.85, duration: dur * 0.6, ease: 'fluent-accel' });
                 },
                 onComplete: function () {
                     gsap.set(cards, { clearProps: 'transform' });
