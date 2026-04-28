@@ -62,7 +62,7 @@
                     opacity: 0,
                     duration: opts.duration || 0.5,
                     stagger: opts.stagger || 0,
-                    ease: opts.ease || 'power3.out',
+                    ease: opts.ease || 'fluent-decel',
                     onComplete: opts.onComplete || null
                 });
             });
@@ -80,7 +80,7 @@
                     y: opts.y !== undefined ? opts.y : -10,
                     opacity: 0,
                     duration: opts.duration || 0.3,
-                    ease: opts.ease || 'power2.in',
+                    ease: opts.ease || 'fluent-accel',
                     onComplete: opts.onComplete || null
                 });
             });
@@ -99,7 +99,7 @@
                     opacity: 0,
                     stagger: opts.stagger || 0.08,
                     duration: opts.duration || 0.6,
-                    ease: opts.ease || 'power3.out',
+                    ease: opts.ease || 'fluent-decel',
                     onComplete: opts.onComplete || null
                 });
             });
@@ -108,7 +108,7 @@
         /**
          * 透明度補間（fade-to）
          *
-         * 用法：OpenAver.motion.playFadeTo(elements, { opacity: 0, duration: 0.2, ease: 'power2.out' })
+         * 用法：OpenAver.motion.playFadeTo(elements, { opacity: 0, duration: 0.2, ease: 'fluent' })
          * 若 reduced-motion 啟用則直接設定最終值不播動畫。
          */
         playFadeTo: function (elements, opts) {
@@ -123,7 +123,7 @@
                 return gsap.to(elements, {
                     opacity: targetOpacity,
                     duration: opts.duration || 0.3,
-                    ease: opts.ease || 'power2.out',
+                    ease: opts.ease || 'fluent',
                     onComplete: opts.onComplete || null
                 });
             });
@@ -141,7 +141,7 @@
                     scale: 0.95,
                     opacity: 0,
                     duration: opts.duration || 0.25,
-                    ease: opts.ease || 'power2.out',
+                    ease: opts.ease || 'fluent-decel',
                     onComplete: opts.onComplete || null
                 });
             });

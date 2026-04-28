@@ -2725,6 +2725,53 @@ class TestFluentCustomEaseRegistered:
                 "fluent CustomEase 註冊不應被 DOMContentLoaded handler 包住"
 
 
+class TestMotionAdapterFluentDefaults:
+    """Phase 50.2.1: motion-adapter.js 5 default ease → fluent 角色"""
+
+    def _js(self):
+        return Path("web/static/js/components/motion-adapter.js").read_text(encoding="utf-8")
+
+    def _scoped(self, fn_name):
+        """擷取從 fn_name 開頭到下一個 /** 區段間的 JS（function body 範圍）"""
+        js = self._js()
+        idx = js.find(fn_name + ":")
+        assert idx > 0, f"找不到 {fn_name}"
+        next_doc = js.find("/**", idx + 1)
+        return js[idx : next_doc if next_doc > 0 else idx + 800]
+
+    def test_play_enter_default_fluent_decel(self):
+        scope = self._scoped("playEnter")
+        assert "opts.ease || 'fluent-decel'" in scope, \
+            "playEnter default ease 應為 'fluent-decel'（charter §5 進場）"
+
+    def test_play_leave_default_fluent_accel(self):
+        scope = self._scoped("playLeave")
+        assert "opts.ease || 'fluent-accel'" in scope, \
+            "playLeave default ease 應為 'fluent-accel'（charter §5 離場）"
+
+    def test_play_stagger_default_fluent_decel(self):
+        scope = self._scoped("playStagger")
+        assert "opts.ease || 'fluent-decel'" in scope, \
+            "playStagger default ease 應為 'fluent-decel'（charter §5 進場 stagger）"
+
+    def test_play_fade_to_default_fluent(self):
+        scope = self._scoped("playFadeTo")
+        assert "opts.ease || 'fluent'" in scope and "opts.ease || 'fluent-decel'" not in scope, \
+            "playFadeTo default ease 應為 'fluent'（charter §5 standard）"
+
+    def test_play_modal_default_fluent_decel(self):
+        scope = self._scoped("playModal")
+        assert "opts.ease || 'fluent-decel'" in scope, \
+            "playModal default ease 應為 'fluent-decel'（charter §5 modal 彈出）"
+
+    def test_no_legacy_power_ease_defaults(self):
+        """confirm 沒有殘留的 power* default ease（在 motion-adapter.js 中）"""
+        js = self._js()
+        # 註解 / 文件字串若引用 power* 不算違規；但 default fallback 不應有
+        assert "opts.ease || 'power" not in js, \
+            "motion-adapter.js 殘留 power* default ease — 未完成 fluent 角色化"
+
+
 class TestGhostFlyGuards:
     """T8: Ghost Fly 架構守衛"""
 
