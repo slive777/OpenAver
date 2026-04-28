@@ -2807,6 +2807,17 @@ class TestShowcaseAnimationsFluent:
         assert "ease: 'fluent-decel'" in scope, \
             "playModeCrossfade new fade-in 應為 'fluent-decel'（進場）"
 
+    # === T2.6 — playLightboxOpen 3 段 ===
+    def test_play_lightbox_open_three_decel(self):
+        scope = self._scoped("playLightboxOpen", 2500)
+        assert scope.count("ease: 'fluent-decel'") >= 3, \
+            "playLightboxOpen backdrop+content+cover 三段 ease 應為 'fluent-decel'（×3）"
+
+    def test_play_lightbox_open_no_legacy_power(self):
+        scope = self._scoped("playLightboxOpen", 2500)
+        assert "power2.out" not in scope, \
+            "playLightboxOpen 殘留 power2.out — Phase 50.2.6 未完成"
+
     # === T2.4 — playFlipFilter (main + onEnter ×2 + onLeave) ===
     def test_play_flip_filter_main_fluent(self):
         scope = self._scoped("playFlipFilter", 2000)

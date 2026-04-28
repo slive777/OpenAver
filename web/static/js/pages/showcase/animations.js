@@ -443,14 +443,14 @@
             // 1. Backdrop fade-in
             tl.fromTo(lightboxEl,
                 { opacity: 0 },
-                { opacity: 1, duration: 0.16, ease: 'power2.out' }
+                { opacity: 1, duration: 0.16, ease: 'fluent-decel' }
             );
 
             // 2. Content card scale pop-in
             if (content) {
                 tl.fromTo(content,
                     { scale: 0.95, opacity: 0, transformOrigin: 'center center' },
-                    { scale: 1, opacity: 1, duration: 0.18, ease: 'power2.out', transformOrigin: 'center center' },
+                    { scale: 1, opacity: 1, duration: 0.18, ease: 'fluent-decel', transformOrigin: 'center center' },
                     0.03
                 );
             }
@@ -459,7 +459,7 @@
             if (coverImg && !options.skipCover) {
                 tl.fromTo(coverImg,
                     { y: 12, opacity: 0 },
-                    { y: 0, opacity: 1, duration: 0.16, ease: 'power2.out' },
+                    { y: 0, opacity: 1, duration: 0.16, ease: 'fluent-decel' },
                     '-=0.08'
                 );
             }
