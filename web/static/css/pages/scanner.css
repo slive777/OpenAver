@@ -16,8 +16,8 @@
     align-items: center;
     /* T8.2: Acrylic 材質 */
     background: var(--bg-header);
-    backdrop-filter: blur(12px) saturate(120%);
-    -webkit-backdrop-filter: blur(12px) saturate(120%);
+    backdrop-filter: blur(var(--fluent-blur-light)) saturate(120%);
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light)) saturate(120%);
     border-bottom: 1px solid var(--stroke-subtle);
     padding-bottom: 1rem;
     margin-bottom: 0.5rem;
@@ -173,8 +173,8 @@
     right: 0;
     bottom: 0;
     background: color-mix(in oklch, var(--color-base-100) 60%, transparent);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
     z-index: 9999;
     display: flex;
     align-items: center;
