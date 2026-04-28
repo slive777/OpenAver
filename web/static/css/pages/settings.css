@@ -89,7 +89,7 @@
     /* 2. Folder Layers Row - 垂直堆疊 */
     #settings-components .folder-layers-row {
         flex-direction: column;
-        gap: var(--space-2); /* 8px，對齊同區塊 .settings-form-row gap: 8px（L72）*/
+        gap: 8px; /* §4 layout 8pt — 對齊 .settings-form-row gap (L72) */
     }
 
     #settings-components .folder-separator {
@@ -152,7 +152,7 @@
 
     /* API Key Alert - 縮小 padding */
     #settings-components .api-key-alert {
-        padding: var(--space-2) var(--space-4); /* 8px 16px（§4 8pt grid）*/
+        padding: 8px 16px; /* §4 layout 8pt grid */
         font-size: 0.75rem;
     }
 

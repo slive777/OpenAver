@@ -1073,7 +1073,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--space-2, 8px); /* §4 layout 8pt grid */
+    margin-bottom: 8px; /* §4 layout 8pt grid */
 }
 
 /* Collapse toggle */
@@ -1472,7 +1472,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--space-2, 8px); /* §4 layout 8pt grid */
+    margin-bottom: 8px; /* §4 layout 8pt grid */
 }
 
 .ds-search-composition .ds-comp-file-count {
@@ -2407,7 +2407,7 @@
 .ds-pill-whitelist-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: var(--space-4, 1rem);
+    gap: 16px; /* §4 layout 8pt grid */
     margin-top: 1rem;
 }
 
@@ -2490,7 +2490,7 @@
 .ds-overlay-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: var(--space-3, 0.75rem);
+    gap: 12px; /* §4 spacingM (12px Fluent layout) */
     margin-top: 1rem;
 }
 
@@ -2536,7 +2536,7 @@
 .ds-spacing-layer-table {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: var(--space-3, 0.75rem);
+    gap: 12px; /* §4 spacingM (12px Fluent layout) */
     margin-top: 1rem;
 }
 
@@ -2601,7 +2601,7 @@
 .ds-checkpoint-pair {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--space-4, 1rem);
+    gap: 16px; /* §4 layout 8pt grid */
     margin-bottom: 0.75rem;
 }
 
