@@ -455,6 +455,26 @@
     /* §6 Checkpoint 5 Focus：theme.css L2161 input:focus-visible 2px outline + 4px glow ✅，不重複 */
 }
 
+#settings-components .select {
+    /* §6 Checkpoint 1 Radius */
+    border-radius: var(--fluent-radius-md);         /* 4px */
+    /* §6 Checkpoint 2 Surface */
+    background: var(--surface-1);
+    /* §6 Checkpoint 3 Stroke — width/style only，不固定 color（保留 DaisyUI variant 顏色機制）*/
+    border-width: 1px;
+    border-style: solid;
+    /* §6 Checkpoint 4 Shadow — dual-layer: 頂部內高光 + 外縱深 */
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 6%, transparent),
+        var(--fluent-shadow-2);
+    /* §5 transition fluent 化 */
+    transition:
+        border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+        box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+    /* §6 Checkpoint 5 Focus：theme.css L2162 select:focus-visible 2px outline + 4px glow ✅，不重複 */
+    /* 版面屬性 flex:1; max-width:300px 由 theme.css L1670 提供，本 block 不覆寫 */
+}
+
 /* ==================== Form Loading State ==================== */
 
 /* 載入期間視覺提示：半透明 + wait cursor */
