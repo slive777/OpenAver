@@ -55,7 +55,7 @@
     font-weight: 500;
     border: 1px solid transparent;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .motion-lab-tab.active {
@@ -148,7 +148,7 @@
     background: var(--bg-primary);
     color: var(--text-primary);
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
     white-space: nowrap;
 }
 
@@ -248,7 +248,7 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border-light);
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
     position: relative;
 }
 
@@ -587,7 +587,7 @@
     justify-content: center;
     align-items: flex-end;
     padding-bottom: 20px;
-    gap: 12px;
+    gap: 12px; /* spacingM (12px Fluent layout) */
     background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 60%, transparent 100%);
     border-radius: 0 0 var(--radius-sm) var(--radius-sm);
     opacity: 0;
