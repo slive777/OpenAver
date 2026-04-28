@@ -886,7 +886,7 @@
             // B19: 單相 slide-in（state-first 後 DOM 已是新內容，fade-out 會造成反向閃爍）
             tl.fromTo(contentEl,
                 { opacity: 0, x: xIn },
-                { opacity: 1, x: 0, duration: 0.25, ease: 'power2.out' }
+                { opacity: 1, x: 0, duration: OpenAver.motion.DURATION.fast, ease: 'fluent' }
             );
 
             return tl;
