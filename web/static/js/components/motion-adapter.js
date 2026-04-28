@@ -9,6 +9,16 @@
 (function () {
     window.OpenAver = window.OpenAver || {};
 
+    // Phase 50.2.0: 註冊 Fluent CustomEase（charter §5 三角色）
+    // 同步 guarded register — base.html defer 順序保證 CustomEase plugin 已載入
+    if (typeof CustomEase !== 'undefined') {
+        CustomEase.create('fluent',       '0.33, 0, 0.67, 1');
+        CustomEase.create('fluent-decel', '0, 0, 0, 1');
+        CustomEase.create('fluent-accel', '1, 0, 1, 1');
+    } else {
+        console.warn('[motion-adapter] CustomEase plugin missing, fluent eases not registered');
+    }
+
     var motion = {
 
         /**

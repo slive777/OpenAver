@@ -2686,6 +2686,45 @@ class TestActressIconGuard:
         assert "bi-person-badge" not in html, "scanner.html 仍有 bi-person-badge"
 
 
+class TestFluentCustomEaseRegistered:
+    """Phase 50.2.0: motion-adapter.js 同步註冊 fluent CustomEase 三角色"""
+
+    def _js(self):
+        return Path("web/static/js/components/motion-adapter.js").read_text(encoding="utf-8")
+
+    def test_fluent_standard_registered(self):
+        js = self._js()
+        assert "CustomEase.create('fluent'" in js, \
+            "motion-adapter.js 缺 CustomEase.create('fluent', ...) — charter §5 standard"
+
+    def test_fluent_decel_registered(self):
+        js = self._js()
+        assert "CustomEase.create('fluent-decel'" in js, \
+            "motion-adapter.js 缺 CustomEase.create('fluent-decel', ...) — charter §5 decel"
+
+    def test_fluent_accel_registered(self):
+        js = self._js()
+        assert "CustomEase.create('fluent-accel'" in js, \
+            "motion-adapter.js 缺 CustomEase.create('fluent-accel', ...) — charter §5 accel"
+
+    def test_register_is_guarded(self):
+        """guard 寫法避免 CustomEase plugin 載入失敗時 IIFE 炸掉"""
+        js = self._js()
+        assert "typeof CustomEase !== 'undefined'" in js, \
+            "fluent ease 註冊應用 typeof guard 包住"
+
+    def test_register_is_synchronous(self):
+        """同步註冊（不放 DOMContentLoaded handler，CD-2）"""
+        js = self._js()
+        # 註冊區段位於 IIFE 內、var motion 之前；不應出現 DOMContentLoaded wrapper 包裹 CustomEase.create
+        register_idx = js.find("CustomEase.create('fluent'")
+        dom_ready_idx = js.find("DOMContentLoaded")
+        # 若有 DOMContentLoaded（reduced-motion handler 等），其位置必須在 register 之後
+        if dom_ready_idx != -1:
+            assert register_idx < dom_ready_idx, \
+                "fluent CustomEase 註冊不應被 DOMContentLoaded handler 包住"
+
+
 class TestGhostFlyGuards:
     """T8: Ghost Fly 架構守衛"""
 
