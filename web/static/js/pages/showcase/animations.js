@@ -151,7 +151,7 @@
                 return null;
             }
 
-            var dur = params.duration || 0.5;
+            var dur = params.duration || OpenAver.motion.DURATION.emphasis;
             var staggerVal = params.stagger || 0.04;
             var ease = params.easing || 'fluent-decel';
 
@@ -213,7 +213,7 @@
             // C18: 中斷進行中的動畫
             gsap.killTweensOf(cards);
 
-            var dur = params.duration || 0.5;
+            var dur = params.duration || OpenAver.motion.DURATION.emphasis;
             var ease = params.ease || 'fluent';
 
             // 計算 delta 並收集需要動畫的卡片
@@ -275,7 +275,7 @@
             // C18: 中斷進行中的 Flip 動畫
             Flip.killFlipsOf(cards);
 
-            var dur = params.duration || 0.4;
+            var dur = params.duration || OpenAver.motion.DURATION.medium;
 
             // Flip.from — 含 onEnter/onLeave 進出場回調
             return Flip.from(state, {
@@ -379,7 +379,7 @@
                 if (oldEl) {
                     tl.to(oldEl, {
                         opacity: 0,
-                        duration: 0.15,
+                        duration: OpenAver.motion.DURATION.fast,
                         ease: 'fluent-accel',
                         clearProps: 'opacity',
                         onComplete: function () { callbacks.onOldFadeComplete(); }
@@ -392,7 +392,7 @@
             if (newEl) {
                 tl.fromTo(newEl,
                     { opacity: 0 },
-                    { opacity: 1, duration: 0.2, ease: 'fluent-decel', clearProps: 'opacity' }
+                    { opacity: 1, duration: OpenAver.motion.DURATION.fast, ease: 'fluent-decel', clearProps: 'opacity' }
                 );
             }
             return tl;
@@ -443,14 +443,14 @@
             // 1. Backdrop fade-in
             tl.fromTo(lightboxEl,
                 { opacity: 0 },
-                { opacity: 1, duration: 0.16, ease: 'fluent-decel' }
+                { opacity: 1, duration: OpenAver.motion.DURATION.fast, ease: 'fluent-decel' }
             );
 
             // 2. Content card scale pop-in
             if (content) {
                 tl.fromTo(content,
                     { scale: 0.95, opacity: 0, transformOrigin: 'center center' },
-                    { scale: 1, opacity: 1, duration: 0.18, ease: 'fluent-decel', transformOrigin: 'center center' },
+                    { scale: 1, opacity: 1, duration: OpenAver.motion.DURATION.fast, ease: 'fluent-decel', transformOrigin: 'center center' },
                     0.03
                 );
             }
@@ -459,7 +459,7 @@
             if (coverImg && !options.skipCover) {
                 tl.fromTo(coverImg,
                     { y: 12, opacity: 0 },
-                    { y: 0, opacity: 1, duration: 0.16, ease: 'fluent-decel' },
+                    { y: 0, opacity: 1, duration: OpenAver.motion.DURATION.fast, ease: 'fluent-decel' },
                     '-=0.08'
                 );
             }
@@ -512,7 +512,7 @@
             // B19: 單相 slide-in（state-first 後 DOM 已是新內容，fade-out 會造成反向閃爍）
             tl.fromTo(contentEl,
                 { opacity: 0, x: xIn },
-                { opacity: 1, x: 0, duration: 0.25, ease: 'fluent' }
+                { opacity: 1, x: 0, duration: OpenAver.motion.DURATION.fast, ease: 'fluent' }
             );
 
             return tl;
@@ -598,7 +598,7 @@
                 {
                     opacity: 1,
                     x: 0,
-                    duration: 0.22,
+                    duration: OpenAver.motion.DURATION.fast,
                     ease: 'fluent',
                     clearProps: 'transform,opacity',
                     onComplete: function () {
@@ -625,7 +625,7 @@
             if (!el) return null;
             if (typeof gsap === 'undefined') return null;
             if (shouldSkip()) return null;
-            var dur = (typeof options.duration === 'number') ? options.duration : 0.2;
+            var dur = (typeof options.duration === 'number') ? options.duration : OpenAver.motion.DURATION.fast;
             var ease = options.ease || 'fluent-decel';
             return gsap.fromTo(el,
                 { opacity: 0 },

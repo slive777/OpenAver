@@ -2725,6 +2725,55 @@ class TestFluentCustomEaseRegistered:
                 "fluent CustomEase 註冊不應被 DOMContentLoaded handler 包住"
 
 
+class TestMotionDurationConstants:
+    """Phase 50.2.9: motion.DURATION 三角色常數 + 業務 caller 套用 (CD-1)"""
+
+    def _adapter(self):
+        return Path("web/static/js/components/motion-adapter.js").read_text(encoding="utf-8")
+
+    def _animations(self):
+        return Path("web/static/js/pages/showcase/animations.js").read_text(encoding="utf-8")
+
+    def test_duration_constants_exposed(self):
+        """motion.DURATION 三角色常數透過 IIFE 暴露於 window.OpenAver.motion"""
+        js = self._adapter()
+        assert "DURATION:" in js, "motion-adapter.js 缺 DURATION: 物件定義"
+        # 三角色值對齊 charter §5 (167ms / 333ms / 500ms)
+        assert "fast:" in js and "0.167" in js, "DURATION.fast 應為 0.167 (charter §5 167ms)"
+        assert "medium:" in js and "0.333" in js, "DURATION.medium 應為 0.333 (charter §5 333ms)"
+        assert "emphasis:" in js and "0.5" in js, "DURATION.emphasis 應為 0.5 (charter §5 500ms)"
+
+    def test_adapter_callers_use_duration_constants(self):
+        """motion-adapter.js 內部 caller 使用 motion.DURATION.* 取代 hardcoded fallback"""
+        js = self._adapter()
+        assert js.count("motion.DURATION.") >= 4, \
+            "motion-adapter.js 至少 4 個 caller (playEnter/Leave/FadeTo/Modal/Stagger) 應走 motion.DURATION.*"
+
+    def test_animations_callers_use_duration_constants(self):
+        """showcase/animations.js 業務 caller 使用 OpenAver.motion.DURATION.*"""
+        js = self._animations()
+        assert js.count("OpenAver.motion.DURATION.") >= 8, \
+            "animations.js 至少 8 處 hardcoded duration 應改走 OpenAver.motion.DURATION.*"
+
+    def test_white_list_durations_preserved(self):
+        """白名單 hardcoded duration 不被誤改：
+        - showcaseSettle 招牌曲線 (charter §5 white-list)
+        - HeroCardAppear (女優專屬，plan D10)
+        - SourcePulse 0.1 (低於 DURATION.fast 不適合 bucket)"""
+        js = self._animations()
+        # showcaseSettle: var dur = params.duration || 0.8;
+        assert "params.duration || 0.8" in js, "playSettle (showcaseSettle) duration 0.8 不應被改"
+        # HeroCardAppear: duration: 0.3
+        hero_idx = js.find("playHeroCardAppear")
+        hero_scope = js[hero_idx : hero_idx + 800]
+        assert "duration: 0.3" in hero_scope, "playHeroCardAppear duration 0.3 (女優白名單) 不應被改"
+        # SourcePulse default 0.1 stays
+        pulse_idx = js.find("playSourcePulse")
+        pulse_scope = js[pulse_idx : pulse_idx + 800]
+        assert "options.duration : 0.1" in pulse_scope, \
+            "playSourcePulse default 0.1 (低於 fast bucket) 不應被改"
+
+
 class TestMotionAdapterFluentDefaults:
     """Phase 50.2.1: motion-adapter.js 5 default ease → fluent 角色"""
 

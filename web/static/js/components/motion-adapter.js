@@ -22,6 +22,19 @@
     var motion = {
 
         /**
+         * Phase 50.2.9: GSAP Duration 三角色常數（charter §5，CD-7 命名避讓既有 slow:300ms）
+         *
+         * 對應 input.css :root --fluent-duration-{fast,medium,emphasis}
+         * 業務 GSAP duration 透過 OpenAver.motion.DURATION.fast/medium/emphasis 讀取
+         * （不引入 ES module，沿用既有 IIFE / window.OpenAver pattern — CD-1）
+         */
+        DURATION: {
+            fast:     0.167,   // 微互動、hover、color/opacity 過場
+            medium:   0.333,   // 中等過場（panel 展開、tag 拉開）
+            emphasis: 0.5      // 強調級長過場（lightbox 主動畫、模式切換）
+        },
+
+        /**
          * 建立頁面級動畫 context
          *
          * 用法：Alpine init() 建立，頁面離開自動清理
@@ -60,7 +73,7 @@
                 return gsap.from(elements, {
                     y: opts.y !== undefined ? opts.y : 20,
                     opacity: 0,
-                    duration: opts.duration || 0.5,
+                    duration: opts.duration || motion.DURATION.emphasis,
                     stagger: opts.stagger || 0,
                     ease: opts.ease || 'fluent-decel',
                     onComplete: opts.onComplete || null
@@ -79,7 +92,7 @@
                 return gsap.to(elements, {
                     y: opts.y !== undefined ? opts.y : -10,
                     opacity: 0,
-                    duration: opts.duration || 0.3,
+                    duration: opts.duration || motion.DURATION.medium,
                     ease: opts.ease || 'fluent-accel',
                     onComplete: opts.onComplete || null
                 });
@@ -98,7 +111,7 @@
                     y: opts.y !== undefined ? opts.y : 30,
                     opacity: 0,
                     stagger: opts.stagger || 0.08,
-                    duration: opts.duration || 0.6,
+                    duration: opts.duration || motion.DURATION.emphasis,
                     ease: opts.ease || 'fluent-decel',
                     onComplete: opts.onComplete || null
                 });
@@ -122,7 +135,7 @@
             return this._run(opts.ctx, function () {
                 return gsap.to(elements, {
                     opacity: targetOpacity,
-                    duration: opts.duration || 0.3,
+                    duration: opts.duration || motion.DURATION.medium,
                     ease: opts.ease || 'fluent',
                     onComplete: opts.onComplete || null
                 });
@@ -140,7 +153,7 @@
                 return gsap.from(element, {
                     scale: 0.95,
                     opacity: 0,
-                    duration: opts.duration || 0.25,
+                    duration: opts.duration || motion.DURATION.fast,
                     ease: opts.ease || 'fluent-decel',
                     onComplete: opts.onComplete || null
                 });
