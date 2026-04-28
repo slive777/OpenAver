@@ -410,73 +410,18 @@
          * @returns {gsap.core.Timeline|null}
          */
         playLightboxOpen: function (lightboxEl, options) {
-            options = options || {};
-
-            if (!lightboxEl) return null;
-            if (typeof gsap === 'undefined') return null;
-            if (shouldSkip()) return null;
-
-            var content = lightboxEl.querySelector('.lightbox-content');
-            var coverImg = lightboxEl.querySelector('.lightbox-cover img');
-
-            // C4: 清除舊動畫
-            gsap.killTweensOf(lightboxEl);
-            if (content) gsap.killTweensOf(content);
-            if (coverImg) gsap.killTweensOf(coverImg);
-
-            // C21: 暫時關掉 CSS transition
-            if (!lightboxEl.classList.contains('gsap-animating')) {
-                lightboxEl.classList.add('gsap-animating');
-            }
-
-            var tl = gsap.timeline({
-                id: 'showcaseLightboxOpen',
-                onComplete: function () {
-                    lightboxEl.classList.remove('gsap-animating');
-                    // Phase 50.x cleanup: 清掉動畫過程中累積的 inline transform/opacity，
-                    // 避免被打斷時殘留半路狀態（用戶連點關開造成累積 stutter）
-                    if (content) gsap.set(content, { clearProps: 'transform,opacity' });
-                    if (coverImg && !options.skipCover) gsap.set(coverImg, { clearProps: 'transform,opacity' });
-                    if (typeof options.onComplete === 'function') options.onComplete();
-                },
-                onInterrupt: function () {
-                    lightboxEl.classList.remove('gsap-animating');
-                    // Phase 50.x cleanup: kill 中斷時 clearProps，避免殘留半路 transform/opacity
-                    if (content) gsap.set(content, { clearProps: 'transform,opacity' });
-                    if (coverImg && !options.skipCover) gsap.set(coverImg, { clearProps: 'transform,opacity' });
-                }
-            });
-
-            // Phase 50.x: charter §5 white-list 例外 — 與 ghost-fly playGridToLightbox
-            // (0.38s power2.inOut, CD-3 觀察項) 並行段，保留 power 系曲線族避免節奏錯位。
-            // fluent-decel (0,0,0,1) 起步快終端慢與 ghost-fly power2.inOut 終端慢視覺重疊，
-            // 造成「最後一小段卡」；revert 為 power2.out + 原 duration 解套。
-
-            // 1. Backdrop fade-in
-            tl.fromTo(lightboxEl,
-                { opacity: 0 },
-                { opacity: 1, duration: 0.16, ease: 'power2.out' }
-            );
-
-            // 2. Content card scale pop-in
-            if (content) {
-                tl.fromTo(content,
-                    { scale: 0.95, opacity: 0, transformOrigin: 'center center' },
-                    { scale: 1, opacity: 1, duration: 0.18, ease: 'power2.out', transformOrigin: 'center center' },
-                    0.03
-                );
-            }
-
-            // 3. Cover image slide-up fade-in（ghost fly 時跳過）
-            if (coverImg && !options.skipCover) {
-                tl.fromTo(coverImg,
-                    { y: 12, opacity: 0 },
-                    { y: 0, opacity: 1, duration: 0.16, ease: 'power2.out' },
-                    '-=0.08'
-                );
-            }
-
-            return tl;
+            // Phase 51 Phase 4 (T4.2): delegate to GhostFly.playLightboxOpen 共用實作。
+            // timelineId 維持 'showcaseLightboxOpen' 以保留既有 killLightboxAnimations
+            // (animations.js: this.killLightboxAnimations) 對 gsap.getById('showcaseLightboxOpen') 的查找。
+            // typeof guard（codex T4-P3）：window.GhostFly 存在但 playLightboxOpen
+            // method 缺（cache invalidation 場景：舊 ghost-fly.js + 新 animations.js）
+            // 時 fallback null，避免 TypeError 直接炸掉 lightbox open。
+            return typeof window.GhostFly?.playLightboxOpen === 'function'
+                ? window.GhostFly.playLightboxOpen(
+                    lightboxEl,
+                    Object.assign({ timelineId: 'showcaseLightboxOpen' }, options || {})
+                )
+                : null;
         },
 
         /**
@@ -572,7 +517,7 @@
                     opacity: 1,
                     y: 0,
                     duration: 0.3,
-                    ease: 'power2.out',
+                    ease: 'fluent-decel',
                     clearProps: 'transform,opacity'
                 }
             );

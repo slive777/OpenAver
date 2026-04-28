@@ -432,6 +432,96 @@
                     }, delay);
                 }(i * (Math.random() * 80))); // 0–80ms stagger
             }
+        },
+
+        /**
+         * Lightbox open 三段共用動畫（Phase 51 Phase 4 共用化）
+         *
+         * showcase / search 兩邊 caller 透過 delegate 呼叫本函式。
+         * 三段 ease/duration 內部 hardcode（與 ui-conventions §5 white-list
+         * playLightboxOpen 三段一致；CD-51-9 確認與 ghost-fly playGridToLightbox
+         * 0.38s power2.inOut 並行段不可改 fluent-decel，否則「最後一小段卡」）。
+         *
+         * Cleanup 契約採 showcase 版完整 clearProps（CD-51-14）：onComplete /
+         * onInterrupt 均對 content / coverImg 做 clearProps: transform,opacity，
+         * 防連點觸發 interrupt 後殘留 inline style 造成 stutter。
+         *
+         * @param {Element} lightboxEl - .showcase-lightbox / .search-lightbox 根元素
+         * @param {object} [opts] - { skipCover, onComplete, timelineId }
+         * @param {boolean} [opts.skipCover] - true 時跳過第三段 cover slide-up（ghost-fly 接 lightbox 場景用）
+         * @param {Function} [opts.onComplete] - timeline onComplete 回調
+         * @param {string} [opts.timelineId='lightboxOpen'] - timeline ID（showcase delegate 傳 'showcaseLightboxOpen'）
+         * @returns {gsap.core.Timeline|null}
+         */
+        playLightboxOpen: function (lightboxEl, opts) {
+            opts = opts || {};
+
+            if (!lightboxEl) return null;
+            if (typeof gsap === 'undefined') return null;
+            if (window.OpenAver && window.OpenAver.prefersReducedMotion) return null;
+
+            var content = lightboxEl.querySelector('.lightbox-content');
+            var coverImg = lightboxEl.querySelector('.lightbox-cover img');
+
+            // C4: 清除舊動畫
+            gsap.killTweensOf(lightboxEl);
+            if (content) gsap.killTweensOf(content);
+            if (coverImg) gsap.killTweensOf(coverImg);
+
+            // C21: 暫時關掉 CSS transition
+            if (!lightboxEl.classList.contains('gsap-animating')) {
+                lightboxEl.classList.add('gsap-animating');
+            }
+
+            var timelineId = opts.timelineId || 'lightboxOpen';
+
+            var tl = gsap.timeline({
+                id: timelineId,
+                onComplete: function () {
+                    lightboxEl.classList.remove('gsap-animating');
+                    // CD-51-14 cleanup：清掉動畫過程中累積的 inline transform/opacity，
+                    // 避免被打斷時殘留半路狀態（用戶連點關開造成累積 stutter）
+                    if (content) gsap.set(content, { clearProps: 'transform,opacity' });
+                    if (coverImg && !opts.skipCover) gsap.set(coverImg, { clearProps: 'transform,opacity' });
+                    if (typeof opts.onComplete === 'function') opts.onComplete();
+                },
+                onInterrupt: function () {
+                    lightboxEl.classList.remove('gsap-animating');
+                    // CD-51-14 cleanup：kill 中斷時 clearProps，避免殘留半路 transform/opacity
+                    if (content) gsap.set(content, { clearProps: 'transform,opacity' });
+                    if (coverImg && !opts.skipCover) gsap.set(coverImg, { clearProps: 'transform,opacity' });
+                }
+            });
+
+            // ui-conventions §5 white-list（playLightboxOpen 三段）：
+            // 與 ghost-fly playGridToLightbox (0.38s power2.inOut) 並行段，
+            // 保留 power 系曲線族避免「最後一小段卡」（fix 50.2 經驗）。
+
+            // 1. Backdrop fade-in
+            tl.fromTo(lightboxEl,
+                { opacity: 0 },
+                { opacity: 1, duration: 0.16, ease: 'power2.out' }
+            );
+
+            // 2. Content card scale pop-in
+            if (content) {
+                tl.fromTo(content,
+                    { scale: 0.95, opacity: 0, transformOrigin: 'center center' },
+                    { scale: 1, opacity: 1, duration: 0.18, ease: 'power2.out', transformOrigin: 'center center' },
+                    0.03
+                );
+            }
+
+            // 3. Cover image slide-up fade-in（ghost fly 時跳過）
+            if (coverImg && !opts.skipCover) {
+                tl.fromTo(coverImg,
+                    { y: 12, opacity: 0 },
+                    { y: 0, opacity: 1, duration: 0.16, ease: 'power2.out' },
+                    '-=0.08'
+                );
+            }
+
+            return tl;
         }
     };
 

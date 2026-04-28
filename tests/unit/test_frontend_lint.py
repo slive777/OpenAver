@@ -2726,35 +2726,32 @@ class TestFluentCustomEaseRegistered:
 
 
 class TestShowcaseCssTransitionTokens:
-    """Phase 50.2.10: showcase.css 影片模式 transition 硬編碼 → fluent token"""
+    """Phase 50.2.10 + 51.T1.2: showcase.css transition 硬編碼 → fluent token（影片 + 女優模式全段）"""
 
     def _css(self):
         return Path("web/static/css/pages/showcase.css").read_text(encoding="utf-8")
 
-    def test_no_hardcoded_transition_in_video_mode_range(self):
-        """影片模式範圍（L1500-L1900）transition 不應有硬編碼 0.15s/0.2s"""
+    def test_no_hardcoded_transition_in_showcase_css(self):
+        """整個 showcase.css 的 transition 都不應有硬編碼 0.X s（影片模式 Phase 50 + 女優 Phase 51 T1.2）"""
         lines = self._css().split("\n")
         violations = []
         for i, line in enumerate(lines, 1):
-            # 影片模式 transition 區段（plan T2.10 範圍 ~L1500-L1900）
-            if 1500 <= i <= 1900 and "transition:" in line:
-                # 殘留硬編碼 number+s 字面（排除 var(--...) reference）
+            if "transition:" in line:
                 import re
+                # 殘留硬編碼 number+s 字面（排除 var(--...) reference 與 transition: none）
                 if re.search(r"transition:[^;]*\b0?\.\d+s\b", line) and "var(--" not in line:
                     violations.append(f"L{i}: {line.strip()}")
         assert not violations, \
-            "影片模式 transition 殘留硬編碼數字：\n" + "\n".join(violations)
+            "showcase.css transition 殘留硬編碼數字：\n" + "\n".join(violations)
 
-    def test_actress_picker_transition_preserved(self):
-        """女優 picker 區（plan T2.10 範圍排除）保留硬編碼 transition"""
+    def test_actress_picker_transition_tokenized(self):
+        """Phase 51 T1.2: 女優 picker 三處 transition 已 token 化（fluent-duration-fast + fluent-ease-standard）"""
         css = self._css()
-        # picker-check-icon, picker-refresh-btn, picker-open cover-actions
-        assert "transition: opacity 0.15s;" in css, \
-            "picker-check-icon 0.15s 應保留（女優白名單）"
-        assert "transition: all 0.15s;" in css, \
-            "picker-refresh-btn 0.15s 應保留（女優白名單）"
-        assert "transition: opacity 0.2s;" in css, \
-            "picker-open cover-actions 0.2s 應保留（女優白名單）"
+        # picker-check-icon (opacity), picker-refresh-btn (all), picker-open cover-actions (opacity)
+        assert "transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard)" in css, \
+            "picker-check-icon / cover-actions opacity transition 應使用 fluent token"
+        assert "transition: all var(--fluent-duration-fast) var(--fluent-ease-standard)" in css, \
+            "picker-refresh-btn all transition 應使用 fluent token"
 
 
 class TestMotionDurationConstants:
@@ -2914,40 +2911,79 @@ class TestShowcaseAnimationsFluent:
         assert "power2.inOut" not in scope, "playSourcePulse 殘留 power2.inOut"
 
     # === playHeroCardAppear — 女優專屬白名單，不動 ===
-    def test_hero_card_appear_whitelist_not_touched(self):
-        """playHeroCardAppear 為女優專屬（plan D10 white-list），ease 不被本 phase 改"""
+    def test_hero_card_appear_uses_fluent_decel(self):
+        """Phase 51 T1.3a: playHeroCardAppear 試改 fluent-decel（plan-51 §2.1）"""
         scope = self._scoped("playHeroCardAppear", 800)
-        # 白名單保留 power2.out（spec scope 排除女優模式）
-        assert "ease: 'power2.out'" in scope, \
-            "playHeroCardAppear ease 不應被改（女優專屬 white-list）"
+        # 試改 fluent-decel；若用戶 dev-server 回報感受壞 → revert + re-tighten 到 power2.out + 重新加 white-list 註解
+        assert "ease: 'fluent-decel'" in scope, \
+            "playHeroCardAppear ease 應為 'fluent-decel'（Phase 51 T1.3a 試改）"
 
     # === Phase 50.x revert — playLightboxOpen 3 段保留 power2.out（charter §5 white-list 例外）===
     # 理由：playLightboxOpen 與 ghost-fly playGridToLightbox (0.38s power2.inOut, CD-3 觀察項)
     # 並行播放，需保留 power 系曲線族避免節奏錯位。fluent-decel (0,0,0,1) 起步快終端慢
     # 與 ghost-fly power2.inOut 終端慢視覺重疊，造成「最後一小段卡」。
+    #
+    # Phase 51 Phase 4 (T4.1/T4.2): playLightboxOpen 實作搬到 shared/ghost-fly.js
+    # 共用化（CD-51-14/15/16）；showcase/animations.js 與 search/animations.js 改 delegate。
+    # 三 guard 改檢查 ghost-fly.js 的共用實作。
+    GHOST_FLY_JS = Path("web/static/js/shared/ghost-fly.js")
+
+    def _ghost_fly_scoped(self, fn_name, length=4500):
+        js = self.GHOST_FLY_JS.read_text(encoding="utf-8")
+        idx = js.find(fn_name + ":")
+        assert idx > 0, f"找不到 {fn_name} in ghost-fly.js"
+        return js[idx : idx + length]
+
     def test_play_lightbox_open_three_power_out(self):
-        """三段（backdrop / content / cover）ease 為 power2.out（white-list 例外）"""
-        scope = self._scoped("playLightboxOpen", 4500)
+        """三段（backdrop / content / cover）ease 為 power2.out（white-list 例外）— 共用實作於 ghost-fly.js"""
+        scope = self._ghost_fly_scoped("playLightboxOpen", 4500)
         assert scope.count("ease: 'power2.out'") >= 3, \
-            "playLightboxOpen backdrop+content+cover 三段 ease 應為 'power2.out'（×3，charter §5 white-list 例外，與 ghost-fly 並行段）"
+            "ghost-fly.js playLightboxOpen backdrop+content+cover 三段 ease 應為 'power2.out'（×3，charter §5 white-list 例外，與 ghost-fly 並行段）"
 
     def test_play_lightbox_open_no_fluent_decel_in_three_phases(self):
-        """三段不應誤用 fluent-decel（與 ghost-fly power2.inOut 終端視覺重疊）"""
-        scope = self._scoped("playLightboxOpen", 4500)
+        """三段不應誤用 fluent-decel（與 ghost-fly power2.inOut 終端視覺重疊）— 共用實作於 ghost-fly.js"""
+        scope = self._ghost_fly_scoped("playLightboxOpen", 4500)
         assert "ease: 'fluent-decel'" not in scope, \
-            "playLightboxOpen 不應使用 'fluent-decel'（與 ghost-fly playGridToLightbox 並行段視覺重疊；white-list 例外用 power2.out）"
+            "ghost-fly.js playLightboxOpen 不應使用 'fluent-decel'（與 playGridToLightbox 並行段視覺重疊；white-list 例外用 power2.out）"
 
     def test_play_lightbox_open_white_list_comment_present(self):
-        """white-list 例外註解必須留存（避免後續清 hardcoded duration 時誤改）"""
-        scope = self._scoped("playLightboxOpen", 4500)
+        """white-list 例外註解必須留存（避免後續清 hardcoded duration 時誤改）— 共用實作於 ghost-fly.js"""
+        scope = self._ghost_fly_scoped("playLightboxOpen", 4500)
         assert "white-list" in scope or "ghost-fly" in scope, \
-            "playLightboxOpen 應有 charter §5 white-list / ghost-fly 並行段註解，標明 power2.out 為刻意保留"
+            "ghost-fly.js playLightboxOpen 應有 §5 white-list / ghost-fly 並行段註解，標明 power2.out 為刻意保留"
+
+    def test_showcase_play_lightbox_open_delegates_to_ghost_fly(self):
+        """Phase 51 T4.2: ShowcaseAnimations.playLightboxOpen 改 delegate GhostFly.playLightboxOpen"""
+        scope = self._scoped("playLightboxOpen", 800)
+        assert "GhostFly.playLightboxOpen" in scope, \
+            "showcase/animations.js playLightboxOpen 應 delegate window.GhostFly.playLightboxOpen（Phase 51 T4.2）"
+        assert "showcaseLightboxOpen" in scope, \
+            "showcase/animations.js playLightboxOpen delegate 應傳 timelineId: 'showcaseLightboxOpen'（保留 killLightboxAnimations 行為）"
+        # codex T4-P3：guard 須檢查 method 是 function，防 cache invalidation 下舊 GhostFly object 缺新 method 導致 TypeError
+        assert "typeof window.GhostFly?.playLightboxOpen === 'function'" in scope, \
+            "showcase/animations.js playLightboxOpen delegate 應用 typeof function guard（codex T4-P3）"
+
+    def test_search_play_lightbox_open_delegates_to_ghost_fly(self):
+        """Phase 51 T4.3: SearchAnimations.playLightboxOpen 改 delegate GhostFly.playLightboxOpen
+        （不傳 timelineId，沿用預設 'lightboxOpen' 維持 grid-mode.js kill 路徑）"""
+        search_js = Path("web/static/js/pages/search/animations.js").read_text(encoding="utf-8")
+        idx = search_js.find("playLightboxOpen: function")
+        assert idx > 0, "找不到 search/animations.js playLightboxOpen"
+        scope = search_js[idx : idx + 800]
+        assert "GhostFly.playLightboxOpen" in scope, \
+            "search/animations.js playLightboxOpen 應 delegate window.GhostFly.playLightboxOpen（Phase 51 T4.3）"
+        # 不應傳 'showcaseLightboxOpen' timelineId（search 沿用預設 'lightboxOpen'）
+        assert "showcaseLightboxOpen" not in scope, \
+            "search delegate 不應傳 timelineId 'showcaseLightboxOpen'（會破壞 grid-mode.js kill 路徑）"
+        # codex T4-P3：guard 須檢查 method 是 function，防 cache invalidation 下舊 GhostFly object 缺新 method 導致 TypeError
+        assert "typeof window.GhostFly?.playLightboxOpen === 'function'" in scope, \
+            "search/animations.js playLightboxOpen delegate 應用 typeof function guard（codex T4-P3）"
 
     def test_play_lightbox_open_clearprops_cleanup(self):
-        """onComplete + onInterrupt 補 clearProps 防連點殘留（Phase 50.x cleanup）"""
-        scope = self._scoped("playLightboxOpen", 4500)
+        """onComplete + onInterrupt 補 clearProps 防連點殘留（CD-51-14 共同契約，實作於 ghost-fly.js）"""
+        scope = self._ghost_fly_scoped("playLightboxOpen", 4500)
         assert scope.count("clearProps: 'transform,opacity'") >= 4, \
-            "playLightboxOpen onComplete + onInterrupt 應各有 content + coverImg 兩處 clearProps（共 4 處）"
+            "ghost-fly.js playLightboxOpen onComplete + onInterrupt 應各有 content + coverImg 兩處 clearProps（共 4 處）"
 
     # === T2.4 — playFlipFilter (main + onEnter ×2 + onLeave) ===
     def test_play_flip_filter_main_fluent(self):
@@ -2987,14 +3023,25 @@ class TestGhostFlyGuards:
         assert "ghost-fly.js" in html
 
     def test_skip_cover_supported_in_showcase_animations(self):
-        """showcase/animations.js playLightboxOpen 支援 skipCover"""
-        js = Path("web/static/js/pages/showcase/animations.js").read_text(encoding="utf-8")
-        assert "skipCover" in js
+        """playLightboxOpen 支援 skipCover — Phase 51 T4.2 起共用實作於 ghost-fly.js，
+        showcase delegate 透過 Object.assign 將 options.skipCover 透傳"""
+        ghost_fly_js = Path("web/static/js/shared/ghost-fly.js").read_text(encoding="utf-8")
+        assert "skipCover" in ghost_fly_js, \
+            "ghost-fly.js playLightboxOpen 共用實作應支援 opts.skipCover"
+        showcase_js = Path("web/static/js/pages/showcase/animations.js").read_text(encoding="utf-8")
+        # Showcase delegate 用 Object.assign 透傳 options（含 skipCover），無需顯式提及
+        assert "GhostFly.playLightboxOpen" in showcase_js, \
+            "showcase/animations.js playLightboxOpen 應 delegate 至 GhostFly（skipCover 透過 options 透傳）"
 
     def test_skip_cover_supported_in_search_animations(self):
-        """search/animations.js playLightboxOpen 支援 skipCover"""
-        js = Path("web/static/js/pages/search/animations.js").read_text(encoding="utf-8")
-        assert "skipCover" in js
+        """playLightboxOpen 支援 skipCover — Phase 51 T4.3 起共用實作於 ghost-fly.js，
+        search delegate 透傳 options（含 skipCover）"""
+        ghost_fly_js = Path("web/static/js/shared/ghost-fly.js").read_text(encoding="utf-8")
+        assert "skipCover" in ghost_fly_js, \
+            "ghost-fly.js playLightboxOpen 共用實作應支援 opts.skipCover"
+        search_js = Path("web/static/js/pages/search/animations.js").read_text(encoding="utf-8")
+        assert "GhostFly.playLightboxOpen" in search_js, \
+            "search/animations.js playLightboxOpen 應 delegate 至 GhostFly（skipCover 透過 options 透傳）"
 
     def test_ghost_fly_fallback_exists_in_search_animations(self):
         """search/animations.js 委派函式有 GhostFly fallback"""

@@ -190,7 +190,7 @@
             }
 
             var dur = options.duration || 0.6;
-            var ease = options.ease || 'back.out(1.2)';
+            var ease = options.ease || 'fluent-decel';
             var staggerVal = options.stagger || 0.05;
             var batchZ = ((options.batchZ || 0) * 10) + 100;
 
@@ -284,7 +284,7 @@
             // 快速 crossfade（opacity 0→1，0.15s）
             return gsap.fromTo(imgEl,
                 { opacity: 0 },
-                { opacity: 1, duration: 0.15, ease: 'power2.out' }
+                { opacity: 1, duration: 0.15, ease: 'fluent' }
             );
         },
 
@@ -357,7 +357,7 @@
         /**
          * Skeleton grid 整體轉場淡入（seed 收到後、Progress → Grid 轉場）
          *
-         * 輕量整體淡入，讓 skeleton grid 出現時不突兀。（保留不改）
+         * 輕量整體淡入，讓 skeleton grid 出現時不突兀。
          *
          * @param {Element} gridEl - .search-grid 元素
          * @returns {gsap.core.Tween|null}
@@ -372,8 +372,8 @@
 
             return gsap.from(gridEl, {
                 opacity: 0,
-                duration: 0.25,
-                ease: 'power1.out'
+                duration: OpenAver.motion.DURATION.fast,
+                ease: 'fluent-decel'
             });
         },
 
@@ -410,8 +410,8 @@
                 return null;
             }
 
-            var dur = 0.6;
-            var ease = 'power3.out';
+            var dur = OpenAver.motion.DURATION.emphasis;
+            var ease = 'fluent-decel';
             var skipCover = options.skipCover === true;
 
             var tl = gsap.timeline({ id: 'searchDetailEntry' });
@@ -478,7 +478,7 @@
 
             var self = this;
             var dur = 0.38;
-            var ease = 'power2.inOut';
+            var ease = 'fluent';
 
             // C4: 清除 ghost 舊動畫（re-entrant safety）
             gsap.killTweensOf(ghost);
@@ -555,7 +555,7 @@
             gsap.set(targetImg, { opacity: 0 });
 
             var dur = 0.38;
-            var ease = 'power2.inOut';
+            var ease = 'fluent';
 
             // C4: 清除 ghost 舊動畫
             gsap.killTweensOf(ghost);
@@ -581,7 +581,7 @@
                         // target settle: micro scale pulse
                         gsap.fromTo(targetCardEl,
                             { scale: 1.02 },
-                            { scale: 1, duration: 0.18, ease: 'power2.out' }
+                            { scale: 1, duration: 0.18, ease: 'fluent' }
                         );
                     }
                 }
@@ -634,7 +634,7 @@
 
             return gsap.fromTo(containerEl,
                 { x: xFrom, opacity: 0 },
-                { x: 0, opacity: 1, duration: 0.3, ease: 'power3.out' }
+                { x: 0, opacity: 1, duration: OpenAver.motion.DURATION.medium, ease: 'fluent-decel' }
             );
         },
 
@@ -652,8 +652,8 @@
             if (!flipState) return;
             if (typeof Flip === 'undefined') return;
             if (shouldSkip()) return;
-            var dur = options.duration || 0.4;
-            var ease = options.ease || 'power2.out';
+            var dur = options.duration || OpenAver.motion.DURATION.medium;
+            var ease = options.ease || 'fluent-decel';
             Flip.from(flipState, {
                 duration: dur,
                 ease: ease
@@ -710,7 +710,7 @@
                 return null;
             }
 
-            var dur = options.duration || 0.8;
+            var dur = options.duration || OpenAver.motion.DURATION.emphasis;
             var scaleVal = options.scale || 1.06;
             var ease = options.ease || 'settle';
             var rowCount = options.rows || 3;
@@ -784,61 +784,18 @@
          * @returns {gsap.core.Timeline|null}
          */
         playLightboxOpen: function (lightboxEl, options) {
-            options = options || {};
-
-            if (!lightboxEl) return null;
-            if (typeof gsap === 'undefined') return null;
-            if (shouldSkip()) return null;
-
-            var content = lightboxEl.querySelector('.lightbox-content');
-            var coverImg = lightboxEl.querySelector('.lightbox-cover img');
-
-            // C4: 清除舊動畫
-            gsap.killTweensOf(lightboxEl);
-            if (content) gsap.killTweensOf(content);
-            if (coverImg) gsap.killTweensOf(coverImg);
-
-            // C21: 暫時關掉 CSS transition
-            if (!lightboxEl.classList.contains('gsap-animating')) {
-                lightboxEl.classList.add('gsap-animating');
-            }
-
-            var tl = gsap.timeline({
-                id: 'lightboxOpen',
-                onComplete: function () {
-                    lightboxEl.classList.remove('gsap-animating');
-                    if (typeof options.onComplete === 'function') options.onComplete();
-                },
-                onInterrupt: function () {
-                    lightboxEl.classList.remove('gsap-animating');
-                }
-            });
-
-            // 1. Backdrop fade-in
-            tl.fromTo(lightboxEl,
-                { opacity: 0 },
-                { opacity: 1, duration: 0.16, ease: 'power2.out' }
-            );
-
-            // 2. Content card scale pop-in
-            if (content) {
-                tl.fromTo(content,
-                    { scale: 0.95, opacity: 0, transformOrigin: 'center center' },
-                    { scale: 1, opacity: 1, duration: 0.18, ease: 'power2.out', transformOrigin: 'center center' },
-                    0.03
-                );
-            }
-
-            // 3. Cover image slide-up fade-in（ghost fly 時跳過）
-            if (coverImg && !options.skipCover) {
-                tl.fromTo(coverImg,
-                    { y: 12, opacity: 0 },
-                    { y: 0, opacity: 1, duration: 0.16, ease: 'power2.out' },
-                    '-=0.08'
-                );
-            }
-
-            return tl;
+            // Phase 51 Phase 4 (T4.3): delegate to GhostFly.playLightboxOpen 共用實作。
+            // 不傳 timelineId，沿用預設 'lightboxOpen'，維持 grid-mode.js 既有
+            // gsap.getById('lightboxOpen')?.kill() 的 kill 路徑不變。
+            // CD-51-14：共用實作採 showcase 版完整 cleanup 契約（onComplete/onInterrupt
+            // 各對 content/coverImg 做 clearProps），對 search 為正向行為改善
+            // （防連點殘留 stutter）。
+            // typeof guard（codex T4-P3）：window.GhostFly 存在但 playLightboxOpen
+            // method 缺（cache invalidation 場景：舊 ghost-fly.js + 新 animations.js）
+            // 時 fallback null，避免 TypeError 直接炸掉 lightbox open。
+            return typeof window.GhostFly?.playLightboxOpen === 'function'
+                ? window.GhostFly.playLightboxOpen(lightboxEl, options)
+                : null;
         },
 
         /**
@@ -886,7 +843,7 @@
             // B19: 單相 slide-in（state-first 後 DOM 已是新內容，fade-out 會造成反向閃爍）
             tl.fromTo(contentEl,
                 { opacity: 0, x: xIn },
-                { opacity: 1, x: 0, duration: 0.25, ease: 'power2.out' }
+                { opacity: 1, x: 0, duration: OpenAver.motion.DURATION.fast, ease: 'fluent' }
             );
 
             return tl;
@@ -923,8 +880,8 @@
                 {
                     opacity: 1,
                     x: 0,
-                    duration: 0.22,
-                    ease: 'power2.out',
+                    duration: OpenAver.motion.DURATION.fast,
+                    ease: 'fluent',
                     clearProps: 'transform,opacity',
                     onComplete: function () {
                         imgEl.classList.remove('gsap-animating');
@@ -967,7 +924,7 @@
             if (rowEl) {
                 gsap.fromTo(rowEl,
                     { backgroundColor: 'rgba(0, 200, 100, 0.15)' },
-                    { backgroundColor: 'transparent', duration: 0.8, ease: 'power2.out', clearProps: 'backgroundColor' }
+                    { backgroundColor: 'transparent', duration: 0.8, ease: 'fluent-accel', clearProps: 'backgroundColor' }
                 );
             }
         },
@@ -1014,8 +971,8 @@
             }
             return gsap.to(barEl, {
                 width: percent + '%',
-                duration: 0.3,
-                ease: 'power2.out',
+                duration: OpenAver.motion.DURATION.medium,
+                ease: 'fluent',
                 overwrite: 'auto'
             });
         },
@@ -1030,9 +987,9 @@
          *
          * @param {Element[]} newCards - 新批次卡片 DOM 元素陣列
          * @param {object} [options] - 可選動畫參數
-         * @param {number} [options.duration=0.35] - 單張動畫時長（秒）
+         * @param {number} [options.duration=DURATION.medium] - 單張動畫時長（秒）
          * @param {number} [options.stagger=0.03] - 卡片間隔（秒）
-         * @param {string} [options.ease='power2.out'] - GSAP ease
+         * @param {string} [options.ease='fluent-decel'] - GSAP ease
          * @returns {null|gsap.core.Tween}
          */
         playAppendCascade: function (newCards, options) {
@@ -1069,9 +1026,9 @@
                 {
                     opacity: 1,
                     y: 0,
-                    duration: options.duration || 0.35,
+                    duration: options.duration || OpenAver.motion.DURATION.medium,
                     stagger: options.stagger || 0.03,
-                    ease: options.ease || 'power2.out',
+                    ease: options.ease || 'fluent-decel',
                     clearProps: 'transform,opacity'
                 }
             );

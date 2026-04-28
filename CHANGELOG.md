@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-04-29
+
+本版把 Phase 50 在 Showcase 影片模式驗證過的 ui-conventions（Fluent 2 token / 白名單 / ease 三角色 / §6 5 檢查點）擴展到 Showcase 女優模式 + Search 整頁，並把 lightbox 開門動畫從兩邊各自實作整併到 `shared/ghost-fly.js` 共用。對使用者而言三個主要 surface 視覺與動畫節奏接續，沒有功能變化。
+
+*This release applies the ui-conventions validated in Phase 50 (Showcase video mode) to Showcase actress mode and the Search page, and consolidates the lightbox-open animation into a shared `ghost-fly.js` implementation. No user-facing feature changes.*
+
+### Added
+
+#### 🎯 51.1 — Showcase 女優模式 conventions 套用（Phase 1）
+- 女優模式擴散感受確認 — Phase 50 共用動畫函式 default ease 已對齊三角色，女優 grid 進場 / 排序 / 篩選 / 模式切換感受可接受 (commit 891060a)
+- showcase.css 女優段靜態修齊 — actress card / lightbox / picker overlay / picker card 等 ~14 違規 row 對齊 §1-§4 + §5 CSS transition token 化 (commit d2a2de6)
+- `playHeroCardAppear` ease 試改 fluent-decel（power2.out → fluent-decel，duration 0.3s 保留 hardcoded 白名單）(commit 9dcff7a)
+- `_fadeMetadataPanel` 改三角色 fluent + DURATION.fast（女優 lightbox metadata 淡入淡出）(commit a85f54b)
+- §6 5 檢查點：女優 picker-refresh-btn radius / stroke / focus 對齊（非 DaisyUI .btn 但需 §6 精神）(commit 11ac5e8)
+
+#### 🎯 51.2 — Search 頁靜態修齊（Phase 2）
+- input.css 新增 `--overlay-letterbox` token + `--overlay-badge` token（§3 角色色白名單擴張）(commits 0080118 / 6224b08)
+- search.css §1/§2/§3 靜態修齊 — hardcoded blur / shadow / radius / color 全 token 化（~50 違規 row）(commit 41f2a5b)
+- search.css §4 spacing 三層修齊 — 8pt layout 3 處 / 6px optical 註記 2 處 / stroke 放行 (commit 89d52b6)
+- §6 5 檢查點：search 頁 .btn / .input / .dropdown / .spotlight-search 5 檢查點全通過（沿 Phase 50 T5 完整實作規格） (commit 5dd7a61)
+
+#### 🎯 51.3 — Search GSAP 系統 ease 對齊（Phase 3）
+- §5 白名單預登記：Staging Card `back.out(1.4)` + playOrganizeSuccess checkmark `back.out(1.7)` + playOrganizeFail shake `power1.inOut 0.08s` 三招牌動畫保留不動
+- `playDetailEntry` cover + info 段 → fluent-decel + DURATION.emphasis (commit 0c351c6)
+- `playGridToDetail` / `playDetailToGrid` ghost 飛行 → fluent (standard) (commit 941bf3c)
+- `playDetailToGrid` settle pulse → fluent（0.18s 加 §5 hardcoded duration 白名單）(commit ce80424)
+- `playSlideIn` / `playHeroRemove` / `playGridSettle duration` / `playLightboxSwitch` / `playSampleGallerySwitch` / `playProgressUpdate` / `playAppendCascade` / `playGridFadeIn` 對齊三角色（commits e4b8d2f / 3505e36 / 3190d9a / 9bb2931 / cbf160c / ec7b4c1 / 926faf4 / a304752）
+- `playCoverSwap` → fluent（0.15s 加白名單，意圖即「快速替換無感切換」）(commit 1c0c1b9)
+- `playMiniBurst` → fluent-decel 試改（back.out(1.2) → decel；感受待 dev server 驗證）(commit c3a4eb4)
+- `playOrganizeSuccess` row green flash → fluent-accel（離場淡出，0.8s 加白名單沿 showcaseSettle 模式）(commit 70d7f20)
+
+#### 🎯 51.4 — Lightbox 共用化（Phase 4）
+- 新增 `GhostFly.playLightboxOpen` 共用實作於 `shared/ghost-fly.js`，採 showcase 版完整 cleanup 契約（onComplete + onInterrupt 各對 content/coverImg 做 clearProps，防連點殘留 stutter）(commit 8bf9158)
+- `ShowcaseAnimations.playLightboxOpen` 改 delegate（傳 `timelineId: 'showcaseLightboxOpen'` 維持 killLightboxAnimations 行為） (commit f3cbafe)
+- `SearchAnimations.playLightboxOpen` 改 delegate（不傳 timelineId 沿用預設 `'lightboxOpen'` 維持 grid-mode.js kill 路徑；search 連點 interrupt 行為從 silent 改為 clearProps 正向改善）(commit 35ab2f0)
+- 兩 caller 各刪 ~73 / ~56 行重複碼，淨減 ~70 行 → lightbox 開門動畫 single source of truth
+
+### Fixed
+- T2.4 codex P2：tag 編輯 inline btn fallback 補完（.tag-add-btn dashed restore + .tag-confirm/.tag-cancel）(commit d5940f8)
+- T3.13/T3.15 codex P3：同步 Phase 3 改動後過時 JSDoc default 註解 (commit f341398)
+- T4 codex P3：delegate guard 改 `typeof window.GhostFly?.playLightboxOpen === 'function'` — 防 cache invalidation 場景（舊 cached ghost-fly.js + 新 page animations.js）下舊 GhostFly object 缺新 method 導致 TypeError 炸掉 lightbox open (commit 5e4dc63)
+
 ## [0.8.0] - 2026-04-28
 
 本版聚焦在 Showcase 影片模式的視覺語言統一（Phase 50 Charter Pilot）。把 Fluent 2 的設計規範完整套用到 token、白名單、ease 三角色、§6 5 檢查點，並把 visual-charter 從一次性提案升級為正式的 ui-conventions 工作流文件，之後新做頁面有規範可循。對使用者而言介面更一致、動畫節奏更自然，沒有功能變化。

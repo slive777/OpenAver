@@ -3,10 +3,10 @@
 @layer theme, base, components, utilities;
 @layer theme {
   :root, :host {
-    --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
-      "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-      "Courier New", monospace;
+    --font-sans: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+    'Noto Color Emoji';
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
     --color-black: #000;
     --spacing: 0.25rem;
     --breakpoint-2xl: 96rem;
@@ -56,7 +56,7 @@
     line-height: 1.5;
     -webkit-text-size-adjust: 100%;
     tab-size: 4;
-    font-family: var(--default-font-family, ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji");
+    font-family: var(--default-font-family, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji');
     font-feature-settings: var(--default-font-feature-settings, normal);
     font-variation-settings: var(--default-font-variation-settings, normal);
     -webkit-tap-highlight-color: transparent;
@@ -83,7 +83,7 @@
     font-weight: bolder;
   }
   code, kbd, samp, pre {
-    font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+    font-family: var(--default-mono-font-family, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace);
     font-feature-settings: var(--default-mono-font-feature-settings, normal);
     font-variation-settings: var(--default-mono-font-variation-settings, normal);
     font-size: 1em;
@@ -183,13 +183,13 @@
   :-moz-ui-invalid {
     box-shadow: none;
   }
-  button, input:where([type="button"], [type="reset"], [type="submit"]), ::file-selector-button {
+  button, input:where([type='button'], [type='reset'], [type='submit']), ::file-selector-button {
     appearance: button;
   }
   ::-webkit-inner-spin-button, ::-webkit-outer-spin-button {
     height: auto;
   }
-  [hidden]:where(:not([hidden="until-found"])) {
+  [hidden]:where(:not([hidden='until-found'])) {
     display: none !important;
   }
 }
@@ -728,9 +728,6 @@
         width: unset;
       }
     }
-    .prose :where(a&:not(.btn-link)):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
-      text-decoration-line: none;
-    }
     @layer daisyui.l1.l2.l3 {
       display: inline-flex;
       flex-shrink: 0;
@@ -1224,7 +1221,6 @@
         grid-row-start: 1;
         aspect-ratio: 1 / 1;
         height: 100%;
-        width: 100%;
         border-radius: var(--radius-selector);
         background-color: currentcolor;
         translate: 0;
@@ -3544,6 +3540,9 @@
     text-transform: uppercase;
   }
   .btn-link {
+    .prose :where(&):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+      text-decoration-line: none;
+    }
     @layer daisyui.l1 {
       text-decoration-line: underline;
       outline-color: currentcolor;
@@ -5754,9 +5753,11 @@ body.fluent-canvas:not(.ds-page)::before {
   --fluent-blur-heavy: 60px;
   --fluent-smoke: rgba(0, 0, 0, 0.4);
   --overlay-gallery: rgba(0, 0, 0, 0.85);
+  --overlay-badge: rgba(0, 0, 0, 0.7);
   --overlay-modal: rgba(0, 0, 0, 0.6);
   --overlay-gradient: rgba(0, 0, 0, 0.55);
   --overlay-control: rgba(0, 0, 0, 0.45);
+  --overlay-letterbox: rgba(0, 0, 0, 0.2);
 }
 [data-theme="dim"] {
   --fluent-shadow-2: 0px 0px 2px rgba(0, 0, 0, 0.24), 0px 1px 2px rgba(0, 0, 0, 0.28);

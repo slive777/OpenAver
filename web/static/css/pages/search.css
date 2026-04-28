@@ -14,8 +14,8 @@
     padding: 0.5rem 1rem;
     background: var(--bg-header);
     border-bottom: 1px solid var(--border-light);
-    backdrop-filter: blur(16px) saturate(130%);
-    -webkit-backdrop-filter: blur(16px) saturate(130%);
+    backdrop-filter: blur(var(--fluent-blur)) saturate(var(--fluent-saturate));
+    -webkit-backdrop-filter: blur(var(--fluent-blur)) saturate(var(--fluent-saturate));
     z-index: 100;
 }
 
@@ -54,7 +54,7 @@
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--overlay-letterbox);
 }
 
 /* Fix 3: 封面錯誤/無封面 placeholder 置中 */
@@ -86,6 +86,7 @@
     height: 100%;
     max-height: calc(100vh - 200px);
     object-fit: contain !important;  /* Search 不裁切；!important 覆蓋 theme.css (0,1,1) specificity */
+    /* §2 例外：drop-shadow 跟封面去背形狀走（非矩形 box-shadow），無法用 --fluent-shadow-* token（後者是完整 box-shadow 字串）；alpha 0.3 對齊 dim theme fluent-shadow key 0.28 ±0.02 */
     filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
 }
 
@@ -112,7 +113,7 @@
     transform: translateY(-50%);
     width: 44px;
     height: 64px;
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--overlay-modal);
     border: none;
     color: var(--text-inverse);
     font-size: 1.4rem;
@@ -124,7 +125,7 @@
 }
 
 .av-card-full-cover-wrapper .nav-btn:hover {
-    background: rgba(0, 0, 0, 0.8);
+    background: var(--overlay-gallery);
     transform: translateY(-50%) scale(1.05);
 }
 
@@ -143,9 +144,9 @@
     bottom: 50px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--overlay-modal);
     color: var(--text-inverse);
-    padding: 2px 10px;
+    padding: 2px 8px;
     border-radius: var(--fluent-radius-xl);
     font-size: 0.8rem;
 }
@@ -176,7 +177,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 
 .file-list-header .file-count {
@@ -230,6 +231,7 @@
 
 .file-item .btn-scrape-single {
     flex-shrink: 0;
+    /* row inline btn optical 6px (btn-sm 12px padding 對 row inline 太寬，row 高度有限需獨立微調) */
     padding: 0 6px;
     font-size: 0.7rem;
     line-height: 1.4;
@@ -399,8 +401,8 @@
     right: 0;
     bottom: 0;
     background: color-mix(in oklch, var(--color-base-100) 60%, transparent);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
     z-index: 9999;
     display: flex;
     align-items: center;
@@ -565,6 +567,7 @@
 }
 
 .tag-add-btn {
+    /* chip optical 6px (charter §4 micro chip 級例外保留，對齊 showcase .lb-tag-add-btn) */
     padding: 1px 6px;
     font-size: 0.7rem;
     line-height: 1;
@@ -767,7 +770,7 @@
     background: var(--color-primary);
     color: var(--color-primary-content);
     padding: 0.1rem 0.4rem;
-    border-radius: 4px;
+    border-radius: var(--fluent-radius-md);
     white-space: nowrap;
 }
 
@@ -893,10 +896,10 @@
 .actress-lightbox-meta .lb-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .actress-lightbox-meta .lb-name-en { font-size: 0.9em; opacity: 0.7; }
 .actress-lightbox-meta .lb-actress-core { font-size: 0.95em; margin: 8px 0; opacity: 0.85; }
-.actress-lightbox-meta .lb-chips-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.actress-lightbox-meta .lb-chips-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
 .actress-lightbox-meta .lb-chips-more {
     cursor: pointer; font-size: 0.85em; padding: 2px 8px;
-    border-radius: 12px; border: 1px solid currentColor; opacity: 0.6;
+    border-radius: var(--radius-md); border: 1px solid currentColor; opacity: 0.6;
 }
 .actress-lightbox-meta .lb-chips-more:hover { opacity: 1; }
 .actress-lightbox-meta .lb-actress-urls { margin-top: 8px; }
@@ -906,3 +909,112 @@
 /* Actress Lightbox Row 1 愛心（inline，使用 .btn-glass-circle） */
 .actress-lb-header .btn-glass-circle { width: 32px; height: 32px; font-size: 1rem; margin-left: auto; }
 .actress-lb-header .btn-glass-circle.is-favorite { color: var(--color-favorite); cursor: default; }
+
+/* ==================== Phase 51 T2.4 §6 5 檢查點 — Search DaisyUI Component Override ==================== */
+/* Fluent 覆寫 .search-container 內 DaisyUI .btn / .textarea（charter §6 5 檢查點：radius/surface/stroke/shadow/hover-focus）*/
+/* CD-4 限制：scoped 在 .search-container 內，不影響其他頁面 / 不動 .spotlight-search（pill 白名單第 1 類 + theme.css CD-4 觀察項，Phase 52 處理）*/
+/* 沿 Phase 50 T5 完整實作規格 verbatim：Stroke (border-width/style only — 不固定 color)；Surface (var(--surface-1) for .textarea)；Shadow + dual-layer inset 0 1px 0；Focus 2px outline + 4px glow */
+
+.search-container .btn {
+    border-radius: var(--fluent-radius-md);
+    border-width: 1px;
+    border-style: solid;
+    /* 不固定 border-color — 保留 DaisyUI variant (.btn-outline.btn-primary 等) */
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-2);
+    transition:
+        background var(--fluent-duration-fast) var(--fluent-ease-standard),
+        border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+        box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard),
+        transform var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.search-container .btn:hover:not(:disabled) {
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 12%, transparent),
+        var(--fluent-shadow-4);
+    transform: translateY(-1px);
+}
+
+.search-container .btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-2),
+        0 0 0 4px var(--glow-primary);
+}
+
+.search-container .btn:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 6%, transparent),
+        var(--fluent-shadow-2);
+}
+
+/* 個案豁免：dashed transparent btn / link btn / tag inline icon-only btn 自有設計語言，不套 dual-layer shadow（視覺衝突）*/
+/* tag-add-btn 自有 dashed border + transparent；tag-confirm / tag-cancel 自有 border:none + transparent + 純文字 ✓/✕ */
+/* btn-link 自有 link 樣式（無 box），dual-layer shadow 打破 link 語義 */
+.search-container .btn.tag-add-btn,
+.search-container .btn.tag-confirm,
+.search-container .btn.tag-cancel,
+.search-container .btn-link {
+    box-shadow: none;
+    background: transparent;
+    transform: none;
+    /* radius 對齊保留 */
+}
+/* tag-add-btn restore base dashed border（被 .search-container .btn 的 border-style: solid override 蓋掉）*/
+.search-container .btn.tag-add-btn {
+    border-style: dashed;
+    border-color: var(--text-muted);
+}
+/* tag-confirm / tag-cancel restore base border:none */
+.search-container .btn.tag-confirm,
+.search-container .btn.tag-cancel {
+    border: none;
+}
+.search-container .btn.tag-add-btn:hover:not(:disabled),
+.search-container .btn.tag-confirm:hover:not(:disabled),
+.search-container .btn.tag-cancel:hover:not(:disabled),
+.search-container .btn-link:hover:not(:disabled) {
+    box-shadow: none;
+    transform: none;
+}
+/* tag-add-btn hover 保留原 border-color: accent + color: accent */
+.search-container .btn.tag-add-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+.search-container .btn.tag-add-btn:focus-visible,
+.search-container .btn.tag-confirm:focus-visible,
+.search-container .btn.tag-cancel:focus-visible,
+.search-container .btn-link:focus-visible {
+    /* 保留 focus glow（a11y 必需）但移除 dual-layer shadow */
+    box-shadow: 0 0 0 4px var(--glow-primary);
+}
+
+.search-container .textarea {
+    border-radius: var(--fluent-radius-md);
+    background: var(--surface-1);
+    border-width: 1px;
+    border-style: solid;
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 6%, transparent),
+        var(--fluent-shadow-2);
+    transition:
+        border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+        box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.search-container .textarea:focus,
+.search-container .textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-color: var(--accent);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 8%, transparent),
+        var(--fluent-shadow-2),
+        0 0 0 4px var(--glow-primary);
+}

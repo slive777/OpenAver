@@ -78,11 +78,13 @@
   /* Smoke 遮罩 */
   --fluent-smoke: rgba(0, 0, 0, 0.4);
 
-  /* Charter v2 §3 角色色白名單 — Overlay 4 階 */
+  /* Charter v2 §3 角色色白名單 — Overlay 6 階 */
   --overlay-gallery:  rgba(0, 0, 0, 0.85);  /* sample gallery 暗幕 */
+  --overlay-badge:    rgba(0, 0, 0, 0.7);   /* picker source badge 背景 */
   --overlay-modal:    rgba(0, 0, 0, 0.6);   /* lightbox backdrop */
   --overlay-gradient: rgba(0, 0, 0, 0.55);  /* card hover 漸層 bottom */
   --overlay-control:  rgba(0, 0, 0, 0.45);  /* 浮在媒體上的控制按鈕 */
+  --overlay-letterbox: rgba(0, 0, 0, 0.2);  /* 媒體封面 letterbox 黑邊背景 */
 }
 
 /* Dark Theme 陰影 - 更深的陰影 */
