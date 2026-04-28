@@ -2807,6 +2807,27 @@ class TestShowcaseAnimationsFluent:
         assert "ease: 'fluent-decel'" in scope, \
             "playModeCrossfade new fade-in 應為 'fluent-decel'（進場）"
 
+    # === T2.7 — playLightboxSwitch / playSampleGallerySwitch → fluent ===
+    def test_play_lightbox_switch_fluent(self):
+        scope = self._scoped("playLightboxSwitch", 1500)
+        assert "ease: 'fluent'" in scope, \
+            "playLightboxSwitch ease 應為 'fluent'（charter §5 standard 互動切換）"
+        assert "power2.out" not in scope, "playLightboxSwitch 殘留 power2.out"
+
+    def test_play_sample_gallery_switch_fluent(self):
+        scope = self._scoped("playSampleGallerySwitch", 1300)
+        assert "ease: 'fluent'" in scope, \
+            "playSampleGallerySwitch ease 應為 'fluent'（charter §5 standard 互動切換）"
+        assert "power2.out" not in scope, "playSampleGallerySwitch 殘留 power2.out"
+
+    # === playHeroCardAppear — 女優專屬白名單，不動 ===
+    def test_hero_card_appear_whitelist_not_touched(self):
+        """playHeroCardAppear 為女優專屬（plan D10 white-list），ease 不被本 phase 改"""
+        scope = self._scoped("playHeroCardAppear", 800)
+        # 白名單保留 power2.out（spec scope 排除女優模式）
+        assert "ease: 'power2.out'" in scope, \
+            "playHeroCardAppear ease 不應被改（女優專屬 white-list）"
+
     # === T2.6 — playLightboxOpen 3 段 ===
     def test_play_lightbox_open_three_decel(self):
         scope = self._scoped("playLightboxOpen", 2500)
