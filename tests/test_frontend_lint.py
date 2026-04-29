@@ -4292,6 +4292,28 @@ class TestShowcaseRemoveActressNoNativeConfirm:
         )
 
 
+class TestSettingsResetConfigNoNativeConfirm:
+    """T3.4 (CD-52-11): resetConfig 改 fluent-modal 後 settings.js 不再含原 confirm 文字
+
+    用「資料指紋」式精準字串匹配，避免誤命中 cycleLocale (L262) 既有 confirm —
+    該 confirm 屬 backlog，不在 Phase 52 範圍。
+    """
+
+    SETTINGS_JS = PROJECT_ROOT / 'web' / 'static' / 'js' / 'pages' / 'settings.js'
+
+    def test_settings_resetconfig_no_native_confirm(self):
+        """T3.4: resetConfig 改 fluent-modal 後 settings.js 不再含原 confirm 完整文字
+
+        守衛字串對齊舊 native confirm 完整文（含尾句號），與新 i18n key 內容
+        ('...無法復原。') 不重疊，避免 fallback 內聯時誤觸發。
+        """
+        settings_js = self.SETTINGS_JS.read_text(encoding="utf-8")
+        assert "確定要重置所有設定嗎？此操作將刪除所有自訂設定。" not in settings_js, (
+            "T3.4 違規：resetConfig() native confirm 已於 T3.4 替換為 fluent-modal — "
+            "settings.js 不應再含舊 native confirm 完整字串"
+        )
+
+
 class TestSampleGalleryTemplateGuard:
     """T8：Search Sample Gallery 模板守衛
 

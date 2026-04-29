@@ -300,6 +300,11 @@
       "discard": "不儲存",
       "save": "儲存更改"
     },
+    "reset_modal": {
+      "title": "重置所有設定",
+      "body": "確定要重置所有設定嗎？此操作將刪除所有自訂設定，無法復原。",
+      "confirm": "確認重置"
+    },
     "status": {
       "loading_models": "載入模型中...",
       "connecting": "連線中...",

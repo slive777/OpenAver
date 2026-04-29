@@ -2351,6 +2351,39 @@ class TestShowcaseActressI18n:
             "T3.3 違規：showcase.actress.removeConfirm 應已隨 native confirm → fluent-modal 改寫從 zh_TW 移除"
 
 
+class TestSettingsResetModalI18n:
+    """T3.4 (CD-52-11): resetConfig fluent-modal i18n key 守衛
+
+    沿 TestShowcaseActressI18n.test_remove_modal_keys_in_zh_tw pattern，
+    開發期只守 zh_TW.json；其他 locale 走 milestone 同步（依 i18n.md 規則）。
+    """
+
+    LOCALES_ROOT = Path(__file__).parent.parent.parent / "locales"
+
+    def _locale(self, name):
+        return json.loads((self.LOCALES_ROOT / name).read_text(encoding="utf-8"))
+
+    def _get_nested(self, d, dotted_key):
+        keys = dotted_key.split(".")
+        cur = d
+        for k in keys:
+            if not isinstance(cur, dict) or k not in cur:
+                return None
+            cur = cur[k]
+        return cur
+
+    @pytest.mark.parametrize("key", [
+        "settings.reset_modal.title",
+        "settings.reset_modal.body",
+        "settings.reset_modal.confirm",
+    ])
+    def test_reset_modal_keys_in_zh_tw(self, key):
+        """T3.4: reset_modal.* 3 keys 在 zh_TW.json 存在（cancel 複用 common.action.cancel 不需新增）"""
+        data = self._locale("zh_TW.json")
+        val = self._get_nested(data, key)
+        assert val is not None, f"zh_TW.json 缺少 {key}（T3.4 fluent-modal i18n key）"
+
+
 class TestShowcaseLightboxSentinel:
     """Phase 44b-T4: Lightbox -1 sentinel nav guards"""
 

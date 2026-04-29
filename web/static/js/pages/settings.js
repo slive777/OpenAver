@@ -84,6 +84,10 @@ function settingsPage() {
         // Dirty Check Modal State
         dirtyCheckModalOpen: false,
 
+        // Reset Config Modal State (T3.4)
+        resetConfigModalOpen: false,
+        _resetConfigLoading: false,
+
         // ===== Dirty Check State =====
         savedState: null,
         savedOpenaiUseCustomModel: false,
@@ -834,21 +838,37 @@ function settingsPage() {
             }
         },
 
-        async resetConfig() {
-            if (confirm('確定要重置所有設定嗎？此操作將刪除所有自訂設定。')) {
-                try {
-                    const resp = await fetch('/api/config', { method: 'DELETE' });
-                    const result = await resp.json();
-                    if (result.success) {
-                        await this.loadConfig();
-                        this.showToast('已恢復預設設定', 'success');
-                    } else {
-                        this.showToast('重置失敗: ' + result.error, 'error');
-                    }
-                } catch (e) {
-                    this.showToast('重置失敗: ' + e.message, 'error');
+        // ===== Reset Config Modal (T3.4: confirm → fluent-modal + i18n) =====
+        openResetConfigModal() {
+            this.resetConfigModalOpen = true;
+        },
+
+        cancelResetConfigModal() {
+            this.resetConfigModalOpen = false;
+        },
+
+        async confirmResetConfig() {
+            this._resetConfigLoading = true;
+            try {
+                const resp = await fetch('/api/config', { method: 'DELETE' });
+                const result = await resp.json();
+                if (result.success) {
+                    await this.loadConfig();
+                    this.showToast('已恢復預設設定', 'success');
+                } else {
+                    this.showToast('重置失敗: ' + result.error, 'error');
                 }
+            } catch (e) {
+                this.showToast('重置失敗: ' + e.message, 'error');
+            } finally {
+                this._resetConfigLoading = false;
+                this.resetConfigModalOpen = false;
             }
+        },
+
+        async resetConfig() {
+            // Thin wrapper：保留向後相容，template @click="resetConfig()" 不需改
+            this.openResetConfigModal();
         },
 
         insertVariable(targetField, varName) {
