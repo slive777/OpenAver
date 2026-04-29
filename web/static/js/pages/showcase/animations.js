@@ -177,13 +177,20 @@
             var fromVars = { opacity: 0, y: 20 };
             gsap.set(visible, fromVars);
 
-            var tl = gsap.timeline({ id: 'showcaseEntry' });
-            tl.to(visible, { opacity: 1, y: 0, duration: dur, ease: ease, stagger: staggerVal });
+            // C21: cascade 進場期間 hover 不可搶 transform 控制權
+            visible.forEach(function (c) { c.classList.add('gsap-animating'); });
 
-            // 動畫結束後清除 inline styles
-            tl.eventCallback('onComplete', function () {
-                gsap.set(visible, { clearProps: 'transform,opacity' });
+            var tl = gsap.timeline({
+                id: 'showcaseEntry',
+                onComplete: function () {
+                    visible.forEach(function (c) { c.classList.remove('gsap-animating'); });
+                    gsap.set(visible, { clearProps: 'transform,opacity' });
+                },
+                onInterrupt: function () {
+                    visible.forEach(function (c) { c.classList.remove('gsap-animating'); });
+                }
             });
+            tl.to(visible, { opacity: 1, y: 0, duration: dur, ease: ease, stagger: staggerVal });
 
             return tl;
         },

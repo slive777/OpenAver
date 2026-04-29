@@ -1021,6 +1021,9 @@
 
             if (!visible.length) return null;
 
+            // C21: cascade 進場期間 hover 不可搶 transform 控制權
+            visible.forEach(function (c) { c.classList.add('gsap-animating'); });
+
             return gsap.fromTo(visible,
                 { opacity: 0, y: 16 },
                 {
@@ -1029,7 +1032,13 @@
                     duration: options.duration || OpenAver.motion.DURATION.medium,
                     stagger: options.stagger || 0.03,
                     ease: options.ease || 'fluent-decel',
-                    clearProps: 'transform,opacity'
+                    clearProps: 'transform,opacity',
+                    onComplete: function () {
+                        visible.forEach(function (c) { c.classList.remove('gsap-animating'); });
+                    },
+                    onInterrupt: function () {
+                        visible.forEach(function (c) { c.classList.remove('gsap-animating'); });
+                    }
                 }
             );
         }

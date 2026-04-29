@@ -971,6 +971,12 @@ body {
     box-shadow: none !important;
 }
 
+/* C21: GSAP cascade 進場期間關掉 CSS transition + 阻擋 hover 搶 transform */
+.av-card-preview.gsap-animating {
+    pointer-events: none;
+    transition: none !important;
+}
+
 /* Preview Card - 發光邊 Hover */
 :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview:hover {
     transform: translateY(-4px) scale(1.01);
