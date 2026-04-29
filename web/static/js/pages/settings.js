@@ -358,7 +358,9 @@ function settingsPage() {
                     this.form.avlistMode = config.gallery?.default_mode || 'image';
                     this.form.avlistSort = config.gallery?.default_sort || 'date';
                     this.form.avlistOrder = config.gallery?.default_order || 'descending';
-                    this.form.avlistItemsPerPage = config.gallery?.items_per_page || 90;
+                    // T3.2 P2 fix: `??` 而非 `||` — items_per_page=0 是 "全部" 合法選項，
+                    // 用 `||` 會把 0 吞掉變 90，導致存檔後重開 settings 顯示錯誤。
+                    this.form.avlistItemsPerPage = config.gallery?.items_per_page ?? 90;
                     this.form.avlistMinSize = config.gallery?.min_size_mb || 0;
                     this.form.avlistOutputDir = config.gallery?.output_dir || 'output';
                     this.form.avlistOutputFilename = config.gallery?.output_filename || 'gallery_output.html';

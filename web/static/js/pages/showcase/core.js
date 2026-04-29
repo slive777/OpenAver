@@ -300,7 +300,9 @@ function showcaseState() {
             const cfg = window.__SHOWCASE_CONFIG__ || {};
             const defaultSort = cfg.default_sort || 'date';
             const defaultOrder = cfg.default_order === 'ascending' ? 'asc' : 'desc';
-            const defaultPerPage = cfg.items_per_page || 90;
+            // T3.2 P2 fix: `??` 而非 `||` — Settings 允許 items_per_page=0（"全部"語意），
+            // 必須保留 numeric 0 讓下方 grid+perPage=0→120 降級邏輯有機會觸發。
+            const defaultPerPage = cfg.items_per_page ?? 90;
 
             // 2. 從 localStorage 恢復（優先於 config）
             const saved = localStorage.getItem('showcase_state');

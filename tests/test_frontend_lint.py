@@ -4217,6 +4217,42 @@ class TestGridPerPageGuard:
             "切到 grid 時若 perPage=0 必須降級為 120"
         )
 
+    def test_guard5_items_per_page_uses_nullish_coalescing(self):
+        """Guard 5 (T3.2 P2 fix): items_per_page 預設值必須用 `??` 而非 `||`
+
+        Settings UI 允許 items_per_page=0（"全部"選項，settings.html L663），
+        後端 `core/config.py:GalleryConfig.items_per_page` 沒有 gt=0 validator → 0 會透傳到前端。
+        若用 `||` 會把 0 視為 falsy 走 fallback 90，導致：
+          1. showcase init 永遠拿不到 0，grid+perPage=0→120 降級邏輯（Guard 1/3/4）永遠不觸發
+          2. settings 載入時把存檔的 0 顯示成 90，"全部" 選項失效
+
+        必須用 `??`（nullish coalescing）只對 null/undefined 走 fallback，保留 numeric 0。
+        """
+        showcase_core = self.CORE_JS.read_text(encoding='utf-8')
+        settings_js = (PROJECT_ROOT / 'web' / 'static' / 'js' / 'pages' / 'settings.js').read_text(encoding='utf-8')
+
+        # 禁止 `items_per_page || ...` pattern（吞 0 的寫法）
+        bad_pattern = re.compile(r'items_per_page\s*\|\|')
+        showcase_bad = bad_pattern.findall(showcase_core)
+        settings_bad = bad_pattern.findall(settings_js)
+        assert not showcase_bad, (
+            "T3.2 P2 違規：showcase/core.js 含 `items_per_page ||` — "
+            "Settings 的 items_per_page=0 ('全部') 會被吞成 fallback，必須改用 `??`"
+        )
+        assert not settings_bad, (
+            "T3.2 P2 違規：settings.js 含 `items_per_page ||` — "
+            "載入存檔的 items_per_page=0 ('全部') 會被吞成 fallback，必須改用 `??`"
+        )
+
+        # 正向斷言：showcase / settings 都必須有 `items_per_page ?? <number>` 寫法
+        good_pattern = re.compile(r'items_per_page\s*\?\?\s*\d+')
+        assert good_pattern.search(showcase_core), (
+            "T3.2 P2 違規：showcase/core.js 缺少 `items_per_page ?? <number>` 預設值寫法"
+        )
+        assert good_pattern.search(settings_js), (
+            "T3.2 P2 違規：settings.js 缺少 `items_per_page ?? <number>` 預設值寫法"
+        )
+
 
 class TestShowcasePerPageRemoval:
     """T3.2 (CD-52-3): showcase toolbar perPage selector 已移除守衛
