@@ -784,7 +784,7 @@
 
             return gsap.fromTo(imgEl,
                 { opacity: 0 },
-                { opacity: 1, duration: 0.15, ease: 'power2.out' }
+                { opacity: 1, duration: 0.15, ease: 'fluent-decel' }
             );
         },
 
@@ -804,7 +804,7 @@
             }
             gsap.fromTo(stagingCardEl,
                 { scale: 0.6, opacity: 0 },
-                { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(1.4)' }
+                { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(1.4)' } // §5 white-list: Staging Card 進場 morph
             );
         },
 
@@ -820,7 +820,7 @@
             if (shouldSkip(options)) return;
             // 不 killTweensOf：允許和入場動畫並存
             gsap.to(stagingCardEl, {
-                scale: 1.08, duration: 0.12, ease: 'power2.out',
+                scale: 1.08, duration: 0.12, ease: 'fluent-decel',
                 yoyo: true, repeat: 1,
                 onComplete: function () {
                     gsap.set(stagingCardEl, { scale: 1 });
@@ -841,7 +841,7 @@
             if (shouldSkip(options)) return;
             // 不 killTweensOf：exit tween 若在進行中不能打斷
             gsap.to(stagingCardEl, {
-                scale: 1.04, duration: 0.08, ease: 'power2.out',
+                scale: 1.04, duration: 0.08, ease: 'fluent-decel',
                 yoyo: true, repeat: 1
             });
         },
@@ -867,7 +867,7 @@
                 return;
             }
             gsap.to(stagingCardEl, {
-                scale: 0.7, opacity: 0, duration: 0.3, ease: 'power2.in',
+                scale: 0.7, opacity: 0, duration: 0.3, ease: 'fluent-accel',
                 onComplete: function () {
                     if (typeof onComplete === 'function') onComplete();
                 }
@@ -1190,7 +1190,7 @@
                 opacity: 0,
                 x: xShift,
                 duration: dur * 0.6,
-                ease: 'power2.in',
+                ease: 'fluent-accel',
                 stagger: { each: staggerVal, from: staggerFrom }
             });
 
@@ -1200,7 +1200,7 @@
                 opacity: 1,
                 x: 0,
                 duration: dur,
-                ease: 'power3.out',
+                ease: 'fluent-decel',
                 stagger: { each: staggerVal, from: staggerFrom },
                 onComplete: function () {
                     gsap.set(cards, { clearProps: 'transform,opacity' });
@@ -1238,7 +1238,7 @@
 
             var dur = params.duration || 0.5;
             var staggerVal = params.stagger || 0.04;
-            var ease = params.easing || 'power3.out';
+            var ease = params.easing || 'fluent-decel';
             var style = params.style || 'stagger';
 
             // Viewport 分流：fold 以下卡片瞬間顯示
@@ -1372,6 +1372,112 @@
             gsap.to(boxEls[1], { x: targetX, duration: medium,   ease: 'fluent' });
             gsap.to(boxEls[2], { x: targetX, duration: emphasis, ease: 'fluent' });
             gsap.to(boxEls[3], { x: targetX, duration: slow,     ease: 'fluent' });
+        },
+
+        /**
+         * §5 Special Motion 白名單 demo — Burst Picker 候選卡彈出
+         * §5 white-list: back.out(1.2~1.7)（Burst Picker 招牌彈跳）
+         * C4: killTweensOf
+         * C23: shouldSkip reduced-motion guard
+         * @param {Element} el - preview box DOM 元素
+         * @param {object} params - Alpine 傳入的 params 物件（含 reducedMotionSim）
+         */
+        playSpecialMotionBurstPickerDemo: function (el, params) {
+            params = params || {};
+            if (!el) return;
+            gsap.killTweensOf(el);
+            gsap.set(el, { clearProps: 'all' });
+            if (shouldSkip(params)) {
+                gsap.set(el, { scale: 1, opacity: 1 });
+                return;
+            }
+            gsap.fromTo(el,
+                { scale: 0, opacity: 0 },
+                { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(1.2)' } // §5 white-list: Burst Picker
+            );
+        },
+
+        /**
+         * §5 Special Motion 白名單 demo — Staging Card 進場 morph
+         * §5 white-list: back.out(1.4) + 0.35s（Staging Card 招牌進場）
+         * C4: killTweensOf
+         * C23: shouldSkip reduced-motion guard
+         * @param {Element} el - preview box DOM 元素
+         * @param {object} params - Alpine 傳入的 params 物件（含 reducedMotionSim）
+         */
+        playSpecialMotionStagingEntryDemo: function (el, params) {
+            if (!el) return;
+            window.MotionLab.playStagingEntry(el, params || {});
+        },
+
+        /**
+         * §5 Special Motion 白名單 demo — playOrganizeSuccess checkmark 彈出
+         * §5 white-list: back.out(1.7) + 0.35s（整理成功 checkmark 招牌彈跳）
+         * C4: killTweensOf
+         * C23: shouldSkip reduced-motion guard
+         * @param {Element} el - checkmark DOM 元素
+         * @param {object} params - Alpine 傳入的 params 物件（含 reducedMotionSim）
+         */
+        playSpecialMotionCheckmarkDemo: function (el, params) {
+            params = params || {};
+            if (!el) return;
+            gsap.killTweensOf(el);
+            gsap.set(el, { clearProps: 'all' });
+            if (shouldSkip(params)) {
+                gsap.set(el, { scale: 1, opacity: 1 });
+                return;
+            }
+            gsap.fromTo(el,
+                { scale: 0, opacity: 0 },
+                { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(1.7)' } // §5 white-list: playOrganizeSuccess checkmark
+            );
+        },
+
+        /**
+         * §5 Special Motion 白名單 demo — playOrganizeFail shake
+         * §5 white-list: power1.inOut + 0.08s yoyo×3（整理失敗水平 shake 律動）
+         * C4: killTweensOf
+         * C23: shouldSkip reduced-motion guard
+         * @param {Element} el - shake 目標 DOM 元素
+         * @param {object} params - Alpine 傳入的 params 物件（含 reducedMotionSim）
+         */
+        playSpecialMotionShakeDemo: function (el, params) {
+            params = params || {};
+            if (!el) return;
+            gsap.killTweensOf(el);
+            gsap.set(el, { clearProps: 'all' });
+            if (shouldSkip(params)) {
+                gsap.set(el, { x: 0 });
+                return;
+            }
+            gsap.fromTo(el,
+                { x: -8 },
+                { x: 8, duration: 0.08, ease: 'power1.inOut', yoyo: true, repeat: 3, // §5 white-list: playOrganizeFail shake
+                    onComplete: function () { gsap.set(el, { x: 0 }); }
+                }
+            );
+        },
+
+        /**
+         * §5 Special Motion 白名單 demo — SourcePulse micro feedback
+         * §5 white-list: fluent (yoyo) 0.1s（低於 fast bucket，純 micro feedback）
+         * C4: killTweensOf
+         * C23: shouldSkip reduced-motion guard
+         * @param {Element} el - pulse 目標 DOM 元素
+         * @param {object} params - Alpine 傳入的 params 物件（含 reducedMotionSim）
+         */
+        playSpecialMotionPulseDemo: function (el, params) {
+            params = params || {};
+            if (!el) return;
+            gsap.killTweensOf(el);
+            gsap.set(el, { clearProps: 'all' });
+            if (shouldSkip(params)) {
+                gsap.set(el, { scale: 1 });
+                return;
+            }
+            gsap.to(el, {
+                scale: 1.3, duration: 0.1, ease: 'fluent', yoyo: true, repeat: 1 // §5 white-list: SourcePulse micro
+            });
         },
     };
 

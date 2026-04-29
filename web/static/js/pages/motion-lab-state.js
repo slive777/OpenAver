@@ -27,7 +27,7 @@ function motionLabPage() {
         stagingParams: {
             batchInterval: 800,
             minBatchCount: 3,
-            burstEase: 'back.out(1.2)',
+            burstEase: 'back.out(1.2)', // §5 white-list: Burst Picker
             burstDuration: 0.6,
             coverInterval: 300,
         },
@@ -176,6 +176,31 @@ function motionLabPage() {
             if (typeof window.MotionLab === 'undefined') return;
             const boxEls = [refs.durBox0, refs.durBox1, refs.durBox2, refs.durBox3];
             window.MotionLab.playDurationBucketsDemo(boxEls, this.params);
+        },
+
+        onPlayWhitelistBurstPicker(refs) {
+            if (typeof window.MotionLab === 'undefined') return;
+            window.MotionLab.playSpecialMotionBurstPickerDemo(refs.whitelistBurstPickerEl, this.params);
+        },
+
+        onPlayWhitelistStagingEntry(refs) {
+            if (typeof window.MotionLab === 'undefined') return;
+            window.MotionLab.playSpecialMotionStagingEntryDemo(refs.whitelistStagingEntryEl, this.params);
+        },
+
+        onPlayWhitelistCheckmark(refs) {
+            if (typeof window.MotionLab === 'undefined') return;
+            window.MotionLab.playSpecialMotionCheckmarkDemo(refs.whitelistCheckmarkEl, this.params);
+        },
+
+        onPlayWhitelistShake(refs) {
+            if (typeof window.MotionLab === 'undefined') return;
+            window.MotionLab.playSpecialMotionShakeDemo(refs.whitelistShakeEl, this.params);
+        },
+
+        onPlayWhitelistPulse(refs) {
+            if (typeof window.MotionLab === 'undefined') return;
+            window.MotionLab.playSpecialMotionPulseDemo(refs.whitelistPulseEl, this.params);
         },
 
         async onDetailEntry() {

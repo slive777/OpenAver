@@ -766,6 +766,11 @@
                     @click="tab = 'duration-buckets'; onResetStaging(); onResetHero(); onResetPicker()">
                 §5 Duration Buckets
             </button>
+            <button class="motion-lab-tab"
+                    :class="{ active: tab === 'special-motion' }"
+                    @click="tab = 'special-motion'; onResetStaging(); onResetHero(); onResetPicker()">
+                §5 Special Motion 白名單
+            </button>
         </div>
     </div>
 
@@ -1415,6 +1420,38 @@
                 x-cloak
                 @click="onPlayDurationBuckets($refs)">
             <i class="bi bi-play-fill"></i> Play Duration Buckets
+        </button>
+
+        <!-- ===== §5 Special Motion 白名單控制項 ===== -->
+        <button class="control-btn primary"
+                x-show="tab === 'special-motion'"
+                x-cloak
+                @click="onPlayWhitelistBurstPicker($refs)">
+            <i class="bi bi-play-fill"></i> Play Burst Picker
+        </button>
+        <button class="control-btn primary"
+                x-show="tab === 'special-motion'"
+                x-cloak
+                @click="onPlayWhitelistStagingEntry($refs)">
+            <i class="bi bi-play-fill"></i> Play Staging Entry
+        </button>
+        <button class="control-btn primary"
+                x-show="tab === 'special-motion'"
+                x-cloak
+                @click="onPlayWhitelistCheckmark($refs)">
+            <i class="bi bi-play-fill"></i> Play Checkmark
+        </button>
+        <button class="control-btn primary"
+                x-show="tab === 'special-motion'"
+                x-cloak
+                @click="onPlayWhitelistShake($refs)">
+            <i class="bi bi-play-fill"></i> Play Shake
+        </button>
+        <button class="control-btn primary"
+                x-show="tab === 'special-motion'"
+                x-cloak
+                @click="onPlayWhitelistPulse($refs)">
+            <i class="bi bi-play-fill"></i> Play Pulse
         </button>
     </div>
 
@@ -2211,6 +2248,82 @@
             </div>
         </div>
 
+        <!-- ===== §5 Special Motion 白名單 demo ===== -->
+        <div x-show="tab === 'special-motion'" x-cloak class="special-motion-panel">
+            <h5 class="special-motion-title">§5 Special Motion 白名單</h5>
+            <p class="special-motion-desc">各條目獨立招牌動畫，ease 不走三角色，保留視覺個性</p>
+            <div class="special-motion-track">
+
+                <!-- 1. Burst Picker 候選卡彈出 -->
+                <div class="special-motion-item">
+                    <div class="special-motion-label">
+                        <span class="special-motion-name">Burst Picker 候選卡彈出</span>
+                        <code class="special-motion-ease">back.out(1.2~1.7)</code>
+                    </div>
+                    <div class="special-motion-stage">
+                        <div class="special-motion-box" x-ref="whitelistBurstPickerEl"></div>
+                    </div>
+                </div>
+
+                <!-- 2. Staging Card 進場 morph -->
+                <div class="special-motion-item">
+                    <div class="special-motion-label">
+                        <span class="special-motion-name">Staging Card 進場 morph</span>
+                        <code class="special-motion-ease">back.out(1.4) + 0.35s</code>
+                    </div>
+                    <div class="special-motion-stage">
+                        <div class="special-motion-box" x-ref="whitelistStagingEntryEl"></div>
+                    </div>
+                </div>
+
+                <!-- 3. playOrganizeSuccess checkmark -->
+                <div class="special-motion-item">
+                    <div class="special-motion-label">
+                        <span class="special-motion-name">playOrganizeSuccess checkmark</span>
+                        <code class="special-motion-ease">back.out(1.7) + 0.35s</code>
+                    </div>
+                    <div class="special-motion-stage">
+                        <div class="special-motion-checkmark" x-ref="whitelistCheckmarkEl">✓</div>
+                    </div>
+                </div>
+
+                <!-- 4. playOrganizeFail shake -->
+                <div class="special-motion-item">
+                    <div class="special-motion-label">
+                        <span class="special-motion-name">playOrganizeFail shake</span>
+                        <code class="special-motion-ease">power1.inOut + 0.08s yoyo×3</code>
+                    </div>
+                    <div class="special-motion-stage">
+                        <div class="special-motion-box" x-ref="whitelistShakeEl"></div>
+                    </div>
+                </div>
+
+                <!-- 5. SourcePulse micro feedback -->
+                <div class="special-motion-item">
+                    <div class="special-motion-label">
+                        <span class="special-motion-name">SourcePulse micro feedback</span>
+                        <code class="special-motion-ease">fluent yoyo 0.1s</code>
+                    </div>
+                    <div class="special-motion-stage">
+                        <div class="special-motion-dot" x-ref="whitelistPulseEl"></div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 跳過條目說明 -->
+            <div class="special-motion-skip-section">
+                <p class="whitelist-skip-note">以下條目因環境依賴無法在 motion-lab 建立獨立 demo：</p>
+                <ul class="whitelist-skip-list">
+                    <li><strong>Floating Hearts 粒子</strong>：依賴 Physics2D Plugin，見 picker tab</li>
+                    <li><strong>FLIP 排序洗牌</strong>：已有 showcase tab FLIP demo</li>
+                    <li><strong>Ghost Fly 飛行</strong>：已有 ghost-fly tab demo</li>
+                    <li><strong>playLightboxOpen 三段</strong>：依賴 ghost-fly 並行段，見 showcase lightbox</li>
+                    <li><strong>showcaseSettle 招牌 settle</strong>：已有 settle tab demo</li>
+                </ul>
+            </div>
+        </div>
+
         <!-- ===== §5 Duration Buckets 並排對比 ===== -->
         <div x-show="tab === 'duration-buckets'" x-cloak class="duration-buckets-panel">
             <h5 class="duration-buckets-title">§5 Duration Buckets 對比</h5>
@@ -2535,6 +2648,125 @@
 /* C21 配套：ghost-fly 飛行期間停用 cover-img CSS transition */
 .picker-cover-img.gsap-animating {
     transition: none !important;
+}
+
+/* ===== §5 Special Motion 白名單 demo 面板 ===== */
+.special-motion-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 2rem 1.5rem;
+    width: 100%;
+}
+
+.special-motion-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.special-motion-desc {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.special-motion-track {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: min(640px, 90vw);
+}
+
+.special-motion-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.special-motion-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 200px;
+}
+
+.special-motion-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.special-motion-ease {
+    font-size: 0.75rem;
+    color: var(--accent-primary);
+    background: var(--surface-1);
+    border-radius: var(--fluent-radius-sm);
+    padding: 0.1rem 0.35rem;
+    width: fit-content;
+}
+
+.special-motion-stage {
+    flex: 1;
+    height: 80px;
+    background: var(--surface-1);
+    border-radius: var(--radius-md);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--stroke-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.special-motion-box {
+    width: 64px;
+    height: 48px;
+    background: var(--accent-secondary);
+    border-radius: var(--fluent-radius-md);
+    opacity: 0.85;
+}
+
+.special-motion-checkmark {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-success);
+    line-height: 1;
+}
+
+.special-motion-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    opacity: 0.9;
+}
+
+.special-motion-skip-section {
+    width: min(640px, 90vw);
+    padding: 1rem;
+    background: var(--surface-1);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--stroke-subtle);
+}
+
+.whitelist-skip-note {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.whitelist-skip-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
 }
 
 /* ===== §5 Ease Roles 並排對比面板 ===== */

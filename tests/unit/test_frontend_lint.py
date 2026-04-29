@@ -5153,3 +5153,43 @@ class TestMotionLabT2DurationBuckets:
         """motion_lab.html 含 DURATION.fast 標籤（duration-buckets panel box label）"""
         assert "DURATION.fast" in self._html(), \
             "motion_lab.html 缺少 DURATION.fast 標籤（§5 Duration Buckets panel box label 未加入）"
+
+
+# ─── 52-T2.3: §5 Special Motion White-list Demo 守衛 ──────────────────────────
+MOTION_LAB_HTML_T2_3 = Path(__file__).parent.parent.parent / "web" / "templates" / "motion_lab.html"
+MOTION_LAB_JS_T2_3 = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "motion-lab.js"
+
+
+class TestMotionLabT2SpecialMotion:
+    """52-T2.3: 守衛 §5 Special Motion 白名單 demo 必要元素"""
+
+    def _html(self) -> str:
+        return MOTION_LAB_HTML_T2_3.read_text(encoding="utf-8")
+
+    def _js(self) -> str:
+        return MOTION_LAB_JS_T2_3.read_text(encoding="utf-8")
+
+    def test_html_has_special_motion_tab(self):
+        """motion_lab.html tab bar 含 special-motion tab button"""
+        assert "special-motion" in self._html(), \
+            "motion_lab.html tab bar 缺少 special-motion tab（§5 Special Motion 白名單 tab 未加入）"
+
+    def test_js_has_play_special_motion_checkmark_demo(self):
+        """motion-lab.js 含 playSpecialMotionCheckmarkDemo 函式"""
+        assert "playSpecialMotionCheckmarkDemo" in self._js(), \
+            "motion-lab.js 缺少 playSpecialMotionCheckmarkDemo（§5 Special Motion checkmark demo 函式未加入）"
+
+    def test_js_has_play_special_motion_shake_demo(self):
+        """motion-lab.js 含 playSpecialMotionShakeDemo 函式"""
+        assert "playSpecialMotionShakeDemo" in self._js(), \
+            "motion-lab.js 缺少 playSpecialMotionShakeDemo（§5 Special Motion shake demo 函式未加入）"
+
+    def test_js_has_play_special_motion_pulse_demo(self):
+        """motion-lab.js 含 playSpecialMotionPulseDemo 函式"""
+        assert "playSpecialMotionPulseDemo" in self._js(), \
+            "motion-lab.js 缺少 playSpecialMotionPulseDemo（§5 Special Motion pulse demo 函式未加入）"
+
+    def test_html_has_whitelist_skip_note(self):
+        """motion_lab.html special-motion panel 含 whitelist-skip-note 跳過說明"""
+        assert "whitelist-skip-note" in self._html(), \
+            "motion_lab.html 缺少 whitelist-skip-note（§5 Special Motion 跳過條目說明未加入）"
