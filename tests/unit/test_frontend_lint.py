@@ -1734,6 +1734,24 @@ class TestNoAlertInSearchJs:
         assert "alert(" not in content, \
             "settings.js 含原生 alert()，應改用 this.showToast()"
 
+    def test_scanner_clipboard_has_availability_guard(self):
+        """T3.6 P2 fix: scanner.js 兩處 clipboard call 必須有 availability guard
+
+        navigator.clipboard 在 HTTP / 舊 WebView 為 undefined，
+        若直接呼叫 navigator.clipboard.writeText(...) 會在 property access 階段
+        sync throw TypeError，.then().catch() chain 的 .catch 完全不會跑，
+        導致 copyLogs 的 fail modal / copyOutputPath 的 error toast 被跳過。
+        守衛 if (!navigator.clipboard?.writeText) 必須在兩處 clipboard call 之前。
+        """
+        content = SCANNER_JS.read_text(encoding="utf-8")
+        # 兩處 copy 點都應該有 ?. optional chaining guard
+        guard_count = content.count("navigator.clipboard?.writeText")
+        assert guard_count >= 2, (
+            f"scanner.js 應該有至少 2 處 navigator.clipboard?.writeText 守衛 "
+            f"（copyLogs + copyOutputPath），目前只有 {guard_count} 處。"
+            "若沒守衛，clipboard API 不存在時 .catch() 完全不會觸發。"
+        )
+
 
 class TestNavigateLoadMore:
     """T3b 守衛：navigate() 在最後一片時 await loadMore + state-first slide"""

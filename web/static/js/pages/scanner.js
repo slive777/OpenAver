@@ -726,6 +726,14 @@ function scannerPage() {
 
         const text = this.logEntries.map(entry => entry.message).join('\n');
 
+        // T3.6 P2 fix: guard against undefined navigator.clipboard (HTTP / older WebView)
+        // 若無 Clipboard API，直接走 fail modal fallback；
+        // 否則 .then/.catch chain 會在 sync property access 階段就 TypeError，.catch 不會跑。
+        if (!navigator.clipboard?.writeText) {
+            this.openCopyFailModal(text);
+            return;
+        }
+
         navigator.clipboard.writeText(text).then(() => {
             this.showToast(`已複製 ${this.logEntries.length} 筆日誌`, 'success');
         }).catch(() => {
@@ -1227,14 +1235,25 @@ function scannerPage() {
     copyOutputPath() {
         if (!this.outputPath) return;
 
-        navigator.clipboard.writeText(this.outputPath).then(() => {
-            this.showToast('已複製: ' + this.outputPath, 'success');
-        }).catch(() => {
+        // T3.6 P2 fix: guard against undefined navigator.clipboard
+        // sync property access on undefined 會 throw TypeError，.catch 不會跑。
+        const showFailToast = () => {
             this.showToast(
                 window.t('scanner.toast.copy_path_failed').replace('{path}', this.outputPath),
                 'error',
                 4000
             );
+        };
+
+        if (!navigator.clipboard?.writeText) {
+            showFailToast();
+            return;
+        }
+
+        navigator.clipboard.writeText(this.outputPath).then(() => {
+            this.showToast('已複製: ' + this.outputPath, 'success');
+        }).catch(() => {
+            showFailToast();
         });
     },
 
