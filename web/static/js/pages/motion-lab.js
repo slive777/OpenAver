@@ -211,7 +211,7 @@
                 gsap.to(infoEl, {
                     opacity: 0,
                     duration: 0.12,
-                    ease: 'power2.in',
+                    ease: 'fluent-accel',
                     onComplete: resolve  // C1: onComplete 只 resolve Promise
                 });
             });
@@ -240,7 +240,7 @@
             // C6: 不使用旋轉，只用 scale
             gsap.fromTo(cardEl,
                 { scale: 1.02 },
-                { scale: 1, duration: 0.18, ease: 'power2.out' }
+                { scale: 1, duration: 0.18, ease: 'fluent-decel' }
             );
         },
 
@@ -383,7 +383,7 @@
         playSharedCoverTransition: function (ghost, fromRect, toRect, params) {
             params = params || {};
             var dur = params.duration || 0.38;
-            var ease = params.easing || 'power2.inOut';
+            var ease = params.easing || 'fluent';
 
             // C4: 清除舊動畫
             gsap.killTweensOf(ghost);
@@ -466,13 +466,13 @@
                 // C6: 不使用 rotationX/Y/Z
                 tl.fromTo(targetEl,
                     { opacity: 0, scale: 0.94 },
-                    { opacity: 1, scale: 1, duration: targetDur, ease: 'power2.out' }
+                    { opacity: 1, scale: 1, duration: targetDur, ease: 'fluent-decel' }
                 );
 
                 // source cover：輕微淡出（若 sourceEl 存在）
                 if (sourceEl) {
                     tl.to(sourceEl,
-                        { opacity: 0, duration: sourceDur, ease: 'power2.out' },
+                        { opacity: 0, duration: sourceDur, ease: 'fluent-decel' },
                         0  // 與 target 動畫同時開始
                     );
                 }
@@ -530,7 +530,7 @@
                     x: xTo,
                     opacity: 0,
                     duration: dur,
-                    ease: 'power2.in',
+                    ease: 'fluent-accel',
                     onComplete: resolve  // C1: onComplete 只 resolve Promise
                 }).timeScale(detailSpeed);
             });
@@ -911,7 +911,7 @@
                 return null;
             }
             var dur = options.duration || 0.5;
-            var ease = options.ease || 'power2.out';
+            var ease = options.ease || 'fluent-decel';
             return gsap.fromTo(img,
                 { opacity: 0, scale: 1.05 },
                 { opacity: 1, scale: 1, duration: dur, ease: ease }
@@ -934,7 +934,7 @@
                 if (shouldSkip(options)) { resolve(); return; }
 
                 var dur = options.duration || 0.4;
-                var ease = options.ease || 'power2.out';
+                var ease = options.ease || 'fluent';
                 Flip.from(flipState, {
                     duration: dur,
                     ease: ease,
@@ -1061,7 +1061,7 @@
 
             // 3. Flip.from — 動畫從舊位置到新位置
             var dur = params.duration || 0.5;
-            var ease = params.ease || 'power2.inOut';
+            var ease = params.ease || 'fluent';
 
             return Flip.from(state, {
                 duration: dur,
@@ -1117,7 +1117,7 @@
 
             return Flip.from(state, {
                 duration: dur,
-                ease: 'power2.inOut',
+                ease: 'fluent',
                 absolute: true,
                 prune: true,
                 simple: true,
@@ -1126,22 +1126,22 @@
                     if (enterStyle === 'fadeUp') {
                         return gsap.fromTo(els,
                             { opacity: 0, y: 20 },
-                            { opacity: 1, y: 0, duration: dur * 0.8, ease: 'power2.out' });
+                            { opacity: 1, y: 0, duration: dur * 0.8, ease: 'fluent-decel' });
                     }
                     // default: opacityScale
                     return gsap.fromTo(els,
                         { opacity: 0, scale: 0.85 },
-                        { opacity: 1, scale: 1, duration: dur * 0.8, ease: 'power2.out' });
+                        { opacity: 1, scale: 1, duration: dur * 0.8, ease: 'fluent-decel' });
                 },
                 onLeave: function (els) {
                     // leaveStyle branching
                     if (leaveStyle === 'opacityOnly') {
                         return gsap.to(els,
-                            { opacity: 0, duration: dur * 0.6, ease: 'power2.in' });
+                            { opacity: 0, duration: dur * 0.6, ease: 'fluent-accel' });
                     }
                     // default: opacityScale
                     return gsap.to(els,
-                        { opacity: 0, scale: 0.85, duration: dur * 0.6, ease: 'power2.in' });
+                        { opacity: 0, scale: 0.85, duration: dur * 0.6, ease: 'fluent-accel' });
                 },
                 onComplete: function () {
                     var visible = gridEl.querySelectorAll(
@@ -1333,6 +1333,45 @@
             gsap.to(boxEls[0], { x: targetX, duration: dur, ease: 'fluent' });
             gsap.to(boxEls[1], { x: targetX, duration: dur, ease: 'fluent-decel' });
             gsap.to(boxEls[2], { x: targetX, duration: dur, ease: 'fluent-accel' });
+        },
+
+        /**
+         * §5 Duration Buckets 並排對比 demo
+         * 四個 box 同時播放相同 ease（fluent standard），只改 duration
+         * C4: killTweensOf(boxEls)
+         * C23: shouldSkip reduced-motion guard
+         * @param {Element[]} boxEls - 四個 .duration-bucket-box DOM 元素陣列
+         * @param {object} params - Alpine 傳入的 params 物件（含 reducedMotionSim）
+         */
+        playDurationBucketsDemo: function (boxEls, params) {
+            params = params || {};
+
+            if (!boxEls || boxEls.length < 4 || boxEls.some(function (el) { return !el; })) return;
+
+            // C4: 清除舊動畫
+            gsap.killTweensOf(boxEls);
+
+            var lane = boxEls[0].parentElement;
+            var targetX = lane ? Math.max(0, lane.offsetWidth - 60 - 24) : 200;
+
+            if (shouldSkip(params)) {
+                gsap.set(boxEls, { x: targetX, yPercent: -50 });
+                return;
+            }
+
+            gsap.set(boxEls, { clearProps: 'all' });
+            gsap.set(boxEls, { x: 0, yPercent: -50 });
+
+            var D = window.OpenAver && window.OpenAver.motion && window.OpenAver.motion.DURATION;
+            var fast     = D ? D.fast     : 0.167;
+            var medium   = D ? D.medium   : 0.333;
+            var emphasis = D ? D.emphasis : 0.5;
+            var slow     = 0.3;
+
+            gsap.to(boxEls[0], { x: targetX, duration: fast,     ease: 'fluent' });
+            gsap.to(boxEls[1], { x: targetX, duration: medium,   ease: 'fluent' });
+            gsap.to(boxEls[2], { x: targetX, duration: emphasis, ease: 'fluent' });
+            gsap.to(boxEls[3], { x: targetX, duration: slow,     ease: 'fluent' });
         },
     };
 

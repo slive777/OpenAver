@@ -74,7 +74,7 @@ function motionLabPage() {
             duration: 0.5,
             stagger: 0.04,
             flipDuration: 0.5,
-            flipEase: 'power2.inOut',
+            flipEase: 'fluent',
             flipPrune: true,
             filterQuery: '',
             filterEnterStyle: 'opacityScale',
@@ -170,6 +170,12 @@ function motionLabPage() {
             if (typeof window.MotionLab === 'undefined') return;
             const boxEls = [refs.easeBox0, refs.easeBox1, refs.easeBox2];
             window.MotionLab.playEaseRolesDemo(boxEls, this.params);
+        },
+
+        onPlayDurationBuckets(refs) {
+            if (typeof window.MotionLab === 'undefined') return;
+            const boxEls = [refs.durBox0, refs.durBox1, refs.durBox2, refs.durBox3];
+            window.MotionLab.playDurationBucketsDemo(boxEls, this.params);
         },
 
         async onDetailEntry() {
@@ -766,7 +772,7 @@ function motionLabPage() {
                 await this.$nextTick();
                 const heroGridEl = this.$refs.heroGrid;
                 if (heroGridEl && typeof gsap !== 'undefined') {
-                    gsap.from(heroGridEl, { opacity: 0, duration: 0.25, ease: 'power1.out' });
+                    gsap.from(heroGridEl, { opacity: 0, duration: 0.25, ease: 'fluent-decel' });
                 }
 
                 // 延遲後處理 hero
@@ -823,7 +829,7 @@ function motionLabPage() {
                 await this.$nextTick();
                 const heroGridEl = this.$refs.heroGrid;
                 if (heroGridEl && typeof gsap !== 'undefined') {
-                    gsap.from(heroGridEl, { opacity: 0, duration: 0.25, ease: 'power1.out' });
+                    gsap.from(heroGridEl, { opacity: 0, duration: 0.25, ease: 'fluent-decel' });
                 }
 
                 // 延遲後處理 hero

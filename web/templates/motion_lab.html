@@ -761,6 +761,11 @@
                     @click="tab = 'ease-roles'; onResetStaging(); onResetHero(); onResetPicker()">
                 §5 Ease 角色
             </button>
+            <button class="motion-lab-tab"
+                    :class="{ active: tab === 'duration-buckets' }"
+                    @click="tab = 'duration-buckets'; onResetStaging(); onResetHero(); onResetPicker()">
+                §5 Duration Buckets
+            </button>
         </div>
     </div>
 
@@ -1402,6 +1407,14 @@
                 x-cloak
                 @click="onPlayEaseRoles($refs)">
             <i class="bi bi-play-fill"></i> Play Ease Roles
+        </button>
+
+        <!-- ===== §5 Duration Buckets 控制項 ===== -->
+        <button class="control-btn primary"
+                x-show="tab === 'duration-buckets'"
+                x-cloak
+                @click="onPlayDurationBuckets($refs)">
+            <i class="bi bi-play-fill"></i> Play Duration Buckets
         </button>
     </div>
 
@@ -2198,6 +2211,50 @@
             </div>
         </div>
 
+        <!-- ===== §5 Duration Buckets 並排對比 ===== -->
+        <div x-show="tab === 'duration-buckets'" x-cloak class="duration-buckets-panel">
+            <h5 class="duration-buckets-title">§5 Duration Buckets 對比</h5>
+            <p class="duration-buckets-desc">四個 box 同時播放相同 ease（fluent standard），只改 duration，直觀看時長差異</p>
+            <div class="duration-buckets-track">
+                <div class="duration-bucket-item">
+                    <div class="duration-bucket-label">
+                        <span class="duration-bucket-name">fast 167ms</span>
+                        <code class="duration-bucket-code">DURATION.fast</code>
+                    </div>
+                    <div class="duration-bucket-lane">
+                        <div class="duration-bucket-box" x-ref="durBox0"></div>
+                    </div>
+                </div>
+                <div class="duration-bucket-item">
+                    <div class="duration-bucket-label">
+                        <span class="duration-bucket-name">medium 333ms</span>
+                        <code class="duration-bucket-code">DURATION.medium</code>
+                    </div>
+                    <div class="duration-bucket-lane">
+                        <div class="duration-bucket-box" x-ref="durBox1"></div>
+                    </div>
+                </div>
+                <div class="duration-bucket-item">
+                    <div class="duration-bucket-label">
+                        <span class="duration-bucket-name">emphasis 500ms</span>
+                        <code class="duration-bucket-code">DURATION.emphasis</code>
+                    </div>
+                    <div class="duration-bucket-lane">
+                        <div class="duration-bucket-box" x-ref="durBox2"></div>
+                    </div>
+                </div>
+                <div class="duration-bucket-item">
+                    <div class="duration-bucket-label">
+                        <span class="duration-bucket-name">slow 300ms (legacy)</span>
+                        <code class="duration-bucket-code">0.3</code>
+                    </div>
+                    <div class="duration-bucket-lane">
+                        <div class="duration-bucket-box" x-ref="durBox3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
 </div>
@@ -2562,6 +2619,87 @@
     top: 50%;
     transform: translateY(-50%);
     width: 80px;
+    height: 48px;
+    background: var(--accent-secondary);
+    border-radius: var(--fluent-radius-md);
+    opacity: 0.85;
+}
+
+/* ===== §5 Duration Buckets 並排對比面板 ===== */
+.duration-buckets-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 2rem 1.5rem;
+    width: 100%;
+}
+
+.duration-buckets-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.duration-buckets-desc {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.duration-buckets-track {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: min(640px, 90vw);
+}
+
+.duration-bucket-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.duration-bucket-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 200px;
+}
+
+.duration-bucket-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.duration-bucket-code {
+    font-size: 0.75rem;
+    color: var(--accent-primary);
+    background: var(--surface-1);
+    border-radius: var(--fluent-radius-sm);
+    padding: 0.1rem 0.35rem;
+    width: fit-content;
+}
+
+.duration-bucket-lane {
+    flex: 1;
+    height: 80px;
+    background: var(--surface-1);
+    border-radius: var(--radius-md);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--stroke-subtle);
+}
+
+.duration-bucket-box {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 60px;
     height: 48px;
     background: var(--accent-secondary);
     border-radius: var(--fluent-radius-md);

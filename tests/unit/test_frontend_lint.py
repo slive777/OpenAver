@@ -5124,3 +5124,32 @@ class TestMotionLabT2EaseRoles:
             "playCardStreamIn 仍含 power3.out（應改為 fluent-decel）"
         assert "power2.out" not in block, \
             "playCardStreamIn 仍含 power2.out（應改為 fluent-decel）"
+
+
+MOTION_LAB_HTML_T2_2 = Path(__file__).parent.parent.parent / "web" / "templates" / "motion_lab.html"
+MOTION_LAB_JS_T2_2 = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "motion-lab.js"
+
+
+class TestMotionLabT2DurationBuckets:
+    """52-T2.2: 守衛 §5 Duration Buckets 並排 demo 必要元素"""
+
+    def _html(self) -> str:
+        return MOTION_LAB_HTML_T2_2.read_text(encoding="utf-8")
+
+    def _js(self) -> str:
+        return MOTION_LAB_JS_T2_2.read_text(encoding="utf-8")
+
+    def test_html_has_duration_buckets_tab(self):
+        """motion_lab.html tab bar 含 duration-buckets tab button"""
+        assert "duration-buckets" in self._html(), \
+            "motion_lab.html tab bar 缺少 duration-buckets tab（§5 Duration Buckets tab 未加入）"
+
+    def test_js_has_play_duration_buckets_demo(self):
+        """motion-lab.js 含 playDurationBucketsDemo 函式"""
+        assert "playDurationBucketsDemo" in self._js(), \
+            "motion-lab.js 缺少 playDurationBucketsDemo（§5 Duration Buckets demo 函式未加入）"
+
+    def test_html_shows_duration_fast_label(self):
+        """motion_lab.html 含 DURATION.fast 標籤（duration-buckets panel box label）"""
+        assert "DURATION.fast" in self._html(), \
+            "motion_lab.html 缺少 DURATION.fast 標籤（§5 Duration Buckets panel box label 未加入）"
