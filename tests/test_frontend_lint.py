@@ -4275,6 +4275,23 @@ class TestShowcasePerPageRemoval:
         )
 
 
+class TestShowcaseRemoveActressNoNativeConfirm:
+    """T3.3 (CD-52-11): removeActress 改 fluent-modal 後 showcase/core.js 不再用 native confirm
+
+    確保 window.confirm 不回歸（fluent-modal pattern 取代）。
+    """
+
+    SHOWCASE_CORE_JS = PROJECT_ROOT / 'web' / 'static' / 'js' / 'pages' / 'showcase' / 'core.js'
+
+    def test_showcase_no_native_confirm(self):
+        """T3.3: removeActress 改 fluent-modal 後 showcase/core.js 不再用 window.confirm"""
+        core_js = self.SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+        assert "window.confirm(" not in core_js, (
+            "T3.3 違規：removeActress() native confirm 已於 T3.3 替換為 fluent-modal — "
+            "showcase/core.js 不應再含 window.confirm("
+        )
+
+
 class TestSampleGalleryTemplateGuard:
     """T8：Search Sample Gallery 模板守衛
 

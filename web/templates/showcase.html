@@ -548,7 +548,7 @@
                                 </button>
                                 <button class="lb-action-btn lb-action-btn--danger"
                                         x-show="showFavoriteActresses"
-                                        @click.stop="removeActress()"
+                                        @click.stop="openRemoveActressModal()"
                                         :data-tooltip="t('showcase.actress.remove')"
                                         :aria-label="t('showcase.actress.remove')">
                                     <i class="bi bi-trash"></i>
@@ -882,6 +882,36 @@
     </div>
 
     </div>
+
+    <!-- TASK-52.3.3: Remove Actress Confirm Modal（取代原 window.confirm）
+         Esc 雙重防線：handleKeydown 入口攔截 + dialog 自身 @keydown.escape.window 冗餘
+         backdrop click 走 cancelRemoveActressModal() 統一三 dismiss 路徑 -->
+    <dialog class="modal fluent-modal"
+            :class="{ 'modal-open': removeActressModalOpen }"
+            @click.self="cancelRemoveActressModal()"
+            @keydown.escape.window="removeActressModalOpen && cancelRemoveActressModal()">
+        <div class="modal-box fluent-modal-box">
+            <h3 class="fluent-modal-title">
+                <i class="bi bi-exclamation-triangle text-warning"></i>
+                {{ t('showcase.actress.remove_modal.title') }}
+            </h3>
+            <p class="fluent-modal-body"
+               x-text="t('showcase.actress.remove_modal.body').replace('{name}', _pendingRemoveActressName || '')">
+            </p>
+            <div class="modal-action fluent-modal-actions">
+                <button type="button" class="btn btn-ghost" @click="cancelRemoveActressModal()">
+                    {{ t('showcase.actress.remove_modal.cancel') }}
+                </button>
+                <button type="button" class="btn btn-error"
+                        @click="confirmRemoveActress()"
+                        :disabled="_removeActressLoading">
+                    <span x-show="_removeActressLoading" class="loading loading-spinner loading-xs"></span>
+                    <span x-show="!_removeActressLoading"><i class="bi bi-trash3"></i></span>
+                    {{ t('showcase.actress.remove_modal.confirm') }}
+                </button>
+            </div>
+        </div>
+    </dialog>
 
     <!-- Toast (M3h) -->
     <div class="toast toast-bottom toast-center fluent-toast-container"

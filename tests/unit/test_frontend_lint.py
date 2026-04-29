@@ -2146,10 +2146,14 @@ class TestShowcaseActressCRUD:
             "showcase/core.js 仍含 rescrapeActress() 方法（49b-T5 應已刪除）"
 
     def test_remove_actress_method(self):
-        """core.js 含 removeActress() 方法"""
+        """core.js 含 T3.3 拆出的 3 個 modal-flow methods（open / confirm / cancel）"""
         js = self._js()
-        assert "removeActress" in js, \
-            "showcase/core.js 缺少 removeActress() 方法（[🗑 移除最愛] 女優 CRUD）"
+        assert "openRemoveActressModal" in js, \
+            "showcase/core.js 缺少 openRemoveActressModal()（T3.3: trigger button 入口）"
+        assert "confirmRemoveActress" in js, \
+            "showcase/core.js 缺少 confirmRemoveActress()（T3.3: DELETE API + closeLightbox flow）"
+        assert "cancelRemoveActressModal" in js, \
+            "showcase/core.js 缺少 cancelRemoveActressModal()（T3.3: dismiss flow，三 dismiss 路徑收口）"
 
     # --- showcase.html popover guards ---
 
@@ -2172,10 +2176,10 @@ class TestShowcaseActressCRUD:
             "showcase.html 仍含 rescrapeActress() handler（44c-T7 應已移除 lightbox 按鈕）"
 
     def test_remove_handler_in_template(self):
-        """showcase.html 含 removeActress() handler"""
+        """showcase.html 含 openRemoveActressModal() handler（T3.3：fluent-modal 取代 native confirm）"""
         html = self._html()
-        assert "removeActress()" in html, \
-            "showcase.html 缺少 removeActress()（Row 6 移除最愛按鈕 @click handler）"
+        assert "openRemoveActressModal()" in html, \
+            "showcase.html 缺少 openRemoveActressModal()（Row 6 移除最愛按鈕 @click handler — T3.3 fluent-modal）"
 
     def test_search_actress_films_method(self):
         """core.js 含 searchActressFilms() 方法"""
@@ -2307,7 +2311,6 @@ class TestShowcaseActressI18n:
         "showcase.actress.addNotFound",
         "showcase.actress.addTimeout",
         "showcase.actress.remove",
-        "showcase.actress.removeConfirm",
         "showcase.actress.removeSuccess",
         "showcase.actress.empty",
         "showcase.actress.emptyHint",
@@ -2327,6 +2330,25 @@ class TestShowcaseActressI18n:
             data = self._locale(locale_file)
             val = self._get_nested(data, key)
             assert val is not None, f"{locale_file} 缺少 {key}"
+
+    @pytest.mark.parametrize("key", [
+        "showcase.actress.remove_modal.title",
+        "showcase.actress.remove_modal.body",
+        "showcase.actress.remove_modal.cancel",
+        "showcase.actress.remove_modal.confirm",
+    ])
+    def test_remove_modal_keys_in_zh_tw(self, key):
+        """T3.3: remove_modal.* 4 keys 在 zh_TW.json 存在（其他 locale 走 milestone 同步，依 i18n.md 規則）"""
+        data = self._locale("zh_TW.json")
+        val = self._get_nested(data, key)
+        assert val is not None, f"zh_TW.json 缺少 {key}（T3.3 fluent-modal i18n key）"
+
+    def test_removeConfirm_orphan_removed_zh_tw(self):
+        """T3.3: 舊 native confirm key showcase.actress.removeConfirm 已從 zh_TW 移除（孤兒 key 清理）"""
+        data = self._locale("zh_TW.json")
+        val = self._get_nested(data, "showcase.actress.removeConfirm")
+        assert val is None, \
+            "T3.3 違規：showcase.actress.removeConfirm 應已隨 native confirm → fluent-modal 改寫從 zh_TW 移除"
 
 
 class TestShowcaseLightboxSentinel:
@@ -2395,10 +2417,10 @@ class TestShowcaseLightboxSentinel:
             "handleKeydown lightbox 分支缺少 showFavoriteActresses 判斷（影片模式 hero card 鍵盤導航會走錯分支）"
 
     def test_removeActress_button_has_xshow_guard(self):
-        """removeActress button gated by x-show="showFavoriteActresses\""""
+        """removeActress button gated by x-show="showFavoriteActresses"（T3.3：trigger 改為 openRemoveActressModal()）"""
         html = self._html()
-        idx = html.find("removeActress()")
-        assert idx != -1, "removeActress() handler not found in showcase.html"
+        idx = html.find("openRemoveActressModal()")
+        assert idx != -1, "openRemoveActressModal() handler not found in showcase.html"
         # 找 removeActress button 的區塊（往前 300 字）
         surrounding = html[max(0, idx - 300):idx + 100]
         assert "showFavoriteActresses" in surrounding, \

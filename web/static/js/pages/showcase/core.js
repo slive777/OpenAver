@@ -176,6 +176,11 @@ function showcaseState() {
         _pickerSSE: null,
         _pickerTimeoutTimer: null,
 
+        // T3.3: Remove Actress fluent-modal 狀態
+        removeActressModalOpen: false,
+        _removeActressLoading: false,
+        _pendingRemoveActressName: null,
+
         // User Tags 狀態 (T4)
         addingLbTag: false,
         newLbTagValue: '',
@@ -959,11 +964,27 @@ function showcaseState() {
             }
         },
 
-        async removeActress() {
+        // T3.3: Remove Actress fluent-modal 三段路徑（open / confirm / cancel）
+        // 取代既有 removeActress() + window.confirm 流程；trigger button 改呼 openRemoveActressModal()
+        openRemoveActressModal() {
             if (!this.currentLightboxActress) return;
-            const name = this.currentLightboxActress.name;
-            const confirmed = window.confirm(window.t('showcase.actress.removeConfirm').replace('{name}', name));
-            if (!confirmed) return;
+            // 快照當下女優名 — modal 期間 lightbox 翻頁也不影響待刪對象
+            this._pendingRemoveActressName = this.currentLightboxActress.name;
+            this.removeActressModalOpen = true;
+        },
+
+        cancelRemoveActressModal() {
+            this.removeActressModalOpen = false;
+            this._pendingRemoveActressName = null;
+        },
+
+        async confirmRemoveActress() {
+            const name = this._pendingRemoveActressName;
+            if (!name) {
+                this.removeActressModalOpen = false;
+                return;
+            }
+            this._removeActressLoading = true;
             try {
                 const resp = await fetch(`/api/actresses/${encodeURIComponent(name)}`, {
                     method: 'DELETE',
@@ -973,23 +994,26 @@ function showcaseState() {
                     const idx = _actresses.findIndex(a => a.name === name);
                     if (idx >= 0) _actresses.splice(idx, 1);
                     this.applyActressFilterAndSort();
+                    // stale guard: lightbox switched to a different actress during request
                     if (this.currentLightboxActress?.name !== name) {
-                        // stale guard: lightbox switched to a different actress during request
-                        // array cleanup already done above, but don't close lightbox
                         this.showToast(window.t('showcase.actress.removeSuccess'), 'success');
-                        return;
-                    }
-                    this.closeActressLightbox();
-                    this.showToast(window.t('showcase.actress.removeSuccess'), 'success');
-                    var searchTerm = this.search.trim();
-                    if (searchTerm) {
-                        this._checkPreciseActressMatch(searchTerm, 'manual');
+                    } else {
+                        this.closeActressLightbox();
+                        this.showToast(window.t('showcase.actress.removeSuccess'), 'success');
+                        var searchTerm = this.search.trim();
+                        if (searchTerm) {
+                            this._checkPreciseActressMatch(searchTerm, 'manual');
+                        }
                     }
                 } else {
                     this.showToast(data.error || 'Error', 'error');
                 }
             } catch (e) {
                 this.showToast('Error', 'error');
+            } finally {
+                this._removeActressLoading = false;
+                this.removeActressModalOpen = false;
+                this._pendingRemoveActressName = null;
             }
         },
 
@@ -2555,6 +2579,16 @@ function showcaseState() {
         handleKeydown(e) {
             // 1. 輸入框中不處理快捷鍵
             if (e.target.tagName === 'INPUT') return;
+
+            // T3.3: Remove Actress modal 開啟時，Esc 優先關閉 modal（不冒泡到 lightbox close）
+            if (e.key === 'Escape' && this.removeActressModalOpen) {
+                this.cancelRemoveActressModal();
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            // T3.3: Remove Actress modal 開啟期間鎖其他鍵（← / → / S / A / 數字鍵全失效）
+            if (this.removeActressModalOpen) return;
 
             // 49b T4cd: Picker 開啟時，Esc 優先關閉 picker（不冒泡到 lightbox close）
             if (e.key === 'Escape' && this._pickerOpen) {
