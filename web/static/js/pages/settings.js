@@ -84,6 +84,10 @@ function settingsPage() {
         // Dirty Check Modal State
         dirtyCheckModalOpen: false,
 
+        // Reset Config Modal State (T3.4)
+        resetConfigModalOpen: false,
+        _resetConfigLoading: false,
+
         // ===== Dirty Check State =====
         savedState: null,
         savedOpenaiUseCustomModel: false,
@@ -354,7 +358,9 @@ function settingsPage() {
                     this.form.avlistMode = config.gallery?.default_mode || 'image';
                     this.form.avlistSort = config.gallery?.default_sort || 'date';
                     this.form.avlistOrder = config.gallery?.default_order || 'descending';
-                    this.form.avlistItemsPerPage = config.gallery?.items_per_page || 90;
+                    // T3.2 P2 fix: `??` 而非 `||` — items_per_page=0 是 "全部" 合法選項，
+                    // 用 `||` 會把 0 吞掉變 90，導致存檔後重開 settings 顯示錯誤。
+                    this.form.avlistItemsPerPage = config.gallery?.items_per_page ?? 90;
                     this.form.avlistMinSize = config.gallery?.min_size_mb || 0;
                     this.form.avlistOutputDir = config.gallery?.output_dir || 'output';
                     this.form.avlistOutputFilename = config.gallery?.output_filename || 'gallery_output.html';
@@ -820,7 +826,7 @@ function settingsPage() {
 
         async selectOutputFolder() {
             if (typeof window.pywebview === 'undefined' || !window.pywebview.api) {
-                alert('此功能需要在桌面應用程式中使用');
+                this.showToast(window.t('settings.toast.desktop_only'), 'info');
                 return;
             }
 
@@ -834,21 +840,37 @@ function settingsPage() {
             }
         },
 
-        async resetConfig() {
-            if (confirm('確定要重置所有設定嗎？此操作將刪除所有自訂設定。')) {
-                try {
-                    const resp = await fetch('/api/config', { method: 'DELETE' });
-                    const result = await resp.json();
-                    if (result.success) {
-                        await this.loadConfig();
-                        this.showToast('已恢復預設設定', 'success');
-                    } else {
-                        this.showToast('重置失敗: ' + result.error, 'error');
-                    }
-                } catch (e) {
-                    this.showToast('重置失敗: ' + e.message, 'error');
+        // ===== Reset Config Modal (T3.4: confirm → fluent-modal + i18n) =====
+        openResetConfigModal() {
+            this.resetConfigModalOpen = true;
+        },
+
+        cancelResetConfigModal() {
+            this.resetConfigModalOpen = false;
+        },
+
+        async confirmResetConfig() {
+            this._resetConfigLoading = true;
+            try {
+                const resp = await fetch('/api/config', { method: 'DELETE' });
+                const result = await resp.json();
+                if (result.success) {
+                    await this.loadConfig();
+                    this.showToast('已恢復預設設定', 'success');
+                } else {
+                    this.showToast('重置失敗: ' + result.error, 'error');
                 }
+            } catch (e) {
+                this.showToast('重置失敗: ' + e.message, 'error');
+            } finally {
+                this._resetConfigLoading = false;
+                this.resetConfigModalOpen = false;
             }
+        },
+
+        async resetConfig() {
+            // Thin wrapper：保留向後相容，template @click="resetConfig()" 不需改
+            this.openResetConfigModal();
         },
 
         insertVariable(targetField, varName) {

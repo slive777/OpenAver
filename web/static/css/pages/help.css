@@ -15,11 +15,13 @@
 /* ========== AI 整合入口 — Terminal box（固定深色，不隨 theme 切換）========== */
 
 .hero-terminal {
-    background: oklch(20% 0.01 250);
-    color: oklch(85% 0.02 180);
-    border: 1px solid oklch(30% 0.01 250);
+    background: var(--surface-2);
+    color: var(--text-primary);
+    border: 1px solid var(--stroke-default);
     border-radius: var(--fluent-radius-lg, 8px);
-    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 6%, transparent),
+        var(--fluent-shadow-4);
     font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', ui-monospace, monospace;
     font-size: 0.9rem;
     padding: 0.75rem 1rem;
@@ -27,7 +29,7 @@
 }
 
 .terminal-prompt {
-    color: oklch(55% 0.15 160);  /* 低飽和青綠，暗示終端指令 */
+    color: var(--color-success);
     margin-right: 0.4em;
     user-select: none;
 }
@@ -39,22 +41,22 @@
     background: transparent;
     border: none;
     cursor: pointer;
-    color: oklch(65% 0.02 180);
+    color: var(--text-muted);
     font-size: 0.85rem;
     padding: 0.15rem 0.3rem;
-    border-radius: 4px;
-    transition: color 0.15s, background 0.15s;
+    border-radius: var(--fluent-radius-md);
+    transition: color var(--fluent-duration-fast) var(--fluent-ease-standard), background var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .terminal-copy-btn:hover {
-    color: oklch(90% 0.04 180);
-    background: oklch(30% 0.01 250);
+    color: var(--text-primary);
+    background: var(--surface-1);
 }
 
 /* ========== 工作流程 ========== */
 
 .workflow-arrow {
-    color: oklch(0.65 0.13 160);
+    color: var(--color-success);
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -66,17 +68,24 @@
 .workflow-step-num {
     width: 1.25rem;
     height: 1.25rem;
-    border-radius: 50%;
+    border-radius: 50%; /* shape: circle (icon badge, §1 白名單：比例值語義明確) */
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-size: 0.65rem;
     font-weight: 700;
-    background: oklch(0.55 0.13 160);
-    color: oklch(0.95 0 0);
+    background: var(--color-success);
+    color: oklch(100% 0 0);
     margin-right: 0.3rem;
 }
 
 .workflow-step-icon {
     font-size: 1.5rem;
+}
+
+/* dim mode: terminal box 固定深色（保留終端機視覺語意） */
+[data-theme="dim"] .hero-terminal {
+    background: oklch(15% 0.005 250);  /* design-intent: 深底，比 surface-2 dim 值更深 */
+    color: oklch(90% 0.02 180);        /* design-intent: 偏青綠終端字 */
+    border-color: oklch(28% 0.005 250); /* design-intent: 深邊框固定色 */
 }

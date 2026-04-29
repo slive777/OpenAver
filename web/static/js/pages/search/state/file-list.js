@@ -332,7 +332,7 @@ window.SearchStateMixin_FileList = {
 
         // 檢查空列表
         if (validIndices.length === 0) {
-            alert('無有效影片檔案（無法識別番號）');
+            this.showToast(window.t('search.toast.no_valid_files'), 'warning');
             return;
         }
 
@@ -399,7 +399,7 @@ window.SearchStateMixin_FileList = {
 
     async addFiles() {
         if (typeof window.pywebview === 'undefined' || !window.pywebview.api) {
-            alert('此功能需要在桌面應用程式中使用');
+            this.showToast(window.t('search.toast.desktop_only'), 'info');
             return;
         }
         try {
@@ -414,7 +414,7 @@ window.SearchStateMixin_FileList = {
 
     async addFolder() {
         if (typeof window.pywebview === 'undefined' || !window.pywebview.api) {
-            alert('此功能需要在桌面應用程式中使用');
+            this.showToast(window.t('search.toast.desktop_only'), 'info');
             return;
         }
         try {
@@ -439,7 +439,7 @@ window.SearchStateMixin_FileList = {
 
             if (!result.success) {
                 console.error('[LoadFavorite]', result.error);
-                alert('載入失敗，請重試');
+                this.showToast(window.t('search.toast.load_failed'), 'error');
                 return;
             }
 
@@ -456,7 +456,7 @@ window.SearchStateMixin_FileList = {
         } catch (err) {
             if (err.name === 'AbortError') return;  // T4.3: 靜默忽略取消
             console.error('[LoadFavorite]', err);
-            alert('載入失敗，請重試');
+            this.showToast(window.t('search.toast.load_failed'), 'error');
         } finally {
             this.isLoadingFavorite = false;
             this._clearAbort('loadFavorite', loadFavoriteSignal);  // T4.3: 操作完成清除 registry（比對 signal 避免刪掉新請求）

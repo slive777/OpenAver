@@ -35,10 +35,10 @@
 .motion-lab-badge {
     font-size: 0.65rem;
     font-weight: 700;
-    background: #f59e0b;
-    color: #1c1c1e;
+    background: var(--color-warning);
+    color: var(--color-base-content);
     padding: 0.1rem 0.4rem;
-    border-radius: 4px;
+    border-radius: var(--fluent-radius-md);
     letter-spacing: 0.05em;
     text-transform: uppercase;
 }
@@ -50,18 +50,18 @@
 
 .motion-lab-tab {
     padding: 0.35rem 0.75rem;
-    border-radius: 6px;
+    border-radius: var(--fluent-radius-lg);
     font-size: 0.8rem;
     font-weight: 500;
     border: 1px solid transparent;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
 }
 
 .motion-lab-tab.active {
-    background: var(--accent-primary);
-    color: #fff;
-    border-color: var(--accent-primary);
+    background: var(--accent-secondary);
+    color: oklch(100% 0 0);
+    border-color: var(--accent-secondary);
 }
 
 .motion-lab-tab:not(.active):not(:disabled) {
@@ -106,21 +106,21 @@
 .control-value {
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--accent-primary);
+    color: var(--accent-secondary);
     min-width: 2.5rem;
     text-align: right;
 }
 
 .control-slider {
     width: 100px;
-    accent-color: var(--accent-primary);
+    accent-color: var(--accent-secondary);
     cursor: pointer;
 }
 
 .control-select {
     font-size: 0.75rem;
     padding: 0.2rem 0.4rem;
-    border-radius: 4px;
+    border-radius: var(--fluent-radius-md);
     border: 1px solid var(--border-light);
     background: var(--bg-primary);
     color: var(--text-primary);
@@ -128,7 +128,7 @@
 }
 
 .control-checkbox {
-    accent-color: var(--accent-primary);
+    accent-color: var(--accent-secondary);
     cursor: pointer;
 }
 
@@ -143,19 +143,19 @@
     padding: 0.3rem 0.65rem;
     font-size: 0.75rem;
     font-weight: 500;
-    border-radius: 5px;
+    border-radius: var(--fluent-radius-md);
     border: 1px solid var(--border-light);
     background: var(--bg-primary);
     color: var(--text-primary);
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
     white-space: nowrap;
 }
 
 .control-btn:hover:not(:disabled) {
-    background: var(--accent-primary);
-    color: #fff;
-    border-color: var(--accent-primary);
+    background: var(--accent-secondary);
+    color: oklch(100% 0 0);
+    border-color: var(--accent-secondary);
 }
 
 .control-btn:disabled {
@@ -164,9 +164,9 @@
 }
 
 .control-btn.primary {
-    background: var(--accent-primary);
-    color: #fff;
-    border-color: var(--accent-primary);
+    background: var(--accent-secondary);
+    color: oklch(100% 0 0);
+    border-color: var(--accent-secondary);
 }
 
 .control-btn.primary:hover:not(:disabled) {
@@ -174,13 +174,13 @@
 }
 
 .control-btn.danger {
-    border-color: #ef4444;
-    color: #ef4444;
+    border-color: var(--color-error);
+    color: var(--color-error);
 }
 
 .control-btn.danger:hover:not(:disabled) {
-    background: #ef4444;
-    color: #fff;
+    background: var(--color-error);
+    color: oklch(100% 0 0);
 }
 
 /* 預覽區 */
@@ -201,7 +201,7 @@
     height: 44px;
     background: var(--bg-secondary);
     border: 1px solid var(--border-light);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     padding: 0 1rem;
@@ -243,12 +243,12 @@
 
 /* av-card-preview 與 search 頁保持一致結構 */
 .motion-lab-grid .av-card-preview {
-    border-radius: 8px;
+    border-radius: var(--fluent-radius-xl);
     overflow: hidden;
     background: var(--bg-secondary);
     border: 1px solid var(--border-light);
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard), box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
     position: relative;
 }
 
@@ -265,7 +265,7 @@
 .staging-anchor .av-card-preview {
     min-width: 280px;
     position: relative;
-    border-radius: 8px;
+    border-radius: var(--fluent-radius-xl);
     background: var(--bg-secondary);
     border: 1px solid var(--border-light);
     pointer-events: auto;   /* staging card 本身可正常互動與動畫渲染 */
@@ -296,15 +296,15 @@
 .staging-counter-badge {
     font-size: 0.65rem;
     font-weight: 700;
-    background: var(--accent-primary);
-    color: #fff;
+    background: var(--accent-secondary);
+    color: oklch(100% 0 0);
     padding: 0.1rem 0.4rem;
-    border-radius: 4px;
+    border-radius: var(--fluent-radius-md);
 }
 
 .motion-lab-grid .av-card-preview:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--fluent-shadow-8);
 }
 
 .motion-lab-grid .av-card-preview-img {
@@ -587,11 +587,11 @@
     justify-content: center;
     align-items: flex-end;
     padding-bottom: 20px;
-    gap: 12px;
+    gap: 12px; /* spacingM (12px Fluent layout) */
     background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.2) 60%, transparent 100%);
     border-radius: 0 0 var(--radius-sm) var(--radius-sm);
     opacity: 0;
-    transition: opacity var(--duration-fast) var(--ease-out);
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-decel);
 }
 .css-anim-demos .lightbox-cover:hover .cover-actions,
 .css-anim-demos .lightbox-cover:focus-within .cover-actions {
@@ -603,23 +603,23 @@
     border: 1px solid rgba(255,255,255,0.4);
     border-radius: 50%;
     background: rgba(255,255,255,0.15);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
     color: white;
     font-size: 1.125rem;
     cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    transition: background var(--duration-fast) var(--ease-out),
-                border-color var(--duration-fast) var(--ease-out),
-                transform var(--duration-fast) var(--ease-out),
-                box-shadow var(--duration-fast) var(--ease-out);
+    box-shadow: var(--fluent-shadow-8);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-decel),
+                border-color var(--fluent-duration-fast) var(--fluent-ease-decel),
+                transform var(--fluent-duration-fast) var(--fluent-ease-decel),
+                box-shadow var(--fluent-duration-fast) var(--fluent-ease-decel);
 }
 .css-anim-demos .lb-action-btn:hover {
     background: rgba(255,255,255,0.3);
     border-color: rgba(255,255,255,0.6);
     transform: scale(1.08);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+    box-shadow: var(--fluent-shadow-16);
 }
 .css-anim-demos .lb-action-btn:active {
     transform: scale(0.95);
@@ -638,7 +638,7 @@
     border-radius: var(--radius-sm);
     pointer-events: none;
     opacity: 0;
-    transition: opacity var(--duration-fast) var(--ease-out);
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-decel);
 }
 .css-anim-demos .lb-action-btn[data-tooltip]:hover::after,
 .css-anim-demos .lb-action-btn[data-tooltip]:focus-visible::after {
@@ -674,8 +674,8 @@
     color: var(--text-secondary);
     text-decoration: none;
     border-radius: var(--radius-sm);
-    transition: background var(--duration-fast) var(--ease-out),
-                color var(--duration-fast) var(--ease-out);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-decel),
+                color var(--fluent-duration-fast) var(--fluent-ease-decel);
     white-space: nowrap;
 }
 .css-anim-demos .dropdown-item:hover {
@@ -756,6 +756,21 @@
                     @click="tab = 'picker'; onResetStaging(); onResetHero()">
                 Photo Picker
             </button>
+            <button class="motion-lab-tab"
+                    :class="{ active: tab === 'ease-roles' }"
+                    @click="tab = 'ease-roles'; onResetStaging(); onResetHero(); onResetPicker()">
+                §5 Ease 角色
+            </button>
+            <button class="motion-lab-tab"
+                    :class="{ active: tab === 'duration-buckets' }"
+                    @click="tab = 'duration-buckets'; onResetStaging(); onResetHero(); onResetPicker()">
+                §5 Duration Buckets
+            </button>
+            <button class="motion-lab-tab"
+                    :class="{ active: tab === 'special-motion' }"
+                    @click="tab = 'special-motion'; onResetStaging(); onResetHero(); onResetPicker()">
+                §5 Special Motion 白名單
+            </button>
         </div>
     </div>
 
@@ -811,10 +826,13 @@
         <div class="control-group">
             <span class="control-label">Ease</span>
             <select class="control-select" x-model="params.easing">
-                <option value="back.out(1.2)">back.out(1.2)</option>
-                <option value="power3.out">power3.out</option>
-                <option value="elastic.out(1,0.3)">elastic.out(1,0.3)</option>
-                <option value="power2.inOut">power2.inOut</option>
+                <option value="fluent">fluent（standard，互動）</option>
+                <option value="fluent-decel">fluent-decel（enter，進場）</option>
+                <option value="fluent-accel">fluent-accel（exit，離場）</option>
+                <option value="back.out(1.2)">back.out(1.2)（pre-charter，已禁用）</option>
+                <option value="power3.out">power3.out（pre-charter，已禁用）</option>
+                <option value="elastic.out(1,0.3)">elastic.out(1,0.3)（pre-charter，已禁用）</option>
+                <option value="power2.inOut">power2.inOut（pre-charter；白名單：Burst Picker FLIP）</option>
                 <option value="none">none</option>
             </select>
         </div>
@@ -1385,6 +1403,56 @@
                    x-model.number="pickerParams.streamInterval">
             <span class="control-value" x-text="pickerParams.streamInterval + 'ms'"></span>
         </div>
+
+        <!-- ===== §5 Ease Roles 控制項 ===== -->
+        <div class="control-divider"></div>
+
+        <button class="control-btn primary"
+                x-show="tab === 'ease-roles'"
+                x-cloak
+                @click="onPlayEaseRoles($refs)">
+            <i class="bi bi-play-fill"></i> Play Ease Roles
+        </button>
+
+        <!-- ===== §5 Duration Buckets 控制項 ===== -->
+        <button class="control-btn primary"
+                x-show="tab === 'duration-buckets'"
+                x-cloak
+                @click="onPlayDurationBuckets($refs)">
+            <i class="bi bi-play-fill"></i> Play Duration Buckets
+        </button>
+
+        <!-- ===== §5 Special Motion 白名單控制項 ===== -->
+        <button class="control-btn primary"
+                x-show="tab === 'special-motion'"
+                x-cloak
+                @click="onPlayWhitelistBurstPicker($refs)">
+            <i class="bi bi-play-fill"></i> Play Burst Picker
+        </button>
+        <button class="control-btn primary"
+                x-show="tab === 'special-motion'"
+                x-cloak
+                @click="onPlayWhitelistStagingEntry($refs)">
+            <i class="bi bi-play-fill"></i> Play Staging Entry
+        </button>
+        <button class="control-btn primary"
+                x-show="tab === 'special-motion'"
+                x-cloak
+                @click="onPlayWhitelistCheckmark($refs)">
+            <i class="bi bi-play-fill"></i> Play Checkmark
+        </button>
+        <button class="control-btn primary"
+                x-show="tab === 'special-motion'"
+                x-cloak
+                @click="onPlayWhitelistShake($refs)">
+            <i class="bi bi-play-fill"></i> Play Shake
+        </button>
+        <button class="control-btn primary"
+                x-show="tab === 'special-motion'"
+                x-cloak
+                @click="onPlayWhitelistPulse($refs)">
+            <i class="bi bi-play-fill"></i> Play Pulse
+        </button>
     </div>
 
     <!-- 預覽區 -->
@@ -1476,8 +1544,7 @@
              x-show="tab === 'staging' && stagingOverlayVisible">
             <div class="av-card-preview rotating-border-spotlight"
                  :class="{ active: stagingRunning && !params.reducedMotionSim }"
-                 x-ref="stagingCard"
-                 style="border-radius: 8px;">
+                 x-ref="stagingCard">
                 <div class="av-card-preview-img">
                     <img x-ref="stagingImg"
                          :src="stagingCurrentCover || ''"
@@ -1930,7 +1997,7 @@
             <!-- Demo 2: Cover-Actions Reveal -->
             <div>
                 <h5 style="color: var(--text-primary); font-weight: 600; margin: 0 0 1rem;">Cover-Actions Reveal — Gradient Overlay + Glass Buttons</h5>
-                <div class="lightbox-cover" style="position: relative; width: 280px; aspect-ratio: 3/2; overflow: hidden; border-radius: 8px; background: #444; cursor: pointer; display: block;">
+                <div class="lightbox-cover css-anim-cover-mock">
                     <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #3a3a4a 0%, #555566 50%, #3a3a4a 100%);"></div>
                     <div class="cover-actions">
                         <button class="lb-action-btn" data-tooltip="返回詳情" type="button">
@@ -2143,6 +2210,164 @@
             </div>
         </div>
 
+        <!-- ===== §5 Ease Roles 並排對比 ===== -->
+        <div x-show="tab === 'ease-roles'" x-cloak class="ease-roles-panel">
+            <h5 class="ease-roles-title">§5 Ease 角色對比</h5>
+            <p class="ease-roles-desc">三條曲線同步播放，Standard S 曲線 ／ Enter 慢起快停 ／ Exit 快起慢停</p>
+            <div class="ease-roles-track">
+                <div class="ease-role-item">
+                    <div class="ease-role-label">
+                        <span class="ease-role-name">Standard</span>
+                        <code class="ease-role-code">fluent</code>
+                        <code class="ease-role-bezier">cubic-bezier(0.33, 0, 0.67, 1)</code>
+                    </div>
+                    <div class="ease-role-lane">
+                        <div class="ease-role-box" x-ref="easeBox0"></div>
+                    </div>
+                </div>
+                <div class="ease-role-item">
+                    <div class="ease-role-label">
+                        <span class="ease-role-name">Enter（進場）</span>
+                        <code class="ease-role-code">fluent-decel</code>
+                        <code class="ease-role-bezier">cubic-bezier(0, 0, 0, 1)</code>
+                    </div>
+                    <div class="ease-role-lane">
+                        <div class="ease-role-box" x-ref="easeBox1"></div>
+                    </div>
+                </div>
+                <div class="ease-role-item">
+                    <div class="ease-role-label">
+                        <span class="ease-role-name">Exit（離場）</span>
+                        <code class="ease-role-code">fluent-accel</code>
+                        <code class="ease-role-bezier">cubic-bezier(1, 0, 1, 1)</code>
+                    </div>
+                    <div class="ease-role-lane">
+                        <div class="ease-role-box" x-ref="easeBox2"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== §5 Special Motion 白名單 demo ===== -->
+        <div x-show="tab === 'special-motion'" x-cloak class="special-motion-panel">
+            <h5 class="special-motion-title">§5 Special Motion 白名單</h5>
+            <p class="special-motion-desc">各條目獨立招牌動畫，ease 不走三角色，保留視覺個性</p>
+            <div class="special-motion-track">
+
+                <!-- 1. Burst Picker 候選卡彈出 -->
+                <div class="special-motion-item">
+                    <div class="special-motion-label">
+                        <span class="special-motion-name">Burst Picker 候選卡彈出</span>
+                        <code class="special-motion-ease">back.out(1.2~1.7)</code>
+                    </div>
+                    <div class="special-motion-stage">
+                        <div class="special-motion-box" x-ref="whitelistBurstPickerEl"></div>
+                    </div>
+                </div>
+
+                <!-- 2. Staging Card 進場 morph -->
+                <div class="special-motion-item">
+                    <div class="special-motion-label">
+                        <span class="special-motion-name">Staging Card 進場 morph</span>
+                        <code class="special-motion-ease">back.out(1.4) + 0.35s</code>
+                    </div>
+                    <div class="special-motion-stage">
+                        <div class="special-motion-box" x-ref="whitelistStagingEntryEl"></div>
+                    </div>
+                </div>
+
+                <!-- 3. playOrganizeSuccess checkmark -->
+                <div class="special-motion-item">
+                    <div class="special-motion-label">
+                        <span class="special-motion-name">playOrganizeSuccess checkmark</span>
+                        <code class="special-motion-ease">back.out(1.7) + 0.35s</code>
+                    </div>
+                    <div class="special-motion-stage">
+                        <div class="special-motion-checkmark" x-ref="whitelistCheckmarkEl">✓</div>
+                    </div>
+                </div>
+
+                <!-- 4. playOrganizeFail shake -->
+                <div class="special-motion-item">
+                    <div class="special-motion-label">
+                        <span class="special-motion-name">playOrganizeFail shake</span>
+                        <code class="special-motion-ease">power1.inOut + 0.08s yoyo×3</code>
+                    </div>
+                    <div class="special-motion-stage">
+                        <div class="special-motion-box" x-ref="whitelistShakeEl"></div>
+                    </div>
+                </div>
+
+                <!-- 5. SourcePulse micro feedback -->
+                <div class="special-motion-item">
+                    <div class="special-motion-label">
+                        <span class="special-motion-name">SourcePulse micro feedback</span>
+                        <code class="special-motion-ease">fluent yoyo 0.1s</code>
+                    </div>
+                    <div class="special-motion-stage">
+                        <div class="special-motion-dot" x-ref="whitelistPulseEl"></div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 跳過條目說明 -->
+            <div class="special-motion-skip-section">
+                <p class="whitelist-skip-note">以下條目因環境依賴無法在 motion-lab 建立獨立 demo：</p>
+                <ul class="whitelist-skip-list">
+                    <li><strong>Floating Hearts 粒子</strong>：依賴 Physics2D Plugin，見 picker tab</li>
+                    <li><strong>FLIP 排序洗牌</strong>：已有 showcase tab FLIP demo</li>
+                    <li><strong>Ghost Fly 飛行</strong>：見 Showcase tab lightbox 互動 demo</li>
+                    <li><strong>playLightboxOpen 三段</strong>：依賴 ghost-fly 並行段，見 showcase lightbox</li>
+                    <li><strong>showcaseSettle 招牌 settle</strong>：已有 settle tab demo</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ===== §5 Duration Buckets 並排對比 ===== -->
+        <div x-show="tab === 'duration-buckets'" x-cloak class="duration-buckets-panel">
+            <h5 class="duration-buckets-title">§5 Duration Buckets 對比</h5>
+            <p class="duration-buckets-desc">四個 box 同時播放相同 ease（fluent standard），只改 duration，直觀看時長差異</p>
+            <div class="duration-buckets-track">
+                <div class="duration-bucket-item">
+                    <div class="duration-bucket-label">
+                        <span class="duration-bucket-name">fast 167ms</span>
+                        <code class="duration-bucket-code">DURATION.fast</code>
+                    </div>
+                    <div class="duration-bucket-lane">
+                        <div class="duration-bucket-box" x-ref="durBox0"></div>
+                    </div>
+                </div>
+                <div class="duration-bucket-item">
+                    <div class="duration-bucket-label">
+                        <span class="duration-bucket-name">medium 333ms</span>
+                        <code class="duration-bucket-code">DURATION.medium</code>
+                    </div>
+                    <div class="duration-bucket-lane">
+                        <div class="duration-bucket-box" x-ref="durBox1"></div>
+                    </div>
+                </div>
+                <div class="duration-bucket-item">
+                    <div class="duration-bucket-label">
+                        <span class="duration-bucket-name">emphasis 500ms</span>
+                        <code class="duration-bucket-code">DURATION.emphasis</code>
+                    </div>
+                    <div class="duration-bucket-lane">
+                        <div class="duration-bucket-box" x-ref="durBox2"></div>
+                    </div>
+                </div>
+                <div class="duration-bucket-item">
+                    <div class="duration-bucket-label">
+                        <span class="duration-bucket-name">slow 300ms (legacy)</span>
+                        <code class="duration-bucket-code">0.3</code>
+                    </div>
+                    <div class="duration-bucket-lane">
+                        <div class="duration-bucket-box" x-ref="durBox3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
 </div>
@@ -2151,6 +2376,18 @@
 @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
+}
+
+/* Cover-Actions Reveal demo mock cover（T1.5.3：inline style → class） */
+.css-anim-cover-mock {
+    position: relative;
+    width: 280px;
+    aspect-ratio: 3/2;
+    overflow: hidden;
+    border-radius: var(--fluent-radius-xl);
+    background: var(--color-base-300);
+    cursor: pointer;
+    display: block;
 }
 
 /* Stream-in Skeleton */
@@ -2179,12 +2416,12 @@
 
 /* Hero Slot: hero-card 邊框提示 */
 .hero-card {
-    border: 2px solid var(--accent-primary);
-    border-radius: 8px;
+    border: 2px solid var(--accent-secondary);
+    border-radius: var(--fluent-radius-xl);
 }
 
 .hero-card .av-card-preview-footer {
-    background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+    background: color-mix(in srgb, var(--accent-secondary) 15%, transparent);
 }
 
 /* ===== Photo Picker Burst 樣式 — 模擬 actress lightbox 形式 ===== */
@@ -2223,8 +2460,8 @@
     border: none;
     border-radius: 50%;
     background: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
     color: var(--text-inverse, #fff);
     font-size: 1rem;
     cursor: default;
@@ -2258,12 +2495,12 @@
     top: 8px;
     right: 8px;
     background: rgba(0, 0, 0, 0.65);
-    color: #fff;
+    color: oklch(100% 0 0);
     font-size: 0.7rem;
     padding: 3px 8px;
-    border-radius: 4px;
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    border-radius: var(--fluent-radius-md);
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
 }
 
 /* Metadata 區（模擬 .lightbox-metadata） */
@@ -2306,7 +2543,7 @@
     width: 100px;
     flex: 0 0 100px;  /* fix3: 防止 flex container 把 6 卡 shrink 到 lightbox 寬度（Codex P1）*/
     cursor: pointer;
-    border-radius: 6px;
+    border-radius: var(--fluent-radius-lg);
     overflow: hidden;
     border: 1px solid var(--border-primary, var(--stroke-default));
     will-change: transform;
@@ -2332,7 +2569,7 @@
     left: 0;
     right: 0;
     background: rgba(0, 0, 0, 0.65);
-    color: #fff;
+    color: oklch(100% 0 0);
     font-size: 0.65rem;
     text-align: center;
     padding: 2px 4px;
@@ -2347,8 +2584,8 @@
     transition: opacity 0.15s;
 }
 .picker-candidate-card:hover .picker-source-badge {
-    background: var(--accent-success, #22c55e);
-    color: #fff;
+    background: var(--color-success);
+    color: oklch(100% 0 0);
 }
 .picker-candidate-card:hover .picker-check-icon {
     opacity: 1;
@@ -2388,11 +2625,11 @@
     top: 1.5rem;       /* lightbox padding 對應，視覺上貼齊封面左上角 */
     left: 1.5rem;
     background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    color: #fff;
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
+    color: oklch(100% 0 0);
     padding: 4px 12px;
-    border-radius: 4px;
+    border-radius: var(--fluent-radius-md);
     z-index: 10;
     pointer-events: none;
 }
@@ -2411,6 +2648,294 @@
 /* C21 配套：ghost-fly 飛行期間停用 cover-img CSS transition */
 .picker-cover-img.gsap-animating {
     transition: none !important;
+}
+
+/* ===== §5 Special Motion 白名單 demo 面板 ===== */
+.special-motion-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 2rem 1.5rem;
+    width: 100%;
+}
+
+.special-motion-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.special-motion-desc {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.special-motion-track {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: min(640px, 90vw);
+}
+
+.special-motion-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.special-motion-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 200px;
+}
+
+.special-motion-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.special-motion-ease {
+    font-size: 0.75rem;
+    color: var(--accent-secondary);
+    background: var(--surface-1);
+    border-radius: var(--fluent-radius-sm);
+    padding: 0.1rem 0.35rem;
+    width: fit-content;
+}
+
+.special-motion-stage {
+    flex: 1;
+    height: 80px;
+    background: var(--surface-1);
+    border-radius: var(--radius-md);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--stroke-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.special-motion-box {
+    width: 64px;
+    height: 48px;
+    background: var(--accent-secondary);
+    border-radius: var(--fluent-radius-md);
+    opacity: 0.85;
+}
+
+.special-motion-checkmark {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-success);
+    line-height: 1;
+}
+
+.special-motion-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--accent-secondary);
+    opacity: 0.9;
+}
+
+.special-motion-skip-section {
+    width: min(640px, 90vw);
+    padding: 1rem;
+    background: var(--surface-1);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--stroke-subtle);
+}
+
+.whitelist-skip-note {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.whitelist-skip-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+/* ===== §5 Ease Roles 並排對比面板 ===== */
+.ease-roles-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 2rem 1.5rem;
+    width: 100%;
+}
+
+.ease-roles-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ease-roles-desc {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.ease-roles-track {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: min(640px, 90vw);
+}
+
+.ease-role-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.ease-role-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 200px;
+}
+
+.ease-role-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ease-role-code {
+    font-size: 0.75rem;
+    color: var(--accent-secondary);
+    background: var(--surface-1);
+    border-radius: var(--fluent-radius-sm);
+    padding: 0.1rem 0.35rem;
+    width: fit-content;
+}
+
+.ease-role-bezier {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    background: transparent;
+    padding: 0;
+}
+
+.ease-role-lane {
+    flex: 1;
+    height: 80px;
+    background: var(--surface-1);
+    border-radius: var(--radius-md);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--stroke-subtle);
+}
+
+.ease-role-box {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 80px;
+    height: 48px;
+    background: var(--accent-secondary);
+    border-radius: var(--fluent-radius-md);
+    opacity: 0.85;
+}
+
+/* ===== §5 Duration Buckets 並排對比面板 ===== */
+.duration-buckets-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 2rem 1.5rem;
+    width: 100%;
+}
+
+.duration-buckets-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.duration-buckets-desc {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.duration-buckets-track {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: min(640px, 90vw);
+}
+
+.duration-bucket-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.duration-bucket-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 200px;
+}
+
+.duration-bucket-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.duration-bucket-code {
+    font-size: 0.75rem;
+    color: var(--accent-secondary);
+    background: var(--surface-1);
+    border-radius: var(--fluent-radius-sm);
+    padding: 0.1rem 0.35rem;
+    width: fit-content;
+}
+
+.duration-bucket-lane {
+    flex: 1;
+    height: 80px;
+    background: var(--surface-1);
+    border-radius: var(--radius-md);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--stroke-subtle);
+}
+
+.duration-bucket-box {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 60px;
+    height: 48px;
+    background: var(--accent-secondary);
+    border-radius: var(--fluent-radius-md);
+    opacity: 0.85;
 }
 
 </style>

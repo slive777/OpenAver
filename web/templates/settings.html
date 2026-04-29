@@ -753,6 +753,34 @@
         </div>
     </dialog>
 
+    <!-- TASK-52.3.4: Reset Config Confirm Modal -->
+    <dialog class="modal fluent-modal"
+            :class="{ 'modal-open': resetConfigModalOpen }"
+            @click.self="cancelResetConfigModal()"
+            @keydown.escape.window="resetConfigModalOpen && cancelResetConfigModal()">
+        <div class="modal-box fluent-modal-box">
+            <h3 class="fluent-modal-title">
+                <i class="bi bi-exclamation-triangle text-warning"></i>
+                {{ t('settings.reset_modal.title') }}
+            </h3>
+            <p class="fluent-modal-body">
+                {{ t('settings.reset_modal.body') }}
+            </p>
+            <div class="modal-action fluent-modal-actions">
+                <button type="button" class="btn btn-ghost" @click="cancelResetConfigModal()">
+                    {{ t('common.action.cancel') }}
+                </button>
+                <button type="button" class="btn btn-error"
+                        @click="confirmResetConfig()"
+                        :disabled="_resetConfigLoading">
+                    <span x-show="_resetConfigLoading" class="loading loading-spinner loading-xs"></span>
+                    <span x-show="!_resetConfigLoading"><i class="bi bi-arrow-counterclockwise"></i></span>
+                    {{ t('settings.reset_modal.confirm') }}
+                </button>
+            </div>
+        </div>
+    </dialog>
+
 <!-- Toast 容器（Alpine controlled）-->
 <div class="toast toast-end toast-top z-[9999]" x-show="_toast.visible" x-cloak x-transition>
     <div class="alert" :class="`alert-${_toast.type}`">

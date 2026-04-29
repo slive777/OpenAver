@@ -322,6 +322,49 @@
                     <small>Small Text - 0.875rem</small>
                 </div>
             </div>
+
+            <!-- §3 Overlay 角色色 -->
+            <div class="ds-subsection">
+                <h3>§3 Overlay 角色色（4 階 + Phase 51 letterbox）</h3>
+                <p class="ds-desc">ui-conventions §3：遮罩用角色色 token，不寫 hardcoded rgba。</p>
+                <div class="ds-overlay-grid">
+                    <div class="ds-overlay-swatch" style="background: var(--overlay-gallery);">
+                        <div class="ds-overlay-info">
+                            <span class="ds-overlay-token">--overlay-gallery</span>
+                            <span class="ds-overlay-alpha">rgba(0,0,0,0.85)</span>
+                            <span class="ds-overlay-usage">sample gallery 暗幕</span>
+                        </div>
+                    </div>
+                    <div class="ds-overlay-swatch" style="background: var(--overlay-modal);">
+                        <div class="ds-overlay-info">
+                            <span class="ds-overlay-token">--overlay-modal</span>
+                            <span class="ds-overlay-alpha">rgba(0,0,0,0.6)</span>
+                            <span class="ds-overlay-usage">lightbox backdrop</span>
+                        </div>
+                    </div>
+                    <div class="ds-overlay-swatch" style="background: var(--overlay-gradient);">
+                        <div class="ds-overlay-info">
+                            <span class="ds-overlay-token">--overlay-gradient</span>
+                            <span class="ds-overlay-alpha">rgba(0,0,0,0.55)</span>
+                            <span class="ds-overlay-usage">card hover 漸層 bottom</span>
+                        </div>
+                    </div>
+                    <div class="ds-overlay-swatch" style="background: var(--overlay-control);">
+                        <div class="ds-overlay-info">
+                            <span class="ds-overlay-token">--overlay-control</span>
+                            <span class="ds-overlay-alpha">rgba(0,0,0,0.45)</span>
+                            <span class="ds-overlay-usage">浮在媒體上的控制按鈕</span>
+                        </div>
+                    </div>
+                    <div class="ds-overlay-swatch" style="background: var(--overlay-letterbox);">
+                        <div class="ds-overlay-info">
+                            <span class="ds-overlay-token">--overlay-letterbox</span>
+                            <span class="ds-overlay-alpha">rgba(0,0,0,0.2)</span>
+                            <span class="ds-overlay-usage">媒體封面 letterbox 黑邊</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <!-- 區塊 2: Fluent Design Tokens (accent-bar 樣式) -->
@@ -397,6 +440,65 @@
                 </div>
 
                 <p class="ds-note">💡 Dark theme 陰影深度加倍（opacity: 0.24/0.28），自動跟隨主題切換</p>
+            </div>
+
+            <!-- §4 Spacing 三層分明 -->
+            <div class="ds-subsection">
+                <h3>§4 Spacing 三層分明</h3>
+                <p class="ds-desc">ui-conventions §4：三層分類，嚴格對號入座。</p>
+                <div class="ds-spacing-layer-table">
+                    <div class="ds-spacing-layer">
+                        <div class="ds-spacing-layer-header ds-layer-layout">Layout 8pt grid</div>
+                        <div class="ds-spacing-layer-body">
+                            <div class="ds-spacing-layer-row">
+                                <span class="ds-layer-tag ds-layer-tag-ok">允許值</span>
+                                <code>8px · 16px · 24px · 32px · 48px · 64px</code>
+                            </div>
+                            <div class="ds-spacing-layer-row">
+                                <span class="ds-layer-tag ds-layer-tag-ban">禁止</span>
+                                <code>6px（改 8px 或加 optical 註釋）</code>
+                            </div>
+                            <div class="ds-spacing-layer-row">
+                                <span class="ds-layer-tag ds-layer-tag-example">用途</span>
+                                <span>元件間距、section padding、card gap</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ds-spacing-layer">
+                        <div class="ds-spacing-layer-header ds-layer-micro">Micro 2–4px</div>
+                        <div class="ds-spacing-layer-body">
+                            <div class="ds-spacing-layer-row">
+                                <span class="ds-layer-tag ds-layer-tag-ok">允許值</span>
+                                <code>2px · 4px</code>
+                            </div>
+                            <div class="ds-spacing-layer-row">
+                                <span class="ds-layer-tag ds-layer-tag-note">例外</span>
+                                <code>6px chip optical 例外須加 /* optical §4 micro chip */ 註釋</code>
+                            </div>
+                            <div class="ds-spacing-layer-row">
+                                <span class="ds-layer-tag ds-layer-tag-example">用途</span>
+                                <span>icon gap、badge padding、chip 內距</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ds-spacing-layer">
+                        <div class="ds-spacing-layer-header ds-layer-stroke">Stroke 1–3px</div>
+                        <div class="ds-spacing-layer-body">
+                            <div class="ds-spacing-layer-row">
+                                <span class="ds-layer-tag ds-layer-tag-ok">允許值</span>
+                                <code>1px · 2px · 3px</code>
+                            </div>
+                            <div class="ds-spacing-layer-row">
+                                <span class="ds-layer-tag ds-layer-tag-ban">禁止</span>
+                                <code>border: 2px solid red（不走 token）</code>
+                            </div>
+                            <div class="ds-spacing-layer-row">
+                                <span class="ds-layer-tag ds-layer-tag-example">用途</span>
+                                <span>border / outline / separator 線條粗細</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Spacing Scale 展示 -->
@@ -513,7 +615,7 @@
                             <span class="ds-material-class">body.fluent-canvas</span>
                             <span class="ds-material-desc">Mica 氛圍背景 — 全頁底層漸層 + noise overlay</span>
                             <div class="ds-material-tokens">
-                                <code>--ds-glow-rgb: 90, 200, 250</code>
+                                <code class="ds-token-label">--fluent-blur-heavy (60px)</code>
                                 <code>radial-gradient + noise 0.025 opacity</code>
                             </div>
                         </div>
@@ -529,10 +631,10 @@
                         <div class="ds-material-info">
                             <span class="ds-material-name">Toolbar (Shell)</span>
                             <span class="ds-material-class">.fluent-toolbar</span>
-                            <span class="ds-material-desc">工具列標準 Acrylic — 輕量毛玻璃，背景透出氛圍層</span>
+                            <span class="ds-material-desc">工具列標準 Acrylic — Overlay 階毛玻璃，背景透出氛圍層</span>
                             <div class="ds-material-tokens">
-                                <code>blur: 16px, saturate: 130%</code>
-                                <code>bg: var(--bg-header)</code>
+                                <code class="ds-token-label">--fluent-blur (30px)</code>
+                                <code>saturate: 130% · bg: var(--bg-header)</code>
                             </div>
                         </div>
                     </div>
@@ -547,7 +649,7 @@
                         <div class="ds-material-info">
                             <span class="ds-material-name">Surface Elevation</span>
                             <span class="ds-material-class">inset highlight + shadow</span>
-                            <span class="ds-material-desc">卡片材質邊界感 — 頂部 1px 高光線 + Fluent 陰影，無 blur</span>
+                            <span class="ds-material-desc">卡片材質邊界感 — 頂部 1px 高光線 + Fluent 陰影，無 blur（floating-control 用 <code class="ds-token-label">--fluent-blur-light (12px)</code>）</span>
                             <div class="ds-material-tokens">
                                 <code>inset 0 1px 0 oklch(base-content 8%)</code>
                                 <code>+ var(--fluent-shadow-4)</code>
@@ -677,6 +779,89 @@
                     <button class="btn-hero btn-hero-secondary">
                         <i class="bi bi-clipboard"></i> Hero Secondary
                     </button>
+                </div>
+            </div>
+
+            <!-- §1 Pill 999px 白名單 -->
+            <div class="ds-subsection">
+                <h3>§1 Pill 999px 白名單（5 類）</h3>
+                <p class="ds-desc">ui-conventions §1：<code>border-radius: 999px</code>（<code>--radius-pill</code>）限這 5 類使用，其他元件用 <code>var(--fluent-radius-*)</code> token。</p>
+                <div class="ds-pill-whitelist-grid">
+
+                    <!-- 1. spotlight-search -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo">
+                            <div class="ds-pill-demo-spotlight">
+                                <i class="bi bi-search"></i>
+                                <span>搜尋演員...</span>
+                            </div>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">類 1 · <code>.spotlight-search</code></span>
+                            <p class="ds-pill-card-desc">頁面頂部 Spotlight 搜尋框</p>
+                            <code class="ds-pill-card-token">--radius-pill: 999px</code>
+                        </div>
+                    </div>
+
+                    <!-- 2. btn-hero -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo">
+                            <button class="btn-hero btn-hero-primary" style="pointer-events: none;">
+                                <i class="bi bi-play-fill"></i> 開始掃描
+                            </button>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">類 2 · <code>.btn-hero</code></span>
+                            <p class="ds-pill-card-desc">Hero CTA 行動呼籲大按鈕</p>
+                            <code class="ds-pill-card-token">--radius-pill: 999px</code>
+                        </div>
+                    </div>
+
+                    <!-- 3. lb-tag / lb-user-tag -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo" style="display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center;">
+                            <span class="lb-tag">動作</span>
+                            <span class="lb-tag">喜劇</span>
+                            <span class="lb-user-tag">自訂標籤</span>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">類 3 · <code>.lb-tag</code> / <code>.lb-user-tag</code></span>
+                            <p class="ds-pill-card-desc">Lightbox 元資料 tag chips</p>
+                            <code class="ds-pill-card-token">--radius-pill: 999px</code>
+                        </div>
+                    </div>
+
+                    <!-- 4. badge -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo" style="display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center;">
+                            <span class="badge badge-primary">NEW</span>
+                            <span class="badge badge-secondary">HD</span>
+                            <span class="badge badge-accent">4K</span>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">類 4 · <code>.badge</code> 類</span>
+                            <p class="ds-pill-card-desc">數量徽章、狀態 badge</p>
+                            <code class="ds-pill-card-token">--radius-pill: 999px</code>
+                        </div>
+                    </div>
+
+                    <!-- 5. control action pill -->
+                    <div class="ds-pill-card">
+                        <div class="ds-pill-card-demo" style="display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center;">
+                            <button class="sg-open-btn" style="pointer-events: none;">
+                                <i class="bi bi-images"></i> 樣本圖
+                            </button>
+                            <button class="fetch-samples-btn" style="pointer-events: none;">
+                                <i class="bi bi-download"></i> 取得
+                            </button>
+                        </div>
+                        <div class="ds-pill-card-meta">
+                            <span class="ds-pill-card-class">類 5 · <code>.sg-open-btn</code> / <code>.fetch-samples-btn</code> / <code>.mode-toggle</code></span>
+                            <p class="ds-pill-card-desc">Lightbox / control action pill</p>
+                            <code class="ds-pill-card-token">--radius-pill: 999px</code>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </section>
@@ -850,6 +1035,91 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- §6 5 檢查點 pass/fail 對照 -->
+            <div class="ds-subsection">
+                <h3>§6 5 檢查點 pass/fail 對照</h3>
+                <p class="ds-desc">ui-conventions §6：每次 PR 前確認這 5 點。左欄為違規示範（紅虛線），右欄為正確寫法（綠實線）。</p>
+
+                <!-- 1. Radius -->
+                <div class="ds-checkpoint-label">1. Radius — 用 token，不硬編碼 px</div>
+                <div class="ds-checkpoint-pair">
+                    <div class="ds-checkpoint-fail">
+                        <span class="ds-cpf-title">✗ 違規</span>
+                        <div class="ds-cpf-demo" style="border-radius: 3px; background: var(--surface-1); padding: 0.75rem; text-align: center;">border-radius: 3px</div>
+                        <code class="ds-cpf-code">border-radius: 3px</code>
+                    </div>
+                    <div class="ds-checkpoint-pass">
+                        <span class="ds-cpf-title">✓ 正確</span>
+                        <div class="ds-cpf-demo" style="border-radius: var(--fluent-radius-md); background: var(--surface-1); padding: 0.75rem; text-align: center;">fluent-radius-md</div>
+                        <code class="ds-cpf-code">border-radius: var(--fluent-radius-md)</code>
+                    </div>
+                </div>
+
+                <!-- 2. Surface -->
+                <div class="ds-checkpoint-label">2. Surface — 用 surface token，不寫 hardcoded rgba</div>
+                <div class="ds-checkpoint-pair">
+                    <div class="ds-checkpoint-fail">
+                        <span class="ds-cpf-title">✗ 違規</span>
+                        <div class="ds-cpf-demo" style="background: rgba(255,255,255,0.5); padding: 0.75rem; text-align: center; border-radius: var(--fluent-radius-md);">rgba(255,255,255,0.5)</div>
+                        <code class="ds-cpf-code">background: rgba(255,255,255,0.5)</code>
+                    </div>
+                    <div class="ds-checkpoint-pass">
+                        <span class="ds-cpf-title">✓ 正確</span>
+                        <div class="ds-cpf-demo" style="background: var(--surface-1); padding: 0.75rem; text-align: center; border-radius: var(--fluent-radius-md);">var(--surface-1)</div>
+                        <code class="ds-cpf-code">background: var(--surface-1)</code>
+                    </div>
+                </div>
+
+                <!-- 3. Stroke -->
+                <div class="ds-checkpoint-label">3. Stroke — 1px + stroke token，不任意加粗或用色彩硬編碼</div>
+                <div class="ds-checkpoint-pair">
+                    <div class="ds-checkpoint-fail">
+                        <span class="ds-cpf-title">✗ 違規</span>
+                        <div class="ds-cpf-demo" style="border: 2px solid red; padding: 0.75rem; text-align: center; border-radius: var(--fluent-radius-md);">2px solid red</div>
+                        <code class="ds-cpf-code">border: 2px solid red</code>
+                    </div>
+                    <div class="ds-checkpoint-pass">
+                        <span class="ds-cpf-title">✓ 正確</span>
+                        <div class="ds-cpf-demo" style="border: 1px solid var(--stroke-default); padding: 0.75rem; text-align: center; border-radius: var(--fluent-radius-md);">1px stroke-default</div>
+                        <code class="ds-cpf-code">border: 1px solid var(--stroke-default)</code>
+                    </div>
+                </div>
+
+                <!-- 4. Shadow -->
+                <div class="ds-checkpoint-label">4. Shadow — 用 Fluent token，不寫裸 rgba</div>
+                <div class="ds-checkpoint-pair">
+                    <div class="ds-checkpoint-fail">
+                        <span class="ds-cpf-title">✗ 違規</span>
+                        <div class="ds-cpf-demo" style="box-shadow: 0 4px 8px rgba(0,0,0,0.5); padding: 0.75rem; text-align: center; border-radius: var(--fluent-radius-md); background: var(--surface-1);">0 4px 8px rgba(0,0,0,0.5)</div>
+                        <code class="ds-cpf-code">box-shadow: 0 4px 8px rgba(0,0,0,0.5)</code>
+                    </div>
+                    <div class="ds-checkpoint-pass">
+                        <span class="ds-cpf-title">✓ 正確</span>
+                        <div class="ds-cpf-demo" style="box-shadow: var(--fluent-shadow-8); padding: 0.75rem; text-align: center; border-radius: var(--fluent-radius-md); background: var(--surface-1);">fluent-shadow-8</div>
+                        <code class="ds-cpf-code">box-shadow: var(--fluent-shadow-8)</code>
+                    </div>
+                </div>
+
+                <!-- 5. Hover / Focus -->
+                <div class="ds-checkpoint-label">5. Hover / Focus — 必須有 focus-ring，不可缺少可訪問性樣式</div>
+                <div class="ds-checkpoint-pair">
+                    <div class="ds-checkpoint-fail">
+                        <span class="ds-cpf-title">✗ 違規</span>
+                        <div class="ds-cpf-demo" style="padding: 0.75rem; text-align: center;">
+                            <button style="padding: 0.4rem 1rem; border-radius: var(--fluent-radius-md); border: 1px solid var(--stroke-default); background: var(--surface-1); outline: none; cursor: default;">無 focus-ring</button>
+                        </div>
+                        <code class="ds-cpf-code">outline: none（無任何補充）</code>
+                    </div>
+                    <div class="ds-checkpoint-pass">
+                        <span class="ds-cpf-title">✓ 正確</span>
+                        <div class="ds-cpf-demo" style="padding: 0.75rem; text-align: center;">
+                            <button class="ds-focus-demo-btn" style="padding: 0.4rem 1rem; border-radius: var(--fluent-radius-md); border: 1px solid var(--stroke-default); background: var(--surface-1); cursor: default; outline: 2px solid var(--accent); outline-offset: 4px; box-shadow: 0 0 0 4px var(--glow-primary);">有 focus-ring</button>
+                        </div>
+                        <code class="ds-cpf-code">outline: 2px solid var(--accent); outline-offset: 4px; box-shadow: 0 0 0 4px var(--glow-primary)</code>
                     </div>
                 </div>
             </div>
@@ -1843,8 +2113,7 @@
                 <h3>Hero Terminal</h3>
                 <p class="ds-desc">
                     來源：<code>help.html</code> Hero Card 右欄的 AI 整合入口指令框。
-                    <strong>固定深色背景（<code>oklch(20% 0.01 250)</code>），不隨 Light / Dark theme 切換</strong>，
-                    確保終端外觀在任何主題下一致。
+                    <strong>背景使用 <code>var(--surface-2)</code> 跟隨主題；<code>[data-theme="dim"]</code> override 固定深色（<code>oklch(20% 0.01 250)</code>）確保 dim 模式終端外觀一致</strong>。
                     右上角有複製按鈕，點擊後圖示切換為 ✓，1.5 秒後自動復原。
                 </p>
 
@@ -1860,7 +2129,7 @@
                         </button>
                     </div>
                     <small style="color: var(--text-muted); display: block; margin-top: 0.5rem;">
-                        ↑ Light 與 Dark 模式下皆呈現相同的深色終端外觀
+                        ↑ Light 模式下跟隨 <code>var(--surface-2)</code>；Dim 模式 override 固定深色終端外觀
                     </small>
                 </div>
 
@@ -1877,8 +2146,8 @@
                 <div class="ds-note" style="margin-top: 1rem;">
                     <strong>技術細節：</strong>
                     <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
-                        <li><code>.hero-terminal</code>：背景硬編碼 <code>oklch(20% 0.01 250)</code>，不受 <code>[data-theme]</code> 影響</li>
-                        <li><code>.terminal-prompt</code>：低飽和青綠 <code>oklch(55% 0.15 160)</code>，<code>user-select: none</code></li>
+                        <li><code>.hero-terminal</code>：背景 <code>var(--surface-2)</code>，<code>[data-theme="dim"] .hero-terminal</code> override 為固定深色 <code>oklch(20% 0.01 250)</code>（design-intent）</li>
+                        <li><code>.terminal-prompt</code>：青綠 <code>var(--color-success)</code>（iOS Green，與 <code>.workflow-arrow</code>/<code>.workflow-step-num</code> 統一動作指引色），<code>user-select: none</code></li>
                         <li><code>.terminal-copy-btn</code>：絕對定位右上角，<code>:hover</code> 有背景高亮</li>
                         <li>此頁 CSS 由局部 <code>&lt;style&gt;</code> 提供；production 版定義見 <code>help.css</code> 行 17–52</li>
                     </ul>

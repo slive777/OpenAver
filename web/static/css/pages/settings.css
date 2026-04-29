@@ -89,7 +89,7 @@
     /* 2. Folder Layers Row - 垂直堆疊 */
     #settings-components .folder-layers-row {
         flex-direction: column;
-        gap: 12px;
+        gap: 8px; /* §4 layout 8pt — 對齊 .settings-form-row gap (L72) */
     }
 
     #settings-components .folder-separator {
@@ -152,7 +152,7 @@
 
     /* API Key Alert - 縮小 padding */
     #settings-components .api-key-alert {
-        padding: 10px 12px;
+        padding: 8px 16px; /* §4 layout 8pt grid */
         font-size: 0.75rem;
     }
 
@@ -188,8 +188,8 @@
     gap: 1rem;
     /* T8.2: Acrylic 材質 */
     background: var(--bg-header);
-    backdrop-filter: blur(12px) saturate(120%);
-    -webkit-backdrop-filter: blur(12px) saturate(120%);
+    backdrop-filter: blur(var(--fluent-blur-light)) saturate(120%);
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light)) saturate(120%);
     border-bottom: 1px solid var(--stroke-subtle);
     padding-bottom: 1rem;
     margin-bottom: 0.5rem;
@@ -305,7 +305,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
+    gap: 6px; /* optical 6px (CD-5: source badge optical spacing) */
 }
 
 /* 覆蓋 theme.css 的 .settings-form-group .settings-hint { margin-left: 48px } */
@@ -316,7 +316,7 @@
 /* 預設：淡出（未啟用狀態）*/
 #settings-components .source-badge {
     opacity: 0.35;
-    transition: opacity 0.2s ease, text-decoration 0.2s ease;
+    transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard), text-decoration var(--fluent-duration-fast) var(--fluent-ease-standard);
     font-weight: 500;
     letter-spacing: 0.01em;
     border: 1px solid color-mix(in oklch, var(--color-base-content) 20%, transparent);
@@ -432,6 +432,48 @@
     display: inline-flex;
     gap: 2px;
     align-items: center;
+}
+
+/* ==================== §6 Override: .input / .select P1b 規格（Radius/Surface/Stroke/Shadow）==================== */
+
+#settings-components .input {
+    /* §6 Checkpoint 1 Radius */
+    border-radius: var(--fluent-radius-md);         /* 4px */
+    /* §6 Checkpoint 2 Surface */
+    background: var(--surface-1);
+    /* §6 Checkpoint 3 Stroke — width/style only，不固定 color（保留 DaisyUI variant 顏色機制）*/
+    border-width: 1px;
+    border-style: solid;
+    /* §6 Checkpoint 4 Shadow — dual-layer: 頂部內高光 + 外縱深 */
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 6%, transparent),
+        var(--fluent-shadow-2);
+    /* §5 transition fluent 化 */
+    transition:
+        border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+        box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+    /* §6 Checkpoint 5 Focus：theme.css L2161 input:focus-visible 2px outline + 4px glow ✅，不重複 */
+}
+
+#settings-components .select {
+    /* §6 Checkpoint 1 Radius */
+    border-radius: var(--fluent-radius-md);         /* 4px */
+    /* §6 Checkpoint 2 Surface — 用 background-color 不用 background shorthand，
+       否則會把 DaisyUI v5 .select 的 background-image gradient chevron 殺掉 */
+    background-color: var(--surface-1);
+    /* §6 Checkpoint 3 Stroke — width/style only，不固定 color（保留 DaisyUI variant 顏色機制）*/
+    border-width: 1px;
+    border-style: solid;
+    /* §6 Checkpoint 4 Shadow — dual-layer: 頂部內高光 + 外縱深 */
+    box-shadow:
+        inset 0 1px 0 color-mix(in oklch, var(--color-base-content) 6%, transparent),
+        var(--fluent-shadow-2);
+    /* §5 transition fluent 化 */
+    transition:
+        border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+        box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+    /* §6 Checkpoint 5 Focus：theme.css L2162 select:focus-visible 2px outline + 4px glow ✅，不重複 */
+    /* 版面屬性 flex:1; max-width:300px 由 theme.css L1670 提供，本 block 不覆寫 */
 }
 
 /* ==================== Form Loading State ==================== */

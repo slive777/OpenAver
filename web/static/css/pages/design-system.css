@@ -498,7 +498,7 @@
 
 .ds-radius-item:hover {
     transform: scale(1.08);
-    box-shadow: 0 8px 24px rgba(var(--ds-glow-rgb), 0.3);
+    box-shadow: var(--fluent-shadow-16), 0 0 16px var(--glow-primary);
 }
 
 [data-theme="dim"] .ds-radius-item {
@@ -1029,7 +1029,8 @@
 /* 強制 Active 狀態（按鈕）*/
 .btn.state-active {
     transform: translateY(0) scale(0.98);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    /* §2 dual-layer: inset 改符合 Fluent dual-layer 規格 */
+    box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.08), inset 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 /* 強制 Focus 狀態（輸入框）*/
@@ -1072,7 +1073,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: 8px; /* §4 layout 8pt grid */
 }
 
 /* Collapse toggle */
@@ -1420,7 +1421,7 @@
     font-size: 1.4rem;
     cursor: pointer;
     border-radius: var(--fluent-radius-lg);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--fluent-shadow-8);
     transition: background var(--duration-fast) var(--fluent-ease-standard), transform var(--duration-fast) var(--fluent-ease-standard);
 }
 
@@ -1471,7 +1472,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 6px;
+    margin-bottom: 8px; /* §4 layout 8pt grid */
 }
 
 .ds-search-composition .ds-comp-file-count {
@@ -2078,7 +2079,7 @@
 .ds-toast-comparison code {
     font-size: 0.75rem;
     padding: 1px 4px;
-    border-radius: 3px;
+    border-radius: var(--fluent-radius-sm); /* §3 code badge 用 sm(2px) */
     background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
     color: var(--accent);
 }
@@ -2190,8 +2191,8 @@
     background:
         radial-gradient(ellipse 80% 80% at 20% 50%, rgba(var(--ds-glow-rgb), 0.3), transparent),
         linear-gradient(135deg, oklch(65% 0.15 250 / 0.3) 0%, oklch(55% 0.12 85 / 0.2) 100%);
-    backdrop-filter: blur(16px) saturate(130%);
-    -webkit-backdrop-filter: blur(16px) saturate(130%);
+    backdrop-filter: blur(var(--fluent-blur)) saturate(130%);
+    -webkit-backdrop-filter: blur(var(--fluent-blur)) saturate(130%);
 }
 
 .ds-material-toolbar-label {
@@ -2367,8 +2368,8 @@
 .ds-page .showcase-toolbar {
     position: static;
     background: var(--bg-header);
-    backdrop-filter: blur(16px) saturate(130%);
-    -webkit-backdrop-filter: blur(16px) saturate(130%);
+    backdrop-filter: blur(var(--fluent-blur)) saturate(130%);
+    -webkit-backdrop-filter: blur(var(--fluent-blur)) saturate(130%);
     border-bottom: 1px solid var(--border-light);
     padding: 0.75rem 1.5rem;
     display: flex;
@@ -2399,4 +2400,254 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+/* ==================== §1 Pill Whitelist Demo ==================== */
+
+.ds-pill-whitelist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px; /* §4 layout 8pt grid */
+    margin-top: 1rem;
+}
+
+.ds-pill-card {
+    border: 1px solid var(--border-light);
+    border-radius: var(--fluent-radius-lg);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    background: var(--bg-card);
+}
+
+.ds-pill-card-demo {
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    background: var(--bg-body);
+    border-radius: var(--fluent-radius-md);
+}
+
+/* Simulated spotlight-search pill */
+.ds-pill-demo-spotlight {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 1rem;
+    border-radius: var(--radius-pill);
+    background: color-mix(in oklch, var(--color-base-content) 5%, transparent);
+    border: 1px solid var(--stroke-subtle);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    width: 100%;
+    max-width: 160px;
+}
+
+.ds-pill-card-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.ds-pill-card-class {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.ds-pill-card-desc {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.ds-pill-card-token {
+    font-size: 0.7rem;
+    padding: 1px 4px;
+    border-radius: var(--fluent-radius-sm);
+    background: color-mix(in oklch, var(--accent) 10%, transparent);
+    color: var(--accent);
+    display: inline-block;
+}
+
+/* ==================== §2 三階 token 標籤 ==================== */
+
+.ds-token-label {
+    font-size: 0.7rem;
+    padding: 1px 5px;
+    border-radius: var(--fluent-radius-sm);
+    background: color-mix(in oklch, var(--color-primary) 12%, transparent);
+    color: var(--color-primary);
+    font-weight: 600;
+    display: inline-block;
+}
+
+/* ==================== §3 Overlay Role Swatches ==================== */
+
+.ds-overlay-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px; /* §4 spacingM (12px Fluent layout) */
+    margin-top: 1rem;
+}
+
+.ds-overlay-swatch {
+    height: 100px;
+    border-radius: var(--fluent-radius-lg);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border-light);
+    display: flex;
+    align-items: flex-end;
+}
+
+.ds-overlay-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0.5rem;
+    width: 100%;
+    background: linear-gradient(to top, var(--overlay-gradient), transparent);
+}
+
+.ds-overlay-token {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: oklch(100% 0 0);
+    font-family: monospace;
+}
+
+.ds-overlay-alpha {
+    font-size: 0.65rem;
+    color: oklch(100% 0 0 / 0.75);
+    font-family: monospace;
+}
+
+.ds-overlay-usage {
+    font-size: 0.65rem;
+    color: oklch(100% 0 0 / 0.65);
+}
+
+/* ==================== §4 Spacing 三層標籤 ==================== */
+
+.ds-spacing-layer-table {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px; /* §4 spacingM (12px Fluent layout) */
+    margin-top: 1rem;
+}
+
+.ds-spacing-layer {
+    border: 1px solid var(--border-light);
+    border-radius: var(--fluent-radius-lg);
+    overflow: hidden;
+}
+
+.ds-spacing-layer-header {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: oklch(100% 0 0);
+}
+
+.ds-layer-layout { background: var(--color-primary); }
+.ds-layer-micro { background: var(--color-secondary); }
+.ds-layer-stroke { background: var(--accent); }
+
+.ds-spacing-layer-body {
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: var(--bg-card);
+}
+
+.ds-spacing-layer-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+}
+
+.ds-layer-tag {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: var(--fluent-radius-sm);
+    flex-shrink: 0;
+    align-self: center;
+}
+
+.ds-layer-tag-ok { background: color-mix(in oklch, var(--color-success) 15%, transparent); color: var(--color-success); }
+.ds-layer-tag-ban { background: color-mix(in oklch, var(--color-error) 15%, transparent); color: var(--color-error); }
+.ds-layer-tag-note { background: color-mix(in oklch, var(--color-warning) 15%, transparent); color: var(--color-warning); }
+.ds-layer-tag-example { background: color-mix(in oklch, var(--color-base-content) 10%, transparent); color: var(--text-secondary); }
+
+/* ==================== §6 5 檢查點 pass/fail 對照 ==================== */
+
+.ds-checkpoint-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 1.25rem 0 0.5rem;
+    padding-left: 0.5rem;
+    border-left: 3px solid var(--accent);
+}
+
+.ds-checkpoint-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px; /* §4 layout 8pt grid */
+    margin-bottom: 0.75rem;
+}
+
+.ds-checkpoint-fail {
+    border: 2px dashed var(--color-error);
+    border-radius: var(--fluent-radius-lg);
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: color-mix(in oklch, var(--color-error) 4%, transparent);
+}
+
+.ds-checkpoint-pass {
+    border: 2px solid var(--color-success);
+    border-radius: var(--fluent-radius-lg);
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: color-mix(in oklch, var(--color-success) 4%, transparent);
+}
+
+.ds-cpf-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.ds-checkpoint-fail .ds-cpf-title { color: var(--color-error); }
+.ds-checkpoint-pass .ds-cpf-title { color: var(--color-success); }
+
+.ds-cpf-demo {
+    flex: 1;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.ds-cpf-code {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: var(--fluent-radius-sm);
+    background: color-mix(in oklch, var(--color-base-content) 8%, transparent);
+    color: var(--text-muted);
+    word-break: break-all;
 }

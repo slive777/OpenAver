@@ -137,7 +137,7 @@ window.SearchStateMixin_ResultCard = {
             await this._translateWithAILogic();
         } catch (error) {
             console.error('[Translate] 翻譯失敗:', error);
-            alert('翻譯失敗，請重試');
+            this.showToast(window.t('search.toast.translate_failed'), 'error');
         } finally {
             this.isTranslating = false;
         }
@@ -374,9 +374,11 @@ window.SearchStateMixin_ResultCard = {
         const displayPath = pathToDisplay(folder);
 
         // 2. 複製到剪貼簿
-        const clipboardOk = navigator.clipboard.writeText(displayPath)
-            .then(() => true)
-            .catch(() => false);
+        // T3.7 fix: guard against undefined navigator.clipboard (HTTP / older WebView)
+        // sync property access 在 clipboard undefined 時會 TypeError，.catch 不會跑。
+        const clipboardOk = navigator.clipboard?.writeText
+            ? navigator.clipboard.writeText(displayPath).then(() => true).catch(() => false)
+            : Promise.resolve(false);
 
         // 3. PyWebView 桌面模式：額外開啟資料夾
         if (window.pywebview?.api?.open_folder) {

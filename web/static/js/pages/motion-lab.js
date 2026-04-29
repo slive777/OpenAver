@@ -79,7 +79,7 @@
             }
 
             var dur = params.duration || 0.6;
-            var ease = params.easing || 'back.out(1.2)';
+            var ease = params.easing || 'fluent';
             var staggerVal = params.stagger || 0.05;
 
             // viewport 分流：可視卡片 → burst 動畫，fold 以下 → 瞬間顯示
@@ -166,7 +166,7 @@
 
             var dur = params.clipRevealDur || 0.5;
             var speed = params.speed || 1;
-            var ease = params.easing || 'power3.out';
+            var ease = params.easing || 'fluent-decel';
 
             // C6: 禁止旋轉，使用 clip-path 展開
             // 速度同步：與 burst timeline 的 timeScale 保持一致
@@ -211,7 +211,7 @@
                 gsap.to(infoEl, {
                     opacity: 0,
                     duration: 0.12,
-                    ease: 'power2.in',
+                    ease: 'fluent-accel',
                     onComplete: resolve  // C1: onComplete 只 resolve Promise
                 });
             });
@@ -240,7 +240,7 @@
             // C6: 不使用旋轉，只用 scale
             gsap.fromTo(cardEl,
                 { scale: 1.02 },
-                { scale: 1, duration: 0.18, ease: 'power2.out' }
+                { scale: 1, duration: 0.18, ease: 'fluent-decel' }
             );
         },
 
@@ -271,7 +271,7 @@
             }
 
             var dur = params.duration || 0.6;
-            var ease = params.easing || 'power3.out';
+            var ease = params.easing || 'fluent-decel';
             var detailSpeed = params.detailSpeed || 1;
 
             // skipCover: ghost transition 已處理封面動畫，只播 info 進場
@@ -383,7 +383,7 @@
         playSharedCoverTransition: function (ghost, fromRect, toRect, params) {
             params = params || {};
             var dur = params.duration || 0.38;
-            var ease = params.easing || 'power2.inOut';
+            var ease = params.easing || 'fluent';
 
             // C4: 清除舊動畫
             gsap.killTweensOf(ghost);
@@ -466,13 +466,13 @@
                 // C6: 不使用 rotationX/Y/Z
                 tl.fromTo(targetEl,
                     { opacity: 0, scale: 0.94 },
-                    { opacity: 1, scale: 1, duration: targetDur, ease: 'power2.out' }
+                    { opacity: 1, scale: 1, duration: targetDur, ease: 'fluent-decel' }
                 );
 
                 // source cover：輕微淡出（若 sourceEl 存在）
                 if (sourceEl) {
                     tl.to(sourceEl,
-                        { opacity: 0, duration: sourceDur, ease: 'power2.out' },
+                        { opacity: 0, duration: sourceDur, ease: 'fluent-decel' },
                         0  // 與 target 動畫同時開始
                     );
                 }
@@ -530,7 +530,7 @@
                     x: xTo,
                     opacity: 0,
                     duration: dur,
-                    ease: 'power2.in',
+                    ease: 'fluent-accel',
                     onComplete: resolve  // C1: onComplete 只 resolve Promise
                 }).timeScale(detailSpeed);
             });
@@ -559,7 +559,7 @@
 
             var dur = (params.duration || 0.6) * 0.5;
             var xFrom = direction === 'next' ? 40 : -40;
-            var ease = params.easing || 'power3.out';
+            var ease = params.easing || 'fluent-decel';
             var detailSpeed = params.detailSpeed || 1;
 
             return gsap.fromTo(containerEl,
@@ -631,14 +631,14 @@
             if (style === 'fadeScale') {
                 return gsap.fromTo(imgEl,
                     { opacity: 0, scale: 0.92 },
-                    { opacity: 1, scale: 1, duration: 0.3, ease: 'power2.out' }
+                    { opacity: 1, scale: 1, duration: 0.3, ease: 'fluent-decel' }
                 );
             }
 
             if (style === 'fadeUp') {
                 return gsap.fromTo(imgEl,
                     { opacity: 0, y: 20 },
-                    { opacity: 1, y: 0, duration: 0.35, ease: 'power3.out' }
+                    { opacity: 1, y: 0, duration: 0.35, ease: 'fluent-decel' }
                 );
             }
 
@@ -646,14 +646,14 @@
                 // C6: clip-path 展開，無旋轉、無位移
                 return gsap.fromTo(imgEl,
                     { clipPath: 'inset(100% 0 0 0)' },
-                    { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.4, ease: 'power2.out' }
+                    { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.4, ease: 'fluent-decel' }
                 );
             }
 
             // 未知 style 降級為 fadeScale
             return gsap.fromTo(imgEl,
                 { opacity: 0, scale: 0.92 },
-                { opacity: 1, scale: 1, duration: 0.3, ease: 'power2.out' }
+                { opacity: 1, scale: 1, duration: 0.3, ease: 'fluent-decel' }
             );
         },
 
@@ -699,7 +699,7 @@
             }
 
             var dur = options.duration || options.burstDuration || 0.6;
-            var ease = options.ease || options.burstEase || 'back.out(1.2)';
+            var ease = options.ease || options.burstEase || 'back.out(1.2)'; // §5 white-list: Burst Picker
             var staggerVal = options.stagger || 0.05;
             var batchZ = ((options.batchZ || 0) * 10) + 100;
 
@@ -784,7 +784,7 @@
 
             return gsap.fromTo(imgEl,
                 { opacity: 0 },
-                { opacity: 1, duration: 0.15, ease: 'power2.out' }
+                { opacity: 1, duration: 0.15, ease: 'fluent-decel' }
             );
         },
 
@@ -804,7 +804,7 @@
             }
             gsap.fromTo(stagingCardEl,
                 { scale: 0.6, opacity: 0 },
-                { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(1.4)' }
+                { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(1.4)' } // §5 white-list: Staging Card 進場 morph
             );
         },
 
@@ -820,7 +820,7 @@
             if (shouldSkip(options)) return;
             // 不 killTweensOf：允許和入場動畫並存
             gsap.to(stagingCardEl, {
-                scale: 1.08, duration: 0.12, ease: 'power2.out',
+                scale: 1.08, duration: 0.12, ease: 'fluent-decel',
                 yoyo: true, repeat: 1,
                 onComplete: function () {
                     gsap.set(stagingCardEl, { scale: 1 });
@@ -841,7 +841,7 @@
             if (shouldSkip(options)) return;
             // 不 killTweensOf：exit tween 若在進行中不能打斷
             gsap.to(stagingCardEl, {
-                scale: 1.04, duration: 0.08, ease: 'power2.out',
+                scale: 1.04, duration: 0.08, ease: 'fluent-decel',
                 yoyo: true, repeat: 1
             });
         },
@@ -867,7 +867,7 @@
                 return;
             }
             gsap.to(stagingCardEl, {
-                scale: 0.7, opacity: 0, duration: 0.3, ease: 'power2.in',
+                scale: 0.7, opacity: 0, duration: 0.3, ease: 'fluent-accel',
                 onComplete: function () {
                     if (typeof onComplete === 'function') onComplete();
                 }
@@ -911,7 +911,7 @@
                 return null;
             }
             var dur = options.duration || 0.5;
-            var ease = options.ease || 'power2.out';
+            var ease = options.ease || 'fluent-decel';
             return gsap.fromTo(img,
                 { opacity: 0, scale: 1.05 },
                 { opacity: 1, scale: 1, duration: dur, ease: ease }
@@ -934,7 +934,7 @@
                 if (shouldSkip(options)) { resolve(); return; }
 
                 var dur = options.duration || 0.4;
-                var ease = options.ease || 'power2.out';
+                var ease = options.ease || 'fluent';
                 Flip.from(flipState, {
                     duration: dur,
                     ease: ease,
@@ -1061,7 +1061,7 @@
 
             // 3. Flip.from — 動畫從舊位置到新位置
             var dur = params.duration || 0.5;
-            var ease = params.ease || 'power2.inOut';
+            var ease = params.ease || 'fluent';
 
             return Flip.from(state, {
                 duration: dur,
@@ -1117,7 +1117,7 @@
 
             return Flip.from(state, {
                 duration: dur,
-                ease: 'power2.inOut',
+                ease: 'fluent',
                 absolute: true,
                 prune: true,
                 simple: true,
@@ -1126,22 +1126,22 @@
                     if (enterStyle === 'fadeUp') {
                         return gsap.fromTo(els,
                             { opacity: 0, y: 20 },
-                            { opacity: 1, y: 0, duration: dur * 0.8, ease: 'power2.out' });
+                            { opacity: 1, y: 0, duration: dur * 0.8, ease: 'fluent-decel' });
                     }
                     // default: opacityScale
                     return gsap.fromTo(els,
                         { opacity: 0, scale: 0.85 },
-                        { opacity: 1, scale: 1, duration: dur * 0.8, ease: 'power2.out' });
+                        { opacity: 1, scale: 1, duration: dur * 0.8, ease: 'fluent-decel' });
                 },
                 onLeave: function (els) {
                     // leaveStyle branching
                     if (leaveStyle === 'opacityOnly') {
                         return gsap.to(els,
-                            { opacity: 0, duration: dur * 0.6, ease: 'power2.in' });
+                            { opacity: 0, duration: dur * 0.6, ease: 'fluent-accel' });
                     }
                     // default: opacityScale
                     return gsap.to(els,
-                        { opacity: 0, scale: 0.85, duration: dur * 0.6, ease: 'power2.in' });
+                        { opacity: 0, scale: 0.85, duration: dur * 0.6, ease: 'fluent-accel' });
                 },
                 onComplete: function () {
                     var visible = gridEl.querySelectorAll(
@@ -1190,7 +1190,7 @@
                 opacity: 0,
                 x: xShift,
                 duration: dur * 0.6,
-                ease: 'power2.in',
+                ease: 'fluent-accel',
                 stagger: { each: staggerVal, from: staggerFrom }
             });
 
@@ -1200,7 +1200,7 @@
                 opacity: 1,
                 x: 0,
                 duration: dur,
-                ease: 'power3.out',
+                ease: 'fluent-decel',
                 stagger: { each: staggerVal, from: staggerFrom },
                 onComplete: function () {
                     gsap.set(cards, { clearProps: 'transform,opacity' });
@@ -1238,7 +1238,7 @@
 
             var dur = params.duration || 0.5;
             var staggerVal = params.stagger || 0.04;
-            var ease = params.easing || 'power3.out';
+            var ease = params.easing || 'fluent-decel';
             var style = params.style || 'stagger';
 
             // Viewport 分流：fold 以下卡片瞬間顯示
@@ -1287,6 +1287,197 @@
             });
 
             return tl;
+        },
+
+        /**
+         * §5 Ease Roles 並排對比 Demo
+         * 三個 box 同時以 fluent / fluent-decel / fluent-accel 播放，讓開發者直觀比較三角色差異。
+         * C4: killTweensOf(boxEls)
+         * C6: 不使用旋轉
+         * C23: shouldSkip reduced-motion guard
+         * @param {Element[]} boxEls - 三個 .ease-role-box DOM 元素陣列
+         * @param {object} params - Alpine 傳入的 params 物件（含 reducedMotionSim）
+         */
+        playEaseRolesDemo: function (boxEls, params) {
+            params = params || {};
+
+            if (!boxEls || boxEls.length < 3 || boxEls.some(function (el) { return !el; })) return;
+
+            // C4: 清除舊動畫
+            gsap.killTweensOf(boxEls);
+
+            // P3 #1: 動態計算 targetX，避免 box 在窄 viewport 跑出 lane 邊界
+            // lane.offsetWidth − box width(80px) − start left(12px) − gutter(12px)
+            var lane = boxEls[0].parentElement;
+            var targetX = lane ? Math.max(0, lane.offsetWidth - 80 - 24) : 200;
+
+            // CSS .ease-role-box 用 transform: translateY(-50%) 做垂直居中。
+            // GSAP 寫 inline transform for x 會覆蓋 CSS transform，必須補 yPercent: -50
+            // 一起寫進 GSAP 的 transform cache，否則動畫期間 box 會掉到 lane 底邊被裁切。
+            // C23: reduced-motion 降級 — 直接跳最終狀態（P2 #2: 改為跳 targetX，非 clearProps）
+            if (shouldSkip(params)) {
+                gsap.set(boxEls, { x: targetX, yPercent: -50 });
+                return;
+            }
+
+            // 重播前清乾淨 leftover transform / will-change / opacity，再回起點
+            gsap.set(boxEls, { clearProps: 'all' });
+            gsap.set(boxEls, { x: 0, yPercent: -50 });
+
+            var dur = window.OpenAver && window.OpenAver.motion && window.OpenAver.motion.DURATION
+                ? window.OpenAver.motion.DURATION.emphasis
+                : 0.5;
+
+            // 三條同時觸發（Standard / Enter / Exit）
+            // yPercent 已在 gsap.set 寫進 transform cache，tween 只動 x 會自動保留 yPercent
+            gsap.to(boxEls[0], { x: targetX, duration: dur, ease: 'fluent' });
+            gsap.to(boxEls[1], { x: targetX, duration: dur, ease: 'fluent-decel' });
+            gsap.to(boxEls[2], { x: targetX, duration: dur, ease: 'fluent-accel' });
+        },
+
+        /**
+         * §5 Duration Buckets 並排對比 demo
+         * 四個 box 同時播放相同 ease（fluent standard），只改 duration
+         * C4: killTweensOf(boxEls)
+         * C23: shouldSkip reduced-motion guard
+         * @param {Element[]} boxEls - 四個 .duration-bucket-box DOM 元素陣列
+         * @param {object} params - Alpine 傳入的 params 物件（含 reducedMotionSim）
+         */
+        playDurationBucketsDemo: function (boxEls, params) {
+            params = params || {};
+
+            if (!boxEls || boxEls.length < 4 || boxEls.some(function (el) { return !el; })) return;
+
+            // C4: 清除舊動畫
+            gsap.killTweensOf(boxEls);
+
+            var lane = boxEls[0].parentElement;
+            var targetX = lane ? Math.max(0, lane.offsetWidth - 60 - 24) : 200;
+
+            if (shouldSkip(params)) {
+                gsap.set(boxEls, { x: targetX, yPercent: -50 });
+                return;
+            }
+
+            gsap.set(boxEls, { clearProps: 'all' });
+            gsap.set(boxEls, { x: 0, yPercent: -50 });
+
+            var D = window.OpenAver && window.OpenAver.motion && window.OpenAver.motion.DURATION;
+            var fast     = D ? D.fast     : 0.167;
+            var medium   = D ? D.medium   : 0.333;
+            var emphasis = D ? D.emphasis : 0.5;
+            var slow     = 0.3;
+
+            gsap.to(boxEls[0], { x: targetX, duration: fast,     ease: 'fluent' });
+            gsap.to(boxEls[1], { x: targetX, duration: medium,   ease: 'fluent' });
+            gsap.to(boxEls[2], { x: targetX, duration: emphasis, ease: 'fluent' });
+            gsap.to(boxEls[3], { x: targetX, duration: slow,     ease: 'fluent' });
+        },
+
+        /**
+         * §5 Special Motion 白名單 demo — Burst Picker 候選卡彈出
+         * §5 white-list: back.out(1.2~1.7)（Burst Picker 招牌彈跳）
+         * C4: killTweensOf
+         * C23: shouldSkip reduced-motion guard
+         * @param {Element} el - preview box DOM 元素
+         * @param {object} params - Alpine 傳入的 params 物件（含 reducedMotionSim）
+         */
+        playSpecialMotionBurstPickerDemo: function (el, params) {
+            params = params || {};
+            if (!el) return;
+            gsap.killTweensOf(el);
+            gsap.set(el, { clearProps: 'all' });
+            if (shouldSkip(params)) {
+                gsap.set(el, { scale: 1, opacity: 1 });
+                return;
+            }
+            gsap.fromTo(el,
+                { scale: 0, opacity: 0 },
+                { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(1.2)' } // §5 white-list: Burst Picker
+            );
+        },
+
+        /**
+         * §5 Special Motion 白名單 demo — Staging Card 進場 morph
+         * §5 white-list: back.out(1.4) + 0.35s（Staging Card 招牌進場）
+         * C4: killTweensOf
+         * C23: shouldSkip reduced-motion guard
+         * @param {Element} el - preview box DOM 元素
+         * @param {object} params - Alpine 傳入的 params 物件（含 reducedMotionSim）
+         */
+        playSpecialMotionStagingEntryDemo: function (el, params) {
+            if (!el) return;
+            window.MotionLab.playStagingEntry(el, params || {});
+        },
+
+        /**
+         * §5 Special Motion 白名單 demo — playOrganizeSuccess checkmark 彈出
+         * §5 white-list: back.out(1.7) + 0.35s（整理成功 checkmark 招牌彈跳）
+         * C4: killTweensOf
+         * C23: shouldSkip reduced-motion guard
+         * @param {Element} el - checkmark DOM 元素
+         * @param {object} params - Alpine 傳入的 params 物件（含 reducedMotionSim）
+         */
+        playSpecialMotionCheckmarkDemo: function (el, params) {
+            params = params || {};
+            if (!el) return;
+            gsap.killTweensOf(el);
+            gsap.set(el, { clearProps: 'all' });
+            if (shouldSkip(params)) {
+                gsap.set(el, { scale: 1, opacity: 1 });
+                return;
+            }
+            gsap.fromTo(el,
+                { scale: 0, opacity: 0 },
+                { scale: 1, opacity: 1, duration: 0.35, ease: 'back.out(1.7)' } // §5 white-list: playOrganizeSuccess checkmark
+            );
+        },
+
+        /**
+         * §5 Special Motion 白名單 demo — playOrganizeFail shake
+         * §5 white-list: power1.inOut + 0.08s yoyo×3（整理失敗水平 shake 律動）
+         * C4: killTweensOf
+         * C23: shouldSkip reduced-motion guard
+         * @param {Element} el - shake 目標 DOM 元素
+         * @param {object} params - Alpine 傳入的 params 物件（含 reducedMotionSim）
+         */
+        playSpecialMotionShakeDemo: function (el, params) {
+            params = params || {};
+            if (!el) return;
+            gsap.killTweensOf(el);
+            gsap.set(el, { clearProps: 'all' });
+            if (shouldSkip(params)) {
+                gsap.set(el, { x: 0 });
+                return;
+            }
+            gsap.fromTo(el,
+                { x: -8 },
+                { x: 8, duration: 0.08, ease: 'power1.inOut', yoyo: true, repeat: 3, // §5 white-list: playOrganizeFail shake
+                    onComplete: function () { gsap.set(el, { x: 0 }); }
+                }
+            );
+        },
+
+        /**
+         * §5 Special Motion 白名單 demo — SourcePulse micro feedback
+         * §5 white-list: fluent (yoyo) 0.1s（低於 fast bucket，純 micro feedback）
+         * C4: killTweensOf
+         * C23: shouldSkip reduced-motion guard
+         * @param {Element} el - pulse 目標 DOM 元素
+         * @param {object} params - Alpine 傳入的 params 物件（含 reducedMotionSim）
+         */
+        playSpecialMotionPulseDemo: function (el, params) {
+            params = params || {};
+            if (!el) return;
+            gsap.killTweensOf(el);
+            gsap.set(el, { clearProps: 'all' });
+            if (shouldSkip(params)) {
+                gsap.set(el, { scale: 1 });
+                return;
+            }
+            gsap.to(el, {
+                scale: 1.3, duration: 0.1, ease: 'fluent', yoyo: true, repeat: 1 // §5 white-list: SourcePulse micro
+            });
         },
     };
 

@@ -335,6 +335,12 @@
     box-shadow: var(--fluent-shadow-8);
 }
 
+/* C21: GSAP cascade 進場期間關掉 CSS transition + 阻擋 hover 搶 transform */
+.actress-card.gsap-animating {
+    pointer-events: none;
+    transition: none !important;
+}
+
 .actress-card-photo {
     aspect-ratio: 3 / 4;   /* portrait，比 video card 的 3/2 更窄 */
     overflow: hidden;

@@ -11,7 +11,13 @@
 
     // Phase 50.2.0: 註冊 Fluent CustomEase（charter §5 三角色）
     // 同步 guarded register — base.html defer 順序保證 CustomEase plugin 已載入
+    // 必須先 gsap.registerPlugin(CustomEase) 後再 create，否則 ease 不會進入 gsap.parseEase 的查表，
+    // 導致 'fluent' / 'fluent-decel' / 'fluent-accel' 在純依賴 motion-adapter 的頁面（如 motion-lab）
+    // 全 fallback 為線性 ease，視覺差異消失。
     if (typeof CustomEase !== 'undefined') {
+        if (typeof gsap !== 'undefined' && typeof gsap.registerPlugin === 'function') {
+            gsap.registerPlugin(CustomEase);
+        }
         CustomEase.create('fluent',       '0.33, 0, 0.67, 1');
         CustomEase.create('fluent-decel', '0, 0, 0, 1');
         CustomEase.create('fluent-accel', '1, 0, 1, 1');

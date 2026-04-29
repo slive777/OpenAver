@@ -124,7 +124,6 @@ function showcaseState() {
         // Toolbar Dropdown 狀態
         sortOpen: false,
         modeOpen: false,
-        perPageOpen: false,
 
         search: '',
         sort: 'date',         // M2a 先用硬編碼，M4 才從 config/localStorage 恢復
@@ -176,6 +175,11 @@ function showcaseState() {
         _pickerRunId: 0,
         _pickerSSE: null,
         _pickerTimeoutTimer: null,
+
+        // T3.3: Remove Actress fluent-modal 狀態
+        removeActressModalOpen: false,
+        _removeActressLoading: false,
+        _pendingRemoveActressName: null,
 
         // User Tags 狀態 (T4)
         addingLbTag: false,
@@ -296,7 +300,9 @@ function showcaseState() {
             const cfg = window.__SHOWCASE_CONFIG__ || {};
             const defaultSort = cfg.default_sort || 'date';
             const defaultOrder = cfg.default_order === 'ascending' ? 'asc' : 'desc';
-            const defaultPerPage = cfg.items_per_page || 90;
+            // T3.2 P2 fix: `??` 而非 `||` — Settings 允許 items_per_page=0（"全部"語意），
+            // 必須保留 numeric 0 讓下方 grid+perPage=0→120 降級邏輯有機會觸發。
+            const defaultPerPage = cfg.items_per_page ?? 90;
 
             // 2. 從 localStorage 恢復（優先於 config）
             const saved = localStorage.getItem('showcase_state');
@@ -317,16 +323,16 @@ function showcaseState() {
             const urlNum = (key) => { const v = urlParams.get(key); return v !== null && v !== '' ? v : undefined; };
             this.sort = urlParams.get('sort') || state.sort || defaultSort;
             this.order = urlParams.get('order') || state.order || defaultOrder;
-            const rawPerPage = parseInt(urlNum('perPage') ?? state.perPage ?? defaultPerPage);
-            this.perPage = Number.isNaN(rawPerPage) ? defaultPerPage : rawPerPage;
+            // T3.2 (CD-52-3): perPage 只從 cfg.items_per_page，URL params + localStorage 不再參與
+            // 既有 user 的 localStorage state.perPage / URL ?perPage=N 被 silently 忽略（CD-52-4）
+            this.perPage = defaultPerPage;
             this.page = parseInt(urlNum('page') ?? state.page ?? 1) || 1;
             this.search = urlParams.get('search') || state.search || '';
             this.mode = urlParams.get('mode') || state.mode || 'grid';
             if (!['grid', 'table', 'list'].includes(this.mode)) this.mode = 'grid';
-            // F2: grid + perPage=0 組合降級 + 持久化修正值
+            // F2: grid + perPage=0 組合降級（settings 若存 items_per_page=0 之防呆）
             if (this.mode === 'grid' && this.perPage === 0) {
                 this.perPage = 120;
-                this.saveState();
             }
             // ★ 44a: 女優模式 — 只從 localStorage，不加 URL params（避免汙染 shareable link）
             this.showFavoriteActresses = state.showFavoriteActresses === true;  // 嚴格 === true
@@ -339,7 +345,7 @@ function showcaseState() {
             const state = {
                 sort: this.sort,
                 order: this.order,
-                perPage: this.perPage,
+                // T3.2 (CD-52-3): perPage 不再寫入 localStorage（每次 init 重讀 cfg.items_per_page）
                 page: this.page,
                 search: this.search,
                 mode: this.mode,
@@ -354,7 +360,7 @@ function showcaseState() {
             if (this.search) params.set('search', this.search);
             if (this.sort !== 'date') params.set('sort', this.sort);
             if (this.order !== 'desc') params.set('order', this.order);
-            if (this.perPage !== 90) params.set('perPage', this.perPage);
+            // T3.2 (CD-52-3): perPage 不再寫入 URL params（每次 init 重讀 cfg.items_per_page）
             if (this.page !== 1) params.set('page', this.page);
             if (this.mode !== 'grid') params.set('mode', this.mode);
 
@@ -960,11 +966,27 @@ function showcaseState() {
             }
         },
 
-        async removeActress() {
+        // T3.3: Remove Actress fluent-modal 三段路徑（open / confirm / cancel）
+        // 取代既有 removeActress() + window.confirm 流程；trigger button 改呼 openRemoveActressModal()
+        openRemoveActressModal() {
             if (!this.currentLightboxActress) return;
-            const name = this.currentLightboxActress.name;
-            const confirmed = window.confirm(window.t('showcase.actress.removeConfirm').replace('{name}', name));
-            if (!confirmed) return;
+            // 快照當下女優名 — modal 期間 lightbox 翻頁也不影響待刪對象
+            this._pendingRemoveActressName = this.currentLightboxActress.name;
+            this.removeActressModalOpen = true;
+        },
+
+        cancelRemoveActressModal() {
+            this.removeActressModalOpen = false;
+            this._pendingRemoveActressName = null;
+        },
+
+        async confirmRemoveActress() {
+            const name = this._pendingRemoveActressName;
+            if (!name) {
+                this.removeActressModalOpen = false;
+                return;
+            }
+            this._removeActressLoading = true;
             try {
                 const resp = await fetch(`/api/actresses/${encodeURIComponent(name)}`, {
                     method: 'DELETE',
@@ -974,23 +996,26 @@ function showcaseState() {
                     const idx = _actresses.findIndex(a => a.name === name);
                     if (idx >= 0) _actresses.splice(idx, 1);
                     this.applyActressFilterAndSort();
+                    // stale guard: lightbox switched to a different actress during request
                     if (this.currentLightboxActress?.name !== name) {
-                        // stale guard: lightbox switched to a different actress during request
-                        // array cleanup already done above, but don't close lightbox
                         this.showToast(window.t('showcase.actress.removeSuccess'), 'success');
-                        return;
-                    }
-                    this.closeActressLightbox();
-                    this.showToast(window.t('showcase.actress.removeSuccess'), 'success');
-                    var searchTerm = this.search.trim();
-                    if (searchTerm) {
-                        this._checkPreciseActressMatch(searchTerm, 'manual');
+                    } else {
+                        this.closeActressLightbox();
+                        this.showToast(window.t('showcase.actress.removeSuccess'), 'success');
+                        var searchTerm = this.search.trim();
+                        if (searchTerm) {
+                            this._checkPreciseActressMatch(searchTerm, 'manual');
+                        }
                     }
                 } else {
                     this.showToast(data.error || 'Error', 'error');
                 }
             } catch (e) {
                 this.showToast('Error', 'error');
+            } finally {
+                this._removeActressLoading = false;
+                this.removeActressModalOpen = false;
+                this._pendingRemoveActressName = null;
             }
         },
 
@@ -1269,21 +1294,6 @@ function showcaseState() {
                 var gen = ++this._animGeneration;
                 this.$nextTick(() => { requestAnimationFrame(() => {
                     if (this._animGeneration !== gen) return;  // stale
-                    var grid = document.querySelector('.showcase-grid');
-                    window.ShowcaseAnimations?.playEntry?.(grid);
-                }); });
-            }
-        },
-
-        onPerPageChange() {
-            this.page = 1;
-            this.updatePagination();
-            this.saveState();  // M2c: 持久化狀態
-            // B17: 切換每頁數量後播放進場動畫
-            if (this.mode === 'grid') {
-                var gen = ++this._animGeneration;
-                this.$nextTick(() => { requestAnimationFrame(() => {
-                    if (this._animGeneration !== gen) return;
                     var grid = document.querySelector('.showcase-grid');
                     window.ShowcaseAnimations?.playEntry?.(grid);
                 }); });
@@ -2030,9 +2040,11 @@ function showcaseState() {
             const displayPath = pathToDisplay(folder);
 
             // 2. 複製到剪貼簿
-            const clipboardOk = navigator.clipboard.writeText(displayPath)
-                .then(() => true)
-                .catch(() => false);
+            // T3.7 fix: guard against undefined navigator.clipboard (HTTP / older WebView)
+            // sync property access 在 clipboard undefined 時會 TypeError，.catch 不會跑。
+            const clipboardOk = navigator.clipboard?.writeText
+                ? navigator.clipboard.writeText(displayPath).then(() => true).catch(() => false)
+                : Promise.resolve(false);
 
             // 3. PyWebView 桌面模式：額外開啟資料夾
             if (window.pywebview?.api?.open_folder) {
@@ -2571,6 +2583,16 @@ function showcaseState() {
         handleKeydown(e) {
             // 1. 輸入框中不處理快捷鍵
             if (e.target.tagName === 'INPUT') return;
+
+            // T3.3: Remove Actress modal 開啟時，Esc 優先關閉 modal（不冒泡到 lightbox close）
+            if (e.key === 'Escape' && this.removeActressModalOpen) {
+                this.cancelRemoveActressModal();
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            // T3.3: Remove Actress modal 開啟期間鎖其他鍵（← / → / S / A / 數字鍵全失效）
+            if (this.removeActressModalOpen) return;
 
             // 49b T4cd: Picker 開啟時，Esc 優先關閉 picker（不冒泡到 lightbox close）
             if (e.key === 'Escape' && this._pickerOpen) {

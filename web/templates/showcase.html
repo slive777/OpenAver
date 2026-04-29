@@ -107,7 +107,7 @@
                     <!-- 排序 -->
                     <div class="toolbar-dropdown-wrap" @click.outside="sortOpen = false">
                         <button class="btn-icon"
-                                @click="sortOpen = !sortOpen; modeOpen = false; perPageOpen = false"
+                                @click="sortOpen = !sortOpen; modeOpen = false"
                                 :title="t('showcase.toolbar.sort_prefix') + ': ' + sort"
                                 :class="{ 'active': sortOpen }">
                             <i class="bi bi-funnel"></i>
@@ -145,7 +145,7 @@
                     <!-- 顯示模式 -->
                     <div class="toolbar-dropdown-wrap" @click.outside="modeOpen = false">
                         <button class="btn-icon"
-                                @click="modeOpen = !modeOpen; sortOpen = false; perPageOpen = false"
+                                @click="modeOpen = !modeOpen; sortOpen = false"
                                 :title="t('showcase.toolbar.mode_prefix') + ': ' + (mode === 'grid' ? t('showcase.mode.grid') : mode === 'table' ? t('showcase.mode.table') : t('showcase.mode.list'))"
                                 :class="{ 'active': modeOpen }">
                             <i class="bi" :class="mode === 'grid' ? 'bi-grid-3x3' : mode === 'table' ? 'bi-table' : 'bi-list-ul'"></i>
@@ -170,30 +170,6 @@
                             title="{{ t('showcase.action.toggle_info') }}">
                         <i class="bi bi-eye"></i>
                     </button>
-                    <!-- 每頁數量 -->
-                    <div class="toolbar-dropdown-wrap" @click.outside="perPageOpen = false">
-                        <button class="btn-icon"
-                                @click="perPageOpen = !perPageOpen; sortOpen = false; modeOpen = false"
-                                :title="t('showcase.toolbar.per_page_prefix') + ': ' + (perPage == 0 ? t('showcase.per_page.all') : perPage + ' ' + t('showcase.unit.videos'))"
-                                :class="{ 'active': perPageOpen }">
-                            <i class="bi bi-list-nested"></i>
-                        </button>
-                        <div class="toolbar-dropdown" x-show="perPageOpen" x-transition.opacity.duration.150ms @click.stop>
-                            <a href="#" class="dropdown-item" :class="{ 'active': perPage == 30 }"
-                               @click.prevent="perPage = 30; onPerPageChange(); perPageOpen = false">30 {{ t('showcase.unit.videos') }}</a>
-                            <a href="#" class="dropdown-item" :class="{ 'active': perPage == 45 }"
-                               @click.prevent="perPage = 45; onPerPageChange(); perPageOpen = false">45 {{ t('showcase.unit.videos') }}</a>
-                            <a href="#" class="dropdown-item" :class="{ 'active': perPage == 60 }"
-                               @click.prevent="perPage = 60; onPerPageChange(); perPageOpen = false">60 {{ t('showcase.unit.videos') }}</a>
-                            <a href="#" class="dropdown-item" :class="{ 'active': perPage == 90 }"
-                               @click.prevent="perPage = 90; onPerPageChange(); perPageOpen = false">90 {{ t('showcase.unit.videos') }}</a>
-                            <a href="#" class="dropdown-item" :class="{ 'active': perPage == 120 }"
-                               @click.prevent="perPage = 120; onPerPageChange(); perPageOpen = false">120 {{ t('showcase.unit.videos') }}</a>
-                            <a href="#" class="dropdown-item"
-                               :class="{ 'active': perPage == 0, 'disabled pointer-events-none opacity-40': mode === 'grid' }"
-                               @click.prevent="if (mode !== 'grid') { perPage = 0; onPerPageChange(); perPageOpen = false }">{{ t('showcase.per_page.all') }}</a>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -572,7 +548,7 @@
                                 </button>
                                 <button class="lb-action-btn lb-action-btn--danger"
                                         x-show="showFavoriteActresses"
-                                        @click.stop="removeActress()"
+                                        @click.stop="openRemoveActressModal()"
                                         :data-tooltip="t('showcase.actress.remove')"
                                         :aria-label="t('showcase.actress.remove')">
                                     <i class="bi bi-trash"></i>
@@ -906,6 +882,36 @@
     </div>
 
     </div>
+
+    <!-- TASK-52.3.3: Remove Actress Confirm Modal（取代原 window.confirm）
+         Esc 雙重防線：handleKeydown 入口攔截 + dialog 自身 @keydown.escape.window 冗餘
+         backdrop click 走 cancelRemoveActressModal() 統一三 dismiss 路徑 -->
+    <dialog class="modal fluent-modal"
+            :class="{ 'modal-open': removeActressModalOpen }"
+            @click.self="cancelRemoveActressModal()"
+            @keydown.escape.window="removeActressModalOpen && cancelRemoveActressModal()">
+        <div class="modal-box fluent-modal-box">
+            <h3 class="fluent-modal-title">
+                <i class="bi bi-exclamation-triangle text-warning"></i>
+                {{ t('showcase.actress.remove_modal.title') }}
+            </h3>
+            <p class="fluent-modal-body"
+               x-text="t('showcase.actress.remove_modal.body').replace('{name}', _pendingRemoveActressName || '')">
+            </p>
+            <div class="modal-action fluent-modal-actions">
+                <button type="button" class="btn btn-ghost" @click="cancelRemoveActressModal()">
+                    {{ t('showcase.actress.remove_modal.cancel') }}
+                </button>
+                <button type="button" class="btn btn-error"
+                        @click="confirmRemoveActress()"
+                        :disabled="_removeActressLoading">
+                    <span x-show="_removeActressLoading" class="loading loading-spinner loading-xs"></span>
+                    <span x-show="!_removeActressLoading"><i class="bi bi-trash3"></i></span>
+                    {{ t('showcase.actress.remove_modal.confirm') }}
+                </button>
+            </div>
+        </div>
+    </dialog>
 
     <!-- Toast (M3h) -->
     <div class="toast toast-bottom toast-center fluent-toast-container"

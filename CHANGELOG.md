@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] - 2026-04-29
+
+本版把 ui-conventions 套用到剩餘 5 頁（scanner / settings / help / design-system / motion-lab），並把幾條與「軟體靈魂」對不上的舊互動清掉：原生 `confirm()` / `alert()` 替換成風格一致的 fluent-modal 與 toast，showcase toolbar per-page 下拉移除（Settings 為唯一真理來源）。對使用者而言視覺更整齊、確認對話更貼近主視覺、複製失敗時用得到完整訊息（不再只看到截斷 500 字）。
+
+*This release applies ui-conventions to the remaining 5 utility/demo pages and cleans up legacy interactions (native confirm/alert → fluent-modal/toast). No user-facing feature changes — only consistency, polish, and accessibility improvements.*
+
+### Added
+
+#### 🎯 52.1 — 5 頁靜態 UI 修齊（Phase 1）
+- scanner / settings / help / design-system / motion-lab 五頁 §1-§4 + §6 5 檢查點修齊（commits 3ce4c7f / ba804bf / 26131be / c0185a7 / 20713ac / 95b5e0a / a50014f / 21be2b6 / 19e9725 / 9eb64db / 8a94ba7 / ca8952a / a2ae5f8 / 6e4e617 / 93c0a1e / 6e4e584 / 40de310）
+- design-system 新增 §1 pill 5 類白名單 / §2 三階 token / §3 overlay 5 swatch / §4 spacing 三層 / §6 5 檢查點 pass-fail demo（commits 6e4e617 / 93c0a1e / 6e4e584）
+- settings.css §6 .input / .select / settings-header 沿用 plan-50 P1b 完整規格（commits 26131be / c0185a7 / 95b5e0a）
+- motion_lab.html §1 blur / §2 shadow / §3 color & radius / §5 transition token 化（commits 5ba0285 / 35d141e / 7f44a76 / 7adbfec / 29cf36e / 060c5a5）
+- TestSettingsCssHardcoded / TestHelpCssHardcoded / TestDesignSystemCssHardcoded / TestMotionLabHtmlHardcoded 4 條 lint guard
+
+#### 🎯 52.2 — Motion Lab 動畫 demo 補齊（Phase 2）
+- 新增 §5 三角色 ease 並排 demo（fluent / fluent-decel / fluent-accel）+ T2.1 範圍 ease 殘留清（commit 1fd4fd4）
+- 新增 §5 Duration 三 bucket demo（fast 167ms / medium 333ms / emphasis 500ms 並排對照）+ T2.2 範圍 ease 殘留清（commit 41b7751）
+- 新增 §5 Special Motion 白名單 demo（Burst / Floating Hearts / showcaseSettle / SourcePulse）+ T2.3 範圍 ease 殘留清（commit 5dbcc82）
+
+#### 🎯 52.3 — Soul-Alignment Cleanup（Phase 3）
+- Showcase toolbar per-page 下拉移除，Settings 接管為唯一真理來源（既有 localStorage 殘留 fallback 到 settings default，無 migration）(commit 6201b91)
+- `removeActress()` / `resetConfig()` / `deleteAliasGroup()` 三處原生 `confirm()` 改 fluent-modal + i18n 4 keys 各一組（commits 4b784fe / ee37b37 / 492d650）
+- 15 處 `alert()` 改 showToast + i18n 14 keys（scanner ×8 含 1 處 fluent-modal `<pre>` 可選取 dump 取代 truncate 500 字 / settings ×1 / search file-list ×5 / search result-card ×1）(commit f2d2b67)
+
+### Fixed
+- T3.2 codex P2：`items_per_page` 預設值用 `??` 而非 `||`，保留合法 numeric 0（避免被 falsy 0 吞掉）(commit 0d195bc)
+- T3.6 codex P2：scanner.js copyLogs / copyOutputPath 兩處 `navigator.clipboard.writeText` 補 availability guard，clipboard undefined 時 fallback 才會觸發（之前 sync TypeError 跳過 .catch chain，用戶以為「複製成功」）(commit 37db4bd)
+- T3.7：result-card.js / showcase/core.js `openLocal()` 同類 pre-existing bug sweep — 三元 guard 把 sync TypeError 收斂為 `Promise.resolve(false)` 重用既有 fail UX；新增通用 lint guard 防未來新檔再犯（commit 397a412）
+- Phase 1 codex 5 條 finding（commit 783c6c4）
+- Phase 2 codex motion_lab.html `--accent-primary` / `--accent-secondary` 統一 + skip-note 文案（commit 968ce51）
+
 ## [0.8.1] - 2026-04-29
 
 本版把 Phase 50 在 Showcase 影片模式驗證過的 ui-conventions（Fluent 2 token / 白名單 / ease 三角色 / §6 5 檢查點）擴展到 Showcase 女優模式 + Search 整頁，並把 lightbox 開門動畫從兩邊各自實作整併到 `shared/ghost-fly.js` 共用。對使用者而言三個主要 surface 視覺與動畫節奏接續，沒有功能變化。

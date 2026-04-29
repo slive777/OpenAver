@@ -12,7 +12,7 @@
      @dragleave.document="handleDragLeave($event)"
      @dragover.document.prevent
      @drop.document.prevent="handleDrop($event)"
-     @keydown.escape.window="dirtyCheckModalOpen && dirtyCheckCancel(); missingConfirmModalOpen && cancelLargeMissingEnrich();">
+     @keydown.escape.window="dirtyCheckModalOpen && dirtyCheckCancel(); missingConfirmModalOpen && cancelLargeMissingEnrich(); deleteAliasGroupModalOpen && cancelDeleteAliasGroupModal(); copyFailModalOpen && closeCopyFailModal();">
     <!-- Drag Overlay (must be inside x-data scope) -->
     <div class="drag-overlay" id="dragOverlay" x-show="showDragOverlay" x-transition.opacity>
         <div class="drag-overlay-content">
@@ -423,6 +423,52 @@
                     <span x-show="clearCacheLoading" class="loading loading-spinner loading-xs"></span>
                     <span x-show="!clearCacheLoading"><i class="bi bi-trash3"></i></span>
                     {{ t('scanner.clear_cache_modal.confirm') }}
+                </button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- TASK-52.3.5: Delete Alias Group Confirm Modal -->
+    <dialog class="modal fluent-modal"
+            :class="{ 'modal-open': deleteAliasGroupModalOpen }"
+            @click.self="cancelDeleteAliasGroupModal()">
+        <div class="modal-box fluent-modal-box">
+            <h3 class="fluent-modal-title">
+                <i class="bi bi-exclamation-triangle text-warning"></i>
+                {{ t('scanner.alias.delete_group_modal.title') }}
+            </h3>
+            <p class="fluent-modal-body"
+               x-text="window.t('scanner.alias.delete_group_modal.body').replace('{name}', _pendingDeleteAliasGroupName || '')">
+            </p>
+            <div class="modal-action fluent-modal-actions">
+                <button type="button" class="btn btn-ghost" @click="cancelDeleteAliasGroupModal()">
+                    {{ t('scanner.alias.delete_group_modal.cancel') }}
+                </button>
+                <button type="button" class="btn btn-error"
+                        @click="confirmDeleteAliasGroup()"
+                        :disabled="_deleteAliasGroupLoading">
+                    <span x-show="_deleteAliasGroupLoading" class="loading loading-spinner loading-xs"></span>
+                    <span x-show="!_deleteAliasGroupLoading"><i class="bi bi-trash3"></i></span>
+                    {{ t('scanner.alias.delete_group_modal.confirm') }}
+                </button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- TASK-52.3.6: Copy Logs Fail Modal (clipboard fail fallback) -->
+    <dialog class="modal fluent-modal"
+            :class="{ 'modal-open': copyFailModalOpen }"
+            @click.self="closeCopyFailModal()">
+        <div class="modal-box fluent-modal-box">
+            <h3 class="fluent-modal-title">
+                <i class="bi bi-exclamation-triangle text-warning"></i>
+                {{ t('scanner.copy_fail_modal.title') }}
+            </h3>
+            <p class="fluent-modal-body">{{ t('scanner.copy_fail_modal.body') }}</p>
+            <pre class="copy-fail-pre" x-text="copyFailDump"></pre>
+            <div class="modal-action fluent-modal-actions">
+                <button type="button" class="btn btn-ghost" @click="closeCopyFailModal()">
+                    {{ t('scanner.copy_fail_modal.close') }}
                 </button>
             </div>
         </div>

@@ -162,7 +162,11 @@
       "scrape_complete": "批次整理完成：成功 {success}，失敗 {failed}",
       "scrape_complete_dup": "批次整理完成：成功 {success}，失敗 {failed}，重複 {duplicate}",
       "no_search_results": "此檔案沒有搜尋結果",
-      "scrape_failed": "{filename} 整理失敗"
+      "scrape_failed": "{filename} 整理失敗",
+      "no_valid_files": "無有效影片檔案（無法識別番號）",
+      "desktop_only": "此功能需要在桌面應用程式中使用",
+      "load_failed": "載入失敗，請重試",
+      "translate_failed": "翻譯失敗，請重試"
     },
     "duplicate": {
       "title": "檔案重複",
@@ -175,6 +179,9 @@
   },
   "settings": {
     "page_title": "設定",
+    "toast": {
+      "desktop_only": "此功能需要在桌面應用程式中使用"
+    },
     "header": {
       "title": "設定",
       "font_size_prefix": "字體大小",
@@ -300,6 +307,11 @@
       "discard": "不儲存",
       "save": "儲存更改"
     },
+    "reset_modal": {
+      "title": "重置所有設定",
+      "body": "確定要重置所有設定嗎？此操作將刪除所有自訂設定，無法復原。",
+      "confirm": "確認重置"
+    },
     "status": {
       "loading_models": "載入模型中...",
       "connecting": "連線中...",
@@ -335,6 +347,19 @@
   },
   "scanner": {
     "page_title": "列表生成",
+    "toast": {
+      "desktop_only": "此功能需要在桌面應用程式中使用",
+      "folder_already_added": "此資料夾已在列表中",
+      "copy_path_failed": "複製失敗，路徑：{path}",
+      "generate_error": "產生失敗，請查看日誌",
+      "nfo_update_error": "NFO 補齊失敗，請查看日誌",
+      "jellyfin_update_error": "Jellyfin 圖片補齊失敗，請查看日誌"
+    },
+    "copy_fail_modal": {
+      "title": "複製日誌失敗",
+      "body": "clipboard 寫入失敗，請手動選取以下文字按 Ctrl+C 複製：",
+      "close": "關閉"
+    },
     "drag_overlay": {
       "hint": "放開以加入資料夾"
     },
@@ -429,7 +454,13 @@
       "confirm": "確認加入",
       "delete_group_title": "刪除此女優別名組",
       "delete_alias_title": "移除此別名",
-      "error_conflict": "別名衝突"
+      "error_conflict": "別名衝突",
+      "delete_group_modal": {
+        "title": "刪除別名組",
+        "body": "確定要刪除「{name}」的整筆別名組嗎？此操作無法復原。",
+        "cancel": "取消",
+        "confirm": "確認刪除"
+      }
     },
     "dirty_modal": {
       "title": "尚未儲存的變更",
@@ -462,8 +493,7 @@
     },
     "toolbar": {
       "sort_prefix": "排序",
-      "mode_prefix": "模式",
-      "per_page_prefix": "每頁"
+      "mode_prefix": "模式"
     },
     "sort": {
       "date": "日期",
@@ -501,9 +531,6 @@
       "videos_count": " 部",
       "films": "部作品",
       "actresses": "位女優"
-    },
-    "per_page": {
-      "all": "全部"
     },
     "status": {
       "total_prefix": "共",
@@ -582,7 +609,12 @@
       "addNotFound": "找不到此女優",
       "addTimeout": "抓取超時，請稍後再試",
       "remove": "移除最愛",
-      "removeConfirm": "確認移除 {name}？",
+      "remove_modal": {
+        "title": "移除收藏",
+        "body": "確定要從收藏移除「{name}」嗎？此操作無法復原。",
+        "cancel": "取消",
+        "confirm": "確認移除"
+      },
       "removeSuccess": "已從收藏移除",
       "empty": "尚未收藏任何女優",
       "emptyHint": "點擊右上角 + 新增收藏",

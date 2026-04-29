@@ -55,6 +55,15 @@ function scannerPage() {
     onlineSearchTarget: '',      // 要加到哪個 primary_name
     onlineSearchDone: false,     // 搜尋完成旗標（用於顯示「無搜尋建議」）
 
+    // ===== Alias v2: Delete Group Modal (T3.5) =====
+    deleteAliasGroupModalOpen: false,
+    _deleteAliasGroupLoading: false,
+    _pendingDeleteAliasGroupName: null,
+
+    // ===== T3.6: Copy Logs Fail Modal =====
+    copyFailModalOpen: false,
+    copyFailDump: '',
+
     // ===== T7b: State Machine =====
     state: 'idle',  // 'idle' | 'generating' | 'nfoUpdating' | 'done' | 'error'
 
@@ -462,7 +471,7 @@ function scannerPage() {
     async selectFolder() {
         if (typeof window.pywebview === 'undefined' || !window.pywebview.api) {
             this.toggleManualInput();
-            alert('此功能需要在桌面應用程式中使用');
+            this.showToast(window.t('scanner.toast.desktop_only'), 'info');
             return;
         }
 
@@ -489,7 +498,7 @@ function scannerPage() {
             this.directories.push(folderPath);
             this.configDirty = true;
         } else {
-            alert('此資料夾已在列表中');
+            this.showToast(window.t('scanner.toast.folder_already_added'), 'warning');
         }
     },
 
@@ -507,7 +516,7 @@ function scannerPage() {
         if (!path) return;
 
         if (this.directories.includes(path)) {
-            alert('此資料夾已在列表中');
+            this.showToast(window.t('scanner.toast.folder_already_added'), 'warning');
             return;
         }
 
@@ -717,11 +726,30 @@ function scannerPage() {
 
         const text = this.logEntries.map(entry => entry.message).join('\n');
 
+        // T3.6 P2 fix: guard against undefined navigator.clipboard (HTTP / older WebView)
+        // 若無 Clipboard API，直接走 fail modal fallback；
+        // 否則 .then/.catch chain 會在 sync property access 階段就 TypeError，.catch 不會跑。
+        if (!navigator.clipboard?.writeText) {
+            this.openCopyFailModal(text);
+            return;
+        }
+
         navigator.clipboard.writeText(text).then(() => {
             this.showToast(`已複製 ${this.logEntries.length} 筆日誌`, 'success');
         }).catch(() => {
-            alert('複製失敗，日誌內容：\n\n' + text.substring(0, 500) + '...');
+            this.openCopyFailModal(text);
         });
+    },
+
+    // T3.6: Copy Logs Fail Modal — fluent-modal <pre> dump fallback
+    openCopyFailModal(text) {
+        this.copyFailDump = text || '';
+        this.copyFailModalOpen = true;
+    },
+
+    closeCopyFailModal() {
+        this.copyFailModalOpen = false;
+        this.copyFailDump = '';
     },
 
     confirmClearAll() {
@@ -843,7 +871,8 @@ function scannerPage() {
         } catch (e) {
             this.state = 'error';
             localStorage.setItem('avlist_generating', 'false');
-            alert('發生錯誤: ' + e.message);
+            console.error('[Scanner] generate error:', e);
+            this.showToast(window.t('scanner.toast.generate_error'), 'error', 4000);
         }
     },
 
@@ -920,7 +949,8 @@ function scannerPage() {
         } catch (e) {
             this.state = 'error';
             localStorage.setItem('avlist_generating', 'false');
-            alert('發生錯誤: ' + e.message);
+            console.error('[Scanner] runNfoUpdate error:', e);
+            this.showToast(window.t('scanner.toast.nfo_update_error'), 'error', 4000);
         }
     },
 
@@ -996,7 +1026,8 @@ function scannerPage() {
         } catch (e) {
             this.state = 'error';
             localStorage.setItem('avlist_generating', 'false');
-            alert('發生錯誤: ' + e.message);
+            console.error('[Scanner] runJellyfinImageUpdate error:', e);
+            this.showToast(window.t('scanner.toast.jellyfin_update_error'), 'error', 4000);
         }
     },
 
@@ -1204,10 +1235,25 @@ function scannerPage() {
     copyOutputPath() {
         if (!this.outputPath) return;
 
+        // T3.6 P2 fix: guard against undefined navigator.clipboard
+        // sync property access on undefined 會 throw TypeError，.catch 不會跑。
+        const showFailToast = () => {
+            this.showToast(
+                window.t('scanner.toast.copy_path_failed').replace('{path}', this.outputPath),
+                'error',
+                4000
+            );
+        };
+
+        if (!navigator.clipboard?.writeText) {
+            showFailToast();
+            return;
+        }
+
         navigator.clipboard.writeText(this.outputPath).then(() => {
             this.showToast('已複製: ' + this.outputPath, 'success');
         }).catch(() => {
-            alert('複製失敗，路徑：' + this.outputPath);
+            showFailToast();
         });
     },
 
@@ -1281,9 +1327,32 @@ function scannerPage() {
     },
 
     // ===== Alias v2: Delete Group =====
-    async deleteAliasGroup(name) {
-        if (!confirm(`確定要刪除「${name}」的整筆別名組嗎？`)) return;
+    // T3.5: thin wrapper, 保留外部呼叫名（template @click="deleteAliasGroup(...)" 不需動）
+    deleteAliasGroup(name) {
+        this.openDeleteAliasGroupModal(name);
+    },
 
+    // ===== Alias v2: Delete Group Modal — Open (T3.5) =====
+    openDeleteAliasGroupModal(name) {
+        this._pendingDeleteAliasGroupName = name;
+        this.deleteAliasGroupModalOpen = true;
+    },
+
+    // ===== Alias v2: Delete Group Modal — Cancel (T3.5) =====
+    cancelDeleteAliasGroupModal() {
+        this.deleteAliasGroupModalOpen = false;
+        this._pendingDeleteAliasGroupName = null;
+    },
+
+    // ===== Alias v2: Delete Group Modal — Confirm (T3.5) =====
+    async confirmDeleteAliasGroup() {
+        const name = this._pendingDeleteAliasGroupName;
+        if (!name) {
+            this.deleteAliasGroupModalOpen = false;
+            this._pendingDeleteAliasGroupName = null;
+            return;
+        }
+        this._deleteAliasGroupLoading = true;
         try {
             const resp = await fetch(`/api/actress-aliases/${encodeURIComponent(name)}`, {
                 method: 'DELETE'
@@ -1298,6 +1367,10 @@ function scannerPage() {
             }
         } catch (e) {
             this.showToast('刪除失敗: ' + e.message, 'error');
+        } finally {
+            this._deleteAliasGroupLoading = false;
+            this.deleteAliasGroupModalOpen = false;
+            this._pendingDeleteAliasGroupName = null;
         }
     },
 

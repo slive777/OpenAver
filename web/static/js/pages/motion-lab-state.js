@@ -7,7 +7,7 @@ function motionLabPage() {
             duration: 0.6,
             stagger: 0.05,
             clipRevealDur: 0.5,
-            easing: 'back.out(1.2)',
+            easing: 'fluent',
             flipMode: 'Flip',
             reducedMotionSim: false,
             speed: 0.5,
@@ -27,7 +27,7 @@ function motionLabPage() {
         stagingParams: {
             batchInterval: 800,
             minBatchCount: 3,
-            burstEase: 'back.out(1.2)',
+            burstEase: 'back.out(1.2)', // §5 white-list: Burst Picker
             burstDuration: 0.6,
             coverInterval: 300,
         },
@@ -74,7 +74,7 @@ function motionLabPage() {
             duration: 0.5,
             stagger: 0.04,
             flipDuration: 0.5,
-            flipEase: 'power2.inOut',
+            flipEase: 'fluent',
             flipPrune: true,
             filterQuery: '',
             filterEnterStyle: 'opacityScale',
@@ -164,6 +164,43 @@ function motionLabPage() {
                     window.MotionLab.playClipPathReveal(gridEl, this.params);
                 }
             }
+        },
+
+        onPlayEaseRoles(refs) {
+            if (typeof window.MotionLab === 'undefined') return;
+            const boxEls = [refs.easeBox0, refs.easeBox1, refs.easeBox2];
+            window.MotionLab.playEaseRolesDemo(boxEls, this.params);
+        },
+
+        onPlayDurationBuckets(refs) {
+            if (typeof window.MotionLab === 'undefined') return;
+            const boxEls = [refs.durBox0, refs.durBox1, refs.durBox2, refs.durBox3];
+            window.MotionLab.playDurationBucketsDemo(boxEls, this.params);
+        },
+
+        onPlayWhitelistBurstPicker(refs) {
+            if (typeof window.MotionLab === 'undefined') return;
+            window.MotionLab.playSpecialMotionBurstPickerDemo(refs.whitelistBurstPickerEl, this.params);
+        },
+
+        onPlayWhitelistStagingEntry(refs) {
+            if (typeof window.MotionLab === 'undefined') return;
+            window.MotionLab.playSpecialMotionStagingEntryDemo(refs.whitelistStagingEntryEl, this.params);
+        },
+
+        onPlayWhitelistCheckmark(refs) {
+            if (typeof window.MotionLab === 'undefined') return;
+            window.MotionLab.playSpecialMotionCheckmarkDemo(refs.whitelistCheckmarkEl, this.params);
+        },
+
+        onPlayWhitelistShake(refs) {
+            if (typeof window.MotionLab === 'undefined') return;
+            window.MotionLab.playSpecialMotionShakeDemo(refs.whitelistShakeEl, this.params);
+        },
+
+        onPlayWhitelistPulse(refs) {
+            if (typeof window.MotionLab === 'undefined') return;
+            window.MotionLab.playSpecialMotionPulseDemo(refs.whitelistPulseEl, this.params);
         },
 
         async onDetailEntry() {
@@ -760,7 +797,7 @@ function motionLabPage() {
                 await this.$nextTick();
                 const heroGridEl = this.$refs.heroGrid;
                 if (heroGridEl && typeof gsap !== 'undefined') {
-                    gsap.from(heroGridEl, { opacity: 0, duration: 0.25, ease: 'power1.out' });
+                    gsap.from(heroGridEl, { opacity: 0, duration: 0.25, ease: 'fluent-decel' });
                 }
 
                 // 延遲後處理 hero
@@ -817,7 +854,7 @@ function motionLabPage() {
                 await this.$nextTick();
                 const heroGridEl = this.$refs.heroGrid;
                 if (heroGridEl && typeof gsap !== 'undefined') {
-                    gsap.from(heroGridEl, { opacity: 0, duration: 0.25, ease: 'power1.out' });
+                    gsap.from(heroGridEl, { opacity: 0, duration: 0.25, ease: 'fluent-decel' });
                 }
 
                 // 延遲後處理 hero

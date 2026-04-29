@@ -1702,12 +1702,80 @@ SEARCH_STATE_DIR = Path(__file__).parent.parent.parent / "web" / "static" / "js"
 
 
 class TestNoAlertInSearchJs:
-    """39c-T2c: search state JS 不應使用原生 alert()，改用 showToast"""
+    """39c-T2c + T3.6: search/scanner/settings JS 不應使用原生 alert()，改用 showToast / fluent-modal"""
 
     def test_no_alert_in_batch_js(self):
         content = (SEARCH_STATE_DIR / "batch.js").read_text(encoding="utf-8")
         assert "alert(" not in content, \
             "batch.js 含原生 alert()，應改用 this.showToast()"
+
+    def test_no_alert_in_file_list_js(self):
+        """T3.6: file-list.js 5 處 alert 已改 showToast"""
+        content = (SEARCH_STATE_DIR / "file-list.js").read_text(encoding="utf-8")
+        assert "alert(" not in content, \
+            "file-list.js 含原生 alert()，應改用 this.showToast()"
+
+    def test_no_alert_in_result_card_js(self):
+        """T3.6: result-card.js 1 處 alert 已改 showToast"""
+        content = (SEARCH_STATE_DIR / "result-card.js").read_text(encoding="utf-8")
+        assert "alert(" not in content, \
+            "result-card.js 含原生 alert()，應改用 this.showToast()"
+
+    def test_no_alert_in_scanner_js(self):
+        """T3.6: scanner.js 8 處 alert 已改 showToast / fluent-modal"""
+        content = SCANNER_JS.read_text(encoding="utf-8")
+        assert "alert(" not in content, \
+            "scanner.js 含原生 alert()，應改用 this.showToast() 或 fluent-modal"
+
+    def test_no_alert_in_settings_js(self):
+        """T3.6: settings.js 1 處 alert 已改 showToast"""
+        settings_js = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "settings.js"
+        content = settings_js.read_text(encoding="utf-8")
+        assert "alert(" not in content, \
+            "settings.js 含原生 alert()，應改用 this.showToast()"
+
+    def test_scanner_clipboard_has_availability_guard(self):
+        """T3.6 P2 fix: scanner.js 兩處 clipboard call 必須有 availability guard
+
+        navigator.clipboard 在 HTTP / 舊 WebView 為 undefined，
+        若直接呼叫 navigator.clipboard.writeText(...) 會在 property access 階段
+        sync throw TypeError，.then().catch() chain 的 .catch 完全不會跑，
+        導致 copyLogs 的 fail modal / copyOutputPath 的 error toast 被跳過。
+        守衛 if (!navigator.clipboard?.writeText) 必須在兩處 clipboard call 之前。
+        """
+        content = SCANNER_JS.read_text(encoding="utf-8")
+        # 兩處 copy 點都應該有 ?. optional chaining guard
+        guard_count = content.count("navigator.clipboard?.writeText")
+        assert guard_count >= 2, (
+            f"scanner.js 應該有至少 2 處 navigator.clipboard?.writeText 守衛 "
+            f"（copyLogs + copyOutputPath），目前只有 {guard_count} 處。"
+            "若沒守衛，clipboard API 不存在時 .catch() 完全不會觸發。"
+        )
+
+    def test_all_clipboard_writetext_files_have_availability_guard(self):
+        """T3.7: 全 web/static/js 任何使用 navigator.clipboard.writeText 的檔案
+        必須同時含 ?. optional chaining 守衛形式（navigator.clipboard?.writeText）。
+
+        此守衛防止未來新檔案再犯同類 pre-existing bug（HTTP / 舊 WebView
+        clipboard undefined 時 sync TypeError 跳過 .catch chain）。
+        既知合法檔（截至 T3.7）：scanner.js（×2 + ×2 guards）、help.js、
+        result-card.js、showcase/core.js — 全部含 ?. 守衛形式。
+        """
+        js_root = Path(__file__).parent.parent.parent / "web" / "static" / "js"
+        offenders = []
+        for js_file in js_root.rglob("*.js"):
+            text = js_file.read_text(encoding="utf-8")
+            if "navigator.clipboard.writeText" not in text:
+                continue
+            if "navigator.clipboard?.writeText" not in text:
+                offenders.append(str(js_file.relative_to(js_root)))
+        assert not offenders, (
+            f"以下檔案使用 navigator.clipboard.writeText 但缺 ?. 守衛形式："
+            f"{offenders}。"
+            "請改寫成 if (!navigator.clipboard?.writeText) { ...fallback...; return; } "
+            "或 navigator.clipboard?.writeText ? ... : fallback 三元，"
+            "避免 clipboard undefined 時 sync TypeError 跳過 .catch。"
+        )
 
 
 class TestNavigateLoadMore:
@@ -2146,10 +2214,14 @@ class TestShowcaseActressCRUD:
             "showcase/core.js 仍含 rescrapeActress() 方法（49b-T5 應已刪除）"
 
     def test_remove_actress_method(self):
-        """core.js 含 removeActress() 方法"""
+        """core.js 含 T3.3 拆出的 3 個 modal-flow methods（open / confirm / cancel）"""
         js = self._js()
-        assert "removeActress" in js, \
-            "showcase/core.js 缺少 removeActress() 方法（[🗑 移除最愛] 女優 CRUD）"
+        assert "openRemoveActressModal" in js, \
+            "showcase/core.js 缺少 openRemoveActressModal()（T3.3: trigger button 入口）"
+        assert "confirmRemoveActress" in js, \
+            "showcase/core.js 缺少 confirmRemoveActress()（T3.3: DELETE API + closeLightbox flow）"
+        assert "cancelRemoveActressModal" in js, \
+            "showcase/core.js 缺少 cancelRemoveActressModal()（T3.3: dismiss flow，三 dismiss 路徑收口）"
 
     # --- showcase.html popover guards ---
 
@@ -2172,10 +2244,10 @@ class TestShowcaseActressCRUD:
             "showcase.html 仍含 rescrapeActress() handler（44c-T7 應已移除 lightbox 按鈕）"
 
     def test_remove_handler_in_template(self):
-        """showcase.html 含 removeActress() handler"""
+        """showcase.html 含 openRemoveActressModal() handler（T3.3：fluent-modal 取代 native confirm）"""
         html = self._html()
-        assert "removeActress()" in html, \
-            "showcase.html 缺少 removeActress()（Row 6 移除最愛按鈕 @click handler）"
+        assert "openRemoveActressModal()" in html, \
+            "showcase.html 缺少 openRemoveActressModal()（Row 6 移除最愛按鈕 @click handler — T3.3 fluent-modal）"
 
     def test_search_actress_films_method(self):
         """core.js 含 searchActressFilms() 方法"""
@@ -2307,7 +2379,6 @@ class TestShowcaseActressI18n:
         "showcase.actress.addNotFound",
         "showcase.actress.addTimeout",
         "showcase.actress.remove",
-        "showcase.actress.removeConfirm",
         "showcase.actress.removeSuccess",
         "showcase.actress.empty",
         "showcase.actress.emptyHint",
@@ -2327,6 +2398,58 @@ class TestShowcaseActressI18n:
             data = self._locale(locale_file)
             val = self._get_nested(data, key)
             assert val is not None, f"{locale_file} 缺少 {key}"
+
+    @pytest.mark.parametrize("key", [
+        "showcase.actress.remove_modal.title",
+        "showcase.actress.remove_modal.body",
+        "showcase.actress.remove_modal.cancel",
+        "showcase.actress.remove_modal.confirm",
+    ])
+    def test_remove_modal_keys_in_zh_tw(self, key):
+        """T3.3: remove_modal.* 4 keys 在 zh_TW.json 存在（其他 locale 走 milestone 同步，依 i18n.md 規則）"""
+        data = self._locale("zh_TW.json")
+        val = self._get_nested(data, key)
+        assert val is not None, f"zh_TW.json 缺少 {key}（T3.3 fluent-modal i18n key）"
+
+    def test_removeConfirm_orphan_removed_zh_tw(self):
+        """T3.3: 舊 native confirm key showcase.actress.removeConfirm 已從 zh_TW 移除（孤兒 key 清理）"""
+        data = self._locale("zh_TW.json")
+        val = self._get_nested(data, "showcase.actress.removeConfirm")
+        assert val is None, \
+            "T3.3 違規：showcase.actress.removeConfirm 應已隨 native confirm → fluent-modal 改寫從 zh_TW 移除"
+
+
+class TestSettingsResetModalI18n:
+    """T3.4 (CD-52-11): resetConfig fluent-modal i18n key 守衛
+
+    沿 TestShowcaseActressI18n.test_remove_modal_keys_in_zh_tw pattern，
+    開發期只守 zh_TW.json；其他 locale 走 milestone 同步（依 i18n.md 規則）。
+    """
+
+    LOCALES_ROOT = Path(__file__).parent.parent.parent / "locales"
+
+    def _locale(self, name):
+        return json.loads((self.LOCALES_ROOT / name).read_text(encoding="utf-8"))
+
+    def _get_nested(self, d, dotted_key):
+        keys = dotted_key.split(".")
+        cur = d
+        for k in keys:
+            if not isinstance(cur, dict) or k not in cur:
+                return None
+            cur = cur[k]
+        return cur
+
+    @pytest.mark.parametrize("key", [
+        "settings.reset_modal.title",
+        "settings.reset_modal.body",
+        "settings.reset_modal.confirm",
+    ])
+    def test_reset_modal_keys_in_zh_tw(self, key):
+        """T3.4: reset_modal.* 3 keys 在 zh_TW.json 存在（cancel 複用 common.action.cancel 不需新增）"""
+        data = self._locale("zh_TW.json")
+        val = self._get_nested(data, key)
+        assert val is not None, f"zh_TW.json 缺少 {key}（T3.4 fluent-modal i18n key）"
 
 
 class TestShowcaseLightboxSentinel:
@@ -2395,10 +2518,10 @@ class TestShowcaseLightboxSentinel:
             "handleKeydown lightbox 分支缺少 showFavoriteActresses 判斷（影片模式 hero card 鍵盤導航會走錯分支）"
 
     def test_removeActress_button_has_xshow_guard(self):
-        """removeActress button gated by x-show="showFavoriteActresses\""""
+        """removeActress button gated by x-show="showFavoriteActresses"（T3.3：trigger 改為 openRemoveActressModal()）"""
         html = self._html()
-        idx = html.find("removeActress()")
-        assert idx != -1, "removeActress() handler not found in showcase.html"
+        idx = html.find("openRemoveActressModal()")
+        assert idx != -1, "openRemoveActressModal() handler not found in showcase.html"
         # 找 removeActress button 的區塊（往前 300 字）
         surrounding = html[max(0, idx - 300):idx + 100]
         assert "showFavoriteActresses" in surrounding, \
@@ -4687,3 +4810,509 @@ class TestPickerIntegrationGuard:
             "newCard 必須使用 cards[myIndex]，不可用 cards[this._candidates.length - 1]"
         assert "cards[this._candidates.length - 1]" not in body, \
             "candidate handler 不可使用 cards[this._candidates.length - 1]（race bug：所有 handler 拿到同一張卡）"
+
+
+class TestSettingsCssHardcoded:
+    """Phase 52 T1.2.4: settings.css hardcoded 硬編碼守衛（防未來回潮）"""
+
+    def _css(self):
+        return Path("web/static/css/pages/settings.css").read_text(encoding="utf-8")
+
+    def test_no_hardcoded_transition_duration_in_settings_css(self):
+        """settings.css 所有 transition 不應有硬編碼數字秒數（須用 var(--fluent-duration-*)）
+
+        Pattern: transition 值含 0.Xs 或 .Xs 數字字面，且不含 var(--
+        允許：comments（// 或 /* 開頭行）中的說明文字
+        """
+        lines = self._css().split("\n")
+        violations = []
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            # 跳過純註釋行
+            if stripped.startswith("/*") or stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            if "transition:" in line:
+                # 尋找硬編碼數字秒數（0.Xs 或 .Xs），且不含 var(--
+                if re.search(r"transition:[^;]*\b0?\.\d+s\b", line) and "var(--" not in line:
+                    violations.append(f"L{i}: {line.strip()}")
+        assert not violations, (
+            "settings.css transition 殘留硬編碼數字秒數（應改用 var(--fluent-duration-*)）：\n"
+            + "\n".join(violations)
+        )
+
+    def test_no_hardcoded_blur_px_in_settings_css(self):
+        """settings.css 不應出現 hardcoded blur(Npx)（須用 var(--fluent-blur*) 三階）
+
+        涵蓋 filter: 與 backdrop-filter:（含 -webkit- 前綴）— 都是 §1 玻璃三階規則。
+        """
+        css = self._css()
+        lines = css.split("\n")
+        violations = []
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            if stripped.startswith("/*") or stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            if re.search(r"blur\(\s*\d+px", line):
+                violations.append(f"L{i}: {line.strip()}")
+        assert not violations, (
+            "settings.css 出現 hardcoded blur(Npx) 違規（涵蓋 filter / backdrop-filter，"
+            "請改用 var(--fluent-blur) (overlay 30px) / var(--fluent-blur-light) (floating 12px)）：\n"
+            + "\n".join(violations)
+        )
+
+
+class TestHelpCssHardcoded:
+    """Phase 52 T1.3.3: help.css hardcoded 硬編碼守衛（防未來回潮）"""
+
+    def _css(self):
+        return Path("web/static/css/pages/help.css").read_text(encoding="utf-8")
+
+    def _is_design_intent_line(self, line: str) -> bool:
+        """判斷該行是否為 dim override block 內的 design-intent 固定色（允許例外）"""
+        return "design-intent:" in line
+
+    def test_no_hardcoded_oklch_in_help_css(self):
+        """help.css 不應出現裸 oklch(數字) 硬編碼值
+
+        允許例外：
+        - 純白 oklch(100% 0 0)（charter §3 接受的純色）
+        - 純黑 oklch(0% 0 0)（charter §3 接受的純色）
+        - dim override block 內含 design-intent 標記的固定色（terminal box 設計意圖）
+        - 純註釋行（/* / // / * 開頭）
+        """
+        lines = self._css().split("\n")
+        violations = []
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            # 跳過純註釋行
+            if stripped.startswith("/*") or stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            # 跳過 dim override block 內的 design-intent 固定色
+            if self._is_design_intent_line(line):
+                continue
+            # 允許純白 / 純黑
+            if re.search(r"oklch\(100%\s+0\s+0\)", line):
+                continue
+            if re.search(r"oklch\(0%\s+0\s+0\)", line):
+                continue
+            # 抓裸 oklch(數字...) 違規（允許 color-mix 內引用，但裸 oklch 數字值違規）
+            if re.search(r"\boklch\(\s*\d", line):
+                violations.append(f"L{i}: {stripped}")
+        assert not violations, (
+            "help.css 殘留裸 oklch 數字硬編碼（應改用 token，純白/純黑/dim design-intent 除外）：\n"
+            + "\n".join(violations)
+        )
+
+    def test_no_hardcoded_rgba_in_help_css(self):
+        """help.css 不應出現 hardcoded rgba(數字) 值（須改用 token 或 color-mix）
+
+        允許例外：
+        - 純註釋行（/* / // / * 開頭）
+        """
+        lines = self._css().split("\n")
+        violations = []
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            # 跳過純註釋行
+            if stripped.startswith("/*") or stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            if re.search(r"\brgba\(\s*\d", line):
+                violations.append(f"L{i}: {stripped}")
+        assert not violations, (
+            "help.css 出現 hardcoded rgba() 違規（應改用 token 或 color-mix(in oklch, ...)）：\n"
+            + "\n".join(violations)
+        )
+
+    def test_no_hardcoded_border_radius_px_in_help_css(self):
+        """help.css border-radius 不應出現數字 px 硬編碼（應改用 var(--fluent-radius-*)）
+
+        允許例外：
+        - border-radius: 50%（圓形 badge 語義，比例值不是像素）
+        - var(--fluent-radius-*, Npx) 的 fallback px 值（在 var() 內部，不算裸硬編碼）
+        - 純註釋行（/* / // / * 開頭）
+        """
+        lines = self._css().split("\n")
+        violations = []
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            # 跳過純註釋行
+            if stripped.startswith("/*") or stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            # 抓 border-radius: Npx（排除 50% 等比例值）
+            if not re.search(r"border-radius\s*:[^;]*\d+px", line):
+                continue
+            # 允許：Npx 只出現在 var(--..., Npx) fallback 內（屬於合法 token 用法）
+            # 去除 var(--...) 區塊後再判斷是否殘留裸 Npx
+            line_without_var = re.sub(r"var\([^)]*\)", "", line)
+            if re.search(r"border-radius\s*:[^;]*\d+px", line_without_var):
+                violations.append(f"L{i}: {stripped}")
+        assert not violations, (
+            "help.css border-radius 殘留 px 硬編碼（應改用 var(--fluent-radius-md/lg)；"
+            "50% 圓形 badge 語義值免除；var fallback 內的 px 允許）：\n"
+            + "\n".join(violations)
+        )
+
+    def test_no_hardcoded_transition_duration_in_help_css(self):
+        """help.css 所有 transition 不應有硬編碼數字秒數（須用 var(--fluent-duration-*)）
+
+        Pattern: transition 值含 0.Xs 或 .Xs 數字字面，且不含 var(--
+        允許：comments（// 或 /* 開頭行）中的說明文字
+        """
+        lines = self._css().split("\n")
+        violations = []
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            # 跳過純註釋行
+            if stripped.startswith("/*") or stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            if "transition:" in line:
+                # 尋找硬編碼數字秒數（0.Xs 或 .Xs），且不含 var(--
+                if re.search(r"transition:[^;]*\b0?\.\d+s\b", line) and "var(--" not in line:
+                    violations.append(f"L{i}: {line.strip()}")
+        assert not violations, (
+            "help.css transition 殘留硬編碼數字秒數（應改用 var(--fluent-duration-*)）：\n"
+            + "\n".join(violations)
+        )
+
+
+class TestDesignSystemCssHardcoded:
+    """Phase 52 T1.4.7: design-system.css hardcoded 硬編碼守衛（防未來回潮）
+
+    design-system 是 demo 頁，§6 fail 樣本 HTML 內含 hardcoded 值是有意展示（inline style）。
+    守衛只掃 CSS 層（design-system.css），不掃 HTML。
+    """
+
+    def _css(self):
+        return Path("web/static/css/pages/design-system.css").read_text(encoding="utf-8")
+
+    def test_no_hardcoded_blur_px_in_design_system_css(self):
+        """design-system.css 不應出現 hardcoded blur(Npx)（須用 var(--fluent-blur*) 三階）
+
+        涵蓋 filter: 與 backdrop-filter:（含 -webkit- 前綴）— 都是 §2 玻璃三階規則。
+        允許例外：
+        - 純註釋行（/* / // / * 開頭）
+        """
+        lines = self._css().split("\n")
+        violations = []
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            # 跳過純註釋行
+            if stripped.startswith("/*") or stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            if re.search(r"blur\(\s*\d+px", line):
+                violations.append(f"L{i}: {stripped}")
+        assert not violations, (
+            "design-system.css 出現 hardcoded blur(Npx) 違規（涵蓋 filter / backdrop-filter，"
+            "請改用 var(--fluent-blur) (overlay 30px) / var(--fluent-blur-light) (floating 12px) / "
+            "var(--fluent-blur-heavy) (canvas 60px)）：\n"
+            + "\n".join(violations)
+        )
+
+    def test_no_hardcoded_border_radius_px_in_design_system_css(self):
+        """design-system.css border-radius 不應出現數字 px 硬編碼（應改用 var(--fluent-radius-*)）
+
+        允許例外：
+        - border-radius: 50%（圓形 badge 語義，比例值不是像素）
+        - border-radius: 999px（radius-pill 白名單，語義 pill 值）
+        - border-radius: 0px（歸零語義值）
+        - var(--fluent-radius-*, Npx) 的 fallback px 值（在 var() 內部，不算裸硬編碼）
+        - 純註釋行（/* / // / * 開頭）
+        """
+        lines = self._css().split("\n")
+        violations = []
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            # 跳過純註釋行
+            if stripped.startswith("/*") or stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            # 抓 border-radius: Npx（排除 50%/999px/0px 語義值）
+            if not re.search(r"border-radius\s*:[^;]*\d+px", line):
+                continue
+            # 允許 50% 圓形、999px pill、0px 歸零
+            if re.search(r"border-radius\s*:\s*(50%|999px|0px)", line):
+                continue
+            # 允許：Npx 只出現在 var(--..., Npx) fallback 內
+            line_without_var = re.sub(r"var\([^)]*\)", "", line)
+            if re.search(r"border-radius\s*:[^;]*\d+px", line_without_var):
+                violations.append(f"L{i}: {stripped}")
+        assert not violations, (
+            "design-system.css border-radius 殘留 px 硬編碼（應改用 var(--fluent-radius-*)；"
+            "50% / 999px / 0px 語義值免除；var fallback 內的 px 允許）：\n"
+            + "\n".join(violations)
+        )
+
+    def test_no_hardcoded_box_shadow_raw_rgba_in_design_system_css(self):
+        """design-system.css box-shadow 不應出現裸 rgba(數字) 硬編碼（須用 Fluent token）
+
+        允許例外：
+        - rgba(var(--...), ...) — var() 包裝，token 化間接引用（如 ds-glow-rgb）
+        - 純註釋行（/* / // / * 開頭）
+        - inset dual-layer：inset 0 Npx Npx rgba(...) — §2 dual-layer 修法後仍允許 dual-layer
+          內的 rgba（.btn.state-active 的 inset dual-layer 是有意展示，含 var() 不在此排除）
+
+        注意：此 test 只排除「box-shadow: 0 Npx Npx rgba(純數字)」模式，
+        rgba(var(...)) 因為 pattern 要求第一個字元非數字所以不命中。
+        """
+        lines = self._css().split("\n")
+        violations = []
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            # 跳過純註釋行
+            if stripped.startswith("/*") or stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            # 只看 box-shadow 行
+            if "box-shadow" not in line:
+                continue
+            # 匹配裸 rgba(數字, ...) — 第一個參數是純數字（非 var()）
+            if not re.search(r"\brgba\(\s*\d", line):
+                continue
+            # 允許：inset-only dual-layer（§2 dual-layer 示範，全為 inset 值不影響外部陰影）
+            # 方法：先移除 rgba(...) 內容再以逗號分割，判斷每個 term 是否都有 inset 前綴
+            shadow_value = re.sub(r"box-shadow\s*:", "", line).strip().rstrip(";")
+            shadow_no_rgba = re.sub(r"rgba\([^)]*\)", "RGBA", shadow_value)
+            if all(t.strip().startswith("inset") for t in shadow_no_rgba.split(",") if t.strip()):
+                continue
+            violations.append(f"L{i}: {stripped}")
+        assert not violations, (
+            "design-system.css box-shadow 殘留裸 rgba() 硬編碼（應改用 var(--fluent-shadow-*)；"
+            "rgba(var(--ds-glow-rgb), ...) 不在此範疇因 pattern 不命中）：\n"
+            + "\n".join(violations)
+        )
+
+
+class TestMotionLabHtmlHardcoded:
+    """T1.5.6: 確認 motion_lab.html <style> 區塊內無 hardcoded 視覺值（blur / hex / radius / transition）
+
+    掃描策略：僅掃 <style>...</style> block 內容，不掃 HTML style="..." 屬性
+    （demo 區大量合法 inline style 用於展示，不納入守衛範疇）
+    """
+
+    def _style_blocks(self) -> str:
+        """提取 motion_lab.html 所有 <style> block 內容合併"""
+        html = MOTION_LAB_HTML.read_text(encoding="utf-8")
+        blocks = re.findall(r"<style[^>]*>(.*?)</style>", html, re.DOTALL)
+        return "\n".join(blocks)
+
+    def test_no_hardcoded_blur_px_in_motion_lab_html(self):
+        """motion_lab.html <style> 區塊不含 hardcoded blur(Npx)（須用 var(--fluent-blur-*)）"""
+        css = self._style_blocks()
+        matches = re.findall(r"blur\(\d+px\)", css)
+        assert not matches, (
+            f"motion_lab.html <style> 仍有 hardcoded blur(Npx)，請改用 var(--fluent-blur-light/overlay/heavy)：{matches}"
+        )
+
+    def test_no_hardcoded_hex_color_in_motion_lab_html(self):
+        """motion_lab.html <style> 區塊不含裸 hardcoded hex color（#xxx / #xxxxxx）
+
+        允許例外：
+        - var(..., #fff) 形式的 CSS fallback 值（在 var() 內部，pattern 不命中）
+        """
+        css = self._style_blocks()
+        lines = css.split("\n")
+        violations = []
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            # 跳過純註釋行
+            if stripped.startswith("/*") or stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            # 找裸 hex（不在 var() 內部）：pattern 尋找 # 後接 3/4/6/8 hex digits，
+            # 但排除 var(..., #xxx) 形式（前方有逗號 + 空格）
+            # 實作：先移除 var( ... ) 內容再搜尋
+            line_no_var_fallback = re.sub(r"var\([^)]*\)", "", line)
+            if re.search(r"#[0-9a-fA-F]{3,8}\b", line_no_var_fallback):
+                violations.append(f"L{i}: {stripped}")
+        assert not violations, (
+            "motion_lab.html <style> 殘留裸 hex 硬編碼（應改用 token；var() 內 fallback 除外）：\n"
+            + "\n".join(violations)
+        )
+
+    def test_no_hardcoded_border_radius_px_in_motion_lab_html(self):
+        """motion_lab.html <style> 區塊 border-radius 不應含裸 px 數字硬編碼
+
+        允許例外：
+        - border-radius: 50%（圓形語義，比例值不是像素）
+        - var(--fluent-radius-*, Npx) 的 fallback px 值（在 var() 內部）
+        """
+        css = self._style_blocks()
+        lines = css.split("\n")
+        violations = []
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            if stripped.startswith("/*") or stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            if "border-radius" not in line:
+                continue
+            # 允許 50%
+            if re.search(r"border-radius\s*:\s*50%", line):
+                continue
+            # 移除 var() 內容再搜尋
+            line_no_var = re.sub(r"var\([^)]*\)", "", line)
+            if re.search(r"border-radius\s*:[^;]*\d+px", line_no_var):
+                violations.append(f"L{i}: {stripped}")
+        assert not violations, (
+            "motion_lab.html <style> border-radius 殘留裸 px 硬編碼（應改用 var(--fluent-radius-*)；"
+            "50% 及 var() 內 fallback 除外）：\n"
+            + "\n".join(violations)
+        )
+
+    def test_no_hardcoded_transition_duration_in_motion_lab_html(self):
+        """motion_lab.html <style> 區塊 transition 不應含裸數字秒數或非 fluent 前綴 alias 硬編碼
+
+        允許例外（留 Phase 2 處理，已標記白名單）：
+        - .picker-source-badge transition: background 0.15s
+        - .picker-check-icon transition: opacity 0.15s
+        這兩處屬 Picker demo 的細節 transition，Phase 1 不改動，Phase 2 統一處理。
+
+        非 fluent 前綴 alias 規則：
+        - 禁止 var(--duration-*) — 應改用 var(--fluent-duration-*)
+        - 禁止 var(--ease-*) — 應改用 var(--fluent-ease-*)
+        這些 alias 已在 theme.css 定義，但 motion_lab 的 <style> 應直接用 canonical token。
+        """
+        css = self._style_blocks()
+        lines = css.split("\n")
+        violations = []
+        # Phase 2 whitelist：picker demo 兩處細節 transition（已知，留 Phase 2 處理）
+        phase2_whitelist = {
+            "transition: background 0.15s;",
+            "transition: opacity 0.15s;",
+        }
+        for i, line in enumerate(lines, 1):
+            stripped = line.strip()
+            if stripped.startswith("/*") or stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            # Phase 2 whitelist
+            if stripped in phase2_whitelist:
+                continue
+            if "transition:" in line:
+                # 1. 裸數字秒數（不含任何 var(-- 前綴）
+                if re.search(r"transition:[^;]*\b0?\.\d+s\b", line) and "var(--" not in line:
+                    violations.append(f"L{i}: {stripped}")
+                    continue
+                # 2. 非 fluent 前綴 alias：var(--duration-*) 或 var(--ease-*)
+                #    （直接命中即是 alias，fluent 前綴版本為 var(--fluent-duration-*) 不命中此 pattern）
+                if re.search(r"var\(--(?:duration|ease)-", line):
+                    violations.append(f"L{i}: {stripped}")
+        assert not violations, (
+            "motion_lab.html <style> transition 殘留裸數字秒數或非 fluent 前綴 alias\n"
+            "（應改用 var(--fluent-duration-*) / var(--fluent-ease-*)；"
+            "picker 兩處 0.15s 已列 Phase 2 whitelist）：\n"
+            + "\n".join(violations)
+        )
+
+
+# ─── 52-T2.1: §5 Ease Roles Demo 守衛 ────────────────────────────────────────
+MOTION_LAB_HTML_T2 = Path(__file__).parent.parent.parent / "web" / "templates" / "motion_lab.html"
+MOTION_LAB_JS_T2 = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "motion-lab.js"
+
+
+class TestMotionLabT2EaseRoles:
+    """52-T2.1: 守衛 §5 Ease Roles 並排 demo 必要元素"""
+
+    def _html(self) -> str:
+        return MOTION_LAB_HTML_T2.read_text(encoding="utf-8")
+
+    def _js(self) -> str:
+        return MOTION_LAB_JS_T2.read_text(encoding="utf-8")
+
+    def test_html_contains_fluent_decel(self):
+        """motion_lab.html 含 fluent-decel 字樣（Ease Roles select 選項或 demo panel）"""
+        assert "fluent-decel" in self._html(), \
+            "motion_lab.html 缺少 fluent-decel（§5 Ease Roles select / demo panel 未加入）"
+
+    def test_html_contains_fluent_accel(self):
+        """motion_lab.html 含 fluent-accel 字樣（Ease Roles select 選項或 demo panel）"""
+        assert "fluent-accel" in self._html(), \
+            "motion_lab.html 缺少 fluent-accel（§5 Ease Roles select / demo panel 未加入）"
+
+    def test_html_has_ease_roles_tab(self):
+        """motion_lab.html tab bar 含 ease-roles tab button"""
+        assert "ease-roles" in self._html(), \
+            "motion_lab.html tab bar 缺少 ease-roles tab（§5 Ease Roles tab 未加入）"
+
+    def test_js_has_play_ease_roles_demo(self):
+        """motion-lab.js 含 playEaseRolesDemo 函式"""
+        assert "playEaseRolesDemo" in self._js(), \
+            "motion-lab.js 缺少 playEaseRolesDemo（§5 Ease Roles demo 函式未加入）"
+
+    def test_js_no_bare_back_out_in_stream(self):
+        """motion-lab.js playCardStreamIn 不含裸 power2.out / power3.out（已改 fluent-decel）"""
+        js = self._js()
+        # 找到 playCardStreamIn 區塊（到下一個函式前）
+        start = js.find("playCardStreamIn:")
+        assert start != -1, \
+            "playCardStreamIn 函式不見了；如果是重命名請更新此守衛"
+        end = js.find("\n        /**", start + 1)
+        block = js[start:end] if end != -1 else js[start:]
+        assert "power3.out" not in block, \
+            "playCardStreamIn 仍含 power3.out（應改為 fluent-decel）"
+        assert "power2.out" not in block, \
+            "playCardStreamIn 仍含 power2.out（應改為 fluent-decel）"
+
+
+MOTION_LAB_HTML_T2_2 = Path(__file__).parent.parent.parent / "web" / "templates" / "motion_lab.html"
+MOTION_LAB_JS_T2_2 = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "motion-lab.js"
+
+
+class TestMotionLabT2DurationBuckets:
+    """52-T2.2: 守衛 §5 Duration Buckets 並排 demo 必要元素"""
+
+    def _html(self) -> str:
+        return MOTION_LAB_HTML_T2_2.read_text(encoding="utf-8")
+
+    def _js(self) -> str:
+        return MOTION_LAB_JS_T2_2.read_text(encoding="utf-8")
+
+    def test_html_has_duration_buckets_tab(self):
+        """motion_lab.html tab bar 含 duration-buckets tab button"""
+        assert "duration-buckets" in self._html(), \
+            "motion_lab.html tab bar 缺少 duration-buckets tab（§5 Duration Buckets tab 未加入）"
+
+    def test_js_has_play_duration_buckets_demo(self):
+        """motion-lab.js 含 playDurationBucketsDemo 函式"""
+        assert "playDurationBucketsDemo" in self._js(), \
+            "motion-lab.js 缺少 playDurationBucketsDemo（§5 Duration Buckets demo 函式未加入）"
+
+    def test_html_shows_duration_fast_label(self):
+        """motion_lab.html 含 DURATION.fast 標籤（duration-buckets panel box label）"""
+        assert "DURATION.fast" in self._html(), \
+            "motion_lab.html 缺少 DURATION.fast 標籤（§5 Duration Buckets panel box label 未加入）"
+
+
+# ─── 52-T2.3: §5 Special Motion White-list Demo 守衛 ──────────────────────────
+MOTION_LAB_HTML_T2_3 = Path(__file__).parent.parent.parent / "web" / "templates" / "motion_lab.html"
+MOTION_LAB_JS_T2_3 = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "motion-lab.js"
+
+
+class TestMotionLabT2SpecialMotion:
+    """52-T2.3: 守衛 §5 Special Motion 白名單 demo 必要元素"""
+
+    def _html(self) -> str:
+        return MOTION_LAB_HTML_T2_3.read_text(encoding="utf-8")
+
+    def _js(self) -> str:
+        return MOTION_LAB_JS_T2_3.read_text(encoding="utf-8")
+
+    def test_html_has_special_motion_tab(self):
+        """motion_lab.html tab bar 含 special-motion tab button"""
+        assert "special-motion" in self._html(), \
+            "motion_lab.html tab bar 缺少 special-motion tab（§5 Special Motion 白名單 tab 未加入）"
+
+    def test_js_has_play_special_motion_checkmark_demo(self):
+        """motion-lab.js 含 playSpecialMotionCheckmarkDemo 函式"""
+        assert "playSpecialMotionCheckmarkDemo" in self._js(), \
+            "motion-lab.js 缺少 playSpecialMotionCheckmarkDemo（§5 Special Motion checkmark demo 函式未加入）"
+
+    def test_js_has_play_special_motion_shake_demo(self):
+        """motion-lab.js 含 playSpecialMotionShakeDemo 函式"""
+        assert "playSpecialMotionShakeDemo" in self._js(), \
+            "motion-lab.js 缺少 playSpecialMotionShakeDemo（§5 Special Motion shake demo 函式未加入）"
+
+    def test_js_has_play_special_motion_pulse_demo(self):
+        """motion-lab.js 含 playSpecialMotionPulseDemo 函式"""
+        assert "playSpecialMotionPulseDemo" in self._js(), \
+            "motion-lab.js 缺少 playSpecialMotionPulseDemo（§5 Special Motion pulse demo 函式未加入）"
+
+    def test_html_has_whitelist_skip_note(self):
+        """motion_lab.html special-motion panel 含 whitelist-skip-note 跳過說明"""
+        assert "whitelist-skip-note" in self._html(), \
+            "motion_lab.html 缺少 whitelist-skip-note（§5 Special Motion 跳過條目說明未加入）"

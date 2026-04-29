@@ -4191,35 +4191,6 @@ class TestGridPerPageGuard:
             "grid mode 下 perPage=0 必須降級為 120（this.perPage = 120）"
         )
 
-    def test_guard2_dropdown_all_has_mode_condition(self):
-        """Guard 2: 「全部」dropdown item 必須有 mode 條件"""
-        content = self.SHOWCASE_HTML.read_text(encoding='utf-8')
-        lines = content.split('\n')
-
-        # 找到包含 perPage = 0 或 perPage == 0 的行（全部選項）
-        perpage0_lines = []
-        for i, line in enumerate(lines):
-            if re.search(r'perPage\s*==?\s*0', line):
-                perpage0_lines.append((i, line))
-
-        assert perpage0_lines, "找不到 perPage=0 的 dropdown item"
-
-        # 至少有一行（全部選項的元素）包含 mode 相關條件
-        # 檢查該行及前後 2 行的上下文
-        found_mode_guard = False
-        for line_idx, _ in perpage0_lines:
-            context_start = max(0, line_idx - 2)
-            context_end = min(len(lines), line_idx + 3)
-            context = '\n'.join(lines[context_start:context_end])
-            if re.search(r"mode\s*[!=]==?\s*['\"]grid['\"]", context):
-                found_mode_guard = True
-                break
-
-        assert found_mode_guard, (
-            "F2 違規：showcase.html 的「全部」dropdown item (perPage=0) 缺少 mode 條件 — "
-            "grid mode 下「全部」選項必須 disabled 或隱藏"
-        )
-
     def test_guard3_restoreState_has_grid_perPage0_guard(self):
         """Guard 3: restoreState 必須含 grid+perPage=0 降級邏輯"""
         content = self.CORE_JS.read_text(encoding='utf-8')
@@ -4244,6 +4215,184 @@ class TestGridPerPageGuard:
         assert has_grid_check and has_downgrade, (
             "F2 違規：switchMode() 缺少 grid+perPage=0 降級 — "
             "切到 grid 時若 perPage=0 必須降級為 120"
+        )
+
+    def test_guard5_items_per_page_uses_nullish_coalescing(self):
+        """Guard 5 (T3.2 P2 fix): items_per_page 預設值必須用 `??` 而非 `||`
+
+        Settings UI 允許 items_per_page=0（"全部"選項，settings.html L663），
+        後端 `core/config.py:GalleryConfig.items_per_page` 沒有 gt=0 validator → 0 會透傳到前端。
+        若用 `||` 會把 0 視為 falsy 走 fallback 90，導致：
+          1. showcase init 永遠拿不到 0，grid+perPage=0→120 降級邏輯（Guard 1/3/4）永遠不觸發
+          2. settings 載入時把存檔的 0 顯示成 90，"全部" 選項失效
+
+        必須用 `??`（nullish coalescing）只對 null/undefined 走 fallback，保留 numeric 0。
+        """
+        showcase_core = self.CORE_JS.read_text(encoding='utf-8')
+        settings_js = (PROJECT_ROOT / 'web' / 'static' / 'js' / 'pages' / 'settings.js').read_text(encoding='utf-8')
+
+        # 禁止 `items_per_page || ...` pattern（吞 0 的寫法）
+        bad_pattern = re.compile(r'items_per_page\s*\|\|')
+        showcase_bad = bad_pattern.findall(showcase_core)
+        settings_bad = bad_pattern.findall(settings_js)
+        assert not showcase_bad, (
+            "T3.2 P2 違規：showcase/core.js 含 `items_per_page ||` — "
+            "Settings 的 items_per_page=0 ('全部') 會被吞成 fallback，必須改用 `??`"
+        )
+        assert not settings_bad, (
+            "T3.2 P2 違規：settings.js 含 `items_per_page ||` — "
+            "載入存檔的 items_per_page=0 ('全部') 會被吞成 fallback，必須改用 `??`"
+        )
+
+        # 正向斷言：showcase / settings 都必須有 `items_per_page ?? <number>` 寫法
+        good_pattern = re.compile(r'items_per_page\s*\?\?\s*\d+')
+        assert good_pattern.search(showcase_core), (
+            "T3.2 P2 違規：showcase/core.js 缺少 `items_per_page ?? <number>` 預設值寫法"
+        )
+        assert good_pattern.search(settings_js), (
+            "T3.2 P2 違規：settings.js 缺少 `items_per_page ?? <number>` 預設值寫法"
+        )
+
+
+class TestShowcasePerPageRemoval:
+    """T3.2 (CD-52-3): showcase toolbar perPage selector 已移除守衛
+
+    禁止 perPageOpen / onPerPageChange 等已移除符號回歸。
+    settings 的 items_per_page UI 不在此守衛範圍。
+    """
+
+    SHOWCASE_HTML = PROJECT_ROOT / 'web' / 'templates' / 'showcase.html'
+    SHOWCASE_CORE_JS = PROJECT_ROOT / 'web' / 'static' / 'js' / 'pages' / 'showcase' / 'core.js'
+    LOCALE_ZH_TW = PROJECT_ROOT / 'locales' / 'zh_TW.json'
+
+    def test_showcase_html_no_perPageOpen(self):
+        """showcase.html 不再含 perPageOpen state binding（toolbar dropdown 已刪）"""
+        content = self.SHOWCASE_HTML.read_text(encoding='utf-8')
+        assert 'perPageOpen' not in content, (
+            "T3.2 違規：showcase.html 不應再含 perPageOpen — "
+            "toolbar perPage dropdown 已於 T3.2 (CD-52-3) 移除"
+        )
+
+    def test_showcase_html_no_onPerPageChange(self):
+        """showcase.html 不再含 onPerPageChange handler 呼叫"""
+        content = self.SHOWCASE_HTML.read_text(encoding='utf-8')
+        assert 'onPerPageChange' not in content, (
+            "T3.2 違規：showcase.html 不應再含 onPerPageChange — "
+            "toolbar perPage dropdown 已於 T3.2 (CD-52-3) 移除"
+        )
+
+    def test_showcase_core_js_no_perPageOpen_state(self):
+        """core.js 不再含 perPageOpen: state property"""
+        content = self.SHOWCASE_CORE_JS.read_text(encoding='utf-8')
+        assert 'perPageOpen:' not in content, (
+            "T3.2 違規：showcase/core.js 不應再含 perPageOpen state property — "
+            "toolbar perPage dropdown 已於 T3.2 (CD-52-3) 移除"
+        )
+
+    def test_showcase_core_js_no_onPerPageChange_method(self):
+        """core.js 不再含 onPerPageChange() method"""
+        content = self.SHOWCASE_CORE_JS.read_text(encoding='utf-8')
+        assert 'onPerPageChange()' not in content, (
+            "T3.2 違規：showcase/core.js 不應再含 onPerPageChange() method — "
+            "toolbar perPage dropdown 已於 T3.2 (CD-52-3) 移除"
+        )
+
+    def test_locale_zh_tw_no_per_page_keys(self):
+        """zh_TW.json 不再含 showcase.toolbar.per_page_prefix 與 showcase.per_page 段"""
+        content = self.LOCALE_ZH_TW.read_text(encoding='utf-8')
+        assert 'per_page_prefix' not in content, (
+            "T3.2 違規：zh_TW.json 不應再含 per_page_prefix — "
+            "showcase toolbar perPage 已於 T3.2 (CD-52-3) 移除"
+        )
+        # 檢查 showcase.per_page 段（注意避開 settings.gallery.items_per_page_label / help.other_per_page）
+        assert '"per_page":' not in content, (
+            "T3.2 違規：zh_TW.json 不應再含 showcase.per_page 段（含 \"all\": \"全部\"） — "
+            "showcase toolbar perPage 已於 T3.2 (CD-52-3) 移除"
+        )
+
+
+class TestShowcaseRemoveActressNoNativeConfirm:
+    """T3.3 (CD-52-11): removeActress 改 fluent-modal 後 showcase/core.js 不再用 native confirm
+
+    確保 window.confirm 不回歸（fluent-modal pattern 取代）。
+    """
+
+    SHOWCASE_CORE_JS = PROJECT_ROOT / 'web' / 'static' / 'js' / 'pages' / 'showcase' / 'core.js'
+
+    def test_showcase_no_native_confirm(self):
+        """T3.3: removeActress 改 fluent-modal 後 showcase/core.js 不再用 window.confirm"""
+        core_js = self.SHOWCASE_CORE_JS.read_text(encoding="utf-8")
+        assert "window.confirm(" not in core_js, (
+            "T3.3 違規：removeActress() native confirm 已於 T3.3 替換為 fluent-modal — "
+            "showcase/core.js 不應再含 window.confirm("
+        )
+
+
+class TestSettingsResetConfigNoNativeConfirm:
+    """T3.4 (CD-52-11): resetConfig 改 fluent-modal 後 settings.js 不再含原 confirm 文字
+
+    用「資料指紋」式精準字串匹配，避免誤命中 cycleLocale (L262) 既有 confirm —
+    該 confirm 屬 backlog，不在 Phase 52 範圍。
+    """
+
+    SETTINGS_JS = PROJECT_ROOT / 'web' / 'static' / 'js' / 'pages' / 'settings.js'
+
+    def test_settings_resetconfig_no_native_confirm(self):
+        """T3.4: resetConfig 改 fluent-modal 後 settings.js 不再含原 confirm 完整文字
+
+        守衛字串對齊舊 native confirm 完整文（含尾句號），與新 i18n key 內容
+        ('...無法復原。') 不重疊，避免 fallback 內聯時誤觸發。
+        """
+        settings_js = self.SETTINGS_JS.read_text(encoding="utf-8")
+        assert "確定要重置所有設定嗎？此操作將刪除所有自訂設定。" not in settings_js, (
+            "T3.4 違規：resetConfig() native confirm 已於 T3.4 替換為 fluent-modal — "
+            "settings.js 不應再含舊 native confirm 完整字串"
+        )
+
+
+class TestScannerDeleteAliasGroupNoNativeConfirm:
+    """T3.5 (CD-52-11): deleteAliasGroup 改 fluent-modal 後 scanner.js 不再含原 confirm 完整文字
+
+    用「資料指紋」式精準字串匹配，避免誤命中 L239 page-lifecycle confirm
+    （'確定要離開嗎？' — backlog OQ 不在 Phase 52 範圍）+ L734 clearLogs
+    confirm（'確定要清除所有日誌嗎？...' — Phase 52 不入）。
+
+    額外 assert 三個新 method 名個別存在（避免假陰性 — 若 deleteAliasGroup
+    被混進 confirmRemoveActress 等不相關名稱，弱守衛仍會 pass）。
+    """
+
+    SCANNER_JS = PROJECT_ROOT / 'web' / 'static' / 'js' / 'pages' / 'scanner.js'
+
+    def test_scanner_no_delete_alias_group_native_confirm(self):
+        """T3.5: deleteAliasGroup native confirm 已替換為 fluent-modal"""
+        scanner_js = self.SCANNER_JS.read_text(encoding="utf-8")
+        # 守衛舊 native confirm 完整文字（含「確定要刪除「」+ 「整筆別名組嗎？」）
+        assert "確定要刪除「" not in scanner_js, (
+            "T3.5 違規：deleteAliasGroup() native confirm 已於 T3.5 替換為 fluent-modal"
+        )
+        assert "整筆別名組嗎？" not in scanner_js, (
+            "T3.5 違規：deleteAliasGroup() native confirm 已於 T3.5 替換為 fluent-modal"
+        )
+
+    def test_scanner_has_delete_alias_group_modal_methods(self):
+        """T3.5: 三個新 method 個別存在（強守衛,避免名字混過去）"""
+        scanner_js = self.SCANNER_JS.read_text(encoding="utf-8")
+        # 個別 assert，避免「deleteAliasGroup in scanner.js」這種會被舊名混過去的弱 guard
+        assert "openDeleteAliasGroupModal" in scanner_js, (
+            "T3.5 違規：openDeleteAliasGroupModal method 應存在（modal trigger 入口）"
+        )
+        assert "confirmDeleteAliasGroup" in scanner_js, (
+            "T3.5 違規：confirmDeleteAliasGroup method 應存在（API 執行入口）"
+        )
+        assert "cancelDeleteAliasGroupModal" in scanner_js, (
+            "T3.5 違規：cancelDeleteAliasGroupModal method 應存在（dismiss 入口）"
+        )
+
+    def test_scanner_html_escape_ladder_includes_delete_alias_group(self):
+        """T3.5: scanner.html root escape.window ladder 含 deleteAliasGroupModalOpen"""
+        scanner_html = (PROJECT_ROOT / 'web' / 'templates' / 'scanner.html').read_text(encoding="utf-8")
+        assert "deleteAliasGroupModalOpen && cancelDeleteAliasGroupModal" in scanner_html, (
+            "T3.5 違規：scanner.html root @keydown.escape.window 應串接 deleteAliasGroupModal 的 cancel"
         )
 
 
@@ -4937,3 +5086,73 @@ class TestGhostFlyPlayLightboxOpen:
         js = self.GHOST_FLY_JS.read_text(encoding='utf-8')
         assert 'timelineId' in js, \
             "ghost-fly.js playLightboxOpen 缺少 timelineId opt — CD-51-16 介面未植入"
+
+
+class TestT36ToastI18nKeys:
+    """T3.6 (CD-52-11): alert→toast 改寫後新 i18n keys 必須存在於 zh_TW.json"""
+
+    LOCALE_FILE = PROJECT_ROOT / "locales" / "zh_TW.json"
+
+    REQUIRED_KEYS = [
+        # scanner.toast (6)
+        "scanner.toast.desktop_only",
+        "scanner.toast.folder_already_added",
+        "scanner.toast.copy_path_failed",
+        "scanner.toast.generate_error",
+        "scanner.toast.nfo_update_error",
+        "scanner.toast.jellyfin_update_error",
+        # scanner.copy_fail_modal (3)
+        "scanner.copy_fail_modal.title",
+        "scanner.copy_fail_modal.body",
+        "scanner.copy_fail_modal.close",
+        # settings.toast (1)
+        "settings.toast.desktop_only",
+        # search.toast (4)
+        "search.toast.no_valid_files",
+        "search.toast.desktop_only",
+        "search.toast.load_failed",
+        "search.toast.translate_failed",
+    ]
+
+    def test_all_t36_keys_exist_in_zh_tw(self):
+        import json
+        data = json.loads(self.LOCALE_FILE.read_text(encoding="utf-8"))
+
+        def get_nested(d, dotted):
+            cur = d
+            for part in dotted.split("."):
+                if not isinstance(cur, dict) or part not in cur:
+                    return None
+                cur = cur[part]
+            return cur if isinstance(cur, str) else None
+
+        missing = [k for k in self.REQUIRED_KEYS if get_nested(data, k) is None]
+        assert not missing, f"T3.6 違規：zh_TW.json 缺 i18n keys：{missing}"
+
+
+class TestScannerCopyFailModal:
+    """T3.6: scanner.html copyFailModal markup + scanner.js 三 method + escape ladder"""
+
+    SCANNER_JS = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "scanner.js"
+    SCANNER_HTML = PROJECT_ROOT / "web" / "templates" / "scanner.html"
+
+    def test_scanner_js_has_copy_fail_modal_methods(self):
+        content = self.SCANNER_JS.read_text(encoding="utf-8")
+        assert "openCopyFailModal" in content, \
+            "T3.6: openCopyFailModal method 應存在（取代 L728 truncated alert）"
+        assert "closeCopyFailModal" in content, \
+            "T3.6: closeCopyFailModal method 應存在"
+        assert "copyFailModalOpen" in content, \
+            "T3.6: copyFailModalOpen state 應存在"
+
+    def test_scanner_html_has_copy_fail_modal_markup(self):
+        content = self.SCANNER_HTML.read_text(encoding="utf-8")
+        assert "copy_fail_modal.title" in content, \
+            "T3.6: scanner.html 應有 copy_fail_modal markup（i18n key）"
+        assert "copy-fail-pre" in content, \
+            "T3.6: scanner.html copyFailModal 應含 .copy-fail-pre class"
+
+    def test_scanner_html_escape_ladder_includes_copy_fail_modal(self):
+        content = self.SCANNER_HTML.read_text(encoding="utf-8")
+        assert "copyFailModalOpen && closeCopyFailModal" in content, \
+            "T3.6: scanner.html root @keydown.escape.window 應串接 copyFailModal 的 close"
