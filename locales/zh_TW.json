@@ -434,7 +434,13 @@
       "confirm": "確認加入",
       "delete_group_title": "刪除此女優別名組",
       "delete_alias_title": "移除此別名",
-      "error_conflict": "別名衝突"
+      "error_conflict": "別名衝突",
+      "delete_group_modal": {
+        "title": "刪除別名組",
+        "body": "確定要刪除「{name}」的整筆別名組嗎？此操作無法復原。",
+        "cancel": "取消",
+        "confirm": "確認刪除"
+      }
     },
     "dirty_modal": {
       "title": "尚未儲存的變更",

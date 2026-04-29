@@ -55,6 +55,11 @@ function scannerPage() {
     onlineSearchTarget: '',      // 要加到哪個 primary_name
     onlineSearchDone: false,     // 搜尋完成旗標（用於顯示「無搜尋建議」）
 
+    // ===== Alias v2: Delete Group Modal (T3.5) =====
+    deleteAliasGroupModalOpen: false,
+    _deleteAliasGroupLoading: false,
+    _pendingDeleteAliasGroupName: null,
+
     // ===== T7b: State Machine =====
     state: 'idle',  // 'idle' | 'generating' | 'nfoUpdating' | 'done' | 'error'
 
@@ -1281,9 +1286,32 @@ function scannerPage() {
     },
 
     // ===== Alias v2: Delete Group =====
-    async deleteAliasGroup(name) {
-        if (!confirm(`確定要刪除「${name}」的整筆別名組嗎？`)) return;
+    // T3.5: thin wrapper, 保留外部呼叫名（template @click="deleteAliasGroup(...)" 不需動）
+    deleteAliasGroup(name) {
+        this.openDeleteAliasGroupModal(name);
+    },
 
+    // ===== Alias v2: Delete Group Modal — Open (T3.5) =====
+    openDeleteAliasGroupModal(name) {
+        this._pendingDeleteAliasGroupName = name;
+        this.deleteAliasGroupModalOpen = true;
+    },
+
+    // ===== Alias v2: Delete Group Modal — Cancel (T3.5) =====
+    cancelDeleteAliasGroupModal() {
+        this.deleteAliasGroupModalOpen = false;
+        this._pendingDeleteAliasGroupName = null;
+    },
+
+    // ===== Alias v2: Delete Group Modal — Confirm (T3.5) =====
+    async confirmDeleteAliasGroup() {
+        const name = this._pendingDeleteAliasGroupName;
+        if (!name) {
+            this.deleteAliasGroupModalOpen = false;
+            this._pendingDeleteAliasGroupName = null;
+            return;
+        }
+        this._deleteAliasGroupLoading = true;
         try {
             const resp = await fetch(`/api/actress-aliases/${encodeURIComponent(name)}`, {
                 method: 'DELETE'
@@ -1298,6 +1326,10 @@ function scannerPage() {
             }
         } catch (e) {
             this.showToast('刪除失敗: ' + e.message, 'error');
+        } finally {
+            this._deleteAliasGroupLoading = false;
+            this.deleteAliasGroupModalOpen = false;
+            this._pendingDeleteAliasGroupName = null;
         }
     },
 

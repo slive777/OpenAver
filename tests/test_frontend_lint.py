@@ -4350,6 +4350,52 @@ class TestSettingsResetConfigNoNativeConfirm:
         )
 
 
+class TestScannerDeleteAliasGroupNoNativeConfirm:
+    """T3.5 (CD-52-11): deleteAliasGroup 改 fluent-modal 後 scanner.js 不再含原 confirm 完整文字
+
+    用「資料指紋」式精準字串匹配，避免誤命中 L239 page-lifecycle confirm
+    （'確定要離開嗎？' — backlog OQ 不在 Phase 52 範圍）+ L734 clearLogs
+    confirm（'確定要清除所有日誌嗎？...' — Phase 52 不入）。
+
+    額外 assert 三個新 method 名個別存在（避免假陰性 — 若 deleteAliasGroup
+    被混進 confirmRemoveActress 等不相關名稱，弱守衛仍會 pass）。
+    """
+
+    SCANNER_JS = PROJECT_ROOT / 'web' / 'static' / 'js' / 'pages' / 'scanner.js'
+
+    def test_scanner_no_delete_alias_group_native_confirm(self):
+        """T3.5: deleteAliasGroup native confirm 已替換為 fluent-modal"""
+        scanner_js = self.SCANNER_JS.read_text(encoding="utf-8")
+        # 守衛舊 native confirm 完整文字（含「確定要刪除「」+ 「整筆別名組嗎？」）
+        assert "確定要刪除「" not in scanner_js, (
+            "T3.5 違規：deleteAliasGroup() native confirm 已於 T3.5 替換為 fluent-modal"
+        )
+        assert "整筆別名組嗎？" not in scanner_js, (
+            "T3.5 違規：deleteAliasGroup() native confirm 已於 T3.5 替換為 fluent-modal"
+        )
+
+    def test_scanner_has_delete_alias_group_modal_methods(self):
+        """T3.5: 三個新 method 個別存在（強守衛,避免名字混過去）"""
+        scanner_js = self.SCANNER_JS.read_text(encoding="utf-8")
+        # 個別 assert，避免「deleteAliasGroup in scanner.js」這種會被舊名混過去的弱 guard
+        assert "openDeleteAliasGroupModal" in scanner_js, (
+            "T3.5 違規：openDeleteAliasGroupModal method 應存在（modal trigger 入口）"
+        )
+        assert "confirmDeleteAliasGroup" in scanner_js, (
+            "T3.5 違規：confirmDeleteAliasGroup method 應存在（API 執行入口）"
+        )
+        assert "cancelDeleteAliasGroupModal" in scanner_js, (
+            "T3.5 違規：cancelDeleteAliasGroupModal method 應存在（dismiss 入口）"
+        )
+
+    def test_scanner_html_escape_ladder_includes_delete_alias_group(self):
+        """T3.5: scanner.html root escape.window ladder 含 deleteAliasGroupModalOpen"""
+        scanner_html = (PROJECT_ROOT / 'web' / 'templates' / 'scanner.html').read_text(encoding="utf-8")
+        assert "deleteAliasGroupModalOpen && cancelDeleteAliasGroupModal" in scanner_html, (
+            "T3.5 違規：scanner.html root @keydown.escape.window 應串接 deleteAliasGroupModal 的 cancel"
+        )
+
+
 class TestSampleGalleryTemplateGuard:
     """T8：Search Sample Gallery 模板守衛
 
