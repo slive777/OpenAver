@@ -38,6 +38,7 @@
   - `console.*`
   - technical terms such as NFO, API Key, Jellyfin, Proxy
   - browser/platform built-in text
+  - **`design-system` and `motion-lab` page demo content** — these are internal dev-reference pages (not in main nav, not user-facing), and demo labels often contain Fluent design tokens (`fluent-decel`, `Acrylic 30px`, `--surface-1` etc.) that should not be translated. Page chrome (nav / page title) still goes through i18n; only demo body text is exempt.
 - At milestone/release, all 4 locales must have identical key sets.
 
 ### General code quality
