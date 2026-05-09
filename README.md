@@ -110,10 +110,10 @@ irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex
 - 日文標題一鍵翻譯為你的 UI 語系（繁中 / 简中 / 英文），日文模式跳過翻譯。
 - 支援 **Ollama**（本地 GPU，免費無限制）、**Gemini Flash**（Google 雲端，有免費額度）和 **OpenAI API Compatible**（OpenRouter、任意相容端點）。
 
-### 🪄 以圖搜圖（Beta）
-- 用 **OpenAI CLIP** 模型把每張封面轉成 512 維特徵向量檔，計算 cosine similarity 找出視覺風格、構圖、女優最相似的影片。
+### 🔍 相似影片探索
+- 規則式 metadata 多訊號比對（tag IDF + 系列 / 片商 / 年份 / cast），找出同類風格的影片。
 - Showcase Lightbox 點魔杖按鈕 → 12 顆星辰環繞主圖、香檳金星線連結中央 → 點任一顆「鑽入」變新主圖無限探索。
-- 預設關閉（opt-in），Settings 啟用後下載 80MB INT8 量化模型，全程本地推論不上傳。
+- 開箱即用，無需下載模型，不依賴 GPU，本地計算毫秒級回應。
 
 ### ⚙️ Settings（設定）
 - **多語系 UI**：繁中 / 简中 / 日文 / 英文，即時切換。

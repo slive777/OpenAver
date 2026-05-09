@@ -1,5 +1,5 @@
 """
-tests/integration/test_clip_lab_route_removed.py
+tests/integration/test_legacy_routes_removed.py
 
 56b-T3: 驗證 /clip-lab 路由已完全移除。
 - GET /clip-lab → 404
