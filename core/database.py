@@ -619,18 +619,6 @@ class VideoRepository:
         finally:
             conn.close()
 
-    def update_clip_embedding(self, video_id: int, embedding_bytes: bytes, model_id: str) -> bool:
-        """更新指定影片的 embedding（原子操作）。
-
-        Returns:
-            bool: True 若更新成功（rowcount > 0），False 若 video_id 不存在
-        """
-        raise NotImplementedError("removed in v0.8.7")  # stub, 57d 連帶刪
-
-    def get_videos_pending_clip_indexing(self, model_id: str) -> List[Video]:
-        """回傳需要（重）建向量索引的影片（已移除，57d 連帶刪）。"""
-        raise NotImplementedError("removed in v0.8.7")  # stub, 57d 連帶刪
-
     def get_by_id(self, video_id: int) -> Optional[Video]:
         """根據整數 id 查詢單筆影片（供 T6 主端點使用）。
 
@@ -900,14 +888,6 @@ class VideoRepository:
         finally:
             conn.close()
         return row is not None
-
-    def clear_all_clip_embeddings(self) -> int:
-        """清空所有影片的向量索引狀態（已移除，57d 連帶刪）。
-
-        Returns:
-            被清除的列數。
-        """
-        raise NotImplementedError("removed in v0.8.7")  # stub, 57d 連帶刪
 
 
 def migrate_json_to_sqlite(json_path: Path, db_path: Path = None,
