@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.8] - 2026-05-13
+
+本版是 v0.9 release candidate 前的 polish 包（feature/58-tag-alias-polish），雙主軸出貨：**主軸 A — alias / 變體一致性**（A1 Scanner 多字母後綴 regex / A2 女優 alias 換頭像本地展開 / A3 跨語言 Tag Alias 系統 / A4 AI tag 揭露端點 / A5 規則式相似探索吃 DB tag_aliases）；**主軸 B — Search→Showcase pipeline 即時化**（B0 最愛資料夾 NFO skip / B1 Scanner dropdown picker + inline 連動狀態 / B2 整理完即時寫 DB + GhostFly 飛到 sidebar Showcase icon）。共通主題是「同一概念有多種表記法」（`アリス = 愛麗絲 = Alice`、`メイド = 女僕`、`abp-321 = abp-321ch`）在系統內各路徑的處理一致化。
+
+*This release is the v0.9 release candidate polish bundle (feature/58-tag-alias-polish). Two tracks: **Track A — alias / variant consistency** (A1 Scanner multi-letter suffix regex, A2 actress alias expand on local photo candidates, A3 cross-language Tag Alias system, A4 AI tag capability, A5 rule-based similar discovery reads DB tag_aliases); **Track B — Search→Showcase pipeline real-time** (B0 favorite folder NFO skip, B1 Scanner dropdown picker + inline link status, B2 in-flow DB upsert + GhostFly fly-to-sidebar animation). Common theme: the same concept rendered multiple ways gets consistent handling across every code path.*
+
+### Added
+
+#### 🏷️ 58 — Tag Alias & Pre-release Polish（A 軌 alias / B 軌 pipeline）
+
+**主軸 A — Alias 一致性**
+
+- **A1 Scanner 檔名 regex 擴張**：`core/gallery_scanner.py` `NUM_PATTERNS` 尾段 `[a-z]` → `[a-z]+`，支援 `abp-321ch.mp4` / `ipzz-789ch.mp4` / `abp-321uncen.mp4` 等多字母後綴。負面 case 不誤抓（`my-vacation-2024` 前綴超過 6 字母上限、`abp-3212024` 無分隔符避免主番號貪婪衝突）
+- **A2 女優換頭像本地候選 alias 展開**：`/api/actresses/{name}/photo-candidates` 本地路徑先呼叫 `AliasRepository.resolve(name)` 展開 alias set 再多名查詢，雲端路徑（graphis / gfriends / wiki / minnano）保持只用 primary 名（避免錯人）
+- **A3 跨語言 Tag Alias 系統**：
+  - 新 `tag_aliases` DB 表（鏡射 `actress_aliases` schema）+ `TagAliasRepository` + 6 條 CRUD 端點（`web/routers/tag_alias.py`，prefix `/api/tag-aliases`，409 衝突回應）
+  - Scanner 新「Tag 別名管理」緊湊 chip 牆卡片（多 group 連續排列 `flex-wrap`，組間 `1.5rem` / 組內 `0.25rem` 純 spacing 分組；primary 粉紅 / alias 灰沿用 actress 同色系）+ icon-only `+` 加 alias 按鈕 + AI hint popover（卡片右上 `?` 含 tooltip + window-narrow fallback）
+  - Showcase tag chip 點擊 / 搜尋框輸入皆自動展開同義詞（對齊 actress alias `_nameToGroup` 既有 contract，`_tagToGroup` 雙向 case-insensitive map）
+  - 既有 actress alias `+ + 別名` 按鈕 bug 順手修正
+- **A4 AI Tag 揭露端點**：`GET /api/tags/top?limit=N&min_count=M`（json_each SQL，預設 limit=100 max=500、min_count=2）+ capabilities.json 三條 entry（`tag_alias_crud_read` / `tag_alias_crud_write` 含 `side_effect=true` + `confirmation_required=true` + 風險說明 / `tags_top`）；同義判斷外包給 agent 端 LLM，後端純資料供應
+- **A5 SimilarRanker DB 整合**：`core/similar/canonicalize.py` 載入時 lazy merge hardcoded 18 對 + DB partition groups（DB 優先），module-level dict cache；A3 CRUD 4 條寫入端點成功後自動呼叫 `_invalidate_cache()` + `SimilarRanker._instance_cache_invalidate()` → 用戶建 alias 後星座模式立即生效，不需重啟。DB read 失敗 try/except + warning，靜默 fallback 回 hardcoded-only
+
+**主軸 B — Search→Showcase pipeline 即時化**
+
+- **B0 最愛資料夾 NFO skip**：`POST /api/search/filter-files` response `files` 從 `list[str]` → `list[{path, has_nfo}]`，判定為「同目錄 stem case-insensitive + 副檔名 `.nfo` case-insensitive」（不開內容、不查 DB、不看封面）。前端 `searchableFiles` / `failedFiles` 雙 filter 加 `!f.has_nfo` guard，已整理檔顯示灰字「已整理」chip 但不自動 scrape — flat 結構 favorite folder 不再每次重打外部 API
+- **B1 Scanner dropdown picker + inline 連動狀態**：Settings「我的最愛資料夾」加「從 Scanner 追蹤資料夾選擇」dropdown 按鈕（純前端 Web browser 也能用）+ inline `text-sm` 連動狀態行（綠字 `✓ 已連動 Scanner` / 黃字 `⚠ 不在追蹤範圍`）。新端點 `GET /api/settings/favorite-scanner-link` + helper `core/settings_link.py:find_matched_directory()` 走 `path_utils.py` + path_mappings 跨平台 WSL/NAS 比對
+- **B2 Search 整理完即時寫 DB + GhostFly 完成動畫**：`organize_file()` 成功後 `core/db_inflow.py:try_inflow_upsert()` 依 `find_matched_directory()` 判斷目標路徑，若在 Scanner `gallery.directories` 範圍內 → `VideoScanner.scan_file()` → `VideoRepository.upsert(video)`（path file:/// URI 為冪等 key）。response 加 `db_sync_status` 三態 enum（`synced` / `not_linked` / `failed`），前端 `synced` → `GhostFly.playToIcon()` 封面從來源飛到 `#sidebar-showcase-link` 並 `pulse-once`，`not_linked` / `failed` → 對應 toast。失敗 try/except 不影響 organize 結果
+
+### Changed
+
+- **GhostFly API**：新增 `playToIcon(fromEl, toEl, options)` method（`web/static/js/shared/ghost-fly.js`），支援任意 element 為終點（B2 sidebar icon 飛行用），既有 `playGridToLightbox` / `playLightboxToGrid` 不動
+- **Scanner alias 區「+ 別名」按鈕**：actress alias 既有 icon `+` 與文字 `+ 別名` 渲染重複加號 bug 修正為單 `+`；tag alias 區直接採 icon-only `+` 配 aria-label
+- **規則式相似探索 canonicalize**：從 hardcoded-only → hardcoded + DB partition map merge，hardcoded 18 對永久保留作 offline fallback 不污染 DB
+
+### Fixed
+
+- B0/B1/B2 Codex review 一輪：path_utils 合規 + WSL mapping + .nfo 資料夾誤判（誤把資料夾內含 `.nfo` 視為單檔 has_nfo）
+- B1 Scanner dropdown trigger 點開立刻被自身 `@click.outside` 關閉 → 加 `@click.stop`
+- A5 Codex review：SimilarRanker 既有 instance cache 同步 invalidate（避免 ranker 拿舊 alias map）+ alias key 小寫正規化對齊比對端
+- A3-3 Codex P2/P3：(?) tooltip 鍵盤 enter/space 冒泡到 header 觸發 collapse + narrow-screen popover 向右 overflow
+- A3 Tag 別名管理 (?) tooltip 被 `space-between` 推到中間 → `margin-right: auto` 貼齊標題
+- B1 dropdown 背景透明 → inline style token 名稱錯誤（`--color-bg-surface` 等 5 個變數查無），對齊 design-system `.toolbar-dropdown` 標準 token
+- B2 scrapeAll 漏接 `db_sync_status` + 起飛點寫死 `#resultCover` 在 grid/file-list 視角 width=0 → 抽 `_handleDbSyncFeedback` 共用 helper + `_findDbSyncSourceEl` 五級 fallback 確保任何視角都有可見起飛點
+
+### Internal
+
+- 移除 `tests/unit/test_frontend_lint.py` 兩個違反 CLAUDE.md「Lint 守衛規則」的 pytest class（`TestShowcaseTagAliasGuard` / `TestScannerTagAliasGuard`）— 對齊 v0.8.5 確立的 eslint/stylelint 守衛遷移政策
+
 ## [0.8.7] - 2026-05-10
 
 本版拔除 v0.8.6「以圖搜圖（CLIP Visual Search, Beta）」全部 ML 引擎，改為純規則式 metadata 多訊號相似搜尋。
