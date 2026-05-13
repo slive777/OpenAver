@@ -75,6 +75,21 @@ class TestFilterFilesHasNfo:
         assert data["files"] == []
         assert data["total_rejected"] == 0
 
+    def test_nfo_directory_not_counted_as_nfo(self, client, tmp_path):
+        """Case 6: 同 stem 的 .nfo 是目錄（非檔）→ has_nfo === False（is_file() guard）"""
+        mp4 = self._make_mp4(tmp_path, "foo.mp4")
+        nfo_dir = tmp_path / "foo.nfo"
+        nfo_dir.mkdir()  # 建資料夾，不是檔案
+
+        resp = client.post("/api/search/filter-files", json={
+            "paths": [str(mp4)]
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        file_entry = data["files"][0]
+        assert file_entry["has_nfo"] is False
+
     def test_permission_error_on_iterdir(self, client, tmp_path, monkeypatch):
         """Case 5: 父目錄 iterdir() 引發 PermissionError → has_nfo === False，不回 500"""
         mp4 = self._make_mp4(tmp_path, "PERM.mp4")

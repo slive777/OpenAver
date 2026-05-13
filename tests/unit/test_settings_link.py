@@ -4,15 +4,7 @@ Unit tests for core/settings_link.py — find_matched_directory()
 """
 import pytest
 from unittest.mock import patch
-
-
-# ─────────────────────────────────────────────
-# helpers
-# ─────────────────────────────────────────────
-
-def _uri(path: str) -> str:
-    """快速建 file:/// URI (test-only helper，不走 to_file_uri)"""
-    return f"file:///{path.lstrip('/')}"
+from core.path_utils import to_file_uri as _real_to_file_uri
 
 
 # ─────────────────────────────────────────────
@@ -45,7 +37,7 @@ class TestExactMatch:
         """favorite 精確等於 directory → 回傳該 directory"""
         with patch('core.settings_link.expand_env_vars', return_value='/mnt/e/media'), \
              patch('core.settings_link.normalize_path', side_effect=lambda x: x), \
-             patch('core.settings_link.to_file_uri', side_effect=lambda p, pm=None: f"file:///{p.lstrip('/')}"):
+             patch('core.settings_link.to_file_uri', side_effect=_real_to_file_uri):
             result = find_matched_directory('/mnt/e/media', ['/mnt/e/media'])
         assert result == '/mnt/e/media'
 
@@ -53,7 +45,7 @@ class TestExactMatch:
         """多個 directories，精確命中第一個"""
         with patch('core.settings_link.expand_env_vars', return_value='/mnt/e/media'), \
              patch('core.settings_link.normalize_path', side_effect=lambda x: x), \
-             patch('core.settings_link.to_file_uri', side_effect=lambda p, pm=None: f"file:///{p.lstrip('/')}"):
+             patch('core.settings_link.to_file_uri', side_effect=_real_to_file_uri):
             result = find_matched_directory(
                 '/mnt/e/media',
                 ['/mnt/e/media', '/mnt/f/videos']
@@ -70,7 +62,7 @@ class TestSubdirectoryMatch:
         """favorite 是某 directory 子目錄 → 回傳父 directory"""
         with patch('core.settings_link.expand_env_vars', return_value='/mnt/e/media/jav'), \
              patch('core.settings_link.normalize_path', side_effect=lambda x: x), \
-             patch('core.settings_link.to_file_uri', side_effect=lambda p, pm=None: f"file:///{p.lstrip('/')}"):
+             patch('core.settings_link.to_file_uri', side_effect=_real_to_file_uri):
             result = find_matched_directory(
                 '/mnt/e/media/jav',
                 ['/mnt/e/media', '/mnt/f/videos']
@@ -87,7 +79,7 @@ class TestNoMatch:
         """favorite 不在任何 directory 範圍 → None"""
         with patch('core.settings_link.expand_env_vars', return_value='/mnt/g/other'), \
              patch('core.settings_link.normalize_path', side_effect=lambda x: x), \
-             patch('core.settings_link.to_file_uri', side_effect=lambda p, pm=None: f"file:///{p.lstrip('/')}"):
+             patch('core.settings_link.to_file_uri', side_effect=_real_to_file_uri):
             result = find_matched_directory(
                 '/mnt/g/other',
                 ['/mnt/e/media', '/mnt/f/videos']
@@ -98,7 +90,7 @@ class TestNoMatch:
         """E:/media 不可誤匹配 E:/media2 (前綴碰撞防護)"""
         with patch('core.settings_link.expand_env_vars', return_value='/mnt/e/media2'), \
              patch('core.settings_link.normalize_path', side_effect=lambda x: x), \
-             patch('core.settings_link.to_file_uri', side_effect=lambda p, pm=None: f"file:///{p.lstrip('/')}"):
+             patch('core.settings_link.to_file_uri', side_effect=_real_to_file_uri):
             result = find_matched_directory(
                 '/mnt/e/media2',
                 ['/mnt/e/media']
@@ -114,7 +106,7 @@ class TestEmptyDirectories:
     def test_empty_directories_list_returns_none(self):
         with patch('core.settings_link.expand_env_vars', return_value='/mnt/e/media'), \
              patch('core.settings_link.normalize_path', side_effect=lambda x: x), \
-             patch('core.settings_link.to_file_uri', side_effect=lambda p, pm=None: f"file:///{p.lstrip('/')}"):
+             patch('core.settings_link.to_file_uri', side_effect=_real_to_file_uri):
             result = find_matched_directory('/mnt/e/media', [])
         assert result is None
 
@@ -130,7 +122,7 @@ class TestPathMappings:
 
         def fake_to_file_uri(p, pm=None):
             call_args.append(pm)
-            return f"file:///{p.lstrip('/')}"
+            return _real_to_file_uri(p, pm)
 
         mappings = {'/mnt/e': 'E:'}
         with patch('core.settings_link.expand_env_vars', return_value='/mnt/e/media'), \
@@ -190,6 +182,6 @@ class TestTildeExpansion:
 
         with patch('core.settings_link.expand_env_vars', return_value=home), \
              patch('core.settings_link.normalize_path', side_effect=lambda x: x), \
-             patch('core.settings_link.to_file_uri', side_effect=lambda p, pm=None: f"file:///{p.lstrip('/')}"):
+             patch('core.settings_link.to_file_uri', side_effect=_real_to_file_uri):
             result = find_matched_directory('~', [home])
         assert result == home

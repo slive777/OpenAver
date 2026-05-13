@@ -42,8 +42,8 @@ def try_inflow_upsert(target_file_path: str) -> str:
             )
             return "not_linked"
 
-        # 步驟 2：掃描影片資訊（不傳 base_path → info.path 為 file:// 格式）
-        scanner = VideoScanner()
+        # 步驟 2：掃描影片資訊（傳 path_mappings → canonical path 與 Scanner 一致）
+        scanner = VideoScanner(path_mappings=path_mappings)
         video_info = scanner.scan_file(target_file_path)
 
         if not video_info:

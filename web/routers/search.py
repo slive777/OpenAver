@@ -770,7 +770,7 @@ async def filter_files(request: Request) -> dict:
                 nfo_stem_cache[parent] = {
                     s.stem.lower()
                     for s in parent.iterdir()
-                    if s.suffix.lower() == ".nfo"
+                    if s.suffix.lower() == ".nfo" and s.is_file()
                 }
             except (OSError, PermissionError):
                 nfo_stem_cache[parent] = set()

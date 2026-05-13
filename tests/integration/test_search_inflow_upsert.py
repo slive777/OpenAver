@@ -138,6 +138,38 @@ def test_scrape_single_db_sync_status_failed_on_upsert_exception(client):
     assert data["db_sync_status"] == "failed"
 
 
+# ─── case 5: VideoScanner 用 path_mappings= 構建 ────────────────────────────────
+
+def test_scrape_single_video_scanner_receives_path_mappings(client):
+    """
+    try_inflow_upsert 必須用 path_mappings=... 構建 VideoScanner（P1 fix 驗證）。
+    spy VideoScanner constructor，assert call kwargs 含 path_mappings。
+    """
+    video_info = _make_video_info()
+    path_mappings = {"/mnt/e": "E:"}
+
+    with (
+        patch("web.routers.scraper.organize_file", return_value=_organize_ok()),
+        patch("core.db_inflow.load_config", return_value={
+            "gallery": {"directories": ["/tmp"], "path_mappings": path_mappings}
+        }),
+        patch("core.db_inflow.find_matched_directory", return_value="/tmp"),
+        patch("core.db_inflow.VideoScanner") as MockScanner,
+        patch("core.db_inflow.VideoRepository") as MockRepo,
+        patch("core.db_inflow.Video") as MockVideo,
+    ):
+        MockScanner.return_value.scan_file.return_value = video_info
+        MockVideo.from_video_info.return_value = MagicMock()
+        MockRepo.return_value.upsert.return_value = 1
+
+        resp = client.post("/api/scrape-single", json=_scrape_request_body())
+
+    assert resp.status_code == 200
+    assert resp.json()["db_sync_status"] == "synced"
+    # VideoScanner 必須以 path_mappings= 構建
+    MockScanner.assert_called_once_with(path_mappings=path_mappings)
+
+
 # ─── case 4: missing new_filename ─────────────────────────────────────────────
 
 def test_scrape_single_db_sync_status_not_linked_on_missing_filename(client):
