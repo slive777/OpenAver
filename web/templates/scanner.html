@@ -16,7 +16,7 @@
      @dragleave.document="handleDragLeave($event)"
      @dragover.document.prevent
      @drop.document.prevent="handleDrop($event)"
-     @keydown.escape.window="dirtyCheckModalOpen && dirtyCheckCancel(); missingConfirmModalOpen && cancelLargeMissingEnrich(); deleteAliasGroupModalOpen && cancelDeleteAliasGroupModal(); copyFailModalOpen && closeCopyFailModal();">
+     @keydown.escape.window="dirtyCheckModalOpen && dirtyCheckCancel(); missingConfirmModalOpen && cancelLargeMissingEnrich(); deleteAliasGroupModalOpen && cancelDeleteAliasGroupModal(); deleteTagAliasGroupModalOpen && cancelDeleteTagAliasGroupModal(); copyFailModalOpen && closeCopyFailModal();">
     <!-- Drag Overlay (must be inside x-data scope) -->
     <div class="drag-overlay" id="dragOverlay" x-show="showDragOverlay" x-transition.opacity>
         <div class="drag-overlay-content">
@@ -389,6 +389,130 @@
 
         </div>
     </div>
+
+    <!-- Tag Alias Management (A3-3) -->
+    <div class="actress-alias-card" id="tagAliasCard">
+        <div class="actress-alias-header"
+             role="button" tabindex="0"
+             :aria-expanded="(!tagAliasCardCollapsed).toString()"
+             title="{{ t('scanner.tag_alias.collapse_title') }}"
+             @click="toggleTagAliasCard()"
+             @keydown.enter.prevent="toggleTagAliasCard()"
+             @keydown.space.prevent="toggleTagAliasCard()">
+            <div class="title">
+                <i class="bi bi-tags"></i> <span>{{ t('scanner.tag_alias.section_title') }}</span>
+            </div>
+            <span class="btn-collapse" aria-hidden="true">
+                <i class="bi" :class="tagAliasCardCollapsed ? 'bi-chevron-down' : 'bi-chevron-up'"></i>
+            </span>
+        </div>
+
+        <div class="actress-alias-body" x-show="!tagAliasCardCollapsed" x-collapse>
+            <!-- 新增 group 輸入 -->
+            <div class="alias-toolbar">
+                <div class="alias-input-wrap">
+                    <input type="text" class="input input-bordered input-sm"
+                           x-model="tagAliasInput"
+                           :placeholder="window.t('scanner.tag_alias.new_group_placeholder')"
+                           @keydown.enter.prevent="addTagAliasGroup()">
+                </div>
+                <button type="button" class="btn btn-sm btn-primary"
+                        @click="addTagAliasGroup()"
+                        :disabled="newTagGroupAdding">
+                    {{ t('scanner.tag_alias.add') }}
+                </button>
+            </div>
+
+            <!-- 載入中 -->
+            <div class="alias-list-loading" x-show="tagAliasRecordsLoading">
+                <span class="loading loading-spinner loading-sm"></span> {{ t('scanner.tag_alias.loading') }}
+            </div>
+
+            <!-- 錯誤訊息 -->
+            <div class="alias-list-error" x-show="tagAliasRecordsError" x-text="tagAliasRecordsError"></div>
+
+            <!-- 空狀態 -->
+            <div class="alias-list-empty"
+                 x-show="!tagAliasRecordsLoading && !tagAliasRecordsError && filteredTagAliasRecords().length === 0">
+                {{ t('scanner.tag_alias.empty') }}
+            </div>
+
+            <!-- 緊湊牆 -->
+            <div class="tag-alias-wall"
+                 x-show="!tagAliasRecordsLoading && !tagAliasRecordsError && filteredTagAliasRecords().length > 0">
+                <template x-for="group in filteredTagAliasRecords()" :key="group.primary_name">
+                    <div class="tag-alias-group">
+                        <!-- primary pill -->
+                        <span class="alias-pill alias-pill-primary" x-text="group.primary_name"></span>
+
+                        <!-- alias pills -->
+                        <template x-for="a in group.aliases" :key="a">
+                            <span class="alias-pill alias-pill-alias">
+                                <span x-text="a"></span>
+                                <button type="button" class="alias-pill-remove"
+                                        @click="removeTagAlias(group.primary_name, a)"
+                                        :title="window.t('scanner.tag_alias.delete_alias_title')">✕</button>
+                            </span>
+                        </template>
+
+                        <!-- inline add alias input -->
+                        <div class="alias-add-inline" x-show="addingTagAlias[group.primary_name] !== undefined">
+                            <input type="text"
+                                   x-model="addingTagAlias[group.primary_name]"
+                                   :placeholder="window.t('scanner.tag_alias.new_group_placeholder')"
+                                   @keydown.enter.prevent="submitAddTagAlias(group.primary_name)"
+                                   @keydown.escape.prevent="showAddTagAliasInput(group.primary_name, false)">
+                            <button type="button" @click="submitAddTagAlias(group.primary_name)">✓</button>
+                            <button type="button" class="btn-cancel"
+                                    @click="showAddTagAliasInput(group.primary_name, false)">✕</button>
+                        </div>
+
+                        <!-- icon-only + 按鈕 -->
+                        <button type="button" class="alias-add-btn"
+                                @click="showAddTagAliasInput(group.primary_name)"
+                                x-show="addingTagAlias[group.primary_name] === undefined"
+                                :aria-label="window.t('scanner.tag_alias.add_alias_aria')">
+                            <i class="bi bi-plus"></i>
+                        </button>
+
+                        <!-- 刪除整筆 -->
+                        <button type="button" class="alias-trash"
+                                @click="deleteTagAliasGroup(group.primary_name)"
+                                :title="window.t('scanner.tag_alias.delete_group_title')">
+                            <i class="bi bi-trash3"></i>
+                        </button>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tag Alias Delete Group Modal (A3-3) -->
+    <dialog class="modal fluent-modal"
+            :class="{ 'modal-open': deleteTagAliasGroupModalOpen }"
+            @click.self="cancelDeleteTagAliasGroupModal()">
+        <div class="modal-box fluent-modal-box">
+            <h3 class="fluent-modal-title">
+                <i class="bi bi-exclamation-triangle text-warning"></i>
+                {{ t('scanner.tag_alias.delete_group_modal.title') }}
+            </h3>
+            <p class="fluent-modal-body"
+               x-text="window.t('scanner.tag_alias.delete_group_modal.body').replace('{name}', _pendingDeleteTagAliasGroupName || '')">
+            </p>
+            <div class="modal-action fluent-modal-actions">
+                <button type="button" class="btn btn-ghost" @click="cancelDeleteTagAliasGroupModal()">
+                    {{ t('scanner.tag_alias.delete_group_modal.cancel') }}
+                </button>
+                <button type="button" class="btn btn-error"
+                        @click="confirmDeleteTagAliasGroup()"
+                        :disabled="_deleteTagAliasGroupLoading">
+                    <span x-show="_deleteTagAliasGroupLoading" class="loading loading-spinner loading-xs"></span>
+                    <span x-show="!_deleteTagAliasGroupLoading"><i class="bi bi-trash3"></i></span>
+                    {{ t('scanner.tag_alias.delete_group_modal.confirm') }}
+                </button>
+            </div>
+        </div>
+    </dialog>
 
     <!-- Dirty Check Modal (must be inside x-data scope for @click) -->
     <dialog class="modal fluent-modal"

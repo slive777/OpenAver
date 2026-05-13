@@ -191,4 +191,19 @@
   pointer-events: none;
 }
 
+/* A3-3: Tag Alias 緊湊牆 layout */
+.tag-alias-wall {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 0.5rem 0;
+}
+
+.tag-alias-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+}
+
 

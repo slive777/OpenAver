@@ -1,6 +1,7 @@
 import { stateScan }  from '@/scanner/state-scan.js';
 import { stateBatch } from '@/scanner/state-batch.js';
 import { stateAlias } from '@/scanner/state-alias.js';
+import { stateTagAlias } from '@/scanner/state-tag-alias.js';
 
 function mergeState(...parts) {
     const target = {};
@@ -31,5 +32,6 @@ document.addEventListener('alpine:init', () => {
         stateScan(),
         stateBatch(),
         stateAlias(),
+        stateTagAlias(),
     ));
 });

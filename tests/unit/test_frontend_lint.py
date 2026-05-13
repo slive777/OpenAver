@@ -6963,6 +6963,68 @@ class TestScannerDeleteAliasGroupNoNativeConfirm:
         )
 
 
+class TestScannerTagAliasGuard:
+    """A3-3: Tag Alias card static guard"""
+
+    STATE_TAG_ALIAS_JS = PROJECT_ROOT / 'web' / 'static' / 'js' / 'pages' / 'scanner' / 'state-tag-alias.js'
+    MAIN_JS = PROJECT_ROOT / 'web' / 'static' / 'js' / 'pages' / 'scanner' / 'main.js'
+    SCANNER_HTML = PROJECT_ROOT / 'web' / 'templates' / 'scanner.html'
+    ZH_TW_JSON = PROJECT_ROOT / 'locales' / 'zh_TW.json'
+
+    def test_state_tag_alias_js_exists(self):
+        """state-tag-alias.js 檔案存在"""
+        assert self.STATE_TAG_ALIAS_JS.exists(), (
+            "A3-3 違規：web/static/js/pages/scanner/state-tag-alias.js 不存在"
+        )
+
+    def test_main_js_imports_state_tag_alias(self):
+        """main.js import stateTagAlias"""
+        content = self.MAIN_JS.read_text(encoding="utf-8")
+        assert "stateTagAlias" in content and "state-tag-alias.js" in content, (
+            "A3-3 違規：main.js 應 import stateTagAlias from state-tag-alias.js"
+        )
+
+    def test_main_js_merges_state_tag_alias(self):
+        """main.js mergeState 包含 stateTagAlias()"""
+        content = self.MAIN_JS.read_text(encoding="utf-8")
+        assert "stateTagAlias()" in content, (
+            "A3-3 違規：main.js mergeState 應包含 stateTagAlias()"
+        )
+
+    def test_scanner_html_tag_alias_card_exists(self):
+        """scanner.html 含 tag-alias-wall class"""
+        content = self.SCANNER_HTML.read_text(encoding="utf-8")
+        assert 'class="tag-alias-wall"' in content, (
+            "A3-3 違規：scanner.html 應含 class=\"tag-alias-wall\"（緊湊牆容器）"
+        )
+
+    def test_tag_alias_no_native_confirm(self):
+        """tag alias 刪除不用 native confirm（同 actress alias 守衛邏輯）"""
+        content = self.STATE_TAG_ALIAS_JS.read_text(encoding="utf-8")
+        assert "window.confirm(" not in content, (
+            "A3-3 違規：state-tag-alias.js 不可使用 window.confirm()（應用 Modal）"
+        )
+        assert "\nconfirm(" not in content and "    confirm(" not in content, (
+            "A3-3 違規：state-tag-alias.js 不可使用 native confirm()（應用 Modal）"
+        )
+
+    def test_tag_alias_add_btn_has_aria_label(self):
+        """+ 按鈕有 aria-label（不含可見文字）"""
+        content = self.SCANNER_HTML.read_text(encoding="utf-8")
+        assert "add_alias_aria" in content, (
+            "A3-3 違規：scanner.html tag alias + 按鈕應含 aria-label 繫結（add_alias_aria）"
+        )
+
+    def test_i18n_scanner_tag_alias_section_title_exists(self):
+        """i18n key scanner.tag_alias.section_title 存在於 zh_TW.json"""
+        data = json.loads(self.ZH_TW_JSON.read_text(encoding="utf-8"))
+        scanner = data.get("scanner", {})
+        tag_alias = scanner.get("tag_alias", {})
+        assert "section_title" in tag_alias, (
+            "A3-3 違規：zh_TW.json scanner.tag_alias.section_title 不存在"
+        )
+
+
 class TestSampleGalleryTemplateGuard:
     """T8：Search Sample Gallery 模板守衛
 

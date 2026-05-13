@@ -449,7 +449,7 @@
       "loading": "載入中...",
       "empty": "尚無別名記錄",
       "no_results": "無搜尋建議",
-      "add_alias": "+ 別名",
+      "add_alias": "別名",
       "alias_input_placeholder": "輸入別名",
       "confirm": "確認加入",
       "delete_group_title": "刪除此女優別名組",
@@ -458,6 +458,24 @@
       "delete_group_modal": {
         "title": "刪除別名組",
         "body": "確定要刪除「{name}」的整筆別名組嗎？此操作無法復原。",
+        "cancel": "取消",
+        "confirm": "確認刪除"
+      }
+    },
+    "tag_alias": {
+      "section_title": "Tag 別名管理",
+      "collapse_title": "展開/收起",
+      "new_group_placeholder": "例：メイド / 女僕 / 女傭",
+      "add": "新增",
+      "loading": "載入中...",
+      "empty": "尚無 Tag 別名記錄",
+      "add_alias_aria": "新增別名",
+      "delete_group_title": "刪除此 Tag 別名組",
+      "delete_alias_title": "移除此別名",
+      "error_conflict": "Tag 別名衝突",
+      "delete_group_modal": {
+        "title": "刪除 Tag 別名組",
+        "body": "確定要刪除「{name}」的整筆 Tag 別名組嗎？此操作無法復原。",
         "cancel": "取消",
         "confirm": "確認刪除"
       }
