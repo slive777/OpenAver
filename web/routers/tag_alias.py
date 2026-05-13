@@ -22,6 +22,7 @@ from pydantic import BaseModel, field_validator
 from core.database import TagAliasRepository, init_db
 from core.logger import get_logger
 from core.similar import canonicalize as _canonicalize_module
+from core.similar.ranker_cache import SimilarRankerCache
 
 logger = get_logger(__name__)
 
@@ -114,6 +115,10 @@ def create_alias_group(req: CreateAliasRequest):
         record = repo.add(req.primary_name, req.aliases)
         logger.info("[tag_alias] 新增 group：%s", req.primary_name)
         _canonicalize_module._invalidate_cache()
+        try:
+            SimilarRankerCache.invalidate()
+        except Exception:
+            logger.warning("[tag_alias] SimilarRankerCache.invalidate 失敗，不影響寫入", exc_info=True)
         return JSONResponse(
             status_code=200,
             content={"success": True, "group": _record_to_dict(record)},
@@ -173,6 +178,10 @@ def delete_alias_group(name: str):
             return JSONResponse(status_code=404, content={"error": "not_found"})
         logger.info("[tag_alias] 刪除 group：%s", name)
         _canonicalize_module._invalidate_cache()
+        try:
+            SimilarRankerCache.invalidate()
+        except Exception:
+            logger.warning("[tag_alias] SimilarRankerCache.invalidate 失敗，不影響寫入", exc_info=True)
         return JSONResponse(status_code=200, content={"success": True})
     except Exception:
         logger.exception("[tag_alias] delete_alias_group 失敗")
@@ -212,6 +221,10 @@ def add_alias(name: str, req: AddAliasRequest):
         updated = repo.get_by_primary(name)
         logger.info("[tag_alias] 新增 alias：%s → %s", name, req.alias)
         _canonicalize_module._invalidate_cache()
+        try:
+            SimilarRankerCache.invalidate()
+        except Exception:
+            logger.warning("[tag_alias] SimilarRankerCache.invalidate 失敗，不影響寫入", exc_info=True)
         return JSONResponse(
             status_code=200,
             content={"success": True, "group": _record_to_dict(updated)},
@@ -248,6 +261,10 @@ def remove_alias(name: str, alias: str):
 
         logger.info("[tag_alias] 移除 alias：%s ← %s", name, alias)
         _canonicalize_module._invalidate_cache()
+        try:
+            SimilarRankerCache.invalidate()
+        except Exception:
+            logger.warning("[tag_alias] SimilarRankerCache.invalidate 失敗，不影響寫入", exc_info=True)
         return JSONResponse(status_code=200, content={"success": True})
     except Exception:
         logger.exception("[tag_alias] remove_alias 失敗")

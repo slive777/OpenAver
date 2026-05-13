@@ -58,7 +58,7 @@ export async function _loadAliasMap() {
             _nameToGroup = {};
             groups.forEach(function(g) {
                 var all = [g.primary_name].concat(g.aliases || []);
-                all.forEach(function(n) { _nameToGroup[n] = all; });
+                all.forEach(function(n) { _nameToGroup[n.toLowerCase()] = all; });
             });
         }
     } catch (e) {
@@ -86,7 +86,7 @@ export async function _loadTagAliasMap() {
             _tagToGroup = {};
             groups.forEach(function(g) {
                 var all = [g.primary_name].concat(g.aliases || []);
-                all.forEach(function(n) { _tagToGroup[n] = all; });
+                all.forEach(function(n) { _tagToGroup[n.toLowerCase()] = all; });
             });
         }
     } catch (e) {

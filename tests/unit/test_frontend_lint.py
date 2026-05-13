@@ -1894,6 +1894,19 @@ class TestShowcaseTagAliasGuard:
         assert count >= 2, \
             f"showcase.html should have at least 2 occurrences of searchFromMetadata(tag.trim(), 'tag'), found {count}"
 
+    def test_state_base_tag_alias_map_key_is_lowercase(self):
+        """state-base.js _loadTagAliasMap 使用 toLowerCase() 建 key，確保 case-insensitive lookup"""
+        js = self._base_js()
+        # Find the _loadTagAliasMap function body
+        func_start = js.find("async function _loadTagAliasMap()")
+        assert func_start != -1, "state-base.js missing: 'async function _loadTagAliasMap()'"
+        # Find the closing of the function (next "}" at the function level)
+        func_body = js[func_start:func_start + 500]
+        assert "toLowerCase" in func_body, (
+            "state-base.js _loadTagAliasMap must use .toLowerCase() when building _tagToGroup keys "
+            "so that case-insensitive tag search (e.g. 'big tits') correctly expands aliases"
+        )
+
 
 # ---------------------------------------------------------------------------
 # T6: Scanner Alias UI v2 — 舊 token 移除 + 新 token 存在守衛
