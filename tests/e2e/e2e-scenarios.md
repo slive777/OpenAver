@@ -113,13 +113,130 @@ N/A — tutorial flow 是 browser-only，無需 PyWebView picker。Step 6 sideba
 
 ## US2: Search → 整理 → 即時上架
 
-> _T59c-3 待補完_
+**故事**：用戶在 Search 頁查番號 → SSE 多來源結果 → 觸發整理（scrape）→ 觀察 GhostFly 飛 sidebar Showcase icon → DB 即時 upsert → 切到 Showcase 確認新片到位。
+
+### Setup
+
+- DB 已連上 Scanner tracked directory（否則 `db_sync_status` 會回 `not_linked`）
+- 預先放小型有效 MP4 fixture（`tests/fixtures/e2e/SONE-205.mp4`，建議 < 1MB **真實 mp4**，不要用 0-byte placeholder — Scanner/filter/organize 任一層若檢查 size 或 metadata 會 skip 假檔造成假陽性）
+- 該路徑須在 Settings → favorite folder 或 Scanner tracked directory 內
+- 該番號尚未存在於 DB：
+  ```js
+  // browser_evaluate
+  fetch('/api/search/local-status?numbers=SONE-205').then(r => r.json())
+  // 預期 {"SONE-205":{"exists":false}}
+  ```
+- 若 fixture 或 linked directory 不存在 → **skip US2 並記錄原因**
+- Search 頁初始狀態（清除任何殘留搜尋）
+
+### Steps
+
+1. `browser_navigate` → `http://localhost:8000/search`
+2. `browser_type` 番號 `SONE-205` 至搜尋輸入框，`browser_press_key` `Enter`
+3. `browser_wait_for` selector=`#resultCard` (x-show pageState === 'result') timeout=15s
+4. **Sub-A — Detail card render 驗收**：`browser_snapshot` 驗
+   - `#resultCard` 內含封面 `<img>` 已載入（`naturalWidth > 0`）
+   - 番號 text 含 `SONE-205`、女優欄位非空、片商欄位非空
+   - 多來源指示器（如 source badge）至少 1 個
+5. **觸發整理（file-list 模式批次）** — 若 Setup 走 file-list 流：
+   - 點 `#btnScrapeAll`（`web/templates/search.html:774`）
+   - `browser_wait_for` `#batchProgress` 出現（`batchState.isProcessing === true`）
+   - `browser_wait_for` `#batchProgress` 消失 timeout=60s（SSE 完成）
+6. **GhostFly + DB sync 觀察**：
+   - 整理觸發後 `[data-search-ghost]` 元素於 DOM 短暫出現（飛行中）→ 動畫結束後自動移除
+   - `browser_wait_for` `#sidebar-showcase-link.pulse-once` timeout=5s（一圈停止；`base.html:537,541`）
+   - **驗 db_sync_status**：`browser_evaluate` 取最後一筆 organize response：
+     ```js
+     // batch.js:94 處設 result.db_sync_status；無公開 API 觀測，靠 _handleDbSyncFeedback toast
+     // 改驗 toast：page console 應印 [GhostFly] 或 toast text 含 "已整理"
+     ```
+7. `browser_navigate` → `/showcase`；驗剛整理的片出現在 grid（搜尋框輸入 `SONE-205` 應命中 1 筆）
+8. **Sub-B — 多筆 query 導航**（**獨立 sub-flow，與 organize 流分開跑**；條件 `N >= 2`）：
+   - `browser_navigate` → `/search`，搜 `SSIS`（預期多筆）
+   - 切到 Detail mode（按 `A` 鍵或點切換按鈕）；驗 navIndicator 顯示 `1/N`，`N >= 2`
+   - `browser_press_key` `Tab` 或 click 非搜尋框元素以 blur（方向鍵在搜尋框 focus 時不觸發）
+   - `browser_press_key` `ArrowRight` → 驗番號改變、indicator `2/N`
+   - `browser_press_key` `ArrowLeft` → 回 `1/N`
+   - 驗 Sample Gallery 全程未開啟（無 `.sample-gallery.show` 之類）
+
+### 完成後 state
+
+- `SONE-205` 在 DB 中存在：`fetch('/api/search/local-status?numbers=SONE-205')` 回 `{"SONE-205":{"exists":true}}`
+- Sidebar showcase link 有過 `pulse-once` 動畫（class 自動移除，1 圈後恢復）
+- DOM 無 `[data-search-ghost]` 殘留元素（GhostFly clone 已清除）
+
+### PyWebView 例外
+
+- S5「拖入檔案」依賴 PyWebView file dialog / drag-drop → 用「Setup 預設已有番號」繞過，不在 browser 跑
+- 若走 file-list 模式整理本地檔案，「加入檔案」按鈕 picker 亦為 PyWebView-only → US2 假設 fixture 已位於 tracked directory，不點 picker
+
+### Regression 偵測點
+
+- `db_sync_status` 沒觸發 → SSE 斷線或 `try_inflow_upsert` 失敗 → `#sidebar-showcase-link.pulse-once` 不出現
+- GhostFly clone 殘留 DOM → 動畫結束未清理 → `[data-search-ghost]` 元素留在 body
+- 起飛點抓錯（grid / file-list 視角 width=0）→ B2 fix `_findDbSyncSourceEl` 五級 fallback；觀察動畫起點偏離預期
+- 方向鍵在搜尋框 focus 時被觸發 → 切片亂跳；應 blur 後才生效
+- X2 跨頁污染：切到 Showcase 再回 Search，搜尋結果意外殘留 / 清空（視設計而定，記錄當時行為）
 
 ---
 
 ## US3: Showcase 瀏覽 + Lightbox + 魔杖探索
 
-> _T59c-3 待補完_
+**故事**：用戶開 Showcase 看收藏 → 翻頁 → 點卡片進 Lightbox → 鍵盤切片 → 點魔杖進相似探索（似星空 constellation）→ 鑽入新主圖。
+
+### Setup
+
+- Showcase 已有至少 10 部影片（依 `videoCount` 計）
+- DB 已建好 metadata（cover_url / actresses / tags 完整）
+- 清 similar mode 殘留：`browser_evaluate` 設 `Alpine.store?` 或直接重整頁面
+- 清 lightbox 殘留：URL 無 `?id=` 等深連結參數
+
+### Steps
+
+1. `browser_navigate` → `http://localhost:8000/showcase`
+2. `browser_wait_for` selector=`[x-for="(video, index) in paginatedVideos"]` 渲染（or wait for first card `.video-card` 出現）timeout=5s
+   - **驗**：grid 內卡片數 > 0、總數顯示（`videoCount` text 或 grid item count）
+3. **翻頁驗收**：點 `.pager-btn`（next 箭頭 `›`，`showcase.html:1227`）
+   - `browser_wait_for` page 變化（page indicator 更新或 selected option 改變）
+   - **驗**：卡片內容與第 1 頁不同（取第 1 張卡片 number text 對比）
+4. **進 Lightbox**：`browser_click` 任一卡片封面（`.video-card` 內 `<img>` 或封面區）
+   - `browser_wait_for` selector=`.showcase-lightbox.show` timeout=2s（`showcase.html:517-518`，`lightboxOpen` 為 true 時加 `.show`）
+5. **鍵盤導航**：
+   - `browser_press_key` `ArrowRight` → 驗番號 / 封面更新（lightbox 內主圖換片）
+   - `browser_press_key` `ArrowLeft` → 回前一片
+   - `browser_press_key` `Escape` → 驗 `.showcase-lightbox` 失去 `.show` class（lightbox 關閉）
+6. **魔杖進入相似探索**：重開 lightbox（重複 step 4）
+   - `browser_click` → `.lightbox-similar-btn`（`showcase.html:532`，內含 `<i class="bi bi-magic">`）
+   - `browser_wait_for` selector=`.similar-stage` 可見且 `similarModeOpen === true` timeout=3s（`state-similar.js:75`）
+7. **Constellation 動畫驗收**：
+   - **驗**：`.similar-stage-inner` 渲染、`.similar-rail` 至少 1 條非 `.rail--hidden`（`showcase.html:1072`）
+   - **驗**：周圍有相似片 card（plan 預期 8 張）
+8. **鑽入（slip-through）**：`browser_click` 任一相似片 card
+   - `browser_wait_for` 主圖更新（封面飛中央）
+   - **驗**：仍在 similar mode（`.similar-stage` 仍可見），不是退回 Lightbox
+9. **退出 similar mode 而非整個 Lightbox**：`browser_press_key` `Escape`
+   - **驗**：`.similar-stage` 消失 / `similarModeOpen === false`
+   - **驗**：`.showcase-lightbox.show` 仍存在（lightbox 主體還在）
+10. `browser_press_key` `Escape` 再一次 → 驗 lightbox 完全關閉
+
+### 完成後 state
+
+- `.showcase-lightbox` 失去 `.show` class
+- `.similar-stage` 不可見 / `similarModeOpen === false`
+- DOM 無 `[data-search-ghost]` clone 殘留
+- URL 未殘留 lightbox state（依設計：可能保留 `?id=`，記錄當時行為）
+
+### PyWebView 例外
+
+N/A — Showcase / Lightbox / 魔杖 探索 完整 browser-only。
+
+### Regression 偵測點
+
+- ESC 在 similar mode 直接關 Lightbox → 應只退 similar mode（兩段式）；現象：`.showcase-lightbox` 一次 ESC 就消失
+- 鍵盤導航在搜尋框 focus 時觸發 → ArrowLeft/Right 改變字元而非切片
+- Similar stage rail 全部 `.rail--hidden` → 動畫初始化失敗（`playInitialExpand` 沒跑或 GSAP 沒載）
+- 翻頁後 lightbox 開啟回到 page 1 → 翻頁 state 沒保留
+- `.lightbox-similar-btn` 不可見 → SSR `__CLIP_ENABLED__` 或 router 沒揭露魔杖（v0.8.7 後規則式應永遠可見，若 hidden 表示誤觸 v0.8.6 opt-in gate 殘留）
 
 ---
 
