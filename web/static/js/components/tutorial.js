@@ -305,8 +305,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // 首次啟動自動觸發（僅 /search 頁面）
-    if (window.location.pathname === '/search' || window.location.pathname === '/') {
+    // 首次啟動自動觸發（僅 /scanner 頁面）
+    if (window.location.pathname === '/scanner' || window.location.pathname === '/') {
         setTimeout(async () => {
             if (await window.SpotlightTutorial.shouldShow()) {
                 window.SpotlightTutorial.start();

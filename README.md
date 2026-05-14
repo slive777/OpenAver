@@ -22,11 +22,11 @@ AI-operable REST API with capabilities manifest, 2400+ tests, MIT license. -->
 
 **[English](README_EN.md)** | 繁體中文
 
-核心功能由三個頁面組成：🔍 搜尋影片資訊 → 📋 掃描建庫 → 🎬 瀏覽收藏
+核心功能由三個頁面組成：📋 掃描建庫 → 🎬 瀏覽收藏 → 🔍 逐一刮削（進階）
 
 **100% 本地運行** — 不蒐集資料、不上傳任何檔案資訊，網路請求僅用於刮削公開元數據。
 
-**✨ 亮點**：同時搜 6 個來源一次查完 · 女優收藏自動建檔 + 別名搜尋展開 · 缺 NFO 或封面一鍵從網路補齊 · AI 一句話操作你的片庫 · Jellyfin / Emby 封面自動生成 · 2400+ 自動化測試
+**✨ 亮點**：同時搜 6 個來源一次查完 · 女優收藏自動建檔 + 別名搜尋展開 · 跨語言 Tag 別名 — 中日英同義詞自動展開，搜尋框 / chip / 模糊探索一致 · 缺 NFO 或封面一鍵從網路補齊 · AI 一句話操作你的片庫 · Jellyfin / Emby 封面自動生成 · 2400+ 自動化測試
 
 ## 截圖預覽
 
@@ -104,7 +104,13 @@ irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex
 - **掃描建庫**：掃描本地影片資料夾，建立 SQLite 元數據庫，自動讀取 NFO 封面。
 - **NFO / 封面補完**：偵測缺失的 NFO 欄位或檔案，一鍵從網路刮削補齊。
 - **女優別名管理**：新增、編輯別名，搜尋時自動展開所有已知名稱。
+- **Tag 別名管理 chip 牆**：跨語言同義詞集中管理，搜尋框與 Showcase chip 自動展開（中日英）。
 - **字幕偵測**：影片搬移時自動偵測並搬移同目錄字幕檔。
+
+### ⚡ Search → Showcase 即時化
+- **同名 NFO 跳過**：最愛資料夾若同目錄已有 `.nfo`，視為已整理不重打 scraper（避免重複外部請求）。
+- **Scanner 追蹤資料夾下拉選擇**：Settings「我的最愛資料夾」可直接從 Scanner 已追蹤資料夾下拉挑，inline 即時顯示連動狀態（✓ 已連動 / ⚠ 不在追蹤範圍）。
+- **整理完即時寫 DB + GhostFly 飛行動畫**：Search 頁整理一片成功後，若目標路徑在 Scanner 追蹤範圍內 → 立即寫入 SQLite，封面從來源點以 GhostFly 動畫飛到 sidebar Showcase icon，不需手動重掃。
 
 ### 🌐 AI 翻譯
 - 日文標題一鍵翻譯為你的 UI 語系（繁中 / 简中 / 英文），日文模式跳過翻譯。
@@ -159,7 +165,7 @@ curl http://localhost:<port>/api/capabilities
 
 > 💡 **推薦**：**OpenAI Codex App**（Win/Mac，免費方案可用）— 目前唯一能在對話中直接顯示封面圖片的 AI 工具，安裝簡單，開箱即用。
 
-> ⚡ **小模型友善**：capabilities manifest 已針對輕量模型優化，Gemini Flash / GPT-5.4 mini / Claude Haiku 皆可正確操作所有端點。
+> ⚡ **小模型友善**：capabilities manifest 已針對輕量模型優化，Gemini Flash / GPT mini / Claude Haiku 皆可正確操作所有端點。
 
 > 💻 **想讓 AI 預讀 repo、或自己擴充端點？** 所有端點定義在 [`web/routers/capabilities.py`](web/routers/capabilities.py) — AI agent clone repo 時會優先讀這個檔，不需要啟動服務就能學會所有工具。
 

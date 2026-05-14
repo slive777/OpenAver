@@ -24,7 +24,7 @@
                 <div class="flex flex-wrap items-center gap-2">
                     <!-- 主 CTA -->
                     <button class="btn btn-primary btn-sm"
-                            @click="window.location.href = '/search?tutorial=restart'">
+                            @click="window.location.href = '/scanner?tutorial=restart'">
                         <i class="bi bi-play-circle"></i> {{ t('help.hero.btn_tutorial') }}
                     </button>
                     <!-- 次 CTA -->
@@ -93,7 +93,7 @@
             <div class="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4">
                 <!-- Step 1 -->
                 <div class="flex-1 rounded-xl bg-base-200 p-6 text-center">
-                    <i class="bi bi-search workflow-step-icon"></i>
+                    <i class="bi bi-folder-plus workflow-step-icon"></i>
                     <div class="font-bold text-lg mt-1"><span class="workflow-step-num">1</span> {{ t('help.workflow.step1_title') }}</div>
                     <div class="text-base opacity-50 mt-0.5">{{ t('help.workflow.step1_desc') }}</div>
                 </div>
@@ -101,7 +101,7 @@
                 <div class="workflow-arrow text-xl leading-none">▶</div>
                 <!-- Step 2 -->
                 <div class="flex-1 rounded-xl bg-base-200 p-6 text-center">
-                    <i class="bi bi-list-ul workflow-step-icon"></i>
+                    <i class="bi bi-file-earmark-play workflow-step-icon"></i>
                     <div class="font-bold text-lg mt-1"><span class="workflow-step-num">2</span> {{ t('help.workflow.step2_title') }}</div>
                     <div class="text-base opacity-50 mt-0.5">{{ t('help.workflow.step2_desc') }}</div>
                 </div>
@@ -109,7 +109,7 @@
                 <div class="workflow-arrow text-xl leading-none">▶</div>
                 <!-- Step 3 -->
                 <div class="flex-1 rounded-xl bg-base-200 p-6 text-center">
-                    <i class="bi bi-collection-play workflow-step-icon"></i>
+                    <i class="bi bi-magic workflow-step-icon"></i>
                     <div class="font-bold text-lg mt-1"><span class="workflow-step-num">3</span> {{ t('help.workflow.step3_title') }}</div>
                     <div class="text-base opacity-50 mt-0.5">{{ t('help.workflow.step3_desc') }}</div>
                 </div>
