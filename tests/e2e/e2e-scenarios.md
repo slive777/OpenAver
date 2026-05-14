@@ -242,13 +242,109 @@ N/A — Showcase / Lightbox / 魔杖 探索 完整 browser-only。
 
 ## US4: 跨語言 Tag Alias 篩選
 
-> _T59c-4 待補完_
+**故事**：用戶在 Showcase 用中文 tag 搜尋 → alias 自動展開（中⇄日⇄英）→ 結果含同義詞匹配 → 點 tag chip 進一步篩選。
+
+### Setup
+
+- DB 有至少 1 個 tag alias group（如「女僕」⇄「メイド」⇄「maid」）；可透過 Scanner 頁 Tag 別名管理 chip 牆預建，或：
+  ```bash
+  curl -X POST http://localhost:8000/api/tag-aliases \
+       -H "Content-Type: application/json" \
+       -d '{"primary":"女僕","aliases":["メイド","maid"]}'
+  ```
+- Showcase 有對應 tag 的影片（至少 1 部 tags 含「メイド」，但**不**含「女僕」）
+- 清空 Showcase 搜尋框（`browser_evaluate $store...` 或重整）
+
+### Steps
+
+1. `browser_navigate` → `http://localhost:8000/showcase`
+2. `browser_wait_for` `filteredCount` 顯示初始總數（`showcase.html:1170` `<b x-text="filteredCount">`）
+3. `browser_click` Showcase 搜尋框（`x-model="search"`，`showcase.html:72`）
+4. `browser_type` `女僕`（中文 primary）
+5. `browser_wait_for` alias 展開觸發：grid 重新 filter
+   - **驗**：`filteredCount` 變化（包含 alias 命中結果）
+   - **驗**：含「メイド」tag 的影片出現（雖然搜尋框是中文）
+6. `browser_evaluate` 確認 `_tagToGroup` 雙向 map 已載入：
+   ```js
+   // Alpine store 或 window-level state；可透過 fetch 確認 API 同步
+   fetch('/api/tag-aliases').then(r => r.json())
+   ```
+7. **點 tag chip 進一步篩選**：在任一影片卡片內找 `.lb-tag` 或 grid tag chip（`@click.prevent.stop="searchFromMetadata(tag.trim(), 'tag')"`，`showcase.html:378`）
+   - `browser_click` 其中一個 tag chip
+   - **驗**：搜尋框 `x-model="search"` 更新為 chip 文字、grid 再次 filter
+8. **清除搜尋驗收**：清空搜尋框（`browser_type` 空字串或 `browser_press_key` `Escape` if cleared on ESC）
+   - **驗**：`filteredCount` 回到 step 2 初始總數、所有影片回來
+
+### 完成後 state
+
+- 搜尋框 `search` model 為空
+- `filteredCount === videoCount`（無篩選狀態）
+- DB `tag_aliases` group 仍存在（清理由用戶手動或 disposable fixture 處理）
+
+### PyWebView 例外
+
+N/A — Tag alias UI / chip 互動 完全 browser-only。
+
+### Regression 偵測點
+
+- Alias 不展開 → `_tagToGroup` map 沒載入或 `/api/tag-aliases` 端點失敗 → 中文搜尋只匹配 tag 字串完全相同的影片
+- Chip click 沒更新 `search` model → `searchFromMetadata` 沒設置 store；觀察搜尋框 input value 未改變
+- A5 SimilarRanker DB 整合 cache 失效 → CRUD 後 ranker 仍用舊 alias map（不在本 US 範圍，由 US3 魔杖驗收 cover）
+- 搜尋框清空後 `filteredCount` 卡在篩選態 → `applyFilterAndSort` 未在 `search` 變為 `''` 時觸發
 
 ---
 
 ## US5: 女優最愛流
 
-> _T59c-4 待補完_
+**故事**：用戶在 Search 查女優名 → 看 actress profile → 加最愛 → 切到 Showcase 女優模式 → 點女優卡進 actress lightbox → 換頭像（alias 展開本地候選）。
+
+### Setup
+
+- 至少 1 個女優在 Search 端有 profile 可查（如 `三上悠亜`）
+- 該女優目前**不**在最愛清單（避免 false positive）：
+  ```js
+  fetch('/api/favorite-actresses').then(r => r.json())
+  // 預期 list 不含 三上悠亜
+  ```
+- Showcase 有至少 1 部該女優的影片
+
+### Steps
+
+1. `browser_navigate` → `http://localhost:8000/search`
+2. `browser_type` `三上悠亜` 至搜尋框、`browser_press_key` `Enter`
+3. `browser_wait_for` 搜尋結果出現；驗女優欄位含 `三上悠亜`
+4. **加最愛**：找 actress favorite heart（`search.html:132-143`，`.bi-heart` → `.bi-heart-fill` 切換）
+   - `browser_click` heart icon（`x-show="actressProfile && !actressProfile?.is_favorite"`）
+   - `browser_wait_for` heart 變為 `.bi-heart-fill`（`is_favorite === true`）
+   - **驗**：`fetch('/api/favorite-actresses')` 包含 `三上悠亜`
+5. `browser_navigate` → `http://localhost:8000/showcase`
+6. **切到女優模式**：點女優模式 toggle（`showcase.html:57,63` `@click="...toggleActressMode()"`）
+   - `browser_wait_for` `showFavoriteActresses === true`（`state-actress.js:14`）
+   - **驗**：actress grid 渲染（女優卡片代替影片卡片）
+7. **點女優卡開 actress lightbox**：`browser_click` 任一女優卡（如 `三上悠亜`）
+   - `browser_wait_for` `.actress-lightbox-meta` 可見（`showcase.html:582`）
+   - **驗**：女優 metadata 渲染、影片清單可見
+8. **換頭像（alias 本地候選）**：找「換頭像」按鈕 / `manage_photo_path` 入口
+   - 點換頭像 → 預期跳本地候選清單 modal（**PyWebView 例外**：folder picker 為原生 API，瀏覽器無法觸發 → 改驗 alias 展開後候選列表的 UI 渲染，不驗 picker 本身）
+   - **驗**：候選列表展開 alias 名做多名查詢（v0.8.8 A2）— UI 顯示候選圖片來自 alias 名查詢
+
+### 完成後 state
+
+- `三上悠亜` 在 `/api/favorite-actresses` 清單中（`is_favorite === true`）
+- Showcase 處於 `showFavoriteActresses === true` 模式（或保留依用戶切換歷史）
+- DB 無寫入意外的 photo path（picker 沒實際選擇）
+
+### PyWebView 例外
+
+- **換頭像 picker**：`window.pywebview.api.select_file()` 為 PyWebView-only；瀏覽器 fallback 行為依設計（可能跳 alert 或 silent skip）
+- **繞過策略**：步驟 8 改驗「alias 展開候選列表」UI 渲染，不驗實際選圖；如需驗 photo 寫入，改用 API `POST /api/actresses/{name}/photo` 直接 curl
+
+### Regression 偵測點
+
+- 加最愛後 heart icon 沒更新 → state sync 失敗、`actressProfile.is_favorite` 未刷新
+- 女優模式切換後 grid 沒重新 filter → `toggleActressMode` 沒觸發 `applyFilterAndSort` 或 `paginatedActresses` 未更新
+- Alias 展開沒套用到本地候選查詢 → v0.8.8 A2 regression（本地路徑應呼 `AliasRepository.resolve(name)` 展開）
+- Actress lightbox 開啟後鍵盤 ESC 不關 → 焦點鎖 / `x-trap` 設定錯
 
 ---
 
