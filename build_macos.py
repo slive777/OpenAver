@@ -107,6 +107,16 @@ def clean_build():
     if BUILD_DIR.exists():
         shutil.rmtree(BUILD_DIR)
     BUILD_DIR.mkdir(parents=True)
+    # 清 source __pycache__ 避免 stale .pyc：若 Edit 同字數同秒寫入，Python
+    # import 時 .pyc header (mtime+size) 與 .py 完全 match 會直接信任 cache，
+    # 導致 build_macos.py `from core.version import VERSION` 拿到舊版號當 zip filename
+    # （內容是新的，只是檔名錯）。一次曾遇 0.8.8→0.8.9 同字數翻車。
+    for pycache in PROJECT_ROOT.rglob("__pycache__"):
+        # 只清 source 目錄下的 __pycache__，跳 venv / build / dist / node_modules
+        rel = pycache.relative_to(PROJECT_ROOT)
+        if rel.parts[0] in ("venv", "build", "dist", "node_modules", ".git"):
+            continue
+        shutil.rmtree(pycache, ignore_errors=True)
 
 
 def download_python_standalone():
