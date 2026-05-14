@@ -1,192 +1,146 @@
-# E2E 場景清單
+# E2E 用戶旅程劇本（v2 — 2026-05-14 align 後）
 
-> 人工或 Playwright MCP 皆可執行。每個場景標記 MCP 可測或需人工。
-> Milestone 時依 `feature/AI_COLLABORATION/milestone.md` SA-mile-4 執行。
-> **AI 首次操作前先讀 `app-guide.md`**（同目錄），了解各頁面操作方式和注意事項。
-
----
-
-## 前置條件
-
-- App 已啟動：`python -m web.app`（預設 `http://localhost:8000`）
-- 有至少一個已掃描的資料夾（Showcase 有資料）
+> 純文字劇本，**人類用瀏覽器手動 / AI 用 Playwright MCP** 皆可照跑。
+> 對應 spec：`feature/59-onboarding-help-polish/spec-59.md` §8 + plan-59c.md
+> **AI 首次操作前先讀 `app-guide.md`**（同目錄）了解各頁面操作方式。
 
 ---
 
-## Search 頁
+## 執行方式
 
-### S1. 番號精準搜尋 [MCP]
+### Server 啟動
 
-1. 前往 `/search`
-2. 輸入 `SONE-205`，按搜尋
-3. 等待 SSE 結果出現
-4. **驗證**：封面圖顯示、番號文字 = `SONE-205`、有女優名
+```bash
+source venv/bin/activate && uvicorn web.app:app --host 0.0.0.0 --port 8000
+```
 
-### S2. Detail 模式欄位顯示 [MCP]
+### Playwright MCP Server 選擇
 
-1. 承 S1，結果應自動進入 Detail 模式
-2. **驗證**：標題、女優、日期、來源、片長、發行商欄位可見且非空
+| Server | 用途 | 啟動方式 |
+|--------|------|---------|
+| `playwright`（headless） | Clean state 跑（無 cache）；CI-like 一致性；建議 US1–US4 用 | 已在 MCP config |
+| `playwright-cdp`（CDP attach） | 視覺確認、需看動畫（US3 constellation / US5 photo enrichment）；共享 Chrome 已登入狀態 | Chrome 啟動加 `--remote-debugging-port=9222` |
 
-### S3. 方向鍵導航 [MCP]
+**Risk-2 — Cache 黏性**：CDP attach 模式會沿用 Chrome ESM module map cache；改 JS 模組後 e2e 跑前用 Incognito 視窗或切 headless server。
 
-1. 搜尋 `SSIS`（預期多筆結果）
-2. 多筆結果預設進入 Grid 模式 → 切換到 Detail 模式（點擊切換按鈕或用 `A` 快捷鍵）
-3. 確認導航指示器顯示 `1/N`（N >= 2）
-4. Blur 搜尋框（方向鍵在搜尋框 focus 時不觸發導航）
-5. 按 ArrowRight → 番號改變、指示器變 `2/N`
-6. 按 ArrowLeft → 番號還原、指示器變 `1/N`
-7. **驗證**：Sample Gallery 全程未開啟
+### 執行時機
 
-### S4. 女優名搜尋 [MCP]
-
-1. 輸入女優名（如 `三上悠亜`），按搜尋
-2. 等待結果
-3. **驗證**：出現多筆結果，女優欄位包含搜尋的名字
-
-### S5. 拖入檔案/加入檔案 [人工]
-
-1. 拖入一個影片檔案到搜尋框
-2. **驗證**：自動辨識番號並開始搜尋
-
-> MCP 無法觸發 PyWebView file dialog / drag-drop
+| 時機 | 範圍 | 時間 |
+|------|------|------|
+| Milestone pre-merge | US1–US7 全套（外部 API 失敗 skip 並記原因） | 10–20 分 |
+| Release 前 | US1–US7 全套（保險） | 10–20 分 |
+| Feature branch 含 template 改動 | 受影響的 US（1–2 個） | 5 分內 |
 
 ---
 
-## Showcase 頁
+## 前置條件（所有 US 共通）
 
-### C1. 頁面載入 + 卡片渲染 [MCP]
+- Dev server 已啟動於 `http://localhost:8000`
+- DB 已有至少 10 部影片（US3–US7 需要）
+- 4 locale 翻譯檔齊全（US6 需要）
+- Settings 已有預設搜尋來源（US7 需要）
 
-1. 前往 `/showcase`
-2. **驗證**：顯示影片總數、卡片封面圖可見、分頁器顯示頁數
-
-### C2. 搜尋篩選 [MCP]
-
-1. 在 Showcase 搜尋框輸入番號或女優名
-2. 按搜尋
-3. **驗證**：結果數量減少、卡片內容符合搜尋條件
-
-### C3. 翻頁 [MCP]
-
-1. 點擊「下一頁」
-2. **驗證**：頁碼變為 2、卡片內容與第 1 頁不同
-
-### C4. Lightbox [MCP]
-
-1. 點擊任一卡片封面
-2. **驗證**：Lightbox 開啟、顯示詳細資訊
-3. 按 ESC → Lightbox 關閉
+每個 US 在 Setup 段列獨立重置指令；US 之間 state 殘留處置見 plan-59c §7 Risk-3。
 
 ---
 
-## Settings 頁
+## US1: 新手 Onboarding
 
-### T1. 語系切換 [MCP]
-
-1. 前往 `/settings`
-2. 點擊語系按鈕（繁 → 简 → あ → EN 循環）
-3. **驗證**：頁面 UI 文字隨語系切換變化
-4. 重新載入頁面 → 語系設定保留
-
-### T2. Dark / Light Mode [MCP]
-
-1. 點擊 theme 切換按鈕
-2. **驗證**：背景色 / 文字色切換
-3. 重新載入 → 設定保留
-
-### T3. 搜尋來源切換 [MCP]
-
-1. 切換預設搜尋來源（如取消勾選 JavDB）
-2. **驗證**：設定保存成功（Toast 或 UI 反饋）
-3. 重新載入 → 設定保留
-
-### T4. 翻譯開關 [MCP]
-
-1. 切換「啟用標題翻譯」開關
-2. **驗證**：開關狀態變化、設定保存
+> _T59c-2 待補完_
 
 ---
 
-## Help 頁
+## US2: Search → 整理 → 即時上架
 
-### H1. 頁面載入 [MCP]
-
-1. 前往 `/help`
-2. **驗證**：版本號顯示（v0.6.x）、內容正常渲染、無 JS 錯誤
-
-### H2. AI curl 複製 [MCP]
-
-1. 點擊 curl 指令旁的複製按鈕
-2. **驗證**：剪貼簿內容包含 `http://localhost:8000/api/capabilities`
+> _T59c-3 待補完_
 
 ---
 
-## Scanner 頁
+## US3: Showcase 瀏覽 + Lightbox + 魔杖探索
 
-### N1. 頁面載入 [MCP]
-
-1. 前往 `/scanner`
-2. **驗證**：掃描資料夾表單可見、快取影片數顯示
-
-### N2. 掃描 + 產生網頁 [人工]
-
-1. 確認有已設定的掃描資料夾
-2. 點擊「產生網頁」
-3. **驗證**：掃描進度顯示、完成後產出 HTML 檔案
-
-> MCP 可點擊「產生網頁」按鈕，但需已有設定好的資料夾路徑
+> _T59c-3 待補完_
 
 ---
 
-## 跨頁面
+## US4: 跨語言 Tag Alias 篩選
 
-### X1. Sidebar 導航 [MCP]
-
-1. 點擊 hamburger menu
-2. 逐一點擊 5 個連結
-3. **驗證**：每頁正確載入、無 crash
-
-### X2. 頁面間狀態不互相污染 [MCP]
-
-1. 在 Search 搜尋一個番號
-2. 切到 Showcase → 切回 Search
-3. **驗證**：Search 頁回到初始狀態（或保留上次搜尋結果，視設計而定）
+> _T59c-4 待補完_
 
 ---
 
-## Agentic AI API（模擬 AI agent 只讀過 capabilities）
+## US5: 女優最愛流
 
-> 模擬一個只看過 `GET /api/capabilities` 回傳的 AI agent，用自然語言任務驅動 API 呼叫。
-> 驗證方式：curl 或 Python requests，不經瀏覽器。
-> **模型要求**：輕量模型即可（Haiku / Gemini Flash / GPT-4o Mini），不需要 Opus/Sonnet。
-> Capabilities manifest 的 description 足夠清晰，輕量模型能正確選對 endpoint + 組合參數。
+> _T59c-4 待補完_
 
-### A1. 探索搜尋 [API]
+---
 
-- 任務：「查一下 SONE-205 這部片的資訊」
-- 預期行為：agent 從 capabilities 學到 `GET /api/search`，呼叫 `?q=SONE-205&discovery=true`
-- **驗證**：回傳 JSON 包含 title、actresses、date、cover_url
+## US6: i18n 完整切換
 
-### A2. 批量搜尋 [API]
+> _T59c-5 待補完_
 
-- 任務：「幫我查這三部片：SONE-205、SSIS-960、JUR-688」
-- 預期行為：agent 用 `POST /api/batch-search`
-- **驗證**：回傳 3 筆結果，每筆有 number + metadata
+---
 
-### A3. 補完 metadata [API]
+## US7: 控制狂工作流（進階分流）
 
-- 任務：「這部片的 NFO 資訊不完整，幫我補齊」
-- 預期行為：agent 用 `POST /api/enrich-single` with `mode=fill_missing`
-- **驗證**：回傳成功，updated_fields 列出補齊的欄位
-- **前提**：需要 DB 中有該片且確實缺欄位
+> _T59c-5 待補完_
 
-### A4. 收藏庫查詢 [API]
+---
 
-- 任務：「查我收藏裡三上悠亜演的所有片」
-- 預期行為：agent 用 `POST /api/collection/sql` with `SELECT * FROM videos WHERE actresses LIKE '%三上悠亜%'`
-- **驗證**：回傳 rows 包含正確結果
+## Appendix C: Capabilities Smoke（Optional, curl-only）
 
-### A5. 生成 HTML 清單 [API]
+> _T59c-5 待補完_
 
-- 任務：「用這些番號產生一份可分享的 HTML」
-- 預期行為：agent 用 `POST /api/gallery/generate-from-ids`
-- **驗證**：回傳 HTML 內容，包含封面圖（base64 嵌入）
+---
+
+## ~~舊版 Scenarios（2026-05-14 前）~~ [歷史保留]
+
+> 以下 24 個 scenarios（v1 格式 S/C/T/H/N/X/A）已在 2026-05-14 plan-59c §2 審計後，
+> 全數合併進 US1–US7 或標 deprecated。逐項處置原因見下表，原 step 內容已在
+> git history（commit before 59c-1）保留，本檔不再重複文字。
+
+### Search
+
+- ~~**S1. 番號精準搜尋**~~ → 併入 US2 step 1–3
+- ~~**S2. Detail 模式欄位顯示**~~ → 併入 US2 Sub-A（detail card render 驗收）
+- ~~**S3. 方向鍵導航**~~ → 併入 US2 Sub-B（多筆 query 才執行，`N >= 2` 條件）
+- ~~**S4. 女優名搜尋**~~ → 併入 US5 step 1–2
+- ~~**S5. 拖入檔案/加入檔案**~~ → **deprecated**（PyWebView-only：drag-drop 觸發 file dialog 無法 browser 跑；US2 setup 以「預設已有番號」繞過）
+
+### Showcase
+
+- ~~**C1. 頁面載入 + 卡片渲染**~~ → 併入 US3 step 1
+- ~~**C2. 搜尋篩選**~~ → 併入 US4 step 1–2
+- ~~**C3. 翻頁**~~ → 併入 US3 step 2（atomic inline）
+- ~~**C4. Lightbox**~~ → 併入 US3 step 3–5（含魔杖按鈕補強）
+
+### Settings
+
+- ~~**T1. 語系切換**~~ → 併入 US6 step 1–3
+- ~~**T2. Dark / Light Mode**~~ → 保留為獨立 step in US6 step 5
+- ~~**T3. 搜尋來源切換**~~ → 併入 US7 step 2
+- ~~**T4. 翻譯開關**~~ → 併入 US7 step 3
+
+### Help
+
+- ~~**H1. 頁面載入**~~ → 併入 US1 step 9–10（tutorial 完成後從 sidebar 連 `/help`，驗 `h2.card-title` 非 raw i18n key + `.terminal-copy-btn` 可見）
+- ~~**H2. AI curl 複製**~~ → 保留為 US7 末尾 step（capabilities curl 複製）
+
+### Scanner
+
+- ~~**N1. 頁面載入**~~ → 併入 US1 step 1（tutorial 觸發前導覽至 Scanner 頁）
+- ~~**N2. 掃描 + 產生網頁**~~ → **deprecated**（PyWebView-only：Scanner 加資料夾依賴原生 picker，瀏覽器無法穩定驅動；scan trigger button 可由實作者選做 atomic check）
+
+### 跨頁面
+
+- ~~**X1. Sidebar 導航**~~ → **deprecated**（US1 step 5–7 已逐一 sidebar 導航，獨立 scenario 冗餘）
+- ~~**X2. 頁面間狀態不互相污染**~~ → 保留為 Regression 偵測點 in US2 / US3
+
+### Agentic API
+
+- ~~**A1. 探索搜尋**~~ → 移至 Appendix C（API-only / curl）
+- ~~**A2. 批量搜尋**~~ → 移至 Appendix C
+- ~~**A3. 補完 metadata**~~ → 移至 Appendix C（寫 DB，需 disposable fixture）
+- ~~**A4. 收藏庫查詢**~~ → 移至 Appendix C
+- ~~**A5. 生成 HTML 清單**~~ → 移至 Appendix C（寫檔，需 disposable fixture 或暫目錄）
+
+> **CD-59-23**：scenarios 不重複 integration 已測的單端點 contract；A1–A5 維持 curl/API 格式不轉成 browser step，移出 US7 主體放 Appendix C，不算 milestone 必跑。
