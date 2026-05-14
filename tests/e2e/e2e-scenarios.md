@@ -138,10 +138,26 @@ N/A — tutorial flow 是 browser-only，無需 PyWebView picker。Step 6 sideba
    - `#resultCard` 內含封面 `<img>` 已載入（`naturalWidth > 0`）
    - 番號 text 含 `SONE-205`、女優欄位非空、片商欄位非空
    - 多來源指示器（如 source badge）至少 1 個
-5. **觸發整理（file-list 模式批次）** — 若 Setup 走 file-list 流：
-   - 點 `#btnScrapeAll`（`web/templates/search.html:774`）
-   - `browser_wait_for` `#batchProgress` 出現（`batchState.isProcessing === true`）
-   - `browser_wait_for` `#batchProgress` 消失 timeout=60s（SSE 完成）
+5. **觸發整理（file-list 模式批次）** — 走 file-list 流。`scrapeAll()` 只處理 `f.searched && f.searchResults.length > 0 && !f.scraped` 的 file，所以必須先 `searchAll()` 讓每個 fileList item 取得 searchResults，才能整理。順序：
+   - **5a. 進 file-list 模式（明確操作）**：
+     - 先確認 Settings → favorite folder 已指向放有 fixture mp4 的目錄；若未設定或目錄為空 → **skip US2 並記錄原因**
+     - **清空 Search state**（step 1-4 已停在 `pageState === 'result'`，`#btnFavorite` 只在 `#emptyState` 顯示）：
+       - `browser_click` → `#btnClear`（`search.html:288`，`x-show="hasContent"`，`@click="clearAll()"`）；或
+       - `browser_evaluate` `() => Alpine.$data(document.querySelector('[x-data*="search"]')).clearAll()` 直接清狀態
+     - `browser_wait_for` `#emptyState` 可見（`pageState === 'empty'`，`search.html:306`）
+     - `browser_click` → `#btnFavorite`（`search.html:316`，`@click="loadFavorite()"`；按鈕在 `#emptyState` 內，必須先清空 result state 才能命中）
+     - PyWebView/files/drop 是另一條進場路徑（`setFileList()`），browser e2e 不適用
+     - `browser_wait_for` `#btnSearchAll` 可見（`search.html:758`，`x-show="listMode === 'file'"`）+ fileList 顯示 fixture
+   - **5b. 先跑 searchAll**：`browser_click` → `#btnSearchAll`（`searchAll()`，`state/batch.js:140`）
+   - `browser_wait_for` `#batchProgress` 出現（searchAll SSE 進行中）
+   - `browser_wait_for` `#batchProgress` 消失 timeout=60s（searchAll 完成，每個 file 取得 `searched=true` + `searchResults`）
+   - **5c. 跑 scrapeAll**（gate 在 `scrapeAll()` 內判，不是 button disabled）：
+     - `#btnScrapeAll` 的 `:disabled` 綁的是 `isScrapeAllProcessing`（`search.html:777`），不是「有沒有可整理檔」— 該 button 在 5b 完成後仍可點，但若 fileList 無可整理檔則 click 後直接 toast
+     - **驗 fileList 至少一筆**：`browser_evaluate` `() => Alpine.$data(document.querySelector('[x-data*="search"]')).fileList.filter(f => f.searched && f.searchResults?.length > 0 && !f.scraped).length`，預期 `>= 1`（對應 `batch.js:336-338` `scrapableFiles` filter）
+     - `browser_click` → `#btnScrapeAll`（`scrapeAll()`，搬移檔案 + 改名 + 建目錄）
+   - **失敗模式提示**：跳過 5b 或 fileList 無 searchResults，點 #btnScrapeAll 會 toast `search.toast.no_scrapable_files`（`state/batch.js:341`）
+   - `browser_wait_for` `#scrapeProgress` 出現（整理 SSE 進行中；`#batchProgress` 是 searchAll 用，不通用）
+   - `browser_wait_for` `#scrapeProgress` 消失 timeout=60s（整理 SSE 完成）
 6. **GhostFly + DB sync 觀察**：
    - 整理觸發後 `[data-search-ghost]` 元素於 DOM 短暫出現（飛行中）→ 動畫結束後自動移除
    - `browser_wait_for` `#sidebar-showcase-link.pulse-once` timeout=5s（一圈停止；`base.html:537,541`）
@@ -250,7 +266,7 @@ N/A — Showcase / Lightbox / 魔杖 探索 完整 browser-only。
   ```bash
   curl -X POST http://localhost:8000/api/tag-aliases \
        -H "Content-Type: application/json" \
-       -d '{"primary":"女僕","aliases":["メイド","maid"]}'
+       -d '{"primary_name":"女僕","aliases":["メイド","maid"]}'
   ```
 - Showcase 有對應 tag 的影片（至少 1 部 tags 含「メイド」，但**不**含「女僕」）
 - 清空 Showcase 搜尋框（`browser_evaluate $store...` 或重整）
@@ -303,8 +319,8 @@ N/A — Tag alias UI / chip 互動 完全 browser-only。
 - 至少 1 個女優在 Search 端有 profile 可查（如 `三上悠亜`）
 - 該女優目前**不**在最愛清單（避免 false positive）：
   ```js
-  fetch('/api/favorite-actresses').then(r => r.json())
-  // 預期 list 不含 三上悠亜
+  fetch('/api/actresses/三上悠亜').then(r => r.json())
+  // 預期 is_favorite: false（或 404 / 該女優 profile 不存在）
   ```
 - Showcase 有至少 1 部該女優的影片
 
@@ -316,7 +332,7 @@ N/A — Tag alias UI / chip 互動 完全 browser-only。
 4. **加最愛**：找 actress favorite heart（`search.html:132-143`，`.bi-heart` → `.bi-heart-fill` 切換）
    - `browser_click` heart icon（`x-show="actressProfile && !actressProfile?.is_favorite"`）
    - `browser_wait_for` heart 變為 `.bi-heart-fill`（`is_favorite === true`）
-   - **驗**：`fetch('/api/favorite-actresses')` 包含 `三上悠亜`
+   - **驗**：`fetch('/api/actresses/三上悠亜').then(r => r.json())` 回傳 `is_favorite === true`
 5. `browser_navigate` → `http://localhost:8000/showcase`
 6. **切到女優模式**：點女優模式 toggle（`showcase.html:57,63` `@click="...toggleActressMode()"`）
    - `browser_wait_for` `showFavoriteActresses === true`（`state-actress.js:14`）
@@ -330,7 +346,7 @@ N/A — Tag alias UI / chip 互動 完全 browser-only。
 
 ### 完成後 state
 
-- `三上悠亜` 在 `/api/favorite-actresses` 清單中（`is_favorite === true`）
+- `GET /api/actresses/三上悠亜` 回傳含 `is_favorite === true`
 - Showcase 處於 `showFavoriteActresses === true` 模式（或保留依用戶切換歷史）
 - DB 無寫入意外的 photo path（picker 沒實際選擇）
 
@@ -477,17 +493,22 @@ N/A — locale 切換、Dark/Light mode、tutorial 文案驗收均為 browser-on
    - `browser_wait_for` `#translateEnabled` 可見 timeout=3s
    - **驗**：`#translateEnabled` checked 狀態與切換後一致（設定保留）
    - （測試完還原：再 toggle 一次回原始狀態 + save）
-4. **刮削一片驗自訂命名格式**：`browser_navigate` → `http://localhost:8000/search`
-   - `browser_type` 待測番號（Setup 確認的 fixture 番號）至搜尋輸入框；`browser_press_key` `Enter`
-   - `browser_wait_for` `#resultCard` 可見 timeout=15s
-   - 點 `#btnScrapeAll`（search.html:774）或單片整理按鈕
-   - `browser_wait_for` 整理 SSE 完成 timeout=60s（`#batchProgress` 出現後消失）
-   - **驗**：整理完成後，呼 API 確認檔名已套用自訂格式：
-     ```js
-     // browser_evaluate
-     fetch('/api/search/local-status?numbers=<番號>').then(r => r.json())
-     // 預期 exists: true；可進一步查 DB 內 filename 欄位
+4. **刮削一片驗自訂命名格式**：兩種路徑擇一執行：
+   - **路徑 A（UI flow）**：`browser_navigate` → `http://localhost:8000/search`；用 favorite-folder / tracked dir 載入 fixture（PyWebView picker 例外），依 US2 step 5 的 file-list 三段（searchAll → 等 #batchProgress → scrapeAll → 等 #scrapeProgress）走完
+   - **路徑 B（API curl，最短驗收）**：`POST /api/scrape-single`（`web/routers/scraper.py:50`，會呼 `organize_file()` 真實搬移 + 改名；對比之下 `/api/enrich-single` 只補 metadata 不改檔名，不適用）：
+     ```bash
+     curl -s -X POST http://localhost:8000/api/scrape-single \
+       -H "Content-Type: application/json" \
+       -d "{\"file_path\":\"/path/to/$FIXTURE_NUM.mp4\",\"number\":\"$FIXTURE_NUM\"}"
+     # 回 ScrapeResponse：success / new_folder / new_filename
      ```
+   - **驗**：兩條路徑都需確認檔名套用自訂格式：
+     ```js
+     // browser_evaluate（path A 完成後）
+     fetch('/api/search/local-status?numbers=<番號>').then(r => r.json())
+     // 預期 exists: true
+     ```
+     或 path B response 的 `new_filename` 字串符合 Settings 設定的 `filenameFormat` template
 5. **Tag Alias 新增**：`browser_navigate` → `http://localhost:8000/scanner`
    - `browser_wait_for` `#tagAliasCard` 可見（scanner.html:394）timeout=3s
    - 若 `#tagAliasCard` 卡片折疊（`.tagAliasCardCollapsed === true`）：`browser_click` → `#tagAliasCard .card-title`（點 header 展開；scanner.html:397）
@@ -569,7 +590,7 @@ curl -s -X POST http://localhost:8000/api/batch-search \
 ```bash
 curl -s -X POST http://localhost:8000/api/enrich-single \
   -H "Content-Type: application/json" \
-  -d "{\"number\":\"$FIXTURE_NUM\",\"mode\":\"fill_missing\"}" | \
+  -d "{\"file_path\":\"/path/to/$FIXTURE_NUM.mp4\",\"number\":\"$FIXTURE_NUM\",\"mode\":\"fill_missing\"}" | \
   python3 -c "import sys,json; d=json.load(sys.stdin); print('updated_fields:', d.get('updated_fields','MISSING'))"
 ```
 
@@ -590,20 +611,15 @@ curl -s -X POST http://localhost:8000/api/collection/sql \
 ### A5：生成 HTML 清單（寫檔 — 需 disposable fixture 或暫目錄）
 
 ```bash
-# 先取前 3 個 video id（假設 DB 有資料）
-IDS=$(curl -s "http://localhost:8000/api/collection/sql" \
-  -H "Content-Type: application/json" \
-  -d '{"sql":"SELECT id FROM videos LIMIT 3"}' | \
-  python3 -c "import sys,json; d=json.load(sys.stdin); print(','.join(str(r[0]) for r in d.get('rows',[])))")
-
+# 用 FIXTURE_NUM 作為 numbers 輸入（endpoint 吃 numbers 不吃 ids）
 curl -s -X POST http://localhost:8000/api/gallery/generate-from-ids \
   -H "Content-Type: application/json" \
-  -d "{\"ids\":[$IDS],\"output_dir\":\"/tmp/openaver_e2e_smoke\"}" | \
-  python3 -c "import sys,json; d=json.load(sys.stdin); html=d.get('html',''); print(f'html_len={len(html)}', 'has_img='+str(\"<img\" in html))"
+  -d "{\"numbers\":[\"$FIXTURE_NUM\"]}" | \
+  python3 -c "import sys,json; d=json.load(sys.stdin); print('html_path:', d.get('html_path','MISSING'), 'video_count:', d.get('video_count','MISSING'), 'missing:', d.get('missing',[]))"
 ```
 
-**驗收**：`html_len > 0` 且 `has_img=True`（回傳 HTML 含封面 `<img>` 標籤）。
-**副作用**：可能寫入 `/tmp/openaver_e2e_smoke/` 目錄；測後可 `rm -rf /tmp/openaver_e2e_smoke`。
+**驗收**：`html_path` 非空字串、`video_count >= 1`（FIXTURE_NUM 在 DB 中時）；回傳是 JSON 不是 HTML 本文。
+**副作用**：endpoint 自行決定輸出路徑（通常落在 `output/` 目錄）；測後可手動清掉產出檔案。
 
 ---
 
