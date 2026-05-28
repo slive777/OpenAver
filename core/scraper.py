@@ -24,6 +24,7 @@ from core.scrapers import (
 )
 from core.scrapers.utils import extract_number as _new_extract_number
 from core.maker_mapping import get_maker_by_prefix
+from core.source_merger import merge_results
 from core.source_config import validate_source_id
 from core.source_settings import get_enabled_source_ids
 
@@ -225,54 +226,20 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '', primary_s
         logger.info(f"[Search] {number} 無結果")
         return None
 
-    # 合併邏輯
-    main_video = None
-    if primary_source == 'dmm' and 'dmm' in all_data:
-        main_video = all_data['dmm']
-    elif 'javbus' in all_data:
-        main_video = all_data['javbus']
-    elif 'dmm' in all_data:
-        main_video = all_data['dmm']
-    elif 'jav321' in all_data:
-        main_video = all_data['jav321']
+    # 合併邏輯（TASK-61a-6 / CD-61-9）：
+    # - explicit 單一來源（source != 'auto'）：整包贏，不走 merger（語意顯式化）。
+    # - auto fan-out：呼叫 pure merger。primary_source 排到 user_order 第一位來
+    #   編碼偏好（merger 不認識 primary_source）；其餘維持 all_data 插入順序
+    #   （= enabled order）。封面走 merger 預設 cover_priority。
+    if source != 'auto':
+        # 單一來源直通：該來源資料原封不動
+        main_video = next(iter(all_data.values()))
     else:
-        main_video = list(all_data.values())[0]
-
-    # 用其他來源補全
-    for source_name, backup_video in all_data.items():
-        if backup_video == main_video:
-            continue
-        
-        # 使用 Pydantic 的 model_copy(update={}) 邏輯不好寫，
-        # 這裡為了方便，轉成 dict 處理後再說，或者直接修改 main_video 的屬性（如果是 mutable）
-        # 但 model 是 frozen 的。所以要用 model_copy。
-        
-        updates: Dict[str, Any] = {}
-        if not main_video.title and backup_video.title:
-            updates['title'] = backup_video.title
-        if not main_video.maker and backup_video.maker:
-            updates['maker'] = backup_video.maker
-        if not main_video.date and backup_video.date:
-            updates['date'] = backup_video.date
-        if not main_video.actresses and backup_video.actresses:
-            updates['actresses'] = backup_video.actresses
-        if not main_video.cover_url and backup_video.cover_url:
-            updates['cover_url'] = backup_video.cover_url
-        if not main_video.tags and backup_video.tags:
-            updates['tags'] = backup_video.tags
-        if not main_video.director and backup_video.director:
-            updates['director'] = backup_video.director
-        if main_video.duration is None and backup_video.duration is not None:
-            updates['duration'] = backup_video.duration
-        if not main_video.label and backup_video.label:
-            updates['label'] = backup_video.label
-        if not main_video.series and backup_video.series:
-            updates['series'] = backup_video.series
-        if not main_video.sample_images and backup_video.sample_images:
-            updates['sample_images'] = backup_video.sample_images
-
-        if updates:
-            main_video = main_video.model_copy(update=updates)
+        user_order = list(all_data.keys())
+        if primary_source in user_order:
+            user_order.remove(primary_source)
+            user_order.insert(0, primary_source)
+        main_video = merge_results(all_data, user_order)
 
     # 補全 maker
     if not main_video.maker:
