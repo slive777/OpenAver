@@ -197,7 +197,15 @@
     },
     "sources": {
       "primary_source_deprecated_hint": "預設搜尋來源（已停用設定）",
-      "primary_source_deprecated_note": "已不再於此設定主來源：系統依排序自動使用最前面的，請至「掃描來源」分頁拖曳排序。"
+      "primary_source_deprecated_note": "已不再於此設定主來源：系統依排序自動使用最前面的，請至「掃描來源」分頁拖曳排序。",
+      "uncensored_mode_label": "無碼模式",
+      "counter_prefix": "已啟用",
+      "cap_tag": "上限",
+      "select_all": "全開",
+      "manual_only_badge": "BETA",
+      "cap_exceeded_title": "已達啟用上限",
+      "cap_exceeded_body": "已達同時啟用來源的上限，請先停用其他來源再啟用新的。",
+      "warn_all_disabled": "目前沒有啟用任何掃描來源，刮削將無法取得任何資料。"
     },
     "mock": {
       "page_title": "Settings IA POC",

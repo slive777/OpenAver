@@ -57,6 +57,15 @@ export function stateConfig() {
         pendingNavigationUrl: '',
         _configLoading: true,  // 初始 true，loadConfig 完成後 false
 
+        // 61c-1 inert stubs — replaced by real state/computed in 61c-2 (sources/enabledCount),
+        // 61c-3 (uncensoredMode getter/setter), 61c-4 (metatubeEnabled). Declared so the
+        // sources-panel bindings don't throw ReferenceError before those tasks land.
+        sources: [],
+        enabledCount: 0,
+        uncensoredMode: false,
+        metatubeEnabled: false,
+        showCapAlert: false,
+
         // ===== Constants =====
 
         // 來源分群常數（與 core/scrapers/utils.py 同步）

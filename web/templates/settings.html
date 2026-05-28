@@ -391,6 +391,84 @@
                     <i class="bi bi-collection"></i> {{ t('settings.tabs.sources') }}
                 </div>
                 <div class="card-body">
+
+                    <!-- ===== Section 2 — Active Row (Zone A) — 61c-1 structure ===== -->
+                    <!-- Batch bar: 無碼模式 toggle placeholder (61c-3 wires uncensoredMode) -->
+                    <div class="settings-sources-batchbar">
+                        <div class="settings-sources-batchbar-left">
+                            <button type="button"
+                                    id="sourcesUncensoredToggle"
+                                    class="settings-sources-uncensored-toggle"
+                                    :class="{ 'is-on': uncensoredMode }"
+                                    :aria-pressed="uncensoredMode ? 'true' : 'false'">
+                                <span class="track"><span class="thumb"></span></span>
+                                <span class="lbl">{{ t('settings.sources.uncensored_mode_label') }}</span>
+                            </button>
+                            <span class="settings-sources-counter">
+                                <span>{{ t('settings.sources.counter_prefix') }}</span>
+                                <strong x-text="enabledCount"></strong>
+                                <span class="cap-divider">/</span>
+                                <span class="cap-value">10</span>
+                                <span class="cap-tag">{{ t('settings.sources.cap_tag') }}</span>
+                            </span>
+                        </div>
+                        <div class="settings-sources-batchbar-right">
+                            <button type="button"
+                                    class="settings-sources-mini-btn"
+                                    @click="typeof enableAllToCap === 'function' && enableAllToCap()">
+                                <i class="bi bi-check2-all"></i> {{ t('settings.sources.select_all') }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Flat pill row — 61c-2 populates `sources`; B1 renders 0 pills -->
+                    <div class="settings-sources-pills" role="listbox" aria-label="Active Row">
+                        <template x-for="s in sources" :key="s.id">
+                            <div class="settings-sources-pill"
+                                 :class="{
+                                     'settings-sources-pill--uncensored': !s.is_censored,
+                                     'settings-sources-pill--manual-only': s.manual_only,
+                                 }"
+                                 :data-enabled="s.enabled ? 'true' : 'false'"
+                                 role="option"
+                                 :aria-selected="s.enabled ? 'true' : 'false'"
+                                 tabindex="0"
+                                 @click="typeof clickActiveRowPill === 'function' && clickActiveRowPill(s)">
+                                <i class="bi bi-slash-circle slash-icn" aria-hidden="true"></i>
+                                <span class="pill-name" x-text="s.display_name"></span>
+                                <span class="settings-sources-pill-badge" x-show="s.manual_only">
+                                    {{ t('settings.sources.manual_only_badge') }}
+                                </span>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Cap-block alert placeholder (61c-2 wires showCapAlert) -->
+                    <div class="settings-sources-cap-alert"
+                         x-show="showCapAlert"
+                         role="alert"
+                         aria-live="polite">
+                        <i class="bi bi-shield-exclamation"></i>
+                        <div>
+                            <strong>{{ t('settings.sources.cap_exceeded_title') }}</strong>
+                            <p>{{ t('settings.sources.cap_exceeded_body') }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Full-disabled warning (placeholder copy; 61c-6 refines) -->
+                    <div class="settings-sources-warn"
+                         x-show="enabledCount === 0"
+                         role="status"
+                         aria-live="polite">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <span>{{ t('settings.sources.warn_all_disabled') }}</span>
+                    </div>
+
+                    <!-- ===== Section 3 — Metatube Connection (Zone B) — 61c-1 guard wrapper ===== -->
+                    <div class="settings-sources-section3" x-show="metatubeEnabled">
+                        <!-- 61c-4: metatube connection state machine + Parts Bin -->
+                    </div>
+
                     <div class="settings-form-group">
                         <label class="settings-label">
                             <input type="checkbox" class="toggle toggle-primary" id="uncensoredModeEnabled"
