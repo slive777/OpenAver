@@ -811,17 +811,22 @@ class TestConnectionErrorHandling:
         with pytest.raises(TimeoutError):
             scraper_zh._fetch_by_id("SONE-001_2026-03-20")
 
-    def test_search_by_keyword_connection_error_returns_empty(self, scraper_zh):
-        """search_by_keyword() 在 batch 內遇 ConnectionError → 回空 list 不 raise
-
-        get_ids_from_search 本身會 re-raise TimeoutError（外層攔截），
-        本測試只驗證 inner loop 的 except 鏈包含 ConnectionError：
-        模擬 get_ids_from_search 成功回 ids、但逐筆 search() 撞 ConnectionError，
-        batch 應跳過所有失敗筆數回空 list。
-        """
+    def test_search_by_keyword_inner_loop_connection_error_returns_empty(self, scraper_zh):
+        """inner loop：get_ids_from_search 成功回 ids，但逐筆 search() 撞 ConnectionError → 跳過全部，回空 list"""
         scraper_zh.get_ids_from_search = MagicMock(return_value=["A-1", "A-2", "A-3"])
         # search() 內部撞 ConnectionError，會被新加的 except 接住並 raise TimeoutError，
         # search_by_keyword 內層 except (ValueError, TimeoutError, ConnectionError) 跳過。
         scraper_zh._session.get = MagicMock(side_effect=requests.ConnectionError("net err"))
         result = scraper_zh.search_by_keyword("姐妹")
+        assert result == []
+
+    def test_search_by_keyword_get_ids_failure_returns_empty(self, scraper_zh):
+        """outer call：get_ids_from_search 本身撞 ConnectionError → 不讓 TimeoutError 穿透，回空 list
+
+        Codex 2026-05-28 review P1 修正：不 mock get_ids_from_search，
+        讓真實路徑跑到 _session.get 撞 ConnectionError → get_ids_from_search
+        re-raise TimeoutError → search_by_keyword outer try/except 必須攔住。
+        """
+        scraper_zh._session.get = MagicMock(side_effect=requests.ConnectionError("dns fail"))
+        result = scraper_zh.search_by_keyword("SONE")
         assert result == []

@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.10] - 2026-05-28
+
+本版是 v0.9 主軸 epic（scraper federation）開工前的技術債清理包（feature/60-tech-debt-cleanup），六項收尾：**B3 SSRF 安全修補**（`/api/proxy-image` 新增 URL 白名單 guard，scheme 強制 https、雙 set 分離 root domain 子域 endswith 比對 vs exact host 嚴格匹配，非白名單一律 403）；**B1 Scanner DB-miss tag 修復**（DB-miss 路徑 scraper 回傳 key 為 `tags` 不是 `genres`，導致新番整理後 NFO `<genre>` 永遠空白，1 行修正）；**B2 JavBus ConnectionError 強化**（三個 HTTP 請求點 + `search_by_keyword` 內外兩層 catch，DNS 失效 / proxy 斷線時批次搜尋跳過繼續而非整批崩潰）；**R3 女優查詢 json_each 重寫**（`count_by_actress` / `get_videos_by_actress` / `get_videos_by_actress_names` 三 method 從 4-LIKE-OR full-table scan 改 `json_each` + `json_valid` guard，與既有 `count_videos_for_actress_names` 對齊，「巨乳」不再誤中「巨乳波多野」、`actresses='[]'` 不誤中、同片 primary+alias 兩名不重複）；**R2 frontend-stack-roles.md 同步**（HTMX 已於 Phase 47 取消引入，主規範文件加 2026-04-26 banner + 段落 ⚠️ 規劃中標記，消除每個新 AI session 找 hx-* 的固定認知稅）；**L1 gallery_generator LEGACY 標注**（reverse-engineered 早期 god file 加 docstring 終止 AI review 重複建議拆分）。Bonus：capabilities `proxy_image` 描述同步白名單 + 403 行為。
+
+*This release is the tech-debt cleanup before the v0.9 scraper-federation epic (feature/60-tech-debt-cleanup). Six fixes: **B3 SSRF patch** (`/api/proxy-image` URL allowlist guard with https-only scheme, dual-set design — root domains with subdomain endswith vs exact hosts with strict match; non-allowlist → 403); **B1 Scanner DB-miss tag fix** (scrapers return `tags` key not `genres`; NFO `<genre>` was always blank after scraping new numbers; 1-line fix); **B2 JavBus ConnectionError hardening** (3 HTTP call sites + `search_by_keyword` two-layer catch; batch search now survives DNS/proxy failures instead of crashing the whole batch); **R3 actress json_each rewrite** (`count_by_actress` / `get_videos_by_actress` / `get_videos_by_actress_names` switch from 4-LIKE-OR full-table scan to `json_each` + `json_valid` guard, mirroring the existing `count_videos_for_actress_names`; "巨乳" no longer false-matches "巨乳波多野", `actresses='[]'` no longer matches, same video with primary+alias no longer duplicated); **R2 frontend-stack-roles.md sync** (HTMX was cancelled in Phase 47 — main spec doc now has a 2026-04-26 banner + ⚠️ 規劃中 section markers, eliminating the cognitive tax for every new AI session); **L1 gallery_generator LEGACY annotation** (reverse-engineered early god file gets a docstring to stop recurring AI review split suggestions). Bonus: capabilities `proxy_image` description synced with allowlist + 403 behavior.*
+
+### Security
+
+- **B3 `/api/proxy-image` SSRF 白名單防護**（`web/routers/search.py`）：新增 `_is_allowed_image_url()` helper + 兩個 set 嚴格分離（CD-60-1）：
+  - `_ALLOWED_IMAGE_ROOT_DOMAINS`：scraper 圖片來源（javbus / jav321 / heyzo / caribbeancom / 1pondo / 10musume / avsox.* / javten / jdbstatic — JavDB CDN，覆蓋 c0/c1/c2 等 numbered subdomain），含子域 endswith 比對
+  - `_ALLOWED_IMAGE_EXACT_HOSTS`：CDN / 女優照固定 host 嚴格匹配，不允子域繞過（pics.dmm.co.jp / awsimgsrc.dmm.co.jp / www.dmm.co.jp / javdb.com / cdn.jsdelivr.net / upload.wikimedia.org / Graphis 三變體 / Minnano 兩變體，對齊 `core/actress_photo.py::PHOTO_HOST_WHITELIST`）
+  - scheme 強制 `https`；非白名單一律 403（不發出 `requests.get`，無 SSRF 攻擊面）
+- **B3 silent except 修復**：原 `except Exception: pass` 改為 `logger.exception(...)`，response 維持 404（不洩漏 exception detail 給前端）
+- **Capabilities 同步**（Codex review）：`proxy_image` description / output_schema 加註白名單規則 + 403 行為
+
+### Fixed
+
+- **B1 Scanner DB-miss tag key 修復**（`web/routers/scanner.py:1243`）：`r.get('genres', [])` → `r.get('tags', [])`；scrapers/models.py:46 實際 key 為 `tags`，原寫法導致 DB-miss scrape 路徑 VideoInfo.genre 永遠空字串、NFO `<genre>` 空白
+- **B2 JavBus ConnectionError 攔截**（`core/scrapers/javbus.py`）：
+  - 方案一：`search()` / `get_ids_from_search()` / `_fetch_by_id()` 三處 except 從 `requests.Timeout` 擴為 `(requests.Timeout, requests.ConnectionError)`，統一 re-raise 為 `TimeoutError`
+  - 方案二（defense in depth）：`search_by_keyword()` outer call 對 `get_ids_from_search` 加 try / except `(TimeoutError, requests.ConnectionError)` 攔截後回空 list（Codex review P1 修正：原版只 wrap inner loop，外層 call 失敗仍會穿透）；inner loop except 加 `requests.ConnectionError` 兜底
+
+### Refactored
+
+- **R3 女優查詢 LIKE → json_each**（`core/database.py`）：三個 method 改寫，與既有 `count_videos_for_actress_names` 對齊
+  - `count_by_actress` → `SELECT COUNT(DISTINCT videos.rowid) FROM videos, json_each(videos.actresses) WHERE json_valid(...) AND json_each.value = ?`
+  - `get_videos_by_actress` → 同上 + `SELECT DISTINCT videos.*` + `ORDER BY videos.id`
+  - `get_videos_by_actress_names` → 取代原 UNION-of-LIKE，改 `je.value IN (placeholders)` + `SELECT DISTINCT videos.*`（F3 修正：保留同片 primary+alias 兩名時不重複的 UNION 語意）
+  - 全部加 `json_valid()` 防 NULL / malformed JSON crash + `except sqlite3.OperationalError` 兼容舊版 SQLite 無 json_each
+- CD-60-4：本 branch 不加 generated column + index，視 benchmark 結果 defer 到後續 branch
+
+### Internal
+
+- **R2 `frontend-stack-roles.md` 更新（本地 only）**：HTMX 已於 Phase 47 取消引入，主規範文件頂部加 2026-04-26 banner + HTMX 邊界 / 共存規則 / 程式碼速查三段加 ⚠️ 規劃中標記。檔案落在 gitignored `feature/` 目錄，更動本地保留不進 commit；AC-5 regression check `grep -r "hx-boost\|hx-get\|hx-post\|hx-trigger" web/` 結果為空已確認
+- **L1 `core/gallery_generator.py` LEGACY docstring**：1859 行 god file（reverse-engineered from `archives/avlist_py/generator.py`）頂部加 LEGACY 標注 + AI Reviewer 三條明示指示（不拆分 / 不改寫 f-string template / 修改前先 grep `/api/gallery` caller），終止每輪 AI review 重複建議拆分的對話成本（CD-60-5）
+
+### 測試
+
+- 新增測試 31 case：B3 `TestProxyImageSSRF`（13 case，含 Codex round-2 P1 新增的 JavDB CDN `c0.jdbstatic.com` allow case）+ B1 `test_scanner_generate_from_ids.py`（3 case）+ R3 `test_database_actress_queries.py`（10 case）+ B2 `TestConnectionErrorHandling`（5 case，含 Codex round-1 P1 新增的 outer get_ids_from_search failure case）
+- 既有測試更新：`test_proxy_image_unknown_domain_no_referer` 斷言 200 → 403 + `mock_get.assert_not_called()`
+
 ## [0.8.9] - 2026-05-15
 
 本版是 v0.9 release candidate 前的最後 polish 包（feature/59-onboarding-help-polish），三軌道出貨：**主軸 59a — Onboarding & Help 翻轉**（新手敘事從 Search-first「文件管理員心智」翻為 Scanner-first「相簿心智」：7 步 tutorial 重排 / Help 頁 3 卡 + Next Steps + Tag Alias + power_user 區塊 / README 同步 / 4 locale parity）；**主軸 59b — test_frontend_lint.py 體檢**（2026-05-14 4-agent audit；DELETE 2 + REFACTOR 1 過時 transient-guard pytest class；pre-merge SA-pre-7 /simplify review + transient-guard 生命週期 checklist 引入）；**主軸 59c — E2E 用戶旅程劇本 v2**（24 舊 scenarios 全面審計後改寫為 7 個 User Story 串連 US1-US7，純文字劇本「人類用瀏覽器 / AI 用 Playwright MCP」雙軌可跑；Codex 5 輪 + CDP 實機抽跑驗收）。Bonus：PyWebView 視窗幾何（位置 / 大小）跨重啟持久化。

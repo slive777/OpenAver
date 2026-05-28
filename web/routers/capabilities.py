@@ -511,17 +511,17 @@ _TOOLS: list[dict] = [
     },
     {
         "name": "proxy_image",
-        "description": "代理下載遠端圖片 — 解決 Cloudflare / 防盜鏈問題。搜尋結果的 cover 和 sample_images URL 是遠端直連，AI agent 直接 curl 會被擋。必須透過此端點下載。",
+        "description": "代理下載遠端圖片 — 解決 Cloudflare / 防盜鏈問題。搜尋結果的 cover 和 sample_images URL 是遠端直連，AI agent 直接 curl 會被擋。必須透過此端點下載。URL 必須屬於 SSRF 白名單域名（scraper 圖片來源 javbus / dmm / javdb / jav321 等，以及女優圖片 cdn.jsdelivr.net / upload.wikimedia.org / graphis.ne.jp / minnano-av.com），scheme 須為 https。非白名單 host 一律回 403。",
         "method": "GET",
         "path": "/api/proxy-image",
         "input_schema": {
             "type": "object",
             "properties": {
-                "url": {"type": "string", "description": "遠端圖片 URL（從搜尋結果的 cover 或 sample_images 欄位取得）"},
+                "url": {"type": "string", "description": "遠端圖片 URL（從搜尋結果的 cover 或 sample_images 欄位取得；須為 https 白名單域名）"},
             },
             "required": ["url"],
         },
-        "output_schema": "binary — 圖片二進位資料（Content-Type: image/jpeg）。失敗時回傳 404 空回應。",
+        "output_schema": "binary — 圖片二進位資料（Content-Type: image/jpeg）。非白名單 URL 回 403；外部下載失敗回 404 空回應。",
         "side_effect": False,
         "retry_safe": True,
         "_example_template": "curl -o cover.jpg '{base}/api/proxy-image?url=https://pics.dmm.co.jp/digital/video/ssis00221/ssis00221pl.jpg'",

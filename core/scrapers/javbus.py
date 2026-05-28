@@ -345,7 +345,10 @@ class JavBusScraper(BaseScraper):
         Returns:
             Video 列表
         """
-        ids = self.get_ids_from_search(keyword, page=page)
+        try:
+            ids = self.get_ids_from_search(keyword, page=page)
+        except (TimeoutError, requests.ConnectionError):
+            return []
         results: list[Video] = []
         for num_id in ids[:limit]:
             try:

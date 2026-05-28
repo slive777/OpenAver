@@ -57,6 +57,7 @@ _ALLOWED_IMAGE_ROOT_DOMAINS = {
     "avsox.monster",
     "avsox.website",
     "javten.com",
+    "jdbstatic.com",  # JavDB CDN root (c0/c1/c2 numbered subdomains)
 }
 # SSRF allowlist — exact match，不允子域（CD-60-1：CDN / 女優照片固定 host 嚴格匹配）
 _ALLOWED_IMAGE_EXACT_HOSTS = {

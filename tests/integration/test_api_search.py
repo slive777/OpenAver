@@ -958,6 +958,19 @@ class TestProxyImageSSRF:
         assert response.status_code == 200
         mock_get.assert_called_once()
 
+    def test_allow_jdbstatic_cdn_numbered_subdomain(self, client):
+        """c0.jdbstatic.com / c1.jdbstatic.com 等 JavDB CDN（jdbstatic.com root domain）應通過 → 200
+
+        Codex 2026-05-28 round-2 review P1：JavDB scraper 實際回傳 cover URL
+        host 為 c0.jdbstatic.com（見 tests/fixtures/responses/javdb/SONE-103.json:4），
+        不是 javdb.com；原 allowlist 只列 javdb.com exact host，導致 JavDB 結果封面 403。
+        """
+        url = 'https://c0.jdbstatic.com/covers/sone103.jpg'
+        with patch('web.routers.search.requests.get', return_value=self._make_mock_response()) as mock_get:
+            response = client.get('/api/proxy-image', params={'url': url})
+        assert response.status_code == 200
+        mock_get.assert_called_once()
+
     # ---- Exact-host subdomain blocked (1) ----
 
     def test_evil_jsdelivr_subdomain_blocked(self, client):
