@@ -36,9 +36,9 @@ _MOCK_BUILTIN_SOURCES = [
     {"id": "avsox", "name": "AVSOX", "is_censored": False, "order": 7, "manual_only": False},
 ]
 
-# Manual-Only mock — B4 javlibrary preview. Lives in Tier 2 with a
-# `[進階搜尋專用]` badge instead of a toggle; does NOT count toward cap.
-# See design-source-tiers.md v4.2 §3 Rule 3 + §4.1 + §9 B4 row.
+# Manual-Only mock — B4 javlibrary preview. In v2 Two-Zone model it sits
+# FIXED LAST in the Active Row (Section 2) with a `[BETA]` badge replacing the
+# toggle; does NOT count toward cap. See design-source-tiers.v2.md §2.1 + §4.1.
 _MOCK_MANUAL_ONLY_SOURCES = [
     {"id": "javlibrary", "name": "JavLibrary",
      "is_censored": True, "order": 99, "manual_only": True, "is_beta": True},
@@ -109,9 +109,14 @@ async def settings_mock_page(request: Request):
     context["mock_builtin_sources"] = _MOCK_BUILTIN_SOURCES
     context["mock_manual_only_sources"] = _MOCK_MANUAL_ONLY_SOURCES
     context["mock_metatube_sources"] = _MOCK_METATUBE_SOURCES
-    # Tier 1 hard cap — design-source-tiers.md v4.2 §2 (also B1 contract;
-    # core/source_config.py::MAX_ENABLED_SOURCES in P2). Exposed to the
+    # Cap=10 — design-source-tiers.v2.md §2.2 (cap basis = enabled && !manual_only;
+    # B1 contract core/source_config.py::MAX_ENABLED_SOURCES in P2). Exposed to the
     # template so the magic number lives in one place.
     context["mock_tier1_cap"] = 10
+    # Metatube connection mock placeholders — dev-env values per epic §1.6.
+    # Safe to expose in this gitignored-from-sidebar POC route (CD-61-13).
+    # The "連線" button is a pure Alpine state flip — no real HTTP (decision §2.7).
+    context["mock_metatube_url_placeholder"] = "http://192.168.1.177:8080"
+    context["mock_metatube_token_placeholder"] = "36885e51a50f...eb944bda"
 
     return templates.TemplateResponse(request, "settings_mock.html", context)
