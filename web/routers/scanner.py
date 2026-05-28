@@ -41,6 +41,7 @@ from core.database import VideoRepository, Video, init_db, get_db_path, migrate_
 from core.organizer import generate_jellyfin_images, HEADERS as _EMBED_HEADERS
 from core.config import load_config
 from core.scraper import smart_search
+from core.source_settings import is_uncensored_mode_effective
 from pydantic import BaseModel
 from core.logger import get_logger
 from web.routers.notifications import emit_notification as _emit_notif
@@ -1225,7 +1226,7 @@ def generate_from_ids(body: GenerateFromIdsRequest):
         else:
             # DB miss → 即時 scrape
             try:
-                scrape_results = smart_search(num, limit=1)
+                scrape_results = smart_search(num, limit=1, uncensored_mode=is_uncensored_mode_effective(config))
             except Exception as e:
                 logger.error('generate_from_ids: scrape %s failed: %s', num, e)
                 scrape_results = []

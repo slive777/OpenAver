@@ -589,3 +589,200 @@ class TestDiscoveryOnly:
         # exact mode should still return a result (not empty)
         assert len(results) == 1
         assert results[0]['number'] == 'SONE-100'
+
+
+# ============ Rule 4b: JavBus variant probe gating (CD-61-19) ============
+
+class TestRule4bVariantProbeGating:
+    """JavBus variant probe（get_all_variant_ids）僅在 'javbus' ∈ get_enabled_source_ids() 時觸發。
+
+    JavBus 停用 → 跳過 variant 探查 + 不發 ('javbus','searching') status（靜默降級），
+    落一般 search_jav。JavBus 啟用 → variant 探查照舊。
+    """
+
+    def test_javbus_disabled_skips_variant_probe(self, make_mock_search_jav):
+        """JavBus 不在 Active Row → get_all_variant_ids 不被呼叫，無 javbus status，落一般 search_jav"""
+        from core.scraper import smart_search
+
+        status_calls = []
+
+        def status_cb(source, status):
+            status_calls.append((source, status))
+
+        mock_result = {'number': 'SONE-100', 'title': 'Title'}
+        mock_variant = MagicMock(return_value=['SONE-100-variant'])
+
+        with patch('core.scraper.is_number_format', return_value=True), \
+             patch('core.scraper.normalize_number', return_value='SONE-100'), \
+             patch('core.scraper.get_enabled_source_ids', return_value=['jav321', 'javdb']), \
+             patch('core.scraper.get_all_variant_ids', mock_variant), \
+             patch('core.scraper.search_jav', return_value=mock_result):
+            results = smart_search('SONE-100', status_callback=status_cb)
+
+        # variant probe 不觸發
+        mock_variant.assert_not_called()
+        # callback 序列不含 javbus
+        assert ('javbus', 'searching') not in status_calls, \
+            f"JavBus disabled but status sequence contains javbus: {status_calls}"
+        # 仍落一般 search_jav 取得結果
+        assert len(results) == 1
+        assert results[0]['number'] == 'SONE-100'
+
+    def test_javbus_enabled_fires_variant_probe(self, make_mock_search_jav):
+        """JavBus 在 Active Row → get_all_variant_ids 被呼叫，發出 javbus status"""
+        from core.scraper import smart_search
+
+        status_calls = []
+
+        def status_cb(source, status):
+            status_calls.append((source, status))
+
+        mock_result = {'number': 'SONE-100', 'title': 'Title'}
+        mock_variant = MagicMock(return_value=[])
+
+        with patch('core.scraper.is_number_format', return_value=True), \
+             patch('core.scraper.normalize_number', return_value='SONE-100'), \
+             patch('core.scraper.get_enabled_source_ids', return_value=['javbus', 'jav321']), \
+             patch('core.scraper.get_all_variant_ids', mock_variant), \
+             patch('core.scraper.search_jav', return_value=mock_result):
+            results = smart_search('SONE-100', status_callback=status_cb)
+
+        # variant probe 觸發
+        mock_variant.assert_called_once()
+        # callback 序列含 javbus
+        assert ('javbus', 'searching') in status_calls, \
+            f"JavBus enabled but status sequence missing javbus: {status_calls}"
+        assert len(results) == 1
+
+    def test_javbus_enabled_variant_hit_returns_variant_result(self, make_mock_search_jav):
+        """JavBus 啟用且找到變體 → 走 search_by_variant_id，結果帶 _all_variant_ids"""
+        from core.scraper import smart_search
+
+        variant_result = {'number': 'SONE-100', 'title': 'Variant'}
+
+        with patch('core.scraper.is_number_format', return_value=True), \
+             patch('core.scraper.normalize_number', return_value='SONE-100'), \
+             patch('core.scraper.get_enabled_source_ids', return_value=['javbus']), \
+             patch('core.scraper.get_all_variant_ids', return_value=['SONE-100', 'SONE-101']), \
+             patch('core.scraper.search_by_variant_id', return_value=variant_result):
+            results = smart_search('SONE-100')
+
+        assert len(results) == 1
+        assert results[0].get('_all_variant_ids') == ['SONE-100', 'SONE-101']
+
+    def test_javbus_disabled_does_not_use_variant_id_path(self, make_mock_search_jav):
+        """JavBus 停用即使「會有變體」也不走 search_by_variant_id（probe 根本沒跑）"""
+        from core.scraper import smart_search
+
+        mock_result = {'number': 'SONE-100', 'title': 'Title'}
+        mock_variant = MagicMock(return_value=['SONE-100-v'])
+        mock_by_variant = MagicMock(return_value={'number': 'SONE-100', '_all_variant_ids': ['x']})
+
+        with patch('core.scraper.is_number_format', return_value=True), \
+             patch('core.scraper.normalize_number', return_value='SONE-100'), \
+             patch('core.scraper.get_enabled_source_ids', return_value=['avsox']), \
+             patch('core.scraper.get_all_variant_ids', mock_variant), \
+             patch('core.scraper.search_by_variant_id', mock_by_variant), \
+             patch('core.scraper.search_jav', return_value=mock_result):
+            results = smart_search('SONE-100')
+
+        mock_variant.assert_not_called()
+        mock_by_variant.assert_not_called()
+        # 結果來自一般 search_jav，無 _all_variant_ids
+        assert len(results) == 1
+        assert '_all_variant_ids' not in results[0]
+
+
+# ============ Disabled source absent from auto-search routing (EC-6) ============
+
+class TestDisabledSourceRouting:
+    """停用 / 不在 Active Row 的來源不出現在自動搜尋 fan-out 序列；全關仍不 crash（EC-8）。"""
+
+    @staticmethod
+    def _instantiated_scraper_mocks():
+        """回傳一組 (patch context managers, searched tracker) — 每個 scraper class
+        被 patch 成 mock：instance.search() 記錄被搜尋的來源並回 None。
+
+        以 .search() 而非建構為準：normalize_number() 會建立一個 JavBusScraper 但不呼叫
+        .search()，用建構計數會誤報 javbus。"""
+        instantiated = []
+
+        def make_cls(name):
+            def factory(*args, **kwargs):
+                inst = MagicMock()
+                def _search(*a, **k):
+                    instantiated.append(name)
+                    return None
+                inst.search.side_effect = _search
+                return inst
+            return factory
+
+        cms = [
+            patch('core.scraper.JavBusScraper', side_effect=make_cls('javbus')),
+            patch('core.scraper.JAV321Scraper', side_effect=make_cls('jav321')),
+            patch('core.scraper.JavDBScraper', side_effect=make_cls('javdb')),
+            patch('core.scraper.D2PassScraper', side_effect=make_cls('d2pass')),
+            patch('core.scraper.HEYZOScraper', side_effect=make_cls('heyzo')),
+            patch('core.scraper.FC2Scraper', side_effect=make_cls('fc2')),
+            patch('core.scraper.AVSOXScraper', side_effect=make_cls('avsox')),
+            patch('core.scraper.DMMScraper', side_effect=make_cls('dmm')),
+        ]
+        return cms, instantiated
+
+    def test_disabled_source_absent_from_auto_fanout(self, make_mock_search_jav):
+        """auto fan-out 只跑 get_enabled_source_ids() 子集 — 停用來源不被建立 / 搜尋"""
+        from core.scraper import search_jav
+        from contextlib import ExitStack
+
+        cms, instantiated = self._instantiated_scraper_mocks()
+        with ExitStack() as stack:
+            for cm in cms:
+                stack.enter_context(cm)
+            # 只啟用 jav321 + javdb（停用 javbus / dmm 等）
+            stack.enter_context(
+                patch('core.scraper.get_enabled_source_ids', return_value=['jav321', 'javdb'])
+            )
+            result = search_jav('SONE-100', source='auto')
+
+        assert 'javbus' not in instantiated, \
+            f"disabled javbus should not be instantiated, got {instantiated}"
+        assert 'dmm' not in instantiated
+        assert set(instantiated) <= {'jav321', 'javdb'}
+
+    def test_all_disabled_auto_returns_none_no_crash(self, make_mock_search_jav):
+        """全關（0 enabled）→ search_jav('auto') 回 None，不 crash（EC-8）"""
+        from core.scraper import search_jav
+        from contextlib import ExitStack
+
+        cms, instantiated = self._instantiated_scraper_mocks()
+        with ExitStack() as stack:
+            for cm in cms:
+                stack.enter_context(cm)
+            stack.enter_context(
+                patch('core.scraper.get_enabled_source_ids', return_value=[])
+            )
+            result = search_jav('SONE-100', source='auto')
+
+        assert result is None
+        assert instantiated == [], "no scraper should be instantiated when all disabled"
+
+    def test_all_disabled_uncensored_fallback_still_works(self, make_mock_search_jav):
+        """全關但 Rule 2 無碼 always-on：FC2 番號仍透過 _get_uncensored_sources 硬寫清單搜尋"""
+        from core.scraper import smart_search
+
+        searched = []
+        fc2_result = {'number': 'FC2-PPV-123', 'title': 'FC2'}
+
+        def fake_search_jav(num, source='auto', proxy_url='', primary_source='javbus', javbus_lang=None):
+            searched.append(source)
+            return fc2_result if source == 'fc2' else None
+
+        # 全關 enabled，但 Rule 2 走 _get_uncensored_sources（builtin-only 硬寫）不受 enabled 影響
+        with patch('core.scraper.get_enabled_source_ids', return_value=[]), \
+             patch('core.scraper.search_jav', side_effect=fake_search_jav):
+            results = smart_search('FC2-PPV-123', uncensored_mode=True)
+
+        # Rule 2 always-on：fc2 仍被搜尋（不被 enabled filter 跳過）
+        assert 'fc2' in searched, \
+            f"uncensored Rule 2 fallback should search fc2 even when all disabled, got {searched}"
+        assert len(results) == 1

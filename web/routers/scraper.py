@@ -21,6 +21,7 @@ from core.enricher import enrich_single, fetch_samples_only
 from core.organizer import organize_file
 from core.path_utils import to_file_uri, uri_to_fs_path
 from core.scraper import search_jav
+from core.source_config import validate_source_id
 from core.logger import get_logger
 from core.config import load_config
 from web.routers.notifications import emit_notification as _emit_notif
@@ -259,6 +260,13 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
         try:
             for idx, item in enumerate(deduped_items, start=1):
                 effective_source = item.source or request.source or "auto"
+                # 未知 / 非法 source guard：不靜默轉成無效 cache_key，退回 'auto'（最小驚訝）。
+                if effective_source != "auto" and not validate_source_id(effective_source):
+                    logger.warning(
+                        "batch_enrich: 未知 source %r（number=%s），退回 'auto'",
+                        effective_source, item.number,
+                    )
+                    effective_source = "auto"
                 effective_lang = item.javbus_lang or request.javbus_lang
 
                 # progress 事件

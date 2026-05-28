@@ -34,6 +34,7 @@ logger = get_logger(__name__)
 from core.database import VideoRepository, get_db_path, init_db
 from core.maker_mapping import load_prefix_mapping
 from core.source_config import validate_source_id
+from core.source_settings import is_uncensored_mode_effective
 from core.scraper import (
     search_jav, smart_search, is_partial_number, is_number_format,
     is_prefix_only, search_partial, search_actress, search_prefix,
@@ -187,7 +188,7 @@ def search(
     # 讀取設定（無碼模式 + proxy）
     from core.config import load_config
     config = load_config()
-    uncensored_mode = config.get('search', {}).get('uncensored_mode_enabled', False)
+    uncensored_mode = is_uncensored_mode_effective(config)
     proxy_url = config.get('search', {}).get('proxy_url', '')
     primary_source = config.get('search', {}).get('primary_source', 'javbus')
 
@@ -521,7 +522,7 @@ async def search_stream(
     # 讀取設定（無碼模式 + proxy）
     from core.config import load_config
     config = load_config()
-    uncensored_mode = config.get('search', {}).get('uncensored_mode_enabled', False)
+    uncensored_mode = is_uncensored_mode_effective(config)
     proxy_url = config.get('search', {}).get('proxy_url', '')
     primary_source = config.get('search', {}).get('primary_source', 'javbus')
 

@@ -705,19 +705,22 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
                 if status_callback: status_callback('done', 'found:1')
                 return [res]
 
-        if status_callback:
-            status_callback('javbus', 'searching')
+        # Rule 4b（CD-61-19）：JavBus variant probe 僅在 JavBus 在 Active Row 啟用時觸發。
+        # JavBus 停用 → 跳過 variant 探查 + 不發 javbus status（靜默降級），落一般 search_jav。
+        if 'javbus' in get_enabled_source_ids():
+            if status_callback:
+                status_callback('javbus', 'searching')
 
-        # 嘗試找變體
-        variant_ids = get_all_variant_ids(query)
-        if variant_ids:
-            first = variant_ids[0]
-            # 用 variant id 搜
-            res = search_by_variant_id(first, query)
-            if res:
-                res['_all_variant_ids'] = variant_ids
-                if status_callback: status_callback('done', 'found:1')
-                return [res]
+            # 嘗試找變體
+            variant_ids = get_all_variant_ids(query)
+            if variant_ids:
+                first = variant_ids[0]
+                # 用 variant id 搜
+                res = search_by_variant_id(first, query)
+                if res:
+                    res['_all_variant_ids'] = variant_ids
+                    if status_callback: status_callback('done', 'found:1')
+                    return [res]
 
         # 一般搜尋
         res = search_jav(query, proxy_url=proxy_url, primary_source=primary_source)
