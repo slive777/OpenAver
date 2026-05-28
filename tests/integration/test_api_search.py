@@ -834,17 +834,14 @@ class TestProxyImageReferer:
         assert headers_sent.get('Referer') == 'https://www.javbus.com/'
 
     def test_proxy_image_unknown_domain_no_referer(self, client):
-        """未知 domain 發送請求時 Referer 應為空字串（仍正常代理）"""
+        """未知 domain 應被 SSRF allowlist 攔截，回 403 且不發出 HTTP 請求"""
         url = 'https://cdn.example.com/image.jpg'
 
         with patch('web.routers.search.requests.get', return_value=self._make_mock_response()) as mock_get:
             response = client.get('/api/proxy-image', params={'url': url})
 
-        assert response.status_code == 200
-        mock_get.assert_called_once()
-        _, call_kwargs = mock_get.call_args
-        headers_sent = call_kwargs.get('headers', {})
-        assert headers_sent.get('Referer') == ''
+        assert response.status_code == 403
+        mock_get.assert_not_called()
 
     def test_proxy_image_external_failure_returns_404(self, client):
         """外部請求失敗時應回傳 HTTP 404 空 body"""
@@ -855,6 +852,121 @@ class TestProxyImageReferer:
 
         assert response.status_code == 404
         assert response.content == b''
+
+
+class TestProxyImageSSRF:
+    """SSRF allowlist guard for /api/proxy-image"""
+
+    def _make_mock_response(self, content=b'fake', content_type='image/jpeg'):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.content = content
+        mock_resp.headers = {'Content-Type': content_type}
+        return mock_resp
+
+    # ---- SSRF block cases (5) ----
+
+    def test_ssrf_internal_ip_blocked(self, client):
+        """內網 IP 應被攔截 → 403，不發出 HTTP 請求"""
+        url = 'http://192.168.1.1/admin'
+        with patch('web.routers.search.requests.get') as mock_get:
+            response = client.get('/api/proxy-image', params={'url': url})
+        assert response.status_code == 403
+        mock_get.assert_not_called()
+
+    def test_ssrf_localhost_blocked(self, client):
+        """localhost 應被攔截 → 403，不發出 HTTP 請求"""
+        url = 'http://127.0.0.1/'
+        with patch('web.routers.search.requests.get') as mock_get:
+            response = client.get('/api/proxy-image', params={'url': url})
+        assert response.status_code == 403
+        mock_get.assert_not_called()
+
+    def test_ssrf_cloud_metadata_blocked(self, client):
+        """cloud metadata endpoint 應被攔截 → 403，不發出 HTTP 請求"""
+        url = 'http://169.254.169.254/latest/meta-data/'
+        with patch('web.routers.search.requests.get') as mock_get:
+            response = client.get('/api/proxy-image', params={'url': url})
+        assert response.status_code == 403
+        mock_get.assert_not_called()
+
+    def test_ssrf_unknown_domain_blocked(self, client):
+        """未知 domain 應被攔截 → 403，不發出 HTTP 請求"""
+        url = 'https://evil.com/image.jpg'
+        with patch('web.routers.search.requests.get') as mock_get:
+            response = client.get('/api/proxy-image', params={'url': url})
+        assert response.status_code == 403
+        mock_get.assert_not_called()
+
+    def test_ssrf_http_scheme_on_legal_domain_blocked(self, client):
+        """http scheme（合法 domain）應被攔截 → 403（scheme 強制 https）"""
+        url = 'http://javbus.com/image.jpg'
+        with patch('web.routers.search.requests.get') as mock_get:
+            response = client.get('/api/proxy-image', params={'url': url})
+        assert response.status_code == 403
+        mock_get.assert_not_called()
+
+    # ---- Scraper real-host allow cases (2) ----
+
+    def test_allow_pics_javbus_subdomain(self, client):
+        """pics.javbus.com（root domain endswith 比對）應通過 → 200"""
+        url = 'https://pics.javbus.com/cover/abc.jpg'
+        with patch('web.routers.search.requests.get', return_value=self._make_mock_response()) as mock_get:
+            response = client.get('/api/proxy-image', params={'url': url})
+        assert response.status_code == 200
+        mock_get.assert_called_once()
+
+    def test_allow_www_javbus_subdomain(self, client):
+        """www.javbus.com（root domain endswith 比對）應通過 → 200"""
+        url = 'https://www.javbus.com/image.jpg'
+        with patch('web.routers.search.requests.get', return_value=self._make_mock_response()) as mock_get:
+            response = client.get('/api/proxy-image', params={'url': url})
+        assert response.status_code == 200
+        mock_get.assert_called_once()
+
+    # ---- Actress cascade host allow cases (4) ----
+
+    def test_allow_graphis_data_subdomain(self, client):
+        """data.graphis.ne.jp（graphis.ne.jp root domain）應通過 → 200"""
+        url = 'https://data.graphis.ne.jp/model/xxx/prof.jpg'
+        with patch('web.routers.search.requests.get', return_value=self._make_mock_response()) as mock_get:
+            response = client.get('/api/proxy-image', params={'url': url})
+        assert response.status_code == 200
+        mock_get.assert_called_once()
+
+    def test_allow_cdn_jsdelivr_exact_host(self, client):
+        """cdn.jsdelivr.net（exact host）應通過 → 200"""
+        url = 'https://cdn.jsdelivr.net/gh/gfriends/gfriends@master/Content/xxx.jpg'
+        with patch('web.routers.search.requests.get', return_value=self._make_mock_response()) as mock_get:
+            response = client.get('/api/proxy-image', params={'url': url})
+        assert response.status_code == 200
+        mock_get.assert_called_once()
+
+    def test_allow_upload_wikimedia_exact_host(self, client):
+        """upload.wikimedia.org（exact host）應通過 → 200"""
+        url = 'https://upload.wikimedia.org/wikipedia/commons/x.jpg'
+        with patch('web.routers.search.requests.get', return_value=self._make_mock_response()) as mock_get:
+            response = client.get('/api/proxy-image', params={'url': url})
+        assert response.status_code == 200
+        mock_get.assert_called_once()
+
+    def test_allow_minnano_av_subdomain(self, client):
+        """www.minnano-av.com（minnano-av.com root domain）應通過 → 200"""
+        url = 'https://www.minnano-av.com/actress/photo.jpg'
+        with patch('web.routers.search.requests.get', return_value=self._make_mock_response()) as mock_get:
+            response = client.get('/api/proxy-image', params={'url': url})
+        assert response.status_code == 200
+        mock_get.assert_called_once()
+
+    # ---- Exact-host subdomain blocked (1) ----
+
+    def test_evil_jsdelivr_subdomain_blocked(self, client):
+        """evil.jsdelivr.net 不在 exact set，不允子域 → 403"""
+        url = 'https://evil.jsdelivr.net/malicious.js'
+        with patch('web.routers.search.requests.get') as mock_get:
+            response = client.get('/api/proxy-image', params={'url': url})
+        assert response.status_code == 403
+        mock_get.assert_not_called()
 
 
 # ============ since 日期過濾 ============
