@@ -761,6 +761,10 @@ class VideoRepository:
             row = cursor.fetchone()
             return row[0] if row else 0
         except sqlite3.OperationalError:
+            logger.exception(
+                "count_by_actress json_each failed for %r (returning 0)",
+                actress_name
+            )
             return 0
         finally:
             conn.close()
@@ -788,6 +792,10 @@ class VideoRepository:
             rows = cursor.fetchall()
             return [Video.from_row(row, self._get_columns()) for row in rows]
         except sqlite3.OperationalError:
+            logger.exception(
+                "get_videos_by_actress json_each failed for %r (returning [])",
+                actress_name
+            )
             return []
         finally:
             conn.close()
@@ -821,6 +829,10 @@ class VideoRepository:
             rows = cursor.fetchall()
             return [Video.from_row(row, self._get_columns()) for row in rows]
         except sqlite3.OperationalError:
+            logger.exception(
+                "get_videos_by_actress_names json_each failed for %d names (returning [])",
+                len(names)
+            )
             return []
         finally:
             conn.close()
