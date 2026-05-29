@@ -182,6 +182,63 @@
   },
   "settings": {
     "page_title": "設定",
+    "tabs": {
+      "display": "表示設定",
+      "scraping": "スクレイプ設定",
+      "sources": "スキャンソース",
+      "organize": "整理ルール",
+      "translate": "AI 翻訳",
+      "advanced": "高度な設定"
+    },
+    "display": {
+      "font_size_label": "フォントサイズ",
+      "locale_label": "表示言語",
+      "theme_label": "テーマ"
+    },
+    "sources": {
+      "primary_source_deprecated_hint": "デフォルト検索ソース（設定廃止済み）",
+      "primary_source_deprecated_note": "メインソースはここで設定しなくなりました。システムは順位が上のソースを自動的に使用します。「スキャンソース」タブでドラッグして並び替えてください。",
+      "uncensored_mode_label": "無修正モード",
+      "uncensored_mode_on": "無修正モード：オン",
+      "uncensored_mode_off": "無修正モード：オフ",
+      "uncensored_mode_off_hint": "無修正モードをオフにするには、有修正ソースをいずれか手動で再有効化してください（オフにしても有修正ソースは自動的に再有効化されません）",
+      "counter_prefix": "有効",
+      "cap_tag": "上限",
+      "select_all": "すべて有効",
+      "manual_only_badge": "BETA",
+      "cap_exceeded_title": "有効化上限に達しました",
+      "cap_exceeded_body": "上限の 10 個に達しました。先にいずれかのソースを無効にするか、高度な検索でソースを 1 つ手動選択して上書きしてください。",
+      "warn_all_disabled": "現在有効なソースがありません。有修正の完全一致検索はデータなしになります。例外：女優 / キーワード検索は JavBus の always-on ルールで引き続き動作します；FC2 / HEYZO / 日付形式の品番は無修正ソースへの自動 fallback が機能します。",
+      "mt_server_url_label": "Server URL",
+      "mt_token_label": "Bearer Token",
+      "mt_connect_btn": "接続",
+      "mt_connected_status": "✓ 接続済み",
+      "mt_edit_btn": "編集",
+      "mt_disconnect_btn": "切断",
+      "mt_connected_tier_hint": "接続後、すべての provider はデフォルトで下のリスト（Active Row 外）に留まります。⭐ は推奨の起点ですが、provider は自動有効化されません — 手動で追加してください。",
+      "mt_provider_list_header": "Provider リスト",
+      "mt_provider_list_expand_aria": "Provider リストを展開",
+      "mt_provider_list_collapse_aria": "Provider リストを折りたたむ",
+      "mt_recommended_label": "⭐ Recommended",
+      "mt_other_label": "その他",
+      "mt_promote_hint": "クリックして Active Row に追加",
+      "mt_disconnect_toast": "Metatube が切断されました。下の Section 3 から再接続してください。",
+      "disabled_footnote": "⚠️ 無効 ≠ 完全に呼ばれない。Fuzzy チェーン（DMM / JavBus / JavDB / Jav321）・無修正 fallback（FC2 / HEYZO / 日付番号）・高度な検索の単一ソース上書きは always-on のため、無効化されたソースが引き続きトリガーされる場合があります。例外：JavBus variant probe は Active Row の有効状態でゲートされ、JavBus が無効のときはスキップされます。"
+    },
+    "advanced_search": {
+      "toggle_label": "高度な検索 (Beta)",
+      "help": "有効にすると、検索ページで検索ボタンを長押しして、すべてのソース（未有効化を含む）から 1 つ選んで 1 回だけ上書き検索できます。",
+      "metatube_keyword_hint": "Metatube ソースは女優 / キーワード検索に対応していません。完全な番号を入力することをお勧めします。",
+      "picker_title": "検索ソースを選択",
+      "picker_subtitle": "今回の検索は選択したソースのみを使用します（全体上書き）。",
+      "group_builtin": "内蔵 + javlibrary",
+      "group_metatube": "Metatube",
+      "group_metatube_empty": "Metatube ソースがまだありません",
+      "manual_badge": "高度な検索専用",
+      "disabled_label": "（任意）",
+      "confirm": "確認",
+      "cancel": "キャンセル"
+    },
     "toast": {
       "desktop_only": "この機能はデスクトップアプリで使用する必要があります"
     },

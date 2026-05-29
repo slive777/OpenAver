@@ -182,6 +182,63 @@
   },
   "settings": {
     "page_title": "设置",
+    "tabs": {
+      "display": "显示偏好",
+      "scraping": "刮削行为",
+      "sources": "扫描来源",
+      "organize": "整理规则",
+      "translate": "AI 翻译",
+      "advanced": "高级"
+    },
+    "display": {
+      "font_size_label": "界面字号",
+      "locale_label": "界面语言",
+      "theme_label": "主题"
+    },
+    "sources": {
+      "primary_source_deprecated_hint": "默认搜索来源（已停用设置）",
+      "primary_source_deprecated_note": "已不再于此设置主来源：系统依排序自动使用最前面的，请至「扫描来源」分页拖曳排序。",
+      "uncensored_mode_label": "无码模式",
+      "uncensored_mode_on": "无码模式：开",
+      "uncensored_mode_off": "无码模式：关",
+      "uncensored_mode_off_hint": "请手动重新启用任一有码来源以关闭无码模式（off 不会自动重开有码来源）",
+      "counter_prefix": "已启用",
+      "cap_tag": "上限",
+      "select_all": "全开",
+      "manual_only_badge": "BETA",
+      "cap_exceeded_title": "已达启用上限",
+      "cap_exceeded_body": "已达上限 10 个，请先停用一个来源，或在高级搜索手动选择单一来源覆写。",
+      "warn_all_disabled": "目前无启用来源，有码精确搜索将无数据。例外：女优 / 关键字搜索仍透过 JavBus always-on 规则运作；FC2 / HEYZO / 日期格式番号仍透过无码来源自动 fallback。",
+      "mt_server_url_label": "Server URL",
+      "mt_token_label": "Bearer Token",
+      "mt_connect_btn": "连线",
+      "mt_connected_status": "✓ 已连线",
+      "mt_edit_btn": "编辑",
+      "mt_disconnect_btn": "中断",
+      "mt_connected_tier_hint": "连线后所有 provider 默认停留在下方清单（未进入 Active Row）。⭐ 为建议起手，但不会自动启用任何 provider，由你手动加入。",
+      "mt_provider_list_header": "Provider 清单",
+      "mt_provider_list_expand_aria": "展开 Provider 清单",
+      "mt_provider_list_collapse_aria": "收合 Provider 清单",
+      "mt_recommended_label": "⭐ Recommended",
+      "mt_other_label": "其他",
+      "mt_promote_hint": "点击可加入 Active Row",
+      "mt_disconnect_toast": "Metatube 已中断，请至下方 Section 3 重新连线。",
+      "disabled_footnote": "⚠️ 停用 ≠ 完全不被调用。Fuzzy 链（DMM / JavBus / JavDB / Jav321）、无码 fallback（FC2 / HEYZO / 日期番号）、高级搜索单选覆写属 always-on，仍会触发已停用来源。例外：JavBus variant probe 由 Active Row 启用身份把关，JavBus 停用时跳过。"
+    },
+    "advanced_search": {
+      "toggle_label": "高级搜索 (Beta)",
+      "help": "启用后可在搜索页长按搜索按钮，从所有来源（含未启用）选一个做单次覆写。",
+      "metatube_keyword_hint": "metatube 来源不支持女优/关键字搜索，建议输入完整番号。",
+      "picker_title": "选择搜索来源",
+      "picker_subtitle": "本次搜索将只用所选来源（整包覆写）。",
+      "group_builtin": "内建 + javlibrary",
+      "group_metatube": "Metatube",
+      "group_metatube_empty": "尚无 Metatube 来源",
+      "manual_badge": "高级专用",
+      "disabled_label": "（可选）",
+      "confirm": "确定",
+      "cancel": "取消"
+    },
     "toast": {
       "desktop_only": "此功能需要在桌面应用程序中使用"
     },

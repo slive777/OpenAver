@@ -7416,7 +7416,11 @@ class TestSettingsPanelStructureGuard:
         assert not dupes, f"61b-4 違規：settings.html 含 duplicate id：{dupes}"
 
     def test_primary_source_deprecated_marker(self):
-        """primarySource block kept in sources panel + deprecated comment marker."""
+        """primarySource block kept in sources panel + deprecated comment marker.
+
+        [transient-guard] B2 進階 re-scrape source picker 接手後 primarySource 元素
+        會被徹底拔除（CD-61-14）→ 本守衛屆時失效，B2 milestone 刪除。
+        """
         html = self._settings()
         assert "CD-61-14: deprecated" in html, (
             "61b-4 違規：sources panel 缺少 CD-61-14 deprecated 註解標記"

@@ -182,6 +182,63 @@
   },
   "settings": {
     "page_title": "Settings",
+    "tabs": {
+      "display": "Display",
+      "scraping": "Scraping",
+      "sources": "Sources",
+      "organize": "Organize",
+      "translate": "AI Translate",
+      "advanced": "Advanced"
+    },
+    "display": {
+      "font_size_label": "Font Size",
+      "locale_label": "Interface Language",
+      "theme_label": "Theme"
+    },
+    "sources": {
+      "primary_source_deprecated_hint": "Default search source (setting deprecated)",
+      "primary_source_deprecated_note": "Primary source is no longer set here — the system automatically uses the top-ranked source. Drag to reorder in the Sources tab.",
+      "uncensored_mode_label": "Uncensored Mode",
+      "uncensored_mode_on": "Uncensored Mode: On",
+      "uncensored_mode_off": "Uncensored Mode: Off",
+      "uncensored_mode_off_hint": "Manually re-enable any censored source to turn off uncensored mode (Off does not automatically re-enable censored sources)",
+      "counter_prefix": "Enabled",
+      "cap_tag": "Cap",
+      "select_all": "Enable All",
+      "manual_only_badge": "BETA",
+      "cap_exceeded_title": "Source Cap Reached",
+      "cap_exceeded_body": "You have reached the limit of 10 enabled sources. Please disable one source first, or select a single source override in Advanced Search.",
+      "warn_all_disabled": "No sources are currently enabled — exact censored searches will return no results. Exceptions: actress / keyword searches still operate via JavBus always-on rules; FC2 / HEYZO / date-format IDs still auto-fallback via uncensored sources.",
+      "mt_server_url_label": "Server URL",
+      "mt_token_label": "Bearer Token",
+      "mt_connect_btn": "Connect",
+      "mt_connected_status": "✓ Connected",
+      "mt_edit_btn": "Edit",
+      "mt_disconnect_btn": "Disconnect",
+      "mt_connected_tier_hint": "After connecting, all providers stay in the list below by default (not in Active Row). ⭐ marks recommended starters, but no provider is auto-enabled — add them manually.",
+      "mt_provider_list_header": "Provider List",
+      "mt_provider_list_expand_aria": "Expand Provider List",
+      "mt_provider_list_collapse_aria": "Collapse Provider List",
+      "mt_recommended_label": "⭐ Recommended",
+      "mt_other_label": "Other",
+      "mt_promote_hint": "Click to add to Active Row",
+      "mt_disconnect_toast": "Metatube disconnected. Please reconnect in Section 3 below.",
+      "disabled_footnote": "⚠️ Disabled ≠ never called. The fuzzy chain (DMM / JavBus / JavDB / Jav321), uncensored fallback (FC2 / HEYZO / date-format IDs), and Advanced Search single-source override are always-on and may still trigger disabled sources. Exception: JavBus variant probe is gated by Active Row status and is skipped when JavBus is disabled."
+    },
+    "advanced_search": {
+      "toggle_label": "Advanced Search (Beta)",
+      "help": "When enabled, long-press the search button on the Search page to pick a single source (including disabled ones) for a one-time override.",
+      "metatube_keyword_hint": "Metatube sources do not support actress/keyword search — enter a full ID for best results.",
+      "picker_title": "Select Search Source",
+      "picker_subtitle": "This search will use only the selected source (full override).",
+      "group_builtin": "Built-in + javlibrary",
+      "group_metatube": "Metatube",
+      "group_metatube_empty": "No Metatube sources yet",
+      "manual_badge": "Advanced Only",
+      "disabled_label": "(optional)",
+      "confirm": "Confirm",
+      "cancel": "Cancel"
+    },
     "toast": {
       "desktop_only": "This feature requires the desktop app"
     },

@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-05-29
+
+本版是 v0.9 scraper-federation epic 的第一段（B1），feature/61-settings-ia-sources 三軌道出貨：**61a — 後端資料驅動來源 schema**（使用者無感的基礎重構：來源清單從寫死改為 SourceConfig schema、config.json 新增 sources 段、routing 收斂到單一真理來源）；**61b — Settings 分區 IA 重設計**（頂部 6 個分頁取代原本捲一頁的設計，URL 深連結 + 記住上次分頁 + 平滑淡入動畫）；**61c — 掃描來源 tab + Metatube 骨架 + 進階搜尋 picker（Beta）+ scraper-sources capability**（使用者第一次可以直接管理哪些來源參與自動搜尋）。
+
+*This release is v0.9 scraper-federation epic, Block 1 (feature/61-settings-ia-sources). Three tracks: **61a — data-driven source schema** (user-invisible backend refactor: source list moved from hardcoded to SourceConfig schema, config.json gains a `sources` section, routing converges to a single source of truth); **61b — Settings tabbed IA redesign** (6-tab top nav replaces the single-scroll page, with deep-linkable URLs, last-tab memory, and smooth fade-in transitions); **61c — Scan Sources tab + Metatube skeleton + Advanced Search picker (Beta) + scraper-sources capability** (users can now directly manage which sources participate in automatic searches).*
+
+### Added
+
+#### 🗂️ 61b — Settings 分區 IA 重設計
+
+- **頂部 6 分頁導覽**：顯示偏好 / 刮削行為 / 掃描來源 / 整理規則 / AI 翻譯 / 進階；點分頁直達對應區塊，不用捲整頁
+- **URL 深連結**：支援 `/settings#sources` 等 hash 直連，分享設定位置、AI agent 可精確導航
+- **記住上次分頁**：重新開啟 Settings 自動回到上次停留的分頁
+- **切換動畫**：分頁內容平滑淡入，尊重系統 `prefers-reduced-motion`
+- **手機橫向捲動分頁列**：小螢幕不換行，橫滑切換
+
+#### 🎛️ 61c — 掃描來源 tab（v2 Two-Zone）
+
+- **8 個內建來源膠囊**：JavBus / Jav321 / JavDB / DMM / D2Pass / HEYZO / FC2 / AVSOX，點一下開關，拖曳改搜尋優先順序，即時生效不用存
+- **「無碼模式」一鍵切換**：停用所有有碼來源；手動點回任一有碼來源自動取消無碼模式
+- **同時啟用上限 10 個**：超過上限操作擋下，顯示提示
+- **全部停用警告**：所有來源停用時顯示警告，並說明 always-on 例外規則（模糊搜尋鏈 / 無碼 fallback 等）
+
+#### 🔌 61c — Metatube 連線區骨架（B1 預留）
+
+- **未啟用時不顯示**：Metatube 整區預設隱藏，啟用後才展開（連線實作待 B3）
+- **連線狀態機**：兩個主狀態 — 「待連線表單」與「已連線 + 摺疊 provider 清單（Parts Bin）」
+
+#### 🔍 61c — 進階搜尋 picker（Beta）
+
+- **預設關閉**，在 Settings › 進階 開啟後生效
+- **搜尋頁長壓搜尋鈕**跳出來源選單，可挑單一來源（含未啟用的）做一次性覆寫搜尋，不改變常駐啟用設定
+
+#### 🤖 AI Capability
+
+- **新增 `GET /api/scraper-sources`**：AI agent 可查使用者目前啟用、會用於自動搜尋的來源清單；不揭露停用來源、進階專用來源或連線設定
+
+### Changed
+
+#### ⚙️ 61a — 後端整理（使用者無感）
+
+- **來源清單資料驅動化**：`SourceConfig` schema 取代寫死的 scraper list；config.json 升級時既有設定字面 100% 保留，無碼模式欄位自動轉換
+- **Routing 單一真理來源**：停用的來源不再出現在自動搜尋管道；保留四條 always-on 規則（模糊搜尋鏈 / 無碼番號 fallback / capability filter / 精確搜尋前置）
+- **多來源結果合併抽共用函數**：文字 / 後設欄位依使用者拖曳順序「第一個成功來源整包贏」；封面獨立優先序維持 JavBus > Jav321 > JavDB（反浮水印）
+- **來源 enum / 無碼模式判斷收斂到單一 helper**：消除散落硬編碼
+
+### Internal
+
+- **i18n 4 語系同步**：zh_TW / zh_CN / en / ja 全部補齊 Settings 分頁 + 掃描來源 + 進階搜尋 UI 文字；`/settings-mock` POC keys 維持 zh_TW only（B4 移除）
+- **Codex review 收斂**：多輪 review 修正實作細節（狀態機邊界 / capability filter 邏輯 / merger 邊界 / picker 互動）
+
+### 測試
+
+- 新增測試覆蓋：資料模型 migration / capability endpoint / 拖曳 persist / 多來源 merger / 進階 picker 互動
+- `pipeline_routing` 測試加環境隔離（不受 ambient config 影響）
+- 全套 pytest 2937 passed（unit + integration，排除 smoke / e2e）
+
 ## [0.8.10] - 2026-05-28
 
 本版是 v0.9 主軸 epic（scraper federation）開工前的技術債清理包（feature/60-tech-debt-cleanup），六項收尾：**B3 SSRF 安全修補**（`/api/proxy-image` 新增 URL 白名單 guard，scheme 強制 https、雙 set 分離 root domain 子域 endswith 比對 vs exact host 嚴格匹配，非白名單一律 403）；**B1 Scanner DB-miss tag 修復**（DB-miss 路徑 scraper 回傳 key 為 `tags` 不是 `genres`，導致新番整理後 NFO `<genre>` 永遠空白，1 行修正）；**B2 JavBus ConnectionError 強化**（三個 HTTP 請求點 + `search_by_keyword` 內外兩層 catch，DNS 失效 / proxy 斷線時批次搜尋跳過繼續而非整批崩潰）；**R3 女優查詢 json_each 重寫**（`count_by_actress` / `get_videos_by_actress` / `get_videos_by_actress_names` 三 method 從 4-LIKE-OR full-table scan 改 `json_each` + `json_valid` guard，與既有 `count_videos_for_actress_names` 對齊，「巨乳」不再誤中「巨乳波多野」、`actresses='[]'` 不誤中、同片 primary+alias 兩名不重複）；**R2 frontend-stack-roles.md 同步**（HTMX 已於 Phase 47 取消引入，主規範文件加 2026-04-26 banner + 段落 ⚠️ 規劃中標記，消除每個新 AI session 找 hx-* 的固定認知稅）；**L1 gallery_generator LEGACY 標注**（reverse-engineered 早期 god file 加 docstring 終止 AI review 重複建議拆分）。Bonus：capabilities `proxy_image` 描述同步白名單 + 403 行為。

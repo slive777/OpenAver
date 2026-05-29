@@ -101,7 +101,11 @@ class TestStateConfigStateMachineFlags:
             assert decl in js, f"state-config.js missing flag declaration: {decl!r}"
 
     def test_metatube_enabled_stays_false(self):
-        """B1：metatubeEnabled hardcoded false（production Section 3 不渲染）。"""
+        """B1：metatubeEnabled hardcoded false（production Section 3 不渲染）。
+
+        [transient-guard] B3 啟用 metatube 連線時會把 metatubeEnabled 翻 true →
+        本守衛（含正/負兩條斷言）屆時失效，B3 milestone 刪除。
+        """
         js = self._js()
         assert "metatubeEnabled: false" in js, \
             "metatubeEnabled must stay hardcoded false in B1 (do not flip to true)"
@@ -123,7 +127,10 @@ class TestStateConfigStateMachineFlags:
             "metatubeDisconnect must set available=false on metatube sources (EC-9)"
 
     def test_mock_provider_fixture_marked_for_removal(self):
-        """mock fixture 帶 TODO(B4) 移除標記（CD-61-13）。"""
+        """mock fixture 帶 TODO(B4) 移除標記（CD-61-13）。
+
+        [transient-guard] B4 移除 metatube mock fixture 後本守衛失效，B4 milestone 刪除。
+        """
         js = self._js()
         assert "TODO(B4)" in js, \
             "metatube mock provider fixture must carry a // TODO(B4) removal marker (CD-61-13)"
