@@ -229,15 +229,7 @@
       "toggle_label": "進階搜尋 (Beta)",
       "help": "啟用後可在搜尋頁長壓搜尋按鈕，從所有來源（含未啟用）選一個做單次覆寫。",
       "metatube_keyword_hint": "metatube 來源不支援女優/關鍵字搜尋，建議輸入完整番號。",
-      "picker_title": "選擇搜尋來源",
-      "picker_subtitle": "本次搜尋將只用所選來源（整包覆寫）。",
-      "group_builtin": "內建 + javlibrary",
-      "group_metatube": "Metatube",
-      "group_metatube_empty": "尚無 Metatube 來源",
-      "manual_badge": "進階專用",
-      "disabled_label": "(可選)",
-      "confirm": "確定",
-      "cancel": "取消"
+      "group_metatube_empty": "尚無 Metatube 來源"
     },
     "mock": {
       "page_title": "Settings IA POC",

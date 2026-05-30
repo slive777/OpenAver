@@ -229,15 +229,7 @@
       "toggle_label": "高度な検索 (Beta)",
       "help": "有効にすると、検索ページで検索ボタンを長押しして、すべてのソース（未有効化を含む）から 1 つ選んで 1 回だけ上書き検索できます。",
       "metatube_keyword_hint": "Metatube ソースは女優 / キーワード検索に対応していません。完全な番号を入力することをお勧めします。",
-      "picker_title": "検索ソースを選択",
-      "picker_subtitle": "今回の検索は選択したソースのみを使用します（全体上書き）。",
-      "group_builtin": "内蔵 + javlibrary",
-      "group_metatube": "Metatube",
-      "group_metatube_empty": "Metatube ソースがまだありません",
-      "manual_badge": "高度な検索専用",
-      "disabled_label": "（任意）",
-      "confirm": "確認",
-      "cancel": "キャンセル"
+      "group_metatube_empty": "Metatube ソースがまだありません"
     },
     "toast": {
       "desktop_only": "この機能はデスクトップアプリで使用する必要があります"
