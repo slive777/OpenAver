@@ -218,10 +218,13 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
         nfo_path, cover_path = resolve_nfo_cover_paths(request.file_path)
         will_write_nfo = request.write_nfo and not os.path.exists(nfo_path)
         will_write_cover = request.write_cover and not os.path.exists(cover_path)
-        if not will_write_nfo and not will_write_cover:
+        # Codex P2 / extrafanart guard fix：_write_extrafanart 無 overwrite gate，
+        # write_extrafanart=true 即為真寫磁碟（劇照 sidecar），應計入「會寫 sidecar」條件。
+        will_write_extrafanart = request.write_extrafanart
+        if not will_write_nfo and not will_write_cover and not will_write_extrafanart:
             raise HTTPException(
                 status_code=400,
-                detail="refresh_full + overwrite_existing=false 在此設定下不會寫出任何 NFO/封面，只會更新 DB 造成與磁碟分裂；請開 overwrite_existing 或啟用至少一個缺檔的 write 旗標",
+                detail="refresh_full + overwrite_existing=false 在此設定下不會寫出任何 NFO/封面/劇照，只會更新 DB 造成與磁碟分裂；請開 overwrite_existing、補缺 NFO/封面，或啟用 write_extrafanart 劇照寫入",
             )
 
     try:
