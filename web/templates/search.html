@@ -289,12 +289,12 @@
                         <i class="bi bi-x-lg"></i>
                     </button>
                     <button type="submit" id="btnSubmit" class="btn-icon active" title="{{ t('search.action.search') }}"
-                            @mousedown="longPressStart(() => { openRescrape(null, 'search'); rescrapeNumber = (searchQuery || '').trim(); }, () => rescrapeEnabled())"
-                            @mouseup="longPressEnd()"
-                            @mouseleave="longPressCancel()"
-                            @touchstart.passive="longPressStart(() => { openRescrape(null, 'search'); rescrapeNumber = (searchQuery || '').trim(); }, () => rescrapeEnabled())"
-                            @touchend="longPressEnd()"
-                            @touchcancel="longPressCancel()"
+                            @mousedown="longPressStart(() => { openRescrape(null, 'search'); rescrapeNumber = (searchQuery || '').trim(); }, () => rescrapeEnabled(), $event)"
+                            @mouseup="longPressEnd($event)"
+                            @mouseleave="longPressCancel($event)"
+                            @touchstart.passive="longPressStart(() => { openRescrape(null, 'search'); rescrapeNumber = (searchQuery || '').trim(); }, () => rescrapeEnabled(), $event)"
+                            @touchend="longPressEnd($event)"
+                            @touchcancel="longPressCancel($event)"
                             @click="longPressClickGuard($event)">
                         <i class="bi bi-arrow-right"></i>
                     </button>
@@ -457,12 +457,12 @@
                        ⚠️ 長壓只疊此鈕（🔄）；旁邊 ↗ openSourceUrl 鈕不碰。 #}
                     <button id="switchSourceBtn" class="info-icon-btn"
                             @click="longPressClickGuard($event) || switchSource()"
-                            @mousedown="longPressStart(() => openSwitchSourcePicker(), () => rescrapeEnabled())"
-                            @mouseup="longPressEnd()"
-                            @mouseleave="longPressCancel()"
-                            @touchstart.passive="longPressStart(() => openSwitchSourcePicker(), () => rescrapeEnabled())"
-                            @touchend="longPressEnd()"
-                            @touchcancel="longPressCancel()"
+                            @mousedown="longPressStart(() => openSwitchSourcePicker(), () => rescrapeEnabled(), $event)"
+                            @mouseup="longPressEnd($event)"
+                            @mouseleave="longPressCancel($event)"
+                            @touchstart.passive="longPressStart(() => openSwitchSourcePicker(), () => rescrapeEnabled(), $event)"
+                            @touchend="longPressEnd($event)"
+                            @touchcancel="longPressCancel($event)"
                             title="{{ t('search.action.switch_source') }}"
                             :disabled="isSwitchingSource"
                             :class="{ 'shake': switchSourceShake }">

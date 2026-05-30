@@ -17,6 +17,14 @@
  *
  * cb / enabledFn 由 template 以 arrow closure 傳入（→ this / video 在元件作用域解析），
  * 本 mixin 的 method 為 plain object method（Alpine 在 mergeState 後把 this 綁到元件）。
+ *
+ * touch synthetic-mouse 抑制（Codex PR#47 P2，選項 A）：
+ *   touch 瀏覽器在 touchend/touchcancel 後補發 compatibility mouse events（mousedown→mouseup→click）。
+ *   W3C Touch Events §7 對 synthetic event 的 target 是 UA 裁量（"may" dispatch），不保證打到當前 DOM
+ *   （modal backdrop）—— 某些 UA 派回原按鈕 → synthetic mousedown 進 longPressStart 清掉 _lpFired →
+ *   後續 synthetic click 的 guard 失效 → 長壓開 picker 同時又觸發底層 tap（雙觸發）。
+ *   修法：touchend/touchcancel 記 monotonic timestamp（_lpSuppressMouseUntil = now + 700ms），抑制窗內的
+ *   synthetic mousedown 在 longPressStart 開頭 early-return（不碰 _lpFired、不啟 timer）。method 須接 $event。
  */
 
 const LONG_PRESS_MS = 700;   // 與 advanced-picker.js:14 LONG_PRESS_MS 對齊
@@ -26,13 +34,22 @@ export function longPressState() {
         // ── 長壓 state ──
         _lpTimer: null,
         _lpFired: false,   // 長壓已觸發旗標（攔截同一次 click）
+        _lpSuppressMouseUntil: 0,   // touchend/touchcancel 後抑制 synthetic mousedown 的 monotonic 截止時間（Codex PR#47 P2）
 
         /**
          * 長壓開始（@mousedown / @touchstart）。
          * @param {Function} cb        — fire callback（700ms 達標後執行，如 () => openRescrape(video,'enrich')）
          * @param {Function} [enabledFn] — gate：回 false 則不啟 timer（如 () => rescrapeEnabled()）
+         * @param {Event}    [event]    — 原始事件（傳 $event）：用於 touch synthetic mousedown 抑制判斷
          */
-        longPressStart(cb, enabledFn) {
+        longPressStart(cb, enabledFn, event) {
+            // touch synthetic-mouse 抑制（Codex PR#47 P2）：touchend 後 UA 補發的 compatibility
+            // mousedown 不得清掉 touch 長壓設的 _lpFired（否則後續 synthetic click guard 失效 → 雙觸發）。
+            // W3C Touch Events §7：synthetic event target 由 UA 裁量，不保證打到 modal backdrop。
+            // 必在下方 this._lpFired = false reset 之前 early-return，否則旗標已被清。
+            if (event && event.type === 'mousedown' && performance.now() < this._lpSuppressMouseUntil) {
+                return;   // synthetic mousedown：早退，不碰 _lpFired、不啟 timer
+            }
             // 【load-bearing invariant — 勿移到 gate 之下】每次新長壓在自己的 click-guard 求值前先清旗標，
             // 中和「長壓開了 modal、放開的 click 落在 backdrop → 旗標卡在 true」（Codex P2）造成下一次
             // pointer/touch tap-enrich 被吞的疑慮：下一次互動的 mousedown/touchstart 必先進此處重置，click 才求值。
@@ -50,16 +67,24 @@ export function longPressState() {
             }, LONG_PRESS_MS);
         },
 
-        // 放開（@mouseup / @touchend）→ 清 timer（未達標則不 fire）
-        longPressEnd() {
+        // 放開（@mouseup / @touchend）→ 清 timer（未達標則不 fire）。
+        // touchend：開抑制窗，吞掉 UA 隨後補發的 synthetic mousedown（Codex PR#47 P2）。
+        longPressEnd(event) {
+            if (event && event.type === 'touchend') {
+                this._lpSuppressMouseUntil = performance.now() + LONG_PRESS_MS;
+            }
             if (this._lpTimer !== null) {
                 clearTimeout(this._lpTimer);
                 this._lpTimer = null;
             }
         },
 
-        // 移開 / 取消（@mouseleave / @touchcancel）→ 清 timer
-        longPressCancel() {
+        // 移開 / 取消（@mouseleave / @touchcancel）→ 清 timer。
+        // touchcancel：同樣開抑制窗（touch 序列以 touchcancel 收尾時 UA 仍可能補發 synthetic mouse；Codex PR#47 P2）。
+        longPressCancel(event) {
+            if (event && event.type === 'touchcancel') {
+                this._lpSuppressMouseUntil = performance.now() + LONG_PRESS_MS;
+            }
             if (this._lpTimer !== null) {
                 clearTimeout(this._lpTimer);
                 this._lpTimer = null;

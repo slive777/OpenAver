@@ -8214,11 +8214,11 @@ class TestSearchRescrapeEntryGuard:
         """62c-2：#btnSubmit 六事件齊全且接共用 longPress*（mousedown/up/leave + touchstart.passive/end/cancel）。"""
         tag = self._submit_btn(self._html())
         assert re.search(r'@mousedown="longPressStart\(', tag), "#btnSubmit 缺 @mousedown longPressStart"
-        assert re.search(r'@mouseup="longPressEnd\(\)"', tag), "#btnSubmit 缺 @mouseup longPressEnd()"
-        assert re.search(r'@mouseleave="longPressCancel\(\)"', tag), "#btnSubmit 缺 @mouseleave longPressCancel()"
+        assert re.search(r'@mouseup="longPressEnd\([^)]*\)"', tag), "#btnSubmit 缺 @mouseup longPressEnd()"
+        assert re.search(r'@mouseleave="longPressCancel\([^)]*\)"', tag), "#btnSubmit 缺 @mouseleave longPressCancel()"
         assert re.search(r'@touchstart\.passive="longPressStart\(', tag), "#btnSubmit 缺 @touchstart.passive longPressStart"
-        assert re.search(r'@touchend="longPressEnd\(\)"', tag), "#btnSubmit 缺 @touchend longPressEnd()"
-        assert re.search(r'@touchcancel="longPressCancel\(\)"', tag), "#btnSubmit 缺 @touchcancel longPressCancel()"
+        assert re.search(r'@touchend="longPressEnd\([^)]*\)"', tag), "#btnSubmit 缺 @touchend longPressEnd()"
+        assert re.search(r'@touchcancel="longPressCancel\([^)]*\)"', tag), "#btnSubmit 缺 @touchcancel longPressCancel()"
 
     def test_submit_btn_click_guard_preserved(self):
         """62c-2（翻轉）：#btnSubmit @click 改走共用 longPressClickGuard（US8：preventDefault 取消隱式 form 送出）。"""
@@ -8364,11 +8364,11 @@ class TestSwitchSourcePickGuard:
         """#switchSourceBtn 六事件齊全且接共用 longPress*（mousedown/up/leave + touchstart.passive/end/cancel）。"""
         tag = self._switch_btn(self._html())
         assert re.search(r'@mousedown="longPressStart\(', tag), "#switchSourceBtn 缺 @mousedown longPressStart"
-        assert re.search(r'@mouseup="longPressEnd\(\)"', tag), "#switchSourceBtn 缺 @mouseup longPressEnd()"
-        assert re.search(r'@mouseleave="longPressCancel\(\)"', tag), "#switchSourceBtn 缺 @mouseleave longPressCancel()"
+        assert re.search(r'@mouseup="longPressEnd\([^)]*\)"', tag), "#switchSourceBtn 缺 @mouseup longPressEnd()"
+        assert re.search(r'@mouseleave="longPressCancel\([^)]*\)"', tag), "#switchSourceBtn 缺 @mouseleave longPressCancel()"
         assert re.search(r'@touchstart\.passive="longPressStart\(', tag), "#switchSourceBtn 缺 @touchstart.passive longPressStart"
-        assert re.search(r'@touchend="longPressEnd\(\)"', tag), "#switchSourceBtn 缺 @touchend longPressEnd()"
-        assert re.search(r'@touchcancel="longPressCancel\(\)"', tag), "#switchSourceBtn 缺 @touchcancel longPressCancel()"
+        assert re.search(r'@touchend="longPressEnd\([^)]*\)"', tag), "#switchSourceBtn 缺 @touchend longPressEnd()"
+        assert re.search(r'@touchcancel="longPressCancel\([^)]*\)"', tag), "#switchSourceBtn 缺 @touchcancel longPressCancel()"
 
     def test_switch_btn_touchstart_opens_picker(self):
         """#switchSourceBtn @touchstart.passive fire callback 同樣開 openSwitchSourcePicker()（mousedown/touchstart 一致）。"""
@@ -8491,3 +8491,141 @@ class TestDesignSystemLongPressCard:
         for forbidden in ("hold-progress", "progress-ring", "data-tooltip"):
             assert forbidden not in html, \
                 f"long-press demo card 不應含 {forbidden}（刻意無進度環 / 無 tooltip，CD-62-0 #7）"
+
+
+class TestLongPressTouchSuppression:
+    """TASK-62c-7（Codex PR#47 P2，選項 A）：touch synthetic-mouse race 硬化。
+
+    long-press.js：touchend/touchcancel 記 monotonic timestamp（_lpSuppressMouseUntil = performance.now()+700），
+    抑制窗內的 synthetic mousedown 在 longPressStart 開頭 early-return（不清 _lpFired → 後續 synthetic click
+    的 guard 仍能吞掉 → 不雙觸發）。四長壓入口的 @mousedown/@touchstart wiring 必須傳 $event，
+    @touchend 必須 longPressEnd($event)（否則 helper 收不到 event.type 判斷）。
+    靜態 element-bound 守衛（pytest 跑不了 JS synthetic event；真機行為走 card 手動 checklist）。
+    """
+
+    SHARED_DIR = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "shared"
+    LONG_PRESS_JS = SHARED_DIR / "long-press.js"
+
+    def _js(self):
+        return self.LONG_PRESS_JS.read_text(encoding="utf-8")
+
+    def _search_html(self):
+        return SEARCH_HTML.read_text(encoding="utf-8")
+
+    def _showcase_html(self):
+        return SHOWCASE_HTML.read_text(encoding="utf-8")
+
+    # ── (a) long-press.js helper 機制 ────────────────────────────────────
+
+    def test_helper_has_suppress_state(self):
+        """long-press.js 必須宣告 _lpSuppressMouseUntil state（與 _lpTimer/_lpFired 並列，初值 0）。"""
+        src = self._js()
+        assert re.search(r'_lpSuppressMouseUntil\s*:\s*0', src), \
+            "long-press.js 缺 _lpSuppressMouseUntil: 0 state（touchend 抑制窗截止時間）"
+
+    def test_helper_longpressstart_takes_event_and_early_returns(self):
+        """longPressStart 必須收 event 第三參，synthetic mousedown 在抑制窗內 early-return（在 _lpFired reset 之前）。"""
+        src = self._js()
+        m = re.search(r'longPressStart\(cb,\s*enabledFn,\s*event\)\s*\{(.*?)\n        \},', src, re.DOTALL)
+        assert m, "longPressStart 必須宣告第三參數 event（longPressStart(cb, enabledFn, event)）"
+        body = m.group(1)
+        # early-return 條件：mousedown + 抑制窗未過
+        guard = re.search(
+            r"if\s*\(\s*event\s*&&\s*event\.type\s*===\s*'mousedown'\s*&&\s*performance\.now\(\)\s*<\s*this\._lpSuppressMouseUntil\s*\)\s*\{?\s*return",
+            body,
+        )
+        assert guard, \
+            "longPressStart 開頭必須有 synthetic mousedown 抑制 early-return（event.type==='mousedown' && performance.now() < this._lpSuppressMouseUntil → return）"
+        # early-return 必在 _lpFired = false reset 之前（否則旗標已被清）。
+        # 比對「實際賦值語句」（行尾分號），避免抓到 docstring/註解裡提及的 this._lpFired = false reset 字樣。
+        reset_m = re.search(r'this\._lpFired\s*=\s*false\s*;', body)
+        assert reset_m, "longPressStart body 缺 this._lpFired = false; reset 賦值"
+        assert guard.start() < reset_m.start(), \
+            "synthetic mousedown early-return 必須在 this._lpFired = false reset 之前（否則旗標已被清）"
+
+    def test_helper_longpressend_sets_window_on_touchend(self):
+        """longPressEnd 必須收 event 參，touchend 時設 _lpSuppressMouseUntil = performance.now() + (窗)。"""
+        src = self._js()
+        m = re.search(r'longPressEnd\(event\)\s*\{(.*?)\n        \},', src, re.DOTALL)
+        assert m, "longPressEnd 必須宣告 event 參數（longPressEnd(event)）"
+        body = m.group(1)
+        assert re.search(
+            r"event\s*&&\s*event\.type\s*===\s*'touchend'", body), \
+            "longPressEnd 必須判斷 event.type === 'touchend'"
+        assert re.search(
+            r"this\._lpSuppressMouseUntil\s*=\s*performance\.now\(\)\s*\+", body), \
+            "longPressEnd(touchend) 必須設 this._lpSuppressMouseUntil = performance.now() + 窗"
+
+    def test_helper_longpresscancel_sets_window_on_touchcancel(self):
+        """longPressCancel 必須收 event 參，touchcancel 時設 _lpSuppressMouseUntil = performance.now() + (窗)。"""
+        src = self._js()
+        m = re.search(r'longPressCancel\(event\)\s*\{(.*?)\n        \},', src, re.DOTALL)
+        assert m, "longPressCancel 必須宣告 event 參數（longPressCancel(event)）"
+        body = m.group(1)
+        assert re.search(
+            r"event\s*&&\s*event\.type\s*===\s*'touchcancel'", body), \
+            "longPressCancel 必須判斷 event.type === 'touchcancel'"
+        assert re.search(
+            r"this\._lpSuppressMouseUntil\s*=\s*performance\.now\(\)\s*\+", body), \
+            "longPressCancel(touchcancel) 必須設 this._lpSuppressMouseUntil = performance.now() + 窗"
+
+    # ── (b) 四入口 wiring 傳 $event（element-bound）─────────────────────
+
+    def _submit_btn(self, html):
+        m = re.search(
+            r'<button\b(?:(?!</button>).)*?\bid="btnSubmit"(?:(?!</button>).)*?</button>',
+            html, re.DOTALL,
+        )
+        assert m, "search.html #btnSubmit button 區塊不存在"
+        return m.group(0)
+
+    def _switch_btn(self, html):
+        m = re.search(
+            r'<button\b(?:(?!</button>).)*?\bid="switchSourceBtn"(?:(?!</button>).)*?</button>',
+            html, re.DOTALL,
+        )
+        assert m, "search.html #switchSourceBtn button 區塊不存在"
+        return m.group(0)
+
+    def _grid_enrich_btn(self, html):
+        m = re.search(
+            r'<button\b[^>]*?\bclass="btn-glass-circle enrich-btn".*?</button>',
+            html, re.DOTALL,
+        )
+        assert m, "showcase grid .btn-glass-circle.enrich-btn button 區塊不存在"
+        return m.group(0)
+
+    def _lightbox_enrich_btn(self, html):
+        m = re.search(
+            r'<button\b(?:(?!</button>).)*?\bclass="lb-action-btn"'
+            r'(?:(?!</button>).)*?enrichVideo\(currentLightboxVideo\)'
+            r'(?:(?!</button>).)*?</button>',
+            html, re.DOTALL,
+        )
+        assert m, "showcase lightbox .lb-action-btn（enrichVideo(currentLightboxVideo)）button 區塊不存在"
+        return m.group(0)
+
+    def _assert_entry_passes_event(self, tag, label):
+        """element-bound：@mousedown/@touchstart longPressStart 傳 $event；@touchend longPressEnd($event)。"""
+        md = re.search(r'@mousedown="(longPressStart\([^"]*)"', tag)
+        assert md and '$event)' in md.group(1), \
+            f"{label} @mousedown longPressStart 必須傳 $event，實際: {md.group(1) if md else None!r}"
+        ts = re.search(r'@touchstart\.passive="(longPressStart\([^"]*)"', tag)
+        assert ts and '$event)' in ts.group(1), \
+            f"{label} @touchstart.passive longPressStart 必須傳 $event，實際: {ts.group(1) if ts else None!r}"
+        assert re.search(r'@touchend="longPressEnd\(\$event\)"', tag), \
+            f"{label} @touchend 必須 longPressEnd($event)"
+        assert re.search(r'@touchcancel="longPressCancel\(\$event\)"', tag), \
+            f"{label} @touchcancel 必須 longPressCancel($event)"
+
+    def test_search_submit_btn_passes_event(self):
+        self._assert_entry_passes_event(self._submit_btn(self._search_html()), "#btnSubmit")
+
+    def test_switch_source_btn_passes_event(self):
+        self._assert_entry_passes_event(self._switch_btn(self._search_html()), "#switchSourceBtn")
+
+    def test_grid_enrich_btn_passes_event(self):
+        self._assert_entry_passes_event(self._grid_enrich_btn(self._showcase_html()), "grid enrich-btn")
+
+    def test_lightbox_enrich_btn_passes_event(self):
+        self._assert_entry_passes_event(self._lightbox_enrich_btn(self._showcase_html()), "lightbox enrich-btn")

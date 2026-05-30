@@ -328,12 +328,12 @@
                                     x-show="!video.has_cover || !video.has_nfo"
                                     :disabled="_enriching"
                                     @click.stop="longPressClickGuard($event) || enrichVideo(video)"
-                                    @mousedown="longPressStart(() => openRescrape(video, 'enrich'), () => rescrapeEnabled())"
-                                    @mouseup="longPressEnd()"
-                                    @mouseleave="longPressCancel()"
-                                    @touchstart.passive="longPressStart(() => openRescrape(video, 'enrich'), () => rescrapeEnabled())"
-                                    @touchend="longPressEnd()"
-                                    @touchcancel="longPressCancel()"
+                                    @mousedown="longPressStart(() => openRescrape(video, 'enrich'), () => rescrapeEnabled(), $event)"
+                                    @mouseup="longPressEnd($event)"
+                                    @mouseleave="longPressCancel($event)"
+                                    @touchstart.passive="longPressStart(() => openRescrape(video, 'enrich'), () => rescrapeEnabled(), $event)"
+                                    @touchend="longPressEnd($event)"
+                                    @touchcancel="longPressCancel($event)"
                                     :title="t('showcase.action.enrich')">
                                 <i class="bi" :class="_enriching ? 'bi-arrow-clockwise spin' : 'bi-search'"></i>
                             </button>
@@ -689,12 +689,12 @@
                                         x-show="!currentLightboxVideo?.has_cover || !currentLightboxVideo?.has_nfo"
                                         :disabled="_enriching"
                                         @click.stop="longPressClickGuard($event) || enrichVideo(currentLightboxVideo)"
-                                        @mousedown="longPressStart(() => openRescrape(currentLightboxVideo, 'enrich'), () => rescrapeEnabled())"
-                                        @mouseup="longPressEnd()"
-                                        @mouseleave="longPressCancel()"
-                                        @touchstart.passive="longPressStart(() => openRescrape(currentLightboxVideo, 'enrich'), () => rescrapeEnabled())"
-                                        @touchend="longPressEnd()"
-                                        @touchcancel="longPressCancel()"
+                                        @mousedown="longPressStart(() => openRescrape(currentLightboxVideo, 'enrich'), () => rescrapeEnabled(), $event)"
+                                        @mouseup="longPressEnd($event)"
+                                        @mouseleave="longPressCancel($event)"
+                                        @touchstart.passive="longPressStart(() => openRescrape(currentLightboxVideo, 'enrich'), () => rescrapeEnabled(), $event)"
+                                        @touchend="longPressEnd($event)"
+                                        @touchcancel="longPressCancel($event)"
                                         data-tooltip="{{ t('showcase.action.enrich') }}"
                                         :aria-label="t('showcase.action.enrich')">
                                     <i class="bi" :class="_enriching ? 'bi-arrow-clockwise spin' : 'bi-search'"></i>
