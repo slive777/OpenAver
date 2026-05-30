@@ -7701,3 +7701,90 @@ class TestRescrapeModalGuard:
             "back_to_pick", "success", "fail",
         ]:
             assert key in rescrape, f"62a-2 違規：zh_TW.json 缺少 showcase.rescrape.{key}"
+
+
+class TestRescrapeStateGuard:
+    """62a-3: 守衛 state-rescrape.js mixin contract — 確保 partial（_rescrape_modal.html）引用的
+    state/method 全揭露、commit 契約（enrich-single + refresh_full + overwrite_existing）正確、
+    transient 不碰 currentLightboxVideo（CD-62-2），且 main.js mergeState 鏈整合。
+    match TestSimilarStageGuard L1164 pattern。
+    """
+
+    SHARED_DIR = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "shared"
+    SHOWCASE_DIR = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "showcase"
+    STATE_RESCRAPE_JS = SHARED_DIR / "state-rescrape.js"
+    MAIN_JS = SHOWCASE_DIR / "main.js"
+
+    def _src(self):
+        return self.STATE_RESCRAPE_JS.read_text(encoding="utf-8")
+
+    def _main(self):
+        return self.MAIN_JS.read_text(encoding="utf-8")
+
+    def test_state_rescrape_file_exists(self):
+        """state-rescrape.js 必須存在於 shared/（供 showcase + search 共用）。"""
+        assert self.STATE_RESCRAPE_JS.exists(), \
+            f"state-rescrape.js missing at {self.STATE_RESCRAPE_JS!s}"
+
+    def test_exports_rescrape_state_factory(self):
+        """必須 export function rescrapeState（factory，rescrapeState.call(this) 接入 mergeState）。"""
+        src = self._src()
+        assert re.search(r"export\s+function\s+rescrapeState\s*\(", src), \
+            "state-rescrape.js missing: export function rescrapeState()"
+
+    def test_defines_all_state_keys(self):
+        """9 個 partial 引用的 state key 必須平鋪定義。"""
+        src = self._src()
+        for key in (
+            "rescrapeOpen", "rescrapeStep", "rescrapeEntryPoint", "rescrapeNumber",
+            "rescrapeOriginalFilename", "rescrapeSources", "rescrapeLoadingSource",
+            "rescrapePreview", "rescrapeNotFound",
+        ):
+            assert key in src, f"state-rescrape.js missing state key: {key}"
+
+    def test_defines_all_methods(self):
+        """6 個 partial 引用的 method + openRescrape（62b-1 呼叫）必須揭露。"""
+        src = self._src()
+        for method in (
+            "openRescrape", "rescrapeWithSource", "rescrapeConfirm",
+            "rescrapeBackToPick", "closeRescrape", "rescrapeBuiltinSources",
+        ):
+            assert method in src, f"state-rescrape.js missing method: {method}"
+
+    def test_commit_contract(self):
+        """commit 契約：POST /api/enrich-single + mode refresh_full + overwrite_existing。"""
+        src = self._src()
+        assert "'/api/enrich-single'" in src, "missing POST /api/enrich-single"
+        assert "refresh_full" in src, "missing mode: refresh_full（CD-62-0/4）"
+        assert "overwrite_existing" in src, "missing overwrite_existing（CD-62-4）"
+        assert "true" in src, "overwrite_existing 必須為 true"
+
+    def test_preview_contract(self):
+        """preview 契約：POST /api/rescrape/preview。"""
+        src = self._src()
+        assert "'/api/rescrape/preview'" in src, "missing POST /api/rescrape/preview"
+
+    def test_no_current_lightbox_video(self):
+        """CD-62-2 transient 守衛：mixin 絕不讀寫 currentLightboxVideo（用私有 _rescrapeVideo）。"""
+        src = self._src()
+        assert "currentLightboxVideo" not in src, \
+            "state-rescrape.js 違反 CD-62-2：不得引用 currentLightboxVideo，應用私有 _rescrapeVideo"
+
+    def test_rescraping_guard_present(self):
+        """連點防護：_rescraping guard 必須存在（鏡像 _enriching）。"""
+        src = self._src()
+        assert "_rescraping" in src, "missing _rescraping 連點 guard"
+
+    def test_no_proxy_image_construction(self):
+        """CD-62-14 #8：/api/proxy-image URL 由 partial 內聯，mixin 不得重複建構。"""
+        src = self._src()
+        assert "/api/proxy-image" not in src, \
+            "state-rescrape.js 不得建構 /api/proxy-image URL（partial 內聯，避免重複）"
+
+    def test_main_js_imports_and_merges_rescrape_state(self):
+        """main.js 必須 import rescrapeState 並插入 mergeState 鏈。"""
+        src = self._main()
+        assert "from '@/shared/state-rescrape.js'" in src, \
+            "main.js missing: import { rescrapeState } from '@/shared/state-rescrape.js'"
+        assert "rescrapeState.call(this)" in src, \
+            "main.js mergeState chain missing: rescrapeState.call(this)"

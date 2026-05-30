@@ -13,6 +13,7 @@ import { stateVideos }   from '@/showcase/state-videos.js';
 import { stateActress }  from '@/showcase/state-actress.js';
 import { stateLightbox } from '@/showcase/state-lightbox.js';
 import { stateSimilar }  from '@/showcase/state-similar.js';
+import { rescrapeState } from '@/shared/state-rescrape.js';
 
 function mergeState(...parts) {
     const target = {};
@@ -29,6 +30,7 @@ window.showcaseState = function() {
         stateActress.call(this),
         stateLightbox.call(this),
         stateSimilar.call(this),
+        rescrapeState.call(this),
     );
 };
 
