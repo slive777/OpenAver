@@ -819,3 +819,121 @@
   &lt;button @click="cancelAddTag()" class="btn btn-sm tag-cancel"&gt;✕&lt;/button&gt;
 &lt;/span&gt;</code></pre>
 </div>
+
+<!-- D.13: Source Pill (cross-page shared component, TASK-62a-0) -->
+<div class="ds-subsection">
+    <h3>13. Source Pill（跨頁共用元件）</h3>
+    <p class="ds-desc">
+        掃描來源膠囊 — 來源排序開關 / parts-bin 推薦。元件已從 settings.css 抽至
+        <code>components/source-pill.css</code> 並去 <code>#settings-components</code> scope，
+        故 Settings / Search / Showcase 皆可直接渲染。
+        <strong>本卡刻意不包 <code>id="settings-components"</code></strong> — 仍正確著色即證明已 unscoped。
+    </p>
+
+    <!-- NOTE: 無 id="settings-components" 包裹（unscoped component 的證明） -->
+    <div class="ds-card-demo" style="max-width: 700px; margin: 0 auto; padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+        <!-- 啟用（有碼 accent） -->
+        <div class="source-pill" data-enabled="true">
+            <i class="bi bi-slash-circle slash-icn" aria-hidden="true"></i>
+            <span class="pill-name">JavBus</span>
+        </div>
+
+        <!-- 停用（slash + strikethrough + dashed） -->
+        <div class="source-pill" data-enabled="false">
+            <i class="bi bi-slash-circle slash-icn" aria-hidden="true"></i>
+            <span class="pill-name">DMM</span>
+        </div>
+
+        <!-- 無碼啟用（success accent） -->
+        <div class="source-pill source-pill--uncensored" data-enabled="true">
+            <i class="bi bi-slash-circle slash-icn" aria-hidden="true"></i>
+            <span class="pill-name">FC2</span>
+        </div>
+
+        <!-- manual-only（BETA badge + dashed accent，不 strikethrough） -->
+        <div class="source-pill source-pill--manual-only" data-enabled="false">
+            <i class="bi bi-slash-circle slash-icn" aria-hidden="true"></i>
+            <span class="pill-name">JavLibrary</span>
+            <span class="source-pill-badge">BETA</span>
+        </div>
+
+        <!-- metatube（m 角標 + 斷線無 hover lift） -->
+        <div class="source-pill is-disconnected" data-enabled="false">
+            <i class="bi bi-slash-circle slash-icn" aria-hidden="true"></i>
+            <span class="pill-name">MetaTube</span>
+            <span class="source-pill-mt-badge" aria-hidden="true">m</span>
+        </div>
+
+        <!-- parts-bin 推薦（warning accent + rec-star） -->
+        <div class="source-pill is-partsbin" data-enabled="false" data-rec="true">
+            <i class="bi bi-star-fill rec-star" aria-hidden="true"></i>
+            <i class="bi bi-slash-circle slash-icn" aria-hidden="true"></i>
+            <span class="pill-name">Recommended</span>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;!-- unscoped：不需 id="settings-components" 包裹 --&gt;
+&lt;!-- 啟用 / 停用 --&gt;
+&lt;div class="source-pill" data-enabled="true"&gt;
+  &lt;i class="bi bi-slash-circle slash-icn"&gt;&lt;/i&gt;
+  &lt;span class="pill-name"&gt;JavBus&lt;/span&gt;
+&lt;/div&gt;
+
+&lt;!-- 無碼（success accent）--&gt;
+&lt;div class="source-pill source-pill--uncensored" data-enabled="true"&gt;...&lt;/div&gt;
+
+&lt;!-- manual-only（BETA badge）--&gt;
+&lt;div class="source-pill source-pill--manual-only" data-enabled="false"&gt;
+  &lt;span class="pill-name"&gt;JavLibrary&lt;/span&gt;
+  &lt;span class="source-pill-badge"&gt;BETA&lt;/span&gt;
+&lt;/div&gt;
+
+&lt;!-- metatube（m 角標）--&gt;
+&lt;span class="source-pill-mt-badge"&gt;m&lt;/span&gt;
+
+&lt;!-- parts-bin 推薦（rec-star）--&gt;
+&lt;div class="source-pill is-partsbin" data-enabled="false" data-rec="true"&gt;
+  &lt;i class="bi bi-star-fill rec-star"&gt;&lt;/i&gt;...
+&lt;/div&gt;</code></pre>
+</div>
+
+<!-- D.14: Long-press 進階入口 pattern (cross-page interaction, TASK-62c-2) -->
+<div class="ds-subsection">
+    <h3>14. Long-press 進階入口（700ms 長壓 pattern）</h3>
+    <p class="ds-desc">
+        700ms 長壓開進階重刮 / 搜尋彈窗。共用 mixin <code>shared/long-press.js</code>（<code>longPressState</code>），
+        三處共用同一份 wiring：<strong>Search 送出鈕</strong>（長壓 → 進階搜尋）、
+        <strong>Showcase grid 缺卡 enrich-btn</strong>、<strong>Showcase lightbox 🔍</strong>（長壓 → 進階重刮）。
+        短按走原本 tap 行為（搜尋 / enrich），長壓 700ms 達標後 fire callback 開彈窗，
+        <code>longPressClickGuard</code> 吞掉長壓後的同一次 click（避免連帶送出 / 連帶 enrich，US8）。
+        <strong>刻意無長壓進度環、無提示氣泡 / 視覺 affordance</strong>（長壓為進階快捷，不對一般用戶強調）。
+        六事件 wiring 一律傳 <code>$event</code>：<code>longPressEnd($event)</code> / <code>longPressCancel($event)</code>
+        在 touchend / touchcancel 設 synthetic-mouse 抑制窗，<code>longPressStart(..., $event)</code> 讓抑制窗內 UA 補發的
+        synthetic mousedown early-return（不清長壓旗標），否則長壓開彈窗會被補發的 click 連帶觸發底層 tap（雙觸發，Codex PR#47 P2）。
+    </p>
+
+    <div class="ds-card-demo" style="max-width: 700px; margin: 0 auto; padding: 1.5rem; display: flex; gap: 12px; align-items: center; justify-content: center;">
+        <!-- 純展示按鈕（pointer-events: none，design-system 是視覺登記非 functional demo） -->
+        <button class="btn-icon active" style="pointer-events: none;" aria-hidden="true" title="長按 700ms 開進階入口">
+            <i class="bi bi-arrow-right"></i>
+        </button>
+        <button class="btn-icon" style="pointer-events: none;" aria-hidden="true" title="長按 700ms 開進階重刮">
+            <i class="bi bi-search"></i>
+        </button>
+        <span class="ds-desc" style="margin: 0;">短按 = tap 行為；長壓 700ms = 進階入口</span>
+    </div>
+
+    <pre class="ds-code"><code>&lt;!-- main.js：import + mergeState（descriptor-preserving，禁 spread）--&gt;
+import { longPressState } from '@/shared/long-press.js';
+mergeState(..., longPressState());
+
+&lt;!-- template wiring（六事件 + click guard；全部傳 $event：touch synthetic-mouse 抑制契約）--&gt;
+&lt;button
+    @mousedown="longPressStart(() =&gt; openRescrape(video,'enrich'), () =&gt; rescrapeEnabled(), $event)"
+    @mouseup="longPressEnd($event)"
+    @mouseleave="longPressCancel($event)"
+    @touchstart.passive="longPressStart(cb, enabledFn, $event)"
+    @touchend="longPressEnd($event)"
+    @touchcancel="longPressCancel($event)"
+    @click="longPressClickGuard($event) || tapHandler()"&gt;...&lt;/button&gt;</code></pre>
+</div>

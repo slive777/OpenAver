@@ -511,3 +511,25 @@ def fetch_samples_only(
         source_used=meta.get("source", ""),
         error=None,
     )
+
+
+def resolve_nfo_cover_paths(file_path: str) -> tuple:
+    """由影片 file_path 推導目標 NFO / cover 的 FS 路徑。
+
+    復用 enrich_single / _write_nfo / _write_cover 的同一套路徑邏輯：
+    先以 uri_to_fs_path() 解析（fallback 原值），再 with_suffix。
+    回傳 (nfo_path, cover_path)，兩者皆為當前環境 FS 字串路徑。
+
+    ⚠️ 路徑邏輯必須與 `_write_nfo`（with_suffix(".nfo")）/ `_write_cover`
+    （with_suffix(".jpg")）保持同步——62a-1 的 refresh_full 分裂守衛
+    （web/routers/scraper.py enrich_single_endpoint）靠本函數判斷檔案是否已存在。
+    若 writer 改了 cover 命名（poster.jpg / .png / fanart 等）或 fs_path 推導，
+    本函數要一起改，否則守衛會悄悄檢查錯路徑（false-allow 重現分裂 / false-block 打爆缺封面 quick-enrich）。
+    """
+    try:
+        fs_path = uri_to_fs_path(file_path)
+    except Exception:
+        fs_path = file_path
+    nfo_path = str(Path(fs_path).with_suffix(".nfo"))
+    cover_path = str(Path(fs_path).with_suffix(".jpg"))
+    return nfo_path, cover_path

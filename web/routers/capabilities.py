@@ -227,6 +227,63 @@ _TOOLS: list[dict] = [
         "_example_template": "curl -X POST -H 'Content-Type: application/json' -d '{{\"file_path\":\"/library/SONE-205/SONE-205.mp4\",\"number\":\"SONE-205\",\"mode\":\"fill_missing\"}}' {base}/api/enrich-single",
     },
     {
+        "name": "video_rescrape_with_source",
+        "description": (
+            "進階重刮：以指定來源覆蓋既有封面 / NFO，不可逆。"
+            "mode=refresh_full 重刮覆蓋（rescrape 主用）/ fill_missing 補缺。"
+            "重刮覆蓋請設 overwrite_existing=true（refresh_full 配 overwrite_existing=false "
+            "在不會寫出任何 sidecar 的設定下後端會擋下，只更新 DB 會造成磁碟分裂）。"
+            "source 可為停用來源或 metatube:{provider}。"
+        ),
+        "method": "POST",
+        "path": "/api/enrich-single",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "file_path": {"type": "string", "description": "影片檔案路徑"},
+                "number": {"type": "string", "description": "番號（可與檔名解析不同，重刮用此值查詢）"},
+                "source": {
+                    "type": "string",
+                    "enum": get_source_enum(include_auto=True),
+                    "default": "auto",
+                    "description": "重刮來源（明確選源整包贏；可為停用來源 / metatube:{provider}；auto=多源合併）",
+                },
+                "mode": {
+                    "type": "string",
+                    "enum": ["refresh_full", "fill_missing"],
+                    "default": "refresh_full",
+                    "description": "refresh_full=重刮覆蓋 / fill_missing=補缺",
+                },
+                "overwrite_existing": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "是否覆蓋既有 NFO/封面。重刮覆蓋請設 true；refresh_full+false 不會寫出任何 sidecar 時後端 400",
+                },
+                "write_nfo": {"type": "boolean", "default": True},
+                "write_cover": {"type": "boolean", "default": True},
+            },
+            "required": ["file_path", "number", "source", "mode", "overwrite_existing"],
+        },
+        "output_schema": {
+            "success": "boolean",
+            "nfo_written": "boolean — 是否寫入 NFO",
+            "cover_written": "boolean — 是否寫入封面",
+            "fields_filled": "[string] — fill_missing 模式下本次補上的欄位名（無缺漏則為空）；refresh_full 不回報覆蓋欄位，固定為空陣列",
+            "source_used": "string — 實際使用的來源",
+        },
+        "side_effect": True,
+        "confirmation_required": True,
+        "idempotent": False,
+        "retry_safe": False,
+        "cost_hint": "refresh_full 會打外部網站重抓",
+        "_example_template": (
+            "curl -X POST -H 'Content-Type: application/json' "
+            "-d '{{\"file_path\":\"/library/SONE-205/SONE-205.mp4\",\"number\":\"SONE-205\","
+            "\"source\":\"javdb\",\"mode\":\"refresh_full\",\"overwrite_existing\":true}}' "
+            "{base}/api/enrich-single"
+        ),
+    },
+    {
         "name": "fetch_samples",
         "description": "自動下載影片對應番號的劇照（sample images）到本機 extrafanart 資料夾，並更新 DB sample_images 欄位。僅下載劇照，不改 NFO / 封面 / 其他欄位。若影片所在資料夾有多於 1 個影片會拒絕執行（避免污染）。",
         "method": "POST",

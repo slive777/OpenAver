@@ -229,15 +229,7 @@
       "toggle_label": "進階搜尋 (Beta)",
       "help": "啟用後可在搜尋頁長壓搜尋按鈕，從所有來源（含未啟用）選一個做單次覆寫。",
       "metatube_keyword_hint": "metatube 來源不支援女優/關鍵字搜尋，建議輸入完整番號。",
-      "picker_title": "選擇搜尋來源",
-      "picker_subtitle": "本次搜尋將只用所選來源（整包覆寫）。",
-      "group_builtin": "內建 + javlibrary",
-      "group_metatube": "Metatube",
-      "group_metatube_empty": "尚無 Metatube 來源",
-      "manual_badge": "進階專用",
-      "disabled_label": "(可選)",
-      "confirm": "確定",
-      "cancel": "取消"
+      "group_metatube_empty": "尚無 Metatube 來源"
     },
     "mock": {
       "page_title": "Settings IA POC",
@@ -677,6 +669,22 @@
   },
   "showcase": {
     "page_title": "影片瀏覽",
+    "rescrape": {
+      "modal_title": "進階重新刮削",
+      "entry_tooltip": "進階重新刮削",
+      "number_label": "番號",
+      "filename_hint": "原檔名",
+      "source_question": "用哪個來源？",
+      "auto_source": "自動",
+      "searching": "搜尋中…",
+      "not_found": "找不到，換個番號或來源再試。",
+      "overwrite_warning": "覆蓋既有封面 + NFO（不可逆）",
+      "confirm": "覆蓋寫入",
+      "back_to_pick": "換來源",
+      "close": "關閉",
+      "success": "已覆蓋寫入（封面 + NFO）",
+      "fail": "重新刮削失敗，請稍後再試。"
+    },
     "placeholder": {
       "search": "搜尋番號、女優、標題..."
     },

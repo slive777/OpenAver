@@ -1090,6 +1090,22 @@ export function stateLightbox() {
                 return;
             }
 
+            // 62b/62c: rescrape 彈窗蓋在 lightbox 之上時最高優先 —— Esc 關彈窗 + 其餘鍵全鎖
+            // （箭頭鍵不得切底層影片；番號 input 已由 #1061 INPUT 擋，但來源 pill 是 BUTTON 不在 INPUT
+            // 擋範圍，故仍需此 guard）。鏡射 removeActressModalOpen pattern。
+            // 防底層 lightbox 被同一輪 Esc 關掉，靠的是這裡 closeRescrape() 後立刻 return（不進下方 lightbox 區）
+            // ＋ _rescrape_modal @keydown.escape.window 的 `rescrapeOpen && closeRescrape()` 短路
+            // （此 handler 先註冊先跑、已把 rescrapeOpen 設 false，modal listener 隨後短路成 no-op）。
+            // stopPropagation 對「同為 window target 的另一個 listener」其實無效（非 load-bearing），
+            // 僅與 removeActressModal/picker 既有寫法對齊；真正擋雙關的是上述 return + 短路。
+            if (e.key === 'Escape' && this.rescrapeOpen) {
+                this.closeRescrape();
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            if (this.rescrapeOpen) return;
+
             // 2. modifier keys 停用
             if (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
 

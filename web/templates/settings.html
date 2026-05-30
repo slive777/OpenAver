@@ -425,10 +425,10 @@
                     <!-- Flat pill row — 61c-2 wires `sources` (Active Row order). -->
                     <div class="settings-sources-pills" role="listbox" aria-label="Active Row">
                         <template x-for="s in activeRowSources" :key="s.id">
-                            <div class="settings-sources-pill"
+                            <div class="source-pill"
                                  :class="{
-                                     'settings-sources-pill--uncensored': isUncensored(s),
-                                     'settings-sources-pill--manual-only': s.manual_only,
+                                     'source-pill--uncensored': isUncensored(s),
+                                     'source-pill--manual-only': s.manual_only,
                                      'is-disconnected': isDisconnectedMetatube(s),
                                      'is-grabbed': _grabbedId === s.id,
                                      dragging: draggingId === s.id,
@@ -455,10 +455,10 @@
                                  @drop.prevent="onDrop($event, s.id)">
                                 <i class="bi bi-slash-circle slash-icn" aria-hidden="true"></i>
                                 <span class="pill-name" x-text="s.display_name"></span>
-                                <span class="settings-sources-pill-mt-badge"
+                                <span class="source-pill-mt-badge"
                                       x-show="s.type === 'metatube'"
                                       aria-hidden="true">m</span>
-                                <span class="settings-sources-pill-badge" x-show="s.manual_only">
+                                <span class="source-pill-badge" x-show="s.manual_only">
                                     {{ t('settings.sources.manual_only_badge') }}
                                 </span>
                             </div>
@@ -564,7 +564,7 @@
                                         <div class="settings-mt-group-head">{{ t('settings.sources.mt_recommended_label') }}</div>
                                         <div class="settings-sources-pills" role="listbox" aria-label="Recommended providers">
                                             <template x-for="src in partsBinSources.filter(s => s.recommended)" :key="src.id">
-                                                <div class="settings-sources-pill is-partsbin"
+                                                <div class="source-pill is-partsbin"
                                                      data-enabled="false"
                                                      data-rec="true"
                                                      role="option"
@@ -590,7 +590,7 @@
                                         <div class="settings-mt-group-head">{{ t('settings.sources.mt_other_label') }}</div>
                                         <div class="settings-sources-pills" role="listbox" aria-label="Other providers">
                                             <template x-for="src in partsBinSources.filter(s => !s.recommended)" :key="src.id">
-                                                <div class="settings-sources-pill is-partsbin"
+                                                <div class="source-pill is-partsbin"
                                                      data-enabled="false"
                                                      role="option"
                                                      :aria-selected="false"

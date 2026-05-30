@@ -358,4 +358,73 @@ export default [
       ],
     },
   },
+
+  // Group 7 (62c-1 / 62c-3): shared/state-rescrape.js — search 分支禁 fallbackSearch（CD-62-11 負向守衛）
+  // + switch-source 分支禁污染結果列（CD-62-11，62c-3）。
+  // search 入口整包贏必須走 advancedSearch(source)（帶 source）；fallbackSearch（search-flow.js）
+  // 簽名 (query, savedRequestId) 無 source，誤接會丟失「指定來源整包覆寫」語義（US5）。
+  // 此 group 最後 match state-rescrape.js（supersedes Group 6），故重述繼承的共用 selector
+  // （SEL_WINDOW_CONFIRM / SEL_BREATHING_MANAGER_NEW / SEL_STARSETTLE_LITERAL
+  //  + Set.intersection ES2025 ban + closeSimilarMode 定義唯一性守衛，勿靜默丟失上游守衛）。
+  // Codex 62c-3 P3：flat config 同 rule 後者整段 replace（不 merge），故 Group 7 必須是
+  // Group 6 完整 selector 的超集，再疊加 62c 自己的負向 rule。
+  //
+  // 62c-3 switch-source 分支負向：禁 advancedSearch( / fallbackSearch( / searchResults =。
+  // 注意 search 分支「合法」使用 advancedSearch( + this.searchQuery，故不能 file-wide ban；
+  // 改 AST-scope 到 IfStatement[test.right.value='switch-source']（switch-source 分支 if-block）的後代。
+  // switch-source 入口只替換捕捉的當前卡 slot（t.arr[t.idx] = variant），絕不走 US5 整包重設路徑。
+  {
+    files: ["web/static/js/shared/state-rescrape.js"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        SEL_WINDOW_CONFIRM,
+        SEL_BREATHING_MANAGER_NEW,
+        SEL_STARSETTLE_LITERAL,
+        {
+          // Group 6 繼承：Set.prototype.intersection 為 ES2025 API，尚未進入 OpenAver baseline
+          // （Codex 62c-3 P3：Group 7 replace Group 6，須重述以免 state-rescrape.js 繞過此 ban）
+          selector: "MemberExpression[property.name='intersection']",
+          message:
+            "Set.prototype.intersection 為 ES2025 API，尚未進入 OpenAver baseline。請改用 [...setA].filter(x => setB.has(x))。",
+        },
+        {
+          // Group 6 繼承：closeSimilarMode 定義唯一性守衛（CD-56C-4）
+          // （Codex 62c-3 P3：Group 7 replace Group 6，須重述以免 state-rescrape.js 繞過此 guard）
+          selector: [
+            "Property[key.name='closeSimilarMode']",
+            "MethodDefinition[key.name='closeSimilarMode']",
+          ].join(', '),
+          message:
+            "closeSimilarMode 只能在 state-similar.js 定義（CD-56C-4 單一定義原則）。其他檔案可呼叫 this.closeSimilarMode()，但不可定義同名 method。",
+        },
+        {
+          selector: "CallExpression[callee.property.name='fallbackSearch']",
+          message:
+            "62c-1：state-rescrape.js search 分支禁呼叫 fallbackSearch（無 source 參數）。" +
+            "進階搜尋整包贏須走 this.advancedSearch(source)（帶 source 整包覆寫，spec US5）。",
+        },
+        {
+          selector:
+            "IfStatement[test.right.value='switch-source'] CallExpression[callee.property.name='advancedSearch']",
+          message:
+            "62c-3：switch-source 分支禁呼叫 advancedSearch（US5 整包重設路徑，會污染結果列）。" +
+            "switch-source 只替換捕捉的當前卡 slot（t.arr[t.idx] = variant），不重設 searchResults / currentIndex。",
+        },
+        {
+          selector:
+            "IfStatement[test.right.value='switch-source'] CallExpression[callee.property.name='fallbackSearch']",
+          message:
+            "62c-3：switch-source 分支禁呼叫 fallbackSearch（US5 整包重設路徑，會污染結果列）。",
+        },
+        {
+          selector:
+            "IfStatement[test.right.value='switch-source'] AssignmentExpression[left.property.name='searchResults']",
+          message:
+            "62c-3：switch-source 分支禁賦值 this.searchResults（US5 整包重設路徑，會污染結果列）。" +
+            "只替換捕捉的 slot（t.arr[t.idx] = variant），結果列陣列 identity / currentIndex 不變。",
+        },
+      ],
+    },
+  },
 ];

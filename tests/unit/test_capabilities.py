@@ -66,6 +66,7 @@ EXPECTED_TOOL_NAMES = {
     "tag_alias_crud_write",
     "tags_top",
     "scraper_sources_list",
+    "video_rescrape_with_source",
 }
 
 REQUIRED_TOOL_FIELDS = [
@@ -112,9 +113,9 @@ class TestCapabilitiesEndpoint:
         data = client.get("/api/capabilities").json()
         assert "retry_hint" in data["error_format"]
 
-    def test_tools_count_is_38(self, client):
+    def test_tools_count_is_39(self, client):
         data = client.get("/api/capabilities").json()
-        assert len(data["tools"]) == 38
+        assert len(data["tools"]) == 39
 
     def test_all_tool_names_present(self, client):
         data = client.get("/api/capabilities").json()
@@ -275,6 +276,26 @@ class TestCapabilitiesEndpoint:
         assert tool.get("side_effect") is True
         assert tool.get("confirmation_required") is True
         assert "可逆" in tool["description"] or "覆蓋" in tool["description"]
+
+    def test_video_rescrape_side_effect_flags(self, client):
+        """video_rescrape_with_source 重刮覆蓋面：side_effect + confirmation_required + 不可逆風險描述"""
+        data = client.get("/api/capabilities").json()
+        tool = next(t for t in data["tools"] if t["name"] == "video_rescrape_with_source")
+        assert tool.get("side_effect") is True
+        assert tool.get("confirmation_required") is True
+        assert tool.get("idempotent") is False
+        assert tool.get("retry_safe") is False
+        assert tool["path"] == "/api/enrich-single"
+        assert "不可逆" in tool["description"] or "覆蓋" in tool["description"]
+        props = tool["input_schema"]["properties"]
+        for key in ["file_path", "number", "source", "mode",
+                    "overwrite_existing", "write_nfo", "write_cover"]:
+            assert key in props, f"missing input property: {key}"
+        assert props["overwrite_existing"]["default"] is True
+        # Codex P1：mode/overwrite_existing 必須 required，否則最小合法呼叫會落回端點預設
+        # （fill_missing / overwrite=false）而非重刮覆蓋語意，silently 不覆蓋。
+        required = tool["input_schema"]["required"]
+        assert "mode" in required and "overwrite_existing" in required
 
 
 class TestCapabilitiesSourceEnum:

@@ -7,6 +7,8 @@
 {% endblock %}
 
 {% block pre_alpine_module %}
+{# 進階搜尋 SSR 注入（TASK-62a-0）。放 main.js 之前確保 __ADVANCED_SEARCH__ 就緒。 #}
+{% include '_advanced_search_bootstrap.html' %}
 <script type="module" src="/static/js/pages/showcase/main.js"></script>
 {% endblock %}
 
@@ -320,10 +322,18 @@
                                     title="{{ t('search.action.open_folder') }}">
                                 <i class="bi bi-folder2-open"></i>
                             </button>
+                            <!-- 62b-1: tap=enrichVideo（快速補缺）/ 長壓 700ms=進階重刮（openRescrape ,'enrich'）。
+                                 longPressClickGuard 攔截長壓 fire 後的同一次 click，避免連帶觸發 enrich。 -->
                             <button class="btn-glass-circle enrich-btn"
                                     x-show="!video.has_cover || !video.has_nfo"
                                     :disabled="_enriching"
-                                    @click.stop="enrichVideo(video)"
+                                    @click.stop="longPressClickGuard($event) || enrichVideo(video)"
+                                    @mousedown="longPressStart(() => openRescrape(video, 'enrich'), () => rescrapeEnabled(), $event)"
+                                    @mouseup="longPressEnd($event)"
+                                    @mouseleave="longPressCancel($event)"
+                                    @touchstart.passive="longPressStart(() => openRescrape(video, 'enrich'), () => rescrapeEnabled(), $event)"
+                                    @touchend="longPressEnd($event)"
+                                    @touchcancel="longPressCancel($event)"
                                     :title="t('showcase.action.enrich')">
                                 <i class="bi" :class="_enriching ? 'bi-arrow-clockwise spin' : 'bi-search'"></i>
                             </button>
@@ -516,7 +526,7 @@
         <!-- Lightbox (M3a) -->
         <div class="showcase-lightbox"
              :class="{ 'show': lightboxOpen }"
-             x-trap.inert="lightboxOpen && !sampleGalleryOpen && !removeActressModalOpen"
+             x-trap.inert="lightboxOpen && !sampleGalleryOpen && !removeActressModalOpen && !rescrapeOpen"
              @click="handleLightboxBackdropClick($event)">
 
             <div class="lightbox-content" @click.stop>
@@ -673,10 +683,18 @@
                                 <button class="lb-action-btn" @click="openLocal(currentLightboxVideo?.path)" data-tooltip="{{ t('search.action.open_folder') }}" aria-label="{{ t('search.action.open_folder') }}">
                                     <i class="bi bi-folder2-open"></i>
                                 </button>
+                                <!-- 62b-1: tap=enrichVideo（快速補缺）/ 長壓 700ms=進階重刮（openRescrape ,'enrich'）。
+                                     與番號旁 ⚙ 並存（缺卡片兩進階入口）。 -->
                                 <button class="lb-action-btn"
                                         x-show="!currentLightboxVideo?.has_cover || !currentLightboxVideo?.has_nfo"
                                         :disabled="_enriching"
-                                        @click.stop="enrichVideo(currentLightboxVideo)"
+                                        @click.stop="longPressClickGuard($event) || enrichVideo(currentLightboxVideo)"
+                                        @mousedown="longPressStart(() => openRescrape(currentLightboxVideo, 'enrich'), () => rescrapeEnabled(), $event)"
+                                        @mouseup="longPressEnd($event)"
+                                        @mouseleave="longPressCancel($event)"
+                                        @touchstart.passive="longPressStart(() => openRescrape(currentLightboxVideo, 'enrich'), () => rescrapeEnabled(), $event)"
+                                        @touchend="longPressEnd($event)"
+                                        @touchcancel="longPressCancel($event)"
                                         data-tooltip="{{ t('showcase.action.enrich') }}"
                                         :aria-label="t('showcase.action.enrich')">
                                     <i class="bi" :class="_enriching ? 'bi-arrow-clockwise spin' : 'bi-search'"></i>
@@ -721,6 +739,15 @@
                             <!-- 分隔符 " · " 內嵌於各 span 開頭，隨 x-show 一起顯示/隱藏，避免孤立 · -->
                             <div class="lb-details">
                                 <span x-text="currentLightboxVideo?.number || t('showcase.lightbox.unknown_number')"></span>
+                                <!-- 62b-1: 進階重刮 ⚙ 入口（番號旁 inline 細鈕，gate by 進階搜尋 toggle）-->
+                                <button type="button"
+                                        class="lb-rescrape-gear"
+                                        x-show="rescrapeEnabled()"
+                                        @click.stop="openRescrape(currentLightboxVideo, 'lightbox')"
+                                        :data-tooltip="t('showcase.rescrape.entry_tooltip')"
+                                        :aria-label="t('showcase.rescrape.entry_tooltip')">
+                                    <i class="bi bi-gear" aria-hidden="true"></i>
+                                </button>
                                 <span x-show="currentLightboxVideo?.maker">
                                     &nbsp;·&nbsp;<a href="#" class="lb-link" @click.prevent="searchFromMetadata(currentLightboxVideo?.maker)" x-text="currentLightboxVideo?.maker"></a>
                                 </span>
@@ -1231,6 +1258,9 @@
             </div>
         </div>
     </div>
+
+    {# 進階重新刮削彈窗（62a-2）。放 showcase x-data 作用域內，使 rescrape* hook 在 showcase Alpine root 求值。 #}
+    {% include '_rescrape_modal.html' %}
 </div>
 {% endblock %}
 

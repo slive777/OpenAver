@@ -1,110 +1,25 @@
 /**
- * SearchState - Advanced Search Picker Mixin（TASK-61c-7）
+ * SearchState - Advanced Search Mixin（TASK-61c-7 / 62c-1 / 62c-2）
  *
- * 進階搜尋 picker MVP：長壓搜尋按鈕 → 開 picker → 單選來源 → 整包覆寫搜尋。
+ * 進階搜尋：長壓搜尋按鈕 → 開 62a 共用重刮彈窗上半部 → 點來源 pill 整包覆寫搜尋。
+ * （62c-1：B1 radio picker 已移除，改 include _rescrape_modal.html，番號 input + 來源 pill 點擊即搜。）
  *
  * 機制重點：
  * - enabled gate / sources 清單來自 SSR 注入的 window.__ADVANCED_SEARCH__。
- * - 長壓 700ms 觸發 picker；長壓後設旗標攔截同一次 click/submit，避免連帶送出一般搜尋。
- * - 「確定」走非 stream GET /api/search?q=...&mode=exact&source=<id>（stream 端點無 source param），
- *   複用 fallbackSearch 的 result→Alpine state binding（整包贏由後端 search_jav_single_source 承擔）。
+ * - 長壓 wiring（62c-2）已改接共用 shared/long-press.js（longPressState）：#btnSubmit 六事件 + click guard
+ *   走 longPressStart/End/Cancel/ClickGuard，fire callback（openRescrape(null,'search') + 番號預填）在
+ *   template arrow 傳入。US8（長壓開窗不連帶送出一般搜尋）由 longPressClickGuard 的 preventDefault 取消
+ *   submit 按鈕的隱式 form 送出保護；form @submit 直接走 doSearch()（不再有 form-level submit guard）。
+ * - advancedSearch(source) 走非 stream GET /api/search?q=...&mode=exact&source=<id>（stream 端點無 source param），
+ *   自帶 result→Alpine state binding（整包贏由後端 search_jav_single_source 承擔；不呼叫 fallbackSearch）。
  * - OQ-3 軟提示 scaffold：metatube source + 非番號 query + 空結果 → showToast hint（B1 無 metatube source 故不觸發）。
  */
 
-const LONG_PRESS_MS = 700;
-
 export function searchStateAdvancedPicker() {
     return {
-        // ===== Picker State =====
-        advancedPickerOpen: false,
-        advancedPickerSelected: '',
-        _advancedLongPressTimer: null,
-        _advancedLongPressFired: false,  // 長壓已觸發旗標（攔截同一次 click/submit）
-
         // ===== Helpers =====
         _advancedConfig() {
             return window.__ADVANCED_SEARCH__ || { enabled: false, sources: [] };
-        },
-
-        advancedSearchEnabled() {
-            return !!this._advancedConfig().enabled;
-        },
-
-        _advancedSortedSources(type) {
-            const sources = (this._advancedConfig().sources || []).filter(s => s && s.type === type);
-            // enabled 先（依 order），disabled 後（依 order）
-            return sources.slice().sort((a, b) => {
-                if (!!a.enabled !== !!b.enabled) return a.enabled ? -1 : 1;
-                return (a.order ?? 0) - (b.order ?? 0);
-            });
-        },
-
-        advancedPickerBuiltinSources() {
-            return this._advancedSortedSources('builtin');
-        },
-
-        advancedPickerMetatubeSources() {
-            return this._advancedSortedSources('metatube');
-        },
-
-        // ===== 長壓 wiring =====
-        advancedLongPressStart() {
-            this._advancedLongPressFired = false;
-            if (!this.advancedSearchEnabled()) return;  // toggle off → no-op
-            if (this._advancedLongPressTimer !== null) {
-                clearTimeout(this._advancedLongPressTimer);
-            }
-            this._advancedLongPressTimer = setTimeout(() => {
-                this._advancedLongPressTimer = null;
-                this._advancedLongPressFired = true;  // 攔截後續 click/submit
-                this.advancedPickerOpen = true;
-                this.advancedPickerSelected = '';
-            }, LONG_PRESS_MS);
-        },
-
-        advancedLongPressEnd() {
-            if (this._advancedLongPressTimer !== null) {
-                clearTimeout(this._advancedLongPressTimer);
-                this._advancedLongPressTimer = null;
-            }
-        },
-
-        advancedLongPressCancel() {
-            if (this._advancedLongPressTimer !== null) {
-                clearTimeout(this._advancedLongPressTimer);
-                this._advancedLongPressTimer = null;
-            }
-        },
-
-        // @click guard：長壓觸發過 → 吞掉這次 click（不重置旗標，留給 submit guard 消化）
-        advancedLongPressClickGuard(event) {
-            if (this._advancedLongPressFired) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
-        },
-
-        // form @submit guard：長壓觸發過 → 回傳 true 抑制 doSearch，並消化旗標
-        // 回傳 truthy 時，模板 `guard() || doSearch()` 的短路會跳過 doSearch。
-        advancedLongPressSubmitGuard() {
-            if (this._advancedLongPressFired) {
-                this._advancedLongPressFired = false;
-                return true;
-            }
-            return false;
-        },
-
-        // ===== Picker 開關 / 確定 =====
-        advancedPickerClose() {
-            this.advancedPickerOpen = false;
-            this.advancedPickerSelected = '';
-        },
-
-        advancedPickerConfirm() {
-            const source = this.advancedPickerSelected;
-            if (!source) return;
-            this.advancedPickerOpen = false;
-            this.advancedSearch(source);
         },
 
         // ===== 進階搜尋（非 stream，整包贏）=====

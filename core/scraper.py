@@ -518,14 +518,14 @@ def search_jav321_keyword(keyword: str, limit: int = 20, status_callback: Option
     """Jav321 關鍵字搜尋"""
     if status_callback:
         status_callback('jav321', 'searching')
-    
+
     scraper = JAV321Scraper()
     videos = scraper.search_by_keyword(keyword, limit=limit)
     results = [v.to_legacy_dict() for v in videos]
-    
+
     if status_callback:
         status_callback('jav321', f'found:{len(results)}')
-        
+
     return results
 
 

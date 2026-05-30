@@ -229,15 +229,7 @@
       "toggle_label": "Advanced Search (Beta)",
       "help": "When enabled, long-press the search button on the Search page to pick a single source (including disabled ones) for a one-time override.",
       "metatube_keyword_hint": "Metatube sources do not support actress/keyword search — enter a full ID for best results.",
-      "picker_title": "Select Search Source",
-      "picker_subtitle": "This search will use only the selected source (full override).",
-      "group_builtin": "Built-in + javlibrary",
-      "group_metatube": "Metatube",
-      "group_metatube_empty": "No Metatube sources yet",
-      "manual_badge": "Advanced Only",
-      "disabled_label": "(optional)",
-      "confirm": "Confirm",
-      "cancel": "Cancel"
+      "group_metatube_empty": "No Metatube sources yet"
     },
     "toast": {
       "desktop_only": "This feature requires the desktop app"

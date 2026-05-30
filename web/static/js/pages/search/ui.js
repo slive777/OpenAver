@@ -299,10 +299,32 @@ async function switchSource(alpineContext, number) {
 // T1c: 所有標籤函數已遷移至 Alpine state.js
 // Removed: showAddTagInput, confirmAddTag, cancelAddTag, addUserTag, removeUserTag
 
+/**
+ * 62c-3 鎖定#4：手動挑來源成功後 seed cycle state，讓下次 🔄 tap 從選定來源接續循環。
+ *
+ * switchStateMap 為模組私有 → 從 ui.js export 此 helper（picker 經 window.SearchUI.seedSwitchState
+ * 呼叫，不直接戳 Map；封裝 + 守衛可斷言 export）。
+ *
+ * @param {string} number  - 番號
+ * @param {string} picked  - 選定來源 id（'auto' / 'metatube:*' → SOURCE_ORDER.indexOf 回 -1 → 跳過 seed，
+ *                            下次 tap 從頭循環，degenerate 可接受）
+ * @param {Object} result  - 寫進 slot 的 variant dict（已 strip success）
+ */
+function seedSwitchState(number, picked, result) {
+    if (!number) return;
+    const sourceIdx = SOURCE_ORDER.indexOf(picked);
+    if (sourceIdx < 0) return;          // metatube / auto：跳過 seed
+    const state = getSwitchState(number);
+    state.sourceIdx = sourceIdx;
+    state.variantIdx = 0;
+    state.cache[picked] = [{ ...result, _source: picked }];   // mirror ensureCached single-variant shape
+}
+
 // === 暴露介面 ===
 window.SearchUI = {
     loadSourceConfig,
-    getSourceOrder
+    getSourceOrder,
+    seedSwitchState
 };
 
 // V1d: 暴露 core 函數（供 Alpine wrapper 呼叫）

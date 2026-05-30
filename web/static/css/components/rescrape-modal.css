@@ -1,0 +1,282 @@
+/* ==================== Advanced Rescrape Modal (62a-2; cross-page: Showcase + Search) ====================
+ *
+ * 進階重刮彈窗專屬樣式。兩步換頁（pick 番號+來源 pill → preview 大封面 + scraper 欄位 + ✗/✓）。
+ * 沿用 fluent-modal 開關（:class modal-open，CD-62-1，非 .showModal()）。玻璃 backdrop（dim + 12px
+ * blur）由 theme.css 的 `.fluent-modal.modal-open` 統一提供（::backdrop 在 class-open 模式不觸發）。
+ * 本檔額外處理「從 lightbox 開窗」的層級：見下方 .rescrape-dialog.modal z-index。
+ * 視覺忠實移植自 mockup-rescrape-modal.html（CD-62-0「mockup 為準」），
+ * 全 token 化（shadow/radius/duration/ease/color）。唯一字面值：.rescrape-confirm-btn.confirm 的
+ * #fff 白前景（綠底按鈕慣例；mockup:189）。pill 999px 走 source-pill.css 白名單。
+ *
+ * Alpine 行為（fetch/loading/commit/not-found）是 62a-3；本檔僅視覺。
+ */
+
+/* ─── Stacking: lift above the showcase lightbox when launched from it (⚙/🔍).
+ * DaisyUI gives .modal z-index: 999 (tailwind.css, @layer daisyui), which is BELOW
+ * .showcase-lightbox (1000) — so the rescrape modal rendered UNDER the lightbox.
+ * 1600 clears every overlay the lightbox can stack: showcase-lightbox 1000,
+ * sample-gallery 1500, similar-stage 1501 — while staying BELOW .fluent-toast-container
+ * (2000) so success/error toasts remain visible over the modal.
+ * Two classes (.rescrape-dialog.modal) for specificity over DaisyUI's bare .modal;
+ * UNLAYERED so it beats the layered daisyui z-index. ─── */
+.rescrape-dialog.modal {
+    z-index: 1600;
+}
+
+/* ─── Modal box（鏡射 .fluent-modal-box，加寬 + 角落 close 定位）─── */
+.rescrape-modal-box {
+    width: min(560px, calc(100vw - 2rem));
+    max-height: calc(100vh - 3rem);
+    overflow-y: auto;
+    position: relative;
+}
+
+.rescrape-x {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 1.9rem;
+    height: 1.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    border-radius: var(--fluent-radius-md);
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                color var(--fluent-duration-fast) var(--fluent-ease-standard);
+    z-index: 2;
+}
+
+.rescrape-x:hover {
+    background: color-mix(in oklch, var(--color-base-content) 10%, transparent);
+    color: var(--text-primary);
+}
+
+/* ─── PICK step（番號 + 來源 pill）─── */
+.rescrape-section {
+    margin-bottom: 1.25rem;
+}
+
+.rescrape-section:last-child {
+    margin-bottom: 0;
+}
+
+.rescrape-label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.rescrape-label-hint {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-muted);
+}
+
+.rescrape-num-input {
+    width: 100%;
+    padding: 0.55rem 0.8rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-primary);
+    background: var(--surface-0);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--fluent-radius-md);
+    transition: border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+                box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.rescrape-num-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 22%, transparent);
+}
+
+.rescrape-hint {
+    margin-top: 0.4rem;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.rescrape-hint code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--text-secondary);
+}
+
+.rescrape-group-sep {
+    margin: 0.85rem 0 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.rescrape-group-sep::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--stroke-subtle);
+}
+
+.rescrape-empty-note {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    padding: 0.4rem 0.2rem;
+    font-style: italic;
+}
+
+.rescrape-inline-error {
+    margin-top: 0.7rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.8rem;
+    color: var(--color-warning);
+    background: color-mix(in oklch, var(--color-warning) 12%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-warning) 30%, transparent);
+    border-radius: var(--fluent-radius-md);
+    animation: modal-scale-fade-in var(--fluent-duration-fast) var(--fluent-ease-decel);
+}
+
+.rescrape-search-status {
+    margin-right: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* ─── PREVIEW step（換頁，非疊加）：大封面 + lightbox 視覺 metadata（transient，CD-62-2）─── */
+.rescrape-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 0.2rem 0.3rem;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--accent);
+    border-radius: var(--fluent-radius-md);
+    margin-bottom: 0.85rem;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.rescrape-back:hover {
+    background: color-mix(in oklch, var(--accent) 12%, transparent);
+}
+
+.rescrape-preview {
+    display: flex;
+    gap: 1.15rem;
+    animation: modal-scale-fade-in var(--fluent-duration-normal) var(--fluent-ease-decel);
+}
+
+.rescrape-preview .pv-cover {
+    flex-shrink: 0;
+}
+
+.rescrape-preview .pv-cover img {
+    width: 168px;
+    max-width: 38vw;
+    border-radius: var(--fluent-radius-md);
+    box-shadow: var(--fluent-shadow-8);
+    display: block;
+}
+
+/* Reuse lightbox metadata visual but reset its container framing (CD-62-2). */
+.rescrape-preview .lightbox-metadata {
+    max-width: none;
+    padding: 0;
+    border-top: none;
+    flex: 1;
+    min-width: 0;
+}
+
+.rescrape-caption {
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.76rem;
+    color: var(--color-warning);
+}
+
+.rescrape-confirm-row {
+    margin-top: 0.75rem;
+    display: flex;
+    justify-content: center;
+    gap: 1.25rem;
+}
+
+.rescrape-confirm-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    cursor: pointer;
+    border: 1px solid;
+    transition: transform var(--fluent-duration-fast) var(--fluent-ease-decel),
+                background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.rescrape-confirm-btn:hover {
+    transform: scale(1.08);
+    box-shadow: var(--fluent-shadow-4);
+}
+
+.rescrape-confirm-btn:active {
+    transform: scale(0.95);
+}
+
+.rescrape-confirm-btn.cancel {
+    color: var(--color-error);
+    background: color-mix(in oklch, var(--color-error) 10%, transparent);
+    border-color: color-mix(in oklch, var(--color-error) 40%, transparent);
+}
+
+/* #fff = white foreground on green confirm button (button convention; mockup:189). */
+.rescrape-confirm-btn.confirm {
+    /* stylelint-disable-next-line color-no-hex -- white fg on green success button, 62a-2 card whitelist */
+    color: #fff;
+    background: var(--color-success);
+    border-color: transparent;
+    box-shadow: var(--fluent-shadow-2);
+}
+
+/* ─── reduced-motion: kill new page-swap / inline-error animations.
+ * Spinner exception lives in source-pill.css (it's the source-pill .pill-spin rule). ─── */
+@media (prefers-reduced-motion: reduce) {
+    .rescrape-preview,
+    .rescrape-inline-error {
+        animation: none !important;
+    }
+
+    .rescrape-x,
+    .rescrape-back,
+    .rescrape-confirm-btn {
+        transition: none !important;
+    }
+}

@@ -1,0 +1,8 @@
+{# 進階搜尋 SSR 注入（enabled gate + sources 清單）。Search/Showcase 共用，避免 fetch 往返。
+   後端零改動：config 由 get_common_context() 注入所有 template（web/app.py:148）。 #}
+<script>
+window.__ADVANCED_SEARCH__ = {
+    enabled: {{ config.advanced_search_enabled|default(false)|tojson|safe }},
+    sources: {{ (config.sources or [])|tojson|safe }}
+};
+</script>

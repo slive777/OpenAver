@@ -5,6 +5,66 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2026-05-30
+
+本版是 v0.9 scraper-federation epic 的第二段（B2），feature/62-showcase-advanced-rescrape 三軌道出貨。主軸是全新的**進階重新刮削彈窗（Advanced Re-scrape）**：以前重抓資料只能對「找不到資料的缺卡」做，現在你可以對**任何一片**改番號、挑來源重抓，先看預覽卡再決定要不要覆蓋。三條軌道把這個彈窗接到三個入口：**62a — 彈窗本體**（模糊背景的浮層，番號可直接編輯、來源膠囊點一下就搜、預覽卡可換頁挑結果，✗ 取消 / ✓ 套用；來源膠囊抽成跨頁共用元件）；**62b — Showcase 入口**（lightbox 番號旁多了 ⚙ 進階鈕，缺卡長壓也能進同一個彈窗，套用後固定整包覆蓋並即時刷新畫面，改過的番號會持久化；新增 `video_rescrape_with_source` AI capability）；**62c — Search 入口統一 + 結果面板 🔄 長壓挑來源**（搜尋頁長壓搜尋鈕改用同一個彈窗，取代舊的精簡 radio picker；結果卡的 🔄 鈕長壓可挑來源、只替換當前這張卡）。
+
+*This release is v0.9 scraper-federation epic, Block 2 (feature/62-showcase-advanced-rescrape). The centerpiece is a new **Advanced Re-scrape modal**: previously re-scraping was limited to cards missing data — now you can pick **any** video, edit its number, choose a source, re-fetch, preview the result card, and only then decide whether to overwrite. Three tracks wire this modal into three entry points: **62a — the modal itself** (a blurred-backdrop overlay with an editable number, click-to-search source pills, a paginated preview card, and ✗ cancel / ✓ apply; the source pill is extracted into a cross-page shared component); **62b — Showcase entry** (a ⚙ advanced button next to the number in the lightbox, long-press on missing cards opens the same modal, applying always does a full overwrite with instant refresh and persists any corrected number; adds the `video_rescrape_with_source` AI capability); **62c — unified Search entry + results-panel 🔄 long-press source pick** (the search bar long-press now opens the same modal instead of the old slim radio picker; the results card's 🔄 button long-press lets you pick a source and replace just the current card).*
+
+### Added
+
+#### 🪟 62a — 進階重新刮削彈窗
+
+- **任一片都能重刮**：不再限定缺資料的卡，任何影片都能改番號 + 挑來源重新抓資料
+- **彈窗互動**：模糊背景浮層，番號可直接編輯、來源膠囊點一下立即搜尋、預覽卡可換頁挑不同結果，✗ 取消 / ✓ 套用
+- **預覽再覆蓋**：套用前先看到抓回來的預覽卡，確認沒問題才寫入（預覽只搜不寫，封面僅供前端顯示不下載）
+
+#### 🎬 62b — Showcase 進階重刮入口
+
+- **lightbox ⚙ 進階鈕**：放在番號旁，點開進階重刮彈窗（需在進階設定開啟 Beta）
+- **缺卡長壓入口**：Showcase grid 與 lightbox 的補資料鈕長壓 700ms 進同一個彈窗，輕點維持原本的快速補資料
+- **套用即時刷新**：Showcase 套用後固定整包覆蓋並當場更新畫面，改過的番號也會正確存檔（透過 NFO `<num>` 持久化）
+
+#### 🔄 62c — Search 入口統一 + 結果面板挑來源
+
+- **搜尋頁入口統一**：長壓搜尋鈕改開同一個進階重刮彈窗（番號可編輯 + 來源膠囊即點即搜），取代舊的精簡 radio picker；點來源直接進正常結果區
+- **結果面板 🔄 長壓挑來源（US7）**：🔄 鈕輕點維持原本的循環切換；長壓開來源選單，用選定來源重抓當前番號、只替換當前這張卡（不重設整列結果），之後輕點從選定來源接續循環
+
+#### 🤖 AI Capability
+
+- **新增 `video_rescrape_with_source`**：讓 AI agent 可指定番號 + 來源重刮並覆蓋資料；屬有副作用、不可逆操作，標記 `confirmation_required: true`，description 含覆蓋風險說明（指向既有 `/api/enrich-single` 端點，與補缺面 `enrich_single` 並存為同端點雙風險面）
+
+### Changed
+
+- **Search 進階入口改用共用彈窗**：移除 B1 時期的精簡 radio picker（`advancedPickerModal` DOM + 相關 CSS），改 include 共用重刮彈窗 partial
+- **三入口共用長壓 helper**：Showcase / Search / 結果面板三處長壓統一接 `shared/long-press.js`，並在 `/design-system` 登記 long-press pattern
+- **重刮彈窗 metatube 分組改 data-driven**：彈窗來源分組改資料驅動（為 B3 metatube 連線預留，不再硬編碼分組）
+
+### Fixed
+
+- **重刮彈窗層級修正**：彈窗正確浮到 lightbox 上層，修復玻璃 backdrop class 開關
+- **`refresh_full` 分裂守衛一般化**（Codex P1）：守衛從「NFO 與 cover 皆已存在」放寬為「不會寫出任何 sidecar 檔」就擋下，補上 `write_nfo=false + write_cover=false` 的純 DB-only 路徑（避免 200 success 但零寫檔、只動 DB 的分裂狀態）
+- **switch-source 持久化**（Codex P2）：結果面板長壓挑來源成功後補 `saveState()`，對齊輕點切換路徑，修復「換源後 session restore / 離開回來會回舊卡」
+- **長壓旗標鍵盤兜底**（Codex P3）：關閉彈窗時清長壓殘留旗標，涵蓋鍵盤 / 輔助技術觸發（無 mousedown 前導）的路徑
+
+### Internal
+
+- **共用基建**：來源膠囊抽成 unscoped 跨頁共用元件 + bootstrap partial；新增 `/api/rescrape/preview`（只搜不寫，復用 B1 search 路徑）
+- **SSRF 防護維持**（CD-62-3）：commit 重抓不透傳 `scraper_data`，後端自行重抓，預覽封面僅遠端 URL 經 `/api/proxy-image` 顯示，無 SSRF 攻擊面
+- **switch-source async race 防護**：開窗同步捕捉目標卡 ref，await 回來後四重 stale 判斷才寫回，導覽期間自由重指派不誤寫
+- **eslint flat-config guard 超集化**（Codex P3）：`state-rescrape.js` 的 Group 7 rule 重述為 Group 6 完整 selector 超集 + 62c 自己的負向規則（避免 flat config 不 merge 導致守衛漏洞）
+- **孤兒 i18n key 清理**（4 locale 對稱）：移除 B1 picker 移除後無引用的 8 個 `settings.advanced_search.picker_*` key
+- **原始碼 EOL 正規化**：一次性 CRLF→LF（73 檔純 EOL 轉換，內容零變更）+ 新增 `.gitattributes` per-extension 規則防復發（Windows 腳本保留 CRLF）
+
+### i18n
+
+- **本版僅交付 zh_TW 文案**：`showcase.rescrape.*` 等新文案的其他 3 語系（zh_CN / en / ja）依專案 i18n 規範**待 milestone 同步**
+
+### 測試
+
+- 新增測試覆蓋：重刮預覽端點 + `refresh_full` 分裂守衛、三入口長壓 / tap 分流契約守衛、鎖番號修正持久化契約鏈（前端 prefill + 後端 `number` 欄位）、switch-source 挑來源守衛、`video_rescrape_with_source` capability 旗標 / 風險詞 / contract（tool count 38→39）
+- 全套 pytest 3036 passed, 2 skipped（unit + integration，排除 smoke / e2e）+ `npm run lint`（eslint + stylelint）綠
+
 ## [0.9.0] - 2026-05-29
 
 本版是 v0.9 scraper-federation epic 的第一段（B1），feature/61-settings-ia-sources 三軌道出貨：**61a — 後端資料驅動來源 schema**（使用者無感的基礎重構：來源清單從寫死改為 SourceConfig schema、config.json 新增 sources 段、routing 收斂到單一真理來源）；**61b — Settings 分區 IA 重設計**（頂部 6 個分頁取代原本捲一頁的設計，URL 深連結 + 記住上次分頁 + 平滑淡入動畫）；**61c — 掃描來源 tab + Metatube 骨架 + 進階搜尋 picker（Beta）+ scraper-sources capability**（使用者第一次可以直接管理哪些來源參與自動搜尋）。

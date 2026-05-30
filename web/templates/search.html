@@ -264,7 +264,7 @@
 
     <!-- 搜尋框 -->
     <div class="search-bar">
-        <form id="searchForm" @submit.prevent="advancedLongPressSubmitGuard() || doSearch()">
+        <form id="searchForm" @submit.prevent="doSearch()">
             <div class="spotlight-search">
                 <i class="bi bi-search search-icon-left"></i>
                 <input type="text" id="searchQuery" name="q" placeholder="{{ t('search.placeholder.query') }}" autocomplete="off" x-model="searchQuery" x-ref="searchQuery" @keydown.enter="if ($event.isComposing) { $event.preventDefault(); return; }">
@@ -289,13 +289,13 @@
                         <i class="bi bi-x-lg"></i>
                     </button>
                     <button type="submit" id="btnSubmit" class="btn-icon active" title="{{ t('search.action.search') }}"
-                            @mousedown="advancedLongPressStart()"
-                            @mouseup="advancedLongPressEnd()"
-                            @mouseleave="advancedLongPressCancel()"
-                            @touchstart.passive="advancedLongPressStart()"
-                            @touchend="advancedLongPressEnd()"
-                            @touchcancel="advancedLongPressCancel()"
-                            @click="advancedLongPressClickGuard($event)">
+                            @mousedown="longPressStart(() => { openRescrape(null, 'search'); rescrapeNumber = (searchQuery || '').trim(); }, () => rescrapeEnabled(), $event)"
+                            @mouseup="longPressEnd($event)"
+                            @mouseleave="longPressCancel($event)"
+                            @touchstart.passive="longPressStart(() => { openRescrape(null, 'search'); rescrapeNumber = (searchQuery || '').trim(); }, () => rescrapeEnabled(), $event)"
+                            @touchend="longPressEnd($event)"
+                            @touchcancel="longPressCancel($event)"
+                            @click="longPressClickGuard($event)">
                         <i class="bi bi-arrow-right"></i>
                     </button>
                 </div>
@@ -451,8 +451,18 @@
                           x-show="hasLocalBadge()"
                           :title="localBadgeTitle()"
                           @click="openLocal(current()._localStatus?.paths?.[0])">📁</span>
+                    {# 62c-3 US7：tap=維持現有循環切換（switchSource）/ 長壓 700ms=開來源 picker（openSwitchSourcePicker）。
+                       longPressClickGuard 攔截長壓 fire 後的同一次 click，避免連帶觸發 switchSource。
+                       enabledFn=rescrapeEnabled()：toggle OFF → 不啟 timer，只剩 tap 循環（鎖定 gate）。
+                       ⚠️ 長壓只疊此鈕（🔄）；旁邊 ↗ openSourceUrl 鈕不碰。 #}
                     <button id="switchSourceBtn" class="info-icon-btn"
-                            @click="switchSource()"
+                            @click="longPressClickGuard($event) || switchSource()"
+                            @mousedown="longPressStart(() => openSwitchSourcePicker(), () => rescrapeEnabled(), $event)"
+                            @mouseup="longPressEnd($event)"
+                            @mouseleave="longPressCancel($event)"
+                            @touchstart.passive="longPressStart(() => openSwitchSourcePicker(), () => rescrapeEnabled(), $event)"
+                            @touchend="longPressEnd($event)"
+                            @touchcancel="longPressCancel($event)"
                             title="{{ t('search.action.switch_source') }}"
                             :disabled="isSwitchingSource"
                             :class="{ 'shake': switchSourceShake }">
@@ -937,86 +947,16 @@
         </div>
     </dialog>
 
-    <!-- TASK-61c-7: 進階搜尋 picker（B1 simple Alpine fluent-modal；B2 升級為完整 sourcePicker 元件） -->
-    <dialog class="modal fluent-modal"
-            id="advancedPickerModal"
-            :class="{ 'modal-open': advancedPickerOpen }"
-            @click.self="advancedPickerClose()"
-            @keydown.escape.window="advancedPickerOpen && advancedPickerClose()">
-        <div class="modal-box fluent-modal-box">
-            <h3 class="fluent-modal-title">
-                <i class="bi bi-sliders"></i> {{ t('settings.advanced_search.picker_title') }}
-            </h3>
-            <p class="fluent-modal-body">{{ t('settings.advanced_search.picker_subtitle') }}</p>
-
-            <div class="advanced-picker-groups">
-                <!-- 上組：內建 + javlibrary（type=builtin） -->
-                <div class="advanced-picker-group">
-                    <div class="advanced-picker-group-title">{{ t('settings.advanced_search.group_builtin') }}</div>
-                    <template x-for="src in advancedPickerBuiltinSources()" :key="src.id">
-                        <label class="advanced-picker-option"
-                               :class="{ 'is-disabled': !src.enabled }">
-                            <input type="radio" name="advancedSource"
-                                   :value="src.id"
-                                   x-model="advancedPickerSelected">
-                            <span class="advanced-picker-name"
-                                  :style="!src.enabled ? 'text-decoration: line-through;' : ''"
-                                  x-text="src.display_name_key || src.id"></span>
-                            <span class="badge badge-sm badge-outline" x-show="src.manual_only"
-                                  x-text="t('settings.advanced_search.manual_badge')"></span>
-                            <span class="advanced-picker-disabled-tag" x-show="!src.enabled"
-                                  x-text="t('settings.advanced_search.disabled_label')"></span>
-                        </label>
-                    </template>
-                </div>
-
-                <!-- 下組：Metatube（type=metatube；B1 階段為空，結構先就位） -->
-                <div class="advanced-picker-group">
-                    <div class="advanced-picker-group-title">{{ t('settings.advanced_search.group_metatube') }}</div>
-                    <template x-if="advancedPickerMetatubeSources().length === 0">
-                        <div class="advanced-picker-empty" x-text="t('settings.advanced_search.group_metatube_empty')"></div>
-                    </template>
-                    <template x-for="src in advancedPickerMetatubeSources()" :key="src.id">
-                        <label class="advanced-picker-option"
-                               :class="{ 'is-disabled': !src.enabled }">
-                            <input type="radio" name="advancedSource"
-                                   :value="src.id"
-                                   x-model="advancedPickerSelected">
-                            <span class="advanced-picker-name"
-                                  :style="!src.enabled ? 'text-decoration: line-through;' : ''"
-                                  x-text="src.display_name_raw || src.id"></span>
-                            <span class="badge badge-sm badge-outline" x-show="src.manual_only"
-                                  x-text="t('settings.advanced_search.manual_badge')"></span>
-                            <span class="advanced-picker-disabled-tag" x-show="!src.enabled"
-                                  x-text="t('settings.advanced_search.disabled_label')"></span>
-                        </label>
-                    </template>
-                </div>
-            </div>
-
-            <div class="modal-action fluent-modal-actions">
-                <button type="button" class="btn btn-ghost" @click="advancedPickerClose()">
-                    {{ t('settings.advanced_search.cancel') }}
-                </button>
-                <button type="button" class="btn btn-primary"
-                        :disabled="!advancedPickerSelected"
-                        @click="advancedPickerConfirm()">
-                    {{ t('settings.advanced_search.confirm') }}
-                </button>
-            </div>
-        </div>
-    </dialog>
+    {# 進階搜尋共用重刮彈窗（62c-1：取代 B1 radio picker，與 Showcase 共用 _rescrape_modal.html）。
+       search 入口（rescrapeEntryPoint === 'search'）只用上半部 pick 步：番號 input + 來源 pill 點擊即搜，
+       無 ✓/✗ 預覽 commit（spec US5）。長壓開窗 wiring 在 #btnSubmit（共用 shared/long-press.js 的 longPressStart）。 #}
+    {% include '_rescrape_modal.html' %}
 </div>
 {% endblock %}
 
 {% block pre_alpine_module %}
-<!-- TASK-61c-7: 進階搜尋 SSR 注入（enabled gate + sources 清單，避免新增 fetch 往返） -->
-<script>
-window.__ADVANCED_SEARCH__ = {
-    enabled: {{ config.advanced_search_enabled|default(false)|tojson|safe }},
-    sources: {{ (config.sources or [])|tojson|safe }}
-};
-</script>
+{# 進階搜尋 SSR 注入抽至共用 partial（TASK-62a-0），Search/Showcase 共用 #}
+{% include '_advanced_search_bootstrap.html' %}
 <script type="module" src="/static/js/pages/search/main.js"></script>
 {% endblock %}
 

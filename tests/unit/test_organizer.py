@@ -1072,10 +1072,10 @@ class TestDownloadImage:
         mock_resp = mock_get.return_value
         mock_resp.status_code = 200
         mock_resp.content = b"fake_image_data_that_is_long_enough_to_pass_the_length_check_which_is_1000_bytes_" * 15
-        
+
         save_path = tmp_path / "cover.jpg"
         result = download_image("http://example.com/cover.jpg", str(save_path))
-        
+
         assert result is True
         assert save_path.exists()
         assert save_path.read_bytes() == mock_resp.content
@@ -1085,10 +1085,10 @@ class TestDownloadImage:
     def test_download_fail_status(self, mock_get, tmp_path):
         mock_resp = mock_get.return_value
         mock_resp.status_code = 404
-        
+
         save_path = tmp_path / "cover.jpg"
         result = download_image("http://example.com/cover.jpg", str(save_path))
-        
+
         assert result is False
         assert not save_path.exists()
 

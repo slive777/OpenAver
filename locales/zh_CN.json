@@ -229,15 +229,7 @@
       "toggle_label": "高级搜索 (Beta)",
       "help": "启用后可在搜索页长按搜索按钮，从所有来源（含未启用）选一个做单次覆写。",
       "metatube_keyword_hint": "metatube 来源不支持女优/关键字搜索，建议输入完整番号。",
-      "picker_title": "选择搜索来源",
-      "picker_subtitle": "本次搜索将只用所选来源（整包覆写）。",
-      "group_builtin": "内建 + javlibrary",
-      "group_metatube": "Metatube",
-      "group_metatube_empty": "尚无 Metatube 来源",
-      "manual_badge": "高级专用",
-      "disabled_label": "（可选）",
-      "confirm": "确定",
-      "cancel": "取消"
+      "group_metatube_empty": "尚无 Metatube 来源"
     },
     "toast": {
       "desktop_only": "此功能需要在桌面应用程序中使用"

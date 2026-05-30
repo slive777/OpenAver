@@ -160,6 +160,10 @@ export function searchStateNavigation() {
         const queryInput = this.$refs.searchQuery;
         if (document.activeElement === queryInput) return;
 
+        // rescrape 彈窗開啟時鎖所有快捷鍵（番號 input 可編輯，箭頭鍵須留給游標；
+        // Escape 由 _rescrape_modal 的 @keydown.escape.window 自理，不在此重複關閉）
+        if (this.rescrapeOpen) return;
+
         // T8: Sample Gallery 鍵盤導航（最高優先：gallery 疊在 lightbox 之上，ESC 先關 gallery）
         if (this.sampleGalleryOpen) {
             if (event.key === 'Escape') {

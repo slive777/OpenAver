@@ -2061,10 +2061,30 @@ body {
 
 /* ========== Components: Fluent Modal (D.10) ========== */
 
-/* Fluent Modal - Smoke Backdrop Override */
+/* Fluent Modal - Smoke Backdrop Override.
+ * NOTE: ::backdrop only fires for native dialog.showModal(). All fluent-modals
+ * in this codebase open via Alpine `:class="{ 'modal-open': ... }"` (CD-62-1, no
+ * native showModal()), so this rule never paints in practice. Left as a harmless
+ * fallback for any future native dialog. The working glass backdrop for the
+ * class-open pattern is `.fluent-modal.modal-open` below. */
 .fluent-modal::backdrop {
     background-color: var(--fluent-smoke);
     animation: modal-backdrop-fade-in var(--fluent-duration-normal) var(--fluent-ease-standard);
+}
+
+/* Fluent Modal - Glass backdrop for the class-open pattern (the real one).
+ * Painted on the <dialog class="modal fluent-modal"> element itself, which DaisyUI
+ * makes position:fixed — so backdrop-filter sits on the fixed element directly (not a
+ * nested absolute child), avoiding the Safari/iOS clip bug (gotchas.md §backdrop-filter).
+ * UNLAYERED on purpose: beats DaisyUI's layered `.modal.modal-open` flat
+ * `background-color: oklch(0% 0 0/0.4)` (tailwind.css @layer daisyui.l1.l2).
+ * Blur pinned to --fluent-blur-light (12px, floating-control tier) per ui-conventions §2
+ * Modal Backdrop UX 例外 — keeps spatial reference to the grid/lightbox behind.
+ * background fallback paints first so the dim survives even if backdrop-filter is dropped. */
+.fluent-modal.modal-open {
+    background: var(--overlay-modal);
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
 }
 
 /* Fluent Modal Box - 卡片樣式 */

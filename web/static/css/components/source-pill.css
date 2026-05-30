@@ -1,0 +1,241 @@
+/* ==================== Source Pill (cross-page shared component, CD-62-13) ====================
+ *
+ * 掃描來源膠囊（scraper 開關 / 唯讀來源徽章）。原為 settings.css 內 settings-scope 子規則，
+ * TASK-62a-0 抽成 unscoped 共用 component，供 Settings / Search / Showcase 跨頁 render。
+ *
+ * - 純文字搬遷 + class rename（.settings-sources-pill* → .source-pill*），token / 數值零變更。
+ * - --radius-pill (999px) 落 ui-conventions §1 pill 白名單（掃描來源 source pill，類 6）。
+ * - 子元素 class（.slash-icn / .pill-name / .rec-star）無 settings-sources- 前綴，保持原樣。
+ * - layout 容器 .settings-sources-pills 為 settings 排序 UI 專屬，留在 settings.css，不抽。
+ */
+
+/* ─── Source pill (slash-icon disabled signal; see ui-conventions §1) ─── */
+.source-pill {
+    --pill-accent: var(--accent);
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    color: var(--text-primary);
+    background: color-mix(in oklch, var(--surface-2) 55%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 18%, transparent);
+    border-radius: var(--radius-pill);
+    cursor: grab;
+    user-select: none;
+    transition: color var(--fluent-duration-fast) var(--fluent-ease-standard),
+                background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+                transform var(--fluent-duration-fast) var(--fluent-ease-decel),
+                box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.source-pill:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--fluent-shadow-2);
+}
+
+.source-pill:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* ENABLED — canonical look */
+.source-pill[data-enabled="true"] {
+    color: var(--text-primary);
+    background: color-mix(in oklch, var(--pill-accent) 10%, var(--surface-0));
+    border-color: color-mix(in oklch, var(--pill-accent) 45%, transparent);
+}
+
+/* Uncensored category accent (design §2.4; bind logic 61c-2) */
+.source-pill--uncensored[data-enabled="true"] {
+    --pill-accent: var(--color-success);
+}
+
+/* DISABLED — slash icon + muted text + dashed border */
+.source-pill[data-enabled="false"] {
+    color: color-mix(in oklch, var(--text-primary) 55%, transparent);
+    background: color-mix(in oklch, var(--surface-1) 60%, transparent);
+    border-color: color-mix(in oklch, var(--color-base-content) 22%, transparent);
+    border-style: dashed;
+}
+
+.source-pill[data-enabled="false"]:hover {
+    color: color-mix(in oklch, var(--text-primary) 80%, transparent);
+    background: color-mix(in oklch, var(--surface-2) 70%, transparent);
+}
+
+.source-pill .slash-icn {
+    display: none;
+    font-size: 0.95rem;
+}
+
+.source-pill[data-enabled="false"] .slash-icn {
+    display: inline-block;
+    color: color-mix(in oklch, var(--text-secondary) 80%, transparent);
+}
+
+.source-pill[data-enabled="false"] .pill-name {
+    text-decoration: line-through;
+    text-decoration-color: color-mix(in oklch, var(--text-secondary) 35%, transparent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+}
+
+/* Manual-only (JavLibrary BETA) — non-toggle pill */
+.source-pill--manual-only {
+    cursor: default;
+    color: var(--text-secondary);
+    background: color-mix(in oklch, var(--surface-1) 45%, transparent);
+    border-style: dashed;
+    border-color: color-mix(in oklch, var(--accent) 28%, var(--stroke-subtle));
+    padding-right: 0.4rem;
+    gap: 0.55rem;
+}
+
+.source-pill--manual-only:hover {
+    transform: none;
+    box-shadow: none;
+    background: color-mix(in oklch, var(--surface-1) 55%, transparent);
+}
+
+.source-pill--manual-only .slash-icn {
+    display: none;
+}
+
+.source-pill--manual-only .pill-name {
+    text-decoration: none;
+    color: var(--text-primary);
+}
+
+/* Inline pill badge (Manual-Only / future generic) */
+.source-pill-badge {
+    padding: 0.18rem 0.5rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    line-height: 1;
+    color: var(--accent);
+    background: color-mix(in oklch, var(--accent) 16%, transparent);
+    border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent);
+    border-radius: var(--radius-pill);
+}
+
+/* ─── Drag-and-drop visual state (61c-2; HTML5 native, CD-61-4) ─── */
+/* Pill being dragged: dimmed + lifted shadow. */
+.source-pill.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+    box-shadow: var(--fluent-shadow-4);
+}
+
+/* Drop target: accent ring indicates insertion point. */
+.source-pill.drop-target {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 45%, transparent);
+}
+
+/* Keyboard-grabbed pill (WAI-ARIA sortable): solid accent ring. */
+.source-pill.is-grabbed {
+    border-style: solid;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--accent) 55%, transparent);
+}
+
+/* ─── Disconnected metatube (B3; visual contract present, B1 unexercised) ─── */
+/* Reuse disabled look (gray + strikethrough via data-enabled=false) but no hover
+   lift + default cursor + an `m` corner badge to distinguish from a disabled builtin. */
+.source-pill.is-disconnected {
+    cursor: default;
+}
+
+.source-pill.is-disconnected:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.source-pill-mt-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.05rem;
+    height: 1.05rem;
+    font-size: 0.62rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text-secondary);
+    background: color-mix(in oklch, var(--surface-2) 80%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-base-content) 22%, transparent);
+    border-radius: var(--radius-pill);
+}
+
+/* Parts Bin pill — disabled visual reuses [data-enabled="false"]; accent tint for metatube */
+.source-pill.is-partsbin {
+    --pill-accent: color-mix(in oklch, var(--accent) 70%, var(--color-warning));
+}
+
+.source-pill.is-partsbin .rec-star {
+    display: none;
+    font-size: 0.85rem;
+    color: var(--color-warning);
+}
+
+.source-pill.is-partsbin[data-rec="true"] .rec-star {
+    display: inline-block;
+}
+
+/* ─── Action / loading modifiers (62a-2; click-to-rescrape pill, NOT drag) ───
+ * Settings pill = drag (base cursor: grab). Rescrape-modal pill = click action.
+ * `--action` flips the cursor to pointer + guards the lift against disabled/loading;
+ * `:disabled` dims the *other* pills while one source is being fetched; the loading
+ * pill itself stays at full opacity and shows a spinner. Base drag rules untouched. */
+.source-pill--action {
+    cursor: pointer;
+}
+
+.source-pill:disabled {
+    cursor: default;
+    opacity: 0.45;
+}
+
+/* Loading pill keeps full opacity (it's the active one, others go disabled). */
+.source-pill.is-loading {
+    opacity: 1;
+}
+
+/* Disabled / loading action pills do not lift on hover. */
+.source-pill--action:disabled:hover,
+.source-pill--action.is-loading:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.source-pill .pill-spin {
+    width: 0.85rem;
+    height: 0.85rem;
+    border: 2px solid color-mix(in oklch, var(--pill-accent) 35%, transparent);
+    border-top-color: var(--pill-accent);
+    border-radius: 50%;
+    animation: source-pill-spin 0.6s linear infinite;
+}
+
+@keyframes source-pill-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .source-pill {
+        transition: none !important;
+    }
+
+    /* Spinner is a loading indicator — keep it spinning (mockup:263-266). */
+    .source-pill .pill-spin {
+        animation: source-pill-spin 0.6s linear infinite;
+    }
+}

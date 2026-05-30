@@ -1,2 +1,27 @@
 *.sh text eol=lf
 *.command text eol=lf
+
+# 來源碼 / 樣式 / 模板 → 一律 LF
+*.py text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.svg text eol=lf
+
+# 純文字設定 / 文檔
+*.txt text eol=lf
+*.md text eol=lf
+*.ini text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.cfg text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# Windows 專屬腳本 → 保留 CRLF（不可被上方規則或預設波及）
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf

@@ -293,6 +293,8 @@ class TestShowcaseVideoSingle:
         assert video["has_nfo"] is True
         assert isinstance(video["user_tags"], list)
         # 確認所有必要欄位存在
+        # 番號持久化契約 (62b-2 #3): /api/showcase/video 必須回 `number`，
+        # commit 後前端 refreshVideoData 才能突變 video.number → 再開彈窗預填新值。
         for field in ("path", "title", "number", "cover_url", "has_cover", "has_nfo",
                       "user_tags", "tags", "actresses", "size", "mtime"):
             assert field in video, f"欄位 {field} 缺失"

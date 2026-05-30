@@ -17,10 +17,10 @@ from typing import List, Literal, Optional
 
 from core.database import VideoRepository
 from core.db_inflow import try_inflow_upsert
-from core.enricher import enrich_single, fetch_samples_only
+from core.enricher import enrich_single, fetch_samples_only, resolve_nfo_cover_paths
 from core.organizer import organize_file
 from core.path_utils import to_file_uri, uri_to_fs_path
-from core.scraper import search_jav
+from core.scraper import search_jav, search_jav_single_source
 from core.source_config import validate_source_id
 from core.logger import get_logger
 from core.config import load_config
@@ -162,12 +162,70 @@ class BatchEnrichRequest(BaseModel):
     overwrite_existing: bool = False
 
 
+class RescrapePreviewRequest(BaseModel):
+    number: str
+    source: str = "auto"
+
+
+@router.post("/rescrape/preview")
+def rescrape_preview_endpoint(request: RescrapePreviewRequest) -> dict:
+    """重刮預覽（CD-62-3）：只搜不寫，復用 B1 搜尋路徑。
+
+    - source=auto → search_jav（走 merger）。
+    - 具體來源 → search_jav_single_source（明確選源繞 merger，CD-62-6）。
+    回傳成功 dict + success:True；not-found（None）→ 200 {success:False}。
+    不下載 cover（cover 是遠端 URL，原樣回前端，無 SSRF 面）。
+    """
+    config = load_config()
+    search_cfg = config.get("search", {})
+    proxy_url = search_cfg.get("proxy_url", "")
+    primary_source = search_cfg.get("primary_source", "javbus")
+
+    try:
+        if request.source == "auto":
+            result = search_jav(
+                request.number,
+                source="auto",
+                proxy_url=proxy_url,
+                primary_source=primary_source,
+            )
+        else:
+            result = search_jav_single_source(
+                request.number, request.source, proxy_url
+            )
+
+        if result is None:
+            return {"success": False}
+        return {"success": True, **result}
+    except Exception:
+        logger.exception("rescrape_preview_endpoint 失敗")
+        return {"success": False, "error": "預覽搜尋失敗，請查閱日誌"}
+
+
 @router.post("/enrich-single")
 def enrich_single_endpoint(request: EnrichRequest) -> dict:
     config = load_config()
     search_cfg = config.get("search", {})
     proxy_url = search_cfg.get("proxy_url", "")
     primary_source = search_cfg.get("primary_source", "javbus")
+
+    # CD-62-4 分裂陷阱智慧防呆：refresh_full + overwrite=false 時，若這組設定不會寫出任何
+    # sidecar（NFO/cover）卻仍 _db_upsert，就是純分裂。一個 sidecar「會寫」需 write 旗標開 + 檔案缺
+    # （此分支 overwrite 已為 false，既有檔不覆寫）。兩者皆不會寫 → 擋；任一會寫則放行（quick-enrich
+    # 缺封面零回歸）。涵蓋 write_nfo/write_cover 皆 false 的純 DB-only 路徑（Codex P1）。
+    # write_extrafanart 刻意排除：_write_extrafanart 無 overwrite gate 且只在 scraper 回
+    # sample_images 才寫；若 scraper 無 samples → 零磁碟寫出但 _db_upsert 照跑 = 分裂，
+    # 故不得計入「保證會寫 sidecar」；補劇照請用 /api/scraper/fetch-samples（Codex PR#47 round-2 P2）。
+    # 在 try 之前 raise，避免被下方 except Exception 吞成籠統 200。
+    if request.mode == "refresh_full" and not request.overwrite_existing:
+        nfo_path, cover_path = resolve_nfo_cover_paths(request.file_path)
+        will_write_nfo = request.write_nfo and not os.path.exists(nfo_path)
+        will_write_cover = request.write_cover and not os.path.exists(cover_path)
+        if not will_write_nfo and not will_write_cover:
+            raise HTTPException(
+                status_code=400,
+                detail="refresh_full + overwrite_existing=false 在此設定下不會寫出任何 NFO/封面，只會更新 DB 造成與磁碟分裂；請開 overwrite_existing、確保 NFO/封面有實際寫入，或補劇照請改用 /api/scraper/fetch-samples",
+            )
 
     try:
         result = enrich_single(
