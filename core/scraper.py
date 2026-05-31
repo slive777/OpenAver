@@ -688,19 +688,40 @@ def search_by_variant_id(variant_id: str, base_number: str) -> Optional[Dict[str
 
 def _get_uncensored_sources(search_term: str) -> list[str]:
     """
-    根據番號前綴決定無碼來源搜尋順序。
+    根據番號前綴決定無碼來源搜尋順序（spec US4 staged promotion，CD-63c-8）。
 
-    - FC2 前綴 → ['fc2', 'avsox']（省 D2Pass + HEYZO）
-    - HEYZO 前綴 → ['heyzo', 'avsox']（省 D2Pass）
-    - 其他（D2Pass 日期格式等）→ ['d2pass', 'heyzo', 'fc2', 'avsox']（原始順序）
+    先取 Active Row 中 enabled + available 且符合對應能力的 metatube 無碼 provider，
+    prepend 到 builtin 清單前；fallback builtin 順序不變：
+    - FC2 前綴 → metatube(FC2/FC2PPVDB/fc2hub) + ['fc2', 'avsox']
+    - HEYZO 前綴 → metatube(HEYZO) + ['heyzo', 'avsox']
+    - 其他（D2Pass 日期格式等）→ metatube(日期型 11) + ['d2pass', 'heyzo', 'fc2', 'avsox']
+
+    無任何 metatube 無碼源啟用 → mt_pick=[] → 回傳純 builtin（與 B1 行為一致）。
     """
+    # metatube_state / get_enabled_source_ids 皆已 module-level import（63c-1，line 29/34）
+    from core.scrapers.utils import METATUBE_DATE_UNCENSORED
+
+    # enabled + available + !manual_only 的 metatube 來源（按 order，含 availability gate）
+    avail_map = metatube_state.availability_map()
+    mt_enabled = [
+        sid for sid in get_enabled_source_ids(availability_map=avail_map)
+        if sid.startswith('metatube:')
+    ]
+
     term_lower = search_term.lower().strip()
     if term_lower.startswith('fc2'):
-        return ['fc2', 'avsox']
+        builtin = ['fc2', 'avsox']
+        mt_pick = [s for s in mt_enabled
+                   if s[len('metatube:'):] in ('FC2', 'FC2PPVDB', 'fc2hub')]
     elif term_lower.startswith('heyzo'):
-        return ['heyzo', 'avsox']
+        builtin = ['heyzo', 'avsox']
+        mt_pick = [s for s in mt_enabled if s == 'metatube:HEYZO']
     else:
-        return ['d2pass', 'heyzo', 'fc2', 'avsox']
+        builtin = ['d2pass', 'heyzo', 'fc2', 'avsox']
+        mt_pick = [s for s in mt_enabled
+                   if s[len('metatube:'):] in METATUBE_DATE_UNCENSORED]
+
+    return mt_pick + builtin
 
 
 def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: Optional[Callable[[str, str], None]] = None, uncensored_mode: bool = False, proxy_url: str = '', result_callback: Optional[Callable[[int, Any], None]] = None, primary_source: str = 'javbus', discovery_only: bool = False) -> List[Dict[str, Any]]:

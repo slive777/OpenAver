@@ -366,6 +366,14 @@ METATUBE_UNCENSORED: set[str] = {  # 15 無碼
     '10musume', 'C0930', 'H0930', 'H4610', 'MURAMURA', 'MYWIFE', 'PACOPACOMAMA', 'KIN8',
 }
 
+# 日期型無碼 provider（11 個）：METATUBE_UNCENSORED 去掉 HEYZO / FC2 / FC2PPVDB / fc2hub
+# （後四者由 _get_uncensored_sources 的 fc2 / heyzo 前綴分支各自處理）。
+# 用於 spec US4 staged promotion：日期型番號（d2pass 格式）prepend 這些 metatube 源（CD-63c-8）。
+METATUBE_DATE_UNCENSORED: frozenset[str] = frozenset({
+    'Caribbeancom', 'CaribbeancomPR', '1Pondo', '10musume',
+    'C0930', 'H0930', 'H4610', 'MURAMURA', 'MYWIFE', 'PACOPACOMAMA', 'KIN8',
+})
+
 # 固定 canonical 順序：有碼 15（依序）+ 無碼 15（依序）= 30（CD-63a-5）
 # JAV321/SOD/FC2PPVDB/KIN8 為已知失敗源，仍列入 order 使 builder 能正確排序
 METATUBE_PROVIDER_ORDER: list[str] = [
