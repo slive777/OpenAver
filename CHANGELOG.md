@@ -5,6 +5,71 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2026-06-01
+
+本版是 v0.9 scraper-federation epic 的第三段（B3，**完結篇**），feature/63-metatube-http-mode 三軌道出貨。主軸是把「**自架 metatube server → 一次解鎖 30 個 provider**」這條線全程打通：**63a — 後端 HTTP client + 資料映射**（metatube 連線狀態 singleton、provider 清單、MovieInfo → Video mapper、連線 canary probe 並行測 30 源）；**63b — Settings 連線區接線**（填 URL + Bearer token 按連線真的動起來、30 個 provider 落進 Parts Bin、probe 自動測一輪並灰化測不到的來源、SSRF URL 驗證 + LAN 自架 opt-in、[重新測試] 鈕）；**63c — Routing 整合 + NFO 強化 + DMM proxy 灰化**（已 promote 的 metatube provider 跟內建 8 來源走同一條自動搜尋管道；無碼番號 FC2/HEYZO/日期型優先吃 metatube 無碼源；metatube 簡介寫進 NFO `<plot>` 給 Jellyfin 用；scraper-sources capability 注入 available map；DMM 需 proxy 時進階 picker 灰化提示）。本段完成 = v0.9 scraper-federation epic 全部兌現。
+
+*This is v0.9 scraper-federation epic, Block 3 — the final block (feature/63-metatube-http-mode). Three tracks wire everything together: **63a — HTTP client + data mapping** (MetatubeConnectionState singleton, provider enumeration, MovieInfo → Video mapper, canary probe running in parallel across all 30 sources); **63b — Settings connection wiring** (the connect form now actually works — fill URL + optional Bearer token, hit Connect, 30 providers land in the Parts Bin, a probe round greys out unreachable sources with contextual hints, SSRF URL guard with LAN opt-in, [Re-test] button); **63c — routing integration + NFO enrichment + DMM proxy indicator** (promoted metatube providers participate in the same auto-search pipeline as built-in sources; uncensored numbers FC2/HEYZO/date-format prefer active metatube uncensored sources; metatube summary written to NFO `<plot>` for Jellyfin; scraper-sources capability gains availability_map; DMM greys out in the picker when proxy is not configured). B3 completion = v0.9 scraper-federation epic fully delivered.*
+
+### Added
+
+#### 🔌 63a — Metatube HTTP 後端基建
+
+- **後端 HTTP client**：`MetatubeHttpClient` 打 metatube REST API（單 provider 並行 search / info），多結果自動消歧取最佳，完整 exception 階層（`MetatubeError` 基底 + `MetatubeUnavailable` / `MetatubeAuthError` / `MetatubeNotFound` / `MetatubeClientError` / `MetatubeProtocolError`）
+- **MovieInfo → Video mapper**：metatube `MovieInfo` 轉 OpenAver `Video`；新增 `Video.summary` 欄（僅供 NFO 寫出，不顯示、不入庫 DB 搜尋）
+- **MetatubeConnectionState singleton**：執行期連線狀態 + availability map；不寫 config，重啟歸零後由 connect 端點重建
+
+#### 🔌 63b — Settings 連線區接線（US1 / US2 / US3 / US5 / US9）
+
+- **連線表單接真**：填 Server URL + 可選 Bearer token，按 [連線] 真的打 `/v1/providers`；成功 → 「✓ 已連線」狀態 + 下方展開 Parts Bin（30 個 provider 膠囊，全 `enabled=false`，不自動 promote）；失敗 → toast 說明原因，維持 idle
+- **Parts Bin promote / demote**：Parts Bin 點膠囊 → 進 Active Row；Active Row 點膠囊 → 退回 Parts Bin；跟內建來源互動方式一致，cap 10 共用
+- **連線 probe 灰化（US9）**：連線成功後自動測一輪 30 來源（並行 canary probe）；測不到的膠囊灰化 + 顯示常見成因提示（不斷言是哪個原因）；[重新測試] 鈕可手動重跑
+- **SSRF URL 驗證（US5）**：`validate_metatube_url()` 拒絕內網 IP / loopback / 私有 CIDR / 非 http(s) scheme；自架區網需勾「LAN 自架」opt-in 才放行
+- **進階 tab enable toggle**：Settings › 進階 metatube 開關控制整個 Section 3 是否顯示；未啟用時 Parts Bin / 連線區完全隱藏
+
+#### 🔍 63c — Routing 整合 + 功能強化（US2 / US4 / US7 / US8 / US10）
+
+- **metatube 源進主力搜尋管道**：已 promote 且可達的 metatube provider 自動加入 auto 搜尋 / scanner / NFO 補完 / enrich，跟內建 8 來源並行，結果按使用者排序合併去重（第一個成功來源整包贏）
+- **進階 picker 吃 metatube 真資料（US8）**：進階搜尋 picker 列出所有啟用來源（含 metatube），選定單源整包贏，不再硬編碼分組
+- **無碼 staged promotion（US4）**：FC2 / HEYZO / 日期型無碼番號優先路由到已啟用且可達的 metatube 無碼源（`_get_uncensored_sources` metatube 優先），fallback 維持內建
+- **summary 寫進 NFO `<plot>`（US7）**：metatube 回傳的影片簡介寫入 NFO `<plot>` 欄，供 Jellyfin / Emby / Kodi 讀取；OpenAver 自身不顯示、不入庫；同步補 `<rating>` 數值欄 + `<mpaa>JP-18+` 固定值
+- **DMM proxy 灰化（US10）**：DMM 標記 `requires_proxy=true`；Settings 掃描來源 + 進階 picker 兩個入口，proxy 未設定時 DMM 膠囊灰化並顯示提示
+- **scraper-sources capability 注入 availability_map**：`GET /api/scraper-sources` 回傳的 capability 同步帶入各 metatube provider 的 `available` 狀態，讓 AI agent 知道哪些源此刻可達
+
+### Changed
+
+- **metatube 進階 picker 分組改資料驅動**：移除 B2 預留的靜態 Recommended 群組殘留，改由後端 availability_map 驅動（§7.5 徹底清理）
+- **NFO writer 補齊三欄**：新增 `summary → <plot>`、`rating → <rating>`、`<mpaa>JP-18+` 寫出邏輯；`to_legacy_dict()` 不含 summary（不影響 DB 搜尋索引）
+
+### Fixed
+
+- **Active Row unavailable metatube 可 demote（63d）**：移除 demote guard 對 `available=false` 的限制，讓測不到的 metatube 膠囊可正常點下去退回 Parts Bin（guard 不再與 availability 耦合）
+- **connect 後端 token canary 驗證**：connect 時以真實 token 打 canary 端點驗證 auth，修復「token 填錯仍顯示已連線」的靜默成功問題
+- **Parts Bin data-available binding 強制字串化**：修復 Alpine.js `x-bind:data-available` 對 `false` 直接 remove attribute 的陷阱，改強制字串化確保灰化 CSS binding 正確觸發
+- **probe-failed Parts Bin pill 改用可見警示屬性（Codex P3）**：原本設的 `--pill-accent` 在膠囊 `data-enabled="false"` 下不被讀取（等於無效），改為直接驅動 `border-color` + slash icon 警示色（`--color-warning`），測不到的來源視覺明顯可辨
+- **batch-search echo strip（Codex P1）**：批次搜尋回傳結果移除多餘的 echo 欄位
+- **nfo_updater NFO parity（Codex P2）**：`nfo_updater` 補齊與 `nfo_writer` 相同的三欄寫出邏輯（parity）
+
+### Security
+
+- **SSRF 防護 metatube URL 驗證（US5）**：新增 `validate_metatube_url()`（`core/metatube/validation.py`）—— `ipaddress` + `getaddrinfo` 雙重驗證拒絕 RFC-1918 私有 CIDR / loopback / 非 http(s) scheme；不勾「LAN 自架」時內網 URL 一律拒絕，無 SSRF 攻擊面
+
+### Internal
+
+- **metatube SourceConfig 前置**：`SourceConfig` schema 加 metatube 有碼 provider 映射清單 + builder helper；63a 起所有 metatube 來源由此單一 schema 管理，不再散落硬編碼
+- **connect / disconnect / status / test 4 API 端點**：`/api/settings/metatube/connect`、`/api/settings/metatube/disconnect`、`/api/settings/metatube/status`、`/api/settings/metatube/test` 四端點處理連線生命週期
+- **stale probe guard**：連線前清舊 availability key，避免 reconnect 後殘留舊 probe 結果
+- **port validate + persist rollback**：connect 端點補 port range 驗證 + 失敗時 rollback config，防止寫入無效設定
+
+### i18n
+
+- **本版交付 zh_TW 文案**：metatube 連線 / probe / toggle / DMM proxy hint / Parts Bin pill hint / Help 頁 SQLite 寫鎖說明等新 UI 文字 zh_TW 先行；其他 3 語系（zh_CN / en / ja）依專案 i18n 規範**待 milestone 同步**
+
+### 測試
+
+- 新增測試覆蓋：metatube HTTP client / MovieInfo mapper / probe 狀態 / ConnectionState / URL validation / routing 整合 / 無碼 staged promotion / NFO plot-rating-mpaa 寫出 / connect + probe 端點 / capability availability_map gate + Parts Bin pill binding 契約守衛
+- 全套 pytest 綠（unit + integration，排除 smoke / e2e）+ `npm run lint`（eslint + stylelint）綠
+
 ## [0.9.1] - 2026-05-30
 
 本版是 v0.9 scraper-federation epic 的第二段（B2），feature/62-showcase-advanced-rescrape 三軌道出貨。主軸是全新的**進階重新刮削彈窗（Advanced Re-scrape）**：以前重抓資料只能對「找不到資料的缺卡」做，現在你可以對**任何一片**改番號、挑來源重抓，先看預覽卡再決定要不要覆蓋。三條軌道把這個彈窗接到三個入口：**62a — 彈窗本體**（模糊背景的浮層，番號可直接編輯、來源膠囊點一下就搜、預覽卡可換頁挑結果，✗ 取消 / ✓ 套用；來源膠囊抽成跨頁共用元件）；**62b — Showcase 入口**（lightbox 番號旁多了 ⚙ 進階鈕，缺卡長壓也能進同一個彈窗，套用後固定整包覆蓋並即時刷新畫面，改過的番號會持久化；新增 `video_rescrape_with_source` AI capability）；**62c — Search 入口統一 + 結果面板 🔄 長壓挑來源**（搜尋頁長壓搜尋鈕改用同一個彈窗，取代舊的精簡 radio picker；結果卡的 🔄 鈕長壓可挑來源、只替換當前這張卡）。
