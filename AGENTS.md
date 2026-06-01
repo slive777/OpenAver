@@ -8,6 +8,9 @@
 - No SQL injection — all database queries must use parameterized statements.
 - No unvalidated user input used directly in file system operations (`open()`, `Path()`, `os.path`).
 - No hardcoded secrets, API keys, passwords, or tokens in source code.
+- **SSRF is best-effort, NOT a default blocker.** OpenAver's default threat model is a personal, LAN-only tool; external access is delegated to the user's Tailscale / Cloudflare Zero Trust rather than built in (see `feature/epic-synology.md` "存取控制與威脅模型"). The default model does not include a hostile authenticated LAN user; residual browser-origin risks (DNS rebinding / malicious webpages) are handled as defense-in-depth, not merge blockers. Review missing SSRF hardening in **new** backend URL-fetching code as a suggestion/P3, not P0/P1, and do not block a PR solely on absent SSRF guards.
+  - Existing mitigations (private-IP rejection, no-redirect-follow, image-host allowlist, LAN opt-in) should not be casually removed or weakened.
+  - Still flag clear regressions in already-hardened endpoints, unauthenticated arbitrary-request proxy behavior, or code that contradicts a feature's own stated security contract.
 
 ### Path handling
 

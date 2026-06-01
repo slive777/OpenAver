@@ -479,41 +479,10 @@ class TestMovieIdQuoting:
 # ============================================================
 
 class TestRedirectBlocking:
-
-    @pytest.mark.parametrize("status,location", [
-        (301, "http://127.0.0.1/internal"),
-        (302, "http://127.0.0.1:8080/admin"),
-        (302, "http://192.168.1.1/config"),
-        (303, "http://169.254.169.254/latest/meta-data"),
-        (307, "http://other-host.example.com/v1/movies"),
-        (308, "http://10.0.0.1/"),
-    ])
-    def test_3xx_redirect_raises_protocol_error(self, status, location):
-        """Any 3xx (incl. redirect to loopback / RFC1918 / link-local) → MetatubeProtocolError, not followed."""
-        client = make_client()
-        resp = make_json_response({}, status_code=status)
-        resp.headers = {"Location": location}
-        client._session.get = MagicMock(return_value=resp)
-        with pytest.raises(MetatubeProtocolError):
-            client.get_info("FANZA", "1stars00141")
-
-    def test_redirect_rejected_for_list_providers(self):
-        """connect path (list_providers) also rejects redirects."""
-        client = make_client()
-        client._session.get = MagicMock(
-            return_value=make_json_response({}, status_code=302)
-        )
-        with pytest.raises(MetatubeProtocolError):
-            client.list_providers()
-
-    def test_redirect_rejected_for_search(self):
-        """search path also rejects redirects."""
-        client = make_client()
-        client._session.get = MagicMock(
-            return_value=make_json_response({}, status_code=302)
-        )
-        with pytest.raises(MetatubeProtocolError):
-            client.search("FANZA", "ssis-001")
+    # Two cases are enough: pin the allow_redirects=False contract, and confirm
+    # a 3xx surfaces as MetatubeProtocolError (not followed). The redirect block
+    # lives in the shared _get_data path, so per-method / per-target-IP matrices
+    # add no coverage — they were enterprise-SSRF audit padding (A2 trim).
 
     def test_session_get_called_with_allow_redirects_false(self):
         """Pin the contract: allow_redirects=False must be passed (regression guard)."""
@@ -525,3 +494,12 @@ class TestRedirectBlocking:
         assert client._session.get.call_args.kwargs.get("allow_redirects") is False, (
             "MetatubeHttpClient must pass allow_redirects=False to prevent SSRF via redirects"
         )
+
+    def test_3xx_redirect_raises_protocol_error(self):
+        """A 3xx response → MetatubeProtocolError, not followed."""
+        client = make_client()
+        resp = make_json_response({}, status_code=302)
+        resp.headers = {"Location": "http://127.0.0.1:8080/admin"}
+        client._session.get = MagicMock(return_value=resp)
+        with pytest.raises(MetatubeProtocolError):
+            client.get_info("FANZA", "1stars00141")
