@@ -176,9 +176,11 @@
 }
 
 /* Probe-failed Parts Bin pill (CD-63b-4 US9): dimmed but still clickable (promote-with-warning).
-   Mirror: .source-pill.dragging opacity 0.5 (L131) and .source-pill:disabled opacity 0.45 (L202). */
+   Mirror: .source-pill.dragging opacity 0.5 (L131) and .source-pill:disabled opacity 0.45 (L202).
+   63d-3: warn-color accent signals probe failure; cursor kept default (pill is still promotable). */
 .source-pill.is-partsbin[data-available="false"] {
     opacity: 0.5;
+    --pill-accent: color-mix(in oklch, var(--color-warning) 85%, var(--accent));
 }
 
 /* 63c-6: DMM requires_proxy — proxy 未設定時灰化（兩 surface 共用）。
