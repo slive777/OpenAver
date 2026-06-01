@@ -15,8 +15,8 @@ from pydantic import BaseModel
 from core.config import load_config, save_config
 from core.logger import get_logger
 from core.metatube.client import MetatubeHttpClient
-from core.metatube.errors import MetatubeError
-from core.metatube.probe import probe_all
+from core.metatube.errors import MetatubeAuthError, MetatubeError
+from core.metatube.probe import METATUBE_PROBE_CANARIES, probe_all
 from core.metatube.state import metatube_state as state
 from core.metatube.validation import validate_metatube_url
 from core.source_config import build_metatube_sources
@@ -93,6 +93,32 @@ async def connect(req: ConnectRequest):
         }
 
     names = list(providers.keys())
+
+    # Step 3b: token canary — verify token is accepted by an auth-required endpoint.
+    # list_providers() calls GET /v1/providers which is AUTH-FREE (returns 200 even
+    # without a token).  We must probe a token-required endpoint before persisting.
+    # Only MetatubeAuthError (HTTP 401) is a definitive token failure; all other
+    # MetatubeError subclasses are transient/canary issues and must NOT block connect.
+    _canary_provider = next((n for n in names if n in METATUBE_PROBE_CANARIES), None)
+    if _canary_provider is not None:
+        try:
+            MetatubeHttpClient(req.url, req.token, timeout=5).search(
+                _canary_provider, METATUBE_PROBE_CANARIES[_canary_provider]
+            )
+        except MetatubeAuthError:
+            return {
+                "success": False,
+                "error": "Token 錯誤或缺少：無法通過 metatube server 驗證，請確認 Bearer Token",
+            }
+        except MetatubeError as e:
+            # Non-401 errors (timeout, 404, 5xx, …) are canary / transient issues.
+            # Log class name only — do NOT include token or request detail.
+            logger.info(
+                "metatube connect: canary non-401 error (%s), not blocking connect",
+                type(e).__name__,
+            )
+    # If _canary_provider is None (server has no provider in METATUBE_PROBE_CANARIES),
+    # skip canary verification entirely — defensive design, do NOT block connect.
 
     # Step 4: update runtime state
     state.connect(req.url, req.token, names)

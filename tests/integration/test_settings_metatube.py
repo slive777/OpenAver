@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 
 from web.app import app
 from core.metatube.state import metatube_state as state
-from core.metatube.errors import MetatubeUnavailable, MetatubeAuthError
+from core.metatube.errors import MetatubeUnavailable, MetatubeAuthError, MetatubeNotFound
 from core.source_config import get_builtin_sources
 
 
@@ -582,3 +582,166 @@ def test_connect_persistence_failure_rollback(client):
     assert state.is_connected is False
     # probe must NOT have been fired (persistence failed before probe step)
     mock_probe.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Tests: 63d-2 — Step 3b token canary (CD-63d-3)
+#
+# Providers list MUST include a name in METATUBE_PROBE_CANARIES (e.g. JavBus)
+# so the canary search actually fires.
+# ---------------------------------------------------------------------------
+
+def _canary_providers():
+    """Provider dict that includes JavBus (a known METATUBE_PROBE_CANARIES entry)."""
+    return {
+        "JavBus": "http://mt:8080",
+        "FANZA": "http://mt:8080",
+        "HEYZO": "http://mt:8080",
+    }
+
+
+def _no_canary_providers():
+    """Provider dict with NO entries present in METATUBE_PROBE_CANARIES."""
+    # SOD, KIN8, JAV321, FC2PPVDB are explicitly NOT in METATUBE_PROBE_CANARIES
+    return {
+        "SOD": "http://mt:8080",
+        "KIN8": "http://mt:8080",
+        "JAV321": "http://mt:8080",
+    }
+
+
+def test_canary_search_auth_error_blocks_connect(client):
+    """Step 3b: search raises MetatubeAuthError (401) → connect returns success=False
+    with a token-related error message. Runtime state must NOT be connected."""
+    store = _make_config_patches()
+
+    with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
+         patch("web.routers.settings_metatube.probe_all") as mock_probe, \
+         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
+         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+
+        mock_instance = MagicMock()
+        mock_instance.list_providers.return_value = _canary_providers()
+        mock_instance.search.side_effect = MetatubeAuthError("401 Unauthorized")
+        MockClient.return_value = mock_instance
+
+        resp = client.post(
+            "/api/settings/metatube/connect",
+            json={"url": "http://192.168.1.10:8080", "token": "BADTOKEN", "allow_lan": True},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is False
+    # Error message must mention token
+    assert "Token" in data.get("error", ""), (
+        f"Expected 'Token' in error message, got: {data.get('error')!r}"
+    )
+    # Must NOT have advanced to connected state
+    assert state.is_connected is False
+    # probe must NOT have fired
+    mock_probe.assert_not_called()
+
+
+def test_canary_search_unavailable_does_not_block_connect(client):
+    """Step 3b: search raises MetatubeUnavailable (non-401) → connect succeeds.
+    Non-401 errors are transient/canary issues, not token errors."""
+    store = _make_config_patches()
+
+    with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
+         patch("web.routers.settings_metatube.probe_all"), \
+         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
+         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+
+        mock_instance = MagicMock()
+        mock_instance.list_providers.return_value = _canary_providers()
+        mock_instance.search.side_effect = MetatubeUnavailable("timeout")
+        MockClient.return_value = mock_instance
+
+        resp = client.post(
+            "/api/settings/metatube/connect",
+            json={"url": "http://192.168.1.10:8080", "token": "GOODTOKEN", "allow_lan": True},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+
+
+def test_canary_search_not_found_does_not_block_connect(client):
+    """Step 3b: search raises MetatubeNotFound (non-401) → connect succeeds.
+    404 on canary番号 is a canary-data issue, not a token issue."""
+    store = _make_config_patches()
+
+    with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
+         patch("web.routers.settings_metatube.probe_all"), \
+         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
+         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+
+        mock_instance = MagicMock()
+        mock_instance.list_providers.return_value = _canary_providers()
+        mock_instance.search.side_effect = MetatubeNotFound("404")
+        MockClient.return_value = mock_instance
+
+        resp = client.post(
+            "/api/settings/metatube/connect",
+            json={"url": "http://192.168.1.10:8080", "token": "GOODTOKEN", "allow_lan": True},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+
+
+def test_canary_search_success_allows_connect(client):
+    """Step 3b: search returns a normal list (token OK path) → connect succeeds."""
+    store = _make_config_patches()
+
+    with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
+         patch("web.routers.settings_metatube.probe_all"), \
+         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
+         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+
+        mock_instance = MagicMock()
+        mock_instance.list_providers.return_value = _canary_providers()
+        mock_instance.search.return_value = [{"id": "SSIS-001", "title": "Some Title"}]
+        MockClient.return_value = mock_instance
+
+        resp = client.post(
+            "/api/settings/metatube/connect",
+            json={"url": "http://192.168.1.10:8080", "token": "GOODTOKEN", "allow_lan": True},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+
+
+def test_canary_skipped_when_no_canary_provider_in_list(client):
+    """Step 3b: providers list has NO entry in METATUBE_PROBE_CANARIES → canary step
+    is bypassed entirely and connect succeeds (defensive skip)."""
+    store = _make_config_patches()
+
+    with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
+         patch("web.routers.settings_metatube.probe_all"), \
+         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
+         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+
+        mock_instance = MagicMock()
+        mock_instance.list_providers.return_value = _no_canary_providers()
+        # search is deliberately NOT set up — if it were called it would use MagicMock default
+        # We track whether it was called to verify the canary step was skipped
+        mock_instance.search.side_effect = MetatubeAuthError("should not be called")
+        MockClient.return_value = mock_instance
+
+        resp = client.post(
+            "/api/settings/metatube/connect",
+            json={"url": "http://192.168.1.10:8080", "token": "", "allow_lan": True},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True, (
+        "When no canary provider is in the providers list, connect must succeed "
+        "(canary step should be skipped defensively)"
+    )
