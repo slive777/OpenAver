@@ -663,6 +663,7 @@
       "auto_source": "自動",
       "searching": "搜尋中…",
       "not_found": "找不到，換個番號或來源再試。",
+      "offline_tooltip": "目前連不上，可到設定重新測試",
       "overwrite_warning": "覆蓋既有封面 + NFO（不可逆）",
       "confirm": "覆蓋寫入",
       "back_to_pick": "換來源",
