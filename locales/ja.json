@@ -196,8 +196,6 @@
       "theme_label": "テーマ"
     },
     "sources": {
-      "primary_source_deprecated_hint": "デフォルト検索ソース（設定廃止済み）",
-      "primary_source_deprecated_note": "メインソースはここで設定しなくなりました。システムは順位が上のソースを自動的に使用します。「スキャンソース」タブでドラッグして並び替えてください。",
       "uncensored_mode_label": "無修正モード",
       "uncensored_mode_on": "無修正モード：オン",
       "uncensored_mode_off": "無修正モード：オフ",
@@ -209,6 +207,7 @@
       "cap_exceeded_title": "有効化上限に達しました",
       "cap_exceeded_body": "上限の 10 個に達しました。先にいずれかのソースを無効にするか、高度な検索でソースを 1 つ手動選択して上書きしてください。",
       "warn_all_disabled": "現在有効なソースがありません。有修正の完全一致検索はデータなしになります。例外：女優 / キーワード検索は JavBus の always-on ルールで引き続き動作します；FC2 / HEYZO / 日付形式の品番は無修正ソースへの自動 fallback が機能します。",
+      "counter_help": "自動検索のソースは最大 10 個まで。設定した順番に上から順に検索されます。",
       "mt_server_url_label": "Server URL",
       "mt_token_label": "Bearer Token",
       "mt_connect_btn": "接続",
@@ -219,10 +218,23 @@
       "mt_provider_list_header": "Provider リスト",
       "mt_provider_list_expand_aria": "Provider リストを展開",
       "mt_provider_list_collapse_aria": "Provider リストを折りたたむ",
-      "mt_recommended_label": "⭐ Recommended",
-      "mt_other_label": "その他",
       "mt_promote_hint": "クリックして Active Row に追加",
-      "mt_disconnect_toast": "Metatube が切断されました。下の Section 3 から再接続してください。"
+      "mt_disconnect_toast": "Metatube が切断されました。下の Section 3 から再接続してください。",
+      "mt_enable_label": "Metatube 接続を有効にする",
+      "mt_enable_help": "有効にすると下に Metatube 接続設定が展開されます。自己ホスト型 metatube サーバーを入力して 30 以上のソースを利用できます。",
+      "mt_lan_mode_label": "LAN 自己ホスト（ローカル IP アドレスを許可）",
+      "mt_connecting_btn": "接続中…",
+      "mt_connect_network_error": "接続に失敗しました。ネットワークを確認してもう一度お試しください",
+      "mt_connect_success_toast": "接続しました。{count} 個の provider が Provider リストに追加されました",
+      "mt_probe_testing": "ソースをテスト中",
+      "mt_retest_btn": "再テスト",
+      "mt_probe_hint_title": "一部のソースがグレーアウトしているのはなぜ？",
+      "mt_probe_hint_reason1": "metatube サーバーに日本の proxy が設定されていないか有効でない（地域ブロック対象のソース — FANZA / MGS 等）。",
+      "mt_probe_hint_reason2": "ログインが必要なソース、または Bot 対策がある（SOD など、IP 変更でも解決しない）。",
+      "mt_probe_hint_reason3": "サイトリニューアルで metatube scraper が機能しなくなったソース（JAV321 / KIN8 など、お使いの環境とは無関係）。",
+      "mt_promote_unavailable_warning": "このソースは現在到達不可ですが、Active Row に追加しました。データを取得できない可能性があります",
+      "mt_probe_failed_pill_hint": "このソースは現在到達不可です。追加後にデータを取得できない可能性があります。先に「再テスト」で確認することをお勧めします",
+      "dmm_proxy_required_hint": "DMM を使用するには Proxy が必要です。設定で Proxy を有効にしてください"
     },
     "advanced_search": {
       "toggle_label": "高度な検索 (Beta)",
@@ -248,7 +260,6 @@
     },
     "search": {
       "uncensored_mode": "無修正モード",
-      "default_source_hint": "デフォルト検索ソース",
       "proxy_dmm_hint": "DMM は日本 IP が必要",
       "proxy_placeholder": "http://ユーザー:パスワード@ホスト:ポート — 日本 IP があれば direct と入力",
       "favorite_folder_label": "お気に入りフォルダ",
@@ -572,6 +583,7 @@
     "page_title": "動画ブラウズ",
     "rescrape": {
       "modal_title": "高度な再スクレイプ",
+      "search_title": "高度な検索",
       "entry_tooltip": "高度な再スクレイプ",
       "number_label": "番号",
       "filename_hint": "元のファイル名",
@@ -579,6 +591,7 @@
       "auto_source": "自動",
       "searching": "検索中…",
       "not_found": "見つかりません。番号かソースを変えてお試しください。",
+      "offline_tooltip": "現在接続できません。設定で再テストしてください",
       "overwrite_warning": "既存のカバー + NFO を上書き（取り消し不可）",
       "confirm": "上書き",
       "back_to_pick": "ソースを変更",
@@ -813,7 +826,12 @@
       "grid_lightbox": "<strong>Lightbox</strong>：全画面カバー表示。<kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> でナビゲート、<kbd class=\"kbd kbd-sm\">Esc</kbd> で閉じる",
       "grid_detail": "Lightbox には監督・再生時間・シリーズ・レーベルなどの詳細情報を表示（データがある場合のみ）",
       "grid_gallery": "「サンプル」ボタンでサンプル画像ギャラリーを開く。キーボード <kbd class=\"kbd kbd-sm\">←</kbd> <kbd class=\"kbd kbd-sm\">→</kbd> とスワイプに対応",
-      "badge_keywords": "ファイル名に <code>-4k</code> や <code>-uc</code> などのキーワードが含まれると、結果カードにカラーバッジが表示される"
+      "badge_keywords": "ファイル名に <code>-4k</code> や <code>-uc</code> などのキーワードが含まれると、結果カードにカラーバッジが表示される",
+      "h6_advanced_picker": "高度な検索 Picker（Beta）",
+      "picker_longpress": "① 検索ボタンを長押しすると単一ソースを選んで検索できます（Beta、Settings › 高度な設定で有効化が必要）",
+      "picker_panel_switch": "② 結果パネルの 🔄 を長押しするとソースを切り替えられます",
+      "picker_showcase_enrich": "③④ Showcase のカバーウォールまたはライトボックスで補完ボタン（🔍）を長押し → 既存作品を再スクレイプしてソースを指定。",
+      "picker_lightbox_gear": "⑤ Showcase のライトボックスで番号の横の ⚙ をクリック → 既存作品の高度な再スクレイプ（長押し不要、クリックで開く）。"
     },
     "batch": {
       "title": "バッチファイル検索",
@@ -952,8 +970,9 @@
       "uncensored_heyzo": "<strong>HEYZO</strong>：独立ソース",
       "uncensored_fc2": "<strong>FC2</strong>：FC2-PPV 専用",
       "uncensored_avsox": "<strong>AVSOX</strong>：汎用無修正ソース",
-      "default_source_set": "設定ページで <strong>JavBus</strong> または <strong>DMM</strong> をメイン検索ソースに設定可能",
-      "default_source_effect": "メインソースに設定すると、完全一致検索でそのソースのデータが優先される",
+      "default_source_set": "「<strong>スキャンソース</strong>」でドラッグして順番を調整。システムは有効なソースを上から順に使用します",
+      "default_source_effect": "特定のソースのトグルをオフにすると、設定を削除せずそのソースを一時的に無効化できます",
+      "fuzzy_always_on": "<strong>あいまい検索の例外</strong>：女優名 / キーワードであいまい検索を行う場合、「スキャンソース」で無効化されているソースも並び順通りに使用されます（無効化は番号の完全一致検索にのみ影響します）",
       "dmm_fuzzy_trigger": "検索ボックスに日本語の女優名やメーカー名を入力すると DMM あいまい検索も同時にトリガーされる",
       "dmm_fuzzy_prereq": "前提：DMM が有効になっていること（Proxy または <code>direct</code> モードが必要）",
       "proxy_direct_vpn": "日本の VPN に接続中、または日本にいる場合、別途 Proxy を設定する必要はありません",
@@ -962,6 +981,24 @@
       "col_source": "ソース",
       "col_format": "フォーマット",
       "col_example": "例"
+    },
+    "metatube": {
+      "title": "Metatube チュートリアル",
+      "h6_what": "metatube とは",
+      "what_desc": "metatube は自己ホスト型 HTTP サーバーです。接続すると 30 以上のアップストリーム provider を一度に解放できます（power user / Docker 環境向け）",
+      "h6_enable": "有効化の手順",
+      "enable_gate": "Settings ›「検索・スクレイプ」で Metatube の gate トグルをオン → 接続エリアが展開されます",
+      "enable_url": "Server URL（例：http://あなたの-metatube:8080）と任意の Bearer token を入力 → [接続] をクリック",
+      "h6_sources": "ソース管理",
+      "sources_promote": "30 以上の provider が Parts Bin に入り、使いたいものを手動で主力集に promote します（上限 10 個）",
+      "sources_offline": "到達できないソースは自動でグレーアウトされます。[再テスト] をクリックして接続を再確認できます",
+      "h6_lan": "LAN 自己ホストの注意点",
+      "lan_ssrf": "LAN 上の自己ホストサーバーは設定ページで opt-in を有効にする必要があります（SSRF セキュリティ警告）",
+      "h6_limits": "ソースの制限",
+      "limits_picker": "picker 内の metatube ソースは女優 / キーワード検索に対応していません。完全な番号を入力することをお勧めします",
+      "h6_db": "パフォーマンスのヒント",
+      "db_hint": "複数の metatube ソースを並列検索すると速度が低下することがあります。metatube サーバー側でデフォルトの SQLite を PostgreSQL に切り替えると改善できます（metatube サーバーの設定であり、OpenAver の設定ではありません）",
+      "crossref_picker": "高度な検索 picker で metatube の単一ソースを選択する方法 → 「検索機能」カードを参照"
     },
     "troubleshooting": {
       "title": "トラブルシューティング",
