@@ -116,7 +116,7 @@ def test_duration_zero_is_present():
 
 
 # ---------------------------------------------------------------------------
-# Cover: independent priority
+# Cover: user_order with independent fields
 # ---------------------------------------------------------------------------
 
 def test_cover_follows_user_order():

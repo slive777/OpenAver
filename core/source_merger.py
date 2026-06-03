@@ -10,7 +10,7 @@
 2. **封面跟 user_order**：`cover_url` / `sample_images` 改依 `user_order` 找第一個
    該欄非空的來源；cover_url 與 sample_images 各自獨立解析（可來自不同來源）。
 
-本模組是 PURE：不 import config、不認識 primary_source、不做 to_legacy_dict /
+本模組是 PURE：不 import config、不認識任何來源偏好設定、不做 to_legacy_dict /
 maker-prefix fallback / _source 注入（那些由 caller `search_jav()` 負責）。
 caller 透過 user_order 的排序編碼來源偏好。
 """
