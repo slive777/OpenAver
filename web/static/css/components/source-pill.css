@@ -229,6 +229,20 @@
     box-shadow: none;
 }
 
+/* 64a-1: picker offline (metatube available=false) — scoped to picker only (CD-64-A3); does not touch global [data-enabled=false] or .is-partsbin. */
+/* Remove line-through (CD-64-A2): double-class (0,4,0) beats global .source-pill[data-enabled=false] .pill-name (0,3,0). */
+.source-pill.source-pill--action[data-enabled="false"] .pill-name {
+    text-decoration: none;
+}
+/* Offline not-clickable affordance (aria-disabled, not native disabled — that's reserved for loading). */
+.source-pill--action[aria-disabled="true"] {
+    cursor: not-allowed;
+}
+.source-pill--action[aria-disabled="true"]:hover {
+    transform: none;
+    box-shadow: none;
+}
+
 .source-pill .pill-spin {
     width: 0.85rem;
     height: 0.85rem;

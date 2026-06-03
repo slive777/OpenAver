@@ -91,7 +91,6 @@ from web.routers import tags as tags_router
 from web.routers import notifications as notifications_router
 from web.routers import similar as similar_router
 from web.routers import settings_link as settings_link_router
-from web.routers import settings_mock as settings_mock_router
 from web.routers import scraper_sources as scraper_sources_router
 from web.routers import settings_metatube as settings_metatube_router
 # Module-level imports for startup_reconnect / _fire_probe so that
@@ -118,7 +117,6 @@ app.include_router(tags_router.router)
 app.include_router(notifications_router.router)
 app.include_router(similar_router.router)
 app.include_router(settings_link_router.router)
-app.include_router(settings_mock_router.router)
 app.include_router(scraper_sources_router.router)
 app.include_router(settings_metatube_router.router)
 

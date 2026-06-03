@@ -222,8 +222,7 @@
       "mt_recommended_label": "⭐ Recommended",
       "mt_other_label": "Other",
       "mt_promote_hint": "Click to add to Active Row",
-      "mt_disconnect_toast": "Metatube disconnected. Please reconnect in Section 3 below.",
-      "disabled_footnote": "⚠️ Disabled ≠ never called. The fuzzy chain (DMM / JavBus / JavDB / Jav321), uncensored fallback (FC2 / HEYZO / date-format IDs), and Advanced Search single-source override are always-on and may still trigger disabled sources. Exception: JavBus variant probe is gated by Active Row status and is skipped when JavBus is disabled."
+      "mt_disconnect_toast": "Metatube disconnected. Please reconnect in Section 3 below."
     },
     "advanced_search": {
       "toggle_label": "Advanced Search (Beta)",

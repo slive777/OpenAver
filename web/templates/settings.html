@@ -47,378 +47,113 @@
         </div>
     </div>
 
-    <!-- ===== Settings Tab Nav (61b-2) — top-tab IA (CD-61-1) =====
-         activeTab state is declared in 61b-3 (stateUI). 61b-4 moves the existing
-         form sections into the panels below. Tab-bar stays OUTSIDE the form (nav,
-         not form fields). -->
-    <div class="settings-tab-bar" role="tablist" aria-label="{{ t('settings.header.title') }}">
-        <button type="button" class="settings-tab" role="tab"
-                data-settings-tab="display"
-                :class="{ active: activeTab === 'display' }"
-                :aria-selected="activeTab === 'display'"
-                @click="activeTab = 'display'">
-            <i class="bi bi-palette"></i>
-            <span x-text="t('settings.tabs.display')">{{ t('settings.tabs.display') }}</span>
-        </button>
-        <button type="button" class="settings-tab" role="tab"
-                data-settings-tab="scraping"
-                :class="{ active: activeTab === 'scraping' }"
-                :aria-selected="activeTab === 'scraping'"
-                @click="activeTab = 'scraping'">
-            <i class="bi bi-gear"></i>
-            <span x-text="t('settings.tabs.scraping')">{{ t('settings.tabs.scraping') }}</span>
-        </button>
-        <button type="button" class="settings-tab" role="tab"
-                data-settings-tab="sources"
-                :class="{ active: activeTab === 'sources' }"
-                :aria-selected="activeTab === 'sources'"
-                @click="activeTab = 'sources'">
-            <i class="bi bi-collection"></i>
-            <span x-text="t('settings.tabs.sources')">{{ t('settings.tabs.sources') }}</span>
-        </button>
-        <button type="button" class="settings-tab" role="tab"
-                data-settings-tab="organize"
-                :class="{ active: activeTab === 'organize' }"
-                :aria-selected="activeTab === 'organize'"
-                @click="activeTab = 'organize'">
-            <i class="bi bi-folder"></i>
-            <span x-text="t('settings.tabs.organize')">{{ t('settings.tabs.organize') }}</span>
-        </button>
-        <button type="button" class="settings-tab" role="tab"
-                data-settings-tab="translate"
-                :class="{ active: activeTab === 'translate' }"
-                :aria-selected="activeTab === 'translate'"
-                @click="activeTab = 'translate'">
-            <i class="bi bi-translate"></i>
-            <span x-text="t('settings.tabs.translate')">{{ t('settings.tabs.translate') }}</span>
-        </button>
-        <button type="button" class="settings-tab" role="tab"
-                data-settings-tab="advanced"
-                :class="{ active: activeTab === 'advanced' }"
-                :aria-selected="activeTab === 'advanced'"
-                @click="activeTab = 'advanced'">
-            <i class="bi bi-tools"></i>
-            <span x-text="t('settings.tabs.advanced')">{{ t('settings.tabs.advanced') }}</span>
-        </button>
-    </div>
+    <!-- 64b-1: .settings-tab-bar 整段移除（6 個 .settings-tab button）；nav icon-only 嵌 header 由 64b-2 重建 -->
 
     <!-- 靜態 inert：HTML 渲染即生效，Alpine boot 前保護 -->
     <!-- Alpine boot 後由 :inert binding 接管 -->
-    <!-- 61b-4: form wraps all 6 panels (form-open moved above the panels). -->
+    <!-- 64b-1: form wraps all 3 sections (replaces 6-panel layout). -->
     <form id="settingsForm" @submit.prevent="saveConfig" inert :inert="_configLoading">
 
-        <!-- ===== Panel: display ===== -->
-        <div class="settings-panel" role="tabpanel" data-settings-panel="display" x-show="activeTab === 'display'" x-cloak>
-            <div class="card mb-4">
-                <div class="settings-card-header">
-                    <i class="bi bi-palette"></i> {{ t('settings.tabs.display') }}
-                </div>
-                <div class="card-body">
-                    <!-- 外觀字級（mirrors header quick shortcut; no id to avoid duplicate） -->
-                    <div class="settings-form-row">
-                        <label class="row-label">{{ t('settings.display.font_size_label') }}</label>
-                        <div class="font-size-control">
-                            <template x-for="s in [{k:'xs',l:'A'},{k:'sm',l:'A'},{k:'md',l:'A'},{k:'lg',l:'A'},{k:'xl',l:'A'}]">
-                                <button type="button"
-                                        class="font-size-btn"
-                                        :class="{ active: fontSize === s.k }"
-                                        :style="'font-size:' + {xs:'0.7rem',sm:'0.8rem',md:'0.9rem',lg:'1.05rem',xl:'1.2rem'}[s.k]"
-                                        @click="fontSize = s.k"
-                                        :title="window.t('settings.header.font_size_prefix') + ': ' + s.k"
-                                        x-text="s.l">
-                                </button>
-                            </template>
-                        </div>
-                    </div>
+        <!-- ── quick-toggle 列（CD-64-B8）：下載劇照 + 進階搜尋，header 下 section 上 ── -->
+        <div class="settings-quick-toggle-row">
 
-                    <!-- 語言（mirrors header quick shortcut） -->
-                    <div class="settings-form-row">
-                        <label class="row-label">{{ t('settings.display.locale_label') }}</label>
-                        <div class="settings-locale-toggle">
-                            <button class="locale-toggle-btn"
-                                    type="button"
-                                    x-text="{'zh-TW':'繁','zh-CN':'简','ja':'あ','en':'EN'}[locale] || '繁'"
-                                    @click="cycleLocale()"
-                                    :title="window.t('settings.header.locale_prefix') + ': ' + locale">
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 主題（mirrors header quick shortcut） -->
-                    <div class="settings-form-row">
-                        <label class="row-label">{{ t('settings.display.theme_label') }}</label>
-                        <div class="settings-theme-toggle">
-                            <button class="theme-toggle-btn"
-                                    @click="toggleThemeWithTransition($event, () => { theme = (theme === 'light' ? 'dim' : 'light') })"
-                                    :title="theme === 'light' ? window.t('settings.header.switch_dark') : window.t('settings.header.switch_light')"
-                                    type="button">
-                                <i class="bi" :class="theme === 'light' ? 'bi-moon-stars' : 'bi-sun'"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 每頁項目數（moved from galleryAdvanced） -->
-                    <div class="settings-form-row">
-                        <label class="row-label">{{ t('settings.gallery.items_per_page_label') }}</label>
-                        <select class="select select-bordered select-sm" id="avlistItemsPerPage"
-                            x-model.number="form.avlistItemsPerPage">
-                            <option value="30">30</option>
-                            <option value="45">45</option>
-                            <option value="60">60</option>
-                            <option value="90">90</option>
-                            <option value="120">120</option>
-                            <option value="0">{{ t('settings.gallery.all') }}</option>
-                        </select>
-                    </div>
+            <!-- 下載劇照（extrafanart） -->
+            <div class="settings-form-group popover-anchor">
+                <label class="settings-label">
+                    <input type="checkbox" class="toggle toggle-primary"
+                           x-model="form.downloadSampleImages">
+                    <span class="label-text">{{ t('settings.scraper.download_sample_images_label') }}</span>
+                    <button type="button" class="help-popover-btn"
+                            @click.prevent="showSampleImagesHelp = !showSampleImagesHelp"
+                            :aria-expanded="showSampleImagesHelp">
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                </label>
+                <div x-show="showSampleImagesHelp" x-cloak x-transition
+                     @click.outside="showSampleImagesHelp = false"
+                     class="help-popover">
+                    <small class="help-popover__body">
+                        {{ t('settings.scraper.download_sample_images_hint') }}
+                    </small>
                 </div>
             </div>
-        </div>
 
-        <!-- ===== Panel: scraping ===== -->
-        <div class="settings-panel" role="tabpanel" data-settings-panel="scraping" x-show="activeTab === 'scraping'" x-cloak>
-            <div class="card mb-4">
-                <div class="settings-card-header">
-                    <i class="bi bi-gear"></i> {{ t('settings.tabs.scraping') }}
-                </div>
-                <div class="card-body">
-
-                    <div class="settings-form-group popover-anchor">
-                        <label class="settings-label">
-                            <input type="checkbox" class="toggle toggle-primary"
-                                   x-model="form.downloadSampleImages">
-                            <span class="label-text">{{ t('settings.scraper.download_sample_images_label') }}</span>
-                            <button type="button" class="help-popover-btn"
-                                    @click.prevent="showSampleImagesHelp = !showSampleImagesHelp"
-                                    :aria-expanded="showSampleImagesHelp">
-                                <i class="bi bi-question-circle"></i>
-                            </button>
-                        </label>
-                        <div x-show="showSampleImagesHelp" x-cloak x-transition
-                             @click.outside="showSampleImagesHelp = false"
-                             class="help-popover">
-                            <small class="help-popover__body">
-                                {{ t('settings.scraper.download_sample_images_hint') }}
-                            </small>
-                        </div>
-                    </div>
-
-                    <!-- suffix keywords -->
-                    <div class="settings-form-row">
-                        <label class="row-label">
-                            {{ t('settings.scraper.suffix_keywords_label') }}
-                            <small class="settings-hint">{{ t('settings.scraper.suffix_keywords_hint') }}</small>
-                        </label>
-                        <div class="flex-1 flex flex-col gap-1">
-                            <div class="suffix-tags-container">
-                                <template x-for="(kw, idx) in form.suffixKeywords" :key="idx">
-                                    <span class="badge badge-sm suffix-tag">
-                                        <span x-text="kw"></span>
-                                        <span class="suffix-tag-remove" @click="removeSuffix(idx)">&times;</span>
-                                    </span>
-                                </template>
-                                <div class="suffix-input-inline">
-                                    <input type="text" class="input input-bordered input-xs"
-                                        x-model="newSuffixInput"
-                                        placeholder="-4k"
-                                        @keydown.enter.prevent="addSuffix()"
-                                        style="width: 80px;">
-                                    <button class="btn btn-xs btn-outline" type="button"
-                                        @click="addSuffix()" :disabled="!newSuffixInput.trim()">+</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="settings-form-group">
-                        <label class="settings-label">
-                            <input type="checkbox" class="toggle toggle-primary" id="createFolder"
-                                x-model="form.createFolder">
-                            <span class="label-text">{{ t('settings.scraper.create_folder_label') }}</span>
-                        </label>
-                    </div>
-
-                    <div class="settings-form-row">
-                        <label class="row-label">{{ t('settings.scraper.folder_layers_label') }}</label>
-                        <div class="flex-1 flex flex-col gap-2">
-                            <!-- 第一行：外層 / 中層 -->
-                            <div class="folder-layers-row">
-                                <div class="folder-layer-group flex-col items-stretch" :class="{ 'disabled': !layer1Enabled }" x-data="{ open: false }">
-                                    <div class="format-preview" x-show="form.folderLayer1" x-html="formatPreviewHtml(form.folderLayer1)"></div>
-                                    <div class="flex gap-1">
-                                        <input type="text" class="input input-bordered input-sm" id="folderLayer1" placeholder="{{ t('settings.scraper.folder_layer_outer') }}"
-                                            x-model="form.folderLayer1" :disabled="!layer1Enabled">
-                                        <div class="variable-dropdown">
-                                            <button class="btn-variable" type="button"
-                                                id="folderLayer1Btn" @click="open = !open" :disabled="!layer1Enabled">
-                                                <i class="bi bi-braces"></i> {{ t('settings.action.variable') }}
-                                            </button>
-                                            <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
-                                                <template x-for="v in folderVariables" :key="v.name">
-                                                    <span class="variable-badge" @click="appendVariable('folderLayer1', v.name); open = false"
-                                                          x-text="v.label" :title="v.name"></span>
-                                                </template>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <span class="folder-separator">/</span>
-                                <div class="folder-layer-group flex-col items-stretch" :class="{ 'disabled': !layer2Enabled }" x-data="{ open: false }">
-                                    <div class="format-preview" x-show="form.folderLayer2" x-html="formatPreviewHtml(form.folderLayer2)"></div>
-                                    <div class="flex gap-1">
-                                        <input type="text" class="input input-bordered input-sm" id="folderLayer2" placeholder="{{ t('settings.scraper.folder_layer_middle') }}"
-                                            x-model="form.folderLayer2" :disabled="!layer2Enabled">
-                                        <div class="variable-dropdown">
-                                            <button class="btn-variable" type="button"
-                                                id="folderLayer2Btn" @click="open = !open" :disabled="!layer2Enabled">
-                                                <i class="bi bi-braces"></i> {{ t('settings.action.variable') }}
-                                            </button>
-                                            <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
-                                                <template x-for="v in folderVariables" :key="v.name">
-                                                    <span class="variable-badge" @click="appendVariable('folderLayer2', v.name); open = false"
-                                                          x-text="v.label" :title="v.name"></span>
-                                                </template>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- 第二行：內層（佔整行） -->
-                            <div class="folder-layer-group flex-col items-stretch" :class="{ 'disabled': !layer3Enabled }" x-data="{ open: false }">
-                                <div class="format-preview" x-show="form.folderLayer3" x-html="formatPreviewHtml(form.folderLayer3)"></div>
-                                <div class="flex gap-1">
-                                    <span class="input-group-text">{{ t('settings.scraper.folder_layer_inner') }}</span>
-                                    <input type="text" class="input input-bordered input-sm flex-1" id="folderLayer3"
-                                        x-model="form.folderLayer3" placeholder="{num}" :disabled="!layer3Enabled">
-                                    <div class="variable-dropdown">
-                                        <button class="btn-variable" type="button"
-                                            id="folderLayer3Btn" @click="open = !open" :disabled="!layer3Enabled">
-                                            <i class="bi bi-braces"></i> {{ t('settings.action.variable') }}
-                                        </button>
-                                        <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
-                                            <template x-for="v in folderVariables" :key="v.name">
-                                                <span class="variable-badge" @click="appendVariable('folderLayer3', v.name); open = false"
-                                                      x-text="v.label" :title="v.name"></span>
-                                            </template>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="folder-preview">
-                                <i class="bi bi-file-earmark-play"></i>
-                                <span class="preview-text">{{ t('settings.scraper.preview_prefix') }}: <span x-text="folderPreviewText"></span></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="settings-form-row">
-                        <label class="row-label">{{ t('settings.scraper.filename_format_label') }}</label>
-                        <div class="flex-1 flex flex-col gap-1">
-                            <div class="format-preview" x-show="form.filenameFormat" x-html="formatPreviewHtml(form.filenameFormat)"></div>
-                            <div class="variable-input-group" x-data="{ open: false }">
-                                <input type="text" class="input input-bordered input-sm flex-1" id="filenameFormat"
-                                    x-ref="filenameFormat"
-                                    x-model="form.filenameFormat" placeholder="[{num}][{maker}] {title}{suffix}">
-                                <div class="variable-dropdown">
-                                    <button class="btn-variable" type="button"
-                                        @click="open = !open" :aria-expanded="open">
-                                        <i class="bi bi-braces"></i> {{ t('settings.action.variable') }}
-                                    </button>
-                                    <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
-                                        <template x-for="v in formatVariables" :key="v.name">
-                                            <span class="variable-badge" @click="insertVariable('filenameFormat', v.name); open = false"
-                                                  x-text="v.label" :title="v.name"></span>
-                                        </template>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="settings-form-row">
-                        <label class="row-label">{{ t('settings.scraper.max_title_length_label') }}</label>
-                        <div class="input-group-inline">
-                            <input type="number" class="input input-bordered input-sm" id="maxTitleLength"
-                                x-model.number="form.maxTitleLength" min="20" max="200">
-                            <span class="input-suffix">{{ t('settings.scraper.unit_chars') }}</span>
-                        </div>
-                    </div>
-
-                    <div class="settings-form-row">
-                        <label class="row-label" for="maxFilenameLength">{{ t('settings.scraper.max_filename_length_label') }}</label>
-                        <div class="input-group-inline popover-anchor">
-                            <input type="number" class="input input-bordered input-sm" id="maxFilenameLength"
-                                x-model.number="form.maxFilenameLength" min="50" max="255">
-                            <span class="input-suffix">{{ t('settings.scraper.unit_chars') }}</span>
-                            <button type="button" class="help-popover-btn"
-                                    @click="showPathHelp = !showPathHelp"
-                                    :aria-expanded="showPathHelp"
-                                    aria-controls="pathLengthHelp"
-                                    aria-label="{{ t('settings.scraper.path_length_help_aria') }}">
-                                <i class="bi bi-question-circle"></i>
-                            </button>
-                            <div id="pathLengthHelp" x-show="showPathHelp" x-cloak x-transition
-                                 @click.outside="showPathHelp = false"
-                                 class="help-popover">
-                                <small class="help-popover__body">
-                                    {{ t('settings.scraper.path_length_help_line1') }}<br>
-                                    {{ t('settings.scraper.path_length_help_line2') | safe }}
-                                </small>
-                                <pre class="help-popover__code"><code>Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1</code></pre>
-                                <small class="help-popover__body">
-                                    {{ t('settings.scraper.path_length_help_line3') }}<br>
-                                    {{ t('settings.scraper.path_length_help_line4') }}
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="settings-form-row">
-                        <label class="row-label">{{ t('settings.scraper.video_extensions_label') }}</label>
-                        <div class="flex-1 flex flex-col gap-1">
-                            <input type="text" class="input input-bordered input-sm" id="videoExtensions"
-                                x-model="form.videoExtensions">
-                            <small class="settings-hint">{{ t('settings.scraper.video_extensions_hint') }}</small>
-                        </div>
-                    </div>
+            <!-- 進階搜尋（Beta） -->
+            <div class="settings-form-group popover-anchor">
+                <label class="settings-label">
+                    <input type="checkbox" class="toggle toggle-primary"
+                           id="advancedSearchToggle"
+                           x-model="form.advancedSearchEnabled">
+                    <span class="label-text">
+                        {{ t('settings.advanced_search.toggle_label') }}
+                        <span class="source-pill-badge">Beta</span>
+                    </span>
+                    <button type="button" class="help-popover-btn"
+                            @click.prevent="showAdvancedSearchHelp = !showAdvancedSearchHelp"
+                            :aria-expanded="showAdvancedSearchHelp">
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                </label>
+                <div x-show="showAdvancedSearchHelp" x-cloak x-transition
+                     @click.outside="showAdvancedSearchHelp = false"
+                     class="help-popover">
+                    <small class="help-popover__body help-popover__body--multiline">
+                        {{ t('settings.advanced_search.help') }}
+                    </small>
                 </div>
             </div>
-        </div>
 
-        <!-- ===== Panel: sources ===== -->
-        <div class="settings-panel" role="tabpanel" data-settings-panel="sources" x-show="activeTab === 'sources'" x-cloak>
-            <div class="card mb-4">
-                <div class="settings-card-header">
-                    <i class="bi bi-collection"></i> {{ t('settings.tabs.sources') }}
-                </div>
-                <div class="card-body">
+        </div><!-- /settings-quick-toggle-row -->
+
+        <!-- ── Section 1: 搜尋與刮削（兩卡同包） ── -->
+        <section id="sec-search" class="settings-section">
+
+          <!-- Card ①：搜尋來源 -->
+          <div class="card mb-4">
+            <div class="settings-card-header"><i class="bi bi-collection"></i> {{ t('settings.tabs.sources') }}</div>
+            <div class="card-body">
 
                     <!-- ===== Section 2 — Active Row (Zone A) — 61c-1 structure ===== -->
-                    <!-- Batch bar: 無碼模式 toggle placeholder (61c-3 wires uncensoredMode) -->
+                    <!-- Batch bar: segmented 全開|無碼 control (64e-2) -->
                     <div class="settings-sources-batchbar">
                         <div class="settings-sources-batchbar-left">
-                            <button type="button"
-                                    id="sourcesUncensoredToggle"
-                                    class="settings-sources-uncensored-toggle"
-                                    :class="{ 'is-on': uncensoredMode }"
-                                    :aria-pressed="uncensoredMode ? 'true' : 'false'"
-                                    @click="uncensoredMode = !uncensoredMode">
-                                <span class="track"><span class="thumb"></span></span>
-                                <span class="lbl" x-text="uncensoredMode ? t('settings.sources.uncensored_mode_on') : t('settings.sources.uncensored_mode_off')">{{ t('settings.sources.uncensored_mode_label') }}</span>
-                            </button>
-                            <span class="settings-sources-counter">
+                            <div class="settings-sources-segmented">
+                                <button type="button"
+                                        id="sourcesAllOpenToggle"
+                                        :class="{ 'is-on': allBuiltinEnabled && !uncensoredMode }"
+                                        :aria-pressed="(allBuiltinEnabled && !uncensoredMode) ? 'true' : 'false'"
+                                        @click="if (uncensoredMode && enabledCount >= 10) { _flashCapAlert(); } else { enableAllToCap(); }">
+                                    {{ t('settings.sources.select_all') }}
+                                </button>
+                                <button type="button"
+                                        id="sourcesUncensoredToggle"
+                                        :class="{ 'is-on': uncensoredMode }"
+                                        :aria-pressed="uncensoredMode ? 'true' : 'false'"
+                                        @click="uncensoredMode = true">
+                                    {{ t('settings.sources.uncensored_mode_label') }}
+                                </button>
+                            </div>
+                        </div>
+                        <div class="settings-sources-batchbar-right">
+                            <span class="settings-sources-counter popover-anchor">
                                 <span>{{ t('settings.sources.counter_prefix') }}</span>
                                 <strong x-text="enabledCount"></strong>
                                 <span class="cap-divider">/</span>
                                 <span class="cap-value">10</span>
                                 <span class="cap-tag">{{ t('settings.sources.cap_tag') }}</span>
+                                <button type="button" class="help-popover-btn"
+                                        @click.prevent="showCounterHelp = !showCounterHelp"
+                                        :aria-expanded="showCounterHelp">
+                                    <i class="bi bi-question-circle"></i>
+                                </button>
+                                <div x-show="showCounterHelp" x-cloak x-transition
+                                     @click.outside="showCounterHelp = false"
+                                     class="help-popover">
+                                    <small class="help-popover__body">
+                                        {{ t('settings.sources.counter_help') }}
+                                    </small>
+                                </div>
                             </span>
-                        </div>
-                        <div class="settings-sources-batchbar-right">
-                            <button type="button"
-                                    class="settings-sources-mini-btn"
-                                    @click="enableAllToCap()">
-                                <i class="bi bi-check2-all"></i> {{ t('settings.sources.select_all') }}
-                            </button>
                         </div>
                     </div>
 
@@ -487,13 +222,45 @@
                         <span>{{ t('settings.sources.warn_all_disabled') }}</span>
                     </div>
 
-                    <!-- Disabled-sources footnote (F6 / CD-61-20) — always visible, no Alpine cond -->
-                    <p class="settings-sources-footnote">{{ t('settings.sources.disabled_footnote') }}</p>
+                    <!-- 64e-3: proxy row 搬至 metatube toggle 正上方（CD-64-E5 方案 B 整行 move，貼近 DMM 來源 + 連線區） -->
+                    <div class="settings-form-row">
+                        <label class="row-label">
+                            Proxy
+                            <small class="settings-hint">{{ t('settings.search.proxy_dmm_hint') }}</small>
+                        </label>
+                        <div class="flex-1 flex flex-col gap-1">
+                            <div class="variable-input-group">
+                                <input type="text" class="input input-bordered input-sm flex-1"
+                                    x-model="form.proxyUrl"
+                                    placeholder="{{ t('settings.search.proxy_placeholder') }}">
+                                <button class="btn btn-sm btn-outline" type="button"
+                                    @click="testProxy()"
+                                    :disabled="!form.proxyUrl.trim() || testProxyLoading">
+                                    <span x-show="testProxyLoading" class="loading loading-spinner loading-sm"></span>
+                                    {{ t('settings.action.test') }}
+                                </button>
+                            </div>
+                            <small class="settings-hint" x-show="proxyStatus" x-text="proxyStatus"
+                                :class="{ 'text-success': proxyStatusOk, 'text-error': proxyStatus && !proxyStatusOk && !testProxyLoading }"></small>
+                        </div>
+                    </div>
+
+                    <!-- Metatube 連線（B3）toggle（CD-63b-3）— 64b-6: 移至 Section 3 正上方 -->
+                    <div class="settings-form-group">
+                        <label class="settings-label">
+                            <input type="checkbox" class="toggle toggle-primary"
+                                   id="metatubeEnableToggle"
+                                   x-model="metatubeEnabled"
+                                   @change="onMetatubeEnabledChange()">
+                            <span class="label-text">{{ t('settings.sources.mt_enable_label') }}</span>
+                        </label>
+                        <small class="settings-hint">{{ t('settings.sources.mt_enable_help') }}</small>
+                    </div>
 
                     <!-- ===== Section 3 — Metatube Connection (Zone B) — 61c-1 guard wrapper ===== -->
                     <!-- B1: metatubeEnabled hardcoded false → 整段不渲染（disabled state）。
                          idle/connected 結構在此就位，供測試 + B3 接實際連線。 -->
-                    <div class="settings-sources-section3" x-show="metatubeEnabled">
+                    <div class="settings-sources-section3" x-show="metatubeEnabled" x-collapse>
 
                         <!-- STATE: idle — connect form (metatubeEnabled && !metatubeConnected) -->
                         <div class="settings-mt-connect-form"
@@ -648,70 +415,68 @@
                         </div>
                         <small class="settings-hint mt-1">{{ t('settings.sources.primary_source_deprecated_note') }}</small>
                     </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- ===== Panel: organize ===== -->
-        <div class="settings-panel" role="tabpanel" data-settings-panel="organize" x-show="activeTab === 'organize'" x-cloak>
-            <div class="card mb-4">
-                <div class="settings-card-header">
-                    <i class="bi bi-folder"></i> {{ t('settings.tabs.organize') }}
-                </div>
-                <div class="card-body">
-                    <!-- Jellyfin 模式 toggle（moved from scraperAdvanced） -->
+            </div>
+          </div>
+
+          <!-- Card ②：刮削與翻譯 -->
+          <div class="card mb-4">
+            <div class="settings-card-header"><i class="bi bi-gear"></i> {{ t('settings.tabs.scraping') }}</div>
+            <div class="card-body">
+
+                    <!-- 我的最愛資料夾（scanner dropdown + favoriteScannerLink） -->
                     <div class="settings-form-row">
                         <label class="row-label">
-                            <input type="checkbox" class="toggle toggle-sm toggle-primary"
-                                   x-model="form.jellyfinMode">
-                            {{ t('settings.scraper.jellyfin_mode_label') }}
-                            <small class="settings-hint">{{ t('settings.scraper.jellyfin_mode_hint') }}</small>
+                            {{ t('settings.search.favorite_folder_label') }}
+                            <small class="settings-hint">{{ t('settings.search.favorite_folder_hint') }}</small>
                         </label>
-                    </div>
-
-                    <!-- 輸出模式 avlistMode（moved from galleryAdvanced） -->
-                    <div class="settings-form-row">
-                        <label class="row-label">{{ t('settings.gallery.default_mode_label') }}</label>
-                        <select class="select select-bordered select-sm" id="avlistMode"
-                            x-model="form.avlistMode">
-                            <option value="image">{{ t('settings.gallery.mode_image') }}</option>
-                            <option value="detail">{{ t('settings.gallery.mode_detail') }}</option>
-                            <option value="text">{{ t('settings.gallery.mode_text') }}</option>
-                        </select>
-                    </div>
-
-                    <!-- 輸出排序 avlistSort / avlistOrder（moved from galleryAdvanced） -->
-                    <div class="settings-form-row">
-                        <label class="row-label">{{ t('settings.gallery.default_sort_label') }}</label>
-                        <div class="sort-row flex gap-2 flex-1">
-                            <select class="select select-bordered select-sm flex-1" id="avlistSort"
-                                x-model="form.avlistSort">
-                                <option value="date">{{ t('settings.gallery.sort_date') }}</option>
-                                <option value="mdate">{{ t('settings.gallery.sort_mdate') }}</option>
-                                <option value="num">{{ t('settings.gallery.sort_num') }}</option>
-                                <option value="title">{{ t('settings.gallery.sort_title') }}</option>
-                                <option value="actor">{{ t('settings.gallery.sort_actor') }}</option>
-                                <option value="maker">{{ t('settings.gallery.sort_maker') }}</option>
-                                <option value="size">{{ t('settings.gallery.sort_size') }}</option>
-                            </select>
-                            <select class="select select-bordered select-sm w-[100px]" id="avlistOrder"
-                                x-model="form.avlistOrder">
-                                <option value="descending">{{ t('settings.gallery.order_desc') }}</option>
-                                <option value="ascending">{{ t('settings.gallery.order_asc') }}</option>
-                            </select>
+                        <div class="flex-1 flex flex-col gap-1">
+                            <!-- input + dropdown 按鈕 -->
+                            <div class="variable-input-group" style="position:relative;">
+                                <input type="text" class="input input-bordered input-sm flex-1" id="searchFavoriteFolder"
+                                    x-model="form.searchFavoriteFolder"
+                                    placeholder="{{ t('settings.search.favorite_folder_placeholder') }}">
+                                <button type="button"
+                                    class="btn btn-sm btn-outline"
+                                    :title="t('settings.favorite_folder.pick_from_scanner')"
+                                    :aria-label="t('settings.favorite_folder.pick_from_scanner')"
+                                    @click.stop="showDirDropdown = !showDirDropdown">
+                                    <i class="bi bi-folder2-open"></i>
+                                </button>
+                                <!-- Scanner directories dropdown（token 對齊 design-system .toolbar-dropdown） -->
+                                <div x-show="showDirDropdown"
+                                     x-transition
+                                     style="position:absolute;top:calc(100% + 0.25rem);right:0;z-index:50;min-width:16rem;background:var(--surface-2);border:1px solid var(--stroke-default);border-radius:var(--radius-md);box-shadow:var(--shadow-md);padding:0.375rem;"
+                                     @click.outside="showDirDropdown = false">
+                                    <template x-if="scannerDirectories.length === 0">
+                                        <div style="padding:0.5rem 1rem;color:var(--text-muted);font-size:0.8rem;"
+                                             x-text="t('settings.favorite_folder.no_directories')"></div>
+                                    </template>
+                                    <template x-for="dir in scannerDirectories" :key="dir">
+                                        <button type="button"
+                                            class="btn btn-ghost btn-sm"
+                                            style="width:100%;text-align:left;justify-content:flex-start;border-radius:0;font-size:0.8rem;padding:0.375rem 1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+                                            :title="dir"
+                                            @click="pickScannerDirectory(dir)"
+                                            x-text="dir">
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+                            <!-- inline 連動狀態行 -->
+                            <small x-show="form.searchFavoriteFolder && favoriteScannerLink !== null"
+                                   :style="favoriteScannerLink && favoriteScannerLink.linked
+                                       ? 'color:var(--color-success)'
+                                       : 'color:var(--color-warning)'"
+                                   x-text="favoriteScannerLink && favoriteScannerLink.linked
+                                       ? t('settings.favorite_folder.linked_text')
+                                       : t('settings.favorite_folder.not_linked_text')">
+                            </small>
+                            <small class="settings-hint">{{ t('settings.search.favorite_folder_example_prefix') | safe }}</small>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- ===== Panel: translate ===== -->
-        <div class="settings-panel" role="tabpanel" data-settings-panel="translate" x-show="activeTab === 'translate'" x-cloak>
-            <div class="card mb-4">
-                <div class="settings-card-header">
-                    <i class="bi bi-translate"></i> {{ t('settings.tabs.translate') }}
-                </div>
-                <div class="card-body">
+                    <!-- 翻譯三引擎（Ollama/Gemini/OpenAI-compat 完整欄位） -->
                     <div class="settings-form-group">
                         <label class="settings-label">
                             <input type="checkbox" class="toggle toggle-primary" id="translateEnabled"
@@ -935,124 +700,218 @@
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- ===== Panel: advanced ===== -->
-        <div class="settings-panel" role="tabpanel" data-settings-panel="advanced" x-show="activeTab === 'advanced'" x-cloak>
-            <!-- 連線 / 路徑 -->
-            <div class="card mb-4">
-                <div class="settings-card-header">
-                    <i class="bi bi-hdd-network"></i> {{ t('settings.section.search') }}
-                </div>
-                <div class="card-body">
-                    <!-- Proxy -->
-                    <div class="settings-form-row">
-                        <label class="row-label">
-                            Proxy
-                            <small class="settings-hint">{{ t('settings.search.proxy_dmm_hint') }}</small>
-                        </label>
-                        <div class="flex-1 flex flex-col gap-1">
-                            <div class="variable-input-group">
-                                <input type="text" class="input input-bordered input-sm flex-1"
-                                    x-model="form.proxyUrl"
-                                    placeholder="{{ t('settings.search.proxy_placeholder') }}">
-                                <button class="btn btn-sm btn-outline" type="button"
-                                    @click="testProxy()"
-                                    :disabled="!form.proxyUrl.trim() || testProxyLoading">
-                                    <span x-show="testProxyLoading" class="loading loading-spinner loading-sm"></span>
-                                    {{ t('settings.action.test') }}
-                                </button>
-                            </div>
-                            <small class="settings-hint" x-show="proxyStatus" x-text="proxyStatus"
-                                :class="{ 'text-success': proxyStatusOk, 'text-error': proxyStatus && !proxyStatusOk && !testProxyLoading }"></small>
-                        </div>
-                    </div>
+                    <!-- 進階刮削摺疊（實填既有欄位）；x-collapse 需 @alpinejs/collapse plugin，已在 base.html 載入 -->
+                    <button class="collapsible-trigger" type="button" @click="scraperAdvanced = !scraperAdvanced"
+                            :aria-expanded="scraperAdvanced.toString()">
+                        <span class="collapsible-title"><i class="bi bi-sliders"></i> {{ t('settings.section.scraper_advanced') }}</span>
+                        <span class="btn-icon-collapse" aria-hidden="true"><i class="bi bi-chevron-down" :class="{ 'rotate-180': scraperAdvanced }"></i></span>
+                    </button>
+                    <div x-show="scraperAdvanced" x-collapse class="collapsible-content">
 
-                    <!-- 我的最愛資料夾 -->
-                    <div class="settings-form-row">
-                        <label class="row-label">
-                            {{ t('settings.search.favorite_folder_label') }}
-                            <small class="settings-hint">{{ t('settings.search.favorite_folder_hint') }}</small>
-                        </label>
-                        <div class="flex-1 flex flex-col gap-1">
-                            <!-- input + dropdown 按鈕 -->
-                            <div class="variable-input-group" style="position:relative;">
-                                <input type="text" class="input input-bordered input-sm flex-1" id="searchFavoriteFolder"
-                                    x-model="form.searchFavoriteFolder"
-                                    placeholder="{{ t('settings.search.favorite_folder_placeholder') }}">
-                                <button type="button"
-                                    class="btn btn-sm btn-outline"
-                                    :title="t('settings.favorite_folder.pick_from_scanner')"
-                                    :aria-label="t('settings.favorite_folder.pick_from_scanner')"
-                                    @click.stop="showDirDropdown = !showDirDropdown">
-                                    <i class="bi bi-folder2-open"></i>
-                                </button>
-                                <!-- Scanner directories dropdown（token 對齊 design-system .toolbar-dropdown） -->
-                                <div x-show="showDirDropdown"
-                                     x-transition
-                                     style="position:absolute;top:calc(100% + 0.25rem);right:0;z-index:50;min-width:16rem;background:var(--surface-2);border:1px solid var(--stroke-default);border-radius:var(--radius-md);box-shadow:var(--shadow-md);padding:0.375rem;"
-                                     @click.outside="showDirDropdown = false">
-                                    <template x-if="scannerDirectories.length === 0">
-                                        <div style="padding:0.5rem 1rem;color:var(--text-muted);font-size:0.8rem;"
-                                             x-text="t('settings.favorite_folder.no_directories')"></div>
+                        <!-- suffix keywords -->
+                        <div class="settings-form-row">
+                            <label class="row-label">
+                                {{ t('settings.scraper.suffix_keywords_label') }}
+                                <small class="settings-hint">{{ t('settings.scraper.suffix_keywords_hint') }}</small>
+                            </label>
+                            <div class="flex-1 flex flex-col gap-1">
+                                <div class="suffix-tags-container">
+                                    <template x-for="(kw, idx) in form.suffixKeywords" :key="idx">
+                                        <span class="badge badge-sm suffix-tag">
+                                            <span x-text="kw"></span>
+                                            <span class="suffix-tag-remove" @click="removeSuffix(idx)">&times;</span>
+                                        </span>
                                     </template>
-                                    <template x-for="dir in scannerDirectories" :key="dir">
-                                        <button type="button"
-                                            class="btn btn-ghost btn-sm"
-                                            style="width:100%;text-align:left;justify-content:flex-start;border-radius:0;font-size:0.8rem;padding:0.375rem 1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
-                                            :title="dir"
-                                            @click="pickScannerDirectory(dir)"
-                                            x-text="dir">
-                                        </button>
-                                    </template>
+                                    <div class="suffix-input-inline">
+                                        <input type="text" class="input input-bordered input-xs"
+                                            x-model="newSuffixInput"
+                                            placeholder="-4k"
+                                            @keydown.enter.prevent="addSuffix()"
+                                            style="width: 80px;">
+                                        <button class="btn btn-xs btn-outline" type="button"
+                                            @click="addSuffix()" :disabled="!newSuffixInput.trim()">+</button>
+                                    </div>
                                 </div>
                             </div>
-                            <!-- inline 連動狀態行 -->
-                            <small x-show="form.searchFavoriteFolder && favoriteScannerLink !== null"
-                                   :style="favoriteScannerLink && favoriteScannerLink.linked
-                                       ? 'color:var(--color-success)'
-                                       : 'color:var(--color-warning)'"
-                                   x-text="favoriteScannerLink && favoriteScannerLink.linked
-                                       ? t('settings.favorite_folder.linked_text')
-                                       : t('settings.favorite_folder.not_linked_text')">
-                            </small>
-                            <small class="settings-hint">{{ t('settings.search.favorite_folder_example_prefix') | safe }}</small>
                         </div>
-                    </div>
 
-                    <!-- Metatube 連線（B3）toggle（CD-63b-3） -->
-                    <div class="settings-form-group">
-                        <label class="settings-label">
-                            <input type="checkbox" class="toggle toggle-primary"
-                                   id="metatubeEnableToggle"
-                                   x-model="metatubeEnabled"
-                                   @change="onMetatubeEnabledChange()">
-                            <span class="label-text">{{ t('settings.sources.mt_enable_label') }}</span>
-                        </label>
-                        <small class="settings-hint">{{ t('settings.sources.mt_enable_help') }}</small>
-                    </div>
+                        <div class="settings-form-group">
+                            <label class="settings-label">
+                                <input type="checkbox" class="toggle toggle-primary" id="createFolder"
+                                    x-model="form.createFolder">
+                                <span class="label-text">{{ t('settings.scraper.create_folder_label') }}</span>
+                            </label>
+                        </div>
 
-                    <!-- 進階搜尋 (Beta) toggle（TASK-61c-7） -->
-                    <div class="settings-form-group">
-                        <label class="settings-label">
-                            <input type="checkbox" class="toggle toggle-primary"
-                                   id="advancedSearchToggle"
-                                   x-model="form.advancedSearchEnabled">
-                            <span class="label-text">{{ t('settings.advanced_search.toggle_label') }}</span>
-                        </label>
-                        <small class="settings-hint">{{ t('settings.advanced_search.help') }}</small>
-                    </div>
-                </div>
+                        <div class="settings-form-row">
+                            <label class="row-label">{{ t('settings.scraper.folder_layers_label') }}</label>
+                            <div class="flex-1 flex flex-col gap-2">
+                                <!-- 第一行：外層 / 中層 -->
+                                <div class="folder-layers-row">
+                                    <div class="folder-layer-group flex-col items-stretch" :class="{ 'disabled': !layer1Enabled }" x-data="{ open: false }">
+                                        <div class="format-preview" x-show="form.folderLayer1" x-html="formatPreviewHtml(form.folderLayer1)"></div>
+                                        <div class="flex gap-1">
+                                            <input type="text" class="input input-bordered input-sm" id="folderLayer1" placeholder="{{ t('settings.scraper.folder_layer_outer') }}"
+                                                x-model="form.folderLayer1" :disabled="!layer1Enabled">
+                                            <div class="variable-dropdown">
+                                                <button class="btn-variable" type="button"
+                                                    id="folderLayer1Btn" @click="open = !open" :disabled="!layer1Enabled">
+                                                    <i class="bi bi-braces"></i> {{ t('settings.action.variable') }}
+                                                </button>
+                                                <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
+                                                    <template x-for="v in folderVariables" :key="v.name">
+                                                        <span class="variable-badge" @click="appendVariable('folderLayer1', v.name); open = false"
+                                                              x-text="v.label" :title="v.name"></span>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <span class="folder-separator">/</span>
+                                    <div class="folder-layer-group flex-col items-stretch" :class="{ 'disabled': !layer2Enabled }" x-data="{ open: false }">
+                                        <div class="format-preview" x-show="form.folderLayer2" x-html="formatPreviewHtml(form.folderLayer2)"></div>
+                                        <div class="flex gap-1">
+                                            <input type="text" class="input input-bordered input-sm" id="folderLayer2" placeholder="{{ t('settings.scraper.folder_layer_middle') }}"
+                                                x-model="form.folderLayer2" :disabled="!layer2Enabled">
+                                            <div class="variable-dropdown">
+                                                <button class="btn-variable" type="button"
+                                                    id="folderLayer2Btn" @click="open = !open" :disabled="!layer2Enabled">
+                                                    <i class="bi bi-braces"></i> {{ t('settings.action.variable') }}
+                                                </button>
+                                                <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
+                                                    <template x-for="v in folderVariables" :key="v.name">
+                                                        <span class="variable-badge" @click="appendVariable('folderLayer2', v.name); open = false"
+                                                              x-text="v.label" :title="v.name"></span>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- 第二行：內層（佔整行） -->
+                                <div class="folder-layer-group flex-col items-stretch" :class="{ 'disabled': !layer3Enabled }" x-data="{ open: false }">
+                                    <div class="format-preview" x-show="form.folderLayer3" x-html="formatPreviewHtml(form.folderLayer3)"></div>
+                                    <div class="flex gap-1">
+                                        <span class="input-group-text">{{ t('settings.scraper.folder_layer_inner') }}</span>
+                                        <input type="text" class="input input-bordered input-sm flex-1" id="folderLayer3"
+                                            x-model="form.folderLayer3" placeholder="{num}" :disabled="!layer3Enabled">
+                                        <div class="variable-dropdown">
+                                            <button class="btn-variable" type="button"
+                                                id="folderLayer3Btn" @click="open = !open" :disabled="!layer3Enabled">
+                                                <i class="bi bi-braces"></i> {{ t('settings.action.variable') }}
+                                            </button>
+                                            <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
+                                                <template x-for="v in folderVariables" :key="v.name">
+                                                    <span class="variable-badge" @click="appendVariable('folderLayer3', v.name); open = false"
+                                                          x-text="v.label" :title="v.name"></span>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="folder-preview">
+                                    <i class="bi bi-file-earmark-play"></i>
+                                    <span class="preview-text">{{ t('settings.scraper.preview_prefix') }}: <span x-text="folderPreviewText"></span></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-form-row">
+                            <label class="row-label">{{ t('settings.scraper.filename_format_label') }}</label>
+                            <div class="flex-1 flex flex-col gap-1">
+                                <div class="format-preview" x-show="form.filenameFormat" x-html="formatPreviewHtml(form.filenameFormat)"></div>
+                                <div class="variable-input-group" x-data="{ open: false }">
+                                    <input type="text" class="input input-bordered input-sm flex-1" id="filenameFormat"
+                                        x-ref="filenameFormat"
+                                        x-model="form.filenameFormat" placeholder="[{num}][{maker}] {title}{suffix}">
+                                    <div class="variable-dropdown">
+                                        <button class="btn-variable" type="button"
+                                            @click="open = !open" :aria-expanded="open">
+                                            <i class="bi bi-braces"></i> {{ t('settings.action.variable') }}
+                                        </button>
+                                        <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
+                                            <template x-for="v in formatVariables" :key="v.name">
+                                                <span class="variable-badge" @click="insertVariable('filenameFormat', v.name); open = false"
+                                                      x-text="v.label" :title="v.name"></span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-form-row">
+                            <label class="row-label">{{ t('settings.scraper.max_title_length_label') }}</label>
+                            <div class="input-group-inline">
+                                <input type="number" class="input input-bordered input-sm" id="maxTitleLength"
+                                    x-model.number="form.maxTitleLength" min="20" max="200">
+                                <span class="input-suffix">{{ t('settings.scraper.unit_chars') }}</span>
+                            </div>
+                        </div>
+
+                        <div class="settings-form-row">
+                            <label class="row-label" for="maxFilenameLength">{{ t('settings.scraper.max_filename_length_label') }}</label>
+                            <div class="input-group-inline popover-anchor">
+                                <input type="number" class="input input-bordered input-sm" id="maxFilenameLength"
+                                    x-model.number="form.maxFilenameLength" min="50" max="255">
+                                <span class="input-suffix">{{ t('settings.scraper.unit_chars') }}</span>
+                                <button type="button" class="help-popover-btn"
+                                        @click="showPathHelp = !showPathHelp"
+                                        :aria-expanded="showPathHelp"
+                                        aria-controls="pathLengthHelp"
+                                        aria-label="{{ t('settings.scraper.path_length_help_aria') }}">
+                                    <i class="bi bi-question-circle"></i>
+                                </button>
+                                <div id="pathLengthHelp" x-show="showPathHelp" x-cloak x-transition
+                                     @click.outside="showPathHelp = false"
+                                     class="help-popover">
+                                    <small class="help-popover__body">
+                                        {{ t('settings.scraper.path_length_help_line1') }}<br>
+                                        {{ t('settings.scraper.path_length_help_line2') | safe }}
+                                    </small>
+                                    <pre class="help-popover__code"><code>Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1</code></pre>
+                                    <small class="help-popover__body">
+                                        {{ t('settings.scraper.path_length_help_line3') }}<br>
+                                        {{ t('settings.scraper.path_length_help_line4') }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-form-row">
+                            <label class="row-label">{{ t('settings.scraper.video_extensions_label') }}</label>
+                            <div class="flex-1 flex flex-col gap-1">
+                                <input type="text" class="input input-bordered input-sm" id="videoExtensions"
+                                    x-model="form.videoExtensions">
+                                <small class="settings-hint">{{ t('settings.scraper.video_extensions_hint') }}</small>
+                            </div>
+                        </div>
+
+                        <!-- Jellyfin 模式 toggle（spec §4 歸此摺疊，非 sec-gallery） -->
+                        <div class="settings-form-row">
+                            <label class="row-label">
+                                <input type="checkbox" class="toggle toggle-sm toggle-primary"
+                                       x-model="form.jellyfinMode">
+                                {{ t('settings.scraper.jellyfin_mode_label') }}
+                                <small class="settings-hint">{{ t('settings.scraper.jellyfin_mode_hint') }}</small>
+                            </label>
+                        </div>
+
+                    </div><!-- /collapsible-content scraperAdvanced -->
+
             </div>
+          </div>
 
-            <!-- 列表輸出 -->
-            <div class="card mb-4">
-                <div class="settings-card-header">
-                    <i class="bi bi-list-ul"></i> {{ t('nav.scanner') }}
-                </div>
-                <div class="card-body">
+        </section><!-- /sec-search -->
+
+        <!-- ── Section 2: 列表生成 ── -->
+        <section id="sec-gallery" class="settings-section">
+          <div class="card mb-4">
+            <div class="settings-card-header"><i class="bi bi-list-ul"></i> {{ t('nav.scanner') }}</div>
+            <div class="card-body">
+
+                    <!-- 主卡：output dir + filename -->
                     <div class="settings-form-row">
                         <label class="row-label">{{ t('settings.gallery.output_dir_label') }}</label>
                         <div class="variable-input-group">
@@ -1071,26 +930,85 @@
                             x-model="form.avlistOutputFilename" placeholder="gallery_output.html">
                     </div>
 
-                    <div class="settings-form-row">
-                        <label class="row-label">{{ t('settings.gallery.min_size_label') }}</label>
-                        <div class="flex-1 flex flex-col gap-1">
-                            <div class="input-group-inline">
-                                <input type="number" class="input input-bordered input-sm" id="avlistMinSize"
-                                    x-model.number="form.avlistMinSize" min="0">
-                                <span class="input-suffix">MB</span>
-                            </div>
-                            <small class="settings-hint">{{ t('settings.gallery.min_size_hint') }}</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                    <!-- 進階顯示摺疊（實填） -->
+                    <button class="collapsible-trigger" type="button" @click="galleryAdvanced = !galleryAdvanced"
+                            :aria-expanded="galleryAdvanced.toString()">
+                        <span class="collapsible-title"><i class="bi bi-sliders"></i> {{ t('settings.section.gallery_advanced') }}</span>
+                        <span class="btn-icon-collapse" aria-hidden="true"><i class="bi bi-chevron-down" :class="{ 'rotate-180': galleryAdvanced }"></i></span>
+                    </button>
+                    <div x-show="galleryAdvanced" x-collapse class="collapsible-content">
 
-            <!-- 系統設定 -->
-            <div class="card mb-4">
-                <div class="settings-card-header">
-                    <i class="bi bi-sliders"></i> {{ t('settings.section.system') }}
-                </div>
-                <div class="card-body">
+                        <!-- 輸出模式 avlistMode -->
+                        <div class="settings-form-row">
+                            <label class="row-label">{{ t('settings.gallery.default_mode_label') }}</label>
+                            <select class="select select-bordered select-sm" id="avlistMode"
+                                x-model="form.avlistMode">
+                                <option value="image">{{ t('settings.gallery.mode_image') }}</option>
+                                <option value="detail">{{ t('settings.gallery.mode_detail') }}</option>
+                                <option value="text">{{ t('settings.gallery.mode_text') }}</option>
+                            </select>
+                        </div>
+
+                        <!-- 輸出排序 avlistSort / avlistOrder（7 選項） -->
+                        <div class="settings-form-row">
+                            <label class="row-label">{{ t('settings.gallery.default_sort_label') }}</label>
+                            <div class="sort-row flex gap-2 flex-1">
+                                <select class="select select-bordered select-sm flex-1" id="avlistSort"
+                                    x-model="form.avlistSort">
+                                    <option value="date">{{ t('settings.gallery.sort_date') }}</option>
+                                    <option value="mdate">{{ t('settings.gallery.sort_mdate') }}</option>
+                                    <option value="num">{{ t('settings.gallery.sort_num') }}</option>
+                                    <option value="title">{{ t('settings.gallery.sort_title') }}</option>
+                                    <option value="actor">{{ t('settings.gallery.sort_actor') }}</option>
+                                    <option value="maker">{{ t('settings.gallery.sort_maker') }}</option>
+                                    <option value="size">{{ t('settings.gallery.sort_size') }}</option>
+                                </select>
+                                <select class="select select-bordered select-sm w-[100px]" id="avlistOrder"
+                                    x-model="form.avlistOrder">
+                                    <option value="descending">{{ t('settings.gallery.order_desc') }}</option>
+                                    <option value="ascending">{{ t('settings.gallery.order_asc') }}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 每頁項目數（6 選項：30/45/60/90/120/all） -->
+                        <div class="settings-form-row">
+                            <label class="row-label">{{ t('settings.gallery.items_per_page_label') }}</label>
+                            <select class="select select-bordered select-sm" id="avlistItemsPerPage"
+                                x-model.number="form.avlistItemsPerPage">
+                                <option value="30">30</option>
+                                <option value="45">45</option>
+                                <option value="60">60</option>
+                                <option value="90">90</option>
+                                <option value="120">120</option>
+                                <option value="0">{{ t('settings.gallery.all') }}</option>
+                            </select>
+                        </div>
+
+                        <!-- min size -->
+                        <div class="settings-form-row">
+                            <label class="row-label">{{ t('settings.gallery.min_size_label') }}</label>
+                            <div class="flex-1 flex flex-col gap-1">
+                                <div class="input-group-inline">
+                                    <input type="number" class="input input-bordered input-sm" id="avlistMinSize"
+                                        x-model.number="form.avlistMinSize" min="0">
+                                    <span class="input-suffix">MB</span>
+                                </div>
+                                <small class="settings-hint">{{ t('settings.gallery.min_size_hint') }}</small>
+                            </div>
+                        </div>
+
+                    </div><!-- /collapsible-content galleryAdvanced -->
+
+            </div>
+          </div>
+        </section><!-- /sec-gallery -->
+
+        <!-- ── Section 3: 系統設定 ── -->
+        <section id="sec-system" class="settings-section">
+          <div class="card mb-4">
+            <div class="settings-card-header"><i class="bi bi-sliders"></i> {{ t('settings.section.system') }}</div>
+            <div class="card-body">
                     <div class="settings-form-row">
                         <label class="row-label">{{ t('settings.system.default_page_label') }}</label>
                         <select class="select select-bordered select-sm" id="defaultPage"
@@ -1121,9 +1039,9 @@
                             <i class="bi bi-arrow-counterclockwise"></i> {{ t('settings.action.reset') }}
                         </button>
                     </div>
-                </div>
             </div>
-        </div>
+          </div>
+        </section><!-- /sec-system -->
 
         <!-- 儲存按鈕 -->
         <div class="save-btn-wrapper">

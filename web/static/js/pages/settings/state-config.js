@@ -234,10 +234,16 @@ export function stateConfig() {
         // getter = sources 中所有有碼來源（CENSORED_SOURCES 4 個）全 enabled=false ⟺ true。
         // 讀 this.sources → Alpine 自動追蹤；點任一有碼 pill 重啟 → getter 反應性回 false（雙向 sync，無需 $watch）。
         // 與後端 is_uncensored_mode_effective 同口徑（all censored disabled），不加 POC 的「some uncensored enabled」條件以免 mirror 漂移。
+        get allBuiltinEnabled() {
+            // builtin 共 8（< cap 10），不可用 enabledCount>=cap 判斷全開。
+            // 空陣列 guard：sources=[] 時 every() vacuous true，須先確認長度>0。
+            const builtin = this.sources.filter(s => s.type === 'builtin' && !s.manual_only);
+            return builtin.length > 0 && builtin.every(s => s.enabled);
+        },
+
         get uncensoredMode() {
-            return this.sources
-                .filter(s => this.CENSORED_SOURCES.includes(s.id))
-                .every(s => !s.enabled);
+            const censored = this.sources.filter(s => this.CENSORED_SOURCES.includes(s.id));
+            return censored.length > 0 && censored.every(s => !s.enabled);
         },
         // setter(true) = batch 停用 4 個有碼來源後 saveConfig。
         // setter(false) = NO-OP + transient hint（EC-2：off 不自動重開有碼，由使用者手動重啟任一有碼 pill）。
@@ -356,8 +362,6 @@ export function stateConfig() {
                 });
             }
 
-            // 61b-3: activeTab / URL hash / localStorage（活在 stateUI，禁加 stateUI.init）
-            if (typeof this._initActiveTab === 'function') this._initActiveTab();
         },
 
         // ===== Methods =====

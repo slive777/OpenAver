@@ -3678,14 +3678,6 @@ class TestSettingsESMGuard:
         content = self._read("web/static/js/pages/settings/state-ui.js")
         assert "export function stateUI" in content
 
-    def test_state_ui_has_active_tab_contract(self):
-        """61b-3：state-ui.js 含 activeTab 狀態 + settings_active_tab localStorage key
-        （跨檔 Alpine state contract，eslint 無法表達 — plan-61.md:561 授權）"""
-        content = self._read("web/static/js/pages/settings/state-ui.js")
-        assert "activeTab" in content, \
-            "state-ui.js 缺少 activeTab 狀態（61b-3 tab state contract）"
-        assert "settings_active_tab" in content, \
-            "state-ui.js 缺少 settings_active_tab localStorage key（CD-61-12）"
 
     def test_main_js_exists_and_has_alpine_init(self):
         content = self._read("web/static/js/pages/settings/main.js")
@@ -7108,7 +7100,7 @@ class TestHelpPageGuard:
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
         zh = self._zh_tw()
         for html_key, json_path, expected_text in [
-            ('help.scraper.h6_default_source', ['help', 'scraper', 'h6_default_source'], '預設搜尋來源'),
+            ('help.scraper.h6_default_source', ['help', 'scraper', 'h6_default_source'], '排序'),
             ('help.scraper.h6_dmm_fuzzy', ['help', 'scraper', 'h6_dmm_fuzzy'], '模糊搜尋'),
             ('help.showcase.other_lightbox_detail', ['help', 'showcase', 'other_lightbox_detail'], '導演'),
             ('help.showcase.other_gallery', ['help', 'showcase', 'other_gallery'], '劇照'),
@@ -7338,46 +7330,52 @@ class TestConstellationRealCovers:
 
 
 class TestSettingsPanelStructureGuard:
-    """61b-4: settings.html — form wraps all 6 panels + all form ids preserved.
+    """61b-4 → 64b-1/64b-5: settings.html — form wraps all 3 sections + ids preserved.
 
-    Mixed task frontend-guard: protect against accidental id drop during the
-    big DOM reorg, and assert the structural invariant that <form id="settingsForm">
-    opens BEFORE the panels and </form> closes AFTER them (so every input stays
-    inside #settingsForm → :inert protection works).
+    64b-5 改寫：branch64 把 6-tab x-show panel 拆成單欄三分類常駐 section
+    （sec-search / sec-gallery / sec-system）。本守衛從「form 包 6 panel」改為
+    「form 包 3 section」+「單欄無 activeTab gating」，仍守住「每個 input 留在
+    #settingsForm 內 → :inert 保護」這個結構不變量。
     """
 
     def _settings(self):
         return SETTINGS_HTML.read_text(encoding="utf-8")
 
-    def test_form_wraps_all_six_panels(self):
-        """<form id="settingsForm"> opens before the first .settings-panel and
-        </form> closes after the last one (form contains all 6 panels)."""
+    def test_form_wraps_all_three_sections(self):
+        """<form id="settingsForm"> opens before the first .settings-section and
+        </form> closes after the last (form contains all 3 sections; modals/toast
+        live OUTSIDE the form)."""
         html = self._settings()
         form_open = html.index('<form id="settingsForm"')
         form_close = html.index("</form>")
-        first_panel = html.index('class="settings-panel"')
-        last_panel = html.rindex('class="settings-panel"')
-        assert form_open < first_panel, (
-            "61b-4 違規：<form id=\"settingsForm\"> 必須在第一個 .settings-panel 之前"
+        first_section = html.index('class="settings-section"')
+        last_section = html.rindex('class="settings-section"')
+        assert form_open < first_section, (
+            "64b-1 違規：<form id=\"settingsForm\"> 必須在第一個 .settings-section 之前"
         )
-        assert last_panel < form_close, (
-            "61b-4 違規：</form> 必須在最後一個 .settings-panel 之後（form 須包住全部 panel）"
+        assert last_section < form_close, (
+            "64b-1 違規：</form> 必須在最後一個 .settings-section 之後（form 須包住全部 section）"
         )
-        # exactly 6 panels
-        assert html.count('class="settings-panel"') == 6, (
-            f"61b-4 違規：應有 6 個 .settings-panel，實得 {html.count('class=\"settings-panel\"')}"
+        # exactly 3 sections
+        assert html.count('class="settings-section"') == 3, (
+            f"64b-1 違規：應有 3 個 .settings-section，實得 {html.count('class=\"settings-section\"')}"
         )
+        # 三個 section id 齊全
+        for sid in ("sec-search", "sec-gallery", "sec-system"):
+            assert f'id="{sid}"' in html, f"64b-1 違規：缺少 section id=\"{sid}\""
 
-    def test_panels_use_x_show_not_x_if(self):
-        """Panels must use x-show (not x-if), each with x-cloak (no flash)."""
+    def test_sections_single_column_no_activetab_gating(self):
+        """64b-1: 退單欄後 section 常駐——舊 .settings-panel wrapper 已移除，
+        section 不再由 activeTab x-show/x-if 控制顯隱（nav 改純 scroll 定位）。"""
         html = self._settings()
-        # 6 panels each carry x-show="activeTab === '...'" + x-cloak
-        for tab in ("display", "scraping", "sources", "organize", "translate", "advanced"):
-            needle = f"x-show=\"activeTab === '{tab}'\""
-            assert needle in html, f"61b-4 違規：缺少 panel x-show binding：{needle}"
-        # no x-if wrapping a settings-panel
+        assert 'class="settings-panel"' not in html, (
+            "64b-1 違規：殘留舊 .settings-panel wrapper（應已拆為 .settings-section）"
+        )
+        assert 'x-show="activeTab' not in html, (
+            "64b-1 違規：section 不應由 activeTab x-show 控制顯隱（已退單欄，nav 純 scroll）"
+        )
         assert 'x-if="activeTab' not in html, (
-            "61b-4 違規：panel 不可用 x-if（會反覆建毀斷掉 form binding），須用 x-show"
+            "64b-1 違規：不可用 x-if activeTab gating"
         )
 
     def test_all_form_ids_preserved(self):
@@ -7810,8 +7808,10 @@ class TestRescrapeModalGuard:
             "modal_title", "number_label", "filename_hint", "source_question",
             "auto_source", "not_found", "overwrite_warning", "confirm",
             "back_to_pick", "success", "fail",
+            # 64a 新增（zh_TW 先行，其餘 locale milestone 同步）
+            "search_title", "offline_tooltip",
         ]:
-            assert key in rescrape, f"62a-2 違規：zh_TW.json 缺少 showcase.rescrape.{key}"
+            assert key in rescrape, f"zh_TW.json 缺少 showcase.rescrape.{key}"
 
 
 class TestRescrapeStateGuard:
@@ -8863,14 +8863,13 @@ class TestMetatubeB4Guard:
 
 
 class TestMetatubeB5RecommendedRemoved:
-    """CD-63b-7: 守衛靜態 Recommended 群組殘留已徹底拔除（含 settings_mock.html）。
+    """CD-63b-7: 守衛靜態 Recommended 群組殘留已徹底拔除。
 
     「廢棄 feature 拔除要徹底」memory：不留殭屍命名 / 群組頭 / 星標 / i18n key。
     """
 
     SETTINGS_JS = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "settings" / "state-config.js"
     SETTINGS_HTML = PROJECT_ROOT / "web" / "templates" / "settings.html"
-    SETTINGS_MOCK_HTML = PROJECT_ROOT / "web" / "templates" / "settings_mock.html"
     SOURCE_PILL_CSS = PROJECT_ROOT / "web" / "static" / "css" / "components" / "source-pill.css"
     SETTINGS_CSS = PROJECT_ROOT / "web" / "static" / "css" / "pages" / "settings.css"
     ZH_TW = PROJECT_ROOT / "locales" / "zh_TW.json"
@@ -8916,12 +8915,6 @@ class TestMetatubeB5RecommendedRemoved:
         sources = data.get("settings", {}).get("sources", {})
         assert "mt_recommended_label" not in sources and "mt_other_label" not in sources, (
             "CD-63b-7 違規：zh_TW.json settings.sources 仍含 mt_recommended_label / mt_other_label"
-        )
-
-    def test_settings_mock_no_recommended(self):
-        html = self.SETTINGS_MOCK_HTML.read_text(encoding="utf-8")
-        assert "s.recommended" not in html and "rec-star" not in html and "smock-group-head" not in html, (
-            "CD-63b-7 違規：settings_mock.html 仍含 recommended/rec-star/smock-group-head 殘留"
         )
 
 
@@ -9204,6 +9197,146 @@ class TestDmmProxyRequiredGuard:
         )
 
 
+# ─── 64a: 進階 picker 三態膠囊語意 + 標題依入口（CD-64-A1~A5 / US-A2）───
+class TestPicker64aThreeStateGuard:
+    """64a-1/64a-2: 進階重刮 / 進階搜尋彈窗 picker 膠囊三態 + 標題契約守衛。
+
+    這些是 template(_rescrape_modal.html) ↔ JS state field / CSS 的跨檔契約（C/E 類），
+    eslint 只掃 web/static/js、stylelint 只掃 CSS，皆不處理 Jinja template，故守衛留 pytest
+    （沿用同檔既有 _rescrape_modal binding 守衛之先例，如 63c-6 TestDmmProxyRequiredGuard）。
+
+    Frontend-guard 強度：先 regex 擷取目標 pill 的 button tag 範圍，再在 tag 內斷言屬性，
+    不對整檔做字串存在性檢查（gotchas「字串存在性 ≠ contract」）。
+    """
+
+    RESCRAPE_MODAL_HTML = PROJECT_ROOT / "web" / "templates" / "_rescrape_modal.html"
+    SOURCE_PILL_CSS     = PROJECT_ROOT / "web" / "static" / "css" / "components" / "source-pill.css"
+
+    def _builtin_button_attrs(self):
+        html = self.RESCRAPE_MODAL_HTML.read_text(encoding="utf-8")
+        m = re.search(
+            r'x-for="s in rescrapeBuiltinSources\(\)"[^>]*>.*?<button\s+([^>]+)>',
+            html, re.DOTALL,
+        )
+        assert m, "64a 違規：找不到 rescrapeBuiltinSources() 模板內的 button tag"
+        return m.group(1)
+
+    def _metatube_button_attrs(self):
+        html = self.RESCRAPE_MODAL_HTML.read_text(encoding="utf-8")
+        m = re.search(
+            r'x-for="s in rescrapeMetatubeSources\(\)"[^>]*>.*?<button\s+([^>]+)>',
+            html, re.DOTALL,
+        )
+        assert m, "64a 違規：找不到 rescrapeMetatubeSources() 模板內的 button tag"
+        return m.group(1)
+
+    # ── 64a-1: builtin pill 恆可選（CD-64-A4）─────────────────────────────────────
+
+    def test_builtin_pill_data_enabled_hardcoded_true(self):
+        """builtin pill data-enabled 硬編 'true'，不綁 s.enabled（picker 依 usability 不依 promotion）。"""
+        attrs = self._builtin_button_attrs()
+        assert 'data-enabled="true"' in attrs, (
+            "64a-1 違規：builtin pill 缺硬編 data-enabled=\"true\"（CD-64-A4 恆可選）"
+        )
+        assert ":data-enabled" not in attrs, (
+            "64a-1 違規：builtin pill 不得再 :data-enabled 綁 s.enabled（picker 不反映 Settings 開關）"
+        )
+
+    # ── 64a-1: metatube pill 依 available（CD-64-A1/A5）──────────────────────────
+
+    def test_metatube_pill_data_enabled_binds_available(self):
+        """metatube pill :data-enabled 綁 s.available（非 s.enabled）。"""
+        attrs = self._metatube_button_attrs()
+        assert ":data-enabled" in attrs and "s.available" in attrs, (
+            "64a-1 違規：metatube pill :data-enabled 應綁 s.available（可達性，非 promote）"
+        )
+        m = re.search(r':data-enabled="([^"]+)"', attrs)
+        assert m and "s.available" in m.group(1), (
+            "64a-1 違規：metatube pill :data-enabled 表達式未引用 s.available"
+        )
+        assert "s.enabled" not in m.group(1), (
+            "64a-1 違規：metatube pill :data-enabled 不得綁 s.enabled（CD-64-A1）"
+        )
+
+    def test_metatube_pill_offline_aria_disabled_and_guard(self):
+        """metatube offline 用 aria-disabled + title tooltip + @click guard（非 native disabled，CD-64-A5）。"""
+        attrs = self._metatube_button_attrs()
+        assert ":aria-disabled" in attrs and "s.available" in attrs, (
+            "64a-1 違規：metatube pill 缺 :aria-disabled（依 s.available 的 offline 不可點語意）"
+        )
+        # tooltip 走 offline_tooltip i18n key
+        assert "offline_tooltip" in attrs, (
+            "64a-1 違規：metatube pill :title 缺 showcase.rescrape.offline_tooltip"
+        )
+        # @click offline guard：點擊路徑須以 s.available 把關
+        m = re.search(r'@click="([^"]+)"', attrs)
+        assert m and "s.available" in m.group(1), (
+            "64a-1 違規：metatube pill @click 缺 s.available offline guard"
+        )
+        # native disabled 仍只給 loading state（保留），不得被 offline 挪用
+        dm = re.search(r':disabled="([^"]+)"', attrs)
+        assert dm and "rescrapeLoadingSource" in dm.group(1), (
+            "64a-1 違規：metatube pill native :disabled 應只綁 loading（rescrapeLoadingSource），不可被 offline 佔用"
+        )
+
+    # ── 64a-1: CSS offline scope（CD-64-A2/A3）───────────────────────────────────
+
+    def test_css_action_offline_removes_line_through(self):
+        """source-pill.css picker offline 去刪除線：.source-pill--action[data-enabled=false] .pill-name text-decoration:none（雙 class）。"""
+        css = self.SOURCE_PILL_CSS.read_text(encoding="utf-8")
+        m = re.search(
+            r'\.source-pill\.source-pill--action\[data-enabled="false"\]\s+\.pill-name\s*\{([^}]+)\}',
+            css, re.DOTALL,
+        )
+        assert m, (
+            "64a-1 違規：source-pill.css 缺 .source-pill.source-pill--action[data-enabled=\"false\"] .pill-name 規則"
+            "（picker offline 去刪除線，雙 class 0,4,0 勝全域 0,3,0）"
+        )
+        assert "text-decoration: none" in m.group(1), (
+            "64a-1 違規：picker offline .pill-name 應 text-decoration: none"
+        )
+
+    def test_css_global_line_through_untouched(self):
+        """CD-64-A3：全域 .source-pill[data-enabled=false] .pill-name 仍 line-through（picker scope 為加法，不動全域）。"""
+        css = self.SOURCE_PILL_CSS.read_text(encoding="utf-8")
+        m = re.search(
+            r'(?<!--action)\.source-pill\[data-enabled="false"\]\s+\.pill-name\s*\{([^}]+)\}',
+            css, re.DOTALL,
+        )
+        assert m, "64a-1 違規：全域 .source-pill[data-enabled=\"false\"] .pill-name 規則不應被移除"
+        assert "line-through" in m.group(1), (
+            "64a-1 違規：全域 line-through 不應被改動（CD-64-A3：只在 picker scope 加法覆寫）"
+        )
+
+    def test_css_action_offline_cursor_not_allowed(self):
+        """offline 膠囊 cursor: not-allowed（不可點 affordance；scope 在 .source-pill--action[aria-disabled=true]）。"""
+        css = self.SOURCE_PILL_CSS.read_text(encoding="utf-8")
+        m = re.search(
+            r'\.source-pill--action\[aria-disabled="true"\]\s*\{([^}]+)\}',
+            css, re.DOTALL,
+        )
+        assert m, "64a-1 違規：source-pill.css 缺 .source-pill--action[aria-disabled=\"true\"] cursor 規則"
+        assert "not-allowed" in m.group(1), (
+            "64a-1 違規：offline 膠囊 cursor 應 not-allowed"
+        )
+
+    # ── 64a-2: 標題依入口切換（US-A2）────────────────────────────────────────────
+
+    def test_modal_title_switches_by_entrypoint(self):
+        """彈窗標題 x-text 依 rescrapeEntryPoint 切：'search'→search_title，其餘→modal_title。"""
+        html = self.RESCRAPE_MODAL_HTML.read_text(encoding="utf-8")
+        m = re.search(r'class="fluent-modal-title".*?</h3>', html, re.DOTALL)
+        assert m, "64a-2 違規：找不到 fluent-modal-title h3"
+        title = m.group(0)
+        assert "x-text" in title, "64a-2 違規：標題應改 x-text 動態切換（非靜態 Jinja）"
+        assert "rescrapeEntryPoint === 'search'" in title, (
+            "64a-2 違規：標題未依 rescrapeEntryPoint === 'search' 分支"
+        )
+        assert "search_title" in title and "modal_title" in title, (
+            "64a-2 違規：標題分支應同時引用 search_title 與 modal_title 兩個 i18n key"
+        )
+
+
 # ─── 63c-7: i18n zh_TW（DMM proxy hint + Help metatube SQLite hint）───
 class TestMetatube63c7I18nGuard:
     """63c-7: 63c 新 UI 文字 zh_TW key 存在 + help.html 引用（其他 3 locale 待 milestone）。
@@ -9223,15 +9356,156 @@ class TestMetatube63c7I18nGuard:
         assert v, "63c-7 違規：缺 settings.sources.dmm_proxy_required_hint"
 
     def test_help_metatube_sqlite_keys_exist(self):
-        """Help §7.6 SQLite 寫鎖 hint（h6 + 內文）存在且非空。"""
-        scraper = self._zh().get("help", {}).get("scraper", {})
-        assert scraper.get("h6_metatube"), "63c-7 違規：缺 help.scraper.h6_metatube"
-        assert scraper.get("metatube_sqlite_hint"), "63c-7 違規：缺 help.scraper.metatube_sqlite_hint"
+        """Help metatube 教學卡 key（title + db_hint + enable_url）存在且非空。"""
+        metatube = self._zh().get("help", {}).get("metatube", {})
+        assert metatube.get("title"), "64c-1 違規：缺 help.metatube.title"
+        assert metatube.get("db_hint"), "64c-1 違規：缺 help.metatube.db_hint（SQLite 提示）"
+        assert metatube.get("enable_url"), "64c-1 違規：缺 help.metatube.enable_url"
 
     def test_help_html_references_metatube_hint(self):
-        """help.html 引用 h6_metatube + metatube_sqlite_hint（非孤兒 key）。"""
+        """help.html 引用 help.metatube.title + help.metatube.db_hint（非孤兒 key）；舊孤兒 key 不存在。"""
         html = self.HELP_HTML.read_text(encoding="utf-8")
-        assert "help.scraper.h6_metatube" in html, "63c-7 違規：help.html 未引用 h6_metatube"
-        assert "help.scraper.metatube_sqlite_hint" in html, (
-            "63c-7 違規：help.html 未引用 metatube_sqlite_hint"
+        assert "help.metatube.title" in html, "64c-1 違規：help.html 未引用 help.metatube.title"
+        assert "help.metatube.db_hint" in html, "64c-1 違規：help.html 未引用 help.metatube.db_hint"
+        assert "help.scraper.h6_metatube" not in html, (
+            "64c-1 違規：help.html 仍含孤兒 key help.scraper.h6_metatube"
         )
+
+
+
+class TestSettingsQuickToggleGuard:
+    """64b-3: quick-toggle 列存在 + 兩 toggle 在列內（CD-64-B8）"""
+
+    SETTINGS_HTML = Path(__file__).parent.parent.parent / "web" / "templates" / "settings.html"
+
+    def _html(self):
+        return self.SETTINGS_HTML.read_text(encoding="utf-8")
+
+    def test_quick_toggle_row_exists(self):
+        assert 'class="settings-quick-toggle-row"' in self._html(), \
+            "64b-3 違規：settings.html 缺少 .settings-quick-toggle-row"
+
+    def test_quick_toggle_row_inside_form_before_sec_search(self):
+        html = self._html()
+        form_pos = html.index('<form id="settingsForm"')
+        row_pos = html.index('class="settings-quick-toggle-row"')
+        sec_search_pos = html.index('id="sec-search"')
+        assert form_pos < row_pos, \
+            "64b-3 違規：.settings-quick-toggle-row 必須在 <form id=settingsForm> 之後"
+        assert row_pos < sec_search_pos, \
+            "64b-3 違規：.settings-quick-toggle-row 必須在 <section id=sec-search> 之前"
+
+    def test_download_sample_images_in_quick_toggle_row(self):
+        html = self._html()
+        row_start = html.index('class="settings-quick-toggle-row"')
+        # 結束點：取列 div 結束標記（class 末尾）— 用 sec-search 開始當界
+        sec_search_pos = html.index('id="sec-search"')
+        row_block = html[row_start:sec_search_pos]
+        assert 'x-model="form.downloadSampleImages"' in row_block, \
+            "64b-3 違規：form.downloadSampleImages x-model 必須在 .settings-quick-toggle-row 內"
+
+    def test_advanced_search_enabled_in_quick_toggle_row(self):
+        html = self._html()
+        row_start = html.index('class="settings-quick-toggle-row"')
+        sec_search_pos = html.index('id="sec-search"')
+        row_block = html[row_start:sec_search_pos]
+        assert 'x-model="form.advancedSearchEnabled"' in row_block, \
+            "64b-3 違規：form.advancedSearchEnabled x-model 必須在 .settings-quick-toggle-row 內"
+
+    def test_advanced_search_toggle_id_preserved(self):
+        """id=advancedSearchToggle 必須在 quick-toggle 列（不可消失）"""
+        html = self._html()
+        row_start = html.index('class="settings-quick-toggle-row"')
+        sec_search_pos = html.index('id="sec-search"')
+        row_block = html[row_start:sec_search_pos]
+        assert 'id="advancedSearchToggle"' in row_block, \
+            "64b-3 違規：id=advancedSearchToggle 必須保留在 quick-toggle 列內（64b-1 DoD：不得遺失 id）"
+
+    def test_download_sample_images_not_duplicated_in_card(self):
+        """downloadSampleImages x-model 只出現一次（已從 Card ② 搬走）"""
+        html = self._html()
+        count = html.count('x-model="form.downloadSampleImages"')
+        assert count == 1, \
+            f"64b-3 違規：form.downloadSampleImages x-model 出現 {count} 次，應只在 quick-toggle 列（1 次）"
+
+    def test_advanced_search_toggle_id_unique(self):
+        """id=advancedSearchToggle 全頁只出現一次（搬移非複製；重複 id 為無效 HTML）"""
+        html = self._html()
+        count = html.count('id="advancedSearchToggle"')
+        assert count == 1, \
+            f"64b-3 違規：id=advancedSearchToggle 出現 {count} 次，應只在 quick-toggle 列（1 次）"
+
+    def test_advanced_search_has_help_popover(self):
+        """64e-1 E2：進階搜尋區塊必須有 showAdvancedSearchHelp state 與 help-popover 元件（Alpine↔HTML API contract）"""
+        html = self._html()
+        row_start = html.index('class="settings-quick-toggle-row"')
+        sec_search_pos = html.index('id="sec-search"')
+        row_block = html[row_start:sec_search_pos]
+        assert 'showAdvancedSearchHelp' in row_block, \
+            "64e-1 違規：quick-toggle 列內進階搜尋區塊缺少 showAdvancedSearchHelp state binding"
+        assert 'help-popover' in row_block, \
+            "64e-1 違規：quick-toggle 列內進階搜尋區塊缺少 help-popover 元件"
+
+
+class TestSettingsDmmProxyContract:
+    """64b-3: DMM 灰化 + proxy binding contract 驗證（CD-64-B4）"""
+
+    SETTINGS_HTML = Path(__file__).parent.parent.parent / "web" / "templates" / "settings.html"
+    STATE_CONFIG_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "settings" / "state-config.js"
+
+    def _html(self): return self.SETTINGS_HTML.read_text(encoding="utf-8")
+    def _js(self): return self.STATE_CONFIG_JS.read_text(encoding="utf-8")
+
+    def test_is_dmm_available_in_state_config(self):
+        assert "isDmmAvailable" in self._js(), \
+            "64b-3 違規：state-config.js 缺少 isDmmAvailable 函式（DMM 灰化 binding contract）"
+
+    def test_proxy_url_in_form_state(self):
+        assert "proxyUrl" in self._js(), \
+            "64b-3 違規：state-config.js form 缺少 proxyUrl 狀態"
+
+    def test_is_dmm_available_reads_proxy_url(self):
+        """isDmmAvailable 必須讀 form.proxyUrl（不可改讀其他變數）"""
+        js = self._js()
+        # 找到 isDmmAvailable 函式 block，確認其中含 proxyUrl
+        idx = js.index("isDmmAvailable")
+        block = js[idx:idx+200]
+        assert "proxyUrl" in block, \
+            "64b-3 違規：isDmmAvailable 應讀 form.proxyUrl（DMM 灰化 reactive 來源）"
+
+    def test_dmm_pill_reads_is_dmm_available(self):
+        assert ":data-proxy-required" in self._html(), \
+            "64b-3 違規：settings.html 缺少 :data-proxy-required（Active Row DMM pill binding）"
+
+    def test_proxy_url_x_model_in_sources_card(self):
+        """64b-6: proxy x-model 已移至搜尋來源卡（sec-search），不在 scraperAdvanced 摺疊內"""
+        html = self._html()
+        # 1. proxy x-model 存在且只有 1 次（搬移非複製）
+        assert html.count('x-model="form.proxyUrl"') == 1, \
+            "64b-6 違規：x-model=\"form.proxyUrl\" 應恰好出現 1 次（搬移非複製）"
+        proxy_model_pos = html.index('x-model="form.proxyUrl"')
+        # 2. 位置在 id="sec-search" 之後
+        sec_search_pos = html.index('id="sec-search"')
+        assert proxy_model_pos > sec_search_pos, \
+            "64b-6 違規：proxy x-model 應在 id=\"sec-search\" 之後（在搜尋來源卡內）"
+        # 3. 位置在 id="sec-gallery" 之前
+        sec_gallery_pos = html.index('id="sec-gallery"')
+        assert proxy_model_pos < sec_gallery_pos, \
+            "64b-6 違規：proxy x-model 應在 id=\"sec-gallery\" 之前（在搜尋來源卡內，不在 gallery 卡）"
+        # 4. 位置在第一個 collapsible-content（scraperAdvanced 摺疊）之前（已移出摺疊）
+        collapsible_pos = html.index('class="collapsible-content"')
+        assert proxy_model_pos < collapsible_pos, \
+            "64b-6 違規：proxy x-model 應在第一個 collapsible-content 之前（已移出進階刮削摺疊）"
+
+    def test_proxy_row_before_metatube_toggle(self):
+        """64e-3: proxy row 整行搬至 metatube enable toggle 正上方（CD-64-E5 方案 B）。
+
+        layout contract：proxy 控件（含「需日本 IP」hint）須貼近 DMM 來源 + metatube
+        連線區，故位置在 id="sec-search" 之後、id="metatubeEnableToggle" 之前。
+        """
+        html = self._html()
+        sec_search_pos = html.index('id="sec-search"')
+        proxy_model_pos = html.index('x-model="form.proxyUrl"')
+        metatube_toggle_pos = html.index('id="metatubeEnableToggle"')
+        assert sec_search_pos < proxy_model_pos < metatube_toggle_pos, \
+            "64e-3 違規：proxy row 應在 id=\"sec-search\" 之後、id=\"metatubeEnableToggle\" 之前（搬至 metatube toggle 正上方）"

@@ -17,7 +17,8 @@
 
     {# ───────── 步驟 1：pick（番號 + 來源 pill，各入口共用） ───────── #}
     <div x-show="rescrapeStep === 'pick'">
-      <h3 class="fluent-modal-title"><i class="bi bi-gear"></i> {{ t('showcase.rescrape.modal_title') }}</h3>
+      {# 標題依入口切換（US-A2）：搜尋框入口=「進階搜尋」，其餘重刮入口=「進階重新刮削」 #}
+      <h3 class="fluent-modal-title"><i class="bi bi-gear"></i> <span x-text="rescrapeEntryPoint === 'search' ? t('showcase.rescrape.search_title') : t('showcase.rescrape.modal_title')"></span></h3>
 
       <div class="rescrape-section">
         <label class="rescrape-label">{{ t('showcase.rescrape.number_label') }}</label>
@@ -42,11 +43,11 @@
             <i class="bi bi-stars" x-show="rescrapeLoadingSource !== 'auto'" aria-hidden="true"></i>
             <span class="pill-name">{{ t('showcase.rescrape.auto_source') }}</span>
           </button>
-          {# builtin pill：停用走 data-enabled=false strikethrough，但仍可點（覆寫語意） #}
+          {# builtin pill：picker 依 usability 不依 promotion（CD-64-A4），恆 data-enabled=true 正常可選，不反映 Settings 開關 #}
           <template x-for="s in rescrapeBuiltinSources()" :key="s.id">
             <button type="button" class="source-pill source-pill--action"
                     :class="{ 'source-pill--uncensored': !s.is_censored, 'is-loading': rescrapeLoadingSource === s.id }"
-                    :data-enabled="s.enabled ? 'true' : 'false'"
+                    data-enabled="true"
                     :data-proxy-required="isSourceProxyBlocked(s) ? 'true' : 'false'"
                     :disabled="rescrapeLoadingSource !== null && rescrapeLoadingSource !== s.id"
                     @click="isSourceProxyBlocked(s) ? showToast(window.t('settings.sources.dmm_proxy_required_hint'), 'warning') : rescrapeWithSource(s.id)">
@@ -66,9 +67,11 @@
           <template x-for="s in rescrapeMetatubeSources()" :key="s.id">
             <button type="button" class="source-pill source-pill--action"
                     :class="{ 'source-pill--uncensored': !s.is_censored, 'is-loading': rescrapeLoadingSource === s.id }"
-                    :data-enabled="s.enabled ? 'true' : 'false'"
+                    :data-enabled="s.available ? 'true' : 'false'"
+                    :aria-disabled="s.available ? 'false' : 'true'"
+                    :title="!s.available ? t('showcase.rescrape.offline_tooltip') : ''"
                     :disabled="rescrapeLoadingSource !== null && rescrapeLoadingSource !== s.id"
-                    @click="rescrapeWithSource(s.id)">
+                    @click="s.available ? rescrapeWithSource(s.id) : null">
               <span class="pill-spin" x-show="rescrapeLoadingSource === s.id"></span>
               <i class="bi bi-slash-circle slash-icn" x-show="rescrapeLoadingSource !== s.id" aria-hidden="true"></i>
               {# 品牌名（display_name_raw → display_name_key fallback；不走 i18n，CD-62-12） #}

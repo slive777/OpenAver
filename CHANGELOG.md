@@ -5,6 +5,64 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.3] - 2026-06-03
+
+本版是 v0.9 scraper-federation epic 三段（B1/B2/B3）全部 ship 後的 **UX 收斂插入段**（feature/64-settings-help-ux-polish，排在 javlibrary B4 之前），純前端、不動任何後端行為。連續三段堆功能留下幾處 UX 粗糙邊，本段一次收齊：**A — 進階重刮 picker metatube 膠囊三態語意修正**（可達的 metatube 來源不再被畫成 disabled 灰底刪除線，只有真的連不上才 offline 樣式；搜尋情境彈窗標題改「進階搜尋」）；**B — Settings IA 退回單欄三分類**（v0.9.0 的 6-tab 拆掉，進階回歸各 section 內嵌摺疊，舊用戶熟悉的「一長條 + 進階就在功能旁」手感回來；header 下新增 quick-toggle 列放下載劇照 + 進階搜尋；搜尋來源卡版面微調）；**C — Help 內容修正 + metatube 教學卡**（進階搜尋說明併進 Search 卡）；**D — 移除 dev-only `/settings-mock` POC**（route/template/i18n/guard 全清）。收尾 64e 再做一輪精修：quick-toggle label 去括號 + 進階搜尋 Beta 改膠囊 + 說明改 help-popover（列全 5 入口）、無碼 batchbar 改 segmented 雙段控件（全開｜無碼）+ 計數器移右、刪常駐 footnote、DMM proxy row 搬到 metatube 連線區正上方、Help picker 補完整 5 入口。
+
+*This release is the UX-consolidation insert after all three blocks of the v0.9 scraper-federation epic shipped (feature/64-settings-help-ux-polish, slotted before the javlibrary B4 block). Pure frontend, zero backend behavior change. It cleans up the rough edges left by three feature-stacking releases: **A — three-state metatube pill semantics** in the advanced re-scrape picker (reachable metatube sources no longer rendered as disabled grey/strikethrough — only truly-unreachable ones get the offline style; the search-context modal title now reads "Advanced Search"); **B — Settings IA reverted to a single-column three-category layout** (the v0.9.0 6-tab nav is gone, "advanced" folds back inline within each section, restoring the familiar "one long page, advanced right next to the feature" feel; a quick-toggle row under the header hosts Download Sample Images + Advanced Search; the search-sources card layout is tuned); **C — Help content fixes + a metatube tutorial card**; **D — removal of the dev-only `/settings-mock` POC**. The 64e finishing pass polishes further: de-parenthesized quick-toggle label, Advanced-Search "Beta" as a badge with a 5-entry help-popover, the uncensored batch bar rebuilt as a two-segment control (Open-all ｜ Uncensored) with the counter moved right, the persistent footnote removed, the DMM proxy row moved directly above the metatube connection area, and the Help picker filled out to all 5 entry points.*
+
+### Added
+
+#### 🎛️ A — 進階重刮 picker 三態語意
+
+- **metatube 膠囊三態**：可達 metatube 來源畫成正常可選態（無刪除線）；不可達才 offline 灰化 + 提示；內建來源由使用者開關控制，與 metatube 連線狀態視覺分流
+- **搜尋情境標題**：從搜尋框長壓開的進階彈窗標題改顯「進階搜尋」（依入口切換，US-A2）
+
+#### 🗂️ B — Settings 單欄三分類 IA
+
+- **quick-toggle 列**：header 下、section 上，放「下載劇照」+「進階搜尋」兩個常用開關
+- **進階就地摺疊**：各 section 的進階設定回歸該功能旁的 x-collapse 摺疊塊（取代 v0.9.0 獨立 advanced tab），metatube 連線區由 enable toggle gate
+- **搜尋來源卡版面微調**：toggle 下移、proxy 上移貼近 DMM 來源
+
+#### 📖 C — Help 內容 + metatube 教學
+
+- **metatube 教學卡** + Help 內容修正；進階搜尋說明併進 Search 卡
+- **Help 進階搜尋 picker 補完整 5 入口**：搜尋框長壓／結果面板 🔄 長壓／封面牆缺卡長壓／燈箱缺卡長壓／燈箱番號旁 ⚙，符號編號（①②③④⑤）與 Settings 進階搜尋 popover 文案一致
+
+#### ✨ 64e — 收尾精修
+
+- **quick-toggle 精修**：下載劇照 label 去括號（extrafanart 說明留 `?` popover）；進階搜尋「Beta」改 `.source-pill-badge` 膠囊，說明從常駐 `<small>` 改 help-popover（列全 5 入口）
+- **無碼 segmented 控件**：batchbar 改藥丸型雙段「全開 ｜ 無碼模式」；點全開段全開至 cap（metatube 佔滿時顯示 cap 飽和提示、不 silent no-op），點無碼段關 4 有碼源；計數器移到 batchbar 右側並加 `?` popover
+- **DMM proxy row 搬位**：整個 proxy 控件（hint + 輸入框 + 測試鈕）搬到 metatube 連線 toggle 正上方，貼近 DMM 來源 + 連線區
+
+### Changed
+
+- **Settings IA 退回單欄**：v0.9.0 的 6-tab + 探索期一度加入的 quick-jump sticky nav **最終移除**（spec §11 為準），回到單一長條三分類，降低跨分頁認知斷裂
+- **進階搜尋 toggle label**：去 `(Beta)` 括號，Beta 改膠囊呈現
+- **無碼區互動**：「離開無碼模式」改為點 segmented 的「全開」段（不再是 toggle off）
+- **`allBuiltinEnabled` getter + `uncensoredMode` 空陣列 guard**：segmented 高亮判斷新增 getter，並修 `sources=[]` 初始載入的 vacuous-true 誤高亮邊界
+
+### Removed
+
+- **dev-only `/settings-mock` POC 全清**（CD-64-D1）：route（`web/routers/settings_mock.py`）+ template（`settings_mock.html`）+ 相關 i18n / guard 一併拔除，不留殭屍（從未揭露於 capabilities）
+- **常駐 `disabled_footnote`**：搜尋來源卡的 jargon footnote 移除（HTML + 4 locale key + `.settings-sources-footnote` CSS 徹底拔除）；`warn_all_disabled`（條件顯示）簡化口語化保留
+
+### Fixed
+
+- **help-popover `pre-line` scope（Codex P2）**：64e-1 的 `white-space: pre-line` 誤加在共用 `.help-popover__body`，使其他用 `<br>` + template 換行的 popover 多出空白行；改為 `.help-popover__body--multiline` modifier，只進階搜尋 5 入口清單套用
+- **Settings header 手機防溢出（Codex P2/P3）** + 清殘留 `.settings-tab` CSS
+- **DMM proxy-grey 呈現 + nav `aria-current`（TASK-64b-0 Codex P2/P3）**
+
+### i18n
+
+- **本版交付 zh_TW 文案**：quick-toggle / 進階搜尋 5 入口 popover / 無碼 segmented / 計數器 popover / Help metatube 教學 + picker 5 入口等新 UI 文字 zh_TW 先行；`disabled_footnote` 4 locale 同步刪除保持乾淨；其他 3 語系（zh_CN / en / ja）依專案 i18n 規範**待 milestone 同步**
+
+### 測試
+
+- 守衛更新：進階 picker 三態 + 彈窗標題契約（TestPicker64aThreeStateGuard）、Settings 單欄結構重寫、quick-toggle help-popover contract（`test_advanced_search_has_help_popover`）、proxy row 位置（`test_proxy_row_before_metatube_toggle`）；移除過時的 6-panel / activeTab / settings_mock 守衛
+- 全套 pytest 3439 passed, 2 skipped（unit + integration，排除 smoke / e2e）+ `npm run lint`（eslint + stylelint）綠
+- transient-guard 標記數未增（驗收閘 TASK-64e-4）
+
 ## [0.9.2] - 2026-06-01
 
 本版是 v0.9 scraper-federation epic 的第三段（B3，**完結篇**），feature/63-metatube-http-mode 三軌道出貨。主軸是把「**自架 metatube server → 一次解鎖 30 個 provider**」這條線全程打通：**63a — 後端 HTTP client + 資料映射**（metatube 連線狀態 singleton、provider 清單、MovieInfo → Video mapper、連線 canary probe 並行測 30 源）；**63b — Settings 連線區接線**（填 URL + Bearer token 按連線真的動起來、30 個 provider 落進 Parts Bin、probe 自動測一輪並灰化測不到的來源、SSRF URL 驗證 + LAN 自架 opt-in、[重新測試] 鈕）；**63c — Routing 整合 + NFO 強化 + DMM proxy 灰化**（已 promote 的 metatube provider 跟內建 8 來源走同一條自動搜尋管道；無碼番號 FC2/HEYZO/日期型優先吃 metatube 無碼源；metatube 簡介寫進 NFO `<plot>` 給 Jellyfin 用；scraper-sources capability 注入 available map；DMM 需 proxy 時進階 picker 灰化提示）。本段完成 = v0.9 scraper-federation epic 全部兌現。

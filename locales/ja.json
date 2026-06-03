@@ -222,8 +222,7 @@
       "mt_recommended_label": "⭐ Recommended",
       "mt_other_label": "その他",
       "mt_promote_hint": "クリックして Active Row に追加",
-      "mt_disconnect_toast": "Metatube が切断されました。下の Section 3 から再接続してください。",
-      "disabled_footnote": "⚠️ 無効 ≠ 完全に呼ばれない。Fuzzy チェーン（DMM / JavBus / JavDB / Jav321）・無修正 fallback（FC2 / HEYZO / 日付番号）・高度な検索の単一ソース上書きは always-on のため、無効化されたソースが引き続きトリガーされる場合があります。例外：JavBus variant probe は Active Row の有効状態でゲートされ、JavBus が無効のときはスキップされます。"
+      "mt_disconnect_toast": "Metatube が切断されました。下の Section 3 から再接続してください。"
     },
     "advanced_search": {
       "toggle_label": "高度な検索 (Beta)",

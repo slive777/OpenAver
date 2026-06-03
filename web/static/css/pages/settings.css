@@ -63,90 +63,13 @@
 }
 
 
-/* ========== Settings Tab Nav (61b-2) ========== */
-/* Sticky top-tab bar mirroring 61b-1 POC (.smock-tabbar + .smock-anchor glass).
-   Tokens only — no hex; white = oklch(100% 0 0). */
-#settings-components .settings-tab-bar {
-    position: sticky;
-    top: 0;
-    z-index: 30;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-    margin: 0 0 1.5rem;
-    padding: 0.5rem;
-    background: color-mix(in oklch, var(--surface-0) 80%, transparent);
-    backdrop-filter: blur(var(--fluent-blur-light)) saturate(var(--fluent-saturate));
-    -webkit-backdrop-filter: blur(var(--fluent-blur-light)) saturate(var(--fluent-saturate));
-    border: 1px solid var(--stroke-subtle);
-    border-radius: var(--fluent-radius-xl);
-    box-shadow: var(--fluent-shadow-2);
-}
-
-#settings-components .settings-tab {
-    flex: 1 1 auto;
-    min-width: 7.5rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.45rem;
-    padding: 0.55rem 0.85rem;
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-    border: 1px solid transparent;
-    border-radius: var(--fluent-radius-md);
-    background: transparent;
-    cursor: pointer;
-    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
-}
-
-#settings-components .settings-tab i {
-    font-size: 0.95rem;
-    opacity: 0.7;
-}
-
-#settings-components .settings-tab:hover:not(.active) {
-    color: var(--text-primary);
-    background: color-mix(in oklch, var(--surface-2) 70%, transparent);
-}
-
-#settings-components .settings-tab.active {
-    background: var(--surface-0);
-    color: var(--text-primary);
-    border-color: var(--stroke-default, var(--stroke-subtle));
-    box-shadow: var(--fluent-shadow-2);
-}
-
-#settings-components .settings-tab.active i {
-    opacity: 1;
-    color: var(--accent);
-}
-
-/* 61b-5: panel 進場 fade 由 GSAP 全權負責（state-ui.js _initActiveTab watch），
-   不用 CSS keyframe，避免 CSS animation 與 GSAP inline opacity 雙軌（gotchas C21）。 */
+/* 64b-5: .settings-tab-bar / .settings-tab CSS 已移除（HTML 於 64b-1 拆除）。
+   64c-2: quick-jump nav（64b-2）整組回捲（CD-64-B12）。 */
 
 /* ========== Responsive: 行動版（窄螢幕）RWD ========== */
 
 /* Tablet / Mobile: 768px 以下 */
 @media (max-width: 768px) {
-    /* Tab bar: horizontal scroll instead of wrap (mobile spec §4.4) */
-    #settings-components .settings-tab-bar {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        white-space: nowrap;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-    }
-
-    #settings-components .settings-tab-bar::-webkit-scrollbar {
-        display: none;
-    }
-
-    #settings-components .settings-tab {
-        flex: 0 0 auto;
-    }
-
     /* 1. Settings Form Row - 垂直堆疊 */
     #settings-components .settings-form-row {
         flex-direction: column;
@@ -261,6 +184,28 @@
     }
 }
 
+/* scroll-margin-top：sticky header 高度補償，避免標題被遮 */
+#settings-components .settings-section {
+    scroll-margin-top: 5rem;   /* 與 .settings-header 高度對齊，實作後目視微調 */
+}
+
+/* ==================== Quick-toggle Row（64b-3, CD-64-B8）==================== */
+
+#settings-components .settings-quick-toggle-row {
+    display: flex;
+    flex-wrap: wrap;                   /* 窄畫面自動換行 */
+    align-items: flex-start;
+    gap: 0.75rem 2rem;                 /* row-gap 0.75rem，column-gap 2rem */
+    padding: 0.75rem 0;
+    margin-bottom: 1rem;               /* 與第一個 section 卡片分開 */
+    border-bottom: 1px solid var(--stroke-subtle);  /* 視覺分隔線 */
+}
+
+/* 內含的 settings-form-group 維持 flex-col，不需覆蓋 */
+#settings-components .settings-quick-toggle-row .settings-form-group {
+    flex-shrink: 0;                    /* 避免被 flex container 縮小 */
+}
+
 /* ==================== Settings Header + Actions (Font Size + Theme) ==================== */
 
 .settings-header {
@@ -275,6 +220,10 @@
     border-bottom: 1px solid var(--stroke-subtle);
     padding-bottom: 1rem;
     margin-bottom: 0.5rem;
+    /* 64b-1: sticky header（tab-bar 移除後，header 接管釘頂；z-index 31 > 舊 tab-bar 30）*/
+    position: sticky;
+    top: 0;
+    z-index: 31;
 }
 
 .settings-header-actions {
@@ -379,6 +328,37 @@
         height: 40px;
         justify-content: center;
     }
+
+    /* P2(Codex): settings-header 換行防溢出（需在 .settings-header base rule 之後，避免被 cascade 覆蓋）*/
+
+    /* scroll-margin-top 加大：sticky header 換兩列後高度增加，避免遮蓋段頭 */
+    #settings-components .settings-section {
+        scroll-margin-top: 9rem;
+    }
+
+    /* header 整體允許換行，h4 佔第一列全寬，actions 落第二列 */
+    .settings-header {
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+
+    .settings-header h4 {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    .settings-header-actions {
+        flex: 1 1 100%;
+        min-width: 0;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    /* quick-toggle-row 子 form-group：窄屏允許縮小（覆蓋 flex-shrink:0），避免橫向溢出 */
+    #settings-components .settings-quick-toggle-row .settings-form-group {
+        max-width: 100%;
+        min-width: 0;
+    }
 }
 
 /* ========== Source Badges（無碼模式來源狀態顯示）========== */
@@ -429,7 +409,7 @@
 }
 
 /* ========== 掃描來源 Active Row (Zone A) — 61c-1 structure ========== */
-/* Productionized from POC settings_mock.html .smock-* (commit 1b941dc). */
+/* Productionized from POC .smock-* classes (commit 1b941dc). */
 
 /* ─── Batch operations bar ─── */
 #settings-components .settings-sources-batchbar {
@@ -639,12 +619,50 @@
     font-size: 1rem;
 }
 
-/* Disabled-sources footnote (F6 / CD-61-20) */
-#settings-components .settings-sources-footnote {
-    margin-top: 0.75rem;
-    font-size: var(--font-size-xs, 0.78rem);
-    line-height: 1.5;
+/* ─── Segmented control (64e-2): 全開 | 無碼模式 capsule ─── */
+/* pill 白名單：.settings-sources-segmented（搜尋來源卡 segmented 藥丸型分段控件容器） */
+#settings-components .settings-sources-segmented {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius-pill);
+    background: color-mix(in oklch, var(--surface-1) 60%, transparent);
+    border: 1px solid var(--stroke-subtle);
+}
+
+#settings-components .settings-sources-segmented button {
+    padding: 0.25rem 0.75rem;
+    border-radius: calc(var(--radius-pill) - 2px);
+    border: none;
+    background: transparent;
     color: var(--text-secondary);
+    cursor: pointer;
+    font-size: var(--font-size-sm, 0.85rem);
+    font-weight: 500;
+    line-height: 1.4;
+    transition: color var(--fluent-duration-fast) var(--fluent-ease-standard),
+                background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+#settings-components .settings-sources-segmented button:hover:not(.is-on) {
+    color: var(--text-primary);
+    background: color-mix(in oklch, var(--surface-2) 50%, transparent);
+}
+
+#settings-components .settings-sources-segmented button.is-on {
+    background: color-mix(in oklch, var(--surface-2) 80%, transparent);
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
+    color: var(--text-primary);
+    box-shadow: var(--fluent-shadow-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #settings-components .settings-sources-segmented button {
+        transition: none;
+    }
 }
 
 /* ─── Section 3 wrapper (Zone B) — 61c-4 fills content ─── */
@@ -1040,10 +1058,4 @@
         animation: none;
     }
 
-    /* 61b-2/61b-5: neutralize tab transitions.
-       panel fade 改由 GSAP 負責，其 reduced-motion guard（playEnter _shouldAnimate）
-       會直接跳過動畫，故不需 CSS panel 規則。 */
-    #settings-components .settings-tab {
-        transition: none !important;
-    }
 }

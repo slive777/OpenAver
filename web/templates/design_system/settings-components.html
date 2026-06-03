@@ -937,3 +937,52 @@ mergeState(..., longPressState());
     @touchcancel="longPressCancel($event)"
     @click="longPressClickGuard($event) || tapHandler()"&gt;...&lt;/button&gt;</code></pre>
 </div>
+
+<!-- D.15: Segmented 控件 — 全開 | 無碼模式（TASK-64e-2） -->
+<div class="ds-subsection">
+    <h3>15. Segmented 控件（全開 | 無碼模式）</h3>
+    <p class="ds-desc">
+        搜尋來源卡 batchbar 左側的藥丸型分段控件，取代原有的 track+thumb toggle。
+        左段「全開」（<code>#sourcesAllOpenToggle</code>）啟用所有 builtin 來源至 cap；
+        右段「無碼模式」（<code>#sourcesUncensoredToggle</code>）關閉所有有碼來源。
+        CSS scope：<code>#settings-components .settings-sources-segmented</code>（pill 白名單 §1 第 7 條）。
+        <code>.is-on</code> 態玻璃高亮（backdrop-filter + shadow-2）。<code>prefers-reduced-motion</code> 停 transition。
+    </p>
+
+    <!-- 需 id="settings-components" 使 settings.css scoped 規則生效 -->
+    <div class="ds-card-demo" id="settings-components" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+        <!-- 態一：全開段亮（全開段 .is-on） -->
+        <div style="margin-bottom: 1rem;">
+            <small style="color: var(--text-muted); display: block; margin-bottom: 0.5rem;">態一：全開段亮（allBuiltinEnabled &amp;&amp; !uncensoredMode）</small>
+            <div class="settings-sources-segmented" style="pointer-events: none;" aria-hidden="true">
+                <button type="button" class="is-on">全開</button>
+                <button type="button">無碼模式</button>
+            </div>
+        </div>
+
+        <!-- 態二：無碼段亮（無碼段 .is-on） -->
+        <div>
+            <small style="color: var(--text-muted); display: block; margin-bottom: 0.5rem;">態二：無碼段亮（uncensoredMode）</small>
+            <div class="settings-sources-segmented" style="pointer-events: none;" aria-hidden="true">
+                <button type="button">全開</button>
+                <button type="button" class="is-on">無碼模式</button>
+            </div>
+        </div>
+    </div>
+
+    <pre class="ds-code"><code>&lt;!-- 父層需有 id="settings-components"（CSS scope guard）--&gt;
+&lt;div class="settings-sources-segmented"&gt;
+  &lt;button id="sourcesAllOpenToggle"
+          :class="{ 'is-on': allBuiltinEnabled &amp;&amp; !uncensoredMode }"
+          :aria-pressed="(allBuiltinEnabled &amp;&amp; !uncensoredMode) ? 'true' : 'false'"
+          @click="if (uncensoredMode &amp;&amp; enabledCount &gt;= 10) { _flashCapAlert(); } else { enableAllToCap(); }"&gt;
+    全開
+  &lt;/button&gt;
+  &lt;button id="sourcesUncensoredToggle"
+          :class="{ 'is-on': uncensoredMode }"
+          :aria-pressed="uncensoredMode ? 'true' : 'false'"
+          @click="uncensoredMode = true"&gt;
+    無碼模式
+  &lt;/button&gt;
+&lt;/div&gt;</code></pre>
+</div>

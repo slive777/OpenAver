@@ -48,6 +48,11 @@
     display: block;
 }
 
+/* 多行 i18n 文案（以 \n 斷行，如進階搜尋 5 入口清單）才保留換行 */
+.help-popover__body--multiline {
+    white-space: pre-line;
+}
+
 /* code block（路徑長度說明等）*/
 .help-popover__code {
     margin: 0.5rem 0;

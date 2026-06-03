@@ -1,15 +1,15 @@
-// 61b-3: 合法 tab id ↔ URL hash fragment（CD-61-1，防 typo）。
-// 非法 hash / localStorage 值一律 fallback 預設 'display'。
-const SETTINGS_TAB_IDS = ['display', 'scraping', 'sources', 'organize', 'translate', 'advanced'];
-
 export function stateUI() {
     return {
         // ===== UI State =====
-        // 61b-3: 當前 tab（預設第一個 tab；初始化由 _initActiveTab 處理，禁加 init()）
-        activeTab: 'display',
         newSuffixInput: '',
         showPathHelp: false,
         showSampleImagesHelp: false,
+        showAdvancedSearchHelp: false,
+        showCounterHelp: false,
+
+        // 64b-1: 進階摺疊開關（x-collapse 驅動）
+        scraperAdvanced: false,
+        galleryAdvanced: false,
 
         // Toast state
         _toast: { message: '', type: 'success', visible: false },
@@ -88,81 +88,7 @@ export function stateUI() {
             this.dirtyCheckModalOpen = false;
         },
 
-        // ─── 61b-3: activeTab / URL hash / localStorage ───────────────────
-        // ⚠️ 具名 init helper（禁加 stateUI.init() — 會覆蓋 stateConfig.init）。
-        // 由 state-config.js init() 末尾呼叫，比照 _initB1 慣例。
-        _initActiveTab() {
-            // 優先序：URL hash > localStorage('settings_active_tab') > 'display'
-            let resolved = 'display';
-
-            // 1) URL hash（去掉前導 #）
-            const hashId = (location.hash || '').replace(/^#/, '');
-            if (SETTINGS_TAB_IDS.includes(hashId)) {
-                resolved = hashId;
-            } else {
-                // 2) localStorage（隱私模式 / storage 不可用會拋，包 try-catch）
-                try {
-                    const stored = localStorage.getItem('settings_active_tab');
-                    if (SETTINGS_TAB_IDS.includes(stored)) {
-                        resolved = stored;
-                    }
-                } catch (e) {
-                    console.warn('[settings] read settings_active_tab failed:', e);
-                }
-            }
-
-            this.activeTab = resolved;
-
-            // tab 變更 → 記憶 + 同步 URL（replaceState，不堆瀏覽歷史）+ GSAP fade + mobile scroll
-            this.$watch('activeTab', async (val) => {
-                if (!SETTINGS_TAB_IDS.includes(val)) return;
-                try {
-                    localStorage.setItem('settings_active_tab', val);
-                } catch (e) {
-                    console.warn('[settings] write settings_active_tab failed:', e);
-                }
-                history.replaceState(null, '', '#' + val);
-
-                // 61b-5: 等 Alpine 把新 panel 的 x-show 套上 display（避免 rect 0×0 /
-                // 幽靈動畫，gotchas L426 / C17：animate 在 nextTick 之後）。
-                await this.$nextTick();
-
-                // 對新顯示的 panel 起 GSAP fade（opacity 0→1，純淡入無位移）。
-                // playEnter 內含 reduced-motion guard，不自寫 matchMedia；缺 motion 時跳過。
-                const panel = this.$el.querySelector('[data-settings-panel="' + val + '"]');
-                if (panel && window.OpenAver && window.OpenAver.motion) {
-                    // lazy ctx：motion-adapter ESM 在 init() 當下可能尚未載入完成
-                    // （_gsapCtx 留 false）。首次 tab 切換時 motion 必已就緒，補建一次，
-                    // 確保 cleanup 的 _gsapCtx.revert() 真能 revert（frontend-stack-roles rule 3）。
-                    if (!this._gsapCtx) {
-                        this._gsapCtx = window.OpenAver.motion.createContext(this.$el);
-                    }
-                    window.OpenAver.motion.playEnter(panel, {
-                        y: 0,
-                        duration: window.OpenAver.motion.DURATION.medium,
-                        ease: 'fluent-decel',
-                        ctx: this._gsapCtx
-                    });
-                }
-
-                // Mobile（<768px）橫向 scroll：把 active tab button 帶進可視範圍。
-                // block:'nearest' 防止頁面整體垂直跳動。
-                const tabBtn = this.$el.querySelector('[data-settings-tab="' + val + '"]');
-                if (tabBtn) {
-                    tabBtn.scrollIntoView({ inline: 'nearest', block: 'nearest' });
-                }
-            });
-
-            // 外部深連結（如 /settings#translate）：監聽 hashchange
-            window.addEventListener('hashchange', () => {
-                const id = (location.hash || '').replace(/^#/, '');
-                if (SETTINGS_TAB_IDS.includes(id) && id !== this.activeTab) {
-                    this.activeTab = id;
-                }
-            });
-        },
-
-        // ─── B1: Scanner directory link ───────────────────────────────────
+        // ─── B1: Scanner directory link ───────────────────────────────────────
 
         async _initB1() {
             try {

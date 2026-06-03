@@ -139,7 +139,7 @@
     <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
-                <i class="bi bi-file-earmark-code"></i> {{ t('help.scanner.title') }}
+                <i class="bi bi-list-ul"></i> {{ t('help.scanner.title') }}
             </h2>
             <h6>{{ t('help.scanner.h6_features') }}</h6>
             <ul>
@@ -328,6 +328,14 @@
             <h6 class="mt-4">{{ t('help.search.h6_badge') }}</h6>
             <ul>
                 <li>{{ t('help.search.badge_keywords') | safe }}</li>
+            </ul>
+
+            <h6 class="mt-4">{{ t('help.search.h6_advanced_picker') }}</h6>
+            <ul>
+                <li>{{ t('help.search.picker_longpress') }}</li>
+                <li>{{ t('help.search.picker_panel_switch') }}</li>
+                <li>{{ t('help.search.picker_showcase_enrich') }}</li>
+                <li>{{ t('help.search.picker_lightbox_gear') }}</li>
             </ul>
         </div>
     </div>
@@ -521,11 +529,6 @@
                 <li>{{ t('help.scraper.proxy_direct_how') | safe }}</li>
             </ul>
 
-            <h6 class="mt-4">{{ t('help.scraper.h6_metatube') }}</h6>
-            <ul>
-                <li>{{ t('help.scraper.metatube_sqlite_hint') }}</li>
-            </ul>
-
             <h6 class="mt-4">{{ t('help.scraper.h6_toggle') }}</h6>
             <ul>
                 <li>{{ t('help.scraper.toggle_uncensored') | safe }}</li>
@@ -548,11 +551,54 @@
         </div>
     </div>
 
+    <!-- Metatube 教學 -->
+    <div class="card help-card fluent-rounded-xl mb-4">
+        <div class="card-body">
+            <h2 class="card-title text-lg">
+                <i class="bi bi-plug"></i> {{ t('help.metatube.title') }}
+            </h2>
+
+            <h6>{{ t('help.metatube.h6_what') }}</h6>
+            <ul>
+                <li>{{ t('help.metatube.what_desc') }}</li>
+            </ul>
+
+            <h6 class="mt-4">{{ t('help.metatube.h6_enable') }}</h6>
+            <ul>
+                <li>{{ t('help.metatube.enable_gate') }}</li>
+                <li>{{ t('help.metatube.enable_url') }}</li>
+            </ul>
+
+            <h6 class="mt-4">{{ t('help.metatube.h6_sources') }}</h6>
+            <ul>
+                <li>{{ t('help.metatube.sources_promote') }}</li>
+                <li>{{ t('help.metatube.sources_offline') }}</li>
+            </ul>
+
+            <h6 class="mt-4">{{ t('help.metatube.h6_lan') }}</h6>
+            <ul>
+                <li>{{ t('help.metatube.lan_ssrf') }}</li>
+            </ul>
+
+            <h6 class="mt-4">{{ t('help.metatube.h6_limits') }}</h6>
+            <ul>
+                <li>{{ t('help.metatube.limits_picker') }}</li>
+            </ul>
+
+            <h6 class="mt-4">{{ t('help.metatube.h6_db') }}</h6>
+            <ul>
+                <li>{{ t('help.metatube.db_hint') }}</li>
+            </ul>
+
+            <p class="text-sm text-base-content/50 mt-2">↗ {{ t('help.metatube.crossref_picker') }}</p>
+        </div>
+    </div>
+
     <!-- 疑難排解 -->
     <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body">
             <h2 class="card-title text-lg">
-                <i class="bi bi-question-circle"></i> {{ t('help.troubleshooting.title') }}
+                <i class="bi bi-tools"></i> {{ t('help.troubleshooting.title') }}
             </h2>
             <h6>{{ t('help.troubleshooting.h6_crash') }}</h6>
             <p>{{ t('help.troubleshooting.crash_cause') | safe }}</p>
