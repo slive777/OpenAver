@@ -342,7 +342,7 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '', primary_s
 
     # 合併邏輯（TASK-61a-6 / CD-61-9）：
     # - explicit 單一來源（source != 'auto'）：整包贏，不走 merger（語意顯式化）。
-    # - auto fan-out：呼叫 pure merger。封面走 merger 預設 cover_priority。
+    # - auto fan-out：呼叫 pure merger。封面跟 user_order（CD-plan-65-2）。
     if source != 'auto':
         # 單一來源直通：該來源資料原封不動
         main_video = next(iter(all_data.values()))

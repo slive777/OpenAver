@@ -7,23 +7,18 @@
    text_source，整包採用其 title / actresses / tags / series / maker / director
    與 meta（date / duration / rating / votes）。text_source 為空的欄位才往
    `user_order` 後續來源 fallback（避免主來源缺欄時整片清空）。
-2. **封面獨立優先序**：`cover_url` / `sample_images` 不看 user_order，各自獨立
-   依 `cover_priority`（預設 `['javbus','jav321','javdb']`）找第一個該欄非空的
-   來源；priority 名單全空才 fallback 到 user_order（再 insertion order）。
-   cover_url 與 sample_images 各自獨立解析（可來自不同來源）。
+2. **封面跟 user_order**：`cover_url` / `sample_images` 改依 `user_order` 找第一個
+   該欄非空的來源；cover_url 與 sample_images 各自獨立解析（可來自不同來源）。
 
 本模組是 PURE：不 import config、不認識 primary_source、不做 to_legacy_dict /
 maker-prefix fallback / _source 注入（那些由 caller `search_jav()` 負責）。
-caller 透過 `user_order` 的排序編碼來源偏好（primary_source 排最前）。
+caller 透過 user_order 的排序編碼來源偏好。
 """
 from __future__ import annotations
 
 from typing import Optional
 
 from core.scrapers.models import Video
-
-# 封面預設優先序（YAGNI：未來 UI 自訂另開 spec）
-DEFAULT_COVER_PRIORITY: list[str] = ['javbus', 'jav321', 'javdb']
 
 # 文字欄位（整包來自 text_source，空值往後 fallback）
 _TEXT_FIELDS = ('title', 'actresses', 'tags', 'series', 'maker', 'director')
@@ -70,23 +65,18 @@ def _first_non_empty(videos: list[Video], field: str, none_sentinel: bool):
 def merge_results(
     candidates: dict[str, Video],
     user_order: list[str],
-    cover_priority: Optional[list[str]] = None,
 ) -> Optional[Video]:
     """合併多來源結果為單一 `Video`。
 
     Args:
         candidates: `source_id -> Video`（即 search_jav 的 all_data 原形）。
-        user_order: 文字/meta 欄位的偏好順序（caller 已把 primary 排到最前）。
-        cover_priority: 封面欄位獨立順序；`None` → 使用 `DEFAULT_COVER_PRIORITY`。
+        user_order: 文字/meta 與封面欄位的偏好順序（caller 已把 primary 排到最前）。
 
     Returns:
         合併後的 `Video`；`candidates` 為空時回 `None`（防禦性，caller 應已 guard）。
     """
     if not candidates:
         return None
-
-    if cover_priority is None:
-        cover_priority = DEFAULT_COVER_PRIORITY
 
     # text/meta：依 user_order 排序的 candidate 序列
     text_ordered = _ordered_candidates(candidates, user_order)
@@ -108,8 +98,8 @@ def merge_results(
             if fallback is not None:
                 updates[field] = fallback
 
-    # 封面欄位：cover_priority 先、user_order 後（各自獨立解析）
-    cover_ordered = _ordered_candidates(candidates, [*cover_priority, *user_order])
+    # 封面欄位：依 user_order 找第一個該欄非空（各欄獨立解析，可來自不同來源）
+    cover_ordered = _ordered_candidates(candidates, user_order)
     for field in ('cover_url', 'sample_images'):
         value = _first_non_empty(cover_ordered, field, none_sentinel=False)
         if value is not None:

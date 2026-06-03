@@ -1,11 +1,11 @@
-"""Unit tests for core.source_merger.merge_results (TASK-61a-6).
+"""Unit tests for core.source_merger.merge_results (TASK-61a-6 / TASK-65b-2).
 
 Contract: epic §5.1.1 (CD-61-9):
 - text/meta: 整包贏 — first source in user_order present in candidates wins the
   whole text block (title/actresses/tags/series/maker/director) + meta
   (date/duration/rating/votes); empty fields fall back to later user_order sources.
-- cover_url / sample_images: INDEPENDENT priority via cover_priority
-  (default ['javbus','jav321','javdb']), falling back to user_order order.
+- cover_url / sample_images: follow user_order — each field resolved independently
+  (first non-empty source per field, may come from different sources).
 - empty candidates → defensive (caller never calls with empty; return safe).
 """
 import pytest
@@ -119,8 +119,11 @@ def test_duration_zero_is_present():
 # Cover: independent priority
 # ---------------------------------------------------------------------------
 
-def test_cover_independent_of_user_order():
-    """user_order favors jav321 for text, but cover_priority default → cover from javbus."""
+def test_cover_follows_user_order():
+    """cover_url follows user_order — jav321 first → cover from jav321, NOT javbus.
+
+    KEY behavioral proof (TASK-65b-2): javbus ordered LAST → cover must NOT be javbus's.
+    """
     javbus = _v("javbus", title="JB", cover_url="http://javbus/cover.jpg",
                 sample_images=["http://javbus/s1.jpg"])
     jav321 = _v("jav321", title="J321", cover_url="http://jav321/cover.jpg",
@@ -128,12 +131,13 @@ def test_cover_independent_of_user_order():
     merged = merge_results({"javbus": javbus, "jav321": jav321},
                            user_order=["jav321", "javbus"])
 
-    # text from jav321
+    # text from jav321 (first in user_order)
     assert merged.title == "J321"
     assert merged.source == "jav321"
-    # cover from javbus (first in default cover_priority)
-    assert merged.cover_url == "http://javbus/cover.jpg"
-    assert merged.sample_images == ["http://javbus/s1.jpg"]
+    # cover from jav321 (first in user_order) — NOT javbus
+    assert merged.cover_url == "http://jav321/cover.jpg"
+    assert merged.sample_images == ["http://jav321/s1.jpg"]
+    assert merged.cover_url != "http://javbus/cover.jpg"
 
 
 def test_cover_and_sample_images_resolved_independently():
@@ -148,34 +152,24 @@ def test_cover_and_sample_images_resolved_independently():
     assert merged.sample_images == ["http://jav321/s.jpg"]
 
 
-def test_cover_fallback_to_user_order_when_priority_empty():
-    """cover_priority sources all absent/empty-cover → fall back to a present source."""
-    # only avsox present (not in default cover_priority), has a cover
+def test_cover_user_order_direct():
+    """user_order directly selects cover source — any source in user_order wins."""
+    # avsox is the only source; user_order=['avsox'] → avsox cover wins directly
     avsox = _v("avsox", title="AV", cover_url="http://avsox/cover.jpg")
     merged = merge_results({"avsox": avsox},
                            user_order=["avsox"])
     assert merged.cover_url == "http://avsox/cover.jpg"
 
 
-def test_cover_priority_skips_empty_priority_source():
-    """priority source present but empty cover → next qualifying source wins."""
-    # javbus present but empty cover; jav321 present with cover
+def test_cover_skips_empty_source_in_user_order():
+    """user_order source with empty cover → skip to next qualifying source in user_order."""
+    # user_order=['javbus','jav321']; javbus has empty cover → jav321 wins
     javbus = _v("javbus", cover_url="")
     jav321 = _v("jav321", cover_url="http://jav321/cover.jpg")
     merged = merge_results({"javbus": javbus, "jav321": jav321},
                            user_order=["javbus", "jav321"])
-    # default cover_priority ['javbus','jav321','javdb'] → javbus empty, jav321 wins
     assert merged.cover_url == "http://jav321/cover.jpg"
 
-
-def test_custom_cover_priority():
-    """explicit cover_priority overrides default."""
-    javbus = _v("javbus", cover_url="http://javbus/cover.jpg")
-    javdb = _v("javdb", cover_url="http://javdb/cover.jpg")
-    merged = merge_results({"javbus": javbus, "javdb": javdb},
-                           user_order=["javbus", "javdb"],
-                           cover_priority=["javdb", "javbus"])
-    assert merged.cover_url == "http://javdb/cover.jpg"
 
 
 # ---------------------------------------------------------------------------
@@ -208,12 +202,3 @@ def test_empty_candidates_returns_none():
     assert merge_results({}, user_order=["javbus"]) is None
 
 
-def test_cover_priority_none_uses_default():
-    """cover_priority=None → default ['javbus','jav321','javdb'] used."""
-    javbus = _v("javbus", cover_url="http://javbus/cover.jpg")
-    jav321 = _v("jav321", cover_url="http://jav321/cover.jpg")
-    merged = merge_results({"jav321": jav321, "javbus": javbus},
-                           user_order=["jav321", "javbus"],
-                           cover_priority=None)
-    # default → javbus wins cover even though jav321 inserted first / text source
-    assert merged.cover_url == "http://javbus/cover.jpg"
