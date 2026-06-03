@@ -451,10 +451,33 @@ class TestMigrationSourceLinks:
 # ============ test_migration_primary_source ============
 
 class TestMigrationPrimarySource:
-    """primary_source 補齊 migration"""
+    """primary_source strip migration（65d-2：欄位已廢棄，load_config 清除舊 config.json 的殘留 key）"""
 
-    def test_missing_primary_source_gets_default(self, tmp_path, monkeypatch):
-        """primary_source 不存在 → 補齊為 javbus"""
+    def test_existing_primary_source_gets_stripped(self, tmp_path, monkeypatch):
+        """config.json 有 primary_source → load_config 後 key 不存在"""
+        config_path = tmp_path / "config.json"
+        _write_config(config_path, {"search": {"proxy_url": "", "primary_source": "javbus"}})
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
+
+        result = load_config()
+
+        assert "primary_source" not in result.get("search", {})
+
+    def test_strip_triggers_save(self, tmp_path, monkeypatch):
+        """config.json 有 primary_source → migration 觸發 save（磁碟寫回後 key 不存在）"""
+        config_path = tmp_path / "config.json"
+        _write_config(config_path, {"search": {"proxy_url": "", "primary_source": "dmm"}})
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
+
+        load_config()
+
+        saved = _read_config(config_path)
+        assert "primary_source" not in saved.get("search", {})
+
+    def test_no_primary_source_is_noop(self, tmp_path, monkeypatch):
+        """config.json 無 primary_source → strip 分支 no-op，search section 完整保留、無 primary_source key"""
         config_path = tmp_path / "config.json"
         _write_config(config_path, {"search": {"proxy_url": ""}})
         monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
@@ -462,21 +485,11 @@ class TestMigrationPrimarySource:
 
         result = load_config()
 
-        assert result["search"]["primary_source"] == "javbus"
-
-    def test_existing_primary_source_preserved(self, tmp_path, monkeypatch):
-        """primary_source 已為 dmm → 不覆蓋"""
-        config_path = tmp_path / "config.json"
-        _write_config(config_path, {"search": {"proxy_url": "", "primary_source": "dmm"}})
-        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
-        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
-
-        result = load_config()
-
-        assert result["search"]["primary_source"] == "dmm"
+        assert "primary_source" not in result.get("search", {})
+        assert "search" in result
 
     def test_search_section_missing(self, tmp_path, monkeypatch):
-        """search section 不存在 → 建立並補齊"""
+        """search section 不存在 → 建立空 search section，不崩潰，無 primary_source"""
         config_path = tmp_path / "config.json"
         _write_config(config_path, {})
         monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
@@ -484,7 +497,8 @@ class TestMigrationPrimarySource:
 
         result = load_config()
 
-        assert result["search"]["primary_source"] == "javbus"
+        assert "search" in result
+        assert "primary_source" not in result["search"]
 
 
 # ============ test_migration_openai ============
@@ -662,7 +676,7 @@ class TestMigrationSources:
         """uncensored_mode_enabled=true 升級無 sources → 4 有碼 disabled，4 無碼（含 d2pass）enabled"""
         config_path = tmp_path / "config.json"
         _write_config(config_path, {
-            "search": {"uncensored_mode_enabled": True, "primary_source": "javbus"},
+            "search": {"uncensored_mode_enabled": True},
         })
         monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
         monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")

@@ -49,7 +49,6 @@ class SearchConfig(BaseModel):
     uncensored_mode_enabled: bool = False  # deprecated: read via core.source_settings.is_uncensored_mode_effective()
     favorite_folder: str = ""  # 我的最愛資料夾 - 空字串 = 使用系統下載資料夾
     proxy_url: str = ""
-    primary_source: str = "javbus"  # 主要搜尋來源: "javbus" | "dmm"
 
 
 class SourceLinksConfig(BaseModel):
@@ -285,12 +284,14 @@ def load_config() -> dict:
                     sl[key] = default_val
                     need_save = True
 
-        # Migration: primary_source 補齊（Phase 36 T4）
+        # Migration: primary_source 一次性移除（feature/65 CD-plan-65-7）
+        # 欄位已徹底移除；load_config() 直接 return raw dict（不 model_validate），
+        # 故舊 config.json 殘留的 primary_source key 不會被 Pydantic 自動剝除 → 顯式 strip。
         if 'search' not in raw_config or not isinstance(raw_config.get('search'), dict):
             raw_config['search'] = {}
         search_section = raw_config['search']
-        if 'primary_source' not in search_section:
-            search_section['primary_source'] = 'javbus'
+        if 'primary_source' in search_section:
+            del search_section['primary_source']
             need_save = True
 
         # Migration: sources 段（TASK-61a-2）— US1-critical，fail-open
