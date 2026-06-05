@@ -10,6 +10,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from typing import Optional, List
 import asyncio
+import threading
 import httpx
 
 from core.config import load_config
@@ -38,6 +39,11 @@ class BatchTranslateRequest(BaseModel):
 
 # 全局翻譯服務實例（單例模式）
 _translate_service = None
+# CD-66b-5：get_translate_service 現經 await asyncio.to_thread(...) 在 threadpool
+# thread 上呼叫（66 async-offload），cold-start init 失去 event loop 隱式互斥，
+# 兩個並發冷啟動可同時看到 None → double-init。用 Lock 包 init + reset 消窗口。
+# 鎖只保護 init / reset 兩個 critical section，不鎖 service 物件的使用期。
+_translate_service_lock = threading.Lock()
 
 
 def get_translate_service():
@@ -46,22 +52,31 @@ def get_translate_service():
 
     locale 變更時由 config router 呼叫 reset_translate_service() 重建。
 
+    Double-checked locking（CD-66b-5）：fast-path 無鎖讀，僅 None 時進鎖
+    再 re-check，確保 threadpool 並發 cold-start 只 init 一次。
+
     Returns:
         TranslateService 實例
     """
     global _translate_service
-    if _translate_service is None:
-        config = load_config()
-        translate_config = config.get("translate", {})
-        locale = config.get("general", {}).get("locale", "zh-TW")
-        _translate_service = create_translate_service(translate_config, locale)
+    if _translate_service is None:                    # fast path, no lock
+        with _translate_service_lock:
+            if _translate_service is None:            # double-check under lock
+                config = load_config()
+                translate_config = config.get("translate", {})
+                locale = config.get("general", {}).get("locale", "zh-TW")
+                _translate_service = create_translate_service(translate_config, locale)
     return _translate_service
 
 
 def reset_translate_service():
-    """重置翻譯服務實例（配置改變時調用）"""
+    """重置翻譯服務實例（配置改變時調用）
+
+    在 _translate_service_lock 內設 None（CD-66b-5），避免 reset×get 交錯回半建狀態。
+    """
     global _translate_service
-    _translate_service = None
+    with _translate_service_lock:
+        _translate_service = None
 
 
 @router.post("/translate")
