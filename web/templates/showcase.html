@@ -264,11 +264,18 @@
                  x-cloak
                  @click="openHeroCardLightbox()">
               <div class="av-card-preview-img">
+                <!-- 67-A3: hero 三態（actress photo，獨立 _heroCardImageLoaded，CD-67-4）。首屏 eager+high -->
                 <img :src="_matchedActress?.photo_url || ''"
                      :alt="_matchedActress?.name"
-                     loading="lazy"
+                     loading="eager"
+                     fetchpriority="high"
                      x-show="_matchedActress && !_heroCardImageError"
+                     :class="{ 'cover-loaded': _heroCardImageLoaded }"
+                     @load="_heroCardImageLoaded = true"
                      @error="if (_matchedActress?.photo_url) _heroCardImageError = true">
+                <!-- 67-A3: skeleton overlay。gate 含 photo_url（空 photo 的 img src="" 不觸發 @load/@error → 不卡 shimmer，鏡射 grid cover_url gate）-->
+                <div class="skeleton-cover shimmer"
+                     x-show="_matchedActress?.photo_url && !_heroCardImageError && !_heroCardImageLoaded"></div>
                 <div x-show="_matchedActress && _heroCardImageError"
                      class="av-card-no-cover">
                   <i class="bi bi-image"></i>

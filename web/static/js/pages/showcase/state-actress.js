@@ -39,6 +39,7 @@ export function stateActress() {
         _preciseMatchSource: null,
         _favoriteHeartLoading: false,
         _heroCardImageError: false,
+        _heroCardImageLoaded: false,   // 67-A3: hero actress photo 載入旗標（獨立於 video _imgLoaded，CD-67-4）
         _fetchSamplesLoading: false,
         _fetchSamplesFailed: {},
 
@@ -60,6 +61,7 @@ export function stateActress() {
             this._preciseMatchSource = null;
             this._favoriteHeartLoading = false;
             this._heroCardImageError = false;
+            this._heroCardImageLoaded = false;   // 67-A3: 換命中對象要重現 skeleton
         },
 
         async _checkPreciseActressMatch(term, source) {
@@ -69,6 +71,7 @@ export function stateActress() {
             }
             if (this.search.trim() !== capturedTerm) return;
             this._heroCardImageError = false;
+            this._heroCardImageLoaded = false;   // 67-A3: 換命中對象要重現 skeleton
             var found = _actresses.find(function(a) {
                 var group = _nameToGroup[a.name] || [a.name];
                 return group.indexOf(capturedTerm) !== -1;
