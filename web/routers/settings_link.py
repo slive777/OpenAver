@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/settings", tags=["settings-link"])
 
 
 @router.get("/favorite-scanner-link")
-async def get_favorite_scanner_link(
+def get_favorite_scanner_link(
     favorite: str = Query(default="", description="最愛資料夾路徑（input 即時值）"),
 ) -> dict:
     """

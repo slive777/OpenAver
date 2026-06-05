@@ -50,13 +50,13 @@ def _reset_translate_service():
 
 
 @router.get("/config")
-async def get_config() -> dict:
+def get_config() -> dict:
     """取得所有設定"""
     return {"success": True, "data": load_config()}
 
 
 @router.put("/config")
-async def update_config(config: AppConfig) -> dict:
+def update_config(config: AppConfig) -> dict:
     """更新所有設定"""
     # Cap 守衛（CD-61-16，endpoint-level；非 model_validator）：
     # 同時啟用且非 manual_only 的來源數不得超過 MAX_ENABLED_SOURCES。
@@ -77,7 +77,7 @@ async def update_config(config: AppConfig) -> dict:
 
 
 @router.delete("/config")
-async def reset_config() -> dict:
+def reset_config() -> dict:
     """恢復原廠設定 - 刪除 config.json"""
     try:
         if _core_config.CONFIG_PATH.exists():
@@ -90,7 +90,7 @@ async def reset_config() -> dict:
 
 
 @router.get("/tutorial-status")
-async def get_tutorial_status() -> dict:
+def get_tutorial_status() -> dict:
     """取得新手引導完成狀態"""
     config = load_config()
     completed = config.get("general", {}).get("tutorial_completed", False)
@@ -98,7 +98,7 @@ async def get_tutorial_status() -> dict:
 
 
 @router.post("/tutorial-completed")
-async def mark_tutorial_completed() -> dict:
+def mark_tutorial_completed() -> dict:
     """標記新手引導已完成（僅在點擊完成時呼叫）"""
     config = load_config()
     if "general" not in config:
@@ -109,7 +109,7 @@ async def mark_tutorial_completed() -> dict:
 
 
 @router.post("/tutorial-reset")
-async def reset_tutorial() -> dict:
+def reset_tutorial() -> dict:
     """重置新手引導狀態（供設定頁使用）"""
     config = load_config()
     if "general" not in config:
@@ -124,7 +124,7 @@ class GeneralFieldRequest(BaseModel):
 
 
 @router.put("/config/general/{field}")
-async def update_general_field(field: str, request: GeneralFieldRequest) -> dict:
+def update_general_field(field: str, request: GeneralFieldRequest) -> dict:
     """更新 general 區塊單一欄位（輕量端點，供 UI toggle 即時同步）"""
     allowed = {"sidebar_collapsed", "theme", "font_size", "locale"}
     if field not in allowed:

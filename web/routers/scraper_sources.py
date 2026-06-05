@@ -26,7 +26,7 @@ router = APIRouter(prefix="/api", tags=["scraper-sources"])
 
 
 @router.get("/scraper-sources")
-async def get_scraper_sources() -> dict:
+def get_scraper_sources() -> dict:
     """查詢目前 auto 搜尋實際 fan-out 的啟用來源清單。
 
     過濾 = Rule 3：enabled=True AND is_beta=False AND manual_only=False
