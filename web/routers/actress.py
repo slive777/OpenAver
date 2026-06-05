@@ -385,9 +385,7 @@ async def list_photo_candidates(name: str):
     雲端 0–3 張並行抓取 + 本機影片封面 crop 補足至 6 張。
     actress 不存在 → JSONResponse 404。
     """
-    init_db()
-    repo = ActressRepository()
-    actress = repo.get_by_name(name)
+    _, actress = await asyncio.to_thread(_load_actress, name)
     if actress is None:
         return JSONResponse(
             status_code=404,

@@ -280,7 +280,7 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
     if len(request.items) > 20:
         raise HTTPException(status_code=422, detail="items 上限為 20 筆")
 
-    config = load_config()
+    config = await asyncio.to_thread(load_config)
     search_cfg = config.get("search", {})
     proxy_url = search_cfg.get("proxy_url", "")
 
