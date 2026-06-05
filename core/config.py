@@ -9,8 +9,11 @@ core/config.py — 設定載入 / 儲存 / 遷移邏輯
 """
 
 import json
+import os
+import tempfile
+import threading
 from pathlib import Path
-from typing import Literal, Optional, List
+from typing import Callable, Literal, Optional, List
 
 from pydantic import BaseModel, Field
 
@@ -24,6 +27,14 @@ logger = get_logger(__name__)
 _PROJECT_ROOT = Path(__file__).parent.parent
 CONFIG_PATH = _PROJECT_ROOT / "web" / "config.json"
 CONFIG_DEFAULT_PATH = _PROJECT_ROOT / "web" / "config.default.json"
+
+# 66 TASK-66b-T1（CD-66b-1）：process-wide config.json 寫入序列化鎖。
+# async-offload 把 def 路由移到 threadpool thread 後，event loop 的隱式互斥消失，
+# load_config→mutate→save_config 的 RMW 變成真並發 → lost-update（Race A）。
+# 必須是 threading.Lock（非 asyncio.Lock）：def 路由跑在 threadpool thread，
+# asyncio.Lock 保護不到；且 plain Lock（非 RLock）—— public locked / private
+# unlocked 嚴格分層，鎖內絕不二次 acquire（mutator 契約禁呼 public API）。
+_config_write_lock = threading.Lock()
 
 
 # ============ Pydantic Schema ============
@@ -146,8 +157,12 @@ class AppConfig(BaseModel):
 
 # ============ 載入 / 儲存 ============
 
-def load_config() -> dict:
-    """載入設定，包含自動遷移邏輯和首次啟動初始化"""
+def _load_config_unlocked() -> dict:
+    """載入設定（含 migration / first-init），**不取鎖** —— caller 須已持有 _config_write_lock。
+
+    migration 的寫回必須走 _save_config_unlocked（同樣不取鎖），否則在已持鎖的
+    critical section 內再 acquire 同一 threading.Lock → 自我死鎖（CD-66b-1）。
+    """
     # 首次啟動：從 config.default.json 初始化
     if not CONFIG_PATH.exists() and CONFIG_DEFAULT_PATH.exists():
         import shutil
@@ -354,16 +369,67 @@ def load_config() -> dict:
                 raw_config['sources'] = []
             need_save = True
 
-        # Save migrated config
+        # Save migrated config（已持鎖 → 用 unlocked 版避免自我死鎖）
         if need_save:
-            save_config(raw_config)
+            _save_config_unlocked(raw_config)
 
         return raw_config
     # 返回預設設定（沒有 default 檔案時）
     return AppConfig().model_dump()
 
 
+def load_config() -> dict:
+    """載入設定，包含自動遷移邏輯和首次啟動初始化（process-wide 序列化）"""
+    with _config_write_lock:
+        return _load_config_unlocked()
+
+
+def _save_config_unlocked(config: dict) -> None:
+    """原子寫 config.json，**不取鎖** —— caller 須已持有 _config_write_lock。
+
+    tempfile.mkstemp 在 CONFIG_PATH 同目錄（同卷）建臨時檔 → fd 寫完關閉後
+    os.replace（POSIX/Windows 皆原子）。任何例外都清掉 temp 殘檔後 re-raise，
+    避免半寫的 *.tmp 殘留。fd 必須在 os.replace 前關閉（Windows file-lock）。
+    """
+    fd, tmp = tempfile.mkstemp(dir=CONFIG_PATH.parent, suffix='.tmp')
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        # fd 已由 with 區塊關閉 → 安全 replace
+        os.replace(tmp, CONFIG_PATH)
+    except Exception:
+        # 清掉殘留 temp（best-effort）後 re-raise
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def save_config(config: dict) -> None:
-    """儲存設定"""
-    with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
-        json.dump(config, f, indent=2, ensure_ascii=False)
+    """儲存設定（原子寫 + process-wide 序列化）"""
+    with _config_write_lock:
+        _save_config_unlocked(config)
+
+
+def mutate_config(mutator: Callable[[dict], None]) -> None:
+    """在單一 critical section 內 read-modify-write config.json（消除 RMW 競態）。
+
+    load → mutator(cfg)（原地修改 dict）→ save 全程持 _config_write_lock，
+    兩個並發 mutate_config 不再讀到同一 v0 → 無 lost-update（Race A）。
+
+    mutator 契約：`mutator(cfg: dict) -> None`，僅做純記憶體 dict 操作；
+    **不得**呼叫任何 public locked API（load_config / save_config /
+    mutate_config / reset_config_file）—— 會在已持鎖時二次 acquire → 自我死鎖。
+    """
+    with _config_write_lock:
+        cfg = _load_config_unlocked()
+        mutator(cfg)
+        _save_config_unlocked(cfg)
+
+
+def reset_config_file() -> None:
+    """刪除 config.json（恢復原廠）—— 在鎖內檢查 + 刪除，無 exists/unlink TOCTOU。"""
+    with _config_write_lock:
+        if CONFIG_PATH.exists():
+            CONFIG_PATH.unlink()

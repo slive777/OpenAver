@@ -13,7 +13,7 @@ import threading
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from core.config import load_config, save_config
+from core.config import mutate_config
 from core.logger import get_logger
 from core.metatube.client import MetatubeHttpClient
 from core.metatube.errors import MetatubeAuthError, MetatubeError
@@ -92,14 +92,16 @@ def _persist_allow_lan(url: str, token: str, allow_lan: bool) -> bool:
     dedup-save，或 dedup-save 與 full-connect-save 競爭同一個 config.json，會互相
     clobber。序列化即可避免。
     """
+    # 鎖序：外 _connect_lock → 內 _config_write_lock（經 mutate_config）。
     with _connect_lock:
         try:
-            config = load_config()
-            mt = config.get("metatube") or {}
-            if mt.get("url") == url and mt.get("token") == token:
-                mt["allow_lan"] = allow_lan
-                config["metatube"] = mt
-                save_config(config)
+            def _mut(config):
+                mt = config.get("metatube") or {}
+                if mt.get("url") == url and mt.get("token") == token:
+                    mt["allow_lan"] = allow_lan
+                    config["metatube"] = mt
+                # url/token 不符 → 不改 cfg（mutate_config 仍會 byte-identical 重存，可接受）
+            mutate_config(_mut)
             return True
         except Exception:
             logger.exception("_persist_allow_lan: failed to update allow_lan in config")
@@ -286,9 +288,9 @@ def _connect_sync_impl(url: str, token: str, allow_lan: bool) -> dict:
     gen = state.connect(url, token, names)
 
     # Step 5: persist to config.json (CD-63b-3 merge)
-    try:
-        config = load_config()
-
+    # 鎖序：caller _connect_sync 已持 _connect_lock（外）→ mutate_config 取
+    # _config_write_lock（內）。整個 load+merge 在 mutator 內、單一 critical section。
+    def _merge_mutator(config):
         # Persist metatube URL + token + allow_lan, preserving existing `enabled`
         # flag (CD-63b-3).  Do NOT wipe `enabled` on reconnect — user's toggle
         # state must survive.  allow_lan is stored so startup_reconnect can honour
@@ -329,7 +331,9 @@ def _connect_sync_impl(url: str, token: str, allow_lan: bool) -> dict:
                 merged_mt.append(s)
 
         config["sources"] = non_mt + merged_mt
-        save_config(config)
+
+    try:
+        mutate_config(_merge_mutator)
     except Exception:
         logger.exception("metatube connect: failed to persist config")
         state.disconnect()  # rollback — don't stay connected with unsaved config

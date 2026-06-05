@@ -802,3 +802,92 @@ class TestConfigDefaultSchemaParity:
         default = self._default()
         schema_sources = AppConfig().model_dump()["sources"]
         assert default["sources"] == schema_sources
+
+
+# ============ TASK-66b-T1：寫入序列化 + 原子寫 + mutate_config ============
+
+class TestMutateConfigAndAtomicWrite:
+    """CD-66b-1：_config_write_lock 序列化 + 原子寫 + mutate_config RMW（確定性，非真 race）。"""
+
+    def _patch_paths(self, tmp_path, monkeypatch):
+        config_path = tmp_path / "config.json"
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
+        return config_path
+
+    def test_mutate_config_no_lost_update(self, tmp_path, monkeypatch):
+        """兩次序列 mutate_config（不同欄位）→ 兩者皆持久化（RMW 在單一 critical section）。"""
+        config_path = self._patch_paths(tmp_path, monkeypatch)
+        save_config({"general": {}})
+
+        core_config.mutate_config(
+            lambda cfg: cfg.setdefault("general", {}).__setitem__("theme", "dark")
+        )
+        core_config.mutate_config(
+            lambda cfg: cfg.setdefault("general", {}).__setitem__("font_size", "lg")
+        )
+
+        result = load_config()
+        assert result["general"]["theme"] == "dark"
+        assert result["general"]["font_size"] == "lg"
+
+    def test_save_config_atomic_no_temp_leftover(self, tmp_path, monkeypatch):
+        """json.dump 拋例外 → _save_config_unlocked re-raise 且不留 *.tmp 殘檔。"""
+        config_path = self._patch_paths(tmp_path, monkeypatch)
+
+        def _boom(*args, **kwargs):
+            raise RuntimeError("dump failed")
+
+        monkeypatch.setattr(core_config.json, "dump", _boom)
+
+        with pytest.raises(RuntimeError, match="dump failed"):
+            core_config._save_config_unlocked({"general": {}})
+
+        leftover = list(config_path.parent.glob("*.tmp"))
+        assert leftover == [], f"原子寫失敗後不應殘留 temp: {leftover}"
+        assert not config_path.exists(), "寫入失敗不應產生 config.json"
+
+    def test_mutate_config_holds_lock(self, tmp_path, monkeypatch):
+        """mutator 執行時 _config_write_lock 必須持有（確定性斷言，CD-66b-6）。"""
+        self._patch_paths(tmp_path, monkeypatch)
+        save_config({"general": {}})
+
+        seen = []
+
+        def _mut(cfg):
+            seen.append(core_config._config_write_lock.locked())
+            cfg.setdefault("general", {})["theme"] = "dark"
+
+        core_config.mutate_config(_mut)
+        assert seen == [True], "mutator 執行時 _config_write_lock 必須為 locked"
+
+    def test_reset_config_file(self, tmp_path, monkeypatch):
+        """存在 → 刪除；不存在 → no-op 不拋（無 TOCTOU）。"""
+        config_path = self._patch_paths(tmp_path, monkeypatch)
+        save_config({"general": {}})
+        assert config_path.exists()
+
+        core_config.reset_config_file()
+        assert not config_path.exists()
+
+        # 再次呼叫不應拋例外
+        core_config.reset_config_file()
+        assert not config_path.exists()
+
+    def test_load_config_migration_no_deadlock(self, tmp_path, monkeypatch):
+        """觸發 migration（primary_source strip）→ load_config() 不死鎖且寫回。
+
+        migration save 走 _save_config_unlocked（已持鎖），若誤用 save_config 會
+        二次 acquire 同一 threading.Lock → 永久死鎖。此測試在無 hang 下完成即證明。
+        """
+        config_path = self._patch_paths(tmp_path, monkeypatch)
+        _write_config(config_path, {"search": {"primary_source": "javdb"}})
+
+        result = load_config()  # 不得 hang
+
+        assert "primary_source" not in result.get("search", {})
+        # migration 已持久化（檔案內也無 primary_source）
+        persisted = _read_config(config_path)
+        assert "primary_source" not in persisted.get("search", {})
+        # 鎖已釋放（load_config 結束後不應仍持有）
+        assert core_config._config_write_lock.locked() is False

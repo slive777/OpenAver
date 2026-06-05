@@ -90,6 +90,14 @@ class _ConfigStore:
         self.data = copy.deepcopy(cfg)
         self.saved.append(copy.deepcopy(cfg))
 
+    def mutate(self, mutator):
+        """Mirror core.config.mutate_config: load → mutator(cfg) → save (RMW)."""
+        import copy
+        cfg = copy.deepcopy(self.data)
+        mutator(cfg)
+        self.data = copy.deepcopy(cfg)
+        self.saved.append(copy.deepcopy(cfg))
+
 
 def _make_config_patches(initial: dict | None = None):
     """Return (store, patch_load, patch_save) context managers."""
@@ -106,8 +114,7 @@ def test_connect_success(client):
 
     with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
          patch("web.routers.settings_metatube.probe_all") as mock_probe, \
-         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
-         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+         patch("web.routers.settings_metatube.mutate_config", side_effect=store.mutate):
 
         mock_instance = MagicMock()
         mock_instance.list_providers.return_value = {
@@ -175,8 +182,7 @@ def test_connect_unavailable(client):
 
     with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
          patch("web.routers.settings_metatube.probe_all"), \
-         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
-         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+         patch("web.routers.settings_metatube.mutate_config", side_effect=store.mutate):
 
         mock_instance = MagicMock()
         mock_instance.list_providers.side_effect = MetatubeUnavailable("connection refused")
@@ -208,8 +214,7 @@ def test_connect_auth_error(client):
 
     with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
          patch("web.routers.settings_metatube.probe_all"), \
-         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
-         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+         patch("web.routers.settings_metatube.mutate_config", side_effect=store.mutate):
 
         mock_instance = MagicMock()
         mock_instance.list_providers.side_effect = MetatubeAuthError("401 Unauthorized")
@@ -240,8 +245,7 @@ def test_connect_order_offset(client):
 
     with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
          patch("web.routers.settings_metatube.probe_all"), \
-         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
-         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+         patch("web.routers.settings_metatube.mutate_config", side_effect=store.mutate):
 
         mock_instance = MagicMock()
         mock_instance.list_providers.return_value = {
@@ -285,8 +289,7 @@ def test_disconnect(client):
     # First connect
     with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
          patch("web.routers.settings_metatube.probe_all"), \
-         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
-         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+         patch("web.routers.settings_metatube.mutate_config", side_effect=store.mutate):
 
         mock_instance = MagicMock()
         mock_instance.list_providers.return_value = {"FANZA": "http://mt:8080"}
@@ -306,15 +309,15 @@ def test_disconnect(client):
     save_count_before = len(store.saved)
 
     # Disconnect inside its own patch scope so save_count assertion is meaningful
-    with patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+    with patch("web.routers.settings_metatube.mutate_config", side_effect=store.mutate):
         resp = client.post("/api/settings/metatube/disconnect")
 
     assert resp.status_code == 200
     assert resp.json()["success"] is True
     assert state.is_connected is False
 
-    # save_config must NOT be called by disconnect
-    assert len(store.saved) == save_count_before, "disconnect must not call save_config"
+    # disconnect must NOT write config (no mutate_config call)
+    assert len(store.saved) == save_count_before, "disconnect must not write config"
 
     # In-memory config metatube url/token must still be the values set by connect
     assert store.data["metatube"]["url"] == "http://192.168.1.10:8080"
@@ -331,8 +334,7 @@ def test_status_during_probe(client):
     # Connect first so state.is_connected is True
     with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
          patch("web.routers.settings_metatube.probe_all"), \
-         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
-         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+         patch("web.routers.settings_metatube.mutate_config", side_effect=store.mutate):
 
         mock_instance = MagicMock()
         mock_instance.list_providers.return_value = {
@@ -431,8 +433,7 @@ def test_connect_preserves_enabled(client):
 
     with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
          patch("web.routers.settings_metatube.probe_all"), \
-         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
-         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+         patch("web.routers.settings_metatube.mutate_config", side_effect=store.mutate):
 
         mock_instance = MagicMock()
         mock_instance.list_providers.return_value = {
@@ -521,8 +522,7 @@ def test_connect_preserves_metatube_enabled_flag(client):
 
     with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
          patch("web.routers.settings_metatube.probe_all"), \
-         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
-         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+         patch("web.routers.settings_metatube.mutate_config", side_effect=store.mutate):
 
         mock_instance = MagicMock()
         mock_instance.list_providers.return_value = {
@@ -559,8 +559,7 @@ def test_connect_persistence_failure_rollback(client):
 
     with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
          patch("web.routers.settings_metatube.probe_all") as mock_probe, \
-         patch("web.routers.settings_metatube.load_config", return_value=_fresh_config()), \
-         patch("web.routers.settings_metatube.save_config", side_effect=OSError("disk full")):
+         patch("web.routers.settings_metatube.mutate_config", side_effect=OSError("disk full")):
 
         mock_instance = MagicMock()
         mock_instance.list_providers.return_value = {
@@ -619,8 +618,7 @@ def test_canary_search_auth_error_blocks_connect(client):
 
     with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
          patch("web.routers.settings_metatube.probe_all") as mock_probe, \
-         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
-         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+         patch("web.routers.settings_metatube.mutate_config", side_effect=store.mutate):
 
         mock_instance = MagicMock()
         mock_instance.list_providers.return_value = _canary_providers()
@@ -652,8 +650,7 @@ def test_canary_search_unavailable_does_not_block_connect(client):
 
     with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
          patch("web.routers.settings_metatube.probe_all"), \
-         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
-         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+         patch("web.routers.settings_metatube.mutate_config", side_effect=store.mutate):
 
         mock_instance = MagicMock()
         mock_instance.list_providers.return_value = _canary_providers()
@@ -677,8 +674,7 @@ def test_canary_search_not_found_does_not_block_connect(client):
 
     with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
          patch("web.routers.settings_metatube.probe_all"), \
-         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
-         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+         patch("web.routers.settings_metatube.mutate_config", side_effect=store.mutate):
 
         mock_instance = MagicMock()
         mock_instance.list_providers.return_value = _canary_providers()
@@ -701,8 +697,7 @@ def test_canary_search_success_allows_connect(client):
 
     with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
          patch("web.routers.settings_metatube.probe_all"), \
-         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
-         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+         patch("web.routers.settings_metatube.mutate_config", side_effect=store.mutate):
 
         mock_instance = MagicMock()
         mock_instance.list_providers.return_value = _canary_providers()
@@ -726,8 +721,7 @@ def test_canary_skipped_when_no_canary_provider_in_list(client):
 
     with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
          patch("web.routers.settings_metatube.probe_all"), \
-         patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
-         patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+         patch("web.routers.settings_metatube.mutate_config", side_effect=store.mutate):
 
         mock_instance = MagicMock()
         mock_instance.list_providers.return_value = _no_canary_providers()
@@ -1035,8 +1029,7 @@ class TestStartupReconnect:
         # Second connect: same url+token, but allow_lan=True
         with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
              patch("web.routers.settings_metatube.probe_all"), \
-             patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
-             patch("web.routers.settings_metatube.save_config", side_effect=store.save):
+             patch("web.routers.settings_metatube.mutate_config", side_effect=store.mutate):
 
             mock_instance = MagicMock()
             mock_instance.list_providers.return_value = {"FANZA": _LAN_URL}
@@ -1064,8 +1057,7 @@ class TestStartupReconnect:
 
         with patch("web.routers.settings_metatube.MetatubeHttpClient"), \
              patch("web.routers.settings_metatube.probe_all"), \
-             patch("web.routers.settings_metatube.load_config", side_effect=store.load), \
-             patch("web.routers.settings_metatube.save_config",
+             patch("web.routers.settings_metatube.mutate_config",
                    side_effect=OSError("disk full")):
 
             resp = tc.post(
@@ -1091,17 +1083,21 @@ class TestConnectSerialization:
         assert isinstance(_connect_lock, type(threading.Lock()))
 
     def test_connect_sync_holds_lock_during_save_config(self, reset_state):
-        """save_config 被呼叫時 _connect_lock 必須持有（臨界段涵蓋 save）。"""
+        """config 寫入時 _connect_lock 必須持有（臨界段涵蓋 mutate_config）。
+
+        mutate_config 在 _connect_lock 內被呼叫（鎖序：外 _connect_lock → 內
+        _config_write_lock），語意等價於「save 時 _connect_lock 持有」。
+        """
         from web.routers.settings_metatube import _connect_sync, _connect_lock
 
         held = []
 
-        def _fake_save(cfg):
+        def _fake_mutate(mutator):
             held.append(_connect_lock.locked())
+            mutator(_fresh_config())
 
         with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
-             patch("web.routers.settings_metatube.load_config", return_value=_fresh_config()), \
-             patch("web.routers.settings_metatube.save_config", side_effect=_fake_save):
+             patch("web.routers.settings_metatube.mutate_config", side_effect=_fake_mutate):
             mock_inst = MagicMock()
             mock_inst.list_providers.return_value = {"FANZA": _PUBLIC_URL}
             mock_inst.search.return_value = []
@@ -1110,24 +1106,23 @@ class TestConnectSerialization:
             result = _connect_sync(_PUBLIC_URL, "", True)
 
         assert result["ok"] is True
-        assert held and all(held), "save_config 必須在 _connect_lock 持有時被呼叫"
+        assert held and all(held), "mutate_config 必須在 _connect_lock 持有時被呼叫"
 
     def test_persist_allow_lan_holds_lock_during_save_config(self, reset_state):
-        """_persist_allow_lan 的 save_config 也在 _connect_lock 內。"""
+        """_persist_allow_lan 的 config 寫入也在 _connect_lock 內。"""
         from web.routers.settings_metatube import _persist_allow_lan, _connect_lock
 
         held = []
 
-        def _fake_save(cfg):
+        def _fake_mutate(mutator):
             held.append(_connect_lock.locked())
+            mutator({"metatube": {"url": _PUBLIC_URL, "token": "tok", "allow_lan": False}})
 
-        cfg = {"metatube": {"url": _PUBLIC_URL, "token": "tok", "allow_lan": False}}
-        with patch("web.routers.settings_metatube.load_config", return_value=cfg), \
-             patch("web.routers.settings_metatube.save_config", side_effect=_fake_save):
+        with patch("web.routers.settings_metatube.mutate_config", side_effect=_fake_mutate):
             ok = _persist_allow_lan(_PUBLIC_URL, "tok", True)
 
         assert ok is True
-        assert held and all(held), "_persist_allow_lan 的 save 必須在 _connect_lock 內"
+        assert held and all(held), "_persist_allow_lan 的寫入必須在 _connect_lock 內"
 
     def test_sequential_connects_leave_config_consistent(self, reset_state):
         """兩次連續 connect 後 config 與 runtime state 皆指向最後一次（B）。
@@ -1140,15 +1135,13 @@ class TestConnectSerialization:
 
         saved = []
 
-        def _fake_load():
-            return copy.deepcopy(saved[-1]) if saved else _fresh_config()
-
-        def _fake_save(cfg):
+        def _fake_mutate(mutator):
+            cfg = copy.deepcopy(saved[-1]) if saved else _fresh_config()
+            mutator(cfg)
             saved.append(copy.deepcopy(cfg))
 
         with patch("web.routers.settings_metatube.MetatubeHttpClient") as MockClient, \
-             patch("web.routers.settings_metatube.load_config", side_effect=_fake_load), \
-             patch("web.routers.settings_metatube.save_config", side_effect=_fake_save):
+             patch("web.routers.settings_metatube.mutate_config", side_effect=_fake_mutate):
             mock_inst = MagicMock()
             mock_inst.list_providers.return_value = {"FANZA": _PUBLIC_URL}
             mock_inst.search.return_value = []
