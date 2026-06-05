@@ -334,6 +334,10 @@ export function stateBase() {
         handleCoverError(video, event) {
             if (!video) return;
             video.has_cover = false;  // 觸發 reactive — enrich icon 自動出現 + missing-cover class 套用
+            // 67/Codex P2（broken cover）：grid 三態淡入讓 .av-card-preview-img img 預設 opacity:0、靠
+            // .cover-loaded(=_imgLoaded) 才可見。stale/404 換 placeholder 後，可見性原本只依賴 placeholder
+            // 二次 @load 觸發（脆弱）→ 直接設 _imgLoaded=true，確定性顯示 placeholder（不依賴 @load）。
+            video._imgLoaded = true;
             event.target.onerror = null;  // 防止 placeholder 失敗無限迴圈
             event.target.src = _NO_COVER_PLACEHOLDER;
         },

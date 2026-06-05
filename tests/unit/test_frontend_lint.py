@@ -9617,6 +9617,19 @@ class TestCoverLoadingUx67Guard:
         assert "_imgLoaded === undefined" in src and "_imgLoaded = false" in src, \
             "state-videos.js fetchVideos 缺 _imgLoaded:false 初始化"
 
+    def test_handle_cover_error_marks_loaded(self):
+        """Codex P2 (broken cover): handleCoverError 須同時設 has_cover=false 且 _imgLoaded=true，
+        讓 stale/404 封面換 placeholder 後確定性顯示（grid 淡入規則使 img 預設 opacity:0；不可只依賴
+        placeholder 二次 @load 觸發 _imgLoaded）。抽 handleCoverError body 再斷言，非整檔裸 grep。"""
+        src = SHOWCASE_BASE_JS.read_text(encoding="utf-8")
+        m = re.search(r"handleCoverError\(video, event\)\s*\{(.*?)\n\s*\},", src, re.S)
+        assert m, "state-base.js: 找不到 handleCoverError(video, event) method"
+        body = m.group(1)
+        assert "has_cover = false" in body, "handleCoverError 須設 video.has_cover = false"
+        assert "_imgLoaded = true" in body, \
+            ("handleCoverError 須設 video._imgLoaded = true（Codex P2 broken-cover）：否則 stale/404 封面"
+             "在 grid opacity:0 淡入規則下停在隱形、no-cover 也不顯 → 空白卡")
+
     def test_refreshvideodata_resets_imgloaded_before_assign(self):
         """A2/CD-67-3b: refreshVideoData 在 Object.assign 前 reset _imgLoaded（補封面重走三態）"""
         src = SHOWCASE_LIGHTBOX_JS.read_text(encoding="utf-8")

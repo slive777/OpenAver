@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **搜尋頁/設計系統頁封面隱形回歸（Codex 二次審核發現）**：封面淡入的 `opacity:0` 預設規則因共用 scope 洩漏到同樣載入 showcase.css 的 `/search` 與 `/design-system`（兩頁的卡片 img 無淡入機制），會讓搜尋結果封面與元件展示 demo 整片隱形；改用 compound `.showcase-container` scope 收斂，只命中 showcase 頁。
 - **Hero 無女優照片時的空白框**：最愛女優若無照片，`<img src="">` 不觸發 load/error 而顯空白；改為無照片直接顯破圖 icon（與 grid 一致）。
 - **bfcache cleanup 回歸（Codex 二次審核發現）**：`unload`→`pagehide` 後，頁面進 back/forward cache 時 `pagehide` 以 `persisted=true` 觸發會誤跑一次性 cleanup（拆 SSE/abort/resize listener），按 Back 還原（不重跑 init）後頁面缺資源；改為僅在真正丟棄（`persisted=false`）才 cleanup。僅瀏覽器存取會踩，PyWebView 桌面端無此路徑。
+- **stale/404 封面 fallback 可見性硬化（Codex 二次審核發現）**：grid 封面 stale/搬移導致 404 時，`handleCoverError` 換 placeholder 後封面可見性原本只依賴 placeholder 二次 `@load` 觸發 `_imgLoaded`（實測 Chromium 會觸發、可見，但屬脆弱隱性依賴）；改為 `handleCoverError` 直接設 `_imgLoaded=true`，破圖 placeholder 確定性顯示、不再依賴 `@load`。僅影響 showcase grid（table/list 無封面、hero/search/lightbox 走各自路徑）。
 
 ### Added（守衛 / Guards）
 - `tests/unit/test_frontend_lint.py::TestCoverLoadingUx67Guard`：HTML/CSS 三態契約守衛（SVG 無 `<template>`、12 組靜態 rail/sweep id、grid/hero `@load` 綁定、淡入不掛 GSAP 專屬容器、reduced-motion 退化、淡入 scope 收斂於 `.showcase-container`）；`eslint.config.mjs` 加 `addEventListener('unload')` 禁令。
