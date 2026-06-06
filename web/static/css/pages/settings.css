@@ -1012,3 +1012,54 @@
     }
 
 }
+
+/* ==================== Dark theme (dim) calibration — feature/69 T3 ====================
+ * 近黑 dim surface 吃光低% color-mix tint（research §2 Factor A）+ segmented 選中態
+ * 純靠 surface 對比（無語義色）。修法：警告/連線 banner 提 tint + solid 色邊 + 左色條
+ * 作結構信號；segmented 選中態走亮面 + accent 環（L3 純結構，色彩物理救不了）。
+ * specificity：[data-theme="dim"] 多一屬性選擇器，穩定勝同名 base 規則。
+ * 狀態色全走命名 token（--color-warning / --color-success / --accent），無硬編碼。 */
+
+/* P15: segmented 選中態（純 surface 對比，dim 兩段皆近黑幾乎無差）—
+   亮面提對比 + 1.5px inset accent 環作明確選中指示（L3 結構信號，對齊 Fluent active tab） */
+[data-theme="dim"] #settings-components .settings-sources-segmented button.is-on {
+    background: color-mix(in oklch, var(--surface-2), white 16%);
+    box-shadow: var(--fluent-shadow-2), inset 0 0 0 1.5px var(--accent);
+}
+
+/* P16: suffix-tag（base 用 srgb 20% 無對比，dim 最糟）— 改 oklch 提 tint + solid accent 邊 */
+[data-theme="dim"] .suffix-tag {
+    background: color-mix(in oklch, var(--accent) 28%, var(--surface-0));
+    border: 1px solid color-mix(in oklch, var(--accent) 55%, var(--surface-0));
+}
+
+/* P9/P10: metatube 已連線 status banner — 提 tint + solid 邊 + 左色條（綠態明確可辨） */
+[data-theme="dim"] #settings-components .settings-mt-connect-status {
+    background: color-mix(in oklch, var(--color-success) 16%, var(--surface-1));
+    border-color: color-mix(in oklch, var(--color-success) 45%, var(--surface-1));
+    border-left: 3px solid var(--color-success);
+}
+
+/* P11/P12: 來源上限警告 banner — 提 tint + solid 邊 + 左色條 */
+[data-theme="dim"] #settings-components .settings-sources-cap-alert {
+    background: color-mix(in oklch, var(--color-warning) 18%, var(--surface-0));
+    border-color: color-mix(in oklch, var(--color-warning) 50%, var(--surface-0));
+    border-left: 3px solid var(--color-warning);
+}
+
+/* P13/P14: 全部停用警告 banner — 提 tint + solid 邊 */
+[data-theme="dim"] #settings-components .settings-sources-warn {
+    background: color-mix(in oklch, var(--color-warning) 18%, var(--surface-0));
+    border-color: color-mix(in oklch, var(--color-warning) 50%, var(--surface-0));
+}
+
+/* P17/P18: tier-hint — 提 tint + solid 邊（資訊性，icon 已救，補結構清晰） */
+[data-theme="dim"] #settings-components .settings-mt-tier-hint {
+    background: color-mix(in oklch, var(--accent) 16%, var(--surface-1));
+    border-color: color-mix(in oklch, var(--accent) 40%, var(--surface-1));
+}
+
+/* P19: mt-field focus 環 — box-shadow 提至 40%（暗底上 22% 不可見；solid border 已救） */
+[data-theme="dim"] #settings-components .settings-mt-field input:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 40%, transparent);
+}
