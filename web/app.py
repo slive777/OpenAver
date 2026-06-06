@@ -8,7 +8,7 @@ import re
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
+from web.static_cache import NoCacheStaticFiles
 from fastapi.templating import Jinja2Templates
 
 # 版本號（從 core/version.py 統一管理）
@@ -72,7 +72,7 @@ app = FastAPI(
 )
 
 # 靜態檔案
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/static", NoCacheStaticFiles(directory=STATIC_DIR), name="static")
 
 # 模板引擎
 templates = Jinja2Templates(directory=TEMPLATES_DIR)

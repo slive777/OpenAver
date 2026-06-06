@@ -130,6 +130,7 @@ On first launch, a built-in setup wizard walks you through folder configuration 
 - **Actress Alias Management**: Add and edit aliases live through the GUI (no editing config files or XML) — searches automatically expand to all of a person's stage names and post-retirement names.
 - **Tag Alias Management chip wall**: Manage cross-language synonyms in one place; the search box and Showcase chips auto-expand them at query time (Chinese/Japanese/English, e.g. "Maid＝メイド＝女僕").
 - **Subtitle Detection**: Automatically detects and moves subtitle files in the same folder when relocating videos.
+- **VR Filename Tag Preservation**: When organizing VR videos, automatically preserves the original filename's projection/stereo tags (e.g. `_180_LR`, `_3dh`, `mkx200`) so VR headset players (Skybox / DeoVR / HereSphere, etc.) detect the projection format correctly.
 
 ### ⚡ Search → Showcase, Made Instant
 - **Same-Name NFO Skip**: If your favorites folder already has a `.nfo` next to the video, it's treated as organized and the scraper is skipped (avoids redundant external requests).
@@ -148,7 +149,7 @@ On first launch, a built-in setup wizard walks you through folder configuration 
 - **Multi-Language UI**: Traditional Chinese, Simplified Chinese, Japanese, English — instant switch.
 - **Path & Naming Rules**: Flexible output path configuration with `{suffix}` variable support.
 - **Favorites Folders**: Save frequently used folders for one-click batch loading.
-- **Jellyfin Image Mode**: Auto-generates `poster` and `fanart` in the format Jellyfin / Emby expects.
+- **Jellyfin / Emby Image Mode**: Auto-generates a `poster` + NFO (read by both Jellyfin and Emby), plus a Jellyfin `fanart` (Emby doesn't support this fanart filename).
 - **Static HTML Export**: Generates a standalone HTML index file — viewable offline without a server.
 
 ### 🔌 Scrape-Source Expansion: Metatube Federation (advanced, optional)

@@ -315,8 +315,8 @@
       "path_length_help_line4": "macOS / Linux 不受此限制，但從 macOS/Linux 產生的長檔名搬到未啟用 LongPathsEnabled 的 Windows 仍可能失敗。",
       "video_extensions_label": "影片副檔名",
       "video_extensions_hint": "以逗號分隔",
-      "jellyfin_mode_label": "Jellyfin 圖片模式",
-      "jellyfin_mode_hint": "自動產生 {stem}-poster.jpg + {stem}-fanart.jpg（Jellyfin 圖庫用）",
+      "jellyfin_mode_label": "Jellyfin / Emby 圖片模式",
+      "jellyfin_mode_hint": "自動產生 {stem}-poster.jpg + {stem}-fanart.jpg；poster 與 NFO 同時相容 Jellyfin 與 Emby，fanart 僅 Jellyfin 讀取（Emby 不支援此命名）",
       "download_sample_images_label": "下載劇照",
       "download_sample_images_hint": "整理時自動下載劇照至 extrafanart/ 子目錄（需啟用「建立資料夾」）"
     },

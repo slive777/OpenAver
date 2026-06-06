@@ -130,6 +130,7 @@ irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex
 - **女優別名管理**：用 GUI 即時新增、編輯別名（不用手改設定檔或 XML），搜尋時自動展開同一人的所有藝名與退休名。
 - **Tag 別名管理 chip 牆**：跨語言同義詞集中管理，搜尋框與 Showcase chip 在搜尋時自動展開（中日英，如「女僕＝Maid＝メイド」）。
 - **字幕偵測**：影片搬移時自動偵測並搬移同目錄字幕檔。
+- **VR 檔名標籤保留**：整理 VR 影片時自動保留原檔名的投影/立體標籤（如 `_180_LR`、`_3dh`、`mkx200`），讓 VR 頭顯播放器（Skybox / DeoVR / HereSphere 等）正確識別投影格式。
 
 ### ⚡ Search → Showcase 即時化
 - **同名 NFO 跳過**：最愛資料夾若同目錄已有 `.nfo`，視為已整理不重打 scraper（避免重複外部請求）。
@@ -148,7 +149,7 @@ irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex
 - **多語系 UI**：繁中 / 简中 / 日文 / 英文，即時切換。
 - **路徑管理**：靈活設定輸出路徑與檔案命名規則，支援 `{suffix}` 格式變數。
 - **我的最愛資料夾**：設定常用資料夾，一鍵載入並自動搜尋。
-- **Jellyfin 圖片模式**：自動生成 poster / fanart 供 Jellyfin / Emby 使用。
+- **Jellyfin / Emby 圖片模式**：自動生成 poster + NFO（Jellyfin 與 Emby 皆相容），並額外生成 fanart 供 Jellyfin（Emby 不支援此 fanart 命名）。
 - **靜態 HTML 匯出**：生成獨立 HTML 索引檔，不需部署伺服器也能離線瀏覽。
 
 ### 🔌 刮削來源擴充：Metatube 聯邦（進階選配）

@@ -153,6 +153,86 @@ def _detect_suffixes(filename: str, keywords: list) -> str:
     return ''.join(matched)
 
 
+_VR_UNIQUE: frozenset = frozenset({
+    'mkx200', 'mkx220', 'vrca220', 'rf52', 'fisheye190', 'fisheye',
+    'f180', '180f', '180x180', 'eac360', '360eac', 'mono180', '180mono',
+    'mono360', '360mono', '3dh', '3dv', 'lrf', 'sbsf', 'fsbs', 'hsbs',
+    'tbf', 'ftab', 'htab',
+})
+
+_VR_AMBIGUOUS: frozenset = frozenset({
+    '180', '360', 'sbs', 'lr', 'rl', 'tb', 'bt', 'ou',
+})
+
+
+def _detect_vr_cluster(filename: str) -> Optional[str]:
+    """
+    偵測檔名中的 VR 投影 token cluster，回傳首個~末個 confirmed run 的 raw 子字串。
+    無 VR token 或不滿足共現條件時回傳 None（守零變化）。
+
+    演算法（CD-68-1/2/3，Codex P2 修正）：
+    1. 去副檔名取 stem
+    2. 以 [_.-空格[]()] 為分隔符切詞，取 (token, start, end) 序列
+    3. 逐 token 分類：unique / ambiguous / none
+    4. 將連續的 VR token（unique 或 ambiguous，中間無 none token）聚成 maximal run。
+       遇到 none token 立即斷開當前 run。
+    5. 每個 run 的「confirmed」條件：含 ≥1 unique 或 ≥2 ambiguous。
+       單一孤立 ambiguous 自成一 run，不 confirmed。
+    6. 無任何 confirmed run → return None。
+    7. 有 confirmed run → 回傳「第一個 confirmed run 的首 token start」到
+       「最後一個 confirmed run 的末 token end」之間的 raw 子字串（stem[start:end]）。
+
+    共現限定在連續 run 內（high-precision「same cluster」契約），
+    取代原 whole-stem min/max（Codex P2 修正）。
+    """
+    stem = os.path.splitext(filename)[0]
+    tokens = [(m.group(), m.start(), m.end()) for m in re.finditer(r'[^_.\-\s\[\]()]+', stem)]
+
+    # 建立每個 token 的 VR 類別
+    classified = []  # (tok, s, e, kind)  kind: 'unique' | 'ambiguous' | 'none'
+    for tok, s, e in tokens:
+        low = tok.lower()
+        if low in _VR_UNIQUE:
+            classified.append((tok, s, e, 'unique'))
+        elif low in _VR_AMBIGUOUS:
+            classified.append((tok, s, e, 'ambiguous'))
+        else:
+            classified.append((tok, s, e, 'none'))
+
+    # 聚成 maximal 連續 VR run（none token 斷開）
+    runs = []  # list of [(tok, s, e, kind), ...]
+    current_run = []
+    for entry in classified:
+        _, _, _, kind = entry
+        if kind != 'none':
+            current_run.append(entry)
+        else:
+            if current_run:
+                runs.append(current_run)
+                current_run = []
+    if current_run:
+        runs.append(current_run)
+
+    # 判斷每個 run 是否 confirmed
+    confirmed_runs = []
+    for run in runs:
+        has_unique = any(kind == 'unique' for _, _, _, kind in run)
+        ambiguous_count = sum(1 for _, _, _, kind in run if kind == 'ambiguous')
+        if has_unique or ambiguous_count >= 2:
+            confirmed_runs.append(run)
+
+    if not confirmed_runs:
+        return None
+
+    # 只取第一個 confirmed run（避免兩個被 non-VR token 隔開的 confirmed run
+    # 被 span 在一起、把中間非 VR 文字包進 cluster，Codex P3）。
+    # 真實 VR 命名 cluster 為單一連續 run；多 confirmed run 屬非常規命名。
+    first_run = confirmed_runs[0]
+    start = first_run[0][1]    # 首 token start
+    end = first_run[-1][2]     # 末 token end
+    return stem[start:end]
+
+
 FALLBACKS = {
     'actor':  '未知女優',
     'actors': '未知女優',
@@ -320,6 +400,7 @@ def generate_nfo(
     maker: str = '',
     url: str = '',
     has_subtitle: bool = False,
+    has_vr: bool = False,
     output_path: str = '',
     has_poster: bool = False,
     has_fanart: bool = False,
@@ -408,6 +489,9 @@ def generate_nfo(
     if has_subtitle:
         nfo_content += '  <tag>中文字幕</tag>\n'
 
+    if has_vr and not any(t.strip().lower() == 'vr' for t in tags):
+        nfo_content += '  <tag>VR</tag>\n'
+
     # 用戶自訂標籤（獨立於 scraper tags，其他平台忽略）
     for ut in user_tags:
         nfo_content += f'  <user_tag>{html.escape(ut)}</user_tag>\n'
@@ -418,6 +502,9 @@ def generate_nfo(
 
     if has_subtitle:
         nfo_content += '  <genre>中文字幕</genre>\n'
+
+    if has_vr and not any(t.strip().lower() == 'vr' for t in tags):
+        nfo_content += '  <genre>VR</genre>\n'
 
     nfo_content += f'''  <num>{html.escape(number)}</num>
   <release>{html.escape(date)}</release>
@@ -523,6 +610,12 @@ def organize_file(
     original_ext = os.path.splitext(file_path)[1]
     original_filename = os.path.basename(file_path)
 
+    # 偵測 VR cluster（CD-68-5/6/7）：算一次，作用域涵蓋 title 剝除、組裝段與 nfo 呼叫（GA）
+    # 上移至 extract_chinese_title 之前，用於剝除 extracted_title 尾端的 VR token（Codex P2）
+    vr_cluster = _detect_vr_cluster(original_filename)
+    vr_tail = f'_{vr_cluster}' if vr_cluster else ''
+    reserve = len(vr_tail)  # 兩分支共用 budget，CD-68-7
+
     # 準備格式化資料
     actors = metadata.get('actors', [])
 
@@ -530,6 +623,16 @@ def organize_file(
     original_title = metadata.get('title', '')  # 日文原始標題
     translated_title = metadata.get('translated_title', '')  # LLM 翻譯/優化的標題
     extracted_title = extract_chinese_title(original_filename, number, actors)
+
+    # 剝除 extracted_title 尾端的 VR cluster（含可選 bracket/paren 包裝，Codex P2 二次修正）
+    # _detect_vr_cluster 把 []() 當分隔符 → cluster 不含 bracket，但 extracted_title 保留 bracket，
+    # 故需匹配可選的開/閉 bracket/paren 包裝；否則 _[180_LR] 不被剝 → 與尾端 vr_tail 雙寫。
+    if vr_cluster and extracted_title:
+        _vr_tail_re = re.compile(r'[\[(]?' + re.escape(vr_cluster) + r'[\])]?[\s_.\-]*$')
+        _m = _vr_tail_re.search(extracted_title)
+        if _m:
+            _trimmed = extracted_title[:_m.start()].rstrip('_-. ')
+            extracted_title = _trimmed or extracted_title
 
     # 決定最終使用的標題
     if translated_title:
@@ -620,18 +723,25 @@ def organize_file(
 
     suffix = format_data.get('suffix', '')
     if suffix and '{suffix}' in filename_template:
-        # 先用空 suffix 產生 base，截斷後再接回 suffix
+        # 先用空 suffix 產生 base，截斷後再接回 suffix；base_budget 扣 reserve（CD-68-5/7）
         no_suffix_data = dict(format_data, suffix='')
         base_without_suffix = format_string(filename_template, no_suffix_data)
-        base_budget = max(0, max_chars - len(suffix))
+        base_budget = max(0, max_chars - len(suffix) - reserve)
         if base_budget == 0:
-            filename_base = truncate_to_chars(suffix, max_chars)
+            filename_base = truncate_to_chars(suffix, max(0, max_chars - reserve))
         else:
             base_without_suffix = truncate_to_chars(base_without_suffix, base_budget)
             filename_base = base_without_suffix + suffix
     else:
         filename_base = format_string(filename_template, format_data)
-        filename_base = truncate_to_chars(filename_base, max_chars)
+        filename_base = truncate_to_chars(filename_base, max(0, max_chars - reserve))
+    # VR tail 永遠最後接（CD-68-6）；vr_tail='' 時零變化（CD-68-9）
+    filename_base = filename_base + vr_tail
+    # 最終長度上限保護（Codex PR P2）：即使退化情形也不突破 max_filename_length。
+    # 正常/spec 情形 reserve 已預留 → base+vr_tail == max_chars → 此為 no-op、VR tail 完整；
+    # 僅 max_filename_length 被設到連 ext+VR cluster 都裝不下（低於 UI 下限的 config/API 值）時才作用，
+    # 鏡射 suffix 路徑的 truncate_to_chars(suffix, max_chars) 上限語意。
+    filename_base = truncate_to_chars(filename_base, max_chars)
 
     new_filename = filename_base + original_ext
     target_path = os.path.join(target_dir, new_filename)
@@ -723,6 +833,7 @@ def organize_file(
             maker=metadata.get('maker', ''),
             url=metadata.get('url', ''),
             has_subtitle=has_subtitle,
+            has_vr=(vr_cluster is not None),
             output_path=nfo_path,
             has_poster=bool(result.get('poster_path')),
             has_fanart=bool(result.get('fanart_path')),

@@ -309,8 +309,8 @@
       "path_length_help_line4": "macOS / Linux have no such limit, but long filenames generated on macOS/Linux may still fail on Windows without LongPathsEnabled.",
       "video_extensions_label": "Video Extensions",
       "video_extensions_hint": "Comma-separated",
-      "jellyfin_mode_label": "Jellyfin Image Mode",
-      "jellyfin_mode_hint": "Auto-generate {stem}-poster.jpg + {stem}-fanart.jpg (for Jellyfin library)",
+      "jellyfin_mode_label": "Jellyfin / Emby Image Mode",
+      "jellyfin_mode_hint": "Auto-generate {stem}-poster.jpg + {stem}-fanart.jpg; poster and NFO work with both Jellyfin and Emby, fanart is Jellyfin-only (Emby doesn't read this filename)",
       "download_sample_images_label": "Download Stills (extrafanart)",
       "download_sample_images_hint": "Download stills to extrafanart/ during organize (requires Create Folder enabled)"
     },

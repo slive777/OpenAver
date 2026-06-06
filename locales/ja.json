@@ -309,8 +309,8 @@
       "path_length_help_line4": "macOS / Linux にはこの制限はありませんが、macOS/Linux で生成した長いファイル名を LongPathsEnabled が無効な Windows に移動すると失敗する場合があります。",
       "video_extensions_label": "動画拡張子",
       "video_extensions_hint": "カンマ区切り",
-      "jellyfin_mode_label": "Jellyfin 画像モード",
-      "jellyfin_mode_hint": "{stem}-poster.jpg + {stem}-fanart.jpg を自動生成（Jellyfin ライブラリ用）",
+      "jellyfin_mode_label": "Jellyfin / Emby 画像モード",
+      "jellyfin_mode_hint": "{stem}-poster.jpg + {stem}-fanart.jpg を自動生成。poster と NFO は Jellyfin / Emby 両対応、fanart は Jellyfin のみ（Emby はこの命名に非対応）",
       "download_sample_images_label": "サンプル画像をダウンロード（extrafanart）",
       "download_sample_images_hint": "整理時にスクリーンショットを extrafanart/ にダウンロード（「フォルダー作成」が必要）"
     },
