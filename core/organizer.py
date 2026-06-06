@@ -153,6 +153,45 @@ def _detect_suffixes(filename: str, keywords: list) -> str:
     return ''.join(matched)
 
 
+_VR_UNIQUE: frozenset = frozenset({
+    'mkx200', 'mkx220', 'vrca220', 'rf52', 'fisheye190', 'fisheye',
+    'f180', '180f', '180x180', 'eac360', '360eac', 'mono180', '180mono',
+    'mono360', '360mono', '3dh', '3dv', 'lrf', 'sbsf', 'fsbs', 'hsbs',
+    'tbf', 'ftab', 'htab',
+})
+
+_VR_AMBIGUOUS: frozenset = frozenset({
+    '180', '360', 'sbs', 'lr', 'rl', 'tb', 'bt', 'ou',
+})
+
+
+def _detect_vr_cluster(filename: str) -> Optional[str]:
+    """
+    偵測檔名中的 VR 投影 token cluster，回傳首個~末個 VR token 之間的 raw 子字串。
+    無 VR token 或不滿足共現條件時回傳 None（守零變化）。
+
+    演算法（CD-68-1/2/3）：
+    1. 去副檔名取 stem
+    2. 以 [_.-空格[]()] 為分隔符切詞，取 (token, start, end) 序列
+    3. 逐 token lower-case 比對 _VR_UNIQUE / _VR_AMBIGUOUS 分類
+    4. 共現判定：unique 非空 OR len(ambiguous)>=2
+    5. 取確認 token 的 start/end span，回傳 stem[start:end]（raw，保大小寫）
+    """
+    stem = os.path.splitext(filename)[0]
+    tokens = [(m.group(), m.start(), m.end()) for m in re.finditer(r'[^_.\-\s\[\]()]+', stem)]
+    unique = [(tok, s, e) for tok, s, e in tokens if tok.lower() in _VR_UNIQUE]
+    ambiguous = [(tok, s, e) for tok, s, e in tokens if tok.lower() in _VR_AMBIGUOUS]
+    if unique:
+        confirmed = unique + ambiguous
+    elif len(ambiguous) >= 2:
+        confirmed = ambiguous
+    else:
+        return None
+    start = min(s for _, s, _ in confirmed)
+    end = max(e for _, _, e in confirmed)
+    return stem[start:end]
+
+
 FALLBACKS = {
     'actor':  '未知女優',
     'actors': '未知女優',

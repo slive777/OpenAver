@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 from PIL import Image
 
-from core.organizer import _detect_suffixes, format_string, organize_file, crop_to_poster, generate_nfo, extract_chinese_title, download_image, truncate_to_chars, truncate_title
+from core.organizer import _detect_suffixes, format_string, organize_file, crop_to_poster, generate_nfo, extract_chinese_title, download_image, truncate_to_chars, truncate_title, _detect_vr_cluster
 
 
 # ============ _detect_suffixes() 測試 ============
@@ -1869,3 +1869,118 @@ class TestTruncateWindowsTrailingDot:
             if len(text) > limit and limit > 3:
                 assert not r.endswith('.') and not r.endswith(' '), \
                     f"limit={limit}: got {r!r}"
+
+
+# ============ _detect_vr_cluster() 測試 ============
+
+class TestDetectVrCluster:
+    """_detect_vr_cluster() 的單元測試（TDD-lite RED→GREEN）
+
+    命中列：回傳 raw 子字串（原樣大小寫）
+    None 列：回傳 None（守零變化）
+    """
+
+    # ---- 命中列（unique 單獨成立）----
+
+    def test_hit_unique_plus_ambiguous_full(self):
+        """SIVR-123_8K_60fps_180_180x180_3dh_LR → 180_180x180_3dh_LR（unique 3dh + ambiguous 180/LR 共存）"""
+        result = _detect_vr_cluster("SIVR-123_8K_60fps_180_180x180_3dh_LR")
+        assert result == "180_180x180_3dh_LR"
+
+    def test_hit_mkx200_lr(self):
+        """KAVR-001_mkx200_LR → mkx200_LR（unique mkx200 + ambiguous LR）"""
+        result = _detect_vr_cluster("KAVR-001_mkx200_LR")
+        assert result == "mkx200_LR"
+
+    def test_hit_180_sbs(self):
+        """WAVR-456_4096x2048_180_sbs → 180_sbs（ambiguous ×2 共現）"""
+        result = _detect_vr_cluster("WAVR-456_4096x2048_180_sbs")
+        assert result == "180_sbs"
+
+    def test_hit_180_lr(self):
+        """NAME_180_LR → 180_LR（最主流：ambiguous ×2 共現）"""
+        result = _detect_vr_cluster("NAME_180_LR")
+        assert result == "180_LR"
+
+    def test_hit_mixed_case(self):
+        """KAVR-001_MKX200_lr → MKX200_lr（混大小寫原樣回傳，不正規化）"""
+        result = _detect_vr_cluster("KAVR-001_MKX200_lr")
+        assert result == "MKX200_lr"
+
+    def test_hit_4k_nonvr_prefix_excluded(self):
+        """MOVIE-4k_180_3dh_LR → 180_3dh_LR（4k 非 VR token，cluster 從 180 起）"""
+        result = _detect_vr_cluster("MOVIE-4k_180_3dh_LR")
+        assert result == "180_3dh_LR"
+
+    def test_hit_bracket_square(self):
+        """NAME_[180_LR] → 180_LR（bracket 當分隔符，cluster 不含外圍括號）"""
+        result = _detect_vr_cluster("NAME_[180_LR]")
+        assert result == "180_LR"
+
+    def test_hit_bracket_paren(self):
+        """KAVR-001_(mkx200_lr) → mkx200_lr（paren 當分隔符，cluster 不含外圍括號）"""
+        result = _detect_vr_cluster("KAVR-001_(mkx200_lr)")
+        assert result == "mkx200_lr"
+
+    # ---- None 列（守零變化）----
+
+    def test_none_isolated_180(self):
+        """MIRD-180 → None（孤立裸 180，真番號，無共現 VR token）"""
+        result = _detect_vr_cluster("MIRD-180")
+        assert result is None
+
+    def test_none_isolated_360(self):
+        """REBD-360 → None（孤立裸 360，真番號）"""
+        result = _detect_vr_cluster("REBD-360")
+        assert result is None
+
+    def test_none_isolated_lr(self):
+        """title_LR → None（孤立裸 LR，無共現）"""
+        result = _detect_vr_cluster("title_LR")
+        assert result is None
+
+    def test_none_vr_num_no_token(self):
+        """SIVR-999 → None（VR 番號但無 VR token；SIVR/999 皆非集合成員）"""
+        result = _detect_vr_cluster("SIVR-999")
+        assert result is None
+
+    def test_none_color_edition_no_false_lr(self):
+        """ABP-123 [color edition] → None（不誤中 lr：color 非 VR 成員）"""
+        result = _detect_vr_cluster("ABP-123 [color edition]")
+        assert result is None
+
+    def test_none_1080_not_180(self):
+        """STARS-1080 → None（不誤中 180：1080 是獨立 token，exact match 不命中）"""
+        result = _detect_vr_cluster("STARS-1080")
+        assert result is None
+
+    def test_none_bare_vr_tag(self):
+        """[VR] → None（裸 vr 不是訊號；嚴禁進集合）"""
+        result = _detect_vr_cluster("[VR]")
+        assert result is None
+
+    # ---- 含副檔名也應一致 ----
+
+    def test_with_extension_mp4(self):
+        """NAME_180_LR.mp4（含副檔名）→ 180_LR（splitext 去掉 ext）"""
+        result = _detect_vr_cluster("NAME_180_LR.mp4")
+        assert result == "180_LR"
+
+    def test_none_with_extension(self):
+        """MIRD-180.mp4（含副檔名）→ None"""
+        result = _detect_vr_cluster("MIRD-180.mp4")
+        assert result is None
+
+    # --- 防禦性 / branch 補洞（review advisory）---
+    def test_empty_string(self):
+        """空字串 → None（splitext('') → finditer 無命中 → 不炸）"""
+        assert _detect_vr_cluster("") is None
+
+    def test_unique_only_no_ambiguous(self):
+        """單一 unique token、零 ambiguous（unique-only branch）→ 原樣保留"""
+        assert _detect_vr_cluster("fisheye") == "fisheye"
+        assert _detect_vr_cluster("KAVR-001_mkx200") == "mkx200"
+
+    def test_duplicate_ambiguous_satisfies_cooccurrence(self):
+        """兩個相同 ambiguous token（len(ambiguous)>=2）→ 成立"""
+        assert _detect_vr_cluster("NAME_180_180") == "180_180"
