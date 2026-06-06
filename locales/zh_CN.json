@@ -54,7 +54,7 @@
       "back_to_detail": "返回详情"
     },
     "empty": {
-      "hint": "输入番号搜索，或加入影片文件",
+      "hint": "输入番号搜索，或加入视频文件",
       "drag_hint": "也可直接拖入文件或文件夹"
     },
     "error": {
@@ -174,7 +174,7 @@
     "duplicate": {
       "title": "文件重复",
       "body": "目标文件已存在，继续会覆盖原有文件：",
-      "explanation": "这通常发生在同一部影片有多个版本（CD1/CD2、4K、UC）时。",
+      "explanation": "这通常发生在同一部视频有多个版本（CD1/CD2、4K、UC）时。",
       "instruction": "请到 <strong>设置 → 高级刮削设置 → 版本标记</strong>，新增关键字并确认文件命名格式包含 <code class=\"badge badge-sm\">{suffix}</code> 变量。",
       "acknowledge": "了解",
       "go_settings": "前往设置"
@@ -502,7 +502,7 @@
       "missing_resume_dismiss": "忽略",
       "missing_enrich_confirm_title": "确认大批量补全",
       "missing_enrich_confirm_body_prefix": "共 ",
-      "missing_enrich_confirm_body_middle": " 部影片将进行补全，预估耗时约 ",
+      "missing_enrich_confirm_body_middle": " 部视频将进行补全，预估耗时约 ",
       "missing_enrich_confirm_body_suffix": " 分钟，是否继续？",
       "missing_enrich_confirm_cancel": "取消",
       "missing_enrich_confirm_confirm": "确认补全"
@@ -538,8 +538,8 @@
       "save": "保存并离开"
     },
     "clear_cache_modal": {
-      "title": "清除影片缓存",
-      "body_prefix": "此操作将删除所有已缓存的影片元数据（共",
+      "title": "清除视频缓存",
+      "body_prefix": "此操作将删除所有已缓存的视频元数据（共",
       "body_suffix": "部），下次需重新扫描才能恢复。确定要清除吗？",
       "cancel": "取消",
       "confirm": "确认删除"
@@ -580,7 +580,7 @@
     }
   },
   "showcase": {
-    "page_title": "影片浏览",
+    "page_title": "视频浏览",
     "rescrape": {
       "modal_title": "高级重新刮削",
       "search_title": "高级搜索",
@@ -607,7 +607,7 @@
       "search": "搜索",
       "toggle_order": "切换排序方向",
       "toggle_info": "显示/隐藏信息 (S)",
-      "play_video": "打开影片",
+      "play_video": "打开视频",
       "play": "播放",
       "enrich": "补资料"
     },
@@ -638,7 +638,7 @@
       "table": "详细",
       "list": "文字",
       "actress": "女优模式",
-      "video": "影片模式"
+      "video": "视频模式"
     },
     "unit": {
       "videos": "部",
@@ -650,11 +650,11 @@
     },
     "status": {
       "total_prefix": "共",
-      "total_suffix": "部影片",
+      "total_suffix": "部视频",
       "search_prefix": "搜索 \"",
       "search_middle": "\" — 找到",
       "search_suffix": "部",
-      "search_empty": "没有符合的影片",
+      "search_empty": "没有符合的视频",
       "search_actresses_prefix": "找到 ",
       "search_actresses_middle": " 位女优 \"",
       "search_actresses_suffix": "\""
@@ -738,13 +738,13 @@
       "removeSuccess": "已从收藏移除",
       "empty": "尚未收藏任何女优",
       "emptyHint": "点击右上角 + 添加收藏",
-      "search_films": "搜尋相關影片",
+      "search_films": "搜索相关视频",
       "addFavorite": "加入收藏",
       "favorited": "已收藏",
       "change_photo": "换照片",
       "picker": {
         "empty": "目前找不到候选照片",
-        "empty_hint": "收藏影片越多，本机选项越丰富；也可直接替换文件夹中的图片",
+        "empty_hint": "收藏视频越多，本机选项越丰富；也可直接替换文件夹中的图片",
         "loading": "抓取候选中…",
         "error": "抓取失败，请稍后再试",
         "replaced": "已更换，随时可再换",
@@ -761,13 +761,13 @@
       "fetching": "抓取中...",
       "success": "剧照补抓完成",
       "fetch_failed": "补抓剧照失败，请稍后再试",
-      "multi_video_error": "此文件夹有其他影片，补抓剧照会污染其他片，请先将影片移至独立文件夹再试"
+      "multi_video_error": "此文件夹有其他视频，补抓剧照会污染其他片，请先将视频移至独立文件夹再试"
     }
   },
   "help": {
     "hero": {
       "page_title": "使用说明",
-      "subtitle": "JAV 影片元数据管理工具",
+      "subtitle": "JAV 视频元数据管理工具",
       "privacy": "🔒 纯本地应用程序，不收集用户数据",
       "btn_tutorial": "重看新手引导",
       "btn_check_update": "检查中…",
@@ -783,7 +783,7 @@
       "title": "第一次使用？先看这 3 步",
       "subtitle": "从加入文件夹到补全资料，三步上手",
       "step1_title": "加入片库文件夹",
-      "step1_desc": "在 Scanner 追踪你的 AV 影片文件夹",
+      "step1_desc": "在 Scanner 追踪你的 AV 视频文件夹",
       "step2_title": "生成网页",
       "step2_desc": "一键扫描并建立可浏览的收藏页",
       "step3_title": "NFO 补全",
@@ -805,9 +805,9 @@
       "scanner_ai_hint": "点「?」开启 AI 建议框：把你的 tag 需求描述给 AI，它会回传建议的别名组供你直接汇入。",
       "h6_showcase": "Showcase 自动展开",
       "showcase_expand": "搜索框输入或 chip 点击时，自动展开同义词过滤，与女优别名行为对齐。",
-      "showcase_click": "点任一 tag chip → 筛出所有同义 tag 的影片，不需要知道正确日文写法。",
+      "showcase_click": "点任一 tag chip → 筛出所有同义 tag 的视频，不需要知道正确日文写法。",
       "h6_tips": "进阶提示",
-      "tip_ranker": "建完别名后，星座模式（模糊探索）也立即生效 — 同义词的影片会计入相似分数。"
+      "tip_ranker": "建完别名后，星座模式（模糊探索）也立即生效 — 同义词的视频会计入相似分数。"
     },
     "search": {
       "title": "搜索功能",
@@ -819,7 +819,7 @@
       "method_partial": "<strong>部分番号</strong>：如 <code>SONE-0</code>，搜索 001~009",
       "method_series": "<strong>系列搜索</strong>：如 <code>SONE</code>，搜索该系列最新作品",
       "method_actress": "<strong>女优名</strong>：如 <code>河北彩花</code>，搜索该演员作品",
-      "drag_auto": "将影片文件拖入窗口，自动提取番号并搜索",
+      "drag_auto": "将视频文件拖入窗口，自动提取番号并搜索",
       "drag_batch": "支持多文件批次处理（一次 20 个）",
       "drag_generate": "搜索成功后可点「整理此片」重命名文件、下载封面、建立文件夹与 NFO",
       "grid_switch": "搜索后可切换为封面墙显示，点击封面开启 Lightbox",
@@ -840,8 +840,8 @@
       "h6_pause": "暂停与继续",
       "h6_generate_all": "批量整理",
       "h6_badge": "版本标记保留",
-      "add_folder": "<strong>拖入文件夹</strong>：自动扫描文件夹内的影片文件",
-      "add_filter": "<strong>自动过滤</strong>：排除非影片文件与小于设定大小的文件",
+      "add_folder": "<strong>拖入文件夹</strong>：自动扫描文件夹内的视频文件",
+      "add_filter": "<strong>自动过滤</strong>：排除非视频文件与小于设定大小的文件",
       "add_batch": "<strong>批次搜索</strong>：每批 20 个文件，并发 2 个请求",
       "add_progress": "<strong>进度显示</strong>：即时显示搜索进度（如：处理 15/100）",
       "fav_settings": "在<strong>设置页</strong>设置常用文件夹路径，可从 Scanner 已追踪文件夹下拉选择，inline 即时显示联动状态（✓ 已联动 Scanner / ⚠ 不在追踪范围）",
@@ -891,40 +891,40 @@
       "search_favorite": "搜索结果卡片可直接点 ♡ 加入收藏，已收藏女优本地查询不联网",
       "search_grid": "女优搜索结果超过 10 部时自动切换为封面墙模式，支持 Lightbox 导航",
       "h6_showcase": "浏览页",
-      "showcase_toggle": "工具栏切换影片模式 ↔ 女优模式（片 | 人 图示）",
+      "showcase_toggle": "工具栏切换视频模式 ↔ 女优模式（片 | 人 图示）",
       "showcase_grid": "女优收藏 Grid，支持按名称、年龄、罩杯、身高、添加日期排序",
       "showcase_lightbox": "灯箱可换照片或移除收藏",
       "h6_manage": "收藏管理",
       "manage_add": "从搜索页或浏览页加入收藏，照片自动下载至本地",
       "manage_alias": "别名管理：Scanner 页面可新增、编辑女优别名，搜索时自动展开所有已知名称",
-      "manage_enrich": "灯箱右上 🔄 可替换女优照片，候选来源含云端与本机影片封面",
+      "manage_enrich": "灯箱右上 🔄 可替换女优照片，候选来源含云端与本机视频封面",
       "manage_photo_path": "收藏女优的照片存放于 output/Gfriends/ 目录下，换头像时会自动展开女优的所有 alias 名做本地候选查询"
     },
     "scanner": {
-      "title": "影片列表生成 (Scanner)",
+      "title": "视频列表生成 (Scanner)",
       "h6_features": "功能说明",
       "h6_output": "输出文件",
       "h6_subtitle": "字幕文件自动检测",
       "h6_jellyfin": "Jellyfin 图片模式",
-      "feat_scan": "扫描本地影片文件夹，生成精美的 HTML 展示页",
+      "feat_scan": "扫描本地视频文件夹，生成精美的 HTML 展示页",
       "feat_nfo": "自动读取 NFO 文件并显示元数据",
       "feat_nfo_fill": "支持「NFO 补全」：自动搜索缺失的 NFO 文件",
       "feat_terminal": "内建 Mini Terminal 显示即时处理进度",
       "output_html": "<strong>index.html</strong>：可在浏览器开启的静态页面",
       "output_copy": "<strong>自动复制</strong>：封面图与 NFO 复制到输出目录",
       "output_darkmode": "<strong>Dark Mode</strong>：自动跟随 Web App 的主题设置",
-      "subtitle_detect": "整理影片时，自动检测同目录下同名的字幕文件（<code>.srt</code>、<code>.ass</code>、<code>.ssa</code>）",
-      "subtitle_move": "影片移动成功后，字幕会一起带到目标文件夹，保留语言后缀（如 <code>.cht.srt</code>）",
+      "subtitle_detect": "整理视频时，自动检测同目录下同名的字幕文件（<code>.srt</code>、<code>.ass</code>、<code>.ssa</code>）",
+      "subtitle_move": "视频移动成功后，字幕会一起带到目标文件夹，保留语言后缀（如 <code>.cht.srt</code>）",
       "subtitle_nfo": "检测到字幕时，NFO 会自动加上「中文字幕」标记",
       "jellyfin_enable": "在<strong>设置页</strong>开启后，扫描时自动生成 <code>-poster.jpg</code> + <code>-fanart.jpg</code>",
       "jellyfin_showcase": "扫描完成后可至 <code>/showcase</code> 页面浏览生成结果"
     },
     "showcase": {
-      "title": "影片浏览 (Showcase)",
+      "title": "视频浏览 (Showcase)",
       "h6_modes": "显示模式",
       "h6_sort": "排序与搜索",
       "h6_other": "其他功能",
-      "intro": "Scanner 扫描完成后，可至 <code>/showcase</code> 页面浏览影片库。",
+      "intro": "Scanner 扫描完成后，可至 <code>/showcase</code> 页面浏览视频库。",
       "mode_grid": "<strong>图片模式（Grid）</strong>：封面墙显示，点击开启 Lightbox",
       "mode_list": "<strong>文字模式（List）</strong>：精简列表，适合快速浏览",
       "mode_table": "<strong>详细模式（Table）</strong>：含完整元数据的表格显示",
@@ -947,7 +947,7 @@
       "ctx_lightbox_open": "Lightbox 开启时",
       "ctx_lightbox_closed": "Lightbox 关闭时",
       "action_close_lightbox": "关闭 Lightbox",
-      "action_prev_next_video": "上 / 下一部影片",
+      "action_prev_next_video": "上 / 下一部视频",
       "search_arrow2_ctx": "Detail 模式，Lightbox 关闭",
       "search_arrow2_action": "切换上 / 下一个结果",
       "showcase_arrow_action": "上 / 下一页",
@@ -1055,7 +1055,7 @@
     "next": "下一步 →",
     "done": "完成 🎉",
     "step1_title": "📂 加入片库文件夹",
-    "step1_content": "把放 AV 影片的文件夹路径加进来<br>OpenAver 会扫出所有影片并建立浏览页",
+    "step1_content": "把放 AV 视频的文件夹路径加进来<br>OpenAver 会扫出所有视频并建立浏览页",
     "step2_title": "▶ 生成网页",
     "step2_content": "按下这个按钮，扫描 + 建立你的私人收藏页<br>几秒就好",
     "step3_title": "🌐 NFO 补全入口",

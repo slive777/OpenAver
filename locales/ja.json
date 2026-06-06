@@ -547,7 +547,7 @@
     "tag_alias": {
       "section_title": "Tag エイリアス管理",
       "collapse_title": "展開 / 折りたたむ",
-      "new_group_placeholder": "例：メイド / 女僕 / 女傭",
+      "new_group_placeholder": "例：メイド / 女中 / Maid",
       "add": "追加",
       "loading": "読み込み中...",
       "empty": "Tag エイリアスの記録がありません",
