@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **color-mix 色相插值修正**（CDP 終驗發現）：tint/border 的 `color-mix` partner 一律用 `transparent`（同 base 慣例）——dim surface 帶藍色相（264°），oklch 與暖色 mix 會沿色相環插值變調（amber→紫）；`transparent` 無色相 → 精準保留語義色。
 
 ### Changed
+- **進階搜尋 picker 預設改為開啟**：`advanced_search_enabled` 預設值 `false` → `true`（三源對齊：`config.default.json` seed / `AppConfig` Pydantic default / `state-config.js` Alpine 初值）。新用戶／恢復原廠即可在掃描來源頁直接挑單一來源重刮，不需先進設定頁手動開啟；「下載劇照」維持預設關閉（兩者正交）。現有用戶 config.json 既有值不被覆蓋（migration 設計，保留既有偏好）。
 - **design-system**：補進階重刮彈窗 + metatube 連線 banner 兩 demo（dim 驗證面）；膠囊 999px 白名單標題「5 類」→「7 類」+ 補類 6（source-pill）/ 類 7（segmented）交叉引用卡；過時 notification center 註解修正。修掉新增 demo 引入的 duplicate `id="settings-components"`（Codex P3）。
 
 ### Non-Goals（明確不做）
