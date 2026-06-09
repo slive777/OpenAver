@@ -287,6 +287,21 @@
     animation: source-pill-spin 0.6s linear infinite;
 }
 
+/* B2 (P2-1): CF waiting bar AND search-status row use .pill-spin outside .source-pill →
+ * the ancestor-scoped .source-pill .pill-spin rule never matches there, so the spinner
+ * renders blank. One shared selector covers both out-of-pill contexts.
+ * Reuses source-pill-spin keyframes (global). Uses --accent (= --color-primary) since
+ * --pill-accent is not set in this context. Token-based: no hardcoded colors. */
+.rescrape-cf-waiting .pill-spin,
+.rescrape-search-status .pill-spin {
+    width: 0.85rem;
+    height: 0.85rem;
+    border: 2px solid color-mix(in oklch, var(--accent) 35%, transparent);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: source-pill-spin 0.6s linear infinite;
+}
+
 @keyframes source-pill-spin {
     to {
         transform: rotate(360deg);
@@ -333,4 +348,11 @@
 [data-theme="dim"] .source-pill .pill-spin {
     border-color: color-mix(in oklch, var(--pill-accent) 55%, transparent);
     border-top-color: var(--pill-accent);
+}
+
+/* B2: 同 P8 校準套用到 out-of-pill spinner（CF 等待列 / 搜尋狀態），track 35%→55% 避免近黑 dim surface 吃光 */
+[data-theme="dim"] .rescrape-cf-waiting .pill-spin,
+[data-theme="dim"] .rescrape-search-status .pill-spin {
+    border-color: color-mix(in oklch, var(--accent) 55%, transparent);
+    border-top-color: var(--accent);
 }

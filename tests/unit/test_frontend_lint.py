@@ -9943,9 +9943,11 @@ class TestJavlibraryCfFlowT6Guard:
     # (5) rescrapeWithSource 含 cf_needed 且在 rescrapeNotFound = true 之前
     def test_state_rescrape_cf_needed_before_notfound(self):
         js = _STATE_RESCRAPE_JS.read_text(encoding="utf-8")
-        assert "cf_needed" in js, \
-            "70-T6 違規：state-rescrape.js 未含 cf_needed 處理"
-        cf_pos = js.index("cf_needed")
+        # Anchor on the consuming expression `data.cf_needed` (not bare `cf_needed`
+        # which could match a comment at an earlier position — B2-P3-1 hardening).
+        assert "data.cf_needed" in js, \
+            "70-T6 違規：state-rescrape.js 未含 data.cf_needed 消費表達式"
+        cf_pos = js.index("data.cf_needed")
         # rescrapeNotFound = true 在 showcase 分支的 else 中（最後一次出現）
         notfound_pos = js.rindex("rescrapeNotFound = true")
         assert cf_pos < notfound_pos, \
@@ -9989,16 +9991,19 @@ class TestJavlibraryCfFlowT6Guard:
         落入 rescrapeNotFound=true，CF flow 不觸發。修法：上移 cf_needed/cf_unavailable
         至所有入口分支（switch-source / showcase）之前統一處理。
         此守衛確保上移後不回歸（字串位置比對）。
+
+        B2-P3-1 hardening: anchor on `data.cf_needed` (the consuming expression),
+        not bare `cf_needed` which could match a comment appearing earlier in the file.
         """
         js = _STATE_RESCRAPE_JS.read_text(encoding="utf-8")
-        assert "cf_needed" in js, \
-            "70-T6 P2 違規：state-rescrape.js 未含 cf_needed 處理"
+        assert "data.cf_needed" in js, \
+            "70-T6 P2 違規：state-rescrape.js 未含 data.cf_needed 消費表達式"
         assert "rescrapeEntryPoint === 'switch-source'" in js, \
             "70-T6 P2 違規：state-rescrape.js 未含 switch-source 分支"
-        cf_pos = js.index("cf_needed")
+        cf_pos = js.index("data.cf_needed")
         sw_pos = js.index("rescrapeEntryPoint === 'switch-source'")
         assert cf_pos < sw_pos, (
-            f"70-T6 P2 違規：cf_needed 處理（pos={cf_pos}）必須在 switch-source 分支"
+            f"70-T6 P2 違規：data.cf_needed 處理（pos={cf_pos}）必須在 switch-source 分支"
             f"（pos={sw_pos}）之前，否則 switch-source 入口永遠看不到 CF flow"
         )
 
@@ -10022,27 +10027,41 @@ class TestJavlibraryCfFlowT6Guard:
 class TestRescrapeModalSearchHideJlPillGuard:
     """
     FIX-2：_rescrape_modal.html builtin pill 在 search 入口隱藏 manual_only && is_beta pill。
-    守衛確認 x-show 條件字串存在（manual_only + is_beta + rescrapeEntryPoint === 'search'）。
+
+    B2-P3-1 hardening: anchor on the full x-show expression from _rescrape_modal.html ~L49
+    instead of the three component strings individually. Each component string exists
+    elsewhere in the modal independently, so individual checks are comment-foolable.
+    Exact expression: x-show="!(s.manual_only && s.is_beta && rescrapeEntryPoint === 'search')"
     """
+
+    # The full load-bearing x-show expression (from _rescrape_modal.html ~L49).
+    _XSHOW_EXPR = 'x-show="!(s.manual_only && s.is_beta && rescrapeEntryPoint === \'search\')"'
 
     def _html(self):
         return _MODAL_HTML_70.read_text(encoding="utf-8")
 
     def test_modal_builtin_pill_has_search_hide_condition(self):
-        """_rescrape_modal.html builtin pill 含 search 入口 x-show 隱藏條件。"""
+        """_rescrape_modal.html builtin pill 含 search 入口 x-show 隱藏條件。
+
+        B2-P3-1: anchored on the full x-show expression so removing/changing the
+        condition fails the guard, even if the component strings remain as comments.
+        """
         html = self._html()
-        assert "rescrapeEntryPoint === 'search'" in html, (
-            "FIX-2 違規：_rescrape_modal.html builtin pill 缺 rescrapeEntryPoint === 'search' 條件"
+        assert self._XSHOW_EXPR in html, (
+            "FIX-2 違規：_rescrape_modal.html builtin pill 缺完整 x-show 隱藏表達式 "
+            f"{self._XSHOW_EXPR!r}（~L49）"
         )
 
     def test_modal_builtin_pill_hide_references_manual_only_and_is_beta(self):
-        """_rescrape_modal.html builtin pill x-show 同時含 manual_only 和 is_beta。"""
+        """_rescrape_modal.html builtin pill x-show 同時含 manual_only 和 is_beta。
+
+        B2-P3-1: also anchored via the full expression (backward-compat assertion —
+        the full x-show expression implicitly covers both; kept for readable error messages).
+        """
         html = self._html()
-        assert "manual_only" in html, (
-            "FIX-2 違規：_rescrape_modal.html builtin pill 缺 manual_only 在 x-show 條件中"
-        )
-        assert "is_beta" in html, (
-            "FIX-2 違規：_rescrape_modal.html builtin pill 缺 is_beta 在 x-show 條件中"
+        assert self._XSHOW_EXPR in html, (
+            "FIX-2 違規：_rescrape_modal.html builtin pill 完整 x-show 表達式（含 manual_only "
+            "及 is_beta）遺失"
         )
 
 

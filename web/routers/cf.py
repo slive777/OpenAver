@@ -40,7 +40,6 @@ def cf_abandon(key: str = "javlibrary") -> dict:
     emit_notification(
         "warn",
         "notif.jl_cf_timeout",
-        message="CF 驗證未在時限內完成，本次 JavLibrary 抓取取消。",
         task_type="cf_abandon",
     )
     return {"ok": True}

@@ -23,13 +23,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Internal
 - 平台無關 CF transport DI 接縫（`core/cf_transport.py` Protocol）＋ PyWebView 實作（`windows/cf_transport_impl.py`）＋ 來源註冊（`utils/source_config`、scraper、config migration）＋ picker BETA 視覺 / 非桌面 gate ＋ `/api/cf/status`、`/api/cf/abandon` 端點 ＋ 前端 poll 協調（後端無狀態，try-fetch-first）。
 - 三輪 AI review（Codex ＋ Opus）修正：age-gate 偵測收窄為 `agreeBtn`（避免正常頁 footer 誤判）、search 入口防 500（結構化回應 ＋ 隱藏 JL pill）、`begin_solve` 例外防護、單一命中 `detail_url` 留空、番號核對守衛防回錯片。
+- **70c hardening pass**（TASK-70c-B，第二輪 Opus review）：
+  - **殭屍行程修正（B1，P1）**：`_on_main_closing` 設 `quitting=True` 後加 `jl_win.destroy()`——pywebview 只在 `instances==0` 才 `_shutdown()`，隱藏的 JL 視窗若未銷毀，關閉主視窗後 process 持續佔 port；此修正啟用了原本的 quitting-guard（舊 dead code）。
+  - **關窗攔截（T70c-A，close-intercept）**：`_on_jl_closing` 回 `False` 取消關閉 → 用戶按 ✕ 只隱藏，transport 物件存活、免重啟（Layer 1 root-fix）；`_on_main_closing` quitting=True guard 讓 app 退出時正常放行。
+  - **spinner CSS（B2，P2-1）**：`rescrape-cf-waiting` 底下 `.pill-spin` 缺 ancestor-scoped 規則 → 渲染空白；補 `.rescrape-cf-waiting .pill-spin` + 容器 flex layout（token-based，複用 `source-pill-spin` keyframes）。
+  - **通知 i18n（B3，P3-2）**：`/api/cf/abandon` 的 `emit_notification` `message=` 硬編碼中文 → EN/JA 看到中文；`title_key = notif.jl_cf_timeout` 四語系均已有翻譯，直接移除 `message=`，toast 僅顯示 title（i18n-compliant，零架構改動）。
+  - **守衛強化（P3-1）**：`cf_needed` 位置守衛由 `js.index("cf_needed")`（命中第 185 行註解）改錨 `data.cf_needed`（實際消費表達式）；`TestRescrapeModalSearchHideJlPillGuard` 改錨完整 `x-show` 表達式（L49），防止留空殼字串騙過守衛。
+  - **B1 AST 守衛**：`test_standalone_init_order_guard.py` 新增 `test_on_main_closing_destroys_jl_win` 鎖定 `jl_win.destroy()` 呼叫（AST，防靜默回退）。
 
 ### Non-Goals（明確不做）
 - 不支援 server / NAS / Docker（CF 需真人 ＋ 真瀏覽器 ＋ 桌面 GUI）、不做自動繞過 CF、不做模糊／演員搜尋、Transport A（cookie→curl_cffi）結構性死路不實作。
 
 ### 測試
-- 全套 pytest **3714 passed, 2 skipped**（unit ＋ integration，排除 smoke / e2e）＋ `npm run lint`（eslint ＋ stylelint）綠。
-- 新增測試：`test_cf_transport` / `test_javlibrary_parser` / `test_javlibrary_scraper` / `test_javlibrary_contracts` / `test_cf_transport_impl` / `test_javlibrary_cf_flow` / `test_api_cf_endpoints` ＋ 前端守衛（`TestJavlibraryPickerT5Guard` / `T6Guard` / `SearchHideJlPillGuard`）。
+- 全套 pytest **3733 passed, 2 skipped**（unit ＋ integration，排除 smoke / e2e）＋ `npm run lint`（eslint ＋ stylelint）綠。
+- 新增測試：`test_cf_transport` / `test_javlibrary_parser` / `test_javlibrary_scraper` / `test_javlibrary_contracts` / `test_cf_transport_impl` / `test_javlibrary_cf_flow` / `test_api_cf_endpoints` ＋ 前端守衛（`TestJavlibraryPickerT5Guard` / `T6Guard` / `SearchHideJlPillGuard`）＋ 70c-B 強化守衛（`test_on_main_closing_destroys_jl_win` ＋ 強化 cf_needed / x-show 守衛）。
 
 ## [0.9.8] - 2026-06-06
 

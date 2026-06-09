@@ -306,6 +306,10 @@ def main():
         from cf_transport_impl import PyWebViewCfTransport   # sibling import（WINDOWS_DIR 已在 sys.path）
         from core.scrapers.javlibrary import JAVLIBRARY_ORIGIN
         from core.cf_transport import register_cf_transport
+        # NOTE (P3-6, follow-up): the JL window loads JAVLIBRARY_ORIGIN at launch — so the
+        # app connects to javlibrary.com on every startup, even when the source is disabled.
+        # This is required by the same-origin fetch design (the hidden window must be parked
+        # on the origin for cookie-bearing fetch). A lazy-navigate refactor is a follow-up branch.
         jl_win = webview.create_window(
             'JavLibrary — CF 驗證',
             JAVLIBRARY_ORIGIN,
@@ -327,6 +331,11 @@ def main():
     def _on_main_closing():
         # main window closing = app is quitting → let JL window close normally
         _app_state["quitting"] = True
+        if jl_win is not None:
+            try:
+                jl_win.destroy()
+            except Exception:
+                logger.warning("failed to destroy JL window on app close")
 
     def _on_jl_closing():
         # CD-70c-2 Layer 1: user closing the hidden CF window must NOT destroy it

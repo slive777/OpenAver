@@ -153,6 +153,15 @@
     animation: modal-scale-fade-in var(--fluent-duration-fast) var(--fluent-ease-decel);
 }
 
+.rescrape-cf-waiting {
+    margin-top: 0.7rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
 .rescrape-search-status {
     margin-right: auto;
     display: inline-flex;

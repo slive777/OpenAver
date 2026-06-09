@@ -351,3 +351,40 @@ class TestStandaloneInitOrderGuard:
             "`return False` not found in _on_jl_closing body — "
             "close-intercept must return False to cancel the close event (CD-70c-2)"
         )
+
+    def test_on_main_closing_destroys_jl_win(self):
+        """
+        B1 guard (TASK-70c-B): _on_main_closing must call jl_win.destroy() after
+        setting quitting=True, so the hidden JL window is reaped when the main window
+        closes. Without this, pywebview only exits when instances==0, but the hidden
+        JL window keeps the instance list non-empty → process hangs (zombie).
+
+        AST: find the _on_main_closing FunctionDef inside main(), walk it, assert
+        a Call with func.attr=='destroy' and func.value.id=='jl_win'.
+        """
+        tree, _ = self._parse()
+        main_node = _find_main_func(tree)
+        assert main_node is not None, "main() not found"
+
+        handler_def = _find_func_def(main_node, "_on_main_closing")
+        assert handler_def is not None, (
+            "def _on_main_closing not found inside main() — "
+            "B1 zombie-process fix requires _on_main_closing (standalone.py)"
+        )
+
+        # Walk _on_main_closing body for a Call: jl_win.destroy(...)
+        handler_calls = _collect_calls_in_node(handler_def)
+        jl_destroy_calls = [
+            c for c in handler_calls
+            if (
+                isinstance(c.func, ast.Attribute)
+                and c.func.attr == "destroy"
+                and isinstance(c.func.value, ast.Name)
+                and c.func.value.id == "jl_win"
+            )
+        ]
+        assert jl_destroy_calls, (
+            "jl_win.destroy() call not found in _on_main_closing body — "
+            "B1 fix: must destroy the hidden JL window on app close so pywebview "
+            "can reach instances==0 and exit cleanly (TASK-70c-B)"
+        )
