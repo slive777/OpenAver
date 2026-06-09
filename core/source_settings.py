@@ -101,6 +101,9 @@ def is_uncensored_mode_effective(config: dict) -> bool:
         for s in sources:
             if not isinstance(s, dict):
                 continue
+            # manual_only=True 的來源（javlibrary 等）不參與無碼模式推導（CD-70b）。
+            if s.get('manual_only') is True:
+                continue
             if s.get('id') in CENSORED_SOURCES and s.get('enabled') is True:
                 return False
         return True

@@ -200,3 +200,12 @@ def test_capability_count_unchanged_no_new_capability():
     # 不得新增 metatube 連線健康度 capability（spec US6 取消）
     assert "metatube_status" not in src
     assert "metatube_health" not in src
+
+
+def test_javlibrary_excluded_from_scraper_sources(client):
+    """T3 收尾(a)：javlibrary is_beta=True + manual_only=True，
+    is_beta gate（scraper_sources.py:L58）自動排除 → 不出現在 /api/scraper-sources。"""
+    data = client.get("/api/scraper-sources").json()
+    ids = [s["id"] for s in data["sources"]]
+    assert "javlibrary" not in ids
+    assert data["total_enabled"] == 8  # 8 builtin 不受影響

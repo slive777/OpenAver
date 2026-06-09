@@ -20,6 +20,7 @@ from core.scrapers import (
     JavBusScraper, JAV321Scraper, JavDBScraper,
     FC2Scraper, AVSOXScraper,
     D2PassScraper, HEYZOScraper, DMMScraper,
+    JavLibraryScraper,          # T3 新增
     Video, ScraperConfig, BaseScraper
 )
 from core.scrapers.utils import extract_number as _new_extract_number, FUZZY_SEARCH_SOURCES
@@ -243,6 +244,7 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '', javbus_la
         'heyzo': lambda: [HEYZOScraper()],
         'fc2': lambda: [FC2Scraper()],
         'avsox': lambda: [AVSOXScraper()],
+        'javlibrary': lambda: [JavLibraryScraper()],
     }
 
     # 63c：動態注入 metatube provider（CD-63c-2）

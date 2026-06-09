@@ -18,7 +18,7 @@ from typing import Callable, Literal, Optional, List
 from pydantic import BaseModel, Field
 
 from core.logger import get_logger
-from core.source_config import SourceConfig, get_builtin_sources
+from core.source_config import SourceConfig, get_builtin_sources, get_manual_only_sources
 from core.video_extensions import DEFAULT_VIDEO_EXTENSIONS
 
 logger = get_logger(__name__)
@@ -368,6 +368,20 @@ def _load_config_unlocked() -> dict:
             except Exception:
                 raw_config['sources'] = []
             need_save = True
+
+        # Additive migration（T3）：javlibrary manual_only BETA 追加（若缺席）。
+        # 防禦性、獨立於上方三分支（缺段/合法/損壞），保證全部路徑都能走到。
+        # fail-open：不讓啟動失敗。
+        try:
+            if isinstance(raw_config.get('sources'), list):
+                existing_ids = {s.get('id') for s in raw_config['sources'] if isinstance(s, dict)}
+                if 'javlibrary' not in existing_ids:
+                    raw_config['sources'].append(
+                        get_manual_only_sources()[0].model_dump()
+                    )
+                    need_save = True
+        except Exception as exc:
+            logger.warning("[Config] javlibrary additive migration 發生例外，略過：%s", exc)
 
         # Save migrated config（已持鎖 → 用 unlocked 版避免自我死鎖）
         if need_save:

@@ -594,7 +594,8 @@ class TestMigrationSources:
         return {s["id"]: s["enabled"] for s in sources}
 
     def test_fresh_config_gets_8_builtin_all_enabled(self, tmp_path, monkeypatch):
-        """config.json 無 sources key → load_config() 後補入 8 個 builtin 全 enabled=true"""
+        """config.json 無 sources key → load_config() 後補入 8 個 builtin 全 enabled=true
+        （T3 後：additive migration 再追加 javlibrary manual_only，共 9 條）"""
         config_path = tmp_path / "config.json"
         _write_config(config_path, {"general": {"theme": "light"}})
         monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
@@ -604,10 +605,16 @@ class TestMigrationSources:
 
         sources = result["sources"]
         assert isinstance(sources, list)
-        assert len(sources) == 8
-        assert all(s["enabled"] is True for s in sources)
-        ids = [s["id"] for s in sources]
+        # T3 後：8 builtin + 1 javlibrary manual_only（additive migration）
+        builtin_sources = [s for s in sources if not s.get("manual_only")]
+        assert len(builtin_sources) == 8
+        assert all(s["enabled"] is True for s in builtin_sources)
+        ids = [s["id"] for s in builtin_sources]
         assert ids == ["dmm", "javbus", "jav321", "javdb", "d2pass", "heyzo", "fc2", "avsox"]
+        # javlibrary 也存在，manual_only=True
+        jl_sources = [s for s in sources if s.get("id") == "javlibrary"]
+        assert len(jl_sources) == 1
+        assert jl_sources[0]["manual_only"] is True
 
     def test_upgrade_preserves_existing_keys(self, tmp_path, monkeypatch):
         """既有完整 config 但無 sources → 補 8 builtin 且所有既有 key/value 字面保留"""
@@ -640,9 +647,10 @@ class TestMigrationSources:
 
         result = load_config()
 
-        # sources 補齊
-        assert len(result["sources"]) == 8
-        assert all(s["enabled"] is True for s in result["sources"])
+        # sources 補齊（T3 後：8 builtin + 1 javlibrary manual_only = 9 條）
+        builtin_sources = [s for s in result["sources"] if not s.get("manual_only")]
+        assert len(builtin_sources) == 8
+        assert all(s["enabled"] is True for s in builtin_sources)
         # 既有 key 字面保留
         assert result["general"]["theme"] == "dark"
         assert result["general"]["locale"] == "ja"
@@ -654,7 +662,8 @@ class TestMigrationSources:
         assert result["source_links"]["dmm"] is True
 
     def test_idempotent_valid_sources_unchanged(self, tmp_path, monkeypatch):
-        """已存在合法 sources（javbus disabled）→ 不重生、不覆寫"""
+        """已存在合法 sources（javbus disabled）→ 不重生、不覆寫
+        （T3 後：additive migration 追加 javlibrary，共 4 條）"""
         config_path = tmp_path / "config.json"
         existing = [
             {"id": "dmm", "type": "builtin", "display_name_key": "DMM", "enabled": True, "order": 0},
@@ -667,8 +676,10 @@ class TestMigrationSources:
 
         result = load_config()
 
-        assert len(result["sources"]) == 3
-        emap = self._enabled_map(result["sources"])
+        # T3 後：3 既有 + 1 javlibrary（additive migration）= 4
+        non_javlibrary = [s for s in result["sources"] if s.get("id") != "javlibrary"]
+        assert len(non_javlibrary) == 3
+        emap = self._enabled_map(non_javlibrary)
         assert emap["javbus"] is False
         assert emap["dmm"] is True
 
@@ -696,7 +707,8 @@ class TestMigrationSources:
         assert emap["avsox"] is True
 
     def test_uncensored_mode_does_not_convert_existing_sources(self, tmp_path, monkeypatch):
-        """uncensored_mode_enabled=true 但 sources 段已存在 → 冪等優先，不觸發轉換"""
+        """uncensored_mode_enabled=true 但 sources 段已存在 → 冪等優先，不觸發轉換
+        （T3 後：additive migration 追加 javlibrary，既有 dmm 不受影響）"""
         config_path = tmp_path / "config.json"
         existing = [
             {"id": "dmm", "type": "builtin", "display_name_key": "DMM", "enabled": True, "order": 0},
@@ -710,11 +722,14 @@ class TestMigrationSources:
 
         result = load_config()
 
-        assert len(result["sources"]) == 1
-        assert result["sources"][0]["enabled"] is True
+        # T3 後：1 既有 dmm + 1 javlibrary（additive migration）= 2
+        non_javlibrary = [s for s in result["sources"] if s.get("id") != "javlibrary"]
+        assert len(non_javlibrary) == 1
+        assert non_javlibrary[0]["enabled"] is True
 
     def test_corrupt_sources_string_fallback(self, tmp_path, monkeypatch):
-        """sources 是字串（損壞）→ fallback 8 builtin 全 enabled + sources_bak 持有原值"""
+        """sources 是字串（損壞）→ fallback 8 builtin 全 enabled + sources_bak 持有原值
+        （T3 後：additive migration 再追加 javlibrary，共 9 條）"""
         config_path = tmp_path / "config.json"
         _write_config(config_path, {"sources": "broken"})
         monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
@@ -723,8 +738,10 @@ class TestMigrationSources:
         result = load_config()
 
         assert isinstance(result["sources"], list)
-        assert len(result["sources"]) == 8
-        assert all(s["enabled"] is True for s in result["sources"])
+        # T3 後：8 builtin（fallback）+ 1 javlibrary（additive migration）= 9
+        builtin_sources = [s for s in result["sources"] if not s.get("manual_only")]
+        assert len(builtin_sources) == 8
+        assert all(s["enabled"] is True for s in builtin_sources)
         assert result["sources_bak"] == "broken"
 
     def test_corrupt_sources_missing_id_fallback(self, tmp_path, monkeypatch, caplog):
@@ -739,12 +756,15 @@ class TestMigrationSources:
         with caplog.at_level(logging.WARNING):
             result = load_config()
 
-        assert len(result["sources"]) == 8
-        assert all(s["enabled"] is True for s in result["sources"])
+        # T3 後：8 builtin（fallback）+ 1 javlibrary（additive migration）= 9
+        builtin_sources = [s for s in result["sources"] if not s.get("manual_only")]
+        assert len(builtin_sources) == 8
+        assert all(s["enabled"] is True for s in builtin_sources)
         assert result["sources_bak"] == bad
 
     def test_corrupt_then_valid_keeps_first_bak(self, tmp_path, monkeypatch):
-        """損壞修復後第二次啟動：sources 已合法 → sources_bak 保留不動"""
+        """損壞修復後第二次啟動：sources 已合法 → sources_bak 保留不動
+        （T3 後：第二次 load 的 sources 含 javlibrary，共 9 條）"""
         config_path = tmp_path / "config.json"
         _write_config(config_path, {"sources": "broken"})
         monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
@@ -755,7 +775,9 @@ class TestMigrationSources:
         # config.json 已被 save_config 寫回合法 sources + sources_bak
 
         second = load_config()
-        assert len(second["sources"]) == 8
+        # T3 後：8 builtin + 1 javlibrary（additive migration）= 9；javlibrary 冪等不重複
+        builtin_sources = [s for s in second["sources"] if not s.get("manual_only")]
+        assert len(builtin_sources) == 8
         assert second["sources_bak"] == "broken"  # 不被合法 sources 清掉
 
 
@@ -891,3 +913,55 @@ class TestMutateConfigAndAtomicWrite:
         assert "primary_source" not in persisted.get("search", {})
         # 鎖已釋放（load_config 結束後不應仍持有）
         assert core_config._config_write_lock.locked() is False
+
+
+# ============ T3：javlibrary migration additive step ============
+
+class TestJavlibraryMigration:
+    """T3：config migration additive step 測試。"""
+
+    def _patch(self, tmp_path, monkeypatch):
+        config_path = tmp_path / "config.json"
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
+        return config_path
+
+    # a) 8-builtin 既有 config → load 後 sources 含 javlibrary（order=99, manual_only=True）
+    def test_additive_appends_javlibrary_to_existing(self, tmp_path, monkeypatch):
+        config_path = self._patch(tmp_path, monkeypatch)
+        # 寫入 8 個 builtin（模擬既有用戶 config）
+        existing = AppConfig().model_dump()
+        config_path.write_text(json.dumps(existing, ensure_ascii=False))
+
+        result = load_config()
+        ids = [s.get('id') for s in result['sources']]
+        assert 'javlibrary' in ids
+        jl = next(s for s in result['sources'] if s.get('id') == 'javlibrary')
+        assert jl['manual_only'] is True
+        assert jl['is_beta'] is True
+        assert jl['order'] == 99
+
+    # b) 冪等：已有 javlibrary → 不重複 append
+    def test_additive_idempotent(self, tmp_path, monkeypatch):
+        config_path = self._patch(tmp_path, monkeypatch)
+        from core.source_config import get_manual_only_sources
+        existing = AppConfig().model_dump()
+        existing['sources'].append(get_manual_only_sources()[0].model_dump())
+        config_path.write_text(json.dumps(existing, ensure_ascii=False))
+
+        result = load_config()
+        jl_entries = [s for s in result['sources'] if s.get('id') == 'javlibrary']
+        assert len(jl_entries) == 1  # 不重複
+
+    # c) 已有 javlibrary 且用戶自訂 order=50 → 不被改動
+    def test_additive_preserves_existing_javlibrary_config(self, tmp_path, monkeypatch):
+        config_path = self._patch(tmp_path, monkeypatch)
+        from core.source_config import get_manual_only_sources
+        existing = AppConfig().model_dump()
+        custom_jl = {**get_manual_only_sources()[0].model_dump(), 'order': 50}
+        existing['sources'].append(custom_jl)
+        config_path.write_text(json.dumps(existing, ensure_ascii=False))
+
+        result = load_config()
+        jl = next(s for s in result['sources'] if s.get('id') == 'javlibrary')
+        assert jl['order'] == 50  # 用戶設定不被覆蓋

@@ -345,6 +345,13 @@ FUZZY_SEARCH_SOURCES = ['javbus', 'dmm']
 
 SOURCE_ORDER = CENSORED_SOURCES + UNCENSORED_SOURCES
 
+# CD-70b-10：javlibrary 有碼 manual_only BETA。
+# - 加入 CENSORED_SOURCES 讓 SourceConfig.is_censored（builtin 分支）查到，避免 L77 warning。
+# - 不加入 SOURCE_ORDER（manual_only 不進 fan-out 排序；SOURCE_ORDER = 8-elem fan-out 順序）。
+# - 不加入 FUZZY_SEARCH_SOURCES（CD-70b：exact-only）。
+# - 必須在 SOURCE_ORDER 建立後才 append，否則 SOURCE_ORDER tuple 已含 javlibrary（污染 fan-out）。
+CENSORED_SOURCES.append('javlibrary')
+
 SOURCE_NAMES = {
     'dmm': 'DMM',
     'javbus': 'JavBus',
@@ -354,6 +361,7 @@ SOURCE_NAMES = {
     'heyzo': 'HEYZO',
     'fc2': 'FC2',
     'avsox': 'AVSOX',
+    'javlibrary': 'JavLibrary',
 }
 
 # ============================================================

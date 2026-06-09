@@ -131,6 +131,31 @@ def get_builtin_sources() -> list[SourceConfig]:
     ]
 
 
+def get_manual_only_sources() -> list[SourceConfig]:
+    """回傳 manual_only=True 的 builtin 來源（目前只有 javlibrary BETA）。
+
+    不進 SOURCE_ORDER / fan-out，不揭露至 capabilities，僅供：
+    - config migration additive step（追加至 sources 段）
+    - picker 顯示（T5）
+    - source registration（validate_source_id / source_to_scraper）
+    """
+    return [
+        SourceConfig(
+            id='javlibrary',
+            type='builtin',
+            display_name_key='JavLibrary',
+            display_name_raw='',
+            enabled=False,
+            order=99,          # pinned-last（高於 8 個 builtin 的 0-7）
+            config={},
+            is_beta=True,
+            manual_only=True,
+            # requires_proxy 由 _derive_requires_proxy model_validator 自動推為 False
+            # （javlibrary 不在 PROXY_SOURCES）
+        )
+    ]
+
+
 def get_source_enum(include_auto: bool = False) -> list[str]:
     """回傳 source enum 清單（單一真理來源，供 capabilities 等揭露使用）。
 
@@ -200,6 +225,8 @@ def validate_source_id(sid: str) -> bool:
     - 其他 → False。
     """
     if sid == 'auto':
+        return True
+    if sid == 'javlibrary':
         return True
     if sid in SOURCE_ORDER:
         return True
