@@ -599,7 +599,7 @@
       "success": "Overwritten (cover + NFO)",
       "fail": "Re-scrape failed, please try again later.",
       "jl_desktop_only": "Available in standalone desktop app only",
-      "jl_cf_solving": "Solving Cloudflare challenge in popup window"
+      "jl_cf_solving": "Cloudflare check in progress — will resume automatically once passed"
     },
     "placeholder": {
       "search": "Search ID, actress, title..."

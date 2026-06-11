@@ -599,7 +599,7 @@
       "success": "已覆盖写入（封面 + NFO）",
       "fail": "重新刮削失败，请稍后再试。",
       "jl_desktop_only": "仅限桌面应用程序（standalone）可用",
-      "jl_cf_solving": "Cloudflare 验证中，请在弹出窗口点击"
+      "jl_cf_solving": "Cloudflare 验证中……通过后将自动继续"
     },
     "placeholder": {
       "search": "搜索番号、女优、标题..."

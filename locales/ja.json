@@ -599,7 +599,7 @@
       "success": "上書きしました（カバー + NFO）",
       "fail": "再スクレイプに失敗しました。後でもう一度お試しください。",
       "jl_desktop_only": "デスクトップアプリ（standalone）のみ利用可能",
-      "jl_cf_solving": "ポップアップでCloudflare認証を完了してください"
+      "jl_cf_solving": "Cloudflare 認証中……通過後、自動的に続きます"
     },
     "placeholder": {
       "search": "番号・女優名・タイトルを検索..."
