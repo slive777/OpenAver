@@ -22,6 +22,7 @@ import base64
 import json
 import os
 import sys
+import threading
 import time
 import requests
 from datetime import datetime
@@ -40,6 +41,7 @@ from core.nfo_updater import check_cache_needs_update, update_videos_generator
 from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite
 from core.organizer import generate_jellyfin_images, HEADERS as _EMBED_HEADERS
 from core.config import load_config
+from core import thumbnail_cache
 from core.scraper import smart_search
 from core.source_settings import is_uncensored_mode_effective
 from pydantic import BaseModel
@@ -784,6 +786,124 @@ def get_image(path: str = Query(..., description="圖片路徑")):
         media_type=media_type,
         headers={"Cache-Control": "public, max-age=86400"},
     )
+
+
+# ── feature/71 T3: 縮圖快取端點 ────────────────────────────────────────────────
+# prewarm 單例鎖（背景 daemon thread，fire-and-forget；sync def → 無 event loop）
+_prewarm_lock = threading.Lock()
+_prewarming = False
+
+# fallback 原圖用副檔名 → mime（thumb 端點不抄 get_image 的安全鏈，用 DB 背書）
+_THUMB_FALLBACK_MIME = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.bmp': 'image/bmp',
+}
+
+
+def _serve_thumb_file(tf: Path, request: Request) -> Response:
+    """serve 一個已存在的 thumb webp：強 ETag + no-cache + If-None-Match → 304。
+
+    本地一次 stat（零 DB / 零 NAS）。CD-4 明令不可用 max-age。
+    """
+    etag = f'"{tf.stat().st_mtime_ns}"'
+    if request.headers.get("If-None-Match") == etag:
+        return Response(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
+    return FileResponse(
+        tf,
+        media_type="image/webp",
+        headers={"Cache-Control": "no-cache", "ETag": etag},
+    )
+
+
+@router.get("/thumb")
+def get_thumb(request: Request, path: str = Query(..., description="影片路徑 URI")):
+    """縮圖 serve（feature/71 T3）：hit 零 DB/NAS、miss 生成、失敗 fallback 原圖。
+
+    sync def → 跑在 Starlette threadpool worker thread。
+    """
+    path = unquote(path)
+    tf = thumbnail_cache.thumb_file_for(path)
+
+    # hit：零 DB、零 NAS（只一次本地 stat）— 驗收 4.A 核心
+    if tf.exists():
+        return _serve_thumb_file(tf, request)
+
+    # miss：DB 背書取 cover
+    db_path = get_db_path()
+    if not db_path.exists():
+        return Response(status_code=404, content="無快取")
+
+    repo = VideoRepository(db_path)
+    video = repo.get_by_path(path)
+    if video is None or not video.cover_path:
+        return Response(status_code=404, content="無封面")
+
+    # 路徑轉換一步（不疊 normalize_path）；DB 背書取代 realpath 安全鏈
+    cover_fs = uri_to_fs_path(video.cover_path)
+    if not repo.is_known_cover_path(cover_fs):
+        return Response(status_code=404, content="封面不在快取記錄中")
+
+    if thumbnail_cache.generate(cover_fs, tf):
+        return _serve_thumb_file(tf, request)
+
+    # generate 失敗 → fallback 原圖（D6 不破圖；非 404）
+    ext = os.path.splitext(cover_fs)[1].lower()
+    media_type = _THUMB_FALLBACK_MIME.get(ext, "application/octet-stream")
+    return FileResponse(
+        cover_fs,
+        media_type=media_type,
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+def _prewarm_worker():
+    """背景預熱 daemon thread：對 DB 全部影片補缺縮圖。
+
+    自包 try/except（不冒泡 → 沒包就靜默死 + flag 卡死）+ finally 清 flag。
+    絕不碰 event loop（sync thread 無 running loop）。notification center 跨 thread 安全。
+    """
+    global _prewarming
+    try:
+        _emit_notif("info", "notif.thumb_prewarm_start", task_type="thumb_prewarm")
+        db_path = get_db_path()
+        if not db_path.exists():
+            return
+        repo = VideoRepository(db_path)
+        n = 0
+        for video_uri, cover_fs in thumbnail_cache.iter_missing(repo.get_all()):
+            if thumbnail_cache.generate(cover_fs, thumbnail_cache.thumb_file_for(video_uri)):
+                n += 1
+        _emit_notif("success", "notif.thumb_prewarm_done",
+                    message=f"{n} 張", task_type="thumb_prewarm")
+    except Exception:
+        logger.exception("縮圖預熱背景任務失敗")
+    finally:
+        with _prewarm_lock:
+            _prewarming = False
+
+
+@router.post("/thumb/prewarm")
+def thumb_prewarm():
+    """背景預熱縮圖快取（feature/71 T3）：後端自 gate + 單例鎖，fire-and-forget。
+
+    sync def。前端兩觸發點（toggle-on / scan-done）可無條件 POST，由此 gate。
+    """
+    global _prewarming
+    config = load_config()
+    if not config.get("thumbnail_cache_enabled", False):
+        return {"status": "disabled"}
+
+    with _prewarm_lock:
+        if _prewarming:
+            return {"status": "already_running"}
+        _prewarming = True
+
+    threading.Thread(target=_prewarm_worker, daemon=True).start()
+    return {"status": "started"}
 
 
 @router.get("/video")

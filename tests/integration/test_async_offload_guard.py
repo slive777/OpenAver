@@ -277,6 +277,13 @@ class TestConvertedHandlersAreDef:
     def test_t2_get_local_status_is_def(self):
         assert self._func_type("search.py", "get_local_status") is ast.FunctionDef
 
+    # T3 (71) — thumbnail cache 端點（sync def → Starlette threadpool）
+    def test_t3_71_get_thumb_is_def(self):
+        assert self._func_type("scanner.py", "get_thumb") is ast.FunctionDef
+
+    def test_t3_71_thumb_prewarm_is_def(self):
+        assert self._func_type("scanner.py", "thumb_prewarm") is ast.FunctionDef
+
     def test_t2_motion_lab_data_is_def(self):
         assert self._func_type("motion_lab.py", "motion_lab_data") is ast.FunctionDef
 
