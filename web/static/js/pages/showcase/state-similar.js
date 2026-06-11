@@ -448,6 +448,9 @@ export function stateSimilar() {
             };
             // currentLightboxVideo 直接指向 similarExitVideo（_silentSwitchLightboxByNumber 不呼叫）
             this.currentLightboxVideo = this.similarExitVideo;
+            // 71c-P2: slip-through 繞過 _setLightboxIndex，需手動重走 blur-up reset + same-URL complete-check
+            // （assignment 先、helper 後，讓 $nextTick 在 Alpine patch DOM 後才讀 lightboxCoverFull.complete）
+            this._refreshLbFullBlurUp();
           } else {
             // similarResults 裡也找不到（理論上不發生）→ 靜默，顯示進場前舊影片（同 no-op 行為）
           }

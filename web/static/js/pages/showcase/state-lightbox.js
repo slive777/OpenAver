@@ -68,6 +68,22 @@ export function stateLightbox() {
 
         // --- helper in return {} ---
 
+        // 71c-P2: helper — blur-up state reset + same-URL complete-check（DRY；供 _setLightboxIndex 與
+        // slip-through 路徑（state-similar.js closeSimilarMode）共用，避免兩處邏輯漂移）。
+        // 呼叫時機：currentLightboxVideo 已更新、Alpine reactive patch 尚未跑完（$nextTick 前）。
+        // $nextTick 後 lightboxCoverFull img.complete && naturalWidth > 0 → 瀏覽器已快取 → 直接翻 true，
+        // 跳過 @load 等待；否則等 @load 觸發翻 true。
+        _refreshLbFullBlurUp() {
+            this._lbFullLoaded = false;
+            var self = this;
+            this.$nextTick(function () {
+                var fullImg = self.$refs && self.$refs.lightboxCoverFull;
+                if (fullImg && fullImg.complete && fullImg.naturalWidth > 0) {
+                    self._lbFullLoaded = true;
+                }
+            });
+        },
+
         // F1: helper — 更新 lightboxIndex + currentLightboxVideo 一致性
         _setLightboxIndex(idx) {
             this.lightboxIndex = idx;
@@ -76,18 +92,8 @@ export function stateLightbox() {
             this.currentLightboxActress = null;   // video setter always clear actress
             this.addingLbTag = false;             // 切換影片時重置輸入框
             this._videoChipsExpanded = false;     // 影片切換時 reset chips 展開
-            this._lbFullLoaded = false;           // 71-T6 blur-up：開燈箱/prev-next/重開每次重走（不殘留前一張 true）
-            // 71c same-URL complete-check：若新 cover_full_url 與前次相同，Alpine dirty-check 不改 DOM
-            // → 瀏覽器不重新請求 → @load 不再 fire → _lbFullLoaded 卡 false → .lb-full 停 opacity:0。
-            // $nextTick 後 Alpine 已 patch DOM，此時 img.complete && img.naturalWidth > 0 表示瀏覽器已快取
-            // → 直接翻 _lbFullLoaded=true，跳過 @load 等待。
-            var self = this;
-            this.$nextTick(function () {
-                var fullImg = self.$refs && self.$refs.lightboxCoverFull;
-                if (fullImg && fullImg.complete && fullImg.naturalWidth > 0) {
-                    self._lbFullLoaded = true;
-                }
-            });
+            // 71c-P2: 抽至 _refreshLbFullBlurUp helper（slip-through 路徑共用）
+            this._refreshLbFullBlurUp();
         },
 
         // --- Lightbox (M3a) ---

@@ -10065,14 +10065,21 @@ class TestCoverLoadingUx67Guard:
             "showcase.css 缺 @media (prefers-reduced-motion: reduce) .lb-full { transition: none }（reduced-motion 瞬切）"
 
     def test_lightbox_js_declares_and_resets_lbfullloaded(self):
-        """71-T6: state-lightbox.js 宣告 _lbFullLoaded stub（Alpine 3 ReferenceError 防護）+ _setLightboxIndex 內 reset"""
+        """71-T6/71c-P2: state-lightbox.js 宣告 _lbFullLoaded stub（Alpine 3 ReferenceError 防護）+
+        _refreshLbFullBlurUp helper 含 reset（71c-P2 抽 helper 後邏輯在 helper 而非 inline _setLightboxIndex）"""
         src = SHOWCASE_LIGHTBOX_JS.read_text(encoding="utf-8")
         assert "_lbFullLoaded: false" in src, \
             "state-lightbox.js 缺 _lbFullLoaded: false 宣告（Alpine 3 未宣告丟 ReferenceError，x||fallback 擋不住）"
-        m = re.search(r'_setLightboxIndex\(idx\)\s*\{(.*?)\n\s{8}\}', src, re.S)
-        assert m, "state-lightbox.js: 找不到 _setLightboxIndex(idx) 方法"
-        assert "this._lbFullLoaded = false" in m.group(1), \
-            "_setLightboxIndex 內缺 this._lbFullLoaded = false（開燈箱/prev-next/重開每次重走 blur-up）"
+        # 71c-P2：reset 邏輯抽至 _refreshLbFullBlurUp helper，確認 helper 含 this._lbFullLoaded = false
+        helper_m = re.search(r'_refreshLbFullBlurUp\(\)\s*\{(.*?)\n\s{8}\}', src, re.S)
+        assert helper_m, "state-lightbox.js 找不到 _refreshLbFullBlurUp() helper（71c-P2 blur-up 共用 helper）"
+        assert "this._lbFullLoaded = false" in helper_m.group(1), \
+            "_refreshLbFullBlurUp helper 缺 this._lbFullLoaded = false（開燈箱/prev-next/slip-through 每次重走 blur-up）"
+        # _setLightboxIndex 仍須委託 helper（不可 inline 走樣）
+        set_m = re.search(r'_setLightboxIndex\(idx\)\s*\{(.*?)\n\s{8}\}', src, re.S)
+        assert set_m, "state-lightbox.js: 找不到 _setLightboxIndex(idx) 方法"
+        assert "_refreshLbFullBlurUp" in set_m.group(1), \
+            "_setLightboxIndex 未委託 _refreshLbFullBlurUp（71c-P2 抽 helper 後應呼叫 helper 不可 inline）"
 
 
 class TestPartsBinStagedAffordanceGuard:
@@ -10539,10 +10546,12 @@ SHOWCASE_SIMILAR_JS = Path(__file__).parent.parent.parent / "web" / "static" / "
 class TestLightboxCoverSizeGuards:
     """71c: 守衛 lightbox 封面縮水修復（thumb 放大填滿 + blur-up 鏡像 + same-URL complete-check）
 
-    三條 element-bound 守衛：
+    四條 element-bound 守衛：
     G1 — .lightbox-cover img 有明確 height:（非僅 max-height），確保 400px thumb 放大到 60vh
     G2 — .lb-full 有明確 height:（非僅 max-height），確保 overlay 與 base 尺寸鏡像
-    G3 — state-lightbox.js 含 same-URL @load complete-check（$refs.lightboxCoverFull + .complete + _lbFullLoaded）
+    G3 — state-lightbox.js 含 _refreshLbFullBlurUp helper（same-URL complete-check 抽出共用），
+         且 _setLightboxIndex 與 slip-through 兩處均呼叫該 helper（防回歸繞過）
+    G4 — state-similar.js similarExitVideo 含 cover_full_url 欄位
     """
 
     def _css(self):
@@ -10582,25 +10591,55 @@ class TestLightboxCoverSizeGuards:
         )
 
     def test_lightbox_js_has_sameurl_complete_check(self):
-        """G3: state-lightbox.js _setLightboxIndex 含 same-URL @load complete-check"""
+        """G3: state-lightbox.js 抽出 _refreshLbFullBlurUp helper 含 same-URL complete-check，
+        且 _setLightboxIndex 與 state-similar.js slip-through 均呼叫該 helper（71c-P2 防回歸）"""
+        import re
         js = self._lightbox_js()
-        # 找 _setLightboxIndex 函數體並確認三個關鍵部分都在函數體範圍內
-        idx = js.find("_setLightboxIndex(")
-        assert idx != -1, "state-lightbox.js 找不到 _setLightboxIndex 函數"
-        # 截取 _setLightboxIndex 附近 1400 字元（涵蓋 $nextTick complete-check 區塊，
-        # 含實際 runtime 行 `fullImg.complete && fullImg.naturalWidth`，非僅前段註解）
-        snippet = js[idx: idx + 1400]
-        assert "lightboxCoverFull" in snippet, (
-            "state-lightbox.js _setLightboxIndex 缺少 lightboxCoverFull x-ref 取用"
+        similar_js = self._similar_js()
+
+        # (a) helper 函數體必須存在於 state-lightbox.js，且含 complete-check 三要素
+        helper_idx = js.find("_refreshLbFullBlurUp(")
+        assert helper_idx != -1, (
+            "state-lightbox.js 找不到 _refreshLbFullBlurUp helper"
+            "（71c-P2：blur-up reset + same-URL complete-check 應抽成共用 helper）"
+        )
+        # 截取 helper 函數體（含至 closing brace，取 600 字元已足夠）
+        helper_snippet = js[helper_idx: helper_idx + 600]
+        assert "lightboxCoverFull" in helper_snippet, (
+            "_refreshLbFullBlurUp helper 缺少 lightboxCoverFull x-ref 取用"
             "（same-URL complete-check 需 $refs.lightboxCoverFull）"
         )
-        # 鎖 runtime 表達式 `fullImg.complete`（非註解——註解用 `img.complete`，不會誤命中）
-        assert "fullImg.complete" in snippet and "fullImg.naturalWidth" in snippet, (
-            "state-lightbox.js _setLightboxIndex 缺少 fullImg.complete && fullImg.naturalWidth 檢查"
+        # 鎖 runtime 表達式（非註解）
+        assert "fullImg.complete" in helper_snippet and "fullImg.naturalWidth" in helper_snippet, (
+            "_refreshLbFullBlurUp helper 缺少 fullImg.complete && fullImg.naturalWidth 檢查"
             "（same-URL 時瀏覽器不重新 fire @load，需手動偵測 complete）"
         )
-        assert "_lbFullLoaded" in snippet, (
-            "state-lightbox.js _setLightboxIndex 缺少 _lbFullLoaded 賦值"
+        assert "_lbFullLoaded" in helper_snippet, (
+            "_refreshLbFullBlurUp helper 缺少 _lbFullLoaded 賦值"
+        )
+
+        # (b) _setLightboxIndex 必須呼叫 _refreshLbFullBlurUp（不再 inline）
+        set_idx = js.find("_setLightboxIndex(")
+        assert set_idx != -1, "state-lightbox.js 找不到 _setLightboxIndex 函數"
+        set_snippet = js[set_idx: set_idx + 800]
+        assert "_refreshLbFullBlurUp" in set_snippet, (
+            "state-lightbox.js _setLightboxIndex 未呼叫 _refreshLbFullBlurUp"
+            "（抽 helper 後 _setLightboxIndex 應委託 helper，避免邏輯漂移）"
+        )
+
+        # (c) slip-through 路徑（state-similar.js）必須在 currentLightboxVideo = similarExitVideo 之後
+        #     呼叫 _refreshLbFullBlurUp（防止繞過 _setLightboxIndex 殘留舊 _lbFullLoaded）
+        slip_idx = similar_js.find("this.currentLightboxVideo = this.similarExitVideo")
+        assert slip_idx != -1, (
+            "state-similar.js 找不到 currentLightboxVideo = similarExitVideo 指派"
+            "（slip-through 路徑應設 currentLightboxVideo 後呼叫 _refreshLbFullBlurUp）"
+        )
+        # 截取指派後 300 字元（應含 helper 呼叫）
+        after_assign = similar_js[slip_idx: slip_idx + 300]
+        assert "_refreshLbFullBlurUp" in after_assign, (
+            "state-similar.js slip-through（currentLightboxVideo = similarExitVideo）後缺少 _refreshLbFullBlurUp 呼叫"
+            "（71c-P2：slip-through 繞過 _setLightboxIndex，舊 _lbFullLoaded true → 跳過 blur-up；"
+            "false + same-URL → @load 不 fire → opacity:0 卡死）"
         )
 
     def test_similar_exit_video_has_cover_full_url(self):
