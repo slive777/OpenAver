@@ -155,6 +155,88 @@ class TestGalleryScanner:
         found = scanner.find_cover_image(str(video_path))
         assert found == ""
 
+    # ── L1.5: {stem}-fanart / {stem}-poster 邊界條件 ──────────────────────────
+
+    def test_find_cover_image_l15_fanart_only(self, scanner, tmp_path):
+        """L1.5 邊界1：只有 {stem}-fanart.jpg（無 exact {stem}.jpg）→ 回傳 -fanart 路徑"""
+        video_path = tmp_path / "TEST-100.mp4"
+        fanart_path = tmp_path / "TEST-100-fanart.jpg"
+        fanart_path.touch()
+
+        found = scanner.find_cover_image(str(video_path))
+        assert found == str(fanart_path)
+
+    def test_find_cover_image_l15_fanart_over_poster(self, scanner, tmp_path):
+        """L1.5 邊界2：-fanart.jpg 與 -poster.jpg 同存 → -fanart 優先（suffix 順序）"""
+        video_path = tmp_path / "TEST-101.mp4"
+        fanart_path = tmp_path / "TEST-101-fanart.jpg"
+        poster_path = tmp_path / "TEST-101-poster.jpg"
+        fanart_path.touch()
+        poster_path.touch()
+
+        found = scanner.find_cover_image(str(video_path))
+        assert found == str(fanart_path)
+
+    def test_find_cover_image_l15_poster_only(self, scanner, tmp_path):
+        """L1.5 邊界3：只有 {stem}-poster.jpg → 回傳 -poster 路徑"""
+        video_path = tmp_path / "TEST-102.mp4"
+        poster_path = tmp_path / "TEST-102-poster.jpg"
+        poster_path.touch()
+
+        found = scanner.find_cover_image(str(video_path))
+        assert found == str(poster_path)
+
+    def test_find_cover_image_l15_fallthrough_to_l2(self, scanner, tmp_path):
+        """L1.5 邊界4：stem 前綴版皆不存在，固定名 fanart.jpg → fall through 到 L2（L1.5 不 shadow L2）"""
+        video_path = tmp_path / "TEST-103.mp4"
+        fixed_fanart = tmp_path / "fanart.jpg"
+        fixed_fanart.touch()
+
+        found = scanner.find_cover_image(str(video_path))
+        assert found == str(fixed_fanart)
+
+    def test_find_cover_image_l1_beats_l15(self, scanner, tmp_path):
+        """L1.5 邊界5：exact {stem}.jpg 與 {stem}-fanart.jpg 同存 → L1 勝（exact 仍最高優先）"""
+        video_path = tmp_path / "TEST-104.mp4"
+        exact_path = tmp_path / "TEST-104.jpg"
+        fanart_path = tmp_path / "TEST-104-fanart.jpg"
+        exact_path.touch()
+        fanart_path.touch()
+
+        found = scanner.find_cover_image(str(video_path))
+        assert found == str(exact_path)
+
+    def test_find_cover_image_l15_ext_order_jpg_over_png(self, scanner, tmp_path):
+        """L1.5 邊界6：{stem}-fanart.png 與 {stem}-fanart.jpg 同存 → .jpg 優先（IMAGE_EXTENSIONS 順序）"""
+        video_path = tmp_path / "TEST-105.mp4"
+        fanart_jpg = tmp_path / "TEST-105-fanart.jpg"
+        fanart_png = tmp_path / "TEST-105-fanart.png"
+        fanart_jpg.touch()
+        fanart_png.touch()
+
+        found = scanner.find_cover_image(str(video_path))
+        assert found == str(fanart_jpg)
+
+    def test_find_cover_image_l15_png_only(self, scanner, tmp_path):
+        """L1.5 邊界6b：只有 {stem}-fanart.png → 回傳（非 .jpg 也命中）"""
+        video_path = tmp_path / "TEST-106.mp4"
+        fanart_png = tmp_path / "TEST-106-fanart.png"
+        fanart_png.touch()
+
+        found = scanner.find_cover_image(str(video_path))
+        assert found == str(fanart_png)
+
+    def test_find_cover_image_l15_mdcx_us6(self, scanner, tmp_path):
+        """L1.5 邊界7（MDCX US6）：資料夾只有 {stem}-poster.jpg + {stem}-fanart.jpg，無 exact → 回傳 -fanart"""
+        video_path = tmp_path / "TEST-107.mp4"
+        fanart_path = tmp_path / "TEST-107-fanart.jpg"
+        poster_path = tmp_path / "TEST-107-poster.jpg"
+        fanart_path.touch()
+        poster_path.touch()
+
+        found = scanner.find_cover_image(str(video_path))
+        assert found == str(fanart_path)
+
 
 # ============ NUM_PATTERNS 多字母後綴 ============
 
