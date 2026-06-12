@@ -483,6 +483,7 @@ def generate_nfo(
     summary: str = '',
     rating: Optional[float] = None,
     mpaa: str = 'JP-18+',
+    external_manager: str = 'off',
 ) -> bool:
     """
     生成 NFO 檔案
@@ -498,6 +499,10 @@ def generate_nfo(
         url: 來源 URL
         has_subtitle: 是否有字幕
         output_path: NFO 輸出路徑
+        external_manager: 外部媒體管理器模式（"off" / "jellyfin_emby" / "kodi"）
+            - "off"（預設）：最小輸出，無 F3 欄位
+            - "jellyfin_emby"：附加 F3 五欄位，poster/fanart 維持 stem 命名
+            - "kodi"：附加 F3 五欄位，poster/fanart 改為獨立命名（poster.jpg/fanart.jpg）
     """
     if not output_path:
         return False
@@ -515,6 +520,16 @@ def generate_nfo(
 
     poster_suffix = '-poster' if has_poster else ''
     fanart_suffix = '-fanart' if has_fanart else ''
+
+    # T3：poster/fanart tag 依 external_manager 模式決定
+    # kodi → 獨立命名（poster.jpg / fanart.jpg），不看 has_poster/has_fanart
+    # off / jellyfin_emby → 維持現有 stem 行為（byte-identical 於原邏輯）
+    if external_manager == 'kodi':
+        poster_tag = 'poster.jpg'
+        fanart_tag = 'fanart.jpg'
+    else:
+        poster_tag = f'{html.escape(basename)}{poster_suffix}.jpg'
+        fanart_tag = f'{html.escape(basename)}{fanart_suffix}.jpg'
 
     set_tag = (
         f"<set><name>{html.escape(series)}</name></set>" if series else "<set></set>"
@@ -540,9 +555,9 @@ def generate_nfo(
   <mpaa>{html.escape(mpaa)}</mpaa>
   {runtime_tag}
   {director_tag}
-  <poster>{html.escape(basename)}{poster_suffix}.jpg</poster>
+  <poster>{poster_tag}</poster>
   <thumb>{html.escape(basename)}.jpg</thumb>
-  <fanart>{html.escape(basename)}{fanart_suffix}.jpg</fanart>
+  <fanart>{fanart_tag}</fanart>
 '''
 
     # 演員
@@ -577,11 +592,25 @@ def generate_nfo(
     if has_vr and not any(t.strip().lower() == 'vr' for t in tags):
         nfo_content += '  <genre>VR</genre>\n'
 
+    # T3：F3 五欄位區塊（僅 external_manager != "off" 時輸出）
+    # 注意：這會造成 NFO 內同時有兩個 default="true" 的 uniqueid（home + num）。
+    # POC 實證 Jellyfin 容忍（兩個 ProviderId 都正確讀到），故意保留 home 行不動。
+    if external_manager != 'off':
+        external_block = (
+            f'  <lockdata>true</lockdata>\n'
+            f'  <uniqueid type="num" default="true">{html.escape(number)}</uniqueid>\n'
+            f'  <sorttitle>{html.escape(display_title)}</sorttitle>\n'
+            f'  <country>Japan</country>\n'
+            f'  <language>ja</language>\n'
+        )
+    else:
+        external_block = ''
+
     nfo_content += f'''  <num>{html.escape(number)}</num>
   <release>{html.escape(date)}</release>
   <cover></cover>
   <website>{html.escape(url)}</website>
-  <uniqueid type="home" default="true">{html.escape(number)}</uniqueid>
+{external_block}  <uniqueid type="home" default="true">{html.escape(number)}</uniqueid>
 </movie>'''
 
     try:
