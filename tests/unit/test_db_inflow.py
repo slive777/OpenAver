@@ -763,7 +763,13 @@ def test_u22_repath_normal_update_rowcount0_falls_back_to_upsert(tmp_path):
     """
     Fix 1：正常 UPDATE 分支的 UPDATE 影響 0 rows（concurrent delete 模擬）
     → 退化為 upsert，新路徑 row 仍寫入。
-    只呼叫 invalidate 一次（由 upsert 負責，repath 不額外呼叫）。
+
+    機制：seed old_uri 讓 existence check 進入正常-UPDATE 分支，再用 cursor wrapper
+    攔截 UPDATE 語句——先從真實 DB 刪掉 old_uri，再執行 UPDATE（WHERE 匹配不到 → rowcount=0）。
+    upsert spy 確認 fallback 確實被呼叫，get_by_path(new_uri) 確認新 row 寫入成功。
+
+    決定性屬性：移除 production 的 `if rowcount == 0: self.upsert(video)` 後，
+    此測試必須 RED。
     """
     db_path = _make_db(tmp_path)
     repo = VideoRepository(db_path=db_path)
@@ -771,127 +777,63 @@ def test_u22_repath_normal_update_rowcount0_falls_back_to_upsert(tmp_path):
     old_uri = "file:///tmp/u22_old.mp4"
     new_uri = "file:///tmp/u22_new.mp4"
 
-    # seed old row 讓 existence check 通過
-    _seed_video(repo, old_uri)
+    # seed old row — 讓 repath existence check 進入正常-UPDATE 分支
+    _seed_video(repo, old_uri, title="Original Title")
 
-    # 刪掉 old row 模擬並行刪除（在 repath 呼叫前刪，使 existence check 後 UPDATE 影響 0 rows）
-    # 直接用 _get_connection 刪（測試 helper 允許）
-    conn = repo._get_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("DELETE FROM videos WHERE path = ?", (old_uri,))
-        conn.commit()
-    finally:
-        conn.close()
-
-    # 此時 existence check（repath 內的第一段）取舊快照…但我們已刪了 old row。
-    # 為讓 repath 仍進入正常-UPDATE 分支，需讓 existence check 回 True。
-    # 最直接的方式：monkeypatch _get_connection，讓第一次 SELECT 回「存在」，
-    # 第二次（UPDATE）正常執行（實際 0 rows）。
+    new_video = Video(
+        path=new_uri, number="ABC-001", title="Fallback Title",
+        original_title="", actresses=[], maker="", director="",
+        series=None, label="", tags=[], user_tags=[],
+        sample_images=[], duration=None, size_bytes=0,
+        cover_path="", release_date="", mtime=0.0, nfo_mtime=0.0,
+    )
 
     real_get_conn = repo._get_connection
-    call_count = [0]
 
-    def mock_get_connection():
-        conn = real_get_conn()
-        original_execute = conn.cursor().__class__.execute
-
-        # 包一層 cursor，第一次 SELECT 回假的「存在」
-        class FakeCursor:
-            def __init__(self, real_cursor):
-                self._c = real_cursor
-
-            def execute(self, sql, params=()):
-                self._c.execute(sql, params)
-
-            def fetchone(self):
-                call_count[0] += 1
-                if call_count[0] <= 2:
-                    # 兩次 SELECT（old_exists / new_exists）都回假結果
-                    # old_exists → True（有 old row）; new_exists → None（沒 new row）
-                    return (1,) if call_count[0] == 1 else None
-                return self._c.fetchone()
-
-            @property
-            def rowcount(self):
-                return self._c.rowcount
-
-        return conn
-
-    # 比起複雜 mock，直接用更簡單的方法：
-    # repath 先做 SELECT 存在性，再做 UPDATE。
-    # 此測試只驗證「當 UPDATE rowcount==0 時，upsert fallback 寫入 new_uri」。
-    # 使用 monkeypatch cursor.execute，讓 UPDATE 語句後 rowcount=0（不執行真實 UPDATE）。
-
-    new_video = Video(path=new_uri, number="ABC-001", title="Fallback Title",
-                      original_title="", actresses=[], maker="", director="",
-                      series=None, label="", tags=[], user_tags=[],
-                      sample_images=[], duration=None, size_bytes=0,
-                      cover_path="", release_date="", mtime=0.0, nfo_mtime=0.0)
-
-    # 重新 seed old row（讓 existence check 在 repath 內看到它）
-    _seed_video(repo, old_uri)
-
-    # 用 monkeypatch：在 repath 第二段 _get_connection 的 cursor.execute 之後，
-    # 刪掉 old row 再 commit，模擬並行刪除後 rowcount=0。
-    # 最乾淨的方式：patch cursor.rowcount 在 UPDATE 後回 0。
-
-    real_get_conn2 = repo._get_connection
-    update_call_count = [0]
-
-    def patched_get_connection():
-        conn = real_get_conn2()
-        original_cursor = conn.cursor
-
-        def patched_cursor():
-            c = original_cursor()
-            original_execute = c.execute
-
-            def patched_execute(sql, params=()):
-                original_execute(sql, params)
-                # UPDATE 語句執行後，刪掉該 row 讓 rowcount 在 commit 後仍是真實值 0
-                # （實際 rowcount 已由 sqlite 記錄；改用另一種方式：patch rowcount property）
-
-            c.execute = patched_execute
-            return c
-
-        conn.cursor = patched_cursor
-        return conn
-
-    # 最直接的 deterministic 測試：
-    # 使用真實流程，但在 repath 第二次 _get_connection 中傳回一個 rowcount=0 的 cursor。
-    real_gc = repo._get_connection
-    invocation = [0]
-
-    class ZeroRowcountCursor:
-        """Wraps a real cursor but reports rowcount=0 for UPDATE."""
-        def __init__(self, real_cursor):
-            self._c = real_cursor
+    class InterceptingCursor:
+        """Cursor wrapper: 攔截 UPDATE videos SET 語句，
+        先刪 old_uri row，再執行 UPDATE → rowcount=0（WHERE 匹配不到）。
+        其他 SQL 照常走。
+        """
+        def __init__(self, real_c):
+            self._c = real_c
 
         def execute(self, sql, params=()):
-            # Run for real but discard actual changes (rollback immediately)
-            # by NOT running execute → rowcount stays 0 by default in sqlite3
-            if sql.strip().upper().startswith("UPDATE"):
-                # Don't execute: rowcount will be 0
-                pass
+            if sql.strip().upper().startswith("UPDATE VIDEOS SET"):
+                # 模擬 concurrent delete：先刪掉 old_uri，再執行 UPDATE
+                del_conn = real_get_conn()
+                del_c = del_conn.cursor()
+                try:
+                    del_c.execute("DELETE FROM videos WHERE path = ?", (old_uri,))
+                    del_conn.commit()
+                finally:
+                    del_conn.close()
+                # 執行真實 UPDATE（old_uri 已不存在 → rowcount 自然為 0）
+                self._c.execute(sql, params)
             else:
                 self._c.execute(sql, params)
 
         def fetchone(self):
             return self._c.fetchone()
 
+        def fetchall(self):
+            return self._c.fetchall()
+
         @property
         def rowcount(self):
-            return 0  # Always 0 for our fake cursor
+            return self._c.rowcount
 
-    class FakeConnForUpdate:
+        @property
+        def lastrowid(self):
+            return self._c.lastrowid
+
+    class InterceptingConn:
+        """Connection wrapper: 讓 cursor() 回傳 InterceptingCursor。"""
         def __init__(self, real_conn):
             self._conn = real_conn
-            self._cursor = None
 
         def cursor(self):
-            self._cursor = ZeroRowcountCursor(self._conn.cursor())
-            return self._cursor
+            return InterceptingCursor(self._conn.cursor())
 
         def commit(self):
             self._conn.commit()
@@ -899,21 +841,23 @@ def test_u22_repath_normal_update_rowcount0_falls_back_to_upsert(tmp_path):
         def close(self):
             self._conn.close()
 
-    def get_conn_patched():
-        invocation[0] += 1
-        real_conn = real_gc()
-        if invocation[0] == 2:
-            # 第二次呼叫 _get_connection 是 正常-UPDATE 分支 → 回 fake conn
-            return FakeConnForUpdate(real_conn)
-        return real_conn
+        def execute(self, sql, params=()):
+            return self._conn.execute(sql, params)
 
-    with patch.object(repo, "_get_connection", side_effect=get_conn_patched):
+    def intercepting_get_connection():
+        return InterceptingConn(real_get_conn())
+
+    with patch.object(repo, "_get_connection", side_effect=intercepting_get_connection):
         with patch("core.similar.ranker_cache.SimilarRankerCache"):
-            repo.repath(old_uri, new_uri, new_video)
+            with patch.object(repo, "upsert", wraps=repo.upsert) as upsert_spy:
+                repo.repath(old_uri, new_uri, new_video)
 
-    # upsert fallback 應寫入 new_uri
+    # (a) upsert fallback 必須被呼叫恰好一次
+    upsert_spy.assert_called_once_with(new_video)
+
+    # (b) fallback 應將 new_uri row 寫入 DB
     new_row = repo.get_by_path(new_uri)
-    assert new_row is not None, \
-        "rowcount=0 fallback 後 upsert 應寫入 new_uri"
-    assert new_row.title == "Fallback Title", \
+    assert new_row is not None, "rowcount=0 fallback 後 upsert 應寫入 new_uri"
+    assert new_row.title == "Fallback Title", (
         f"新 row title 應為 'Fallback Title'，得 {new_row.title!r}"
+    )
