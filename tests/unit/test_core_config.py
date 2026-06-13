@@ -507,6 +507,58 @@ class TestMigrationThumbnailCacheEnabled:
         reloaded = load_config()
         assert reloaded["thumbnail_cache_enabled"] is True
 
+    def test_new_install_gets_thumbnail_cache_enabled_true(self, tmp_path, monkeypatch):
+        """新安裝（無 config.json）→ config.default.json 被複製 → thumbnail_cache_enabled 為 True（ON）。
+
+        0.9.9+ 新用戶：default.json thumbnail_cache_enabled=true 預設開啟快取。
+        migration 不觸發（key 已存在），最終值由 default.json 決定。
+        """
+        config_path = tmp_path / "config.json"
+        real_default = Path(__file__).resolve().parents[2] / "web" / "config.default.json"
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", real_default)
+
+        assert not config_path.exists(), "測試前提：config.json 不應存在"
+
+        result = load_config()
+
+        assert config_path.exists(), "首次啟動必須從 default.json 複製建立 config.json"
+        assert result.get("thumbnail_cache_enabled") is True, (
+            "新安裝應預設開啟縮圖快取（config.default.json thumbnail_cache_enabled=true）"
+        )
+        # migration 不應額外寫 False（key 已在 default 中存在）
+        written = json.loads(config_path.read_text(encoding="utf-8"))
+        assert written.get("thumbnail_cache_enabled") is True
+
+    def test_existing_v098_user_gets_thumbnail_cache_enabled_false(self, tmp_path, monkeypatch, mocker):
+        """v0.9.8 升級用戶（config.json 存在但無 thumbnail_cache_enabled key）→ migration 補 False（OFF）。
+
+        保護現有用戶不被意外開啟快取（磁碟空間影響）；
+        migration 寫 False 且持久化到 config.json。
+        """
+        config_path = tmp_path / "config.json"
+        # 模擬 v0.9.8 config（有 scraper/gallery 等但沒有 thumbnail_cache_enabled）
+        _write_config(config_path, {
+            "scraper": {"create_folder": True},
+            "gallery": {"directories": ["/videos"]},
+        })
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
+
+        spy = mocker.spy(core_config, "_save_config_unlocked")
+
+        result = load_config()
+
+        assert result.get("thumbnail_cache_enabled") is False, (
+            "既有 v0.9.8 用戶 migration 應補 False（OFF），避免不知情開啟快取"
+        )
+        # migration 必須已將 False 寫回磁碟
+        assert spy.call_count >= 1, "migration 命中 → 必須呼叫 _save_config_unlocked 寫回"
+        written = json.loads(config_path.read_text(encoding="utf-8"))
+        assert written.get("thumbnail_cache_enabled") is False, (
+            "migration 寫回的 config.json 中 thumbnail_cache_enabled 必須為 False"
+        )
+
 
 # ============ test_save_config_roundtrip ============
 

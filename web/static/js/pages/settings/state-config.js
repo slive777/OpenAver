@@ -9,7 +9,7 @@ export function stateConfig() {
             searchFavoriteFolder: '',
             proxyUrl: '',
             advancedSearchEnabled: true,  // 進階搜尋 picker（TASK-61c-7，top-level config 欄位）；預設開啟（v0.9.x）
-            thumbnailCacheEnabled: false,  // 縮圖快取開關（feature/71 T2，top-level config 欄位）；預設關閉
+            thumbnailCacheEnabled: true,   // 縮圖快取開關（feature/71 T2，top-level config 欄位）；新安裝預設開啟（0.9.11+），舊用戶 migration 維持關閉
 
             // Translate
             translateEnabled: false,

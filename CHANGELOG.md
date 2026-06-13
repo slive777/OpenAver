@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **F4 — 文案修正**：Kodi 文案從裸 `poster.jpg` 改正為 `{番號}-poster.jpg`（72c 起 Kodi 也輸出 stem 長格式）。**保留 v0.9.7 對 Emby 的正確說明**：`{stem}-fanart.jpg` 僅 Jellyfin／Kodi 讀取，Emby 不認此 fanart 命名（海報與 NFO 在 Emby 正常）。
 - **補圖流程文字中性化**（72d，mode-agnostic）：補圖按鈕/提示/通知/log 從寫死「Jellyfin 圖片」改為「外部媒體管理器圖片／封面」，三態（Jellyfin/Emby/Kodi）用戶看到的措辭一致（i18n value 中性化，key 名與端點 path 不變）。
 - **Settings 外部管理器改四格 segmented**：由舊三態「關閉｜Jellyfin / Emby｜Kodi」拆成四格「預設｜Jellyfin｜Emby｜Kodi」，記住用戶選的是 Jellyfin 還是 Emby（重整頁面高亮正確）。
+- **封面縮圖快取改「新安裝預設開啟」**：縮圖快取（v0.9.10 推出時預設關閉）改為**新安裝預設開啟**，比照進階搜尋畢業模式——既有用戶更新後**維持關閉**（migration 對缺 key 的舊 config 寫 `false`，不驚動老用戶），新用戶開箱即享一頁刷封面。新裝因預設即開、不觸發磁碟空間確認 modal（空庫無衝擊）。
 
 ### Fixed
 #### 🔧 整理 pipeline 附帶修復（issue #44 後續，feature/72-T-c1/T-c2）/ Organize-pipeline drive-by fixes
