@@ -495,7 +495,7 @@ class VideoScanner:
         """尋找封面圖片（5 層 fallback）
 
         L1:   同名圖片（{stem}{ext}）
-        L1.5: 外部管理器命名（{stem}-fanart / {stem}-poster，MDCX/Javinizer/jellyfin_emby）
+        L1.5: 外部管理器命名（{stem}-fanart / {stem}-poster，MDCX/Javinizer/jellyfin/emby）
         L2:   標準名稱（fanart/poster/cover/folder）
         L3:   NFO <thumb> 跨平台路徑解析
         L4:   安全 fallback — 僅在 mp4==1 AND 0<img<=2 雙條件下回傳 sorted 第一張
@@ -510,7 +510,7 @@ class VideoScanner:
             if img_path.exists():
                 return str(img_path)
 
-        # L1.5: {stem}-fanart / {stem}-poster（外部管理器工具慣用命名：MDCX/Javinizer + OpenAver jellyfin_emby 輸出）
+        # L1.5: {stem}-fanart / {stem}-poster（外部管理器工具慣用命名：MDCX/Javinizer + OpenAver jellyfin/emby 輸出）
         #       -fanart 優先（全圖橫版，showcase 顯示一致），-poster 次之
         for suffix in ['-fanart', '-poster']:
             for ext in IMAGE_EXTENSIONS:

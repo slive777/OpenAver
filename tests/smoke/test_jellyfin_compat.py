@@ -122,7 +122,7 @@ def jellyfin_env(tmp_path_factory):
     ok = generate_nfo(
         number="ABC-123",
         title="POC Sample Title",
-        external_manager="jellyfin_emby",
+        external_manager="jellyfin",
         has_poster=True,
         has_fanart=True,
         output_path=str(nfo_abc),
@@ -149,7 +149,7 @@ def jellyfin_env(tmp_path_factory):
     ok = generate_nfo(
         number="DEF-456",
         title="POC Stack Title",
-        external_manager="jellyfin_emby",
+        external_manager="jellyfin",
         has_poster=True,
         has_fanart=True,
         output_path=str(nfo_def),
@@ -176,7 +176,7 @@ def jellyfin_env(tmp_path_factory):
     ok = generate_nfo(
         number="MIX-789",
         title="POC CD2Cover Title",
-        external_manager="jellyfin_emby",
+        external_manager="jellyfin",
         has_poster=True,
         has_fanart=True,
         output_path=str(nfo_mix),

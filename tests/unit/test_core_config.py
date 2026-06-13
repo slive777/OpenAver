@@ -302,8 +302,8 @@ class TestMigrationJellyfinMode:
 class TestMigrationExternalManager:
     """external_manager 三態補齊與 jellyfin_mode 遷移（Fix-72b）"""
 
-    def test_legacy_jellyfin_mode_true_maps_to_jellyfin_emby(self, tmp_path, monkeypatch):
-        """舊 config 有 jellyfin_mode:true，無 external_manager → 補 jellyfin_emby"""
+    def test_legacy_jellyfin_mode_true_maps_to_jellyfin(self, tmp_path, monkeypatch):
+        """舊 config 有 jellyfin_mode:true，無 external_manager → 補 jellyfin"""
         config_path = tmp_path / "config.json"
         _write_config(config_path, {"scraper": {"jellyfin_mode": True}})
         monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
@@ -311,7 +311,7 @@ class TestMigrationExternalManager:
 
         result = load_config()
 
-        assert result["scraper"]["external_manager"] == "jellyfin_emby"
+        assert result["scraper"]["external_manager"] == "jellyfin"
 
     def test_legacy_jellyfin_mode_false_maps_to_off(self, tmp_path, monkeypatch):
         """舊 config 有 jellyfin_mode:false，無 external_manager → 補 off"""
@@ -352,11 +352,17 @@ class TestMigrationExternalManager:
         cfg = ScraperConfig(external_manager="off")
         assert cfg.external_manager == "off"
 
-    def test_schema_roundtrip_jellyfin_emby(self, tmp_path, monkeypatch):
-        """ScraperConfig round-trip: external_manager='jellyfin_emby' 正確讀回"""
+    def test_schema_roundtrip_jellyfin(self, tmp_path, monkeypatch):
+        """ScraperConfig round-trip: external_manager='jellyfin' 正確讀回"""
         from core.config import ScraperConfig
-        cfg = ScraperConfig(external_manager="jellyfin_emby")
-        assert cfg.external_manager == "jellyfin_emby"
+        cfg = ScraperConfig(external_manager="jellyfin")
+        assert cfg.external_manager == "jellyfin"
+
+    def test_schema_roundtrip_emby(self, tmp_path, monkeypatch):
+        """ScraperConfig round-trip: external_manager='emby' 正確讀回"""
+        from core.config import ScraperConfig
+        cfg = ScraperConfig(external_manager="emby")
+        assert cfg.external_manager == "emby"
 
     def test_schema_roundtrip_kodi(self, tmp_path, monkeypatch):
         """ScraperConfig round-trip: external_manager='kodi' 正確讀回"""
@@ -364,12 +370,57 @@ class TestMigrationExternalManager:
         cfg = ScraperConfig(external_manager="kodi")
         assert cfg.external_manager == "kodi"
 
+    def test_legacy_jellyfin_emby_migrates_to_jellyfin(self, tmp_path, monkeypatch):
+        """舊存檔有 external_manager='jellyfin_emby' → load_config() 後讀到 'jellyfin'"""
+        import core.config as core_config
+        from core.config import load_config
+        config_path = tmp_path / "config.json"
+        _write_config(config_path, {"scraper": {"external_manager": "jellyfin_emby"}})
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
+
+        result = load_config()
+
+        assert result["scraper"]["external_manager"] == "jellyfin"
+
+    def test_legacy_jellyfin_emby_migration_idempotent(self, tmp_path, monkeypatch, mocker):
+        """jellyfin_emby migration 順冪：第二次 load 後值仍為 'jellyfin'，不重複觸發 need_save"""
+        import core.config as core_config_module
+        from core.config import load_config
+        config_path = tmp_path / "config.json"
+        _write_config(config_path, {"scraper": {"external_manager": "jellyfin_emby"}})
+        monkeypatch.setattr(core_config_module, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config_module, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
+
+        spy = mocker.spy(core_config_module, "_save_config_unlocked")
+
+        # First load triggers migration and must call _save_config_unlocked at least once
+        result1 = load_config()
+        assert result1["scraper"]["external_manager"] == "jellyfin"
+        count_after_first = spy.call_count
+        assert count_after_first >= 1, "first load must trigger save (migration)"
+
+        # Second load: file was saved as 'jellyfin'; must NOT call _save_config_unlocked again
+        result2 = load_config()
+        assert result2["scraper"]["external_manager"] == "jellyfin"
+        assert spy.call_count == count_after_first, (
+            f"second load must not re-save (idempotency): "
+            f"call_count went from {count_after_first} to {spy.call_count}"
+        )
+
     def test_schema_rejects_invalid_literal(self):
         """ScraperConfig: external_manager='plex' 應被 Literal 驗證拒絕"""
         from core.config import ScraperConfig
         import pydantic
         with pytest.raises((pydantic.ValidationError, ValueError)):
             ScraperConfig(external_manager="plex")
+
+    def test_schema_rejects_jellyfin_emby_literal(self):
+        """ScraperConfig: external_manager='jellyfin_emby' 應被 Literal 驗證拒絕（四態後不再有效）"""
+        from core.config import ScraperConfig
+        import pydantic
+        with pytest.raises((pydantic.ValidationError, ValueError)):
+            ScraperConfig(external_manager="jellyfin_emby")
 
     def test_jellyfin_mode_still_present_in_schema(self):
         """jellyfin_mode 欄位必須保留（向後相容）"""

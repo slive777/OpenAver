@@ -636,7 +636,7 @@ class TestEnrichEndpointExternalManagerThreading:
     """enrich_single_endpoint 從 config['scraper']['external_manager'] 取值穿線進 enrich_single。"""
 
     def test_external_manager_from_config_passed_to_enrich_single(self, client, mocker):
-        """F4-T6：external_manager='jellyfin_emby' 從 config 取出並傳入 enrich_single。"""
+        """F4-T6：external_manager='jellyfin' 從 config 取出並傳入 enrich_single。"""
         captured_calls = []
 
         def fake_enrich(**kwargs):
@@ -646,7 +646,7 @@ class TestEnrichEndpointExternalManagerThreading:
         mocker.patch("web.routers.scraper.enrich_single", side_effect=fake_enrich)
         mocker.patch("web.routers.scraper.load_config", return_value={
             "search": {"proxy_url": ""},
-            "scraper": {"external_manager": "jellyfin_emby"},
+            "scraper": {"external_manager": "jellyfin"},
         })
 
         client.post("/api/enrich-single", json={
@@ -655,7 +655,31 @@ class TestEnrichEndpointExternalManagerThreading:
         })
 
         assert captured_calls, "enrich_single 應被呼叫"
-        assert captured_calls[0].get("external_manager") == "jellyfin_emby", (
+        assert captured_calls[0].get("external_manager") == "jellyfin", (
+            f"external_manager 應從 config['scraper'] 取，實際: {captured_calls[0].get('external_manager')}"
+        )
+
+    def test_emby_manager_from_config_passed_to_enrich_single(self, client, mocker):
+        """F4-T6：external_manager='emby' 從 config 取出並傳入 enrich_single（等價 jellyfin）。"""
+        captured_calls = []
+
+        def fake_enrich(**kwargs):
+            captured_calls.append(kwargs)
+            return _ok_result()
+
+        mocker.patch("web.routers.scraper.enrich_single", side_effect=fake_enrich)
+        mocker.patch("web.routers.scraper.load_config", return_value={
+            "search": {"proxy_url": ""},
+            "scraper": {"external_manager": "emby"},
+        })
+
+        client.post("/api/enrich-single", json={
+            "file_path": "/video/SONE-205.mp4",
+            "number": "SONE-205",
+        })
+
+        assert captured_calls, "enrich_single 應被呼叫"
+        assert captured_calls[0].get("external_manager") == "emby", (
             f"external_manager 應從 config['scraper'] 取，實際: {captured_calls[0].get('external_manager')}"
         )
 

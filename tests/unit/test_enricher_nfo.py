@@ -76,16 +76,16 @@ def test_write_nfo_meta_has_no_underscore_keys(tmp_path):
 # ─── 72b-T6：_write_nfo 傳 external_manager / has_poster / has_fanart ───────
 
 def test_write_nfo_passes_external_manager_to_generate_nfo(tmp_path):
-    """T6: _write_nfo(external_manager='jellyfin_emby') → generate_nfo 收到相同值。"""
+    """T6: _write_nfo(external_manager='jellyfin') → generate_nfo 收到相同值。"""
     fs_path = str(tmp_path / "SONE-205.mp4")
     meta = {"title": "T"}
     with patch("core.enricher.generate_nfo") as mock_gen:
         mock_gen.return_value = True
         _write_nfo(fs_path, "SONE-205", meta, write_nfo=True,
                    overwrite_existing=True, has_subtitle=False, user_tags=[],
-                   external_manager="jellyfin_emby")
+                   external_manager="jellyfin")
     _, kwargs = mock_gen.call_args
-    assert kwargs["external_manager"] == "jellyfin_emby"
+    assert kwargs["external_manager"] == "jellyfin"
 
 
 def test_write_nfo_passes_has_poster_has_fanart(tmp_path):

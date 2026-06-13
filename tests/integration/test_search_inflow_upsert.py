@@ -9,7 +9,7 @@ test_search_inflow_upsert.py — TDD-lite: POST /api/scrape-single 後端 in-flo
 
 B1 dead-card 守衛（新增）：
 I1 — B1 端到端死卡守衛（external_manager=off）
-I2 — B1 端到端死卡守衛（external_manager=jellyfin_emby，驗 mode-agnostic）
+I2 — B1 端到端死卡守衛（external_manager=jellyfin，驗 mode-agnostic）
 """
 
 import pytest
@@ -362,11 +362,11 @@ def test_b1_repath_no_dead_card_off(client, tmp_path):
         f"created_at 應保留 2024-02-01，得 {ca_str!r}"
 
 
-# ─── I2: B1 死卡守衛（external_manager=jellyfin_emby） ─────────────────────
+# ─── I2: B1 死卡守衛（external_manager=jellyfin） ─────────────────────
 
 def test_b1_repath_no_dead_card_jellyfin(client, tmp_path):
     """
-    I2 — B1 端到端死卡守衛（external_manager=jellyfin_emby）：
+    I2 — B1 端到端死卡守衛（external_manager=jellyfin）：
     與 I1 相同斷言 — 驗 mode-agnostic（CD-c8）。
     B1 落在 try_inflow_upsert，不讀 external_manager。
     """
@@ -411,7 +411,7 @@ def test_b1_repath_no_dead_card_jellyfin(client, tmp_path):
         }),
         patch("core.db_inflow.load_config", return_value={
             "gallery": {"directories": [str(tmp_path)], "path_mappings": None},
-            "scraper": {"external_manager": "jellyfin_emby"},
+            "scraper": {"external_manager": "jellyfin"},
         }),
         patch("core.db_inflow.find_matched_directory", return_value=str(tmp_path)),
         patch("core.db_inflow.VideoScanner") as MockScanner,

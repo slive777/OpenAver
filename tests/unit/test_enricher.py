@@ -1164,21 +1164,34 @@ class TestWriteExternalImages:
     def test_no_cover_returns_false_false(self, tmp_path):
         """底圖不存在 → gate 落空 → False/False。"""
         from core.enricher import _write_external_images
-        result = _write_external_images(str(tmp_path / "SONE-205.mp4"), "jellyfin_emby", True)
+        result = _write_external_images(str(tmp_path / "SONE-205.mp4"), "jellyfin", True)
         assert result == {"poster": False, "fanart": False}
 
-    def test_jellyfin_emby_creates_stem_poster_fanart(self, tmp_path):
-        """jellyfin_emby：產 {stem}-poster.jpg + {stem}-fanart.jpg，回傳 True/True。"""
+    def test_jellyfin_creates_stem_poster_fanart(self, tmp_path):
+        """jellyfin：產 {stem}-poster.jpg + {stem}-fanart.jpg，回傳 True/True。"""
         cover = tmp_path / "SONE-205.jpg"
         _create_dummy_jpeg(cover)
         from core.enricher import _write_external_images
-        result = _write_external_images(str(tmp_path / "SONE-205.mp4"), "jellyfin_emby", True)
+        result = _write_external_images(str(tmp_path / "SONE-205.mp4"), "jellyfin", True)
         assert result == {"poster": True, "fanart": True}
         assert (tmp_path / "SONE-205-poster.jpg").exists()
         assert (tmp_path / "SONE-205-fanart.jpg").exists()
 
+    def test_emby_creates_stem_poster_fanart(self, tmp_path):
+        """emby：產 {stem}-poster.jpg + {stem}-fanart.jpg（等價 jellyfin/kodi），回傳 True/True。"""
+        cover = tmp_path / "SONE-205.jpg"
+        _create_dummy_jpeg(cover)
+        from core.enricher import _write_external_images
+        result = _write_external_images(str(tmp_path / "SONE-205.mp4"), "emby", True)
+        assert result == {"poster": True, "fanart": True}
+        assert (tmp_path / "SONE-205-poster.jpg").exists()
+        assert (tmp_path / "SONE-205-fanart.jpg").exists()
+        # 裸短名不存在
+        assert not (tmp_path / "poster.jpg").exists()
+        assert not (tmp_path / "fanart.jpg").exists()
+
     def test_kodi_creates_stem_poster_fanart(self, tmp_path):
-        """kodi：產 {stem}-poster.jpg + {stem}-fanart.jpg（與 jellyfin_emby 相同），回傳 True/True。"""
+        """kodi：產 {stem}-poster.jpg + {stem}-fanart.jpg（與 jellyfin 相同），回傳 True/True。"""
         cover = tmp_path / "SONE-205.jpg"
         _create_dummy_jpeg(cover)
         from core.enricher import _write_external_images
@@ -1202,7 +1215,7 @@ class TestWriteExternalImages:
         fanart_mtime = fanart.stat().st_mtime
 
         from core.enricher import _write_external_images
-        result = _write_external_images(str(tmp_path / "SONE-205.mp4"), "jellyfin_emby", False)
+        result = _write_external_images(str(tmp_path / "SONE-205.mp4"), "jellyfin", False)
         assert result == {"poster": True, "fanart": True}
         # 檔案未被覆蓋（mtime 不變）
         assert poster.stat().st_mtime == poster_mtime
@@ -1216,7 +1229,7 @@ class TestWriteExternalImages:
         fanart.write_bytes(b"tiny")  # 比真實 JPEG 小
 
         from core.enricher import _write_external_images
-        result = _write_external_images(str(tmp_path / "SONE-205.mp4"), "jellyfin_emby", True)
+        result = _write_external_images(str(tmp_path / "SONE-205.mp4"), "jellyfin", True)
         assert result["fanart"] is True
         assert fanart.stat().st_size > 4  # 覆蓋後應為真實 JPEG
 
@@ -1281,8 +1294,8 @@ class TestEnrichSingleExternalManager:
             assert captured[0].get("has_poster", False) is False
             assert captured[0].get("has_fanart", False) is False
 
-    def test_jellyfin_emby_creates_images_nfo_has_poster_fanart(self, tmp_path):
-        """jellyfin_emby：cover 已存在 → 產 {stem}-poster/-fanart，NFO has_poster/has_fanart=True。"""
+    def test_jellyfin_creates_images_nfo_has_poster_fanart(self, tmp_path):
+        """jellyfin：cover 已存在 → 產 {stem}-poster/-fanart，NFO has_poster/has_fanart=True。"""
         mp4 = tmp_path / "SONE-205.mp4"
         mp4.touch()
         cover = tmp_path / "SONE-205.jpg"
@@ -1307,19 +1320,19 @@ class TestEnrichSingleExternalManager:
                 write_nfo=True,
                 write_cover=False,
                 overwrite_existing=True,
-                external_manager="jellyfin_emby",
+                external_manager="jellyfin",
             )
 
         assert result.success is True
         assert (tmp_path / "SONE-205-poster.jpg").exists()
         assert (tmp_path / "SONE-205-fanart.jpg").exists()
         assert captured, "generate_nfo 應被呼叫"
-        assert captured[0].get("external_manager") == "jellyfin_emby"
+        assert captured[0].get("external_manager") == "jellyfin"
         assert captured[0].get("has_poster") is True
         assert captured[0].get("has_fanart") is True
 
     def test_kodi_creates_stem_images_nfo_has_poster_fanart(self, tmp_path):
-        """kodi：產 {stem}-poster.jpg + {stem}-fanart.jpg（與 jellyfin_emby 相同），NFO has_poster/has_fanart=True。"""
+        """kodi：產 {stem}-poster.jpg + {stem}-fanart.jpg（與 jellyfin 相同），NFO has_poster/has_fanart=True。"""
         mp4 = tmp_path / "SONE-205.mp4"
         mp4.touch()
         cover = tmp_path / "SONE-205.jpg"
@@ -1348,7 +1361,7 @@ class TestEnrichSingleExternalManager:
             )
 
         assert result.success is True
-        # kodi 固定 stem 命名（與 jellyfin_emby 相同）
+        # kodi 固定 stem 命名（與 jellyfin 相同）
         assert (tmp_path / "SONE-205-poster.jpg").exists(), "kodi 應產 stem-poster.jpg"
         assert (tmp_path / "SONE-205-fanart.jpg").exists(), "kodi 應產 stem-fanart.jpg"
         assert not (tmp_path / "poster.jpg").exists(), "kodi 不應有裸 poster.jpg"
@@ -1386,7 +1399,7 @@ class TestEnrichSingleExternalManager:
                 write_nfo=True,
                 write_cover=True,   # 開著，但 cover 已存在 + overwrite=False
                 overwrite_existing=False,
-                external_manager="jellyfin_emby",
+                external_manager="jellyfin",
             )
 
         assert result.success is True
@@ -1435,7 +1448,7 @@ class TestEnrichSingleExternalManager:
                 write_nfo=True,
                 write_cover=False,
                 overwrite_existing=True,
-                external_manager="jellyfin_emby",
+                external_manager="jellyfin",
             )
 
         # NFO 應在 copy2（fanart）之後
@@ -1475,7 +1488,7 @@ class TestEnrichSingleExternalManager:
                 write_nfo=True,
                 write_cover=False,
                 overwrite_existing=True,
-                external_manager="jellyfin_emby",
+                external_manager="jellyfin",
             )
 
         assert result.success is True
@@ -1506,7 +1519,7 @@ class TestEnrichSingleExternalManager:
                 write_nfo=True,
                 write_cover=False,
                 overwrite_existing=True,
-                external_manager="jellyfin_emby",
+                external_manager="jellyfin",
             )
 
         assert result.success is False
@@ -1539,7 +1552,7 @@ class TestEnrichSingleExternalManager:
                 write_cover=False,
                 write_extrafanart=False,  # 預設關閉
                 overwrite_existing=True,
-                external_manager="jellyfin_emby",
+                external_manager="jellyfin",
             )
 
         assert result.extrafanart_written == 0
@@ -1643,7 +1656,7 @@ class TestKodiStemNaming:
         assert captured_b[0].get("external_manager") == "kodi"
 
     def test_E2_kodi_single_video_stem_named(self, tmp_path):
-        """E2：kodi + 同資料夾僅 1 片 → 仍使用 stem 命名（固定行為，與 jellyfin_emby 相同）。"""
+        """E2：kodi + 同資料夾僅 1 片 → 仍使用 stem 命名（固定行為，與 jellyfin 相同）。"""
         mp4 = tmp_path / "SONE-205.mp4"
         mp4.touch()
         cover = tmp_path / "SONE-205.jpg"
@@ -1746,8 +1759,8 @@ class TestKodiStemNaming:
         assert (tmp_path / "MIDE-001-poster.jpg").exists(), "B 應有自己的 poster"
         assert (tmp_path / "MIDE-001-fanart.jpg").exists(), "B 應有自己的 fanart"
 
-    def test_E4_jellyfin_emby_unchanged(self, tmp_path):
-        """E4：jellyfin_emby 行為不變（回歸）— stem 命名，NFO external_manager='jellyfin_emby'。"""
+    def test_E4_jellyfin_unchanged(self, tmp_path):
+        """E4：jellyfin 行為不變（回歸）— stem 命名，NFO external_manager='jellyfin'。"""
         mp4_a = tmp_path / "SONE-205.mp4"
         mp4_b = tmp_path / "MIDE-001.mp4"
         mp4_a.touch()
@@ -1762,7 +1775,7 @@ class TestKodiStemNaming:
         def fake_nfo(**kwargs):
             captured.append(kwargs)
 
-        # 只測第一片（jellyfin_emby 的 stem 命名本就 per-video，回歸即可）
+        # 只測第一片（jellyfin 的 stem 命名本就 per-video，回歸即可）
         with (
             patch("core.enricher.VideoRepository", return_value=MagicMock(
                 **{"get_by_numbers.return_value": {"SONE-205": [_make_video()]},
@@ -1780,16 +1793,16 @@ class TestKodiStemNaming:
                 write_nfo=True,
                 write_cover=False,
                 overwrite_existing=True,
-                external_manager="jellyfin_emby",
+                external_manager="jellyfin",
             )
 
         assert result.success is True
-        # jellyfin_emby：stem 命名
+        # jellyfin：stem 命名
         assert (tmp_path / "SONE-205-poster.jpg").exists()
         assert (tmp_path / "SONE-205-fanart.jpg").exists()
-        # E4：NFO external_manager='jellyfin_emby'
+        # E4：NFO external_manager='jellyfin'
         assert captured
-        assert captured[0].get("external_manager") == "jellyfin_emby"
+        assert captured[0].get("external_manager") == "jellyfin"
         assert captured[0].get("has_poster") is True
         assert captured[0].get("has_fanart") is True
 

@@ -13,6 +13,7 @@ from pathlib import Path
 from PIL import Image
 from typing import Optional, Dict, Any, List, Tuple
 
+from core.config import _STEM_IMAGE_MODES
 from core.path_utils import normalize_path
 from core.scrapers.utils import has_chinese, check_subtitle, strip_subtitle_markers
 from core.logger import get_logger
@@ -591,10 +592,10 @@ def generate_nfo(
         url: 來源 URL
         has_subtitle: 是否有字幕
         output_path: NFO 輸出路徑
-        external_manager: 外部媒體管理器模式（"off" / "jellyfin_emby" / "kodi"）
+        external_manager: 外部媒體管理器模式（"off" / "jellyfin" / "emby" / "kodi"）
             - "off"（預設）：最小輸出，無 F3 欄位
-            - "jellyfin_emby"：附加 F3 五欄位，poster/fanart 使用 stem 長格式命名
-            - "kodi"：附加 F3 五欄位；poster/fanart 與 jellyfin_emby 相同（stem 長格式），
+            - "jellyfin" / "emby"：附加 F3 五欄位，poster/fanart 使用 stem 長格式命名
+            - "kodi"：附加 F3 五欄位；poster/fanart 與 jellyfin/emby 相同（stem 長格式），
               Kodi 在所有資料夾 layout 下均識別 {basename}-poster.jpg/{basename}-fanart.jpg
     """
     if not output_path:
@@ -616,8 +617,8 @@ def generate_nfo(
     poster_suffix = '-poster' if has_poster else ''
     fanart_suffix = '-fanart' if has_fanart else ''
 
-    # poster/fanart tag：所有模式（off / jellyfin_emby / kodi）均使用 stem 長格式。
-    # off → poster_suffix='' → {basename}.jpg；jellyfin_emby/kodi → {basename}-poster.jpg。
+    # poster/fanart tag：所有模式（off / jellyfin / emby / kodi）均使用 stem 長格式。
+    # off → poster_suffix='' → {basename}.jpg；jellyfin/emby/kodi → {basename}-poster.jpg。
     poster_tag = f'{html.escape(basename)}{poster_suffix}.jpg'
     fanart_tag = f'{html.escape(basename)}{fanart_suffix}.jpg'
 
@@ -1013,11 +1014,11 @@ def organize_file(
                 result['cover_path'] = cover_path
 
         # 外部管理器模式：依 ext_mode 決定 poster/fanart 命名規則（ext_mode 已在早偵測層定義）
-        # jellyfin_emby 與 kodi 均使用 stem 長格式（{stem}-poster.jpg / {stem}-fanart.jpg），
+        # jellyfin/emby 與 kodi 均使用 stem 長格式（{stem}-poster.jpg / {stem}-fanart.jpg），
         # Kodi 在所有資料夾 layout 下均識別此命名，無需 per-folder 偵測。
         if ext_mode != 'off' and result.get('cover_path'):
             cover_jpg = result['cover_path']
-            if ext_mode in ('jellyfin_emby', 'kodi'):
+            if ext_mode in _STEM_IMAGE_MODES:
                 # 兩種模式均使用 stem 長格式（collision-free，Kodi 正典）
                 fanart_path = os.path.join(target_dir, filename_base + '-fanart.jpg')
                 poster_path = os.path.join(target_dir, filename_base + '-poster.jpg')

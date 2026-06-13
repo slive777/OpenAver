@@ -801,7 +801,7 @@ def _mock_download_image_write_jpeg(url, save_path, referer=''):
 
 
 def _make_jellyfin_config(jellyfin_mode):
-    # T4 遷移：image block 改由 external_manager 控制；jellyfin_mode=True → 'jellyfin_emby'
+    # T4 遷移：image block 改由 external_manager 控制；jellyfin_mode=True → 'jellyfin'
     return {
         "create_folder": False,
         "filename_format": "[{num}] {title}",
@@ -811,7 +811,7 @@ def _make_jellyfin_config(jellyfin_mode):
         "max_title_length": 50,
         "max_filename_length": 60,
         "suffix_keywords": [],
-        "external_manager": "jellyfin_emby" if jellyfin_mode else "off",
+        "external_manager": "jellyfin" if jellyfin_mode else "off",
     }
 
 
@@ -949,14 +949,14 @@ def _make_ext_metadata(number: str = "SONE-205", cover: str = "http://fake/cover
 class TestExternalManagerImageNaming:
     """T4：organize_file() external_manager 三態圖片命名分岐"""
 
-    # ── A. jellyfin_emby 模式 ──────────────────────────────────────────────
+    # ── A. jellyfin 模式 ──────────────────────────────────────────────
 
-    def test_jellyfin_emby_produces_stem_poster_fanart(self, tmp_path):
-        """jellyfin_emby → {stem}-poster.jpg + {stem}-fanart.jpg 存在，不存在裸名"""
+    def test_jellyfin_produces_stem_poster_fanart(self, tmp_path):
+        """jellyfin → {stem}-poster.jpg + {stem}-fanart.jpg 存在，不存在裸名"""
         src = tmp_path / "SONE-205.mp4"
         src.write_bytes(b"fake mp4")
 
-        config = _make_ext_config("jellyfin_emby")
+        config = _make_ext_config("jellyfin")
         metadata = _make_ext_metadata()
 
         with patch("core.organizer.download_image", side_effect=_mock_download_image_write_jpeg):
@@ -964,8 +964,8 @@ class TestExternalManagerImageNaming:
 
         assert result["success"] is True, f"organize 失敗: {result.get('error')}"
         assert result.get("cover_path") is not None, "cover_path 應存在"
-        assert result.get("fanart_path") is not None, "jellyfin_emby 應產生 fanart_path"
-        assert result.get("poster_path") is not None, "jellyfin_emby 應產生 poster_path"
+        assert result.get("fanart_path") is not None, "jellyfin 應產生 fanart_path"
+        assert result.get("poster_path") is not None, "jellyfin 應產生 poster_path"
 
         # 確認帶 stem 的命名
         fanart = Path(result["fanart_path"])
@@ -976,8 +976,30 @@ class TestExternalManagerImageNaming:
         assert poster.exists(), "poster 檔案應存在"
 
         # 確認裸名不存在
-        assert not (tmp_path / "fanart.jpg").exists(), "裸名 fanart.jpg 不應出現（jellyfin_emby）"
-        assert not (tmp_path / "poster.jpg").exists(), "裸名 poster.jpg 不應出現（jellyfin_emby）"
+        assert not (tmp_path / "fanart.jpg").exists(), "裸名 fanart.jpg 不應出現（jellyfin）"
+        assert not (tmp_path / "poster.jpg").exists(), "裸名 poster.jpg 不應出現（jellyfin）"
+
+    def test_emby_produces_stem_poster_fanart(self, tmp_path):
+        """emby → {stem}-poster.jpg + {stem}-fanart.jpg 存在（等價 jellyfin/kodi）"""
+        src = tmp_path / "SONE-205.mp4"
+        src.write_bytes(b"fake mp4")
+
+        config = _make_ext_config("emby")
+        metadata = _make_ext_metadata()
+
+        with patch("core.organizer.download_image", side_effect=_mock_download_image_write_jpeg):
+            result = organize_file(str(src), metadata, config)
+
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+        assert result.get("fanart_path") is not None, "emby 應產生 fanart_path"
+        assert result.get("poster_path") is not None, "emby 應產生 poster_path"
+
+        fanart = Path(result["fanart_path"])
+        poster = Path(result["poster_path"])
+        assert fanart.name.endswith("-fanart.jpg"), f"fanart 應帶 stem 前綴，實際: {fanart.name}"
+        assert poster.name.endswith("-poster.jpg"), f"poster 應帶 stem 前綴，實際: {poster.name}"
+        assert fanart.exists(), "fanart 檔案應存在"
+        assert poster.exists(), "poster 檔案應存在"
 
     # ── B. kodi 模式 ──────────────────────────────────────────────────────
 
@@ -1061,12 +1083,12 @@ class TestExternalManagerImageNaming:
 
     # ── G. cover 下載失敗不 crash ────────────────────────────────────────
 
-    def test_jellyfin_emby_cover_fail_no_crash(self, tmp_path):
-        """jellyfin_emby + cover 下載失敗 → 不進入圖片 block，success 仍 True"""
+    def test_jellyfin_cover_fail_no_crash(self, tmp_path):
+        """jellyfin + cover 下載失敗 → 不進入圖片 block，success 仍 True"""
         src = tmp_path / "SONE-205.mp4"
         src.write_bytes(b"fake mp4")
 
-        config = _make_ext_config("jellyfin_emby")
+        config = _make_ext_config("jellyfin")
         metadata = _make_ext_metadata(cover="")  # 無 cover URL
 
         with patch("core.organizer.download_image", side_effect=_mock_download_image_write_jpeg):
@@ -1093,12 +1115,12 @@ class TestExternalManagerNfoF3:
             "url": "https://example.com/video",
         }
 
-    def test_jellyfin_emby_nfo_has_f3_fields(self, tmp_path):
-        """jellyfin_emby → 產出的 NFO 含 F3 欄位（<country>Japan + <lockdata>）"""
+    def test_jellyfin_nfo_has_f3_fields(self, tmp_path):
+        """jellyfin → 產出的 NFO 含 F3 欄位（<country>Japan + <lockdata>）"""
         src = tmp_path / "SONE-205.mp4"
         src.write_bytes(b"fake mp4")
 
-        config = _make_ext_config("jellyfin_emby")
+        config = _make_ext_config("jellyfin")
         metadata = self._make_nfo_metadata()
 
         with patch("core.organizer.download_image", side_effect=_mock_download_image_write_jpeg):
@@ -1109,9 +1131,9 @@ class TestExternalManagerNfoF3:
 
         nfo_content = Path(result["nfo_path"]).read_text(encoding="utf-8")
         assert "<country>Japan</country>" in nfo_content, \
-            "jellyfin_emby NFO 應含 <country>Japan</country>"
+            "jellyfin NFO 應含 <country>Japan</country>"
         assert "<lockdata>true</lockdata>" in nfo_content, \
-            "jellyfin_emby NFO 應含 <lockdata>true</lockdata>"
+            "jellyfin NFO 應含 <lockdata>true</lockdata>"
 
     def test_kodi_nfo_has_f3_fields(self, tmp_path):
         """kodi → 產出的 NFO 含 F3 欄位（<country>Japan + <lockdata>）"""
@@ -1516,7 +1538,7 @@ class TestOrganizeExtrafanart:
         # 向後相容：若未指定 download_sample_images，沿用 jellyfin_mode 的值（舊行為）
         if download_sample_images is None:
             download_sample_images = jellyfin_mode
-        # T4 遷移：image block 改由 external_manager 控制；jellyfin_mode=True → 'jellyfin_emby'
+        # T4 遷移：image block 改由 external_manager 控制；jellyfin_mode=True → 'jellyfin'
         return {
             "create_folder": create_folder,
             "filename_format": "[{num}] {title}",
@@ -1526,7 +1548,7 @@ class TestOrganizeExtrafanart:
             "max_title_length": 50,
             "max_filename_length": 60,
             "suffix_keywords": [],
-            "external_manager": "jellyfin_emby" if jellyfin_mode else "off",
+            "external_manager": "jellyfin" if jellyfin_mode else "off",
             "download_sample_images": download_sample_images,
         }
 
@@ -3245,7 +3267,7 @@ class TestOrganizeMultipart:
 
     # ---- 共用 helper ----
 
-    def _ext_config(self, tmp_path=None, ext_mode='jellyfin_emby', max_len=60,
+    def _ext_config(self, tmp_path=None, ext_mode='jellyfin', max_len=60,
                     suffix_keywords=None, filename_format=None, create_nfo=True):
         cfg = {
             'create_folder': False,
@@ -3524,7 +3546,7 @@ class TestOrganizeMultipart:
     # ---- I: P1-A 修正 — extracted_title 殘留多段 token 不雙寫（Codex P1-A）----
 
     def test_chinese_title_part2_hd_no_dup_token(self, tmp_path):
-        """I-1：中文標題含 -part2[HD] 的 part2 檔案（jellyfin_emby 模式）→
+        """I-1：中文標題含 -part2[HD] 的 part2 檔案（jellyfin 模式）→
         輸出 stem 中 part2 token 恰一次，且嚴格落在 stem 最末（無 ...-part2[HD]-part2 雙寫）。
         涵蓋 POC Q2 典型輸入形狀：bracket 包裝版本標記殘留在 extracted_title。
         """
@@ -3608,12 +3630,12 @@ class TestOrganizeMultipart:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 72c-simplify：kodi == jellyfin_emby（stem 長格式，無 per-folder 切換）
+# 72c-simplify：kodi == jellyfin (emby)（stem 長格式，無 per-folder 切換）
 # ══════════════════════════════════════════════════════════════════════════════
 
 
 class TestKodiStemNamingOrganize:
-    """kodi 模式固定使用 stem 長格式，與 jellyfin_emby 行為完全相同"""
+    """kodi 模式固定使用 stem 長格式，與 jellyfin/emby 行為完全相同"""
 
     def _make_kodi_config(self, create_folder: bool, folder_layers=None) -> dict:
         cfg = {
@@ -3701,15 +3723,15 @@ class TestKodiStemNamingOrganize:
         nfo = Path(result["nfo_path"]).read_text(encoding="utf-8")
         assert f"<poster>{poster.name}</poster>" in nfo
 
-    def test_kodi_equals_jellyfin_emby_same_filenames(self, tmp_path):
-        """kodi 輸出 == jellyfin_emby 輸出（相同 stem 命名 + 相同 NFO poster/fanart tag）。"""
+    def test_kodi_equals_jellyfin_same_filenames(self, tmp_path):
+        """kodi 輸出 == jellyfin 輸出（相同 stem 命名 + 相同 NFO poster/fanart tag）。"""
         src_k = tmp_path / "SONE-205.mp4"
         src_j = tmp_path / "SONE-205B.mp4"
         src_k.write_bytes(b"kodi")
         src_j.write_bytes(b"jf")
 
         cfg_k = self._make_kodi_config(create_folder=False)
-        cfg_j = _make_ext_config("jellyfin_emby")
+        cfg_j = _make_ext_config("jellyfin")
         meta_k = self._make_kodi_metadata("SONE-205")
         meta_j = _make_ext_metadata("SONE-205B")
 
@@ -3755,12 +3777,12 @@ class TestKodiStemNamingOrganize:
         # 裸短名不存在
         assert not (tmp_path / "poster.jpg").exists(), "不應有共用裸 poster.jpg"
 
-    def test_O3_jellyfin_emby_unchanged(self, tmp_path):
-        """O3：jellyfin_emby + create_folder=False → stem 命名不變（回歸）。"""
+    def test_O3_jellyfin_unchanged(self, tmp_path):
+        """O3：jellyfin + create_folder=False → stem 命名不變（回歸）。"""
         src = tmp_path / "SONE-205.mp4"
         src.write_bytes(b"fake mp4")
 
-        config = _make_ext_config("jellyfin_emby", create_folder=False)
+        config = _make_ext_config("jellyfin", create_folder=False)
         metadata = _make_ext_metadata()
 
         with patch("core.organizer.download_image", side_effect=_mock_download_image_write_jpeg):
