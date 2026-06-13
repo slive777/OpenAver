@@ -149,7 +149,7 @@ irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex
 - **多語系 UI**：繁中 / 简中 / 日文 / 英文，即時切換。
 - **路徑管理**：靈活設定輸出路徑與檔案命名規則，支援 `{suffix}` 格式變數。
 - **我的最愛資料夾**：設定常用資料夾，一鍵載入並自動搜尋。
-- **外部媒體管理器模式**：選 Jellyfin / Emby 或 Kodi，刮削後自動生成對應命名的 poster + fanart 與相容 NFO，掛進媒體庫即正確顯示（Jellyfin、Emby 皆支援 `{stem}-poster` / `{stem}-fanart` 命名；Kodi 用獨立 `poster.jpg` / `fanart.jpg`）。
+- **外部媒體管理器模式**：選 Jellyfin / Emby 或 Kodi，刮削後自動生成對應命名的 poster + fanart 與相容 NFO，掛進媒體庫即正確顯示（Jellyfin、Emby、Kodi 皆採 `{stem}-poster` / `{stem}-fanart` 命名，三者通用）。
 - **靜態 HTML 匯出**：生成獨立 HTML 索引檔，不需部署伺服器也能離線瀏覽。
 
 ### 🔌 刮削來源擴充：Metatube 聯邦（進階選配）
