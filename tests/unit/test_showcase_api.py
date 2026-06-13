@@ -1164,6 +1164,254 @@ class TestImageProxy:
             "穿越出白名單的 .. 路徑應被 403 擋下"
 
 
+class TestMappedDriveWhitelist:
+    """T1–T5: SMB 連線磁碟機 / DFS-UNC 白名單比對不對稱修正（TASK-73）
+
+    環境無關：不使用真實 K:\\ 字串；改用兩個 POSIX tmp 子樹模擬
+    「config 存放的路徑格式」與「realpath 回傳的真實路徑格式」之間的差異。
+    """
+
+    @pytest.fixture
+    def image_client(self):
+        from web.app import app
+        from fastapi.testclient import TestClient
+        return TestClient(app)
+
+    @pytest.fixture
+    def video_client(self):
+        from web.app import app
+        from fastapi.testclient import TestClient
+        return TestClient(app)
+
+    def _clear_cache(self):
+        """在每個測試開始前清除 TTL 快取，避免跨測試污染。"""
+        import web.routers.scanner as _scanner
+        _scanner._dir_forms_cache.clear()
+
+    # ── T1: SMB mapped drive — get_image → 200 ────────────────────────────────
+    def test_smb_mapped_drive_get_image_200(self, image_client, tmp_path, monkeypatch):
+        """T1: config dir 為 kform_dir，realpath 把請求路徑映射到 real_dir；
+        修正前 403（兩端格式不同），修正後白名單比對雙向正規化 → 200。"""
+        import os
+        self._clear_cache()
+
+        kform_dir = tmp_path / "kdrive" / "media"
+        real_dir  = tmp_path / "realshare" / "media"
+        real_dir.mkdir(parents=True, exist_ok=True)
+        cover = real_dir / "cover.jpg"
+        cover.write_bytes(b'\xff\xd8\xff' + b'\x00' * 100)
+
+        # realpath: kform_dir -> real_dir (both file and dir)
+        mapping = {
+            str(kform_dir / "cover.jpg"): str(cover),
+            str(kform_dir): str(real_dir),
+        }
+        def fake_realpath(p):
+            return mapping.get(str(p), os.path.normpath(str(p)))
+
+        monkeypatch.setattr(os.path, "realpath", fake_realpath)
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(kform_dir)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        response = image_client.get(f"/api/gallery/image?path={str(kform_dir / 'cover.jpg')}")
+        assert response.status_code == 200, (
+            "T1: SMB mapped drive — realpath 改寫後請求 URI 和 config dir URI 應雙向對齊 → 200，"
+            f"實際: {response.status_code}"
+        )
+
+    # ── T2: SMB mapped drive — get_video → 200 ────────────────────────────────
+    def test_smb_mapped_drive_get_video_200(self, video_client, tmp_path, monkeypatch):
+        """T2: 同 T1 邏輯，副檔名 .mp4，走 get_video 端點。"""
+        import os
+        self._clear_cache()
+
+        kform_dir = tmp_path / "kdrive" / "media"
+        real_dir  = tmp_path / "realshare" / "media"
+        real_dir.mkdir(parents=True, exist_ok=True)
+        video = real_dir / "movie.mp4"
+        video.write_bytes(b'\x00' * 100)
+
+        mapping = {
+            str(kform_dir / "movie.mp4"): str(video),
+            str(kform_dir): str(real_dir),
+        }
+        def fake_realpath(p):
+            return mapping.get(str(p), os.path.normpath(str(p)))
+
+        monkeypatch.setattr(os.path, "realpath", fake_realpath)
+
+        def mock_load_config():
+            return {
+                "scraper": {
+                    "video_extensions": [".mp4"],
+                },
+                "gallery": {
+                    "directories": [str(kform_dir)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        response = video_client.get(f"/api/gallery/video?path={str(kform_dir / 'movie.mp4')}")
+        assert response.status_code == 200, (
+            "T2: SMB mapped drive — get_video realpath 改寫後應雙向對齊 → 200，"
+            f"實際: {response.status_code}"
+        )
+
+    # ── T3: DFS-aliased UNC — get_image → 200 ─────────────────────────────────
+    def test_dfs_aliased_unc_get_image_200(self, image_client, tmp_path, monkeypatch):
+        """T3: 模擬 DFS alias（\\\\server\\pikpak → \\\\ERICPAN\\usbshare3-2）；
+        config 存 dfs_dir，realpath 把請求映射到 target_dir。"""
+        import os
+        self._clear_cache()
+
+        dfs_dir    = tmp_path / "eric" / "pikpak" / "media"
+        target_dir = tmp_path / "eric" / "usbshare" / "media"
+        target_dir.mkdir(parents=True, exist_ok=True)
+        cover = target_dir / "cover.jpg"
+        cover.write_bytes(b'\xff\xd8\xff' + b'\x00' * 100)
+
+        mapping = {
+            str(dfs_dir / "cover.jpg"): str(cover),
+            str(dfs_dir): str(target_dir),
+        }
+        def fake_realpath(p):
+            return mapping.get(str(p), os.path.normpath(str(p)))
+
+        monkeypatch.setattr(os.path, "realpath", fake_realpath)
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(dfs_dir)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        response = image_client.get(f"/api/gallery/image?path={str(dfs_dir / 'cover.jpg')}")
+        assert response.status_code == 200, (
+            "T3: DFS-aliased UNC — realpath 改寫後請求端 URI 應能命中 dir 的 realpath-form → 200，"
+            f"實際: {response.status_code}"
+        )
+
+    # ── T4: 間歇不對稱（dual-form 保證）────────────────────────────────────────
+    def test_intermittent_asymmetry_dual_form_200(self, image_client, tmp_path, monkeypatch):
+        """T4: 先讓 dir 的 realpath 成功（暖快取 dual-form），
+        然後讓「請求端的 realpath」拋 OSError（NAS 間歇斷線 → normpath 降級）；
+        dir 快取的 normpath-form 仍在 tuple 中 → 比對命中 → 200。
+        不清快取（與 T1–T3 不同，意在驗證快取 warmup 後的降級行為）。
+
+        設計：kform_dir 是「config + request 路徑的未 realpath 形式」，
+              real_dir 是 realpath 指向的實際目標。
+              Phase 1: realpath 成功（cover.jpg + kform_dir 都被映射到 real_dir）
+                       → 第一個請求走通（200）且暖 dir 快取的 dual-form。
+              Phase 2: realpath 全 OSError（NAS 間歇斷線）
+                       → request_uri = to_file_uri(normpath(kform_dir/cover.jpg))
+                       → dir 快取 normpath-form = to_file_uri(normpath(kform_dir))
+                       → 請求 uri 在 dir normpath-form 之下 → 白名單通過
+                       → 但 normpath(kform_dir/cover.jpg) 必須真實存在（os.path.exists）
+                       → 因此 kform_dir 必須真實建立且 cover.jpg 放在裡面。"""
+        import os
+        from unittest.mock import Mock
+        self._clear_cache()
+
+        # 兩個 subtree：kform_dir（normpath 形式）和 real_dir（realpath target）
+        kform_dir = tmp_path / "kdrive" / "media"
+        kform_dir.mkdir(parents=True, exist_ok=True)
+        # kform_dir 也有實際檔案（供 phase 2 normpath fallback 後 os.path.exists 用）
+        cover_kform = kform_dir / "cover.jpg"
+        cover_kform.write_bytes(b'\xff\xd8\xff' + b'\x00' * 100)
+
+        real_dir = tmp_path / "realshare" / "media"
+        real_dir.mkdir(parents=True, exist_ok=True)
+        cover_real = real_dir / "cover.jpg"
+        cover_real.write_bytes(b'\xff\xd8\xff' + b'\x00' * 100)
+
+        # Phase 1: realpath 把 kform_dir → real_dir（模擬 SMB mapped drive）
+        mapping = {
+            str(kform_dir / "cover.jpg"): str(cover_real),
+            str(kform_dir): str(real_dir),
+        }
+        def fake_realpath_phase1(p):
+            return mapping.get(str(p), os.path.normpath(str(p)))
+
+        monkeypatch.setattr(os.path, "realpath", fake_realpath_phase1)
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(kform_dir)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        # 第一次請求：realpath 成功，warm dir cache（dual-form），200（預期）
+        response1 = image_client.get(f"/api/gallery/image?path={str(kform_dir / 'cover.jpg')}")
+        assert response1.status_code == 200, f"T4 phase1（warm cache）應 200，實際: {response1.status_code}"
+
+        # Phase 2: realpath 全 OSError（NAS 間歇斷線）
+        # dir 快取已存在（TTL 未過），不再呼叫 realpath 重算
+        # request: normpath(kform_dir/cover.jpg) → 在 kform_dir 下 → normpath-form 命中
+        monkeypatch.setattr(os.path, "realpath", Mock(side_effect=OSError("NAS 斷線")))
+
+        # 第二次請求：請求端降 normpath；dir 快取的 normpath-form 應命中 → 200
+        response2 = image_client.get(f"/api/gallery/image?path={str(kform_dir / 'cover.jpg')}")
+        assert response2.status_code == 200, (
+            "T4: 間歇斷線 — 請求端 realpath OSError 降 normpath，"
+            "dir 快取的 normpath-form 仍應命中 → 200，"
+            f"實際: {response2.status_code}"
+        )
+
+    # ── T5: 契約守衛（behavioral regression guard）─────────────────────────────
+    def test_dir_whitelist_canonicalization_is_symmetric(self, image_client, tmp_path, monkeypatch):
+        """T5: 契約守衛 — config dir 端必須也經過 realpath 正規化（與請求端對稱）。
+        設定：config dir = kform_dir（未被 realpath），請求路徑的 realpath → real_dir；
+        修正前：兩端格式不同 → 403（RED）；修正後：dir 端也跑 realpath → dual-form → 200（GREEN）。
+        此測試作為 TASK-73 的 regression guard 永久留存。"""
+        import os
+        self._clear_cache()
+
+        kform_dir = tmp_path / "kguard" / "media"
+        real_dir  = tmp_path / "realguard" / "media"
+        real_dir.mkdir(parents=True, exist_ok=True)
+        cover = real_dir / "cover.jpg"
+        cover.write_bytes(b'\xff\xd8\xff' + b'\x00' * 100)
+
+        mapping = {
+            str(kform_dir / "cover.jpg"): str(cover),
+            str(kform_dir): str(real_dir),
+        }
+        def fake_realpath(p):
+            return mapping.get(str(p), os.path.normpath(str(p)))
+
+        monkeypatch.setattr(os.path, "realpath", fake_realpath)
+
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [str(kform_dir)],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.scanner.load_config", mock_load_config)
+
+        response = image_client.get(f"/api/gallery/image?path={str(kform_dir / 'cover.jpg')}")
+        assert response.status_code == 200, (
+            "T5 契約守衛: config dir 端白名單比對必須對稱地跑 realpath-or-normpath 正規化；"
+            "若此測試失敗表示白名單比對不對稱已回歸。"
+            f"實際: {response.status_code}"
+        )
+
+
 class TestSampleImagesAPI:
     """sample_images 欄位 — Showcase API integration 測試"""
 

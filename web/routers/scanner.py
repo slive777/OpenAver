@@ -56,6 +56,51 @@ router = APIRouter(prefix="/api/gallery", tags=["gallery"])
 _jellyfin_cache_result: dict | None = None
 _jellyfin_cache_time: float = 0
 
+# TASK-73: 白名單目錄 dual-form TTL 快取（key: (raw_dir, frozen_mappings), value: (forms, expire_monotonic)）
+_dir_forms_cache: dict = {}
+_DIR_FORMS_TTL = 60.0  # 秒
+
+
+def _safe_realpath(fs_path: str, endpoint_label: str) -> str:
+    """TASK-73: realpath-or-normpath helper。
+    回傳 FS path（str）：realpath 成功則用 realpath 結果，OSError（FUSE/WinFsp）則降級 normpath。
+    只回傳 FS path，不回傳 URI；realpath 只跑一次（serving + 白名單比對共用）。
+    """
+    try:
+        return os.path.realpath(fs_path)
+    except OSError as e:
+        logger.warning(
+            "%s: realpath 失敗（FUSE/WinFsp？），降級為 normpath path=%s err=%s",
+            endpoint_label, fs_path, e,
+        )
+        return os.path.normpath(fs_path)
+
+
+def _dir_candidate_forms(raw_dir: str, path_mappings: dict) -> tuple:
+    """TASK-73: 回傳白名單目錄的候選 file:/// URI tuple（1 或 2 個，已 dedup）。
+    normpath_form 永遠存在；realpath_form 在 realpath 成功時加入。
+    cache-on-success-only：realpath OSError 時不寫快取（避免 NAS 重連後 false-403 窗口）。
+    並發安全：dict 賦值原子，無需鎖（冪等計算）。
+    """
+    cache_key = (raw_dir, frozenset(path_mappings.items()) if path_mappings else frozenset())
+    now = time.monotonic()
+    cached = _dir_forms_cache.get(cache_key)
+    if cached is not None:
+        forms, expire = cached
+        if now < expire:
+            return forms
+
+    normpath_form = to_file_uri(os.path.normpath(raw_dir), path_mappings)
+    try:
+        realpath_form = to_file_uri(os.path.realpath(raw_dir), path_mappings)
+        forms = tuple(dict.fromkeys([normpath_form, realpath_form]))
+        # cache-on-success-only
+        _dir_forms_cache[cache_key] = (forms, now + _DIR_FORMS_TTL)
+    except OSError:
+        # FUSE/WinFsp: normpath fallback — 不寫快取，確保 NAS 重連後立即重算
+        forms = (normpath_form,)
+    return forms
+
 
 def _sse_event(data: dict) -> str:
     """將 dict 編碼為 SSE 格式的單條 message。"""
@@ -745,13 +790,7 @@ def get_image(path: str = Query(..., description="圖片路徑")):
         local_path = path  # 無法轉換時使用原路徑
 
     # 1. 解析 .. 並追蹤 symlink target（realpath）；FUSE/WinFsp OSError 時降級 normpath
-    try:
-        local_path = os.path.realpath(local_path)
-    except OSError as e:
-        # FUSE / WinFsp / rclone mount 不支援 GetFinalPathNameByHandle
-        # 降級 normpath（純字串）；symlink escape 風險在 FUSE 環境接受
-        logger.warning("get_image: realpath 失敗（FUSE/WinFsp？），降級為 normpath path=%s err=%s", local_path, e)
-        local_path = os.path.normpath(local_path)
+    local_path = _safe_realpath(local_path, "get_image")
 
     # 2. 副檔名白名單（只允許圖片格式）
     ext = os.path.splitext(local_path)[1].lower()
@@ -773,13 +812,16 @@ def get_image(path: str = Query(..., description="圖片路徑")):
     directories = gallery_config.get('directories', [])
     path_mappings = gallery_config.get('path_mappings', {})
 
-    file_uri = to_file_uri(local_path, path_mappings)
+    # TASK-73: 兩端對稱正規化 — request_uri 用 single-form（realpath已做）；
+    # dir 端用 dual-form（normpath + realpath 候選），避免 SMB mapped drive 格式不同 403 誤殺
+    request_uri = to_file_uri(local_path, path_mappings)
     allowed = any(
-        is_path_under_dir(file_uri, to_file_uri(d, path_mappings))
+        is_path_under_dir(request_uri, form)
         for d in directories
+        for form in _dir_candidate_forms(d, path_mappings)
     )
     if not allowed:
-        logger.warning("get_image: 拒絕白名單外路徑請求 uri=%s", file_uri)
+        logger.warning("get_image: 拒絕白名單外路徑請求 uri=%s", request_uri)
         return Response(status_code=403, content="路徑不在允許的資料夾範圍內")
 
     # 4. 檔案存在性
@@ -1039,13 +1081,7 @@ def get_video(request: Request, path: str = Query(..., description="影片路徑
     local_path = uri_to_fs_path(path)
 
     # 2. 解析 .. 並追蹤 symlink target（realpath）；FUSE/WinFsp OSError 時降級 normpath
-    try:
-        local_path = os.path.realpath(local_path)
-    except OSError as e:
-        # FUSE / WinFsp / rclone mount 不支援 GetFinalPathNameByHandle
-        # 降級 normpath（純字串）；symlink escape 風險在 FUSE 環境接受
-        logger.warning("get_video: realpath 失敗（FUSE/WinFsp？），降級為 normpath path=%s err=%s", local_path, e)
-        local_path = os.path.normpath(local_path)
+    local_path = _safe_realpath(local_path, "get_video")
 
     # 3. 副檔名白名單（用 realpath/normpath 解析後的路徑）
     #    使用 get_proxy_extensions() = user config ∩ SAFE_PROXY_EXTENSIONS
@@ -1061,13 +1097,16 @@ def get_video(request: Request, path: str = Query(..., description="影片路徑
     directories = gallery_config.get('directories', [])
     path_mappings = gallery_config.get('path_mappings', {})
 
-    file_uri = to_file_uri(local_path, path_mappings)
+    # TASK-73: 兩端對稱正規化 — request_uri 用 single-form（realpath已做）；
+    # dir 端用 dual-form（normpath + realpath 候選），避免 SMB mapped drive 格式不同 403 誤殺
+    request_uri = to_file_uri(local_path, path_mappings)
     allowed = any(
-        is_path_under_dir(file_uri, to_file_uri(d, path_mappings))
+        is_path_under_dir(request_uri, form)
         for d in directories
+        for form in _dir_candidate_forms(d, path_mappings)
     )
     if not allowed:
-        logger.warning("get_video: 拒絕白名單外路徑請求 uri=%s", file_uri)
+        logger.warning("get_video: 拒絕白名單外路徑請求 uri=%s", request_uri)
         return Response(status_code=403, content="路徑不在允許的資料夾範圍內")
 
     # 5. 檔案存在性
