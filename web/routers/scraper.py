@@ -232,7 +232,20 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
         nfo_path, cover_path = resolve_nfo_cover_paths(request.file_path)
         will_write_nfo = request.write_nfo and not os.path.exists(nfo_path)
         will_write_cover = request.write_cover and not os.path.exists(cover_path)
-        if not will_write_nfo and not will_write_cover:
+        # 72d-P2A：外部圖寫出機會也是合法的寫出路徑（72b-T6 加入 external_manager 後守衛未同步）
+        external_manager = config.get("scraper", {}).get("external_manager", "off")
+        if external_manager != "off":
+            stem = os.path.splitext(uri_to_fs_path(request.file_path))[0]
+            poster_path = stem + "-poster.jpg"
+            fanart_path = stem + "-fanart.jpg"
+            # 底圖存在 + 至少一張外部圖缺 → _write_external_images 有寫出機會
+            cover_exists_on_disk = os.path.exists(cover_path)
+            will_write_external = cover_exists_on_disk and (
+                not os.path.exists(poster_path) or not os.path.exists(fanart_path)
+            )
+        else:
+            will_write_external = False
+        if not will_write_nfo and not will_write_cover and not will_write_external:
             raise HTTPException(
                 status_code=400,
                 detail="refresh_full + overwrite_existing=false 在此設定下不會寫出任何 NFO/封面，只會更新 DB 造成與磁碟分裂；請開 overwrite_existing、確保 NFO/封面有實際寫入，或補劇照請改用 /api/scraper/fetch-samples",
