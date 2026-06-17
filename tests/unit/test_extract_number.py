@@ -77,3 +77,19 @@ class TestExtractNumber:
         """S1_2024.mp4 不誤抽成 S2024（底線隔開單字母與數字）"""
         result = extract_number("S1_2024.mp4")
         assert result != "S2024"
+
+    # --- TASK-73a-T2 bugfix: right-side digit boundary (no truncation) ---
+
+    def test_no_truncate_5digit_n12345(self):
+        """n12345.mp4 不應截斷為 N1234（單字母 + 5 位 → 不是 Tokyo Hot，應回 None）"""
+        result = extract_number("n12345.mp4")
+        # 5-digit after single letter is NOT Tokyo Hot (spec: exactly 4 digits)
+        # Earlier patterns don't match either, so result must NOT be N1234
+        assert result != "N1234"
+        assert result is None
+
+    def test_no_truncate_5digit_n07620(self):
+        """n07620.mp4 不應截斷為 N0762（單字母 + 5 位 → 不是 Tokyo Hot，應回 None）"""
+        result = extract_number("n07620.mp4")
+        assert result != "N0762"
+        assert result is None

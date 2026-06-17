@@ -110,7 +110,7 @@ def extract_number(filename: str) -> Optional[str]:
         r'\[([A-Za-z]{1,6}-\d{3,5})\]', # [ABC-123] 方括號
         r'([A-Za-z]{1,6}-\d{3,5})',     # ABC-123 帶橫線
         r'([A-Za-z]{2,6})(\d{3,5})',    # ABC12345 不帶橫線（index 6，兩 group → 插 hyphen）
-        r'([A-Za-z]\d{4})',             # n0762 單字母 + 恰 4 位（Tokyo Hot 無碼，單 group → 不插 hyphen）
+        r'([A-Za-z]\d{4})(?!\d)',        # n0762 單字母 + 恰 4 位（Tokyo Hot 無碼，單 group → 不插 hyphen；右側無更多數字）
         r'(\d{3}[A-Za-z]{3,4}-?\d{3,4})', # 123ABC-456 或 123ABC456
     ]
 
