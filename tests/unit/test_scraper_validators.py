@@ -274,3 +274,48 @@ class TestDmmProxyGuard:
         constructed = _install_scraper_spies(monkeypatch)
         search_jav("ABP-001", source="dmm", proxy_url="http://127.0.0.1:8080")
         assert constructed['DMMScraper'] == 1
+
+
+# ============ TASK-73a-T1: 入口 gate + search_jav 整合 ============
+
+class TestTokyoHotGate:
+    """is_number_format 入口 gate 守衛：n0762 / N0762 必須通過"""
+
+    def test_is_number_format_n0762_lowercase(self):
+        """n0762 通過入口 gate（契約守衛）"""
+        assert is_number_format('n0762') is True
+
+    def test_is_number_format_N0762_uppercase(self):
+        """N0762 通過入口 gate（契約守衛）"""
+        assert is_number_format('N0762') is True
+
+
+class TestTokyoHotSearchJavIntegration:
+    """search_jav('n0762', source='javbus') 傳進 scraper 的番號必須是 N0762（不是 N-0762）"""
+
+    def test_search_jav_n0762_passes_N0762_to_scraper(self, monkeypatch):
+        """n0762 normalize 後以 N0762 傳入 scraper.search()"""
+        received_numbers = []
+
+        # Subclass the REAL JavBusScraper so the inherited (real) normalize_number
+        # runs through the production module-level wrapper
+        # (scraper.py:78 → JavBusScraper().normalize_number()); only .search() is
+        # overridden to capture. No normalize_number patching → the full real
+        # normalize path is exercised, not a stand-in wrapper.
+        from core.scrapers import JavBusScraper as _RealJavBusScraper
+
+        class _CapturingJavBusScraper(_RealJavBusScraper):
+            def search(self, number):
+                received_numbers.append(number)
+                return None
+
+        # Patch the USE-SITE binding in core.scraper (same pattern as existing tests).
+        monkeypatch.setattr(scraper_mod, 'JavBusScraper', _CapturingJavBusScraper)
+
+        search_jav('n0762', source='javbus')
+
+        # scraper must have been called exactly once with N0762 (not N-0762)
+        assert len(received_numbers) == 1, f"expected 1 call, got {received_numbers}"
+        assert received_numbers[0] == 'N0762', (
+            f"expected 'N0762' but scraper received {received_numbers[0]!r}"
+        )

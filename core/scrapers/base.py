@@ -72,6 +72,7 @@ class BaseScraper(ABC):
             r'^[A-Z]+-\d+$',         # ABC-123
             r'^FC2-PPV-\d+$',        # FC2-PPV-1234567
             r'^[A-Z]+\d+-\d+$',      # T28-103
+            r'^[A-Z]\d{4}$',         # N0762, K0150（單字母 + 恰 4 位，Tokyo Hot 無碼）
         ]
         return any(re.match(p, number.upper()) for p in patterns)
 
@@ -93,6 +94,9 @@ class BaseScraper(ABC):
             '', number, flags=re.IGNORECASE
         )
         number = number.upper()
+        # 單字母 + 恰 4 位（如 N0762, K0150）→ Tokyo Hot 無碼番號，不插 hyphen
+        if re.match(r'^[A-Z]\d{4}$', number):
+            return number
         # ABC123 → ABC-123
         match = re.match(r'^([A-Z]+)(\d+)$', number)
         if match:

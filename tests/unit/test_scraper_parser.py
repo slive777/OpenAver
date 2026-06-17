@@ -278,6 +278,84 @@ class TestNormalizeNumber:
         """無橫線 + 後綴 STARS804-UNCEN → STARS-804"""
         assert normalize_number('STARS804-UNCEN') == 'STARS-804'
 
+    # --- TASK-73a-T1: 單字母+4位 Tokyo Hot 番號 ---
+
+    def test_tokyo_hot_n0762_lowercase(self):
+        """n0762（小寫）→ N0762（不插 hyphen）"""
+        assert normalize_number('n0762') == 'N0762'
+
+    def test_tokyo_hot_N0762_uppercase(self):
+        """N0762（大寫）→ N0762（已是正規化，不插 hyphen）"""
+        assert normalize_number('N0762') == 'N0762'
+
+    def test_tokyo_hot_k0150(self):
+        """k0150 → K0150（單字母 + 4 位，不插 hyphen）"""
+        assert normalize_number('k0150') == 'K0150'
+
+    def test_tokyo_hot_c0050(self):
+        """c0050 → C0050（單字母 + 4 位，不插 hyphen）"""
+        assert normalize_number('c0050') == 'C0050'
+
+    # --- TASK-73a-T1: normalize 回歸守衛（單字母非4位 + 多字母，照舊插 hyphen）---
+
+    def test_regression_k001_single_letter_3digits(self):
+        """k001 → K-001（單字母 3 位，有碼 K- 系列，照舊插 hyphen）"""
+        assert normalize_number('k001') == 'K-001'
+
+    def test_regression_n12345_single_letter_5digits(self):
+        """n12345 → N-12345（單字母 5 位，照舊插 hyphen）"""
+        assert normalize_number('n12345') == 'N-12345'
+
+    def test_regression_kb001_two_letters(self):
+        """kb001 → KB-001（雙字母 + 3 位，照舊插 hyphen）"""
+        assert normalize_number('kb001') == 'KB-001'
+
+    def test_regression_jup001_multi_letters(self):
+        """jup001 → JUP-001（多字母 + 3 位，照舊插 hyphen）"""
+        assert normalize_number('jup001') == 'JUP-001'
+
+    def test_regression_sone103(self):
+        """sone103 → SONE-103（多字母，照舊插 hyphen）"""
+        assert normalize_number('sone103') == 'SONE-103'
+
+    def test_regression_abc123(self):
+        """abc123 → ABC-123（多字母，照舊插 hyphen）"""
+        assert normalize_number('abc123') == 'ABC-123'
+
+    def test_regression_SUPD103(self):
+        """SUPD103 → SUPD-103（多字母，照舊插 hyphen）"""
+        assert normalize_number('SUPD103') == 'SUPD-103'
+
+    def test_regression_ABC12345(self):
+        """ABC12345 → ABC-12345（多字母 + 5 位，照舊插 hyphen）"""
+        assert normalize_number('ABC12345') == 'ABC-12345'
+
+
+# ============ TestValidateNumber（TASK-73a-T1）============
+
+class TestValidateNumber:
+    """測試 BaseScraper.validate_number（透過 JavBusScraper 繼承）"""
+
+    def _scraper(self):
+        from core.scrapers import JavBusScraper
+        return JavBusScraper()
+
+    def test_validate_N0762_true(self):
+        """N0762（單字母 + 4 位）validate 應為 True"""
+        assert self._scraper().validate_number('N0762') is True
+
+    def test_validate_K0150_true(self):
+        """K0150（單字母 + 4 位）validate 應為 True"""
+        assert self._scraper().validate_number('K0150') is True
+
+    def test_validate_SONE103_false(self):
+        """SONE103（多字母無 hyphen）validate 仍應為 False（回歸守衛）"""
+        assert self._scraper().validate_number('SONE103') is False
+
+    def test_validate_SONE103_with_hyphen_true(self):
+        """SONE-103（多字母有 hyphen）validate 仍應為 True（回歸守衛）"""
+        assert self._scraper().validate_number('SONE-103') is True
+
 
 # ============ TestIsNumberFormat ============
 
