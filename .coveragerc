@@ -1,0 +1,20 @@
+# Coverage 設定（US4 cov-floor，TASK-73c-T6）
+#
+# 注意：standalone .coveragerc 用 [run] 段（非 [coverage:run]，那是 setup.cfg/tox.ini 語法）。
+# pytest.ini 的 addopts 維持只有 -v、不放 --cov（避免跑單檔 debug 時誤觸全域覆蓋率計算）；
+# 覆蓋率指令集中在 scripts/run_cov.sh。
+
+[run]
+omit =
+    # FastAPI routes：由 integration test 部分覆蓋，屬端點 I/O，非 core unit-test 債。
+    web/*
+
+# 為何「不」omit core/scrapers/utils.py（修正 plan-73c Canonical Decision 8，用戶 2026-06-17 拍板）：
+#   該檔 80% 覆蓋，大半是已測純邏輯（extract_number〔73a T2 補〕/ has_japanese / has_chinese /
+#   strip_number_prefix / format_number / check_subtitle）；只有 get_html / post_html（~40 行）
+#   是 smoke-only HTTP I/O。omit 整檔對門檻數字幾乎無影響，卻會把已測純邏輯移出地板保護，
+#   違背 US4「白名單分離假象與真債」本意。改用行級 # pragma 會動 production（plan Non-Goal 禁止），
+#   故保留整檔在地板內，未覆蓋的 HTTP I/O 行由 fail-under 的 M-2 緩衝吸收。
+
+[report]
+show_missing = True
