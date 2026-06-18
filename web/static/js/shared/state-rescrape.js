@@ -245,7 +245,17 @@ export function rescrapeState() {
                 // （Search 入口已在函式開頭提早分流到 advancedSearch，不走到這裡）
                 // （cf_needed / cf_unavailable 已在上方統一提前處理，此處不再重複）
                 if (data && data.success) {
-                    this.rescrapePreview = { ...data, sourceName: this._resolveSourceName(sourceId) };
+                    // 74b US3：預覽膠囊顯示「實際刮到的源」+ 有碼/無碼上色。
+                    // lightbox/enrich + auto 也會進 preview（無 early return）→ auto 時用後端
+                    // 回傳的實際源（data._source）解析，否則顯示「自動」+藍 fallback、無法辨識
+                    // 實際源（違背 US3「截圖辨識用了哪個源」）。
+                    const previewSourceId = sourceId === 'auto' ? (data._source || data.source || sourceId) : sourceId;
+                    const _previewSrc = this.rescrapeSources.find(x => x.id === previewSourceId);
+                    this.rescrapePreview = {
+                        ...data,
+                        sourceName: this._resolveSourceName(previewSourceId),
+                        sourceCensored: _previewSrc?.is_censored ?? true,  // 找不到 → fallback 有碼藍（同 US2 安全預設）
+                    };
                     this._rescrapeCommitSource = sourceId;
                     this.rescrapeStep = 'preview';
                 } else {

@@ -5,6 +5,7 @@
    渲染為 inert（state 未定義、按鈕無反應），這是預期。state 名統一 rescrape* 前綴，跨頁可辨識，
    不寫 showcase 專屬 state 名，使 search 入口（62c）也能 include 同一份。
    preview cover 必走 /api/proxy-image（CD-62-14 #8）—— search_jav 回的 cover 是遠端 URL。 #}
+{% from '_macros/source_pill.html' import source_pill %}
 <dialog class="modal fluent-modal rescrape-dialog" x-cloak
         :class="{ 'modal-open': rescrapeOpen }"
         @click.self="closeRescrape()"
@@ -150,7 +151,15 @@
             <span x-show="rescrapePreview && rescrapePreview.label">&nbsp;·&nbsp;<span x-text="rescrapePreview && rescrapePreview.label"></span></span>
             <span x-show="rescrapePreview && rescrapePreview.date">&nbsp;·&nbsp;<span x-text="rescrapePreview && rescrapePreview.date"></span></span>
             <span x-show="rescrapePreview && rescrapePreview.duration">&nbsp;·&nbsp;<span x-text="rescrapePreview && rescrapePreview.duration"></span> {{ t('showcase.unit.minutes') }}</span>
-            <span x-show="rescrapePreview && rescrapePreview.sourceName">&nbsp;·&nbsp;<span x-text="rescrapePreview && rescrapePreview.sourceName"></span></span>
+            {# 74b US3：換源預覽「剛挑的來源」改 source_pill flat 唯讀膠囊（取代純文字 · sourceName）。
+               flat=無 hover/pointer/focus（唯讀）；有碼藍/無碼綠走動態 :class（sourceCensored）；
+               name null-safe（CD-74b-11，pick 步驟 rescrapePreview 為 null）。 #}
+            {{ source_pill(
+                name="rescrapePreview && rescrapePreview.sourceName",
+                variant='flat',
+                extra_classes='rescrape-preview-source-pill',
+                attrs='x-show="rescrapePreview && rescrapePreview.sourceName" tabindex="-1" :class="{ \'source-pill--uncensored\': !(rescrapePreview && rescrapePreview.sourceCensored) }"'
+            ) }}
           </div>
           <div class="lb-tags" x-show="rescrapePreview && rescrapePreview.tags">
             <template x-for="tag in (rescrapePreview ? rescrapePreview.tags : [])" :key="tag">
