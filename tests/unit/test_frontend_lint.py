@@ -10766,3 +10766,84 @@ class TestSkippedNfoMultipartToastGuard:
             f"batch.js 'search.toast.skipped_nfo_multipart' 出現 {count} 次，期望 >= 2"
             "（scrapeAll + scrapeSingle 各一條 showToast 呼叫）"
         )
+
+
+SOURCE_PILL_MACRO = (
+    Path(__file__).parent.parent.parent
+    / "web" / "templates" / "_macros" / "source_pill.html"
+)
+
+
+class TestSourcePillMacroTypeButton:
+    """TASK-74a-T1: source_pill macro DOM contract（element-bound）。
+
+    過「三問」：搬走 / 註解化 / 刪子表達式都要紅。
+    """
+
+    def _macro(self) -> str:
+        return SOURCE_PILL_MACRO.read_text(encoding="utf-8")
+
+    def _root_button_tag(self, src: str) -> str:
+        """抽出 macro root <button ...> 開頭 tag（含屬性，不含子元素）。
+
+        錨定 class="source-pill 的那顆 button（macro 註解中亦有裸 <button> 字樣，
+        須跳過；root button 是唯一帶 source-pill class 的開頭 tag）。
+        """
+        m = re.search(r'<button\b[^>]*class="source-pill[^>]*>', src)
+        assert m, "source_pill.html 找不到 root <button> tag（class=\"source-pill\"）"
+        return m.group(0)
+
+    def test_root_button_has_type_button(self):
+        """root <button> tag 同一 tag 上帶 type=\"button\"（CD-74a-14(1)）。
+
+        搬到子元素 / 拿掉 type → 此斷言紅（regex 只取 root button tag）。
+        """
+        tag = self._root_button_tag(self._macro())
+        assert re.search(r'type\s*=\s*"button"', tag), (
+            f"root <button> 必須 hardcode type=\"button\"，實際 tag: {tag!r}"
+        )
+
+    def test_attrs_output_via_safe(self):
+        """attrs 用 {{ attrs|safe }}（或 attrs | safe）輸出，非裸 {{ attrs }}（CD-74a-14(3)）。
+
+        拿掉 |safe → autoescape 打爛引號；此斷言紅。
+        """
+        src = self._macro()
+        assert re.search(r"\{\{\s*attrs\s*\|\s*safe\s*\}\}", src), (
+            "attrs 必須以 {{ attrs|safe }} 輸出（不可裸 {{ attrs }}，否則引號被 escape）"
+        )
+        # 防回歸成裸 {{ attrs }}：不存在「未接 |safe 的 attrs 輸出」
+        assert not re.search(r"\{\{\s*attrs\s*\}\}", src), (
+            "偵測到裸 {{ attrs }}（無 |safe），會被 autoescape 打爛 Alpine directive"
+        )
+
+    def test_root_button_has_no_alpine_class_binding(self):
+        """root <button> tag 不含 :class=（動態 class 必走 caller attrs，CD-74a-14(2)）。
+
+        把 :class 加到 root → 此斷言紅。
+        """
+        tag = self._root_button_tag(self._macro())
+        assert ":class=" not in tag, (
+            f"root <button> 不可輸出 :class（動態 class 走 caller 的單一 :class）；tag: {tag!r}"
+        )
+
+    def test_variant_branches_emit_both_classes(self):
+        """variant 判斷處同時輸出 source-pill--action 與 source-pill--flat 兩分支字串。
+
+        刪任一分支 → 此斷言紅。
+        """
+        src = self._macro()
+        # 兩 class 必須出現在 variant 條件式內（同一 {% if variant ... %} 區塊）
+        branch = re.search(
+            r"\{%\s*if\s+variant\b.*?\{%\s*endif\s*%\}", src, re.DOTALL
+        )
+        assert branch, "找不到 variant 的 {% if %}…{% endif %} 分支"
+        block = branch.group(0)
+        assert "source-pill--action" in block, "variant 分支缺 source-pill--action"
+        assert "source-pill--flat" in block, "variant 分支缺 source-pill--flat"
+
+    def test_inner_child_classes_present(self):
+        """子元素 class 名與既有 pill 相容：pill-spin / pill-name。"""
+        src = self._macro()
+        assert re.search(r'class="pill-spin"', src), "缺 spinner span class=\"pill-spin\""
+        assert re.search(r'class="pill-name"', src), "缺 name span class=\"pill-name\""

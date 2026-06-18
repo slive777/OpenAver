@@ -1,0 +1,29 @@
+{# source-pill macro — US1（搜尋列自動膠囊）/ US2（目前來源膠囊）/ 74b 共用的行內結構。
+   純結構，無互動邏輯：互動由 caller 經 attrs 注入（@click / x-show / :disabled / :class）。
+   macro 鐵則（CD-74a-14）：
+     1. root <button> 永遠 hardcode type="button"（不由 attrs 覆寫，避免 search form 誤送出）。
+     2. root <button> 只放靜態 class（source-pill + variant + extra_classes），絕不輸出 :class；
+        所有動態 class 由 caller 經 attrs 的單一 :class object 注入。
+     3. attrs 用 {{ attrs|safe }} 輸出（autoescape=on 否則引號被 escape 打爛 Alpine directive）；
+        安全約束：attrs 只接 template 內 hardcoded 字串，絕不接使用者輸入。
+     4. tooltip/文案走 attrs 內的 Alpine :title="t('key')"，不在此 macro 處理 i18n。
+#}
+{% macro source_pill(
+    name,
+    censored=true,
+    variant='action',
+    icon='',
+    loading_expr='false',
+    mt_badge=false,
+    beta_badge=false,
+    extra_classes='',
+    attrs=''
+) %}
+<button type="button" class="source-pill {% if variant == 'flat' %}source-pill--flat{% else %}source-pill--action{% endif %}{% if not censored %} source-pill--uncensored{% endif %}{% if extra_classes %} {{ extra_classes }}{% endif %}" data-enabled="true" {{ attrs|safe }}>
+  <span class="pill-spin" x-show="{{ loading_expr }}"></span>
+  {% if icon %}<i class="bi {{ icon }}" x-show="!({{ loading_expr }})" aria-hidden="true"></i>{% endif %}
+  <span class="pill-name" x-text="{{ name }}"></span>
+  {% if mt_badge %}<span class="source-pill-mt-badge" aria-hidden="true">m</span>{% endif %}
+  {% if beta_badge %}<span class="source-pill-badge" aria-hidden="true">BETA</span>{% endif %}
+</button>
+{% endmacro %}
