@@ -345,18 +345,11 @@
                                     title="{{ t('search.action.open_folder') }}">
                                 <i class="bi bi-folder2-open"></i>
                             </button>
-                            <!-- 62b-1: tap=enrichVideo（快速補缺）/ 長壓 700ms=進階重刮（openRescrape ,'enrich'）。
-                                 longPressClickGuard 攔截長壓 fire 後的同一次 click，避免連帶觸發 enrich。 -->
+                            <!-- 74b US4: tap=enrichVideo（自動補缺）；長壓已移除（進階重刮收斂到燈箱齒輪 ⚙）。 -->
                             <button class="btn-glass-circle enrich-btn"
                                     x-show="!video.has_cover || !video.has_nfo"
                                     :disabled="_enriching"
-                                    @click.stop="longPressClickGuard($event) || enrichVideo(video)"
-                                    @mousedown="longPressStart(() => openRescrape(video, 'enrich'), () => rescrapeEnabled(), $event)"
-                                    @mouseup="longPressEnd($event)"
-                                    @mouseleave="longPressCancel($event)"
-                                    @touchstart.passive="longPressStart(() => openRescrape(video, 'enrich'), () => rescrapeEnabled(), $event)"
-                                    @touchend="longPressEnd($event)"
-                                    @touchcancel="longPressCancel($event)"
+                                    @click.stop="enrichVideo(video)"
                                     :title="t('showcase.action.enrich')">
                                 <i class="bi" :class="_enriching ? 'bi-arrow-clockwise spin' : 'bi-search'"></i>
                             </button>
@@ -719,18 +712,11 @@
                                 <button class="lb-action-btn" @click="openLocal(currentLightboxVideo?.path)" data-tooltip="{{ t('search.action.open_folder') }}" aria-label="{{ t('search.action.open_folder') }}">
                                     <i class="bi bi-folder2-open"></i>
                                 </button>
-                                <!-- 62b-1: tap=enrichVideo（快速補缺）/ 長壓 700ms=進階重刮（openRescrape ,'enrich'）。
-                                     與番號旁 ⚙ 並存（缺卡片兩進階入口）。 -->
+                                <!-- 74b US4: tap=enrichVideo（自動補缺）；長壓已移除（進階重刮走齒輪 ⚙）。 -->
                                 <button class="lb-action-btn"
                                         x-show="!currentLightboxVideo?.has_cover || !currentLightboxVideo?.has_nfo"
                                         :disabled="_enriching"
-                                        @click.stop="longPressClickGuard($event) || enrichVideo(currentLightboxVideo)"
-                                        @mousedown="longPressStart(() => openRescrape(currentLightboxVideo, 'enrich'), () => rescrapeEnabled(), $event)"
-                                        @mouseup="longPressEnd($event)"
-                                        @mouseleave="longPressCancel($event)"
-                                        @touchstart.passive="longPressStart(() => openRescrape(currentLightboxVideo, 'enrich'), () => rescrapeEnabled(), $event)"
-                                        @touchend="longPressEnd($event)"
-                                        @touchcancel="longPressCancel($event)"
+                                        @click.stop="enrichVideo(currentLightboxVideo)"
                                         data-tooltip="{{ t('showcase.action.enrich') }}"
                                         :aria-label="t('showcase.action.enrich')">
                                     <i class="bi" :class="_enriching ? 'bi-arrow-clockwise spin' : 'bi-search'"></i>

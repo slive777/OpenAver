@@ -8141,12 +8141,14 @@ class TestRescrapeStateGuard:
 
 
 class TestRescrapeEntryGuard:
-    """62b-1: 守衛三個 Showcase 進階重刮入口接線 contract（lightbox ⚙ + grid 長壓 + lightbox 🔍 長壓）。
+    """62b-1 → 74b US4：守衛 Showcase 進階重刮入口接線 contract。
 
-    入口全受 rescrapeEnabled() gate；長壓走 shared/long-press.js helper（grid + lightbox 共用）；
-    tap 路徑（enrichVideo）不得被長壓覆蓋；長壓 callback 路由到 openRescrape(...,'enrich')，不直接 enrichVideo。
+    74b US4 移除 grid + lightbox 🔍 enrich-btn 的長壓入口（去長壓）後，**燈箱齒輪 ⚙ 成為
+    showcase 唯一可見進階重刮入口**。本類守衛齒輪 contract（icon / openRescrape('lightbox') /
+    rescrapeEnabled() gate / i18n tooltip）+ long-press helper 機制本體（74c 才退役本體）。
+    enrich-btn 去長壓的 element-bound 守衛見 TestLongPressTouchSuppression
+    （test_grid/lightbox_enrich_btn_longpress_retired）。
     強守衛採 element-bound regex（綁到具體 button tag）避免「字串存在性」假測試（gotchas Frontend Guard 強度）。
-    對齊 TestSimilarStageGuard L1164 / TestRescrapeStateGuard pattern。
     """
 
     SHARED_DIR = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "shared"
@@ -8157,31 +8159,6 @@ class TestRescrapeEntryGuard:
 
     def _html(self):
         return SHOWCASE_HTML.read_text(encoding="utf-8")
-
-    def _grid_enrich_btn(self, html):
-        """擷取 grid 缺卡 enrich-btn 的完整 <button>...</button> 區塊（btn-glass-circle enrich-btn）。
-
-        注意：button tag 內 @mousedown 等屬性值含 arrow function `() =>`，含 `>` 字元，
-        故不可用 `[^>]*>` 截到第一個 `>`；改用 non-greedy 抓到 </button>。
-        """
-        m = re.search(
-            r'<button\b[^>]*?\bclass="btn-glass-circle enrich-btn".*?</button>',
-            html, re.DOTALL,
-        )
-        assert m, "grid .btn-glass-circle.enrich-btn button 區塊不存在"
-        return m.group(0)
-
-    def _lightbox_enrich_btn(self, html):
-        """擷取 lightbox cover-actions 🔍 enrich-btn 區塊（含 enrichVideo(currentLightboxVideo) 的 lb-action-btn）。"""
-        # (?:(?!</button>).)*? 確保不跨越前一個 </button>，避免抓到 play/open 等其他 lb-action-btn
-        m = re.search(
-            r'<button\b(?:(?!</button>).)*?\bclass="lb-action-btn"'
-            r'(?:(?!</button>).)*?enrichVideo\(currentLightboxVideo\)'
-            r'(?:(?!</button>).)*?</button>',
-            html, re.DOTALL,
-        )
-        assert m, "lightbox cover-actions .lb-action-btn（enrichVideo(currentLightboxVideo)）button 區塊不存在"
-        return m.group(0)
 
     def _gear_btn(self, html):
         """擷取 lightbox 番號旁 ⚙ gear 的完整 <button>...</button> 區塊。"""
@@ -8229,69 +8206,9 @@ class TestRescrapeEntryGuard:
         assert re.search(r':aria-label="[^"]*entry_tooltip', tag), \
             "⚙ gear 缺 :aria-label（可及性）"
 
-    # ── 入口 2：grid 缺卡 enrich-btn 長壓 ───────────────────────────────
-
-    def test_grid_enrich_tap_preserved_via_clickguard(self):
-        """grid enrich-btn @click 仍走 enrichVideo（tap 路徑不移除），但前置 longPressClickGuard 分流。"""
-        tag = self._grid_enrich_btn(self._html())
-        m = re.search(r'@click(?:\.stop)?="([^"]*)"', tag)
-        assert m, "grid enrich-btn 缺 @click handler"
-        expr = m.group(1)
-        assert "longPressClickGuard($event)" in expr, \
-            f"grid enrich-btn @click 必須前置 longPressClickGuard($event)，實際: {expr!r}"
-        assert "enrichVideo(video)" in expr, \
-            f"grid enrich-btn tap 路徑（enrichVideo(video)）不得移除，實際: {expr!r}"
-
-    def test_grid_enrich_longpress_events_wired(self):
-        """grid enrich-btn 必須疊 6 長壓事件（鏡像 search.html）。"""
-        tag = self._grid_enrich_btn(self._html())
-        for ev in ("@mousedown", "@mouseup", "@mouseleave",
-                   "@touchstart.passive", "@touchend", "@touchcancel"):
-            assert ev in tag, f"grid enrich-btn 缺長壓事件 {ev}"
-
-    def test_grid_longpress_routes_to_rescrape_enrich(self):
-        """grid 長壓 callback 走 openRescrape(video, 'enrich')（不直接 enrichVideo），且 gate by rescrapeEnabled。"""
-        tag = self._grid_enrich_btn(self._html())
-        m = re.search(r'@mousedown="([^"]*)"', tag)
-        assert m, "grid enrich-btn 缺 @mousedown"
-        expr = m.group(1)
-        assert "longPressStart(" in expr, f"grid @mousedown 必須呼叫 longPressStart，實際: {expr!r}"
-        assert "openRescrape(video, 'enrich')" in expr, \
-            f"grid 長壓 callback 必須 openRescrape(video, 'enrich')（不直接 enrichVideo），實際: {expr!r}"
-        assert "rescrapeEnabled()" in expr, \
-            f"grid 長壓 enabledFn 必須 gate by rescrapeEnabled()，實際: {expr!r}"
-
-    # ── 入口 3：lightbox cover-actions 🔍 enrich-btn 長壓 ───────────────
-
-    def test_lightbox_enrich_tap_preserved_via_clickguard(self):
-        """lightbox 🔍 @click 仍走 enrichVideo(currentLightboxVideo)（tap 不移除），前置 longPressClickGuard。"""
-        tag = self._lightbox_enrich_btn(self._html())
-        m = re.search(r'@click(?:\.stop)?="([^"]*)"', tag)
-        assert m, "lightbox 🔍 enrich-btn 缺 @click handler"
-        expr = m.group(1)
-        assert "longPressClickGuard($event)" in expr, \
-            f"lightbox 🔍 @click 必須前置 longPressClickGuard($event)，實際: {expr!r}"
-        assert "enrichVideo(currentLightboxVideo)" in expr, \
-            f"lightbox 🔍 tap 路徑不得移除，實際: {expr!r}"
-
-    def test_lightbox_enrich_longpress_events_wired(self):
-        """lightbox 🔍 enrich-btn 必須疊 6 長壓事件。"""
-        tag = self._lightbox_enrich_btn(self._html())
-        for ev in ("@mousedown", "@mouseup", "@mouseleave",
-                   "@touchstart.passive", "@touchend", "@touchcancel"):
-            assert ev in tag, f"lightbox 🔍 enrich-btn 缺長壓事件 {ev}"
-
-    def test_lightbox_longpress_routes_to_rescrape_enrich(self):
-        """lightbox 🔍 長壓 callback 走 openRescrape(currentLightboxVideo, 'enrich')，gate by rescrapeEnabled。"""
-        tag = self._lightbox_enrich_btn(self._html())
-        m = re.search(r'@mousedown="([^"]*)"', tag)
-        assert m, "lightbox 🔍 enrich-btn 缺 @mousedown"
-        expr = m.group(1)
-        assert "longPressStart(" in expr, f"lightbox 🔍 @mousedown 必須呼叫 longPressStart，實際: {expr!r}"
-        assert "openRescrape(currentLightboxVideo, 'enrich')" in expr, \
-            f"lightbox 🔍 長壓 callback 必須 openRescrape(currentLightboxVideo, 'enrich')，實際: {expr!r}"
-        assert "rescrapeEnabled()" in expr, \
-            f"lightbox 🔍 長壓 enabledFn 必須 gate by rescrapeEnabled()，實際: {expr!r}"
+    # ── 74b US4：grid + lightbox 🔍 enrich-btn 長壓入口已退役 ──────────────
+    # 去長壓的 element-bound 守衛見 TestLongPressTouchSuppression
+    # （test_grid/lightbox_enrich_btn_longpress_retired）；齒輪 ⚙ 成 showcase 唯一進階重刮入口。
 
     # ── helper 檔 + mergeState 接線 ────────────────────────────────────
 
@@ -8851,24 +8768,24 @@ class TestLongPressTouchSuppression:
         assert m, "showcase lightbox .lb-action-btn（enrichVideo(currentLightboxVideo)）button 區塊不存在"
         return m.group(0)
 
-    def _assert_entry_passes_event(self, tag, label):
-        """element-bound：@mousedown/@touchstart longPressStart 傳 $event；@touchend longPressEnd($event)。"""
-        md = re.search(r'@mousedown="(longPressStart\([^"]*)"', tag)
-        assert md and '$event)' in md.group(1), \
-            f"{label} @mousedown longPressStart 必須傳 $event，實際: {md.group(1) if md else None!r}"
-        ts = re.search(r'@touchstart\.passive="(longPressStart\([^"]*)"', tag)
-        assert ts and '$event)' in ts.group(1), \
-            f"{label} @touchstart.passive longPressStart 必須傳 $event，實際: {ts.group(1) if ts else None!r}"
-        assert re.search(r'@touchend="longPressEnd\(\$event\)"', tag), \
-            f"{label} @touchend 必須 longPressEnd($event)"
-        assert re.search(r'@touchcancel="longPressCancel\(\$event\)"', tag), \
-            f"{label} @touchcancel 必須 longPressCancel($event)"
+    def _assert_no_longpress(self, tag, label, click_expr):
+        """element-bound：該鈕已無任何 longPress* / longPressClickGuard 接線；@click 為純 enrich。"""
+        for hook in ("longPressStart", "longPressEnd", "longPressCancel", "longPressClickGuard"):
+            assert hook not in tag, \
+                f"{label} 不應再有 {hook}（74b US4 去長壓）；tag: {tag!r}"
+        for ev in ("@mousedown", "@mouseup", "@mouseleave",
+                   "@touchstart", "@touchend", "@touchcancel"):
+            assert ev not in tag, \
+                f"{label} 不應再有 {ev} 長壓 handler（74b US4 去長壓）；tag: {tag!r}"
+        assert re.search(rf'@click\.stop="{re.escape(click_expr)}"', tag), \
+            f"{label} @click.stop 必須為 {click_expr}（tap=自動補缺維持）；tag: {tag!r}"
 
     def test_search_submit_btn_longpress_retired(self):
         """TASK-74a-T2（翻轉）：#btnSubmit 退役為純提交鈕，不再是長壓入口（不傳 $event 因無 longPress* wiring）。
 
-        其餘兩入口（showcase grid+lightbox enrich）仍走長壓並保留 $event 傳遞守衛
-        （#switchSourceBtn 已由 T3 整顆退役為膠囊，見 test_switch_source_btn_retired）。
+        showcase grid+lightbox enrich 兩入口已於 74b US4 去長壓（見
+        test_grid/lightbox_enrich_btn_longpress_retired）；#switchSourceBtn 由 74a-T3
+        整顆退役為膠囊（見 test_switch_source_btn_retired）。
         """
         tag = self._submit_btn(self._search_html())
         assert "longPressStart" not in tag and "longPressEnd" not in tag \
@@ -8885,11 +8802,23 @@ class TestLongPressTouchSuppression:
         assert 'id="switchSourceBtn"' not in html, \
             "search.html 仍含 id=\"switchSourceBtn\" — 該長壓入口應整顆退役（T3，膠囊取代）"
 
-    def test_grid_enrich_btn_passes_event(self):
-        self._assert_entry_passes_event(self._grid_enrich_btn(self._showcase_html()), "grid enrich-btn")
+    def test_grid_enrich_btn_longpress_retired(self):
+        """TASK-74b-T3（US4）：grid 補資料鈕去長壓，tap=enrichVideo(video) 維持。
 
-    def test_lightbox_enrich_btn_passes_event(self):
-        self._assert_entry_passes_event(self._lightbox_enrich_btn(self._showcase_html()), "lightbox enrich-btn")
+        原 test_grid_enrich_btn_passes_event 斷言長壓四要素傳 $event；長壓移除後改為退役守衛。
+        過「三問」：把任一 longPress* handler 加回 → 紅；@click 改非 enrichVideo → 紅。
+        """
+        self._assert_no_longpress(
+            self._grid_enrich_btn(self._showcase_html()), "grid enrich-btn", "enrichVideo(video)")
+
+    def test_lightbox_enrich_btn_longpress_retired(self):
+        """TASK-74b-T3（US4）：燈箱補資料鈕去長壓，tap=enrichVideo(currentLightboxVideo) 維持。
+
+        進階重刮收斂到燈箱齒輪 ⚙（純 @click，本 plan 不動）。
+        """
+        self._assert_no_longpress(
+            self._lightbox_enrich_btn(self._showcase_html()), "lightbox enrich-btn",
+            "enrichVideo(currentLightboxVideo)")
 
 
 class TestScannerXShowCssConflictGuard:
