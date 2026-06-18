@@ -8,7 +8,6 @@ export function stateConfig() {
             // Search
             searchFavoriteFolder: '',
             proxyUrl: '',
-            advancedSearchEnabled: true,  // 進階搜尋 picker（TASK-61c-7，top-level config 欄位）；預設開啟（v0.9.x）
             thumbnailCacheEnabled: true,   // 縮圖快取開關（feature/71 T2，top-level config 欄位）；新安裝預設開啟（0.9.11+），舊用戶 migration 維持關閉
 
             // Translate
@@ -397,8 +396,6 @@ export function stateConfig() {
                     // 61c-3: uncensoredMode 由 sources 段推導（computed getter），不再單獨讀 uncensored_mode_enabled。
                     this.form.searchFavoriteFolder = config.search?.favorite_folder || '';
                     this.form.proxyUrl = config.search?.proxy_url || '';
-                    // 進階搜尋（TASK-61c-7）：top-level bool 欄位
-                    this.form.advancedSearchEnabled = config.advanced_search_enabled || false;
                     this.form.thumbnailCacheEnabled = config.thumbnail_cache_enabled || false;
                     // 71-T5: 載入目前片數供縮圖快取空間估算（失敗降級 0，不阻塞表單）
                     this._loadVideoCount();
@@ -609,8 +606,6 @@ export function stateConfig() {
                     proxy_url: this.form.proxyUrl.trim(),
                 };
 
-                // 進階搜尋（TASK-61c-7）：top-level bool 欄位（與 nested 區塊並列）
-                config.advanced_search_enabled = this.form.advancedSearchEnabled;
                 config.thumbnail_cache_enabled = this.form.thumbnailCacheEnabled;
 
                 // 更新 translate

@@ -48,15 +48,6 @@ export function rescrapeState() {
         _switchTarget: null,               // 62c-3：switch-source 入口長壓開窗當下捕捉的 target slot（{listMode,fileIndex,arr,idx,number}），async race 防覆蓋錯卡
 
         /**
-         * 進階重刮入口 gate（62b-1，決策 #1）。各入口（⚙ / grid 長壓 / lightbox 🔍 長壓 / search 送出鈕長壓）共用，
-         * 守衛可斷言、避免 template 散落 window 讀取（62c-2 起 search 長壓 enabledFn 亦統一用此）。
-         * method 非 getter（規避 Alpine reactivity 凍結；CD-62-14 #0）。
-         */
-        rescrapeEnabled() {
-            return !!(window.__ADVANCED_SEARCH__ && window.__ADVANCED_SEARCH__.enabled);
-        },
-
-        /**
          * 開啟彈窗（62b-1 wire ⚙ / 🔍 長壓呼叫；search 入口傳 video=null）。
          */
         openRescrape(video, entryPoint = 'lightbox') {

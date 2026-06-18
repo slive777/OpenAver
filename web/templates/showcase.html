@@ -761,10 +761,9 @@
                             <!-- 分隔符 " · " 內嵌於各 span 開頭，隨 x-show 一起顯示/隱藏，避免孤立 · -->
                             <div class="lb-details">
                                 <span x-text="currentLightboxVideo?.number || t('showcase.lightbox.unknown_number')"></span>
-                                <!-- 62b-1: 進階重刮 ⚙ 入口（番號旁 inline 細鈕，gate by 進階搜尋 toggle）-->
+                                <!-- 62b-1: 進階重刮 ⚙ 入口（番號旁 inline 細鈕，常駐顯示）-->
                                 <button type="button"
                                         class="lb-rescrape-gear"
-                                        x-show="rescrapeEnabled()"
                                         @click.stop="openRescrape(currentLightboxVideo, 'lightbox')"
                                         :data-tooltip="t('showcase.rescrape.entry_tooltip')"
                                         :aria-label="t('showcase.rescrape.entry_tooltip')">

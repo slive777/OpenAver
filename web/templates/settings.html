@@ -100,30 +100,6 @@
                 </div>
             </div>
 
-            <!-- 進階搜尋（Beta） -->
-            <div class="settings-form-group popover-anchor">
-                <label class="settings-label">
-                    <input type="checkbox" class="toggle toggle-primary"
-                           id="advancedSearchToggle"
-                           x-model="form.advancedSearchEnabled">
-                    <span class="label-text">
-                        {{ t('settings.advanced_search.toggle_label') }}
-                    </span>
-                    <button type="button" class="help-popover-btn"
-                            @click.prevent="showAdvancedSearchHelp = !showAdvancedSearchHelp"
-                            :aria-expanded="showAdvancedSearchHelp">
-                        <i class="bi bi-question-circle"></i>
-                    </button>
-                </label>
-                <div x-show="showAdvancedSearchHelp" x-cloak x-transition
-                     @click.outside="showAdvancedSearchHelp = false"
-                     class="help-popover">
-                    <small class="help-popover__body help-popover__body--multiline">
-                        {{ t('settings.advanced_search.help') }}
-                    </small>
-                </div>
-            </div>
-
         </div><!-- /settings-quick-toggle-row -->
 
         <!-- ── Section 1: 搜尋與刮削（兩卡同包） ── -->

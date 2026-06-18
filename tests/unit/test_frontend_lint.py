@@ -7689,17 +7689,21 @@ class TestSourcePillSharedComponentGuard:
         )
 
     def test_bootstrap_partial_exists_with_injection(self):
-        """_advanced_search_bootstrap.html 存在且注入 __ADVANCED_SEARCH__ + config 欄位。"""
+        """_advanced_search_bootstrap.html 存在且注入 __ADVANCED_SEARCH__ + sources（74c-T1：enabled 行已退役）。"""
         assert ADV_SEARCH_BOOTSTRAP.exists(), (
             "62a-0 違規：缺少 web/templates/_advanced_search_bootstrap.html"
         )
         html = self._bootstrap()
         for token in [
             "window.__ADVANCED_SEARCH__",
-            "config.advanced_search_enabled",
             "config.sources",
         ]:
             assert token in html, f"62a-0 違規：bootstrap partial 缺少 {token!r}"
+        # 74c-T1：enabled 行已退役，bootstrap 不再含 config.advanced_search_enabled
+        assert "config.advanced_search_enabled" not in html, \
+            "74c-T1 違規：bootstrap partial 仍含 config.advanced_search_enabled（應已退役）"
+        assert "enabled:" not in html, \
+            "74c-T1 違規：bootstrap partial 仍含 enabled: 行（應已退役）"
 
     def test_search_and_showcase_include_bootstrap(self):
         """search.html + showcase.html 皆 include bootstrap partial。"""
@@ -8190,12 +8194,14 @@ class TestRescrapeEntryGuard:
             f"⚙ @click 必須 openRescrape(currentLightboxVideo, 'lightbox')，實際: {m.group(1)!r}"
 
     def test_gear_gated_by_rescrape_enabled(self):
-        """⚙ 必須 x-show=rescrapeEnabled() gate（toggle OFF 時不顯示，決策 #1）。"""
+        """74c-T1：⚙ 齒輪已退役 x-show gate，改為常駐顯示（負向守衛）。"""
         tag = self._gear_btn(self._html())
         m = re.search(r'x-show="([^"]*)"', tag)
-        assert m, "⚙ gear button 缺 x-show gate"
-        assert "rescrapeEnabled()" in m.group(1), \
-            f"⚙ x-show 必須 gate by rescrapeEnabled()，實際: {m.group(1)!r}"
+        assert not m, \
+            f"74c-T1 違規：⚙ gear button 仍有 x-show gate（應常駐）: {m.group(0) if m else ''!r}"
+        # 確認 @click 仍在（齒輪行為不變）
+        assert "openRescrape(currentLightboxVideo, 'lightbox')" in tag, \
+            "74c-T1：⚙ gear button @click 不得移除（僅退役 x-show gate）"
 
     def test_gear_tooltip_uses_i18n_key(self):
         """⚙ 的 aria-label / data-tooltip 走 i18n key，不硬編碼（i18n.md）。"""
@@ -8237,12 +8243,13 @@ class TestRescrapeEntryGuard:
             "main.js mergeState chain missing: longPressState.call(this)"
 
     def test_rescrape_enabled_method_in_mixin(self):
-        """state-rescrape.js 必須揭露 rescrapeEnabled() gate（決策 #1，三入口共用）。"""
+        """74c-T1：rescrapeEnabled() 已從 state-rescrape.js 退役（負向守衛）；window.__ADVANCED_SEARCH__ 仍在（sources/proxy/CF live 消費者）。"""
         src = self.STATE_RESCRAPE_JS.read_text(encoding="utf-8")
-        assert "rescrapeEnabled()" in src, \
-            "state-rescrape.js missing rescrapeEnabled() method（決策 #1）"
+        assert "rescrapeEnabled" not in src, \
+            "74c-T1 違規：state-rescrape.js 仍含 rescrapeEnabled（應已退役）"
+        # window.__ADVANCED_SEARCH__ 仍在（sources/proxy_configured/cf_transport_available live 消費者，CD-74c-7）
         assert "window.__ADVANCED_SEARCH__" in src, \
-            "rescrapeEnabled() 必須讀 window.__ADVANCED_SEARCH__.enabled"
+            "74c-T1：state-rescrape.js 不得移除 window.__ADVANCED_SEARCH__（sources/proxy/CF 仍在）"
 
 
 class TestSearchRescrapeEntryGuard:
@@ -9568,22 +9575,13 @@ class TestSettingsQuickToggleGuard:
         assert 'x-model="form.downloadSampleImages"' in row_block, \
             "64b-3 違規：form.downloadSampleImages x-model 必須在 .settings-quick-toggle-row 內"
 
-    def test_advanced_search_enabled_in_quick_toggle_row(self):
+    def test_advanced_search_toggle_removed_from_quick_toggle_row(self):
+        """74c-T1：進階搜尋 toggle 已從 quick-toggle 列退役（負向守衛）。"""
         html = self._html()
-        row_start = html.index('class="settings-quick-toggle-row"')
-        sec_search_pos = html.index('id="sec-search"')
-        row_block = html[row_start:sec_search_pos]
-        assert 'x-model="form.advancedSearchEnabled"' in row_block, \
-            "64b-3 違規：form.advancedSearchEnabled x-model 必須在 .settings-quick-toggle-row 內"
-
-    def test_advanced_search_toggle_id_preserved(self):
-        """id=advancedSearchToggle 必須在 quick-toggle 列（不可消失）"""
-        html = self._html()
-        row_start = html.index('class="settings-quick-toggle-row"')
-        sec_search_pos = html.index('id="sec-search"')
-        row_block = html[row_start:sec_search_pos]
-        assert 'id="advancedSearchToggle"' in row_block, \
-            "64b-3 違規：id=advancedSearchToggle 必須保留在 quick-toggle 列內（64b-1 DoD：不得遺失 id）"
+        assert 'x-model="form.advancedSearchEnabled"' not in html, \
+            "74c-T1 違規：settings.html 仍含 form.advancedSearchEnabled（toggle 應已退役）"
+        assert 'id="advancedSearchToggle"' not in html, \
+            "74c-T1 違規：settings.html 仍含 id=advancedSearchToggle（toggle 應已退役）"
 
     def test_download_sample_images_not_duplicated_in_card(self):
         """downloadSampleImages x-model 只出現一次（已從 Card ② 搬走）"""
@@ -9591,24 +9589,6 @@ class TestSettingsQuickToggleGuard:
         count = html.count('x-model="form.downloadSampleImages"')
         assert count == 1, \
             f"64b-3 違規：form.downloadSampleImages x-model 出現 {count} 次，應只在 quick-toggle 列（1 次）"
-
-    def test_advanced_search_toggle_id_unique(self):
-        """id=advancedSearchToggle 全頁只出現一次（搬移非複製；重複 id 為無效 HTML）"""
-        html = self._html()
-        count = html.count('id="advancedSearchToggle"')
-        assert count == 1, \
-            f"64b-3 違規：id=advancedSearchToggle 出現 {count} 次，應只在 quick-toggle 列（1 次）"
-
-    def test_advanced_search_has_help_popover(self):
-        """64e-1 E2：進階搜尋區塊必須有 showAdvancedSearchHelp state 與 help-popover 元件（Alpine↔HTML API contract）"""
-        html = self._html()
-        row_start = html.index('class="settings-quick-toggle-row"')
-        sec_search_pos = html.index('id="sec-search"')
-        row_block = html[row_start:sec_search_pos]
-        assert 'showAdvancedSearchHelp' in row_block, \
-            "64e-1 違規：quick-toggle 列內進階搜尋區塊缺少 showAdvancedSearchHelp state binding"
-        assert 'help-popover' in row_block, \
-            "64e-1 違規：quick-toggle 列內進階搜尋區塊缺少 help-popover 元件"
 
     def test_thumbnail_cache_enabled_in_quick_toggle_row(self):
         """71-T5：封面縮圖快取 toggle（form.thumbnailCacheEnabled）必須在 quick-toggle 列內"""

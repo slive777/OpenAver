@@ -19,7 +19,7 @@ export function searchStateAdvancedPicker() {
     return {
         // ===== Helpers =====
         _advancedConfig() {
-            return window.__ADVANCED_SEARCH__ || { enabled: false, sources: [] };
+            return window.__ADVANCED_SEARCH__ || { sources: [] };
         },
 
         // ===== 進階搜尋（非 stream，整包贏）=====

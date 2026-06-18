@@ -4,7 +4,6 @@ export function stateUI() {
         newSuffixInput: '',
         showPathHelp: false,
         showSampleImagesHelp: false,
-        showAdvancedSearchHelp: false,
         showCounterHelp: false,
         showThumbCacheHelp: false,
 
