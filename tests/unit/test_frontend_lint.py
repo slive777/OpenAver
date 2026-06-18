@@ -8408,43 +8408,38 @@ class TestSearchRescrapeEntryGuard:
             assert dead not in html, \
                 f"62c-1 違規：search.html 仍殘留 B1 picker 引用 {dead}（應隨 DOM 移除）"
 
-    def test_submit_btn_longpress_opens_rescrape_search(self):
-        """62c-2（翻轉）：#btnSubmit 長壓 mousedown 改接共用 longPressStart，fire callback 開共用彈窗 + 番號預填。
+    def test_submit_btn_longpress_retired_for_auto_pill(self):
+        """TASK-74a-T2（翻轉 62c-2）：#btnSubmit 長壓入口退役，改由搜尋列「自動」膠囊接管進階搜尋入口。
 
-        62c-1 原接 advancedLongPressStart()；62c-2 改接 shared helper longPressStart(cb, enabledFn)，
-        cb 以 template arrow 傳入（openRescrape(null,'search') + rescrapeNumber 預填 searchQuery，US5-a），
-        enabledFn 為 rescrapeEnabled()（toggle OFF gate）。
+        62c-2 曾把 #btnSubmit @mousedown 接 longPressStart(openRescrape(null,'search') + 番號預填)；
+        T2 移除此長壓 wiring，#btnSubmit 回歸純 type=\"submit\"。長壓開窗 + 番號預填的職責
+        移到 .search-auto-pill macro 呼叫的 @click（由 TestSearchAutoSourcePill 守衛）。
+        long-press.js helper 本身不刪（showcase 消費者仍在，全面退役在 74c）。
         """
         tag = self._submit_btn(self._html())
-        m = re.search(r'@mousedown="([^"]*)"', tag)
-        assert m, "#btnSubmit 缺 @mousedown 長壓 wiring"
-        wiring = m.group(1)
-        assert "longPressStart(" in wiring, \
-            f"#btnSubmit @mousedown 必須接共用 longPressStart(...)（62c-2 rewire），實際: {wiring!r}"
-        assert re.search(r"openRescrape\(\s*null\s*,\s*'search'\s*\)", wiring), \
-            f"#btnSubmit @mousedown fire callback 必須開 openRescrape(null,'search')，實際: {wiring!r}"
-        assert "searchQuery" in wiring, \
-            f"#btnSubmit @mousedown fire callback 必須以 searchQuery 預填 rescrapeNumber（US5-a），實際: {wiring!r}"
-        assert "rescrapeEnabled()" in wiring, \
-            f"#btnSubmit @mousedown enabledFn 必須是 rescrapeEnabled()（toggle OFF gate），實際: {wiring!r}"
+        assert "@mousedown" not in tag, \
+            f"#btnSubmit 不應再有 @mousedown 長壓 wiring（T2 退役）；tag: {tag!r}"
+        assert "longPressStart" not in tag, \
+            f"#btnSubmit 不應再接 longPressStart（職責移到 .search-auto-pill @click）；tag: {tag!r}"
 
-    def test_submit_btn_six_events_wired(self):
-        """62c-2：#btnSubmit 六事件齊全且接共用 longPress*（mousedown/up/leave + touchstart.passive/end/cancel）。"""
+    def test_submit_btn_six_events_retired(self):
+        """TASK-74a-T2（翻轉 62c-2）：#btnSubmit 六長壓事件全移除（mousedown/up/leave + touchstart/end/cancel）。"""
         tag = self._submit_btn(self._html())
-        assert re.search(r'@mousedown="longPressStart\(', tag), "#btnSubmit 缺 @mousedown longPressStart"
-        assert re.search(r'@mouseup="longPressEnd\([^)]*\)"', tag), "#btnSubmit 缺 @mouseup longPressEnd()"
-        assert re.search(r'@mouseleave="longPressCancel\([^)]*\)"', tag), "#btnSubmit 缺 @mouseleave longPressCancel()"
-        assert re.search(r'@touchstart\.passive="longPressStart\(', tag), "#btnSubmit 缺 @touchstart.passive longPressStart"
-        assert re.search(r'@touchend="longPressEnd\([^)]*\)"', tag), "#btnSubmit 缺 @touchend longPressEnd()"
-        assert re.search(r'@touchcancel="longPressCancel\([^)]*\)"', tag), "#btnSubmit 缺 @touchcancel longPressCancel()"
+        for forbidden in ("@mousedown", "@mouseup", "@mouseleave",
+                          "@touchstart", "@touchend", "@touchcancel"):
+            assert forbidden not in tag, \
+                f"#btnSubmit 不應再有 {forbidden} 長壓事件（T2 退役為純提交鈕）；tag: {tag!r}"
 
-    def test_submit_btn_click_guard_preserved(self):
-        """62c-2（翻轉）：#btnSubmit @click 改走共用 longPressClickGuard（US8：preventDefault 取消隱式 form 送出）。"""
+    def test_submit_btn_click_guard_retired(self):
+        """TASK-74a-T2（翻轉 62c-2）：#btnSubmit @click longPressClickGuard 移除，回歸純 type=\"submit\"。
+
+        tap 提交仍由 <form id=\"searchForm\" @submit.prevent=\"doSearch()\"> 驅動（不需 click guard）。
+        """
         tag = self._submit_btn(self._html())
-        m = re.search(r'@click="([^"]*)"', tag)
-        assert m, "#btnSubmit 缺 @click guard"
-        assert "longPressClickGuard($event)" in m.group(1), \
-            f"#btnSubmit @click 必須 longPressClickGuard($event)（62c-2 共用 helper），實際: {m.group(1)!r}"
+        assert "@click" not in tag, \
+            f"#btnSubmit 不應再有 @click（longPressClickGuard 隨長壓一併移除）；tag: {tag!r}"
+        assert "longPressClickGuard" not in tag, \
+            f"#btnSubmit 不應再含 longPressClickGuard（T2 退役）；tag: {tag!r}"
 
     def test_form_submit_guard_removed(self):
         """62c-2（翻轉）：form submit guard 已移除，#searchForm @submit.prevent 直接走 doSearch()。
@@ -8841,8 +8836,15 @@ class TestLongPressTouchSuppression:
         assert re.search(r'@touchcancel="longPressCancel\(\$event\)"', tag), \
             f"{label} @touchcancel 必須 longPressCancel($event)"
 
-    def test_search_submit_btn_passes_event(self):
-        self._assert_entry_passes_event(self._submit_btn(self._search_html()), "#btnSubmit")
+    def test_search_submit_btn_longpress_retired(self):
+        """TASK-74a-T2（翻轉）：#btnSubmit 退役為純提交鈕，不再是長壓入口（不傳 $event 因無 longPress* wiring）。
+
+        其餘三入口（#switchSourceBtn / showcase grid+lightbox enrich）仍走長壓並保留 $event 傳遞守衛。
+        """
+        tag = self._submit_btn(self._search_html())
+        assert "longPressStart" not in tag and "longPressEnd" not in tag \
+            and "longPressCancel" not in tag, \
+            f"#btnSubmit 不應再有任何 longPress* wiring（T2 退役）；tag: {tag!r}"
 
     def test_switch_source_btn_passes_event(self):
         self._assert_entry_passes_event(self._switch_btn(self._search_html()), "#switchSourceBtn")
@@ -10847,3 +10849,106 @@ class TestSourcePillMacroTypeButton:
         src = self._macro()
         assert re.search(r'class="pill-spin"', src), "缺 spinner span class=\"pill-spin\""
         assert re.search(r'class="pill-name"', src), "缺 name span class=\"pill-name\""
+
+
+class TestSearchAutoSourcePill:
+    """TASK-74a-T2: 搜尋列自動膠囊 macro 呼叫 DOM contract（call-site-bound）。
+
+    守衛抽出 search.html 內含 extra_classes='search-auto-pill' 的 source_pill(...)
+    macro 呼叫文字，斷言同一呼叫上：x-show 含 isComposing()；@click 含
+    openRescrape(null, 'search') 與 rescrapeNumber = 預填（CD-74a-14 + Codex P1-2）。
+
+    過「三問」：把 isComposing()/@click 搬到別的 macro 呼叫 → 紅（regex 只取
+    search-auto-pill 那一個 call）；註解化 → 紅；刪 rescrapeNumber 預填子表達式 → 紅。
+    """
+
+    def _auto_pill_call(self) -> str:
+        """抽出帶 extra_classes='search-auto-pill' 的 source_pill(...) macro 呼叫文字。"""
+        html = SEARCH_HTML.read_text(encoding="utf-8")
+        m = re.search(
+            r"source_pill\((?:[^()]|\([^()]*\))*search-auto-pill(?:[^()]|\([^()]*\))*\)",
+            html,
+            re.DOTALL,
+        )
+        assert m, "search.html 找不到 extra_classes='search-auto-pill' 的 source_pill(...) 呼叫"
+        return m.group(0)
+
+    def test_auto_pill_xshow_is_composing(self):
+        """自動膠囊 macro 呼叫的 x-show 含 isComposing()（compose 態才顯示）。"""
+        call = self._auto_pill_call()
+        xshow_m = re.search(r'x-show=\\?["\']([^"\']*)', call)
+        assert xshow_m, f"search-auto-pill 呼叫缺 x-show binding；call: {call!r}"
+        assert "isComposing()" in xshow_m.group(1), (
+            f"search-auto-pill x-show 缺 isComposing()；x-show: {xshow_m.group(1)!r}"
+        )
+
+    def test_auto_pill_click_opens_rescrape_with_prefill(self):
+        """自動膠囊 @click 含 openRescrape(null, 'search') 且預填 rescrapeNumber =。
+
+        刪任一子表達式 → 此斷言紅（漏 rescrapeNumber 預填會在挑源時觸發 rescrapeNotFound，
+        state-rescrape.js:163）。
+        """
+        call = self._auto_pill_call()
+        # raw template 內單引號被 Jinja 字串轉義（\'search\'），故 regex 容忍可選反斜線
+        assert re.search(r"openRescrape\(null,\s*\\?'search\\?'\)", call), (
+            f"search-auto-pill 呼叫缺 openRescrape(null, 'search')；call: {call!r}"
+        )
+        assert "rescrapeNumber =" in call, (
+            f"search-auto-pill @click 缺 rescrapeNumber = 預填；call: {call!r}"
+        )
+
+
+class TestSearchSubmitBtnNoLongPress:
+    """TASK-74a-T2: #btnSubmit 縮減為純提交鈕（CD-74a-5）。
+
+    守衛抽出 id=\"btnSubmit\" 的 <button> 開頭 tag，斷言該 tag 上不含 4 個長壓 handler。
+    過「三問」：把任一長壓 handler 加回 #btnSubmit tag → 紅。
+    """
+
+    def _submit_tag(self) -> str:
+        html = SEARCH_HTML.read_text(encoding="utf-8")
+        m = re.search(r'<button\b[^>]*\bid="btnSubmit"[^>]*>', html, re.DOTALL)
+        assert m, "search.html 找不到 id=\"btnSubmit\" 的 <button> tag"
+        return m.group(0)
+
+    def test_submit_btn_has_no_long_press(self):
+        """#btnSubmit tag 不含 longPressStart / longPressEnd / longPressCancel / longPressClickGuard。"""
+        tag = self._submit_tag()
+        for forbidden in (
+            "longPressStart",
+            "longPressEnd",
+            "longPressCancel",
+            "longPressClickGuard",
+        ):
+            assert forbidden not in tag, (
+                f"#btnSubmit 不應再含 {forbidden!r}（長壓已移除）；tag: {tag!r}"
+            )
+
+
+class TestIsComposingGetter:
+    """TASK-74a-T2: search-flow.js isComposing() computed getter（source-bound，CD-74a-2）。
+
+    抽出 isComposing method body，斷言同一 body 內含三個條件子表達式：
+    pageState !== 'loading'、searchQuery、currentQuery。
+    過「三問」：刪任一條件 → 紅；把它搬到別的 method → 抽不到 isComposing body → 紅。
+    """
+
+    def _is_composing_body(self) -> str:
+        js = SEARCH_FLOW_JS.read_text(encoding="utf-8")
+        # 抽 isComposing() { ... } 到下一個 method（以 method-or-end 為界）
+        m = re.search(r"isComposing\s*\(\s*\)\s*\{(.*?)\n    \}", js, re.DOTALL)
+        assert m, "search-flow.js 找不到 isComposing() method 定義"
+        return m.group(1)
+
+    def test_is_composing_three_conditions(self):
+        """isComposing() body 含 pageState !== 'loading' + searchQuery + currentQuery 三條件。"""
+        body = self._is_composing_body()
+        assert "pageState !== 'loading'" in body, (
+            f"isComposing() 缺 pageState !== 'loading' 條件；body: {body!r}"
+        )
+        assert "searchQuery" in body, (
+            f"isComposing() 缺 searchQuery 條件；body: {body!r}"
+        )
+        assert "currentQuery" in body, (
+            f"isComposing() 缺 currentQuery 條件；body: {body!r}"
+        )

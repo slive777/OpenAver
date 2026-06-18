@@ -289,14 +289,16 @@
                     <button type="button" id="btnClear" class="btn-icon" x-show="hasContent" x-cloak @click="clearAll()" title="{{ t('search.action.clear') }}">
                         <i class="bi bi-x-lg"></i>
                     </button>
-                    <button type="submit" id="btnSubmit" class="btn-icon active" title="{{ t('search.action.search') }}"
-                            @mousedown="longPressStart(() => { openRescrape(null, 'search'); rescrapeNumber = (searchQuery || '').trim(); }, () => rescrapeEnabled(), $event)"
-                            @mouseup="longPressEnd($event)"
-                            @mouseleave="longPressCancel($event)"
-                            @touchstart.passive="longPressStart(() => { openRescrape(null, 'search'); rescrapeNumber = (searchQuery || '').trim(); }, () => rescrapeEnabled(), $event)"
-                            @touchend="longPressEnd($event)"
-                            @touchcancel="longPressCancel($event)"
-                            @click="longPressClickGuard($event)">
+                    <!-- US1: 自動來源膠囊（compose 態顯示，點擊開進階搜尋 picker） -->
+                    {{ source_pill(
+                        name="t('showcase.rescrape.auto_source')",
+                        censored=true,
+                        variant='action',
+                        icon='bi-stars',
+                        extra_classes='search-auto-pill',
+                        attrs='x-show="isComposing()" x-cloak @click="openRescrape(null, \'search\'); rescrapeNumber = (searchQuery || \'\').trim()" :title="t(\'search.auto_pill.tooltip\')"'
+                    ) }}
+                    <button type="submit" id="btnSubmit" class="btn-icon active" title="{{ t('search.action.search') }}">
                         <i class="bi bi-arrow-right"></i>
                     </button>
                 </div>
@@ -950,7 +952,7 @@
 
     {# 進階搜尋共用重刮彈窗（62c-1：取代 B1 radio picker，與 Showcase 共用 _rescrape_modal.html）。
        search 入口（rescrapeEntryPoint === 'search'）只用上半部 pick 步：番號 input + 來源 pill 點擊即搜，
-       無 ✓/✗ 預覽 commit（spec US5）。長壓開窗 wiring 在 #btnSubmit（共用 shared/long-press.js 的 longPressStart）。 #}
+       無 ✓/✗ 預覽 commit（spec US5）。開窗入口為搜尋列「自動」膠囊（.search-auto-pill 的 @click → openRescrape(null,'search')，74a US1）。 #}
     {% include '_rescrape_modal.html' %}
 </div>
 {% endblock %}

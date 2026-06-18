@@ -572,6 +572,16 @@ export function searchStateSearchFlow() {
     },
 
     /**
+     * compose 態：搜尋框非空、與上次送出字不同、且非 loading（US1 自動膠囊 gate）。
+     * Alpine 自動追蹤 pageState / searchQuery / currentQuery 三個 reactive 欄位（CD-74a-2）。
+     */
+    isComposing() {
+        return this.pageState !== 'loading'
+            && (this.searchQuery || '').trim() !== ''
+            && (this.searchQuery || '').trim() !== (this.currentQuery || '').trim();
+    },
+
+    /**
      * 取消搜尋（Fix 2: 恢復到上一個有效狀態）
      */
     cancelSearch() {
