@@ -883,6 +883,24 @@
     }
 }
 
+/* US5-75b fix（Codex P1）：真實觸控 ≤480px poster 格——還原 .footer-default（番號可讀層）、
+ * 壓回上方 75a-US3c 的 footer-hover 常駐。
+ * 衝突來源：US3c 在 @media(pointer:coarse) 無條件把 .footer-default opacity:0 + footer-hover opacity:1
+ * （touch 顯示標題層）；但 US5 的 3 欄 poster 格（≤480px）要顯示「番號 caption」（spec §US5 / CD-75b-9），
+ * 標題在 107px 窄格不可讀。故在 ≤480px ∩ pointer:coarse ∩ poster-grid 非 hero 卡，反轉回 footer-default。
+ * scope :is(#id,…) → a=1 勝 US3c .av-card-preview .footer-* 的 (0,2,0)；:not(.hero-card) 不碰女優入口；
+ * 481px+ touch / pointer:fine 桌面皆不受影響（US3c title-on-touch 行為保留）。
+ * T5 的 .av-num ellipsis / .av-actress display:none 規則此時作用在已可見的 .footer-default 上。 */
+@media (max-width: 480px) and (pointer: coarse) {
+    :is(#ds-gallery-components, .ds-gallery-composition) .showcase-grid .av-card-preview:not(.hero-card) .footer-default {
+        opacity: 1;
+    }
+
+    :is(#ds-gallery-components, .ds-gallery-composition) .showcase-grid .av-card-preview:not(.hero-card) .footer-hover {
+        opacity: 0;
+    }
+}
+
 /* ─── 56c-T3 / T3fix: Similar Mode 入口按鈕 + Sparkle Burst 預覽 ────────────
  * .lightbox-similar-btn — 玻璃材質圓鈕，與 .lightbox-close 鏡射對稱（左上 1rem/1rem）
  *   尺寸 44×44，與 .lightbox-close 鏡射對稱（同尺寸 + 同距邊 1rem）

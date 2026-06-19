@@ -11706,3 +11706,33 @@ class TestUS5PosterCropScoped:
         m2 = re.search(r'\.footer-default \.av-num \{([^}]*)\}', block)
         assert m2, "找不到 .footer-default .av-num 規則"
         assert "text-overflow: ellipsis" in m2.group(1), ".av-num（番號）應單行 ellipsis"
+
+    def test_touch_narrow_reshows_footer_default(self):
+        """Codex P1：≤480px ∩ pointer:coarse 必須還原 .footer-default（番號層）、壓 .footer-hover（標題層）。
+
+        否則 75a-US3c 的 @media(pointer:coarse) 把 .footer-default opacity:0、改顯 footer-hover 標題 →
+        T5 番號 ellipsis 作用在 invisible 層、真機看到的是不可讀標題（spec §US5 caption 失效）。
+        三問：刪此交集 block → 紅（找不到 480+coarse block）；把 footer-default opacity 改回 0 → 紅。
+        """
+        css = self._strip_comments(self._css())
+        m = re.search(
+            r'@media \(max-width: 480px\) and \(pointer: coarse\) \{(.*?)\n\}',
+            css, re.DOTALL,
+        )
+        assert m, "找不到 @media (max-width: 480px) and (pointer: coarse) 交集 block（Codex P1 fix 缺失）"
+        block = m.group(1)
+        # footer-default 規則自身帶 scope + 還原 opacity:1
+        md = re.search(r'([^{}]*\.footer-default)\s*\{([^}]*)\}', block)
+        assert md, "交集 block 內找不到 .footer-default 規則"
+        assert ":is(#ds-gallery-components, .ds-gallery-composition)" in md.group(1) and ":not(.hero-card)" in md.group(1), (
+            ".footer-default 還原規則 selector 必帶 :is(…) scope + :not(.hero-card)"
+        )
+        assert "opacity: 1" in md.group(2), (
+            "≤480px ∩ coarse 應把 poster 卡 .footer-default opacity:1（還原番號 caption 層）"
+        )
+        # footer-hover 壓回 opacity:0
+        mh = re.search(r'\.footer-hover\s*\{([^}]*)\}', block)
+        assert mh, "交集 block 內找不到 .footer-hover 規則"
+        assert "opacity: 0" in mh.group(1), (
+            "≤480px ∩ coarse poster 格應把 .footer-hover opacity:0（標題層在 107px 窄格不可讀）"
+        )
