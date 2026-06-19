@@ -11471,6 +11471,40 @@ class TestSimilarCssSafetyAndGridGuard:
         assert "height: 40vh" in after[:500], \
             "@media (max-width: 960px) similar-open must contain height: 40vh override"
 
+    def test_similar_open_lb_full_outranks_t8(self):
+        """similar-open .lb-full selector 須用 compound 中間形式 .lightbox-cover .lb-full，
+        使 specificity 達 (0,4,0)，勝 T8 ≤480 的 .lightbox-cover:has(.lb-full) .lb-full (0,3,0)。
+        否則 source order 讓 T8 的 height:auto 在 ≤480px ∩ similar-open 覆寫 overlay → overlay 與
+        base 40vh 脫鉤/溢出。
+
+        mutation test：將 .lightbox-cover 中間節點移除（還原為裸 .lightbox-content.similar-open .lb-full）
+        → 此測試應轉紅（RED）。
+        """
+        css = self._css()
+        # Strip CSS comments so comment-only occurrences don't fool the assertions
+        css_no_comments = re.sub(r'/\*.*?\*/', '', css, flags=re.DOTALL)
+
+        # MUST: compound form with .lightbox-cover intermediate present
+        assert '.lightbox-content.similar-open .lightbox-cover .lb-full' in css_no_comments, (
+            "showcase.css: similar-open .lb-full selector must use compound form "
+            "'.lightbox-content.similar-open .lightbox-cover .lb-full' (specificity (0,4,0)) "
+            "to outrank T8's .lightbox-cover:has(.lb-full) .lb-full (0,3,0). "
+            "Without the .lightbox-cover intermediate, source order lets T8 height:auto win in "
+            "≤480px ∩ similar-open → overlay desyncs from base 40vh."
+        )
+
+        # MUST NOT: bare form without .lightbox-cover intermediate (would tie T8 at (0,3,0) and lose by source order)
+        # Match patterns like: ".lightbox-content.similar-open .lb-full {" or ",\n    .lightbox-content.similar-open .lb-full {"
+        bare_pattern = re.search(
+            r'\.lightbox-content\.similar-open\s+\.lb-full\s*[{,]',
+            css_no_comments
+        )
+        assert bare_pattern is None, (
+            "showcase.css: bare '.lightbox-content.similar-open .lb-full' selector found — "
+            "this ties T8 at (0,3,0) and loses by source order in ≤480px ∩ similar-open. "
+            "Use '.lightbox-content.similar-open .lightbox-cover .lb-full' (0,4,0) instead."
+        )
+
 
 # ============================================================================
 # TASK-75b-T6：US1 搜尋詳情重排 + US5 影片卡 poster 格 守衛

@@ -1256,12 +1256,14 @@
 }
 
 /* 75a-US4: 手機相似模式主片封面縮高（僅 similar-open，一般燈箱不縮） */
+/* 特異性升至 (0,4,0)：勝 T8 ≤480 的 .lightbox-cover:has(.lb-full) .lb-full / .lightbox-cover.has-cover:has(.lb-full)
+   (0,3,0)，否則 source order 讓 T8 的 height:auto/min-height:0 在 similar 模式覆寫 → overlay 與 base 40vh 脫鉤/溢出 */
 @media (max-width: 960px) {
-    .lightbox-content.similar-open .lightbox-cover {
+    .showcase-lightbox .lightbox-content.similar-open .lightbox-cover {
         min-height: min(38vh, 290px);   /* 覆寫容器 min-height: min(58vh, 460px) */
     }
     .lightbox-content.similar-open .lightbox-cover img,
-    .lightbox-content.similar-open .lb-full {
+    .lightbox-content.similar-open .lightbox-cover .lb-full {
         height: 40vh;   /* 覆寫 img/lb-full 的 60vh */
     }
 }
