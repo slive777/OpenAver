@@ -28,6 +28,18 @@ if (typeof CustomEase !== 'undefined') {
 }
 
 // ---------------------------------------------------------------------------
+// poster-crop 比例常數（US2，v0.10.2）
+// NC#7 微調點：改此值同步更新 CSS --poster-crop-ratio（theme.css）
+// poster 盒寬由 POSTER_CROP_RATIO 推導（load-bearing，NC#7 改此一處 JS 即同步）：
+//   SLOT_W = round(150 * 0.71) = 107；MAIN_W = round(250 * 0.71) = 178
+// 注意：state-similar.js 的 slot reset（width:107）為跨模組字面值鏡像，
+//   NC#7 微調時須同步該檔 + CSS --poster-crop-ratio（三套渲染機制各自獨立）。
+// ---------------------------------------------------------------------------
+const POSTER_CROP_RATIO = 0.71;
+const SLOT_W = Math.round(150 * POSTER_CROP_RATIO);   // 107
+const MAIN_W = Math.round(250 * POSTER_CROP_RATIO);   // 178
+
+// ---------------------------------------------------------------------------
 // playInitialExpand — 8 張卡從中心滑出至 anchor 位置（CD-56B-7）
 // ---------------------------------------------------------------------------
 /**
@@ -48,7 +60,7 @@ export function playInitialExpand(cards, railLines, initSlots, onComplete) {
     if (!anchor || !card) return;
 
     card.classList.remove('slot--hidden');
-    gsap.set(card, { xPercent: -50, yPercent: -50, left: 480, top: 310, opacity: 0, width: 120, height: 150, x: 0, y: 0, rotation: 0 });
+    gsap.set(card, { xPercent: -50, yPercent: -50, left: 480, top: 310, opacity: 0, width: SLOT_W, height: 150, x: 0, y: 0, rotation: 0 });
 
     const cardT = idx * 0.06;
 
@@ -113,7 +125,7 @@ export function playSlipThrough(clickedId, prevVisible, nextVisible, cards, rail
     tl.to(cards[clickedId], {
       left: 480,
       top: 310,
-      width: 200,
+      width: MAIN_W,
       height: 250,
       opacity: 1,
       duration: 0.46,
@@ -196,7 +208,7 @@ export function playSlipThrough(clickedId, prevVisible, nextVisible, cards, rail
   if (cards[clickedId]) {
     tl.call(() => {
       cards[clickedId].classList.add('slot--hidden');
-      gsap.set(cards[clickedId], { xPercent: -50, yPercent: -50, opacity: 0, width: 120, height: 150, zIndex: 10, x: 0, y: 0, rotation: 0 });
+      gsap.set(cards[clickedId], { xPercent: -50, yPercent: -50, opacity: 0, width: SLOT_W, height: 150, zIndex: 10, x: 0, y: 0, rotation: 0 });
       // T5 codex-fix3: clicked card 已 hidden，可見 slot src 不再受 reactive rebind 影響，
       // 此時 host 才安全 swap similarResults（rebind bug fix）
       options.onPrevVisibleHidden?.();
@@ -218,7 +230,7 @@ export function playSlipThrough(clickedId, prevVisible, nextVisible, cards, rail
       // reactive :src 還綁舊 similarResults 顯示錯誤封面
       options.onBeforeCardEnter?.(id);
       card.classList.remove('slot--hidden');
-      gsap.set(card, { xPercent: -50, yPercent: -50, left: 480, top: 310, opacity: 0, width: 120, height: 150, x: 0, y: 0, rotation: 0 });
+      gsap.set(card, { xPercent: -50, yPercent: -50, left: 480, top: 310, opacity: 0, width: SLOT_W, height: 150, x: 0, y: 0, rotation: 0 });
     }, null, Math.max(0, startT - 0.01));
 
     tl.to(card, {

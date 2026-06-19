@@ -541,6 +541,22 @@ body {
     border-top: 1px solid var(--border-light);
 }
 
+/* ── poster-crop 共用規則（US2，v0.10.2）─────────────────────────────────────
+ * 封面正面裁切：JAV 橫式包裝 (≈1.49) 右側 47% 即封面正面，比例 ≈0.71。
+ * --poster-crop-ratio 是比例的【單一真理】（NC#7 微調點，改這一行即可）。
+ * .poster-crop class 為 canonical 定義；各 spot 因既有元素 rule specificity，
+ * 一律在自身 rule 直接寫 aspect-ratio: var(--poster-crop-ratio)、不施加 class。
+ * 星座 slot 盒尺寸由 GSAP gsap.set width 控制，CSS 只改 object-position。
+ */
+:root {
+    --poster-crop-ratio: 0.71;
+}
+.poster-crop {
+    aspect-ratio: var(--poster-crop-ratio);
+    object-fit: cover;
+    object-position: right center;
+}
+
 /* AV Card Full Footer - 標題區塊佈局 */
 .av-card-full-footer-content {
     display: flex;

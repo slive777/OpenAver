@@ -538,7 +538,8 @@ export function stateSimilar() {
           const card = this.similarCards[id];
           if (anchor && card) {
             card.classList.remove('slot--hidden');
-            gsap.set(card, { left: anchor.x, top: anchor.y, opacity: 1, width: 120, height: 150 });
+            // width 107 = round(150 * poster-crop 0.71)；NC#7 微調須同步 animations.js POSTER_CROP_RATIO + CSS --poster-crop-ratio
+            gsap.set(card, { left: anchor.x, top: anchor.y, opacity: 1, width: 107, height: 150 });
           }
         });
         ANCHORS.forEach(a => {
@@ -1112,7 +1113,7 @@ export function stateSimilar() {
           gsap.set(card, {
             left: 480,
             top: 310,
-            width: 120,
+            width: 107,   // = round(150 * poster-crop 0.71)；NC#7 同步 animations.js POSTER_CROP_RATIO + CSS --poster-crop-ratio
             height: 150,
             opacity: 0,
             zIndex: '',
