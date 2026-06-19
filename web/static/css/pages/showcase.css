@@ -1225,10 +1225,14 @@
     }
 }
 
-/* 75a-US3d: tablet toolbar 769–1023px 銜接規則（舊缺失，補齊斷層）*/
+/* 75a-US3d: tablet toolbar 769–1023px 銜接規則（舊缺失，補齊斷層）
+ * 佈局策略：搜尋框（col2 1fr）填滿中段、控制區（col3 auto）靠右。
+ * 不強制視覺置中——tablet 寬度下真置中需與 controls 等寬的平衡欄，會擠壓 controls
+ * 致換行/溢出；「搜尋框填滿、controls 靠右」是 tablet 慣例且無溢出風險。col1 auto
+ * 無內容會 collapse 成 0（刻意，非 bug）。Codex P2 採「明確布局策略」解。 */
 @media (min-width: 769px) and (max-width: 1023px) {
     .showcase-toolbar {
-        grid-template-columns: auto 1fr auto;   /* 搜尋框置中，控制區靠右 */
+        grid-template-columns: auto 1fr auto;   /* col1 空佔位(0) | 搜尋框填滿 | 控制區靠右 */
         gap: 0.75rem;
         padding: 0.75rem 1rem;
     }

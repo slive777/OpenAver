@@ -480,7 +480,8 @@ document.addEventListener('alpine:init', () => {
           const card = this.cards[id];
           if (anchor && card) {
             card.classList.remove('slot--hidden');
-            gsap.set(card, { left: anchor.x, top: anchor.y, opacity: 1, width: 120, height: 150 });
+            // width 107 = round(150 * poster-crop 0.71)；NC#7 微調須同步 animations.js POSTER_CROP_RATIO + CSS --poster-crop-ratio（reduced-motion click path，繞過 animations.js gsap.set）
+            gsap.set(card, { left: anchor.x, top: anchor.y, opacity: 1, width: 107, height: 150 });
           }
         });
         // Rails: nextVisible 顯示，其餘隱藏（DrawSVG 禁用，使用 classList + opacity）
@@ -973,7 +974,7 @@ document.addEventListener('alpine:init', () => {
           gsap.set(card, {
             left: 480,
             top: 310,
-            width: 120,
+            width: 107,   // = round(150 * poster-crop 0.71)；NC#7 同步 animations.js POSTER_CROP_RATIO + CSS --poster-crop-ratio（reset baseline，繞過 animations.js gsap.set）
             height: 150,
             opacity: 0,
             zIndex: '',

@@ -11075,6 +11075,10 @@ T4_STATE_SIMILAR_JS = (
     Path(__file__).parent.parent.parent
     / "web" / "static" / "js" / "pages" / "showcase" / "state-similar.js"
 )
+T4_CONSTELLATION_HOST_JS = (
+    Path(__file__).parent.parent.parent
+    / "web" / "static" / "js" / "pages" / "motion-lab" / "constellation-host.js"
+)
 T4_SHOWCASE_CSS = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "pages" / "showcase.css"
 T4_THEME_CSS = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "theme.css"
 T4_MOTION_LAB_HTML = Path(__file__).parent.parent.parent / "web" / "templates" / "motion_lab.html"
@@ -11268,6 +11272,22 @@ class TestSimilarSlotGsapGuard:
         js = self._similar()
         assert "width: 107" in js, \
             "state-similar.js must contain 'width: 107' (slot reset value)"
+
+    def _host(self):
+        return T4_CONSTELLATION_HOST_JS.read_text(encoding="utf-8")
+
+    def test_constellation_host_no_width_120(self):
+        """constellation-host.js 全文不含 width: 120（reduced-motion click + reset baseline path
+        繞過 animations.js gsap.set，應為 107；Codex P3 補洞——plan 6 處 inventory 漏此 host 檔）"""
+        js = self._host()
+        assert "width: 120" not in js, \
+            "constellation-host.js must not contain 'width: 120' (slot box should be 107, NC#7 mirror)"
+
+    def test_constellation_host_has_width_107(self):
+        """constellation-host.js 含 width: 107（reduced-motion / reset slot 正確值）"""
+        js = self._host()
+        assert "width: 107" in js, \
+            "constellation-host.js must contain 'width: 107' (reduced-motion + reset slot value)"
 
 
 class TestSimilarMobileDOMOrderGuard:
