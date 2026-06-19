@@ -18,13 +18,13 @@
      @keydown.window="handleKeydown($event)">
 
     <!-- Loading State (初始顯示) -->
-    <div class="state-page" x-show="!showFavoriteActresses && loading && videoCount === 0">
+    <div class="state-page" x-cloak x-show="!showFavoriteActresses && loading && videoCount === 0">
         <i class="bi bi-hourglass-split state-page-icon"></i>
         <p class="state-page-text">載入影片列表中...</p>
     </div>
 
     <!-- Empty State (API 回傳空資料時) -->
-    <div class="state-page" x-show="!showFavoriteActresses && !loading && !error && videoCount === 0">
+    <div class="state-page" x-cloak x-show="!showFavoriteActresses && !loading && !error && videoCount === 0">
         <i class="bi bi-collection-play state-page-icon"></i>
         <p class="state-page-text">尚未產生影片列表</p>
         <div class="empty-actions">
@@ -35,7 +35,7 @@
     </div>
 
     <!-- Error State (API 錯誤時) -->
-    <div class="state-page error" x-show="!loading && error">
+    <div class="state-page error" x-cloak x-show="!loading && error">
         <i class="bi bi-exclamation-triangle state-page-icon"></i>
         <p class="state-page-text" x-text="error"></p>
         <div class="empty-actions">
@@ -486,11 +486,11 @@
         <template x-if="showFavoriteActresses">
           <div>
             <!-- Loading spinner -->
-            <div class="state-page" x-show="actressLoading">
+            <div class="state-page" x-cloak x-show="actressLoading">
                 <i class="bi bi-hourglass-split state-page-icon"></i>
             </div>
             <!-- Empty state -->
-            <div class="state-page" x-show="!actressLoading && actressCount === 0">
+            <div class="state-page" x-cloak x-show="!actressLoading && actressCount === 0">
                 <i class="bi bi-person-heart state-page-icon"></i>
                 <p class="state-page-text" x-text="t('showcase.actress.empty')"></p>
                 <p class="state-page-text" x-text="t('showcase.actress.emptyHint')"></p>

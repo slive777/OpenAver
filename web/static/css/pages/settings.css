@@ -998,16 +998,20 @@
     cursor: wait;
 }
 
-/* ==================== View Transition: theme 圓弧展開 ==================== */
-::view-transition-old(root),
-::view-transition-new(root) {
+/* ==================== View Transition: theme 圓弧展開 ====================
+ * feature/76 T1a（CD-7/F7）：加 html.theme-transition-active 前綴作用域化。
+ * cross-doc VT 偽元素由「目的地新頁」樣式化 → 裸 root 規則會汙染導航「到」
+ * /settings、/design-system 的 root crossfade（砍成 animation:none）。前綴後
+ * 此抑制只在 theme-transition.js 主題切換期間（class 在）生效、不外溢跨頁。 */
+html.theme-transition-active::view-transition-old(root),
+html.theme-transition-active::view-transition-new(root) {
     animation: none;
     mix-blend-mode: normal;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    ::view-transition-old(root),
-    ::view-transition-new(root) {
+    html.theme-transition-active::view-transition-old(root),
+    html.theme-transition-active::view-transition-new(root) {
         animation: none;
     }
 

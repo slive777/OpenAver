@@ -92,6 +92,9 @@ export function stateLightbox() {
             this.currentLightboxActress = null;   // video setter always clear actress
             this.addingLbTag = false;             // 切換影片時重置輸入框
             this._videoChipsExpanded = false;     // 影片切換時 reset chips 展開
+            // BUGfix-mobile-similar-stale-cover P2b: in-grid 切換後清除 standalone 旗標，
+            // 確保連點 tier2/3 再 tier1 時 prev/next + fly-back 恢復正常（不殘留 standalone）
+            this.similarExitVideo = null;
             // 71c-P2: 抽至 _refreshLbFullBlurUp helper（slip-through 路徑共用）
             this._refreshLbFullBlurUp();
         },
@@ -770,13 +773,27 @@ export function stateLightbox() {
                 if (!resp.ok) return;
                 const data = await resp.json();
                 if (data.success && data.video) {
+                    // BUGfix-lightbox-cover-stale: 共用同一個 timestamp，確保 grid 與 lightbox overlay 同步 bust。
+                    const _t = Date.now();
                     if (data.video.cover_url) {
-                        data.video.cover_url = data.video.cover_url + '&t=' + Date.now();
+                        data.video.cover_url = data.video.cover_url + '&t=' + _t;
+                    }
+                    // cover_full_url 恆為 /api/gallery/image（max-age=86400），URL 不變瀏覽器吃舊快取。
+                    // 同步追加 &t= cache-bust，確保 lightbox overlay（.lb-full）顯示新封面。
+                    if (data.video.cover_full_url) {
+                        data.video.cover_full_url = data.video.cover_full_url + '&t=' + _t;
                     }
                     // 67-A2/CD-67-3b: data.video 不帶 _imgLoaded → 舊 true 殘留會讓新封面跳過 skeleton/fade。
                     // Object.assign 前 reset，讓補封面/重抓的新 cover_url（含上面 &t= cache-bust）重走 skeleton→@load→淡入。
                     if (data.video.cover_url) video._imgLoaded = false;
                     Object.assign(video, data.video);
+                    // BUGfix-lightbox-cover-stale: 若燈箱正開在這支影片，重置 blur-up overlay，
+                    // 讓 cover_full_url（已 bust）重新觸發 @load → _lbFullLoaded 淡入。
+                    // 用 === video 守住：燈箱開在別支影片時不誤 reset。
+                    // 必須在 Object.assign 之後呼叫（src 已更新，$nextTick complete-check 才讀到新 URL）。
+                    if (this.currentLightboxVideo === video) {
+                        this._refreshLbFullBlurUp();
+                    }
                 }
             } catch (e) {
                 // refresh 失敗不顯示額外 toast

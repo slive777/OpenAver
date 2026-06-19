@@ -36,6 +36,33 @@ class TestShowcaseMetadataGuard:
             "showcase.html missing: series searchFromMetadata call"
 
 
+class TestStatePageCloakGuard:
+    """showcase / search 的 state-page 框必須有 x-cloak（防 Alpine hydration 前 FOUC 裸露）。
+
+    無 x-cloak 時，Alpine 啟動前瀏覽器把 x-show 尚未生效的框同時裸露一幀、疊閃。
+    用 BeautifulSoup `select` 抓全部 div.state-page（attribute 順序無關，避免 regex 只認
+    class 為首屬性的假陽性，Codex P3）；逐節點斷言 has_attr('x-cloak')，並鎖定確切數量。
+    """
+
+    def _assert_all_state_pages_cloaked(self, path, expected_count):
+        from bs4 import BeautifulSoup
+        html = path.read_text(encoding="utf-8")
+        divs = BeautifulSoup(html, "html.parser").select("div.state-page")
+        assert len(divs) == expected_count, \
+            f"{path.name}: div.state-page 數 {len(divs)} != 預期 {expected_count}（新增/移除狀態框需同步更新守衛）"
+        for d in divs:
+            assert d.has_attr("x-cloak"), \
+                f"{path.name} state-page div 缺 x-cloak（Alpine hydration 前 FOUC）: x-show={d.get('x-show', '')!r}"
+
+    def test_showcase_state_pages_cloaked(self):
+        """showcase.html 5 個 state-page（3 頂層 + 2 actress）皆 x-cloak"""
+        self._assert_all_state_pages_cloaked(SHOWCASE_HTML, 5)
+
+    def test_search_state_pages_cloaked(self):
+        """search.html 2 個 state-page（emptyState 初始可見 / errorState）皆 x-cloak"""
+        self._assert_all_state_pages_cloaked(SEARCH_HTML, 2)
+
+
 SEARCH_HTML = Path(__file__).parent.parent.parent / "web" / "templates" / "search.html"
 
 
@@ -101,6 +128,145 @@ MOTION_LAB_HTML = Path(__file__).parent.parent.parent / "web" / "templates" / "m
 DESIGN_SYSTEM_HTML = Path(__file__).parent.parent.parent / "web" / "templates" / "design-system.html"
 THEME_CSS = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "theme.css"
 TAILWIND_CSS = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "tailwind.css"
+
+BASE_HTML_T76 = Path(__file__).parent.parent.parent / "web" / "templates" / "base.html"
+
+
+class TestPageTransitionDomGuard:
+    """feature/76 T1: Cross-Document View Transitions DOM + CSS 契約守衛。
+
+    全 substring/regex 正向存在性（非行號 allowlist）。守衛 base.html 命名錨點 +
+    theme.css opt-in / 命名 / showcase opt-out。settings.css root 作用域化屬 T1a，
+    head skipTransition script 屬 T-showcase，皆不在此守衛。
+    """
+
+    def _base(self):
+        return BASE_HTML_T76.read_text(encoding="utf-8")
+
+    def _theme(self):
+        return THEME_CSS.read_text(encoding="utf-8")
+
+    def test_base_html_main_content_id(self):
+        """base.html <main> 含 id="main-content"（CD-4，T1 新增的命名錨點）"""
+        assert 'id="main-content"' in self._base(), \
+            "base.html <main> 缺少 id=\"main-content\"（feature/76 CD-4）"
+
+    def test_base_html_sidebar_id(self):
+        """base.html <nav> 含 id="sidebar"（現狀錨點，防回歸——VT 持久化依賴此 id）"""
+        assert 'id="sidebar"' in self._base(), \
+            "base.html <nav> 缺少 id=\"sidebar\"（feature/76 CD-3 sidebar 持久化依賴）"
+
+    def test_theme_css_view_transition_opt_in(self):
+        """theme.css 含 @view-transition + navigation: auto（CD-1 全站 opt-in）"""
+        css = self._theme()
+        assert "@view-transition" in css, "theme.css 缺少 @view-transition at-rule（feature/76 CD-1）"
+        assert re.search(r"@view-transition\s*\{\s*navigation:\s*auto", css), \
+            "theme.css @view-transition 缺少 navigation: auto（feature/76 CD-1）"
+
+    def test_theme_css_named_elements(self):
+        """theme.css 含 sidebar / main-content 兩個 view-transition-name（CD-2/CD-3）"""
+        css = self._theme()
+        assert "view-transition-name: sidebar" in css, \
+            "theme.css 缺少 view-transition-name: sidebar（feature/76 CD-3）"
+        assert "view-transition-name: main-content" in css, \
+            "theme.css 缺少 view-transition-name: main-content（feature/76 CD-2）"
+
+    def test_theme_css_showcase_optout(self):
+        """theme.css 含 showcase opt-out 單行（CD-11 輔助：.page-showcase + name:none）"""
+        css = self._theme()
+        assert re.search(r"\.page-showcase\s+#main-content\s*\{\s*view-transition-name:\s*none", css), \
+            "theme.css 缺少 .page-showcase #main-content { view-transition-name: none }（feature/76 CD-11 輔助）"
+
+    def test_theme_css_theme_toggle_denames_named_groups(self):
+        """主題切換（same-doc startViewTransition）期間 de-name sidebar/main-content（Codex P1）。
+
+        view-transition-name 對 same-document VT 同樣生效 → 不 de-name 則命名群組脫離 root、
+        破壞 theme-transition.js 的圓形 reveal（main-content 還會跑 250ms fade 撞 500ms 圓形）。
+        守 html.theme-transition-active 期間兩區 view-transition-name: none。
+        """
+        css = self._theme()
+        assert re.search(
+            r"html\.theme-transition-active\s+#sidebar\s*,\s*"
+            r"html\.theme-transition-active\s+#main-content\s*\{\s*view-transition-name:\s*none",
+            css,
+        ), "theme.css 缺少 theme-transition-active 期間 de-name sidebar/main-content（feature/76 Codex P1 主題切換共存）"
+
+    def test_base_html_showcase_skip_script_in_head(self):
+        """showcase 硬切 head script（pagereveal/pageswap + skipTransition）存在且在 </head> 之前（CD-11/F8）。
+
+        pagereveal 在 first rendering opportunity 前觸發 → listener 必須在 <head> 的
+        parser-blocking classic script，掛在 body 底（如 page-lifecycle.js）會漏接。
+        斷言三 token 皆落在 </head> 之前，鎖定位置。
+        """
+        html = self._base()
+        head_end = html.find("</head>")
+        assert head_end != -1, "base.html 找不到 </head>"
+        head = html[:head_end]
+        for token in ("pagereveal", "pageswap", "skipTransition"):
+            assert token in head, \
+                f"base.html <head> 缺少 {token!r}（feature/76 CD-11 showcase 硬切 head script 必須在 head、非 body 底）"
+        # 鎖定 parser-blocking classic：包住 skipTransition 的 <script> open tag 不得有
+        # type=module / defer / async（任一都會把 pagereveal 延後過 first render → 漏接、靜默壞掉）。
+        skip_idx = head.find("skipTransition")
+        open_start = head.rfind("<script", 0, skip_idx)
+        open_tag = head[open_start:head.find(">", open_start) + 1]
+        for banned in ('type="module"', "type='module'", "defer", "async"):
+            assert banned not in open_tag, \
+                (f"base.html showcase 硬切 script 的 <script> tag 含 {banned!r}（feature/76 CD-11）："
+                 "pagereveal listener 必須是 parser-blocking classic script，defer/async/module 會漏接事件")
+
+
+SETTINGS_CSS_T76 = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "pages" / "settings.css"
+THEME_TRANSITION_JS_T76 = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "settings" / "theme-transition.js"
+
+
+class TestPageTransitionSettingsScopeGuard:
+    """feature/76 T1a（CD-7/F7）：settings.css root 規則作用域化 + theme-transition.js class lifecycle。
+
+    防 settings.css 裸 ::view-transition-*(root) 規則汙染導航到 /settings、/design-system 的
+    跨頁 root crossfade。negative 守衛（無裸 root 規則）是關鍵——只查 positive substring 會
+    假陽性（漏抓新增的裸規則）。
+    """
+
+    # CSS 註解內可能出現字面 pseudo，先 strip 避免假陽性
+    _COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)
+    _ROOT_PSEUDO_RE = re.compile(r"::view-transition-(?:old|new|group|image-pair)\(root\)")
+    _REQUIRED_PREFIX = "html.theme-transition-active"
+
+    def _settings_css(self):
+        return SETTINGS_CSS_T76.read_text(encoding="utf-8")
+
+    def _theme_js(self):
+        return THEME_TRANSITION_JS_T76.read_text(encoding="utf-8")
+
+    def test_settings_root_rules_scoped(self):
+        """settings.css root 規則已加 html.theme-transition-active 前綴（positive）"""
+        assert f"{self._REQUIRED_PREFIX}::view-transition-old(root)" in self._settings_css(), \
+            "settings.css root 規則未作用域化（缺 html.theme-transition-active 前綴，feature/76 CD-7）"
+
+    def test_settings_all_root_rules_scoped(self):
+        """settings.css 中『每一條』root VT 規則都恰以 html.theme-transition-active 作用域化（negative，exhaustive）。
+
+        SF-2：不只查「無裸 root 規則」，而是窮舉每個 ::view-transition-*(root) 出現點、斷言其緊鄰
+        前綴恰為 html.theme-transition-active。封住「錯誤前綴」盲區——裸規則、`:root::`、`.foo::`
+        等任何非 theme-transition-active 前綴皆會被抓（lookbehind 排除法漏抓後兩者）。
+        """
+        css_nc = self._COMMENT_RE.sub("", self._settings_css())
+        for m in self._ROOT_PSEUDO_RE.finditer(css_nc):
+            prefix = css_nc[:m.start()]
+            assert prefix.endswith(self._REQUIRED_PREFIX), \
+                ("settings.css 有未以 html.theme-transition-active 作用域化的 root VT 規則"
+                 f"（feature/76 CD-7/F7）: ...{css_nc[max(0, m.start() - 40):m.end()]!r}")
+
+    def test_theme_transition_js_class_lifecycle(self):
+        """theme-transition.js 在 startViewTransition 前 add、finished 後 remove theme-transition-active（F7）"""
+        js = self._theme_js()
+        assert "classList.add('theme-transition-active')" in js, \
+            "theme-transition.js 缺少 classList.add('theme-transition-active')（feature/76 F7）"
+        assert "transition.finished" in js, \
+            "theme-transition.js 缺少 transition.finished（class remove 掛點，feature/76 F7）"
+        assert "classList.remove('theme-transition-active')" in js, \
+            "theme-transition.js 缺少 classList.remove('theme-transition-active')（feature/76 F7）"
 
 
 class TestHelpPopoverGuard:
@@ -12266,4 +12432,224 @@ class TestUS11HeroCardMobileFix:
         sel = m.group(1)
         assert ".hero-card" in sel, (
             "object-fit: cover 規則 selector 必帶 .hero-card（確認是 hero img 規則，非鄰卡）"
+        )
+
+
+class TestCoverCacheBustGuard:
+    """BUGfix-lightbox-cover-stale: refreshVideoData 必須對 cover_url 與 cover_full_url 都追加 cache-bust。
+    守衛契約：擋「只 bust 一邊」回歸——任何人把任一欄位的 &t= 移除，對應守衛即紅。
+    三問：
+      1. 移除 cover_url &t= → test_cover_url_has_cache_bust 紅；cover_full_url bust 仍在 → 其守衛獨立 GREEN ✓
+      2. 移除 cover_full_url &t= → test_cover_full_url_has_cache_bust 紅；cover_url bust 仍在 → 其守衛獨立 GREEN ✓
+      3. 把 bust 搬出 refreshVideoData 函式體 → 兩條都紅 ✓
+      4. 只在 comment 留 '&t=' 字串但移除實作 → 紅（守衛先過濾純注釋行，不被 comment 騙過）✓
+    每條 regex 只匹配「同一條賦值語句內」：[^;\\n]* 不跨 ; 與換行，鎖在單一 statement，
+    防止 re.DOTALL 跨行把兩個欄位的 &t= 混用。
+    """
+
+    _LIGHTBOX_JS = (
+        Path(__file__).parent.parent.parent
+        / "web" / "static" / "js" / "pages" / "showcase" / "state-lightbox.js"
+    )
+
+    def _js(self):
+        return self._LIGHTBOX_JS.read_text(encoding="utf-8")
+
+    def _extract_refreshVideoData_body(self, js):
+        """定位 refreshVideoData 函式體（從函式宣告到第一個同層 closing brace）。
+        用計數括弧深度的方式抓完整函式體，確保邊界正確。
+        """
+        # 找 refreshVideoData 宣告起點
+        m = re.search(r'async\s+refreshVideoData\s*\(', js)
+        assert m, "state-lightbox.js 找不到 async refreshVideoData 函式宣告"
+        start = m.start()
+        # 從宣告後面找第一個 '{' 並計數到同層 '}'
+        body_start = js.index('{', start)
+        depth = 0
+        for i, ch in enumerate(js[body_start:], body_start):
+            if ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    return js[body_start:i + 1]
+        raise AssertionError("state-lightbox.js: refreshVideoData 函式體找不到對應的結束括弧")
+
+    @staticmethod
+    def _strip_line_comments(body: str) -> str:
+        """移除函式體內的 // 注釋——整行注釋與「行內尾注釋」都砍。
+        去注釋後 regex 才不會被注釋裡的 `+ '&t='` 騙過：例如
+        `data.video.cover_url = data.video.cover_url // + '&t='`（bust 移進行內注釋）
+        若不砍行內注釋，[^;\\n]* 仍會配到注釋內的 + '&t=' 造成 false-pass。
+        以 (?<!:)// 切除，保護 URL 的 `://`（https:// 等不被誤砍；/api 單斜線不觸發）。
+        state-lightbox.js refreshVideoData 函式體內字串無 `//`、未用區塊注釋（/* */），
+        此 heuristic 對本守衛充分。
+        """
+        return "\n".join(
+            re.sub(r"(?<!:)//.*$", "", line)
+            for line in body.splitlines()
+        )
+
+    def test_cover_url_has_cache_bust(self):
+        """refreshVideoData 函式體內必須對 cover_url 賦值並串接 '&t=' cache-bust。
+        要求：必須匹配「data.video.cover_url = ... + '&t='」賦值結構，
+        且 regex 只匹配同一條賦值語句內（[^;\\n]* 不跨 ; 與換行），
+        不被跨語句的 DOTALL 匹配混淆——保證 cover_url 守衛與 cover_full_url 守衛彼此獨立。
+        先過濾純注釋行，確保配對只落在實際程式碼。
+        """
+        js = self._js()
+        body = self._strip_line_comments(self._extract_refreshVideoData_body(js))
+        m = re.search(
+            r"data\.video\.cover_url\s*=\s*[^;\n]*\+\s*['\"]&t=",
+            body
+        )
+        assert m, (
+            "refreshVideoData 函式體找不到 'data.video.cover_url = ... + &t=' 賦值語句。\n"
+            "cover_url 分支的 cache-bust 遺失，grid 封面更新後瀏覽器可能吃舊快取。\n"
+            f"當前函式體（去注釋後）：\n{body[:500]}"
+        )
+
+    def test_cover_full_url_has_cache_bust(self):
+        """refreshVideoData 函式體內必須對 cover_full_url 賦值並串接 '&t=' cache-bust。
+        這是本 bug 的核心守衛：lightbox overlay（.lb-full）用 cover_full_url，
+        URL 不變會吃瀏覽器 max-age=86400 舊快取。
+        要求：必須匹配「data.video.cover_full_url = ... + '&t='」賦值結構，
+        且 regex 只匹配同一條賦值語句內（[^;\\n]* 不跨 ; 與換行），
+        不被跨語句的 DOTALL 匹配混淆——保證 cover_full_url 守衛與 cover_url 守衛彼此獨立。
+        先過濾注釋行，確保不被注釋裡的 cover_full_url 字樣或別欄位的 &t= 騙過。
+        """
+        js = self._js()
+        body = self._strip_line_comments(self._extract_refreshVideoData_body(js))
+        m = re.search(
+            r"data\.video\.cover_full_url\s*=\s*[^;\n]*\+\s*['\"]&t=",
+            body
+        )
+        assert m, (
+            "refreshVideoData 函式體找不到 'data.video.cover_full_url = ... + &t=' 賦值語句。\n"
+            "lightbox overlay（.lb-full `:src='cover_full_url'`）不加 cache-bust 會吃 max-age=86400 舊快取。\n"
+            f"當前函式體（去注釋後）：\n{body[:500]}"
+        )
+
+
+SHOWCASE_SIMILAR_JS = (
+    Path(__file__).parent.parent.parent
+    / "web" / "static" / "js" / "pages" / "showcase" / "state-similar.js"
+)
+
+
+class TestMobileSimilarDrillFallbackGuard:
+    """BUGfix-mobile-similar-stale-cover: 守衛 mobile similar drill 三層 fallback 合約
+
+    (a) state-lightbox.js 的 _setLightboxIndex 函式體必須清除 similarExitVideo（= null），
+        確保 in-grid 切換後不殘留 standalone 旗標（Codex P2b 根治）。
+    (b) state-similar.js 的 onSimilarMobileCardClick 函式體必須含：
+        - `_videos` 查找（tier 2 fallback）
+        - 設置 `similarExitVideo`（standalone 旗標）
+        - 呼叫 `_refreshLbFullBlurUp`（blur-up reset）
+    """
+
+    def _lightbox_js(self):
+        return SHOWCASE_LIGHTBOX_JS.read_text(encoding="utf-8")
+
+    def _similar_js(self):
+        return SHOWCASE_SIMILAR_JS.read_text(encoding="utf-8")
+
+    @staticmethod
+    def _extract_function_body(js, func_pattern):
+        """用計數括弧深度方式擷取函式體，從 func_pattern regex 匹配處起算。"""
+        m = re.search(func_pattern, js)
+        if not m:
+            return None
+        start = m.start()
+        body_start = js.index('{', start)
+        depth = 0
+        for i, ch in enumerate(js[body_start:], body_start):
+            if ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    return js[body_start:i + 1]
+        return None
+
+    def test_set_lightbox_index_clears_similar_exit_video(self):
+        """_setLightboxIndex 函式體必須含 similarExitVideo = null（清除 standalone 旗標）。
+        根治：in-grid 切換（tier 1）後不殘留 standalone，prev/next + fly-back 恢復正常。
+        """
+        js = self._lightbox_js()
+        body = self._extract_function_body(js, r'_setLightboxIndex\s*\(')
+        assert body is not None, \
+            "state-lightbox.js 找不到 _setLightboxIndex 函式宣告"
+        # 允許有無空格兩種寫法
+        assert re.search(r'similarExitVideo\s*=\s*null', body), (
+            "_setLightboxIndex 函式體未含 'similarExitVideo = null'。\n"
+            "in-grid 切換（tier 1）後 similarExitVideo 不清除，\n"
+            "連點 tier2/3 再 tier1 時 standalone 旗標殘留，prev/next 被錯誤禁用。\n"
+            f"當前函式體：\n{body[:400]}"
+        )
+
+    def test_on_similar_mobile_card_click_has_videos_lookup(self):
+        """onSimilarMobileCardClick 函式體必須含 _videos 查找（tier 2 fallback）。
+        tier 2：被 filter 排除但仍在庫內的片用 _videos.findIndex 撈回完整 metadata。
+        """
+        js = self._similar_js()
+        body = self._extract_function_body(js, r'onSimilarMobileCardClick\s*\(')
+        assert body is not None, \
+            "state-similar.js 找不到 onSimilarMobileCardClick 函式宣告"
+        # 收緊：鎖 `_videos.findIndex` code-form，避免被註解中的 '_videos' vacuously 滿足
+        assert re.search(r'_videos\s*\.\s*findIndex', body), (
+            "onSimilarMobileCardClick 函式體未含 '_videos.findIndex' 查找。\n"
+            "tier 2 fallback（filter-subset 片）缺失，完整 metadata 撈不回，\n"
+            "被 filter 排除的片點擊後只能降級到 tier 3 snapshot 而非完整物件。\n"
+            f"當前函式體：\n{body[:400]}"
+        )
+
+    def test_on_similar_mobile_card_click_sets_similar_exit_video(self):
+        """onSimilarMobileCardClick 函式體必須含 similarExitVideo 指派（standalone 旗標）。
+        tier 2/3 fallback 路徑必須設置 similarExitVideo，確保 prev/next 禁用、close 不 fly-back。
+        """
+        js = self._similar_js()
+        body = self._extract_function_body(js, r'onSimilarMobileCardClick\s*\(')
+        assert body is not None, \
+            "state-similar.js 找不到 onSimilarMobileCardClick 函式宣告"
+        # 收緊：鎖 `similarExitVideo =` 賦值形，避免被註解中的字串 vacuously 滿足
+        assert re.search(r'similarExitVideo\s*=', body), (
+            "onSimilarMobileCardClick 函式體未含 'similarExitVideo =' 指派。\n"
+            "tier 2/3 standalone 旗標缺失：close 會飛回舊卡、prev/next 從舊 index 起跳（Codex P2a）。\n"
+            f"當前函式體：\n{body[:400]}"
+        )
+
+    def test_on_similar_mobile_card_click_calls_refresh_lb_full_blur_up(self):
+        """onSimilarMobileCardClick 函式體必須含 _refreshLbFullBlurUp 呼叫。
+        tier 2/3 路徑繞過 _setLightboxIndex，需手動觸發 blur-up reset + same-URL complete-check，
+        否則 overlay opacity:0 可能卡死。
+        """
+        js = self._similar_js()
+        body = self._extract_function_body(js, r'onSimilarMobileCardClick\s*\(')
+        assert body is not None, \
+            "state-similar.js 找不到 onSimilarMobileCardClick 函式宣告"
+        assert '_refreshLbFullBlurUp' in body, (
+            "onSimilarMobileCardClick 函式體未含 '_refreshLbFullBlurUp' 呼叫。\n"
+            "tier 2/3 slip-through 路徑缺 blur-up reset，.lb-full overlay opacity:0 可能卡死。\n"
+            f"當前函式體：\n{body[:400]}"
+        )
+
+    def test_close_similar_mode_fallback_has_videos_tier(self):
+        """closeSimilarMode 退場 fallback 必須與 onSimilarMobileCardClick 同採三層策略：
+        _filteredVideos miss 後先查 _videos.findIndex（命中保完整 metadata + path），
+        且仍保留 _similarLastDrilledItem snapshot 當孤兒列 fallback（Codex P2）。
+        否則 mobile tier2 的完整 metadata 會在關閉 similar mode 時被重新降級。
+        """
+        js = self._similar_js()
+        body = self._extract_function_body(js, r'async\s+closeSimilarMode\s*\(')
+        assert body is not None, \
+            "state-similar.js 找不到 closeSimilarMode 函式宣告"
+        assert re.search(r'_videos\s*\.\s*findIndex', body), (
+            "closeSimilarMode fallback 未含 '_videos.findIndex'（tier 2）。\n"
+            "退場時 _filteredVideos miss 直接降級成 5 欄 snapshot，\n"
+            "mobile tier2 點擊時的完整 metadata + path 會在關閉 similar mode 時被重新降級。"
+        )
+        assert '_similarLastDrilledItem' in body, (
+            "closeSimilarMode fallback 未保留 '_similarLastDrilledItem' snapshot（孤兒列 fallback）。\n"
+            "_videos 也 miss（孤兒列 / demo）時需 snapshot 兜底，不可移除。"
         )

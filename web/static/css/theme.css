@@ -2410,3 +2410,44 @@ body.fluent-canvas:not(.ds-page)::before {
 .btn-heart-pulse {
     animation: heartPulseFallback 0.3s ease-out forwards;
 }
+
+/* ==================== Cross-Document View Transitions (feature/76) ==================== */
+
+/* 兩端 opt-in：同源導航自動 crossfade（spec D1 / CD-1）。
+ * 此區塊經 input.css @import 編進 tailwind.css → 改後必重編 Tailwind。 */
+@view-transition { navigation: auto; }
+
+/* prefers-reduced-motion：CD-6 首選（巢狀語法）。OS 偏好不動畫時整個跨頁轉場關閉。
+ * 注意：上方 PRM 全域 hammer（*{animation-duration:0.01ms}）不匹配 ::view-transition-* 偽元素樹，故此處顯式處理。 */
+@media (prefers-reduced-motion: reduce) {
+    @view-transition { navigation: none; }
+}
+
+/* sidebar 持久區域（#sidebar id 已存在 base.html）→ 脫離 root crossfade、轉場中視覺靜止（CD-3 / spec D2） */
+#sidebar { view-transition-name: sidebar; }
+/* 顯式對齊 250ms，防 group 預設 duration 與 main-content 漂移 desync */
+::view-transition-group(sidebar) { animation-duration: 250ms; }
+
+/* 主內容區 crossfade（#main-content id 由 base.html <main> 提供）。
+ * 250ms = --fluent-duration-normal；accel=離開 / decel=到達（Fluent 單向語意，禁硬編碼曲線，CD-2 / spec D3） */
+#main-content { view-transition-name: main-content; }
+::view-transition-old(main-content) { animation: 250ms var(--fluent-ease-accel) both vt-fade-out; }
+::view-transition-new(main-content) { animation: 250ms var(--fluent-ease-decel) both vt-fade-in; }
+@keyframes vt-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes vt-fade-in  { from { opacity: 0; } to { opacity: 1; } }
+
+/* D8（CD-11）：showcase 退出 VT。此單行僅讓 showcase 主內容不成獨立 snapshot group（降快照成本，輔助），
+ * 不達硬切——元素退回 root 快照仍 crossfade。真硬切靠 base.html <head> classic script 的
+ * pageswap/pagereveal skipTransition()（URL gate /showcase），見 plan CD-11 / TASK-76-T-showcase。 */
+.page-showcase #main-content { view-transition-name: none; }
+
+/* 主題切換共存（Codex P1）：view-transition-name 對 same-document startViewTransition() 同樣生效
+ * → 主題圓形展開（theme-transition.js 的 ::view-transition-new(root) clipPath）期間，sidebar/
+ * main-content 會脫離 root 快照、自行 crossfade（main-content 還會跑上方 250ms fade），破壞圓形 reveal。
+ * theme-transition.js 切換期間掛 html.theme-transition-active → 此時 de-name 兩區、塌回 root 單一快照、
+ * 圓形 reveal 涵蓋整頁。specificity (1,1,1) > 基礎 #sidebar (1,0,0)，不論順序皆勝；class 移除後命名恢復、
+ * 跨頁轉場照常。 */
+html.theme-transition-active #sidebar,
+html.theme-transition-active #main-content {
+    view-transition-name: none;
+}

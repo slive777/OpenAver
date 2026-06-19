@@ -313,7 +313,7 @@
     <!-- 結果區域 -->
     <div class="result-area">
         <!-- 初始狀態 -->
-        <div id="emptyState" class="state-page w-full" x-show="pageState === 'empty'">
+        <div id="emptyState" class="state-page w-full" x-show="pageState === 'empty'" x-cloak>
             <i class="bi bi-film state-page-icon"></i>
             <p class="state-page-text">{{ t('search.empty.hint') }}</p>
             <div class="empty-actions">

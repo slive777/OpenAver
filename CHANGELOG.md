@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.3] - 2026-06-20
+
+本版主軸：**MPA 跨頁無縫轉場（Cross-Document View Transitions）**（feature/76）。純前端、零後端/DB/依賴。每次點 sidebar 切頁的白屏閃爍消失，改為主內容區約 250ms 平滑淡入淡出（crossfade），sidebar／logo／通知鈴鐺等持久殼元素視覺靜止不重繪——用瀏覽器原生的跨文件 View Transition 達成，不需 SPA 化、不引入前端路由。漸進增強：不支援的舊版 WebView2／瀏覽器、開啟「減少動態效果」的用戶自動退回現狀硬切，功能零損失、UI 零差異。Showcase 因常駐動畫（燈箱環境光／相似探索星空）與大頁快照成本退出轉場、維持硬切。另含兩個一併修掉的問題：主題切換圓形展開被新命名群組破壞、以及 showcase／search 狀態框在前端初始化前的閃爍（FOUC）。
+
+### Added
+#### ✨ 跨頁無縫轉場
+- 點 sidebar 切頁（搜尋／掃描／設定／說明之間）從「白屏＋整頁重建」變成「主內容區平滑淡換」；左側 sidebar 與頂部鈴鐺視覺靜止、像焊在原地。
+- 純 CSS 啟用（`@view-transition`）＋命名持久區，零 JS 攔截導航——保留瀏覽器原生語義（Ctrl/⌘+點擊開新分頁、右鍵選單等照常）。
+- 漸進增強：不支援的環境與「減少動態效果」偏好自動硬切退化，無報錯、無功能損失。
+- 小螢幕漢堡選單（offcanvas）導航同樣有轉場。
+
+### Changed
+- **Showcase 退出轉場（維持硬切）**：showcase 是全站最重頁且有常駐動畫，進出一律即時硬切（`<head>` 內 parser-blocking script 於 `pageswap`／`pagereveal` 依目的地 URL 呼叫 `skipTransition()`），避免動畫被拍成凍結幀、並省去大頁快照成本。
+
+### Fixed
+- **主題切換圓形展開被跨頁命名群組破壞**：跨頁轉場用的 `view-transition-name` 對同頁的主題切換動畫同樣生效，導致 sidebar／主內容脫離整頁快照、圓形展開失效。修法：主題切換期間暫時取消兩區命名、塌回整頁單一快照（specificity 提升、不論順序皆勝）。
+- **Showcase／搜尋頁狀態框初始化閃爍（FOUC）**：載入中／空狀態／錯誤三個狀態框缺 `x-cloak`，前端框架啟動前會裸露疊閃一幀；補齊 `x-cloak`（showcase 5 處、搜尋頁 1 處）。
+
+### Internal
+- 設定頁既有的主題切換 root 轉場規則作用域化（`html.theme-transition-active` 前綴），不再汙染導航到設定／設計系統頁的整頁淡換。
+- stylelint 禁止手動 `view-transition-name: root`；新增跨檔 DOM／CSS 契約守衛（命名／作用域／showcase head script 位置與 parser-blocking／state-page x-cloak，後者以 BeautifulSoup 抓取不受屬性順序影響）。
+
+### Non-Goals（明確不做）
+- 不 SPA 化、不引入前端路由、不用 HTMX 整頁 swap、不做共享元素（封面跨頁飛行）轉場、不加 loading bar／骨架屏／prefetch、不在設定加轉場開關、不改後端任何路由／API。
+- 守衛路徑（設定未存檔／掃描串流中放棄離開）的程式導航維持硬切（owner 簽核；程式導航本就不觸發跨文件轉場、現狀即硬切、零回歸）。
+- showcase 狀態框硬編碼字串的多語系化留 milestone。
+
+### 測試
+- 全套 pytest **4334 passed, 2 skipped**（unit + integration，排除 smoke / e2e，較 0.10.2 的 4308 +26）+ `npm run lint`（eslint + stylelint）綠。
+- 來源金絲雀：**8 源全 PASS**（pre-merge live 健康檢查）。
+- 新增測試：`TestPageTransitionDomGuard`（命名 / showcase opt-out / head script 在 head 且 parser-blocking）、`TestPageTransitionSettingsScopeGuard`（settings root 作用域化 exhaustive negative + theme-transition.js class lifecycle）、`TestStatePageCloakGuard`（bs4，showcase 5 / search 2 state-page x-cloak）。
+- 跨瀏覽器實機（CDP Chromium 146）：showcase↔他頁雙向硬切（skip）、非 showcase crossfade、主題切換期間命名塌回 root、各頁 console 0 error。
+
 ## [0.10.2] - 2026-06-19
 
 本版主軸：**前端呈現優化合輯——行動裝置相容 + 搜尋詳情資訊密度重排**（feature/75）。純前端（CSS / Jinja template / 少量 JS 門檻），**零後端 / DB / serializer / API 改動**。緣起：owner 籌備開放同 LAN 手機連上同一台 server，把三組「以後再說」的呈現痛點推進「本版必修」——搜尋詳情右欄稀疏、翻譯標題沉底；JAV 橫式完整封包封面被裁得帶脊帶封背；以及 hover-only 操作 / scroll trap / JS↔CSS 斷點不一致 / tablet toolbar 裂版等讓真實手機無法操作的缺口。本版分兩階段（plan-75a：封面裁切共用規則 + 行動基礎相容 + 手機相似模式；plan-75b：搜尋詳情重排 + showcase 影片卡 poster 格），並追加燈箱封面去 letterbox 死白、grid→燈箱動畫落地接縫修復，最後把整套行動修正移植到結構近乎雙胞胎的搜尋頁。

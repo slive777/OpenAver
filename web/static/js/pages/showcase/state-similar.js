@@ -427,11 +427,19 @@ export function stateSimilar() {
           // 找到 → 沿用既有邏輯（_setLightboxIndex + currentLightboxVideo 同步）
           this._silentSwitchLightboxByNumber(this._similarLastDrilledNumber);
         } else {
-          // 找不到 → standalone 模式：用 _similarLastDrilledItem snapshot（v2 修法；
-          // v1 用 similarResults.find 常找不到 — similarResults 在 onComplete 已替換為 clickedItem 的鄰居，
-          // 不保證包含 clickedItem 本身，導致 fallback no-op 回原始 lightbox。）
-          const drilledItem = this._similarLastDrilledItem;
-          if (drilledItem) {
+          // _filteredVideos 找不到 → BUGfix-mobile-similar-stale-cover P2 三層 fallback（對齊 onSimilarMobileCardClick）：
+          // 先查 _videos（庫內、被 active filter 排除）→ standalone 但保完整 metadata + path，
+          // 避免關閉 similar mode 時把 mobile tier2 的完整 metadata + path 重新降級成 5 欄 snapshot。
+          const drilledVIdx = _videos.findIndex(v => v.number === this._similarLastDrilledNumber);
+          if (drilledVIdx >= 0) {
+            this.similarExitVideo = _videos[drilledVIdx];
+            this.currentLightboxVideo = this.similarExitVideo;
+            this._refreshLbFullBlurUp();
+          } else if (this._similarLastDrilledItem) {
+            // _videos 也 miss（孤兒列 / demo）→ standalone snapshot：用 _similarLastDrilledItem（v2 修法；
+            // v1 用 similarResults.find 常找不到 — similarResults 在 onComplete 已替換為 clickedItem 的鄰居，
+            // 不保證包含 clickedItem 本身，導致 fallback no-op 回原始 lightbox。）
+            const drilledItem = this._similarLastDrilledItem;
             // actresses 在 similarResults 是 array，lightbox template 用 .split(',') 解析；轉字串對齊
             const actressStr = Array.isArray(drilledItem.actresses)
               ? drilledItem.actresses.join(', ')
@@ -451,9 +459,8 @@ export function stateSimilar() {
             // 71c-P2: slip-through 繞過 _setLightboxIndex，需手動重走 blur-up reset + same-URL complete-check
             // （assignment 先、helper 後，讓 $nextTick 在 Alpine patch DOM 後才讀 lightboxCoverFull.complete）
             this._refreshLbFullBlurUp();
-          } else {
-            // similarResults 裡也找不到（理論上不發生）→ 靜默，顯示進場前舊影片（同 no-op 行為）
           }
+          // 三者皆 miss（理論上不發生）→ 靜默，顯示進場前舊影片（同 no-op 行為）
         }
       } else {
         // 無 slip-through（進 similar mode 後直接關）→ 不動，沿用既有行為
@@ -1225,7 +1232,37 @@ export function stateSimilar() {
         this.similarResults = data.results;
         this.similarQueryVideo = data.query_video;
         // Alpine x-for 自動 reactive，畫面 swap
-        this._silentSwitchLightboxByNumber(item.number);
+
+        // BUGfix-mobile-similar-stale-cover: 三層 fallback（tier 1→2→3）
+        // tier 1: 命中 _filteredVideos → _setLightboxIndex（含自動清 similarExitVideo=null）
+        if (!this._silentSwitchLightboxByNumber(item.number)) {
+          // tier 2: 在 _videos（庫內、被 filter 排除）→ standalone，完整 metadata + path
+          const vIdx = _videos.findIndex(v => v.number === item.number);
+          if (vIdx >= 0) {
+            this.similarExitVideo = _videos[vIdx];
+          } else {
+            // tier 3: 孤兒列 / demo — 前端只有 similar API 的 5 欄 snapshot
+            const actressStr = Array.isArray(item.actresses)
+              ? item.actresses.join(', ') : (item.actresses || '');
+            this.similarExitVideo = {
+              number: item.number, title: item.title,
+              cover_url: item.cover_url,
+              cover_full_url: item.cover_full_url || '',  // 必帶 || ''：確保 .lb-full @load fire
+              actresses: actressStr,
+              // path 故意 undefined → play/open-folder/user-tags 靠 ?. guard 靜默不渲染
+            };
+          }
+          // tier 2 + 3 共用收尾：standalone housekeeping + blur-up reset
+          this.currentLightboxVideo = this.similarExitVideo;
+          this.currentLightboxActress = null;
+          this._videoChipsExpanded = false;
+          this.addingLbTag = false;
+          this._refreshLbFullBlurUp();
+        }
+
+        // P3: _similarLastDrilled* 在 fetch 成功後設（非 fetch 前），退場 exit 目標正確
+        this._similarLastDrilledNumber = item.number;
+        this._similarLastDrilledItem = item;
       }).catch(() => {
         // _fetchSimilarResults 已 showToast；x-for 不刷新，留原 4 張
       }).finally(() => {
@@ -1268,9 +1305,10 @@ export function stateSimilar() {
      * CD-56C-12
      */
     _silentSwitchLightboxByNumber(number) {
-      if (!number) return;
+      if (!number) return false;
       const idx = _filteredVideos.findIndex(v => v.number === number);
-      if (idx >= 0) this._setLightboxIndex(idx);
+      if (idx >= 0) { this._setLightboxIndex(idx); return true; }
+      return false;
     },
   };
 }

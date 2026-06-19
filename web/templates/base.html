@@ -33,6 +33,35 @@
       }
     </script>
 
+    <!-- feature/76 T-showcase（CD-11）：showcase 退出跨頁轉場、硬切。
+         pagereveal 在新頁 first rendering opportunity 之前觸發 → 此 listener 必須是
+         <head> 內 parser-blocking classic script（非 module/defer/async），否則漏接。
+         URL gate：導航任一端為 /showcase 即 skipTransition()（即時完成動畫＝硬切）。
+         全站共用點：離 showcase 走 pageswap（舊頁端）、進 showcase 走 pagereveal（新頁端），
+         兩方向各自在其端點 skip——showcase-only module 掛不到「他頁→showcase」的 pageswap。 -->
+    <script>
+      (function () {
+        function pathOf(u) { try { return new URL(u, location.href).pathname; } catch (e) { return ''; } }
+        function involvesShowcase(a, b) { return a === '/showcase' || b === '/showcase'; }
+        // 離開頁（舊文件）：from = 目前頁、to = 目的頁
+        window.addEventListener('pageswap', function (e) {
+          if (!e.viewTransition) return;
+          var act = e.activation;
+          var from = act && act.from ? pathOf(act.from.url) : location.pathname;
+          var to = act && act.entry ? pathOf(act.entry.url) : '';
+          if (involvesShowcase(from, to)) e.viewTransition.skipTransition();
+        });
+        // 到達頁（新文件）：from = 來源頁、to = 目前頁
+        window.addEventListener('pagereveal', function (e) {
+          if (!e.viewTransition) return;
+          var act = (window.navigation && window.navigation.activation) || null;
+          var from = act && act.from ? pathOf(act.from.url) : '';
+          var to = act && act.entry ? pathOf(act.entry.url) : location.pathname;
+          if (involvesShowcase(from, to)) e.viewTransition.skipTransition();
+        });
+      })();
+    </script>
+
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <link rel="icon" type="image/png" href="/static/favicon.png">
@@ -597,7 +626,7 @@
     </nav>
 
     <!-- 主內容區 -->
-    <main class="main-content">
+    <main id="main-content" class="main-content">
         {% block content %}{% endblock %}
     </main>
 

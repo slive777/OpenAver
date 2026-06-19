@@ -4434,6 +4434,11 @@ body {
   padding-top: 1rem;
   border-top: 1px solid var(--border-light);
 }
+.av-card-full-title {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 1rem;
+}
 :root {
   --poster-crop-ratio: 0.71;
 }
@@ -5934,6 +5939,51 @@ body.fluent-canvas:not(.ds-page)::before {
 }
 .btn-heart-pulse {
   animation: heartPulseFallback 0.3s ease-out forwards;
+}
+@view-transition {
+  navigation: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+}
+#sidebar {
+  view-transition-name: sidebar;
+}
+::view-transition-group(sidebar) {
+  animation-duration: 250ms;
+}
+#main-content {
+  view-transition-name: main-content;
+}
+::view-transition-old(main-content) {
+  animation: 250ms var(--fluent-ease-accel) both vt-fade-out;
+}
+::view-transition-new(main-content) {
+  animation: 250ms var(--fluent-ease-decel) both vt-fade-in;
+}
+@keyframes vt-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.page-showcase #main-content {
+  view-transition-name: none;
+}
+html.theme-transition-active #sidebar, html.theme-transition-active #main-content {
+  view-transition-name: none;
 }
 :root {
   --fluent-radius-none: 0px;
