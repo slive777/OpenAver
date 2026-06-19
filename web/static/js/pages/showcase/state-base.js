@@ -242,6 +242,11 @@ export function stateBase() {
                     window.ShowcaseAnimations?.playSettle?.(grid);
                 }); });
             }
+
+            // 77a-T1: Install ambient glow $watch (method defined in state-lightbox.js,
+            // merged into same Alpine component object via mergeState in main.js).
+            // Must be last line of init() — state-lightbox.js MUST NOT define its own init().
+            this._initLbAmbient();
         },
 
         // --- 狀態恢復 (M2c) ---

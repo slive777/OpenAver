@@ -12653,3 +12653,162 @@ class TestMobileSimilarDrillFallbackGuard:
             "closeSimilarMode fallback 未保留 '_similarLastDrilledItem' snapshot（孤兒列 fallback）。\n"
             "_videos 也 miss（孤兒列 / demo）時需 snapshot 兜底，不可移除。"
         )
+
+
+# ---------------------------------------------------------------------------
+# 77a-T1: Ambient Glow — DOM + JS contract guards
+# ---------------------------------------------------------------------------
+
+SHOWCASE_LIGHTBOX_JS_PATH = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "showcase" / "state-lightbox.js"
+SHOWCASE_BASE_JS_PATH = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "showcase" / "state-base.js"
+
+
+class TestAmbientGlowDomGuard:
+    """77a-T1: DOM 存在性守衛 — .lb-ambient + .lb-scrim 必須是 .showcase-lightbox 的
+    直接子節點且在 .lightbox-content 之前，.lb-ambient 含恰好 2 個 .lb-ambient-img，
+    兩層皆不在任何 <template> 內。
+    """
+
+    def _soup(self):
+        from bs4 import BeautifulSoup
+        html = SHOWCASE_HTML.read_text(encoding="utf-8")
+        return BeautifulSoup(html, "html.parser")
+
+    def test_lb_ambient_is_direct_child_of_showcase_lightbox(self):
+        """`.lb-ambient` 是 `.showcase-lightbox` 的直接子節點"""
+        soup = self._soup()
+        lightbox = soup.find(class_="showcase-lightbox")
+        assert lightbox is not None, ".showcase-lightbox 不存在"
+        # direct children (element nodes only)
+        direct_children = [c for c in lightbox.children if c.name]
+        ambient_children = [c for c in direct_children if "lb-ambient" in (c.get("class") or [])]
+        assert len(ambient_children) == 1, (
+            f".lb-ambient 在 .showcase-lightbox 直接子節點中出現 {len(ambient_children)} 次，應為 1\n"
+            f"直接子節點: {[c.get('class') for c in direct_children]}"
+        )
+
+    def test_lb_scrim_is_direct_child_of_showcase_lightbox(self):
+        """`.lb-scrim` 是 `.showcase-lightbox` 的直接子節點"""
+        soup = self._soup()
+        lightbox = soup.find(class_="showcase-lightbox")
+        assert lightbox is not None, ".showcase-lightbox 不存在"
+        direct_children = [c for c in lightbox.children if c.name]
+        scrim_children = [c for c in direct_children if "lb-scrim" in (c.get("class") or [])]
+        assert len(scrim_children) == 1, (
+            f".lb-scrim 在 .showcase-lightbox 直接子節點中出現 {len(scrim_children)} 次，應為 1\n"
+            f"直接子節點: {[c.get('class') for c in direct_children]}"
+        )
+
+    def test_lb_ambient_and_lb_scrim_before_lightbox_content(self):
+        """`.lb-ambient` 與 `.lb-scrim` 在文件順序上皆在 `.lightbox-content` 之前"""
+        soup = self._soup()
+        lightbox = soup.find(class_="showcase-lightbox")
+        assert lightbox is not None, ".showcase-lightbox 不存在"
+        direct_children = [c for c in lightbox.children if c.name]
+        classes = [c.get("class") or [] for c in direct_children]
+
+        def index_of(cls_name):
+            for i, cl in enumerate(classes):
+                if cls_name in cl:
+                    return i
+            return -1
+
+        ambient_idx = index_of("lb-ambient")
+        scrim_idx = index_of("lb-scrim")
+        content_idx = index_of("lightbox-content")
+
+        assert ambient_idx != -1, ".lb-ambient 不是 .showcase-lightbox 的直接子節點"
+        assert scrim_idx != -1, ".lb-scrim 不是 .showcase-lightbox 的直接子節點"
+        assert content_idx != -1, ".lightbox-content 不是 .showcase-lightbox 的直接子節點"
+        assert ambient_idx < content_idx, (
+            f".lb-ambient（index={ambient_idx}）應在 .lightbox-content（index={content_idx}）之前"
+        )
+        assert scrim_idx < content_idx, (
+            f".lb-scrim（index={scrim_idx}）應在 .lightbox-content（index={content_idx}）之前"
+        )
+
+    def test_lb_ambient_contains_exactly_two_lb_ambient_img(self):
+        """`.lb-ambient` 內含恰好 2 個 `<img class="lb-ambient-img">`"""
+        soup = self._soup()
+        ambient = soup.find(class_="lb-ambient")
+        assert ambient is not None, ".lb-ambient 不存在"
+        imgs = [c for c in ambient.find_all("img") if "lb-ambient-img" in (c.get("class") or [])]
+        assert len(imgs) == 2, (
+            f".lb-ambient 內 .lb-ambient-img img 數量 {len(imgs)} != 2"
+        )
+
+    def test_lb_ambient_not_inside_template(self):
+        """`.lb-ambient` 不在任何 `<template>` 元素內"""
+        soup = self._soup()
+        ambient = soup.find(class_="lb-ambient")
+        assert ambient is not None, ".lb-ambient 不存在"
+        # Walk ancestors — no <template> allowed
+        for parent in ambient.parents:
+            if parent.name == "template":
+                raise AssertionError(
+                    ".lb-ambient 在 <template> 內——x-ref 會隨分支生死（gotchas-frontend.md Alpine #8）"
+                )
+
+    def test_lb_scrim_not_inside_template(self):
+        """`.lb-scrim` 不在任何 `<template>` 元素內"""
+        soup = self._soup()
+        scrim = soup.find(class_="lb-scrim")
+        assert scrim is not None, ".lb-scrim 不存在"
+        for parent in scrim.parents:
+            if parent.name == "template":
+                raise AssertionError(
+                    ".lb-scrim 在 <template> 內——應在 x-if 之外（gotchas-frontend.md Alpine #8）"
+                )
+
+
+class TestAmbientGlowJsGuard:
+    """77a-T1: JS 光源欄位契約守衛 — state-lightbox.js 同時引用 photo_url 與 cover_url，
+    含 _lbAmbientSrc / _initLbAmbient 方法，state-base.js 呼叫 _initLbAmbient。
+    """
+
+    def _lb_js(self):
+        return SHOWCASE_LIGHTBOX_JS_PATH.read_text(encoding="utf-8")
+
+    def _base_js(self):
+        return SHOWCASE_BASE_JS_PATH.read_text(encoding="utf-8")
+
+    def test_state_lightbox_references_photo_url(self):
+        """state-lightbox.js 引用 photo_url（女優路徑光源）"""
+        js = self._lb_js()
+        assert "photo_url" in js, (
+            "state-lightbox.js 未引用 photo_url。\n"
+            "女優路徑環境光需要 currentLightboxActress?.photo_url。"
+        )
+
+    def test_state_lightbox_references_cover_url(self):
+        """state-lightbox.js 引用 cover_url（影片路徑光源）"""
+        js = self._lb_js()
+        assert "cover_url" in js, (
+            "state-lightbox.js 未引用 cover_url。\n"
+            "影片路徑環境光需要 currentLightboxVideo?.cover_url。"
+        )
+
+    def test_state_lightbox_has_lb_ambient_src_method(self):
+        """state-lightbox.js 含 _lbAmbientSrc 方法"""
+        js = self._lb_js()
+        assert "_lbAmbientSrc" in js, (
+            "state-lightbox.js 未含 _lbAmbientSrc 方法。\n"
+            "computed 光源 getter 缺失（CD-A1）。"
+        )
+
+    def test_state_lightbox_has_init_lb_ambient_method(self):
+        """state-lightbox.js 含 _initLbAmbient 方法"""
+        js = self._lb_js()
+        assert "_initLbAmbient" in js, (
+            "state-lightbox.js 未含 _initLbAmbient 方法。\n"
+            "$watch 安裝方法缺失（CD-A6）。"
+        )
+
+    def test_state_base_calls_init_lb_ambient(self):
+        """state-base.js 的 init() 呼叫 _initLbAmbient()（hook 掛點）"""
+        js = self._base_js()
+        assert "_initLbAmbient" in js, (
+            "state-base.js 未含 _initLbAmbient 呼叫。\n"
+            "TASK 卡規定：不可在 state-lightbox.js 新開 init()，"
+            "必須在 state-base.js 既有 init() 末尾加 this._initLbAmbient()。"
+        )

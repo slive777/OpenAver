@@ -44,6 +44,10 @@ export function stateLightbox() {
 
         currentLightboxVideo: null,
 
+        // 77a-T1: Ambient Glow A/B crossfade state
+        _lbAmbientActiveA: true,        // which img slot is currently visible
+        _lbAmbientShown: false,         // false = both layers transparent (degrade to scrim+floor)
+
         _lbFullLoaded: false,           // 71-T6 blur-up：原圖（cover_full_url）@load 後翻 true → overlay opacity 淡入
 
         _videoChipsExpanded: false,     // 影片 tag chips +N 展開（T4 使用）
@@ -81,6 +85,88 @@ export function stateLightbox() {
                 if (fullImg && fullImg.complete && fullImg.naturalWidth > 0) {
                     self._lbFullLoaded = true;
                 }
+            });
+        },
+
+        // ---------------------------------------------------------------------------
+        // 77a-T1: Ambient Glow — computed source + crossfade install + apply
+        // ---------------------------------------------------------------------------
+
+        // CD-A1: computed light source — actress photo takes priority over video cover.
+        // Both fields are mutually exclusive (each setter nulls the other), so a single
+        // reactive $watch on this method covers all 4 swap paths structurally.
+        _lbAmbientSrc() {
+            return this.currentLightboxActress?.photo_url
+                ?? this.currentLightboxVideo?.cover_url
+                ?? null;
+        },
+
+        // CD-A6: Install $watch + fire once for initial open.
+        // Called from state-base.js init() — NOT as an init() here (would override base init).
+        _initLbAmbient() {
+            var self = this;
+            // Alpine $watch accepts a reactive expression string; evaluates _lbAmbientSrc()
+            // which reads currentLightboxActress + currentLightboxVideo → builds reactivity.
+            this.$watch('_lbAmbientSrc()', function (src) {
+                self._applyLbAmbient(src);
+            });
+            // Fire once for the current state (handles initial lightbox open).
+            this._applyLbAmbient(this._lbAmbientSrc());
+        },
+
+        // CD-A6 three guards: race (generation), failure (decode catch), null (degrade).
+        // CD-A7 reduced-motion: direct switch, no decode wait; CSS transition already none under PRM.
+        _applyLbAmbient(wantSrc) {
+            // Guard 1 — capture generation before any async work
+            var gen = ++this._lightboxGeneration;
+            var self = this;
+
+            // Guard 3 — null / no cover → clean degrade to scrim + dark floor (CD-A7).
+            // Note (G3): on closeLightbox() the ambient is NOT cleared here immediately —
+            // close bumps _lightboxGeneration (invalidating pending decodes) then a ~250ms
+            // timer sets currentLightbox*=null, which lands here and clears _lbAmbientShown.
+            // Intentional: the glow stays through the close animation instead of snapping dark.
+            if (!wantSrc) {
+                this._lbAmbientShown = false;
+                return;
+            }
+
+            // Pick the INACTIVE slot so we never overwrite the visible layer
+            var nextImg = this._lbAmbientActiveA
+                ? this.$refs.lbAmbientB
+                : this.$refs.lbAmbientA;
+            if (!nextImg) return; // refs not yet available (shouldn't happen outside x-if)
+
+            // CD-A7 reduced-motion branch: direct switch, no decode / crossfade
+            if (window.OpenAver && window.OpenAver.prefersReducedMotion) {
+                nextImg.src = wantSrc;
+                this._lbAmbientActiveA = !this._lbAmbientActiveA;
+                this._lbAmbientShown = true;
+                return;
+            }
+
+            // Normal path: decode then crossfade via CSS opacity transition
+            nextImg.src = wantSrc;
+            // NIT-1: img.decode() is universal in modern WebView2/Chromium, but if an ancient
+            // engine lacks it, calling it would throw a TypeError that escapes this $watch
+            // callback (the .then/.catch chain is never built). Fall back to a direct flip —
+            // the CSS opacity transition still crossfades; we only lose decode-before-paint.
+            if (typeof nextImg.decode !== 'function') {
+                this._lbAmbientActiveA = !this._lbAmbientActiveA;
+                this._lbAmbientShown = true;
+                return;
+            }
+            nextImg.decode().then(function () {
+                // Guard 1: stale generation (user already moved to another video)
+                // Guard 2 (wantSrc check): slower decode from earlier nav shouldn't win
+                if (self._lightboxGeneration !== gen || self._lbAmbientSrc() !== wantSrc) return;
+                self._lbAmbientActiveA = !self._lbAmbientActiveA;
+                self._lbAmbientShown = true;
+            }).catch(function () {
+                // Guard 1: already superseded — discard silently
+                if (self._lightboxGeneration !== gen) return;
+                // 404 / NAS offline for current src → clean degrade (CD-A7: do NOT keep old glow)
+                self._lbAmbientShown = false;
             });
         },
 

@@ -545,6 +545,13 @@
              x-trap.inert="lightboxOpen && !sampleGalleryOpen && !removeActressModalOpen && !rescrapeOpen && !deleteVideoModalOpen"
              @click="handleLightboxBackdropClick($event)">
 
+            <!-- 77a-T1: Ambient glow (light-dominant backdrop) — persistent, outside x-if so x-refs survive -->
+            <div class="lb-ambient" aria-hidden="true">
+                <img class="lb-ambient-img" x-ref="lbAmbientA" :class="{ 'is-active': _lbAmbientShown && _lbAmbientActiveA }" alt="">
+                <img class="lb-ambient-img" x-ref="lbAmbientB" :class="{ 'is-active': _lbAmbientShown && !_lbAmbientActiveA }" alt="">
+            </div>
+            <div class="lb-scrim" aria-hidden="true"></div>
+
             <div class="lightbox-content" @click.stop :class="{ 'similar-open': similarModeMobileOpen }">
                 <!-- Close Button (shared between actress and video branches) -->
                 <button class="lightbox-close"

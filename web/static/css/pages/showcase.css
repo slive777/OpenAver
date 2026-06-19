@@ -3,6 +3,16 @@
    IMPORTANT: 禁止重複定義 theme.css 已有元件
    ======================================== */
 
+/* ==================== 77a-T1: Ambient Glow Tokens ==================== */
+/* showcase-only tokens — placed here to avoid CD-A11 tailwind recompile footgun */
+:root {
+    --lb-ambient-blur:       var(--fluent-blur-heavy); /* 60px via token, never hardcoded */
+    --lb-ambient-saturate:   1.5;
+    --lb-ambient-brightness: 0.82;
+    --lb-ambient-scale:      1.12;   /* covers blur edge bleed */
+    --lb-scrim-alpha:        0.32;   /* CP2 checkpoint param — owner tunes after T1 */
+}
+
 /* ==================== Page Container ==================== */
 .showcase-container {
     min-height: calc(100vh - 56px); /* 扣除 header */
@@ -591,6 +601,50 @@
     visibility: visible;
     pointer-events: auto;
     transition-delay: 0s;
+}
+
+/* ==================== 77a-T1: Ambient Glow Layers ==================== */
+/* z-order via DOM tree order (all z-index:auto) per CD-A4:
+   ① .showcase-lightbox background (dark floor, preserved)
+   ② .lb-ambient  (cover glow — light-dominant per owner Q2)
+   ③ .lb-scrim    (thin dark scrim for text contrast)
+   ④ .lightbox-content (card — z-index not touched)
+   ⑤ .lightbox-nav z-index:10 (always on top)
+*/
+.lb-ambient,
+.lb-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: auto;        /* DOM tree order only — do NOT set numeric z-index */
+    pointer-events: none; /* backdrop-click passes through to .showcase-lightbox @click handler */
+}
+
+.lb-ambient-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transform: scale(var(--lb-ambient-scale));
+    filter: blur(var(--lb-ambient-blur))
+            saturate(var(--lb-ambient-saturate))
+            brightness(var(--lb-ambient-brightness));
+    transition: opacity var(--fluent-duration-medium) var(--fluent-ease-standard);
+}
+
+.lb-ambient-img.is-active {
+    opacity: 1;
+}
+
+.lb-scrim {
+    background: rgba(0, 0, 0, var(--lb-scrim-alpha));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lb-ambient-img {
+        transition: none; /* direct switch, no crossfade — static glow still shown */
+    }
 }
 
 /* Lightbox Content Card — 垂直佈局（大圖上方 + metadata 下方） */
