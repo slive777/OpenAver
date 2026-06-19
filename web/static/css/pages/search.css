@@ -102,8 +102,55 @@
 }
 
 .search-container .av-card-full-info {
-    flex: 0 0 320px;
+    flex: 0 0 390px;    /* US1-75b：320px → 390px（spec NC#2，CD-75b-1） */
     overflow-y: auto;
+}
+
+/* US1-75b：取消 search 右欄 body 撐高（top-pack）。不刪全域 theme.css flex:1
+   （design-system 也用 + 被 tailwind.css:4430 編譯副本架空，刪 theme.css 那條不生效）；
+   search.css 載入在 tailwind.css 之後、(0,2,0) > 全域 (0,1,0)，scope override 確實生效（CD-75b-4）。 */
+.search-container .av-card-full-body {
+    flex: none;
+}
+
+/* US1-75b：搜尋詳情右欄 inline label-value（覆寫 theme.css 全域 .info-label{display:block}，
+   只在 search 右欄 scope 覆寫，不動全域，避免影響 showcase 燈箱 .lightbox-metadata；CD-75b-3） */
+.search-container .av-card-full-body .info-row,
+.search-container .av-card-full-body .info-cell {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.search-container .av-card-full-body .info-label {
+    flex-shrink: 0;      /* label 不被壓縮 */
+    white-space: nowrap;
+}
+
+.search-container .av-card-full-body .info-value {
+    flex: 1;
+    min-width: 0;        /* 必要：flex min-width:auto 不觸發 text-overflow（CD-75b-10） */
+}
+
+/* US1-75b：雙欄 metadata grid（CD-75b-2） */
+.search-container .av-card-full-body .info-grid-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem 1rem;    /* 縱 0.5rem（8px）、橫 1rem（16px，Fluent 8pt × 2） */
+    margin-bottom: 0.5rem;
+}
+
+/* CD-75b-10：grid cell 內 label/value 截斷 */
+.search-container .av-card-full-body .info-grid-pair .info-label {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.search-container .av-card-full-body .info-grid-pair .info-value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* 導航按鈕（絕對定位在封面上） */
@@ -492,6 +539,11 @@
     #resultCard         { overflow: visible; max-height: none; }
     #resultCard > .av-card-full { overflow: visible; }
     .search-container   { height: auto; overflow-y: auto; }
+
+    /* US1-75b：≤1024px 全寬單欄時，雙欄 metadata 回單欄（spec §US1 L97/L113 驗收強制，CD-75b-2） */
+    .search-container .av-card-full-body .info-grid-pair {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Mobile 額外調整 */

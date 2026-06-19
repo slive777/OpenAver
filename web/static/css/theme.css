@@ -541,6 +541,15 @@ body {
     border-top: 1px solid var(--border-light);
 }
 
+/* US1-75b：標題區塊（搬至 header 下方、metadata 上方）。
+   .av-card-full-footer 規則保留不動（motion_lab/design-system 仍用，CD-75b-6）；
+   此為並存的新規則，分隔線在下（border-bottom）符合新的上方位置。 */
+.av-card-full-title {
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: 1rem;
+}
+
 /* ── poster-crop 共用規則（US2，v0.10.2）─────────────────────────────────────
  * 封面正面裁切：JAV 橫式包裝 (≈1.49) 右側 47% 即封面正面，比例 ≈0.71。
  * --poster-crop-ratio 是比例的【單一真理】（NC#7 微調點，改這一行即可）。
