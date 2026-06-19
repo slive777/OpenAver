@@ -80,6 +80,8 @@
     <link href="/static/css/components/help-popover.css" rel="stylesheet">
     <!-- Source Pill (cross-page shared component, CD-62-13) -->
     <link href="/static/css/components/source-pill.css" rel="stylesheet">
+    <!-- Glass Noise modifier (77a-T6: Fluent Acrylic 第五層 noise overlay) -->
+    <link href="/static/css/components/glass-noise.css" rel="stylesheet">
     <!-- Advanced Rescrape Modal (62a-2; cross-page: Showcase + Search) -->
     <link href="/static/css/components/rescrape-modal.css" rel="stylesheet">
 
@@ -433,7 +435,7 @@
       }
     </script>
     <!-- 頂部導航列（僅小螢幕顯示）-->
-    <nav class="navbar bg-base-200 lg:hidden fixed top-0 left-0 right-0 z-50 h-14 top-navbar fluent-acrylic border-b border-base-300" x-show="!mobileMenuOpen">
+    <nav class="navbar bg-base-200 lg:hidden fixed top-0 left-0 right-0 z-50 h-14 top-navbar fluent-acrylic acrylic-noise border-b border-base-300" x-show="!mobileMenuOpen">
         <div class="navbar-start">
             <button class="btn btn-ghost btn-square" type="button" @click="mobileMenuOpen = true">
                 <i class="bi bi-list text-2xl"></i>
@@ -489,7 +491,7 @@
          x-transition:leave="transition ease-in duration-200"
          x-transition:leave-start="opacity-100 translate-x-0"
          x-transition:leave-end="opacity-0 -translate-x-full"
-         class="fixed inset-y-0 left-0 w-64 shadow-xl z-[210] lg:hidden fluent-acrylic"
+         class="fixed inset-y-0 left-0 w-64 shadow-xl z-[210] lg:hidden fluent-acrylic acrylic-noise"
          tabindex="-1">
         <div class="flex items-center justify-between p-4 border-b border-base-300">
             <h5 class="text-lg font-semibold">
@@ -539,7 +541,7 @@
     </div>
 
     <!-- 側邊欄（Desktop）-->
-    <nav class="sidebar hidden lg:flex"
+    <nav class="sidebar hidden lg:flex acrylic-noise"
          id="sidebar"
          :class="{ 'collapsed': sidebarCollapsed }"
          x-ref="sidebar">

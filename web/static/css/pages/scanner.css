@@ -21,6 +21,7 @@
     border-bottom: 1px solid var(--stroke-subtle);
     padding-bottom: 1rem;
     margin-bottom: 0.5rem;
+    position: relative;    /* 77a-T6: 為 acrylic-noise ::after inset:0 提供 containing block */
 }
 
 .avlist-header h4 {

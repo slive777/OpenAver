@@ -4859,15 +4859,17 @@ class TestSearchCssHardcoded:
         # 75b-T2 search.css US1 重排插入 ~54 行（@ ~L107）後行號順移：788→840；90 在插入點上方不變。
         # T9-port 在 L718 後插入 blocks：840→902；T9 Codex-P2 fix 補註解 +4 行：902→906。
         # T11：在 L753 後插入 hero 規則（~14 行）：906→920。
-        90: "drop-shadow rgba 0.3 — §2 例外（drop-shadow 跟封面去背形狀，非矩形 box-shadow 無法用 --fluent-shadow-* token）",
-        920: "var(--bg-card, rgba(0, 0, 0, 0.05)) fallback — defensive fallback，非硬編碼違規",
+        # 77a-T6：.search-bar 加 position:relative（L19 插入）→ 90→91、920→921。
+        91: "drop-shadow rgba 0.3 — §2 例外（drop-shadow 跟封面去背形狀，非矩形 box-shadow 無法用 --fluent-shadow-* token）",
+        921: "var(--bg-card, rgba(0, 0, 0, 0.05)) fallback — defensive fallback，非硬編碼違規",
     }
 
     SIX_PX_ALLOWLIST = {
         # 75b-T2 search.css US1 重排插入 ~54 行（@ ~L107）後行號順移：235→282、524→576、579→631（皆在插入點下方）。
-        282: "row inline btn optical 6px — T2.2 加 optical 註記（btn-sm 12px padding 對 row inline 太寬）",
-        576: ".batch-progress-bar height: 6px — intrinsic dimension（非 §4 spacing）",
-        631: "chip optical 6px — T2.2 加 optical 註記（對齊 showcase .lb-tag-add-btn）",
+        # 77a-T6：.search-bar 加 position:relative（L19 插入）→ 282→283、576→577、631→632。
+        283: "row inline btn optical 6px — T2.2 加 optical 註記（btn-sm 12px padding 對 row inline 太寬）",
+        577: ".batch-progress-bar height: 6px — intrinsic dimension（非 §4 spacing）",
+        632: "chip optical 6px — T2.2 加 optical 註記（對齊 showcase .lb-tag-add-btn）",
     }
 
     def _scan(self, regex: str, allowlist=None):
@@ -12895,4 +12897,224 @@ class TestDimRecompileSyncGuard:
         assert alpha_tw is not None, "tailwind.css 中找不到 dim Mica blue alpha"
         assert alpha_theme == alpha_tw, (
             f"dim Mica blue alpha 不同步：theme.css={alpha_theme!r}, tailwind.css={alpha_tw!r}"
+        )
+
+
+# ─── TASK-77a-T6: glass noise modifier + 7 chrome 站點 + base class 契約 ───
+
+_PROJECT_ROOT_T6 = Path(__file__).parent.parent.parent
+_BASE_HTML_T6       = _PROJECT_ROOT_T6 / "web" / "templates" / "base.html"
+_SHOWCASE_HTML_T6   = _PROJECT_ROOT_T6 / "web" / "templates" / "showcase.html"
+_SEARCH_HTML_T6     = _PROJECT_ROOT_T6 / "web" / "templates" / "search.html"
+_SETTINGS_HTML_T6   = _PROJECT_ROOT_T6 / "web" / "templates" / "settings.html"
+_SCANNER_HTML_T6    = _PROJECT_ROOT_T6 / "web" / "templates" / "scanner.html"
+_GLASS_NOISE_CSS_T6 = _PROJECT_ROOT_T6 / "web" / "static" / "css" / "components" / "glass-noise.css"
+_THEME_CSS_T6       = _PROJECT_ROOT_T6 / "web" / "static" / "css" / "theme.css"
+_INPUT_CSS_T6       = _PROJECT_ROOT_T6 / "web" / "static" / "css" / "input.css"
+
+
+class TestAcrylicNoiseGuard:
+    """77a-T6: .acrylic-noise class 出現在 7 個 chrome 白名單 DOM 站點（bs4 DOM 契約），
+    且 glass-noise.css 已 <link> 進 base.html。CI load-bearing。"""
+
+    def _soup(self, path):
+        from bs4 import BeautifulSoup
+        return BeautifulSoup(path.read_text(encoding="utf-8"), "html.parser")
+
+    # ── base.html: <link> 存在 ──────────────────────────────────────────────
+
+    def test_base_html_links_glass_noise_css(self):
+        """base.html 含 glass-noise.css <link> 引用（77a-T6 CD-A16）"""
+        soup = self._soup(_BASE_HTML_T6)
+        links = soup.find_all("link", rel="stylesheet")
+        hrefs = [l.get("href", "") for l in links]
+        assert any("glass-noise.css" in h for h in hrefs), (
+            "base.html 沒有 glass-noise.css 的 <link rel='stylesheet'>。"
+            f"現有 stylesheet hrefs: {hrefs}"
+        )
+
+    # ── base.html: sidebar ──────────────────────────────────────────────────
+
+    def test_sidebar_has_acrylic_noise(self):
+        """base.html .sidebar nav 含 acrylic-noise class"""
+        soup = self._soup(_BASE_HTML_T6)
+        nav = soup.find("nav", class_="sidebar")
+        assert nav is not None, "base.html 找不到 nav.sidebar"
+        assert "acrylic-noise" in nav.get("class", []), (
+            f"base.html sidebar nav 缺 acrylic-noise class。現有 classes: {nav.get('class')}"
+        )
+
+    # ── base.html: mobile top-navbar ────────────────────────────────────────
+
+    def test_top_navbar_has_acrylic_noise(self):
+        """base.html .top-navbar nav 含 acrylic-noise class（同時保有 fluent-acrylic）"""
+        soup = self._soup(_BASE_HTML_T6)
+        nav = soup.find("nav", class_="top-navbar")
+        assert nav is not None, "base.html 找不到 nav.top-navbar"
+        classes = nav.get("class", [])
+        assert "acrylic-noise" in classes, (
+            f"base.html top-navbar nav 缺 acrylic-noise class。現有 classes: {classes}"
+        )
+        assert "fluent-acrylic" in classes, (
+            f"base.html top-navbar nav 的 fluent-acrylic 被移除（不應修改）。現有 classes: {classes}"
+        )
+
+    # ── base.html: offcanvas drawer ─────────────────────────────────────────
+
+    def test_offcanvas_drawer_has_acrylic_noise(self):
+        """base.html offcanvas drawer div（fixed inset-y-0 left-0 w-64）含 acrylic-noise"""
+        soup = self._soup(_BASE_HTML_T6)
+        # 靠 fluent-acrylic + fixed + lg:hidden 的組合定位 drawer（與 top-navbar 不同元素）
+        candidates = soup.find_all("div", class_="fluent-acrylic")
+        drawer = None
+        for el in candidates:
+            classes = el.get("class", [])
+            if "fixed" in classes and "lg:hidden" in classes:
+                drawer = el
+                break
+        assert drawer is not None, (
+            "base.html 找不到 offcanvas drawer（div.fluent-acrylic.fixed.lg:hidden）"
+        )
+        classes = drawer.get("class", [])
+        assert "acrylic-noise" in classes, (
+            f"base.html offcanvas drawer 缺 acrylic-noise class。現有 classes: {classes}"
+        )
+        assert "fluent-acrylic" in classes, (
+            f"base.html offcanvas drawer 的 fluent-acrylic 被移除（不應修改）。現有 classes: {classes}"
+        )
+
+    # ── showcase.html: showcase-toolbar ─────────────────────────────────────
+
+    def test_showcase_toolbar_has_acrylic_noise(self):
+        """showcase.html .showcase-toolbar div 含 acrylic-noise class"""
+        soup = self._soup(_SHOWCASE_HTML_T6)
+        el = soup.find(class_="showcase-toolbar")
+        assert el is not None, "showcase.html 找不到 .showcase-toolbar"
+        assert "acrylic-noise" in el.get("class", []), (
+            f"showcase.html .showcase-toolbar 缺 acrylic-noise class。現有 classes: {el.get('class')}"
+        )
+
+    # ── search.html: search-bar ──────────────────────────────────────────────
+
+    def test_search_bar_has_acrylic_noise(self):
+        """search.html .search-bar div 含 acrylic-noise class"""
+        soup = self._soup(_SEARCH_HTML_T6)
+        el = soup.find(class_="search-bar")
+        assert el is not None, "search.html 找不到 .search-bar"
+        assert "acrylic-noise" in el.get("class", []), (
+            f"search.html .search-bar 缺 acrylic-noise class。現有 classes: {el.get('class')}"
+        )
+
+    # ── settings.html: settings-header ──────────────────────────────────────
+
+    def test_settings_header_has_acrylic_noise(self):
+        """settings.html .settings-header div 含 acrylic-noise class"""
+        soup = self._soup(_SETTINGS_HTML_T6)
+        el = soup.find(class_="settings-header")
+        assert el is not None, "settings.html 找不到 .settings-header"
+        assert "acrylic-noise" in el.get("class", []), (
+            f"settings.html .settings-header 缺 acrylic-noise class。現有 classes: {el.get('class')}"
+        )
+
+    # ── scanner.html: avlist-header ─────────────────────────────────────────
+
+    def test_avlist_header_has_acrylic_noise(self):
+        """scanner.html .avlist-header div 含 acrylic-noise class"""
+        soup = self._soup(_SCANNER_HTML_T6)
+        el = soup.find(class_="avlist-header")
+        assert el is not None, "scanner.html 找不到 .avlist-header"
+        assert "acrylic-noise" in el.get("class", []), (
+            f"scanner.html .avlist-header 缺 acrylic-noise class。現有 classes: {el.get('class')}"
+        )
+
+    # ── showcase.html: .lightbox-content 排除 ───────────────────────────────
+
+    def test_lightbox_content_excluded_from_acrylic_noise(self):
+        """showcase.html .lightbox-content 不得含 acrylic-noise（spec §2.A3 明確排除）"""
+        soup = self._soup(_SHOWCASE_HTML_T6)
+        el = soup.find(class_="lightbox-content")
+        if el is not None:
+            assert "acrylic-noise" not in el.get("class", []), (
+                "showcase.html .lightbox-content 不應含 acrylic-noise（不透明 surface-2，非玻璃）"
+            )
+
+
+class TestAcrylicNoiseBaseClassGuard:
+    """77a-T6: base class (.glass / .fluent-acrylic / .fluent-toolbar) 未獲 position 或 ::after，
+    glass-noise.css modifier 僅含 .acrylic-noise::after 規則、不含裸 .acrylic-noise { position }。
+    CI load-bearing CSS-scan backstop。"""
+
+    def _glass_noise_css(self):
+        return _GLASS_NOISE_CSS_T6.read_text(encoding="utf-8")
+
+    def _theme_css(self):
+        return _THEME_CSS_T6.read_text(encoding="utf-8")
+
+    def _input_css(self):
+        return _INPUT_CSS_T6.read_text(encoding="utf-8")
+
+    # ── glass-noise.css 本身的 modifier 結構 ────────────────────────────────
+
+    def test_glass_noise_css_exists(self):
+        """glass-noise.css 已建立（77a-T6 CD-A16）"""
+        assert _GLASS_NOISE_CSS_T6.exists(), (
+            f"glass-noise.css 不存在：{_GLASS_NOISE_CSS_T6}"
+        )
+
+    def test_modifier_no_bare_position_rule(self):
+        """glass-noise.css 中 .acrylic-noise {{ ... }} 本體規則不宣告 position
+        （position 只放在靜態目標各自規則；modifier 不強加 position 以免降級 fixed/sticky）"""
+        css = self._glass_noise_css()
+        # 找出所有「.acrylic-noise {」開頭的規則（不帶 ::after 等偽元素）
+        # 斷言其規則體不含 position:
+        bare_rule = re.search(
+            r'\.acrylic-noise\s*\{([^}]*)\}',
+            css,
+        )
+        if bare_rule:
+            body = bare_rule.group(1)
+            assert "position" not in body, (
+                f"glass-noise.css .acrylic-noise {{}} 本體不應含 position 宣告（會降級 fixed/sticky）。"
+                f"規則體: {body!r}"
+            )
+
+    def test_modifier_only_references_acrylic_noise(self):
+        """glass-noise.css 的選擇器只含 .acrylic-noise，不含 .glass / .fluent-acrylic / .fluent-toolbar 規則
+        （注意：comment 中的提及是 OK 的；此測試用 regex 掃選擇器位置而非全文字串）"""
+        css = self._glass_noise_css()
+        # 移除 CSS comment（/* ... */）再掃選擇器
+        css_no_comments = re.sub(r'/\*.*?\*/', '', css, flags=re.DOTALL)
+        for forbidden in [r'\.glass\b', r'\.fluent-acrylic\b', r'\.fluent-toolbar\b']:
+            assert not re.search(forbidden, css_no_comments), (
+                f"glass-noise.css（去除 comment 後）不應含 {forbidden!r} 選擇器（不改 base class）"
+            )
+
+    def test_after_rule_exists(self):
+        """glass-noise.css 含 .acrylic-noise::after 規則"""
+        css = self._glass_noise_css()
+        assert ".acrylic-noise::after" in css, (
+            "glass-noise.css 缺少 .acrylic-noise::after 規則"
+        )
+
+    # ── theme.css / input.css: base class 未被此 modifier 改動 ─────────────
+
+    def test_glass_class_body_no_after_in_glass_noise(self):
+        """glass-noise.css 不含 .glass::after（不動 base class）"""
+        css = self._glass_noise_css()
+        assert ".glass::after" not in css, (
+            "glass-noise.css 不應含 .glass::after（不修改 base class）"
+        )
+
+    def test_fluent_acrylic_no_after_in_glass_noise(self):
+        """glass-noise.css 不含 .fluent-acrylic::after（不動 base class）"""
+        css = self._glass_noise_css()
+        assert ".fluent-acrylic::after" not in css, (
+            "glass-noise.css 不應含 .fluent-acrylic::after（不修改 base class）"
+        )
+
+    def test_fluent_toolbar_no_after_in_glass_noise(self):
+        """glass-noise.css 不含 .fluent-toolbar::after（不動 base class）"""
+        css = self._glass_noise_css()
+        assert ".fluent-toolbar::after" not in css, (
+            "glass-noise.css 不應含 .fluent-toolbar::after（不修改 base class）"
         )
