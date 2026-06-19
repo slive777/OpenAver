@@ -4498,7 +4498,7 @@ body {
   --glow-error: rgba(255, 69, 58, 0.25);
   --color-success: #30d158;
   --color-translate: oklch(0.72 0.14 260);
-  --color-primary: oklch(0.66 0.04 250);
+  --color-primary: oklch(0.66 0.08 250);
   --color-warning: #ff9f0a;
 }
 [data-theme="dim"] .info-icon-btn:hover {
@@ -5902,7 +5902,10 @@ body.fluent-canvas:not(.ds-page)::before {
   z-index: 0;
 }
 [data-theme="dim"] body.fluent-canvas:not(.ds-page) {
-  background: radial-gradient(ellipse 100% 60% at 50% -10%, rgba(var(--ds-glow-rgb), 0.06), transparent), radial-gradient(ellipse 70% 50% at 100% 100%, oklch(55% 0.15 260 / 0.05), transparent), var(--bg-body);
+  background: radial-gradient(ellipse 100% 60% at 50% -10%, rgba(var(--ds-glow-rgb), 0.10), transparent), radial-gradient(ellipse 70% 50% at 100% 100%, oklch(55% 0.15 260 / 0.09), transparent), var(--bg-body);
+}
+[data-theme="dim"] body.fluent-canvas:not(.ds-page)::before {
+  opacity: 0.04;
 }
 .img-cover-fill {
   width: 100%;

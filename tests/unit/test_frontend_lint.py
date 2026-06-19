@@ -12812,3 +12812,87 @@ class TestAmbientGlowJsGuard:
             "TASK 卡規定：不可在 state-lightbox.js 新開 init()，"
             "必須在 state-base.js 既有 init() 末尾加 this._initLbAmbient()。"
         )
+
+
+class TestDimRecompileSyncGuard:
+    """
+    CD-A11 footgun 防線：確認 theme.css 與 tailwind.css 的 dim 值同步。
+    value-agnostic：不斷言具體數值，只斷言兩份一致，故 T4 重調後守衛無需修改。
+
+    regex 採全文掃描（不依賴行號），可存活 tailwind.css 行號漂移。
+    注意：dim primary chroma 的 regex 排除含 % 的宣告（如 DaisyUI 的 oklch(86.133% ...)），
+    確保提取到的是 OpenAver 的覆寫值（格式 oklch(L C H) 不帶 %）。
+    """
+
+    _THEME_CSS = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "theme.css"
+    _TAILWIND_CSS = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "tailwind.css"
+
+    def _extract_dim_primary_chroma(self, css_content: str) -> str:
+        """
+        從 CSS 文字中提取 dim scope 的 --color-primary oklch chroma 值。
+        只比對不含 % 的格式（oklch(L C H)），排除 DaisyUI 的 oklch(86.133% ...) 格式，
+        確保取到 OpenAver 覆寫值而非 DaisyUI 預設值。
+        取最後一個命中，對應 tailwind.css 中 OpenAver override block（在 DaisyUI @layer base 之前）。
+        """
+        # 排除含 % 的 L 欄位（DaisyUI 格式），只取純數字格式（OpenAver 格式）
+        pattern = (
+            r'data-theme=["\']?dim["\']?[^}]*?'
+            r'--color-primary\s*:\s*oklch\(\s*[\d.]+\s+([\d.]+)\s+[\d.]+\s*\)'
+        )
+        matches = re.findall(pattern, css_content, re.DOTALL)
+        return matches[-1] if matches else None
+
+    def _extract_dim_mica_cyan_alpha(self, css_content: str) -> str:
+        """提取 dim Mica 的 cyan (ds-glow-rgb) alpha 值。"""
+        pattern = (
+            r'data-theme=["\']?dim["\']?[^}]*?'
+            r'rgba\(\s*var\(--ds-glow-rgb\)\s*,\s*([\d.]+)\s*\)'
+        )
+        matches = re.findall(pattern, css_content, re.DOTALL)
+        return matches[-1] if matches else None
+
+    def _extract_dim_mica_blue_alpha(self, css_content: str) -> str:
+        """提取 dim Mica 的 blue (oklch 55% 0.15 260) alpha 值。"""
+        pattern = (
+            r'data-theme=["\']?dim["\']?[^}]*?'
+            r'oklch\(\s*55%\s+0\.15\s+260\s*/\s*([\d.]+)\s*\)'
+        )
+        matches = re.findall(pattern, css_content, re.DOTALL)
+        return matches[-1] if matches else None
+
+    def test_dim_primary_chroma_synced(self):
+        """theme.css 與 tailwind.css 的 dim primary chroma 必須相同。"""
+        theme = self._THEME_CSS.read_text(encoding="utf-8")
+        tw = self._TAILWIND_CSS.read_text(encoding="utf-8")
+        chroma_theme = self._extract_dim_primary_chroma(theme)
+        chroma_tw = self._extract_dim_primary_chroma(tw)
+        assert chroma_theme is not None, "theme.css 中找不到 dim --color-primary oklch 值（非 % 格式）"
+        assert chroma_tw is not None, "tailwind.css 中找不到 dim --color-primary oklch 值（非 % 格式）"
+        assert chroma_theme == chroma_tw, (
+            f"dim primary chroma 不同步：theme.css={chroma_theme!r}, tailwind.css={chroma_tw!r}\n"
+            "原因：theme.css 改後未 recompile（CD-A11 footgun）"
+        )
+
+    def test_dim_mica_cyan_alpha_synced(self):
+        """theme.css 與 tailwind.css 的 dim Mica cyan alpha 必須相同。"""
+        theme = self._THEME_CSS.read_text(encoding="utf-8")
+        tw = self._TAILWIND_CSS.read_text(encoding="utf-8")
+        alpha_theme = self._extract_dim_mica_cyan_alpha(theme)
+        alpha_tw = self._extract_dim_mica_cyan_alpha(tw)
+        assert alpha_theme is not None, "theme.css 中找不到 dim Mica cyan alpha"
+        assert alpha_tw is not None, "tailwind.css 中找不到 dim Mica cyan alpha"
+        assert alpha_theme == alpha_tw, (
+            f"dim Mica cyan alpha 不同步：theme.css={alpha_theme!r}, tailwind.css={alpha_tw!r}"
+        )
+
+    def test_dim_mica_blue_alpha_synced(self):
+        """theme.css 與 tailwind.css 的 dim Mica blue alpha 必須相同。"""
+        theme = self._THEME_CSS.read_text(encoding="utf-8")
+        tw = self._TAILWIND_CSS.read_text(encoding="utf-8")
+        alpha_theme = self._extract_dim_mica_blue_alpha(theme)
+        alpha_tw = self._extract_dim_mica_blue_alpha(tw)
+        assert alpha_theme is not None, "theme.css 中找不到 dim Mica blue alpha"
+        assert alpha_tw is not None, "tailwind.css 中找不到 dim Mica blue alpha"
+        assert alpha_theme == alpha_tw, (
+            f"dim Mica blue alpha 不同步：theme.css={alpha_theme!r}, tailwind.css={alpha_tw!r}"
+        )

@@ -637,7 +637,8 @@ body {
     /* feature/69: dim 色彩編碼修復 — 補 primary/warning dim 校準（root unlock） */
     /* primary：與 light oklch(32% 0.02 250) 同 250° 冷色家族、調亮供暗底對比；
        色相 250°（藍）遠離 success 綠相 166° 與 DaisyUI 萊姆 139° → 解膠囊 Factor B 色相碰撞 */
-    --color-primary: oklch(0.66 0.04 250);
+    /* 77a CP1 候選: 0.06 保守 / 0.08 中庸(預設) / 0.10 大膽 — hue 250°/L 0.66 鎖死 */
+    --color-primary: oklch(0.66 0.08 250);
     /* stylelint-disable-next-line color-no-hex -- Apple HIG dark-mode amber palette source-of-truth, 2026-06-06 */
     --color-warning: #ff9f0a;         /* dim 校準 amber，近黑底不偏暗 */
 }
@@ -2368,9 +2369,13 @@ body.fluent-canvas:not(.ds-page)::before {
 /* --- Dim Mode --- */
 [data-theme="dim"] body.fluent-canvas:not(.ds-page) {
     background:
-        radial-gradient(ellipse 100% 60% at 50% -10%, rgba(var(--ds-glow-rgb), 0.06), transparent),
-        radial-gradient(ellipse 70% 50% at 100% 100%, oklch(55% 0.15 260 / 0.05), transparent),
+        radial-gradient(ellipse 100% 60% at 50% -10%, rgba(var(--ds-glow-rgb), 0.10), transparent),
+        radial-gradient(ellipse 70% 50% at 100% 100%, oklch(55% 0.15 260 / 0.09), transparent),
         var(--bg-body);
+}
+
+[data-theme="dim"] body.fluent-canvas:not(.ds-page)::before {
+    opacity: 0.04;   /* 77a CP1 候選 — dim 專屬磨砂顆粒強度 */
 }
 
 /* ==================== Utility Classes ==================== */
