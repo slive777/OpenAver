@@ -293,11 +293,30 @@
     }
 }
 
-/* ≤480px → 1 column */
+/* ≤480px → 3 column poster 格（US5-75b，比照 .actress-grid 的 ≤480 斷點） */
 @media (max-width: 480px) {
     .showcase-grid {
-        grid-template-columns: 1fr;
-        padding: 1rem;
+        grid-template-columns: repeat(3, 1fr); /* US5-75b：1fr → 3-col（CD-75b-7） */
+        gap: 0.5rem;
+        padding: 0.75rem;
+    }
+
+    /* US5-75b：影片卡切直式 poster 比例。
+       數值來源 = plan-75a US2 poster-crop（--poster-crop-ratio），**不可獨立修改**（單一真理）。
+       Codex P1（specificity）：selector 必帶 :is(#ds-gallery-components, .ds-gallery-composition) scope。
+         :is() 含 #id → a=1（無論其他 arg），:not(.hero-card) 的 .hero-card 計入 b。
+         theme.css 基準 :is(#id,…) .av-card-preview-img = (1,0,1)；本規則 4 個 class（showcase-grid /
+         av-card-preview / .hero-card(:not) / av-card-preview-img）= (1,4,0) 贏。
+         若漏 :is() 前綴 → (0,4,0)，a=0 輸給基準 a=1 → aspect-ratio silent no-op、手機卡仍 3:2。
+       Codex F5：:not(.hero-card) 排除女優精準匹配 hero 卡（其圖 object-fit:contain，不可被裁成 0.71）。
+       .av-card-preview-img 是 <div> → aspect-ratio 寫 div；object-position 只對 replaced element 生效 → 寫子 img。 */
+    :is(#ds-gallery-components, .ds-gallery-composition) .showcase-grid .av-card-preview:not(.hero-card) .av-card-preview-img {
+        aspect-ratio: var(--poster-crop-ratio, 0.71);
+        height: auto;   /* aspect-ratio 與 explicit height 互斥，明確 auto 防其他規則殘留高度 */
+    }
+
+    :is(#ds-gallery-components, .ds-gallery-composition) .showcase-grid .av-card-preview:not(.hero-card) .av-card-preview-img img {
+        object-position: right center; /* (1,4,1) 贏 theme.css 基準 img (1,0,2)；基準本無 object-position（此為加值）；只露封面正面 */
     }
 }
 
