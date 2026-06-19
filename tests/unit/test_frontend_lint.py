@@ -151,6 +151,59 @@ class TestPageTransitionDomGuard:
             "theme.css 缺少 .page-showcase #main-content { view-transition-name: none }（feature/76 CD-11 輔助）"
 
 
+SETTINGS_CSS_T76 = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "pages" / "settings.css"
+THEME_TRANSITION_JS_T76 = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "settings" / "theme-transition.js"
+
+
+class TestPageTransitionSettingsScopeGuard:
+    """feature/76 T1a（CD-7/F7）：settings.css root 規則作用域化 + theme-transition.js class lifecycle。
+
+    防 settings.css 裸 ::view-transition-*(root) 規則汙染導航到 /settings、/design-system 的
+    跨頁 root crossfade。negative 守衛（無裸 root 規則）是關鍵——只查 positive substring 會
+    假陽性（漏抓新增的裸規則）。
+    """
+
+    # CSS 註解內可能出現字面 pseudo，先 strip 避免假陽性
+    _COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)
+    _ROOT_PSEUDO_RE = re.compile(r"::view-transition-(?:old|new|group|image-pair)\(root\)")
+    _REQUIRED_PREFIX = "html.theme-transition-active"
+
+    def _settings_css(self):
+        return SETTINGS_CSS_T76.read_text(encoding="utf-8")
+
+    def _theme_js(self):
+        return THEME_TRANSITION_JS_T76.read_text(encoding="utf-8")
+
+    def test_settings_root_rules_scoped(self):
+        """settings.css root 規則已加 html.theme-transition-active 前綴（positive）"""
+        assert f"{self._REQUIRED_PREFIX}::view-transition-old(root)" in self._settings_css(), \
+            "settings.css root 規則未作用域化（缺 html.theme-transition-active 前綴，feature/76 CD-7）"
+
+    def test_settings_all_root_rules_scoped(self):
+        """settings.css 中『每一條』root VT 規則都恰以 html.theme-transition-active 作用域化（negative，exhaustive）。
+
+        SF-2：不只查「無裸 root 規則」，而是窮舉每個 ::view-transition-*(root) 出現點、斷言其緊鄰
+        前綴恰為 html.theme-transition-active。封住「錯誤前綴」盲區——裸規則、`:root::`、`.foo::`
+        等任何非 theme-transition-active 前綴皆會被抓（lookbehind 排除法漏抓後兩者）。
+        """
+        css_nc = self._COMMENT_RE.sub("", self._settings_css())
+        for m in self._ROOT_PSEUDO_RE.finditer(css_nc):
+            prefix = css_nc[:m.start()]
+            assert prefix.endswith(self._REQUIRED_PREFIX), \
+                ("settings.css 有未以 html.theme-transition-active 作用域化的 root VT 規則"
+                 f"（feature/76 CD-7/F7）: ...{css_nc[max(0, m.start() - 40):m.end()]!r}")
+
+    def test_theme_transition_js_class_lifecycle(self):
+        """theme-transition.js 在 startViewTransition 前 add、finished 後 remove theme-transition-active（F7）"""
+        js = self._theme_js()
+        assert "classList.add('theme-transition-active')" in js, \
+            "theme-transition.js 缺少 classList.add('theme-transition-active')（feature/76 F7）"
+        assert "transition.finished" in js, \
+            "theme-transition.js 缺少 transition.finished（class remove 掛點，feature/76 F7）"
+        assert "classList.remove('theme-transition-active')" in js, \
+            "theme-transition.js 缺少 classList.remove('theme-transition-active')（feature/76 F7）"
+
+
 class TestHelpPopoverGuard:
     """38e: help-popover CSS class usage guard (method folded)"""
 
