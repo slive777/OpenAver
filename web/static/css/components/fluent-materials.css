@@ -762,3 +762,23 @@
 [data-theme="dim"] .similar-slot {
     border-color: var(--media-frame-stroke);
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * 77c-T1: Search bar — B floating glass bar (dim; desktop-gated ≥1024px)
+ * Mirrors showcase toolbar Rule 13b (margin/radius/border) MINUS grid-template-columns
+ * (search-bar is flex, not a grid). Base material (glass + backdrop-filter + bottom
+ * border + inset shadow) is provided by Rule 12 (.search-bar A shelf); this rule adds
+ * desktop floating geometry only. The 4-side `border` overrides Rule 12's
+ * border-bottom-color via source order (same selector (0,2,0), appended later).
+ * Mobile (<1024px): no rule → full-width A shelf preserved (feature/75 compat).
+ * search-bar is NOT sticky (CD-A7) — the float bar scrolls with the page. (CD-C1)
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+/* Rule 45 — CD-C1: .search-bar B floating treatment (desktop ≥1024px) */
+@media (min-width: 1024px) {
+    [data-theme="dim"] .search-bar {
+        margin: 0 1rem;
+        border-radius: var(--fluent-radius-xl);
+        border: 1px solid var(--glass-shell-border);
+    }
+}
