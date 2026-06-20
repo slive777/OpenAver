@@ -164,9 +164,110 @@ class TestPipeline:
         mock_video = _make_video("javbus", "SONE-205")
         with patch('core.scraper.search_jav', return_value=mock_video.to_legacy_dict()) as mock_sj:
             with patch('core.scraper.get_all_variant_ids', return_value=[]):
-                results = smart_search("SONE-205", proxy_url="")
+                with patch.object(JavBusScraper, 'search', return_value=None):
+                    results = smart_search("SONE-205", proxy_url="")
         # Exact path always calls search_jav(auto) fan-out regardless of proxy
         mock_sj.assert_called()
+
+    def test_javbus_fastpath_hit(self):
+        """乾淨番號 + JavBusScraper.search 回傳非 None Video → fast-path 命中。
+
+        - get_all_variant_ids 未被呼叫
+        - 回傳 1 筆結果
+        - _source == 'javbus', _mode == 'exact'
+        - _all_variant_ids == [normalize_number('SONE-205')]
+        - _summary 和 _rating 存在且值來自 mock video
+        """
+        from core.scraper import normalize_number
+
+        def _make_video_with_summary(source, number, summary="Test summary", rating=8.5):
+            return Video(
+                number=number,
+                title="Test Title",
+                actresses=[],
+                date="2024-01-01",
+                maker="Test Maker",
+                cover_url="",
+                tags=[],
+                source=source,
+                detail_url="https://example.com",
+                summary=summary,
+                rating=rating,
+            )
+
+        mock_video = _make_video_with_summary("javbus", "SONE-205", summary="My summary", rating=9.0)
+
+        with patch.object(JavBusScraper, 'search', return_value=mock_video) as mock_search, \
+             patch('core.scraper.get_all_variant_ids') as mock_gavi:
+            results = smart_search("SONE-205")
+
+        # fast-path hit → get_all_variant_ids must NOT be called
+        mock_gavi.assert_not_called()
+        assert len(results) == 1
+        r = results[0]
+        assert r['_source'] == 'javbus'
+        assert r['_mode'] == 'exact'
+        assert r['_all_variant_ids'] == [normalize_number('SONE-205')]
+        assert r['_summary'] == "My summary"
+        assert r['_rating'] == 9.0
+
+    def test_javbus_fastpath_miss_fallback(self):
+        """JavBusScraper.search 回傳 None → fallback 到 get_all_variant_ids"""
+        with patch.object(JavBusScraper, 'search', return_value=None), \
+             patch('core.scraper.get_all_variant_ids', return_value=[]) as mock_gavi, \
+             patch('core.scraper.search_jav', return_value=None):
+            smart_search("SONE-205")
+
+        # miss → fallback → get_all_variant_ids must be called
+        mock_gavi.assert_called()
+
+    def test_javbus_fastpath_exception_fallback(self):
+        """JavBusScraper.search 拋出 Exception → 不 propagate，fallback 到 get_all_variant_ids"""
+        with patch.object(JavBusScraper, 'search', side_effect=Exception('timeout')), \
+             patch('core.scraper.get_all_variant_ids', return_value=[]) as mock_gavi, \
+             patch('core.scraper.search_jav', return_value=None):
+            # Must not raise
+            smart_search("SONE-205")
+
+        # exception caught → fallback → get_all_variant_ids must be called
+        mock_gavi.assert_called()
+
+    def test_variant_hit_has_summary_and_rating(self):
+        """variant-hit 路徑（search_by_variant_id）回傳 dict 含 _summary 和 _rating。
+
+        mock get_all_variant_ids 回 ['SONE-205']，
+        mock JavBusScraper._fetch_by_id 回帶 summary/rating 的 Video，
+        驗證結果 dict 含 _summary 和 _rating 且值正確。
+        """
+        def _make_video_with_summary(source, number, summary="Test summary", rating=8.5):
+            return Video(
+                number=number,
+                title="Test Title",
+                actresses=[],
+                date="2024-01-01",
+                maker="Test Maker",
+                cover_url="",
+                tags=[],
+                source=source,
+                detail_url="https://example.com",
+                summary=summary,
+                rating=rating,
+            )
+
+        mock_video = _make_video_with_summary("javbus", "SONE-205", summary="Variant summary", rating=7.5)
+
+        # fast-path misses (search returns None), then variant probe hits
+        with patch.object(JavBusScraper, 'search', return_value=None), \
+             patch('core.scraper.get_all_variant_ids', return_value=['SONE-205']), \
+             patch.object(JavBusScraper, '_fetch_by_id', return_value=mock_video):
+            results = smart_search("SONE-205")
+
+        assert len(results) == 1
+        r = results[0]
+        assert '_summary' in r
+        assert '_rating' in r
+        assert r['_summary'] == "Variant summary"
+        assert r['_rating'] == 7.5
 
     def test_merge_winner_first_in_order_dmm(self, monkeypatch):
         """merge text-winner = first successful source in drag-sort order (get_enabled_source_ids order).

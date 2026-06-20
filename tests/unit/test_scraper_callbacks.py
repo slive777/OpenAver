@@ -652,6 +652,7 @@ class TestRule4bVariantProbeGating:
     def test_javbus_enabled_fires_variant_probe(self, make_mock_search_jav):
         """JavBus 在 Active Row → get_all_variant_ids 被呼叫，發出 javbus status"""
         from core.scraper import smart_search
+        from core.scrapers.javbus import JavBusScraper
 
         status_calls = []
 
@@ -665,6 +666,7 @@ class TestRule4bVariantProbeGating:
              patch('core.scraper.normalize_number', return_value='SONE-100'), \
              patch('core.scraper.get_enabled_source_ids', return_value=['javbus', 'jav321']), \
              patch('core.scraper.get_all_variant_ids', mock_variant), \
+             patch.object(JavBusScraper, 'search', return_value=None), \
              patch('core.scraper.search_jav', return_value=mock_result):
             results = smart_search('SONE-100', status_callback=status_cb)
 
@@ -678,12 +680,14 @@ class TestRule4bVariantProbeGating:
     def test_javbus_enabled_variant_hit_returns_variant_result(self, make_mock_search_jav):
         """JavBus 啟用且找到變體 → 走 search_by_variant_id，結果帶 _all_variant_ids"""
         from core.scraper import smart_search
+        from core.scrapers.javbus import JavBusScraper
 
         variant_result = {'number': 'SONE-100', 'title': 'Variant'}
 
         with patch('core.scraper.is_number_format', return_value=True), \
              patch('core.scraper.normalize_number', return_value='SONE-100'), \
              patch('core.scraper.get_enabled_source_ids', return_value=['javbus']), \
+             patch.object(JavBusScraper, 'search', return_value=None), \
              patch('core.scraper.get_all_variant_ids', return_value=['SONE-100', 'SONE-101']), \
              patch('core.scraper.search_by_variant_id', return_value=variant_result):
             results = smart_search('SONE-100')

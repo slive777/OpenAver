@@ -745,20 +745,27 @@ def get_all_variant_ids(number: str) -> List[str]:
     return variant_ids
 
 
+def _javbus_video_to_result(video: Video, base_number: str) -> dict:
+    """將 JavBus Video 物件轉換為統一的 result dict（快速路徑與 variant-hit 共用）。"""
+    result = video.to_legacy_dict()
+    result['number'] = base_number
+    if not result.get('maker'):
+        result['maker'] = get_maker_by_prefix(base_number)
+    result['_source'] = 'javbus'
+    result['_summary'] = video.summary
+    result['_rating'] = video.rating
+    return result
+
+
 def search_by_variant_id(variant_id: str, base_number: str) -> Optional[Dict[str, Any]]:
     """搜索變體"""
     try:
         scraper = JavBusScraper(lang=_get_javbus_lang())
         video = scraper._fetch_by_id(variant_id)
         if video:
-            result = video.to_legacy_dict()
-            # 用 base_number 覆蓋（保持與舊邏輯一致）
-            result['number'] = base_number
-            # 補 maker
-            if not result.get('maker'):
-                result['maker'] = get_maker_by_prefix(base_number)
-            result['_source'] = 'javbus'
+            result = _javbus_video_to_result(video, base_number)
             result['_variant_id'] = variant_id
+            result['_mode'] = 'exact'
             return result
     except Exception as e:
         logger.error('search_by_variant_id failed: %s', e)
@@ -888,6 +895,21 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
         if 'javbus' in get_enabled_source_ids():
             if status_callback:
                 status_callback('javbus', 'searching')
+
+            # 快速路徑：直接嘗試 detail GET（省 GET 1 搜尋頁）
+            try:
+                fast_scraper = JavBusScraper(lang=_get_javbus_lang())
+                fast_video = fast_scraper.search(query)
+                if fast_video is not None:
+                    fast_res = _javbus_video_to_result(fast_video, query)
+                    fast_res['_variant_id'] = normalize_number(query)
+                    fast_res['_all_variant_ids'] = [normalize_number(query)]
+                    fast_res['_mode'] = 'exact'
+                    if status_callback:
+                        status_callback('done', 'found:1')
+                    return [fast_res]
+            except Exception as e:
+                logger.debug('javbus fast-path miss, falling back: %s', e)
 
             # 嘗試找變體
             variant_ids = get_all_variant_ids(query)
