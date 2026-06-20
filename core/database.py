@@ -328,7 +328,7 @@ class Video:
     @classmethod
     def from_row(cls, row: tuple, columns: List[str]) -> 'Video':
         """從資料庫 row 建立"""
-        data = dict(zip(columns, row))
+        data = dict(zip(columns, row, strict=True))
 
         # 反序列化 JSON 欄位
         if 'actresses' in data and data['actresses']:
@@ -1185,7 +1185,7 @@ def migrate_json_to_sqlite(json_path: Path, db_path: Path = None,
     try:
         with open(json_path, 'r', encoding='utf-8') as f:
             cache_data = json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
+    except (json.JSONDecodeError, IOError):
         result['errors'] = 1
         return result
 
@@ -1216,7 +1216,7 @@ def migrate_json_to_sqlite(json_path: Path, db_path: Path = None,
             video.nfo_mtime = entry.get('nfo_mtime', 0.0)
 
             videos_to_upsert.append(video)
-        except Exception as e:
+        except Exception:
             result['errors'] += 1
 
     # 批次寫入
@@ -1256,7 +1256,7 @@ class AliasRecord:
     @classmethod
     def from_row(cls, row: tuple, columns: List[str]) -> "AliasRecord":
         """從資料庫 row 建立"""
-        data = dict(zip(columns, row))
+        data = dict(zip(columns, row, strict=True))
         if "aliases" in data and data["aliases"]:
             try:
                 data["aliases"] = json.loads(data["aliases"])
@@ -1652,7 +1652,7 @@ class TagAliasRecord:
     @classmethod
     def from_row(cls, row: tuple, columns: List[str]) -> "TagAliasRecord":
         """從資料庫 row 建立"""
-        data = dict(zip(columns, row))
+        data = dict(zip(columns, row, strict=True))
         if "aliases" in data and data["aliases"]:
             try:
                 data["aliases"] = json.loads(data["aliases"])
@@ -1990,7 +1990,7 @@ class Actress:
     @classmethod
     def from_row(cls, row: tuple, columns: List[str]) -> 'Actress':
         """從資料庫 row 建立"""
-        data = dict(zip(columns, row))
+        data = dict(zip(columns, row, strict=True))
 
         if 'aliases' in data and data['aliases']:
             try:

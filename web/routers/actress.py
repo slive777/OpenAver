@@ -28,13 +28,11 @@ from core.maker_mapping import load_prefix_mapping
 from core.database import ActressRepository, AliasRepository, VideoRepository, Actress, init_db
 from core.actress_photo import download_actress_photo, get_local_photo_path, delete_local_photo, crop_video_cover, GFRIENDS_DIR
 from core.organizer import sanitize_filename
-from core.path_utils import to_file_uri, uri_to_fs_path, coerce_to_file_uri
+from core.path_utils import to_file_uri as to_file_uri, uri_to_fs_path, coerce_to_file_uri
 from core.scrapers.actress.orchestrator import (
     get_cached_profile,
     get_actress_profile,
     _compute_age_from_birth as _compute_age,
-    _cache as _actress_cache,
-    _normalize_name as _normalize_actress_name,
 )
 from core.logger import get_logger
 

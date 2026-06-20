@@ -1,5 +1,4 @@
 """D2Pass 聯合爬蟲（1Pondo / Caribbeancom / 10musume）"""
-import json
 import re
 import requests
 from typing import Optional
@@ -240,7 +239,7 @@ class D2PassScraper(BaseScraper):
             duration: Optional[int] = None
             m = re.search(r'再生時間.*?(\d{2}):(\d{2}):(\d{2})', html_text, re.DOTALL)
             if m:
-                h, mn, s = int(m.group(1)), int(m.group(2)), int(m.group(3))
+                h, mn, _s = int(m.group(1)), int(m.group(2)), int(m.group(3))
                 duration = h * 60 + mn
 
             # Series — シリーズ 後的 <a> 文字
@@ -336,8 +335,8 @@ class D2PassScraper(BaseScraper):
                     rate_limit(self.config.delay)
                     return video
 
-            except requests.Timeout:
-                raise TimeoutError(f"D2Pass request timeout for {number}")
+            except requests.Timeout as e:
+                raise TimeoutError(f"D2Pass request timeout for {number}") from e
             except Exception as e:
                 logger.warning(f"D2Pass search failed for {number} on {site}: {e}")
                 continue

@@ -520,8 +520,8 @@ class DMMScraper(BaseScraper):
 
             return video
 
-        except requests.Timeout:
-            raise TimeoutError(f"DMM API timeout for {content_id}")
+        except requests.Timeout as e:
+            raise TimeoutError(f"DMM API timeout for {content_id}") from e
         except Exception:
             return None
 

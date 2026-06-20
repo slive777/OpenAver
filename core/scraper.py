@@ -6,14 +6,13 @@ Scraper 模組（向後相容層）
 """
 import re
 import time
-from pathlib import Path
 
 from core.logger import get_logger
 from core.config import load_config
 
 logger = get_logger(__name__)
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Optional, List, Dict, Union, Any, Callable, Type
+from typing import Optional, List, Dict, Any, Callable, Type
 
 # 引入新版爬蟲模組
 from core.scrapers import (
@@ -297,12 +296,12 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '', javbus_la
         if metatube_shims:
             with ThreadPoolExecutor(max_workers=min(len(metatube_shims), 5)) as ex:
                 futs = [(sid, ex.submit(shim.search, number)) for sid, shim in metatube_shims]
-                for sid, fut in futs:  # 按 user order 收（submit 順序 = user order；非 as_completed）
+                for _sid, fut in futs:  # 按 user order 收（submit 順序 = user order；非 as_completed）
                     try:
                         v = fut.result()
                         if v:
                             results_by_source[v.source] = v
-                    except Exception:
+                    except Exception:  # noqa: S112 — intentional skip-on-error in parallel scraper loop; individual source failure should not abort others
                         continue
 
         # rebuild all_data 按 enabled_sids（user-drag）順序，保全 merge 優先度契約
@@ -745,20 +744,27 @@ def get_all_variant_ids(number: str) -> List[str]:
     return variant_ids
 
 
+def _javbus_video_to_result(video: Video, base_number: str) -> dict:
+    """將 JavBus Video 物件轉換為統一的 result dict（快速路徑與 variant-hit 共用）。"""
+    result = video.to_legacy_dict()
+    result['number'] = base_number
+    if not result.get('maker'):
+        result['maker'] = get_maker_by_prefix(base_number)
+    result['_source'] = 'javbus'
+    result['_summary'] = video.summary
+    result['_rating'] = video.rating
+    return result
+
+
 def search_by_variant_id(variant_id: str, base_number: str) -> Optional[Dict[str, Any]]:
     """搜索變體"""
     try:
         scraper = JavBusScraper(lang=_get_javbus_lang())
         video = scraper._fetch_by_id(variant_id)
         if video:
-            result = video.to_legacy_dict()
-            # 用 base_number 覆蓋（保持與舊邏輯一致）
-            result['number'] = base_number
-            # 補 maker
-            if not result.get('maker'):
-                result['maker'] = get_maker_by_prefix(base_number)
-            result['_source'] = 'javbus'
+            result = _javbus_video_to_result(video, base_number)
             result['_variant_id'] = variant_id
+            result['_mode'] = 'exact'
             return result
     except Exception as e:
         logger.error('search_by_variant_id failed: %s', e)
@@ -888,6 +894,21 @@ def smart_search(query: str, limit: int = 20, offset: int = 0, status_callback: 
         if 'javbus' in get_enabled_source_ids():
             if status_callback:
                 status_callback('javbus', 'searching')
+
+            # 快速路徑：直接嘗試 detail GET（省 GET 1 搜尋頁）
+            try:
+                fast_scraper = JavBusScraper(lang=_get_javbus_lang())
+                fast_video = fast_scraper.search(query)
+                if fast_video is not None:
+                    fast_res = _javbus_video_to_result(fast_video, query)
+                    fast_res['_variant_id'] = normalize_number(query)
+                    fast_res['_all_variant_ids'] = [normalize_number(query)]
+                    fast_res['_mode'] = 'exact'
+                    if status_callback:
+                        status_callback('done', 'found:1')
+                    return [fast_res]
+            except Exception as e:
+                logger.debug('javbus fast-path miss, falling back: %s', e)
 
             # 嘗試找變體
             variant_ids = get_all_variant_ids(query)

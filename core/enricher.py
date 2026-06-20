@@ -5,7 +5,7 @@ enricher.py - 舊片原地補完（NFO / 封面 / 劇照），絕對不搬移、
 import os
 import shutil
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 

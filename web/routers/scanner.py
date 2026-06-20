@@ -28,7 +28,7 @@ import requests
 from datetime import datetime
 from urllib.parse import unquote, quote
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Dict, Generator, List
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse, HTMLResponse, Response, FileResponse, JSONResponse
@@ -199,7 +199,7 @@ def generate_avlist() -> Generator[str, None, None]:
             # 轉換路徑格式 (Windows -> WSL)
             try:
                 normalized_dir = normalize_path(directory)
-            except ValueError as e:
+            except ValueError:
                 logger.exception("路徑轉換失敗: %s", directory)
                 yield _sse_event({"type": "log", "level": "warn", "message": "路徑轉換失敗"})
                 continue
@@ -226,7 +226,7 @@ def generate_avlist() -> Generator[str, None, None]:
                     normalized_dir,
                     video_extensions,
                     min_size_bytes,
-                    on_skip=lambda p, _e: skipped_paths.append(p),
+                    on_skip=lambda p, _e: skipped_paths.append(p),  # noqa: B023 — skipped_paths consumed synchronously within same iteration, not deferred
                 )
 
                 if not all_files and not skipped_paths:
@@ -302,7 +302,7 @@ def generate_avlist() -> Generator[str, None, None]:
                         videos_to_upsert.append(video)
                         session_added_paths.append(video.path)
                         cache_misses += 1
-                    except Exception as e:
+                    except Exception:
                         logger.exception("掃描檔案失敗: %s", file_info.get('path', ''))
                         yield _sse_event({"type": "log", "level": "warn", "message": f"  [{i}] 掃描發生錯誤，已跳過"})
                         scan_error_count += 1
@@ -320,7 +320,7 @@ def generate_avlist() -> Generator[str, None, None]:
                     "level": "info",
                     "message": f"{directory}: {len(all_files)} 部 (快取: {cache_hits}, 新增/更新: {cache_misses})"
                 })
-            except Exception as e:
+            except Exception:
                 logger.exception("掃描資料夾失敗: %s", directory)
                 scan_error_count += 1
                 yield _sse_event({"type": "log", "level": "error", "message": "掃描發生錯誤，已跳過此資料夾"})

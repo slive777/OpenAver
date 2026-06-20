@@ -31,9 +31,8 @@ if TYPE_CHECKING:
 
 from bs4 import BeautifulSoup
 
-from core.cf_transport import CfChallengeRequired, CfTransport, CfTransportUnavailable
+from core.cf_transport import CfChallengeRequired, CfTransportUnavailable
 from core.scrapers.javlibrary import (
-    JAVLIBRARY_ORIGIN,
     _is_age_gate,
     _is_cf_challenge,
 )

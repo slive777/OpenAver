@@ -28,7 +28,7 @@ def detect_environment() -> str:
             with open('/proc/version', 'r') as f:
                 if 'microsoft' in f.read().lower():
                     return 'wsl'
-        except:
+        except:  # noqa: E722,S110 — probe /proc/version; bare except intentional to handle any OS-level read failure silently
             pass
         return 'linux'
     elif system == 'Darwin':
@@ -212,7 +212,7 @@ def expand_env_vars(path: str) -> str:
                     )
                     # 轉換成 WSL 路徑
                     return normalize_path(path)
-            except Exception:
+            except Exception:  # noqa: S110 — regex path probe; fall through to fallback on any error
                 pass
 
             # Fallback: 假設 Windows 用戶名與 WSL 用戶名相同

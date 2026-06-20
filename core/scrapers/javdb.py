@@ -1,5 +1,4 @@
 """JavDB 爬蟲"""
-import re
 from typing import Optional
 
 from core.logger import get_logger

@@ -97,8 +97,8 @@ class JavBusScraper(BaseScraper):
 
         try:
             resp = self._session.get(url, timeout=self.config.timeout)
-        except (requests.Timeout, requests.ConnectionError):
-            raise TimeoutError(f"Request timed out for {number}")
+        except (requests.Timeout, requests.ConnectionError) as e:
+            raise TimeoutError(f"Request timed out for {number}") from e
 
         if resp.status_code != 200:
             return None
@@ -305,8 +305,8 @@ class JavBusScraper(BaseScraper):
         url = self._build_search_url(keyword, page, search_type)
         try:
             resp = self._session.get(url, timeout=self.config.timeout)
-        except (requests.Timeout, requests.ConnectionError):
-            raise TimeoutError(f"Search request timed out for keyword: {keyword}")
+        except (requests.Timeout, requests.ConnectionError) as e:
+            raise TimeoutError(f"Search request timed out for keyword: {keyword}") from e
         if resp.status_code != 200:
             return []
         soup = BeautifulSoup(resp.text, "html.parser")
@@ -319,8 +319,8 @@ class JavBusScraper(BaseScraper):
 
         try:
             resp = self._session.get(url, timeout=self.config.timeout)
-        except (requests.Timeout, requests.ConnectionError):
-            raise TimeoutError(f"Request timed out for {id_str}")
+        except (requests.Timeout, requests.ConnectionError) as e:
+            raise TimeoutError(f"Request timed out for {id_str}") from e
 
         if resp.status_code != 200:
             return None

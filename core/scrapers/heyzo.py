@@ -215,8 +215,8 @@ class HEYZOScraper(BaseScraper):
                 sample_images=table_data['sample_images'],
             )
 
-        except requests.Timeout:
-            raise TimeoutError(f"HEYZO request timeout for {number}")
+        except requests.Timeout as e:
+            raise TimeoutError(f"HEYZO request timeout for {number}") from e
         except Exception as e:
             logger.warning(f"HEYZO search failed for {number}: {e}")
             return None

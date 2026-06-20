@@ -392,7 +392,7 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
 
                     result = await loop.run_in_executor(
                         None,
-                        lambda i=item, sd=cached_data: enrich_single(
+                        lambda i=item, sd=cached_data, es=effective_source, el=effective_lang: enrich_single(
                             file_path=i.file_path,
                             number=i.number,
                             mode=request.mode,
@@ -402,8 +402,8 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                             overwrite_existing=request.overwrite_existing,
                             external_manager=config.get("scraper", {}).get("external_manager", "off"),
                             proxy_url=proxy_url,
-                            source=effective_source if effective_source != "auto" else None,
-                            javbus_lang=effective_lang,
+                            source=es if es != "auto" else None,
+                            javbus_lang=el,
                             scraper_data=sd,
                         ),
                     )

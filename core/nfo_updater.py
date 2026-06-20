@@ -4,14 +4,13 @@ NFO Updater - 批次更新 NFO 檔案中缺失的欄位
 """
 
 import os
-import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Generator
 
 from core.logger import get_logger
 from core.nfo_utils import sanitize_nfo_bytes
-from core.path_utils import normalize_path, uri_to_fs_path
+from core.path_utils import uri_to_fs_path
 from core.scraper import search_jav
 
 logger = get_logger(__name__)
@@ -435,7 +434,7 @@ def update_videos_generator(
 
         try:
             metadata = search_jav(num)
-        except Exception as e:
+        except Exception:
             logger.exception("搜尋 JAV 資料失敗: %s", num)
             yield {
                 'type': 'log',
@@ -472,7 +471,7 @@ def update_videos_generator(
                     'message': f'[{i}] {num}: {msg}'
                 }
                 stats['skipped'] += 1
-        except Exception as e:
+        except Exception:
             logger.exception("更新 NFO 失敗: %s", num)
             yield {
                 'type': 'log',

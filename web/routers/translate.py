@@ -260,7 +260,7 @@ async def translate_batch(request: BatchTranslateRequest):
                 translations.extend(batch_results)
 
             # 將翻譯結果放回對應位置，同時追蹤成功的
-            for idx, trans in zip(japanese_indices, translations):
+            for idx, trans in zip(japanese_indices, translations, strict=False):  # lengths may differ if translate_batch returns fewer items than input
                 if trans:  # trans 非空表示翻譯成功
                     results[idx] = trans
                     success_indices.append(idx)  # 記錄成功的索引

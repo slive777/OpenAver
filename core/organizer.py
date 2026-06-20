@@ -1096,7 +1096,7 @@ def organize_file(
         result['used_fallbacks'] = used_fallbacks
         result['success'] = True
 
-    except Exception as e:
+    except Exception:
         logger.exception("organize_file 失敗: %s → %s", file_path, target_dir)
         result['error'] = '檔案整理失敗，請查看日誌'
 

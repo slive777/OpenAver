@@ -888,6 +888,19 @@ class TestProxyImageReferer:
         assert response.status_code == 404
         assert response.content == b''
 
+    def test_proxy_image_success_has_cache_control(self, client):
+        """成功 200 回應必須帶 Cache-Control: public, max-age=86400（TASK-80）"""
+        url = 'https://www.javbus.com/pics/cover/abc.jpg'
+
+        with patch('web.routers.search.requests.get', return_value=self._make_mock_response()):
+            response = client.get('/api/proxy-image', params={'url': url})
+
+        assert response.status_code == 200
+        assert response.headers.get('Cache-Control') == 'public, max-age=86400', (
+            f"proxy-image 200 缺少 Cache-Control: public, max-age=86400，"
+            f"實際值：{response.headers.get('Cache-Control')!r}"
+        )
+
 
 class TestProxyImageSSRF:
     """SSRF allowlist guard for /api/proxy-image"""

@@ -14,7 +14,7 @@
 否則 FastAPI 會將 "search-online" 解析為 {name}。
 """
 
-from typing import List, Optional
+from typing import List
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse

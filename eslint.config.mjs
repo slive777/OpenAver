@@ -377,6 +377,31 @@ export default [
     },
   },
 
+  // Group 8 (TASK-80): persistence.js — 禁 playGridSettle 呼叫（supersedes Group 1，重述清單 + 疊加）
+  // restore 返回既有 grid 應即時呈現，不重播逐行 scale stagger；
+  // fresh-search 的合法 playGridSettle 呼叫在 search-flow.js（同目錄，故不能加在 Group 1 glob）。
+  // flat config 同 rule 後者整段 replace：此 block 必須重述 Group 1 全部 6 個 selector 再疊加新的。
+  {
+    files: ["web/static/js/pages/search/state/persistence.js"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        SEL_CREATE_ELEMENT,
+        SEL_SHOW_MODAL,
+        SEL_WINDOW_CONFIRM,
+        SEL_NO_UNLOAD_LISTENER,
+        SEL_BREATHING_MANAGER_NEW,
+        SEL_STARSETTLE_LITERAL,
+        {
+          selector: "CallExpression[callee.property.name='playGridSettle']",
+          message:
+            "TASK-80：persistence.js restore 禁呼叫 playGridSettle（返回既有 grid 即時呈現、不重播 scale stagger）。" +
+            "fresh-search 入口在 search-flow.js。",
+        },
+      ],
+    },
+  },
+
   // Group 7 (62c-1 / 62c-3): shared/state-rescrape.js — search 分支禁 fallbackSearch（CD-62-11 負向守衛）
   // + switch-source 分支禁污染結果列（CD-62-11，62c-3）。
   // search 入口整包贏必須走 advancedSearch(source)（帶 source）；fallbackSearch（search-flow.js）

@@ -89,7 +89,7 @@ def _check_gfriends_url(folder: str, name: str) -> Optional[str]:
         resp = requests.head(ai_fix_url, timeout=3)
         if resp.status_code == 200:
             return ai_fix_url
-    except Exception:
+    except Exception:  # noqa: S110 — network probe; pass is intentional, fall through to original
         # AI-Fix probe failed — fall through to original
         pass
 
@@ -99,7 +99,7 @@ def _check_gfriends_url(folder: str, name: str) -> Optional[str]:
         resp2 = requests.head(url, timeout=3)
         if resp2.status_code == 200:
             return url
-    except Exception:
+    except Exception:  # noqa: S110 — network probe; pass is intentional, return None below
         pass
 
     return None

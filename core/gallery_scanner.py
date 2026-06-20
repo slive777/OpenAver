@@ -107,14 +107,12 @@ def fast_scan_directory(
     """
     logger.debug(f"[FastScan] 掃描目錄: {directory}")
     results = []
-    nfo_mtimes = {}  # 記錄每個目錄中的 NFO mtime
-
     def _safe_on_skip(p: str, exc: Exception) -> None:
         if on_skip is None:
             return
         try:
             on_skip(p, exc)
-        except Exception:
+        except Exception:  # noqa: S110 — callback errors must not abort the scan
             # callback 本身出錯不得影響掃描
             pass
 

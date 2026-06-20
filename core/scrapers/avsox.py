@@ -200,8 +200,8 @@ class AVSOXScraper(BaseScraper):
                 if not base:
                     return None
                 return self._lookup(number, base)  # 只重試一次；再 CsrfExpired → 冒到下方 except → None
-        except requests.Timeout:
-            raise TimeoutError(f"AVSOX request timeout for {number}")  # 沿用舊行為（canary → skip）
+        except requests.Timeout as e:
+            raise TimeoutError(f"AVSOX request timeout for {number}") from e  # 沿用舊行為（canary → skip）
         except Exception as e:
             logger.debug(f"AVSOX search failed for {number}: {e}")
             return None  # 韌性 #4：任何解析/網路爆掉 → None，不崩

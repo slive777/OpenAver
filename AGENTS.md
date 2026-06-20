@@ -94,6 +94,13 @@ issue if a rule is missing or if scope needs broadening):
 - `declaration-property-value-disallowed-list` — no bare `0.Xs` durations in `transition`; no `blur(Npx)` literals in `filter`/`backdrop-filter`; no `rgba(N...)` in `box-shadow`; no `Npx` literals in `border-radius`
 - `selector-disallowed-list` — no `:is(...manual-input...)` selector patterns
 
+**Ruff** (Python — `core/`, `web/`, `windows/` + root build/dev scripts; config in `pyproject.toml`, `tests/` excluded; runs in CI `lint-frontend` job):
+- `F` (Pyflakes) — unused imports (`F401`), unused variables (`F841`), undefined names; safe-autofixed
+- `E722` — no bare `except:`
+- `B` (flake8-bugbear) — incl. `raise ... from` inside except (`B904`), `zip()` without `strict=` (`B905`), loop-variable-capturing closures (`B023`)
+- `T201` — no stray `print()` (per-file-ignored only for the 4 scraper/gallery `__main__` entries + `build.py`/`build_macos.py`)
+- `S110` / `S112` — silent `try/except/pass` / `try/except/continue` must carry a `# noqa` with a reason
+
 **Still enforced by pytest** (NOT by lint — flag these in review if violated):
 - HTML template inline handlers (`onclick=` etc.) — `TestNoVanillaHandlers` (HTML scan, eslint does not parse `.html`)
 - HTML template `style="...display:none..."` combined with `x-show` — `TestNoInlineStyleDisplay` (HTML scan)
@@ -101,8 +108,9 @@ issue if a rule is missing or if scope needs broadening):
 - Specific Chinese `confirm()` strings in `scanner/state-alias.js` — `TestScannerDeleteAliasGroupNoNativeConfirm` test1 (same reason)
 - Alpine state contracts (modal open class, method names, escape ladder in HTML) — `TestNoDuplicateNativeDialog` test2, `TestScannerDeleteAliasGroupNoNativeConfirm` test2/test3 (cross-language contract)
 - `navigator.clipboard?.writeText` optional-chaining guard pattern — `TestNoAlertInSearchJs` clipboard tests (guard count/presence, not expressible in eslint)
+- path_utils contract (no manual `file:///` strip/construct, no shadow path helpers) — `TestPathContract` (scans `core/`/`web/`/`windows/`/`tests/`; these are path-API contracts ruff cannot express)
 
-(Anything outside this list — including `console.log` outside search pages, `createElement` outside `state/` dirs, formatting, unused variables, dead code — is still in code-review scope unless explicitly added to the lint config.)
+(Anything outside this list — including `console.log` outside search pages, `createElement` outside `state/` dirs, formatting, and dead code not caught by ruff `F` — is still in code-review scope unless explicitly added to the lint config.)
 
 ### Test bloat policy
 

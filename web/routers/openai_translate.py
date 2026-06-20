@@ -14,7 +14,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 import asyncio
 import httpx
-from typing import List, Optional
+from typing import List
 
 logger = get_logger(__name__)
 

@@ -22,6 +22,6 @@ pytest-asyncio>=0.21.0
 pytest-mock>=3.12.0
 pytest-cov>=7.0.0  # US4 cov-floor (scripts/run_cov.sh)
 httpx>=0.25.0
-mypy>=1.0.0
-types-requests
 pytest-playwright>=0.4.0  # e2e testing
+PyYAML>=6.0  # CI workflow guard (test_ci_workflow_guard.py uses yaml.safe_load)
+ruff==0.15.17  # pinned exact: ruff gates PRs in CI; upstream auto-upgrade can silently change rule verdicts

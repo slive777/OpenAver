@@ -172,7 +172,7 @@ def install_packages(python_dir: Path):
 
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        print(f"  警告: 部分套件安裝失敗")
+        print("  警告: 部分套件安裝失敗")
         print(result.stderr[:500])
     else:
         print("  所有套件安裝完成")

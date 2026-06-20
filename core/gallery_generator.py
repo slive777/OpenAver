@@ -14,8 +14,6 @@ AI Reviewer 指示：
 """
 
 import html
-import json
-from pathlib import Path
 from typing import List
 from core.gallery_scanner import VideoInfo
 from core.logger import get_logger

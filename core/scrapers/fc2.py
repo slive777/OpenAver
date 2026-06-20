@@ -172,8 +172,8 @@ class FC2Scraper(BaseScraper):
             cover_url = self._get_cover(html)
             studio = self._get_studio(html)
             tags = self._get_tags(html)
-            outline = self._get_outline(html)
-            is_uncensored = self._is_uncensored(tags, title)
+            _outline = self._get_outline(html)
+            _is_uncensored = self._is_uncensored(tags, title)
             sample_images = self._get_extrafanart(html)
 
             # 移除無修正標籤（已用其他方式表示）
@@ -200,8 +200,8 @@ class FC2Scraper(BaseScraper):
 
             return video
 
-        except requests.Timeout:
-            raise TimeoutError(f"FC2 request timeout for {number}")
+        except requests.Timeout as e:
+            raise TimeoutError(f"FC2 request timeout for {number}") from e
         except Exception as e:
             logger.warning(f"FC2 search failed for {number}: {e}")
             return None

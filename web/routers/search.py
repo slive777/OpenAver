@@ -21,7 +21,6 @@ import asyncio
 from collections import Counter
 from pathlib import Path
 from queue import Queue
-from threading import Thread
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urlparse
 
@@ -31,14 +30,13 @@ from core.logger import get_logger
 from core.video_extensions import ZERO_SIZE_EXTENSIONS, get_video_extensions
 logger = get_logger(__name__)
 
-from core.database import VideoRepository, get_db_path, init_db
+from core.database import VideoRepository, get_db_path as get_db_path, init_db
 from core.maker_mapping import load_prefix_mapping
 from core.source_config import validate_source_id
 from core.source_settings import is_uncensored_mode_effective
 from core.scraper import (
     search_jav, smart_search, is_partial_number, is_number_format,
-    is_prefix_only, search_partial, search_actress, search_prefix,
-    search_by_variant_id, strip_internal_nfo_keys
+    is_prefix_only, search_partial, search_actress, search_by_variant_id, strip_internal_nfo_keys
 )
 from core.scrapers.utils import SOURCE_ORDER, SOURCE_NAMES
 
@@ -123,7 +121,11 @@ def proxy_image(url: str = Query(..., description="圖片 URL")):
         resp = requests.get(url, headers=headers, timeout=10)
         if resp.status_code == 200:
             content_type = resp.headers.get('Content-Type', 'image/jpeg')
-            return Response(content=resp.content, media_type=content_type)
+            return Response(
+                content=resp.content,
+                media_type=content_type,
+                headers={"Cache-Control": "public, max-age=86400"},
+            )
     except Exception:
         logger.exception("proxy_image failed: %s", url)
 

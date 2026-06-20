@@ -11,7 +11,6 @@ import urllib.request
 import urllib.error
 import logging
 import traceback
-from pathlib import Path
 
 # 確保專案根目錄在 sys.path 中
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -86,7 +85,7 @@ def show_webview2_prompt():
         try:
             err_logger = get_logger('standalone')
             err_logger.warning(f"[OpenAver] 無法顯示 WebView2 提示視窗：{e}")
-        except Exception:
+        except Exception:  # noqa: S110 — logger may not be initialized; silent fallback is intentional
             pass
         return False
 
@@ -120,7 +119,7 @@ def show_error(title, message, details=None, logger=None):
                 err_logger.error(f"{title}: {message}")
                 if details:
                     err_logger.error(f"Details: {details}")
-            except Exception:
+            except Exception:  # noqa: S110 — logger not yet initialized; silent fallback is intentional
                 pass  # logger 未初始化時靜默失敗
 
 
@@ -159,7 +158,7 @@ def find_free_port(start_port=49152, logger=None, max_attempts=100):
             if sock:
                 try:
                     sock.close()
-                except Exception:
+                except Exception:  # noqa: S110 — cleanup after port probe; socket close failure is harmless
                     pass
 
     # 提供更詳細的錯誤信息和解決方案
@@ -394,7 +393,7 @@ if __name__ == '__main__':
         try:
             err_logger = get_logger('standalone')
             err_logger.error(f"未預期的錯誤：{e}\n{error_details}")
-        except Exception:
+        except Exception:  # noqa: S110 — logger may not be initialized at startup crash; silent fallback is intentional
             pass
         show_error(
             "啟動失敗 - 未知錯誤",

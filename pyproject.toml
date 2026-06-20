@@ -1,0 +1,14 @@
+[tool.ruff]
+target-version = "py312"
+exclude = ["venv", "tools", "tests"]
+
+[tool.ruff.lint]
+select = ["E722", "F", "B", "T201", "S110", "S112"]
+
+[tool.ruff.lint.per-file-ignores]
+"core/scrapers/avsox.py" = ["T201"]
+"core/scrapers/fc2.py" = ["T201"]
+"core/gallery_generator.py" = ["T201"]
+"core/gallery_scanner.py" = ["T201"]
+"build.py" = ["T201"]
+"build_macos.py" = ["T201"]

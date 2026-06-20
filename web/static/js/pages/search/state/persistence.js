@@ -58,17 +58,6 @@ export function searchStatePersistence() {
                 this.lightboxIndex = -1;
             }
 
-            // F4: grid 模式返回時觸發 settle 動畫（C17 時序：$nextTick + rAF）
-            if (hasResult && this.displayMode === 'grid') {
-                this.$nextTick(function () {
-                    requestAnimationFrame(function () {
-                        var grid = document.querySelector('.search-grid');
-                        window.SearchAnimations?.playGridSettle?.(grid);
-                    });
-                });
-            }
-
-
         } catch (e) {
             console.error('[Alpine] 還原狀態失敗:', e);
             sessionStorage.removeItem(this.STATE_KEY);

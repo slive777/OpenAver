@@ -7,7 +7,7 @@ import re
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from web.static_cache import NoCacheStaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -21,7 +21,7 @@ setup_logging()
 logger = get_logger(__name__)
 
 from core.config import load_config
-from core.database import VideoRepository, init_db
+from core.database import init_db
 from core.metatube.state import metatube_state as _mt_startup_state
 
 

@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.5] - 2026-06-21
+
+本版主軸：**開發工具鏈硬化——lint 守衛進 CI、ruff 補 Python 缺口、清殭屍工具**（feature/78）。純開發工具鏈，**產品 runtime / API / DB / UI 零改動**，產品仍零 node 依賴（node 只在 CI runner）。緣起：前端 lint（eslint + stylelint）過去純本地、CI 只跑 pytest，沒人本地跑就漏；Python 端缺自動守衛（unused import / bare except / 閉包 loop-var 等無人擋）；mypy config 齊全卻從不執行＝假象保護。本版把「擋得住回歸」這件事接上 CI，不再靠開發者記得本地跑。
+
+### Added
+- **ruff 導入**：新增 `pyproject.toml`（`[tool.ruff]`，6 規則族 E722/F/B/T201/S110/S112，排除 venv/tools/tests）。存量 184 處違規清零、行為保留：unused import/var 自動修；`raise ... from e`、`zip(strict=)`、閉包 loop-var 綁定等逐條手動修（皆與原行為逐位元相同）。
+- **CI lint-frontend job**：`.github/workflows/test.yml` 新增平行 job 跑 `npm ci` + `npm run lint`（eslint + stylelint）+ `ruff check .`，與既有 pytest job 各自獨立擋 PR。
+- **CI/工具鏈守衛測試**（`tests/unit/test_ci_workflow_guard.py`）：防 lint job 被靜默移除、ruff 版本兩處漂移、mypy 殭屍復活。
+
+### Changed
+- **package-lock.json 進版控**：移除 `.gitignore` 排除行，CI `npm ci` 可重現安裝、鎖定 eslint/stylelint 版本不漂移。
+- **ruff 版本鎖定**：`requirements-test.txt` 與 CI 兩處精確 pin `ruff==0.15.17`（lint 是 PR gate，避免 upstream 自動升級在 repo 無改動下讓 CI 轉紅），並以守衛鎖成單一真理源。
+
+### Removed
+- **mypy 殭屍**：刪 `mypy.ini` + `requirements-test.txt` 的 mypy / types-requests（config 齊全但 CI 從不跑、歷史 findings 無一條 mypy 可抓）。
+
+### Internal
+- **path_utils 契約守衛擴及 `tests/`**：手寫 `file:///` / `[8:]` strip / shadow path helper 在測試碼也擋；先修守衛自傷（自描述文字加 `# path-contract-ok` 錨點）再擴範圍，真違規清零。
+- **AGENTS.md `Out of scope` 增量**：新增 Ruff 子段（哪些 Python 問題已由 ruff 接管、reviewer 不再人肉 flag）+ path_utils 契約行；修正過時宣稱（unused var 已歸 ruff）。
+- **backstop 保守審計**：lint 進 CI 後逐條審 `test_frontend_lint.py`（182 class）哪些可退役——本版 0 退役（可表達為 lint rule 的重複守衛前幾輪已退，現存皆 HTML 掃描 / 跨檔 contract / line-allowlist 等 lint 不可表達者）；大規模 deflation 留 milestone。
+- 新增 `PyYAML` 明確宣告（CI guard 自己的依賴，不再吃 transitive）。`build.py` EXCLUDE_PACKAGES 加 ruff、移除 mypy 殘留（防進 ZIP）。
+
+### Non-Goals（明確不做）
+- 不採 `ruff format` / black / pre-commit hook（避免大 diff 汙染 blame、擾 commit 流程）；不全開 ruff 規則（只選定 6 類控存量）。
+- 不為拉型別覆蓋率補 type hint（**刪** mypy，不是餵它）。
+- 不在本版做 JS 硬編碼 CJK 守衛（eslint AST 不適用、需先 i18n 化現有字串 → 綁下次 milestone i18n sweep）。
+- 不動產品 runtime / API / DB / UI；不把 node 帶進產品 ZIP；不重寫 `test_frontend_lint.py`（大規模 deflation 留 milestone）。
+
+### 測試
+- 全套 pytest **4367 passed, 2 skipped**（unit + integration，排除 smoke / e2e，較 0.10.4 的 4355 +12：新增工具鏈守衛 + ruff 清理觸發的重收集）+ `ruff check .` 綠 + `npm run lint`（eslint + stylelint）綠。
+- 來源金絲雀：**8 源全 PASS**（pre-merge live 健康檢查）。
+
 ## [0.10.4] - 2026-06-20
 
 本版主軸：**Fluent 材質系統全站統一 — 6 角色材質 + B 浮動 chrome**（feature/77）。純前端、零後端／API／DB、**theme.css 全程零改**——所有材質規則寫進全站最後載入的 `fluent-materials.css`（source-order 覆寫），永不觸發 Tailwind recompile。全部 `[data-theme="dim"]`-scoped（light 模式維持現狀；dim 下材質才生效，避免 light 引用未定義 token 導致背景消失）。把過去零散的「材質三層」收斂成一套**單一 token 系統的 6 角色**：Mica canvas（整頁氛圍）→ Glass shell（側欄／頁首／工具列等殼層）→ Glass panel（閱讀面）→ Glass caption（卡片標題條）→ Glass overlay（燈箱／modal／popover／抽屜）→ Media frame（星空外框）。封面海報維持 100% 乾淨（不加任何 blur／tint，封面是主角）。並把「浮動圓角玻璃條」從 showcase 工具列擴及 search 搜尋列與 settings／scanner 頁首，桌面 chrome 視覺統一。
