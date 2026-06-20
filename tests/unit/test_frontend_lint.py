@@ -5242,12 +5242,16 @@ class TestPathContract:
     4 個守衛測試掃描 production code 禁止模式（T7a-T7e 已全部修正通過）。
     """
 
-    # 掃描範圍：core/ web/ windows/（排除 path_utils.py 本身）
-    _SCAN_DIRS = ['core', 'web', 'windows']
+    # 掃描範圍：core/ web/ windows/ tests/（排除 path_utils.py 本身）
+    # T4（feature/78）：擴及 tests/——test 檔手寫 file:/// / [8:] 也擋。  # path-contract-ok
+    _SCAN_DIRS = ['core', 'web', 'windows', 'tests']
     _ALLOWED_FILE = 'path_utils.py'
+    # 自描述守衛文字（docstring/comment/pattern 變數）以行尾錨點豁免，
+    # 避免守衛掃到自己描述禁止 pattern 的文字而自傷。真違規行不會帶此 token。
+    _CONTRACT_OK = staticmethod(lambda line, _n: '# path-contract-ok' in line)
 
     def _collect_py_files(self):
-        """收集 core/、web/、windows/ 下所有 .py 檔（排除 path_utils.py）"""
+        """收集 core/、web/、windows/、tests/ 下所有 .py 檔（排除 path_utils.py）"""
         files = []
         for dir_name in self._SCAN_DIRS:
             scan_dir = PROJECT_ROOT / dir_name
@@ -5260,12 +5264,12 @@ class TestPathContract:
         return files
 
     def test_no_raw_uri_strip(self):
-        """掃描 Python 檔，確認無 path[8:] 或 path[len('file:///'):]  手動 URI strip"""
-        # 符合 [8:] 或 [len('file:///'):]
+        """掃描 Python 檔，確認無 path[8:] 或 path[len('file:///'):]  手動 URI strip"""  # path-contract-ok
+        # 符合 [8:] 或 [len('file:///'):]  # path-contract-ok
         pattern = r'''\[8:\]|\[len\(['"]file:///['"]\):\]'''
         violations = []
         for py_file in self._collect_py_files():
-            matches = find_pattern_in_file(py_file, pattern)
+            matches = find_pattern_in_file(py_file, pattern, exclude_lines=self._CONTRACT_OK)
             for line_num, line_content in matches:
                 violations.append(
                     f"{py_file.relative_to(PROJECT_ROOT)}:{line_num} — {line_content[:80]}"
@@ -5280,7 +5284,7 @@ class TestPathContract:
         pattern = r'f["\']file:///'
         violations = []
         for py_file in self._collect_py_files():
-            matches = find_pattern_in_file(py_file, pattern)
+            matches = find_pattern_in_file(py_file, pattern, exclude_lines=self._CONTRACT_OK)
             for line_num, line_content in matches:
                 violations.append(
                     f"{py_file.relative_to(PROJECT_ROOT)}:{line_num} — {line_content[:80]}"
@@ -5291,11 +5295,11 @@ class TestPathContract:
         )
 
     def test_no_shadow_path_helpers(self):
-        """掃描 Python 檔，確認無 def wsl_to_windows_path / def to_file_uri shadow helper"""
-        pattern = r'def wsl_to_windows_path|def to_file_uri'
+        """掃描 Python 檔，確認無 def wsl_to_windows_path / def to_file_uri shadow helper"""  # path-contract-ok
+        pattern = r'def wsl_to_windows_path|def to_file_uri'  # path-contract-ok
         violations = []
         for py_file in self._collect_py_files():
-            matches = find_pattern_in_file(py_file, pattern)
+            matches = find_pattern_in_file(py_file, pattern, exclude_lines=self._CONTRACT_OK)
             for line_num, line_content in matches:
                 violations.append(
                     f"{py_file.relative_to(PROJECT_ROOT)}:{line_num} — {line_content[:80]}"

@@ -16,7 +16,7 @@ U12 scan-fail 保卡（保 path/title/cover/tags/created_at/id，回 "failed"）
 U13 ranker invalidate — 正常 UPDATE 分支
 U14 ranker invalidate — scan-fail 保卡分支
 U15 ranker invalidate — 碰撞 delete-merge 分支
-U16 old_uri 使用 to_file_uri(normalize_path(...))，無手拼 URI、無 [8:] strip
+U16 old_uri 使用 to_file_uri(normalize_path(...))，無手拼 URI、無 [8:] strip  # path-contract-ok
 U23 scraped_metadata overlay — cd2 skipped-NFO multipart 有完整 metadata
 U24 scraped_metadata=None — cd1/normal 路徑行為不變
 """
@@ -599,7 +599,7 @@ def test_u15_ranker_invalidate_collision(tmp_path):
 # ─── U16: grep 守衛 — 無手拼 URI ─────────────────────────────────────────
 
 def test_u16_no_manual_uri_construction():
-    """db_inflow.py 中不應有 'file:///' 手拼或 '[8:]' strip。"""
+    """db_inflow.py 中不應有 'file:///' 手拼或 '[8:]' strip。"""  # path-contract-ok
     import re
     db_inflow_path = Path(__file__).parent.parent.parent / "core" / "db_inflow.py"
     content = db_inflow_path.read_text(encoding="utf-8")
@@ -608,9 +608,9 @@ def test_u16_no_manual_uri_construction():
     bad_furi = re.findall(r'"file:///|\'file:///', content)
     assert not bad_furi, f"db_inflow.py 不應手拼 file:/// URI，發現: {bad_furi}"
 
-    # 禁止 [8:] URI strip
+    # 禁止 [8:] URI strip  # path-contract-ok
     bad_strip = re.findall(r'\[8:\]', content)
-    assert not bad_strip, f"db_inflow.py 不應有 [8:] strip，發現: {bad_strip}"
+    assert not bad_strip, f"db_inflow.py 不應有 [8:] strip，發現: {bad_strip}"  # path-contract-ok
 
 
 # ─── U17: repath_path_only — 正常搬移（Fix 2） ────────────────────────────────
