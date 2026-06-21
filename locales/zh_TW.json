@@ -283,6 +283,7 @@
       "copied": "已複製連線網址",
       "warning": "同一區網（Wi-Fi / LAN）內的裝置皆可用上方網址直接連線本機，請於信任的網路環境下使用。外網存取請自行配置 VPN（如 Tailscale）。",
       "no_lan_ip": "無法自動取得本機區網 IP，請於系統網路設定查看本機 IP 後手動連線。",
+      "listener_down": "LAN 伺服器未啟動，請切回單機後重新開啟伺服器模式。",
       "toggle_failed": "無法啟動 LAN 伺服器，請稍後再試。",
       "autostart_failed": "重新啟動後無法自動開啟 LAN 伺服器模式，請至設定重新開啟。"
     },

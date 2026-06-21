@@ -270,17 +270,18 @@
       "locale_prefix": "Locale"
     },
     "mode": {
-      "label": "連線模式：單機或伺服器",
-      "local": "單機",
-      "server": "伺服器"
+      "label": "Connection mode: Local or Server",
+      "local": "Local",
+      "server": "Server"
     },
     "server_info": {
-      "copy": "複製",
-      "copied": "已複製連線網址",
-      "warning": "同一區網（Wi-Fi / LAN）內的裝置皆可用上方網址直接連線本機，請於信任的網路環境下使用。外網存取請自行配置 VPN（如 Tailscale）。",
-      "no_lan_ip": "無法自動取得本機區網 IP，請於系統網路設定查看本機 IP 後手動連線。",
-      "toggle_failed": "無法啟動 LAN 伺服器，請稍後再試。",
-      "autostart_failed": "重新啟動後無法自動開啟 LAN 伺服器模式，請至設定重新開啟。"
+      "copy": "Copy",
+      "copied": "URL copied",
+      "warning": "Any device on the same network (Wi-Fi / LAN) can access this machine via the URL above. Only use on trusted networks. For remote access, configure a VPN (e.g. Tailscale).",
+      "no_lan_ip": "Could not detect local LAN IP automatically. Check your system network settings for your IP and connect manually.",
+      "listener_down": "LAN server is not running. Switch back to Local mode and re-enable Server mode.",
+      "toggle_failed": "Failed to start LAN server. Please try again later.",
+      "autostart_failed": "LAN server mode could not start automatically after restart. Go to Settings to re-enable it."
     },
     "section": {
       "search": "Search & Scrape",

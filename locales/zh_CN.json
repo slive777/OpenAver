@@ -270,17 +270,18 @@
       "locale_prefix": "语言"
     },
     "mode": {
-      "label": "連線模式：單機或伺服器",
-      "local": "單機",
-      "server": "伺服器"
+      "label": "连接模式：单机或服务器",
+      "local": "单机",
+      "server": "服务器"
     },
     "server_info": {
-      "copy": "複製",
-      "copied": "已複製連線網址",
-      "warning": "同一區網（Wi-Fi / LAN）內的裝置皆可用上方網址直接連線本機，請於信任的網路環境下使用。外網存取請自行配置 VPN（如 Tailscale）。",
-      "no_lan_ip": "無法自動取得本機區網 IP，請於系統網路設定查看本機 IP 後手動連線。",
-      "toggle_failed": "無法啟動 LAN 伺服器，請稍後再試。",
-      "autostart_failed": "重新啟動後無法自動開啟 LAN 伺服器模式，請至設定重新開啟。"
+      "copy": "复制",
+      "copied": "已复制连接网址",
+      "warning": "同一局域网（Wi-Fi / LAN）内的设备均可通过上方网址直接连接本机，请在受信任的网络环境下使用。如需外网访问，请自行配置 VPN（如 Tailscale）。",
+      "no_lan_ip": "无法自动获取本机局域网 IP，请在系统网络设置中查看本机 IP 后手动连接。",
+      "listener_down": "LAN 服务器未启动，请切换回单机模式后重新开启服务器模式。",
+      "toggle_failed": "无法启动 LAN 服务器，请稍后再试。",
+      "autostart_failed": "重新启动后无法自动开启 LAN 服务器模式，请前往设置重新开启。"
     },
     "section": {
       "search": "搜索与刮削",
