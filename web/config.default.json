@@ -51,7 +51,7 @@
     },
     "gemini": {
       "api_key": "",
-      "model": "gemini-2.0-flash-lite"
+      "model": "gemini-flash-lite-latest"
     }
   },
   "gallery": {
