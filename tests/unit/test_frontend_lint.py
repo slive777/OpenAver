@@ -12979,3 +12979,81 @@ class TestServerModeToggleGuard:
         assert "j.lan_ip ?? this.lanIp" not in js, (
             "state-config.js loadConfig() 不得用 'j.lan_ip ?? this.lanIp'（P2-2 stale IP bug）"
         )
+
+
+class TestMobileToolbarToggle:
+    """feature/81 T2（US-1 / CD-1·CD-2·CD-4）：行動搜尋 store + navbar icon + toolbar 綁定。
+
+    純靜態守衛（bs4 + 字串）。斷言：
+    - base.html alpine:init 註冊 Alpine.store('ui', { toolbarOpen:false })。
+    - navbar 搜尋 button：navbar-search-btn + lg:hidden + bi-search + @click 翻轉 $store.ui.toolbarOpen。
+    - 該 button 被 {% if page in ['showcase','search'] %} Jinja gate。
+    - showcase.toolbar / search.search-bar 綁 :class mobile-toolbar-open ← $store.ui.toolbarOpen（CD-11 兩頁）。
+    動畫/收合/CSS gate 屬 T3/T4，不在此守衛。
+    """
+
+    def _base(self):
+        return BASE_HTML_T76.read_text(encoding="utf-8")
+
+    def test_store_registered_in_alpine_init(self):
+        """base.html 在 alpine:init 監聽內註冊 Alpine.store('ui', { toolbarOpen: false })。"""
+        html = self._base()
+        assert "alpine:init" in html, "base.html missing alpine:init listener"
+        assert "Alpine.store('ui'" in html, "base.html missing Alpine.store('ui') registration"
+        assert "toolbarOpen" in html, "base.html missing toolbarOpen store field"
+        # 註冊字串與 alpine:init 監聽同段（store 註冊掛在 alpine:init callback 內）
+        assert re.search(
+            r"alpine:init['\"]\s*,\s*\(\)\s*=>\s*\{\s*Alpine\.store\(\s*['\"]ui['\"]\s*,\s*\{\s*toolbarOpen:\s*false",
+            html,
+        ), "base.html: Alpine.store('ui', { toolbarOpen: false }) 須在 alpine:init callback 內註冊"
+
+    def test_navbar_search_button(self):
+        """navbar 搜尋 button：navbar-search-btn + lg:hidden + bi-search + @click 翻轉 $store.ui.toolbarOpen。"""
+        from bs4 import BeautifulSoup
+        html = self._base()
+        btns = BeautifulSoup(html, "html.parser").select("button.navbar-search-btn")
+        assert len(btns) == 1, f"base.html 須有且僅有 1 個 button.navbar-search-btn（實得 {len(btns)}）"
+        btn = btns[0]
+        classes = btn.get("class", [])
+        assert "lg:hidden" in classes, "navbar-search-btn 須有 lg:hidden（≤1023px gate）"
+        icons = btn.select("i.bi.bi-search")
+        assert icons, "navbar-search-btn 內須有 <i class='bi bi-search'>"
+        click = btn.get("@click", "")
+        assert "$store.ui.toolbarOpen" in click, \
+            f"navbar-search-btn @click 須翻轉 $store.ui.toolbarOpen（實得 {click!r}）"
+
+    def test_navbar_search_button_jinja_gated(self):
+        """搜尋 button 被 {% if page in ['showcase', 'search'] %} Jinja gate（僅兩頁渲染）。"""
+        html = self._base()
+        # 容忍引號/空白變體
+        assert re.search(
+            r"\{%\s*if\s+page\s+in\s+\[\s*['\"]showcase['\"]\s*,\s*['\"]search['\"]\s*\]\s*%\}",
+            html,
+        ), "base.html: navbar 搜尋 button 須被 {% if page in ['showcase', 'search'] %} gate"
+        # button 落在該 gate 與其 endif 之間
+        m = re.search(
+            r"\{%\s*if\s+page\s+in\s+\[\s*['\"]showcase['\"]\s*,\s*['\"]search['\"]\s*\]\s*%\}(.*?)\{%\s*endif\s*%\}",
+            html, re.DOTALL,
+        )
+        assert m and "navbar-search-btn" in m.group(1), \
+            "navbar-search-btn 須落在 {% if page in ['showcase','search'] %} … {% endif %} 區段內"
+
+    def test_showcase_toolbar_class_binding(self):
+        """showcase.html .showcase-toolbar 綁 :class mobile-toolbar-open ← $store.ui.toolbarOpen。"""
+        from bs4 import BeautifulSoup
+        html = SHOWCASE_HTML.read_text(encoding="utf-8")
+        divs = BeautifulSoup(html, "html.parser").select("div.showcase-toolbar")
+        assert divs, "showcase.html missing div.showcase-toolbar"
+        binding = divs[0].get(":class", "")
+        assert "mobile-toolbar-open" in binding and "$store.ui.toolbarOpen" in binding, \
+            f".showcase-toolbar :class 須含 mobile-toolbar-open ← $store.ui.toolbarOpen（實得 {binding!r}）"
+
+    def test_search_bar_class_binding(self):
+        """search.html .search-bar 綁同一 :class（CD-11 兩頁 parity）。"""
+        from bs4 import BeautifulSoup
+        html = SEARCH_HTML.read_text(encoding="utf-8")
+        divs = BeautifulSoup(html, "html.parser").select("div.search-bar")
+        assert divs, "search.html missing div.search-bar"
+        binding = divs[0].get(":class", "")
+        assert "mobile-toolbar-open" in binding and "$store.ui.toolbarOpen" in binding, \
+            f".search-bar :class 須含 mobile-toolbar-open ← $store.ui.toolbarOpen（實得 {binding!r}）"

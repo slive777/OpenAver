@@ -492,6 +492,14 @@
             </span>
         </div>
         <div class="navbar-end">
+            {% if page in ['showcase', 'search'] %}
+            <!-- 81-T2: mobile 搜尋 icon（僅 showcase/search）→ toggle toolbar -->
+            <button type="button"
+                    class="navbar-search-btn lg:hidden"
+                    @click="$store.ui.toolbarOpen = !$store.ui.toolbarOpen">
+                <i class="bi bi-search"></i>
+            </button>
+            {% endif %}
             <!-- 53b-T4: mobile 鈴鐺 -->
             <button x-ref="mobileBellBtn"
                     @click.stop="toggleDrawer($refs.mobileBellBtn)"
@@ -715,6 +723,11 @@
 
     {% block pre_alpine_module %}{% endblock %}
 
+    <!-- 81-T2: 行動搜尋 toolbar 跨 component 共享狀態（navbar icon ↔ page toolbar）。
+         非 defer，掛 alpine:init（早於任何 x-data init）→ store 必先於 page component 求值 -->
+    <script>
+      document.addEventListener('alpine:init', () => { Alpine.store('ui', { toolbarOpen: false }); });
+    </script>
     <!-- Alpine Plugins (must load before Alpine Core) — 53a: 釘版 3.15.12，新增 focus + intersect -->
     <script defer src="/static/vendor/alpine/persist.min.js"></script>
     <script defer src="/static/vendor/alpine/collapse.min.js"></script>

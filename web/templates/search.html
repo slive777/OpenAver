@@ -264,7 +264,7 @@
     </div>
 
     <!-- 搜尋框 -->
-    <div class="search-bar">
+    <div class="search-bar" :class="{ 'mobile-toolbar-open': $store.ui.toolbarOpen }">
         <form id="searchForm" @submit.prevent="doSearch()">
             <div class="spotlight-search">
                 <i class="bi bi-search search-icon-left"></i>

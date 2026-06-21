@@ -49,7 +49,7 @@
     <div x-show="!error && (videoCount > 0 || showFavoriteActresses)" x-cloak>
 
         <!-- Toolbar -->
-        <div class="showcase-toolbar">
+        <div class="showcase-toolbar" :class="{ 'mobile-toolbar-open': $store.ui.toolbarOpen }">
             <div class="toolbar-section toolbar-search">
                 <div class="spotlight-search spotlight-search--mode-toggle">
                     <!-- 模式切換 segmented toggle (44c-T4) -->
