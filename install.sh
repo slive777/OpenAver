@@ -25,6 +25,28 @@ if [[ "$ARCH" != "arm64" ]]; then
     exit 1
 fi
 
+# --- OpenAver 執行中偵測 ---
+# macOS rm 對 advisory lock 不會 fail，故 rm 成敗不是權威信號，pgrep 才是。
+is_openaver_running() {
+    pgrep -f "$INSTALL_DIR/OpenAver.command" > /dev/null 2>&1 || \
+    pgrep -f "$INSTALL_DIR/python/bin" > /dev/null 2>&1
+}
+
+# 提醒關閉並等待（Enter 重試 / q 取消），不強殺；不必重跑整條指令
+wait_openaver_closed() {
+    while is_openaver_running; do
+        echo ""
+        echo "⚠️  OpenAver 目前正在執行，無法覆蓋安裝。"
+        echo "   請關閉 OpenAver 後，按 Enter 繼續（或輸入 q 取消）"
+        local REPLY
+        read -r REPLY < /dev/tty
+        if [[ "$REPLY" == "q" || "$REPLY" == "Q" ]]; then
+            echo "取消安裝"
+            exit 0
+        fi
+    done
+}
+
 # --- 查詢最新版本 ---
 echo "🔍 查詢最新版本..."
 RELEASE_JSON=$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest") || {
@@ -52,6 +74,9 @@ if [[ -d "$INSTALL_DIR" ]]; then
         echo "取消安裝"
         exit 0
     fi
+
+    # 下載前提早偵測：OpenAver 在跑就先擋，省得白下載才被卡
+    wait_openaver_closed
 fi
 
 # --- 下載 ---
@@ -62,16 +87,10 @@ TMP_ZIP="$TMP_DIR/OpenAver.zip"
 curl -fSL --progress-bar "$DOWNLOAD_URL" -o "$TMP_ZIP"
 
 # --- 清除舊版 embedded Python（避免套件混版）---
-# macOS rm 對 advisory lock 不會 fail，必須事前用 pgrep 攔截，否則會悄悄混版
+# macOS rm 對 advisory lock 不會 fail，必須事前用 pgrep 攔截，否則會悄悄混版。
+# 權威信號＝pgrep；仍在跑就提醒關閉並等待（不重跑指令、不強殺）後再 rm。
 if [[ -d "$INSTALL_DIR/python" ]]; then
-    if pgrep -f "$INSTALL_DIR/OpenAver.command" > /dev/null 2>&1 || \
-       pgrep -f "$INSTALL_DIR/python/bin" > /dev/null 2>&1; then
-        echo ""
-        echo "❌ 無法更新：OpenAver 目前正在執行。"
-        echo "   請先關閉 OpenAver 視窗，再重新執行安裝指令。"
-        echo "   Close OpenAver first, then re-run the installer."
-        exit 1
-    fi
+    wait_openaver_closed
     echo "🧹 清除舊版 Python runtime..."
     rm -rf "$INSTALL_DIR/python"
 fi
