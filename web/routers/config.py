@@ -133,6 +133,22 @@ def update_general_field(field: str, request: GeneralFieldRequest) -> dict:
         if field == "server_mode" and not isinstance(request.value, bool):
             raise HTTPException(status_code=400, detail="server_mode 必須為布林值")
 
+        # server_mode 專屬分支：start/stop LAN listener，成功才 persist（早期回傳）
+        if field == "server_mode":
+            from web.lan_listener import lan_listener
+            if request.value is True:
+                try:
+                    lan_port = lan_listener.start()      # 先啟動，成功才 persist
+                except Exception as e:                    # noqa: BLE001
+                    logger.error("server_mode 啟用失敗: %s", e)
+                    return {"success": False, "error": "無法啟動 LAN 伺服器"}
+                mutate_config(lambda cfg: cfg.setdefault("general", {}).update({"server_mode": True}))
+                return {"success": True, "lan_port": lan_port}
+            else:
+                lan_listener.stop()
+                mutate_config(lambda cfg: cfg.setdefault("general", {}).update({"server_mode": False}))
+                return {"success": True, "lan_port": None}
+
         # locale 驗證在 mutate 前（保留既有順序：驗證 → 寫入 → translate reset）
         if field == "locale" and request.value not in ("zh-TW", "zh-CN", "ja", "en"):
             logger.warning("嘗試設定不支援的語系: %s", request.value)
@@ -150,6 +166,13 @@ def update_general_field(field: str, request: GeneralFieldRequest) -> dict:
     except Exception as e:
         logger.error("更新設定欄位失敗: %s", e)
         return {"success": False, "error": "更新設定欄位失敗"}
+
+
+@router.get("/config/general/lan-port")
+def get_lan_port() -> dict:
+    """取得 LAN listener 目前使用的 port（server mode 啟用中回 int，否則 null）"""
+    from web.lan_listener import lan_listener
+    return {"lan_port": lan_listener.lan_port if lan_listener.is_running else None}
 
 
 @router.get("/version")

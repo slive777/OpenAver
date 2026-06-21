@@ -165,7 +165,9 @@ class TestServerModeEndpoint:
 
     @pytest.fixture
     def mock_config_path(self, tmp_path, monkeypatch):
-        """Mock CONFIG_PATH，初始化含 general 的 config"""
+        """Mock CONFIG_PATH，初始化含 general 的 config。
+        同時 mock lan_listener.start/stop 避免真實 uvicorn 啟動（T6b 起 server_mode true
+        觸發 lan_listener.start()，測試環境未 wire → 需 mock）。"""
         config_path = tmp_path / "config.json"
         default_path = tmp_path / "config.default.json"
 
@@ -179,6 +181,9 @@ class TestServerModeEndpoint:
         monkeypatch.setattr("core.config.CONFIG_PATH", config_path)
         monkeypatch.setattr("core.config.CONFIG_DEFAULT_PATH", default_path)
         monkeypatch.setattr("web.routers.config._reset_translate_service", lambda: None)
+        # T6b: server_mode toggle 呼叫 lan_listener.start()/stop() — mock 避免真實啟動
+        monkeypatch.setattr("web.lan_listener.lan_listener.start", lambda *a, **k: 49200)
+        monkeypatch.setattr("web.lan_listener.lan_listener.stop", lambda *a, **k: None)
 
         return config_path
 

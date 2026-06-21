@@ -27,8 +27,7 @@ import webview
 from pywebview_api import api, bind_events
 
 # 配置
-BIND_HOST = "0.0.0.0"      # uvicorn 監聽所有介面（含 LAN）
-CLIENT_HOST = "127.0.0.1"  # 桌面 App 自連：find_free_port、health 探活、WebView URL
+CLIENT_HOST = "127.0.0.1"  # 桌面 App 自連：find_free_port、health 探活、WebView URL（loopback only）
 PORT = 49152  # 使用動態/私有端口範圍 (49152-65535)，避免權限問題
 STARTUP_TIMEOUT = 30  # 最多等待 30 秒
 
@@ -216,7 +215,7 @@ def run_server(port, debug_mode=False):
 
     config = uvicorn.Config(
         app,
-        host=BIND_HOST,
+        host=CLIENT_HOST,
         port=port,
         log_level=log_level,
         access_log=access_log,
@@ -279,6 +278,23 @@ def main():
         sys.exit(1)
     logger.info("伺服器已就緒")
 
+    # 3b. 接線 LAN listener manager（dual-listener 架構）
+    from web.app import app as _app
+    from web.lan_listener import lan_listener
+    lan_listener.wire(_app, local_port=port)
+    from core.config import load_config
+    if load_config().get("general", {}).get("server_mode", False):
+        try:
+            _lp = lan_listener.start()
+            logger.info("server_mode persisted true → LAN listener on :%s", _lp)
+        except Exception as e:                     # noqa: BLE001 — auto-start best-effort
+            logger.warning("auto-start LAN listener failed: %s", e)
+            try:
+                from web.routers.notifications import emit_notification
+                emit_notification("error", "settings.server_info.autostart_failed", str(e))
+            except Exception:  # noqa: BLE001,S110 — emit_notification failure is harmless; best-effort only
+                pass
+
     # 4. 啟動 PyWebView 窗口
     logger.info("啟動視窗...")
     webview.settings['OPEN_DEVTOOLS_IN_DEBUG'] = False
@@ -336,6 +352,7 @@ def main():
                 jl_win.destroy()
             except Exception:
                 logger.warning("failed to destroy JL window on app close")
+        lan_listener.shutdown()
 
     def _on_jl_closing():
         # CD-70c-2 Layer 1: user closing the hidden CF window must NOT destroy it

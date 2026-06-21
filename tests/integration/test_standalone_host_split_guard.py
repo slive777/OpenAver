@@ -1,14 +1,18 @@
 """
-TASK-80a-T2: standalone.py HOST 拆分 AST/source 守衛
+TASK-80a-T6b: standalone.py loopback-only HOST AST/source 守衛
+
+dual-listener 架構（T6b 起）：
+  - 主 listener 綁 127.0.0.1（loopback only，消除單機防火牆提示）
+  - LAN listener（0.0.0.0）由 web/lan_listener.py 管理
 
 驗證 windows/standalone.py 中：
-  (a) BIND_HOST = "0.0.0.0"  模組層賦值存在
-  (b) CLIENT_HOST = "127.0.0.1" 模組層賦值存在
-  (c) uvicorn Config/Server 呼叫使用 host=BIND_HOST（不是 CLIENT_HOST）
-  (d) find_free_port 的 sock.bind 使用 CLIENT_HOST（不是 BIND_HOST）
-  (e) wait_for_server health URL 使用 CLIENT_HOST（不是 BIND_HOST）
-  (f) main window create_window URL（非 JL window）使用 CLIENT_HOST
-  (g) 無裸 HOST 模組層賦值殘留（`HOST = "..."` 形式）
+  (a) CLIENT_HOST = "127.0.0.1" 模組層賦值存在
+  (b) 無 BIND_HOST 模組層賦值（已移除，不留殭屍）
+  (c) standalone.py 全檔無 "0.0.0.0" 字面（已移至 web/lan_listener.py）
+  (d) uvicorn Config/Server 呼叫使用 host=CLIENT_HOST（不是 BIND_HOST）
+  (e) find_free_port 的 sock.bind 使用 CLIENT_HOST（loopback probe）
+  (f) wait_for_server health URL 使用 CLIENT_HOST
+  (g) main window create_window URL 使用 CLIENT_HOST
 
 Mirror 慣例：Path.read_text() + ast.parse，不 import windows.standalone
 （test env 無 webview 套件）。
@@ -40,23 +44,8 @@ def _assignment_name_value(node: ast.Assign):
     return None, None
 
 
-class TestStandaloneHostSplitGuard:
-    """TASK-80a-T2 CD #1：HOST 拆分守衛"""
-
-    def test_bind_host_module_assignment_exists(self):
-        """BIND_HOST = "0.0.0.0" 模組層賦值存在"""
-        tree, _ = _parse()
-        assigns = _module_assignments(tree)
-        found = False
-        for a in assigns:
-            name, val = _assignment_name_value(a)
-            if name == "BIND_HOST":
-                assert isinstance(val, ast.Constant) and val.value == "0.0.0.0", (
-                    f"BIND_HOST 存在但值不是 '0.0.0.0'，實際：{ast.unparse(val)}"
-                )
-                found = True
-                break
-        assert found, "BIND_HOST 模組層賦值未找到（需為 BIND_HOST = '0.0.0.0'）"
+class TestStandaloneLoopbackOnlyGuard:
+    """TASK-80a-T6b: loopback-only HOST 守衛（dual-listener 架構，原 T2 改寫）"""
 
     def test_client_host_module_assignment_exists(self):
         """CLIENT_HOST = "127.0.0.1" 模組層賦值存在"""
@@ -73,25 +62,32 @@ class TestStandaloneHostSplitGuard:
                 break
         assert found, "CLIENT_HOST 模組層賦值未找到（需為 CLIENT_HOST = '127.0.0.1'）"
 
-    def test_no_bare_host_module_assignment(self):
-        """不存在裸 HOST = ... 模組層賦值（無殭屍別名）"""
+    def test_no_bind_host_module_assignment(self):
+        """無 BIND_HOST 模組層賦值（dual-listener 後 standalone 不再綁 0.0.0.0）"""
         tree, _ = _parse()
         assigns = _module_assignments(tree)
         violations = []
         for a in assigns:
             name, _ = _assignment_name_value(a)
-            if name == "HOST":
+            if name == "BIND_HOST":
                 violations.append(a.lineno)
         assert not violations, (
-            f"裸 HOST 模組層賦值殘留在 line(s) {violations}，"
-            "應刪除 HOST 並改用 BIND_HOST / CLIENT_HOST"
+            f"BIND_HOST 模組層賦值殘留在 line(s) {violations}，"
+            "T6b 起 BIND_HOST 應已移除（0.0.0.0 由 web/lan_listener.py 管理）"
         )
 
-    def test_uvicorn_config_uses_bind_host(self):
+    def test_no_zero_zero_zero_zero_literal_in_standalone(self):
+        """standalone.py 全檔無 \"0.0.0.0\" 字面（已移至 web/lan_listener.py）"""
+        _, src = _parse()
+        assert "0.0.0.0" not in src, (
+            "standalone.py 含有 '0.0.0.0' 字面——T6b 後主 listener 應只綁 loopback；"
+            "0.0.0.0 應在 web/lan_listener.py 中"
+        )
+
+    def test_uvicorn_config_uses_client_host(self):
         """
-        uvicorn.Config(app, host=BIND_HOST, ...) 使用 BIND_HOST。
-        以 source text 搜尋確認 host=BIND_HOST 關鍵字出現，且無 host=CLIENT_HOST
-        出現在 uvicorn Config 鄰近行。
+        uvicorn.Config(..., host=CLIENT_HOST, ...) 使用 CLIENT_HOST（loopback）。
+        確認 host=CLIENT_HOST 出現，且無 host=BIND_HOST。
         """
         _, src = _parse()
         lines = src.splitlines()
@@ -103,34 +99,33 @@ class TestStandaloneHostSplitGuard:
         ]
         assert uvicorn_lines, "standalone.py 中找不到 uvicorn.Config / uvicorn.run 呼叫"
 
-        # 找 host=BIND_HOST 出現
+        # 找 host=CLIENT_HOST 出現（主 listener 綁 loopback）
+        host_client_lines = [
+            (i, line) for i, line in enumerate(lines, 1)
+            if "host=CLIENT_HOST" in line
+        ]
+        assert host_client_lines, (
+            "找不到 host=CLIENT_HOST — uvicorn 主 listener 應綁 CLIENT_HOST（127.0.0.1）"
+        )
+
+        # 確認無 host=BIND_HOST（BIND_HOST 已移除）
         host_bind_lines = [
             (i, line) for i, line in enumerate(lines, 1)
             if "host=BIND_HOST" in line
         ]
-        assert host_bind_lines, (
-            "找不到 host=BIND_HOST — uvicorn 應用 BIND_HOST（0.0.0.0）而非 CLIENT_HOST"
-        )
-
-        # 確認無 host=CLIENT_HOST（該鍵不應出現在 uvicorn config 中）
-        host_client_in_uvicorn = [
-            (i, line) for i, line in enumerate(lines, 1)
-            if "host=CLIENT_HOST" in line
-        ]
-        assert not host_client_in_uvicorn, (
-            f"uvicorn 誤用 host=CLIENT_HOST 在 line(s) "
-            f"{[i for i, _ in host_client_in_uvicorn]}；"
-            "應使用 host=BIND_HOST"
+        assert not host_bind_lines, (
+            f"uvicorn 仍用 host=BIND_HOST 在 line(s) "
+            f"{[i for i, _ in host_bind_lines]}；"
+            "T6b 後應使用 host=CLIENT_HOST（loopback only）"
         )
 
     def test_find_free_port_uses_client_host(self):
         """
-        find_free_port 的 sock.bind 使用 CLIENT_HOST。
-        在 source text 確認 sock.bind((CLIENT_HOST, port)) 出現。
+        find_free_port 的 sock.bind 使用 CLIENT_HOST（loopback probe）。
         """
         _, src = _parse()
         assert "sock.bind((CLIENT_HOST," in src, (
-            "find_free_port 的 sock.bind 應使用 CLIENT_HOST（不是 BIND_HOST）"
+            "find_free_port 的 sock.bind 應使用 CLIENT_HOST（loopback，不是 0.0.0.0）"
         )
 
     def test_wait_for_server_uses_client_host(self):
@@ -138,10 +133,6 @@ class TestStandaloneHostSplitGuard:
         wait_for_server health URL 使用 CLIENT_HOST。
         """
         _, src = _parse()
-        assert "CLIENT_HOST}" in src or "{CLIENT_HOST}" in src, (
-            "wait_for_server URL 應使用 CLIENT_HOST（不是 BIND_HOST）"
-        )
-        # 確認 health URL 行包含 CLIENT_HOST
         health_lines = [
             line for line in src.splitlines()
             if "/api/health" in line
@@ -155,16 +146,12 @@ class TestStandaloneHostSplitGuard:
     def test_main_window_create_window_uses_client_host(self):
         """
         main window（OpenAver）的 create_window URL 使用 CLIENT_HOST、非 BIND_HOST。
-
-        主視窗 URL 字面為單引號、無路徑：f'http://{CLIENT_HOST}:{port}'，
-        與 health URL（雙引號 + /api/health 後綴）不同 → 此斷言能特定鎖定主視窗，
-        若主視窗誤改回 BIND_HOST 會 RED（mutation-sensitive）。
+        主視窗 URL 為 f'http://{CLIENT_HOST}:{port}'（mutation-sensitive）。
         """
         _, src = _parse()
         assert "f'http://{CLIENT_HOST}:{port}'" in src, (
             "主視窗 create_window URL 應為 f'http://{CLIENT_HOST}:{port}'（CLIENT_HOST、非 BIND_HOST）"
         )
-        # 反向：主視窗 URL 不得用 BIND_HOST（避免桌面 App 載入 0.0.0.0）
         assert "f'http://{BIND_HOST}:{port}'" not in src, (
             "主視窗 URL 不可用 BIND_HOST（桌面 App 須走 loopback）"
         )
