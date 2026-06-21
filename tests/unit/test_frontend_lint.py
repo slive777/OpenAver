@@ -131,6 +131,72 @@ TAILWIND_CSS = Path(__file__).parent.parent.parent / "web" / "static" / "css" / 
 
 BASE_HTML_T76 = Path(__file__).parent.parent.parent / "web" / "templates" / "base.html"
 
+APPLE_TOUCH_ICON_PNG = Path(__file__).parent.parent.parent / "web" / "static" / "apple-touch-icon.png"
+# theme-color 兩個白名單 hex，須與 CSS --color-base-100 token 換算一致
+# （dim=[data-theme=dim] base-100、light=[data-theme=light] base-100）
+THEME_COLOR_DIM = "#2a303c"
+THEME_COLOR_LIGHT = "#ffffff"
+
+
+class TestAppleTouchIconThemeColor:
+    """TASK-81a-T8 (US-4): apple-touch-icon link + 動態 theme-color meta 守衛。
+
+    - head 有 apple-touch-icon link 指向 /static/apple-touch-icon.png
+    - head 有 theme-color meta，content 為 Jinja 條件，兩白名單 hex 都在
+    - x-init 的 $watch('theme') 會更新 meta[name=theme-color] content（dim/light 雙向）
+    - apple-touch-icon.png 存在且為 180×180（PIL）
+    """
+
+    def _base(self):
+        return BASE_HTML_T76.read_text(encoding="utf-8")
+
+    def test_head_has_apple_touch_icon(self):
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(self._base(), "html.parser")
+        link = soup.find("link", rel="apple-touch-icon")
+        assert link is not None, "base.html head 缺 <link rel=\"apple-touch-icon\">"
+        assert link.get("href") == "/static/apple-touch-icon.png", \
+            f"apple-touch-icon href 應為 /static/apple-touch-icon.png，實為 {link.get('href')!r}"
+
+    def test_head_has_theme_color_meta(self):
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(self._base(), "html.parser")
+        meta = soup.find("meta", attrs={"name": "theme-color"})
+        assert meta is not None, "base.html head 缺 <meta name=\"theme-color\">"
+        content = meta.get("content", "")
+        # 初值為 Jinja 條件：{{ '#2a303c' if theme == 'dim' else '#ffffff' }}
+        assert "theme == 'dim'" in content or "theme=='dim'" in content, \
+            f"theme-color content 應為隨 theme 的 Jinja 條件，實為 {content!r}"
+        assert THEME_COLOR_DIM in content and THEME_COLOR_LIGHT in content, \
+            f"theme-color content 須含 dim/light 兩白名單 hex，實為 {content!r}"
+
+    def test_theme_watch_updates_theme_color(self):
+        """$watch('theme', ...) 區塊會把 dim/light hex 寫進 meta[name=theme-color].content"""
+        html = self._base()
+        # 找出更新 theme-color 的 $watch callback（容忍 &quot; HTML escape）
+        pattern = re.compile(
+            r"\$watch\(\s*['\"]theme['\"].*?theme-color.*?\.content.*?"
+            + re.escape(THEME_COLOR_DIM) + r".*?" + re.escape(THEME_COLOR_LIGHT),
+            re.DOTALL,
+        )
+        assert pattern.search(html), (
+            "base.html x-init 缺 $watch('theme') 更新 meta[name=theme-color].content "
+            f"為 {THEME_COLOR_DIM}/{THEME_COLOR_LIGHT} 的區塊（動態狀態列色被移除？）"
+        )
+
+    def test_apple_touch_icon_png_exists_and_180(self):
+        from PIL import Image
+        assert APPLE_TOUCH_ICON_PNG.exists(), \
+            f"apple-touch-icon.png 不存在：{APPLE_TOUCH_ICON_PNG}（跑 tools/gen_apple_touch_icon.py）"
+        with Image.open(APPLE_TOUCH_ICON_PNG) as img:
+            assert img.size == (180, 180), \
+                f"apple-touch-icon.png 應為 180×180，實為 {img.size}"
+            # apple-touch-icon 須不透明品牌底（iOS 自動加圓角，透明背景會變黑/白底不一致）
+            assert img.mode == "RGB", \
+                f"apple-touch-icon.png 須為 RGB 不透明（無 alpha），實為 {img.mode}"
+            assert img.getpixel((0, 0)) == (26, 26, 46), \
+                f"apple-touch-icon.png 四角須為品牌底 #1a1a2e，實為 {img.getpixel((0, 0))}"
+
 
 class TestPageTransitionDomGuard:
     """feature/76 T1: Cross-Document View Transitions DOM + CSS 契約守衛。
