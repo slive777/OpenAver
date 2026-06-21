@@ -44,6 +44,9 @@ jobs:
       - name: Build Windows package
         run: python build.py
 
+      - name: Run artifact audit
+        run: python scripts/audit_build_artifact.py "dist/*-Windows-*.zip" --platform win --max-mb 55
+
       - name: Prepare artifact
         run: |
           cd dist
