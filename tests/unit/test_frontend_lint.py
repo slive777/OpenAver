@@ -216,6 +216,60 @@ class TestPageTransitionDomGuard:
                  "pagereveal listener 必須是 parser-blocking classic script，defer/async/module 會漏接事件")
 
 
+class TestGridActionBtnSize:
+    """feature/81 T1（US-8 / CD-7）：grid 封面圓鈕 flex-shrink 根治 + 尺寸 token + ≤480px 縮小守衛。
+
+    純 theme.css 靜態守衛。斷言：
+    - :root 宣告 --grid-action-btn-size 預設 48px。
+    - .btn-glass-circle 主規則含 flex-shrink: 0，且 width/height 讀 var(--grid-action-btn-size)（非硬編 48px）。
+    - @media (max-width: 480px) 內把 --grid-action-btn-size 重宣告為 ≤48px 的縮值。
+    視覺正圓 / 三 grid 一致由 owner 真機 hard-gate，不在此守衛。
+    """
+
+    def _theme(self):
+        return THEME_CSS.read_text(encoding="utf-8")
+
+    def test_root_declares_grid_action_btn_size_token(self):
+        """:root 宣告 --grid-action-btn-size 預設 48px（桌面尺寸＝現狀）"""
+        css = self._theme()
+        assert re.search(r"--grid-action-btn-size:\s*48px", css), \
+            "theme.css :root 缺少 --grid-action-btn-size: 48px（feature/81 T1 token）"
+
+    def test_btn_glass_circle_has_flex_shrink_and_token_size(self):
+        """.btn-glass-circle 主規則含 flex-shrink: 0 且 width/height 讀 token（非硬編 48px）"""
+        css = self._theme()
+        m = re.search(
+            r":is\(#ds-gallery-components,\s*\.ds-gallery-composition\)\s+\.btn-glass-circle\s*\{(.*?)\}",
+            css,
+            re.DOTALL,
+        )
+        assert m, "theme.css 找不到 :is(...) .btn-glass-circle 主規則"
+        rule = m.group(1)
+        assert re.search(r"flex-shrink:\s*0", rule), \
+            ".btn-glass-circle 主規則缺少 flex-shrink: 0（feature/81 T1 治本：flex 壓 width 不壓 height → 橢圓）"
+        assert re.search(r"width:\s*var\(--grid-action-btn-size", rule), \
+            ".btn-glass-circle width 未讀 var(--grid-action-btn-size)（仍硬編 48px？）"
+        assert re.search(r"height:\s*var\(--grid-action-btn-size", rule), \
+            ".btn-glass-circle height 未讀 var(--grid-action-btn-size)（仍硬編 48px？）"
+
+    def test_mobile_media_shrinks_grid_action_btn_size(self):
+        """@media (max-width: 480px) 內把 --grid-action-btn-size 縮為 ≤48px"""
+        css = self._theme()
+        blocks = re.findall(
+            r"@media\s*\(\s*max-width:\s*480px\s*\)\s*\{(.*?)\n\}",
+            css,
+            re.DOTALL,
+        )
+        sizes = []
+        for block in blocks:
+            for val in re.findall(r"--grid-action-btn-size:\s*(\d+)px", block):
+                sizes.append(int(val))
+        assert sizes, \
+            "theme.css @media (max-width: 480px) 內未重宣告 --grid-action-btn-size（feature/81 T1 mobile 縮小）"
+        assert all(s <= 48 for s in sizes), \
+            f"@media (max-width: 480px) 的 --grid-action-btn-size 未縮小（應 ≤48px）：{sizes}"
+
+
 SETTINGS_CSS_T76 = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "pages" / "settings.css"
 THEME_TRANSITION_JS_T76 = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "pages" / "settings" / "theme-transition.js"
 
