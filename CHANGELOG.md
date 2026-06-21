@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.7] - 2026-06-21
+
+本版主軸：**LAN 伺服器模式**——讓你在桌面 App 一鍵把這台機器開放給「同一個 Wi-Fi / 區網」的手機、平板、別台電腦，用瀏覽器連進來瀏覽封面牆、線上看片、查番號（feature/80 A 群）。預設仍是「單機」，行為與舊版完全相同。
+
+### Added
+- 🎯 **伺服器模式切換**：設定頁右上角新增「單機 ｜ 伺服器」膠囊。切到「伺服器」後下方出現一條連線網址（例如 `http://192.168.1.50:50123`）+ 一鍵複製，把網址用手機瀏覽器打開即可消費；切回「單機」立刻關閉對外。
+- 🎯 **即時生效、不用重啟**：切到伺服器當下就在背景開好對外連線，手機馬上連得到，不需要關開 App；切回單機立即停止對外。
+- 🎯 **Help 新增「伺服器模式」說明區**：包含怎麼用、安全提醒，以及第一次開啟時系統防火牆會詢問請按「允許」、不小心按了「取消」之後怎麼到防火牆設定救回（Windows / macOS 步驟）。
+
+### Changed
+- **單機模式不再跳系統防火牆提示**：桌面 App 平常只綁定本機回環位址（`127.0.0.1`），只有在你主動切到「伺服器」時才會綁定對外位址、觸發一次系統防火牆授權（按「允許」即可，之後記住）。舊用戶更新後維持單機、不會無端冒出防火牆提示。
+
+### Security
+- **區網存取閘門**：非本機的連線預設一律擋下（回 403），只有在「伺服器」模式下才放行同區網裝置；本機與桌面 App 自身永遠正常。不信任 `X-Forwarded-For` 偽造、連線來源無法判定時一律從嚴（fail-closed）。
+- **開關型別嚴格驗正**：伺服器模式開關只接受布林真假值，擋掉字串 `"false"` 這類會被誤判成「開啟」的輸入，避免意外對外開放。
+- 伺服器模式開關**不揭露給 AI agent**（capabilities 守衛把關），避免 agent 自行把機器切成對外開放。
+
+### Non-Goals（本版不含、已規劃）
+- **手機完整度**（Settings / Scanner / Help 在 360px 窄螢幕的破版補丁）延後至 feature/81；目前手機連入後 search / showcase 主消費頁已相容，設定 / 掃描頁在極窄螢幕仍有少量排版瑕疵。
+- **外網存取 / 帳號密碼 / Web 目錄選擇器 / Docker・NAS 部署**：本版定位 LAN-only 個人 / 家庭用，外網請自接 VPN（如 Tailscale）；NAS 一鍵部署留 epic-synology。
+
+### Internal
+- Dual-listener 架構：主回環 listener 永遠運行，伺服器模式由 thread-safe 的 `LanListenerManager` 動態起停第二個 `0.0.0.0` listener（`lifespan="off"` 共用同一 app、不重跑啟動初始化）。
+- toggle 端點交易一致性：啟用先起 listener 成功才寫設定（寫入失敗則回滾停掉 listener）；停用先寫設定（閘門即時生效）再停 listener——runtime 與持久化狀態不分離。
+- 開發 / 伺服器部署（直接跑 uvicorn、未經桌面啟動器）下膠囊優雅降級回錯誤提示，不崩潰。
+
+### 測試
+- 全套 pytest **4467 passed, 2 skipped**（unit + integration，排除 smoke / e2e，較 0.10.6 的 4435 +32：LAN 閘門矩陣 / listener 生命週期 / toggle 端點 / HOST 拆分 AST 守衛 / 前端膠囊・橫條守衛 / capabilities 守衛）+ `ruff check .` 綠 + `npm run lint`（eslint + stylelint）綠。
+- **Gemini 3.1 Pro 整支 branch 第二意見：LGTM、零 P1/P2/P3**（架構 / 安全 / rollback / AST 守衛獲正面評價）；Codex review P1×2 + P2 已修（toggle 交易一致性 / 例外不外洩前端 / banner 訊息精準）。
+
 ## [0.10.6] - 2026-06-21
 
 本版主軸：**前端離線可靠性**——把第三方套件打包進本機、前端錯誤可觀測、修精簡版 Windows 上的啟動問題（feature/79）。
