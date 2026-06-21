@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.6] - 2026-06-21
+
+本版主軸：**前端離線可靠性**——把第三方套件打包進本機、前端錯誤可觀測、修精簡版 Windows 上的啟動問題（feature/79）。
+
+### Added
+- 🎯 **離線可用**：GSAP / Alpine.js / 圖示字型改從本機載入，斷網或 CDN 連不到時介面仍完整可用（封面牆、燈箱、動畫、所有互動照常運作）。
+- 🎯 **前端錯誤自動記錄**：前端發生錯誤時自動寫進本機 debug.log（純本機、零外送），方便日後排查問題。（背景靜默，一般使用無感）
+
+### Fixed
+- 修正精簡版 / 部分第三方工具處理過的 Windows 上，某些頁面（如掃描頁）按鈕失效、顯示異常的問題（MIME 強制宣告，issue #66）。
+- 修正影片燈箱開啟刪除確認框時，按 Esc 會連燈箱一起關、方向鍵會跳到下一部影片的問題。
+- 修正掃描頁在模組未載入時顯示 `[object HTMLElement]` 的小問題（改為乾淨空白）。
+- 修正 Windows 偵錯啟動檔（OpenAver_Debug.bat）未開啟完整偵錯日誌的問題（對齊 macOS）。
+
 ## [0.10.5] - 2026-06-21
 
 本版主軸：**開發工具鏈硬化——lint 守衛進 CI、ruff 補 Python 缺口、清殭屍工具**（feature/78）。純開發工具鏈，**產品 runtime / API / DB / UI 零改動**，產品仍零 node 依賴（node 只在 CI runner）。緣起：前端 lint（eslint + stylelint）過去純本地、CI 只跑 pytest，沒人本地跑就漏；Python 端缺自動守衛（unused import / bare except / 閉包 loop-var 等無人擋）；mypy config 齊全卻從不執行＝假象保護。本版把「擋得住回歸」這件事接上 CI，不再靠開發者記得本地跑。
