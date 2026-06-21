@@ -88,6 +88,11 @@ def reset_config() -> dict:
     try:
         reset_config_file()  # 鎖內 exists/unlink，無 TOCTOU（CD-66b-1）
         _reset_translate_service()  # 清除舊服務實例
+        # reset 清除 server_mode（defaults → false）→ listener 必須同步停止，
+        # 否則 runtime（listener 跑）≠ persisted（server_mode absent/false）分離。
+        # stop() 是 idempotent：listener 未跑時為 no-op，安全。
+        from web.lan_listener import lan_listener
+        lan_listener.stop()
         return {"success": True, "message": "已恢復預設設定"}
     except Exception as e:
         logger.error("恢復預設設定失敗: %s", e)
@@ -204,12 +209,17 @@ def update_general_field(field: str, request: GeneralFieldRequest) -> dict:
 
 @router.get("/config/general/lan-port")
 def get_lan_port() -> dict:
-    """取得 LAN listener 目前使用的 port + LAN IP（server mode 啟用中回值，否則 null）"""
+    """取得 LAN listener 目前使用的 port + LAN IP（server mode 啟用中回值，否則 null）
+
+    lan_ip 獨立於 listener 狀態：IP 可偵測→回真值，IP 不可偵測→回 null。
+    搭配前端 `?? null` 清除邏輯：listener 停止但 IP 可偵測 → lanIp 保留、lanPort
+    null → 顯示「listener_down」；IP 真的無法偵測 → lanIp null → 顯示「no_lan_ip」。
+    """
     from web.lan_listener import lan_listener, get_lan_ip
     running = lan_listener.is_running
     return {
         "lan_port": lan_listener.lan_port if running else None,
-        "lan_ip": get_lan_ip() if running else None,
+        "lan_ip": get_lan_ip(),  # 獨立於 running：null 僅在 IP 真的無法偵測時
     }
 
 

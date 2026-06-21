@@ -136,18 +136,45 @@ class TestServerModeToggleAPI:
         assert data["lan_ip"] == "192.168.1.50"
 
     def test_get_lan_port_stopped(self, client, mock_config_path, monkeypatch):
-        """GET lan-port，listener is_running=False → {lan_port: null, lan_ip: null}"""
+        """GET lan-port，listener is_running=False だが IP は取得可能
+        → {lan_port: null, lan_ip: "192.168.1.50"}（P2-3: lan_ip は running に依存しない）
+
+        理由：listener 停止中でも LAN IP は実際に検出可能な場合がある。
+        frontend の `?? null` と組み合わせることで：
+          - lan_port=null, lan_ip="192.168.1.50" → listener_down バナーを表示
+          - lan_port=null, lan_ip=null            → no_lan_ip バナーを表示（IP 本当に不明）
+        """
         import web.lan_listener as _ll_mod
 
         monkeypatch.setattr(_ll_mod.lan_listener.__class__, "is_running", property(lambda self: False))
         monkeypatch.setattr(_ll_mod.lan_listener.__class__, "lan_port", property(lambda self: None))
+        monkeypatch.setattr(_ll_mod, "get_lan_ip", lambda: "192.168.1.50")
 
         resp = client.get("/api/config/general/lan-port")
 
         assert resp.status_code == 200
         data = resp.json()
         assert data["lan_port"] is None
-        assert data["lan_ip"] is None
+        assert data["lan_ip"] == "192.168.1.50"  # IP detectable even when listener is down
+
+    def test_get_lan_port_stopped_ip_undetectable(self, client, mock_config_path, monkeypatch):
+        """GET lan-port，listener is_running=False 且 IP も検出不可 → {lan_port: null, lan_ip: null}
+
+        IP が genuinely undetectable の場合のみ lan_ip=null を返す。
+        frontend: lanIp=null → no_lan_ip バナー表示。
+        """
+        import web.lan_listener as _ll_mod
+
+        monkeypatch.setattr(_ll_mod.lan_listener.__class__, "is_running", property(lambda self: False))
+        monkeypatch.setattr(_ll_mod.lan_listener.__class__, "lan_port", property(lambda self: None))
+        monkeypatch.setattr(_ll_mod, "get_lan_ip", lambda: None)
+
+        resp = client.get("/api/config/general/lan-port")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["lan_port"] is None
+        assert data["lan_ip"] is None  # genuinely undetectable → no_lan_ip banner
 
     # ── P1 rollback / persist-first 修復守衛 ───────────────────────────────────
 

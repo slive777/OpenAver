@@ -391,3 +391,73 @@ class TestFullConfigSavePreservesServerMode:
             "PUT /api/config with explicit server_mode=false in the body must be "
             "ignored — server_mode is owned by the toggle lifecycle endpoint only"
         )
+
+
+class TestDeleteConfigStopsLanListener:
+    """P2-4: DELETE /api/config (reset) は LAN listener を停止しなければならない
+
+    reset_config_file() は server_mode を含む config を削除する → defaults では
+    server_mode が存在しない（= false）。しかし listener は停止しないと
+    runtime（listener 起動中）≠ persisted（server_mode absent）が分離し、
+    0.0.0.0 socket が 403 を返し続けてしまう。
+    """
+
+    @pytest.fixture
+    def mock_config_path(self, tmp_path, monkeypatch):
+        """DELETE /api/config 用 fixture — lan_listener.stop() も mock する"""
+        config_path = tmp_path / "config.json"
+        default_path = tmp_path / "config.default.json"
+
+        config_data = {"general": {"server_mode": True}}
+        config_path.write_text(json.dumps(config_data))
+        default_path.write_text(json.dumps(config_data))
+
+        monkeypatch.setattr("core.config.CONFIG_PATH", config_path)
+        monkeypatch.setattr("core.config.CONFIG_DEFAULT_PATH", default_path)
+        monkeypatch.setattr("web.routers.config._reset_translate_service", lambda: None)
+
+        return config_path
+
+    def test_delete_config_calls_lan_listener_stop(self, client, mock_config_path, monkeypatch):
+        """DELETE /api/config → lan_listener.stop() は必ず 1 回呼ばれる
+
+        reset は server_mode を消去する（defaults = false）ため、listener の
+        runtime↔persisted を一致させるために stop() を呼ぶ必要がある。
+        stop() は idempotent なので listener が起動していなくても安全。
+        """
+        stop_called = []
+
+        monkeypatch.setattr(
+            "web.lan_listener.lan_listener.stop",
+            lambda *a, **k: stop_called.append(True),
+        )
+
+        resp = client.delete("/api/config")
+
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+        assert len(stop_called) == 1, (
+            "DELETE /api/config must call lan_listener.stop() once to keep "
+            "runtime↔persisted consistent after config reset clears server_mode"
+        )
+
+    def test_delete_config_stop_called_even_when_not_running(
+        self, client, mock_config_path, monkeypatch
+    ):
+        """stop() は idempotent なので listener が起動していなくても呼ばれてよい
+
+        stop() の no-op 保証により、listener が実行中かどうかに関わらず
+        reset ハンドラは stop() を呼び出す（毎回呼ぶ方が明確で安全）。
+        """
+        stop_called = []
+
+        # Simulate listener already not running — stop() is still called (idempotent no-op)
+        monkeypatch.setattr(
+            "web.lan_listener.lan_listener.stop",
+            lambda *a, **k: stop_called.append(True),
+        )
+
+        resp = client.delete("/api/config")
+
+        assert resp.status_code == 200
+        assert len(stop_called) == 1, "stop() must always be called on reset (idempotent)"
