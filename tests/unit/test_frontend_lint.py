@@ -12830,12 +12830,30 @@ class TestServerModeToggleGuard:
         assert "result.lan_port" in js, \
             "state-config.js setServerMode() 缺少 'result.lan_port'（80a-T6c：讀後端 lan_port）"
 
+    def test_state_config_set_server_mode_reads_lan_ip(self):
+        """setServerMode() 成功分支讀 result.lan_ip 並更新 this.lanIp。
+        移除 → 切換成功後 lanIp 不更新，serverUrl() 用舊值（或空字串 → null URL）。"""
+        js = self._js()
+        assert "result.lan_ip" in js, \
+            "state-config.js setServerMode() 缺少 'result.lan_ip'（gated get_lan_ip：由後端 toggle 回應提供）"
+        assert "this.lanIp = result.lan_ip" in js, \
+            "state-config.js setServerMode() 缺少 'this.lanIp = result.lan_ip'（lanIp 未從 toggle 回應更新）"
+
     def test_state_config_load_config_fetches_lan_port(self):
         """loadConfig() serverMode=true 時 GET /api/config/general/lan-port 補 lanPort。
         移除 → reload 後 lanPort=null，URL 橫條消失（需重新 toggle 才恢復）。"""
         js = self._js()
         assert "/api/config/general/lan-port" in js, \
             "state-config.js loadConfig() 缺少 '/api/config/general/lan-port' GET（80a-T6c）"
+
+    def test_state_config_load_config_reads_lan_ip_from_lan_port_endpoint(self):
+        """loadConfig() GET lan-port 分支讀 j.lan_ip 並更新 this.lanIp。
+        移除 → reload 後 lanIp 不更新（gated context：server_mode=true 時頁面 lan_ip 已空）。"""
+        js = self._js()
+        assert "j.lan_ip" in js, \
+            "state-config.js loadConfig() 缺少 'j.lan_ip'（lan-port GET 須同步更新 lanIp）"
+        assert "this.lanIp = j.lan_ip" in js, \
+            "state-config.js loadConfig() 缺少 'this.lanIp = j.lan_ip'（lanIp 未從 lan-port 回應更新）"
 
     def test_state_config_reads_server_mode_with_nullish_coalesce(self):
         """loadConfig() 用 ?? false 讀 config.general?.server_mode（CD#3 慣例）。

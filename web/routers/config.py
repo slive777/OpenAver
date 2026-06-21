@@ -154,7 +154,9 @@ def update_general_field(field: str, request: GeneralFieldRequest) -> dict:
                     except Exception:                     # noqa: BLE001,S110 — rollback best-effort
                         pass
                     return {"success": False, "error": "無法儲存伺服器模式設定"}
-                return {"success": True, "lan_port": lan_port}
+                from web.lan_listener import get_lan_ip
+                lan_ip = get_lan_ip()
+                return {"success": True, "lan_port": lan_port, "lan_ip": lan_ip}
             else:
                 # Disable 順序：先 persist false，再 stop()。
                 # 原因：middleware lan_access_gate 讀 load_config().get("server_mode")，
@@ -190,9 +192,13 @@ def update_general_field(field: str, request: GeneralFieldRequest) -> dict:
 
 @router.get("/config/general/lan-port")
 def get_lan_port() -> dict:
-    """取得 LAN listener 目前使用的 port（server mode 啟用中回 int，否則 null）"""
-    from web.lan_listener import lan_listener
-    return {"lan_port": lan_listener.lan_port if lan_listener.is_running else None}
+    """取得 LAN listener 目前使用的 port + LAN IP（server mode 啟用中回值，否則 null）"""
+    from web.lan_listener import lan_listener, get_lan_ip
+    running = lan_listener.is_running
+    return {
+        "lan_port": lan_listener.lan_port if running else None,
+        "lan_ip": get_lan_ip() if running else None,
+    }
 
 
 @router.get("/version")

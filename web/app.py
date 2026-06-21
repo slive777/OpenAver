@@ -184,19 +184,8 @@ async def lan_access_gate(request: Request, call_next):
 # ============ 輔助函數 ============
 
 
-def get_lan_ip():
-    """主要區網 IP（預設路由網卡）；取不到回 None。"""
-    import socket
-    s = None
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))  # 不送資料，只查預設路由本地位址
-        return s.getsockname()[0]
-    except Exception:
-        return None
-    finally:
-        if s is not None:
-            s.close()
+from web.lan_listener import get_lan_ip  # noqa: E402 — re-export for backward compat
+
 
 def get_common_context(request: Request) -> dict:
     """取得共用的模板 Context (包含設定)"""
@@ -260,12 +249,14 @@ def get_common_context(request: Request) -> dict:
     from core.cf_transport import get_cf_transport as _get_cf_transport
     _cf_transport_available = _get_cf_transport() is not None
 
+    _server_mode = bool(config.get('general', {}).get('server_mode', False))
+
     return {
         "request": request,
         "config": config,
         "proxy_configured": proxy_configured,
         "cf_transport_available": _cf_transport_available,
-        "lan_ip": get_lan_ip(),
+        "lan_ip": get_lan_ip() if _server_mode else None,
         "theme": config.get('general', {}).get('theme', 'light'),
         "sidebar_collapsed": config.get('general', {}).get('sidebar_collapsed', False),
         "font_size": font_size,

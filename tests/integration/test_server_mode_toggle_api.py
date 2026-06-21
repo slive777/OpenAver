@@ -2,14 +2,15 @@
 TASK-80a-T6b: server_mode toggle 端點 + GET lan-port 整合測試
 
 涵蓋：
-  - PUT server_mode=true 成功 → start mock 回 lan_port，config 持久化 true
+  - PUT server_mode=true 成功 → start mock 回 lan_port，config 持久化 true，回傳 lan_ip
   - PUT server_mode=true 失敗（start 拋例外）→ {success:false}，config 不寫 true
   - PUT server_mode=false → stop mock，config 持久化 false，lan_port null
   - PUT server_mode 非 bool 字串 → 400（T1 回歸守衛）
-  - GET /api/config/general/lan-port running → {lan_port: 49200}
-  - GET /api/config/general/lan-port stopped → {lan_port: null}
+  - GET /api/config/general/lan-port running → {lan_port: 49200, lan_ip: "192.168.1.50"}
+  - GET /api/config/general/lan-port stopped → {lan_port: null, lan_ip: null}
 
 Mock 策略：monkeypatch lan_listener singleton 的方法 / 屬性，避免真實 uvicorn 啟動。
+          monkeypatch web.lan_listener.get_lan_ip 回固定值供 deterministic 斷言。
 Style：mirror test_api_config_endpoints.py（client fixture + mock_config_path fixture）。
 """
 import json
@@ -48,8 +49,9 @@ class TestServerModeToggleAPI:
         return config_path
 
     def test_toggle_true_returns_lan_port(self, client, mock_config_path, monkeypatch):
-        """PUT server_mode true（start mock → 49200）→ 200 {success:true, lan_port:49200}"""
+        """PUT server_mode true（start mock → 49200）→ 200 {success:true, lan_port:49200, lan_ip:"192.168.1.50"}"""
         monkeypatch.setattr("web.lan_listener.lan_listener.start", lambda *a, **k: 49200)
+        monkeypatch.setattr("web.lan_listener.get_lan_ip", lambda: "192.168.1.50")
 
         resp = client.put("/api/config/general/server_mode", json={"value": True})
 
@@ -57,6 +59,7 @@ class TestServerModeToggleAPI:
         data = resp.json()
         assert data["success"] is True
         assert data["lan_port"] == 49200
+        assert data["lan_ip"] == "192.168.1.50"
 
     def test_toggle_true_persists_server_mode(self, client, mock_config_path, monkeypatch):
         """PUT server_mode true 成功後 config.json server_mode 寫入 true"""
@@ -118,19 +121,22 @@ class TestServerModeToggleAPI:
         assert resp.status_code == 400
 
     def test_get_lan_port_running(self, client, mock_config_path, monkeypatch):
-        """GET lan-port，listener is_running=True, lan_port=49200 → {lan_port: 49200}"""
+        """GET lan-port，listener is_running=True, lan_port=49200 → {lan_port: 49200, lan_ip: "192.168.1.50"}"""
         import web.lan_listener as _ll_mod
 
         monkeypatch.setattr(_ll_mod.lan_listener.__class__, "is_running", property(lambda self: True))
         monkeypatch.setattr(_ll_mod.lan_listener.__class__, "lan_port", property(lambda self: 49200))
+        monkeypatch.setattr(_ll_mod, "get_lan_ip", lambda: "192.168.1.50")
 
         resp = client.get("/api/config/general/lan-port")
 
         assert resp.status_code == 200
-        assert resp.json() == {"lan_port": 49200}
+        data = resp.json()
+        assert data["lan_port"] == 49200
+        assert data["lan_ip"] == "192.168.1.50"
 
     def test_get_lan_port_stopped(self, client, mock_config_path, monkeypatch):
-        """GET lan-port，listener is_running=False → {lan_port: null}"""
+        """GET lan-port，listener is_running=False → {lan_port: null, lan_ip: null}"""
         import web.lan_listener as _ll_mod
 
         monkeypatch.setattr(_ll_mod.lan_listener.__class__, "is_running", property(lambda self: False))
@@ -139,7 +145,9 @@ class TestServerModeToggleAPI:
         resp = client.get("/api/config/general/lan-port")
 
         assert resp.status_code == 200
-        assert resp.json() == {"lan_port": None}
+        data = resp.json()
+        assert data["lan_port"] is None
+        assert data["lan_ip"] is None
 
     # ── P1 rollback / persist-first 修復守衛 ───────────────────────────────────
 

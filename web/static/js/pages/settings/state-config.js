@@ -406,6 +406,7 @@ export function stateConfig() {
                 if (result.success) {
                     this.serverMode = !!val;
                     this.lanPort = result.lan_port ?? null;
+                    this.lanIp = result.lan_ip ?? this.lanIp;
                 } else {
                     console.warn('[serverMode] setServerMode failed:', result.error);
                     this.showToast(window.t('settings.server_info.toggle_failed'), 'error');
@@ -529,6 +530,7 @@ export function stateConfig() {
                             const r = await fetch('/api/config/general/lan-port');
                             const j = await r.json();
                             this.lanPort = j.lan_port ?? null;
+                            this.lanIp = j.lan_ip ?? this.lanIp;
                         } catch (_e) { this.lanPort = null; }
                     } else {
                         this.lanPort = null;
