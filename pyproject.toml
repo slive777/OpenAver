@@ -12,3 +12,4 @@ select = ["E722", "F", "B", "T201", "S110", "S112"]
 "core/gallery_scanner.py" = ["T201"]
 "build.py" = ["T201"]
 "build_macos.py" = ["T201"]
+"scripts/audit_build_artifact.py" = ["T201"]  # CLI build 工具，print 為正常輸出（同 build.py）
