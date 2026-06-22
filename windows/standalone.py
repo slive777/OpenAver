@@ -354,6 +354,7 @@ def main():
             jl_win,
             saved,
             window_state.save_state,
+            on_quit_cleanup=lan_listener.shutdown,
         )
         tray_icon = NativeTrayIcon(
             Path(APP_DIR) / "web" / "static" / "favicon.png",

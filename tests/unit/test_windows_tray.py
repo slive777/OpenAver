@@ -205,3 +205,78 @@ def test_standalone_wires_windows_tray_and_shutdown_backstop():
     assert "NativeTrayIcon(" in source
     assert "lifecycle.start_tray()" in source
     assert "lifecycle.shutdown_after_loop()" in source
+
+
+# ---------------------------------------------------------------------------
+# T2 regression tests: on_quit_cleanup DI
+# ---------------------------------------------------------------------------
+
+def _make_lifecycle_with_cleanup(cleanup_cb):
+    """Build a DesktopLifecycle with a mock tray + cleanup callback."""
+    window = MagicMock()
+    jl_window = MagicMock()
+    tray = MagicMock()
+    state = {"close_action": CLOSE_ASK}
+    lc = DesktopLifecycle(
+        window, jl_window, state,
+        lambda value: None,
+        on_quit_cleanup=cleanup_cb,
+    )
+    lc.attach_tray(tray)
+    tray.start.return_value = True
+    lc.start_tray()
+    return lc, window, jl_window, tray
+
+
+def test_begin_quit_invokes_quit_cleanup():
+    """on_quit_cleanup must be called exactly once when _begin_quit() runs."""
+    cleanup = MagicMock()
+    lc, _, _, _ = _make_lifecycle_with_cleanup(cleanup)
+    lc._begin_quit()
+    cleanup.assert_called_once_with()
+
+
+def test_begin_quit_cleanup_idempotent():
+    """Calling _begin_quit() twice must invoke the cleanup only once."""
+    cleanup = MagicMock()
+    lc, _, _, _ = _make_lifecycle_with_cleanup(cleanup)
+    lc._begin_quit()
+    lc._begin_quit()
+    cleanup.assert_called_once_with()
+
+
+def test_close_exit_path_runs_cleanup():
+    """close_action=='exit' via on_window_closing() must trigger cleanup."""
+    cleanup = MagicMock()
+    lc, _, _, _ = _make_lifecycle_with_cleanup(cleanup)
+    lc.state["close_action"] = CLOSE_EXIT
+    lc.on_window_closing()
+    cleanup.assert_called_once_with()
+
+
+def test_tray_quit_runs_cleanup():
+    """CMD_QUIT via handle_tray_command() must trigger cleanup (tray-Quit path)."""
+    cleanup = MagicMock()
+    lc, _, _, _ = _make_lifecycle_with_cleanup(cleanup)
+    lc.handle_tray_command(CMD_QUIT)
+    cleanup.assert_called_once_with()
+
+
+def test_cleanup_exception_does_not_block_quit():
+    """If on_quit_cleanup raises, quitting must still be True and exception must not propagate."""
+    def bad_cleanup():
+        raise RuntimeError("cleanup boom")
+
+    lc, _, _, _ = _make_lifecycle_with_cleanup(bad_cleanup)
+    lc._begin_quit()  # must not raise
+    assert lc.quitting is True
+
+
+def test_minimize_path_does_not_run_cleanup():
+    """close_action=='tray' (minimize) must NOT invoke the cleanup callback."""
+    cleanup = MagicMock()
+    lc, _, _, _ = _make_lifecycle_with_cleanup(cleanup)
+    lc.tray_available = True  # simulate tray running
+    lc.state["close_action"] = CLOSE_TRAY
+    lc.on_window_closing()
+    cleanup.assert_not_called()

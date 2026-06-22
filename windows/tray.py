@@ -129,12 +129,14 @@ class DesktopLifecycle:
         state: dict,
         save_state: Callable[[dict], None],
         prompt: Callable[[], CloseDecision] | None = None,
+        on_quit_cleanup: Callable[[], None] | None = None,
     ) -> None:
         self.window = window
         self.jl_window = jl_window
         self.state = state
         self.save_state = save_state
         self.prompt = prompt or (lambda: show_close_dialog(self.window))
+        self.on_quit_cleanup = on_quit_cleanup
         self.tray = None
         self.tray_available = False
         self.quitting = False
@@ -231,6 +233,11 @@ class DesktopLifecycle:
                 self.jl_window.destroy()
             except Exception:
                 logger.warning("failed to destroy JL window on app close", exc_info=True)
+        if self.on_quit_cleanup is not None:
+            try:
+                self.on_quit_cleanup()
+            except Exception:
+                logger.exception("quit cleanup callback failed")
 
     def shutdown_after_loop(self) -> None:
         """Backstop for forced native-window closure."""
