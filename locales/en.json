@@ -24,10 +24,10 @@
   "desktop": {
     "tray": {
       "open_app": "Open OpenAver",
-      "close_behavior": "Close button behavior",
+      "close_behavior": "When closing the window",
       "ask_on_close": "Ask every time",
-      "minimize_to_tray": "Minimize to notification area",
-      "exit_program": "Exit application",
+      "minimize_to_tray": "Minimize to tray",
+      "exit_program": "Exit OpenAver",
       "quit_app": "Exit OpenAver",
       "unavailable": "The notification area icon could not be started. OpenAver will remain open; exit from the main window instead."
     },
@@ -399,7 +399,11 @@
       "player_placeholder": "Leave blank for system default",
       "player_hint_prefix": "E.g.:",
       "reset_label": "Reset All Settings",
-      "reset_hint": "Delete all custom settings and restore defaults"
+      "reset_hint": "Delete all custom settings and restore defaults",
+      "close_action_label": "When closing the window",
+      "close_action_ask": "Ask every time",
+      "close_action_tray": "Minimize to tray",
+      "close_action_exit": "Exit OpenAver"
     },
     "action": {
       "test": "Test",

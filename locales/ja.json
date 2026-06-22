@@ -24,10 +24,10 @@
   "desktop": {
     "tray": {
       "open_app": "OpenAver を開く",
-      "close_behavior": "閉じるボタンの動作",
-      "ask_on_close": "閉じるたびに確認",
+      "close_behavior": "ウィンドウを閉じるとき",
+      "ask_on_close": "毎回確認",
       "minimize_to_tray": "通知領域に最小化",
-      "exit_program": "アプリを終了",
+      "exit_program": "OpenAver を終了",
       "quit_app": "OpenAver を終了",
       "unavailable": "通知領域アイコンを開始できません。OpenAver は開いたままになります。ウィンドウから終了してください。"
     },
@@ -399,7 +399,11 @@
       "player_placeholder": "空欄 = システムデフォルトを使用",
       "player_hint_prefix": "例：",
       "reset_label": "すべての設定をリセット",
-      "reset_hint": "すべてのカスタム設定を削除してデフォルトに戻す"
+      "reset_hint": "すべてのカスタム設定を削除してデフォルトに戻す",
+      "close_action_label": "ウィンドウを閉じるとき",
+      "close_action_ask": "毎回確認",
+      "close_action_tray": "通知領域に最小化",
+      "close_action_exit": "OpenAver を終了"
     },
     "action": {
       "test": "テスト",

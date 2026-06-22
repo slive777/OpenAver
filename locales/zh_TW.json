@@ -24,10 +24,10 @@
   "desktop": {
     "tray": {
       "open_app": "開啟 OpenAver",
-      "close_behavior": "關閉按鈕行為",
-      "ask_on_close": "每次關閉時詢問",
+      "close_behavior": "關閉視窗時",
+      "ask_on_close": "每次詢問",
       "minimize_to_tray": "最小化到系統匣",
-      "exit_program": "結束程式",
+      "exit_program": "結束 OpenAver",
       "quit_app": "結束 OpenAver",
       "unavailable": "系統匣圖示無法啟動，OpenAver 將保持開啟。請從視窗選擇結束程式。"
     },

@@ -24,10 +24,10 @@
   "desktop": {
     "tray": {
       "open_app": "打开 OpenAver",
-      "close_behavior": "关闭按钮行为",
-      "ask_on_close": "每次关闭时询问",
+      "close_behavior": "关闭窗口时",
+      "ask_on_close": "每次询问",
       "minimize_to_tray": "最小化到系统托盘",
-      "exit_program": "退出程序",
+      "exit_program": "退出 OpenAver",
       "quit_app": "退出 OpenAver",
       "unavailable": "系统托盘图标无法启动，OpenAver 将保持打开。请从窗口选择退出程序。"
     },
@@ -399,7 +399,11 @@
       "player_placeholder": "留空使用系统默认",
       "player_hint_prefix": "例如:",
       "reset_label": "重置所有设置",
-      "reset_hint": "删除所有自定义设置，恢复默认值"
+      "reset_hint": "删除所有自定义设置，恢复默认值",
+      "close_action_label": "关闭窗口时",
+      "close_action_ask": "每次询问",
+      "close_action_tray": "最小化到系统托盘",
+      "close_action_exit": "退出 OpenAver"
     },
     "action": {
       "test": "测试",
