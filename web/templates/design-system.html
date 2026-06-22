@@ -2044,7 +2044,7 @@
                         <button class="terminal-copy-btn"
                                 @click="curlCopied = true; setTimeout(() => curlCopied = false, 1500)"
                                 title="複製指令">
-                            <span x-show="!curlCopied">📋</span>
+                            <i class="bi bi-clipboard" x-show="!curlCopied"></i>
                             <span x-show="curlCopied">✓</span>
                         </button>
                     </div>
@@ -2058,7 +2058,7 @@
   curl http://localhost:7080/api/capabilities
   &lt;button class="terminal-copy-btn"
           @click="curlCopied = true; setTimeout(() =&gt; curlCopied = false, 1500)"&gt;
-    &lt;span x-show="!curlCopied"&gt;📋&lt;/span&gt;
+    &lt;i class="bi bi-clipboard" x-show="!curlCopied"&gt;&lt;/i&gt;
     &lt;span x-show="curlCopied"&gt;✓&lt;/span&gt;
   &lt;/button&gt;
 &lt;/div&gt;</code></pre>

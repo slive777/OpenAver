@@ -275,6 +275,24 @@
     box-shadow: var(--fluent-shadow-2);
 }
 
+/* ─── Mobile (≤480px): preview row → column (US-12 / AC-22, 81c-T7).
+ * At 360px the row layout (cover + metadata side-by-side) cramps both columns:
+ * the cover's `max-width: 38vw` (~137px) leaves metadata <200px → title/details
+ * truncated. Stack vertically so each occupies a full row, fully readable.
+ * Cover `max-width: 100%` overrides 38vw (structural value, not a magic number —
+ * scales within the fluid modal box, never overflows). Breakpoint 480 matches
+ * T6 notification drawer + A-group mobile breakpoints (360 is the floor, not the
+ * breakpoint). >480px keeps the row layout unchanged. ─── */
+@media (max-width: 480px) {
+    .rescrape-preview {
+        flex-direction: column;
+    }
+
+    .rescrape-preview .pv-cover img {
+        max-width: 100%;
+    }
+}
+
 /* ─── reduced-motion: kill new page-swap / inline-error animations.
  * Spinner exception lives in source-pill.css (it's the source-pill .pill-spin rule). ─── */
 @media (prefers-reduced-motion: reduce) {

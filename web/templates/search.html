@@ -21,6 +21,8 @@
     <!-- T2a: Lightbox（Grid 模式） -->
     <div class="showcase-lightbox"
          :class="{ 'show': lightboxOpen }"
+         @touchstart.passive="_lbTouchStart($event)"
+         @touchend.passive="_lbTouchEnd($event)"
          @click="handleLightboxBackdropClick($event)">
 
         <div class="lightbox-content" @click.stop>
@@ -263,7 +265,7 @@
         </div>
     </div>
 
-    <!-- 搜尋框 -->
+    <!-- 搜尋框（Spotlight 中央輸入；US-1 navbar 收合不作用於 search 頁，維持永遠可見） -->
     <div class="search-bar">
         <form id="searchForm" @submit.prevent="doSearch()">
             <div class="spotlight-search">
@@ -388,7 +390,10 @@
                  x-show="displayMode === 'detail'"
                  :class="{ 'active': shouldShowLocalBorder(current()) }">
                 <div class="av-card-full-cover">
-                    <div class="av-card-full-cover-wrapper">
+                    <!-- P2 fix: swipe 掛在只含海報的 wrapper（非 cover），結構排除 .sample-strip 水平捲動列 -->
+                    <div class="av-card-full-cover-wrapper"
+                         @touchstart.passive="_dtTouchStart($event)"
+                         @touchend.passive="_dtTouchEnd($event)">
                         <img id="resultCover" x-ref="coverImg" class="av-card-full-cover-img"
                              x-show="!coverError && current().cover"
                              :src="coverUrl()"

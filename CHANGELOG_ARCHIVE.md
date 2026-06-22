@@ -1,4 +1,4 @@
-# Changelog Archive (v0.1.0 ~ v0.9.6)
+# Changelog Archive (v0.1.0 ~ v0.9.11)
 
 All notable changes to this project will be documented in this file.
 
@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 0.9.x
 
+- [0.9.11] 2026-06-13 — 外部媒體管理器相容模式（Jellyfin/Emby/Kodi 四態：poster/fanart 命名 + cd1/cd2 合併 + NFO 補欄）
+- [0.9.10] 2026-06-12 — 本地 WebP 縮圖快取（opt-in，SSD 出圖不碰 NAS）+ 燈箱單筆刪除（只刪 DB row）
+- [0.9.9] 2026-06-11 — 新增 JavLibrary 來源（BETA，桌面專屬，借 PyWebView 過 Cloudflare 人機驗證）
+- [0.9.8] 2026-06-06 — dim 暗色主題色彩編碼修復（補 --color-primary/--color-warning，膠囊色相碰撞根除）
+- [0.9.7] 2026-06-06 — VR 投影標籤保留 + 自動 VR tag（改名保留 token + NFO 加 VR genre）
 - [0.9.6] 2026-06-06 — 封面三態 skeleton/淡入/破圖 + Showcase console 清零（SVG `<template>` bug 修正）
 - [0.9.5] 2026-06-06 — async def 同步 I/O 移出 event loop（NAS HDD 凍屏根治）+ 並發硬化 config 鎖
 - [0.9.4] 2026-06-04 — 拔除 `primary_source`，搜尋路由統一以 Active Row 拖曳順序為唯一真理
@@ -100,6 +105,191 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [0.1.3] 2026-01-17 — path_utils 集中化路徑處理，NFO updater / image proxy 全部改用
 - [0.1.1] 2026-01-17 — 圖片 proxy Windows 路徑修正 + Settings 手動更新檢查按鈕
 - [0.1.0] 2026-01-15 — 初始版本（Spotlight Search + Gallery Generator + Ollama 翻譯 + PyWebView）
+
+## [0.9.11] - 2026-06-13
+
+本版主軸：**外部媒體管理器相容模式（Jellyfin / Emby / Kodi）**（feature/72）。OpenAver 的 NFO 本來就是 Kodi/Jellyfin/Emby 共用的 XML schema，「基本相容」沒問題，但離「掛上去就正確顯示」還差一截——圖片命名偏好不同、多段影片（cd1/cd2）會被當成兩部片、NFO 少了幾個媒體庫排序/過濾用的欄位。本版在 Settings 新增「外部媒體管理器模式」**四態選擇器（預設｜Jellyfin｜Emby｜Kodi，每態各有一行說明）**：選任一外部模式後，刮削/整理會另存 `{番號}-poster.jpg`／`{番號}-fanart.jpg`、把 cd1/cd2/part1 等多段自動合併成一部片（第 2 段以後只跳 NFO、保留封面）、並補上 NFO 辨識欄位（番號 ID／排序／產地／語言）。掃描端也學會讀外部工具（MDCX/Javinizer）或 OpenAver 自己產生的 `{番號}-fanart/-poster.jpg`，直接接手已刮削的收藏庫。另含 issue #44 後續回報的兩個整理 pipeline 修復（B1 搬檔不再產生重複死卡、B2 已整理檔再整理標題不疊加）。
+
+### Added
+#### 🎬 外部媒體管理器相容模式 / External media-manager compatibility mode
+- **F1 — 外部媒體管理器四態選擇器**：Settings 新增「外部媒體管理器模式」segmented 控件，四格「預設｜Jellyfin｜Emby｜Kodi」，每態旁邊一行說明（trailing hint，跟在選擇器同一橫列）清楚講「會產生什麼檔案」。選「預設」行為與現狀完全相同。
+- **F2 — cd1/cd2 多段自動合併**：開外部模式後，偵測檔名多段 token（cd1/cd2、dvd1/dvd2、part1/part2、pt、disc）；第 1 段正常輸出 NFO + 封面，第 2 段以後**只跳過 NFO、保留封面**（媒體庫靠 NFO 認片數，只留第 1 段 NFO 就會收成「一部片、兩段」；多出的封面不破壞合併，OpenAver 自己的瀏覽頁仍逐段顯示各自封面）。多段 token 一律移到輸出檔名最尾端（夾在後綴中間會讓 Jellyfin 認不出來）。
+- **F3 — NFO 補強欄位**：任一外部模式下，NFO 額外寫入 `<lockdata>`（best-effort，仍輸出但不保證生效）、`<uniqueid type="num" default="true">`（番號 ID，Jellyfin/Emby 偏好格式）、`<sorttitle>`（排序用）、`<country>Japan</country>`、`<language>ja</language>`（供媒體庫過濾）。這些欄位不影響 OpenAver 自身（OpenAver 讀資料庫、不讀 NFO）。
+- **F5 — Scanner 識別外部封面**：掃描封面查找新增一層（同名圖之後、固定名稱之前），辨識 `{番號}-fanart.{ext}`（優先，橫版全圖供瀏覽顯示）與 `{番號}-poster.{ext}`（次之）。能讀回 OpenAver 自己在外部模式產生的封面，也能直接接手 MDCX/Javinizer 等工具已刮削的收藏庫。
+- **F6 — Help 多版本手動指引**：Help 新增一段純文字教學，說明「同片多版本（流出/4K/中文）在 Emby/Jellyfin 合併成一筆 + 版本下拉」這件**整個生態圈都靠手動結構解決**的事該怎麼擺檔案，附可照抄的資料夾範例與兩個限制。
+- **F7 — 「就地補資料 vs 整理歸檔」措辭換軸**：把 Settings/Help/新手教學描述兩條刮資料路徑的用詞，從暗示「新手用 Scanner、老手用 Search」的技能分層，改為「動不動你的檔案」的意圖區分——就地補資料（Scanner，不改名、適合唯讀網盤）vs 整理歸檔（Search，改名搬移建乾淨媒體庫）。
+- **補圖入口擴及 Kodi**（72d）：掃描頁的「補齊外部封面」工具原本只在 Jellyfin/Emby 模式出現，現擴及 Kodi（Kodi 模式掃描本就產同樣的 sidecar 封面，卻拿不到補圖工具——補上既有缺口）。
+
+### Changed
+- **F4 — 文案修正**：Kodi 文案從裸 `poster.jpg` 改正為 `{番號}-poster.jpg`（72c 起 Kodi 也輸出 stem 長格式）。**保留 v0.9.7 對 Emby 的正確說明**：`{stem}-fanart.jpg` 僅 Jellyfin／Kodi 讀取，Emby 不認此 fanart 命名（海報與 NFO 在 Emby 正常）。
+- **補圖流程文字中性化**（72d，mode-agnostic）：補圖按鈕/提示/通知/log 從寫死「Jellyfin 圖片」改為「外部媒體管理器圖片／封面」，三態（Jellyfin/Emby/Kodi）用戶看到的措辭一致（i18n value 中性化，key 名與端點 path 不變）。
+- **Settings 外部管理器改四格 segmented**：由舊三態「關閉｜Jellyfin / Emby｜Kodi」拆成四格「預設｜Jellyfin｜Emby｜Kodi」，記住用戶選的是 Jellyfin 還是 Emby（重整頁面高亮正確）。
+- **封面縮圖快取改「新安裝預設開啟」**：縮圖快取（v0.9.10 推出時預設關閉）改為**新安裝預設開啟**，比照進階搜尋畢業模式——既有用戶更新後**維持關閉**（migration 對缺 key 的舊 config 寫 `false`，不驚動老用戶），新用戶開箱即享一頁刷封面。新裝因預設即開、不觸發磁碟空間確認 modal（空庫無衝擊）。
+
+### Fixed
+#### 🔧 整理 pipeline 附帶修復（issue #44 後續，feature/72-T-c1/T-c2）/ Organize-pipeline drive-by fixes
+- **B1 — 整理搬檔時 DB 跟著搬，消除重複死卡**：先用列表生成（Scanner）原地索引一批片、之後又在搜尋頁對其中某片「整理」（改名搬移）時，舊路徑那筆會變成孤兒死卡，同一片在瀏覽出現兩張（其中一張封面壞掉）。現在整理搬檔會把 DB 那筆原地跟著搬到新路徑（保留入庫時間、瀏覽排序位置、以及你在瀏覽頁加的標籤），整理完當下就只剩一張正確的卡、不必等下次重掃。**任何外部媒體管理器模式皆修，與模式無關。**
+- **B2 — 已整理過的檔再整理一次，標題不再疊加**：對 OpenAver 自己整理出來的成品檔（檔名已是 `[番號][廠商] 標題-後綴` 格式）再整理一次，過去會把整段已格式化檔名誤當「標題」塞回去，越疊越長（番號/廠商/後綴重複）。現在會辨識「這是已整理過的成品」而改用刮削/翻譯標題，並把標題開頭多餘的番號前綴剝乾淨（連舊版本已寫進磁碟/資料庫的雙重前綴也一併修好）；真正的原始下載檔名行為不變，中文標題搶救照舊。
+- **cd2/part2 整理後 Showcase DB metadata 遺失**：F2 外部模式跳過 cd2 NFO 後，DB 索引改走檔名 parse → actors/tags/date/maker 掉光；B1 repath 還會用此殘缺 row 覆蓋 Scanner 已索引好的紀錄。現整理時把手上的 scraped metadata 直接傳入 upsert，cd2 row 與 cd1 一致；非多段路徑 byte-identical。
+
+#### 🔧 外部管理器相容修正 / External-manager compat fixes
+- **補圖 gate 改正向白名單、fail-closed**（72d Codex P2）：掃描頁補圖入口的開關由「不是 jellyfin_emby 就不出現」改為「是 off 才不出現」（正向白名單），新增的 Kodi/Emby 模式正確觸發、未知值安全地不觸發。
+- **Kodi sidecar 一律 stem 長格式**（72b Codex P1）：Kodi 模式的封面從裸 `poster.jpg`/`fanart.jpg` 改為與 Jellyfin/Emby 相同的 `{stem}-poster.jpg`/`{stem}-fanart.jpg`，避免同資料夾多部片時裸命名互相覆蓋（多片碰撞）。
+- **外部模式單片 refresh 被誤 400**（72d Codex P2-A）：切換外部管理器模式後對單片做「補資料」（refresh_full），400 守衛僅看 `.nfo`/`.jpg` 是否存在、未考慮外部圖補寫機會 → 想補 `{stem}-poster/-fanart` 的 refresh 被拒。加第三條 `will_write_external` 條件（external≠off + 底圖在 + stem 圖缺），off 模式 byte-identical。
+- **Enrich 不認 MDCX/Javinizer 匯入的 `{stem}-poster/-fanart.jpg`**（72d Codex P2-B）：F5 讓 Scanner 能讀外部工具的 stem 圖，但 enrich 的 cover-gate 仍要求 `{stem}.jpg` 存在才動作 → MDCX/Javinizer 匯入夾（只有 `-poster/-fanart`、無裸底圖）enrich 後 NFO 指向不存在的 `{stem}.jpg`。改為先判 `_STEM_IMAGE_MODES`：底圖缺但 stem 圖已在磁碟且 `overwrite=false` → 直接認可現況、不重生；off 模式行為不變。
+
+#### 🔧 封面代理白名單跨格式誤殺 SMB 連線磁碟機（TASK-73）/ Image-proxy whitelist cross-format false-positive
+- **把 NAS 掛成「連線網路磁碟機」（`K:\` → `\\server\share`）或用 DFS／別名 UNC 的 Windows 用戶，Showcase 封面牆整片空白（影片仍正常播）的修復**。根因：封面代理 `get_image`／`get_video` 的目錄白名單比對只對「請求路徑」跑 `realpath`、沒對「config 白名單目錄」跑，而 `realpath` 會**跨格式改寫**（mapped drive→UNC、DFS／別名→真實 target）→ 兩端字串格式不同，casefold＋NFC 跨不過去 → 合法封面被當白名單外路徑 403 擋掉。現改為兩端對稱正規化（請求端 single-form；config 目錄端 dual-form：normpath＋realpath 兩候選，cache-on-success-only），任一掛載格式都對得上；既有 symlink-escape／`..` 穿越防護完整保留不破。**影片本來就走 PyWebView 直開、不受影響。**
+
+### Internal
+- **external_manager 升真四態 config**（`Literal["off","jellyfin","emby","kodi"]`）+ migration（既有存檔 `jellyfin_emby` → load 時就地改寫為 `jellyfin`，idempotent）；圖片命名分支抽共用常數 `_STEM_IMAGE_MODES = ('jellyfin','emby','kodi')`（organizer/enricher 共用，避免 drift）。`!= 'off'` 的 F3 NFO / 多段偵測分支原樣涵蓋三個非 off 值、不動。
+- **多段 token 偵測** `_detect_multipart_token` / `_strip_part_token`（cd/dvd/part/pt/disc 系列，token 必落輸出檔名尾端）。
+- 補圖 check/generate 後端本就 generic（只認兩 sidecar、零 Jellyfin 特有邏輯），gate 擴三態後零後端改動；`jellyfin_check` capability 描述/data 文字隨補圖中性化（端點 path 與 schema 不變、contract no-op）。
+
+### Non-Goals（明確不做）
+- **不支援 Plex**（雖 Plex 1.43.1+ 已有原生 NFO Agent，但 Plex 整合不在本版定位，Settings 不加 Plex）、**不做多版本自動合併**（整個 JAV 生態圈都靠手動結構解決，本版改文檔化手動指引 F6）、**不做 `.actors/` 演員縮圖資料夾**（Kodi-specific、無法共用）、**不做獨立輸出目錄（decoupled output）**（架構改動大、屬獨立 feature）、**不做 NFO 演員名翻譯**（日文名在 Jellyfin/Emby 顯示無問題）、**不讓 Scanner 改名**（維持唯讀原地索引定位，可安全掃唯讀網盤）、**不把版本後綴寫成 tag**、**不做 Scanner 批次整理/一鍵歸檔**（屬未來獨立 feature，本版只先把 F7 措辭換軸做好）。
+
+### i18n
+- zh_TW 文案本版交付（settings 外部管理器 hint + 補圖中性化 + Help 四模式措辭）；**milestone 已同步 zh_CN／en／ja**（external_manager 六 key + `skipped_nfo_multipart` toast + ja／zh_CN 多版本 Help + 回補 v0.9.10 漏網 19 key）。
+- **Scanner 離頁警告 i18n 化**：3 條硬編碼繁中離頁警告（生成中／圖片檢查中／未存資料夾變更）改走 `window.t()` + 新增 `scanner.leave_warning` 四語系 key——非 zh_TW 用戶離頁提示不再顯示繁中（清 72d Codex P2 deferred 的 pre-existing i18n 債）。
+- **Emby fanart 相容文案修正**：撤回 v0.9.11 早期「Emby 同樣支援 `{stem}-fanart.jpg`」的誤述，回復 v0.9.7 的正確說明（Emby 不認此 fanart 背景圖命名，僅 Jellyfin／Kodi 讀取；Emby 的海報與 NFO 正常）；zh_TW／README／README_EN 一併更正。
+
+### 測試
+- 全套 pytest **4089 passed, 2 skipped**（unit + integration，排除 smoke / e2e）+ `npm run lint`（eslint + stylelint）綠。
+- 新增測試：`test_db_inflow`（B1 整理搬檔 DB repath）/ `test_organizer_multipart`（F2 多段 token 偵測 + 尾端）/ `test_organizer_title`（B2 已整理檔不疊加標題）/ `test_enricher`（enrich 路徑外部模式）/ `test_generate_nfo`（F3 補強欄位）/ `test_jellyfin_compat`（smoke harness，CI 排除）+ 前端守衛（settings 四態 segmented / 補圖 gate 三態化 / Kodi stem）。
+- 新增測試（TASK-73 封面代理白名單）：`TestMappedDriveWhitelist`（SMB mapped-drive image/video → 200、DFS 別名 UNC → 200、間歇斷線 dual-form → 200、對稱契約守衛）；既有 symlink-escape／`..` 穿越／WinFsp normpath fallback 安全測試保持綠。
+- **transient-guard**：`test_frontend_lint` 中針對舊 `jellyfin_emby` 字面 / `!= 'off'` 的 negative-fingerprint 斷言標 `[transient-guard]`（四態遷移一次性，下個 milestone 評估移除）。
+
+## [0.9.10] - 2026-06-12
+
+本版主軸：**本地 WebP 縮圖快取（opt-in）+ 燈箱單筆刪除**（feature/71）。部署主場景是 app 跑在 PC(SSD)、影片/圖片放在區網 Synology NAS(HDD)，封面牆一頁 90 張每張都直接打 NAS 原圖、HDD 隨機 seek + idle 喚醒 → 一張張慢慢冒。本版讓你在 Settings 手動開啟「封面縮圖快取」後，在本機把封面預先壓成集中極小的 WebP（每張約 32KB），瀏覽時從 SSD（或 OS page cache）出圖、**根本不碰 NAS**；燈箱點進去採 blur-up（小圖秒出 → 原圖載入後就地變清）。**來源真理仍在 NAS**（原圖／NFO 不動），本地只放可回收的衍生快取。另含 issue #57 的燈箱單筆刪除（只移除 DB 紀錄＋它的快取縮圖，**絕不刪你的影片檔或原始封面**），以及進階搜尋畢業移除 Beta 標記。
+
+### Added
+#### 🖼️ 本地 WebP 縮圖快取（opt-in，預設關閉）/ Local WebP thumbnail cache
+- **Settings「下載劇照」同層級新增「封面縮圖快取」開關**：手動開啟；開啟前依目前片數即時估算空間（每張 ~32KB × 片數）＋ HDD 首次生成時間估算，跳確認 modal 才開始。關閉時行為與現狀完全一致（直接出原圖、不產 WebP）。
+- **首次開啟背景全量生成**：開啟後在背景把整庫封面慢慢全部壓成 WebP（一次性、不卡 UI、期間可繼續用）；完成後瀏覽全程零等待。
+- **Showcase grid 封面 + 相似探索節點縮圖改用本地 WebP**：一次刷一整頁而非一張張慢慢冒；serve 已存在的 WebP 時**完全不觸發任何 NAS 原圖 stat／read**（NAS 斷線仍能出已快取縮圖）。
+- **燈箱 blur-up（模糊變清晰）**：大圖框先放大已快取的小 WebP（秒出、略糊）→ 原始大圖背景載入完成後就地淡入變清。
+- **持續跟上新片**：凡影片進 DB（掃描／enrich／重刮）自動生成／更新該片縮圖；漏網的 lazy on-miss 即時補；封面被重刮／enrich 換新後，對應 WebP 就地以新封面重生（不顯示舊圖）。
+- **WebP 放 `output/thumb/`**（DB 同層）扁平 hash 分桶、400px 寬 q80、零新依賴（用既有 Pillow）、零 ZIP 體積影響。
+
+#### 🗑️ 燈箱單筆刪除（issue #57）/ Per-item lightbox delete
+- **燈箱 metadata 行末新增常駐 muted 垃圾桶 icon**：點擊跳破壞性確認 modal，誠實說明「只從資料庫移除這筆紀錄，影片檔保留在磁碟、不會被刪除；若仍在掃描目錄內，下次掃描會重新被加回」。
+- **確認後**：DB 該筆消失 + 它的快取 WebP 一併刪、grid 即時移除那張卡（Alpine splice，無整頁重載）、成功 toast。**磁碟上的影片檔與原始封面圖完全不動**；此刪除能力不揭露給 AI（human-only）。
+
+### Changed
+- **進階搜尋畢業、移除 Beta 標記**：自 v0.9.0 推出、歷經多版打磨並於 v0.9.8 起預設開啟，已長期穩定 → Settings quick-toggle 與 Help 文案的「Beta」標記移除（JavLibrary 的 BETA 不受影響，它仍是 beta）。
+- **「清除所有影片快取」連動清縮圖**：清空 DB videos 表時連同清整個 `output/thumb/`；移除加入資料夾→其影片被掃描 prune 出 DB 時順手刪它們的 WebP（不留孤兒）。
+
+### Fixed
+- **關閉縮圖快取 → 確認 modal → 一律清除**：關閉 toggle 彈確認 modal，確認後**先存檔成功才**清空 `output/thumb/`（新增 DB-safe `POST /api/gallery/thumb/clear`，僅 rmtree、絕不碰 videos DB）；取消則維持啟用、快取保留。
+- **prewarm／disable race 硬化**：背景預熱進行中若用戶關閉並清除快取，worker 每筆重讀設定→立即停止，不再把剛清掉的目錄重建回來；被中止時也不送誤導的「完成 N 張」通知（涵蓋 generate 成功與失敗兩種收尾）。
+- **燈箱開關 flip「兩張圖重影」**：blur-up 引入的原圖 overlay 層在 grid↔燈箱飛行期間未被隱藏 → 與飛行 ghost 重疊成重影；改為飛行期隱藏整個封面容器（一次蓋住底圖＋原圖兩層）、OPEN/CLOSE 對稱還原。
+- **刪除確認 modal 被燈箱蓋住**：root-fix `.fluent-modal` z-index 拉高至燈箱之上（removeActress 確認框同步受惠）。
+- **重刮／Enrich 後縮圖快取不更新（舊封面殘留）**：enrich 路徑對已是 `file:///` URI 的路徑重複 encode → invalidate 刪錯 hash → 舊縮圖沒刪掉，換封面後瀏覽頁持續顯示舊封面直到手動清快取。改用冪等的 `coerce_to_file_uri`，與 canonical key 一致。
+- **縮圖 serve 兩處邊界修正**：(1) 檔名含字面 `%` 的影片縮圖 404（`unquote` 二次解碼路徑）；(2) 關閉並清除快取後，舊分頁的 `/thumb` 請求仍重建 WebP（miss 路徑未 gate `thumbnail_cache_enabled`）——「關閉並清除」後現確實不再重生。
+- **燈箱封面縮水 + 切換跳動 + 進星座模式後反覆縮小**：blur-up 引入的 thumb 在燈箱以 400px 原始尺寸渲染（未放大）→ 封面縮水、flip ghost 量到錯誤矩形而跳動；另星座模式退出（slip-through）路徑缺 `cover_full_url` → `@load` 永不觸發 → 多次進出累積縮小。補 similar API `cover_full_url` 欄位 + CSS `height:60vh`；slip-through 路徑亦補 blur-up 狀態 reset（抽 `_refreshLbFullBlurUp` helper，兩入口共用）。
+
+### Internal
+- 縮圖核心模組 `core/thumbnail_cache.py`（hash 命名 / 原子寫 temp+os.replace / generate 失敗 fallback 原圖 / invalidate / clear_all）、`thumbnail_cache_enabled` config plumbing、serve 端點 + lazy 生成 + prewarm 端點、showcase/similar serializer 切 thumb url、失效掛鉤（掃描/enrich/重刮/單筆刪除/清快取）+ serve race 硬化、多輪 Codex review（並發正確性 / prewarm-clear race / disable-skip-done / generate-fail edge，皆 RED→GREEN 實證）。
+
+### Non-Goals（明確不做）
+- 不與 Jellyfin/Emby 共用縮圖（hash-keyed 私有 WebP，與既有 `generate_jellyfin_images()` 正交）、不偵測「手動偷換磁碟封面」（失效走事件驅動，重掃/清快取即可）、不鏡像加入資料夾目錄結構（扁平 hash 分桶）、不刪任何磁碟檔（只動 DB row + 衍生 WebP）、不做「刪除後永久不再加回」的 tombstone、不改 Search 頁封面來源、不導 virtual scroll / HTTP2。
+
+### 測試
+- 全套 pytest **3845 passed, 2 skipped**（unit + integration，排除 smoke / e2e）+ `npm run lint`（eslint + stylelint）綠。
+- 新增：`test_thumbnail_cache`（核心模組）/ `test_api_thumb`（serve / prewarm / clear / prewarm-clear race 5 案）+ async-offload 正斷言（get_thumb / thumb_prewarm / thumb_clear / delete_video 皆 def）+ 前端守衛（縮圖開關 / blur-up / 單筆刪除 element-bound / disable modal / ghost-fly both-restore / z-index contract）。
+- **transient-guard**：71b-T1 燈箱刪除鈕位置守衛 `test_t7_delete_trash_button_in_lightbox_details_row` 標 `[transient-guard]`（搬位 relayout 一次性，下個 milestone 評估移除）。
+
+## [0.9.9] - 2026-06-11
+
+本版單一主軸：**新增 JavLibrary 來源（BETA，桌面專屬）**（feature/70）。JavLibrary 是社群索引站，metatube 聯邦 30+ 來源都沒收錄——它擁有別處拿不到的最豐富社群標籤、用戶評分、以及冷門/長尾番號。但全站受 Cloudflare 人機驗證保護、純自動抓一律失敗。OpenAver 的解法：借桌面版 PyWebView 彈出真實瀏覽器視窗，讓你手動點一次驗證，之後在「已過驗證的分頁」裡抓取。因此 JavLibrary **只在桌面 standalone 可用**、**只能在進階搜尋／重刮來源選單以精確番號查詢**、並標示 BETA。
+
+### Added
+#### 🆕 JavLibrary 來源（BETA）/ JavLibrary source (BETA)
+- **進階搜尋／重刮來源選單新增 JavLibrary（BETA 徽章）**：最豐富社群標籤、用戶評分、冷門番號；metatube 聯邦沒收錄的長尾片在這裡找得到。
+- **Cloudflare 驗證流程**：有效期間內透明直接出結果；首次或過期自動彈出 JavLibrary 視窗，你點一下人機驗證（＋ 18 歲同意），系統自動重試並回填結果；驗證未完成或逾時會明確通知——不假裝成功、不靜默換來源。
+- **僅桌面 standalone 可用**：dev / 伺服器模式下 JavLibrary 選項灰色不可點，附帶說明；不會出現在 AI 能力清單（`is_beta + manual_only` 雙重排除）。
+- **永不進自動搜尋池**：不佔來源順序上限、不參與路由選擇、不影響其他來源行為。
+
+### Internal
+- 平台無關 CF transport DI 接縫（`core/cf_transport.py` Protocol）＋ PyWebView 實作（`windows/cf_transport_impl.py`）＋ 來源註冊（`utils/source_config`、scraper、config migration）＋ picker BETA 視覺 / 非桌面 gate ＋ `/api/cf/status`、`/api/cf/abandon` 端點 ＋ 前端 poll 協調（後端無狀態，try-fetch-first）。
+- **`_wv_fetch` auto-retry（12s×3）**：同一 session 其他番號 1 秒就回、特定番號卡滿 40 秒才 timeout（隱藏視窗 mid-fetch 導航、JS callback 永不觸發）；縮短單次 timeout 至 12 秒、最多 3 次重試、每次使用獨立 queue + callback（舊 attempt 的遲發 callback 落進已廢棄的 queue，不汙染下一次）；修復 START-492 等間歇性「無結果」。
+- 三輪 AI review（Codex ＋ Opus）修正：age-gate 偵測收窄為 `agreeBtn`（避免正常頁 footer 誤判）、search 入口防 500（結構化回應 ＋ 隱藏 JL pill）、`begin_solve` 例外防護、單一命中 `detail_url` 留空、番號核對守衛防回錯片。
+- **70c hardening pass**（TASK-70c-B，第二輪 Opus review）：
+  - **殭屍行程修正（B1，P1）**：`_on_main_closing` 設 `quitting=True` 後加 `jl_win.destroy()`——pywebview 只在 `instances==0` 才 `_shutdown()`，隱藏的 JL 視窗若未銷毀，關閉主視窗後 process 持續佔 port；此修正啟用了原本的 quitting-guard（舊 dead code）。
+  - **關窗攔截（T70c-A，close-intercept）**：`_on_jl_closing` 回 `False` 取消關閉 → 用戶按 ✕ 只隱藏，transport 物件存活、免重啟（Layer 1 root-fix）；`_on_main_closing` quitting=True guard 讓 app 退出時正常放行。
+  - **spinner CSS（B2，P2-1）**：`rescrape-cf-waiting` 底下 `.pill-spin` 缺 ancestor-scoped 規則 → 渲染空白；補 `.rescrape-cf-waiting .pill-spin` + 容器 flex layout（token-based，複用 `source-pill-spin` keyframes）。
+  - **通知 i18n（B3，P3-2）**：`/api/cf/abandon` 的 `emit_notification` `message=` 硬編碼中文 → EN/JA 看到中文；`title_key = notif.jl_cf_timeout` 四語系均已有翻譯，直接移除 `message=`，toast 僅顯示 title（i18n-compliant，零架構改動）。
+  - **守衛強化（P3-1）**：`cf_needed` 位置守衛由 `js.index("cf_needed")`（命中第 185 行註解）改錨 `data.cf_needed`（實際消費表達式）；`TestRescrapeModalSearchHideJlPillGuard` 改錨完整 `x-show` 表達式（L49），防止留空殼字串騙過守衛。
+  - **B1 AST 守衛**：`test_standalone_init_order_guard.py` 新增 `test_on_main_closing_destroys_jl_win` 鎖定 `jl_win.destroy()` 呼叫（AST，防靜默回退）。
+
+### Fixed
+#### 🔧 JavLibrary CF flow 修通（70d）/ CF re-verify flow fixed
+- **40 分鐘後重新驗證從「永久壞、要重開程式」變「打一次勾自動完成」**：clearance 過期後，舊流程把隱藏視窗導到首頁（那裡沒有 CF 可解），又因 `evaluate_js` 在 CF 頁卡 20 秒拖垮整個 JS 橋接 → JavLibrary 從此壞掉、必須重啟。現在彈窗直接帶你到「剛被擋下的搜尋頁」，你點一次人機驗證（或它自己過），視窗約 9 秒自動關閉、結果自動回填——全程不必碰 18 歲同意鈕、不必點頁面任何內容。
+- 18+ 同意閘改用 `over18=18` cookie（站台真值；舊 `over18=1` 不被接受、遮罩不消）；此為視覺正確性，不影響資料抓取（mask 是 client-side overlay，從不擋 fetch/parse）。
+- **CF 驗證等待提示語氣修正**：等待文案從「請點一下人機驗證」改為「驗證中，通過後自動繼續」（四語系）——CF 常自動過關、多數情況不需主動點，提示語氣改為陳述、避免誤導用戶一定要操作。
+
+### Non-Goals（明確不做）
+- 不支援 server / NAS / Docker（CF 需真人 ＋ 真瀏覽器 ＋ 桌面 GUI）、不做自動繞過 CF、不做模糊／演員搜尋、Transport A（cookie→curl_cffi）結構性死路不實作。
+
+- **`fetch()` 主動設 `over18` cookie（Codex P2）**：`fetch()` 在呼叫 `_wv_fetch` 前先主動設 `over18=18` cookie，冷啟動 CF 自動過關後首次 fetch 不會收到 18+ 同意閘 → 不再靜默「無結果」。備用路徑：若 cookie 仍未抑制閘門（race/agreeBtn），改拋 `CfChallengeRequired` 路入 solve/poll 流程，而非回傳空殼 HTML。*`fetch()` now sets the `over18` cookie proactively so the 18+ age gate never returns as empty "no results" (Codex P2); persistent-gate fallback routes into the solve flow.*
+
+### 測試
+- 全套 pytest **3743 passed, 2 skipped**（unit ＋ integration，排除 smoke / e2e）＋ `npm run lint`（eslint ＋ stylelint）綠。
+- 新增測試：`test_cf_transport` / `test_javlibrary_parser` / `test_javlibrary_scraper` / `test_javlibrary_contracts` / `test_cf_transport_impl` / `test_javlibrary_cf_flow` / `test_api_cf_endpoints` ＋ 前端守衛（`TestJavlibraryPickerT5Guard` / `T6Guard` / `SearchHideJlPillGuard`）＋ 70c-B 強化守衛（`test_on_main_closing_destroys_jl_win` ＋ 強化 cf_needed / x-show 守衛）＋ `_wv_fetch` retry 守衛（`test_retry_then_succeed` / `test_all_attempts_exhausted_raises_timeout` / `test_stale_callback_isolation`）＋ over18 cookie / age-gate fallback 守衛（`test_age_gate_html_raises_cf_challenge_required` / `test_fetch_sets_over18_cookie_before_fetch`）。
+
+## [0.9.8] - 2026-06-06
+
+本版單一主軸：**dim（暗色）主題色彩編碼修復**（feature/69），純前端 CSS、零後端、零依賴、零 i18n、零 ZIP 影響。問題：切到 dim 主題時大量「靠顏色區分狀態」的 UI 變得無法分辨——有碼 vs 無碼來源膠囊長一樣、metatube 連沒連看不出、segmented 選中態消失、警告 banner 跟一般容器混同。根因兩 factor 疊加：(A) 狀態用 `color-mix(語義色 ≤15%, transparent/surface)` 當背景 tint，dim surface 近黑（oklch 26–31%）把低% 色調吃光；(B) dim 沒 override `--color-primary` → 有碼膠囊掉回 DaisyUI 萊姆綠（139°），與無碼 success 綠（166°）只差 27° → 都綠。修復後每個色彩編碼狀態在 dim 下都能一眼辨識，且 light 主題完全不回歸。
+
+### Fixed
+#### 🎨 dim 主題色彩編碼 / dim color encoding
+- **token patch（根 unlock）**：`theme.css` 的 `[data-theme="dim"]` 區補 `--color-primary`（`oklch(0.66 0.04 250)`，與 light 同 250° 冷色家族、調亮供暗底對比、遠離綠相 → 根除膠囊色相碰撞）+ `--color-warning`（`#ff9f0a` Apple dark-mode amber）。cascade 自動改善所有引用這兩 token 的 dim border/文字通道。
+- **來源膠囊**（跨 Settings 掃描來源 / Search / 進階重刮三入口共用）：dim 下有碼（primary 冷藍）vs 無碼（success 綠）一眼可辨；啟用態 tint + solid 色邊；Parts Bin 不可達 warning 色邊；載入 spinner 對比提升。
+- **Settings**：segmented 選中態（亮面 + 1.5px inset accent 環，純結構信號）、suffix-tag（改 oklch + accent 邊）、metatube 已連線 status banner（綠 tint + 3px 左色條）、來源上限/全停用警告 banner、tier-hint / focus 環。
+- **散點**：進階重刮彈窗 inline-error / 取消鈕 / 數字輸入 focus、showcase 取樣鈕、女優別名 primary 膠囊。
+- **color-mix 色相插值修正**（CDP 終驗發現）：tint/border 的 `color-mix` partner 一律用 `transparent`（同 base 慣例）——dim surface 帶藍色相（264°），oklch 與暖色 mix 會沿色相環插值變調（amber→紫）；`transparent` 無色相 → 精準保留語義色。
+
+### Changed
+- **進階搜尋 picker 預設改為開啟**：`advanced_search_enabled` 預設值 `false` → `true`（三源對齊：`config.default.json` seed / `AppConfig` Pydantic default / `state-config.js` Alpine 初值）。新用戶／恢復原廠即可在掃描來源頁直接挑單一來源重刮，不需先進設定頁手動開啟；「下載劇照」維持預設關閉（兩者正交）。現有用戶 config.json 既有值不被覆蓋（migration 設計，保留既有偏好）。
+- **design-system**：補進階重刮彈窗 + metatube 連線 banner 兩 demo（dim 驗證面）；膠囊 999px 白名單標題「5 類」→「7 類」+ 補類 6（source-pill）/ 類 7（segmented）交叉引用卡；過時 notification center 註解修正。修掉新增 demo 引入的 duplicate `id="settings-components"`（Codex P3）。
+
+### Non-Goals（明確不做）
+- 不改 light 主題行為、不換主題 / 不調 surface 明度、不新增第二套狀態色（一律走命名 token）、不碰 design-system 完整 dedupe（→ feature/70）。
+
+### 測試
+- CDP 雙主題實機終驗（design-system demo + 生產 /settings 掃描來源頁）：dim 各色彩編碼狀態可辨（amber 67° / 膠囊 blue 250° vs green 147°）、light computed 全 base 值零回歸。
+- 全套 pytest 綠（unit + integration，排除 smoke / e2e）+ `npm run lint`（eslint + stylelint）綠；無 pytest 守衛（CLAUDE.md lint-guard：CSS 字串守衛歸 stylelint）。
+
+## [0.9.7] - 2026-06-06
+
+本版主軸：**VR 投影標籤保留 + 自動 VR tag**（feature/68），純後端、單檔 `core/organizer.py`、零新依賴、零 ZIP 影響、零 i18n、零 UI。問題根因：頭顯 App（DeoVR / HereSphere / Skybox / Pigasus）100% 靠「**檔名 token**」判斷 VR 投影/立體格式（`_180_LR` / `_3dh` / `mkx200`…），不讀 NFO；而 OpenAver 改名是用模板從頭重組檔名，原檔名的 VR token **不會被帶過來** → 改名後 VR 檔在頭顯 App 變成平面 2D 播放。本版讓改名時偵測原檔名的 VR token 並**原樣保留**到輸出檔名尾端，同時在 NFO 加一個 `VR` tag/genre。**無 toggle、無需用戶輸入；檔名無 VR token 時輸出 byte 級零變化**（2D 轉檔 / 一般片完全不受影響）。同梱兩處先前的小修正：`/static` no-cache 根治 stale cache、「Jellyfin / Emby 圖片模式」正名。
+
+### Added
+#### 🥽 VR 投影標籤保留 + 自動 VR tag / VR projection tag preservation
+- **檔名 VR token 偵測 + 原樣保留**：改名時偵測原檔名的 VR 投影/立體 token（投影 `180`/`360`/`180x180`/`EAC360`、鏡頭 `MKX200`/`VRCA220`/`FISHEYE`、立體 `3DH`/`SBS`/`LR`/`TB`…），把「首個~末個 VR token 的 raw 子字串」原樣（不正規化、不砍、保大小寫）接到輸出檔名尾端。sidecar（poster/fanart/NFO）跟隨同 stem 命名不破。
+- **自動 VR tag**：偵測到 VR token 的影片，NFO 加 `<tag>VR</tag>` + `<genre>VR</genre>`（固定英文，技術標籤不 i18n），供 Emby/Jellyfin 過濾分類。
+- **高精準偵測（零誤判導向）**：唯一字串 token（`MKX200`/`180x180`/`3DH`…，無真番號長這樣）單獨成立；高誤判 token（裸 `180`/`360`/`LR`/`SBS`…）須**同一連續 cluster 內共現**才算數——孤立的 `MIRD-180`/`REBD-360`/`title_LR` 等真番號 → 不算 VR、檔名零變化。
+
+### Changed
+- **「Jellyfin 圖片模式」→「Jellyfin / Emby 圖片模式」**：label 與 hint 文案修正（`settings.scraper.jellyfin_mode_{label,hint}`，4 語系 zh_TW/zh_CN/en/ja）+ README / README_EN feature 條目。澄清相容性事實——`{stem}-poster.jpg` 與 Kodi-style NFO 兩者 Emby 與 Jellyfin 皆可讀（親核 Emby 官方 `Movie-Naming.md` 確認支援 `{name}-poster.ext`），`{stem}-fanart.jpg` 僅 Jellyfin 讀取（Emby backdrop/fanart 不支援 `{name}-` 前綴命名，只認 standalone `fanart.jpg`）。**刻意不**額外產生 standalone `fanart.jpg`：用戶若關閉資料夾模式（多片同目錄）會撞檔。配置欄位 `jellyfin_mode` 維持不變、無 migration、無行為變化。
+
+### Fixed
+- **`/static` heuristic stale cache**：以 `NoCacheStaticFiles(StaticFiles)` 子類替換 `web/app.py:75` 的原生 `StaticFiles` mount。override `file_response`，在 `super().file_response()` 回傳後對已建好的 response 物件做 post-construction headers mutation（`response.headers["Cache-Control"] = "no-cache"`），200 `FileResponse` 與 304 `NotModifiedResponse` 兩條路徑均有效。ETag / Last-Modified / 304 機制完整保留（同檔案未變回 304 空 body，有變才回 200 新版，免 hard-reload）。封面圖代理的 24h 強快取（`scanner.py get_image`）與影片 Range streaming 完全不受影響（不經此 mount）。
+  - **桌面端（PyWebView）零副作用**：`webview.start()` 預設 `private_mode=True, storage_path=None`（pywebview ≥ 6.0 的 `start()` 參數，非 `create_window()` 參數）→ 非持久 WebView2 profile，每次啟動空快取；`no-cache` 對它只是 in-session localhost 多一次可忽略的重驗（< 1ms）。
+  - **真正受益者**：`feature/epic-synology.md` 的 Server / NAS(.spk) / Docker 模式——client 端持久瀏覽器快取在 server 更新（換檔 + 重啟）後本不清除，此修正確保下次載入必重驗並取到新版。
+
+### Internal
+- **VR 偵測「先切 token 再分類 + 連續 run 共現」演算法**（`_detect_vr_cluster`）：切詞法天然繞掉 monolithic regex 的 `_LR` 底線邊界 bug；共現限定在連續 VR-token run 內（中間夾 non-VR token 即斷開），避免散落 token 跨任意文字誤共現。截斷保護新建獨立 budget path（VR cluster 不被 `max_filename_length` 切掉）；NFO VR tag 對 `<tag>`/`<genre>` 各做 case-insensitive 去重（scraper 已給 VR 不重複）。VR token 全程不進任何 strip 路徑（與「中字」偵測後移除標記相反），並剝除 extracted_title 尾端殘留以免與尾端保留雙寫。
+
+### Non-Goals（明確不做）
+- 不做 toggle / 用戶自訂 token 清單（自動偵測）、不做 token 正規化（降低相容性）、不保留解析度/裝置 token（`8K`/`60fps`/`samsung`）、不碰影片轉碼、不做 VR poster 不裁切（issue #6 獨立）、不串接 Emby/DeoVR/DLNA（用戶端的事）。enricher / nfo_updater 不改名路徑不在範圍（VR 偵測是 organize_file 職責）。
+
+### 測試
+- 新增 `tests/unit/test_organizer.py` VR 測試（5 class、46+ case）：偵測層全 DoD 表（命中/None/混大小寫/bracket-paren/誤判防護 `1080`/`color`/`SIVR-999`）+ 檔名組裝（suffix×VR 順序 / 超長截斷保護 / 零變化）+ NFO 去重（scraper VR 不重複 / has_vr 兩條分切 / 中字共存 / byte-identical）+ 端到端 wiring + Codex 兩輪 review 回歸（連續 run / 雙寫 / bracket 雙寫 / 多 confirmed run）。
+- 新增 `tests/integration/test_static_cache_headers.py`：兩條契約測試（200 帶 `cache-control: no-cache` + `etag`；304 仍帶 `cache-control: no-cache`）。
+- 全套 pytest **3588 passed, 2 skipped**（unit + integration，排除 smoke / e2e）+ `npm run lint`（eslint + stylelint）綠。
 
 ## [0.9.6] - 2026-06-06
 

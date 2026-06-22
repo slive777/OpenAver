@@ -395,6 +395,12 @@ export function stateConfig() {
             return `http://${this.lanIp}:${this.lanPort}`;
         },
 
+        // 81b-T1: 顯示用（無 http）；複製仍走 serverUrl() 完整網址
+        serverUrlDisplay() {
+            if (!this.lanIp || !this.lanPort) return null;
+            return `${this.lanIp}:${this.lanPort}`;
+        },
+
         async setServerMode(val) {
             try {
                 const resp = await fetch('/api/config/general/server_mode', {

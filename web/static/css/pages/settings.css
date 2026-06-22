@@ -182,6 +182,27 @@
         gap: 8px;
         align-items: flex-start;
     }
+
+    /* 81-T5：外部媒體管理器 segmented 在 360px 不被壓扁（保 4 鈕水平），hint 整段換到下一列 */
+    #settings-components .settings-form-row--external-manager .settings-sources-segmented {
+        flex-shrink: 0;
+    }
+
+    #settings-components .settings-form-row--external-manager .settings-sources-segmented button {
+        white-space: nowrap; /* 每顆鈕文字不被拆字 */
+    }
+
+    #settings-components .settings-form-row--external-manager .settings-hint {
+        flex-basis: 100%;     /* 換到 segmented 下方獨佔一行 */
+        white-space: normal;  /* 保險：覆寫任何 nowrap，整段正常換行非直條 */
+    }
+
+    /* 81b-T2: 極窄屏 inline 串（ip:port + ⧉ + ?）放不下時降第二列，
+       row1 = 標題+膠囊，row2 = ip:port+⧉+?，不橫向溢出 sticky header（AC-8）。 */
+    #settings-components .settings-header-left .settings-server-inline {
+        flex-basis: 100%;
+        min-width: 0;
+    }
 }
 
 /* scroll-margin-top：sticky header 高度補償，避免標題被遮 */
@@ -342,7 +363,14 @@
         justify-content: flex-start;
     }
 
-    .settings-header h4 {
+    /* 81b-T2: h4 已包進 .settings-header-left，不再是 .settings-header 直接 flex item。
+       換行接力改由 .settings-header-left 佔第一列全寬；h4 在 cluster 內仍可佔行（標題獨佔，膠囊/inline 落次行）。 */
+    .settings-header-left {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    .settings-header-left h4 {
         flex: 1 1 100%;
         min-width: 0;
     }
@@ -721,6 +749,9 @@
     padding: 0.1rem 0.4rem;
     border-radius: var(--fluent-radius-sm);
     background: color-mix(in oklch, var(--surface-2) 60%, transparent);
+    /* 81-T5：長 URL（IP:port / domain）任意長度皆斷，不撐破卡片 */
+    word-break: break-all;
+    overflow-wrap: anywhere;
 }
 
 /* connected: tier hint */
@@ -1072,22 +1103,45 @@ html.theme-transition-active::view-transition-new(root) {
 
 /* ─── Server Mode (80a-T3) ─── */
 
+/* 81b-T2: 左 cluster — 標題 + 膠囊 + 連線 inline 同排靠左；
+   space-between 把 .settings-header-actions 推到右側。flex-wrap 讓窄屏可分列。 */
+.settings-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;             /* 與 .settings-header-actions 同節奏 */
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
 /* 膠囊容器（header-actions 對齊），最小化包裹，只控制外距 */
 #settings-components .settings-server-mode {
     display: inline-flex;
     align-items: center;
 }
 
-/* 資訊橫條（header 下 form 上；x-show 驅動顯示，無 CSS display:none 衝突） */
-#settings-components .settings-server-info {
+/* 81b-T2: server active 段琥珀（--color-warning）填底/邊框，scope 緊收到
+   .settings-server-mode，不碰來源卡 .settings-sources-segmented 膠囊。
+   local 段 [data-mode="local"].is-on 不寫 rule → fall through 共用中性態。 */
+#settings-components .settings-server-mode .settings-sources-segmented button.is-on[data-mode="server"] {
+    color: var(--color-warning);
+    background: color-mix(in oklch, var(--color-warning) 18%, transparent);
+    border: 1px solid color-mix(in oklch, var(--color-warning) 45%, transparent);
+}
+
+/* 81b-T2: dim 下把共用 is-on 的 accent(藍) inset 環換成 warning(琥珀) 環，
+   否則 dim server active 仍顯藍環，與「曝露/live」語意衝突（對齊 L1048/L1050 機制）。 */
+[data-theme="dim"] #settings-components .settings-server-mode .settings-sources-segmented button.is-on[data-mode="server"] {
+    background: color-mix(in oklch, var(--color-warning) 22%, transparent);
+    box-shadow: var(--fluent-shadow-2), inset 0 0 0 1.5px var(--color-warning);
+}
+
+/* 81b-T2: 連線資訊 inline 區塊 — ip:port + 複製 icon + ? popover 同排；
+   flex-wrap 讓窄屏可各自退讓。x-show 驅動顯示，無 CSS display 衝突。 */
+#settings-components .settings-server-inline {
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    margin-bottom: 0.75rem;
-    background: color-mix(in oklch, var(--surface-1) 60%, transparent);
-    border: 1px solid var(--stroke-subtle);
-    border-radius: var(--fluent-radius-md);
+    flex-wrap: wrap;
 }
 
 /* URL + 複製鈕 行 */
@@ -1106,14 +1160,19 @@ html.theme-transition-active::view-transition-new(root) {
     word-break: break-all;
 }
 
-/* 複製鈕 */
+/* 複製鈕 — 81b-T2: icon-only 方形鈕（行內 icon 節奏，inline 緊湊） */
 #settings-components .settings-server-copy-btn {
-    padding: 0.2rem 0.6rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
     border-radius: var(--fluent-radius-sm);
     border: 1px solid var(--stroke-subtle);
     background: color-mix(in oklch, var(--surface-2) 60%, transparent);
     color: var(--text-secondary);
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     cursor: pointer;
     transition: color var(--fluent-duration-fast) var(--fluent-ease-standard),
                 background var(--fluent-duration-fast) var(--fluent-ease-standard);
@@ -1124,23 +1183,10 @@ html.theme-transition-active::view-transition-new(root) {
     background: color-mix(in oklch, var(--surface-2) 90%, transparent);
 }
 
-/* 警語行（使用 --color-warning 狀態 token，與既有 cap-alert / sources-warn 一致） */
-#settings-components .settings-server-warning {
-    margin: 0;
-    font-size: 0.8rem;
-    color: var(--color-warning);
-}
-
 /* lanIp 空白提示 */
 #settings-components .settings-server-no-ip {
     font-size: 0.85rem;
     color: var(--text-secondary);
-}
-
-/* dim 主題：橫條 tint 加深（與 P11/P12 cap-alert 同邏輯） */
-[data-theme="dim"] #settings-components .settings-server-info {
-    background: color-mix(in oklch, var(--surface-1) 45%, transparent);
-    border-color: color-mix(in oklch, var(--stroke-subtle) 80%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

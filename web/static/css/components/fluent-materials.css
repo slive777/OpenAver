@@ -788,6 +788,40 @@
         var(--fluent-shadow-16);
 }
 
+/* Rule 42b — 81c-T6 / US-12: .notification-drawer mobile full-width sheet (≤480px)
+ * WHAT: below 480px, convert the bell drawer from the Alpine-Anchor right-top 320px
+ *   floating card into a navbar-bottom full-width fixed sheet, and switch from glass
+ *   to a SOLID fill (backdrop-filter removed).
+ * WHY (G2): the drawer is global (base.html) and opens on pages whose #main-content
+ *   keeps view-transition-name (e.g. /search, /settings). A fixed element with
+ *   backdrop-filter inside a VT backdrop-root samples per-frame → "逐格模糊" bug.
+ *   Removing backdrop-filter (vs. the 0.10.4 :has() de-name trick) roots out the
+ *   sampling source entirely — no #main-content vt-name change, no :has() rule.
+ * SPECIFICITY / !important: x-anchor (Floating UI) writes left/top as INLINE style
+ *   on every reposition (highest specificity), and Tailwind w-80 sets width. Only
+ *   !important can override inline. The solid background + backdrop-filter:none must
+ *   also beat the dim Rule 42 (0,2,0) above; this @media .notification-drawer is
+ *   (0,1,0) so background/backdrop-filter need !important to win (Rule 42 has none).
+ * THEME-AGNOSTIC: deliberately NOT [data-theme] scoped — the sheet is identical in
+ *   light (overrides bg-base-100) and dim (overrides the glass), so a single
+ *   !important background:var(--surface-2) covers both. NOTE: this is a guarded
+ *   exception to the dim-scope backdrop-filter rule — backdrop-filter:none is the
+ *   safe direction (it REMOVES filter, the very thing IACVT would do anyway), so it
+ *   carries zero "silently drop glass in light" risk. */
+@media (max-width: 480px) {
+    .notification-drawer {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: 3.5rem !important;     /* navbar height (.top-navbar / .main-content inset) */
+        width: 100% !important;     /* override Tailwind w-80 (20rem) */
+        border-radius: 0 !important;    /* full-bleed sheet edge-to-edge */
+        background: var(--surface-2) !important;    /* solid dropdown/modal token; beats dim glass */
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
  * B-T3: Media frame — 星空中央封面 + slot 共用 neutral hairline (dim-only)
  * Token: --media-frame-stroke (white 22%) — declared in the A-T1 dim token block.

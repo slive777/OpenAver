@@ -6,6 +6,7 @@ export function stateUI() {
         showSampleImagesHelp: false,
         showCounterHelp: false,
         showThumbCacheHelp: false,
+        showServerWarning: false,  // 81b-T1: 伺服器模式警語 ? popover（沿用 show*Help disclosure 模式）
 
         // 64b-1: 進階摺疊開關（x-collapse 驅動）
         scraperAdvanced: false,

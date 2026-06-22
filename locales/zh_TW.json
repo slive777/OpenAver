@@ -872,6 +872,7 @@
   },
   "help": {
     "hero": {
+      "copy_curl": "複製指令",
       "page_title": "使用說明",
       "subtitle": "JAV 影片元數據管理工具",
       "privacy": "🔒 純本地應用程式，不蒐集使用者資料",

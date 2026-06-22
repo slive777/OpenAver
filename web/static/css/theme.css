@@ -559,6 +559,9 @@ body {
  */
 :root {
     --poster-crop-ratio: 0.71;
+    /* grid 封面 action 圓鈕尺寸【單一真理】（US-8 / CD-7）：桌面 48px，
+     * ≤480px 於下方 @media 一處 override 即驅動三 grid（showcase 影片/女優、search）統一縮小。 */
+    --grid-action-btn-size: 48px;
 }
 .poster-crop {
     aspect-ratio: var(--poster-crop-ratio);
@@ -1108,6 +1111,8 @@ body {
     inset: 0;
     background: linear-gradient(to top, oklch(0% 0 0 / 0.7) 0%, oklch(0% 0 0 / 0.3) 50%, transparent 100%);
     display: flex;
+    flex-wrap: wrap;          /* feature/81 Codex P1 根治：窄卡放不下時第 3 鈕(enrich)換行而非被 overflow:hidden 裁切 */
+    align-content: flex-end;  /* 多行時整組鈕貼底（單行時無作用），與 align-items:flex-end 一致不上飄 */
     align-items: flex-end;
     justify-content: center;
     padding-bottom: 0.75rem;
@@ -1123,8 +1128,9 @@ body {
 
 /* Glass Circle Button - Overlay Actions */
 :is(#ds-gallery-components, .ds-gallery-composition) .btn-glass-circle {
-    width: 48px;
-    height: 48px;
+    width: var(--grid-action-btn-size, 48px);
+    height: var(--grid-action-btn-size, 48px);
+    flex-shrink: 0;  /* 治本：overlay 為 flex，無此宣告窄欄壓 width 不壓 height → 橢圓（US-8） */
     border: 1px solid color-mix(in oklch, white 40%, transparent);
     border-radius: 50%;
     background: color-mix(in oklch, white 15%, transparent);
@@ -1148,6 +1154,51 @@ body {
 
 :is(#ds-gallery-components, .ds-gallery-composition) .btn-glass-circle:active {
     transform: scale(0.95);
+}
+
+/* ── ≤480px：grid 封面 action 圓鈕統一縮小（US-8 / CD-7 全站一處）──────────
+ * 一處 override token 即驅動三 grid（showcase 影片/女優、search）；桌面 >480px
+ * 經 fallback 維持 48×48 不回歸。窄欄 3 欄（showcase.css L299 repeat(3,1fr)）下，
+ * 桌面 gap:1rem(16px) 會撐爆 3 鈕（含 enrich）→ gap 收到 micro 級。
+ * 欄寬數學（360px 視口、3 欄）：容器 padding + grid gap 後單欄 ~108px；
+ * 3 鈕 36×3=108px 已逼界，故 gap 不能用 16px。0.35rem≈5.6px（§4 micro 級，
+ * 2 個 inter-button gap=11.2px），36×3+11.2≈119px——含 enrich 第 4 件時靠 flex
+ * 容器允許 overlay 自身溢出極小幅 + 真機降級；2 鈕情境（72+5.6=77.6px）寬鬆。 */
+@media (max-width: 480px) {
+    :root {
+        --grid-action-btn-size: 36px;
+    }
+
+    :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview-overlay {
+        gap: 0.35rem;  /* §4 micro 級（≈5.6px）：3 鈕在 ~108px 窄欄不溢出，理由見上方註記 */
+    }
+
+    :is(#ds-gallery-components, .ds-gallery-composition) .btn-glass-circle {
+        font-size: 1rem;  /* icon 隨鈕縮（桌面 1.25rem） */
+    }
+}
+
+/* ── 481–899px：tablet 4 欄（US-10）下 grid 圓鈕再縮一階（feature/81 Codex P1 修正）──────
+ * US-10 把 481–899 改 4 欄（showcase.css L281 / search.css），欄數從 ≤480 的 3 欄跳升，
+ * 卡寬反而比 ≤480 更窄：481px 4 欄 ≈(481−96)/4≈96px（vs ≤480 3 欄 ≈146px）。overlay 為
+ * position:absolute + overflow:hidden，36px 鈕在此被 clip 截斷（比溢出更糟）。故此段需比 ≤480
+ * 的 36px 更小 → 32px + gap 收到 0.25rem(4px)。數學（最窄 481px 96px 卡）：
+ *   2 鈕 32×2+4=68px ＜96 → 全段寬鬆；
+ *   3 鈕（含 enrich）32×3+8=104px，需卡寬≥104 即 vp≥512 → 481–512 含 enrich 仍極限偏緊
+ *   （enrich 為條件顯示，真機作用中 tablet 多 ≥600px，與 ≤480 三鈕同屬已記錄殘留，owner 真機 gate）。
+ * token 在 :root → search grid 同步跟進（CD-11 parity，不需改 search.css）。 */
+@media (min-width: 481px) and (max-width: 899px) {
+    :root {
+        --grid-action-btn-size: 32px;
+    }
+
+    :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview-overlay {
+        gap: 0.25rem;  /* 4 欄最窄卡（≈96px）容 3 鈕：理由見上方註記 */
+    }
+
+    :is(#ds-gallery-components, .ds-gallery-composition) .btn-glass-circle {
+        font-size: 0.9rem;  /* icon 隨 32px 鈕縮（桌面 1.25rem / ≤480 1rem） */
+    }
 }
 
 /* Output Info Section */

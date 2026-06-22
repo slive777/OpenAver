@@ -2,6 +2,9 @@
  * SearchState - Grid Mode Mixin
  * 包含：Grid 模式切換、Lightbox 控制
  */
+import { POSTER_CROP_MAX_W } from '@/shared/breakpoints.js';
+import { detectSwipe } from '@/shared/swipe.js';
+
 export function searchStateGridMode() {
     return {
     // ===== Display Mode Toggle =====
@@ -91,7 +94,7 @@ export function searchStateGridMode() {
         // ★ C17 step 1: 在 state 變更前捕獲 fromRect（僅 grid → lightbox 首次開啟）
         var fromRect = null;
         var coverSrc = null;
-        var posterCrop = false;   // T9-port: ≤480px search 影片卡 poster-crop 旗標（對齊 showcase state-lightbox.js）
+        var posterCrop = false;   // T9-port / US-10: ≤899px search 影片卡 poster-crop 旗標（對齊 showcase state-lightbox.js）
         if (!this.lightboxOpen && this.displayMode === 'grid') {
             var grid = document.querySelector('.search-grid');
             var card = grid ? grid.querySelector('[data-slot="' + index + '"]') : null;
@@ -99,9 +102,10 @@ export function searchStateGridMode() {
             if (img && img.complete && img.getBoundingClientRect().width > 0) {
                 fromRect = img.getBoundingClientRect();
                 coverSrc = img.src;
-                // T9-port：≤480px search 影片卡縮圖走 poster-crop，通知 ghost 對齊裁切 + 落地溶接。
+                // T9-port / US-10：≤899px search 影片卡縮圖走 poster-crop，通知 ghost 對齊裁切 + 落地溶接。
                 // search 無 showFavoriteActresses；openLightbox 路徑的 card 皆為影片卡（hero 走 openActressLightbox）。
-                posterCrop = window.innerWidth <= 480 && !card.classList.contains('hero-card');
+                // 門檻 POSTER_CROP_MAX_W 對齊 CSS poster-grid / 燈箱貼合斷點（守衛鎖死）。
+                posterCrop = window.innerWidth <= POSTER_CROP_MAX_W && !card.classList.contains('hero-card');
             }
         }
 
@@ -380,6 +384,51 @@ export function searchStateGridMode() {
                 if (!tl) this._lightboxAnimating = false;
             }
         });
+    },
+
+    // ==================== Lightbox Swipe (81c-T3) ====================
+    // 置於 prev/nextLightboxVideo 定義之後：避免本 handler 內的 this.*LightboxVideo()
+    // 呼叫點搶在方法定義前出現，誤導以 first-occurrence 定位方法體的既有守衛（C30 等）。
+
+    _lbTouchStart(e) {
+        if (e.touches && e.touches.length > 0) {
+            this._lbTouchStartX = e.touches[0].clientX;
+            this._lbTouchStartY = e.touches[0].clientY;
+        }
+    },
+
+    _lbTouchEnd(e) {
+        if (this._lbTouchStartX === null) return;
+        var endX = e.changedTouches && e.changedTouches.length > 0
+            ? e.changedTouches[0].clientX
+            : null;
+        var endY = e.changedTouches && e.changedTouches.length > 0
+            ? e.changedTouches[0].clientY
+            : null;
+        if (endX === null || endY === null) {
+            this._lbTouchStartX = null;
+            this._lbTouchStartY = null;
+            return;
+        }
+        // 攔截短路串（比照 search handleKeydown 優先序，僅 3 條）
+        if (this.rescrapeOpen) {          // 比照 navigation.js:165
+            this._lbTouchStartX = null; this._lbTouchStartY = null; return;
+        }
+        if (this.sampleGalleryOpen) {     // 劇照由 _sgTouchEnd 處理（sibling 容器）
+            this._lbTouchStartX = null; this._lbTouchStartY = null; return;
+        }
+        if (!this.lightboxOpen) {         // 燈箱沒開不換片
+            this._lbTouchStartX = null; this._lbTouchStartY = null; return;
+        }
+        var dir = detectSwipe(this._lbTouchStartX, this._lbTouchStartY, endX, endY, 50);
+        this._lbTouchStartX = null;
+        this._lbTouchStartY = null;
+        // CD-3 直呼（CD-4 方向，無 actress gate — prev/next 內部處理 lightboxIndex===-1）
+        if (dir === 'left') {             // 左滑 → 下一
+            this.nextLightboxVideo();     // async，fire-and-forget，不 await
+        } else if (dir === 'right') {     // 右滑 → 上一
+            this.prevLightboxVideo();
+        }
     },
 
     /**

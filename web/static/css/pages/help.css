@@ -26,6 +26,9 @@
     font-size: 0.9rem;
     padding: 0.75rem 1rem;
     position: relative;
+    /* 81-T5：curl 長 URL（server 模式 lan_ip:port）窄螢幕不水平溢出 */
+    overflow-x: auto;
+    word-break: break-all;
 }
 
 .terminal-prompt {

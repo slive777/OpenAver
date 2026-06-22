@@ -9,9 +9,73 @@
 {% block content %}
 <div id="settings-components" x-data="settings" data-lan-ip="{{ lan_ip or '' }}">
     <div class="settings-header">
-        <h4 class="mb-0">
-            <i class="bi bi-gear"></i> {{ t('settings.header.title') }}
-        </h4>
+        <!-- 81b-T1: 左 cluster 包標題 + 膠囊 + 連線 inline 區塊；flex 樣式由 T2 補 -->
+        <div class="settings-header-left">
+            <h4 class="mb-0">
+                <i class="bi bi-gear"></i> {{ t('settings.header.title') }}
+            </h4>
+            <!-- Server Mode Toggle (80a-T3) — 81b-T1: 從 actions 末尾搬到標題側 -->
+            <div class="settings-server-mode">
+                <div class="settings-sources-segmented" role="group" :aria-label="window.t('settings.mode.label')">
+                    <button type="button"
+                            data-mode="local"
+                            :class="{ 'is-on': !serverMode }"
+                            @click="setServerMode(false)"
+                            x-text="window.t('settings.mode.local')">
+                    </button>
+                    <button type="button"
+                            data-mode="server"
+                            :class="{ 'is-on': serverMode }"
+                            @click="setServerMode(true)"
+                            x-text="window.t('settings.mode.server')">
+                    </button>
+                </div>
+            </div>
+            <!-- 81b-T1: 連線資訊 inline 區塊（ip:port + 複製 icon + ? popover）；
+                 x-cloak 防 Alpine boot 前 FOUC（同原第二排 .settings-server-info 理由）-->
+            <div class="settings-server-inline" x-show="serverMode" x-cloak>
+                <template x-if="serverUrl()">
+                    <div class="settings-server-info-row">
+                        <span class="settings-server-url" x-text="serverUrlDisplay()"></span>
+                        <button type="button"
+                                class="settings-server-copy-btn"
+                                @click="copyServerUrl()"
+                                :title="window.t('settings.server_info.copy')"
+                                :aria-label="window.t('settings.server_info.copy')">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                </template>
+                <!-- lanIp 在但 lanPort 缺（listener 未啟動，如重啟 auto-start 失敗）→ 指向正確問題，非「取不到 IP」 -->
+                <template x-if="!serverUrl() && lanIp">
+                    <div class="settings-server-no-ip" x-text="window.t('settings.server_info.listener_down')"></div>
+                </template>
+                <!-- IP 抓不到但 listener 已開（lanPort 已知）→ 顯示 port，否則用戶湊不出 IP:port -->
+                <template x-if="!serverUrl() && !lanIp && lanPort">
+                    <div class="settings-server-no-ip" x-text="window.t('settings.server_info.no_lan_ip_with_port', { port: lanPort })"></div>
+                </template>
+                <!-- 連 lanIp、lanPort 都沒有 → 真的是區網 IP 偵測失敗（也無 port） -->
+                <template x-if="!serverUrl() && !lanIp && !lanPort">
+                    <div class="settings-server-no-ip" x-text="window.t('settings.server_info.no_lan_ip')"></div>
+                </template>
+                <!-- ? 警語 popover（沿用 .help-popover disclosure 模式，與「下載劇照」等一致；
+                     81b-T1 直接落地完整互動＝既有 pattern verbatim copy，T3 收為 verify-only）-->
+                <div class="settings-server-warning-anchor popover-anchor">
+                    <button type="button" class="help-popover-btn"
+                            @click.prevent="showServerWarning = !showServerWarning"
+                            :aria-expanded="showServerWarning">
+                        <i class="bi bi-question-circle"></i>
+                    </button>
+                    <div x-show="showServerWarning" x-cloak x-transition
+                         @click.outside="showServerWarning = false"
+                         class="help-popover">
+                        <small class="help-popover__body">
+                            {{ t('settings.server_info.warning') }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="settings-header-actions">
             <!-- Font Size Control -->
             <div class="font-size-control">
@@ -44,51 +108,7 @@
                     <i class="bi" :class="theme === 'light' ? 'bi-moon-stars' : 'bi-sun'"></i>
                 </button>
             </div>
-            <!-- Server Mode Toggle (80a-T3) -->
-            <div class="settings-server-mode">
-                <div class="settings-sources-segmented" role="group" :aria-label="window.t('settings.mode.label')">
-                    <button type="button"
-                            :class="{ 'is-on': !serverMode }"
-                            @click="setServerMode(false)"
-                            x-text="window.t('settings.mode.local')">
-                    </button>
-                    <button type="button"
-                            :class="{ 'is-on': serverMode }"
-                            @click="setServerMode(true)"
-                            x-text="window.t('settings.mode.server')">
-                    </button>
-                </div>
-            </div>
         </div>
-    </div>
-
-    <!-- Server Info Banner (80a-T3) — x-cloak 防 Alpine boot 前 FOUC；不加 CSS display:none（與 x-show 衝突） -->
-    <div class="settings-server-info" x-show="serverMode" x-cloak>
-        <div class="settings-server-info-url-row">
-            <template x-if="serverUrl()">
-                <div class="settings-server-info-row">
-                    <span class="settings-server-url" x-text="serverUrl()"></span>
-                    <button type="button"
-                            class="settings-server-copy-btn"
-                            @click="copyServerUrl()"
-                            x-text="window.t('settings.server_info.copy')">
-                    </button>
-                </div>
-            </template>
-            <!-- lanIp 在但 lanPort 缺（listener 未啟動，如重啟 auto-start 失敗）→ 指向正確問題，非「取不到 IP」 -->
-            <template x-if="!serverUrl() && lanIp">
-                <div class="settings-server-no-ip" x-text="window.t('settings.server_info.listener_down')"></div>
-            </template>
-            <!-- IP 抓不到但 listener 已開（lanPort 已知）→ 顯示 port，否則用戶湊不出 IP:port -->
-            <template x-if="!serverUrl() && !lanIp && lanPort">
-                <div class="settings-server-no-ip" x-text="window.t('settings.server_info.no_lan_ip_with_port', { port: lanPort })"></div>
-            </template>
-            <!-- 連 lanIp、lanPort 都沒有 → 真的是區網 IP 偵測失敗（也無 port） -->
-            <template x-if="!serverUrl() && !lanIp && !lanPort">
-                <div class="settings-server-no-ip" x-text="window.t('settings.server_info.no_lan_ip')"></div>
-            </template>
-        </div>
-        <p class="settings-server-warning" x-text="window.t('settings.server_info.warning')"></p>
     </div>
 
     <!-- 64b-1: .settings-tab-bar 整段移除（6 個 .settings-tab button）；nav icon-only 嵌 header 由 64b-2 重建 -->

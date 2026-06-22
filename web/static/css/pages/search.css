@@ -708,9 +708,10 @@
     }
 }
 
+/* 481-899px → 4 columns 直式右裁 poster 格（US-10 / CD-11） */
 @media (min-width: 481px) and (max-width: 899px) {
     .search-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         gap: 1rem;
     }
 }
@@ -729,8 +730,10 @@
    故此處用**複合選擇器** `:is(…).search-grid`（無空格，同元素），而非後代 `:is(…) .search-grid`——
    後者要求 scope 在 .search-grid 的祖先 → search 無此祖先 → 永不命中（poster-crop/caption silent no-op）。
    :is(#id,…) 仍必要：帶 (1,0,0) 使複合 (1,4,0) 勝基準 :is(…) .av-card-preview-img (1,1,0)；
-   去掉 #id 的純 class 複合僅 (0,4,0) 會輸基準。:not(.hero-card) 排除女優入口 hero 卡。 */
-@media (max-width: 480px) {
+   去掉 #id 的純 class 複合僅 (0,4,0) 會輸基準。:not(.hero-card) 排除女優入口 hero 卡。
+   US-10 / T10：poster-crop 樣式從 ≤480 擴到 ≤899（481–899 4 欄直式右裁與 ≤480 一致）；
+   欄數靠各自 @media（≤480 = 3 欄 / 481–899 = 4 欄），複合 selector 形式（無空格）不變。 */
+@media (max-width: 899px) {
     :is(#ds-gallery-components, .ds-gallery-composition).search-grid .av-card-preview:not(.hero-card) .av-card-preview-img {
         aspect-ratio: var(--poster-crop-ratio, 0.71);
         height: auto;
@@ -771,8 +774,9 @@
    而 showcase 的 ≤480∩coarse 修正只 scope 在 .showcase-grid（L894–902），不涵蓋 .search-grid。
    故補平行規則：≤480px ∩ coarse ∩ .search-grid 非 hero → 還原 footer-default 番號層。
    specificity :is(…) ID 帶 (1,0,0) 使 (1,4,0) 勝 US3c .av-card-preview .footer-* (0,2,0)。
-   selector 同用複合 `:is(…).search-grid`（scope 在 grid 本身，見上 Codex P2 註）。 */
-@media (max-width: 480px) and (pointer: coarse) {
+   selector 同用複合 `:is(…).search-grid`（scope 在 grid 本身，見上 Codex P2 註）。
+   US-10 / T10：擴 ≤480 → ≤899 與 poster-crop 樣式同步（481–899 平板 poster 格 footer 行為一致）。 */
+@media (max-width: 899px) and (pointer: coarse) {
     :is(#ds-gallery-components, .ds-gallery-composition).search-grid .av-card-preview:not(.hero-card) .footer-default {
         opacity: 1;
     }
@@ -788,7 +792,7 @@
      gate has-cover 後女優模式（has-cover=false）/無封面/404 皆不命中 → 乾淨排除女優燈箱、不塌。
    specificity（皆自勝、不靠源序）：容器 .search-container .lightbox-cover.has-cover (0,3,0) 勝基準 (0,1,0)；
      img .search-container .lightbox-cover.has-cover img (0,3,1) 勝基準 .lightbox-cover img (0,1,1)。 */
-@media (max-width: 480px) {
+@media (max-width: 899px) {
     /* (b) 容器：有封面才塌到圖盒 */
     .search-container .lightbox-cover.has-cover {
         min-height: 0;

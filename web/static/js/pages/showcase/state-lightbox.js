@@ -9,6 +9,8 @@
  */
 
 import { _filteredVideos, _filteredActresses, _killLightboxTimelines, _NO_COVER_PLACEHOLDER } from '@/showcase/state-base.js';
+import { POSTER_CROP_MAX_W } from '@/shared/breakpoints.js';
+import { detectSwipe } from '@/shared/swipe.js';
 
 export function stateLightbox() {
     // 49b T4cd: Picker 動畫參數（T1 fix2 定案，2026-04-25）
@@ -39,6 +41,8 @@ export function stateLightbox() {
         sampleGalleryImages: [],
         sampleGalleryIndex: 0,
         _sgTouchStartX: null,
+        _lbTouchStartX: null,
+        _lbTouchStartY: null,
         _sgAnimating: false,            // C21 guard
         _sgGeneration: 0,               // stale callback 防護
 
@@ -164,11 +168,12 @@ export function stateLightbox() {
                         if (imgEl && imgEl.complete && imgEl.getBoundingClientRect().width > 0) {
                             fromRect = imgEl.getBoundingClientRect();
                             coverSrc = imgEl.src;
-                            // US5-T7 (CD-75b-12)：≤480px 影片卡縮圖走 poster-crop（封面右半正面）。
+                            // US5-T7 (CD-75b-12) / US-10 (CD-10)：≤899px 影片卡縮圖走 poster-crop（封面右半正面）。
                             // 非女優模式、非 hero 卡時通知 ghost 對齊裁切 + 落地溶接，
                             // 避免 cover→contain 內容框法切換的硬切 glitch。裁切細節封裝在 ghost-fly.js。
+                            // 門檻 POSTER_CROP_MAX_W 對齊 CSS poster-grid / 燈箱貼合斷點（守衛鎖死）。
                             posterCrop = !this.showFavoriteActresses
-                                && window.innerWidth <= 480
+                                && window.innerWidth <= POSTER_CROP_MAX_W
                                 && !cardEl.classList.contains('hero-card');
                         }
                     }
@@ -593,6 +598,63 @@ export function stateLightbox() {
                         if (!tl) self._lightboxAnimating = false;
                     }
                 });
+            }
+        },
+
+        // ==================== Lightbox Swipe (81c-T2) ====================
+        // 置於 prev/nextLightboxVideo 定義之後：避免本 handler 內的 this.*LightboxVideo()
+        // 呼叫點搶在方法定義前出現，誤導以 first-occurrence 定位方法體的既有 sentinel 守衛。
+
+        _lbTouchStart(e) {
+            if (e.touches && e.touches.length > 0) {
+                this._lbTouchStartX = e.touches[0].clientX;
+                this._lbTouchStartY = e.touches[0].clientY;
+            }
+        },
+
+        _lbTouchEnd(e) {
+            if (this._lbTouchStartX === null) return;
+            var endX = e.changedTouches && e.changedTouches.length > 0
+                ? e.changedTouches[0].clientX
+                : null;
+            var endY = e.changedTouches && e.changedTouches.length > 0
+                ? e.changedTouches[0].clientY
+                : null;
+            if (endX === null || endY === null) {
+                this._lbTouchStartX = null;
+                this._lbTouchStartY = null;
+                return;
+            }
+            // CD-5 攔截短路串（比照 handleKeydown 優先序）
+            if (this.similarModeOpen || this.similarModeMobileOpen) {
+                this._lbTouchStartX = null; this._lbTouchStartY = null; return;
+            }
+            if (this.removeActressModalOpen) {
+                this._lbTouchStartX = null; this._lbTouchStartY = null; return;
+            }
+            if (this._pickerOpen) {
+                this._lbTouchStartX = null; this._lbTouchStartY = null; return;
+            }
+            if (this.rescrapeOpen) {
+                this._lbTouchStartX = null; this._lbTouchStartY = null; return;
+            }
+            if (this.deleteVideoModalOpen) {
+                this._lbTouchStartX = null; this._lbTouchStartY = null; return;
+            }
+            if (this.sampleGalleryOpen) {   // 劇照由 _sgTouchEnd 處理
+                this._lbTouchStartX = null; this._lbTouchStartY = null; return;
+            }
+            if (!this.lightboxOpen) {        // 燈箱沒開不換片
+                this._lbTouchStartX = null; this._lbTouchStartY = null; return;
+            }
+            var dir = detectSwipe(this._lbTouchStartX, this._lbTouchStartY, endX, endY, 50);
+            this._lbTouchStartX = null;
+            this._lbTouchStartY = null;
+            // CD-3 分流（CD-4 方向）
+            if (dir === 'left') {           // 左滑 → 下一
+                this.showFavoriteActresses ? this.nextActressLightbox() : this.nextLightboxVideo();
+            } else if (dir === 'right') {   // 右滑 → 上一
+                this.showFavoriteActresses ? this.prevActressLightbox() : this.prevLightboxVideo();
             }
         },
 

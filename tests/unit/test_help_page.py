@@ -42,6 +42,12 @@ class TestHelpPageContext:
         所有翻譯 key，feature/80 新增的 `settings.server_info.no_lan_ip` 子字串會誤觸
         本守衛，但那是 settings 頁無關 key，非 help 模板重新引入 lan_ip 變數。本守衛
         只關心 help 模板自身是否復活 lan_ip context 變數。
+
+        注：server-mode help 刻意透過 `base_url` context 變數顯示可分享的
+        `lan_ip:lan_port`（US-7 / 81b-T5）；該值是解析後的 IP 字串而非字面
+        `lan_ip` 變數，且本守衛在預設單機模式（server_mode off → loopback、
+        無 IP）下執行，故仍綠 — 它持續防止 help.html 復活原始 `{{ lan_ip }}`
+        template 變數（字面字串檢查依然有效）。
         """
         client = _make_client()
         response = client.get("/help")

@@ -131,6 +131,72 @@ TAILWIND_CSS = Path(__file__).parent.parent.parent / "web" / "static" / "css" / 
 
 BASE_HTML_T76 = Path(__file__).parent.parent.parent / "web" / "templates" / "base.html"
 
+APPLE_TOUCH_ICON_PNG = Path(__file__).parent.parent.parent / "web" / "static" / "apple-touch-icon.png"
+# theme-color 兩個白名單 hex，須與 CSS --color-base-100 token 換算一致
+# （dim=[data-theme=dim] base-100、light=[data-theme=light] base-100）
+THEME_COLOR_DIM = "#2a303c"
+THEME_COLOR_LIGHT = "#ffffff"
+
+
+class TestAppleTouchIconThemeColor:
+    """TASK-81a-T8 (US-4): apple-touch-icon link + 動態 theme-color meta 守衛。
+
+    - head 有 apple-touch-icon link 指向 /static/apple-touch-icon.png
+    - head 有 theme-color meta，content 為 Jinja 條件，兩白名單 hex 都在
+    - x-init 的 $watch('theme') 會更新 meta[name=theme-color] content（dim/light 雙向）
+    - apple-touch-icon.png 存在且為 180×180（PIL）
+    """
+
+    def _base(self):
+        return BASE_HTML_T76.read_text(encoding="utf-8")
+
+    def test_head_has_apple_touch_icon(self):
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(self._base(), "html.parser")
+        link = soup.find("link", rel="apple-touch-icon")
+        assert link is not None, "base.html head 缺 <link rel=\"apple-touch-icon\">"
+        assert link.get("href") == "/static/apple-touch-icon.png", \
+            f"apple-touch-icon href 應為 /static/apple-touch-icon.png，實為 {link.get('href')!r}"
+
+    def test_head_has_theme_color_meta(self):
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(self._base(), "html.parser")
+        meta = soup.find("meta", attrs={"name": "theme-color"})
+        assert meta is not None, "base.html head 缺 <meta name=\"theme-color\">"
+        content = meta.get("content", "")
+        # 初值為 Jinja 條件：{{ '#2a303c' if theme == 'dim' else '#ffffff' }}
+        assert "theme == 'dim'" in content or "theme=='dim'" in content, \
+            f"theme-color content 應為隨 theme 的 Jinja 條件，實為 {content!r}"
+        assert THEME_COLOR_DIM in content and THEME_COLOR_LIGHT in content, \
+            f"theme-color content 須含 dim/light 兩白名單 hex，實為 {content!r}"
+
+    def test_theme_watch_updates_theme_color(self):
+        """$watch('theme', ...) 區塊會把 dim/light hex 寫進 meta[name=theme-color].content"""
+        html = self._base()
+        # 找出更新 theme-color 的 $watch callback（容忍 &quot; HTML escape）
+        pattern = re.compile(
+            r"\$watch\(\s*['\"]theme['\"].*?theme-color.*?\.content.*?"
+            + re.escape(THEME_COLOR_DIM) + r".*?" + re.escape(THEME_COLOR_LIGHT),
+            re.DOTALL,
+        )
+        assert pattern.search(html), (
+            "base.html x-init 缺 $watch('theme') 更新 meta[name=theme-color].content "
+            f"為 {THEME_COLOR_DIM}/{THEME_COLOR_LIGHT} 的區塊（動態狀態列色被移除？）"
+        )
+
+    def test_apple_touch_icon_png_exists_and_180(self):
+        from PIL import Image
+        assert APPLE_TOUCH_ICON_PNG.exists(), \
+            f"apple-touch-icon.png 不存在：{APPLE_TOUCH_ICON_PNG}（跑 tools/gen_apple_touch_icon.py）"
+        with Image.open(APPLE_TOUCH_ICON_PNG) as img:
+            assert img.size == (180, 180), \
+                f"apple-touch-icon.png 應為 180×180，實為 {img.size}"
+            # apple-touch-icon 須不透明品牌底（iOS 自動加圓角，透明背景會變黑/白底不一致）
+            assert img.mode == "RGB", \
+                f"apple-touch-icon.png 須為 RGB 不透明（無 alpha），實為 {img.mode}"
+            assert img.getpixel((0, 0)) == (26, 26, 46), \
+                f"apple-touch-icon.png 四角須為品牌底 #1a1a2e，實為 {img.getpixel((0, 0))}"
+
 
 class TestPageTransitionDomGuard:
     """feature/76 T1: Cross-Document View Transitions DOM + CSS 契約守衛。
@@ -214,6 +280,102 @@ class TestPageTransitionDomGuard:
             assert banned not in open_tag, \
                 (f"base.html showcase 硬切 script 的 <script> tag 含 {banned!r}（feature/76 CD-11）："
                  "pagereveal listener 必須是 parser-blocking classic script，defer/async/module 會漏接事件")
+
+
+class TestGridActionBtnSize:
+    """feature/81 T1（US-8 / CD-7）：grid 封面圓鈕 flex-shrink 根治 + 尺寸 token + ≤480px 縮小守衛。
+
+    純 theme.css 靜態守衛。斷言：
+    - :root 宣告 --grid-action-btn-size 預設 48px。
+    - .btn-glass-circle 主規則含 flex-shrink: 0，且 width/height 讀 var(--grid-action-btn-size)（非硬編 48px）。
+    - @media (max-width: 480px) 內把 --grid-action-btn-size 重宣告為 ≤48px 的縮值。
+    視覺正圓 / 三 grid 一致由 owner 真機 hard-gate，不在此守衛。
+    """
+
+    def _theme(self):
+        return THEME_CSS.read_text(encoding="utf-8")
+
+    def test_root_declares_grid_action_btn_size_token(self):
+        """:root 宣告 --grid-action-btn-size 預設 48px（桌面尺寸＝現狀）"""
+        css = self._theme()
+        assert re.search(r"--grid-action-btn-size:\s*48px", css), \
+            "theme.css :root 缺少 --grid-action-btn-size: 48px（feature/81 T1 token）"
+
+    def test_btn_glass_circle_has_flex_shrink_and_token_size(self):
+        """.btn-glass-circle 主規則含 flex-shrink: 0 且 width/height 讀 token（非硬編 48px）"""
+        css = self._theme()
+        m = re.search(
+            r":is\(#ds-gallery-components,\s*\.ds-gallery-composition\)\s+\.btn-glass-circle\s*\{(.*?)\}",
+            css,
+            re.DOTALL,
+        )
+        assert m, "theme.css 找不到 :is(...) .btn-glass-circle 主規則"
+        rule = m.group(1)
+        assert re.search(r"flex-shrink:\s*0", rule), \
+            ".btn-glass-circle 主規則缺少 flex-shrink: 0（feature/81 T1 治本：flex 壓 width 不壓 height → 橢圓）"
+        assert re.search(r"width:\s*var\(--grid-action-btn-size", rule), \
+            ".btn-glass-circle width 未讀 var(--grid-action-btn-size)（仍硬編 48px？）"
+        assert re.search(r"height:\s*var\(--grid-action-btn-size", rule), \
+            ".btn-glass-circle height 未讀 var(--grid-action-btn-size)（仍硬編 48px？）"
+
+    def test_mobile_media_shrinks_grid_action_btn_size(self):
+        """@media (max-width: 480px) 內把 --grid-action-btn-size 縮為 ≤48px"""
+        css = self._theme()
+        blocks = re.findall(
+            r"@media\s*\(\s*max-width:\s*480px\s*\)\s*\{(.*?)\n\}",
+            css,
+            re.DOTALL,
+        )
+        sizes = []
+        for block in blocks:
+            for val in re.findall(r"--grid-action-btn-size:\s*(\d+)px", block):
+                sizes.append(int(val))
+        assert sizes, \
+            "theme.css @media (max-width: 480px) 內未重宣告 --grid-action-btn-size（feature/81 T1 mobile 縮小）"
+        assert all(s <= 48 for s in sizes), \
+            f"@media (max-width: 480px) 的 --grid-action-btn-size 未縮小（應 ≤48px）：{sizes}"
+
+    def test_tablet_media_shrinks_grid_action_btn_size(self):
+        """@media (min-width: 481px) and (max-width: 899px) 內把 --grid-action-btn-size 縮為 < 36px（Codex P1）。
+
+        US-10 把 481–899 改 4 欄後卡寬比 ≤480 的 3 欄更窄，overlay(absolute+overflow:hidden)
+        會把 36px 鈕 clip 截斷 → 此段需比 ≤480 的 36px 更小。
+        """
+        css = self._theme()
+        blocks = re.findall(
+            r"@media\s*\(\s*min-width:\s*481px\s*\)\s*and\s*\(\s*max-width:\s*899px\s*\)\s*\{(.*?)\n\}",
+            css,
+            re.DOTALL,
+        )
+        sizes = []
+        for block in blocks:
+            for val in re.findall(r"--grid-action-btn-size:\s*(\d+)px", block):
+                sizes.append(int(val))
+        assert sizes, \
+            "theme.css @media (min-width: 481px) and (max-width: 899px) 內未重宣告 --grid-action-btn-size（feature/81 Codex P1：tablet 4 欄需再縮）"
+        assert all(s < 36 for s in sizes), \
+            f"481–899px 的 --grid-action-btn-size 未比 ≤480(36px) 更小：{sizes}"
+
+    def test_overlay_wraps_not_clips(self):
+        """.av-card-preview-overlay 主規則含 flex-wrap: wrap（feature/81 Codex P1 根治：防裁切）。
+
+        單純縮尺寸無法讓單一 token 同時服務 481px(96px 卡) 與 899px(201px 卡)；窄卡放不下
+        第 3 鈕(enrich)時靠 flex-wrap 換行而非被 overflow:hidden 裁切。此守衛鎖「永不裁切」
+        機制——比『3 鈕在某尺寸恰好容納』更穩（任意鈕數/寬度皆不裁）。需搭 align-content
+        貼底避免多行上飄。
+        """
+        css = self._theme()
+        m = re.search(
+            r":is\(#ds-gallery-components,\s*\.ds-gallery-composition\)\s+\.av-card-preview-overlay\s*\{(.*?)\}",
+            css,
+            re.DOTALL,
+        )
+        assert m, "theme.css 找不到 :is(...) .av-card-preview-overlay 主規則"
+        rule = m.group(1)
+        assert re.search(r"flex-wrap:\s*wrap", rule), \
+            ".av-card-preview-overlay 主規則缺 flex-wrap: wrap（Codex P1 根治：窄卡第 3 鈕須換行不被裁切）"
+        assert re.search(r"align-content:\s*flex-end", rule), \
+            ".av-card-preview-overlay 缺 align-content: flex-end（多行鈕須貼底，不上飄）"
 
 
 SETTINGS_CSS_T76 = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "pages" / "settings.css"
@@ -713,7 +875,9 @@ class TestShowcaseKeyboardGuard:
     def test_sample_gallery_keyboard_has_prevent_default(self):
         """sample gallery keyboard 分支應有 e.preventDefault()"""
         content = self.CORE_JS.read_text(encoding='utf-8')
-        block = self._extract_block(content, 'if (this.sampleGalleryOpen)')
+        # 用鍵盤 handler 特有的註釋行作為錨，避免誤中 swipe handler 的
+        # `if (this.sampleGalleryOpen)` 短路（81c-T2 起 swipe 也含此條件）。
+        block = self._extract_block(content, '// 4. Sample Gallery 開啟時的快捷鍵')
         assert 'e.preventDefault()' in block, \
             "sample gallery keyboard 分支缺少 e.preventDefault()"
 
@@ -3486,6 +3650,360 @@ class TestBurstPickerGuard:
                 f"burst-picker.js script tag 應含 defer 或 type=\"module\" 屬性：{tag}"
 
 
+# ─── 81c-T1: swipe helper 純函式守衛 ──────────────────────────────────────────
+SWIPE_JS = Path(__file__).parent.parent.parent / "web" / "static" / "js" / "shared" / "swipe.js"
+
+
+class TestSwipeHelperGuard:
+    """81c-T1: 守衛 shared/swipe.js 的 detectSwipe 純函式（簽名 + 核心判別式 + threshold 不寫死）。
+
+    因專案無 JS 測試框架，邏輯正確性由 T2–T4 真機驗證；此守衛靜態鎖死函式存在、
+    五參數簽名、軸判別 `|dX|>|dY|`（防退化回只判水平）、threshold 由參數傳入（不寫死 50）、
+    left/right 方向字串皆存在。
+    """
+
+    def test_swipe_js_exists(self):
+        assert SWIPE_JS.exists(), f"swipe.js 不存在：{SWIPE_JS}"
+
+    def test_detect_swipe_signature(self):
+        """export function detectSwipe 五參數簽名存在"""
+        js = SWIPE_JS.read_text(encoding="utf-8")
+        pattern = re.compile(
+            r"export\s+function\s+detectSwipe\s*\(\s*"
+            r"startX\s*,\s*startY\s*,\s*endX\s*,\s*endY\s*,\s*threshold\s*\)"
+        )
+        assert pattern.search(js), \
+            "swipe.js 缺少 export function detectSwipe(startX, startY, endX, endY, threshold) 簽名"
+
+    def test_axis_discrimination_present(self):
+        """軸判別式 Math.abs(dX) > Math.abs(dY) 存在（CD-2，防退化回只判水平）"""
+        js = SWIPE_JS.read_text(encoding="utf-8")
+        assert "Math.abs(dX) > Math.abs(dY)" in js, \
+            "swipe.js 缺少軸判別 'Math.abs(dX) > Math.abs(dY)'（垂直捲動會誤觸）"
+
+    def test_threshold_from_param_not_hardcoded(self):
+        """threshold 判別 Math.abs(dX) > threshold 存在，且不寫死 50"""
+        js = SWIPE_JS.read_text(encoding="utf-8")
+        assert "Math.abs(dX) > threshold" in js, \
+            "swipe.js 缺少 threshold 判別 'Math.abs(dX) > threshold'"
+        # 判別式不可寫死 50（threshold 由呼叫端傳入，CD-1）
+        assert "Math.abs(dX) > 50" not in js, \
+            "swipe.js 不可寫死 'Math.abs(dX) > 50'（threshold 須由參數傳入）"
+
+    def test_direction_strings_present(self):
+        """方向字串 'left' 與 'right' 皆存在"""
+        js = SWIPE_JS.read_text(encoding="utf-8")
+        assert "'left'" in js, "swipe.js 缺少方向字串 'left'"
+        assert "'right'" in js, "swipe.js 缺少方向字串 'right'"
+
+
+class TestShowcaseSwipeGuard:
+    """81c-T2: 守衛 showcase 燈箱 swipe 掛載與 handler 契約。
+
+    靜態鎖死：`.showcase-lightbox` 容器有 `@touchstart.passive` + `@touchend.passive`
+    綁定（bs4）；`_lbTouchEnd` handler 含 CD-5 攔截短路串（similar 含 mobile / 四 modal
+    / sample gallery）、CD-3 分流（`showFavoriteActresses ?` + 女優/影片四 handler）、
+    `detectSwipe(` 呼叫、threshold `50`、且 passive 不 `preventDefault`。
+    手勢真實行為由 owner 真機 hard-gate。
+    """
+
+    def _js(self):
+        return SHOWCASE_LIGHTBOX_JS.read_text(encoding="utf-8")
+
+    def _lb_touch_end_block(self):
+        """抽出 _lbTouchEnd method 區塊（brace-depth 匹配，與方法擺放位置無關）。"""
+        js = self._js()
+        start = js.index("_lbTouchEnd(e) {")
+        depth = 0
+        for i in range(js.index("{", start), len(js)):
+            if js[i] == "{":
+                depth += 1
+            elif js[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    return js[start:i + 1]
+        raise AssertionError("_lbTouchEnd: unbalanced braces")
+
+    def test_container_has_touch_bindings(self):
+        """`.showcase-lightbox` 容器有 @touchstart.passive + @touchend.passive"""
+        from bs4 import BeautifulSoup
+        html = SHOWCASE_HTML.read_text(encoding="utf-8")
+        el = BeautifulSoup(html, "html.parser").select_one("div.showcase-lightbox")
+        assert el is not None, "showcase.html 缺少 .showcase-lightbox 容器"
+        attrs = el.attrs
+        assert ("@touchstart.passive" in attrs or "x-on:touchstart.passive" in attrs), \
+            ".showcase-lightbox 缺少 @touchstart.passive 綁定"
+        assert ("@touchend.passive" in attrs or "x-on:touchend.passive" in attrs), \
+            ".showcase-lightbox 缺少 @touchend.passive 綁定"
+        # 綁定指向 _lbTouchStart / _lbTouchEnd
+        ts = attrs.get("@touchstart.passive") or attrs.get("x-on:touchstart.passive") or ""
+        te = attrs.get("@touchend.passive") or attrs.get("x-on:touchend.passive") or ""
+        assert "_lbTouchStart" in ts, "@touchstart.passive 未呼叫 _lbTouchStart"
+        assert "_lbTouchEnd" in te, "@touchend.passive 未呼叫 _lbTouchEnd"
+
+    def test_lb_touch_end_intercept_chain(self):
+        """_lbTouchEnd 含 CD-5 攔截短路串（similar 含 mobile / 四 modal / sample gallery）"""
+        block = self._lb_touch_end_block()
+        for token in [
+            "similarModeOpen",
+            "similarModeMobileOpen",
+            "removeActressModalOpen",
+            "_pickerOpen",
+            "rescrapeOpen",
+            "deleteVideoModalOpen",
+            "sampleGalleryOpen",
+            "lightboxOpen",
+        ]:
+            assert token in block, f"_lbTouchEnd 缺少攔截短路：{token!r}"
+
+    def test_lb_touch_end_branch_split(self):
+        """_lbTouchEnd 含 CD-3 分流（showFavoriteActresses + 女優/影片四 handler，不寫死影片）"""
+        block = self._lb_touch_end_block()
+        for token in [
+            "showFavoriteActresses",
+            "prevActressLightbox",
+            "nextActressLightbox",
+            "prevLightboxVideo",
+            "nextLightboxVideo",
+        ]:
+            assert token in block, f"_lbTouchEnd 缺少分流字串：{token!r}"
+
+    def test_lb_touch_end_uses_detect_swipe_with_threshold(self):
+        """_lbTouchEnd 呼叫 detectSwipe 並傳 threshold 50"""
+        js = self._js()
+        assert "import { detectSwipe } from '@/shared/swipe.js';" in js, \
+            "state-lightbox.js 缺少 detectSwipe import"
+        block = self._lb_touch_end_block()
+        assert "detectSwipe(" in block, "_lbTouchEnd 未呼叫 detectSwipe"
+        assert "50" in block, "_lbTouchEnd 未傳 threshold 50"
+
+    def test_lb_touch_end_no_prevent_default(self):
+        """_lbTouchEnd 不呼叫 preventDefault（CD-2 passive）"""
+        block = self._lb_touch_end_block()
+        assert "preventDefault" not in block, \
+            "_lbTouchEnd 不可呼叫 preventDefault（passive 掛載）"
+
+
+class TestSearchSwipeGuard:
+    """81c-T3: 守衛 search 燈箱 swipe 掛載與 handler 契約。
+
+    靜態鎖死：search.html `.showcase-lightbox` 容器有 `@touchstart.passive` +
+    `@touchend.passive` 綁定（bs4）；grid-mode.js `_lbTouchEnd` handler 含 3 條短路
+    （`rescrapeOpen` / `sampleGalleryOpen` / `lightboxOpen`）、直呼 `prevLightboxVideo`
+    / `nextLightboxVideo`、`detectSwipe(` 呼叫、threshold `50`、passive 不
+    `preventDefault`，且**負向**不含 `showFavoriteActresses`（CD-3，search 無此 state）。
+    手勢真實行為由 owner 真機 hard-gate。
+    """
+
+    def _js(self):
+        return GRID_MODE_JS.read_text(encoding="utf-8")
+
+    def _lb_touch_end_block(self):
+        """抽出 _lbTouchEnd method 區塊（brace-depth 匹配，與方法擺放位置無關）。"""
+        js = self._js()
+        start = js.index("_lbTouchEnd(e) {")
+        depth = 0
+        for i in range(js.index("{", start), len(js)):
+            if js[i] == "{":
+                depth += 1
+            elif js[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    return js[start:i + 1]
+        raise AssertionError("_lbTouchEnd: unbalanced braces")
+
+    def test_container_has_touch_bindings(self):
+        """search.html `.showcase-lightbox` 容器有 @touchstart.passive + @touchend.passive"""
+        from bs4 import BeautifulSoup
+        html = SEARCH_HTML.read_text(encoding="utf-8")
+        el = BeautifulSoup(html, "html.parser").select_one("div.showcase-lightbox")
+        assert el is not None, "search.html 缺少 .showcase-lightbox 容器"
+        attrs = el.attrs
+        assert ("@touchstart.passive" in attrs or "x-on:touchstart.passive" in attrs), \
+            ".showcase-lightbox 缺少 @touchstart.passive 綁定"
+        assert ("@touchend.passive" in attrs or "x-on:touchend.passive" in attrs), \
+            ".showcase-lightbox 缺少 @touchend.passive 綁定"
+        ts = attrs.get("@touchstart.passive") or attrs.get("x-on:touchstart.passive") or ""
+        te = attrs.get("@touchend.passive") or attrs.get("x-on:touchend.passive") or ""
+        assert "_lbTouchStart" in ts, "@touchstart.passive 未呼叫 _lbTouchStart"
+        assert "_lbTouchEnd" in te, "@touchend.passive 未呼叫 _lbTouchEnd"
+
+    def test_lb_touch_end_intercept_chain(self):
+        """_lbTouchEnd 含 3 條攔截短路（rescrape / sampleGallery / lightboxOpen）"""
+        block = self._lb_touch_end_block()
+        for token in [
+            "rescrapeOpen",
+            "sampleGalleryOpen",
+            "lightboxOpen",
+        ]:
+            assert token in block, f"_lbTouchEnd 缺少攔截短路：{token!r}"
+
+    def test_lb_touch_end_direct_dispatch(self):
+        """_lbTouchEnd 直呼 prevLightboxVideo / nextLightboxVideo（CD-3 直呼）"""
+        block = self._lb_touch_end_block()
+        for token in [
+            "prevLightboxVideo",
+            "nextLightboxVideo",
+        ]:
+            assert token in block, f"_lbTouchEnd 缺少 dispatch 字串：{token!r}"
+
+    def test_lb_touch_end_uses_detect_swipe_with_threshold(self):
+        """_lbTouchEnd import 並呼叫 detectSwipe，傳 threshold 50"""
+        js = self._js()
+        assert "import { detectSwipe } from '@/shared/swipe.js';" in js, \
+            "grid-mode.js 缺少 detectSwipe import"
+        block = self._lb_touch_end_block()
+        assert "detectSwipe(" in block, "_lbTouchEnd 未呼叫 detectSwipe"
+        assert "50" in block, "_lbTouchEnd 未傳 threshold 50"
+
+    def test_lb_touch_end_no_prevent_default(self):
+        """_lbTouchEnd 不呼叫 preventDefault（CD-2 passive）"""
+        block = self._lb_touch_end_block()
+        assert "preventDefault" not in block, \
+            "_lbTouchEnd 不可呼叫 preventDefault（passive 掛載）"
+
+    def test_lb_touch_end_no_actress_gate(self):
+        """負向守衛：_lbTouchEnd 不含 showFavoriteActresses（CD-3，search 無此 state）"""
+        block = self._lb_touch_end_block()
+        assert "showFavoriteActresses" not in block, \
+            "_lbTouchEnd 不可含 showFavoriteActresses（search 無此 state，加 gate 會靜默失效）"
+
+
+class TestDetailSwipeGuard:
+    """81c-T4: 守衛 search detail 封面區 swipe 掛載與 handler 契約。
+
+    靜態鎖死：search.html `.av-card-full-cover-wrapper`（只含海報）容器有
+    `@touchstart.passive` + `@touchend.passive` 綁定（bs4），且**隔離**確認掛在
+    海報 wrapper 而非整個 detail 卡 `.av-card-full`（避免誤掛 metadata 捲動區）、
+    亦非外層 `.av-card-full-cover`（含 `.sample-strip` 水平縮圖捲動列，P2 fix：
+    避免橫滑縮圖列誤觸 navigate）、且 `.sample-strip` 本身不可有 touch 綁定；navigation.js
+    `_dtTouchEnd` handler 含 3 條短路/gate（`rescrapeOpen` / `sampleGalleryOpen` /
+    `displayMode`）、直呼 `navigate(1)` / `navigate(-1)`、`detectSwipe(` 呼叫、
+    threshold `50`、passive 不 `preventDefault`，且**負向**不含 `showFavoriteActresses`
+    （CD-3，detail 純導航不分流）、不含 `lightboxOpen` / `prevLightboxVideo` /
+    `nextLightboxVideo`（detail/燈箱隔離）。手勢真實行為由 owner 真機 hard-gate。
+    """
+
+    def _js(self):
+        return NAVIGATION_JS.read_text(encoding="utf-8")
+
+    def _dt_touch_end_block(self):
+        """抽出 _dtTouchEnd method 區塊（brace-depth 匹配，與方法擺放位置無關）。"""
+        js = self._js()
+        start = js.index("_dtTouchEnd(e) {")
+        depth = 0
+        for i in range(js.index("{", start), len(js)):
+            if js[i] == "{":
+                depth += 1
+            elif js[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    return js[start:i + 1]
+        raise AssertionError("_dtTouchEnd: unbalanced braces")
+
+    def test_container_has_touch_bindings(self):
+        """search.html `.av-card-full-cover-wrapper`（海報區）容器有 @touchstart.passive + @touchend.passive"""
+        from bs4 import BeautifulSoup
+        html = SEARCH_HTML.read_text(encoding="utf-8")
+        el = BeautifulSoup(html, "html.parser").select_one("div.av-card-full-cover-wrapper")
+        assert el is not None, "search.html 缺少 .av-card-full-cover-wrapper 容器"
+        attrs = el.attrs
+        assert ("@touchstart.passive" in attrs or "x-on:touchstart.passive" in attrs), \
+            ".av-card-full-cover-wrapper 缺少 @touchstart.passive 綁定"
+        assert ("@touchend.passive" in attrs or "x-on:touchend.passive" in attrs), \
+            ".av-card-full-cover-wrapper 缺少 @touchend.passive 綁定"
+        ts = attrs.get("@touchstart.passive") or attrs.get("x-on:touchstart.passive") or ""
+        te = attrs.get("@touchend.passive") or attrs.get("x-on:touchend.passive") or ""
+        assert "_dtTouchStart" in ts, "@touchstart.passive 未呼叫 _dtTouchStart"
+        assert "_dtTouchEnd" in te, "@touchend.passive 未呼叫 _dtTouchEnd"
+
+    def test_touch_bound_on_wrapper_not_full_card(self):
+        """隔離守衛：@touch* 掛在 .av-card-full-cover-wrapper（海報區）而非 .av-card-full（含 metadata 捲動區）"""
+        from bs4 import BeautifulSoup
+        html = SEARCH_HTML.read_text(encoding="utf-8")
+        soup = BeautifulSoup(html, "html.parser")
+        # .av-card-full（整個 detail 卡，含 metadata 區）不可有 touch 綁定
+        full = soup.select_one("div.av-card-full")
+        assert full is not None, "search.html 缺少 .av-card-full 容器"
+        full_attrs = full.attrs
+        assert "@touchstart.passive" not in full_attrs and "x-on:touchstart.passive" not in full_attrs, \
+            ".av-card-full（整個 detail 卡）不應掛 @touchstart（會誤觸 metadata 捲動區）"
+        assert "@touchend.passive" not in full_attrs and "x-on:touchend.passive" not in full_attrs, \
+            ".av-card-full（整個 detail 卡）不應掛 @touchend（會誤觸 metadata 捲動區）"
+
+    def test_touch_not_bound_on_cover_or_sample_strip(self):
+        """P2 隔離守衛：外層 .av-card-full-cover 與 .sample-strip（水平縮圖捲動列）不可有 touch 綁定
+
+        理由：swipe 掛 .av-card-full-cover 時，sample-strip（overflow-x:auto）是其子元素，
+        橫滑縮圖列會誤觸 _dtTouchEnd → navigate(±1)。改掛只含海報的 wrapper，結構排除 strip。
+        """
+        from bs4 import BeautifulSoup
+        html = SEARCH_HTML.read_text(encoding="utf-8")
+        soup = BeautifulSoup(html, "html.parser")
+        for sel, label in [
+            ("div.av-card-full-cover", ".av-card-full-cover（外層，含 sample-strip）"),
+            ("div.sample-strip", ".sample-strip（水平縮圖捲動列）"),
+        ]:
+            el = soup.select_one(sel)
+            assert el is not None, f"search.html 缺少 {sel} 容器"
+            a = el.attrs
+            assert "@touchstart.passive" not in a and "x-on:touchstart.passive" not in a, \
+                f"{label} 不應掛 @touchstart（橫滑縮圖列會誤觸 navigate）"
+            assert "@touchend.passive" not in a and "x-on:touchend.passive" not in a, \
+                f"{label} 不應掛 @touchend（橫滑縮圖列會誤觸 navigate）"
+
+    def test_dt_touch_end_intercept_chain(self):
+        """_dtTouchEnd 含 3 條短路/gate（rescrape / sampleGallery / displayMode）"""
+        block = self._dt_touch_end_block()
+        for token in [
+            "rescrapeOpen",
+            "sampleGalleryOpen",
+            "displayMode",
+        ]:
+            assert token in block, f"_dtTouchEnd 缺少短路/gate：{token!r}"
+
+    def test_dt_touch_end_direct_dispatch(self):
+        """_dtTouchEnd 直呼 navigate(1) / navigate(-1)（CD-3 直呼，CD-4 方向）"""
+        block = self._dt_touch_end_block()
+        for token in [
+            "navigate(1)",
+            "navigate(-1)",
+        ]:
+            assert token in block, f"_dtTouchEnd 缺少 dispatch 字串：{token!r}"
+
+    def test_dt_touch_end_uses_detect_swipe_with_threshold(self):
+        """navigation.js import 並呼叫 detectSwipe，傳 threshold 50"""
+        js = self._js()
+        assert "import { detectSwipe } from '@/shared/swipe.js';" in js, \
+            "navigation.js 缺少 detectSwipe import"
+        block = self._dt_touch_end_block()
+        assert "detectSwipe(" in block, "_dtTouchEnd 未呼叫 detectSwipe"
+        assert "50" in block, "_dtTouchEnd 未傳 threshold 50"
+
+    def test_dt_touch_end_no_prevent_default(self):
+        """_dtTouchEnd 不呼叫 preventDefault（CD-2 passive）"""
+        block = self._dt_touch_end_block()
+        assert "preventDefault" not in block, \
+            "_dtTouchEnd 不可呼叫 preventDefault（passive 掛載）"
+
+    def test_dt_touch_end_no_actress_gate(self):
+        """負向守衛：_dtTouchEnd 不含 showFavoriteActresses（CD-3，detail 純導航不分流）"""
+        block = self._dt_touch_end_block()
+        assert "showFavoriteActresses" not in block, \
+            "_dtTouchEnd 不可含 showFavoriteActresses（detail 純導航不分流，CD-3）"
+
+    def test_dt_touch_end_no_lightbox_dispatch(self):
+        """負向守衛：_dtTouchEnd 不含 lightbox 字串（detail/燈箱隔離）"""
+        block = self._dt_touch_end_block()
+        for token in [
+            "lightboxOpen",
+            "prevLightboxVideo",
+            "nextLightboxVideo",
+        ]:
+            assert token not in block, \
+                f"_dtTouchEnd 不可含 {token!r}（detail/燈箱隔離，掛不同容器 / 不同 dispatch）"
+
+
 # ─── 49b-T4cd: Actress Photo Picker UI/Alpine/SSE 整合守衛 ──────────────────
 SHOWCASE_CSS_T4CD = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "pages" / "showcase.css"
 
@@ -4893,8 +5411,9 @@ class TestSearchCssHardcoded:
         # 75b-T2 search.css US1 重排插入 ~54 行（@ ~L107）後行號順移：788→840；90 在插入點上方不變。
         # T9-port 在 L718 後插入 blocks：840→902；T9 Codex-P2 fix 補註解 +4 行：902→906。
         # T11：在 L753 後插入 hero 規則（~14 行）：906→920。
+        # T10（US-10）：poster-crop / coarse block 註解 +4 行（481–899 擴斷點）：920→924。
         90: "drop-shadow rgba 0.3 — §2 例外（drop-shadow 跟封面去背形狀，非矩形 box-shadow 無法用 --fluent-shadow-* token）",
-        920: "var(--bg-card, rgba(0, 0, 0, 0.05)) fallback — defensive fallback，非硬編碼違規",
+        924: "var(--bg-card, rgba(0, 0, 0, 0.05)) fallback — defensive fallback，非硬編碼違規",
     }
 
     SIX_PX_ALLOWLIST = {
@@ -5462,6 +5981,48 @@ class TestHelpPage:
         js = (PROJECT_ROOT / 'web/static/js/pages/help.js').read_text(encoding='utf-8')
         for expected in ['copyCurlCommand', 'execCommand']:
             assert expected in js, f"help.js missing: {expected!r}"
+
+    def test_help_hero_terminal_has_capabilities_base(self):
+        """help.html .hero-terminal 帶 data-capabilities-base 屬性（server-aware base_url 來源）。
+
+        81b-T4/T5（US-7）：copy 來源從 window.location.origin 改 server-render base_url，
+        經 .hero-terminal 的 data-attr 傳入。值為 Jinja {{ base_url }}，只斷屬性存在。
+        mutation：移除 data-capabilities-base → help.js 退 window.location.origin（複製回歸）→ RED。"""
+        from bs4 import BeautifulSoup
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        term = BeautifulSoup(html, "html.parser").find(class_="hero-terminal")
+        assert term is not None, "help.html 缺少 .hero-terminal 元素"
+        assert term.has_attr("data-capabilities-base"), \
+            ".hero-terminal 缺少 data-capabilities-base 屬性（US-7 server-aware base_url 來源）"
+
+    def test_help_copy_button_has_aria_label(self):
+        """help.html .terminal-copy-btn 為 icon-only（<i class="bi bi-clipboard">）+ a11y 標籤
+        （:aria-label 引用 help.hero.copy_curl，鏡像 settings copy 鈕 T6 守衛）。
+
+        Codex P3：T4 換 bi-clipboard icon 後 copy 鈕失去 accessible name → 補 aria-label。
+        mutation：移除 :aria-label 或改引用別 key → a11y 斷言 RED。"""
+        from bs4 import BeautifulSoup
+        html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
+        btn = BeautifulSoup(html, "html.parser").find(class_="terminal-copy-btn")
+        assert btn is not None, "help.html 缺少 .terminal-copy-btn（curl 複製鈕）"
+        assert btn.find("i", class_="bi-clipboard") is not None, \
+            ".terminal-copy-btn 缺少 <i class=\"bi bi-clipboard\"> icon"
+        aria = btn.get(":aria-label") or btn.get("aria-label")
+        assert aria is not None and "help.hero.copy_curl" in aria, \
+            f"copy 鈕 aria-label 應引用 help.hero.copy_curl，實際: {aria!r}（P3 a11y 標籤）"
+
+    def test_help_js_copy_uses_capabilities_base_dataset(self):
+        """help.js 複製來源讀 dataset.capabilitiesBase（primary），curl 模板用該 base。
+
+        81b-T5（US-7 #7）：base = .hero-terminal?.dataset.capabilitiesBase || window.location.origin。
+        防呆 fallback || window.location.origin 刻意保留 — 守衛**不**斷言其不存在（會 false-fail），
+        只斷 capabilitiesBase 為 primary 來源 + curl 模板用 derived base。
+        mutation：把複製來源改回純 window.location.origin（移除 dataset 讀取）→ capabilitiesBase 消失 → RED。"""
+        js = (PROJECT_ROOT / 'web/static/js/pages/help.js').read_text(encoding='utf-8')
+        assert "capabilitiesBase" in js, \
+            "help.js 缺少 capabilitiesBase（dataset 複製來源 — US-7 #7 primary source）"
+        assert "${base}" in js, \
+            "help.js curl 模板未用 derived base（應為 `${base}/api/capabilities` — 證 data-attr 是實際來源）"
 
 
 class TestScannerClearCache:
@@ -7829,6 +8390,7 @@ class TestSettingsPanelStructureGuard:
 # ─── TASK-62a-0: source pill 跨頁共用 component + bootstrap 注入 ───
 SOURCE_PILL_CSS         = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "components" / "source-pill.css"
 SETTINGS_CSS            = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "pages" / "settings.css"
+HELP_CSS                = Path(__file__).parent.parent.parent / "web" / "static" / "css" / "pages" / "help.css"
 BASE_HTML               = Path(__file__).parent.parent.parent / "web" / "templates" / "base.html"
 ADV_SEARCH_BOOTSTRAP    = Path(__file__).parent.parent.parent / "web" / "templates" / "_advanced_search_bootstrap.html"
 
@@ -11914,9 +12476,10 @@ class TestUS5PosterCropScoped:
 
     def test_poster_crop_rules_scoped_and_token_referenced(self):
         css = self._strip_comments(self._css())
-        blocks = re.findall(r'@media \(max-width: 480px\) \{(.*?)\n\}', css, re.DOTALL)
+        # T10（US-10）：poster-crop 樣式已從 ≤480 擴到 ≤899（481–899 4 欄 poster 格共用）。
+        blocks = re.findall(r'@media \(max-width: 899px\) \{(.*?)\n\}', css, re.DOTALL)
         target = [b for b in blocks if ".av-card-preview-img" in b]
-        assert target, "找不到含 .av-card-preview-img poster-crop 的 ≤480px block"
+        assert target, "找不到含 .av-card-preview-img poster-crop 的 ≤899px block"
         block = target[0]
         # rule-bound：鎖定「含 aspect-ratio: var(--poster-crop-ratio) 的那條規則自身的 selector」，
         # 確認該規則本身帶 scope（避免「caption 規則有 :is() 就過關、但關鍵 aspect-ratio 規則漏 :is() → silent no-op」）。
@@ -11940,9 +12503,10 @@ class TestUS5PosterCropScoped:
 
     def test_caption_truncation_uses_av_actress(self):
         css = self._css()
-        blocks = re.findall(r'@media \(max-width: 480px\) \{(.*?)\n\}', css, re.DOTALL)
+        # T10（US-10）：caption 規則隨 poster-crop 擴到 ≤899。
+        blocks = re.findall(r'@media \(max-width: 899px\) \{(.*?)\n\}', css, re.DOTALL)
         target = [b for b in blocks if ".footer-default" in b and ".av-actress" in b]
-        assert target, "找不到含 caption 截斷（.footer-default .av-actress）的 ≤480px block"
+        assert target, "找不到含 caption 截斷（.footer-default .av-actress）的 ≤899px block"
         block = target[0]
         # .av-actress 隱藏
         m = re.search(r'\.footer-default \.av-actress \{([^}]*)\}', block)
@@ -11961,11 +12525,12 @@ class TestUS5PosterCropScoped:
         三問：刪此交集 block → 紅（找不到 480+coarse block）；把 footer-default opacity 改回 0 → 紅。
         """
         css = self._strip_comments(self._css())
+        # T10（US-10）：≤480∩coarse footer 還原規則隨 poster-crop 擴到 ≤899∩coarse。
         m = re.search(
-            r'@media \(max-width: 480px\) and \(pointer: coarse\) \{(.*?)\n\}',
+            r'@media \(max-width: 899px\) and \(pointer: coarse\) \{(.*?)\n\}',
             css, re.DOTALL,
         )
-        assert m, "找不到 @media (max-width: 480px) and (pointer: coarse) 交集 block（Codex P1 fix 缺失）"
+        assert m, "找不到 @media (max-width: 899px) and (pointer: coarse) 交集 block（Codex P1 fix 缺失）"
         block = m.group(1)
         # footer-default 規則自身帶 scope + 還原 opacity:1
         md = re.search(r'([^{}]*\.footer-default)\s*\{([^}]*)\}', block)
@@ -12014,7 +12579,8 @@ class TestUS5PosterCropGhostCrossfade:
         js = STATE_LIGHTBOX_JS.read_text(encoding="utf-8")
         # 計算條件三要素
         assert "posterCrop" in js, "state-lightbox.js 應計算 posterCrop"
-        assert "window.innerWidth <= 480" in js, "posterCrop 應 gate ≤480px"
+        # T11（US-10）：門檻由 ≤480 擴到 ≤899（共用常數 POSTER_CROP_MAX_W，對齊守衛 TestPosterCropThresholdAlignment）。
+        assert "window.innerWidth <= POSTER_CROP_MAX_W" in js, "posterCrop 應 gate ≤POSTER_CROP_MAX_W"
         assert "showFavoriteActresses" in js, "posterCrop 應排除女優模式"
         assert "hero-card" in js, "posterCrop 應排除 hero 卡（女優入口）"
         # 傳入 playGridToLightbox 的 options
@@ -12063,11 +12629,12 @@ class TestUS5VideoCoverFitMobile:
         return SHOWCASE_CSS.read_text(encoding="utf-8")
 
     def _t8_block(self) -> str:
-        """抓含 .lightbox-cover:has(.lb-full) 的那個 @media (max-width: 480px) block。"""
+        """抓含 .lightbox-cover:has(.lb-full) 的那個 @media (max-width: 899px) block。
+        T11（US-10）：燈箱封面貼合斷點由 ≤480 擴到 ≤899（對齊 poster-crop 門檻）。"""
         css = self._css()
-        blocks = re.findall(r'@media \(max-width: 480px\) \{(.*?)\n\}', css, re.DOTALL)
+        blocks = re.findall(r'@media \(max-width: 899px\) \{(.*?)\n\}', css, re.DOTALL)
         target = [b for b in blocks if ".lightbox-cover:has(.lb-full)" in b]
-        assert target, "showcase.css 找不到含 .lightbox-cover:has(.lb-full) 的 ≤480px block（T8 缺失）"
+        assert target, "showcase.css 找不到含 .lightbox-cover:has(.lb-full) 的 ≤899px block（T8/T11 缺失）"
         return target[0]
 
     def test_video_cover_fit_media_block_exists(self):
@@ -12179,9 +12746,10 @@ class TestUS9SearchGridMobileFix:
         三問：拔 :is() 前綴 → 紅；用錯 class .av-maker → 紅；拔 :not(.hero-card) → 紅。
         """
         css = self._strip_comments(self._search_css())
-        blocks = re.findall(r'@media \(max-width: 480px\) \{(.*?)\n\}', css, re.DOTALL)
+        # T10（US-10）：poster-crop 樣式已從 ≤480 擴到 ≤899（481–899 4 欄 poster 格共用）。
+        blocks = re.findall(r'@media \(max-width: 899px\) \{(.*?)\n\}', css, re.DOTALL)
         target = [b for b in blocks if ".av-card-preview-img" in b and ".search-grid" in b]
-        assert target, "找不到含 .av-card-preview-img + .search-grid 的 ≤480px block（T9-T5 poster-crop 缺失）"
+        assert target, "找不到含 .av-card-preview-img + .search-grid 的 ≤899px block（T9-T5 poster-crop 缺失）"
         block = target[0]
 
         # rule-bound：aspect-ratio 規則自身 selector 必帶 :is() + :not(.hero-card)
@@ -12234,11 +12802,12 @@ class TestUS9SearchGridMobileFix:
         三問：刪此 block → 紅；把 footer-default opacity 改回 0 → 紅。
         """
         css = self._strip_comments(self._search_css())
+        # T10（US-10）：≤480∩coarse footer 還原規則隨 poster-crop 擴到 ≤899∩coarse。
         m = re.search(
-            r'@media \(max-width: 480px\) and \(pointer: coarse\) \{(.*?)\n\}',
+            r'@media \(max-width: 899px\) and \(pointer: coarse\) \{(.*?)\n\}',
             css, re.DOTALL,
         )
-        assert m, "search.css 找不到 @media (max-width: 480px) and (pointer: coarse) block（T9-T5 coarse 還原缺失）"
+        assert m, "search.css 找不到 @media (max-width: 899px) and (pointer: coarse) block（T9-T5 coarse 還原缺失）"
         block = m.group(1)
 
         assert ".search-grid" in block, "coarse 交集 block 應 scope 到 .search-grid"
@@ -12268,10 +12837,11 @@ class TestUS9SearchGridMobileFix:
         護欄：block 內不得出現未 gate .has-cover 的裸 .search-container .lightbox-cover img（波及女優）。
         三問：拿掉容器 min-height:0 → 紅；拿掉 img has-cover gate → 紅（bare 出現）。
         """
+        # T11（US-10）：燈箱封面貼合斷點由 ≤480 擴到 ≤899（對齊 poster-crop 門檻）。
         css = self._search_css()
-        blocks = re.findall(r'@media \(max-width: 480px\) \{(.*?)\n\}', css, re.DOTALL)
+        blocks = re.findall(r'@media \(max-width: 899px\) \{(.*?)\n\}', css, re.DOTALL)
         target = [b for b in blocks if ".search-container .lightbox-cover" in b]
-        assert target, "search.css 找不到含 .search-container .lightbox-cover 的 ≤480px block（T9-T8 cover-fit 缺失）"
+        assert target, "search.css 找不到含 .search-container .lightbox-cover 的 ≤899px block（T9-T8/T11 cover-fit 缺失）"
         block = target[0]
 
         # 容器：.search-container .lightbox-cover.has-cover { min-height: 0; min-width: 0 }
@@ -12320,7 +12890,8 @@ class TestUS9SearchGridMobileFix:
         """
         js = GRID_MODE_JS.read_text(encoding="utf-8")
         assert "posterCrop" in js, "grid-mode.js 應計算 posterCrop"
-        assert "window.innerWidth <= 480" in js, "posterCrop 應 gate ≤480px"
+        # T11（US-10）：門檻由 ≤480 擴到 ≤899（共用常數 POSTER_CROP_MAX_W，對齊守衛 TestPosterCropThresholdAlignment）。
+        assert "window.innerWidth <= POSTER_CROP_MAX_W" in js, "posterCrop 應 gate ≤POSTER_CROP_MAX_W"
         assert "hero-card" in js, "posterCrop 應排除 hero 卡（防禦性 guard）"
         assert "posterCrop: posterCrop" in js, (
             "grid-mode.js 應把 posterCrop 傳入 playGridToLightbox options"
@@ -12378,7 +12949,7 @@ class TestUS11HeroCardMobileFix:
         三問：拔 aspect-ratio → 紅；移除 :is() scope → 紅；移出 ≤480px block → 紅。
         """
         css = self._strip_comments(self._showcase_css())
-        blocks = re.findall(r'@media \(max-width: 480px\) \{(.*?)\n\}', css, re.DOTALL)
+        blocks = re.findall(r'@media \(max-width: 899px\) \{(.*?)\n\}', css, re.DOTALL)  # T10: hero poster-crop 擴 ≤899
         target = [b for b in blocks if ".av-card-preview.hero-card .av-card-preview-img" in b]
         assert target, (
             "showcase.css 找不到含 .av-card-preview.hero-card .av-card-preview-img 的 ≤480px block"
@@ -12407,7 +12978,7 @@ class TestUS11HeroCardMobileFix:
         三問：移除 object-fit: cover → 紅；移出 ≤480px block → 紅。
         """
         css = self._strip_comments(self._showcase_css())
-        blocks = re.findall(r'@media \(max-width: 480px\) \{(.*?)\n\}', css, re.DOTALL)
+        blocks = re.findall(r'@media \(max-width: 899px\) \{(.*?)\n\}', css, re.DOTALL)  # T10: hero poster-crop 擴 ≤899
         target = [b for b in blocks if ".av-card-preview.hero-card .av-card-preview-img" in b]
         assert target, "showcase.css 找不到含 hero-card .av-card-preview-img 的 ≤480px block"
         block = target[0]
@@ -12426,7 +12997,7 @@ class TestUS11HeroCardMobileFix:
         三問：拔 aspect-ratio → 紅；移除 :is() scope → 紅；移出 ≤480px block → 紅。
         """
         css = self._strip_comments(self._search_css())
-        blocks = re.findall(r'@media \(max-width: 480px\) \{(.*?)\n\}', css, re.DOTALL)
+        blocks = re.findall(r'@media \(max-width: 899px\) \{(.*?)\n\}', css, re.DOTALL)  # T10: hero poster-crop 擴 ≤899
         target = [b for b in blocks if ".av-card-preview.hero-card .av-card-preview-img" in b]
         assert target, (
             "search.css 找不到含 .av-card-preview.hero-card .av-card-preview-img 的 ≤480px block"
@@ -12467,7 +13038,7 @@ class TestUS11HeroCardMobileFix:
         三問：移除 object-fit: cover → 紅；移出 ≤480px block → 紅。
         """
         css = self._strip_comments(self._search_css())
-        blocks = re.findall(r'@media \(max-width: 480px\) \{(.*?)\n\}', css, re.DOTALL)
+        blocks = re.findall(r'@media \(max-width: 899px\) \{(.*?)\n\}', css, re.DOTALL)  # T10: hero poster-crop 擴 ≤899
         target = [b for b in blocks if ".av-card-preview.hero-card .av-card-preview-img" in b]
         assert target, "search.css 找不到含 hero-card .av-card-preview-img 的 ≤480px block"
         block = target[0]
@@ -12731,8 +13302,13 @@ class TestServerModeToggleGuard:
             "#settings-components 缺少 data-lan-ip 屬性（80a-T3 lanIp 傳入點）"
 
     def test_settings_server_mode_segmented_in_header(self):
-        """header actions 內含 .settings-server-mode 包含 .settings-sources-segmented，
-        且有 2 個 button 分別呼叫 setServerMode(false) 和 setServerMode(true)。"""
+        """.settings-server-mode 在標題左 cluster（.settings-header-left）內，是 <h4> 的
+        cluster-sibling，且含 .settings-sources-segmented + 2 個 button
+        （setServerMode(false)/setServerMode(true)）。
+
+        81b-T1（CD-1）：膠囊從 .settings-header-actions 搬到 .settings-header-left。
+        mutation：膠囊搬回 .settings-header-actions → 「不在 actions」斷言 RED；
+        刪 .settings-header-left wrapper → 「在 header-left」斷言 RED。"""
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(self._html(), "html.parser")
         wrapper = soup.find(class_="settings-server-mode")
@@ -12749,20 +13325,32 @@ class TestServerModeToggleGuard:
             "segmented 缺少 @click=\"setServerMode(false)\" button（單機態）"
         assert any("setServerMode(true)" in a for a in click_attrs), \
             "segmented 缺少 @click=\"setServerMode(true)\" button（伺服器態）"
+        # 81b-T1（CD-1）：位置斷言 — 膠囊在標題左 cluster，h4 sibling，搬離 actions
+        left = soup.find(class_="settings-header-left")
+        assert left is not None, \
+            "settings.html 缺少 .settings-header-left（81b-T1 標題左 cluster wrapper）"
+        assert left.find(class_="settings-server-mode") is not None, \
+            ".settings-server-mode 不在 .settings-header-left 內（CD-1 膠囊應在標題左 cluster）"
+        assert left.find("h4") is not None, \
+            "<h4> 不在 .settings-header-left 內（膠囊應與 h4 同 cluster）"
+        actions = soup.find(class_="settings-header-actions")
+        assert actions is None or actions.find(class_="settings-server-mode") is None, \
+            ".settings-server-mode 仍在 .settings-header-actions 內（CD-1 應已搬離至標題左 cluster）"
 
     def test_settings_server_info_banner_xshow_xcloak(self):
-        """恰好一個 .settings-server-info 元素，帶 x-show=\"serverMode\" 和 x-cloak（防 FOUC）。
-        移除 x-cloak → Alpine boot 前裸閃；移除 x-show → 橫條恆顯。"""
+        """恰好一個 .settings-server-inline 元素，帶 x-show=\"serverMode\" 和 x-cloak（防 FOUC）。
+        移除 x-cloak → Alpine boot 前裸閃；移除 x-show → 區塊恆顯。
+        81b-T1：原獨立第二排 .settings-server-info 收進 header 同排 .settings-server-inline。"""
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(self._html(), "html.parser")
-        banners = soup.find_all(class_="settings-server-info")
+        banners = soup.find_all(class_="settings-server-inline")
         assert len(banners) == 1, \
-            f"settings.html .settings-server-info 應恰好 1 個，實際 {len(banners)} 個"
+            f"settings.html .settings-server-inline 應恰好 1 個，實際 {len(banners)} 個"
         banner = banners[0]
         assert banner.get("x-show") == "serverMode", \
-            f".settings-server-info x-show 應為 'serverMode'，實際: {banner.get('x-show')!r}"
+            f".settings-server-inline x-show 應為 'serverMode'，實際: {banner.get('x-show')!r}"
         assert banner.has_attr("x-cloak"), \
-            ".settings-server-info 缺少 x-cloak（Alpine boot 前會 FOUC）"
+            ".settings-server-inline 缺少 x-cloak（Alpine boot 前會 FOUC）"
 
     def test_settings_server_info_warning_key(self):
         """橫條內含 settings.server_info.warning i18n key 引用（警語行）。
@@ -12777,6 +13365,73 @@ class TestServerModeToggleGuard:
         html = self._html()
         assert "copyServerUrl()" in html, \
             "settings.html 缺少 copyServerUrl() 呼叫（複製鈕 @click）"
+
+    def test_settings_server_copy_is_clipboard_icon_with_aria(self):
+        """copy 鈕為 icon-only（內含 <i class="bi bi-clipboard">）+ a11y 標籤
+        （:aria-label 與 :title 皆引用 settings.server_info.copy）。
+
+        81b-T1（CD-4 + #8）：copy 由文字「複製」改 bi-clipboard icon-only，
+        i18n key 轉作 aria-label/title 提供無障礙標籤。
+        mutation：把 <i class="bi bi-clipboard"> 換回文字 → icon 斷言 RED；
+        移除 :aria-label 或改引用別 key → a11y 斷言 RED。"""
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(self._html(), "html.parser")
+        btn = soup.find(class_="settings-server-copy-btn")
+        assert btn is not None, \
+            "settings.html 缺少 .settings-server-copy-btn（81b-T1 複製鈕）"
+        assert btn.find("i", class_="bi-clipboard") is not None, \
+            ".settings-server-copy-btn 缺少 <i class=\"bi bi-clipboard\"> icon（CD-4 icon-only）"
+        aria = btn.get(":aria-label") or btn.get("aria-label")
+        assert aria is not None and "settings.server_info.copy" in aria, \
+            f"copy 鈕 aria-label 應引用 settings.server_info.copy，實際: {aria!r}（#8 a11y 標籤）"
+        title = btn.get(":title") or btn.get("title")
+        assert title is not None and "settings.server_info.copy" in title, \
+            f"copy 鈕 title 應引用 settings.server_info.copy，實際: {title!r}（CD-4 hover 提示）"
+
+    def test_settings_amber_active_scoped_to_server_mode(self):
+        """琥珀 active（[data-mode="server"].is-on）規則 scope 緊收到
+        .settings-server-mode 且 body 用 --color-warning。
+
+        81b-T2（CD-6）：琥珀只套 server 膠囊，不可外溢到來源卡膠囊。
+        mutation：把任一條琥珀 server 規則的 scope 從 .settings-server-mode 拿掉
+        （污染來源卡）→ 該條成「未 scope 的琥珀規則」→ RED；改用非 --color-warning 顏色
+        → 找不到琥珀規則 → RED。
+
+        關鍵（teeth）：不是「存在一條有 scope 的規則就放行」（base + dim 兩條，拔一條
+        另一條仍在會假綠），而是「**每一條** [data-mode=\"server\"].is-on 琥珀規則都必須
+        scope 在 .settings-server-mode」——即不存在任何未 scope 的琥珀 server 規則。
+        先剝 /* ... */ 註解，防註解內 .settings-server-mode 字面混入 selector 比對。"""
+        css = SETTINGS_CSS.read_text(encoding="utf-8")
+        css = re.sub(r"/\*.*?\*/", "", css, flags=re.DOTALL)
+        # 列舉所有 `selector { body }` 規則塊（巢狀無關，settings.css 為扁平規則）
+        amber_rules = []
+        for m in re.finditer(r"([^{}]+)\{([^{}]*)\}", css):
+            selector, body = m.group(1), m.group(2)
+            if '[data-mode="server"]' in selector and ".is-on" in selector \
+                    and "--color-warning" in body:
+                amber_rules.append(selector.strip())
+        assert amber_rules, \
+            "settings.css 缺少 [data-mode=\"server\"].is-on + --color-warning 的琥珀 active 規則（CD-6）"
+        # 每一條琥珀 server 規則都必須 scope 在 .settings-server-mode（無任一條外溢）
+        unscoped = [s for s in amber_rules if ".settings-server-mode" not in s]
+        assert not unscoped, \
+            f"琥珀 active 規則未全部 scope 在 .settings-server-mode（CD-6 防外溢來源卡）: {unscoped!r}"
+
+    def test_no_clipboard_emoji_in_copy_context(self):
+        """web/ 下所有 .html/.js/.css 不得出現 📋 字面（含 design-system <pre> 範例字串）。
+
+        81b-T4：複製鈕統一 bi-clipboard icon，移除所有 📋 emoji。
+        純字串 in-content 掃描（非 bs4 text-only），確保 escaped <pre> 範例也掃到。
+        eslint/stylelint 不掃 .html 模板，故 pytest 字串掃描是正確路由。
+        mutation：任何人把 📋 寫回任一複製鈕（含教學範例）→ RED。"""
+        web_root = Path(__file__).parent.parent.parent / "web"
+        offenders = []
+        for ext in ("*.html", "*.js", "*.css"):
+            for f in web_root.rglob(ext):
+                if "\U0001F4CB" in f.read_text(encoding="utf-8"):
+                    offenders.append(str(f.relative_to(web_root)))
+        assert not offenders, \
+            f"web/ 下仍殘留 📋 emoji（應統一用 bi-clipboard icon）: {offenders}"
 
     def test_settings_server_info_no_lan_ip_key(self):
         """橫條含 settings.server_info.no_lan_ip i18n key（lanIp 為空時提示）。
@@ -12924,4 +13579,649 @@ class TestServerModeToggleGuard:
         )
         assert "j.lan_ip ?? this.lanIp" not in js, (
             "state-config.js loadConfig() 不得用 'j.lan_ip ?? this.lanIp'（P2-2 stale IP bug）"
+        )
+
+
+class TestMobileToolbarToggle:
+    """feature/81 T2（US-1 / CD-1·CD-2·CD-4）：行動搜尋 store + navbar icon + toolbar 綁定。
+
+    純靜態守衛（bs4 + 字串）。斷言：
+    - base.html alpine:init 註冊 Alpine.store('ui', { toolbarOpen:false })。
+    - navbar 搜尋 button：navbar-search-btn + lg:hidden + bi-search + @click 翻轉 $store.ui.toolbarOpen。
+    - 該 button 被 {% if page == 'showcase' %} Jinja gate（**僅 showcase**；owner 2026-06-22
+      拍板 search 頁 Spotlight 中央輸入維持原樣、不收進 navbar icon）。
+    - showcase.toolbar 綁 :class mobile-toolbar-open ← $store.ui.toolbarOpen；search.search-bar **不**綁。
+    動畫/收合/CSS gate 屬 T3/T4，不在此守衛。
+    """
+
+    def _base(self):
+        return BASE_HTML_T76.read_text(encoding="utf-8")
+
+    def test_store_registered_in_alpine_init(self):
+        """base.html 在 alpine:init 監聽內註冊 Alpine.store('ui', { toolbarOpen: false })。"""
+        html = self._base()
+        assert "alpine:init" in html, "base.html missing alpine:init listener"
+        assert "Alpine.store('ui'" in html, "base.html missing Alpine.store('ui') registration"
+        assert "toolbarOpen" in html, "base.html missing toolbarOpen store field"
+        # 註冊字串與 alpine:init 監聽同段（store 註冊掛在 alpine:init callback 內）
+        assert re.search(
+            r"alpine:init['\"]\s*,\s*\(\)\s*=>\s*\{\s*Alpine\.store\(\s*['\"]ui['\"]\s*,\s*\{\s*toolbarOpen:\s*false",
+            html,
+        ), "base.html: Alpine.store('ui', { toolbarOpen: false }) 須在 alpine:init callback 內註冊"
+
+    def test_navbar_search_button(self):
+        """navbar 搜尋 button：navbar-search-btn + lg:hidden + bi-search + @click 翻轉 $store.ui.toolbarOpen。"""
+        from bs4 import BeautifulSoup
+        html = self._base()
+        btns = BeautifulSoup(html, "html.parser").select("button.navbar-search-btn")
+        assert len(btns) == 1, f"base.html 須有且僅有 1 個 button.navbar-search-btn（實得 {len(btns)}）"
+        btn = btns[0]
+        classes = btn.get("class", [])
+        assert "lg:hidden" in classes, "navbar-search-btn 須有 lg:hidden（≤1023px gate）"
+        icons = btn.select("i.bi.bi-search")
+        assert icons, "navbar-search-btn 內須有 <i class='bi bi-search'>"
+        click = btn.get("@click", "")
+        assert "$store.ui.toolbarOpen" in click, \
+            f"navbar-search-btn @click 須翻轉 $store.ui.toolbarOpen（實得 {click!r}）"
+
+    def test_navbar_search_button_jinja_gated(self):
+        """搜尋 button 被 {% if page == 'showcase' %} Jinja gate（僅 showcase 渲染，不含 search）。"""
+        html = self._base()
+        # 容忍引號/空白變體
+        assert re.search(
+            r"\{%\s*if\s+page\s*==\s*['\"]showcase['\"]\s*%\}",
+            html,
+        ), "base.html: navbar 搜尋 button 須被 {% if page == 'showcase' %} gate"
+        # button 落在該 gate 與其 endif 之間
+        m = re.search(
+            r"\{%\s*if\s+page\s*==\s*['\"]showcase['\"]\s*%\}(.*?)\{%\s*endif\s*%\}",
+            html, re.DOTALL,
+        )
+        assert m and "navbar-search-btn" in m.group(1), \
+            "navbar-search-btn 須落在 {% if page == 'showcase' %} … {% endif %} 區段內"
+
+    def test_showcase_toolbar_class_binding(self):
+        """showcase.html .showcase-toolbar 綁 :class mobile-toolbar-open ← $store.ui.toolbarOpen。"""
+        from bs4 import BeautifulSoup
+        html = SHOWCASE_HTML.read_text(encoding="utf-8")
+        divs = BeautifulSoup(html, "html.parser").select("div.showcase-toolbar")
+        assert divs, "showcase.html missing div.showcase-toolbar"
+        binding = divs[0].get(":class", "")
+        assert "mobile-toolbar-open" in binding and "$store.ui.toolbarOpen" in binding, \
+            f".showcase-toolbar :class 須含 mobile-toolbar-open ← $store.ui.toolbarOpen（實得 {binding!r}）"
+
+    def test_search_bar_not_bound(self):
+        """search.html .search-bar（Spotlight 中央輸入）**不**綁 mobile-toolbar-open。
+
+        owner 2026-06-22 拍板：US-1 navbar 收合只作用 showcase；search 頁的
+        .search-bar 即 Spotlight 中央搜尋輸入（該頁唯一搜尋框），必須永遠可見、
+        維持原樣（spec §3.1 末句優先於 CD-4）。守衛防回退把搜尋框收進 navbar icon。
+        """
+        from bs4 import BeautifulSoup
+        html = SEARCH_HTML.read_text(encoding="utf-8")
+        divs = BeautifulSoup(html, "html.parser").select("div.search-bar")
+        assert divs, "search.html missing div.search-bar"
+        binding = divs[0].get(":class", "")
+        assert "mobile-toolbar-open" not in binding, \
+            f".search-bar 不可綁 mobile-toolbar-open（search Spotlight 維持原樣，實得 {binding!r}）"
+
+
+class TestMobileToolbarCss:
+    """feature/81 T3（US-1 / CD-1·CD-3，**showcase 單頁**，owner 2026-06-22 拍板）：
+
+    showcase.css ≤480 工具列收合/展開 overlay + 透明 backdrop 的靜態守衛。
+    search 頁不在範圍（其 .search-bar 即 Spotlight 中央輸入，永遠可見）。
+
+    斷言：
+    - showcase.css @media (max-width:480px) 內 .showcase-toolbar 收合預設
+      （position:fixed + translateY(-100%) + pointer-events:none）。
+    - .showcase-toolbar.mobile-toolbar-open 展開態（translateY(0) + pointer-events:auto）。
+    - transition 走 token（var(--fluent-duration-fast)/--duration-fast），無字面秒數。
+    - showcase.html 有 div.mobile-toolbar-backdrop（x-show/@click 綁 store + x-cloak）。
+    - .mobile-toolbar-backdrop CSS：position:fixed + z-index:85；toolbar ≤480 z-index:90（85<90）。
+    """
+
+    def _css(self):
+        return SHOWCASE_CSS.read_text(encoding="utf-8")
+
+    def _480_block(self, css):
+        """擷取 ≤480 區塊中含 .showcase-toolbar 的 @media block（容忍巢狀無，平掃）。"""
+        # 找出所有 @media (max-width:480px){ ... } 區塊（簡單括號配對）
+        blocks = []
+        for m in re.finditer(r"@media[^{]*max-width:\s*480px[^{]*\{", css):
+            start = m.end()
+            depth = 1
+            i = start
+            while i < len(css) and depth > 0:
+                if css[i] == "{":
+                    depth += 1
+                elif css[i] == "}":
+                    depth -= 1
+                i += 1
+            blocks.append(css[start:i - 1])
+        return "\n".join(blocks)
+
+    def test_toolbar_collapsed_default(self):
+        """≤480 .showcase-toolbar 收合預設：fixed + translateY(-100%) + pointer-events:none。"""
+        block = self._480_block(self._css())
+        assert block, "showcase.css 須有 @media (max-width:480px) 區塊"
+        # 收合態須出現於同區塊
+        assert re.search(r"\.showcase-toolbar\b", block), \
+            "≤480 區塊缺 .showcase-toolbar 規則"
+        assert "position: fixed" in block or "position:fixed" in block, \
+            "≤480 .showcase-toolbar 須 position:fixed"
+        assert re.search(r"transform:\s*translateY\(-100%\)", block), \
+            "≤480 .showcase-toolbar 收合須 transform:translateY(-100%)"
+        assert re.search(r"pointer-events:\s*none", block), \
+            "≤480 .showcase-toolbar 收合須 pointer-events:none"
+
+    def test_toolbar_open_state(self):
+        """.showcase-toolbar.mobile-toolbar-open 展開：translateY(0) + pointer-events:auto。"""
+        block = self._480_block(self._css())
+        m = re.search(
+            r"\.showcase-toolbar\.mobile-toolbar-open\b[^{]*\{([^}]*)\}", block,
+        )
+        assert m, "≤480 區塊缺 .showcase-toolbar.mobile-toolbar-open 規則"
+        body = m.group(1)
+        assert re.search(r"transform:\s*translateY\(0\)", body), \
+            ".mobile-toolbar-open 須 transform:translateY(0)"
+        assert re.search(r"pointer-events:\s*auto", body), \
+            ".mobile-toolbar-open 須 pointer-events:auto"
+
+    def test_transition_uses_token_not_literal_seconds(self):
+        """toolbar transition 走 duration token，無字面秒數（stylelint 雙保險）。"""
+        block = self._480_block(self._css())
+        m = re.search(r"\.showcase-toolbar\b[^{]*\{([^}]*)\}", block)
+        assert m, "≤480 區塊缺 .showcase-toolbar 規則"
+        body = m.group(1)
+        trans = re.search(r"transition:[^;]*;", body)
+        assert trans, "≤480 .showcase-toolbar 須有 transition"
+        trans_val = trans.group(0)
+        assert ("var(--fluent-duration" in trans_val
+                or "var(--duration-fast" in trans_val), \
+            f"transition 須用 duration token（實得 {trans_val!r}）"
+        assert not re.search(r"\b0?\.\d+s\b", trans_val), \
+            f"transition 不可含字面秒數（實得 {trans_val!r}）"
+
+    def test_backdrop_css(self):
+        """.mobile-toolbar-backdrop CSS：position:fixed + z-index:85；toolbar ≤480 z-index:90。"""
+        css = self._css()
+        m = re.search(r"\.mobile-toolbar-backdrop\b[^{]*\{([^}]*)\}", css)
+        assert m, "showcase.css 缺 .mobile-toolbar-backdrop 規則"
+        body = m.group(1)
+        assert "position: fixed" in body or "position:fixed" in body, \
+            ".mobile-toolbar-backdrop 須 position:fixed"
+        assert re.search(r"z-index:\s*85\b", body), \
+            ".mobile-toolbar-backdrop 須 z-index:85"
+        # toolbar ≤480 須 z-index:90（85<90 階層）
+        block = self._480_block(css)
+        tm = re.search(r"\.showcase-toolbar\b[^{]*\{([^}]*)\}", block)
+        assert tm and re.search(r"z-index:\s*90\b", tm.group(1)), \
+            "≤480 .showcase-toolbar 須 z-index:90（backdrop 85 < toolbar 90）"
+
+    def test_backdrop_dom(self):
+        """showcase.html 有 div.mobile-toolbar-backdrop：x-show/@click 綁 store + x-cloak。"""
+        from bs4 import BeautifulSoup
+        html = SHOWCASE_HTML.read_text(encoding="utf-8")
+        divs = BeautifulSoup(html, "html.parser").select("div.mobile-toolbar-backdrop")
+        assert len(divs) == 1, \
+            f"showcase.html 須有且僅 1 個 div.mobile-toolbar-backdrop（實得 {len(divs)}）"
+        bd = divs[0]
+        assert bd.get("x-show", "") == "$store.ui.toolbarOpen", \
+            f"backdrop x-show 須為 $store.ui.toolbarOpen（實得 {bd.get('x-show')!r}）"
+        click = bd.get("@click", "")
+        assert "$store.ui.toolbarOpen" in click and "false" in click, \
+            f"backdrop @click 須將 $store.ui.toolbarOpen 設 false（實得 {click!r}）"
+        assert bd.has_attr("x-cloak"), "backdrop 須有 x-cloak"
+
+    def test_navbar_search_btn_hidden_above_480(self):
+        """showcase.css 在 @media (min-width:481px) 把 .navbar-search-btn 隱藏（Codex P2）。
+
+        base.html 的 navbar 搜尋 icon 僅 lg:hidden（<1024 可見），但收合 overlay CSS 只在 ≤480；
+        若不收緊，481–1023px 會看到 icon 但點了無收合反應（誤導控制）。此守衛鎖定
+        「icon 可見區 = 收合 UI 生效區 = ≤480」的斷點一致性，防回退。
+        """
+        css = self._css()
+        blocks = re.findall(
+            r"@media\s*\(\s*min-width:\s*481px\s*\)\s*\{(.*?)\n\}",
+            css,
+            re.DOTALL,
+        )
+        hidden = any(
+            re.search(r"\.navbar-search-btn\b[^{}]*\{[^}]*display:\s*none", block)
+            for block in blocks
+        )
+        assert hidden, \
+            "showcase.css 須在 @media (min-width:481px) 將 .navbar-search-btn display:none（Codex P2：icon 斷點對齊 ≤480 收合 UI）"
+
+
+class TestMobileToolbarAutoCollapse:
+    """feature/81 T4（US-1 / CD-5）：showcase 工具列「送出搜尋」自動收合。
+
+    收合掛在**箭頭送出鈕**的 @click（明確送出手勢），**不**掛 onSearchChange() JS——
+    因搜尋框是 @input.debounce live-filter，寫進 JS 會讓打字途中工具列滑走（破 UX）。
+    箭頭鈕 @click 一處同時覆蓋影片(onSearchChange) / 女優(onActressSearchChange) 兩模式。
+    點外面收合由 T3 backdrop 處理（見 TestMobileToolbarCss.test_backdrop_dom）。
+    """
+
+    def _submit_btn_click(self):
+        """回傳 showcase 箭頭送出鈕的 @click 字串。
+
+        以 title `{{ t('showcase.action.search') }}` 唯一辨識（清除鈕 @click 也含兩個
+        SearchChange 呼叫，不能靠 @click 內容辨識，須靠 title 區分）。
+        """
+        from bs4 import BeautifulSoup
+        html = SHOWCASE_HTML.read_text(encoding="utf-8")
+        for btn in BeautifulSoup(html, "html.parser").select("button"):
+            if btn.get("title", "") == "{{ t('showcase.action.search') }}":
+                return btn.get("@click", "")
+        return None
+
+    def test_submit_button_collapses_toolbar(self):
+        """箭頭送出鈕 @click 同時跑搜尋並 set $store.ui.toolbarOpen = false。"""
+        click = self._submit_btn_click()
+        assert click is not None, \
+            "showcase.html 找不到箭頭送出鈕（title=showcase.action.search）"
+        # 仍須跑搜尋（防 mutation 只留收合、丟掉送出）
+        assert "SearchChange()" in click, \
+            f"箭頭送出鈕 @click 須仍呼叫 (onActress)SearchChange()（實得 {click!r}）"
+        assert re.search(r"\$store\.ui\.toolbarOpen\s*=\s*false", click), \
+            f"箭頭送出鈕 @click 須在送出後 set $store.ui.toolbarOpen = false（實得 {click!r}）"
+
+    def test_live_filter_input_does_not_collapse(self):
+        """@input.debounce live-filter 綁定**不可**含收合（防回退把收合塞進每次 keystroke）。"""
+        from bs4 import BeautifulSoup
+        html = SHOWCASE_HTML.read_text(encoding="utf-8")
+        for inp in BeautifulSoup(html, "html.parser").select("input"):
+            for attr, val in inp.attrs.items():
+                if attr.startswith("@input") and "SearchChange" in (val if isinstance(val, str) else ""):
+                    assert "toolbarOpen" not in val, \
+                        f"@input live-filter 不可含 toolbarOpen 收合（打字途中收合破 UX，實得 {val!r}）"
+
+
+# ─── TASK-81a-T5: Settings + Help 窄螢幕破版 / 長字串溢出（3 點純 CSS 補丁）───
+class TestSettingsHelpMobilePatch:
+    """TASK-81a-T5: 3 個靜態守衛 — settings 外部管理器 segmented/hint（≤480 media）、
+    metatube URL code 溢出（base rule）、help hero-terminal curl 溢出（base rule）。
+
+    視覺「實際不溢出」由 owner 360px 真機 hard-gate（AC-6），此處只鎖 CSS 結構。
+    """
+
+    def _settings_css(self):
+        return SETTINGS_CSS.read_text(encoding="utf-8")
+
+    def _help_css(self):
+        return HELP_CSS.read_text(encoding="utf-8")
+
+    @staticmethod
+    def _media_480_block(css: str) -> str:
+        """切出 settings.css 的 `@media (max-width: 480px)` block 內容（含巢狀大括號平衡）。"""
+        m = re.search(r"@media\s*\(\s*max-width:\s*480px\s*\)\s*\{", css)
+        assert m, "settings.css 找不到 @media (max-width: 480px) block"
+        start = m.end()
+        depth = 1
+        i = start
+        while i < len(css) and depth > 0:
+            c = css[i]
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+            i += 1
+        return css[start:i - 1]
+
+    @staticmethod
+    def _rule_body(css: str, selector_regex: str) -> str:
+        """回傳第一個匹配 selector 的規則 body（單層，不含巢狀）。"""
+        m = re.search(selector_regex + r"\s*\{([^}]*)\}", css)
+        assert m, f"找不到規則：{selector_regex}"
+        return m.group(1)
+
+    def test_segmented_flex_shrink_in_480_block(self):
+        """點 1a：≤480 block 內 .settings-sources-segmented 含 flex-shrink: 0（防被壓扁成直條）。"""
+        block = self._media_480_block(self._settings_css())
+        body = self._rule_body(
+            block, r"\.settings-form-row--external-manager\s+\.settings-sources-segmented"
+        )
+        assert re.search(r"flex-shrink:\s*0", body), \
+            "≤480 block 的 external-manager segmented 須含 flex-shrink: 0"
+
+    def test_hint_wraps_in_480_block(self):
+        """點 1b：≤480 block 內 external-manager .settings-hint 含 flex-basis: 100% + white-space: normal。"""
+        block = self._media_480_block(self._settings_css())
+        body = self._rule_body(
+            block, r"\.settings-form-row--external-manager\s+\.settings-hint"
+        )
+        assert re.search(r"flex-basis:\s*100%", body), \
+            "≤480 block 的 external-manager hint 須含 flex-basis: 100%（換到 segmented 下方獨佔一行）"
+        assert re.search(r"white-space:\s*normal", body), \
+            "≤480 block 的 external-manager hint 須含 white-space: normal"
+
+    def test_metatube_code_overflow(self):
+        """點 2：.settings-mt-connect-status code 含 word-break: break-all + overflow-wrap: anywhere。"""
+        body = self._rule_body(
+            self._settings_css(), r"\.settings-mt-connect-status\s+code"
+        )
+        assert re.search(r"word-break:\s*break-all", body), \
+            ".settings-mt-connect-status code 須含 word-break: break-all"
+        assert re.search(r"overflow-wrap:\s*anywhere", body), \
+            ".settings-mt-connect-status code 須含 overflow-wrap: anywhere"
+
+    def test_help_hero_terminal_overflow(self):
+        """點 3：.hero-terminal 含 overflow-x: auto + word-break: break-all（curl 不水平溢出）。"""
+        body = self._rule_body(self._help_css(), r"(?<![\w-])\.hero-terminal")
+        assert re.search(r"overflow-x:\s*auto", body), \
+            ".hero-terminal 須含 overflow-x: auto"
+        assert re.search(r"word-break:\s*break-all", body), \
+            ".hero-terminal 須含 word-break: break-all"
+
+
+# ── feature/81 T10 (US-10): 481–899px 影片 grid → 4-col 直式右裁 poster ────────
+class TestPosterCropExtended:
+    """feature/81 T10（US-10 / CD-11）：481–899px 兩頁影片 grid → repeat(4,1fr) 直式右裁 poster。
+
+    純 CSS 靜態守衛（showcase ↔ search 兩頁 parity）。斷言：
+    - 481–899 段 .showcase-grid / .search-grid = repeat(4, 1fr)，且該段內無殘留 repeat(2, 1fr)。
+    - poster-crop 樣式（aspect-ratio: var(--poster-crop-ratio) + object-position: right center）
+      落在 @media (max-width: 899px) 區塊（非僅 480）——兩頁皆是。
+    - 非回歸：≤480 仍 repeat(3, 1fr)；900–1099 段仍 repeat(3, 1fr)（≥900 橫式未波及）。
+    - 兩頁 parity：兩檔都有 481–899 → repeat(4,1fr)（防只改一頁）。
+    selector 形式（showcase 後代 / search 複合）與 caption 視覺細節由 owner 真機 hard-gate。
+    """
+
+    def _showcase(self):
+        return SHOWCASE_CSS.read_text(encoding="utf-8")
+
+    def _search(self):
+        return SEARCH_CSS.read_text(encoding="utf-8")
+
+    @staticmethod
+    def _media_blocks(css, condition_regex):
+        """擷取符合 condition_regex 的 @media query 的 body（balanced-brace 掃描）。"""
+        blocks = []
+        for m in re.finditer(r"@media\b([^{]*)\{", css):
+            header = m.group(1)
+            if not re.search(condition_regex, header):
+                continue
+            # balanced brace scan from the opening { of this @media
+            depth = 1
+            i = m.end()
+            while i < len(css) and depth > 0:
+                if css[i] == "{":
+                    depth += 1
+                elif css[i] == "}":
+                    depth -= 1
+                i += 1
+            blocks.append(css[m.end():i - 1])
+        return blocks
+
+    def _481_899_bodies(self, css):
+        """481–899 段（含 showcase 拆 481–679 / 680–899 兩段，或合併單段）的 body 集合。"""
+        bodies = self._media_blocks(css, r"min-width:\s*481px")
+        # 只保留 max-width 落在 ≤899（排除 ≥900 段，那些 min-width 不是 481）
+        return bodies
+
+    def test_showcase_481_899_four_col(self):
+        """showcase.css 481–899 段 .showcase-grid = repeat(4, 1fr)，無殘留 repeat(2, 1fr)。"""
+        bodies = self._481_899_bodies(self._showcase())
+        assert bodies, "showcase.css 找不到 min-width:481px 的 @media 段（481–899 grid）"
+        joined = "\n".join(bodies)
+        assert re.search(r"\.showcase-grid\b", joined), \
+            "showcase.css 481–899 段未含 .showcase-grid 規則"
+        assert re.search(r"grid-template-columns:\s*repeat\(\s*4\s*,\s*1fr\s*\)", joined), \
+            "showcase.css 481–899 段 .showcase-grid 欄數未改為 repeat(4, 1fr)"
+        assert not re.search(r"grid-template-columns:\s*repeat\(\s*2\s*,\s*1fr\s*\)", joined), \
+            "showcase.css 481–899 段殘留 repeat(2, 1fr)（US-10 應全改 4 欄）"
+
+    def test_search_481_899_four_col(self):
+        """search.css 481–899 段 .search-grid = repeat(4, 1fr)，無殘留 repeat(2, 1fr)。"""
+        bodies = self._481_899_bodies(self._search())
+        assert bodies, "search.css 找不到 min-width:481px 的 @media 段（481–899 grid）"
+        joined = "\n".join(bodies)
+        assert re.search(r"\.search-grid\b", joined), \
+            "search.css 481–899 段未含 .search-grid 規則"
+        assert re.search(r"grid-template-columns:\s*repeat\(\s*4\s*,\s*1fr\s*\)", joined), \
+            "search.css 481–899 段 .search-grid 欄數未改為 repeat(4, 1fr)"
+        assert not re.search(r"grid-template-columns:\s*repeat\(\s*2\s*,\s*1fr\s*\)", joined), \
+            "search.css 481–899 段殘留 repeat(2, 1fr)（US-10 應全改 4 欄）"
+
+    def test_parity_both_pages_four_col(self):
+        """CD-11：兩檔都有 481–899 → repeat(4,1fr)（防只改一頁）。"""
+        for css, name in ((self._showcase(), "showcase.css"), (self._search(), "search.css")):
+            joined = "\n".join(self._481_899_bodies(css))
+            assert re.search(r"grid-template-columns:\s*repeat\(\s*4\s*,\s*1fr\s*\)", joined), \
+                f"{name} 缺少 481–899 → repeat(4, 1fr)（CD-11 兩頁 parity）"
+
+    def test_poster_crop_covers_899_showcase(self):
+        """showcase.css poster-crop 樣式落在 @media (max-width: 899px) 區塊（非僅 480）。"""
+        bodies = self._media_blocks(self._showcase(), r"max-width:\s*899px")
+        assert bodies, "showcase.css 找不到 @media (max-width: 899px) 區塊（poster-crop 未擴）"
+        joined = "\n".join(bodies)
+        assert re.search(r"aspect-ratio:\s*var\(--poster-crop-ratio", joined), \
+            "showcase.css @max-width:899px 內缺 aspect-ratio: var(--poster-crop-ratio)（poster-crop 卡裁切未擴 ≤899）"
+        assert re.search(r"object-position:\s*right\s+center", joined), \
+            "showcase.css @max-width:899px 內缺 object-position: right center（poster-crop img 右裁未擴 ≤899）"
+
+    def test_poster_crop_covers_899_search(self):
+        """search.css poster-crop 樣式落在 @media (max-width: 899px) 區塊（非僅 480）。"""
+        bodies = self._media_blocks(self._search(), r"max-width:\s*899px")
+        assert bodies, "search.css 找不到 @media (max-width: 899px) 區塊（poster-crop 未擴）"
+        joined = "\n".join(bodies)
+        assert re.search(r"aspect-ratio:\s*var\(--poster-crop-ratio", joined), \
+            "search.css @max-width:899px 內缺 aspect-ratio: var(--poster-crop-ratio)（poster-crop 卡裁切未擴 ≤899）"
+        assert re.search(r"object-position:\s*right\s+center", joined), \
+            "search.css @max-width:899px 內缺 object-position: right center（poster-crop img 右裁未擴 ≤899）"
+
+    def test_le480_still_3col_both_pages(self):
+        """非回歸：兩檔 ≤480 段影片 grid 仍 repeat(3, 1fr)（未被誤改）。"""
+        # showcase
+        sc_bodies = self._media_blocks(self._showcase(), r"max-width:\s*480px")
+        assert any(
+            re.search(r"\.showcase-grid\b[^}]*repeat\(\s*3\s*,\s*1fr\s*\)", b, re.DOTALL)
+            for b in sc_bodies
+        ), "showcase.css ≤480 .showcase-grid 不再是 repeat(3, 1fr)（誤改 ≤480）"
+        # search
+        se_bodies = self._media_blocks(self._search(), r"max-width:\s*480px")
+        assert any(
+            re.search(r"\.search-grid\b[^}]*repeat\(\s*3\s*,\s*1fr\s*\)", b, re.DOTALL)
+            for b in se_bodies
+        ), "search.css ≤480 .search-grid 不再是 repeat(3, 1fr)（誤改 ≤480）"
+
+    def test_ge900_landscape_unchanged_both_pages(self):
+        """非回歸：兩檔 900–1099 段仍 repeat(3, 1fr)（≥900 橫式未波及）。"""
+        for css, grid, name in (
+            (self._showcase(), "showcase-grid", "showcase.css"),
+            (self._search(), "search-grid", "search.css"),
+        ):
+            bodies = self._media_blocks(css, r"min-width:\s*900px\s*\)\s*and\s*\(\s*max-width:\s*1099px")
+            assert bodies, f"{name} 找不到 900–1099 @media 段"
+            joined = "\n".join(bodies)
+            assert re.search(rf"\.{grid}\b[^}}]*repeat\(\s*3\s*,\s*1fr\s*\)", joined, re.DOTALL), \
+                f"{name} 900–1099 段 .{grid} 不再是 repeat(3, 1fr)（≥900 橫式被波及）"
+
+
+# ==================== TASK-81a-T11: posterCrop JS↔CSS 門檻對齊（US-10 / CD-10）====================
+# 鎖死「posterCrop ghost-fly 門檻 == 燈箱封面貼合斷點 == CSS poster grid 斷點 == 899」跨 4+2 檔。
+# 任一處未來漂移（只改一邊）即紅。比照 v0.10.2「JS bail 門檻對齊 CSS」防漂移前例。
+T11_BREAKPOINTS_JS    = PROJECT_ROOT / "web" / "static" / "js" / "shared" / "breakpoints.js"
+T11_STATE_LIGHTBOX_JS = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "showcase" / "state-lightbox.js"
+T11_GRID_MODE_JS      = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "grid-mode.js"
+T11_SHOWCASE_CSS      = PROJECT_ROOT / "web" / "static" / "css" / "pages" / "showcase.css"
+T11_SEARCH_CSS        = PROJECT_ROOT / "web" / "static" / "css" / "pages" / "search.css"
+
+
+class TestPosterCropThresholdAlignment:
+    """US-10 / CD-10：posterCrop 門檻（JS）與燈箱封面貼合 / poster grid 斷點（CSS）對齊 899。"""
+
+    POSTER_CROP_CONST = "POSTER_CROP_MAX_W"
+
+    # ---- helpers ----
+    def _const_value(self) -> int:
+        """從 shared/breakpoints.js 抽 POSTER_CROP_MAX_W 常數值。"""
+        content = T11_BREAKPOINTS_JS.read_text(encoding="utf-8")
+        m = re.search(
+            rf"export\s+const\s+{self.POSTER_CROP_CONST}\s*=\s*(\d+)", content
+        )
+        assert m, f"breakpoints.js 缺少 `export const {self.POSTER_CROP_CONST} = <int>`"
+        return int(m.group(1))
+
+    def _js_poster_crop_threshold(self, path: Path, label: str) -> int:
+        """抽某 JS 檔的 posterCrop 門檻值。
+
+        共用常數方案：斷言檔案 import 了 POSTER_CROP_MAX_W 並用於 innerWidth 比較，
+        門檻值即常數值（單一真理來源在 breakpoints.js）。
+        """
+        content = path.read_text(encoding="utf-8")
+        # 1. import 共用常數（物理同源）
+        assert re.search(
+            rf"import\s*\{{[^}}]*\b{self.POSTER_CROP_CONST}\b[^}}]*\}}\s*from\s*"
+            r"['\"]@/shared/breakpoints\.js['\"]",
+            content,
+        ), f"{label} 必須 import {{ {self.POSTER_CROP_CONST} }} from '@/shared/breakpoints.js'"
+        # 2. 用於 innerWidth 門檻比較
+        assert re.search(
+            rf"window\.innerWidth\s*<=\s*{self.POSTER_CROP_CONST}\b", content
+        ), f"{label} 必須以 `window.innerWidth <= {self.POSTER_CROP_CONST}` 作 posterCrop 門檻"
+        # 3. 舊的 480 字面量門檻已消失（防只改一半）
+        assert not re.search(
+            r"window\.innerWidth\s*<=\s*480\b", content
+        ), f"{label} 仍殘留 `window.innerWidth <= 480`（posterCrop 門檻未擴）"
+        return self._const_value()
+
+    def _css_media_max_width_for_selector(
+        self, css: str, selector_substr: str, name: str
+    ) -> int:
+        """找含 selector_substr 的 @media 區塊，回傳其 max-width 值。"""
+        for m in re.finditer(r"@media\s*\(([^)]*max-width[^)]*)\)\s*\{", css):
+            start = m.end()
+            depth = 1
+            i = start
+            while i < len(css) and depth > 0:
+                if css[i] == "{":
+                    depth += 1
+                elif css[i] == "}":
+                    depth -= 1
+                i += 1
+            body = css[start : i - 1]
+            if selector_substr in body:
+                mw = re.search(r"max-width:\s*(\d+)px", m.group(1))
+                assert mw, f"{name} 的 @media 條件抽不到 max-width: {m.group(1)!r}"
+                return int(mw.group(1))
+        raise AssertionError(f"{name} 找不到含 selector {selector_substr!r} 的 @media block")
+
+    def _poster_grid_max_width(self, css: str, grid_class: str, name: str) -> int:
+        """T10 poster-crop grid 斷點：回傳「481–899 4 欄直式右裁 poster」@media 的 max-width。
+
+        grid_class（.showcase-grid / .search-grid）在多個 @media 出現（≤480、481–899、
+        1100–1499 桌面等都可能是 repeat(4)）。poster-crop 斷點唯一特徵 = 下界 481px：
+        鎖 `(min-width: 481px) and (max-width: Npx)` 且 grid 為 repeat(4) 的那塊，回傳 N。
+        """
+        for m in re.finditer(r"@media\s*([^{]*?)\s*\{", css):
+            cond = m.group(1)
+            mn = re.search(r"min-width:\s*481px", cond)
+            mw = re.search(r"max-width:\s*(\d+)px", cond)
+            if not (mn and mw):
+                continue
+            start = m.end()
+            depth, i = 1, start
+            while i < len(css) and depth > 0:
+                if css[i] == "{":
+                    depth += 1
+                elif css[i] == "}":
+                    depth -= 1
+                i += 1
+            body = css[start : i - 1]
+            if re.search(
+                rf"\.{re.escape(grid_class)}\b[^{{}}]*\{{[^}}]*repeat\(\s*4\b", body, re.DOTALL
+            ):
+                return int(mw.group(1))
+        raise AssertionError(
+            f"{name} 找不到 (min-width:481px)+(max-width)+.{grid_class} repeat(4) poster grid @media block"
+        )
+
+    # ---- 常數定義 ----
+    def test_breakpoint_const_is_899(self):
+        """shared/breakpoints.js 匯出 POSTER_CROP_MAX_W = 899。"""
+        assert self._const_value() == 899, "POSTER_CROP_MAX_W 不為 899"
+
+    # ---- JS 門檻 ----
+    def test_showcase_js_threshold_899(self):
+        """state-lightbox.js posterCrop 門檻 == 899（import 共用常數 + innerWidth 比較 + 無 480 殘留）。"""
+        assert self._js_poster_crop_threshold(
+            T11_STATE_LIGHTBOX_JS, "state-lightbox.js"
+        ) == 899
+
+    def test_search_js_threshold_899(self):
+        """grid-mode.js（search）posterCrop 門檻 == 899（同上）。"""
+        assert self._js_poster_crop_threshold(
+            T11_GRID_MODE_JS, "grid-mode.js"
+        ) == 899
+
+    def test_parity_both_js_thresholds_equal(self):
+        """CD-11：兩頁 JS 門檻值彼此相等（防只改一頁）。"""
+        sc = self._js_poster_crop_threshold(T11_STATE_LIGHTBOX_JS, "state-lightbox.js")
+        se = self._js_poster_crop_threshold(T11_GRID_MODE_JS, "grid-mode.js")
+        assert sc == se, f"兩頁 posterCrop 門檻不一致：showcase={sc} search={se}"
+
+    # ---- CSS 燈箱封面貼合 ----
+    def test_showcase_lightbox_fit_covers_899(self):
+        """showcase.css 燈箱封面貼合（.lightbox-cover:has(.lb-full)）@media == max-width: 899px。"""
+        css = T11_SHOWCASE_CSS.read_text(encoding="utf-8")
+        mw = self._css_media_max_width_for_selector(
+            css, ".lightbox-cover:has(.lb-full)", "showcase.css 燈箱貼合"
+        )
+        assert mw == 899, f"showcase.css 燈箱貼合 @media max-width={mw}px，應為 899"
+
+    def test_search_lightbox_fit_covers_899(self):
+        """search.css 燈箱封面貼合（.search-container .lightbox-cover.has-cover）@media == max-width: 899px。"""
+        css = T11_SEARCH_CSS.read_text(encoding="utf-8")
+        mw = self._css_media_max_width_for_selector(
+            css, ".search-container .lightbox-cover.has-cover", "search.css 燈箱貼合"
+        )
+        assert mw == 899, f"search.css 燈箱貼合 @media max-width={mw}px，應為 899"
+
+    # ---- T10 poster grid 斷點（參考；三位一體比對）----
+    def test_showcase_poster_grid_breakpoint_899(self):
+        """showcase.css poster-crop grid 斷點（.showcase-grid 4 欄）== max-width: 899px（T10）。"""
+        css = T11_SHOWCASE_CSS.read_text(encoding="utf-8")
+        mw = self._poster_grid_max_width(css, "showcase-grid", "showcase.css")
+        assert mw == 899, f"showcase.css poster grid @media max-width={mw}px，應為 899"
+
+    def test_search_poster_grid_breakpoint_899(self):
+        """search.css poster-crop grid 斷點（.search-grid 4 欄）== max-width: 899px（T10）。"""
+        css = T11_SEARCH_CSS.read_text(encoding="utf-8")
+        mw = self._poster_grid_max_width(css, "search-grid", "search.css")
+        assert mw == 899, f"search.css poster grid @media max-width={mw}px，應為 899"
+
+    # ---- 核心：跨 6 值單一對齊斷言 ----
+    def test_all_thresholds_aligned_899(self):
+        """核心對齊守衛：2 JS 門檻 + 2 CSS 燈箱貼合 + 2 CSS poster grid 全部相等且 == 899。
+
+        鎖「posterCrop 門檻 == 燈箱貼合斷點 == poster grid 斷點 == 899」三位一體；
+        未來改任一值不同步即整段紅。
+        """
+        showcase_css = T11_SHOWCASE_CSS.read_text(encoding="utf-8")
+        search_css = T11_SEARCH_CSS.read_text(encoding="utf-8")
+        values = {
+            "js:showcase": self._js_poster_crop_threshold(
+                T11_STATE_LIGHTBOX_JS, "state-lightbox.js"
+            ),
+            "js:search": self._js_poster_crop_threshold(
+                T11_GRID_MODE_JS, "grid-mode.js"
+            ),
+            "css:showcase-lightbox-fit": self._css_media_max_width_for_selector(
+                showcase_css, ".lightbox-cover:has(.lb-full)", "showcase.css 燈箱貼合"
+            ),
+            "css:search-lightbox-fit": self._css_media_max_width_for_selector(
+                search_css, ".search-container .lightbox-cover.has-cover", "search.css 燈箱貼合"
+            ),
+            "css:showcase-poster-grid": self._poster_grid_max_width(
+                showcase_css, "showcase-grid", "showcase.css"
+            ),
+            "css:search-poster-grid": self._poster_grid_max_width(
+                search_css, "search-grid", "search.css"
+            ),
+        }
+        assert all(v == 899 for v in values.values()), (
+            f"posterCrop 門檻 ↔ 燈箱貼合 ↔ poster grid 斷點未全對齊 899：{values}"
         )

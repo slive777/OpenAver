@@ -277,18 +277,10 @@
     }
 }
 
-/* 481-679px → 2 columns（補齊斷點，對齊原版 gallery） */
-@media (min-width: 481px) and (max-width: 679px) {
+/* 481-899px → 4 columns 直式右裁 poster 格（US-10 / CD-11；T10 合併原 481-679 / 680-899 兩段） */
+@media (min-width: 481px) and (max-width: 899px) {
     .showcase-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-    }
-}
-
-/* 680-899px → 2 columns */
-@media (min-width: 680px) and (max-width: 899px) {
-    .showcase-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         gap: 1rem;
     }
 }
@@ -300,7 +292,12 @@
         gap: 0.5rem;
         padding: 0.75rem;
     }
+}
 
+/* US-10 / T10：poster-crop 樣式從 ≤480 擴到 ≤899（481–899 4 欄直式右裁與 ≤480 一致）。
+   欄數靠各自 @media（≤480 = 3 欄 / 481–899 = 4 欄）；poster-crop 卡裁切 + img 右裁 + caption + hero
+   為兩段共用樣式，故移入 ≤899 區塊。selector 形式不變（showcase 後代 :is(…) .showcase-grid，有空格）。 */
+@media (max-width: 899px) {
     /* US5-75b：影片卡切直式 poster 比例。
        數值來源 = plan-75a US2 poster-crop（--poster-crop-ratio），**不可獨立修改**（單一真理）。
        Codex P1（specificity）：selector 必帶 :is(#ds-gallery-components, .ds-gallery-composition) scope。
@@ -906,8 +903,9 @@
  * 標題在 107px 窄格不可讀。故在 ≤480px ∩ pointer:coarse ∩ poster-grid 非 hero 卡，反轉回 footer-default。
  * scope :is(#id,…) → a=1 勝 US3c .av-card-preview .footer-* 的 (0,2,0)；:not(.hero-card) 不碰女優入口；
  * 481px+ touch / pointer:fine 桌面皆不受影響（US3c title-on-touch 行為保留）。
- * T5 的 .av-num ellipsis / .av-actress display:none 規則此時作用在已可見的 .footer-default 上。 */
-@media (max-width: 480px) and (pointer: coarse) {
+ * T5 的 .av-num ellipsis / .av-actress display:none 規則此時作用在已可見的 .footer-default 上。
+ * US-10 / T10：擴 ≤480 → ≤899 與 poster-crop 樣式同步（481–899 平板 poster 格 footer 行為一致）。 */
+@media (max-width: 899px) and (pointer: coarse) {
     :is(#ds-gallery-components, .ds-gallery-composition) .showcase-grid .av-card-preview:not(.hero-card) .footer-default {
         opacity: 1;
     }
@@ -1280,7 +1278,7 @@
  *   且刻意保持 (0,2,1) 不升到 (0,3,1) 以免在 ≤480∩similar-open 與 similar-open img (0,3,1) 撞同權。
  * similar-open 交互：.lightbox-content.similar-open .lightbox-cover img (0,3,1) 勝本 img 規則 (0,2,1)
  *   → ≤480px ∩ similar-open 時手機相似主片維持 40vh（本 task 不接管相似模式，刻意）。 */
-@media (max-width: 480px) {
+@media (max-width: 899px) {
     /* (b) 容器塌到圖的盒（Codex P2：僅 .has-cover；無封面保留基準 min-height 防塌成 0 高） */
     .lightbox-cover.has-cover:has(.lb-full) {
         min-height: 0;
@@ -1338,6 +1336,53 @@
     }
     .toolbar-controls {
         grid-column: 3;
+    }
+}
+
+/* 81-T3 (US-1 / CD-1·CD-3, showcase 單頁)：行動工具列收合/展開 overlay。
+ * ≤480 下 .showcase-toolbar 預設收合（sticky→fixed 移出文件流，封面牆自動上補位、
+ * 不推擠 grid），點 navbar 搜尋 icon（翻轉 $store.ui.toolbarOpen → .mobile-toolbar-open）
+ * 後從 navbar(56px) 下方 slide-down + fade 滑出 overlay。透明 backdrop 接收外部點擊收合。
+ * Token 理由：duration 走 --fluent-duration-fast(167ms)、enter ease 走 --fluent-ease-decel
+ * (curveDecelerateMid，進場專用)；stylelint 禁字面秒數，必走 token。z 階層：navbar 50 <
+ * backdrop 85 < toolbar 90 < lightbox 1000。 */
+@media (max-width: 480px) {
+    .showcase-toolbar {
+        position: fixed;
+        top: 56px;
+        left: 0;
+        right: 0;
+        z-index: 90;
+        transform: translateY(-100%);
+        opacity: 0;
+        pointer-events: none;
+        transition: transform var(--fluent-duration-fast) var(--fluent-ease-decel),
+                    opacity var(--fluent-duration-fast) var(--fluent-ease-decel);
+    }
+
+    .showcase-toolbar.mobile-toolbar-open {
+        transform: translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    /* 透明全屏 backdrop（x-show 控制顯隱，點擊收合）：從 navbar 下緣起，不蓋 navbar icon */
+    .mobile-toolbar-backdrop {
+        position: fixed;
+        inset: 56px 0 0 0;
+        z-index: 85;
+        background: transparent;
+    }
+}
+
+/* 81 (US-1 / CD-1, Codex P2 修正)：navbar 搜尋 icon 只在 ≤480px 顯示，與工具列收合 CSS 斷點對齊。
+ * base.html 的 .navbar-search-btn 僅有 lg:hidden（<1024 可見），但收合 overlay CSS 只在 ≤480；
+ * 若不收緊，481–1023px 會看到 icon 但點了無收合反應（spec §3.1：>480px 行為不變）→ 誤導控制。
+ * 此 page-scoped 規則（.navbar-search-btn 只在 showcase {% if page=='showcase' %} 下渲染）把 481+ 隱藏，
+ * 使「icon 可見區」＝「收合 UI 生效區」＝≤480，邊界一致。 */
+@media (min-width: 481px) {
+    .navbar-search-btn {
+        display: none;
     }
 }
 

@@ -26,7 +26,8 @@ function helpPage() {
         },
 
         copyCurlCommand() {
-            const cmd = `curl -s ${window.location.origin}/api/capabilities`;
+            const base = document.querySelector('.hero-terminal')?.dataset.capabilitiesBase || window.location.origin;
+            const cmd = `curl -s ${base}/api/capabilities`;
             const onSuccess = () => {
                 this.curlCopied = true;
                 setTimeout(() => this.curlCopied = false, 800);

@@ -2,6 +2,8 @@
  * SearchState - Navigation Mixin
  * 包含：導航邏輯（navigate, loadMore, handleKeydown）
  */
+import { detectSwipe } from '@/shared/swipe.js';
+
 export function searchStateNavigation() {
     return {
     // ===== Navigation Methods =====
@@ -85,6 +87,51 @@ export function searchStateNavigation() {
             this.preloadImages(this.currentIndex + 1, 3);
         }
     },
+
+    // ==================== Detail Cover Swipe (81c-T4) ====================
+
+    _dtTouchStart(e) {
+        if (e.touches && e.touches.length > 0) {
+            this._dtTouchStartX = e.touches[0].clientX;
+            this._dtTouchStartY = e.touches[0].clientY;
+        }
+    },
+
+    _dtTouchEnd(e) {
+        if (this._dtTouchStartX === null) return;
+        var endX = e.changedTouches && e.changedTouches.length > 0
+            ? e.changedTouches[0].clientX
+            : null;
+        var endY = e.changedTouches && e.changedTouches.length > 0
+            ? e.changedTouches[0].clientY
+            : null;
+        if (endX === null || endY === null) {
+            this._dtTouchStartX = null;
+            this._dtTouchStartY = null;
+            return;
+        }
+        // 攔截短路串（比照 handleKeydown detail 路徑前置條件，僅 3 條）
+        if (this.rescrapeOpen) {          // 比照 navigation.js handleKeydown rescrape gate
+            this._dtTouchStartX = null; this._dtTouchStartY = null; return;
+        }
+        if (this.sampleGalleryOpen) {     // 劇照由 _sgTouchEnd 處理（sibling 容器）
+            this._dtTouchStartX = null; this._dtTouchStartY = null; return;
+        }
+        if (this.displayMode !== 'detail') {  // 比照 handleKeydown detail gate
+            this._dtTouchStartX = null; this._dtTouchStartY = null; return;
+        }
+        var dir = detectSwipe(this._dtTouchStartX, this._dtTouchStartY, endX, endY, 50);
+        this._dtTouchStartX = null;
+        this._dtTouchStartY = null;
+        // CD-3 直呼 navigate（CD-4 方向；無女優分流、無 wrap，邊界由 navigate 內部處理）
+        if (dir === 'left') {             // 左滑 → 下一
+            this.navigate(1);             // async，fire-and-forget，不 await
+        } else if (dir === 'right') {     // 右滑 → 上一
+            this.navigate(-1);
+        }
+    },
+
+    // ==================== End Detail Cover Swipe ====================
 
     /**
      * 載入更多結果

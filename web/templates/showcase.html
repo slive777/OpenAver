@@ -49,7 +49,7 @@
     <div x-show="!error && (videoCount > 0 || showFavoriteActresses)" x-cloak>
 
         <!-- Toolbar -->
-        <div class="showcase-toolbar">
+        <div class="showcase-toolbar" :class="{ 'mobile-toolbar-open': $store.ui.toolbarOpen }">
             <div class="toolbar-section toolbar-search">
                 <div class="spotlight-search spotlight-search--mode-toggle">
                     <!-- 模式切換 segmented toggle (44c-T4) -->
@@ -100,7 +100,7 @@
                             <i class="bi bi-x-lg"></i>
                         </button>
                         <button class="btn-icon active"
-                                @click="showFavoriteActresses ? onActressSearchChange() : onSearchChange()"
+                                @click="(showFavoriteActresses ? onActressSearchChange() : onSearchChange()); $store.ui.toolbarOpen = false"
                                 title="{{ t('showcase.action.search') }}">
                             <i class="bi bi-arrow-right"></i>
                         </button>
@@ -246,6 +246,9 @@
                 </div>
             </div>
         </div>
+
+        <!-- 81-T3: 行動工具列透明 backdrop（≤480，點擊收合）。用 @click（非 @click.outside，避子元素 .stop 吃掉觸發）-->
+        <div class="mobile-toolbar-backdrop" x-show="$store.ui.toolbarOpen" @click="$store.ui.toolbarOpen = false" x-cloak></div>
 
         <!-- 影片模式：status bar + grid / table / list (CD-2: x-if 避免 Alpine 追蹤隱藏陣列 DOM) -->
         <template x-if="!showFavoriteActresses">
@@ -543,6 +546,8 @@
         <div class="showcase-lightbox"
              :class="{ 'show': lightboxOpen }"
              x-trap.inert="lightboxOpen && !sampleGalleryOpen && !removeActressModalOpen && !rescrapeOpen && !deleteVideoModalOpen"
+             @touchstart.passive="_lbTouchStart($event)"
+             @touchend.passive="_lbTouchEnd($event)"
              @click="handleLightboxBackdropClick($event)">
 
             <div class="lightbox-content" @click.stop :class="{ 'similar-open': similarModeMobileOpen }">
