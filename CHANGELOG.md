@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.8] - 2026-06-22
+
+本版主軸：**手機體驗完整化 + 觸控互動 + 伺服器模式 header 精修**（feature/81）——承接 0.10.7 LAN 伺服器模式，把「手機連進來後每頁都好用」補齊：窄螢幕破版修補、加到主畫面有專屬圖示、封面牆與燈箱可左右滑換片，並把設定頁的伺服器模式區塊收斂成更精簡的一排。純前端 / 零後端 API / DB 改動（help 網址顯示為既有 server 模式邏輯的呈現微調）。
+
+### Added
+#### 📱 行動完整度（窄螢幕地板 360px）
+- 🎯 **封面牆行動搜尋改右上 icon**：手機（≤480px）在封面牆不再被一條搜尋列佔掉頂部空間，改為右上角一顆搜尋 icon，點開才滑出搜尋與篩選/排序控制，用完收起——垂直空間全留給封面。漢堡（左上）與搜尋（右上）各據一角不互遮。平板 / 桌面維持原樣。
+- 🎯 **加到主畫面有專屬 App 圖示**：把網址加到手機主畫面會顯示精緻的 OpenAver 圖示（非網頁截圖）；開啟時手機狀態列顏色隨主題融入（深色主題深底、淺色主題淺底）。
+- 🎯 **封面左右滑換片**：手機在影片燈箱（封面牆 + 搜尋）可左右滑切換上一 / 下一片，搜尋詳情頁的封面區也可左右滑換上一 / 下一筆——與既有 `<` `>` 箭頭並存，垂直捲動不受影響。劇照、相似推薦等彈窗開啟時不會誤觸換片。
+
+### Changed
+#### ⚙️ 伺服器模式 header 收斂（桌面）
+- **設定頁 server-mode 收成一排**：「單機 ｜ 伺服器」膠囊移到設定標題右側；開「伺服器」時「伺服器」字以**琥珀色**突顯（＝正在對外曝露）；連線網址去掉 `http://` 只顯示 `ip:port`（複製時剪貼簿仍是完整網址）；複製鈕改純 icon；區網存取警語收進 `?` 提示，不再佔獨立第二排。
+- **複製 icon 全站統一**：Help 頁的 curl 複製鈕從 `📋` emoji 改為與全站一致的剪貼簿圖示。
+- **Help curl 在桌面主機顯示可分享網址**：開啟伺服器模式後，桌面主機看 Help 的 `curl` 範例會顯示可直接貼給區網其他裝置 / AI agent 的 LAN 網址（而非本機回環位址）；單機模式維持本機位址；取不到 LAN IP 時安全退回本機位址。遠端裝置本就顯示自己的網址、不受影響。
+
+### Fixed
+- **設定 / 說明頁在 360px 窄螢幕破版修補**：設定頁外部媒體管理器說明、metatube 連線網址、Help 的 `curl` 指令等長字串不再水平溢出；控件不重疊、不被截斷。
+- **封面圓鈕在窄螢幕不再變形**：封面上的播放 / 開資料夾 / 補資料圓鈕在 390px 及更窄的 3 欄格下維持正圓（不再被壓成橢圓），且整體縮小、少擋封面。
+- **平板 / 窄窗（481–899px）封面佈局修正**：不再出現「每列 2 個橫式全幅封面」的稀疏佈局，改為比照手機的 4 欄直式右裁封面格；封面牆切換到燈箱時不再「先放大再縮回」的破圖。
+- **通知抽屜在手機不被切左緣**：≤480px 通知抽屜改為頂列下方全寬面板（不再因錨定右側鈴鐺而切掉左緣或超出視口）。
+- **重刮預覽在手機可讀**：重刮預覽視窗在 360px 改為封面與資訊上下直排，不再左右互擠、文字截斷。
+
+### Internal
+- 觸控 swipe 偵測抽為共用純函式 `web/static/js/shared/swipe.js`（`detectSwipe`，含 `|dX|>|dY|` 軸判別防垂直捲動誤觸），三場景（showcase / search 燈箱、detail）各自掛載、沿用既有 prev/next 與 GSAP 切換動畫；全程 passive 不 `preventDefault`，垂直捲動零受損。
+- 通知抽屜手機全寬面板改實心填底（移除 backdrop-filter），免疫 0.10.4 的 view-transition 逐格採樣 bug。
+- 新增前端守衛：swipe helper 簽名 / 攔截短路串 / 容器隔離（含 detail 封面區排除水平縮圖列）、apple-touch-icon、動態 theme-color、grid 斷點 JS↔CSS 對齊、行動浮層 CSS 結構。
+
+### 測試
+- 全套 pytest **4597 passed, 2 skipped**（unit + integration，排除 smoke / e2e，較 0.10.7 的 4467 +130：swipe helper / 三場景掛載與攔截守衛、行動工具列 / poster 斷點 / apple-touch-icon / theme-color 守衛、server header DOM / clipboard icon / help base_url 守衛、行動浮層 CSS 守衛）+ `ruff check .` 綠 + `npm run lint`（eslint + stylelint）綠。
+- 來源金絲雀：**8 源全 PASS**（pre-merge live 健康檢查）。
+- **Gemini 3.1 Pro 三群（A / B / C）分別第二意見：全 Approved / LGTM、零 P1/P2**（僅 cosmetic 級 P3 建議，未採納）；Codex review P2（detail swipe 與水平縮圖列衝突）已修。
+
 ## [0.10.7] - 2026-06-21
 
 本版主軸：**LAN 伺服器模式**——讓你在桌面 App 一鍵把這台機器開放給「同一個 Wi-Fi / 區網」的手機、平板、別台電腦，用瀏覽器連進來瀏覽封面牆、線上看片、查番號（feature/80 A 群）。預設仍是「單機」，行為與舊版完全相同。
