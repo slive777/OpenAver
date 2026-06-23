@@ -1233,6 +1233,12 @@
  * （面板未開、無此 class）完全不受影響。scrim blur 保留（D8 lightbox 遮蔽）。 */
 body.similar-mobile-active [data-picker-ghost] {
     z-index: 1600 !important;
+    /* 83b-T1fix4: ghost（burst-picker.js）inline 只設 object-fit:cover、無 object-position
+     * → 飛行全程 center-crop；但 cards/封面用 object-position:right center（右半裁切）→ 落地瞬間
+     * center→right snap。補上 right center 讓右半裁切飛行全程一致（如桌面星座）。無 inline
+     * object-position 可覆蓋故不需 !important。scope 到 body.similar-mobile-active → 女優 picker
+     * 共用 ghost（面板未開、無此 class）維持 center-crop 不受影響。 */
+    object-position: right center;
 }
 
 /* 56c-T3fix: Sparkle burst overlay — 10 顆四角星 ring 分佈，GSAP 操作 opacity/scale/rotation
