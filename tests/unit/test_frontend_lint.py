@@ -15164,3 +15164,84 @@ class TestMobilePanelT3Guards:
             "ghost-fly.js 找不到 playMobilePanelEnter 函式宣告"
         assert ".similar-main-anchor" not in enter_body, \
             "playMobilePanelEnter 函式體含 .similar-main-anchor（禁區：桌面 DOM 不得出現在 mobile helper）"
+
+
+class TestSimilarMobilePanelT4Guard:
+    """83b-T4: 行動相似面板主圖播放按鈕合約守衛"""
+
+    def _html(self):
+        return Path("web/templates/showcase.html").read_text(encoding="utf-8")
+
+    def _css(self):
+        return Path("web/static/css/pages/showcase.css").read_text(encoding="utf-8")
+
+    def test_mobile_play_btn_exists_in_stage(self):
+        """T4: .similar-mobile-stage 內含 .similar-mobile-play-btn button（.similar-mobile-cover 子元素，overflow:hidden 已移至 img）"""
+        html = self._html()
+        # 先找 .similar-mobile-stage block
+        m = re.search(
+            r'<div class="similar-mobile-stage">(.*?)</div>\s*<!-- 右上',
+            html, re.S
+        )
+        assert m, "showcase.html: .similar-mobile-stage block 不存在"
+        stage = m.group(1)
+        assert 'class="similar-mobile-play-btn"' in stage, \
+            ".similar-mobile-stage 內缺 <button class=\"similar-mobile-play-btn\">（T4 播放按鈕）"
+
+    def test_mobile_play_btn_handlers(self):
+        """T4: 播放按鈕有 @click.stop + x-show path guard + :disabled drill-lock + aria-label"""
+        html = self._html()
+        m = re.search(r'<button class="similar-mobile-play-btn"[^>]*>', html, re.S)
+        assert m, "showcase.html: 找不到 <button class=\"similar-mobile-play-btn\">"
+        btn = m.group(0)
+        assert '@click.stop="playVideo(currentLightboxVideo?.path)"' in btn, \
+            "播放按鈕須有 @click.stop=\"playVideo(currentLightboxVideo?.path)\"（stop 防冒泡觸發 closeMobilePanel）"
+        assert 'x-show="!!currentLightboxVideo?.path"' in btn, \
+            "播放按鈕須有 x-show=\"!!currentLightboxVideo?.path\"（tier-3 孤兒 path=undefined 時隱藏）"
+        assert ':disabled="similarModeAnimating"' in btn, \
+            "播放按鈕須有 :disabled=\"similarModeAnimating\"（drill 動畫中 lock）"
+        assert ":aria-label=\"t('showcase.action.play')\"" in btn, \
+            "播放按鈕須有 :aria-label=\"t('showcase.action.play')\"（i18n）"
+
+    def test_mobile_play_btn_css_tokens(self):
+        """T4: .similar-mobile-play-btn CSS 在 max-width:959px 內，使用 Fluent token，含雙寫 -webkit-backdrop-filter"""
+        css = self._css()
+        # 確認 class 存在
+        assert ".similar-mobile-play-btn" in css, \
+            "showcase.css 缺 .similar-mobile-play-btn 規則"
+        # 找規則區塊
+        m = re.search(r'\.similar-mobile-play-btn\s*\{([^}]*)\}', css, re.S)
+        assert m, "showcase.css: .similar-mobile-play-btn {} block 不存在"
+        body = m.group(1)
+        assert "var(--overlay-control)" in body, \
+            ".similar-mobile-play-btn background 須用 var(--overlay-control)（不硬編碼 rgba）"
+        assert "var(--fluent-blur-light)" in body, \
+            ".similar-mobile-play-btn backdrop-filter 須用 var(--fluent-blur-light)（不硬編碼 px）"
+        assert "-webkit-backdrop-filter" in body, \
+            ".similar-mobile-play-btn 須含 -webkit-backdrop-filter 雙寫（iOS Safari）"
+        assert "border-radius: 50%" in body, \
+            ".similar-mobile-play-btn 須是圓形（border-radius: 50%）"
+        # 確認在 max-width:959px media query 內
+        # 找包含此 class 的 @media block
+        media_block = re.search(
+            r'@media\s*\(max-width:\s*959px\)[^{]*\{(.*?)(?=@media|\Z)',
+            css, re.S
+        )
+        assert media_block and ".similar-mobile-play-btn" in media_block.group(1), \
+            ".similar-mobile-play-btn 須在 @media (max-width:959px) 內（行動限定）"
+
+    def test_mobile_play_btn_ghost_hide(self):
+        """T4-fix: ghost-fly 飛行期間按鈕隱藏規則（img[data-ghost-hidden] ~ .similar-mobile-play-btn）"""
+        css = self._css()
+        assert "img[data-ghost-hidden] ~ .similar-mobile-play-btn" in css, \
+            "showcase.css 缺 ghost-hide 規則：img[data-ghost-hidden] ~ .similar-mobile-play-btn"
+        m = re.search(
+            r'img\[data-ghost-hidden\]\s*~\s*\.similar-mobile-play-btn\s*\{([^}]*)\}',
+            css, re.S
+        )
+        assert m, "showcase.css: ghost-hide rule block 不存在"
+        body = m.group(1)
+        assert "opacity: 0" in body, \
+            "ghost-hide 規則須含 opacity: 0"
+        assert "pointer-events: none" in body, \
+            "ghost-hide 規則須含 pointer-events: none（飛行期間防誤點）"

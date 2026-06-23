@@ -1073,7 +1073,8 @@
         left: 50%;
         transform: translate(-50%, -50%);
         width: min(88vw, 56vh * var(--poster-crop-ratio));
-        overflow: hidden;
+        /* T4: overflow:hidden 移到 img（border-radius 掛 img 可裁角），
+           讓 .similar-mobile-play-btn 子元素不被裁切而能在封面內顯示 */
         border-radius: var(--fluent-radius-lg);
         cursor: pointer;
     }
@@ -1084,6 +1085,7 @@
         aspect-ratio: var(--poster-crop-ratio);   /* 單一真理，禁硬編碼 4/5 */
         object-fit: cover;
         object-position: right center;             /* 右半裁切 */
+        border-radius: var(--fluent-radius-lg);    /* T4: 接管 overflow:hidden 的裁角職責 */
     }
 
     /* cards 容器：absolute（layout-isolated，不 reflow cover）但改放螢幕下方區域，
@@ -1142,6 +1144,58 @@
         color: var(--text-primary);
         font-size: 1.25rem;
         cursor: pointer;
+    }
+
+    /* T4: 行動相似面板播放按鈕（mirror .similar-play-button，桌面 L3255） */
+    .similar-mobile-play-btn {
+        position: absolute;
+        left: 50%;
+        /* 相對 .similar-mobile-cover（position:absolute，子元素 containing block）定位；
+           bottom:12px 置於封面底部中央，對齊桌面 .similar-play-button 位置邏輯 */
+        bottom: 12px;
+        transform: translateX(-50%);
+        width: 44px;
+        height: 44px;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 50%;
+        background: var(--overlay-control);
+        backdrop-filter: blur(var(--fluent-blur-light));
+        -webkit-backdrop-filter: blur(var(--fluent-blur-light));
+        color: white;
+        font-size: 1.25rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: var(--fluent-shadow-8);
+        z-index: 12;
+        transition: background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                    border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+                    box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+    }
+
+    .similar-mobile-play-btn:hover,
+    .similar-mobile-play-btn:active {
+        background: rgba(0, 0, 0, 0.5);
+        border-color: rgba(255, 255, 255, 0.6);
+        box-shadow: var(--fluent-shadow-16);
+    }
+
+    .similar-mobile-play-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .similar-mobile-play-btn:focus-visible {
+        outline: 2px solid var(--star-glow);
+        outline-offset: 2px;
+    }
+
+    /* T4-fix: ghost-fly 飛行期間（img data-ghost-hidden 存在）隱藏播放按鈕，
+       避免 enter 封面尚未落地 / exit 封面已飛走 時按鈕懸空或可點 */
+    .similar-mobile-cover img[data-ghost-hidden] ~ .similar-mobile-play-btn {
+        opacity: 0;
+        pointer-events: none;
     }
 }
 

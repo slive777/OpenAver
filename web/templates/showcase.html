@@ -1191,8 +1191,17 @@
         <!-- stage：burst origin frame -->
         <div class="similar-mobile-stage">
             <!-- 中央右半裁切主圖（FlipReplace 落點 + Burst 原點；點主圖關面板，無文字） -->
+            <!-- T4: cover 不設 overflow:hidden（已移至 img），讓 play-btn 子元素不被裁切 -->
             <div class="similar-mobile-cover" @click="closeMobilePanel()">
                 <img x-ref="mobilePanelCoverImg" alt="" aria-hidden="true">
+                <!-- T4: 播放按鈕 — cover 子元素；@click.stop 阻冒泡防觸發 cover 的 closeMobilePanel() -->
+                <button class="similar-mobile-play-btn"
+                        x-show="!!currentLightboxVideo?.path"
+                        :disabled="similarModeAnimating"
+                        @click.stop="playVideo(currentLightboxVideo?.path)"
+                        :aria-label="t('showcase.action.play')">
+                    <i class="bi bi-play-fill" aria-hidden="true"></i>
+                </button>
             </div>
             <!-- 相似卡（從中央爆射；右半裁切；無文字） -->
             <div class="similar-mobile-cards">
