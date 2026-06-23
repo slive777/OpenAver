@@ -10729,10 +10729,12 @@ class TestCoverLoadingUx67Guard:
     # ---- 71-T6: 燈箱封面 blur-up（thumb 底層秒出 → 原圖淡入）----
 
     def _lightbox_cover_block(self):
-        """抽出燈箱封面 <div class=\"lightbox-cover\">…</div> 區塊（element-bound，避免整檔裸 grep）"""
+        """抽出影片燈箱封面 <div class="lightbox-cover" :class="{'has-cover':…}">…</div> 區塊"""
         html = self._html()
-        m = re.search(r'<div class="lightbox-cover">.*?</div>\s*<!-- Metadata Panel', html, re.S)
-        assert m, "showcase.html: <div class=\"lightbox-cover\"> 區塊不存在"
+        # 83a modal-hug 給影片 div 加了 :class has-cover（與女優 div 區分）；
+        # 83b-T1 在 </div> 後插入說明注釋，故用 has-cover 錨點 + .*?<!-- Metadata Panel 取代 \s*
+        m = re.search(r'<div class="lightbox-cover"[^>]*has-cover[^>]*>.*?</div>.*?<!-- Metadata Panel', html, re.S)
+        assert m, "showcase.html: 影片燈箱 .lightbox-cover（has-cover :class）區塊不存在"
         return m.group(0)
 
     def _lb_overlay_img(self):
