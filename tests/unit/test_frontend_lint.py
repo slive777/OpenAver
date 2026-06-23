@@ -5414,15 +5414,19 @@ class TestSearchCssHardcoded:
         # T10（US-10）：poster-crop / coarse block 註解 +4 行（481–899 擴斷點）：920→924。
         # 83a-T3：在 L789 插入 modal-hug block（~21 行）：924→945。
         # 83a-T3-fix P1：在 L810（T9-port 前）插入 lightbox overflow block（~12 行）：945→957。
+        # 83a2-T4：在 L102（detail cover scope 區）插入 ~22 行 + mobile block 插入 ~5 行（皆在 957 上方）：957→984。
+        # 83a2-T4 Codex P2 fix：loading-placeholder fallback 併入（comment+第二 selector）+4 行：984→988。
         90: "drop-shadow rgba 0.3 — §2 例外（drop-shadow 跟封面去背形狀，非矩形 box-shadow 無法用 --fluent-shadow-* token）",
-        957: "var(--bg-card, rgba(0, 0, 0, 0.05)) fallback — defensive fallback，非硬編碼違規",
+        988: "var(--bg-card, rgba(0, 0, 0, 0.05)) fallback — defensive fallback，非硬編碼違規",
     }
 
     SIX_PX_ALLOWLIST = {
         # 75b-T2 search.css US1 重排插入 ~54 行（@ ~L107）後行號順移：235→282、524→576、579→631（皆在插入點下方）。
-        282: "row inline btn optical 6px — T2.2 加 optical 註記（btn-sm 12px padding 對 row inline 太寬）",
-        576: ".batch-progress-bar height: 6px — intrinsic dimension（非 §4 spacing）",
-        631: "chip optical 6px — T2.2 加 optical 註記（對齊 showcase .lb-tag-add-btn）",
+        # 83a2-T4：detail cover scope +22 行（L102 上方）+ mobile block +5 行（L519 上方）後順移：282→304、576→603、631→658。
+        # 83a2-T4 Codex P2 fix：loading-placeholder fallback +4 行後順移：304→308、603→607、658→662。
+        308: "row inline btn optical 6px — T2.2 加 optical 註記（btn-sm 12px padding 對 row inline 太寬）",
+        607: ".batch-progress-bar height: 6px — intrinsic dimension（非 §4 spacing）",
+        662: "chip optical 6px — T2.2 加 optical 註記（對齊 showcase .lb-tag-add-btn）",
     }
 
     def _scan(self, regex: str, allowlist=None):
@@ -14650,4 +14654,134 @@ class TestSearchLightboxModalHugContract:
         )
         assert re.search(r'overflow-y\s*:\s*hidden', block), (
             ".search-container .lightbox-content 缺少 overflow-y:hidden（P1 fix：modal 整體不捲）"
+        )
+
+
+# feature/83a2 T4: Search detail cover fix contract guards (pure additive)
+# 鎖 search detail 封面欄留白 + 劇照截斷修正（Bug A/B）的跨檔 CSS 覆寫契約。
+class TestSearchDetailCoverFixContract:
+    """83a2-T4: 固化 search detail 封面欄修正契約（純加法守衛）
+
+    #D1 .search-container .av-card-full-cover 含 min-height:0（清 theme.css 200px 地板）
+    #D2 .search-container .av-card-full-cover-wrapper 含 min-height:0（清 search.css 400px 地板）
+    #D3 .search-container .av-card-full-cover-img 含 height:auto（不依賴父容器死高）
+    #D4 :has(.cover-error-placeholder...) min-height fallback 存在（無圖時 placeholder 不塌）
+    #D5 @media ≤1024px .search-container .av-card-full-cover 含 overflow:visible（mobile 不截 sample-strip）
+    """
+
+    def _css(self):
+        # 去 /* ... */ 註解：本 task 的說明註解刻意提到 override 值（min-height:0 等），
+        # 不剝除會讓守衛比對到註解文字而非真宣告（false-positive，mutation 抓不到）。
+        raw = SEARCH_CSS.read_text(encoding="utf-8")
+        return re.sub(r'/\*.*?\*/', '', raw, flags=re.DOTALL)
+
+    def _block(self, css, selector_regex):
+        """擷取首個 `selector { ... }` 塊內容（非貪婪到第一個 }）"""
+        m = re.search(selector_regex + r'\s*\{([^}]*)\}', css, re.DOTALL)
+        return m.group(1) if m else None
+
+    def test_d1_cover_min_height_zero(self):
+        """#D1 .search-container .av-card-full-cover 含 min-height:0（覆寫 theme.css min-height:200px）"""
+        block = self._block(
+            self._css(),
+            r'\.search-container\s+\.av-card-full-cover(?![-\w])'
+        )
+        assert block is not None, (
+            "search.css 找不到 .search-container .av-card-full-cover 規則"
+        )
+        assert re.search(r'min-height\s*:\s*0', block), (
+            ".search-container .av-card-full-cover 缺少 min-height:0（Bug B 留白會回歸）"
+        )
+
+    def test_d2_wrapper_min_height_zero(self):
+        """#D2 .search-container .av-card-full-cover-wrapper 含 min-height:0（覆寫 400px 主地板）"""
+        block = self._block(
+            self._css(),
+            r'\.search-container\s+\.av-card-full-cover-wrapper(?![-\w])'
+        )
+        assert block is not None, (
+            "search.css 找不到 .search-container .av-card-full-cover-wrapper 規則"
+        )
+        assert re.search(r'min-height\s*:\s*0', block), (
+            ".search-container .av-card-full-cover-wrapper 缺少 min-height:0（Bug B 主地板未清）"
+        )
+
+    def test_d3_cover_img_height_auto(self):
+        """#D3 .search-container .av-card-full-cover-img 含 height:auto（圖高由 AR 自然推導）"""
+        block = self._block(
+            self._css(),
+            r'\.search-container\s+\.av-card-full-cover-img(?![-\w])'
+        )
+        assert block is not None, (
+            "search.css 找不到 .search-container .av-card-full-cover-img 規則"
+        )
+        assert re.search(r'height\s*:\s*auto', block), (
+            ".search-container .av-card-full-cover-img 缺少 height:auto（仍靠父容器死高 → 留白）"
+        )
+
+    def test_d4_error_placeholder_min_height_fallback(self):
+        """#D4 :has(.cover-error-placeholder:not([style*=display:none])) min-height fallback 存在"""
+        css = self._css()
+        # 找 :has(.cover-error-placeholder...) 規則塊
+        # 用 [^{]* 而非 [^)]*：selector 含 :not(...) 巢狀括號，不能在第一個 ) 停
+        m = re.search(
+            r'\.search-container\s+\.av-card-full-cover-wrapper:has\([^{]*cover-error-placeholder[^{]*\)\s*\{([^}]*)\}',
+            css, re.DOTALL
+        )
+        assert m is not None, (
+            "search.css 找不到 wrapper:has(.cover-error-placeholder) fallback 規則"
+            "（min-height:0 後無圖時 placeholder 會塌掉不可見）"
+        )
+        block = m.group(1)
+        # 必須非零（min-height:0 等於沒 fallback，placeholder 仍塌）
+        assert re.search(r'min-height\s*:\s*[1-9]\d*', block), (
+            "error-placeholder fallback 規則缺少非零 min-height（placeholder 仍會塌）"
+        )
+
+    def test_d4b_loading_placeholder_min_height_fallback(self):
+        """#D4b :has(.cover-loading-placeholder:not([style*=display:none])) min-height fallback 存在
+
+        83a2-T4 Codex P2：封面載入中（_coverLoaded=false，慢速/未快取）走 .cover-loading-placeholder
+        shimmer 路徑，img height:auto 尚無 intrinsic size + shimmer position:absolute → wrapper 塌 0，
+        shimmer 與 nav-indicator 一起閃失。D4（error-placeholder）抓不到此單邊回歸，須獨立守衛。
+        """
+        css = self._css()
+        m = re.search(
+            r'\.search-container\s+\.av-card-full-cover-wrapper:has\([^{]*cover-loading-placeholder[^{]*\)\s*\{([^}]*)\}',
+            css, re.DOTALL
+        )
+        assert m is not None, (
+            "search.css 找不到 wrapper:has(.cover-loading-placeholder) fallback 規則"
+            "（83a2-T4 Codex P2：載入期 shimmer 塌 0 高、nav-indicator 閃失）"
+        )
+        block = m.group(1)
+        assert re.search(r'min-height\s*:\s*[1-9]\d*', block), (
+            "loading-placeholder fallback 規則缺少非零 min-height（shimmer 仍會塌）"
+        )
+
+    def test_d5_mobile_cover_overflow_visible(self):
+        """#D5 @media ≤1024px .search-container .av-card-full-cover 含 overflow:visible"""
+        css = self._css()
+        # 擷取 @media (max-width:1024px) { ... } 整段（巢狀 brace，用平衡掃描）
+        start = re.search(r'@media\s*\(\s*max-width\s*:\s*1024px\s*\)\s*\{', css)
+        assert start is not None, "search.css 找不到 @media (max-width:1024px) 區塊"
+        i = start.end()
+        depth = 1
+        while i < len(css) and depth > 0:
+            if css[i] == '{':
+                depth += 1
+            elif css[i] == '}':
+                depth -= 1
+            i += 1
+        media_body = css[start.end():i - 1]
+        block = self._block(
+            media_body,
+            r'\.search-container\s+\.av-card-full-cover(?![-\w])'
+        )
+        assert block is not None, (
+            "≤1024px media 內找不到 .search-container .av-card-full-cover 規則"
+        )
+        assert re.search(r'overflow\s*:\s*visible', block), (
+            "≤1024px .search-container .av-card-full-cover 缺少 overflow:visible"
+            "（Bug A mobile：max-height:50vh+overflow:hidden 截 sample-strip 會回歸）"
         )
