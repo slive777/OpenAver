@@ -666,17 +666,56 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    /* 給容器最小尺寸 — 無封面時 placeholder SVG 不會讓 lightbox 塌陷成迷你卡片，
-       cover-actions absolute 仍能撐開到 lightbox 應有的氣勢 */
+    /* 無封面時保留 floor — placeholder SVG 不塌陷、cover-actions absolute 仍能撐盒 */
     min-width: min(60vw, 600px);
     min-height: min(58vh, 460px);
 }
 
+/* 83a-T3-fix P1: metadata 可變高 → modal 整體捲動修正。
+   83b-T2：:not(.similar-open) gate 已移除（similar-open class 不再使用）；規則無條件命中。
+   metadata 靠 flex:1 1 auto + min-height:0 + overflow-y:auto 自行消化剩餘高度。 */
+.lightbox-content {
+    overflow-y: hidden;
+}
+
+/* 83a-T1fix1 M1+M2+M3: has-cover 時 aspect-box modal-hug 模型（全斷點適用）。
+   修正 T1 的 flex-shrink letterbox bug（CDP 實測：cover box 1139×610 AR=1.869≠圖 AR 1.481
+   → img object-fit:contain 只佔 903px → 左右各 118px 暗死白）。
+   修法 A — flex-shrink:0（禁止 cover 被壓縮）：配合 width-formula 確保 cover 高不超 content。
+   修法 B — width-formula 對齊 content max-height:90vh（vreserve=15rem≈240px）：
+     width = min(90vw, (90dvh − 15rem) × AR) → cover 高 = width/AR；
+     cover 高 + 15rem ≤ 90dvh = content max-height → 不捲動。
+     T1 錯用 100dvh：cover 高 = dvh−15rem，content max-height=90vh < dvh → 溢出捲動。
+   T1fix1 就是把 100dvh/100vh 改 90dvh/90vh 這一行，其餘不變。
+   83b-T2：:not(.similar-open) gate 已移除（similar-open class 不再使用）；規則無條件命中。 */
+.lightbox-content .lightbox-cover.has-cover {
+    flex-shrink: 0;
+    min-width: 0;
+    min-height: 0;
+    aspect-ratio: var(--lb-cover-ar, 1.5);
+    width: min(90vw, calc((90vh - 15rem) * var(--lb-cover-ar, 1.5)));
+    width: min(90vw, calc((90dvh - 15rem) * var(--lb-cover-ar, 1.5)));
+    height: auto;
+}
+
+/* 83a-T1 M1: base img 與 .lb-full 皆填滿 aspect-ratio 正確的盒（兩層疊在 has-cover 盒內）。
+   83b-T2：:not(.similar-open) gate 已移除；此規則無條件命中，接管 T8 block 移除後的 width:100% 供應。
+   盒 AR == 圖 AR → 不 letterbox；border-radius 保留視覺細節。
+   無封面的普通 img（破圖/placeholder）維持舊規則（非 has-cover，不命中此選擇器）。 */
+.lightbox-content .lightbox-cover.has-cover img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: var(--radius-sm);
+}
+
+/* 83a-T1 M1: 無封面 / 女優分支 base img — 維持舊規則（cover-first，不干擾 has-cover 內 absolute 層疊）。
+   specificity (0,1,1) 低於上方 .has-cover img (0,3,1)，has-cover 時上方規則勝出。 */
 .lightbox-cover img {
-    /* 71c：height 明確（非僅 max-height），讓 400px thumb 放大撐滿 60vh；
-       width:auto + max-width:100% 保持比例且不超容器寬；object-fit:contain 絕不裁切。
-       T4 前原圖靠自然尺寸填滿，T4 後 thumb 自然 400px < 60vh → 用 max-* 無法放大，
-       需 height 明確才能撐高（瀏覽器按 height 限制縮放比例，object-fit:contain 補完）。 */
+    /* 舊規則保留給無封面路徑（placeholder/破圖）與女優照（.lightbox-cover 無 has-cover class）。
+       height:60vh 讓無封面 lightbox 維持既有視覺氣勢；object-fit:contain 不裁切。 */
     height: 60vh;
     width: auto;
     max-width: 100%;
@@ -685,10 +724,10 @@
 }
 
 /* 71-T6 blur-up overlay：原圖（cover_full_url）疊在 base（cover_url 小圖）之上。
-   sizing 鏡像 .lightbox-cover img 使兩層精準對齊；預設 opacity:0、@load 後翻 .lb-full-shown 淡入。
-   pointer-events:none → overlay 永不攔截 cover-actions / sparkle 的點擊。
-   transition 用 fluent token（不寫裸 .3s）；duration-slow=300ms（= plan .3s）、ease-decel 為進場/淡入角色。
-   71c：height/width/object-fit 完全鏡像 base img，確保原圖淡入時尺寸不偏移（兩層像素對齊）。 */
+   83a-T1 M1: has-cover 時 .lb-full 填滿 has-cover 盒（盒 AR == 圖 AR，不 letterbox）；
+   opacity 溶接不變；pointer-events:none 確保不擋 cover-actions / sparkle 點擊。
+   transition 用 fluent token；duration-slow=300ms、ease-decel 為進場/淡入角色。
+   83b-T2：similar-open 禁區已移除；has-cover 時 .lb-full 由 .lightbox-content .lightbox-cover.has-cover .lb-full 填滿盒。 */
 .lb-full {
     position: absolute;
     inset: 0;
@@ -703,6 +742,16 @@
     transition: opacity var(--fluent-duration-slow) var(--fluent-ease-decel);
 }
 
+/* 83a-T1 M1: has-cover → lb-full 填滿盒（覆寫舊 60vh 規則）。
+   83b-T2：:not(.similar-open) gate 已移除；specificity (0,3,0) 勝 .lb-full (0,1,0)。 */
+.lightbox-content .lightbox-cover.has-cover .lb-full {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    max-width: none;
+}
+
 .lb-full-shown {
     opacity: 1;
 }
@@ -715,11 +764,16 @@
 }
 
 /* Metadata Panel — 緊湊版（匹配原版 gallery） */
+/* 83a-T1 M4: 移除 max-width:600px，改 width:100% 對齊封面寬（modal shrink-to-fit 後即封面寬）。
+   83a-T3-fix P1: flex:1 1 auto + min-height:0 讓 metadata 吃剩餘空間並自行捲動，
+   配合上方 .lightbox-content{overflow-y:hidden} 防 modal 整體捲動（83b-T2 gate 已移除）。 */
 .lightbox-metadata {
     padding: 0.5rem 0 0 0;
-    max-width: 600px;
     width: 100%;
     border-top: 1px solid var(--stroke-subtle);
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 /* Header row: title + sample gallery button */
@@ -966,70 +1020,216 @@
     line-height: 1;
 }
 
-/* 56c-T7：手機降級 mobile similar grid =========================================*/
-.lightbox-similar-mobile {
-    margin-top: 0.75rem;         /* --space-3 不存在，用 raw 0.75rem */
-    padding: 0.75rem;
-    background: rgba(255,255,255,0.06);  /* 低於 .lb-action-btn 0.15，輕量區分 */
-    border-radius: var(--fluent-radius-lg);  /* 8px，對齊卡片 radius */
-}
+/* 56c-T7 舊手機 grid（.lightbox-similar-mobile / .similar-mobile-grid / .similar-mobile-card 等）
+   已於 83b-T2 移除：T1 改為獨立全螢幕 .similar-mobile-panel；HTML block 已移除，CSS 同步清理。 */
 
-.similar-mobile-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.5rem;                  /* --space-2 不存在，用 raw 0.5rem */
-}
-
-.similar-mobile-card {
-    cursor: pointer;
-    border-radius: var(--fluent-radius-md);  /* 4px */
-    overflow: hidden;
-    transition: transform var(--fluent-duration-fast) var(--fluent-ease-standard);
-}
-
-.similar-mobile-card:hover {
-    transform: scale(1.02);
-}
-
-/* 手機觸控回饋：active 態往下縮，給拇指觸感確認 */
-.similar-mobile-card:active {
-    transform: scale(0.97);
-    opacity: 0.85;
-}
-
-.similar-mobile-card img {
-    width: 100%;
-    aspect-ratio: var(--poster-crop-ratio);
-    object-fit: cover;
-    object-position: right center;  /* CSS layer crop，右半邊視覺 — 非 ghost-fly cropMode（不違反 lint rule）*/
-    /* 圖片載入中骨架：lazy img 在 loaded 前顯示淺灰漸層 */
-    background: linear-gradient(135deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 75%);
-    background-size: 200% 100%;
-}
-
-.similar-mobile-meta {
-    padding: 0.5rem;
-    font-size: 0.8125rem;         /* --text-sm 不存在，對齊 .lb-otitle 同值 */
-}
-
-.similar-mobile-number {
-    color: var(--text-muted);
-    font-size: 0.75rem;
-}
-
-.similar-mobile-title {
-    color: var(--text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: none;  /* 75a-US4: 77px 卡片寬度無法顯示標題，僅保留番號 */
-}
-
-/* 確保 mobile collapse 只在小螢幕渲染（桌面應永遠 similarModeMobileOpen = false） */
-@media (min-width: 960px) {
-    .lightbox-similar-mobile {
-        display: none !important;   /* 桌面安全網：即使 state 殘留也不顯示 */
+/* ===================================================================
+ * 83b-T1: 行動相似探索面板（Mobile Photo Picker 爆射）
+ * 全螢幕獨立面板（.showcase-lightbox 外側 sibling），<960px only。
+ * Core 無轉場：default-hidden（opacity/visibility/pointer-events）+ .show 直顯/直隱。
+ * cover + cards layout-isolated（position:absolute）→ BurstPicker 內部 getBCR()
+ * 在爆射並行期間讀到穩定 rect（R1 緩解，模組無 rect 注入口 CD-12）。
+ * =================================================================== */
+@media (max-width: 959px) {
+    .similar-mobile-panel {
+        position: fixed;
+        inset: 0;
+        z-index: 1502;  /* > .similar-stage 1501 > .showcase-lightbox 1000 */
+        /* default-hidden（非 bare x-show）：Alpine boot 前 overlay 不閃現（FOUC，D10/AC-8） */
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
     }
+
+    .similar-mobile-panel.show {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+
+    /* scrim：overlay 30px 模糊完全遮住 lightbox（CD-10；雙寫 -webkit-，禁硬編碼 px） */
+    .similar-mobile-scrim {
+        position: absolute;
+        inset: 0;
+        background-color: var(--overlay-modal);
+        backdrop-filter: blur(var(--fluent-blur));
+        -webkit-backdrop-filter: blur(var(--fluent-blur));
+    }
+
+    /* stage：爆射 origin frame（cover 在中央，cards 從中央爆射） */
+    .similar-mobile-stage {
+        position: absolute;
+        inset: 0;
+    }
+
+    /* 中央主圖：layout-isolated（爆射卡 out of flow 不 reflow 它，R1 根本緩解）。
+     * 83b-T1fix1: 大封面、置中偏上。維持 position:absolute（R1 不破）。
+     * 寬度雙約束 min(vw界, vh界*ratio)：--poster-crop-ratio=0.71（portrait），故 vh*ratio
+     * 上界鎖住封面「高度」≤56vh，下方預留 ~40vh 給 3+3 grid（9:16 矮 / 9:21 高 / 平板直式皆不溢出）。
+     * 垂直置中偏上：cover 中心落在 ~30vh（視口中線之上），上緣貼近 close 鈕下方。 */
+    .similar-mobile-cover {
+        position: absolute;
+        top: 30vh;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: min(88vw, 56vh * var(--poster-crop-ratio));
+        /* T4: overflow:hidden 移到 img（border-radius 掛 img 可裁角），
+           讓 .similar-mobile-play-btn 子元素不被裁切而能在封面內顯示 */
+        border-radius: var(--fluent-radius-lg);
+        cursor: pointer;
+    }
+
+    .similar-mobile-cover img {
+        display: block;
+        width: 100%;
+        aspect-ratio: var(--poster-crop-ratio);   /* 單一真理，禁硬編碼 4/5 */
+        object-fit: cover;
+        object-position: right center;             /* 右半裁切 */
+        border-radius: var(--fluent-radius-lg);    /* T4: 接管 overflow:hidden 的裁角職責 */
+    }
+
+    /* cards 容器：absolute（layout-isolated，不 reflow cover）但改放螢幕下方區域，
+     * 內部 3 欄 grid（mirror 女優 picker mobile L2877–2887）→ 6 卡自然版位 = 下方 3+3 各格。
+     * 83b-T1fix1: 從 inset:0（全覆蓋、卡疊中心）改為下方 grid。 */
+    .similar-mobile-cards {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: auto;
+        bottom: calc(4vh + env(safe-area-inset-bottom));
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        justify-items: center;
+        gap: 10px;
+        padding: 0 16px;
+        pointer-events: none;   /* 容器不擋；卡片各自 pointer-events:auto */
+    }
+
+    /* 爆射卡：GSAP-only（opacity:0 + transition:none 防 1-frame paint glitch，mirror .picker-candidate-card）。
+     * 83b-T1fix1: position:relative（grid item，有獨立版位 → burst 落各格不再疊），尺寸用 grid 欄寬。 */
+    .similar-mobile-burst-card {
+        position: relative;
+        width: 100%;
+        max-width: 120px;
+        overflow: hidden;
+        border-radius: var(--fluent-radius-lg);
+        cursor: pointer;
+        pointer-events: auto;
+        opacity: 0;
+        transition: none;
+    }
+
+    .similar-mobile-burst-card img {
+        display: block;
+        width: 100%;
+        aspect-ratio: var(--poster-crop-ratio);
+        object-fit: cover;
+        object-position: right center;
+    }
+
+    /* 右上 ✕ 關閉鈕（x-trap Tab 目標） */
+    .similar-mobile-panel-close {
+        position: absolute;
+        top: max(1rem, env(safe-area-inset-top));
+        right: max(1rem, env(safe-area-inset-right));
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.75rem;
+        height: 2.75rem;
+        border: none;
+        border-radius: var(--radius-pill);
+        background: rgba(0, 0, 0, 0.35);
+        color: var(--text-primary);
+        font-size: 1.25rem;
+        cursor: pointer;
+    }
+
+    /* T4: 行動相似面板播放按鈕（mirror .similar-play-button，桌面 L3255） */
+    .similar-mobile-play-btn {
+        position: absolute;
+        left: 50%;
+        /* 相對 .similar-mobile-cover（position:absolute，子元素 containing block）定位；
+           bottom:12px 置於封面底部中央，對齊桌面 .similar-play-button 位置邏輯 */
+        bottom: 12px;
+        transform: translateX(-50%);
+        width: 44px;
+        height: 44px;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        border-radius: 50%;
+        background: var(--overlay-control);
+        backdrop-filter: blur(var(--fluent-blur-light));
+        -webkit-backdrop-filter: blur(var(--fluent-blur-light));
+        color: white;
+        font-size: 1.25rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: var(--fluent-shadow-8);
+        z-index: 12;
+        transition: background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                    border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+                    box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+    }
+
+    .similar-mobile-play-btn:hover,
+    .similar-mobile-play-btn:active {
+        background: rgba(0, 0, 0, 0.5);
+        border-color: rgba(255, 255, 255, 0.6);
+        box-shadow: var(--fluent-shadow-16);
+    }
+
+    .similar-mobile-play-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .similar-mobile-play-btn:focus-visible {
+        outline: 2px solid var(--star-glow);
+        outline-offset: 2px;
+    }
+
+    /* T4-fix: ghost-fly 飛行期間（img data-ghost-hidden 存在）隱藏播放按鈕，
+       避免 enter 封面尚未落地 / exit 封面已飛走 時按鈕懸空或可點 */
+    .similar-mobile-cover img[data-ghost-hidden] ~ .similar-mobile-play-btn {
+        opacity: 0;
+        pointer-events: none;
+    }
+}
+
+/* 桌面安全網：即使 flag 殘留（matchMedia reset 未及）也不顯示（mirror 既有 .lightbox-similar-mobile） */
+@media (min-width: 960px) {
+    .similar-mobile-panel {
+        display: none !important;
+    }
+}
+
+/* 83b-T1fix2 (3): iPad / 寬平板 grid 收緊置中（base minmax(0,1fr) 不動，僅 ≥600 覆蓋）。
+ * base 1fr 在寬平板每欄 ~256px 但卡 max-width:120px → 三卡橫向被拉開大留白（owner 真機回饋）。
+ * 固定欄寬 + justify-content:center 讓卡緊靠置中（mirror 女優 picker tablet-fixed 雙軌）。
+ * <600 手機保留 proven 1fr（極窄機零溢出）。 */
+@media (min-width: 600px) and (max-width: 959px) {
+    .similar-mobile-cards {
+        grid-template-columns: repeat(3, 120px);
+        justify-content: center;
+    }
+}
+
+/* 83b-T1fix2 (1a): 行動相似面板開啟期間，把飛行 FlipReplace ghost 抬到 scrim 前方（銳利）。
+ * ghost（burst-picker.js）以 inline style 設 z-index:1000、掛在 document.body → 在面板
+ * scrim（z-index:1502 + backdrop-filter blur）後方 → 飛行全程被模糊。!important 為必須
+ * （覆蓋 inline z-index）。scope 到 body.similar-mobile-active → 女優 picker 共用 ghost
+ * （面板未開、無此 class）完全不受影響。scrim blur 保留（D8 lightbox 遮蔽）。 */
+body.similar-mobile-active [data-picker-ghost] {
+    z-index: 1600 !important;
+    /* 83b-T1fix4: ghost（burst-picker.js）inline 只設 object-fit:cover、無 object-position
+     * → 飛行全程 center-crop；但 cards/封面用 object-position:right center（右半裁切）→ 落地瞬間
+     * center→right snap。補上 right center 讓右半裁切飛行全程一致（如桌面星座）。無 inline
+     * object-position 可覆蓋故不需 !important。scope 到 body.similar-mobile-active → 女優 picker
+     * 共用 ghost（面板未開、無此 class）維持 center-crop 不受影響。 */
+    object-position: right center;
 }
 
 /* 56c-T3fix: Sparkle burst overlay — 10 顆四角星 ring 分佈，GSAP 操作 opacity/scale/rotation
@@ -1253,46 +1453,11 @@
     }
 }
 
-/* 75a-US4: 手機相似模式主片封面縮高（僅 similar-open，一般燈箱不縮） */
-/* 特異性升至 (0,4,0)：勝 T8 ≤480 的 .lightbox-cover:has(.lb-full) .lb-full / .lightbox-cover.has-cover:has(.lb-full)
-   (0,3,0)，否則 source order 讓 T8 的 height:auto/min-height:0 在 similar 模式覆寫 → overlay 與 base 40vh 脫鉤/溢出 */
-@media (max-width: 960px) {
-    .showcase-lightbox .lightbox-content.similar-open .lightbox-cover {
-        min-height: min(38vh, 290px);   /* 覆寫容器 min-height: min(58vh, 460px) */
-    }
-    .lightbox-content.similar-open .lightbox-cover img,
-    .lightbox-content.similar-open .lightbox-cover .lb-full {
-        height: 40vh;   /* 覆寫 img/lb-full 的 60vh */
-    }
-}
+/* 75a-US4 similar-open 40vh override 已於 83b-T2 移除：similar-open class 不再由 lightbox 使用，
+   行動相似模式已改為獨立全螢幕 .similar-mobile-panel（T1）。 */
 
-/* US5-75b-T8: ≤480px 影片燈箱封面貼合原圖比例（消 object-fit:contain 在 60vh 高框的 letterbox 死白）。
- * :has(.lb-full) 只命中影片 cover（女優 cover 無 .lb-full，showcase.html:569 vs 669）→ 女優燈箱零波及。
- * make-or-break（live 實證）：須同改 (a) img/.lb-full 尺寸法 + (b) 容器 min-*，只改 img 會把空白留在容器。
- * 副作用：盒比例=圖比例後 object-fit:cover≈contain，T7 grid→lightbox flight 落地 cover→contain seam 自然消失。
- * specificity（Codex P3 修正）：:has(.lb-full) 計入其引數一個 class →
- *   img 規則 .lightbox-cover:has(.lb-full) img = (0,2,1) 勝基準 §667 .lightbox-cover img (0,1,1)，
- *   容器 .lightbox-cover.has-cover:has(.lb-full) = (0,3,0) 勝基準 .lightbox-cover (0,1,0)；皆靠 specificity（非源序）。無 !important。
- * Codex P2：容器 min-height:0 只在 .has-cover（有封面）才套——無封面影片若塌到 0 高，補封面入口會壞，
- *   故無封面保留基準 min-height。img 規則不 gate has-cover（無封面時 img 空 src→height:auto=0 無害），
- *   且刻意保持 (0,2,1) 不升到 (0,3,1) 以免在 ≤480∩similar-open 與 similar-open img (0,3,1) 撞同權。
- * similar-open 交互：.lightbox-content.similar-open .lightbox-cover img (0,3,1) 勝本 img 規則 (0,2,1)
- *   → ≤480px ∩ similar-open 時手機相似主片維持 40vh（本 task 不接管相似模式，刻意）。 */
-@media (max-width: 899px) {
-    /* (b) 容器塌到圖的盒（Codex P2：僅 .has-cover；無封面保留基準 min-height 防塌成 0 高） */
-    .lightbox-cover.has-cover:has(.lb-full) {
-        min-height: 0;
-        min-width: 0;
-    }
-    /* (a) base img + .lb-full overlay 同步：寬填滿、高隨原圖比例（覆寫 60vh）。
-       不 gate has-cover：無封面 img 空 src→height:auto=0 無害，且保 (0,2,1) 不撞 similar-open。 */
-    .lightbox-cover:has(.lb-full) img,
-    .lightbox-cover:has(.lb-full) .lb-full {
-        width: 100%;
-        height: auto;
-        object-fit: contain;   /* 盒=圖比例時與 cover 等價，保留 contain 不裁切語意 */
-    }
-}
+/* US5-75b-T8 block 已於 83b-T2 移除：modal-hug（:not(.similar-open) gate 同步去除）接管 width:100%。
+   .lightbox-content .lightbox-cover.has-cover img { width:100%; } 為 regular mobile lightbox 供應 cover fit。 */
 
 /* ==================== Responsive: Toolbar ==================== */
 /* 小螢幕：Toolbar 單欄堆疊 (44c-T8) */

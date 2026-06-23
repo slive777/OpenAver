@@ -242,6 +242,20 @@ export function stateBase() {
                     window.ShowcaseAnimations?.playSettle?.(grid);
                 }); });
             }
+
+            // 83b-T1 (D12 / R7): 跨 960 breakpoint reset 行動相似面板。
+            // CSS @media (min-width:960px) display:none 藏面板，但 flag 殘留會卡住
+            // lightbox trap 的 `&& !similarModeMobileOpen`（iPad 旋轉）→ 強制 closeMobilePanel。
+            // 註冊在合併 init（單一 lifecycle，不另開競爭 hook）；closeMobilePanel 屬 state-similar
+            // 同一 Alpine 元件可達（main.js mergeState）。
+            if (typeof window.matchMedia === 'function') {
+                const mq = window.matchMedia('(min-width: 960px)');
+                mq.addEventListener('change', (e) => {
+                    if (e.matches && this.similarModeMobileOpen) {
+                        this.closeMobilePanel();
+                    }
+                });
+            }
         },
 
         // --- 狀態恢復 (M2c) ---

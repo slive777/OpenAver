@@ -75,6 +75,10 @@ export function searchStateGridMode() {
             this.lightboxIndex = index;
             this.currentIndex = index;
 
+            // 83a-T3-fix P2 reset C: 清除殘留 AR（女優→影片切換時 CSS 在封面 @load 前用 fallback 1.5）
+            var coverElSwitch = document.querySelector('.lightbox-cover');
+            if (coverElSwitch) coverElSwitch.style.removeProperty('--lb-cover-ar');
+
             // B19: 動畫（state 已更新，$nextTick 後 Alpine 已 patch DOM）
             var lbGen = ++this._lightboxGeneration;
             this.$nextTick(() => {
@@ -111,6 +115,11 @@ export function searchStateGridMode() {
 
         this._heroLightboxImageError = false;  // A6-1: 重置圖片錯誤狀態
         this.lightboxIndex = index;
+
+        // 83a-T3-fix P2 reset C: 清除殘留 AR（女優→影片切換時 CSS 在封面 @load 前用 fallback 1.5）
+        var coverElOpen = document.querySelector('.lightbox-cover');
+        if (coverElOpen) coverElOpen.style.removeProperty('--lb-cover-ar');
+
         var lightboxEl = document.querySelector('.showcase-lightbox');
         if (lightboxEl) lightboxEl.classList.add('gsap-animating');
         this.lightboxOpen = true;
@@ -201,6 +210,22 @@ export function searchStateGridMode() {
         }, 250);
     },
 
+    // 83a-T3: lightbox 封面比例 hook — img @load 讀 naturalW/H 寫 --lb-cover-ar
+    _setCoverAspect(e) {
+        // 83a-T3-fix P2 guard A: 女優模式時不寫入 --lb-cover-ar，防女優照片 AR 污染影片封面
+        if (this.actressLightboxMode && this.actressLightboxMode()) return;
+        var img = e && e.target;
+        if (!img) return;
+        var nw = img.naturalWidth;
+        var nh = img.naturalHeight;
+        if (!nw || !nh) return;
+        var ar = (nw / nh).toFixed(4);
+        var containerEl = img.closest('.lightbox-cover');
+        if (containerEl) {
+            containerEl.style.setProperty('--lb-cover-ar', ar);
+        }
+    },
+
     /**
      * 開啟 Actress Lightbox（Hero Card 專用）
      */
@@ -210,6 +235,9 @@ export function searchStateGridMode() {
         this._heroLightboxImageError = false;  // A6-1: 重置圖片錯誤狀態
         this._actressChipsExpanded = { aliases: false, info: false };  // Phase 43 T6: 重置 chips 展開狀態
         this.lightboxIndex = -1;
+        // 83a-T3-fix P2 注：不清除 --lb-cover-ar。女優模式下 .lightbox-cover 無 has-cover class
+        // （search.html :class gate），CSS 選擇器 .has-cover 不命中，--lb-cover-ar 即使殘留也完全 inert。
+        // 開影片 lightbox（openLightbox）才 removeProperty，確保影片封面用 fallback 1.5 撐盒直到 @load。
         var lightboxEl = document.querySelector('.showcase-lightbox');
         if (lightboxEl) lightboxEl.classList.add('gsap-animating');
         this.lightboxOpen = true;
@@ -370,6 +398,9 @@ export function searchStateGridMode() {
         this._heroLightboxImageError = false;
         this.lightboxIndex = newIdx;
         this.currentIndex = newIdx;
+        // 83a-T3-fix P2: 清除殘值，特別是 actress(-1)→video 切換時 --lb-cover-ar 有女優照片舊 AR
+        var coverElNext = document.querySelector('.lightbox-cover');
+        if (coverElNext) coverElNext.style.removeProperty('--lb-cover-ar');
 
         // B19: 動畫（state 已更新，$nextTick 後 Alpine 已 patch DOM）
         var lbGen = ++this._lightboxGeneration;

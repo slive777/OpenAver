@@ -40,7 +40,8 @@
                          : (currentLightboxVideo()?.cover ? `/api/proxy-image?url=${encodeURIComponent(currentLightboxVideo().cover)}` : '')"
                      :alt="actressLightboxMode() ? actressProfile?.name : currentLightboxVideo()?.number"
                      x-show="!_heroLightboxImageError"
-                     @error="_heroLightboxImageError = true">
+                     @error="_heroLightboxImageError = true"
+                     @load="_setCoverAspect($event)">
                 <!-- A6-1: Lightbox fallback placeholder -->
                 <div x-show="_heroLightboxImageError"
                      class="cover-error-placeholder">

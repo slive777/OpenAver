@@ -545,12 +545,12 @@
         <!-- Lightbox (M3a) -->
         <div class="showcase-lightbox"
              :class="{ 'show': lightboxOpen }"
-             x-trap.inert="lightboxOpen && !sampleGalleryOpen && !removeActressModalOpen && !rescrapeOpen && !deleteVideoModalOpen"
+             x-trap.inert="lightboxOpen && !sampleGalleryOpen && !removeActressModalOpen && !rescrapeOpen && !deleteVideoModalOpen && !similarModeMobileOpen"
              @touchstart.passive="_lbTouchStart($event)"
              @touchend.passive="_lbTouchEnd($event)"
              @click="handleLightboxBackdropClick($event)">
 
-            <div class="lightbox-content" @click.stop :class="{ 'similar-open': similarModeMobileOpen }">
+            <div class="lightbox-content" @click.stop>
                 <!-- Close Button (shared between actress and video branches) -->
                 <button class="lightbox-close"
                         @click="closeLightbox()"
@@ -680,6 +680,7 @@
                             <img x-ref="lightboxCoverImg"
                                  :src="currentLightboxVideo?.cover_url"
                                  :alt="currentLightboxVideo?.number"
+                                 @load="_setCoverAspect($event)"
                                  @error="handleCoverError(currentLightboxVideo, $event)">
                             <!-- 71-T6 blur-up: overlay 層=cover_full_url（原圖）。@load 後 opacity 0→1 就地淡入蓋上 base；
                                  用 CSS opacity 切換（非 x-show — display:none 的 img 不載入、@load 永不 fire）；
@@ -731,23 +732,8 @@
                             </div>
                         </div>
 
-                        <!-- 手機 < 960px（75a-US3b）相似模式降級：cosine 前 4 張 collapse（x-collapse 需 @alpinejs/collapse plugin，已在 base.html 行 640 載入）。75a-US4：置於 cover 與 metadata 之間，主片 + 4 相似一眼可見 -->
-                        <div class="lightbox-similar-mobile"
-                             x-show="similarModeMobileOpen"
-                             x-collapse>
-                          <div class="similar-mobile-grid">
-                            <template x-for="item in similarResults.slice(0, 4)" :key="item.video_id">
-                              <div class="similar-mobile-card"
-                                   @click="onSimilarMobileCardClick(item)">
-                                <img :src="item.cover_url" :alt="item.title" loading="lazy">
-                                <div class="similar-mobile-meta">
-                                  <div class="similar-mobile-number" x-text="item.number"></div>
-                                  <div class="similar-mobile-title" x-text="item.title"></div>
-                                </div>
-                              </div>
-                            </template>
-                          </div>
-                        </div>
+                        <!-- 83b-T1：舊寄生 .lightbox-similar-mobile x-collapse block 已移除，
+                             改為獨立全螢幕 .similar-mobile-panel（page-level sibling，見 .similar-stage 之後）。 -->
 
                         <!-- Metadata Panel（緊湊版，匹配原版 gallery） -->
                         <div class="lightbox-metadata">
@@ -1192,6 +1178,48 @@
              同 stacking context 內 main static z=11 < play button z=12 → 點 button
              命中 button、點 main static 非 button 區命中 onSimilarMainImgClick → closeSimilarMode。 -->
     </div><!-- /.similar-stage -->
+
+    <!-- 83b-T1: 行動相似探索面板（Mobile Photo Picker 爆射）
+         page-level sibling of .showcase-lightbox（source order 晚於 lightbox trap，
+         確保 test_t7_xtrap_releases_on_delete_modal 的第一個 x-trap.inert 仍抓 lightbox）。
+         <960px only（CSS @media gate + ≥960 display:none 安全網）。Core 無轉場（飛行轉場留 T3）。 -->
+    <div class="similar-mobile-panel"
+         x-trap.inert="similarModeMobileOpen"
+         :aria-hidden="!similarModeMobileOpen">
+        <!-- scrim：overlay 30px 模糊完全遮住 lightbox（CD-10） -->
+        <div class="similar-mobile-scrim" @click="closeMobilePanel()"></div>
+        <!-- stage：burst origin frame -->
+        <div class="similar-mobile-stage">
+            <!-- 中央右半裁切主圖（FlipReplace 落點 + Burst 原點；點主圖關面板，無文字） -->
+            <!-- T4: cover 不設 overflow:hidden（已移至 img），讓 play-btn 子元素不被裁切 -->
+            <div class="similar-mobile-cover" @click="closeMobilePanel()">
+                <img x-ref="mobilePanelCoverImg" alt="" aria-hidden="true">
+                <!-- T4: 播放按鈕 — cover 子元素；@click.stop 阻冒泡防觸發 cover 的 closeMobilePanel() -->
+                <button class="similar-mobile-play-btn"
+                        x-show="!!currentLightboxVideo?.path"
+                        :disabled="similarModeAnimating"
+                        @click.stop="playVideo(currentLightboxVideo?.path)"
+                        :aria-label="t('showcase.action.play')">
+                    <i class="bi bi-play-fill" aria-hidden="true"></i>
+                </button>
+            </div>
+            <!-- 相似卡（從中央爆射；右半裁切；無文字） -->
+            <div class="similar-mobile-cards">
+                <template x-for="item in similarResults" :key="_mobilePanelRunId + '-' + item.video_id">
+                    <div class="similar-mobile-burst-card"
+                         @click="onMobileDrillClick(item, $event)">
+                        <img :src="item.cover_url" alt="" aria-hidden="true">
+                    </div>
+                </template>
+            </div>
+        </div>
+        <!-- 右上 ✕ 關閉鈕（x-trap Tab 目標） -->
+        <button class="similar-mobile-panel-close"
+                @click="closeMobilePanel()"
+                :aria-label="t('similar_mode.close')">
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+    </div><!-- /.similar-mobile-panel -->
 
     <!-- TASK-52.3.3: Remove Actress Confirm Modal（取代原 window.confirm）
          Esc 雙重防線：handleKeydown 入口攔截 + dialog 自身 @keydown.escape.window 冗餘

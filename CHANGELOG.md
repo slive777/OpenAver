@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.10] - 2026-06-24
+
+本版主軸：**封面比例自適應 + 行動相似探索面板**（feature/83）——兩條並行：83a 讓燈箱封面不留空白（寬比例作品自動填滿容器、AR 不污染女優模式）；83b 在行動裝置新增相似探索面板（全螢幕疊加 + 六張爆射卡 + 封面飛行進/退場 + 主圖播放按鈕）。
+
+### Added
+#### 🪄 行動相似探索面板（83b）
+- 🎯 **行動版相似探索**：手機/平板燈箱新增星形爆射相似面板——點 🪄 按鈕開啟全螢幕疊加，六張相似卡從中心爆射散開，中央主圖以飛行動畫從燈箱封面轉入。
+- 🎯 **封面飛行進/退場**：主圖以 ghost-fly 動畫從燈箱封面飛入面板（enter），關閉時原路飛回（exit）；進退場期間播放按鈕自動隱藏，不懸空。
+- 🎯 **主圖播放按鈕**：相似面板主圖底部中央有播放圓鈕（對齊桌面星空模式，44×44 Fluent 玻璃材質）；drill 動畫中鎖定、無路徑影片時隱藏。
+- 🎯 **drill 並發硬化**：快速切換相似卡時舊 drill 立即中止、新 drill 接管；runId guard 確保舊的動畫/狀態不干擾新結果。
+
+### Changed
+#### 🖼️ 燈箱封面比例自適應（83a）
+- 🎯 **封面不再留白**：燈箱封面改採 aspect-box/modal-hug 模型，以圖片載入事件讀取實際比例，寬比例（橫版封面）自動填滿容器，不再出現上下空白；破圖/未載入時安全回退不塌陷、不污染女優模式比例。
+- 搜尋燈箱、搜尋詳情頁封面區同步採用同款模型；search detail 封面留白與劇照截斷一併修正。
+
+### Fixed
+- 修正 83a/83b-T1 引入後 `TestCoverLoadingUx67Guard` 四條守衛因 `:class has-cover` 新屬性 + T1 注釋位移雙因導致正則 stale。
+
+### 測試
+- 全套 pytest **4686 passed, 2 skipped**（unit + integration，排除 smoke / e2e，較 0.10.9 的 4650 +36）+ `ruff check .` 綠 + `npm run lint`（eslint + stylelint）綠。
+- 來源金絲雀：**7 PASS、1 SKIP**（fc2 unreachable，已知正常）。
+- Gemini 3.1 Pro 三群審查：83a LGTM、83b-rest Approved、83b-T1 Codex 三審已通過（Gemini payload 邊界 timeout）。
+- Codex PR review P1（行動播放按鈕未接 ghost-hide 流程）已修（CSS sibling selector）。
+
 ## [0.10.9] - 2026-06-22
 
 本版主軸：**Windows 系統匣關閉行為**（feature/82）——在 Windows 點關閉視窗時可選擇「最小化到系統匣繼續背景執行」或「完整退出」並記住選擇，系統匣常駐圖示隨時喚回視窗或切換行為。核心 close-to-tray 由社群貢獻者 @YongCard（PR #77）提供，本版合併後做穩定性硬化並補上設定頁入口。

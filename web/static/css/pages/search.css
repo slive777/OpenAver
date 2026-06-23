@@ -99,6 +99,32 @@
 .search-container .av-card-full-cover {
     flex: 1;
     min-width: 0;
+    /* 83a2-T4 (Bug B)：清 theme.css L495 的 min-height:200px 地板。
+       與 wrapper min-height:0 + img height:auto 合力消除封面下方 letterbox 留白，
+       並讓 block flow 自然包含 sample-strip（Bug A 桌面連帶修，overflow:hidden 不再截）。 */
+    min-height: 0;
+}
+
+/* 83a2-T4 (Bug B)：清 search.css L50 wrapper 的 min-height:400px 主地板（scope 覆寫，不動全域 L50）。 */
+.search-container .av-card-full-cover-wrapper {
+    min-height: 0;
+}
+
+/* 83a2-T4 (Bug B)：封面圖高由 width:100% + AR 自然推導，不依賴父容器死高（原 L84 height:100% 靠 wrapper 400px）。
+   max-height:calc(100vh-200px) 由 L84-91 既有規則保留。specificity (0,2,0) > 原 (0,1,0)。 */
+.search-container .av-card-full-cover-img {
+    height: auto;
+}
+
+/* 83a2-T4 邊界：min-height:0 後，下列兩條無圖內容路徑會讓 wrapper 高=0
+   （子元素皆 position:absolute;inset:0，不佔 flow；img height:auto 在無 intrinsic size 時也是 0）：
+     1. 無圖 / 封面 404 → .cover-error-placeholder（含無封面 fallback）
+     2. 封面載入中（_coverLoaded=false，慢速/未快取）→ .cover-loading-placeholder（shimmer）
+   塌 0 會讓 placeholder/shimmer + nav-indicator 一起消失/閃動。只在對應元素顯示時（Alpine x-show
+   未寫 display:none）才撐高；圖片載入完成後兩條 :has 皆不命中 → min-height 回 0，無 Bug B letterbox 復發。 */
+.search-container .av-card-full-cover-wrapper:has(.cover-error-placeholder:not([style*="display: none"])),
+.search-container .av-card-full-cover-wrapper:has(.cover-loading-placeholder:not([style*="display: none"])) {
+    min-height: 120px;
 }
 
 .search-container .av-card-full-info {
@@ -520,6 +546,11 @@
         flex: none;
         width: 100%;
         max-height: 50vh;
+        /* 83a2-T4 (Bug A mobile)：max-height:50vh + overflow:hidden 確定截 sample-strip
+           （img 留 60px 但 strip ≈ clamp(48,0.18×50vh,120)≈81px > 60px）。獨立必要 override，
+           非桌面備援。外層 #resultCard>.av-card-full 已 overflow:visible、本 media 內 .av-card-full
+           已 overflow-y:auto 負責捲動，cover 改 visible 不破壞捲動模型。 */
+        overflow: visible;
     }
 
     .av-card-full-cover-img {
@@ -784,6 +815,39 @@
     :is(#ds-gallery-components, .ds-gallery-composition).search-grid .av-card-preview:not(.hero-card) .footer-hover {
         opacity: 0;
     }
+}
+
+/* 83a-T3: search 頁燈箱封面 modal-hug（aspect-box 模型，對齊 showcase T1/T1fix1）。
+   search 無 similar-open → selector 不需 :not(.similar-open)；
+   scope 靠 .search-container（不波及 showcase 頁）。 */
+.search-container .lightbox-cover.has-cover {
+    flex-shrink: 0;
+    min-width: 0;
+    min-height: 0;
+    aspect-ratio: var(--lb-cover-ar, 1.5);
+    width: min(90vw, calc((90vh - 15rem) * var(--lb-cover-ar, 1.5)));
+    width: min(90vw, calc((90dvh - 15rem) * var(--lb-cover-ar, 1.5)));
+    height: auto;
+}
+
+.search-container .lightbox-cover.has-cover img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* 83a-T3-fix P1: search 燈箱 metadata 可變高 → modal 捲動修正。
+   search 無 similar-open → 直接加 overflow-y:hidden，不需 :not(.similar-open) scope。
+   .lightbox-metadata flex 分配：吃剩餘高度並自行捲動（同 showcase）。 */
+.search-container .lightbox-content {
+    overflow-y: hidden;
+}
+.search-container .lightbox-metadata {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 /* T9-port：≤480px search 影片燈箱封面貼合原圖比例（消 letterbox 死白）。

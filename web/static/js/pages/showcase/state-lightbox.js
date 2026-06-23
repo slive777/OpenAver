@@ -72,6 +72,24 @@ export function stateLightbox() {
 
         // --- helper in return {} ---
 
+        // 83a-T1 M1：比例 hook — 縮圖 base img @load 讀 naturalWidth/naturalHeight，
+        // 在最近 .lightbox-cover 容器設 --lb-cover-ar custom property。
+        // 不寫 inline aspect-ratio；不 removeProperty（換片 / close / similar-open enter/exit 皆不清）。
+        // 破圖/空 src（naturalWidth === 0）→ skip，保留前值撐盒（禁止任何清除路徑）。
+        // 目標掛點：.lightbox-content（縮圖載入即定，原圖未到也不塌、不閃）。
+        _setCoverAspect(e) {
+            var img = e && e.target;
+            if (!img) return;
+            var nw = img.naturalWidth;
+            var nh = img.naturalHeight;
+            if (!nw || !nh) return;  // 破圖/空 src → skip，保留前值
+            var ar = (nw / nh).toFixed(4);
+            var containerEl = img.closest('.lightbox-cover');
+            if (containerEl) {
+                containerEl.style.setProperty('--lb-cover-ar', ar);
+            }
+        },
+
         // 71c-P2: helper — blur-up state reset + same-URL complete-check（DRY；供 _setLightboxIndex 與
         // slip-through 路徑（state-similar.js closeSimilarMode）共用，避免兩處邏輯漂移）。
         // 呼叫時機：currentLightboxVideo 已更新、Alpine reactive patch 尚未跑完（$nextTick 前）。
@@ -321,6 +339,10 @@ export function stateLightbox() {
             if (typeof this.similarModeMobileOpen !== 'undefined') {
                 this.similarModeMobileOpen = false;
             }
+            // 83b-T1fix2 (1a)：維持「body.similar-mobile-active class 存在 ⟺ 面板開」不變量。
+            // closeLightbox 直接 reset flag（非經 closeMobilePanel）時也清 class，防殘留卡住
+            // 後續 [data-picker-ghost] z-index（女優 picker ghost）。class 不存在時 remove 為 no-op。
+            document.body.classList.remove('similar-mobile-active');
 
             // 56c-fix: standalone similar-exit mode — lightbox 關閉時清 similarExitVideo，
             // 回到原 alice 搜尋結果不動（currentLightboxVideo 在 250ms timer 內由 _setLightboxIndex(-1) 清除）
@@ -1179,6 +1201,20 @@ export function stateLightbox() {
                     e.preventDefault();
                     this.closeSimilarMode();
                 }
+                return;
+            }
+
+            // 83b-T1：行動相似面板開啟時鍵盤獨佔（高於 lightbox keydown 路由）。
+            // x-trap.inert 只陷焦點，全域 window keydown 仍觸發 → 必須在此攔截，
+            // 否則 Esc 穿透到 lightbox 分支關 lightbox、左右箭頭切底層影片（違反 AC-5/AC-8）。
+            // closeMobilePanel 屬 state-similar，main.js mergeState 同 this 可達。
+            if (this.similarModeMobileOpen) {
+                const mobileKey = (e.key || '').toUpperCase();
+                if (mobileKey === 'ESCAPE') {
+                    e.preventDefault();
+                    this.closeMobilePanel();
+                }
+                // ArrowLeft/Right 及其他鍵：面板無 prev/next → 吞掉，防底層 lightbox 切片
                 return;
             }
 

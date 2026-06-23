@@ -283,6 +283,170 @@
         return tl;
     }
 
+    // ─── 83b-T3: 行動相似面板 封面飛行進 / 退場 helper ──────────────────────
+
+    /**
+     * 83b-T3: Lightbox cover → Mobile panel center 進場
+     *
+     * 從 lightbox cover img（coverImgEl）起飛，飛到行動面板中央主圖（mobileCoverEl）
+     * 位置；只顯示右半邊（cropMode: 'right-half'）。
+     * 抵達時 ghost 不自 cleanup（由 caller 在 onComplete 接管：set src + cleanupGhost）。
+     *
+     * Correction A：飛行期間同時隱藏 destination（mobileCoverEl），讓 ghost 到達後才顯示
+     * 真圖，避免「ghost 飛到已可見的目標上方 → 視覺重複」。
+     *
+     * P1-T3fix（中途中斷 race）：回傳的 timeline 有穩定 id 'mobilePanelEnter'，且透過
+     * opts.onGhostReady 同步把 enter ghost ref 交給 caller。closeMobilePanel 中途打斷時
+     * 必須先 kill 此 timeline 並（GSAP 3 .kill() 不保證 fire onInterrupt）顯式
+     * cleanupGhost(enterGhost, coverImgEl, mobileCoverEl) 還原雙端 opacity，再起飛 exit ghost。
+     *
+     * @param {HTMLImageElement} coverImgEl   - lightbox 內 cover img（$refs.lightboxCoverImg）
+     * @param {HTMLImageElement} mobileCoverEl - 行動面板中央主圖（$refs.mobilePanelCoverImg）
+     * @param {object} [opts] - { onComplete?: (ghost) => void, onGhostReady?: (ghost) => void }
+     * @returns {gsap.core.Timeline|null}
+     */
+    function playMobilePanelEnter(coverImgEl, mobileCoverEl, opts) {
+        opts = opts || {};
+        if (!coverImgEl || !mobileCoverEl) {
+            if (typeof opts.onComplete === 'function') opts.onComplete(null);
+            return null;
+        }
+        if (typeof gsap === 'undefined') {
+            if (typeof opts.onComplete === 'function') opts.onComplete(null);
+            return null;
+        }
+
+        // P2-T3fix（rect 讀取在 .show 之後）：caller 在 panelEl.classList.add('show') +
+        // $nextTick 後才呼叫本函式，故此 rect 讀取在 .show 之後。安全：面板靠
+        // opacity/visibility:hidden 隱藏（非 display:none），lightbox cover 的 layout
+        // 幾何不受 .show 影響，source rect 與 .show 前一致。
+        var rect = coverImgEl.getBoundingClientRect();
+        var src = coverImgEl.src;
+
+        // C25 順序鐵律：先建 ghost（createCoverGhost 內部 cleanupStaleGhosts() 會還原
+        // 所有 [data-ghost-hidden] 元素 opacity，故必須在 hide 之前呼叫）
+        var ghost = createCoverGhost(src, rect, { cropMode: 'right-half' });
+        if (!ghost) {
+            // rect.width === 0 or src empty → graceful skip
+            if (typeof opts.onComplete === 'function') opts.onComplete(null);
+            return null;
+        }
+        // P1-T3fix：同步把 enter ghost ref 交 caller，供中途打斷時顯式 cleanup
+        if (typeof opts.onGhostReady === 'function') opts.onGhostReady(ghost);
+
+        // 隱藏來源（lightbox cover）
+        coverImgEl.setAttribute('data-ghost-hidden', 'true');
+        gsap.set(coverImgEl, { opacity: 0 });
+
+        // Correction A：同時隱藏目標（mobile center cover），防 ghost 飛抵時雙圖重疊
+        mobileCoverEl.setAttribute('data-ghost-hidden', 'true');
+        gsap.set(mobileCoverEl, { opacity: 0 });
+
+        // 讀目標 rect（面板 .show 後、$nextTick 後呼叫，此時 rect 已有效）
+        var targetRect = mobileCoverEl.getBoundingClientRect();
+
+        // duration guard chain（與桌面函式 L199-200 完全一致）
+        var dur = (window.OpenAver && window.OpenAver.motion &&
+                   window.OpenAver.motion.DURATION && window.OpenAver.motion.DURATION.medium) || 0.333;
+
+        // race 防護
+        gsap.killTweensOf(ghost);
+
+        var tl = gsap.timeline({
+            id: 'mobilePanelEnter',
+            onComplete: function () {
+                // ghost 留著交 caller 接管（mirror 桌面 constellation enter L208-209 pattern）
+                // caller 負責：mobileCoverEl.src = src + cleanupGhost(ghost, coverImgEl, mobileCoverEl)
+                if (typeof opts.onComplete === 'function') opts.onComplete(ghost);
+            },
+            onInterrupt: function () {
+                // race / 中途中斷：cleanup ghost + 還原 coverImgEl + mobileCoverEl opacity
+                // （idempotent：closeMobilePanel 亦會顯式 cleanup，cleanupGhost 以 parentNode 守衛）
+                cleanupGhost(ghost, coverImgEl, mobileCoverEl);
+            }
+        });
+
+        tl.to(ghost, {
+            x: targetRect.left, y: targetRect.top,
+            width: targetRect.width, height: targetRect.height,
+            duration: dur,
+            ease: 'fluent-decel'
+        }, 0);
+
+        return tl;
+    }
+
+    /**
+     * 83b-T3: Mobile panel center → Lightbox cover 退場
+     *
+     * mobileCoverEl（面板中央主圖）起飛，飛回 coverImgEl（lightbox cover）位置。
+     * 動畫完成（或被打斷）都 cleanup ghost + 還原兩端 opacity。
+     *
+     * @param {HTMLImageElement} mobileCoverEl - 面板中央主圖（$refs.mobilePanelCoverImg）
+     * @param {HTMLImageElement} coverImgEl    - lightbox cover img（飛回目標）
+     * @param {object} [opts] - { onComplete?: () => void }
+     * @returns {gsap.core.Timeline|null}
+     */
+    function playMobilePanelExit(mobileCoverEl, coverImgEl, opts) {
+        opts = opts || {};
+        if (!mobileCoverEl || !coverImgEl) {
+            if (typeof opts.onComplete === 'function') opts.onComplete();
+            return null;
+        }
+        if (typeof gsap === 'undefined') {
+            if (typeof opts.onComplete === 'function') opts.onComplete();
+            return null;
+        }
+
+        var exitSrc = mobileCoverEl.src;
+        var exitRect = mobileCoverEl.getBoundingClientRect();
+
+        // C25 順序鐵律：先建 ghost，再 hide source
+        var ghost = createCoverGhost(exitSrc, exitRect, { cropMode: 'right-half' });
+        if (!ghost) {
+            // src 空 or rect.width === 0 → graceful skip
+            if (typeof opts.onComplete === 'function') opts.onComplete();
+            return null;
+        }
+
+        // 隱藏來源（mobile center cover）
+        mobileCoverEl.setAttribute('data-ghost-hidden', 'true');
+        gsap.set(mobileCoverEl, { opacity: 0 });
+
+        // 讀目標 rect（lightbox 需已可見）
+        var targetRect = coverImgEl.getBoundingClientRect();
+
+        // objectPosition 平滑過渡（mirror play56cConstellationExit L258-259）
+        var dur = (window.OpenAver && window.OpenAver.motion &&
+                   window.OpenAver.motion.DURATION && window.OpenAver.motion.DURATION.medium) || 0.333;
+        ghost.style.transition = 'object-position ' + dur + 's ease';
+        ghost.style.objectPosition = 'center center';
+
+        // race 防護
+        gsap.killTweensOf(ghost);
+
+        var tl = gsap.timeline({
+            id: 'mobilePanelExit',
+            onComplete: function () {
+                cleanupGhost(ghost, mobileCoverEl, coverImgEl);
+                if (typeof opts.onComplete === 'function') opts.onComplete();
+            },
+            onInterrupt: function () {
+                // race 防護：onInterrupt 也 cleanup
+                cleanupGhost(ghost, mobileCoverEl, coverImgEl);
+            }
+        });
+
+        tl.to(ghost, {
+            x: targetRect.left, y: targetRect.top,
+            width: targetRect.width, height: targetRect.height,
+            duration: dur,
+            ease: 'fluent-accel'
+        }, 0);
+
+        return tl;
+    }
+
     /**
      * 56c-T2 (CD-56C-2): Similar Scan Preview — lightbox 點 .bi-magic 時的 0.4s 預覽動畫
      *
@@ -368,6 +532,10 @@
         play56cConstellationEnter: play56cConstellationEnter,
         play56cConstellationExit: play56cConstellationExit,
         play56cSimilarScanPreview: play56cSimilarScanPreview,
+
+        // 83b-T3: 行動相似面板封面飛行進 / 退場
+        playMobilePanelEnter: playMobilePanelEnter,
+        playMobilePanelExit: playMobilePanelExit,
 
         /**
          * Grid → Lightbox ghost fly
