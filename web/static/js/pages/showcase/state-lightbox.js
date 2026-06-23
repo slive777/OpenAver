@@ -339,6 +339,10 @@ export function stateLightbox() {
             if (typeof this.similarModeMobileOpen !== 'undefined') {
                 this.similarModeMobileOpen = false;
             }
+            // 83b-T1fix2 (1a)：維持「body.similar-mobile-active class 存在 ⟺ 面板開」不變量。
+            // closeLightbox 直接 reset flag（非經 closeMobilePanel）時也清 class，防殘留卡住
+            // 後續 [data-picker-ghost] z-index（女優 picker ghost）。class 不存在時 remove 為 no-op。
+            document.body.classList.remove('similar-mobile-active');
 
             // 56c-fix: standalone similar-exit mode — lightbox 關閉時清 similarExitVideo，
             // 回到原 alice 搜尋結果不動（currentLightboxVideo 在 250ms timer 內由 _setLightboxIndex(-1) 清除）

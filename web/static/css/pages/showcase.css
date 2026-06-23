@@ -1125,14 +1125,17 @@
         inset: 0;
     }
 
-    /* 中央主圖：layout-isolated（爆射卡 out of flow 不 reflow 它，R1 根本緩解） */
+    /* 中央主圖：layout-isolated（爆射卡 out of flow 不 reflow 它，R1 根本緩解）。
+     * 83b-T1fix1: 大封面、置中偏上。維持 position:absolute（R1 不破）。
+     * 寬度雙約束 min(vw界, vh界*ratio)：--poster-crop-ratio=0.71（portrait），故 vh*ratio
+     * 上界鎖住封面「高度」≤56vh，下方預留 ~40vh 給 3+3 grid（9:16 矮 / 9:21 高 / 平板直式皆不溢出）。
+     * 垂直置中偏上：cover 中心落在 ~30vh（視口中線之上），上緣貼近 close 鈕下方。 */
     .similar-mobile-cover {
         position: absolute;
-        top: 50%;
+        top: 30vh;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 44vw;
-        max-width: 320px;
+        width: min(88vw, 56vh * var(--poster-crop-ratio));
         overflow: hidden;
         border-radius: var(--fluent-radius-lg);
         cursor: pointer;
@@ -1146,20 +1149,29 @@
         object-position: right center;             /* 右半裁切 */
     }
 
-    /* cards 容器：absolute 覆蓋 stage，爆射卡定位其內 */
+    /* cards 容器：absolute（layout-isolated，不 reflow cover）但改放螢幕下方區域，
+     * 內部 3 欄 grid（mirror 女優 picker mobile L2877–2887）→ 6 卡自然版位 = 下方 3+3 各格。
+     * 83b-T1fix1: 從 inset:0（全覆蓋、卡疊中心）改為下方 grid。 */
     .similar-mobile-cards {
         position: absolute;
-        inset: 0;
+        left: 0;
+        right: 0;
+        top: auto;
+        bottom: calc(4vh + env(safe-area-inset-bottom));
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        justify-items: center;
+        gap: 10px;
+        padding: 0 16px;
         pointer-events: none;   /* 容器不擋；卡片各自 pointer-events:auto */
     }
 
-    /* 爆射卡：GSAP-only（opacity:0 + transition:none 防 1-frame paint glitch，mirror .picker-candidate-card） */
+    /* 爆射卡：GSAP-only（opacity:0 + transition:none 防 1-frame paint glitch，mirror .picker-candidate-card）。
+     * 83b-T1fix1: position:relative（grid item，有獨立版位 → burst 落各格不再疊），尺寸用 grid 欄寬。 */
     .similar-mobile-burst-card {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 26vw;
-        max-width: 150px;
+        position: relative;
+        width: 100%;
+        max-width: 120px;
         overflow: hidden;
         border-radius: var(--fluent-radius-lg);
         cursor: pointer;
@@ -1201,6 +1213,26 @@
     .similar-mobile-panel {
         display: none !important;
     }
+}
+
+/* 83b-T1fix2 (3): iPad / 寬平板 grid 收緊置中（base minmax(0,1fr) 不動，僅 ≥600 覆蓋）。
+ * base 1fr 在寬平板每欄 ~256px 但卡 max-width:120px → 三卡橫向被拉開大留白（owner 真機回饋）。
+ * 固定欄寬 + justify-content:center 讓卡緊靠置中（mirror 女優 picker tablet-fixed 雙軌）。
+ * <600 手機保留 proven 1fr（極窄機零溢出）。 */
+@media (min-width: 600px) and (max-width: 959px) {
+    .similar-mobile-cards {
+        grid-template-columns: repeat(3, 120px);
+        justify-content: center;
+    }
+}
+
+/* 83b-T1fix2 (1a): 行動相似面板開啟期間，把飛行 FlipReplace ghost 抬到 scrim 前方（銳利）。
+ * ghost（burst-picker.js）以 inline style 設 z-index:1000、掛在 document.body → 在面板
+ * scrim（z-index:1502 + backdrop-filter blur）後方 → 飛行全程被模糊。!important 為必須
+ * （覆蓋 inline z-index）。scope 到 body.similar-mobile-active → 女優 picker 共用 ghost
+ * （面板未開、無此 class）完全不受影響。scrim blur 保留（D8 lightbox 遮蔽）。 */
+body.similar-mobile-active [data-picker-ghost] {
+    z-index: 1600 !important;
 }
 
 /* 56c-T3fix: Sparkle burst overlay — 10 顆四角星 ring 分佈，GSAP 操作 opacity/scale/rotation

@@ -1262,6 +1262,11 @@ export function stateSimilar() {
 
       // 顯示面板：flag（trigger x-trap）+ DOM .show（CSS default-hidden → 顯示）
       this.similarModeMobileOpen = true;
+      // 83b-T1fix2 (1a): scope ghost z-index 抬高到「面板開啟期間」。CSS
+      // `body.similar-mobile-active [data-picker-ghost]{z-index:1600!important}`
+      // 讓飛行 ghost 在 scrim 前方銳利（覆蓋 burst-picker.js inline z-index:1000）；
+      // 面板未開時不存在此 class → 女優 picker 共用 ghost 不受影響（F1 歸零）。
+      document.body.classList.add('similar-mobile-active');
       const panelEl = document.querySelector('.similar-mobile-panel');
       if (panelEl) panelEl.classList.add('show');
 
@@ -1299,8 +1304,10 @@ export function stateSimilar() {
 
       const pickedCard = $event.currentTarget;
       const coverEl = this.$refs.mobilePanelCoverImg;
-      // await 前 snapshot oldCards（partition 用，R2）
-      const oldCards = [...document.querySelectorAll('.similar-mobile-burst-card')];
+      // await 前 snapshot oldCards（partition 用，R2）。排除前一輪仍在墜落的 detached 卡
+      // （:not(.similar-mobile-card-detached)），避免快速 drill 把 falling 孤兒重新 freeze/double-animate。
+      const oldCards = [...document.querySelectorAll(
+        '.similar-mobile-burst-card:not(.similar-mobile-card-detached)')];
 
       let data;
       try {
@@ -1326,13 +1333,69 @@ export function stateSimilar() {
       const skip = window.BurstPicker && window.BurstPicker.shouldSkip(_MOBILE_PICKER_PARAMS);
       const oldOtherCards = oldCards.filter(c => c !== pickedCard);
 
-      // 三動畫並行（不 await 個別）
+      // 83b-T1fix1: detach-before-swap（技術要點 3）。reactive similarResults swap +
+      // Alpine keyed x-for 會移除舊卡 DOM；若直接對原節點 playPickerExitAll，swap 後節點已脫離
+      // → 墜落動畫對「已移除（不可見）」節點跑 → 卡直接消失（非可見墜落，違反 spec AC-4）。
+      // 修法：swap 前把每張 oldOtherCard 凍結在當前 viewport rect、設 position:fixed、re-parent
+      // 到面板下（脫離 x-for 控制），再對 detached 節點跑 ExitAll，Promise resolve 後移除（清乾淨）。
+      // pickedCard 不 detach（FlipReplace 自建 fixed ghost、隱藏原節點，對原節點被移除免疫）。
+      //
+      // H1 順序鐵律：FlipReplace 必須在 detach loop 之前呼叫。playPickerFlipReplace 在 call 當下
+      // 同步讀 pickedCard 的 getBoundingClientRect()；若先 detach 5 張 sibling，grid
+      // （repeat(3,minmax(0,1fr)) + justify-items:center）會 reflow，pickedCard 塌進第一格 →
+      // ghost 從錯誤版位起飛。先建 FlipReplace ghost（讀真實 tapped rect、隱原節點），
+      // 之後 detach 其餘 5 張不影響已建好的 fixed ghost。
       const flip = (window.BurstPicker && coverEl)
         ? window.BurstPicker.playPickerFlipReplace(pickedCard, coverEl, _MOBILE_PICKER_PARAMS)
         : Promise.resolve();
-      const exit = window.BurstPicker
-        ? window.BurstPicker.playPickerExitAll(oldOtherCards, _MOBILE_PICKER_PARAMS)
-        : Promise.resolve();
+
+      const panelEl = document.querySelector('.similar-mobile-panel');
+      const detachedOldCards = [];
+      if (panelEl) {
+        oldOtherCards.forEach(card => {
+          const r = card.getBoundingClientRect();
+          card.classList.add('similar-mobile-card-detached');
+          card.style.position = 'fixed';
+          card.style.margin = '0';
+          card.style.top = r.top + 'px';
+          card.style.left = r.left + 'px';
+          card.style.width = r.width + 'px';
+          card.style.height = r.height + 'px';
+          panelEl.appendChild(card);   // re-parent 脫離 x-for；keyed diff 移除的是新建節點
+          detachedOldCards.push(card);
+        });
+      }
+      const cleanupDetached = () => {
+        detachedOldCards.forEach(card => card.remove());
+        detachedOldCards.length = 0;
+      };
+
+      // 83b-T1fix2 (1b): caller 端可見退場取代 playPickerExitAll。ExitAll 固定重力向下墜，
+      // 但這 6 卡 bottom-anchored（容器 bottom:calc(4vh+safe-area)）→ 下墜瞬間掉出視口下緣 →
+      // 退場幾乎不可見（owner 真機回饋）。改成「原地淡出 + 縮小 + 略上移」，bottom-anchored 可見。
+      // 不碰 burst-picker.js（ExitAll 模組本體 + 其桌面星空 / 女優 picker 用途 + axis 守衛皆不動）。
+      const exitEls = panelEl ? detachedOldCards : oldOtherCards;
+      const exit = new Promise((resolve) => {
+        if (skip) {
+          // PRM 短路：瞬移除（同 ExitAll reduced-motion 行為）
+          if (exitEls.length) gsap.set(exitEls, { opacity: 0 });
+          resolve();
+          return;
+        }
+        if (exitEls.length) {
+          gsap.to(exitEls, {
+            opacity: 0,
+            scale: 0.7,
+            y: '-=36',
+            duration: 0.4,
+            stagger: 0.04,
+            ease: 'power2.out',
+            onComplete: resolve,
+          });
+        } else {
+          resolve();
+        }
+      }).then(cleanupDetached, cleanupDetached);
 
       // reactive swap → 新卡 DOM
       this.similarResults = items;
@@ -1343,7 +1406,8 @@ export function stateSimilar() {
         coverEl.src = item.cover_url;
       }
       await this.$nextTick();
-      const newCards = [...document.querySelectorAll('.similar-mobile-burst-card')]
+      const newCards = [...document.querySelectorAll(
+        '.similar-mobile-burst-card:not(.similar-mobile-card-detached)')]
         .filter(el => !oldCards.includes(el));
       const burst = window.BurstPicker
         ? window.BurstPicker.playPickerBurst(newCards, coverEl, _MOBILE_PICKER_PARAMS, {
@@ -1372,10 +1436,15 @@ export function stateSimilar() {
       this._mobileFloatTweens.forEach(t => t && t.kill && t.kill());
       this._mobileFloatTweens = [];
 
+      // 83b-T1fix1: 清掉仍在墜落的 detached fixed 舊卡（ExitAll Promise 尚未 resolve 時關面板），避免殘留 overlay
+      document.querySelectorAll('.similar-mobile-card-detached').forEach(el => el.remove());
+
       // 直隱面板（移 .show + flag false → lightbox trap 重新生效、焦點還原）
       const panelEl = document.querySelector('.similar-mobile-panel');
       if (panelEl) panelEl.classList.remove('show');
       this.similarModeMobileOpen = false;
+      // 83b-T1fix2 (1a): 移除 ghost z-index scope（與 _openMobilePanel 對稱）
+      document.body.classList.remove('similar-mobile-active');
 
       // 3-tier silent-switch 還原 lightbox 到最後 drill 那片（mirror closeSimilarMode tail）
       if (this._mobileLastDrilledNumber && this._mobileLastDrilledItem) {
