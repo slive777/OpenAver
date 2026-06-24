@@ -455,7 +455,7 @@ async def check_update():
 async def get_install_context():
     """取得安裝路徑資訊，供 Help 頁更新 modal 分流使用（僅 desktop App）。"""
     if not (_is_windows_desktop() or _is_mac_desktop()):
-        raise HTTPException(status_code=403, detail="not_desktop")
+        raise HTTPException(status_code=403, detail="此功能僅限桌面應用程式使用")
     try:
         exe = Path(sys.executable)
         if sys.platform == "darwin":
@@ -473,7 +473,7 @@ async def get_install_context():
 async def trigger_update():
     """開啟外部終端視窗執行安裝 TUI（僅 desktop App，不揭露給 AI agent）。"""
     if not (_is_windows_desktop() or _is_mac_desktop()):
-        raise HTTPException(status_code=403, detail="not_desktop")
+        raise HTTPException(status_code=403, detail="此功能僅限桌面應用程式使用")
     try:
         if sys.platform == "win32":
             subprocess.Popen(
@@ -490,5 +490,5 @@ async def trigger_update():
             )
     except Exception as e:
         logger.error("trigger-update 啟動外部終端失敗: %s", e)
-        raise HTTPException(status_code=500, detail="trigger_failed") from e
+        raise HTTPException(status_code=500, detail="啟動更新失敗，請查看日誌") from e
     return {"success": True}

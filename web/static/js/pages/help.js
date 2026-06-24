@@ -13,6 +13,8 @@ function helpPage() {
         showUpdateModal: false,
         isDefaultPath: true,
         updateLoading: false,
+        _toast: { message: '', type: 'info', visible: false },
+        _toastTimer: null,
 
         init() {
             this.loadVersion();
@@ -107,10 +109,19 @@ function helpPage() {
             this.showUpdateModal = false;
         },
 
+        showToast(message, type = 'info', duration = 2500) {
+            this._toast.message = message;
+            this._toast.type = type;
+            this._toast.visible = true;
+            if (this._toastTimer) clearTimeout(this._toastTimer);
+            this._toastTimer = setTimeout(() => {
+                this._toast.visible = false;
+                this._toastTimer = null;
+            }, duration);
+        },
+
         _showHelpToast(msg) {
-            if (window.__notifyBus) {
-                window.__notifyBus.dispatch('notify', { message: msg, type: 'info' });
-            }
+            this.showToast(msg, 'info');
         },
     };
 }

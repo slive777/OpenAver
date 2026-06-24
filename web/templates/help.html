@@ -738,6 +738,14 @@
         </div>
     </dialog>
     {% endif %}
+
+    <!-- Toast 通知（update 成功/失敗回饋） -->
+    <div class="toast toast-end toast-top z-[9999]" x-show="_toast.visible" x-cloak x-transition>
+        <div class="alert" :class="`alert-${_toast.type}`">
+            <span x-text="_toast.message"></span>
+            <button type="button" class="btn btn-sm btn-circle btn-ghost" @click="_toast.visible = false">✕</button>
+        </div>
+    </div>
 </div>
 
 {% endblock %}
