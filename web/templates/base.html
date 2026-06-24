@@ -498,10 +498,11 @@
         <div class="navbar-end">
             {% if page == 'showcase' %}
             <!-- 81-T2: mobile 搜尋 icon（僅 showcase）→ toggle toolbar；search 頁 Spotlight 中央輸入維持原樣（owner 2026-06-22 拍板，spec §3.1 末句優先） -->
-            <button type="button"
-                    class="navbar-search-btn lg:hidden"
-                    @click="$store.ui.toolbarOpen = !$store.ui.toolbarOpen">
-                <i class="bi bi-search"></i>
+            <button type="button" class="navbar-search-btn lg:hidden"
+                    @click="$store.ui.showcaseHasSearch
+                        ? $dispatch('showcase:clear-search')
+                        : ($store.ui.toolbarOpen = !$store.ui.toolbarOpen)">
+                <i :class="$store.ui.showcaseHasSearch ? 'bi bi-x-lg' : 'bi bi-search'"></i>
             </button>
             {% endif %}
             <!-- 53b-T4: mobile 鈴鐺 -->
@@ -730,7 +731,7 @@
     <!-- 81-T2: 行動搜尋 toolbar 跨 component 共享狀態（navbar icon ↔ page toolbar）。
          非 defer，掛 alpine:init（早於任何 x-data init）→ store 必先於 page component 求值 -->
     <script>
-      document.addEventListener('alpine:init', () => { Alpine.store('ui', { toolbarOpen: false }); });
+      document.addEventListener('alpine:init', () => { Alpine.store('ui', { toolbarOpen: false, showcaseHasSearch: false }); });
     </script>
     <!-- Alpine Plugins (must load before Alpine Core) — 53a: 釘版 3.15.12，新增 focus + intersect -->
     <script defer src="/static/vendor/alpine/persist.min.js"></script>

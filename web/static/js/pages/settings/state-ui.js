@@ -29,6 +29,10 @@ export function stateUI() {
         // 71b-T2: 關閉封面縮圖快取 Confirm Modal State
         thumbCacheDisableConfirmOpen: false,
 
+        // T4: 伺服器模式切換 Confirm Modal State
+        serverModeConfirmOpen: false,
+        serverModeConfirmValue: null,
+
         // B1: Scanner directory link state
         favoriteScannerLink: null,   // null=隱藏, {linked, matched_directory}=已查
         showDirDropdown: false,

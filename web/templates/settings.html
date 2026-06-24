@@ -20,13 +20,13 @@
                     <button type="button"
                             data-mode="local"
                             :class="{ 'is-on': !serverMode }"
-                            @click="setServerMode(false)"
+                            @click="requestServerModeChange(false)"
                             x-text="window.t('settings.mode.local')">
                     </button>
                     <button type="button"
                             data-mode="server"
                             :class="{ 'is-on': serverMode }"
-                            @click="setServerMode(true)"
+                            @click="requestServerModeChange(true)"
                             x-text="window.t('settings.mode.server')">
                     </button>
                 </div>
@@ -1208,6 +1208,31 @@
                 </button>
                 <button type="button" class="btn btn-error" @click="confirmThumbCacheDisable()">
                     {{ t('settings.thumbnail_cache.disable_modal.confirm') }}
+                </button>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- T4: 伺服器模式切換 Confirm Modal -->
+    <dialog class="modal fluent-modal"
+            :class="{ 'modal-open': serverModeConfirmOpen }"
+            @click.self="cancelServerModeChange()"
+            @keydown.escape.window="serverModeConfirmOpen && cancelServerModeChange()">
+        <div class="modal-box fluent-modal-box">
+            <h3 class="fluent-modal-title">
+                <i class="bi bi-wifi"></i>
+                {{ t('settings.server_mode_confirm.title') }}
+            </h3>
+            <p class="fluent-modal-body"
+               x-text="serverModeConfirmValue
+                   ? window.t('settings.server_mode_confirm.body_on')
+                   : window.t('settings.server_mode_confirm.body_off')"></p>
+            <div class="modal-action fluent-modal-actions">
+                <button type="button" class="btn btn-ghost" @click="cancelServerModeChange()">
+                    {{ t('common.action.cancel') }}
+                </button>
+                <button type="button" class="btn btn-primary" @click="confirmServerModeChange()">
+                    {{ t('settings.server_mode_confirm.confirm') }}
                 </button>
             </div>
         </div>

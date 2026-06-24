@@ -24,11 +24,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - 修正 83a/83b-T1 引入後 `TestCoverLoadingUx67Guard` 四條守衛因 `:class has-cover` 新屬性 + T1 注釋位移雙因導致正則 stale。
 
+### Fixed（行動 UX 優化合輯，fix/0.10-mobile-ux-polish）
+- 🎯 **封面牆行動搜尋 toolbar 滾動自動收合**：≤480px 往下滾超過 50px（相對 toolbar 展開當下位置）且搜尋欄位為空時自動收合；有搜尋文字不收。
+- 🎯 **封面牆 header 行動搜尋 icon 搜尋中顯示 ✕**：有搜尋條件（tag 點擊 / 女優 / 文字）時 navbar 搜尋 icon 切換為 ✕，點擊一鍵清除所有篩選；URL / persisted state 帶入的初始搜尋也正確同步 icon 狀態。
+- 🎯 **Settings toast 行動版移至底部**：≤480px 時 toast 不再從頂部彈出（易被行動瀏覽器 chrome 遮住），改固定於底部顯示。
+- 🎯 **伺服器模式切換加確認彈窗**：避免誤觸；點確認才執行切換，點取消維持原狀；同模式不觸發彈窗。
+- 🎯 **搜尋列輸入法 compose 態 icon 互斥**：compose 態時隱藏 Grid toggle，避免三個 icon 同時顯示擠爆搜尋列空間。
+
 ### 測試
-- 全套 pytest **4686 passed, 2 skipped**（unit + integration，排除 smoke / e2e，較 0.10.9 的 4650 +36）+ `ruff check .` 綠 + `npm run lint`（eslint + stylelint）綠。
-- 來源金絲雀：**7 PASS、1 SKIP**（fc2 unreachable，已知正常）。
-- Gemini 3.1 Pro 三群審查：83a LGTM、83b-rest Approved、83b-T1 Codex 三審已通過（Gemini payload 邊界 timeout）。
-- Codex PR review P1（行動播放按鈕未接 ghost-hide 流程）已修（CSS sibling selector）。
+- 全套 pytest **4710 passed, 2 skipped**（unit + integration，排除 smoke / e2e，較初版 4686 +24：行動 UX 守衛 + 伺服器模式確認守衛 + icon 互斥守衛）+ `ruff check .` 綠 + `npm run lint`（eslint + stylelint）綠。
+- 來源金絲雀：**7 PASS、1 SKIP**（jav321 unreachable，已知正常）。
+- Gemini 3.1 Pro 審查：LGTM；P2（同模式觸發彈窗）已修（early return guard）。
+- Codex PR review P2（showcaseHasSearch 初始化缺漏）已修（init-time sync 補齊）。
 
 ## [0.10.9] - 2026-06-22
 

@@ -311,6 +311,12 @@
       "remote_only": "伺服器模式只能在執行 OpenAver 的主機電腦上切換。",
       "autostart_failed": "重新啟動後無法自動開啟 LAN 伺服器模式，請至設定重新開啟。"
     },
+    "server_mode_confirm": {
+      "title": "切換伺服器模式",
+      "body_on": "切到「伺服器」模式後，同一區網的裝置可連線本機。確認切換？",
+      "body_off": "切回「單機」模式後，區網裝置將立即無法連線。確認切換？",
+      "confirm": "確認切換"
+    },
     "section": {
       "search": "搜尋與刮削",
       "scraper_advanced": "進階刮削設定",

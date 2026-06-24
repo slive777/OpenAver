@@ -5418,17 +5418,19 @@ class TestSearchCssHardcoded:
         # 83a-T3-fix P1：在 L810（T9-port 前）插入 lightbox overflow block（~12 行）：945→957。
         # 83a2-T4：在 L102（detail cover scope 區）插入 ~22 行 + mobile block 插入 ~5 行（皆在 957 上方）：957→984。
         # 83a2-T4 Codex P2 fix：loading-placeholder fallback 併入（comment+第二 selector）+4 行：984→988。
-        90: "drop-shadow rgba 0.3 — §2 例外（drop-shadow 跟封面去背形狀，非矩形 box-shadow 無法用 --fluent-shadow-* token）",
-        988: "var(--bg-card, rgba(0, 0, 0, 0.05)) fallback — defensive fallback，非硬編碼違規",
+        # fix/T5：在 L27 插入 .spotlight-search .btn-icon block（5 行）：90→95、988→993。
+        95: "drop-shadow rgba 0.3 — §2 例外（drop-shadow 跟封面去背形狀，非矩形 box-shadow 無法用 --fluent-shadow-* token）",
+        993: "var(--bg-card, rgba(0, 0, 0, 0.05)) fallback — defensive fallback，非硬編碼違規",
     }
 
     SIX_PX_ALLOWLIST = {
         # 75b-T2 search.css US1 重排插入 ~54 行（@ ~L107）後行號順移：235→282、524→576、579→631（皆在插入點下方）。
         # 83a2-T4：detail cover scope +22 行（L102 上方）+ mobile block +5 行（L519 上方）後順移：282→304、576→603、631→658。
         # 83a2-T4 Codex P2 fix：loading-placeholder fallback +4 行後順移：304→308、603→607、658→662。
-        308: "row inline btn optical 6px — T2.2 加 optical 註記（btn-sm 12px padding 對 row inline 太寬）",
-        607: ".batch-progress-bar height: 6px — intrinsic dimension（非 §4 spacing）",
-        662: "chip optical 6px — T2.2 加 optical 註記（對齊 showcase .lb-tag-add-btn）",
+        # fix/T5：在 L27 插入 .spotlight-search .btn-icon block（5 行）：308→313、607→612、662→667。
+        313: "row inline btn optical 6px — T2.2 加 optical 註記（btn-sm 12px padding 對 row inline 太寬）",
+        612: ".batch-progress-bar height: 6px — intrinsic dimension（非 §4 spacing）",
+        667: "chip optical 6px — T2.2 加 optical 註記（對齊 showcase .lb-tag-add-btn）",
     }
 
     def _scan(self, regex: str, allowlist=None):
@@ -13135,7 +13137,7 @@ class TestServerModeToggleGuard:
     def test_settings_server_mode_segmented_in_header(self):
         """.settings-server-mode 在標題左 cluster（.settings-header-left）內，是 <h4> 的
         cluster-sibling，且含 .settings-sources-segmented + 2 個 button
-        （setServerMode(false)/setServerMode(true)）。
+        （requestServerModeChange(false)/requestServerModeChange(true)，T4 改為確認 modal）。
 
         81b-T1（CD-1）：膠囊從 .settings-header-actions 搬到 .settings-header-left。
         mutation：膠囊搬回 .settings-header-actions → 「不在 actions」斷言 RED；
@@ -13152,10 +13154,10 @@ class TestServerModeToggleGuard:
         assert len(buttons) == 2, \
             f".settings-sources-segmented 應有 2 個 button，實際 {len(buttons)} 個"
         click_attrs = [b.get("@click", "") for b in buttons]
-        assert any("setServerMode(false)" in a for a in click_attrs), \
-            "segmented 缺少 @click=\"setServerMode(false)\" button（單機態）"
-        assert any("setServerMode(true)" in a for a in click_attrs), \
-            "segmented 缺少 @click=\"setServerMode(true)\" button（伺服器態）"
+        assert any("requestServerModeChange(false)" in a for a in click_attrs), \
+            "segmented 缺少 @click=\"requestServerModeChange(false)\" button（單機態）"
+        assert any("requestServerModeChange(true)" in a for a in click_attrs), \
+            "segmented 缺少 @click=\"requestServerModeChange(true)\" button（伺服器態）"
         # 81b-T1（CD-1）：位置斷言 — 膠囊在標題左 cluster，h4 sibling，搬離 actions
         left = soup.find(class_="settings-header-left")
         assert left is not None, \
@@ -13429,19 +13431,21 @@ class TestMobileToolbarToggle:
         return BASE_HTML_T76.read_text(encoding="utf-8")
 
     def test_store_registered_in_alpine_init(self):
-        """base.html 在 alpine:init 監聽內註冊 Alpine.store('ui', { toolbarOpen: false })。"""
+        """base.html 在 alpine:init 監聽內註冊 Alpine.store('ui', { toolbarOpen: false, showcaseHasSearch: false })。"""
         html = self._base()
         assert "alpine:init" in html, "base.html missing alpine:init listener"
         assert "Alpine.store('ui'" in html, "base.html missing Alpine.store('ui') registration"
         assert "toolbarOpen" in html, "base.html missing toolbarOpen store field"
+        # T2: showcaseHasSearch 欄位必須在同一 store 定義內
+        assert "showcaseHasSearch" in html, "base.html missing showcaseHasSearch store field"
         # 註冊字串與 alpine:init 監聽同段（store 註冊掛在 alpine:init callback 內）
         assert re.search(
             r"alpine:init['\"]\s*,\s*\(\)\s*=>\s*\{\s*Alpine\.store\(\s*['\"]ui['\"]\s*,\s*\{\s*toolbarOpen:\s*false",
             html,
-        ), "base.html: Alpine.store('ui', { toolbarOpen: false }) 須在 alpine:init callback 內註冊"
+        ), "base.html: Alpine.store('ui', { toolbarOpen: false ... }) 須在 alpine:init callback 內註冊"
 
     def test_navbar_search_button(self):
-        """navbar 搜尋 button：navbar-search-btn + lg:hidden + bi-search + @click 翻轉 $store.ui.toolbarOpen。"""
+        """navbar 搜尋 button：navbar-search-btn + lg:hidden + bi-search + @click 條件分支（T2）。"""
         from bs4 import BeautifulSoup
         html = self._base()
         btns = BeautifulSoup(html, "html.parser").select("button.navbar-search-btn")
@@ -13449,11 +13453,17 @@ class TestMobileToolbarToggle:
         btn = btns[0]
         classes = btn.get("class", [])
         assert "lg:hidden" in classes, "navbar-search-btn 須有 lg:hidden（≤1023px gate）"
-        icons = btn.select("i.bi.bi-search")
-        assert icons, "navbar-search-btn 內須有 <i class='bi bi-search'>"
+        # T2: icon 改為 Alpine 動態 :class 綁定，BS4 CSS selector 無法匹配；改用字串檢查
+        btn_html = str(btn)
+        assert "bi-search" in btn_html, "navbar-search-btn 內須包含 bi-search（靜態 class 或動態 :class 均可）"
         click = btn.get("@click", "")
+        # T2: @click 改為條件分支 — showcaseHasSearch 判斷 + dispatch + toolbarOpen 仍在 else 分支
+        assert "$store.ui.showcaseHasSearch" in click, \
+            f"navbar-search-btn @click 須包含 $store.ui.showcaseHasSearch 條件（實得 {click!r}）"
+        assert "showcase:clear-search" in click, \
+            f"navbar-search-btn @click 須 dispatch showcase:clear-search（實得 {click!r}）"
         assert "$store.ui.toolbarOpen" in click, \
-            f"navbar-search-btn @click 須翻轉 $store.ui.toolbarOpen（實得 {click!r}）"
+            f"navbar-search-btn @click 須包含 $store.ui.toolbarOpen（else 分支保留舊行為，實得 {click!r}）"
 
     def test_navbar_search_button_jinja_gated(self):
         """搜尋 button 被 {% if page == 'showcase' %} Jinja gate（僅 showcase 渲染，不含 search）。"""

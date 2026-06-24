@@ -402,6 +402,21 @@ export function stateConfig() {
             return `${this.lanIp}:${this.lanPort}`;
         },
 
+        requestServerModeChange(val) {
+            if (this.serverMode === val) return;  // 同模式不觸發確認
+            this.serverModeConfirmValue = val;
+            this.serverModeConfirmOpen = true;
+        },
+        async confirmServerModeChange() {
+            const val = this.serverModeConfirmValue;  // capture before clearing（防 await 期間再次觸發覆蓋）
+            this.serverModeConfirmOpen = false;
+            this.serverModeConfirmValue = null;
+            await this.setServerMode(val);
+        },
+        cancelServerModeChange() {
+            this.serverModeConfirmOpen = false;
+            this.serverModeConfirmValue = null;
+        },
         async setServerMode(val) {
             try {
                 const resp = await fetch('/api/config/general/server_mode', {

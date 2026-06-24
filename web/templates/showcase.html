@@ -15,7 +15,8 @@
 {% block content %}
 <div class="showcase-container ds-gallery-composition"
      x-data="showcase"
-     @keydown.window="handleKeydown($event)">
+     @keydown.window="handleKeydown($event)"
+     x-on:showcase:clear-search.window="clearSearch()">
 
     <!-- Loading State (初始顯示) -->
     <div class="state-page" x-cloak x-show="!showFavoriteActresses && loading && videoCount === 0">

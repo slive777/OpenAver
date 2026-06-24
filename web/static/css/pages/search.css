@@ -24,6 +24,11 @@
     --spotlight-right-slot: 10.5rem;
 }
 
+/* T5: compose 態 icon 互斥 — btn-icon 不縮（三個 icon 共存時不擠壓彼此） */
+.spotlight-search .btn-icon {
+    flex-shrink: 0;
+}
+
 /* 結果區域（外層容器，包含所有狀態頁 + 結果卡片） */
 .result-area {
     flex: 1;
