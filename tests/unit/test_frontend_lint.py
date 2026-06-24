@@ -15255,3 +15255,81 @@ class TestSimilarMobilePanelT4Guard:
             "ghost-hide 規則須含 opacity: 0"
         assert "pointer-events: none" in body, \
             "ghost-hide 規則須含 pointer-events: none（飛行期間防誤點）"
+
+
+class TestHelpUpdateButtonGuard:
+    """84-T3: Help 頁「更新」按鈕 + confirm modal 靜態守衛
+
+    契約：
+    1. {% if is_desktop %} gate 存在於 help.html（按鈕被正確 gate）
+    2. 「更新」按鈕的 @click="triggerUpdate()" 存在於 gate 內
+    3. triggerUpdate() DOM binding 不應出現在 gate 外
+    4. help.js 定義 triggerUpdate function
+    5. modal 的 x-show="showUpdateModal" binding 存在
+    6. modal 內含 confirm / cancel 按鈕
+    """
+
+    HELP_HTML = PROJECT_ROOT / "web" / "templates" / "help.html"
+    HELP_JS   = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "help.js"
+
+    def _html(self):
+        return self.HELP_HTML.read_text(encoding="utf-8")
+
+    def _js(self):
+        return self.HELP_JS.read_text(encoding="utf-8")
+
+    def test_is_desktop_gate_exists_in_help_html(self):
+        """help.html 含 {% if is_desktop %} gate（確保按鈕被正確 gate）"""
+        html = self._html()
+        assert '{% if is_desktop %}' in html, \
+            "help.html 缺 {% if is_desktop %} gate — 更新按鈕必須在此 gate 內"
+
+    def test_trigger_update_click_inside_desktop_gate(self):
+        """@click="triggerUpdate()" 必須在 {% if is_desktop %} block 內"""
+        import re
+        html = self._html()
+        gate_pattern = re.compile(
+            r'\{%-?\s*if\s+is_desktop\s*-?%\}(.*?)\{%-?\s*endif\s*-?%\}',
+            re.DOTALL,
+        )
+        gates = gate_pattern.findall(html)
+        assert gates, "help.html: 找不到 {% if is_desktop %} block"
+        found = any('triggerUpdate()' in block for block in gates)
+        assert found, (
+            '@click="triggerUpdate()" 必須在 {% if is_desktop %} block 內 '
+            '（非桌面客戶端不應看到此按鈕）'
+        )
+
+    def test_trigger_update_not_outside_gate(self):
+        """triggerUpdate() DOM binding 不應出現在 {% if is_desktop %} gate 外"""
+        import re
+        html = self._html()
+        gate_pattern = re.compile(
+            r'\{%-?\s*if\s+is_desktop\s*-?%\}.*?\{%-?\s*endif\s*-?%\}',
+            re.DOTALL,
+        )
+        stripped = gate_pattern.sub('', html)
+        assert 'triggerUpdate()' not in stripped, (
+            'triggerUpdate() 出現在 {% if is_desktop %} gate 外 — '
+            '非桌面情境不應渲染此 DOM'
+        )
+
+    def test_trigger_update_defined_in_help_js(self):
+        """help.js 定義 triggerUpdate function（防函數遺漏導致 Alpine 報錯）"""
+        js = self._js()
+        assert 'triggerUpdate' in js, \
+            "help.js 缺 triggerUpdate 定義 — Alpine @click 呼叫的函數不存在"
+
+    def test_update_modal_x_show_binding_exists(self):
+        """modal 含 x-show="showUpdateModal" binding（防按鈕存在但 modal 永不出現）"""
+        html = self._html()
+        assert 'showUpdateModal' in html, \
+            "help.html 缺 showUpdateModal binding — update confirm modal 無法顯示"
+
+    def test_update_modal_has_confirm_and_cancel(self):
+        """modal 內含 confirmUpdate() 和 cancelUpdate() 呼叫（confirm/cancel 按鈕齊全）"""
+        html = self._html()
+        assert 'confirmUpdate()' in html, \
+            "help.html 缺 confirmUpdate() — modal 確認按鈕不存在"
+        assert 'cancelUpdate()' in html, \
+            "help.html 缺 cancelUpdate() — modal 取消按鈕不存在"

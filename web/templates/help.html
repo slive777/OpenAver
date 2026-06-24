@@ -42,6 +42,16 @@
                             <i class="bi bi-download"></i> {{ t('help.hero.update_available_prefix') }} <span x-text="latestVersion"></span> {{ t('help.hero.update_available_suffix') }}
                         </a>
                     </template>
+                    {% if is_desktop %}
+                    <template x-if="checkDone && !errorMsg && hasUpdate">
+                        <button class="btn btn-warning btn-sm"
+                                @click="triggerUpdate()"
+                                :disabled="updateLoading">
+                            <span x-show="updateLoading" class="loading loading-spinner loading-sm"></span>
+                            {{ t('help.update_modal.trigger_btn') }}
+                        </button>
+                    </template>
+                    {% endif %}
                     <template x-if="checkDone && !errorMsg && !hasUpdate">
                         <span class="text-base-content/50 text-sm">
                             <i class="bi bi-check-circle"></i> {{ t('help.hero.up_to_date') }}
@@ -697,6 +707,37 @@
             </ul>
         </div>
     </div>
+    {% if is_desktop %}
+    <dialog class="modal fluent-modal"
+            :class="{ 'modal-open': showUpdateModal }"
+            @click.self="!updateLoading && cancelUpdate()"
+            @keydown.escape.window="!updateLoading && cancelUpdate()">
+        <div class="modal-box fluent-modal-box">
+            <h3 class="fluent-modal-title">{{ t('help.update_modal.title') }}</h3>
+            <!-- 情況 A：預設路徑 -->
+            <p x-show="isDefaultPath" class="fluent-modal-body text-sm">
+                {{ t('help.update_modal.case_a_body') }}
+            </p>
+            <!-- 情況 B：非預設路徑（whitespace-pre-line 保留換行） -->
+            <p x-show="!isDefaultPath" class="fluent-modal-body text-sm whitespace-pre-line">
+                {{ t('help.update_modal.case_b_body') }}
+            </p>
+            <div class="modal-action fluent-modal-actions">
+                <button type="button" class="btn btn-ghost btn-sm"
+                        @click="cancelUpdate()"
+                        :disabled="updateLoading">
+                    {{ t('help.update_modal.cancel_btn') }}
+                </button>
+                <button type="button" class="btn btn-warning btn-sm"
+                        @click="confirmUpdate()"
+                        :disabled="updateLoading">
+                    <span x-show="updateLoading" class="loading loading-spinner loading-sm"></span>
+                    {{ t('help.update_modal.confirm_btn') }}
+                </button>
+            </div>
+        </div>
+    </dialog>
+    {% endif %}
 </div>
 
 {% endblock %}

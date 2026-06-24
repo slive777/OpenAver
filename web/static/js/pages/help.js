@@ -10,6 +10,9 @@ function helpPage() {
         downloadUrl: '',
         errorMsg: '',
         checkDone: false,
+        showUpdateModal: false,
+        isDefaultPath: true,
+        updateLoading: false,
 
         init() {
             this.loadVersion();
@@ -68,6 +71,45 @@ function helpPage() {
             } finally {
                 this.checkUpdateLoading = false;
                 this.checkDone = true;
+            }
+        },
+
+        async triggerUpdate() {
+            // fetch install-context to determine default path scenario
+            try {
+                const resp = await fetch('/api/install-context');
+                const data = await resp.json();
+                this.isDefaultPath = data.is_default_path !== false;  // fallback true
+            } catch (e) {
+                this.isDefaultPath = true;  // 保守 fallback
+            }
+            this.showUpdateModal = true;
+        },
+
+        async confirmUpdate() {
+            this.updateLoading = true;
+            try {
+                const resp = await fetch('/api/trigger-update', { method: 'POST' });
+                if (resp.ok) {
+                    this._showHelpToast(window.t('help.update_modal.toast_success'));
+                } else {
+                    this._showHelpToast(window.t('help.update_modal.toast_error'));
+                }
+            } catch (e) {
+                this._showHelpToast(window.t('help.update_modal.toast_error'));
+            } finally {
+                this.updateLoading = false;
+                this.showUpdateModal = false;
+            }
+        },
+
+        cancelUpdate() {
+            this.showUpdateModal = false;
+        },
+
+        _showHelpToast(msg) {
+            if (window.__notifyBus) {
+                window.__notifyBus.dispatch('notify', { message: msg, type: 'info' });
             }
         },
     };
