@@ -1194,3 +1194,11 @@ html.theme-transition-active::view-transition-new(root) {
         transition: none;
     }
 }
+
+/* T3: 行動版 toast 移至底部（避免被 mobile browser chrome 遮住） */
+@media (max-width: 480px) {
+  .toast.toast-top {
+    top: auto;
+    bottom: 1rem;
+  }
+}
