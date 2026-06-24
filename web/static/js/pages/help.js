@@ -10,6 +10,11 @@ function helpPage() {
         downloadUrl: '',
         errorMsg: '',
         checkDone: false,
+        showUpdateModal: false,
+        isDefaultPath: true,
+        updateLoading: false,
+        _toast: { message: '', type: 'info', visible: false },
+        _toastTimer: null,
 
         init() {
             this.loadVersion();
@@ -69,6 +74,54 @@ function helpPage() {
                 this.checkUpdateLoading = false;
                 this.checkDone = true;
             }
+        },
+
+        async triggerUpdate() {
+            // fetch install-context to determine default path scenario
+            try {
+                const resp = await fetch('/api/install-context');
+                const data = await resp.json();
+                this.isDefaultPath = data.is_default_path !== false;  // fallback true
+            } catch (e) {
+                this.isDefaultPath = true;  // 保守 fallback
+            }
+            this.showUpdateModal = true;
+        },
+
+        async confirmUpdate() {
+            this.updateLoading = true;
+            try {
+                const resp = await fetch('/api/trigger-update', { method: 'POST' });
+                if (resp.ok) {
+                    this._showHelpToast(window.t('help.update_modal.toast_success'));
+                } else {
+                    this._showHelpToast(window.t('help.update_modal.toast_error'));
+                }
+            } catch (e) {
+                this._showHelpToast(window.t('help.update_modal.toast_error'));
+            } finally {
+                this.updateLoading = false;
+                this.showUpdateModal = false;
+            }
+        },
+
+        cancelUpdate() {
+            this.showUpdateModal = false;
+        },
+
+        showToast(message, type = 'info', duration = 2500) {
+            this._toast.message = message;
+            this._toast.type = type;
+            this._toast.visible = true;
+            if (this._toastTimer) clearTimeout(this._toastTimer);
+            this._toastTimer = setTimeout(() => {
+                this._toast.visible = false;
+                this._toastTimer = null;
+            }, duration);
+        },
+
+        _showHelpToast(msg) {
+            this.showToast(msg, 'info');
         },
     };
 }

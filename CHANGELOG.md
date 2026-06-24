@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.11] - 2026-06-24
+
+本版主軸：**Windows 一鍵安裝捷徑 + Help 頁更新按鈕**（feature/84）——兩條並行：84a 新增 `OpenAver-Windows-Setup.bat` 雙擊即可觸發 PowerShell 安裝流程（配合 `chcp 65001` 確保中文正常顯示）；84b 在 Help 頁（限桌面 App）新增「更新」按鈕，偵測安裝路徑後以 confirm modal 導引用戶操作（情況 A 預設路徑 / 情況 B 非預設路徑），確認後開外部終端執行安裝腳本。
+
+### Added
+#### 🪟 Windows 雙擊安裝捷徑（84a）
+- 🎯 **`OpenAver-Windows-Setup.bat`**：新增於 repo root，雙擊即呼叫 PowerShell 以 `irm | iex` 方式執行安裝腳本；加入 `chcp 65001` 確保 UTF-8 終端顯示；CI Release 同步上傳此 bat 至 GitHub Release Assets。
+
+#### ⬆️ Help 頁一鍵更新（84b）
+- 🎯 **桌面 App 專屬更新按鈕**：偵測到有新版時，Help 頁出現「更新」按鈕（`is_desktop` Jinja gate，桌面 App 才顯示）。
+- 🎯 **路徑分流 confirm modal**：點更新先呼叫 `/api/install-context` 偵測是否裝在預設路徑——情況 A（預設）顯示「關閉後依畫面提示繼續」；情況 B（非預設）顯示需手動搬移步驟——確認後呼叫 `/api/trigger-update` 開外部終端執行安裝腳本，操作結果以 toast 回饋。
+- 🎯 **後端新增三個元件**：`_is_mac_desktop()`（macOS 桌面 App 偵測）；`GET /api/install-context`（路徑比對，非桌面回 403）；`POST /api/trigger-update`（Windows → PowerShell `CREATE_NEW_CONSOLE`，macOS → osascript Terminal；不揭露給 AI agent）。
+
+### 測試
+- 全套 pytest **4735 passed, 2 skipped**（unit + integration，排除 smoke / e2e，較 0.10.10 的 4710 +25：`_is_mac_desktop()` 真值表 + install-context 路徑算法 + trigger-update subprocess/403 + capabilities 守衛 + Help 頁 Alpine binding 守衛）+ `ruff check .` 綠 + `npm run lint`（eslint + stylelint）綠。
+- 來源金絲雀：**8 源全 PASS**（含 avsox/dmm/javdb 全綠）。
+- Gemini 3.1 Pro 審查：3 條 advisory（hardcoded URL 設計取捨、路徑推斷 fallback 保護、macOS fire-and-forget 設計），無 P1/BLOCKER。
+- Codex PR review P1 × 2 已修：API `HTTPException.detail` 改固定中文字串；`_showHelpToast()` 改用 `_toast` Alpine state + `showToast()` 並補 toast DOM。
+
 ## [0.10.10] - 2026-06-24
 
 本版主軸：**封面比例自適應 + 行動相似探索面板**（feature/83）——兩條並行：83a 讓燈箱封面不留空白（寬比例作品自動填滿容器、AR 不污染女優模式）；83b 在行動裝置新增相似探索面板（全螢幕疊加 + 六張爆射卡 + 封面飛行進/退場 + 主圖播放按鈕）。

@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 import os
 import re
+import subprocess
 import sys
 
 # issue #66：全域保險，涵蓋 /static 以外的裸 FileResponse 也用 WHATWG canonical MIME。
@@ -13,7 +14,7 @@ mimetypes.add_type("text/javascript", ".js")
 mimetypes.add_type("text/javascript", ".mjs")
 mimetypes.add_type("text/css", ".css")
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 from web.static_cache import NoCacheStaticFiles
@@ -195,6 +196,11 @@ def _is_windows_desktop() -> bool:
     return os.environ.get("OPENAVER_STANDALONE") == "1" and sys.platform == "win32"
 
 
+def _is_mac_desktop() -> bool:
+    """True 僅限 macOS 桌面 App（OPENAVER_STANDALONE=1 AND darwin）。"""
+    return os.environ.get("OPENAVER_STANDALONE") == "1" and sys.platform == "darwin"
+
+
 def get_common_context(request: Request) -> dict:
     """取得共用的模板 Context (包含設定)"""
     from core.config import load_config, mutate_config
@@ -274,6 +280,7 @@ def get_common_context(request: Request) -> dict:
         "merged_translations": merged_translations,
         "t": _t_bound,
         "is_windows_desktop": _is_windows_desktop(),
+        "is_desktop": _is_windows_desktop() or _is_mac_desktop(),
     }
 
 
@@ -442,3 +449,46 @@ async def check_update():
     except Exception as e:
         logger.error("檢查更新失敗: %s", e)
         return {"success": False, "error": "檢查更新失敗"}
+
+
+@app.get("/api/install-context")
+async def get_install_context():
+    """取得安裝路徑資訊，供 Help 頁更新 modal 分流使用（僅 desktop App）。"""
+    if not (_is_windows_desktop() or _is_mac_desktop()):
+        raise HTTPException(status_code=403, detail="此功能僅限桌面應用程式使用")
+    try:
+        exe = Path(sys.executable)
+        if sys.platform == "darwin":
+            install_dir = exe.parent.parent.parent  # python/bin/python3 → OpenAver/
+        else:
+            install_dir = exe.parent.parent          # python\pythonw.exe → OpenAver\
+        default_dir = Path.home() / "OpenAver"
+        is_default_path = install_dir == default_dir
+    except Exception:
+        is_default_path = True  # 偵測失敗視同情況 A（保守）
+    return {"is_default_path": is_default_path}
+
+
+@app.post("/api/trigger-update")
+async def trigger_update():
+    """開啟外部終端視窗執行安裝 TUI（僅 desktop App，不揭露給 AI agent）。"""
+    if not (_is_windows_desktop() or _is_mac_desktop()):
+        raise HTTPException(status_code=403, detail="此功能僅限桌面應用程式使用")
+    try:
+        if sys.platform == "win32":
+            subprocess.Popen(
+                ["powershell.exe", "-ExecutionPolicy", "Bypass", "-NoProfile",
+                 "-Command",
+                 "irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex"],
+                creationflags=subprocess.CREATE_NEW_CONSOLE,
+            )
+        else:
+            subprocess.Popen(
+                ["osascript", "-e",
+                 "tell application \"Terminal\" to do script "
+                 "\"curl -fsSL https://raw.githubusercontent.com/slive777/OpenAver/main/install.sh | bash\""]
+            )
+    except Exception as e:
+        logger.error("trigger-update 啟動外部終端失敗: %s", e)
+        raise HTTPException(status_code=500, detail="啟動更新失敗，請查看日誌") from e
+    return {"success": True}

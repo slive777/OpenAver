@@ -1192,6 +1192,16 @@
       "version_load_failed": "無法載入",
       "check_update_failed": "檢查失敗，請稍後再試",
       "check_update_network_error": "無法連線，請稍後再試"
+    },
+    "update_modal": {
+      "trigger_btn": "更新",
+      "title": "即將開啟安裝視窗",
+      "case_a_body": "安裝程式開啟後，請依畫面提示先關閉 OpenAver，再繼續更新。",
+      "case_b_body": "您目前不是安裝在預設位置。\n安裝程式會先把新版本安裝到預設目錄，安裝期間不需要先關閉目前的 OpenAver。\n\n安裝完成後，請依序操作：\n1. 關閉 OpenAver\n2. 刪除舊安裝目錄中的 python 資料夾\n3. 將新版本的所有檔案複製覆蓋回原本的安裝位置\n\nOpenAver 不需要重新安裝或重新設定，直接覆蓋檔案即可使用。",
+      "cancel_btn": "取消",
+      "confirm_btn": "確認更新",
+      "toast_success": "安裝視窗已開啟，請依畫面提示完成更新",
+      "toast_error": "啟動安裝程式失敗，請手動執行安裝腳本"
     }
   },
   "tutorial": {
