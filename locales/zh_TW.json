@@ -707,7 +707,11 @@
       "success": "已覆蓋寫入（封面 + NFO）",
       "fail": "重新刮削失敗，請稍後再試。",
       "jl_desktop_only": "僅限桌面應用程式（standalone）可用",
-      "jl_cf_solving": "Cloudflare 驗證中……通過後將自動繼續"
+      "jl_cf_solving": "Cloudflare 驗證中……通過後將自動繼續",
+      "versions_found": "找到 {count} 部同番號作品",
+      "version_prev_aria": "上一個版本",
+      "version_next_aria": "下一個版本",
+      "adopt_version": "採用此版本"
     },
     "placeholder": {
       "search": "搜尋番號、女優、標題..."

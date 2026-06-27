@@ -47,7 +47,6 @@
           {# builtin pill：picker 依 usability 不依 promotion（CD-64-A4），恆 data-enabled=true 正常可選，不反映 Settings 開關 #}
           <template x-for="s in rescrapeBuiltinSources()" :key="s.id">
             <button type="button"
-                    x-show="!(s.manual_only && s.is_beta && rescrapeEntryPoint === 'search')"
                     :class="{
                         'source-pill': true,
                         'source-pill--action': !isJlUnavailable(s),
@@ -120,7 +119,7 @@
       </div>
     </div>
 
-    {# ───────── 步驟 2：preview（換頁，只 Showcase 入口接） ───────── #}
+    {# ───────── 步驟 2：preview（換頁，Showcase + search 入口皆可進入；86-T4） ───────── #}
     <div x-show="rescrapeStep === 'preview'" x-cloak>
       <button type="button" class="rescrape-back" @click="rescrapeBackToPick()">
         <i class="bi bi-arrow-left" aria-hidden="true"></i> {{ t('showcase.rescrape.back_to_pick') }}
@@ -134,8 +133,29 @@
              禁直連遠端 URL、禁 DB-only gallery image 端點。內聯建構。 #}
           <img :src="rescrapePreview && ('/api/proxy-image?url=' + encodeURIComponent(rescrapePreview.cover))"
                :alt="rescrapePreview && rescrapePreview.number">
+          {# 86-T4: 版本切換器 ‹ › 鈕（CD-86-7 D5；swipe 不做 CD-86-15） #}
+          <button type="button" class="rescrape-ver-btn rescrape-ver-prev"
+                  x-show="rescrapeHasVersions()"
+                  @click="rescrapeVersionGo(-1)"
+                  :aria-label="t('showcase.rescrape.version_prev_aria')"
+                  :disabled="rescrapeVersionIdx <= 0">
+            <i class="bi bi-chevron-left" aria-hidden="true"></i>
+          </button>
+          <button type="button" class="rescrape-ver-btn rescrape-ver-next"
+                  x-show="rescrapeHasVersions()"
+                  @click="rescrapeVersionGo(1)"
+                  :aria-label="t('showcase.rescrape.version_next_aria')"
+                  :disabled="rescrapeVersionIdx >= rescrapeCandidates.length - 1">
+            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+          </button>
         </div>
         <div class="lightbox-metadata">
+          {# 86-T4: versions_found + N/M 指示（CD-86-7 D5；多版本才顯示） #}
+          <div class="rescrape-version-status" x-show="rescrapeHasVersions()">
+            <span x-text="t('showcase.rescrape.versions_found', { count: rescrapeCandidates.length })"></span>
+            <span class="rescrape-ver-indicator"
+                  x-text="(rescrapeVersionIdx + 1) + '/' + rescrapeCandidates.length"></span>
+          </div>
           <div class="lb-title" x-text="rescrapePreview && rescrapePreview.title"></div>
           <div class="lb-otitle" x-show="rescrapePreview && rescrapePreview.original_title"
                x-text="rescrapePreview && rescrapePreview.original_title"></div>
@@ -169,15 +189,22 @@
         </div>
       </div>
 
-      {# 一律覆蓋（拿掉 toggle）：小字提示不可逆 + ✗/✓ 兩圓鈕 #}
-      <div class="rescrape-caption">
+      {# 86-T4 CD-86-9: lightbox 入口顯示不可逆警告 + ✗/✓；search 入口顯示「採用此版本」單鈕 #}
+      {# lightbox 入口：不可逆提示（僅 lightbox 入口顯示） #}
+      <div class="rescrape-caption" x-show="rescrapeEntryPoint === 'lightbox'">
         <i class="bi bi-exclamation-octagon-fill" aria-hidden="true"></i> {{ t('showcase.rescrape.overwrite_warning') }}
       </div>
-      <div class="rescrape-confirm-row">
+      {# lightbox 入口：✗/✓ 兩圓鈕 #}
+      <div class="rescrape-confirm-row" x-show="rescrapeEntryPoint === 'lightbox'">
         <button type="button" class="rescrape-confirm-btn cancel" @click="rescrapeBackToPick()"
                 :aria-label="t('showcase.rescrape.back_to_pick')"><i class="bi bi-x-lg"></i></button>
         <button type="button" class="rescrape-confirm-btn confirm" @click="rescrapeConfirm()"
                 :aria-label="t('showcase.rescrape.confirm')"><i class="bi bi-check-lg"></i></button>
+      </div>
+      {# search 入口：採用此版本單鈕（無不可逆警告，CD-86-9） #}
+      <div class="rescrape-confirm-row" x-show="rescrapeEntryPoint === 'search'">
+        <button type="button" class="rescrape-confirm-btn confirm" @click="rescrapeConfirm()"
+                x-text="t('showcase.rescrape.adopt_version')"></button>
       </div>
     </div>
 

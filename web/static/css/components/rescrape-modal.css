@@ -5,8 +5,10 @@
  * blur）由 theme.css 的 `.fluent-modal.modal-open` 統一提供（::backdrop 在 class-open 模式不觸發）。
  * 本檔額外處理「從 lightbox 開窗」的層級：見下方 .rescrape-dialog.modal z-index。
  * 視覺忠實移植自 mockup-rescrape-modal.html（CD-62-0「mockup 為準」），
- * 全 token 化（shadow/radius/duration/ease/color）。唯一字面值：.rescrape-confirm-btn.confirm 的
- * #fff 白前景（綠底按鈕慣例；mockup:189）。pill 999px 走 source-pill.css 白名單。
+ * 全 token 化（shadow/radius/duration/ease/color）。字面值白名單：.rescrape-confirm-btn.confirm 的
+ * #fff 白前景（綠底按鈕慣例；mockup:189）；.rescrape-ver-btn:hover 的 rgba(0,0,0,0.5)
+ * （hover 升階 0.5，charter §3 個案保留，同 .lightbox-nav:hover showcase.css:1317）。
+ * pill 999px 走 source-pill.css 白名單。
  *
  * Alpine 行為（fetch/loading/commit/not-found）是 62a-3；本檔僅視覺。
  */
@@ -201,6 +203,71 @@
 
 .rescrape-preview .pv-cover {
     flex-shrink: 0;
+    position: relative;
+}
+
+/* ─── 86-T4: 版本切換器 ‹ › 鈕（CD-86-7 D5；token 對齊 .lightbox-nav 材質）─── */
+.rescrape-ver-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    min-width: 44px;
+    min-height: 44px;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: var(--overlay-control);
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
+    color: var(--text-inverse);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                transform var(--fluent-duration-fast) var(--fluent-ease-standard);
+    z-index: 1;
+}
+
+.rescrape-ver-btn:hover {
+    /* hover 升階 0.5 (charter §3 個案保留，同 .lightbox-nav:hover showcase.css:1317) */
+    background: rgba(0, 0, 0, 0.5);
+    transform: translateY(-50%) scale(1.1);
+}
+
+.rescrape-ver-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.rescrape-ver-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.rescrape-ver-prev {
+    left: -0.75rem;
+}
+
+.rescrape-ver-next {
+    right: -0.75rem;
+}
+
+/* ─── 86-T4: 版本狀態文字（「找到 X 部」+ N/M 指示）─── */
+.rescrape-version-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+}
+
+.rescrape-ver-indicator {
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 .rescrape-preview .pv-cover img {

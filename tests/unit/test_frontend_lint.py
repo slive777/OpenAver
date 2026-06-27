@@ -11288,46 +11288,154 @@ class TestJavlibraryCfFlowT6Guard:
         )
 
 
-# ── FIX-2 frontend guard: search 入口隱藏 JL pill ──
+# ── CD-86-7 frontend guard: search 入口 JL pill gate 改用 isJlUnavailable ──
 
 class TestRescrapeModalSearchHideJlPillGuard:
     """
-    FIX-2：_rescrape_modal.html builtin pill 在 search 入口隱藏 manual_only && is_beta pill。
+    CD-86-7：_rescrape_modal.html builtin pill 在 search 入口不再隱藏，改由 isJlUnavailable gate。
 
-    B2-P3-1 hardening: anchor on the full x-show expression from _rescrape_modal.html ~L49
-    instead of the three component strings individually. Each component string exists
-    elsewhere in the modal independently, so individual checks are comment-foolable.
-    Exact expression: x-show="!(s.manual_only && s.is_beta && rescrapeEntryPoint === 'search')"
+    86-T4 rewrite: 舊 search-hide x-show 表達式（FIX-2）已移除（CD-86-7），
+    改交 isJlUnavailable 統一管可點性（非桌面仍 aria-disabled，AC8 不回歸）。
     """
-
-    # The full load-bearing x-show expression (from _rescrape_modal.html ~L49).
-    _XSHOW_EXPR = 'x-show="!(s.manual_only && s.is_beta && rescrapeEntryPoint === \'search\')"'
 
     def _html(self):
         return _MODAL_HTML_70.read_text(encoding="utf-8")
 
-    def test_modal_builtin_pill_has_search_hide_condition(self):
-        """_rescrape_modal.html builtin pill 含 search 入口 x-show 隱藏條件。
-
-        B2-P3-1: anchored on the full x-show expression so removing/changing the
-        condition fails the guard, even if the component strings remain as comments.
+    def test_modal_builtin_pill_search_gate_uses_isJlUnavailable(self):
+        """CD-86-7: search 入口 javlib pill 不再由 manual_only+is_beta+search 隱藏，
+        改由 isJlUnavailable 統一 gate（非桌面仍 aria-disabled）。
+        舊 search-hide 表達式必須已移除。
         """
         html = self._html()
-        assert self._XSHOW_EXPR in html, (
-            "FIX-2 違規：_rescrape_modal.html builtin pill 缺完整 x-show 隱藏表達式 "
-            f"{self._XSHOW_EXPR!r}（~L49）"
+        OLD_HIDE = "s.manual_only && s.is_beta && rescrapeEntryPoint === 'search'"
+        assert OLD_HIDE not in html, (
+            "CD-86-7 違規：_rescrape_modal.html builtin pill 仍含舊 search 入口隱藏條件—"
+            "應已移除，改交 isJlUnavailable gate"
+        )
+        assert "isJlUnavailable" in html, (
+            "CD-86-7 違規：_rescrape_modal.html 移除 search-hide 後必須保留 isJlUnavailable gate"
         )
 
-    def test_modal_builtin_pill_hide_references_manual_only_and_is_beta(self):
-        """_rescrape_modal.html builtin pill x-show 同時含 manual_only 和 is_beta。
-
-        B2-P3-1: also anchored via the full expression (backward-compat assertion —
-        the full x-show expression implicitly covers both; kept for readable error messages).
+    def test_modal_builtin_pill_jl_gate_preserves_aria_disabled(self):
+        """CD-86-7 + AC8: search 入口 javlib pill x-show 放開後，
+        isJlUnavailable gate 必須仍帶 aria-disabled 綁定（非桌面不可點語義不回歸）。
         """
+        import re
         html = self._html()
-        assert self._XSHOW_EXPR in html, (
-            "FIX-2 違規：_rescrape_modal.html builtin pill 完整 x-show 表達式（含 manual_only "
-            "及 is_beta）遺失"
+        assert "isJlUnavailable" in html, (
+            "AC8 違規：_rescrape_modal.html 缺 isJlUnavailable gate"
+        )
+        assert "aria-disabled" in html, (
+            "AC8 違規：_rescrape_modal.html builtin pill 缺 aria-disabled 綁定"
+        )
+        # element-bound: 確認 isJlUnavailable 和 aria-disabled 在同一 template 上下文（pill 區）
+        m = re.search(
+            r"isJlUnavailable.*?aria-disabled|aria-disabled.*?isJlUnavailable",
+            html, re.DOTALL,
+        )
+        assert m, (
+            "AC8 違規：isJlUnavailable 與 aria-disabled 未出現在 pill 相近上下文"
+        )
+
+
+# ── 86-T4 frontend guard: 版本切換器 + i18n + entry-point gate ──
+
+class TestRescrapeVersionSwitcherGuard:
+    """86-T4: _rescrape_modal.html 版本切換器 + i18n + gate 靜態守衛。"""
+
+    TEMPLATES_DIR = Path(__file__).parent.parent.parent / "web" / "templates"
+    LOCALES_DIR = Path(__file__).parent.parent.parent / "locales"
+    MODAL_HTML = TEMPLATES_DIR / "_rescrape_modal.html"
+    ZH_TW_JSON = LOCALES_DIR / "zh_TW.json"
+
+    def _html(self):
+        return self.MODAL_HTML.read_text(encoding="utf-8")
+
+    def _locale(self):
+        import json
+        return json.loads(self.ZH_TW_JSON.read_text(encoding="utf-8"))
+
+    # ── 切換器 x-show binding ──
+
+    def test_version_switcher_uses_rescrapeHasVersions(self):
+        """切換器 ‹ › 鈕必須綁 x-show="rescrapeHasVersions()"（element-bound，防 comment 假陽性）。"""
+        html = self._html()
+        # element-bound: 要求完整屬性綁定出現在非注釋上下文
+        BINDING = 'x-show="rescrapeHasVersions()"'
+        assert html.count(BINDING) >= 2, (
+            f"86-T4 違規：_rescrape_modal.html 缺足夠的 {BINDING!r} 綁定（切換器 ‹ › 各一）"
+        )
+
+    def test_version_switcher_uses_rescrapeVersionGo(self):
+        """切換器 ‹ › 鈕必須綁 @click rescrapeVersionGo。"""
+        html = self._html()
+        assert "rescrapeVersionGo(-1)" in html, (
+            "86-T4 違規：_rescrape_modal.html 缺 rescrapeVersionGo(-1)（‹ 鈕）"
+        )
+        assert "rescrapeVersionGo(1)" in html, (
+            "86-T4 違規：_rescrape_modal.html 缺 rescrapeVersionGo(1)（› 鈕）"
+        )
+
+    # ── versions_found 走 t() 非硬編碼 ──
+
+    def test_versions_found_uses_t_function(self):
+        """「找到 X 部」文字必須走 t('showcase.rescrape.versions_found')，禁硬編碼繁中。"""
+        html = self._html()
+        assert "showcase.rescrape.versions_found" in html, (
+            "86-T4 違規：_rescrape_modal.html 缺 showcase.rescrape.versions_found t() 呼叫"
+        )
+        # 禁止硬編碼
+        assert "找到" not in html, (
+            "86-T4 違規：_rescrape_modal.html 含硬編碼「找到」文字（應走 i18n）"
+        )
+
+    # ── 不可逆警告 entry-point gate ──
+
+    def test_overwrite_warning_gated_by_lightbox_entrypoint(self):
+        """不可逆警告 rescrape-caption 必須以 rescrapeEntryPoint === 'lightbox' gate。"""
+        import re
+        html = self._html()
+        # element-bound: 在同一個 tag 內找 rescrape-caption 和 lightbox gate
+        m = re.search(
+            r'rescrape-caption[^>]*rescrapeEntryPoint[^>]*lightbox'
+            r'|rescrapeEntryPoint[^>]*lightbox[^>]*rescrape-caption',
+            html,
+        )
+        assert m, (
+            "CD-86-9 違規：rescrape-caption（不可逆警告）缺 rescrapeEntryPoint === 'lightbox' gate"
+        )
+
+    # 註：search 入口 javlib gate 改 isJlUnavailable 的回歸守衛（CD-86-7 + AC8）
+    # 由 TestRescrapeModalSearchHideJlPillGuard 兩條改寫守衛涵蓋，此處不重複。
+
+    # ── i18n key 存在性守衛 ──
+
+    def test_i18n_versions_found_key_exists(self):
+        """showcase.rescrape.versions_found key 必須存在於 zh_TW.json，且含 {count} 插值。"""
+        data = self._locale()
+        key_val = data.get("showcase", {}).get("rescrape", {}).get("versions_found", None)
+        assert key_val is not None, (
+            "86-T4 違規：locales/zh_TW.json 缺 showcase.rescrape.versions_found key"
+        )
+        assert "{count}" in key_val, (
+            "CD-86-11 違規：showcase.rescrape.versions_found 缺 {count} 插值"
+        )
+
+    def test_i18n_version_nav_aria_keys_exist(self):
+        """切換器 prev/next aria key 必須存在於 zh_TW.json。"""
+        data = self._locale()
+        rescrape = data.get("showcase", {}).get("rescrape", {})
+        for key in ("version_prev_aria", "version_next_aria"):
+            assert key in rescrape, (
+                f"86-T4 違規：locales/zh_TW.json 缺 showcase.rescrape.{key} key"
+            )
+
+    def test_i18n_adopt_version_key_exists(self):
+        """search 入口「採用此版本」key 必須存在於 zh_TW.json。"""
+        data = self._locale()
+        rescrape = data.get("showcase", {}).get("rescrape", {})
+        assert "adopt_version" in rescrape, (
+            "86-T4 違規：locales/zh_TW.json 缺 showcase.rescrape.adopt_version key"
         )
 
 
