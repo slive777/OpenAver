@@ -472,28 +472,6 @@ class TestApiEchoStrip:
         assert 'summary' not in data
         assert 'rating' not in data
 
-    def test_variant_path_no_internal_nfo_keys(self, client, monkeypatch):
-        """GET /api/search?variant_id=xxx does not contain _summary / _rating (trivially true, regression guard)"""
-        variant_result = {
-            'title': 'Test',
-            '_source': 'javbus',
-            '_variant_id': 'v1',
-            'number': 'SONE-205',
-        }
-
-        with patch("web.routers.search.search_by_variant_id", return_value=variant_result):
-            resp = client.get("/api/search", params={
-                "q": "SONE-205",
-                "mode": "exact",
-                "variant_id": "some-variant-id"
-            })
-
-        assert resp.status_code == 200
-        data = resp.json()
-        for item in data.get('data', []):
-            assert '_summary' not in item
-            assert '_rating' not in item
-
 
 # ===========================================================================
 # 7. scanner auto coverage（smart_search → search_jav('auto') 含 metatube entry）

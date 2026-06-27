@@ -581,19 +581,6 @@ def test_search_api_graceful_failure(client, mock_search_actress):
         assert data['data'][0]['number'] == 'SONE-205'
 
 
-def test_search_api_variant_id_no_profile(client):
-    """測試 variant_id 路徑有 actress_profile 欄位"""
-    def mock_search_variant(variant_id, q):
-        return {'number': 'SONE-205', 'actors': ['桜空もも']}
-
-    with patch('web.routers.search.search_by_variant_id', side_effect=mock_search_variant):
-        resp = client.get("/api/search?q=SONE-205&variant_id=javbus-SONE-205")
-        data = resp.json()
-
-        assert 'actress_profile' in data
-        assert data['actress_profile'] is None  # variant_id 路徑不觸發
-
-
 def test_sse_includes_actress_profile(client, mock_search_actress, mock_actress_profile):
     """SSE result event 應包含 actress_profile"""
     with patch('web.routers.search.smart_search', side_effect=mock_search_actress), \

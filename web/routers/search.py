@@ -36,7 +36,7 @@ from core.source_config import validate_source_id
 from core.source_settings import is_uncensored_mode_effective
 from core.scraper import (
     search_jav, smart_search, is_partial_number, is_number_format,
-    is_prefix_only, search_partial, search_actress, search_by_variant_id, strip_internal_nfo_keys
+    is_prefix_only, search_partial, search_actress, strip_internal_nfo_keys
 )
 from core.scrapers.utils import SOURCE_ORDER, SOURCE_NAMES
 
@@ -138,7 +138,6 @@ def search(
     q: str = Query(..., description="番號、局部番號、或女優名"),
     mode: str = Query("auto", description="搜尋模式: auto/exact/partial/actress"),
     source: Optional[str] = Query(None, description="指定來源: javbus/jav321/javdb/fc2/avsox"),
-    variant_id: Optional[str] = Query(None, description="變體 ID: 用於切換版本"),
     limit: int = Query(20, description="每頁結果數", ge=1, le=50),
     offset: int = Query(0, description="跳過前 N 個結果（用於分頁）", ge=0),
     since: Optional[str] = Query(None, description="日期過濾（YYYY-MM-DD），只回傳此日期之後的結果"),
@@ -174,20 +173,6 @@ def search(
     # 驗證 source 參數
     if source is not None and not validate_source_id(source):
         return JSONResponse(status_code=400, content={"success": False, "error": f"未知來源: {source}"})
-
-    # 如果指定了 variant_id，直接搜索該版本
-    if variant_id:
-        data = search_by_variant_id(variant_id, q)
-        results = [data] if data else []
-        if since:
-            results = [r for r in results if not r.get('date') or r['date'] >= since]
-        return {
-            "success": bool(results),
-            "data": results,
-            "total": len(results),
-            "mode": "exact",
-            "actress_profile": None
-        }
 
     # 讀取設定（無碼模式 + proxy）
     from core.config import load_config
