@@ -257,11 +257,29 @@ def test_all_sources_metatube_disabled_still_returned(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# get_switchable_source_ids_ordered  (TASK-85b-D7)
+# get_switchable_source_ids_ordered  (TASK-85b-D7, present-then-append per Codex P1)
 # ---------------------------------------------------------------------------
 
-def test_switchable_respects_config_order(monkeypatch):
-    """⟳ 集合依 config sources[].order 排序（拖曳順序被尊重）——D7 修正核心。"""
+def test_switchable_full_config_respects_order(monkeypatch):
+    """全 8 builtin 在場 + order 打亂 → 完全依 config order（D7 修正核心，無 backfill）。"""
+    from core.scrapers.utils import SOURCE_ORDER
+    # 反轉 SOURCE_ORDER 當拖曳順序
+    reversed_order = list(reversed(SOURCE_ORDER))
+    _patch_config(monkeypatch, {
+        'sources': [
+            {'id': sid, 'type': 'builtin', 'enabled': True, 'order': i}
+            for i, sid in enumerate(reversed_order)
+        ]
+    })
+    assert source_settings.get_switchable_source_ids_ordered() == reversed_order
+
+
+def test_switchable_partial_backfills_to_full(monkeypatch):
+    """partial-builtin config（3 row）→ 前 3 依 config order，缺席者依 SOURCE_ORDER append。
+
+    Codex P1 守衛：partial config 下不可丟失缺席 builtin（⟳ 集合不縮）。
+    """
+    from core.scrapers.utils import SOURCE_ORDER
     _patch_config(monkeypatch, {
         'sources': [
             {'id': 'javbus', 'type': 'builtin', 'enabled': True, 'order': 2},
@@ -269,44 +287,79 @@ def test_switchable_respects_config_order(monkeypatch):
             {'id': 'javdb', 'type': 'builtin', 'enabled': True, 'order': 1},
         ]
     })
-    assert source_settings.get_switchable_source_ids_ordered() == ['dmm', 'javdb', 'javbus']
+    result = source_settings.get_switchable_source_ids_ordered()
+    # 前 3 = config order；尾巴 = SOURCE_ORDER 中缺席者，原序
+    expected_tail = [s for s in SOURCE_ORDER if s not in {'dmm', 'javdb', 'javbus'}]
+    assert result == ['dmm', 'javdb', 'javbus'] + expected_tail
+    # 全 8 builtin 都在（無丟失）
+    assert set(result) == set(SOURCE_ORDER)
 
 
 def test_switchable_excludes_manual_only(monkeypatch):
-    """javlibrary（manual_only=True）不在 ⟳ 集合。"""
+    """javlibrary（manual_only=True）不在 ⟳ 集合，且不因 backfill 重新引入。"""
+    from core.scrapers.utils import SOURCE_ORDER
     _patch_config(monkeypatch, {
         'sources': [
             {'id': 'dmm', 'type': 'builtin', 'enabled': True, 'order': 0},
             {'id': 'javlibrary', 'type': 'builtin', 'enabled': True, 'order': 1, 'manual_only': True},
         ]
     })
-    assert source_settings.get_switchable_source_ids_ordered() == ['dmm']
+    result = source_settings.get_switchable_source_ids_ordered()
+    assert 'javlibrary' not in result
+    assert set(result) == set(SOURCE_ORDER)  # 仍補齊全 8 builtin
 
 
 def test_switchable_excludes_metatube(monkeypatch):
-    """metatube:* provider（type!='builtin'）不在 ⟳ 集合。"""
+    """metatube:* provider（type!='builtin'）不在 ⟳ 集合，且不因 backfill 引入。"""
+    from core.scrapers.utils import SOURCE_ORDER
     _patch_config(monkeypatch, {
         'sources': [
             {'id': 'dmm', 'type': 'builtin', 'enabled': True, 'order': 0},
             {'id': 'metatube:javbus', 'type': 'metatube', 'enabled': True, 'order': 100},
         ]
     })
-    assert source_settings.get_switchable_source_ids_ordered() == ['dmm']
+    result = source_settings.get_switchable_source_ids_ordered()
+    assert not any(s.startswith('metatube:') for s in result)
+    assert set(result) == set(SOURCE_ORDER)
+
+
+def test_switchable_excludes_unknown_builtin_id(monkeypatch):
+    """schema-valid 但非 switchable 的 builtin id（如 mystery）不暴露給 ⟳（Codex P1 round-2）。
+
+    SourceConfig 對未知 builtin id 放行，但 exact search route 的 validate_source_id
+    會拒 → ⟳ 輪到會 400。helper 必須限縮 id ∈ SOURCE_ORDER。
+    """
+    from core.scrapers.utils import SOURCE_ORDER
+    _patch_config(monkeypatch, {
+        'sources': [
+            {'id': 'mystery', 'type': 'builtin', 'enabled': True, 'order': 0},
+            {'id': 'dmm', 'type': 'builtin', 'enabled': True, 'order': 1},
+        ]
+    })
+    result = source_settings.get_switchable_source_ids_ordered()
+    assert 'mystery' not in result
+    # 結果恰為正規 8 builtin 的排列（dmm 在場依 order，其餘 backfill）
+    assert set(result) == set(SOURCE_ORDER)
+    assert result[0] == 'dmm'
 
 
 def test_switchable_includes_disabled_builtin(monkeypatch):
-    """不加 enabled gate：停用的 builtin 仍列入（維持原 8-builtin ⟳ 語意）。"""
+    """不加 enabled gate：停用的 builtin 仍列入（維持原全-builtin ⟳ 語意）。"""
     _patch_config(monkeypatch, {
         'sources': [
             {'id': 'dmm', 'type': 'builtin', 'enabled': True, 'order': 0},
             {'id': 'avsox', 'type': 'builtin', 'enabled': False, 'order': 1},
         ]
     })
-    assert source_settings.get_switchable_source_ids_ordered() == ['dmm', 'avsox']
+    result = source_settings.get_switchable_source_ids_ordered()
+    # 前 2 依 config order（含 disabled avsox），其餘 backfill
+    assert result[:2] == ['dmm', 'avsox']
+    from core.scrapers.utils import SOURCE_ORDER
+    assert set(result) == set(SOURCE_ORDER)
 
 
 def test_switchable_fallback_when_no_builtin(monkeypatch):
-    """config 無 builtin non-manual 條目 → fallback list(SOURCE_ORDER)。"""
+    """config 無 builtin non-manual 條目 → 全部 backfill = list(SOURCE_ORDER)。"""
     from core.scrapers.utils import SOURCE_ORDER
     _patch_config(monkeypatch, {'sources': [
         {'id': 'metatube:x', 'type': 'metatube', 'enabled': True, 'order': 100},

@@ -82,13 +82,20 @@ def get_all_source_ids_ordered() -> list[str]:
 
 
 def get_switchable_source_ids_ordered() -> list[str]:
-    """回傳 ⟳ switch-source 可輪替的來源 id（依 config order 升冪）。
+    """回傳 ⟳ switch-source 可輪替的來源 id（builtin non-manual，依 config order）。
 
-    Filter 條件：type == 'builtin' AND manual_only is not True。
+    Filter 條件：type == 'builtin' AND manual_only is not True AND id ∈ SOURCE_ORDER。
     - 排除 javlibrary（manual_only=True, order=99）與 metatube:*（type='metatube'）。
-    - 不加 enabled gate（維持現有 ⟳ 集合語意：全列 8 個 builtin）。
-    - 依 config sources[].order 排序（使用者拖曳順序，UX bug D7 修正目標）。
-    Fallback：config 無此類條目時回 list(SOURCE_ORDER)（原行為，不 crash）。
+    - **限縮 id ∈ SOURCE_ORDER**：SourceConfig 對未知 builtin id（如 mystery）保守放行
+      （source_config.py:72），但 exact search route 的 validate_source_id 會拒 → ⟳ 輪到
+      會 400。故只認正規 8 switchable builtin，不暴露 schema-valid 但非法的 switchable id。
+    - 不加 enabled gate（維持現有 ⟳ 集合語意：全列全部 builtin）。
+    - **present-then-append**：config 現存 builtin 依 sources[].order 升冪排序（使用者
+      拖曳順序，D7 修正目標），再 append config 缺席的正規 builtin（依 SOURCE_ORDER
+      預設序）。這保住「⟳ 集合 = 全 8 個 builtin」的舊保證——partial-builtin config
+      （`_is_valid_sources` 視為合法 idempotent、不補齊，core/config.py:388）下不會
+      丟失缺席來源（修 Codex P1：避免縮小可切換集合）。
+    Fallback：config sources 缺失 / 非 list 時回 list(SOURCE_ORDER)（原行為，不 crash）。
     """
     from core.scrapers.utils import SOURCE_ORDER  # 本地 import 防 circular
     config = load_config()
@@ -101,13 +108,16 @@ def get_switchable_source_ids_ordered() -> list[str]:
         if isinstance(s, dict)
         and s.get('type') == 'builtin'
         and s.get('manual_only') is not True
-        and s.get('id') is not None
+        and s.get('id') in SOURCE_ORDER  # 只認正規 8 switchable builtin（拒未知 id 如 mystery）
     ]
-    if not switchable:
-        return list(SOURCE_ORDER)
-
     switchable.sort(key=lambda s: s.get('order', 0))
-    return [s['id'] for s in switchable]
+
+    present_ids = [s['id'] for s in switchable]
+    present_set = set(present_ids)
+    # append 缺席的正規 builtin，保證全 8 個都在（不重新引入 javlibrary/metatube：
+    # SOURCE_ORDER 是 CENSORED+UNCENSORED 快照，恰為 8 builtin，javlibrary 在快照後才 append）
+    missing = [sid for sid in SOURCE_ORDER if sid not in present_set]
+    return present_ids + missing
 
 
 def is_uncensored_mode_effective(config: dict) -> bool:
