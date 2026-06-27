@@ -201,10 +201,10 @@
         <button type="button" class="rescrape-confirm-btn confirm" @click="rescrapeConfirm()"
                 :aria-label="t('showcase.rescrape.confirm')"><i class="bi bi-check-lg"></i></button>
       </div>
-      {# search 入口：採用此版本單鈕（無不可逆警告，CD-86-9） #}
+      {# search 入口：採用此版本單鈕（✓ icon，無不可逆警告，CD-86-9；86-T6 icon 化防破版） #}
       <div class="rescrape-confirm-row" x-show="rescrapeEntryPoint === 'search'">
         <button type="button" class="rescrape-confirm-btn confirm" @click="rescrapeConfirm()"
-                x-text="t('showcase.rescrape.adopt_version')"></button>
+                :aria-label="t('showcase.rescrape.adopt_version')"><i class="bi bi-check-lg" aria-hidden="true"></i></button>
       </div>
     </div>
 

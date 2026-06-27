@@ -11496,6 +11496,69 @@ class TestRescrapeVersionSwitcherGuard:
             "86-T4 違規：locales/zh_TW.json 缺 showcase.rescrape.adopt_version key"
         )
 
+    # ── 86-T6: search adopt 鈕 icon 化 + 琥珀色守衛 ──
+
+    def test_search_adopt_btn_uses_check_icon(self):
+        """86-T6: search 入口 adopt 鈕必須用 bi-check-lg icon，禁 x-text 文字（破版防回流）。
+        element-bound：守衛綁 rescrapeEntryPoint === 'search' 的 confirm-row block。
+        aria-label 必須走 adopt_version key（螢幕報讀不退化）。
+        """
+        import re
+        html = self._html()
+
+        # 截出 search confirm-row block（class=rescrape-confirm-row + search gate 的 div 到 </div>）
+        m = re.search(
+            r'<div[^>]*rescrape-confirm-row[^>]*rescrapeEntryPoint\s*===\s*[\'"]search[\'"][^>]*>(.*?)</div>',
+            html,
+            re.DOTALL,
+        )
+        assert m, (
+            "86-T6 違規：_rescrape_modal.html 缺 rescrapeEntryPoint === 'search' confirm-row block"
+        )
+        block = m.group(0)
+
+        # adopt 鈕含 bi-check-lg icon
+        assert "bi-check-lg" in block, (
+            "86-T6 違規：search adopt 鈕缺 bi-check-lg icon（應鏡射 lightbox ✓ 鈕寫法）"
+        )
+        # 禁 x-text（防文字溢出破版回流）
+        assert "x-text" not in block, (
+            "86-T6 違規：search adopt 鈕不得含 x-text（文字溢出 48px 圓鈕破版）"
+        )
+        # aria-label 走 adopt_version key
+        assert "adopt_version" in block, (
+            "86-T6 違規：search adopt 鈕缺 adopt_version aria-label（螢幕報讀退化）"
+        )
+
+    def test_version_status_uses_warning_color(self):
+        """86-T6: .rescrape-version-status 與 .rescrape-ver-indicator 的 color 必須為 var(--color-warning)。
+        CSS 守衛（正向 require 值：stylelint 不易 require 特定 token 值，pytest 正向斷言合適）。
+        element-bound：綁定該 selector block，避免誤命中其他 selector。
+        """
+        import re
+        css_path = (
+            Path(__file__).parent.parent.parent
+            / "web" / "static" / "css" / "components" / "rescrape-modal.css"
+        )
+        css = css_path.read_text(encoding="utf-8")
+
+        def extract_block(selector: str, text: str) -> str:
+            """擷取 selector 對應的 { ... } block 內容。"""
+            pattern = re.escape(selector) + r"\s*\{([^}]*)\}"
+            m = re.search(pattern, text)
+            assert m, f"86-T6 違規：rescrape-modal.css 缺 {selector!r} selector block"
+            return m.group(1)
+
+        status_block = extract_block(".rescrape-version-status", css)
+        assert "var(--color-warning)" in status_block, (
+            "86-T6 違規：.rescrape-version-status 的 color 未使用 var(--color-warning)（撞號提示應為琥珀色）"
+        )
+
+        indicator_block = extract_block(".rescrape-ver-indicator", css)
+        assert "var(--color-warning)" in indicator_block, (
+            "86-T6 違規：.rescrape-ver-indicator 的 color 未使用 var(--color-warning)（N/M 指示應為琥珀色）"
+        )
+
 
 # ──────────────────────────────────────────────────────────────
 # CD-70c-3: frontend CF poll unavailable contract guard

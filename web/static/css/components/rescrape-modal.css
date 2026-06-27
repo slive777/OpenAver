@@ -262,12 +262,12 @@
     gap: 0.5rem;
     margin-bottom: 0.5rem;
     font-size: 0.76rem;
-    color: var(--text-secondary);
+    color: var(--color-warning);  /* 86-T6: 撞號提示「注意」語意，同 .rescrape-caption */
 }
 
 .rescrape-ver-indicator {
     font-weight: 600;
-    color: var(--text-primary);
+    color: var(--color-warning);  /* 86-T6: N/M 與「找到 X 部」整行統一琥珀 */
 }
 
 .rescrape-preview .pv-cover img {
