@@ -517,6 +517,9 @@
       "empty_line1": "尚未加入任何資料夾",
       "empty_line2": "點擊上方按鈕或拖曳資料夾至此",
       "remove_title": "移除",
+      "readonly_label": "唯讀",
+      "output_path_label": "輸出到",
+      "output_path_placeholder": "本地媒體庫輸出夾路徑...",
       "output_prefix": "輸出:",
       "settings_link": "設定",
       "copy_path": "複製路徑"

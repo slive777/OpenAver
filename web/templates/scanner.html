@@ -69,13 +69,26 @@
 
                 <!-- Folder Items -->
                 <template x-for="(dir, idx) in directories" :key="idx">
-                    <div class="folder-item">
-                        <i class="bi bi-folder folder-icon"></i>
-                        <span class="folder-path" x-text="dirPath(dir)"></span>
-                        <button class="btn btn-sm btn-outline btn-error btn-remove"
-                                @click="removeDirectory(idx)" title="{{ t('scanner.folder.remove_title') }}">
-                            <i class="bi bi-x"></i>
-                        </button>
+                    <div>
+                        <div class="folder-item">
+                            <label class="flex items-center gap-1">
+                                <input type="checkbox" class="toggle toggle-primary toggle-sm"
+                                       x-model="dir.readonly">
+                                <span>{{ t('scanner.folder.readonly_label') }}</span>
+                            </label>
+                            <i class="bi bi-folder folder-icon"></i>
+                            <span class="folder-path" x-text="dirPath(dir)"></span>
+                            <button class="btn btn-sm btn-outline btn-error btn-remove"
+                                    @click="removeDirectory(idx)" title="{{ t('scanner.folder.remove_title') }}">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                        <div class="folder-item-output" x-show="dir.readonly">
+                            <span>{{ t('scanner.folder.output_path_label') }}</span>
+                            <input type="text" class="input input-bordered input-sm flex-1"
+                                   x-model="dir.output_path"
+                                   placeholder="{{ t('scanner.folder.output_path_placeholder') }}">
+                        </div>
                     </div>
                 </template>
             </div>

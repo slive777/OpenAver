@@ -15967,3 +15967,54 @@ class TestDirPathHelperGuard:
         # The dropdown button x-text must use dirPath
         assert 'x-text="dirPath(dir)"' in html, \
             'settings.html 缺 x-text="dirPath(dir)"'
+
+
+class TestDirReadonlyUIGuard:
+    """TASK-88a-T4: 唯讀 checkbox + 輸出夾 input Alpine 綁定守衛。
+
+    1. scanner.html 含 x-model="dir.readonly"（checkbox 綁定）
+    2. scanner.html 含 x-model="dir.output_path"（輸出夾 input 綁定）
+    3. scanner.html 含 x-show="dir.readonly"（條件顯示輸出夾列）
+    4. state-scan.js 的 push 包含 readonly 與 output_path 屬性（物件形態，非 bare string）
+    """
+
+    _ROOT = Path(__file__).parent.parent.parent
+
+    def _scanner_html(self):
+        return (self._ROOT / "web" / "templates" / "scanner.html").read_text(encoding="utf-8")
+
+    def _state_scan(self):
+        return (self._ROOT / "web" / "static" / "js" / "pages" / "scanner" / "state-scan.js").read_text(encoding="utf-8")
+
+    def test_scanner_html_readonly_checkbox(self):
+        """scanner.html 含 x-model="dir.readonly"（唯讀 checkbox 綁定）"""
+        html = self._scanner_html()
+        assert 'x-model="dir.readonly"' in html, \
+            'scanner.html 缺 x-model="dir.readonly" — 唯讀 checkbox 未加'
+
+    def test_scanner_html_output_path_input(self):
+        """scanner.html 含 x-model="dir.output_path"（輸出夾 input 綁定）"""
+        html = self._scanner_html()
+        assert 'x-model="dir.output_path"' in html, \
+            'scanner.html 缺 x-model="dir.output_path" — 輸出夾 input 未加'
+
+    def test_scanner_html_output_row_xshow(self):
+        """scanner.html 含 x-show="dir.readonly"（條件顯示輸出夾列，非 x-if）"""
+        html = self._scanner_html()
+        assert 'x-show="dir.readonly"' in html, \
+            'scanner.html 缺 x-show="dir.readonly" — 應用 x-show 而非 x-if 控制輸出夾列'
+
+    def test_state_scan_push_has_readonly(self):
+        """state-scan.js 的 directories.push 包含 readonly 屬性（物件形態）"""
+        src = self._state_scan()
+        assert 'readonly' in src and 'directories.push' in src, \
+            "state-scan.js directories.push 缺 readonly 屬性 — 應改為物件 push"
+        # 確認不是 bare push(string)：push 之後必須有物件結構 { path: ..., readonly: ...
+        assert '{ path:' in src or '{ path :' in src, \
+            "state-scan.js directories.push 應推入 {path, readonly, output_path} 物件"
+
+    def test_state_scan_push_has_output_path(self):
+        """state-scan.js 的 directories.push 包含 output_path 屬性（物件形態）"""
+        src = self._state_scan()
+        assert 'output_path' in src, \
+            "state-scan.js 缺 output_path 屬性 — push 物件應含 {path, readonly, output_path}"

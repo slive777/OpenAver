@@ -1,5 +1,11 @@
 import { dirPath } from '@/shared/dir-path.js';
 
+function _detectReadonly(path) {
+    // UNC: \\server\share or //server/share → default readonly
+    // Use startsWith to avoid regex escaping pitfalls
+    return path.startsWith('\\\\') || path.startsWith('//');
+}
+
 export function stateScan() {
     return {
         dirPath,
@@ -439,7 +445,7 @@ export function stateScan() {
 
         addFolderPath(folderPath) {
             if (!this.directories.some(d => dirPath(d) === folderPath)) {
-                this.directories.push(folderPath);
+                this.directories.push({ path: folderPath, readonly: _detectReadonly(folderPath), output_path: '' });
                 this.configDirty = true;
             } else {
                 this.showToast(window.t('scanner.toast.folder_already_added'), 'warning');
@@ -464,7 +470,7 @@ export function stateScan() {
                 return;
             }
 
-            this.directories.push(path);
+            this.directories.push({ path: path, readonly: _detectReadonly(path), output_path: '' });
             this.configDirty = true;
             this.manualPath = '';
         },
