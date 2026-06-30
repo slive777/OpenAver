@@ -15865,3 +15865,105 @@ class TestHelpUpdateButtonGuard:
             "help.html 缺 confirmUpdate() — modal 確認按鈕不存在"
         assert 'cancelUpdate()' in html, \
             "help.html 缺 cancelUpdate() — modal 取消按鈕不存在"
+
+
+class TestDirPathHelperGuard:
+    """TASK-88a-T2: dirPath helper 簽章守衛 + directory-row template 綁定守衛。
+
+    1. shared/dir-path.js 存在且 export function dirPath
+    2. state-scan.js / state-ui.js 各自 import dirPath
+    3. scanner.html directory-row 已用 dirPath(dir)（不殘留裸 x-text="dir"）
+    4. settings.html directory-row 四處已全 dirPath(dir) 化（:key/:title/@click/x-text）
+    5. 無裸 :key="dir" 殘留（settings.html）
+    """
+
+    _ROOT = Path(__file__).parent.parent.parent
+
+    def _dir_path_js(self):
+        return (self._ROOT / "web" / "static" / "js" / "shared" / "dir-path.js").read_text(encoding="utf-8")
+
+    def _state_scan(self):
+        return (self._ROOT / "web" / "static" / "js" / "pages" / "scanner" / "state-scan.js").read_text(encoding="utf-8")
+
+    def _state_ui(self):
+        return (self._ROOT / "web" / "static" / "js" / "pages" / "settings" / "state-ui.js").read_text(encoding="utf-8")
+
+    def _scanner_html(self):
+        return (self._ROOT / "web" / "templates" / "scanner.html").read_text(encoding="utf-8")
+
+    def _settings_html(self):
+        return (self._ROOT / "web" / "templates" / "settings.html").read_text(encoding="utf-8")
+
+    def test_dir_path_js_exists_and_exports(self):
+        """shared/dir-path.js 存在且含 export function dirPath"""
+        src = self._dir_path_js()
+        assert 'export function dirPath' in src, \
+            "shared/dir-path.js 缺 export function dirPath"
+
+    def test_state_scan_imports_dir_path(self):
+        """state-scan.js 從 @/shared/dir-path.js import dirPath"""
+        src = self._state_scan()
+        assert "import { dirPath } from '@/shared/dir-path.js'" in src, \
+            "state-scan.js 缺 import { dirPath } from '@/shared/dir-path.js'"
+
+    def test_state_ui_imports_dir_path(self):
+        """state-ui.js 從 @/shared/dir-path.js import dirPath"""
+        src = self._state_ui()
+        assert "import { dirPath } from '@/shared/dir-path.js'" in src, \
+            "state-ui.js 缺 import { dirPath } from '@/shared/dir-path.js'"
+
+    def test_state_scan_exposes_dir_path_on_state(self):
+        """state-scan.js 把 dirPath 揭露成 state 屬性（否則 template dirPath(dir) runtime throw）"""
+        src = self._state_scan()
+        assert 'dirPath,' in src, \
+            "state-scan.js 未把 dirPath 揭露成 state 屬性（import 不夠，template 求值會 throw）"
+
+    def test_state_ui_exposes_dir_path_on_state(self):
+        """state-ui.js 把 dirPath 揭露成 state 屬性（否則 template dirPath(dir) runtime throw）"""
+        src = self._state_ui()
+        assert 'dirPath,' in src, \
+            "state-ui.js 未把 dirPath 揭露成 state 屬性（import 不夠，template 求值會 throw）"
+
+    def test_scanner_html_uses_dir_path(self):
+        """scanner.html directory-row 已用 dirPath(dir)（不殘留裸 x-text="dir"）"""
+        html = self._scanner_html()
+        assert 'x-text="dirPath(dir)"' in html, \
+            'scanner.html folder-path span 缺 x-text="dirPath(dir)"'
+
+    def test_scanner_html_no_bare_xtext_dir(self):
+        """scanner.html folder-path 不殘留裸 x-text="dir"（directory-row）"""
+        html = self._scanner_html()
+        assert 'x-text="dir"' not in html, \
+            'scanner.html 殘留裸 x-text="dir" — 應改為 x-text="dirPath(dir)"'
+
+    def test_settings_html_key_uses_dir_path(self):
+        """settings.html directory-row :key 已改為 dirPath(dir)"""
+        html = self._settings_html()
+        # The scanner-dir-dropdown x-for must use dirPath
+        assert ':key="dirPath(dir)"' in html, \
+            'settings.html 缺 :key="dirPath(dir)" — [object Object] key bug 未修'
+
+    def test_settings_html_no_bare_key_dir(self):
+        """settings.html directory-row 不殘留裸 :key=dir（應改為 :key="dirPath(dir)"）"""
+        html = self._settings_html()
+        assert ':key="dir"' not in html, \
+            'settings.html 殘留裸 :key="dir" — 應改為 :key="dirPath(dir)"'
+
+    def test_settings_html_title_uses_dir_path(self):
+        """settings.html directory-row :title 已改為 dirPath(dir)"""
+        html = self._settings_html()
+        assert ':title="dirPath(dir)"' in html, \
+            'settings.html 缺 :title="dirPath(dir)"'
+
+    def test_settings_html_click_uses_dir_path(self):
+        """settings.html directory-row @click 已改為 pickScannerDirectory(dirPath(dir))"""
+        html = self._settings_html()
+        assert '@click="pickScannerDirectory(dirPath(dir))"' in html, \
+            'settings.html 缺 @click="pickScannerDirectory(dirPath(dir))"'
+
+    def test_settings_html_xtext_uses_dir_path(self):
+        """settings.html directory-row x-text 已改為 dirPath(dir)"""
+        html = self._settings_html()
+        # The dropdown button x-text must use dirPath
+        assert 'x-text="dirPath(dir)"' in html, \
+            'settings.html 缺 x-text="dirPath(dir)"'

@@ -6,7 +6,7 @@ favorite 從 query param 取得（input 即時值），不讀 config 存檔的 f
 directories / path_mappings 仍從 config 讀（CD-58-B1-4）。
 """
 from fastapi import APIRouter, Query
-from core.config import load_config
+from core.config import load_config, get_gallery_source_paths
 from core.logger import get_logger
 from core.settings_link import find_matched_directory
 
@@ -32,17 +32,15 @@ def get_favorite_scanner_link(
     config = load_config()
     gallery_config = config.get("gallery", {}) if isinstance(config, dict) else getattr(config, "gallery", {})
 
-    # 從 config 讀 directories / path_mappings（不接受前端傳入）
+    # 從 config 讀 path_mappings（不接受前端傳入）
     if isinstance(gallery_config, dict):
-        directories = gallery_config.get("directories", [])
         path_mappings = gallery_config.get("path_mappings", {})
     else:
-        directories = getattr(gallery_config, "directories", [])
         path_mappings = getattr(gallery_config, "path_mappings", {})
 
     matched = find_matched_directory(
         favorite=favorite,
-        directories=directories,
+        directories=get_gallery_source_paths(gallery_config),
         path_mappings=path_mappings or None,
     )
 

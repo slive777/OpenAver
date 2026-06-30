@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from core.database import VideoRepository, get_db_path, init_db
 from core.path_utils import to_file_uri, is_path_under_dir, uri_to_fs_path
 from core.logger import get_logger
-from core.config import load_config
+from core.config import load_config, get_gallery_source_paths
 from core import thumbnail_cache
 
 logger = get_logger(__name__)
@@ -72,13 +72,12 @@ def _serialize_video(v, path_mappings: dict, enabled: bool = False) -> dict:
 def _get_configured_dirs(config: dict) -> tuple[set, dict]:
     """從 config 取出 configured_dir_uris 與 path_mappings（列表與單筆端點共用）"""
     gallery_config = config.get('gallery', {})
-    directories = gallery_config.get('directories', [])
     path_mappings = gallery_config.get('path_mappings', {})
 
     configured_dir_uris: set = set()
-    for d in directories:
+    for p in get_gallery_source_paths(gallery_config):
         try:
-            configured_dir_uris.add(to_file_uri(d, path_mappings))
+            configured_dir_uris.add(to_file_uri(p, path_mappings))
         except ValueError:
             continue
 

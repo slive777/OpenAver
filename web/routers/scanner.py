@@ -40,7 +40,7 @@ from core.path_utils import normalize_path, to_file_uri, is_path_under_dir, uri_
 from core.nfo_updater import check_cache_needs_update, update_videos_generator
 from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite
 from core.organizer import generate_jellyfin_images, HEADERS as _EMBED_HEADERS
-from core.config import load_config
+from core.config import load_config, iter_gallery_sources, get_gallery_source_paths
 from core import thumbnail_cache
 from core.scraper import smart_search
 from core.source_settings import is_uncensored_mode_effective
@@ -136,7 +136,7 @@ def generate_avlist() -> Generator[str, None, None]:
         config = load_config()
         gallery_config = config.get('gallery', {})
 
-        directories = gallery_config.get('directories', [])
+        directories = get_gallery_source_paths(gallery_config)
         output_dir = gallery_config.get('output_dir', 'output')
         output_filename = gallery_config.get('output_filename', 'gallery_output.html')
         path_mappings = gallery_config.get('path_mappings', {})
@@ -193,7 +193,8 @@ def generate_avlist() -> Generator[str, None, None]:
         session_added_paths = []  # 追蹤本次新增/變更的影片路徑
         long_paths: list[str] = []  # a5: Windows 長路徑收集（只在 win32 填充）
 
-        for idx, directory in enumerate(directories, 1):
+        for idx, src in enumerate(iter_gallery_sources(gallery_config), 1):
+            directory = src.path
             logger.info(f"[Gallery] 掃描: {directory}")
 
             # 轉換路徑格式 (Windows -> WSL)
@@ -328,9 +329,9 @@ def generate_avlist() -> Generator[str, None, None]:
         # 建立「當前設定資料夾」URI 集合，用於過濾 DB 記錄
         # DB 保留所有歷史資料當 cache，但只輸出當前設定的資料夾
         configured_dir_uris = set()
-        for d in directories:
+        for p in get_gallery_source_paths(gallery_config):
             try:
-                configured_dir_uris.add(to_file_uri(d, path_mappings))
+                configured_dir_uris.add(to_file_uri(p, path_mappings))
             except ValueError:
                 continue
 
@@ -809,7 +810,6 @@ def get_image(path: str = Query(..., description="圖片路徑")):
     # 3. 目錄白名單：只允許 gallery.directories 底下的檔案
     config = load_config()
     gallery_config = config.get('gallery', {})
-    directories = gallery_config.get('directories', [])
     path_mappings = gallery_config.get('path_mappings', {})
 
     # TASK-73: 兩端對稱正規化 — request_uri 用 single-form（realpath已做）；
@@ -817,8 +817,8 @@ def get_image(path: str = Query(..., description="圖片路徑")):
     request_uri = to_file_uri(local_path, path_mappings)
     allowed = any(
         is_path_under_dir(request_uri, form)
-        for d in directories
-        for form in _dir_candidate_forms(d, path_mappings)
+        for p in get_gallery_source_paths(gallery_config)
+        for form in _dir_candidate_forms(p, path_mappings)
     )
     if not allowed:
         logger.warning("get_image: 拒絕白名單外路徑請求 uri=%s", request_uri)
@@ -1094,7 +1094,6 @@ def get_video(request: Request, path: str = Query(..., description="影片路徑
 
     # 4. 目錄白名單：只允許 gallery.directories 底下的檔案
     gallery_config = config.get('gallery', {})
-    directories = gallery_config.get('directories', [])
     path_mappings = gallery_config.get('path_mappings', {})
 
     # TASK-73: 兩端對稱正規化 — request_uri 用 single-form（realpath已做）；
@@ -1102,8 +1101,8 @@ def get_video(request: Request, path: str = Query(..., description="影片路徑
     request_uri = to_file_uri(local_path, path_mappings)
     allowed = any(
         is_path_under_dir(request_uri, form)
-        for d in directories
-        for form in _dir_candidate_forms(d, path_mappings)
+        for p in get_gallery_source_paths(gallery_config)
+        for form in _dir_candidate_forms(p, path_mappings)
     )
     if not allowed:
         logger.warning("get_video: 拒絕白名單外路徑請求 uri=%s", request_uri)

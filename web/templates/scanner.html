@@ -71,7 +71,7 @@
                 <template x-for="(dir, idx) in directories" :key="idx">
                     <div class="folder-item">
                         <i class="bi bi-folder folder-icon"></i>
-                        <span class="folder-path" x-text="dir"></span>
+                        <span class="folder-path" x-text="dirPath(dir)"></span>
                         <button class="btn btn-sm btn-outline btn-error btn-remove"
                                 @click="removeDirectory(idx)" title="{{ t('scanner.folder.remove_title') }}">
                             <i class="bi bi-x"></i>

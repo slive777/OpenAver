@@ -1,5 +1,8 @@
+import { dirPath } from '@/shared/dir-path.js';
+
 export function stateScan() {
     return {
+        dirPath,
         // ===== Data State =====
         directories: [],
         config: {},
@@ -435,7 +438,7 @@ export function stateScan() {
         },
 
         addFolderPath(folderPath) {
-            if (!this.directories.includes(folderPath)) {
+            if (!this.directories.some(d => dirPath(d) === folderPath)) {
                 this.directories.push(folderPath);
                 this.configDirty = true;
             } else {
@@ -456,7 +459,7 @@ export function stateScan() {
             const path = this.manualPath.trim();
             if (!path) return;
 
-            if (this.directories.includes(path)) {
+            if (this.directories.some(d => dirPath(d) === path)) {
                 this.showToast(window.t('scanner.toast.folder_already_added'), 'warning');
                 return;
             }
