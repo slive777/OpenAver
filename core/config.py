@@ -135,7 +135,17 @@ class DirectoryConfig(BaseModel):
 
 
 class GalleryConfig(BaseModel):
-    directories: List[str] = []
+    directories: List[DirectoryConfig] = []
+
+    @field_validator("directories", mode="before")
+    @classmethod
+    def _coerce_directories(cls, v):
+        """容忍三型元素：str（舊/測試 fixture）、dict（遷移後 raw）、DirectoryConfig。
+        裸 str → {"path": s}，其餘原樣交給 Pydantic 驗證。"""
+        if not isinstance(v, list):
+            return v
+        return [{"path": e} if isinstance(e, str) else e for e in v]
+
     output_dir: str = "output"
     output_filename: str = "gallery_output.html"
     path_mappings: dict = {}
@@ -223,6 +233,27 @@ def _load_config_unlocked() -> dict:
                 g['min_size_mb'] = int(round(g.get('min_size_kb', 0) / 1024))
                 del g['min_size_kb']
                 need_save = True
+
+        # Migration: gallery.directories 純字串 → DirectoryConfig 物件（feature/88）
+        # 加法式、冪等：已是完整 dict 的元素原樣保留；裸 str 升級成物件。
+        # 排在 avlist→gallery 遷移之後，確保 avlist 搬來的 directories 也被正規化。
+        if 'gallery' in raw_config and isinstance(raw_config['gallery'].get('directories'), list):
+            new_dirs = []
+            for d in raw_config['gallery']['directories']:
+                if isinstance(d, str):
+                    new_dirs.append({"path": d, "readonly": False, "output_path": ""})
+                    need_save = True
+                elif isinstance(d, dict):
+                    # 已是物件：補缺省欄位（向前相容未來新欄位）
+                    if 'readonly' not in d or 'output_path' not in d:
+                        d.setdefault('readonly', False)
+                        d.setdefault('output_path', "")
+                        need_save = True
+                    new_dirs.append(d)
+                # 其他型別（理論上不該出現）原樣保留，不阻斷載入
+                else:
+                    new_dirs.append(d)
+            raw_config['gallery']['directories'] = new_dirs
 
         # Migration: translate 扁平結構 -> 嵌套結構
         if 'translate' in raw_config:
