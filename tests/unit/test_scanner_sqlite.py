@@ -277,14 +277,22 @@ class TestScanToSqlite:
         create_video_file(temp_video_dir, "test.mp4")
 
         # Mock get_db_path 指向臨時 DB，避免 scan_to_sqlite 步驟 4
-        # 清理邏輯把真實 DB 中不在 temp_video_dir 的影片全部刪除
+        # 清理邏輯把真實 DB 中不在 temp_video_dir 的影片全部刪除。
+        # gallery_scanner.scan_to_sqlite 走 `from core.database import get_db_path`
+        # （facade 複製 binding），故必須 patch facade 目標；connection 目標一併 patch
+        # 以防未來消費端改走 repo/sibling 路徑（兩者皆 patch，binding 解析走哪條都隔離）。
         mock_db = tmp_path / "test_default.db"
+        monkeypatch.setattr("core.database.get_db_path", lambda: mock_db)
         monkeypatch.setattr("core.database.connection.get_db_path", lambda: mock_db)
 
         scanner = VideoScanner()
         result = scanner.scan_to_sqlite(str(temp_video_dir))
 
         assert result['inserted'] == 1
+        # 隔離守衛（mutation-proof）：若 patch 沒打中 facade binding，scan 會開真實
+        # 預設 DB、mock_db 永不被建立——下面兩條斷言就會紅燈，不再「為錯的理由變綠」。
+        assert mock_db.exists(), "scan_to_sqlite 未寫入 mock DB → 隔離失效，打到真實 DB"
+        assert len(VideoRepository(mock_db).get_all()) == 1
 
     def test_scan_nfo_with_bare_ampersand(self, temp_db, temp_video_dir):
         """含 bare & 的 NFO 應可解析，actor 和 genre 正確讀取"""
