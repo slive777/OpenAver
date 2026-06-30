@@ -122,6 +122,18 @@ class TranslateConfig(BaseModel):
     ollama_model: Optional[str] = None
 
 
+class DirectoryConfig(BaseModel):
+    """Scanner 來源目錄設定（feature/88）。
+
+    舊 config 的 directories 是純字串清單；本模型把每個目錄升級為帶
+    readonly / output_path 的物件。load_config() 的加法式遷移負責 str → object（T-3
+    落地），iter_gallery_sources helper 則讓呼叫端永遠拿到帶欄位的物件（T-1 起）。
+    """
+    path: str                  # 來源路徑（FS 路徑或 file:/// URI）
+    readonly: bool = False     # 唯讀模式：不寫回來源（88b/88c 才實作生成分流）
+    output_path: str = ""      # 此來源的本地媒體庫輸出根目錄；空 = 未設定
+
+
 class GalleryConfig(BaseModel):
     directories: List[str] = []
     output_dir: str = "output"
@@ -501,3 +513,45 @@ def reset_config_file() -> None:
     with _config_write_lock:
         if CONFIG_PATH.exists():
             CONFIG_PATH.unlink()
+
+
+# ============ Gallery source helpers（feature/88, plan §3）============
+
+
+def iter_gallery_sources(gallery_config) -> List[DirectoryConfig]:
+    """把 gallery 設定的 directories 正規化成 DirectoryConfig 清單。
+
+    gallery_config: dict（load_config 回傳的 raw gallery 段）或 GalleryConfig 模型皆可。
+    元素: str / dict / DirectoryConfig 皆可 —— 永久容忍裸 str（舊 config、測試 fixture）。
+    回傳: List[DirectoryConfig]，呼叫端永遠拿到帶 .path/.readonly/.output_path 的物件。
+    未知型別元素（如 42、None）跳過，不阻斷、不拋例外。
+    """
+    if gallery_config is None:
+        return []
+    raw = (
+        gallery_config.get('directories', [])
+        if isinstance(gallery_config, dict)
+        else getattr(gallery_config, 'directories', [])
+    )
+    out: List[DirectoryConfig] = []
+    for d in raw or []:
+        if isinstance(d, DirectoryConfig):
+            out.append(d)
+        elif isinstance(d, str):
+            out.append(DirectoryConfig(path=d))
+        elif isinstance(d, dict):
+            out.append(DirectoryConfig(
+                path=d.get('path', ''),
+                readonly=d.get('readonly', False),
+                output_path=d.get('output_path', ''),
+            ))
+        # 其他型別跳過（不阻斷）
+    return out
+
+
+def get_gallery_source_paths(gallery_config) -> List[str]:
+    """只取來源 path 字串清單（給只關心路徑的舊 call site）。
+
+    行為與舊「純字串 directories 清單」逐位元等價。
+    """
+    return [d.path for d in iter_gallery_sources(gallery_config)]
