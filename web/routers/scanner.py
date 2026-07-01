@@ -102,6 +102,24 @@ def _dir_candidate_forms(raw_dir: str, path_mappings: dict) -> tuple:
     return forms
 
 
+def _image_whitelist_dirs(gallery_config) -> List[str]:
+    """TASK-88c-T1: /api/gallery/image 白名單的候選 raw 目錄清單。
+
+    每個來源 emit `src.path`，並在 `src.output_path` 非空時一併 emit
+    （讓唯讀 + off 風味生成到 output_path 底下的封面/劇照能經 image proxy 服務）。
+
+    純函式、無 IO。`""` output_path 被過濾——不讓空字串進 `_dir_candidate_forms`
+    （避免 `to_file_uri('') = 'file:///'` 根路徑把整顆磁碟放進白名單，
+    CWE-allowlist bypass）。get_video 不共用此 helper（獨立 call site，spec P1a）。
+    """
+    dirs: List[str] = []
+    for src in iter_gallery_sources(gallery_config):
+        dirs.append(src.path)
+        if src.output_path:
+            dirs.append(src.output_path)
+    return dirs
+
+
 def _sse_event(data: dict) -> str:
     """將 dict 編碼為 SSE 格式的單條 message。"""
     return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
@@ -815,9 +833,11 @@ def get_image(path: str = Query(..., description="圖片路徑")):
     # TASK-73: 兩端對稱正規化 — request_uri 用 single-form（realpath已做）；
     # dir 端用 dual-form（normpath + realpath 候選），避免 SMB mapped drive 格式不同 403 誤殺
     request_uri = to_file_uri(local_path, path_mappings)
+    # TASK-88c-T1: 白名單納入各來源非空 output_path（唯讀 off 風味封面服務）；
+    # 複用 _dir_candidate_forms dual-form，不另寫 single-form 比對
     allowed = any(
         is_path_under_dir(request_uri, form)
-        for p in get_gallery_source_paths(gallery_config)
+        for p in _image_whitelist_dirs(gallery_config)
         for form in _dir_candidate_forms(p, path_mappings)
     )
     if not allowed:

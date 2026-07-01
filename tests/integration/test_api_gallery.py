@@ -110,6 +110,56 @@ class TestImageProxyUNCAllowlist:
         assert response.status_code == 403
 
 
+class TestImageProxyOutputPath:
+    """TASK-88c-T1: /api/gallery/image 白名單納入各來源非空 output_path"""
+
+    def test_cover_under_output_path_allowed(self, client, tmp_path, mocker):
+        """封面在唯讀來源的 output_path 底下 → 200（原 403 → 現 200，Acceptance #16）"""
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        cover = out_dir / "MOVIE-001" / "poster.jpg"
+        cover.parent.mkdir()
+        cover.write_bytes(b'\xff\xd8\xff\xe0' + b'\x00' * 50)  # JPEG magic
+
+        mocker.patch('web.routers.scanner.load_config', return_value={
+            'gallery': {
+                'directories': [
+                    {'path': str(src_dir), 'readonly': True, 'output_path': str(out_dir)},
+                ],
+                'path_mappings': {},
+            },
+        })
+
+        response = client.get('/api/gallery/image', params={'path': str(cover)})
+        assert response.status_code == 200
+        assert response.headers['content-type'] == 'image/jpeg'
+
+    def test_file_outside_output_path_still_403(self, client, tmp_path, mocker):
+        """檔案在 output_path 外、且不在任何 src.path 底下 → 403（守衛不退化）"""
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        cover = elsewhere / "poster.jpg"
+        cover.write_bytes(b'\xff\xd8\xff\xe0' + b'\x00' * 50)
+
+        mocker.patch('web.routers.scanner.load_config', return_value={
+            'gallery': {
+                'directories': [
+                    {'path': str(src_dir), 'readonly': True, 'output_path': str(out_dir)},
+                ],
+                'path_mappings': {},
+            },
+        })
+
+        response = client.get('/api/gallery/image', params={'path': str(cover)})
+        assert response.status_code == 403
+
+
 class TestImageProxyPathConversion:
     """測試圖片代理路徑轉換"""
 

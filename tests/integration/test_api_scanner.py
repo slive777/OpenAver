@@ -127,6 +127,36 @@ class TestScannerAPI:
 
         assert response.status_code == 403
 
+    def test_get_video_output_path_not_allowed(self, client, tmp_path, monkeypatch):
+        """TASK-88c-T1 回歸鎖：唯讀來源 output_path 底下的影片 → /api/gallery/video 仍 403
+
+        證明 get_video call site 未被 88c-T1 波及（get_image 開放 output_path、
+        get_video 刻意不對稱，spec P1a 明令）。
+        """
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        video_file = out_dir / "test.mp4"
+        video_file.write_bytes(b'fake_video_content')
+
+        test_config = {
+            "gallery": {
+                "directories": [
+                    {"path": str(src_dir), "readonly": True, "output_path": str(out_dir)},
+                ],
+                "path_mappings": {},
+            },
+            "scraper": {"video_extensions": [".mp4"]},
+        }
+        monkeypatch.setattr("web.routers.scanner.load_config", lambda: test_config)
+
+        path_arg = to_file_uri(str(video_file))
+        response = client.get(f"/api/gallery/video?path={quote(path_arg)}")
+
+        assert response.status_code == 403
+        assert "不在允許的資料夾範圍內" in response.text
+
     def test_get_player_success(self, client):
         """測試 /api/gallery/player 回傳正確的 HTML"""
         video_path = to_file_uri("C:/videos/test.mp4")
