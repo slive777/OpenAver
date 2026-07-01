@@ -122,8 +122,30 @@ class TranslateConfig(BaseModel):
     ollama_model: Optional[str] = None
 
 
+class DirectoryConfig(BaseModel):
+    """Scanner 來源目錄設定（feature/88）。
+
+    舊 config 的 directories 是純字串清單；本模型把每個目錄升級為帶
+    readonly / output_path 的物件。load_config() 的加法式遷移負責 str → object（T-3
+    落地），iter_gallery_sources helper 則讓呼叫端永遠拿到帶欄位的物件（T-1 起）。
+    """
+    path: str                  # 來源路徑（FS 路徑或 file:/// URI）
+    readonly: bool = False     # 唯讀模式：不寫回來源（88b/88c 才實作生成分流）
+    output_path: str = ""      # 此來源的本地媒體庫輸出根目錄；空 = 未設定
+
+
 class GalleryConfig(BaseModel):
-    directories: List[str] = []
+    directories: List[DirectoryConfig] = []
+
+    @field_validator("directories", mode="before")
+    @classmethod
+    def _coerce_directories(cls, v):
+        """容忍三型元素：str（舊/測試 fixture）、dict（遷移後 raw）、DirectoryConfig。
+        裸 str → {"path": s}，其餘原樣交給 Pydantic 驗證。"""
+        if not isinstance(v, list):
+            return v
+        return [{"path": e} if isinstance(e, str) else e for e in v]
+
     output_dir: str = "output"
     output_filename: str = "gallery_output.html"
     path_mappings: dict = {}
@@ -211,6 +233,27 @@ def _load_config_unlocked() -> dict:
                 g['min_size_mb'] = int(round(g.get('min_size_kb', 0) / 1024))
                 del g['min_size_kb']
                 need_save = True
+
+        # Migration: gallery.directories 純字串 → DirectoryConfig 物件（feature/88）
+        # 加法式、冪等：已是完整 dict 的元素原樣保留；裸 str 升級成物件。
+        # 排在 avlist→gallery 遷移之後，確保 avlist 搬來的 directories 也被正規化。
+        if 'gallery' in raw_config and isinstance(raw_config['gallery'].get('directories'), list):
+            new_dirs = []
+            for d in raw_config['gallery']['directories']:
+                if isinstance(d, str):
+                    new_dirs.append({"path": d, "readonly": False, "output_path": ""})
+                    need_save = True
+                elif isinstance(d, dict):
+                    # 已是物件：補缺省欄位（向前相容未來新欄位）
+                    if 'readonly' not in d or 'output_path' not in d:
+                        d.setdefault('readonly', False)
+                        d.setdefault('output_path', "")
+                        need_save = True
+                    new_dirs.append(d)
+                # 其他型別（理論上不該出現）原樣保留，不阻斷載入
+                else:
+                    new_dirs.append(d)
+            raw_config['gallery']['directories'] = new_dirs
 
         # Migration: translate 扁平結構 -> 嵌套結構
         if 'translate' in raw_config:
@@ -501,3 +544,63 @@ def reset_config_file() -> None:
     with _config_write_lock:
         if CONFIG_PATH.exists():
             CONFIG_PATH.unlink()
+
+
+# ============ Gallery source helpers（feature/88, plan §3）============
+
+
+def iter_gallery_sources(gallery_config) -> List[DirectoryConfig]:
+    """把 gallery 設定的 directories 正規化成 DirectoryConfig 清單。
+
+    gallery_config: dict（load_config 回傳的 raw gallery 段）或 GalleryConfig 模型皆可。
+    元素: str / dict / DirectoryConfig 皆可 —— 永久容忍裸 str（舊 config、測試 fixture）。
+    回傳: List[DirectoryConfig]，呼叫端永遠拿到帶 .path/.readonly/.output_path 的物件。
+    未知型別元素（如 42、None）跳過，不阻斷、不拋例外。
+
+    安全性：丟棄沒有「可用非空字串 path」的元素（缺 path / path=null / path=""
+    / path 非字串）。空 path 會被 to_file_uri('') 變成 'file:///'，而 file:/// 是
+    任意 file URI 的前綴 —— 會讓 image/video proxy allowlist、showcase 篩選、
+    settings-link 比對全部命中任意路徑（CWE-allowlist bypass）。故在這個讀取路徑
+    chokepoint 直接 skip。readonly / output_path 欄位型別不對（如 null）則容忍降級，
+    不讓單一髒元素拋 ValidationError 連坐所有 consumer。
+    """
+    if gallery_config is None:
+        return []
+    raw = (
+        gallery_config.get('directories', [])
+        if isinstance(gallery_config, dict)
+        else getattr(gallery_config, 'directories', [])
+    )
+    out: List[DirectoryConfig] = []
+    for d in raw or []:
+        if isinstance(d, DirectoryConfig):
+            if d.path:
+                out.append(d)
+        elif isinstance(d, str):
+            if d:
+                out.append(DirectoryConfig(path=d))
+        elif isinstance(d, dict):
+            path = d.get('path')
+            if not isinstance(path, str) or not path:
+                continue  # 缺 path / null / 空 / 非字串 → skip（避免 file:/// allowlist 全命中）
+            readonly = d.get('readonly', False)
+            if not isinstance(readonly, bool):
+                readonly = False  # null / 型別錯誤 → 降級 False
+            output_path = d.get('output_path', '')
+            if not isinstance(output_path, str):
+                output_path = ''  # null / 型別錯誤 → 降級 ''
+            out.append(DirectoryConfig(
+                path=path,
+                readonly=readonly,
+                output_path=output_path,
+            ))
+        # 其他型別跳過（不阻斷）
+    return out
+
+
+def get_gallery_source_paths(gallery_config) -> List[str]:
+    """只取來源 path 字串清單（給只關心路徑的舊 call site）。
+
+    行為與舊「純字串 directories 清單」逐位元等價。
+    """
+    return [d.path for d in iter_gallery_sources(gallery_config)]

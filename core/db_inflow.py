@@ -6,7 +6,7 @@ Search 頁整理完成後，條件式將影片寫入 DB（in-flow upsert）。
 """
 from __future__ import annotations
 
-from core.config import load_config
+from core.config import load_config, get_gallery_source_paths
 from core.database import Video, VideoRepository
 from core.gallery_scanner import VideoScanner
 from core.logger import get_logger
@@ -102,7 +102,6 @@ def try_inflow_upsert(
     try:
         config = load_config()
         gallery_cfg = config.get("gallery", {})
-        directories: list = gallery_cfg.get("directories", [])
         path_mappings: dict | None = gallery_cfg.get("path_mappings") or None
 
         # 步驟 2.5：算 old_uri（禁止手拼 file:///，依 CLAUDE.md 路徑規則）
@@ -113,7 +112,7 @@ def try_inflow_upsert(
             old_uri = to_file_uri(old_file_path, path_mappings)
 
         # 步驟 1：確認檔案在 Scanner 追蹤範圍內
-        matched = find_matched_directory(target_file_path, directories, path_mappings)
+        matched = find_matched_directory(target_file_path, get_gallery_source_paths(gallery_cfg), path_mappings)
         if matched is None:
             logger.debug(
                 "try_inflow_upsert: %r 不在任何 Scanner directory，skip",

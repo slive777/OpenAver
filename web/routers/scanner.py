@@ -21,6 +21,7 @@ import asyncio
 import base64
 import json
 import os
+import queue
 import sys
 import threading
 import time
@@ -36,11 +37,12 @@ from fastapi.responses import StreamingResponse, HTMLResponse, Response, FileRes
 from core.gallery_scanner import VideoScanner, fast_scan_directory, VideoInfo, _run_sample_images_cleanup_pass
 from core.video_extensions import get_proxy_extensions, get_video_extensions
 from core.gallery_generator import HTMLGenerator
-from core.path_utils import normalize_path, to_file_uri, is_path_under_dir, uri_to_fs_path
+from core.path_utils import to_file_uri, is_path_under_dir, uri_to_fs_path, coerce_to_file_uri
 from core.nfo_updater import check_cache_needs_update, update_videos_generator
 from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite
 from core.organizer import generate_jellyfin_images, HEADERS as _EMBED_HEADERS
-from core.config import load_config
+from core.config import load_config, iter_gallery_sources, get_gallery_source_paths
+from core.readonly_producer import produce_source
 from core import thumbnail_cache
 from core.scraper import smart_search
 from core.source_settings import is_uncensored_mode_effective
@@ -90,9 +92,16 @@ def _dir_candidate_forms(raw_dir: str, path_mappings: dict) -> tuple:
         if now < expire:
             return forms
 
-    normpath_form = to_file_uri(os.path.normpath(raw_dir), path_mappings)
+    # raw_dir 可能是 FS 路徑或 file:/// URI（DirectoryConfig.path schema：「FS 路徑或
+    # URI」）。先過 uri_to_fs_path 統一成 FS 路徑（URI→FS，FS→FS 冪等，path-contract
+    # 合規，不手刻 startswith('file:///')）。否則對 URI 直接 os.path.normpath/realpath
+    # 會把 file:/// 折成 file:/ 再被 to_file_uri 二次包成 file:///file:/…，image/video
+    # 兩條白名單同時誤殺（PR#91 P2-D 同源）。FS 輸入行為不變 → 保留 dual-form + TASK-73
+    # 跨格式 casefold。
+    fs_dir = uri_to_fs_path(raw_dir)
+    normpath_form = to_file_uri(os.path.normpath(fs_dir), path_mappings)
     try:
-        realpath_form = to_file_uri(os.path.realpath(raw_dir), path_mappings)
+        realpath_form = to_file_uri(os.path.realpath(fs_dir), path_mappings)
         forms = tuple(dict.fromkeys([normpath_form, realpath_form]))
         # cache-on-success-only
         _dir_forms_cache[cache_key] = (forms, now + _DIR_FORMS_TTL)
@@ -100,6 +109,24 @@ def _dir_candidate_forms(raw_dir: str, path_mappings: dict) -> tuple:
         # FUSE/WinFsp: normpath fallback — 不寫快取，確保 NAS 重連後立即重算
         forms = (normpath_form,)
     return forms
+
+
+def _image_whitelist_dirs(gallery_config) -> List[str]:
+    """TASK-88c-T1: /api/gallery/image 白名單的候選 raw 目錄清單。
+
+    每個來源 emit `src.path`，並在 `src.output_path` 非空時一併 emit
+    （讓唯讀 + off 風味生成到 output_path 底下的封面/劇照能經 image proxy 服務）。
+
+    純函式、無 IO。`""` output_path 被過濾——不讓空字串進 `_dir_candidate_forms`
+    （避免 `to_file_uri('') = 'file:///'` 根路徑把整顆磁碟放進白名單，
+    CWE-allowlist bypass）。get_video 不共用此 helper（獨立 call site，spec P1a）。
+    """
+    dirs: List[str] = []
+    for src in iter_gallery_sources(gallery_config):
+        dirs.append(src.path)
+        if src.output_path:
+            dirs.append(src.output_path)
+    return dirs
 
 
 def _sse_event(data: dict) -> str:
@@ -128,6 +155,110 @@ def _emit_long_path_warnings(logger_, long_paths: List[str]) -> None:
         logger_.warning(f"  {p}")
 
 
+# ---------------------------------------------------------------------------
+# TASK-88c-T2: readonly 來源分流 + SSE thread/queue 橋接 + 四數摘要
+# ---------------------------------------------------------------------------
+
+def _outcome_to_sse(o) -> dict:
+    """把 ProduceOutcome 轉一條 SSE log 行 dict（純函式）。
+
+    error 已是固定 "生成失敗"（producer 已 sanitize，:462）→ 直接轉發，
+    不再塞 server-side 細節。failed → warn，其餘 info。
+    """
+    label = {
+        "created": "✓ 生成",
+        "skipped": "略過",
+        "no_scrape": "刮不到",
+        "failed": "✗ 失敗",
+    }.get(o.status, o.status)
+    msg = f"  {label}: {o.number or o.source_uri}"
+    if o.status == "failed" and o.error:
+        msg += f"（{o.error}）"
+    return {"type": "log", "level": "warn" if o.status == "failed" else "info", "message": msg}
+
+
+def _accumulate_readonly(summary: dict, result) -> None:
+    """跨來源累計四數 + no_output（純函式，CD-88c-3）。
+
+    no_output_path → 只 no_output+1；其他非空 aborted_reason（not_readonly 防呆）
+    → 記 log 不計數；正常 → sources+1 並累加 created/skipped/no_scrape/failed。
+    """
+    if result.aborted_reason == "no_output_path":
+        summary["no_output"] += 1
+        return
+    if result.aborted_reason:
+        logger.info("唯讀來源略過（%s）: %s", result.aborted_reason, result.source_path)
+        return
+    summary["sources"] += 1
+    summary["created"] += result.created
+    summary["skipped"] += result.skipped
+    summary["no_scrape"] += result.no_scrape
+    summary["failed"] += result.failed
+
+
+def _yield_source_summary(result) -> Generator[str, None, None]:
+    """該來源小結（產生器）。no_output_path → 「請先設定輸出夾」提示（Acceptance #11）。"""
+    if result.aborted_reason == "no_output_path":
+        yield _sse_event({
+            "type": "log", "level": "warn",
+            "message": f"  {result.source_path}: 請先設定輸出夾，已略過",
+        })
+    elif not result.aborted_reason:
+        yield _sse_event({
+            "type": "log", "level": "info",
+            "message": (
+                f"  {result.source_path}: 新增 {result.created}／略過 {result.skipped}"
+                f"／刮不到 {result.no_scrape}／失敗 {result.failed}"
+            ),
+        })
+
+
+def _run_readonly_source(src, config, repo, proxy_url, summary) -> Generator[str, None, None]:
+    """在 daemon worker thread 跑 produce_source，drain 無界 queue 逐片 yield SSE。
+
+    worker 例外（含 produce_source 迴圈前的 normalize/列檔/DB 拋錯，未被 producer
+    內 try 包覆）顯式接手（CD-88c-1 / Codex P1），不靜默吞：box['error'] → 產生器
+    emit error SSE + source_errors+1 + 續下一來源。
+    """
+    q: "queue.Queue" = queue.Queue()  # 無界：worker 永不阻塞於 put，client 斷線 daemon 自然退出
+    _SENTINEL = object()
+    box: dict = {}
+
+    def _work():
+        try:
+            box['result'] = produce_source(
+                src, config, repo, proxy_url=proxy_url,
+                on_progress=q.put,
+                should_abort=None,
+            )
+        except Exception:
+            logger.exception("唯讀生成來源失敗: %s", src.path)
+            box['error'] = True
+        finally:
+            q.put(_SENTINEL)
+
+    t = threading.Thread(target=_work, daemon=True)
+    t.start()
+    yield _sse_event({"type": "log", "level": "info", "message": f"唯讀生成: {src.path}"})
+    while True:
+        item = q.get()
+        if item is _SENTINEL:
+            break
+        yield _sse_event(_outcome_to_sse(item))
+    t.join()
+    if box.get('error'):
+        summary["source_errors"] += 1
+        yield _sse_event({
+            "type": "log", "level": "error",
+            "message": f"  {src.path}: 生成失敗（來源無法存取或設定錯誤）",
+        })
+        return
+    result = box.get('result')
+    if result is not None:
+        _accumulate_readonly(summary, result)
+        yield from _yield_source_summary(result)
+
+
 def generate_avlist() -> Generator[str, None, None]:
     """產生影片列表（SSE 串流）- 使用 SQLite 儲存"""
 
@@ -136,7 +267,7 @@ def generate_avlist() -> Generator[str, None, None]:
         config = load_config()
         gallery_config = config.get('gallery', {})
 
-        directories = gallery_config.get('directories', [])
+        directories = get_gallery_source_paths(gallery_config)
         output_dir = gallery_config.get('output_dir', 'output')
         output_filename = gallery_config.get('output_filename', 'gallery_output.html')
         path_mappings = gallery_config.get('path_mappings', {})
@@ -193,12 +324,28 @@ def generate_avlist() -> Generator[str, None, None]:
         session_added_paths = []  # 追蹤本次新增/變更的影片路徑
         long_paths: list[str] = []  # a5: Windows 長路徑收集（只在 win32 填充）
 
-        for idx, directory in enumerate(directories, 1):
+        # TASK-88c-T2: readonly 來源生成摘要（跨來源累計，迴圈前初始化避免清零）
+        proxy_url = config.get('search', {}).get('proxy_url', '')
+        readonly_summary = {
+            "created": 0, "skipped": 0, "no_scrape": 0, "failed": 0,
+            "no_output": 0, "sources": 0, "source_errors": 0,
+        }
+
+        for idx, src in enumerate(iter_gallery_sources(gallery_config), 1):
+            directory = src.path
             logger.info(f"[Gallery] 掃描: {directory}")
 
-            # 轉換路徑格式 (Windows -> WSL)
+            # TASK-88c-T2: readonly 來源分流（早於 normalize，UNC 主場景不被擋）
+            if src.readonly:
+                yield from _run_readonly_source(src, config, repo, proxy_url, readonly_summary)
+                continue
+
+            # 轉換路徑格式 (Windows -> WSL)。directory 可能是 FS 路徑或 file:/// URI
+            # （DirectoryConfig.path schema）。uri_to_fs_path 對 URI→FS、FS→FS 皆冪等，
+            # 取代裸 normalize_path（後者對 URI 原樣通過 → os.path.exists 失敗 → 誤報
+            # 「資料夾不存在」，非 readonly 的 URI 來源掃不到）。
             try:
-                normalized_dir = normalize_path(directory)
+                normalized_dir = uri_to_fs_path(directory)
             except ValueError:
                 logger.exception("路徑轉換失敗: %s", directory)
                 yield _sse_event({"type": "log", "level": "warn", "message": "路徑轉換失敗"})
@@ -328,9 +475,12 @@ def generate_avlist() -> Generator[str, None, None]:
         # 建立「當前設定資料夾」URI 集合，用於過濾 DB 記錄
         # DB 保留所有歷史資料當 cache，但只輸出當前設定的資料夾
         configured_dir_uris = set()
-        for d in directories:
+        for p in get_gallery_source_paths(gallery_config):
             try:
-                configured_dir_uris.add(to_file_uri(d, path_mappings))
+                # coerce_to_file_uri：來源 path 可能已是 file:/// URI（含 readonly 剛
+                # upsert 的列），已是 URI 就原樣回、FS 才轉，避免 to_file_uri 二次包成
+                # file:///file:/// 把 readonly 生成的列全數過濾掉（PR#91 P2-D）。
+                configured_dir_uris.add(coerce_to_file_uri(p, path_mappings))
             except ValueError:
                 continue
 
@@ -432,6 +582,17 @@ def generate_avlist() -> Generator[str, None, None]:
 
         logger.info(f"[Gallery] 完成，新增 {total_inserted}，更新 {total_updated}，刪除 {total_deleted}")
 
+        # TASK-88c-T2: readonly 生成摘要 log 行（僅有 readonly 活動時輸出）
+        if readonly_summary["sources"] > 0 or readonly_summary["no_output"] > 0 or readonly_summary["source_errors"] > 0:
+            logger.info(
+                "唯讀生成完成: 新增 %d／略過 %d／刮不到 %d／失敗 %d"
+                "（%d 個來源；%d 個未設輸出夾；%d 個來源錯誤）",
+                readonly_summary["created"], readonly_summary["skipped"],
+                readonly_summary["no_scrape"], readonly_summary["failed"],
+                readonly_summary["sources"], readonly_summary["no_output"],
+                readonly_summary["source_errors"],
+            )
+
         # a5: 寫長路徑清單到 debug.log（helper 內部判斷空 list）
         _emit_long_path_warnings(logger, long_paths)
 
@@ -440,11 +601,25 @@ def generate_avlist() -> Generator[str, None, None]:
         _jellyfin_cache_result = None
         _jellyfin_cache_time = 0
 
-        # 53b-T3: 掃描完成通知
-        if scan_error_count > 0:
+        # 53b-T3 / 88c-P2: 掃描完成通知
+        # scan_error_count（一般掃描逐檔失敗）與 readonly source_errors（唯讀來源
+        # 迴圈前整源拋錯）皆須讓完成通知走 warn，不可純 success（Codex P2：來源級
+        # 失敗原本只增 source_errors，完成通知沒納入 → 仍報成功，誤導）。
+        # 個別影片失敗（readonly failed，例如 NFO 寫入失敗）同樣須讓完成通知走
+        # warn（PR#91 ②）。no_scrape 是「線上查無 metadata」的正常情況，不計入。
+        _source_errors = readonly_summary["source_errors"]
+        _readonly_failed = readonly_summary["failed"]
+        if scan_error_count > 0 or _source_errors > 0 or _readonly_failed > 0:
+            _err_parts = []
+            if scan_error_count > 0:
+                _err_parts.append(f"{scan_error_count} 部失敗")
+            if _source_errors > 0:
+                _err_parts.append(f"{_source_errors} 個來源失敗")
+            if _readonly_failed > 0:
+                _err_parts.append(f"{_readonly_failed} 部失敗")
             _emit_notif(
                 "warn", "notif.scanner_done_with_errors",
-                message=f"完成 {len(all_videos)} 部，{scan_error_count} 部失敗",
+                message=f"完成 {len(all_videos)} 部，" + "、".join(_err_parts),
                 task_type="scanner_generate",
             )
         else:
@@ -464,7 +639,8 @@ def generate_avlist() -> Generator[str, None, None]:
                 "inserted": total_inserted,
                 "updated": total_updated,
                 "deleted": total_deleted
-            }
+            },
+            "readonly_stats": readonly_summary  # TASK-88c-T2: 加法式新欄位
         })
 
     except Exception as e:
@@ -809,16 +985,17 @@ def get_image(path: str = Query(..., description="圖片路徑")):
     # 3. 目錄白名單：只允許 gallery.directories 底下的檔案
     config = load_config()
     gallery_config = config.get('gallery', {})
-    directories = gallery_config.get('directories', [])
     path_mappings = gallery_config.get('path_mappings', {})
 
     # TASK-73: 兩端對稱正規化 — request_uri 用 single-form（realpath已做）；
     # dir 端用 dual-form（normpath + realpath 候選），避免 SMB mapped drive 格式不同 403 誤殺
     request_uri = to_file_uri(local_path, path_mappings)
+    # TASK-88c-T1: 白名單納入各來源非空 output_path（唯讀 off 風味封面服務）；
+    # 複用 _dir_candidate_forms dual-form，不另寫 single-form 比對
     allowed = any(
         is_path_under_dir(request_uri, form)
-        for d in directories
-        for form in _dir_candidate_forms(d, path_mappings)
+        for p in _image_whitelist_dirs(gallery_config)
+        for form in _dir_candidate_forms(p, path_mappings)
     )
     if not allowed:
         logger.warning("get_image: 拒絕白名單外路徑請求 uri=%s", request_uri)
@@ -1094,7 +1271,6 @@ def get_video(request: Request, path: str = Query(..., description="影片路徑
 
     # 4. 目錄白名單：只允許 gallery.directories 底下的檔案
     gallery_config = config.get('gallery', {})
-    directories = gallery_config.get('directories', [])
     path_mappings = gallery_config.get('path_mappings', {})
 
     # TASK-73: 兩端對稱正規化 — request_uri 用 single-form（realpath已做）；
@@ -1102,8 +1278,8 @@ def get_video(request: Request, path: str = Query(..., description="影片路徑
     request_uri = to_file_uri(local_path, path_mappings)
     allowed = any(
         is_path_under_dir(request_uri, form)
-        for d in directories
-        for form in _dir_candidate_forms(d, path_mappings)
+        for p in get_gallery_source_paths(gallery_config)
+        for form in _dir_candidate_forms(p, path_mappings)
     )
     if not allowed:
         logger.warning("get_video: 拒絕白名單外路徑請求 uri=%s", request_uri)

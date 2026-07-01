@@ -2894,6 +2894,37 @@ class TestLongPathWarning:
         assert "debug.log" in window, "scanner/state-scan.js long_paths toast missing: 'debug.log'"
 
 
+class TestReadonlySourceErrorToastGuard:
+    """88c-P2: scanner/state-scan.js done handler 的完成 toast 須依 source_errors 分流。
+
+    唯讀來源整源失敗（readonly_stats.source_errors > 0）時 toast 不可純 success，
+    須走 warn；後端完成通知已同步納入 source_errors（Codex P2）。
+    """
+
+    def test_done_toast_consults_source_errors(self):
+        js = SCANNER_SCAN_JS.read_text(encoding="utf-8")
+        assert "data.readonly_stats" in js and "source_errors" in js, \
+            "scanner/state-scan.js done toast 未 consult readonly_stats.source_errors"
+        # 完成 toast 區塊須有依 source_errors 分流的 warn 分支
+        idx = js.find("const srcErrors")
+        assert idx != -1, "scanner/state-scan.js 缺 srcErrors 分流變數"
+        window = js[idx:idx + 800]
+        assert "'warn'" in window or '"warn"' in window, \
+            "scanner/state-scan.js source_errors 分支缺 warn toast"
+
+    def test_done_toast_consults_per_video_failed(self):
+        """PR#91 ②：完成 toast 也須 consult 個別影片失敗數（readonly_stats.failed），
+        failed>0 時走 warn 而非純 success。"""
+        js = SCANNER_SCAN_JS.read_text(encoding="utf-8")
+        idx = js.find("const srcErrors")
+        assert idx != -1, "scanner/state-scan.js 缺 srcErrors 分流變數"
+        window = js[idx:idx + 800]
+        assert ".failed" in window, \
+            "scanner/state-scan.js 完成 toast 未 consult readonly_stats.failed"
+        assert "'warn'" in window or '"warn"' in window, \
+            "scanner/state-scan.js failed 分支缺 warn toast"
+
+
 class TestSearchFileJsSubtitleHelper:
     """48a T2 a2 — 前端 extractChineseTitle 同步套用 stripSubtitleMarkers helper（對齊 Python 端）"""
 
@@ -15865,3 +15896,156 @@ class TestHelpUpdateButtonGuard:
             "help.html 缺 confirmUpdate() — modal 確認按鈕不存在"
         assert 'cancelUpdate()' in html, \
             "help.html 缺 cancelUpdate() — modal 取消按鈕不存在"
+
+
+class TestDirPathHelperGuard:
+    """TASK-88a-T2: dirPath helper 簽章守衛 + directory-row template 綁定守衛。
+
+    1. shared/dir-path.js 存在且 export function dirPath
+    2. state-scan.js / state-ui.js 各自 import dirPath
+    3. scanner.html directory-row 已用 dirPath(dir)（不殘留裸 x-text="dir"）
+    4. settings.html directory-row 四處已全 dirPath(dir) 化（:key/:title/@click/x-text）
+    5. 無裸 :key="dir" 殘留（settings.html）
+    """
+
+    _ROOT = Path(__file__).parent.parent.parent
+
+    def _dir_path_js(self):
+        return (self._ROOT / "web" / "static" / "js" / "shared" / "dir-path.js").read_text(encoding="utf-8")
+
+    def _state_scan(self):
+        return (self._ROOT / "web" / "static" / "js" / "pages" / "scanner" / "state-scan.js").read_text(encoding="utf-8")
+
+    def _state_ui(self):
+        return (self._ROOT / "web" / "static" / "js" / "pages" / "settings" / "state-ui.js").read_text(encoding="utf-8")
+
+    def _scanner_html(self):
+        return (self._ROOT / "web" / "templates" / "scanner.html").read_text(encoding="utf-8")
+
+    def _settings_html(self):
+        return (self._ROOT / "web" / "templates" / "settings.html").read_text(encoding="utf-8")
+
+    def test_dir_path_js_exists_and_exports(self):
+        """shared/dir-path.js 存在且含 export function dirPath"""
+        src = self._dir_path_js()
+        assert 'export function dirPath' in src, \
+            "shared/dir-path.js 缺 export function dirPath"
+
+    def test_state_scan_imports_dir_path(self):
+        """state-scan.js 從 @/shared/dir-path.js import dirPath"""
+        src = self._state_scan()
+        assert "import { dirPath } from '@/shared/dir-path.js'" in src, \
+            "state-scan.js 缺 import { dirPath } from '@/shared/dir-path.js'"
+
+    def test_state_ui_imports_dir_path(self):
+        """state-ui.js 從 @/shared/dir-path.js import dirPath"""
+        src = self._state_ui()
+        assert "import { dirPath } from '@/shared/dir-path.js'" in src, \
+            "state-ui.js 缺 import { dirPath } from '@/shared/dir-path.js'"
+
+    def test_state_scan_exposes_dir_path_on_state(self):
+        """state-scan.js 把 dirPath 揭露成 state 屬性（否則 template dirPath(dir) runtime throw）"""
+        src = self._state_scan()
+        assert 'dirPath,' in src, \
+            "state-scan.js 未把 dirPath 揭露成 state 屬性（import 不夠，template 求值會 throw）"
+
+    def test_state_ui_exposes_dir_path_on_state(self):
+        """state-ui.js 把 dirPath 揭露成 state 屬性（否則 template dirPath(dir) runtime throw）"""
+        src = self._state_ui()
+        assert 'dirPath,' in src, \
+            "state-ui.js 未把 dirPath 揭露成 state 屬性（import 不夠，template 求值會 throw）"
+
+    def test_scanner_html_uses_dir_path(self):
+        """scanner.html directory-row 已用 dirPath(dir)（不殘留裸 x-text="dir"）"""
+        html = self._scanner_html()
+        assert 'x-text="dirPath(dir)"' in html, \
+            'scanner.html folder-path span 缺 x-text="dirPath(dir)"'
+
+    def test_scanner_html_no_bare_xtext_dir(self):
+        """scanner.html folder-path 不殘留裸 x-text="dir"（directory-row）"""
+        html = self._scanner_html()
+        assert 'x-text="dir"' not in html, \
+            'scanner.html 殘留裸 x-text="dir" — 應改為 x-text="dirPath(dir)"'
+
+    def test_settings_html_key_uses_dir_path(self):
+        """settings.html directory-row :key 已改為 dirPath(dir)"""
+        html = self._settings_html()
+        # The scanner-dir-dropdown x-for must use dirPath
+        assert ':key="dirPath(dir)"' in html, \
+            'settings.html 缺 :key="dirPath(dir)" — [object Object] key bug 未修'
+
+    def test_settings_html_no_bare_key_dir(self):
+        """settings.html directory-row 不殘留裸 :key=dir（應改為 :key="dirPath(dir)"）"""
+        html = self._settings_html()
+        assert ':key="dir"' not in html, \
+            'settings.html 殘留裸 :key="dir" — 應改為 :key="dirPath(dir)"'
+
+    def test_settings_html_title_uses_dir_path(self):
+        """settings.html directory-row :title 已改為 dirPath(dir)"""
+        html = self._settings_html()
+        assert ':title="dirPath(dir)"' in html, \
+            'settings.html 缺 :title="dirPath(dir)"'
+
+    def test_settings_html_click_uses_dir_path(self):
+        """settings.html directory-row @click 已改為 pickScannerDirectory(dirPath(dir))"""
+        html = self._settings_html()
+        assert '@click="pickScannerDirectory(dirPath(dir))"' in html, \
+            'settings.html 缺 @click="pickScannerDirectory(dirPath(dir))"'
+
+    def test_settings_html_xtext_uses_dir_path(self):
+        """settings.html directory-row x-text 已改為 dirPath(dir)"""
+        html = self._settings_html()
+        # The dropdown button x-text must use dirPath
+        assert 'x-text="dirPath(dir)"' in html, \
+            'settings.html 缺 x-text="dirPath(dir)"'
+
+
+class TestDirReadonlyUIGuard:
+    """TASK-88a-T4: 唯讀 checkbox + 輸出夾 input Alpine 綁定守衛。
+
+    1. scanner.html 含 x-model="dir.readonly"（checkbox 綁定）
+    2. scanner.html 含 x-model="dir.output_path"（輸出夾 input 綁定）
+    3. scanner.html 含 x-show="dir.readonly"（條件顯示輸出夾列）
+    4. state-scan.js 的 push 包含 readonly 與 output_path 屬性（物件形態，非 bare string）
+    """
+
+    _ROOT = Path(__file__).parent.parent.parent
+
+    def _scanner_html(self):
+        return (self._ROOT / "web" / "templates" / "scanner.html").read_text(encoding="utf-8")
+
+    def _state_scan(self):
+        return (self._ROOT / "web" / "static" / "js" / "pages" / "scanner" / "state-scan.js").read_text(encoding="utf-8")
+
+    def test_scanner_html_readonly_checkbox(self):
+        """scanner.html 含 x-model="dir.readonly"（唯讀 checkbox 綁定）"""
+        html = self._scanner_html()
+        assert 'x-model="dir.readonly"' in html, \
+            'scanner.html 缺 x-model="dir.readonly" — 唯讀 checkbox 未加'
+
+    def test_scanner_html_output_path_input(self):
+        """scanner.html 含 x-model="dir.output_path"（輸出夾 input 綁定）"""
+        html = self._scanner_html()
+        assert 'x-model="dir.output_path"' in html, \
+            'scanner.html 缺 x-model="dir.output_path" — 輸出夾 input 未加'
+
+    def test_scanner_html_output_row_xshow(self):
+        """scanner.html 含 x-show="dir.readonly"（條件顯示輸出夾列，非 x-if）"""
+        html = self._scanner_html()
+        assert 'x-show="dir.readonly"' in html, \
+            'scanner.html 缺 x-show="dir.readonly" — 應用 x-show 而非 x-if 控制輸出夾列'
+
+    def test_state_scan_push_has_readonly(self):
+        """state-scan.js 的 directories.push 包含 readonly 屬性（物件形態）"""
+        src = self._state_scan()
+        assert 'readonly' in src and 'directories.push' in src, \
+            "state-scan.js directories.push 缺 readonly 屬性 — 應改為物件 push"
+        # 確認不是 bare push(string)：push 之後必須有物件結構 { path: ..., readonly: ...
+        assert '{ path:' in src or '{ path :' in src, \
+            "state-scan.js directories.push 應推入 {path, readonly, output_path} 物件"
+
+    def test_state_scan_push_has_output_path(self):
+        """state-scan.js 的 directories.push 包含 output_path 屬性（物件形態）"""
+        src = self._state_scan()
+        assert 'output_path' in src, \
+            "state-scan.js 缺 output_path 屬性 — push 物件應含 {path, readonly, output_path}"

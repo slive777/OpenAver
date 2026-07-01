@@ -11,6 +11,7 @@ from core.path_utils import (
     is_path_under_dir,
     normalize_path,
     to_file_uri,
+    uri_to_fs_path,
 )
 
 logger = get_logger(__name__)
@@ -48,10 +49,13 @@ def find_matched_directory(
     fav_normalized = normalize_path(fav_expanded)
     fav_uri = to_file_uri(fav_normalized, path_mappings)
 
-    # directories 端：normalize → to_file_uri（不 expand，CD-58-B1-3b）
+    # directories 端：uri_to_fs_path → to_file_uri（不 expand，CD-58-B1-3b）
+    # directory 可能是 FS 路徑或 file:/// URI（DirectoryConfig.path schema「FS 路徑或
+    # URI」）。uri_to_fs_path 對 URI→FS、FS→FS 皆冪等，取代裸 normalize_path（後者對
+    # URI 原樣通過 → to_file_uri 二次包成 file:///file:/// → 永不命中）(PR#91 同源)。
     for directory in directories:
         try:
-            d_normalized = normalize_path(directory)
+            d_normalized = uri_to_fs_path(directory)
             d_uri = to_file_uri(d_normalized, path_mappings)
         except (ValueError, Exception) as e:
             logger.warning("跳過無效 directory=%r: %s", directory, e)

@@ -1,10 +1,8 @@
 """測試 VideoRepository 類別"""
 import pytest
 import json
-from pathlib import Path
 
 from core.database import (
-    init_db,
     Video,
     VideoRepository,
     migrate_json_to_sqlite
@@ -178,6 +176,53 @@ class TestVideoRepository:
         assert len(index) == 2
         assert index[to_file_uri("/video1.mp4")] == (100.5, 100.0)
         assert index[to_file_uri("/video2.mp4")] == (200.5, 200.0)
+
+    def test_get_cover_index_empty(self, temp_db):
+        """get_cover_index on empty table returns {}."""
+        repo = VideoRepository(temp_db)
+        assert repo.get_cover_index() == {}
+
+    def test_get_cover_index_multi_row(self, temp_db):
+        """get_cover_index returns {path: cover_path} including empty string and None values."""
+        repo = VideoRepository(temp_db)
+
+        videos = [
+            Video(
+                path=to_file_uri("/video1.mp4"),
+                mtime=100.0,
+                cover_path=to_file_uri("/out/video1.jpg"),
+            ),
+            Video(
+                path=to_file_uri("/video2.mp4"),
+                mtime=200.0,
+                cover_path="",   # empty cover
+            ),
+            Video(
+                path=to_file_uri("/video3.mp4"),
+                mtime=300.0,
+                cover_path=None,  # NULL cover — returned as-is
+            ),
+        ]
+        repo.upsert_batch(videos)
+
+        index = repo.get_cover_index()
+
+        assert len(index) == 3
+        assert index[to_file_uri("/video1.mp4")] == to_file_uri("/out/video1.jpg")
+        assert index[to_file_uri("/video2.mp4")] == ""
+        # None stored as SQL NULL → returned as None (sqlite3 never coerces NULL→"")
+        assert index[to_file_uri("/video3.mp4")] is None
+
+    def test_get_cover_index_returns_cover_path_not_mtime(self, temp_db):
+        """Mutation sentinel: ensure we are reading cover_path, not mtime."""
+        repo = VideoRepository(temp_db)
+        cover = to_file_uri("/out/sentinel.jpg")
+        repo.upsert(Video(path=to_file_uri("/v.mp4"), mtime=9999.0, cover_path=cover))
+
+        index = repo.get_cover_index()
+        # Value must be the cover URI, not the mtime float
+        assert index[to_file_uri("/v.mp4")] == cover
+        assert index[to_file_uri("/v.mp4")] != 9999.0
 
     def test_delete_by_paths(self, temp_db):
         """測試 delete_by_paths"""

@@ -20,7 +20,7 @@ from core.database import VideoRepository
 from core.db_inflow import try_inflow_upsert
 from core.enricher import enrich_single, fetch_samples_only, resolve_nfo_cover_paths
 from core.organizer import organize_file
-from core.path_utils import to_file_uri, uri_to_fs_path, coerce_to_file_uri
+from core.path_utils import to_file_uri, uri_to_fs_path, coerce_to_file_uri, is_path_under_dir
 from core.scraper import (
     search_jav, search_jav_single_source, strip_internal_nfo_keys,
     search_javlib_versions, fetch_javlib_by_detail_url, internal_nfo_carriers,
@@ -29,7 +29,7 @@ from core.source_config import validate_source_id
 from core.cf_transport import get_cf_transport, CfChallengeRequired, CfTransportUnavailable
 from core.scrapers.javlibrary import JAVLIBRARY_ORIGIN
 from core.logger import get_logger
-from core.config import load_config
+from core.config import load_config, iter_gallery_sources
 from core import thumbnail_cache
 from web.routers.notifications import emit_notification as _emit_notif
 
@@ -89,6 +89,27 @@ def scrape_single(request: ScrapeRequest) -> dict:
     """
     file_path = request.file_path
     number = request.number
+
+    # U7 readonly guard：只依 file_path 判斷所屬來源是否唯讀（readonly）。
+    # 是 → 不搬檔、不刮削、不解析番號，回既有錯誤形狀 plain dict。
+    # 必須在 extract_number / search_jav / organize_file 之前（Codex P1）；
+    # 兩端一律用 UNC-tolerant to_file_uri，不做原生路徑正規化（Codex P2：對 UNC 在
+    # WSL/Linux 會拋 ValueError，而 UNC 正是 readonly 主場景）。
+    _gallery_config = load_config().get('gallery', {})
+    _path_mappings = _gallery_config.get('path_mappings', {})
+    # coerce_to_file_uri：file_path 可能已是 DB canonical file:/// URI（鄰近寫入路徑
+    # 傳的就是 URI），直接 to_file_uri 會雙重包成 file:///file:/// 導致 guard 被繞過
+    # （Codex P1）。coerce 對「已是 URI」原樣回、對 FS path 才轉，兩端對稱處理。
+    _file_uri = coerce_to_file_uri(file_path, _path_mappings)
+    for _s in iter_gallery_sources(_gallery_config):
+        if not _s.readonly or not _s.path:
+            continue
+        if is_path_under_dir(_file_uri, coerce_to_file_uri(_s.path, _path_mappings)):
+            return {
+                "success": False,
+                "error": "此來源路徑為唯讀（readonly），無法搬移或重新命名檔案。"
+                         "請改用掃描頁『產生』生成本地媒體庫，或確認你對此路徑有寫入權限。",
+            }
 
     # 如果沒有提供番號，嘗試從檔名提取
     if not number:

@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.3] - 2026-07-01
+
+本版主軸：**唯讀來源生成本地媒體庫（off 風味）**（feature/88，spec-88）——為 scanner 來源新增「唯讀」模式：勾了就不寫回來源夾，改在你指定的本地輸出夾生成一個「每片一資料夾」的媒體庫（nfo + 封面 + 劇照），並直接寫進 DB。適合把影片放在唯讀網盤／NAS 共享／Alist 掛載（不能改名搬移）的人——OpenAver 讀來源、產出整理好的本地庫，來源一個 bit 都不動，之後在 OpenAver 就能瀏覽、串流播放雲端原檔。對雲端足跡極輕（只列目錄 + 真的點播才讀那一部）。接停更的 MDCX 的棒，但預設走純文字產物、零權限門檻。
+
+> media-server 風味（多吐 `.strm` 給 Emby/Jellyfin/Kodi 掃）＋一批 UI 調整延後至下一 branch（feature/89）；本版先交付 OpenAver 自瀏覽的完整體驗。
+
+### Added
+#### 🎯 唯讀來源 → 本地媒體庫生成（off 風味）
+- **每個 scanner 來源可勾「唯讀」＋設輸出夾**：勾唯讀後不寫回來源，按既有「產生」就對該來源刮削 metadata、線上下載封面/劇照，在輸出夾生成每片一資料夾（`-poster`/`-fanart` ＋ extrafanart），並寫進 DB（`path`＝雲端原始路徑、`cover_path`/劇照指本地）。OpenAver 立即可瀏覽、從 DB 串流播放雲端原檔，封面走本地。**來源零寫入、零讀圖**（只列目錄 + 真的點播才讀那一部）。
+- **手動增量、一鍵到底**：往雲盤丟新片後回 OpenAver 對該來源按「產生」，只處理新片（以 DB 為準跳過已生成的）；不背景輪詢雲盤（避免觸發網盤風控）。跑完顯示「新增／略過／刮不到／失敗」四數摘要。
+- **同番號多版本防撞**：同一番號的不同版本（各自獨立 `path`）各落入獨立子資料夾、不互相覆蓋。
+
+### Changed
+- **唯讀來源整理入口給明確提示**：對唯讀來源觸發「整理（搬移/改名）」時，回明確提示「此來源唯讀，請改用生成本地媒體庫」，而非靜默失敗（含 canonical `file:///` 輸入亦正確攔截）。
+- **產生完成通知反映來源失敗**：唯讀來源若整源無法存取，完成通知與 toast 走警告（不再誤報全部成功）。
+
+### Internal
+- 新增獨立 producer 服務 `core/readonly_producer.py`（全新 code surface，不重用/不碰既有搬檔 `organize_file` 與寫來源旁 `enrich_single`）；`GalleryConfig.directories` 由 `List[str]` 升級為帶 `readonly`/`output_path` 的 `DirectoryConfig`（`load_config` 加法式向後相容遷移，舊純字串 config 照常載入）＋集中存取 helper（所有 call site 走 helper，禁手寫型別判斷）；`generate_avlist` SSE 迴圈以 thread/queue 橋接 producer（worker 例外顯式接手、不靜默吞）；`/api/gallery/image` 白名單納入各來源輸出夾。DB schema／API 端點／capabilities 零變更。
+
+### 測試
+- 全套 pytest **5031 passed, 2 skipped**（unit + integration，排除 smoke/e2e，較 0.11.2 的 4848 +183：config schema/helper/向後相容遷移 + producer 列檔/增量跳過/防撞葉層/寫檔/upsert + SSE thread-queue 橋接/四數摘要/來源級例外契約 + image 白名單 + organize guard(含 file:/// 邊界) + off 風味端到端驗收）＋ `ruff check .` 綠 ＋ `npm run lint`（eslint + stylelint）綠。
+- 來源金絲雀：**8 源全 PASS**（pre-merge live 健康檢查）。
+
 ## [0.11.2] - 2026-06-30
 
 本版主軸：**core/database.py 模組化拆分**（feature/87，spec-87）——把 2,152 行的單一 `core/database.py` 重構成 `core/database/` 套件，降低 AI 輔助編輯時的長 context 出錯率。**零行為變更、零使用者可見影響、零 API/schema/SQL 變動**。分兩階段：87a 純機械搬移、87b 消除兩個鏡像 repo 的重複碼。對外 `from core.database import X` 路徑字面不變（永久 facade）。

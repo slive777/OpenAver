@@ -1,5 +1,8 @@
+import { dirPath } from '@/shared/dir-path.js';
+
 export function stateUI() {
     return {
+        dirPath,
         // ===== UI State =====
         newSuffixInput: '',
         showPathHelp: false,

@@ -211,6 +211,193 @@ def test_scrape_single_db_sync_status_not_linked_on_missing_filename(client):
     MockRepo.return_value.repath.assert_not_called()
 
 
+# ─── T-3: U7 readonly organize guard ─────────────────────────────────────────
+#
+# guard 插在 handler 最前段（file_path = request.file_path 之後、extract_number/
+# search_jav/organize_file 之前）。只依 file_path 判斷所屬來源是否 readonly。
+#
+# patch targets:
+#   organize_file  → web.routers.scraper.organize_file
+#   search_jav     → web.routers.scraper.search_jav
+#   extract_number → core.scraper.extract_number（handler 內 function-local import）
+#   config 注入    → web.routers.scraper.load_config（iter_gallery_sources 用 real）
+
+
+def _readonly_gallery_config(path, path_mappings=None, readonly=True):
+    return {
+        "gallery": {
+            "directories": [{"path": path, "readonly": readonly}],
+            "path_mappings": path_mappings or {},
+        }
+    }
+
+
+def _scrape_body_no_metadata(file_path, number="ABC-001"):
+    """不帶 metadata → 非 readonly 時會走 search_jav（讓 assert_not_called 有意義）。"""
+    body = {"file_path": file_path}
+    if number is not None:
+        body["number"] = number
+    return body
+
+
+# case 1: readonly 來源擋 organize（核心）— 三下游 assert_not_called
+def test_scrape_single_readonly_blocks_organize(client):
+    with (
+        patch("web.routers.scraper.load_config",
+              return_value=_readonly_gallery_config("/tmp/ro_src")),
+        patch("web.routers.scraper.organize_file") as mock_org,
+        patch("web.routers.scraper.search_jav") as mock_search,
+        patch("core.scraper.extract_number", return_value="ABC-001") as mock_extract,
+    ):
+        # number=None → 無 guard 時 `if not number:` 為真 → extract_number 會被呼叫；
+        # 有 guard 時 guard 早於番號解析 → 三下游皆 assert_not_called 皆為 live lock。
+        resp = client.post(
+            "/api/scrape-single",
+            json=_scrape_body_no_metadata("/tmp/ro_src/ABC-001.mp4", number=None),
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is False
+    assert "唯讀" in data["error"]
+    mock_org.assert_not_called()
+    mock_search.assert_not_called()
+    mock_extract.assert_not_called()
+
+
+# case 2: 無番號 + 檔名不可解析 在 readonly 來源下 → 仍回唯讀提示（Acceptance #12 哨兵）
+def test_scrape_single_readonly_no_number_still_readonly_prompt(client):
+    with (
+        patch("web.routers.scraper.load_config",
+              return_value=_readonly_gallery_config("/tmp/ro_src")),
+        patch("web.routers.scraper.organize_file") as mock_org,
+        patch("web.routers.scraper.search_jav") as mock_search,
+    ):
+        # 不帶 number、檔名不可解析番號；不 patch extract_number（用 real）
+        resp = client.post(
+            "/api/scrape-single",
+            json=_scrape_body_no_metadata("/tmp/ro_src/random.mp4", number=None),
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is False
+    assert "唯讀" in data["error"]
+    assert "無法識別番號" not in data["error"]
+    mock_org.assert_not_called()
+    mock_search.assert_not_called()
+
+
+# case 3: UNC readonly 來源 → guard 不拋 ValueError（Codex P2 哨兵）
+def test_scrape_single_readonly_unc_no_valueerror(client):
+    with (
+        patch("web.routers.scraper.load_config",
+              return_value=_readonly_gallery_config(r"\\server\share")),
+        patch("web.routers.scraper.organize_file") as mock_org,
+        patch("web.routers.scraper.search_jav") as mock_search,
+    ):
+        resp = client.post(
+            "/api/scrape-single",
+            json=_scrape_body_no_metadata(r"\\server\share\ABC-001.mp4"),
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is False
+    assert "唯讀" in data["error"]
+    mock_org.assert_not_called()
+    mock_search.assert_not_called()
+
+
+# case 4: 非 readonly 來源放行 → 走既有 organize
+def test_scrape_single_non_readonly_passes_through(client):
+    with (
+        patch("web.routers.scraper.load_config",
+              return_value=_readonly_gallery_config("/tmp/rw_src", readonly=False)),
+        patch("web.routers.scraper.organize_file",
+              return_value=_organize_ok("/tmp/rw_src/ABC-001/ABC-001.mp4")) as mock_org,
+        patch("web.routers.scraper.search_jav"),
+    ):
+        resp = client.post(
+            "/api/scrape-single",
+            json=_scrape_request_body(file_path="/tmp/rw_src/ABC-001.mp4"),
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    mock_org.assert_called_once()
+
+
+# case 5: 不屬任何來源放行 → guard 不誤擋
+def test_scrape_single_no_matching_source_passes_through(client):
+    with (
+        patch("web.routers.scraper.load_config",
+              return_value={"gallery": {"directories": [], "path_mappings": {}}}),
+        patch("web.routers.scraper.organize_file",
+              return_value=_organize_ok("/elsewhere/ABC-001/ABC-001.mp4")) as mock_org,
+        patch("web.routers.scraper.search_jav"),
+    ):
+        resp = client.post(
+            "/api/scrape-single",
+            json=_scrape_request_body(file_path="/elsewhere/ABC-001.mp4"),
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    mock_org.assert_called_once()
+
+
+# case 6: 訊息描述清楚（AI 友善）
+def test_scrape_single_readonly_message_descriptive(client):
+    with (
+        patch("web.routers.scraper.load_config",
+              return_value=_readonly_gallery_config("/tmp/ro_src")),
+        patch("web.routers.scraper.organize_file"),
+        patch("web.routers.scraper.search_jav"),
+    ):
+        resp = client.post(
+            "/api/scrape-single",
+            json=_scrape_body_no_metadata("/tmp/ro_src/ABC-001.mp4"),
+        )
+
+    error = resp.json()["error"]
+    assert "唯讀" in error
+    assert len(error) > 15  # 非單一 code，描述清楚
+
+
+# case 7: file_path 是 canonical file:/// URI（DB / 鄰近寫入路徑格式）在 readonly
+#          來源下 → guard 仍須觸發（Codex P1：to_file_uri 會雙重包 file:///file:///
+#          繞過 guard；coerce_to_file_uri 對已是 URI 原樣回才能命中）。
+def test_scrape_single_readonly_file_uri_input_blocks_organize(client):
+    from core.path_utils import to_file_uri
+    # DB canonical file:/// URI（drive-letter，真實 Windows/WSL 部署形態）。
+    # 舊碼 to_file_uri 對它再包一層 → file:///file:/// → guard 繞過（RED）；
+    # coerce_to_file_uri 對已是 URI 原樣回 → guard 命中（GREEN）。
+    src_path = "C:/ro_src"
+    file_uri = to_file_uri("C:/ro_src/ABC-001.mp4", {})  # 'file:///C:/ro_src/ABC-001.mp4'
+    with (
+        patch("web.routers.scraper.load_config",
+              return_value=_readonly_gallery_config(src_path)),
+        patch("web.routers.scraper.organize_file") as mock_org,
+        patch("web.routers.scraper.search_jav") as mock_search,
+        patch("core.scraper.extract_number", return_value="ABC-001") as mock_extract,
+    ):
+        resp = client.post(
+            "/api/scrape-single",
+            json=_scrape_body_no_metadata(file_uri, number=None),
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is False
+    assert "唯讀" in data["error"]
+    mock_org.assert_not_called()
+    mock_search.assert_not_called()
+    mock_extract.assert_not_called()
+
+
 # ─── B1 helpers ──────────────────────────────────────────────────────────────
 
 def _seed_old_card_b1(repo, old_uri: str, user_tags=None, created_at_str: str = None):

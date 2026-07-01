@@ -558,6 +558,22 @@ class VideoRepository:
         finally:
             conn.close()
 
+    def get_cover_index(self) -> dict:
+        """取得 {path: cover_path} 索引，供唯讀 producer 增量比對（feature/88）。
+
+        Additive read-only method; does NOT change get_mtime_index() shape (CD-88b-2).
+        cover_path may be '' or None for rows without a cover — callers must handle both.
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        try:
+            cursor.execute("SELECT path, cover_path FROM videos")
+            rows = cursor.fetchall()
+            return {row[0]: row[1] for row in rows}
+        finally:
+            conn.close()
+
     def delete_by_paths(self, paths: List[str]) -> int:
         """批次刪除
 
