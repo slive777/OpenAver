@@ -564,6 +564,34 @@ class TestShowcaseDirectoryFiltering:
         assert data["total"] == 1
         assert data["videos"][0]["number"] == "SONE-205"
 
+    def test_uri_source_path_filtering(self, client, populated_db, monkeypatch):
+        """PR#91 P2-D: 來源 path 已是 file:/// URI（schema「FS 路徑或 URI」）時，
+        該資料夾底下的列仍要出現在 Showcase。
+
+        pre-fix `to_file_uri('file:///…')` 二次包成 'file:///file:///…' → 過濾掉
+        所有列 → total == 0 (RED)。
+        """
+        def mock_get_db_path():
+            return populated_db
+        monkeypatch.setattr("web.routers.showcase.get_db_path", mock_get_db_path)
+
+        # 來源 path 用 URI 形式（等價 /home/user/media），只設這一個來源
+        def mock_load_config():
+            return {
+                "gallery": {
+                    "directories": [to_file_uri("/home/user/media")],
+                    "path_mappings": {},
+                }
+            }
+        monkeypatch.setattr("web.routers.showcase.load_config", mock_load_config)
+
+        response = client.get("/api/showcase/videos")
+        data = response.json()
+
+        assert data["success"] is True
+        assert data["total"] == 1
+        assert data["videos"][0]["number"] == "SONE-205"
+
     def test_wsl_mount_path_filtering(self, client, temp_db, monkeypatch):
         """WSL /mnt/c/ 設定值能正確匹配 DB 中的 file:///C:/ URI"""
         repo = VideoRepository(temp_db)

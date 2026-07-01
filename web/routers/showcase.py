@@ -12,7 +12,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
 from core.database import VideoRepository, get_db_path, init_db
-from core.path_utils import to_file_uri, is_path_under_dir, uri_to_fs_path
+from core.path_utils import is_path_under_dir, uri_to_fs_path, coerce_to_file_uri
 from core.logger import get_logger
 from core.config import load_config, get_gallery_source_paths
 from core import thumbnail_cache
@@ -77,7 +77,10 @@ def _get_configured_dirs(config: dict) -> tuple[set, dict]:
     configured_dir_uris: set = set()
     for p in get_gallery_source_paths(gallery_config):
         try:
-            configured_dir_uris.add(to_file_uri(p, path_mappings))
+            # coerce_to_file_uri：來源 path 可能已是 file:/// URI（DirectoryConfig.path
+            # schema「FS 路徑或 URI」）。已是 URI 就原樣回，避免 to_file_uri 二次包成
+            # file:///file:/// 把 readonly 來源的列從 Showcase 過濾掉（PR#91 P2-D 同源）。
+            configured_dir_uris.add(coerce_to_file_uri(p, path_mappings))
         except ValueError:
             continue
 

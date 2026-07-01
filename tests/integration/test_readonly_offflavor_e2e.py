@@ -398,3 +398,93 @@ def test_incremental_idempotent(tmp_path, monkeypatch, client, parse_sse_events)
 
     assert _snapshot(output) == out_snap, "output rewritten on idempotent re-run"
     assert VideoRepository(str(db_path)).count() == count1
+
+
+# ---------------------------------------------------------------------------
+# PR#91 P2-D: DirectoryConfig.path as a file:/// URI (schema「FS 路徑或 URI」).
+# A URI source path must be handled idempotently everywhere it is converted:
+#   - generate_avlist configured_dir_uris (post-loop) → readonly rows must NOT
+#     be double-wrapped-and-filtered out of the generated gallery list.
+#   - get_video / get_image allowlists (_dir_candidate_forms) → a file under a
+#     URI source must PASS (not 403 from a file:///file:/// double-wrap).
+# RED against the pre-fix code (to_file_uri / normalize_path on a URI input).
+# ---------------------------------------------------------------------------
+
+class TestUriSourcePathIdempotent:
+    def test_readonly_rows_appear_in_generated_list_uri_source(
+        self, tmp_path, monkeypatch, client, parse_sse_events
+    ):
+        """URI source path → readonly-generated rows land in the gallery list.
+
+        done.video_count is the DB row set filtered by configured_dir_uris; the
+        pre-fix double-wrap (to_file_uri('file:///…') = 'file:///file:///…')
+        filters every readonly row out → video_count == 0 (RED).
+        """
+        numbers = ["URI-001", "URI-002", "URI-003"]
+        src = _make_source_dir(tmp_path / "src", "movies", numbers)
+        output = tmp_path / "output"
+        output.mkdir()
+        db_path = tmp_path / "test.db"
+        # Source `path` stored as a file:/// URI (not an FS path).
+        config = _make_config(
+            [{"path": to_file_uri(str(src), {}), "output_path": str(output), "readonly": True}],
+            tmp_path / "htmlout",
+        )
+        _wire(monkeypatch, config, db_path)
+
+        events = _run_generate(client, parse_sse_events)
+        done = _done_event(events)
+
+        # readonly producer still created every movie (source scanning already
+        # URI-safe via _list_source_videos), ...
+        assert done["readonly_stats"]["created"] == len(numbers)
+        # ... and the post-loop configured_dir_uris filter keeps them in the list.
+        assert done["video_count"] == len(numbers)
+
+    def test_video_proxy_allows_file_under_uri_source(self, tmp_path, monkeypatch, client):
+        """A video under a URI-form source dir passes the get_video allowlist (not 403)."""
+        from urllib.parse import quote
+
+        src = _make_source_dir(tmp_path / "src", "movies", ["URI-100"])
+        video_file = src / "URI-100.mp4"
+
+        test_config = {
+            "gallery": {
+                "directories": [to_file_uri(str(src), {})],  # URI source path
+                "path_mappings": {},
+            },
+            "scraper": {"video_extensions": [".mp4"]},
+        }
+        monkeypatch.setattr("web.routers.scanner.load_config", lambda: test_config)
+
+        path_arg = to_file_uri(str(video_file), {})
+        resp = client.get(f"/api/gallery/video?path={quote(path_arg)}")
+        assert resp.status_code == 200, resp.text
+        assert resp.content == b"FAKE-VIDEO-BYTES"
+
+    def test_image_proxy_allows_file_under_uri_source(self, tmp_path, monkeypatch, client):
+        """A cover under a URI-form source dir passes the get_image allowlist (not 403);
+        an outside .jpg still 403 (whitelist not degraded)."""
+        src = tmp_path / "src"
+        src.mkdir()
+        cover = src / "cover.jpg"
+        cover.write_bytes(_FAKE_COVER_BYTES)
+
+        test_config = {
+            "gallery": {
+                "directories": [{"path": to_file_uri(str(src), {}), "output_path": ""}],
+                "path_mappings": {},
+            },
+            "scraper": {},
+        }
+        monkeypatch.setattr("web.routers.scanner.load_config", lambda: test_config)
+
+        r = client.get("/api/gallery/image", params={"path": str(cover)})
+        assert r.status_code == 200, r.text
+        assert r.content == _FAKE_COVER_BYTES
+
+        outside = tmp_path / "outside" / "x.jpg"
+        outside.parent.mkdir()
+        outside.write_bytes(_FAKE_COVER_BYTES)
+        r403 = client.get("/api/gallery/image", params={"path": str(outside)})
+        assert r403.status_code == 403

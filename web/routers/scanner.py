@@ -37,7 +37,7 @@ from fastapi.responses import StreamingResponse, HTMLResponse, Response, FileRes
 from core.gallery_scanner import VideoScanner, fast_scan_directory, VideoInfo, _run_sample_images_cleanup_pass
 from core.video_extensions import get_proxy_extensions, get_video_extensions
 from core.gallery_generator import HTMLGenerator
-from core.path_utils import normalize_path, to_file_uri, is_path_under_dir, uri_to_fs_path
+from core.path_utils import to_file_uri, is_path_under_dir, uri_to_fs_path, coerce_to_file_uri
 from core.nfo_updater import check_cache_needs_update, update_videos_generator
 from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite
 from core.organizer import generate_jellyfin_images, HEADERS as _EMBED_HEADERS
@@ -92,9 +92,16 @@ def _dir_candidate_forms(raw_dir: str, path_mappings: dict) -> tuple:
         if now < expire:
             return forms
 
-    normpath_form = to_file_uri(os.path.normpath(raw_dir), path_mappings)
+    # raw_dir 可能是 FS 路徑或 file:/// URI（DirectoryConfig.path schema：「FS 路徑或
+    # URI」）。先過 uri_to_fs_path 統一成 FS 路徑（URI→FS，FS→FS 冪等，path-contract
+    # 合規，不手刻 startswith('file:///')）。否則對 URI 直接 os.path.normpath/realpath
+    # 會把 file:/// 折成 file:/ 再被 to_file_uri 二次包成 file:///file:/…，image/video
+    # 兩條白名單同時誤殺（PR#91 P2-D 同源）。FS 輸入行為不變 → 保留 dual-form + TASK-73
+    # 跨格式 casefold。
+    fs_dir = uri_to_fs_path(raw_dir)
+    normpath_form = to_file_uri(os.path.normpath(fs_dir), path_mappings)
     try:
-        realpath_form = to_file_uri(os.path.realpath(raw_dir), path_mappings)
+        realpath_form = to_file_uri(os.path.realpath(fs_dir), path_mappings)
         forms = tuple(dict.fromkeys([normpath_form, realpath_form]))
         # cache-on-success-only
         _dir_forms_cache[cache_key] = (forms, now + _DIR_FORMS_TTL)
@@ -333,9 +340,12 @@ def generate_avlist() -> Generator[str, None, None]:
                 yield from _run_readonly_source(src, config, repo, proxy_url, readonly_summary)
                 continue
 
-            # 轉換路徑格式 (Windows -> WSL)
+            # 轉換路徑格式 (Windows -> WSL)。directory 可能是 FS 路徑或 file:/// URI
+            # （DirectoryConfig.path schema）。uri_to_fs_path 對 URI→FS、FS→FS 皆冪等，
+            # 取代裸 normalize_path（後者對 URI 原樣通過 → os.path.exists 失敗 → 誤報
+            # 「資料夾不存在」，非 readonly 的 URI 來源掃不到）。
             try:
-                normalized_dir = normalize_path(directory)
+                normalized_dir = uri_to_fs_path(directory)
             except ValueError:
                 logger.exception("路徑轉換失敗: %s", directory)
                 yield _sse_event({"type": "log", "level": "warn", "message": "路徑轉換失敗"})
@@ -467,7 +477,10 @@ def generate_avlist() -> Generator[str, None, None]:
         configured_dir_uris = set()
         for p in get_gallery_source_paths(gallery_config):
             try:
-                configured_dir_uris.add(to_file_uri(p, path_mappings))
+                # coerce_to_file_uri：來源 path 可能已是 file:/// URI（含 readonly 剛
+                # upsert 的列），已是 URI 就原樣回、FS 才轉，避免 to_file_uri 二次包成
+                # file:///file:/// 把 readonly 生成的列全數過濾掉（PR#91 P2-D）。
+                configured_dir_uris.add(coerce_to_file_uri(p, path_mappings))
             except ValueError:
                 continue
 
