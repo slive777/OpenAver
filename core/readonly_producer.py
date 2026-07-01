@@ -32,7 +32,7 @@ from core.organizer import (
 )
 from core.path_utils import is_path_under_dir, normalize_path, to_file_uri, uri_to_fs_path
 from core.scraper import extract_number, normalize_number, search_jav
-from core.video_extensions import DEFAULT_VIDEO_EXTENSIONS
+from core.video_extensions import get_video_extensions
 
 logger = get_logger(__name__)
 
@@ -421,7 +421,7 @@ def produce_source(source, config, repo, *, proxy_url="", on_progress=None, shou
     cover_index = _build_cover_index(repo, output_uri)
     owners = _build_owners(cover_index)
 
-    files = _list_source_videos(source.path, set(DEFAULT_VIDEO_EXTENSIONS), _min_size_bytes(gallery))
+    files = _list_source_videos(source.path, get_video_extensions(config), _min_size_bytes(gallery))
 
     for fi in files:
         if should_abort is not None and should_abort():

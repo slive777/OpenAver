@@ -960,6 +960,49 @@ class TestProduceSourceGuards:
         mock_search.assert_not_called()
 
 
+class TestProduceSourceVideoExtensions:
+    """produce_source honors user-configured scraper.video_extensions (PR#91 ④)."""
+
+    def test_configured_extensions_passed_to_list(self):
+        """A custom video_extensions config → _list_source_videos gets that exact set."""
+        from core.readonly_producer import produce_source
+
+        source = _make_source()
+        repo = MagicMock()
+        # Custom, non-default extension list (normalized to a set by get_video_extensions)
+        config = _make_config(scraper_cfg={"video_extensions": ["mp4", ".m2ts", "CUSTOM"]})
+
+        with patch("core.readonly_producer._list_source_videos", return_value=[]) as mock_list, \
+             patch("core.readonly_producer._build_cover_index", return_value={}), \
+             patch("core.readonly_producer._build_owners", return_value={}), \
+             patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
+             patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri):
+            produce_source(source, config, repo)
+
+        mock_list.assert_called_once()
+        passed_exts = mock_list.call_args[0][1]
+        assert passed_exts == {".mp4", ".m2ts", ".custom"}
+
+    def test_missing_config_falls_back_to_defaults(self):
+        """No scraper.video_extensions → _list_source_videos gets the DEFAULT set."""
+        from core.readonly_producer import produce_source
+        from core.video_extensions import DEFAULT_VIDEO_EXTENSIONS
+
+        source = _make_source()
+        repo = MagicMock()
+        config = _make_config()  # empty scraper cfg
+
+        with patch("core.readonly_producer._list_source_videos", return_value=[]) as mock_list, \
+             patch("core.readonly_producer._build_cover_index", return_value={}), \
+             patch("core.readonly_producer._build_owners", return_value={}), \
+             patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
+             patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri):
+            produce_source(source, config, repo)
+
+        mock_list.assert_called_once()
+        assert mock_list.call_args[0][1] == set(DEFAULT_VIDEO_EXTENSIONS)
+
+
 class TestProduceSourceNoneNumberGuard:
     """extract_number returns None → no_scrape++, search_jav NOT called (Codex P2b)."""
 
