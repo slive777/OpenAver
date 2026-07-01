@@ -511,69 +511,6 @@ class TestMovieDir:
         assert dir_a != dir_b
 
 
-class TestNoCoverRegenNoSibling:
-    """Codex P2-1: a no-cover title must reuse its folder on re-generate.
-
-    RED against pre-fix code: the second gen sees the on-disk folder, finds it
-    absent from `owners` (built from cover-bearing rows only — the no-cover row's
-    cover_path='' is dropped), treats it as <foreign> and spawns a hashed sibling.
-    GREEN after fix: _producer_uris marks the source as already-generated, so
-    _movie_dir reuses the same leaf.
-    """
-
-    def test_second_gen_no_hashed_sibling(self, tmp_path, temp_db):
-        from core.database import VideoRepository
-        from core.readonly_producer import produce_source
-
-        src_dir = tmp_path / "src"
-        src_dir.mkdir()
-        (src_dir / "ABC-123.mp4").write_bytes(b"x" * 4096)
-        out_dir = tmp_path / "out"
-        out_dir.mkdir()
-
-        source = _make_source(readonly=True, output_path=str(out_dir), path=str(src_dir))
-        # folder_format='' → no folder layers → movie leaf sits directly under out_dir,
-        # so a hashed sibling shows up as a top-level dir next to the real one.
-        config = {
-            "gallery": {},
-            "scraper": {
-                "folder_format": "",
-                "filename_format": "{num} {title}",
-                "max_filename_length": 60,
-                "max_title_length": 50,
-                "suffix_keywords": [],
-            },
-        }
-        meta = {
-            "number": "ABC-123", "title": "T", "cover": "", "actors": [], "tags": [],
-            "date": "", "maker": "", "director": "", "series": "", "label": "",
-            "sample_images": [], "duration": 0, "url": "",
-        }
-
-        def run():
-            # Fresh repo handle each run (same underlying temp_db file → persisted rows).
-            repo = VideoRepository(temp_db)
-            with patch("core.readonly_producer.search_jav", return_value=meta), \
-                 patch("core.readonly_producer.download_image", return_value=False), \
-                 patch("core.readonly_producer.generate_nfo", return_value=True):
-                return produce_source(source, config, repo)
-
-        r1 = run()
-        assert r1.created == 1
-        first_dir = r1.outcomes[0].movie_dir
-        dirs_after_first = sorted(p.name for p in out_dir.iterdir() if p.is_dir())
-        assert len(dirs_after_first) == 1
-
-        r2 = run()
-        assert r2.created == 1
-        dirs_after_second = sorted(p.name for p in out_dir.iterdir() if p.is_dir())
-
-        # No new/hashed sibling: still exactly one movie dir, and it is the same folder.
-        assert dirs_after_second == dirs_after_first
-        assert len(dirs_after_second) == 1
-        assert r2.outcomes[0].movie_dir == first_dir
-
-
 # ---------------------------------------------------------------------------
 # T-3 tests: _write_movie_assets, _upsert_db
 # ---------------------------------------------------------------------------
@@ -1037,7 +974,6 @@ class TestProduceSourceNoneNumberGuard:
         with patch("core.readonly_producer._list_source_videos", return_value=files), \
              patch("core.readonly_producer._build_cover_index", return_value={}), \
              patch("core.readonly_producer._build_owners", return_value={}), \
-             patch("core.readonly_producer._producer_uris", return_value=set()), \
              patch("core.readonly_producer._should_skip", return_value=False), \
              patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
              patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri), \
@@ -1061,7 +997,6 @@ class TestProduceSourceNoneNumberGuard:
         with patch("core.readonly_producer._list_source_videos", return_value=files), \
              patch("core.readonly_producer._build_cover_index", return_value={}), \
              patch("core.readonly_producer._build_owners", return_value={}), \
-             patch("core.readonly_producer._producer_uris", return_value=set()), \
              patch("core.readonly_producer._should_skip", return_value=False), \
              patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
              patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri), \
@@ -1111,7 +1046,6 @@ class TestProduceSourceMixedStats:
         with patch("core.readonly_producer._list_source_videos", return_value=self.FILES), \
              patch("core.readonly_producer._build_cover_index", return_value={}), \
              patch("core.readonly_producer._build_owners", return_value={}), \
-             patch("core.readonly_producer._producer_uris", return_value=set()), \
              patch("core.readonly_producer._should_skip", side_effect=fake_should_skip), \
              patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
              patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri), \
@@ -1161,7 +1095,6 @@ class TestProduceSourceOnProgress:
         with patch("core.readonly_producer._list_source_videos", return_value=files), \
              patch("core.readonly_producer._build_cover_index", return_value={}), \
              patch("core.readonly_producer._build_owners", return_value={}), \
-             patch("core.readonly_producer._producer_uris", return_value=set()), \
              patch("core.readonly_producer._should_skip", return_value=False), \
              patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
              patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri), \
@@ -1197,7 +1130,6 @@ class TestProduceSourceShouldAbort:
         with patch("core.readonly_producer._list_source_videos", return_value=files), \
              patch("core.readonly_producer._build_cover_index", return_value={}), \
              patch("core.readonly_producer._build_owners", return_value={}), \
-             patch("core.readonly_producer._producer_uris", return_value=set()), \
              patch("core.readonly_producer._should_skip", return_value=False), \
              patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
              patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri), \
@@ -1241,7 +1173,6 @@ class TestProduceSourceExceptionDoesNotAbort:
         with patch("core.readonly_producer._list_source_videos", return_value=files), \
              patch("core.readonly_producer._build_cover_index", return_value={}), \
              patch("core.readonly_producer._build_owners", return_value={}), \
-             patch("core.readonly_producer._producer_uris", return_value=set()), \
              patch("core.readonly_producer._should_skip", return_value=False), \
              patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
              patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri), \
@@ -1280,7 +1211,6 @@ class TestProduceSourceFailureContract:
         with patch("core.readonly_producer._list_source_videos", return_value=files), \
              patch("core.readonly_producer._build_cover_index", return_value={}), \
              patch("core.readonly_producer._build_owners", return_value={}), \
-             patch("core.readonly_producer._producer_uris", return_value=set()), \
              patch("core.readonly_producer._should_skip", return_value=False), \
              patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
              patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri), \

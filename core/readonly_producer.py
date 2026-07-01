@@ -220,21 +220,6 @@ def _build_owners(cover_index: dict) -> dict:
     return owners
 
 
-def _producer_uris(repo) -> set:
-    """Return the set of ALL source_uris that already have a DB row.
-
-    A row for source_uri means the producer generated it on a prior run — even
-    when its cover_path is '' (cold title / cover download failed, which
-    _build_cover_index/_build_owners drop). _movie_dir uses this to reuse an
-    existing on-disk movie folder for such no-cover rows instead of treating it
-    as foreign and spawning a hashed sibling on every re-generate (Codex P2-1).
-
-    Reuses the same bulk query as _build_cover_index: get_cover_index() returns
-    all rows (cover-bearing or not), so this adds no per-file query.
-    """
-    return set(repo.get_cover_index())
-
-
 def _movie_leaf_base(number: str, source_uri: str) -> str:
     """Return the leaf directory name for a single movie. (plan §4.2 / card §5)
 
@@ -260,7 +245,6 @@ def _movie_dir(
     source_uri: str,
     config: dict,
     owners: dict,
-    producer_uris: set | None = None,
 ) -> Path:
     """Return the per-movie directory Path, registering source_uri in owners.
 
@@ -269,18 +253,6 @@ def _movie_dir(
     - If candidate exists on disk but is not in owners → treat as foreign, hash.
     - Idempotent: same source_uri → same dir (owner == source_uri → no hash).
     - owners is mutated in-place; callers pass a persistent dict across calls.
-
-    No-cover re-gen idempotency (Codex P2-1):
-    - `owners` is built from cover-bearing rows only (a no-cover row has cover_path=''
-      and is dropped by _build_cover_index). So on a re-generate, a folder this source
-      itself produced on a prior no-cover run is absent from `owners` and would be
-      mis-detected as `<foreign>` → hashed sibling every run.
-    - `producer_uris` is the set of source_uris that already have a DB row (cover-bearing
-      or not). When the on-disk candidate is not owned by a cover-bearing sibling but
-      THIS source_uri already has a DB row, the folder is our own prior output — the leaf
-      is deterministic from (number, source_uri), so the freshly-recomputed candidate IS
-      last run's folder. Treat it as owned-by-self (reuse in place, no hash). Genuinely
-      foreign folders (no DB row for this source) still hash.
     """
     parts = _folder_parts(format_data, config)
     leaf = _movie_leaf_base(format_data['number'], source_uri)
@@ -288,12 +260,7 @@ def _movie_dir(
 
     owner = owners.get(str(candidate))
     if owner is None and candidate.exists():
-        # Not claimed by a cover-bearing sibling. Reuse if it is our own prior
-        # (no-cover) output; otherwise treat as a foreign folder and hash.
-        if producer_uris and source_uri in producer_uris:
-            owner = source_uri
-        else:
-            owner = "<foreign>"    # disk-orphan: not in owners, not ours → foreign
+        owner = "<foreign>"        # disk-orphan: not in owners but exists on disk
 
     if owner not in (None, source_uri):
         h = hashlib.sha1(source_uri.encode()).hexdigest()[:8]
@@ -453,8 +420,6 @@ def produce_source(source, config, repo, *, proxy_url="", on_progress=None, shou
 
     cover_index = _build_cover_index(repo, output_uri)
     owners = _build_owners(cover_index)
-    # All rows (incl. no-cover) so re-gen reuses its own folder, not a hashed sibling (P2-1).
-    producer_uris = _producer_uris(repo)
 
     files = _list_source_videos(source.path, set(DEFAULT_VIDEO_EXTENSIONS), _min_size_bytes(gallery))
 
@@ -483,7 +448,7 @@ def produce_source(source, config, repo, *, proxy_url="", on_progress=None, shou
 
         try:
             fd = _format_data(meta, fi["path"], scraper_cfg)
-            movie_dir = _movie_dir(output_root, fd, src_uri, scraper_cfg, owners, producer_uris)
+            movie_dir = _movie_dir(output_root, fd, src_uri, scraper_cfg, owners)
             assets = _write_movie_assets(str(movie_dir), meta, fd, fi["path"], scraper_cfg)
             _upsert_db(repo, src_uri, fi, meta, assets, path_mappings)
             result.created += 1
