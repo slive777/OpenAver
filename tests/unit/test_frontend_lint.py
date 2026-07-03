@@ -2908,7 +2908,9 @@ class TestReadonlySourceErrorToastGuard:
         # 完成 toast 區塊須有依 source_errors 分流的 warn 分支
         idx = js.find("const srcErrors")
         assert idx != -1, "scanner/state-scan.js 缺 srcErrors 分流變數"
-        window = js[idx:idx + 800]
+        # 89b-T6：block 內新增 noOutput/unreachable/partial 宣告與 parts.push 後，
+        # 'warn' 字串位置後移，window 需放寬（原 800 不足以涵蓋整個 if/else block）。
+        window = js[idx:idx + 1300]
         assert "'warn'" in window or '"warn"' in window, \
             "scanner/state-scan.js source_errors 分支缺 warn toast"
 
@@ -2918,11 +2920,45 @@ class TestReadonlySourceErrorToastGuard:
         js = SCANNER_SCAN_JS.read_text(encoding="utf-8")
         idx = js.find("const srcErrors")
         assert idx != -1, "scanner/state-scan.js 缺 srcErrors 分流變數"
-        window = js[idx:idx + 800]
+        window = js[idx:idx + 1300]
         assert ".failed" in window, \
             "scanner/state-scan.js 完成 toast 未 consult readonly_stats.failed"
         assert "'warn'" in window or '"warn"' in window, \
             "scanner/state-scan.js failed 分支缺 warn toast"
+
+    def test_done_toast_consults_no_output_unreachable_partial(self):
+        """89b-T6 Codex P1：完成通知後端 warn-gate 已納入 no_output/unreachable/partial
+        （web/routers/scanner.py），但 scanner 頁自己的完成 toast 未同步 consult，
+        三種情境仍顯示 success，違反 spec §89b.3.3「警告並略過，不誤報成功」。
+        本測試鎖住 done handler 也讀 readonly_stats.no_output/unreachable/partial，
+        且三者各自有走 warn 的分支。"""
+        js = SCANNER_SCAN_JS.read_text(encoding="utf-8")
+        idx = js.find("const srcErrors")
+        assert idx != -1, "scanner/state-scan.js 缺 srcErrors 分流變數"
+        window = js[idx:idx + 1200]
+
+        assert "const noOutput" in window and "readonly_stats" in window and ".no_output" in window, \
+            "scanner/state-scan.js 完成 toast 未 consult readonly_stats.no_output"
+        assert "const unreachable" in window and ".unreachable" in window, \
+            "scanner/state-scan.js 完成 toast 未 consult readonly_stats.unreachable"
+        assert "const partial" in window and ".partial" in window, \
+            "scanner/state-scan.js 完成 toast 未 consult readonly_stats.partial"
+
+        # warn 判斷條件須把三者都納入（而非只判斷 srcErrors/failedCount）
+        cond_idx = window.find("if (srcErrors > 0")
+        assert cond_idx != -1, "scanner/state-scan.js 找不到完成 toast 的 warn 判斷條件"
+        cond_line_end = window.find(")", window.find(") {", cond_idx))
+        cond_window = window[cond_idx:cond_idx + 300]
+        assert "noOutput > 0" in cond_window, \
+            "scanner/state-scan.js warn 判斷條件未納入 noOutput > 0"
+        assert "unreachable > 0" in cond_window, \
+            "scanner/state-scan.js warn 判斷條件未納入 unreachable > 0"
+        assert "partial > 0" in cond_window, \
+            "scanner/state-scan.js warn 判斷條件未納入 partial > 0"
+
+        # pruned 是正常成功結果，不應被納入 warn 判斷
+        assert "pruned > 0" not in cond_window, \
+            "scanner/state-scan.js warn 判斷條件不應納入 pruned（prune 非警告）"
 
 
 class TestSearchFileJsSubtitleHelper:
