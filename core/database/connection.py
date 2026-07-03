@@ -4,6 +4,7 @@ get_db_path / get_connection / init_db / _migrate_old_aliases 同住於此。
 """
 import sqlite3
 import json
+import time
 from pathlib import Path
 
 from core.logger import get_logger
@@ -108,12 +109,14 @@ def init_db(db_path: Path = None) -> None:
             tags TEXT,
             sample_images TEXT DEFAULT '',
             user_tags TEXT DEFAULT '[]',
+            output_dir TEXT DEFAULT '',
             duration INTEGER,
             size_bytes INTEGER,
             cover_path TEXT,
             release_date TEXT,
             mtime REAL,
             nfo_mtime REAL,
+            scrape_attempted_at REAL DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -226,6 +229,20 @@ def init_db(db_path: Path = None) -> None:
     # Migration: 加入 Phase 41b user_tags 欄位
     if 'user_tags' not in existing_cols:
         cursor.execute("ALTER TABLE videos ADD COLUMN user_tags TEXT DEFAULT '[]'")
+
+    # Migration: 加入 89a output_dir 欄位
+    if 'output_dir' not in existing_cols:
+        cursor.execute("ALTER TABLE videos ADD COLUMN output_dir TEXT DEFAULT ''")
+
+    # Migration: 加入 89b scrape_attempted_at 欄位 + 一次性 backfill
+    if 'scrape_attempted_at' not in existing_cols:
+        cursor.execute("ALTER TABLE videos ADD COLUMN scrape_attempted_at REAL DEFAULT 0")
+        cursor.execute(
+            """UPDATE videos SET scrape_attempted_at = ?
+               WHERE scrape_attempted_at = 0
+               AND (cover_path != '' OR nfo_mtime > 0 OR output_dir != '')""",
+            (time.time(),)
+        )
 
     # Migration: 57b — 移除 v0.8.6 視覺搜尋欄位（idempotent；clean install 不爆）
     # DROP INDEX 必先於 DROP COLUMN（SQLite 不允許 drop 被 index 引用的 column）

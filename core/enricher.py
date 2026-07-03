@@ -4,6 +4,7 @@ enricher.py - 舊片原地補完（NFO / 封面 / 劇照），絕對不搬移、
 
 import os
 import shutil
+import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
@@ -372,6 +373,7 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
             scraper_data = search_jav(number, proxy_url=proxy_url,
                                       source=source or 'auto', javbus_lang=javbus_lang)
         if not scraper_data:
+            repo.update_scrape_attempted_at(to_file_uri(fs_path), time.time())
             _empty.error = f"找不到 {number} 的資料"
             return _empty
         meta = _scraper_to_meta(scraper_data)
@@ -407,6 +409,7 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
                 scraper_data = search_jav(number, proxy_url=proxy_url,
                                           source=source or 'auto', javbus_lang=javbus_lang)
             if not scraper_data:
+                repo.update_scrape_attempted_at(to_file_uri(fs_path), time.time())
                 _empty.error = f"找不到 {number} 的資料"
                 return _empty
             supplement = _scraper_to_meta(scraper_data)
@@ -550,6 +553,11 @@ def _db_upsert(
         # 保留 DB 既有 user_tags（不被 scraper 覆蓋）
         preserved_user_tags = existing.user_tags if existing else []
 
+        # TASK-89a-T5 (CD-89a-5 / Codex C2): 保留 DB 既有 output_dir（enricher 從不
+        # 自己生成 output_dir，純粹讀出既有值原樣塞回，作為 T1 DB CASE-WHEN 之上的
+        # defense-in-depth，避免補完/重刮把 producer 寫入的 output_dir 洗掉）
+        preserved_output_dir = existing.output_dir if existing else ''
+
         # §b1 / Codex P1: 只有磁碟真寫出 extrafanart 檔案才更新 DB sample_images；
         # 使用 written_uris（local file:/// URIs），不寫 scraper 遠端 URL
         if written_uris:
@@ -574,6 +582,8 @@ def _db_upsert(
             cover_path=cover_uri,
             release_date=meta.get("release_date", ""),
             nfo_mtime=nfo_mtime,
+            output_dir=preserved_output_dir,
+            scrape_attempted_at=time.time(),
         )
         repo.upsert(video)
     except Exception as e:

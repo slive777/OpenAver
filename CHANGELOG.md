@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.4] - 2026-07-04
+
+本版主軸：**唯讀產生庫「地基」+ 掃描頁「試過」提醒 UX + 來源刪檔清死卡**（feature/89，spec-89 §89a/§89b）——承接 0.11.3 的 off 風味唯讀產生庫，先把「OpenAver 生成的片」變成**一等公民**：系統記住每部片生成在哪個資料夾、這份記憶不被其他操作洗掉，於是重新產生／強制重刮回到同一資料夾原地更新，不再每次多長一個重複垃圾夾（沒封面的片也記得住位置）。站在這塊地基上，再修掃描頁三個惱人問題：已刮過／已生成的片不再被「缺資料」嘮叨、刮不到的片試過一次就跳過不再每次重打、唯讀網盤掉線時明確警告而非靜默報成功，並在來源端刪檔後清掉庫裡對應的死卡（**只清 DB、不動你輸出夾裡的檔案**）。89a 地基多半使用者無感，但讓 89b 與後續 feature/90 全部乾淨。
+
+### Added
+#### 🎯 生成片一等公民身分 + 記住輸出夾（89a 地基）
+- **重新產生／強制重刮不再長重複夾**：新增 `videos.output_dir` 欄位記住每部片生成的資料夾（同時作為「這是 OpenAver 生成的」可靠標記）——之後重刮回到同一夾原地更新。無封面的片也記得住位置。
+- **off 風味輸出夾免設定**：唯讀來源「預設／自瀏覽」風味的產物固定落在 App 自管位置 `output/lib/<來源名>`（比照縮圖、女優封面的慣例），畫面上不再顯示輸出夾欄位、也不會發生「忘設輸出夾→產生 0 片」。給媒體伺服器（Emby/Jellyfin/Kodi）用的風味才可指定任意輸出夾（供後續 feature/90）。
+- **同一部片多格式各自有夾**：`.mp4` + `.mkv` 落入不同資料夾、不互相覆蓋。
+
+#### 🎯 掃描頁「試過」記憶（89b）
+- **試過／已生成的片不再被嘮叨**：新增 `scrape_attempted_at`「試過」記憶，任何被實際刮過一次（含成功、天生沒封面、查無資料）或 off 已生成的片，都不再出現在底部「缺資料」提示；提示只留給真的還沒處理的片。
+- **刮不到的片只試一次**：查無資料的片試過後自動跳過、不再每次重刮（除非強制或改名），仍以檔名顯示在封面牆讓你自行改番號重刮／補封面／留著。
+
+### Changed
+- **原地覆蓋精準清殘檔**：重刮同片時，若標題被片商修正（`{番號} {標題}` 檔名改變），舊標題的殘檔會被精準清除、不再越堆越多（只清本片系列檔、不動你自己放進資料夾的檔）。
+- **兩顆「缺資料」藥丸文案去重疊**：「NFO 欄位不全」（已刮過只是資料不全）與「缺 NFO 檔案／缺封面檔案」（本體缺件）一眼可辨。
+
+### Fixed
+- **唯讀網盤掉線不再誤報成功**：唯讀來源掛載掉線／讀取中途出錯時明確警告並略過（scanner 頁完成 toast、通知中心、完成通知三處都走警告），絕不在資訊不完整時亂清庫。
+- **`output_dir` 身分不被補完／重刮洗掉**：`upsert`／`upsert_batch`／enricher 對 producer row 補完或重刮不再弄丟它的位置記憶（否則預設批次補完會例行性洗掉、身分與記位失效）。
+- **WSL＋UNC mapped 輸出根定位正確**：`output_dir`／封面落地判斷走 targeted reverse-map，跨機器路徑映射下拿到真實本機路徑。
+- **off 固定夾封面可經 image proxy 讀取**：`resolve_output_root` 共用 helper 讓 off 固定輸出夾同步進 `/api/gallery/image` 白名單（否則剛生成的封面／劇照經 proxy 一律 404、OpenAver 自己看不到圖）。
+- **producer／「試過」markers 不被重掃或整理搬移洗掉**：`output_dir`／`scrape_attempted_at` 在 `upsert`／`upsert_batch`／`repath` 三處都加「incoming 空／0 則保留既有」保護，避免一般來源「查無資料」的片在資料夾重掃或整理搬移（rename→repath）時被 default 值覆寫、tried 歸零後又跑回「缺資料」提示。
+- **重刮寫到一半失敗不再兩頭空**：舊資產清除從「寫新資產之前清」改為「寫成功之後才清、且只清替換已寫成的」——若封面下載失敗或 NFO 寫入失敗，該片先前可用的封面／NFO **保留不動**（同名直接覆寫不預刪、改標題才清舊系列且各資產只在新檔寫成時才刪舊檔），不會清掉舊的卻又沒補上新的。
+
+### Removed
+- **來源刪檔清庫裡死卡**：在網盤／NAS 刪了某片後，下次對該來源產生時（**確認來源可達、清單完整且非空**的前提下）清掉庫裡對應的死卡。**預設只清 DB 卡、零檔案系統刪除**（你輸出夾裡的 nfo／封面／資料夾不動）。partial-scan（部分路徑讀取失敗）或空列表時整源不清（保守優先，寧可留死卡也不誤刪活著的片）。
+- **拔除無狀態重算夾機制**：刪掉舊的跑時 cover-owners map／hash 尾碼消歧（`_build_owners` 等）改由 DB 存值 + increment 分配；連帶移除失去唯一呼叫者的 `cover_index` 死碼鏈。
+
+### Internal
+- DB schema 加法遷移 `output_dir TEXT DEFAULT ''` + `scrape_attempted_at REAL DEFAULT 0`（含一次性 backfill：已有封面／NFO／已生成的舊片自動視為「試過」；舊庫升級不需重建、不報錯）；新增 `get_attempted_index`／`update_scrape_attempted_at`／`insert_if_ignore`／`is_output_dir_taken` repo 方法。
+- `resolve_output_root(source, config)` 單一真理 helper（off 固定 / media-server 設定），三 call site（producer output_root、`no_output` guard、image 白名單）共用。
+- `_should_skip` 改單一 `attempted` 信號 + `force` 強制重刮參數（僅函式層 plumbing，UI 觸發點為 follow-on）。**行為變化**：移除磁碟 cover 檢查後，外部誤刪輸出夾封面不再自動 self-heal 重建（省成本優先，folder 正確性交給記憶輸出夾地基）。
+- 唯讀來源 reachability guard + partial-scan `skipped_paths` 訊號；DB-row-only prune 的「本次列表」用原始掃描清單（非已處理集合），避免把「存在但被 skip」的片誤判消失而刪卡；prune 一併與非唯讀分支對等 invalidate 縮圖快取；完成通知 `no_output`／`unreachable`／`partial` 五步映射打通（per-source warn SSE + 計數 + completion warn-gate + scanner 頁 toast）。
+
+### 測試
+- 全套 pytest **5171 passed, 2 skipped**（unit + integration，排除 smoke／e2e，較 0.11.3 的 5031 +140：89a output_dir 欄位/upsert 對稱保護/佔用查詢 + output_dir/scrape_attempted_at upsert/upsert_batch/repath 三處對稱保護 + stale-clean 寫成功後才清（NFO/cover 失敗保留舊資產） + resolve_output_root 真值表/來源名確定性短碼/image 白名單含 off 根 + 夾位讀存 idempotent/B1/B2/increment + stale title-drift 精準清 + mapped-output 定位/enrich 保留 + 89b scrape_attempted_at 遷移/backfill〔含 output_dir 反推 mutation 鎖〕/三寫入點標記/`_should_skip` skip 矩陣+force + missing-check 排除 produced/tried + reachability/partial 三訊號矩陣 + DB-row-only prune〔跨來源隔離·partial 抑制·只刪 DB 不動檔·should_abort 尾巴防誤刪 mutation 鎖·不誤報成功三情境〕）＋ `ruff check .` 綠 ＋ `npm run lint`（eslint + stylelint）綠。
+- 來源金絲雀：**8 源全 PASS**（javbus／jav321／heyzo／d2pass／avsox／fc2／javdb／dmm，pre-merge live 健康檢查）。
+
 ## [0.11.3] - 2026-07-01
 
 本版主軸：**唯讀來源生成本地媒體庫（off 風味）**（feature/88，spec-88）——為 scanner 來源新增「唯讀」模式：勾了就不寫回來源夾，改在你指定的本地輸出夾生成一個「每片一資料夾」的媒體庫（nfo + 封面 + 劇照），並直接寫進 DB。適合把影片放在唯讀網盤／NAS 共享／Alist 掛載（不能改名搬移）的人——OpenAver 讀來源、產出整理好的本地庫，來源一個 bit 都不動，之後在 OpenAver 就能瀏覽、串流播放雲端原檔。對雲端足跡極輕（只列目錄 + 真的點播才讀那一部）。接停更的 MDCX 的棒，但預設走純文字產物、零權限門檻。

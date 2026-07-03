@@ -785,12 +785,23 @@ export function stateScan() {
                         // 88c-P2: 唯讀來源整源失敗（source_errors）或個別影片失敗（failed）時
                         // 完成 toast 走 warn，不可純 success（後端完成通知已同步納入兩者）。
                         // no_scrape 是「線上查無 metadata」的正常情況，不計為失敗（PR#91 ②）。
+                        // 89b-T6（Codex P1）：後端完成通知 warn-gate 已納入 no_output（未設輸出夾）/
+                        // unreachable（來源無法連線）/ partial（partial-scan 略過刪除偵測）三種情境
+                        // （web/routers/scanner.py），但 scanner 頁自己的完成 toast 沒同步 consult，
+                        // 三者原本仍顯示 success，違反 spec §89b.3.3「警告並略過，不誤報成功」。
+                        // pruned 是正常成功結果（非警告），不納入此判斷。
                         const srcErrors = (data.readonly_stats && data.readonly_stats.source_errors) || 0;
                         const failedCount = (data.readonly_stats && data.readonly_stats.failed) || 0;
-                        if (srcErrors > 0 || failedCount > 0) {
+                        const noOutput = (data.readonly_stats && data.readonly_stats.no_output) || 0;
+                        const unreachable = (data.readonly_stats && data.readonly_stats.unreachable) || 0;
+                        const partial = (data.readonly_stats && data.readonly_stats.partial) || 0;
+                        if (srcErrors > 0 || failedCount > 0 || noOutput > 0 || unreachable > 0 || partial > 0) {
                             const parts = [];
                             if (srcErrors > 0) parts.push(`${srcErrors} 個唯讀來源失敗`);
                             if (failedCount > 0) parts.push(`${failedCount} 部失敗`);
+                            if (unreachable > 0) parts.push(`${unreachable} 個來源無法連線`);
+                            if (partial > 0) parts.push(`${partial} 個來源部分讀取失敗`);
+                            if (noOutput > 0) parts.push(`${noOutput} 個未設輸出夾`);
                             this.showToast(
                                 `完成 ${data.video_count} 部，但 ${parts.join('、')}，詳細見日誌`,
                                 'warn'

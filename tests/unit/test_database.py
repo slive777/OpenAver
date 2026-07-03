@@ -705,6 +705,327 @@ class TestGetColumnsOrder:
         assert result.duration == 75
 
 
+class TestOutputDirField:
+    """TASK-89a-T1: videos.output_dir 欄位 — CREATE TABLE + 加法遷移 + dataclass round-trip"""
+
+    def _create_old_schema_db_no_output_dir(self, db_path: Path):
+        """建立沒有 output_dir 的舊 schema DB（其餘欄位齊全）"""
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE videos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                path TEXT UNIQUE NOT NULL,
+                number TEXT,
+                title TEXT,
+                original_title TEXT,
+                actresses TEXT,
+                maker TEXT,
+                director TEXT DEFAULT '',
+                series TEXT,
+                label TEXT DEFAULT '',
+                tags TEXT,
+                sample_images TEXT DEFAULT '',
+                user_tags TEXT DEFAULT '[]',
+                duration INTEGER,
+                size_bytes INTEGER,
+                cover_path TEXT,
+                release_date TEXT,
+                mtime REAL,
+                nfo_mtime REAL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute(
+            "INSERT INTO videos (path, number, title) VALUES (?, ?, ?)",
+            (to_file_uri("/old_no_output_dir.mp4"), "OLD-002", "舊資料")
+        )
+        conn.commit()
+        conn.close()
+
+    def test_new_db_includes_output_dir_column(self, tmp_path):
+        """全新 DB 的 CREATE TABLE 含 output_dir，預設值 ''"""
+        db_path = tmp_path / "new.db"
+        init_db(db_path)
+
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(videos)")
+        columns = {row[1]: row for row in cursor.fetchall()}
+        conn.close()
+
+        assert 'output_dir' in columns
+
+    def test_migration_adds_output_dir_column(self, tmp_path):
+        """舊 schema（無 output_dir）升級後，PRAGMA table_info 確認欄位存在"""
+        db_path = tmp_path / "old.db"
+        self._create_old_schema_db_no_output_dir(db_path)
+
+        init_db(db_path)
+
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(videos)")
+        columns = [row[1] for row in cursor.fetchall()]
+        conn.close()
+
+        assert 'output_dir' in columns
+
+    def test_migration_output_dir_idempotent(self, tmp_path):
+        """對同一個舊庫連續呼叫 init_db() 兩次不拋例外（遷移 idempotent）"""
+        db_path = tmp_path / "old.db"
+        self._create_old_schema_db_no_output_dir(db_path)
+
+        init_db(db_path)
+        init_db(db_path)  # 第二次不應報錯
+
+    def test_video_output_dir_default_empty_string(self):
+        """Video.output_dir 預設值為 ''"""
+        video = Video()
+        assert hasattr(video, 'output_dir')
+        assert video.output_dir == ''
+
+    def test_video_output_dir_roundtrip_via_upsert(self, tmp_path):
+        """Video dataclass output_dir 透過 to_dict()/from_row() round-trip 正確"""
+        db_path = tmp_path / "test.db"
+        init_db(db_path)
+
+        repo = VideoRepository(db_path)
+        video = Video(
+            path=to_file_uri("/test/output_dir_roundtrip.mp4"),
+            number="OD-001",
+            title="output_dir round-trip",
+            output_dir=to_file_uri("/produced/OD-001"),
+        )
+        repo.upsert(video)
+
+        result = repo.get_by_path(to_file_uri("/test/output_dir_roundtrip.mp4"))
+        assert result is not None
+        assert result.output_dir == to_file_uri("/produced/OD-001")
+
+
+class TestScrapeAttemptedAtField:
+    """TASK-89b-T1: videos.scrape_attempted_at 欄位 — CREATE TABLE + 加法遷移 + backfill"""
+
+    # 舊 schema 已含 output_dir（89a 早於本 task），唯獨缺 scrape_attempted_at
+    _OLD_SCHEMA_SQL = """
+        CREATE TABLE videos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path TEXT UNIQUE NOT NULL,
+            number TEXT,
+            title TEXT,
+            original_title TEXT,
+            actresses TEXT,
+            maker TEXT,
+            director TEXT DEFAULT '',
+            series TEXT,
+            label TEXT DEFAULT '',
+            tags TEXT,
+            sample_images TEXT DEFAULT '',
+            user_tags TEXT DEFAULT '[]',
+            output_dir TEXT DEFAULT '',
+            duration INTEGER,
+            size_bytes INTEGER,
+            cover_path TEXT,
+            release_date TEXT,
+            mtime REAL,
+            nfo_mtime REAL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """
+
+    def _create_old_schema_db(self, db_path: Path, rows: list[dict] | None = None):
+        """建立沒有 scrape_attempted_at 的舊 schema DB（其餘欄位齊全，含 output_dir）。
+
+        rows: list of {path, cover_path, nfo_mtime, output_dir} — 供 backfill 條件矩陣測試組裝。
+        """
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        cursor.execute(self._OLD_SCHEMA_SQL)
+        if rows is None:
+            rows = [{
+                "path": to_file_uri("/old_no_scrape_attempted_at.mp4"),
+                "cover_path": "",
+                "nfo_mtime": 0.0,
+                "output_dir": "",
+            }]
+        for r in rows:
+            cursor.execute(
+                """INSERT INTO videos (path, number, title, cover_path, nfo_mtime, output_dir)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (r["path"], r.get("number", "OLD"), r.get("title", "舊資料"),
+                 r["cover_path"], r["nfo_mtime"], r["output_dir"])
+            )
+        conn.commit()
+        conn.close()
+
+    def test_new_db_includes_scrape_attempted_at_column(self, tmp_path):
+        """全新 DB 的 CREATE TABLE 含 scrape_attempted_at，預設值 0"""
+        db_path = tmp_path / "new.db"
+        init_db(db_path)
+
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(videos)")
+        columns = [row[1] for row in cursor.fetchall()]
+        conn.close()
+
+        assert 'scrape_attempted_at' in columns
+
+    def test_migration_adds_scrape_attempted_at_column(self, tmp_path):
+        """舊 schema（無 scrape_attempted_at）升級後，PRAGMA table_info 確認欄位存在"""
+        db_path = tmp_path / "old.db"
+        self._create_old_schema_db(db_path)
+
+        init_db(db_path)
+
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(videos)")
+        columns = [row[1] for row in cursor.fetchall()]
+        conn.close()
+
+        assert 'scrape_attempted_at' in columns
+
+    def test_migration_scrape_attempted_at_idempotent(self, tmp_path):
+        """對同一個舊庫連續呼叫 init_db() 兩次不拋例外（遷移 idempotent）"""
+        db_path = tmp_path / "old.db"
+        self._create_old_schema_db(db_path)
+
+        init_db(db_path)
+        init_db(db_path)  # 第二次不應報錯
+
+    def test_migration_backfill_does_not_rerun_second_call(self, tmp_path):
+        """第二次呼叫 init_db() 不重跑 backfill：手動歸零後再跑一次，值不被覆蓋"""
+        db_path = tmp_path / "old.db"
+        path = to_file_uri("/backfill_norerun.mp4")
+        self._create_old_schema_db(db_path, rows=[{
+            "path": path, "cover_path": to_file_uri("/out/x.jpg"),
+            "nfo_mtime": 0.0, "output_dir": "",
+        }])
+
+        init_db(db_path)  # 第一次：backfill 跑，attempted > 0
+
+        # 使用者/程式之後手動把值改回 0（模擬「強制重刮」情境）
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("UPDATE videos SET scrape_attempted_at = 0 WHERE path = ?", (path,))
+        conn.commit()
+        conn.close()
+
+        init_db(db_path)  # 第二次：不應重跑 backfill，值應維持使用者剛歸零的 0
+
+        conn = sqlite3.connect(str(db_path))
+        row = conn.execute(
+            "SELECT scrape_attempted_at FROM videos WHERE path = ?", (path,)
+        ).fetchone()
+        conn.close()
+
+        assert row[0] == 0
+
+    def test_backfill_cover_path_nonempty(self, tmp_path):
+        """backfill: cover_path != '' 的舊 row 升級後 scrape_attempted_at > 0"""
+        db_path = tmp_path / "old.db"
+        path = to_file_uri("/backfill_cover.mp4")
+        self._create_old_schema_db(db_path, rows=[{
+            "path": path, "cover_path": to_file_uri("/out/cover.jpg"),
+            "nfo_mtime": 0.0, "output_dir": "",
+        }])
+
+        init_db(db_path)
+
+        conn = sqlite3.connect(str(db_path))
+        row = conn.execute(
+            "SELECT scrape_attempted_at FROM videos WHERE path = ?", (path,)
+        ).fetchone()
+        conn.close()
+
+        assert row[0] > 0
+
+    def test_backfill_nfo_mtime_positive(self, tmp_path):
+        """backfill: nfo_mtime > 0 的舊 row 升級後 scrape_attempted_at > 0"""
+        db_path = tmp_path / "old.db"
+        path = to_file_uri("/backfill_nfo.mp4")
+        self._create_old_schema_db(db_path, rows=[{
+            "path": path, "cover_path": "",
+            "nfo_mtime": 1234567890.0, "output_dir": "",
+        }])
+
+        init_db(db_path)
+
+        conn = sqlite3.connect(str(db_path))
+        row = conn.execute(
+            "SELECT scrape_attempted_at FROM videos WHERE path = ?", (path,)
+        ).fetchone()
+        conn.close()
+
+        assert row[0] > 0
+
+    def test_backfill_all_empty_stays_zero(self, tmp_path):
+        """backfill: cover_path/nfo_mtime/output_dir 三者皆空/0 的純新片維持 0"""
+        db_path = tmp_path / "old.db"
+        path = to_file_uri("/backfill_untouched.mp4")
+        self._create_old_schema_db(db_path, rows=[{
+            "path": path, "cover_path": "",
+            "nfo_mtime": 0.0, "output_dir": "",
+        }])
+
+        init_db(db_path)
+
+        conn = sqlite3.connect(str(db_path))
+        row = conn.execute(
+            "SELECT scrape_attempted_at FROM videos WHERE path = ?", (path,)
+        ).fetchone()
+        conn.close()
+
+        assert row[0] == 0
+
+    def test_backfill_output_dir_only_producer_row(self, tmp_path):
+        """回歸鎖（Codex Finding-3）：output_dir != '' AND cover_path == '' AND nfo_mtime == 0
+        （producer 生成片模擬，天生沒封面/nfo_mtime）升級後 scrape_attempted_at > 0"""
+        db_path = tmp_path / "old.db"
+        path = to_file_uri("/backfill_output_dir_only.mp4")
+        self._create_old_schema_db(db_path, rows=[{
+            "path": path, "cover_path": "",
+            "nfo_mtime": 0.0, "output_dir": to_file_uri("/produced/OD-999"),
+        }])
+
+        init_db(db_path)
+
+        conn = sqlite3.connect(str(db_path))
+        row = conn.execute(
+            "SELECT scrape_attempted_at FROM videos WHERE path = ?", (path,)
+        ).fetchone()
+        conn.close()
+
+        assert row[0] > 0
+
+    def test_video_scrape_attempted_at_default_zero(self):
+        """Video.scrape_attempted_at 預設值為 0.0"""
+        video = Video()
+        assert hasattr(video, 'scrape_attempted_at')
+        assert video.scrape_attempted_at == 0.0
+
+    def test_video_scrape_attempted_at_roundtrip_via_upsert(self, tmp_path):
+        """Video dataclass scrape_attempted_at 透過 to_dict()/from_row() round-trip 正確"""
+        db_path = tmp_path / "test.db"
+        init_db(db_path)
+
+        repo = VideoRepository(db_path)
+        video = Video(
+            path=to_file_uri("/test/scrape_attempted_at_roundtrip.mp4"),
+            number="SA-001",
+            title="scrape_attempted_at round-trip",
+            scrape_attempted_at=1717171717.5,
+        )
+        repo.upsert(video)
+
+        result = repo.get_by_path(to_file_uri("/test/scrape_attempted_at_roundtrip.mp4"))
+        assert result is not None
+        assert result.scrape_attempted_at == 1717171717.5
+
+
 # ============ AliasRepository 測試 ============
 
 def test_alias_repository_crud(tmp_path):

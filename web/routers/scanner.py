@@ -42,7 +42,7 @@ from core.nfo_updater import check_cache_needs_update, update_videos_generator
 from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite
 from core.organizer import generate_jellyfin_images, HEADERS as _EMBED_HEADERS
 from core.config import load_config, iter_gallery_sources, get_gallery_source_paths
-from core.readonly_producer import produce_source
+from core.readonly_producer import produce_source, resolve_output_root
 from core import thumbnail_cache
 from core.scraper import smart_search
 from core.source_settings import is_uncensored_mode_effective
@@ -111,21 +111,26 @@ def _dir_candidate_forms(raw_dir: str, path_mappings: dict) -> tuple:
     return forms
 
 
-def _image_whitelist_dirs(gallery_config) -> List[str]:
-    """TASK-88c-T1: /api/gallery/image 白名單的候選 raw 目錄清單。
+def _image_whitelist_dirs(config: dict) -> List[str]:
+    """TASK-88c-T1 / TASK-89a-T2: /api/gallery/image 白名單的候選 raw 目錄清單。
 
-    每個來源 emit `src.path`，並在 `src.output_path` 非空時一併 emit
-    （讓唯讀 + off 風味生成到 output_path 底下的封面/劇照能經 image proxy 服務）。
+    每個來源 emit `src.path`，並在 `resolve_output_root(src, config)`（CD-89a-7）
+    非空時一併 emit——off 風味回傳固定 `output/lib/<name>` 根（讓唯讀 + off 風味
+    生成的封面/劇照能經 image proxy 服務，Codex #1 回歸鎖：只改 producer 不改
+    白名單會讓 off 封面 404）；jellyfin/emby/kodi 沿用 `source.output_path` 原值。
 
-    純函式、無 IO。`""` output_path 被過濾——不讓空字串進 `_dir_candidate_forms`
-    （避免 `to_file_uri('') = 'file:///'` 根路徑把整顆磁碟放進白名單，
-    CWE-allowlist bypass）。get_video 不共用此 helper（獨立 call site，spec P1a）。
+    純函式、無 IO（`resolve_output_root` 本身無 IO）。空字串仍被過濾——不讓空
+    字串進 `_dir_candidate_forms`（避免 `to_file_uri('') = 'file:///'` 根路徑
+    把整顆磁碟放進白名單，CWE-allowlist bypass）。get_video 不共用此 helper
+    （獨立 call site，spec P1a）。
     """
+    gallery_config = config.get('gallery', {})
     dirs: List[str] = []
     for src in iter_gallery_sources(gallery_config):
         dirs.append(src.path)
-        if src.output_path:
-            dirs.append(src.output_path)
+        resolved = resolve_output_root(src, config)
+        if resolved:
+            dirs.append(resolved)
     return dirs
 
 
@@ -178,13 +183,18 @@ def _outcome_to_sse(o) -> dict:
 
 
 def _accumulate_readonly(summary: dict, result) -> None:
-    """跨來源累計四數 + no_output（純函式，CD-88c-3）。
+    """跨來源累計四數 + no_output/unreachable/partial/pruned（純函式，CD-88c-3 / TASK-89b-T6）。
 
-    no_output_path → 只 no_output+1；其他非空 aborted_reason（not_readonly 防呆）
-    → 記 log 不計數；正常 → sources+1 並累加 created/skipped/no_scrape/failed。
+    no_output_path → 只 no_output+1；unreachable → 只 unreachable+1（Finding-2 修復，
+    須插在通用 aborted_reason 分支之前，否則會被通用分支吃掉）；其他非空 aborted_reason
+    （not_readonly 防呆）→ 記 log 不計數；正常 → sources+1 並累加
+    created/skipped/no_scrape/failed/pruned，skipped_paths 非空另計 partial+1。
     """
     if result.aborted_reason == "no_output_path":
         summary["no_output"] += 1
+        return
+    if result.aborted_reason == "unreachable":
+        summary["unreachable"] += 1
         return
     if result.aborted_reason:
         logger.info("唯讀來源略過（%s）: %s", result.aborted_reason, result.source_path)
@@ -194,14 +204,28 @@ def _accumulate_readonly(summary: dict, result) -> None:
     summary["skipped"] += result.skipped
     summary["no_scrape"] += result.no_scrape
     summary["failed"] += result.failed
+    summary["pruned"] += result.pruned
+    if result.skipped_paths:
+        summary["partial"] += 1
 
 
 def _yield_source_summary(result) -> Generator[str, None, None]:
-    """該來源小結（產生器）。no_output_path → 「請先設定輸出夾」提示（Acceptance #11）。"""
+    """該來源小結（產生器）。
+
+    no_output_path → 「請先設定輸出夾」提示（Acceptance #11）。
+    unreachable → 「來源無法連線」warn 提示（TASK-89b-T6，Finding-2 修復）。
+    正常小結後，skipped_paths 非空時追加「已略過刪除偵測」warn（比照非 readonly
+    分支 :428-433 文案風格）。
+    """
     if result.aborted_reason == "no_output_path":
         yield _sse_event({
             "type": "log", "level": "warn",
             "message": f"  {result.source_path}: 請先設定輸出夾，已略過",
+        })
+    elif result.aborted_reason == "unreachable":
+        yield _sse_event({
+            "type": "log", "level": "warn",
+            "message": f"  {result.source_path}: 來源無法連線，已略過",
         })
     elif not result.aborted_reason:
         yield _sse_event({
@@ -211,9 +235,14 @@ def _yield_source_summary(result) -> Generator[str, None, None]:
                 f"／刮不到 {result.no_scrape}／失敗 {result.failed}"
             ),
         })
+        if result.skipped_paths:
+            yield _sse_event({
+                "type": "log", "level": "warn",
+                "message": f"  {result.source_path}: {len(result.skipped_paths)} 個路徑讀取失敗，已略過刪除偵測",
+            })
 
 
-def _run_readonly_source(src, config, repo, proxy_url, summary) -> Generator[str, None, None]:
+def _run_readonly_source(src, config, repo, proxy_url, summary, reachable: bool = True) -> Generator[str, None, None]:
     """在 daemon worker thread 跑 produce_source，drain 無界 queue 逐片 yield SSE。
 
     worker 例外（含 produce_source 迴圈前的 normalize/列檔/DB 拋錯，未被 producer
@@ -230,6 +259,7 @@ def _run_readonly_source(src, config, repo, proxy_url, summary) -> Generator[str
                 src, config, repo, proxy_url=proxy_url,
                 on_progress=q.put,
                 should_abort=None,
+                reachable=reachable,
             )
         except Exception:
             logger.exception("唯讀生成來源失敗: %s", src.path)
@@ -329,6 +359,7 @@ def generate_avlist() -> Generator[str, None, None]:
         readonly_summary = {
             "created": 0, "skipped": 0, "no_scrape": 0, "failed": 0,
             "no_output": 0, "sources": 0, "source_errors": 0,
+            "unreachable": 0, "partial": 0, "pruned": 0,
         }
 
         for idx, src in enumerate(iter_gallery_sources(gallery_config), 1):
@@ -337,7 +368,12 @@ def generate_avlist() -> Generator[str, None, None]:
 
             # TASK-88c-T2: readonly 來源分流（早於 normalize，UNC 主場景不被擋）
             if src.readonly:
-                yield from _run_readonly_source(src, config, repo, proxy_url, readonly_summary)
+                # TASK-89b-T5 / CD-89b-5: 可達性防呆補在 readonly 分流點（:366 的
+                # os.path.exists 只在非 readonly 分支執行，readonly 分支需要等義入口
+                # 檢查）。src.path 是 config 原始輸入，不套 reverse_path_mapping
+                # （比照 :353/:96 既定作法，見 TASK-89b-T5 現況分析 #5）。
+                reachable = os.path.exists(uri_to_fs_path(src.path))
+                yield from _run_readonly_source(src, config, repo, proxy_url, readonly_summary, reachable)
                 continue
 
             # 轉換路徑格式 (Windows -> WSL)。directory 可能是 FS 路徑或 file:/// URI
@@ -583,14 +619,19 @@ def generate_avlist() -> Generator[str, None, None]:
         logger.info(f"[Gallery] 完成，新增 {total_inserted}，更新 {total_updated}，刪除 {total_deleted}")
 
         # TASK-88c-T2: readonly 生成摘要 log 行（僅有 readonly 活動時輸出）
-        if readonly_summary["sources"] > 0 or readonly_summary["no_output"] > 0 or readonly_summary["source_errors"] > 0:
+        # TASK-89b-T6: unreachable/partial 納入活躍度判斷，否則全 unreachable 的
+        # run 這行 log 完全不輸出，debug.log 事後排錯看不到這次唯讀掃描發生過什麼。
+        if (readonly_summary["sources"] > 0 or readonly_summary["no_output"] > 0
+                or readonly_summary["source_errors"] > 0 or readonly_summary["unreachable"] > 0
+                or readonly_summary["partial"] > 0):
             logger.info(
-                "唯讀生成完成: 新增 %d／略過 %d／刮不到 %d／失敗 %d"
-                "（%d 個來源；%d 個未設輸出夾；%d 個來源錯誤）",
+                "唯讀生成完成: 新增 %d／略過 %d／刮不到 %d／失敗 %d／清除 %d"
+                "（%d 個來源；%d 個未設輸出夾；%d 個來源錯誤；%d 個來源無法連線；%d 個來源部分讀取失敗）",
                 readonly_summary["created"], readonly_summary["skipped"],
-                readonly_summary["no_scrape"], readonly_summary["failed"],
+                readonly_summary["no_scrape"], readonly_summary["failed"], readonly_summary["pruned"],
                 readonly_summary["sources"], readonly_summary["no_output"],
-                readonly_summary["source_errors"],
+                readonly_summary["source_errors"], readonly_summary["unreachable"],
+                readonly_summary["partial"],
             )
 
         # a5: 寫長路徑清單到 debug.log（helper 內部判斷空 list）
@@ -607,9 +648,16 @@ def generate_avlist() -> Generator[str, None, None]:
         # 失敗原本只增 source_errors，完成通知沒納入 → 仍報成功，誤導）。
         # 個別影片失敗（readonly failed，例如 NFO 寫入失敗）同樣須讓完成通知走
         # warn（PR#91 ②）。no_scrape 是「線上查無 metadata」的正常情況，不計入。
+        # TASK-89b-T6（Codex Finding-2）：no_output/unreachable/partial 三者原本
+        # 被 _accumulate_readonly/_yield_source_summary 安靜吸收，完成通知未讀
+        # 它們 → 使用者看到 success，違反 spec §89b.3.3「警告並略過，不誤報成功」。
         _source_errors = readonly_summary["source_errors"]
         _readonly_failed = readonly_summary["failed"]
-        if scan_error_count > 0 or _source_errors > 0 or _readonly_failed > 0:
+        _readonly_no_output = readonly_summary["no_output"]
+        _readonly_unreachable = readonly_summary["unreachable"]
+        _readonly_partial = readonly_summary["partial"]
+        if (scan_error_count > 0 or _source_errors > 0 or _readonly_failed > 0
+                or _readonly_no_output > 0 or _readonly_unreachable > 0 or _readonly_partial > 0):
             _err_parts = []
             if scan_error_count > 0:
                 _err_parts.append(f"{scan_error_count} 部失敗")
@@ -617,6 +665,12 @@ def generate_avlist() -> Generator[str, None, None]:
                 _err_parts.append(f"{_source_errors} 個來源失敗")
             if _readonly_failed > 0:
                 _err_parts.append(f"{_readonly_failed} 部失敗")
+            if _readonly_no_output > 0:
+                _err_parts.append(f"{_readonly_no_output} 個來源未設輸出夾")
+            if _readonly_unreachable > 0:
+                _err_parts.append(f"{_readonly_unreachable} 個來源無法連線")
+            if _readonly_partial > 0:
+                _err_parts.append(f"{_readonly_partial} 個來源部分讀取失敗")
             _emit_notif(
                 "warn", "notif.scanner_done_with_errors",
                 message=f"完成 {len(all_videos)} 部，" + "、".join(_err_parts),
@@ -793,6 +847,10 @@ def check_missing():
         for v in all_videos:
             has_nfo = (v.nfo_mtime or 0) > 0
             has_cover = bool(v.cover_path)
+            produced = bool(v.output_dir)
+            tried = (v.scrape_attempted_at or 0) > 0
+            if produced or tried:
+                continue
             if has_nfo and has_cover:
                 continue
             if not v.number:  # skip videos without number (cannot enrich)
@@ -994,7 +1052,7 @@ def get_image(path: str = Query(..., description="圖片路徑")):
     # 複用 _dir_candidate_forms dual-form，不另寫 single-form 比對
     allowed = any(
         is_path_under_dir(request_uri, form)
-        for p in _image_whitelist_dirs(gallery_config)
+        for p in _image_whitelist_dirs(config)
         for form in _dir_candidate_forms(p, path_mappings)
     )
     if not allowed:

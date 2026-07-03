@@ -32,9 +32,11 @@ class Video:
     duration: Optional[int] = None
     size_bytes: int = 0
     cover_path: str = ""
+    output_dir: str = ''
     release_date: str = ""
     mtime: float = 0.0
     nfo_mtime: float = 0.0
+    scrape_attempted_at: float = 0.0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -193,6 +195,16 @@ class VideoRepository:
                     update_parts.append(
                         "user_tags = CASE WHEN excluded.user_tags = '[]' THEN videos.user_tags ELSE excluded.user_tags END"
                     )
+                elif col == 'output_dir':
+                    # output_dir = '' 時視同「不更新」，保留 DB 現有值（TASK-89a-T1）
+                    update_parts.append(
+                        "output_dir = CASE WHEN excluded.output_dir = '' THEN videos.output_dir ELSE excluded.output_dir END"
+                    )
+                elif col == 'scrape_attempted_at':
+                    # scrape_attempted_at = 0 時視同「不更新」，保留 DB 現有值（P2 修正，須與 output_dir 對稱）
+                    update_parts.append(
+                        "scrape_attempted_at = CASE WHEN excluded.scrape_attempted_at = 0 THEN videos.scrape_attempted_at ELSE excluded.scrape_attempted_at END"
+                    )
                 else:
                     update_parts.append(f"{col} = excluded.{col}")
             update_clause = ', '.join(update_parts)
@@ -219,6 +231,51 @@ class VideoRepository:
             cursor.execute("SELECT id FROM videos WHERE path = ?", (video.path,))
             row = cursor.fetchone()
             return row[0] if row else 0
+        finally:
+            conn.close()
+
+    def insert_if_ignore(self, video: Video) -> bool:
+        """新增影片，path 已存在時不覆蓋任何既有欄位（TASK-89b-T1）。
+
+        鏡射 upsert() 的動態欄位建構，但改用 ON CONFLICT(path) DO NOTHING——
+        不建 update_parts / DO UPDATE 分支。實際插入新 row 時（rowcount>0）比照
+        upsert() 呼叫 SimilarRankerCache.invalidate()：placeholder row 目前雖不含
+        排序特徵欄位、不影響 IDF/相似訊號，但保持「每次 INSERT INTO videos 都 invalidate」
+        的 spec-57b 完整性不變式（避免日後 placeholder 補欄位時漏 invalidate 成隱性 stale）。
+
+        Returns:
+            bool: True 表示實際插入新 row；False 表示 path 已存在、未動任何欄位。
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            video_dict = video.to_dict()
+            video_dict.pop('id', None)
+            video_dict.pop('created_at', None)
+            video_dict.pop('updated_at', None)
+
+            columns = list(video_dict.keys())
+            placeholders = ', '.join(['?'] * len(columns))
+
+            sql = f"""
+                INSERT INTO videos ({', '.join(columns)})
+                VALUES ({placeholders})
+                ON CONFLICT(path) DO NOTHING
+            """
+
+            cursor.execute(sql, list(video_dict.values()))
+            conn.commit()
+
+            inserted = cursor.rowcount > 0
+            if inserted:
+                # invalidate ranker cache（實際插入才 invalidate；DO NOTHING 命中則跳過）
+                try:
+                    from core.similar.ranker_cache import SimilarRankerCache
+                    SimilarRankerCache.invalidate()
+                except Exception:
+                    logger.exception("SimilarRankerCache invalidate failed (non-fatal)")
+
+            return inserted
         finally:
             conn.close()
 
@@ -288,6 +345,12 @@ class VideoRepository:
             for col, val in video_dict.items():
                 if col == 'user_tags':
                     continue  # handled separately
+                elif col == 'output_dir' and not val:
+                    # incoming output_dir 空 → 保留既有值（不寫入），與 upsert() CASE-WHEN 對稱
+                    continue
+                elif col == 'scrape_attempted_at' and not val:
+                    # incoming scrape_attempted_at 為 0 → 保留既有值（不寫入），與 upsert() CASE-WHEN 對稱
+                    continue
                 set_parts.append(f"{col} = ?")
                 set_values.append(val)
 
@@ -382,6 +445,18 @@ class VideoRepository:
                 update_parts.append(
                     "user_tags = CASE WHEN excluded.user_tags = '[]' "
                     "THEN videos.user_tags ELSE excluded.user_tags END"
+                )
+            elif col == 'output_dir':
+                # output_dir = '' 時視同「不更新」，保留 DB 現有值（與 upsert() 對稱，Codex P2 修正）
+                update_parts.append(
+                    "output_dir = CASE WHEN excluded.output_dir = '' "
+                    "THEN videos.output_dir ELSE excluded.output_dir END"
+                )
+            elif col == 'scrape_attempted_at':
+                # scrape_attempted_at = 0 時視同「不更新」，保留 DB 現有值（與 upsert() 對稱，Codex P2 修正）
+                update_parts.append(
+                    "scrape_attempted_at = CASE WHEN excluded.scrape_attempted_at = 0 "
+                    "THEN videos.scrape_attempted_at ELSE excluded.scrape_attempted_at END"
                 )
             else:
                 update_parts.append(f"{col} = excluded.{col}")
@@ -488,6 +563,16 @@ class VideoRepository:
                         update_parts.append(
                             "user_tags = CASE WHEN excluded.user_tags = '[]' THEN videos.user_tags ELSE excluded.user_tags END"
                         )
+                    elif col == 'output_dir':
+                        # output_dir = '' 時視同「不更新」，保留 DB 現有值（TASK-89a-T1，須與 upsert() 對稱）
+                        update_parts.append(
+                            "output_dir = CASE WHEN excluded.output_dir = '' THEN videos.output_dir ELSE excluded.output_dir END"
+                        )
+                    elif col == 'scrape_attempted_at':
+                        # scrape_attempted_at = 0 時視同「不更新」，保留 DB 現有值（P2 修正，須與 upsert() 對稱）
+                        update_parts.append(
+                            "scrape_attempted_at = CASE WHEN excluded.scrape_attempted_at = 0 THEN videos.scrape_attempted_at ELSE excluded.scrape_attempted_at END"
+                        )
                     else:
                         update_parts.append(f"{col} = excluded.{col}")
                 update_clause = ', '.join(update_parts)
@@ -558,17 +643,18 @@ class VideoRepository:
         finally:
             conn.close()
 
-    def get_cover_index(self) -> dict:
-        """取得 {path: cover_path} 索引，供唯讀 producer 增量比對（feature/88）。
+    def get_attempted_index(self) -> dict:
+        """取得 {path: scrape_attempted_at} 索引，供 T3 `_should_skip` 冷啟動判斷用（TASK-89b-T1）。
 
-        Additive read-only method; does NOT change get_mtime_index() shape (CD-88b-2).
-        cover_path may be '' or None for rows without a cover — callers must handle both.
+        Additive read-only method，鏡射 get_mtime_index() shape。SELECT 不加 WHERE，
+        含 scrape_attempted_at == 0 的 row（不過濾）——呼叫端用 `.get(path, 0) > 0`
+        統一判斷「從未試過」（key 不存在或值為 0 皆視為未試過）。
         """
         conn = self._get_connection()
         cursor = conn.cursor()
 
         try:
-            cursor.execute("SELECT path, cover_path FROM videos")
+            cursor.execute("SELECT path, scrape_attempted_at FROM videos")
             rows = cursor.fetchall()
             return {row[0]: row[1] for row in rows}
         finally:
@@ -870,6 +956,31 @@ class VideoRepository:
         finally:
             conn.close()
 
+    def update_scrape_attempted_at(self, path: str, ts: float) -> bool:
+        """安全更新 scrape_attempted_at 欄位（不碰其他欄位）（TASK-89b-T1）。
+
+        鏡射 update_user_tags() 的單欄安全更新範本。ts 由呼叫端（T2 producer/enricher）
+        傳入 time.time()，本方法不自行取時間（保持純寫入語意，供單元測試可控時間值）。
+
+        Args:
+            path: 影片路徑（DB key，file:/// URI 格式）
+            ts: 新的 scrape_attempted_at 值（Unix float 時間戳）
+
+        Returns:
+            bool: 是否成功更新（path 不存在 → False，不拋例外、不新建 row）
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE videos SET scrape_attempted_at = ?, updated_at = CURRENT_TIMESTAMP WHERE path = ?",
+                (ts, path)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
     def update_sample_images(self, path: str, sample_images: List[str]) -> bool:
         """只更新 sample_images 欄位（§b1 scanner cleanup + §b3 fetch-samples 使用）"""
         conn = self._get_connection()
@@ -936,6 +1047,32 @@ class VideoRepository:
                     "SELECT 1 FROM videos WHERE cover_path = ? LIMIT 1",
                     (fs_path,)
                 ).fetchone()
+        finally:
+            conn.close()
+        return row is not None
+
+    def is_output_dir_taken(self, output_dir: str, exclude_path: str) -> bool:
+        """查詢 output_dir 是否已被別筆 source_uri（videos.path）佔用（TASK-89a-T1）。
+
+        供 T3 判斷候選輸出夾是否需要 increment 另尋。純 SELECT，唯讀 connection
+        pattern（鏡射 is_known_cover_path() / get_by_path()），不需 commit。
+
+        Args:
+            output_dir: 候選輸出夾（file:/// URI）。呼叫端須保證候選為非空路徑
+                （一般 enrich/scan row 的 output_dir 恆為 ''，若誤傳空字串會匹配
+                到大量一般 row，本 method 不做防呆）。
+            exclude_path: 排除的 source_uri（自己那筆的 videos.path），避免跟自己比對
+                （CD-89a-3「讀存原地覆蓋」情境：候選 = 自己既有值時不應誤判為佔用）。
+
+        Returns:
+            True 表示已被別筆佔用；False 表示可用（含無人持有 / 只被自己持有兩種情況）。
+        """
+        conn = self._get_connection()
+        try:
+            row = conn.execute(
+                "SELECT 1 FROM videos WHERE output_dir = ? AND path != ? LIMIT 1",
+                (output_dir, exclude_path)
+            ).fetchone()
         finally:
             conn.close()
         return row is not None

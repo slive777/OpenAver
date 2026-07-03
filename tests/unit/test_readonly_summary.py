@@ -11,7 +11,8 @@ from core.readonly_producer import ProduceResult, ProduceOutcome
 
 def _empty():
     return {"created": 0, "skipped": 0, "no_scrape": 0, "failed": 0,
-            "no_output": 0, "sources": 0, "source_errors": 0}
+            "no_output": 0, "sources": 0, "source_errors": 0,
+            "unreachable": 0, "partial": 0, "pruned": 0}
 
 
 class TestAccumulateReadonly:
@@ -44,6 +45,43 @@ class TestAccumulateReadonly:
         assert s["sources"] == 2
         assert s["created"] == 3
         assert s["failed"] == 1
+
+    def test_unreachable_only_increments_unreachable_not_generic_log_branch(self):
+        """TASK-89b-T6 (Finding-2): unreachable must land in its own branch, not the
+        generic `if result.aborted_reason:` log-only branch (which would silently
+        drop it with zero counting)."""
+        s = _empty()
+        _accumulate_readonly(s, ProduceResult(source_path="p", output_path="o",
+                                              aborted_reason="unreachable"))
+        assert s["unreachable"] == 1
+        assert s["sources"] == 0
+        assert s["created"] == 0
+
+    def test_pruned_accumulates_on_normal_result(self):
+        s = _empty()
+        _accumulate_readonly(s, ProduceResult(source_path="p", output_path="o",
+                                              created=1, pruned=3))
+        assert s["pruned"] == 3
+
+    def test_skipped_paths_nonempty_increments_partial(self):
+        s = _empty()
+        _accumulate_readonly(s, ProduceResult(source_path="p", output_path="o",
+                                              created=1, skipped_paths=["/x/broken"]))
+        assert s["partial"] == 1
+
+    def test_skipped_paths_empty_does_not_increment_partial(self):
+        s = _empty()
+        _accumulate_readonly(s, ProduceResult(source_path="p", output_path="o", created=1))
+        assert s["partial"] == 0
+
+    def test_unreachable_does_not_accumulate_pruned_or_partial(self):
+        """abort branches return before the pruned/partial accumulation lines."""
+        s = _empty()
+        _accumulate_readonly(s, ProduceResult(source_path="p", output_path="o",
+                                              aborted_reason="unreachable",
+                                              pruned=5, skipped_paths=["/x"]))
+        assert s["pruned"] == 0
+        assert s["partial"] == 0
 
 
 class TestOutcomeToSse:
@@ -89,3 +127,18 @@ class TestYieldSourceSummary:
     def test_not_readonly_yields_nothing(self):
         r = ProduceResult(source_path="P", output_path="o", aborted_reason="not_readonly")
         assert list(_yield_source_summary(r)) == []
+
+    def test_unreachable_yields_warn_prompt(self):
+        r = ProduceResult(source_path="P", output_path="o", aborted_reason="unreachable")
+        msgs = [m for m in _yield_source_summary(r)]
+        assert len(msgs) == 1
+        assert "來源無法連線" in msgs[0]
+
+    def test_skipped_paths_appends_second_warn_after_summary(self):
+        r = ProduceResult(source_path="P", output_path="o", created=1,
+                           skipped_paths=["/x/broken_dir"])
+        msgs = [m for m in _yield_source_summary(r)]
+        assert len(msgs) == 2
+        assert "新增 1" in msgs[0]
+        assert "已略過刪除偵測" in msgs[1]
+        assert "1 個路徑讀取失敗" in msgs[1]

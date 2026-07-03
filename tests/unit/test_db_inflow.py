@@ -19,6 +19,10 @@ U15 ranker invalidate — 碰撞 delete-merge 分支
 U16 old_uri 使用 to_file_uri(normalize_path(...))，無手拼 URI、無 [8:] strip  # path-contract-ok
 U23 scraped_metadata overlay — cd2 skipped-NFO multipart 有完整 metadata
 U24 scraped_metadata=None — cd1/normal 路徑行為不變
+U25 正常 UPDATE — output_dir 保留（incoming 空，Codex branch-review P2）
+U26 正常 UPDATE — scrape_attempted_at 保留（incoming 0，Codex branch-review P2）
+U27 正常 UPDATE — output_dir/scrape_attempted_at happy path（incoming 有值正常寫入）
+U28 碰撞 delete-merge — output_dir/scrape_attempted_at 保留（Codex branch-review P2）
 """
 
 from __future__ import annotations
@@ -331,6 +335,163 @@ def test_u8_collision_merge_created_at_min(tmp_path):
     ca_str = str(merged.created_at) if merged.created_at else ""
     assert "2024-01-01" in ca_str, \
         f"created_at 應取較早的 2024-01-01，實際: {ca_str!r}"
+
+
+# ─── U25/U26: 正常 UPDATE 分支 — output_dir / scrape_attempted_at 保留 ─────
+# Codex branch-review P2：repath 逐欄直寫，未對 output_dir/scrape_attempted_at
+# 套用 upsert() 已有的「incoming 空/0 → 保留既有」保護，organize/搬移時新掃描
+# 的 Video（output_dir='' / scrape_attempted_at=0.0）會把既有 marker 洗掉。
+
+def test_u25_normal_update_preserves_output_dir_on_empty_incoming(tmp_path):
+    """整理搬移一筆已有 output_dir 的 row（新掃描 Video.output_dir=''）→ 既有值保留。"""
+    db_path = _make_db(tmp_path)
+    repo = VideoRepository(db_path=db_path)
+
+    old_uri = "file:///tmp/old.mp4"
+    new_uri = "file:///tmp/new.mp4"
+    existing_output_dir = "file:///produced/ABC-001"
+
+    old_row = Video(path=old_uri, number="ABC-001", title="Old Title",
+                    original_title="", actresses=[], maker="", director="",
+                    series=None, label="", tags=[], user_tags=[],
+                    sample_images=[], duration=None, size_bytes=0,
+                    cover_path="", output_dir=existing_output_dir,
+                    release_date="", mtime=0.0, nfo_mtime=0.0)
+    with patch("core.similar.ranker_cache.SimilarRankerCache"):
+        repo.upsert(old_row)
+
+    # 新掃描的 Video（from_video_info 預設 output_dir=''）
+    new_video = Video(path=new_uri, number="ABC-001", title="New Title",
+                      original_title="", actresses=[], maker="", director="",
+                      series=None, label="", tags=[], user_tags=[],
+                      sample_images=[], duration=None, size_bytes=0,
+                      cover_path="", output_dir="",
+                      release_date="", mtime=0.0, nfo_mtime=0.0)
+
+    with patch("core.similar.ranker_cache.SimilarRankerCache"):
+        repo.repath(old_uri, new_uri, new_video)
+
+    new_row = repo.get_by_path(new_uri)
+    assert new_row is not None
+    assert new_row.output_dir == existing_output_dir, \
+        f"output_dir 應保留 {existing_output_dir}，實際: {new_row.output_dir!r}"
+
+
+def test_u26_normal_update_preserves_scrape_attempted_at_on_zero_incoming(tmp_path):
+    """整理搬移一筆已標記 tried 的 row（新掃描 Video.scrape_attempted_at=0.0）→ 既有值保留。"""
+    db_path = _make_db(tmp_path)
+    repo = VideoRepository(db_path=db_path)
+
+    old_uri = "file:///tmp/old.mp4"
+    new_uri = "file:///tmp/new.mp4"
+    existing_ts = 1717171717.0
+
+    old_row = Video(path=old_uri, number="ABC-001", title="Old Title",
+                    original_title="", actresses=[], maker="", director="",
+                    series=None, label="", tags=[], user_tags=[],
+                    sample_images=[], duration=None, size_bytes=0,
+                    cover_path="", scrape_attempted_at=existing_ts,
+                    release_date="", mtime=0.0, nfo_mtime=0.0)
+    with patch("core.similar.ranker_cache.SimilarRankerCache"):
+        repo.upsert(old_row)
+
+    new_video = Video(path=new_uri, number="ABC-001", title="New Title",
+                      original_title="", actresses=[], maker="", director="",
+                      series=None, label="", tags=[], user_tags=[],
+                      sample_images=[], duration=None, size_bytes=0,
+                      cover_path="", scrape_attempted_at=0.0,
+                      release_date="", mtime=0.0, nfo_mtime=0.0)
+
+    with patch("core.similar.ranker_cache.SimilarRankerCache"):
+        repo.repath(old_uri, new_uri, new_video)
+
+    new_row = repo.get_by_path(new_uri)
+    assert new_row is not None
+    assert new_row.scrape_attempted_at == existing_ts, \
+        f"scrape_attempted_at 應保留 {existing_ts}，實際: {new_row.scrape_attempted_at!r}"
+
+
+def test_u27_normal_update_writes_output_dir_and_scrape_attempted_at_when_nonempty(tmp_path):
+    """happy path：incoming output_dir/scrape_attempted_at 有值時正常寫入（非全跳過）。"""
+    db_path = _make_db(tmp_path)
+    repo = VideoRepository(db_path=db_path)
+
+    old_uri = "file:///tmp/old.mp4"
+    new_uri = "file:///tmp/new.mp4"
+
+    old_row = Video(path=old_uri, number="ABC-001", title="Old Title",
+                    original_title="", actresses=[], maker="", director="",
+                    series=None, label="", tags=[], user_tags=[],
+                    sample_images=[], duration=None, size_bytes=0,
+                    cover_path="", output_dir="file:///produced/OLD",
+                    scrape_attempted_at=111.0,
+                    release_date="", mtime=0.0, nfo_mtime=0.0)
+    with patch("core.similar.ranker_cache.SimilarRankerCache"):
+        repo.upsert(old_row)
+
+    new_video = Video(path=new_uri, number="ABC-001", title="New Title",
+                      original_title="", actresses=[], maker="", director="",
+                      series=None, label="", tags=[], user_tags=[],
+                      sample_images=[], duration=None, size_bytes=0,
+                      cover_path="", output_dir="file:///produced/NEW",
+                      scrape_attempted_at=222.0,
+                      release_date="", mtime=0.0, nfo_mtime=0.0)
+
+    with patch("core.similar.ranker_cache.SimilarRankerCache"):
+        repo.repath(old_uri, new_uri, new_video)
+
+    new_row = repo.get_by_path(new_uri)
+    assert new_row is not None
+    assert new_row.output_dir == "file:///produced/NEW"
+    assert new_row.scrape_attempted_at == 222.0
+
+
+# ─── U28: 碰撞 delete-merge 分支 — output_dir / scrape_attempted_at 保留 ───
+
+def test_u28_collision_merge_preserves_output_dir_and_scrape_attempted_at(tmp_path):
+    """碰撞 delete-merge（ON CONFLICT DO UPDATE）分支同樣要保留 marker，
+    不因對稱教訓（Codex C2）漏改而洗掉。new path 既有 row 帶 marker，
+    scanned video（走 repath 的 incoming）帶空值 → merge 後應保留 new_row 既有值。"""
+    db_path = _make_db(tmp_path)
+    repo = VideoRepository(db_path=db_path)
+
+    old_uri = "file:///tmp/old.mp4"
+    new_uri = "file:///tmp/new.mp4"
+    existing_output_dir = "file:///produced/ABC-001"
+    existing_ts = 1717171717.0
+
+    old_row = Video(path=old_uri, number="ABC-001", title="Old Title",
+                    original_title="", actresses=[], maker="", director="",
+                    series=None, label="", tags=[], user_tags=[],
+                    sample_images=[], duration=None, size_bytes=0,
+                    cover_path="", release_date="", mtime=0.0, nfo_mtime=0.0)
+    new_row_existing = Video(path=new_uri, number="ABC-001", title="Existing New Title",
+                    original_title="", actresses=[], maker="", director="",
+                    series=None, label="", tags=[], user_tags=[],
+                    sample_images=[], duration=None, size_bytes=0,
+                    cover_path="", output_dir=existing_output_dir,
+                    scrape_attempted_at=existing_ts,
+                    release_date="", mtime=0.0, nfo_mtime=0.0)
+    with patch("core.similar.ranker_cache.SimilarRankerCache"):
+        repo.upsert(old_row)
+        repo.upsert(new_row_existing)
+
+    collision_video = Video(path=new_uri, number="ABC-001", title="Scanned Title",
+                            original_title="", actresses=[], maker="", director="",
+                            series=None, label="", tags=[], user_tags=[],
+                            sample_images=[], duration=None, size_bytes=0,
+                            cover_path="", output_dir="", scrape_attempted_at=0.0,
+                            release_date="", mtime=0.0, nfo_mtime=0.0)
+
+    with patch("core.similar.ranker_cache.SimilarRankerCache"):
+        repo.repath(old_uri, new_uri, collision_video)
+
+    merged = repo.get_by_path(new_uri)
+    assert merged is not None
+    assert merged.output_dir == existing_output_dir, \
+        f"碰撞 merge 後 output_dir 應保留 {existing_output_dir}，實際: {merged.output_dir!r}"
+    assert merged.scrape_attempted_at == existing_ts, \
+        f"碰撞 merge 後 scrape_attempted_at 應保留 {existing_ts}，實際: {merged.scrape_attempted_at!r}"
 
 
 # ─── U9: 碰撞分支 atomicity（INSERT 失敗 → rollback） ──────────────────────
