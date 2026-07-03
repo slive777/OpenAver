@@ -116,7 +116,7 @@ class TestShouldSkip:
         """cover_index has no entry for source_uri → rebuild."""
         from core.readonly_producer import _should_skip
         cover_index = {}
-        assert _should_skip(self.SOURCE_URI, self.OUTPUT_URI, cover_index) is False
+        assert _should_skip(self.SOURCE_URI, self.OUTPUT_URI, cover_index, {}) is False
 
     def test_cover_under_output_but_file_missing_returns_false(self):
         """cover is under output but file does not exist on disk → rebuild."""
@@ -129,7 +129,7 @@ class TestShouldSkip:
             mock_path_inst = MagicMock()
             mock_path_inst.exists.return_value = False
             mock_path_cls.return_value = mock_path_inst
-            result = _should_skip(self.SOURCE_URI, self.OUTPUT_URI, cover_index)
+            result = _should_skip(self.SOURCE_URI, self.OUTPUT_URI, cover_index, {})
 
         assert result is False
 
@@ -139,7 +139,7 @@ class TestShouldSkip:
         cover_index = {self.SOURCE_URI: "file:///other/cover.jpg"}
 
         with patch("core.readonly_producer.is_path_under_dir", return_value=False):
-            result = _should_skip(self.SOURCE_URI, self.OUTPUT_URI, cover_index)
+            result = _should_skip(self.SOURCE_URI, self.OUTPUT_URI, cover_index, {})
 
         assert result is False
 
@@ -154,8 +154,95 @@ class TestShouldSkip:
             mock_path_inst = MagicMock()
             mock_path_inst.exists.return_value = True
             mock_path_cls.return_value = mock_path_inst
-            result = _should_skip(self.SOURCE_URI, self.OUTPUT_URI, cover_index)
+            result = _should_skip(self.SOURCE_URI, self.OUTPUT_URI, cover_index, {})
 
+        assert result is True
+
+    def test_mapped_cover_reverse_resolved_under_wsl_returns_true(self, tmp_path):
+        """Codex Finding 1 regression lock.
+
+        cover_path in cover_index is forward-mapped (as stored by _upsert_db via
+        to_file_uri(assets['cover_fs'], path_mappings)). Under CURRENT_ENV='wsl'
+        with path_mappings configured, _should_skip must reverse-map the cover
+        path back to the real local FS path before calling .exists() — mirroring
+        _resolve_movie_dir's reuse-branch pattern (TASK-89a-T5). Without the
+        reverse-map, uri_to_fs_path(cover) resolves to a UNC-style path that never
+        exists locally, so this test goes RED if the reverse-map call is removed.
+        """
+        from core.readonly_producer import _should_skip
+
+        # Real local file that the forward-mapped URI should reverse-resolve to.
+        real_dir = tmp_path / "movie"
+        real_dir.mkdir()
+        real_cover = real_dir / "cover.jpg"
+        real_cover.write_bytes(b"x")
+
+        # cover_path as stored in DB: forward-mapped to a Windows-style UNC path.
+        mapped_cover_uri = "file://///server/share/movie/cover.jpg"
+        path_mappings = {"\\\\server\\share": str(tmp_path)}
+        cover_index = {self.SOURCE_URI: mapped_cover_uri}
+
+        with patch("core.readonly_producer.is_path_under_dir", return_value=True), \
+             patch("core.readonly_producer.CURRENT_ENV", "wsl"), \
+             patch(
+                 "core.readonly_producer.uri_to_fs_path",
+                 return_value="//server/share/movie/cover.jpg",
+             ), \
+             patch(
+                 "core.readonly_producer.reverse_path_mapping",
+                 return_value=str(real_cover),
+             ) as mock_reverse:
+            result = _should_skip(self.SOURCE_URI, self.OUTPUT_URI, cover_index, path_mappings)
+
+        mock_reverse.assert_called_once_with("//server/share/movie/cover.jpg", path_mappings)
+        assert result is True
+
+    def test_mapped_cover_without_reverse_map_would_return_false(self):
+        """Same mapped-cover scenario but simulating the pre-fix bug: if the
+        reverse-map step is skipped, .exists() is checked against the raw
+        (non-reversed) uri_to_fs_path output, which does not exist on disk →
+        False. This documents the exact failure mode Finding 1 reported
+        (incremental skip broken under WSL + path_mappings).
+        """
+        from core.readonly_producer import _should_skip
+
+        mapped_cover_uri = "file://///server/share/movie/cover.jpg"
+        path_mappings = {"\\\\server\\share": "/mnt/x"}
+        cover_index = {self.SOURCE_URI: mapped_cover_uri}
+
+        with patch("core.readonly_producer.is_path_under_dir", return_value=True), \
+             patch("core.readonly_producer.CURRENT_ENV", "wsl"), \
+             patch(
+                 "core.readonly_producer.uri_to_fs_path",
+                 return_value="//server/share/movie/cover.jpg",
+             ):
+            # No patch of reverse_path_mapping: real implementation runs and will
+            # not map this bogus UNC path to anything that exists on disk, so the
+            # unresolved raw path is used for .exists() — reproducing the bug.
+            result = _should_skip(self.SOURCE_URI, self.OUTPUT_URI, cover_index, path_mappings)
+
+        assert result is False
+
+    def test_no_path_mappings_or_non_wsl_behaves_as_before(self):
+        """Degenerate case: no path_mappings, or not on WSL → no reverse-map
+        attempted, behavior identical to pre-fix (plain uri_to_fs_path + exists).
+        """
+        from core.readonly_producer import _should_skip
+        cover_index = {self.SOURCE_URI: self.COVER_URI}
+
+        with patch("core.readonly_producer.is_path_under_dir", return_value=True), \
+             patch("core.readonly_producer.CURRENT_ENV", "windows"), \
+             patch("core.readonly_producer.uri_to_fs_path", return_value="/output/movie/cover.jpg"), \
+             patch("core.readonly_producer.reverse_path_mapping") as mock_reverse, \
+             patch("core.readonly_producer.Path") as mock_path_cls:
+            mock_path_inst = MagicMock()
+            mock_path_inst.exists.return_value = True
+            mock_path_cls.return_value = mock_path_inst
+            result = _should_skip(
+                self.SOURCE_URI, self.OUTPUT_URI, cover_index, {"\\\\server\\share": "/mnt/x"}
+            )
+
+        mock_reverse.assert_not_called()
         assert result is True
 
 
@@ -1679,7 +1766,7 @@ class TestProduceSourceMixedStats:
         repo.get_by_path.return_value = None
         config = _make_config()
 
-        def fake_should_skip(src_uri, output_uri, cover_index):
+        def fake_should_skip(src_uri, output_uri, cover_index, path_mappings):
             return "SKIP-001" in src_uri or "SKIP-002" in src_uri
 
         def fake_extract_number(basename):

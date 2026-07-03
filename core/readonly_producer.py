@@ -111,7 +111,7 @@ def _build_cover_index(repo, output_uri: str) -> dict:
     }
 
 
-def _should_skip(source_uri: str, output_uri: str, cover_index: dict) -> bool:
+def _should_skip(source_uri: str, output_uri: str, cover_index: dict, path_mappings: dict) -> bool:
     """B3/P2a three-condition skip predicate.
 
     Returns True (skip) only when ALL of:
@@ -125,7 +125,15 @@ def _should_skip(source_uri: str, output_uri: str, cover_index: dict) -> bool:
         return False                                        # no row / no cover → rebuild
     if not is_path_under_dir(cover, output_uri):           # double-guard (cover_index already filtered)
         return False
-    return Path(uri_to_fs_path(cover)).exists()            # physical file must exist
+    # TASK-89a-T5 follow-up (Codex Finding 1): cover_path is stored forward-mapped
+    # (to_file_uri(assets['cover_fs'], path_mappings) in _upsert_db). uri_to_fs_path
+    # does not reverse path_mappings, so under WSL + UNC mapped outputs this would
+    # always resolve to a non-existent local path and defeat incremental skip.
+    # Targeted reverse-map here mirrors _resolve_movie_dir's reuse-branch pattern.
+    cover_fs = uri_to_fs_path(cover)
+    if CURRENT_ENV == 'wsl' and path_mappings:
+        cover_fs = reverse_path_mapping(cover_fs, path_mappings) or cover_fs
+    return Path(cover_fs).exists()                          # physical file must exist
 
 
 # ---------------------------------------------------------------------------
@@ -615,7 +623,7 @@ def produce_source(source, config, repo, *, proxy_url="", on_progress=None, shou
 
         src_uri = to_file_uri(fi["path"], path_mappings)
 
-        if _should_skip(src_uri, output_uri, cover_index):
+        if _should_skip(src_uri, output_uri, cover_index, path_mappings):
             result.skipped += 1
             _emit(on_progress, result, src_uri, "skipped")
             continue
