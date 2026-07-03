@@ -9,7 +9,8 @@ mocked at ``core.readonly_producer.*`` (their import landing point):
     search_jav / download_image / generate_jellyfin_images / generate_nfo
 
 The mock side-effects WRITE REAL FILES so the on-disk media-library structure
-can be asserted. `produce_source`, `_movie_dir` collision-avoidance, `_upsert_db`,
+can be asserted. `produce_source`, `_resolve_movie_dir` allocation/increment
+(TASK-89a-T3 — replaces the old `_movie_dir` cover-index model), `_upsert_db`,
 the SSE thread/queue bridge, and the image-proxy whitelist all run for real
 against a real tmp output dir and a real tmp sqlite DB.
 
@@ -394,6 +395,53 @@ def test_same_number_two_sources_collision(tmp_path, monkeypatch, client, parse_
     va, vb = repo.get_by_path(uri_a), repo.get_by_path(uri_b)
     assert va is not None and vb is not None
     assert va.cover_path != vb.cover_path
+
+
+# ---------------------------------------------------------------------------
+# TASK-89a-T3 (CD-89a-3): same source, same number, two different file
+# extensions → increment allocation must give each its OWN movie dir
+# (ABC-123 / ABC-123-2), never overwrite one with the other's assets.
+# ---------------------------------------------------------------------------
+
+def test_same_source_same_number_two_formats_increment(tmp_path, monkeypatch, client, parse_sse_events):
+    """One readonly source with ABC-123.mp4 AND ABC-123.mkv (same number, two source
+    files) → both land, in two distinct dirs (ABC-123, ABC-123-2), each with its own
+    nfo/cover; DB has two rows with two distinct output_dir values."""
+    src = tmp_path / "src" / "movies"
+    src.mkdir(parents=True)
+    (src / "ABC-123.mp4").write_bytes(b"FAKE-VIDEO-BYTES-MP4")
+    (src / "ABC-123.mkv").write_bytes(b"FAKE-VIDEO-BYTES-MKV")
+    db_path = tmp_path / "test.db"
+    config = _make_config(
+        [{"path": str(src), "output_path": "", "readonly": True}],
+        tmp_path / "htmlout",
+    )
+    _wire(monkeypatch, config, db_path)
+
+    events = _run_generate(client, parse_sse_events)
+    stats = _done_event(events)["readonly_stats"]
+    assert stats["created"] == 2
+    assert stats["failed"] == 0
+
+    output = _off_root(src, db_path)
+    assert (output / "ABC-123").is_dir()
+    assert (output / "ABC-123-2").is_dir()
+    # Both files scrape to the SAME number (ABC-123) → the filename inside each leaf
+    # dir is "ABC-123.nfo"/"ABC-123.jpg" regardless of the leaf's own (incremented) name.
+    for leaf in ("ABC-123", "ABC-123-2"):
+        assert (output / leaf / "ABC-123.nfo").exists(), f"missing nfo under {leaf}"
+        assert (output / leaf / "ABC-123.jpg").exists(), f"missing cover under {leaf}"
+
+    repo = VideoRepository(str(db_path))
+    uri_mp4 = to_file_uri(str(src / "ABC-123.mp4"), {})
+    uri_mkv = to_file_uri(str(src / "ABC-123.mkv"), {})
+    v_mp4, v_mkv = repo.get_by_path(uri_mp4), repo.get_by_path(uri_mkv)
+    assert v_mp4 is not None and v_mkv is not None
+    assert v_mp4.output_dir != v_mkv.output_dir
+    assert v_mp4.output_dir and v_mkv.output_dir  # neither is empty (CASE-WHEN no-op guard)
+    assert {uri_to_fs_path(v_mp4.output_dir), uri_to_fs_path(v_mkv.output_dir)} == {
+        str(output / "ABC-123"), str(output / "ABC-123-2"),
+    }
 
 
 # ---------------------------------------------------------------------------

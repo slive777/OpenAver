@@ -32,7 +32,7 @@ from core.organizer import (
     truncate_to_chars,
 )
 from core.path_utils import is_path_under_dir, normalize_path, to_file_uri, uri_to_fs_path
-from core.scraper import extract_number, normalize_number, search_jav
+from core.scraper import extract_number, search_jav
 from core.video_extensions import get_video_extensions
 
 logger = get_logger(__name__)
@@ -184,8 +184,9 @@ def resolve_output_root(source, config: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
-# T-2: naming + collision-avoidance helpers (pure functions, no I/O except
-#       Path.exists for orphan detection in _movie_dir)
+# T-2: naming helpers (pure functions). Movie-dir resolution itself
+#       (_resolve_movie_dir, TASK-89a-T3) lives further below since it depends
+#       on _folder_parts defined here.
 # ---------------------------------------------------------------------------
 
 def _format_data(meta: dict, source_fs_path: str, config: dict) -> dict:
@@ -275,69 +276,65 @@ def _build_basename(format_data: dict, source_fs_path: str, config: dict) -> str
     return filename_base
 
 
-def _build_owners(cover_index: dict) -> dict:
-    """Build owners map {movie_dir_str: source_uri} from cover_index.
+# ---------------------------------------------------------------------------
+# TASK-89a-T3 (CD-89a-3): movie-dir resolution — read DB stored value & reuse
+# in place when still valid, else allocate via sanitize_filename(number) +
+# increment. Replaces the old owners/_movie_leaf_base/_movie_dir cover-index
+# reconstruction model.
+# ---------------------------------------------------------------------------
 
-    cover_index is {source_uri: cover_uri}. The parent of the cover file
-    is the movie_dir owned by that source. (plan §4.2)
-    """
-    owners: dict = {}
-    for src, cover in cover_index.items():
-        if cover:
-            movie_dir = str(Path(uri_to_fs_path(cover)).parent)
-            owners[movie_dir] = src
-    return owners
+_MAX_INCREMENT = 1000  # guard against a theoretical infinite loop (TASK-89a-T3)
 
 
-def _movie_leaf_base(number: str, source_uri: str) -> str:
-    """Return the leaf directory name for a single movie. (plan §4.2 / card §5)
-
-    Four branches:
-    1. no stem          → number
-    2. stem IS number   → number   (normalised comparison)
-    3. stem CONTAINS number (case-insensitive) → stem   (already includes disambiguator)
-    4. otherwise        → "{number}-{stem}"
-    """
-    stem = sanitize_filename(Path(uri_to_fs_path(source_uri)).stem)
-    if not stem:
-        return number
-    if normalize_number(stem) == number:
-        return number
-    if number and number.upper() in stem.upper():
-        return stem
-    return f"{number}-{stem}"
-
-
-def _movie_dir(
-    output_root: str,
-    format_data: dict,
+def _resolve_movie_dir(
+    repo,
     source_uri: str,
-    config: dict,
-    owners: dict,
-) -> Path:
-    """Return the per-movie directory Path, registering source_uri in owners.
+    existing,                    # Optional[Video] — caller already ran repo.get_by_path(source_uri)
+    output_root: str,            # fs path (produce_source's existing output_root)
+    output_uri: str,             # to_file_uri(output_root, path_mappings)
+    format_data: dict,           # feeds _folder_parts (parent layers) + format_data['number'] (leaf)
+    config: dict,                # scraper_cfg
+    allocated_this_run: set,     # URIs already handed out THIS produce_source call
+    path_mappings: dict,
+) -> tuple[Path, str]:
+    """Resolve the per-movie directory: read-and-reuse, else allocate + increment.
 
-    Collision avoidance (CD-88b-4 / P2b):
-    - If candidate is already owned by a DIFFERENT source → append SHA-1 hash suffix.
-    - If candidate exists on disk but is not in owners → treat as foreign, hash.
-    - Idempotent: same source_uri → same dir (owner == source_uri → no hash).
-    - owners is mutated in-place; callers pass a persistent dict across calls.
+    Returns (movie_dir_fs_path, output_dir_uri_to_store) (TASK-89a-T3 / CD-89a-3).
+
+    Read-and-reuse: if the DB already has a row for this source whose stored
+    output_dir still falls under the CURRENT output root, keep using that exact
+    directory (idempotent re-scrape, no re-allocation, no orphaning).
+    Otherwise (first time, or the effective output root moved) allocate a new
+    slot: leaf = sanitize_filename(number), incrementing a numeric suffix until
+    a candidate is free in the DB, on disk, and within this run's own
+    allocations.
     """
+    if existing and existing.output_dir and is_path_under_dir(existing.output_dir, output_uri):
+        movie_dir_uri = existing.output_dir
+        # T5 落點：日後在此接 reverse_path_mapping（mapped-output 定位，CD-89a-6，本 task 不做）
+        movie_dir_fs = uri_to_fs_path(movie_dir_uri)
+        return Path(movie_dir_fs), movie_dir_uri
+
     parts = _folder_parts(format_data, config)
-    leaf = _movie_leaf_base(format_data['number'], source_uri)
-    candidate = Path(output_root, *parts, leaf)
+    base_leaf = sanitize_filename(format_data['number'])
+    n = 1
+    while True:
+        leaf = base_leaf if n == 1 else f"{base_leaf}-{n}"
+        candidate_fs = Path(output_root, *parts, leaf)
+        candidate_uri = to_file_uri(str(candidate_fs), path_mappings)
+        taken = (
+            candidate_uri in allocated_this_run
+            or repo.is_output_dir_taken(candidate_uri, exclude_path=source_uri)
+            or candidate_fs.exists()
+        )
+        if not taken:
+            break
+        n += 1
+        if n > _MAX_INCREMENT:
+            raise RuntimeError(f"movie_dir increment 超過上限: {base_leaf}")
 
-    owner = owners.get(str(candidate))
-    if owner is None and candidate.exists():
-        owner = "<foreign>"        # disk-orphan: not in owners but exists on disk
-
-    if owner not in (None, source_uri):
-        h = hashlib.sha1(source_uri.encode()).hexdigest()[:8]
-        leaf = f"{leaf}-{h}"
-        candidate = Path(output_root, *parts, leaf)
-
-    owners[str(candidate)] = source_uri
-    return candidate
+    allocated_this_run.add(candidate_uri)
+    return candidate_fs, candidate_uri
 
 
 # ---------------------------------------------------------------------------
@@ -418,12 +415,16 @@ def _upsert_db(
     meta: dict,
     assets: dict,
     path_mappings: dict,
+    output_dir: str,
 ) -> None:
     """Manually construct Video and upsert to repo (CD-88b-7).
 
     path = source_uri (streaming key).
     cover_path / sample_images = local output URIs (via to_file_uri).
     user_tags intentionally omitted → upsert preserves existing DB value.
+    output_dir MUST be a non-empty file:/// URI (TASK-89a-T1's upsert CASE-WHEN
+    treats '' as "leave existing value alone" — passing '' here would make the
+    very first write for a video look like a no-op and silently keep it '').
     """
     v = Video(
         path=source_uri,
@@ -439,6 +440,7 @@ def _upsert_db(
         duration=meta.get('duration'),
         size_bytes=file_info['size'],
         cover_path=to_file_uri(assets['cover_fs'], path_mappings) if assets['cover_fs'] else '',
+        output_dir=output_dir,
         release_date=meta.get('date', ''),
         mtime=file_info['mtime'],
         nfo_mtime=0.0,
@@ -492,7 +494,7 @@ def produce_source(source, config, repo, *, proxy_url="", on_progress=None, shou
     output_uri = to_file_uri(output_root, path_mappings)
 
     cover_index = _build_cover_index(repo, output_uri)
-    owners = _build_owners(cover_index)
+    allocated_this_run: set = set()
 
     files = _list_source_videos(source.path, get_video_extensions(config), _min_size_bytes(gallery))
 
@@ -521,9 +523,13 @@ def produce_source(source, config, repo, *, proxy_url="", on_progress=None, shou
 
         try:
             fd = _format_data(meta, fi["path"], scraper_cfg)
-            movie_dir = _movie_dir(output_root, fd, src_uri, scraper_cfg, owners)
+            existing = repo.get_by_path(src_uri)  # T3: read once; T4 reuses title/actresses/maker/release_date
+            movie_dir, output_dir_uri = _resolve_movie_dir(
+                repo, src_uri, existing, output_root, output_uri,
+                fd, scraper_cfg, allocated_this_run, path_mappings,
+            )
             assets = _write_movie_assets(str(movie_dir), meta, fd, fi["path"], scraper_cfg)
-            _upsert_db(repo, src_uri, fi, meta, assets, path_mappings)
+            _upsert_db(repo, src_uri, fi, meta, assets, path_mappings, output_dir_uri)
             result.created += 1
             _emit(on_progress, result, src_uri, "created", str(movie_dir), number)
         except Exception:

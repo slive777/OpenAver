@@ -9,6 +9,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from core.path_utils import to_file_uri
+
 
 # ---------------------------------------------------------------------------
 # Guard test: producer must not contain forbidden names (DoD / CD-88b-1)
@@ -215,7 +217,7 @@ class TestBuildCoverIndex:
 
 
 # ---------------------------------------------------------------------------
-# T-2 tests: _format_data, _folder_parts, _build_basename, _movie_dir
+# T-2 tests: _format_data, _folder_parts, _build_basename
 # ---------------------------------------------------------------------------
 
 class TestFormatData:
@@ -371,76 +373,25 @@ class TestBuildBasename:
         assert result == 'ABC-123 Normal Title'
 
 
-class TestBuildOwners:
-    """Tests for _build_owners."""
+# ---------------------------------------------------------------------------
+# TASK-89a-T3: TestResolveMovieDir (replaces TestBuildOwners/TestMovieLeafBase/
+# TestMovieDir — see DELETED section note in module history / TASK-89a-T3.md)
+# ---------------------------------------------------------------------------
 
-    def test_builds_dir_to_source_map(self):
-        from core.readonly_producer import _build_owners
-        cover_index = {
-            'file:///src/a.mp4': 'file:///output/MovieA/cover.jpg',
-        }
-        with patch('core.readonly_producer.uri_to_fs_path', side_effect=lambda u: u[7:]):
-            owners = _build_owners(cover_index)
-        assert '/output/MovieA' in owners
-        assert owners['/output/MovieA'] == 'file:///src/a.mp4'
+class TestResolveMovieDir:
+    """Tests for _resolve_movie_dir: read-and-reuse vs allocate+increment.
 
-    def test_empty_cover_skipped(self):
-        from core.readonly_producer import _build_owners
-        cover_index = {'file:///src/a.mp4': ''}
-        owners = _build_owners(cover_index)
-        assert owners == {}
-
-    def test_none_cover_skipped(self):
-        from core.readonly_producer import _build_owners
-        cover_index = {'file:///src/a.mp4': None}
-        owners = _build_owners(cover_index)
-        assert owners == {}
-
-
-class TestMovieLeafBase:
-    """Tests for _movie_leaf_base."""
-
-    def test_empty_stem_returns_number(self):
-        from core.readonly_producer import _movie_leaf_base
-        # sanitize_filename of an empty stem returns ''
-        with patch('core.readonly_producer.uri_to_fs_path', return_value='/'), \
-             patch('core.readonly_producer.sanitize_filename', return_value=''):
-            result = _movie_leaf_base('ABC-123', 'file:///')
-        assert result == 'ABC-123'
-
-    def test_stem_equals_number_normalised(self):
-        from core.readonly_producer import _movie_leaf_base
-        with patch('core.readonly_producer.uri_to_fs_path', return_value='/src/ABC-123.mp4'), \
-             patch('core.readonly_producer.normalize_number', return_value='ABC-123'), \
-             patch('core.readonly_producer.sanitize_filename', side_effect=lambda x: x):
-            result = _movie_leaf_base('ABC-123', 'file:///src/ABC-123.mp4')
-        assert result == 'ABC-123'
-
-    def test_stem_contains_number_returns_stem(self):
-        from core.readonly_producer import _movie_leaf_base
-        with patch('core.readonly_producer.uri_to_fs_path', return_value='/src/ABC-123-VR.mp4'), \
-             patch('core.readonly_producer.normalize_number', return_value='ABC-123-VR'), \
-             patch('core.readonly_producer.sanitize_filename', side_effect=lambda x: x):
-            result = _movie_leaf_base('ABC-123', 'file:///src/ABC-123-VR.mp4')
-        # stem 'ABC-123-VR' contains 'ABC-123'
-        assert result == 'ABC-123-VR'
-
-    def test_unrelated_stem_prefixes_number(self):
-        from core.readonly_producer import _movie_leaf_base
-        with patch('core.readonly_producer.uri_to_fs_path', return_value='/src/random_name.mp4'), \
-             patch('core.readonly_producer.normalize_number', return_value='RANDOM_NAME'), \
-             patch('core.readonly_producer.sanitize_filename', side_effect=lambda x: x):
-            result = _movie_leaf_base('ABC-123', 'file:///src/random_name.mp4')
-        assert result == 'ABC-123-random_name'
-
-
-class TestMovieDir:
-    """Tests for _movie_dir collision-avoidance."""
+    URIs are derived via the REAL to_file_uri (not hand-typed) so the expected
+    values track whatever slash-count convention to_file_uri actually produces
+    for a bare Unix absolute path on this platform (path-contract compliant —
+    no hand-rolled file:/// construction, see CLAUDE.md 路徑處理 禁止清單).
+    """
 
     OUTPUT_ROOT = '/output'
+    OUTPUT_URI = to_file_uri(OUTPUT_ROOT, {})
     BASE_CONFIG = {
         'folder_layers': [],
-        'folder_format': '{num}',
+        'folder_format': '',       # no parent layer → leaf sits directly under output_root
         'max_filename_length': 60,
         'filename_format': '{num} {title}',
     }
@@ -448,88 +399,126 @@ class TestMovieDir:
     def _fd(self, number='ABC-123'):
         return {'number': number, 'title': 'Title', 'actors': [], 'maker': '', 'date': '', 'suffix': ''}
 
-    def _patch_leaf(self, leaf):
-        return patch('core.readonly_producer._movie_leaf_base', return_value=leaf)
+    def _uri(self, leaf):
+        return to_file_uri(str(Path(self.OUTPUT_ROOT, leaf)), {})
+
+    def _existing(self, output_dir):
+        v = MagicMock()
+        v.output_dir = output_dir
+        return v
 
     def _patch_exists(self, exists=False):
         return patch('core.readonly_producer.Path.exists', return_value=exists)
 
-    def test_same_number_two_paths_distinct_dirs(self):
-        """Same number → same leaf for two source URIs in ONE run → second collides → hashed dir."""
-        from core.readonly_producer import _movie_dir
-        fd = self._fd('ABC-123')
-        owners: dict = {}
-        src_a = 'file:///a/ABC-123.mp4'
-        src_b = 'file:///b/ABC-123.mp4'
+    def test_existing_under_output_root_reused_no_increment(self):
+        """existing.output_dir non-empty and under output_uri → reuse verbatim, no increment."""
+        from core.readonly_producer import _resolve_movie_dir
+        repo = MagicMock()
+        repo.is_output_dir_taken.return_value = False
+        existing_uri = self._uri('ABC-123')
+        existing = self._existing(existing_uri)
+        allocated: set = set()
 
-        # both resolve to the SAME leaf → exercises the in-run collision/hash branch
-        with patch('core.readonly_producer._movie_leaf_base', return_value='ABC-123'), \
-             self._patch_exists(False):
-            dir_a = _movie_dir(self.OUTPUT_ROOT, fd, src_a, self.BASE_CONFIG, owners)
-            dir_b = _movie_dir(self.OUTPUT_ROOT, fd, src_b, self.BASE_CONFIG, owners)
+        with self._patch_exists(False):
+            movie_dir, output_dir_uri = _resolve_movie_dir(
+                repo, 'file:///src/ABC-123.mp4', existing,
+                self.OUTPUT_ROOT, self.OUTPUT_URI, self._fd(), self.BASE_CONFIG,
+                allocated, {},
+            )
 
-        assert dir_a.name == 'ABC-123'                 # first source: bare leaf, no hash
-        assert dir_b != dir_a                          # collision → hashed (RED if hash branch removed)
-        assert dir_b.name.startswith('ABC-123-')       # hash suffix present
-        assert owners[str(dir_a)] == src_a             # first owner not overwritten by second
+        assert output_dir_uri == existing_uri
+        assert str(movie_dir) == '/output/ABC-123'
+        repo.is_output_dir_taken.assert_not_called()
 
-    def test_cross_run_existing_owner_not_overwritten(self):
-        """owners pre-seeded with movie_dir→srcA; srcB hashes to new dir, srcA entry unchanged."""
-        from core.readonly_producer import _movie_dir
-        fd = self._fd('ABC-123')
-        src_a = 'file:///a/ABC-123.mp4'
-        src_b = 'file:///b/ABC-123.mp4'
-        movie_dir_a = str(Path(self.OUTPUT_ROOT, 'ABC-123'))
-        owners = {movie_dir_a: src_a}
+    def test_b1_multi_format_collision_increments(self):
+        """First file (existing=None) allocates ABC-123; DB shows ABC-123 taken (by the
+        first file's own committed row) for the second file → second gets ABC-123-2."""
+        from core.readonly_producer import _resolve_movie_dir
+        repo = MagicMock()
+        taken_uri = self._uri('ABC-123')
 
-        with self._patch_leaf('ABC-123'), self._patch_exists(False):
-            dir_b = _movie_dir(self.OUTPUT_ROOT, fd, src_b, self.BASE_CONFIG, owners)
+        def fake_taken(uri, exclude_path):
+            return uri == taken_uri  # already committed by file #1
 
-        assert str(dir_b) != movie_dir_a
-        assert owners[movie_dir_a] == src_a  # not overwritten
+        repo.is_output_dir_taken.side_effect = fake_taken
+        allocated: set = set()
 
-    def test_disk_orphan_gets_hashed_dir(self):
-        """Candidate exists on disk, owners empty → hash suffix applied."""
-        from core.readonly_producer import _movie_dir
-        fd = self._fd('ABC-123')
-        owners: dict = {}
-        src = 'file:///src/ABC-123.mp4'
+        with self._patch_exists(False):
+            movie_dir, output_dir_uri = _resolve_movie_dir(
+                repo, 'file:///src/ABC-123.mkv', None,
+                self.OUTPUT_ROOT, self.OUTPUT_URI, self._fd('ABC-123'), self.BASE_CONFIG,
+                allocated, {},
+            )
 
-        with self._patch_leaf('ABC-123'), self._patch_exists(True):
-            result = _movie_dir(self.OUTPUT_ROOT, fd, src, self.BASE_CONFIG, owners)
+        assert output_dir_uri == self._uri('ABC-123-2')
+        assert str(movie_dir) == '/output/ABC-123-2'
 
-        # The plain candidate exists → hash suffix; result should not be bare 'ABC-123'
-        assert result.name != 'ABC-123'
+    def test_first_allocation_no_collision(self):
+        """existing=None, nothing taken → plain leaf, n==1."""
+        from core.readonly_producer import _resolve_movie_dir
+        repo = MagicMock()
+        repo.is_output_dir_taken.return_value = False
+        allocated: set = set()
 
-    def test_idempotent_same_source(self):
-        """Calling _movie_dir twice with same source_uri → same dir."""
-        from core.readonly_producer import _movie_dir
-        fd = self._fd('ABC-123')
-        owners: dict = {}
-        src = 'file:///src/ABC-123.mp4'
+        with self._patch_exists(False):
+            movie_dir, output_dir_uri = _resolve_movie_dir(
+                repo, 'file:///src/ABC-123.mp4', None,
+                self.OUTPUT_ROOT, self.OUTPUT_URI, self._fd('ABC-123'), self.BASE_CONFIG,
+                allocated, {},
+            )
 
-        with self._patch_leaf('ABC-123'), self._patch_exists(False):
-            dir1 = _movie_dir(self.OUTPUT_ROOT, fd, src, self.BASE_CONFIG, owners)
-            dir2 = _movie_dir(self.OUTPUT_ROOT, fd, src, self.BASE_CONFIG, owners)
+        assert output_dir_uri == self._uri('ABC-123')
+        assert allocated == {self._uri('ABC-123')}
 
-        assert dir1 == dir2
+    def test_existing_outside_new_output_root_reallocates(self):
+        """existing.output_dir set but NOT under the (new) output_uri → new allocation branch."""
+        from core.readonly_producer import _resolve_movie_dir
+        repo = MagicMock()
+        repo.is_output_dir_taken.return_value = False
+        existing = self._existing(to_file_uri('/old-root/ABC-123', {}))  # stale root, moved output_path
+        allocated: set = set()
 
-    def test_leaf_enforcement_different_numbers(self):
-        """folder_layers=['{actor}'], same actor, different numbers → different dirs."""
-        from core.readonly_producer import _movie_dir
-        config = dict(self.BASE_CONFIG, folder_layers=['{actor}'])
-        fd_a = {'number': 'ABC-001', 'title': 'T', 'actors': ['Actress A'], 'maker': '', 'date': '', 'suffix': ''}
-        fd_b = {'number': 'ABC-002', 'title': 'T', 'actors': ['Actress A'], 'maker': '', 'date': '', 'suffix': ''}
-        owners: dict = {}
-        src_a = 'file:///src/ABC-001.mp4'
-        src_b = 'file:///src/ABC-002.mp4'
+        with self._patch_exists(False):
+            movie_dir, output_dir_uri = _resolve_movie_dir(
+                repo, 'file:///src/ABC-123.mp4', existing,
+                self.OUTPUT_ROOT, self.OUTPUT_URI, self._fd('ABC-123'), self.BASE_CONFIG,
+                allocated, {},
+            )
 
-        with patch('core.readonly_producer._movie_leaf_base', side_effect=['ABC-001', 'ABC-002']), \
-             self._patch_exists(False):
-            dir_a = _movie_dir(self.OUTPUT_ROOT, fd_a, src_a, config, owners)
-            dir_b = _movie_dir(self.OUTPUT_ROOT, fd_b, src_b, config, owners)
+        assert output_dir_uri == self._uri('ABC-123')
+        assert str(movie_dir) == '/output/ABC-123'
 
-        assert dir_a != dir_b
+    def test_increment_limit_raises(self):
+        """Every candidate taken → RuntimeError once n exceeds _MAX_INCREMENT."""
+        from core.readonly_producer import _MAX_INCREMENT, _resolve_movie_dir
+        repo = MagicMock()
+        repo.is_output_dir_taken.return_value = True  # everything taken, forever
+        allocated: set = set()
+
+        with self._patch_exists(False), pytest.raises(RuntimeError):
+            _resolve_movie_dir(
+                repo, 'file:///src/ABC-123.mp4', None,
+                self.OUTPUT_ROOT, self.OUTPUT_URI, self._fd('ABC-123'), self.BASE_CONFIG,
+                allocated, {},
+            )
+        assert repo.is_output_dir_taken.call_count >= _MAX_INCREMENT
+
+    def test_allocated_this_run_blocks_reuse_within_same_run(self):
+        """A candidate already recorded in allocated_this_run is treated as taken even
+        though repo/disk both say it's free (same-run guard)."""
+        from core.readonly_producer import _resolve_movie_dir
+        repo = MagicMock()
+        repo.is_output_dir_taken.return_value = False
+        allocated = {self._uri('ABC-123')}  # pre-seeded as if file #1 already claimed it
+
+        with self._patch_exists(False):
+            movie_dir, output_dir_uri = _resolve_movie_dir(
+                repo, 'file:///src/ABC-123.mkv', None,
+                self.OUTPUT_ROOT, self.OUTPUT_URI, self._fd('ABC-123'), self.BASE_CONFIG,
+                allocated, {},
+            )
+
+        assert output_dir_uri == self._uri('ABC-123-2')
 
 
 # ---------------------------------------------------------------------------
@@ -752,6 +741,7 @@ class TestUpsertDb:
     """T-3: DB field correctness, cover_path local URI, sample_images local URIs."""
 
     SOURCE_URI = 'file:///src/TEST-001.mp4'
+    OUTPUT_DIR_URI = 'file:///output/TEST-001'  # non-empty (T3 contract: '' would CASE-WHEN no-op)
 
     def _repo(self, temp_db):
         from core.database import VideoRepository
@@ -766,7 +756,7 @@ class TestUpsertDb:
         assets = {'cover_fs': cover_fs, 'sample_fs': []}
         repo = self._repo(temp_db)
 
-        _upsert_db(repo, self.SOURCE_URI, _T3_FILE_INFO, _T3_META, assets, None)
+        _upsert_db(repo, self.SOURCE_URI, _T3_FILE_INFO, _T3_META, assets, None, self.OUTPUT_DIR_URI)
 
         v = repo.get_by_path(self.SOURCE_URI)
         assert v is not None
@@ -780,6 +770,7 @@ class TestUpsertDb:
         assert v.tags == _T3_META['tags']
         assert v.mtime == _T3_FILE_INFO['mtime']
         assert v.nfo_mtime == 0.0
+        assert v.output_dir == self.OUTPUT_DIR_URI
 
     def test_cover_path_is_local_uri_not_remote(self, tmp_path, temp_db):
         """cover_path in DB must be a file:/// URI, never the remote cover URL (CD-88b-7)."""
@@ -789,7 +780,7 @@ class TestUpsertDb:
         assets = {'cover_fs': cover_fs, 'sample_fs': []}
         repo = self._repo(temp_db)
 
-        _upsert_db(repo, self.SOURCE_URI, _T3_FILE_INFO, _T3_META, assets, None)
+        _upsert_db(repo, self.SOURCE_URI, _T3_FILE_INFO, _T3_META, assets, None, self.OUTPUT_DIR_URI)
 
         v = repo.get_by_path(self.SOURCE_URI)
         assert v.cover_path.startswith('file:///')
@@ -810,7 +801,7 @@ class TestUpsertDb:
         }
         repo = self._repo(temp_db)
 
-        _upsert_db(repo, self.SOURCE_URI, _T3_FILE_INFO, _T3_META, assets, None)
+        _upsert_db(repo, self.SOURCE_URI, _T3_FILE_INFO, _T3_META, assets, None, self.OUTPUT_DIR_URI)
 
         v = repo.get_by_path(self.SOURCE_URI)
         assert len(v.sample_images) == 2
@@ -826,7 +817,7 @@ class TestUpsertDb:
         assets = {'cover_fs': '', 'sample_fs': []}
         repo = self._repo(temp_db)
 
-        _upsert_db(repo, self.SOURCE_URI, _T3_FILE_INFO, _T3_META, assets, None)
+        _upsert_db(repo, self.SOURCE_URI, _T3_FILE_INFO, _T3_META, assets, None, self.OUTPUT_DIR_URI)
 
         v = repo.get_by_path(self.SOURCE_URI)
         assert v.cover_path == ''
@@ -838,7 +829,7 @@ class TestUpsertDb:
         assets = {'cover_fs': '', 'sample_fs': []}
         repo = self._repo(temp_db)
 
-        _upsert_db(repo, self.SOURCE_URI, _T3_FILE_INFO, _T3_META, assets, None)
+        _upsert_db(repo, self.SOURCE_URI, _T3_FILE_INFO, _T3_META, assets, None, self.OUTPUT_DIR_URI)
 
         v = repo.get_by_path(self.SOURCE_URI)
         assert v.sample_images == []
@@ -1104,8 +1095,7 @@ class TestProduceSourceOffModeNeverAborts:
         config = _make_config()  # scraper_cfg={} → external_manager fallback 'off'
 
         with patch("core.readonly_producer._list_source_videos", return_value=[]) as mock_list, \
-             patch("core.readonly_producer._build_cover_index", return_value={}), \
-             patch("core.readonly_producer._build_owners", return_value={}):
+             patch("core.readonly_producer._build_cover_index", return_value={}):
             result = produce_source(source, config, repo)
 
         assert result.aborted_reason != "no_output_path"
@@ -1140,7 +1130,6 @@ class TestProduceSourceVideoExtensions:
 
         with patch("core.readonly_producer._list_source_videos", return_value=[]) as mock_list, \
              patch("core.readonly_producer._build_cover_index", return_value={}), \
-             patch("core.readonly_producer._build_owners", return_value={}), \
              patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
              patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri):
             produce_source(source, config, repo)
@@ -1160,7 +1149,6 @@ class TestProduceSourceVideoExtensions:
 
         with patch("core.readonly_producer._list_source_videos", return_value=[]) as mock_list, \
              patch("core.readonly_producer._build_cover_index", return_value={}), \
-             patch("core.readonly_producer._build_owners", return_value={}), \
              patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
              patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri):
             produce_source(source, config, repo)
@@ -1182,7 +1170,6 @@ class TestProduceSourceNoneNumberGuard:
 
         with patch("core.readonly_producer._list_source_videos", return_value=files), \
              patch("core.readonly_producer._build_cover_index", return_value={}), \
-             patch("core.readonly_producer._build_owners", return_value={}), \
              patch("core.readonly_producer._should_skip", return_value=False), \
              patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
              patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri), \
@@ -1205,7 +1192,6 @@ class TestProduceSourceNoneNumberGuard:
 
         with patch("core.readonly_producer._list_source_videos", return_value=files), \
              patch("core.readonly_producer._build_cover_index", return_value={}), \
-             patch("core.readonly_producer._build_owners", return_value={}), \
              patch("core.readonly_producer._should_skip", return_value=False), \
              patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
              patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri), \
@@ -1232,6 +1218,7 @@ class TestProduceSourceMixedStats:
 
         source = _make_source()
         repo = MagicMock()
+        repo.get_by_path.return_value = None
         config = _make_config()
 
         def fake_should_skip(src_uri, output_uri, cover_index):
@@ -1254,14 +1241,13 @@ class TestProduceSourceMixedStats:
 
         with patch("core.readonly_producer._list_source_videos", return_value=self.FILES), \
              patch("core.readonly_producer._build_cover_index", return_value={}), \
-             patch("core.readonly_producer._build_owners", return_value={}), \
              patch("core.readonly_producer._should_skip", side_effect=fake_should_skip), \
              patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
              patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri), \
              patch("core.readonly_producer.extract_number", side_effect=fake_extract_number), \
              patch("core.readonly_producer.search_jav", side_effect=fake_search_jav), \
              patch("core.readonly_producer._format_data", return_value={"number": "X", "title": "T", "actors": [], "maker": "", "date": "", "suffix": ""}), \
-             patch("core.readonly_producer._movie_dir", return_value=mock_movie_dir), \
+             patch("core.readonly_producer._resolve_movie_dir", return_value=(mock_movie_dir, "file:///output/dest/SUCCESS-001")), \
              patch("core.readonly_producer._write_movie_assets", return_value={"cover_fs": "/output/dest/SUCCESS-001/cover.jpg", "sample_fs": []}), \
              patch("core.readonly_producer._upsert_db"):
             return produce_source(source, config, repo)
@@ -1303,7 +1289,6 @@ class TestProduceSourceOnProgress:
 
         with patch("core.readonly_producer._list_source_videos", return_value=files), \
              patch("core.readonly_producer._build_cover_index", return_value={}), \
-             patch("core.readonly_producer._build_owners", return_value={}), \
              patch("core.readonly_producer._should_skip", return_value=False), \
              patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
              patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri), \
@@ -1338,7 +1323,6 @@ class TestProduceSourceShouldAbort:
 
         with patch("core.readonly_producer._list_source_videos", return_value=files), \
              patch("core.readonly_producer._build_cover_index", return_value={}), \
-             patch("core.readonly_producer._build_owners", return_value={}), \
              patch("core.readonly_producer._should_skip", return_value=False), \
              patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
              patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri), \
@@ -1356,6 +1340,7 @@ class TestProduceSourceExceptionDoesNotAbort:
 
         source = _make_source()
         repo = MagicMock()
+        repo.get_by_path.return_value = None
         config = _make_config()
         files = [
             _make_file_info(path="/src/A-001.mp4"),
@@ -1381,14 +1366,13 @@ class TestProduceSourceExceptionDoesNotAbort:
 
         with patch("core.readonly_producer._list_source_videos", return_value=files), \
              patch("core.readonly_producer._build_cover_index", return_value={}), \
-             patch("core.readonly_producer._build_owners", return_value={}), \
              patch("core.readonly_producer._should_skip", return_value=False), \
              patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
              patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri), \
              patch("core.readonly_producer.extract_number", return_value="MOCK-001"), \
              patch("core.readonly_producer.search_jav", return_value=meta), \
              patch("core.readonly_producer._format_data", return_value=fd), \
-             patch("core.readonly_producer._movie_dir", return_value=mock_movie_dir), \
+             patch("core.readonly_producer._resolve_movie_dir", return_value=(mock_movie_dir, "file:///output/dest/X")), \
              patch("core.readonly_producer._write_movie_assets", side_effect=fake_write), \
              patch("core.readonly_producer._upsert_db"):
             result = produce_source(source, config, repo)
@@ -1407,6 +1391,7 @@ class TestProduceSourceFailureContract:
 
         source = _make_source()
         repo = MagicMock()
+        repo.get_by_path.return_value = None
         config = _make_config()
         files = [_make_file_info(path="/src/A-001.mp4")]
         meta = {"number": "X", "title": "T", "cover": "u", "actors": [], "tags": [],
@@ -1419,14 +1404,13 @@ class TestProduceSourceFailureContract:
 
         with patch("core.readonly_producer._list_source_videos", return_value=files), \
              patch("core.readonly_producer._build_cover_index", return_value={}), \
-             patch("core.readonly_producer._build_owners", return_value={}), \
              patch("core.readonly_producer._should_skip", return_value=False), \
              patch("core.readonly_producer.normalize_path", return_value="/output/dest"), \
              patch("core.readonly_producer.to_file_uri", side_effect=_fake_to_file_uri), \
              patch("core.readonly_producer.extract_number", return_value="MOCK-001"), \
              patch("core.readonly_producer.search_jav", return_value=meta), \
              patch("core.readonly_producer._format_data", return_value=fd), \
-             patch("core.readonly_producer._movie_dir", return_value=mock_movie_dir), \
+             patch("core.readonly_producer._resolve_movie_dir", return_value=(mock_movie_dir, "file:///output/dest/X")), \
              patch("core.readonly_producer._write_movie_assets", side_effect=exc), \
              patch("core.readonly_producer._upsert_db", upsert_mock):
             result = produce_source(source, config, repo)
