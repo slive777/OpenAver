@@ -1,7 +1,12 @@
-"""TASK-88c-T4: off-flavor readonly end-to-end acceptance.
+"""TASK-89a-T6: off-flavor readonly end-to-end acceptance (spec-89 §89a.3).
+
+Originally created under TASK-88c-T4 (spec-88 §6); T3/T4/T5 (feature/89-produced-
+library) extended it in place as `produce_source`/`_resolve_movie_dir`/
+`_upsert_db` were rewritten for the fixed App-managed output root (CD-89a-7).
+This file is now the official e2e acceptance suite for spec-89 §89a.3, not §6.
 
 Full-stack integration test wiring T-1 (`/api/gallery/image` output_path
-whitelist) + T-2 (`generate_avlist` readonly branch + SSE bridge) + 88b
+whitelist) + T-2 (`generate_avlist` readonly branch + SSE bridge) + 88b/89a
 (`produce_source` real run). Runs the REAL `produce_source` via
 `GET /api/gallery/generate`; only the producer's four external side-effects are
 mocked at ``core.readonly_producer.*`` (their import landing point):
@@ -14,14 +19,27 @@ can be asserted. `produce_source`, `_resolve_movie_dir` allocation/increment
 the SSE thread/queue bridge, and the image-proxy whitelist all run for real
 against a real tmp output dir and a real tmp sqlite DB.
 
-Acceptance §6 items covered here: 1, 5, 6, 7, 13, 16, 17 (+ incremental idempotency).
+spec-89 §89a.3 acceptance mapping (see TASK-89a-T6 for the full inventory):
+    #1 (re-run in place, no duplicate dirs)   → test_incremental_idempotent,
+                                                 test_real_readstore_overwrite_title_drift_and_extrafanart_shrink
+    #2 (off needs no manually-set output dir) → test_per_movie_assets_and_no_strm,
+                                                 test_db_path_cover_sample_pointers
+    #3 (rescrape keeps movie-dir memory)      → test_real_readstore_overwrite_title_drift_and_extrafanart_shrink
+    #4 (multi-format/multi-source no clobber) → test_same_number_two_sources_collision,
+                                                 test_same_source_same_number_two_formats_increment
+    #5 (legacy DB upgrade needs no rebuild)   → out of scope for this file (migration-only;
+                                                 covered by T1's unit tests — this suite always
+                                                 starts from a fresh tmp DB)
+`test_same_number_two_sources_collision`'s own docstring records how it replaces
+88's collision-hash premise (multi-source now means multi fixed-root, not one
+shared root with hash-suffix disambiguation).
 """
 from __future__ import annotations
 
 import os
 from pathlib import Path
 
-from core.database import VideoRepository
+from core.database import Video, VideoRepository
 from core.path_utils import to_file_uri, uri_to_fs_path
 
 # Baseline `videos` schema (Acceptance #7 — no new columns from 88b write path).
@@ -315,6 +333,61 @@ class TestOffFlavorHappyPath:
         outside.write_bytes(_FAKE_COVER_BYTES)
         r403 = client.get("/api/gallery/image", params={"path": str(outside)})
         assert r403.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# TASK-89a-T6: producer-origin signal contract lock (89a → 89b handoff).
+#
+# spec-89 §89b.1's "missing NFO/cover" false-positive fix (89b's job, NOT this
+# task) will filter `check_missing()` rows with `if v.output_dir: continue` —
+# i.e. `output_dir != ''` IS the producer-origin signal 89b will consume.
+# T6 deliberately does NOT add a surface for it (OPUS decision — see
+# TASK-89a-T6.md "producer-origin 曝露決策": `output_dir` is already a plain,
+# unfiltered `Video` field with zero existing callers that would justify a
+# property/helper). This test instead locks the CONTRACT end-to-end: after
+# off-flavor generation, every produced row's `output_dir` is actually
+# non-empty (not just "the code path exists on paper") — so if a future
+# change to `_upsert_db`/`_resolve_movie_dir` regresses it back to `''`,
+# 89b's filter silently stops working, and this test catches it first.
+# ---------------------------------------------------------------------------
+
+def test_produced_rows_expose_nonempty_output_dir_signal(tmp_path, monkeypatch, client, parse_sse_events):
+    """Locks the 89a→89b handoff contract: off-generated rows' `output_dir`
+    is non-empty, a `file:///` URI, and lives under the source's fixed
+    off-flavor output root — the exact signal 89b's `check_missing()` will
+    later filter on (`if v.output_dir: continue`).
+    """
+    numbers = ["MNO-040", "MNO-041"]
+    src = _make_source_dir(tmp_path / "src", "movies", numbers)
+    db_path = tmp_path / "test.db"
+    config = _make_config(
+        [{"path": str(src), "output_path": "", "readonly": True}],
+        tmp_path / "htmlout",
+    )
+    _wire(monkeypatch, config, db_path)
+    _run_generate(client, parse_sse_events)
+
+    output_root = _off_root(src, db_path)
+    output_root_uri = to_file_uri(str(output_root), {})
+
+    repo = VideoRepository(str(db_path))
+    produced = [v for v in repo.get_all() if v.number in numbers]
+    assert len(produced) == len(numbers), "expected one DB row per produced movie"
+    for v in produced:
+        assert v.output_dir, f"produced row {v.number} has empty output_dir — 89b filter signal broken"
+        assert v.output_dir.startswith("file:///"), f"output_dir not a file:// URI: {v.output_dir}"
+        assert v.output_dir.startswith(output_root_uri), (
+            f"output_dir {v.output_dir} not under the fixed off-flavor root {output_root_uri}"
+        )
+
+    # Contrast: a row NOT produced by the off-flavor pipeline keeps the Video
+    # dataclass default output_dir='' — proves the assertions above actually
+    # discriminate producer vs. non-producer rows, not vacuously true for any row.
+    non_producer_uri = to_file_uri(str(tmp_path / "not-produced.mp4"), {})
+    repo.upsert(Video(path=non_producer_uri, number="NOTPROD-1"))
+    non_producer = repo.get_by_path(non_producer_uri)
+    assert non_producer is not None
+    assert non_producer.output_dir == "", "sanity: non-producer row must keep empty output_dir"
 
 
 # ---------------------------------------------------------------------------
