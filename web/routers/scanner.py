@@ -218,7 +218,7 @@ def _yield_source_summary(result) -> Generator[str, None, None]:
         })
 
 
-def _run_readonly_source(src, config, repo, proxy_url, summary) -> Generator[str, None, None]:
+def _run_readonly_source(src, config, repo, proxy_url, summary, reachable: bool = True) -> Generator[str, None, None]:
     """在 daemon worker thread 跑 produce_source，drain 無界 queue 逐片 yield SSE。
 
     worker 例外（含 produce_source 迴圈前的 normalize/列檔/DB 拋錯，未被 producer
@@ -235,6 +235,7 @@ def _run_readonly_source(src, config, repo, proxy_url, summary) -> Generator[str
                 src, config, repo, proxy_url=proxy_url,
                 on_progress=q.put,
                 should_abort=None,
+                reachable=reachable,
             )
         except Exception:
             logger.exception("唯讀生成來源失敗: %s", src.path)
@@ -342,7 +343,12 @@ def generate_avlist() -> Generator[str, None, None]:
 
             # TASK-88c-T2: readonly 來源分流（早於 normalize，UNC 主場景不被擋）
             if src.readonly:
-                yield from _run_readonly_source(src, config, repo, proxy_url, readonly_summary)
+                # TASK-89b-T5 / CD-89b-5: 可達性防呆補在 readonly 分流點（:366 的
+                # os.path.exists 只在非 readonly 分支執行，readonly 分支需要等義入口
+                # 檢查）。src.path 是 config 原始輸入，不套 reverse_path_mapping
+                # （比照 :353/:96 既定作法，見 TASK-89b-T5 現況分析 #5）。
+                reachable = os.path.exists(uri_to_fs_path(src.path))
+                yield from _run_readonly_source(src, config, repo, proxy_url, readonly_summary, reachable)
                 continue
 
             # 轉換路徑格式 (Windows -> WSL)。directory 可能是 FS 路徑或 file:/// URI

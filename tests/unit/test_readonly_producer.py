@@ -70,7 +70,7 @@ class TestListSourceVideos:
             result = _list_source_videos("/src", {".mp4", ".mkv"}, 0)
 
         mock_coerce.assert_called_once_with("/src")
-        mock_scan.assert_called_once_with("/src", {".mp4", ".mkv"}, 0)
+        mock_scan.assert_called_once_with("/src", {".mp4", ".mkv"}, 0, on_skip=None)
         assert result == FAKE_FILES
 
     def test_returns_raw_list_unchanged(self):
@@ -102,6 +102,32 @@ class TestListSourceVideos:
         result = _list_source_videos(source_uri, {".mp4"}, 0)
 
         assert [f["path"] for f in result] == [str(video)]
+
+
+class TestListSourceVideosOnSkip:
+    """TASK-89b-T5 / CD-89b-5: on_skip must be forwarded verbatim to fast_scan_directory."""
+
+    def test_on_skip_forwarded_to_fast_scan_directory(self):
+        from core.readonly_producer import _list_source_videos
+
+        def on_skip(path, exc):
+            pass
+
+        with patch("core.readonly_producer.fast_scan_directory", return_value=[]) as mock_scan, \
+             patch("core.readonly_producer.uri_to_fs_path", return_value="/src"):
+            _list_source_videos("/src", {".mp4"}, 0, on_skip=on_skip)
+
+        mock_scan.assert_called_once_with("/src", {".mp4"}, 0, on_skip=on_skip)
+
+    def test_on_skip_defaults_to_none(self):
+        """Backward compatible: callers that don't pass on_skip get None forwarded."""
+        from core.readonly_producer import _list_source_videos
+
+        with patch("core.readonly_producer.fast_scan_directory", return_value=[]) as mock_scan, \
+             patch("core.readonly_producer.uri_to_fs_path", return_value="/src"):
+            _list_source_videos("/src", {".mp4"}, 0)
+
+        mock_scan.assert_called_once_with("/src", {".mp4"}, 0, on_skip=None)
 
 
 # ---------------------------------------------------------------------------
@@ -1491,6 +1517,185 @@ class TestProduceSourceGuards:
         assert result.aborted_reason == "no_output_path"
         mock_list.assert_not_called()
         mock_search.assert_not_called()
+
+
+class TestProduceSourceUnreachable:
+    """TASK-89b-T5 / CD-89b-5: reachable=False guard, placed before get_attempted_index()."""
+
+    def test_unreachable_returns_aborted_reason(self):
+        """reachable=False → aborted_reason='unreachable', zero counters, no DB/IO."""
+        from core.readonly_producer import produce_source
+
+        source = _make_source()
+        repo = MagicMock()
+        config = _make_config()
+
+        with patch("core.readonly_producer._list_source_videos") as mock_list:
+            result = produce_source(source, config, repo, reachable=False)
+
+        assert result.aborted_reason == "unreachable"
+        assert result.created == 0
+        assert result.skipped == 0
+        assert result.failed == 0
+        assert result.no_scrape == 0
+        assert result.outcomes == []
+        mock_list.assert_not_called()
+        repo.get_attempted_index.assert_not_called()
+
+    def test_reachable_true_is_default_and_does_not_abort(self):
+        """Default reachable=True (backward compat) does not trip the new guard."""
+        from core.readonly_producer import produce_source
+
+        source = _make_source()
+        repo = MagicMock()
+        repo.get_attempted_index.return_value = {}
+        config = _make_config()
+
+        with patch("core.readonly_producer._list_source_videos", return_value=[]) as mock_list:
+            result = produce_source(source, config, repo)
+
+        assert result.aborted_reason == ""
+        mock_list.assert_called_once()
+        repo.get_attempted_index.assert_called_once()
+
+    def test_reachable_empty_directory_distinguishable_from_unreachable(self):
+        """reachable=True but empty listing → aborted_reason='' (not 'unreachable'),
+        even though both cases have all-zero counters. This is the DoD's core
+        "unreachable vs empty dir" distinction — must assert aborted_reason, not
+        just the counters (which look identical in both cases)."""
+        from core.readonly_producer import produce_source
+
+        source = _make_source()
+        repo = MagicMock()
+        repo.get_attempted_index.return_value = {}
+        config = _make_config()
+
+        with patch("core.readonly_producer._list_source_videos", return_value=[]):
+            reachable_empty = produce_source(source, config, repo, reachable=True)
+        with patch("core.readonly_producer._list_source_videos") as mock_list:
+            unreachable = produce_source(source, config, repo, reachable=False)
+
+        assert reachable_empty.aborted_reason == ""
+        assert unreachable.aborted_reason == "unreachable"
+        # both are "zero outcomes" but semantically distinct
+        assert reachable_empty.outcomes == unreachable.outcomes == []
+        mock_list.assert_not_called()
+
+
+class TestProduceSourceSkippedPaths:
+    """TASK-89b-T5 / CD-89b-5: on_skip callback populates ProduceResult.skipped_paths."""
+
+    def test_on_skip_triggered_by_fast_scan_directory_populates_skipped_paths(self):
+        """fast_scan_directory's on_skip(path, exc) call must land in result.skipped_paths."""
+        from core.readonly_producer import produce_source
+
+        source = _make_source()
+        repo = MagicMock()
+        repo.get_attempted_index.return_value = {}
+        config = _make_config()
+
+        def fake_list_source_videos(source_path, extensions, min_size_bytes, on_skip=None):
+            if on_skip is not None:
+                on_skip("/src/videos/broken_dir", PermissionError("denied"))
+            return []
+
+        with patch("core.readonly_producer._list_source_videos", side_effect=fake_list_source_videos):
+            result = produce_source(source, config, repo, reachable=True)
+
+        assert result.skipped_paths == ["/src/videos/broken_dir"]
+
+    def test_skipped_paths_defaults_empty_when_no_skips(self):
+        from core.readonly_producer import produce_source
+
+        source = _make_source()
+        repo = MagicMock()
+        repo.get_attempted_index.return_value = {}
+        config = _make_config()
+
+        with patch("core.readonly_producer._list_source_videos", return_value=[]):
+            result = produce_source(source, config, repo)
+
+        assert result.skipped_paths == []
+
+    def test_skipped_paths_independent_from_outcomes(self):
+        """skipped_paths (FS-layer skip) and outcomes with status='skipped' (DB-layer
+        skip, CD-89b-3) are independent — a skipped_paths entry never appears in outcomes
+        because it never entered the files loop (TASK-89b-T5 §5.4)."""
+        from core.readonly_producer import produce_source
+
+        source = _make_source()
+        repo = MagicMock()
+        repo.get_attempted_index.return_value = {}
+        config = _make_config()
+
+        def fake_list_source_videos(source_path, extensions, min_size_bytes, on_skip=None):
+            if on_skip is not None:
+                on_skip("/src/videos/broken_dir", OSError("unreadable"))
+            return []  # nothing entered the loop → outcomes stays empty
+
+        with patch("core.readonly_producer._list_source_videos", side_effect=fake_list_source_videos):
+            result = produce_source(source, config, repo)
+
+        assert result.skipped_paths == ["/src/videos/broken_dir"]
+        assert result.outcomes == []
+
+
+class TestProduceSourceThreeSignalMatrix:
+    """TASK-89b-T5 §5.5: three signals (reachable / bool(outcomes) / skipped_paths)
+    must each be independently derivable from ProduceResult, purely as data — no
+    prune/gate logic is invoked here (that's T6's job)."""
+
+    def test_unreachable_signal(self):
+        from core.readonly_producer import produce_source
+
+        source = _make_source()
+        repo = MagicMock()
+        config = _make_config()
+
+        with patch("core.readonly_producer._list_source_videos"):
+            result = produce_source(source, config, repo, reachable=False)
+
+        # reachable signal
+        assert result.aborted_reason == "unreachable"
+        # outcomes-non-empty signal
+        assert bool(result.outcomes) is False
+        # skipped_paths signal
+        assert result.skipped_paths == []
+
+    def test_reachable_but_empty_outcomes_signal(self):
+        from core.readonly_producer import produce_source
+
+        source = _make_source()
+        repo = MagicMock()
+        repo.get_attempted_index.return_value = {}
+        config = _make_config()
+
+        with patch("core.readonly_producer._list_source_videos", return_value=[]):
+            result = produce_source(source, config, repo, reachable=True)
+
+        assert result.aborted_reason != "unreachable"
+        assert bool(result.outcomes) is False
+        assert result.skipped_paths == []
+
+    def test_reachable_with_skipped_paths_signal(self):
+        from core.readonly_producer import produce_source
+
+        source = _make_source()
+        repo = MagicMock()
+        repo.get_attempted_index.return_value = {}
+        config = _make_config()
+
+        def fake_list_source_videos(source_path, extensions, min_size_bytes, on_skip=None):
+            if on_skip is not None:
+                on_skip("/src/videos/partial", OSError("boom"))
+            return []
+
+        with patch("core.readonly_producer._list_source_videos", side_effect=fake_list_source_videos):
+            result = produce_source(source, config, repo, reachable=True)
+
+        assert result.aborted_reason != "unreachable"
+        assert bool(result.outcomes) is False
+        assert result.skipped_paths != []  # this single signal should flip a future gate to False
 
 
 class TestProduceSourceOffModeNeverAborts:

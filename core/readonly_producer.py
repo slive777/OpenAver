@@ -19,6 +19,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable, Optional
 
 from core.config import _STEM_IMAGE_MODES
 from core.database import Video, get_db_path
@@ -75,6 +76,7 @@ class ProduceResult:
     no_scrape: int = 0
     aborted_reason: str = ""
     outcomes: list = field(default_factory=list)  # List[ProduceOutcome]
+    skipped_paths: list = field(default_factory=list)  # TASK-89b-T5: paths dropped by fast_scan_directory on_skip
 
 
 # ---------------------------------------------------------------------------
@@ -86,7 +88,10 @@ def _min_size_bytes(gallery_config: dict) -> int:
     return int(gallery_config.get("min_size_mb", 0)) * 1024 * 1024
 
 
-def _list_source_videos(source_path: str, extensions: set, min_size_bytes: int) -> list[dict]:
+def _list_source_videos(
+    source_path: str, extensions: set, min_size_bytes: int,
+    on_skip: Optional[Callable[[str, Exception], None]] = None,
+) -> list[dict]:
     """List video files under source_path. Delegates to fast_scan_directory (CD-88b-1).
 
     Returns a list of dicts with keys: path, mtime, size, nfo_mtime.
@@ -96,9 +101,12 @@ def _list_source_videos(source_path: str, extensions: set, min_size_bytes: int) 
     accepts both per core/config.py schema). uri_to_fs_path is idempotent on FS-path
     input and converts URI form to an FS path, so scanning works for both without a
     hand-rolled ``startswith('file:///')`` check (path-contract compliant).
+
+    on_skip (TASK-89b-T5): forwarded verbatim to fast_scan_directory — invoked
+    (path, exception) for entries/subdirectories dropped due to OSError/PermissionError.
     """
     fs_dir = uri_to_fs_path(source_path)
-    return fast_scan_directory(fs_dir, extensions, min_size_bytes)
+    return fast_scan_directory(fs_dir, extensions, min_size_bytes, on_skip=on_skip)
 
 
 def _should_skip(source_uri: str, attempted_index: dict, force: bool = False) -> bool:
@@ -571,7 +579,7 @@ def _emit(on_progress, result, source_uri, status, movie_dir="", number="", erro
         on_progress(outcome)
 
 
-def produce_source(source, config, repo, *, proxy_url="", on_progress=None, should_abort=None, force: bool = False) -> ProduceResult:
+def produce_source(source, config, repo, *, proxy_url="", on_progress=None, should_abort=None, force: bool = False, reachable: bool = True) -> ProduceResult:
     """Orchestrate per-source readonly generation: guard → list → skip → scrape → write → upsert.
 
     Pure service layer. NO FastAPI, NO SSE, NO router. (CD-88b-8, §1.1)
@@ -598,10 +606,20 @@ def produce_source(source, config, repo, *, proxy_url="", on_progress=None, shou
     output_root = normalize_path(effective_output)
     output_uri = to_file_uri(output_root, path_mappings)
 
+    # TASK-89b-T5 / CD-89b-5: reachability guard — computed by caller (scanner.py
+    # readonly dispatch point), not by produce_source itself (see TASK-89b-T5 §5.1).
+    # Must precede repo.get_attempted_index() — no DB/IO before this guard.
+    if not reachable:
+        result.aborted_reason = "unreachable"
+        return result
+
     attempted_index = repo.get_attempted_index()
     allocated_this_run: set = set()
 
-    files = _list_source_videos(source.path, get_video_extensions(config), _min_size_bytes(gallery))
+    files = _list_source_videos(
+        source.path, get_video_extensions(config), _min_size_bytes(gallery),
+        on_skip=lambda p, _e: result.skipped_paths.append(p),  # noqa: B023 — result consumed synchronously, same call stack
+    )
 
     for fi in files:
         if should_abort is not None and should_abort():

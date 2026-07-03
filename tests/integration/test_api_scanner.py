@@ -1309,7 +1309,7 @@ class TestGenerateReadonlyBridge:
         ])
         monkeypatch.setattr("web.routers.scanner.load_config", lambda: cfg)
 
-        def side_effect(source, config, repo, *, proxy_url="", on_progress=None, should_abort=None):
+        def side_effect(source, config, repo, *, proxy_url="", on_progress=None, should_abort=None, force=False, reachable=True):
             from core.readonly_producer import ProduceResult
             if source.path == str(tmp_path / "src0"):
                 on_progress(ProduceOutcome(source_uri="uri1", status="created", number="ABC-001"))
@@ -1373,7 +1373,7 @@ class TestGenerateReadonlyBridge:
         ])
         monkeypatch.setattr("web.routers.scanner.load_config", lambda: cfg)
 
-        def side_effect(source, config, repo, *, proxy_url="", on_progress=None, should_abort=None):
+        def side_effect(source, config, repo, *, proxy_url="", on_progress=None, should_abort=None, force=False, reachable=True):
             if source.path == str(tmp_path / "src0"):
                 raise ValueError("boom (迴圈前 normalize/列檔/DB 逃出)")
             return ProduceResult(source_path=source.path, output_path=source.output_path, created=3)
@@ -1405,7 +1405,7 @@ class TestGenerateReadonlyBridge:
 
         written_uri = to_file_uri(str(tmp_path / "src0" / "worker_written.mp4"))
 
-        def side_effect(source, config, repo, *, proxy_url="", on_progress=None, should_abort=None):
+        def side_effect(source, config, repo, *, proxy_url="", on_progress=None, should_abort=None, force=False, reachable=True):
             # 在 worker frame 用傳入的 repo 寫一筆（per-call 連線）
             repo.upsert(Video(path=written_uri, number="WK-001", title="worker",
                               mtime=1.0, nfo_mtime=0.0))
