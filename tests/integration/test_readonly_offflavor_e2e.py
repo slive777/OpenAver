@@ -47,7 +47,7 @@ _BASELINE_VIDEO_COLUMNS = {
     "id", "path", "number", "title", "original_title", "actresses", "maker",
     "director", "series", "label", "tags", "sample_images", "user_tags",
     "duration", "size_bytes", "cover_path", "output_dir", "release_date", "mtime", "nfo_mtime",
-    "created_at", "updated_at",
+    "scrape_attempted_at", "created_at", "updated_at",
 }
 
 _FAKE_COVER_BYTES = b"\xff\xd8\xff\xe0FAKE-COVER-JPEG"

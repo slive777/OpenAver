@@ -233,8 +233,10 @@ class VideoRepository:
         """新增影片，path 已存在時不覆蓋任何既有欄位（TASK-89b-T1）。
 
         鏡射 upsert() 的動態欄位建構，但改用 ON CONFLICT(path) DO NOTHING——
-        不建 update_parts / DO UPDATE 分支。不呼叫 SimilarRankerCache.invalidate()
-        （placeholder row 不影響相似度排序特徵，見 plan-89b.md T1 現況分析 §2）。
+        不建 update_parts / DO UPDATE 分支。實際插入新 row 時（rowcount>0）比照
+        upsert() 呼叫 SimilarRankerCache.invalidate()：placeholder row 目前雖不含
+        排序特徵欄位、不影響 IDF/相似訊號，但保持「每次 INSERT INTO videos 都 invalidate」
+        的 spec-57b 完整性不變式（避免日後 placeholder 補欄位時漏 invalidate 成隱性 stale）。
 
         Returns:
             bool: True 表示實際插入新 row；False 表示 path 已存在、未動任何欄位。
@@ -258,7 +260,17 @@ class VideoRepository:
 
             cursor.execute(sql, list(video_dict.values()))
             conn.commit()
-            return cursor.rowcount > 0
+
+            inserted = cursor.rowcount > 0
+            if inserted:
+                # invalidate ranker cache（實際插入才 invalidate；DO NOTHING 命中則跳過）
+                try:
+                    from core.similar.ranker_cache import SimilarRankerCache
+                    SimilarRankerCache.invalidate()
+                except Exception:
+                    logger.exception("SimilarRankerCache invalidate failed (non-fatal)")
+
+            return inserted
         finally:
             conn.close()
 

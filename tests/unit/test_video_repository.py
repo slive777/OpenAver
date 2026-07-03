@@ -489,17 +489,27 @@ class TestScrapeAttemptedAtRepositoryMethods:
         assert result.user_tags == ["existing_tag"]
         assert result.output_dir == to_file_uri("/produced/EXIST-001")
 
-    def test_insert_if_ignore_does_not_invalidate_ranker_cache(self, temp_db, monkeypatch):
-        """不呼叫 SimilarRankerCache.invalidate()（明確排除，見 T1 現況分析 §2）"""
+    def test_insert_if_ignore_invalidates_only_on_actual_insert(self, temp_db, monkeypatch):
+        """實際插入才 invalidate（rowcount>0）；ON CONFLICT DO NOTHING 命中則不 invalidate。
+
+        比照 upsert() 維持「每次 INSERT INTO videos 都 invalidate」的 spec-57b 完整性不變式
+        （89b-T1 follow-up：guard 測試 test_all_raw_sql_mutations_have_invalidate 要求）。
+        """
         from core.similar.ranker_cache import SimilarRankerCache
 
         calls = []
         monkeypatch.setattr(SimilarRankerCache, "invalidate", classmethod(lambda cls: calls.append(1)))
 
         repo = VideoRepository(temp_db)
-        repo.insert_if_ignore(Video(path=to_file_uri("/new2.mp4"), title="新片2"))
+        path = to_file_uri("/new2.mp4")
 
-        assert calls == []
+        # 首次插入 → 實際新增 row → invalidate 一次
+        assert repo.insert_if_ignore(Video(path=path, title="新片2")) is True
+        assert calls == [1]
+
+        # 再次插入同 path → DO NOTHING（rowcount==0）→ 不再 invalidate
+        assert repo.insert_if_ignore(Video(path=path, title="新片2")) is False
+        assert calls == [1]
 
 
 class TestMigrateJsonToSqlite:
