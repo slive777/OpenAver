@@ -364,6 +364,12 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
         }
 
         for idx, src in enumerate(iter_gallery_sources(gallery_config), 1):
+            # TASK-90b-T4: 逐來源中止檢查（每個來源處理之前），比照唯讀分支
+            # T3 既有語意「這一個單位做完，下一個開始前停」。should_abort 可能
+            # 為 None（向後相容），先短路判斷。
+            if should_abort and should_abort():
+                break
+
             directory = src.path
             logger.info(f"[Gallery] 掃描: {directory}")
 
@@ -475,6 +481,13 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
                 cache_misses = 0
 
                 for i, file_info in enumerate(needs_scan, 1):
+                    # TASK-90b-T4: 逐檔中止檢查（每檔處理之前）。單一資料夾內
+                    # 檔案量大時，逐來源層檢查粒度太粗，需要在此內層迴圈頂端
+                    # 再插一次，讓中止在「下一個可偵測的時間點」生效（不中斷
+                    # 正在進行中的單一 scan_file() 呼叫）。
+                    if should_abort and should_abort():
+                        break
+
                     video_name = os.path.basename(file_info['path'])
                     yield _sse_event({"type": "log", "level": "info", "message": f"  [{i}/{len(needs_scan)}] {video_name}"})
 
@@ -508,6 +521,11 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
                 logger.exception("掃描資料夾失敗: %s", directory)
                 scan_error_count += 1
                 yield _sse_event({"type": "log", "level": "error", "message": "掃描發生錯誤，已跳過此資料夾"})
+
+        # TASK-90b-T4: 迴圈結束後一次性判斷是否中止，決定尾段留/跳（見
+        # TASK-90b-T4.md「尾段逐步留/跳決策表」）。只判斷一次，不在每個尾段
+        # 步驟前重複呼叫 should_abort()（見 card「技術要點」race 分析）。
+        _aborted = bool(should_abort and should_abort())
 
         # 建立「當前設定資料夾」URI 集合，用於過濾 DB 記錄
         # DB 保留所有歷史資料當 cache，但只輸出當前設定的資料夾
@@ -581,41 +599,49 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
 
         yield _sse_event({"type": "log", "level": "info", "message": f"資料庫總筆數: {repo.count()}"})
 
-        # §b1 AC#2: sample_images 孤兒清理 pass（Scanner UI 主路徑覆蓋，共用 helper）
-        try:
-            cleaned = _run_sample_images_cleanup_pass(repo)
-            if cleaned > 0:
-                yield _sse_event({"type": "log", "level": "info", "message": f"清除 {cleaned} 筆孤兒劇照記錄"})
-        except Exception as e:
-            logger.warning("sample_images cleanup pass failed: %s: %s", type(e).__name__, e)
-            # 失敗不中斷 scan 流程
+        # TASK-90b-T4: abort 時跳過 orphan 清理（全庫 pass，非本次掃描範圍新增
+        # 的成本，abort 時執行拿不到「這次掃描結果更完整」的好處，純屬多做一次
+        # 不必要的全庫查詢，見決策表）
+        if not _aborted:
+            # §b1 AC#2: sample_images 孤兒清理 pass（Scanner UI 主路徑覆蓋，共用 helper）
+            try:
+                cleaned = _run_sample_images_cleanup_pass(repo)
+                if cleaned > 0:
+                    yield _sse_event({"type": "log", "level": "info", "message": f"清除 {cleaned} 筆孤兒劇照記錄"})
+            except Exception as e:
+                logger.warning("sample_images cleanup pass failed: %s: %s", type(e).__name__, e)
+                # 失敗不中斷 scan 流程
 
-        # 產生 HTML
-        yield _sse_event({
-            "type": "progress",
-            "status": "產生網頁...",
-            "current": total_dirs,
-            "total": total_dirs + 1
-        })
+        # TASK-90b-T4: abort 時跳過 HTML 產生（成本隨影片數線性成長，是浪費工的
+        # 主源；client 已斷線不會有人看這份輸出，見決策表）與對應的「完成」
+        # progress event（HTML 都不產生了，沒有對應的真實進度可回報）
+        if not _aborted:
+            # 產生 HTML
+            yield _sse_event({
+                "type": "progress",
+                "status": "產生網頁...",
+                "current": total_dirs,
+                "total": total_dirs + 1
+            })
 
-        generator = HTMLGenerator()
-        generator.generate(
-            all_videos,
-            str(html_path),
-            title="OpenAver Scanner",
-            mode=default_mode,
-            sort=default_sort,
-            order=default_order,
-            items_per_page=items_per_page,
-            theme=default_theme
-        )
+            generator = HTMLGenerator()
+            generator.generate(
+                all_videos,
+                str(html_path),
+                title="OpenAver Scanner",
+                mode=default_mode,
+                sort=default_sort,
+                order=default_order,
+                items_per_page=items_per_page,
+                theme=default_theme
+            )
 
-        yield _sse_event({
-            "type": "progress",
-            "status": "完成",
-            "current": total_dirs + 1,
-            "total": total_dirs + 1
-        })
+            yield _sse_event({
+                "type": "progress",
+                "status": "完成",
+                "current": total_dirs + 1,
+                "total": total_dirs + 1
+            })
 
         logger.info(f"[Gallery] 完成，新增 {total_inserted}，更新 {total_updated}，刪除 {total_deleted}")
 
@@ -652,51 +678,59 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
         # TASK-89b-T6（Codex Finding-2）：no_output/unreachable/partial 三者原本
         # 被 _accumulate_readonly/_yield_source_summary 安靜吸收，完成通知未讀
         # 它們 → 使用者看到 success，違反 spec §89b.3.3「警告並略過，不誤報成功」。
-        _source_errors = readonly_summary["source_errors"]
-        _readonly_failed = readonly_summary["failed"]
-        _readonly_no_output = readonly_summary["no_output"]
-        _readonly_unreachable = readonly_summary["unreachable"]
-        _readonly_partial = readonly_summary["partial"]
-        if (scan_error_count > 0 or _source_errors > 0 or _readonly_failed > 0
-                or _readonly_no_output > 0 or _readonly_unreachable > 0 or _readonly_partial > 0):
-            _err_parts = []
-            if scan_error_count > 0:
-                _err_parts.append(f"{scan_error_count} 部失敗")
-            if _source_errors > 0:
-                _err_parts.append(f"{_source_errors} 個來源失敗")
-            if _readonly_failed > 0:
-                _err_parts.append(f"{_readonly_failed} 部失敗")
-            if _readonly_no_output > 0:
-                _err_parts.append(f"{_readonly_no_output} 個來源未設輸出夾")
-            if _readonly_unreachable > 0:
-                _err_parts.append(f"{_readonly_unreachable} 個來源無法連線")
-            if _readonly_partial > 0:
-                _err_parts.append(f"{_readonly_partial} 個來源部分讀取失敗")
-            _emit_notif(
-                "warn", "notif.scanner_done_with_errors",
-                message=f"完成 {len(all_videos)} 部，" + "、".join(_err_parts),
-                task_type="scanner_generate",
-            )
-        else:
-            _emit_notif(
-                "success", "notif.scanner_done",
-                message=f"完成 {len(all_videos)} 部",
-                task_type="scanner_generate",
-            )
+        # TASK-90b-T4: abort 時完全不發完成通知（成功/警告皆不發，不新增取消
+        # 通知）。通知中心是跨連線持久的全域 deque，即使觸發 abort 的這條 SSE
+        # 連線已斷線，通知抽屜仍會顯示給使用者——對已中止的掃描回報「成功」
+        # 是明確誤報，見「完成通知落點釐清」段落。
+        if not _aborted:
+            _source_errors = readonly_summary["source_errors"]
+            _readonly_failed = readonly_summary["failed"]
+            _readonly_no_output = readonly_summary["no_output"]
+            _readonly_unreachable = readonly_summary["unreachable"]
+            _readonly_partial = readonly_summary["partial"]
+            if (scan_error_count > 0 or _source_errors > 0 or _readonly_failed > 0
+                    or _readonly_no_output > 0 or _readonly_unreachable > 0 or _readonly_partial > 0):
+                _err_parts = []
+                if scan_error_count > 0:
+                    _err_parts.append(f"{scan_error_count} 部失敗")
+                if _source_errors > 0:
+                    _err_parts.append(f"{_source_errors} 個來源失敗")
+                if _readonly_failed > 0:
+                    _err_parts.append(f"{_readonly_failed} 部失敗")
+                if _readonly_no_output > 0:
+                    _err_parts.append(f"{_readonly_no_output} 個來源未設輸出夾")
+                if _readonly_unreachable > 0:
+                    _err_parts.append(f"{_readonly_unreachable} 個來源無法連線")
+                if _readonly_partial > 0:
+                    _err_parts.append(f"{_readonly_partial} 個來源部分讀取失敗")
+                _emit_notif(
+                    "warn", "notif.scanner_done_with_errors",
+                    message=f"完成 {len(all_videos)} 部，" + "、".join(_err_parts),
+                    task_type="scanner_generate",
+                )
+            else:
+                _emit_notif(
+                    "success", "notif.scanner_done",
+                    message=f"完成 {len(all_videos)} 部",
+                    task_type="scanner_generate",
+                )
 
-        yield _sse_event({
-            "type": "done",
-            "video_count": len(all_videos),
-            "output_path": str(html_path),
-            "session_update": session_update,
-            "long_paths": long_paths,  # a5
-            "stats": {
-                "inserted": total_inserted,
-                "updated": total_updated,
-                "deleted": total_deleted
-            },
-            "readonly_stats": readonly_summary  # TASK-88c-T2: 加法式新欄位
-        })
+            # TASK-90b-T4: abort 時跳過 done event——client 已斷線收不到，且
+            # payload 的 output_path/video_count 語意上宣稱「已完成產生」，
+            # HTML 根本沒產生會與實際狀態矛盾，見決策表。
+            yield _sse_event({
+                "type": "done",
+                "video_count": len(all_videos),
+                "output_path": str(html_path),
+                "session_update": session_update,
+                "long_paths": long_paths,  # a5
+                "stats": {
+                    "inserted": total_inserted,
+                    "updated": total_updated,
+                    "deleted": total_deleted
+                },
+                "readonly_stats": readonly_summary  # TASK-88c-T2: 加法式新欄位
+            })
 
     except Exception as e:
         logger.error("產生影片列表失敗: %s", e)
