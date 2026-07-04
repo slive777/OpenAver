@@ -440,6 +440,7 @@ def _clean_stale_singletons(
     has_cover: bool,
     has_poster: bool,
     has_fanart: bool,
+    has_strm: bool = False,
 ) -> None:
     """Delete this movie's own previous-run singleton assets (nfo/cover/poster/
     fanart), anchored strictly on old_base.
@@ -460,7 +461,8 @@ def _clean_stale_singletons(
 
     Each asset is deleted only when this run's corresponding write actually
     succeeded: `<old_base>.jpg` only when has_cover, `<old_base>-poster.*` only
-    when has_poster, `<old_base>-fanart.*` only when has_fanart. A transient
+    when has_poster, `<old_base>-fanart.*` only when has_fanart, `<old_base>.strm`
+    only when has_strm (TASK-90a-T3, media-server flavour). A transient
     download/generation failure this run keeps the matching old file on disk
     rather than leaving a hole. `<old_base>.nfo` is unconditional — this
     function is only ever called once nfo_ok is already True.
@@ -484,6 +486,14 @@ def _clean_stale_singletons(
     targets = [d / f"{old_base}.nfo"]
     if has_cover:
         targets.append(d / f"{old_base}.jpg")
+    # strm is a media-server flavour extra (TASK-90a-T3): exact filename, no glob
+    # (literal join like nfo/cover, no glob.escape needed). Only cleaned when this
+    # run actually re-wrote the strm (has_strm) — a transient strm write failure
+    # keeps the old <old_base>.strm rather than orphaning it, symmetric with
+    # has_cover/has_poster/has_fanart gating. Prevents a title-drift double
+    # library entry in Emby/Jellyfin (<old>.strm + <new>.strm side by side).
+    if has_strm:
+        targets.append(d / f"{old_base}.strm")
     if has_poster:
         targets.extend(d.glob(f"{esc}-poster.*"))
     if has_fanart:
@@ -493,6 +503,86 @@ def _clean_stale_singletons(
             Path(target).unlink(missing_ok=True)
         except OSError:
             logger.warning("[readonly_producer] stale asset 清除失敗（略過）: %s", target)
+
+
+# ---------------------------------------------------------------------------
+# TASK-90a-T3: media-server .strm sidecar (CD-90a-2 / CD-90a-6)
+# ---------------------------------------------------------------------------
+
+def _apply_path_mapping(source_fs_path: str, mappings: dict) -> str:
+    """Rewrite a source FS-path prefix to the playback-side namespace (pure string op).
+
+    strm files are consumed by an external media server (Emby/Jellyfin/Kodi) that
+    may see the same physical storage under a DIFFERENT mount path than OpenAver's
+    host (e.g. OpenAver on Windows sees ``Z:\\115\\x.mp4`` while the media server
+    on the NAS sees ``/volume1/movie/x.mp4``). mappings maps ``local_prefix ->
+    remote_prefix``; the matched prefix is swapped and the remainder appended
+    verbatim.
+
+    Matching is separator-boundary anchored (accepts BOTH ``\\`` and ``/`` with no
+    OS branch): a rule matches only when source_fs_path equals local_prefix OR the
+    character immediately after local_prefix is a separator. This stops
+    ``Z:\\1150\\a.mp4`` from wrongly matching a ``Z:\\115`` rule. When several rules
+    match, the LONGEST local_prefix wins (deterministic, independent of dict
+    insertion order). Empty mappings or no match returns source_fs_path unchanged
+    (v1 backward compat).
+
+    CD-90a-6: the result is NEVER passed through path_utils (normalize_path /
+    to_windows_path / to_wsl_path / to_file_uri). The target is a foreign playback
+    namespace; a bare Unix path like ``/volume1/...`` fed to to_windows_path on a
+    Windows host raises ValueError (path_utils.py:141-142). Pure string operation,
+    no OS semantics.
+    """
+    if not mappings:
+        return source_fs_path
+    matched = []
+    for local_prefix, remote_prefix in mappings.items():
+        if source_fs_path == local_prefix:
+            matched.append((local_prefix, remote_prefix))
+        elif source_fs_path.startswith(local_prefix) and \
+                source_fs_path[len(local_prefix):len(local_prefix) + 1] in ('\\', '/'):
+            matched.append((local_prefix, remote_prefix))
+    if not matched:
+        return source_fs_path
+    local_prefix, remote_prefix = max(matched, key=lambda kv: len(kv[0]))
+    # path-contract-ok: strm 目標為播放端命名空間，刻意不 normalize
+    return remote_prefix + source_fs_path[len(local_prefix):]
+
+
+def _write_strm(base_stem: str, source_fs_path: str, config: dict) -> bool:
+    """Write a single-line ``<base_stem>.strm`` pointing at the source video (best-effort).
+
+    Content = _apply_path_mapping(source_fs_path, mappings) written as one UTF-8
+    line, no BOM, no path_utils transform (see _apply_path_mapping / CD-90a-6).
+
+    config is the scraper section (produce_source passes scraper_cfg at call site);
+    the mapping table is read SAME-LEVEL — ``config.get('strm_path_mappings', {})``,
+    NOT via a nested ``config.get('scraper', ...)`` (that would always yield {} and
+    silently disable mappings). This mirrors line ~580's same-level
+    ``config.get('external_manager', 'off')`` read.
+
+    Best-effort (spec-90 §90a.2.2): strm is an EXTRA product for external media
+    servers, not an OpenAver-required asset. A write failure logs a warning and
+    returns False — it never raises, never marks the whole movie failed (unlike
+    NFO, which is OpenAver's own required metadata). Returns True on success; the
+    bool also feeds _clean_stale_singletons' has_strm gating.
+    """
+    strm_fs = base_stem + '.strm'
+    try:
+        # mapping + write both inside try: raw config is NOT model_validated on the
+        # read path (_load_config_unlocked returns raw dict), so a hand-edited
+        # config.json with non-str mapping values could make _apply_path_mapping
+        # TypeError. best-effort's promise (§90a.2.2: strm never fails the movie)
+        # must hold even then — catch broadly, warn, return False. Any masked bug
+        # still surfaces via the warning log.
+        mappings = config.get('strm_path_mappings', {})
+        mapped = _apply_path_mapping(source_fs_path, mappings)
+        with open(strm_fs, 'w', encoding='utf-8') as f:
+            f.write(mapped)
+        return True
+    except Exception as e:  # noqa: BLE001 — best-effort auxiliary artifact, must never propagate
+        logger.warning("[readonly_producer] strm 寫入失敗（略過，best-effort）: %s (%s)", strm_fs, e)
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -559,6 +649,7 @@ def _write_movie_assets(
     # claims a movie was generated when the NFO is missing ("每片成功生成後寫一筆").
     # Cover/poster/fanart stay best-effort: a missing cover is acceptable per C6
     # (cold title with no image) and self-heals on the next incremental run.
+    external_manager = config.get('external_manager', 'off')
     nfo_fs = base_stem + '.nfo'
     nfo_ok = generate_nfo(
         number=meta['number'],
@@ -577,15 +668,24 @@ def _write_movie_assets(
         label=meta.get('label', ''),
         summary=meta.get('_summary', ''),
         rating=meta.get('_rating'),
-        external_manager=config.get('external_manager', 'off'),
+        external_manager=external_manager,
     )
     if not nfo_ok:
         raise RuntimeError(f"NFO write failed: {nfo_fs}")
 
+    # 5) strm sidecar — media-server flavours only (TASK-90a-T3). off / non
+    # media-server → no strm. best-effort: a write failure returns False and
+    # feeds has_strm gating below (transient failure keeps the old strm).
+    has_strm = (
+        _write_strm(base_stem, source_fs_path, config)
+        if external_manager in ('jellyfin', 'emby', 'kodi')
+        else False
+    )
+
     # Singleton stale-cleanup runs LAST, only after the new NFO write is confirmed
     # (T5 follow-up, Codex PR review P2) — see docstring above for why this is
     # post-write rather than pre-write.
-    _clean_stale_singletons(movie_dir, old_base, new_base, has_cover, has_poster, has_fanart)
+    _clean_stale_singletons(movie_dir, old_base, new_base, has_cover, has_poster, has_fanart, has_strm)
     return {'cover_fs': cover_fs if has_cover else '', 'sample_fs': sample_fs}
 
 
