@@ -522,10 +522,14 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
                 scan_error_count += 1
                 yield _sse_event({"type": "log", "level": "error", "message": "掃描發生錯誤，已跳過此資料夾"})
 
-        # TASK-90b-T4: 迴圈結束後一次性判斷是否中止，決定尾段留/跳（見
-        # TASK-90b-T4.md「尾段逐步留/跳決策表」）。只判斷一次，不在每個尾段
-        # 步驟前重複呼叫 should_abort()（見 card「技術要點」race 分析）。
-        _aborted = bool(should_abort and should_abort())
+        # TASK-90b-T4 / PR#90b Codex P1: 尾段每個外顯副作用（HTML 檔、完成通知、
+        # done event）之前各自 fresh 查一次 should_abort()，而非迴圈結束時單次
+        # snapshot。單次 snapshot 會漏掉「迴圈已結束、尾段進行中才斷線」的 race：
+        # HTMLGenerator.generate() 期間 client 才斷線時，snapshot 仍為 False，後面
+        # 的完成通知與 done event 仍照跑 → 對已中止的掃描誤報 success。改為每個
+        # 外顯副作用前重新查詢，把 tail-race 窗口收斂到單一 event.is_set() 呼叫。
+        def _is_aborted() -> bool:
+            return bool(should_abort and should_abort())
 
         # 建立「當前設定資料夾」URI 集合，用於過濾 DB 記錄
         # DB 保留所有歷史資料當 cache，但只輸出當前設定的資料夾
@@ -602,7 +606,7 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
         # TASK-90b-T4: abort 時跳過 orphan 清理（全庫 pass，非本次掃描範圍新增
         # 的成本，abort 時執行拿不到「這次掃描結果更完整」的好處，純屬多做一次
         # 不必要的全庫查詢，見決策表）
-        if not _aborted:
+        if not _is_aborted():
             # §b1 AC#2: sample_images 孤兒清理 pass（Scanner UI 主路徑覆蓋，共用 helper）
             try:
                 cleaned = _run_sample_images_cleanup_pass(repo)
@@ -615,7 +619,7 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
         # TASK-90b-T4: abort 時跳過 HTML 產生（成本隨影片數線性成長，是浪費工的
         # 主源；client 已斷線不會有人看這份輸出，見決策表）與對應的「完成」
         # progress event（HTML 都不產生了，沒有對應的真實進度可回報）
-        if not _aborted:
+        if not _is_aborted():
             # 產生 HTML
             yield _sse_event({
                 "type": "progress",
@@ -678,11 +682,20 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
         # TASK-89b-T6（Codex Finding-2）：no_output/unreachable/partial 三者原本
         # 被 _accumulate_readonly/_yield_source_summary 安靜吸收，完成通知未讀
         # 它們 → 使用者看到 success，違反 spec §89b.3.3「警告並略過，不誤報成功」。
-        # TASK-90b-T4: abort 時完全不發完成通知（成功/警告皆不發，不新增取消
-        # 通知）。通知中心是跨連線持久的全域 deque，即使觸發 abort 的這條 SSE
-        # 連線已斷線，通知抽屜仍會顯示給使用者——對已中止的掃描回報「成功」
-        # 是明確誤報，見「完成通知落點釐清」段落。
-        if not _aborted:
+        # TASK-90b-T4 / PR#90b Codex P1+P2: abort 時不發 success/warn 完成通知（對
+        # 已中止的掃描回報「完成」是明確誤報），但**必須**發一筆中性 terminal 通知
+        # 與函式開頭無條件 emit 的 scanner_started 配對。通知中心是 append-only 的
+        # 全域 deque（web/routers/notifications.py），不依 task_type 撤回或配對，只發
+        # started 不發 terminal，會在通知抽屜永久殘留一筆看似未完成的「掃描開始」，
+        # 使用者每中止一次就累積一筆錯的狀態（Codex P2）。此處 fresh 再查一次
+        # should_abort()（Codex P1：涵蓋 HTML 產生期間才斷線的 tail-race）。
+        _aborted = _is_aborted()
+        if _aborted:
+            _emit_notif(
+                "info", "notif.scanner_cancelled",
+                task_type="scanner_generate",
+            )
+        else:
             _source_errors = readonly_summary["source_errors"]
             _readonly_failed = readonly_summary["failed"]
             _readonly_no_output = readonly_summary["no_output"]

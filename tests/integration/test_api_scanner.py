@@ -1954,6 +1954,21 @@ class TestGenerateAvlistShouldAbortTopLevel:
         mocker.patch("web.routers.scanner.VideoScanner.scan_file", fake_scan_file)
         return calls
 
+    def _assert_cancelled_terminal(self, mock_notif):
+        """abort 尾段的通知契約（PR#90b Codex P1+P2）：不發 success/warn 完成通知，
+        改發恰好一筆中性 info `notif.scanner_cancelled`，與 scanner_started 配對。"""
+        gen_calls = [
+            c for c in mock_notif.call_args_list
+            if c.kwargs.get("task_type") == "scanner_generate" and c.args
+        ]
+        titles = [c.args[1] for c in gen_calls]
+        assert "notif.scanner_done" not in titles, f"abort 不應誤報完成，實得 {titles}"
+        assert "notif.scanner_done_with_errors" not in titles, f"abort 不應誤報完成，實得 {titles}"
+        assert titles.count("notif.scanner_cancelled") == 1, \
+            f"abort 應發恰好一筆取消通知配對 started，實得 {titles}"
+        cancel_call = next(c for c in gen_calls if c.args[1] == "notif.scanner_cancelled")
+        assert cancel_call.args[0] == "info", "取消通知須為中性 info，不可誤報 success"
+
     def _parse_events(self, sse_strings):
         """把 generate_avlist() yield 出的原始 SSE 字串（"data: {...}\\n\\n"）
         解析為 dict list，比照 conftest.parse_sse_events 邏輯（但輸入是
@@ -2004,13 +2019,11 @@ class TestGenerateAvlistShouldAbortTopLevel:
         # (b) HTML 未被產生
         mock_html.return_value.generate.assert_not_called()
 
-        # (c) 完成通知（success/warn）未被發出（scanner_started 之外一律不應出現）
-        completion_calls = [
-            c for c in mock_notif.call_args_list
-            if c.kwargs.get("task_type") == "scanner_generate"
-            and c.args and c.args[1] != "notif.scanner_started"
-        ]
-        assert completion_calls == [], f"abort 時不應發完成通知，實得 {completion_calls}"
+        # (c) 不發 success/warn 完成通知，改發恰好一筆中性 info「取消」通知，與
+        # 函式開頭無條件 emit 的 scanner_started 配對（PR#90b Codex P2：只發 started
+        # 不發 terminal 會在 append-only 通知抽屜永久殘留一筆看似未完成的「掃描開
+        # 始」，使用者每中止一次累積一筆錯狀態）。
+        self._assert_cancelled_terminal(mock_notif)
 
         # (d) jellyfin cache 仍被重設（必要資源收尾）——哨兵值已被覆寫回 None/0
         assert scanner_mod._jellyfin_cache_result is None
@@ -2051,13 +2064,8 @@ class TestGenerateAvlistShouldAbortTopLevel:
         # (b) HTML 未被產生
         mock_html.return_value.generate.assert_not_called()
 
-        # (c) 完成通知未被發出
-        completion_calls = [
-            c for c in mock_notif.call_args_list
-            if c.kwargs.get("task_type") == "scanner_generate"
-            and c.args and c.args[1] != "notif.scanner_started"
-        ]
-        assert completion_calls == [], f"abort 時不應發完成通知，實得 {completion_calls}"
+        # (c) 不發 success/warn 完成通知，改發恰好一筆中性 info「取消」通知
+        self._assert_cancelled_terminal(mock_notif)
 
         # (d) jellyfin cache 仍被重設（哨兵值已被覆寫回 None/0）
         assert scanner_mod._jellyfin_cache_result is None
@@ -2066,6 +2074,46 @@ class TestGenerateAvlistShouldAbortTopLevel:
         # (e) done event 未被 yield
         parsed = self._parse_events(events)
         assert not [e for e in parsed if e.get("type") == "done"]
+
+    # ---- (2b) tail-race：迴圈已跑完、尾段進行中才斷線（PR#90b Codex P1）----
+
+    def test_tail_race_disconnect_after_loop_reports_cancelled_not_success(
+        self, tmp_path, monkeypatch, mocker
+    ):
+        """Codex P1 回歸：single-snapshot 只在迴圈結束時查一次 should_abort()，會漏
+        掉「迴圈已跑完、HTML 產生等尾段進行中才斷線」的 race → 誤發 success。此測
+        讓 should_abort 在迴圈與 orphan/HTML 兩個 gate 都回 False，只在最後的
+        terminal fresh 檢查回 True，驗證：HTML 有被產生（gate 通過），但完成通知
+        仍走「取消」而非 success，且不 yield done event。"""
+        from web.routers.scanner import generate_avlist
+
+        dir0, _ = self._make_dir_with_files(tmp_path, "src0", 1)
+        cfg = self._config(tmp_path, [dir0])
+        monkeypatch.setattr("web.routers.scanner.load_config", lambda: cfg)
+        monkeypatch.setattr("web.routers.scanner.get_db_path", lambda: tmp_path / "test.db")
+
+        self._patch_scan_file(mocker)
+        mock_html = mocker.patch("web.routers.scanner.HTMLGenerator")
+        mock_notif = mocker.patch("web.routers.scanner._emit_notif")
+
+        # 呼叫序列（1 dir / 1 file）：outer #1、inner #2、orphan gate #3、
+        # HTML gate #4、terminal #5。trigger_after=4 → 前 4 次 False（迴圈跑完、
+        # orphan/HTML gate 都通過），第 5 次（terminal fresh 檢查）才 True。
+        # single-snapshot 版本此情境會誤發 success；fresh 版本應改發 cancelled。
+        fake_should_abort = self._counting_should_abort(trigger_after=4)
+
+        events = list(generate_avlist(should_abort=fake_should_abort))
+
+        # HTML 確實被產生（證明 orphan/HTML gate 當時未 abort，race 發生在其後）
+        mock_html.return_value.generate.assert_called_once()
+
+        # 尾段 fresh 檢查捕捉到斷線 → 走「取消」通知契約，不誤報 success
+        self._assert_cancelled_terminal(mock_notif)
+
+        # done event 不 yield（terminal 分支已改走 cancelled）
+        parsed = self._parse_events(events)
+        assert not [e for e in parsed if e.get("type") == "done"], \
+            "tail-race abort 不應 yield done event"
 
     # ---- (3) 零回歸：should_abort=None → 尾段全部照舊執行 ----
 

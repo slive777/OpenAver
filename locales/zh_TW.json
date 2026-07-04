@@ -698,6 +698,7 @@
     "scanner_done": "掃描完成",
     "scanner_done_with_errors": "掃描完成（部分失敗）",
     "scanner_failed": "掃描中斷",
+    "scanner_cancelled": "掃描已取消",
     "batch_enrich_started": "批次補完開始",
     "batch_enrich_done": "批次補完完成",
     "batch_enrich_done_with_errors": "批次補完（部分失敗）",
