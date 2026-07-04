@@ -33,6 +33,7 @@ from typing import Any, Dict, Generator, List
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse, HTMLResponse, Response, FileResponse, JSONResponse
+from starlette.background import BackgroundTask
 
 from core.gallery_scanner import VideoScanner, fast_scan_directory, VideoInfo, _run_sample_images_cleanup_pass
 from core.video_extensions import get_proxy_extensions, get_video_extensions
@@ -712,10 +713,55 @@ def generate_avlist() -> Generator[str, None, None]:
         yield _sse_event({"type": "error", "message": "產生影片列表失敗"})
 
 
+# TASK-90b-T2: 斷線偵測輪詢間隔（秒）。定案依據見 plan-90b.md CD-90b-5/6：
+# spike 實測顯示 Starlette（釘版 starlette==1.3.1）對同步 generator 直接丟給
+# StreamingResponse 時，client 斷線僅停止再呼叫 next()，並不會主動對 generator
+# 呼叫 .close()（GeneratorExit 備案在此版本上不會被觸發，等 GC 亦不可靠、觀測
+# 不到 timely 觸發）；故採方案 A：獨立 asyncio task 主動輪詢
+# `request.is_disconnected()`，非搶 iterate_in_threadpool 的同一組 receive
+# channel（該輪詢與 StreamingResponse 內部行為互不干擾，spike 已驗證）。
+_DISCONNECT_POLL_INTERVAL_SEC = 0.5
+
+
 @router.get("/generate")
-async def generate():
-    """產生影片列表（SSE 串流回傳進度）"""
-    return StreamingResponse(
+async def generate(request: Request):
+    """產生影片列表（SSE 串流回傳進度）
+
+    TASK-90b-T2：加入斷線偵測機制。`cancel_event`（`threading.Event`，非
+    `asyncio.Event`——T3 要讓背景 daemon thread 安全讀取）在偵測到 client
+    斷線時被設置；本 task 尚未把它串進 `generate_avlist`/`produce_source`
+    （那是 T3），此處只負責建立 + 正確設置 + 生命週期收尾。
+    """
+    cancel_event = threading.Event()
+
+    async def _watch_disconnect() -> None:
+        try:
+            while not cancel_event.is_set():
+                if await request.is_disconnected():
+                    cancel_event.set()
+                    return
+                await asyncio.sleep(_DISCONNECT_POLL_INTERVAL_SEC)
+        except asyncio.CancelledError:
+            # 正常完成路徑：外層 BackgroundTask 收尾時會 cancel 這個 task，
+            # 屬預期流程，非錯誤。
+            raise
+
+    watcher_task = asyncio.create_task(_watch_disconnect())
+
+    async def _cleanup_watcher() -> None:
+        # BackgroundTask：涵蓋「正常完成」路徑——Starlette 於 response 正常
+        # 傳輸結束後 await 本 background，cancel 仍在輪詢的 watcher task，不留
+        # 孤兒（CD-90b-5 追加 P2）。⚠️ 斷線路徑不靠這裡：starlette 1.3.1 在
+        # send() 拋 OSError→ClientDisconnect 時會在 await background 之前就
+        # 往上拋，本 background 不會被執行；但斷線路徑的 watcher 已自行偵測到
+        # 斷線並 return（task 自然結束），故兩條路徑皆無 dangling task。
+        watcher_task.cancel()
+        try:
+            await watcher_task
+        except asyncio.CancelledError:
+            pass
+
+    response = StreamingResponse(
         generate_avlist(),
         media_type="text/event-stream",
         headers={
@@ -723,6 +769,13 @@ async def generate():
             "Connection": "keep-alive",
         }
     )
+    response.background = BackgroundTask(_cleanup_watcher)
+    # 測試用掛鉤（不影響 production 行為）：讓
+    # tests/unit/test_scanner_generate_disconnect.py 可在不跑真 uvicorn 的
+    # 情況下觀察 cancel_event / watcher_task 狀態。
+    response.cancel_event = cancel_event
+    response.watcher_task = watcher_task
+    return response
 
 
 @router.get("/stats")
