@@ -510,50 +510,62 @@ def _clean_stale_singletons(
 # ---------------------------------------------------------------------------
 
 def _apply_path_mapping(source_fs_path: str, mappings: dict) -> str:
-    """Rewrite a source FS-path prefix to the playback-side namespace (pure string op).
+    """Rewrite a source FS-path prefix to the playback-side namespace.
 
     strm files are consumed by an external media server (Emby/Jellyfin/Kodi) that
     may see the same physical storage under a DIFFERENT mount path than OpenAver's
     host (e.g. OpenAver on Windows sees ``Z:\\115\\x.mp4`` while the media server
     on the NAS sees ``/volume1/movie/x.mp4``). mappings maps ``local_prefix ->
-    remote_prefix``; the matched prefix is swapped and the remainder appended
-    verbatim.
+    remote_prefix``; the matched prefix is swapped and the remainder appended.
 
-    Matching is separator-boundary anchored (accepts BOTH ``\\`` and ``/`` with no
-    OS branch): a rule matches only when source_fs_path equals local_prefix OR the
-    character immediately after local_prefix is a separator. This stops
-    ``Z:\\1150\\a.mp4`` from wrongly matching a ``Z:\\115`` rule. When several rules
-    match, the LONGEST local_prefix wins (deterministic, independent of dict
-    insertion order). Empty mappings or no match returns source_fs_path unchanged
-    (v1 backward compat).
+    Matching is done in ``file:///`` URI space: both source and each local_prefix
+    are converged via ``to_file_uri`` (host-independent, never raises, no
+    percent-encoding in this codebase). This fixes two Codex findings:
 
-    CD-90a-6: the result is NEVER passed through path_utils (normalize_path /
-    to_windows_path / to_wsl_path / to_file_uri). The target is a foreign playback
-    namespace; a bare Unix path like ``/volume1/...`` fed to to_windows_path on a
-    Windows host raises ValueError (path_utils.py:141-142). Pure string operation,
-    no OS semantics.
+    - P1 (cross-namespace silent miss): a Windows-display prefix ``C:\\115`` in
+      config now matches a WSL-native source ``/mnt/c/115/x.mp4`` (both converge
+      to ``file:///C:/115``). Raw-string compare would have silently missed and
+      emitted the un-mapped source path.
+    - P2 (trailing separator): a local_prefix with a trailing separator
+      (``/mnt/z/115/``) no longer misses — the URI form is rstrip'd of ``/``.
+
+    A rule matches when the source URI equals the (trailing-slash-stripped) local
+    URI OR the char immediately after it is ``/`` (URIs always use forward-slash,
+    so no OS branch). This stops ``file:///Z:/1150/a`` from wrongly matching a
+    ``file:///Z:/115`` rule. When several rules match, the LONGEST local URI wins
+    (deterministic, independent of dict insertion order). Empty mappings or no
+    match returns source_fs_path unchanged (v1 backward compat).
+
+    CD-90a-6: only source/local_prefix are converged (for MATCHING). The remote
+    result is written VERBATIM and is NEVER normalized — it is a foreign playback
+    namespace (a bare Unix ``/volume1/...`` fed to to_windows_path on a Windows
+    host raises). We only rstrip trailing separators off remote_prefix for join
+    hygiene; the appended remainder is taken from the URI (always forward-slash).
     """
     if not mappings:
         return source_fs_path
+    su = to_file_uri(source_fs_path)  # converge source → file:/// URI (host-independent, no raise)
     matched = []
     for local_prefix, remote_prefix in mappings.items():
-        if source_fs_path == local_prefix:
-            matched.append((local_prefix, remote_prefix))
-        elif source_fs_path.startswith(local_prefix) and \
-                source_fs_path[len(local_prefix):len(local_prefix) + 1] in ('\\', '/'):
-            matched.append((local_prefix, remote_prefix))
+        lu = to_file_uri(local_prefix).rstrip('/')  # converge + strip trailing sep (P2); URI is always '/'
+        if su == lu or (su.startswith(lu) and su[len(lu):len(lu) + 1] == '/'):
+            matched.append((lu, remote_prefix))
     if not matched:
         return source_fs_path
-    local_prefix, remote_prefix = max(matched, key=lambda kv: len(kv[0]))
-    # path-contract-ok: strm 目標為播放端命名空間，刻意不 normalize
-    return remote_prefix + source_fs_path[len(local_prefix):]
+    lu, remote_prefix = max(matched, key=lambda kv: len(kv[0]))
+    # path-contract-ok: remote 為播放端命名空間、verbatim 寫入不 normalize；僅去尾分隔符做
+    # join 衛生（remainder 由 URI 取、恆前導 '/'）。source/local 收斂到 file:/// URI 供比對修
+    # Codex P1（跨命名空間 C:\ ↔ /mnt/c/ 靜默失效）+ P2（尾分隔符）。
+    return remote_prefix.rstrip('/\\') + su[len(lu):]
 
 
 def _write_strm(base_stem: str, source_fs_path: str, config: dict) -> bool:
     """Write a single-line ``<base_stem>.strm`` pointing at the source video (best-effort).
 
     Content = _apply_path_mapping(source_fs_path, mappings) written as one UTF-8
-    line, no BOM, no path_utils transform (see _apply_path_mapping / CD-90a-6).
+    line, no BOM. The REMOTE side is written verbatim / never normalized; matching
+    converges source+local_prefix to file:/// URI space (see _apply_path_mapping /
+    CD-90a-6).
 
     config is the scraper section (produce_source passes scraper_cfg at call site);
     the mapping table is read SAME-LEVEL — ``config.get('strm_path_mappings', {})``,

@@ -2560,8 +2560,9 @@ class TestProduceSourcePrune:
 # ---------------------------------------------------------------------------
 
 class TestApplyPathMapping:
-    """Pure string prefix-swap: boundary-anchored, longest-match, order-independent,
-    never normalized (CD-90a-6)."""
+    """file:/// URI-space prefix-swap: boundary-anchored, longest-match,
+    order-independent. source+local_prefix converge via to_file_uri for MATCHING
+    (Codex P1/P2 fix); remote result written verbatim, never normalized (CD-90a-6)."""
 
     def test_empty_mappings_returns_original(self):
         from core.readonly_producer import _apply_path_mapping
@@ -2579,7 +2580,7 @@ class TestApplyPathMapping:
     def test_single_match_windows_separator(self):
         from core.readonly_producer import _apply_path_mapping
         out = _apply_path_mapping('Z:\\115\\x.mp4', {'Z:\\115': '/volume1/movie'})
-        assert out == '/volume1/movie\\x.mp4'  # tail separator preserved verbatim
+        assert out == '/volume1/movie/x.mp4'  # remainder from URI space (forward-slash)
 
     def test_single_match_unix_separator(self):
         from core.readonly_producer import _apply_path_mapping
@@ -2593,7 +2594,7 @@ class TestApplyPathMapping:
     def test_nested_longest_prefix_wins(self):
         from core.readonly_producer import _apply_path_mapping
         mappings = {'Z:\\115': '/a', 'Z:\\115\\成人': '/b'}
-        assert _apply_path_mapping('Z:\\115\\成人\\x.mp4', mappings) == '/b\\x.mp4'
+        assert _apply_path_mapping('Z:\\115\\成人\\x.mp4', mappings) == '/b/x.mp4'
 
     def test_longest_match_independent_of_insertion_order(self):
         """Same content dict built in both orders → identical output (deterministic)."""
@@ -2601,7 +2602,7 @@ class TestApplyPathMapping:
         forward = {'Z:\\115': '/a', 'Z:\\115\\成人': '/b'}
         reverse = {'Z:\\115\\成人': '/b', 'Z:\\115': '/a'}
         p = 'Z:\\115\\成人\\x.mp4'
-        assert _apply_path_mapping(p, forward) == _apply_path_mapping(p, reverse) == '/b\\x.mp4'
+        assert _apply_path_mapping(p, forward) == _apply_path_mapping(p, reverse) == '/b/x.mp4'
 
     def test_foreign_unix_target_not_normalized_or_raised(self):
         """Mapped output is a bare Unix path (/volume1/...): returned verbatim,
@@ -2609,6 +2610,24 @@ class TestApplyPathMapping:
         from core.readonly_producer import _apply_path_mapping
         out = _apply_path_mapping('Z:\\115\\x.mp4', {'Z:\\115': '/volume1/movie'})
         assert out.startswith('/volume1/movie')
+
+    def test_trailing_separator_in_local_prefix_still_matches(self):
+        """Codex P2: a local_prefix carrying a trailing separator ('/mnt/z/115/')
+        must still match — the URI form is rstrip'd of '/'. Raw-string compare
+        would have missed (source lacks the doubled sep) and returned unchanged."""
+        from core.readonly_producer import _apply_path_mapping
+        out = _apply_path_mapping('/mnt/z/115/x.mp4', {'/mnt/z/115/': '/vol'})
+        assert out == '/vol/x.mp4'
+
+    def test_cross_namespace_windows_prefix_matches_wsl_source(self):
+        """Codex P1: a Windows-DISPLAY prefix ('C:\\115', as pathToDisplay prefills)
+        must match a WSL-NATIVE source ('/mnt/c/115/x.mp4') — both converge to
+        file:///C:/115 in URI space. Raw-string compare would have silently missed
+        and written the un-mapped source. Host-independent (green on Linux CI + WSL:
+        to_file_uri's /mnt & drive-letter branches are not env-gated)."""
+        from core.readonly_producer import _apply_path_mapping
+        out = _apply_path_mapping('/mnt/c/115/x.mp4', {'C:\\115': '/volume1'})
+        assert out == '/volume1/x.mp4'
 
 
 class TestWriteStrm:
@@ -2628,7 +2647,7 @@ class TestWriteStrm:
         content = strm.read_text(encoding='utf-8')
         assert not content.startswith('﻿')
         assert '\n' not in content, "strm must be a single line"
-        assert content == '/volume1/movie\\x.mp4'
+        assert content == '/volume1/movie/x.mp4'
 
     def test_empty_mappings_writes_raw_source_path(self, tmp_path):
         from core.readonly_producer import _write_strm
@@ -2650,7 +2669,7 @@ class TestWriteStrm:
         }
         _write_strm(base_stem, 'Z:\\115\\x.mp4', config)
         content = Path(base_stem + '.strm').read_text(encoding='utf-8')
-        assert content == '/volume1\\x.mp4'
+        assert content == '/volume1/x.mp4'
         assert 'WRONG' not in content
 
     def test_foreign_target_written_verbatim(self, tmp_path):
@@ -2660,7 +2679,7 @@ class TestWriteStrm:
         config = {'strm_path_mappings': {'Z:\\115': '/volume1/movie'}}
         ok = _write_strm(base_stem, 'Z:\\115\\clip.mp4', config)
         assert ok is True
-        assert Path(base_stem + '.strm').read_text(encoding='utf-8') == '/volume1/movie\\clip.mp4'
+        assert Path(base_stem + '.strm').read_text(encoding='utf-8') == '/volume1/movie/clip.mp4'
 
     def test_write_failure_is_best_effort_returns_false(self, tmp_path):
         """open() raising → warning logged, returns False, does NOT raise."""
