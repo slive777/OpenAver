@@ -35,7 +35,7 @@ from core.config import (
 from core.database import VideoRepository, get_db_path, init_db
 from core import thumbnail_cache
 from core.path_utils import coerce_to_file_uri, uri_to_fs_path, reverse_path_mapping, CURRENT_ENV
-from core.generate_state import try_begin_switch, end_switch
+from core.generate_state import try_begin_switch, end_switch, is_switch_in_progress
 from core.readonly_source import is_path_readonly
 from core.readonly_producer import _write_strm
 from core.source_config import MAX_ENABLED_SOURCES
@@ -67,6 +67,13 @@ def get_config() -> dict:
 @router.put("/config")
 def update_config(config: AppConfig) -> dict:
     """更新所有設定"""
+    # PR #93 P2：切模式 purge 窗口中拒絕整份設定儲存。否則另一分頁帶「切模式前的舊
+    # directories 快照」的整份存檔會覆寫 gallery.directories，把剛被 purge 的離線來源
+    # 條目寫回 config（DB 卡已刪）→ 殭屍條目、顯示空白。次秒級窗口，前端重試即可。
+    # 只擋整份存檔；update_general_field 只寫單一 general 欄位、不碰 directories → 無此害。
+    if is_switch_in_progress():
+        return {"success": False, "reason": "switch_in_progress",
+                "error": "設定切換中，請稍後再儲存。"}
     # Cap 守衛（CD-61-16，endpoint-level；非 model_validator）：
     # 同時啟用且非 manual_only 的來源數不得超過 MAX_ENABLED_SOURCES。
     # 防止前端繞過 UI 直接 PUT。manual_only 不計入 cap basis（CD-61-17）。

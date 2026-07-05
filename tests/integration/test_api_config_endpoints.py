@@ -57,6 +57,21 @@ class TestConfigAPI:
         assert data["success"] is True
         # 不會報錯，一樣回傳成功
 
+    def test_update_config_refused_during_switch(self, client, mock_config_path, monkeypatch):
+        """PR #93 P2：切模式 purge 窗口中整份設定儲存被擋 → reason switch_in_progress、
+        config 檔零覆寫（防舊 directories 快照把剛 purge 的離線來源條目寫回）。"""
+        mock_config_path.write_text('{"general": {"theme": "dark"}}')
+        monkeypatch.setattr("web.routers.config.is_switch_in_progress", lambda: True)
+
+        resp = client.put("/api/config", json={})  # {} → AppConfig 全預設，仍先撞 switch guard
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["success"] is False
+        assert body["reason"] == "switch_in_progress"
+        # config 檔未被覆寫
+        assert json.loads(mock_config_path.read_text()) == {"general": {"theme": "dark"}}
+
     def test_tutorial_flow(self, client, mock_config_path):
         """測試 tutorial 相關的一系列流程"""
         # 1. 初始化狀態應該是 False

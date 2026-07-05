@@ -88,6 +88,17 @@ def end_switch() -> None:
         _switch_active = False
 
 
+def is_switch_in_progress() -> bool:
+    """True while switch_external_manager holds the purge window (PR #93).
+
+    Read-only getter — lets other config writers (e.g. the full-config save
+    `PUT /api/config`) refuse during the sub-second switch window so a stale
+    client snapshot can't rewrite the just-purged offline-source entries back.
+    """
+    with _lock:
+        return _switch_active
+
+
 def mark_generate_done(token) -> None:
     """Clear a generate token (idempotent; call from the watcher `finally` so it
     runs on BOTH normal-completion and client-disconnect paths)."""
