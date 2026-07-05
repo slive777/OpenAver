@@ -324,7 +324,7 @@
     },
     "switch_mode_confirm": {
       "title": "切換媒體伺服器模式",
-      "body": "切換到「{mode}」會移除目前 {count} 個離線來源與它們產生的媒體卡（你輸出夾裡的檔案不會被刪），之後重新加入即可在新模式下重建。其他已開啟的分頁請重新整理後再操作。",
+      "body": "切換到「{mode}」會移除目前 {count} 個唯讀來源與它們產生的媒體卡（你輸出夾裡的檔案不會被刪），之後重新加入即可在新模式下重建。其他已開啟的分頁請重新整理後再操作。",
       "cancel": "取消",
       "confirm": "確認切換並移除",
       "failed": "切換模式失敗，請稍後再試。",
@@ -405,12 +405,12 @@
       "download_sample_images_hint": "整理時自動下載劇照至 extrafanart/ 子目錄（需啟用「建立資料夾」）",
       "strm_mapping": {
         "title": "播放端路徑替換",
-        "intro": "當 Emby／Jellyfin 在另一台機器、看到的來源路徑與本機不同時，用這些規則把「本機掃描前綴」替換成「播放端前綴」。沒有規則時 strm 直接寫本機路徑。",
+        "intro": "當 Emby／Jellyfin／Kodi 在另一台機器、看到的來源路徑與本機不同時，用這些規則把「本機掃描前綴」替換成「播放端前綴」。沒有規則時 strm 直接寫本機路徑。",
         "local_placeholder": "本機前綴（例：Z:\\115）",
         "remote_placeholder": "播放端前綴（例：/volume1/movie）",
         "add_rule": "新增規則",
         "remove": "刪除規則",
-        "template_hint": "以下為唯讀來源的本機掃描路徑參考範本，請對齊產生時實際掃到的路徑前綴（WSL 等環境顯示形可能有落差）：",
+        "template_hint": "以下為唯讀來源目前的本機掃描路徑範本，請對齊你實際掃到的路徑前綴：",
         "template_use": "填入左欄",
         "rewrite_confirm": {
           "title": "改寫既有 .strm 檔",
@@ -547,11 +547,11 @@
       "remove_title": "移除",
       "readonly_label": "唯讀",
       "output_path_label": "輸出到",
-      "output_path_placeholder": "本地媒體庫輸出夾路徑...",
+      "output_path_placeholder": "這台能寫入的輸出夾（給 Emby／Jellyfin／Kodi 掃描，可放 NAS）...",
       "output_prefix": "輸出:",
       "settings_link": "設定",
       "copy_path": "複製路徑",
-      "cross_machine_hint": "strm 內寫的是這台看到的來源路徑。若播放的 Emby／Jellyfin／Kodi 在別台機器，請確認它也認得這串路徑，或到設定頁設路徑替換規則。",
+      "cross_machine_hint": "（與上面「輸出到」資料夾無關）strm 檔裡寫的是這台看到的唯讀來源影片路徑。若播放的 Emby／Jellyfin／Kodi 在別台機器、看到的路徑不同，請到設定頁設路徑替換規則。",
       "cross_machine_settings_link": "設定路徑替換"
     },
     "terminal": {
@@ -688,7 +688,7 @@
       "confirm": "確認設為唯讀",
       "intro": "唯讀來源代表 OpenAver 不會改動這個資料夾裡的任何檔案（不搬移、不改名、不寫入 NFO 或封面），改為在輸出夾另外生成一份本地媒體庫（每片一資料夾：NFO＋封面）供 OpenAver 自己瀏覽與播放。適合塞滿影片的唯讀網盤、NAS 分享、SMB 掛載等不可寫入的位置。若你只是本機一般收藏、資料夾可正常寫入，就不需要勾這個。",
       "output_hint_offline": "目前為預設模式，產物會自動落在 App 內建的固定本地夾，不需要另外指定輸出夾。",
-      "output_hint_media_server": "目前為 Emby·Jellyfin·Kodi 模式，確認後會展開輸出夾欄位，讓您指定本地可寫入的輸出位置。",
+      "output_hint_media_server": "目前為 Emby·Jellyfin·Kodi 模式，確認後會展開「輸出到」欄位。請指定一個這台機器能寫入的資料夾（可以是本機，也可以是掛載到這台的 NAS 共享）——不是唯讀來源本身。",
       "nas_hint": "想餵給 NAS 上的 Emby／Jellyfin／Kodi？預設模式只生成 OpenAver 自己瀏覽用的本地庫、不會產生 .strm 捷徑檔。若你要讓媒體伺服器掃這批片，請先到「設定」把模式切到 Emby·Jellyfin·Kodi 模式。"
     },
     "clear_cache_modal": {
@@ -1089,6 +1089,11 @@
       "subtitle_nfo": "偵測到字幕時，NFO 會自動加上「中文字幕」標記",
       "jellyfin_enable": "在<strong>設定頁</strong>的「外部媒體管理器模式」選 Jellyfin、Emby 或 Kodi 後，刮削時自動產生 <code>{番號}-poster.jpg</code> + <code>{番號}-fanart.jpg</code>；選「預設（關閉）」則只產生同名封面。",
       "jellyfin_showcase": "掃描完成後可至 <code>/showcase</code> 頁面瀏覽生成結果",
+      "h6_strm_deploy": "唯讀來源 + 讓 Emby／Jellyfin／Kodi 掃到片（跨機器部署）",
+      "strm_deploy_step1": "把唯讀網盤／NAS 分享掛到 OpenAver 這台後，在 Scanner 把該資料夾勾成「唯讀」——OpenAver 不會動裡面任何檔案（不搬移、不改名、不寫入）。",
+      "strm_deploy_step2": "在「輸出到」指定一個<strong>這台能寫入</strong>的資料夾（可以是掛載到這台的 NAS 可寫共享）——生成的 <code>.strm</code>＋NFO＋封面會放這裡，再讓 Emby／Jellyfin／Kodi 指向它建媒體庫。這個輸出夾不是唯讀來源本身。",
+      "strm_deploy_step3": "若播放的那台機器看到的唯讀來源路徑跟 OpenAver 看到的不一樣（例如 OpenAver 上是 <code>Z:\\115</code>、NAS 上是 <code>/volume1/115</code>），到<strong>設定頁</strong>的「播放端路徑替換」加一條對應規則，否則 <code>.strm</code> 會指向播放端找不到的路徑。",
+      "strm_deploy_step4": "之後改了映射規則，既有的 <code>.strm</code> 會自動一次改寫，不用重建整個媒體庫。",
       "h6_multiversion": "同片多版本（流出 / 4K / 中文字幕）怎麼在 Emby/Jellyfin 合併？",
       "multiversion_intro": "多版本合併是 Emby 與 Jellyfin 共同支援的原生功能（同一套「資料夾名 - 標籤」規則），不是哪一家獨有。把同一片各版本放進以番號命名的資料夾，檔名都以資料夾名開頭加「 - 標籤」：",
       "multiversion_rule1": "每個版本檔名<strong>必須以資料夾名開頭</strong> + 「 - 標籤」（空格-連字號-空格）",

@@ -604,7 +604,8 @@
                x-show="!['jellyfin', 'emby', 'kodi'].includes(config?.scraper?.external_manager)">
                 {{ t('scanner.readonly_confirm_modal.output_hint_offline') }}
             </p>
-            <p class="fluent-modal-body">
+            <p class="fluent-modal-body"
+               x-show="!['jellyfin', 'emby', 'kodi'].includes(config?.scraper?.external_manager)">
                 {{ t('scanner.readonly_confirm_modal.nas_hint') }}
             </p>
             <div class="modal-action fluent-modal-actions">
