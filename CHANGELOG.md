@@ -16,11 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 - **axis-A（讀取端反解）**：新增單一顯式入口 `uri_to_local_fs_path()`，取代 22 個站台散落的裸 `uri_to_fs_path`／`coerce` 呼叫（router／scanner／core／enrich 全棧）；27 個純磁碟用途或已處理站台補 `# uri-no-reverse:` marker 標註安全；新增 pytest AST 結構守衛 `test_uri_to_fs_path_reverse_mapping_completeness.py`（sink 白名單＝`open`／`FileResponse`／`os.path.*`／`Path.*`／`shutil.*`），偵測「反解值未經處理直接碰磁碟」→ CI 擋死。含 Codex 兩輪 PR review 修正（enricher DB 命名空間、actress_crop 主流程 403 canonical、守衛 `Path()` 擴充）。
+- **axis-A drive-letter remote 反解對齊（Codex PR #94 review P2）**：`reverse_path_mapping` 補上 WSL-mount 候選前綴——當 `path_mappings` 的 remote 端是磁碟機代號（如 `Z:/share`）時，`uri_to_fs_path` 在 WSL 會把 `file:///Z:/share/...` 正規化成 `/mnt/z/share/...`，原本只比對 `Z:\share`／`Z:/share` 兩形式 → miss → fallback 回未反解的 `/mnt/z/...`（該磁碟未掛載時封面／影片／NFO 讀取失敗）。改為額外以 `to_wsl_path(win_prefix)` 產生 `/mnt` 形式候選（dedup，UNC 不受影響、零回歸）。
 - **axis-B（DB round-trip 命名空間）**：新增 sink-anchored AST 守衛 `test_db_key_namespace_completeness.py`（錨 DB-key 建構點 `to_file_uri`／`is_known_cover_path`／repo 寫入，非 source），偵測「反解值裸餵 DB round-trip 無 forward-map」→ CI 擋死；獨立 marker `# db-ns-ok:`（不 overload axis-A 的 `# uri-no-reverse:`）。含 Codex 二審修正（守衛 reaching-def marker 界限、keyword sink 抽取）。
 - **已接受殘留**：`core/enricher.py` `_write_nfo` 的 `user_tags is None` 分支裸 `to_file_uri` 為 dead path（所有 production 呼叫端恆傳 `user_tags != None`），marker + docstring 已註記，另開 follow-up；plan-91b D4 固化「寫入端命名空間統一（DB 一律存單一 canonical namespace）」暫緩為 feature/92+（守衛已達成 axis-B「不容易觸發」）。
 
 ### 測試
-- 全套 pytest **5442 passed, 2 skipped**（unit + integration，排除 smoke／e2e，較 0.11.5 的 5365 +77：axis-A 22 站台 WSL+UNC 反解回歸〔縮圖／封面＋劇照／串流／女優裁切／相似〕+ axis-B 兩 bug 回歸〔刮削 user_tags union 單一 mapped row／enricher NFO DB 命名空間〕+ 兩支 AST 守衛自驗 21 案例〔含植入假違規 mutation 轉紅〕+ nfo_updater／path_utils／showcase／thumbnail_cache 補測）＋ `ruff check .` 綠 ＋ `npm run lint`（eslint + stylelint）綠。
+- 全套 pytest **5447 passed, 2 skipped**（unit + integration，排除 smoke／e2e，較 0.11.5 的 5365 +82：axis-A 22 站台 WSL+UNC 反解回歸〔縮圖／封面＋劇照／串流／女優裁切／相似〕+ axis-B 兩 bug 回歸〔刮削 user_tags union 單一 mapped row／enricher NFO DB 命名空間〕+ 兩支 AST 守衛自驗 21 案例〔含植入假違規 mutation 轉紅〕+ nfo_updater／path_utils／showcase／thumbnail_cache 補測 + Codex PR #94 drive-letter remote `/mnt` 候選反解回歸〔命中／backslash 形式／boundary share-vs-share2／UNC 零回歸／e2e〕）＋ `ruff check .` 綠 ＋ `npm run lint`（eslint + stylelint）綠。
 - 來源金絲雀：**8 源全 PASS**（javbus／jav321／heyzo／d2pass／avsox／fc2／javdb／dmm，pre-merge live 健康檢查）。
 - 真機 E2E hard-gate（WSL2+UNC+path_mappings，CDP + DB SQL 檢查）：sign-off #1–12 全過——縮圖／封面劇照／串流 seek 206／女優裁切主線／similar／enrich NFO 落反解磁碟／fetch-samples 守衛觸發／真刮 MIDV-300 user_tags union 單一 mapped row／NFO 路徑反解／readonly `.strm` 純 marker 零回歸／DB 命名空間三查詢無分裂無重複。關鍵教訓：`D:\123`（`/mnt/` 短路成 drive-letter URI）無法觸發 bug，須非 `/mnt` 路徑 + UNC mapping 才是真觸發。
 

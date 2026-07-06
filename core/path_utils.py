@@ -403,6 +403,13 @@ def reverse_path_mapping(fs_path: str, path_mappings: dict) -> Optional[str]:
           separator 開頭，避免 //NAS/share 誤命中 //NAS/share2。
         - trailing separator normalize（T6 P2 fix）：win_prefix 與 local_prefix 結尾
           的 / 或 \\ 會被 rstrip('/\\\\') 清掉，避免拼接時缺斜線或雙斜線。
+        - WSL-mount candidate（91b P2 fix）：drive-letter remote（如 ``Z:/share``）經
+          uri_to_fs_path() 在 WSL 環境會被 to_wsl_path() 正規化成 ``/mnt/z/share``
+          （非 win_bs/win_fwd 任一形式），若不額外加入這個候選前綴，
+          reverse_path_mapping 永遠 miss、fallback 回未反解的 /mnt/z/... 路徑。
+          此候選以 to_wsl_path(win_prefix) 產生，try/except 包裹
+          （SMB backslash UNC 會讓 to_wsl_path 拋 ValueError，略過即可，
+          UNC 本身已由 win_fwd 命中，不受影響）。
     """
     if not fs_path or not path_mappings:
         return None
@@ -420,7 +427,18 @@ def reverse_path_mapping(fs_path: str, path_mappings: dict) -> Optional[str]:
         win_bs = win_bs_raw.rstrip('/\\')
         win_fwd = win_bs.replace('\\', '/')
 
-        for prefix in (win_bs, win_fwd):
+        # 91b P2 fix: 額外加入 WSL-mount 形式候選（/mnt/<drive>/...），
+        # 與 uri_to_fs_path() 對 drive-letter URI 的正規化結果對齊。
+        # to_wsl_path 對 UNC 直接原樣回傳（等同 win_fwd），dedup 後不重複比對。
+        candidates = [win_bs, win_fwd]
+        try:
+            win_mnt = to_wsl_path(win_prefix).rstrip('/\\')
+            if win_mnt not in candidates:
+                candidates.append(win_mnt)
+        except ValueError:
+            pass
+
+        for prefix in candidates:
             if not fs_path.startswith(prefix):
                 continue
             tail = fs_path[len(prefix):]
