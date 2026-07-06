@@ -181,8 +181,12 @@ export function searchStateBase() {
         STATE_KEY: 'javhelper_search_state',
 
         // ===== Computed Properties =====
-        // 修正 2: hasContent 改為 plain data property（由 updateClearButton() 同步）
-        hasContent: false,
+        // 92a-T2 (CD-92a-3): hasContent 改 computed getter，根治「兩組 X」——
+        // loading 態恆回 false（清除鈕不與取消鈕並排），移除散落 8 處手動賦值的整類遺漏。
+        // getter 惰性求值，render 時取 final pageState/results，無中間態順序問題。
+        get hasContent() {
+            return this.pageState !== 'loading' && (this.searchResults.length > 0 || this.fileList.length > 0);
+        },
 
         actressLightboxMode() {
             return this.lightboxIndex === -1;

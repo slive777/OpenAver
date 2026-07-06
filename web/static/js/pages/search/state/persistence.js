@@ -49,9 +49,6 @@ export function searchStatePersistence() {
                 }
             }
 
-            // 同步 clear button（直接計算 hasContent）
-            this.hasContent = this.searchResults.length > 0 || this.fileList.length > 0;
-
             // A6-2: Lightbox 狀態正規化 — 還原後 lightbox 不應開著
             this.lightboxOpen = false;
             if (this.actressProfile) {

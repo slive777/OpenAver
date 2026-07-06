@@ -85,7 +85,6 @@ export function searchStateAdvancedPicker() {
             this.checkLocalStatus(this.searchResults);
             this.pageState = 'result';
             this.preloadImages(1, 5);
-            this.hasContent = this.searchResults.length > 0 || this.fileList.length > 0;
             this._searchSnapshot = null;
             this._resetCoverState();
             this.editingTitle = false;

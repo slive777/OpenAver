@@ -375,8 +375,6 @@ export function searchStateFileList() {
         batch.success = 0;
         batch.failed = 0;
 
-        this.hasContent = this.searchResults.length > 0 || this.fileList.length > 0;
-
         if (this.fileList.length > 0) {
             if (this.fileList[0].number) {
                 this.searchQuery = this.fileList[0].number;

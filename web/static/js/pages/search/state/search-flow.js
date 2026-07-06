@@ -72,7 +72,6 @@ export function searchStateSearchFlow() {
         this.currentFileIndex = 0;
         this.listMode = null;
         this.pageState = 'empty';
-        this.hasContent = false;
         this.errorText = '';  // T6c: 清空錯誤訊息
         this._heroCardImageError = false;   // A6-1: 清空 Hero Card 圖片錯誤
         this._heroLightboxImageError = false; // A6-1: 清空 Lightbox 圖片錯誤
@@ -210,7 +209,6 @@ export function searchStateSearchFlow() {
                     this.currentIndex = 0;
                     this.listMode = 'search';       // C11: grid 可見條件 1
                     this.displayMode = 'grid';      // C11: grid 可見條件 2
-                    this.hasContent = true;
                     this.pageState = 'result';  // C11: pageState='result'，正確 API
                     // T5: Progress → skeleton grid 轉場（輕量整體淡入）
                     this.$nextTick(() => {
@@ -351,7 +349,6 @@ export function searchStateSearchFlow() {
                                     window.SearchAnimations?.playDetailEntry?.(detailEl);
                                 }
                             });
-                            this.hasContent = true;
                             // Issue 2: 查詢本地狀態
                             this.checkLocalStatus(this.searchResults);
                         } else if (allFailed && (!data.success || !data.data || data.data.length === 0)) {
@@ -378,7 +375,6 @@ export function searchStateSearchFlow() {
                                     window.SearchAnimations?.playHeroRemove?.(flipState);
                                 });
                             }
-                            this.hasContent = this.searchResults.length > 0;
                             // Issue 2: 查詢本地狀態（只對非 _failed 結果）
                             this.checkLocalStatus(this.searchResults.filter(r => !r._failed));
                         }
@@ -420,7 +416,6 @@ export function searchStateSearchFlow() {
                         });
                         this.preloadImages(1, 5);
                         this.listMode = 'search';
-                        this.hasContent = this.searchResults.length > 0 || this.fileList.length > 0;
                         this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
                         // Reset edit states
                         this._resetCoverState();
@@ -543,7 +538,6 @@ export function searchStateSearchFlow() {
                 });
                 this.preloadImages(1, 5);
                 this.listMode = 'search';
-                this.hasContent = this.searchResults.length > 0 || this.fileList.length > 0;
                 this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋成功）
                 // Reset edit states
                 this._resetCoverState();
