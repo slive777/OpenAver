@@ -792,6 +792,7 @@
 
             <!-- 檔案列表（卡片外，下方獨立） -->
             <div class="file-list-section" id="fileListSection"
+                 :class="{ 'organize-tray': listMode === 'file' && fileList.length > 0 }"
                  x-show="(listMode === 'file' && fileList.length > 0) || (listMode === 'search' && searchResults.length > 0)">
                 <div class="file-list-header">
                     <span class="file-count" id="fileCountText" x-text="fileCountText()">0 個檔案</span>

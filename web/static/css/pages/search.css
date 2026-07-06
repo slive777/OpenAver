@@ -261,11 +261,19 @@
         var(--fluent-shadow-4);
 }
 
+/* 92a-T5: 批次整理鈕常駐 — header sticky-top，長清單於 200px 捲動區內捲動時保持可見。
+   遮蔽背景走 solid token（非 backdrop-filter，守 CD-92a-4b 禁 blur-on-blur 巢狀契約）；
+   負 margin 覆蓋 .file-list-section 水平 padding，padding-bottom 取代原 margin-bottom。 */
 .file-list-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin: 0 -1rem;
+    padding: 0 1rem 8px;
+    background: var(--color-base-200);
 }
 
 .file-list-header .file-count {
@@ -625,6 +633,29 @@
     /* US1-75b：≤1024px 全寬單欄時，雙欄 metadata 回單欄（spec §US1 L97/L113 驗收強制，CD-75b-2） */
     .search-container .av-card-full-body .info-grid-pair {
         grid-template-columns: 1fr;
+    }
+
+    /* 92a-T5: ≤1024px 整頁捲動下大卡撐開自然高、把批次整理鈕（file mode）推到 fold 下（真缺口）。
+       把同一顆 #btnScrapeAll 的宿主 .file-list-section 於 file mode 錨定 viewport 底（position:fixed 底部 tray）。
+       CDP 核實：position:sticky 無法把 below-fold 元素拉上 viewport（sticky 只在捲過時 pin，不上拉），
+       故用 fixed 才真滿足 G-B1「不需捲過大卡即可見」（plan CD-92a-4 已授權 position:fixed/貼底）。
+       .organize-tray 只在 listMode==='file' 掛（批次鈕僅此模式顯示）→ search mode 行動版位不受影響（不 over-reach）。
+       零新 DOM；z-40 低於 mobile navbar（fixed top-0 z-50）不衝突；section 既有 Rule 22 backdrop-filter
+       作浮動 tray shell（blur-on-content 非 blur-on-blur，合規）。 */
+    .file-list-section.organize-tray {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 40;
+        margin: 0;
+        border-radius: var(--fluent-radius-lg) var(--fluent-radius-lg) 0 0;
+    }
+
+    /* fixed tray 佔 viewport 底 → 僅 file mode（:has organize-tray）給 #resultCard 補底 padding，
+       讓大卡尾段能捲出 tray 遮擋；search mode 不加（section 仍在常規流、無 tray）。 */
+    #resultCard:has(.file-list-section.organize-tray) {
+        padding-bottom: 220px;
     }
 }
 
