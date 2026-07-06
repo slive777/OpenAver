@@ -1060,6 +1060,40 @@ class TestReversePathMapping:
         result = reverse_path_mapping("//NAS/share/", mappings)
         assert result == "/local/"
 
+    # -------- 91b P2 fix：drive-letter remote WSL-mount 候選 --------
+
+    def test_drive_letter_remote_mnt_form_hits(self, monkeypatch):
+        """91b P2：drive-letter remote 經 uri_to_fs_path 正規化成 /mnt/z/share 形式仍應命中"""
+        from core.path_utils import reverse_path_mapping
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        mappings = {"/nas": "Z:/share"}
+        result = reverse_path_mapping("/mnt/z/share/movie.mp4", mappings)
+        assert result == "/nas/movie.mp4"
+
+    def test_drive_letter_remote_backslash_form_mnt_hits(self, monkeypatch):
+        """91b P2：drive-letter remote 以 backslash 形式給出（Z:\\share）仍能算出 /mnt 候選並命中"""
+        from core.path_utils import reverse_path_mapping
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        mappings = {"/nas": "Z:\\share"}
+        result = reverse_path_mapping("/mnt/z/share/movie.mp4", mappings)
+        assert result == "/nas/movie.mp4"
+
+    def test_drive_letter_remote_mnt_form_boundary_share_vs_share2(self, monkeypatch):
+        """91b P2 boundary：/mnt/z/share2/x 不應命中 Z:/share mapping（share vs share2）"""
+        from core.path_utils import reverse_path_mapping
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        mappings = {"/nas": "Z:/share"}
+        result = reverse_path_mapping("/mnt/z/share2/x", mappings)
+        assert result is None
+
+    def test_unc_remote_no_regression_with_mnt_candidate(self, monkeypatch):
+        """91b P2 no-regression：UNC remote 加入 /mnt 候選後行為不變（dedup，仍走 win_fwd 命中）"""
+        from core.path_utils import reverse_path_mapping
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        mappings = {"/nas": "//NAS/share"}
+        result = reverse_path_mapping("//NAS/share/movie.mp4", mappings)
+        assert result == "/nas/movie.mp4"
+
 
 # ============ TestIsPathUnderDirNFC ============
 
@@ -1260,3 +1294,52 @@ class TestIsPathUnderDirNFC:
         dir_uri  = to_file_uri(f'/media/{nfc}')
         path_uri = to_file_uri(f'/media2/{nfc}/video.mp4')
         assert is_path_under_dir(path_uri, dir_uri) is False
+
+
+# ============ TestUriToLocalFsPath ============
+
+class TestUriToLocalFsPath:
+    """測試 uri_to_local_fs_path()：file:/// URI → 本機實際可存取 FS 路徑（含 WSL+mapping 反解）"""
+
+    def test_wsl_mapping_hit(self, monkeypatch):
+        """WSL + mapping 命中 → 回本機 local FS 路徑，且不等於裸 uri_to_fs_path"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        mappings = {'/home/user/nas': '//NAS/share'}
+        uri = 'file://///NAS/share/video.mp4'
+        result = path_utils.uri_to_local_fs_path(uri, mappings)
+        assert result == '/home/user/nas/video.mp4'
+        assert result != path_utils.uri_to_fs_path(uri)
+
+    def test_wsl_mapping_miss(self, monkeypatch):
+        """WSL + mapping 未命中 → reverse 回 None → or fs 退回 uri_to_fs_path"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        mappings = {'/home/user/nas': '//NAS/share'}
+        uri = 'file:///D:/other/video.mp4'
+        result = path_utils.uri_to_local_fs_path(uri, mappings)
+        assert result == path_utils.uri_to_fs_path(uri)
+
+    def test_non_wsl_equivalent(self, monkeypatch):
+        """非 WSL（即使傳 mappings）→ reverse 分支不觸發，字面等價於 uri_to_fs_path"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'windows')
+        mappings = {'/home/user/nas': '//NAS/share'}
+        uri = 'file://///NAS/share/video.mp4'
+        result = path_utils.uri_to_local_fs_path(uri, mappings)
+        assert result == path_utils.uri_to_fs_path(uri)
+
+    def test_no_mapping_equivalent(self, monkeypatch):
+        """WSL + 空 mappings → 字面等價於 uri_to_fs_path"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        mappings = {}
+        uri = 'file://///NAS/share/video.mp4'
+        result = path_utils.uri_to_local_fs_path(uri, mappings)
+        assert result == path_utils.uri_to_fs_path(uri)
+
+    def test_drive_letter_remote_reverse_maps_correctly(self, monkeypatch):
+        """91b P2：drive-letter remote（Z:/share）經 to_wsl_path 正規化為 /mnt/z/share 後，
+        reverse_path_mapping 須能反解回 local_prefix，不可 fallback 回未反解的 /mnt/z/... 路徑"""
+        monkeypatch.setattr(path_utils, 'CURRENT_ENV', 'wsl')
+        mappings = {'/nas': 'Z:/share'}
+        uri = 'file:///Z:/share/movie.mp4'
+        result = path_utils.uri_to_local_fs_path(uri, mappings)
+        assert result == '/nas/movie.mp4'
+        assert result != path_utils.uri_to_fs_path(uri)

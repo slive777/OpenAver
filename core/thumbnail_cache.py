@@ -21,7 +21,7 @@ from PIL import Image
 
 from core.database import get_db_path
 from core.logger import get_logger
-from core.path_utils import uri_to_fs_path
+from core.path_utils import uri_to_local_fs_path
 
 logger = get_logger(__name__)
 
@@ -131,11 +131,14 @@ def clear_all() -> None:
     shutil.rmtree(_thumb_dir(), ignore_errors=True)
 
 
-def iter_missing(videos) -> Iterator[Tuple[str, str]]:
+def iter_missing(videos, path_mappings: dict = None) -> Iterator[Tuple[str, str]]:
     """prewarm 用：yield 出「缺 thumb 且 cover 有效」者（CD-8）。
 
     產出 (video_path_uri, cover_fs_path)。已有 thumb 或 cover 無效者跳過
     （冪等、只補缺，spec 2.A.2/D3）。用 getattr 容忍物件/屬性缺漏。
+
+    TASK-91-T2b #15：path_mappings 預設 None（等價於裸 uri_to_fs_path），
+    不動既有呼叫端測試。
     """
     for v in videos:
         video_path_uri = getattr(v, "path", None)
@@ -146,7 +149,7 @@ def iter_missing(videos) -> Iterator[Tuple[str, str]]:
         cover_path = getattr(v, "cover_path", None)
         if not cover_path:
             continue
-        cover_fs = uri_to_fs_path(cover_path)
+        cover_fs = uri_to_local_fs_path(cover_path, path_mappings)
         if not os.path.exists(cover_fs):
             continue
         yield (video_path_uri, cover_fs)

@@ -636,6 +636,7 @@ class TestPrewarmClearRace:
             mocker, items,
             get_by_path_side=[video_a, video_a],
             load_config_side=[
+                {"thumbnail_cache_enabled": True},   # TASK-91-T2b #11: 迴圈外 path_mappings 讀取
                 {"thumbnail_cache_enabled": True},   # A before-check
                 {"thumbnail_cache_enabled": False},  # A after-check（generate 期間關閉）
             ],
@@ -698,6 +699,7 @@ class TestPrewarmClearRace:
             mocker, items,
             get_by_path_side=[video_a, video_a],
             load_config_side=[
+                {"thumbnail_cache_enabled": True},   # TASK-91-T2b #11: 迴圈外 path_mappings 讀取
                 {"thumbnail_cache_enabled": True},   # A before-check
                 {"thumbnail_cache_enabled": False},  # A after-check（generate 期間關閉）
             ],
@@ -843,4 +845,174 @@ class TestGetThumbMissDisabledGateP2B:
         )
         assert resp.headers["content-type"] == "image/jpeg", (
             f"fallback 應是原圖 jpeg，實際 {resp.headers['content-type']}"
+        )
+
+
+# ============ TASK-91-T2b #9/#10/#11: WSL+UNC path_mappings 反解 ============
+
+class TestUriToLocalFsPathReverseMappingThumb:
+    """get_thumb miss 分支（#9 首次 generate 用的 cover_fs / #10 generate 後
+    re-read 的 fresh_fs）與 _prewarm_worker（#11）在 WSL + UNC path_mappings
+    環境下，餵給磁碟 I/O（thumbnail_cache.generate/os.path.exists）的路徑必須是
+    反解後的本機路徑，而不是裸 uri_to_fs_path() 產生的映射端 UNC 字串。
+    """
+
+    def test_get_thumb_miss_generate_uses_reverse_mapped_path(
+        self, client, thumb_dir, temp_db, tmp_path, mocker, monkeypatch
+    ):
+        """#9：miss→generate，DB cover_path 為 mapped UNC URI，config 帶 WSL+mapping
+        → thumbnail_cache.generate 收到的 cover_fs 是反解後的本機路徑（可 open()），
+        而非裸 UNC 字串 //NAS/share/...（該路徑在測試環境不存在，會讓 generate 失敗）。
+        """
+        import core.path_utils as path_utils
+        from core.database import Video
+
+        _, repo = temp_db
+        monkeypatch.setattr(path_utils, "CURRENT_ENV", "wsl")
+
+        nas_dir = tmp_path / "nas"
+        nas_dir.mkdir()
+        cover = _make_small_jpg(nas_dir / "cover.jpg")
+        mappings = {str(nas_dir): "//NAS/share"}
+
+        mocker.patch(
+            "web.routers.scanner.load_config",
+            return_value={
+                "thumbnail_cache_enabled": True,
+                "gallery": {"path_mappings": mappings},
+            },
+        )
+
+        uri = to_file_uri("/movies/wsl_unc.mp4")
+        cover_uri = "file://///NAS/share/cover.jpg"
+        repo.upsert_batch([Video(path=uri, mtime=100.0, cover_path=cover_uri)])
+
+        gen_spy = mocker.spy(thumbnail_cache, "generate")
+
+        resp = client.get("/api/gallery/thumb", params={"path": uri})
+
+        assert resp.status_code == 200, (
+            f"反解後應能真的 open() 本機檔案生成 webp，實際 {resp.status_code}"
+        )
+        assert resp.headers["content-type"] == "image/webp"
+        gen_spy.assert_called_once()
+        called_cover_fs = gen_spy.call_args[0][0]
+        assert called_cover_fs == str(cover), (
+            f"generate 應收到反解後的本機路徑 {cover}，實際 {called_cover_fs}"
+        )
+        assert "//NAS/share" not in called_cover_fs, (
+            f"generate 不應收到裸 UNC 映射端字串，實際 {called_cover_fs}"
+        )
+
+    def test_get_thumb_miss_reread_uses_reverse_mapped_path(
+        self, client, thumb_dir, temp_db, tmp_path, mocker, monkeypatch
+    ):
+        """#10：generate 成功後 re-read DB 拿到「換過的」cover_path（也是 mapped UNC URI），
+        fresh_fs 反解比對也必須是本機路徑，換封面判定（fresh_fs != cover_fs）才正確。
+        """
+        import core.path_utils as path_utils
+        from core.database import Video
+
+        _, repo = temp_db
+        monkeypatch.setattr(path_utils, "CURRENT_ENV", "wsl")
+
+        nas_dir = tmp_path / "nas"
+        nas_dir.mkdir()
+        _make_small_jpg(nas_dir / "cover_a.jpg")  # 只需存在於磁碟，供 generate() 讀
+        _make_small_jpg(nas_dir / "cover_b.jpg")
+        mappings = {str(nas_dir): "//NAS/share"}
+
+        mocker.patch(
+            "web.routers.scanner.load_config",
+            return_value={
+                "thumbnail_cache_enabled": True,
+                "gallery": {"path_mappings": mappings},
+            },
+        )
+
+        uri = to_file_uri("/movies/wsl_unc_reread.mp4")
+        repo.upsert_batch([
+            Video(path=uri, mtime=100.0, cover_path="file://///NAS/share/cover_a.jpg"),
+        ])
+
+        # generate() 由第一個 cover_a 觸發後，模擬並發換封面：re-read 拿到 cover_b
+        real_get_by_path = repo.get_by_path
+        calls = {"n": 0}
+
+        def fake_get_by_path(p):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return real_get_by_path(p)
+            # 第二次呼叫（re-read）：換成 cover_b
+            v = real_get_by_path(p)
+            v.cover_path = "file://///NAS/share/cover_b.jpg"
+            return v
+
+        mocker.patch.object(repo, "get_by_path", side_effect=fake_get_by_path)
+        mocker.patch("web.routers.scanner.VideoRepository", return_value=repo)
+        invalidate_spy = mocker.patch("web.routers.scanner.thumbnail_cache.invalidate")
+
+        resp = client.get("/api/gallery/thumb", params={"path": uri})
+
+        # cover 換了 → invalidate 被呼叫，fallback serve 當前（cover_b）封面
+        invalidate_spy.assert_called_once_with(uri)
+        assert resp.status_code == 200
+        # fallback 應是本機反解後的 cover_b（可真的 open()），非 404/500
+        assert resp.headers["content-type"] == "image/jpeg"
+
+    def test_prewarm_worker_generate_uses_reverse_mapped_path(
+        self, mocker, tmp_path, monkeypatch, thumb_dir
+    ):
+        """#11：_prewarm_worker 迴圈內 cover_fs 反解後才傳入 thumbnail_cache.generate。"""
+        import core.path_utils as path_utils
+        import web.routers.scanner as scanner_mod
+
+        monkeypatch.setattr(path_utils, "CURRENT_ENV", "wsl")
+
+        nas_dir = tmp_path / "nas"
+        nas_dir.mkdir()
+        cover = _make_small_jpg(nas_dir / "cover.jpg")
+        mappings = {str(nas_dir): "//NAS/share"}
+
+        uri_a = "file:///movies/wsl_prewarm.mp4"
+        cover_uri = "file://///NAS/share/cover.jpg"
+
+        db_path = mocker.MagicMock()
+        db_path.exists.return_value = True
+        mocker.patch("web.routers.scanner.get_db_path", return_value=db_path)
+
+        video_a = mocker.MagicMock(cover_path=cover_uri)
+        repo_mock = mocker.MagicMock()
+        repo_mock.get_all.return_value = []  # iter_missing 被 mock，回值不重要
+        repo_mock.get_by_path.side_effect = [video_a, video_a]
+        mocker.patch("web.routers.scanner.VideoRepository", return_value=repo_mock)
+
+        mocker.patch(
+            "web.routers.scanner.load_config",
+            return_value={
+                "thumbnail_cache_enabled": True,
+                "gallery": {"path_mappings": mappings},
+            },
+        )
+        mocker.patch(
+            "web.routers.scanner.thumbnail_cache.iter_missing",
+            return_value=[(uri_a, "/stale/cover.jpg")],
+        )
+        gen_spy = mocker.patch("web.routers.scanner.thumbnail_cache.generate", return_value=True)
+        mocker.patch("web.routers.scanner.thumbnail_cache.invalidate")
+        mocker.patch("web.routers.scanner._emit_notif")
+
+        scanner_mod._prewarming = True
+        try:
+            scanner_mod._prewarm_worker()
+        finally:
+            scanner_mod._prewarming = False
+
+        gen_spy.assert_called_once()
+        called_cover_fs = gen_spy.call_args[0][0]
+        assert called_cover_fs == str(cover), (
+            f"generate 應收到反解後的本機路徑 {cover}，實際 {called_cover_fs}"
+        )
+        assert "//NAS/share" not in called_cover_fs, (
+            f"generate 不應收到裸 UNC 映射端字串，實際 {called_cover_fs}"
         )

@@ -25,7 +25,7 @@ def _canonical_source_prefix(path: str, path_mappings) -> str:
     - FS-path 型：uri_to_fs_path 近似 pass-through（normalize），等價原 coerce（無回歸）。
     - 非 WSL / 無 mapping：to_file_uri 的 mapping 分支不觸發，round-trip 回同一 URI 形。
     """
-    return to_file_uri(uri_to_fs_path(path), path_mappings)
+    return to_file_uri(uri_to_fs_path(path), path_mappings)  # uri-no-reverse: native config source path, no DB-mapped namespace
 
 
 def is_path_readonly(file_uri: str, readonly_prefixes, writable_prefixes=None) -> bool:

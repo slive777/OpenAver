@@ -506,6 +506,89 @@ class TestSimilarThumbnailCacheCoverUrl:
             SimilarRankerCache._instance = None
 
 
+class TestSimilarCoverUrlPathMappingsReverse:
+    """TASK-91-T2a #3,#4: `_build_cover_url`/`_build_cover_full_url` 在 WSL +
+    UNC path_mappings 環境下必須反解成真正能 open() 的本機路徑，而不是留下裸
+    uri_to_fs_path() 產生的映射端 UNC 字串（get_image 端沒有第二次反解機會）。
+    """
+
+    @pytest.fixture
+    def client_with_wsl_unc_cover(self, tmp_path, monkeypatch):
+        import core.path_utils as path_utils
+
+        monkeypatch.setattr(path_utils, "CURRENT_ENV", "wsl")
+
+        db_path = tmp_path / "wsl_unc.db"
+        init_db(db_path)
+        repo = VideoRepository(db_path)
+
+        unc_cover = "file://///NAS/share/cover_001.jpg"
+        target = _make_video(idx=1, number="TEST-001",
+                              tags=["高畫質", "單體作品", "美乳"], cover_path=unc_cover)
+        target_id = repo.upsert(target)
+        candidates = [
+            _make_video(idx=i, number=f"TEST-{i:03d}",
+                        tags=["高畫質", "單體作品", "美乳"],
+                        cover_path=("file://///NAS/share/cover_%03d.jpg" % i))
+            for i in range(2, 14)
+        ]
+        repo.upsert_batch(candidates)
+
+        real_repo_cls = VideoRepository
+
+        class _PatchedRepo(real_repo_cls):
+            def __init__(self, _=None):
+                super().__init__(db_path)
+
+        monkeypatch.setattr("web.routers.similar.VideoRepository", _PatchedRepo)
+        corpus = repo.get_all()
+        ranker = SimilarRanker(corpus)
+        monkeypatch.setattr(SimilarRankerCache, "_instance", ranker)
+        monkeypatch.setattr(
+            "web.routers.similar.load_config",
+            lambda: {
+                "thumbnail_cache_enabled": False,
+                "gallery": {"path_mappings": {"/home/user/nas": "//NAS/share"}},
+            },
+        )
+
+        yield TestClient(_make_test_app()), target_id
+        SimilarRankerCache._instance = None
+
+    def test_cover_url_reverse_maps_wsl_unc(self, client_with_wsl_unc_cover):
+        from urllib.parse import unquote
+
+        client, target_id = client_with_wsl_unc_cover
+        resp = client.get(f"/api/similar-covers/{target_id}")
+        assert resp.status_code == 200
+        data = resp.json()
+
+        qv_url = unquote(data["query_video"]["cover_url"])
+        assert "/home/user/nas/cover_001.jpg" in qv_url, (
+            f"cover_url 應反解為本機路徑，實際: {qv_url}"
+        )
+        assert "//NAS/share/cover_001.jpg" not in qv_url, (
+            f"cover_url 不應殘留裸 UNC 映射端字串，實際: {qv_url}"
+        )
+
+    def test_cover_full_url_reverse_maps_wsl_unc(self, client_with_wsl_unc_cover):
+        from urllib.parse import unquote
+
+        client, target_id = client_with_wsl_unc_cover
+        resp = client.get(f"/api/similar-covers/{target_id}")
+        assert resp.status_code == 200
+        data = resp.json()
+
+        for r in data["results"]:
+            full_url = unquote(r["cover_full_url"])
+            assert "/home/user/nas/" in full_url, (
+                f"cover_full_url 應反解為本機路徑，實際: {full_url}"
+            )
+            assert "//NAS/share/" not in full_url, (
+                f"cover_full_url 不應殘留裸 UNC 映射端字串，實際: {full_url}"
+            )
+
+
 # ---------------------------------------------------------------------------
 # Codex P1 — legacy DB startup path regression test
 # ---------------------------------------------------------------------------

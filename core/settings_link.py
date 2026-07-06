@@ -55,7 +55,7 @@ def find_matched_directory(
     # URI 原樣通過 → to_file_uri 二次包成 file:///file:/// → 永不命中）(PR#91 同源)。
     for directory in directories:
         try:
-            d_normalized = uri_to_fs_path(directory)
+            d_normalized = uri_to_fs_path(directory)  # uri-no-reverse: native config path (DirectoryConfig.path), no DB-mapped namespace
             d_uri = to_file_uri(d_normalized, path_mappings)
         except (ValueError, Exception) as e:
             logger.warning("跳過無效 directory=%r: %s", directory, e)

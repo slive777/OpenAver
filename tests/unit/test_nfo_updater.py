@@ -10,9 +10,11 @@ from pathlib import Path
 
 import pytest
 
+import core.path_utils as path_utils
 from core.nfo_updater import (
     add_actor,
     add_tags_and_genres,
+    get_nfo_path_from_video,
     needs_update,
     update_nfo_file,
     update_nfo_user_tags,
@@ -757,3 +759,81 @@ class TestUpdateNfoFileFillBranches:
         names = [e.text for e in root.findall('.//actor/name')]
         # Only the original actor should be present — the fill branch was skipped
         assert names == ["女優A"]
+
+
+# ============================================================
+# TASK-91-T4: get_nfo_path_from_video path_mappings 反解測試
+# ============================================================
+
+class TestGetNfoPathPathMappingReverse:
+    """get_nfo_path_from_video 改用 uri_to_local_fs_path 後的行為驗證。
+
+    場景 C：WSL + UNC path_mappings 下，NFO 存在性判斷需拿到真正可 exists() 的
+    本機路徑，而非裸 uri_to_fs_path 產生的非法 WSL 路徑（恆 False）。
+    """
+
+    def test_wsl_mapping_hit(self, tmp_path, monkeypatch):
+        """WSL + mapping 命中：video_path 經反解對應到真實存在的 NFO。"""
+        nas_dir = tmp_path / "nas"
+        nas_dir.mkdir()
+        nfo_file = nas_dir / "movie.nfo"
+        nfo_file.write_text("<movie></movie>", encoding="utf-8")
+
+        mappings = {str(nas_dir): "//NAS/share"}
+        video_path = "file://///NAS/share/movie.mp4"
+
+        monkeypatch.setattr(path_utils, "CURRENT_ENV", "wsl")
+
+        result = get_nfo_path_from_video(video_path, mappings)
+        assert result == str(nfo_file)
+
+        # 裸呼叫（無 mapping）在同一 WSL 環境下應回 None：
+        # 證明是 mapping 讓它解得到，而非其他因素（mutation-sensitive）
+        result_no_mapping = get_nfo_path_from_video(video_path)
+        assert result_no_mapping is None
+
+    def test_non_wsl_equivalent(self, tmp_path, monkeypatch):
+        """非 WSL 環境：mapping 存在也不生效，行為與改動前字面等價。"""
+        video_dir = tmp_path / "videos"
+        video_dir.mkdir()
+        video_path_str = str(video_dir / "movie.mp4")
+        nfo_file = video_dir / "movie.nfo"
+        nfo_file.write_text("<movie></movie>", encoding="utf-8")
+
+        mappings = {str(video_dir): "//NAS/share"}
+        monkeypatch.setattr(path_utils, "CURRENT_ENV", "linux")
+
+        result = get_nfo_path_from_video(video_path_str, mappings)
+        assert result == str(nfo_file)
+
+        # NFO 不存在 → None
+        missing_path = str(video_dir / "missing.mp4")
+        assert get_nfo_path_from_video(missing_path, mappings) is None
+
+    def test_no_mapping_equivalent(self, tmp_path):
+        """無 mapping（None）：行為與改動前字面等價。"""
+        video_dir = tmp_path / "videos2"
+        video_dir.mkdir()
+        video_path_str = str(video_dir / "movie.mp4")
+        nfo_file = video_dir / "movie.nfo"
+        nfo_file.write_text("<movie></movie>", encoding="utf-8")
+
+        result = get_nfo_path_from_video(video_path_str, None)
+        assert result == str(nfo_file)
+
+        missing_path = str(video_dir / "missing.mp4")
+        assert get_nfo_path_from_video(missing_path, None) is None
+
+    def test_default_none_caller_unchanged(self, tmp_path):
+        """既有呼叫端形狀（不傳 path_mappings）維持零回歸。"""
+        video_dir = tmp_path / "videos3"
+        video_dir.mkdir()
+        video_path_str = str(video_dir / "movie.mp4")
+        nfo_file = video_dir / "movie.nfo"
+        nfo_file.write_text("<movie></movie>", encoding="utf-8")
+
+        result = get_nfo_path_from_video(video_path_str)
+        assert result == str(nfo_file)
+
+        missing_path = str(video_dir / "missing.mp4")
+        assert get_nfo_path_from_video(missing_path) is None

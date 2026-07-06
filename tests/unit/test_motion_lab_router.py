@@ -111,6 +111,50 @@ class TestMotionLabDataAPI:
                 assert video["cover_url"].startswith("/api/gallery/image?path="), \
                     f"cover_url 格式錯誤: {video['cover_url']}"
 
+    def test_motion_lab_data_cover_url_reverse_maps_wsl_unc(self, tmp_path, monkeypatch):
+        """TASK-91-T2a #5: cover_url 在 WSL + UNC path_mappings 下必須反解為
+        本機路徑，而不是留下裸 uri_to_fs_path() 產生的映射端 UNC 字串
+        （get_image 端沒有第二次反解機會）。"""
+        import core.path_utils as path_utils
+        from core.database import Video
+
+        monkeypatch.setattr(path_utils, "CURRENT_ENV", "wsl")
+
+        db_path = tmp_path / "wsl_unc.db"
+        init_db(db_path)
+        repo = VideoRepository(db_path)
+        video = Video(
+            path="file://///NAS/share/video.mp4",
+            number="TEST-001",
+            title="WSL UNC Video",
+            cover_path="file://///NAS/share/cover.jpg",
+        )
+        repo.upsert(video)
+
+        monkeypatch.setattr("web.routers.motion_lab.get_db_path", lambda: db_path)
+        monkeypatch.setattr(
+            "web.routers.motion_lab.load_config",
+            lambda: {"gallery": {"path_mappings": {"/home/user/nas": "//NAS/share"}}},
+        )
+
+        from web.routers.motion_lab import router
+        from fastapi import FastAPI
+        test_app = FastAPI()
+        test_app.include_router(router)
+        client = TestClient(test_app)
+
+        response = client.get("/api/motion-lab/data")
+        assert response.status_code == 200
+        data = response.json()
+        from urllib.parse import unquote
+        cover_url = unquote(data["videos"][0]["cover_url"])
+        assert "/home/user/nas/cover.jpg" in cover_url, (
+            f"cover_url 應反解為本機路徑，實際: {cover_url}"
+        )
+        assert "//NAS/share/cover.jpg" not in cover_url, (
+            f"cover_url 不應殘留裸 UNC 映射端字串，實際: {cover_url}"
+        )
+
     def test_motion_lab_data_db_not_exists(self, tmp_path, monkeypatch):
         """DB 不存在時回傳空結果，不拋例外"""
         nonexistent_db = tmp_path / "nonexistent.db"

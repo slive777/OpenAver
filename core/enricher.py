@@ -15,7 +15,7 @@ from core.database import Video, VideoRepository, get_connection
 from core.logger import get_logger
 from core.nfo_updater import parse_nfo
 from core.organizer import crop_to_poster, download_image, find_subtitle_files, generate_nfo
-from core.path_utils import to_file_uri, uri_to_fs_path
+from core.path_utils import to_file_uri, uri_to_fs_path, uri_to_local_fs_path
 from core.scraper import search_jav
 
 logger = get_logger(__name__)
@@ -169,6 +169,7 @@ def _write_nfo(
     external_manager: str = "off",
     has_poster: bool = False,
     has_fanart: bool = False,
+    fs_path_for_db: str = None,
 ) -> bool:
     if not write_nfo:
         return False
@@ -181,7 +182,11 @@ def _write_nfo(
     # 若未傳入 user_tags，從 DB 讀取現有值（確保不被覆蓋）
     if user_tags is None:
         repo = VideoRepository()
-        path_uri = to_file_uri(fs_path)
+        # TASK-91b-T1 `_for_db` 式 — fs_path_for_db 來自 caller（enrich_single 已在其內
+        # 算好、DB 命名空間值）；None-fallback 用 fs_path 僅供 legacy 直呼（未傳
+        # fs_path_for_db）相容，production 恆傳，accepted residual。
+        # db-ns-ok: fs_path_for_db is DB round-trip value, no reverse mapping applied
+        path_uri = to_file_uri(fs_path_for_db if fs_path_for_db is not None else fs_path)
         existing = repo.get_by_path(path_uri)
         user_tags = existing.user_tags if existing else []
 
@@ -303,6 +308,7 @@ def _write_extrafanart(
     fs_path: str,
     sample_images: List[str],
     write_extrafanart: bool,
+    path_mappings: dict = None,
 ) -> List[str]:
     if not write_extrafanart or not sample_images:
         return []
@@ -316,7 +322,7 @@ def _write_extrafanart(
         dest = str(extrafanart_dir / f"fanart{i+1}.jpg")
         try:
             if download_image(url, dest):
-                written_uris.append(to_file_uri(dest))
+                written_uris.append(to_file_uri(dest, path_mappings))
         except Exception as e:
             logger.warning("extrafanart %d 下載失敗: %s", i + 1, e)
     return written_uris
@@ -335,6 +341,7 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
     source: Optional[str] = None,
     javbus_lang: Optional[str] = None,
     scraper_data: Optional[dict] = None,
+    path_mappings: dict = None,
 ) -> EnrichResult:
     _empty = EnrichResult(
         success=False,
@@ -355,9 +362,10 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
         return _empty
 
     try:
-        fs_path = uri_to_fs_path(file_path)
+        fs_path = uri_to_local_fs_path(file_path, path_mappings)
     except Exception:
         fs_path = file_path
+    fs_path_for_db = uri_to_fs_path(file_path)  # uri-no-reverse: DB key must stay in DB's stored namespace; disk I/O uses fs_path
 
     if not os.path.exists(fs_path):
         _empty.error = "檔案不存在"
@@ -373,7 +381,7 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
             scraper_data = search_jav(number, proxy_url=proxy_url,
                                       source=source or 'auto', javbus_lang=javbus_lang)
         if not scraper_data:
-            repo.update_scrape_attempted_at(to_file_uri(fs_path), time.time())
+            repo.update_scrape_attempted_at(to_file_uri(fs_path_for_db), time.time())  # db-ns-ok: fs_path_for_db, DB round-trip value, no reverse mapping applied
             _empty.error = f"找不到 {number} 的資料"
             return _empty
         meta = _scraper_to_meta(scraper_data)
@@ -409,7 +417,7 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
                 scraper_data = search_jav(number, proxy_url=proxy_url,
                                           source=source or 'auto', javbus_lang=javbus_lang)
             if not scraper_data:
-                repo.update_scrape_attempted_at(to_file_uri(fs_path), time.time())
+                repo.update_scrape_attempted_at(to_file_uri(fs_path_for_db), time.time())  # db-ns-ok: fs_path_for_db, DB round-trip value, no reverse mapping applied
                 _empty.error = f"找不到 {number} 的資料"
                 return _empty
             supplement = _scraper_to_meta(scraper_data)
@@ -419,7 +427,7 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
     has_subtitle = bool(find_subtitle_files(fs_path))
 
     # 讀取 DB 現有 user_tags，在 NFO 寫出和 DB upsert 時保留
-    path_uri = to_file_uri(fs_path)
+    path_uri = to_file_uri(fs_path_for_db)  # db-ns-ok: fs_path_for_db, DB round-trip value, no reverse mapping applied
     existing_record = repo.get_by_path(path_uri)
     preserved_user_tags = existing_record.user_tags if existing_record else []
 
@@ -455,6 +463,7 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
                 external_manager=external_manager,
                 has_poster=imgs["poster"],
                 has_fanart=imgs["fanart"],
+                fs_path_for_db=fs_path_for_db,
             )
         except PermissionError:
             _empty.error = "NFO 寫入失敗，請確認目錄寫入權限"
@@ -470,6 +479,7 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
                 overwrite_existing=overwrite_existing,
                 has_subtitle=has_subtitle,
                 user_tags=preserved_user_tags,
+                fs_path_for_db=fs_path_for_db,
             )
         except PermissionError:
             _empty.error = "NFO 寫入失敗，請確認目錄寫入權限"
@@ -486,6 +496,7 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
         fs_path=fs_path,
         sample_images=meta.get("sample_images", []),
         write_extrafanart=write_extrafanart,
+        path_mappings=path_mappings,
     )
     extrafanart_written = len(written_uris)
 
@@ -495,8 +506,10 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
         local_cover = str(Path(fs_path).with_suffix(".jpg")) if cover_written else ""
         nfo_path = Path(fs_path).with_suffix(".nfo")
         nfo_mtime = nfo_path.stat().st_mtime if nfo_path.exists() else 0.0
-        _db_upsert(repo, number, fs_path, meta, local_cover_path=local_cover,
-                   nfo_mtime=nfo_mtime, written_uris=written_uris)
+        # wrapper callsite decision point; helper itself: enforced at callsites
+        # db-ns-ok: fs_path_for_db passed through to _db_upsert's internal primitive sink
+        _db_upsert(repo, number, fs_path_for_db, meta, local_cover_path=local_cover,
+                   nfo_mtime=nfo_mtime, written_uris=written_uris, path_mappings=path_mappings)
 
     # nfo_mtime 獨立更新：不論 mode/source，只要 NFO 存在就同步 DB
     # 避免 analysis 永遠視為 missing_nfo
@@ -504,7 +517,7 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
     if nfo_path.exists():
         conn = None
         try:
-            path_uri = to_file_uri(fs_path)
+            path_uri = to_file_uri(fs_path_for_db)  # db-ns-ok: fs_path_for_db, DB round-trip value, no reverse mapping applied
             nfo_mt = nfo_path.stat().st_mtime
             conn = get_connection(repo.db_path)
             conn.execute(
@@ -534,8 +547,13 @@ def _db_upsert(
     local_cover_path: str = "",
     nfo_mtime: float = 0.0,
     written_uris: List[str] = None,
+    path_mappings: dict = None,
 ) -> None:
-    """更新 DB 記錄。fs_path 必須是已解析的 FS 路徑（非 file:/// URI）。"""
+    """更新 DB 記錄。fs_path 為 DB key 專用（不做反解），必須是「DB 儲存命名空間」的 FS 路徑。
+
+    db-ns-ok: enforced at callsites — 本體內 to_file_uri(fs_path) primitive sink 命名空間
+    正確性委派給呼叫端保證（TASK-91b-T1 wrapper sink 登記，callsite 各自標記）。
+    """
     try:
         path_uri = to_file_uri(fs_path)
 
@@ -546,7 +564,7 @@ def _db_upsert(
         # 若有本地封面路徑則轉 URI；否則保留 DB 既有值（透過傳空字串讓 upsert 不覆蓋）
         cover_uri = ""
         if local_cover_path and os.path.exists(local_cover_path):
-            cover_uri = to_file_uri(local_cover_path)
+            cover_uri = to_file_uri(local_cover_path, path_mappings)
         elif existing and existing.cover_path:
             cover_uri = existing.cover_path
 
@@ -591,7 +609,11 @@ def _db_upsert(
 
 
 def _db_upsert_samples_only(repo: VideoRepository, fs_path: str, sample_images: list) -> None:
-    """只更新 DB 的 sample_images 欄位（不觸碰其他欄位）。"""
+    """只更新 DB 的 sample_images 欄位（不觸碰其他欄位）。fs_path 為 DB key 專用（不做反解）。
+
+    db-ns-ok: enforced at callsites — 本體內 to_file_uri(fs_path) primitive sink 命名空間
+    正確性委派給呼叫端保證（TASK-91b-T1 wrapper sink 登記，callsite 各自標記）。
+    """
     path_uri = to_file_uri(fs_path)
     repo.update_sample_images(path_uri, sample_images)
 
@@ -600,6 +622,7 @@ def fetch_samples_only(
     file_path: str,
     number: str,
     proxy_url: str = "",
+    path_mappings: dict = None,
 ) -> EnrichResult:
     """只補抓劇照：呼叫 scraper → 下載 extrafanart → 更新 DB sample_images。
     不寫 NFO / cover / 其他欄位。
@@ -615,9 +638,10 @@ def fetch_samples_only(
     )
 
     try:
-        fs_path = uri_to_fs_path(file_path)
+        fs_path = uri_to_local_fs_path(file_path, path_mappings)
     except Exception:
         fs_path = file_path
+    fs_path_for_db = uri_to_fs_path(file_path)  # uri-no-reverse: DB key must stay in DB's stored namespace; disk I/O uses fs_path
 
     if not os.path.exists(fs_path):
         logger.warning("[fetch_samples_only] 檔案不存在: %s", fs_path)
@@ -632,11 +656,12 @@ def fetch_samples_only(
         return _empty
 
     sample_images = meta.get("sample_images", [])
-    written_uris = _write_extrafanart(fs_path, sample_images, write_extrafanart=True)
+    written_uris = _write_extrafanart(fs_path, sample_images, write_extrafanart=True, path_mappings=path_mappings)
 
     if written_uris:
         repo = VideoRepository()
-        _db_upsert_samples_only(repo, fs_path, written_uris)
+        # db-ns-ok: fs_path_for_db, DB round-trip value passed to wrapper sink
+        _db_upsert_samples_only(repo, fs_path_for_db, written_uris)
 
     logger.info("[fetch_samples_only] %s: %d samples downloaded", number, len(written_uris))
     return EnrichResult(
@@ -650,11 +675,11 @@ def fetch_samples_only(
     )
 
 
-def resolve_nfo_cover_paths(file_path: str) -> tuple:
+def resolve_nfo_cover_paths(file_path: str, path_mappings: dict = None) -> tuple:
     """由影片 file_path 推導目標 NFO / cover 的 FS 路徑。
 
     復用 enrich_single / _write_nfo / _write_cover 的同一套路徑邏輯：
-    先以 uri_to_fs_path() 解析（fallback 原值），再 with_suffix。
+    先以 uri_to_local_fs_path() 解析（fallback 原值），再 with_suffix。
     回傳 (nfo_path, cover_path)，兩者皆為當前環境 FS 字串路徑。
 
     ⚠️ 路徑邏輯必須與 `_write_nfo`（with_suffix(".nfo")）/ `_write_cover`
@@ -664,7 +689,7 @@ def resolve_nfo_cover_paths(file_path: str) -> tuple:
     本函數要一起改，否則守衛會悄悄檢查錯路徑（false-allow 重現分裂 / false-block 打爆缺封面 quick-enrich）。
     """
     try:
-        fs_path = uri_to_fs_path(file_path)
+        fs_path = uri_to_local_fs_path(file_path, path_mappings)
     except Exception:
         fs_path = file_path
     nfo_path = str(Path(fs_path).with_suffix(".nfo"))

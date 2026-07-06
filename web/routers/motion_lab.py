@@ -9,7 +9,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from core.database import VideoRepository, get_db_path, init_db
-from core.path_utils import uri_to_fs_path
+from core.path_utils import uri_to_local_fs_path
+from core.config import load_config
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -48,13 +49,15 @@ def motion_lab_data():
         all_videos = repo.get_all()
         videos_30 = all_videos[:30]
 
+        path_mappings = load_config().get('gallery', {}).get('path_mappings', {})
+
         # 轉換為前端格式
         videos_json = []
         for v in videos_30:
             # cover_path 轉換：file:///C:/path/to/cover.jpg → /api/gallery/image?path=C:/path/to/cover.jpg
             cover_url = ""
             if v.cover_path:
-                local_path = uri_to_fs_path(v.cover_path)
+                local_path = uri_to_local_fs_path(v.cover_path, path_mappings)
                 cover_url = f"/api/gallery/image?path={quote(local_path, safe='')}"
 
             videos_json.append({

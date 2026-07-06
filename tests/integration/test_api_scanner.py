@@ -442,6 +442,44 @@ class TestJellyfinCheck:
         assert 'error' in data
         assert data['error'] == '檢查圖片狀態失敗'
 
+    def test_jellyfin_check_reverse_maps_wsl_unc_path_mappings(self, tmp_path, monkeypatch):
+        """TASK-91-T2b #13：check_jellyfin_images_needed(repo, path_mappings) 在 WSL+UNC
+        mapping 環境下，os.path.exists 檢查的 cover_fs 必須是反解後的本機路徑（可真的
+        open()），而非裸 uri_to_fs_path() 產生的映射端 UNC 字串（該路徑在磁碟上不存在，
+        會讓合法影片被誤判成 need_update）。
+        """
+        import core.path_utils as path_utils
+        from core.database import init_db, VideoRepository, Video
+        from web.routers.scanner import check_jellyfin_images_needed
+
+        monkeypatch.setattr(path_utils, "CURRENT_ENV", "wsl")
+
+        nas_dir = tmp_path / "nas"
+        nas_dir.mkdir()
+        cover = nas_dir / "cover.jpg"
+        cover.write_bytes(b'\xff\xd8\xff' + b'\x00' * 50)
+        # poster/fanart 也建好，讓這部片不需要補圖（純測反解，不測補圖判定）
+        (nas_dir / "cover-poster.jpg").write_bytes(b'\x00')
+        (nas_dir / "cover-fanart.jpg").write_bytes(b'\x00')
+
+        mappings = {str(nas_dir): "//NAS/share"}
+
+        db_path = tmp_path / "t.db"
+        init_db(db_path)
+        repo = VideoRepository(db_path)
+        repo.upsert_batch([
+            Video(path="file:///movies/v1.mp4", mtime=1.0,
+                  cover_path="file://///NAS/share/cover.jpg"),
+        ])
+
+        result = check_jellyfin_images_needed(repo, mappings)
+
+        assert result['need_update'] == 0, (
+            f"cover/poster/fanart 皆存在（反解後本機路徑）應判定不需補圖，"
+            f"實際: {result}"
+        )
+        assert result['items'] == []
+
     def test_jellyfin_check_uses_to_thread(self):
         """靜態掃描確認 scanner.py 使用 asyncio.to_thread 包裝 _check_jellyfin_needed helper，
         且 helper 內含 db_path.exists、VideoRepository、check_jellyfin_images_needed"""
@@ -453,7 +491,7 @@ class TestJellyfinCheck:
         assert 'def _check_jellyfin_needed(' in scanner_src
         assert 'db_path.exists()' in scanner_src
         assert 'VideoRepository(db_path)' in scanner_src
-        assert 'check_jellyfin_images_needed(repo)' in scanner_src
+        assert 'check_jellyfin_images_needed(repo, path_mappings)' in scanner_src
 
     # ---- T3(40c): TTL 快取相關測試 ----
 

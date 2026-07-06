@@ -442,6 +442,7 @@ def _collect_strm_targets(repo, path_mappings: dict) -> list:
         # per-row 容錯：單列壞 output_dir（uri_to_fs_path/glob 拋錯）只 skip 該列，
         # 不害整批 rewrite 中止（比照 _write_strm 的 per-movie best-effort 契約）。
         try:
+            # uri-no-reverse: already paired with reverse_path_mapping on next line
             movie_dir_fs = uri_to_fs_path(v.output_dir)
             # 與 _resolve_movie_dir（core/readonly_producer.py）寫檔當下用同一套 targeted
             # reverse-map：WSL+UNC mapped 輸出根下，output_dir 存的是映射端 URI，需反解回
@@ -459,6 +460,7 @@ def _collect_strm_targets(repo, path_mappings: dict) -> list:
         # path_mappings 下同樣存映射端 URI，但 _write_strm 的 strm_path_mappings（播放端重寫）
         # 本機前綴 = 原始掃描路徑。若只 uri_to_fs_path 得映射端 //NAS/... 會對不上 strm 規則
         # → 改寫內容 ≠ 初次生成內容（掉了播放端映射）。反解回原掃描路徑，令改寫 == 生成。
+        # uri-no-reverse: already paired with reverse_path_mapping on next line
         source_fs_path = uri_to_fs_path(v.path)
         if CURRENT_ENV == 'wsl' and path_mappings:
             source_fs_path = reverse_path_mapping(source_fs_path, path_mappings) or source_fs_path

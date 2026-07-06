@@ -530,9 +530,45 @@ class TestGenerateFromIds:
 
         fake_bytes = b'\xff\xd8\xff\xe0' + b'\x00' * 2000
         mocker.patch('web.routers.scanner.Path.read_bytes', return_value=fake_bytes)
-        mocker.patch('web.routers.scanner.uri_to_fs_path', return_value='/fake/cover.jpg')
+        mocker.patch('web.routers.scanner.uri_to_local_fs_path', return_value='/fake/cover.jpg')
 
         result = _embed_cover(to_file_uri('/fake/cover.jpg'))
+
+        expected_b64 = base64.b64encode(fake_bytes).decode('ascii')
+        assert result == f'data:image/jpeg;base64,{expected_b64}'
+
+    def test_embed_cover_reverse_maps_wsl_unc_path_mappings(self, mocker, tmp_path, monkeypatch):
+        """TASK-91-T2b #14：_embed_cover(img_ref, path_mappings) 在 WSL+UNC mapping
+        環境下，Path.read_bytes 讀的必須是反解後的本機路徑（可真的 open()），非裸
+        uri_to_fs_path() 產生的映射端 UNC 字串。"""
+        import core.path_utils as path_utils
+        from web.routers.scanner import _embed_cover
+
+        monkeypatch.setattr(path_utils, "CURRENT_ENV", "wsl")
+
+        nas_dir = tmp_path / "nas"
+        nas_dir.mkdir()
+        cover = nas_dir / "cover.jpg"
+        fake_bytes = b'\xff\xd8\xff\xe0' + b'\x00' * 2000
+        cover.write_bytes(fake_bytes)
+        mappings = {str(nas_dir): "//NAS/share"}
+
+        result = _embed_cover("file://///NAS/share/cover.jpg", mappings)
+
+        expected_b64 = base64.b64encode(fake_bytes).decode('ascii')
+        assert result == f'data:image/jpeg;base64,{expected_b64}', (
+            f"應反解成本機路徑真的讀到檔案，實際: {result[:80]}"
+        )
+
+    def test_embed_cover_no_mappings_default_none_equivalent_to_before(self, mocker):
+        """#14 邊界：path_mappings 預設 None → 與改動前裸 uri_to_fs_path 呼叫等價
+        （保護既有呼叫端 generate_from_ids 舊行為不回歸）。"""
+        from web.routers.scanner import _embed_cover as _ec
+
+        fake_bytes = b'\xff\xd8\xff\xe0' + b'\x00' * 2000
+        mocker.patch('web.routers.scanner.Path.read_bytes', return_value=fake_bytes)
+
+        result = _ec(to_file_uri('/fake/cover2.jpg'))  # 不傳 path_mappings
 
         expected_b64 = base64.b64encode(fake_bytes).decode('ascii')
         assert result == f'data:image/jpeg;base64,{expected_b64}'

@@ -19,7 +19,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 from core.logger import get_logger
 from core.maker_mapping import load_name_mapping, load_prefix_mapping
 from core.nfo_utils import sanitize_nfo_bytes
-from core.path_utils import normalize_path, to_file_uri, uri_to_fs_path
+from core.path_utils import normalize_path, to_file_uri, uri_to_fs_path, uri_to_local_fs_path
 from core.video_extensions import DEFAULT_VIDEO_EXTENSIONS, ZERO_SIZE_EXTENSIONS
 
 logger = get_logger(__name__)
@@ -466,7 +466,7 @@ class VideoScanner:
         try:
             # Case 2: file:/// URI
             if thumb_val.startswith('file://'):
-                fs = uri_to_fs_path(thumb_val)
+                fs = uri_to_fs_path(thumb_val)  # uri-no-reverse: third-party NFO <thumb> value, unrelated to path_mappings namespace
             # Case 3: Windows drive letter
             elif len(thumb_val) >= 2 and thumb_val[1] == ':':
                 fs = normalize_path(thumb_val)
@@ -728,7 +728,7 @@ class VideoScanner:
         logger.info(f"[*] 完成: 新增 {inserted}, 更新 {updated}, 刪除 {deleted_count}")
 
         # §b1 AC#2: sample_images 孤兒清理 pass（CLI / 直接呼叫路徑覆蓋）
-        _run_sample_images_cleanup_pass(repo)
+        _run_sample_images_cleanup_pass(repo, self.path_mappings)
 
         return {
             'inserted': inserted,
@@ -843,12 +843,15 @@ class VideoScanner:
         return videos, stats
 
 
-def _validate_sample_images(sample_images: list, video_path: str = "") -> list:
+def _validate_sample_images(sample_images: list, video_path: str = "", path_mappings: dict = None) -> list:
     """驗證 sample_images 中的 file:/// URI 對應磁碟檔案存在性。
     不存在的項目剔除；uri_to_fs_path 轉換失敗也視為不存在（但 log warning）。
     非 file:/// 且非 http:// / https:// 格式（相對路徑、絕對 FS 路徑等）原樣保留 —
     cleanup pass 只管 file:/// URI 的磁碟失效情境。
     http:// / https:// 遠端 URL 為 Codex P1 修前 scraper URL 污染，一律清除。
+
+    TASK-91-T2b #16：path_mappings 預設 None，WSL+UNC mapping 環境下反解成真正
+    能 open() 的本機路徑再判斷存在性（減少誤刪合法映射端 sample_images）。
     """
     valid = []
     non_file_purged = 0
@@ -863,7 +866,7 @@ def _validate_sample_images(sample_images: list, video_path: str = "") -> list:
             valid.append(uri)
             continue
         try:
-            fs = uri_to_fs_path(uri)
+            fs = uri_to_local_fs_path(uri, path_mappings)
         except Exception as e:
             logger.warning(
                 "uri_to_fs_path failed for sample_image; treating as missing. "
@@ -886,7 +889,7 @@ def _validate_sample_images(sample_images: list, video_path: str = "") -> list:
     return valid
 
 
-def _run_sample_images_cleanup_pass(repo) -> int:
+def _run_sample_images_cleanup_pass(repo, path_mappings: dict = None) -> int:
     """一次性孤兒清理 pass：驗證所有 Video row 的 sample_images URI，
     不存在的剔除，寫回 DB。回傳清理的 row 數。
     共用於 scan_to_sqlite() + generate_avlist() 兩個流程（Canonical Decision #4）。
@@ -896,7 +899,7 @@ def _run_sample_images_cleanup_pass(repo) -> int:
     for video in all_videos:
         if not video.sample_images:
             continue
-        validated = _validate_sample_images(video.sample_images, video_path=video.path)
+        validated = _validate_sample_images(video.sample_images, video_path=video.path, path_mappings=path_mappings)
         if validated != video.sample_images:
             removed = len(video.sample_images) - len(validated)
             logger.info(

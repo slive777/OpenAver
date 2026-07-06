@@ -689,7 +689,7 @@ def _resolve_user_tag_paths(input_path: str) -> tuple[str, str]:
     path_mappings = config.get("gallery", {}).get("path_mappings", {}) or {}
 
     try:
-        fs_normalized = uri_to_fs_path(input_path)
+        fs_normalized = uri_to_fs_path(input_path)  # uri-no-reverse: already paired with reverse_path_mapping below (local_fs_path)
     except Exception:
         return ("", "")
 

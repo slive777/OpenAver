@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Tuple, Generator
 
 from core.logger import get_logger
 from core.nfo_utils import sanitize_nfo_bytes
-from core.path_utils import uri_to_fs_path
+from core.path_utils import uri_to_local_fs_path
 from core.scraper import search_jav
 
 logger = get_logger(__name__)
@@ -137,16 +137,17 @@ def check_cache_needs_update(cache: Dict[str, dict]) -> Dict:
     return stats
 
 
-def get_nfo_path_from_video(video_path: str) -> Optional[str]:
+def get_nfo_path_from_video(video_path: str, path_mappings: dict = None) -> Optional[str]:
     """從影片路徑取得對應的 NFO 檔案路徑
 
     Args:
         video_path: 影片檔案路徑（可能是 file:/// URL 或任意格式路徑）
+        path_mappings: 路徑映射表（WSL 環境用，讓 UNC URI 反解回真實可 exists() 的本機路徑）
 
     Returns:
         NFO 檔案的路徑，不存在則返回 None
     """
-    video_path = uri_to_fs_path(video_path)
+    video_path = uri_to_local_fs_path(video_path, path_mappings)
 
     # 取得 NFO 路徑
     video_p = Path(video_path)
@@ -377,13 +378,15 @@ def update_nfo_file(nfo_path: str, metadata: dict, info: dict) -> Tuple[bool, st
 
 def update_videos_generator(
     cache: Dict[str, dict],
-    paths: List[str]
+    paths: List[str],
+    path_mappings: dict = None
 ) -> Generator[dict, None, dict]:
     """更新影片的生成器（用於 SSE 串流）
 
     Args:
         cache: gallery_output_cache.json 的內容
         paths: 需要更新的影片路徑列表
+        path_mappings: 路徑映射表（WSL 環境用，透傳給 get_nfo_path_from_video）
 
     Yields:
         進度訊息 dict
@@ -414,7 +417,7 @@ def update_videos_generator(
         }
 
         # 取得 NFO 路徑
-        nfo_path = get_nfo_path_from_video(path)
+        nfo_path = get_nfo_path_from_video(path, path_mappings)
         if not nfo_path:
             yield {
                 'type': 'log',

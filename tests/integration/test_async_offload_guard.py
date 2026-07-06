@@ -338,7 +338,7 @@ class TestT4OffloadHousePattern:
         assert "def _check_jellyfin_needed(" in src
         assert "db_path.exists()" in src
         assert "VideoRepository(db_path)" in src
-        assert "check_jellyfin_images_needed(repo)" in src
+        assert "check_jellyfin_images_needed(repo, path_mappings)" in src
 
     def test_connect_uses_to_thread_helper(self):
         src = self._src("settings_metatube.py")

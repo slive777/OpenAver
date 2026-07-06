@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.6] - 2026-07-06
+
+本版主軸：**跨機器路徑映射（WSL2+UNC path_mappings）的讀寫全棧收斂 + DB-key 命名空間守衛**（feature/91，plan-91 axis-A ＋ plan-91b axis-B）——純 correctness 重構、零使用者可見功能變更、零 API/schema 變動。針對「OpenAver 在 WSL、影片放在網路磁碟（UNC `//NAS/share`）、DB 存映射後路徑」這條情境，把兩類長期潛伏的 silent bug 一次修乾淨並上守衛擋死回不去：一是**讀取端忘了在真正碰磁碟前把 `file:///` URI 反解回本機路徑**（縮圖／封面／劇照／串流／女優裁切一律 404 或讀不到）；二是**已反解的值又被餵回 DB key 建構**、落成沒映射過的命名空間，造成 silent DB miss（重複刮削、掉 user_tags、女優照 403）。
+
+### Fixed
+- **跨機器路徑（WSL+UNC）下讀圖／串流不再靜默失敗**：縮圖、封面＋劇照、影片串流（seek 206）、女優裁切、相似探索等所有「先讀 DB 路徑再碰磁碟」的入口，統一在磁碟 I/O 前經單一入口反解映射路徑；先前在 `path_mappings` 情境下這些入口會拿映射後的路徑直接碰磁碟而 404／讀不到圖。
+- **刮削不再掉使用者標籤（user_tags）live bug**：`web/routers/scraper.py` 對某片重刮時，DB key 由一個已反解的本機路徑裸建構、落成未映射命名空間，導致比對不到既有列、既有 `user_tags` 被當新片覆寫遺失。改為建 DB key 前先 forward-map 回 DB 命名空間，重刮後 user_tags 正確保留（WSL+UNC 回歸測試斷言單一 mapped row + tags union）。
+- **NFO 路徑推導反解**：`core/nfo_updater.py` 由影片路徑推導 NFO 檔位置時改用顯式反解入口，跨機器映射下定位到真實本機 NFO。
+
+### Internal
+- **axis-A（讀取端反解）**：新增單一顯式入口 `uri_to_local_fs_path()`，取代 22 個站台散落的裸 `uri_to_fs_path`／`coerce` 呼叫（router／scanner／core／enrich 全棧）；27 個純磁碟用途或已處理站台補 `# uri-no-reverse:` marker 標註安全；新增 pytest AST 結構守衛 `test_uri_to_fs_path_reverse_mapping_completeness.py`（sink 白名單＝`open`／`FileResponse`／`os.path.*`／`Path.*`／`shutil.*`），偵測「反解值未經處理直接碰磁碟」→ CI 擋死。含 Codex 兩輪 PR review 修正（enricher DB 命名空間、actress_crop 主流程 403 canonical、守衛 `Path()` 擴充）。
+- **axis-A drive-letter remote 反解對齊（Codex PR #94 review P2）**：`reverse_path_mapping` 補上 WSL-mount 候選前綴——當 `path_mappings` 的 remote 端是磁碟機代號（如 `Z:/share`）時，`uri_to_fs_path` 在 WSL 會把 `file:///Z:/share/...` 正規化成 `/mnt/z/share/...`，原本只比對 `Z:\share`／`Z:/share` 兩形式 → miss → fallback 回未反解的 `/mnt/z/...`（該磁碟未掛載時封面／影片／NFO 讀取失敗）。改為額外以 `to_wsl_path(win_prefix)` 產生 `/mnt` 形式候選（dedup，UNC 不受影響、零回歸）。
+- **axis-B（DB round-trip 命名空間）**：新增 sink-anchored AST 守衛 `test_db_key_namespace_completeness.py`（錨 DB-key 建構點 `to_file_uri`／`is_known_cover_path`／repo 寫入，非 source），偵測「反解值裸餵 DB round-trip 無 forward-map」→ CI 擋死；獨立 marker `# db-ns-ok:`（不 overload axis-A 的 `# uri-no-reverse:`）。含 Codex 二審修正（守衛 reaching-def marker 界限、keyword sink 抽取）。
+- **已接受殘留**：`core/enricher.py` `_write_nfo` 的 `user_tags is None` 分支裸 `to_file_uri` 為 dead path（所有 production 呼叫端恆傳 `user_tags != None`），marker + docstring 已註記，另開 follow-up；plan-91b D4 固化「寫入端命名空間統一（DB 一律存單一 canonical namespace）」暫緩為 feature/92+（守衛已達成 axis-B「不容易觸發」）。
+
+### 測試
+- 全套 pytest **5447 passed, 2 skipped**（unit + integration，排除 smoke／e2e，較 0.11.5 的 5365 +82：axis-A 22 站台 WSL+UNC 反解回歸〔縮圖／封面＋劇照／串流／女優裁切／相似〕+ axis-B 兩 bug 回歸〔刮削 user_tags union 單一 mapped row／enricher NFO DB 命名空間〕+ 兩支 AST 守衛自驗 21 案例〔含植入假違規 mutation 轉紅〕+ nfo_updater／path_utils／showcase／thumbnail_cache 補測 + Codex PR #94 drive-letter remote `/mnt` 候選反解回歸〔命中／backslash 形式／boundary share-vs-share2／UNC 零回歸／e2e〕）＋ `ruff check .` 綠 ＋ `npm run lint`（eslint + stylelint）綠。
+- 來源金絲雀：**8 源全 PASS**（javbus／jav321／heyzo／d2pass／avsox／fc2／javdb／dmm，pre-merge live 健康檢查）。
+- 真機 E2E hard-gate（WSL2+UNC+path_mappings，CDP + DB SQL 檢查）：sign-off #1–12 全過——縮圖／封面劇照／串流 seek 206／女優裁切主線／similar／enrich NFO 落反解磁碟／fetch-samples 守衛觸發／真刮 MIDV-300 user_tags union 單一 mapped row／NFO 路徑反解／readonly `.strm` 純 marker 零回歸／DB 命名空間三查詢無分裂無重複。關鍵教訓：`D:\123`（`/mnt/` 短路成 drive-letter URI）無法觸發 bug，須非 `/mnt` 路徑 + UNC mapping 才是真觸發。
+
 ## [0.11.5] - 2026-07-05
 
 本版主軸：**唯讀來源生成媒體伺服器庫（media-server 風味）+ 跨機器路徑映射 + 唯讀寫入全面封鎖**（feature/90，spec-90 §90a/§90b/§90c）——承接 0.11.3/0.11.4 的唯讀產生庫，這版把「餵給 Emby／Jellyfin／Kodi」這條路走通：唯讀來源除了生成 OpenAver 自己瀏覽的本地庫，還多吐每片一個 `.strm` 捷徑檔給媒體伺服器掃描播放。針對「OpenAver 在這台、媒體伺服器在 NAS／別台」的跨機器情境，新增「播放端路徑替換」規則，把 `.strm` 裡的影片路徑翻成播放端看得懂的路徑；改了規則，既有 `.strm` 一鍵同步改寫。同時把唯讀來源的「零寫入」承諾補到滴水不漏：勾唯讀有破壞性確認、四個會寫回的入口在唯讀產生片上全部停用並導引、切換媒體伺服器模式時清乾淨舊唯讀來源的媒體卡（只清庫、不刪你輸出夾的檔）、產生中途斷線也乾淨收尾。

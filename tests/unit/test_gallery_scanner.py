@@ -567,7 +567,7 @@ class TestScannerSampleImagesValidationPass:
         from core.gallery_scanner import _validate_sample_images
 
         # uri_to_fs_path 正常回傳路徑，os.path.exists 回傳 True
-        with patch("core.gallery_scanner.uri_to_fs_path", return_value="/fake/path/s1.jpg"), \
+        with patch("core.gallery_scanner.uri_to_local_fs_path", return_value="/fake/path/s1.jpg"), \
              patch("os.path.exists", return_value=True):
             result = _validate_sample_images(
                 [to_file_uri("/fake/path/s1.jpg")],
@@ -581,7 +581,7 @@ class TestScannerSampleImagesValidationPass:
         from unittest.mock import patch
         from core.gallery_scanner import _validate_sample_images
 
-        with patch("core.gallery_scanner.uri_to_fs_path", return_value="/fake/path/missing.jpg"), \
+        with patch("core.gallery_scanner.uri_to_local_fs_path", return_value="/fake/path/missing.jpg"), \
              patch("os.path.exists", return_value=False):
             result = _validate_sample_images(
                 [to_file_uri("/fake/path/missing.jpg")],
@@ -595,7 +595,7 @@ class TestScannerSampleImagesValidationPass:
         from unittest.mock import patch
         from core.gallery_scanner import _validate_sample_images
 
-        with patch("core.gallery_scanner.uri_to_fs_path", side_effect=ValueError("環境不支援")), \
+        with patch("core.gallery_scanner.uri_to_local_fs_path", side_effect=ValueError("環境不支援")), \
              patch("core.gallery_scanner.logger") as mock_logger:
             result = _validate_sample_images(
                 [to_file_uri("/bad/path.jpg")],
@@ -628,14 +628,14 @@ class TestScannerSampleImagesValidationPass:
 
         mock_repo.get_all.return_value = [video_with_orphan_1, video_with_orphan_2, video_clean]
 
-        def fake_uri_to_fs_path(uri):
+        def fake_uri_to_fs_path(uri, path_mappings=None):
             return uri.replace("file:///", "/")
 
         # v1/v2 的 sample 不存在磁碟，v3 的存在
         def fake_exists(path):
             return "s3.jpg" in path  # 只有 s3.jpg 存在
 
-        with patch("core.gallery_scanner.uri_to_fs_path", side_effect=fake_uri_to_fs_path), \
+        with patch("core.gallery_scanner.uri_to_local_fs_path", side_effect=fake_uri_to_fs_path), \
              patch("os.path.exists", side_effect=fake_exists):
             count = _run_sample_images_cleanup_pass(mock_repo)
 
@@ -653,7 +653,7 @@ class TestScannerSampleImagesValidationPass:
 
         mock_repo.get_all.return_value = [video_no_samples]
 
-        with patch("core.gallery_scanner.uri_to_fs_path"), \
+        with patch("core.gallery_scanner.uri_to_local_fs_path"), \
              patch("os.path.exists"):
             count = _run_sample_images_cleanup_pass(mock_repo)
 
@@ -672,13 +672,13 @@ class TestScannerSampleImagesValidationPass:
         video.sample_images = [to_file_uri("/A/ext/exist.jpg"), to_file_uri("/A/ext/missing.jpg")]
         mock_repo.get_all.return_value = [video]
 
-        def fake_uri_to_fs_path(uri):
+        def fake_uri_to_fs_path(uri, path_mappings=None):
             return uri.replace("file:///", "/")
 
         def fake_exists(path):
             return "exist.jpg" in path  # 只有 exist.jpg 存在
 
-        with patch("core.gallery_scanner.uri_to_fs_path", side_effect=fake_uri_to_fs_path), \
+        with patch("core.gallery_scanner.uri_to_local_fs_path", side_effect=fake_uri_to_fs_path), \
              patch("os.path.exists", side_effect=fake_exists):
             _run_sample_images_cleanup_pass(mock_repo)
 
@@ -738,13 +738,13 @@ class TestScannerSampleImagesValidationPass:
             "https://cdn.example.com/s2.jpg",          # scraper URL 污染 → 清除
         ]
 
-        def fake_uri_to_fs_path(uri):
+        def fake_uri_to_fs_path(uri, path_mappings=None):
             return uri.replace("file:///", "/")
 
         def fake_exists(path):
             return "valid" in path  # only /valid/... exists
 
-        with patch("core.gallery_scanner.uri_to_fs_path", side_effect=fake_uri_to_fs_path), \
+        with patch("core.gallery_scanner.uri_to_local_fs_path", side_effect=fake_uri_to_fs_path), \
              patch("os.path.exists", side_effect=fake_exists):
             result = _validate_sample_images(mixed_samples, video_path=to_file_uri("/v1.mp4"))
 
@@ -785,13 +785,13 @@ class TestScannerSampleImagesValidationPass:
         ]
         mock_repo.get_all.return_value = [video]
 
-        def fake_uri_to_fs_path(uri):
+        def fake_uri_to_fs_path(uri, path_mappings=None):
             return uri.replace("file:///", "/")
 
         def fake_exists(path):
             return "fanart1.jpg" in path  # only fanart1.jpg exists on disk
 
-        with patch("core.gallery_scanner.uri_to_fs_path", side_effect=fake_uri_to_fs_path), \
+        with patch("core.gallery_scanner.uri_to_local_fs_path", side_effect=fake_uri_to_fs_path), \
              patch("os.path.exists", side_effect=fake_exists):
             count = _run_sample_images_cleanup_pass(mock_repo)
 
@@ -800,3 +800,70 @@ class TestScannerSampleImagesValidationPass:
             to_file_uri("/A/v1.mp4"),
             [to_file_uri("/A/extrafanart/fanart1.jpg")],
         )
+
+    def test_validate_reverse_maps_wsl_unc_path_mappings(self, tmp_path, monkeypatch):
+        """TASK-91-T2b #16：_validate_sample_images(sample_images, video_path, path_mappings)
+        在 WSL+UNC mapping 環境下，os.path.exists 檢查的路徑必須是反解後的本機路徑
+        （可真的 open()），非裸 uri_to_fs_path() 產生的映射端 UNC 字串（磁碟上不存在）。
+        """
+        import core.path_utils as path_utils
+        from core.gallery_scanner import _validate_sample_images
+
+        monkeypatch.setattr(path_utils, "CURRENT_ENV", "wsl")
+
+        nas_dir = tmp_path / "nas"
+        nas_dir.mkdir()
+        (nas_dir / "s1.jpg").write_bytes(b'\x00')
+        mappings = {str(nas_dir): "//NAS/share"}
+
+        mapped_uri = "file://///NAS/share/s1.jpg"
+        result = _validate_sample_images(
+            [mapped_uri], video_path=to_file_uri("/fake/v1.mp4"), path_mappings=mappings,
+        )
+
+        assert result == [mapped_uri], (
+            f"反解後應能確認磁碟真的存在該檔案，不應誤判剔除。got: {result}"
+        )
+
+    def test_cleanup_pass_threads_path_mappings_to_validate(self, tmp_path, monkeypatch):
+        """TASK-91-T2b #16：_run_sample_images_cleanup_pass(repo, path_mappings) 把
+        path_mappings 透傳給 _validate_sample_images，WSL+UNC mapping 命中的合法
+        sample_image 不應被誤判孤兒而清除。"""
+        import core.path_utils as path_utils
+        from unittest.mock import MagicMock
+        from core.gallery_scanner import _run_sample_images_cleanup_pass
+
+        monkeypatch.setattr(path_utils, "CURRENT_ENV", "wsl")
+
+        nas_dir = tmp_path / "nas"
+        nas_dir.mkdir()
+        (nas_dir / "s1.jpg").write_bytes(b'\x00')
+        mappings = {str(nas_dir): "//NAS/share"}
+
+        mock_repo = MagicMock()
+        video = MagicMock()
+        video.path = to_file_uri("/A/v1.mp4")
+        video.sample_images = ["file://///NAS/share/s1.jpg"]
+        mock_repo.get_all.return_value = [video]
+
+        count = _run_sample_images_cleanup_pass(mock_repo, mappings)
+
+        assert count == 0, (
+            f"WSL+mapping 命中的合法 sample_image 反解後存在，不應被清除，got count={count}"
+        )
+        mock_repo.update_sample_images.assert_not_called()
+
+    def test_validate_default_none_path_mappings_equivalent_to_before(self, tmp_path):
+        """#16 邊界：path_mappings 預設 None → 與改動前裸 uri_to_fs_path 呼叫等價
+        （保護既有呼叫端測試不用改就能繼續 GREEN，見上方本 class 其餘測試）。"""
+        from unittest.mock import patch
+        from core.gallery_scanner import _validate_sample_images
+
+        with patch("core.gallery_scanner.uri_to_local_fs_path", return_value="/fake/path/s1.jpg"), \
+             patch("os.path.exists", return_value=True):
+            result = _validate_sample_images(
+                [to_file_uri("/fake/path/s1.jpg")],
+                video_path=to_file_uri("/fake/v1.mp4"),
+            )
+
+        assert result == [to_file_uri("/fake/path/s1.jpg")]

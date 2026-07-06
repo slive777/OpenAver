@@ -105,7 +105,7 @@ class Api:
         - C:/path/to/file.mp4
         - C:\\path\\to\\file.mp4
         """
-        path = uri_to_fs_path(path)
+        path = uri_to_fs_path(path)  # uri-no-reverse: windows native runtime, path_mappings N/A
 
         if not os.path.exists(path):
             return False
@@ -174,7 +174,7 @@ class Api:
         macOS:   open -R          → Finder 中顯示檔案
         Linux:   xdg-open         → 打開所在資料夾
         """
-        path = uri_to_fs_path(path)
+        path = uri_to_fs_path(path)  # uri-no-reverse: windows native runtime, path_mappings N/A
 
         if not os.path.exists(path):
             # 檔案不存在，嘗試開啟父資料夾

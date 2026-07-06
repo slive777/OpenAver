@@ -198,6 +198,48 @@ def test_iter_missing_skips_no_cover(thumb_dir):
     assert list(tc.iter_missing(videos)) == []
 
 
+# ── TASK-91-T2b #15: iter_missing WSL+UNC path_mappings 反解 ──────
+def test_iter_missing_reverse_maps_wsl_unc_path_mappings(thumb_dir, tmp_path, monkeypatch):
+    """cover_path 為 mapped UNC URI，path_mappings 命中時 yield 出的
+    cover_fs_path 應為反解後的本機路徑（真的存在、可 open()），而非裸
+    uri_to_fs_path() 產生的映射端 UNC 字串（該路徑在磁碟上不存在）。"""
+    import core.path_utils as path_utils
+
+    monkeypatch.setattr(path_utils, "CURRENT_ENV", "wsl")
+
+    nas_dir = tmp_path / "nas"
+    nas_dir.mkdir()
+    cover = _make_jpg(nas_dir / "cover.jpg")
+    mappings = {str(nas_dir): "//NAS/share"}
+
+    uri = "file:///x/wsl_unc.mp4"
+    videos = [
+        types.SimpleNamespace(path=uri, cover_path="file://///NAS/share/cover.jpg"),
+    ]
+
+    result = list(tc.iter_missing(videos, mappings))
+    assert len(result) == 1
+    yielded_uri, yielded_cover = result[0]
+    assert yielded_uri == uri
+    assert yielded_cover == str(cover), (
+        f"應反解為本機路徑 {cover}，實際 {yielded_cover}"
+    )
+    assert "//NAS/share" not in yielded_cover
+
+
+def test_iter_missing_default_none_path_mappings_equivalent_to_before(thumb_dir, tmp_path):
+    """#15 邊界：path_mappings 預設 None → 與改動前裸 uri_to_fs_path 呼叫等價
+    （保護既有兩個呼叫點 tc.iter_missing(videos) 不用改就能繼續 GREEN）。"""
+    cover = _make_jpg(tmp_path / "plain.jpg")
+    uri = "file:///x/plain.mp4"
+    videos = [types.SimpleNamespace(path=uri, cover_path="file://" + str(cover))]
+
+    result = list(tc.iter_missing(videos))  # 不傳 path_mappings
+    assert len(result) == 1
+    assert result[0][0] == uri
+    assert os.path.exists(result[0][1])
+
+
 # ── 11. per-thumb 鎖 key 一致性（Codex round-2 P1 修法 A）────────
 def test_lock_for_thumb_same_path_same_lock(thumb_dir):
     """同一 video_path_uri → thumb_file_for 回同 Path → str 相同 → 同一把鎖。

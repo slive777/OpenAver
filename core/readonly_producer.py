@@ -107,7 +107,7 @@ def _list_source_videos(
     on_skip (TASK-89b-T5): forwarded verbatim to fast_scan_directory — invoked
     (path, exception) for entries/subdirectories dropped due to OSError/PermissionError.
     """
-    fs_dir = uri_to_fs_path(source_path)
+    fs_dir = uri_to_fs_path(source_path)  # uri-no-reverse: native config path (DirectoryConfig.path), no DB-mapped namespace
     return fast_scan_directory(fs_dir, extensions, min_size_bytes, on_skip=on_skip)
 
 
@@ -162,7 +162,7 @@ def _derive_source_name(source_path: str) -> str:
     # standalone normalize_path() raises ValueError on foreign-platform path
     # strings (e.g. a Windows path fed to a Linux CI run), which uri_to_fs_path
     # already guards against via its own try/except.
-    fs_path = uri_to_fs_path(source_path)
+    fs_path = uri_to_fs_path(source_path)  # uri-no-reverse: native config path (DirectoryConfig.path), no DB-mapped namespace
     canonical = to_file_uri(fs_path)
     shortcode = hashlib.sha1(canonical.encode()).hexdigest()[:6]
     basename = sanitize_filename(Path(fs_path).name)
@@ -327,7 +327,7 @@ def _resolve_movie_dir(
         # targeted 反解。只反解回傳給呼叫端的 fs Path，不反解存回 DB 的 URI
         # （movie_dir_uri 維持 existing.output_dir 原值），否則下一輪
         # is_path_under_dir(existing.output_dir, output_uri) 比對會失準。
-        movie_dir_fs = uri_to_fs_path(movie_dir_uri)
+        movie_dir_fs = uri_to_fs_path(movie_dir_uri)  # uri-no-reverse: already paired with reverse_path_mapping on next line
         if CURRENT_ENV == 'wsl' and path_mappings:
             movie_dir_fs = reverse_path_mapping(movie_dir_fs, path_mappings) or movie_dir_fs
         return Path(movie_dir_fs), movie_dir_uri
@@ -897,7 +897,7 @@ def produce_source(source, config, repo, *, proxy_url="", on_progress=None, shou
     # the "unreachable" guard above already returned before this point, so any
     # execution path reaching here has aborted_reason == "" (empty).
     if files and not result.skipped_paths:
-        source_root_fs = uri_to_fs_path(source.path)
+        source_root_fs = uri_to_fs_path(source.path)  # uri-no-reverse: native config path (SourceConfig.path), comparison-only
         source_root_uri = to_file_uri(source_root_fs, path_mappings)
         this_run_uris = {to_file_uri(fi["path"], path_mappings) for fi in files}
         candidates = [
