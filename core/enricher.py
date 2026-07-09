@@ -540,16 +540,31 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
             if conn:
                 conn.close()
 
-    # reason=hit 必須是「前端 /thumb 服務得到」＝ DB cover_path 有值
-    # （scanner.py:1276 硬要求，不 fallback 磁碟 sidecar）。磁碟有 .jpg 但 DB
-    # cover_path 空（散落 sidecar 未入 DB／db·nfo-sourced 命中跳過 :514 _db_upsert）
-    # 會使 /thumb 404、飛入破圖、且該片仍留 missing_cover 清單（Codex P1，v0.11.9）。
-    # 故不能用磁碟真相（os.path.exists）判，改重讀 DB 最終狀態、鏡射 /thumb 的 gate。
+    # reason=hit 必須是「前端 /thumb 真的服務得到」。/thumb（scanner.py get_thumb）
+    # 有兩道 gate，兩道都過才服務得到，reason=hit 必須同時鏡射：
+    #   gate 1（scanner.py:1276-1277）：DB cover_path 非空，否則 404。
+    #   gate 2（scanner.py:1290/1300/1332-1333）：cache miss 或 disabled 時要讀
+    #     實體封面檔（uri_to_local_fs_path 反解後 generate / fallback FileResponse），
+    #     檔不在 → 404。（cache hit 於 :1263 直接 serve WebP 不碰實體檔，見下方 false-negative）
+    # 故不能只查 DB cover_path 非空（只鏡射 gate 1，Codex PR #98 P2）：DB 有記
+    # cover_path、但該實體封面檔已被刪/移／path_mapping 失效解不到時，/thumb 於
+    # cache miss/disabled 會 404 → 飛入破圖，卻誤計 hit。
+    # 亦不能用磁碟 sidecar 真相（Path(fs_path).with_suffix('.jpg')）判：磁碟有 .jpg
+    # 但 DB cover_path 空（散落 sidecar 未入 DB／db·nfo-sourced 命中跳過 :514
+    # _db_upsert）會漏 gate 1（Codex P1，v0.11.9）。故重讀 DB 最終 cover_path，
+    # 並用 /thumb 同一組解析（uri_to_local_fs_path + 同 path_mappings）確認實體檔存在。
     # 此重讀在所有寫檔 + _db_upsert + nfo_mtime UPDATE 之後（同步、已 commit），
     # 故看到的是最終 DB 狀態。
+    # 已知並接受的 false-negative（安全方向）：cache hit（stale WebP 已快取）但實體
+    # 封面檔已刪時，/thumb 仍能從快取 serve（:1263），此處卻判 no_cover。代價是「服務
+    # 得到的封面不飛入」（不破圖）；反向 false-positive（判 hit 卻 404 破圖）代價更高，
+    # 故偏保守。
     # db-ns-ok: fs_path_for_db, DB round-trip key（同 :437 path_uri）
     final_row = repo.get_by_path(to_file_uri(fs_path_for_db))
-    has_servable_cover = bool(final_row and final_row.cover_path)
+    cover_uri = final_row.cover_path if final_row else ''
+    has_servable_cover = bool(cover_uri) and os.path.exists(
+        uri_to_local_fs_path(cover_uri, path_mappings)
+    )
 
     return EnrichResult(
         success=True,

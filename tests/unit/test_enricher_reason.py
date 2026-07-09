@@ -18,9 +18,11 @@ Codex P1 回歸鎖（v0.11.9 修正）：reason='hit' 必須鏡射 /thumb 的 ga
 missing_cover 清單。故 reason 改用 repo.get_by_path 重讀 DB 最終狀態判斷。
 """
 
+import os
 from unittest.mock import MagicMock, patch
 
 from core.database import Video
+from core.path_utils import to_file_uri
 
 
 def _make_video(
@@ -243,9 +245,10 @@ class TestReasonSuccessBranches:
             mock_repo = MagicMock()
             mock_repo_cls.return_value = mock_repo
             mock_repo.get_by_numbers.return_value = {"SONE-205": [video]}
-            # DB 現有紀錄的 cover_path 有值（db_to_sidecar 的來源片本就已入庫）
+            # DB 現有紀錄的 cover_path 有值 + 解析後的實體封面檔真的存在
+            # （fake_download 已把 SONE-205.jpg 寫到磁碟）→ /thumb 兩道 gate 皆過 → hit
             mock_repo.get_by_path.return_value = _make_video(
-                cover_path="file:///tmp/lib/SONE-205.jpg"
+                cover_path=to_file_uri(str(cover_path))
             )
 
             from core.enricher import enrich_single
@@ -349,9 +352,10 @@ class TestReasonSuccessBranches:
             mock_repo = MagicMock()
             mock_repo_cls.return_value = mock_repo
             mock_repo.get_by_numbers.return_value = {"SONE-205": [video]}
-            # 真實主路徑：封面已入 DB（掃描時記錄），不是 None
+            # 真實主路徑：封面已入 DB（掃描時記錄）且實體檔本就在磁碟上
+            # （cover_path.write_bytes 已建立），/thumb 兩道 gate 皆過 → hit
             mock_repo.get_by_path.return_value = _make_video(
-                cover_path="file:///tmp/lib/SONE-205.jpg"
+                cover_path=to_file_uri(str(cover_path))
             )
 
             from core.enricher import enrich_single
@@ -418,6 +422,53 @@ class TestReasonSuccessBranches:
         # 磁碟上確實有檔案 —— 但這不該再是 reason 的判準
         assert cover_path.exists()
         # 回歸鎖核心斷言：DB 沒記錄 → /thumb 服務不到 → 誠實回報 no_cover
+        assert result.reason == "no_cover"
+
+    def test_codex_p2_db_cover_path_set_but_file_absent_is_no_cover(self, tmp_path):
+        """Codex PR #98 P2 回歸鎖：DB cover_path 非空，但用 /thumb 同一解析
+        （uri_to_local_fs_path）反解後的實體封面檔不存在（已被刪/移／path_mapping
+        失效解不到）→ reason 必須是 'no_cover'，不能是 'hit'。
+
+        /thumb（scanner.py get_thumb）除了 gate 1（DB cover_path 非空，:1276）外，
+        cache miss 或 disabled 時還有 gate 2：要讀實體封面檔（:1290 反解、:1300
+        generate、:1332-1333 fallback os.path.isfile），檔不在 → 404。若 reason 只
+        鏡射 gate 1（單看 DB cover_path 非空）就會誤判 hit → 前端命中封面飛入拿到
+        404 破圖。
+
+        mutation 驗證：把實作改回「has_servable_cover = bool(cover_uri)」（拿掉
+        os.path.exists 那道 gate）會讓這條 RED。
+        """
+        video_file = tmp_path / "SONE-205.mp4"
+        video_file.write_bytes(b"x")
+        video = _make_video(cover_path="https://example.com/cover.jpg")
+        # DB 記了一個實體檔已不存在的 cover_path（刪/移／UNC 未掛載）
+        absent_cover_uri = to_file_uri(str(tmp_path / "gone" / "SONE-205.jpg"))
+
+        with (
+            patch("core.enricher.VideoRepository") as mock_repo_cls,
+            patch("core.enricher.generate_nfo", return_value=True),
+            # download_image 宣告 True 但不真的寫檔（sidecar 仍不存在）
+            patch("core.enricher.download_image", return_value=True),
+        ):
+            mock_repo = MagicMock()
+            mock_repo_cls.return_value = mock_repo
+            mock_repo.get_by_numbers.return_value = {"SONE-205": [video]}
+            # DB cover_path 非空（過 gate 1）但實體檔不存在（擋 gate 2）
+            mock_repo.get_by_path.return_value = _make_video(cover_path=absent_cover_uri)
+
+            from core.enricher import enrich_single
+            result = enrich_single(
+                file_path=str(video_file),
+                number="SONE-205",
+                mode="db_to_sidecar",
+                overwrite_existing=False,
+            )
+
+        assert result.success is True
+        # 解析後的實體封面檔確實不存在
+        from core.path_utils import uri_to_local_fs_path
+        assert not os.path.exists(uri_to_local_fs_path(absent_cover_uri, None))
+        # 回歸鎖核心斷言：DB 有 cover_path 但實體檔缺 → /thumb 服務不到 → no_cover
         assert result.reason == "no_cover"
 
 
