@@ -22,6 +22,7 @@ PREFIX_FILE = PROJECT_ROOT / "dmm_prefix_hints.json"    # 番號前綴 → DMM �
 # None = 未知（首次或暫時性失敗），True = schema 支援，False = schema 不支援
 _genres_supported: Optional[bool] = None
 _sample_images_supported: Optional[bool] = None
+_review_supported: Optional[bool] = None
 
 
 class DMMScraper(BaseScraper):
@@ -105,6 +106,13 @@ class DMMScraper(BaseScraper):
         }
     """
 
+    # 評分 probe — root field reviewSummary（arg 名 contentId，非 id）
+    REVIEW_PROBE_QUERY = """
+        query ProbeReview($contentId: ID!) {
+            reviewSummary(contentId: $contentId) { average }
+        }
+    """
+
     # GraphQL schema error patterns — 不同實作回傳的訊息格式不同
     SCHEMA_ERROR_PATTERNS = ('Unknown field', 'Cannot query field')
 
@@ -149,7 +157,7 @@ class DMMScraper(BaseScraper):
         try:
             payload = {
                 'query': self.GENRES_PROBE_QUERY,
-                'variables': {'id': content_id}
+                'variables': {'contentId': content_id}
             }
             resp = self._session.post(self.API_URL, json=payload, timeout=5)
 
@@ -203,7 +211,7 @@ class DMMScraper(BaseScraper):
         try:
             payload = {
                 'query': self.SAMPLE_IMAGES_PROBE_QUERY,
-                'variables': {'id': content_id}
+                'variables': {'contentId': content_id}
             }
             resp = self._session.post(self.API_URL, json=payload, timeout=5)
 
@@ -233,6 +241,66 @@ class DMMScraper(BaseScraper):
 
         except Exception:
             return []
+
+    def _probe_review(self, content_id: str) -> Optional[float]:
+        """
+        探測 root field reviewSummary 是否被 schema 支援，並取回評分。
+
+        三態 cache 控制同 _probe_genres()，但注意一處差異：
+        reviewSummary 為 root field，主 query 已成功代表 content 存在，
+        故 reviewSummary is None 代表「此片無評分」→ 判定 True + 回傳 None
+        （非「無法判定」）。
+
+        Returns:
+            average（0–5）；此片無評分或探測失敗時回傳 None。
+        """
+        global _review_supported
+
+        # 已確認 schema 不支援 → 永久跳過（不再發 POST）
+        if _review_supported is False:
+            return None
+
+        try:
+            payload = {
+                'query': self.REVIEW_PROBE_QUERY,
+                'variables': {'contentId': content_id}
+            }
+            resp = self._session.post(self.API_URL, json=payload, timeout=5)
+
+            if resp.status_code != 200:
+                # HTTP 錯誤 → 暫時性失敗，維持 None（不設 False）
+                return None
+
+            resp_json = resp.json()
+            errors = resp_json.get('errors', [])
+
+            # 判定 1：schema error → 確認不支援，永久停用
+            if any(
+                any(pat in (e.get('message', '') or '') for pat in self.SCHEMA_ERROR_PATTERNS)
+                for e in errors
+            ):
+                _review_supported = False
+                logger.info("[DMM] GraphQL schema 不支援 reviewSummary，已永久停用 probe")
+                return None
+
+            # 判定 2：正常回應 → schema 支援
+            data = resp_json.get('data') or {}
+            summary = data.get('reviewSummary')
+
+            # content 一定存在（主 query 已成功），summary is None 代表此片無評分
+            _review_supported = True
+
+            if summary is None:
+                return None
+
+            average = summary.get('average')
+            if average is None:
+                return None
+            return float(average)
+
+        except Exception:
+            # 網路錯誤、timeout → 暫時性失敗，維持 None（不設 False）
+            return None
 
     def _fetch_tags_from_html(self, content_id: str) -> list[str]:
         """
@@ -457,7 +525,7 @@ class DMMScraper(BaseScraper):
         try:
             payload = {
                 'query': self.DETAIL_QUERY,
-                'variables': {'id': content_id}
+                'variables': {'contentId': content_id}
             }
 
             response = self._session.post(
@@ -492,6 +560,8 @@ class DMMScraper(BaseScraper):
 
             sample_images = self._probe_sample_images(content_id)
 
+            rating = self._probe_review(content_id)
+
             # 新欄位提取
             directors_list = item.get('directors') or []
             director = directors_list[0]['name'] if directors_list else ''
@@ -517,6 +587,7 @@ class DMMScraper(BaseScraper):
                 series=series,
                 sample_images=sample_images,
                 summary=item.get('description', ''),
+                rating=rating,
             )
 
             return video
