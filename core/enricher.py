@@ -540,10 +540,16 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
             if conn:
                 conn.close()
 
-    # reason 分流用「cover.jpg 磁碟真相」，不用 cover_written（Codex P1 回歸鎖 / CD-94-2）：
-    # cover_written=False 不代表沒有封面，也可能是 _write_cover 對既存檔案 skip
-    # （overwrite_existing=False 命中「本輪只補 NFO、封面本就在」的主路徑）。
-    has_cover = os.path.exists(str(Path(fs_path).with_suffix(".jpg")))
+    # reason=hit 必須是「前端 /thumb 服務得到」＝ DB cover_path 有值
+    # （scanner.py:1276 硬要求，不 fallback 磁碟 sidecar）。磁碟有 .jpg 但 DB
+    # cover_path 空（散落 sidecar 未入 DB／db·nfo-sourced 命中跳過 :514 _db_upsert）
+    # 會使 /thumb 404、飛入破圖、且該片仍留 missing_cover 清單（Codex P1，v0.11.9）。
+    # 故不能用磁碟真相（os.path.exists）判，改重讀 DB 最終狀態、鏡射 /thumb 的 gate。
+    # 此重讀在所有寫檔 + _db_upsert + nfo_mtime UPDATE 之後（同步、已 commit），
+    # 故看到的是最終 DB 狀態。
+    # db-ns-ok: fs_path_for_db, DB round-trip key（同 :437 path_uri）
+    final_row = repo.get_by_path(to_file_uri(fs_path_for_db))
+    has_servable_cover = bool(final_row and final_row.cover_path)
 
     return EnrichResult(
         success=True,
@@ -553,7 +559,7 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
         fields_filled=fields_filled,
         source_used=source_used,
         error=None,
-        reason=("hit" if has_cover else "no_cover"),
+        reason=("hit" if has_servable_cover else "no_cover"),
     )
 
 

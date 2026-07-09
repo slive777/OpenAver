@@ -2277,11 +2277,15 @@ class TestEnrichSingleDbKeyMappingPreserved:
             )
 
         assert result.success is True
-        mock_repo.get_by_path.assert_called_once()
-        called_uri = mock_repo.get_by_path.call_args[0][0]
-        assert called_uri == _WSL_UNC_URI, (
-            f"get_by_path 必須用映射命名空間查 DB（{_WSL_UNC_URI!r}），實際: {called_uri!r}"
-        )
+        # v0.11.9 起 get_by_path 在 enrich_single 內被呼叫兩次：一次讀 user_tags
+        # （既有行為），一次是 Codex P1 修正新增的「reason=hit 鏡射 /thumb gate」
+        # DB 最終狀態重讀（core/enricher.py 尾段）。兩次都必須用映射命名空間查 DB。
+        assert mock_repo.get_by_path.call_count == 2
+        for call in mock_repo.get_by_path.call_args_list:
+            called_uri = call[0][0]
+            assert called_uri == _WSL_UNC_URI, (
+                f"get_by_path 必須用映射命名空間查 DB（{_WSL_UNC_URI!r}），實際: {called_uri!r}"
+            )
 
 
 class TestDbUpsertCoverAndSampleUrisForwardMapped:

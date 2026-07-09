@@ -4,11 +4,18 @@ test_enricher_reason.py - TASK-94-T1: EnrichResult.reason 欄位 + enrich_single
 覆蓋 CD-94-2 reason 映射表：
   - error: 缺番號 / mode 非法 / 檔案不存在 / NFO PermissionError（外部管理器 + off 模式）
   - not_found: refresh_full / db_to_sidecar / fill_missing 三處查無
-  - hit / no_cover: 成功路徑依「cover.jpg 磁碟真相」分流（嚴禁用 cover_written 判）
+  - hit / no_cover: 成功路徑依「/thumb 可服務真相＝DB cover_path 有值」分流
+    （v0.11.9 Codex P1 修正；嚴禁用 cover_written 判、亦不可退回「cover.jpg 磁碟真相」）
 
-Codex P1 回歸鎖：nfo_written=True, cover_written=False，但磁碟上 cover.jpg 本就存在
+Codex P1 回歸鎖（初版）：nfo_written=True, cover_written=False，但磁碟上 cover.jpg 本就存在
 （因為 _write_cover 在 overwrite_existing=False 時對已存在檔案 skip）→ reason 必須是
 'hit'，不是 'no_cover'。
+
+Codex P1 回歸鎖（v0.11.9 修正）：reason='hit' 必須鏡射 /thumb 的 gate
+（web/routers/scanner.py:1276 硬要求 DB cover_path 非空，不 fallback 磁碟 sidecar）。
+磁碟有 .jpg 但 DB cover_path 空（db/nfo-sourced 命中跳過 _db_upsert，見 core/enricher.py:514）
+時，不能再用「cover.jpg 磁碟真相」判 hit——否則 /thumb 404、飛入破圖、且該片仍留
+missing_cover 清單。故 reason 改用 repo.get_by_path 重讀 DB 最終狀態判斷。
 """
 
 from unittest.mock import MagicMock, patch
@@ -210,12 +217,13 @@ class TestReasonNotFoundBranches:
         assert result.reason == "not_found"
 
 
-# ── 成功路徑：hit / no_cover 依磁碟真相分流 ──────────────────────────────
+# ── 成功路徑：hit / no_cover 依「/thumb 可服務真相＝DB cover_path」分流 ──────
 
 
 class TestReasonSuccessBranches:
     def test_fresh_cover_download_reason_hit(self, tmp_path):
-        """有下載 + 磁碟真的寫出檔案 → hit。"""
+        """有下載 + 磁碟真的寫出檔案，且 DB 該片本就有 cover_path（db_to_sidecar
+        的來源片，代表先前掃描/入庫時已記錄）→ hit（/thumb 服務得到）。"""
         video_file = tmp_path / "SONE-205.mp4"
         video_file.write_bytes(b"x")
         cover_path = tmp_path / "SONE-205.jpg"
@@ -235,7 +243,10 @@ class TestReasonSuccessBranches:
             mock_repo = MagicMock()
             mock_repo_cls.return_value = mock_repo
             mock_repo.get_by_numbers.return_value = {"SONE-205": [video]}
-            mock_repo.get_by_path.return_value = None
+            # DB 現有紀錄的 cover_path 有值（db_to_sidecar 的來源片本就已入庫）
+            mock_repo.get_by_path.return_value = _make_video(
+                cover_path="file:///tmp/lib/SONE-205.jpg"
+            )
 
             from core.enricher import enrich_single
             result = enrich_single(
@@ -251,7 +262,7 @@ class TestReasonSuccessBranches:
         assert result.reason == "hit"
 
     def test_no_cover_url_and_no_disk_file_reason_no_cover(self, tmp_path):
-        """沒下載（無 cover_url）+ 磁碟無檔 → no_cover。"""
+        """沒下載（無 cover_url）+ 磁碟無檔 + DB cover_path 也空 → no_cover。"""
         video_file = tmp_path / "SONE-205.mp4"
         video_file.write_bytes(b"x")
         video = _make_video(cover_path="")  # 無 cover_url
@@ -264,7 +275,8 @@ class TestReasonSuccessBranches:
             mock_repo = MagicMock()
             mock_repo_cls.return_value = mock_repo
             mock_repo.get_by_numbers.return_value = {"SONE-205": [video]}
-            mock_repo.get_by_path.return_value = None
+            # DB 該片同樣沒有 cover_path 紀錄
+            mock_repo.get_by_path.return_value = _make_video(cover_path="")
 
             from core.enricher import enrich_single
             result = enrich_single(
@@ -281,7 +293,8 @@ class TestReasonSuccessBranches:
 
     def test_download_declared_true_but_file_missing_reason_no_cover(self, tmp_path):
         """cover_written=True（download_image 宣告成功）但磁碟實際上沒有檔案
-        （極罕見）→ 磁碟真相優先，仍是 no_cover。"""
+        （極罕見），且 db_to_sidecar 不打 DB（source_used='db' 跳過 _db_upsert），
+        DB cover_path 仍空 → /thumb 服務不到 → no_cover。"""
         video_file = tmp_path / "SONE-205.mp4"
         video_file.write_bytes(b"x")
         video = _make_video(cover_path="https://example.com/cover.jpg")
@@ -295,7 +308,8 @@ class TestReasonSuccessBranches:
             mock_repo = MagicMock()
             mock_repo_cls.return_value = mock_repo
             mock_repo.get_by_numbers.return_value = {"SONE-205": [video]}
-            mock_repo.get_by_path.return_value = None
+            # DB 該片 cover_path 仍空（db_to_sidecar 不寫 DB）
+            mock_repo.get_by_path.return_value = _make_video(cover_path="")
 
             from core.enricher import enrich_single
             result = enrich_single(
@@ -307,16 +321,18 @@ class TestReasonSuccessBranches:
 
         assert result.success is True
         assert result.cover_written is True  # 宣告值
-        assert not (tmp_path / "SONE-205.jpg").exists()  # 磁碟真相：無檔
-        assert result.reason == "no_cover"  # 磁碟真相覆蓋宣告值
+        assert not (tmp_path / "SONE-205.jpg").exists()  # 磁碟無檔
+        # db_to_sidecar 跳過 _db_upsert、DB cover_path 仍空 → /thumb 服務不到 → no_cover
+        assert result.reason == "no_cover"
 
     def test_codex_p1_regression_lock_nfo_only_cover_already_exists_is_hit(self, tmp_path):
-        """Codex P1 回歸鎖：本輪只補 NFO（nfo_written=True），封面本就存在磁碟
-        （cover_written=False 是因為 _write_cover 對既存檔案 skip，不是因為沒有封面）
-        → reason 必須是 'hit'，絕不能是 'no_cover'。
+        """Codex P1 回歸鎖（初版）：本輪只補 NFO（nfo_written=True），封面本就存在磁碟
+        （cover_written=False 是因為 _write_cover 對既存檔案 skip，不是因為沒有封面），
+        且 DB 該片的 cover_path 本就有值（掃描/入庫時已記錄，這是主路徑：封面早已
+        存在且被 DB 追蹤，本輪只是補 NFO）→ reason 必須是 'hit'，絕不能是 'no_cover'。
 
         這條測試若實作用 `cover_written` 來判斷 reason 就會 FAIL（因為
-        cover_written 是 False）；只有用 os.path.exists(cover.jpg) 磁碟真相
+        cover_written 是 False）；只有用「DB cover_path 真相」（鏡射 /thumb gate）
         判斷才會 PASS。
         """
         video_file = tmp_path / "SONE-205.mp4"
@@ -333,7 +349,10 @@ class TestReasonSuccessBranches:
             mock_repo = MagicMock()
             mock_repo_cls.return_value = mock_repo
             mock_repo.get_by_numbers.return_value = {"SONE-205": [video]}
-            mock_repo.get_by_path.return_value = None
+            # 真實主路徑：封面已入 DB（掃描時記錄），不是 None
+            mock_repo.get_by_path.return_value = _make_video(
+                cover_path="file:///tmp/lib/SONE-205.jpg"
+            )
 
             from core.enricher import enrich_single
             result = enrich_single(
@@ -353,6 +372,53 @@ class TestReasonSuccessBranches:
         assert cover_path.exists()
         # 回歸鎖核心斷言
         assert result.reason == "hit"
+
+    def test_codex_p1_v2_disk_cover_not_in_db_is_no_cover(self, tmp_path):
+        """Codex P1 回歸鎖（v0.11.9 修正版）：磁碟有 .jpg，但 DB 該片 cover_path
+        空（散落 sidecar 未入 DB／db·nfo-sourced 命中跳過 core/enricher.py:514 的
+        _db_upsert）→ reason 必須是 'no_cover'，不能是 'hit'。
+
+        /thumb（web/routers/scanner.py:1276）硬要求 DB cover_path 非空、不
+        fallback 磁碟 sidecar；若這裡誤判 hit，前端命中封面飛入會拿到 404 破圖，
+        且該片仍會留在 missing_cover 清單（scanner.py:~982 同樣看 DB cover_path）。
+
+        這條測試若實作退回「cover.jpg 磁碟真相」（os.path.exists）判斷會 FAIL
+        （因為磁碟上確實有檔案，會誤判 hit）；只有重讀 DB cover_path 真相
+        （鏡射 /thumb gate）才會 PASS。
+        """
+        video_file = tmp_path / "SONE-205.mp4"
+        video_file.write_bytes(b"x")
+        cover_path = tmp_path / "SONE-205.jpg"
+        cover_path.write_bytes(b"stray-cover-not-tracked-in-db")  # 磁碟有，DB 沒記錄
+        video = _make_video(cover_path="https://example.com/cover.jpg")
+
+        with (
+            patch("core.enricher.VideoRepository") as mock_repo_cls,
+            patch("core.enricher.generate_nfo", return_value=True) as mock_nfo,
+            patch("core.enricher.download_image") as mock_dl,
+        ):
+            mock_repo = MagicMock()
+            mock_repo_cls.return_value = mock_repo
+            mock_repo.get_by_numbers.return_value = {"SONE-205": [video]}
+            # DB 該片 cover_path 空（散落 sidecar 未入庫的 bug 案例）
+            mock_repo.get_by_path.return_value = _make_video(cover_path="")
+
+            from core.enricher import enrich_single
+            result = enrich_single(
+                file_path=str(video_file),
+                number="SONE-205",
+                mode="db_to_sidecar",
+                overwrite_existing=False,  # NFO 不存在會寫；cover 已存在則 skip
+            )
+
+        mock_nfo.assert_called_once()
+        assert result.nfo_written is True
+        mock_dl.assert_not_called()
+        assert result.cover_written is False
+        # 磁碟上確實有檔案 —— 但這不該再是 reason 的判準
+        assert cover_path.exists()
+        # 回歸鎖核心斷言：DB 沒記錄 → /thumb 服務不到 → 誠實回報 no_cover
+        assert result.reason == "no_cover"
 
 
 # ── fetch_samples_only 不 crash（default reason）─────────────────────────
