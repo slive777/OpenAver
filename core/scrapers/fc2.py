@@ -1,4 +1,5 @@
 """FC2 爬蟲（使用 FC2Hub/javten.com）"""
+import json
 import re
 import requests
 from typing import Optional
@@ -102,6 +103,21 @@ class FC2Scraper(BaseScraper):
         text = text.replace("\\n", " ").replace("・", "").strip()
         return text
 
+    def _get_rating(self, html) -> Optional[float]:
+        """取得評分（JSON-LD aggregateRating.ratingValue，0–5，defensive）"""
+        scripts = html.xpath('//script[@type="application/ld+json"]/text()')
+        for script in scripts:
+            try:
+                data = json.loads(script)
+                # JSON-LD 可能是單一物件（dict）或陣列/@graph（list）
+                nodes = data if isinstance(data, list) else [data]
+                for node in nodes:
+                    if isinstance(node, dict) and "aggregateRating" in node:
+                        return float(node["aggregateRating"]["ratingValue"])
+            except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+                continue
+        return None
+
     def _is_uncensored(self, tags: list[str], title: str) -> bool:
         """判斷是否無碼"""
         text = " ".join(tags) + " " + title
@@ -172,7 +188,8 @@ class FC2Scraper(BaseScraper):
             cover_url = self._get_cover(html)
             studio = self._get_studio(html)
             tags = self._get_tags(html)
-            _outline = self._get_outline(html)
+            outline = self._get_outline(html)
+            rating = self._get_rating(html)
             _is_uncensored = self._is_uncensored(tags, title)
             sample_images = self._get_extrafanart(html)
 
@@ -193,6 +210,8 @@ class FC2Scraper(BaseScraper):
                 source=self.source_name,
                 detail_url=detail_url,
                 sample_images=sample_images,
+                summary=outline,
+                rating=rating,
             )
 
             # 節流
