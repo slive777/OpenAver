@@ -97,7 +97,7 @@
                 <!-- Row 4: Details (merged) -->
                 <!-- 分隔符 " · " 內嵌於各 span 開頭，隨 x-show 一起顯示/隱藏，避免孤立 · -->
                 <div class="lb-details">
-                    <span x-text="currentLightboxVideo()?.number || '-'"></span>
+                    <span class="lb-detail-num" x-text="currentLightboxVideo()?.number || '-'"></span>
                     <span x-show="currentLightboxVideo()?.maker">
                         &nbsp;·&nbsp;<span x-text="currentLightboxVideo()?.maker"></span>
                     </span>
