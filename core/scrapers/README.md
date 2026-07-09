@@ -39,6 +39,21 @@ core/scrapers/utils.py
 
 > `javlibrary` 在 `SOURCE_ORDER` 建立後才 `append` 進 `CENSORED_SOURCES`，確保不污染 fan-out 排序（CD-70b-10）。
 
+### 1.4 評分 / 簡介覆蓋（NFO-only，spec-93）
+
+各來源網站有提供才抓，寫進 `Video.rating`（parse 一律正規化 0–5，NFO writer ×2→Jellyfin 0–10）/ `Video.summary`。**NFO-only**：經 `_summary`/`_rating` internal carrier 只流向 NFO `<plot>`/`<rating>`（給 Jellyfin/Emby/Kodi 顯示），API 回前端前一律 strip、不進 DB、不進 OpenAver UI、不翻譯（US7 契約）。
+
+| 來源 | 評分 | 簡介 | 取得方式（皆同請求免費，除註記） |
+|------|------|------|----------------------------------|
+| `dmm` | ✅ | ✅ | 簡介＝主 `DETAIL_QUERY` 的 `description`；評分＝**獨立 root probe** `reviewSummary(contentId:){average}`（三態 cache、禁擴 `DETAIL_QUERY`、失敗降級不影響主 metadata）|
+| `jav321` | ✅ | ✅ | 同頁文字 `平均評価: N.N`（0–5，勿 ÷10）+ 描述 div |
+| `fc2` | ✅ | ✅ | JSON-LD `aggregateRating`（支援 `@graph`）+ `div.col.des` 簡介 |
+| `heyzo` | ✅ | ✅ | 同一 JSON-LD `aggregateRating` + `description` |
+| `d2pass`（1pondo/10musume）| ✅ | ✅ | 同一 phpauto JSON `AvgRating`（`<=5` guard）+ `Desc` |
+| `d2pass`（caribbeancom）| ✅ | ✅ | **JSON API 已死→HTML fallback**：moviepage `itemprop=description` + `meta-rating` 星數 rune-count（0–5）|
+| `javdb` | ✅ | ❌ | `.panel-block` 文字 `評分: N.N分`（站上無簡介）|
+| `javbus` / `avsox` | ❌ | ❌ | 站上無此兩格 → 不做 |
+
 ---
 
 ## 2. 番號重複（collision）行為
