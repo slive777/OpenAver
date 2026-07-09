@@ -502,7 +502,7 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                 # uri-no-reverse: coerce_to_file_uri forward URI build, D2 complement
                 if is_path_readonly(coerce_to_file_uri(item.file_path, _ro_mappings), _ro_prefixes, _ro_writable):
                     failed_count += 1
-                    yield f"data: {json.dumps({'type': 'result-item', 'number': item.number, 'file_path': item.file_path, 'success': False, 'error': _READONLY_SOURCE_ERROR_MSG})}\n\n"
+                    yield f"data: {json.dumps({'type': 'result-item', 'number': item.number, 'file_path': item.file_path, 'success': False, 'error': _READONLY_SOURCE_ERROR_MSG, 'reason': 'readonly'})}\n\n"
                     continue
 
                 try:
@@ -560,7 +560,7 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                 except Exception:
                     logger.exception("batch_enrich item %s 失敗", item.number)
                     failed_count += 1
-                    yield f"data: {json.dumps({'type': 'result-item', 'number': item.number, 'file_path': item.file_path, 'success': False, 'error': 'enrich 處理失敗，請查閱日誌'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'result-item', 'number': item.number, 'file_path': item.file_path, 'success': False, 'error': 'enrich 處理失敗，請查閱日誌', 'reason': 'error'})}\n\n"
 
             yield f"data: {json.dumps({'type': 'done', 'summary': {'total': total, 'success': success_count, 'failed': failed_count}})}\n\n"
             # 53b-T3: 補完完成通知
