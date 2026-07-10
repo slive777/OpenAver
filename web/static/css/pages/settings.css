@@ -63,6 +63,54 @@
 }
 
 
+/* ========== 95b: 列表生成兩層 IA — tier 標題 / 揭露 note / 離線匯出說明條 ========== */
+
+/* 外層 tier 小標題（略小於 .settings-card-header、次級色階） */
+#settings-components .settings-tier-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0 0 0.75rem;
+}
+
+/* 有意義的揭露文案（排序/每頁「也是 Showcase 預設」、顯示模式「僅影響匯出」）
+   比 .settings-hint 的 --text-muted 稍顯，仍克制 */
+#settings-components .settings-note-inline {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+/* 離線 HTML 匯出 Windows 說明條（克制版 CD-95b-6）：
+   只以 --stroke-subtle 左框線區隔，不上背景色塊 / 藍色 alert / 玻璃卡 */
+#settings-components .settings-export-notice {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+    padding-left: 0.75rem;
+    margin: 0 0 1rem;
+    border-left: 2px solid var(--stroke-subtle);
+}
+
+#settings-components .settings-export-notice > i {
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+}
+
+/* file:// 內聯 code — 鏡射既有內聯 code 慣例（theme.css .output-info .path code） */
+#settings-components .settings-export-notice code {
+    background: var(--border-light);
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--radius-xs);
+    color: var(--text-primary);
+}
+
+
 /* 64b-5: .settings-tab-bar / .settings-tab CSS 已移除（HTML 於 64b-1 拆除）。
    64c-2: quick-jump nav（64b-2）整組回捲（CD-64-B12）。 */
 
