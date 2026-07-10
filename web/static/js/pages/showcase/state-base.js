@@ -214,7 +214,12 @@ export function stateBase() {
                         if (this.lightboxCloseTimer) clearTimeout(this.lightboxCloseTimer);  // F2: cleanup delayed clear timer
                         if (this.toastTimer) clearTimeout(this.toastTimer);
                         if (this.lightboxOpen) document.body.classList.remove('overflow-hidden');
-                        this._resetPicker();                                  // 53a-T1: 清場 picker 狀態
+                        this._resetPicker();                                  // 53a-T1: 清場 picker 狀態（含 abort _pickerReadyAbort）
+                        // nexttick-hydrate P2-2：離頁時 mobile 面板不走 closeMobilePanel（僅 matchMedia
+                        // 960 觸發），故其 in-flight waitForMount observer 不會被 abort → 顯式收（與
+                        // _resetPicker 對稱，冪等）。
+                        this._mobileReadyAbort?.abort();
+                        this._mobileReadyAbort = null;
                         window.GhostFly?.cleanupStaleGhosts?.();              // 53a-T1: 移除殘留 ghost（沿 v0.8.1 T4 optional-chaining pattern）
                         if (this._scrollHideHandler) window.removeEventListener('scroll', this._scrollHideHandler);  // T1: cleanup scroll collapse listener
                     }

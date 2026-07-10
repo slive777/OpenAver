@@ -8,7 +8,10 @@
     "lint:js": "eslint web/static/js/",
     "lint:css": "stylelint \"web/static/css/**/*.css\"",
     "lint:html": "node scripts/lint-settings-ia.mjs",
-    "test:tokenizer": "node --test \"web/static/js/pages/settings/__tests__/**/*.test.mjs\""
+    "test": "node --test \"web/static/js/**/__tests__/**/*.test.mjs\"",
+    "test:tokenizer": "node --test \"web/static/js/pages/settings/__tests__/**/*.test.mjs\"",
+    "test:dom-timing": "node --test \"web/static/js/shared/__tests__/**/*.test.mjs\"",
+    "test:scanner-order": "node --test \"web/static/js/pages/scanner/__tests__/**/*.test.mjs\""
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

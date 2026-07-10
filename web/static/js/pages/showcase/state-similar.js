@@ -42,6 +42,7 @@ import {
   playExit,
 } from '@/shared/constellation/animations.js';
 import { BreathingManager } from '@/shared/constellation/breathing.js';
+import { waitForMount } from '@/shared/dom-timing.js';
 
 // T6 (CD-T6-1)：hover corridor half-width（與 motion-lab host 同值 40px）
 const HOVER_DISTANCE = 40;
@@ -103,6 +104,8 @@ export function stateSimilar() {
     _similarRailStarMap: {},
     _similarGsapCtx: null,
     _similarGeneration: 0,            // stale callback invalidation
+    _similarReadyAbort: null,         // T2: initSimilarStage waitForMount 的 per-open AbortController
+    _mobileReadyAbort: null,          // T2: 手機面板 open/drill waitForMount 的 per-run AbortController
     // 56c-T4: ghost-fly enter onComplete 後 park 到 .similar-stage-inner 變 static img
     // 取代既有 fixed ghost（resize-frozen），與 8 cards 同 layout 路徑 → resize-safe
     _similarMainStatic: null,
@@ -132,10 +135,20 @@ export function stateSimilar() {
      * initSimilarStage — x-effect 在 similarModeOpen=true 時觸發。
      * Alpine 10 gotcha：12 slot card / 12 rail 由 <template x-for> 渲染，
      * Alpine reactive flush 是 microtask，同 sync 路徑 querySelector 拿到 0 個。
-     * 必須 await this.$nextTick() 才能取到 DOM refs（56b motion-lab host 已踩過）。
+     * T2（CD-3）：改 waitForMount 等 `#similar-card-01` mount（取代 $nextTick——
+     * 冷模組快取下 $nextTick 可能不 fire → stage 永久空白）。observer 存活到
+     * destroySimilarStage abort；ready===false 只會來自 abort → 靜默 bail。
      */
     async initSimilarStage() {
-      await this.$nextTick();
+      this._similarReadyAbort?.abort();          // 前一次殘留（連開）先收
+      this._similarReadyAbort = new AbortController();
+      const stageRoot = this.$el.querySelector('.similar-stage') || this.$el;
+      const { ready } = await waitForMount(
+        stageRoot,
+        () => !!document.getElementById('similar-card-01'),
+        { signal: this._similarReadyAbort.signal },
+      );
+      if (!ready) return;   // abort（destroySimilarStage）→ 不對 null refs 建 stage
       const generation = ++this._similarGeneration;
 
       // 1. 建立 GSAP context（destroy 時 revert 收所有 ctx scope tween）
@@ -187,6 +200,11 @@ export function stateSimilar() {
      */
     destroySimilarStage() {
       this._similarGeneration += 1; // invalidate in-flight callbacks
+
+      // T2（CD-3a）：abort in-flight waitForMount → observer disconnect（冪等）；
+      // 若 initSimilarStage 仍卡在等 card mount（冷載 stall），ready===false 靜默 bail。
+      this._similarReadyAbort?.abort();
+      this._similarReadyAbort = null;
 
       this._cancelSimilarIdleAcknowledge();
 
@@ -1253,6 +1271,13 @@ export function stateSimilar() {
         return;
       }
 
+      // T2 fix（sonnet review F1）：swap 前 snapshot 舊卡。similarResults 關面板時不清空，
+      // 且桌面相似流程也會填 similarResults → 面板重開/首開時 DOM 常有前一輪殘卡。若 predicate
+      // 只數總量，entry-sync 會被殘卡騙成「已就緒」→ observer 從不掛上（hardening 變空砲）。
+      // 故與 drill 同法濾掉 preCards，只認 swap 後新 mount 的卡。
+      const preCards = [...document.querySelectorAll(
+        '.similar-mobile-burst-card:not(.similar-mobile-card-detached)')];
+
       // 填資料 + 重置 drill 歷史
       this.similarResults = items;
       this.similarQueryVideo = data.query_video;
@@ -1277,8 +1302,24 @@ export function stateSimilar() {
       const panelEl = document.querySelector('.similar-mobile-panel');
       if (panelEl) panelEl.classList.add('show');
 
-      // 等 x-for 渲染 6 卡 + layout flush（$nextTick 讓 mobilePanelCoverImg rect 有效）
-      await this.$nextTick();
+      // 等 x-for 渲染卡 + layout flush（T2/CD-3：waitForMount 取代 $nextTick——冷載
+      // stall 時 observer 於卡片插入當下就緒，非放棄）。predicate 用 expectedCards 非硬編 6
+      // （相似結果可能 <6）；observer root = 恆掛載的 .similar-mobile-panel；close/新 drill abort。
+      // expectedCards = 唯一 video_id 數（x-for :key=runId+'-'+video_id）：正常皆相異＝items.length，
+      // 但若後端誤傳重複 video_id，Alpine keyed dedup 只渲染唯一數 → 用 length 會 predicate 永不成立
+      // 卡死 similarModeAnimating（Opus review P2-1）。uniq ≤ length，只會更早/相等 resolve、不影響暖路徑。
+      const expectedCards = new Set(items.map(i => i.video_id)).size;
+      this._mobileReadyAbort?.abort();
+      this._mobileReadyAbort = new AbortController();
+      const mobilePanelRoot = document.querySelector('.similar-mobile-panel');
+      const openReady = await waitForMount(
+        mobilePanelRoot,
+        () => [...document.querySelectorAll(
+          '.similar-mobile-burst-card:not(.similar-mobile-card-detached)')]
+          .filter(el => !preCards.includes(el)).length >= expectedCards,
+        { signal: this._mobileReadyAbort.signal },
+      );
+      if (!openReady.ready) return;   // abort（closeMobilePanel / 新 drill）→ 靜默 bail
 
       // 83b-T3：進場 ghost 飛行（similarModeAnimating 保持 true 直到飛行完成）
       if (window.GhostFly && window.BurstPicker &&
@@ -1486,7 +1527,22 @@ export function stateSimilar() {
       if (!(window.BurstPicker && coverEl) && coverEl && item.cover_url) {
         coverEl.src = item.cover_url;
       }
-      await this.$nextTick();
+      // T2/CD-3：waitForMount 等 swap 後的新卡（非 oldCards）mount。predicate 用 expectedCards
+      // = 唯一 video_id 數（非硬編 6、非裸 length——重複 video_id 時 keyed dedup 渲染較少，用
+      // length 會卡死 similarModeAnimating，Opus review P2-1）；observer root = 恆掛載的
+      // .similar-mobile-panel；close（closeMobilePanel abort + bump runId）→ ready:false 提前 bail。
+      const expectedCards = new Set(items.map(i => i.video_id)).size;
+      this._mobileReadyAbort?.abort();
+      this._mobileReadyAbort = new AbortController();
+      const drillPanelRoot = document.querySelector('.similar-mobile-panel');
+      const drillReady = await waitForMount(
+        drillPanelRoot,
+        () => [...document.querySelectorAll(
+          '.similar-mobile-burst-card:not(.similar-mobile-card-detached)')]
+          .filter(el => !oldCards.includes(el)).length >= expectedCards,
+        { signal: this._mobileReadyAbort.signal },
+      );
+      if (!drillReady.ready) return;   // abort（close / 新 drill）→ 靜默 bail
       const newCards = [...document.querySelectorAll(
         '.similar-mobile-burst-card:not(.similar-mobile-card-detached)')]
         .filter(el => !oldCards.includes(el));
@@ -1539,6 +1595,10 @@ export function stateSimilar() {
       // 不在已清空/已關的面板上啟動 float tween（避免 leak）。亦與第二道 drill stale-check 協同：
       // 重開面板取得全新 runId，不被舊 in-flight burst 汙染。
       this._mobilePanelRunId++;
+
+      // T2（CD-3a）：abort in-flight open/drill waitForMount → observer disconnect（冪等）
+      this._mobileReadyAbort?.abort();
+      this._mobileReadyAbort = null;
 
       // 83b-T1fix1: 清掉仍在墜落的 detached fixed 舊卡（ExitAll Promise 尚未 resolve 時關面板），避免殘留 overlay
       document.querySelectorAll('.similar-mobile-card-detached').forEach(el => el.remove());

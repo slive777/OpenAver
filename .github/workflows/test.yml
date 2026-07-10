@@ -64,6 +64,9 @@ jobs:
       - name: Run frontend lint (eslint + stylelint)
         run: npm run lint
 
+      - name: Run frontend node tests (structural guards + unit)
+        run: npm test
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:

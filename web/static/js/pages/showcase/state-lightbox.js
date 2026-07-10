@@ -11,6 +11,7 @@
 import { _filteredVideos, _filteredActresses, _killLightboxTimelines, _NO_COVER_PLACEHOLDER } from '@/showcase/state-base.js';
 import { POSTER_CROP_MAX_W } from '@/shared/breakpoints.js';
 import { detectSwipe } from '@/shared/swipe.js';
+import { waitForMount } from '@/shared/dom-timing.js';
 
 export function stateLightbox() {
     // 49b T4cd: Picker 動畫參數（T1 fix2 定案，2026-04-25）
@@ -62,6 +63,7 @@ export function stateLightbox() {
         _pickerRunId: 0,
         _pickerSSE: null,
         _pickerBurstFired: false,       // SSE 收齊後一次 burst（防 done/error 重複觸發）
+        _pickerReadyAbort: null,        // T3: _burstAllPickerCandidates waitForMount 的 per-run AbortController
 
         // User Tags 狀態 (T4)
         addingLbTag: false,
@@ -920,12 +922,22 @@ export function stateLightbox() {
             if (this._pickerRunId !== runId) return;
             if (this._candidates.length === 0) return;
             if (this._pickerBurstFired) return;     // 防 done/timeout/error 重複觸發
-            this._pickerBurstFired = true;
+            this._pickerBurstFired = true;          // dedup latch 維持在等待前（位置不動）
 
-            await this.$nextTick();
+            // T3（CD-3/CD-3a）：waitForMount 等候選卡 mount 取代 $nextTick。predicate 用
+            // expected（burst 時 _candidates 已定，SSE 已 close 不再增）非硬編；observer root =
+            // 恆掛載的 pickerGrid（overlay x-show）。ready===false 只來自 abort（_resetPicker /
+            // close / 換 run）→ 靜默 bail；不做任何 timeout give-up（observer 承擔 late-mount）。
+            const expected = this._candidates.length;
+            const grid = this.$refs.pickerGrid;
+            const { ready } = await waitForMount(
+                grid,
+                () => (grid?.querySelectorAll('.picker-candidate-card').length || 0) >= expected,
+                { signal: this._pickerReadyAbort?.signal },
+            );
+            if (!ready) return;
             if (this._pickerRunId !== runId) return;
 
-            const grid = this.$refs.pickerGrid;
             const coverEl = this.$refs.pickerCoverImg;
             if (!grid || !coverEl || typeof window.BurstPicker === 'undefined') return;
 
@@ -954,6 +966,9 @@ export function stateLightbox() {
             const sse = new EventSource(url);
             this._pickerSSE = sse;
             this._pickerBurstFired = false;
+            // T3: per-run readiness abort（_resetPicker / close / 換 run 時 abort → observer disconnect）
+            this._pickerReadyAbort?.abort();
+            this._pickerReadyAbort = new AbortController();
 
             sse.addEventListener('candidate', (e) => {
                 if (this._pickerRunId !== runId) { sse.close(); return; }
@@ -1165,6 +1180,10 @@ export function stateLightbox() {
             this._candidates = [];
             this._pickerCurrentSource = null;
             this._pickerBurstFired = false;
+            // T3（CD-3a）：abort in-flight readiness observer（冪等）。_resetPicker 是所有 teardown
+            // 路徑（_closePicker / _cancelPicker / re-open / lightbox cleanup）的共同匯流點。
+            this._pickerReadyAbort?.abort();
+            this._pickerReadyAbort = null;
             this._pickerFloatTweens.forEach(t => t && t.kill && t.kill());
             this._pickerFloatTweens = [];
             // 清掉 _burstAllPickerCandidates 設的 --picker-cols

@@ -717,10 +717,13 @@ export function stateConfig() {
                     //   ready」的冷載時序）；mountFilenameEditor 尾端亦呼叫同方法（imperative
                     //   路徑，覆蓋「mount 晚於 ready」）。one-shot（naming.filenameHydrated）
                     //   保證只載一次，避免打斷編輯游標。
-                    // - folder：層 editor 於 folderLayerList 設後 x-for render self-hydrate；
-                    //   既有 $nextTick(_hydrateNamingEditors) 保留給 folder 層（本 task 不動）。
+                    // - folder：層 editor 於 folderLayerList 設後 x-for render 時，mountLayerEditor
+                    //   的 if(naming.ready) 同步 self-hydrate（naming.ready 早在 :574 已 true）。
+                    // nexttick-hydrate T4.3：移除既有 $nextTick(_hydrateNamingEditors) 死備援——
+                    //   filename 有 x-effect + mountFilenameEditor 兩活觸發、folder 有 mount 時
+                    //   self-hydrate，此 tick（及其 _hydrateNamingEditors）全冗餘且複現 95a-T8 冷載
+                    //   $nextTick 不 fire 的隱患，故整條移除。
                     this.namingConfigReady = true;
-                    this.$nextTick(() => this._hydrateNamingEditors());
 
                     // Hydrate metatube fields from config + /status (CD-63b-3)
                     this.metatubeEnabled = config.metatube?.enabled || false;
@@ -1188,19 +1191,6 @@ export function stateConfig() {
             naming.layerEditors[layerId] = ed;
             if (naming.ready) {
                 const l = this.form.folderLayerList.find(x => x.id === layerId);
-                ed.whitelist = this._whitelistFor('folder');
-                ed.load(l ? l.value : '');
-                ed.setDisabled(!this.form.createFolder);
-            }
-        },
-
-        _hydrateNamingEditors() {
-            // 95a-T8: filename 分支改走 hydrateFilenameEditor() one-shot 收斂——這條 $nextTick
-            // 若在冷載下遲來 release，可能與 x-effect / mount imperative 路徑重複觸發；one-shot
-            // guard 統一收斂在單一方法，避免重複 load 打斷編輯游標。folder 迴圈不動（95a-T8 範圍外）。
-            this.hydrateFilenameEditor();
-            for (const [id, ed] of Object.entries(naming.layerEditors)) {
-                const l = this.form.folderLayerList.find(x => String(x.id) === String(id));
                 ed.whitelist = this._whitelistFor('folder');
                 ed.load(l ? l.value : '');
                 ed.setDisabled(!this.form.createFolder);

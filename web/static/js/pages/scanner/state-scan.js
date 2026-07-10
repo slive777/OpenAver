@@ -156,30 +156,10 @@ export function stateScan() {
             // 暴露 PyWebView 回調
             window.addScannerFolder = (path) => self.addFolderPath(path);
 
-            // 初始載入
-            await this.loadConfig();
-            this.loadStats();
-
-            // T7b: 恢復日誌（確保 DOM 已渲染）
-            await this.$nextTick();
-            this.restoreLogs();
-
-            // T10: 觸發 missing check（loadStats 後）
-            this.checkMissing();
-
-            // T10: restore pending enrich
-            const pending = localStorage.getItem('avlist_enrich_pending');
-            if (pending) {
-                try {
-                    const items = JSON.parse(pending);
-                    if (Array.isArray(items) && items.length > 0) {
-                        this.missingItems = items;
-                        this.resumePillVisible = true;
-                    }
-                } catch { localStorage.removeItem('avlist_enrich_pending'); }
-            }
-
             // T5.1: 接入統一 page lifecycle
+            // 提前到所有 await 之前註冊：closure 讀的都是 this.* runtime state，
+            // 提前註冊不改變行為；但避免 loadConfig fetch 卡住時離頁 dirty-guard /
+            // beforeunload / cleanup hook 永遠不註冊（SCAN HIGH #1）。
             if (window.__registerPage) {
                 window.__registerPage({
                     beforeLeave: (href) => {
@@ -236,6 +216,29 @@ export function stateScan() {
                         }
                     }
                 });
+            }
+
+            // 初始載入
+            await this.loadConfig();
+            this.loadStats();
+
+            // T7b: 恢復日誌（logOutput 為 scanner.html 靜態 x-ref 元素，
+            // init 時早已 mount，直接同步還原、無需等 $nextTick）
+            this.restoreLogs();
+
+            // T10: 觸發 missing check（loadStats 後）
+            this.checkMissing();
+
+            // T10: restore pending enrich
+            const pending = localStorage.getItem('avlist_enrich_pending');
+            if (pending) {
+                try {
+                    const items = JSON.parse(pending);
+                    if (Array.isArray(items) && items.length > 0) {
+                        this.missingItems = items;
+                        this.resumePillVisible = true;
+                    }
+                } catch { localStorage.removeItem('avlist_enrich_pending'); }
             }
         },
 
