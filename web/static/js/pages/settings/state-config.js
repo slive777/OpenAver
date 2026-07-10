@@ -1,7 +1,18 @@
+import { ChipEditor } from '@/settings/chip-editor.js';
+
 // 同時啟用來源數上限（前端鏡像；後端真理來源 core/source_config.py:MAX_ENABLED_SOURCES）
 const MAX_ENABLED_SOURCES = 10;
 
 export function stateConfig() {
+    // 命名區 ChipEditor 實例與非響應狀態存**閉包 holder**（不進 Alpine x-data）：
+    // ChipEditor 持 contentEditable DOM ref，被 reactive proxy 包裹有風險；folderLayerList
+    // 與 formatVariables 才需響應（x-for + isDirty / 選單），留在 return 物件（CD-95a-9/12）。
+    const naming = {
+        filenameEditor: null,   // ChipEditor（檔名格式）
+        layerEditors: {},       // { [layerId]: ChipEditor } 各資料夾層
+        layerSeq: 0,            // 穩定遞增 id 計數器（禁用 index/value 當 key，CD-95a-12）
+        ready: false,           // formatVariables 就緒後才 hydrate 膠囊
+    };
     return {
         // ===== Form State =====
         form: {
@@ -23,9 +34,9 @@ export function stateConfig() {
 
             // Scraper
             createFolder: true,
-            folderLayer1: '',
-            folderLayer2: '',
-            folderLayer3: '{num}',
+            // 資料夾層級：{id,value}[] 動態清單（外→內，上到下）。load 時 slice(0,3) 正規化
+            // （後端只用前 3 層，CD-95a-7/12）。id 走 naming.layerSeq，x-for :key="layer.id"。
+            folderLayerList: [],
             filenameFormat: '[{num}][{maker}] {title}',
             maxTitleLength: 80,
             maxFilenameLength: 200,
@@ -121,33 +132,10 @@ export function stateConfig() {
         // 來源分群常數（與 core/scrapers/utils.py 同步）
         CENSORED_SOURCES: ['dmm', 'javbus', 'jav321', 'javdb'],
 
-        get formatVariables() {
-            return [
-                { name: '{num}', label: window.t('settings.var.num') },
-                { name: '{title}', label: window.t('settings.var.title') },
-                { name: '{actor}', label: window.t('settings.var.actor') },
-                { name: '{actors}', label: window.t('settings.var.actors') },
-                { name: '{maker}', label: window.t('settings.var.maker') },
-                { name: '{date}', label: window.t('settings.var.date') },
-                { name: '{year}', label: window.t('settings.var.year') },
-                { name: '{month}', label: window.t('settings.var.month') },
-                { name: '{day}', label: window.t('settings.var.day') },
-                { name: '{suffix}', label: window.t('settings.var.suffix') },
-            ];
-        },
-        get folderVariables() {
-            return [
-                { name: '{num}', label: window.t('settings.var.num') },
-                { name: '{actor}', label: window.t('settings.var.actor') },
-                { name: '{maker}', label: window.t('settings.var.maker') },
-                { name: '{title}', label: window.t('settings.var.title') },
-                { name: '{date}', label: window.t('settings.var.date') },
-                { name: '{year}', label: window.t('settings.var.year') },
-                { name: '{month}', label: window.t('settings.var.month') },
-                { name: '{day}', label: window.t('settings.var.day') },
-                { name: '{suffix}', label: window.t('settings.var.suffix') },
-            ];
-        },
+        // 變數清單單一真理來源（SSOT）：loadConfig 由 /api/config/format-variables fetch。
+        // stub `[]` 供 async resolve 前 template binding 不丟 ReferenceError（CD-95a-8）。
+        // 每項形 { name:'{num}', description, example, folder_ok }；label 走 i18n（_labelFor）。
+        formatVariables: [],
         FOLDER_PREVIEW_DATA: {
             num: 'SSNI-618',
             maker: 'SOD',
@@ -169,15 +157,6 @@ export function stateConfig() {
                 || this.openaiUseCustomModel !== this.savedOpenaiUseCustomModel;
         },
 
-        get layer3Enabled() {
-            return this.form.createFolder;
-        },
-        get layer2Enabled() {
-            return this.form.createFolder && !!this.form.folderLayer3.trim();
-        },
-        get layer1Enabled() {
-            return this.form.createFolder && !!this.form.folderLayer2.trim();
-        },
         get folderPreviewText() {
             const filenameFormat = this.form.filenameFormat || '{num} {title}';
             let filenamePreview = filenameFormat;
@@ -189,11 +168,9 @@ export function stateConfig() {
                 return filenamePreview + '.mp4';
             }
 
-            const layers = [
-                this.form.folderLayer1.trim(),
-                this.form.folderLayer2.trim(),
-                this.form.folderLayer3.trim()
-            ].filter(v => v);
+            const layers = this.form.folderLayerList
+                .map(l => l.value.trim())
+                .filter(v => v);
 
             let folderPreview = layers.map(layer => {
                 let part = layer;
@@ -336,17 +313,8 @@ export function stateConfig() {
             // Watch for form changes
             this.$watch('form.translateEnabled', () => this.updateTranslateOptions());
             this.$watch('form.translateProvider', () => this.onTranslateProviderChange());
-            this.$watch('form.folderLayer3', (newVal, oldVal) => {
-                if (!newVal.trim() && oldVal && oldVal.trim()) {
-                    this.form.folderLayer2 = '';
-                    this.form.folderLayer1 = '';
-                }
-            });
-            this.$watch('form.folderLayer2', (newVal, oldVal) => {
-                if (!newVal.trim() && oldVal && oldVal.trim()) {
-                    this.form.folderLayer1 = '';
-                }
-            });
+            // 資料夾層級改動態清單後，「逐層 enable 級聯清空」邏輯淘汰（增減層直接改陣列，
+            // 不需內層有值才解鎖外層）——原 form.folderLayer3/2 兩個 $watch 一併移除（CD-95a-3）。
             // 71-T5 prewarm 觸發點不放 checkbox $watch：Settings 是表單式儲存，
             // toggle 當下 config.json 尚未寫入，後端 gate（load_config）讀到舊 false → disabled，
             // 且 hydrate（loadConfig false→true）會每次開 Settings 誤觸。改在 saveConfig() 成功後
@@ -581,6 +549,11 @@ export function stateConfig() {
             this.savedState = null;
 
             try {
+                // 命名區變數 SSOT（含 folder_ok 情境旗標）——須在設 folderLayerList（觸發層
+                // x-for render + 膠囊 mount）前就緒，故先 await（CD-95a-8）。
+                await this._loadFormatVariables();
+                naming.ready = true;
+
                 const resp = await fetch('/api/config');
                 const result = await resp.json();
                 if (result.success) {
@@ -625,17 +598,22 @@ export function stateConfig() {
 
                     // Scraper
                     this.form.createFolder = config.scraper.create_folder;
-                    const layers = config.scraper.folder_layers || [];
-                    if (layers.length >= 1) this.form.folderLayer3 = layers[layers.length - 1] || '';
-                    if (layers.length >= 2) this.form.folderLayer2 = layers[layers.length - 2] || '';
-                    if (layers.length >= 3) this.form.folderLayer1 = layers[layers.length - 3] || '';
-                    // 向後兼容：沒有 folder_layers 時從 folder_format 拆分讀取
-                    if (layers.length === 0 && config.scraper.folder_format) {
-                        const parts = config.scraper.folder_format.replace(/\\/g, '/').split('/').filter(p => p.trim());
-                        if (parts.length >= 1) this.form.folderLayer3 = parts[parts.length - 1];
-                        if (parts.length >= 2) this.form.folderLayer2 = parts[parts.length - 2];
-                        if (parts.length >= 3) this.form.folderLayer1 = parts[parts.length - 3];
+                    // 資料夾層級 → {id,value}[] 動態清單（外→內序）。folder_layers 陣列語序即
+                    // organizer 疊資料夾順序（第 0=最外）。無 folder_layers 時從 folder_format 拆遷。
+                    let rawLayers = config.scraper.folder_layers || [];
+                    if (rawLayers.length === 0 && config.scraper.folder_format) {
+                        rawLayers = config.scraper.folder_format
+                            .replace(/\\/g, '/').split('/').filter(p => p.trim());
                     }
+                    // CD-95a-7 / F2：後端 organizer/readonly 皆 layers[:3]，>3 為從未建過資料夾的
+                    // 死資料 → 保留**前 3**（非最後 3，順手修掉舊「取最後 3」inversion）、丟最內層，
+                    // 功能零損失、不彈窗、debug log 留痕。
+                    if (rawLayers.length > 3) {
+                        console.debug(`[settings] folder_layers 有 ${rawLayers.length} 層，已正規化為前 3 層（第 4 層以上為後端未使用的死資料）`);
+                    }
+                    this.form.folderLayerList = rawLayers
+                        .slice(0, 3)
+                        .map(v => ({ id: naming.layerSeq++, value: v }));
 
                     this.form.filenameFormat = config.scraper.filename_format;
                     this.form.maxTitleLength = config.scraper.max_title_length;
@@ -710,6 +688,11 @@ export function stateConfig() {
                     this.savedOpenaiUseCustomModel = this.openaiUseCustomModel;
                     // 解鎖表單（config hydrate 完成）
                     this._configLoading = false;
+
+                    // 命名區膠囊 hydrate：filename editor 早於本次 fetch mount（需此處補載）；
+                    // 層 editor 於 folderLayerList 設後 x-for render self-hydrate。$nextTick 確保
+                    // 層 host 已渲染（CD-95a-9 async 時序）。
+                    this.$nextTick(() => this._hydrateNamingEditors());
 
                     // Hydrate metatube fields from config + /status (CD-63b-3)
                     this.metatubeEnabled = config.metatube?.enabled || false;
@@ -790,12 +773,12 @@ export function stateConfig() {
                 // PUT 成功後與新映射比對，判定「這次儲存是否改動了路徑規則」→ 才提示改寫既有 strm。
                 const prevStrmMappings = JSON.stringify(config.scraper?.strm_path_mappings || {});
 
-                // 更新 scraper
-                const folderLayers = [
-                    this.form.folderLayer1.trim(),
-                    this.form.folderLayer2.trim(),
-                    this.form.folderLayer3.trim()
-                ].filter(v => v);
+                // 更新 scraper：動態清單 → string[]（去空層、防禦性再 slice(0,3)；load 已 slice、
+                // 此處保險，與後端 layers[:3] 一致，CD-95a-7）。序列化回 config.json 純字串陣列（後端零改）。
+                const folderLayers = this.form.folderLayerList
+                    .map(l => l.value.trim())
+                    .filter(v => v)
+                    .slice(0, 3);
 
                 config.scraper = {
                     ...config.scraper,
@@ -1050,36 +1033,115 @@ export function stateConfig() {
             await this.saveConfig();
         },
 
-        insertVariable(targetField, varName) {
-            const input = this.$refs[targetField];
-            const cursorPos = input.selectionStart;
-            const textBefore = this.form[targetField].substring(0, cursorPos);
-            const textAfter = this.form[targetField].substring(cursorPos);
-            this.form[targetField] = textBefore + varName + textAfter;
+        // ===== 命名區膠囊編輯器（feature/95 Part A）=====
+        // 舊 insertVariable/appendVariable/formatPreviewHtml（raw input + tag-badge 預覽）由
+        // ChipEditor 承接（CD-95a-1/9）。以下為 T6 DOM 掛接的 API。
 
-            this.$nextTick(() => {
-                input.focus();
-                input.setSelectionRange(cursorPos + varName.length, cursorPos + varName.length);
-            });
-        },
-
-        appendVariable(targetField, varName) {
-            this.form[targetField] += varName;
-        },
-
-        formatPreviewHtml(formatStr) {
-            if (!formatStr) return '';
-            // Escape HTML to prevent XSS via x-html
-            let html = formatStr.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            // Build a map from token name to label
-            const allVars = [...this.formatVariables, ...this.folderVariables];
-            const seen = new Set();
-            for (const v of allVars) {
-                if (seen.has(v.name)) continue;
-                seen.add(v.name);
-                html = html.replaceAll(v.name, `<span class="tag-badge">${v.label}</span>`);
+        // SSOT fetch：/api/config/format-variables → this.formatVariables（含 folder_ok）。
+        async _loadFormatVariables() {
+            try {
+                const resp = await fetch('/api/config/format-variables');
+                const data = await resp.json();
+                this.formatVariables = Array.isArray(data.variables) ? data.variables : [];
+            } catch (e) {
+                console.error('[settings] format-variables 載入失敗，命名區變數暫缺', e);
+                this.formatVariables = [];
             }
-            return html;
+        },
+
+        // 變數 label 走 i18n；端點 name 帶大括號（{num}），key 無括號（settings.var.num），
+        // 故 slice(1,-1) 剝括號（Codex P1；膠囊插入/序列化仍用完整 {token}）。
+        _labelFor(name) {
+            return window.t('settings.var.' + name.slice(1, -1));
+        },
+
+        _chipDeleteAria(name) {
+            return window.t('settings.scraper.chip_delete') + ' ' + this._labelFor(name);
+        },
+
+        // 情境變數集：folder 無 {suffix}（folder_ok=false，CD-95a-6/8）；filename 全集。
+        _contextVars(context) {
+            return context === 'folder'
+                ? this.formatVariables.filter(v => v.folder_ok)
+                : this.formatVariables;
+        },
+
+        _whitelistFor(context) {
+            return new Set(this._contextVars(context).map(v => v.name));
+        },
+
+        // T6 變數選單用（name + i18n label）。
+        namingMenuVars(context) {
+            return this._contextVars(context).map(v => ({ name: v.name, label: this._labelFor(v.name) }));
+        },
+
+        // 檔名格式膠囊編輯器 mount（T6 x-init）。onChange serialize 寫回 form.filenameFormat。
+        mountFilenameEditor(hostEl) {
+            naming.filenameEditor = new ChipEditor(hostEl, {
+                whitelist: this._whitelistFor('filename'),
+                labelFor: (n) => this._labelFor(n),
+                deleteAriaFor: (n) => this._chipDeleteAria(n),
+                onChange: () => { this.form.filenameFormat = naming.filenameEditor.serialize(); },
+                placeholder: '[{num}][{maker}] {title}{suffix}',
+            });
+            if (naming.ready) {
+                naming.filenameEditor.whitelist = this._whitelistFor('filename');
+                naming.filenameEditor.load(this.form.filenameFormat);
+            }
+        },
+
+        // 資料夾層膠囊編輯器 mount（T6 x-init per layer）。onChange 以 layer.id find 寫回 value
+        // （非位置索引，CD-95a-12）。
+        mountLayerEditor(hostEl, layerId) {
+            const ed = new ChipEditor(hostEl, {
+                whitelist: this._whitelistFor('folder'),
+                labelFor: (n) => this._labelFor(n),
+                deleteAriaFor: (n) => this._chipDeleteAria(n),
+                onChange: () => {
+                    const l = this.form.folderLayerList.find(x => x.id === layerId);
+                    if (l) l.value = ed.serialize();
+                },
+                placeholder: window.t('settings.scraper.layer_placeholder'),
+            });
+            naming.layerEditors[layerId] = ed;
+            if (naming.ready) {
+                const l = this.form.folderLayerList.find(x => x.id === layerId);
+                ed.whitelist = this._whitelistFor('folder');
+                ed.load(l ? l.value : '');
+                ed.setDisabled(!this.form.createFolder);
+            }
+        },
+
+        _hydrateNamingEditors() {
+            if (naming.filenameEditor) {
+                naming.filenameEditor.whitelist = this._whitelistFor('filename');
+                naming.filenameEditor.load(this.form.filenameFormat);
+            }
+            for (const [id, ed] of Object.entries(naming.layerEditors)) {
+                const l = this.form.folderLayerList.find(x => String(x.id) === String(id));
+                ed.whitelist = this._whitelistFor('folder');
+                ed.load(l ? l.value : '');
+                ed.setDisabled(!this.form.createFolder);
+            }
+        },
+
+        insertFilenameVar(name) { naming.filenameEditor?.insertVar(name); },
+        insertLayerVar(layerId, name) { naming.layerEditors[layerId]?.insertVar(name); },
+
+        // 動態層增減（CD-95a-3/7/12）。硬上限 3；刪層 destroy 該 editor + 移除 id 物件（keyed teardown）。
+        addFolderLayer() {
+            if (this.form.folderLayerList.length >= 3) return;
+            this.form.folderLayerList.push({ id: naming.layerSeq++, value: '' });
+        },
+        removeFolderLayer(layerId) {
+            naming.layerEditors[layerId]?.destroy();
+            delete naming.layerEditors[layerId];
+            this.form.folderLayerList = this.form.folderLayerList.filter(l => l.id !== layerId);
+        },
+
+        // create_folder gating（T6 x-effect 綁 form.createFolder）：整段 folder 編輯 disabled。
+        setFolderEditingDisabled(disabled) {
+            for (const ed of Object.values(naming.layerEditors)) ed.setDisabled(disabled);
         },
 
         addSuffix() {
