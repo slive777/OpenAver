@@ -336,7 +336,6 @@
     "section": {
       "search": "搜尋與刮削",
       "scraper_advanced": "進階刮削設定",
-      "gallery_advanced": "進階顯示選項",
       "system": "系統設定"
     },
     "favorite_folder": {
@@ -381,9 +380,11 @@
       "suffix_keywords_hint": "檔名含這些關鍵字時保留為 {suffix}，多個按列表順序拼接",
       "create_folder_label": "建立資料夾",
       "folder_layers_label": "資料夾層級",
-      "folder_layer_outer": "外層",
-      "folder_layer_middle": "中層",
-      "folder_layer_inner": "內層",
+      "add_layer": "新增一層",
+      "remove_layer": "移除此層",
+      "layer_placeholder": "輸入變數或字面文字",
+      "chip_delete": "刪除",
+      "preview_empty_tag": "空值範例",
       "preview_prefix": "預覽",
       "filename_format_label": "檔案命名格式",
       "max_title_length_label": "標題長度限制",
@@ -444,7 +445,12 @@
       "items_per_page_label": "每頁顯示數量",
       "all": "全部",
       "min_size_label": "最小影片尺寸",
-      "min_size_hint": "0 = 不過濾"
+      "min_size_hint": "掃描 / 入庫閾值 — 0 = 不過濾；小於此不入庫（決定你看得到哪些片）",
+      "tier_display": "列表顯示預設",
+      "also_showcase_note": "也是你瀏覽頁（Showcase）的預設",
+      "export_section": "離線 HTML 匯出（Windows 本機檢視用）",
+      "export_notice": "此匯出檔為 Windows 本機雙擊檢視設計；macOS / Linux 請改用 app 瀏覽頁。（成因：封面以 <code>file://</code> 嵌入，Mac 瀏覽器會封鎖本機跨目錄檔）",
+      "mode_export_only_note": "僅影響此匯出檔（不影響 app Showcase）"
     },
     "system": {
       "default_page_label": "啟動時開啟頁面",

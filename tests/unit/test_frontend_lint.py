@@ -8606,8 +8606,9 @@ class TestSettingsPanelStructureGuard:
             # advanced
             "searchFavoriteFolder", "avlistOutputDir", "avlistOutputFilename",
             "avlistMinSize", "defaultPage", "viewerPlayer",
-            # scraping
-            "createFolder", "folderLayer1", "folderLayer2", "folderLayer3",
+            # scraping — feature/95 T6：資料夾層級改動態清單（{id,value}[]，無固定 folderLayer1/2/3
+            # id），故移除該三個斷言；filenameFormat 保留（掛在新膠囊編輯器容器上，守衛續有效）。
+            "createFolder",
             "filenameFormat", "maxTitleLength", "maxFilenameLength", "videoExtensions",
             # organize
             "avlistMode", "avlistSort", "avlistOrder",

@@ -63,6 +63,54 @@
 }
 
 
+/* ========== 95b: 列表生成兩層 IA — tier 標題 / 揭露 note / 離線匯出說明條 ========== */
+
+/* 外層 tier 小標題（略小於 .settings-card-header、次級色階） */
+#settings-components .settings-tier-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0 0 0.75rem;
+}
+
+/* 有意義的揭露文案（排序/每頁「也是 Showcase 預設」、顯示模式「僅影響匯出」）
+   比 .settings-hint 的 --text-muted 稍顯，仍克制 */
+#settings-components .settings-note-inline {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+/* 離線 HTML 匯出 Windows 說明條（克制版 CD-95b-6）：
+   只以 --stroke-subtle 左框線區隔，不上背景色塊 / 藍色 alert / 玻璃卡 */
+#settings-components .settings-export-notice {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+    padding-left: 0.75rem;
+    margin: 0 0 1rem;
+    border-left: 2px solid var(--stroke-subtle);
+}
+
+#settings-components .settings-export-notice > i {
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+}
+
+/* file:// 內聯 code — 鏡射既有內聯 code 慣例（theme.css .output-info .path code） */
+#settings-components .settings-export-notice code {
+    background: var(--border-light);
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--radius-xs);
+    color: var(--text-primary);
+}
+
+
 /* 64b-5: .settings-tab-bar / .settings-tab CSS 已移除（HTML 於 64b-1 拆除）。
    64c-2: quick-jump nav（64b-2）整組回捲（CD-64-B12）。 */
 
@@ -90,20 +138,6 @@
         max-width: none;
     }
 
-    /* 2. Folder Layers Row - 垂直堆疊 */
-    #settings-components .folder-layers-row {
-        flex-direction: column;
-        gap: 8px; /* §4 layout 8pt — 對齊 .settings-form-row gap (L72) */
-    }
-
-    #settings-components .folder-separator {
-        display: none; /* 垂直排列時不需要 / 符號 */
-    }
-
-    #settings-components .folder-layer-group {
-        width: 100%;
-    }
-
     /* 4. 雙 Select 橫排佈局 - 強制垂直 */
     #settings-components .sort-row {
         flex-direction: column !important;
@@ -124,27 +158,6 @@
 
 /* Small Mobile: 480px 以下 */
 @media (max-width: 480px) {
-    /* 3. Variable Input Group - 小螢幕改為可換行，避免欄位高度異常 */
-    #settings-components .variable-input-group {
-        flex-wrap: wrap;
-        align-items: center;
-    }
-
-    /* 輸入框/下拉可縮，避免擠壓造成溢出 */
-    #settings-components .variable-input-group > .input,
-    #settings-components .variable-input-group > .select {
-        flex: 1 1 12rem;
-        min-width: 0;
-    }
-
-    /* 按鈕保持自然寬度，避免像 sample.png 那樣變成超高全寬按鈕 */
-    #settings-components .variable-input-group > .btn,
-    #settings-components .variable-input-group > .btn-variable {
-        width: auto;
-        flex: 0 0 auto;
-        white-space: nowrap;
-    }
-
     /* 5. Input Group Inline - 縮小 number input */
     #settings-components .input-group-inline .input {
         width: 80px;
@@ -1201,4 +1214,210 @@ html.theme-transition-active::view-transition-new(root) {
     top: auto;
     bottom: 1rem;
   }
+}
+
+/* ═══════════ 命名區膠囊編輯器（feature/95 Part A）═══════════
+ * ChipEditor 非受控 contentEditable widget（chip-editor.js）。膠囊視覺沿用
+ * components/source-pill.css（CD-95a-5 / D-A7），此處只做 in-flow inline adapt
+ * （縮小 padding、baseline 對齊、× 刪除鈕）+ 容器樣式，全用專案 token。 */
+
+#settings-components .chip-editor {
+    min-height: 42px;
+    padding: 0.4rem 0.6rem;
+    line-height: 2.2;
+    background: color-mix(in oklch, var(--color-base-200) 70%, transparent);
+    border: 1px solid var(--stroke-default);
+    border-radius: var(--radius-lg);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    cursor: text;
+    outline: none;
+    transition: border-color var(--fluent-duration-fast) var(--fluent-ease-standard),
+                box-shadow var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+#settings-components .chip-editor:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--accent) 55%, transparent);
+}
+
+#settings-components .chip-editor:empty::before {
+    content: attr(data-placeholder);
+    color: var(--text-secondary);
+    opacity: 0.65;
+    pointer-events: none;
+}
+
+#settings-components .chip-editor[aria-disabled="true"] {
+    opacity: 0.5;
+    pointer-events: none;
+    background: color-mix(in oklch, var(--color-base-200) 40%, transparent);
+}
+
+/* Inline adapt of .source-pill for in-flow contentEditable use. */
+#settings-components .source-pill--chip {
+    padding: 0.05rem 0.2rem 0.05rem 0.55rem;
+    gap: 0.15rem;
+    margin: 0 1px;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    vertical-align: 1px;
+    white-space: nowrap;
+}
+
+/* Keep a subtle lift on hover but drop the translateY (caret math stays stable in text flow). */
+#settings-components .source-pill--chip:hover {
+    transform: none;
+    box-shadow: var(--fluent-shadow-2);
+}
+
+#settings-components .source-pill--chip .chip-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    padding: 0;
+    font-size: 0.95rem;
+    line-height: 1;
+    color: color-mix(in oklch, var(--text-primary) 55%, transparent);
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: color var(--fluent-duration-fast) var(--fluent-ease-standard),
+                background var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+#settings-components .source-pill--chip .chip-x:hover {
+    color: var(--text-primary);
+    background: color-mix(in oklch, var(--color-base-content) 12%, transparent);
+}
+
+/* Drag-insertion caret between chips. */
+#settings-components .chip-editor .drop-marker {
+    display: inline-block;
+    width: 2px;
+    height: 1.05em;
+    margin: 0 1px;
+    vertical-align: -3px;
+    background: var(--accent);
+    border-radius: var(--radius-sm);
+}
+
+/* ─── 命名區動態層清單 + 檔名列（feature/95 T6）─── */
+#settings-components .naming-block.naming-disabled {
+    opacity: 0.55;
+}
+
+#settings-components .folder-layer-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* 層序號（上到下＝外到內）。language-neutral 數字徽章。 */
+#settings-components .folder-layer-index {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: color-mix(in oklch, var(--surface-2) 60%, transparent);
+    border: 1px solid var(--stroke-subtle);
+    border-radius: var(--radius-pill);
+}
+
+#settings-components .chip-editor-host {
+    min-width: 0;  /* 允許在 flex row 內縮，膠囊 wrap 不撐破 */
+}
+
+#settings-components .filename-format-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+/* ＋新增一層：克制的 dashed 主色入口。 */
+#settings-components .btn-add-layer {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.8rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--accent);
+    background: transparent;
+    border: 1px dashed color-mix(in oklch, var(--accent) 45%, var(--stroke-subtle));
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background var(--fluent-duration-fast) var(--fluent-ease-standard),
+                border-color var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+#settings-components .btn-add-layer:hover:not(:disabled) {
+    background: color-mix(in oklch, var(--accent) 8%, transparent);
+    border-color: color-mix(in oklch, var(--accent) 60%, transparent);
+}
+
+#settings-components .btn-add-layer:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* 刪層 icon 鈕（hover 才顯危險色）。 */
+#settings-components .btn-layer-remove {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    color: color-mix(in oklch, var(--text-primary) 50%, transparent);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: color var(--fluent-duration-fast) var(--fluent-ease-standard),
+                background var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+#settings-components .btn-layer-remove:hover:not(:disabled) {
+    color: var(--color-error);
+    background: color-mix(in oklch, var(--color-error) 12%, transparent);
+}
+
+#settings-components .btn-layer-remove:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* 誠實預覽（有值 + 空值兩行，U-A2）。 */
+#settings-components .naming-preview .preview-line {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+#settings-components .naming-preview .preview-line-empty {
+    margin-top: 0.15rem;
+    opacity: 0.72;
+    font-size: 0.75rem;
+}
+
+#settings-components .naming-preview .preview-empty-tag {
+    flex: 0 0 auto;
+    padding: 0.08rem 0.4rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.02em;
+    color: var(--text-secondary);
+    background: color-mix(in oklch, var(--surface-2) 55%, transparent);
+    border-radius: var(--radius-sm);
 }

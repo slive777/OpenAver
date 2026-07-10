@@ -317,7 +317,6 @@
     "section": {
       "search": "Search & Scrape",
       "scraper_advanced": "Advanced Scrape Settings",
-      "gallery_advanced": "Advanced Display Options",
       "system": "System Settings"
     },
     "search": {
@@ -356,9 +355,6 @@
       "suffix_keywords_hint": "Filenames containing these keywords are kept as {suffix}; multiple keywords concatenate in list order",
       "create_folder_label": "Create Folder",
       "folder_layers_label": "Folder Layers",
-      "folder_layer_outer": "Outer",
-      "folder_layer_middle": "Middle",
-      "folder_layer_inner": "Inner",
       "preview_prefix": "Preview",
       "filename_format_label": "File Naming Format",
       "max_title_length_label": "Title Length Limit",

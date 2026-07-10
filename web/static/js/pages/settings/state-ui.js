@@ -13,7 +13,7 @@ export function stateUI() {
 
         // 64b-1: 進階摺疊開關（x-collapse 驅動）
         scraperAdvanced: false,
-        galleryAdvanced: false,
+        galleryExport: false,   // 95b-T2: 離線 HTML 匯出摺疊（預設收合，CD-95b-7）
 
         // Toast state
         _toast: { message: '', type: 'success', visible: false },

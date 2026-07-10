@@ -851,95 +851,68 @@
                             </label>
                         </div>
 
+                        <!-- 資料夾層級：可增減層數的動態清單（上到下＝外到內，CD-95a-3/7）。膠囊複用 .source-pill。 -->
                         <div class="settings-form-row">
                             <label class="row-label">{{ t('settings.scraper.folder_layers_label') }}</label>
-                            <div class="flex-1 flex flex-col gap-2">
-                                <!-- 第一行：外層 / 中層 -->
-                                <div class="folder-layers-row">
-                                    <div class="folder-layer-group flex-col items-stretch" :class="{ 'disabled': !layer1Enabled }" x-data="{ open: false }">
-                                        <div class="format-preview" x-show="form.folderLayer1" x-html="formatPreviewHtml(form.folderLayer1)"></div>
-                                        <div class="flex gap-1">
-                                            <input type="text" class="input input-bordered input-sm" id="folderLayer1" placeholder="{{ t('settings.scraper.folder_layer_outer') }}"
-                                                x-model="form.folderLayer1" :disabled="!layer1Enabled">
-                                            <div class="variable-dropdown">
-                                                <button class="btn-variable" type="button"
-                                                    id="folderLayer1Btn" @click="open = !open" :disabled="!layer1Enabled">
-                                                    <i class="bi bi-braces"></i> {{ t('settings.action.variable') }}
-                                                </button>
-                                                <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
-                                                    <template x-for="v in folderVariables" :key="v.name">
-                                                        <span class="variable-badge" @click="appendVariable('folderLayer1', v.name); open = false"
-                                                              x-text="v.label" :title="v.name"></span>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <span class="folder-separator">/</span>
-                                    <div class="folder-layer-group flex-col items-stretch" :class="{ 'disabled': !layer2Enabled }" x-data="{ open: false }">
-                                        <div class="format-preview" x-show="form.folderLayer2" x-html="formatPreviewHtml(form.folderLayer2)"></div>
-                                        <div class="flex gap-1">
-                                            <input type="text" class="input input-bordered input-sm" id="folderLayer2" placeholder="{{ t('settings.scraper.folder_layer_middle') }}"
-                                                x-model="form.folderLayer2" :disabled="!layer2Enabled">
-                                            <div class="variable-dropdown">
-                                                <button class="btn-variable" type="button"
-                                                    id="folderLayer2Btn" @click="open = !open" :disabled="!layer2Enabled">
-                                                    <i class="bi bi-braces"></i> {{ t('settings.action.variable') }}
-                                                </button>
-                                                <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
-                                                    <template x-for="v in folderVariables" :key="v.name">
-                                                        <span class="variable-badge" @click="appendVariable('folderLayer2', v.name); open = false"
-                                                              x-text="v.label" :title="v.name"></span>
-                                                    </template>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- 第二行：內層（佔整行） -->
-                                <div class="folder-layer-group flex-col items-stretch" :class="{ 'disabled': !layer3Enabled }" x-data="{ open: false }">
-                                    <div class="format-preview" x-show="form.folderLayer3" x-html="formatPreviewHtml(form.folderLayer3)"></div>
-                                    <div class="flex gap-1">
-                                        <span class="input-group-text">{{ t('settings.scraper.folder_layer_inner') }}</span>
-                                        <input type="text" class="input input-bordered input-sm flex-1" id="folderLayer3"
-                                            x-model="form.folderLayer3" placeholder="{num}" :disabled="!layer3Enabled">
+                            <div class="flex-1 flex flex-col gap-2 naming-block" :class="{ 'naming-disabled': !form.createFolder }"
+                                 x-effect="setFolderEditingDisabled(!form.createFolder)">
+                                <template x-for="(layer, idx) in form.folderLayerList" :key="layer.id">
+                                    <div class="folder-layer-item" x-data="{ open: false }">
+                                        <span class="folder-layer-index" x-text="idx + 1"></span>
+                                        <!-- 膠囊編輯器（非受控 widget，onChange 以 layer.id 寫回，CD-95a-9/12） -->
+                                        <div class="chip-editor-host flex-1" x-init="mountLayerEditor($el, layer.id)"></div>
                                         <div class="variable-dropdown">
-                                            <button class="btn-variable" type="button"
-                                                id="folderLayer3Btn" @click="open = !open" :disabled="!layer3Enabled">
+                                            <button class="btn-variable" type="button" @click="open = !open"
+                                                :disabled="!form.createFolder" :aria-expanded="open">
                                                 <i class="bi bi-braces"></i> {{ t('settings.action.variable') }}
                                             </button>
                                             <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
-                                                <template x-for="v in folderVariables" :key="v.name">
-                                                    <span class="variable-badge" @click="appendVariable('folderLayer3', v.name); open = false"
+                                                <template x-for="v in namingMenuVars('folder')" :key="v.name">
+                                                    <span class="variable-badge" @click="insertLayerVar(layer.id, v.name); open = false"
                                                           x-text="v.label" :title="v.name"></span>
                                                 </template>
                                             </div>
                                         </div>
+                                        <button class="btn-layer-remove" type="button" @click="removeFolderLayer(layer.id)"
+                                            :disabled="!form.createFolder" aria-label="{{ t('settings.scraper.remove_layer') }}"
+                                            title="{{ t('settings.scraper.remove_layer') }}">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
                                     </div>
-                                </div>
-                                <div class="folder-preview">
-                                    <i class="bi bi-file-earmark-play"></i>
-                                    <span class="preview-text">{{ t('settings.scraper.preview_prefix') }}: <span x-text="folderPreviewText"></span></span>
+                                </template>
+                                <button class="btn-add-layer" type="button" @click="addFolderLayer()"
+                                    :disabled="form.folderLayerList.length >= 3 || !form.createFolder">
+                                    <i class="bi bi-plus-lg"></i> {{ t('settings.scraper.add_layer') }}
+                                </button>
+                                <div class="folder-preview naming-preview">
+                                    <div class="preview-line">
+                                        <i class="bi bi-file-earmark-play"></i>
+                                        <span class="preview-text">{{ t('settings.scraper.preview_prefix') }}: <span x-text="folderPreviewText"></span></span>
+                                    </div>
+                                    <div class="preview-line preview-line-empty">
+                                        <span class="preview-empty-tag">{{ t('settings.scraper.preview_empty_tag') }}</span>
+                                        <span class="preview-text" x-text="folderPreviewTextEmpty"></span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
+                        <!-- 檔名格式：膠囊 + 字面文字混排（id="filenameFormat" 保留給 form-id 守衛）。 -->
                         <div class="settings-form-row">
                             <label class="row-label">{{ t('settings.scraper.filename_format_label') }}</label>
-                            <div class="flex-1 flex flex-col gap-1">
-                                <div class="format-preview" x-show="form.filenameFormat" x-html="formatPreviewHtml(form.filenameFormat)"></div>
-                                <div class="variable-input-group" x-data="{ open: false }">
-                                    <input type="text" class="input input-bordered input-sm flex-1" id="filenameFormat"
-                                        x-ref="filenameFormat"
-                                        x-model="form.filenameFormat" placeholder="[{num}][{maker}] {title}{suffix}">
+                            <div class="flex-1 flex flex-col gap-1 naming-block" x-data="{ open: false }">
+                                <div class="filename-format-row">
+                                    <!-- x-effect="hydrateFilenameEditor()"：95a-T8 reactive 補載觸發點（namingConfigReady
+                                         flip true 時重跑，覆蓋冷模組快取下 mount 早於 ready 造成的 $nextTick 補載失效，
+                                         見 state-config.js hydrateFilenameEditor() 註解）。one-shot 保證不重載打斷游標。 -->
+                                    <div class="chip-editor-host flex-1" id="filenameFormat" x-init="mountFilenameEditor($el)" x-effect="hydrateFilenameEditor()"></div>
                                     <div class="variable-dropdown">
-                                        <button class="btn-variable" type="button"
-                                            @click="open = !open" :aria-expanded="open">
+                                        <button class="btn-variable" type="button" @click="open = !open" :aria-expanded="open">
                                             <i class="bi bi-braces"></i> {{ t('settings.action.variable') }}
                                         </button>
                                         <div x-show="open" @click.outside="open = false" x-transition class="variable-menu">
-                                            <template x-for="v in formatVariables" :key="v.name">
-                                                <span class="variable-badge" @click="insertVariable('filenameFormat', v.name); open = false"
+                                            <template x-for="v in namingMenuVars('filename')" :key="v.name">
+                                                <span class="variable-badge" @click="insertFilenameVar(v.name); open = false"
                                                       x-text="v.label" :title="v.name"></span>
                                             </template>
                                         </div>
@@ -1009,48 +982,14 @@
             <div class="settings-card-header"><i class="bi bi-list-ul"></i> {{ t('nav.scanner') }}</div>
             <div class="card-body">
 
-                    <!-- 主卡：output dir + filename -->
+                    <!-- ── 外層（常顯）：列表顯示預設 tier（G-B1/CD-95b-1）── -->
+                    <p class="settings-tier-label">{{ t('settings.gallery.tier_display') }}</p>
+
+                    <!-- 排序 avlistSort / avlistOrder（7 選項）+ 揭露：也是 Showcase 預設 -->
                     <div class="settings-form-row">
-                        <label class="row-label">{{ t('settings.gallery.output_dir_label') }}</label>
-                        <div class="variable-input-group">
-                            <input type="text" class="input input-bordered input-sm flex-1" id="avlistOutputDir"
-                                x-model="form.avlistOutputDir" placeholder="output">
-                            <button class="btn btn-sm btn-outline btn-neutral" type="button"
-                                @click="selectOutputFolder()" title="{{ t('settings.gallery.select_folder_title') }}">
-                                <i class="bi bi-folder"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="settings-form-row">
-                        <label class="row-label">{{ t('settings.gallery.output_filename_label') }}</label>
-                        <input type="text" class="input input-bordered input-sm" id="avlistOutputFilename"
-                            x-model="form.avlistOutputFilename" placeholder="gallery_output.html">
-                    </div>
-
-                    <!-- 進階顯示摺疊（實填） -->
-                    <button class="collapsible-trigger" type="button" @click="galleryAdvanced = !galleryAdvanced"
-                            :aria-expanded="galleryAdvanced.toString()">
-                        <span class="collapsible-title"><i class="bi bi-sliders"></i> {{ t('settings.section.gallery_advanced') }}</span>
-                        <span class="btn-icon-collapse" aria-hidden="true"><i class="bi bi-chevron-down" :class="{ 'rotate-180': galleryAdvanced }"></i></span>
-                    </button>
-                    <div x-show="galleryAdvanced" x-collapse class="collapsible-content">
-
-                        <!-- 輸出模式 avlistMode -->
-                        <div class="settings-form-row">
-                            <label class="row-label">{{ t('settings.gallery.default_mode_label') }}</label>
-                            <select class="select select-bordered select-sm" id="avlistMode"
-                                x-model="form.avlistMode">
-                                <option value="image">{{ t('settings.gallery.mode_image') }}</option>
-                                <option value="detail">{{ t('settings.gallery.mode_detail') }}</option>
-                                <option value="text">{{ t('settings.gallery.mode_text') }}</option>
-                            </select>
-                        </div>
-
-                        <!-- 輸出排序 avlistSort / avlistOrder（7 選項） -->
-                        <div class="settings-form-row">
-                            <label class="row-label">{{ t('settings.gallery.default_sort_label') }}</label>
-                            <div class="sort-row flex gap-2 flex-1">
+                        <label class="row-label">{{ t('settings.gallery.default_sort_label') }}</label>
+                        <div class="flex-1 flex flex-col gap-1">
+                            <div class="sort-row flex gap-2">
                                 <select class="select select-bordered select-sm flex-1" id="avlistSort"
                                     x-model="form.avlistSort">
                                     <option value="date">{{ t('settings.gallery.sort_date') }}</option>
@@ -1067,11 +1006,14 @@
                                     <option value="ascending">{{ t('settings.gallery.order_asc') }}</option>
                                 </select>
                             </div>
+                            <small class="settings-note-inline">{{ t('settings.gallery.also_showcase_note') }}</small>
                         </div>
+                    </div>
 
-                        <!-- 每頁項目數（6 選項：30/45/60/90/120/all） -->
-                        <div class="settings-form-row">
-                            <label class="row-label">{{ t('settings.gallery.items_per_page_label') }}</label>
+                    <!-- 每頁項目數（30/45/60/90/120/all）+ 揭露：也是 Showcase 預設 -->
+                    <div class="settings-form-row">
+                        <label class="row-label">{{ t('settings.gallery.items_per_page_label') }}</label>
+                        <div class="flex-1 flex flex-col gap-1">
                             <select class="select select-bordered select-sm" id="avlistItemsPerPage"
                                 x-model.number="form.avlistItemsPerPage">
                                 <option value="30">30</option>
@@ -1081,22 +1023,72 @@
                                 <option value="120">120</option>
                                 <option value="0">{{ t('settings.gallery.all') }}</option>
                             </select>
+                            <small class="settings-note-inline">{{ t('settings.gallery.also_showcase_note') }}</small>
                         </div>
+                    </div>
 
-                        <!-- min size -->
+                    <!-- 最小影片尺寸（掃描/入庫閾值，留外層 G-B2；hint 已於 T1 reword） -->
+                    <div class="settings-form-row">
+                        <label class="row-label">{{ t('settings.gallery.min_size_label') }}</label>
+                        <div class="flex-1 flex flex-col gap-1">
+                            <div class="input-group-inline">
+                                <input type="number" class="input input-bordered input-sm" id="avlistMinSize"
+                                    x-model.number="form.avlistMinSize" min="0">
+                                <span class="input-suffix">MB</span>
+                            </div>
+                            <small class="settings-hint">{{ t('settings.gallery.min_size_hint') }}</small>
+                        </div>
+                    </div>
+
+                    <!-- ── 進階摺疊：離線 HTML 匯出（galleryExport，預設收合 G-B1）── -->
+                    <button class="collapsible-trigger" type="button" @click="galleryExport = !galleryExport"
+                            :aria-expanded="galleryExport.toString()">
+                        <span class="collapsible-title"><i class="bi bi-sliders"></i> {{ t('settings.gallery.export_section') }}</span>
+                        <span class="btn-icon-collapse" aria-hidden="true"><i class="bi bi-chevron-down" :class="{ 'rotate-180': galleryExport }"></i></span>
+                    </button>
+                    <div x-show="galleryExport" x-collapse class="collapsible-content">
+
+                        <!-- Windows 說明條（克制樣式 T3；export_notice 含 <code> 故 | safe，G-B5/CD-95b-6） -->
+                        <p class="settings-export-notice">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            <span>{{ t('settings.gallery.export_notice') | safe }}</span>
+                        </p>
+
+                        <!-- 顯示模式 avlistMode（僅影響離線匯出 G-B3/CD-95b-4） -->
                         <div class="settings-form-row">
-                            <label class="row-label">{{ t('settings.gallery.min_size_label') }}</label>
+                            <label class="row-label">{{ t('settings.gallery.default_mode_label') }}</label>
                             <div class="flex-1 flex flex-col gap-1">
-                                <div class="input-group-inline">
-                                    <input type="number" class="input input-bordered input-sm" id="avlistMinSize"
-                                        x-model.number="form.avlistMinSize" min="0">
-                                    <span class="input-suffix">MB</span>
-                                </div>
-                                <small class="settings-hint">{{ t('settings.gallery.min_size_hint') }}</small>
+                                <select class="select select-bordered select-sm" id="avlistMode"
+                                    x-model="form.avlistMode">
+                                    <option value="image">{{ t('settings.gallery.mode_image') }}</option>
+                                    <option value="detail">{{ t('settings.gallery.mode_detail') }}</option>
+                                    <option value="text">{{ t('settings.gallery.mode_text') }}</option>
+                                </select>
+                                <small class="settings-note-inline">{{ t('settings.gallery.mode_export_only_note') }}</small>
                             </div>
                         </div>
 
-                    </div><!-- /collapsible-content galleryAdvanced -->
+                        <!-- 輸出目錄 avlistOutputDir（含 selectOutputFolder）搬入摺疊 -->
+                        <div class="settings-form-row">
+                            <label class="row-label">{{ t('settings.gallery.output_dir_label') }}</label>
+                            <div class="variable-input-group">
+                                <input type="text" class="input input-bordered input-sm flex-1" id="avlistOutputDir"
+                                    x-model="form.avlistOutputDir" placeholder="output">
+                                <button class="btn btn-sm btn-outline btn-neutral" type="button"
+                                    @click="selectOutputFolder()" title="{{ t('settings.gallery.select_folder_title') }}">
+                                    <i class="bi bi-folder"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 輸出檔名 avlistOutputFilename 搬入摺疊 -->
+                        <div class="settings-form-row">
+                            <label class="row-label">{{ t('settings.gallery.output_filename_label') }}</label>
+                            <input type="text" class="input input-bordered input-sm" id="avlistOutputFilename"
+                                x-model="form.avlistOutputFilename" placeholder="gallery_output.html">
+                        </div>
+
+                    </div><!-- /collapsible-content galleryExport -->
 
             </div>
           </div>

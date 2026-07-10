@@ -5727,27 +5727,6 @@ body {
   flex-wrap: wrap;
   gap: 2px;
 }
-:is(#settings-components, #ds-settings-components) .folder-layers-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-:is(#settings-components, #ds-settings-components) .folder-layer-group {
-  display: flex;
-  align-items: center;
-  flex: 1;
-}
-:is(#settings-components, #ds-settings-components) .folder-layer-group.disabled {
-  opacity: 0.5;
-}
-:is(#settings-components, #ds-settings-components) .folder-layer-group.disabled input, :is(#settings-components, #ds-settings-components) .folder-layer-group.disabled button {
-  cursor: not-allowed;
-}
-:is(#settings-components, #ds-settings-components) .folder-separator {
-  font-size: 1rem;
-  color: var(--text-muted);
-  font-weight: 600;
-}
 :is(#settings-components, #ds-settings-components) .btn-variable-sm {
   display: flex;
   align-items: center;

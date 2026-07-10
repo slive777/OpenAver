@@ -430,6 +430,73 @@ export default [
     },
   },
 
+  // Group 7b (feature/95 T7 · CD-95a-10〔2〕): settings JS — 禁硬編變數陣列復活
+  //   （命名區變數集收斂為 SSOT `/api/config/format-variables`，前端不得再 fork
+  //   `[{ name:'{num}', ... }, ...]` 硬編清單）。
+  // ⚠ flat config 同 rule 後者整段 replace：此 group 的 no-restricted-syntax 會**取代**
+  //   上方廣域 `web/static/js/**/*.js` group（含 window.confirm / unload / BreathingManager /
+  //   starSettle / playToIcon / Set.intersection / closeSimilarMode / 5× variant bans）對
+  //   settings JS 的規則。故必須**完整重述**該清單 + 疊加新 selector，否則 settings JS 繞過全部。
+  //   （與 Group 8 對 Group 1 的重述同一 flat-config 陷阱；mutation 自驗見 test_frontend_lint。）
+  {
+    files: ["web/static/js/pages/settings/**/*.js"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        // ── 重述廣域 group（web/static/js/**/*.js）全部 selector（不可省）──
+        SEL_WINDOW_CONFIRM,
+        SEL_NO_UNLOAD_LISTENER,
+        SEL_BREATHING_MANAGER_NEW,
+        SEL_STARSETTLE_LITERAL,
+        SEL_NO_PLAYTOICON,
+        {
+          selector: "MemberExpression[property.name='intersection']",
+          message:
+            "Set.prototype.intersection 為 ES2025 API，尚未進入 OpenAver baseline。請改用 [...setA].filter(x => setB.has(x))。",
+        },
+        {
+          selector: [
+            "Property[key.name='closeSimilarMode']",
+            "MethodDefinition[key.name='closeSimilarMode']",
+          ].join(', '),
+          message:
+            "closeSimilarMode 只能在 state-similar.js 定義（CD-56C-4 單一定義原則）。其他檔案可呼叫 this.closeSimilarMode()，但不可定義同名 method。",
+        },
+        {
+          selector: "Identifier[name='variantIdx']",
+          message: "variantIdx（javbus variant 維度）已隨 spec-85 全棧移除。switch-source 只在 source 維度輪替，禁止重新引入 variant 維度。",
+        },
+        {
+          selector: "MemberExpression[property.name='_all_variant_ids']",
+          message: "_all_variant_ids 後端已不再填（spec-85 T1a），前端讀取是死碼，禁止重新引入。",
+        },
+        {
+          selector: "Literal[value='_all_variant_ids']",
+          message: "_all_variant_ids 後端已不再填（spec-85 T1a），前端讀取是死碼，禁止重新引入（bracket/字面量形式）。",
+        },
+        {
+          selector: "MemberExpression[property.name='_variant_id']",
+          message: "_variant_id（javbus variant 欄位）已隨 spec-85 移除，禁止重新引入。",
+        },
+        {
+          selector: "Literal[value='_variant_id']",
+          message: "_variant_id（javbus variant 欄位）已隨 spec-85 移除，禁止重新引入（bracket/字面量形式）。",
+        },
+        {
+          selector: "TemplateElement[value.cooked=/variant_id=/]",
+          message: "variant_id= fetch param 的 route 端已在 spec-85 T2 移除，前端不應再送此參數。",
+        },
+        // ── 疊加 T7 新 selector：禁硬編 `{ name:'{token}' }` 變數物件陣列（CD-95a-10〔2〕）──
+        // 只匹配 name 值為 `{字母}` 形（不誤傷 placeholder 樣板字串 / 一般 name 屬性）。
+        {
+          selector: "Property[key.name='name'][value.value=/^\\{[a-zA-Z]+\\}$/]",
+          message:
+            "命名區變數集已收斂為 SSOT `/api/config/format-variables`（CD-95a-8/10）。禁止在 settings JS 硬編 `[{ name:'{num}', ... }]` 變數清單復活；label 走 i18n _labelFor、whitelist 走 _whitelistFor。",
+        },
+      ],
+    },
+  },
+
   // Group 8 (TASK-80): persistence.js — 禁 playGridSettle 呼叫（supersedes Group 1，重述清單 + 疊加）
   // restore 返回既有 grid 應即時呈現，不重播逐行 scale stagger；
   // fresh-search 的合法 playGridSettle 呼叫在 search-flow.js（同目錄，故不能加在 Group 1 glob）。

@@ -284,132 +284,81 @@
 &lt;/div&gt;</code></pre>
 </div>
 
-<!-- D.9b: 變數插入 Dropdown -->
+<!-- D.9b: 命名區膠囊編輯器（feature/95 Part A）-->
 <div class="ds-subsection">
-    <h3>6. 變數插入 Dropdown</h3>
-    <p class="ds-desc">檔案命名格式的變數插入控制項，展示變數列表 + description + example</p>
+    <h3>6. 命名區膠囊編輯器</h3>
+    <p class="ds-desc">檔名格式 / 資料夾層級的<strong>變數以不可拆膠囊</strong>呈現（複用 <code>.source-pill</code>），字面文字自由打字。變數集來自 SSOT <code>/api/config/format-variables</code>；資料夾層級為可增減層清單（上到下＝外到內，硬鎖 3 層）。互動實機見 Settings 頁（此為靜態視覺展示）。</p>
 
-    <!-- 單一變數插入（檔案命名格式）-->
-    <h4 class="ds-variant-label" style="margin-top: 1.5rem;">Single Variable Dropdown (檔案命名格式)</h4>
-    <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
-        <div class="settings-form-row">
-            <label class="row-label">檔案命名格式</label>
-            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
-                <div class="format-preview">
-                    <span class="tag-badge">番號</span>
-                    <span class="tag-badge">片商</span> {title}
-                </div>
-                <div class="variable-input-group">
-                    <input type="text" class="input input-bordered input-sm" value="[{num}][{maker}] {title}" placeholder="[{num}][{maker}] {title}" style="flex: 1;">
+    <!-- 靜態視覺展示；wrap id="settings-components" 使 settings.css scoped 膠囊樣式生效 -->
+    <div id="settings-components">
+        <h4 class="ds-variant-label" style="margin-top: 1.5rem;">Filename Format (膠囊 + 字面混排)</h4>
+        <div class="ds-card-demo" style="max-width: 600px; margin: 0 auto; padding: 1.5rem;">
+            <div class="settings-form-row">
+                <label class="row-label">檔案命名格式</label>
+                <div class="flex-1 filename-format-row">
+                    <div class="chip-editor-host flex-1">
+                        <div class="chip-editor" contenteditable="false" spellcheck="false">[<span class="source-pill source-pill--chip" data-enabled="true"><span class="pill-name">番號</span><button class="chip-x" type="button" tabindex="-1">×</button></span>][<span class="source-pill source-pill--chip" data-enabled="true"><span class="pill-name">片商</span><button class="chip-x" type="button" tabindex="-1">×</button></span>] <span class="source-pill source-pill--chip" data-enabled="true"><span class="pill-name">標題</span><button class="chip-x" type="button" tabindex="-1">×</button></span><span class="source-pill source-pill--chip" data-enabled="true"><span class="pill-name">後綴</span><button class="chip-x" type="button" tabindex="-1">×</button></span></div>
+                    </div>
                     <div class="variable-dropdown">
-                        <button class="btn-variable" type="button">
-                            <i class="bi bi-braces"></i> 變數
-                        </button>
-                        <!-- 變數下拉列表（靜態展示，打開狀態）-->
-                        <div class="variable-menu" style="display: block; position: relative; margin-top: 4px;">
-                            <span class="variable-badge">番號</span>
-                            <span class="variable-badge">標題</span>
-                            <span class="variable-badge">女優</span>
-                            <span class="variable-badge">所有女優</span>
-                            <span class="variable-badge">片商</span>
-                            <span class="variable-badge">發售日</span>
-                            <span class="variable-badge">年份</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 多層資料夾連動（外層 / 中層 / 內層）-->
-    <h4 class="ds-variant-label">Multi-Layer Folder Structure (3 層連動)</h4>
-    <div class="ds-card-demo" style="max-width: 700px; margin: 0 auto; padding: 1.5rem;">
-        <!-- 第一行：外層 / 中層 -->
-        <div class="folder-layers-row">
-            <div class="folder-layer-group disabled" style="flex-direction: column; align-items: stretch;">
-                <div style="display: flex; gap: 4px;">
-                    <input type="text" class="input input-bordered input-sm" placeholder="外層" disabled>
-                    <div class="variable-dropdown">
-                        <button class="btn-variable" type="button" disabled>
-                            <i class="bi bi-braces"></i> 變數
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <span class="folder-separator">/</span>
-            <div class="folder-layer-group disabled" style="flex-direction: column; align-items: stretch;">
-                <div style="display: flex; gap: 4px;">
-                    <input type="text" class="input input-bordered input-sm" placeholder="中層" disabled>
-                    <div class="variable-dropdown">
-                        <button class="btn-variable" type="button" disabled>
-                            <i class="bi bi-braces"></i> 變數
-                        </button>
+                        <button class="btn-variable" type="button"><i class="bi bi-braces"></i> 變數</button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 第二行：內層（佔整行）-->
-        <div class="folder-layer-group" style="flex-direction: column; align-items: stretch; margin-top: 8px;">
-            <div class="format-preview">
-                <span class="tag-badge">番號</span>
-            </div>
-            <div style="display: flex; gap: 4px;">
-                <span class="input-group-text">內層</span>
-                <input type="text" class="input input-bordered input-sm" value="{num}" placeholder="{num}" style="flex: 1;">
-                <div class="variable-dropdown">
-                    <button class="btn-variable" type="button">
-                        <i class="bi bi-braces"></i> 變數
-                    </button>
-                    <!-- 變數下拉列表（靜態展示）-->
-                    <div class="variable-menu" style="display: block; position: relative; margin-top: 4px;">
-                        <span class="variable-badge">番號</span>
-                        <span class="variable-badge">標題</span>
-                        <span class="variable-badge">女優</span>
-                        <span class="variable-badge">片商</span>
-                        <span class="variable-badge">年份</span>
+        <h4 class="ds-variant-label">Folder Layers (可增減層清單，外→內)</h4>
+        <div class="ds-card-demo" style="max-width: 700px; margin: 0 auto; padding: 1.5rem;">
+            <div class="naming-block flex flex-col gap-2">
+                <div class="folder-layer-item">
+                    <span class="folder-layer-index">1</span>
+                    <div class="chip-editor-host flex-1"><div class="chip-editor" contenteditable="false" spellcheck="false"><span class="source-pill source-pill--chip" data-enabled="true"><span class="pill-name">女優</span><button class="chip-x" type="button" tabindex="-1">×</button></span></div></div>
+                    <div class="variable-dropdown"><button class="btn-variable" type="button"><i class="bi bi-braces"></i> 變數</button></div>
+                    <button class="btn-layer-remove" type="button" aria-label="移除此層"><i class="bi bi-x-lg"></i></button>
+                </div>
+                <div class="folder-layer-item">
+                    <span class="folder-layer-index">2</span>
+                    <div class="chip-editor-host flex-1"><div class="chip-editor" contenteditable="false" spellcheck="false"><span class="source-pill source-pill--chip" data-enabled="true"><span class="pill-name">番號</span><button class="chip-x" type="button" tabindex="-1">×</button></span></div></div>
+                    <div class="variable-dropdown"><button class="btn-variable" type="button"><i class="bi bi-braces"></i> 變數</button></div>
+                    <button class="btn-layer-remove" type="button" aria-label="移除此層"><i class="bi bi-x-lg"></i></button>
+                </div>
+                <button class="btn-add-layer" type="button"><i class="bi bi-plus-lg"></i> 新增一層</button>
+                <div class="folder-preview naming-preview">
+                    <div class="preview-line">
+                        <i class="bi bi-file-earmark-play"></i>
+                        <span class="preview-text">預覽: 三上悠亞/SSNI-618/[SSNI-618][SOD] 絕對領域-4k.mp4</span>
+                    </div>
+                    <div class="preview-line preview-line-empty">
+                        <span class="preview-empty-tag">空值範例</span>
+                        <span class="preview-text">[SSNI-618][SOD] 絕對領域.mp4</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- 即時預覽路徑 -->
-        <div class="folder-preview">
-            <i class="bi bi-file-earmark-play"></i>
-            <span class="preview-text">預覽: SSNI-618/[SSNI-618][SOD] 絕對領域.mp4</span>
-        </div>
-
-        <!-- 說明文字 -->
         <div style="margin-top: 1rem; padding: 0.75rem; background: color-mix(in oklch, var(--color-base-content) 3%, transparent); border-radius: var(--radius-sm); border-left: 3px solid var(--accent);">
             <small style="color: var(--text-secondary); font-size: 0.8rem;">
                 <i class="bi bi-info-circle"></i>
-                <strong style="color: var(--text-primary);">連動規則：</strong>
-                內層有值才能啟用中層，中層有值才能啟用外層（由內向外逐層啟用）
+                <strong style="color: var(--text-primary);">要點：</strong>
+                膠囊複用 <code>.source-pill</code>（不 fork）；變數集單一真理來源（端點 <code>folder_ok</code> 旗標決定資料夾情境不含 <code>{suffix}</code>）；資料夾層級硬鎖 3 層、可自由增減。
             </small>
         </div>
     </div>
 
-    <pre class="ds-code"><code>&lt;!-- 格式預覽 --&gt;
-&lt;div class="format-preview"&gt;
-  &lt;span class="tag-badge"&gt;番號&lt;/span&gt;
-  &lt;span class="tag-badge"&gt;片商&lt;/span&gt; {title}
+    <pre class="ds-code"><code>&lt;!-- 膠囊（複用 .source-pill + inline adapt）--&gt;
+&lt;div class="chip-editor" contenteditable="true"&gt;
+  [&lt;span class="source-pill source-pill--chip" data-enabled="true"&gt;
+     &lt;span class="pill-name"&gt;番號&lt;/span&gt;
+     &lt;button class="chip-x"&gt;×&lt;/button&gt;
+   &lt;/span&gt;] 字面文字自由打字…
 &lt;/div&gt;
 
-&lt;!-- 單一變數插入 --&gt;
-&lt;div class="variable-input-group"&gt;
-  &lt;input type="text" class="input input-bordered input-sm"&gt;
-  &lt;div class="variable-dropdown"&gt;
-    &lt;button class="btn-variable" type="button"&gt;
-      &lt;i class="bi bi-braces"&gt;&lt;/i&gt; 變數
-    &lt;/button&gt;
-    &lt;div class="variable-menu"&gt;
-      &lt;span class="variable-badge"&gt;番號&lt;/span&gt;
-      &lt;span class="variable-badge"&gt;標題&lt;/span&gt;
-      &lt;span class="variable-badge"&gt;女優&lt;/span&gt;
-      &lt;span class="variable-badge"&gt;片商&lt;/span&gt;
-    &lt;/div&gt;
-  &lt;/div&gt;
-&lt;/div&gt;</code></pre>
+&lt;!-- 動態層：x-for :key="layer.id"（禁 idx/value）+ 膠囊編輯器 x-init --&gt;
+&lt;div class="folder-layer-item"&gt;
+  &lt;span class="folder-layer-index"&gt;1&lt;/span&gt;
+  &lt;div class="chip-editor-host" x-init="mountLayerEditor($el, layer.id)"&gt;&lt;/div&gt;
+  &lt;button class="btn-layer-remove" @click="removeFolderLayer(layer.id)"&gt;×&lt;/button&gt;
+&lt;/div&gt;
+&lt;button class="btn-add-layer" :disabled="form.folderLayerList.length >= 3"&gt;新增一層&lt;/button&gt;</code></pre>
 </div>
 
 <!-- D.9c: API Key 警告 Alert -->

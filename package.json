@@ -4,9 +4,11 @@
   "private": true,
   "description": "ESLint + stylelint devtools for OpenAver frontend",
   "scripts": {
-    "lint": "npm run lint:js && npm run lint:css",
+    "lint": "npm run lint:js && npm run lint:css && npm run lint:html",
     "lint:js": "eslint web/static/js/",
-    "lint:css": "stylelint \"web/static/css/**/*.css\""
+    "lint:css": "stylelint \"web/static/css/**/*.css\"",
+    "lint:html": "node scripts/lint-settings-ia.mjs",
+    "test:tokenizer": "node --test \"web/static/js/pages/settings/__tests__/**/*.test.mjs\""
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

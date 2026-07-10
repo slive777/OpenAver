@@ -317,7 +317,6 @@
     "section": {
       "search": "検索・スクレイプ",
       "scraper_advanced": "高度なスクレイプ設定",
-      "gallery_advanced": "高度な表示設定",
       "system": "システム設定"
     },
     "search": {
@@ -356,9 +355,6 @@
       "suffix_keywords_hint": "ファイル名にこれらのキーワードが含まれる場合 {suffix} として保持されます（複数指定時はリスト順に連結）",
       "create_folder_label": "フォルダを作成",
       "folder_layers_label": "フォルダ階層",
-      "folder_layer_outer": "外層",
-      "folder_layer_middle": "中間層",
-      "folder_layer_inner": "内層",
       "preview_prefix": "プレビュー",
       "filename_format_label": "ファイル命名形式",
       "max_title_length_label": "タイトル長さ制限",

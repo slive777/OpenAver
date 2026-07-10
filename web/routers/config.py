@@ -530,19 +530,25 @@ async def get_version() -> dict:
 
 @router.get("/config/format-variables")
 async def get_format_variables() -> dict:
-    """取得可用的格式變數"""
+    """取得可用的格式變數
+
+    每個變數帶 ``folder_ok`` 情境旗標（CD-95a-6/8）：``{suffix}`` 為檔名限定
+    （版本標記屬影片名稱，不在資料夾層級再分版本），其餘變數 folder/filename 兩情境皆可用。
+    前端命名區以此端點為變數集 + 情境的單一真理來源（SSOT）；label 仍走 i18n
+    ``settings.var.*``（本端點不承擔多語）。
+    """
     return {
         "variables": [
-            {"name": "{num}", "description": "番號", "example": "SONE-205"},
-            {"name": "{title}", "description": "標題", "example": "新人出道..."},
-            {"name": "{actor}", "description": "演員（第一位）", "example": "三上悠亜"},
-            {"name": "{actors}", "description": "所有演員", "example": "三上悠亜, 明日花"},
-            {"name": "{maker}", "description": "片商", "example": "S1"},
-            {"name": "{date}", "description": "發行日期", "example": "2024-01-15"},
-            {"name": "{year}", "description": "年份", "example": "2024"},
-            {"name": "{month}", "description": "月份（2位）", "example": "01"},
-            {"name": "{day}", "description": "日（2位）", "example": "15"},
-            {"name": "{suffix}", "description": "版本標記（自動偵測）", "example": "-4k"},
+            {"name": "{num}", "description": "番號", "example": "SONE-205", "folder_ok": True},
+            {"name": "{title}", "description": "標題", "example": "新人出道...", "folder_ok": True},
+            {"name": "{actor}", "description": "演員（第一位）", "example": "三上悠亜", "folder_ok": True},
+            {"name": "{actors}", "description": "所有演員", "example": "三上悠亜, 明日花", "folder_ok": True},
+            {"name": "{maker}", "description": "片商", "example": "S1", "folder_ok": True},
+            {"name": "{date}", "description": "發行日期", "example": "2024-01-15", "folder_ok": True},
+            {"name": "{year}", "description": "年份", "example": "2024", "folder_ok": True},
+            {"name": "{month}", "description": "月份（2位）", "example": "01", "folder_ok": True},
+            {"name": "{day}", "description": "日（2位）", "example": "15", "folder_ok": True},
+            {"name": "{suffix}", "description": "版本標記（自動偵測）", "example": "-4k", "folder_ok": False},
         ]
     }
 
