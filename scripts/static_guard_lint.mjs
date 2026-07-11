@@ -1790,6 +1790,179 @@ const RULES = [
   { file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'playLightboxOpen', note: '[TestGhostFlyPlayLightboxOpen] test_ghost_fly_play_lightbox_open_contains' },
   { file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'clearProps', note: '[TestGhostFlyPlayLightboxOpen] test_ghost_fly_play_lightbox_open_contains' },
   { file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'timelineId', note: '[TestGhostFlyPlayLightboxOpen] test_ghost_fly_play_lightbox_open_contains' },
+
+  // ==== 96d-T4：scanner-strm 家族（string-contains/tag-scan，含 CD-96d-7 負守衛 + CD-96d-5 slim-residual）====
+
+  // ---- [TestStrmMappingGuard] settings.html strm 路徑映射 CRUD 編輯器 + state-config.js array→dict 轉換 +
+  // scanner.html 跨機器提醒（純 string-contains，pure-96d，無 cross-plan 半邊）----
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'x-for="(rule, idx) in form.strmRules"', note: '[TestStrmMappingGuard] test_settings_html_has_editor — strmRules x-for row 編輯器' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'x-model="rule.local"', note: '[TestStrmMappingGuard] test_settings_html_has_editor — 本機前綴欄' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'x-model="rule.remote"', note: '[TestStrmMappingGuard] test_settings_html_has_editor — 播放端前綴欄' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: "['jellyfin','emby','kodi'].includes(form.externalManager)", note: '[TestStrmMappingGuard] test_settings_html_has_editor — media-server 風味 x-show gating（無空格版，勿與 scanner.html 有空格版混淆）' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: '@click="addStrmRule()"', note: '[TestStrmMappingGuard] test_settings_html_has_editor — 新增規則' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: '@click="removeStrmRule(idx)"', note: '[TestStrmMappingGuard] test_settings_html_has_editor — 刪除規則' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'addStrmRule()', note: '[TestStrmMappingGuard] test_config_js_has_methods_and_conversion' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'removeStrmRule(idx)', note: '[TestStrmMappingGuard] test_config_js_has_methods_and_conversion' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'Object.fromEntries(', note: '[TestStrmMappingGuard] test_config_js_has_methods_and_conversion — array→dict 轉換' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'strm_path_mappings:', note: '[TestStrmMappingGuard] test_config_js_has_methods_and_conversion — payload 寫入' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'strmTemplateDirs', note: '[TestStrmMappingGuard] test_config_js_has_methods_and_conversion — 範本回顯 getter' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: 'strmPathMappings', note: '[TestStrmMappingGuard] test_config_js_no_dict_passthrough — 舊 dict passthrough 已移除' },
+  { file: 'web/templates/scanner.html', kind: 'required-string', pattern: 'scanner.folder.cross_machine_hint', note: '[TestStrmMappingGuard] test_scanner_html_has_cross_machine_hint' },
+  { file: 'web/templates/scanner.html', kind: 'required-string', pattern: 'scanner.folder.cross_machine_settings_link', note: '[TestStrmMappingGuard] test_scanner_html_has_cross_machine_hint' },
+  { file: 'web/templates/scanner.html', kind: 'required-string', pattern: "['jellyfin', 'emby', 'kodi'].includes(config?.scraper?.external_manager)", note: '[TestStrmMappingGuard] test_scanner_html_has_cross_machine_hint — media-server 風味 x-show gating（有空格版，勿與 settings.html 無空格版混淆）' },
+
+  // ---- [TestReadonlyConfirmGuard] scanner.html 唯讀 checkbox 確認 modal 骨架 + 攔截邏輯 + state-scan.js
+  // （cross-plan：96d 建 HTML/JS 半邊；i18n key + 「風味」半邊 → 96a i18n_lint，不建）----
+  { file: 'web/templates/scanner.html', kind: 'required-string', pattern: ':checked="dir.readonly"', note: '[TestReadonlyConfirmGuard] test_scanner_html_checkbox_intercepted — 單向綁定，避免勾選閃爍' },
+  { file: 'web/templates/scanner.html', kind: 'required-string', pattern: '@click.prevent="onReadonlyToggleClick(idx', note: '[TestReadonlyConfirmGuard] test_scanner_html_checkbox_intercepted — checkbox click 攔截（開放子字串，忠實照抄 pytest 原字面，故意不含收尾括號）' },
+  { file: 'web/templates/scanner.html', kind: 'forbidden-string', pattern: 'x-model="dir.readonly"', note: '[TestReadonlyConfirmGuard] test_scanner_html_checkbox_intercepted — 不可殘留舊雙向綁定（CD-96d-7 負守衛）' },
+  { file: 'web/templates/scanner.html', kind: 'required-string', pattern: "'modal-open': readonlyConfirmModalOpen", note: '[TestReadonlyConfirmGuard] test_scanner_html_has_confirm_modal' },
+  { file: 'web/templates/scanner.html', kind: 'required-string', pattern: '@click="readonlyConfirmAccept()"', note: '[TestReadonlyConfirmGuard] test_scanner_html_has_confirm_modal' },
+  { file: 'web/templates/scanner.html', kind: 'required-string', pattern: '@click="readonlyConfirmCancel()"', note: '[TestReadonlyConfirmGuard] test_scanner_html_has_confirm_modal' },
+  { file: 'web/templates/scanner.html', kind: 'required-string', pattern: 'readonlyConfirmModalOpen && readonlyConfirmCancel()', note: '[TestReadonlyConfirmGuard] test_scanner_html_esc_chain_includes_readonly_confirm' },
+  ...[
+    'scanner.readonly_confirm_modal.title',
+    'scanner.readonly_confirm_modal.cancel',
+    'scanner.readonly_confirm_modal.confirm',
+    'scanner.readonly_confirm_modal.intro',
+    'scanner.readonly_confirm_modal.output_hint_offline',
+    'scanner.readonly_confirm_modal.output_hint_media_server',
+    'scanner.readonly_confirm_modal.nas_hint',
+  ].map((key) => ({
+    file: 'web/templates/scanner.html', kind: 'required-string', pattern: key,
+    note: '[TestReadonlyConfirmGuard] test_scanner_html_i18n_keys_referenced — for-loop 7 key',
+  })),
+  { file: 'web/static/js/pages/scanner/state-scan.js', kind: 'forbidden-string', pattern: '_detectReadonly', note: '[TestReadonlyConfirmGuard] test_state_scan_js_no_detect_readonly — 整支移除，含函式宣告與消費者（CD-96d-7 負守衛）' },
+  {
+    file: 'web/static/js/pages/scanner/state-scan.js', kind: 'required-string', pattern: 'readonly: false', count: 2,
+    note: '[TestReadonlyConfirmGuard] test_state_scan_js_new_folders_readonly_false — addFolderPath/addManualPath 各自 push readonly: false（現況恰 2 次，L455/L480，高風險貼齊門檻列）',
+  },
+  ...[
+    'readonlyConfirmModalOpen',
+    'readonlyConfirmTargetIdx',
+    'onReadonlyToggleClick',
+    'readonlyConfirmCancel',
+    'readonlyConfirmAccept',
+  ].map((name) => ({
+    file: 'web/static/js/pages/scanner/state-scan.js', kind: 'required-string', pattern: name,
+    note: '[TestReadonlyConfirmGuard] test_state_scan_js_has_confirm_state_and_methods — for-loop 5 項',
+  })),
+
+  // ---- [TestOutputPathVisibilityGuard] scanner.html .folder-item-output x-show 白名單顯隱
+  // （pure-96d，tag-scan class-tag single，CD-96d-7 負守衛：本卡最高風險列，scanner.html 唯一 fail-open 守衛）----
+  {
+    file: 'web/templates/scanner.html', kind: 'tag-scan', mode: 'class-tag',
+    tagName: 'div', className: 'folder-item-output',
+    required: ["dir.readonly", "['jellyfin', 'emby', 'kodi'].includes(config?.scraper?.external_manager)"],
+    forbidden: ["!== 'off'"],
+    note: '[TestOutputPathVisibilityGuard] test_folder_item_output_xshow_gated_by_external_manager_whitelist — .folder-item-output x-show fail-closed 白名單 required + fail-open forbidden（CD-96d-7）',
+  },
+
+  // ---- [TestReadonlyDisabledStateGuard] showcase.html 唯讀來源片四寫入入口停用態鏡像（element-bound tag-scan）
+  // （cross-plan：CSS 半邊 96c CG-RO-01 已綠、i18n 半邊 96a 已綠，皆不必補；96d 只建 HTML 半邊；CD-96d-7 負守衛）----
+  {
+    file: 'web/templates/showcase.html', kind: 'tag-scan', mode: 'class-tag',
+    tagPattern: /<button\b[^>]*enrichVideo\(video\)[^>]*>/,
+    required: [
+      /:disabled="[^"]*is_readonly_source[^"]*"/,
+      /:disabled="[^"]*_enriching[^"]*"/,
+      /:class="[^"]*is-readonly-disabled[^"]*"/,
+      /:title="[^"]*readonly_tooltip[^"]*"/,
+    ],
+    requiredAnyOf: [/:disabled="!!/, /:disabled="[^"]*=== true/],
+    note: '[TestReadonlyDisabledStateGuard] test_grid_enrich_btn_readonly_disabled — ① 缺圖卡 enrich 按鈕 readonly disabled 鏡像',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'tag-scan', mode: 'class-tag',
+    tagPattern: /<button\b[^>]*enrichVideo\(currentLightboxVideo\)[^>]*>/,
+    required: [
+      /:disabled="[^"]*currentLightboxVideo\?\.is_readonly_source[^"]*"/,
+      /:disabled="[^"]*_enriching[^"]*"/,
+      /:class="[^"]*is-readonly-disabled[^"]*"/,
+      /:data-tooltip="[^"]*readonly_tooltip[^"]*"/,
+    ],
+    requiredAnyOf: [/:disabled="!!/, /:disabled="[^"]*=== true/],
+    note: '[TestReadonlyDisabledStateGuard] test_lightbox_enrich_btn_readonly_disabled — ② 燈箱補資料按鈕 readonly disabled 鏡像',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'tag-scan', mode: 'class-tag',
+    tagName: 'button', className: 'fetch-samples-btn',
+    required: [
+      /:disabled="[^"]*is_readonly_source[^"]*"/,
+      /:disabled="[^"]*_fetchSamplesFailed[^"]*"/,
+      /:class="[^"]*is-readonly-disabled[^"]*"/,
+      /:title="[^"]*readonly_tooltip[^"]*"/,
+      /:aria-label="[^"]*readonly_tooltip[^"]*"/,
+    ],
+    requiredAnyOf: [/:disabled="!!/, /:disabled="[^"]*=== true/],
+    note: '[TestReadonlyDisabledStateGuard] test_fetch_samples_btn_readonly_disabled — ③ 補劇照按鈕 readonly disabled 鏡像',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'tag-scan', mode: 'class-tag',
+    tagName: 'button', className: 'lb-rescrape-gear',
+    required: [
+      /:disabled="[^"]*currentLightboxVideo\?\.is_readonly_source[^"]*"/,
+      /:class="[^"]*is-readonly-disabled[^"]*"/,
+      /:title="[^"]*readonly_tooltip[^"]*"/,
+    ],
+    requiredAnyOf: [/:disabled="!!/, /:disabled="[^"]*=== true/],
+    note: '[TestReadonlyDisabledStateGuard] test_rescrape_gear_readonly_disabled — ④ 齒輪進階重刮 readonly disabled 鏡像',
+  },
+  ...['playVideo(video.path)', 'openLocal(video.path)', 'playVideo(currentLightboxVideo?.path)',
+      'openLocal(currentLightboxVideo?.path)', 'openSimilarMode()'].map((expr) => ({
+    file: 'web/templates/showcase.html', kind: 'tag-scan', mode: 'class-tag',
+    tagPattern: new RegExp(`<button\\b[^>]*${escapeRegExp(expr)}[^>]*>`),
+    forbidden: ['is_readonly_source'],
+    note: `[TestReadonlyDisabledStateGuard] test_read_type_buttons_not_readonly_disabled — 讀取類按鈕不得綁 is_readonly_source（CD-96d-7 負守衛）: ${expr}`,
+  })),
+
+  // ---- [TestRewriteStrmConfirmGuard] settings.html rewrite 確認 modal 骨架 + tone + state-config.js
+  // saveConfig media-server 存後鉤 + confirmRewriteStrm 實際端點呼叫（cross-plan：96a i18n+風味 半邊不建；
+  // CD-96d-5 已定案：rewrite_failed>=2 子測 slim-residual 留 pytest，本卡不建 RULES 覆蓋，見下方獨立註解）----
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: "'modal-open': rewriteStrmConfirmOpen", note: '[TestRewriteStrmConfirmGuard] test_settings_html_has_rewrite_confirm_modal' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: '@click="confirmRewriteStrm()"', note: '[TestRewriteStrmConfirmGuard] test_settings_html_has_rewrite_confirm_modal' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: '@click="cancelRewriteStrm()"', note: '[TestRewriteStrmConfirmGuard] test_settings_html_has_rewrite_confirm_modal' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'rewriteStrmConfirmOpen && cancelRewriteStrm()', note: '[TestRewriteStrmConfirmGuard] test_settings_html_rewrite_esc_chain' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'class="btn btn-primary" @click="confirmRewriteStrm()"', note: '[TestRewriteStrmConfirmGuard] test_settings_html_rewrite_headsup_tone — 確認鈕須 btn-primary（heads-up 非破壞性）' },
+  { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'btn-error" @click="confirmRewriteStrm()"', note: '[TestRewriteStrmConfirmGuard] test_settings_html_rewrite_headsup_tone — 不得用 btn-error（CD-96d-7 負守衛，與上一列互補）' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'settings.scraper.strm_mapping.rewrite_confirm.body', note: '[TestRewriteStrmConfirmGuard] test_settings_html_rewrite_i18n_body_with_count — body i18n key' },
+  {
+    file: 'web/templates/settings.html', kind: 'required-string', pattern: 'pendingRewriteCount',
+    scope: { anchor: /settings\.scraper\.strm_mapping\.rewrite_confirm\.body/, window: 200 },
+    note: '[TestRewriteStrmConfirmGuard] test_settings_html_rewrite_i18n_body_with_count — body x-text 200 字視窗內須含 count 插值',
+  },
+  ...['title', 'cancel', 'confirm'].map((key) => ({
+    file: 'web/templates/settings.html', kind: 'required-string', pattern: `settings.scraper.strm_mapping.rewrite_confirm.${key}`,
+    note: '[TestRewriteStrmConfirmGuard] test_settings_html_rewrite_i18n_body_with_count — for-loop 3 key',
+  })),
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'rewriteStrmConfirmOpen: false', note: '[TestRewriteStrmConfirmGuard] test_config_js_stubs_declared' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'pendingRewriteCount: 0', note: '[TestRewriteStrmConfirmGuard] test_config_js_stubs_declared' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'confirmRewriteStrm()', note: '[TestRewriteStrmConfirmGuard] test_config_js_methods_present' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'cancelRewriteStrm()', note: '[TestRewriteStrmConfirmGuard] test_config_js_methods_present' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: '/api/config/rewrite-strm?dry_run=true', note: '[TestRewriteStrmConfirmGuard] test_config_js_saveconfig_hook_condition — dry-run 計數呼叫' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'prevStrmMappings', note: '[TestRewriteStrmConfirmGuard] test_config_js_saveconfig_hook_condition — 存前快照（映射變更判定）' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: "['jellyfin', 'emby', 'kodi'].includes(this.form.externalManager)", note: '[TestRewriteStrmConfirmGuard] test_config_js_saveconfig_hook_condition — media-server 模式 gate（含 this.form. 前綴，勿與 scanner.html 版混淆）' },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: "'/api/config/rewrite-strm'",
+    scope: /async confirmRewriteStrm\(\)[\s\S]*?(?=cancelRewriteStrm\(\))/,
+    note: '[TestRewriteStrmConfirmGuard] test_config_js_confirm_calls_real_endpoint_and_toast — 實際改寫端點呼叫，無 dry_run（RWS-scope 方法體）',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'settings.scraper.strm_mapping.rewrite_done',
+    scope: /async confirmRewriteStrm\(\)[\s\S]*?(?=cancelRewriteStrm\(\))/,
+    note: '[TestRewriteStrmConfirmGuard] test_config_js_confirm_calls_real_endpoint_and_toast — rewrite_done toast i18n key（RWS-scope 方法體）',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'result.rewritten',
+    scope: /async confirmRewriteStrm\(\)[\s\S]*?(?=cancelRewriteStrm\(\))/,
+    note: '[TestRewriteStrmConfirmGuard] test_config_js_confirm_calls_real_endpoint_and_toast — toast 帶端點回的精確 rewritten 數（RWS-scope 方法體）',
+  },
+  // [lint-guard: pytest-justified｜method-block-scoped count｜CD-96d-5] test_config_js_confirm_calls_real_endpoint_and_toast
+  // 內 `block.count("...rewrite_failed") >= 2`（live L9546-9547）子測 OPUS 裁決：CD-96d-5 是已定案 canonical
+  // decision，字面維持「確定留 pytest」，本卡不建 RULES 列覆蓋（TASK-96d-T4.md「與 CD-96d-5 矛盾的研究發現」節提出
+  // 可用 required-string + RWS-scope（見上 3 列同一 scope）+ count: 2 忠實表達的替代方案，供未來重新裁決參考，
+  // 但本次遵照裁決不採納）。故該 pytest 方法本身（含已被上方 3 列覆蓋的前 3 段斷言）仍不可整刪——pytest 是以方法
+  // 為刪除單位、非以 assert 為單位，T5 需處理此細節。
 ];
 
 // ---- helpers ----
