@@ -1,5 +1,8 @@
 """
 確保專案 Python 模組不使用 logging.getLogger（應使用 get_logger）
+
+# [lint-guard: pytest-justified] 守 Python 源碼語意（AST 掃 logging.getLogger 呼叫）——
+# 非前端靜態字串守衛，lint/eslint 表達不了 Python AST，永久留 pytest（CD-96a-8c / CD-96-2）。
 """
 import ast
 from pathlib import Path

@@ -231,7 +231,11 @@ def test_unavailable_tray_picked_in_prompt_notifies_and_cancels(desktop, monkeyp
 
 
 def test_native_tray_has_taskbar_created_recovery():
-    """AST guard: tray.py must call RegisterWindowMessageW with 'TaskbarCreated'."""
+    """AST guard: tray.py must call RegisterWindowMessageW with 'TaskbarCreated'.
+
+    # [lint-guard: pytest-justified] 守 Python 源碼語意（AST 掃 win32 RegisterWindowMessageW 呼叫）——
+    # 非前端靜態字串守衛，永久留 pytest（CD-96a-8c / CD-96-2）。
+    """
     import ast as _ast
 
     source = (Path(__file__).parents[2] / "windows" / "tray.py").read_text(encoding="utf-8")
@@ -253,12 +257,6 @@ def test_native_tray_has_taskbar_created_recovery():
         for node in _ast.walk(tree)
     )
     assert found, "tray.py must call RegisterWindowMessageW('TaskbarCreated') for explorer-restart recovery"
-
-
-def test_common_controls_manifest_exists():
-    """Manifest file must exist (content correctness is owner responsibility)."""
-    manifest = Path(__file__).parents[2] / "windows" / "common-controls.manifest"
-    assert manifest.exists(), f"common-controls.manifest not found at {manifest}"
 
 
 # ---------------------------------------------------------------------------

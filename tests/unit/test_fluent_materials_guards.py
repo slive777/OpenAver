@@ -11,7 +11,6 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FLUENT_CSS = REPO_ROOT / "web" / "static" / "css" / "components" / "fluent-materials.css"
-BASE_HTML  = REPO_ROOT / "web" / "templates" / "base.html"
 THEME_CSS  = REPO_ROOT / "web" / "static" / "css" / "theme.css"
 RESCRAPE_CSS = REPO_ROOT / "web" / "static" / "css" / "components" / "rescrape-modal.css"
 
@@ -62,47 +61,8 @@ class TestFluentMaterialsGuards:
     def _css(self) -> str:
         return FLUENT_CSS.read_text(encoding="utf-8")
 
-    def _html(self) -> str:
-        return BASE_HTML.read_text(encoding="utf-8")
-
     def _theme_css(self) -> str:
         return THEME_CSS.read_text(encoding="utf-8")
-
-    # ─── Guard 1 ─────────────────────────────────────────────────────────────
-
-    def test_load_order(self):
-        """fluent-materials.css <link> must appear AFTER {% block extra_css %} and after theme.css.
-
-        Protects CD-A2: source-order override contract. If fluent-materials.css is loaded
-        before extra_css expansion, page-specific CSS (e.g. design-system.css) would win
-        same-specificity ties and break the Fluent surface overrides.
-        """
-        html_lines = self._html().splitlines()
-
-        fluent_idx = None
-        extra_css_idx = None
-        theme_idx = None
-
-        for i, line in enumerate(html_lines):
-            if "fluent-materials.css" in line and "<link" in line:
-                fluent_idx = i
-            if "{% block extra_css %}" in line:
-                extra_css_idx = i
-            if 'href="/static/css/theme.css"' in line and "<link" in line:
-                theme_idx = i
-
-        assert fluent_idx is not None, "base.html: <link> for fluent-materials.css not found"
-        assert extra_css_idx is not None, "base.html: {% block extra_css %} not found"
-        assert theme_idx is not None, "base.html: <link> for theme.css not found"
-
-        assert fluent_idx > extra_css_idx, (
-            f"fluent-materials.css link (line {fluent_idx}) must come AFTER "
-            f"{{% block extra_css %}} (line {extra_css_idx})"
-        )
-        assert fluent_idx > theme_idx, (
-            f"fluent-materials.css link (line {fluent_idx}) must come AFTER "
-            f"theme.css link (line {theme_idx})"
-        )
 
     # ─── Guard 2 (77d-T3: role-split) ────────────────────────────────────────
 
