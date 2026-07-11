@@ -1047,24 +1047,41 @@ const RULES = [
     file: 'pages/search.css',
     kind: 'fn',
     check(ctx) {
-      const lines = ctx.raw.split('\n'); // 用 raw 保留 comment（optical marker / drop-shadow context）
-      const rgbaRe = /rgba\(\s*0\s*,\s*0\s*,\s*0\s*,/;
+      const lines = ctx.raw.split('\n'); // 用 raw 保留 optical marker（寫在註解）
+      const rgbaRe = /rgba\(\s*0\s*,\s*0\s*,\s*0\s*,/g;
       const sixRe = /[:\s]6px(?:\s|;|$)/;
       const intrinsicRe = /\b(?:min-|max-)?height\s*:|\bwidth\s*:/;
+      // 移除行內 /* … */，避免註解裡的 var(/drop-shadow(/6px 造成誤判（review CG-PC-13 false-negative 修）
+      const stripInlineComment = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '');
+      // rgba(0,0,0…) 例外僅當它**真的落在** drop-shadow(…) 或 var(…) 呼叫內（開括號後、對應閉括號前）；
+      // 只是同行「共現」var(/drop-shadow( 不算（例：box-shadow 硬編 rgba 後面接無關 var(--border)）。
+      const insideAllowedCall = (code, idx) => {
+        for (const opener of ['drop-shadow(', 'var(']) {
+          const p = code.lastIndexOf(opener, idx);
+          if (p === -1) continue;
+          const span = code.slice(p + opener.length, idx);
+          const opens = (span.match(/\(/g) || []).length;
+          const closes = (span.match(/\)/g) || []).length;
+          if (opens >= closes) return true; // 該呼叫尚未關閉 → rgba 在其中
+        }
+        return false;
+      };
       const rgbaViol = [];
       const sixViol = [];
       for (let i = 0; i < lines.length; i += 1) {
         const line = lines[i];
         const stripped = line.replace(/^\s+/, '');
         if (stripped.startsWith('/*') || stripped.startsWith('*')) continue; // 跳過純註解行
-        if (rgbaRe.test(line)) {
-          // 例外：drop-shadow 去背形狀 / var() defensive fallback（語法判定，穩健）
-          if (!(line.includes('drop-shadow(') || line.includes('var('))) rgbaViol.push([i + 1, line.trimEnd()]);
+        const code = stripInlineComment(line);
+        rgbaRe.lastIndex = 0;
+        let m;
+        while ((m = rgbaRe.exec(code)) !== null) {
+          if (!insideAllowedCall(code, m.index)) { rgbaViol.push([i + 1, line.trimEnd()]); break; }
         }
-        if (sixRe.test(line)) {
+        if (sixRe.test(code)) {
           const prev = i > 0 ? lines[i - 1] : '';
-          // 例外：intrinsic dimension（height/width）/ 該行或緊鄰上一行 comment 含 optical
-          const ok = intrinsicRe.test(line) || line.includes('optical') || prev.includes('optical');
+          // 例外：intrinsic dimension（height/width）/ 該行或緊鄰上一行 comment 含 optical marker
+          const ok = intrinsicRe.test(code) || line.includes('optical') || prev.includes('optical');
           if (!ok) sixViol.push([i + 1, line.trimEnd()]);
         }
       }
