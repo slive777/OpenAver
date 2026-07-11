@@ -61,6 +61,45 @@ jobs:
           path: dist/artifact/
           retention-days: 30
 
+      # 原封 ZIP：verify-windows 下載跑 import sweep + release 上傳（spec-97 CD-97-3）
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: OpenAver-Windows-x64-zip
+          path: dist/*-Windows-*.zip
+          retention-days: 30
+          if-no-files-found: error
+
+  # ============ Windows verify (runtime import sweep on shipped python) ============
+  # Windows ZIP 是 ubuntu cross-build，跑不了 win embedded python → 產物 runtime
+  # 驗證必須在 windows runner、用產物自帶的 python.exe 跑（spec-97 CD-97-2）。
+  # Release 上傳 gate 在此 job（verify 綠才發，CD-97-3）。
+  verify-windows:
+    runs-on: windows-latest
+    needs: build-windows-x64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Download ZIP artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: OpenAver-Windows-x64-zip
+          path: dist
+
+      - name: Expand artifact
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem dist/*-Windows-*.zip | Select-Object -First 1
+          Expand-Archive -Path $zip.FullName -DestinationPath dist/verify -Force
+
+      - name: Runtime import sweep (shipped python.exe)
+        shell: pwsh
+        # 無 --skip：clr/pythonnet 在真 windows runner 原生解 .NET 正常。
+        # --skip 僅 WSL-interop workaround，baking 進 CI＝重造 fail-open 盲區（spec-97）。
+        run: '& dist/verify/OpenAver/python/python.exe scripts/verify_artifact_imports.py'
+
       - name: Upload to Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
@@ -97,10 +136,23 @@ jobs:
       - name: Build macOS package
         run: python build_macos.py
 
+      # mac 首次掛 audit（spec-97 G-4）：--max-mb 60（mac baseline ~49MB、uvloop
+      # 合法，不可照搬 win 48，CD-97-6）。dist-info 靜態檢查兩平台皆帶入（T3）。
+      - name: Run artifact audit
+        run: python scripts/audit_build_artifact.py "dist/*-macOS-*.zip" --platform mac --max-mb 60 --strict
+
       - name: Prepare artifact
         run: |
           cd dist
           unzip *-macOS-*.zip -d artifact
+
+      # 產物 runtime import sweep：macos runner 原生執行產物自帶 python3（CD-97-2）。
+      # 與 Upload to Release 同 job，step 順序即 gate（CD-97-3）。
+      - name: Runtime import sweep (shipped python3)
+        # chmod 防禦：zip 若丟失 exec bit 不阻斷 sweep（本步驟只驗 import，非 exec bit）。
+        run: |
+          chmod +x dist/artifact/OpenAver/python/bin/python3 || true
+          dist/artifact/OpenAver/python/bin/python3 scripts/verify_artifact_imports.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v5
