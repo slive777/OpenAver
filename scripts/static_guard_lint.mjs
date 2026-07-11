@@ -1527,6 +1527,269 @@ const RULES = [
     scope: /class="fluent-modal-title".*?<\/h3>/s,
     note: '[TestPicker64aThreeStateGuard] test_modal_title_switches_by_entrypoint — Scope J',
   },
+
+  // ==== 96d-T3：motion-token 家族遷移（TASK-96d-T3.md，10 live pytest class，1 子測 must-stay-pytest）====
+  // TestShowcaseAnimationsGuard.test_core_js_no_direct_gsap_getById（scope-exclusion forbidden：
+  // 「_killLightboxTimelines 函式體之外」不得出現 gsap.getById(）不遷——engine 只有「限定 scope
+  // 內」沒有「排除 scope 外」的能力，count-equality 變通會引入比 pytest 更脆弱的假陽性
+  // （見 TASK-96d-T3.md「必留 pytest 清單」節）。該 class 因此為 motion 家族內唯一
+  // slim-residual（其餘 4 子測全遷，此 1 子測留 pytest）。
+
+  // ---- [TestFluentCustomEaseRegistered] motion-adapter.js CustomEase 三角色同步註冊 ----
+  { file: 'web/static/js/components/motion-adapter.js', kind: 'required-string', pattern: "CustomEase.create('fluent'", note: "[TestFluentCustomEaseRegistered] test_fluent_standard_registered" },
+  { file: 'web/static/js/components/motion-adapter.js', kind: 'required-string', pattern: "CustomEase.create('fluent-decel'", note: "[TestFluentCustomEaseRegistered] test_fluent_decel_registered" },
+  { file: 'web/static/js/components/motion-adapter.js', kind: 'required-string', pattern: "CustomEase.create('fluent-accel'", note: "[TestFluentCustomEaseRegistered] test_fluent_accel_registered" },
+  { file: 'web/static/js/components/motion-adapter.js', kind: 'required-string', pattern: "typeof CustomEase !== 'undefined'", note: '[TestFluentCustomEaseRegistered] test_register_is_guarded' },
+  {
+    file: 'web/static/js/components/motion-adapter.js', kind: 'forbidden-string',
+    pattern: /DOMContentLoaded[\s\S]*CustomEase\.create\('fluent'/,
+    note: "[TestFluentCustomEaseRegistered] test_register_is_synchronous — conditional-order 技巧：只在「DOMContentLoaded 先出現、CustomEase.create('fluent' 隨後再出現」（即 fluent 註冊被包進 handler 之違規情境）才匹配；現況檔案無 DOMContentLoaded 字面，vacuous pass（4 種情境推導見 TASK-96d-T3.md §1）",
+  },
+
+  // ---- [TestMotionDurationConstants] motion.DURATION 三角色常數 + 雙檔 usage-count（min-bound）+ white-list ----
+  { file: 'web/static/js/components/motion-adapter.js', kind: 'required-string', pattern: 'DURATION:', note: '[TestMotionDurationConstants] test_duration_constants_exposed — DURATION 物件定義' },
+  { file: 'web/static/js/components/motion-adapter.js', kind: 'required-string', pattern: 'fast:', note: '[TestMotionDurationConstants] test_duration_constants_exposed — fast 角色' },
+  { file: 'web/static/js/components/motion-adapter.js', kind: 'required-string', pattern: '0.167', note: '[TestMotionDurationConstants] test_duration_constants_exposed — fast=0.167' },
+  { file: 'web/static/js/components/motion-adapter.js', kind: 'required-string', pattern: 'medium:', note: '[TestMotionDurationConstants] test_duration_constants_exposed — medium 角色' },
+  { file: 'web/static/js/components/motion-adapter.js', kind: 'required-string', pattern: '0.333', note: '[TestMotionDurationConstants] test_duration_constants_exposed — medium=0.333' },
+  { file: 'web/static/js/components/motion-adapter.js', kind: 'required-string', pattern: 'emphasis:', note: '[TestMotionDurationConstants] test_duration_constants_exposed — emphasis 角色' },
+  { file: 'web/static/js/components/motion-adapter.js', kind: 'required-string', pattern: '0.5', note: '[TestMotionDurationConstants] test_duration_constants_exposed — emphasis=0.5' },
+  {
+    file: 'web/static/js/components/motion-adapter.js', kind: 'required-string', pattern: 'motion.DURATION.', count: 4,
+    note: '[TestMotionDurationConstants] test_adapter_callers_use_duration_constants — js.count("motion.DURATION.") >= 4（required-string count=min-bound，非 structure-count exact）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'OpenAver.motion.DURATION.', count: 8,
+    note: '[TestMotionDurationConstants] test_animations_callers_use_duration_constants — js.count("OpenAver.motion.DURATION.") >= 8（min-bound；現況恰貼齊門檻，mutation 高風險列）',
+  },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'params.duration || 0.8', note: '[TestMotionDurationConstants] test_white_list_durations_preserved — showcaseSettle 招牌曲線白名單' },
+  {
+    file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'duration: 0.3',
+    scope: { anchor: /playHeroCardAppear/, window: 800 },
+    note: '[TestMotionDurationConstants] test_white_list_durations_preserved — playHeroCardAppear 女優專屬白名單（800 字元視窗）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'options.duration : 0.1',
+    scope: { anchor: /playSourcePulse/, window: 800 },
+    note: '[TestMotionDurationConstants] test_white_list_durations_preserved — playSourcePulse 低於 fast bucket 白名單（800 字元視窗）',
+  },
+
+  // ---- [TestMotionAdapterFluentDefaults] motion-adapter.js 5 default ease → fluent 角色（per-fn lazy-lookahead scope）----
+  {
+    file: 'web/static/js/components/motion-adapter.js', kind: 'required-string', pattern: "opts.ease || 'fluent-decel'",
+    scope: /playEnter:[\s\S]*?(?=\/\*\*)/,
+    note: "[TestMotionAdapterFluentDefaults] test_play_enter_default_fluent_decel",
+  },
+  {
+    file: 'web/static/js/components/motion-adapter.js', kind: 'required-string', pattern: "opts.ease || 'fluent-accel'",
+    scope: /playLeave:[\s\S]*?(?=\/\*\*)/,
+    note: "[TestMotionAdapterFluentDefaults] test_play_leave_default_fluent_accel",
+  },
+  {
+    file: 'web/static/js/components/motion-adapter.js', kind: 'required-string', pattern: "opts.ease || 'fluent-decel'",
+    scope: /playStagger:[\s\S]*?(?=\/\*\*)/,
+    note: "[TestMotionAdapterFluentDefaults] test_play_stagger_default_fluent_decel",
+  },
+  {
+    file: 'web/static/js/components/motion-adapter.js', kind: 'required-string', pattern: "opts.ease || 'fluent'",
+    scope: /playFadeTo:[\s\S]*?(?=\/\*\*)/,
+    note: "[TestMotionAdapterFluentDefaults] test_play_fade_to_default_fluent — required 半邊",
+  },
+  {
+    file: 'web/static/js/components/motion-adapter.js', kind: 'forbidden-string', pattern: "opts.ease || 'fluent-decel'",
+    scope: /playFadeTo:[\s\S]*?(?=\/\*\*)/,
+    note: "[TestMotionAdapterFluentDefaults] test_play_fade_to_default_fluent — forbidden 半邊",
+  },
+  {
+    file: 'web/static/js/components/motion-adapter.js', kind: 'required-string', pattern: "opts.ease || 'fluent-decel'",
+    scope: /playModal:[\s\S]*?(?=\/\*\*)/,
+    note: "[TestMotionAdapterFluentDefaults] test_play_modal_default_fluent_decel",
+  },
+  { file: 'web/static/js/components/motion-adapter.js', kind: 'forbidden-string', pattern: "opts.ease || 'power", note: '[TestMotionAdapterFluentDefaults] test_no_legacy_power_ease_defaults — unscoped 全檔' },
+
+  // ---- [TestShowcaseAnimationsFluent] showcase/animations.js + ghost-fly.js + search/animations.js ease → fluent 角色 ----
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: "params.easing || 'fluent-decel'", note: '[TestShowcaseAnimationsFluent] test_animations_js_contains — playEntry' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: "params.ease || 'fluent'", note: '[TestShowcaseAnimationsFluent] test_animations_js_contains — playFlipReorder' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: "ease: 'fluent-accel'", note: '[TestShowcaseAnimationsFluent] test_animations_js_contains — playModeCrossfade' },
+  {
+    file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: "ease: 'fluent-decel'", count: 2,
+    note: '[TestShowcaseAnimationsFluent] test_animations_js_contains — playFlipFilter onEnter ×2（存在性斷言 + js.count(...) >= 2 合併為單一 count-based 列）',
+  },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: "ease: 'fluent'", note: '[TestShowcaseAnimationsFluent] test_animations_js_contains — playLightboxSwitch/playSampleGallerySwitch' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: "options.ease || 'fluent-decel'", note: '[TestShowcaseAnimationsFluent] test_animations_js_contains — playContainerFadeIn/playSourcePulse' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'CustomEase.create("showcaseSettle"', note: '[TestShowcaseAnimationsFluent] test_animations_js_contains — white-list 招牌曲線' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'GhostFly.playLightboxOpen', note: '[TestShowcaseAnimationsFluent] test_animations_js_contains — T4.2 delegate' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'showcaseLightboxOpen', note: '[TestShowcaseAnimationsFluent] test_animations_js_contains — T4.2 delegate' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: "typeof window.GhostFly?.playLightboxOpen === 'function'", note: '[TestShowcaseAnimationsFluent] test_animations_js_contains — T4.2 delegate guard' },
+  {
+    file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', anyOf: true,
+    pattern: ['gsap.fromTo', 'tl.fromTo'],
+    note: '[TestShowcaseAnimationsFluent] test_animations_js_contains — playModeCrossfade fromTo call（OR）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', anyOf: true,
+    pattern: ["'use strict'", "\"'use strict'\""],
+    note: "[TestShowcaseAnimationsFluent] test_animations_js_contains — strict mode declaration（單/雙引號變體 OR）",
+  },
+  {
+    file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: "ease: 'power2.out'", count: 3,
+    scope: { anchor: /playLightboxOpen:/, window: 4500 },
+    note: '[TestShowcaseAnimationsFluent] test_ghost_fly_js_contains — playLightboxOpen 三段 power2.out（backdrop/content/cover，min-bound，現況恰貼齊門檻）',
+  },
+  {
+    file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: "clearProps: 'transform,opacity'", count: 4,
+    scope: { anchor: /playLightboxOpen:/, window: 4500 },
+    note: '[TestShowcaseAnimationsFluent] test_ghost_fly_js_contains — clearProps ×4（onComplete+onInterrupt，min-bound，現況恰貼齊門檻）',
+  },
+  {
+    file: 'web/static/js/shared/ghost-fly.js', kind: 'forbidden-string', pattern: "ease: 'fluent-decel'",
+    scope: { anchor: /playLightboxOpen:/, window: 4500 },
+    note: '[TestShowcaseAnimationsFluent] test_ghost_fly_js_contains — playLightboxOpen 不應誤改成 fluent-decel（保留 power2.out 白名單）',
+  },
+  {
+    file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', anyOf: true,
+    pattern: ['white-list', 'ghost-fly'],
+    scope: { anchor: /playLightboxOpen:/, window: 4500 },
+    note: '[TestShowcaseAnimationsFluent] test_ghost_fly_js_contains — white-list/ghost-fly 標注註解（OR）',
+  },
+  {
+    file: 'web/static/js/pages/search/animations.js', kind: 'required-string', pattern: 'GhostFly.playLightboxOpen',
+    scope: { anchor: /playLightboxOpen: function/, window: 800 },
+    note: '[TestShowcaseAnimationsFluent] test_search_animations_js_contains — Phase 51 T4.3 delegate',
+  },
+  {
+    file: 'web/static/js/pages/search/animations.js', kind: 'forbidden-string', pattern: 'showcaseLightboxOpen',
+    scope: { anchor: /playLightboxOpen: function/, window: 800 },
+    note: '[TestShowcaseAnimationsFluent] test_search_animations_js_contains — search 頁不應殘留 showcase 專屬命名',
+  },
+  {
+    file: 'web/static/js/pages/search/animations.js', kind: 'required-string', pattern: "typeof window.GhostFly?.playLightboxOpen === 'function'",
+    scope: { anchor: /playLightboxOpen: function/, window: 800 },
+    note: '[TestShowcaseAnimationsFluent] test_search_animations_js_contains — typeof guard',
+  },
+
+  // ---- [TestMotionLabT2EaseRoles] motion_lab.html + motion-lab.js §5 Ease Roles demo ----
+  { file: 'web/templates/motion_lab.html', kind: 'required-string', pattern: 'fluent-decel', note: '[TestMotionLabT2EaseRoles] test_html_contains_fluent_decel' },
+  { file: 'web/templates/motion_lab.html', kind: 'required-string', pattern: 'fluent-accel', note: '[TestMotionLabT2EaseRoles] test_html_contains_fluent_accel' },
+  { file: 'web/templates/motion_lab.html', kind: 'required-string', pattern: 'ease-roles', note: '[TestMotionLabT2EaseRoles] test_html_has_ease_roles_tab' },
+  { file: 'web/static/js/pages/motion-lab.js', kind: 'required-string', pattern: 'playEaseRolesDemo', note: '[TestMotionLabT2EaseRoles] test_js_has_play_ease_roles_demo' },
+  {
+    file: 'web/static/js/pages/motion-lab.js', kind: 'forbidden-string', pattern: 'power3.out',
+    scope: /playCardStreamIn:[\s\S]*?(?=\n {8}\/\*\*)/,
+    note: '[TestMotionLabT2EaseRoles] test_js_no_bare_back_out_in_stream — playCardStreamIn 不含裸 power3.out（lazy-lookahead 到下個 8-space 縮排 /** 標記）',
+  },
+  {
+    file: 'web/static/js/pages/motion-lab.js', kind: 'forbidden-string', pattern: 'power2.out',
+    scope: /playCardStreamIn:[\s\S]*?(?=\n {8}\/\*\*)/,
+    note: '[TestMotionLabT2EaseRoles] test_js_no_bare_back_out_in_stream — playCardStreamIn 不含裸 power2.out（同上 scope）',
+  },
+
+  // ---- [TestMotionLabT2DurationBuckets] motion_lab.html + motion-lab.js §5 Duration Buckets demo ----
+  { file: 'web/templates/motion_lab.html', kind: 'required-string', pattern: 'duration-buckets', note: '[TestMotionLabT2DurationBuckets] test_html_has_duration_buckets_tab' },
+  { file: 'web/static/js/pages/motion-lab.js', kind: 'required-string', pattern: 'playDurationBucketsDemo', note: '[TestMotionLabT2DurationBuckets] test_js_has_play_duration_buckets_demo' },
+  { file: 'web/templates/motion_lab.html', kind: 'required-string', pattern: 'DURATION.fast', note: '[TestMotionLabT2DurationBuckets] test_html_shows_duration_fast_label' },
+
+  // ---- [TestMotionLabT2SpecialMotion] motion_lab.html + motion-lab.js §5 Special Motion 白名單 demo ----
+  { file: 'web/templates/motion_lab.html', kind: 'required-string', pattern: 'special-motion', note: '[TestMotionLabT2SpecialMotion] test_html_has_special_motion_tab' },
+  { file: 'web/static/js/pages/motion-lab.js', kind: 'required-string', pattern: 'playSpecialMotionCheckmarkDemo', note: '[TestMotionLabT2SpecialMotion] test_js_has_play_special_motion_checkmark_demo' },
+  { file: 'web/static/js/pages/motion-lab.js', kind: 'required-string', pattern: 'playSpecialMotionShakeDemo', note: '[TestMotionLabT2SpecialMotion] test_js_has_play_special_motion_shake_demo' },
+  { file: 'web/static/js/pages/motion-lab.js', kind: 'required-string', pattern: 'playSpecialMotionPulseDemo', note: '[TestMotionLabT2SpecialMotion] test_js_has_play_special_motion_pulse_demo' },
+  { file: 'web/templates/motion_lab.html', kind: 'required-string', pattern: 'whitelist-skip-note', note: '[TestMotionLabT2SpecialMotion] test_html_has_whitelist_skip_note' },
+
+  // ---- [TestShowcaseAnimationsGuard] B5-B15/T20 Showcase GSAP 基礎設施（slim-residual：4/5 子測遷，
+  // test_core_js_no_direct_gsap_getById 留 pytest，見上方 96d-T3 header 說明）----
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'window.ShowcaseAnimations', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B5 IIFE + global object' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'prefersReducedMotion', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B5' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'playEntry', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B5 method stub' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'playFlipReorder', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B5 method stub' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'playFlipFilter', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B5 method stub' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'captureFlipState', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B7' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'capturePositions', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B7' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'playModeCrossfade', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B5 method stub' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'registerPlugin(Flip)', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B5 plugin registration' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'showcaseSettle', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B5' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'gsap.killTweensOf', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B6 playEntry impl' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'getBoundingClientRect', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B6' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'gsap.set', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B6' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'Flip.getState', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B7 captureFlipState/capturePositions' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: '.av-card-preview', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B7' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'data-flip-id', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B7' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'Flip.from', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B8 playFlipFilter' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'onEnter', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B8' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'onLeave', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B8' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'clearProps', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B8' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'return gsap.fromTo', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B8 playFlipFilter returns tweens' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'return gsap.to', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B8' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: '.fromTo', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B12 playFlipReorder manual fromTo' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'killLightboxAnimations', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — T20' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: "getById('showcaseLightboxOpen')", note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — T20' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: "getById('showcaseLightboxSwitch')", note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — T20' },
+  { file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', pattern: 'typeof gsap', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — T20' },
+  {
+    file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', anyOf: true,
+    pattern: ['gsap.fromTo', 'tl.fromTo'],
+    note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B10 playModeCrossfade fromTo call（OR）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/animations.js', kind: 'required-string', anyOf: true,
+    pattern: ["'use strict'", "\"'use strict'\""],
+    note: "[TestShowcaseAnimationsGuard] test_animations_js_contains — B5 strict mode declaration（單/雙引號變體 OR）",
+  },
+  { file: 'web/static/css/theme.css', kind: 'required-string', pattern: 'flip-guard', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B15 theme.css flip-guard rule' },
+  { file: 'web/static/css/theme.css', kind: 'required-string', pattern: 'transform: none', note: '[TestShowcaseAnimationsGuard] test_animations_js_contains — B15 theme.css flip-guard rule' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'animations.js', note: '[TestShowcaseAnimationsGuard] test_showcase_html_contains — animations.js script tag' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'data-flip-id', note: '[TestShowcaseAnimationsGuard] test_showcase_html_contains — data-flip-id' },
+  { file: 'web/templates/showcase.html', kind: 'forbidden-string', pattern: 'Flip.min.js', note: '[TestShowcaseAnimationsGuard] test_showcase_html_contains — 不重複載入 Flip.min.js' },
+  // _read_core_js() 合併讀取 state-base.js + state-videos.js + state-lightbox.js 三檔；engine 不支援
+  // 多檔合併成單一文字塊，改單檔化指向 state-videos.js（已逐字面 grep 核對現況下語意完全等價，
+  // 「位置收斂」而非縮窄，見 TASK-96d-T3.md §「合併讀取檔案的單檔化處理」）。
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: 'playEntry', note: '[TestShowcaseAnimationsGuard] test_core_js_contains — B6 playEntry call（單檔化，見上）' },
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: 'ShowcaseAnimations', note: '[TestShowcaseAnimationsGuard] test_core_js_contains — 單檔化' },
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: '_animateFilter', note: '[TestShowcaseAnimationsGuard] test_core_js_contains — B8 單檔化' },
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: 'playFlipFilter', note: '[TestShowcaseAnimationsGuard] test_core_js_contains — B8 playFlipFilter call 單檔化' },
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: '_animatePageChange', note: '[TestShowcaseAnimationsGuard] test_core_js_contains — B9 單檔化' },
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: 'scrollTo(0, 0)', note: '[TestShowcaseAnimationsGuard] test_core_js_contains — B9 單檔化' },
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: 'playModeCrossfade', note: '[TestShowcaseAnimationsGuard] test_core_js_contains — B10 單檔化' },
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: 'ShowcaseAnimations?.playModeCrossfade?.(', note: '[TestShowcaseAnimationsGuard] test_core_js_contains — B10 單檔化' },
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: 'capturePositions', note: '[TestShowcaseAnimationsGuard] test_core_js_contains — B12 sort helper 單檔化' },
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: 'playFlipReorder', note: '[TestShowcaseAnimationsGuard] test_core_js_contains — B12 單檔化' },
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: 'flip-guard', note: '[TestShowcaseAnimationsGuard] test_core_js_contains — B12/B13 flip-guard management 單檔化' },
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: '_animGeneration', note: '[TestShowcaseAnimationsGuard] test_core_js_contains — B13 generation token guard 單檔化' },
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: '_sortWithFlip', note: '[TestShowcaseAnimationsGuard] test_core_js_contains — B13 method 單檔化' },
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: 'captureFlipState', note: '[TestShowcaseAnimationsGuard] test_core_js_contains — B15 _animateFilter 單檔化' },
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: 'updatePagination', note: '[TestShowcaseAnimationsGuard] test_core_js_contains — B7 單檔化' },
+  {
+    file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', anyOf: true,
+    pattern: ['savedPage', 'saved_page', 'savePage'],
+    note: '[TestShowcaseAnimationsGuard] test_core_js_contains — B7 _sortWithFlip page preservation（OR，單檔化）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: '_animatePageChange',
+    scope: { anchor: /prevPage\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestShowcaseAnimationsGuard] test_core_js_prev_next_page_call_animate_page_change — prevPage() 方法體須呼叫 _animatePageChange（brace-balanced，單檔化：方法定義唯一位於 state-videos.js）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: '_animatePageChange',
+    scope: { anchor: /nextPage\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestShowcaseAnimationsGuard] test_core_js_prev_next_page_call_animate_page_change — nextPage() 方法體須呼叫 _animatePageChange（brace-balanced，單檔化）',
+  },
+  // test_core_js_no_direct_gsap_getById（scope-exclusion forbidden）不建 RULES 列，留 pytest（見上方 header）。
+
+  // ---- [TestMotionLabShowcase] B11 Motion Lab Showcase demo 完整性（determination：required-string
+  // 網，非直刪——Showcase tab / 4 個 demo 方法皆確認仍存在運作中，非死碼殘留，見 TASK-96d-T3.md
+  // 「determination」節 grep 證據）----
+  { file: 'web/templates/motion_lab.html', kind: 'required-string', pattern: 'showcase', note: '[TestMotionLabShowcase] test_motion_lab_html_contains — showcase tab（寬鬆子字串，與原 pytest 同寬）' },
+  { file: 'web/templates/motion_lab.html', kind: 'required-string', pattern: "tab === 'showcase'", note: '[TestMotionLabShowcase] test_motion_lab_html_contains — Alpine tab 切換邏輯' },
+  { file: 'web/static/js/pages/motion-lab.js', kind: 'required-string', pattern: 'playShowcaseEntry', note: '[TestMotionLabShowcase] test_motion_lab_js_contains — B1' },
+  { file: 'web/static/js/pages/motion-lab.js', kind: 'required-string', pattern: 'playFlipReorder', note: '[TestMotionLabShowcase] test_motion_lab_js_contains — B2' },
+  { file: 'web/static/js/pages/motion-lab.js', kind: 'required-string', pattern: 'playFlipFilter', note: '[TestMotionLabShowcase] test_motion_lab_js_contains — B3' },
+  { file: 'web/static/js/pages/motion-lab.js', kind: 'required-string', pattern: 'playPageTransition', note: '[TestMotionLabShowcase] test_motion_lab_js_contains — B4' },
+
+  // ---- [TestGhostFlyPlayLightboxOpen] ghost-fly.js playLightboxOpen 共用實作守衛（unscoped，
+  // 與 TestShowcaseAnimationsFluent.test_ghost_fly_js_contains 同檔不同 class/scope，互補不重複）----
+  { file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'playLightboxOpen', note: '[TestGhostFlyPlayLightboxOpen] test_ghost_fly_play_lightbox_open_contains' },
+  { file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'clearProps', note: '[TestGhostFlyPlayLightboxOpen] test_ghost_fly_play_lightbox_open_contains' },
+  { file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'timelineId', note: '[TestGhostFlyPlayLightboxOpen] test_ghost_fly_play_lightbox_open_contains' },
 ];
 
 // ---- helpers ----
