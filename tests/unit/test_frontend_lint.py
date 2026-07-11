@@ -7451,6 +7451,7 @@ class TestMetatubePickerWiringGuard:
 
 
 # ─── 63c-6: DMM requires_proxy 灰化（兩 surface） ───
+# [lint-guard: migrate→96d] CSS 半邊已遷 css-guard CG-RO-02；整 class 刪除由 96d（primary）在 HTML 半邊網綠後執行
 class TestDmmProxyRequiredGuard:
     """63c-6: DMM requires_proxy 灰化 — Surface 1（Settings Active Row）+ Surface 2（rescrape picker）。
 
@@ -7654,6 +7655,7 @@ class TestDmmProxyRequiredGuard:
 
 
 # ─── 64a: 進階 picker 三態膠囊語意 + 標題依入口（CD-64-A1~A5 / US-A2）───
+# [lint-guard: migrate→96d] CSS 半邊已遷 css-guard CG-RO-03；整 class 刪除由 96d（primary）在 HTML 半邊網綠後執行
 class TestPicker64aThreeStateGuard:
     """64a-1/64a-2: 進階重刮 / 進階搜尋彈窗 picker 膠囊三態 + 標題契約守衛。
 
@@ -12385,6 +12387,7 @@ class TestOutputPathVisibilityGuard:
             f".folder-item-output x-show 不可用 fail-open 的 !== 'off'，實際: {xshow!r}"
 
 
+# [lint-guard: migrate→96d] CSS 半邊已遷 css-guard CG-RO-01；整 class 刪除由 96d（primary）在 HTML 半邊網綠後執行
 class TestReadonlyDisabledStateGuard:
     """TASK-90c-T3 — 唯讀來源片四寫入入口停用態鏡像守衛（element-bound）。
 

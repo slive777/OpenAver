@@ -1071,6 +1071,136 @@ const RULES = [
       }
     },
   },
+
+  // ══ T3 sub-commit 3b：handoff CSS 半邊（B 組 CG-RO-01..03）+ §B 散檔（C 組 CG-SB-01..03）══
+  // B 組 = handoff receiver own-half（net+tag；整-class delete defer→96d，CD-96-12）。
+  // C 組 = §B standalone 檔（CG-SB-01/02 整檔 delete；CG-SB-03 切 CSS 半邊）。忠實 port（CD-96c-2）。
+
+  // CG-RO-01 ← TestReadonlyDisabledStateGuard CSS 半邊（showcase.css；正向 + 負守衛）
+  {
+    id: 'CG-RO-01',
+    file: 'pages/showcase.css',
+    kind: 'fn',
+    check(ctx) {
+      // .is-readonly-disabled block：cursor: not-allowed + opacity（用 raw，鏡射 pytest _css()）
+      const m = ctx.raw.match(/\.is-readonly-disabled\b[^{]*\{([^}]*)\}/s);
+      if (!m) ctx.fail('CG-RO-01: showcase.css 缺 .is-readonly-disabled class');
+      else {
+        const body = m[1];
+        if (!(body.includes('cursor:') && body.includes('not-allowed'))) ctx.fail('CG-RO-01: .is-readonly-disabled 應含 cursor: not-allowed');
+        if (!body.includes('opacity')) ctx.fail('CG-RO-01: .is-readonly-disabled 應含 opacity（停用淺色）');
+        // 負守衛：block 起點後 600 字元 region（含 :hover 群組）不得出現刪除線
+        const region = ctx.raw.slice(m.index, m.index + 600);
+        if (region.includes('line-through')) ctx.fail('CG-RO-01: .is-readonly-disabled 不應含 line-through（spec：無刪除線）');
+        if (region.includes('text-decoration')) ctx.fail('CG-RO-01: .is-readonly-disabled 不應含 text-decoration（spec：無刪除線）');
+      }
+      // 齒輪 hover gating：須 :not(:disabled):hover，不得殘留未 gate 的裸 :hover
+      if (!/\.lightbox-metadata\s+\.lb-rescrape-gear:not\(:disabled\):hover\b/.test(ctx.raw)) {
+        ctx.fail('CG-RO-01: .lb-rescrape-gear:hover 應改為 :not(:disabled):hover（否則 disabled 齒輪仍變色）');
+      }
+      if (/\.lightbox-metadata\s+\.lb-rescrape-gear:hover\b/.test(ctx.raw)) {
+        ctx.fail('CG-RO-01: 不應殘留未 gate 的 .lb-rescrape-gear:hover（specificity 會蓋過 .is-readonly-disabled）');
+      }
+    },
+  },
+
+  // CG-RO-02 ← TestDmmProxyRequiredGuard CSS 半邊（source-pill.css；opacity + hover no-lift）
+  {
+    id: 'CG-RO-02',
+    file: 'components/source-pill.css',
+    kind: 'fn',
+    check(ctx) {
+      const m = ctx.raw.match(/\.source-pill\[data-proxy-required="true"\]\s*\{([^}]+)\}/s);
+      if (!m) ctx.fail('CG-RO-02: source-pill.css 缺 .source-pill[data-proxy-required="true"] rule block');
+      else if (!m[1].includes('opacity')) ctx.fail('CG-RO-02: [data-proxy-required="true"] rule 缺 opacity 設定（灰化機制）');
+      const hm = ctx.raw.match(/\.source-pill\[data-proxy-required="true"\]:hover\s*\{([^}]+)\}/s);
+      if (!hm) ctx.fail('CG-RO-02: source-pill.css 缺 [data-proxy-required="true"]:hover rule（hover 不亮回）');
+      else if (!hm[1].includes('transform')) ctx.fail('CG-RO-02: :hover rule 缺 transform: none（防 lift）');
+    },
+  },
+
+  // CG-RO-03 ← TestPicker64aThreeStateGuard offline CSS 半邊（source-pill.css；specificity-aware 全域守衛）
+  {
+    id: 'CG-RO-03',
+    file: 'components/source-pill.css',
+    kind: 'fn',
+    check(ctx) {
+      // picker offline 去刪除線（雙 class 0,4,0 勝全域）
+      const om = ctx.raw.match(/\.source-pill\.source-pill--action\[data-enabled="false"\]\s+\.pill-name\s*\{([^}]+)\}/s);
+      if (!om) ctx.fail('CG-RO-03: source-pill.css 缺 .source-pill.source-pill--action[data-enabled="false"] .pill-name 規則');
+      else if (!om[1].includes('text-decoration: none')) ctx.fail('CG-RO-03: picker offline .pill-name 應 text-decoration: none');
+      // 全域不動守衛：忠實 port lookbehind (?<!--action)（區分全域 vs picker-scoped）
+      const gm = ctx.raw.match(/(?<!--action)\.source-pill\[data-enabled="false"\]\s+\.pill-name\s*\{([^}]+)\}/s);
+      if (!gm) ctx.fail('CG-RO-03: 全域 .source-pill[data-enabled="false"] .pill-name 規則不應被移除');
+      else if (!gm[1].includes('line-through')) ctx.fail('CG-RO-03: 全域 line-through 不應被改動（CD-64-A3：只在 picker scope 加法覆寫）');
+      // offline 膠囊 cursor: not-allowed
+      const cm = ctx.raw.match(/\.source-pill--action\[aria-disabled="true"\]\s*\{([^}]+)\}/s);
+      if (!cm) ctx.fail('CG-RO-03: source-pill.css 缺 .source-pill--action[aria-disabled="true"] cursor 規則');
+      else if (!cm[1].includes('not-allowed')) ctx.fail('CG-RO-03: offline 膠囊 cursor 應 not-allowed');
+    },
+  },
+
+  // CG-SB-01 ← test_css_spotlight_scoping.py（showcase.css + theme.css；4 檢查皆存在性/scope）
+  {
+    id: 'CG-SB-01',
+    file: 'pages/showcase.css',
+    kind: 'fn',
+    check(ctx) {
+      // .spotlight-search--mode-toggle variant + --spotlight-left-slot token 存在
+      if (!/\.spotlight-search--mode-toggle\s*\{[^}]*--spotlight-left-slot/.test(ctx.raw)) {
+        ctx.fail('CG-SB-01: showcase.css 缺 .spotlight-search--mode-toggle { --spotlight-left-slot: … }');
+      }
+      // 負守衛：裸 .spotlight-search input { padding-left: 5.5rem } 不得存在（會漏進 /search）
+      if (/(?:^|\n)\s*\.spotlight-search\s+input\s*\{[^}]*padding-left\s*:\s*5\.5rem/.test(ctx.raw)) {
+        ctx.fail('CG-SB-01: showcase.css 有裸 .spotlight-search input { padding-left: 5.5rem }（會漏進 /search，改用 variant class）');
+      }
+      // theme.css --spotlight-width token 存在
+      if (!ctx.load('theme.css').raw.includes('--spotlight-width')) {
+        ctx.fail('CG-SB-01: theme.css 缺 --spotlight-width（T8a）');
+      }
+      // showcase-toolbar 用 grid
+      if (!(ctx.raw.includes('display: grid') && ctx.raw.includes('grid-template-columns'))) {
+        ctx.fail('CG-SB-01: showcase-toolbar 須用 CSS grid（display: grid + grid-template-columns）');
+      }
+    },
+  },
+
+  // CG-SB-02 ← test_settings_mobile_toast.py（settings.css；@media(max-width:480px) media-scope）
+  {
+    id: 'CG-SB-02',
+    file: 'pages/settings.css',
+    kind: 'fn',
+    check(ctx) {
+      const css = ctx.raw;
+      if (!css.includes('max-width: 480px')) ctx.fail('CG-SB-02: settings.css 缺 max-width: 480px media query');
+      if (!css.includes('.toast.toast-top')) ctx.fail('CG-SB-02: settings.css media query 缺 .toast.toast-top');
+      if (!css.includes('bottom')) ctx.fail('CG-SB-02: settings.css 缺 bottom 屬性');
+      // bottom 須在 @media (max-width: 480px) 區塊內（桌面不受影響）。settings.css 有多個 480 block，
+      // toast bottom 落在其一 → 掃全部 480 body（extractMobileMediaBody 只回第一個，會漏掉 toast block）。
+      const bodies480 = extractMediaBodies(css, MW480);
+      if (!bodies480.length) ctx.fail('CG-SB-02: settings.css 找不到 @media (max-width: 480px) block');
+      else if (!bodies480.some((b) => b.includes('bottom'))) ctx.fail('CG-SB-02: bottom 設定須落在 @media (max-width: 480px) 區塊內');
+    },
+  },
+
+  // CG-SB-03 ← test_search_icon_mutex.py CSS 半邊（search.css；in-block line scan）
+  {
+    id: 'CG-SB-03',
+    file: 'pages/search.css',
+    kind: 'fn',
+    check(ctx) {
+      // 忠實 port pytest 逐行 in-block 掃描：.spotlight-search .btn-icon block 內含 flex-shrink
+      const lines = ctx.raw.split('\n');
+      let inBlock = false;
+      let found = false;
+      for (const line of lines) {
+        if (line.includes('.spotlight-search .btn-icon')) inBlock = true;
+        if (inBlock && line.includes('}')) inBlock = false;
+        if (inBlock && line.includes('flex-shrink')) { found = true; break; }
+      }
+      if (!found) ctx.fail('CG-SB-03: .spotlight-search .btn-icon 區塊須含 flex-shrink: 0');
+    },
+  },
 ];
 
 // ── per-file read+parse cache（同檔多 rule 共用，讀一次 → stripCssComments → parseRuleBlocks）──
