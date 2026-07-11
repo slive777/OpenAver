@@ -40,7 +40,14 @@
  * design_system/）；`exclude` 排除特定檔名（NoHardcodedColors 排除 design-system.html /
  * motion_lab.html 兩個 demo 頁）。
  *
- * ESM/JS-structure 家族（`esmPages` 子表）留給 T3，本 task 不實作。
+ * ESM/JS-structure 家族（§inventory E，96b-T3）：port 為既有 required-string/forbidden-string
+ * row（`.map()` DRY，非新 kind——4 頁 ESM guard 逐頁不同構，見 RULES 內逐頁註解），加兩個
+ * 泛用引擎新能力：
+ *   - `kind: 'file-absent'`（main-loop 特殊分支，見下）：檔案存在＝違規、不存在＝通過
+ *     （與其餘 kind「讀檔失敗＝error」語意相反，須在 main loop 的 read-fail-is-error 通用
+ *     路徑之前攔截）。
+ *   - `tag-scan` 的 tag 內斷言新增 `requiredAnyOf: (string|RegExp)[]`（OR 語意，僅
+ *     TestBurstPickerGuard 用到；既有 `required` 維持 AND-only）。
  *
  * 用法：
  *   node scripts/static_guard_lint.mjs                 # 掃真 repo
@@ -49,7 +56,7 @@
  * 非 pytest（遵 CLAUDE.md「lint 守衛寫 lint config、不寫 pytest」）。串 `npm run lint`。
  */
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
@@ -437,6 +444,310 @@ const RULES = [
     pairs: [[0, 2], [1, 2]],
     note: '[fluent_materials_guards::test_load_order] fluent-materials.css 必須在 extra_css block 之後、也在 theme.css 之後（CD-A2 source-order）',
   },
+
+  // ==== 96b-T3：ESM/JS-structure 家族（§inventory E，port 自 tests/unit/test_frontend_lint.py）====
+  // 4 頁 per-page ESM guard 逐頁不同構（export 前綴/bridge 命名/x-data rename 有無/
+  // descriptor-merge 範圍/circular-import 判斷單位皆不同，見 TASK-96b-T3.md〈現況分析〉表），
+  // 不開 esm-page kind，逐條分解成既有 required-string/forbidden-string（頁內部均一處用
+  // .map() 做 DRY，4 頁彼此不共用同一個 map 函式）。
+
+  // ---- [TestImportMapGuard] base.html importmap + pre_alpine_module slot + ghost-fly.js ESM export/bridge ----
+  { file: 'web/templates/base.html', kind: 'required-string', pattern: 'type="importmap"', note: '[TestImportMapGuard] test_importmap_exists' },
+  ...['"@/shared/"', '"@/components/"', '"@/showcase/"', '"@/scanner/"', '"@/settings/"', '"@/search/"'].map((alias) => ({
+    file: 'web/templates/base.html', kind: 'required-string', pattern: alias,
+    note: '[TestImportMapGuard] test_importmap_aliases',
+  })),
+  { file: 'web/templates/base.html', kind: 'required-string', pattern: '{% block pre_alpine_module %}', note: '[TestImportMapGuard] test_pre_alpine_module_slot' },
+  { file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'export', note: '[TestImportMapGuard] test_ghost_fly_has_export' },
+  { file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'window.GhostFly = GhostFly', note: '[TestImportMapGuard] test_ghost_fly_window_bridge' },
+  { file: 'web/templates/base.html', kind: 'required-string', pattern: 'type="module" src="/static/js/shared/ghost-fly.js"', note: '[TestImportMapGuard] test_ghost_fly_script_tag_is_module (required half)' },
+  { file: 'web/templates/base.html', kind: 'forbidden-string', pattern: '<script defer src="/static/js/shared/ghost-fly.js">', note: '[TestImportMapGuard] test_ghost_fly_script_tag_is_module (forbidden half — 舊 tag 殘留防呆)' },
+
+  // ---- [TestESMExportGuard] 5 個 shared/components 共用工具：export + window bridge + base.html script tag ----
+  ...[
+    ['web/static/js/shared/burst-picker.js', 'window.BurstPicker', '/static/js/shared/burst-picker.js'],
+    ['web/static/js/components/motion-adapter.js', 'window.OpenAver.motion', '/static/js/components/motion-adapter.js'],
+    ['web/static/js/components/page-lifecycle.js', 'window.__registerPage', '/static/js/components/page-lifecycle.js'],
+    ['web/static/js/components/motion-prefs.js', 'window.OpenAver', '/static/js/components/motion-prefs.js'],
+  ].flatMap(([file, bridge, scriptPath]) => ([
+    { file, kind: 'required-string', pattern: 'export', note: `[TestESMExportGuard] ${file} export` },
+    { file, kind: 'required-string', pattern: bridge, note: `[TestESMExportGuard] ${file} window bridge (${bridge})` },
+    { file: 'web/templates/base.html', kind: 'required-string', pattern: `type="module" src="${scriptPath}"`, note: `[TestESMExportGuard] base.html ${scriptPath} script tag is module` },
+    { file: 'web/templates/base.html', kind: 'forbidden-string', pattern: `<script defer src="${scriptPath}">`, note: `[TestESMExportGuard] base.html ${scriptPath} no residual defer tag` },
+  ])),
+  // path-utils.js：export + pathToDisplay 兩個獨立斷言（pytest 用 `and` 併在同一行，本質是
+  // 2 個各自的 required-string，勿漏這個與其他 4 檔不對稱的地方）+ window bridge
+  { file: 'web/static/js/components/path-utils.js', kind: 'required-string', pattern: 'export', note: '[TestESMExportGuard] path-utils.js export' },
+  { file: 'web/static/js/components/path-utils.js', kind: 'required-string', pattern: 'pathToDisplay', note: '[TestESMExportGuard] path-utils.js exports pathToDisplay（獨立斷言，非與 export 合併成一條）' },
+  { file: 'web/static/js/components/path-utils.js', kind: 'required-string', pattern: 'window.pathToDisplay', note: '[TestESMExportGuard] path-utils.js window bridge' },
+  { file: 'web/templates/base.html', kind: 'required-string', pattern: 'type="module" src="/static/js/components/path-utils.js"', note: '[TestESMExportGuard] base.html path-utils.js script tag is module' },
+  { file: 'web/templates/base.html', kind: 'forbidden-string', pattern: '<script defer src="/static/js/components/path-utils.js">', note: '[TestESMExportGuard] base.html path-utils.js no residual defer tag' },
+
+  // ---- [TestSettingsESMGuard] 54d：settings state 模組 + main.js + settings.html ----
+  ...[
+    ['state-config.js', 'stateConfig'],
+    ['state-providers.js', 'stateProviders'],
+    ['state-ui.js', 'stateUI'],
+  ].map(([file, fn]) => ({
+    file: `web/static/js/pages/settings/${file}`, kind: 'required-string',
+    pattern: `export function ${fn}`,
+    note: `[TestSettingsESMGuard] ${file} exports ${fn}`,
+  })),
+  { file: 'web/static/js/pages/settings/main.js', kind: 'required-string', pattern: 'alpine:init', note: '[TestSettingsESMGuard] test_main_js_exists_and_has_alpine_init' },
+  { file: 'web/static/js/pages/settings/main.js', kind: 'required-string', pattern: "Alpine.data('settings',", note: '[TestSettingsESMGuard] test_main_js_registers_settings_name (required half)' },
+  { file: 'web/static/js/pages/settings/main.js', kind: 'forbidden-string', pattern: "Alpine.data('settingsPage'", note: '[TestSettingsESMGuard] test_main_js_registers_settings_name (forbidden half)' },
+  { file: 'web/static/js/pages/settings/main.js', kind: 'required-string', pattern: '@/settings/', note: '[TestSettingsESMGuard] test_main_js_uses_importmap_alias' },
+  ...['state-config.js', 'state-providers.js', 'state-ui.js'].map((file) => ({
+    file: `web/static/js/pages/settings/${file}`, kind: 'forbidden-string',
+    pattern: /^\s*import\b[^\n]*\b(?:state-config|state-providers|state-ui)\b/m,
+    note: `[TestSettingsESMGuard] test_no_circular_state_imports — ${file} 頂層 import 不可引用 settings 3 個 state 模組檔名（含自身，忠實 port，自我引用不可能發生）`,
+  })),
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'pre_alpine_module', note: '[TestSettingsESMGuard] test_settings_html_has_pre_alpine_module (block)' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'settings/main.js', note: '[TestSettingsESMGuard] test_settings_html_has_pre_alpine_module (main.js script)' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'x-data="settings"', note: '[TestSettingsESMGuard] test_settings_html_xdata_is_settings (required half)' },
+  { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'x-data="settingsPage"', note: '[TestSettingsESMGuard] test_settings_html_xdata_is_settings (forbidden half)' },
+  { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: '/pages/settings.js', note: '[TestSettingsESMGuard] test_settings_html_no_settings_js_script' },
+  { file: 'web/static/js/pages/settings.js', kind: 'file-absent', note: '[TestSettingsESMGuard] test_settings_js_deleted — 舊 settings.js 應已刪除' },
+  {
+    file: { dir: 'web/templates', ext: ['.html'], recursive: true }, kind: 'forbidden-string',
+    pattern: 'x-data="settingsPage"',
+    note: '[TestSettingsESMGuard] test_no_settings_page_xdata_in_templates — 全 templates 遞迴不可殘留',
+  },
+  {
+    file: { dir: 'web/static/js/pages', ext: ['.js'], recursive: true }, kind: 'forbidden-string',
+    pattern: "Alpine.data('settingsPage'",
+    note: "[TestSettingsESMGuard] test_no_settings_page_alpine_data_in_js — pages/**/*.js 遞迴不可殘留",
+  },
+  { file: 'web/static/js/pages/settings/main.js', kind: 'forbidden-string', pattern: 'settingsPage', note: '[TestSettingsESMGuard] test_main_js_no_settingspage_reference — main.js 全檔不含 settingsPage 字面（比 Alpine.data 那條更廣，2 條各自照抄）' },
+  { file: 'web/static/js/pages/settings/main.js', kind: 'required-string', pattern: 'getOwnPropertyDescriptors', note: '[TestSettingsESMGuard] test_main_js_uses_descriptor_merge (required half)' },
+  { file: 'web/static/js/pages/settings/main.js', kind: 'forbidden-string', pattern: '...stateConfig()', note: '[TestSettingsESMGuard] test_main_js_uses_descriptor_merge (forbidden half — 只驗 1/3 factory 的 spread，弱於 scanner/showcase/search 頁，故意不補強成一致，CD-96-9)' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'get isDirty()', note: '[TestSettingsESMGuard] test_state_config_has_getter_isDirty — isDirty 須為 getter 非 plain prop（settings 頁獨有斷言）' },
+
+  // ---- [TestScannerESMGuard] 54c：scanner state 模組 + main.js + scanner.html ----
+  ...[
+    ['state-scan.js', 'stateScan'],
+    ['state-batch.js', 'stateBatch'],
+    ['state-alias.js', 'stateAlias'],
+  ].map(([file, fn]) => ({
+    file: `web/static/js/pages/scanner/${file}`, kind: 'required-string',
+    pattern: `export function ${fn}`,
+    note: `[TestScannerESMGuard] ${file} exports ${fn}`,
+  })),
+  { file: 'web/static/js/pages/scanner/main.js', kind: 'required-string', pattern: 'alpine:init', note: '[TestScannerESMGuard] test_main_js_exists_and_has_alpine_init' },
+  { file: 'web/static/js/pages/scanner/main.js', kind: 'required-string', pattern: "Alpine.data('scanner',", note: '[TestScannerESMGuard] test_main_js_registers_scanner_name (required half)' },
+  { file: 'web/static/js/pages/scanner/main.js', kind: 'forbidden-string', pattern: "Alpine.data('scannerPage'", note: '[TestScannerESMGuard] test_main_js_registers_scanner_name (forbidden half)' },
+  { file: 'web/static/js/pages/scanner/main.js', kind: 'required-string', pattern: '@/scanner/', note: '[TestScannerESMGuard] test_main_js_uses_importmap_alias' },
+  {
+    file: 'web/static/js/pages/scanner/main.js', kind: 'required-string', anyOf: true,
+    pattern: ['getOwnPropertyDescriptors', 'defineProperties'],
+    note: '[TestScannerESMGuard] test_main_js_has_descriptor_merge — OR（非 AND，與 settings 頁只有 required 半邊不同）',
+  },
+  ...['stateScan()', 'stateBatch()', 'stateAlias()'].map((fn) => ({
+    file: 'web/static/js/pages/scanner/main.js', kind: 'forbidden-string', pattern: `...${fn}`,
+    note: '[TestScannerESMGuard] test_main_js_no_plain_spread_merge — 3 factory 全禁（強於 settings 頁只驗 1 個）',
+  })),
+  { file: 'web/static/js/pages/scanner/state-scan.js', kind: 'forbidden-string', pattern: 'checkMissing() {', note: '[TestScannerESMGuard] test_state_scan_no_batch_functions' },
+  { file: 'web/static/js/pages/scanner/state-scan.js', kind: 'forbidden-string', pattern: 'runMissingEnrich', note: '[TestScannerESMGuard] test_state_scan_no_batch_functions' },
+  { file: 'web/static/js/pages/scanner/state-scan.js', kind: 'forbidden-string', pattern: 'resumeMissingEnrich', note: '[TestScannerESMGuard] test_state_scan_no_batch_functions' },
+  { file: 'web/static/js/pages/scanner/state-batch.js', kind: 'forbidden-string', pattern: 'generate(', note: '[TestScannerESMGuard] test_state_batch_no_scan_functions' },
+  { file: 'web/static/js/pages/scanner/state-batch.js', kind: 'forbidden-string', pattern: 'runNfoUpdate', note: '[TestScannerESMGuard] test_state_batch_no_scan_functions' },
+  { file: 'web/static/js/pages/scanner/state-batch.js', kind: 'forbidden-string', pattern: 'runJellyfinImageUpdate', note: '[TestScannerESMGuard] test_state_batch_no_scan_functions' },
+  { file: 'web/static/js/pages/scanner/state-batch.js', kind: 'forbidden-string', pattern: 'copyOutputPath', note: '[TestScannerESMGuard] test_state_batch_no_scan_functions' },
+  ...['state-scan.js', 'state-batch.js', 'state-alias.js'].map((file) => ({
+    file: `web/static/js/pages/scanner/${file}`, kind: 'forbidden-string',
+    pattern: /^\s*import\b[^\n]*\b(?:state-scan|state-batch|state-alias)\b/m,
+    note: `[TestScannerESMGuard] test_no_circular_state_imports — ${file} 頂層 import 不可引用 scanner 3 個 state 模組檔名（含自身，忠實 port）`,
+  })),
+  { file: 'web/templates/scanner.html', kind: 'required-string', pattern: 'pre_alpine_module', note: '[TestScannerESMGuard] test_scanner_html_has_pre_alpine_module (block)' },
+  { file: 'web/templates/scanner.html', kind: 'required-string', pattern: 'scanner/main.js', note: '[TestScannerESMGuard] test_scanner_html_has_pre_alpine_module (main.js script)' },
+  { file: 'web/templates/scanner.html', kind: 'required-string', pattern: 'x-data="scanner"', note: '[TestScannerESMGuard] test_scanner_html_xdata_is_scanner (required half)' },
+  { file: 'web/templates/scanner.html', kind: 'forbidden-string', pattern: 'x-data="scannerPage"', note: '[TestScannerESMGuard] test_scanner_html_xdata_is_scanner (forbidden half)' },
+  { file: 'web/templates/scanner.html', kind: 'forbidden-string', pattern: '/pages/scanner.js', note: '[TestScannerESMGuard] test_scanner_html_no_scanner_js_script' },
+  { file: 'web/static/js/pages/scanner.js', kind: 'file-absent', note: '[TestScannerESMGuard] test_scanner_js_deleted — 舊 scanner.js 應已刪除' },
+  {
+    file: { dir: 'web/templates', ext: ['.html'], recursive: true }, kind: 'forbidden-string',
+    pattern: 'x-data="scannerPage"',
+    note: '[TestScannerESMGuard] test_no_scanner_page_xdata_in_templates — 全 templates 遞迴不可殘留',
+  },
+  {
+    file: { dir: 'web/static/js/pages', ext: ['.js'], recursive: true }, kind: 'forbidden-string',
+    pattern: "Alpine.data('scannerPage'",
+    note: '[TestScannerESMGuard] test_no_scanner_page_alpine_data_in_js — pages/**/*.js 遞迴不可殘留',
+  },
+  { file: 'web/static/js/pages/scanner/main.js', kind: 'forbidden-string', pattern: 'scannerPage', note: '[TestScannerESMGuard] test_main_js_no_scannerpage_reference — main.js 全檔不含 scannerPage 字面（比 Alpine.data 那條更廣）' },
+
+  // ---- [TestShowcaseESMGuard] 54b：showcase state 模組 + main.js + showcase.html ----
+  ...[
+    ['state-base.js', 'stateBase'],
+    ['state-videos.js', 'stateVideos'],
+    ['state-actress.js', 'stateActress'],
+    ['state-lightbox.js', 'stateLightbox'],
+  ].map(([file, fn]) => ({
+    file: `web/static/js/pages/showcase/${file}`, kind: 'required-string',
+    pattern: `export function ${fn}`,
+    note: `[TestShowcaseESMGuard] ${file} exports ${fn}`,
+  })),
+  {
+    file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string', anyOf: true,
+    pattern: ['export var _videos', 'export let _videos'],
+    note: '[TestShowcaseESMGuard] test_state_base_exists_and_exports — export var/let _videos（OR）',
+  },
+  ...['_videos', '_filteredVideos', '_actresses', '_filteredActresses'].map((name) => ({
+    file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string', pattern: name,
+    note: '[TestShowcaseESMGuard] test_state_base_has_shared_array_exports',
+  })),
+  { file: 'web/static/js/pages/showcase/state-base.js', kind: 'forbidden-string', pattern: 'openLightbox(', note: '[TestShowcaseESMGuard] test_state_base_no_lightbox_functions' },
+  { file: 'web/static/js/pages/showcase/state-base.js', kind: 'forbidden-string', pattern: 'closeLightbox(', note: '[TestShowcaseESMGuard] test_state_base_no_lightbox_functions' },
+  { file: 'web/static/js/pages/showcase/state-base.js', kind: 'forbidden-string', pattern: '_PICKER_PARAMS', note: '[TestShowcaseESMGuard] test_state_base_no_picker_params' },
+  { file: 'web/static/js/pages/showcase/main.js', kind: 'required-string', pattern: 'alpine:init', note: '[TestShowcaseESMGuard] test_main_js_exists_and_has_alpine_init' },
+  {
+    file: 'web/static/js/pages/showcase/main.js', kind: 'required-string', anyOf: true,
+    pattern: ["Alpine.data('showcase',", 'Alpine.data("showcase",'],
+    note: '[TestShowcaseESMGuard] test_main_js_registers_showcase_name (required half, 雙引號變體 OR)',
+  },
+  { file: 'web/static/js/pages/showcase/main.js', kind: 'forbidden-string', pattern: ["Alpine.data('showcaseState'", 'Alpine.data("showcaseState"'], note: '[TestShowcaseESMGuard] test_main_js_registers_showcase_name (forbidden half, 雙引號變體亦禁)' },
+  { file: 'web/static/js/pages/showcase/main.js', kind: 'required-string', pattern: '@/showcase/', note: '[TestShowcaseESMGuard] test_main_js_uses_importmap_alias' },
+  {
+    file: 'web/static/js/pages/showcase/main.js', kind: 'required-string', anyOf: true,
+    pattern: ['getOwnPropertyDescriptors', 'defineProperties'],
+    note: '[TestShowcaseESMGuard] test_main_js_has_descriptor_merge — OR',
+  },
+  ...['stateBase()', 'stateVideos()', 'stateActress()', 'stateLightbox()'].map((fn) => ({
+    file: 'web/static/js/pages/showcase/main.js', kind: 'forbidden-string', pattern: `...${fn}`,
+    note: '[TestShowcaseESMGuard] test_main_js_no_plain_spread_merge — 4 factory 全禁',
+  })),
+  ...['stateBase', 'stateVideos', 'stateActress', 'stateLightbox'].map((fn) => ({
+    file: 'web/static/js/pages/showcase/main.js', kind: 'required-string', pattern: `${fn}.call(this)`,
+    note: '[TestShowcaseESMGuard] test_main_js_factory_calls_use_call_this — 唯一有此斷言的頁（settings/scanner/search 皆未檢查）',
+  })),
+  { file: 'web/static/js/pages/showcase/main.js', kind: 'required-string', pattern: 'window.showcaseState', note: '[TestShowcaseESMGuard] test_main_js_has_window_showcase_state_bridge — 唯一有 window bridge 斷言的頁' },
+  ...['state-videos.js', 'state-actress.js', 'state-lightbox.js'].map((file) => ({
+    file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
+    pattern: /^\s*import\b[^\n]*\b(?:stateBase|stateVideos|stateActress|stateLightbox)\b/m,
+    note: `[TestShowcaseESMGuard] test_no_circular_state_factory_imports — ${file} 頂層 import 不可含 4 個 factory 函式名（判斷單位是 factory 名非檔名；state-base.js 本身不驗）`,
+  })),
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '_killLightboxTimelines', note: '[TestShowcaseESMGuard] test_state_lightbox_imports_kill_timelines' },
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'forbidden-string', pattern: 'loadActresses', note: '[TestShowcaseESMGuard] test_state_videos_no_actress_functions' },
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'forbidden-string', pattern: 'addFavoriteActress', note: '[TestShowcaseESMGuard] test_state_videos_no_actress_functions' },
+  { file: 'web/static/js/pages/showcase/state-actress.js', kind: 'forbidden-string', pattern: /^\s+openLightbox\s*\(/m, note: '[TestShowcaseESMGuard] test_state_actress_no_lightbox_functions — 方法定義 regex（行首縮排+openLightbox(，防誤殺 this.openLightbox(...) 呼叫）' },
+  { file: 'web/static/js/pages/showcase/state-actress.js', kind: 'forbidden-string', pattern: /^\s+closeLightbox\s*\(/m, note: '[TestShowcaseESMGuard] test_state_actress_no_lightbox_functions' },
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'main.js'].map((file) => ({
+    file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
+    pattern: /^(?!\s)(?!\/\/)(?!\*)[^\n]*window\.gsap/m,
+    note: `[TestShowcaseESMGuard] test_no_gsap_at_module_top_level — ${file} 頂層非註解行不可含 window.gsap`,
+  })),
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js', 'main.js'].map((file) => ({
+    file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string',
+    pattern: /^gsap\b/m,
+    note: `[TestShowcaseESMGuard] test_no_gsap_at_module_top_level — ${file} 頂層行不可以 gsap 識別字開頭`,
+  })),
+  ...['state-base.js', 'state-videos.js', 'state-actress.js', 'state-lightbox.js'].map((file) => ({
+    file: `web/static/js/pages/showcase/${file}`, kind: 'forbidden-string', pattern: 'this._PICKER_PARAMS',
+    note: `[TestShowcaseESMGuard] test_no_this_picker_params_in_state_modules — ${file} 不可 this._PICKER_PARAMS（main.js 不在此列）`,
+  })),
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'pre_alpine_module', note: '[TestShowcaseESMGuard] test_showcase_html_has_pre_alpine_module (block)' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'showcase/main.js', note: '[TestShowcaseESMGuard] test_showcase_html_has_pre_alpine_module (main.js script)' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-data="showcase"', note: '[TestShowcaseESMGuard] test_showcase_html_xdata_is_showcase (required half)' },
+  { file: 'web/templates/showcase.html', kind: 'forbidden-string', pattern: 'x-data="showcaseState"', note: '[TestShowcaseESMGuard] test_showcase_html_xdata_is_showcase (forbidden half)' },
+  { file: 'web/templates/showcase.html', kind: 'forbidden-string', pattern: 'core.js', note: '[TestShowcaseESMGuard] test_showcase_html_no_core_js_script — 舊檔案名是 core.js，非 /pages/showcase.js（命名慣例與其他 3 頁不同）' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'animations.js', note: '[TestShowcaseESMGuard] test_showcase_html_still_has_animations_js — B5 不動 animations.js' },
+  { file: 'web/static/js/pages/showcase/core.js', kind: 'file-absent', note: '[TestShowcaseESMGuard] test_core_js_deleted — 舊 core.js 磁碟檔應已刪除' },
+  {
+    file: { dir: 'web/templates', ext: ['.html'], recursive: true }, kind: 'forbidden-string',
+    pattern: 'x-data="showcaseState"',
+    note: '[TestShowcaseESMGuard] test_no_showcase_state_xdata_in_templates — 全 templates 遞迴不可殘留',
+  },
+  {
+    file: { dir: 'web/static/js/pages', ext: ['.js'], recursive: true }, kind: 'forbidden-string',
+    pattern: ["Alpine.data('showcaseState'", 'Alpine.data("showcaseState"'],
+    note: '[TestShowcaseESMGuard] test_no_showcase_state_alpine_data_in_js — pages/**/*.js 遞迴不可殘留（雙引號變體亦禁）',
+  },
+
+  // ---- [TestSearchESMGuard] 54e：search state 模組（searchStateXxx 前綴，未 rename Alpine 元件）+ main.js + search.html ----
+  ...[
+    ['base.js', 'searchStateBase'],
+    ['persistence.js', 'searchStatePersistence'],
+    ['search-flow.js', 'searchStateSearchFlow'],
+    ['navigation.js', 'searchStateNavigation'],
+    ['batch.js', 'searchStateBatch'],
+    ['result-card.js', 'searchStateResultCard'],
+    ['file-list.js', 'searchStateFileList'],
+    ['grid-mode.js', 'searchStateGridMode'],
+  ].map(([file, fn]) => ({
+    file: `web/static/js/pages/search/state/${file}`, kind: 'required-string',
+    pattern: `export function ${fn}`,
+    note: `[TestSearchESMGuard] state/${file} exports ${fn}`,
+  })),
+  { file: 'web/static/js/pages/search/main.js', kind: 'required-string', pattern: 'alpine:init', note: '[TestSearchESMGuard] test_main_js_exists_and_has_alpine_init' },
+  {
+    file: 'web/static/js/pages/search/main.js', kind: 'required-string', anyOf: true,
+    pattern: ["Alpine.data('searchPage'", 'Alpine.data("searchPage"'],
+    note: '[TestSearchESMGuard] test_main_js_registers_search_page_name — search 元件名從未改過，required-only，無 forbidden 半邊',
+  },
+  { file: 'web/static/js/pages/search/main.js', kind: 'required-string', pattern: '@/search/state/', note: '[TestSearchESMGuard] test_main_js_uses_importmap_alias — 用 @/search/ alias 接 state/ 子路徑，非第 7 個 alias' },
+  { file: 'web/static/js/pages/search/main.js', kind: 'required-string', pattern: 'Object.getOwnPropertyDescriptors', note: '[TestSearchESMGuard] test_main_js_uses_merge_state_not_spread — AND 半邊 1/2（與 settings/scanner/showcase 頁「OR 或未檢查」不同，search 是唯一 AND 兩者皆要）' },
+  { file: 'web/static/js/pages/search/main.js', kind: 'required-string', pattern: 'Object.defineProperties', note: '[TestSearchESMGuard] test_main_js_uses_merge_state_not_spread — AND 半邊 2/2' },
+  { file: 'web/static/js/pages/search/main.js', kind: 'forbidden-string', pattern: '...searchStateBase()', note: '[TestSearchESMGuard] test_main_js_uses_merge_state_not_spread — 只驗 1/8 factory 的 spread（同 settings 頁弱範圍，忠實照抄不補強）' },
+  ...['base.js', 'persistence.js', 'search-flow.js', 'navigation.js', 'batch.js', 'result-card.js', 'file-list.js', 'grid-mode.js'].map((file) => ({
+    file: `web/static/js/pages/search/state/${file}`, kind: 'forbidden-string', pattern: 'window.SearchStateMixin_',
+    note: `[TestSearchESMGuard] test_no_window_mixin_in_state_modules — state/${file} 不可殘留舊全域名稱`,
+  })),
+  ...['base.js', 'persistence.js', 'search-flow.js', 'navigation.js', 'batch.js', 'result-card.js', 'file-list.js', 'grid-mode.js'].map((file, _i, allFiles) => {
+    const self = file.replace('.js', '');
+    const alt = allFiles.map((f) => f.replace('.js', '')).filter((n) => n !== self).join('|');
+    return {
+      file: `web/static/js/pages/search/state/${file}`, kind: 'forbidden-string',
+      pattern: new RegExp(`^\\s*import\\b[^\\n]*\\bstate/(?:${alt})\\b`, 'm'),
+      note: `[TestSearchESMGuard] test_no_circular_state_imports — state/${file} 頂層 import 不可引用其餘 7 個 state/<other> 路徑片段（排除自身，判斷單位是路徑片段非檔名/factory 名）`,
+    };
+  }),
+  { file: { dir: 'web/static/js/pages/search', ext: ['.js'], recursive: true }, kind: 'forbidden-string', pattern: 'window.SearchStateMixin_', note: '[TestSearchESMGuard] test_no_window_search_state_mixin_in_pages_js — pages/search/**/*.js 遞迴不可殘留（涵蓋 main.js/advanced-picker.js 等 8 個 state 檔以外的檔案）' },
+  { file: { dir: 'web/templates', ext: ['.html'], recursive: true }, kind: 'forbidden-string', pattern: 'window.SearchStateMixin_', note: '[TestSearchESMGuard] test_no_window_search_state_mixin_in_templates — 全 templates 遞迴不可殘留' },
+  { file: 'web/templates/search.html', kind: 'required-string', pattern: 'pre_alpine_module', note: '[TestSearchESMGuard] test_search_html_has_pre_alpine_module (block)' },
+  { file: 'web/templates/search.html', kind: 'required-string', pattern: 'search/main.js', note: '[TestSearchESMGuard] test_search_html_has_pre_alpine_module (main.js script)' },
+  { file: 'web/templates/search.html', kind: 'required-string', pattern: 'x-data="searchPage"', note: '[TestSearchESMGuard] test_search_html_xdata_is_search_page — required-only，search 從未 rename，無 forbidden 半邊（勿無腦加對稱 forbidden，會恆假）' },
+  ...['state/base.js', 'state/persistence.js', 'state/search-flow.js', 'state/navigation.js', 'state/batch.js', 'state/result-card.js', 'state/file-list.js', 'state/grid-mode.js', 'state/index.js'].map((script) => ({
+    file: 'web/templates/search.html', kind: 'forbidden-string', pattern: script,
+    note: '[TestSearchESMGuard] test_search_html_no_old_state_script_tags — 9 個舊 classic script tag 逐一禁止（search 原本是多檔 classic script，無單一舊主檔）',
+  })),
+  { file: 'web/static/js/pages/search/state/index.js', kind: 'file-absent', note: '[TestSearchESMGuard] test_search_state_index_js_deleted — 舊 index.js 應已刪除（54e 職責改由 main.js 接替）' },
+
+  // ---- [TestBurstPickerGuard] 49b-T4a：burst-picker.js 抽出（早於 54a ESM 遷移，與 TestESMExportGuard 對同一 tag 有時序重疊但需各自建網）----
+  { file: 'web/static/js/shared/burst-picker.js', kind: 'required-string', pattern: 'window.BurstPicker', note: '[TestBurstPickerGuard] test_burst_picker_js_contains — window.BurstPicker' },
+  ...[
+    'playPickerBurst', 'playPickerFloat', 'playPickerHoverIn', 'playPickerHoverOut',
+    'playPickerFlipReplace', 'playPickerExitAll', 'playPickerReverseAll',
+  ].map((method) => ({
+    file: 'web/static/js/shared/burst-picker.js', kind: 'required-string', pattern: `${method}:`,
+    note: `[TestBurstPickerGuard] test_burst_picker_js_contains — burst-picker.js 需定義 ${method}`,
+  })),
+  ...[
+    'playPickerBurst', 'playPickerFloat', 'playPickerHoverIn', 'playPickerHoverOut',
+    'playPickerFlipReplace', 'playPickerExitAll', 'playPickerReverseAll',
+  ].map((method) => ({
+    file: 'web/static/js/pages/motion-lab.js', kind: 'forbidden-string',
+    pattern: new RegExp(`${escapeRegExp(method)}\\s*:\\s*function`),
+    note: `[TestBurstPickerGuard] test_burst_picker_js_contains — motion-lab.js 不應仍內嵌 ${method} 方法定義`,
+  })),
+  { file: 'web/static/js/pages/motion-lab-state.js', kind: 'required-string', pattern: 'window.BurstPicker.playPicker', note: '[TestBurstPickerGuard] test_burst_picker_js_contains — motion-lab-state.js 呼叫新模組' },
+  { file: 'web/static/js/pages/motion-lab-state.js', kind: 'forbidden-string', pattern: /window\.MotionLab\.playPicker\w+/, note: '[TestBurstPickerGuard] test_burst_picker_js_contains — motion-lab-state.js 不可殘留舊呼叫 window.MotionLab.playPicker*' },
+  { file: 'web/templates/base.html', kind: 'required-string', pattern: '/static/js/shared/burst-picker.js', note: '[TestBurstPickerGuard] test_base_html_loads_burst_picker — script 引用存在' },
+  {
+    file: 'web/templates/base.html', kind: 'tag-scan', mode: 'class-tag',
+    tagPattern: /<script[^>]*burst-picker\.js[^>]*>/, multi: true,
+    requiredAnyOf: ['defer', 'type="module"'],
+    note: '[TestBurstPickerGuard] test_base_html_loads_burst_picker — 每個 burst-picker.js script tag 需 defer 或 type="module"（OR，非 AND；與 TestESMExportGuard 對同一 tag 有重疊但不同斷言，兩者各自需要各自的替代網，T6 才能各自判斷是否可刪）',
+  },
+
+  // ---- [TestShowcaseCoreJsSearchableFields] showcase/state-videos.js searchable fields（required-only subset，非 exact-set，勿加禁多餘欄位半邊）----
+  ...[
+    'title', 'original_title', 'actresses', 'number', 'maker', 'tags',
+    'release_date', 'path', 'director', 'series', 'label', 'user_tags',
+  ].map((f) => ({
+    file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: `video.${f}`,
+    scope: /const\s+searchable\s*=\s*\[([\s\S]*?)\]\.filter\(Boolean\)/,
+    note: `[TestShowcaseCoreJsSearchableFields] searchable array 必須含 video.${f}（required-only subset，允許多餘欄位，不驗 exact-set，見 CD-96-9 忠實原則）`,
+  })),
 ];
 
 // ---- helpers ----
@@ -543,7 +854,12 @@ function evalRule(rule, text, fileLabel) {
     case 'order':
       evalOrder(rule, text, fileLabel);
       break;
-    // ESM/JS-structure 家族（esmPages 子表）留給 T3，本 task 不實作
+    case 'file-absent':
+      // file-absent 必須在 main loop 就地攔截（見 main 迴圈），不可能落到這裡；
+      // 若真的走到此分支代表 main loop 攔截邏輯被誤刪或繞過了，明確報錯而非靜默誤判。
+      throw new Error(
+        'file-absent rule 不應進入 evalRule/readTarget 通用路徑——main loop 需在讀檔前攔截（見 main 迴圈頂部特殊分支）',
+      );
     default:
       throw new Error('kind not implemented: ' + rule.kind);
   }
@@ -645,6 +961,17 @@ function checkTagRequiredForbidden(rule, tag, fileLabel) {
       err(`${rule.note} — ${fileLabel}: tag 缺少必要內容：${patternLabel(p)}；tag=${tag.slice(0, 160)}`);
     }
   }
+  // requiredAnyOf（96b-T3 新能力）：OR 語意，tag 只需命中其中之一即算通過（existing `required`
+  // 陣列維持 AND-only，兩者可並存於同一 rule——目前只有 TestBurstPickerGuard 用到 requiredAnyOf）。
+  if (rule.requiredAnyOf) {
+    const hit = rule.requiredAnyOf.some((p) => matches(tag, p));
+    if (!hit) {
+      err(
+        `${rule.note} — ${fileLabel}: tag 缺少必要內容之一（any-of）：` +
+          `${rule.requiredAnyOf.map(patternLabel).join(' OR ')}；tag=${tag.slice(0, 160)}`,
+      );
+    }
+  }
   for (const p of rule.forbidden || []) {
     if (matches(tag, p)) {
       err(`${rule.note} — ${fileLabel}: tag 不應含有：${patternLabel(p)}；tag=${tag.slice(0, 160)}`);
@@ -662,6 +989,11 @@ function evalTagScanClassTag(rule, text, fileLabel) {
     while ((m = re.exec(text)) !== null) tags.push(m[0]);
     if (rule.expectedCount !== undefined && tags.length !== rule.expectedCount) {
       err(`${rule.note} — ${fileLabel}: 符合的開標籤數量 ${tags.length} != 預期 ${rule.expectedCount}`);
+    } else if (rule.expectedCount === undefined && tags.length === 0) {
+      // multi 模式無 expectedCount 時（96b-T3 BurstPickerGuard 首次用到），0 個 match 必須明確
+      // 報錯——否則 for-loop 對空陣列跑 0 次，會靜默通過（pytest 原始邏輯 `assert matches` 要求
+      // 至少 1 個 tag 存在）。
+      err(`${rule.note} — ${fileLabel}: 找不到符合 tagPattern 的開標籤（multi 模式仍需至少 1 個）`);
     }
     for (const tag of tags) checkTagRequiredForbidden(rule, tag, fileLabel);
   } else {
@@ -889,6 +1221,17 @@ for (const rule of RULES) {
 // ---- main ----
 for (const rule of RULES) {
   if (typeof rule.file === 'string') {
+    // file-absent（96b-T3 新能力）：反向邏輯，必須在通用 readTarget/read-fail-is-error 路徑
+    // 之前攔截——檔案「存在」才是違規（舊檔忘記刪除），檔案「不存在」是預期的通過狀態。
+    // 不進 fileCache（關心存在與否而非內容），也不透過 readTarget（避免落入其
+    // 「text===null → err()」的通用錯誤路徑，那樣會把正確刪除舊檔誤判成違規）。
+    if (rule.kind === 'file-absent') {
+      const full = join(ROOT, rule.file);
+      if (existsSync(full)) {
+        err(`${rule.note} — ${rule.file}: 舊檔應已刪除但仍存在`);
+      }
+      continue;
+    }
     const text = readTarget(rule.file);
     if (text === null) {
       err(`${rule.note} — ${rule.file}: 檔案不存在或無法讀取`);
