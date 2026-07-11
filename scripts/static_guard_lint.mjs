@@ -1334,6 +1334,199 @@ const RULES = [
     file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: /settings-sources-pill(?!s\b)/,
     note: '[TestSourcePillSharedComponentGuard] test_settings_html_uses_source_pill_class — settings.html pill markup 改用 source-pill（派生 regex，等價原 strip-then-check：settings-sources-pills 複數容器合法保留，其餘 settings-sources-pill 前綴殘留違規）',
   },
+
+  // ═══════════════ 96d-T2：Metatube 家族（3 pure-96d + 3 cross-plan primary=96d 非-CSS 半邊）═══════════════
+
+  // ---- [TestMetatubeB3Guard] CD-63b-3：state-config.js STUB 移除 + 真實 fetch + helpers；settings.html 更新（11 個斷言，#5 與 TestMetatubeB4Guard#6 同 file+pattern 共用列） ----
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: 'STUB connect', note: '[TestMetatubeB3Guard] test_stub_connect_removed' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: 'STUB disconnect', note: '[TestMetatubeB3Guard] test_stub_disconnect_removed' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: "'/api/settings/metatube/connect'", note: '[TestMetatubeB3Guard] test_connect_uses_real_fetch' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: "'/api/settings/metatube/disconnect'", note: '[TestMetatubeB3Guard] test_disconnect_uses_real_fetch' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'startProbePolling', note: '[TestMetatubeB3Guard]+[TestMetatubeB4Guard] startProbePolling present — test_start_probe_polling_present / test_js_has_start_probe_polling（同 file+kind+pattern，合併單列）' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'stopProbePolling', note: '[TestMetatubeB3Guard] test_stop_probe_polling_present' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'hydrateMetatubeStatus', note: '[TestMetatubeB3Guard] test_hydrate_metatube_status_present' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'onMetatubeEnabledChange', note: '[TestMetatubeB3Guard] test_on_metatube_enabled_change_present' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'metatubeLanMode', note: '[TestMetatubeB3Guard] test_settings_html_has_metatube_lan_mode' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'metatubeConnecting', note: '[TestMetatubeB3Guard] test_settings_html_has_metatube_connecting' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'metatubeEnableToggle', note: '[TestMetatubeB3Guard] test_settings_html_has_metatube_enable_toggle' },
+
+  // ---- [TestMetatubeB4Guard] CD-63b-4：probe UI 視覺層（進度列/retest/hint 移除/grey-out）（8 個斷言，#6 已併入 B3 上方共用列，本段物理新增 7） ----
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'mt_probe_testing', note: '[TestMetatubeB4Guard] test_html_has_mt_probe_testing_key' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'metatubeRetest', note: '[TestMetatubeB4Guard] test_html_has_metatube_retest_call' },
+  { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'settings-mt-probe-hint', note: '[TestMetatubeB4Guard] test_html_has_no_probe_hint_details' },
+  { file: 'web/templates/settings.html', kind: 'required-string', pattern: 'data-available', note: '[TestMetatubeB4Guard] test_html_has_data_available_binding' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'metatubeRetest', note: '[TestMetatubeB4Guard] test_js_has_metatube_retest' },
+  // test_js_has_start_probe_polling（B4#6）已與 B3#5 合併，見上方共用列。
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 's.available === false', note: '[TestMetatubeB4Guard] test_js_promote_metatube_has_available_check' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'mt_promote_unavailable_warning', note: '[TestMetatubeB4Guard] test_js_promote_metatube_has_unavailable_warning_key' },
+
+  // ---- [TestMetatubePickerWiringGuard] 63c-3：進階 picker 接 metatube 真資料（proxy_configured 注入 / routable gate / metatube 分組未刪，5 個斷言） ----
+  { file: 'web/templates/_advanced_search_bootstrap.html', kind: 'required-string', pattern: 'proxy_configured:', note: '[TestMetatubePickerWiringGuard] test_bootstrap_injects_proxy_configured' },
+  { file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: 'rescrapeMetatubeSources', note: '[TestMetatubePickerWiringGuard] test_state_rescrape_keeps_routable_gate — rescrapeMetatubeSources 存在' },
+  { file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: 'routable === true', note: '[TestMetatubePickerWiringGuard] test_state_rescrape_keeps_routable_gate — routable gate 保留' },
+  { file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: "s.type === 'metatube'", note: '[TestMetatubePickerWiringGuard] test_state_rescrape_keeps_routable_gate — type === metatube filter' },
+  { file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: 'rescrapeMetatubeSources()', note: '[TestMetatubePickerWiringGuard] test_modal_metatube_grouping_present' },
+
+  // ---- [TestMetatubeB5RecommendedRemoved] CD-63b-7：靜態 Recommended 群組殘留徹底拔除（10 個斷言，「推薦」locale-value forbidden-word 半邊已由 96a i18n_lint.mjs FORBIDDEN_WORDS 覆蓋，本段不重建） ----
+  { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 's.recommended', note: '[TestMetatubeB5RecommendedRemoved] test_settings_html_no_recommended_filter' },
+  { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'mt_recommended_label', note: '[TestMetatubeB5RecommendedRemoved] test_settings_html_no_recommended_i18n_keys' },
+  { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'mt_other_label', note: '[TestMetatubeB5RecommendedRemoved] test_settings_html_no_recommended_i18n_keys' },
+  { file: 'web/templates/settings.html', kind: 'forbidden-string', pattern: 'settings-mt-group-head', note: '[TestMetatubeB5RecommendedRemoved] test_settings_html_no_group_head_class' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: 'recommended:', note: '[TestMetatubeB5RecommendedRemoved] test_state_config_no_recommended_mock_field' },
+  { file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: 'recommended: i < 4', note: '[TestMetatubeB5RecommendedRemoved] test_state_config_no_recommended_mock_field — 與上一列同 pytest 語句的第二個字面（超集關係，逐條複製不合併，見 TASK-96d-T2.md 待審查點 3）' },
+  { file: 'web/static/css/components/source-pill.css', kind: 'forbidden-string', pattern: '.rec-star', note: '[TestMetatubeB5RecommendedRemoved] test_source_pill_css_no_rec_star' },
+  { file: 'web/static/css/pages/settings.css', kind: 'forbidden-string', pattern: 'settings-mt-group-head', note: '[TestMetatubeB5RecommendedRemoved] test_settings_css_no_group_head' },
+  {
+    file: 'locales/zh_TW.json', kind: 'forbidden-string', pattern: '"mt_recommended_label"',
+    scope: { anchor: /"sources"\s*:\s*\{/, braceBalanced: true },
+    note: '[TestMetatubeB5RecommendedRemoved] test_zh_tw_no_recommended_label_keys — settings.sources 範圍內（非全檔，"sources" 字面值鍵在 L220 不含 `{` 不誤配）',
+  },
+  {
+    file: 'locales/zh_TW.json', kind: 'forbidden-string', pattern: '"mt_other_label"',
+    scope: { anchor: /"sources"\s*:\s*\{/, braceBalanced: true },
+    note: '[TestMetatubeB5RecommendedRemoved] test_zh_tw_no_recommended_label_keys — settings.sources 範圍內',
+  },
+
+  // ---- [TestDmmProxyRequiredGuard] 63c-6：DMM requires_proxy 灰化，非-CSS 半邊（CSS 半邊已由 96c css-guard CG-RO-02 覆蓋，本段不重建）----
+  // Scope A：clickActiveRowPill 函數體。⚠ Python 原始 regex 用 \Z（Python string-end anchor）+ re.DOTALL；
+  // JS 無 \Z（\Z 在 JS regex 是字面 "Z"），faithful port 用 $（配合僅 's' flag、無 'm' flag，JS $ 即絕對字串結尾，等價 Python \Z）。
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'requires_proxy',
+    scope: /clickActiveRowPill\s*\([^)]*\)\s*\{(.+?)(?=\n\s{8}\w|$)/s,
+    note: '[TestDmmProxyRequiredGuard] test_click_active_row_pill_has_requires_proxy_intercept — Scope A（\\Z→$ port）',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'isDmmAvailable',
+    scope: /clickActiveRowPill\s*\([^)]*\)\s*\{(.+?)(?=\n\s{8}\w|$)/s,
+    note: '[TestDmmProxyRequiredGuard] test_click_active_row_pill_has_requires_proxy_intercept — Scope A（\\Z→$ port）',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'required-string', pattern: 'dmm_proxy_required_hint',
+    scope: /clickActiveRowPill\s*\([^)]*\)\s*\{(.+?)(?=\n\s{8}\w|$)/s,
+    note: '[TestDmmProxyRequiredGuard] test_click_active_row_pill_has_requires_proxy_intercept — Scope A（\\Z→$ port）',
+  },
+  {
+    file: 'web/static/js/pages/settings/state-config.js', kind: 'forbidden-string', pattern: 'window.confirm',
+    scope: /clickActiveRowPill\s*\([^)]*\)\s*\{(.+?)(?=\n\s{8}\w|$)/s,
+    note: '[TestDmmProxyRequiredGuard] test_click_active_row_pill_no_window_confirm — Scope A（\\Z→$ port）',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'required-string', pattern: ':data-proxy-required',
+    scope: /x-for="s in activeRowSources"[^>]*>.*?<div\s+class="source-pill"(.*?)role="option"/s,
+    note: '[TestDmmProxyRequiredGuard] test_settings_active_row_pill_has_data_proxy_required_binding — Scope B',
+  },
+  {
+    file: 'web/templates/settings.html', kind: 'required-string', pattern: 'isDmmAvailable',
+    scope: /x-for="s in activeRowSources"[^>]*>.*?<div\s+class="source-pill"(.*?)role="option"/s,
+    note: '[TestDmmProxyRequiredGuard] test_settings_active_row_pill_proxy_required_uses_is_dmm_available — Scope B',
+  },
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: /isSourceProxyBlocked\s*\([^)]*\)\s*\{/,
+    note: '[TestDmmProxyRequiredGuard] test_state_rescrape_has_is_source_proxy_blocked — unscoped method-definition regex（同 T1 test_open_switch_source_picker_method_present 慣例）',
+  },
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: 'proxy_configured',
+    scope: /isSourceProxyBlocked\s*\([^)]*\)\s*\{([^}]+)\}/s,
+    note: '[TestDmmProxyRequiredGuard] test_state_rescrape_is_source_proxy_blocked_reads_proxy_configured — Scope C',
+  },
+  {
+    file: 'web/static/js/shared/state-rescrape.js', kind: 'required-string', pattern: 'requires_proxy',
+    scope: /isSourceProxyBlocked\s*\([^)]*\)\s*\{([^}]+)\}/s,
+    note: '[TestDmmProxyRequiredGuard] test_state_rescrape_is_source_proxy_blocked_reads_proxy_configured — Scope C',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: ':data-proxy-required',
+    scope: /x-for="s in rescrapeBuiltinSources\(\)"[^>]*>.*?<button\s+([^>]+)>/s,
+    note: '[TestDmmProxyRequiredGuard] test_rescrape_modal_builtin_pill_has_data_proxy_required — Scope D（與 Picker64a Scope E 同一 regex，同一 target）',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: 'isSourceProxyBlocked',
+    scope: /x-for="s in rescrapeBuiltinSources\(\)"[^>]*>.*?<button\s+([^>]+)>/s,
+    note: '[TestDmmProxyRequiredGuard] test_rescrape_modal_builtin_pill_click_uses_is_source_proxy_blocked — Scope D',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'forbidden-string', pattern: 'window.confirm',
+    scope: /x-for="s in rescrapeBuiltinSources\(\)"[^>]*>.*?<button\s+([^>]+)>/s,
+    note: '[TestDmmProxyRequiredGuard] test_rescrape_modal_builtin_pill_no_window_confirm — Scope D',
+  },
+
+  // ---- [TestPicker64aThreeStateGuard] 64a：進階 picker 三態膠囊語意 + 標題依入口，非-CSS Jinja markup 半邊（CSS 半邊已由 96c css-guard CG-RO-03 覆蓋，本段不重建）----
+  // Scope E = DmmProxy Scope D（同一 regex、同一 builtin button target，共用字面）。
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: 'data-enabled="true"',
+    scope: /x-for="s in rescrapeBuiltinSources\(\)"[^>]*>.*?<button\s+([^>]+)>/s,
+    note: '[TestPicker64aThreeStateGuard] test_builtin_pill_data_enabled_hardcoded_true — Scope E（=DmmProxy Scope D）',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'forbidden-string', pattern: ':data-enabled',
+    scope: /x-for="s in rescrapeBuiltinSources\(\)"[^>]*>.*?<button\s+([^>]+)>/s,
+    note: '[TestPicker64aThreeStateGuard] test_builtin_pill_data_enabled_hardcoded_true — Scope E（=DmmProxy Scope D），builtin 不得綁 s.enabled',
+  },
+  // Scope F：metatube pill 全 attrs。
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: ':data-enabled',
+    scope: /x-for="s in rescrapeMetatubeSources\(\)"[^>]*>.*?<button\s+([^>]+)>/s,
+    note: '[TestPicker64aThreeStateGuard] test_metatube_pill_data_enabled_binds_available — Scope F',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: 's.available',
+    scope: /x-for="s in rescrapeMetatubeSources\(\)"[^>]*>.*?<button\s+([^>]+)>/s,
+    note: '[TestPicker64aThreeStateGuard] test_metatube_pill_data_enabled_binds_available + test_metatube_pill_offline_aria_disabled_and_guard — Scope F（兩測同 file+kind+pattern+scope，合併單列）',
+  },
+  // Scope G：metatube pill :data-enabled 屬性值（組合 regex，等價 pytest 兩層擷取，見 TASK-96d-T2.md §「本卡新用法」）。
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: 's.available',
+    scope: /x-for="s in rescrapeMetatubeSources\(\)"[^>]*>.*?<button\s+[^>]*?:data-enabled="([^"]+)"[^>]*>/s,
+    note: '[TestPicker64aThreeStateGuard] test_metatube_pill_data_enabled_binds_available — Scope G（:data-enabled 值本身，非全 attrs）',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'forbidden-string', pattern: 's.enabled',
+    scope: /x-for="s in rescrapeMetatubeSources\(\)"[^>]*>.*?<button\s+[^>]*?:data-enabled="([^"]+)"[^>]*>/s,
+    note: '[TestPicker64aThreeStateGuard] test_metatube_pill_data_enabled_binds_available — Scope G，值域鎖定精準度（見本卡 Scope G vs F mutation 驗證）',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: ':aria-disabled',
+    scope: /x-for="s in rescrapeMetatubeSources\(\)"[^>]*>.*?<button\s+([^>]+)>/s,
+    note: '[TestPicker64aThreeStateGuard] test_metatube_pill_offline_aria_disabled_and_guard — Scope F',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: 'offline_tooltip',
+    scope: /x-for="s in rescrapeMetatubeSources\(\)"[^>]*>.*?<button\s+([^>]+)>/s,
+    note: '[TestPicker64aThreeStateGuard] test_metatube_pill_offline_aria_disabled_and_guard — Scope F',
+  },
+  // Scope H：metatube pill @click 屬性值。
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: 's.available',
+    scope: /x-for="s in rescrapeMetatubeSources\(\)"[^>]*>.*?<button\s+[^>]*?@click="([^"]+)"[^>]*>/s,
+    note: '[TestPicker64aThreeStateGuard] test_metatube_pill_offline_aria_disabled_and_guard — Scope H（@click 值 offline guard）',
+  },
+  // Scope I：metatube pill :disabled 屬性值。
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: 'rescrapeLoadingSource',
+    scope: /x-for="s in rescrapeMetatubeSources\(\)"[^>]*>.*?<button\s+[^>]*?:disabled="([^"]+)"[^>]*>/s,
+    note: '[TestPicker64aThreeStateGuard] test_metatube_pill_offline_aria_disabled_and_guard — Scope I（native :disabled 只綁 loading）',
+  },
+  // Scope J：modal title h3（無 capture group，取 match[0]）。
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: 'x-text',
+    scope: /class="fluent-modal-title".*?<\/h3>/s,
+    note: '[TestPicker64aThreeStateGuard] test_modal_title_switches_by_entrypoint — Scope J',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: "rescrapeEntryPoint === 'search'",
+    scope: /class="fluent-modal-title".*?<\/h3>/s,
+    note: '[TestPicker64aThreeStateGuard] test_modal_title_switches_by_entrypoint — Scope J',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: 'search_title',
+    scope: /class="fluent-modal-title".*?<\/h3>/s,
+    note: '[TestPicker64aThreeStateGuard] test_modal_title_switches_by_entrypoint — Scope J',
+  },
+  {
+    file: 'web/templates/_rescrape_modal.html', kind: 'required-string', pattern: 'modal_title',
+    scope: /class="fluent-modal-title".*?<\/h3>/s,
+    note: '[TestPicker64aThreeStateGuard] test_modal_title_switches_by_entrypoint — Scope J',
+  },
 ];
 
 // ---- helpers ----
