@@ -248,3 +248,81 @@ class TestJavdbRating:
         assert video is not None
         assert video.rating == 4.46
         assert video.rating != 2105
+
+
+# ============================================================
+# curl_cffi 缺失 / 非 200 診斷 log（spec-97 T5，G-3）
+# ============================================================
+
+
+class TestJavdbCurlCffiDiagnostics:
+    """javdb 兩條靜默失敗路徑補 log（零行為變更，只加可觀測性）。
+
+    patch target 一律 core.scrapers.javdb.*（旗標/錯誤物件/_warned 定義端＝使用端
+    同模組）；每測例重置 module-level _warned 避免測試間洩漏。
+    """
+
+    def test_curl_cffi_unavailable_warns_once_with_error(self, caplog, monkeypatch):
+        """curl_cffi 不可用（帶原始例外）→ _get_html 首次呼叫 log 一次 warning 含例外
+        訊息；連呼兩次只 log 一次；仍 return None（行為不變）。"""
+        import logging
+        from core.scrapers import javdb
+
+        fake_exc = ImportError("No package metadata was found for curl_cffi")
+        monkeypatch.setattr(javdb, "CURL_CFFI_AVAILABLE", False)
+        monkeypatch.setattr(javdb, "CURL_CFFI_IMPORT_ERROR", fake_exc)
+        monkeypatch.setattr(javdb, "_warned", False)
+
+        s = javdb.JavDBScraper()
+        with caplog.at_level(logging.WARNING, logger="OpenAver.core.scrapers.javdb"):
+            r1 = s._get_html("https://javdb.com/search?q=SONE-103")
+            r2 = s._get_html("https://javdb.com/search?q=SONE-103")
+
+        assert r1 is None and r2 is None  # 行為不變
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert len(warnings) == 1, f"應只 warn 一次，實得 {len(warnings)}"
+        msg = warnings[0].getMessage()
+        assert "curl_cffi" in msg
+        assert "No package metadata was found for curl_cffi" in msg  # 含原始例外
+
+    def test_curl_cffi_unavailable_error_none_no_nameerror(self, caplog, monkeypatch):
+        """單獨 patch CURL_CFFI_AVAILABLE=False、CURL_CFFI_IMPORT_ERROR 維持 None →
+        不 NameError（Codex P2：頂層先初始化），warning 仍發（None 容錯路徑）。"""
+        import logging
+        from core.scrapers import javdb
+
+        monkeypatch.setattr(javdb, "CURL_CFFI_AVAILABLE", False)
+        monkeypatch.setattr(javdb, "CURL_CFFI_IMPORT_ERROR", None)
+        monkeypatch.setattr(javdb, "_warned", False)
+
+        s = javdb.JavDBScraper()
+        with caplog.at_level(logging.WARNING, logger="OpenAver.core.scrapers.javdb"):
+            result = s._get_html("https://javdb.com/search?q=SONE-103")
+
+        assert result is None  # 不炸 NameError
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert len(warnings) == 1
+        assert "curl_cffi" in warnings[0].getMessage()
+
+    def test_non_200_logs_status_code(self, caplog, monkeypatch):
+        """非 200 response → debug log 含 url + status code；仍 return None。"""
+        import logging
+        from unittest.mock import MagicMock
+
+        # 本測 patch javdb.curl_requests.get，該屬性僅在 curl_cffi 可 import 時存在
+        # （dev venv / CI 為硬依賴恆有）；真缺 curl_cffi 的環境 skip 而非 AttributeError。
+        pytest.importorskip("curl_cffi")
+        from core.scrapers import javdb
+
+        monkeypatch.setattr(javdb, "CURL_CFFI_AVAILABLE", True)
+        mock_resp = MagicMock()
+        mock_resp.status_code = 403
+        monkeypatch.setattr(javdb.curl_requests, "get", lambda *a, **k: mock_resp)
+
+        s = javdb.JavDBScraper()
+        with caplog.at_level(logging.DEBUG, logger="OpenAver.core.scrapers.javdb"):
+            result = s._get_html("https://javdb.com/v/Ww9zN8")
+
+        assert result is None
+        debug_msgs = [r.getMessage() for r in caplog.records]
+        assert any("403" in m for m in debug_msgs), f"應 log status code，實得 {debug_msgs}"

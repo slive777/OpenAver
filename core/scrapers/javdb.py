@@ -12,11 +12,20 @@ from .models import Video, Actress
 from .utils import rate_limit, strip_number_prefix
 
 # 嘗試載入 curl_cffi
+# CURL_CFFI_IMPORT_ERROR 先在頂層初始化：正常 import 成功時此變數仍須存在，否則單獨
+# patch CURL_CFFI_AVAILABLE=False 的測試會 NameError（spec-97 Codex P2）。
+CURL_CFFI_IMPORT_ERROR: Optional[BaseException] = None
 try:
     from curl_cffi import requests as curl_requests
     CURL_CFFI_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     CURL_CFFI_AVAILABLE = False
+    CURL_CFFI_IMPORT_ERROR = e
+
+# curl_cffi 不可用時 _get_html 首次呼叫發一次 warning（module flag 一次性，spec-97 CD-97-5）。
+# 歷史教訓：released 版 dist-info 被剝除 → curl_cffi PackageNotFoundError → 這裡靜默
+# 吞掉 → javdb 瞬回無結果、零 log。補此可觀測性（不改降級行為本身）。
+_warned = False
 
 
 class JavDBScraper(BaseScraper):
@@ -38,6 +47,13 @@ class JavDBScraper(BaseScraper):
     def _get_html(self, url: str) -> Optional[str]:
         """使用 curl_cffi 發送請求（偽造 Chrome TLS 指紋）"""
         if not CURL_CFFI_AVAILABLE:
+            global _warned
+            if not _warned:
+                _warned = True
+                if CURL_CFFI_IMPORT_ERROR is not None:
+                    logger.warning("javdb 已停用：curl_cffi 不可用: %s", CURL_CFFI_IMPORT_ERROR)
+                else:
+                    logger.warning("javdb 已停用：curl_cffi 不可用")
             return None
 
         try:
@@ -55,6 +71,7 @@ class JavDBScraper(BaseScraper):
 
             if response.status_code == 200:
                 return str(response.text)
+            logger.debug("JavDB non-200 for %s: %s", url, response.status_code)
         except Exception as e:
             logger.debug(f"JavDB request failed for {url}: {e}")
 
