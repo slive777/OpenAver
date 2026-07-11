@@ -105,6 +105,53 @@ function extractMobileMediaBody(css) {
   return { body: css.slice(braceIdx + 1, end) }; // 鏡射 pytest css[m.end():end]
 }
 
+// 泛化 extractDesktopMediaBodies（T3）：對每個 @media，若 header 符合 condRegex（非-global）
+// 則 balanced-brace 掃出 body。忠實 port TestPosterCropExtended._media_blocks（live L11679-11697）
+// 與 TestSettingsHelpMobilePatch._media_480_block（live L11597）的平衡括號法（CD-96c-2），取代
+// 各 pytest 脆弱的 `@media (...) {(.*?)\n\}` 收尾。condRegex 錨定（^...$）即等同 pytest 的字面 header
+// 比對；condRegex 放鬆（如 /min-width:\s*481px/）即等同 _media_blocks 的子字串比對。
+function extractMediaBodies(css, condRegex) {
+  const blocks = [];
+  const mediaRe = /@media\b([^{]*)\{/g;
+  let m;
+  while ((m = mediaRe.exec(css)) !== null) {
+    if (!condRegex.test(m[1])) continue;
+    let depth = 1;
+    let i = mediaRe.lastIndex;
+    while (i < css.length && depth > 0) {
+      if (css[i] === '{') depth += 1;
+      else if (css[i] === '}') depth -= 1;
+      i += 1;
+    }
+    blocks.push(css.slice(mediaRe.lastIndex, i - 1));
+    // 不 reset lastIndex — 忠實鏡射 python re.finditer（含 nested @media 亦會被獨立掃描）
+  }
+  return blocks;
+}
+
+// port `re.search(r'([^{}]*)\{[^{}]*<value>[^{}]*\}', block, DOTALL)` → 回「含某宣告值的那條規則
+// 自身的 selector 文字」（US5/US9/US11 silent-no-op 守衛核心，live L10156-10164）。回 null 表未命中。
+function ruleBoundSelector(block, valueRegex) {
+  const combined = new RegExp(`([^{}]*)\\{[^{}]*(?:${valueRegex.source})[^{}]*\\}`, 's');
+  const m = block.match(combined);
+  return m ? m[1] : null;
+}
+
+// port `_rule_body`：回傳第一個匹配 selector 的規則 body（單層，不含巢狀）。回 null 表未命中。
+function ruleBody(css, selectorSource) {
+  const m = css.match(new RegExp(`${selectorSource}\\s*\\{([^}]*)\\}`));
+  return m ? m[1] : null;
+}
+
+// T3 poster-crop 家族 @media header 錨定條件（^...$ ⇔ pytest 字面 `@media (max-width: Npx) {`，
+// 排除 compound / coarse / comment 內 @media 誤命中）。
+const MW480 = /^\s*\(\s*max-width\s*:\s*480px\s*\)\s*$/;
+const MW899 = /^\s*\(\s*max-width\s*:\s*899px\s*\)\s*$/;
+const MW899_COARSE = /^\s*\(\s*max-width\s*:\s*899px\s*\)\s+and\s+\(\s*pointer\s*:\s*coarse\s*\)\s*$/;
+const MW1024 = /^\s*\(\s*max-width\s*:\s*1024px\s*\)\s*$/;
+const MIN481_MAX899 = /^\s*\(\s*min-width\s*:\s*481px\s*\)\s+and\s+\(\s*max-width\s*:\s*899px\s*\)\s*$/;
+const IS_SCOPE = ':is(#ds-gallery-components, .ds-gallery-composition)';
+
 // ── kind dispatcher（宣告式 selector-forbid / selector-require + fn escape-hatch）──
 const KINDS = {
   // selector-block 負向屬性禁令：markers 全命中的 block 內 pattern 必不存在
@@ -534,6 +581,496 @@ const RULES = [
       }
     },
   },
+
+  // ══ T3 sub-commit 3a：poster-crop / 響應式家族（A 組 13 條，忠實 port，CD-96c-2）══
+
+  // CG-PC-01 ← TestPosterCropCSSGuard（theme.css token + showcase.css selector-bound）
+  {
+    id: 'CG-PC-01',
+    file: 'theme.css',
+    kind: 'fn',
+    check(ctx) {
+      // theme.css：--poster-crop-ratio token + .poster-crop block
+      if (!ctx.raw.includes('--poster-crop-ratio: 0.71')) {
+        ctx.fail('CG-PC-01: theme.css missing --poster-crop-ratio: 0.71');
+      }
+      const pm = ctx.raw.match(/\.poster-crop\s*\{([^}]+)\}/);
+      if (!pm) ctx.fail('CG-PC-01: theme.css .poster-crop selector not found');
+      else {
+        const b = pm[1];
+        if (!b.includes('var(--poster-crop-ratio)')) ctx.fail('CG-PC-01: .poster-crop must contain var(--poster-crop-ratio)');
+        if (!b.includes('right center')) ctx.fail('CG-PC-01: .poster-crop must contain object-position: right center');
+        if (b.includes('71/100')) ctx.fail('CG-PC-01: .poster-crop must not hardcode 71/100 (use var)');
+      }
+      // showcase.css：.similar-slot-img / .similar-main-static
+      const sc = ctx.load('pages/showcase.css').raw;
+      const sm = sc.match(/\.similar-slot-img\s*\{([^}]+)\}/);
+      if (!sm) ctx.fail('CG-PC-01: showcase.css .similar-slot-img not found');
+      else {
+        if (sm[1].includes('100% 20%')) ctx.fail('CG-PC-01: .similar-slot-img must not contain 100% 20%');
+        if (!sm[1].includes('right center')) ctx.fail('CG-PC-01: .similar-slot-img must contain right center');
+      }
+      const mm = sc.match(/\.similar-main-static\s*\{([^}]+)\}/);
+      if (!mm) ctx.fail('CG-PC-01: showcase.css .similar-main-static not found');
+      else {
+        if (!mm[1].includes('width: 178px')) ctx.fail('CG-PC-01: .similar-main-static must contain width: 178px');
+        if (mm[1].includes('width: 200px')) ctx.fail('CG-PC-01: .similar-main-static must not contain width: 200px');
+      }
+    },
+  },
+
+  // CG-PC-02 ← TestPosterCropExtended（showcase ↔ search 雙檔 parity，_media_blocks 放鬆比對）
+  {
+    id: 'CG-PC-02',
+    file: 'pages/showcase.css',
+    kind: 'fn',
+    check(ctx) {
+      // stripped text（extractMediaBodies 用 loose `@media\b` regex，raw 上前置 comment 內的 @media
+      // 會吞掉真實 media header；斷言全落在真宣告值，去註解不失真且更穩健）
+      const showcase = ctx.text;
+      const search = ctx.load('pages/search.css').text;
+      const re4col = /grid-template-columns:\s*repeat\(\s*4\s*,\s*1fr\s*\)/;
+      const re2col = /grid-template-columns:\s*repeat\(\s*2\s*,\s*1fr\s*\)/;
+      const bodies481 = (css) => extractMediaBodies(css, /min-width:\s*481px/);
+      // 481–899 四欄（showcase）
+      const scJoin = bodies481(showcase).join('\n');
+      if (!bodies481(showcase).length) ctx.fail('CG-PC-02: showcase.css no min-width:481px @media (481–899 grid)');
+      else {
+        if (!/\.showcase-grid\b/.test(scJoin)) ctx.fail('CG-PC-02: showcase.css 481–899 段未含 .showcase-grid');
+        if (!re4col.test(scJoin)) ctx.fail('CG-PC-02: showcase.css 481–899 .showcase-grid 未改為 repeat(4, 1fr)');
+        if (re2col.test(scJoin)) ctx.fail('CG-PC-02: showcase.css 481–899 段殘留 repeat(2, 1fr)');
+      }
+      // 481–899 四欄（search）
+      const seJoin = bodies481(search).join('\n');
+      if (!bodies481(search).length) ctx.fail('CG-PC-02: search.css no min-width:481px @media (481–899 grid)');
+      else {
+        if (!/\.search-grid\b/.test(seJoin)) ctx.fail('CG-PC-02: search.css 481–899 段未含 .search-grid');
+        if (!re4col.test(seJoin)) ctx.fail('CG-PC-02: search.css 481–899 .search-grid 未改為 repeat(4, 1fr)');
+        if (re2col.test(seJoin)) ctx.fail('CG-PC-02: search.css 481–899 段殘留 repeat(2, 1fr)');
+      }
+      // parity：兩檔皆有 481–899 → repeat(4,1fr)
+      for (const [css, name] of [[showcase, 'showcase.css'], [search, 'search.css']]) {
+        if (!re4col.test(bodies481(css).join('\n'))) ctx.fail(`CG-PC-02: ${name} 缺 481–899 → repeat(4, 1fr)（CD-11 parity）`);
+      }
+      // poster-crop 擴 ≤899（兩檔）
+      for (const [css, name] of [[showcase, 'showcase.css'], [search, 'search.css']]) {
+        const j899 = extractMediaBodies(css, /max-width:\s*899px/).join('\n');
+        if (!j899) ctx.fail(`CG-PC-02: ${name} no @media (max-width: 899px)（poster-crop 未擴）`);
+        if (!/aspect-ratio:\s*var\(--poster-crop-ratio/.test(j899)) ctx.fail(`CG-PC-02: ${name} @≤899 缺 aspect-ratio: var(--poster-crop-ratio)`);
+        if (!/object-position:\s*right\s+center/.test(j899)) ctx.fail(`CG-PC-02: ${name} @≤899 缺 object-position: right center`);
+      }
+      // 非回歸 ≤480 仍 3-col（兩檔）
+      const re3colBody = (grid) => new RegExp(`\\.${grid}\\b[^}]*repeat\\(\\s*3\\s*,\\s*1fr\\s*\\)`, 's');
+      if (!extractMediaBodies(showcase, /max-width:\s*480px/).some((b) => re3colBody('showcase-grid').test(b))) {
+        ctx.fail('CG-PC-02: showcase.css ≤480 .showcase-grid 不再是 repeat(3, 1fr)');
+      }
+      if (!extractMediaBodies(search, /max-width:\s*480px/).some((b) => re3colBody('search-grid').test(b))) {
+        ctx.fail('CG-PC-02: search.css ≤480 .search-grid 不再是 repeat(3, 1fr)');
+      }
+      // 非回歸 900–1099 仍 3-col（兩檔）
+      for (const [css, grid, name] of [[showcase, 'showcase-grid', 'showcase.css'], [search, 'search-grid', 'search.css']]) {
+        const j = extractMediaBodies(css, /min-width:\s*900px\s*\)\s*and\s*\(\s*max-width:\s*1099px/).join('\n');
+        if (!j) ctx.fail(`CG-PC-02: ${name} 找不到 900–1099 @media 段`);
+        else if (!re3colBody(grid).test(j)) ctx.fail(`CG-PC-02: ${name} 900–1099 段 .${grid} 不再是 repeat(3, 1fr)`);
+      }
+    },
+  },
+
+  // CG-PC-03 ← TestUS5PosterCropScoped（rule-bound :is() scope silent-no-op 守衛）
+  {
+    id: 'CG-PC-03',
+    file: 'pages/showcase.css',
+    kind: 'fn',
+    check(ctx) {
+      // aspect-ratio / object-position 用 stripped text（防 selector 說明註解騙過）
+      const target = extractMediaBodies(ctx.text, MW899).filter((b) => b.includes('.av-card-preview-img'));
+      if (!target.length) ctx.fail('CG-PC-03: 找不到含 .av-card-preview-img 的 ≤899 block');
+      else {
+        const block = target[0];
+        const sel = ruleBoundSelector(block, /aspect-ratio: var\(--poster-crop-ratio/);
+        if (sel === null) ctx.fail('CG-PC-03: 找不到 aspect-ratio: var(--poster-crop-ratio) 規則');
+        else {
+          if (!sel.includes(IS_SCOPE)) ctx.fail('CG-PC-03: aspect-ratio 規則 selector 缺 :is() scope（silent no-op）');
+          if (!sel.includes(':not(.hero-card)')) ctx.fail('CG-PC-03: aspect-ratio 規則 selector 缺 :not(.hero-card)');
+        }
+        const sel2 = ruleBoundSelector(block, /object-position: right center/);
+        if (sel2 === null) ctx.fail('CG-PC-03: 找不到 object-position: right center 規則');
+        else if (!(sel2.includes(IS_SCOPE) && sel2.includes(':not(.hero-card)'))) ctx.fail('CG-PC-03: object-position 規則 selector 缺 :is() scope + :not(.hero-card)');
+      }
+      // caption：用 stripped text（pytest 用 raw + 字面 regex；extractMediaBodies loose regex 在 raw 上
+      // 會被前置 comment-@media 吞 header，改 text 去註解得同結果且穩健）
+      const capTarget = extractMediaBodies(ctx.text, MW899).filter((b) => b.includes('.footer-default') && b.includes('.av-actress'));
+      if (!capTarget.length) ctx.fail('CG-PC-03: 找不到含 caption 的 ≤899 block');
+      else {
+        const cb = capTarget[0];
+        const am = cb.match(/\.footer-default \.av-actress \{([^}]*)\}/);
+        if (!am) ctx.fail('CG-PC-03: 找不到 .footer-default .av-actress 規則');
+        else if (!am[1].includes('display: none')) ctx.fail('CG-PC-03: .av-actress 應 display: none');
+        const nm = cb.match(/\.footer-default \.av-num \{([^}]*)\}/);
+        if (!nm) ctx.fail('CG-PC-03: 找不到 .footer-default .av-num 規則');
+        else if (!nm[1].includes('text-overflow: ellipsis')) ctx.fail('CG-PC-03: .av-num 應 text-overflow: ellipsis');
+      }
+      // coarse 交集用 stripped text
+      const coarse = extractMediaBodies(ctx.text, MW899_COARSE);
+      if (!coarse.length) ctx.fail('CG-PC-03: 找不到 ≤899 ∩ coarse block');
+      else {
+        const cblock = coarse[0];
+        const md = cblock.match(/([^{}]*\.footer-default)\s*\{([^}]*)\}/s);
+        if (!md) ctx.fail('CG-PC-03: coarse block 內找不到 .footer-default 規則');
+        else {
+          if (!(md[1].includes(IS_SCOPE) && md[1].includes(':not(.hero-card)'))) ctx.fail('CG-PC-03: coarse .footer-default selector 缺 :is()+:not(.hero-card)');
+          if (!md[2].includes('opacity: 1')) ctx.fail('CG-PC-03: coarse .footer-default 應 opacity: 1');
+        }
+        const mh = cblock.match(/\.footer-hover\s*\{([^}]*)\}/);
+        if (!mh) ctx.fail('CG-PC-03: coarse block 內找不到 .footer-hover 規則');
+        else if (!mh[1].includes('opacity: 0')) ctx.fail('CG-PC-03: coarse .footer-hover 應 opacity: 0');
+      }
+    },
+  },
+
+  // CG-PC-04 ← TestUS9SearchGridMobileFix（僅 6 CSS 子測；posterCrop 穿線子測留 pytest）
+  {
+    id: 'CG-PC-04',
+    file: 'pages/search.css',
+    kind: 'fn',
+    check(ctx) {
+      // (1) ≤480 .search-grid = repeat(3,1fr)（stripped，避 comment-@media 吞 header）
+      const t480 = extractMediaBodies(ctx.text, MW480).filter((b) => /\.search-grid \{/.test(b));
+      if (!t480.length) ctx.fail('CG-PC-04: 找不到含 .search-grid 的 ≤480 block');
+      else {
+        const m = t480[0].match(/\.search-grid \{([^}]*)\}/);
+        if (!m) ctx.fail('CG-PC-04: ≤480 block 內找不到 .search-grid 規則');
+        else {
+          if (!m[1].includes('repeat(3, 1fr)')) ctx.fail('CG-PC-04: ≤480 .search-grid 應為 repeat(3, 1fr)');
+          if (m[1].includes('grid-template-columns: 1fr;')) ctx.fail('CG-PC-04: ≤480 .search-grid 殘留單欄 1fr');
+        }
+      }
+      // (2) ≤899 poster-crop scoped（stripped）
+      const t899 = extractMediaBodies(ctx.text, MW899).filter((b) => b.includes('.av-card-preview-img') && b.includes('.search-grid'));
+      if (!t899.length) ctx.fail('CG-PC-04: 找不到含 .av-card-preview-img + .search-grid 的 ≤899 block');
+      else {
+        const block = t899[0];
+        const sel = ruleBoundSelector(block, /aspect-ratio: var\(--poster-crop-ratio/);
+        if (sel === null) ctx.fail('CG-PC-04: 找不到 aspect-ratio: var(--poster-crop-ratio) 規則');
+        else {
+          if (!sel.includes(IS_SCOPE)) ctx.fail('CG-PC-04: aspect-ratio 規則 selector 缺 :is() scope');
+          if (!sel.includes(':not(.hero-card)')) ctx.fail('CG-PC-04: aspect-ratio 規則 selector 缺 :not(.hero-card)');
+        }
+        const sel2 = ruleBoundSelector(block, /object-position: right center/);
+        if (sel2 === null) ctx.fail('CG-PC-04: 找不到 object-position: right center 規則');
+        else if (!(sel2.includes(IS_SCOPE) && sel2.includes(':not(.hero-card)'))) ctx.fail('CG-PC-04: object-position 規則 selector 缺 :is()+:not(.hero-card)');
+        const m3 = block.match(/\.footer-default \.av-actress \{([^}]*)\}/);
+        if (!m3) ctx.fail('CG-PC-04: 找不到 .footer-default .av-actress 規則');
+        else if (!m3[1].includes('display: none')) ctx.fail('CG-PC-04: .av-actress 應 display: none');
+        const m4 = block.match(/\.footer-default \.av-num \{([^}]*)\}/);
+        if (!m4) ctx.fail('CG-PC-04: 找不到 .footer-default .av-num 規則');
+        else if (!m4[1].includes('text-overflow: ellipsis')) ctx.fail('CG-PC-04: .av-num 應 text-overflow: ellipsis');
+      }
+      // (3) compound vs descendant（stripped whole css）
+      if (!ctx.text.includes(`${IS_SCOPE}.search-grid`)) ctx.fail('CG-PC-04: .search-grid scope 須用複合 :is(…).search-grid');
+      if (ctx.text.includes(`${IS_SCOPE} .search-grid`)) ctx.fail('CG-PC-04: 不得用後代 :is(…) .search-grid（silent no-op）');
+      // (4) coarse footer 還原（stripped）
+      const coarse = extractMediaBodies(ctx.text, MW899_COARSE);
+      if (!coarse.length) ctx.fail('CG-PC-04: 找不到 ≤899 ∩ coarse block');
+      else {
+        const cblock = coarse[0];
+        if (!cblock.includes('.search-grid')) ctx.fail('CG-PC-04: coarse block 應 scope 到 .search-grid');
+        const md = cblock.match(/([^{}]*\.footer-default)\s*\{([^}]*)\}/s);
+        if (!md) ctx.fail('CG-PC-04: coarse block 內找不到 .footer-default 規則');
+        else {
+          if (!(md[1].includes(IS_SCOPE) && md[1].includes(':not(.hero-card)'))) ctx.fail('CG-PC-04: coarse .footer-default selector 缺 :is()+:not(.hero-card)');
+          if (!md[2].includes('opacity: 1')) ctx.fail('CG-PC-04: coarse .footer-default 應 opacity: 1');
+        }
+        const mh = cblock.match(/\.footer-hover\s*\{([^}]*)\}/);
+        if (!mh) ctx.fail('CG-PC-04: coarse block 內找不到 .footer-hover 規則');
+        else if (!mh[1].includes('opacity: 0')) ctx.fail('CG-PC-04: coarse .footer-hover 應 opacity: 0');
+      }
+      // (5) ≤899 lightbox cover-fit（stripped，避 comment-@media 吞 header）
+      const tcov = extractMediaBodies(ctx.text, MW899).filter((b) => b.includes('.search-container .lightbox-cover'));
+      if (!tcov.length) ctx.fail('CG-PC-04: 找不到含 .search-container .lightbox-cover 的 ≤899 block');
+      else {
+        const block = tcov[0];
+        const mc = block.match(/\.search-container \.lightbox-cover\.has-cover \{([^}]*)\}/);
+        if (!mc) ctx.fail('CG-PC-04: 容器規則須為 .search-container .lightbox-cover.has-cover');
+        else {
+          if (!mc[1].includes('min-height: 0')) ctx.fail('CG-PC-04: 容器須 min-height: 0');
+          if (!mc[1].includes('min-width: 0')) ctx.fail('CG-PC-04: 容器須 min-width: 0');
+        }
+        const mi = block.match(/\.search-container \.lightbox-cover\.has-cover img \{([^}]*)\}/);
+        if (!mi) ctx.fail('CG-PC-04: img 規則須為 .search-container .lightbox-cover.has-cover img');
+        else {
+          if (!mi[1].includes('height: auto')) ctx.fail('CG-PC-04: img 須 height: auto');
+          if (!mi[1].includes('width: 100%')) ctx.fail('CG-PC-04: img 須 width: 100%');
+        }
+        if (/\.search-container \.lightbox-cover(?!\.has-cover) img \{/.test(block)) {
+          ctx.fail('CG-PC-04: block 不得含裸 .search-container .lightbox-cover img（無 .has-cover gate）');
+        }
+      }
+      // (6) showcase.css modal-hug 回歸護欄（stripped showcase）
+      const scText = ctx.load('pages/showcase.css').text;
+      const mh2 = scText.match(/\.lightbox-content\s+\.lightbox-cover\.has-cover\s+img\s*\{([^}]+)\}/);
+      if (!mh2) ctx.fail('CG-PC-04: showcase.css modal-hug img 規則應保留');
+      else if (!mh2[1].includes('width: 100%')) ctx.fail('CG-PC-04: showcase.css modal-hug img 缺 width: 100%');
+    },
+  },
+
+  // CG-PC-05 ← TestUS11HeroCardMobileFix（showcase ↔ search 雙檔 hero）
+  {
+    id: 'CG-PC-05',
+    file: 'pages/showcase.css',
+    kind: 'fn',
+    check(ctx) {
+      const showcaseText = ctx.text;
+      const searchText = ctx.load('pages/search.css').text;
+      const heroMarker = '.av-card-preview.hero-card .av-card-preview-img';
+      // showcase hero aspect-ratio + object-fit
+      const scTgt = extractMediaBodies(showcaseText, MW899).filter((b) => b.includes(heroMarker));
+      if (!scTgt.length) ctx.fail('CG-PC-05: showcase.css 找不到含 hero-card .av-card-preview-img 的 ≤899 block');
+      else {
+        const block = scTgt[0];
+        const sel = ruleBoundSelector(block, /aspect-ratio: var\(--poster-crop-ratio/);
+        if (sel === null) ctx.fail('CG-PC-05: showcase hero 找不到 aspect-ratio 規則');
+        else {
+          if (!sel.includes(IS_SCOPE)) ctx.fail('CG-PC-05: showcase hero aspect-ratio selector 缺 :is() scope');
+          if (!sel.includes('.showcase-grid')) ctx.fail('CG-PC-05: showcase hero aspect-ratio selector 缺 .showcase-grid');
+          if (!sel.includes('.hero-card')) ctx.fail('CG-PC-05: showcase hero aspect-ratio selector 缺 .hero-card');
+        }
+        const oel = ruleBoundSelector(block, /object-fit: cover/);
+        if (oel === null) ctx.fail('CG-PC-05: showcase hero 找不到 object-fit: cover 規則');
+        else if (!oel.includes('.hero-card')) ctx.fail('CG-PC-05: showcase object-fit: cover selector 缺 .hero-card');
+      }
+      // search hero aspect-ratio + compound-not-descendant + object-fit
+      const seTgt = extractMediaBodies(searchText, MW899).filter((b) => b.includes(heroMarker));
+      if (!seTgt.length) ctx.fail('CG-PC-05: search.css 找不到含 hero-card .av-card-preview-img 的 ≤899 block');
+      else {
+        const block = seTgt[0];
+        const sel = ruleBoundSelector(block, /aspect-ratio: var\(--poster-crop-ratio/);
+        if (sel === null) ctx.fail('CG-PC-05: search hero 找不到 aspect-ratio 規則');
+        else {
+          if (!sel.includes(IS_SCOPE)) ctx.fail('CG-PC-05: search hero aspect-ratio selector 缺 :is() scope');
+          if (!sel.includes('.hero-card')) ctx.fail('CG-PC-05: search hero aspect-ratio selector 缺 .hero-card');
+        }
+        const oel = ruleBoundSelector(block, /object-fit: cover/);
+        if (oel === null) ctx.fail('CG-PC-05: search hero 找不到 object-fit: cover 規則');
+        else if (!oel.includes('.hero-card')) ctx.fail('CG-PC-05: search object-fit: cover selector 缺 .hero-card');
+      }
+      if (!searchText.includes(`${IS_SCOPE}.search-grid .av-card-preview.hero-card`)) {
+        ctx.fail('CG-PC-05: search.css hero 規則須用複合 :is(…).search-grid .av-card-preview.hero-card');
+      }
+      if (searchText.includes(`${IS_SCOPE} .search-grid .av-card-preview.hero-card`)) {
+        ctx.fail('CG-PC-05: search.css 不得有後代 :is(…) .search-grid .av-card-preview.hero-card（silent no-op）');
+      }
+    },
+  },
+
+  // CG-PC-06 ← TestUS1SearchCssLayout（require-presence，search.css）
+  {
+    id: 'CG-PC-06',
+    file: 'pages/search.css',
+    kind: 'fn',
+    check(ctx) {
+      const css = ctx.raw;
+      const info = ruleBody(css, '\\.search-container \\.av-card-full-info');
+      if (info === null) ctx.fail('CG-PC-06: 找不到 .search-container .av-card-full-info 規則');
+      else if (!info.includes('flex: 0 0 390px')) ctx.fail('CG-PC-06: 右欄應 flex: 0 0 390px');
+      const body = ruleBody(css, '\\.search-container \\.av-card-full-body');
+      if (body === null) ctx.fail('CG-PC-06: 找不到 .search-container .av-card-full-body 規則');
+      else if (!body.includes('flex: none')) ctx.fail('CG-PC-06: body 應 flex: none（top-pack）');
+      const pair = ruleBody(css, '\\.search-container \\.av-card-full-body \\.info-grid-pair');
+      if (pair === null) ctx.fail('CG-PC-06: 找不到 .info-grid-pair 桌面規則');
+      else if (!pair.includes('grid-template-columns: 1fr 1fr')) ctx.fail('CG-PC-06: 桌面 .info-grid-pair 應 1fr 1fr');
+      const b1024 = extractMediaBodies(ctx.text, MW1024);
+      if (!b1024.length) ctx.fail('CG-PC-06: 找不到 @media (max-width: 1024px) block');
+      else {
+        const collapse = ruleBody(b1024[0], '\\.info-grid-pair');
+        if (collapse === null) ctx.fail('CG-PC-06: ≤1024px 內找不到 .info-grid-pair collapse 規則');
+        else if (!collapse.includes('grid-template-columns: 1fr;')) ctx.fail('CG-PC-06: ≤1024px .info-grid-pair 應 collapse 回 grid-template-columns: 1fr;');
+      }
+    },
+  },
+
+  // CG-PC-07 ← TestUS5ShowcaseGridIs3Col（≤480 showcase-grid = repeat(3,1fr)）
+  {
+    id: 'CG-PC-07',
+    file: 'pages/showcase.css',
+    kind: 'fn',
+    check(ctx) {
+      const target = extractMediaBodies(ctx.text, MW480).filter((b) => /\.showcase-grid \{/.test(b));
+      if (!target.length) ctx.fail('CG-PC-07: 找不到含 .showcase-grid 的 ≤480 block');
+      else {
+        const m = target[0].match(/\.showcase-grid \{([^}]*)\}/);
+        if (!m) ctx.fail('CG-PC-07: ≤480 block 內找不到 .showcase-grid 規則');
+        else {
+          if (!m[1].includes('repeat(3, 1fr)')) ctx.fail('CG-PC-07: ≤480 .showcase-grid 應為 repeat(3, 1fr)');
+          if (m[1].includes('grid-template-columns: 1fr;')) ctx.fail('CG-PC-07: ≤480 .showcase-grid 殘留單欄 1fr');
+        }
+      }
+    },
+  },
+
+  // CG-PC-08 ← TestSimilarCssSafetyAndGridGuard（960 安全網 + .similar-slot 寬度）
+  {
+    id: 'CG-PC-08',
+    file: 'pages/showcase.css',
+    kind: 'fn',
+    check(ctx) {
+      const css = ctx.raw;
+      let found = false;
+      for (const m of css.matchAll(/@media\s*\(\s*min-width\s*:\s*960px\s*\)/g)) {
+        if (css.slice(m.index, m.index + 500).includes('similar-mobile-panel')) { found = true; break; }
+      }
+      if (!found) ctx.fail('CG-PC-08: @media (min-width: 960px) block 須含 .similar-mobile-panel（桌面 display:none 安全網）');
+      const slot = css.match(/\.similar-slot\s*\{([^}]+)\}/);
+      if (!slot) ctx.fail('CG-PC-08: 找不到 .similar-slot 規則');
+      else {
+        if (!slot[1].includes('width: 107px')) ctx.fail('CG-PC-08: .similar-slot 應 width: 107px');
+        if (slot[1].includes('width: 120px')) ctx.fail('CG-PC-08: .similar-slot 不應 width: 120px');
+      }
+    },
+  },
+
+  // CG-PC-09 ← TestGridActionBtnSize（theme.css token + 主規則 + 兩斷點尺寸 + overlay wrap）
+  {
+    id: 'CG-PC-09',
+    file: 'theme.css',
+    kind: 'fn',
+    check(ctx) {
+      const css = ctx.raw;
+      if (!/--grid-action-btn-size:\s*48px/.test(css)) ctx.fail('CG-PC-09: :root 缺 --grid-action-btn-size: 48px');
+      const main = css.match(/:is\(#ds-gallery-components,\s*\.ds-gallery-composition\)\s+\.btn-glass-circle\s*\{([\s\S]*?)\}/);
+      if (!main) ctx.fail('CG-PC-09: 找不到 :is(…) .btn-glass-circle 主規則');
+      else {
+        const r = main[1];
+        if (!/flex-shrink:\s*0/.test(r)) ctx.fail('CG-PC-09: .btn-glass-circle 缺 flex-shrink: 0');
+        if (!/width:\s*var\(--grid-action-btn-size/.test(r)) ctx.fail('CG-PC-09: .btn-glass-circle width 未讀 var(--grid-action-btn-size)');
+        if (!/height:\s*var\(--grid-action-btn-size/.test(r)) ctx.fail('CG-PC-09: .btn-glass-circle height 未讀 var(--grid-action-btn-size)');
+      }
+      const collectSizes = (bodies) => {
+        const sizes = [];
+        for (const b of bodies) for (const mm of b.matchAll(/--grid-action-btn-size:\s*(\d+)px/g)) sizes.push(parseInt(mm[1], 10));
+        return sizes;
+      };
+      const mobileSizes = collectSizes(extractMediaBodies(ctx.text, MW480));
+      if (!mobileSizes.length) ctx.fail('CG-PC-09: @media (max-width: 480px) 內未重宣告 --grid-action-btn-size');
+      else if (!mobileSizes.every((s) => s <= 48)) ctx.fail(`CG-PC-09: ≤480 --grid-action-btn-size 未縮小（應 ≤48px）：${mobileSizes}`);
+      const tabletSizes = collectSizes(extractMediaBodies(ctx.text, MIN481_MAX899));
+      if (!tabletSizes.length) ctx.fail('CG-PC-09: @media (min-width: 481px) and (max-width: 899px) 內未重宣告 --grid-action-btn-size');
+      else if (!tabletSizes.every((s) => s < 36)) ctx.fail(`CG-PC-09: 481–899 --grid-action-btn-size 未 < 36：${tabletSizes}`);
+      const overlay = css.match(/:is\(#ds-gallery-components,\s*\.ds-gallery-composition\)\s+\.av-card-preview-overlay\s*\{([\s\S]*?)\}/);
+      if (!overlay) ctx.fail('CG-PC-09: 找不到 :is(…) .av-card-preview-overlay 主規則');
+      else {
+        if (!/flex-wrap:\s*wrap/.test(overlay[1])) ctx.fail('CG-PC-09: .av-card-preview-overlay 缺 flex-wrap: wrap');
+        if (!/align-content:\s*flex-end/.test(overlay[1])) ctx.fail('CG-PC-09: .av-card-preview-overlay 缺 align-content: flex-end');
+      }
+    },
+  },
+
+  // CG-PC-10 ← TestShowcaseCssTransitionTokens（正向存在，raw includes）
+  {
+    id: 'CG-PC-10',
+    file: 'pages/showcase.css',
+    kind: 'fn',
+    check(ctx) {
+      if (!ctx.raw.includes('transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard)')) {
+        ctx.fail('CG-PC-10: showcase.css 缺 transition: opacity var(--fluent-duration-fast) var(--fluent-ease-standard)');
+      }
+      if (!ctx.raw.includes('transition: all var(--fluent-duration-fast) var(--fluent-ease-standard)')) {
+        ctx.fail('CG-PC-10: showcase.css 缺 transition: all var(--fluent-duration-fast) var(--fluent-ease-standard)');
+      }
+    },
+  },
+
+  // CG-PC-11 ← TestUserTagCSSGuard（雙檔 --text-inverse 負向，search + showcase）
+  {
+    id: 'CG-PC-11',
+    file: 'pages/search.css',
+    kind: 'fn',
+    check(ctx) {
+      const searchBlock = ruleBody(ctx.raw, '\\.tag-badge\\.user-tag');
+      if (searchBlock === null) ctx.fail('CG-PC-11: search.css 找不到 .tag-badge.user-tag 規則');
+      else if (searchBlock.includes('--text-inverse')) ctx.fail('CG-PC-11: .tag-badge.user-tag 應用 --color-primary-content，非 --text-inverse');
+      const scRaw = ctx.load('pages/showcase.css').raw;
+      const scBlock = ruleBody(scRaw, '\\.lb-user-tag');
+      if (scBlock === null) ctx.fail('CG-PC-11: showcase.css 找不到 .lb-user-tag 規則');
+      else if (scBlock.includes('--text-inverse')) ctx.fail('CG-PC-11: .lb-user-tag 應用 --color-primary-content，非 --text-inverse');
+    },
+  },
+
+  // CG-PC-12 ← TestSettingsHelpMobilePatch（settings.css ≤480 + base + help.css hero-terminal）
+  {
+    id: 'CG-PC-12',
+    file: 'pages/settings.css',
+    kind: 'fn',
+    check(ctx) {
+      const settings = ctx.raw;
+      const ext = extractMobileMediaBody(settings);
+      if (ext.err) ctx.fail('CG-PC-12: settings.css 找不到 @media (max-width: 480px) block');
+      else {
+        const seg = ruleBody(ext.body, '\\.settings-form-row--external-manager\\s+\\.settings-sources-segmented');
+        if (seg === null) ctx.fail('CG-PC-12: ≤480 找不到 external-manager .settings-sources-segmented 規則');
+        else if (!/flex-shrink:\s*0/.test(seg)) ctx.fail('CG-PC-12: ≤480 segmented 須含 flex-shrink: 0');
+        const hint = ruleBody(ext.body, '\\.settings-form-row--external-manager\\s+\\.settings-hint');
+        if (hint === null) ctx.fail('CG-PC-12: ≤480 找不到 external-manager .settings-hint 規則');
+        else {
+          if (!/flex-basis:\s*100%/.test(hint)) ctx.fail('CG-PC-12: ≤480 hint 須含 flex-basis: 100%');
+          if (!/white-space:\s*normal/.test(hint)) ctx.fail('CG-PC-12: ≤480 hint 須含 white-space: normal');
+        }
+      }
+      const code = ruleBody(settings, '\\.settings-mt-connect-status\\s+code');
+      if (code === null) ctx.fail('CG-PC-12: 找不到 .settings-mt-connect-status code 規則');
+      else {
+        if (!/word-break:\s*break-all/.test(code)) ctx.fail('CG-PC-12: .settings-mt-connect-status code 須含 word-break: break-all');
+        if (!/overflow-wrap:\s*anywhere/.test(code)) ctx.fail('CG-PC-12: .settings-mt-connect-status code 須含 overflow-wrap: anywhere');
+      }
+      const help = ctx.load('pages/help.css').raw;
+      const term = ruleBody(help, '(?<![\\w-])\\.hero-terminal');
+      if (term === null) ctx.fail('CG-PC-12: help.css 找不到 .hero-terminal 規則');
+      else {
+        if (!/overflow-x:\s*auto/.test(term)) ctx.fail('CG-PC-12: .hero-terminal 須含 overflow-x: auto');
+        if (!/word-break:\s*break-all/.test(term)) ctx.fail('CG-PC-12: .hero-terminal 須含 word-break: break-all');
+      }
+    },
+  },
+
+  // CG-PC-13 ← TestSearchCssHardcoded（B1/B2 line-scan，context predicate 取代行號 allowlist）
+  {
+    id: 'CG-PC-13',
+    file: 'pages/search.css',
+    kind: 'fn',
+    check(ctx) {
+      const lines = ctx.raw.split('\n'); // 用 raw 保留 comment（optical marker / drop-shadow context）
+      const rgbaRe = /rgba\(\s*0\s*,\s*0\s*,\s*0\s*,/;
+      const sixRe = /[:\s]6px(?:\s|;|$)/;
+      const intrinsicRe = /\b(?:min-|max-)?height\s*:|\bwidth\s*:/;
+      const rgbaViol = [];
+      const sixViol = [];
+      for (let i = 0; i < lines.length; i += 1) {
+        const line = lines[i];
+        const stripped = line.replace(/^\s+/, '');
+        if (stripped.startsWith('/*') || stripped.startsWith('*')) continue; // 跳過純註解行
+        if (rgbaRe.test(line)) {
+          // 例外：drop-shadow 去背形狀 / var() defensive fallback（語法判定，穩健）
+          if (!(line.includes('drop-shadow(') || line.includes('var('))) rgbaViol.push([i + 1, line.trimEnd()]);
+        }
+        if (sixRe.test(line)) {
+          const prev = i > 0 ? lines[i - 1] : '';
+          // 例外：intrinsic dimension（height/width）/ 該行或緊鄰上一行 comment 含 optical
+          const ok = intrinsicRe.test(line) || line.includes('optical') || prev.includes('optical');
+          if (!ok) sixViol.push([i + 1, line.trimEnd()]);
+        }
+      }
+      if (rgbaViol.length) {
+        ctx.fail(`CG-PC-13: search.css 新 rgba(0,0,0,…) 硬編碼違規 (${rgbaViol.length} 處)：`
+          + rgbaViol.map(([n, l]) => `\n  L${n}: ${l.slice(0, 100)}`).join('')
+          + `\n  → 改用 var(--overlay-*) token；drop-shadow/var() fallback 例外請用 drop-shadow( 或 var( 語法`);
+      }
+      if (sixViol.length) {
+        ctx.fail(`CG-PC-13: search.css 新 6px layout 違規 (${sixViol.length} 處)：`
+          + sixViol.map(([n, l]) => `\n  L${n}: ${l.slice(0, 100)}`).join('')
+          + `\n  → 改 8pt grid / micro 4px；optical 例外請於該行或上一行加 /* … optical 6px … */ 註記`);
+      }
+    },
+  },
 ];
 
 // ── per-file read+parse cache（同檔多 rule 共用，讀一次 → stripCssComments → parseRuleBlocks）──
@@ -556,7 +1093,7 @@ for (const rule of RULES) {
     fail(`${rule.id}: 讀檔失敗 ${rule.file}`);
     continue;
   }
-  const ctx = { text: entry.text, raw: entry.raw, blocks: entry.blocks, fail, rel: rule.file };
+  const ctx = { text: entry.text, raw: entry.raw, blocks: entry.blocks, fail, rel: rule.file, load: loadFile };
   KINDS[rule.kind](rule, ctx);
 }
 
