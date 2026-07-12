@@ -41,7 +41,7 @@ Three pages form the core: 📋 Scan & build library → 🎬 Browse collection 
 | **Collection browsing** | Showcase cover wall + Lightbox: video mode (cover/tag navigation + similar exploration), actress mode (profile cards + cup/age/height sort + cross-language alias) |
 | **Multi-device access** | One-click server mode — phones and tablets on the same Wi-Fi can browse your collection in any browser (**instant, no restart, no setup**; single-machine by default, no external exposure) |
 | **Scrape sources** | 8 built-in (JavBus / Jav321 / JavDB / DMM / D2Pass / HEYZO / FC2 / AVSOX); advanced users can optionally federate **Metatube (30+ more providers)** |
-| **Media server output (optional)** | One-click NFO + cover art (poster / fanart) — export to **Jellyfin / Emby / Kodi** when you want to hook into a living-room media center |
+| **Media server output (optional)** | One-click NFO + cover art (poster / fanart) for **Jellyfin / Emby / Kodi**; read-only sources can generate a local `.strm` library that streams without copying the originals |
 | **Actress collection** | Auto profiles + cross-language alias expansion + multi-source photo download |
 | **AI control** | Built-in REST API + capabilities manifest (Claude Code / Cursor / Perplexity and other AI agents operate it directly) |
 | **AI translation** | Ollama (local, free) / Gemini / OpenAI-compatible — your choice |
@@ -137,6 +137,14 @@ On first launch, a built-in setup wizard walks you through folder configuration 
 - **Scrape-source management**: Toggle each source on/off and drag to reorder by preference (want a particular site's covers? move it to the top) — changes take effect instantly. One click switches to "uncensored mode" to use only uncensored sources.
 - **Subtitle & VR tag preservation**: When relocating videos, subtitle files in the same directory are detected and moved along. VR videos preserve the original filename's projection/stereo tags (e.g. `_180_LR`, `mkx200`) so VR players like Skybox / DeoVR / HereSphere detect the format correctly.
 
+### 📀 Read-only sources → generated library + `.strm` streaming
+
+Want to plug a NAS, a cloud mount, or any "don't let a tool touch it" original collection into your living-room media center — without copying terabytes of originals? Mark the source **read-only**:
+
+- **Not a single byte touched**: A scan source marked "read-only" is never moved, modified, or written to — OpenAver only reads its metadata. The scraped NFO + cover + extrafanart are all written to a **local** output folder you choose, one folder per title.
+- **`.strm` feeds the media center directly**: Instead of duplicating the originals, OpenAver generates `.strm` files pointing at the source's original location, so **Emby / Jellyfin / Kodi** stream them directly on scan. It turns OpenAver into a "metadata-only, no-files" scraping front end — picking up where the now-unmaintained MDCX left off.
+- **Cross-machine path mapping**: When the path OpenAver sees differs from what the media server sees (different mount points / WSL / UNC), set a replacement rule that rewrites it into the `.strm`; change the rule later and existing `.strm` files are rewritten to match.
+
 ### 🌐 AI Translation
 
 - Translate Japanese titles into your UI locale (Traditional Chinese, Simplified Chinese, English) in one click — Japanese locale skips translation since titles are already in Japanese.
@@ -182,12 +190,12 @@ curl http://localhost:<port>/api/capabilities
 <details>
 <summary>Supported AI tools · Advanced usage · Power-user easter egg</summary>
 
-Works with any MCP / function-calling compatible AI tool:
+Works with any function-calling compatible AI tool:
 
 | Method | Tools | Notes |
 |--------|-------|-------|
 | **CLI** | Claude Code, Codex CLI, Gemini CLI, Aider, etc. | Just `curl` from the terminal — all CLI agents supported |
-| **IDE** | Cursor, GitHub Copilot in VS Code, Windsurf, Trae, etc. | Agent mode / MCP to call local API |
+| **IDE** | Cursor, GitHub Copilot in VS Code, Windsurf, Trae, etc. | Agent mode calling the local REST API |
 | **Desktop App** | Codex App, Google Antigravity 2.0, Claude Cowork, OpenClaw | No dev environment needed, works out of the box |
 
 > 💡 Want covers to show up in the chat? **Codex App (inline chat)** or **Google Antigravity 2.0 (artifact panel)** both display covers directly in your conversation flow. Easy to install, works out of the box.

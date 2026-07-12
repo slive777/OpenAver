@@ -41,7 +41,7 @@ AI-operable REST API with capabilities manifest, 4,000+ tests, MIT license. -->
 | **收藏瀏覽** | Showcase 封面牆 + Lightbox：影片模式（封面/tag 導航 + 相似探索）、女優模式（資料卡 + 罩杯/年齡/身高排序 + 跨語言別名） |
 | **多裝置存取** | 一鍵切換伺服器模式，同 Wi-Fi 的手機 / 平板用瀏覽器即可瀏覽收藏（**即時生效、免重啟、免設定**；預設單機完全不對外） |
 | **刮削來源** | 8 個內建（JavBus / Jav321 / JavDB / DMM / D2Pass / HEYZO / FC2 / AVSOX）；進階可選配接 Metatube 聯邦再擴 **30+ 來源** |
-| **媒體庫輸出（選配）** | 一鍵生成 NFO + 封面海報（poster / fanart），想掛客廳媒體庫時輸出給 **Jellyfin / Emby / Kodi** |
+| **媒體庫輸出（選配）** | 一鍵生成 NFO + 封面海報（poster / fanart）給 **Jellyfin / Emby / Kodi**；唯讀來源可不下載原檔、本地生成 `.strm` 媒體庫直接串流 |
 | **女優收藏** | 自動建檔 + 跨語言別名展開 + 多來源照片下載 |
 | **AI 操作** | 內建 REST API + capabilities manifest（Claude Code / Cursor / Perplexity 等 AI agent 直接操作） |
 | **AI 翻譯** | Ollama（本地免費）/ Gemini / OpenAI-compatible 任選 |
@@ -137,6 +137,14 @@ irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex
 - **刮削來源管理**：自由開關各來源、拖曳排出偏好順序（想要哪家的封面就排前面），即時生效；一鍵切換「無碼模式」只用無碼來源。
 - **整理時保留字幕與 VR 標籤**：搬移影片時自動偵測並帶走同目錄字幕檔；VR 影片保留原檔名的投影/立體標籤（如 `_180_LR`、`mkx200`），讓 Skybox / DeoVR / HereSphere 等頭顯播放器正確識別。
 
+### 📀 唯讀來源 → 生成媒體庫 + `.strm` 串流
+
+想把 NAS、雲端掛載、或任何「不想被工具碰」的原始收藏掛進客廳媒體中心，又不想複製一份幾 TB 的原檔？把來源標成**唯讀**即可：
+
+- **來源不動一個位元組**：標了「唯讀」的掃描來源，OpenAver 不搬、不改、不寫那個資料夾——只讀元數據。刮好的 NFO + 封面 + extrafanart 全部改寫到你指定的**本地**輸出夾，一片一資料夾。
+- **`.strm` 直接餵媒體中心**：不必把原檔複製一份，生成 `.strm` 指向來源原始位置，**Emby / Jellyfin / Kodi** 掃到就能直接串流播放。等於用 OpenAver 當「只出元數據、不出檔案」的刮削前端，接手停更的 MDCX 那一棒。
+- **跨機器路徑映射**：OpenAver 這台看到的路徑，和媒體伺服器那台看到的不一樣時（不同掛載點 / WSL / UNC），設一組替換規則自動改寫進 `.strm`；日後改規則，既有 `.strm` 一併同步改寫。
+
 ### 🌐 AI 翻譯
 
 - 日文標題一鍵翻譯為你的 UI 語系（繁中 / 简中 / 英文），日文模式跳過翻譯。
@@ -182,12 +190,12 @@ curl http://localhost:<port>/api/capabilities
 <details>
 <summary>支援的 AI 工具 · 進階用法 · 玩家彩蛋</summary>
 
-支援任何 MCP / function-calling 相容的 AI 工具：
+支援任何 function-calling 相容的 AI 工具：
 
 | 使用方式 | 工具 | 說明 |
 |----------|------|------|
 | **CLI** | Claude Code, Codex CLI, Gemini CLI, Aider 等 | 終端機直接 `curl`，所有 CLI agent 皆支援 |
-| **IDE** | Cursor, GitHub Copilot in VS Code, Windsurf, Trae 等 | Agent 模式 / MCP 呼叫本地 API |
+| **IDE** | Cursor, GitHub Copilot in VS Code, Windsurf, Trae 等 | Agent 模式呼叫本地 REST API |
 | **桌面 App** | Codex App, Google Antigravity 2.0, Claude Cowork, OpenClaw | 不需開發環境，開箱即用 |
 
 > 💡 對話內想看到封面：**Codex App（對話內嵌）** 或 **Google Antigravity 2.0（artifact 面板）** 兩款桌面 app 都能在對話中向你展示封面，安裝簡單、開箱即用。
