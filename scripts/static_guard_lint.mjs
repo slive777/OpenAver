@@ -107,6 +107,18 @@ const RULES = [
     scope: { anchor: /_resetMask\s*\(\s*\)\s*\{/, braceBalanced: true },
     note: '[TestMaskToggleGuard] _resetMask 遞增 _maskSession（換片/關燈箱使舊 session 失效，Codex P2）',
   },
+  // 98b P2 fix(二)（Codex）：新 session 起手/invalidate 必須清 _maskDetecting——舊 detect await 的
+  // finally 因 session 不符會跳過清 spinner，不在此重置則新遮罩頂著卡死 spinner。
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'this._maskDetecting = false',
+    scope: { anchor: /openMask\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] openMask 清 _maskDetecting（新 session 起手非偵測中，防舊 spinner 漏入，Codex P2）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'this._maskDetecting = false',
+    scope: { anchor: /_resetMask\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] _resetMask 清 _maskDetecting（invalidate 時防偵測態漏進下個 session，Codex P2）',
+  },
   {
     file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'session === this._maskSession',
     scope: { anchor: /async\s+toggleMaskMode\s*\(\s*\)\s*\{/, braceBalanced: true },

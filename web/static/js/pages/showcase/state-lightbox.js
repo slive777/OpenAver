@@ -749,6 +749,9 @@ export function stateLightbox() {
                 return;
             }
             this._maskSession++;         // 98b P2 fix：新開 session，讓任何舊 session 的 await 後寫入失效
+            this._maskDetecting = false; // 98b P2 fix(二)：清舊 session 遺留的偵測態——舊 detect await 的
+                                         // finally 因 session 不符會**跳過**清 spinner，若不在此重置，新遮罩
+                                         // 會頂著卡死的 spinner（Codex）。新 session 起手一律非偵測中。
             this._maskWinStyle = s;      // 先設幾何
             this._maskVisible = true;    // 再顯示（無空窗閃）
             // 開啟期間 window resize 重算（開時綁、close/reset 時解，lifecycle 對稱）。
@@ -848,6 +851,7 @@ export function stateLightbox() {
             // 讓仍在途的舊 await 回應之後必被 session gate 擋下，不依賴 _maskVisible 的
             // x-show 巢狀結構作為唯一防線（defense-in-depth，同時涵蓋「切 B 但沒開 B 遮罩」）。
             this._maskSession++;
+            this._maskDetecting = false; // 98b P2 fix(二)：invalidate 時清偵測態，防舊 detect 的 spinner 漏進下個 session（Codex）
             this._maskVisible = false;
             this._maskWinStyle = '';     // 98b-T6：清窗幾何避免殘留閃（下次 open 同步重算覆蓋）
             if (this._maskResizeHandler) {
