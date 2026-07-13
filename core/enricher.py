@@ -12,6 +12,7 @@ from typing import List, Optional
 
 from core.config import _STEM_IMAGE_MODES
 from core.database import Video, VideoRepository, get_connection
+from core.focal_trigger import maybe_submit_video_focal
 from core.logger import get_logger
 from core.nfo_updater import parse_nfo
 from core.organizer import crop_to_poster, download_image, find_subtitle_files, generate_nfo
@@ -519,6 +520,17 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
         # db-ns-ok: fs_path_for_db passed through to _db_upsert's internal primitive sink
         _db_upsert(repo, number, fs_path_for_db, meta, local_cover_path=local_cover,
                    nfo_mtime=nfo_mtime, written_uris=written_uris, path_mappings=path_mappings)
+
+        # 重刮 focal trigger（TASK-98b-T2）：無條件 submit（:514 gate 已保證真刮到新
+        # cover）；preserve-on-conflict 使 crop_mode 不被動。video_path_uri 須與
+        # _db_upsert 寫入的 key 一致（:190 / :594 to_file_uri(fs_path_for_db)）。
+        # db-ns-ok: fs_path_for_db, DB round-trip value, no reverse mapping applied
+        maybe_submit_video_focal(
+            number,
+            meta.get("maker"),
+            to_file_uri(fs_path_for_db if fs_path_for_db is not None else fs_path),
+            local_cover,
+        )
 
     # nfo_mtime 獨立更新：不論 mode/source，只要 NFO 存在就同步 DB
     # 避免 analysis 永遠視為 missing_nfo

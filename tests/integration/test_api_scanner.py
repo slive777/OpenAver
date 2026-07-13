@@ -2214,3 +2214,92 @@ class TestGenerateAvlistShouldAbortTopLevel:
         parsed = self._parse_events(events)
         assert [e for e in parsed if e.get("type") == "done"], \
             "should_abort 從未觸發時仍應照舊發出 done event"
+
+
+# ============ TASK-98b-T2: 掃描 empty-focal gate（scanner.py router 路徑） ============
+
+class TestGenerateAvlistFocalTrigger:
+    """generate_avlist 掃描入庫後的 focal trigger（empty-focal gate，router 路徑）。
+
+    與 gallery_scanner.scan_to_sqlite 對稱：直接 driver generate_avlist()，真 tmp DB +
+    真 requires_face_detection gate；patch use-site `web.routers.scanner.
+    maybe_submit_video_focal` 只驗接線與 gate，不真跑 pigo。
+    """
+
+    def _run(self, tmp_path, num, maker="", seed_auto_focal=None):
+        import types
+        from unittest.mock import patch, MagicMock
+        from core.database import init_db, VideoRepository, Video
+        from core.gallery_scanner import VideoInfo
+        from core.path_utils import to_file_uri
+
+        scan_dir = tmp_path / "lib"
+        scan_dir.mkdir()
+        video_fs = str(scan_dir / f"{num}.mp4")
+        cover_fs = scan_dir / f"{num}.jpg"
+        cover_fs.write_bytes(b"x")
+        path_uri = to_file_uri(video_fs)
+        cover_uri = to_file_uri(str(cover_fs))
+
+        db_file = tmp_path / "avlist_focal.db"
+        init_db(db_file)
+        repo = VideoRepository(db_path=db_file)
+        if seed_auto_focal is not None:
+            with patch("core.similar.ranker_cache.SimilarRankerCache"):
+                repo.upsert(Video(path=path_uri, number=num, maker=maker, cover_path=cover_uri))
+            repo.update_auto_focal(path_uri, seed_auto_focal)
+
+        info = VideoInfo()
+        info.num = num
+        info.path = path_uri
+        info.img = cover_uri
+        info.maker = maker
+        info.title = "T"
+
+        config = {
+            "gallery": {
+                "directories": [str(scan_dir)], "output_dir": "output",
+                "output_filename": "gallery_output.html", "path_mappings": {},
+                "min_size_mb": 0, "default_mode": "image", "default_sort": "date",
+                "default_order": "descending", "items_per_page": 90,
+            },
+            "general": {"theme": "light"},
+            "search": {"proxy_url": ""},
+        }
+        src = types.SimpleNamespace(path=str(scan_dir), readonly=False)
+        mock_scanner = MagicMock()
+        mock_scanner.scan_file.return_value = info
+
+        with (
+            patch("web.routers.scanner.load_config", return_value=config),
+            patch("web.routers.scanner.get_gallery_source_paths", return_value=[str(scan_dir)]),
+            patch("web.routers.scanner.iter_gallery_sources", return_value=[src]),
+            patch("web.routers.scanner.get_db_path", return_value=db_file),
+            patch("web.routers.scanner.VideoScanner", return_value=mock_scanner),
+            patch("web.routers.scanner.fast_scan_directory",
+                  return_value=[{"path": video_fs, "mtime": 111, "nfo_mtime": 0}]),
+            patch("web.routers.scanner.HTMLGenerator"),
+            patch("web.routers.scanner._run_sample_images_cleanup_pass", return_value=0),
+            patch("web.routers.scanner.check_cache_needs_update",
+                  return_value={"need_update": 0, "paths": []}),
+            patch("web.routers.scanner._emit_notif"),
+            patch("core.similar.ranker_cache.SimilarRankerCache"),
+            patch("web.routers.scanner.maybe_submit_video_focal") as mock_submit,
+        ):
+            from web.routers.scanner import generate_avlist
+            list(generate_avlist())
+        return mock_submit
+
+    def test_uncensored_empty_focal_submits(self, tmp_path):
+        mock_submit = self._run(tmp_path, "SIRO-1234")
+        mock_submit.assert_called_once()
+        assert mock_submit.call_args[0][0] == "SIRO-1234"
+
+    def test_uncensored_nonempty_focal_no_submit(self, tmp_path):
+        # empty-focal gate：現有 auto_focal 有值 → 不 submit（mutation：拿掉 gate 必 RED）
+        mock_submit = self._run(tmp_path, "SIRO-1234", seed_auto_focal="0.5,0.5")
+        mock_submit.assert_not_called()
+
+    def test_censored_no_submit(self, tmp_path):
+        mock_submit = self._run(tmp_path, "SONE-205", maker="SOD")
+        mock_submit.assert_not_called()

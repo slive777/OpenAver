@@ -41,6 +41,8 @@ from core.gallery_generator import HTMLGenerator
 from core.path_utils import to_file_uri, is_path_under_dir, uri_to_fs_path, coerce_to_file_uri, uri_to_local_fs_path
 from core.nfo_updater import check_cache_needs_update, update_videos_generator
 from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite
+from core.focal import requires_face_detection
+from core.focal_trigger import maybe_submit_video_focal
 from core.organizer import generate_jellyfin_images, HEADERS as _EMBED_HEADERS
 from core.config import load_config, iter_gallery_sources, get_gallery_source_paths
 from core.readonly_producer import produce_source, resolve_output_root
@@ -521,6 +523,15 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
                     inserted, updated = repo.upsert_batch(videos_to_upsert)
                     total_inserted += inserted
                     total_updated += updated
+
+                    # 掃描 focal trigger（TASK-98b-T2）：一次批次讀現有 auto_focal，
+                    # 逐片 gate 無碼 且 現有 auto_focal 為空 → 反解 cover → 排背景偵測。
+                    focal_paths = [v.path for v in videos_to_upsert]
+                    focal_map = repo.get_auto_focal_map(focal_paths)
+                    for v in videos_to_upsert:
+                        if requires_face_detection(v.number, v.maker) and not focal_map.get(v.path):
+                            cover_fs = uri_to_local_fs_path(v.cover_path, path_mappings)
+                            maybe_submit_video_focal(v.number, v.maker, v.path, cover_fs)
 
                 logger.info(f"[Gallery] {directory}: {len(all_files)} 個檔案，快取命中 {cache_hits}")
 

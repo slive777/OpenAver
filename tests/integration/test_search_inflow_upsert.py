@@ -648,3 +648,215 @@ def test_b1_repath_no_dead_card_jellyfin(client, tmp_path):
     ca_str = str(new_card.created_at) if new_card.created_at else ""
     assert "2024-03-15" in ca_str, \
         f"created_at 應保留 2024-03-15，得 {ca_str!r}"
+
+
+# ─── TASK-98b-T2: 首刮重建 URI == DB row key（focal silent-miss 回歸鎖） ─────────
+#
+# 最關鍵回歸：scraper.py 用 to_file_uri(target_file, path_mappings) 重建 focal 的
+# video_path_uri，必須 byte-equal db_inflow 寫入的 DB row key，否則 update_auto_focal
+# WHERE path=? rowcount=0 → silent-miss。跑真 VideoScanner（不 mock scan_file）取得
+# 真實 DB key，再用 scraper 的重建公式比對。
+
+def _scraper_rebuild_uri(target_file, config):
+    """複製 web/routers/scraper.py 的 focal video_path_uri 重建公式。"""
+    from core.path_utils import to_file_uri
+    path_mappings = config.get('gallery', {}).get('path_mappings', {})
+    return to_file_uri(target_file, path_mappings)
+
+
+def test_focal_uri_matches_db_key_empty_mappings(tmp_path):
+    """path_mappings 空：scraper 用 {}、db_inflow 用 None → 兩者仍相等（{}≡None）。"""
+    from core.database import init_db, VideoRepository
+    from core.db_inflow import try_inflow_upsert
+    from core.path_utils import to_file_uri
+
+    scan_dir = tmp_path / "lib"
+    scan_dir.mkdir()
+    target = scan_dir / "[2024-01-01][SIRO][SIRO-1234] T.mp4"
+    target.write_bytes(b"x" * 1024)
+
+    db_file = tmp_path / "focal_key.db"
+    init_db(db_file)
+    repo = VideoRepository(db_path=db_file)
+
+    config = {"gallery": {"directories": [str(scan_dir)], "path_mappings": {}}}
+
+    with (
+        patch("core.db_inflow.load_config", return_value=config),
+        patch("core.db_inflow.VideoRepository", return_value=repo),
+        patch("core.similar.ranker_cache.SimilarRankerCache"),
+    ):
+        status = try_inflow_upsert(str(target))
+
+    assert status == "synced"
+
+    # scraper 重建公式（config 派生 path_mappings={}）
+    rebuilt = _scraper_rebuild_uri(str(target), config)
+    # {} ≡ None 對齊（db_inflow 用 `path_mappings or None`）
+    assert to_file_uri(str(target), {}) == to_file_uri(str(target), None)
+
+    # 重建 URI == DB row key（防 silent-miss）
+    assert repo.get_by_path(rebuilt) is not None, \
+        f"重建 URI 未命中 DB row：{rebuilt!r}"
+    assert repo.update_auto_focal(rebuilt, "0.5,0.5") is True, \
+        "update_auto_focal 應命中（rowcount==1），否則 silent-miss"
+
+
+def test_focal_uri_matches_db_key_nonempty_mappings(tmp_path):
+    """path_mappings 非空且實際轉換：scraper 與 db_inflow 同用該 mapping → 對齊。"""
+    from core.database import init_db, VideoRepository
+    from core.db_inflow import try_inflow_upsert
+    from core.path_utils import to_file_uri
+
+    scan_dir = tmp_path / "lib"
+    scan_dir.mkdir()
+    target = scan_dir / "[2024-01-01][SIRO][SIRO-5678] T.mp4"
+    target.write_bytes(b"x" * 1024)
+
+    # 把掃描夾映射到 Windows 磁碟機字母 → URI 實際被轉換（非 identity）
+    path_mappings = {str(scan_dir): "Z:/lib"}
+
+    db_file = tmp_path / "focal_key2.db"
+    init_db(db_file)
+    repo = VideoRepository(db_path=db_file)
+
+    config = {"gallery": {"directories": [str(scan_dir)], "path_mappings": path_mappings}}
+
+    with (
+        patch("core.db_inflow.load_config", return_value=config),
+        patch("core.db_inflow.VideoRepository", return_value=repo),
+        patch("core.similar.ranker_cache.SimilarRankerCache"),
+    ):
+        status = try_inflow_upsert(str(target))
+
+    assert status == "synced"
+
+    rebuilt = _scraper_rebuild_uri(str(target), config)
+    # 確認 mapping 真的生效（非 trivial identity）
+    assert rebuilt != to_file_uri(str(target), {}), \
+        "path_mappings 應實際轉換 URI，否則非有效非空情境"
+    assert "Z:/lib" in rebuilt or "Z:" in rebuilt
+
+    assert repo.get_by_path(rebuilt) is not None, \
+        f"非空 mapping 下重建 URI 未命中 DB row：{rebuilt!r}"
+    assert repo.update_auto_focal(rebuilt, "0.4,0.6") is True, \
+        "非空 mapping 下 update_auto_focal 應命中（rowcount==1）"
+
+
+# ─── TASK-98b-T2 DoD-4: scraper 首刮 focal wire gate（驅動真 route，spy helper） ──
+#
+# 上面兩個 test 只驗「重建公式」與 DB key 對齊（手抄 _scraper_rebuild_uri），沒有
+# 驅動 web/routers/scraper.py 真正的接線點（~:214 `if db_sync_status == "synced"`）。
+# DoD-4「db_sync_status != 'synced' → 不 submit」因此無鎖。以下 spy
+# web.routers.scraper.maybe_submit_video_focal 並打真 route 驗接線閘。
+#
+# 接線閘只看兩件事：`target_file` 為真 AND `db_sync_status == "synced"`。無 censor
+# 閘、無 cover 存在閘——那兩者活在 helper 內部（helper 被 spy，不會實跑）。
+
+
+def _organize_ok_with_cover(new_filename="/tmp/ABC-001/ABC-001.mp4",
+                            cover_path="/tmp/ABC-001/ABC-001-fanart.jpg"):
+    d = _organize_ok(new_filename)
+    d["cover_path"] = cover_path
+    return d
+
+
+def _scrape_body_with_maker(file_path="/tmp/ABC-001.mp4", maker="S1"):
+    body = _scrape_request_body(file_path=file_path)
+    body["metadata"]["maker"] = maker
+    return body
+
+
+# case A: synced + 有 cover → helper 被呼叫一次，video_path_uri==to_file_uri(target,{})，
+#         cover==result['cover_path']
+def test_focal_wire_called_on_synced(client):
+    from core.path_utils import to_file_uri
+
+    video_info = _make_video_info()
+
+    with (
+        patch("web.routers.scraper.maybe_submit_video_focal") as mock_focal,
+        patch("web.routers.scraper.load_config", return_value={
+            "gallery": {"directories": [], "path_mappings": {}}
+        }),
+        patch("web.routers.scraper.organize_file",
+              return_value=_organize_ok_with_cover()),
+        patch("core.db_inflow.load_config", return_value={
+            "gallery": {"directories": ["/tmp"], "path_mappings": {}}
+        }),
+        patch("core.db_inflow.find_matched_directory", return_value="/tmp"),
+        patch("core.db_inflow.VideoScanner") as MockScanner,
+        patch("core.db_inflow.VideoRepository") as MockRepo,
+        patch("core.db_inflow.Video") as MockVideo,
+    ):
+        MockScanner.return_value.scan_file.return_value = video_info
+        mock_video = MagicMock()
+        mock_video.path = "file:///tmp/ABC-001/ABC-001.mp4"
+        MockVideo.from_video_info.return_value = mock_video
+        MockRepo.return_value.repath.return_value = None  # → synced
+
+        resp = client.post("/api/scrape-single", json=_scrape_body_with_maker())
+
+    assert resp.status_code == 200
+    assert resp.json()["db_sync_status"] == "synced"
+    mock_focal.assert_called_once()
+    args = mock_focal.call_args.args
+    assert args[0] == "ABC-001"                                  # number
+    assert args[1] == "S1"                                       # maker（metadata.get）
+    assert args[2] == to_file_uri("/tmp/ABC-001/ABC-001.mp4", {})  # 重建 video_path_uri
+    assert args[3] == "/tmp/ABC-001/ABC-001-fanart.jpg"          # result['cover_path']
+
+
+# case B（DoD-4 核心）：db_sync_status == "not_linked"（非 synced）→ helper NOT called
+def test_focal_wire_not_called_when_not_linked(client):
+    with (
+        patch("web.routers.scraper.maybe_submit_video_focal") as mock_focal,
+        patch("web.routers.scraper.load_config", return_value={
+            "gallery": {"directories": [], "path_mappings": {}}
+        }),
+        patch("web.routers.scraper.organize_file",
+              return_value=_organize_ok_with_cover()),
+        patch("core.db_inflow.load_config", return_value={
+            "gallery": {"directories": ["/other"], "path_mappings": {}}
+        }),
+        patch("core.db_inflow.find_matched_directory", return_value=None),  # → not_linked
+        patch("core.db_inflow.VideoScanner"),
+        patch("core.db_inflow.VideoRepository"),
+    ):
+        resp = client.post("/api/scrape-single", json=_scrape_body_with_maker())
+
+    assert resp.status_code == 200
+    assert resp.json()["db_sync_status"] == "not_linked"
+    mock_focal.assert_not_called()
+
+
+# case B'（DoD-4 補強）：db_sync_status == "failed"（upsert 拋例外）→ helper NOT called
+def test_focal_wire_not_called_when_failed(client):
+    video_info = _make_video_info()
+
+    with (
+        patch("web.routers.scraper.maybe_submit_video_focal") as mock_focal,
+        patch("web.routers.scraper.load_config", return_value={
+            "gallery": {"directories": [], "path_mappings": {}}
+        }),
+        patch("web.routers.scraper.organize_file",
+              return_value=_organize_ok_with_cover()),
+        patch("core.db_inflow.load_config", return_value={
+            "gallery": {"directories": ["/tmp"], "path_mappings": {}}
+        }),
+        patch("core.db_inflow.find_matched_directory", return_value="/tmp"),
+        patch("core.db_inflow.VideoScanner") as MockScanner,
+        patch("core.db_inflow.VideoRepository") as MockRepo,
+        patch("core.db_inflow.Video") as MockVideo,
+    ):
+        MockScanner.return_value.scan_file.return_value = video_info
+        mock_video = MagicMock()
+        mock_video.path = "file:///tmp/ABC-001/ABC-001.mp4"
+        MockVideo.from_video_info.return_value = mock_video
+        MockRepo.return_value.repath.side_effect = Exception("DB write error")  # → failed
+
+        resp = client.post("/api/scrape-single", json=_scrape_body_with_maker())
+
+    assert resp.status_code == 200
+    assert resp.json()["db_sync_status"] == "failed"
+    mock_focal.assert_not_called()

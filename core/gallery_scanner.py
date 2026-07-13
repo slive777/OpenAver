@@ -16,6 +16,8 @@ from dataclasses import dataclass, field, fields as dataclass_fields
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
+from core.focal import requires_face_detection
+from core.focal_trigger import maybe_submit_video_focal
 from core.logger import get_logger
 from core.maker_mapping import load_name_mapping, load_prefix_mapping
 from core.nfo_utils import sanitize_nfo_bytes
@@ -726,6 +728,22 @@ class VideoScanner:
         # 批次寫入
         inserted, updated = repo.upsert_batch(videos_to_upsert)
         logger.info(f"[*] 完成: 新增 {inserted}, 更新 {updated}, 刪除 {deleted_count}")
+
+        # 掃描 focal trigger（TASK-98b-T2）：與 web/routers/scanner.py 對稱——一次批次
+        # 讀現有 auto_focal，逐片 gate 無碼 且 現有 auto_focal 為空 → 反解 cover → 排偵測。
+        # focal 是純副作用（安全退化：無 focal → render 退 baseline 右裁），任何例外都
+        # 不得中止掃描——包整個 loop（含 get_auto_focal_map），log warning 後續走 cleanup
+        # + return。web/routers/scanner.py 的對稱塊已在 per-directory try 內，此處為
+        # method top-level 需自帶防護。
+        try:
+            focal_paths = [v.path for v in videos_to_upsert]
+            focal_map = repo.get_auto_focal_map(focal_paths)
+            for v in videos_to_upsert:
+                if requires_face_detection(v.number, v.maker) and not focal_map.get(v.path):
+                    cover_fs = uri_to_local_fs_path(v.cover_path, self.path_mappings)
+                    maybe_submit_video_focal(v.number, v.maker, v.path, cover_fs)
+        except Exception:
+            logger.warning("[*] focal trigger 批次排程失敗（不影響掃描結果）", exc_info=True)
 
         # §b1 AC#2: sample_images 孤兒清理 pass（CLI / 直接呼叫路徑覆蓋）
         _run_sample_images_cleanup_pass(repo, self.path_mappings)

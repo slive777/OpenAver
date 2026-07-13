@@ -867,3 +867,75 @@ class TestScannerSampleImagesValidationPass:
             )
 
         assert result == [to_file_uri("/fake/path/s1.jpg")]
+
+
+# ============ TASK-98b-T2: 掃描 empty-focal gate（gallery_scanner 路徑） ============
+
+class TestScanFocalTrigger:
+    """scan_to_sqlite 掃描入庫後的 focal trigger（empty-focal gate）。
+
+    使用真 tmp DB + 真 requires_face_detection gate；patch use-site helper
+    `core.gallery_scanner.maybe_submit_video_focal` 只驗接線與 gate，不真跑 pigo。
+    """
+
+    def _make_info(self, num, path_uri, cover_uri, maker=""):
+        from core.gallery_scanner import VideoInfo
+        info = VideoInfo()
+        info.num = num
+        info.path = path_uri
+        info.img = cover_uri
+        info.maker = maker
+        info.title = "T"
+        return info
+
+    def _run_scan(self, tmp_path, num, maker="", seed_auto_focal=None):
+        from unittest.mock import patch, MagicMock
+        from core.database import init_db, VideoRepository, Video
+        from core.path_utils import to_file_uri
+
+        db_file = tmp_path / "scan_focal.db"
+        init_db(db_file)
+        repo = VideoRepository(db_path=db_file)
+
+        video_fs = str(tmp_path / f"{num}.mp4")
+        cover_fs = tmp_path / f"{num}.jpg"
+        cover_fs.write_bytes(b"x")
+        path_uri = to_file_uri(video_fs)
+        cover_uri = to_file_uri(str(cover_fs))
+
+        # 可選：預先種一筆已有 auto_focal 的 row（測 empty-focal gate 的 non-empty 分支）
+        if seed_auto_focal is not None:
+            with patch("core.similar.ranker_cache.SimilarRankerCache"):
+                repo.upsert(Video(path=path_uri, number=num, maker=maker, cover_path=cover_uri))
+            repo.update_auto_focal(path_uri, seed_auto_focal)
+
+        scanner = VideoScanner()
+        info = self._make_info(num, path_uri, cover_uri, maker)
+        file_infos = [{"path": video_fs, "mtime": 111, "nfo_mtime": 0}]
+
+        with (
+            patch("core.gallery_scanner.fast_scan_directory", return_value=file_infos),
+            patch.object(scanner, "scan_file", return_value=info),
+            patch("core.similar.ranker_cache.SimilarRankerCache"),
+            patch("core.gallery_scanner._run_sample_images_cleanup_pass"),
+            patch("core.gallery_scanner.maybe_submit_video_focal") as mock_submit,
+        ):
+            scanner.scan_to_sqlite(str(tmp_path), db_path=db_file)
+        return mock_submit
+
+    def test_uncensored_empty_focal_submits(self, tmp_path):
+        # SIRO-xxxx = shirouto → requires_face_detection True；新 row auto_focal 空 → submit
+        mock_submit = self._run_scan(tmp_path, "SIRO-1234")
+        mock_submit.assert_called_once()
+        args = mock_submit.call_args[0]
+        assert args[0] == "SIRO-1234"
+
+    def test_uncensored_nonempty_focal_no_submit(self, tmp_path):
+        # 現有 auto_focal 有值 → empty-focal gate 擋（mutation：拿掉 `not focal_map.get()` 必 RED）
+        mock_submit = self._run_scan(tmp_path, "SIRO-1234", seed_auto_focal="0.5,0.5")
+        mock_submit.assert_not_called()
+
+    def test_censored_no_submit(self, tmp_path):
+        # SONE-205 = 有碼 → requires_face_detection False → 不 submit
+        mock_submit = self._run_scan(tmp_path, "SONE-205", maker="SOD")
+        mock_submit.assert_not_called()

@@ -2374,3 +2374,125 @@ class TestDbUpsertCoverAndSampleUrisForwardMapped:
             assert uri.startswith("file://///NAS/share/dir/extrafanart/"), (
                 f"sample uri 應 forward-map 回映射命名空間，實際: {uri!r}"
             )
+
+
+# ── TASK-98b-T2: 重刮 focal trigger 接線 ─────────────────────────────────────
+
+class TestEnrichFocalTrigger:
+    """重刮無碼片 → maybe_submit_video_focal 被呼（wire-point 契約）。
+
+    helper 本體 gate 於 test_focal_trigger.py 覆蓋；此處只驗 enricher 有接線、
+    且傳入的 (number, maker, video_path_uri, cover_fs) 對齊 _db_upsert 的 DB key。
+    """
+
+    def _run_refresh(self, number="SIRO-1234", maker="SOD"):
+        from unittest.mock import patch, MagicMock
+        scraper_data = {
+            "number": number,
+            "title": "Test",
+            "actors": [],
+            "cover": "http://example.com/cover.jpg",
+            "date": "2024-01-01",
+            "maker": maker,
+            "director": "",
+            "series": "",
+            "label": "",
+            "tags": [],
+            "sample_images": [],
+            "source": "javbus",
+        }
+        with (
+            patch("os.path.exists", return_value=True),
+            patch("core.enricher.VideoRepository") as mock_repo_cls,
+            patch("core.enricher.search_jav", return_value=scraper_data),
+            patch("core.enricher.generate_nfo", return_value=True),
+            patch("core.enricher.download_image", return_value=True),
+            patch("core.enricher.find_subtitle_files", return_value=[]),
+            patch("core.enricher.maybe_submit_video_focal") as mock_submit,
+        ):
+            mock_repo = MagicMock()
+            mock_existing = MagicMock()
+            mock_existing.sample_images = []
+            mock_existing.user_tags = []
+            mock_existing.cover_path = ""
+            mock_repo.get_by_path.return_value = mock_existing
+            mock_repo_cls.return_value = mock_repo
+
+            from core.enricher import enrich_single
+            enrich_single(
+                file_path="/tmp/SIRO-1234.mp4",
+                number=number,
+                mode="refresh_full",
+                write_nfo=False,
+                write_cover=True,
+                write_extrafanart=False,
+                overwrite_existing=True,
+            )
+        return mock_submit
+
+    def test_rescrape_calls_focal_trigger(self):
+        mock_submit = self._run_refresh()
+        mock_submit.assert_called_once()
+        args = mock_submit.call_args[0]
+        # (number, maker, video_path_uri, cover_fs)
+        assert args[0] == "SIRO-1234"
+        assert args[1] == "SOD"
+        assert args[2].startswith("file:///"), f"video_path_uri 應為 file:/// URI，得 {args[2]!r}"
+        assert args[3].endswith(".jpg"), f"cover_fs 應為 .jpg 封面路徑，得 {args[3]!r}"
+
+    def test_video_path_uri_matches_db_upsert_key(self):
+        """helper 收到的 video_path_uri 必等於 _db_upsert 寫入 DB 的 key（防 silent-miss）。"""
+        from core.path_utils import to_file_uri, uri_to_fs_path
+        mock_submit = self._run_refresh()
+        args = mock_submit.call_args[0]
+        expected = to_file_uri(uri_to_fs_path("/tmp/SIRO-1234.mp4"))
+        assert args[2] == expected, f"video_path_uri 應 == DB key {expected!r}，得 {args[2]!r}"
+
+
+class TestEnrichPreserveCropModeE2E:
+    """重刮路徑 preserve-on-conflict 端到端：先設 crop_mode='default' → 重刮 → 仍 default。"""
+
+    def test_rescrape_preserves_user_crop_mode(self, tmp_path):
+        from unittest.mock import patch
+        from core.database import init_db, VideoRepository, Video
+        from core.path_utils import to_file_uri, uri_to_fs_path
+
+        db_file = tmp_path / "focal_preserve.db"
+        init_db(db_file)
+        repo = VideoRepository(db_path=db_file)
+
+        video_file = tmp_path / "SIRO-1234.mp4"
+        video_file.write_bytes(b"x")
+        file_path = str(video_file)
+        db_key = to_file_uri(uri_to_fs_path(file_path))
+
+        with patch("core.similar.ranker_cache.SimilarRankerCache"):
+            repo.upsert(Video(path=db_key, number="SIRO-1234", title="Old", maker="SOD"))
+        # 使用者選了 default（非 auto）
+        assert repo.update_crop_mode(db_key, "default") is True
+
+        scraper_data = {
+            "number": "SIRO-1234", "title": "New", "actors": [],
+            "cover": "http://example.com/cover.jpg", "date": "2024-01-01",
+            "maker": "SOD", "director": "", "series": "", "label": "",
+            "tags": [], "sample_images": [], "source": "javbus",
+        }
+        with (
+            patch("core.enricher.VideoRepository", return_value=repo),
+            patch("core.enricher.search_jav", return_value=scraper_data),
+            patch("core.enricher.generate_nfo", return_value=True),
+            patch("core.enricher.download_image", return_value=True),
+            patch("core.enricher.find_subtitle_files", return_value=[]),
+            patch("core.enricher.maybe_submit_video_focal"),
+            patch("core.similar.ranker_cache.SimilarRankerCache"),
+        ):
+            from core.enricher import enrich_single
+            enrich_single(
+                file_path=file_path, number="SIRO-1234", mode="refresh_full",
+                write_nfo=False, write_cover=True, write_extrafanart=False,
+            )
+
+        row = repo.get_by_path(db_key)
+        assert row is not None
+        assert row.crop_mode == "default", f"重刮不應回退 crop_mode，得 {row.crop_mode!r}"
+        assert row.title == "New", "重刮應更新非 preserve 欄位（title）"

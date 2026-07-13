@@ -636,6 +636,39 @@ class VideoRepository:
         finally:
             conn.close()
 
+    def get_auto_focal_map(self, paths: List[str]) -> dict:
+        """批次讀 {path: auto_focal}（掃描 empty-focal gate 用，避免 N+1）。
+
+        單條 `SELECT path, auto_focal FROM videos WHERE path IN (...)`，超過 SQLite
+        變數上限時分批。空 paths 直接回 {}（不查詢）。鏡射 update_user_tags 連線 pattern。
+
+        Args:
+            paths: 影片 path（DB key，file:/// URI 格式）列表
+
+        Returns:
+            dict[str, str]: {path: auto_focal}；未在 DB 的 path 不會出現在結果中。
+        """
+        if not paths:
+            return {}
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            result: dict = {}
+            chunk_size = 900  # 保守低於 SQLite 999 變數上限
+            for i in range(0, len(paths), chunk_size):
+                chunk = paths[i:i + chunk_size]
+                placeholders = ', '.join(['?'] * len(chunk))
+                cursor.execute(
+                    f"SELECT path, auto_focal FROM videos WHERE path IN ({placeholders})",
+                    chunk,
+                )
+                for row in cursor.fetchall():
+                    result[row[0]] = row[1]
+            return result
+        finally:
+            conn.close()
+
     def get_all(self) -> List[Video]:
         """取得所有影片"""
         conn = self._get_connection()
