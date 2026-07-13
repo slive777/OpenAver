@@ -18,6 +18,8 @@ from core.focal.detector import (
     _cluster_and_select_2d,
     _dominant_axis_by_ratio,
     detect_faces,
+    format_focal,
+    parse_focal,
 )
 
 _FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "focal" / "sample.jpg"
@@ -237,3 +239,42 @@ class TestDetectFocal:
     def test_detect_focal_returns_none_on_missing_file(self):
         result = detect_focal("/nonexistent/path/does-not-exist.jpg", 2.0 / 3.0, 650)
         assert result is None
+
+
+# ============ serde (CD-98a-3: "x,y" 4-decimal canonical string) ============
+
+
+class TestFocalSerde:
+    def test_round_trip(self):
+        focal = (0.6231, 0.4177)
+        assert parse_focal(format_focal(focal)) == pytest.approx(focal)
+
+    def test_format_none_is_empty_string(self):
+        assert format_focal(None) == ''
+
+    def test_format_produces_four_decimals(self):
+        assert format_focal((0.5, 0.333333)) == "0.5000,0.3333"
+
+    def test_parse_empty_string_is_none(self):
+        assert parse_focal('') is None
+
+    def test_parse_none_is_none(self):
+        assert parse_focal(None) is None
+
+    def test_parse_garbage_is_none(self):
+        assert parse_focal('garbage') is None
+
+    def test_parse_wrong_part_count_is_none(self):
+        assert parse_focal('1,2,3') is None
+        assert parse_focal('1') is None
+
+    def test_parse_non_float_parts_is_none(self):
+        assert parse_focal('a,b') is None
+
+    def test_parse_non_finite_is_none(self):
+        # nan/inf are "valid" floats to float() but must degrade to unset
+        # (right-crop) rather than leak into crop math / CSS object-position.
+        assert parse_focal('nan,nan') is None
+        assert parse_focal('inf,0.5') is None
+        assert parse_focal('1e400,1') is None      # 1e400 -> inf
+        assert parse_focal('0.5,-inf') is None

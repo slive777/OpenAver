@@ -307,6 +307,38 @@ def detect_focal(fs_path, ratio, work_width=MAX_IMAGE_WIDTH):
         return None
 
 
+# --- serde (CD-98a-3: canonical "x,y" 4-decimal string) --------------------
+
+def format_focal(focal):
+    """(x, y) tuple -> "x.xxxx,y.xxxx"; None -> ''."""
+    if focal is None:
+        return ''
+    x, y = focal
+    return f"{x:.4f},{y:.4f}"
+
+
+def parse_focal(s):
+    """"x.xxxx,y.xxxx" -> (x, y) floats; '' / None / malformed -> None.
+
+    Defensive: never raises; wrong # of parts, non-float, or non-finite
+    (nan/inf) -> None. Callers read this from persisted DB rows that could be
+    hand-corrupted, so nan/inf must degrade to "unset" (right-crop fallback)
+    rather than leak into crop math / CSS object-position.
+    """
+    if not s:
+        return None
+    parts = s.split(',')
+    if len(parts) != 2:
+        return None
+    try:
+        x, y = float(parts[0]), float(parts[1])
+    except (TypeError, ValueError):
+        return None
+    if not (math.isfinite(x) and math.isfinite(y)):
+        return None
+    return x, y
+
+
 # --- crop (imageutil/crop.go) ----------------------------------------------
 
 def crop_image_position(img, ratio, pos):
