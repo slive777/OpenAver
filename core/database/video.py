@@ -149,11 +149,29 @@ class Video:
 
 
 # preserve-on-conflict 欄位集合（CD-98a-6）：比照 path — 首次 INSERT 帶 dataclass 預設值，
-# 衝突/repath 一律保留 DB 既有值。focal 只由專用 update_auto_focal/update_crop_mode mutator
-# 改寫，掃描/重刮（走下方 4 個 builder）永不覆蓋。focal_attempted_at 隨 update_auto_focal
-# 原子蓋章（Codex PR#105 P2），同理必須 preserve——否則重掃的 upsert_batch 會把它洗回
-# NULL，無臉列又被 get_empty_focal_candidates 重新排入。
+# 衝突/repath 走下方 4 個 builder 時不無條件覆蓋。focal 只由專用 update_auto_focal/
+# update_crop_mode mutator 改寫；掃描/重刮的 builder 一律不直接寫入 dataclass 預設值。
+#
+# 三欄位行為不對稱（Codex PR#105 P2b 修正）：
+# - crop_mode：純使用者裁切模式偏好，與封面無關，無條件保留 DB 既有值。
+# - auto_focal / focal_attempted_at：是「針對某張封面」算出的結果，若 incoming（本次
+#   掃描）cover_path 與 DB 既有 cover_path 相同（metadata-only 衝突）→ 保留既有值；
+#   若 cover_path 不同（用戶換封面 / NFO・sidecar 選了不同封面）→ 重置為未偵測
+#   （auto_focal='' + focal_attempted_at=NULL），否則舊封面的 stale 焦點結果會讓新
+#   封面永遠不被 get_empty_focal_candidates 重新排入偵測，除非手動 force-detect。
 _FOCAL_PRESERVE = frozenset({'auto_focal', 'crop_mode', 'focal_attempted_at'})
+
+# ON CONFLICT DO UPDATE 用的條件式 CASE 片段（cover_path 相同才保留舊值，否則重置）。
+# videos.<col> 在 upsert 語境中指衝突前既有的 row 值；excluded.<col> 指本次 INSERT 的
+# incoming 值——鏡射既有 user_tags/output_dir CASE-WHEN 寫法（見下方 3 個 builder）。
+_FOCAL_AUTO_FOCAL_CASE_SQL = (
+    "auto_focal = CASE WHEN excluded.cover_path = videos.cover_path "
+    "THEN videos.auto_focal ELSE '' END"
+)
+_FOCAL_ATTEMPTED_AT_CASE_SQL = (
+    "focal_attempted_at = CASE WHEN excluded.cover_path = videos.cover_path "
+    "THEN videos.focal_attempted_at ELSE NULL END"
+)
 
 
 class VideoRepository:
@@ -202,7 +220,14 @@ class VideoRepository:
                 if col == 'path':
                     continue
                 elif col in _FOCAL_PRESERVE:
-                    continue
+                    if col == 'crop_mode':
+                        # 裁切模式偏好與封面無關，一律保留 DB 既有值（CD-98a-6）
+                        continue
+                    elif col == 'auto_focal':
+                        # cover_path 相同 → 保留；換封面 → 重置為未偵測（Codex PR#105 P2b）
+                        update_parts.append(_FOCAL_AUTO_FOCAL_CASE_SQL)
+                    elif col == 'focal_attempted_at':
+                        update_parts.append(_FOCAL_ATTEMPTED_AT_CASE_SQL)
                 elif col == 'user_tags':
                     # user_tags = '[]' 時視同「不更新」，保留 DB 現有值
                     update_parts.append(
@@ -353,14 +378,30 @@ class VideoRepository:
             video_dict.pop('updated_at', None)
             video_dict.pop('path', None)   # path 會另外指定
 
+            # cover_path 是否變動決定 auto_focal/focal_attempted_at 保留或重置
+            # （Codex PR#105 P2b）。old_row 為 None 屬既有存在檢查後被並行刪除的極端
+            # race（見上方 merged_tags 同一 old_row 用法），安全預設視為「封面已變」
+            # 一併重置，不留可能對應舊封面的 stale 值。
+            cover_unchanged = old_row is not None and video.cover_path == old_row.cover_path
+
             set_parts = []
             set_values = []
             for col, val in video_dict.items():
                 if col == 'user_tags':
                     continue  # handled separately
-                elif col in _FOCAL_PRESERVE:
-                    # focal 欄位一律保留 DB 既有值，只由專用 mutator 改寫（CD-98a-6）
+                elif col == 'crop_mode':
+                    # 裁切模式偏好與封面無關，一律保留 DB 既有值（CD-98a-6）
                     continue
+                elif col == 'auto_focal':
+                    if cover_unchanged:
+                        continue  # 保留 DB 既有值
+                    set_parts.append("auto_focal = ?")
+                    set_values.append('')
+                elif col == 'focal_attempted_at':
+                    if cover_unchanged:
+                        continue  # 保留 DB 既有值
+                    set_parts.append("focal_attempted_at = ?")
+                    set_values.append(None)
                 elif col == 'output_dir' and not val:
                     # incoming output_dir 空 → 保留既有值（不寫入），與 upsert() CASE-WHEN 對稱
                     continue
@@ -455,7 +496,14 @@ class VideoRepository:
             if col == 'path':
                 continue
             elif col in _FOCAL_PRESERVE:
-                continue
+                if col == 'crop_mode':
+                    # 裁切模式偏好與封面無關，一律保留 DB 既有值（CD-98a-6）
+                    continue
+                elif col == 'auto_focal':
+                    # cover_path 相同 → 保留；換封面 → 重置為未偵測（Codex PR#105 P2b）
+                    update_parts.append(_FOCAL_AUTO_FOCAL_CASE_SQL)
+                elif col == 'focal_attempted_at':
+                    update_parts.append(_FOCAL_ATTEMPTED_AT_CASE_SQL)
             elif col == 'created_at':
                 # 碰撞分支：強制寫入較早的 created_at（DO UPDATE 也要更新）
                 update_parts.append("created_at = excluded.created_at")
@@ -577,7 +625,14 @@ class VideoRepository:
                     if col == 'path':
                         continue
                     elif col in _FOCAL_PRESERVE:
-                        continue
+                        if col == 'crop_mode':
+                            # 裁切模式偏好與封面無關，一律保留 DB 既有值（CD-98a-6）
+                            continue
+                        elif col == 'auto_focal':
+                            # cover_path 相同 → 保留；換封面 → 重置為未偵測（Codex PR#105 P2b）
+                            update_parts.append(_FOCAL_AUTO_FOCAL_CASE_SQL)
+                        elif col == 'focal_attempted_at':
+                            update_parts.append(_FOCAL_ATTEMPTED_AT_CASE_SQL)
                     elif col == 'user_tags':
                         # user_tags = '[]' 時視同「不更新」，保留 DB 現有值
                         update_parts.append(
