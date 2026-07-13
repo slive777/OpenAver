@@ -100,6 +100,8 @@ def _compute_similar_covers(video_id: int, limit: int) -> dict:
                 "cosine_score": ranker._score(target, v),
                 "penalty_applied": False,  # rule-based 無 penalty 概念，保留 key 為 fixture 相容
                 "actresses": v.actresses if isinstance(v.actresses, list) else [],
+                "auto_focal": v.auto_focal,  # 98b：canonical "x,y" 4dp 或 ''（query_video 卡刻意不加）
+                "crop_mode": v.crop_mode,    # 98b：'auto' | 'default'
             }
             for v in results_videos
         ],

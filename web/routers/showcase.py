@@ -71,6 +71,8 @@ def _serialize_video(v, path_mappings: dict, enabled: bool = False, readonly_pre
             # uri-no-reverse: coerce_to_file_uri forward URI build, D2 complement
             coerce_to_file_uri(v.path, path_mappings), readonly_prefixes or [], writable_prefixes or []
         ),
+        "auto_focal": v.auto_focal,                  # canonical "x,y" 4dp 字串或 ''（98b：前端 focalObjectPosition 消費）
+        "crop_mode": v.crop_mode,                    # 'auto' | 'default'（98b：default 退 baseline 右裁）
     }
 
 

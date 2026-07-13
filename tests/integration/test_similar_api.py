@@ -335,6 +335,27 @@ class TestSimilarCoversAPI:
         assert resp.status_code == 200
         assert len(resp.json()["results"]) == 3
 
+    # --- 98b-T1: 每個 result 含 auto_focal / crop_mode 兩欄 ---
+
+    def test_results_contain_focal_fields(self, client_with_corpus):
+        """每個 similar result 含 auto_focal / crop_mode（值取自 result Video）。"""
+        client, target_id, _ = client_with_corpus
+        resp = client.get(f"/api/similar-covers/{target_id}")
+        assert resp.status_code == 200
+        results = resp.json()["results"]
+        assert len(results) > 0
+        for r in results:
+            assert "auto_focal" in r, f"result 缺 auto_focal：{r}"
+            assert "crop_mode" in r, f"result 缺 crop_mode：{r}"
+
+    def test_query_video_card_has_no_focal_fields(self, client_with_corpus):
+        """query_video 卡刻意不套 focal（CD-98b-5：drill 查詢卡維持現狀，不污染）。"""
+        client, target_id, _ = client_with_corpus
+        resp = client.get(f"/api/similar-covers/{target_id}")
+        qv = resp.json()["query_video"]
+        assert "auto_focal" not in qv
+        assert "crop_mode" not in qv
+
     # --- T11: target 不在 results 中 ---
 
     def test_target_not_in_results(self, client_with_corpus):

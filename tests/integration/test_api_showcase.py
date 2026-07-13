@@ -124,6 +124,95 @@ class TestShowcaseVideosUserTags:
         assert video_no_tags["user_tags"] == []
 
 
+# ============ auto_focal / crop_mode Tests (98b-T1) ============
+
+class TestShowcaseFocalFields:
+    """測試 /api/showcase/videos 與 /api/showcase/video 回傳 auto_focal / crop_mode 兩欄（98b-T1）。
+
+    serializer 由列表端點與單筆端點共用，兩欄純加、值等於 DB。
+    """
+
+    @pytest.fixture
+    def focal_setup(self, tmp_path):
+        """建立含 focal 座標與空 focal 兩片的臨時 DB。"""
+        video_dir = tmp_path / "videos"
+        video_dir.mkdir()
+
+        vid_focal_uri = to_file_uri(str(video_dir / "with_focal.mp4"), {})
+        vid_empty_uri = to_file_uri(str(video_dir / "no_focal.mp4"), {})
+
+        db_path = tmp_path / "focal_test.db"
+        init_db(db_path)
+        repo = VideoRepository(db_path)
+        repo.upsert_batch([
+            Video(
+                path=vid_focal_uri,
+                number="FOC-001",
+                title="With Focal",
+                auto_focal="0.6231,0.4177",
+                crop_mode="auto",
+            ),
+            Video(
+                path=vid_empty_uri,
+                number="FOC-002",
+                title="No Focal",
+                auto_focal="",
+                crop_mode="default",
+            ),
+        ])
+
+        config = {
+            "gallery": {
+                "directories": [str(video_dir)],
+                "path_mappings": {},
+                "min_size_mb": 0,
+                "thumbnail_width": 400,
+            },
+            "scraper": {"video_extensions": [".mp4"], "image_extensions": [".jpg"]},
+            "database": {"path": ":memory:"},
+            "translate": {"provider": "ollama", "ollama_model": "llama3"},
+        }
+
+        return {
+            "db_path": db_path,
+            "vid_focal_uri": vid_focal_uri,
+            "vid_empty_uri": vid_empty_uri,
+            "config": config,
+        }
+
+    def test_videos_contains_focal_fields(self, client, focal_setup, mocker):
+        """列表端點：每片含 auto_focal / crop_mode，值等於 DB。"""
+        mocker.patch("web.routers.showcase.get_db_path", return_value=focal_setup["db_path"])
+        mocker.patch("web.routers.showcase.load_config", return_value=focal_setup["config"])
+
+        response = client.get("/api/showcase/videos")
+        assert response.status_code == 200
+        videos = {v["path"]: v for v in response.json()["videos"]}
+
+        for v in videos.values():
+            assert "auto_focal" in v, f"auto_focal 欄位缺失：{v.get('path')}"
+            assert "crop_mode" in v, f"crop_mode 欄位缺失：{v.get('path')}"
+
+        v_focal = videos[focal_setup["vid_focal_uri"]]
+        assert v_focal["auto_focal"] == "0.6231,0.4177"
+        assert v_focal["crop_mode"] == "auto"
+
+        v_empty = videos[focal_setup["vid_empty_uri"]]
+        assert v_empty["auto_focal"] == ""
+        assert v_empty["crop_mode"] == "default"
+
+    def test_single_video_contains_focal_fields(self, client, focal_setup, mocker):
+        """單筆端點：同含兩欄，值等於 DB（覆蓋 serializer 共用兩端點）。"""
+        mocker.patch("web.routers.showcase.get_db_path", return_value=focal_setup["db_path"])
+        mocker.patch("web.routers.showcase.load_config", return_value=focal_setup["config"])
+
+        response = client.get(f"/api/showcase/video?path={focal_setup['vid_focal_uri']}")
+        assert response.status_code == 200
+        video = response.json()["video"]
+        assert video["auto_focal"] == "0.6231,0.4177"
+        assert video["crop_mode"] == "auto"
+
+
 # ============ has_cover / has_nfo Tests ============
 
 class TestShowcaseHasCoverHasNfo:
