@@ -741,7 +741,7 @@ class VideoScanner:
             for v in videos_to_upsert:
                 if requires_face_detection(v.number, v.maker) and not focal_map.get(v.path):
                     cover_fs = uri_to_local_fs_path(v.cover_path, self.path_mappings)
-                    maybe_submit_video_focal(v.number, v.maker, v.path, cover_fs)
+                    maybe_submit_video_focal(v.number, v.maker, v.path, cover_fs, db_path=repo.db_path)
         except Exception:
             logger.warning("[*] focal trigger 批次排程失敗（不影響掃描結果）", exc_info=True)
 

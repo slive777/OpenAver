@@ -24,7 +24,7 @@ logger = get_logger(__name__)
 _DETECT_RATIO = 0.71
 
 
-def maybe_submit_video_focal(number, maker, video_path_uri, cover_fs_path):
+def maybe_submit_video_focal(number, maker, video_path_uri, cover_fs_path, db_path=None):
     """條件式排入背景 focal 偵測（無碼片才排）。
 
     Args:
@@ -33,6 +33,9 @@ def maybe_submit_video_focal(number, maker, video_path_uri, cover_fs_path):
         video_path_uri: DB row key（file:/// URI）——commit 以此 WHERE key 寫
             `auto_focal`。必須等於 DB 實際 row 的 `path` 欄，否則 silent-miss。
         cover_fs_path: 已反解的本機封面 fs 路徑（worker 直接開檔，不做反解）。
+        db_path: commit 寫回的目標 DB。None＝預設 DB（`VideoRepository(None)` 退回
+            `get_db_path()`，scraper/enricher 走此）。掃描端傳入自訂/tmp `db_path`，
+            否則背景 commit 會寫到預設 DB → 非預設 DB 掃描 silent-miss。
 
     背景 submit 失敗由 98a worker 內部 logger.exception 吞；此處再包一層防禦，
     確保「排 job 這動作本身」的任何例外都不冒泡打斷呼叫端流程。
@@ -42,8 +45,8 @@ def maybe_submit_video_focal(number, maker, video_path_uri, cover_fs_path):
             return  # 有碼片零成本
         if not cover_fs_path or not os.path.exists(cover_fs_path):
             return  # 無封面檔不排空 job
-        # fp 忽略（video 無 fingerprint 欄）；commit 綁 video_path_uri 當 WHERE key。
-        commit = lambda focal_str, fp: VideoRepository().update_auto_focal(video_path_uri, focal_str)  # noqa: E731
+        # fp 忽略（video 無 fingerprint 欄）；commit 綁 video_path_uri 當 WHERE key、db_path 當目標 DB。
+        commit = lambda focal_str, fp: VideoRepository(db_path).update_auto_focal(video_path_uri, focal_str)  # noqa: E731
         submit_focal("video", video_path_uri, cover_fs_path, _DETECT_RATIO, commit)
     except Exception:
         logger.exception("maybe_submit_video_focal 排程失敗（不影響呼叫端流程）: %s", video_path_uri)
