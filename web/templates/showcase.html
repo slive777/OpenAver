@@ -698,17 +698,19 @@
                                  alt=""
                                  aria-hidden="true">
 
-                            <!-- 98b-T4：焦點裁切遮罩 overlay（亮窗＝小格保留區；窗外 box-shadow spotlight 壓暗；
-                                 點窗 default 貼右 ⇄ auto 對焦點，亮窗左右滑動；點窗外關閉存 crop_mode）。 -->
+                            <!-- 99a-T3：焦點裁切遮罩 overlay（亮窗＝小格保留區；窗外 box-shadow spotlight 壓暗；
+                                 一律 force-detect 預覽，左右拖曳微調，✓/✗ 於 .cover-actions 提交/取消；
+                                 點窗外 = ✗）。 -->
                             <!-- 98b-T6：移除 x-transition.opacity——實測其 enter transition 會卡在 opacity:0
                                  (_x_transitioning 永真) 使遮罩雖 display:block 卻全透明看不見。功能性遮罩
                                  不需淡入，x-show 即時顯示更可靠（亦符 owner 克制取向）。 -->
                             <div class="lb-mask-overlay"
                                  x-show="_maskVisible"
-                                 @click.self="closeMask()">
+                                 @click.self="cancelMask()">
                                 <div class="lb-mask-window"
                                      :style="_maskWinStyle"
-                                     @click="toggleMaskMode()"></div>
+                                     :class="{'lb-mask-window--dragging': _maskDragging}"
+                                     @pointerdown="_maskDragStart($event)"></div>
                                 <div class="lb-mask-spinner" x-show="_maskDetecting" aria-hidden="true">
                                     <i class="bi bi-arrow-clockwise spin"></i>
                                 </div>
@@ -733,22 +735,37 @@
                             <!-- 56c-fix-v2: x-show="!!currentLightboxVideo?.path" guards standalone
                                  similar-exit mode (path undefined) — regular lightbox items always have
                                  path so existing behavior is unaffected. -->
-                            <div class="cover-actions" x-show="!!currentLightboxVideo?.path">
-                                <button class="lb-action-btn" @click="playVideo(currentLightboxVideo?.path)" data-tooltip="{{ t('showcase.action.play') }}" aria-label="{{ t('showcase.action.play') }}">
+                            <div class="cover-actions" x-show="!!currentLightboxVideo?.path" :class="{'cover-actions--focal-edit': _maskVisible}">
+                                <button class="lb-action-btn" x-show="!_maskVisible" @click="playVideo(currentLightboxVideo?.path)" data-tooltip="{{ t('showcase.action.play') }}" aria-label="{{ t('showcase.action.play') }}">
                                     <i class="bi bi-play-fill"></i>
                                 </button>
-                                <button class="lb-action-btn" @click="openLocal(currentLightboxVideo?.path)" data-tooltip="{{ t('search.action.open_folder') }}" aria-label="{{ t('search.action.open_folder') }}">
+                                <button class="lb-action-btn" x-show="!_maskVisible" @click="openLocal(currentLightboxVideo?.path)" data-tooltip="{{ t('search.action.open_folder') }}" aria-label="{{ t('search.action.open_folder') }}">
                                     <i class="bi bi-folder2-open"></i>
                                 </button>
                                 <!-- 74b US4: tap=enrichVideo（自動補缺）；長壓已移除（進階重刮走齒輪 ⚙）。 -->
                                 <button class="lb-action-btn"
-                                        x-show="!currentLightboxVideo?.has_cover || !currentLightboxVideo?.has_nfo"
+                                        x-show="(!currentLightboxVideo?.has_cover || !currentLightboxVideo?.has_nfo) && !_maskVisible"
                                         :disabled="!!currentLightboxVideo?.is_readonly_source || _enriching"
                                         :class="{ 'is-readonly-disabled': !!currentLightboxVideo?.is_readonly_source }"
                                         @click.stop="enrichVideo(currentLightboxVideo)"
                                         :data-tooltip="!!currentLightboxVideo?.is_readonly_source ? t('showcase.enrich.readonly_tooltip') : t('showcase.action.enrich')"
                                         :aria-label="!!currentLightboxVideo?.is_readonly_source ? t('showcase.enrich.readonly_tooltip') : t('showcase.action.enrich')">
                                     <i class="bi" :class="_enriching ? 'bi-arrow-clockwise spin' : 'bi-search'"></i>
+                                </button>
+                                <!-- 99a-T3：焦點編輯中的 ✓/✗，取代 98b 的窗內點擊 toggle。 -->
+                                <button class="lb-action-btn lb-action-btn--success"
+                                        x-show="_maskVisible"
+                                        @click.stop="confirmMask()"
+                                        :data-tooltip="t('showcase.lightbox.mask_confirm')"
+                                        :aria-label="t('showcase.lightbox.mask_confirm')">
+                                    <i class="bi bi-check-lg"></i>
+                                </button>
+                                <button class="lb-action-btn lb-action-btn--danger"
+                                        x-show="_maskVisible"
+                                        @click.stop="cancelMask()"
+                                        :data-tooltip="t('showcase.lightbox.mask_cancel')"
+                                        :aria-label="t('showcase.lightbox.mask_cancel')">
+                                    <i class="bi bi-x-lg"></i>
                                 </button>
                             </div>
                         </div>

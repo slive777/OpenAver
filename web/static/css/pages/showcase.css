@@ -895,6 +895,11 @@
     opacity: 1;
 }
 
+/* 99a-T3：焦點編輯中常顯 ✓/✗——編輯時滑鼠可能移到別處，純 hover gate 會讓按鈕消失。 */
+.lightbox-cover .cover-actions.cover-actions--focal-edit {
+    opacity: 1;
+}
+
 /* Glass Circle Button — 對齊 theme.css .btn-glass-circle，尺寸略縮為 46px */
 .lb-action-btn {
     position: relative;
@@ -989,6 +994,16 @@
     border: 1px solid rgba(255, 255, 255, 0.55);      /* 亮框：對齊 .lb-action-btn 玻璃邊 rgba 先例 */
     box-shadow: 0 0 0 100vmax var(--lb-mask-scrim);   /* 窗外壓暗 spotlight，隨 transform 一起滑 */
     transition: transform var(--fluent-duration-medium) var(--ease-out);
+    touch-action: none;   /* 99a-T3：拖曳時防手機系統手勢（頁面捲動/swipe-to-back/左右換片）搶走 */
+    cursor: grab;
+}
+
+/* 99a-T3：拖曳中停用 transition——連續 1:1 跟手，套著 transition 會有橡皮筋延遲感，
+ * 不符 spec §3.3「拖曳即時預覽」。拖曳結束（_maskDragging=false）恢復，讓 force-detect
+ * 完成後「滑到偵測位置」的效果繼續享受這條 transition。 */
+.lb-mask-window--dragging {
+    transition: none;
+    cursor: grabbing;
 }
 
 .lb-mask-spinner {
@@ -1012,6 +1027,20 @@
 .lb-action-btn--danger:hover {
     background: rgba(255, 100, 100, 0.25);
     border-color: rgba(255, 100, 100, 0.7);
+}
+
+/* Success modifier — green tint for ✓ confirm button (99a-T3). token-based color-mix
+ * (not hardcoded rgba like the --danger modifier above, which pre-dates the 6-role
+ * material system) — --color-success has distinct light/dark values (theme.css),
+ * color-mix tracks theme switch automatically. */
+.lb-action-btn--success {
+    border-color: color-mix(in oklch, var(--color-success) 50%, transparent);
+    color: var(--color-success);
+}
+
+.lb-action-btn--success:hover {
+    background: color-mix(in oklch, var(--color-success) 25%, transparent);
+    border-color: color-mix(in oklch, var(--color-success) 70%, transparent);
 }
 
 /* Touch fallback — cover-actions always visible on touch devices (44c-T3) */

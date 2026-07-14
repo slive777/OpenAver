@@ -93,7 +93,7 @@ const RULES = [
     note: '[TestShowcaseMetadataGuard] series searchFromMetadata call (grid panel or lightbox, OR)',
   },
 
-  // ---- [TestMaskToggleGuard] 98b-T4：遮罩 toggle 綁定 / 生命週期 guard / no-硬編-ratio / endpoint URL ----
+  // ---- [TestMaskToggleGuard] 98b-T4 起家、99a-T3 沿用：遮罩綁定 / 生命週期 guard / no-硬編-ratio / endpoint URL ----
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: '@click="openMask', note: '[TestMaskToggleGuard] mask toggle icon button 綁 openMask' },
   // 98b P2 fix（Codex）：commit/re-check guard 由 path 比對（_maskVideoPath/sessionPath）
   // 升級為單調遞增 session id（_maskSession）——path 比對在「同片重開」邊界不夠精確。
@@ -119,22 +119,31 @@ const RULES = [
     scope: { anchor: /_resetMask\s*\(\s*\)\s*\{/, braceBalanced: true },
     note: '[TestMaskToggleGuard] _resetMask 清 _maskDetecting（invalidate 時防偵測態漏進下個 session，Codex P2）',
   },
+  // 99a-T3：原本錨定 `async toggleMaskMode()` / `async closeMask()` 的兩條 session-recheck 規則
+  // 因該兩函式整條移除而 anchor-not-found（引擎不變式：硬錯，阻斷 npm run lint）。改錨定承接
+  // 相同語意的新函式——toggleMaskMode 的「翻頁後 session recheck」併入 openMask 自身的
+  // force-detect await；closeMask 的「async 存檔前後 session recheck」由 confirmMask 承接。
   {
     file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'session === this._maskSession',
-    scope: { anchor: /async\s+toggleMaskMode\s*\(\s*\)\s*\{/, braceBalanced: true },
-    note: '[TestMaskToggleGuard] toggleMaskMode await 後 session re-check（不誤動已切走的別片 UI，Codex P2）',
+    scope: { anchor: /async\s+openMask\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] openMask force-detect await 後 session re-check（不誤動已切走的別片 UI；99a-T3 承接原 toggleMaskMode 語意）',
   },
   {
     file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'session === this._maskSession',
-    scope: { anchor: /async\s+closeMask\s*\(\s*\)\s*\{/, braceBalanced: true },
-    note: '[TestMaskToggleGuard] closeMask await 後 session re-check（不誤關新片遮罩，Codex P2）',
+    scope: { anchor: /async\s+confirmMask\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] confirmMask await 後 session re-check（不誤存已切走的別片；99a-T3 承接原 closeMask 語意）',
   },
   { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'forbidden-string', pattern: '_maskVideoPath', note: '[TestMaskToggleGuard] 舊 path-based guard 變數不得復活（已由 _maskSession 取代，Codex P2）' },
   // 98b-T6：亮窗幾何改 reactive data（imperative $nextTick 算），禁量測-in-binding 復活。
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ':style="_maskWinStyle"', note: '[TestMaskToggleGuard] .lb-mask-window 綁 reactive data _maskWinStyle（非量測-in-binding）' },
   { file: 'web/templates/showcase.html', kind: 'forbidden-string', pattern: '_maskWindowStyle()', note: '[TestMaskToggleGuard] 禁 :style 內呼叫量測方法（stale 幾何反模式 98b-T6）' },
   { file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string', pattern: "$watch('currentLightboxVideo?.path'", note: '[TestMaskToggleGuard] 換片 _resetMask 視覺防線（CD-98b-8，防遮罩畫到下一片）' },
-  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '/api/showcase/video/crop-mode', note: '[TestMaskToggleGuard] crop-mode endpoint fetch URL' },
+  // 99a-T1a 已刪除 /crop-mode 路由；99a-T3 移除前端這條 fetch 呼叫（closeMask 整條拆掉，改
+  // confirmMask 打 /video/focal）。TASK-99a-T1a 原文把「這條 required-string 規則的正式替換」
+  // 定在 99a-T4，但 99a-T3 task card 的 Opus correction A 覆核後裁定：required-string 規則若
+  // 原樣留著，字串消失後會軟性 RED（pattern 缺席，非 anchor 錯——不阻斷 npm run lint，但整套
+  // lint 會帶著一條「已知會紅」的規則跑，不符 `npm run lint` 全綠的收工標準）。故 T3 移除本條
+  // （非留給 T4），T4 仍照原計畫新增拖曳/V-X/gating-class 三條全新斷言。
   { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '/api/showcase/video/detect-focal', note: '[TestMaskToggleGuard] detect-focal endpoint fetch URL' },
   {
     file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'getComputedStyle',

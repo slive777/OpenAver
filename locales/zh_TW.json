@@ -875,7 +875,9 @@
       "alias_source_hint": "由 Scanner 同步",
       "mask_toggle": "封面裁切預覽",
       "mask_detect_failed": "焦點偵測失敗，請稍後再試",
-      "mask_save_failed": "裁切設定儲存失敗，請稍後再試"
+      "mask_save_failed": "裁切設定儲存失敗，請稍後再試",
+      "mask_confirm": "確認裁切位置",
+      "mask_cancel": "取消裁切調整"
     },
     "gallery": {
       "prev": "上一張 (←)",
