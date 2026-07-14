@@ -60,7 +60,15 @@ export function stateLightbox() {
         _maskVisible: false,            // 遮罩 overlay 是否顯示
         _maskSession: 0,                // 單調遞增 session id（openMask/_resetMask 遞增）
         _maskDetecting: false,          // force-detect 進行中（spinner）
-        _maskWinStyle: '',              // 98b-T6：亮窗幾何 reactive data（openMask/drag 同步 imperative 算，非量測-in-binding）
+        // 98b-T6：亮窗幾何 reactive data（openMask/drag 同步 imperative 算，非量測-in-binding）。
+        // 99a-T5：型別恆為 object（非 string）——headless self-verify 實測抓到：Alpine `:style`
+        // 綁 STRING 值時走 `el.setAttribute('style', ...)` 整串覆寫（Alpine 內部 `Xn()`），會把
+        // `x-show` 剛設的 inline `display:none` 一併洗掉；`x-show` 本身又會快取「上次算出的布林值」，
+        // 布林值沒變就不重跑 show/hide（Alpine 內部 x-show 的 `f===l` 短路），兩者疊加＝窗子在
+        // `_maskDetecting` 為真期間仍卡在 `display:block`（baseline flash 不會消失，一路卡到
+        // detect resolve）。物件值改走 `el.style.setProperty(key, val)` 逐屬性設值（Alpine 內部
+        // `Yn()`），不觸碰 `display`，與 x-show 互不干擾。永遠回傳/賦值 object，不可再退回 string。
+        _maskWinStyle: {},
         _maskResizeHandler: null,       // 98b-T6：開遮罩時綁 window resize 重算，teardown/reset 時解
         // 99a-T3：手動焦點編輯狀態。_maskFocalX 恆為具體數字（geometry 已知後）——僅在 openMask
         // 幾何尚未解出的極短暫態為 null（見 openMask 內註解，Opus correction B）。
@@ -68,10 +76,15 @@ export function stateLightbox() {
         _maskDragging: false,           // 拖曳中（停用 CSS transition，跟手不打架，見 showcase.css）
         _maskDragMoveHandler: null,     // document pointermove listener 參照（成對 add/remove）
         _maskDragUpHandler: null,       // document pointerup/pointercancel listener 參照（成對 add/remove）
-        // 99a-T3 自查補強：force-detect 是 async（等待期間窗已可拖），若使用者在 detect resolve 前
-        // 就已拖動過，detect 成功回填不得覆蓋使用者手動位置——openMask/_resetMask 重置，
-        // _maskDragStart 起手即標記。
-        _maskUserAdjusted: false,
+        // 99a-T5：detect-first 重新設計——force-detect 先跑完（星空等待動畫佔位），偵測完成
+        // （成功或失敗皆算）才揭露可拖曳的 .lb-mask-window（gate 見 openMask/_computeMaskWinStyle
+        // 呼叫點與 showcase.html x-show="_maskVisible && !_maskDetecting"）。拖曳入口只在 detect
+        // 已 resolve 後才存在，「detect 還沒回來但已經可以拖」的時間窗在結構上不再存在——原本
+        // 99a-T3 為了防這個 race 而加的「使用者已手動調整」旗標因此整條移除（不留殭屍旗標；
+        // 舊識別字已由 static_guard_lint.mjs forbidden-string 鎖住不得復活）。
+        _maskWaitTl: null,              // 99a-T5：星空等待動畫 handle（{tl,burst,stars}），detect
+                                         // 期間播放；openMask 啟動，finally/_resetMask/_maskTeardown
+                                         // 三處對稱停止（_maskStopWaitAnim helper，idempotent）。
 
         _videoChipsExpanded: false,     // 影片 tag chips +N 展開（T4 使用）
 
@@ -749,9 +762,10 @@ export function stateLightbox() {
             if (!this._lbFullLoaded) return;
 
             // 99a-T3：_maskFocalX 暫時設 null（幾何尚未解出的極短暫態，見 state 宣告處註解）。
-            // _computeMaskWinStyle 讀到 null 即貼右裁基準（D2），先同步顯示，無死白（98b-T6 不變式）。
+            // _computeMaskWinStyle 讀到 null 即貼右裁基準（D2）——99a-T5：此值只作為「detect
+            // 失敗/無臉」時的終值 fallback，不會先畫出來再滑走（.lb-mask-window 在 _maskDetecting
+            // 為真時不渲染，見 showcase.html x-show）。
             this._maskFocalX = null;
-            this._maskUserAdjusted = false;   // 新 session 起手重置（自查補強，見 state 宣告處註解）
             const s = this._computeMaskWinStyle();
             if (!s) {
                 // 幾何算不出（rect=0 / naturalWidth=0）→ 不開、不留「全灰無窗」死態，toast 提示。
@@ -772,19 +786,45 @@ export function stateLightbox() {
             this._maskDetecting = false; // 98b P2 fix(二)：清舊 session 遺留的偵測態——舊 detect await 的
                                          // finally 因 session 不符會**跳過**清 spinner，若不在此重置，新遮罩
                                          // 會頂著卡死的 spinner（Codex）。新 session 起手一律非偵測中。
-            this._maskWinStyle = s;      // 先設幾何（右裁基準）
-            this._maskVisible = true;    // 再顯示（無空窗閃）
+            this._maskWinStyle = s;      // 先設幾何（右裁基準，detect resolve 前 / 無臉時的 fallback 終值）
+
+            // D1（CD-1）：一律 force-detect，僅預覽、不寫 DB。偵測完成後若有臉，_maskFocalX 更新為
+            // 偵測 x；無臉則維持右裁基準不變。99a-T5：.lb-mask-window 在 _maskDetecting 為真時不
+            // 渲染（showcase.html x-show="_maskVisible && !_maskDetecting"），故偵測完成翻 false
+            // 那一刻起才第一次畫出來，畫出來就已是終值——不再有「先貼右裁基準再滑到偵測位置」的
+            // 過渡態，拖曳入口（@pointerdown）在 detect 完成前也不存在，Bug 1 的 race 結構性消失。
+            const session = this._maskSession;
+            const targetVideo = this.currentLightboxVideo;
+            // 99a-T5（headless self-verify 實測抓到，非理論推測）：_maskDetecting 必須先翻 true，
+            // 才能設 _maskVisible=true——Alpine 的 x-show reactive effect 對每次同步賦值都立即
+            // 重新求值（非批次到下個 microtask 才跑），若順序顛倒（先 _maskVisible=true，
+            // _maskDetecting 還停在上面剛重置的 false），x-show="_maskVisible && !_maskDetecting"
+            // 會在兩行賦值之間的中繼態被評估為 true，短暫畫出「貼右裁基準」的窗（baseline
+            // flash），違反本卡「畫出來就已是終值」的核心承諾。實測：START-525 這支影片 100%
+            // 重現（baseline 144.30px ≠ 最終偵測值 0px，flash 全程持續到 detect resolve 為止）。
+            this._maskDetecting = true;
+            this._maskVisible = true;    // 再顯示 overlay（此刻 _maskDetecting 已是 true，無空窗閃）
             // 開啟期間 window resize 重算（開時綁、teardown/reset 時解，lifecycle 對稱）。
+            // 99a-T5：`|| this._maskWinStyle` fallback——_computeMaskWinStyle 失敗時回傳 null，
+            // 不可讓 null 流進 :style 綁定（見 _maskWinStyle 宣告處註解），保留前一次的合法幾何。
             this._maskResizeHandler = () => {
-                if (this._maskVisible) this._maskWinStyle = this._computeMaskWinStyle();
+                if (this._maskVisible) this._maskWinStyle = this._computeMaskWinStyle() || this._maskWinStyle;
             };
             window.addEventListener('resize', this._maskResizeHandler);
 
-            // D1（CD-1）：一律 force-detect，僅預覽、不寫 DB。偵測完成後若有臉，_maskFocalX 更新為
-            // 偵測 x，既有 .lb-mask-window CSS transition 讓窗自然滑到位；無臉則維持右裁基準不變。
-            const session = this._maskSession;
-            const targetVideo = this.currentLightboxVideo;
-            this._maskDetecting = true;
+            // 99a-T5：星空等待動畫（detect 期間佔位）。單一入口——只在這裡啟動；停止見下方
+            // finally（正常結束）與 _resetMask/_maskTeardown（中斷路徑），_maskStopWaitAnim 對稱。
+            // C23 per-callsite PRM guard（比照 state-similar.js isPRM pattern）：PRM 為真時整段
+            // 跳過 GSAP，唯一等待指示回退成 .lb-mask-spinner（純 CSS animation，PRM blanket 規則
+            // 保證仍渲染不轉，不留死白）。
+            const isPRM = !!(window.OpenAver && window.OpenAver.prefersReducedMotion);
+            if (!isPRM) {
+                const coverEl = this.$refs.lightboxCoverFull && this.$refs.lightboxCoverFull.closest('.lightbox-cover');
+                if (coverEl && window.GhostFly && window.GhostFly.playFocalDetectWait) {
+                    this._maskWaitTl = window.GhostFly.playFocalDetectWait(coverEl);
+                }
+            }
+
             try {
                 const resp = await fetch('/api/showcase/video/detect-focal', {
                     method: 'POST',
@@ -796,13 +836,12 @@ export function stateLightbox() {
                 if (!data.success) throw new Error(data.error || 'API failed');
                 if (session === this._maskSession) {
                     const parsed = parseFocal(data.auto_focal);   // '' / 畸形 → null，維持右裁基準
-                    // 自查補強：force-detect 等待期間窗已可拖，若使用者已手動調整過，偵測結果
-                    // 不得覆蓋使用者選擇（即使晚到）。
-                    if (parsed && !this._maskUserAdjusted) {
+                    if (parsed) {
                         this._maskFocalX = parsed.x;
-                        this._maskWinStyle = this._computeMaskWinStyle();
+                        // 99a-T5：|| fallback 同 resize handler——null 不可流進 :style 綁定。
+                        this._maskWinStyle = this._computeMaskWinStyle() || this._maskWinStyle;
                     }
-                    // else：無臉，或使用者已手動調整——_maskFocalX 維持現值，不動它、不退回 null。
+                    // else：無臉——_maskFocalX 維持右裁基準（openMask 起手已算好），不動它。
                 }
             } catch (e) {
                 // 偵測失敗只 toast，_maskFocalX 維持右裁基準，不讓 UI 卡在半套態。
@@ -810,7 +849,14 @@ export function stateLightbox() {
                     this.showToast(window.t('showcase.lightbox.mask_detect_failed'), 'error');
                 }
             } finally {
-                if (session === this._maskSession) this._maskDetecting = false;
+                // session guard 同時包住 _maskDetecting 與停星空動畫：若這期間已被 _resetMask
+                // 中斷（換片/關燈箱），_resetMask 早已呼叫過 _maskStopWaitAnim 並清空
+                // this._maskWaitTl；此處若不 session-gate，會誤殺「新 session 剛啟動的星空」
+                // （見本 task 的「等待期間快速連續開關」邊界案例）。
+                if (session === this._maskSession) {
+                    this._maskDetecting = false;
+                    this._maskStopWaitAnim();   // 成功/失敗皆算「正常結束」，對稱停止
+                }
             }
         },
 
@@ -838,7 +884,6 @@ export function stateLightbox() {
             const session = this._maskSession;   // 拖曳中途換片/關燈箱防線（雙保險，見下）
 
             this._maskDragging = true;
-            this._maskUserAdjusted = true;   // 自查補強：一旦手動拖過，晚到的 force-detect 結果不得覆蓋
 
             const onMove = (e) => {
                 // 防禦性早退：正常路徑 _resetMask 已同步移除本 listener，此處只防「移除時序」邊界。
@@ -848,7 +893,8 @@ export function stateLightbox() {
                 let left = startLeft + dx;
                 left = Math.max(0, Math.min(left, W - winW));   // clamp 進封面邊界
                 this._maskFocalX = (left + winW / 2) / W;
-                this._maskWinStyle = `width:${winW}px; height:${H}px; transform:translateX(${left}px);`;
+                // 99a-T5：恆 object（同 _computeMaskWinStyle，見 _maskWinStyle 宣告處註解）。
+                this._maskWinStyle = { width: `${winW}px`, height: `${H}px`, transform: `translateX(${left}px)` };
             };
             const onUp = () => {
                 if (session === this._maskSession) this._maskDragging = false;
@@ -921,6 +967,10 @@ export function stateLightbox() {
                 this._maskResizeHandler = null;
             }
             this._maskRemoveDragListeners();   // 防禦性：理論上 pointerup 已先清，這裡再保險一次。
+            // 99a-T5：防禦性再保險——理論上 confirmMask/cancelMask 觸發時 detect 早已 resolve
+            // （✓/✗ 只在 _maskDetecting===false 才可見/可點），星空動畫應該已由 openMask 的
+            // finally 停過；比照上面 _maskRemoveDragListeners 的「再保險一次」寫法補一次 kill。
+            this._maskStopWaitAnim();
         },
 
         // 換片 / 關燈箱：丟棄未提交態（不 commit，不把前片焦點帶到下一片）。
@@ -931,32 +981,49 @@ export function stateLightbox() {
             this._maskSession++;
             this._maskDetecting = false; // 98b P2 fix(二)：invalidate 時清偵測態，防舊 detect 的 spinner 漏進下個 session（Codex）
             this._maskVisible = false;
-            this._maskWinStyle = '';     // 98b-T6：清窗幾何避免殘留閃（下次 open 同步重算覆蓋）
+            this._maskWinStyle = {};     // 98b-T6：清窗幾何避免殘留閃（下次 open 同步重算覆蓋）。
+                                          // 99a-T5：恆 object，不可退回 '' string（見宣告處註解）。
             this._maskFocalX = null;     // 99a-T3：清 component-state 焦點，防下一片沿用上一片的拖曳結果
             this._maskDragging = false;  // 99a-T3：防拖曳中途換片，dragging class 卡死在 true
-            this._maskUserAdjusted = false;   // 99a-T3 自查補強：重置，防下一片誤判「已手動調整過」
             this._maskRemoveDragListeners();   // 99a-T3：拖曳中途換片/關燈箱兜底，移除 document listener
+            this._maskStopWaitAnim();    // 99a-T5：detect 期間中斷（換片/關燈箱/ESC）對稱停星空動畫，
+                                          // 防「舊 session 星空還在跑、新 session 又疊一份」
             if (this._maskResizeHandler) {
                 window.removeEventListener('resize', this._maskResizeHandler);
                 this._maskResizeHandler = null;
             }
         },
 
+        // 99a-T5：星空等待動畫對稱停止 helper——openMask finally（正常結束，session-gated）、
+        // _resetMask（中斷：換片/關燈箱/ESC）、_maskTeardown（防禦性再保險）三處對稱呼叫。
+        // idempotent：this._maskWaitTl 已 null 時安全 no-op（GhostFly.stopFocalDetectWait 內部
+        // 亦對 null handle 安全 no-op，belt-and-suspenders）。
+        _maskStopWaitAnim() {
+            if (this._maskWaitTl && window.GhostFly && window.GhostFly.stopFocalDetectWait) {
+                window.GhostFly.stopFocalDetectWait(this._maskWaitTl);
+            }
+            this._maskWaitTl = null;
+        },
+
         // 亮窗幾何：讀 CSS var --poster-crop-ratio（非硬編）+ _maskFocalX 解焦點 x（component state，
         // 非 video.auto_focal——編輯態顯示真實落點，不套 focalObjectPosition 的 deadzone）。
-        // 回傳 inline style 字串（width/height + transform translateX）供 template :style 綁定。
+        // 回傳 inline style OBJECT（width/height + transform translateX）供 template :style 綁定
+        // （99a-T5：不可回傳 string，見 _maskWinStyle 宣告處註解——string 值會被 Alpine `:style`
+        // 整串覆寫 style attribute，洗掉 x-show 設的 display:none）。失敗（rect=0 / ratio 讀不到）
+        // 回傳 null，呼叫端（openMask）以 `if (!s)` 判斷；resize handler 呼叫端已知 null 會 fallback
+        // 保留前值（見 openMask 內 _maskResizeHandler 定義）。
         // 亮窗以外由 CSS box-shadow spotlight 壓暗；transform 變化時 CSS transition 左右滑動（拖曳中停用，見 showcase.css）。
         // 98b-T6：純 compute（原 _maskWindowStyle 邏輯不變），由 openMask/drag/resize imperative 呼叫。
         _computeMaskWinStyle() {
             const el = this.$refs.lightboxCoverFull;
             // C17/#10：圖 render 前 rect=0 → 不畫（naturalWidth 未就緒）
-            if (!el || !el.naturalWidth) return '';
+            if (!el || !el.naturalWidth) return null;
             const rect = el.getBoundingClientRect();
             const W = rect.width;
             const H = rect.height;
-            if (!W || !H) return '';
+            if (!W || !H) return null;
             const r = parseFloat(getComputedStyle(el).getPropertyValue('--poster-crop-ratio'));
-            if (!Number.isFinite(r) || r <= 0) return '';
+            if (!Number.isFinite(r) || r <= 0) return null;
             const winW = Math.min(W, H * r);
             let left;
             if (this._maskFocalX !== null && this._maskFocalX !== undefined) {
@@ -965,7 +1032,7 @@ export function stateLightbox() {
                 left = W - winW;                          // 無焦點（尚未偵測完成/偵測不到臉）→ 右裁基準（D2）
             }
             left = Math.max(0, Math.min(left, W - winW));     // clamp 進 [0, W-winW]
-            return `width:${winW}px; height:${H}px; transform:translateX(${left}px);`;
+            return { width: `${winW}px`, height: `${H}px`, transform: `translateX(${left}px)` };
         },
 
         // ==================== User Tags in Lightbox (T4) ====================

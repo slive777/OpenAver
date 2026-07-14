@@ -521,6 +521,81 @@
         return tl;
     }
 
+    /**
+     * 99a-T5: Focal detect-first 星空等待迴圈 — force-detect（不定長 ~3.0-3.3s）等待期間的
+     * 佔位動畫。與 play56cSimilarScanPreview（上）共用視覺語彙（.sparkle-star 四角星 shape +
+     * --star-glow 香檳金 token），但型態不同：不是 0.4s 一次性、絕對時刻收尾的 timeline，而是
+     * caller 可 start/stop 的 repeat:-1 loop（TASK-99a-T5 調查結論：不可直接重用
+     * play56cSimilarScanPreview 或 BreathingManager，兩者型態都不合）。
+     *
+     * caller 責任（比照 play56cSimilarScanPreview 慣例）：
+     * - PRM guard 由 caller 決定是否呼叫本函式，本 helper 內**不** short-circuit。
+     * - caller 必須保留回傳值，稍後傳給 stopFocalDetectWait 對稱停止（單一啟動點 + 對稱停止點，
+     *   見 state-lightbox.js openMask/_resetMask/_maskTeardown 的 _maskStopWaitAnim helper）。
+     *
+     * @param {HTMLElement} coverEl - .lightbox-cover 容器（內含 .lb-mask-wait-burst overlay）
+     * @returns {{tl: gsap.core.Timeline, burst: Element, stars: NodeList}|null}
+     */
+    function playFocalDetectWait(coverEl) {
+        if (!coverEl) return null;
+        if (typeof gsap === 'undefined') return null;
+
+        var burst = coverEl.querySelector('.lb-mask-wait-burst');
+        if (!burst) return null;
+        var stars = burst.querySelectorAll('.sparkle-star');
+        if (!stars || stars.length === 0) return null;
+
+        // race 防護（比照 play56cSimilarScanPreview 慣例）：理論上 openMask 的 session guard 已
+        // 防止重入，這裡再保一層——kill 舊殘留 tween + reset stars，避免疊加閃爍。
+        gsap.killTweensOf([burst, stars]);
+        gsap.set(stars, { clearProps: 'opacity,scale,rotation,transform' });
+        gsap.set(burst, { opacity: 1 });
+        gsap.set(stars, { opacity: 0, scale: 0 });
+
+        var tl = gsap.timeline({ id: 'focalDetectWait', repeat: -1 });
+
+        // 進場 fade-in + scale（stagger，隨機起始製造非機械感）
+        tl.to(stars, {
+            opacity: 1, scale: 1,
+            duration: 0.35, ease: 'fluent-decel',
+            stagger: { each: 0.08, from: 'random' }
+        }, 0);
+
+        // 中段 sine.inOut yoyo 閃爍感（比照 play56cSimilarScanPreview 既有 sine.inOut yoyo 組合，
+        // ui-conventions §5 不發明新 ease 曲線）
+        tl.to(stars, {
+            scale: 1.15,
+            duration: 0.3, ease: 'sine.inOut',
+            yoyo: true, repeat: 1
+        }, 0.45);
+
+        // 淡出（accel，與進場 decel 對稱），完整一輪後 repeat:-1 自然接續下一輪
+        tl.to(stars, {
+            opacity: 0, scale: 0,
+            duration: 0.35, ease: 'fluent-accel',
+            stagger: { each: 0.06, from: 'random' }
+        }, 1.15);
+
+        return { tl: tl, burst: burst, stars: stars };
+    }
+
+    /**
+     * 99a-T5: 對稱停止 playFocalDetectWait（上）。kill timeline + clearProps 精確列表歸零
+     * inline style（C26：不用 clearProps:'all'，只清實際動過的 props），讓容器回到 CSS 預設
+     * opacity:0（下次 playFocalDetectWait 重新從乾淨狀態起）。
+     *
+     * idempotent：handle 為 null/undefined（尚未啟動過、或已停過一次）安全 no-op。
+     *
+     * @param {{tl: gsap.core.Timeline, burst: Element, stars: NodeList}|null} handle - playFocalDetectWait 回傳值
+     */
+    function stopFocalDetectWait(handle) {
+        if (!handle) return;
+        if (handle.tl && typeof handle.tl.kill === 'function') handle.tl.kill();
+        if (typeof gsap === 'undefined') return;
+        if (handle.stars) gsap.set(handle.stars, { clearProps: 'opacity,scale,rotation,transform' });
+        if (handle.burst) gsap.set(handle.burst, { clearProps: 'opacity' });
+    }
+
     // ─── 公開動畫函式 ──────────────────────────────────────────────────────
 
     var GhostFly = {
@@ -532,6 +607,10 @@
         play56cConstellationEnter: play56cConstellationEnter,
         play56cConstellationExit: play56cConstellationExit,
         play56cSimilarScanPreview: play56cSimilarScanPreview,
+
+        // 99a-T5: Focal detect-first 星空等待迴圈（start/stop 對稱，callsite 見 state-lightbox.js openMask）
+        playFocalDetectWait: playFocalDetectWait,
+        stopFocalDetectWait: stopFocalDetectWait,
 
         // 83b-T3: 行動相似面板封面飛行進 / 退場
         playMobilePanelEnter: playMobilePanelEnter,

@@ -2962,6 +2962,12 @@
                     <code>.lb-action-btn--danger</code> <code>.lb-action-btn--success</code>
                     屬性：<code>data-tooltip</code>
                 </p>
+                <!-- 99a-T5 評估：星空等待迴圈（.lb-mask-wait-burst，detect-first 等待期間佔位）不在此加
+                     demo——它不是獨立可展示元件，是遮罩內部依附 _maskDetecting 時序的暫態動畫（可拖曳窗
+                     出現前的中間態），脫離真實 detect 時序展示成靜態 swatch 沒有意義（比照既有
+                     .sparkle-burst 同理未在此頁建 demo）。真正的 GSAP ease/loop 展示落在
+                     /motion-lab（showcase tab，Play/Stop Focal Wait 按鈕，真跑
+                     window.GhostFly.playFocalDetectWait/stopFocalDetectWait），不留沉默缺口。 -->
             </div>
 
             <!-- Sample Strip -->

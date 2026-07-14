@@ -1595,6 +1595,33 @@ const RULES = [
     pattern: /rgba\(/,
     msg: '.lb-action-btn--success must stay token-based (color-mix(in oklch, var(--color-success) ...)), not hardcoded rgba — unlike legacy .lb-action-btn--danger (pre-dates 6-role material system, out of scope here)',
   },
+
+  // CG-FOCAL-04 ← TASK-99a-T5 Bug 2 修正：.cover-actions--focal-edit z-index 數值必須 >
+  // .lb-mask-overlay，否則 ✓/✗ 46×46 hit box 的 elementFromPoint 落在 overlay 而非按鈕本身
+  // （overlay 的 @click.self="cancelMask()" 攔截點擊，✓ 100% 靜默變 ✗，見 TASK-99a-T5 根因分析
+  // 實測數據）。注意：z-index 數值關係正確 ≠ hit-test 正確（stacking context 邊界另有 rule，
+  // 這只是必要非充分條件）——真正的證明只有 T6 e2e 的 elementFromPoint 斷言，本規則不宣稱
+  // 涵蓋 hit-test 本身，只鎖住這個數值前提不會被未來改動悄悄破壞。
+  {
+    id: 'CG-FOCAL-04',
+    file: 'pages/showcase.css',
+    kind: 'fn',
+    check(ctx) {
+      const focalEditZ = zindexOf(ctx.raw, '.cover-actions.cover-actions--focal-edit');
+      const overlayZ = zindexOf(ctx.raw, '.lb-mask-overlay');
+      if (focalEditZ === null) {
+        ctx.fail('CG-FOCAL-04: 無法在 showcase.css 找到 .cover-actions.cover-actions--focal-edit 的 z-index');
+        return;
+      }
+      if (overlayZ === null) {
+        ctx.fail('CG-FOCAL-04: 無法在 showcase.css 找到 .lb-mask-overlay 的 z-index');
+        return;
+      }
+      if (!(focalEditZ > overlayZ)) {
+        ctx.fail(`CG-FOCAL-04: .cover-actions--focal-edit z-index ${focalEditZ} 未高於 .lb-mask-overlay ${overlayZ}（✓/✗ hit-test 會被 overlay 攔截，見 TASK-99a-T5 根因分析）`);
+      }
+    },
+  },
 ];
 
 // ── per-file read+parse cache（同檔多 rule 共用，讀一次 → stripCssComments → parseRuleBlocks）──

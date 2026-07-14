@@ -879,6 +879,8 @@
     position: absolute;
     bottom: 0;
     left: 0; right: 0;
+    z-index: 1;   /* 99a-T5：基準疊層——非編輯態時遠低於 .lb-mask-overlay 的 2（無遮罩時互不
+                     競爭）；編輯態由 .cover-actions--focal-edit（下）覆寫至 5，見 z-index 契約。 */
     display: flex;
     justify-content: center;
     align-items: flex-end;
@@ -895,9 +897,28 @@
     opacity: 1;
 }
 
-/* 99a-T3：焦點編輯中常顯 ✓/✗——編輯時滑鼠可能移到別處，純 hover gate 會讓按鈕消失。 */
+/* 99a-T3：焦點編輯中常顯 ✓/✗——編輯時滑鼠可能移到別處，純 hover gate 會讓按鈕消失。
+ * 99a-T5（Bug 2 修正）：z-index 明確 > .lb-mask-overlay 的 2，讓 ✓/✗ 46×46 hit box 的
+ * elementFromPoint 命中按鈕本身而非 overlay（否則 overlay 的 @click.self="cancelMask()"
+ * 攔截點擊，✓ 100% 靜默變 ✗，見 TASK-99a-T5 根因分析實測）。5 留 headroom 與 spinner/
+ * wait-burst 的 3 有區隔，非硬性數字，只要 >2 即可。CG-FOCAL-04 鎖此數值關係（z-index 數值
+ * 對不代表 hit-test 對，真正的證明是 T6 e2e 的 elementFromPoint 斷言，本規則只鎖必要條件）。
+ * headless self-verify 實測抓到的第二個 bug：`.cover-actions` 是 left:0/right:0 的 flex
+ * 容器（比按鈕實際佔用的 46×46 大得多），單純拉高整個容器的 z-index 會連按鈕「之間的縫隙」
+ * 也一起蓋過 overlay——縫隙點擊被容器本身（無 click handler）吃掉，變成點了沒反應，而非落回
+ * overlay 觸發 cancelMask()（「點外＝✗」回歸，見「✓/✗ 兩顆按鈕之間的縫隙」邊界條件）。
+ * 修法：容器本身 pointer-events:none（讓 hit-test 穿透到下層 overlay），按鈕靠下面規則
+ * 各自救回 pointer-events:auto（子元素可獨立覆寫祖先的 pointer-events:none，標準 CSS 行為，
+ * 不受祖先 stacking context/z-index 影響——z-index:5 仍讓按鈕的 stacking 位置高於 overlay 的
+ * 2，只是容器本身不再是有效 hit-test 目標）。 */
 .lightbox-cover .cover-actions.cover-actions--focal-edit {
     opacity: 1;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.lightbox-cover .cover-actions.cover-actions--focal-edit .lb-action-btn {
+    pointer-events: auto;
 }
 
 /* Glass Circle Button — 對齊 theme.css .btn-glass-circle，尺寸略縮為 46px */
@@ -1016,6 +1037,23 @@
     font-size: 1.5rem;
     pointer-events: none;
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+/* 99a-T5：detect-first 星空等待迴圈——沿用 .sparkle-star 視覺語彙（四角星 shape + --star-glow
+ * 香檳金 token），但型態不同：不是 .sparkle-burst 的 0.4s 一次性 timeline，是 start/stop 可控
+ * 的 repeat:-1 loop，佔位 force-detect ~3.0-3.3s 不定長等待（見 ghost-fly.js
+ * playFocalDetectWait/stopFocalDetectWait）。PRM 時 openMask 完全不觸發 GSAP，本容器維持
+ * CSS 預設 opacity:0（連同 .sparkle-star 各自預設 opacity:0）不可見，.lb-mask-spinner 是
+ * PRM 下唯一等待指示（純 CSS animation，PRM blanket 規則保證仍渲染不轉，不留死白）。
+ * z-index 與 spinner 同層（3）——純視覺、pointer-events:none，不需要跟 ✓/✗ 按鈕比大小
+ * （見上方 .cover-actions--focal-edit z-index 契約說明）。顆數/尺寸刻意比 .sparkle-burst
+ * （10 顆）少（5 顆，sm/md only）——owner 取向偏克制材質，等待動效份量比一次性慶祝 burst 更輕。 */
+.lb-mask-wait-burst {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+    opacity: 0;
 }
 
 /* Danger modifier — red tint for remove button (44c-T3) */

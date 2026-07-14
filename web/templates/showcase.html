@@ -707,10 +707,23 @@
                             <div class="lb-mask-overlay"
                                  x-show="_maskVisible"
                                  @click.self="cancelMask()">
+                                <!-- 99a-T5：detect-first——窗只在偵測完成（_maskDetecting 翻 false）
+                                     後才第一次渲染，畫出來即終值，無「先貼右裁基準再滑動」過渡態。 -->
                                 <div class="lb-mask-window"
+                                     x-show="_maskVisible && !_maskDetecting"
                                      :style="_maskWinStyle"
                                      :class="{'lb-mask-window--dragging': _maskDragging}"
                                      @pointerdown="_maskDragStart($event)"></div>
+                                <!-- 99a-T5：detect 期間星空等待迴圈（start/stop 可控 repeat:-1，
+                                     非 .sparkle-burst 的 0.4s 一次性）。PRM 時 openMask 不觸發 GSAP，
+                                     本容器留在 DOM 但視覺不出現（CSS 預設 opacity:0）。 -->
+                                <div class="lb-mask-wait-burst" x-show="_maskDetecting" aria-hidden="true">
+                                    <svg class="sparkle-star" data-sparkle-size="md" style="--cx: 30%; --cy: 24%;" viewBox="-12 -12 24 24"><polygon points="0,-10 2,-2 10,0 2,2 0,10 -2,2 -10,0 -2,-2"/></svg>
+                                    <svg class="sparkle-star" data-sparkle-size="sm" style="--cx: 66%; --cy: 30%;" viewBox="-12 -12 24 24"><polygon points="0,-10 2,-2 10,0 2,2 0,10 -2,2 -10,0 -2,-2"/></svg>
+                                    <svg class="sparkle-star" data-sparkle-size="sm" style="--cx: 46%; --cy: 66%;" viewBox="-12 -12 24 24"><polygon points="0,-10 2,-2 10,0 2,2 0,10 -2,2 -10,0 -2,-2"/></svg>
+                                    <svg class="sparkle-star" data-sparkle-size="md" style="--cx: 76%; --cy: 70%;" viewBox="-12 -12 24 24"><polygon points="0,-10 2,-2 10,0 2,2 0,10 -2,2 -10,0 -2,-2"/></svg>
+                                    <svg class="sparkle-star" data-sparkle-size="sm" style="--cx: 18%; --cy: 58%;" viewBox="-12 -12 24 24"><polygon points="0,-10 2,-2 10,0 2,2 0,10 -2,2 -10,0 -2,-2"/></svg>
+                                </div>
                                 <div class="lb-mask-spinner" x-show="_maskDetecting" aria-hidden="true">
                                     <i class="bi bi-arrow-clockwise spin"></i>
                                 </div>
@@ -752,16 +765,18 @@
                                         :aria-label="!!currentLightboxVideo?.is_readonly_source ? t('showcase.enrich.readonly_tooltip') : t('showcase.action.enrich')">
                                     <i class="bi" :class="_enriching ? 'bi-arrow-clockwise spin' : 'bi-search'"></i>
                                 </button>
-                                <!-- 99a-T3：焦點編輯中的 ✓/✗，取代 98b 的窗內點擊 toggle。 -->
+                                <!-- 99a-T3：焦點編輯中的 ✓/✗，取代 98b 的窗內點擊 toggle。
+                                     99a-T5：detect 期間（_maskDetecting）尚無可提交的拖曳結果——
+                                     gate 收窄，等偵測 resolve 才顯示。 -->
                                 <button class="lb-action-btn lb-action-btn--success"
-                                        x-show="_maskVisible"
+                                        x-show="_maskVisible && !_maskDetecting"
                                         @click.stop="confirmMask()"
                                         :data-tooltip="t('showcase.lightbox.mask_confirm')"
                                         :aria-label="t('showcase.lightbox.mask_confirm')">
                                     <i class="bi bi-check-lg"></i>
                                 </button>
                                 <button class="lb-action-btn lb-action-btn--danger"
-                                        x-show="_maskVisible"
+                                        x-show="_maskVisible && !_maskDetecting"
                                         @click.stop="cancelMask()"
                                         :data-tooltip="t('showcase.lightbox.mask_cancel')"
                                         :aria-label="t('showcase.lightbox.mask_cancel')">

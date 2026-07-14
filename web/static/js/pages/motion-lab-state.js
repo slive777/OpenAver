@@ -101,6 +101,9 @@ function motionLabPage() {
         _pickerFloatTimers: [],
         _pickerRunId: 0,
 
+        // 99a-T5: Focal 星空等待 demo handle（playFocalDetectWait 回傳值，供 stop 對稱呼叫）
+        _focalWaitHandle: null,
+
         init() {
             this.fetchVideos();
             // 鍵盤 ←/→ 快捷鍵
@@ -113,12 +116,17 @@ function motionLabPage() {
                 if (e.key === 'ArrowRight') this.onNext();
             };
             window.addEventListener('keydown', this._onKeyDown);
+            // 99a-T5: 離開 showcase tab 時對稱停止星空等待 demo（防背景分頁 timeline 繼續跑）
+            this.$watch('tab', (val) => {
+                if (val !== 'showcase') this.onStopFocalWait();
+            });
         },
 
         destroy() {
             if (this._onKeyDown) {
                 window.removeEventListener('keydown', this._onKeyDown);
             }
+            this.onStopFocalWait();
         },
 
         async fetchVideos() {
@@ -201,6 +209,26 @@ function motionLabPage() {
         onPlayWhitelistPulse(refs) {
             if (typeof window.MotionLab === 'undefined') return;
             window.MotionLab.playSpecialMotionPulseDemo(refs.whitelistPulseEl, this.params);
+        },
+
+        // 99a-T5: Focal 焦點編輯 detect-first 星空等待迴圈 demo——真跑 window.GhostFly.
+        // playFocalDetectWait/stopFocalDetectWait（與 showcase.html state-lightbox.js openMask
+        // 生產路徑同一份函式），非重寫假 demo。_focalWaitHandle 保留 playFocalDetectWait 回傳值
+        // 供 stop 呼叫，比照 state-lightbox.js this._maskWaitTl 的 start/stop 對稱設計。
+        onPlayFocalWait(refs) {
+            if (typeof window.GhostFly === 'undefined' || !window.GhostFly.playFocalDetectWait) return;
+            const coverEl = refs.focalWaitCoverEl;
+            if (!coverEl) return;
+            this.onStopFocalWait();   // 連續按 Play：先停舊的，防疊加閃爍（比照 openMask race 防護）
+            this._focalWaitHandle = window.GhostFly.playFocalDetectWait(coverEl);
+        },
+
+        onStopFocalWait() {
+            if (typeof window.GhostFly === 'undefined' || !window.GhostFly.stopFocalDetectWait) return;
+            if (this._focalWaitHandle) {
+                window.GhostFly.stopFocalDetectWait(this._focalWaitHandle);
+                this._focalWaitHandle = null;
+            }
         },
 
         async onDetailEntry() {

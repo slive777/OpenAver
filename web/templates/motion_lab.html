@@ -1458,6 +1458,20 @@
                 @click="onPlayWhitelistPulse($refs)">
             <i class="bi bi-play-fill"></i> Play Pulse
         </button>
+
+        <!-- ===== 99a-T5: Focal 焦點編輯星空等待 loop 控制項 ===== -->
+        <button class="control-btn primary"
+                x-show="tab === 'showcase'"
+                x-cloak
+                @click="onPlayFocalWait($refs)">
+            <i class="bi bi-play-fill"></i> Play Focal Wait
+        </button>
+        <button class="control-btn"
+                x-show="tab === 'showcase'"
+                x-cloak
+                @click="onStopFocalWait()">
+            <i class="bi bi-stop-fill"></i> Stop Focal Wait
+        </button>
     </div>
 
     <!-- 預覽區 -->
@@ -1921,6 +1935,29 @@
                 </div>
                 <div class="av-card-preview-footer">
                     <span class="av-num">小島みなみ JUR-002 #13</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Focal 焦點編輯 — detect-first 星空等待迴圈 demo（tab=showcase，99a-T5）
+             真跑 window.GhostFly.playFocalDetectWait/stopFocalDetectWait（與 showcase.html
+             生產路徑同一份 JS，非重寫假 demo）；start/stop 可控 repeat:-1 loop，非一次性 burst，
+             用 Play/Stop 兩顆按鈕示範對稱生命週期。 -->
+        <div class="focal-wait-demo" x-show="tab === 'showcase'" x-cloak>
+            <p class="focal-wait-demo-desc">
+                焦點編輯 <code>openMask()</code> force-detect 等待期間的星空迴圈（detect-first
+                重新設計，99a-T5）——<code>fluent-decel</code> 進場 + <code>sine.inOut</code> yoyo
+                閃爍 + <code>fluent-accel</code> 淡出，<code>repeat:-1</code>，start/stop 可控
+                （非 Sparkle Burst 的 0.4s 一次性）。PRM 開啟時本函式完全不觸發，等待指示回退成
+                <code>.lb-mask-spinner</code>（見 showcase lightbox）。
+            </p>
+            <div class="focal-wait-demo-stage" x-ref="focalWaitCoverEl">
+                <div class="lb-mask-wait-burst" x-ref="focalWaitBurstEl">
+                    <svg class="sparkle-star" data-sparkle-size="md" style="--cx: 30%; --cy: 24%;" viewBox="-12 -12 24 24"><polygon points="0,-10 2,-2 10,0 2,2 0,10 -2,2 -10,0 -2,-2"/></svg>
+                    <svg class="sparkle-star" data-sparkle-size="sm" style="--cx: 66%; --cy: 30%;" viewBox="-12 -12 24 24"><polygon points="0,-10 2,-2 10,0 2,2 0,10 -2,2 -10,0 -2,-2"/></svg>
+                    <svg class="sparkle-star" data-sparkle-size="sm" style="--cx: 46%; --cy: 66%;" viewBox="-12 -12 24 24"><polygon points="0,-10 2,-2 10,0 2,2 0,10 -2,2 -10,0 -2,-2"/></svg>
+                    <svg class="sparkle-star" data-sparkle-size="md" style="--cx: 76%; --cy: 70%;" viewBox="-12 -12 24 24"><polygon points="0,-10 2,-2 10,0 2,2 0,10 -2,2 -10,0 -2,-2"/></svg>
+                    <svg class="sparkle-star" data-sparkle-size="sm" style="--cx: 18%; --cy: 58%;" viewBox="-12 -12 24 24"><polygon points="0,-10 2,-2 10,0 2,2 0,10 -2,2 -10,0 -2,-2"/></svg>
                 </div>
             </div>
         </div>
@@ -2968,6 +3005,67 @@
     flex-direction: column;
     gap: 0.2rem;
 }
+
+/* ===== 99a-T5: Focal 焦點編輯 — detect-first 星空等待迴圈 demo（tab=showcase） =====
+ * 本頁不載入 showcase.css（page-scoped），故 .lb-mask-wait-burst / .sparkle-star 兩個 class
+ * 在此頁預設無樣式——GhostFly.playFocalDetectWait/stopFocalDetectWait 內部以這兩個 class 名
+ * 硬編 querySelector（與 showcase.html 生產路徑一致，demo 才是「真跑同一份 JS」而非假裝），
+ * 故本頁必須局部重製視覺樣式，唯一真理仍是 showcase.css（改動需同步兩處）。 */
+.focal-wait-demo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.5rem;
+    width: 100%;
+}
+
+.focal-wait-demo-desc {
+    margin: 0;
+    max-width: 640px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.focal-wait-demo-stage {
+    position: relative;
+    width: 220px;
+    height: 150px;
+    background: var(--surface-1);
+    border: 1px solid var(--stroke-subtle);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+/* 局部重製 showcase.css .lb-mask-wait-burst / .sparkle-star（單一真理仍在 showcase.css，
+ * 改動需同步）。 */
+.focal-wait-demo-stage .lb-mask-wait-burst {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+    opacity: 0;
+}
+
+.focal-wait-demo-stage .sparkle-star {
+    position: absolute;
+    left: var(--cx);
+    top: var(--cy);
+    width: var(--star-size, 16px);
+    height: var(--star-size, 16px);
+    transform: translate(-50%, -50%);
+    overflow: visible;
+    opacity: 0;
+}
+
+.focal-wait-demo-stage .sparkle-star polygon {
+    fill: var(--star-glow);
+    transform-origin: center;
+}
+
+.focal-wait-demo-stage .sparkle-star[data-sparkle-size="md"] { --star-size: 16px; }
+.focal-wait-demo-stage .sparkle-star[data-sparkle-size="sm"] { --star-size: 10px; }
 
 /* ===== §5 Ease Roles 並排對比面板 ===== */
 .ease-roles-panel {
