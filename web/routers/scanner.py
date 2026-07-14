@@ -541,7 +541,7 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
                     for c_path, c_number, c_maker, c_cover_path in focal_candidates:
                         if requires_face_detection(c_number, c_maker):
                             cover_fs = uri_to_local_fs_path(c_cover_path, path_mappings)
-                            maybe_submit_video_focal(c_number, c_maker, c_path, cover_fs, db_path=repo.db_path)
+                            maybe_submit_video_focal(c_number, c_maker, c_path, cover_fs, db_path=repo.db_path, cover_path_uri=c_cover_path)
 
                 logger.info(f"[Gallery] {directory}: {len(all_files)} 個檔案，快取命中 {cache_hits}")
 

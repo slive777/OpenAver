@@ -907,7 +907,7 @@ class TestScanFocalTrigger:
         if seed_auto_focal is not None:
             with patch("core.similar.ranker_cache.SimilarRankerCache"):
                 repo.upsert(Video(path=path_uri, number=num, maker=maker, cover_path=cover_uri))
-            repo.update_auto_focal(path_uri, seed_auto_focal)
+            repo.update_auto_focal(path_uri, seed_auto_focal, cover_uri)
 
         scanner = VideoScanner()
         info = self._make_info(num, path_uri, cover_uri, maker)
@@ -1030,7 +1030,7 @@ class TestScanFocalTrigger:
         mock_submit_1.assert_called_once()
 
         # 模擬背景 worker/force-detect 完成偵測、legitimately 無臉：commit auto_focal=''
-        assert repo.update_auto_focal(path_uri, "") is True
+        assert repo.update_auto_focal(path_uri, "", cover_uri) is True
 
         # 第二次掃描：mtime 仍未變（不進 needs_scan），auto_focal 仍是 ''，但
         # focal_attempted_at 已蓋章 → 不應再被送進偵測

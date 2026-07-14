@@ -535,6 +535,11 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
                 meta.get("maker"),
                 to_file_uri(fs_path_for_db if fs_path_for_db is not None else fs_path),
                 local_cover,
+                # 99b-T2 caller #4：與 _db_upsert:619-620 計算 cover_uri 同式
+                # （to_file_uri(local_cover_path, path_mappings)），local_cover
+                # 即該處的 local_cover_path。cover_written=True 時 local_cover
+                # 必非空，仍加 `if local_cover else ""` 防未來 gate 條件漂移。
+                cover_path_uri=to_file_uri(local_cover, path_mappings) if local_cover else "",
             )
 
     # nfo_mtime 獨立更新：不論 mode/source，只要 NFO 存在就同步 DB

@@ -698,7 +698,8 @@ def test_focal_uri_matches_db_key_empty_mappings(tmp_path):
     # 重建 URI == DB row key（防 silent-miss）
     assert repo.get_by_path(rebuilt) is not None, \
         f"重建 URI 未命中 DB row：{rebuilt!r}"
-    assert repo.update_auto_focal(rebuilt, "0.5,0.5") is True, \
+    row = repo.get_by_path(rebuilt)
+    assert repo.update_auto_focal(rebuilt, "0.5,0.5", row.cover_path) is True, \
         "update_auto_focal 應命中（rowcount==1），否則 silent-miss"
 
 
@@ -751,7 +752,8 @@ def test_focal_uri_matches_db_key_nonempty_mappings(tmp_path):
     # 核心契約（平台無關）：scraper 與 db_inflow 同用同一 path_mappings → 對齊
     assert repo.get_by_path(rebuilt) is not None, \
         f"非空 mapping 下重建 URI 未命中 DB row：{rebuilt!r}"
-    assert repo.update_auto_focal(rebuilt, "0.4,0.6") is True, \
+    row2 = repo.get_by_path(rebuilt)
+    assert repo.update_auto_focal(rebuilt, "0.4,0.6", row2.cover_path) is True, \
         "非空 mapping 下 update_auto_focal 應命中（rowcount==1）"
 
 
@@ -779,11 +781,200 @@ def _scrape_body_with_maker(file_path="/tmp/ABC-001.mp4", maker="S1"):
     return body
 
 
-# case A: synced + 有 cover → helper 被呼叫一次，video_path_uri==to_file_uri(target,{})，
-#         cover==result['cover_path']
-def test_focal_wire_called_on_synced(client):
+# ─── 99b-T2 caller #5：首刮 read-back 真 DB fixture 驅動 ──────────────────────
+#
+# 案 A（下方 test_focal_wire_called_on_synced）原本用 mock 位置參數斷言
+# `args[3] == result['cover_path']`——caller #5 改 read-back 後這組斷言直接失效
+# （新實作不再把 result['cover_path'] 傳給 maybe_submit_video_focal，而是先
+# focal_repo.get_by_path() 讀 row.cover_path 再反解）。改走真 DB + 真
+# try_inflow_upsert + 真 VideoScanner.scan_file（只 mock organize_file 與網路面），
+# 讓 read-back 邏輯被真正驅動——純 mock `get_by_path` 回傳值會削弱 DoD ⑤
+# 「external-manager 模式下 scan_file 選到不同 sidecar」這個真實情境的覆蓋力。
+
+
+def _real_scrape_focal_fixture(client, tmp_path, video_stem, cover_layout,
+                                claimed_cover_suffix=".jpg", existing_cover_path=None):
+    """建立真實檔案 fixture 並打真 route，只 mock organize_file（不搬檔）與
+    web.routers.scraper.maybe_submit_video_focal（spy，不真跑 pigo）。
+
+    Args:
+        cover_layout: "off"（同 stem 封面，scan_file L1 命中）或
+            "external_manager"（{stem}-fanart 命名，scan_file L1.5 命中，
+            與 result['cover_path']（同 stem 假設）不同源，即 DoD ⑤ 地雷情境）。
+        existing_cover_path: 若提供，先在真 DB seed 一筆帶此 cover_path 的既有
+            row（DoD ⑥ 既有 row race 情境；None 則不預先 seed，模擬全新首刮）。
+
+    Returns: (resp, repo, captured, video_file, real_cover_file)
+    """
+    from core.database import init_db, VideoRepository, Video
     from core.path_utils import to_file_uri
 
+    lib_dir = tmp_path / "lib"
+    lib_dir.mkdir(exist_ok=True)
+    video_file = lib_dir / f"{video_stem}.mp4"
+    video_file.write_bytes(b"x")
+
+    if cover_layout == "off":
+        real_cover_file = lib_dir / f"{video_stem}{claimed_cover_suffix}"
+    else:
+        real_cover_file = lib_dir / f"{video_stem}-fanart{claimed_cover_suffix}"
+    real_cover_file.write_bytes(b"cover")
+
+    # scraper 自己「以為」下載到的位置：一律同 stem（off 模式下與磁碟一致；
+    # external-manager 模式下磁碟並無此檔，代表 db_inflow.try_inflow_upsert 內部
+    # VideoScanner.scan_file() 重新偵測到的是別張圖，CD-99b-4 要治的分歧）。
+    claimed_cover_path = str(lib_dir / f"{video_stem}{claimed_cover_suffix}")
+
+    db_file = tmp_path / f"scrape_focal_{video_stem}.db"
+    init_db(db_file)
+    repo = VideoRepository(db_path=db_file)
+
+    video_uri = to_file_uri(str(video_file))
+    if existing_cover_path is not None:
+        with patch("core.similar.ranker_cache.SimilarRankerCache"):
+            repo.upsert(Video(path=video_uri, number=video_stem, maker="S1",
+                               cover_path=existing_cover_path))
+
+    captured = {}
+
+    def _capture_submit(number, maker, video_path_uri, cover_fs, *, cover_path_uri, db_path=None):
+        captured["number"] = number
+        captured["maker"] = maker
+        captured["video_path_uri"] = video_path_uri
+        captured["cover_fs"] = cover_fs
+        captured["cover_path_uri"] = cover_path_uri
+
+    with (
+        patch("web.routers.scraper.maybe_submit_video_focal", side_effect=_capture_submit),
+        patch("web.routers.scraper.VideoRepository", return_value=repo),
+        patch("web.routers.scraper.load_config", return_value={
+            "gallery": {"directories": [], "path_mappings": {}}
+        }),
+        patch("web.routers.scraper.organize_file", return_value={
+            "success": True,
+            "new_filename": str(video_file),
+            "new_folder": str(lib_dir),
+            "original_path": str(video_file),
+            "cover_path": claimed_cover_path,
+        }),
+        patch("core.db_inflow.load_config", return_value={
+            "gallery": {"directories": [str(lib_dir)], "path_mappings": {}}
+        }),
+        patch("core.db_inflow.VideoRepository", return_value=repo),
+        patch("core.similar.ranker_cache.SimilarRankerCache"),
+    ):
+        body = _scrape_body_with_maker(file_path=str(video_file))
+        body["number"] = video_stem
+        body["metadata"]["number"] = video_stem
+        resp = client.post("/api/scrape-single", json=body)
+
+    return resp, repo, captured, video_file, real_cover_file
+
+
+# case A（重寫）：off 模式首刮 read-back——分析檔 == 反解自 row.cover_path，
+# cover_path_uri == row.cover_path，commit 命中非 0 列。
+def test_focal_wire_called_on_synced(client, tmp_path):
+    from core.path_utils import to_file_uri, uri_to_local_fs_path
+
+    resp, repo, captured, video_file, real_cover_file = _real_scrape_focal_fixture(
+        client, tmp_path, "ABC9101", cover_layout="off",
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["db_sync_status"] == "synced"
+
+    row = repo.get_by_path(to_file_uri(str(video_file)))
+    assert row is not None
+
+    assert captured, "helper 應被呼叫一次"
+    assert captured["number"] == "ABC9101"
+    assert captured["maker"] == "S1"
+    assert captured["video_path_uri"] == row.path
+    # 分析檔 == 反解自 row.cover_path（同源，CD-99b-4）
+    assert captured["cover_fs"] == uri_to_local_fs_path(row.cover_path, {})
+    assert captured["cover_fs"] == str(real_cover_file)
+    # expected URI == row.cover_path（同源，非 result['cover_path'] 推導）
+    assert captured["cover_path_uri"] == row.cover_path
+
+    # commit 命中非 0 列（真 DB 核心契約）
+    assert repo.update_auto_focal(row.path, "0.5,0.5", captured["cover_path_uri"]) is True
+
+
+# DoD ⑤：external-manager 模式——scan_file 選到與 result['cover_path']（同 stem
+# 假設）不同的 sidecar（-fanart 命名），read-back 讓分析檔與 expected URI 對齊
+# 真正裁切的那張圖。mutation：若改回傳 to_file_uri(result['cover_path']) 當
+# expected，此 fixture 下 commit 必然 0 列（見本測試最後一段直接示範）。
+def test_focal_read_back_external_manager_mode_real_fixture(client, tmp_path):
+    from core.path_utils import to_file_uri, uri_to_local_fs_path
+
+    resp, repo, captured, video_file, real_cover_file = _real_scrape_focal_fixture(
+        client, tmp_path, "ABC9102", cover_layout="external_manager",
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["db_sync_status"] == "synced"
+
+    row = repo.get_by_path(to_file_uri(str(video_file)))
+    assert row is not None
+    assert row.cover_path == to_file_uri(str(real_cover_file)), (
+        "external-manager 模式下 scan_file 應選到 -fanart 命名的 sidecar，"
+        f"得 {row.cover_path!r}"
+    )
+
+    claimed_cover_uri = to_file_uri(str(video_file.with_suffix(".jpg")))
+    assert row.cover_path != claimed_cover_uri, (
+        "測試前提：DB 實際 cover_path 必須與 scraper 自稱的同 stem 路徑不同，"
+        "否則本 fixture 沒有重現 external-manager 分歧情境"
+    )
+
+    assert captured["cover_fs"] == uri_to_local_fs_path(row.cover_path, {})
+    assert captured["cover_fs"] == str(real_cover_file)
+    assert captured["cover_path_uri"] == row.cover_path
+
+    # 核心契約：commit 用 read-back 值命中非 0 列
+    assert repo.update_auto_focal(row.path, "0.4,0.6", captured["cover_path_uri"]) is True
+
+    # mutation 自證（已推翻方案）：若誤用 result['cover_path'] 當 expected（未 read-back），
+    # 在 external-manager fixture 下 commit 必 0 列——這正是 CD-99b-4 要治的 fail-open。
+    assert repo.update_auto_focal(row.path, "0.9,0.9", claimed_cover_uri) is False
+
+
+# DoD ⑥：首刮落在既有 row 的 race 鎖（推翻「首刮=新 row 無 race」的錯誤直覺）。
+# 既有 row 的 cover_path 是「上一輪」的舊封面（模擬先前掃描留下的 in-flight job
+# 分析對象）；本輪首刮發現封面已換成 disk 上的新檔 → upsert 的 CD-10/CD-99b 換封面
+# 語意重置 auto_focal/focal_attempted_at，read-back 拿到新值。
+def test_focal_readback_lands_on_existing_row_cover_race(client, tmp_path):
+    from core.path_utils import to_file_uri
+
+    stale_cover_uri = "file:///stale/ABC9103_old_cover.jpg"
+
+    resp, repo, captured, video_file, real_cover_file = _real_scrape_focal_fixture(
+        client, tmp_path, "ABC9103", cover_layout="off",
+        existing_cover_path=stale_cover_uri,
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["db_sync_status"] == "synced"
+
+    row = repo.get_by_path(to_file_uri(str(video_file)))
+    assert row is not None
+    assert row.cover_path == to_file_uri(str(real_cover_file)), (
+        "本輪首刮應把 cover_path 換成本輪磁碟上的新封面"
+    )
+    assert row.cover_path != stale_cover_uri
+
+    # read-back 拿到的是新值，不是舊 in-flight job 分析的舊值
+    assert captured["cover_path_uri"] == row.cover_path
+
+    # 舊（上一輪）job commit：expected 仍是舊封面 → 0 列（race 鎖）
+    assert repo.update_auto_focal(row.path, "0.1,0.1", stale_cover_uri) is False
+
+    # 本輪（新）job commit：expected 是 read-back 拿到的新值 → 命中
+    assert repo.update_auto_focal(row.path, "0.5,0.5", captured["cover_path_uri"]) is True
+
+
+# DoD ⑦：row is None（read-back 之後才 commit 完成的極端時序）→ 不排、不炸。
+def test_focal_readback_row_none_does_not_submit_or_crash(client):
     video_info = _make_video_info()
 
     with (
@@ -793,6 +984,9 @@ def test_focal_wire_called_on_synced(client):
         }),
         patch("web.routers.scraper.organize_file",
               return_value=_organize_ok_with_cover()),
+        # focal_repo（scraper.py 端）get_by_path 回 None——模擬理論上不該發生但防禦式
+        # guard 要擋住的極端時序。
+        patch("web.routers.scraper.VideoRepository") as MockFocalRepo,
         patch("core.db_inflow.load_config", return_value={
             "gallery": {"directories": ["/tmp"], "path_mappings": {}}
         }),
@@ -801,6 +995,7 @@ def test_focal_wire_called_on_synced(client):
         patch("core.db_inflow.VideoRepository") as MockRepo,
         patch("core.db_inflow.Video") as MockVideo,
     ):
+        MockFocalRepo.return_value.get_by_path.return_value = None
         MockScanner.return_value.scan_file.return_value = video_info
         mock_video = MagicMock()
         mock_video.path = "file:///tmp/ABC-001/ABC-001.mp4"
@@ -811,12 +1006,95 @@ def test_focal_wire_called_on_synced(client):
 
     assert resp.status_code == 200
     assert resp.json()["db_sync_status"] == "synced"
-    mock_focal.assert_called_once()
-    args = mock_focal.call_args.args
-    assert args[0] == "ABC-001"                                  # number
-    assert args[1] == "S1"                                       # maker（metadata.get）
-    assert args[2] == to_file_uri("/tmp/ABC-001/ABC-001.mp4", {})  # 重建 video_path_uri
-    assert args[3] == "/tmp/ABC-001/ABC-001-fanart.jpg"          # result['cover_path']
+    mock_focal.assert_not_called()
+
+
+# DoD ⑦：row.cover_path == '' → 不排、不炸（封面下載失敗的合法值，非 bug）。
+def test_focal_readback_empty_cover_path_does_not_submit_or_crash(client):
+    video_info = _make_video_info()
+
+    with (
+        patch("web.routers.scraper.maybe_submit_video_focal") as mock_focal,
+        patch("web.routers.scraper.load_config", return_value={
+            "gallery": {"directories": [], "path_mappings": {}}
+        }),
+        patch("web.routers.scraper.organize_file",
+              return_value=_organize_ok_with_cover()),
+        patch("web.routers.scraper.VideoRepository") as MockFocalRepo,
+        patch("core.db_inflow.load_config", return_value={
+            "gallery": {"directories": ["/tmp"], "path_mappings": {}}
+        }),
+        patch("core.db_inflow.find_matched_directory", return_value="/tmp"),
+        patch("core.db_inflow.VideoScanner") as MockScanner,
+        patch("core.db_inflow.VideoRepository") as MockRepo,
+        patch("core.db_inflow.Video") as MockVideo,
+    ):
+        mock_row = MagicMock()
+        mock_row.cover_path = ""
+        mock_row.path = "file:///tmp/ABC-001/ABC-001.mp4"
+        MockFocalRepo.return_value.get_by_path.return_value = mock_row
+        MockScanner.return_value.scan_file.return_value = video_info
+        mock_video = MagicMock()
+        mock_video.path = "file:///tmp/ABC-001/ABC-001.mp4"
+        MockVideo.from_video_info.return_value = mock_video
+        MockRepo.return_value.repath.return_value = None  # → synced
+
+        resp = client.post("/api/scrape-single", json=_scrape_body_with_maker())
+
+    assert resp.status_code == 200
+    assert resp.json()["db_sync_status"] == "synced"
+    mock_focal.assert_not_called()
+
+
+# DoD ⑧(a)：無 user_tags 的正常刮削路徑（最常見路徑，scrape_single :177 分支不執行、
+# 外層 `repo` 變數未綁定）走完 read-back 不 UnboundLocalError——本測試請求 body 本就
+# 沒有 metadata.user_tags（_scrape_request_body 預設無此欄），off 模式 fixture 全程
+# 200 即已隱含證明沒有 UnboundLocalError（若誤用外層 repo 名稱會直接 500）。
+def test_focal_readback_no_user_tags_path_does_not_crash(client, tmp_path):
+    resp, repo, captured, video_file, real_cover_file = _real_scrape_focal_fixture(
+        client, tmp_path, "ABC9104", cover_layout="off",
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["db_sync_status"] == "synced"
+    assert captured, "無 user_tags 路徑仍應正常走到 read-back 並排入 focal"
+
+
+# DoD ⑧(b)：read-back 內部任何呼叫（此處 get_by_path）拋例外 → 刮削仍回 200 + 原
+# result 形狀，只 logger.warning，不冒泡打斷已成功的整理結果。
+def test_focal_readback_get_by_path_raises_still_returns_200(client):
+    video_info = _make_video_info()
+
+    with (
+        patch("web.routers.scraper.maybe_submit_video_focal") as mock_focal,
+        patch("web.routers.scraper.load_config", return_value={
+            "gallery": {"directories": [], "path_mappings": {}}
+        }),
+        patch("web.routers.scraper.organize_file",
+              return_value=_organize_ok_with_cover()),
+        patch("web.routers.scraper.VideoRepository") as MockFocalRepo,
+        patch("core.db_inflow.load_config", return_value={
+            "gallery": {"directories": ["/tmp"], "path_mappings": {}}
+        }),
+        patch("core.db_inflow.find_matched_directory", return_value="/tmp"),
+        patch("core.db_inflow.VideoScanner") as MockScanner,
+        patch("core.db_inflow.VideoRepository") as MockRepo,
+        patch("core.db_inflow.Video") as MockVideo,
+    ):
+        MockFocalRepo.return_value.get_by_path.side_effect = RuntimeError("DB locked")
+        MockScanner.return_value.scan_file.return_value = video_info
+        mock_video = MagicMock()
+        mock_video.path = "file:///tmp/ABC-001/ABC-001.mp4"
+        MockVideo.from_video_info.return_value = mock_video
+        MockRepo.return_value.repath.return_value = None  # → synced
+
+        resp = client.post("/api/scrape-single", json=_scrape_body_with_maker())
+
+    assert resp.status_code == 200, "read-back 內部例外不得冒泡打斷已成功的刮削請求"
+    body = resp.json()
+    assert body["success"] is True
+    assert body["db_sync_status"] == "synced"
+    mock_focal.assert_not_called()
 
 
 # case B（DoD-4 核心）：db_sync_status == "not_linked"（非 synced）→ helper NOT called

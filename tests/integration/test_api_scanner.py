@@ -2248,7 +2248,7 @@ class TestGenerateAvlistFocalTrigger:
         if seed_auto_focal is not None:
             with patch("core.similar.ranker_cache.SimilarRankerCache"):
                 repo.upsert(Video(path=path_uri, number=num, maker=maker, cover_path=cover_uri))
-            repo.update_auto_focal(path_uri, seed_auto_focal)
+            repo.update_auto_focal(path_uri, seed_auto_focal, cover_uri)
         elif seed_unchanged:
             # Codex PR#105 P2 回歸釘：既有列 mtime 與本次掃描一致（111）→ 不進
             # needs_scan/videos_to_upsert，auto_focal 維持 dataclass 預設空字串。

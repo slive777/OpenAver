@@ -381,7 +381,7 @@ class TestSimilarCoversAPI:
         # web/routers/showcase.py 的 crop-mode / detect-focal 端點）
         repo = VideoRepository(db_path)
         victim_video = repo.get_by_id(victim["video_id"])
-        assert repo.update_auto_focal(victim_video.path, "0.6000,0.3000")
+        assert repo.update_auto_focal(victim_video.path, "0.6000,0.3000", victim_video.cover_path)
         assert seed_crop_mode(repo, victim_video.path, "default")
 
         resp_after = client.get(f"/api/similar-covers/by-number/{target_number}")

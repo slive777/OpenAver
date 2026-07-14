@@ -947,7 +947,7 @@ class TestFocalPreserveOnConflict:
         path = to_file_uri("/focal_upsert.mp4")
         repo.upsert(Video(path=path, title="舊片"))
         assert seed_crop_mode(repo, path, 'default') is True
-        assert repo.update_auto_focal(path, '0.5,0.4') is True
+        assert repo.update_auto_focal(path, '0.5,0.4', '') is True
 
         repo.upsert(Video(path=path, title="重掃描新片"))
 
@@ -965,7 +965,7 @@ class TestFocalPreserveOnConflict:
         path = to_file_uri("/focal_upsert_batch.mp4")
         repo.upsert(Video(path=path, title="舊片"))
         assert seed_crop_mode(repo, path, 'default') is True
-        assert repo.update_auto_focal(path, '0.5,0.4') is True
+        assert repo.update_auto_focal(path, '0.5,0.4', '') is True
 
         repo.upsert_batch([Video(path=path, title="重掃描新片")])
 
@@ -984,7 +984,7 @@ class TestFocalPreserveOnConflict:
         with patch("core.similar.ranker_cache.SimilarRankerCache"):
             repo.upsert(Video(path=old_uri, title="舊片"))
         assert seed_crop_mode(repo, old_uri, 'default') is True
-        assert repo.update_auto_focal(old_uri, '0.5,0.4') is True
+        assert repo.update_auto_focal(old_uri, '0.5,0.4', '') is True
 
         with patch("core.similar.ranker_cache.SimilarRankerCache"):
             repo.repath(old_uri, new_uri, Video(path=new_uri, title="重掃描新片"))
@@ -1005,7 +1005,7 @@ class TestFocalPreserveOnConflict:
             repo.upsert(Video(path=old_uri, title="舊片"))
             repo.upsert(Video(path=new_uri, title="既有新路徑片"))
         assert seed_crop_mode(repo, new_uri, 'default') is True
-        assert repo.update_auto_focal(new_uri, '0.5,0.4') is True
+        assert repo.update_auto_focal(new_uri, '0.5,0.4', '') is True
 
         with patch("core.similar.ranker_cache.SimilarRankerCache"):
             repo.repath(old_uri, new_uri, Video(path=new_uri, title="重掃描新片"))
@@ -1028,7 +1028,7 @@ class TestFocalPreserveOnConflict:
 
         repo.upsert(Video(path=path, title="舊片", cover_path=cover))
         assert seed_crop_mode(repo, path, 'default') is True
-        assert repo.update_auto_focal(path, '0.5,0.4') is True
+        assert repo.update_auto_focal(path, '0.5,0.4', cover) is True
 
         repo.upsert(Video(path=path, title="重掃描-metadata only", cover_path=cover))
 
@@ -1053,7 +1053,7 @@ class TestFocalPreserveOnConflict:
 
         repo.upsert(Video(path=path, title="舊片", cover_path=old_cover))
         assert seed_crop_mode(repo, path, 'default') is True
-        assert repo.update_auto_focal(path, '') is True  # 無臉試過（format_focal(None) == ''）
+        assert repo.update_auto_focal(path, '', old_cover) is True  # 無臉試過（format_focal(None) == ''）
 
         repo.upsert(Video(path=path, title="換封面重掃", cover_path=new_cover))
 
@@ -1076,7 +1076,7 @@ class TestFocalPreserveOnConflict:
 
         repo.upsert(Video(path=path, title="舊片", cover_path=old_cover))
         assert seed_crop_mode(repo, path, 'default') is True
-        assert repo.update_auto_focal(path, '0.5,0.4') is True
+        assert repo.update_auto_focal(path, '0.5,0.4', old_cover) is True
 
         repo.upsert_batch([Video(path=path, title="換封面重掃", cover_path=new_cover)])
 
@@ -1099,7 +1099,7 @@ class TestFocalPreserveOnConflict:
         with patch("core.similar.ranker_cache.SimilarRankerCache"):
             repo.upsert(Video(path=old_uri, title="舊片", cover_path=old_cover))
         assert seed_crop_mode(repo, old_uri, 'default') is True
-        assert repo.update_auto_focal(old_uri, '0.5,0.4') is True
+        assert repo.update_auto_focal(old_uri, '0.5,0.4', old_cover) is True
 
         with patch("core.similar.ranker_cache.SimilarRankerCache"):
             repo.repath(
@@ -1131,7 +1131,7 @@ class TestFocalPreserveOnConflict:
             repo.upsert(Video(path=old_uri, title="舊片"))
             repo.upsert(Video(path=new_uri, title="既有新路徑片", cover_path=existing_cover))
         assert seed_crop_mode(repo, new_uri, 'default') is True
-        assert repo.update_auto_focal(new_uri, '0.5,0.4') is True
+        assert repo.update_auto_focal(new_uri, '0.5,0.4', existing_cover) is True
 
         with patch("core.similar.ranker_cache.SimilarRankerCache"):
             repo.repath(
@@ -1295,7 +1295,7 @@ class TestFocalMutators:
         path = to_file_uri("/focal_mutator_auto_focal.mp4")
         repo.upsert(Video(path=path, title="片"))
 
-        assert repo.update_auto_focal(path, '0.3,0.6') is True
+        assert repo.update_auto_focal(path, '0.3,0.6', '') is True
 
         result = repo.get_by_path(path)
         assert result is not None
@@ -1303,7 +1303,7 @@ class TestFocalMutators:
 
     def test_update_auto_focal_missing_path_returns_false(self, temp_db):
         repo = VideoRepository(temp_db)
-        assert repo.update_auto_focal(to_file_uri("/focal_mutator_nonexistent.mp4"), '0.3,0.6') is False
+        assert repo.update_auto_focal(to_file_uri("/focal_mutator_nonexistent.mp4"), '0.3,0.6', '') is False
 
     def test_update_auto_focal_stamps_focal_attempted_at_with_coords(self, temp_db):
         """有臉存座標時，focal_attempted_at 同一 UPDATE 一起蓋章非 NULL（Codex PR#105 P2）"""
@@ -1312,7 +1312,7 @@ class TestFocalMutators:
         repo.upsert(Video(path=path, title="片"))
         assert repo.get_by_path(path).focal_attempted_at is None
 
-        assert repo.update_auto_focal(path, '0.3,0.6') is True
+        assert repo.update_auto_focal(path, '0.3,0.6', '') is True
 
         result = repo.get_by_path(path)
         assert result.auto_focal == '0.3,0.6'
@@ -1326,7 +1326,7 @@ class TestFocalMutators:
         repo.upsert(Video(path=path, title="片"))
         assert repo.get_by_path(path).focal_attempted_at is None
 
-        assert repo.update_auto_focal(path, '') is True
+        assert repo.update_auto_focal(path, '', '') is True
 
         result = repo.get_by_path(path)
         assert result.auto_focal == ''
@@ -1397,7 +1397,7 @@ class TestFocalMutators:
         path = to_file_uri("/focal_mutator_reset_attempted_at.mp4")
         repo.upsert(Video(path=path, title="片"))
         # 模擬舊封面已被偵測過（無論有沒有臉，都會蓋 focal_attempted_at 章）
-        assert repo.update_auto_focal(path, "0.5,0.5") is True
+        assert repo.update_auto_focal(path, "0.5,0.5", "") is True
         assert repo.get_by_path(path).focal_attempted_at is not None
 
         assert repo.reset_focal_to_auto(path) is True
@@ -1419,7 +1419,7 @@ class TestFocalMutators:
         path = to_file_uri("/focal_mutator_reset_requeue.mp4")
         repo.upsert(Video(path=path, number="SIRO-9999", maker="", cover_path="cover_old"))
         # 舊封面已偵測過（有臉）
-        assert repo.update_auto_focal(path, "0.5,0.5") is True
+        assert repo.update_auto_focal(path, "0.5,0.5", "cover_old") is True
 
         # 重刮換封面：enricher 呼叫 reset_focal_to_auto（worker 之後失敗/從未
         # commit，模擬時直接不呼叫 update_auto_focal）
@@ -1439,7 +1439,7 @@ class TestFocalMutators:
         repo.upsert(Video(path=path, title="片"))
         assert repo.update_manual_focal(path, '0.3000,0.6000') is True
 
-        assert repo.update_auto_focal(path, '0.9,0.9') is False, "manual row 應被守衛擋下，rowcount 0"
+        assert repo.update_auto_focal(path, '0.9,0.9', '') is False, "manual row 應被守衛擋下，rowcount 0"
 
         result = repo.get_by_path(path)
         assert result.auto_focal == '0.3000,0.6000', "manual 座標不可被 stale worker 偷換"
@@ -1452,7 +1452,7 @@ class TestFocalMutators:
         repo.upsert(Video(path=path, title="片"))
         assert seed_crop_mode(repo, path, 'default') is True
 
-        assert repo.update_auto_focal(path, '0.7,0.3') is True
+        assert repo.update_auto_focal(path, '0.7,0.3', '') is True
 
         result = repo.get_by_path(path)
         assert result.auto_focal == '0.7,0.3'
@@ -1471,11 +1471,75 @@ class TestFocalMutators:
         assert repo.update_manual_focal(path, '0.2000,0.8000') is True
 
         # ③ 舊（worker 排入時）worker 才完成、呼叫 commit（stale 偵測結果）
-        committed = repo.update_auto_focal(path, '0.55,0.45')
+        committed = repo.update_auto_focal(path, '0.55,0.45', '')
         assert committed is False
 
         result = repo.get_by_path(path)
         assert result.auto_focal == '0.2000,0.8000'
+        assert result.crop_mode == 'manual'
+
+    # ── 99b-T2 CD-99b-3/4/5/9：換封面 compare-and-store（DoD ①②③） ──────────
+
+    def test_update_auto_focal_blocked_when_cover_path_changed(self, temp_db, seed_crop_mode):
+        """DoD ①：換封面 race 鎖。seed row cover_path=A，模擬 in-flight 舊 job 帶
+        expected_cover_path=A → row 中途被換成 cover_path=B（模擬 scanner upsert 換
+        封面）→ commit(expected=A) 必須 rowcount 0，auto_focal/focal_attempted_at
+        不變。mutation：拔掉 `AND cover_path=?` → 寫入成功 → RED。"""
+        repo = VideoRepository(temp_db)
+        path = to_file_uri("/focal_cd99b_cover_race.mp4")
+        cover_a = to_file_uri("/focal_cd99b_cover_race_a.jpg")
+        cover_b = to_file_uri("/focal_cd99b_cover_race_b.jpg")
+
+        repo.upsert(Video(path=path, title="片", cover_path=cover_a))
+        assert seed_crop_mode(repo, path, 'auto') is True
+
+        # row 換封面（模擬 scanner upsert 在 in-flight job 分析期間換圖）
+        repo.upsert(Video(path=path, title="片-換封面", cover_path=cover_b))
+
+        # 舊 job commit：expected 仍是 A（分析當下捕獲的值）
+        committed = repo.update_auto_focal(path, '0.5,0.4', cover_a)
+        assert committed is False, "expected_cover_path 對不上目前 cover_path，應 rowcount 0"
+
+        result = repo.get_by_path(path)
+        assert result.auto_focal == '', "舊 job 未命中，auto_focal 不應被寫入"
+        assert result.focal_attempted_at is None, "舊 job 未命中，不應蓋 focal_attempted_at 章"
+        assert result.cover_path == cover_b
+
+    def test_update_auto_focal_succeeds_when_cover_path_matches_new_value(self, temp_db, seed_crop_mode):
+        """DoD ②（反向鎖，必測）：延續①情境，新 job 帶 expected=B（換封面後排的新
+        job）→ 必須命中、正常寫入。防止「把守衛做成誰都寫不進」。"""
+        repo = VideoRepository(temp_db)
+        path = to_file_uri("/focal_cd99b_cover_race_new_job.mp4")
+        cover_a = to_file_uri("/focal_cd99b_cover_race_new_job_a.jpg")
+        cover_b = to_file_uri("/focal_cd99b_cover_race_new_job_b.jpg")
+
+        repo.upsert(Video(path=path, title="片", cover_path=cover_a))
+        assert seed_crop_mode(repo, path, 'auto') is True
+        repo.upsert(Video(path=path, title="片-換封面", cover_path=cover_b))
+
+        committed = repo.update_auto_focal(path, '0.6,0.6', cover_b)
+        assert committed is True, "expected_cover_path 對上目前 cover_path，應命中"
+
+        result = repo.get_by_path(path)
+        assert result.auto_focal == '0.6,0.6'
+        assert result.focal_attempted_at is not None
+
+    def test_update_auto_focal_cover_guard_does_not_regress_cd9_manual_guard(self, temp_db):
+        """DoD ③：CD-9 不回歸。manual row 即使 expected_cover_path 與實際 cover_path
+        相符，仍應被 manual 條件擋下（三條件 path + crop_mode!='manual' + cover_path
+        需同時成立，manual 優先擋）。"""
+        repo = VideoRepository(temp_db)
+        path = to_file_uri("/focal_cd99b_manual_not_regressed.mp4")
+        cover = to_file_uri("/focal_cd99b_manual_not_regressed.jpg")
+
+        repo.upsert(Video(path=path, title="片", cover_path=cover))
+        assert repo.update_manual_focal(path, '0.3000,0.6000') is True
+
+        committed = repo.update_auto_focal(path, '0.9,0.9', cover)
+        assert committed is False, "manual row 即使 cover 相符仍應被擋下"
+
+        result = repo.get_by_path(path)
+        assert result.auto_focal == '0.3000,0.6000'
         assert result.crop_mode == 'manual'
 
 
@@ -1499,7 +1563,7 @@ class TestGetEmptyFocalCandidates:
 
         repo.upsert(Video(path=p_empty, number="SIRO-1111", maker="", cover_path="cover1"))
         repo.upsert(Video(path=p_filled, number="SIRO-2222", maker="", cover_path="cover2"))
-        repo.update_auto_focal(p_filled, "0.5,0.5")
+        repo.update_auto_focal(p_filled, "0.5,0.5", "cover2")
         # 不在本次掃描 in-scope 集合的列（即使 auto_focal 也是空）不該被查到
         repo.upsert(Video(path=p_out_of_scope, number="SIRO-3333", maker="", cover_path="cover3"))
 
@@ -1522,7 +1586,7 @@ class TestGetEmptyFocalCandidates:
         repo.upsert(Video(path=p_no_face, number="SIRO-4444", maker="", cover_path="cover4"))
         repo.upsert(Video(path=p_never_tried, number="SIRO-5555", maker="", cover_path="cover5"))
         # 模擬偵測跑過、legitimately 找不到臉：auto_focal 仍空，但蓋 focal_attempted_at 章
-        repo.update_auto_focal(p_no_face, "")
+        repo.update_auto_focal(p_no_face, "", "cover4")
 
         result = repo.get_empty_focal_candidates([p_no_face, p_never_tried])
 

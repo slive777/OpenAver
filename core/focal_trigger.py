@@ -24,7 +24,7 @@ logger = get_logger(__name__)
 _DETECT_RATIO = 0.71
 
 
-def maybe_submit_video_focal(number, maker, video_path_uri, cover_fs_path, db_path=None):
+def maybe_submit_video_focal(number, maker, video_path_uri, cover_fs_path, *, cover_path_uri: str, db_path=None):
     """條件式排入背景 focal 偵測（無碼片才排）。
 
     Args:
@@ -33,6 +33,11 @@ def maybe_submit_video_focal(number, maker, video_path_uri, cover_fs_path, db_pa
         video_path_uri: DB row key（file:/// URI）——commit 以此 WHERE key 寫
             `auto_focal`。必須等於 DB 實際 row 的 `path` 欄，否則 silent-miss。
         cover_fs_path: 已反解的本機封面 fs 路徑（worker 直接開檔，不做反解）。
+        cover_path_uri: 被分析的這張封面在 DB 的 `cover_path`（DB-key，file:///
+            URI 或空字串，99b-T2 CD-99b-4/5/9）。keyword-only 必填、無預設值——
+            commit 時穿進 `update_auto_focal` 的 `expected_cover_path`，讓 worker
+            commit 前確認 row 仍指著這張封面（换封面 race 鎖）。呼叫端必須顯式
+            傳入與分析封面同源的值，不可用反解後的 FS path，也不可省略。
         db_path: commit 寫回的目標 DB。None＝預設 DB（`VideoRepository(None)` 退回
             `get_db_path()`，scraper/enricher 走此）。掃描端傳入自訂/tmp `db_path`，
             否則背景 commit 會寫到預設 DB → 非預設 DB 掃描 silent-miss。
@@ -45,8 +50,10 @@ def maybe_submit_video_focal(number, maker, video_path_uri, cover_fs_path, db_pa
             return  # 有碼片零成本
         if not cover_fs_path or not os.path.exists(cover_fs_path):
             return  # 無封面檔不排空 job
-        # fp 忽略（video 無 fingerprint 欄）；commit 綁 video_path_uri 當 WHERE key、db_path 當目標 DB。
-        commit = lambda focal_str, fp: VideoRepository(db_path).update_auto_focal(video_path_uri, focal_str)  # noqa: E731
+        # fp 忽略（video 無 fingerprint 欄）；commit 綁 video_path_uri 當 WHERE key、
+        # cover_path_uri 在此刻（submit 當下）被 closure 捕獲當 expected_cover_path、
+        # db_path 當目標 DB。
+        commit = lambda focal_str, fp: VideoRepository(db_path).update_auto_focal(video_path_uri, focal_str, cover_path_uri)  # noqa: E731
         submit_focal("video", video_path_uri, cover_fs_path, _DETECT_RATIO, commit)
     except Exception:
         logger.exception("maybe_submit_video_focal 排程失敗（不影響呼叫端流程）: %s", video_path_uri)

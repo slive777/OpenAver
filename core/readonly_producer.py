@@ -921,7 +921,7 @@ def produce_source(source, config, repo, *, proxy_url="", on_progress=None, shou
                 for c_path, c_number, c_maker, c_cover_path in repo.get_empty_focal_candidates(focal_this_run_uris):
                     if requires_face_detection(c_number, c_maker):
                         cover_fs = uri_to_local_fs_path(c_cover_path, path_mappings)
-                        maybe_submit_video_focal(c_number, c_maker, c_path, cover_fs, db_path=repo.db_path)
+                        maybe_submit_video_focal(c_number, c_maker, c_path, cover_fs, db_path=repo.db_path, cover_path_uri=c_cover_path)
         except Exception:
             logger.warning("[readonly_producer] focal trigger 批次排程失敗（不影響生成結果）", exc_info=True)
 

@@ -1197,7 +1197,7 @@ class VideoRepository:
         finally:
             conn.close()
 
-    def update_auto_focal(self, path: str, focal: str) -> bool:
+    def update_auto_focal(self, path: str, focal: str, expected_cover_path: str) -> bool:
         """安全更新 auto_focal 欄位（不碰其他欄位，CD-98a-6 mutator，鏡射 update_user_tags）。
 
         同時蓋章 focal_attempted_at = CURRENT_TIMESTAMP（單條 UPDATE 原子寫，Codex PR#105
@@ -1213,22 +1213,34 @@ class VideoRepository:
         安全：manual row 的 auto_focal 恆非空字串，天然被 get_empty_focal_candidates
         的 `auto_focal = ''` 篩選排除，不會被誤重排。
 
+        `AND cover_path = ?`（99b-T2 CD-99b-3/4/5/9，換封面 compare-and-store）：
+        row 若在 in-flight worker 分析當下之後又被換了封面（scanner upsert / 重刮 /
+        repath 落既有 row），舊 job commit 時 `expected_cover_path` 對不上目前
+        `cover_path` → rowcount 0，不寫入 stale 焦點、不蓋 focal_attempted_at 章。
+        `expected_cover_path` 為必填、不可傳 `None`——`cover_path=''` 是真實存在的
+        合法值（封面下載失敗時 `_db_upsert` 會寫 `''`），必須由呼叫端顯式帶入「被
+        分析的那張封面」的 DB-key URI，不可省略。
+
         Args:
             path: 影片路徑（DB key，file:/// URI 格式）
             focal: 新的 auto_focal 值（背景 focal 演算法算出的座標字串，如 '0.5,0.4'，
                 無臉時為 format_focal(None) == ''）
+            expected_cover_path: 被分析的那張封面的 DB-key `cover_path`（file:/// URI
+                或空字串）。必須與呼叫端分析封面時使用的值同源（CD-99b-4），不可用
+                反解後的 FS path。
 
         Returns:
-            bool: 是否成功更新（path 不存在或 crop_mode='manual' → False，不拋例外、
-                不新建 row）
+            bool: 是否成功更新（path 不存在、crop_mode='manual'、或 cover_path 已不
+                符 expected_cover_path → False，不拋例外、不新建 row）
         """
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
             cursor.execute(
                 "UPDATE videos SET auto_focal = ?, focal_attempted_at = CURRENT_TIMESTAMP, "
-                "updated_at = CURRENT_TIMESTAMP WHERE path = ? AND crop_mode != 'manual'",
-                (focal, path)
+                "updated_at = CURRENT_TIMESTAMP WHERE path = ? AND crop_mode != 'manual' "
+                "AND cover_path = ?",
+                (focal, path, expected_cover_path)
             )
             conn.commit()
             return cursor.rowcount > 0

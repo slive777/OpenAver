@@ -208,16 +208,40 @@ def scrape_single(request: ScrapeRequest) -> dict:
         else:
             logger.warning("scrape_single: organize_file 回傳缺 new_filename，skip in-flow upsert")
 
-        # 首刮 focal trigger（TASK-98b-T2）：只在 file 在 Scanner 追蹤夾（有 DB row）
-        # 才排——非 synced 無 row，submit 也 silent-miss。重建 to_file_uri(target_file,
-        # path_mappings) 必等於 db_inflow 寫入的 video.path（禁 normalize 疊加）。
+        # 首刮 focal trigger（TASK-98b-T2 / 99b-T2 read-back 重構）：只在 file 在
+        # Scanner 追蹤夾（有 DB row）才排——非 synced 無 row，submit 也 silent-miss。
+        # 重建 to_file_uri(target_file, path_mappings) 必等於 db_inflow 寫入的
+        # video.path（禁 normalize 疊加）。
+        #
+        # ⚠️ 99b-T2 CD-99b-4：不可用 result['cover_path']（scraper 分析用的封面）
+        # 當分析檔 + expected URI——db_inflow.try_inflow_upsert 內部呼叫
+        # VideoScanner().scan_file() 在磁碟上重新偵測封面/sidecar，external-manager
+        # 模式下可能選到不同的 poster/fanart 檔，與 result['cover_path'] 不同源
+        # （db_inflow.py 全檔 grep cover 零命中）。改為 read-back 權威 `row.cover_path`
+        # ——分析檔與 expected URI 同源，免除任何推導證明，且順手修正「焦點對 A
+        # 算、render 卻裁 B」的既有隱性錯誤。
+        #
+        # ⚠️ 致命細節 1：必須自建 focal_repo，不可重用上面 :186 的 `repo`——那個
+        # 綁在 `if result.get('success') and metadata.get('user_tags'):` 分支內，
+        # 無 user_tags 的正常刮削路徑走到此處 `repo` 未綁定，誤用會 UnboundLocalError。
+        # ⚠️ 致命細節 2：`VideoRepository()`/`get_by_path()`/`uri_to_local_fs_path()`
+        # 都在 maybe_submit_video_focal 內部 try/except 的保護邊界外，此區塊必須
+        # 自帶 try/except，否則任何例外會把已成功的刮削請求打成 500（CD-99b-7）。
         if target_file and db_sync_status == "synced":
-            maybe_submit_video_focal(
-                number,
-                metadata.get("maker") if isinstance(metadata, dict) else "",
-                to_file_uri(target_file, path_mappings),
-                result.get("cover_path"),
-            )
+            try:
+                focal_repo = VideoRepository()
+                row = focal_repo.get_by_path(to_file_uri(target_file, path_mappings))
+                if row and row.cover_path:  # row is None 或 cover_path='' → 不排、不炸
+                    cover_fs = uri_to_local_fs_path(row.cover_path, path_mappings)
+                    maybe_submit_video_focal(
+                        number,
+                        metadata.get("maker") if isinstance(metadata, dict) else "",
+                        row.path,
+                        cover_fs,
+                        cover_path_uri=row.cover_path,
+                    )
+            except Exception:
+                logger.warning("scrape_single: 首刮 focal 排程失敗（不影響整理結果）", exc_info=True)
 
     return {**result, "db_sync_status": db_sync_status}
 
