@@ -6,21 +6,35 @@ Showcase API 路由 - 影片展示資料端點
 - GET /api/showcase/video?path=   — 取得單筆影片資料（供 T3 enrich 後刷新卡片）
 """
 
+import os
 from urllib.parse import quote
 
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from core.database import VideoRepository, get_db_path, init_db
 from core.path_utils import is_path_under_dir, uri_to_local_fs_path, coerce_to_file_uri
 from core.logger import get_logger
 from core.config import load_config, get_gallery_source_paths
 from core.readonly_source import is_path_readonly, readonly_source_prefixes, writable_source_prefixes
+from core.focal import detect_focal, format_focal
 from core import thumbnail_cache
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/showcase", tags=["showcase"])
+
+
+class CropModeRequest(BaseModel):
+    """POST /video/crop-mode body：path（DB key）+ mode（'default' | 'auto'）。"""
+    path: str
+    mode: str
+
+
+class DetectFocalRequest(BaseModel):
+    """POST /video/detect-focal body：path（DB key，Codex P0 絕不當檔案路徑開啟）。"""
+    path: str
 
 
 def _serialize_video(v, path_mappings: dict, enabled: bool = False, readonly_prefixes: list = None, writable_prefixes: list = None) -> dict:
@@ -71,6 +85,8 @@ def _serialize_video(v, path_mappings: dict, enabled: bool = False, readonly_pre
             # uri-no-reverse: coerce_to_file_uri forward URI build, D2 complement
             coerce_to_file_uri(v.path, path_mappings), readonly_prefixes or [], writable_prefixes or []
         ),
+        "auto_focal": v.auto_focal,                  # canonical "x,y" 4dp 字串或 ''（98b：前端 focalObjectPosition 消費）
+        "crop_mode": v.crop_mode,                    # 'auto' | 'default'（98b：default 退 baseline 右裁）
     }
 
 
@@ -196,3 +212,80 @@ def delete_video(path: str = Query(..., description="file:/// URI")):
     thumbnail_cache.invalidate(path)
 
     return JSONResponse({"deleted": n})
+
+
+@router.post("/video/crop-mode")
+def set_crop_mode(req: CropModeRequest):
+    """存回使用者在遮罩 toggle 選定的 crop_mode（98b-T4）。
+
+    body {path, mode}；mode 只接受 'default' | 'auto'（非法 → 400 固定字串、不碰 DB）。
+    path 當 DB key（repo.update_crop_mode，path 不存在 → rowcount 0 安全 no-op、不新建 row）。
+    `def`（非 async）→ Starlette threadpool。**不進 capabilities（不揭露）。**
+    """
+    if req.mode not in ('default', 'auto'):
+        return JSONResponse({"success": False, "error": "無效的裁切模式"}, status_code=400)
+    try:
+        db_path = get_db_path()
+        if not db_path.exists():
+            return JSONResponse({"success": False, "error": "資料庫不存在"}, status_code=404)
+
+        init_db(db_path)
+        repo = VideoRepository(db_path)
+        repo.update_crop_mode(req.path, req.mode)
+        return JSONResponse({"success": True})
+
+    except Exception as e:
+        logger.error("更新裁切模式失敗: %s", e)
+        return JSONResponse({"success": False, "error": "更新裁切模式失敗"}, status_code=500)
+
+
+@router.post("/video/detect-focal")
+def detect_video_focal(req: DetectFocalRequest):
+    """使用者主動 force-detect 封面焦點（98b-T4，CD-98b-7 / Codex P0）。
+
+    **安全不變式：body `path` 一律當 DB key，絕不當檔案路徑開啟。** 偵測目標是
+    `row.cover_path` 反解的封面 fs（非 body path 的影片 URI）。
+    - 非 DB path → 404（不開任何檔）。
+    - 唯讀 / configured-dir scope 外 → 拒（唯讀無法寫回、force-detect 無意義）。
+    - row.cover_path 空或檔案不存在 → 固定字串（不崩）。
+    - 無臉 → format_focal(None) = '' 存回。
+    `def`（非 async）→ threadpool；detect_focal 同步 ~2.2s。**不進 capabilities（不揭露）。**
+    """
+    try:
+        db_path = get_db_path()
+        if not db_path.exists():
+            return JSONResponse({"success": False, "error": "找不到影片"}, status_code=404)
+
+        init_db(db_path)
+        repo = VideoRepository(db_path)
+
+        row = repo.get_by_path(req.path)
+        if row is None:
+            return JSONResponse({"success": False, "error": "找不到影片"}, status_code=404)
+
+        config = load_config()
+        configured_dir_uris, path_mappings = _get_configured_dirs(config)
+        readonly_prefixes = readonly_source_prefixes(config.get('gallery', {}), path_mappings)
+        writable_prefixes = writable_source_prefixes(config.get('gallery', {}), path_mappings)
+
+        in_scope = any(is_path_under_dir(row.path, uri) for uri in configured_dir_uris)
+        readonly = is_path_readonly(
+            # uri-no-reverse: coerce_to_file_uri forward URI build, D2 complement
+            coerce_to_file_uri(row.path, path_mappings), readonly_prefixes, writable_prefixes
+        )
+        if not in_scope or readonly:
+            return JSONResponse({"success": False, "error": "此影片來源唯讀或不在收藏範圍，無法偵測焦點"}, status_code=403)
+
+        # ★ Codex P0：取 row.cover_path（非 body path）反解封面 fs
+        cover_fs = uri_to_local_fs_path(row.cover_path, path_mappings) if row.cover_path else ''
+        if not row.cover_path or not os.path.isfile(cover_fs):
+            return JSONResponse({"success": False, "error": "找不到封面檔案"}, status_code=400)
+
+        focal = detect_focal(cover_fs, 0.71)     # 同步；無臉 → None
+        auto_focal = format_focal(focal)          # None → ''
+        repo.update_auto_focal(req.path, auto_focal)
+        return JSONResponse({"success": True, "auto_focal": auto_focal})
+
+    except Exception as e:
+        logger.error("偵測焦點失敗: %s", e)
+        return JSONResponse({"success": False, "error": "偵測焦點失敗"}, status_code=500)

@@ -93,6 +93,70 @@ const RULES = [
     note: '[TestShowcaseMetadataGuard] series searchFromMetadata call (grid panel or lightbox, OR)',
   },
 
+  // ---- [TestMaskToggleGuard] 98b-T4：遮罩 toggle 綁定 / 生命週期 guard / no-硬編-ratio / endpoint URL ----
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: '@click="openMask', note: '[TestMaskToggleGuard] mask toggle icon button 綁 openMask' },
+  // 98b P2 fix（Codex）：commit/re-check guard 由 path 比對（_maskVideoPath/sessionPath）
+  // 升級為單調遞增 session id（_maskSession）——path 比對在「同片重開」邊界不夠精確。
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'this._maskSession++',
+    scope: { anchor: /openMask\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] openMask 遞增 _maskSession（每次開啟即新 session，Codex P2）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'this._maskSession++',
+    scope: { anchor: /_resetMask\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] _resetMask 遞增 _maskSession（換片/關燈箱使舊 session 失效，Codex P2）',
+  },
+  // 98b P2 fix(二)（Codex）：新 session 起手/invalidate 必須清 _maskDetecting——舊 detect await 的
+  // finally 因 session 不符會跳過清 spinner，不在此重置則新遮罩頂著卡死 spinner。
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'this._maskDetecting = false',
+    scope: { anchor: /openMask\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] openMask 清 _maskDetecting（新 session 起手非偵測中，防舊 spinner 漏入，Codex P2）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'this._maskDetecting = false',
+    scope: { anchor: /_resetMask\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] _resetMask 清 _maskDetecting（invalidate 時防偵測態漏進下個 session，Codex P2）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'session === this._maskSession',
+    scope: { anchor: /async\s+toggleMaskMode\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] toggleMaskMode await 後 session re-check（不誤動已切走的別片 UI，Codex P2）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'session === this._maskSession',
+    scope: { anchor: /async\s+closeMask\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] closeMask await 後 session re-check（不誤關新片遮罩，Codex P2）',
+  },
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'forbidden-string', pattern: '_maskVideoPath', note: '[TestMaskToggleGuard] 舊 path-based guard 變數不得復活（已由 _maskSession 取代，Codex P2）' },
+  // 98b-T6：亮窗幾何改 reactive data（imperative $nextTick 算），禁量測-in-binding 復活。
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: ':style="_maskWinStyle"', note: '[TestMaskToggleGuard] .lb-mask-window 綁 reactive data _maskWinStyle（非量測-in-binding）' },
+  { file: 'web/templates/showcase.html', kind: 'forbidden-string', pattern: '_maskWindowStyle()', note: '[TestMaskToggleGuard] 禁 :style 內呼叫量測方法（stale 幾何反模式 98b-T6）' },
+  { file: 'web/static/js/pages/showcase/state-base.js', kind: 'required-string', pattern: "$watch('currentLightboxVideo?.path'", note: '[TestMaskToggleGuard] 換片 _resetMask 視覺防線（CD-98b-8，防遮罩畫到下一片）' },
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '/api/showcase/video/crop-mode', note: '[TestMaskToggleGuard] crop-mode endpoint fetch URL' },
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '/api/showcase/video/detect-focal', note: '[TestMaskToggleGuard] detect-focal endpoint fetch URL' },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'getComputedStyle',
+    scope: { anchor: /_computeMaskWinStyle\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] _computeMaskWinStyle 讀 CSS var（getComputedStyle）非 JS 硬編比例',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '--poster-crop-ratio',
+    scope: { anchor: /_computeMaskWinStyle\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] _computeMaskWinStyle 讀 --poster-crop-ratio（單一真理）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'forbidden-string', pattern: '0.71',
+    scope: { anchor: /_computeMaskWinStyle\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] _computeMaskWinStyle 不得硬編 0.71（比例讀 CSS var）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'forbidden-string', pattern: /2\s*\/\s*3/,
+    scope: { anchor: /_computeMaskWinStyle\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] _computeMaskWinStyle 不得硬編 2/3 比例（讀 CSS var）',
+  },
+
   // ---- [TestSearchLightboxMetadataGuard] search.html：5 個 required ----
   { file: 'web/templates/search.html', kind: 'required-string', pattern: 'currentLightboxVideo()?.director', note: '[TestSearchLightboxMetadataGuard] lightbox field' },
   { file: 'web/templates/search.html', kind: 'required-string', pattern: 'currentLightboxVideo()?.duration', note: '[TestSearchLightboxMetadataGuard] lightbox field' },
@@ -2377,6 +2441,28 @@ const RULES = [
     pattern: ['openPagePicker', 'showPicker'],
     note: '[TestT4FooterStructure] test_showcase_html_contains — core.js openPagePicker 用 showPicker 實作',
   },
+
+  // ==== 98b-T3：focal render 綁定守衛（binding existence + helper existence + imperative pairing）====
+  // north-star：template `:style` 綁定字面 / imperative helper 存在性是靜態字串契約 → lint 不進 pytest。
+  // no-`!important` 不變式（inline 必勝前提）由 css-guard.mjs CG-FOCAL-01 守（object-position 半邊）。
+
+  // -- Binding existence：三個 focal-aware template 站的 :style 綁定字面必存在 --
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'focalStyle(video)', note: '[TestFocalRenderGuard] F1 grid img :style binding' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'focalStyle(_getSlotItem', note: '[TestFocalRenderGuard] F2 similar desktop slot img :style binding' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'focalStyle(item)', note: '[TestFocalRenderGuard] F4 similar mobile burst img :style binding' },
+
+  // -- Helper existence：兩 state 模組各 import focal.js + 定義各自 helper --
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: "'@/shared/focal.js'", note: '[TestFocalRenderGuard] state-videos.js imports focal.js' },
+  { file: 'web/static/js/pages/showcase/state-videos.js', kind: 'required-string', pattern: 'focalStyle', note: '[TestFocalRenderGuard] state-videos.js focalStyle helper（供 F1/F2/F4 template）' },
+  { file: 'web/static/js/pages/showcase/state-similar.js', kind: 'required-string', pattern: "'@/shared/focal.js'", note: '[TestFocalRenderGuard] state-similar.js imports focal.js' },
+  { file: 'web/static/js/pages/showcase/state-similar.js', kind: 'required-string', pattern: 'applyFocalToImg', note: '[TestFocalRenderGuard] state-similar.js applyFocalToImg helper' },
+
+  // -- Imperative pairing：state-similar.js applyFocalToImg 出現 >=7 次（helper def 1 + I-a…I-e/I-g 六個 .src= 成對）--
+  { file: 'web/static/js/pages/showcase/state-similar.js', kind: 'required-string', pattern: 'applyFocalToImg', count: 7, note: '[TestFocalRenderGuard] state-similar.js applyFocalToImg helper + 6 imperative pairings（I-a..I-e,I-g；count 鎖成對，移除任一 .src= 配對即 RED）' },
+
+  // -- Imperative pairing：BurstPicker 鏡射來源卡 objectPosition（focal-agnostic，只搬呈現）--
+  { file: 'web/static/js/shared/burst-picker.js', kind: 'required-string', pattern: 'coverImg.style.objectPosition = selectedImg.style.objectPosition', note: '[TestFocalRenderGuard] I-f burst-picker.js 正常動畫 objectPosition 鏡射' },
+  { file: 'web/static/js/shared/burst-picker.js', kind: 'required-string', pattern: '_covImg.style.objectPosition = _selImg.style.objectPosition', note: '[TestFocalRenderGuard] I-f burst-picker.js reduced-motion objectPosition 鏡射' },
 ];
 
 // ---- helpers ----

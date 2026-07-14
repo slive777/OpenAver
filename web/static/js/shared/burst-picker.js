@@ -223,6 +223,8 @@ var BurstPicker = {
             var _covImg = coverEl && coverEl.tagName === 'IMG' ? coverEl : (coverEl ? coverEl.querySelector('img') : null);
             if (_selImg && _covImg && _selImg.src) {
                 _covImg.src = _selImg.src;
+                // 98b-T3 I-f：鏡射來源卡 object-position（generic 動畫模組不懂 focal，只搬呈現）
+                _covImg.style.objectPosition = _selImg.style.objectPosition;
             }
             if (typeof onComplete === 'function') onComplete();
             return Promise.resolve();
@@ -323,6 +325,8 @@ var BurstPicker = {
                             cb();
                         };
                         coverImg.src = newSrc;
+                        // 98b-T3 I-f：鏡射來源卡 object-position（generic 動畫模組不懂 focal，只搬呈現）
+                        coverImg.style.objectPosition = selectedImg.style.objectPosition;
                     }
                 }
             );

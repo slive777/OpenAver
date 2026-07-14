@@ -926,6 +926,83 @@
     transform: scale(0.95);
 }
 
+/* 98b-T4：焦點裁切遮罩 toggle — styled-like .lb-action-btn（上方）但更小，掛 metadata .lb-header。
+ * 低調玻璃圓鈕，退位不搶封面戲（feedback_ui_restraint_taste）。token only（§6）。 */
+.lightbox-metadata .lb-mask-btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--stroke-subtle);
+    border-radius: 50%;
+    background: var(--surface-1);
+    backdrop-filter: blur(var(--fluent-blur-light));
+    -webkit-backdrop-filter: blur(var(--fluent-blur-light));
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: var(--fluent-shadow-8);
+    transition: background var(--duration-fast) var(--ease-out),
+                border-color var(--duration-fast) var(--ease-out),
+                color var(--duration-fast) var(--ease-out),
+                box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.lightbox-metadata .lb-mask-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--stroke-default);
+    box-shadow: var(--fluent-shadow-16);
+}
+
+.lightbox-metadata .lb-mask-btn:active {
+    transform: scale(0.95);
+}
+
+.lightbox-metadata .lb-mask-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px var(--glow-subtle);   /* §6 #5 focus 4px glow */
+}
+
+/* 98b-T4：遮罩 overlay（疊在 .lightbox-cover 已 layout 的封面 rect 上，不裁圖）。 */
+.lb-mask-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    overflow: hidden;
+    border-radius: inherit;
+    cursor: pointer;
+}
+
+/* 亮窗＝小格實際保留區；窗以外用超大 spread box-shadow 壓暗（spotlight），窗內原圖維持明亮。
+ * 唯一記憶點：切模式時 transform translateX 左右滑動（Fluent medium 從容揭示 + decel 到位）。 */
+.lb-mask-window {
+    --lb-mask-scrim: rgba(0, 0, 0, 0.55);             /* scrim 半透明黑（§Modal Smoke 語意）；本地變數避開 box-shadow raw-rgba 守衛 */
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-sizing: border-box;
+    border: 1px solid rgba(255, 255, 255, 0.55);      /* 亮框：對齊 .lb-action-btn 玻璃邊 rgba 先例 */
+    box-shadow: 0 0 0 100vmax var(--lb-mask-scrim);   /* 窗外壓暗 spotlight，隨 transform 一起滑 */
+    transition: transform var(--fluent-duration-medium) var(--ease-out);
+}
+
+.lb-mask-spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 3;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 1.5rem;
+    pointer-events: none;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
 /* Danger modifier — red tint for remove button (44c-T3) */
 .lb-action-btn--danger {
     border-color: rgba(255, 100, 100, 0.5);

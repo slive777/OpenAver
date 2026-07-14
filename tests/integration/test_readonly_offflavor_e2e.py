@@ -48,6 +48,8 @@ _BASELINE_VIDEO_COLUMNS = {
     "director", "series", "label", "tags", "sample_images", "user_tags",
     "duration", "size_bytes", "cover_path", "output_dir", "release_date", "mtime", "nfo_mtime",
     "scrape_attempted_at", "created_at", "updated_at",
+    # feature/98 focal-crop: focal 座標 + 裁切模式 + 偵測試過旗標（全域 schema，非 off-flavor 寫入路徑新增）
+    "auto_focal", "crop_mode", "focal_attempted_at",
 }
 
 _FAKE_COVER_BYTES = b"\xff\xd8\xff\xe0FAKE-COVER-JPEG"

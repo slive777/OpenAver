@@ -322,6 +322,7 @@
                         <!-- 67-A2: 三態（CD-67-3）。保留單一 <img> 沿用 handleCoverError 換圖；
                              淡入靠 _imgLoaded 的 .cover-loaded class（A1 CSS）；首屏前 8 張 eager+high（CD-67-5，不可 lazy+high 並存） -->
                         <img :src="video.cover_url"
+                             :style="focalStyle(video)"
                              :alt="video.number"
                              :loading="index < 8 ? 'eager' : 'lazy'"
                              :fetchpriority="index < 8 ? 'high' : 'auto'"
@@ -696,6 +697,22 @@
                                  alt=""
                                  aria-hidden="true">
 
+                            <!-- 98b-T4：焦點裁切遮罩 overlay（亮窗＝小格保留區；窗外 box-shadow spotlight 壓暗；
+                                 點窗 default 貼右 ⇄ auto 對焦點，亮窗左右滑動；點窗外關閉存 crop_mode）。 -->
+                            <!-- 98b-T6：移除 x-transition.opacity——實測其 enter transition 會卡在 opacity:0
+                                 (_x_transitioning 永真) 使遮罩雖 display:block 卻全透明看不見。功能性遮罩
+                                 不需淡入，x-show 即時顯示更可靠（亦符 owner 克制取向）。 -->
+                            <div class="lb-mask-overlay"
+                                 x-show="_maskVisible"
+                                 @click.self="closeMask()">
+                                <div class="lb-mask-window"
+                                     :style="_maskWinStyle"
+                                     @click="toggleMaskMode()"></div>
+                                <div class="lb-mask-spinner" x-show="_maskDetecting" aria-hidden="true">
+                                    <i class="bi bi-arrow-clockwise spin"></i>
+                                </div>
+                            </div>
+
                             <!-- 56c-T3fix: Sparkle burst overlay（10 顆四角星，ring 分佈在封面區） -->
                             <div class="sparkle-burst"
                                  x-show="!showFavoriteActresses"
@@ -761,6 +778,14 @@
                                     <span x-text="t('showcase.samples.fetch_btn')"></span>
                                 </button>
                                 <span x-show="_fetchSamplesLoading" x-text="t('showcase.samples.fetching')"></span>
+                                <!-- 98b-T4：焦點裁切遮罩 toggle（低調圓鈕，styled-like .lb-action-btn 但更小）-->
+                                <button class="lb-mask-btn"
+                                        x-show="!!currentLightboxVideo?.path && _lbFullLoaded"
+                                        @click="openMask()"
+                                        :title="t('showcase.lightbox.mask_toggle')"
+                                        :aria-label="t('showcase.lightbox.mask_toggle')">
+                                    <i class="bi bi-person-bounding-box" aria-hidden="true"></i>
+                                </button>
                             </div>
                             <!-- Row 2: Original Title (showcase only) -->
                             <div class="lb-otitle"
@@ -1166,6 +1191,7 @@
                      @mouseleave="onSimilarCardHoverLeave(anchor.id)">
                     <img class="similar-slot-img"
                          :src="(_getSlotItem && _getSlotItem(anchor.id))?.cover_url"
+                         :style="focalStyle(_getSlotItem(anchor.id))"
                          :alt="(_getSlotItem && _getSlotItem(anchor.id))?.title"
                          loading="lazy">
                 </div>
@@ -1217,7 +1243,7 @@
                 <template x-for="item in similarResults" :key="_mobilePanelRunId + '-' + item.video_id">
                     <div class="similar-mobile-burst-card"
                          @click="onMobileDrillClick(item, $event)">
-                        <img :src="item.cover_url" alt="" aria-hidden="true">
+                        <img :src="item.cover_url" :style="focalStyle(item)" alt="" aria-hidden="true">
                     </div>
                 </template>
             </div>

@@ -18,6 +18,7 @@ from typing import List, Literal, Optional
 
 from core.database import VideoRepository
 from core.db_inflow import try_inflow_upsert
+from core.focal_trigger import maybe_submit_video_focal
 from core.enricher import enrich_single, fetch_samples_only, resolve_nfo_cover_paths
 from core.organizer import organize_file
 from core.path_utils import to_file_uri, uri_to_fs_path, uri_to_local_fs_path, coerce_to_file_uri
@@ -206,6 +207,17 @@ def scrape_single(request: ScrapeRequest) -> dict:
             )
         else:
             logger.warning("scrape_single: organize_file 回傳缺 new_filename，skip in-flow upsert")
+
+        # 首刮 focal trigger（TASK-98b-T2）：只在 file 在 Scanner 追蹤夾（有 DB row）
+        # 才排——非 synced 無 row，submit 也 silent-miss。重建 to_file_uri(target_file,
+        # path_mappings) 必等於 db_inflow 寫入的 video.path（禁 normalize 疊加）。
+        if target_file and db_sync_status == "synced":
+            maybe_submit_video_focal(
+                number,
+                metadata.get("maker") if isinstance(metadata, dict) else "",
+                to_file_uri(target_file, path_mappings),
+                result.get("cover_path"),
+            )
 
     return {**result, "db_sync_status": db_sync_status}
 

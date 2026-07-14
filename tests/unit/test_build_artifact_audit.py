@@ -13,7 +13,6 @@ The audit() function is imported directly for fast, no-subprocess tests.
 
 from __future__ import annotations
 
-import io
 import sys
 import zipfile
 from pathlib import Path
@@ -30,12 +29,29 @@ from audit_build_artifact import audit, _resolve_zip  # noqa: E402  (after path 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
-def _make_zip(tmp_path: Path, entries: dict[str, bytes | None], name: str = "test.zip") -> Path:
+_FACEFINDER_ENTRY = "OpenAver/app/core/focal/facefinder"
+
+
+def _make_zip(
+    tmp_path: Path,
+    entries: dict[str, bytes | None],
+    name: str = "test.zip",
+    include_facefinder: bool = True,
+) -> Path:
     """Build a ZIP at tmp_path/name with the given {entry_path: content} mapping.
 
     Pass None as content to use a tiny 4-byte placeholder.
+
+    include_facefinder (TASK-98a-T1): the facefinder gate is an unconditional
+    hard-fail, so by default this helper injects a valid 240KB
+    OpenAver/app/core/focal/facefinder entry (unless the caller already
+    provided that exact key, or passed include_facefinder=False) — this keeps
+    every pre-existing "expected green" case green without each of them having
+    to know about the new gate.
     """
     zip_path = tmp_path / name
+    if include_facefinder and _FACEFINDER_ENTRY not in entries:
+        entries = {**entries, _FACEFINDER_ENTRY: b"\0" * 240_000}
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for entry_name, content in entries.items():
             zf.writestr(entry_name, content if content is not None else b"test")
@@ -188,7 +204,7 @@ def test_clean_zip_with_baseline_noise_passes(tmp_path):
     }
     zp = _make_zip(tmp_path, entries)
     code, msgs = audit(zp, "win", 55.0, False)
-    assert code == 0, f"Clean baseline ZIP must pass.\nMessages:\n" + "\n".join(msgs)
+    assert code == 0, "Clean baseline ZIP must pass.\nMessages:\n" + "\n".join(msgs)
 
 
 def test_pydantic_mypy_file_not_flagged(tmp_path):
@@ -211,7 +227,7 @@ def test_greenlet_not_flagged(tmp_path):
     entries = {_site("greenlet", "__init__.py"): b"x"}
     zp = _make_zip(tmp_path, entries)
     code, msgs = audit(zp, "win", 55.0, True)  # even with --strict
-    assert code == 0, f"greenlet must not be flagged:\n" + "\n".join(msgs)
+    assert code == 0, "greenlet must not be flagged:\n" + "\n".join(msgs)
 
 
 def test_mypyc_pyd_at_root_not_flagged(tmp_path):
@@ -323,6 +339,75 @@ def test_dist_info_check_runs_on_mac(tmp_path):
     zp = _make_zip(tmp_path, {_site("curl_cffi", "__init__.py"): b"x"})
     code, msgs = audit(zp, "mac", 60.0, False)
     assert code == 1, f"curl_cffi strip must hard-fail on mac too, got {code}\n" + "\n".join(msgs)
+
+
+# ── facefinder cascade existence checks (TASK-98a-T1) ───────────────────────────
+
+
+def test_facefinder_default_injected_passes(tmp_path):
+    """Default _make_zip behavior injects a valid 240KB facefinder -> pass."""
+    zp = _make_zip(tmp_path, {_site("fastapi", "__init__.py"): b"x"})
+    code, msgs = audit(zp, "win", 55.0, False)
+    assert code == 0, f"default-injected facefinder must pass, got {code}\n" + "\n".join(msgs)
+
+
+def test_facefinder_missing_fails(tmp_path):
+    """include_facefinder=False (and no facefinder entry) -> HARD-FAIL."""
+    zp = _make_zip(
+        tmp_path,
+        {_site("fastapi", "__init__.py"): b"x"},
+        include_facefinder=False,
+    )
+    code, msgs = audit(zp, "win", 55.0, False)
+    assert code == 1, f"missing facefinder must hard-fail, got {code}\n" + "\n".join(msgs)
+    assert any("FACEFINDER" in m and "FAIL" in m for m in msgs)
+
+
+def test_facefinder_mislocated_same_name_fails(tmp_path):
+    """A same-named 'facefinder' file at the WRONG path (app/core/facefinder,
+    or under site-packages/) must NOT satisfy the anchored check -> fail."""
+    zp = _make_zip(
+        tmp_path,
+        {
+            _site("fastapi", "__init__.py"): b"x",
+            "OpenAver/app/core/facefinder": b"\0" * 240_000,
+            "OpenAver/python/Lib/site-packages/somepkg/facefinder": b"\0" * 240_000,
+        },
+        include_facefinder=False,
+    )
+    code, msgs = audit(zp, "win", 55.0, False)
+    assert code == 1, (
+        "mislocated same-named facefinder must not satisfy the anchored gate,"
+        f" got {code}\n" + "\n".join(msgs)
+    )
+    assert any("FACEFINDER" in m and "FAIL" in m for m in msgs)
+
+
+def test_facefinder_undersized_fails(tmp_path):
+    """facefinder present at the correct path but only 10 bytes -> fail
+    (proves the size floor, not just presence)."""
+    zp = _make_zip(
+        tmp_path,
+        {
+            _site("fastapi", "__init__.py"): b"x",
+            "OpenAver/app/core/focal/facefinder": b"\0" * 10,
+        },
+        include_facefinder=False,
+    )
+    code, msgs = audit(zp, "win", 55.0, False)
+    assert code == 1, f"undersized facefinder must hard-fail, got {code}\n" + "\n".join(msgs)
+    assert any("FACEFINDER" in m and "FAIL" in m for m in msgs)
+
+
+def test_facefinder_check_runs_on_mac(tmp_path):
+    """facefinder gate is platform-agnostic — missing cascade fails on mac too."""
+    zp = _make_zip(
+        tmp_path,
+        {_site("fastapi", "__init__.py"): b"x"},
+        include_facefinder=False,
+    )
+    code, msgs = audit(zp, "mac", 60.0, False)
+    assert code == 1, f"missing facefinder must hard-fail on mac too, got {code}\n" + "\n".join(msgs)
 
 
 # ── Glob resolution errors ────────────────────────────────────────────────────

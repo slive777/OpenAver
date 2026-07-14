@@ -43,6 +43,7 @@ import {
 } from '@/shared/constellation/animations.js';
 import { BreathingManager } from '@/shared/constellation/breathing.js';
 import { waitForMount } from '@/shared/dom-timing.js';
+import { focalObjectPosition } from '@/shared/focal.js';
 
 // T6 (CD-T6-1)：hover corridor half-width（與 motion-lab host 同值 40px）
 const HOVER_DISTANCE = 40;
@@ -555,6 +556,7 @@ export function stateSimilar() {
         this.similarQueryVideo = newData.query_video;
         if (this._similarMainStatic && clickedItem.cover_url) {
           this._similarMainStatic.src = clickedItem.cover_url;
+          this.applyFocalToImg(this._similarMainStatic, clickedItem);
         }
         if (this._similarActiveHoverSlot !== null) {
           this._resetSimilarHoverCard(this._similarActiveHoverSlot);
@@ -690,6 +692,7 @@ export function stateSimilar() {
             // 避免 Alpine 把中央 clicked slot card 重綁新批圖（codex-fix3 rebind bug）。
             if (this._similarMainStatic && clickedItem.cover_url) {
               this._similarMainStatic.src = clickedItem.cover_url;
+              this.applyFocalToImg(this._similarMainStatic, clickedItem);
             }
           },
           // codex-fix4: 每張 enter/persist slot 在 reset callback（slot--hidden 期）由 host
@@ -704,7 +707,10 @@ export function stateSimilar() {
             const card = this.similarCards[slotId];
             if (!card) return;
             const imgEl = card.querySelector('.similar-slot-img');
-            if (imgEl) imgEl.src = item.cover_url;
+            if (imgEl) {
+              imgEl.src = item.cover_url;
+              this.applyFocalToImg(imgEl, item);
+            }
           },
         }
       );
@@ -858,12 +864,23 @@ export function stateSimilar() {
      * play button z=12 > main static z=11，button 仍在 main static 之上命中正確。
      * @click.stop 防冒泡的責任由 play button 的 Alpine handler 負責（已在 template）。
      */
+    /**
+     * 98b-T3: 把 focal object-position 套到 imperative 寫 src 的可見封面 img。
+     * 與每個 `.src=` 成對呼叫；`|| ''` 清舊 inline（換片 A→B 若 B 回 null 須還原 baseline，
+     * 不可殘留 A 的 objectPosition）。item 為 null/undefined 時 focalObjectPosition 優雅回 null。
+     */
+    applyFocalToImg(el, item) {
+      if (el) el.style.objectPosition = focalObjectPosition(item) || '';
+    },
+
     _buildSimilarMainStatic(src) {
       const stageInner = document.querySelector('.similar-stage-inner');
       if (!stageInner) return null;
       const img = document.createElement('img');
       img.className = 'similar-main-static';
       img.src = src || '';
+      // 98b-T3 I-c：首建時 currentLightboxVideo == 查詢片 A（similar mode 尚未 drill），focal 正確。
+      this.applyFocalToImg(img, this.currentLightboxVideo);
       img.alt = '';
       img.setAttribute('aria-hidden', 'true');
       // codex P1-2: 取代已移除的 .similar-main-overlay click handler。
@@ -1290,7 +1307,10 @@ export function stateSimilar() {
       // 設中央主圖 src（FlipReplace 落點 + Burst 原點；83b-T3 邊界：enter 前設 src，
       // onComplete 後只 cleanup ghost，不依賴 onComplete 設 src 以支援中途中斷場景）
       const coverEl = this.$refs.mobilePanelCoverImg;
-      if (coverEl) coverEl.src = this.currentLightboxVideo.cover_url || '';
+      if (coverEl) {
+        coverEl.src = this.currentLightboxVideo.cover_url || '';
+        this.applyFocalToImg(coverEl, this.currentLightboxVideo);
+      }
 
       // 顯示面板：flag（trigger x-trap）+ DOM .show（CSS default-hidden → 顯示）
       this.similarModeMobileOpen = true;
@@ -1526,6 +1546,7 @@ export function stateSimilar() {
       // 故只在 no-BurstPicker fallback（flip 退化成 Promise.resolve）才手動補設。
       if (!(window.BurstPicker && coverEl) && coverEl && item.cover_url) {
         coverEl.src = item.cover_url;
+        this.applyFocalToImg(coverEl, item);
       }
       // T2/CD-3：waitForMount 等 swap 後的新卡（非 oldCards）mount。predicate 用 expectedCards
       // = 唯一 video_id 數（非硬編 6、非裸 length——重複 video_id 時 keyed dedup 渲染較少，用

@@ -117,6 +117,9 @@ def init_db(db_path: Path = None) -> None:
             mtime REAL,
             nfo_mtime REAL,
             scrape_attempted_at REAL DEFAULT 0,
+            auto_focal TEXT DEFAULT '',
+            crop_mode TEXT NOT NULL DEFAULT 'auto',
+            focal_attempted_at TIMESTAMP DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -212,6 +215,11 @@ def init_db(db_path: Path = None) -> None:
             official_url TEXT,
             photo_source TEXT,
             primary_text_source TEXT,
+            auto_focal TEXT DEFAULT '',
+            crop_mode TEXT NOT NULL DEFAULT 'auto',
+            photo_fp_path TEXT DEFAULT '',
+            photo_fp_mtime_ns INTEGER DEFAULT 0,
+            photo_fp_size INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -240,7 +248,7 @@ def init_db(db_path: Path = None) -> None:
         cursor.execute(
             """UPDATE videos SET scrape_attempted_at = ?
                WHERE scrape_attempted_at = 0
-               AND (cover_path != '' OR nfo_mtime > 0 OR output_dir != '')""",
+               AND (cover_path != '' OR nfo_mtime > 0 OR output_dir != '');""",
             (time.time(),)
         )
 
@@ -253,6 +261,33 @@ def init_db(db_path: Path = None) -> None:
     if 'clip_model_id' in existing_cols:  # 57d 連帶刪
         cursor.execute("ALTER TABLE videos DROP COLUMN clip_model_id")  # 57d 連帶刪
         existing_cols.discard('clip_model_id')  # 57d 連帶刪
+
+    # Migration: 加入 98a auto_focal / crop_mode 欄位（videos）
+    if 'auto_focal' not in existing_cols:
+        cursor.execute("ALTER TABLE videos ADD COLUMN auto_focal TEXT DEFAULT ''")
+    if 'crop_mode' not in existing_cols:
+        cursor.execute("ALTER TABLE videos ADD COLUMN crop_mode TEXT NOT NULL DEFAULT 'auto'")
+
+    # Migration: 加入 focal_attempted_at 欄位（videos，Codex PR#105 P2 修復 — 無臉偵測結果
+    # 也存 format_focal(None) == ''，若不記「試過了」會被 get_empty_focal_candidates
+    # 每次重掃無限重排。nullable：NULL = 從未偵測過，非 NULL = 偵測跑過（不論有臉/無臉）。
+    if 'focal_attempted_at' not in existing_cols:
+        cursor.execute("ALTER TABLE videos ADD COLUMN focal_attempted_at TIMESTAMP DEFAULT NULL")
+
+    # Migration: 加入 98a focal + photo fingerprint 欄位（actresses，CD-98a-8 新 guarded block）
+    existing_actress_cols = {
+        row[1] for row in cursor.execute("PRAGMA table_info(actresses)").fetchall()
+    }
+    if 'auto_focal' not in existing_actress_cols:
+        cursor.execute("ALTER TABLE actresses ADD COLUMN auto_focal TEXT DEFAULT ''")
+    if 'crop_mode' not in existing_actress_cols:
+        cursor.execute("ALTER TABLE actresses ADD COLUMN crop_mode TEXT NOT NULL DEFAULT 'auto'")
+    if 'photo_fp_path' not in existing_actress_cols:
+        cursor.execute("ALTER TABLE actresses ADD COLUMN photo_fp_path TEXT DEFAULT ''")
+    if 'photo_fp_mtime_ns' not in existing_actress_cols:
+        cursor.execute("ALTER TABLE actresses ADD COLUMN photo_fp_mtime_ns INTEGER DEFAULT 0")
+    if 'photo_fp_size' not in existing_actress_cols:
+        cursor.execute("ALTER TABLE actresses ADD COLUMN photo_fp_size INTEGER DEFAULT 0")
 
     conn.commit()
     conn.close()

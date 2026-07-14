@@ -31,6 +31,15 @@ class Actress:
     official_url: Optional[str] = None
     photo_source: Optional[str] = None
     primary_text_source: Optional[str] = None
+    auto_focal: str = ''
+    crop_mode: str = 'auto'
+    # Photo fingerprint (98d stat-on-load). Defaults MATCH the SQL column
+    # defaults ('' / 0 / 0) so a fresh save() and an ALTER-migrated row share
+    # ONE canonical "unset" sentinel — 98d compares (path, mtime_ns, size)
+    # and must not juggle None-vs-''/0 by row provenance.
+    photo_fp_path: str = ''
+    photo_fp_mtime_ns: int = 0
+    photo_fp_size: int = 0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -77,25 +86,39 @@ class Actress:
         return cls(**data)
 
 
+# save() ON CONFLICT 排除集合（CD-98a-6）：name 是 PK、恆不進 update_parts；
+# auto_focal/crop_mode/photo_fp_* 五欄只由專用 update_crop_mode/update_focal_result
+# mutator 改寫，save() 衝突時一律保留 DB 既有值（比照 video.py 的 _FOCAL_PRESERVE）。
+_ACTRESS_FOCAL_PRESERVE = frozenset({
+    'name', 'auto_focal', 'crop_mode',
+    'photo_fp_path', 'photo_fp_mtime_ns', 'photo_fp_size',
+})
+
+
 class ActressRepository:
     """女優資料存取層"""
 
     def __init__(self, db_path: Path = None):
         self.db_path = db_path or connection.get_db_path()
+        self._columns_cache: Optional[List[str]] = None
 
     def _get_connection(self) -> sqlite3.Connection:
         """取得資料庫連線"""
         return connection.get_connection(self.db_path)
 
     def _get_columns(self) -> List[str]:
-        """取得欄位名稱列表"""
-        return [
-            'name', 'name_en', 'birth', 'height', 'cup',
-            'bust', 'waist', 'hip', 'hometown', 'hobby',
-            'aliases', 'agency', 'debut_work', 'tags', 'nickname',
-            'blog_url', 'official_url', 'photo_source', 'primary_text_source',
-            'created_at', 'updated_at',
-        ]
+        """取得欄位名稱列表（動態從 PRAGMA table_info 取得，確保與 SELECT * 順序一致，
+        鏡射 VideoRepository._get_columns；CD-98a-8——手寫清單在 ALTER 加欄後會與
+        SELECT * 長度不符，from_row 的 zip(strict=True) 直接 ValueError）"""
+        if self._columns_cache is None:
+            conn = self._get_connection()
+            try:
+                cursor = conn.cursor()
+                cursor.execute("PRAGMA table_info(actresses)")
+                self._columns_cache = [row[1] for row in cursor.fetchall()]
+            finally:
+                conn.close()
+        return self._columns_cache
 
     def save(self, actress: Actress) -> None:
         """新增或更新女優（根據 name 判斷）"""
@@ -109,11 +132,13 @@ class ActressRepository:
 
             columns = list(actress_dict.keys())
             placeholders = ', '.join(['?'] * len(columns))
-            update_parts = [
-                f"{col} = excluded.{col}"
-                for col in columns
-                if col != 'name'
-            ]
+            # preserve-on-conflict（CD-98a-6）：name 是 PK 恆排除；focal + photo fingerprint
+            # 五欄只由專用 update_crop_mode/update_focal_result mutator 改寫，save() 衝突時保留
+            update_parts = []
+            for col in columns:
+                if col in _ACTRESS_FOCAL_PRESERVE:
+                    continue
+                update_parts.append(f"{col} = excluded.{col}")
             update_clause = ', '.join(update_parts)
 
             sql = f"""
@@ -126,6 +151,59 @@ class ActressRepository:
 
             cursor.execute(sql, list(actress_dict.values()))
             conn.commit()
+        finally:
+            conn.close()
+
+    def update_crop_mode(self, name: str, mode: str) -> bool:
+        """安全更新 crop_mode 欄位（不碰其他欄位，CD-98a-6 mutator，鏡射 VideoRepository.update_crop_mode）。
+
+        Args:
+            name: 女優名稱（DB key）
+            mode: 新的 crop_mode 值（'auto' 或 'default'）
+
+        Returns:
+            bool: 是否成功更新（name 不存在 → False，不拋例外、不新建 row）
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE actresses SET crop_mode = ?, updated_at = CURRENT_TIMESTAMP WHERE name = ?",
+                (mode, name)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    def update_focal_result(self, name: str, focal: str, fp: tuple) -> bool:
+        """原子寫入 auto_focal + photo fingerprint 三欄（CD-98a-6 mutator）。
+
+        單一 UPDATE 一次寫完 auto_focal 與 photo_fp_path/photo_fp_mtime_ns/photo_fp_size，
+        避免 focal 與 fingerprint 分兩次寫造成的中間態（背景 worker 算完焦點後一次落庫）。
+
+        Args:
+            name: 女優名稱（DB key）
+            focal: 新的 auto_focal 值（背景 focal 演算法算出的座標字串）
+            fp: (photo_fp_path, photo_fp_mtime_ns, photo_fp_size) 三元組——worker 算 focal
+                當下所依據的照片檔案指紋，供下次載入時判斷照片是否已變更（98d stat-on-load）
+
+        Returns:
+            bool: 是否成功更新（name 不存在 → False，不拋例外、不新建 row）
+        """
+        fp_path, fp_mtime_ns, fp_size = fp
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """UPDATE actresses
+                   SET auto_focal = ?, photo_fp_path = ?, photo_fp_mtime_ns = ?, photo_fp_size = ?,
+                       updated_at = CURRENT_TIMESTAMP
+                   WHERE name = ?""",
+                (focal, fp_path, fp_mtime_ns, fp_size, name)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
         finally:
             conn.close()
 

@@ -872,7 +872,10 @@
       "tag_api_failed": "標籤儲存失敗，請稍後再試",
       "user_tags_label": "自訂標籤",
       "alias_label": "別名",
-      "alias_source_hint": "由 Scanner 同步"
+      "alias_source_hint": "由 Scanner 同步",
+      "mask_toggle": "封面裁切預覽",
+      "mask_detect_failed": "焦點偵測失敗，請稍後再試",
+      "mask_save_failed": "裁切設定儲存失敗，請稍後再試"
     },
     "gallery": {
       "prev": "上一張 (←)",

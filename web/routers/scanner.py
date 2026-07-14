@@ -41,6 +41,8 @@ from core.gallery_generator import HTMLGenerator
 from core.path_utils import to_file_uri, is_path_under_dir, uri_to_fs_path, coerce_to_file_uri, uri_to_local_fs_path
 from core.nfo_updater import check_cache_needs_update, update_videos_generator
 from core.database import VideoRepository, Video, init_db, get_db_path, migrate_json_to_sqlite
+from core.focal import requires_face_detection
+from core.focal_trigger import maybe_submit_video_focal
 from core.organizer import generate_jellyfin_images, HEADERS as _EMBED_HEADERS
 from core.config import load_config, iter_gallery_sources, get_gallery_source_paths
 from core.readonly_producer import produce_source, resolve_output_root
@@ -521,6 +523,19 @@ def generate_avlist(should_abort: Optional[Callable[[], bool]] = None) -> Genera
                     inserted, updated = repo.upsert_batch(videos_to_upsert)
                     total_inserted += inserted
                     total_updated += updated
+
+                # 掃描 focal trigger（TASK-98b-T2 / Codex PR#105 P2）：涵蓋本次掃描
+                # in-scope 的所有空焦點無碼片，不只 upsert batch（needs_scan）——既有、
+                # 未變動、auto_focal='' 的列（不在 videos_to_upsert 內）也要補，否則
+                # 「重掃一次自動補焦既有庫」形同虛設。current_paths 是本目錄本次掃到
+                # 的完整 DB-key URI 集合（:457-458 同一套 to_file_uri(path,
+                # path_mappings) 推導），bulk 查詢，不另建 URI、不 N+1。
+                if current_paths:
+                    focal_candidates = repo.get_empty_focal_candidates(list(current_paths))
+                    for c_path, c_number, c_maker, c_cover_path in focal_candidates:
+                        if requires_face_detection(c_number, c_maker):
+                            cover_fs = uri_to_local_fs_path(c_cover_path, path_mappings)
+                            maybe_submit_video_focal(c_number, c_maker, c_path, cover_fs, db_path=repo.db_path)
 
                 logger.info(f"[Gallery] {directory}: {len(all_files)} 個檔案，快取命中 {cache_hits}")
 

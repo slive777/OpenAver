@@ -13,7 +13,7 @@
  * 非 pytest（遵 CLAUDE.md「lint 守衛寫 lint config、不寫 pytest」）。串 `npm run lint`。
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
@@ -1534,6 +1534,40 @@ const RULES = [
         ctx.fail('CG-ML-02: motion_lab.html <style>: .clip-lab-slot rule not found');
       } else if (m2[1].includes('width: 120px')) {
         ctx.fail('CG-ML-02: .clip-lab-slot block must not contain width: 120px (should be 107px)');
+      }
+    },
+  },
+
+  // ══ 98b-T3：focal inline-wins 前提守衛 ══
+  // CG-FOCAL-01 ← TASK-98b-T3 no-`!important` 不變式：web/static/css/** 任何 CSS 檔的
+  // object-position 宣告不得帶 !important。98b-T3 的 inline `:style="focalStyle(...)"` /
+  // imperative `el.style.objectPosition` 靠自然 specificity 勝過 CSS baseline `right center`；
+  // 若某 focal-aware 站的 CSS object-position 加了 !important，inline 會被壓過 → focal 失效。
+  // 註：css-guard 既有 rule 皆單檔 selector-block 導向，表達不了「全目錄任一檔的宣告級 forbidden」，
+  // 故用 fn escape-hatch + 遞迴 readdir 掃全 css 目錄（去註解後逐檔 regex：object-position + !important
+  // 同一宣告），最貼近「object-position + !important on same declaration」語意（file: 'theme.css'
+  // 僅為佔位滿足 runner loadFile，實際掃描在 check 內遞迴 CSS('')；ROOT 覆蓋 → scratch 副本自動生效）。
+  {
+    id: 'CG-FOCAL-01',
+    file: 'theme.css',
+    kind: 'fn',
+    check(ctx) {
+      const cssDir = CSS('');
+      const files = [];
+      const walk = (dir) => {
+        for (const ent of readdirSync(dir, { withFileTypes: true })) {
+          const full = join(dir, ent.name);
+          if (ent.isDirectory()) walk(full);
+          else if (ent.isFile() && ent.name.endsWith('.css')) files.push(full);
+        }
+      };
+      walk(cssDir);
+      const re = /object-position\s*:[^;}]*!important/;
+      for (const f of files) {
+        const m = stripCssComments(readFileSync(f, 'utf-8')).match(re);
+        if (m) {
+          ctx.fail(`CG-FOCAL-01: ${f} 含 object-position + !important（${JSON.stringify(m[0].trim())}）— 破壞 98b-T3 focal inline-wins 前提（inline :style/el.style 會被 !important 壓過）`);
+        }
       }
     },
   },

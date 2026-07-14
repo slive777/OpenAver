@@ -11,7 +11,9 @@ from core.database import (
     init_db,
     Video,
     migrate_json_to_sqlite,
-    VideoRepository
+    VideoRepository,
+    Actress,
+    ActressRepository,
 )
 from core.gallery_scanner import VideoInfo
 from core.path_utils import to_file_uri
@@ -54,6 +56,25 @@ def test_init_db_creates_table(tmp_path):
     assert "number" in columns
     assert "title" in columns
     assert "cover_path" in columns
+    # TASK-98a-T4: focal + crop_mode 欄位（videos）
+    assert "auto_focal" in columns
+    assert "crop_mode" in columns
+    # Codex PR#105 P2: focal_attempted_at 欄位（videos，no-face re-enqueue 修復）
+    assert "focal_attempted_at" in columns
+
+    # actresses schema 斷言（先前完全沒有，98a 新增，見 T4 DoD-1）
+    conn3 = sqlite3.connect(str(db_path))
+    cursor3 = conn3.cursor()
+    cursor3.execute("PRAGMA table_info(actresses)")
+    actress_columns = [row[1] for row in cursor3.fetchall()]
+    conn3.close()
+
+    assert "name" in actress_columns
+    assert "auto_focal" in actress_columns
+    assert "crop_mode" in actress_columns
+    assert "photo_fp_path" in actress_columns
+    assert "photo_fp_mtime_ns" in actress_columns
+    assert "photo_fp_size" in actress_columns
 
 
 def test_init_db_creates_indexes(tmp_path):
@@ -1142,4 +1163,180 @@ class TestClipColumnDrop:
         db_path = tmp_path / "noindex.db"
         # 建完整 schema（有 init_db 觸發）— index 從未建立（因為 clean install）
         init_db(db_path)  # 不爆即 pass
+
+
+# ============ TASK-98a-T4: focal + crop_mode migration（CD-98a-6/-7/-8）============
+
+class TestFocalCropMigration:
+    """舊 DB（無 auto_focal/crop_mode/photo_fp_* 欄位）升級後：欄位補齊、既有 row 得預設值、
+    仍可透過 get_by_path/get_by_name 正常讀出（Codex P1：actress SELECT * 長度不符 ValueError 守衛）。
+    """
+
+    _OLD_VIDEOS_SQL = """
+        CREATE TABLE videos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            path TEXT UNIQUE NOT NULL,
+            number TEXT,
+            title TEXT,
+            original_title TEXT,
+            actresses TEXT,
+            maker TEXT,
+            director TEXT DEFAULT '',
+            series TEXT,
+            label TEXT DEFAULT '',
+            tags TEXT,
+            sample_images TEXT DEFAULT '',
+            user_tags TEXT DEFAULT '[]',
+            output_dir TEXT DEFAULT '',
+            duration INTEGER,
+            size_bytes INTEGER,
+            cover_path TEXT,
+            release_date TEXT,
+            mtime REAL,
+            nfo_mtime REAL,
+            scrape_attempted_at REAL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """
+
+    _OLD_ACTRESSES_SQL = """
+        CREATE TABLE actresses (
+            name TEXT PRIMARY KEY,
+            name_en TEXT,
+            birth TEXT,
+            height TEXT,
+            cup TEXT,
+            bust INTEGER,
+            waist INTEGER,
+            hip INTEGER,
+            hometown TEXT,
+            hobby TEXT,
+            aliases TEXT DEFAULT '[]',
+            agency TEXT,
+            debut_work TEXT,
+            tags TEXT DEFAULT '[]',
+            nickname TEXT,
+            blog_url TEXT,
+            official_url TEXT,
+            photo_source TEXT,
+            primary_text_source TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """
+
+    def _create_old_schema_db(self, db_path: Path):
+        """建立沒有 focal/crop_mode/fp 欄位的舊 videos + actresses 表，各插入一筆既有資料。"""
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        cursor.execute(self._OLD_VIDEOS_SQL)
+        cursor.execute(self._OLD_ACTRESSES_SQL)
+        cursor.execute(
+            "INSERT INTO videos (path, number, title) VALUES (?, ?, ?)",
+            (to_file_uri("/old_focal_migration.mp4"), "OLD-FOCAL-001", "舊片"),
+        )
+        cursor.execute(
+            "INSERT INTO actresses (name, name_en) VALUES (?, ?)",
+            ("舊女優", "Old Actress"),
+        )
+        conn.commit()
+        conn.close()
+
+    def test_migration_adds_focal_columns_to_videos(self, tmp_path):
+        """舊 videos 表升級後 auto_focal/crop_mode 欄位存在"""
+        db_path = tmp_path / "old_focal.db"
+        self._create_old_schema_db(db_path)
+
+        init_db(db_path)
+
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(videos)")
+        columns = [row[1] for row in cursor.fetchall()]
+        conn.close()
+
+        assert "auto_focal" in columns
+        assert "crop_mode" in columns
+        # Codex PR#105 P2 no-face re-enqueue 修復：videos.focal_attempted_at（actresses 不在範圍）
+        assert "focal_attempted_at" in columns
+
+    def test_migration_adds_focal_and_fp_columns_to_actresses(self, tmp_path):
+        """舊 actresses 表升級後 auto_focal/crop_mode/photo_fp_* 五欄存在"""
+        db_path = tmp_path / "old_focal.db"
+        self._create_old_schema_db(db_path)
+
+        init_db(db_path)
+
+        conn = sqlite3.connect(str(db_path))
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(actresses)")
+        columns = [row[1] for row in cursor.fetchall()]
+        conn.close()
+
+        assert "auto_focal" in columns
+        assert "crop_mode" in columns
+        assert "photo_fp_path" in columns
+        assert "photo_fp_mtime_ns" in columns
+        assert "photo_fp_size" in columns
+
+    def test_migration_idempotent_on_old_schema(self, tmp_path):
+        """對舊 schema 連續呼叫 init_db() 兩次不拋例外"""
+        db_path = tmp_path / "old_focal.db"
+        self._create_old_schema_db(db_path)
+
+        init_db(db_path)
+        init_db(db_path)  # 第二次不應報錯
+
+    def test_migration_existing_video_row_gets_defaults_and_stays_readable(self, tmp_path):
+        """既有 videos row 升級後得 crop_mode='auto'/auto_focal=''，且 get_by_path 仍可正常讀出"""
+        db_path = tmp_path / "old_focal.db"
+        self._create_old_schema_db(db_path)
+
+        init_db(db_path)
+
+        repo = VideoRepository(db_path)
+        result = repo.get_by_path(to_file_uri("/old_focal_migration.mp4"))
+        assert result is not None
+        assert result.number == "OLD-FOCAL-001"
+        assert result.title == "舊片"
+        assert result.crop_mode == "auto"
+        assert result.auto_focal == ""
+        # Codex PR#105 P2：舊 row 升級後 focal_attempted_at 為 NULL（從未偵測過，非 0/''）
+        assert result.focal_attempted_at is None
+
+    def test_migration_existing_actress_row_gets_defaults_and_stays_readable(self, tmp_path):
+        """既有 actresses row 升級後得 crop_mode='auto'/auto_focal=''/fp 預設，且 get_by_name 仍可正常讀出
+        （Codex P1 守衛：手寫 _get_columns 在 ALTER +5 欄後長度不符 → zip(strict=True) ValueError）"""
+        db_path = tmp_path / "old_focal.db"
+        self._create_old_schema_db(db_path)
+
+        init_db(db_path)
+
+        repo = ActressRepository(db_path)
+        result = repo.get_by_name("舊女優")
+        assert result is not None
+        assert result.name_en == "Old Actress"
+        assert result.crop_mode == "auto"
+        assert result.auto_focal == ""
+        assert result.photo_fp_path == ""
+        assert result.photo_fp_mtime_ns == 0
+        assert result.photo_fp_size == 0
+
+    def test_fresh_db_actress_get_by_name_and_get_all_smoke(self, tmp_path):
+        """fresh-CREATE DB：actress 動態 _get_columns（26 欄）與 SELECT * 長度一致，
+        get_by_name/get_all 皆正常回 Actress（不 ValueError）"""
+        db_path = tmp_path / "fresh_focal.db"
+        init_db(db_path)
+
+        repo = ActressRepository(db_path)
+        repo.save(Actress(name="新女優", name_en="New Actress"))
+
+        by_name = repo.get_by_name("新女優")
+        assert by_name is not None
+        assert by_name.crop_mode == "auto"
+        assert by_name.auto_focal == ""
+
+        all_actresses = repo.get_all()
+        assert len(all_actresses) == 1
 

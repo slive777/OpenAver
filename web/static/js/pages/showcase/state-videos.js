@@ -7,9 +7,17 @@
  */
 
 import { _videos, _filteredVideos, _nameToGroup, _tagToGroup, _setVideos, _setFilteredVideos } from '@/showcase/state-base.js';
+import { focalObjectPosition } from '@/shared/focal.js';
 
 export function stateVideos() {
     return {
+
+        // --- 98b-T3: focal object-position（無碼片直式對臉；null → 退 CSS baseline right center）---
+        // merge 後對整個 showcase scope 可見，供 F1 grid / F2 similar slot / F4 mobile burst 三站 :style 共用。
+        focalStyle(video) {
+            const op = focalObjectPosition(video);
+            return op ? `object-position:${op}` : '';
+        },
 
         // --- API 呼叫 ---
         async fetchVideos() {

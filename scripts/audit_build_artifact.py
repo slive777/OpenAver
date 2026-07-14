@@ -59,6 +59,19 @@ macOS ceiling (spec-97 CD-97-6):
     runtime dep). 60 = baseline + dist-info (~50) with ~10 MB legit headroom,
     still catching mypy-class (~62) and playwright-class regressions. Windows
     stays at 48 (dist-info adds only ~0.5 MB compressed, ZIP ~35 MB).
+
+facefinder cascade existence check (TASK-98a-T1, added in feature/98):
+    ONE HARD-FAIL check (both platforms, see _facefinder_check), unconditional
+    and positive (unlike curl_cffi's conditional check): app/core/focal/facefinder
+    must always be present and >= 200,000 uncompressed bytes (real cascade is
+    239,632 bytes). Both build scripts recursively copy core/ into the artifact,
+    so the cascade is never legitimately absent — a missing/truncated cascade
+    means detect_focal() silently returns None forever in the released build
+    (dev-only blind spot: the feature/97 import sweep never imports core.focal,
+    and the lazy classifier singleton only opens the cascade on first real use).
+    The match is anchored to the exact release path so a same-named file
+    elsewhere (app/core/facefinder, site-packages/x/facefinder) does not
+    satisfy the check.
 """
 
 from __future__ import annotations
@@ -72,6 +85,15 @@ from pathlib import Path
 
 # Matches site-packages/curl_cffi-<ver>.dist-info/METADATA anywhere in the ZIP.
 _CURL_CFFI_METADATA_RE = re.compile(r"site-packages/curl_cffi-[^/]+\.dist-info/METADATA$")
+
+# Matches the packaged focal-crop cascade at its EXACT anchored release path
+# (feature/98 TASK-98a-T1). Anchored to app/core/focal/facefinder so a
+# same-named file elsewhere (app/core/facefinder, site-packages/x/facefinder)
+# does NOT satisfy the check.
+_FACEFINDER_RE = re.compile(r"(^|/)app/core/focal/facefinder$")
+
+# Real cascade is 239,632 bytes; guard against an empty/truncated stand-in.
+_FACEFINDER_MIN_BYTES = 200_000
 
 # Top-level scale at/above which the dist-info ratio sanity net engages. Real
 # artifacts bundle ~50 packages; synthetic test ZIPs stay well below this.
@@ -188,6 +210,43 @@ def _dist_info_check(zf: zipfile.ZipFile, top_dirs: set[str]) -> list[str]:
     return messages
 
 
+def _facefinder_check(zf: zipfile.ZipFile) -> list[str]:
+    """Return HARD-FAIL messages for a missing/undersized focal-crop cascade
+    (TASK-98a-T1, feature/98).
+
+    Unlike the curl_cffi dist-info check, this tier is POSITIVE and
+    UNCONDITIONAL: app/core/focal/facefinder must always be present and
+    >= _FACEFINDER_MIN_BYTES uncompressed, on every platform. Both
+    build.py and build_macos.py recursively copy core/ into the artifact,
+    so the cascade is never expected to be legitimately absent — a missing
+    or truncated cascade means detect_focal() will silently return None
+    forever in the released build (a dev-only blind spot: the feature/97
+    import sweep never imports core.focal, and the lazy classifier
+    singleton only opens the cascade on the first real detect_focal call).
+    """
+    messages: list[str] = []
+    match = next((n for n in zf.namelist() if _FACEFINDER_RE.search(n)), None)
+    if match is None:
+        messages.append(
+            "[FAIL] FACEFINDER: app/core/focal/facefinder not found in the"
+            " ZIP — the focal-crop cascade is missing from the release"
+            " artifact. detect_focal() will silently return None forever"
+            " (cascade open() raises, caught and logged, callers fall back"
+            " to right-crop) — this is a release-blocking regression, not"
+            " a soft failure."
+        )
+        return messages
+
+    size = zf.getinfo(match).file_size
+    if size < _FACEFINDER_MIN_BYTES:
+        messages.append(
+            f"[FAIL] FACEFINDER: app/core/focal/facefinder is only {size}"
+            f" bytes (< {_FACEFINDER_MIN_BYTES} minimum; real cascade is"
+            f" 239,632 bytes) — looks empty or truncated."
+        )
+    return messages
+
+
 def audit(
     zip_path: str | Path,
     platform: str,
@@ -229,6 +288,7 @@ def audit(
     with zipfile.ZipFile(zip_path) as zf:
         top_dirs = _site_packages_top_dirs(zf)
         dist_info_msgs = _dist_info_check(zf, top_dirs)
+        facefinder_msgs = _facefinder_check(zf)
 
     messages.append(
         f"[INFO] Scanned {zip_path.name} — platform={platform},"
@@ -238,6 +298,11 @@ def audit(
     # ── dist-info existence (spec-97 G-2 static first pass; both platforms) ────
     if dist_info_msgs:
         messages.extend(dist_info_msgs)
+        failed = True
+
+    # ── facefinder cascade existence (TASK-98a-T1; both platforms) ─────────────
+    if facefinder_msgs:
+        messages.extend(facefinder_msgs)
         failed = True
 
     # Hard-fail tier

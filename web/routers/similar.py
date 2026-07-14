@@ -74,11 +74,34 @@ def _compute_similar_covers(video_id: int, limit: int) -> dict:
     ranker = SimilarRankerCache.get()
     results_videos = ranker.rank(target, top_k=limit)
 
+    # Codex PR#105 P2 修復：ranker.rank() 可能回 SimilarRankerCache 快取的 Video 物件（非
+    # fresh DB row）。update_auto_focal()/update_crop_mode() 刻意不 invalidate 整個 ranker
+    # cache（焦點/裁切模式是純顯示欄位、不影響排序特徵，比照 upsert/delete invalidate 代價
+    # 不對稱），改為此處批次 fresh 覆蓋，避免卡片顯示 stale 焦點/裁切模式。
+    focal_crop_map = repo.get_focal_crop_map([v.path for v in results_videos])
+
     # feature/71 T4：讀一次 thumbnail_cache flag，套用於 query_video + 每個 result
     config = load_config()
     gallery_config = config.get('gallery', {})
     path_mappings = gallery_config.get('path_mappings', {})
     enabled = config.get('thumbnail_cache_enabled', False)
+
+    results = []
+    for v in results_videos:
+        fresh_auto_focal, fresh_crop_mode = focal_crop_map.get(v.path, (v.auto_focal, v.crop_mode))
+        results.append({
+            "video_id": v.id,
+            "number": v.number,
+            "title": v.title,
+            "cover_path": v.cover_path,
+            "cover_url": _build_cover_url(v, enabled, path_mappings),
+            "cover_full_url": _build_cover_full_url(v, path_mappings),  # 71c：恆原圖，供燈箱 blur-up .lb-full overlay
+            "cosine_score": ranker._score(target, v),
+            "penalty_applied": False,  # rule-based 無 penalty 概念，保留 key 為 fixture 相容
+            "actresses": v.actresses if isinstance(v.actresses, list) else [],
+            "auto_focal": fresh_auto_focal,  # 98b：canonical "x,y" 4dp 或 ''（query_video 卡刻意不加）；P2 修復：fresh 覆蓋
+            "crop_mode": fresh_crop_mode,    # 98b：'auto' | 'default'；P2 修復：fresh 覆蓋
+        })
 
     return {
         "video_id": video_id,
@@ -89,20 +112,7 @@ def _compute_similar_covers(video_id: int, limit: int) -> dict:
             "title": target.title,
             "cover_url": _build_cover_url(target, enabled, path_mappings),
         },
-        "results": [
-            {
-                "video_id": v.id,
-                "number": v.number,
-                "title": v.title,
-                "cover_path": v.cover_path,
-                "cover_url": _build_cover_url(v, enabled, path_mappings),
-                "cover_full_url": _build_cover_full_url(v, path_mappings),  # 71c：恆原圖，供燈箱 blur-up .lb-full overlay
-                "cosine_score": ranker._score(target, v),
-                "penalty_applied": False,  # rule-based 無 penalty 概念，保留 key 為 fixture 相容
-                "actresses": v.actresses if isinstance(v.actresses, list) else [],
-            }
-            for v in results_videos
-        ],
+        "results": results,
     }
 
 

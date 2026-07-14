@@ -3,7 +3,7 @@ import sqlite3
 import json
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from datetime import datetime
 
 from core.logger import get_logger
@@ -37,6 +37,9 @@ class Video:
     mtime: float = 0.0
     nfo_mtime: float = 0.0
     scrape_attempted_at: float = 0.0
+    auto_focal: str = ''
+    crop_mode: str = 'auto'
+    focal_attempted_at: Optional[str] = None  # NULL=從未偵測過；非 NULL=偵測跑過（Codex PR#105 P2）
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -145,6 +148,32 @@ class Video:
         return cls(**data)
 
 
+# preserve-on-conflict 欄位集合（CD-98a-6）：比照 path — 首次 INSERT 帶 dataclass 預設值，
+# 衝突/repath 走下方 4 個 builder 時不無條件覆蓋。focal 只由專用 update_auto_focal/
+# update_crop_mode mutator 改寫；掃描/重刮的 builder 一律不直接寫入 dataclass 預設值。
+#
+# 三欄位行為不對稱（Codex PR#105 P2b 修正）：
+# - crop_mode：純使用者裁切模式偏好，與封面無關，無條件保留 DB 既有值。
+# - auto_focal / focal_attempted_at：是「針對某張封面」算出的結果，若 incoming（本次
+#   掃描）cover_path 與 DB 既有 cover_path 相同（metadata-only 衝突）→ 保留既有值；
+#   若 cover_path 不同（用戶換封面 / NFO・sidecar 選了不同封面）→ 重置為未偵測
+#   （auto_focal='' + focal_attempted_at=NULL），否則舊封面的 stale 焦點結果會讓新
+#   封面永遠不被 get_empty_focal_candidates 重新排入偵測，除非手動 force-detect。
+_FOCAL_PRESERVE = frozenset({'auto_focal', 'crop_mode', 'focal_attempted_at'})
+
+# ON CONFLICT DO UPDATE 用的條件式 CASE 片段（cover_path 相同才保留舊值，否則重置）。
+# videos.<col> 在 upsert 語境中指衝突前既有的 row 值；excluded.<col> 指本次 INSERT 的
+# incoming 值——鏡射既有 user_tags/output_dir CASE-WHEN 寫法（見下方 3 個 builder）。
+_FOCAL_AUTO_FOCAL_CASE_SQL = (
+    "auto_focal = CASE WHEN excluded.cover_path = videos.cover_path "
+    "THEN videos.auto_focal ELSE '' END"
+)
+_FOCAL_ATTEMPTED_AT_CASE_SQL = (
+    "focal_attempted_at = CASE WHEN excluded.cover_path = videos.cover_path "
+    "THEN videos.focal_attempted_at ELSE NULL END"
+)
+
+
 class VideoRepository:
     """影片資料存取層"""
 
@@ -190,6 +219,15 @@ class VideoRepository:
             for col in columns:
                 if col == 'path':
                     continue
+                elif col in _FOCAL_PRESERVE:
+                    if col == 'crop_mode':
+                        # 裁切模式偏好與封面無關，一律保留 DB 既有值（CD-98a-6）
+                        continue
+                    elif col == 'auto_focal':
+                        # cover_path 相同 → 保留；換封面 → 重置為未偵測（Codex PR#105 P2b）
+                        update_parts.append(_FOCAL_AUTO_FOCAL_CASE_SQL)
+                    elif col == 'focal_attempted_at':
+                        update_parts.append(_FOCAL_ATTEMPTED_AT_CASE_SQL)
                 elif col == 'user_tags':
                     # user_tags = '[]' 時視同「不更新」，保留 DB 現有值
                     update_parts.append(
@@ -340,11 +378,32 @@ class VideoRepository:
             video_dict.pop('updated_at', None)
             video_dict.pop('path', None)   # path 會另外指定
 
+            # cover_path 是否變動決定 auto_focal/focal_attempted_at 保留或重置
+            # （Codex PR#105 P2b）。old_row 為 None 屬既有存在檢查後被並行刪除的極端
+            # race（見上方 merged_tags 同一 old_row 用法），安全預設視為「封面已變」
+            # 一併重置，不留可能對應舊封面的 stale 值。
+            cover_unchanged = old_row is not None and video.cover_path == old_row.cover_path
+
             set_parts = []
             set_values = []
             for col, val in video_dict.items():
                 if col == 'user_tags':
                     continue  # handled separately
+                elif col == 'crop_mode':
+                    # 裁切模式偏好與封面無關，一律保留 DB 既有值（CD-98a-6）
+                    continue
+                elif col == 'auto_focal':
+                    if cover_unchanged:
+                        continue  # 保留 DB 既有值
+                    set_parts.append("auto_focal = ?")
+                    set_values.append('')
+                    continue  # 已排入 reset，勿 fall through 到底部通用 append（重複 SET→SQLite 取最右＝incoming stale 值蓋掉 reset，Codex PR#105 P2c）
+                elif col == 'focal_attempted_at':
+                    if cover_unchanged:
+                        continue  # 保留 DB 既有值
+                    set_parts.append("focal_attempted_at = ?")
+                    set_values.append(None)
+                    continue  # 同上：勿 fall through 重複 append 蓋掉 reset（Codex PR#105 P2c）
                 elif col == 'output_dir' and not val:
                     # incoming output_dir 空 → 保留既有值（不寫入），與 upsert() CASE-WHEN 對稱
                     continue
@@ -438,6 +497,15 @@ class VideoRepository:
         for col in columns:
             if col == 'path':
                 continue
+            elif col in _FOCAL_PRESERVE:
+                if col == 'crop_mode':
+                    # 裁切模式偏好與封面無關，一律保留 DB 既有值（CD-98a-6）
+                    continue
+                elif col == 'auto_focal':
+                    # cover_path 相同 → 保留；換封面 → 重置為未偵測（Codex PR#105 P2b）
+                    update_parts.append(_FOCAL_AUTO_FOCAL_CASE_SQL)
+                elif col == 'focal_attempted_at':
+                    update_parts.append(_FOCAL_ATTEMPTED_AT_CASE_SQL)
             elif col == 'created_at':
                 # 碰撞分支：強制寫入較早的 created_at（DO UPDATE 也要更新）
                 update_parts.append("created_at = excluded.created_at")
@@ -558,6 +626,15 @@ class VideoRepository:
                 for col in columns:
                     if col == 'path':
                         continue
+                    elif col in _FOCAL_PRESERVE:
+                        if col == 'crop_mode':
+                            # 裁切模式偏好與封面無關，一律保留 DB 既有值（CD-98a-6）
+                            continue
+                        elif col == 'auto_focal':
+                            # cover_path 相同 → 保留；換封面 → 重置為未偵測（Codex PR#105 P2b）
+                            update_parts.append(_FOCAL_AUTO_FOCAL_CASE_SQL)
+                        elif col == 'focal_attempted_at':
+                            update_parts.append(_FOCAL_ATTEMPTED_AT_CASE_SQL)
                     elif col == 'user_tags':
                         # user_tags = '[]' 時視同「不更新」，保留 DB 現有值
                         update_parts.append(
@@ -616,6 +693,131 @@ class VideoRepository:
             if row:
                 return Video.from_row(row, self._get_columns())
             return None
+        finally:
+            conn.close()
+
+    def get_auto_focal_map(self, paths: List[str]) -> dict:
+        """批次讀 {path: auto_focal}（掃描 empty-focal gate 用，避免 N+1）。
+
+        單條 `SELECT path, auto_focal FROM videos WHERE path IN (...)`，超過 SQLite
+        變數上限時分批。空 paths 直接回 {}（不查詢）。鏡射 update_user_tags 連線 pattern。
+
+        Args:
+            paths: 影片 path（DB key，file:/// URI 格式）列表
+
+        Returns:
+            dict[str, str]: {path: auto_focal}；未在 DB 的 path 不會出現在結果中。
+        """
+        if not paths:
+            return {}
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            result: dict = {}
+            chunk_size = 900  # 保守低於 SQLite 999 變數上限
+            for i in range(0, len(paths), chunk_size):
+                chunk = paths[i:i + chunk_size]
+                placeholders = ', '.join(['?'] * len(chunk))
+                cursor.execute(
+                    f"SELECT path, auto_focal FROM videos WHERE path IN ({placeholders})",
+                    chunk,
+                )
+                for row in cursor.fetchall():
+                    result[row[0]] = row[1]
+            return result
+        finally:
+            conn.close()
+
+    def get_focal_crop_map(self, paths: List[str]) -> dict:
+        """批次讀 {path: (auto_focal, crop_mode)}（Codex PR#105 P2 修復用，避免 N+1）。
+
+        用途：similar-covers 端點的 SimilarRankerCache 回傳快取 Video 物件，其
+        auto_focal/crop_mode 可能因 update_auto_focal()/update_crop_mode() 寫入
+        而 stale（這兩個 mutator 刻意不 invalidate 整個 ranker cache——焦點/裁切
+        模式是純顯示欄位、不影響排序特徵，若比照 upsert/delete invalidate 代價不對稱）。
+        呼叫端可用此 map 對 ranker 結果做 fresh 覆蓋，讓 ranker 快取仍可命中。
+
+        單條 `SELECT path, auto_focal, crop_mode FROM videos WHERE path IN (...)`，超過
+        SQLite 變數上限時分批。空 paths 直接回 {}（不查詢）。鏡射 get_auto_focal_map 連線 pattern。
+
+        Args:
+            paths: 影片 path（DB key，file:/// URI 格式）列表
+
+        Returns:
+            dict[str, tuple[str, str]]: {path: (auto_focal, crop_mode)}；未在 DB 的 path
+            不會出現在結果中。
+        """
+        if not paths:
+            return {}
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            result: dict = {}
+            chunk_size = 900  # 保守低於 SQLite 999 變數上限
+            for i in range(0, len(paths), chunk_size):
+                chunk = paths[i:i + chunk_size]
+                placeholders = ', '.join(['?'] * len(chunk))
+                cursor.execute(
+                    f"SELECT path, auto_focal, crop_mode FROM videos WHERE path IN ({placeholders})",
+                    chunk,
+                )
+                for row in cursor.fetchall():
+                    result[row[0]] = (row[1], row[2])
+            return result
+        finally:
+            conn.close()
+
+    def get_empty_focal_candidates(self, paths: List[str]) -> List[Tuple[str, Optional[str], str, str]]:
+        """批次讀「本次掃描 in-scope 但 auto_focal 仍空、且從未偵測過」的候選列
+        （Codex PR#105 P2 修復；no-face re-enqueue 修復同號 P2）。
+
+        舊版掃描 focal trigger 只迴圈 videos_to_upsert（= needs_scan，新檔/mtime 或
+        NFO 變動的檔），既有、未變動、auto_focal='' 的列永遠不會被送偵測——「重掃
+        一次自動補焦既有庫」實際上是假的（見 CHANGELOG 0.12.0 已知限制承諾）。改
+        由呼叫端傳入本次掃描 in-scope 的完整 DB-key URI 集合（與 upsert 同一套
+        to_file_uri(path, path_mappings) 推導，不在此另建 URI）查詢，一次補齊。
+
+        偵測到「無臉」時 auto_focal 也存 format_focal(None) == ''，與「從未偵測過」
+        無法用 auto_focal 單一欄位區分——若只篩 auto_focal 空，無臉封面會被每次重掃
+        無限重排、worker 白忙。因此額外要求 focal_attempted_at IS NULL（update_auto_focal
+        蓋章過的列一律排除，不論找到臉或無臉）。
+
+        單條 `SELECT path, number, maker, cover_path FROM videos WHERE path IN (...)
+        AND (auto_focal IS NULL OR auto_focal = '') AND focal_attempted_at IS NULL`，
+        超過 SQLite 變數上限時分批。空 paths 直接回 []（不查詢）。gate
+        （requires_face_detection）仍在 Python 側逐列判（番號/廠牌邏輯不搬 SQL），
+        此處只做欄位篩選。鏡射 get_auto_focal_map/get_focal_crop_map 連線 pattern。
+
+        Args:
+            paths: 本次掃描 in-scope 的 path（DB key，file:/// URI 格式）列表。
+
+        Returns:
+            list[tuple[str, str|None, str, str]]: [(path, number, maker, cover_path), ...]；
+            未在 DB 的 path、auto_focal 非空的 path、或已偵測過（focal_attempted_at 非
+            NULL，含無臉結果）的 path 都不會出現在結果中。
+        """
+        if not paths:
+            return []
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            result: List[Tuple[str, Optional[str], str, str]] = []
+            chunk_size = 900  # 保守低於 SQLite 999 變數上限
+            for i in range(0, len(paths), chunk_size):
+                chunk = paths[i:i + chunk_size]
+                placeholders = ', '.join(['?'] * len(chunk))
+                cursor.execute(
+                    f"""SELECT path, number, maker, cover_path FROM videos
+                        WHERE path IN ({placeholders})
+                        AND (auto_focal IS NULL OR auto_focal = '')
+                        AND focal_attempted_at IS NULL""",
+                    chunk,
+                )
+                result.extend(cursor.fetchall())
+            return result
         finally:
             conn.close()
 
@@ -975,6 +1177,58 @@ class VideoRepository:
             cursor.execute(
                 "UPDATE videos SET scrape_attempted_at = ?, updated_at = CURRENT_TIMESTAMP WHERE path = ?",
                 (ts, path)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    def update_auto_focal(self, path: str, focal: str) -> bool:
+        """安全更新 auto_focal 欄位（不碰其他欄位，CD-98a-6 mutator，鏡射 update_user_tags）。
+
+        同時蓋章 focal_attempted_at = CURRENT_TIMESTAMP（單條 UPDATE 原子寫，Codex PR#105
+        P2 修復）：背景 worker 與 force-detect endpoint 都經此方法 commit 偵測結果——不論
+        找到臉（focal='x,y'）或無臉（focal=''），都代表「偵測跑過了」，須排除於後續
+        get_empty_focal_candidates 的重掃 backfill 之外，否則無臉封面每次重掃都被當
+        「沒偵測過」無限重排。
+
+        Args:
+            path: 影片路徑（DB key，file:/// URI 格式）
+            focal: 新的 auto_focal 值（背景 focal 演算法算出的座標字串，如 '0.5,0.4'，
+                無臉時為 format_focal(None) == ''）
+
+        Returns:
+            bool: 是否成功更新（path 不存在 → False，不拋例外、不新建 row）
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE videos SET auto_focal = ?, focal_attempted_at = CURRENT_TIMESTAMP, "
+                "updated_at = CURRENT_TIMESTAMP WHERE path = ?",
+                (focal, path)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    def update_crop_mode(self, path: str, mode: str) -> bool:
+        """安全更新 crop_mode 欄位（不碰其他欄位，CD-98a-6 mutator，鏡射 update_user_tags）。
+
+        Args:
+            path: 影片路徑（DB key，file:/// URI 格式）
+            mode: 新的 crop_mode 值（'auto' 或 'default'）
+
+        Returns:
+            bool: 是否成功更新（path 不存在 → False，不拋例外、不新建 row）
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE videos SET crop_mode = ?, updated_at = CURRENT_TIMESTAMP WHERE path = ?",
+                (mode, path)
             )
             conn.commit()
             return cursor.rowcount > 0
