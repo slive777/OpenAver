@@ -122,6 +122,8 @@ def _actress_to_response(actress: Actress, video_count: int = 0) -> dict:
         "photo_url": photo_url,
         "photo_source": actress.photo_source,
         "primary_text_source": actress.primary_text_source,
+        "auto_focal": actress.auto_focal,
+        "crop_mode": actress.crop_mode,
         "created_at": actress.created_at.isoformat() if actress.created_at else None,
         "video_count": video_count,
         "is_favorite": True,

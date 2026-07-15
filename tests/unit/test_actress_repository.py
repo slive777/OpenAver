@@ -255,6 +255,122 @@ def test_update_crop_mode_missing_name_returns_false(repo):
     assert repo.update_crop_mode("不存在的女優-crop-mode", "default") is False
 
 
+# ---------------------------------------------------------------------------
+# TASK-100a-T1: clear_focal / update_manual_focal（CD-98a-6 mutator，spec-100）
+# ---------------------------------------------------------------------------
+
+def test_clear_focal_roundtrip(repo):
+    """clear_focal happy path：先塞非預設焦點值，clear 後讀回 auto_focal=''、crop_mode='auto'"""
+    repo.save(Actress(name="測試女優-clear-focal"))
+    assert repo.update_manual_focal("測試女優-clear-focal", "0.5,0.4") is True
+
+    ok = repo.clear_focal("測試女優-clear-focal")
+    assert ok is True
+
+    result = repo.get_by_name("測試女優-clear-focal")
+    assert result is not None
+    assert result.auto_focal == ''
+    assert result.crop_mode == 'auto'
+
+
+def test_clear_focal_missing_name_returns_false(repo):
+    assert repo.clear_focal("不存在的女優-clear-focal") is False
+
+
+def test_update_manual_focal_roundtrip(repo):
+    """update_manual_focal happy path：寫入後讀回 auto_focal=focal、crop_mode='manual'"""
+    repo.save(Actress(name="測試女優-manual-focal"))
+
+    ok = repo.update_manual_focal("測試女優-manual-focal", "0.5,0.4")
+    assert ok is True
+
+    result = repo.get_by_name("測試女優-manual-focal")
+    assert result is not None
+    assert result.auto_focal == "0.5,0.4"
+    assert result.crop_mode == "manual"
+
+
+def test_update_manual_focal_missing_name_returns_false(repo):
+    assert repo.update_manual_focal("不存在的女優-manual-focal", "0.5,0.4") is False
+
+
+def test_update_manual_focal_empty_string_not_validated(repo):
+    """mutator 層不驗格式（Opus 裁決）：空字串焦點照寫，格式驗證是呼叫端（T4 parse_focal）的責任"""
+    repo.save(Actress(name="測試女優-manual-focal-empty"))
+
+    ok = repo.update_manual_focal("測試女優-manual-focal-empty", "")
+    assert ok is True
+
+    result = repo.get_by_name("測試女優-manual-focal-empty")
+    assert result is not None
+    assert result.auto_focal == ''
+    assert result.crop_mode == 'manual'
+
+
+def test_save_upsert_preserves_manual_focal_and_clear_focal(repo):
+    """save() ON CONFLICT 不覆寫 clear_focal/update_manual_focal 寫入的值
+    （鏡射 test_save_upsert_preserves_focal_fields，涵蓋新 mutator 的寫入路徑）"""
+    repo.save(Actress(name="測試女優-preserve-manual"))
+    assert repo.update_manual_focal("測試女優-preserve-manual", "0.3,0.7") is True
+
+    # 重刮同 name：incoming actress 帶 dataclass 預設 focal 值（未經 mutator）
+    repo.save(Actress(name="測試女優-preserve-manual", height="160cm"))
+
+    result = repo.get_by_name("測試女優-preserve-manual")
+    assert result is not None
+    assert result.height == "160cm"
+    assert result.auto_focal == "0.3,0.7"
+    assert result.crop_mode == "manual"
+
+
+def _traced_statements(repo) -> list:
+    """呼叫端輔助：wrap repo._get_connection 掛上 conn.set_trace_callback，
+    收集真實送進 SQLite 的 SQL 陳述式（零 mock，走完整 production 路徑）。
+    回傳值是一個 list，供呼叫端在呼叫 mutator 前後檢查其內容。"""
+    statements: list = []
+    original_get_connection = repo._get_connection
+
+    def _wrapped():
+        conn = original_get_connection()
+        conn.set_trace_callback(statements.append)
+        return conn
+
+    repo._get_connection = _wrapped
+    return statements
+
+
+def test_clear_focal_single_update_atomicity(repo):
+    """Single-UPDATE atomicity（Opus 裁決）：conn.set_trace_callback 觀察真實 SQL，
+    clear_focal 恰好送出一條 UPDATE，且該條同時含 auto_focal 與 crop_mode"""
+    repo.save(Actress(name="測試女優-clear-atomic"))
+    statements = _traced_statements(repo)
+
+    assert repo.clear_focal("測試女優-clear-atomic") is True
+
+    updates = [s for s in statements if s.strip().upper().startswith("UPDATE")]
+    assert len(updates) == 1
+    assert "auto_focal" in updates[0]
+    assert "crop_mode" in updates[0]
+    # G2：既有 mutator 慣例——updated_at 隨同一條 UPDATE 一起寫
+    assert "updated_at" in updates[0]
+
+
+def test_update_manual_focal_single_update_atomicity(repo):
+    """Single-UPDATE atomicity（Opus 裁決）：update_manual_focal 恰好送出一條 UPDATE，
+    且該條同時含 auto_focal 與 crop_mode"""
+    repo.save(Actress(name="測試女優-manual-atomic"))
+    statements = _traced_statements(repo)
+
+    assert repo.update_manual_focal("測試女優-manual-atomic", "0.5,0.4") is True
+
+    updates = [s for s in statements if s.strip().upper().startswith("UPDATE")]
+    assert len(updates) == 1
+    assert "auto_focal" in updates[0]
+    assert "crop_mode" in updates[0]
+    # G2：既有 mutator 慣例——updated_at 隨同一條 UPDATE 一起寫
+    assert "updated_at" in updates[0]
+
+
 def test_get_by_name_and_get_all_smoke_with_dynamic_columns(repo):
     """動態 _get_columns()（26 欄）與 SELECT * 長度一致，get_by_name/get_all 不 ValueError
     （Codex P1：手寫 21 欄清單在 ALTER +5 欄後會令 from_row 的 zip(strict=True) 爆炸）"""

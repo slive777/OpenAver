@@ -58,6 +58,8 @@ def _make_actress_mock(name="橋本ありな", aliases=None):
     actress.official_url = None
     actress.photo_source = None
     actress.primary_text_source = "minnano"
+    actress.auto_focal = ''
+    actress.crop_mode = 'auto'
     actress.created_at = datetime(2026, 4, 13)
     return actress
 

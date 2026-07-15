@@ -218,6 +218,51 @@ class TestGetActress:
 
 
 # ---------------------------------------------------------------------------
+# TASK-100a-T1: _actress_to_response 序列化契約（auto_focal / crop_mode，spec-100）
+# ---------------------------------------------------------------------------
+
+class TestActressFocalSerialization:
+    """GET /api/actresses/{name} 應吐出 auto_focal / crop_mode，且值真的來自 DB"""
+
+    def test_get_actress_includes_focal_fields_default(self, client):
+        """新收藏女優未經 mutator 寫入 → response 含 auto_focal='' / crop_mode='auto'"""
+        with patch("web.routers.actress.get_cached_profile", return_value=MOCK_PROFILE), \
+             patch("web.routers.actress.get_actress_profile"), \
+             patch("web.routers.actress.download_actress_photo", return_value=True), \
+             patch("web.routers.actress.get_local_photo_path", return_value=None):
+            client.post("/api/actresses/favorite", json={"name": ACTRESS_NAME})
+
+        with patch("web.routers.actress.get_local_photo_path", return_value=None):
+            resp = client.get(f"/api/actresses/{ACTRESS_NAME}")
+
+        assert resp.status_code == 200
+        actress = resp.json()["actress"]
+        assert actress["auto_focal"] == ""
+        assert actress["crop_mode"] == "auto"
+
+    def test_get_actress_reflects_manual_focal_value(self, client, tmp_db):
+        """update_manual_focal 塞非預設值後 GET → response 反映該值
+        （只斷言 key 存在會被「硬編 ''」的實作騙過，這裡驗證值真的來自 DB）"""
+        with patch("web.routers.actress.get_cached_profile", return_value=MOCK_PROFILE), \
+             patch("web.routers.actress.get_actress_profile"), \
+             patch("web.routers.actress.download_actress_photo", return_value=True), \
+             patch("web.routers.actress.get_local_photo_path", return_value=None):
+            client.post("/api/actresses/favorite", json={"name": ACTRESS_NAME})
+
+        from core.database import ActressRepository
+        repo = ActressRepository(tmp_db)
+        assert repo.update_manual_focal(ACTRESS_NAME, "0.6,0.3") is True
+
+        with patch("web.routers.actress.get_local_photo_path", return_value=None):
+            resp = client.get(f"/api/actresses/{ACTRESS_NAME}")
+
+        assert resp.status_code == 200
+        actress = resp.json()["actress"]
+        assert actress["auto_focal"] == "0.6,0.3"
+        assert actress["crop_mode"] == "manual"
+
+
+# ---------------------------------------------------------------------------
 # T3: DELETE /api/actresses/{name} — 刪除已收藏女優
 # ---------------------------------------------------------------------------
 
