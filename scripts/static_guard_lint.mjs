@@ -391,6 +391,106 @@ const RULES = [
     note: '[TestMaskToggleGuard] 99a-T5：_maskTeardown 防禦性再保險呼叫 _maskStopWaitAnim（比照 _maskRemoveDragListeners 先例）',
   },
 
+  // ---- [TestMaskToggleGuard] 100b-T2b（§B-1f）：上傳女優照片主流程 — wiring + 六個必踩點的機械可鎖部分 ----
+  // 女優 wiring 正向鎖：隱藏 file input + accept + 上傳鈕 + handler 綁定，四者缺一即代表
+  // 接線斷掉（例如 accept 被砍 → 手機端也能選非圖片檔，spec §3.7-3 失守）。
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'type="file"', note: '[TestMaskToggleGuard] 100b-T2b：隱藏 file input 存在（裁決 6）' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'accept="image/*"', note: '[TestMaskToggleGuard] 100b-T2b：file input accept 限定圖片（spec §3.7-3，後端四格式皆收）' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'style="display:none"', note: '[TestMaskToggleGuard] 100b-T2b：隱藏 input 用 inline style（裁決 6，避開 .hidden specificity 坑）' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: '$refs.actressPhotoUploadInput.click()', note: '[TestMaskToggleGuard] 100b-T2b：上傳鈕觸發隱藏 input（$refs，非 $el，G3/坑7 對齊）' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: '@change="_uploadActressPhoto($event)"', note: '[TestMaskToggleGuard] 100b-T2b：file input @change 綁 _uploadActressPhoto' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'class="picker-upload-btn"', note: '[TestMaskToggleGuard] 100b-T2b：.picker-upload-btn 按鈕存在（裁決 5，同 .picker-refresh-btn 排）' },
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'async _uploadActressPhoto(evt) {', note: '[TestMaskToggleGuard] 100b-T2b：_uploadActressPhoto 函式定義存在' },
+
+  // 必踩點 #1（mutation 反向驗：拿掉這行 → 必紅）：同一檔案連選兩次 change 不會再觸發，
+  // 排在 await（fetch）之前——scope 內若把這行搬到 fetch 之後，本規則仍會通過字面存在性
+  // 檢查，但「排序」語意已由函式本體 review + CDP ⓪ 實測把關（lint 只鎖存在性）。
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: "evt.target.value = '';",
+    scope: { anchor: /async\s+_uploadActressPhoto\s*\(\s*evt\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 100b-T2b：_uploadActressPhoto 必須清空 evt.target.value（同檔重選需要 change 再次觸發，spec §3.1 禁「點了沒反應」）',
+  },
+  // 必踩點 #6 上半（改資料無條件執行）：_syncActressesArray by-name 呼叫存在。
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: 'this._syncActressesArray(capturedName, data);',
+    scope: { anchor: /async\s+_uploadActressPhoto\s*\(\s*evt\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 100b-T2b：_uploadActressPhoto 上傳成功後同步 _syncActressesArray（stale-success #6 上半，改資料無條件做）',
+  },
+  // §B-2b 第三呼叫點：上傳成功後刷新 _actressPhotoLoaded（新圖需重新等載入/快取判定）。
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: 'this._refreshActressPhotoLoaded();',
+    scope: { anchor: /async\s+_uploadActressPhoto\s*\(\s*evt\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 100b-T2b：_uploadActressPhoto 成功且仍是同一位女優時呼叫 _refreshActressPhotoLoaded（§B-2b 第三呼叫點）',
+  },
+  // CD-9：錯誤分流依 HTTP status，不依 body code；無 409。鎖 413/415 兩個字面分支存在，
+  // 證明「依 status 分流」這個決策點沒被改寫成單一籠統 catch。
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: 'resp.status === 413',
+    scope: { anchor: /async\s+_uploadActressPhoto\s*\(\s*evt\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 100b-T2b：CD-9 413→upload_too_large 分支存在',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: 'resp.status === 415',
+    scope: { anchor: /async\s+_uploadActressPhoto\s*\(\s*evt\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 100b-T2b：CD-9 415→upload_bad_format 分支存在',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'forbidden-string', pattern: 'resp.status === 409',
+    scope: { anchor: /async\s+_uploadActressPhoto\s*\(\s*evt\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 100b-T2b：CD-9 明訂上傳無 409（v3 砍了 compare token），不得復活',
+  },
+  // 必踩點 #3（mutation 反向驗：把這行改成 this._closePicker() → 必紅）：失敗分支刻意
+  // 與既有候選換圖的 catch（_onPickerSelect 呼叫 _closePicker()）分歧，不可關 picker。
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'forbidden-string', pattern: 'this._closePicker();',
+    scope: { anchor: /if\s*\(!resp\.ok\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 100b-T2b：_uploadActressPhoto 失敗分支（!resp.ok）不得關 picker（spec §3.1+§C 刻意分歧，非漏改）',
+  },
+  // spec §3.7-7「零偵測成本」：上傳流程全程不得呼叫 detect-focal（by-construction，本
+  // 規則把它機械鎖住——「不做某事」測試鎖不到，只有守衛鎖得到）。
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'forbidden-string', pattern: 'detect-focal',
+    scope: { anchor: /async\s+_uploadActressPhoto\s*\(\s*evt\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 100b-T2b：spec §3.7-7 零偵測成本——_uploadActressPhoto scope 內不得出現 detect-focal',
+  },
+  // 🔴 CD-10 訂正（Opus 2026-07-16 裁決，CDP 實測背書）：上傳成功後**必須**顯式同步
+  // currentLightboxActress.photo_url，否則燈箱主圖不會換。CD-10 原主張「currentLightboxActress
+  // 與 paginatedActresses[idx] 是同一個物件 ⇒ _syncActressesArray 改一邊即改兩邊 ⇒ 顯式同步是
+  // 冗餘」——但 _fetchLiveAliases（state-actress.js:791）的 Object.assign 在開燈箱後 +17ms 就把
+  // currentLightboxActress 換成脫鉤副本（CDP 實測），該前提實務上恆不成立。
+  // ⚠️ 這條鎖的價值在於「間歇性」：alias 回 404 的女優（實測 21 位中 18 位）前提僥倖成立、
+  // 拿掉本行也照樣正常；只有 alias 回 200 的 3 位會壞 ⇒ 人工抽測與 CDP 抽樣都可能整批放行。
+  // 資料相依的間歇失敗只有守衛鎖得到。
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: 'this.currentLightboxActress.photo_url = data.photo_url;',
+    scope: { anchor: /async\s+_uploadActressPhoto\s*\(\s*evt\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 100b-T2b：_uploadActressPhoto 成功後顯式同步 currentLightboxActress.photo_url（CD-10 訂正：_fetchLiveAliases 的 Object.assign 讓「同物件」前提失效，缺此行燈箱主圖不換）',
+  },
+  // §B-2b 第四呼叫點（Opus 2026-07-16 裁決）：換候選成功換 URL 後亦須刷新，與上傳同形。
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: 'this._refreshActressPhotoLoaded();',
+    scope: { anchor: /async\s+_onPickerSelect\s*\(\s*candidate\s*,\s*i\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 100b-T2b：_onPickerSelect 換候選成功後呼叫 _refreshActressPhotoLoaded（§B-2b 第四呼叫點，photo_url 一變就要重新等載入）',
+  },
+  // 🔴 §B-2b lifecycle 契約的「未快取路徑」唯一 writer。_actressPhotoLoaded 有且只有兩個
+  // writer：$nextTick complete-check（已快取路徑）與本 @load（未快取路徑）。上傳/換候選回的
+  // 是 cache-bust URL（?v={mtime_ns}-{size}，必然 cache miss）⇒ 拿掉本行，focal 按鈕在
+  // 上傳成功後永久消失（x-show 綁 _actressPhotoLoaded，且無任何錯誤訊息）＝典型
+  // 「全綠但功能不可用」（feedback_guards_cant_prove_usable）。鏡射 video 側 :733 的同型
+  // 寫入點。CDP 另有未快取路徑的真機驗收（守衛只證「寫入點存在」，證不出「圖載完旗標真的翻」）。
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: '@load="_actressPhotoLoaded = true"',
+    note: '[TestMaskToggleGuard] 100b-T2b：女優封面 img 的 @load 是 _actressPhotoLoaded 在未快取路徑（上傳/換候選的 cache-bust URL）的唯一 writer',
+  },
+
   // ---- [TestSearchLightboxMetadataGuard] search.html：5 個 required ----
   { file: 'web/templates/search.html', kind: 'required-string', pattern: 'currentLightboxVideo()?.director', note: '[TestSearchLightboxMetadataGuard] lightbox field' },
   { file: 'web/templates/search.html', kind: 'required-string', pattern: 'currentLightboxVideo()?.duration', note: '[TestSearchLightboxMetadataGuard] lightbox field' },

@@ -941,7 +941,12 @@
         "source_graphis": "Graphis",
         "source_gfriends": "gfriends",
         "source_wiki": "Wiki",
-        "source_minnano": "Minnano"
+        "source_minnano": "Minnano",
+        "source_upload": "上傳",
+        "upload_btn": "上傳自己的照片",
+        "upload_too_large": "圖片太大（檔案上限 10MB、尺寸上限 50M 像素）",
+        "upload_bad_format": "不支援的圖片格式",
+        "upload_failed": "上傳失敗，請稍後再試"
       }
     },
     "samples": {

@@ -1682,6 +1682,19 @@ export function stateLightbox() {
                     this.currentLightboxActress.photo_source = data.photo_source;
                 }
 
+                // 100b-T2b（§B-2b 第四呼叫點，Opus 2026-07-16 裁決）：換候選成功換 URL 後
+                // 亦須刷新 _actressPhotoLoaded——photo_url 一變就要重新等載入，與上傳同形
+                // （同一個 lifecycle 契約的另一個入口）。
+                // 🔴 gate：本行受上方 :1673-1677 的 stale early-return 保護（「已切走 → 同步完
+                // 資料就 return」），與 _uploadActressPhoto 的 #6 下半是同一個機制——1670 的
+                // await 之後到此處無任何 await，故執行到這裡即保證「仍是同一位女優」。依
+                // §B-1f #6 判別法：本函式碰的是當前畫面（$refs.pickerCoverImg），屬「改當前
+                // 畫面 ⇒ 要 gate」，不可挪到 early-return 之上變成無條件執行。
+                // 位置在兩條成功子路徑（reduce-motion 直接關 / 完整動畫）之前，兩者共用；
+                // 此刻 photo_url 已 mutate 完 → Alpine 已排程 :src patch → helper 內的
+                // $nextTick 讀到的是新 URL（不依賴下方 imperative 的 coverImg.src 賦值）。
+                this._refreshActressPhotoLoaded();
+
                 // Reduced-motion 或 BurstPicker 未載入 → 直接更新 src + 關閉
                 if (reduceMotion || typeof window.BurstPicker === 'undefined') {
                     if (coverImg && data.photo_url) {
@@ -1729,6 +1742,113 @@ export function stateLightbox() {
             if (idx >= 0) {
                 this.paginatedActresses[idx].photo_url = data.photo_url;
                 this.paginatedActresses[idx].photo_source = data.photo_source;
+            }
+        },
+
+        /**
+         * 100b-T2b（§B-1f，spec §2 故事 1／§3.1）：上傳女優自己的照片，直接變主圖
+         * （唯一入口，全程不跑偵測——spec §3.7-7「零偵測成本」by-construction：本函式
+         * 不呼叫任何 detect-focal 端點；全程不碰 `_candidates`，故上傳的圖不進候選列，
+         * spec §3.7-1 同樣 by-construction）。
+         *
+         * 互斥鎖沿用既有 `_pickerSelected`（CD-8，不發明新機制）——:disabled 綁定／
+         * G2 boolean coercion 是 T4 的 DoD（picker 內兩入口互斥 UI 側），本函式只需
+         * 正確接上同一個 flag。
+         *
+         * 六個必踩點（§B-1f）：
+         * #1 evt.target.value = '' 排在 await 之前——同一檔案連選兩次 change 不會
+         *    再觸發，await 後 evt.target 可能已被拆掉。
+         * #2 fetch 帶 FormData 絕不手動設 Content-Type（會蓋掉 boundary → 後端一律 415）。
+         * #3 失敗時 picker 不關、只解鎖——🔴 刻意與既有候選換圖的 catch（_onPickerSelect）
+         *    分歧（後者呼叫 _closePicker()），spec §3.1+§C 明訂失敗要留在 picker 顯示 toast。
+         * #4 成功才關 picker，且關在 _syncActressesArray 之後（CD-8 承重前提：_pickerOpen
+         *    在 resolve 前恆 true，本函式不主動關，_cancelPicker() 既有 guard 已擋住
+         *    Esc／outside-click）。
+         * #5 capturedName 在 await 前凍結（比照全檔既有 captured* 慣例）。
+         * #6 stale-success 兩層拆：_syncActressesArray（改資料）無條件執行（by captured
+         *    name，與當前 lightbox 是誰無關）；currentLightboxActress 兩欄顯式同步／
+         *    _refreshActressPhotoLoaded／關 picker／成功 toast（改當前畫面）僅在仍是同一位
+         *    女優時執行。
+         *    ⚠️ 「currentLightboxActress 顯式同步是冗餘」的舊說法已作廢（CD-10 前提被
+         *    _fetchLiveAliases 的 Object.assign 打破，CDP 實測證實）——理由見函式內註解。
+         */
+        async _uploadActressPhoto(evt) {
+            const file = evt.target.files?.[0];
+            if (!file) return;             // 使用者取消 → 什麼都不做
+            evt.target.value = '';         // #1：必須在 await 之前，見上方註解
+
+            if (this._pickerSelected) return;
+            this._pickerSelected = true;
+
+            const capturedName = this.currentLightboxActress?.name;   // #5：identity 凍結
+            if (!capturedName) {
+                this._pickerSelected = false;
+                return;
+            }
+
+            const fd = new FormData();
+            fd.append('file', file);
+
+            try {
+                const resp = await fetch(`/api/actresses/${encodeURIComponent(capturedName)}/photo/upload`, {
+                    method: 'POST',
+                    body: fd,   // #2：不可自設 Content-Type，見上方註解
+                });
+
+                if (!resp.ok) {
+                    // CD-9：依 HTTP status 分流，不依 body code（無 409）。413/415 共用桶
+                    // 見 HANDOFF status 分流表，其餘（400/404/500）統一走 upload_failed。
+                    let key = 'showcase.actress.picker.upload_failed';
+                    if (resp.status === 413) key = 'showcase.actress.picker.upload_too_large';
+                    else if (resp.status === 415) key = 'showcase.actress.picker.upload_bad_format';
+                    this.showToast(window.t(key), 'error');
+                    this._pickerSelected = false;   // #3：失敗時只解鎖，不關 picker
+                    return;
+                }
+
+                const data = await resp.json();
+
+                // #6 上半：改資料，無條件執行（by-name 定位，與當前 lightbox 是誰無關）
+                this._syncActressesArray(capturedName, data);
+
+                if (!this.currentLightboxActress || this.currentLightboxActress.name !== capturedName) {
+                    // 已切走：牆上已同步完畢，不碰當前這位（B），僅解鎖
+                    this._pickerSelected = false;
+                    return;
+                }
+
+                // #6 下半：改當前畫面，僅在仍是同一位女優時執行（gate ＝上方 early-return）
+
+                // 🔴 這不是冗餘同步，是承重的——沒有它，燈箱主圖不會換（CDP 2026-07-16 實測）。
+                // Why：`_syncActressesArray` 改的是 `paginatedActresses[idx]`（by-name 定位陣列
+                // 元素）。CD-10 原本主張「它與 currentLightboxActress 是同一個物件、改一邊即改
+                // 兩邊」，但 `_fetchLiveAliases`（state-actress.js:791）在 alias fetch resolve 後
+                // 執行 `currentLightboxActress = Object.assign({}, currentLightboxActress, {aliases})`
+                // ——把 currentLightboxActress 換成**脫鉤的新副本**且不寫回陣列。CDP 實測該同一性
+                // 在開燈箱後 **+17ms** 就翻 false（與 aliases 落地同一幀）⇒ 該前提實務上恆不成立。
+                // 此後 `_syncActressesArray` 只碰得到牆上小格，碰不到燈箱主圖：實測 alias 回 200
+                // 的女優（21 位中 3 位）上傳後「牆上換了、燈箱主圖沒換」＝ DoD ⓪ 失敗；alias 回
+                // 404 的 18 位則因前提僥倖成立而正常 ⇒ **資料相依的間歇失敗**，這正是它躲過所有
+                // 先前驗證的原因。詳見 plan-100b.md 的 CD-10 訂正框。
+                // ⚠️ 只同步這兩欄：auto_focal/crop_mode 的四欄擴充仍屬 T4（CD-10 訂正框已把
+                // 「收斂 + 重寫 DoD ③」指派給 T4，此處不搶做）。
+                this.currentLightboxActress.photo_url = data.photo_url;
+                this.currentLightboxActress.photo_source = data.photo_source;
+
+                // 順序＝比照 _onPickerSelect 的既有前例（顯式同步 → 刷新旗標），與鄰居一致。
+                // ⚠️ 這個順序是否「承重」（＝反轉會不會壞）**未經實測，不要據此宣稱因果**：
+                // 直覺說法是「$nextTick 要讀到 Alpine 已 patch 的新 :src」，但兩行之間無 await、
+                // 同屬一個同步區塊，Alpine 3.15.12 的 microtask 批次 flush 下**可能等價**。
+                // 而「讀源碼推論 flush 時機」在本 branch 已被實證打臉過一次——CDP 實測發現
+                // x-show(display) 走 rAF flush、:style 走 microtask flush，**兩者並不同步**
+                // （gotchas-frontend §8d）⇒ Alpine 的 flush 時機不是統一的，源碼推論不可靠。
+                // 要動這個順序 → 先用 CDP 實測，別靠推理。
+                this._refreshActressPhotoLoaded();   // §B-2b 第三呼叫點
+                this._closePicker();                 // #4：成功才關，且排在同步之後
+                this.showToast(window.t('showcase.actress.picker.replaced'), 'success');
+            } catch (e) {
+                this._pickerSelected = false;
+                this.showToast(window.t('showcase.actress.picker.upload_failed'), 'error');
             }
         },
 

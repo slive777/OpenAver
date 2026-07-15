@@ -576,9 +576,22 @@
                     <div style="display:contents">
                         <!-- Actress Cover -->
                         <div class="lightbox-cover">
+                            <!-- 100b-T2b（§B-2b lifecycle 契約的另一半，見下）：@load 是
+                                 _actressPhotoLoaded 在「圖未快取」路徑上的唯一 writer，鏡射
+                                 video 側 lightboxCoverFull 的 @load="_lbFullLoaded=true"（:733）。
+                                 🔴 兩個 writer 各司其職、缺一即靜默死掉：
+                                   • $nextTick complete-check（_refreshActressPhotoLoaded）→ 已快取路徑
+                                     （@load 對快取圖不觸發）＝開燈箱／切換女優的常態；
+                                   • @load（本行）→ 未快取路徑＝上傳／換候選成功後的新 cache-bust
+                                     URL（?v={mtime_ns}-{size}，必然 cache miss），此時 $nextTick
+                                     讀到 complete=false，只有 @load 能把旗標翻回 true。
+                                 缺本行 ⇒ 上傳/換候選成功後 focal 按鈕（x-show 綁 _actressPhotoLoaded）
+                                 永久消失到使用者切走再切回為止。同型前例見 :1476 註解
+                                 「讓 cover_full_url（已 bust）重新觸發 @load」。 -->
                             <img x-ref="pickerCoverImg"
                                  x-show="currentLightboxActress?.photo_url"
                                  :src="currentLightboxActress?.photo_url"
+                                 @load="_actressPhotoLoaded = true"
                                  :alt="currentLightboxActress?.name">
                             <div class="actress-lb-cover-placeholder"
                                  x-show="!currentLightboxActress?.photo_url">
@@ -996,6 +1009,27 @@
                         :aria-label="t('showcase.actress.change_photo')">
                     <i class="bi bi-arrow-clockwise" :class="{ spin: _pickerLoading }"></i>
                 </button>
+                <!-- 100b-T2b（spec §3.1／裁決 5）：上傳 icon，⟳ 重新整理旁同排。位置/視覺
+                     逐項比照 .picker-refresh-btn 的 §6 5 檢查點（見 showcase.css）；
+                     :disabled 綁定（picker 內兩入口互斥的 UI 側，G2 !! coercion）屬 T4，
+                     本 task 不搶做——_uploadActressPhoto() 內部已用 _pickerSelected
+                     互斥鎖保護資料正確性（CD-8）。 -->
+                <button class="picker-upload-btn"
+                        @click.stop="$refs.actressPhotoUploadInput.click()"
+                        :title="t('showcase.actress.picker.upload_btn')"
+                        :aria-label="t('showcase.actress.picker.upload_btn')">
+                    <i class="bi bi-upload"></i>
+                </button>
+                <!-- 100b-T2b（裁決 6）：隱藏 file input，用 inline display:none 樣式避開
+                     .hidden 的 specificity 坑（gotchas-frontend「CSS .hidden 陷阱」）。
+                     x-ref 掛在 pickerArea 內、不在任何 <template x-if> 分支中（G3），
+                     $refs.actressPhotoUploadInput 永遠可取。圖片限定 accept 值：後端四格式
+                     （JPEG/PNG/WebP/GIF）皆收，spec §3.7-3。 -->
+                <input type="file"
+                       accept="image/*"
+                       x-ref="actressPhotoUploadInput"
+                       style="display:none"
+                       @change="_uploadActressPhoto($event)">
             </div>
 
             <!-- Navigation Arrows OUTSIDE lightbox-content (44a T4: dispatch based on showFavoriteActresses) -->

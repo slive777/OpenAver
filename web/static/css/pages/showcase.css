@@ -2991,6 +2991,61 @@ body.sidebar-collapsed .showcase-footer {
     cursor: not-allowed;
 }
 
+/* 100b-T2b（spec §3.1／裁決 5，選項 A）：picker-upload-btn——逐項複製 .picker-refresh-btn
+ * 的 §6 5 檢查點（不自創按鈕視覺，owner 取向：UI 退位、拒環境光/玻璃卡/鮮藍 primary/裝飾 noise）。
+ * .picker-refresh-btn 是 position:absolute 單顆定位、非 flex row（見發現 4），故「同排」靠
+ * right 向左偏移一個按鈕寬度+間距達成，不新建 flex 容器（不動既有 .picker-refresh-btn）。
+ * Radius: var(--fluent-radius-md) ✅
+ * Surface: rgba(255,255,255,0.1) 白 tint（同 .picker-refresh-btn）
+ * Stroke: 1px solid rgba(255,255,255,0.2)
+ * Shadow: dual-layer inset + var(--fluent-shadow-2)；hover 升 var(--fluent-shadow-4)
+ * Focus: 2px outline + 4px glow
+ */
+.picker-upload-btn {
+    position: absolute;
+    top: 12px;
+    /* Micro 級間距註記（ui-conventions §4）：52px = .picker-refresh-btn 的 12px right 起點
+       + 32px 按鈕寬 + 8px gap，讓上傳鈕緊貼在其左側同排，非任意值。 */
+    right: 52px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--fluent-radius-md);
+    /* stylelint-disable-next-line declaration-property-value-disallowed-list -- inset highlight composed with Fluent shadow token (default state), 100b-T2b */
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), var(--fluent-shadow-2);
+    cursor: pointer;
+    color: var(--text-inverse);
+    transition: all var(--fluent-duration-fast) var(--fluent-ease-standard);
+}
+
+.picker-upload-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    /* stylelint-disable-next-line declaration-property-value-disallowed-list -- inset highlight composed with Fluent shadow token (hover state), 100b-T2b */
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), var(--fluent-shadow-4);
+    transform: translateY(-1px);
+}
+
+.picker-upload-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    /* stylelint-disable-next-line declaration-property-value-disallowed-list -- inset highlight + Fluent shadow + glow ring (focus-visible), 100b-T2b */
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), var(--fluent-shadow-2), 0 0 0 4px var(--glow-primary);
+}
+
+.picker-upload-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.picker-upload-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* Cover-actions 淡出（picker open 時） */
 .lightbox-cover .cover-actions[data-picker-open="true"] {
     opacity: 0;
