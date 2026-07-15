@@ -17,6 +17,7 @@ import { parseFocal, clampMaskWinLeft } from '@/shared/focal.js';
 // 本檔的 `@/showcase/...` importmap alias 只有瀏覽器認得，node:test 無法直接 import 本檔；
 // mask-geometry.js 只用相對路徑 import，node:test 可直接驗證，見該檔開頭說明）。
 import { computeMaskAxis, computeMaskWinGeometry } from '@/shared/mask-geometry.js';
+import { syncActressFields } from '@/shared/actress-sync.js';
 
 export function stateLightbox() {
     // 49b T4cd: Picker 動畫參數（T1 fix2 定案，2026-04-25）
@@ -1195,8 +1196,30 @@ export function stateLightbox() {
                 }
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                 if (!data || !data.success) throw new Error((data && data.error) || 'API failed');
-                targetObj.auto_focal = data.auto_focal;   // 同參考 → lightbox + grid 立即重算（video: T2 applyCellFocal $watch 接手；actress: CD-10 同物件參考）
+                // 燈箱主圖：video 走 T2 既有 applyCellFocal $watch 接手；actress 直接寫
+                // targetObj（= 這次送出時捕獲的 currentLightboxActress，await 前已凍結）。
+                targetObj.auto_focal = data.auto_focal;
                 targetObj.crop_mode = 'manual';
+                // 100b-T4（Opus 審核裁決 1，CDP 實測背書）：牆上小格側寫入。
+                // 🔴 上面兩行原本的舊註解主張「actress 分支的 targetObj 與 paginatedActresses[idx]
+                // 恆為同一物件參考、改一邊即改兩邊」——這個前提已被推翻，此處曾經是全函式唯一的
+                // 缺口：`_fetchLiveAliases`（state-actress.js:791-793）
+                // 在 alias fetch resolve 時，若該女優 alias 端點回 200（21 位中 3 位），會執行
+                // `currentLightboxActress = Object.assign({}, currentLightboxActress, {aliases})`
+                // ——把 currentLightboxActress 換成脫鉤副本、不寫回 paginatedActresses。此時只寫
+                // 上面的 targetObj 只改到脫鉤副本，牆上小格永遠停在存檔前的裁法（必須重載才會
+                // 更新，違反 spec §3.4「✓ 存入後焦點立即生效」）。alias 回 404 的 18 位因前提
+                // 僥倖成立而正常 ⇒ 資料相依的間歇失敗，抽測/CDP 抽樣都可能整批放行。詳見
+                // plan-100b.md 的 CD-10 訂正框。
+                // 與 _uploadActressPhoto／_onPickerSelect 對稱：改資料一律 by-name 呼叫
+                // _syncActressesArray；用 targetObj.name（await 前捕獲值）而非
+                // this.currentLightboxActress?.name，防使用者在 await 期間切走女優時寫錯格。
+                // gate 在 _maskKind === 'actress'：video 分支 targetObj 是 currentLightboxVideo，
+                // 沒有 paginatedActresses 可查（那是 paginatedVideos），video/actress 是正交的
+                // 兩條資料，不可讓這段在 video 分支被誤觸發。
+                if (this._maskKind === 'actress') {
+                    this._syncActressesArray(targetObj.name, { auto_focal: data.auto_focal, crop_mode: 'manual' });
+                }
             } catch (e) {
                 if (session === this._maskSession) {
                     this.showToast(window.t('showcase.lightbox.mask_save_failed'), 'error');   // 沿用既有 key
@@ -1734,15 +1757,18 @@ export function stateLightbox() {
         },
 
         /**
-         * Helper: 換照片成功後同步 _actresses 陣列對應 entry
+         * Helper: by-name 同步 `paginatedActresses[idx]`（100b-T4 擴四欄）。
+         * ⚠️ docstring 更正（CD-10）：舊版寫「同步 `_actresses` 陣列」是錯的——`_actresses`/
+         * `_filteredActresses` 是 `state-base.js:24-25` 的 module-level 純陣列、非 Alpine
+         * reactive prop，寫它們不會觸發任何重算（絕不可去「同步」那兩個）。本函式改的一律是
+         * `this.paginatedActresses[idx]`（reactive）。
+         * 四欄邏輯已抽至 `shared/actress-sync.js`（node:test 可測，見 __tests__/
+         * sync-actress-fields.test.mjs；本檔用 `@/showcase/...` importmap alias，plain Node
+         * 無法直接 import，同 mask-geometry.js 先例）。呼叫契約不變：三個呼叫點
+         * （confirmMask／_uploadActressPhoto／_onPickerSelect）皆 by-name 傳入部分欄位。
          */
         _syncActressesArray(name, data) {
-            if (!data || !data.photo_url) return;
-            const idx = this.paginatedActresses.findIndex(a => a.name === name);
-            if (idx >= 0) {
-                this.paginatedActresses[idx].photo_url = data.photo_url;
-                this.paginatedActresses[idx].photo_source = data.photo_source;
-            }
+            syncActressFields(this.paginatedActresses, name, data);
         },
 
         /**
@@ -1830,8 +1856,10 @@ export function stateLightbox() {
                 // 的女優（21 位中 3 位）上傳後「牆上換了、燈箱主圖沒換」＝ DoD ⓪ 失敗；alias 回
                 // 404 的 18 位則因前提僥倖成立而正常 ⇒ **資料相依的間歇失敗**，這正是它躲過所有
                 // 先前驗證的原因。詳見 plan-100b.md 的 CD-10 訂正框。
-                // ⚠️ 只同步這兩欄：auto_focal/crop_mode 的四欄擴充仍屬 T4（CD-10 訂正框已把
-                // 「收斂 + 重寫 DoD ③」指派給 T4，此處不搶做）。
+                // ⚠️ 只同步這兩欄，非漏改：燈箱大圖（spec §3.4）恆顯示完整原圖、不裁，
+                // currentLightboxActress.auto_focal/.crop_mode 不影響這裡的 render，只有
+                // 牆上小格（paginatedActresses[idx]）的 applyCellFocal 會消費這兩欄——已由
+                // 上方 _syncActressesArray（100b-T4 擴四欄）處理。
                 this.currentLightboxActress.photo_url = data.photo_url;
                 this.currentLightboxActress.photo_source = data.photo_source;
 

@@ -491,6 +491,99 @@ const RULES = [
     note: '[TestMaskToggleGuard] 100b-T2b：女優封面 img 的 @load 是 _actressPhotoLoaded 在未快取路徑（上傳/換候選的 cache-bust URL）的唯一 writer',
   },
 
+  // ---- [TestMaskToggleGuard] 100b-T4：狀態同步 + 前端序列化 ----
+
+  // 裁決 1（Opus 審核，2026-07-16）：confirmMask 女優分支必須補上 paginatedActresses[idx]
+  // 陣列側寫入，與 _uploadActressPhoto／_onPickerSelect 對稱（改資料一律 by-name 呼叫
+  // _syncActressesArray）。alias 回 200 的女優（21 位中 3 位）缺此行 ⇒ 牆上小格存檔後不會
+  // 立即生效（違反 spec §3.4 末條），且是資料相依的間歇失敗（alias 回 404 的 18 位僥倖正常）。
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: "this._syncActressesArray(targetObj.name, { auto_focal: data.auto_focal, crop_mode: 'manual' });",
+    scope: { anchor: /async\s+confirmMask\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 100b-T4：confirmMask 女優分支補上 paginatedActresses[idx] 陣列側寫入（Opus 裁決 1）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: "if (this._maskKind === 'actress') {",
+    scope: { anchor: /async\s+confirmMask\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 100b-T4：confirmMask 陣列側寫入須 gate 在 _maskKind===actress（video 分支沒有 paginatedActresses 可查，兩者是正交資料，不得誤觸發）',
+  },
+  // 🔴 防止已被推翻的錯誤前提復活：舊註解主張 actress 分支的 targetObj 與
+  // paginatedActresses[idx] 恆為同一物件參考（本 branch 稱其為「CD-10 同物件參考」）——
+  // 已被 CDP 實測推翻三次，本 branch 已為它付出代價（錯的理由比沒有理由更危險）。
+  // 全檔禁止再出現這句字面舊註解。
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'forbidden-string',
+    pattern: 'CD-10 同物件參考',
+    note: '[TestMaskToggleGuard] 100b-T4：禁止復活已被 CDP 實測推翻的舊註解（currentLightboxActress 與 paginatedActresses[idx] 不保證同一物件，見 plan-100b.md CD-10 訂正框）',
+  },
+
+  // 裁決 4-b／G2：.picker-upload-btn 互斥鎖必須 !! 強制 boolean（fresh session 下
+  // _pickerSelected 若為 undefined，裸讀會讓按鈕一開始就不可點，且靜態分析全過）。
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ':disabled="!!_pickerSelected"',
+    note: '[TestMaskToggleGuard] 100b-T4：.picker-upload-btn 互斥鎖 G2 !! coercion（CD-8／裁決 4-b）',
+  },
+
+  // 裁決 5：.picker-candidate-card 是 <div>，HTML `disabled` 只對 form control 生效，
+  // 掛在 div 上會被瀏覽器靜默忽略（看起來鎖了、其實沒鎖）。互斥改走既有 @click guard
+  // （_onPickerHoverIn／_onPickerHoverOut／_onPickerSelect 三者開頭皆
+  // `if (this._pickerSelected) return;`，49c-era 既有碼，先前無 lint 鎖住不被回歸刪除）。
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: 'if (this._pickerSelected) return;',
+    scope: { anchor: /_onPickerHoverIn\s*\(\s*el\s*,\s*i\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 100b-T4：_onPickerHoverIn 互斥 guard 回歸鎖（裁決 5——.picker-candidate-card 是 div，:disabled 無效，改走此 @click guard）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: 'if (this._pickerSelected) return;',
+    scope: { anchor: /async\s+_onPickerHoverOut\s*\(\s*el\s*,\s*i\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 100b-T4：_onPickerHoverOut 互斥 guard 回歸鎖（裁決 5，同上）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: 'if (this._pickerSelected) return;',
+    scope: { anchor: /async\s+_onPickerSelect\s*\(\s*candidate\s*,\s*i\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 100b-T4：_onPickerSelect 互斥 guard 回歸鎖（裁決 5，同上——AC-13 race lock 兼任兩角色：候選列互斥 + 原有的重複點擊防護）',
+  },
+
+  // 裁決 4-c／CD-8 承重前提：上傳 in-flight 期間 _pickerOpen 恆為 true，_closePicker() 必須
+  // 排在 await fetch 之後（picker 一關，.cover-actions 復活、🗑️ 可達，CD-8「不鎖刪除鈕」的
+  // 論證即失效）。本規則只證字面順序，證不出執行時序（catch/提早 return 是否遵守）——
+  // 最終把關仍是 CDP 實測 .cover-actions 的 pointer-events（DoD④-c）。
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'order',
+    scope: { anchor: /async\s+_uploadActressPhoto\s*\(\s*evt\s*\)\s*\{/, braceBalanced: true },
+    items: [
+      { pattern: /await\s+fetch\(/ },
+      { pattern: /this\._closePicker\(\)/ },
+    ],
+    note: '[TestMaskToggleGuard] 100b-T4：CD-8 承重前提——_closePicker() 必須排在 await fetch 之後（picker 在請求 resolve 前不得關閉，否則 .cover-actions 復活、🗑️ 可達）',
+  },
+
+  // §A／CD-6：女優牆格三件套（@load + 兩條 $watch），比照 video 牆格 :330-333，ratioVar
+  // 傳 --actress-crop-ratio（CD-3）。count:3 涵蓋 @load 呼叫本身 + 兩個 $watch callback 內
+  // 各自呼叫一次，缺一即代表接線不全（例如漏改成不帶 ratioVar 的 2-arg 呼叫，會誤用
+  // 預設 --poster-crop-ratio）。
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string', count: 3,
+    pattern: "applyCellFocal($el, actress, '--actress-crop-ratio')",
+    note: '[TestMaskToggleGuard] 100b-T4：女優牆格 @load + 兩條 $watch 三件套皆傳 --actress-crop-ratio（CD-3／CD-6，比照 video 三件套）',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: "$watch('actress.auto_focal',",
+    note: '[TestMaskToggleGuard] 100b-T4：女優牆格 x-init watcher 鎖 auto_focal（DoD①：✓ 存入後小格立即對準臉，不需重載）',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: "$watch('actress.crop_mode',",
+    note: '[TestMaskToggleGuard] 100b-T4：女優牆格 x-init watcher 鎖 crop_mode（DoD②-a：換照片後回置中裁）',
+  },
+
   // ---- [TestSearchLightboxMetadataGuard] search.html：5 個 required ----
   { file: 'web/templates/search.html', kind: 'required-string', pattern: 'currentLightboxVideo()?.director', note: '[TestSearchLightboxMetadataGuard] lightbox field' },
   { file: 'web/templates/search.html', kind: 'required-string', pattern: 'currentLightboxVideo()?.duration', note: '[TestSearchLightboxMetadataGuard] lightbox field' },

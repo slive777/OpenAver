@@ -511,7 +511,16 @@
                         <!-- Photo -->
                         <div class="actress-card-photo">
                             <template x-if="actress.photo_url">
-                                <img :src="actress.photo_url" :alt="actress.name" loading="lazy">
+                                <!-- 100b-T4（§A／CD-6）：比照 video 牆格三件套（:330-333），ratioVar
+                                     傳 '--actress-crop-ratio'（CD-3）。x-if 只在 photo_url 從無到有時
+                                     掛載一次（女優已有照片、換照片/焦點的常態路徑不重新掛載）——
+                                     @load 蓋首次掛載，$watch 蓋之後所有欄位變動（applyCellFocal.js
+                                     開頭註解：node:test 測不到「resolve 後寫哪個變數」，這裡靠
+                                     paginatedActresses[idx] 本身是 reactive 物件，$watch 才追蹤得到）。 -->
+                                <img :src="actress.photo_url" :alt="actress.name" loading="lazy"
+                                     @load="applyCellFocal($el, actress, '--actress-crop-ratio')"
+                                     x-init="$watch('actress.auto_focal', () => applyCellFocal($el, actress, '--actress-crop-ratio'));
+                                             $watch('actress.crop_mode', () => applyCellFocal($el, actress, '--actress-crop-ratio'))">
                             </template>
                             <template x-if="!actress.photo_url">
                                 <div class="actress-no-photo">
@@ -975,6 +984,16 @@
                      x-show="_pickerCurrentSource">
                     <span x-text="t('showcase.actress.picker.current_source').replace('{source}', t('showcase.actress.picker.source_' + _pickerCurrentSource) || _pickerCurrentSource)"></span>
                 </div>
+                <!-- 100b-T4（CD-8／裁決 5）：.picker-candidate-card 是 <div>，HTML `disabled`
+                     只對 form control 生效——掛在 div 上會被瀏覽器靜默忽略（看起來鎖了、其實
+                     沒鎖，不像 G2 的「一開始就死」）。不可比照 .picker-upload-btn 抄 :disabled。
+                     互斥改走 @click guard：_onPickerHoverIn/_onPickerHoverOut/_onPickerSelect
+                     三者開頭皆 `if (this._pickerSelected) return;`（49c-era 既有碼，見各自
+                     函式定義），此為對 <div> 真的有效的機制之一（裁決 5 列出的三選項之一）。
+                     不新增視覺態（opacity/pointer-events class）：資料正確性已由上述 guard
+                     保證，純 UX 錦上添花與 owner「UI 退位、克制材質」的一貫取向不符
+                     （plan-100b.md 技術要點 4b 選項 a）。三處既有 guard 已補 lint 回歸鎖
+                     （static_guard_lint.mjs，防未來重構誤刪）。 -->
                 <div class="picker-candidates-grid" x-ref="pickerGrid">
                     <template x-for="(c, i) in _candidates" :key="i">
                         <div class="picker-candidate-card"
@@ -1010,11 +1029,13 @@
                     <i class="bi bi-arrow-clockwise" :class="{ spin: _pickerLoading }"></i>
                 </button>
                 <!-- 100b-T2b（spec §3.1／裁決 5）：上傳 icon，⟳ 重新整理旁同排。位置/視覺
-                     逐項比照 .picker-refresh-btn 的 §6 5 檢查點（見 showcase.css）；
-                     :disabled 綁定（picker 內兩入口互斥的 UI 側，G2 !! coercion）屬 T4，
-                     本 task 不搶做——_uploadActressPhoto() 內部已用 _pickerSelected
-                     互斥鎖保護資料正確性（CD-8）。 -->
+                     逐項比照 .picker-refresh-btn 的 §6 5 檢查點（見 showcase.css）。
+                     100b-T4：:disabled 接上互斥鎖（CD-8／G2）——_pickerSelected 初值雖為
+                     false（非 undefined，state-lightbox.js:133），仍一律 !! 強制 boolean，
+                     防未來初始化方式改動時無感死掉（gotchas-frontend「Alpine boolean-attribute
+                     的 undefined 陷阱」）。 -->
                 <button class="picker-upload-btn"
+                        :disabled="!!_pickerSelected"
                         @click.stop="$refs.actressPhotoUploadInput.click()"
                         :title="t('showcase.actress.picker.upload_btn')"
                         :aria-label="t('showcase.actress.picker.upload_btn')">
