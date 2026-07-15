@@ -622,7 +622,7 @@ class TestSetActressPhoto:
                 patch("core.actress_photo.GFRIENDS_DIR", gfriends):
             resp = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
-                json={"source": "graphis", "url": "https://example.com/photo.jpg"},
+                json={"source": "graphis", "url": "https://www.graphis.ne.jp/photo.jpg"},
             )
 
         assert resp.status_code == 200
@@ -670,7 +670,7 @@ class TestSetActressPhoto:
         """actress 不在 DB 時回 404 not_found"""
         resp = client.post(
             "/api/actresses/不存在女優XYZ/photo",
-            json={"source": "graphis", "url": "https://example.com/photo.jpg"},
+            json={"source": "graphis", "url": "https://www.graphis.ne.jp/photo.jpg"},
         )
         assert resp.status_code == 404
         assert resp.json()["error"] == "not_found"
@@ -684,6 +684,34 @@ class TestSetActressPhoto:
         )
         assert resp.status_code == 400
         assert resp.json()["error"] == "unknown_source"
+
+    def test_set_actress_photo_offwhitelist_url_400_and_keeps_focal(self, client, tmp_db):
+        """🔴 Codex P2 回歸鎖：白名單外的 URL → 400，且**不得清掉使用者的手動焦點**。
+
+        原本白名單驗證埋在 download_actress_photo 內部、在 clear_focal 之後才跑 →
+        一個注定失敗的請求會先把焦點清掉，使用者的手動焦點無聲消失（舊圖還在）。
+        這與 T3 對 local_crop 的裁決是同一條原則：不為一次注定失敗的操作先清焦點。
+        可達性：set_actress_photo 已揭露於 capabilities，agent 可 POST 任意 url。
+
+        mutation：把 validate_photo_url 檢查移到 _pre_invalidate_focal 之後 → 必紅。
+        """
+        from core.database import ActressRepository
+
+        self._save_actress(client)
+        repo = ActressRepository(tmp_db)
+        assert repo.update_manual_focal(ACTRESS_NAME, "0.3000,0.7000") is True
+
+        resp = client.post(
+            f"/api/actresses/{ACTRESS_NAME}/photo",
+            json={"source": "graphis", "url": "https://evil.example.com/x.jpg"},
+        )
+
+        assert resp.status_code == 400
+        assert resp.json()["error"] == "照片來源網址不合法"   # CD-8：固定中文，非 snake_case
+        # 🔴 承重斷言：焦點原封不動
+        row = repo.get_by_name(ACTRESS_NAME)
+        assert row.auto_focal == "0.3000,0.7000", "白名單外的 URL 把使用者的手動焦點清掉了"
+        assert row.crop_mode == "manual"
 
     def test_set_actress_photo_cloud_missing_url(self, client):
         """雲端 source 缺 url 回 400 url_required"""
@@ -759,7 +787,7 @@ class TestSetActressPhoto:
         with patch("web.routers.actress.download_actress_photo", return_value=False):
             resp = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
-                json={"source": "gfriends", "url": "https://example.com/photo.jpg"},
+                json={"source": "gfriends", "url": "https://cdn.jsdelivr.net/photo.jpg"},
             )
 
         assert resp.status_code == 500
@@ -787,7 +815,7 @@ class TestSetActressPhoto:
                 patch("core.actress_photo.GFRIENDS_DIR", gfriends):
             resp = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
-                json={"source": "graphis", "url": "https://example.com/new_photo.jpg"},
+                json={"source": "graphis", "url": "https://www.graphis.ne.jp/new_photo.jpg"},
             )
 
         assert resp.status_code == 200
@@ -820,7 +848,7 @@ class TestSetActressPhoto:
                 patch("core.actress_photo.GFRIENDS_DIR", gfriends):
             resp = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
-                json={"source": "minnano", "url": "https://example.com/photo.jpg"},
+                json={"source": "minnano", "url": "https://www.minnano-av.com/photo.jpg"},
             )
 
         assert resp.status_code == 200
@@ -856,7 +884,7 @@ class TestSetActressPhoto:
                 patch("core.actress_photo.GFRIENDS_DIR", gfriends):
             resp1 = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
-                json={"source": "graphis", "url": "https://example.com/photo1.jpg"},
+                json={"source": "graphis", "url": "https://www.graphis.ne.jp/photo1.jpg"},
             )
         assert resp1.status_code == 200
         assert resp1.json()["photo_source"] == "graphis"
@@ -904,7 +932,7 @@ class TestSetActressPhoto:
                 patch("core.actress_photo.GFRIENDS_DIR", gfriends):
             resp3 = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
-                json={"source": "gfriends", "url": "https://example.com/photo3.jpg"},
+                json={"source": "gfriends", "url": "https://cdn.jsdelivr.net/photo3.jpg"},
             )
         assert resp3.status_code == 200
         assert resp3.json()["photo_source"] == "gfriends"
@@ -1016,7 +1044,7 @@ class TestSetActressPhoto:
                 patch("core.actress_photo.GFRIENDS_DIR", gfriends):
             resp = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
-                json={"source": "graphis", "url": "https://example.com/new.jpg"},
+                json={"source": "graphis", "url": "https://www.graphis.ne.jp/new.jpg"},
             )
 
         assert resp.status_code == 200
@@ -1080,7 +1108,7 @@ class TestSetActressPhoto:
              patch("web.routers.actress.download_actress_photo") as mock_download:
             resp = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
-                json={"source": "graphis", "url": "https://example.com/new.jpg"},
+                json={"source": "graphis", "url": "https://www.graphis.ne.jp/new.jpg"},
             )
             mock_download.assert_not_called()
 
@@ -1180,7 +1208,7 @@ class TestSetActressPhoto:
                 patch("core.actress_photo.GFRIENDS_DIR", gfriends):
             resp = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
-                json={"source": "wiki", "url": "https://example.com/photo.png"},
+                json={"source": "wiki", "url": "https://upload.wikimedia.org/photo.png"},
             )
 
             assert resp.status_code == 200
@@ -1227,12 +1255,12 @@ class TestSetActressPhoto:
                 patch("core.actress_photo.GFRIENDS_DIR", gfriends):
             resp1 = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
-                json={"source": "graphis", "url": "https://example.com/a.jpg"},
+                json={"source": "graphis", "url": "https://www.graphis.ne.jp/a.jpg"},
             )
             time.sleep(0.01)
             resp2 = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
-                json={"source": "graphis", "url": "https://example.com/a.jpg"},
+                json={"source": "graphis", "url": "https://www.graphis.ne.jp/a.jpg"},
             )
 
         assert resp1.status_code == 200
@@ -1257,7 +1285,7 @@ class TestSetActressPhoto:
                 patch("core.actress_photo.GFRIENDS_DIR", gfriends):
             cloud_resp = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
-                json={"source": "graphis", "url": "https://example.com/body.jpg"},
+                json={"source": "graphis", "url": "https://www.graphis.ne.jp/body.jpg"},
             )
         assert cloud_resp.status_code == 200
         cloud_data = cloud_resp.json()
@@ -1673,6 +1701,36 @@ class TestUploadActressPhoto:
     def test_upload_endpoint_not_registered_in_capabilities(self):
         capabilities_src = Path("web/routers/capabilities.py").read_text(encoding="utf-8")
         assert "photo/upload" not in capabilities_src
+
+    # ---- 🔴 Codex P2：repo.save 失敗必須回固定中文，不可逸出成純文字 500 ----
+
+    def test_upload_photo_save_failure_returns_fixed_chinese_500(self, client, tmp_path):
+        """repo.save 拋例外若逸出 async 路由 → Starlette 預設 handler 回**純文字**
+        "Internal Server Error"（web/app.py 只註冊 RequestValidationError、無
+        catch-all）→ 不是 JSON、更不是 AGENTS.md:33 要求的固定中文。
+
+        T4 的 set_actress_focal 本來就有這個 guard，T2/T3 漏了——同一 branch 內部
+        的不對稱。mutation：拿掉 _persist_photo_source 的 try/except → 必紅。
+        """
+        self._save_actress(client)
+        gfriends = tmp_path / "gfriends"
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends), \
+             patch("web.routers.actress.ActressRepository") as repo_cls:
+            repo_cls.return_value.get_by_name.return_value = MagicMock(
+                name=ACTRESS_NAME, auto_focal="", crop_mode="auto", photo_source="gfriends")
+            repo_cls.return_value.clear_focal.return_value = True
+            repo_cls.return_value.save.side_effect = RuntimeError("disk full")
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+                files={"file": ("photo.jpg", self._make_jpeg_bytes(), "image/jpeg")},
+            )
+
+        assert resp.status_code == 500
+        # 🔴 承重：body 是 JSON + 固定中文，不是 Starlette 的純文字 "Internal Server Error"
+        assert resp.headers["content-type"].startswith("application/json")
+        assert resp.json()["error"] == _ERR_UPLOAD_FAILED
+        assert "disk full" not in resp.text   # 細節只進 log，不外洩
 
     # ---- 🔴 spec §3.3 失敗矩陣：寫檔失敗 → 舊圖必須原封不動 ----
 

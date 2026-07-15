@@ -29,7 +29,7 @@ from core.maker_mapping import load_prefix_mapping
 from core.database import ActressRepository, AliasRepository, VideoRepository, Actress, init_db
 from core.actress_photo import (
     download_actress_photo, get_local_photo_path, delete_local_photo,
-    crop_video_cover, GFRIENDS_DIR, CONTENT_TYPE_MAP,
+    crop_video_cover, GFRIENDS_DIR, CONTENT_TYPE_MAP, validate_photo_url,
 )
 from core.focal import detect_focal, format_focal, parse_focal
 from core.organizer import sanitize_filename
@@ -579,6 +579,31 @@ async def _pre_invalidate_focal(repo: ActressRepository, name: str, *, ctx: str,
     return None
 
 
+async def _persist_photo_source(repo: ActressRepository, actress, source: str, *, ctx: str, err_msg: str):
+    """CD-7：photo_source 持久化（換主圖的三個入口共用）。
+
+    只回 response 不持久化 → 重載後顯示舊來源。`_ACTRESS_FOCAL_PRESERVE` 保住
+    focal 五欄不被 save() 覆寫，故這裡 save() 不會踩掉 clear_focal 剛寫的值。
+
+    **為何要 try/except**（Codex P2）：DB 寫入失敗若逸出 async 路由，Starlette 的
+    預設 handler 會回**純文字 "Internal Server Error"**（`web/app.py` 只註冊了
+    RequestValidationError handler、無 catch-all）——不是 JSON、更不是
+    `AGENTS.md:33` 要求的固定中文。此時新圖已經安裝、photo_source 卻沒更新，
+    使用者至少該拿到一個看得懂的錯誤。T4 的 set_actress_focal 本來就有這個
+    guard，T2/T3 漏了——這是同一 branch 內部的不對稱，不是新規則。
+
+    Returns:
+        失敗 → JSONResponse(500)，呼叫端直接 return 它；成功 → None。
+    """
+    actress.photo_source = source
+    try:
+        await asyncio.to_thread(repo.save, actress)
+    except Exception:
+        logger.exception("[actress] %s photo_source 持久化失敗 name=%s", ctx, actress.name)
+        return JSONResponse(status_code=500, content={"error": err_msg})
+    return None
+
+
 async def _photo_url_with_fp_cache_bust(name: str, *, ctx: str, err_msg: str):
     """CD-6 重解析 + CD-11 fp cache-bust——安裝新圖後產生 photo_url。
 
@@ -650,6 +675,7 @@ CLOUD_SOURCES = {"graphis", "gfriends", "wiki", "minnano"}
 # （TASK-100a-T3 決策點：新增 code 就得守新規則，不因「既有端點還沒遷移」而
 # 再新增一條 snake_case 違規）。
 _SET_PHOTO_ERR_FAILED = "設定照片失敗，請稍後再試"
+_SET_PHOTO_ERR_INVALID_URL = "照片來源網址不合法"
 
 
 @router.post("/{name}/photo")
@@ -684,6 +710,21 @@ async def set_actress_photo(name: str, req: SetActressPhotoRequest):
     if req.source in CLOUD_SOURCES:
         if not req.url:
             return JSONResponse(status_code=400, content={"error": "url_required"})
+        # 🔴 白名單驗證必須在清焦點「之前」（Codex P2）：validate_photo_url 是純函式、
+        # 零 side effect、不做任何 I/O，而 download_actress_photo 內部也會再驗一次
+        # （SSRF 防禦不依賴呼叫端，此處是提前擋，不是取代）。不提前擋的話，一個
+        # 白名單外的 URL 會先把使用者的手動焦點清掉、才發現這個請求注定失敗
+        # → 舊圖留著但焦點無聲消失。
+        # 這與 local_crop 分支「clear_focal 插在 crop 成功之後」是同一條原則
+        # （TASK-100a-T3 Opus 裁決）：**不為一次注定失敗的操作先清掉焦點**。
+        # T3 當時只把該原則套用到 local_crop，漏了 cloud 這條同構的路徑。
+        # 可達性：set_actress_photo 已揭露於 capabilities（:964，side_effect），
+        # AI agent 可直接 POST 任意 url —— 不是只有 UI 那條可信路徑。
+        # CD-8：新增路徑一律固定中文（不因為旁邊的 url_required／unknown_source
+        # 是舊碼 snake_case 就跟著新增一條違規——TASK-100a-T3 已裁決過同一件事）。
+        if not validate_photo_url(req.url, req.source):
+            logger.warning("[actress] set_photo URL 不在白名單 source=%s", req.source)
+            return JSONResponse(status_code=400, content={"error": _SET_PHOTO_ERR_INVALID_URL})
         # 🔴 CD-4 pre-invalidate：cloud 分支插入點——download_actress_photo 之前。
         err = await _pre_invalidate_focal(repo, name, ctx="set_photo", err_msg=_SET_PHOTO_ERR_FAILED)
         if err:
@@ -725,9 +766,11 @@ async def set_actress_photo(name: str, req: SetActressPhotoRequest):
         # glob 刪舊副檔名 + 寫入
         await asyncio.to_thread(_write_actress_photo, name, crop_bytes)
 
-    # 更新 photo_source + 回傳
-    actress.photo_source = req.source
-    await asyncio.to_thread(repo.save, actress)
+    # 更新 photo_source + 回傳（CD-7）
+    err = await _persist_photo_source(
+        repo, actress, req.source, ctx="set_photo", err_msg=_SET_PHOTO_ERR_FAILED)
+    if err:
+        return err
 
     # CD-6：logical slot vs physical path，寫檔/下載後不可假設 {safe}.jpg，一律重
     # 解析（cloud 分支副檔名由 Content-Type 決定，core/actress_photo.py）。重解析
@@ -860,8 +903,10 @@ async def upload_actress_photo(name: str, file: UploadFile = _UPLOAD_FILE_PARAM)
 
     # CD-7：photo_source 必須持久化；clear_focal 語意已知（''/'auto'），直接寫死，
     # 不多一次 DB round-trip 只為了讀已知的值。
-    actress.photo_source = "upload"
-    await asyncio.to_thread(repo.save, actress)
+    err = await _persist_photo_source(
+        repo, actress, "upload", ctx="upload", err_msg=_UPLOAD_ERR_FAILED)
+    if err:
+        return err
 
     photo_url, err = await _photo_url_with_fp_cache_bust(
         name, ctx="upload", err_msg=_UPLOAD_ERR_FAILED)

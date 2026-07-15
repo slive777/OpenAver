@@ -422,6 +422,39 @@ def test_download_actress_photo_failure_preserves_old(gfriends_dir):
     assert old_file.read_bytes() == b"old_data"
 
 
+def test_download_actress_photo_replace_failure_preserves_old(gfriends_dir):
+    """🔴 Codex P1 回歸鎖：os.replace 失敗時，舊照片必須原封不動。
+
+    上面那條只 mock requests.get 失敗——那發生在刪舊檔**之前**，抓不到本 bug。
+    原本的順序是「下載成功 → 刪舊檔 → os.replace」，若 replace 拋例外，舊檔已經
+    沒了、finally 又清掉 tmp → **新舊照片全部消失**，違反 spec-100 §3.3 失敗矩陣
+    「寫檔失敗仍保留舊圖、最壞只退回置中裁」的硬保證。
+
+    不是理論極端 case：Windows 上防毒即時掃描／檔案總管縮圖快取持有 final_path 的
+    handle，就會讓 os.replace 拋 PermissionError——Windows 桌面版是本專案主力族群。
+    同型 bug 已於 TASK-100a-T2 在 _write_actress_photo 修掉，此處是漏掉的雙胞胎。
+
+    mutation：把刪舊檔迴圈移回 os.replace 之前 → 本測試必紅。
+    """
+    gfriends_dir.mkdir(parents=True, exist_ok=True)
+    old_file = gfriends_dir / "田中美久.jpg"
+    old_file.write_bytes(b"old_data")
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.headers = {"Content-Type": "image/jpeg"}
+    mock_resp.content = b"new_data"
+
+    with patch("core.actress_photo.requests.get", return_value=mock_resp), \
+         patch("core.actress_photo.os.replace", side_effect=PermissionError("被防毒鎖住")):
+        result = download_actress_photo("田中美久", "https://www.graphis.ne.jp/photo.jpg", "graphis")
+
+    assert result is False
+    # 🔴 承重斷言：replace 失敗 → 舊照片還在、bytes 一個位元都沒變
+    assert old_file.exists(), "os.replace 失敗卻把舊照片刪了 —— spec §3.3 失敗矩陣不成立"
+    assert old_file.read_bytes() == b"old_data"
+
+
 def test_download_actress_photo_success_overwrites_old(gfriends_dir):
     """下載成功時舊檔被刪、新檔寫入（副檔名依 Content-Type）"""
     gfriends_dir.mkdir(parents=True, exist_ok=True)

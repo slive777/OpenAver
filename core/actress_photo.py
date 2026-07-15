@@ -68,10 +68,14 @@ PHOTO_HOST_WHITELIST: dict[str, set] = {
 }
 
 
-def _validate_photo_url(photo_url: str, photo_source: str) -> bool:
+def validate_photo_url(photo_url: str, photo_source: str) -> bool:
     """
     驗證 photo_url 是否符合來源白名單（SSRF 防禦）。
     scheme 必須是 http/https，host 必須在對應 source 的白名單內。
+
+    公開（原為 `_validate_photo_url`，TASK-100a Codex P2 改公開）：純函式、零
+    side effect、不做任何 I/O，故 `set_actress_photo` 路由可以在 CD-4 清焦點
+    **之前**先呼叫它擋掉注定失敗的請求——不清白清（見該處註解）。
     """
     try:
         parsed = urlparse(photo_url)
@@ -99,7 +103,7 @@ def download_actress_photo(name: str, photo_url: str, photo_source: str) -> bool
     if not photo_url:
         return False
 
-    if not _validate_photo_url(photo_url, photo_source):
+    if not validate_photo_url(photo_url, photo_source):
         logger.warning("[actress_photo] URL 不在白名單 source=%s url=%s", photo_source, photo_url)
         return False
 
@@ -145,9 +149,22 @@ def download_actress_photo(name: str, photo_url: str, photo_source: str) -> bool
         tmp_path = GFRIENDS_DIR / f".{safe_name}{ext}.download.tmp"
         tmp_path.write_bytes(resp.content)
 
-        # 4. 下載成功才刪舊檔
+        # 4. atomic replace（先安裝新圖）
+        os.replace(tmp_path, final_path)
+
+        # 5. 🔴 replace 成功「之後」才刪其他副檔名的舊檔（final_path 除外）。
+        # 順序是承重的（spec-100 §3.3 + Codex P1）：原本是「先刪舊檔 → os.replace」，
+        # 若 replace 拋例外，舊檔已經沒了、finally 又清掉 tmp → **新舊照片全部消失**，
+        # 違反 §3.3 失敗矩陣「寫檔失敗仍保留舊圖、最壞只退回置中裁」的硬保證。
+        # 這不是理論上的極端 case：Windows 上防毒即時掃描／檔案總管縮圖快取持有
+        # final_path 的 handle 就會讓 os.replace 拋 PermissionError，而 Windows 桌面
+        # 版正是本專案的主力使用族群。
+        # 同型 bug 已於 TASK-100a-T2 在 web/routers/actress.py 的 _write_actress_photo
+        # 修掉（見該處 :538-547 註解），此處是被漏掉的雙胞胎。
+        # 成功路徑行為不變（最終同樣只留 final_path 一個檔），兩個 caller
+        # （add_favorite / set_actress_photo）皆不受影響。
         for old in GFRIENDS_DIR.glob(f"{safe_name}.*"):
-            if old == tmp_path:
+            if old == final_path:
                 continue
             try:
                 old.unlink()
@@ -157,8 +174,6 @@ def download_actress_photo(name: str, photo_url: str, photo_source: str) -> bool
                     old, e,
                 )
 
-        # 5. atomic replace
-        os.replace(tmp_path, final_path)
         logger.info("[actress_photo] 下載完成：%s", final_path)
         return True
 
