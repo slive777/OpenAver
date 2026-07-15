@@ -17,16 +17,21 @@ import random
 import re
 import tempfile
 import time
+from io import BytesIO
 from typing import Optional, List
 from urllib.parse import quote
 
-from fastapi import APIRouter
+from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
+from PIL import Image
 from core.maker_mapping import load_prefix_mapping
 
 from core.database import ActressRepository, AliasRepository, VideoRepository, Actress, init_db
-from core.actress_photo import download_actress_photo, get_local_photo_path, delete_local_photo, crop_video_cover, GFRIENDS_DIR
+from core.actress_photo import (
+    download_actress_photo, get_local_photo_path, delete_local_photo,
+    crop_video_cover, GFRIENDS_DIR, CONTENT_TYPE_MAP,
+)
 from core.organizer import sanitize_filename
 from core.path_utils import to_file_uri as to_file_uri, uri_to_fs_path, uri_to_local_fs_path, coerce_to_file_uri
 from core.config import load_config
@@ -494,19 +499,22 @@ def _get_actress_videos(name: str) -> list:
     return VideoRepository().get_videos_by_actress(name)
 
 
-def _write_actress_photo(name: str, crop_bytes: bytes) -> None:
+def _write_actress_photo(name: str, crop_bytes: bytes, ext: str = ".jpg") -> None:
     """Threadpool helper: atomically write crop_bytes to GFRIENDS_DIR, replacing old files.
 
     Lock-free: same-actress concurrent writers are last-writer-wins (acceptable).
     unlink(missing_ok=True) avoids the glob/unlink TOCTOU 500; temp+os.replace
     avoids torn reads (66b-T4b).
+
+    ext: 目標副檔名（含開頭 `.`，如 `.png`），預設 `.jpg` 保持既有 caller
+    （set_actress_photo 的 local_crop 分支）行為不變。CD-5（TASK-100a-T2）：
+    上傳端點依 PIL 驗出的真實格式傳入對應 ext，避免 PNG/WebP bytes 被存成
+    `.jpg` 檔名導致 GET /photo/{name} 依副檔名查表回錯誤 MIME。
     """
     safe = sanitize_filename(name)
     GFRIENDS_DIR.mkdir(parents=True, exist_ok=True)
-    for old in GFRIENDS_DIR.glob(f"{safe}.*"):
-        old.unlink(missing_ok=True)
-    dest = GFRIENDS_DIR / f"{safe}.jpg"
-    fd, tmp = tempfile.mkstemp(dir=GFRIENDS_DIR, suffix=".jpg")
+    dest = GFRIENDS_DIR / f"{safe}{ext}"
+    fd, tmp = tempfile.mkstemp(dir=GFRIENDS_DIR, suffix=ext)
     try:
         with os.fdopen(fd, "wb") as f:
             f.write(crop_bytes)
@@ -517,6 +525,27 @@ def _write_actress_photo(name: str, crop_bytes: bytes) -> None:
         except OSError:
             pass
         raise
+    # 🔴 清舊檔必須在 os.replace 成功「之後」（TASK-100a-T2 review finding）：
+    # 原本是先 glob 刪光 {safe}.* 再寫入 → 寫檔失敗時舊照片已經沒了，使用者的
+    # 照片直接消失。而 spec-100 §3.3 的失敗矩陣（CD-4 pre-invalidate 的整個賣點）
+    # 明文宣稱「寫檔失敗 → 舊圖 + 已清焦點 → 置中裁（輕微退化）」——先刪再寫讓
+    # 那句話是假的。改成寫入成功後才清掉「其他副檔名」的殘檔（dest 本身除外），
+    # 該承諾才成立：寫檔失敗 → 舊圖原封不動。
+    # 成功路徑行為不變（最終仍只留 dest 一個檔），故既有 caller 不受影響。
+    for old in GFRIENDS_DIR.glob(f"{safe}.*"):
+        if old != dest:
+            old.unlink(missing_ok=True)
+
+
+def clear_focal(repo: ActressRepository, name: str) -> bool:
+    """Threadpool helper: repo.clear_focal(name) 轉呼叫（CD-4 pre-invalidate，TASK-100a-T2）。
+
+    刻意用不帶底線的模組層級名稱 `clear_focal`（而非 `_clear_focal`）：讓測試可以
+    直接 `patch('web.routers.actress.clear_focal', ...)` 模擬清焦點失敗/拋例外
+    （gotchas-backend.md「測試 Mock Patch Target」#1：patch 使用端綁定，不是
+    `core.database.actress.ActressRepository.clear_focal` 定義端）。
+    """
+    return repo.clear_focal(name)
 
 
 @router.get("/actress-crop")
@@ -609,6 +638,152 @@ async def set_actress_photo(name: str, req: SetActressPhotoRequest):
     return JSONResponse(status_code=200, content={
         "photo_url": photo_url,
         "photo_source": req.source,
+    })
+
+
+# ---------------------------------------------------------------------------
+# 端點九之二：POST /api/actresses/{name}/photo/upload — 上傳女優照片（TASK-100a-T2）
+# NOTE：必須定義在 GET /{name} 之前！
+# ---------------------------------------------------------------------------
+
+_UPLOAD_MAX_BYTES = 10 * 1024 * 1024
+_UPLOAD_MAX_PIXELS = 50_000_000
+_UPLOAD_FORMAT_TO_EXT = {"JPEG": ".jpg", "PNG": ".png", "WEBP": ".webp", "GIF": ".gif"}
+
+# CD-8：錯誤訊息一律固定中文，機械分流走 HTTP status（不用 snake_case error code）。
+_UPLOAD_ERR_TOO_LARGE = "圖片太大（檔案上限 10MB、尺寸上限 50M 像素）"
+_UPLOAD_ERR_UNSUPPORTED_FORMAT = "不支援的圖片格式"
+_UPLOAD_ERR_NOT_FOUND = "查無此女優"
+_UPLOAD_ERR_FAILED = "上傳照片失敗，請稍後再試"
+
+# ruff B008：fastapi.File 不在 ruff 預設 immutable-calls 允許清單內（Query/Depends/Body/
+# Form 都在，File 不在）。用模組層級單例取代 inline File(...) 呼叫，避免逐一 noqa 或改動
+# 全域 pyproject.toml 設定。
+_UPLOAD_FILE_PARAM = File(...)
+
+
+def _validate_uploaded_photo(data: bytes):
+    """Threadpool helper: 像素上限 + 真實格式驗證（CD-9/CD-5，TASK-100a-T2）。
+
+    研究實測（PIL 12.2.0）：Image.open(BytesIO(非圖片 bytes)) 本身就會拋
+    UnidentifiedImageError（不是只有 .verify() 才會失敗），故 open()／.verify()
+    必須共用同一個 try/except → 415；但像素超限（413）是 verify() 之前的明確
+    return，不可被這個 except 吞掉。
+
+    同步（PIL 解碼），呼叫端須經 asyncio.to_thread（async-offload 守衛：
+    Image.open()/.verify() 是 AST 掃描認定的阻塞呼叫，即使操作對象是 in-memory
+    BytesIO 也一視同仁，故不可裸跑在 async def 路由 body 內）。
+
+    Returns:
+        (status, error_msg, ext) — 驗證失敗時 status/error_msg 非 None、ext 為 None；
+        成功時 status/error_msg 為 None、ext 為 PIL 驗出的真實格式副檔名。
+    """
+    try:
+        img = Image.open(BytesIO(data))
+        w, h = img.size  # header-only，不解碼像素
+        if w * h > _UPLOAD_MAX_PIXELS:
+            return 413, _UPLOAD_ERR_TOO_LARGE, None
+        img.verify()
+    except Exception:
+        # 細節必須進 log（DoD⑨）。不可靜默吞——v0.11.12 的 javdb 事故就是
+        # `except ImportError` 靜默吞掉真實失敗、零 log，事後「排查最貴的成本
+        # 就是零 log」。使用者上傳壞檔是預期內的事，故用 warning 不用 exception，
+        # 但至少要留下「是什麼炸的」。
+        logger.warning("[actress] upload 圖片驗證失敗（回 415）", exc_info=True)
+        return 415, _UPLOAD_ERR_UNSUPPORTED_FORMAT, None
+
+    ext = _UPLOAD_FORMAT_TO_EXT.get(img.format)
+    if ext is None:
+        return 415, _UPLOAD_ERR_UNSUPPORTED_FORMAT, None
+    return None, None, ext
+
+
+@router.post("/{name}/photo/upload")
+async def upload_actress_photo(name: str, file: UploadFile = _UPLOAD_FILE_PARAM):
+    """
+    上傳女優照片（multipart/form-data）。
+
+    驗證順序（全部先於任何寫入，CD-10/CD-9/CD-5）：
+        1. 大小 >10MB → 413
+        2. Content-Type 不在 core.actress_photo.CONTENT_TYPE_MAP 白名單 → 415
+        3. 像素上限 w*h>50M（Image.open 只讀 header）→ 413；PIL 驗證真實格式失敗 → 415
+        4. 女優不存在 → 404
+    CD-4 pre-invalidate（承重）：先 clear_focal 成功後才寫入新圖，避免「新圖配舊焦點」
+    的中途失敗污染；clear_focal 失敗（含拋例外）→ 500，不得觸碰檔案寫入。
+    不跑自動偵測、不寫焦點、無等待（CD-1）——要對焦走 POST /{name}/focal（T4）。
+
+    CD-13：不揭露進 web/routers/capabilities.py——multipart binary body，
+    AI agent 與 server 未必同機，無法從本機路徑上傳，揭露也用不起來（spec §4-4）。
+    """
+    # 1. 大小（CD-10）：.size 可讀就先擋；.size 為 None（理論上真實 multipart 解析器
+    # 恆設為非 None，此分支防禦不可信任的呼叫端）則讀出後用 len(data) 判斷。
+    if file.size is not None and file.size > _UPLOAD_MAX_BYTES:
+        return JSONResponse(status_code=413, content={"error": _UPLOAD_ERR_TOO_LARGE})
+    data = await file.read()
+    if len(data) > _UPLOAD_MAX_BYTES:
+        return JSONResponse(status_code=413, content={"error": _UPLOAD_ERR_TOO_LARGE})
+
+    # 2. Content-Type 白名單（複用 core.actress_photo.CONTENT_TYPE_MAP 的 key 集合，
+    # 不重新定義一份）——粗篩，不需要讀 bytes 內容，故在 Image.open() 之前執行。
+    if file.content_type not in CONTENT_TYPE_MAP:
+        return JSONResponse(status_code=415, content={"error": _UPLOAD_ERR_UNSUPPORTED_FORMAT})
+
+    # 3. 像素上限 + 真實格式（CD-9/CD-5）——PIL 解碼須過 asyncio.to_thread
+    # （async-offload 守衛：Image.open/.verify() 是阻塞呼叫，不可裸跑在 event loop 上）。
+    err_status, err_msg, ext = await asyncio.to_thread(_validate_uploaded_photo, data)
+    if err_status is not None:
+        return JSONResponse(status_code=err_status, content={"error": err_msg})
+
+    # 4. 女優存在
+    repo, actress = await asyncio.to_thread(_load_actress, name)
+    if actress is None:
+        return JSONResponse(status_code=404, content={"error": _UPLOAD_ERR_NOT_FOUND})
+
+    # 🔴 CD-4 pre-invalidate：先清焦點，成功後才安裝新圖。失敗（含拋例外）一律視為
+    # 失敗，函式在此直接 return，絕不執行 _write_actress_photo——此時女優已確認存在，
+    # clear_focal 理論上不該回 False（唯一情境是驗證與寫入之間女優被刪除的 race，
+    # spec §1.4 明示接受），不論哪種失敗原因行為必須一致：不寫檔、不動 DB 其他欄位，
+    # 舊照片與舊焦點原封不動。
+    try:
+        cleared = await asyncio.to_thread(clear_focal, repo, name)
+    except Exception:
+        logger.exception("[actress] upload clear_focal 例外 name=%s", name)
+        return JSONResponse(status_code=500, content={"error": _UPLOAD_ERR_FAILED})
+    if not cleared:
+        logger.warning("[actress] upload clear_focal 回 False name=%s", name)
+        return JSONResponse(status_code=500, content={"error": _UPLOAD_ERR_FAILED})
+
+    try:
+        await asyncio.to_thread(_write_actress_photo, name, data, ext)
+    except Exception:
+        logger.exception("[actress] upload 寫檔失敗 name=%s", name)
+        return JSONResponse(status_code=500, content={"error": _UPLOAD_ERR_FAILED})
+
+    # CD-7：photo_source 必須持久化；clear_focal 語意已知（''/'auto'），直接寫死，
+    # 不多一次 DB round-trip 只為了讀已知的值。
+    actress.photo_source = "upload"
+    await asyncio.to_thread(repo.save, actress)
+
+    # CD-6：logical slot vs physical path，寫檔後不可假設 {safe}{ext}，一律重解析。
+    # 重解析可能回 None（例：GFRIENDS_DIR 綁定不一致、檔案在寫入後被外部刪除）——
+    # 不 guard 的話 None.stat() 會拋 AttributeError → 框架級 500、body 不是 CD-8
+    # 要求的固定中文（TASK-100a-T2 review finding）。
+    photo_fs = await asyncio.to_thread(get_local_photo_path, name)
+    if photo_fs is None:
+        logger.error("[actress] upload 寫檔後重解析路徑失敗 name=%s", name)
+        return JSONResponse(status_code=500, content={"error": _UPLOAD_ERR_FAILED})
+    try:
+        st = await asyncio.to_thread(photo_fs.stat)
+    except OSError:
+        logger.exception("[actress] upload stat 失敗 name=%s path=%s", name, photo_fs)
+        return JSONResponse(status_code=500, content={"error": _UPLOAD_ERR_FAILED})
+    v = f"{st.st_mtime_ns}-{st.st_size}"
+    photo_url = f"/api/actresses/photo/{quote(name)}?v={v}"
+    return JSONResponse(status_code=200, content={
+        "photo_url": photo_url,
+        "photo_source": "upload",
+        "auto_focal": "",
+        "crop_mode": "auto",
     })
 
 

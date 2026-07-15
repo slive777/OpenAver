@@ -5,6 +5,8 @@ test_api_actress.py — 女優 API 整合測試
 外部依賴（orchestrator + requests）全部 mock。
 """
 
+import time
+
 import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -913,6 +915,439 @@ class TestSetActressPhoto:
         data = resp.json()
         assert data["photo_source"] == "local_crop"
         assert "?t=" in data["photo_url"]
+
+
+# ---------------------------------------------------------------------------
+# T2 (TASK-100a-T2): POST /api/actresses/{name}/photo/upload — 女優照片上傳
+# ---------------------------------------------------------------------------
+
+_ACTRESS_PHOTO_FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "actress_photos"
+
+# CD-8/CD-9 固定中文錯誤文案（測試與實作各自獨立宣告字面值，不共用常數，
+# 避免「改常數同時改測試」讓 mutation 測試失去意義）
+_ERR_TOO_LARGE = "圖片太大（檔案上限 10MB、尺寸上限 50M 像素）"
+_ERR_UNSUPPORTED_FORMAT = "不支援的圖片格式"
+_ERR_NOT_FOUND = "查無此女優"
+_ERR_UPLOAD_FAILED = "上傳照片失敗，請稍後再試"
+
+
+class TestUploadActressPhoto:
+    """POST /api/actresses/{name}/photo/upload 測試（TASK-100a-T2）"""
+
+    def _save_actress(self, client):
+        """Helper: 收藏 ACTRESS_NAME（初始 photo_source='gfriends'，比照 TestSetActressPhoto）"""
+        with patch("web.routers.actress.get_cached_profile", return_value=MOCK_PROFILE), \
+             patch("web.routers.actress.get_actress_profile"), \
+             patch("web.routers.actress.download_actress_photo", return_value=True), \
+             patch("web.routers.actress.get_local_photo_path", return_value=None):
+            client.post("/api/actresses/favorite", json={"name": ACTRESS_NAME})
+
+    @staticmethod
+    def _make_image_bytes(fmt: str, size=(100, 100), color=(200, 50, 50)) -> bytes:
+        from io import BytesIO
+        from PIL import Image
+        buf = BytesIO()
+        Image.new("RGB", size, color).save(buf, format=fmt)
+        return buf.getvalue()
+
+    def _make_jpeg_bytes(self, size=(100, 100), color=(200, 50, 50)) -> bytes:
+        return self._make_image_bytes("JPEG", size=size, color=color)
+
+    def _make_png_bytes(self, size=(100, 100), color=(10, 200, 10)) -> bytes:
+        return self._make_image_bytes("PNG", size=size, color=color)
+
+    def _make_webp_bytes(self, size=(100, 100), color=(10, 10, 200)) -> bytes:
+        return self._make_image_bytes("WEBP", size=size, color=color)
+
+    def _make_oversized_pixel_jpeg_bytes(self) -> bytes:
+        """8000x7000 純色 JPEG，w*h=56,000,000 > 50,000,000 CD-9 門檻，磁碟體積很小。"""
+        return self._make_jpeg_bytes(size=(8000, 7000), color=(1, 1, 1))
+
+    # ---- DoD① 完整原圖 byte-for-byte ----
+
+    def test_upload_photo_byte_for_byte_original(self, client, tmp_path):
+        """上傳 fixture 原始 bytes → 磁碟檔案與原始 bytes 完全相等（非重編碼）"""
+        self._save_actress(client)
+        original = (_ACTRESS_PHOTO_FIXTURES_DIR / "narrow_face_top.jpg").read_bytes()
+
+        gfriends = tmp_path / "gfriends"
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+                files={"file": ("narrow_face_top.jpg", original, "image/jpeg")},
+            )
+
+        assert resp.status_code == 200
+        written = list(gfriends.glob("*.jpg"))
+        assert len(written) == 1
+        assert written[0].read_bytes() == original
+
+    # ---- DoD② PNG/WebP → 存對應副檔名 + GET 回正確 MIME ----
+
+    def test_upload_photo_png_stores_png_ext_and_correct_mime(self, client, tmp_path):
+        self._save_actress(client)
+        png_bytes = self._make_png_bytes()
+
+        gfriends = tmp_path / "gfriends"
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+                files={"file": ("photo.png", png_bytes, "image/png")},
+            )
+            assert resp.status_code == 200
+            written = list(gfriends.glob("*.png"))
+            assert len(written) == 1
+            assert list(gfriends.glob("*.jpg")) == []
+
+            get_resp = client.get(f"/api/actresses/photo/{ACTRESS_NAME}")
+        assert get_resp.status_code == 200
+        assert get_resp.headers["content-type"] == "image/png"
+
+    def test_upload_photo_webp_stores_webp_ext_and_correct_mime(self, client, tmp_path):
+        self._save_actress(client)
+        webp_bytes = self._make_webp_bytes()
+
+        gfriends = tmp_path / "gfriends"
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+                files={"file": ("photo.webp", webp_bytes, "image/webp")},
+            )
+            assert resp.status_code == 200
+            written = list(gfriends.glob("*.webp"))
+            assert len(written) == 1
+            assert list(gfriends.glob("*.jpg")) == []
+
+            get_resp = client.get(f"/api/actresses/photo/{ACTRESS_NAME}")
+        assert get_resp.status_code == 200
+        assert get_resp.headers["content-type"] == "image/webp"
+
+    # ---- DoD③ 上傳後 DB auto_focal 為空 ----
+
+    def test_upload_photo_clears_auto_focal_and_crop_mode(self, client, tmp_db, tmp_path):
+        """上傳前先手動存一個焦點，上傳後 DB auto_focal/crop_mode 必須被清空回 auto"""
+        self._save_actress(client)
+        from core.database import ActressRepository
+        ActressRepository(tmp_db).update_manual_focal(ACTRESS_NAME, "0.3000,0.4000")
+
+        gfriends = tmp_path / "gfriends"
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+                files={"file": ("photo.jpg", self._make_jpeg_bytes(), "image/jpeg")},
+            )
+
+        assert resp.status_code == 200
+        actress = ActressRepository(tmp_db).get_by_name(ACTRESS_NAME)
+        assert actress.auto_focal == ""
+        assert actress.crop_mode == "auto"
+
+    # ---- DoD④ >10MB → 413 ----
+
+    def test_upload_photo_too_large_413(self, client):
+        self._save_actress(client)
+        huge = b"\x00" * (10 * 1024 * 1024 + 1)
+        resp = client.post(
+            f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+            files={"file": ("huge.jpg", huge, "image/jpeg")},
+        )
+        assert resp.status_code == 413
+        assert resp.json() == {"error": _ERR_TOO_LARGE}
+
+    def test_upload_photo_size_none_falls_back_to_len_check(self, client, tmp_db, tmp_path):
+        """file.size is None（模擬解析器未設置 .size）→ 讀取後仍用 len(data) 正確擋下 413"""
+        self._save_actress(client)
+        import asyncio
+        from web.routers.actress import upload_actress_photo
+        import json as _json
+
+        class _FakeFile:
+            size = None
+            content_type = "image/jpeg"
+            filename = "huge.jpg"
+
+            async def read(self):
+                return b"\x00" * (10 * 1024 * 1024 + 1)
+
+        gfriends = tmp_path / "gfriends"
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp = asyncio.run(upload_actress_photo(ACTRESS_NAME, _FakeFile()))
+
+        assert resp.status_code == 413
+        assert _json.loads(resp.body) == {"error": _ERR_TOO_LARGE}
+
+    # ---- DoD⑤ 假 Content-Type → 415（兩子案例） ----
+
+    def test_upload_photo_content_type_not_whitelisted_415(self, client):
+        """Content-Type 不在白名單（application/pdf）→ 415，且在 Image.open() 之前就攔下"""
+        self._save_actress(client)
+        with patch("web.routers.actress.Image") as mock_image:
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+                files={"file": ("fake.jpg", b"%PDF-1.4 fake pdf content", "application/pdf")},
+            )
+            mock_image.open.assert_not_called()
+
+        assert resp.status_code == 415
+        assert resp.json() == {"error": _ERR_UNSUPPORTED_FORMAT}
+
+    def test_upload_photo_fake_content_type_non_image_bytes_415(self, client):
+        """Content-Type 謊稱 image/jpeg 但 bytes 是純文字 → Image.open() 拋例外 → 415"""
+        self._save_actress(client)
+        resp = client.post(
+            f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+            files={"file": ("fake.jpg", b"this is not an image, just plain text data" * 20, "image/jpeg")},
+        )
+        assert resp.status_code == 415
+        assert resp.json() == {"error": _ERR_UNSUPPORTED_FORMAT}
+
+    # ---- DoD⑥ 高壓縮大尺寸圖 → 413，且下游未被呼叫 ----
+
+    def test_upload_photo_oversized_pixels_413_downstream_not_called(self, client):
+        self._save_actress(client)
+        oversized = self._make_oversized_pixel_jpeg_bytes()
+
+        with patch("web.routers.actress._write_actress_photo") as mock_write, \
+             patch("web.routers.actress.clear_focal") as mock_clear, \
+             patch("web.routers.actress.ActressRepository.save") as mock_save:
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+                files={"file": ("huge_pixels.jpg", oversized, "image/jpeg")},
+            )
+            mock_write.assert_not_called()
+            mock_clear.assert_not_called()
+            mock_save.assert_not_called()
+
+        assert resp.status_code == 413
+        assert resp.json() == {"error": _ERR_TOO_LARGE}
+
+    # ---- DoD⑦ 重載後 photo_source 仍是 upload ----
+
+    def test_upload_photo_persists_photo_source_upload(self, client, tmp_db, tmp_path):
+        self._save_actress(client)  # 初始 photo_source='gfriends'
+        gfriends = tmp_path / "gfriends"
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+                files={"file": ("photo.jpg", self._make_jpeg_bytes(), "image/jpeg")},
+            )
+        assert resp.status_code == 200
+
+        from core.database import ActressRepository
+        fresh_repo = ActressRepository(tmp_db)  # 新實例，模擬重新載入
+        actress = fresh_repo.get_by_name(ACTRESS_NAME)
+        assert actress.photo_source == "upload"
+
+    # ---- DoD⑧ 🔴 CD-4 排序鎖 ----
+
+    def test_upload_photo_clear_focal_failure_blocks_write_500(self, client, tmp_db, tmp_path):
+        """clear_focal 回 False → 500，_write_actress_photo 未被呼叫，舊圖/舊焦點完全不變"""
+        self._save_actress(client)
+        from core.database import ActressRepository
+        from core.organizer import sanitize_filename
+        repo = ActressRepository(tmp_db)
+        repo.update_manual_focal(ACTRESS_NAME, "0.2500,0.7500")
+
+        gfriends = tmp_path / "gfriends"
+        gfriends.mkdir()
+        safe = sanitize_filename(ACTRESS_NAME)
+        old_photo = gfriends / f"{safe}.jpg"
+        old_bytes = b"\xff\xd8\xff\xe0OLD_PHOTO_BYTES"
+        old_photo.write_bytes(old_bytes)
+
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("web.routers.actress.clear_focal", return_value=False), \
+             patch("web.routers.actress._write_actress_photo") as mock_write:
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+                files={"file": ("photo.jpg", self._make_jpeg_bytes(), "image/jpeg")},
+            )
+            mock_write.assert_not_called()
+
+        assert resp.status_code == 500
+        assert resp.json() == {"error": _ERR_UPLOAD_FAILED}
+        # 檔案完全不變
+        assert old_photo.read_bytes() == old_bytes
+        assert list(gfriends.glob(f"{safe}.*")) == [old_photo]
+        # DB 完全不變（仍是上傳前的舊值，不是空值）
+        fresh_actress = ActressRepository(tmp_db).get_by_name(ACTRESS_NAME)
+        assert fresh_actress.auto_focal == "0.2500,0.7500"
+        assert fresh_actress.crop_mode == "manual"
+        assert fresh_actress.photo_source == "gfriends"  # 仍是上傳前的來源，未被改成 upload
+
+    def test_upload_photo_clear_focal_exception_blocks_write_500(self, client, tmp_db, tmp_path):
+        """clear_focal 拋例外 → 同樣視為失敗 → 500，_write_actress_photo 未被呼叫"""
+        self._save_actress(client)
+        gfriends = tmp_path / "gfriends"
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("web.routers.actress.clear_focal", side_effect=RuntimeError("db locked")), \
+             patch("web.routers.actress._write_actress_photo") as mock_write:
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+                files={"file": ("photo.jpg", self._make_jpeg_bytes(), "image/jpeg")},
+            )
+            mock_write.assert_not_called()
+
+        assert resp.status_code == 500
+        assert resp.json() == {"error": _ERR_UPLOAD_FAILED}
+
+    # ---- DoD⑨ 錯誤 body 固定中文、無 str(e) ----
+
+    def test_upload_photo_error_bodies_fixed_chinese_no_exception_leak(self, client):
+        self._save_actress(client)
+
+        # 404
+        resp404 = client.post(
+            "/api/actresses/不存在女優ABC/photo/upload",
+            files={"file": ("photo.jpg", self._make_jpeg_bytes(), "image/jpeg")},
+        )
+        assert resp404.status_code == 404
+        assert resp404.json() == {"error": _ERR_NOT_FOUND}
+
+        # 413
+        huge = b"\x00" * (10 * 1024 * 1024 + 1)
+        resp413 = client.post(
+            f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+            files={"file": ("huge.jpg", huge, "image/jpeg")},
+        )
+        assert resp413.json() == {"error": _ERR_TOO_LARGE}
+
+        # 415
+        resp415 = client.post(
+            f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+            files={"file": ("fake.jpg", b"not an image" * 50, "image/jpeg")},
+        )
+        assert resp415.json() == {"error": _ERR_UNSUPPORTED_FORMAT}
+
+        # 500 — 注入含敏感細節（假造檔案系統路徑）的例外，確認不外洩
+        with patch("web.routers.actress.clear_focal",
+                    side_effect=RuntimeError("boom at /secret/fs/path/leak.db")):
+            resp500 = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+                files={"file": ("photo.jpg", self._make_jpeg_bytes(), "image/jpeg")},
+            )
+        assert resp500.status_code == 500
+        body500 = resp500.json()
+        assert body500 == {"error": _ERR_UPLOAD_FAILED}
+
+        for r in (resp404, resp413, resp415, resp500):
+            assert set(r.json().keys()) == {"error"}  # 🔴 Opus 裁決：無 "success" 鍵
+            assert "Traceback" not in r.text
+            assert "RuntimeError" not in r.text
+            assert "/secret/fs/path" not in r.text
+            assert "boom" not in r.text
+
+    # ---- DoD⑩ 同秒兩次上傳 → ?v= 不同 ----
+
+    def test_upload_photo_v_param_differs_on_identical_rapid_uploads(self, client, tmp_path):
+        """DoD⑩：同秒兩次上傳 → ?v= 不同。
+
+        🔴 刻意上傳**完全相同的 bytes**（review finding）：本測試原本餵兩張**不同尺寸**
+        的圖，`?v={mtime_ns}-{size}` 的 **size 分量就獨自保證了不同** → 即使實作退回
+        秒級 `int(time.time())`，測試照樣綠，等於沒鎖到 CD-11。相同 bytes → size 恆等
+        → 只剩 mtime_ns 能區分，這才是 CD-11 的本體。
+
+        sleep 10ms 的理由（實測，非猜測）：本機 ext4 的 mtime 時間戳粒度約 **3.7ms**，
+        兩次寫入若落在同一格會拿到**完全相同的 mtime_ns**（實測連寫 6 次差 0ns）。
+        production 不受影響——兩次真實上傳中間隔著 HTTP 解析／PIL 驗證／兩次 DB
+        commit／檔案寫入，遠超 4ms。10ms 遠小於 1 秒，「同秒」的前提不變。
+        """
+        self._save_actress(client)
+        same_bytes = self._make_jpeg_bytes(size=(100, 100))
+        gfriends = tmp_path / "gfriends"
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp1 = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+                files={"file": ("photo.jpg", same_bytes, "image/jpeg")},
+            )
+            time.sleep(0.01)
+            resp2 = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+                files={"file": ("photo.jpg", same_bytes, "image/jpeg")},
+            )
+
+        assert resp1.status_code == 200
+        assert resp2.status_code == 200
+        v1 = resp1.json()["photo_url"].split("?v=")[1]
+        v2 = resp2.json()["photo_url"].split("?v=")[1]
+        assert v1 != v2, "同 size 的兩次上傳 ?v= 相同 → mtime_ns 分量沒有生效"
+
+        # 結構鎖（零 flake，不受秒邊界影響）：mtime_ns 量級 ~1.7e18，秒級
+        # int(time.time()) 是 ~1.7e9——差 9 個數量級。退回秒級此條必紅。
+        assert int(v1.split("-")[0]) > 10**18, "?v= 的第一個分量不是奈秒級 mtime_ns"
+
+    # ---- 回應 body 完整契約（成功路徑，無 "success" 鍵） ----
+
+    def test_upload_photo_response_body_contract(self, client, tmp_path):
+        self._save_actress(client)
+        gfriends = tmp_path / "gfriends"
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+                files={"file": ("photo.jpg", self._make_jpeg_bytes(), "image/jpeg")},
+            )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert set(data.keys()) == {"photo_url", "photo_source", "auto_focal", "crop_mode"}
+        assert data["photo_source"] == "upload"
+        assert data["auto_focal"] == ""
+        assert data["crop_mode"] == "auto"
+        assert "?v=" in data["photo_url"]
+
+    # ---- CD-13 補充：不揭露 capabilities ----
+
+    def test_upload_endpoint_not_registered_in_capabilities(self):
+        capabilities_src = Path("web/routers/capabilities.py").read_text(encoding="utf-8")
+        assert "photo/upload" not in capabilities_src
+
+    # ---- 🔴 spec §3.3 失敗矩陣：寫檔失敗 → 舊圖必須原封不動 ----
+
+    def test_upload_photo_write_failure_keeps_old_photo(self, client, tmp_path):
+        """spec-100 §3.3 失敗矩陣宣稱「寫檔失敗 → **舊圖** + 已清焦點 → 置中裁（輕微退化）」。
+
+        🔴 這條就是那句話的證明（review finding）：`_write_actress_photo` 原本先
+        `glob` 刪光 `{safe}.*` 才寫入 → 寫檔失敗時舊照片**已經被刪掉了**，使用者的
+        照片直接消失，而不是文件宣稱的「舊圖還在、只是退回置中」。CD-4 pre-invalidate
+        的整個賣點（「最壞情況從污染變成退回置中」）建立在這句話上——所以它必須為真。
+
+        改法＝清舊檔移到 `os.replace` 成功之後（dest 本身除外）。
+        mutation：把清舊檔移回寫入之前 → 本測試必紅。
+        """
+        from core.organizer import sanitize_filename
+
+        self._save_actress(client)
+        gfriends = tmp_path / "gfriends"
+        gfriends.mkdir(parents=True, exist_ok=True)
+
+        # 先放一張「舊照片」
+        old_bytes = self._make_jpeg_bytes(size=(120, 120), color=(1, 2, 3))
+        safe = sanitize_filename(ACTRESS_NAME)
+        old_path = gfriends / f"{safe}.jpg"
+        old_path.write_bytes(old_bytes)
+
+        # 讓寫入階段炸掉（模擬磁碟寫入失敗），且是在 clear_focal 成功「之後」
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends), \
+             patch("web.routers.actress.os.replace", side_effect=OSError("disk full")):
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+                files={"file": ("new.png", self._make_png_bytes(), "image/png")},
+            )
+
+        assert resp.status_code == 500
+        assert resp.json()["error"] == _ERR_UPLOAD_FAILED
+        # 🔴 承重斷言：舊照片還在，且 bytes 一個位元都沒變
+        assert old_path.exists(), "寫檔失敗卻把舊照片刪了 —— spec §3.3 的失敗矩陣不成立"
+        assert old_path.read_bytes() == old_bytes
 
 
 # ---------------------------------------------------------------------------
