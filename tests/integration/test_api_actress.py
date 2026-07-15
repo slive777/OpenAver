@@ -545,6 +545,11 @@ class TestActressCrop:
 # T7: POST /api/actresses/{name}/photo — 設定女優照片 (T3 新增)
 # ---------------------------------------------------------------------------
 
+# CD-8 固定中文錯誤文案（TASK-100a-T3 新增失敗路徑）——測試與實作各自獨立宣告
+# 字面值，不共用常數，避免「改常數同時改測試」讓 mutation 測試失去意義。
+_SET_PHOTO_ERR_FAILED = "設定照片失敗，請稍後再試"
+
+
 class TestSetActressPhoto:
     """POST /api/actresses/{name}/photo 測試"""
 
@@ -582,13 +587,39 @@ class TestSetActressPhoto:
         repo.upsert(video)
         return video_path, cover_path
 
+    @staticmethod
+    def _cloud_download_writer(gfriends_dir, content: bytes, ext: str = ".jpg"):
+        """回傳可作為 `download_actress_photo` side_effect 的函式：真的把 bytes 寫進
+        `gfriends_dir`（TASK-100a-T3：CD-6 讓 `set_actress_photo` 寫完後一律
+        `get_local_photo_path` 重解析，`download_actress_photo` 若只是 mock
+        `return_value=True` 不寫真檔，重解析會找不到檔案而 500 —— 必須真的落地）。
+        """
+        from core.organizer import sanitize_filename
+
+        def _write(name, url, source):
+            (gfriends_dir / f"{sanitize_filename(name)}{ext}").write_bytes(content)
+            return True
+        return _write
+
     # ---- 雲端 happy path ----
 
-    def test_set_actress_photo_cloud_success(self, client):
-        """POST /photo source=graphis + url，mock 下載成功，回 200 + photo_url 含 ?t="""
-        self._save_actress(client)
+    def test_set_actress_photo_cloud_success(self, client, tmp_path):
+        """POST /photo source=graphis + url，mock 下載成功且真的落地寫檔，回 200 + photo_url 含 ?v=
 
-        with patch("web.routers.actress.download_actress_photo", return_value=True):
+        🔴 必改既有測試 #1（TASK-100a-T3 card）：原本 mock `download_actress_photo`
+        只 `return_value=True` 不真的寫檔、也沒 patch 任一 GFRIENDS_DIR binding——T3
+        新增的 CD-6 `get_local_photo_path(name)` 重解析在真實/production GFRIENDS_DIR
+        找不到檔案會回 None → 500。改用 side_effect 真寫檔 + 雙 binding patch。
+        """
+        self._save_actress(client)
+        gfriends = tmp_path / "gfriends"
+        gfriends.mkdir()
+
+        with patch(
+            "web.routers.actress.download_actress_photo",
+            side_effect=self._cloud_download_writer(gfriends, b"\xff\xd8\xff\xe0FAKE_CLOUD_JPEG"),
+        ), patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+                patch("core.actress_photo.GFRIENDS_DIR", gfriends):
             resp = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
                 json={"source": "graphis", "url": "https://example.com/photo.jpg"},
@@ -597,13 +628,18 @@ class TestSetActressPhoto:
         assert resp.status_code == 200
         data = resp.json()
         assert "photo_url" in data
-        assert "?t=" in data["photo_url"]
+        assert "?v=" in data["photo_url"]
         assert data["photo_source"] == "graphis"
 
     # ---- local_crop happy path ----
 
     def test_set_actress_photo_local_crop_success(self, client, tmp_db, tmp_path):
-        """POST /photo source=local_crop + video_path，mock crop 成功，回 200 + photo_source='local_crop'"""
+        """POST /photo source=local_crop + video_path，mock crop 成功，回 200 + photo_source='local_crop'
+
+        🔴 必改既有測試 #2：原本只 patch `web.routers.actress.GFRIENDS_DIR`，未 patch
+        `core.actress_photo.GFRIENDS_DIR`（gotchas-backend.md §3b 雙 binding 陷阱）——
+        T3 新增的 `get_local_photo_path` 讀取的是後者，讀不到 tmp 目錄裡剛寫的檔 → 500。
+        """
         self._save_actress(client)
         video_path, cover_path = self._save_video_with_cover(tmp_path)
         video_uri = f"file://{video_path}"
@@ -612,7 +648,8 @@ class TestSetActressPhoto:
         gfriends = tmp_path / "gfriends"
         gfriends.mkdir()
         with patch("web.routers.actress.crop_video_cover", return_value=fake_jpeg), \
-             patch("web.routers.actress.GFRIENDS_DIR", gfriends):
+             patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
             resp = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
                 json={"source": "local_crop", "video_path": video_uri},
@@ -621,7 +658,7 @@ class TestSetActressPhoto:
         assert resp.status_code == 200
         data = resp.json()
         assert data["photo_source"] == "local_crop"
-        assert "?t=" in data["photo_url"]
+        assert "?v=" in data["photo_url"]
         # file was actually written
         written = list(gfriends.glob("*.jpg"))
         assert len(written) == 1
@@ -730,12 +767,24 @@ class TestSetActressPhoto:
 
     # ---- DB 更新驗證 ----
 
-    def test_set_actress_photo_updates_db_photo_source(self, client):
-        """成功後 DB actress.photo_source 更新為 req.source"""
+    def test_set_actress_photo_updates_db_photo_source(self, client, tmp_path):
+        """成功後 DB actress.photo_source 更新為 req.source
+
+        🔴 必改既有測試 #3：原本 `get_local_photo_path(return_value=None)` 的 mock
+        涵蓋整個 `with` block（含 POST `/photo` 本身）——T3 的 POST 呼叫需要
+        `get_local_photo_path` 讀到真檔，被永遠 mock 成 None 會 500。拆開兩個
+        scope：POST 讓它讀到真檔（真寫檔 + 雙 binding patch），GET（僅用於驗證
+        `photo_source`，不關心 `photo_url`）繼續 mock None。
+        """
         self._save_actress(client)  # photo_source='gfriends' 初始
 
-        with patch("web.routers.actress.download_actress_photo", return_value=True), \
-             patch("web.routers.actress.get_local_photo_path", return_value=None):
+        gfriends = tmp_path / "gfriends"
+        gfriends.mkdir()
+        with patch(
+            "web.routers.actress.download_actress_photo",
+            side_effect=self._cloud_download_writer(gfriends, b"\xff\xd8\xff\xe0FAKE_NEW"),
+        ), patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+                patch("core.actress_photo.GFRIENDS_DIR", gfriends):
             resp = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
                 json={"source": "graphis", "url": "https://example.com/new_photo.jpg"},
@@ -753,11 +802,22 @@ class TestSetActressPhoto:
 
     # ---- cache-bust 驗證 ----
 
-    def test_set_actress_photo_response_has_cache_bust(self, client):
-        """回應 photo_url 含 ?t= 整數 timestamp"""
+    def test_set_actress_photo_response_has_fp_cache_bust(self, client, tmp_path):
+        """回應 photo_url 含 CD-11 fp cache-bust `?v={mtime_ns}-{size}`，非舊秒級 ?t=
+
+        🔴 必改既有測試 #4（改名 + 重寫）：原測試斷言 `?t=` 是純數字（`isdigit()`），
+        語意已隨 CD-11 不成立（`?v=` 是 `mtime_ns-size` 兩段式，非純數字）。比照
+        gotchas-backend.md 的量級結構鎖（`mtime_ns` ~1.7e18 vs 秒級 ~1.7e9）。
+        """
         self._save_actress(client)
 
-        with patch("web.routers.actress.download_actress_photo", return_value=True):
+        gfriends = tmp_path / "gfriends"
+        gfriends.mkdir()
+        with patch(
+            "web.routers.actress.download_actress_photo",
+            side_effect=self._cloud_download_writer(gfriends, b"\xff\xd8\xff\xe0FAKE_MINNANO"),
+        ), patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+                patch("core.actress_photo.GFRIENDS_DIR", gfriends):
             resp = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
                 json={"source": "minnano", "url": "https://example.com/photo.jpg"},
@@ -765,20 +825,35 @@ class TestSetActressPhoto:
 
         assert resp.status_code == 200
         photo_url = resp.json()["photo_url"]
-        assert "?t=" in photo_url
-        # Extract timestamp and verify it's an integer
-        t_part = photo_url.split("?t=")[1]
-        assert t_part.isdigit(), f"timestamp should be integer, got: {t_part}"
+        assert "?v=" in photo_url
+        assert "?t=" not in photo_url
+        v = photo_url.split("?v=")[1]
+        mtime_part, size_part = v.split("-")
+        assert int(mtime_part) > 10**18, f"?v= 第一分量應為奈秒級 mtime_ns，got: {mtime_part}"
+        assert size_part.isdigit()
 
     # ---- 5a: 連續換圖整合測試 ----
 
-    def test_set_actress_photo_continuous_changes(self, client):
-        """連續換圖 cloud → local_crop → cloud，每次正確覆蓋 photo_source"""
+    def test_set_actress_photo_continuous_changes(self, client, tmp_path):
+        """連續換圖 cloud → local_crop → cloud，每次正確覆蓋 photo_source
+
+        🔴 必改既有測試 #5：第 1/3 段（cloud）原本 `get_local_photo_path(return_value=None)`
+        覆蓋整個 POST 呼叫 → 500；第 2 段（local_crop）只 patch
+        `web.routers.actress.GFRIENDS_DIR`，漏了 `core.actress_photo.GFRIENDS_DIR`
+        （§3b 雙 binding 陷阱）。三段都改為讓 `get_local_photo_path` 在 POST 呼叫
+        當下讀到真檔。
+        """
         self._save_actress(client)  # 初始 photo_source='gfriends'
 
-        # 1st: source=graphis with mock download True → photo_source='graphis'
-        with patch("web.routers.actress.download_actress_photo", return_value=True), \
-             patch("web.routers.actress.get_local_photo_path", return_value=None):
+        gfriends = tmp_path / "gfriends"
+        gfriends.mkdir()
+
+        # 1st: source=graphis with mock download 真寫檔 → photo_source='graphis'
+        with patch(
+            "web.routers.actress.download_actress_photo",
+            side_effect=self._cloud_download_writer(gfriends, b"\xff\xd8\xff\xe0FAKE1"),
+        ), patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+                patch("core.actress_photo.GFRIENDS_DIR", gfriends):
             resp1 = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
                 json={"source": "graphis", "url": "https://example.com/photo1.jpg"},
@@ -793,32 +868,28 @@ class TestSetActressPhoto:
 
         # 2nd: source=local_crop with mock crop → photo_source='local_crop'
         fake_jpeg = b"\xff\xd8\xff\xe0FAKE_CROP"
-        # Use FS path video in DB (existing helper stores FS paths)
         from core.database import VideoRepository, Video
-        import tempfile, os
-        with tempfile.TemporaryDirectory() as td:
-            cover_path = os.path.join(td, "cover.jpg")
-            video_path = os.path.join(td, "video.mp4")
-            Path(cover_path).write_bytes(b"\xff\xd8\xff\xe0fake_cover")
-            vid = Video(
-                path=video_path,
-                title="Continuous Test Video",
-                actresses=[ACTRESS_NAME],
-                cover_path=cover_path,
-            )
-            VideoRepository().upsert(vid)
-            video_uri = f"file://{video_path}"
+        cover_path = str(tmp_path / "continuous_cover.jpg")
+        video_path = str(tmp_path / "continuous_video.mp4")
+        Path(cover_path).write_bytes(b"\xff\xd8\xff\xe0fake_cover")
+        vid = Video(
+            path=video_path,
+            title="Continuous Test Video",
+            actresses=[ACTRESS_NAME],
+            cover_path=cover_path,
+        )
+        VideoRepository().upsert(vid)
+        video_uri = f"file://{video_path}"
 
-            gfriends = Path(td) / "gfriends"
-            gfriends.mkdir()
-            with patch("web.routers.actress.crop_video_cover", return_value=fake_jpeg), \
-                 patch("web.routers.actress.GFRIENDS_DIR", gfriends):
-                resp2 = client.post(
-                    f"/api/actresses/{ACTRESS_NAME}/photo",
-                    json={"source": "local_crop", "video_path": video_uri},
-                )
-            assert resp2.status_code == 200
-            assert resp2.json()["photo_source"] == "local_crop"
+        with patch("web.routers.actress.crop_video_cover", return_value=fake_jpeg), \
+             patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp2 = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo",
+                json={"source": "local_crop", "video_path": video_uri},
+            )
+        assert resp2.status_code == 200
+        assert resp2.json()["photo_source"] == "local_crop"
 
         # Verify DB via GET
         with patch("web.routers.actress.get_local_photo_path", return_value=None):
@@ -826,8 +897,11 @@ class TestSetActressPhoto:
         assert get2.json()["actress"]["photo_source"] == "local_crop"
 
         # 3rd: source=gfriends → photo_source='gfriends'
-        with patch("web.routers.actress.download_actress_photo", return_value=True), \
-             patch("web.routers.actress.get_local_photo_path", return_value=None):
+        with patch(
+            "web.routers.actress.download_actress_photo",
+            side_effect=self._cloud_download_writer(gfriends, b"\xff\xd8\xff\xe0FAKE3"),
+        ), patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+                patch("core.actress_photo.GFRIENDS_DIR", gfriends):
             resp3 = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
                 json={"source": "gfriends", "url": "https://example.com/photo3.jpg"},
@@ -897,7 +971,11 @@ class TestSetActressPhoto:
         return video_uri, cover_uri, video_path, cover_path
 
     def test_set_actress_photo_local_crop_matches_uri_in_db(self, client, tmp_db, tmp_path):
-        """模擬 production：DB 存 file:/// URI，request 傳 file:/// URI，比對成功"""
+        """模擬 production：DB 存 file:/// URI，request 傳 file:/// URI，比對成功
+
+        🔴 必改既有測試 #6：`?t=`→`?v=` + 補 `core.actress_photo.GFRIENDS_DIR` patch
+        （只 patch `web.routers.actress.GFRIENDS_DIR` 撞上 §3b 雙 binding 陷阱）。
+        """
         self._save_actress(client)
         video_uri, cover_uri, video_path, cover_path = self._save_video_with_uri_path(tmp_path)
         fake_jpeg = b"\xff\xd8\xff\xe0FAKE_URI_CROP"
@@ -905,7 +983,8 @@ class TestSetActressPhoto:
         gfriends = tmp_path / "gfriends"
         gfriends.mkdir()
         with patch("web.routers.actress.crop_video_cover", return_value=fake_jpeg), \
-             patch("web.routers.actress.GFRIENDS_DIR", gfriends):
+             patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
             resp = client.post(
                 f"/api/actresses/{ACTRESS_NAME}/photo",
                 json={"source": "local_crop", "video_path": video_uri},
@@ -914,7 +993,293 @@ class TestSetActressPhoto:
         assert resp.status_code == 200
         data = resp.json()
         assert data["photo_source"] == "local_crop"
-        assert "?t=" in data["photo_url"]
+        assert "?v=" in data["photo_url"]
+
+    # ---- DoD① spec §3.7-4 專屬回歸鎖：換候選圖必須作廢舊焦點 ----
+
+    def test_set_actress_photo_cloud_clears_manual_focal(self, client, tmp_db, tmp_path):
+        """cloud：換圖前存好偏側焦點 → 換圖後 DB auto_focal/crop_mode 回 auto
+
+        mutation①：拿掉 clear_focal 呼叫 → 本測試單獨變紅（auto_focal 仍是舊偏側值）。
+        """
+        self._save_actress(client)
+        from core.database import ActressRepository
+        repo = ActressRepository(tmp_db)
+        repo.update_manual_focal(ACTRESS_NAME, "0.3000,0.4000")
+
+        gfriends = tmp_path / "gfriends"
+        gfriends.mkdir()
+        with patch(
+            "web.routers.actress.download_actress_photo",
+            side_effect=self._cloud_download_writer(gfriends, b"\xff\xd8\xff\xe0NEW_CLOUD"),
+        ), patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+                patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo",
+                json={"source": "graphis", "url": "https://example.com/new.jpg"},
+            )
+
+        assert resp.status_code == 200
+        actress = ActressRepository(tmp_db).get_by_name(ACTRESS_NAME)
+        assert actress.auto_focal == ""
+        assert actress.crop_mode == "auto"
+
+    def test_set_actress_photo_local_crop_clears_manual_focal(self, client, tmp_db, tmp_path):
+        """local_crop：換圖前存好偏側焦點 → 換圖後 DB auto_focal/crop_mode 回 auto
+
+        mutation①：拿掉 clear_focal 呼叫 → 本測試單獨變紅。
+        """
+        self._save_actress(client)
+        from core.database import ActressRepository
+        repo = ActressRepository(tmp_db)
+        repo.update_manual_focal(ACTRESS_NAME, "0.6000,0.2000")
+
+        video_path, cover_path = self._save_video_with_cover(tmp_path)
+        video_uri = f"file://{video_path}"
+        fake_jpeg = b"\xff\xd8\xff\xe0NEW_CROP"
+
+        gfriends = tmp_path / "gfriends"
+        gfriends.mkdir()
+        with patch("web.routers.actress.crop_video_cover", return_value=fake_jpeg), \
+             patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo",
+                json={"source": "local_crop", "video_path": video_uri},
+            )
+
+        assert resp.status_code == 200
+        actress = ActressRepository(tmp_db).get_by_name(ACTRESS_NAME)
+        assert actress.auto_focal == ""
+        assert actress.crop_mode == "auto"
+
+    # ---- DoD② 🔴 CD-4 排序鎖：clear_focal 失敗 → 不得碰檔案 ----
+
+    def test_set_actress_photo_cloud_clear_focal_failure_blocks_download(self, client, tmp_db, tmp_path):
+        """cloud：clear_focal 回 False → 500，download_actress_photo 未被呼叫，舊圖/舊焦點完全不變
+
+        mutation②：把實作改成先呼叫 download_actress_photo、再呼叫 clear_focal
+        （順序對調）→ 本測試單獨變紅（download_actress_photo 會被呼叫）。
+        """
+        self._save_actress(client)
+        from core.database import ActressRepository
+        from core.organizer import sanitize_filename
+        repo = ActressRepository(tmp_db)
+        repo.update_manual_focal(ACTRESS_NAME, "0.2500,0.7500")
+
+        gfriends = tmp_path / "gfriends"
+        gfriends.mkdir()
+        safe = sanitize_filename(ACTRESS_NAME)
+        old_photo = gfriends / f"{safe}.jpg"
+        old_bytes = b"\xff\xd8\xff\xe0OLD_CLOUD_PHOTO"
+        old_photo.write_bytes(old_bytes)
+
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends), \
+             patch("web.routers.actress.clear_focal", return_value=False), \
+             patch("web.routers.actress.download_actress_photo") as mock_download:
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo",
+                json={"source": "graphis", "url": "https://example.com/new.jpg"},
+            )
+            mock_download.assert_not_called()
+
+        assert resp.status_code == 500
+        assert resp.json() == {"error": _SET_PHOTO_ERR_FAILED}
+        # 磁碟上的舊照片完全不變
+        assert old_photo.read_bytes() == old_bytes
+        assert list(gfriends.glob(f"{safe}.*")) == [old_photo]
+        # DB 完全不變（仍是換圖前的舊值）
+        fresh_actress = ActressRepository(tmp_db).get_by_name(ACTRESS_NAME)
+        assert fresh_actress.auto_focal == "0.2500,0.7500"
+        assert fresh_actress.crop_mode == "manual"
+        assert fresh_actress.photo_source == "gfriends"
+
+    def test_set_actress_photo_local_crop_clear_focal_failure_blocks_write(self, client, tmp_db, tmp_path):
+        """local_crop：clear_focal 回 False → 500，_write_actress_photo 未被呼叫，舊圖/舊焦點完全不變
+
+        mutation②：把實作改成先呼叫 _write_actress_photo、再呼叫 clear_focal
+        （順序對調）→ 本測試單獨變紅（_write_actress_photo 會被呼叫）。
+        """
+        self._save_actress(client)
+        from core.database import ActressRepository
+        from core.organizer import sanitize_filename
+        repo = ActressRepository(tmp_db)
+        repo.update_manual_focal(ACTRESS_NAME, "0.1000,0.9000")
+
+        video_path, cover_path = self._save_video_with_cover(tmp_path)
+        video_uri = f"file://{video_path}"
+        fake_jpeg = b"\xff\xd8\xff\xe0NEW_CROP_BLOCKED"
+
+        gfriends = tmp_path / "gfriends"
+        gfriends.mkdir()
+        safe = sanitize_filename(ACTRESS_NAME)
+        old_photo = gfriends / f"{safe}.jpg"
+        old_bytes = b"\xff\xd8\xff\xe0OLD_LOCAL_PHOTO"
+        old_photo.write_bytes(old_bytes)
+
+        with patch("web.routers.actress.crop_video_cover", return_value=fake_jpeg), \
+             patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends), \
+             patch("web.routers.actress.clear_focal", return_value=False), \
+             patch("web.routers.actress._write_actress_photo") as mock_write:
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo",
+                json={"source": "local_crop", "video_path": video_uri},
+            )
+            mock_write.assert_not_called()
+
+        assert resp.status_code == 500
+        assert resp.json() == {"error": _SET_PHOTO_ERR_FAILED}
+        assert old_photo.read_bytes() == old_bytes
+        assert list(gfriends.glob(f"{safe}.*")) == [old_photo]
+        fresh_actress = ActressRepository(tmp_db).get_by_name(ACTRESS_NAME)
+        assert fresh_actress.auto_focal == "0.1000,0.9000"
+        assert fresh_actress.crop_mode == "manual"
+        assert fresh_actress.photo_source == "gfriends"
+
+    def test_set_actress_photo_local_crop_failed_does_not_call_clear_focal(self, client, tmp_db, tmp_path):
+        """local_crop：crop_video_cover 回 None（crop_failed）發生在 clear_focal 之前——
+        插入點裁決（TASK-100a-T3 技術要點）：crop 是純運算，crop 失敗不該白清使用者
+        存好的焦點。此測試釘住「crop_failed 路徑 clear_focal 未被呼叫」這條非 DoD
+        編號但屬承重的行為（plan 補充段落明定）。
+        """
+        self._save_actress(client)
+        video_path, cover_path = self._save_video_with_cover(tmp_path)
+        video_uri = f"file://{video_path}"
+
+        with patch("web.routers.actress.crop_video_cover", return_value=None), \
+             patch("web.routers.actress.clear_focal") as mock_clear:
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo",
+                json={"source": "local_crop", "video_path": video_uri},
+            )
+            mock_clear.assert_not_called()
+
+        assert resp.status_code == 500
+        assert resp.json()["error"] == "crop_failed"
+
+    # ---- DoD③ cloud 分支 fp 對實際落地檔 stat（CD-6，副檔名非 .jpg 亦正確） ----
+
+    def test_set_actress_photo_cloud_fp_stats_actual_non_jpg_file(self, client, tmp_path):
+        """cloud 換圖落地檔為 .png（模擬來源 Content-Type: image/png）→ ?v= 必須對
+        該 .png 檔案的真實 stat()，不是假設 .jpg。接續 GET /photo/{name} 回正確 MIME。
+
+        mutation③：把 CD-11 重解析改回硬編 `{safe}.jpg`（不呼叫 get_local_photo_path）
+        → 本測試單獨變紅（該路徑不存在 → 500 或斷言失敗）。
+        """
+        self._save_actress(client)
+        png_bytes = b"\x89PNG\r\n\x1a\nFAKE_PNG_BYTES"
+
+        gfriends = tmp_path / "gfriends"
+        gfriends.mkdir()
+        with patch(
+            "web.routers.actress.download_actress_photo",
+            side_effect=self._cloud_download_writer(gfriends, png_bytes, ext=".png"),
+        ), patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+                patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo",
+                json={"source": "wiki", "url": "https://example.com/photo.png"},
+            )
+
+            assert resp.status_code == 200
+            data = resp.json()
+            photo_url = data["photo_url"]
+            assert "?v=" in photo_url
+
+            from core.organizer import sanitize_filename
+            actual_file = gfriends / f"{sanitize_filename(ACTRESS_NAME)}.png"
+            assert actual_file.exists()
+            real_stat = actual_file.stat()
+            v = photo_url.split("?v=")[1]
+            mtime_part, size_part = v.split("-")
+            assert mtime_part == str(real_stat.st_mtime_ns)
+            assert size_part == str(real_stat.st_size)
+
+            get_resp = client.get(f"/api/actresses/photo/{ACTRESS_NAME}")
+        assert get_resp.status_code == 200
+        assert get_resp.headers["content-type"] == "image/png"
+
+    # ---- DoD④ ?v={mtime_ns}-{size} 取代秒級 ?t=：同秒連續切換兩候選 → URL 必不同 ----
+
+    def test_set_actress_photo_v_param_differs_on_identical_rapid_changes(self, client, tmp_path):
+        """DoD④：同秒連續換兩次候選圖（餵完全相同 bytes）→ 兩次 ?v= 不同。
+
+        🔴 刻意餵**完全相同的 bytes**（比照 T2 review finding）：若餵不同尺寸圖，
+        `?v={mtime_ns}-{size}` 的 size 分量會獨自保證不同，測試即使實作退回秒級
+        `int(time.time())` 也照樣綠，等於沒鎖到 CD-11。
+
+        sleep 10ms 理由（gotchas-backend.md 實測）：本機檔案系統 st_mtime_ns 精度約
+        4ms，背靠背寫入可能落在同一格拿到相同 mtime_ns；10ms 遠小於 1 秒，「同秒」
+        前提不變。mutation④：把實作改回 `?t={int(time.time())}` → 本測試單獨變紅
+        （兩次值相同，因 sleep 遠小於 1 秒）。
+        """
+        self._save_actress(client)
+        same_bytes = b"\xff\xd8\xff\xe0IDENTICAL_BYTES_FOR_CACHE_BUST_TEST"
+
+        gfriends = tmp_path / "gfriends"
+        gfriends.mkdir()
+        with patch(
+            "web.routers.actress.download_actress_photo",
+            side_effect=self._cloud_download_writer(gfriends, same_bytes),
+        ), patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+                patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp1 = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo",
+                json={"source": "graphis", "url": "https://example.com/a.jpg"},
+            )
+            time.sleep(0.01)
+            resp2 = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo",
+                json={"source": "graphis", "url": "https://example.com/a.jpg"},
+            )
+
+        assert resp1.status_code == 200
+        assert resp2.status_code == 200
+        v1 = resp1.json()["photo_url"].split("?v=")[1]
+        v2 = resp2.json()["photo_url"].split("?v=")[1]
+        assert v1 != v2, "同 bytes 的兩次換圖 ?v= 相同 → mtime_ns 分量沒有生效"
+        assert int(v1.split("-")[0]) > 10**18, "?v= 第一分量不是奈秒級 mtime_ns"
+
+    # ---- 成功回應 body 含 auto_focal/crop_mode（🔴 Opus 裁決：與 T2 對稱） ----
+
+    def test_set_actress_photo_success_body_has_focal_fields(self, client, tmp_path):
+        """成功回應 body 須含 auto_focal=='' 且 crop_mode=='auto'（cloud + local_crop 各一）"""
+        self._save_actress(client)
+
+        gfriends = tmp_path / "gfriends"
+        gfriends.mkdir()
+        with patch(
+            "web.routers.actress.download_actress_photo",
+            side_effect=self._cloud_download_writer(gfriends, b"\xff\xd8\xff\xe0BODY_CHECK_CLOUD"),
+        ), patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+                patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            cloud_resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo",
+                json={"source": "graphis", "url": "https://example.com/body.jpg"},
+            )
+        assert cloud_resp.status_code == 200
+        cloud_data = cloud_resp.json()
+        assert cloud_data["auto_focal"] == ""
+        assert cloud_data["crop_mode"] == "auto"
+        assert set(cloud_data.keys()) == {"photo_url", "photo_source", "auto_focal", "crop_mode"}
+
+        video_path, cover_path = self._save_video_with_cover(tmp_path)
+        video_uri = f"file://{video_path}"
+        fake_jpeg = b"\xff\xd8\xff\xe0BODY_CHECK_LOCAL"
+        with patch("web.routers.actress.crop_video_cover", return_value=fake_jpeg), \
+             patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            local_resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo",
+                json={"source": "local_crop", "video_path": video_uri},
+            )
+        assert local_resp.status_code == 200
+        local_data = local_resp.json()
+        assert local_data["auto_focal"] == ""
+        assert local_data["crop_mode"] == "auto"
+        assert set(local_data.keys()) == {"photo_url", "photo_source", "auto_focal", "crop_mode"}
 
 
 # ---------------------------------------------------------------------------

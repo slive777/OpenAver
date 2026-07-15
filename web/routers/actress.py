@@ -16,7 +16,6 @@ import os
 import random
 import re
 import tempfile
-import time
 from io import BytesIO
 from typing import Optional, List
 from urllib.parse import quote
@@ -537,6 +536,65 @@ def _write_actress_photo(name: str, crop_bytes: bytes, ext: str = ".jpg") -> Non
             old.unlink(missing_ok=True)
 
 
+async def _pre_invalidate_focal(repo: ActressRepository, name: str, *, ctx: str, err_msg: str):
+    """🔴 CD-4 pre-invalidate（承重，spec-100 §3.3）：換主圖前先作廢舊焦點。
+
+    三個「換掉女優主圖」的入口（upload／cloud 候選／local_crop 候選）共用同一段——
+    刻意抽出而非各寫一份：三份逐字複製的 try/except 會漂移（改一份忘另一份），
+    而這段是承重碼，漂移＝spec §3.3 的保證在某條路徑上悄悄失效。
+
+    呼叫端一律：
+        err = await _pre_invalidate_focal(repo, name, ctx="...", err_msg=...)
+        if err:
+            return err
+        ...才可以安裝新圖
+
+    Args:
+        ctx: log 前綴用的情境名（"upload" / "set_photo"），只影響 log 不影響行為。
+        err_msg: 失敗時回給前端的固定中文（CD-8：各端點沿用自己的字串）。
+
+    Returns:
+        失敗 → JSONResponse(500)，呼叫端必須直接 return 它、**絕不可繼續寫檔**；
+        成功 → None。
+    """
+    try:
+        cleared = await asyncio.to_thread(clear_focal, repo, name)
+    except Exception:
+        logger.exception("[actress] %s clear_focal 例外 name=%s", ctx, name)
+        return JSONResponse(status_code=500, content={"error": err_msg})
+    if not cleared:
+        logger.warning("[actress] %s clear_focal 回 False name=%s", ctx, name)
+        return JSONResponse(status_code=500, content={"error": err_msg})
+    return None
+
+
+async def _photo_url_with_fp_cache_bust(name: str, *, ctx: str, err_msg: str):
+    """CD-6 重解析 + CD-11 fp cache-bust——安裝新圖後產生 photo_url。
+
+    同樣三個入口共用。CD-6：實體 path 隨真實格式改變（cloud 由 Content-Type 定、
+    upload 由 PIL 驗出的格式定），故一律 `get_local_photo_path` 重解析，不可假設
+    `{safe}.jpg`。CD-11：`?v={mtime_ns}-{size}`——秒級 `int(time.time())` 在同秒
+    連續換圖會產生相同 URL、瀏覽器沿用舊圖。
+
+    ⚠️ `st_mtime_ns` 的精度由檔案系統決定（實測 ext4 約 4ms），不是奈秒——
+    見 gotchas-backend.md。production 的兩次操作間隔遠超 4ms，故無影響；
+    但測試若背靠背打兩次會撞號。
+
+    Returns:
+        (photo_url, None) 成功；(None, JSONResponse(500)) 失敗，呼叫端直接 return 它。
+    """
+    photo_fs = await asyncio.to_thread(get_local_photo_path, name)
+    if photo_fs is None:
+        logger.error("[actress] %s 安裝新圖後重解析路徑失敗 name=%s", ctx, name)
+        return None, JSONResponse(status_code=500, content={"error": err_msg})
+    try:
+        st = await asyncio.to_thread(photo_fs.stat)
+    except OSError:
+        logger.exception("[actress] %s stat 失敗 name=%s path=%s", ctx, name, photo_fs)
+        return None, JSONResponse(status_code=500, content={"error": err_msg})
+    return f"/api/actresses/photo/{quote(name)}?v={st.st_mtime_ns}-{st.st_size}", None
+
+
 def clear_focal(repo: ActressRepository, name: str) -> bool:
     """Threadpool helper: repo.clear_focal(name) 轉呼叫（CD-4 pre-invalidate，TASK-100a-T2）。
 
@@ -576,15 +634,34 @@ async def actress_crop(path: str, spec: str = "v1"):
 
 CLOUD_SOURCES = {"graphis", "gfriends", "wiki", "minnano"}
 
+# CD-8（AGENTS.md:33）：T3 在本端點新增的失敗路徑一律固定中文；既有 7 個
+# snake_case 錯誤字面（not_found/unknown_source/... ）是舊碼遺留，範圍外不動
+# （TASK-100a-T3 決策點：新增 code 就得守新規則，不因「既有端點還沒遷移」而
+# 再新增一條 snake_case 違規）。
+_SET_PHOTO_ERR_FAILED = "設定照片失敗，請稍後再試"
+
 
 @router.post("/{name}/photo")
 async def set_actress_photo(name: str, req: SetActressPhotoRequest):
     """
     設定女優照片。
-    - 雲端來源（graphis/gfriends/wiki/minnano）：下載並覆蓋本機照片
-    - local_crop：從影片封面 crop 後寫入 GFRIENDS_DIR
-    覆蓋時先 glob 刪舊副檔名，再寫入新圖。
-    更新 DB photo_source 欄位，回傳帶 cache-bust timestamp 的新 photo_url。
+    - 雲端來源（graphis/gfriends/wiki/minnano）：先清焦點成功，才下載並覆蓋本機照片
+    - local_crop：crop 出候選 bytes 後，先清焦點成功，才寫入 GFRIENDS_DIR
+
+    CD-4 pre-invalidate（承重，spec §3.3 唯一「不做就會比現況更差」的項目）：換圖
+    必須先作廢舊焦點、成功後才安裝新圖，避免中途失敗把偏側焦點誤套到新圖上。
+    兩分支插入點刻意不同（TASK-100a-T3 Opus 裁決）：
+      - cloud：`download_actress_photo` 是「下載+覆蓋寫入」合一的不透明呼叫（不在
+        本 task 修改範圍），`clear_focal` 只能插在 url_required 驗證之後、該呼叫之前。
+      - local_crop：`crop_video_cover` 是純運算、零 side effect，不是「安裝新圖」，
+        `clear_focal` 插在它成功之後、`_write_actress_photo` 之前——crop 失敗與
+        「換圖」本身無關，沒必要為了一次注定失敗的運算就先清掉使用者存好的焦點。
+    `clear_focal` 失敗或拋例外 → 500 + 固定中文，絕不觸碰檔案寫入。
+
+    覆蓋時先 glob 刪舊副檔名，再寫入新圖。更新 DB photo_source 欄位。
+    回傳帶 CD-11 fp cache-bust（`?v={mtime_ns}-{size}`，取代舊秒級 `?t=`）的新
+    photo_url；`auto_focal`/`crop_mode` 直接寫死（clear_focal 語意已知，不多一次
+    DB round-trip），與 T2 上傳端點回應對稱（plan-100b CD-10 需要）。
     """
     repo, actress = await asyncio.to_thread(_load_actress, name)
     if actress is None:
@@ -596,6 +673,10 @@ async def set_actress_photo(name: str, req: SetActressPhotoRequest):
     if req.source in CLOUD_SOURCES:
         if not req.url:
             return JSONResponse(status_code=400, content={"error": "url_required"})
+        # 🔴 CD-4 pre-invalidate：cloud 分支插入點——download_actress_photo 之前。
+        err = await _pre_invalidate_focal(repo, name, ctx="set_photo", err_msg=_SET_PHOTO_ERR_FAILED)
+        if err:
+            return err
         ok = await asyncio.to_thread(download_actress_photo, name, req.url, req.source)
         if not ok:
             return JSONResponse(status_code=500, content={"error": "download_failed"})
@@ -626,6 +707,10 @@ async def set_actress_photo(name: str, req: SetActressPhotoRequest):
         )
         if crop_bytes is None:
             return JSONResponse(status_code=500, content={"error": "crop_failed"})
+        # 🔴 CD-4 pre-invalidate：local_crop 分支插入點——crop 成功之後、寫入之前。
+        err = await _pre_invalidate_focal(repo, name, ctx="set_photo", err_msg=_SET_PHOTO_ERR_FAILED)
+        if err:
+            return err
         # glob 刪舊副檔名 + 寫入
         await asyncio.to_thread(_write_actress_photo, name, crop_bytes)
 
@@ -633,11 +718,19 @@ async def set_actress_photo(name: str, req: SetActressPhotoRequest):
     actress.photo_source = req.source
     await asyncio.to_thread(repo.save, actress)
 
-    t = int(time.time())
-    photo_url = f"/api/actresses/photo/{quote(name)}?t={t}"
+    # CD-6：logical slot vs physical path，寫檔/下載後不可假設 {safe}.jpg，一律重
+    # 解析（cloud 分支副檔名由 Content-Type 決定，core/actress_photo.py）。重解析
+    # 可能回 None（GFRIENDS_DIR 綁定不一致／外部同時刪除）——不 guard 會 None.stat()
+    # 拋 AttributeError（mirror T2 review finding）。
+    photo_url, err = await _photo_url_with_fp_cache_bust(
+        name, ctx="set_photo", err_msg=_SET_PHOTO_ERR_FAILED)
+    if err:
+        return err
     return JSONResponse(status_code=200, content={
         "photo_url": photo_url,
         "photo_source": req.source,
+        "auto_focal": "",
+        "crop_mode": "auto",
     })
 
 
@@ -744,14 +837,9 @@ async def upload_actress_photo(name: str, file: UploadFile = _UPLOAD_FILE_PARAM)
     # clear_focal 理論上不該回 False（唯一情境是驗證與寫入之間女優被刪除的 race，
     # spec §1.4 明示接受），不論哪種失敗原因行為必須一致：不寫檔、不動 DB 其他欄位，
     # 舊照片與舊焦點原封不動。
-    try:
-        cleared = await asyncio.to_thread(clear_focal, repo, name)
-    except Exception:
-        logger.exception("[actress] upload clear_focal 例外 name=%s", name)
-        return JSONResponse(status_code=500, content={"error": _UPLOAD_ERR_FAILED})
-    if not cleared:
-        logger.warning("[actress] upload clear_focal 回 False name=%s", name)
-        return JSONResponse(status_code=500, content={"error": _UPLOAD_ERR_FAILED})
+    err = await _pre_invalidate_focal(repo, name, ctx="upload", err_msg=_UPLOAD_ERR_FAILED)
+    if err:
+        return err
 
     try:
         await asyncio.to_thread(_write_actress_photo, name, data, ext)
@@ -764,21 +852,10 @@ async def upload_actress_photo(name: str, file: UploadFile = _UPLOAD_FILE_PARAM)
     actress.photo_source = "upload"
     await asyncio.to_thread(repo.save, actress)
 
-    # CD-6：logical slot vs physical path，寫檔後不可假設 {safe}{ext}，一律重解析。
-    # 重解析可能回 None（例：GFRIENDS_DIR 綁定不一致、檔案在寫入後被外部刪除）——
-    # 不 guard 的話 None.stat() 會拋 AttributeError → 框架級 500、body 不是 CD-8
-    # 要求的固定中文（TASK-100a-T2 review finding）。
-    photo_fs = await asyncio.to_thread(get_local_photo_path, name)
-    if photo_fs is None:
-        logger.error("[actress] upload 寫檔後重解析路徑失敗 name=%s", name)
-        return JSONResponse(status_code=500, content={"error": _UPLOAD_ERR_FAILED})
-    try:
-        st = await asyncio.to_thread(photo_fs.stat)
-    except OSError:
-        logger.exception("[actress] upload stat 失敗 name=%s path=%s", name, photo_fs)
-        return JSONResponse(status_code=500, content={"error": _UPLOAD_ERR_FAILED})
-    v = f"{st.st_mtime_ns}-{st.st_size}"
-    photo_url = f"/api/actresses/photo/{quote(name)}?v={v}"
+    photo_url, err = await _photo_url_with_fp_cache_bust(
+        name, ctx="upload", err_msg=_UPLOAD_ERR_FAILED)
+    if err:
+        return err
     return JSONResponse(status_code=200, content={
         "photo_url": photo_url,
         "photo_source": "upload",

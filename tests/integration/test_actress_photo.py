@@ -418,7 +418,13 @@ class TestActressPathMappingsReverse:
             f"不應誤 403，實際 status={crop_response.status_code}, body={crop_response.text!r}"
         )
 
-    def test_set_actress_photo_local_crop_reverse_maps_wsl_unc(self, client, monkeypatch):
+    def test_set_actress_photo_local_crop_reverse_maps_wsl_unc(self, client, monkeypatch, tmp_path):
+        """TASK-100a-T3 補丁：`_write_actress_photo` 在本測試被完全 mock 掉（不寫真檔），
+        T3 新增的 CD-6 `get_local_photo_path` 重解析步驟因此找不到任何落地檔會回 None
+        → 500，與本測試要驗證的「crop_video_cover 收到正確反解路徑」無關。比照
+        gotchas-backend.md §3b 的精神，直接 mock `get_local_photo_path` 回傳一個真實
+        存在的檔案（非本測試斷言標的），讓 CD-6 resolve 成功、不影響下方的反解斷言。
+        """
         import core.path_utils as path_utils
 
         monkeypatch.setattr(path_utils, "CURRENT_ENV", "wsl")
@@ -431,11 +437,15 @@ class TestActressPathMappingsReverse:
         video_uri = "file:///home/user/media/video.mp4"
         mock_video = _make_mock_video(path=video_uri, cover_path="file://///NAS/share/cover.jpg")
 
+        fake_photo = tmp_path / "alice.jpg"
+        fake_photo.write_bytes(b"fakejpeg")
+
         with patch('web.routers.actress.ActressRepository') as mock_actress_repo_cls, \
              patch('web.routers.actress.init_db'), \
              patch('web.routers.actress.VideoRepository') as mock_video_repo_cls, \
              patch('web.routers.actress.crop_video_cover', return_value=b"fakejpeg") as mock_crop, \
-             patch('web.routers.actress._write_actress_photo'):
+             patch('web.routers.actress._write_actress_photo'), \
+             patch('web.routers.actress.get_local_photo_path', return_value=fake_photo):
             mock_actress_repo_cls.return_value.get_by_name.return_value = mock_actress
             mock_actress_repo_cls.return_value.save = MagicMock()
             mock_video_repo_cls.return_value.get_videos_by_actress.return_value = [mock_video]
