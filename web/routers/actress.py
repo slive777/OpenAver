@@ -31,6 +31,7 @@ from core.actress_photo import (
     download_actress_photo, get_local_photo_path, delete_local_photo,
     crop_video_cover, GFRIENDS_DIR, CONTENT_TYPE_MAP,
 )
+from core.focal import detect_focal, format_focal, parse_focal
 from core.organizer import sanitize_filename
 from core.path_utils import to_file_uri as to_file_uri, uri_to_fs_path, uri_to_local_fs_path, coerce_to_file_uri
 from core.config import load_config
@@ -60,6 +61,16 @@ class SetActressPhotoRequest(BaseModel):
     url: Optional[str] = None            # 雲端來源：照片 URL（必填）
     video_path: Optional[str] = None     # local_crop：影片 file:/// URI（必填）
     crop_spec: Optional[str] = "v1"      # local_crop：裁切規格（預設 v1）
+
+
+class SetActressFocalRequest(BaseModel):
+    """POST /{name}/focal body（TASK-100a-T4）：focal（'x.xxxx,y.xxxx' 格式字串）。
+
+    CD-3：女優 focal 無背景 writer 會與此端點交錯寫入，`ActressRepository.
+    update_manual_focal(name, focal)` 刻意不吃 compare token（對照
+    video.py 的 `expected_cover_path`）——本 request model 亦不帶該欄位。
+    """
+    focal: str
 
 
 # ---------------------------------------------------------------------------
@@ -862,6 +873,132 @@ async def upload_actress_photo(name: str, file: UploadFile = _UPLOAD_FILE_PARAM)
         "auto_focal": "",
         "crop_mode": "auto",
     })
+
+
+# ---------------------------------------------------------------------------
+# 端點十／十一：POST /api/actresses/{name}/detect-focal、POST /api/actresses/{name}/focal
+# （TASK-100a-T4，鏡射 web/routers/showcase.py 的 /video/detect-focal、/video/focal）
+# NOTE：必須定義在 GET /{name} 之前！
+# ---------------------------------------------------------------------------
+
+# 女優裁窗 3/4 置中（非影片 showcase.py 的 0.71 右裁基準），spec §3.4。
+#
+# 🔴 軸向對齊注意（plan-100b CD-2）：detect_focal(fs, ratio) 內部
+# （core/focal/detector.py:280-307，`:303` 呼叫 `_dominant_axis_by_ratio`）
+# 會依這個 ratio 自行選軸（`:143-147`：`int(height*ratio) < width → 軸=X`，
+# 否則軸=Y）。plan-100b CD-2 的前端也獨立算 `a = W/H > r → 軸=X`——兩者數學上
+# 完全等價（對整數 width：`int(h*r) < w ⟺ h*r < w ⟺ (w/h) > r`，`int()` 截斷
+# 不影響不等式方向），但**沒有任何機制強制兩邊同步**。若之後只改其中一邊
+# （例如調整女優裁窗比例卻漏改另一邊），會產生「後端回 Y 軸座標、前端卻鎖
+# X 軸拖曳」的錯框。改這個常數時，務必同時檢查 plan-100b.md CD-2 的前端
+# 常數是否也要跟著動。
+_FOCAL_DETECT_RATIO = 0.75
+
+_FOCAL_ERR_NOT_FOUND = _UPLOAD_ERR_NOT_FOUND  # "查無此女優"（複用既有常數，同語意）
+_FOCAL_ERR_NO_PHOTO = "找不到照片檔案"          # mirror showcase.py:264 的「找不到封面檔案」措辭家族
+_FOCAL_ERR_DETECT_FAILED = "偵測焦點失敗"        # 複用 showcase.py 字面
+_FOCAL_ERR_INVALID_FORMAT = "無效的焦點座標格式"  # 複用 showcase.py 字面
+_FOCAL_ERR_SAVE_FAILED = "存入手動焦點失敗"      # 複用 showcase.py 字面
+
+
+@router.post("/{name}/detect-focal")
+async def detect_actress_focal(name: str):
+    """使用者主動觸發焦點偵測預覽（純預覽，不寫 DB）。
+
+    鏡射 `web/routers/showcase.py::detect_video_focal`，ratio 改 **0.75**
+    （女優裁窗 3/4 置中，見 `_FOCAL_DETECT_RATIO` 註解）。與影片版的差異：
+    - 女優端點吃 `name`（URL path segment，本來就是 DB primary key），不是
+      client 傳入的檔案路徑——沒有影片版 `is_known_cover_path` 那類「client
+      傳路徑、後端驗證是否已知合法」的攻擊面（照片路徑全由後端
+      `get_local_photo_path(name)` 內部推導）。
+    - 無 configured-dir scope guard：女優收藏本來就是全域概念，不像影片有
+      「是否在收藏範圍內」的問題。
+
+    流程：
+    1. 女優不存在 → 404，固定中文。
+    2. 女優存在但無本機照片（`get_local_photo_path` 回 None）→ 400，固定中文
+       （🔴 Opus 裁決 2026-07-15：mirror showcase.py:264-266 的「找不到封面檔案」
+       400 家族，理由：女優**存在**只是沒照片，404 語意會與「查無此女優」混淆）。
+       **不呼叫 detect_focal**（沒有檔案可偵測）。
+    3. 偵測（無臉 → `format_focal(None)` == ''，不崩，§3.7-6）。
+    4. 回應恆為 `{"success": bool, "auto_focal": str}`（錯誤時 "error" 取代
+       "auto_focal"）——**無 photo_url/cover_path，無任何 FS 路徑欄位**（DoD⑤）。
+
+    `async def` + 顯式 `await asyncio.to_thread(...)`：延續 actress.py 既有
+    「新增端點」慣例（`list_photo_candidates`/`actress_crop`/`set_actress_photo`/
+    `upload_actress_photo` 皆同），而非 showcase.py 的 `def` 隱性 threadpool
+    寫法——同檔案內部一致性優先。`detect_focal` 是真正的 pigo 人臉偵測
+    （~2.2s），`tests/integration/test_async_offload_guard.py` 的 AST 偵測清單
+    不包含它，守衛不會因為裸跑而報錯，但仍必須經 `asyncio.to_thread` 離開
+    event loop（守衛測不出這點，實作/review 階段人工把關）。
+
+    CD-13：不進 `web/routers/capabilities.py`（比照 showcase 的兩支 focal
+    端點皆未揭露——同家族純預覽/寫入端點對 AI agent 用起來無明顯優勢）。
+    """
+    try:
+        _, actress = await asyncio.to_thread(_load_actress, name)
+        if actress is None:
+            return JSONResponse(status_code=404, content={"success": False, "error": _FOCAL_ERR_NOT_FOUND})
+
+        photo_fs = await asyncio.to_thread(get_local_photo_path, name)
+        if photo_fs is None:
+            return JSONResponse(status_code=400, content={"success": False, "error": _FOCAL_ERR_NO_PHOTO})
+
+        focal = await asyncio.to_thread(detect_focal, str(photo_fs), _FOCAL_DETECT_RATIO)
+        auto_focal = format_focal(focal)  # None → ''，純預覽不寫 DB
+        return JSONResponse(status_code=200, content={"success": True, "auto_focal": auto_focal})
+    except Exception:
+        logger.exception("[actress] 偵測焦點失敗 name=%s", name)
+        return JSONResponse(status_code=500, content={"success": False, "error": _FOCAL_ERR_DETECT_FAILED})
+
+
+@router.post("/{name}/focal")
+async def set_actress_focal(name: str, req: SetActressFocalRequest):
+    """使用者手動存入焦點座標（單一 UPDATE 同寫 `auto_focal` + `crop_mode='manual'`）。
+
+    鏡射 `web/routers/showcase.py::set_manual_focal`。**`parse_focal` 驗證是函式
+    第一行**——在 `_load_actress`/任何 DB 存取之前，非法格式完全不碰 DB
+    （DoD④）。
+
+    CD-3：**無 compare token、無 409。** `ActressRepository.update_manual_focal
+    (name, focal)`（T1）刻意不吃 `expected_fp`/`expected_cover_path`（對照
+    `VideoRepository.update_manual_focal` 的 `AND cover_path = ?`）——女優
+    focal 沒有背景 writer 會與此端點交錯寫入，`WHERE name = ?` 已足夠，不需要
+    compare-and-store 防 race。`update_manual_focal` 回 `False` 只可能是驗證
+    與寫入之間女優被刪除的罕見 race（spec §1.4 明示接受），本端點視為 500
+    （非 409——沒有「封面已變更」這種語意可用）。
+
+    `update_manual_focal` 是啞的原子寫入器（T1 已定案的分層）：格式驗證的責任
+    在呼叫端（本函式），寫入端點**不檢查照片是否存在**——座標與照片存在與否
+    是兩件獨立的事，換圖必清焦點的責任在 T2/T3 的 `clear_focal`，不在此處
+    （加這個檢查會是死碼）。
+
+    回應恆為 `{"success": bool, "auto_focal": str}`（錯誤時 "error" 取代
+    "auto_focal"）——與 detect-focal 同一組收斂形狀，無任何 FS 路徑欄位（DoD⑤）。
+
+    `async def` + `asyncio.to_thread`（同 detect-focal，理由見該端點 docstring）。
+    CD-13：不進 capabilities（同 detect-focal）。
+    """
+    parsed = parse_focal(req.focal)
+    if parsed is None:
+        return JSONResponse(status_code=400, content={"success": False, "error": _FOCAL_ERR_INVALID_FORMAT})
+
+    try:
+        repo, actress = await asyncio.to_thread(_load_actress, name)
+        if actress is None:
+            return JSONResponse(status_code=404, content={"success": False, "error": _FOCAL_ERR_NOT_FOUND})
+
+        normalized = format_focal(parsed)
+        written = await asyncio.to_thread(repo.update_manual_focal, name, normalized)
+        if not written:
+            # 理論不該發生（女優已確認存在）——唯一情境是驗證與寫入之間的 race，
+            # spec §1.4 明示接受。無 compare token 可用，故視為一般失敗，非 409。
+            logger.warning("[actress] update_manual_focal 回 False（race）name=%s", name)
+            return JSONResponse(status_code=500, content={"success": False, "error": _FOCAL_ERR_SAVE_FAILED})
+        return JSONResponse(status_code=200, content={"success": True, "auto_focal": normalized})
+    except Exception:
+        logger.exception("[actress] 存入手動焦點失敗 name=%s", name)
+        return JSONResponse(status_code=500, content={"success": False, "error": _FOCAL_ERR_SAVE_FAILED})
 
 
 # ---------------------------------------------------------------------------

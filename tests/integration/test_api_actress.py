@@ -1716,6 +1716,260 @@ class TestUploadActressPhoto:
 
 
 # ---------------------------------------------------------------------------
+# TASK-100a-T4: POST /{name}/detect-focal + POST /{name}/focal
+# ---------------------------------------------------------------------------
+
+_FOCAL_ERR_NOT_FOUND = "查無此女優"
+_FOCAL_ERR_NO_PHOTO = "找不到照片檔案"
+_FOCAL_ERR_INVALID_FORMAT = "無效的焦點座標格式"
+_FOCAL_ERR_SAVE_FAILED = "存入手動焦點失敗"
+
+
+def _save_actress_for_focal(client):
+    """Helper（mirror TestUploadActressPhoto._save_actress）：收藏 ACTRESS_NAME。"""
+    with patch("web.routers.actress.get_cached_profile", return_value=MOCK_PROFILE), \
+         patch("web.routers.actress.get_actress_profile"), \
+         patch("web.routers.actress.download_actress_photo", return_value=True), \
+         patch("web.routers.actress.get_local_photo_path", return_value=None):
+        client.post("/api/actresses/favorite", json={"name": ACTRESS_NAME})
+
+
+def _place_fixture_photo(gfriends_dir: Path, fixture_name: str) -> Path:
+    """把 tests/fixtures/actress_photos/{fixture_name} 複製進 gfriends_dir，檔名對齊 sanitize_filename(ACTRESS_NAME)。"""
+    from core.organizer import sanitize_filename
+    gfriends_dir.mkdir(parents=True, exist_ok=True)
+    safe = sanitize_filename(ACTRESS_NAME)
+    ext = Path(fixture_name).suffix
+    dest = gfriends_dir / f"{safe}{ext}"
+    dest.write_bytes((_ACTRESS_PHOTO_FIXTURES_DIR / fixture_name).read_bytes())
+    return dest
+
+
+class TestDetectActressFocal:
+    """POST /api/actresses/{name}/detect-focal 測試（TASK-100a-T4，純預覽，ratio 0.75）"""
+
+    # ---- 女優不存在 → 404 ----
+
+    def test_detect_focal_actress_not_found_404(self, client):
+        resp = client.post("/api/actresses/不存在女優ABC/detect-focal")
+        assert resp.status_code == 404
+        assert resp.json() == {"success": False, "error": _FOCAL_ERR_NOT_FOUND}
+
+    # ---- 女優存在但無照片 → 400（Opus 裁決：mirror showcase.py:264-266）----
+
+    def test_detect_focal_no_photo_400(self, client, tmp_path):
+        _save_actress_for_focal(client)
+        gfriends = tmp_path / "gfriends"
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp = client.post(f"/api/actresses/{ACTRESS_NAME}/detect-focal")
+        assert resp.status_code == 400
+        assert resp.json() == {"success": False, "error": _FOCAL_ERR_NO_PHOTO}
+
+    # ---- §3.7-6 無臉圖不崩（真 fixture）----
+
+    def test_detect_focal_no_face_returns_200_empty_string(self, client, tmp_path):
+        _save_actress_for_focal(client)
+        gfriends = tmp_path / "gfriends"
+        _place_fixture_photo(gfriends, "no_face_detected.jpg")
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp = client.post(f"/api/actresses/{ACTRESS_NAME}/detect-focal")
+        assert resp.status_code == 200
+        assert resp.json() == {"success": True, "auto_focal": ""}
+
+    # ---- 真實 fixture 偵測輸出落在寬鬆區間（證明真的有在偵測，非鎖 ratio）----
+
+    def test_detect_focal_narrow_face_top_range(self, client, tmp_path):
+        _save_actress_for_focal(client)
+        gfriends = tmp_path / "gfriends"
+        _place_fixture_photo(gfriends, "narrow_face_top.jpg")
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp = client.post(f"/api/actresses/{ACTRESS_NAME}/detect-focal")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        x_str, y_str = data["auto_focal"].split(",")
+        x, y = float(x_str), float(y_str)
+        assert 0.45 < x < 0.55
+        assert 0.15 < y < 0.25
+
+    # ---- DoD② ratio 傳 0.75：pass-through spy（真偵測器照跑，只記參數）----
+    # 🔴 Opus 裁決 2026-07-15：禁止 stub mock（return_value=...）——那會換掉真偵測器，
+    # 測試就不再走完整 production path。此處用 spy 包住真函式，只多觀察一個參數。
+
+    def test_detect_focal_ratio_is_075_via_spy(self, client, tmp_path):
+        _save_actress_for_focal(client)
+        gfriends = tmp_path / "gfriends"
+        _place_fixture_photo(gfriends, "narrow_face_top.jpg")
+
+        import web.routers.actress as actress_router
+        real_detect_focal = actress_router.detect_focal
+        calls = []
+
+        def spy(*args, **kwargs):
+            calls.append((args, kwargs))
+            return real_detect_focal(*args, **kwargs)  # 🔴 真的呼叫下去，回真結果
+
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends), \
+             patch("web.routers.actress.detect_focal", spy):
+            resp = client.post(f"/api/actresses/{ACTRESS_NAME}/detect-focal")
+
+        assert resp.status_code == 200
+        assert len(calls) == 1, "detect_focal 應恰好被呼叫一次"
+        args, kwargs = calls[0]
+        ratio = args[1] if len(args) > 1 else kwargs.get("ratio")
+        assert ratio == 0.75
+
+    # ---- DoD① detect 純預覽，全程零 DB 寫入 ----
+
+    def test_detect_focal_does_not_write_db(self, client, tmp_db, tmp_path):
+        _save_actress_for_focal(client)
+        from core.database import ActressRepository
+        ActressRepository(tmp_db).update_manual_focal(ACTRESS_NAME, "0.3000,0.4000")
+
+        gfriends = tmp_path / "gfriends"
+        _place_fixture_photo(gfriends, "narrow_face_top.jpg")
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp = client.post(f"/api/actresses/{ACTRESS_NAME}/detect-focal")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        # 偵測出的新值必須與呼叫前存的值不同（否則測試無法區分「有寫入」vs「沒寫入」）
+        assert data["auto_focal"] != "0.3000,0.4000"
+
+        actress = ActressRepository(tmp_db).get_by_name(ACTRESS_NAME)
+        assert actress.auto_focal == "0.3000,0.4000", "detect-focal 是純預覽，不得寫入 DB"
+        assert actress.crop_mode == "manual"
+
+    # ---- DoD⑤ response 不含任何 FS path（全分支）----
+
+    def test_detect_focal_response_no_fs_path_all_branches(self, client, tmp_path):
+        resp_404 = client.post("/api/actresses/不存在女優ABC/detect-focal")
+
+        _save_actress_for_focal(client)
+        gfriends = tmp_path / "gfriends"
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+            resp_400 = client.post(f"/api/actresses/{ACTRESS_NAME}/detect-focal")
+
+            _place_fixture_photo(gfriends, "narrow_face_top.jpg")
+            resp_200 = client.post(f"/api/actresses/{ACTRESS_NAME}/detect-focal")
+
+        assert resp_404.status_code == 404
+        assert resp_400.status_code == 400
+        assert resp_200.status_code == 200
+
+        assert set(resp_404.json().keys()) == {"success", "error"}
+        assert set(resp_400.json().keys()) == {"success", "error"}
+        assert set(resp_200.json().keys()) == {"success", "auto_focal"}
+
+        for resp in (resp_404, resp_400, resp_200):
+            text = resp.text
+            assert str(gfriends) not in text
+            assert str(tmp_path) not in text
+
+    # ---- CD-13：不揭露進 capabilities ----
+
+    def test_detect_focal_not_registered_in_capabilities(self):
+        capabilities_src = Path("web/routers/capabilities.py").read_text(encoding="utf-8")
+        assert "detect-focal" not in capabilities_src
+
+
+class TestSetActressFocal:
+    """POST /api/actresses/{name}/focal 測試（TASK-100a-T4，CD-3：無 compare token / 無 409）"""
+
+    # ---- DoD④ parse_focal 驗證先於一切（含 DB）----
+
+    def test_set_focal_validation_before_load_actress(self, client):
+        """畸形格式 + 女優不存在的組合 → 必須是 400（格式錯誤），不是 404；_load_actress 完全不被呼叫。"""
+        with patch("web.routers.actress._load_actress") as mock_load:
+            resp = client.post(
+                "/api/actresses/不存在的女優/focal",
+                json={"focal": "not-a-focal"},
+            )
+            mock_load.assert_not_called()
+        assert resp.status_code == 400
+        assert resp.json() == {"success": False, "error": _FOCAL_ERR_INVALID_FORMAT}
+
+    def test_set_focal_invalid_format_existing_actress_400(self, client):
+        _save_actress_for_focal(client)
+        resp = client.post(
+            f"/api/actresses/{ACTRESS_NAME}/focal",
+            json={"focal": ""},
+        )
+        assert resp.status_code == 400
+        assert resp.json() == {"success": False, "error": _FOCAL_ERR_INVALID_FORMAT}
+
+    # ---- 格式合法、女優不存在 → 404 ----
+
+    def test_set_focal_actress_not_found_404(self, client):
+        resp = client.post(
+            "/api/actresses/不存在女優ABC/focal",
+            json={"focal": "0.5000,0.5000"},
+        )
+        assert resp.status_code == 404
+        assert resp.json() == {"success": False, "error": _FOCAL_ERR_NOT_FOUND}
+
+    # ---- DoD③ 單一 UPDATE 同寫 auto_focal + crop_mode 兩欄 ----
+
+    def test_set_focal_single_update_writes_both_columns(self, client, tmp_db):
+        _save_actress_for_focal(client)  # crop_mode 預設 'auto'
+        resp = client.post(
+            f"/api/actresses/{ACTRESS_NAME}/focal",
+            json={"focal": "0.4000,0.6000"},
+        )
+        assert resp.status_code == 200
+        assert resp.json() == {"success": True, "auto_focal": "0.4000,0.6000"}
+
+        from core.database import ActressRepository
+        actress = ActressRepository(tmp_db).get_by_name(ACTRESS_NAME)
+        assert actress.auto_focal == "0.4000,0.6000"
+        assert actress.crop_mode == "manual"
+
+    # ---- DoD⑤ response 不含任何 FS path（全分支）----
+
+    def test_set_focal_response_no_fs_path_all_branches(self, client, tmp_path):
+        """DoD⑤ 專屬（不糾纏 DoD④ 順序）：先存好女優，400 案例才不會被
+        「女優不存在」混淆——確保本測試只對 mutation⑤（洩漏路徑欄位）敏感。
+        """
+        _save_actress_for_focal(client)
+        resp_400 = client.post(
+            f"/api/actresses/{ACTRESS_NAME}/focal",
+            json={"focal": "garbage"},
+        )
+        resp_404 = client.post(
+            "/api/actresses/不存在女優ABC/focal",
+            json={"focal": "0.5000,0.5000"},
+        )
+        resp_200 = client.post(
+            f"/api/actresses/{ACTRESS_NAME}/focal",
+            json={"focal": "0.5000,0.5000"},
+        )
+
+        assert resp_400.status_code == 400
+        assert resp_404.status_code == 404
+        assert resp_200.status_code == 200
+
+        assert set(resp_400.json().keys()) == {"success", "error"}
+        assert set(resp_404.json().keys()) == {"success", "error"}
+        assert set(resp_200.json().keys()) == {"success", "auto_focal"}
+
+        for resp in (resp_400, resp_404, resp_200):
+            text = resp.text
+            assert str(tmp_path) not in text
+
+    # ---- CD-13：不揭露進 capabilities ----
+
+    def test_set_focal_not_registered_in_capabilities(self):
+        capabilities_src = Path("web/routers/capabilities.py").read_text(encoding="utf-8")
+        assert "/focal" not in capabilities_src
+
+
+# ---------------------------------------------------------------------------
 # _write_actress_photo — lock-free atomic write (66b-T4b)
 # ---------------------------------------------------------------------------
 
