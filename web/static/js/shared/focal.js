@@ -98,18 +98,24 @@ export function focalObjectPosition(video) {
 }
 
 /**
- * 小格 cover-fit object-position（aspect-aware，99a-T2 §1）。與 focalObjectPosition 的差異：
- * 多吃 imgAspect / r 兩參數，套公式把「raw focal x（沿整張原圖寬度的比例）」換算成「CSS
- * object-position 百分比（沿 cover-fit 溢出區間的比例）」，讓小格顯示與遮罩預覽所見即所得。
+ * 小格 cover-fit object-position（aspect-aware，99a-T2 §1；CD-6 100b-T3 加軸向支援）。與
+ * focalObjectPosition 的差異：多吃 imgAspect / r 兩參數，套公式把「raw focal 座標（沿整張原圖
+ * 寬/高的比例）」換算成「CSS object-position 百分比（沿 cover-fit 溢出區間的比例）」，讓小格
+ * 顯示與遮罩預覽所見即所得。
  *
- * 公式（a > r 且未被 gate 擋下時）：
- *   v = r / a（cover-fit 下可見寬度佔原圖寬度比例）
- *   objPos = clamp((x − v/2) / (1 − v), 0, 1)
+ * 軸向由 imgAspect 與 r 的大小關係自判（不新增外部 axis 參數，理由見 plan-100b §1）：
+ *   - imgAspect > r（寬圖，水平溢出）→ 只調 X：v = r/a，輸出 "N% center"
+ *   - imgAspect < r（窄圖，垂直溢出）→ 只調 Y：v = a/r，輸出 "center N%"
+ *   - imgAspect === r（cover-fit 下兩軸皆無裁切餘裕，v 恆為 1、(1-v) 除以零）→ null
+ *
+ * y 分支 v=a/r 推導（與 x 分支 v=r/a 對稱互換，見 plan-100b §1）：cover-fit 下窗高佔全高比例
+ * winH/H；editor 側 winH = min(H, W/r)，a<r 時 W<Hr ⇒ min(H,W/r)=W/r ⇒ winH/H=(W/r)/H=a/r。
  *
  * @param {{crop_mode: string, auto_focal: string}|null|undefined} video
  * @param {number} imgAspect naturalWidth/naturalHeight（呼叫端算好傳入，本函式不碰 DOM）
- * @param {number} r --poster-crop-ratio（呼叫端讀好傳入，不裸寫 0.71）
- * @returns {string|null} 如 "11.79% center"；crop_mode gate / parse 失敗 / a≤r / (auto) deadzone 內 → null
+ * @param {number} r --poster-crop-ratio / --actress-crop-ratio（呼叫端讀好傳入，不裸寫字面值）
+ * @returns {string|null} 如 "11.79% center" 或 "center 11.79%"；crop_mode gate / parse 失敗 /
+ *   a===r / (auto) deadzone 內 → null
  */
 export function focalCellObjectPosition(video, imgAspect, r) {
   if (!video || (video.crop_mode !== 'auto' && video.crop_mode !== 'manual')) {
@@ -122,12 +128,24 @@ export function focalCellObjectPosition(video, imgAspect, r) {
   if (video.crop_mode === 'auto' && p.x >= FOCAL_X_DEADZONE) {
     return null;
   }
-  // a ≤ r（含相等）→ null：cover-fit 下小格不需裁切（或反向公式無意義），避免除以零/負值（Codex P2）。
-  if (!(Number.isFinite(imgAspect) && Number.isFinite(r) && imgAspect > r)) {
+  if (!(Number.isFinite(imgAspect) && Number.isFinite(r) && r > 0)) {
     return null;
   }
-  const v = r / imgAspect;
-  const raw = (p.x - v / 2) / (1 - v);
+  if (imgAspect === r) {
+    // a===r：cover-fit 下兩軸皆無裁切餘裕（v 恆為 1，兩分支 (1-v) 皆為 0，除以零）。
+    // 對應 editor 側 CD-2 的凍結模式（dragExtentX==dragExtentY==0）——render 側無需套用任何修正。
+    return null;
+  }
+  if (imgAspect > r) {
+    // 寬圖：水平溢出，只調 X（既有公式，CD-6 前既有行為，數值零回歸）。
+    const v = r / imgAspect;
+    const raw = (p.x - v / 2) / (1 - v);
+    const clamped = Math.max(0, Math.min(1, raw));
+    return `${(clamped * 100).toFixed(2)}% center`;
+  }
+  // 窄圖：垂直溢出，只調 Y（CD-6 新增；v 對稱推導見上方 docstring）。
+  const v = imgAspect / r;
+  const raw = (p.y - v / 2) / (1 - v);
   const clamped = Math.max(0, Math.min(1, raw));
-  return `${(clamped * 100).toFixed(2)}% center`;
+  return `center ${(clamped * 100).toFixed(2)}%`;
 }

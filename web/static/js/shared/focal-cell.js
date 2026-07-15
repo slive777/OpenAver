@@ -17,9 +17,14 @@
 
 import { focalCellObjectPosition } from './focal.js';
 
-function computeAndApply(el, video) {
+// ratioVar 預設值（100b-T3 CD-6）：既有三處呼叫點（state-videos.js / state-similar.js /
+// showcase.html 三個 @load）皆 2-arg 呼叫，JS 預設參數只在傳入 undefined 時生效（不吃任何其他
+// falsy 值），故零回歸。女優小格（T4）將傳 '--actress-crop-ratio'。
+const DEFAULT_RATIO_VAR = '--poster-crop-ratio';
+
+function computeAndApply(el, video, ratioVar = DEFAULT_RATIO_VAR) {
   const a = el.naturalWidth / el.naturalHeight;
-  const r = parseFloat(getComputedStyle(el).getPropertyValue('--poster-crop-ratio'));
+  const r = parseFloat(getComputedStyle(el).getPropertyValue(ratioVar));
   if (!Number.isFinite(r) || r <= 0) {
     el.style.objectPosition = '';
     return;
@@ -29,20 +34,21 @@ function computeAndApply(el, video) {
 }
 
 /**
- * ⚠️ 前置條件：`el` 必須**已連接 DOM**（Codex PR#107 P2）。computeAndApply 讀的
- * `--poster-crop-ratio` 掛在 `:root`，detached element 沒有連到 `:root` 的 inheritance
- * chain → `getComputedStyle` 回空字串 → `parseFloat` NaN → 誤判「無比例」清掉 objectPosition。
- * 已快取的封面尤其危險：`.src=` 後 `el.complete && el.naturalWidth` **同步**即為真（實測
- * complete=true/naturalWidth=1），當場走同步分支、不經 load 事件，所以連「等 load 時已 append
- * 了」的僥倖都沒有。imperative 建 img 時務必 `appendChild` 後再呼叫本函式。
+ * ⚠️ 前置條件：`el` 必須**已連接 DOM**（Codex PR#107 P2）。computeAndApply 讀的 ratioVar
+ * 掛在 `:root`，detached element 沒有連到 `:root` 的 inheritance chain → `getComputedStyle`
+ * 回空字串 → `parseFloat` NaN → 誤判「無比例」清掉 objectPosition。已快取的封面尤其危險：
+ * `.src=` 後 `el.complete && el.naturalWidth` **同步**即為真（實測 complete=true/
+ * naturalWidth=1），當場走同步分支、不經 load 事件，所以連「等 load 時已 append 了」的僥倖
+ * 都沒有。imperative 建 img 時務必 `appendChild` 後再呼叫本函式。
  *
- * @param {HTMLImageElement|null} el 小格 <img>（grid / similar slot / mobile drill 三站共用）；須已 in-DOM
+ * @param {HTMLImageElement|null} el 小格 <img>（grid / similar slot / mobile drill / 女優卡 四站共用）；須已 in-DOM
  * @param {{crop_mode: string, auto_focal: string}|null|undefined} video
+ * @param {string} [ratioVar] 讀取的 CSS var 名稱，預設 '--poster-crop-ratio'；女優小格（T4）傳 '--actress-crop-ratio'
  */
-export function applyCellFocal(el, video) {
+export function applyCellFocal(el, video, ratioVar = DEFAULT_RATIO_VAR) {
   if (!el) return;
   if (el.complete && el.naturalWidth) {
-    computeAndApply(el, video);
+    computeAndApply(el, video, ratioVar);
     return;
   }
   // 未載入（或 broken image：complete=true 但 naturalWidth=0）→ 掛 load listener 延後算。
@@ -52,7 +58,7 @@ export function applyCellFocal(el, video) {
     () => {
       // 換過圖了（同一元素被重用、.src= 換成新值）→ 放棄，不覆寫新圖的 objectPosition。
       if (el.currentSrc !== expectedSrc && el.src !== expectedSrc) return;
-      computeAndApply(el, video);
+      computeAndApply(el, video, ratioVar);
     },
     { once: true },
   );

@@ -14,6 +14,9 @@ import assert from 'node:assert/strict';
 
 const { FOCAL_X_DEADZONE, parseFocal, focalObjectPosition, focalCellObjectPosition, clampMaskWinLeft } =
   await import('../focal.js');
+// 只 import、不修改 mask-geometry.js（T3 範圍外，見 TASK-100b-T3 §3）——供 editor/render 軸向
+// 一致性交叉驗證用（裁決 1）。
+const { computeMaskAxis } = await import('../mask-geometry.js');
 
 // ── parseFocal（鏡射 parse_focal 同粒度） ─────────────────────────────────
 
@@ -147,8 +150,18 @@ function refCellFormula(x, a, r) {
   return `${(clamped * 100).toFixed(2)}% center`;
 }
 
+// y 分支獨立參考公式（CD-6 100b-T3；與 x 分支對稱互換：v=a/r 非 v=r/a，見 focal.js docstring 推導）。
+function refCellFormulaY(y, a, r) {
+  const v = a / r;
+  const raw = (y - v / 2) / (1 - v);
+  const clamped = Math.max(0, Math.min(1, raw));
+  return `center ${(clamped * 100).toFixed(2)}%`;
+}
+
 const A = 1.49; // 典型 poster 圖片 naturalWidth/naturalHeight（16:9-ish demo 值，非 --poster-crop-ratio）
 const R = 0.71; // --poster-crop-ratio 單一真理值（theme.css:561）
+const AY = 0.50; // 典型女優窄圖 naturalWidth/naturalHeight（< --actress-crop-ratio 0.75，y 分支 demo 值）
+const RY = 0.75; // --actress-crop-ratio 單一真理值（theme.css:569）
 
 test('focalCellObjectPosition〔中間臉 no-op〕x=0.5 對稱 → 50.00%（與 a/r 無關，公式本身自我驗算）', () => {
   assert.equal(
@@ -179,14 +192,57 @@ test('focalCellObjectPosition〔auto 套 deadzone〕同一 x=0.70/a/r，crop_mod
   assert.equal(result, null);
 });
 
-test('focalCellObjectPosition〔a<r〕a=0.60 < r=0.71 → null（Codex P2，避免除以零/反向公式）', () => {
+test('focalCellObjectPosition〔a<r〕a=0.60 < r=0.71 → 走 y 分支（CD-6 100b-T3：不再是 null，改為垂直溢出修正；y=0.30 非對稱值，防退化回原值）', () => {
+  const result = focalCellObjectPosition({ crop_mode: 'auto', auto_focal: '0.3000,0.3000' }, 0.60, 0.71);
+  assert.notEqual(result, null);
+  assert.notEqual(result, '30.00% center'); // 未退化成 x 分支/raw 字面值
+  assert.equal(result, refCellFormulaY(0.30, 0.60, 0.71));
+});
+
+test('focalCellObjectPosition〔偏側 y 算對〕y=0.30, a=0.50, r=0.75（女優窄圖典型值）→ 依 y 公式算出，非等於 raw 30.00%（mutation 抓點，仿 x 分支 :165-169）', () => {
+  const result = focalCellObjectPosition({ crop_mode: 'auto', auto_focal: '0.5000,0.3000' }, AY, RY);
+  assert.notEqual(result, 'center 30.00%');
+  assert.equal(result, refCellFormulaY(0.30, AY, RY));
+});
+
+test('focalCellObjectPosition〔y 分支 manual 繞 deadzone〕a<r 且 crop_mode=manual → 非 null，套 y 公式算出（deadzone 只鎖 x 軸，對 y 分支無感）', () => {
+  const result = focalCellObjectPosition({ crop_mode: 'manual', auto_focal: '0.9000,0.3000' }, AY, RY);
+  assert.notEqual(result, null);
+  assert.equal(result, refCellFormulaY(0.30, AY, RY));
+});
+
+test('focalCellObjectPosition〔y 分支 clamp 下界〕y=0（極端上）→ clamp 進 0 → "center 0.00%"', () => {
   assert.equal(
-    focalCellObjectPosition({ crop_mode: 'auto', auto_focal: '0.3000,0.5000' }, 0.60, 0.71),
+    focalCellObjectPosition({ crop_mode: 'manual', auto_focal: '0.5000,0.0000' }, AY, RY),
+    'center 0.00%',
+  );
+});
+
+test('focalCellObjectPosition〔y 分支 clamp 上界〕y=1（極端下）→ clamp 進 1 → "center 100.00%"', () => {
+  assert.equal(
+    focalCellObjectPosition({ crop_mode: 'manual', auto_focal: '0.5000,1.0000' }, AY, RY),
+    'center 100.00%',
+  );
+});
+
+// ── CD-7〔空操作證明〕女優型資料（manual 模式）在 x 分支與 y 分支都不會被 deadzone 攔下 ──
+// 不改 focal.js 的 deadzone 邏輯（:122 維持原樣）——本節只證明現有結構已保證「女優打不到它」。
+
+test('CD-7〔空操作證明 x 分支〕crop_mode=manual, x=0.90（深入 deadzone 範圍）, a>r → 非 null（deadzone 結構上打不到女優）', () => {
+  assert.notEqual(
+    focalCellObjectPosition({ crop_mode: 'manual', auto_focal: '0.9000,0.5000' }, 1.49, 0.71),
     null,
   );
 });
 
-test('focalCellObjectPosition〔a==r〕a=0.71 == r=0.71 → null（<= 非 <，邊界含等號）', () => {
+test('CD-7〔空操作證明 y 分支〕crop_mode=manual, y=0.90, a<r → 非 null（軸向擴充不會意外新增 y 向 deadzone）', () => {
+  assert.notEqual(
+    focalCellObjectPosition({ crop_mode: 'manual', auto_focal: '0.5000,0.9000' }, 0.50, 0.75),
+    null,
+  );
+});
+
+test('focalCellObjectPosition〔a==r〕a=0.71 == r=0.71 → null（CD-6：精確相等時兩分支 v 恆為 1、(1-v) 除以零，函式須顯式擋下，不可讓其中一支意外算出 NaN%）', () => {
   assert.equal(
     focalCellObjectPosition({ crop_mode: 'auto', auto_focal: '0.3000,0.5000' }, 0.71, 0.71),
     null,
@@ -278,6 +334,61 @@ test('mask/cell 一致性〔by-construction〕x=0.62（deadzone 邊界但 manual
     Math.abs(cellCenter - maskCenter) < 0.002,
     `cell 換算窗中心 ${cellCenter} 應與 mask 換算窗中心 ${maskCenter} 一致`,
   );
+});
+
+// ── editor/render 軸向一致性〔交叉驗證〕（裁決 1）────────────────────────────
+// import 兩個模組的軸向判定純函式，對一組 (imgAspect, r) 矩陣斷言兩側軸向一致。
+// 只 import mask-geometry.js 的 computeMaskAxis，不 import focal.js → mask-geometry.js
+// （會造成循環 import，見 TASK-100b-T3 §3）；本檔反向 import 兩者純屬測試用途。
+//
+// 🔴 只可斷言 .axis，必須忽略 frozen：computeMaskAxis(imgAspect, 1, r) 這種正規化代入
+// （W=imgAspect, H=1）會讓 dragExtentX/Y 落在 px 正規化後的 <1 小數量級，
+// Math.max(dragExtentX, dragExtentY) < 2 幾乎恆真 ⇒ frozen 在此代入下是垃圾值，
+// 對應真實像素空間（H 動輒數百 px）並無意義，本測試矩陣不斷言它。
+// 🔴 a===r 邊界：editor 側 axis:'x'+frozen:true；render 側 null——兩者語意皆為
+// 「無裁切、無可調空間」，不可寫成單一相等斷言就以為完事，須顯式獨立處理（見下一條測試）。
+
+function renderAxisOf(objPosStr) {
+  if (objPosStr === null) return null;
+  return /^center/.test(objPosStr) ? 'y' : 'x';
+}
+
+test('editor/render 軸向一致性〔交叉驗證矩陣〕computeMaskAxis(imgAspect,1,r).axis 與 focalCellObjectPosition 輸出格式判定的軸向永遠一致（僅斷言 .axis，忽略 frozen）', () => {
+  const matrix = [
+    [1.49, 0.71], // a>r 典型 poster
+    [0.60, 0.71], // a<r 典型女優窄圖
+    [2.00, 0.50], // a>r 大幅溢出
+    [0.30, 0.75], // a<r 大幅溢出
+    [0.72, 0.71], // a>r 極微（近邊界，非凍結門檻本身）
+    [0.70, 0.71], // a<r 極微
+  ];
+  for (const [imgAspect, r] of matrix) {
+    const editorAxis = computeMaskAxis(imgAspect, 1, r).axis; // 只取 .axis，frozen 在此代入下垃圾值
+    const cellResult = focalCellObjectPosition(
+      { crop_mode: 'manual', auto_focal: '0.5000,0.5000' },
+      imgAspect,
+      r,
+    );
+    const renderAxis = renderAxisOf(cellResult);
+    assert.equal(
+      renderAxis,
+      editorAxis,
+      `imgAspect=${imgAspect}, r=${r}: editor axis=${editorAxis} 應與 render axis=${renderAxis} 一致`,
+    );
+  }
+});
+
+test('editor/render 軸向一致性〔a===r 邊界，顯式處理〕editor→{axis:"x",frozen:true}；render→null——兩者語意皆為「無裁切、無可調空間」，非不一致', () => {
+  const r = 0.71;
+  const editorResult = computeMaskAxis(r, 1, r); // imgAspect===r 正規化代入
+  assert.equal(editorResult.axis, 'x');
+  assert.equal(editorResult.frozen, true); // 此邊界下 frozen 恰為有意義的值（dragExtentX==dragExtentY==0）
+  const cellResult = focalCellObjectPosition(
+    { crop_mode: 'manual', auto_focal: '0.5000,0.5000' },
+    r,
+    r,
+  );
+  assert.equal(cellResult, null); // render 側無裁切餘裕 → null；與 editor 的 frozen:true 同語意，非衝突
 });
 
 // ── clampMaskWinLeft（99a Gemini P2：拖曳死區）────────────────────────────

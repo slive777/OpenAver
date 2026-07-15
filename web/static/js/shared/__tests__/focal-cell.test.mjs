@@ -144,3 +144,50 @@ test('applyCellFocal〔--poster-crop-ratio 讀不到〕r<=0 → 清 inline，不
     assert.equal(img.style.objectPosition, '', 'r<=0 應退化清 inline');
   });
 });
+
+// ── ratioVar 參數化（100b-T3 CD-6）───────────────────────────────────────
+// 假 getComputedStyle 同時掛兩個不同值的 var，證明 computeAndApply/applyCellFocal 真的讀對
+// 呼叫端指定的那一個（mutation 抓點：若參數被忽略、恆讀預設 --poster-crop-ratio，下面兩條必 RED）。
+
+function withFakeComputedStyleVars(varMap, run) {
+  const orig = globalThis.getComputedStyle;
+  globalThis.getComputedStyle = () => ({
+    getPropertyValue(name) {
+      return Object.prototype.hasOwnProperty.call(varMap, name) ? String(varMap[name]) : '';
+    },
+  });
+  try {
+    return run();
+  } finally {
+    globalThis.getComputedStyle = orig;
+  }
+}
+
+test('applyCellFocal〔ratioVar 預設值零回歸〕2-arg 呼叫（既有三處呼叫點的呼叫形狀）仍讀 --poster-crop-ratio，不受新增的 --actress-crop-ratio 影響', () => {
+  withFakeComputedStyleVars({ '--poster-crop-ratio': R, '--actress-crop-ratio': 0.75 }, () => {
+    const img = makeFakeImg({ complete: true, naturalWidth: 1490, naturalHeight: 1000, src: 'a.jpg' });
+    applyCellFocal(img, AUTO_VIDEO); // 2-arg，無 ratioVar
+    assert.notEqual(img.style.objectPosition, '', '應以 --poster-crop-ratio(0.71) 算出非空值');
+  });
+});
+
+test('applyCellFocal〔ratioVar 顯式傳入，證明讀對那一個 var〕imgAspect=0.73 落在兩個 ratio 之間：傳 "--actress-crop-ratio"(0.75) 應走 y 分支；若參數被忽略、誤讀預設 --poster-crop-ratio(0.71) 會變 x 分支（mutation 抓點）', () => {
+  withFakeComputedStyleVars({ '--poster-crop-ratio': 0.71, '--actress-crop-ratio': 0.75 }, () => {
+    const img = makeFakeImg({ complete: true, naturalWidth: 73, naturalHeight: 100, src: 'a.jpg' }); // a=0.73
+    applyCellFocal(img, AUTO_VIDEO, '--actress-crop-ratio');
+    assert.match(
+      img.style.objectPosition,
+      /^center/,
+      '應走 y 分支（a=0.73 < actress ratio 0.75）；若誤讀 poster ratio(0.71，a=0.73>0.71) 會變 x 分支',
+    );
+  });
+});
+
+test('applyCellFocal〔ratioVar 讀不到〕傳入不存在的 var 名稱 → getPropertyValue 回空字串 → 清 inline（既有行為套用到任一 var）', () => {
+  withFakeComputedStyleVars({ '--poster-crop-ratio': R, '--actress-crop-ratio': 0.75 }, () => {
+    const img = makeFakeImg({ complete: true, naturalWidth: 1490, naturalHeight: 1000, src: 'a.jpg' });
+    img.style.objectPosition = '38.20% center'; // 殘留舊值
+    applyCellFocal(img, AUTO_VIDEO, '--nonexistent-ratio');
+    assert.equal(img.style.objectPosition, '', '讀不到指定 ratioVar → 清 inline，不殘留舊值');
+  });
+});
