@@ -1088,15 +1088,33 @@
             </div>
 
             <!-- Navigation Arrows OUTSIDE lightbox-content (44a T4: dispatch based on showFavoriteActresses) -->
+            <!-- 100c PR#108 nit-1：女優分支的 `!_pickerOpen &&` 是 prev/nextActressLightbox
+                 開頭 `if (this._pickerOpen) return;`（P2-A guard）的**視覺對應**——沒有它，
+                 picker 開著時箭頭仍可見卻點了完全沒反應（不換人也不關 picker：nav 的
+                 @click.stop 壓掉 overlay 的 @click.outside，Alpine .outside 是 bubble-phase），
+                 違反 repo「絕不點了沒反應」。使用者仍可用 Esc／點 overlay 外關 picker，不會被困。
+                 運算元順序（`!_pickerOpen` 在左）純粹是對齊 JS guard 的可讀性選擇，**不承重**：
+                 Alpine effect 每次執行都重新收集依賴，短路未讀到的運算元只在已訂閱的左側
+                 運算元翻轉時才可能改變結果 ⇒ 兩種順序都不會產生 stale 畫面（兩向皆已推演）。
+                 ⚠️ 影片分支（hasVisiblePrev/hasVisibleNext）刻意零改動，理由**僅止於**：影片
+                 模式 hero-card 開 picker 後按箭頭走 prev/nextLightboxVideo（無 P2-A guard）＝
+                 真的會換片、不是死點擊，加可見性 guard 反而藏掉一顆能用的箭頭。
+                 🔴 但那條路徑**並非無恙**（PR#108 fresh review 查證、既有問題非本 PR 引入）：
+                 prev/nextLightboxVideo 未呼叫 _closePicker()（只有 closeLightbox() 有，
+                 state-lightbox.js:413-416）⇒ 切走後 overlay 因 x-show 綁 currentLightboxActress
+                 而隱藏，但 _pickerOpen 永遠停在 true ⇒ SSE 未關、手機 swipe 死、對焦鈕永久隱藏、
+                 Esc 被 _cancelPicker 攔截。正解是在 prev/nextLightboxVideo 開頭補
+                 _closePicker()（用排序讓壞狀態不可能，非加旗標），屬**影片路徑改動、需獨立
+                 CDP 驗證**，已列 follow-up，不在本 PR 範圍。 -->
             <button class="lightbox-nav lightbox-nav-prev"
                     @click.stop="showFavoriteActresses ? prevActressLightbox() : prevLightboxVideo()"
-                    x-show="showFavoriteActresses ? actressLightboxIndex > 0 : hasVisiblePrev()"
+                    x-show="showFavoriteActresses ? (!_pickerOpen && actressLightboxIndex > 0) : hasVisiblePrev()"
                     title="{{ t('showcase.lightbox.prev') }}">
                 <i class="bi bi-chevron-left"></i>
             </button>
             <button class="lightbox-nav lightbox-nav-next"
                     @click.stop="showFavoriteActresses ? nextActressLightbox() : nextLightboxVideo()"
-                    x-show="showFavoriteActresses ? actressLightboxIndex < filteredActressCount - 1 : hasVisibleNext()"
+                    x-show="showFavoriteActresses ? (!_pickerOpen && actressLightboxIndex < filteredActressCount - 1) : hasVisibleNext()"
                     title="{{ t('showcase.lightbox.next') }}">
                 <i class="bi bi-chevron-right"></i>
             </button>

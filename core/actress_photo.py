@@ -195,12 +195,42 @@ def get_local_photo_path(name: str) -> Optional[Path]:
     """
     取得女優本地照片路徑。
 
+    正常情況 `{safe}.*` 只會有一個檔（寫入端 os.replace 後即清掉其他副檔名的殘檔）。
+    但清舊檔可能失敗（Windows 縮圖快取／防毒鎖住舊檔 → PermissionError → 寫入端
+    warn-and-continue，見 :166-175 與 web/routers/actress.py 的 _write_actress_photo）
+    ⇒ 目錄同時存在新舊兩個 `{safe}.*`。
+
+    🔴 PR#108 Codex 三審 P2：此時**不可**回 `matches[0]`。`Path.glob` 不排序、回的是
+    `os.scandir` 順序，而 NTFS 目錄項是名稱序 B-tree ⇒ Windows 上必為字母序
+    （`.gif` < `.jpg` < `.png` < `.webp`）。實測：上傳 PNG 蓋住被鎖的舊 `.jpg`，
+    NTFS 20/20 全部解析到**舊 .jpg**（ext4 為 name-hash 序、約 10/20，這正是本 bug
+    在 dev/CI 上不會現形的原因）。後果不是暫時性 glitch：回應 URL 是 name-based
+    （`/photo/{name}?v=...`，不帶路徑）⇒ 每次 GET 都重新 glob ⇒ 舊圖 bytes 被貼上
+    新圖的 `?v=` 指紋讓瀏覽器長期快取，且 detect_focal 會對著舊圖跑偵測。
+
+    取 mtime 最新者＝剛 os.replace 落地的那個（os.replace 保留 temp 檔的 inode 與
+    mtime，故新檔的 mtime 必為較新）。次鍵 `p.name` 只讓平手時的結果**確定**（不是
+    「解對」——平手時挑的是字母序較後者，仍可能挑到舊檔）；實務上殘檔比新檔老數秒
+    到數天，平手在本 bug 情境幾乎不可能（FAT32/exFAT 2s 粒度才有現實機會）。
+    單檔（正常路徑）走 fast-path，零 stat 成本、行為與舊版 `matches[0]` 完全一致。
+
     Returns:
         找到回 Path，不存在回 None
     """
     safe_name = sanitize_filename(name)
     matches = list(GFRIENDS_DIR.glob(f"{safe_name}.*"))
-    return matches[0] if matches else None
+    if len(matches) <= 1:
+        return matches[0] if matches else None
+
+    def _freshness(p: Path):
+        # 殘檔可能在 glob 與 stat 之間被清掉（良性 TOCTOU）：排到最後，不讓它贏。
+        # -inf 而非 -1：st_mtime_ns 對 1970 前的檔案是負值，用 -1 會讓真實檔輸給幽靈檔
+        try:
+            return (p.stat().st_mtime_ns, p.name)
+        except OSError:
+            return (float("-inf"), p.name)
+
+    return max(matches, key=_freshness)
 
 
 def delete_local_photo(name: str) -> bool:

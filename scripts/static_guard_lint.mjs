@@ -3161,6 +3161,31 @@ const RULES = [
     scope: { anchor: /nextActressLightbox\s*\(\s*\)\s*\{/, braceBalanced: true },
     note: '[P2-A pickerOpen-guard] PR#108 二審：nextActressLightbox() 起手擋 picker 開啟時的女優切換（張冠李戴防護）',
   },
+
+  // ==== PR#108 nit-1：P2-A 的視覺對應——picker 開啟時女優導覽箭頭必須隱藏 ====
+  // 上面兩條鎖「點了不會張冠李戴」，這兩條鎖「不會出現死點擊」：沒有 `!_pickerOpen &&`
+  // 箭頭仍 x-show 可見、點下去 P2-A guard 純擋 ⇒ 不換人；且 nav 的 @click.stop 壓掉
+  // overlay 的 @click.outside（Alpine .outside 是 bubble-phase）⇒ 也不關 picker ⇒
+  // 零回饋死點擊，違反 repo「絕不點了沒反應」。
+  // pattern 含整條三元式＝連**影片分支維持原樣**一起鎖（見下）。運算元順序被 pattern
+  // 固定只是鎖住出貨形狀，不代表順序承重——Alpine effect 每次重新收集依賴，短路未讀到的
+  // 運算元不會造成 stale（兩種順序皆安全，詳見 showcase.html 該處註解）。
+  // ⚠️ 影片分支刻意不加可見性 guard：hero-card 開 picker 後按箭頭走 prev/nextLightboxVideo
+  // ＝真的會換片、不是死點擊，藏掉反而是回歸。但該路徑**另有既有缺陷**（未 _closePicker()
+  // ⇒ _pickerOpen 洩漏），正解是排序（函式開頭補 _closePicker()）而非旗標，屬影片路徑改動、
+  // 需獨立 CDP 驗證，已列 follow-up——**不要**把它誤讀成「影片分支已經沒事」。
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: 'x-show="showFavoriteActresses ? (!_pickerOpen && actressLightboxIndex > 0) : hasVisiblePrev()"',
+    scope: { anchor: /<button class="lightbox-nav lightbox-nav-prev"/, window: 400 },
+    note: '[nit-1 nav-arrow-picker] PR#108：picker 開啟時隱藏女優「上一位」箭頭（防死點擊）；影片分支 hasVisiblePrev() 維持零改動',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: 'x-show="showFavoriteActresses ? (!_pickerOpen && actressLightboxIndex < filteredActressCount - 1) : hasVisibleNext()"',
+    scope: { anchor: /<button class="lightbox-nav lightbox-nav-next"/, window: 400 },
+    note: '[nit-1 nav-arrow-picker] PR#108：picker 開啟時隱藏女優「下一位」箭頭（防死點擊）；影片分支 hasVisibleNext() 維持零改動',
+  },
 ];
 
 // ---- helpers ----

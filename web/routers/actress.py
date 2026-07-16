@@ -513,8 +513,10 @@ def _write_actress_photo(name: str, crop_bytes: bytes, ext: str = ".jpg") -> Non
     """Threadpool helper: atomically write crop_bytes to GFRIENDS_DIR, replacing old files.
 
     Lock-free: same-actress concurrent writers are last-writer-wins (acceptable).
-    unlink(missing_ok=True) avoids the glob/unlink TOCTOU 500; temp+os.replace
-    avoids torn reads (66b-T4b).
+    清舊檔的 unlink(missing_ok=True) 吞掉 glob/unlink TOCTOU（併發寫者搶先刪掉同一
+    殘檔＝良性競態，不該進 log）；外層 try/except 另吞 PermissionError 等（Windows
+    檔案鎖，見下方 P2-B 註解）——兩者分工不同，缺一不可。temp+os.replace 避免
+    torn reads（66b-T4b）。
 
     ext: 目標副檔名（含開頭 `.`，如 `.png`），預設 `.jpg` 保持既有 caller
     （set_actress_photo 的 local_crop 分支）行為不變。CD-5（TASK-100a-T2）：
@@ -549,11 +551,12 @@ def _write_actress_photo(name: str, crop_bytes: bytes, ext: str = ".jpg") -> Non
     # 也已清完舊焦點——若讓例外往上拋，呼叫端會回 500，但新圖其實已經換好、只是
     # 清舊殘檔失敗，屬於 core/actress_photo.py:166-175 download_actress_photo 既有
     # warn-and-continue 缺的雙胞胎（該處已修，本函式當時漏補）。log 後繼續下一個
-    # sibling 檔，不中斷、不上拋。
+    # sibling 檔，不中斷、不上拋。missing_ok=True 保留在 try 內：良性 TOCTOU（併發
+    # 寫者搶先刪掉同一殘檔）靜默通過、不留 warning log；try 只負責真異常（PermissionError）。
     for old in GFRIENDS_DIR.glob(f"{safe}.*"):
         if old != dest:
             try:
-                old.unlink()
+                old.unlink(missing_ok=True)
             except Exception as e:
                 logger.warning(
                     "[actress] 清舊照片檔失敗 path=%s err=%s", old, e,

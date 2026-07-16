@@ -2,6 +2,8 @@
 Unit tests for core/actress_photo.py
 Tests cover: download, rescrape, exception handling, HTTP errors, delete, special chars
 """
+import os
+
 import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -500,3 +502,59 @@ def test_download_actress_photo_accepts_data_graphis_subdomain(gfriends_dir):
     mock_get.assert_called_once()
 
 
+
+
+# ===================================================================
+# PR#108 Codex 三審 P2：清舊檔失敗留下殘檔時，解析必須挑「剛寫入的新檔」
+# ===================================================================
+
+def test_get_local_photo_path_prefers_newest_when_stale_sibling_survives(gfriends_dir):
+    """兩個 {safe}.* 並存（Windows 鎖檔導致清舊檔 warn-and-continue）時，
+    必須解析到剛寫入的新檔，不可回字母序在前的舊殘檔。
+
+    🔴 為什麼要強制 glob 順序：`Path.glob` 回 scandir 序——NTFS 是名稱序 B-tree
+    （.jpg < .png ⇒ 舊檔必先），ext4 卻是 name-hash 序（約 50/50）。不 patch 就是
+    在 dev/CI(ext4) 擲硬幣，mutation 只有一半機率紅＝假綠。這裡固定成 NTFS 序，
+    讓 mutation 必紅。（patch glob 的先例：test_api_actress.py 同檔既有做法）
+
+    mutation：`get_local_photo_path` 改回 `return matches[0]` → 本條必紅。
+    """
+    gfriends_dir.mkdir(parents=True, exist_ok=True)
+    old = gfriends_dir / "テスト女優C.jpg"
+    old.write_bytes(b"STALE")
+    os.utime(old, (1_000_000, 1_000_000))   # 明確拉老，不靠 wall-clock 粒度
+    new = gfriends_dir / "テスト女優C.png"
+    new.write_bytes(b"FRESH")
+
+    # NTFS 序：舊 .jpg 排第一（matches[0] 就會踩雷）
+    with patch.object(type(gfriends_dir), "glob", lambda self, pat: [old, new]):
+        found = get_local_photo_path("テスト女優C")
+
+    assert found == new, f"應解析到新寫入的 .png，實得 {found}"
+    assert found.read_bytes() == b"FRESH"
+
+
+def test_get_local_photo_path_single_file_unaffected(gfriends_dir):
+    """對照組（regression control，非 mutation 標的）：正常單檔路徑語意不變。
+
+    ⚠️ 誠實揭露：本條在 `return matches[0]` 的 mutation 下**仍會綠**——它不驗
+    fast-path 或 stat 次數，只驗「修正沒有弄壞絕大多數情境」。抓 mutation 的是
+    上一條（prefers_newest）。"""
+    gfriends_dir.mkdir(parents=True, exist_ok=True)
+    only = gfriends_dir / "テスト女優D.jpg"
+    only.write_bytes(b"ONLY")
+
+    assert get_local_photo_path("テスト女優D") == only
+    assert get_local_photo_path("不存在的女優") is None
+
+
+def test_get_local_photo_path_survives_sibling_vanishing_midway(gfriends_dir):
+    """良性 TOCTOU：glob 之後、stat 之前殘檔被清掉 → 不可拋、且不可讓幽靈檔勝出。"""
+    gfriends_dir.mkdir(parents=True, exist_ok=True)
+    ghost = gfriends_dir / "テスト女優E.gif"     # 字母序在前
+    real = gfriends_dir / "テスト女優E.png"
+    real.write_bytes(b"FRESH")
+    # ghost 從未實際建立 ⇒ stat() 拋 FileNotFoundError
+
+    with patch.object(type(gfriends_dir), "glob", lambda self, pat: [ghost, real]):
+        assert get_local_photo_path("テスト女優E") == real

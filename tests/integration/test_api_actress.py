@@ -1803,6 +1803,17 @@ class TestUploadActressPhoto:
     # ---- CD-13 補充：不揭露 capabilities ----
 
     def test_upload_endpoint_not_registered_in_capabilities(self):
+        # [lint-guard: pytest-justified] CD-13 agentic-AI 揭露面安全守衛。
+        # 🔴 誠實揭露（PR#108 fresh review 訂正）：本條**確實**落在北極星射程內——它是對
+        # capabilities.py 的單檔 forbidden-string 檢查（不是跨檔 contract：這裡根本沒讀
+        # actress.py），而 static_guard_lint.mjs 也**已經會掃 .py**（見 core/gallery_scanner.py
+        # 等三條 forbidden-string 規則）⇒ 搬過去是 ~4 行規則物件、成本近乎零。
+        # 留在 pytest 的理由只有一個、且與難易無關：**同一語意類別共 5 條**，另 2 條在 main
+        # 上早已存在且同樣未標 tag（detail_url／test_rescrape_javlib.py:263、
+        # metatube_status／test_scraper_sources_api.py:201）。只搬本檔 3 條會把類別拆成
+        # 3-in-lint／2-in-pytest，一致性成本高於收益。要搬應 5 條一起搬 ⇒ 屬另一支 PR。
+        # （SA-pre-6 的 content-based 偵測面是 `assert "<字面>" in/not in (html|js|css)`，
+        # 本條綁 Python 源碼字串、不在該偵測面內，故非 blocker——但那是條文，不是免死金牌。）
         capabilities_src = Path("web/routers/capabilities.py").read_text(encoding="utf-8")
         assert "photo/upload" not in capabilities_src
 
@@ -1923,6 +1934,57 @@ class TestUploadActressPhoto:
         from core.database import ActressRepository
         actress = ActressRepository().get_by_name(ACTRESS_NAME)
         assert actress.photo_source == "upload"
+
+    def test_upload_photo_serves_new_image_when_stale_sibling_survives(self, client, tmp_path):
+        """🔴 PR#108 Codex 三審 P2（端對端）：清舊檔失敗留下舊 .jpg 時，
+        GET /photo/{name} 必須送出**剛上傳的 PNG**，不是舊 JPEG。
+
+        上一條（..._permission_error_still_succeeds）只斷言「回 200 + 舊檔還在」，
+        **沒斷言 URL 到底送出哪個檔**——這正是本 bug 溜過去的破口：回應 URL 是
+        name-based（`/photo/{name}?v=...` 不帶路徑）⇒ 每次 GET 重新 glob ⇒ 舊圖
+        bytes 被貼上新圖的 `?v=` 指紋，瀏覽器長期快取錯的圖。
+
+        glob 強制成 NTFS 名稱序（.jpg < .png，舊檔在前）：ext4 是 name-hash 序
+        （約 50/50），不 patch 就是擲硬幣、mutation 只有一半機率紅＝假綠。
+
+        mutation：`get_local_photo_path` 改回 `return matches[0]` → 本測試必紅。
+        """
+        from core.organizer import sanitize_filename
+
+        self._save_actress(client)
+        gfriends = tmp_path / "gfriends"
+        gfriends.mkdir(parents=True, exist_ok=True)
+        old_path = gfriends / f"{sanitize_filename(ACTRESS_NAME)}.jpg"
+        old_path.write_bytes(self._make_jpeg_bytes())
+
+        real_unlink = Path.unlink
+
+        def fake_unlink(self_path, *a, **kw):
+            if self_path == old_path:
+                raise PermissionError("locked by AV scanner")
+            return real_unlink(self_path, *a, **kw)
+
+        png_bytes = self._make_png_bytes()
+        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends), \
+             patch.object(Path, "unlink", fake_unlink):
+            resp = client.post(
+                f"/api/actresses/{ACTRESS_NAME}/photo/upload",
+                files={"file": ("new.png", png_bytes, "image/png")},
+            )
+        assert resp.status_code == 200
+
+        new_path = gfriends / f"{sanitize_filename(ACTRESS_NAME)}.png"
+        assert old_path.exists() and new_path.exists(), "前提：兩檔並存才測得到解析歧義"
+
+        with patch("core.actress_photo.GFRIENDS_DIR", gfriends), \
+             patch.object(type(gfriends), "glob", lambda self, pat: [old_path, new_path]):
+            photo = client.get(f"/api/actresses/photo/{ACTRESS_NAME}")
+
+        assert photo.status_code == 200
+        # 🔴 承重：送出的是新 PNG，不是字母序在前的舊 JPEG
+        assert photo.headers["content-type"] == "image/png"
+        assert photo.content == png_bytes
 
 
 # ---------------------------------------------------------------------------
@@ -2085,6 +2147,9 @@ class TestDetectActressFocal:
     # ---- CD-13：不揭露進 capabilities ----
 
     def test_detect_focal_not_registered_in_capabilities(self):
+        # [lint-guard: pytest-justified] CD-13 agentic-AI 揭露面安全守衛，理由同
+        # test_upload_endpoint_not_registered_in_capabilities（跨檔 contract + 與 main
+        # 既有 detail_url／metatube_status 同類守衛共處 pytest）。
         capabilities_src = Path("web/routers/capabilities.py").read_text(encoding="utf-8")
         assert "detect-focal" not in capabilities_src
 
@@ -2175,6 +2240,9 @@ class TestSetActressFocal:
     # ---- CD-13：不揭露進 capabilities ----
 
     def test_set_focal_not_registered_in_capabilities(self):
+        # [lint-guard: pytest-justified] CD-13 agentic-AI 揭露面安全守衛，理由同
+        # test_upload_endpoint_not_registered_in_capabilities（跨檔 contract + 與 main
+        # 既有 detail_url／metatube_status 同類守衛共處 pytest）。
         capabilities_src = Path("web/routers/capabilities.py").read_text(encoding="utf-8")
         assert "/focal" not in capabilities_src
 
