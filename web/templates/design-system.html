@@ -2985,37 +2985,27 @@
                      window.GhostFly.playFocalDetectWait/stopFocalDetectWait），不留沉默缺口。 -->
             </div>
 
-            <!-- Focal Mask Window Cursor States (100b-T5) -->
+            <!-- Focal Mask Window Cursor States (100b-T5 → 100c-T3a 收斂：Y 軸/凍結 modifier 移除) -->
             <div class="ds-subsection">
-                <h3>Focal Mask 軸向 Cursor</h3>
+                <h3>Focal Mask Cursor</h3>
                 <p class="ds-desc">
-                    <code>.lb-mask-window</code>（焦點裁切遮罩內的可拖曳窗）依 <code>_maskAxis</code> 加
-                    modifier class 表達可拖曳方向；桌面 only affordance（手機無 cursor），不作為軸向的
-                    唯一提示，正確性仍靠幾何自動選軸（寬圖 X／窄圖 Y）+ 凍結判定。滑鼠移到方塊上可見游標變化。
+                    <code>.lb-mask-window</code>（焦點裁切遮罩內的可拖曳窗）唯一可拖方向恆為橫向
+                    （CD-6：icon 只在橫向可拖幅度 ≥20% 的照片顯示），<code>cursor: ew-resize</code>
+                    併入基礎規則，不再需要軸向 modifier class。滑鼠移到方塊上可見游標變化。
                 </p>
                 <div class="ds-state-matrix">
                     <div class="ds-state-item">
-                        <span class="ds-state-label">Axis X（寬圖，左右拖）</span>
-                        <div class="lb-mask-window--axis-x" style="position: relative; width: 90px; height: 60px; border: 1px solid rgba(255,255,255,0.55); background: var(--color-base-300); border-radius: 0.25rem;"></div>
-                    </div>
-                    <div class="ds-state-item">
-                        <span class="ds-state-label">Axis Y（窄圖，上下拖）</span>
-                        <div class="lb-mask-window--axis-y" style="position: relative; width: 60px; height: 90px; border: 1px solid rgba(255,255,255,0.55); background: var(--color-base-300); border-radius: 0.25rem;"></div>
+                        <span class="ds-state-label">預設（可橫向拖曳）</span>
+                        <div class="lb-mask-window" style="position: relative; width: 90px; height: 60px; border: 1px solid rgba(255,255,255,0.55); background: var(--color-base-300); border-radius: 0.25rem; box-shadow: none;"></div>
                     </div>
                     <div class="ds-state-item">
                         <span class="ds-state-label">Dragging</span>
-                        <div class="lb-mask-window--dragging" style="position: relative; width: 90px; height: 60px; border: 1px solid rgba(255,255,255,0.55); background: var(--color-base-300); border-radius: 0.25rem;"></div>
-                    </div>
-                    <div class="ds-state-item">
-                        <span class="ds-state-label">Frozen（無可拖餘裕）</span>
-                        <div class="lb-mask-window--frozen" style="position: relative; width: 90px; height: 60px; border: 1px solid rgba(255,255,255,0.55); background: var(--color-base-300); border-radius: 0.25rem;"></div>
+                        <div class="lb-mask-window lb-mask-window--dragging" style="position: relative; width: 90px; height: 60px; border: 1px solid rgba(255,255,255,0.55); background: var(--color-base-300); border-radius: 0.25rem; box-shadow: none;"></div>
                     </div>
                 </div>
                 <p class="ds-desc" style="margin-top: 0.75rem;">
-                    Classes：<code>.lb-mask-window--axis-x</code>（<code>ew-resize</code>）
-                    <code>.lb-mask-window--axis-y</code>（<code>ns-resize</code>）
+                    Classes：<code>.lb-mask-window</code>（<code>ew-resize</code>）
                     <code>.lb-mask-window--dragging</code>（<code>grabbing</code>）
-                    <code>.lb-mask-window--frozen</code>（<code>default</code>）
                 </p>
             </div>
 

@@ -1021,20 +1021,7 @@
     box-shadow: 0 0 0 100vmax var(--lb-mask-scrim);   /* 窗外壓暗 spotlight，隨 transform 一起滑 */
     transition: transform var(--fluent-duration-medium) var(--ease-out);
     touch-action: none;   /* 99a-T3：拖曳時防手機系統手勢（頁面捲動/swipe-to-back/左右換片）搶走 */
-    cursor: grab;
-}
-
-/* 100b-T5（§D，Gemini 2026-07-15 建議，採納）：軸向 cursor affordance——桌面 only，不可作為
- * 軸向的唯一提示（手機無 cursor；正確性一律靠 CD-2 幾何自動選軸+凍結判定）。modifier class
- * 由 Alpine :class 綁 _maskAxis（比照上面 --dragging 的寫法，見 _macros/focal_mask.html）。
- * 宣告順序刻意排在 --dragging/--frozen 之前：兩者是互斥的即時態，同為單一 class 選擇器
- * （同 specificity），靠 source order 決勝負，必須留在後面才會贏過本規則。 */
-.lb-mask-window--axis-x {
-    cursor: ew-resize;
-}
-
-.lb-mask-window--axis-y {
-    cursor: ns-resize;
+    cursor: ew-resize;    /* 100c-T3a：Y 軸砍除後（CD-6）唯一可拖方向恆為橫向，游標契約併回基礎規則 */
 }
 
 /* 99a-T3：拖曳中停用 transition——連續 1:1 跟手，套著 transition 會有橡皮筋延遲感，
@@ -1043,13 +1030,6 @@
 .lb-mask-window--dragging {
     transition: none;
     cursor: grabbing;
-}
-
-/* 100b-T2a（CD-2 凍結模式）：女優圖無可拖曳空間時，cursor 明確表達「這張圖沒有可調空間」，
- * 不與可拖曳態的 grab 混淆。軸向 hover affordance（見上方 --axis-x/--axis-y，100b-T5 已補）
- * 不適用凍結態，本規則只鎖凍結模式這個窄範圍。 */
-.lb-mask-window--frozen {
-    cursor: default;
 }
 
 .lb-mask-spinner {

@@ -179,33 +179,6 @@ const RULES = [
     note: '[TestMaskToggleGuard] _computeMaskWinStyle 不得硬編 2/3 比例（讀 CSS var）',
   },
 
-  // ---- [TestMaskToggleGuard] 100b-T2a：CD-2 凍結模式 + Y 軸套用 + mask-geometry.js 遷移補網 ----
-  {
-    // 🔴 T2a review BLOCKER 回歸鎖：detect resolve 後**必須把偵測到的 y 套用到 _maskFocalY**。
-    // 原 T1 碼只寫 `this._maskFocalX = parsed.x`（全檔零處寫 parsed.y）——對女優窄圖
-    // （a < 0.75 → _maskAxis==='y'）＝按 focal icon、星空跑完、窗原地不動，偵測到的臉被靜默
-    // 丟棄，直接打掉 spec §3.7-5（fixture narrow_face_top.jpg 700×1050 的 dy=0.31 正是此 case）。
-    // 這是「全綠但功能不可用」型缺陷（feedback_guards_cant_prove_usable）：無此鎖則該行被刪
-    // 也沒有任何守衛會叫。node:test 摸不到本檔（importmap alias，plain Node 無法 import），
-    // 故以 lint scope 規則承擔；CDP checklist 另有 §3.7-5 的真機驗收（守衛只證「寫入點存在」，
-    // 證不出「窗真的跟著臉走」）。
-    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
-    pattern: 'this._maskFocalY = parsed.y;',
-    scope: { anchor: /async\s+openMask\s*\(\s*\)\s*\{/, braceBalanced: true },
-    note: '[TestMaskToggleGuard] 100b-T2a：openMask detect resolve 必須套用偵測到的 Y 軸焦點（CD-2 軸向分流，窄圖女優的自動對焦全靠這行）',
-  },
-  {
-    // CD-2 明文要求「凍結模式的『不掛 pointerdown 或 handler 內 no-op』二擇一，需在實作時
-    // 定案並寫測試鎖住」。定案＝handler 內 early-return（@pointerdown 綁定維持無條件，因其
-    // 字面存在性另有 required 規則錨在 partial 上）。此鎖是該決策的唯一機械守衛：
-    // node:test 摸不到 state-lightbox.js（importmap alias，plain Node 無法 import），
-    // 純函式層的 computeMaskAxis 只算得出 frozen 布林、驗不到「消費端真的據此 no-op」。
-    // 鎖整串（含 `return;`）而非裸 `_maskFrozen`——後者在同 scope 內若有別的引用會 fail-open。
-    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
-    pattern: 'if (this._maskFrozen) return;',
-    scope: { anchor: /_maskDragStart\s*\(\s*evt\s*\)\s*\{/, braceBalanced: true },
-    note: '[TestMaskToggleGuard] 100b-T2a：CD-2 凍結模式——無可拖餘裕時 _maskDragStart 必須 no-op（不進拖曳、不掛 document listener）',
-  },
   // 🔴 遷移粒度守則（CLAUDE.md）：`Math.min(W, H*r)` / `Math.min(H, W/r)` 的幾何數學原本天然
   // 落在 _computeMaskWinStyle 那 4 條 scope 規則的掃描範圍內；100b-T2a 把它搬到
   // shared/mask-geometry.js（可測試性 + G1 單一 writer）後，該檔一度是零規則覆蓋的新盲區——
@@ -676,26 +649,26 @@ const RULES = [
     note: '[TestMaskToggleGuard] 100b-T5：spec §3.7-7 零偵測成本——_onPickerSelect scope 內不得出現 detect-focal',
   },
 
-  // 軸向 cursor affordance（§D，Gemini 建議）：加 .lb-mask-window--axis-y modifier class 由
-  // Alpine :class 綁 _maskAxis（比照既有 --dragging/--frozen 寫法），CSS 旁加 ns-resize 覆寫。
-  // 全 repo 今天無 ew-resize/ns-resize 用例（已查）——鎖住 wiring 兩端，防止只改一邊就悄悄失效。
   {
-    file: 'web/templates/_macros/focal_mask.html', kind: 'required-string',
-    pattern: "'lb-mask-window--axis-y': _maskAxis === 'y'",
-    note: '[TestMaskToggleGuard] 100b-T5：.lb-mask-window 綁軸向 modifier class（桌面 only affordance，非唯一提示，正確性仍靠 CD-2 幾何）',
-  },
-  {
-    // scope-anchored（非裸 required-string）：本檔 :1044 附近既有一句 T2a 留下的規劃註解字面
-    // 提到「ew-resize/ns-resize」，裸的 required-string 會被那句註解假綠掉（本 branch 已踩過
-    // 三次的 fail-open 形狀）。錨定實際 CSS rule block，只在該 block 內斷言，防同檔註解誤蓋。
-    file: 'web/static/css/pages/showcase.css', kind: 'required-string', pattern: 'ns-resize',
-    scope: { anchor: /\.lb-mask-window--axis-y\s*\{/, braceBalanced: true },
-    note: '[TestMaskToggleGuard] 100b-T5：.lb-mask-window--axis-y 的 cursor: ns-resize 覆寫存在（軸向拖曳提示，scope 錨定防同檔規劃註解假綠）',
-  },
-  {
+    // 100c-T3a：軸向 modifier 已移除（CD-6：唯一可拖方向恆為橫向），cursor: ew-resize 契約
+    // 搬進 .lb-mask-window 基礎規則——scope-anchored（非裸 required-string）：本檔附近仍可能
+    // 有規劃註解字面提到「ew-resize」，裸的 required-string 會被那類註解假綠掉（本 branch
+    // 已踩過三次的 fail-open 形狀）。錨定實際 CSS rule block，只在該 block 內斷言。
     file: 'web/static/css/pages/showcase.css', kind: 'required-string', pattern: 'ew-resize',
-    scope: { anchor: /\.lb-mask-window--axis-x\s*\{/, braceBalanced: true },
-    note: '[TestMaskToggleGuard] 100b-T5：.lb-mask-window--axis-x 的 cursor: ew-resize 覆寫存在（軸向拖曳提示，scope 錨定防同檔規劃註解假綠）',
+    scope: { anchor: /\.lb-mask-window\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 100c-T3a：.lb-mask-window 基礎規則的 cursor: ew-resize（Y 軸砍除後唯一可拖方向併回基礎規則，取代舊 grab；scope 錨定防同檔規劃註解假綠）',
+  },
+
+  // ---- [TestMaskToggleGuard] 100c-T3a：CD-11 Y 軸/軸向判定/凍結模式不得復活 ----
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'forbidden-string',
+    pattern: ['this._maskFocalY', 'this._maskAxis', 'this._maskFrozen', 'computeMaskAxis('],
+    note: '[TestMaskToggleGuard] 100c-T3a／CD-11：Y 軸/軸向判定/凍結模式不得復活（spec-100c §3.3 廢止）——鎖程式碼形式（this. 前綴/呼叫括號），散文註解仍可提及裸名',
+  },
+  {
+    file: 'web/static/js/shared/mask-geometry.js', kind: 'forbidden-string',
+    pattern: ['translateY', 'computeMaskAxis'],
+    note: '[TestMaskToggleGuard] 100c-T3a／CD-11：Y 軸 transform 輸出與軸向判定函式不得復活（spec-100c §3.3）——加入本規則前已改寫 file header 與 computeMaskDragRoom JSDoc 中提及被刪函式的文字，避免規則自我毒殺',
   },
 
   // ---- [TestMaskToggleGuard] 100c-T2：女優 focal icon 搬家 + 五條件顯示邏輯 + 20% 門檻接線 ----

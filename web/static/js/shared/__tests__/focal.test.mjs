@@ -14,9 +14,6 @@ import assert from 'node:assert/strict';
 
 const { FOCAL_X_DEADZONE, parseFocal, focalObjectPosition, focalCellObjectPosition, clampMaskWinLeft } =
   await import('../focal.js');
-// 只 import、不修改 mask-geometry.js（T3 範圍外，見 TASK-100b-T3 §3）——供 editor/render 軸向
-// 一致性交叉驗證用（裁決 1）。
-const { computeMaskAxis } = await import('../mask-geometry.js');
 
 // ── parseFocal（鏡射 parse_focal 同粒度） ─────────────────────────────────
 
@@ -361,67 +358,6 @@ test('mask/cell 一致性〔by-construction〕x=0.62（deadzone 邊界但 manual
     Math.abs(cellCenter - maskCenter) < 0.002,
     `cell 換算窗中心 ${cellCenter} 應與 mask 換算窗中心 ${maskCenter} 一致`,
   );
-});
-
-// ── editor/render 軸向一致性〔交叉驗證〕（裁決 1）────────────────────────────
-// import 兩個模組的軸向判定純函式，對一組 (imgAspect, r) 矩陣斷言兩側軸向一致。
-// 只 import mask-geometry.js 的 computeMaskAxis，不 import focal.js → mask-geometry.js
-// （會造成循環 import，見 TASK-100b-T3 §3）；本檔反向 import 兩者純屬測試用途。
-//
-// 🔴 只可斷言 .axis，必須忽略 frozen：computeMaskAxis(imgAspect, 1, r) 這種正規化代入
-// （W=imgAspect, H=1）會讓 dragExtentX/Y 落在 px 正規化後的 <1 小數量級，
-// Math.max(dragExtentX, dragExtentY) < 2 幾乎恆真 ⇒ frozen 在此代入下是垃圾值，
-// 對應真實像素空間（H 動輒數百 px）並無意義，本測試矩陣不斷言它。
-// 🔴 a===r 邊界：editor 側 axis:'x'+frozen:true；render 側 null——兩者語意皆為
-// 「無裁切、無可調空間」，不可寫成單一相等斷言就以為完事，須顯式獨立處理（見下一條測試）。
-
-function renderAxisOf(objPosStr) {
-  if (objPosStr === null) return null;
-  return /^center/.test(objPosStr) ? 'y' : 'x';
-}
-
-// Fix C 後續調整：computeMaskAxis（editor）只在 _maskKind==='actress' 時被呼叫
-// （state-lightbox.js:916-922，video 恆 axis='x'/frozen=false，不走 computeMaskAxis）。
-// 本交叉驗證比對的是「actress 編輯器算出的軸向」與「actress 小格渲染算出的軸向」是否一致，
-// 故 focalCellObjectPosition 這裡顯式傳 axisMode='auto'（不可省略、不可依賴預設值）。
-test('editor/render 軸向一致性〔交叉驗證矩陣〕computeMaskAxis(imgAspect,1,r).axis 與 focalCellObjectPosition(...,\'auto\') 輸出格式判定的軸向永遠一致（僅斷言 .axis，忽略 frozen；比對對象是 actress 路徑，故顯式傳 axisMode="auto"）', () => {
-  const matrix = [
-    [1.49, 0.71], // a>r 典型 poster
-    [0.60, 0.71], // a<r 典型女優窄圖
-    [2.00, 0.50], // a>r 大幅溢出
-    [0.30, 0.75], // a<r 大幅溢出
-    [0.72, 0.71], // a>r 極微（近邊界，非凍結門檻本身）
-    [0.70, 0.71], // a<r 極微
-  ];
-  for (const [imgAspect, r] of matrix) {
-    const editorAxis = computeMaskAxis(imgAspect, 1, r).axis; // 只取 .axis，frozen 在此代入下垃圾值
-    const cellResult = focalCellObjectPosition(
-      { crop_mode: 'manual', auto_focal: '0.5000,0.5000' },
-      imgAspect,
-      r,
-      'auto',
-    );
-    const renderAxis = renderAxisOf(cellResult);
-    assert.equal(
-      renderAxis,
-      editorAxis,
-      `imgAspect=${imgAspect}, r=${r}: editor axis=${editorAxis} 應與 render axis=${renderAxis} 一致`,
-    );
-  }
-});
-
-test('editor/render 軸向一致性〔a===r 邊界，顯式處理〕editor→{axis:"x",frozen:true}；render(axisMode="auto")→null——兩者語意皆為「無裁切、無可調空間」，非不一致', () => {
-  const r = 0.71;
-  const editorResult = computeMaskAxis(r, 1, r); // imgAspect===r 正規化代入
-  assert.equal(editorResult.axis, 'x');
-  assert.equal(editorResult.frozen, true); // 此邊界下 frozen 恰為有意義的值（dragExtentX==dragExtentY==0）
-  const cellResult = focalCellObjectPosition(
-    { crop_mode: 'manual', auto_focal: '0.5000,0.5000' },
-    r,
-    r,
-    'auto',
-  );
-  assert.equal(cellResult, null); // render 側無裁切餘裕 → null；與 editor 的 frozen:true 同語意，非衝突
 });
 
 // ── clampMaskWinLeft（99a Gemini P2：拖曳死區）────────────────────────────

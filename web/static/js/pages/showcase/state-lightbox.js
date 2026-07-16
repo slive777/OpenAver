@@ -16,7 +16,7 @@ import { parseFocal, clampMaskWinLeft } from '@/shared/focal.js';
 // 100b-T2a：CD-2 軸向/凍結判定 + 亮窗幾何純函式抽至 shared/mask-geometry.js（可測試性——
 // 本檔的 `@/showcase/...` importmap alias 只有瀏覽器認得，node:test 無法直接 import 本檔；
 // mask-geometry.js 只用相對路徑 import，node:test 可直接驗證，見該檔開頭說明）。
-import { computeMaskAxis, computeMaskWinGeometry, computeMaskDragRoom, MASK_MIN_DRAG_ROOM } from '@/shared/mask-geometry.js';
+import { computeMaskWinGeometry, computeMaskDragRoom, MASK_MIN_DRAG_ROOM } from '@/shared/mask-geometry.js';
 import { syncActressFields } from '@/shared/actress-sync.js';
 
 export function stateLightbox() {
@@ -82,16 +82,6 @@ export function stateLightbox() {
         // 非約定俗成。_resetMask()/_maskTeardown() 收尾時重置（見兩函式末尾，裁決 D-3：
         // 排在最後，防先清 kind 再做依賴 _maskTarget() 的收尾查到錯的分支/元素）。
         _maskKind: null,                // 'video' | 'actress'，dispatch key（100b-T1）
-        // 100b-T2a（CD-2/G4）：軸向依 render rect 在 openMask 當下一次性解出並凍結，
-        // pointermove/_computeMaskWinStyle 內不得重判（比照 _maskKind 的凍結模式）。
-        // video 恆 'x'（既有行為，封面比例恆寬於 3/4，無 Y 軸情境）；actress 依
-        // computeMaskAxis() 幾何判定。
-        _maskAxis: null,                 // 'x' | 'y'
-        // CD-2 凍結模式：女優圖 dragExtentX/Y 兩者皆 <2px（無可拖曳餘裕）時為 true——框固定
-        // 3/4 置中、_maskDragStart 起手 no-op（不掛拖曳流程）、cursor:default（見 showcase.css
-        // .lb-mask-window--frozen）。✓ 仍可按（存置中焦點，語意等同 no-op 但誠實，不可整個
-        // 按鈕消失或靜默不反應，spec §3.1）。video 恆 false（既有行為零回歸，不套用凍結判定）。
-        _maskFrozen: false,
         _maskVisible: false,            // 遮罩 overlay 是否顯示
         _maskSession: 0,                // 單調遞增 session id（openMask/_resetMask 遞增）
         _maskDetecting: false,          // force-detect 進行中（spinner）
@@ -108,10 +98,6 @@ export function stateLightbox() {
         // 99a-T3：手動焦點編輯狀態。_maskFocalX 恆為具體數字（geometry 已知後）——僅在 openMask
         // 幾何尚未解出的極短暫態為 null（見 openMask 內註解，Opus correction B）。
         _maskFocalX: null,
-        // 100b-T2a：Y 軸焦點（CD-2）。影片恆 null（render 只用 X，spec §3.3，零回歸）；女優
-        // openMask 一旦幾何解出即收斂為具體數字（3/4 置中基準 0.5，或凍結/拖曳後的實際值），
-        // 同 _maskFocalX 的「僅極短暫態為 null」不變量。
-        _maskFocalY: null,
         // Codex PR#107 第二輪 P2：使用者開遮罩當下觀察到的 cover_path（server 端 DB-key
         // file:/// URI 原樣值，由 /detect-focal 回應帶回，非前端反解/推算）。null＝尚未
         // 從 server 取得任何值（openMask 起手重置、或本次 detect 連 JSON body 都沒拿到，
@@ -936,16 +922,15 @@ export function stateLightbox() {
             // 失敗/無臉」時的終值 fallback，不會先畫出來再滑走（.lb-mask-window 在 _maskDetecting
             // 為真時不渲染，見 showcase.html x-show）。
             this._maskFocalX = null;
-            this._maskFocalY = null;   // 100b-T2a：Y 軸同步重置（影片恆維持 null，不受下方分流影響）
             // Codex PR#107 第二輪 P2：新 session 起手先清舊 token，防止「這次 detect 連
             // JSON body 都沒拿到」時沿用上一支影片/上一個 session 殘留的 cover_path
             // 誤配到這支影片（confirmMask 的 fail-closed 判斷才有意義）。
             this._maskExpectedCoverPath = null;
 
-            // 100b-T2a（CD-2/G4）：軸向 + 凍結模式 + 初始焦點基準在此一次性解出並凍結，
-            // _computeMaskWinStyle()/pointermove 內不得重判。el/rect/r 的讀取與
-            // _computeMaskWinStyle 內部刻意重複（Opus correction B 既有註解：ratio 讀取受
-            // static guard 錨定在 _computeMaskWinStyle 本體內，不可抽成共用 helper）。
+            // 初始焦點基準在此一次性解出並凍結，_computeMaskWinStyle()/pointermove 內不得
+            // 重判。el/rect/r 的讀取與 _computeMaskWinStyle 內部刻意重複（Opus correction B
+            // 既有註解：ratio 讀取受 static guard 錨定在 _computeMaskWinStyle 本體內，不可
+            // 抽成共用 helper）。
             const gEl = this._maskTarget().imgEl;
             if (!gEl || !gEl.naturalWidth) {
                 this.showToast(window.t('showcase.lightbox.mask_detect_failed'), 'error');
@@ -962,22 +947,9 @@ export function stateLightbox() {
                 return;
             }
             if (this._maskKind === 'actress') {
-                // 🔴 只有 actress 走 computeMaskAxis——video 恆 axis='x'/frozen=false（下方 else），
-                // 這是**影片零回歸的結構性保證**，不是「反正 video 算出來也一樣」的順手簡化：
-                // 直式影片封面（a < 0.71，罕見但非不可能）若也跑 computeMaskAxis 會解出 axis='y'，
-                // 那是 99a 從未有過的行為（舊碼軸恆 X）＝行為變更。若未來要讓 video 也支援軸向，
-                // 必須是明確的 spec 決策 + 影片路徑 CDP 重驗，不可因為「兩邊邏輯看起來該統一」
-                // 就把這個 if/else 收斂掉。
-                const resolved = computeMaskAxis(gRect.width, gRect.height, gR);
-                this._maskAxis = resolved.axis;
-                this._maskFrozen = resolved.frozen;
-                // spec §3.4/§3.7-6：女優基準恆 3/4 置中（非右裁），凍結模式亦同（等同 no-op
-                // 但誠實——仍進編輯、遮罩正常顯示、框固定置中、✓ 仍可按，spec §3.1）。
+                // spec §3.4/§3.7-6：女優基準恆 3/4 置中（非右裁）。
                 this._maskFocalX = 0.5;
-                this._maskFocalY = 0.5;
             } else {
-                this._maskAxis = 'x';
-                this._maskFrozen = false;
                 // Opus correction B：幾何一旦解出，_maskFocalX 收斂為具體數字（右裁基準 x），
                 // 不留 null 終態；`s` 成功即代表 el/rect/r 皆已驗證合法，這裡不需再驗一次。
                 const winW = Math.min(gRect.width, gRect.height * gR);
@@ -1064,24 +1036,13 @@ export function stateLightbox() {
                 if (session === this._maskSession) {
                     const parsed = parseFocal(data.auto_focal);   // '' / 畸形 → null，維持起手基準
                     if (parsed) {
-                        // 100b-T2a（CD-2）：**只更新拖曳軸那一軸**，另一軸維持 openMask 起手的
-                        // 基準值——這是分流而非「兩軸都寫」，理由有二：
-                        //   ① 另一軸在幾何上**沒有可調空間**（該軸 dragExtent==0 → 窗滿版該維度），
-                        //      寫進偵測值只會讓 confirmMask 送出一個使用者無從驗證、也無法用
-                        //      拖曳修正的座標——render 側（focalCellObjectPosition）根本不會用它。
-                        //   ② 女優基準恆 3/4 置中（spec §3.4）：非拖曳軸必須留在 0.5，讓 ✓ 存進
-                        //      DB 的值與畫面所見一致（所見即所得，99a §3.11 的核心價值）。
-                        // video 恆 _maskAxis==='x' 且 _maskFocalY 恆 null（不進 y 分支、confirmMask
-                        // 亦硬編 ,0.5000）→ 對影片零影響。
-                        if (this._maskAxis === 'y') {
-                            this._maskFocalY = parsed.y;
-                        } else {
-                            this._maskFocalX = parsed.x;
-                        }
+                        // 女優基準恆 3/4 置中（spec §3.4）：僅更新 X 焦點，Y 分量已無讀寫點
+                        // （恆 0.5000，見 CD-11／confirmMask 硬編 ,0.5000）。
+                        this._maskFocalX = parsed.x;
                         // 99a-T5：|| fallback 同 resize handler——null 不可流進 :style 綁定。
                         this._maskWinStyle = this._computeMaskWinStyle() || this._maskWinStyle;
                     }
-                    // else：無臉——兩軸維持起手基準（video：右裁 x；actress：3/4 置中 0.5/0.5，
+                    // else：無臉——維持起手基準（video：右裁 x；actress：3/4 置中 0.5，
                     // openMask 起手已算好），不動它。逃生口仍可拖曳 + ✓ 存入（spec §3.7-6）。
                 }
             } catch (e) {
@@ -1109,10 +1070,6 @@ export function stateLightbox() {
             // 直接忽略——否則會覆寫 _maskDragMoveHandler/_maskDragUpHandler 參考，讓第一組
             // document listener 永遠移不掉（洩漏 + 並發 stale 寫入）。
             if (this._maskDragging) return;
-            // 100b-T2a（CD-2 凍結模式）：無可拖曳空間——no-op 但誠實（不掛拖曳流程），
-            // cursor:default 已由 :class 綁定於 partial 表達（見 showcase.css
-            // .lb-mask-window--frozen）。✓ 仍可按（openMask 已存置中焦點基準）。
-            if (this._maskFrozen) return;
             const el = this._maskTarget().imgEl;   // 100b-T1：G3 null-safe（x-if 內 $refs 可能 undefined）
             if (!el || !el.naturalWidth) return;
             const rect = el.getBoundingClientRect();
@@ -1122,27 +1079,17 @@ export function stateLightbox() {
             const r = parseFloat(getComputedStyle(el).getPropertyValue(this._maskTarget().ratio));
             if (!Number.isFinite(r) || r <= 0) return;
             const winW = Math.min(W, H * r);
-            const winH = Math.min(H, W / r);   // 100b-T2a：Y 軸窗高（CD-2，軸向已在 openMask 凍結）
-            const axisY = this._maskAxis === 'y';
             const startClientX = evt.clientX;
-            const startClientY = evt.clientY;
-            // 起手左/上緣必須與「視覺上看到的窗位置」一致＝比照 _computeMaskWinStyle 一樣 clamp
-            // （99a Gemini P2）。raw _maskFocalX/Y 貼邊時未鉗的 start 值會落在邊界外，窗子停在
+            // 起手左緣必須與「視覺上看到的窗位置」一致＝比照 _computeMaskWinStyle 一樣 clamp
+            // （99a Gemini P2）。raw _maskFocalX 貼邊時未鉗的 start 值會落在邊界外，窗子停在
             // 邊界但拖曳從界外起算 → 反向拖曳有死區、不跟手。clampMaskWinLeft 是數學軸無關的純量
-            // clamp（B-4：只改 JSDoc 參數名，不改實作），(top,H,winH) 傳法完全正確。
+            // clamp（B-4：只改 JSDoc 參數名，不改實作），(left,W,winW) 傳法完全正確。
             const startLeft = clampMaskWinLeft(
                 (this._maskFocalX !== null && this._maskFocalX !== undefined)
                     ? this._maskFocalX * W - winW / 2
                     : W - winW,
                 W,
                 winW,
-            );
-            const startTop = clampMaskWinLeft(
-                (this._maskFocalY !== null && this._maskFocalY !== undefined)
-                    ? this._maskFocalY * H - winH / 2
-                    : H - winH,
-                H,
-                winH,
             );
             const session = this._maskSession;   // 拖曳中途換片/關燈箱防線（雙保險，見下）
 
@@ -1152,19 +1099,12 @@ export function stateLightbox() {
                 // 防禦性早退：正常路徑 _resetMask 已同步移除本 listener，此處只防「移除時序」邊界。
                 if (session !== this._maskSession) return;
                 e.preventDefault();
-                // 100b-T2a（CD-2/G4）：軸向在 drag-start 當下已凍結（axisY 捕獲值），此處不重判。
-                if (axisY) {
-                    const dy = e.clientY - startClientY;
-                    const top = clampMaskWinLeft(startTop + dy, H, winH);   // clamp 進封面邊界
-                    this._maskFocalY = (top + winH / 2) / H;
-                } else {
-                    const dx = e.clientX - startClientX;
-                    const left = clampMaskWinLeft(startLeft + dx, W, winW);   // clamp 進封面邊界
-                    this._maskFocalX = (left + winW / 2) / W;
-                }
+                const dx = e.clientX - startClientX;
+                const left = clampMaskWinLeft(startLeft + dx, W, winW);   // clamp 進封面邊界
+                this._maskFocalX = (left + winW / 2) / W;
                 // 99a-T5：恆 object——委派 computeMaskWinGeometry（同 _computeMaskWinStyle 的
                 // writer 來源，見 _maskWinStyle 宣告處註解與 shared/mask-geometry.js 開頭說明）。
-                this._maskWinStyle = computeMaskWinGeometry(W, H, r, this._maskAxis, this._maskFocalX, this._maskFocalY);
+                this._maskWinStyle = computeMaskWinGeometry(W, H, r, this._maskFocalX);
             };
             const onUp = () => {
                 if (session === this._maskSession) this._maskDragging = false;
@@ -1223,12 +1163,9 @@ export function stateLightbox() {
             // 清空，若 await 之後才判斷即時值，使用者在存檔 request resolve 前切走女優就會讓判斷
             // 誤判成 video 分支、跳過牆格同步。
             const kind = this._maskKind;
-            // 100b-T2a：兩軸各自輸出，未拖的那軸填 0.5000。video 恆 Y=0.5000（render 只用 X，
-            // spec §3.3，零回歸）；actress 依 _maskAxis 實際拖曳結果輸出對應值（另一軸恆 0.5000，
-            // openMask 已設定基準，凍結模式/無臉逃生口皆同一終值）。
-            const focal = kind === 'actress'
-                ? `${this._maskFocalX.toFixed(4)},${this._maskFocalY.toFixed(4)}`
-                : `${this._maskFocalX.toFixed(4)},0.5000`;
+            // Y 分量恆 0.5000（video 恆右裁 X 定基準，render 只用 X，spec §3.3；actress 恆
+            // 3/4 置中，Y 軸讀寫已移除，見 CD-11）。
+            const focal = `${this._maskFocalX.toFixed(4)},0.5000`;
             try {
                 const resp = await fetch(this._maskTarget().focalEndpoint, {
                     method: 'POST',
@@ -1307,11 +1244,6 @@ export function stateLightbox() {
             // （✓/✗ 只在 _maskDetecting===false 才可見/可點），星空動畫應該已由 openMask 的
             // finally 停過；比照上面 _maskRemoveDragListeners 的「再保險一次」寫法補一次 kill。
             this._maskStopWaitAnim();
-            // 100b-T2a（§B-2）：軸向/凍結/女優 Y 焦點/女優圖就緒旗標同步清除，比照既有模式
-            // 排在 kind 清空之前（不依賴 _maskTarget() 的收尾）。
-            this._maskAxis = null;
-            this._maskFrozen = false;
-            this._maskFocalY = null;
             // Codex 本地 review 修正（Fix A）：本函式刻意**不**在此清女優圖已載入旗標。
             // 該旗標的生命週期屬於「燈箱這張照片」（writer 只有 @load handler +
             // _refreshActressPhotoLoaded() 的 4 個呼叫點），不屬於「這次遮罩編輯 session」。
@@ -1338,7 +1270,6 @@ export function stateLightbox() {
             this._maskWinStyle = {};     // 98b-T6：清窗幾何避免殘留閃（下次 open 同步重算覆蓋）。
                                           // 99a-T5：恆 object，不可退回 '' string（見宣告處註解）。
             this._maskFocalX = null;     // 99a-T3：清 component-state 焦點，防下一片沿用上一片的拖曳結果
-            this._maskFocalY = null;     // 100b-T2a：同上，Y 軸
             this._maskExpectedCoverPath = null;   // Codex PR#107 P2：防下一片沿用上一片的 cover token
             this._maskDragging = false;  // 99a-T3：防拖曳中途換片，dragging class 卡死在 true
             this._maskRemoveDragListeners();   // 99a-T3：拖曳中途換片/關燈箱兜底，移除 document listener
@@ -1348,9 +1279,6 @@ export function stateLightbox() {
                 window.removeEventListener('resize', this._maskResizeHandler);
                 this._maskResizeHandler = null;
             }
-            // 100b-T2a（§B-2）：軸向/凍結/女優圖就緒旗標同步清除（比照 _maskFocalX 模式）。
-            this._maskAxis = null;
-            this._maskFrozen = false;
             // 100c-T2（CD-5）：兩旗標同步清除收斂進 helper，語意不變（換片/關燈箱必須清，
             // 之後必經 _refreshActressPhotoLoaded() 重新判定）。
             this._clearActressPhotoState();
@@ -1379,7 +1307,7 @@ export function stateLightbox() {
         // 亮窗以外由 CSS box-shadow spotlight 壓暗；transform 變化時 CSS transition 左右滑動（拖曳中停用，見 showcase.css）。
         // 98b-T6：純 compute（原 _maskWindowStyle 邏輯不變），由 openMask/drag/resize imperative 呼叫。
         // 100b-T2a（§B-3）：el 改走 _maskTarget().imgEl（G3 null-safe，dispatch 兩分支）；
-        // 窗幾何建構（winW/winH + axis 分流）委派 computeMaskWinGeometry（shared/mask-geometry.js，
+        // 窗幾何建構（winW/winH）委派 computeMaskWinGeometry（shared/mask-geometry.js，
         // 可測試性 + G1 收斂單一 writer 來源，見該檔開頭說明）——ratio 讀取仍留在本函式體內
         // （裁決3，見下）。
         _computeMaskWinStyle() {
@@ -1401,7 +1329,7 @@ export function stateLightbox() {
                 this._maskKind === 'actress' ? '--actress-crop-ratio' : '--poster-crop-ratio'
             ));
             if (!Number.isFinite(r) || r <= 0) return null;
-            return computeMaskWinGeometry(W, H, r, this._maskAxis, this._maskFocalX, this._maskFocalY);
+            return computeMaskWinGeometry(W, H, r, this._maskFocalX);
         },
 
         // ==================== User Tags in Lightbox (T4) ====================

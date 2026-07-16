@@ -20,13 +20,10 @@
                                 <div class="lb-mask-window"
                                      x-show="_maskVisible && !_maskDetecting"
                                      :style="_maskWinStyle"
-                                     :class="{'lb-mask-window--dragging': _maskDragging, 'lb-mask-window--frozen': _maskFrozen, 'lb-mask-window--axis-x': _maskAxis === 'x', 'lb-mask-window--axis-y': _maskAxis === 'y'}"
+                                     :class="{'lb-mask-window--dragging': _maskDragging}"
                                      @pointerdown="_maskDragStart($event)"></div>
-                                <!-- 100b-T5（§D）：軸向 cursor affordance——桌面 only，不可作為軸向的唯一提示
-                                     （手機無 cursor）；正確性一律靠 CD-2 幾何自動選軸+凍結判定。--frozen 與
-                                     --dragging 兩個互斥即時態的 cursor 優先權高於軸向 hover 提示（showcase.css
-                                     宣告順序：axis-x/axis-y 先、dragging/frozen 後，同 specificity 靠 source
-                                     order 決勝）。 -->
+                                <!-- 100c-T3a：唯一可拖方向恆為橫向（CD-6），cursor:ew-resize 併回
+                                     .lb-mask-window 基礎規則（見 showcase.css），軸向/凍結 modifier 已移除。 -->
                                 <!-- 99a-T5：detect 期間星空等待迴圈（start/stop 可控 repeat:-1，
                                      非 .sparkle-burst 的 0.4s 一次性）。PRM 時 openMask 不觸發 GSAP，
                                      本容器留在 DOM 但視覺不出現（CSS 預設 opacity:0）。 -->
