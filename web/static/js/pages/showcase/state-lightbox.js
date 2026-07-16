@@ -1515,6 +1515,18 @@ export function stateLightbox() {
             const name = this.currentLightboxActress?.name;
             if (!name) return;
 
+            // 100b Codex P2-3 fix：_pickerSelected===true 代表換候選／上傳照片正在等 fetch
+            // resolve（CD-8 承重前提：_pickerOpen 全程恆 true，見 _uploadActressPhoto #4 註解）。
+            // 此時真正可達的入口是 .picker-refresh-btn（showcase.html :picker-refresh-btn，
+            // 原本只用 :disabled="_pickerLoading" 擋，未含 _pickerSelected——burst 完成後
+            // loading=false 但 selected=true 的視窗內仍可點；CDP 實測 2026-07-16 重現：點擊後
+            // _resetPicker() 把正在等待中的 fetch 變孤兒 callback，與新一輪 SSE 競爭改寫
+            // _pickerOpen/_candidates，原 fetch resolve 時的 _closePicker() 會把使用者剛開的
+            // 新 picker session 一併關掉）。guard 放在此處（函式唯一入口）覆蓋兩個既有
+            // callsite，沿用既有互斥鎖慣例（_onPickerHoverIn／_onPickerHoverOut／
+            // _onPickerSelect 皆同款 early-return，裁決 5）。
+            if (this._pickerSelected) return;
+
             // Tear down any in-flight SSE before starting a new one
             if (this._pickerSSE) { this._pickerSSE.close(); this._pickerSSE = null; }
 

@@ -597,23 +597,44 @@
                                  缺本行 ⇒ 上傳/換候選成功後 focal 按鈕（x-show 綁 _actressPhotoLoaded）
                                  永久消失到使用者切走再切回為止。同型前例見 :1476 註解
                                  「讓 cover_full_url（已 bust）重新觸發 @load」。 -->
-                            <img x-ref="pickerCoverImg"
-                                 x-show="currentLightboxActress?.photo_url"
-                                 :src="currentLightboxActress?.photo_url"
-                                 @load="_readyActressPhotoState($el)"
-                                 :alt="currentLightboxActress?.name">
-                            <div class="actress-lb-cover-placeholder"
-                                 x-show="!currentLightboxActress?.photo_url">
-                                <i class="bi bi-person-circle" style="font-size:4rem; opacity:0.3"></i>
-                            </div>
+                            <!-- 100b Codex P2-2 fix：新增 frame wrapper——.lightbox-cover 對女優分支
+                                 恆有 min-width:min(60vw,600px) 的固定地板（不像 video 分支的
+                                 .has-cover 讓 cover AR 貼合圖片 AR），img 本身用 height:60vh;
+                                 width:auto 置中，寬圖以外（近方形/窄圖）render 後比 cover 窄，
+                                 兩側留白 gutter。舊版遮罩 overlay 直接 include 在 .lightbox-cover
+                                 內、inset:0 貼齊「cover 的」矩形——W/H 卻是用「圖片」的
+                                 getBoundingClientRect() 算（_computeMaskWinStyle），兩套座標系不
+                                 一致：CDP 實測（2026-07-16）佐々木さき（a=1.0 方形）gutter 各
+                                 86px，亮窗中心偏移量與 gutter 完全相等，亮窗近半跑進留白、與圖片
+                                 內容完全不對齊。
+                                 本 wrapper 只包 img/placeholder/遮罩三者（.cover-actions 不動——
+                                 按鈕位置沿用舊版、相對整個 cover 置中，非本次範圍），position:relative
+                                 且不設寬高，作為 flex item 隨內容 shrink-to-fit——img 是裡面唯一
+                                 貢獻版面尺寸的內容，wrapper 版面尺寸=img 實際 render 尺寸（無 x-if/
+                                 x-show 切換問題：img/placeholder 互斥顯示，wrapper 隨當前顯示者定
+                                 尺寸）。遮罩 overlay 的 inset:0 從此貼齊 wrapper＝貼齊圖片本身，
+                                 座標系統一，不動 JS 幾何（_computeMaskWinStyle／
+                                 computeMaskWinGeometry／transform 數學不變，G1 不變量不受影響）；
+                                 video 分支（.has-cover 貼合 AR、無 gutter）完全未觸碰，零回歸。 -->
+                            <div class="actress-lb-photo-frame">
+                                <img x-ref="pickerCoverImg"
+                                     x-show="currentLightboxActress?.photo_url"
+                                     :src="currentLightboxActress?.photo_url"
+                                     @load="_readyActressPhotoState($el)"
+                                     :alt="currentLightboxActress?.name">
+                                <div class="actress-lb-cover-placeholder"
+                                     x-show="!currentLightboxActress?.photo_url">
+                                    <i class="bi bi-person-circle" style="font-size:4rem; opacity:0.3"></i>
+                                </div>
 
-                            <!-- 100b-T2a（§B-1a/§B-1c）：遮罩 DOM 第二次 include（女優分支）。
-                                 T1 曾試著先做這個 include、被 CDP 實測推翻（2026-07-16，2/2 重現閃現）；
-                                 T2a 已同批補上「賦值前同步 _resetMask()」（見 state-actress.js
-                                 _setActressLightboxIndex()／state-lightbox.js prevLightboxVideo()／
-                                 nextLightboxVideo() 三處，gotchas-frontend §8b），兩者必須同批落地
-                                 才安全，故此刻才 include。 -->
-                            {% include '_macros/focal_mask.html' %}
+                                <!-- 100b-T2a（§B-1a/§B-1c）：遮罩 DOM 第二次 include（女優分支）。
+                                     T1 曾試著先做這個 include、被 CDP 實測推翻（2026-07-16，2/2 重現閃現）；
+                                     T2a 已同批補上「賦值前同步 _resetMask()」（見 state-actress.js
+                                     _setActressLightboxIndex()／state-lightbox.js prevLightboxVideo()／
+                                     nextLightboxVideo() 三處，gotchas-frontend §8b），兩者必須同批落地
+                                     才安全，故此刻才 include。 -->
+                                {% include '_macros/focal_mask.html' %}
+                            </div>
 
                             <div class="cover-actions"
                                  :data-picker-open="_pickerOpen"
@@ -1036,7 +1057,7 @@
                 <button class="picker-refresh-btn"
                         x-show="_pickerBurstFired"
                         @click.stop="openActressPicker()"
-                        :disabled="_pickerLoading"
+                        :disabled="_pickerLoading || !!_pickerSelected"
                         :title="t('showcase.actress.change_photo')"
                         :aria-label="t('showcase.actress.change_photo')">
                     <i class="bi bi-arrow-clockwise" :class="{ spin: _pickerLoading }"></i>

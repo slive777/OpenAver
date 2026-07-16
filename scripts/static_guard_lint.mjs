@@ -323,7 +323,14 @@ const RULES = [
   // 無跨檔加總語法。.lb-mask-window 那份隨 DOM 搬進 partial（count:1）；✓/✗ 兩份仍在
   // showcase.html 的 .cover-actions（未搬動，count:2）。
   { file: 'web/templates/_macros/focal_mask.html', kind: 'required-string', pattern: 'x-show="_maskVisible && !_maskDetecting"', count: 1, note: '[TestMaskToggleGuard] 99a-T5→100b-T1：.lb-mask-window 收窄 gating（detect 完成才可拖），partial 內僅 1 處' },
-  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-show="_maskVisible && !_maskDetecting"', count: 2, note: '[TestMaskToggleGuard] 99a-T5→100b-T1：✓ + ✗ 兩處收窄 gating（detect 完成才可提交），count=2 鎖住兩處都改到（.lb-mask-window 已搬至 partial）' },
+  // 100b Codex P2-1 fix：showcase.html 內同一 pattern 其實出現 4 次（女優 ✓/✗ + 影片 ✓/✗），
+  // 但舊規則 count:2 是「下限」（evalRequiredString：n < count 才報錯）而非「恰好 2」——
+  // 只要總數 ≥2，砍掉其中一個分支（例如整個影片 ✓/✗）也會被誤判通過，守衛形同虛設。
+  // 拆成兩條 scope-anchored 規則，各自錨到專屬 <template x-if> 分支（全檔僅出現一次，
+  // 唯一性已用 grep 確認），window 只需蓋過該分支內的 ✓/✗ 兩處、且在下一分支的同 pattern
+  // 之前收尾，兩個分支才能被「各自」的 count:2 下限獨立守住。
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-show="_maskVisible && !_maskDetecting"', count: 2, scope: { anchor: /<template x-if="currentLightboxActress">/, window: 8800 }, note: '[TestMaskToggleGuard] 99a-T5→100b-T1→100b P2-1 fix：女優分支 ✓ + ✗ 兩處收窄 gating（detect 完成才可提交），scope 錨到女優 <template x-if> 分支，count=2 獨立鎖住兩處都改到（window 含 100b P2-2 fix 新增的 photo-frame wrapper 註解，與下一條影片 scope 的 anchor 相距 15069 字元，仍安全不重疊）' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'x-show="_maskVisible && !_maskDetecting"', count: 2, scope: { anchor: /<template x-if="currentLightboxVideo && !currentLightboxActress">/, window: 9000 }, note: '[TestMaskToggleGuard] 99a-T5→100b-T1→100b P2-1 fix：影片分支 ✓ + ✗ 兩處收窄 gating（detect 完成才可提交），scope 錨到影片 <template x-if> 分支，count=2 獨立鎖住兩處都改到' },
 
   // 星空等待動畫函式定義存在（ghost-fly.js）+ callsite（state-lightbox.js openMask，唯一啟動點）。
   { file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'function playFocalDetectWait', note: '[TestMaskToggleGuard] 99a-T5：ghost-fly.js 定義星空等待迴圈動畫（start）' },
@@ -557,6 +564,25 @@ const RULES = [
     pattern: 'if (this._pickerSelected) return;',
     scope: { anchor: /async\s+_onPickerSelect\s*\(\s*candidate\s*,\s*i\s*\)\s*\{/, braceBalanced: true },
     note: '[TestMaskToggleGuard] 100b-T4：_onPickerSelect 互斥 guard 回歸鎖（裁決 5，同上——AC-13 race lock 兼任兩角色：候選列互斥 + 原有的重複點擊防護）',
+  },
+
+  // 100b Codex P2-3 fix：openActressPicker() 唯一入口加互斥 guard——.picker-refresh-btn
+  // （showcase.html）原本只用 :disabled="_pickerLoading" 擋，burst 完成後 loading=false
+  // 但上傳/換候選正在等 fetch resolve（_pickerSelected=true）的視窗內仍可點，CDP 實測
+  // 2026-07-16 重現：點擊後 _resetPicker() 把正在等待的 fetch 變孤兒 callback，與新一輪
+  // SSE 競爭，原 fetch resolve 時的 _closePicker() 會把使用者剛開的新 picker session 一併
+  // 關掉。guard 加在函式入口（覆蓋兩個既有 callsite），沿用既有 _onPickerHoverIn／
+  // _onPickerHoverOut／_onPickerSelect 同款 early-return 慣例。
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: 'if (this._pickerSelected) return;',
+    scope: { anchor: /async\s+openActressPicker\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 100b P2-3 fix：openActressPicker 互斥 guard 回歸鎖（.picker-refresh-btn 在上傳/換候選 in-flight 期間再次觸發會與原 fetch 競爭關閉 picker，CDP 2026-07-16 實測重現）',
+  },
+  {
+    file: 'web/templates/showcase.html', kind: 'required-string',
+    pattern: ':disabled="_pickerLoading || !!_pickerSelected"',
+    note: '[TestMaskToggleGuard] 100b P2-3 fix：.picker-refresh-btn 互斥鎖含 _pickerSelected（比照 .picker-upload-btn 的 G2 !! coercion 慣例），UI 側呈現不可點狀態，非唯一防線（見同檔 openActressPicker 函式層 guard）',
   },
 
   // 裁決 4-c／CD-8 承重前提：上傳 in-flight 期間 _pickerOpen 恆為 true，_closePicker() 必須

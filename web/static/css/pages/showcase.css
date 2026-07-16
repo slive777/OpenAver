@@ -676,6 +676,16 @@
     min-height: min(58vh, 460px);
 }
 
+/* 100b Codex P2-2 fix：女優分支 img/placeholder/遮罩 frame wrapper——只設 position:relative，
+ * 不設寬高，讓它作為 .lightbox-cover 的 flex item 隨內容 shrink-to-fit（img 是裡面唯一貢獻
+ * 版面尺寸的內容）。目的：讓 .lb-mask-overlay 的 inset:0 貼齊「這個 wrapper」＝貼齊圖片實際
+ * render 矩形，而非貼齊 .lightbox-cover 的固定地板矩形（min-width:600px 在窄/方形照片上會
+ * 產生兩側留白 gutter，見 showcase.html 內 wrapper 開頭大段註解）。無 z-index → 不建立新
+ * stacking context，.lb-mask-overlay／.cover-actions 兩者 z-index 比較不受影響。 */
+.actress-lb-photo-frame {
+    position: relative;
+}
+
 /* 83a-T3-fix P1: metadata 可變高 → modal 整體捲動修正。
    83b-T2：:not(.similar-open) gate 已移除（similar-open class 不再使用）；規則無條件命中。
    metadata 靠 flex:1 1 auto + min-height:0 + overflow-y:auto 自行消化剩餘高度。 */
