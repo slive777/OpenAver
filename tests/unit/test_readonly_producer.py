@@ -888,14 +888,14 @@ class TestWriteMovieAssetsStationWiring:
     _FIXTURE_A = {"number": "FC2-1234567", "maker": "S1 NO.1 STYLE"}
     _FIXTURE_B = {"number": "SSIS-001", "maker": "10musume"}
 
-    def _run_station3(self, tmp_path, tag, fixture):
+    def _run_station3(self, tmp_path, tag, fixture, external_manager='jellyfin'):
         from core.readonly_producer import _write_movie_assets
 
         movie_dir = str(tmp_path / 'output' / f"{fixture['number']}_{tag}")
         source_fs_path = f"/src/{fixture['number']}_{tag}.mp4"
         meta = dict(_T3_META, number=fixture['number'], maker=fixture['maker'])
         fd = _t3_format_data(meta=meta, source_fs_path=source_fs_path)
-        config = dict(_T3_BASE_CONFIG, external_manager='jellyfin')
+        config = dict(_T3_BASE_CONFIG, external_manager=external_manager)
 
         with patch('core.readonly_producer.download_image', side_effect=_t3_write_face_cover), \
              patch('core.readonly_producer.generate_nfo', return_value=True):
@@ -913,6 +913,23 @@ class TestWriteMovieAssetsStationWiring:
 
     def test_station3_fixture_b(self, tmp_path):
         self._run_station3(tmp_path, "b", self._FIXTURE_B)
+
+    # -----------------------------------------------------------------
+    # TASK-101a-T3 DoD①（Opus 拍板，非選配）：off/emby/kodi 唯讀產生庫三路
+    # 各補一個 fixture-A-only 真跑案例（不 mock crop_to_poster/generate_
+    # jellyfin_images），斷言 poster bytes 皆等於同一個獨立 oracle——結構論證
+    # （readonly_producer.py:659 的呼叫對四路無條件）在此被實測釘死，不只是
+    # 「現在為真」，未來若有人在某一路加分支跳過烤圖，這裡會紅。
+    # -----------------------------------------------------------------
+
+    def test_station3_off_fixture_a(self, tmp_path):
+        self._run_station3(tmp_path, "off", self._FIXTURE_A, external_manager='off')
+
+    def test_station3_emby_fixture_a(self, tmp_path):
+        self._run_station3(tmp_path, "emby", self._FIXTURE_A, external_manager='emby')
+
+    def test_station3_kodi_fixture_a(self, tmp_path):
+        self._run_station3(tmp_path, "kodi", self._FIXTURE_A, external_manager='kodi')
 
 
 # ---------------------------------------------------------------------------

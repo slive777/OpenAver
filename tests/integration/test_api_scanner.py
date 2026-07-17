@@ -651,8 +651,12 @@ class TestJellyfinUpdateStationWiring:
         db_path = tmp_path / f"t_{tag}.db"
         init_db(db_path)
         repo = VideoRepository(db_path)
+        # video path 是虛構 DB key（scanner 端只讀 cover_path 反解的封面 FS 路徑，從不
+        # 反解 path 本身指向的檔案是否存在）——但仍須經 to_file_uri() 產生，不可手拼
+        # file URI 字面值（CLAUDE.md 路徑三區模型 + tests/unit/test_frontend_lint.py
+        # TestPathContract.test_no_manual_uri_construct 守衛；101a-T3 review 抓到）。
         repo.upsert_batch([
-            Video(path=f"file:///movies/{tag}.mp4", mtime=1.0,
+            Video(path=to_file_uri(str(movie_dir / f"{tag}.mp4")), mtime=1.0,
                   number=fixture["number"], maker=fixture["maker"],
                   cover_path=to_file_uri(str(cover))),
         ])
@@ -673,6 +677,180 @@ class TestJellyfinUpdateStationWiring:
 
     def test_station4_fixture_b(self, tmp_path, monkeypatch):
         self._run_station4(tmp_path, "b", self._FIXTURE_B, monkeypatch)
+
+
+def _station4_manual_oracle_poster_bytes(manual_x):
+    """DoD⑤ 反向斷言用的獨立 oracle：鏡射 _station4_oracle_poster_bytes，差異只在
+    跳過 detect_focal、直接用 manual_x 當 crop_image_position 的 pos——模擬「若程式碼
+    改採 DB manual 值」時應該產生的 bytes。用來證明真跑結果「不等於」這個值。
+    """
+    from core.organizer import _poster_window_ratio
+    from core.focal import crop_image_position
+    from PIL import Image
+    import io
+
+    fixture_path = _STATION4_FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg"
+    with Image.open(fixture_path) as img:
+        w, h = img.size
+    r_window = _poster_window_ratio(w, h)
+    assert r_window is not None
+    with Image.open(fixture_path) as img:
+        expected_cropped = crop_image_position(img.convert("RGB"), r_window, manual_x)
+    buf = io.BytesIO()
+    expected_cropped.save(buf, "JPEG", quality=95, subsampling=0)
+    return buf.getvalue()
+
+
+def _seed_station4_row(tmp_path, tag, *, number, maker, auto_focal='', crop_mode='auto'):
+    """建真 cover 檔 + DB row（auto_focal/crop_mode 可控），回傳
+    (db_path, repo, video_uri, cover_uri, cover_fs, movie_dir)。
+
+    `upsert_batch` 對全新 path（無衝突）是單純 INSERT，`_FOCAL_PRESERVE` 的
+    `ON CONFLICT` CASE 邏輯不觸發——傳入的 auto_focal/crop_mode 會原樣落地。
+    """
+    from core.database import init_db, VideoRepository, Video
+    from core.path_utils import to_file_uri
+
+    movie_dir = tmp_path / f"{number}_{tag}"
+    movie_dir.mkdir()
+    cover = movie_dir / "cover.jpg"
+    cover.write_bytes((_STATION4_FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg").read_bytes())
+    db_path = tmp_path / f"t_{tag}.db"
+    init_db(db_path)
+    repo = VideoRepository(db_path)
+    # video path 是虛構 DB key，仍須經 to_file_uri() 產生、不可手拼 file URI 字面值
+    # （同 _run_station4 的理由，見上方註解；101a-T3 review 抓到的既有回歸，一併修）。
+    video_uri = to_file_uri(str(movie_dir / f"{tag}.mp4"))
+    cover_uri = to_file_uri(str(cover))
+    repo.upsert_batch([Video(path=video_uri, mtime=1.0, number=number, maker=maker,
+                              cover_path=cover_uri, auto_focal=auto_focal, crop_mode=crop_mode)])
+    return db_path, repo, video_uri, cover_uri, cover, movie_dir
+
+
+class TestPosterBakeStructuralLocks:
+    """TASK-101a-T3 DoD④⑤⑥：把 spec-101 §3.2/§3.6/§3.7 的三條產品邊界（stateless、
+    不讀手動值、fire-and-forget）用測試釘死。三個測試各自獨立建 DB／檔案，不共用 seed
+    （TASK card 邊界條件）。全部走站4（web/routers/scanner.py generate_jellyfin_images_
+    stream），因為它是四站中唯一「純烤圖、零其他 DB 寫入」的路徑（站3 會混進既有 98b
+    背景 focal trigger，污染判定，見 TASK-101a-T3.md 現況分析第 4 節）。
+
+    gate 用 fixture-A（number='FC2-1234567', maker='S1 NO.1 STYLE'）確保真的走到
+    「烤圖 + 偵測」那條路——用 gate=False 的片會提早 no-op，測不出「烤圖有沒有寫 DB」。
+    """
+
+    _GATE_FIXTURE = {"number": "FC2-1234567", "maker": "S1 NO.1 STYLE"}
+
+    def test_bake_does_not_touch_db_focal_fields(self, tmp_path, monkeypatch):
+        """DoD④ spec §3.7-3 結構鎖：烤圖前後該片 DB auto_focal/crop_mode 零變化。"""
+        from web.routers.scanner import generate_jellyfin_images_stream
+
+        db_path, repo, video_uri, cover_uri, cover_fs, movie_dir = _seed_station4_row(
+            tmp_path, "d4", number=self._GATE_FIXTURE["number"], maker=self._GATE_FIXTURE["maker"],
+        )
+
+        before = repo.get_by_path(video_uri)
+
+        monkeypatch.setattr("web.routers.scanner.get_db_path", lambda: db_path)
+        monkeypatch.setattr("web.routers.scanner.load_config", lambda: {"gallery": {"path_mappings": {}}})
+
+        events = list(generate_jellyfin_images_stream())
+        assert any('"type": "done"' in e for e in events), f"SSE 應完成: {events}"
+
+        poster_path = cover_fs.with_name("cover-poster.jpg")
+        assert poster_path.exists(), "應真的烤過圖（不是 gate 提早 no-op）"
+
+        after = repo.get_by_path(video_uri)
+        assert after.auto_focal == before.auto_focal
+        assert after.crop_mode == before.crop_mode
+
+    def test_bake_ignores_manual_focal_uses_pigo_result(self, tmp_path, monkeypatch):
+        """DoD⑤ spec §3.7-3 產品邊界鎖（CD-2）：DB 存 crop_mode='manual' + 遠離 pigo
+        真值的 auto_focal，站4真跑烤圖，poster bytes 正向等於獨立 pigo oracle、
+        反向不等於獨立 manual oracle（兩條缺一不可，見 gotchas-backend.md #9）。
+        """
+        from web.routers.scanner import generate_jellyfin_images_stream
+
+        db_path, repo, video_uri, cover_uri, cover_fs, movie_dir = _seed_station4_row(
+            tmp_path, "d5", number=self._GATE_FIXTURE["number"], maker=self._GATE_FIXTURE["maker"],
+            auto_focal='0.9000,0.5000', crop_mode='manual',   # 刻意遠離 pigo 真值 x≈0.3148
+        )
+
+        monkeypatch.setattr("web.routers.scanner.get_db_path", lambda: db_path)
+        monkeypatch.setattr("web.routers.scanner.load_config", lambda: {"gallery": {"path_mappings": {}}})
+
+        events = list(generate_jellyfin_images_stream())
+        assert any('"type": "done"' in e for e in events), f"SSE 應完成: {events}"
+
+        poster_path = cover_fs.with_name("cover-poster.jpg")
+        assert poster_path.exists(), "應真的烤過圖"
+        poster_bytes = poster_path.read_bytes()
+
+        assert poster_bytes == _station4_oracle_poster_bytes(), (
+            "poster 應採用 pigo 重跑結果"
+        )
+        assert poster_bytes != _station4_manual_oracle_poster_bytes(0.9000), (
+            "poster 不應採用 DB manual 值"
+        )
+
+    def test_manual_focal_save_does_not_rebake_poster(self, tmp_path, monkeypatch, mocker, client):
+        """DoD⑥ spec §3.7-4 fire-and-forget 正向鎖：先烤一次記下 bytes + st_mtime_ns，
+        經 POST /api/showcase/video/focal 存入不同焦點（確認 200 + DB 真的寫入 manual
+        值），poster bytes 與 mtime 逐一比對完全未變。
+
+        不需要插 time.sleep（TASK-101a-T3.md 現況分析第 5 節：mtime tick 粒度 ~3.8ms，
+        本測試真實時間尺度為 pigo ~2s + HTTP round-trip，遠超粒度風險窗口；且斷言方向
+        是「未變」，粒度粗對它無害）。
+
+        🔴 mtime 斷言才是這條測試的真網，不是多餘的保險——bytes 斷言對「重烤」這件事
+        結構性瞎眼：pigo 是確定性演算法，重烤用的是同一張封面 + 同一組 gate 判定用的
+        number/maker，會產生逐位元相同的 poster。實測：套用 DoD⑥ mutation（讓存焦點
+        端點追加呼叫 crop_to_poster 重烤）後，bytes 斷言依然綠、只有 mtime 斷言轉紅。
+        故不可以「bytes 都一樣了、mtime 檢查是多餘的」為由砍掉下面的 st_after 斷言。
+        """
+        from web.routers.scanner import generate_jellyfin_images_stream
+        from core.path_utils import to_file_uri
+
+        db_path, repo, video_uri, cover_uri, cover_fs, movie_dir = _seed_station4_row(
+            tmp_path, "d6", number=self._GATE_FIXTURE["number"], maker=self._GATE_FIXTURE["maker"],
+        )
+
+        monkeypatch.setattr("web.routers.scanner.get_db_path", lambda: db_path)
+        monkeypatch.setattr("web.routers.scanner.load_config", lambda: {"gallery": {"path_mappings": {}}})
+
+        events = list(generate_jellyfin_images_stream())  # 先烤一次
+        assert any('"type": "done"' in e for e in events), f"SSE 應完成: {events}"
+
+        poster_path = cover_fs.with_name("cover-poster.jpg")
+        assert poster_path.exists()
+        bytes_before = poster_path.read_bytes()
+        st_before = poster_path.stat().st_mtime_ns
+
+        # directories.path 用 to_file_uri(str(tmp_path))（涵蓋 video_uri 所在的
+        # movie_dir），不可手拼字面值 "/movies" 或 "file:///movies"——手拼與
+        # coerce_to_file_uri() 實際產出的斜線數不保證一致（101a-T3 review 實測踩過：
+        # 手拼 "/movies" 經 coerce_to_file_uri 在本機 WSL 環境變成 4 個斜線
+        # file:////movies，對不上手拼 video_uri 的 3 個斜線，scope 檢查假 403）。
+        # video_uri 與 directories.path 現在兩邊都經 to_file_uri()，斜線數必然一致。
+        mocker.patch("web.routers.showcase.get_db_path", return_value=db_path)
+        mocker.patch("web.routers.showcase.load_config", return_value={
+            "gallery": {"directories": [{"path": to_file_uri(str(tmp_path)), "readonly": False, "output_path": ""}],
+                        "path_mappings": {}}})
+
+        resp = client.post("/api/showcase/video/focal",
+                            json={"path": video_uri, "focal": "0.1000,0.9000",
+                                  "expected_cover_path": cover_uri})
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+
+        bytes_after = poster_path.read_bytes()
+        st_after = poster_path.stat().st_mtime_ns
+        assert bytes_after == bytes_before, "存焦點不應重烤 poster（bytes 未變）"
+        assert st_after == st_before, "存焦點不應重烤 poster（mtime 未變）"
+
+        # 確認 DB 側真的寫入了（存焦點本身有效，只是沒有回頭碰 poster）
+        after_row = repo.get_by_path(video_uri)
+        assert after_row.crop_mode == 'manual'
+        assert after_row.auto_focal == "0.1000,0.9000"
 
 
 class TestMissingCheckAPI:
