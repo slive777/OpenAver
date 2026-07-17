@@ -1042,6 +1042,12 @@
     cursor: grabbing;
 }
 
+/* 101b-T2（CD-5）：收斂補間期間停用 transition，理由同上方 --dragging——GSAP 逐 tick 寫
+ * Alpine :style 會被這條 CSS transition 攔截，觸發雙重 easing + 落點延遲（C21）。 */
+.lb-mask-window--settling {
+    transition: none;
+}
+
 .lb-mask-spinner {
     position: absolute;
     top: 50%;

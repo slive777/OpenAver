@@ -356,9 +356,31 @@ const RULES = [
     note: '[TestMaskToggleGuard] 99a-T5：_maskStopWaitAnim 呼叫 GhostFly.stopFocalDetectWait',
   },
   {
+    // 101b-T2（§A-5 修訂框）改鎖：_maskStopWaitAnim() 隨 fallback 分支搬進 _maskStartSettle
+    // （openMask finally 現在只呼叫 _maskStartSettle(sawFace)，不再直呼 _maskStopWaitAnim()）
+    // ⇒ 該字面字串離開 openMask 的 brace scope，anchor 必須跟著改指 _maskStartSettle。
     file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '_maskStopWaitAnim()',
-    scope: { anchor: /async\s+openMask\s*\(\s*\)\s*\{/, braceBalanced: true },
-    note: '[TestMaskToggleGuard] 99a-T5：openMask finally 呼叫 _maskStopWaitAnim（正常結束路徑，session-gated）',
+    scope: { anchor: /_maskStartSettle\s*\(\s*hasFace\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 101b-T2：_maskStartSettle 的 fallback 分支（g0===null / 動畫層不可用 / PRM）呼叫 _maskStopWaitAnim（防 repeat:-1 loop 洩漏，CD-4b/CD-11a/CD-4c 同一分支）',
+  },
+  {
+    // 101b-T2：正常（收斂）路徑改用 handoffFocalDetectWait 交棒（不 clearProps），
+    // 與上一條的 fallback 路徑（全停）互斥地 scoped 在同一函式內。
+    // 🔴 pattern 必須鎖**呼叫形式**（含 `(this._maskWaitTl)`），不可只鎖裸識別字
+    //    `handoffFocalDetectWait`——同一 scope 內 canAnimate gate 的
+    //    `typeof window.GhostFly.handoffFocalDetectWait === 'function'` 也含該識別字，
+    //    裸鎖會被 gate 那行**恆滿足** ⇒ 真正的交棒呼叫整行刪掉仍綠（fail-open）。
+    //    此為 101b-T2 獨立 review 實跑 mutation 抓到（刪 :1376 呼叫、留 gate → 不紅）。
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'handoffFocalDetectWait(this._maskWaitTl)',
+    scope: { anchor: /_maskStartSettle\s*\(\s*hasFace\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 101b-T2（CD-4b）：_maskStartSettle 正常路徑呼叫 GhostFly.handoffFocalDetectWait(this._maskWaitTl) 交棒星空（不 clearProps）',
+  },
+  {
+    // 101b-T2（CD-4c）：C23 per-callsite PRM guard 隨 gate 搬進 _maskStartSettle（比照既有 :344
+    // openMask 內的同名 required rule——canAnimate 的組成之一）。
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'prefersReducedMotion',
+    scope: { anchor: /_maskStartSettle\s*\(\s*hasFace\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 101b-T2（CD-4c）：_maskStartSettle 的 canAnimate gate 含 PRM 檢查（C23 per-callsite）',
   },
   {
     file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '_maskStopWaitAnim()',
@@ -369,6 +391,12 @@ const RULES = [
     file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '_maskStopWaitAnim()',
     scope: { anchor: /_maskTeardown\s*\(\s*\)\s*\{/, braceBalanced: true },
     note: '[TestMaskToggleGuard] 99a-T5：_maskTeardown 防禦性再保險呼叫 _maskStopWaitAnim（比照 _maskRemoveDragListeners 先例）',
+  },
+  {
+    // 101b-T2（§A-3 落點表 #3）：GhostFly export 守衛——漏 export ⇒ canAnimate 恆 false ⇒
+    // 收斂永不播，而所有 DoD 照樣綠（fallback 是合法路徑）。比照 :336-337 def 家族形狀。
+    file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'handoffFocalDetectWait: handoffFocalDetectWait',
+    note: '[TestMaskToggleGuard] 101b-T2（CD-4b）：GhostFly public object 必須 export handoffFocalDetectWait',
   },
 
   // ---- Codex 本地 review 修正（Fix A）：_actressPhotoLoaded 不該被 _maskTeardown 清掉 ----
@@ -1484,14 +1512,23 @@ const RULES = [
   // 而非 eslint（Opus-resolved 決策 1：eslint no-restricted-syntax 對這 7 個分散白名單檔缺乏
   // 精準 file-scope 手段，改用本引擎既有的 dir-mode exclude，比開 5 個新 eslint
   // group 更省事且不擴大 flat-config 陷阱攻擊面）。
-  // 7 檔白名單（動態座標計算 / adapter 本體 / per-host lifecycle 合法呼叫，與來源 pytest
-  // allowed_files 完全對齊）：
+  // 8 檔白名單（動態座標計算 / adapter 本體 / per-host lifecycle 合法呼叫）：
+  //   〔前 7 檔＝96b-T4 自來源 pytest allowed_files 逐字 port，該 pytest 已於 feature/96
+  //     遷移時刪除，本清單即現存唯一真理〕
   //   components/motion-adapter.js、pages/motion-lab.js、pages/motion-lab-state.js、
   //   pages/search/animations.js、pages/showcase/animations.js、
   //   pages/motion-lab/constellation-host.js、pages/showcase/state-similar.js。
+  //   〔101b-T2 新增，非 port 而來——見下方說明〕
+  //   pages/showcase/state-lightbox.js。
   // exclude 比對「相對於 dir 的相對路徑」（非 basename）：basename 比對會讓未來新增的同名檔
   // （如 pages/foo/animations.js）被誤放行，故改用完整相對路徑，與來源 pytest 語意一致
   // （Codex P2 fix，2026-07）。
+  // 101b-T2：state-lightbox.js 的 _maskStartSettle/_maskClearSettleProps 直接呼叫
+  // gsap.timeline/gsap.set/tl.to/tl.fromTo（CD-5/CD-7 收斂 timeline）——與既有
+  // state-similar.js 的 _fireSimilarKeystonePulse/_fireSimilarIdlePulse 同一類「per-host
+  // lifecycle 合法呼叫」：timeline 需要閉包捕捉 Alpine 元件 state（_maskWinStyle/_maskFocalX/
+  // _maskSession 等），委派到 ghost-fly.js 這種純 helper 檔案反而要多繞一層參數傳遞，state-
+  // similar.js 已是同型先例，不視為新開白名單口子而是套用既有分類。
   {
     file: {
       dir: 'web/static/js/pages', ext: ['.js'], recursive: true,
@@ -1502,11 +1539,12 @@ const RULES = [
         'showcase/animations.js',
         'motion-lab/constellation-host.js',
         'showcase/state-similar.js',
+        'showcase/state-lightbox.js',
       ],
     },
     kind: 'forbidden-string',
     pattern: /(?:gsap\.(?:to|from|fromTo|set|timeline)\(|ScrollTrigger\.(?:create|batch)\()/,
-    note: '[TestMotionInfra] test_no_direct_gsap_calls_in_pages — pages/**/*.js 禁直接 GSAP/ScrollTrigger 呼叫（白名單 6 檔 exclude by-relpath）',
+    note: '[TestMotionInfra] test_no_direct_gsap_calls_in_pages — pages/**/*.js 禁直接 GSAP/ScrollTrigger 呼叫（白名單 7 檔 exclude by-relpath）',
   },
   {
     file: { dir: 'web/static/js/components', ext: ['.js'], recursive: true, exclude: ['motion-adapter.js'] },

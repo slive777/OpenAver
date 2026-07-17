@@ -580,20 +580,51 @@
     }
 
     /**
+     * 101b-T2 (CD-4b): 交棒——只停 loop（kill timeline），刻意不 clearProps。保留各 star 當下
+     * 因 stagger 而各異的 inline opacity/scale，讓 settle timeline 從「當下值」接手淡出，
+     * 而非從硬切後的乾淨態重新淡出（那正是本 Part 要消滅的星空瞬間蒸發）。
+     *
+     * idempotent：handle 為 null/undefined 安全 no-op（回傳 null）。
+     *
+     * @param {{tl: gsap.core.Timeline, burst: Element, stars: NodeList}|null} handle - playFocalDetectWait 回傳值
+     * @returns {{stars: NodeList, burst: Element}|null}
+     */
+    function handoffFocalDetectWait(handle) {
+        if (!handle) return null;
+        if (handle.tl && typeof handle.tl.kill === 'function') handle.tl.kill();
+        return { stars: handle.stars, burst: handle.burst };
+    }
+
+    /**
+     * 101b-T2 (CD-4b): handoffFocalDetectWait 之後的清理半——clearProps 精確列表歸零 inline
+     * style（C26：不用 'all'），讓容器回到 CSS 預設 opacity:0。只在 settle timeline 的
+     * onComplete/onInterrupt 呼叫（比照 clearLanding 的「一個 closure、兩路徑共用」先例），
+     * 不在交棒當下呼叫——那樣會把星空的當下 opacity 立刻清成 0，等於硬切。
+     *
+     * idempotent：handle 為 null/undefined 安全 no-op。
+     *
+     * @param {{stars: NodeList, burst: Element}|null} handle - handoffFocalDetectWait 回傳值
+     */
+    function clearFocalDetectWait(handle) {
+        if (!handle) return;
+        if (typeof gsap === 'undefined') return;
+        if (handle.stars) gsap.set(handle.stars, { clearProps: 'opacity,scale,rotation,transform' });
+        if (handle.burst) gsap.set(handle.burst, { clearProps: 'opacity' });
+    }
+
+    /**
      * 99a-T5: 對稱停止 playFocalDetectWait（上）。kill timeline + clearProps 精確列表歸零
-     * inline style（C26：不用 clearProps:'all'，只清實際動過的 props），讓容器回到 CSS 預設
-     * opacity:0（下次 playFocalDetectWait 重新從乾淨狀態起）。
+     * inline style（C26：不用 clearProps:'all'），讓容器回到 CSS 預設 opacity:0（下次
+     * playFocalDetectWait 重新從乾淨狀態起）。101b-T2：異常路徑（g0===null fallback／PRM／
+     * 換片/關燈箱/ESC）全停專用——正常（收斂）路徑改走 handoffFocalDetectWait +
+     * clearFocalDetectWait（見上），本函式現為兩者的組合寫法，逐位元行為不變。
      *
      * idempotent：handle 為 null/undefined（尚未啟動過、或已停過一次）安全 no-op。
      *
      * @param {{tl: gsap.core.Timeline, burst: Element, stars: NodeList}|null} handle - playFocalDetectWait 回傳值
      */
     function stopFocalDetectWait(handle) {
-        if (!handle) return;
-        if (handle.tl && typeof handle.tl.kill === 'function') handle.tl.kill();
-        if (typeof gsap === 'undefined') return;
-        if (handle.stars) gsap.set(handle.stars, { clearProps: 'opacity,scale,rotation,transform' });
-        if (handle.burst) gsap.set(handle.burst, { clearProps: 'opacity' });
+        clearFocalDetectWait(handoffFocalDetectWait(handle));
     }
 
     // ─── 公開動畫函式 ──────────────────────────────────────────────────────
@@ -611,6 +642,9 @@
         // 99a-T5: Focal detect-first 星空等待迴圈（start/stop 對稱，callsite 見 state-lightbox.js openMask）
         playFocalDetectWait: playFocalDetectWait,
         stopFocalDetectWait: stopFocalDetectWait,
+        // 101b-T2 (CD-4b): 交棒編排——正常（收斂）路徑用，異常路徑仍用上面的 stopFocalDetectWait
+        handoffFocalDetectWait: handoffFocalDetectWait,
+        clearFocalDetectWait: clearFocalDetectWait,
 
         // 83b-T3: 行動相似面板封面飛行進 / 退場
         playMobilePanelEnter: playMobilePanelEnter,
