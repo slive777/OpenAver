@@ -528,7 +528,7 @@ def crop_to_poster(src_path: str, dst_path: str, number: str = '', maker: str = 
         return False
 
 
-def generate_jellyfin_images(cover_path: str, base_stem: str) -> dict:
+def generate_jellyfin_images(cover_path: str, base_stem: str, number: str = '', maker: str = '') -> dict:
     """為單部影片產生 Jellyfin poster + fanart（供批次補齊用）。
 
     Args:
@@ -549,7 +549,7 @@ def generate_jellyfin_images(cover_path: str, base_stem: str) -> dict:
         logger.warning(f"[!] generate_jellyfin_images fanart 複製失敗: {e}")
 
     # poster = 裁切
-    if crop_to_poster(cover_path, poster_path):
+    if crop_to_poster(cover_path, poster_path, number=number, maker=maker):
         result['poster'] = True
         result['poster_path'] = poster_path
 
@@ -1068,7 +1068,7 @@ def organize_file(
                     logger.warning(f"[!] Fanart 複製失敗: {e}")
             if poster_path:
                 # poster = 裁切
-                if crop_to_poster(cover_jpg, poster_path):
+                if crop_to_poster(cover_jpg, poster_path, number=number, maker=metadata.get('maker', '')):
                     result['poster_path'] = poster_path
 
         # extrafanart 下載（download_sample_images 控制，需 create_folder=True 才有 per-video 目錄）

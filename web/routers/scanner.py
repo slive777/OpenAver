@@ -1673,6 +1673,7 @@ def check_jellyfin_images_needed(repo: VideoRepository, path_mappings: dict = No
                 'cover_path': cover_fs,
                 'base_stem': base_stem,
                 'number': v.number or '',
+                'maker': v.maker or '',
             })
     return {'need_update': len(need_update), 'items': need_update}
 
@@ -1714,7 +1715,9 @@ def generate_jellyfin_images_stream() -> Generator[str, None, None]:
                 "status": f"處理 {num}"
             })
 
-            img_result = generate_jellyfin_images(cover, stem)
+            img_result = generate_jellyfin_images(
+                cover, stem, number=item['number'], maker=item['maker']
+            )
 
             if not img_result['fanart']:
                 yield _sse_event({"type": "log", "level": "warn", "message": f"{num} fanart 複製失敗"})

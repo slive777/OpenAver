@@ -243,6 +243,8 @@ def _write_external_images(
     fs_path: str,
     external_manager: str,
     overwrite_existing: bool,
+    number: str = '',
+    maker: str = '',
 ) -> dict:
     """外部媒體管理器模式下產生 poster / fanart 圖（72b-T6 CD-7 方案 A）。
 
@@ -299,7 +301,7 @@ def _write_external_images(
         poster_ok = True  # 同上
     else:
         try:
-            poster_ok = crop_to_poster(str(cover_path), str(poster_path))
+            poster_ok = crop_to_poster(str(cover_path), str(poster_path), number=number, maker=maker)
         except Exception as e:
             logger.warning("_write_external_images poster 裁切失敗 (%s): %s", fs_path, e)
 
@@ -458,6 +460,8 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
             fs_path=fs_path,
             external_manager=external_manager,
             overwrite_existing=overwrite_existing,
+            number=number,
+            maker=meta.get("maker", ""),
         )
         try:
             nfo_written = _write_nfo(

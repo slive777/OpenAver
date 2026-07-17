@@ -656,7 +656,9 @@ def _write_movie_assets(
     has_cover = bool(meta.get('cover')) and download_image(meta['cover'], cover_fs)
 
     # 2) poster/fanart (off mode also produces these — Acceptance #6)
-    imgs = generate_jellyfin_images(cover_fs, base_stem) if has_cover else {}
+    imgs = generate_jellyfin_images(
+        cover_fs, base_stem, number=meta['number'], maker=meta.get('maker', '')
+    ) if has_cover else {}
     has_poster = imgs.get('poster', False)
     has_fanart = imgs.get('fanart', False)
 

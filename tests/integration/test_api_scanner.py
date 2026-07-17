@@ -592,6 +592,89 @@ class TestJellyfinCheck:
         assert scanner_src.count('_jellyfin_cache_result = None') >= 4
 
 
+_STATION4_FOCAL_FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "actress_photos"
+
+
+def _station4_oracle_poster_bytes():
+    """獨立 oracle：不經過 crop_to_poster / generate_jellyfin_images /
+    generate_jellyfin_images_stream，直接呼叫底層 primitive 算出期望 bytes。
+    不可用「呼叫同一站流程兩次自我比對」（gotchas-backend.md #9，101a-T1 已踩過）。
+    """
+    from core.organizer import _poster_window_ratio
+    from core.focal import detect_focal, crop_image_position
+    from PIL import Image
+    import io
+
+    fixture_path = _STATION4_FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg"
+    with Image.open(fixture_path) as img:
+        w, h = img.size
+    r_window = _poster_window_ratio(w, h)
+    assert r_window is not None
+    focal = detect_focal(str(fixture_path), r_window)
+    assert focal is not None, "本 fixture 應能偵測到臉"
+    with Image.open(fixture_path) as img:
+        expected_cropped = crop_image_position(img.convert("RGB"), r_window, focal[0])
+    buf = io.BytesIO()
+    expected_cropped.save(buf, "JPEG", quality=95, subsampling=0)
+    return buf.getvalue()
+
+
+class TestJellyfinUpdateStationWiring:
+    """DoD①：站4（web/routers/scanner.py check_jellyfin_images_needed() +
+    generate_jellyfin_images_stream()）接線——真跑完整流程（真 DB row，不 mock
+    generate_jellyfin_images），fixture A（番號驅動）/ B（maker-only 驅動）各一次。
+
+    Opus 追加 (b)：站4 有 module-level 全域快取 _jellyfin_cache_result /
+    _jellyfin_cache_time，每個案例前後必須顯式重置，否則第二個 fixture 案例會
+    吃到第一個案例的快取結果（假綠）。
+    """
+
+    _FIXTURE_A = {"number": "FC2-1234567", "maker": "S1 NO.1 STYLE"}
+    _FIXTURE_B = {"number": "SSIS-001", "maker": "10musume"}
+
+    # 註：本 class 不需要重置 module-level 的 _jellyfin_cache_result/_jellyfin_cache_time。
+    # generate_jellyfin_images_stream() 只「清空」快取（scanner.py:1699/1731），從不讀取；
+    # 讀取只發生在 /jellyfin-check 端點（:1764）。故此處既無 setup 需求（不讀）也無
+    # teardown 需求（stream 自己已清空）。原本寫過一個 autouse reset fixture，經 review
+    # ablation 實測拿掉後測試仍全綠 ⇒ 無效防禦，留著只會讓人誤以為站4 有處理快取污染。
+    def _run_station4(self, tmp_path, tag, fixture, monkeypatch):
+        from core.database import init_db, VideoRepository, Video
+        from core.path_utils import to_file_uri
+        from web.routers.scanner import generate_jellyfin_images_stream
+
+        movie_dir = tmp_path / f"{fixture['number']}_{tag}"
+        movie_dir.mkdir()
+        cover = movie_dir / "cover.jpg"
+        src = _STATION4_FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg"
+        cover.write_bytes(src.read_bytes())
+
+        db_path = tmp_path / f"t_{tag}.db"
+        init_db(db_path)
+        repo = VideoRepository(db_path)
+        repo.upsert_batch([
+            Video(path=f"file:///movies/{tag}.mp4", mtime=1.0,
+                  number=fixture["number"], maker=fixture["maker"],
+                  cover_path=to_file_uri(str(cover))),
+        ])
+
+        monkeypatch.setattr("web.routers.scanner.get_db_path", lambda: db_path)
+        monkeypatch.setattr("web.routers.scanner.load_config", lambda: {"gallery": {"path_mappings": {}}})
+
+        events = list(generate_jellyfin_images_stream())
+        assert any('"type": "done"' in e for e in events), f"SSE 應完成: {events}"
+
+        poster_path = cover.with_name("cover-poster.jpg")
+        assert poster_path.exists(), "station4 應產生 poster"
+        expected = _station4_oracle_poster_bytes()
+        assert poster_path.read_bytes() == expected, "station4 poster 應對準焦點（獨立 oracle 比對）"
+
+    def test_station4_fixture_a(self, tmp_path, monkeypatch):
+        self._run_station4(tmp_path, "a", self._FIXTURE_A, monkeypatch)
+
+    def test_station4_fixture_b(self, tmp_path, monkeypatch):
+        self._run_station4(tmp_path, "b", self._FIXTURE_B, monkeypatch)
+
+
 class TestMissingCheckAPI:
     """T10 — 測試 GET /api/gallery/missing-check 端點"""
 

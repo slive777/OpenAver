@@ -86,7 +86,7 @@ def _fake_download_image(url, dest):
     return True
 
 
-def _fake_generate_jellyfin_images(cover_fs, base_stem):
+def _fake_generate_jellyfin_images(cover_fs, base_stem, **_kw):
     """side_effect: create `<base_stem>-poster.jpg` + `-fanart.jpg` + return dict."""
     Path(base_stem + "-poster.jpg").write_bytes(_FAKE_IMG_BYTES)
     Path(base_stem + "-fanart.jpg").write_bytes(_FAKE_IMG_BYTES)

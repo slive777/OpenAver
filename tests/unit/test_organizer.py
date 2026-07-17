@@ -2,6 +2,7 @@
 T1e Tests — Fix-1 版本標記測試
 測試 core/organizer.py 的 _detect_suffixes(), format_string(), organize_file()
 """
+import io
 import json
 import pytest
 from pathlib import Path
@@ -4129,3 +4130,71 @@ class TestKodiStemNamingOrganize:
         assert result["success"] is True
         assert result.get("fanart_path") is None
         assert result.get("poster_path") is None
+
+
+# ============ 站1接線測試 (TASK-101a-T2 DoD①④) ============
+
+
+def _t2_oracle_poster_bytes(fixture_path):
+    """獨立 oracle：不經過 crop_to_poster / 任何一站的呼叫鏈，直接呼叫底層
+    primitive（detect_focal + crop_image_position）算出「應該要平移到焦點」的
+    期望 bytes。不可用「同一站流程呼叫兩次自我比對」——對「呼叫端忘了傳
+    number/maker」這類 mutation 結構性瞎眼（gotchas-backend.md #9，101a-T1 已踩過）。
+    """
+    with Image.open(fixture_path) as img:
+        w, h = img.size
+    r_window = _poster_window_ratio(w, h)
+    assert r_window is not None
+    focal = _real_detect_focal(str(fixture_path), r_window)
+    assert focal is not None, "本 fixture 應能偵測到臉"
+    with Image.open(fixture_path) as img:
+        expected_cropped = crop_image_position(img.convert("RGB"), r_window, focal[0])
+    buf = io.BytesIO()
+    expected_cropped.save(buf, "JPEG", quality=95, subsampling=0)
+    return buf.getvalue()
+
+
+class TestOrganizeFileStationWiring:
+    """DoD①：站1（core/organizer.py organize_file）接線——真跑 organize_file()，
+    fixture A（番號驅動）+ fixture B（maker-only 驅動）各一次，poster 依焦點裁，
+    斷言輸出 bytes 等於獨立 oracle（不可自我比對）。
+
+    DoD④ 的站1 number/maker 軸 mutation 皆對這兩個測試單獨驗證（見 TASK card）。
+    """
+
+    _FIXTURE_A = {"number": "FC2-1234567", "maker": "S1 NO.1 STYLE"}  # 番號驅動，maker 非白名單
+    _FIXTURE_B = {"number": "SSIS-001", "maker": "10musume"}  # maker-only 驅動，白名單原樣照抄
+
+    @staticmethod
+    def _mock_download_fixture_face(url, save_path, referer=''):
+        src = _FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg"
+        Path(save_path).write_bytes(src.read_bytes())
+        return True
+
+    def _run_station1(self, tmp_path, tag, fixture):
+        src = tmp_path / f"{fixture['number']}_{tag}.mp4"
+        src.write_bytes(b"fake mp4")
+        config = _make_jellyfin_config(jellyfin_mode=True)
+        metadata = {
+            "number": fixture["number"],
+            "title": "Test Title",
+            "actors": [],
+            "tags": [],
+            "maker": fixture["maker"],
+            "date": "2024-01-15",
+            "cover": "http://fake/cover.jpg",
+            "url": "",
+        }
+        with patch("core.organizer.download_image", side_effect=self._mock_download_fixture_face):
+            result = organize_file(str(src), metadata, config)
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+        assert result.get("poster_path") is not None, "station1 應產生 poster_path"
+        poster_bytes = Path(result["poster_path"]).read_bytes()
+        expected = _t2_oracle_poster_bytes(_FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg")
+        assert poster_bytes == expected, "station1 poster 應對準焦點（獨立 oracle 比對）"
+
+    def test_station1_fixture_a(self, tmp_path):
+        self._run_station1(tmp_path, "a", self._FIXTURE_A)
+
+    def test_station1_fixture_b(self, tmp_path):
+        self._run_station1(tmp_path, "b", self._FIXTURE_B)
