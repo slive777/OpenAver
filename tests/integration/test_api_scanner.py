@@ -4,6 +4,7 @@ import threading
 from pathlib import Path
 from urllib.parse import quote
 from core.path_utils import to_file_uri
+from tests.conftest import MOCK_FOCAL_XY
 
 class TestScannerAPI:
     """測試 scanner.py 相關 endpoints"""
@@ -595,13 +596,17 @@ class TestJellyfinCheck:
 _STATION4_FOCAL_FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "actress_photos"
 
 
-def _station4_oracle_poster_bytes():
+def _station4_oracle_poster_bytes(focal_xy=MOCK_FOCAL_XY):
     """獨立 oracle：不經過 crop_to_poster / generate_jellyfin_images /
     generate_jellyfin_images_stream，直接呼叫底層 primitive 算出期望 bytes。
     不可用「呼叫同一站流程兩次自我比對」（gotchas-backend.md #9，101a-T1 已踩過）。
+
+    TASK-102c-T1：改吃 focal_xy 參數（預設 MOCK_FOCAL_XY），不再自己呼叫真
+    detect_focal——呼叫端須確保 patch `core.organizer.detect_focal` 用同一個值，
+    否則 production 端與 oracle 端會對不上。
     """
     from core.organizer import _poster_window_ratio
-    from core.focal import detect_focal, crop_image_position
+    from core.focal import crop_image_position
     from PIL import Image
     import io
 
@@ -610,8 +615,7 @@ def _station4_oracle_poster_bytes():
         w, h = img.size
     r_window = _poster_window_ratio(w, h)
     assert r_window is not None
-    focal = detect_focal(str(fixture_path), r_window)
-    assert focal is not None, "本 fixture 應能偵測到臉"
+    focal = focal_xy
     with Image.open(fixture_path) as img:
         expected_cropped = crop_image_position(img.convert("RGB"), r_window, focal[0])
     buf = io.BytesIO()
@@ -640,6 +644,7 @@ class TestJellyfinUpdateStationWiring:
     def _run_station4(self, tmp_path, tag, fixture, monkeypatch):
         from core.database import init_db, VideoRepository, Video
         from core.path_utils import to_file_uri
+        from unittest.mock import patch
         from web.routers.scanner import generate_jellyfin_images_stream
 
         movie_dir = tmp_path / f"{fixture['number']}_{tag}"
@@ -664,7 +669,8 @@ class TestJellyfinUpdateStationWiring:
         monkeypatch.setattr("web.routers.scanner.get_db_path", lambda: db_path)
         monkeypatch.setattr("web.routers.scanner.load_config", lambda: {"gallery": {"path_mappings": {}}})
 
-        events = list(generate_jellyfin_images_stream())
+        with patch("core.organizer.detect_focal", return_value=MOCK_FOCAL_XY):
+            events = list(generate_jellyfin_images_stream())
         assert any('"type": "done"' in e for e in events), f"SSE 應完成: {events}"
 
         poster_path = cover.with_name("cover-poster.jpg")
@@ -742,6 +748,7 @@ class TestPosterBakeStructuralLocks:
 
     def test_bake_does_not_touch_db_focal_fields(self, tmp_path, monkeypatch):
         """DoD④ spec §3.7-3 結構鎖：烤圖前後該片 DB auto_focal/crop_mode 零變化。"""
+        from unittest.mock import patch
         from web.routers.scanner import generate_jellyfin_images_stream
 
         db_path, repo, video_uri, cover_uri, cover_fs, movie_dir = _seed_station4_row(
@@ -753,7 +760,8 @@ class TestPosterBakeStructuralLocks:
         monkeypatch.setattr("web.routers.scanner.get_db_path", lambda: db_path)
         monkeypatch.setattr("web.routers.scanner.load_config", lambda: {"gallery": {"path_mappings": {}}})
 
-        events = list(generate_jellyfin_images_stream())
+        with patch("core.organizer.detect_focal", return_value=MOCK_FOCAL_XY):
+            events = list(generate_jellyfin_images_stream())
         assert any('"type": "done"' in e for e in events), f"SSE 應完成: {events}"
 
         poster_path = cover_fs.with_name("cover-poster.jpg")
@@ -768,6 +776,7 @@ class TestPosterBakeStructuralLocks:
         真值的 auto_focal，站4真跑烤圖，poster bytes 正向等於獨立 pigo oracle、
         反向不等於獨立 manual oracle（兩條缺一不可，見 gotchas-backend.md #9）。
         """
+        from unittest.mock import patch
         from web.routers.scanner import generate_jellyfin_images_stream
 
         db_path, repo, video_uri, cover_uri, cover_fs, movie_dir = _seed_station4_row(
@@ -778,7 +787,8 @@ class TestPosterBakeStructuralLocks:
         monkeypatch.setattr("web.routers.scanner.get_db_path", lambda: db_path)
         monkeypatch.setattr("web.routers.scanner.load_config", lambda: {"gallery": {"path_mappings": {}}})
 
-        events = list(generate_jellyfin_images_stream())
+        with patch("core.organizer.detect_focal", return_value=MOCK_FOCAL_XY):
+            events = list(generate_jellyfin_images_stream())
         assert any('"type": "done"' in e for e in events), f"SSE 應完成: {events}"
 
         poster_path = cover_fs.with_name("cover-poster.jpg")
@@ -807,6 +817,7 @@ class TestPosterBakeStructuralLocks:
         端點追加呼叫 crop_to_poster 重烤）後，bytes 斷言依然綠、只有 mtime 斷言轉紅。
         故不可以「bytes 都一樣了、mtime 檢查是多餘的」為由砍掉下面的 st_after 斷言。
         """
+        from unittest.mock import patch
         from web.routers.scanner import generate_jellyfin_images_stream
         from core.path_utils import to_file_uri
 
@@ -817,7 +828,8 @@ class TestPosterBakeStructuralLocks:
         monkeypatch.setattr("web.routers.scanner.get_db_path", lambda: db_path)
         monkeypatch.setattr("web.routers.scanner.load_config", lambda: {"gallery": {"path_mappings": {}}})
 
-        events = list(generate_jellyfin_images_stream())  # 先烤一次
+        with patch("core.organizer.detect_focal", return_value=MOCK_FOCAL_XY):
+            events = list(generate_jellyfin_images_stream())  # 先烤一次
         assert any('"type": "done"' in e for e in events), f"SSE 應完成: {events}"
 
         poster_path = cover_fs.with_name("cover-poster.jpg")

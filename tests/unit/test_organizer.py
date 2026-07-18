@@ -10,8 +10,9 @@ from unittest.mock import patch
 from PIL import Image
 
 from core.organizer import _detect_suffixes, format_string, organize_file, crop_to_poster, generate_nfo, extract_chinese_title, download_image, truncate_to_chars, truncate_title, _detect_vr_cluster, _is_multipart_kw, _poster_window_ratio
-from core.focal import requires_face_detection, detect_focal as _real_detect_focal
+from core.focal import requires_face_detection
 from core.scrapers.utils import normalize_number_impl
+from tests.conftest import MOCK_FOCAL_XY
 
 
 # ============ _detect_suffixes() 測試 ============
@@ -922,9 +923,12 @@ class TestPosterWindowRatioInvariant:
         assert _poster_window_ratio(700, 1050) is None  # ratio=1.5
 
 
-class TestCropToPosterFocalReal:
+class TestCropToPosterFocalWiring:
     """DoD②：無碼真圖 poster 對準臉——gate 兩支路徑（fixture A/B）各一，
-    分支2/分支3 各一（4 組合），真跑 detect_focal（不 mock）。
+    分支2/分支3 各一（4 組合）。TASK-102c-T1：改 mock `core.organizer.detect_focal`
+    成固定偏心值（MOCK_FOCAL_XY），只驗 consumer（crop_to_poster）收到焦點座標後
+    正確平移窗口的 wiring；真的「pigo 對真圖偵出正確焦點」能力已搬到
+    test_focal_detector.py::TestDetectFocal（Layer 1，真跑）。
 
     每組合兩個斷言：
     - 正向：輸出 bytes 等於「測試內獨立以『只平移既有窗』契約（整數 crop_w + focal 平移 x0）裁切存檔」的期望值。
@@ -938,7 +942,11 @@ class TestCropToPosterFocalReal:
         dst = tmp_path / f"poster_{tag}.jpg"
         baseline_dst = tmp_path / f"poster_{tag}_baseline.jpg"
 
-        result = crop_to_poster(str(src_path), str(dst), **kwargs)
+        # TASK-102c-T1：mock core.organizer.detect_focal（consumer binding）成固定偏心值，
+        # 避免真跑 pigo（~4-5s/呼叫）。baseline 呼叫不傳 number/maker，gate=False，不會
+        # 呼叫 detect_focal，不受此 patch 影響。
+        with patch("core.organizer.detect_focal", return_value=MOCK_FOCAL_XY):
+            result = crop_to_poster(str(src_path), str(dst), **kwargs)
         assert result is True
         assert dst.exists()
 
@@ -947,8 +955,7 @@ class TestCropToPosterFocalReal:
         r_window = _poster_window_ratio(w, h)
         assert r_window is not None
 
-        focal = _real_detect_focal(str(src_path), r_window)
-        assert focal is not None, "本測試 fixture 應能偵測到臉"
+        focal = MOCK_FOCAL_XY
 
         with Image.open(src_path) as img:
             # 101a P2-1（Codex PR#110）：oracle 改為「只平移既有窗」的真實契約——用與退化路
@@ -1076,12 +1083,23 @@ class TestCropToPosterByteForByteRegression:
         )
 
     def test_no_face_real_photo_branch3(self, tmp_path):
-        """無臉（主證據，真圖，分支3）：no_face_detected.jpg gate True 但偵測不到臉 → 落回原碼。"""
+        """無臉（分支3）：gate True 但 detect_focal 回 None → 落回原碼（fallback wiring）。
+
+        TASK-102c-T1 方案 A：mock `core.organizer.detect_focal` 成 `return_value=None`，
+        只驗 organizer 收到 None 後的 fallback wiring。「pigo 對這張圖真的判定無臉」
+        的能力已搬到 test_focal_detector.py::TestDetectFocal::
+        test_detect_focal_no_face_real_photo_returns_none（Layer 1 回歸，真跑）。
+        """
         src = _FOCAL_FIXTURES_DIR / "no_face_detected.jpg"
         dst_a = tmp_path / "a.jpg"
         dst_b = tmp_path / "b.jpg"
         assert crop_to_poster(str(src), str(dst_a)) is True
-        assert crop_to_poster(str(src), str(dst_b), number="FC2-1234567") is True
+        with patch("core.organizer.detect_focal", return_value=None) as mock_detect:
+            assert crop_to_poster(str(src), str(dst_b), number="FC2-1234567") is True
+        # 反例回 None 與「gate 被跳過、detect_focal 根本沒被呼叫」輸出同 bytes，
+        # 光比對 bytes 證不出 wiring；必須額外斷言 mock 真的被呼叫過一次
+        # （Codex PR#110 二審 P2-1）。
+        mock_detect.assert_called_once()
         assert dst_a.read_bytes() == dst_b.read_bytes()
 
     def test_no_face_synthetic_branch2(self, tmp_path):
@@ -4163,18 +4181,21 @@ class TestKodiStemNamingOrganize:
 # ============ 站1接線測試 (TASK-101a-T2 DoD①④) ============
 
 
-def _t2_oracle_poster_bytes(fixture_path):
-    """獨立 oracle：不經過 crop_to_poster / 任何一站的呼叫鏈，直接以底層 detect_focal
-    + 「只平移既有窗」契約（整數 crop_w + focal 平移 x0）算出「應該要平移到焦點」的
-    期望 bytes。不可用「同一站流程呼叫兩次自我比對」——對「呼叫端忘了傳
-    number/maker」這類 mutation 結構性瞎眼（gotchas-backend.md #9，101a-T1 已踩過）。
+def _t2_oracle_poster_bytes(fixture_path, focal_xy=MOCK_FOCAL_XY):
+    """獨立 oracle：不經過 crop_to_poster / 任何一站的呼叫鏈，直接以「只平移既有窗」
+    契約（整數 crop_w + focal 平移 x0）算出「應該要平移到焦點」的期望 bytes。不可用
+    「同一站流程呼叫兩次自我比對」——對「呼叫端忘了傳 number/maker」這類 mutation
+    結構性瞎眼（gotchas-backend.md #9，101a-T1 已踩過）。
+
+    TASK-102c-T1：改吃 focal_xy 參數（預設 MOCK_FOCAL_XY），不再自己呼叫真
+    detect_focal——呼叫端須確保 patch `core.organizer.detect_focal` 用同一個值，
+    否則 production 端與 oracle 端會對不上。
     """
     with Image.open(fixture_path) as img:
         w, h = img.size
     r_window = _poster_window_ratio(w, h)
     assert r_window is not None
-    focal = _real_detect_focal(str(fixture_path), r_window)
-    assert focal is not None, "本 fixture 應能偵測到臉"
+    focal = focal_xy
     with Image.open(fixture_path) as img:
         # 101a P2-1（Codex PR#110）：oracle 改為「只平移既有窗」的真實契約（見 crop_to_poster）——
         # 不再經 crop_image_position 的 float ratio→px round-trip（±1px 改窗寬、已棄用）。
@@ -4217,12 +4238,13 @@ class TestOrganizeFileStationWiring:
             "cover": "http://fake/cover.jpg",
             "url": "",
         }
-        with patch("core.organizer.download_image", side_effect=self._mock_download_fixture_face):
+        with patch("core.organizer.download_image", side_effect=self._mock_download_fixture_face), \
+             patch("core.organizer.detect_focal", return_value=MOCK_FOCAL_XY):
             result = organize_file(str(src), metadata, config)
         assert result["success"] is True, f"organize 失敗: {result.get('error')}"
         assert result.get("poster_path") is not None, "station1 應產生 poster_path"
         poster_bytes = Path(result["poster_path"]).read_bytes()
-        expected = _t2_oracle_poster_bytes(_FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg")
+        expected = _t2_oracle_poster_bytes(_FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg", MOCK_FOCAL_XY)
         assert poster_bytes == expected, "station1 poster 應對準焦點（獨立 oracle 比對）"
 
     def test_station1_fixture_a(self, tmp_path):

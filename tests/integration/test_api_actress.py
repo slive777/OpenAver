@@ -15,6 +15,7 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from core.database import init_db
 from core.path_utils import to_file_uri
+from tests.conftest import MOCK_FOCAL_XY
 
 
 # ---------------------------------------------------------------------------
@@ -2156,37 +2157,31 @@ class TestDetectActressFocal:
     # ---- §3.7-6 無臉圖不崩（真 fixture）----
 
     def test_detect_focal_no_face_returns_200_empty_string(self, client, tmp_path):
+        """mock `detect_focal` 回 None（真「無臉真圖回 None」能力已搬到
+        test_focal_detector.py::TestDetectFocal::test_detect_focal_no_face_real_photo_returns_none，
+        本測試只驗端點收到 None 後的 wiring：回 200 + auto_focal 空字串。"""
         _save_actress_for_focal(client)
         gfriends = tmp_path / "gfriends"
         _place_fixture_photo(gfriends, "no_face_detected.jpg")
         with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
-             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends), \
+             patch("web.routers.actress.detect_focal", return_value=None) as mock_detect:
             resp = client.post(f"/api/actresses/{ACTRESS_NAME}/detect-focal")
         assert resp.status_code == 200
         assert resp.json() == {"success": True, "auto_focal": ""}
+        # None 與「端點沒呼叫 detect_focal、直接寫死空字串」輸出同 JSON，光比對回應
+        # 證不出 wiring；必須額外斷言 mock 真的被呼叫過一次（同根因見
+        # test_organizer.py::test_no_face_real_photo_branch3，Codex PR#110 二審 P2-1）。
+        mock_detect.assert_called_once()
 
     # ---- 真實 fixture 偵測輸出落在寬鬆區間（證明真的有在偵測，非鎖 ratio）----
+    # TASK-102c-T1：吸收原本獨立的 test_detect_focal_ratio_is_075_via_spy
+    # 的 pass-through spy + ratio==0.75 斷言，省下對同一張圖多跑一次真偵測。
+    # 🔴 Opus 裁決 2026-07-15（原適用於獨立 spy 測試，併入後精神原樣延續）：
+    # 禁止 stub mock（return_value=...）——那會換掉真偵測器，測試就不再走完整
+    # production path。此處用 spy 包住真函式，只多觀察一個參數。
 
     def test_detect_focal_narrow_face_top_range(self, client, tmp_path):
-        _save_actress_for_focal(client)
-        gfriends = tmp_path / "gfriends"
-        _place_fixture_photo(gfriends, "narrow_face_top.jpg")
-        with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
-             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
-            resp = client.post(f"/api/actresses/{ACTRESS_NAME}/detect-focal")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["success"] is True
-        x_str, y_str = data["auto_focal"].split(",")
-        x, y = float(x_str), float(y_str)
-        assert 0.45 < x < 0.55
-        assert 0.15 < y < 0.25
-
-    # ---- DoD② ratio 傳 0.75：pass-through spy（真偵測器照跑，只記參數）----
-    # 🔴 Opus 裁決 2026-07-15：禁止 stub mock（return_value=...）——那會換掉真偵測器，
-    # 測試就不再走完整 production path。此處用 spy 包住真函式，只多觀察一個參數。
-
-    def test_detect_focal_ratio_is_075_via_spy(self, client, tmp_path):
         _save_actress_for_focal(client)
         gfriends = tmp_path / "gfriends"
         _place_fixture_photo(gfriends, "narrow_face_top.jpg")
@@ -2205,6 +2200,14 @@ class TestDetectActressFocal:
             resp = client.post(f"/api/actresses/{ACTRESS_NAME}/detect-focal")
 
         assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        x_str, y_str = data["auto_focal"].split(",")
+        x, y = float(x_str), float(y_str)
+        assert 0.45 < x < 0.55
+        assert 0.15 < y < 0.25
+
+        # DoD② ratio 傳 0.75（併入自 test_detect_focal_ratio_is_075_via_spy）
         assert len(calls) == 1, "detect_focal 應恰好被呼叫一次"
         args, kwargs = calls[0]
         ratio = args[1] if len(args) > 1 else kwargs.get("ratio")
@@ -2220,7 +2223,8 @@ class TestDetectActressFocal:
         gfriends = tmp_path / "gfriends"
         _place_fixture_photo(gfriends, "narrow_face_top.jpg")
         with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
-             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends), \
+             patch("web.routers.actress.detect_focal", return_value=MOCK_FOCAL_XY):
             resp = client.post(f"/api/actresses/{ACTRESS_NAME}/detect-focal")
 
         assert resp.status_code == 200
@@ -2240,7 +2244,8 @@ class TestDetectActressFocal:
         _save_actress_for_focal(client)
         gfriends = tmp_path / "gfriends"
         with patch("web.routers.actress.GFRIENDS_DIR", gfriends), \
-             patch("core.actress_photo.GFRIENDS_DIR", gfriends):
+             patch("core.actress_photo.GFRIENDS_DIR", gfriends), \
+             patch("web.routers.actress.detect_focal", return_value=MOCK_FOCAL_XY):
             resp_400 = client.post(f"/api/actresses/{ACTRESS_NAME}/detect-focal")
 
             _place_fixture_photo(gfriends, "narrow_face_top.jpg")

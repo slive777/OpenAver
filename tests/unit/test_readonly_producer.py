@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from core.path_utils import to_file_uri
+from tests.conftest import MOCK_FOCAL_XY
 
 
 # ---------------------------------------------------------------------------
@@ -855,13 +856,17 @@ def _t3_write_face_cover(url, save_path, referer=''):
     return True
 
 
-def _t3_oracle_poster_bytes():
+def _t3_oracle_poster_bytes(focal_xy):
     """獨立 oracle：不經過 crop_to_poster / generate_jellyfin_images / _write_movie_assets，
     直接呼叫底層 primitive 算出期望 bytes。不可用「呼叫同一站流程兩次自我比對」
     （gotchas-backend.md #9，101a-T1 已踩過）。
+
+    TASK-102c-T1：改吃 focal_xy 參數，不再自己呼叫真 detect_focal——呼叫端須確保
+    patch `core.organizer.detect_focal` 用同一個值，否則 production 端與 oracle 端
+    會對不上。
     """
     from core.organizer import _poster_window_ratio
-    from core.focal import detect_focal, crop_image_position
+    from core.focal import crop_image_position
     from PIL import Image
     import io as _io
 
@@ -870,8 +875,7 @@ def _t3_oracle_poster_bytes():
         w, h = img.size
     r_window = _poster_window_ratio(w, h)
     assert r_window is not None
-    focal = detect_focal(str(fixture_path), r_window)
-    assert focal is not None, "本 fixture 應能偵測到臉"
+    focal = focal_xy
     with Image.open(fixture_path) as img:
         expected_cropped = crop_image_position(img.convert("RGB"), r_window, focal[0])
     buf = _io.BytesIO()
@@ -898,14 +902,15 @@ class TestWriteMovieAssetsStationWiring:
         config = dict(_T3_BASE_CONFIG, external_manager=external_manager)
 
         with patch('core.readonly_producer.download_image', side_effect=_t3_write_face_cover), \
-             patch('core.readonly_producer.generate_nfo', return_value=True):
+             patch('core.readonly_producer.generate_nfo', return_value=True), \
+             patch('core.organizer.detect_focal', return_value=MOCK_FOCAL_XY):
             assets = _write_movie_assets(movie_dir, meta, fd, source_fs_path, config)
 
         assert assets['cover_fs'], "station3 應成功下載封面"
         base_stem = assets['cover_fs'][:-len('.jpg')]
         poster_path = Path(base_stem + '-poster.jpg')
         assert poster_path.exists(), "station3 應產生 poster"
-        expected = _t3_oracle_poster_bytes()
+        expected = _t3_oracle_poster_bytes(MOCK_FOCAL_XY)
         assert poster_path.read_bytes() == expected, "station3 poster 應對準焦點（獨立 oracle 比對）"
 
     def test_station3_fixture_a(self, tmp_path):

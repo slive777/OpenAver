@@ -13,6 +13,7 @@ from typing import List, Optional
 from unittest.mock import patch, MagicMock, call
 
 from core.path_utils import to_file_uri
+from tests.conftest import MOCK_FOCAL_XY
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -2761,13 +2762,17 @@ def _t2_write_face_cover(cover_path):
     Path(cover_path).write_bytes(src.read_bytes())
 
 
-def _t2_oracle_poster_bytes():
+def _t2_oracle_poster_bytes(focal_xy):
     """獨立 oracle：不經過 crop_to_poster / _write_external_images / enrich_single，
     直接呼叫底層 primitive 算出「應該要平移到焦點」的期望 bytes。不可用「呼叫同一站
     流程兩次自我比對」（gotchas-backend.md #9，101a-T1 已踩過）。
+
+    TASK-102c-T1：改吃 focal_xy 參數，不再自己呼叫真 detect_focal——呼叫端須確保
+    patch `core.organizer.detect_focal` 用同一個值，否則 production 端與 oracle 端
+    會對不上。
     """
     from core.organizer import _poster_window_ratio
-    from core.focal import detect_focal, crop_image_position
+    from core.focal import crop_image_position
     from PIL import Image
 
     fixture_path = _T2_FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg"
@@ -2775,8 +2780,7 @@ def _t2_oracle_poster_bytes():
         w, h = img.size
     r_window = _poster_window_ratio(w, h)
     assert r_window is not None
-    focal = detect_focal(str(fixture_path), r_window)
-    assert focal is not None, "本 fixture 應能偵測到臉"
+    focal = focal_xy
     with Image.open(fixture_path) as img:
         expected_cropped = crop_image_position(img.convert("RGB"), r_window, focal[0])
     buf = io.BytesIO()
@@ -2813,6 +2817,7 @@ class TestEnrichSingleStationWiring:
             patch("core.enricher.generate_nfo", return_value=True),
             patch("core.enricher.download_image", return_value=False),
             patch("core.enricher.find_subtitle_files", return_value=[]),
+            patch("core.organizer.detect_focal", return_value=MOCK_FOCAL_XY),
         ):
             from core.enricher import enrich_single
             result = enrich_single(
@@ -2828,7 +2833,7 @@ class TestEnrichSingleStationWiring:
         assert result.success is True, f"enrich_single 失敗: {result.error}"
         poster_path = mp4.with_name(mp4.stem + "-poster.jpg")
         assert poster_path.exists(), "station2 應產生 poster"
-        expected = _t2_oracle_poster_bytes()
+        expected = _t2_oracle_poster_bytes(MOCK_FOCAL_XY)
         assert poster_path.read_bytes() == expected, "station2 poster 應對準焦點（獨立 oracle 比對）"
 
     def test_station2_fixture_a(self, tmp_path):

@@ -23,6 +23,7 @@ from core.focal.detector import (
 )
 
 _FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "focal" / "sample.jpg"
+_NO_FACE_FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "actress_photos" / "no_face_detected.jpg"
 
 
 # ============ port oracle ============
@@ -238,6 +239,16 @@ class TestDetectFocal:
 
     def test_detect_focal_returns_none_on_missing_file(self):
         result = detect_focal("/nonexistent/path/does-not-exist.jpg", 2.0 / 3.0, 650)
+        assert result is None
+
+    def test_detect_focal_no_face_real_photo_returns_none(self):
+        """TASK-102c-T1 方案 A：pigo 真跑對確定無臉的真圖必須回 None（Layer 1 回歸）。
+
+        「organizer 收到 None 後有沒有正確 fallback」是 Layer 2 職責，已在
+        test_organizer.py::TestCropToPosterByteForByteRegression::test_no_face_real_photo_branch3
+        用 mock 驗證 wiring；本測試只驗 pigo 本身「真的能正確判定無臉」。
+        """
+        result = detect_focal(str(_NO_FACE_FIXTURE), 2.0 / 3.0, 650)
         assert result is None
 
 

@@ -3,6 +3,15 @@ from pathlib import Path
 import json
 from core import config as core_config
 
+# ── TASK-102c-T1: focal mock 座標共用常數 ──────────────────────────────
+# 刻意選一個偏離中心、x/y 不對稱的值，讓「focal 平移有沒有生效」的斷言在
+# mock 下依然有鑑別力——不可用 (0.5, 0.5)，否則平移後 crop 退化成置中 crop，
+# 反向斷言「應與原碼輸出不同」會失真。各檔按需
+# `from tests.conftest import MOCK_FOCAL_XY` 匯入。
+# 註：x=0.3148 恰與 wide_offcenter_face.jpg 的真 pigo 偵測值重疊——巧合非刻意
+# 逼近，且不影響判別力（patch 整段替換函式，測試期間真偵測不可能被呼叫）。
+MOCK_FOCAL_XY = (0.3148, 0.2000)
+
 # ── LAN access gate（feature/80）測試相容 ──────────────────────────────
 # web.app 的 lan_access_gate middleware 用 request.client.host 判 loopback。
 # Starlette TestClient 預設 client host = "testclient"（非 loopback）→ 單機模式

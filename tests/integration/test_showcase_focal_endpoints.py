@@ -198,12 +198,15 @@ class TestDetectFocalEndpoint:
     def test_no_face_returns_empty_string(self, client, focal_endpoint_setup, mocker):
         """detect_focal 回 None（無臉）→ auto_focal='' 回傳、不崩（99a-T1a：不再存回 DB）。"""
         _patch_db_and_config(mocker, focal_endpoint_setup)
-        mocker.patch("web.routers.showcase.detect_focal", return_value=None)
+        spy = mocker.patch("web.routers.showcase.detect_focal", return_value=None)
         resp = client.post("/api/showcase/video/detect-focal",
                            json={"path": focal_endpoint_setup["video_uri"]})
         assert resp.status_code == 200
         assert resp.json()["success"] is True
         assert resp.json()["auto_focal"] == ""
+        # Codex PR 三審 P2：回 None 時輸出與「端點跳過偵測直接回空」無法區分，
+        # 必須斷言真的呼叫過偵測（同 test_api_actress no_face 案的 false-green 修法）
+        spy.assert_called_once()
 
 
 # ============ /video/save-focal mutator（99a-T1a）============
