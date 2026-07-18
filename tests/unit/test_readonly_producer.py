@@ -687,7 +687,7 @@ class TestWriteMovieAssets:
             recorded_paths.append(save_path)
             return True
 
-        def fake_jellyfin(cover_path, base_stem):
+        def fake_jellyfin(cover_path, base_stem, **_kw):
             # cover_path is a READ input (source for copy/crop), not a write target — don't record it.
             recorded_paths.append(base_stem + '-poster.jpg')
             recorded_paths.append(base_stem + '-fanart.jpg')
@@ -841,6 +841,98 @@ class TestWriteMovieAssets:
 
 
 # ---------------------------------------------------------------------------
+# TASK-101a-T2 DoD①④：站3接線——真跑 _write_movie_assets()，generate_jellyfin_images
+# 不 mock（既有測試全部 mock 掉它；本測試是唯一不 mock 它的）。
+# ---------------------------------------------------------------------------
+
+_T3_FOCAL_FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "actress_photos"
+
+
+def _t3_write_face_cover(url, save_path, referer=''):
+    src = _T3_FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg"
+    Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(save_path).write_bytes(src.read_bytes())
+    return True
+
+
+def _t3_oracle_poster_bytes():
+    """獨立 oracle：不經過 crop_to_poster / generate_jellyfin_images / _write_movie_assets，
+    直接呼叫底層 primitive 算出期望 bytes。不可用「呼叫同一站流程兩次自我比對」
+    （gotchas-backend.md #9，101a-T1 已踩過）。
+    """
+    from core.organizer import _poster_window_ratio
+    from core.focal import detect_focal, crop_image_position
+    from PIL import Image
+    import io as _io
+
+    fixture_path = _T3_FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg"
+    with Image.open(fixture_path) as img:
+        w, h = img.size
+    r_window = _poster_window_ratio(w, h)
+    assert r_window is not None
+    focal = detect_focal(str(fixture_path), r_window)
+    assert focal is not None, "本 fixture 應能偵測到臉"
+    with Image.open(fixture_path) as img:
+        expected_cropped = crop_image_position(img.convert("RGB"), r_window, focal[0])
+    buf = _io.BytesIO()
+    expected_cropped.save(buf, "JPEG", quality=95, subsampling=0)
+    return buf.getvalue()
+
+
+class TestWriteMovieAssetsStationWiring:
+    """DoD①：站3（core/readonly_producer.py _write_movie_assets → generate_jellyfin_images
+    → crop_to_poster）接線——真跑完整流程，fixture A（番號驅動）/ B（maker-only 驅動）
+    各一次，poster bytes 對獨立 oracle。
+    """
+
+    _FIXTURE_A = {"number": "FC2-1234567", "maker": "S1 NO.1 STYLE"}
+    _FIXTURE_B = {"number": "SSIS-001", "maker": "10musume"}
+
+    def _run_station3(self, tmp_path, tag, fixture, external_manager='jellyfin'):
+        from core.readonly_producer import _write_movie_assets
+
+        movie_dir = str(tmp_path / 'output' / f"{fixture['number']}_{tag}")
+        source_fs_path = f"/src/{fixture['number']}_{tag}.mp4"
+        meta = dict(_T3_META, number=fixture['number'], maker=fixture['maker'])
+        fd = _t3_format_data(meta=meta, source_fs_path=source_fs_path)
+        config = dict(_T3_BASE_CONFIG, external_manager=external_manager)
+
+        with patch('core.readonly_producer.download_image', side_effect=_t3_write_face_cover), \
+             patch('core.readonly_producer.generate_nfo', return_value=True):
+            assets = _write_movie_assets(movie_dir, meta, fd, source_fs_path, config)
+
+        assert assets['cover_fs'], "station3 應成功下載封面"
+        base_stem = assets['cover_fs'][:-len('.jpg')]
+        poster_path = Path(base_stem + '-poster.jpg')
+        assert poster_path.exists(), "station3 應產生 poster"
+        expected = _t3_oracle_poster_bytes()
+        assert poster_path.read_bytes() == expected, "station3 poster 應對準焦點（獨立 oracle 比對）"
+
+    def test_station3_fixture_a(self, tmp_path):
+        self._run_station3(tmp_path, "a", self._FIXTURE_A)
+
+    def test_station3_fixture_b(self, tmp_path):
+        self._run_station3(tmp_path, "b", self._FIXTURE_B)
+
+    # -----------------------------------------------------------------
+    # TASK-101a-T3 DoD①（Opus 拍板，非選配）：off/emby/kodi 唯讀產生庫三路
+    # 各補一個 fixture-A-only 真跑案例（不 mock crop_to_poster/generate_
+    # jellyfin_images），斷言 poster bytes 皆等於同一個獨立 oracle——結構論證
+    # （readonly_producer.py:659 的呼叫對四路無條件）在此被實測釘死，不只是
+    # 「現在為真」，未來若有人在某一路加分支跳過烤圖，這裡會紅。
+    # -----------------------------------------------------------------
+
+    def test_station3_off_fixture_a(self, tmp_path):
+        self._run_station3(tmp_path, "off", self._FIXTURE_A, external_manager='off')
+
+    def test_station3_emby_fixture_a(self, tmp_path):
+        self._run_station3(tmp_path, "emby", self._FIXTURE_A, external_manager='emby')
+
+    def test_station3_kodi_fixture_a(self, tmp_path):
+        self._run_station3(tmp_path, "kodi", self._FIXTURE_A, external_manager='kodi')
+
+
+# ---------------------------------------------------------------------------
 # TASK-89a-T4 (Codex #3 / #4): _build_old_base + _clean_stale_extrafanart/_clean_stale_singletons
 # ---------------------------------------------------------------------------
 
@@ -863,7 +955,7 @@ def _t4_real_download(url, save_path, referer=''):
     return True
 
 
-def _t4_real_jellyfin(cover_fs, base_stem):
+def _t4_real_jellyfin(cover_fs, base_stem, **_kw):
     Path(base_stem + '-poster.jpg').write_bytes(b'FAKE-IMG')
     Path(base_stem + '-fanart.jpg').write_bytes(b'FAKE-IMG')
     return {'poster': True, 'fanart': True}

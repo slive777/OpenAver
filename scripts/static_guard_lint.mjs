@@ -93,6 +93,13 @@ const RULES = [
     note: '[TestShowcaseMetadataGuard] series searchFromMetadata call (grid panel or lightbox, OR)',
   },
 
+  // ---- [lint-guard 101d-T2] 焦點適用邊界就地註解不得被順手刪（spec-101 §7.3-2 要求就地註解；plan-101d §5.2/§5.3）----
+  // 錨四處「刻意不同/刻意不接」設計意圖註解的唯一關鍵句。刪任一句即紅（mutation 自驗）。
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: 'per-image 門檻刻意不同', note: '[lint-guard 101d-T2] 影片 gate≠女優 gate 就地註解（plan-101d §2.2）' },
+  { file: 'web/templates/showcase.html', kind: 'required-string', pattern: '與影片 _posterModeActive() 刻意不同', note: '[lint-guard 101d-T2] 女優側反向指引註解（plan-101d §2.2）' },
+  { file: 'web/static/css/pages/showcase.css', kind: 'required-string', pattern: '相似卡刻意固定右裁（桌面', note: '[lint-guard 101d-T2] 桌面 similar 卡固定右裁註解（plan-101d §5.3）' },
+  { file: 'web/static/css/pages/showcase.css', kind: 'required-string', pattern: '相似卡刻意固定右裁（手機 burst', note: '[lint-guard 101d-T2] 手機 burst similar 卡固定右裁註解（plan-101d §5.3）' },
+
   // ---- [TestMaskToggleGuard] 98b-T4 起家、99a-T3 沿用：遮罩綁定 / 生命週期 guard / no-硬編-ratio / endpoint URL ----
   { file: 'web/templates/showcase.html', kind: 'required-string', pattern: '@click="openMask', note: '[TestMaskToggleGuard] mask toggle icon button 綁 openMask' },
   // 98b P2 fix（Codex）：commit/re-check guard 由 path 比對（_maskVideoPath/sessionPath）
@@ -148,6 +155,11 @@ const RULES = [
   // lint 會帶著一條「已知會紅」的規則跑，不符 `npm run lint` 全綠的收工標準）。故 T3 移除本條
   // （非留給 T4），T4 仍照原計畫新增拖曳/V-X/gating-class 三條全新斷言。
   { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '/api/showcase/video/detect-focal', note: '[TestMaskToggleGuard] detect-focal endpoint fetch URL' },
+  // [lint-guard 101d-T3] 影片對焦存檔端點不得復名為 `/api/showcase/video/focal`——該路徑「video/ 緊接 focal」
+  // 像影片廣告 beacon，會被 ad/privacy 過濾清單（uBlock/AdGuard/Brave/Pi-hole）在瀏覽器端 net::ERR_FAILED
+  // 秒殺，✓ 存檔請求根本到不了 server（2026-07-18 owner 實測 + CDP/Network 診斷）。正名 video/save-focal。
+  // 註：`video/detect-focal`/`video/save-focal` 皆不含子字串 `video/focal`（video/ 後非恰為 focal）→ 不誤觸。
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'forbidden-string', pattern: '/api/showcase/video/focal', note: '[lint-guard 101d-T3] 影片對焦存檔端點禁復名 video/focal（撞廣告過濾清單），用 video/save-focal' },
   {
     file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'getComputedStyle',
     scope: { anchor: /_computeMaskWinStyle\s*\(\s*\)\s*\{/, braceBalanced: true },
@@ -356,9 +368,54 @@ const RULES = [
     note: '[TestMaskToggleGuard] 99a-T5：_maskStopWaitAnim 呼叫 GhostFly.stopFocalDetectWait',
   },
   {
+    // 101b-T2（§A-5 修訂框）改鎖：_maskStopWaitAnim() 隨 fallback 分支搬進 _maskStartSettle
+    // （openMask finally 現在只呼叫 _maskStartSettle(sawFace)，不再直呼 _maskStopWaitAnim()）
+    // ⇒ 該字面字串離開 openMask 的 brace scope，anchor 必須跟著改指 _maskStartSettle。
     file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '_maskStopWaitAnim()',
-    scope: { anchor: /async\s+openMask\s*\(\s*\)\s*\{/, braceBalanced: true },
-    note: '[TestMaskToggleGuard] 99a-T5：openMask finally 呼叫 _maskStopWaitAnim（正常結束路徑，session-gated）',
+    scope: { anchor: /_maskStartSettle\s*\(\s*hasFace\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 101b-T2：_maskStartSettle 的 fallback 分支（g0===null / 動畫層不可用 / PRM）呼叫 _maskStopWaitAnim（防 repeat:-1 loop 洩漏，CD-4b/CD-11a/CD-4c 同一分支）',
+  },
+  {
+    // 101b-T2：正常（收斂）路徑改用 handoffFocalDetectWait 交棒（不 clearProps），
+    // 與上一條的 fallback 路徑（全停）互斥地 scoped 在同一函式內。
+    // 🔴 pattern 必須鎖**呼叫形式**（含 `(this._maskWaitTl)`），不可只鎖裸識別字
+    //    `handoffFocalDetectWait`——同一 scope 內 canAnimate gate 的
+    //    `typeof window.GhostFly.handoffFocalDetectWait === 'function'` 也含該識別字，
+    //    裸鎖會被 gate 那行**恆滿足** ⇒ 真正的交棒呼叫整行刪掉仍綠（fail-open）。
+    //    此為 101b-T2 獨立 review 實跑 mutation 抓到（刪 :1376 呼叫、留 gate → 不紅）。
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'handoffFocalDetectWait(this._maskWaitTl)',
+    scope: { anchor: /_maskStartSettle\s*\(\s*hasFace\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 101b-T2（CD-4b）：_maskStartSettle 正常路徑呼叫 GhostFly.handoffFocalDetectWait(this._maskWaitTl) 交棒星空（不 clearProps）',
+  },
+  {
+    // 101b-T2（CD-4c）：C23 per-callsite PRM guard 隨 gate 搬進 _maskStartSettle（比照既有 :344
+    // openMask 內的同名 required rule——canAnimate 的組成之一）。
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'prefersReducedMotion',
+    scope: { anchor: /_maskStartSettle\s*\(\s*hasFace\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 101b-T2（CD-4c）：_maskStartSettle 的 canAnimate gate 含 PRM 檢查（C23 per-callsite）',
+  },
+  {
+    // Codex PR review P2 修正：canAnimate gate 必須連 `this._maskWaitTl`，缺席時
+    // handoffFocalDetectWait(null) 解構會拋 TypeError、卡死 settling 狀態。
+    // 🔴 pattern 必須鎖**連接形式** `&& this._maskWaitTl`，不可只鎖裸識別字
+    //    `_maskWaitTl`——同一 scope 內 :1386 有 `handoffFocalDetectWait(this._maskWaitTl)`
+    //    呼叫，裸鎖會被那行**恆滿足** ⇒ gate 本身被拿掉仍綠（fail-open，與 :369-373
+    //    handoffFocalDetectWait 呼叫式那條抓到的同型陷阱）。
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '&& this._maskWaitTl',
+    scope: { anchor: /_maskStartSettle\s*\(\s*hasFace\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] Codex PR review P2：_maskStartSettle 的 canAnimate gate 連 this._maskWaitTl，缺 wait handle 時退瞬現而非解構 null 拋錯',
+  },
+  {
+    // 101b-T5：步驟③原本無條件寫 `this._maskWinStyle = g0;`（全幅）——hasFace 時 g0 是
+    // 收斂起點（步驟⑥的 proxy tween 會覆寫），但 !hasFace 沒有任何後續步驟收斂，等於
+    // 讓「沒找到臉」永久停在全幅，遮罩對使用者隱形（scrim 無可暗化區域），違反 spec
+    // §4.2「沒找到臉→亮窗直接以基準位置淡入，不收斂」。修法：
+    // `hasFace ? g0 : (this._computeMaskWinStyle() || this._maskWinStyle)`（與既有 PRM
+    // fallback 分支 :1380 呼叫同一個 _computeMaskWinStyle()，CD-8 的直接編碼）。
+    // 鎖 `hasFace ? g0` 字面，防止未來被誤還原成單行 `this._maskWinStyle = g0;`。
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: 'hasFace ? g0',
+    scope: { anchor: /_maskStartSettle\s*\(\s*hasFace\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 101b-T5：_maskStartSettle 步驟③ no-face 落基準幾何（hasFace ? g0 : _computeMaskWinStyle()），不永久停在全幅',
   },
   {
     file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '_maskStopWaitAnim()',
@@ -370,6 +427,48 @@ const RULES = [
     scope: { anchor: /_maskTeardown\s*\(\s*\)\s*\{/, braceBalanced: true },
     note: '[TestMaskToggleGuard] 99a-T5：_maskTeardown 防禦性再保險呼叫 _maskStopWaitAnim（比照 _maskRemoveDragListeners 先例）',
   },
+  {
+    // 101b-T2（§A-3 落點表 #3）：GhostFly export 守衛——漏 export ⇒ canAnimate 恆 false ⇒
+    // 收斂永不播，而所有 DoD 照樣綠（fallback 是合法路徑）。比照 :336-337 def 家族形狀。
+    file: 'web/static/js/shared/ghost-fly.js', kind: 'required-string', pattern: 'handoffFocalDetectWait: handoffFocalDetectWait',
+    note: '[TestMaskToggleGuard] 101b-T2（CD-4b）：GhostFly public object 必須 export handoffFocalDetectWait',
+  },
+
+  // 101b-T3（§A-5）：_maskStopSettleAnim 對稱停止 helper——T2 只落地了實作，未替它建任何
+  // static_guard 規則（改鎖的 :359-365 借走的是 _maskStopWaitAnim 的 anchor）。比照星空
+  // 家族（:352 起）「定義存在 + 生命週期端點各自呼叫」的既有形狀補齊。
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '_maskStopSettleAnim() {',
+    note: '[TestMaskToggleGuard] 101b-T3：收斂補間對稱停止 helper 函式定義存在' },
+
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '_maskStopSettleAnim()',
+    scope: { anchor: /_maskDragStart\s*\(\s*evt\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 101b-T3（CD-10）：_maskDragStart 拖曳接管呼叫 _maskStopSettleAnim' },
+
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '_maskStopSettleAnim()',
+    scope: { anchor: /_maskTeardown\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 101b-T3（§A-5）：_maskTeardown 防禦性再保險呼叫 _maskStopSettleAnim' },
+
+  { file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '_maskStopSettleAnim()',
+    scope: { anchor: /_resetMask\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestMaskToggleGuard] 101b-T3（§A-5）：_resetMask 中斷路徑（換片/關燈箱/ESC）呼叫 _maskStopSettleAnim' },
+
+  { file: 'web/templates/_macros/focal_mask.html', kind: 'required-string', pattern: "'lb-mask-window--settling': _maskSettling",
+    note: '[TestMaskToggleGuard] 101b-T3（CD-5）：.lb-mask-window :class 綁 --settling guard class' },
+
+  { file: 'web/static/css/pages/showcase.css', kind: 'required-string', pattern: '.lb-mask-window--settling',
+    note: '[TestMaskToggleGuard] 101b-T3（CD-5/C21）：--settling class 停用 transition 規則存在' },
+
+  // 101b-T6：修 spinner 靜止不轉——CDP 像素驗證證實根因是 <i class="bi spin"> 預設
+  // display:inline（Bootstrap Icons 只把 .bi::before 偽元素設 inline-block），CSS transform
+  // 對 non-replaced inline box 不產生視覺效果，animation 確實在跑（computed transform 逐
+  // frame 變化）卻視覺靜止——這正是前兩次修法都沒解到、CDP 只量 computed transform 會被騙的
+  // 病灶。只鎖 animation 字串仍可能假綠（拿掉 display:inline-block 那行，animation 字串仍在，
+  // 但視覺照樣不轉）——兩條都鎖，anchor scope 到 .lb-mask-spinner .bi.spin 規則本體，
+  // braceBalanced 防止改到其他規則的同名字串。
+  { file: 'web/static/css/pages/showcase.css', kind: 'required-string',
+    pattern: ['display: inline-block;', 'animation: spin 1s linear infinite !important;'],
+    scope: { anchor: /\.lb-mask-spinner \.bi\.spin\s*\{/, braceBalanced: true },
+    note: '[TestMaskSpinnerRotateGuard] 101b-T6：.lb-mask-spinner .bi.spin 真正修復需 display:inline-block（承重，讓 inline icon 變可 transform 的盒子）+ animation !important（蓋過 PRM blanket，owner 訴求「不存在靜態模式」）兩條並存，缺一視覺仍不轉' },
 
   // ---- Codex 本地 review 修正（Fix A）：_actressPhotoLoaded 不該被 _maskTeardown 清掉 ----
   // 病灶：_maskTeardown 原本會把此旗標設回 false，但 confirmMask/cancelMask → _maskTeardown
@@ -463,6 +562,21 @@ const RULES = [
     file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'forbidden-string', pattern: 'this._closePicker();',
     scope: { anchor: /if\s*\(!resp\.ok\)\s*\{/, braceBalanced: true },
     note: '[TestMaskToggleGuard] 100b-T2b：_uploadActressPhoto 失敗分支（!resp.ok）不得關 picker（spec §3.1+§C 刻意分歧，非漏改）',
+  },
+  // [TestPickerLeakGuard] 101b-T4：影片/搜尋模式下經 hero-card 開啟女優燈箱、開了換照片
+  // picker 卻不關、直接按左右箭頭切片這條路徑上 _pickerOpen 永遠停在 true 的洩漏（spec
+  // §4.6／plan-101b §C／CD-13）。排序而非旗標：兩函式開頭關閉殘留 picker，讓壞狀態不可能。
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: 'if (this._pickerOpen) this._closePicker();',
+    scope: { anchor: /prevLightboxVideo\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestPickerLeakGuard] 101b-T4：prevLightboxVideo 開頭關閉殘留 picker（spec §4.6，排序而非旗標）',
+  },
+  {
+    file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string',
+    pattern: 'if (this._pickerOpen) this._closePicker();',
+    scope: { anchor: /nextLightboxVideo\s*\(\s*\)\s*\{/, braceBalanced: true },
+    note: '[TestPickerLeakGuard] 101b-T4：nextLightboxVideo 開頭關閉殘留 picker（spec §4.6，排序而非旗標）',
   },
   // spec §3.7-7「零偵測成本」：上傳流程全程不得呼叫 detect-focal（by-construction，本
   // 規則把它機械鎖住——「不做某事」測試鎖不到，只有守衛鎖得到）。
@@ -634,6 +748,25 @@ const RULES = [
     file: 'web/static/js/pages/showcase/state-lightbox.js', kind: 'required-string', pattern: '--actress-crop-ratio',
     scope: { anchor: /_computeMaskWinStyle\s*\(\s*\)\s*\{/, braceBalanced: true },
     note: '[TestMaskToggleGuard] 100b-T5：_computeMaskWinStyle 讀 --actress-crop-ratio（CD-3 正向鎖，鏡射既有 --poster-crop-ratio required）',
+  },
+
+  // §A／101c-T1：女優裁窗比例雙真理 parity 守衛（cross-file-equal，第 10 個 kind）。
+  // 後端 _FOCAL_DETECT_RATIO(actress.py) 與前端 --actress-crop-ratio(theme.css) 是兩份獨立真理、
+  // 無任何機制強制同步（兩處註解皆自承）。改一邊漏改另一邊 → 後端依新 ratio 判主軸可能回 Y 軸、
+  // 前端仍鎖 X 軸拖曳 → 靜默錯框。此守衛鎖「一致」（CD-4：不寫死 0.75，同步改綠、單改一邊紅）。
+  // 🔴 pattern 錨死完整 --actress-crop-ratio:，不可寬鬆匹配到相鄰的 --poster-crop-ratio:0.71（theme.css:561）。
+  {
+    kind: 'cross-file-equal',
+    label: 'actress-crop-ratio parity',
+    // 🔴 數值 pattern 擷取完整數值 literal（含科學記號 0.75e-1），並以行首/行尾錨定實際
+    // assignment（m flag），否則 `[0-9.]+` 只抓 e 之前的前綴：後端改成合法值 0.75e-1(=0.075)、
+    // 前端維持 0.75，兩邊都截在 e、都擷到 "0.75" → 假性相等放行（Codex P2）。CSS 端 `;` 前不許
+    // 單位後綴（0.75rem 之類）造成假綠——不匹配即 fail-closed 轉紅（安全方向）。
+    sources: [
+      { file: 'web/routers/actress.py',   pattern: /^_FOCAL_DETECT_RATIO\s*=\s*([0-9]*\.?[0-9]+(?:[eE][+-]?[0-9]+)?)\s*(?:#.*)?$/m },
+      { file: 'web/static/css/theme.css', pattern: /^\s*--actress-crop-ratio:\s*([0-9]*\.?[0-9]+(?:[eE][+-]?[0-9]+)?)\s*;/m },
+    ],
+    note: '[TestRatioParityGuard] spec-101 §5.1：女優裁窗比例後端(_FOCAL_DETECT_RATIO)與前端(--actress-crop-ratio)雙真理，無強制同步機制，此守衛鎖一致（CD-4：鎖一致非鎖 0.75）',
   },
 
   // CD-1：女優不得裸讀 --poster-crop-ratio、不得在 state-actress.js 內另起一套 _mask* 平行實作
@@ -1484,14 +1617,20 @@ const RULES = [
   // 而非 eslint（Opus-resolved 決策 1：eslint no-restricted-syntax 對這 7 個分散白名單檔缺乏
   // 精準 file-scope 手段，改用本引擎既有的 dir-mode exclude，比開 5 個新 eslint
   // group 更省事且不擴大 flat-config 陷阱攻擊面）。
-  // 7 檔白名單（動態座標計算 / adapter 本體 / per-host lifecycle 合法呼叫，與來源 pytest
-  // allowed_files 完全對齊）：
+  // 7 檔白名單（動態座標計算 / adapter 本體 / per-host lifecycle 合法呼叫）：
+  //   〔7 檔＝96b-T4 自來源 pytest allowed_files 逐字 port，該 pytest 已於 feature/96
+  //     遷移時刪除，本清單即現存唯一真理〕
   //   components/motion-adapter.js、pages/motion-lab.js、pages/motion-lab-state.js、
   //   pages/search/animations.js、pages/showcase/animations.js、
   //   pages/motion-lab/constellation-host.js、pages/showcase/state-similar.js。
   // exclude 比對「相對於 dir 的相對路徑」（非 basename）：basename 比對會讓未來新增的同名檔
   // （如 pages/foo/animations.js）被誤放行，故改用完整相對路徑，與來源 pytest 語意一致
   // （Codex P2 fix，2026-07）。
+  // 101b-T2 曾把 state-lightbox.js 加入白名單（settle timeline 直接呼叫 gsap）——Codex PR#110
+  // P2-2 指出「整檔 exclude」讓該 2000+ 行檔未來任何直接 gsap 呼叫都靜默放行。修正：把
+  // _maskStartSettle/_maskClearSettleProps 的 GSAP 編排移入 ghost-fly.js（shared/，已是 focal
+  // 動畫家族的家，不在 pages 掃描範圍），state-lightbox.js 現零直接 gsap 呼叫，故移出白名單、
+  // 恢復守衛覆蓋（未來任何回潮直接 gsap 會被此規則擋下）。
   {
     file: {
       dir: 'web/static/js/pages', ext: ['.js'], recursive: true,
@@ -1506,7 +1645,7 @@ const RULES = [
     },
     kind: 'forbidden-string',
     pattern: /(?:gsap\.(?:to|from|fromTo|set|timeline)\(|ScrollTrigger\.(?:create|batch)\()/,
-    note: '[TestMotionInfra] test_no_direct_gsap_calls_in_pages — pages/**/*.js 禁直接 GSAP/ScrollTrigger 呼叫（白名單 6 檔 exclude by-relpath）',
+    note: '[TestMotionInfra] test_no_direct_gsap_calls_in_pages — pages/**/*.js 禁直接 GSAP/ScrollTrigger 呼叫（白名單 7 檔 exclude by-relpath）',
   },
   {
     file: { dir: 'web/static/js/components', ext: ['.js'], recursive: true, exclude: ['motion-adapter.js'] },
@@ -3699,8 +3838,53 @@ for (const rule of RULES) {
   }
 }
 
+// ---- cross-file-equal（101c-T1 新 kind，第 10 個）----
+// 跨多個來源檔各自 exec 一個 pattern、取 capture group 1、parseFloat，全部相等才通過。
+// 無單一 rule.file（改用 rule.sources），故在 main 迴圈頂部特殊分支攔截、不進 evalRule
+// （比照 file-absent，但更前面：file-absent 仍有 rule.file 字串、在 typeof 分支內攔；
+// 本 kind 無 rule.file，若落到 else 分支會解構 undefined 而 crash，必須在 typeof 判斷之前攔）。
+// fail-closed：任一 source pattern 無匹配（常數被改名/刪除）即 err，不 vacuous-pass。
+// CD-4：鎖「一致」非鎖固定值——不寫死期望數值，同步改綠、單改一邊紅。
+// CSS block comment `/* … */` 剝除。lazy 量詞 `*?`：greedy `[\s\S]*` 會從第一個 `/*`
+// 吃到最後一個 `*/`、把中間真宣告一併吞掉。用途：m-flag `^` 錨定會匹配到註解內被停用的
+// `--actress-crop-ratio:` 宣告行，`.exec` 回第一個 match → 擷到註解舊值而非 active 值（假綠，
+// Codex P2）。剝除後：真宣告仍匹配；若 active 宣告整段被註解掉、無 active 宣告 → 無匹配 →
+// evalCrossFileEqual 的 fail-closed err（安全方向，宣告被移除/停用必轉紅）。
+function stripCssBlockComments(text) {
+  return text.replace(/\/\*[\s\S]*?\*\//g, '');
+}
+
+function evalCrossFileEqual(rule) {
+  const seen = [];
+  for (const src of rule.sources) {
+    let text = readTarget(src.file);
+    if (text === null) {
+      err(`${rule.note} — ${src.file}: 檔案不存在或無法讀取`);
+      return;
+    }
+    // CSS 來源：比對前剝除 block comment，避免 m-flag `^` 匹配註解內停用的宣告行造成假綠
+    // （correct-by-default：ratio parity 永遠不該匹配 CSS 註解內容）。Python 來源不套——其
+    // `^_FOCAL_DETECT_RATIO` pattern 已用 `(?:#.*)?$` 排除行尾 `#` 註解，無 block comment 語法。
+    if (src.file.endsWith('.css')) {
+      text = stripCssBlockComments(text);
+    }
+    const m = src.pattern.exec(text);
+    if (!m || m[1] === undefined) {
+      err(`${rule.note} — ${src.file}: pattern ${patternLabel(src.pattern)} 無匹配（常數被改名/刪除？fail-closed）`);
+      return;
+    }
+    seen.push({ file: src.file, value: parseFloat(m[1]), raw: m[1] });
+  }
+  const first = seen[0].value;
+  if (!seen.every((s) => s.value === first)) {
+    const detail = seen.map((s) => `${s.file}=${s.raw}`).join(' ≠ ');
+    err(`${rule.note} — ${rule.label || 'cross-file-equal'}: 值不一致（${detail}）`);
+  }
+}
+
 // ---- main ----
 for (const rule of RULES) {
+  if (rule.kind === 'cross-file-equal') { evalCrossFileEqual(rule); continue; }
   if (typeof rule.file === 'string') {
     // file-absent（96b-T3 新能力）：反向邏輯，必須在通用 readTarget/read-fail-is-error 路徑
     // 之前攔截——檔案「存在」才是違規（舊檔忘記刪除），檔案「不存在」是預期的通過狀態。
@@ -3740,4 +3924,4 @@ for (const rule of RULES) {
 if (hadError) {
   process.exit(1);
 }
-console.log(`✓ static_guard_lint: ${RULES.length} 條規則全數通過（required-string/forbidden-string/dup-id/structure-count/tag-scan/inline-style-token/order/paired-string）`);
+console.log(`✓ static_guard_lint: ${RULES.length} 條規則全數通過（required-string/forbidden-string/dup-id/structure-count/tag-scan/inline-style-token/order/paired-string/file-absent/cross-file-equal）`);

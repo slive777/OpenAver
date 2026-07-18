@@ -16,7 +16,7 @@ import { parseFocal, clampMaskWinLeft } from '@/shared/focal.js';
 // 100b-T2a：CD-2 軸向/凍結判定 + 亮窗幾何純函式抽至 shared/mask-geometry.js（可測試性——
 // 本檔的 `@/showcase/...` importmap alias 只有瀏覽器認得，node:test 無法直接 import 本檔；
 // mask-geometry.js 只用相對路徑 import，node:test 可直接驗證，見該檔開頭說明）。
-import { computeMaskWinGeometry, computeMaskDragRoom, MASK_MIN_DRAG_ROOM } from '@/shared/mask-geometry.js';
+import { computeMaskWinGeometry, computeMaskDragRoom, MASK_MIN_DRAG_ROOM, computeMaskSettleGeometry } from '@/shared/mask-geometry.js';
 import { syncActressFields } from '@/shared/actress-sync.js';
 
 export function stateLightbox() {
@@ -85,6 +85,16 @@ export function stateLightbox() {
         _maskVisible: false,            // 遮罩 overlay 是否顯示
         _maskSession: 0,                // 單調遞增 session id（openMask/_resetMask 遞增）
         _maskDetecting: false,          // force-detect 進行中（spinner）
+        // 101d-T1：影片焦點 icon gate（CD-1/CD-3）。「窄」＝畫面正以 poster（0.71 直式）裁切呈現，
+        // 今天＝ ≤899px（grid 小格的 poster-crop 只在 @media (max-width:899px) 套，plan-101d §2.1）。
+        // 用 matchMedia 非 innerWidth：裁切由 CSS media query 驅動 → matchMedia 與裁切逐像素同步
+        // （innerWidth 在有捲軸時差一個捲軸寬）。門檻 reuse 既有 POSTER_CROP_MAX_W 常數（已被
+        // TestPosterCropThresholdAlignment 鎖常數↔CSS），不裸寫 899、不新建常數（CD-1/§6 Non-Goal #13）。
+        // reactive：state-base.init() 掛 page-level matchMedia change listener 改此值（同一 Alpine
+        // component，mergeState 合併 → 同一屬性）；x-show 讀 _posterModeActive() → 訂閱本 data → 即時翻。
+        _isNarrow: (typeof window.matchMedia === 'function')
+            ? window.matchMedia('(max-width: ' + POSTER_CROP_MAX_W + 'px)').matches
+            : (window.innerWidth <= POSTER_CROP_MAX_W),   // 無 matchMedia 的嵌入環境 → 一次性 fallback
         // 98b-T6：亮窗幾何 reactive data（openMask/drag 同步 imperative 算，非量測-in-binding）。
         // 99a-T5：型別恆為 object（非 string）——headless self-verify 實測抓到：Alpine `:style`
         // 綁 STRING 值時走 `el.setAttribute('style', ...)` 整串覆寫（Alpine 內部 `Xn()`），會把
@@ -105,6 +115,11 @@ export function stateLightbox() {
         // 不送 POST，避免用「猜的」cover_path 打穿 compare-and-store 守衛的保護意圖。
         _maskExpectedCoverPath: null,
         _maskDragging: false,           // 拖曳中（停用 CSS transition，跟手不打架，見 showcase.css）
+        // 101b-T2（CD-4a/CD-5）：收斂補間進行中旗標——只在 _maskDetecting 翻 false 之後才可能為
+        // true（結構上不與 _maskDetecting 重疊，見 _maskStartSettle 步驟④⑤順序）。x-show 驅動
+        // .lb-mask-wait-burst/.lb-mask-spinner 延壽 + .lb-mask-window--settling class（CD-5，
+        // 停用 CSS transition，防與 GSAP 逐 tick 寫 Alpine :style 雙重 easing）。
+        _maskSettling: false,
         _maskDragMoveHandler: null,     // document pointermove listener 參照（成對 add/remove）
         _maskDragUpHandler: null,       // document pointerup/pointercancel listener 參照（成對 add/remove）
         // 99a-T5：detect-first 重新設計——force-detect 先跑完（星空等待動畫佔位），偵測完成
@@ -116,6 +131,12 @@ export function stateLightbox() {
         _maskWaitTl: null,              // 99a-T5：星空等待動畫 handle（{tl,burst,stars}），detect
                                          // 期間播放；openMask 啟動，finally/_resetMask/_maskTeardown
                                          // 三處對稱停止（_maskStopWaitAnim helper，idempotent）。
+                                         // 101b-T2：正常（收斂）路徑改由 _maskStartSettle 交棒
+                                         // （handoffFocalDetectWait，不置 null），fallback 分支
+                                         // 仍走 _maskStopWaitAnim 全停清空（CD-4b）。
+        _maskSettleTl: null,            // 101b-T2：收斂 GSAP timeline handle（id:'focalSettle'），
+                                         // _maskStopSettleAnim（拖曳接管/中斷路徑）與 onComplete/
+                                         // onInterrupt（正常結束）對稱清空，見 _maskClearSettleProps。
 
         _videoChipsExpanded: false,     // 影片 tag chips +N 展開（T4 使用）
 
@@ -235,6 +256,20 @@ export function stateLightbox() {
             const wideEnough = this._actressPhotoWideEnough;
             const pickerClosed = !this._pickerOpen;
             return notEditing && hasPhoto && loaded && wideEnough && pickerClosed;
+        },
+
+        // 101d-T1：影片焦點 icon 顯示 gate（CD-4）。語意旗標 method——只在畫面真的以 poster 裁切
+        // 呈現時才顯示 icon（今天＝窄螢幕，讀 reactive _isNarrow）。x-show 以 () 呼叫，理由是比照
+        // _focalIconVisible() 慣例／可讀性／未來相容性——**保留括號**。⚠️ 但別把「漏括號」當 runtime
+        // bug：Alpine 3 對 x-show **尾端**求值為 function 者會 auto-invoke（101d-T1 CDP 實測），故
+        // `A && B && _posterModeActive` 在當前版本其實等效帶括號、非 gate 失效（見 gotchas-frontend
+        // 「Alpine methods 必須加 ()」節精確化）。未來「完整/poster 模式」toggle landed 後只改此 body
+        // 為 `return this._isNarrow || this._userPosterModeOn`，不動 icon x-show、不動任何呼叫端
+        // （plan-101d CD-4，spec §7.2 Non-Goal #14）。
+        // 影片 gate 與女優 _focalIconVisible() 的 per-image 門檻刻意不同（影片只 ≤899px 裁、女優牆
+        // 全寬度都裁，plan-101d §2.2）——此不對稱是有原則的，勿「對齊」成同一套。
+        _posterModeActive() {
+            return this._isNarrow;
         },
 
         // F1: helper — 更新 lightboxIndex + currentLightboxVideo 一致性
@@ -653,6 +688,11 @@ export function stateLightbox() {
             var lbEl = document.querySelector('.showcase-lightbox');
             if (lbEl) lbEl.classList.remove('gsap-animating');
 
+            // 101b-T4: 影片箭頭導覽時若換照片 picker 仍開著（hero-card → picker → 箭頭
+            // 這條路徑，見 showcase.html:1091-1108 既有註解），排序讓壞狀態不可能發生——
+            // 用 sync 的 _closePicker() 而非 async _cancelPicker()，不製造多一拍等待。
+            if (this._pickerOpen) this._closePicker();
+
             // 44b: -1 sentinel — already at leftmost, do not move
             if (this.lightboxIndex === -1) return;
 
@@ -718,6 +758,11 @@ export function stateLightbox() {
             this._lightboxAnimating = false;
             var lbEl = document.querySelector('.showcase-lightbox');
             if (lbEl) lbEl.classList.remove('gsap-animating');
+
+            // 101b-T4: 影片箭頭導覽時若換照片 picker 仍開著（hero-card → picker → 箭頭
+            // 這條路徑，見 showcase.html:1091-1108 既有註解），排序讓壞狀態不可能發生——
+            // 用 sync 的 _closePicker() 而非 async _cancelPicker()，不製造多一拍等待。
+            if (this._pickerOpen) this._closePicker();
 
             // 44b: from -1 (hero card) → jump to first video
             if (this.lightboxIndex === -1) {
@@ -891,7 +936,7 @@ export function stateLightbox() {
                 identity: this.currentLightboxVideo?.path,
                 ratio: '--poster-crop-ratio',
                 detectEndpoint: '/api/showcase/video/detect-focal',
-                focalEndpoint: '/api/showcase/video/focal',
+                focalEndpoint: '/api/showcase/video/save-focal',
                 focalBody: (focal) => ({
                     path: this.currentLightboxVideo?.path,
                     focal,
@@ -977,6 +1022,10 @@ export function stateLightbox() {
             // 那一刻起才第一次畫出來，畫出來就已是終值——不再有「先貼右裁基準再滑到偵測位置」的
             // 過渡態，拖曳入口（@pointerdown）在 detect 完成前也不存在，Bug 1 的 race 結構性消失。
             const session = this._maskSession;
+            // 101b-T2（CD-4a/CD-8）：try 之外宣告，finally 讀得到。不可從 _maskFocalX 反推
+            // （無臉時 _maskFocalX 停在起手基準，與 pigo 真的回同值的基準無法區分——女優基準
+            // 恆 0.5，pigo 也可能回 0.5；video 基準是右裁算式，pigo 也可能剛好回同值）。
+            let sawFace = false;
             const targetVideo = this._maskTarget().obj;   // 100b-T1：identity 統一走 helper（video 分支＝currentLightboxVideo）
             // 100b-T2a：actress 分支 targetVideo = currentLightboxActress（無 .path）——下方
             // fetch body 的 `targetVideo.path` 對 actress 恆 undefined，JSON.stringify 會直接
@@ -1038,9 +1087,11 @@ export function stateLightbox() {
                     if (parsed) {
                         // 女優基準恆 3/4 置中（spec §3.4）：僅更新 X 焦點，Y 分量已無讀寫點
                         // （恆 0.5000，見 CD-11／confirmMask 硬編 ,0.5000）。
+                        sawFace = true;   // 101b-T2（CD-8）：找到臉，_maskStartSettle 據此掛收斂 tween
                         this._maskFocalX = parsed.x;
-                        // 99a-T5：|| fallback 同 resize handler——null 不可流進 :style 綁定。
-                        this._maskWinStyle = this._computeMaskWinStyle() || this._maskWinStyle;
+                        // 101b-T2（CD-4a）：這行原本在此重算終值——現整行移除，終值改由收斂
+                        // timeline 的 t=1 端點產生（computeMaskSettleGeometry），由構造保證
+                        // 「首次可見幀＝全幅」不被本行的終值寫入破壞。
                     }
                     // else：無臉——維持起手基準（video：右裁 x；actress：3/4 置中 0.5，
                     // openMask 起手已算好），不動它。逃生口仍可拖曳 + ✓ 存入（spec §3.7-6）。
@@ -1055,9 +1106,13 @@ export function stateLightbox() {
                 // 中斷（換片/關燈箱），_resetMask 早已呼叫過 _maskStopWaitAnim 並清空
                 // this._maskWaitTl；此處若不 session-gate，會誤殺「新 session 剛啟動的星空」
                 // （見本 task 的「等待期間快速連續開關」邊界案例）。
+                // 101b-T2（CD-4a/CD-4b）：原本這裡直呼 _maskDetecting=false + _maskStopWaitAnim()
+                // ——那是「硬切」本體，本 Part 要消滅的正是這個。改呼叫 _maskStartSettle(sawFace)，
+                // 由它接手決定全幅預寫→_maskDetecting 解禁→交棒星空→掛收斂 timeline 的完整順序
+                // （或 g0/canAnimate 不成立時走 fallback 原路）。finally 是 timeline 的起跑點，
+                // 不是收尾點——_maskStopSettleAnim() 刻意不放在這裡（§A-5）。
                 if (session === this._maskSession) {
-                    this._maskDetecting = false;
-                    this._maskStopWaitAnim();   // 成功/失敗皆算「正常結束」，對稱停止
+                    this._maskStartSettle(sawFace);
                 }
             }
         },
@@ -1070,6 +1125,10 @@ export function stateLightbox() {
             // 直接忽略——否則會覆寫 _maskDragMoveHandler/_maskDragUpHandler 參考，讓第一組
             // document listener 永遠移不掉（洩漏 + 並發 stale 寫入）。
             if (this._maskDragging) return;
+            // 101b-T2（CD-10）：收斂補間進行中被拖曳接管——kill 收斂 tween 讓使用者的手勝出
+            // （比照 killTweensOf「最新的勝出」慣例）。插入點在兩個 early-return 之後、第一次
+            // 取樣之前，不放首行（放首行會在早退情境誤 kill）。
+            this._maskStopSettleAnim();
             const el = this._maskTarget().imgEl;   // 100b-T1：G3 null-safe（x-if 內 $refs 可能 undefined）
             if (!el || !el.naturalWidth) return;
             const rect = el.getBoundingClientRect();
@@ -1080,6 +1139,28 @@ export function stateLightbox() {
             if (!Number.isFinite(r) || r <= 0) return;
             const winW = Math.min(W, H * r);
             const startClientX = evt.clientX;
+            // 101b-T2 P2（Codex PR review）：拖曳接管「收斂中」的窗——_maskStopSettleAnim() 已 kill
+            // timeline，但 _maskFocalX 仍是偵測終值，而視覺上的窗還停在收斂中的**中間**幾何（settle
+            // onUpdate 每 tick 寫 _maskWinStyle 的內插值：中間寬度 + 中間中心 focal_t）。若直接用終值
+            // 算 startLeft，首次 pointermove 會把窗從當前可見中心瞬跳到終值中心（X snap）。修法：交棒
+            // 當下把 _maskFocalX 同步成「當前可見窗的中心焦點」（從 _maskWinStyle 反解），讓終寬窗以
+            // **當前中心**落定——中心不跳、只有寬度收到終值（WYSIWYG 必需：存的裁窗恆為終比例），
+            // 再從那裡跟手。非收斂態時可見窗中心本就 == _maskFocalX（同一 computeMaskWinGeometry
+            // writer），此步為 no-op。解析失敗（_maskWinStyle 尚未成幾何）→ 保留 _maskFocalX（防禦）。
+            const curWin = this._maskWinStyle;
+            if (curWin && typeof curWin.width === 'string' && typeof curWin.transform === 'string') {
+                const curWinW = parseFloat(curWin.width);
+                const curLeftMatch = /translateX\(\s*(-?[\d.]+)px\s*\)/.exec(curWin.transform);
+                const curLeft = curLeftMatch ? parseFloat(curLeftMatch[1]) : NaN;
+                if (Number.isFinite(curWinW) && Number.isFinite(curLeft)) {
+                    this._maskFocalX = (curLeft + curWinW / 2) / W;
+                }
+            }
+            // 101b P2（Codex PR#110 二審）：交棒當下立刻把窗重算成「終比例窗、以當前中心落定」，
+            // 不等 onMove。否則「收斂中按下→未拖曳即放開（tap／aborted drag）」時 _maskWinStyle 仍卡在
+            // _maskStopSettleAnim 凍結的中間寬度，比 confirmMask 會存的終窗更寬 → WYSIWYG 破。與 onMove
+            // 同一 writer（computeMaskWinGeometry），第一次 pointermove 再算一次亦一致；非收斂態 no-op。
+            this._maskWinStyle = computeMaskWinGeometry(W, H, r, this._maskFocalX);
             // 起手左緣必須與「視覺上看到的窗位置」一致＝比照 _computeMaskWinStyle 一樣 clamp
             // （99a Gemini P2）。raw _maskFocalX 貼邊時未鉗的 start 值會落在邊界外，窗子停在
             // 邊界但拖曳從界外起算 → 反向拖曳有死區、不跟手。clampMaskWinLeft 是數學軸無關的純量
@@ -1132,7 +1213,7 @@ export function stateLightbox() {
             }
         },
 
-        // ✓ 確認：存手動焦點 → POST /video/focal，同參考 mutate targetVideo（lightbox + grid 即時對臉）。
+        // ✓ 確認：存手動焦點 → POST /video/save-focal，同參考 mutate targetVideo（lightbox + grid 即時對臉）。
         async confirmMask() {
             // _maskFocalX null 只應發生在極短暫態（geometry 尚未解出）；openMask 一旦幾何解出即收斂
             // 為具體值（correction B），此處 null-guard 純防禦（幾何失敗 / identity 遺失等異常態才會觸發）。
@@ -1244,6 +1325,9 @@ export function stateLightbox() {
             // （✓/✗ 只在 _maskDetecting===false 才可見/可點），星空動畫應該已由 openMask 的
             // finally 停過；比照上面 _maskRemoveDragListeners 的「再保險一次」寫法補一次 kill。
             this._maskStopWaitAnim();
+            // 101b-T2（§A-5）：收斂補間對稱再保險——理論上 ✓/✗ 觸發時收斂早已播完，比照上面
+            // 「再保險一次」寫法補一次 kill（idempotent，收斂已結束時安全 no-op）。
+            this._maskStopSettleAnim();
             // Codex 本地 review 修正（Fix A）：本函式刻意**不**在此清女優圖已載入旗標。
             // 該旗標的生命週期屬於「燈箱這張照片」（writer 只有 @load handler +
             // _refreshActressPhotoLoaded() 的 4 個呼叫點），不屬於「這次遮罩編輯 session」。
@@ -1275,6 +1359,8 @@ export function stateLightbox() {
             this._maskRemoveDragListeners();   // 99a-T3：拖曳中途換片/關燈箱兜底，移除 document listener
             this._maskStopWaitAnim();    // 99a-T5：detect 期間中斷（換片/關燈箱/ESC）對稱停星空動畫，
                                           // 防「舊 session 星空還在跑、新 session 又疊一份」
+            this._maskStopSettleAnim();  // 101b-T2（§A-5）：收斂期間中斷（換片/關燈箱/ESC）對稱停止，
+                                          // 防「舊 session 收斂還在跑、新 session 又疊一份」
             if (this._maskResizeHandler) {
                 window.removeEventListener('resize', this._maskResizeHandler);
                 this._maskResizeHandler = null;
@@ -1295,6 +1381,113 @@ export function stateLightbox() {
                 window.GhostFly.stopFocalDetectWait(this._maskWaitTl);
             }
             this._maskWaitTl = null;
+        },
+
+        // 101b-T2（CD-4a/CD-4b/CD-4c/CD-5/CD-7/CD-8/CD-9/CD-11a，§A-3a 權威步驟表）：由 openMask
+        // finally 呼叫（已 session-gated），取代舊有的「_maskDetecting=false + _maskStopWaitAnim()」
+        // 硬切。決定「偵測完成 → 星空淡出 → 亮窗收斂到終值」是否以單一 GSAP timeline overlap 播放，
+        // 或退化成今天的瞬現路徑（g0 為 null / PRM / 動畫層不可用）。
+        //
+        // hasFace：CD-8——找到臉才掛第 4 條 proxy tween（收斂），無臉/偵測失敗仍走同一條 timeline
+        // （星空/spinner 淡出＋窗淡入），只是窗停在起手基準不收斂。
+        _maskStartSettle(hasFace) {
+            // ① 取樣一次（比照 _maskDragStart 首次取樣，刻意不逐 tick 量測）。coverEl 是
+            // openMask 內 `if (!isPRM)` block 的區域變數，離開該 block 即不可見，此處需自己重取。
+            const el = this._maskTarget().imgEl;
+            const coverEl = el?.closest('.lightbox-cover');
+            let W, H, r;
+            if (el && el.naturalWidth) {
+                const rect = el.getBoundingClientRect();
+                W = rect.width;
+                H = rect.height;
+                r = parseFloat(getComputedStyle(el).getPropertyValue(
+                    this._maskKind === 'actress' ? '--actress-crop-ratio' : '--poster-crop-ratio'
+                ));
+            }
+
+            // ② gate（CD-11a fail-closed 幾何 + CD-4c 動畫層可用性，同一個 fallback 分支）。
+            const g0 = computeMaskSettleGeometry(W, H, r, this._maskFocalX, 0);
+            const isPRM = !!(window.OpenAver && window.OpenAver.prefersReducedMotion);
+            // 🔴 Codex PR review P2 修正：canAnimate 必須連 gate `this._maskWaitTl`——
+            // wait handle 是 :1386 handoffFocalDetectWait(this._maskWaitTl) 交棒的前提，
+            // 缺它（burst/star DOM 不在場，即使 gsap 存在）_maskWaitTl 恆為 null，
+            // handoffFocalDetectWait(null) 回 null，解構 `{ stars, burst }` 會拋
+            // TypeError，此時 _maskSettling 已設 true 卻無 cleanup，卡死 spinner/遮罩。
+            // gate 掉後走既有 fallback 分支（瞬現、_maskStopWaitAnim 對 null 安全 no-op），
+            // 不是 belt-and-suspenders 式 null-safe 解構——單一決策點，結構上不可能再拿到 null。
+            const canAnimate = !isPRM
+                && typeof gsap !== 'undefined'
+                && window.GhostFly && typeof window.GhostFly.handoffFocalDetectWait === 'function'
+                && this._maskWaitTl;
+            if (!g0 || !canAnimate) {
+                // 既有 :1043 原路——不得用已知無效的 W/H/r 重算終值（那組值已知不合法，
+                // computeMaskSettleGeometry 才會回 null）；合法 fallback 恆存在（openMask
+                // pre-flight 已擋掉不合法幾何，_maskWinStyle 此刻必為合法值）。
+                this._maskWinStyle = this._computeMaskWinStyle() || this._maskWinStyle;
+                this._maskStopWaitAnim();   // CD-4b：不呼叫 → repeat:-1 loop 整條洩漏
+                this._maskDetecting = false;
+                return;
+            }
+
+            // ③ 全幅，同步寫在 x-show 翻真之前（CD-4a 核心不變式）——但這只是 hasFace（收斂）
+            // 路徑的起點約定：no-face 沒有步驟⑥掛收斂 tween，寫「全幅」給它既非「起點」也非
+            // spec §4.2 要求的「終點」（基準）。101b-T5：hasFace 分支一字不動（g0），!hasFace
+            // 直接落基準幾何（與既有 PRM fallback 分支 :1380 呼叫同一個 _computeMaskWinStyle()）
+            // ——CD-8「找到／沒找到的差別＝收斂 vs 不收斂，只此一項」的直接編碼。
+            this._maskWinStyle = hasFace ? g0 : (this._computeMaskWinStyle() || this._maskWinStyle);
+            // ④ 必須晚於 ② 的 gate（CD-4c：早於它＝動畫層不可用時永久卡 true）。
+            this._maskSettling = true;
+            // ⑤ x-show 此刻才放行；首次 paint 讀到步驟③寫入的值——hasFace＝全幅（g0，收斂起點）、
+            //    no-face＝基準（右裁/置中，直接落定不收斂，spec §4.2）。
+            this._maskDetecting = false;
+
+            // ⑥ 交棒星空（CD-4b，不 clearProps）+ 建立單一 timeline（overlap 由 timeline 保證）。
+            const { stars, burst } = window.GhostFly.handoffFocalDetectWait(this._maskWaitTl);
+            const win = coverEl?.querySelector('.lb-mask-window');
+            const spinner = coverEl?.querySelector('.lb-mask-spinner');
+            const cleanup = () => this._maskClearSettleProps();
+            // 101b-T2 / Codex PR#110 P2-2：GSAP 編排移入 GhostFly（shared/，不被 pages 守衛掃描，
+            // 已是 focal 動畫家族的家）。tween 結構／ease／duration 一字不動，此處只注入
+            // onConverge（每 tick 寫收斂中間幾何）與 onDone（收尾）兩個副作用。
+            const tl = window.GhostFly.buildFocalSettleTimeline({
+                stars, spinner, win, hasFace,
+                onConverge: (t) => { this._maskWinStyle = computeMaskSettleGeometry(W, H, r, this._maskFocalX, t) || this._maskWinStyle; },
+                onDone: cleanup,
+            });
+            this._maskSettleTl = tl;
+        },
+
+        // 101b-T2（§A-5）：收斂 tween 對稱停止 helper，逐字比照 _maskStopWaitAnim 的形狀
+        // （idempotent、單一 helper、多處對稱呼叫）。呼叫點：_maskDragStart（CD-10 拖曳接管）、
+        // _maskTeardown／_resetMask（中斷路徑再保險）。openMask finally 刻意不呼叫——那是
+        // timeline 的起跑點，kill 等於自殺。
+        _maskStopSettleAnim() {
+            if (this._maskSettleTl && typeof this._maskSettleTl.kill === 'function') this._maskSettleTl.kill();
+            // 顯式呼叫，不依賴 kill() 觸發 onInterrupt（ghost-fly.js 既有註解：GSAP 3 .kill()
+            // 不保證 fire onInterrupt）。_maskClearSettleProps 本身冪等，onInterrupt 若仍另外
+            // 觸發一次亦安全。
+            this._maskClearSettleProps();
+        },
+
+        // 101b-T2（CD-9a）：settle timeline 的 onComplete/onInterrupt 共用收尾（比照
+        // ghost-fly.js clearLanding「一個 closure、兩路徑共用」先例）。單一清理真理，供
+        // _maskStopSettleAnim 與 timeline 自身收尾兩處呼叫，必須冪等（clearProps 對已無 inline
+        // style 的元素是 no-op；clearFocalDetectWait 對 null handle 亦 no-op）。
+        _maskClearSettleProps() {
+            if (window.GhostFly && window.GhostFly.clearFocalDetectWait) {
+                window.GhostFly.clearFocalDetectWait(this._maskWaitTl);   // 星空 clearProps 延到此刻
+            }
+            const el = this._maskTarget().imgEl;
+            const coverEl = el?.closest('.lightbox-cover');
+            if (coverEl && window.GhostFly?.clearFocalSettleProps) {
+                // 101b-T2 (CD-9a) / Codex PR#110 P2-2：clearProps 移入 GhostFly（DOM lookup 仍在此）。
+                const win = coverEl.querySelector('.lb-mask-window');
+                const spinner = coverEl.querySelector('.lb-mask-spinner');
+                window.GhostFly.clearFocalSettleProps({ win, spinner });
+            }
+            this._maskWaitTl = null;
+            this._maskSettleTl = null;
+            this._maskSettling = false;   // burst/spinner 此刻才被 x-show 收掉（兩者已 opacity 0）
         },
 
         // 亮窗幾何：讀 CSS var --poster-crop-ratio（非硬編）+ _maskFocalX 解焦點 x（component state，

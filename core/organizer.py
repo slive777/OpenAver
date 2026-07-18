@@ -15,7 +15,8 @@ from typing import Optional, Dict, Any, List, Tuple
 
 from core.config import _STEM_IMAGE_MODES
 from core.path_utils import normalize_path
-from core.scrapers.utils import has_chinese, check_subtitle, strip_subtitle_markers
+from core.scrapers.utils import has_chinese, check_subtitle, strip_subtitle_markers, normalize_number_impl
+from core.focal import requires_face_detection, detect_focal
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -463,7 +464,26 @@ def format_string(template: str, data: Dict[str, Any], use_fallback: bool = Fals
     return sanitize_filename(result.strip())
 
 
-def crop_to_poster(src_path: str, dst_path: str) -> bool:
+def _poster_window_ratio(w: int, h: int) -> Optional[float]:
+    """算出 crop_to_poster 分支2/3 的裁切窗比例（餵給 detect_focal / crop_image_position 用）。
+
+    分支1（h/w >= 1.4，已直向、不裁）回 None。
+    分支2（1.0 <= h/w < 1.4，方形/無碼）：置中窗寬 int(h/1.5)，比例化為 int(h/1.5)/h。
+    分支3（h/w < 1.0，標準橫向/有碼）：右裁起點 int(w/1.9)，窗比例化為 (w-int(w/1.9))/h。
+
+    只負責算「要餵給偵測/平移的比例」，不參與退化路（gate False／無臉）實際裁切算式
+    ——那條路徑維持既有原碼一字不動，避免 float round-trip 造成 byte-for-byte 位移。
+    """
+    ratio = h / w
+    if ratio >= 1.4:
+        return None
+    elif ratio >= 1.0:
+        return int(h / 1.5) / h
+    else:
+        return (w - int(w / 1.9)) / h
+
+
+def crop_to_poster(src_path: str, dst_path: str, number: str = '', maker: str = '') -> bool:
     """
     從橫向封面裁切直向海報（Jellyfin poster）。
 
@@ -471,6 +491,10 @@ def crop_to_poster(src_path: str, dst_path: str) -> bool:
     - h/w >= 1.4 → 已是直向，直接複製
     - h/w >= 1.0 → 方形（FC2/無碼），裁中間（寬度 = h/1.5，置中）
     - h/w <  1.0 → 標準橫向（有碼），裁右側（起點 = w/1.9 ≈ 右47%）
+
+    無碼片（gate 命中）會 inline 跑一次 pigo 人臉偵測，把上述裁切窗平移到臉的位置
+    （CD-5：只平移既有窗，不改窗寬）；有碼／偵測不到臉／未傳 number 三條退化路
+    完全落回既有裁法，poster 位元級不變（spec-101 §3.2 stateless：不讀寫 DB 焦點）。
     """
     try:
         with Image.open(src_path) as img:
@@ -480,13 +504,29 @@ def crop_to_poster(src_path: str, dst_path: str) -> bool:
             if ratio >= 1.4:
                 shutil.copy2(src_path, dst_path)
                 return True
-            elif ratio >= 1.0:
+
+            r_window = _poster_window_ratio(w, h)
+
+            focal = None
+            if requires_face_detection(normalize_number_impl(number), maker):
+                focal = detect_focal(src_path, r_window)
+
+            rgb = img.convert("RGB")
+            if ratio >= 1.0:
                 crop_w = int(h / 1.5)
-                x0 = (w - crop_w) // 2
-                cropped = img.convert("RGB").crop((x0, 0, x0 + crop_w, h))
+                default_x0 = (w - crop_w) // 2
             else:
-                x0 = int(w / 1.9)
-                cropped = img.convert("RGB").crop((x0, 0, w, h))
+                crop_w = w - int(w / 1.9)
+                default_x0 = int(w / 1.9)
+
+            if focal is not None:
+                # CD-5「只平移既有窗，不改窗寬」：用與退化路完全相同的整數 crop_w，只把 x0 平移到臉，
+                # 不經 crop_image_position 的 float ratio→px round-trip（會 ±1px 改窗寬/比例，Codex PR#110 P2）。
+                x0 = max(min(int(w * focal[0]) - crop_w // 2, w - crop_w), 0)
+            else:
+                x0 = default_x0
+
+            cropped = rgb.crop((x0, 0, x0 + crop_w, h))
 
             cropped.save(dst_path, 'JPEG', quality=95, subsampling=0)
             return True
@@ -495,7 +535,7 @@ def crop_to_poster(src_path: str, dst_path: str) -> bool:
         return False
 
 
-def generate_jellyfin_images(cover_path: str, base_stem: str) -> dict:
+def generate_jellyfin_images(cover_path: str, base_stem: str, number: str = '', maker: str = '') -> dict:
     """為單部影片產生 Jellyfin poster + fanart（供批次補齊用）。
 
     Args:
@@ -516,7 +556,7 @@ def generate_jellyfin_images(cover_path: str, base_stem: str) -> dict:
         logger.warning(f"[!] generate_jellyfin_images fanart 複製失敗: {e}")
 
     # poster = 裁切
-    if crop_to_poster(cover_path, poster_path):
+    if crop_to_poster(cover_path, poster_path, number=number, maker=maker):
         result['poster'] = True
         result['poster_path'] = poster_path
 
@@ -1035,7 +1075,7 @@ def organize_file(
                     logger.warning(f"[!] Fanart 複製失敗: {e}")
             if poster_path:
                 # poster = 裁切
-                if crop_to_poster(cover_jpg, poster_path):
+                if crop_to_poster(cover_jpg, poster_path, number=number, maker=metadata.get('maker', '')):
                     result['poster_path'] = poster_path
 
         # extrafanart 下載（download_sample_images 控制，需 create_folder=True 才有 per-video 目錄）

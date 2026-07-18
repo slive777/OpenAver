@@ -15,26 +15,27 @@
                             <div class="lb-mask-overlay"
                                  x-show="_maskVisible"
                                  @click.self="cancelMask()">
-                                <!-- 99a-T5：detect-first——窗只在偵測完成（_maskDetecting 翻 false）
-                                     後才第一次渲染，畫出來即終值，無「先貼右裁基準再滑動」過渡態。 -->
+                                <!-- 99a-T5→101b-T2（CD-2/CD-4a）：窗只在偵測完成（_maskDetecting 翻 false）
+                                     後才第一次渲染；首幀即全幅，隨後由收斂補間滑到偵測終值——收斂全程
+                                     任何一幀都不是「先貼右裁基準」的基準幾何（無基準閃現過渡態）。 -->
                                 <div class="lb-mask-window"
                                      x-show="_maskVisible && !_maskDetecting"
                                      :style="_maskWinStyle"
-                                     :class="{'lb-mask-window--dragging': _maskDragging}"
+                                     :class="{'lb-mask-window--dragging': _maskDragging, 'lb-mask-window--settling': _maskSettling}"
                                      @pointerdown="_maskDragStart($event)"></div>
                                 <!-- 100c-T3a：唯一可拖方向恆為橫向（CD-6），cursor:ew-resize 併回
                                      .lb-mask-window 基礎規則（見 showcase.css），軸向/凍結 modifier 已移除。 -->
                                 <!-- 99a-T5：detect 期間星空等待迴圈（start/stop 可控 repeat:-1，
                                      非 .sparkle-burst 的 0.4s 一次性）。PRM 時 openMask 不觸發 GSAP，
                                      本容器留在 DOM 但視覺不出現（CSS 預設 opacity:0）。 -->
-                                <div class="lb-mask-wait-burst" x-show="_maskDetecting" aria-hidden="true">
+                                <div class="lb-mask-wait-burst" x-show="_maskDetecting || _maskSettling" aria-hidden="true">
                                     <svg class="sparkle-star" data-sparkle-size="md" style="--cx: 30%; --cy: 24%;" viewBox="-12 -12 24 24"><polygon points="0,-10 2,-2 10,0 2,2 0,10 -2,2 -10,0 -2,-2"/></svg>
                                     <svg class="sparkle-star" data-sparkle-size="sm" style="--cx: 66%; --cy: 30%;" viewBox="-12 -12 24 24"><polygon points="0,-10 2,-2 10,0 2,2 0,10 -2,2 -10,0 -2,-2"/></svg>
                                     <svg class="sparkle-star" data-sparkle-size="sm" style="--cx: 46%; --cy: 66%;" viewBox="-12 -12 24 24"><polygon points="0,-10 2,-2 10,0 2,2 0,10 -2,2 -10,0 -2,-2"/></svg>
                                     <svg class="sparkle-star" data-sparkle-size="md" style="--cx: 76%; --cy: 70%;" viewBox="-12 -12 24 24"><polygon points="0,-10 2,-2 10,0 2,2 0,10 -2,2 -10,0 -2,-2"/></svg>
                                     <svg class="sparkle-star" data-sparkle-size="sm" style="--cx: 18%; --cy: 58%;" viewBox="-12 -12 24 24"><polygon points="0,-10 2,-2 10,0 2,2 0,10 -2,2 -10,0 -2,-2"/></svg>
                                 </div>
-                                <div class="lb-mask-spinner" x-show="_maskDetecting" aria-hidden="true">
+                                <div class="lb-mask-spinner" x-show="_maskDetecting || _maskSettling" aria-hidden="true">
                                     <i class="bi bi-arrow-clockwise spin"></i>
                                 </div>
                             </div>

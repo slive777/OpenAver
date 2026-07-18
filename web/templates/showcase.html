@@ -707,6 +707,9 @@
                                      條件（見該函式定義處說明）。method 內用獨立陳述式無條件讀完
                                      全部 5 個旗標再組合，保證每次求值都完整訂閱依賴——與影片版
                                      一樣用 x-show，只是把「讀取」與「短路組合」拆開兩步。 -->
+                                <!-- 101d-T2（反向指引）：女優焦點 gate 用 per-image 門檻（_focalIconVisible() 五條件），
+                                     與影片 _posterModeActive() 刻意不同——女優牆全寬度都裁、影片只 ≤899px 裁
+                                     （見 plan-101d §2.2）。別把兩條 gate「統一」成同一套，那會讓其中一條 icon 出現時機錯掉。 -->
                                 <button class="lb-mask-btn"
                                         x-show="_focalIconVisible()"
                                         @click="openMask()"
@@ -877,8 +880,11 @@
                                 </button>
                                 <span x-show="_fetchSamplesLoading" x-text="t('showcase.samples.fetching')"></span>
                                 <!-- 98b-T4：焦點裁切遮罩 toggle（低調圓鈕，styled-like .lb-action-btn 但更小）-->
+                                <!-- 101d-T2：影片焦點 gate 綁 _posterModeActive()（窄/poster 模式才顯示）。與女優
+                                     _focalIconVisible() 的 per-image 門檻刻意不同——根因：影片只在 ≤899px 裁、
+                                     女優牆全寬度都裁（見 plan-101d §2.2）。改任一邊前先讀那張表，別「對齊」成同一套。 -->
                                 <button class="lb-mask-btn"
-                                        x-show="!!currentLightboxVideo?.path && _lbFullLoaded"
+                                        x-show="!!currentLightboxVideo?.path && _lbFullLoaded && _posterModeActive()"
                                         @click="openMask()"
                                         :title="t('showcase.lightbox.mask_toggle')"
                                         :aria-label="t('showcase.lightbox.mask_toggle')">

@@ -947,7 +947,7 @@ async def upload_actress_photo(name: str, file: UploadFile = _UPLOAD_FILE_PARAM)
 
 # ---------------------------------------------------------------------------
 # 端點十／十一：POST /api/actresses/{name}/detect-focal、POST /api/actresses/{name}/focal
-# （TASK-100a-T4，鏡射 web/routers/showcase.py 的 /video/detect-focal、/video/focal）
+# （TASK-100a-T4，鏡射 web/routers/showcase.py 的 /video/detect-focal、/video/save-focal）
 # NOTE：必須定義在 GET /{name} 之前！
 # ---------------------------------------------------------------------------
 

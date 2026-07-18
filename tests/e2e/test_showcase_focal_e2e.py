@@ -8,10 +8,12 @@ E2E 測試：焦點手動編輯（99a-T6）— 4 條精簡回歸網
 量不到，只有真瀏覽器 e2e 量得到。本檔案只鎖 4 條斷言（owner 拍板精簡版），對應
 TASK-99a-T5.md 修的兩個 P1 bug：
   1. hit-test：✓/✗ 座標真的命中按鈕本身（非 .lb-mask-overlay 疊層攔截）。
-  2. detect-first：.lb-mask-window 在偵測期間不渲染、resolve 後第一幀即終值（無二次跳動）。
-  3. ✓ 確實呼叫 confirmMask()，觸發正確 payload 的 POST /api/showcase/video/focal，
+  2. detect-first：.lb-mask-window 在偵測期間不渲染；resolve 後第一幀為全幅，隨後單調
+     收斂到偵測終值，全程無一幀等於基準幾何（101b-T2 CD-2/CD-4a：全幅→收斂→終值，
+     取代舊有「resolve 後第一幀即終值」的無過渡態契約）。
+  3. ✓ 確實呼叫 confirmMask()，觸發正確 payload 的 POST /api/showcase/video/save-focal，
      且前端把回應正確套用到 client state（crop_mode 變 manual）。
-  4. ✗ 什麼都不存（無 /video/focal request，crop_mode 不變）。
+  4. ✗ 什麼都不存（無 /video/save-focal request，crop_mode 不變）。
 
 無封面影片 / app 不可達 / 找不到合適候選 → pytest.skip()（不 FAIL，e2e 對缺環境用戶不可假紅）。
 
@@ -26,7 +28,7 @@ e2e fixture 指揮一個「已經在跑、我們不擁有」的 server 改用別
 偵測到不一致，木已成舟。
 
 本版改用 Playwright request interception（`page.route`）在瀏覽器網路層攔截
-`POST /api/showcase/video/focal`：斷言 payload（`path` + canonical `"x.xxxx,y.xxxx"` 4dp
+`POST /api/showcase/video/save-focal`：斷言 payload（`path` + canonical `"x.xxxx,y.xxxx"` 4dp
 格式、y 固定 0.5000）完全正確後，直接用 mocked 200 response `route.fulfill()`——請求**從不
 離開瀏覽器**，不可能觸及任何 DB（無論是本地 get_db_path() 還是被重用 server 背後的
 任一檔案）。這在結構上排除了整個「port 8001 服務不明 DB」的風險類別，不需要 DB 身分
@@ -34,7 +36,7 @@ e2e fixture 指揮一個「已經在跑、我們不擁有」的 server 改用別
 
 **為什麼這樣測仍然有牙齒（不是 gutted）**：persistence 本身已由整合層驗證
 （`tests/integration/test_showcase_focal_endpoints.py::TestManualFocalEndpoint` 證明
-`/video/focal` 原子寫入 auto_focal + crop_mode='manual'、out-of-scope → 403 且 DB 不變等
+`/video/save-focal` 原子寫入 auto_focal + crop_mode='manual'、out-of-scope → 403 且 DB 不變等
 server-side 行為）。e2e 這層獨一無二、integration 測試無法涵蓋的是**瀏覽器端的接線**——
 99a-T5 修的兩個 P1（z-index 疊層攔截 ✓/✗ 點擊、detect-first 二次跳動）都是「事件有沒有
 真的從 DOM 走到 confirmMask() 並打出正確 payload」這一類，跟 payload 送達後 DB 有沒有
@@ -58,8 +60,50 @@ LB_FULL_TIMEOUT_MS = 15_000
 MASK_BTN_TIMEOUT_MS = 5_000
 MAX_CANDIDATES = 8            # 候選影片探索迴圈上限，避免無上限拖垮執行時間
 MIN_FOCAL_DIFF = 0.05         # 判定「偵測值與右裁基準有材料差異」的門檻（focalX 為 0..1 比例）
-PROBE_MAX_MS = 6_500          # 單次 rAF 取樣迴圈總時長上限（生成 buffer vs 3.0-3.3s 實測）
-PROBE_TAIL_FRAMES = 8         # detect resolve 後再多取幾幀，驗證無二次跳動
+PROBE_MAX_MS = 6_500          # 單次 rAF 取樣迴圈總時長上限（生成 buffer vs 3.0-3.3s + 0.5s 收斂實測）
+# 101b-T3：停止條件從「!detecting 後留 8 幀」改為「!detecting && !settling 後留 2-3 幀」
+# （idle 判定本身已涵蓋整段 0.5s 收斂動畫，不再需要 8 幀=133ms 去「趕上」還在跑的動畫），
+# 3 為 plan 給定範圍「2-3 幀」的上限，留一點餘裕。
+PROBE_TAIL_FRAMES = 3         # idle（!detecting && !settling）後再多取幾幀，驗證落點穩定
+# 101b-T3（§C-2 iii）：候選篩選裁切餘裕門檻——重用 mask-geometry.js:44 的
+# MASK_MIN_DRAG_ROOM 語意（非發明新門檻），排除 a<=r 的退化圖（全幅與終值每個維度都
+# 同值，只因 baseline_focal != final_focal 就會通過舊的單一篩選條件，證不出任何事）。
+MIN_CROP_ROOM = 0.20
+
+# 101b-T5：no-face 落點測試專用常數。
+# `_maskFocalX` 對 video 分支恆為右裁基準（openMask 起手一次性解出並凍結，見
+# state-lightbox.js:976-977），對應窗恆貼右緣（`left = W - winW` 已是 clamp 上界）——
+# 這代表 no-face 窗的 translateX 恆等於「可拖裁切餘裕」本身（cover_w - width），與
+# `test_hit_test_and_detect_first_render` 的 MIN_CROP_ROOM 語意一致，此處另訂常數只因
+# 門檻表達方式不同（width 對 coverW 的比例上限，非裁切餘裕比例下限）。
+NO_FACE_MAX_WIDTH_RATIO = 0.8   # width 應 < 0.8×coverW，證明有明顯裁切餘裕（scrim 有面積可見）
+NO_FACE_SETTLE_TIMEOUT_MS = 4_000
+NO_FACE_DRAG_STEP_PX = 15.0
+# 跟手容差：真實瀏覽器事件（CDP dispatch）與 clamp 邊界都可能引入 1-2px 誤差，此門檻只
+# 用來排除「跳變」（修前 bug 的症狀：起手視覺位置＝全幅，第一次 pointermove 觸發的
+# `computeMaskWinGeometry` 立即算出正確終值，位移量與滑鼠實際移動量無關、可達數十至
+# 上百 px），非用來要求逐 px 精確跟手。
+NO_FACE_DRAG_TOLERANCE_PX = 6.0
+
+# 101b-T3（CD-4a 首幀全幅的判準）：首個 paint 幀「已收斂比例」的容忍上限。
+#
+# 🔴 為何不是 ε=0.5px（plan §C-2 原寫的值，實測推翻）：GSAP ticker 的**第一次 tick 必然
+#    落在 timeline 建立後的下一幀**（startTime 取自上一次 tick 的時間），故首個 paint 幀
+#    **恆已走掉 ~1-4 幀的 ease 進度**——這是 ticker 的性質，**任何 ease、任何實作都躲不掉**
+#    （`immediateRender:true` 亦無效：它只改建立當下的 render，不改第一次 tick 的跳躍量）。
+#    「首幀 == 全幅」只能是 ≈，不可能是 ==。
+#
+# 為何是 15%（三批實測定值，非拍腦袋）：
+#   正確實作（ease='fluent'）：2.25% / 2.5%（101b-T2 CDP，兩支 FC2）
+#                             4.7%–5.9% 連續分佈（101b-T3 本檔 START-525 八跑，環境 jitter）
+#   ease 誤用 'fluent-decel' ：~42%（101b-T2 CDP 實測，該 ease 把 1 幀 ticker 延遲放大成
+#                             24.4% 視覺進度——正是 T2 修掉的那個 P1）
+#   終值 flash（無預寫）     ：100%
+#   ⇒ 門檻須同時遠離 5.9% 與 42%。取幾何中點 sqrt(5.9×42)≈15.7 → **15%**：
+#     對正確實作有 2.5x 餘裕（不 flaky）、對 mutation 有 2.8x 餘裕（仍必紅）。
+#     **5.9% 與 42% 之間不存在任何真實值**，故放寬只吃掉 jitter、不吃掉任何一種它要抓的缺陷。
+#     （曾定 5% → 對 START-525 實測 ~40-50% flaky；flaky 守衛比沒有守衛更糟。）
+MAX_FIRST_FRAME_SETTLE = 0.15
 
 # 前端 confirmMask() 送出的 canonical focal 格式契約（state-lightbox.js:935）：
 # `${x.toFixed(4)},0.5000`——y 恆 0.5（render 只用 X，spec §3.3）。
@@ -224,14 +268,55 @@ def _pick_outside_point(overlay: dict, window_r: dict, margin: float = 10):
     return None
 
 
-_TRANSLATE_X_RE = re.compile(r"^matrix\(([^)]+)\)$")
+_WIDTH_PX_RE = re.compile(r"^([\d.]+)px$")
 
 
-def _parse_translate_x(transform: str):
-    """從 computed transform（matrix(...) 或 none）解出 translateX 分量。"""
-    if not transform or transform == "none":
+def _parse_width(style_obj):
+    """從 `_computeMaskWinStyle()` 回傳的 `{width:"123.45px", ...}`（或 `None`）解出 float。
+
+    101b-T3：探針以 `_computeMaskWinStyle()` 作為「地面真相」（既有公開 method，純讀無
+    副作用），取代對「基準幾何」「偵測終值幾何」的重複計算或猜測（CD-3 零重複實作）。
+    """
+    if not style_obj:
         return None
-    m = _TRANSLATE_X_RE.match(transform.strip())
+    m = _WIDTH_PX_RE.match(style_obj.get("width", ""))
+    if not m:
+        return None
+    try:
+        return float(m.group(1))
+    except ValueError:
+        return None
+
+
+_TRANSLATE_X_MATRIX_RE = re.compile(r"^matrix\(([^)]+)\)$")
+_TRANSLATE_X_LITERAL_RE = re.compile(r"^translateX\(([-\d.]+)px\)$")
+
+
+def _parse_translate_x(transform):
+    """解出 translateX 分量（px），相容兩種來源格式：`getComputedStyle()` 的
+    `matrix(...)`（瀏覽器正規化）與 `_computeMaskWinStyle()`/`computeMaskWinGeometry()`
+    回傳的字面樣板 `translateX(Npx)`（見 mask-geometry.js）。
+
+    101b-T3 實測發現（真跑 e2e 才量到，非理論推導）：`computeMaskWinGeometry` 的
+    `winW = Math.min(W, H * r)` **不吃 `focalX`**——crop window 的寬度只取決於長寬比 r
+    與影像尺寸 W/H，與焦點 X 位置無關。這代表「基準幾何」（偵測前 fallback）與「偵測
+    終值幾何」在**同一支影片**（同一 W/H/r）之下，width 恆數學相等，只有 `left`/
+    `transform`（X 偏移）會因 focalX 不同而不同。故「一幀是否等於基準幾何」必須同時比對
+    width 與 transform 才有鑑別力——只比 width（且候選已保證 focal 有材料差異）會在收斂
+    完成、width 收斂回等於基準的那一刻起造成必然的假 FAIL（非候選特例，任何非退化影片
+    皆會在尾端觸發，因為收斂終值 by construction 就是「同一 r 算出的 width」）。
+    """
+    if not transform:
+        return None
+    m = _TRANSLATE_X_LITERAL_RE.match(transform.strip())
+    if m:
+        try:
+            return float(m.group(1))
+        except ValueError:
+            return None
+    if transform == "none":
+        return None
+    m = _TRANSLATE_X_MATRIX_RE.match(transform.strip())
     if not m:
         return None
     parts = [p.strip() for p in m.group(1).split(",")]
@@ -249,30 +334,52 @@ _RENDER_PROBE_JS = """
     const data = window.Alpine && Alpine.$data(root);
     if (!data) { resolve({ error: 'no-alpine-data' }); return; }
     const samples = [];
-    let seenFalse = false;
+    let seenDetecting = false;
+    let seenIdle = false;
     let tailCount = 0;
+    let baselineStyle = null;
     const t0 = performance.now();
     function tick() {
         const win = document.querySelector('.lb-mask-window');
         const detecting = !!data._maskDetecting;
-        let display = null;
-        let transform = null;
+        const settling = !!data._maskSettling;
+        if (detecting && !seenDetecting && typeof data._computeMaskWinStyle === 'function') {
+            // 首次觀察到 detecting===true：此刻 _maskFocalX 恆為 openMask 起手基準
+            // （尚未被偵測結果覆寫），呼叫既有 method 取得「地面真相」基準幾何物件，
+            // 不靠讀 .lb-mask-window 的 computed style（此時 x-show 為 false，rect 是 0）。
+            baselineStyle = data._computeMaskWinStyle();
+        }
+        seenDetecting = seenDetecting || detecting;
+        let display = null, transform = null, winWidth = null;
         if (win) {
             const cs = getComputedStyle(win);
             display = cs.display;
             transform = cs.transform;
+            const r = win.getBoundingClientRect();
+            winWidth = r.width;
         }
+        let coverWidth = null;
+        const imgEl = typeof data._maskTarget === 'function' ? data._maskTarget().imgEl : null;
+        if (imgEl) { coverWidth = imgEl.getBoundingClientRect().width; }
         samples.push({
             t: performance.now() - t0,
-            detecting: detecting,
-            display: display,
-            transform: transform,
+            detecting: detecting, settling: settling,
+            display: display, transform: transform,
+            winWidth: winWidth, coverWidth: coverWidth,
             focalX: data._maskFocalX,
         });
-        if (!detecting) { seenFalse = true; }
-        if (seenFalse) { tailCount += 1; }
-        if ((seenFalse && tailCount >= %d) || (performance.now() - t0) > %d) {
-            resolve({ samples: samples, finalFocalX: data._maskFocalX });
+        const idle = seenDetecting && !detecting && !settling;
+        if (idle) { seenIdle = true; }
+        if (seenIdle) { tailCount += 1; }
+        if ((seenIdle && tailCount >= %d) || (performance.now() - t0) > %d) {
+            const groundTruthFinal = (typeof data._computeMaskWinStyle === 'function')
+                ? data._computeMaskWinStyle() : null;
+            resolve({
+                samples: samples,
+                finalFocalX: data._maskFocalX,
+                baselineStyle: baselineStyle,
+                groundTruthFinal: groundTruthFinal,
+            });
         } else {
             requestAnimationFrame(tick);
         }
@@ -296,56 +403,80 @@ def test_hit_test_and_detect_first_render(page: Page, base_url: str) -> None:
     """
     斷言 1（hit-test）：✓/✗ 按鈕中心座標的 elementFromPoint 命中按鈕本身；
                          窗外座標仍命中 .lb-mask-overlay（點外＝取消未回歸）。
-    斷言 2（detect-first）：.lb-mask-window 在整段 _maskDetecting===true 期間 display:none；
-                             resolve 後第一幀 transform 即終值，往後取樣不再跳動。
+    斷言 2（detect-first / CD-2 / CD-4a）：.lb-mask-window 在整段 _maskDetecting===true
+                         期間 display:none；resolve 後第一幀為全幅（收斂進度 <=15%），隨後
+                         單調收斂到偵測終值，全程無一幀等於基準幾何（無基準閃現過渡態）。
 
-    動態尋找一支「偵測值與右裁基準有材料差異」的影片（不寫死番號）——若窗子第一幀
-    就已經是終值，觀察不出「有沒有二次跳動」，斷言 2 會失去意義。
+    動態尋找一支「偵測值與右裁基準有材料差異」且「裁切餘裕足夠」的影片（不寫死番號）——
+    若窗子終值恰好等於基準（退化圖 a<=r），全幅/收斂/基準三者每個維度都同值，觀察不出
+    任何契約，斷言會失去意義（101b-T3 §C-2 候選篩選新增裁切餘裕條件即為此）。
     """
     videos = _fetch_cover_videos(page, base_url)
     if not videos:
         pytest.skip("找不到任何有封面的影片，跳過焦點編輯 e2e")
 
+    counters = {"scanned": 0, "open_failed": 0, "probe_error": 0, "no_focal_diff": 0, "degenerate": 0}
     found = None
     for v in videos[:MAX_CANDIDATES]:
         path = v["path"]
+        counters["scanned"] += 1
         if not _open_lightbox_for(page, base_url, path):
+            counters["open_failed"] += 1
             continue
 
         page.locator(".lb-mask-btn").click()
         result = _run_render_probe(page)
         samples = result.get("samples") or []
         if result.get("error") or not samples:
+            counters["probe_error"] += 1
             _cancel_mask_if_open(page)
             continue
 
         detecting_samples = [s for s in samples if s["detecting"]]
         if not detecting_samples:
+            counters["probe_error"] += 1
             _cancel_mask_if_open(page)
             continue
 
         baseline_focal = detecting_samples[0]["focalX"]
         final_focal = result.get("finalFocalX")
         if baseline_focal is None or final_focal is None:
+            counters["probe_error"] += 1
             _cancel_mask_if_open(page)
             continue
 
-        if abs(final_focal - baseline_focal) >= MIN_FOCAL_DIFF:
-            found = {
-                "path": path,
-                "samples": samples,
-                "baseline_focal": baseline_focal,
-                "final_focal": final_focal,
-            }
-            break
+        if abs(final_focal - baseline_focal) < MIN_FOCAL_DIFF:
+            counters["no_focal_diff"] += 1
+            _cancel_mask_if_open(page)
+            continue
 
-        _cancel_mask_if_open(page)
+        # 101b-T3（§C-2 iii）：裁切餘裕條件——退化圖（a<=r）的全幅/終值/基準每個維度都
+        # 同值，只因 baseline_focal != final_focal 就會通過上面的篩選，證不出任何事。
+        # finalWinW 取自完整樣本序列的 groundTruthFinal（地面真相），不取截斷樣本中途值。
+        cover_w = next((s["coverWidth"] for s in reversed(samples) if s["coverWidth"]), None)
+        final_win_w = _parse_width(result.get("groundTruthFinal"))
+        crop_room = (cover_w - final_win_w) / cover_w if (cover_w and final_win_w is not None) else None
+        if crop_room is None or crop_room < MIN_CROP_ROOM:
+            counters["degenerate"] += 1
+            _cancel_mask_if_open(page)
+            continue
+
+        found = {
+            "path": path,
+            "samples": samples,
+            "baseline_focal": baseline_focal,
+            "final_focal": final_focal,
+            "ground_truth_final": result.get("groundTruthFinal"),
+            "baseline_style": result.get("baselineStyle"),
+        }
+        break
 
     if found is None:
         pytest.skip(
-            f"窮舉 {min(len(videos), MAX_CANDIDATES)} 部候選影片皆找不到偵測值與右裁基準"
-            f"有材料差異（>= {MIN_FOCAL_DIFF}）的樣本，跳過 e2e（無法區分「detect-first 正確」"
-            f"與「偵測值恰好等於基準、根本沒有東西可跳動」）"
+            f"窮舉 {counters['scanned']} 部候選影片找不到合格樣本："
+            f"open_failed={counters['open_failed']}, probe_error={counters['probe_error']}, "
+            f"no_focal_diff={counters['no_focal_diff']}（差異 < {MIN_FOCAL_DIFF}）, "
+            f"degenerate={counters['degenerate']}（裁切餘裕 < {MIN_CROP_ROOM}），跳過 e2e"
         )
 
     try:
@@ -359,29 +490,90 @@ def test_hit_test_and_detect_first_render(page: Page, base_url: str) -> None:
                 f"實際樣本：{s}"
             )
 
-        # --- 斷言 2b：第一個「真的畫出來」的幀即終值，往後不再跳動 ---
-        # 註：_maskDetecting 翻 false 後的第一幀 display 可能仍是 'none'（Alpine 的 x-show
-        # effect 尚未 flush），那一幀還沒畫出任何東西、不構成「使用者看得到的第一幀」——
-        # 取樣要篩掉，斷言真正被 paint 出來的幀。
+        # 101b-T3：detect resolve 後「已 paint」的幀（display 可能仍是 'none' 一拍，Alpine
+        # 的 x-show effect 尚未 flush，那一幀還沒畫出任何東西、不構成「使用者看得到的第一
+        # 幀」，取樣要篩掉）。
         first_false_idx = next(i for i, s in enumerate(samples) if not s["detecting"])
         post = [s for s in samples[first_false_idx:] if s["display"] and s["display"] != "none"]
         assert len(post) >= 2, (
-            f"detect resolve 後「已 paint」的取樣幀數不足（{len(post)}），無法驗證是否有二次滑動"
+            f"detect resolve 後「已 paint」的取樣幀數不足（{len(post)}），無法驗證收斂序列"
         )
 
-        first_tx = _parse_translate_x(post[0]["transform"])
-        assert first_tx is not None, (
-            f"第一個 paint 出來的幀應可從 computed transform 解出 translateX，"
-            f"實際：{post[0]}"
+        cover_w = post[0]["coverWidth"]
+        gt = found["ground_truth_final"]
+        assert gt is not None, "groundTruthFinal 缺失，可能 _computeMaskWinStyle 不可用"
+        final_win_w = _parse_width(gt)
+        assert final_win_w is not None, f"groundTruthFinal 無法解出 width：{gt}"
+
+        # --- 斷言 2b（CD-4a）：首幀為全幅（收斂進度 <= MAX_FIRST_FRAME_SETTLE，非 ε=0.5px——見其宣告處） ---
+        first = post[0]
+        assert first["winWidth"] is not None and cover_w, (
+            f"首幀 winWidth/coverWidth 缺失：{first}"
         )
-        for s in post[1:]:
+        threshold = cover_w - MAX_FIRST_FRAME_SETTLE * (cover_w - final_win_w)
+        assert first["winWidth"] >= threshold - 0.5, (
+            f"首次可見幀應為全幅（收斂進度 <={MAX_FIRST_FRAME_SETTLE:.0%}），實際 winWidth={first['winWidth']:.2f}px，"
+            f"coverWidth={cover_w:.2f}px, finalWinW={final_win_w:.2f}px, threshold={threshold:.2f}px"
+        )
+
+        # --- 斷言 2c：收斂終值 == 偵測終值（地面真相）——width 與 transform 都要比 ---
+        # Codex PR review P1 修正：`winW = min(W, H*r)` 不吃 focalX（見 _parse_translate_x
+        # 註解），故只比 width 時，proxy 若停在**錯的** focalX（非基準、也非正確終值）仍會
+        # 因 width 數學相等而通過——錯的終值 X 整條溜過。追加 translateX 比對（容差比照
+        # 2d 的 1.0px），兩者都要等於地面真相才判定「收斂到正確終值」。
+        last = post[-1]
+        assert last["winWidth"] is not None, f"末幀 winWidth 缺失：{last}"
+        assert abs(last["winWidth"] - final_win_w) < 0.5, (
+            f"收斂終值應等於偵測終值（地面真相），實際 last winWidth={last['winWidth']:.2f}px, "
+            f"ground truth={final_win_w:.2f}px"
+        )
+        final_win_tx = _parse_translate_x(gt.get("transform"))
+        last_tx = _parse_translate_x(last.get("transform"))
+        assert final_win_tx is not None and last_tx is not None, (
+            f"末幀或地面真相的 transform 無法解出 translateX：last={last.get('transform')!r}, "
+            f"ground_truth={gt.get('transform')!r}"
+        )
+        assert abs(last_tx - final_win_tx) < 1.0, (
+            f"收斂終值的 transform 應等於偵測終值（地面真相），實際 last translateX={last_tx:.2f}px, "
+            f"ground truth translateX={final_win_tx:.2f}px（winWidth 相符不足以證明終值正確，"
+            f"因 winW 不吃 focalX）"
+        )
+
+        # --- 斷言 2d：全程無一幀「同時」width 與 transform 都等於基準幾何（baseline flash
+        # 復發）。🔴 101b-T3 真跑 e2e 才發現（非理論推導）：`computeMaskWinGeometry` 的
+        # `winW = Math.min(W, H * r)` 不吃 `focalX`，故「基準幾何」與「偵測終值幾何」在
+        # 同一支影片（同一 W/H/r）之下 width 恆數學相等——只比 width 會在收斂完成、width
+        # 收斂回等於基準的那一刻起造成必然假 FAIL（任何非退化影片皆會在尾端觸發，因為
+        # 收斂終值 by construction 就是「同一 r 算出的 width」）。真正能區分「仍是基準」
+        # 與「已收斂到終值」的維度是 transform（X 偏移，隨 focalX 而異）——候選篩選已保證
+        # `abs(final_focal - baseline_focal) >= MIN_FOCAL_DIFF`，故終值 transform 必與
+        # 基準 transform 有材料差異，兩者同時相等（width AND transform）才判定為
+        # 「baseline flash 復發」，避免在收斂終值幀誤判。
+        baseline = found["baseline_style"]
+        assert baseline is not None, "baselineStyle 缺失，探針啟動時可能從未觀察到 detecting===true"
+        baseline_w = _parse_width(baseline)
+        assert baseline_w is not None, f"baselineStyle 無法解出 width：{baseline}"
+        baseline_tx = _parse_translate_x(baseline.get("transform"))
+        for s in post:
+            if s["winWidth"] is None:
+                continue
+            width_matches = abs(s["winWidth"] - baseline_w) < 0.5
             tx = _parse_translate_x(s["transform"])
-            assert tx is not None, f"取樣幀 transform 應可解析出 translateX：{s}"
-            assert abs(tx - first_tx) < 1.0, (
-                f"detect resolve 後偵測到二次滑動（第一幀 translateX={first_tx:.2f}px，"
-                f"後續幀={tx:.2f}px）—— detect-first 設計要求第一次畫出來就是終值"
-                f"（baseline_focal={found['baseline_focal']:.4f}, "
-                f"final_focal={found['final_focal']:.4f}）"
+            tx_matches = (
+                baseline_tx is not None and tx is not None and abs(tx - baseline_tx) < 1.0
+            )
+            assert not (width_matches and tx_matches), (
+                f"偵測到一幀等於基準幾何（baseline flash 復發）：t={s['t']:.1f}ms, "
+                f"winWidth={s['winWidth']:.2f}px == baseline={baseline_w:.2f}px, "
+                f"transform={s['transform']!r} == baseline_transform={baseline.get('transform')!r}"
+            )
+
+        # --- 斷言 2e：單調無回彈 ---
+        widths = [s["winWidth"] for s in post if s["winWidth"] is not None]
+        for i in range(1, len(widths)):
+            assert widths[i] <= widths[i - 1] + 0.5, (
+                f"收斂應單調不遞增（無回彈），實際第 {i-1} 幀 {widths[i-1]:.2f}px → "
+                f"第 {i} 幀 {widths[i]:.2f}px"
             )
 
         # --- 斷言 1：hit-test ---
@@ -427,8 +619,8 @@ def test_hit_test_and_detect_first_render(page: Page, base_url: str) -> None:
 
 def test_confirm_saves_and_cancel_saves_nothing(page: Page, base_url: str) -> None:
     """
-    斷言 4（✗ 不存）：真實 click ✗ → 無 /video/focal request，crop_mode 不變。
-    斷言 3（✓ 確實存）：真實 click ✓ → POST /api/showcase/video/focal 真的以正確 payload
+    斷言 4（✗ 不存）：真實 click ✗ → 無 /video/save-focal request，crop_mode 不變。
+    斷言 3（✓ 確實存）：真實 click ✓ → POST /api/showcase/video/save-focal 真的以正確 payload
                          觸發，且前端把回應正確套用到 client state（crop_mode 變 manual）。
 
     斷言 3 的請求用 `page.route()` 攔截並以 mocked 200 response `fulfill()`——請求
@@ -465,7 +657,7 @@ def test_confirm_saves_and_cancel_saves_nothing(page: Page, base_url: str) -> No
     focal_requests = []
 
     def _record(req):
-        if req.method == "POST" and "/api/showcase/video/focal" in req.url:
+        if req.method == "POST" and "/api/showcase/video/save-focal" in req.url:
             focal_requests.append(req.url)
 
     page.on("request", _record)
@@ -481,7 +673,7 @@ def test_confirm_saves_and_cancel_saves_nothing(page: Page, base_url: str) -> No
         page.remove_listener("request", _record)
 
     assert not focal_requests, (
-        f"✗ 點擊後不應有 /video/focal request，實際攔到：{focal_requests}"
+        f"✗ 點擊後不應有 /video/save-focal request，實際攔到：{focal_requests}"
     )
 
     resp = page.request.get(f"{base_url}/api/showcase/video", params={"path": video_path})
@@ -512,7 +704,7 @@ def test_confirm_saves_and_cancel_saves_nothing(page: Page, base_url: str) -> No
             body=json.dumps({"success": True, "auto_focal": mocked_auto_focal}),
         )
 
-    page.route("**/api/showcase/video/focal", _handle_focal_route)
+    page.route("**/api/showcase/video/save-focal", _handle_focal_route)
     try:
         page.locator(".lb-mask-btn").click()
         _wait_detect_resolved(page)
@@ -536,11 +728,11 @@ def test_confirm_saves_and_cancel_saves_nothing(page: Page, base_url: str) -> No
         # 只有 handler 真正跑完、呼叫過 fulfill() 之後才可能有 response 事件，用它才能
         # 結構性保證「with 區塊結束時 handler 必已執行完」，徹底關掉這個 race。
         with page.expect_response(
-            lambda r: r.request.method == "POST" and "/api/showcase/video/focal" in r.url,
+            lambda r: r.request.method == "POST" and "/api/showcase/video/save-focal" in r.url,
             timeout=5_000,
         ) as resp_info:
             page.mouse.click(cx, cy)
-        assert resp_info.value is not None, "✓ 點擊後應觸發 POST /api/showcase/video/focal"
+        assert resp_info.value is not None, "✓ 點擊後應觸發 POST /api/showcase/video/save-focal"
         assert resp_info.value.status == 200, (
             f"mocked route 應回 200，實際：{resp_info.value.status}"
             "（非 200 代表 fulfill 未如預期執行，或請求真的打穿到別處）"
@@ -607,7 +799,7 @@ def test_confirm_saves_and_cancel_saves_nothing(page: Page, base_url: str) -> No
             f"期望 {focal_value!r}，實際 {lb_state!r}"
         )
     finally:
-        page.unroute("**/api/showcase/video/focal", _handle_focal_route)
+        page.unroute("**/api/showcase/video/save-focal", _handle_focal_route)
         _cancel_mask_if_open(page)
 
     # ── 結構性保證的收尾驗證：真實 server DB 應完全未被寫入 ──
@@ -622,3 +814,270 @@ def test_confirm_saves_and_cancel_saves_nothing(page: Page, base_url: str) -> No
         f"從未送達 server），實際：{body['video']['crop_mode']}——若不是 'auto'，代表"
         f"page.route() 攔截失效、請求真的打穿了 server，需要立即調查。"
     )
+
+
+# ── no-face 落點：窗應落基準幾何（非全幅），DoD①②（TASK-101b-T5） ─────────────
+
+def _read_mask_window_measurements(page: Page) -> dict:
+    """讀 `.lb-mask-window` 實際 computed style（width/transform）+ 地面真相
+    （`_computeMaskWinStyle()`）+ `_mask*` flags，供 no-face 落點斷言與拖曳過程中的
+    即時量測共用（101b-T5，比照既有 `_get_hit_test_rects` 的「單一 evaluate 取全部值」
+    寫法，避免逐項往返 IPC 造成量測時間點不一致）。
+    """
+    return page.evaluate(
+        """() => {
+            const root = document.querySelector('%s');
+            const data = window.Alpine && Alpine.$data(root);
+            if (!data) return { error: 'no-alpine-data' };
+            const win = document.querySelector('.lb-mask-window');
+            let width = null, transform = null;
+            if (win) {
+                const cs = getComputedStyle(win);
+                width = cs.width;
+                transform = cs.transform;
+            }
+            const imgEl = typeof data._maskTarget === 'function' ? data._maskTarget().imgEl : null;
+            const coverWidth = imgEl ? imgEl.getBoundingClientRect().width : null;
+            const groundTruth = typeof data._computeMaskWinStyle === 'function'
+                ? data._computeMaskWinStyle() : null;
+            return {
+                width: width, transform: transform, coverWidth: coverWidth,
+                groundTruth: groundTruth,
+                maskVisible: !!data._maskVisible,
+                maskSettling: !!data._maskSettling,
+                maskDetecting: !!data._maskDetecting,
+            };
+        }"""
+        % ALPINE_ROOT_SELECTOR
+    )
+
+
+def test_no_face_settles_to_baseline_geometry(page: Page, base_url: str) -> None:
+    """
+    TASK-101b-T5：`_maskStartSettle` 步驟③ no-face（沒找到臉／偵測失敗）分支落點修復驗證。
+
+    修前 bug：該分支一律寫 `this._maskWinStyle = g0`（全幅收斂起點），但 no-face 沒有
+    步驟⑥的 proxy tween 收斂它 → 窗**永久停在全幅**——全幅時窗外可暗化寬度為 0，
+    `box-shadow` scrim 無可暗化區域，遮罩對使用者**隱形**，違反 spec §4.2「沒找到臉→
+    亮窗直接以基準位置淡入，不收斂」。
+
+    用 `page.route` 攔截 `POST /api/showcase/video/detect-focal`，回 200 但
+    `auto_focal: ''`（→ `parseFocal('')` 回 `null` → `sawFace` 恆 `false`，見
+    `state-lightbox.js:1062`）——確定性觸發 no-face 分支，不依賴真實素材是否恰好無臉
+    可測。🔴 用 `expect_response` 等 `fulfill()` 真正跑完（既有 gotcha，同
+    `test_confirm_saves_and_cancel_saves_nothing`：`expect_request` 只保證請求已發出，
+    不保證我們的 handler 已跑完 `fulfill()`，競態下可能落到真 DB／真 pigo 呼叫）。
+
+    斷言①（DoD①）：no-face 窗最終 `width` < 0.8×coverW（有明顯裁切餘裕，非全幅——
+                    `width < coverW` 本身即證明 scrim 有面積可見）、`translateX` > 0
+                    （右裁，非全幅的 0），且等於 `_computeMaskWinStyle()` 地面真相
+                    （容差 0.5px/1px，比照既有 `test_hit_test_and_detect_first_render`
+                    斷言 2c 的容差慣例）。
+    斷言②（DoD②，次要症狀）：真實 `pointerdown→pointermove→pointerup` 序列
+                    （`page.mouse`，非函式呼叫模擬——繞過真實 hit-test 判定）在 no-face
+                    窗上拖曳，過程中 `_maskVisible` 全程為 `true`（未誤觸
+                    `.lb-mask-overlay` 的 `@click.self="cancelMask()"`），且窗跟手
+                    移動、無「跳變」（第一次 `pointermove` 的位移量應與滑鼠位移相稱，
+                    非離散跳到別處——修前 bug 的「起手視覺位置＝全幅」會讓第一次 move
+                    因 `computeMaskWinGeometry` 即時寫入正確終值而產生一次與滑鼠位移量
+                    無關的大跳動）。
+    """
+    videos = _fetch_cover_videos(page, base_url)
+    if not videos:
+        pytest.skip("找不到任何有封面的影片，跳過 no-face 落點 e2e")
+
+    def _handle_no_face_route(route: Route) -> None:
+        request: Request = route.request
+        try:
+            payload = request.post_data_json or {}
+        except Exception:
+            payload = {}
+        path = payload.get("path", "")
+        # cover_path 只需為字串（confirmMask 前置條件之一，本測試不按 ✓，值本身不影響
+        # 任何斷言）；直接回傳前端傳來的 path（本就是合法 file:/// DB-key URI），不手動
+        # 建構 file:///（違反 CLAUDE.md 路徑契約、test_no_manual_uri_construct 會紅）。
+        # auto_focal 空字串 → parseFocal('') 回 null → sawFace 恆 false。
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps({"success": True, "cover_path": path, "auto_focal": ""}),
+        )
+
+    counters = {"scanned": 0, "open_failed": 0, "route_error": 0, "no_room": 0, "settle_timeout": 0}
+    found = None
+    page.route("**/api/showcase/video/detect-focal", _handle_no_face_route)
+    try:
+        for v in videos[:MAX_CANDIDATES]:
+            path = v["path"]
+            counters["scanned"] += 1
+            if not _open_lightbox_for(page, base_url, path):
+                counters["open_failed"] += 1
+                continue
+
+            try:
+                with page.expect_response(
+                    lambda r: r.request.method == "POST" and "/api/showcase/video/detect-focal" in r.url,
+                    timeout=DETECT_TIMEOUT_MS,
+                ):
+                    page.locator(".lb-mask-btn").click()
+            except PlaywrightTimeoutError:
+                counters["route_error"] += 1
+                _cancel_mask_if_open(page)
+                continue
+
+            _wait_detect_resolved(page)
+            try:
+                # 等 settling timeline 也跑完（星空/spinner 淡出＋窗 opacity 淡入），
+                # 幾何本身在 _maskDetecting 翻 false 那一刻已是終值（同步賦值，見
+                # _maskStartSettle 步驟③），這裡只是確保量測落在穩定態、非過渡中繼幀。
+                page.wait_for_function(
+                    """() => {
+                        const root = document.querySelector('%s');
+                        const data = window.Alpine && Alpine.$data(root);
+                        return !!(data && data._maskDetecting === false && data._maskSettling === false);
+                    }""" % ALPINE_ROOT_SELECTOR,
+                    timeout=NO_FACE_SETTLE_TIMEOUT_MS,
+                )
+            except PlaywrightTimeoutError:
+                counters["settle_timeout"] += 1
+                _cancel_mask_if_open(page)
+                continue
+
+            m = _read_mask_window_measurements(page)
+            if m.get("error") or not m.get("groundTruth") or not m.get("coverWidth"):
+                counters["route_error"] += 1
+                _cancel_mask_if_open(page)
+                continue
+
+            actual_w = _parse_width(m)
+            actual_tx = _parse_translate_x(m.get("transform"))
+            cover_w = m["coverWidth"]
+            if actual_w is None or actual_tx is None:
+                counters["route_error"] += 1
+                _cancel_mask_if_open(page)
+                continue
+
+            # 🔴 候選篩選必須用「地面真相」（_computeMaskWinStyle()，純函式，只吃
+            # el/rect/r/_maskFocalX——no-face 時 _maskFocalX 全程未被 detect 回應改動，
+            # 見 state-lightbox.js:1062，故此值與本 task 要修的 bug 完全解耦），不可用
+            # `actual_w`（受 bug 影響的觀察值）篩選：若用 actual_w，mutation 還原成
+            # `= g0` 後**每一支影片**的 actual_w 都會等於 coverW（bug 本身就是全域性的、
+            # 非個別影片幾何造成），篩選迴圈會把全部候選判定為「裁切餘裕不足」而
+            # pytest.skip()，讓「必紅」的 mutation 驗證假綠成 skip——地面真相不受
+            # bug 影響，篩的是「這支影片本身的長寬比是否退化（a<=r）」，與 bug 正交。
+            gt_w_candidate = _parse_width(m.get("groundTruth"))
+            if gt_w_candidate is None:
+                counters["route_error"] += 1
+                _cancel_mask_if_open(page)
+                continue
+
+            if gt_w_candidate >= NO_FACE_MAX_WIDTH_RATIO * cover_w:
+                counters["no_room"] += 1
+                _cancel_mask_if_open(page)
+                continue
+
+            found = {
+                "path": path, "measurement": m,
+                "actual_w": actual_w, "actual_tx": actual_tx, "cover_w": cover_w,
+            }
+            break
+
+        if found is None:
+            pytest.skip(
+                f"窮舉 {counters['scanned']} 部候選影片找不到合格樣本（no-face 落點 e2e）："
+                f"open_failed={counters['open_failed']}, route_error={counters['route_error']}, "
+                f"settle_timeout={counters['settle_timeout']}, no_room={counters['no_room']}"
+                f"（裁切餘裕不足，width >= {NO_FACE_MAX_WIDTH_RATIO}×coverW），跳過 e2e"
+            )
+
+        try:
+            m = found["measurement"]
+            actual_w = found["actual_w"]
+            actual_tx = found["actual_tx"]
+            cover_w = found["cover_w"]
+            gt = m["groundTruth"]
+            gt_w = _parse_width(gt)
+            gt_tx = _parse_translate_x(gt.get("transform"))
+            assert gt_w is not None and gt_tx is not None, (
+                f"groundTruth（_computeMaskWinStyle()）無法解出 width/transform：{gt}"
+            )
+
+            # --- 斷言①a：width < 0.8×coverW（有明顯裁切餘裕，非全幅——scrim 有面積可見） ---
+            assert actual_w < NO_FACE_MAX_WIDTH_RATIO * cover_w, (
+                f"no-face 窗應落基準（有明顯裁切餘裕），實際 width={actual_w:.2f}px "
+                f"應 < {NO_FACE_MAX_WIDTH_RATIO}×coverW={cover_w:.2f}px"
+                "（若相等或接近 coverW，代表窗停在全幅，遮罩對使用者隱形——bug 復發）"
+            )
+
+            # --- 斷言①b：translateX > 0（右裁，非全幅的 0） ---
+            assert actual_tx > 0, (
+                f"no-face 窗應右裁（translateX > 0），實際 translateX={actual_tx:.2f}px"
+                "（0 代表窗貼左緣＝全幅或未裁切，bug 復發）"
+            )
+
+            # --- 斷言①c：等於地面真相（_computeMaskWinStyle()），容差比照既有斷言 2c ---
+            assert abs(actual_w - gt_w) < 0.5, (
+                f"no-face 窗 width 應等於 _computeMaskWinStyle() 地面真相，"
+                f"實際 {actual_w:.2f}px，地面真相 {gt_w:.2f}px"
+            )
+            assert abs(actual_tx - gt_tx) < 1.0, (
+                f"no-face 窗 translateX 應等於 _computeMaskWinStyle() 地面真相，"
+                f"實際 {actual_tx:.2f}px，地面真相 {gt_tx:.2f}px"
+            )
+
+            # --- 斷言②：拖曳不誤觸「點外取消」，且跟手無跳變（真實 pointer 事件序列） ---
+            rects = _get_hit_test_rects(page)
+            window_r = rects["win"]
+            assert window_r, "no-face 窗 rect 缺失，遮罩可能已提前關閉"
+            cx = window_r["x"] + window_r["width"] / 2
+            cy = window_r["y"] + window_r["height"] / 2
+
+            page.mouse.move(cx, cy)
+            page.mouse.down()
+            try:
+                # video 分支的基準恆貼右緣（_maskFocalX = openMask 起手一次性解出的右裁
+                # 常數，見 state-lightbox.js:976-977），故 translateX 已是 clamp 上界——
+                # 唯一有效可拖方向是往左，且步距不可超過現有 translateX 的安全比例，
+                # 避免撞左緣 clamp 讓「跟手」量測失真。
+                step = min(NO_FACE_DRAG_STEP_PX, actual_tx / 3) if actual_tx > 0 else NO_FACE_DRAG_STEP_PX
+                assert step > 0.5, f"可拖裁切餘裕過小，無法可靠量測跟手（actual_tx={actual_tx:.2f}px）"
+
+                page.mouse.move(cx - step, cy)
+                after_move1 = _read_mask_window_measurements(page)
+                tx1 = _parse_translate_x(after_move1.get("transform"))
+                assert tx1 is not None, f"拖曳第一次 move 後 transform 無法解出：{after_move1}"
+                delta1 = actual_tx - tx1
+                assert abs(delta1 - step) < NO_FACE_DRAG_TOLERANCE_PX, (
+                    f"拖曳第一次 pointermove 應跟手（位移量與滑鼠位移相稱），"
+                    f"滑鼠位移 {step:.1f}px，窗實際位移 {delta1:.1f}px"
+                    "（差異過大＝跳變，代表起手視覺位置與拖曳起點不一致，次要症狀復發）"
+                )
+                assert bool(after_move1.get("maskVisible")), (
+                    "拖曳第一次 move 後遮罩不應被關閉（_maskVisible 應仍 true）"
+                )
+
+                page.mouse.move(cx - step * 2, cy)
+                after_move2 = _read_mask_window_measurements(page)
+                tx2 = _parse_translate_x(after_move2.get("transform"))
+                assert tx2 is not None, f"拖曳第二次 move 後 transform 無法解出：{after_move2}"
+                delta2 = tx1 - tx2
+                assert abs(delta2 - step) < NO_FACE_DRAG_TOLERANCE_PX, (
+                    f"拖曳第二次 pointermove 應持續跟手，"
+                    f"預期再位移 {step:.1f}px，窗實際位移 {delta2:.1f}px"
+                )
+                assert bool(after_move2.get("maskVisible")), (
+                    "拖曳第二次 move 後遮罩不應被關閉（_maskVisible 應仍 true）"
+                )
+            finally:
+                page.mouse.up()
+
+            after_up = _read_mask_window_measurements(page)
+            assert bool(after_up.get("maskVisible")), (
+                "拖曳完（pointerup）後遮罩不應被關閉（_maskVisible 應仍 true）——次要症狀："
+                "全幅窗被拖曳時起手位置與視覺不一致，可能讓 pointerup 落在跳變後的窗外"
+                "觸發 .lb-mask-overlay 的 @click.self=\"cancelMask()\""
+            )
+        finally:
+            _cancel_mask_if_open(page)
+    finally:
+        page.unroute("**/api/showcase/video/detect-focal", _handle_no_face_route)

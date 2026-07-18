@@ -4,6 +4,7 @@ test_enricher.py - core/enricher.py TDD-lite 單元測試（full mock）
 涵蓋 TASK-T4.md 的 25 個邊界條件
 """
 
+import io
 import os
 import pytest
 from dataclasses import dataclass
@@ -2748,3 +2749,90 @@ class TestEnrichFocalCoverPathUriNamespace:
             "在此路徑下是 no-op，需換一組會實際轉換的 path_mappings）"
         )
         assert repo.update_auto_focal(db_key, "0.6,0.6", wrong_expected) is False
+
+
+# ============ 站2接線測試 (TASK-101a-T2 DoD①④) ============
+
+_T2_FOCAL_FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "actress_photos"
+
+
+def _t2_write_face_cover(cover_path):
+    src = _T2_FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg"
+    Path(cover_path).write_bytes(src.read_bytes())
+
+
+def _t2_oracle_poster_bytes():
+    """獨立 oracle：不經過 crop_to_poster / _write_external_images / enrich_single，
+    直接呼叫底層 primitive 算出「應該要平移到焦點」的期望 bytes。不可用「呼叫同一站
+    流程兩次自我比對」（gotchas-backend.md #9，101a-T1 已踩過）。
+    """
+    from core.organizer import _poster_window_ratio
+    from core.focal import detect_focal, crop_image_position
+    from PIL import Image
+
+    fixture_path = _T2_FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg"
+    with Image.open(fixture_path) as img:
+        w, h = img.size
+    r_window = _poster_window_ratio(w, h)
+    assert r_window is not None
+    focal = detect_focal(str(fixture_path), r_window)
+    assert focal is not None, "本 fixture 應能偵測到臉"
+    with Image.open(fixture_path) as img:
+        expected_cropped = crop_image_position(img.convert("RGB"), r_window, focal[0])
+    buf = io.BytesIO()
+    expected_cropped.save(buf, "JPEG", quality=95, subsampling=0)
+    return buf.getvalue()
+
+
+class TestEnrichSingleStationWiring:
+    """DoD①：站2（core/enricher.py enrich_single → _write_external_images →
+    crop_to_poster）接線——真跑 enrich_single()（external_manager='jellyfin'），
+    不 mock crop_to_poster / _write_external_images 本身（唯一沒有既有 patch 範本
+    的一站，見 plan §C-4）。fixture A（番號驅動）/ B（maker-only 驅動）各一次，
+    poster bytes 對獨立 oracle。
+    """
+
+    _FIXTURE_A = {"number": "FC2-1234567", "maker": "S1 NO.1 STYLE"}
+    _FIXTURE_B = {"number": "SSIS-001", "maker": "10musume"}
+
+    def _run_station2(self, tmp_path, tag, fixture):
+        mp4 = tmp_path / f"{fixture['number']}_{tag}.mp4"
+        mp4.touch()
+        cover = mp4.with_suffix(".jpg")
+        _t2_write_face_cover(cover)
+
+        mock_repo = MagicMock()
+        mock_repo.get_by_numbers.return_value = {
+            fixture["number"]: [_make_video(number=fixture["number"], maker=fixture["maker"])]
+        }
+        mock_repo.get_by_path.return_value = None
+
+        with (
+            patch("core.enricher.VideoRepository", return_value=mock_repo),
+            patch("core.enricher.search_jav", return_value=None),
+            patch("core.enricher.generate_nfo", return_value=True),
+            patch("core.enricher.download_image", return_value=False),
+            patch("core.enricher.find_subtitle_files", return_value=[]),
+        ):
+            from core.enricher import enrich_single
+            result = enrich_single(
+                file_path=str(mp4),
+                number=fixture["number"],
+                mode="db_to_sidecar",
+                write_nfo=True,
+                write_cover=False,
+                overwrite_existing=True,
+                external_manager="jellyfin",
+            )
+
+        assert result.success is True, f"enrich_single 失敗: {result.error}"
+        poster_path = mp4.with_name(mp4.stem + "-poster.jpg")
+        assert poster_path.exists(), "station2 應產生 poster"
+        expected = _t2_oracle_poster_bytes()
+        assert poster_path.read_bytes() == expected, "station2 poster 應對準焦點（獨立 oracle 比對）"
+
+    def test_station2_fixture_a(self, tmp_path):
+        self._run_station2(tmp_path, "a", self._FIXTURE_A)
+
+    def test_station2_fixture_b(self, tmp_path):
+        self._run_station2(tmp_path, "b", self._FIXTURE_B)

@@ -21,9 +21,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { computeMaskWinGeometry, computeMaskDragRoom, MASK_MIN_DRAG_ROOM } = await import('../mask-geometry.js');
+const { computeMaskWinGeometry, computeMaskDragRoom, MASK_MIN_DRAG_ROOM, computeMaskSettleGeometry } = await import('../mask-geometry.js');
 
 const R_ACTRESS = 0.75;   // --actress-crop-ratio（女優 3/4 置中窗，CD-3）
+const R_VIDEO = 0.71;     // --poster-crop-ratio（showcase.css:311/345/1250/1260/1300，CD-3）
+
+// 固定種子 xorshift32 PRNG——DoD② 的小數 fuzz 需求：CI 必須可重現，不可用 Math.random()。
+function xorshift32(seed) {
+  let s = seed >>> 0;
+  return function next() {
+    s ^= s << 13; s >>>= 0;
+    s ^= s >>> 17;
+    s ^= s << 5; s >>>= 0;
+    return s / 4294967296;
+  };
+}
 
 // ── G1：computeMaskWinGeometry 恆回傳 object（99a-T5 回歸鎖）────────────────
 
@@ -133,4 +145,128 @@ test('computeMaskDragRoom〔尺度無關〕同一 a 由不同 (W,H) 絕對值算
   const resultSmall = computeMaskDragRoom(aFromSmall, R_ACTRESS);
   const resultLarge = computeMaskDragRoom(aFromLarge, R_ACTRESS);
   assert.equal(resultSmall, resultLarge, '🔴 同一 a 不同絕對 W/H 來源 → drag room 必須相同（尺度無關，簽名吃 a 的結構保證）');
+});
+
+// ── computeMaskSettleGeometry：收斂幾何（101b-T1，CD-2/CD-3/CD-3a/CD-6/CD-11a/CD-11b）──
+
+test('🔴 computeMaskSettleGeometry〔①CD-2 結構鎖〕t=1 與 computeMaskWinGeometry deep-equal（video/actress 兩組，含 focalX=0.1 反例）', () => {
+  const cases = [
+    { W: 1000, H: 600, r: R_ACTRESS, focalX: 0.5, label: 'actress focalX=0.5（整數尺寸）' },
+    // 小數 rect（模擬 getBoundingClientRect() 真實回值）+ focalX=0.1：實測會讓
+    // a+(b-a)*t 的不精確 lerp 在 t=1 端點與精確值分歧（§A-1a 反例，見 mutation 驗證）。
+    { W: 1423.9741179160774, H: 359.06948894262314, r: R_ACTRESS, focalX: 0.1, label: 'actress focalX=0.1（§A-1a 反例值，小數 rect）' },
+    { W: 1280, H: 720, r: R_VIDEO, focalX: 0.5, label: 'video focalX=0.5（整數尺寸）' },
+    { W: 1358.194731362164, H: 363.3379482664168, r: R_VIDEO, focalX: 0.1, label: 'video focalX=0.1（§A-1a 反例值，小數 rect）' },
+  ];
+  for (const { W, H, r, focalX, label } of cases) {
+    const settled = computeMaskSettleGeometry(W, H, r, focalX, 1);
+    const target = computeMaskWinGeometry(W, H, r, focalX);
+    assert.deepEqual(settled, target, `${label}: t=1 必須 deep-equal computeMaskWinGeometry(...)——mutation：拿掉 t>=1 short-circuit 改回不精確 lerp（a+(b-a)*t）→ focalX=0.1 案必紅`);
+  }
+});
+
+test('🔴 computeMaskSettleGeometry〔②t<=0 恆全幅，小數 fuzz ≥10000 組〕width/height/transform 皆為全幅字串（§A-1a：整數 fixture 假綠，小數才測得出 3.9% 漂移）', () => {
+  const rnd = xorshift32(0xC0FFEE);
+  const N = 10000;
+  for (let i = 0; i < N; i++) {
+    const W = 300 + rnd() * 1200;   // 小數 double，模擬 getBoundingClientRect() 真實回值
+    const H = 300 + rnd() * 1200;
+    const r = i % 2 === 0 ? R_ACTRESS : R_VIDEO;
+    const focalX = rnd();
+    const g = computeMaskSettleGeometry(W, H, r, focalX, 0);
+    assert.equal(g.width, `${W}px`, `iter ${i} (W=${W}): t=0 width 必須恰為全幅 W 字串（非數值接近，是字串相等）`);
+    assert.equal(g.height, `${H}px`, `iter ${i} (H=${H}): t=0 height 必須恰為全幅 H`);
+    assert.equal(g.transform, 'translateX(0px)', `iter ${i}: t=0 transform 必須為 translateX(0px)`);
+  }
+});
+
+test('computeMaskSettleGeometry〔②t=0，a<=r 無餘裕圖邊界〕窄圖（W/H<=r）t=0 仍恆全幅（邊界條件#2）', () => {
+  const W = 500, H = 1000, r = R_ACTRESS; // a = 0.5 <= 0.75，無餘裕圖
+  const g = computeMaskSettleGeometry(W, H, r, 0.5, 0);
+  assert.equal(g.width, `${W}px`);
+  assert.equal(g.height, `${H}px`);
+  assert.equal(g.transform, 'translateX(0px)');
+});
+
+test('🔴 computeMaskSettleGeometry〔③單調 + anti-baseline-flash〕t 0→1 遞增取樣，winW 非遞增，全程不等於基準幾何（focalX=null 右裁）', () => {
+  const W = 1000, H = 600, r = R_ACTRESS, focalX = 0.3; // 避開與基準重合的退化情況
+  const baseline = computeMaskWinGeometry(W, H, r, null);
+  let prevWinW = Infinity;
+  for (let i = 0; i <= 10; i++) {
+    const t = i / 10;
+    const g = computeMaskSettleGeometry(W, H, r, focalX, t);
+    const winW = parseFloat(g.width);
+    assert.ok(winW <= prevWinW + 1e-9, `t=${t}: winW 必須非遞增，實得 ${winW} > 前一取樣 ${prevWinW}（不可中途變寬回彈）`);
+    prevWinW = winW;
+    assert.notDeepEqual(g, baseline, `t=${t}: 全程任一幀不得等於基準幾何（CD-2 anti-baseline-flash）`);
+  }
+});
+
+test('🔴 computeMaskSettleGeometry〔④CD-11a fail-closed〕W/H/r/t/focalX 任一非有限，或 r/W/H<=0 → null（任何 t 皆然）', () => {
+  const base = { W: 1000, H: 600, r: R_ACTRESS, focalX: 0.5 };
+  const badCases = [
+    { ...base, W: NaN, label: 'W=NaN' },
+    { ...base, W: Infinity, label: 'W=Infinity' },
+    { ...base, W: -Infinity, label: 'W=-Infinity' },
+    { ...base, H: NaN, label: 'H=NaN' },
+    { ...base, H: Infinity, label: 'H=Infinity' },
+    { ...base, H: -Infinity, label: 'H=-Infinity' },
+    { ...base, r: NaN, label: 'r=NaN' },
+    { ...base, r: Infinity, label: 'r=Infinity' },
+    { ...base, r: -Infinity, label: 'r=-Infinity' },
+    { ...base, focalX: NaN, label: 'focalX=NaN（🔴 Opus 裁決：納入 gate）' },
+    { ...base, focalX: Infinity, label: 'focalX=Infinity' },
+    { ...base, focalX: -Infinity, label: 'focalX=-Infinity' },
+    { ...base, focalX: null, label: 'focalX=null（🔴 Opus 裁決：不回落右裁，一律 null）' },
+    { ...base, focalX: undefined, label: 'focalX=undefined' },
+    { ...base, r: 0, label: 'r=0（恰為 0，非僅負值）' },
+    { ...base, r: -1, label: 'r=-1' },
+    { ...base, W: 0, label: 'W=0' },
+    { ...base, W: -100, label: 'W=-100' },
+    { ...base, H: 0, label: 'H=0' },
+    { ...base, H: -100, label: 'H=-100' },
+  ];
+  for (const { W, H, r, focalX, label } of badCases) {
+    for (const t of [0, 0.5, 1]) {
+      const g = computeMaskSettleGeometry(W, H, r, focalX, t);
+      // 第二道防線：即使誤放行，非 null 結果也不得含 NaN 子字串
+      assert.ok(
+        g === null || (!/NaN/.test(g.width) && !/NaN/.test(g.height) && !/NaN/.test(g.transform)),
+        `${label} @ t=${t}: 非 null 結果不得含 'NaN' 子字串`,
+      );
+      assert.equal(g, null, `${label} @ t=${t}: 必須回傳 null（fail-closed，CD-11a）`);
+    }
+  }
+
+  for (const [t, label] of [[NaN, 't=NaN'], [Infinity, 't=Infinity'], [-Infinity, 't=-Infinity']]) {
+    const g = computeMaskSettleGeometry(base.W, base.H, base.r, base.focalX, t);
+    assert.equal(g, null, `${label}: 必須回傳 null（fail-closed，CD-11a）`);
+  }
+});
+
+test('🔴 computeMaskSettleGeometry〔⑥CD-11b 型別鎖〕每條 return 路徑皆為 null 或 object（不可為 string），三鍵集合恆定', () => {
+  const W = 1000, H = 600, r = R_ACTRESS, focalX = 0.4;
+  const paths = [
+    { label: 't<=0 全幅分支', g: computeMaskSettleGeometry(W, H, r, focalX, 0), expectNull: false },
+    { label: 't>=1 終值分支', g: computeMaskSettleGeometry(W, H, r, focalX, 1), expectNull: false },
+    { label: '內插區', g: computeMaskSettleGeometry(W, H, r, focalX, 0.5), expectNull: false },
+    { label: 'fail-closed 分支', g: computeMaskSettleGeometry(NaN, H, r, focalX, 0.5), expectNull: true },
+  ];
+  for (const { label, g, expectNull } of paths) {
+    assert.notEqual(typeof g, 'string', `${label}: 絕不可為 string（CD-11b，99a-T5 事故本體：字串會抹掉 x-show 的 display:none）`);
+    if (expectNull) {
+      assert.equal(g, null, `${label}: 必須為 null`);
+    } else {
+      assert.equal(typeof g, 'object', `${label}: 必須為 object`);
+      assert.notEqual(g, null, `${label}: 必須為非 null object`);
+      assert.equal(typeof g.width, 'string', `${label}: width 必須為 string`);
+      assert.equal(typeof g.height, 'string', `${label}: height 必須為 string`);
+      assert.equal(typeof g.transform, 'string', `${label}: transform 必須為 string`);
+      assert.deepEqual(
+        Object.keys(g).sort(),
+        ['height', 'transform', 'width'],
+        `${label}: 三鍵集合恆為 {width,height,transform}（CD-3a height 不可省的直接證明）`,
+      );
+    }
+  }
 });

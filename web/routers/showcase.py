@@ -32,7 +32,7 @@ class DetectFocalRequest(BaseModel):
 
 
 class ManualFocalRequest(BaseModel):
-    """POST /video/focal body：path（DB key）+ focal（'x.xxxx,y.xxxx' 格式字串）+
+    """POST /video/save-focal body：path（DB key）+ focal（'x.xxxx,y.xxxx' 格式字串）+
     expected_cover_path（Codex PR#107 第二輪 P2：使用者開遮罩當下觀察到的
     row.cover_path，DB-key file:/// URI 或空字串；必填、不可省略——見
     VideoRepository.update_manual_focal 的 cover compare-and-store 說明）。"""
@@ -227,14 +227,14 @@ def detect_video_focal(req: DetectFocalRequest):
     - 非 DB path → 404（不開任何檔）。
     - configured-dir scope 外 → 拒（scope 外 force-detect 無意義）。
     - **不寫 DB**（99a-T1a）：純預覽供前端遮罩顯示，唯讀來源亦放行（D4/CD-7——
-      偵測本身不寫入，不需要可寫權限）。要存入需另呼叫 `POST /video/focal` mutator。
+      偵測本身不寫入，不需要可寫權限）。要存入需另呼叫 `POST /video/save-focal` mutator。
     - row.cover_path 空或檔案不存在 → 固定字串（不崩）。
     - 無臉 → format_focal(None) = '' 回傳（不存）。
 
     回應（row 找到、in-scope 之後的所有分支：成功偵測 / 封面檔缺失）皆帶
     `cover_path`（row 當下的 DB-key `cover_path`，Codex PR#107 第二輪 P2）：
     前端拿這個值原樣存為 mask session 的 `expected_cover_path`，之後
-    `POST /video/focal` 存檔時原樣帶回，讓 `update_manual_focal` 的
+    `POST /video/save-focal` 存檔時原樣帶回，讓 `update_manual_focal` 的
     compare-and-store 守衛比對「使用者觀察當下」與「存檔當下」的封面是否一致，
     擋掉 rescan/rescrape 換封面卻把舊座標存成新封面 manual 值的 race。
     `def`（非 async）→ threadpool；detect_focal 同步 ~2.2s。**不進 capabilities（不揭露）。**
@@ -273,7 +273,7 @@ def detect_video_focal(req: DetectFocalRequest):
         return JSONResponse({"success": False, "error": "偵測焦點失敗"}, status_code=500)
 
 
-@router.post("/video/focal")
+@router.post("/video/save-focal")
 def set_manual_focal(req: ManualFocalRequest):
     """使用者手動存入焦點座標（99a-T1a，CD-2 / spec §3.9-2）。
 

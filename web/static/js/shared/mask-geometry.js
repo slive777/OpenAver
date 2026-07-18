@@ -69,3 +69,48 @@ export function computeMaskDragRoom(a, r) {
   }
   return 1 - r / a;
 }
+
+/**
+ * 收斂幾何純函式（101b-T1，CD-2/CD-3/CD-3a/CD-6/CD-11a/CD-11b）：把「全幅 → 偵測終值」
+ * 的收斂過程表達成對 `computeMaskWinGeometry` 兩個入參（`r`、`focalX`）的 lerp，
+ * **不重寫任何幾何**——內插區的唯一出口是呼叫既有 `computeMaskWinGeometry`。
+ *
+ * - `t<=0`：全幅（手搭物件，CD-3a 的唯一允許例外——理由是浮點不收斂，§A-1a 實測整數
+ *   fixture 8/8 假綠、小數 fuzz 3.929% 漂移）。
+ * - `t>=1`：終值 by construction（直接轉呼叫既有函式，CD-2「終點即真值」的結構保證）。
+ * - `0<t<1`：precise lerp `(1-t)*a + t*b`（非 `a+(b-a)*t`——§A-1a 實測 focal=0.1 反例）。
+ * - fail-closed（CD-11a）：`W/H/r/t/focalX` 任一非有限，或 `r<=0`/`W<=0`/`H<=0` → `null`。
+ *   `focalX` 納入本 gate 是 Opus 裁決（見 TASK-101b-T1.md「Opus 裁決」段）：忠於 CD-11a
+ *   結語「絕不倒向壞幾何」，且避免同一個 `focalX=null` 在 t=1 端點（右裁語意）與內插區
+ *   （JS 算術強制轉型為 0＝最左語意）產生兩套矛盾語意。
+ *
+ * @param {number} W render 寬（px）
+ * @param {number} H render 高（px）
+ * @param {number} r 裁切窗終值比例
+ * @param {number} focalX 偵測終值 x（[0,1]，未鉗；本函式要求恆為有限值，不同於
+ *   `computeMaskWinGeometry` 可接受 null/undefined 的右裁 fallback 語意）
+ * @param {number} t 收斂進度 [0,1]（越界值不 clamp，`>=1`/`<=0` 直接落對應端點分支）
+ * @returns {{width: string, height: string, transform: string}|null} 恆為 object（三鍵
+ *   `width`/`height`/`transform`）或 `null`（fail-closed），絕不回傳字串（CD-11b）
+ */
+export function computeMaskSettleGeometry(W, H, r, focalX, t) {
+  // CD-11a fail-closed（第一道 gate，早於任何 short-circuit——順序本身是承重的：
+  // 若先判 t>=1/t<=0，t=NaN 會因兩個比較皆為 false 而穿透到內插區產生 NaN 字串）。
+  if (!Number.isFinite(W) || !Number.isFinite(H) || !Number.isFinite(r) || !Number.isFinite(t)
+      || !Number.isFinite(focalX)
+      || r <= 0 || W <= 0 || H <= 0) {
+    return null;
+  }
+  // CD-3a 端點：t>=1 → 終值 by construction（呼叫既有函式，不重算）
+  if (t >= 1) {
+    return computeMaskWinGeometry(W, H, r, focalX);
+  }
+  // CD-3a 端點：t<=0 → 全幅（手搭物件，唯一允許的例外，理由見 §A-1a）
+  if (t <= 0) {
+    return { width: `${W}px`, height: `${H}px`, transform: 'translateX(0px)' };
+  }
+  // 內插區：precise lerp (1-t)*a + t*b，非 a+(b-a)*t（§A-1a 實測 focal=0.1 反例）
+  const r_t = (1 - t) * (W / H) + t * r;
+  const focal_t = (1 - t) * 0.5 + t * focalX;
+  return computeMaskWinGeometry(W, H, r_t, focal_t);
+}

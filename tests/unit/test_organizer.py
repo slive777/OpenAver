@@ -2,13 +2,16 @@
 T1e Tests — Fix-1 版本標記測試
 測試 core/organizer.py 的 _detect_suffixes(), format_string(), organize_file()
 """
+import io
 import json
 import pytest
 from pathlib import Path
 from unittest.mock import patch
 from PIL import Image
 
-from core.organizer import _detect_suffixes, format_string, organize_file, crop_to_poster, generate_nfo, extract_chinese_title, download_image, truncate_to_chars, truncate_title, _detect_vr_cluster, _is_multipart_kw
+from core.organizer import _detect_suffixes, format_string, organize_file, crop_to_poster, generate_nfo, extract_chinese_title, download_image, truncate_to_chars, truncate_title, _detect_vr_cluster, _is_multipart_kw, _poster_window_ratio
+from core.focal import requires_face_detection, detect_focal as _real_detect_focal
+from core.scrapers.utils import normalize_number_impl
 
 
 # ============ _detect_suffixes() 測試 ============
@@ -857,6 +860,343 @@ class TestCropToPoster:
         with Image.open(dst) as img:
             w, h = img.size
         assert (w, h) == (380, 538), f"直向圖片應直接複製（不裁切），實際尺寸: {w}×{h}"
+
+
+# ============ crop_to_poster 焦點化測試 (TASK-101a-T1) ============
+
+_FOCAL_FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures" / "actress_photos"
+
+
+def _pad_to_square_with_white_bars(src_path, dst_path):
+    """把矩形圖上下 pad 白邊成正方形（測試內即時合成，不進 repo，Opus 裁決見 TASK card）。"""
+    with Image.open(src_path) as img:
+        w, h = img.size
+        assert w > h, "本 helper 只處理橫向圖上下 pad 成方形"
+        square = Image.new("RGB", (w, w), (255, 255, 255))
+        top = (w - h) // 2
+        square.paste(img.convert("RGB"), (0, top))
+        square.save(str(dst_path), "JPEG", quality=95)
+
+
+class TestPosterWindowRatioInvariant:
+    """DoD①：CD-3 不變式——_poster_window_ratio() 的窗比例恆小於畫面比例 a=w/h
+    （分支2/3 定義域內），production 與本測試共用同一個 helper（Opus 裁決）。
+
+    mutation 驗：把 helper 內分支2 公式改成 int(h*1.5)/h（必然 >a）→ 本測試必須紅；
+    還原後綠。
+    """
+
+    def test_branch2_window_ratio_below_frame_ratio(self):
+        """分支2定義域 a=w/h ∈ (0.714, 1.0]，抽樣驗證 a > r_window 恆成立。"""
+        h = 1000
+        samples = [0.715, 0.75, 0.8, 0.9, 0.95, 1.0]
+        for a in samples:
+            w = int(round(h * a))
+            ratio = h / w
+            assert 1.0 <= ratio < 1.4, f"抽樣點應落在分支2定義域，實際 ratio={ratio}"
+            r_window = _poster_window_ratio(w, h)
+            assert r_window is not None
+            frame_ratio = w / h
+            assert frame_ratio > r_window, (
+                f"a={frame_ratio:.4f} 應大於 r_window={r_window:.4f}（w={w}, h={h}）"
+            )
+
+    def test_branch3_window_ratio_below_frame_ratio(self):
+        """分支3定義域 a=w/h > 1.0，取合理上界 3.0 分段抽樣驗證 a > r_window 恆成立。"""
+        h = 1000
+        samples = [1.01, 1.2, 1.487, 1.8, 2.0, 2.5, 3.0]
+        for a in samples:
+            w = int(round(h * a))
+            ratio = h / w
+            assert ratio < 1.0, f"抽樣點應落在分支3定義域，實際 ratio={ratio}"
+            r_window = _poster_window_ratio(w, h)
+            assert r_window is not None
+            frame_ratio = w / h
+            assert frame_ratio > r_window, (
+                f"a={frame_ratio:.4f} 應大於 r_window={r_window:.4f}（w={w}, h={h}）"
+            )
+
+    def test_branch1_returns_none(self):
+        """分支1（h/w>=1.4，已直向）helper 回 None，不參與偵測/平移。"""
+        assert _poster_window_ratio(380, 538) is None  # ratio=1.416
+        assert _poster_window_ratio(700, 1050) is None  # ratio=1.5
+
+
+class TestCropToPosterFocalReal:
+    """DoD②：無碼真圖 poster 對準臉——gate 兩支路徑（fixture A/B）各一，
+    分支2/分支3 各一（4 組合），真跑 detect_focal（不 mock）。
+
+    每組合兩個斷言：
+    - 正向：輸出 bytes 等於「測試內獨立以『只平移既有窗』契約（整數 crop_w + focal 平移 x0）裁切存檔」的期望值。
+    - 反向：輸出 bytes 與「同圖不傳 number/maker 的原碼輸出」不同（證明焦點真的平移了窗）。
+    """
+
+    _FIXTURE_A = {"number": "FC2-1234567", "maker": "S1 NO.1 STYLE"}  # 番號驅動，maker 非白名單
+    _FIXTURE_B = {"number": "SSIS-001", "maker": "10musume"}  # maker-only 驅動，白名單原樣照抄
+
+    def _assert_focal_applied(self, src_path, tmp_path, tag, **kwargs):
+        dst = tmp_path / f"poster_{tag}.jpg"
+        baseline_dst = tmp_path / f"poster_{tag}_baseline.jpg"
+
+        result = crop_to_poster(str(src_path), str(dst), **kwargs)
+        assert result is True
+        assert dst.exists()
+
+        with Image.open(src_path) as img:
+            w, h = img.size
+        r_window = _poster_window_ratio(w, h)
+        assert r_window is not None
+
+        focal = _real_detect_focal(str(src_path), r_window)
+        assert focal is not None, "本測試 fixture 應能偵測到臉"
+
+        with Image.open(src_path) as img:
+            # 101a P2-1（Codex PR#110）：oracle 改為「只平移既有窗」的真實契約——用與退化路
+            # 完全相同的整數 crop_w，只把 x0 平移到臉；不再經 crop_image_position 的 float
+            # ratio→px round-trip（該 helper 會 ±1px 改窗寬、已被 crop_to_poster 棄用）。
+            crop_w = int(h / 1.5) if (h / w) >= 1.0 else (w - int(w / 1.9))
+            x0 = max(min(int(w * focal[0]) - crop_w // 2, w - crop_w), 0)
+            expected_cropped = img.convert("RGB").crop((x0, 0, x0 + crop_w, h))
+        expected_path = tmp_path / f"poster_{tag}_expected.jpg"
+        expected_cropped.save(str(expected_path), "JPEG", quality=95, subsampling=0)
+        assert dst.read_bytes() == expected_path.read_bytes(), "輸出應與獨立計算的期望裁切位元相同"
+
+        baseline_result = crop_to_poster(str(src_path), str(baseline_dst))
+        assert baseline_result is True
+        assert dst.read_bytes() != baseline_dst.read_bytes(), "焦點裁切應與原碼（不傳 number/maker）輸出不同"
+
+    def test_branch3_fixture_a(self, tmp_path):
+        """分支3（900×598 橫向）+ fixture A（番號驅動）。"""
+        src = _FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg"
+        self._assert_focal_applied(src, tmp_path, "b3a", **self._FIXTURE_A)
+
+    def test_branch3_fixture_b(self, tmp_path):
+        """分支3（900×598 橫向）+ fixture B（maker-only 驅動）。"""
+        src = _FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg"
+        self._assert_focal_applied(src, tmp_path, "b3b", **self._FIXTURE_B)
+
+    def test_branch2_fixture_a(self, tmp_path):
+        """分支2（900×900 上下 pad 白邊，即時合成）+ fixture A（番號驅動）。"""
+        src = tmp_path / "square_face.jpg"
+        _pad_to_square_with_white_bars(_FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg", src)
+        self._assert_focal_applied(src, tmp_path, "b2a", **self._FIXTURE_A)
+
+    def test_branch2_fixture_b(self, tmp_path):
+        """分支2（900×900 上下 pad 白邊，即時合成）+ fixture B（maker-only 驅動）。"""
+        src = tmp_path / "square_face.jpg"
+        _pad_to_square_with_white_bars(_FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg", src)
+        self._assert_focal_applied(src, tmp_path, "b2b", **self._FIXTURE_B)
+
+
+class TestCropToPosterByteForByteRegression:
+    """DoD④：真正的零回歸哨兵（非 TestCropToPoster 三個既有測試，見 plan §C-1 修訂框一）。
+
+    同一測試內兩次呼叫自我比對（不需 git 取舊產物）：有碼 / 無臉 / number='' 三路，
+    分支2（方形）與分支3（橫向）各至少覆蓋一次。
+    """
+
+    def test_censored_gate_false_branch3_rectangular(self, tmp_path):
+        """fallback-on-None（分支3橫向，純色合成圖）：新舊簽名輸出位元相同。
+
+        ⚠️ 誠實描述：來源是純色圖，pigo 本來就偵測不到臉，此測試**證不出**
+        「gate 正確回 False」——「gate=False」與「gate 被繞過但偵測無結果」兩條路殊途
+        同歸、輸出同 bytes（若把 gate 換成 `if True:` 此測試仍綠）。此測試只是
+        no-face fallback 路徑的額外覆蓋，忠實驗證 gate wiring 見下方
+        `test_censored_real_face_gate_false_branch3`（真臉圖，gate 被繞過會真的平移）。
+        """
+        src = _make_test_image(tmp_path, 800, 538, "cover.jpg")
+        dst_a = tmp_path / "a.jpg"
+        dst_b = tmp_path / "b.jpg"
+        assert crop_to_poster(str(src), str(dst_a)) is True
+        assert crop_to_poster(str(src), str(dst_b), number="SSIS-001", maker="S1 NO.1 STYLE") is True
+        assert dst_a.read_bytes() == dst_b.read_bytes()
+
+    def test_censored_gate_false_branch2_square(self, tmp_path):
+        """fallback-on-None（分支2方形，純色合成圖）：新舊簽名輸出位元相同。
+
+        ⚠️ 誠實描述：同上——純色圖證不出「gate 正確回 False」，只是 no-face fallback
+        路徑的額外覆蓋。忠實驗證見下方 `test_censored_real_face_gate_false_branch2`。
+        """
+        src = _make_test_image(tmp_path, 500, 500, "cover_sq.jpg")
+        dst_a = tmp_path / "a.jpg"
+        dst_b = tmp_path / "b.jpg"
+        assert crop_to_poster(str(src), str(dst_a)) is True
+        assert crop_to_poster(str(src), str(dst_b), number="SSIS-001", maker="S1 NO.1 STYLE") is True
+        assert dst_a.read_bytes() == dst_b.read_bytes()
+
+    def test_censored_real_face_gate_false_branch3(self, tmp_path):
+        """有碼（gate False，真臉分支3，忠實測試）：wide_offcenter_face.jpg 真臉圖 +
+        SSIS-001/S1 NO.1 STYLE（實測 gate → False）輸出須等於**獨立計算**的既有裁切算式
+        期望值。
+
+        ⚠️ 不能用「呼叫兩次 crop_to_poster 自我比對」（一次不傳 number/maker 當 baseline）：
+        對「gate 被整個繞過」（如 mutation `if True:`）這種 mutation，baseline 那次呼叫
+        同樣會被同一個 mutation 影響、一樣被平移，兩次呼叫依然相等 → 結構性瞎眼、測試
+        不會紅（本 task P2 review 踩過一次）。改成與**不經過 crop_to_poster** 的獨立算式
+        比對，才能在 gate 被繞過時偵測到分歧。
+        """
+        src = _FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg"
+        dst = tmp_path / "poster.jpg"
+        assert crop_to_poster(str(src), str(dst), number="SSIS-001", maker="S1 NO.1 STYLE") is True
+
+        with Image.open(src) as img:
+            w, h = img.size
+            ratio = h / w
+            assert ratio < 1.0, "fixture 應落在分支3（橫向）"
+            x0 = int(w / 1.9)
+            expected_cropped = img.convert("RGB").crop((x0, 0, w, h))
+        expected_path = tmp_path / "expected.jpg"
+        expected_cropped.save(str(expected_path), "JPEG", quality=95, subsampling=0)
+        assert dst.read_bytes() == expected_path.read_bytes(), (
+            "gate=False 時輸出應等於既有分支3裁切算式（右裁 x0=int(w/1.9)），"
+            "若不同代表 gate 沒有正確擋下偵測"
+        )
+
+    def test_censored_real_face_gate_false_branch2(self, tmp_path):
+        """有碼（gate False，真臉分支2，忠實測試）：同圖 pad 成方形 + 同 gate False 組合，
+        輸出須等於**獨立計算**的既有裁切算式期望值（理由同 branch3 版 docstring）。
+        """
+        src = tmp_path / "square_face_gate_false.jpg"
+        _pad_to_square_with_white_bars(_FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg", src)
+        dst = tmp_path / "poster.jpg"
+        assert crop_to_poster(str(src), str(dst), number="SSIS-001", maker="S1 NO.1 STYLE") is True
+
+        with Image.open(src) as img:
+            w, h = img.size
+            ratio = h / w
+            assert 1.0 <= ratio < 1.4, "fixture 應落在分支2（方形）"
+            crop_w = int(h / 1.5)
+            x0 = (w - crop_w) // 2
+            expected_cropped = img.convert("RGB").crop((x0, 0, x0 + crop_w, h))
+        expected_path = tmp_path / "expected.jpg"
+        expected_cropped.save(str(expected_path), "JPEG", quality=95, subsampling=0)
+        assert dst.read_bytes() == expected_path.read_bytes(), (
+            "gate=False 時輸出應等於既有分支2裁切算式（置中 crop_w=int(h/1.5)），"
+            "若不同代表 gate 沒有正確擋下偵測"
+        )
+
+    def test_no_face_real_photo_branch3(self, tmp_path):
+        """無臉（主證據，真圖，分支3）：no_face_detected.jpg gate True 但偵測不到臉 → 落回原碼。"""
+        src = _FOCAL_FIXTURES_DIR / "no_face_detected.jpg"
+        dst_a = tmp_path / "a.jpg"
+        dst_b = tmp_path / "b.jpg"
+        assert crop_to_poster(str(src), str(dst_a)) is True
+        assert crop_to_poster(str(src), str(dst_b), number="FC2-1234567") is True
+        assert dst_a.read_bytes() == dst_b.read_bytes()
+
+    def test_no_face_synthetic_branch2(self, tmp_path):
+        """無臉（補充，合成純色圖，分支2）：gate True 但無臉 → 落回原碼。"""
+        src = _make_test_image(tmp_path, 500, 500, "cover_sq.jpg")
+        dst_a = tmp_path / "a.jpg"
+        dst_b = tmp_path / "b.jpg"
+        assert crop_to_poster(str(src), str(dst_a)) is True
+        assert crop_to_poster(str(src), str(dst_b), number="FC2-1234567", maker="") is True
+        assert dst_a.read_bytes() == dst_b.read_bytes()
+
+    def test_no_face_synthetic_branch3(self, tmp_path):
+        """無臉（補充，合成純色圖，分支3）：gate True 但無臉 → 落回原碼。"""
+        src = _make_test_image(tmp_path, 800, 538, "cover.jpg")
+        dst_a = tmp_path / "a.jpg"
+        dst_b = tmp_path / "b.jpg"
+        assert crop_to_poster(str(src), str(dst_a)) is True
+        assert crop_to_poster(str(src), str(dst_b), number="FC2-1234567", maker="") is True
+        assert dst_a.read_bytes() == dst_b.read_bytes()
+
+    def test_empty_number_explicit_equals_omitted_branch2(self, tmp_path):
+        """number='' 顯式空值 vs 完全不傳（用預設值）：分支2 行為一致。"""
+        src = _make_test_image(tmp_path, 500, 500, "cover_sq.jpg")
+        dst_a = tmp_path / "a.jpg"
+        dst_b = tmp_path / "b.jpg"
+        assert crop_to_poster(str(src), str(dst_a), number="", maker="") is True
+        assert crop_to_poster(str(src), str(dst_b)) is True
+        assert dst_a.read_bytes() == dst_b.read_bytes()
+
+    def test_empty_number_explicit_equals_omitted_branch3(self, tmp_path):
+        """number='' 顯式空值 vs 完全不傳（用預設值）：分支3 行為一致。"""
+        src = _make_test_image(tmp_path, 800, 538, "cover.jpg")
+        dst_a = tmp_path / "a.jpg"
+        dst_b = tmp_path / "b.jpg"
+        assert crop_to_poster(str(src), str(dst_a), number="", maker="") is True
+        assert crop_to_poster(str(src), str(dst_b)) is True
+        assert dst_a.read_bytes() == dst_b.read_bytes()
+
+
+class TestCropToPosterFocalCropWidth:
+    """CD-5「只平移既有窗，不改窗寬」——焦點路徑的 crop 寬度必須與退化路的整數窗寬
+    完全相同，不因 crop_image_position 的 float ratio→px round-trip 少 1px（Codex PR#110 P2-1）。
+
+    521×521 是踩雷案例：退化路 int(521/1.5)=347，但舊碼經 crop_image_position 得
+    int(521*(347/521))=346（少 1px，海報寬度/比例與 fallback 不一致）。
+    """
+
+    def test_focal_crop_width_matches_legacy_branch2_square(self, tmp_path):
+        """分支2 方形 521×521：焦點窗寬須 == 退化窗寬 347（不是 crop_image_position 的 346）。"""
+        src = _make_test_image(tmp_path, 521, 521, "cover_sq.jpg")
+        dst = tmp_path / "poster.jpg"
+
+        # 焦點固定置中（0.5），gate 用真正無碼番號（FC2-1234567 實測 gate → True）。
+        with patch('core.organizer.detect_focal', return_value=(0.5, 0.5)):
+            assert crop_to_poster(str(src), str(dst), number="FC2-1234567") is True
+
+        with Image.open(dst) as out:
+            assert out.size == (347, 521), (
+                f"焦點裁窗寬應等於退化路整數窗寬 347（int(521/1.5)），實得 {out.size[0]}；"
+                "若為 346 代表走了 crop_image_position 的 float round-trip、改了窗寬"
+            )
+
+class TestCropToPosterBranch1NoDetection:
+    """DoD⑤：分支1（h/w>=1.4，narrow_face_top.jpg 真圖且真有臉）仍 copy2 不裁，
+    且完全不觸發人臉偵測（結構保證：分支1提早 return，不進入 gate/偵測邏輯）。
+
+    patch target 必須是 core.organizer.detect_focal（consumer binding，
+    見 gotchas-backend.md §測試 Mock Patch Target；patch core.focal.detect_focal 改不到）。
+    """
+
+    def test_branch1_copy2_no_detection_even_with_gate_true(self, tmp_path):
+        src = _FOCAL_FIXTURES_DIR / "narrow_face_top.jpg"
+        dst = tmp_path / "poster.jpg"
+
+        with patch('core.organizer.detect_focal') as mock_detect_focal:
+            result = crop_to_poster(str(src), str(dst), number="FC2-1234567")
+
+        assert result is True
+        assert dst.exists()
+        assert dst.read_bytes() == src.read_bytes(), "分支1應 copy2 直接複製，輸出應與來源位元相同"
+        assert mock_detect_focal.call_count == 0, "分支1不應觸發人臉偵測"
+
+
+_CD7_VERDICT_NEUTRAL_CASES = [
+    "fc2-1234567",
+    "FC2PPV-1234567",
+    "fc2ppv1234567",
+    "n0762",
+    "heyzo-1234",
+    "kin8-1234",
+    "gcolle-123456",
+    "siro-1234",
+    "SSIS-001",
+    "4SSIS-296",
+    "7IPZ-001",
+    "3ABW-001",
+    "1sdms00808",
+    "ABC-123-UC",
+    "  sone-103  ",
+    "h0930-1234",
+    "022509-995",
+]
+
+
+class TestNormalizeNumberGateVerdictNeutral:
+    """DoD⑥：CD-7 verdict-neutral——補 normalize_number_impl 不改變 gate 判定（17 案）。
+
+    🔴 左邊必須是 raw（未 normalize），不可寫成
+    gate(normalize(raw)) == gate(normalize(normalize(raw)))——那只測 normalize 冪等性
+    （normalize 本來就冪等，恆真空殼），證不出「補 normalize 這個動作」本身不改 verdict。
+    """
+
+    @pytest.mark.parametrize("raw", _CD7_VERDICT_NEUTRAL_CASES)
+    def test_verdict_neutral(self, raw):
+        assert requires_face_detection(raw, '') == requires_face_detection(normalize_number_impl(raw), '')
 
 
 class TestOrganizeJellyfinMode:
@@ -3818,3 +4158,75 @@ class TestKodiStemNamingOrganize:
         assert result["success"] is True
         assert result.get("fanart_path") is None
         assert result.get("poster_path") is None
+
+
+# ============ 站1接線測試 (TASK-101a-T2 DoD①④) ============
+
+
+def _t2_oracle_poster_bytes(fixture_path):
+    """獨立 oracle：不經過 crop_to_poster / 任何一站的呼叫鏈，直接以底層 detect_focal
+    + 「只平移既有窗」契約（整數 crop_w + focal 平移 x0）算出「應該要平移到焦點」的
+    期望 bytes。不可用「同一站流程呼叫兩次自我比對」——對「呼叫端忘了傳
+    number/maker」這類 mutation 結構性瞎眼（gotchas-backend.md #9，101a-T1 已踩過）。
+    """
+    with Image.open(fixture_path) as img:
+        w, h = img.size
+    r_window = _poster_window_ratio(w, h)
+    assert r_window is not None
+    focal = _real_detect_focal(str(fixture_path), r_window)
+    assert focal is not None, "本 fixture 應能偵測到臉"
+    with Image.open(fixture_path) as img:
+        # 101a P2-1（Codex PR#110）：oracle 改為「只平移既有窗」的真實契約（見 crop_to_poster）——
+        # 不再經 crop_image_position 的 float ratio→px round-trip（±1px 改窗寬、已棄用）。
+        crop_w = int(h / 1.5) if (h / w) >= 1.0 else (w - int(w / 1.9))
+        x0 = max(min(int(w * focal[0]) - crop_w // 2, w - crop_w), 0)
+        expected_cropped = img.convert("RGB").crop((x0, 0, x0 + crop_w, h))
+    buf = io.BytesIO()
+    expected_cropped.save(buf, "JPEG", quality=95, subsampling=0)
+    return buf.getvalue()
+
+
+class TestOrganizeFileStationWiring:
+    """DoD①：站1（core/organizer.py organize_file）接線——真跑 organize_file()，
+    fixture A（番號驅動）+ fixture B（maker-only 驅動）各一次，poster 依焦點裁，
+    斷言輸出 bytes 等於獨立 oracle（不可自我比對）。
+
+    DoD④ 的站1 number/maker 軸 mutation 皆對這兩個測試單獨驗證（見 TASK card）。
+    """
+
+    _FIXTURE_A = {"number": "FC2-1234567", "maker": "S1 NO.1 STYLE"}  # 番號驅動，maker 非白名單
+    _FIXTURE_B = {"number": "SSIS-001", "maker": "10musume"}  # maker-only 驅動，白名單原樣照抄
+
+    @staticmethod
+    def _mock_download_fixture_face(url, save_path, referer=''):
+        src = _FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg"
+        Path(save_path).write_bytes(src.read_bytes())
+        return True
+
+    def _run_station1(self, tmp_path, tag, fixture):
+        src = tmp_path / f"{fixture['number']}_{tag}.mp4"
+        src.write_bytes(b"fake mp4")
+        config = _make_jellyfin_config(jellyfin_mode=True)
+        metadata = {
+            "number": fixture["number"],
+            "title": "Test Title",
+            "actors": [],
+            "tags": [],
+            "maker": fixture["maker"],
+            "date": "2024-01-15",
+            "cover": "http://fake/cover.jpg",
+            "url": "",
+        }
+        with patch("core.organizer.download_image", side_effect=self._mock_download_fixture_face):
+            result = organize_file(str(src), metadata, config)
+        assert result["success"] is True, f"organize 失敗: {result.get('error')}"
+        assert result.get("poster_path") is not None, "station1 應產生 poster_path"
+        poster_bytes = Path(result["poster_path"]).read_bytes()
+        expected = _t2_oracle_poster_bytes(_FOCAL_FIXTURES_DIR / "wide_offcenter_face.jpg")
+        assert poster_bytes == expected, "station1 poster 應對準焦點（獨立 oracle 比對）"
+
+    def test_station1_fixture_a(self, tmp_path):
+        self._run_station1(tmp_path, "a", self._FIXTURE_A)
+
+    def test_station1_fixture_b(self, tmp_path):
+        self._run_station1(tmp_path, "b", self._FIXTURE_B)

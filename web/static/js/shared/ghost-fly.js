@@ -580,20 +580,116 @@
     }
 
     /**
+     * 101b-T2 (CD-4b): 交棒——只停 loop（kill timeline），刻意不 clearProps。保留各 star 當下
+     * 因 stagger 而各異的 inline opacity/scale，讓 settle timeline 從「當下值」接手淡出，
+     * 而非從硬切後的乾淨態重新淡出（那正是本 Part 要消滅的星空瞬間蒸發）。
+     *
+     * idempotent：handle 為 null/undefined 安全 no-op（回傳 null）。
+     *
+     * @param {{tl: gsap.core.Timeline, burst: Element, stars: NodeList}|null} handle - playFocalDetectWait 回傳值
+     * @returns {{stars: NodeList, burst: Element}|null}
+     */
+    function handoffFocalDetectWait(handle) {
+        if (!handle) return null;
+        if (handle.tl && typeof handle.tl.kill === 'function') handle.tl.kill();
+        return { stars: handle.stars, burst: handle.burst };
+    }
+
+    /**
+     * 101b-T2 (CD-4b): handoffFocalDetectWait 之後的清理半——clearProps 精確列表歸零 inline
+     * style（C26：不用 'all'），讓容器回到 CSS 預設 opacity:0。只在 settle timeline 的
+     * onComplete/onInterrupt 呼叫（比照 clearLanding 的「一個 closure、兩路徑共用」先例），
+     * 不在交棒當下呼叫——那樣會把星空的當下 opacity 立刻清成 0，等於硬切。
+     *
+     * idempotent：handle 為 null/undefined 安全 no-op。
+     *
+     * @param {{stars: NodeList, burst: Element}|null} handle - handoffFocalDetectWait 回傳值
+     */
+    function clearFocalDetectWait(handle) {
+        if (!handle) return;
+        if (typeof gsap === 'undefined') return;
+        if (handle.stars) gsap.set(handle.stars, { clearProps: 'opacity,scale,rotation,transform' });
+        if (handle.burst) gsap.set(handle.burst, { clearProps: 'opacity' });
+    }
+
+    /**
      * 99a-T5: 對稱停止 playFocalDetectWait（上）。kill timeline + clearProps 精確列表歸零
-     * inline style（C26：不用 clearProps:'all'，只清實際動過的 props），讓容器回到 CSS 預設
-     * opacity:0（下次 playFocalDetectWait 重新從乾淨狀態起）。
+     * inline style（C26：不用 clearProps:'all'），讓容器回到 CSS 預設 opacity:0（下次
+     * playFocalDetectWait 重新從乾淨狀態起）。101b-T2：異常路徑（g0===null fallback／PRM／
+     * 換片/關燈箱/ESC）全停專用——正常（收斂）路徑改走 handoffFocalDetectWait +
+     * clearFocalDetectWait（見上），本函式現為兩者的組合寫法，逐位元行為不變。
      *
      * idempotent：handle 為 null/undefined（尚未啟動過、或已停過一次）安全 no-op。
      *
      * @param {{tl: gsap.core.Timeline, burst: Element, stars: NodeList}|null} handle - playFocalDetectWait 回傳值
      */
     function stopFocalDetectWait(handle) {
-        if (!handle) return;
-        if (handle.tl && typeof handle.tl.kill === 'function') handle.tl.kill();
+        clearFocalDetectWait(handoffFocalDetectWait(handle));
+    }
+
+    /**
+     * 101b-T2 / Codex PR#110 P2-2: 焦點收斂 settle timeline 的 GSAP 編排。
+     * 從 state-lightbox.js._maskStartSettle 移入（shared/ 不被 pages GSAP 守衛掃描，
+     * 且本檔已是 focal 動畫家族的家：playFocalDetectWait/handoff/clear）。
+     * tween 結構／順序／position(全 0)／duration／ease 逐字保留，僅把「寫幾何」的副作用
+     * 外提為 onConverge callback（呼叫端注入 computeMaskSettleGeometry），把星空/spinner/win
+     * 三元素以參數傳入（DOM lookup 仍留在呼叫端）。
+     *
+     * @param {{stars: NodeList|null, spinner: Element|null, win: Element|null,
+     *          hasFace: boolean, onConverge: (t:number)=>void, onDone: ()=>void}} opts
+     * @returns {gsap.core.Timeline}
+     */
+    function buildFocalSettleTimeline(opts) {
+        var stars = opts.stars, spinner = opts.spinner, win = opts.win, hasFace = opts.hasFace;
+        var onConverge = opts.onConverge, onDone = opts.onDone;
+        var tl = gsap.timeline({ id: 'focalSettle', onComplete: onDone, onInterrupt: onDone });
+        if (stars) {
+            tl.to(stars, { opacity: 0, duration: OpenAver.motion.DURATION.medium, ease: 'fluent-accel' }, 0);
+        }
+        if (spinner) {
+            tl.to(spinner, { opacity: 0, duration: OpenAver.motion.DURATION.medium, ease: 'fluent-accel' }, 0);
+        }
+        if (win) {
+            // CD-7：.lb-mask-window 無任何 CSS opacity 規則，computed 恆為 1——.fromTo() 顯式
+            // 指定起點 0，不可用 .to()（會讀「當下值」1 當起點，整條淪為 no-op、窗不會淡入）。
+            tl.fromTo(win, { opacity: 0 }, { opacity: 1, duration: OpenAver.motion.DURATION.fast, ease: 'fluent-decel' }, 0);
+        }
+        if (hasFace) {
+            var proxy = { t: 0 };
+            // 🔴 ease 為 'fluent'（標準），**不是** plan §A-3 原寫的 'fluent-decel'——101b-T2
+            // CDP 實測推翻（兩支真片重現 + MutationObserver 覆驗，非推理）：
+            //   `fluent-decel` = cubic-bezier(0,0,0,1) 是極端前重曲線，把 GSAP ticker
+            //   **無可避免的 1 幀延遲**（16.7ms／500ms = 3.3% 時間）放大成 **24.4% 視覺進度**
+            //   （2 幀 → 36%）。實測首個 paint 幀已收斂 39–42% ⇒ CD-4a「首次可見幀＝全幅」
+            //   與 spec §4.2「亮窗**從整張圖的寬度**內縮」皆破功。
+            //   ⚠️ 此為 ease 本身的性質，**與實作無關**：`immediateRender:true` 治不了它
+            //   （那只改建立當下的 render，不改第一次 tick 的跳躍量）。同一幀延遲下
+            //   `fluent`（0.33,0,0.67,1）只走 0.33%，首幀 ≈ 全幅。
+            // 且 'fluent' 本就是 ease 三角色中**正確**的那個：decel＝入場、accel＝離場、
+            // fluent＝**已在畫面上的東西移動**。窗的 opacity 淡入是入場（上方 win 用
+            // fluent-decel 正確），窗的**幾何收斂是移動** ⇒ 標準 ease。§A-3 原指定屬角色誤植。
+            tl.to(proxy, {
+                t: 1, duration: OpenAver.motion.DURATION.emphasis, ease: 'fluent',
+                onUpdate: function () {
+                    if (onConverge) onConverge(proxy.t);
+                },
+            }, 0);
+        }
+        return tl;
+    }
+
+    /**
+     * 101b-T2 (CD-9a) / Codex PR#110 P2-2: settle 收尾的 clearProps 半（win/spinner 的 opacity）。
+     * 從 state-lightbox.js._maskClearSettleProps 移入。win/spinner 的 DOM lookup 留在呼叫端，
+     * 這裡只負責 GSAP clearProps。冪等（clearProps 對已無 inline style 的元素是 no-op）。
+     *
+     * @param {{win: Element|null, spinner: Element|null}} opts
+     */
+    function clearFocalSettleProps(opts) {
         if (typeof gsap === 'undefined') return;
-        if (handle.stars) gsap.set(handle.stars, { clearProps: 'opacity,scale,rotation,transform' });
-        if (handle.burst) gsap.set(handle.burst, { clearProps: 'opacity' });
+        var win = opts.win, spinner = opts.spinner;
+        if (win) gsap.set(win, { clearProps: 'opacity' });
+        if (spinner) gsap.set(spinner, { clearProps: 'opacity' });   // CD-9a：handle 清不到它，且它無自癒
     }
 
     // ─── 公開動畫函式 ──────────────────────────────────────────────────────
@@ -611,6 +707,12 @@
         // 99a-T5: Focal detect-first 星空等待迴圈（start/stop 對稱，callsite 見 state-lightbox.js openMask）
         playFocalDetectWait: playFocalDetectWait,
         stopFocalDetectWait: stopFocalDetectWait,
+        // 101b-T2 (CD-4b): 交棒編排——正常（收斂）路徑用，異常路徑仍用上面的 stopFocalDetectWait
+        handoffFocalDetectWait: handoffFocalDetectWait,
+        clearFocalDetectWait: clearFocalDetectWait,
+        // 101b-T2 / Codex PR#110 P2-2: 收斂 settle timeline 編排 + clearProps 收尾（由 pages 移入 shared）
+        buildFocalSettleTimeline: buildFocalSettleTimeline,
+        clearFocalSettleProps: clearFocalSettleProps,
 
         // 83b-T3: 行動相似面板封面飛行進 / 退場
         playMobilePanelEnter: playMobilePanelEnter,
