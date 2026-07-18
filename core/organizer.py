@@ -16,7 +16,7 @@ from typing import Optional, Dict, Any, List, Tuple
 from core.config import _STEM_IMAGE_MODES
 from core.path_utils import normalize_path
 from core.scrapers.utils import has_chinese, check_subtitle, strip_subtitle_markers, normalize_number_impl
-from core.focal import requires_face_detection, detect_focal, crop_image_position
+from core.focal import requires_face_detection, detect_focal
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -511,15 +511,22 @@ def crop_to_poster(src_path: str, dst_path: str, number: str = '', maker: str = 
             if requires_face_detection(normalize_number_impl(number), maker):
                 focal = detect_focal(src_path, r_window)
 
-            if focal is not None:
-                cropped = crop_image_position(img.convert("RGB"), r_window, focal[0])
-            elif ratio >= 1.0:
+            rgb = img.convert("RGB")
+            if ratio >= 1.0:
                 crop_w = int(h / 1.5)
-                x0 = (w - crop_w) // 2
-                cropped = img.convert("RGB").crop((x0, 0, x0 + crop_w, h))
+                default_x0 = (w - crop_w) // 2
             else:
-                x0 = int(w / 1.9)
-                cropped = img.convert("RGB").crop((x0, 0, w, h))
+                crop_w = w - int(w / 1.9)
+                default_x0 = int(w / 1.9)
+
+            if focal is not None:
+                # CD-5「只平移既有窗，不改窗寬」：用與退化路完全相同的整數 crop_w，只把 x0 平移到臉，
+                # 不經 crop_image_position 的 float ratio→px round-trip（會 ±1px 改窗寬/比例，Codex PR#110 P2）。
+                x0 = max(min(int(w * focal[0]) - crop_w // 2, w - crop_w), 0)
+            else:
+                x0 = default_x0
+
+            cropped = rgb.crop((x0, 0, x0 + crop_w, h))
 
             cropped.save(dst_path, 'JPEG', quality=95, subsampling=0)
             return True

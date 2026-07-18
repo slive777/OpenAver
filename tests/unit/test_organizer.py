@@ -10,7 +10,7 @@ from unittest.mock import patch
 from PIL import Image
 
 from core.organizer import _detect_suffixes, format_string, organize_file, crop_to_poster, generate_nfo, extract_chinese_title, download_image, truncate_to_chars, truncate_title, _detect_vr_cluster, _is_multipart_kw, _poster_window_ratio
-from core.focal import requires_face_detection, crop_image_position, detect_focal as _real_detect_focal
+from core.focal import requires_face_detection, detect_focal as _real_detect_focal
 from core.scrapers.utils import normalize_number_impl
 
 
@@ -927,7 +927,7 @@ class TestCropToPosterFocalReal:
     分支2/分支3 各一（4 組合），真跑 detect_focal（不 mock）。
 
     每組合兩個斷言：
-    - 正向：輸出 bytes 等於「測試內直接呼叫 crop_image_position(detect_focal(...)[0]) 存檔」的期望值。
+    - 正向：輸出 bytes 等於「測試內獨立以『只平移既有窗』契約（整數 crop_w + focal 平移 x0）裁切存檔」的期望值。
     - 反向：輸出 bytes 與「同圖不傳 number/maker 的原碼輸出」不同（證明焦點真的平移了窗）。
     """
 
@@ -951,7 +951,12 @@ class TestCropToPosterFocalReal:
         assert focal is not None, "本測試 fixture 應能偵測到臉"
 
         with Image.open(src_path) as img:
-            expected_cropped = crop_image_position(img.convert("RGB"), r_window, focal[0])
+            # 101a P2-1（Codex PR#110）：oracle 改為「只平移既有窗」的真實契約——用與退化路
+            # 完全相同的整數 crop_w，只把 x0 平移到臉；不再經 crop_image_position 的 float
+            # ratio→px round-trip（該 helper 會 ±1px 改窗寬、已被 crop_to_poster 棄用）。
+            crop_w = int(h / 1.5) if (h / w) >= 1.0 else (w - int(w / 1.9))
+            x0 = max(min(int(w * focal[0]) - crop_w // 2, w - crop_w), 0)
+            expected_cropped = img.convert("RGB").crop((x0, 0, x0 + crop_w, h))
         expected_path = tmp_path / f"poster_{tag}_expected.jpg"
         expected_cropped.save(str(expected_path), "JPEG", quality=95, subsampling=0)
         assert dst.read_bytes() == expected_path.read_bytes(), "輸出應與獨立計算的期望裁切位元相同"
@@ -1115,6 +1120,29 @@ class TestCropToPosterByteForByteRegression:
         assert crop_to_poster(str(src), str(dst_b)) is True
         assert dst_a.read_bytes() == dst_b.read_bytes()
 
+
+class TestCropToPosterFocalCropWidth:
+    """CD-5「只平移既有窗，不改窗寬」——焦點路徑的 crop 寬度必須與退化路的整數窗寬
+    完全相同，不因 crop_image_position 的 float ratio→px round-trip 少 1px（Codex PR#110 P2-1）。
+
+    521×521 是踩雷案例：退化路 int(521/1.5)=347，但舊碼經 crop_image_position 得
+    int(521*(347/521))=346（少 1px，海報寬度/比例與 fallback 不一致）。
+    """
+
+    def test_focal_crop_width_matches_legacy_branch2_square(self, tmp_path):
+        """分支2 方形 521×521：焦點窗寬須 == 退化窗寬 347（不是 crop_image_position 的 346）。"""
+        src = _make_test_image(tmp_path, 521, 521, "cover_sq.jpg")
+        dst = tmp_path / "poster.jpg"
+
+        # 焦點固定置中（0.5），gate 用真正無碼番號（FC2-1234567 實測 gate → True）。
+        with patch('core.organizer.detect_focal', return_value=(0.5, 0.5)):
+            assert crop_to_poster(str(src), str(dst), number="FC2-1234567") is True
+
+        with Image.open(dst) as out:
+            assert out.size == (347, 521), (
+                f"焦點裁窗寬應等於退化路整數窗寬 347（int(521/1.5)），實得 {out.size[0]}；"
+                "若為 346 代表走了 crop_image_position 的 float round-trip、改了窗寬"
+            )
 
 class TestCropToPosterBranch1NoDetection:
     """DoD⑤：分支1（h/w>=1.4，narrow_face_top.jpg 真圖且真有臉）仍 copy2 不裁，
@@ -4136,8 +4164,8 @@ class TestKodiStemNamingOrganize:
 
 
 def _t2_oracle_poster_bytes(fixture_path):
-    """獨立 oracle：不經過 crop_to_poster / 任何一站的呼叫鏈，直接呼叫底層
-    primitive（detect_focal + crop_image_position）算出「應該要平移到焦點」的
+    """獨立 oracle：不經過 crop_to_poster / 任何一站的呼叫鏈，直接以底層 detect_focal
+    + 「只平移既有窗」契約（整數 crop_w + focal 平移 x0）算出「應該要平移到焦點」的
     期望 bytes。不可用「同一站流程呼叫兩次自我比對」——對「呼叫端忘了傳
     number/maker」這類 mutation 結構性瞎眼（gotchas-backend.md #9，101a-T1 已踩過）。
     """
@@ -4148,7 +4176,11 @@ def _t2_oracle_poster_bytes(fixture_path):
     focal = _real_detect_focal(str(fixture_path), r_window)
     assert focal is not None, "本 fixture 應能偵測到臉"
     with Image.open(fixture_path) as img:
-        expected_cropped = crop_image_position(img.convert("RGB"), r_window, focal[0])
+        # 101a P2-1（Codex PR#110）：oracle 改為「只平移既有窗」的真實契約（見 crop_to_poster）——
+        # 不再經 crop_image_position 的 float ratio→px round-trip（±1px 改窗寬、已棄用）。
+        crop_w = int(h / 1.5) if (h / w) >= 1.0 else (w - int(w / 1.9))
+        x0 = max(min(int(w * focal[0]) - crop_w // 2, w - crop_w), 0)
+        expected_cropped = img.convert("RGB").crop((x0, 0, x0 + crop_w, h))
     buf = io.BytesIO()
     expected_cropped.save(buf, "JPEG", quality=95, subsampling=0)
     return buf.getvalue()
