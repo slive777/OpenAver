@@ -1441,39 +1441,14 @@ export function stateLightbox() {
             const win = coverEl?.querySelector('.lb-mask-window');
             const spinner = coverEl?.querySelector('.lb-mask-spinner');
             const cleanup = () => this._maskClearSettleProps();
-            const tl = gsap.timeline({ id: 'focalSettle', onComplete: cleanup, onInterrupt: cleanup });
-            if (stars) {
-                tl.to(stars, { opacity: 0, duration: OpenAver.motion.DURATION.medium, ease: 'fluent-accel' }, 0);
-            }
-            if (spinner) {
-                tl.to(spinner, { opacity: 0, duration: OpenAver.motion.DURATION.medium, ease: 'fluent-accel' }, 0);
-            }
-            if (win) {
-                // CD-7：.lb-mask-window 無任何 CSS opacity 規則，computed 恆為 1——.fromTo() 顯式
-                // 指定起點 0，不可用 .to()（會讀「當下值」1 當起點，整條淪為 no-op、窗不會淡入）。
-                tl.fromTo(win, { opacity: 0 }, { opacity: 1, duration: OpenAver.motion.DURATION.fast, ease: 'fluent-decel' }, 0);
-            }
-            if (hasFace) {
-                const proxy = { t: 0 };
-                // 🔴 ease 為 'fluent'（標準），**不是** plan §A-3 原寫的 'fluent-decel'——101b-T2
-                // CDP 實測推翻（兩支真片重現 + MutationObserver 覆驗，非推理）：
-                //   `fluent-decel` = cubic-bezier(0,0,0,1) 是極端前重曲線，把 GSAP ticker
-                //   **無可避免的 1 幀延遲**（16.7ms／500ms = 3.3% 時間）放大成 **24.4% 視覺進度**
-                //   （2 幀 → 36%）。實測首個 paint 幀已收斂 39–42% ⇒ CD-4a「首次可見幀＝全幅」
-                //   與 spec §4.2「亮窗**從整張圖的寬度**內縮」皆破功。
-                //   ⚠️ 此為 ease 本身的性質，**與實作無關**：`immediateRender:true` 治不了它
-                //   （那只改建立當下的 render，不改第一次 tick 的跳躍量）。同一幀延遲下
-                //   `fluent`（0.33,0,0.67,1）只走 0.33%，首幀 ≈ 全幅。
-                // 且 'fluent' 本就是 ease 三角色中**正確**的那個：decel＝入場、accel＝離場、
-                // fluent＝**已在畫面上的東西移動**。窗的 opacity 淡入是入場（下方 :1390 用
-                // fluent-decel 正確），窗的**幾何收斂是移動** ⇒ 標準 ease。§A-3 原指定屬角色誤植。
-                tl.to(proxy, {
-                    t: 1, duration: OpenAver.motion.DURATION.emphasis, ease: 'fluent',
-                    onUpdate: () => {
-                        this._maskWinStyle = computeMaskSettleGeometry(W, H, r, this._maskFocalX, proxy.t) || this._maskWinStyle;
-                    },
-                }, 0);
-            }
+            // 101b-T2 / Codex PR#110 P2-2：GSAP 編排移入 GhostFly（shared/，不被 pages 守衛掃描，
+            // 已是 focal 動畫家族的家）。tween 結構／ease／duration 一字不動，此處只注入
+            // onConverge（每 tick 寫收斂中間幾何）與 onDone（收尾）兩個副作用。
+            const tl = window.GhostFly.buildFocalSettleTimeline({
+                stars, spinner, win, hasFace,
+                onConverge: (t) => { this._maskWinStyle = computeMaskSettleGeometry(W, H, r, this._maskFocalX, t) || this._maskWinStyle; },
+                onDone: cleanup,
+            });
             this._maskSettleTl = tl;
         },
 
@@ -1499,11 +1474,11 @@ export function stateLightbox() {
             }
             const el = this._maskTarget().imgEl;
             const coverEl = el?.closest('.lightbox-cover');
-            if (coverEl && typeof gsap !== 'undefined') {
+            if (coverEl && window.GhostFly?.clearFocalSettleProps) {
+                // 101b-T2 (CD-9a) / Codex PR#110 P2-2：clearProps 移入 GhostFly（DOM lookup 仍在此）。
                 const win = coverEl.querySelector('.lb-mask-window');
                 const spinner = coverEl.querySelector('.lb-mask-spinner');
-                if (win) gsap.set(win, { clearProps: 'opacity' });
-                if (spinner) gsap.set(spinner, { clearProps: 'opacity' });   // CD-9a：handle 清不到它，且它無自癒
+                window.GhostFly.clearFocalSettleProps({ win, spinner });
             }
             this._maskWaitTl = null;
             this._maskSettleTl = null;

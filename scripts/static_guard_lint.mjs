@@ -1617,23 +1617,20 @@ const RULES = [
   // 而非 eslint（Opus-resolved 決策 1：eslint no-restricted-syntax 對這 7 個分散白名單檔缺乏
   // 精準 file-scope 手段，改用本引擎既有的 dir-mode exclude，比開 5 個新 eslint
   // group 更省事且不擴大 flat-config 陷阱攻擊面）。
-  // 8 檔白名單（動態座標計算 / adapter 本體 / per-host lifecycle 合法呼叫）：
-  //   〔前 7 檔＝96b-T4 自來源 pytest allowed_files 逐字 port，該 pytest 已於 feature/96
+  // 7 檔白名單（動態座標計算 / adapter 本體 / per-host lifecycle 合法呼叫）：
+  //   〔7 檔＝96b-T4 自來源 pytest allowed_files 逐字 port，該 pytest 已於 feature/96
   //     遷移時刪除，本清單即現存唯一真理〕
   //   components/motion-adapter.js、pages/motion-lab.js、pages/motion-lab-state.js、
   //   pages/search/animations.js、pages/showcase/animations.js、
   //   pages/motion-lab/constellation-host.js、pages/showcase/state-similar.js。
-  //   〔101b-T2 新增，非 port 而來——見下方說明〕
-  //   pages/showcase/state-lightbox.js。
   // exclude 比對「相對於 dir 的相對路徑」（非 basename）：basename 比對會讓未來新增的同名檔
   // （如 pages/foo/animations.js）被誤放行，故改用完整相對路徑，與來源 pytest 語意一致
   // （Codex P2 fix，2026-07）。
-  // 101b-T2：state-lightbox.js 的 _maskStartSettle/_maskClearSettleProps 直接呼叫
-  // gsap.timeline/gsap.set/tl.to/tl.fromTo（CD-5/CD-7 收斂 timeline）——與既有
-  // state-similar.js 的 _fireSimilarKeystonePulse/_fireSimilarIdlePulse 同一類「per-host
-  // lifecycle 合法呼叫」：timeline 需要閉包捕捉 Alpine 元件 state（_maskWinStyle/_maskFocalX/
-  // _maskSession 等），委派到 ghost-fly.js 這種純 helper 檔案反而要多繞一層參數傳遞，state-
-  // similar.js 已是同型先例，不視為新開白名單口子而是套用既有分類。
+  // 101b-T2 曾把 state-lightbox.js 加入白名單（settle timeline 直接呼叫 gsap）——Codex PR#110
+  // P2-2 指出「整檔 exclude」讓該 2000+ 行檔未來任何直接 gsap 呼叫都靜默放行。修正：把
+  // _maskStartSettle/_maskClearSettleProps 的 GSAP 編排移入 ghost-fly.js（shared/，已是 focal
+  // 動畫家族的家，不在 pages 掃描範圍），state-lightbox.js 現零直接 gsap 呼叫，故移出白名單、
+  // 恢復守衛覆蓋（未來任何回潮直接 gsap 會被此規則擋下）。
   {
     file: {
       dir: 'web/static/js/pages', ext: ['.js'], recursive: true,
@@ -1644,7 +1641,6 @@ const RULES = [
         'showcase/animations.js',
         'motion-lab/constellation-host.js',
         'showcase/state-similar.js',
-        'showcase/state-lightbox.js',
       ],
     },
     kind: 'forbidden-string',
