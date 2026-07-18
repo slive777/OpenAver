@@ -11,6 +11,7 @@
 import { _filteredVideos, _filteredActresses, _killLightboxTimelines, _NO_COVER_PLACEHOLDER } from '@/showcase/state-base.js';
 import { POSTER_CROP_MAX_W } from '@/shared/breakpoints.js';
 import { detectSwipe } from '@/shared/swipe.js';
+import { isHorizontalWheel, isVerticalWheel, createWheelNav } from '@/shared/wheel-nav.js';
 import { waitForMount } from '@/shared/dom-timing.js';
 import { parseFocal, clampMaskWinLeft } from '@/shared/focal.js';
 // 100b-T2a：CD-2 軸向/凍結判定 + 亮窗幾何純函式抽至 shared/mask-geometry.js（可測試性——
@@ -19,7 +20,28 @@ import { parseFocal, clampMaskWinLeft } from '@/shared/focal.js';
 import { computeMaskWinGeometry, computeMaskDragRoom, MASK_MIN_DRAG_ROOM, computeMaskSettleGeometry } from '@/shared/mask-geometry.js';
 import { syncActressFields } from '@/shared/actress-sync.js';
 
+// 排除清單容器（橫向捲動列表/表格）：命中即整條 wheel handler 提早 return，
+// 讓原生橫向捲動不受影響（見 TASK-102d-T1.md「技術要點」排除清單段）。
+const WHEEL_EXCLUDE_SELECTOR = '.sample-strip, .sg-thumbs, .picker-candidates-grid, .table-scroll-container, .overflow-x-auto';
+// 102d P2b（owner 拍板 2026-07-19）：overlay 內可垂直捲動的子容器（lightbox metadata 面板，
+// showcase.css:785/946 `.lightbox-metadata{overflow-y:auto}`）——垂直滾輪命中時交還原生捲動，
+// 不吃導航（僅 vertical 分支檢查，horizontal 分支不受影響、行為不變）。
+const WHEEL_VERTICAL_EXCLUDE_SELECTOR = '.lightbox-metadata';
+
 export function stateLightbox() {
+    // TASK-102d-T1：四個獨立累積器（Lightbox 影片 / Lightbox 女優 / 劇照 / 牆翻頁）——
+    // 各自閉包狀態，避免不同 UI 分支的冷卻窗互相干擾（見 wheel-nav.js 頂部說明）。
+    const wheelNavLightboxVideo = createWheelNav();
+    const wheelNavLightboxActress = createWheelNav();
+    const wheelNavSampleGallery = createWheelNav();
+    const wheelNavPage = createWheelNav();
+    // 102d P2b（owner 拍板 2026-07-19）：overlay 垂直滾輪＝上/下一張。獨立軸別累積器
+    // （非取代上面三個水平版——同一接線點兩軸各自累積/冷卻，見 wheel-nav.js 頂部說明）。
+    // 牆翻頁（wheelNavPage）無垂直版：牆是「垂直捲動有意義」的頁面主體，不吃垂直滾輪。
+    const wheelNavLightboxVideoV = createWheelNav({ axis: 'vertical' });
+    const wheelNavLightboxActressV = createWheelNav({ axis: 'vertical' });
+    const wheelNavSampleGalleryV = createWheelNav({ axis: 'vertical' });
+
     // 49b T4cd: Picker 動畫參數（T1 fix2 定案，2026-04-25）
     // 供 BurstPicker.playPickerBurst/Float/HoverIn/HoverOut/ExitAll 使用
     // 49c.T5fix.B：viewport bottom anchor 後 burst 距離增加 ~55%，timing 校正定案
@@ -2315,6 +2337,137 @@ export function stateLightbox() {
                     this.nextPage();
                 }
             }
+        },
+
+        /**
+         * 滑鼠橫向滾輪導航（TASK-102d-T1，接線 ④⑤⑥⑦）。
+         * 單一進入點（`@wheel` 掛在 `.showcase-container` 根節點，非 passive），內部逐條
+         * if 分流——guard chain 優先序逐條比照 `handleKeydown`（similarModeOpen/
+         * similarModeMobileOpen → removeActressModalOpen → _pickerOpen → rescrapeOpen →
+         * deleteVideoModalOpen → sampleGalleryOpen → lightboxOpen(女優/影片分流) →
+         * 非 lightbox 狀態的牆翻頁 page 邊界），不得拆成多層各自綁定（Opus 審核註記 #2）。
+         * @param {WheelEvent} event
+         */
+        handleWheel(event) {
+            // Opus 審核註記 #1：非 passive 監聽器每個 tick 都同步等 handler 跑完，
+            // 第一行必須是純數值方向判斷，DOM 走訪（closest）排在其後。
+            // 102d P2b（owner 拍板 2026-07-19）：軸向化——horizontal/vertical 互斥判斷，
+            // |dx|===|dy|（含 0,0）兩者皆 false，視為無方向意圖，不處理。
+            const horizontal = isHorizontalWheel(event.deltaX, event.deltaY);
+            const vertical = !horizontal && isVerticalWheel(event.deltaX, event.deltaY);
+            if (!horizontal && !vertical) return;
+
+            // overlay 判斷（純布林讀取，無 DOM 走訪，維持 Opus #1 效能要求）：只有
+            // sample gallery / lightbox 這兩種「垂直捲動無意義的全螢幕 overlay」吃垂直滾輪。
+            // 牆頁本身垂直捲動是主要瀏覽方式——非 overlay 狀態下垂直滾輪在此零成本早退，
+            // 不觸發 closest()/feed()，效能特性與 102d-T1 原版一致。
+            const isOverlay = this.sampleGalleryOpen || this.lightboxOpen;
+            if (vertical && !isOverlay) return;
+
+            // 排除清單容器：原生橫向捲動優先，不吃導航。
+            if (event.target.closest(WHEEL_EXCLUDE_SELECTOR)) return;
+            // overlay 內可垂直捲動的子容器（metadata 面板）：垂直滾輪交還原生捲動。
+            if (vertical && event.target.closest(WHEEL_VERTICAL_EXCLUDE_SELECTOR)) return;
+
+            // 1. similar mode 最高優先（比照 handleKeydown 段 1）：獨佔，滾輪不穿透
+            if (this.similarModeOpen || this.similarModeMobileOpen) return;
+
+            // 2. Remove Actress modal 開啟時鎖
+            if (this.removeActressModalOpen) return;
+
+            // 3. Picker 開啟時不接導航（owner 拍板「不接」第 4 項；疊在 lightbox 之上時
+            // 由本層 _pickerOpen guard 涵蓋）
+            if (this._pickerOpen) return;
+
+            // 4. rescrape 彈窗開啟時鎖
+            if (this.rescrapeOpen) return;
+
+            // 5. 刪除確認框開啟時鎖
+            if (this.deleteVideoModalOpen) return;
+
+            // 水平方向映射（owner 拍板，Opus 審核修正）：滾輪是「方向指令」隱喻（同
+            // ArrowLeft/ArrowRight/scrollbar），不是觸控 detectSwipe 的「拖內容」隱喻——
+            // 刻意與 detectSwipe 的 dX<0→'left'→next 相反。往右撥（deltaX>0，util 回呼
+            // onRight）對應 ArrowRight 路徑（next）；往左撥（deltaX<0，onLeft）對應
+            // ArrowLeft 路徑（prev）。不要「統一」回 swipe 那套映射。
+            // 垂直方向映射（102d P2b，owner 拍板 2026-07-19）：圖片瀏覽器慣例——滾下
+            // （deltaY>0，onDown）＝下一張；滾上（deltaY<0，onUp）＝上一張。與水平方向
+            // 的 prev/next 映射一致（onDown≈onRight≈next、onUp≈onLeft≈prev）。
+
+            // ⑥ Showcase 劇照（最高優先：gallery 疊在 lightbox 之上）
+            if (this.sampleGalleryOpen) {
+                if (horizontal) {
+                    const triggered = wheelNavSampleGallery.feed(event, {
+                        onLeft: () => this.prevSampleGallery(),
+                        onRight: () => this.nextSampleGallery(),
+                    });
+                    if (triggered) event.preventDefault();
+                } else {
+                    // Codex P2（102d 三審）：overlay 垂直分支一律 preventDefault，未達門檻
+                    // 的 sub-threshold tick 也吞。showcase 這裡雖有 body-lock
+                    // （`overflow-hidden`，見本檔 396/441 行），漏一 tick 理論上捲不動頁面，
+                    // 但兩頁 handler 保持同構、防未來 lock 行為改變（例如改 CSS 變數方案不
+                    // 再鎖 body）——與 search 版一致收斂為一律擋。水平分支不動。
+                    wheelNavSampleGalleryV.feed(event, {
+                        onUp: () => this.prevSampleGallery(),
+                        onDown: () => this.nextSampleGallery(),
+                    });
+                    event.preventDefault();
+                }
+                return;
+            }
+
+            // ④⑤ Showcase Lightbox（按 content type 分發，比照 handleKeydown 段 5）
+            if (this.lightboxOpen) {
+                if (this.currentLightboxActress && this.showFavoriteActresses) {
+                    // ⑤ 女優模式
+                    if (horizontal) {
+                        const triggered = wheelNavLightboxActress.feed(event, {
+                            onLeft: () => this.prevActressLightbox(),
+                            onRight: () => this.nextActressLightbox(),
+                        });
+                        if (triggered) event.preventDefault();
+                    } else {
+                        // Codex P2：同上，overlay 垂直分支一律 preventDefault。
+                        wheelNavLightboxActressV.feed(event, {
+                            onUp: () => this.prevActressLightbox(),
+                            onDown: () => this.nextActressLightbox(),
+                        });
+                        event.preventDefault();
+                    }
+                } else {
+                    // ④ 影片模式
+                    if (horizontal) {
+                        const triggered = wheelNavLightboxVideo.feed(event, {
+                            onLeft: () => this.prevLightboxVideo(),
+                            onRight: () => this.nextLightboxVideo(),
+                        });
+                        if (triggered) event.preventDefault();
+                    } else {
+                        // Codex P2：同上，overlay 垂直分支一律 preventDefault。
+                        wheelNavLightboxVideoV.feed(event, {
+                            onUp: () => this.prevLightboxVideo(),
+                            onDown: () => this.nextLightboxVideo(),
+                        });
+                        event.preventDefault();
+                    }
+                }
+                return;
+            }
+
+            // ⑦ 非 Lightbox 狀態：牆翻頁。vertical 已在頂端 isOverlay 早退排除（此處恆為
+            // horizontal，`if (!horizontal) return;` 僅作結構性防呆，非預期執行路徑）。
+            if (!horizontal) return;
+            // Codex P2 修正：邊界（page=1 左撥 / page=totalPages 右撥）在 feed() 之前提早
+            // return——不觸發 util、不消耗累積、不 preventDefault、不進冷卻窗，原生捲動/
+            // 後續正常滾動不受影響（比照 handleKeydown 段 6 的邊界 guard，但提早到 feed 前）。
+            if (event.deltaX < 0 && this.page <= 1) return;
+            if (event.deltaX > 0 && this.page >= this.totalPages) return;
+            const triggered = wheelNavPage.feed(event, {
+                onLeft: () => this.prevPage(),
+                onRight: () => this.nextPage(),
+            });
+            if (triggered) event.preventDefault();
         },
 
     };

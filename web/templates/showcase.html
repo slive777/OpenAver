@@ -16,6 +16,7 @@
 <div class="showcase-container ds-gallery-composition"
      x-data="showcase"
      @keydown.window="handleKeydown($event)"
+     @wheel="handleWheel($event)"
      x-on:showcase:clear-search.window="clearSearch()">
 
     <!-- Loading State (初始顯示) -->
