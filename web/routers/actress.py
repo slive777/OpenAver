@@ -20,7 +20,7 @@ from io import BytesIO
 from typing import Optional, List
 from urllib.parse import quote
 
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, Query
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel
 from PIL import Image
@@ -397,11 +397,15 @@ def _get_random_videos_with_covers(actress_name: str, count: int) -> list:
 # ---------------------------------------------------------------------------
 
 @router.get("/{name}/photo-candidates")
-async def list_photo_candidates(name: str):
+async def list_photo_candidates(name: str, attempt: int = Query(0, ge=0)):
     """
     SSE 串流回傳女優候選照片（最多 6 張）。
     雲端 0–3 張並行抓取 + 本機影片封面 crop 補足至 6 張。
     actress 不存在 → JSONResponse 404。
+
+    attempt（TASK-102b-T1，spec-102 Part B）：optional 輪替序號，stateless。
+    0/省略＝請求 name；N>0＝依 alias 穩定排序輪替雲端查詢名，只影響雲端 4 源，
+    本機補位與 current_source 排除邏輯不受影響（CD-7）。
     """
     _, actress = await asyncio.to_thread(_load_actress, name)
     if actress is None:
@@ -413,6 +417,27 @@ async def list_photo_candidates(name: str):
     current_source = actress.photo_source
     cloud_sources = [s for s in ["graphis", "gfriends", "wiki", "minnano"] if s != current_source]
 
+    def _resolve_query_names(n: str) -> list:
+        # CD-2：序位 0 = 請求的 name（URL path param），不是 record.primary_name。
+        # resolve() 是雙向解析——若燈箱女優名恰是 alias-hit，取 record primary 當
+        # 序位 0 會讓 attempt=0 的查詢名與 0.12.3 不同，破壞「無 alias／既有路徑
+        # 逐位一致」的回歸底線。正常情境（請求名＝主名）下與 spec §4.2「主名固定
+        # 第一」等價。其餘名字用 sorted() 保穩定序（resolve() 回傳的是無序 set）。
+        resolved = AliasRepository().resolve(n)  # set；miss → {n}
+        return [n] + sorted(resolved - {n})
+
+    if attempt == 0:
+        # names[0] 恆為請求 name（見上方 CD-2 註解），attempt=0 不需要 resolve()
+        # 就能算出 query_name==name——省一次 DB 呼叫，也讓 attempt 省略/0 的路徑
+        # 與 0.12.3（未帶輪替邏輯前）resolve() 呼叫次數逐位一致，不動既有回歸測試。
+        query_name = name
+    else:
+        names = await asyncio.to_thread(_resolve_query_names, name)
+        query_name = names[attempt % len(names)]  # len(names) >= 1 恆成立
+    logger.info(
+        "[actress] photo-candidates attempt=%d query_name=%s", attempt, query_name
+    )  # CD-10(b)：不對此行寫斷言
+
     async def generate():
         total = 0
         max_cloud = 3
@@ -421,7 +446,7 @@ async def list_photo_candidates(name: str):
         async def fetch_source(src: str):
             try:
                 url = await asyncio.wait_for(
-                    asyncio.to_thread(_fetch_single_source, name, src),
+                    asyncio.to_thread(_fetch_single_source, query_name, src),
                     timeout=5.0,
                 )
                 return (src, url)

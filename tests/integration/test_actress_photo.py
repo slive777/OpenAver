@@ -176,6 +176,9 @@ def test_cloud_sources_use_primary_name_only(client):
     """
     雲端 scraper（graphis / gfriends / wiki / minnano）的 _fetch_single_source
     應收到 URL path param（即 "alice"），不被 alias set 污染。
+
+    本測試涵蓋 attempt 省略/0 情境；attempt>0 的雲端換名輪替行為見
+    test_cloud_attempt_rotation_sequence 等 TASK-102b-T1 輪替測試。
     """
     mock_actress = _make_mock_actress("alice")
     # photo_source=None → 所有雲端都在 cloud_sources
@@ -209,6 +212,217 @@ def test_cloud_sources_use_primary_name_only(client):
         assert name_arg == "alice", (
             f"雲端 scraper '{src_arg}' 收到 '{name_arg}'，應只收到 'alice'（primary/URL param）"
         )
+
+
+# ---------------------------------------------------------------------------
+# TASK-102b-T1: attempt query param 輪替（CD-1/CD-2/CD-6/CD-7/CD-8）
+# ---------------------------------------------------------------------------
+
+def test_cloud_attempt_rotation_sequence(client):
+    """
+    CD-6：mock resolve('alice') → {"alice","bob","cody"}。
+    attempt=0/1/2/3 之雲端 _fetch_single_source 收到的 name 依 sorted 序輪替：
+    alice → bob → cody → alice（sorted(["bob","cody"]) == ["bob","cody"]）。
+    attempt=1 這一格即 RED 先行斷言（DoD ⑦）：改端點前 param 被忽略，fetch name 仍是
+    "alice"，斷言 == "bob" 會先紅。
+    """
+    mock_actress = _make_mock_actress("alice")
+    mock_actress.photo_source = None  # 全部 4 源皆在 cloud_sources
+
+    mock_resolve = MagicMock(return_value={"alice", "bob", "cody"})
+    mock_get_videos = MagicMock(return_value=[])
+
+    expected_sequence = ["alice", "bob", "cody", "alice"]
+
+    for attempt, expected_name in enumerate(expected_sequence):
+        fetch_calls = []
+
+        def mock_fetch(name, src, _calls=fetch_calls):
+            _calls.append(name)
+            return None
+
+        with patch('web.routers.actress.ActressRepository') as mock_actress_repo_cls, \
+             patch('web.routers.actress.AliasRepository') as mock_alias_repo_cls, \
+             patch('web.routers.actress.VideoRepository') as mock_video_repo_cls, \
+             patch('web.routers.actress.init_db'), \
+             patch('web.routers.actress._fetch_single_source', side_effect=mock_fetch):
+
+            mock_actress_repo_cls.return_value.get_by_name.return_value = mock_actress
+            mock_alias_repo_cls.return_value.resolve = mock_resolve
+            mock_video_repo_cls.return_value.get_videos_by_actress_names = mock_get_videos
+
+            params = {} if attempt == 0 else {"attempt": attempt}
+            response = client.get("/api/actresses/alice/photo-candidates", params=params)
+            assert response.status_code == 200
+
+        assert fetch_calls, f"attempt={attempt} 應有雲端 fetch 呼叫"
+        assert all(n == expected_name for n in fetch_calls), (
+            f"attempt={attempt} 預期雲端 fetch name 全為 {expected_name!r}，實際: {fetch_calls}"
+        )
+
+
+def test_cloud_attempt_omitted_equals_attempt_zero(client):
+    """
+    省略 attempt 與 attempt=0 的雲端 fetch name 序列相同（spec §4.3-3）。
+    """
+    mock_actress = _make_mock_actress("alice")
+    mock_actress.photo_source = None
+
+    mock_resolve = MagicMock(return_value={"alice", "bob", "cody"})
+    mock_get_videos = MagicMock(return_value=[])
+
+    def _run(params):
+        fetch_calls = []
+
+        def mock_fetch(name, src, _calls=fetch_calls):
+            _calls.append(name)
+            return None
+
+        with patch('web.routers.actress.ActressRepository') as mock_actress_repo_cls, \
+             patch('web.routers.actress.AliasRepository') as mock_alias_repo_cls, \
+             patch('web.routers.actress.VideoRepository') as mock_video_repo_cls, \
+             patch('web.routers.actress.init_db'), \
+             patch('web.routers.actress._fetch_single_source', side_effect=mock_fetch):
+
+            mock_actress_repo_cls.return_value.get_by_name.return_value = mock_actress
+            mock_alias_repo_cls.return_value.resolve = mock_resolve
+            mock_video_repo_cls.return_value.get_videos_by_actress_names = mock_get_videos
+
+            response = client.get("/api/actresses/alice/photo-candidates", params=params)
+            assert response.status_code == 200
+        return fetch_calls
+
+    omitted = _run({})
+    explicit_zero = _run({"attempt": 0})
+    assert omitted and explicit_zero, "應有雲端 fetch 呼叫"
+    assert set(omitted) == set(explicit_zero) == {"alice"}
+    assert len(omitted) == len(explicit_zero)
+
+
+def test_cloud_attempt_no_alias_degrades(client):
+    """
+    無 alias 退化（spec §4.1-6）：resolve('dana') → {"dana"}，attempt=5 → fetch name
+    仍是 "dana"，行為與省略時一致。
+    """
+    mock_actress = _make_mock_actress("dana")
+    mock_actress.photo_source = None
+
+    mock_resolve = MagicMock(return_value={"dana"})
+    mock_get_videos = MagicMock(return_value=[])
+    fetch_calls = []
+
+    def mock_fetch(name, src):
+        fetch_calls.append(name)
+        return None
+
+    with patch('web.routers.actress.ActressRepository') as mock_actress_repo_cls, \
+         patch('web.routers.actress.AliasRepository') as mock_alias_repo_cls, \
+         patch('web.routers.actress.VideoRepository') as mock_video_repo_cls, \
+         patch('web.routers.actress.init_db'), \
+         patch('web.routers.actress._fetch_single_source', side_effect=mock_fetch):
+
+        mock_actress_repo_cls.return_value.get_by_name.return_value = mock_actress
+        mock_alias_repo_cls.return_value.resolve = mock_resolve
+        mock_video_repo_cls.return_value.get_videos_by_actress_names = mock_get_videos
+
+        response = client.get(
+            "/api/actresses/dana/photo-candidates", params={"attempt": 5}
+        )
+        assert response.status_code == 200
+
+    assert fetch_calls, "應有雲端 fetch 呼叫"
+    assert all(n == "dana" for n in fetch_calls), (
+        f"無 alias 女優 attempt=5 應仍以 'dana' 查詢，實際: {fetch_calls}"
+    )
+
+
+def test_cloud_attempt_local_crop_unaffected(client):
+    """
+    本機補位不受輪替影響（spec §4.3-5）：attempt=2 時 get_videos_by_actress_names
+    仍收到全展開 set，resolve() 仍以請求 name（"alice"）呼叫。
+    """
+    mock_actress = _make_mock_actress("alice")
+    mock_actress.photo_source = None
+
+    mock_resolve = MagicMock(return_value={"alice", "bob", "cody"})
+    mock_get_videos = MagicMock(return_value=[])
+
+    with patch('web.routers.actress.ActressRepository') as mock_actress_repo_cls, \
+         patch('web.routers.actress.AliasRepository') as mock_alias_repo_cls, \
+         patch('web.routers.actress.VideoRepository') as mock_video_repo_cls, \
+         patch('web.routers.actress.init_db'), \
+         patch('web.routers.actress._fetch_single_source', return_value=None):
+
+        mock_actress_repo_cls.return_value.get_by_name.return_value = mock_actress
+        mock_alias_repo_cls.return_value.resolve = mock_resolve
+        mock_video_repo_cls.return_value.get_videos_by_actress_names = mock_get_videos
+
+        response = client.get(
+            "/api/actresses/alice/photo-candidates", params={"attempt": 2}
+        )
+        assert response.status_code == 200
+
+    # resolve() 至少被以請求 name "alice" 呼叫過（_resolve_query_names 與
+    # _get_random_videos_with_covers 各呼叫一次，皆以 "alice"）
+    assert call("alice") in mock_resolve.call_args_list
+
+    assert mock_get_videos.called
+    called_names = mock_get_videos.call_args[0][0]
+    assert set(called_names) == {"alice", "bob", "cody"}
+
+
+def test_cloud_attempt_boundary_invalid_returns_422(client):
+    """CD-8：attempt=-1 / attempt=abc → FastAPI 422。"""
+    with patch('web.routers.actress.ActressRepository') as mock_actress_repo_cls, \
+         patch('web.routers.actress.init_db'):
+        mock_actress_repo_cls.return_value.get_by_name.return_value = _make_mock_actress("alice")
+
+        response = client.get(
+            "/api/actresses/alice/photo-candidates", params={"attempt": -1}
+        )
+        assert response.status_code == 422
+
+        response = client.get(
+            "/api/actresses/alice/photo-candidates", params={"attempt": "abc"}
+        )
+        assert response.status_code == 422
+
+
+def test_cloud_attempt_boundary_large_int(client):
+    """
+    CD-8：attempt=10**9 → 200，modulo 正確算出。
+    names = ["alice", "bob", "cody"]（len=3）；10**9 % 3 == 1 → query_name == "bob"。
+    """
+    mock_actress = _make_mock_actress("alice")
+    mock_actress.photo_source = None
+
+    mock_resolve = MagicMock(return_value={"alice", "bob", "cody"})
+    mock_get_videos = MagicMock(return_value=[])
+    fetch_calls = []
+
+    def mock_fetch(name, src):
+        fetch_calls.append(name)
+        return None
+
+    with patch('web.routers.actress.ActressRepository') as mock_actress_repo_cls, \
+         patch('web.routers.actress.AliasRepository') as mock_alias_repo_cls, \
+         patch('web.routers.actress.VideoRepository') as mock_video_repo_cls, \
+         patch('web.routers.actress.init_db'), \
+         patch('web.routers.actress._fetch_single_source', side_effect=mock_fetch):
+
+        mock_actress_repo_cls.return_value.get_by_name.return_value = mock_actress
+        mock_alias_repo_cls.return_value.resolve = mock_resolve
+        mock_video_repo_cls.return_value.get_videos_by_actress_names = mock_get_videos
+
+        response = client.get(
+            "/api/actresses/alice/photo-candidates", params={"attempt": 10**9}
+        )
+        assert response.status_code == 200
+
+    assert fetch_calls, "應有雲端 fetch 呼叫"
+    assert all(n == "bob" for n in fetch_calls), (
+        f"attempt=10**9 modulo 應算出 'bob'，實際: {fetch_calls}"
+    )
 
 
 # ---------------------------------------------------------------------------

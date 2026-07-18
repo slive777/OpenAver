@@ -950,6 +950,11 @@ _TOOLS: list[dict] = [
                     "type": "string",
                     "description": "女優名稱（URL path parameter，需 URL encode）",
                 },
+                "attempt": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "重抓輪替序號：0/省略=主名；N=依 alias 穩定排序輪替，無 alias 時任意 N 行為同 0",
+                },
             },
             "required": ["name"],
         },
