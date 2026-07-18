@@ -1753,9 +1753,13 @@ export function stateLightbox() {
          */
         async _burstAllPickerCandidates(runId) {
             if (this._pickerRunId !== runId) return;
-            if (this._candidates.length === 0) return;
             if (this._pickerBurstFired) return;     // 防 done/timeout/error 重複觸發
             this._pickerBurstFired = true;          // dedup latch 維持在等待前（位置不動）
+            // Codex PR#111 一審 P2：0 候選（改名女優主名 0 命中的典型情境）也要落 latch，
+            // 否則 🔄（x-show="_pickerBurstFired"，showcase.html:1064）永遠不出現，
+            // 用戶卡死在 attempt 0 無法換別名重抓。_pickerLoading 已在呼叫端（done/onerror
+            // handler）設為 false，此處不需重複處理。
+            if (this._candidates.length === 0) return;
 
             // T3（CD-3/CD-3a）：waitForMount 等候選卡 mount 取代 $nextTick。predicate 用
             // expected（burst 時 _candidates 已定，SSE 已 close 不再增）非硬編；observer root =
