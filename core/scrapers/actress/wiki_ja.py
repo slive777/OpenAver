@@ -88,7 +88,6 @@ def _parse_wiki_ja_html(html: str, name: str) -> Optional[Dict]:
         "exclusive_makers": "",
         "debut_year": "",
         "photo_url": "",
-        "photo_needs_resize": True,
         "photo_license": "Commons",
     }
 

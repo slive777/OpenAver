@@ -75,7 +75,6 @@ def _make_wiki(name="明里つむぎ", birth="1998-03-31", **kwargs):
         "exclusive_makers": "",
         "debut_year": "2017",
         "photo_url": "https://upload.wikimedia.org/wikipedia/commons/sample.jpg",
-        "photo_needs_resize": True,
         "photo_license": "Commons",
         **kwargs,
     }
@@ -570,7 +569,6 @@ class TestMeaningfulTextFilter:
             "exclusive_makers": "",
             "debut_year": "",
             "photo_url": "https://upload.wikimedia.org/shell.jpg",
-            "photo_needs_resize": True,
             "photo_license": "Commons",
         }
         graphis = _make_graphis()  # has birth, height, BWH, etc.
@@ -739,7 +737,6 @@ class TestMeaningfulTextFilter:
             "exclusive_makers": "",
             "debut_year": "",
             "photo_url": "",
-            "photo_needs_resize": False,
             "photo_license": "",
         }
 

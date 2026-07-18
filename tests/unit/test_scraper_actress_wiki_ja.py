@@ -6,7 +6,6 @@ Covers:
   2. Inch trap regression — スリーサイズ cm row wins over in row
   3. Flag icon regression — 25×17 flag image skipped, real portrait selected
   4. Commons thumb → raw URL (pure string, no network)
-  5. photo_needs_resize: True flag present
   6. Not found / empty / non-infobox HTML returns None (or empty result)
   7. Non-AV actress graceful fallback (希島あいり has singer/talent tags but still parses)
 """
@@ -76,17 +75,6 @@ def test_fixture_has_birth(name):
     # Rough format check
     parts = birth.split("-")
     assert len(parts) == 3 and len(parts[0]) == 4, f"bad birth format {birth!r}"
-
-
-@pytest.mark.parametrize("name", FIXTURE_NAMES)
-def test_fixture_photo_needs_resize_flag(name):
-    """photo_needs_resize must be True in all fixture results (C3 constraint)."""
-    html = _load_fixture(name)
-    result = _parse_wiki_ja_html(html, name)
-    assert result is not None
-    assert result.get("photo_needs_resize") is True, (
-        f"photo_needs_resize should be True for {name}"
-    )
 
 
 @pytest.mark.parametrize("name", FIXTURE_NAMES)
@@ -217,24 +205,6 @@ def test_commons_thumb_to_raw_passthrough():
     """Non-thumb URLs are returned unchanged."""
     url = "https://example.com/image.jpg"
     assert _commons_thumb_to_raw(url) == url
-
-
-# ---------------------------------------------------------------------------
-# 5. photo_needs_resize: True (covered by parametrized fixture tests above,
-#    but add an explicit standalone test for the flag)
-# ---------------------------------------------------------------------------
-
-@pytest.mark.skipif(not FIXTURE_NAMES, reason="HTML fixtures not captured")
-def test_photo_needs_resize_present_in_parsed_fixture():
-    """At least one real fixture must have photo_needs_resize=True."""
-    found = False
-    for name in FIXTURE_NAMES:
-        html = _load_fixture(name)
-        result = _parse_wiki_ja_html(html, name)
-        if result and result.get("photo_needs_resize") is True:
-            found = True
-            break
-    assert found, "photo_needs_resize=True not found in any fixture"
 
 
 # ---------------------------------------------------------------------------
