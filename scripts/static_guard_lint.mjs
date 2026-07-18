@@ -746,9 +746,13 @@ const RULES = [
   {
     kind: 'cross-file-equal',
     label: 'actress-crop-ratio parity',
+    // 🔴 數值 pattern 擷取完整數值 literal（含科學記號 0.75e-1），並以行首/行尾錨定實際
+    // assignment（m flag），否則 `[0-9.]+` 只抓 e 之前的前綴：後端改成合法值 0.75e-1(=0.075)、
+    // 前端維持 0.75，兩邊都截在 e、都擷到 "0.75" → 假性相等放行（Codex P2）。CSS 端 `;` 前不許
+    // 單位後綴（0.75rem 之類）造成假綠——不匹配即 fail-closed 轉紅（安全方向）。
     sources: [
-      { file: 'web/routers/actress.py',   pattern: /_FOCAL_DETECT_RATIO\s*=\s*([0-9.]+)/ },
-      { file: 'web/static/css/theme.css', pattern: /--actress-crop-ratio:\s*([0-9.]+)/ },
+      { file: 'web/routers/actress.py',   pattern: /^_FOCAL_DETECT_RATIO\s*=\s*([0-9]*\.?[0-9]+(?:[eE][+-]?[0-9]+)?)\s*(?:#.*)?$/m },
+      { file: 'web/static/css/theme.css', pattern: /^\s*--actress-crop-ratio:\s*([0-9]*\.?[0-9]+(?:[eE][+-]?[0-9]+)?)\s*;/m },
     ],
     note: '[TestRatioParityGuard] spec-101 §5.1：女優裁窗比例後端(_FOCAL_DETECT_RATIO)與前端(--actress-crop-ratio)雙真理，無強制同步機制，此守衛鎖一致（CD-4：鎖一致非鎖 0.75）',
   },
@@ -3833,13 +3837,28 @@ for (const rule of RULES) {
 // 本 kind 無 rule.file，若落到 else 分支會解構 undefined 而 crash，必須在 typeof 判斷之前攔）。
 // fail-closed：任一 source pattern 無匹配（常數被改名/刪除）即 err，不 vacuous-pass。
 // CD-4：鎖「一致」非鎖固定值——不寫死期望數值，同步改綠、單改一邊紅。
+// CSS block comment `/* … */` 剝除。lazy 量詞 `*?`：greedy `[\s\S]*` 會從第一個 `/*`
+// 吃到最後一個 `*/`、把中間真宣告一併吞掉。用途：m-flag `^` 錨定會匹配到註解內被停用的
+// `--actress-crop-ratio:` 宣告行，`.exec` 回第一個 match → 擷到註解舊值而非 active 值（假綠，
+// Codex P2）。剝除後：真宣告仍匹配；若 active 宣告整段被註解掉、無 active 宣告 → 無匹配 →
+// evalCrossFileEqual 的 fail-closed err（安全方向，宣告被移除/停用必轉紅）。
+function stripCssBlockComments(text) {
+  return text.replace(/\/\*[\s\S]*?\*\//g, '');
+}
+
 function evalCrossFileEqual(rule) {
   const seen = [];
   for (const src of rule.sources) {
-    const text = readTarget(src.file);
+    let text = readTarget(src.file);
     if (text === null) {
       err(`${rule.note} — ${src.file}: 檔案不存在或無法讀取`);
       return;
+    }
+    // CSS 來源：比對前剝除 block comment，避免 m-flag `^` 匹配註解內停用的宣告行造成假綠
+    // （correct-by-default：ratio parity 永遠不該匹配 CSS 註解內容）。Python 來源不套——其
+    // `^_FOCAL_DETECT_RATIO` pattern 已用 `(?:#.*)?$` 排除行尾 `#` 註解，無 block comment 語法。
+    if (src.file.endsWith('.css')) {
+      text = stripCssBlockComments(text);
     }
     const m = src.pattern.exec(text);
     if (!m || m[1] === undefined) {
