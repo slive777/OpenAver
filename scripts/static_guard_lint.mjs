@@ -738,6 +738,21 @@ const RULES = [
     note: '[TestMaskToggleGuard] 100b-T5：_computeMaskWinStyle 讀 --actress-crop-ratio（CD-3 正向鎖，鏡射既有 --poster-crop-ratio required）',
   },
 
+  // §A／101c-T1：女優裁窗比例雙真理 parity 守衛（cross-file-equal，第 10 個 kind）。
+  // 後端 _FOCAL_DETECT_RATIO(actress.py) 與前端 --actress-crop-ratio(theme.css) 是兩份獨立真理、
+  // 無任何機制強制同步（兩處註解皆自承）。改一邊漏改另一邊 → 後端依新 ratio 判主軸可能回 Y 軸、
+  // 前端仍鎖 X 軸拖曳 → 靜默錯框。此守衛鎖「一致」（CD-4：不寫死 0.75，同步改綠、單改一邊紅）。
+  // 🔴 pattern 錨死完整 --actress-crop-ratio:，不可寬鬆匹配到相鄰的 --poster-crop-ratio:0.71（theme.css:561）。
+  {
+    kind: 'cross-file-equal',
+    label: 'actress-crop-ratio parity',
+    sources: [
+      { file: 'web/routers/actress.py',   pattern: /_FOCAL_DETECT_RATIO\s*=\s*([0-9.]+)/ },
+      { file: 'web/static/css/theme.css', pattern: /--actress-crop-ratio:\s*([0-9.]+)/ },
+    ],
+    note: '[TestRatioParityGuard] spec-101 §5.1：女優裁窗比例後端(_FOCAL_DETECT_RATIO)與前端(--actress-crop-ratio)雙真理，無強制同步機制，此守衛鎖一致（CD-4：鎖一致非鎖 0.75）',
+  },
+
   // CD-1：女優不得裸讀 --poster-crop-ratio、不得在 state-actress.js 內另起一套 _mask* 平行實作
   // （走同一組 _mask* 函式 + axis 參數，不複製）。全檔掃描，不需 scope——state-actress.js 今天
   // 對兩者皆零出現（已查），本規則純屬回歸鎖，防未來有人「順手」在這裡加女優專用的遮罩/比例邏輯。
@@ -3811,8 +3826,38 @@ for (const rule of RULES) {
   }
 }
 
+// ---- cross-file-equal（101c-T1 新 kind，第 10 個）----
+// 跨多個來源檔各自 exec 一個 pattern、取 capture group 1、parseFloat，全部相等才通過。
+// 無單一 rule.file（改用 rule.sources），故在 main 迴圈頂部特殊分支攔截、不進 evalRule
+// （比照 file-absent，但更前面：file-absent 仍有 rule.file 字串、在 typeof 分支內攔；
+// 本 kind 無 rule.file，若落到 else 分支會解構 undefined 而 crash，必須在 typeof 判斷之前攔）。
+// fail-closed：任一 source pattern 無匹配（常數被改名/刪除）即 err，不 vacuous-pass。
+// CD-4：鎖「一致」非鎖固定值——不寫死期望數值，同步改綠、單改一邊紅。
+function evalCrossFileEqual(rule) {
+  const seen = [];
+  for (const src of rule.sources) {
+    const text = readTarget(src.file);
+    if (text === null) {
+      err(`${rule.note} — ${src.file}: 檔案不存在或無法讀取`);
+      return;
+    }
+    const m = src.pattern.exec(text);
+    if (!m || m[1] === undefined) {
+      err(`${rule.note} — ${src.file}: pattern ${patternLabel(src.pattern)} 無匹配（常數被改名/刪除？fail-closed）`);
+      return;
+    }
+    seen.push({ file: src.file, value: parseFloat(m[1]), raw: m[1] });
+  }
+  const first = seen[0].value;
+  if (!seen.every((s) => s.value === first)) {
+    const detail = seen.map((s) => `${s.file}=${s.raw}`).join(' ≠ ');
+    err(`${rule.note} — ${rule.label || 'cross-file-equal'}: 值不一致（${detail}）`);
+  }
+}
+
 // ---- main ----
 for (const rule of RULES) {
+  if (rule.kind === 'cross-file-equal') { evalCrossFileEqual(rule); continue; }
   if (typeof rule.file === 'string') {
     // file-absent（96b-T3 新能力）：反向邏輯，必須在通用 readTarget/read-fail-is-error 路徑
     // 之前攔截——檔案「存在」才是違規（舊檔忘記刪除），檔案「不存在」是預期的通過狀態。
@@ -3852,4 +3897,4 @@ for (const rule of RULES) {
 if (hadError) {
   process.exit(1);
 }
-console.log(`✓ static_guard_lint: ${RULES.length} 條規則全數通過（required-string/forbidden-string/dup-id/structure-count/tag-scan/inline-style-token/order/paired-string）`);
+console.log(`✓ static_guard_lint: ${RULES.length} 條規則全數通過（required-string/forbidden-string/dup-id/structure-count/tag-scan/inline-style-token/order/paired-string/file-absent/cross-file-equal）`);
