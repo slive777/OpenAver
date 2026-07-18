@@ -878,7 +878,7 @@
                                 <span x-show="_fetchSamplesLoading" x-text="t('showcase.samples.fetching')"></span>
                                 <!-- 98b-T4：焦點裁切遮罩 toggle（低調圓鈕，styled-like .lb-action-btn 但更小）-->
                                 <button class="lb-mask-btn"
-                                        x-show="!!currentLightboxVideo?.path && _lbFullLoaded"
+                                        x-show="!!currentLightboxVideo?.path && _lbFullLoaded && _posterModeActive()"
                                         @click="openMask()"
                                         :title="t('showcase.lightbox.mask_toggle')"
                                         :aria-label="t('showcase.lightbox.mask_toggle')">

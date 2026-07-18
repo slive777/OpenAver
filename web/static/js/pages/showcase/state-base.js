@@ -6,6 +6,10 @@
  * Picker 常數屬 stateLightbox() 閉包（OQ-54B-2 Option B），不在此模組。
  */
 
+// 101d-T1：影片焦點 icon gate 的 page-level narrow matchMedia listener 用（init 內註冊）。
+// 門檻 reuse 既有單一真理常數，不裸寫 899（plan-101d CD-1）。
+import { POSTER_CROP_MAX_W } from '@/shared/breakpoints.js';
+
 // 53a codex F3: $persist 對 localStorage 壞 JSON 沒 try/catch（會在 Alpine init 階段拋錯炸整頁），
 // 必須在 Alpine.data 註冊前先清掃壞值，讓 $persist fallback 走預設物件
 (function _safeCleanShowcaseState() {
@@ -222,6 +226,7 @@ export function stateBase() {
                         this._mobileReadyAbort = null;
                         window.GhostFly?.cleanupStaleGhosts?.();              // 53a-T1: 移除殘留 ghost（沿 v0.8.1 T4 optional-chaining pattern）
                         if (this._scrollHideHandler) window.removeEventListener('scroll', this._scrollHideHandler);  // T1: cleanup scroll collapse listener
+                        if (this._narrowMq && this._narrowHandler) this._narrowMq.removeEventListener('change', this._narrowHandler);  // 101d-T1: page-level narrow gate listener（與 init 註冊對稱）
                     }
                 });
             }
@@ -261,6 +266,18 @@ export function stateBase() {
                         this.closeMobilePanel();
                     }
                 });
+            }
+
+            // 101d-T1：影片焦點 icon gate 的 page-level narrow listener（plan-101d §3.2）。
+            // 掛在頁面 component 生命週期（此 init + __registerPage cleanup），**不掛 lightbox 開關**——
+            // showcase component 關燈箱後仍存活，若在 closeLightbox 移除，reopen 後 resize 就不再更新
+            // gate。門檻 reuse POSTER_CROP_MAX_W（CD-1，不裸寫 899）。_isNarrow 宣告在 state-lightbox.js，
+            // 經 mergeState 合併為同一 reactive 屬性（見該檔 _isNarrow 註解）。缺 matchMedia 的嵌入
+            // 環境無 listener 可掛也無妨（那類環境本就寬螢幕桌面、非 ≤899 目標情境）。
+            if (typeof window.matchMedia === 'function') {
+                this._narrowMq = window.matchMedia('(max-width: ' + POSTER_CROP_MAX_W + 'px)');
+                this._narrowHandler = (e) => { this._isNarrow = e.matches; };
+                this._narrowMq.addEventListener('change', this._narrowHandler);
             }
 
             // T1: Mobile scroll-to-collapse — 往下滾超過 50px（相對 toolbar 展開當下 Y）自動收合（≤480px，搜尋空白時）

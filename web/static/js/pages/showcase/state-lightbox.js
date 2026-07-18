@@ -85,6 +85,16 @@ export function stateLightbox() {
         _maskVisible: false,            // 遮罩 overlay 是否顯示
         _maskSession: 0,                // 單調遞增 session id（openMask/_resetMask 遞增）
         _maskDetecting: false,          // force-detect 進行中（spinner）
+        // 101d-T1：影片焦點 icon gate（CD-1/CD-3）。「窄」＝畫面正以 poster（0.71 直式）裁切呈現，
+        // 今天＝ ≤899px（grid 小格的 poster-crop 只在 @media (max-width:899px) 套，plan-101d §2.1）。
+        // 用 matchMedia 非 innerWidth：裁切由 CSS media query 驅動 → matchMedia 與裁切逐像素同步
+        // （innerWidth 在有捲軸時差一個捲軸寬）。門檻 reuse 既有 POSTER_CROP_MAX_W 常數（已被
+        // TestPosterCropThresholdAlignment 鎖常數↔CSS），不裸寫 899、不新建常數（CD-1/§6 Non-Goal #13）。
+        // reactive：state-base.init() 掛 page-level matchMedia change listener 改此值（同一 Alpine
+        // component，mergeState 合併 → 同一屬性）；x-show 讀 _posterModeActive() → 訂閱本 data → 即時翻。
+        _isNarrow: (typeof window.matchMedia === 'function')
+            ? window.matchMedia('(max-width: ' + POSTER_CROP_MAX_W + 'px)').matches
+            : (window.innerWidth <= POSTER_CROP_MAX_W),   // 無 matchMedia 的嵌入環境 → 一次性 fallback
         // 98b-T6：亮窗幾何 reactive data（openMask/drag 同步 imperative 算，非量測-in-binding）。
         // 99a-T5：型別恆為 object（非 string）——headless self-verify 實測抓到：Alpine `:style`
         // 綁 STRING 值時走 `el.setAttribute('style', ...)` 整串覆寫（Alpine 內部 `Xn()`），會把
@@ -246,6 +256,17 @@ export function stateLightbox() {
             const wideEnough = this._actressPhotoWideEnough;
             const pickerClosed = !this._pickerOpen;
             return notEditing && hasPhoto && loaded && wideEnough && pickerClosed;
+        },
+
+        // 101d-T1：影片焦點 icon 顯示 gate（CD-4）。語意旗標 method——只在畫面真的以 poster 裁切
+        // 呈現時才顯示 icon（今天＝窄螢幕，讀 reactive _isNarrow）。x-show 必帶 () 呼叫（漏括號求值
+        // 的是 function 物件、恆 truthy → 桌面 gate 失效、icon 照樣出現）。未來「完整/poster 模式」
+        // toggle landed 後只改此 body 為 `return this._isNarrow || this._userPosterModeOn`，不動
+        // icon x-show、不動任何呼叫端（plan-101d CD-4，spec §7.2 Non-Goal #14）。
+        // 影片 gate 與女優 _focalIconVisible() 的 per-image 門檻刻意不同（影片只 ≤899px 裁、女優牆
+        // 全寬度都裁，plan-101d §2.2）——此不對稱是有原則的，勿「對齊」成同一套。
+        _posterModeActive() {
+            return this._isNarrow;
         },
 
         // F1: helper — 更新 lightboxIndex + currentLightboxVideo 一致性
