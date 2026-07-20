@@ -52,6 +52,16 @@ class JavBusScraper(BaseScraper):
         super().__init__(config)
         self.lang = lang
         self._session = requests.Session()
+        # [反爬設計，非技術債——請勿「修好」成共用 config UA]（spec-103 §3.7）
+        # 下面 5 個 header 是刻意搭配的成套組合，共同構成一個內部一致的完整
+        # 瀏覽器指紋（Safari on macOS）。其他走 self.config.user_agent 的來源
+        # （javdb/avsox/d2pass/fc2/heyzo/dmm）用的共用預設值只到
+        # "AppleWebKit/537.36"、缺 Chrome/Safari 尾段，不像真實瀏覽器——本檔
+        # 硬編碼一組完整 UA 是刻意選擇，不是漏接共用機制。改走共用 UA 或拆散
+        # 這組 header 有回歸風險，且違反「scraper 不動」共識。
+        # 注意 Accept-Language 是固定值（headers 只在 __init__ 設一次），不隨
+        # self.lang 變動——self.lang 管的是 URL prefix 與 FIELD_LABELS 解析字典
+        # （_get_lang_prefix / _get_labels），與送出的語言偏好 header 無關。
         self._session.headers.update({
             "User-Agent": (
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
