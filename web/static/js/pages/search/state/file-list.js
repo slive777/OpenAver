@@ -407,6 +407,14 @@ export function searchStateFileList() {
             if (this.fileList.length > 0) {
                 if (this.fileList[0].number) {
                     this.searchQuery = this.fileList[0].number;
+                } else {
+                    // Codex PR#112 P2(第4輪): fileList[0] 無番號時清掉 spotlight 殘留的舊番號。
+                    // 只有 CD-4b API 失敗 fallback 會走到這裡——該路徑全員 number:null 且不套
+                    // validIndices 過濾，故 fileList[0].number 可能為 null；正常路徑的 validIndices
+                    // 已濾掉無番號檔，fileList[0] 必有番號、不入此分支。既有邏輯只在「有番號」時
+                    // 更新 searchQuery（d75e20b6 起），漏清會讓清單要求手動輸入番號、輸入框卻殘留
+                    // 上次搜尋的番號，按 Enter/搜尋鈕搜到 stale 舊標題而非新選檔案。
+                    this.searchQuery = '';
                 }
                 await this.switchToFile(0, 'first', true);
             }

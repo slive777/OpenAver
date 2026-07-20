@@ -144,3 +144,24 @@ test('CD-4b: parseFilenames reject 是 AbortError → 與 setFileList 既有語�
   assert.deepEqual(fakeThis.fileList, [], 'AbortError 是「被新請求取代」語意，不應建立 fallback fileList');
   assert.equal(toasts.length, 0, 'AbortError 不應顯示任何 toast');
 });
+
+test('CD-4b(第4輪 Codex P2): fallback 全員 number:null → 清掉 spotlight 殘留的舊 searchQuery（避免按 Enter 搜到 stale 番號）', async () => {
+  stubFilterFilesFetch();
+  window.t = (key) => key;
+  window.SearchFile = {
+    parseFilenames: async () => { throw new Error('API down'); },
+    detectSuffixes: () => [],
+    extractChineseTitle: () => null,
+  };
+
+  const fakeThis = makeFakeThis({
+    showToast() {},
+    switchToFile: async () => {},
+    searchQuery: 'OLD-999',   // 上一次搜尋殘留在 spotlight 輸入框
+  });
+
+  await searchStateFileList().setFileList.call(fakeThis, ['/a/x1.mp4', '/a/x2.mp4']);
+
+  assert.equal(fakeThis.fileList.length, 2, 'CD-4b: 已選檔案仍保留');
+  assert.equal(fakeThis.searchQuery, '', 'fallback 後 searchQuery 必須清空——否則清單要求手動輸入番號、輸入框卻殘留 OLD-999，按 Enter 會搜到 stale 番號');
+});
