@@ -98,11 +98,3 @@ def get_logger(name: str) -> logging.Logger:
     logger_name = f"OpenAver.{name}"
 
     return logging.getLogger(logger_name)
-
-
-def set_console_level(level: int):
-    """動態調整 console 輸出等級"""
-    root_logger = logging.getLogger('OpenAver')
-    for handler in root_logger.handlers:
-        if isinstance(handler, logging.StreamHandler) and not isinstance(handler, RotatingFileHandler):
-            handler.setLevel(level)

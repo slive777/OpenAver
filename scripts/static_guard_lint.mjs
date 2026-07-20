@@ -1324,13 +1324,18 @@ const RULES = [
   { file: 'web/templates/base.html', kind: 'forbidden-string', pattern: '<script defer src="/static/js/shared/ghost-fly.js">', note: '[TestImportMapGuard] test_ghost_fly_script_tag_is_module (forbidden half — 舊 tag 殘留防呆)' },
 
   // ---- [TestESMExportGuard] 5 個 shared/components 共用工具：export + window bridge + base.html script tag ----
+  // motion-adapter.js 不在 requiresExport 名單：103-T1 刪除唯一的
+  // `export { motion as MotionAdapter };`（死碼——全庫零 `import { MotionAdapter }`
+  // 消費端，該檔以 <script type="module" src="...">「入口模組」形式載入，非被
+  // import 消費）；window bridge（window.OpenAver.motion）與 base.html script tag
+  // 檢查不受影響、仍是所有現役呼叫端的存取路徑。
   ...[
-    ['web/static/js/shared/burst-picker.js', 'window.BurstPicker', '/static/js/shared/burst-picker.js'],
-    ['web/static/js/components/motion-adapter.js', 'window.OpenAver.motion', '/static/js/components/motion-adapter.js'],
-    ['web/static/js/components/page-lifecycle.js', 'window.__registerPage', '/static/js/components/page-lifecycle.js'],
-    ['web/static/js/components/motion-prefs.js', 'window.OpenAver', '/static/js/components/motion-prefs.js'],
-  ].flatMap(([file, bridge, scriptPath]) => ([
-    { file, kind: 'required-string', pattern: 'export', note: `[TestESMExportGuard] ${file} export` },
+    ['web/static/js/shared/burst-picker.js', 'window.BurstPicker', '/static/js/shared/burst-picker.js', true],
+    ['web/static/js/components/motion-adapter.js', 'window.OpenAver.motion', '/static/js/components/motion-adapter.js', false],
+    ['web/static/js/components/page-lifecycle.js', 'window.__registerPage', '/static/js/components/page-lifecycle.js', true],
+    ['web/static/js/components/motion-prefs.js', 'window.OpenAver', '/static/js/components/motion-prefs.js', true],
+  ].flatMap(([file, bridge, scriptPath, requiresExport]) => ([
+    ...(requiresExport ? [{ file, kind: 'required-string', pattern: 'export', note: `[TestESMExportGuard] ${file} export` }] : []),
     { file, kind: 'required-string', pattern: bridge, note: `[TestESMExportGuard] ${file} window bridge (${bridge})` },
     { file: 'web/templates/base.html', kind: 'required-string', pattern: `type="module" src="${scriptPath}"`, note: `[TestESMExportGuard] base.html ${scriptPath} script tag is module` },
     { file: 'web/templates/base.html', kind: 'forbidden-string', pattern: `<script defer src="${scriptPath}">`, note: `[TestESMExportGuard] base.html ${scriptPath} no residual defer tag` },

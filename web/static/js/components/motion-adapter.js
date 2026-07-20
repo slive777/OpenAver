@@ -202,4 +202,3 @@ gsap.globalTimeline.timeScale(e.detail.reducedMotion ? 0 : 1);
 });
 
 window.OpenAver.motion = motion;
-export { motion as MotionAdapter };

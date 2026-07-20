@@ -156,4 +156,3 @@ scrapers/
 **統一日誌模組**
 - `setup_logging(log_dir, console_level)` — 初始化日誌系統（由 `standalone.py` 呼叫一次），設定 RotatingFileHandler（10MB × 5 份）與 Console Handler。
 - `get_logger(name)` — 取得指定模組的 logger，統一使用 `OpenAver.*` 命名空間。
-- `set_console_level(level)` — 動態調整 console 輸出等級（Debug 模式使用）。

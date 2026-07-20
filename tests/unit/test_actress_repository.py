@@ -188,13 +188,27 @@ def test_actress_focal_fields_defaults(repo):
 
 def test_save_upsert_preserves_focal_fields(repo):
     """save() ON CONFLICT 分支：五個 focal/fp 欄位全保留，不被同 name 的重刮覆蓋
-    （鏡射 test_save_upsert_preserves_created_at，這是本 task 最貴的一條——Codex P1）"""
+    （鏡射 test_save_upsert_preserves_created_at）。
+
+    Setup 改用直接 SQL UPDATE（103-T1：update_focal_result/update_crop_mode 已刪除，
+    鏡射 conftest.py 的 seed_crop_mode 模式——test-only 需求不該讓已收斂的 mutator
+    介面再長出方法）。五個 preserve 欄位一次寫齊，語意等同原本兩次 mutator 呼叫的
+    疊加結果。"""
+    from core.database import get_connection
+
     repo.save(Actress(name="橋本ありな-focal"))
 
-    assert repo.update_focal_result(
-        "橋本ありな-focal", "0.5,0.4", ("/photos/a.jpg", 123456789, 4096)
-    ) is True
-    assert repo.update_crop_mode("橋本ありな-focal", "default") is True
+    conn = get_connection(repo.db_path)
+    try:
+        conn.execute(
+            "UPDATE actresses SET auto_focal = ?, crop_mode = ?, "
+            "photo_fp_path = ?, photo_fp_mtime_ns = ?, photo_fp_size = ?, "
+            "updated_at = CURRENT_TIMESTAMP WHERE name = ?",
+            ("0.5,0.4", "default", "/photos/a.jpg", 123456789, 4096, "橋本ありな-focal"),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
     pre = repo.get_by_name("橋本ありな-focal")
     assert pre is not None
@@ -215,44 +229,6 @@ def test_save_upsert_preserves_focal_fields(repo):
     assert result.photo_fp_path == "/photos/a.jpg"
     assert result.photo_fp_mtime_ns == 123456789
     assert result.photo_fp_size == 4096
-
-
-def test_update_focal_result_roundtrip(repo):
-    """update_focal_result() 原子寫入：auto_focal + photo_fp_* 三值一致讀回"""
-    repo.save(Actress(name="測試女優-focal-result"))
-
-    ok = repo.update_focal_result(
-        "測試女優-focal-result", "0.6,0.3", ("/photos/b.png", 987654321, 2048)
-    )
-    assert ok is True
-
-    result = repo.get_by_name("測試女優-focal-result")
-    assert result is not None
-    assert result.auto_focal == "0.6,0.3"
-    assert result.photo_fp_path == "/photos/b.png"
-    assert result.photo_fp_mtime_ns == 987654321
-    assert result.photo_fp_size == 2048
-
-
-def test_update_focal_result_missing_name_returns_false(repo):
-    ok = repo.update_focal_result(
-        "不存在的女優-focal", "0.1,0.1", ("/photos/x.jpg", 1, 1)
-    )
-    assert ok is False
-
-
-def test_update_crop_mode_roundtrip(repo):
-    repo.save(Actress(name="測試女優-crop-mode"))
-
-    assert repo.update_crop_mode("測試女優-crop-mode", "default") is True
-
-    result = repo.get_by_name("測試女優-crop-mode")
-    assert result is not None
-    assert result.crop_mode == "default"
-
-
-def test_update_crop_mode_missing_name_returns_false(repo):
-    assert repo.update_crop_mode("不存在的女優-crop-mode", "default") is False
 
 
 # ---------------------------------------------------------------------------

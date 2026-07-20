@@ -7,7 +7,6 @@ generator 則負責靜態 HTML 的輸出。VideoScanner 是主要入口，
 核心方法為 parse_filename、parse_nfo、scan_file、scan_to_sqlite。
 """
 
-import json
 import os
 import re
 import time
@@ -163,21 +162,6 @@ def fast_scan_directory(
     scan_recursive(directory)
     logger.debug(f"[FastScan] 找到 {len(results)} 個檔案")
     return results
-
-
-def load_cache(cache_path: str) -> Dict[str, dict]:
-    """載入緩存檔案"""
-    try:
-        with open(cache_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {}
-
-
-def save_cache(cache_path: str, cache: Dict[str, dict]):
-    """儲存緩存檔案"""
-    with open(cache_path, 'w', encoding='utf-8') as f:
-        json.dump(cache, f, ensure_ascii=False)
 
 
 class VideoScanner:

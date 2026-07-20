@@ -67,11 +67,6 @@ class FC2Scraper(BaseScraper):
         # 第二個 h1 是標題（第一個是番號）
         return result[1].strip() if len(result) > 1 else ""
 
-    def _get_number_from_page(self, html) -> str:
-        """從頁面取得番號"""
-        result = html.xpath("//h1/text()")
-        return result[0].strip() if result else ""
-
     def _get_cover(self, html) -> str:
         """取得封面"""
         result = html.xpath('//a[@data-fancybox="gallery"]/@href')

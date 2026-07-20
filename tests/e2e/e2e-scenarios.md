@@ -490,7 +490,7 @@ N/A — locale 切換、Dark/Light mode、tutorial 文案驗收均為 browser-on
      curl -s -X POST http://localhost:8000/api/scrape-single \
        -H "Content-Type: application/json" \
        -d "{\"file_path\":\"/path/to/$FIXTURE_NUM.mp4\",\"number\":\"$FIXTURE_NUM\"}"
-     # 回 ScrapeResponse：success / new_folder / new_filename
+     # 回傳 dict：success / new_folder / new_filename
      ```
    - **驗**：兩條路徑都需確認檔名套用自訂格式：
      ```js

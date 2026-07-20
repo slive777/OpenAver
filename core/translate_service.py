@@ -351,32 +351,6 @@ class GeminiTranslateService(TranslateService):
 
         return results
 
-    def _parse_batch_result(self, result_text: str) -> List[str]:
-        """解析批次翻譯結果"""
-        lines = result_text.strip().split('\n')
-        translations = []
-
-        for line in lines:
-            line = line.strip()
-
-            # 跳過空行和說明文字
-            if not line or line.startswith('以下') or line.startswith('翻譯'):
-                continue
-
-            # 解析序號格式：1. xxx 或 1、xxx 或 1) xxx
-            if line and line[0].isdigit():
-                for sep in ['. ', '、', ') ', '．']:
-                    if sep in line:
-                        parts = line.split(sep, 1)
-                        if len(parts) == 2:
-                            translations.append(parts[1].strip())
-                            break
-            # 列表符號
-            elif line.startswith('*') or line.startswith('-'):
-                translations.append(line[1:].strip())
-
-        return translations
-
 
 class OpenAICompatibleTranslateService(TranslateService):
     """OpenAI Compatible API 翻譯服務實現（支援 OpenAI、Perplexity、OpenRouter、本地 LLM 等）"""

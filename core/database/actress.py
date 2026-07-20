@@ -38,7 +38,7 @@ class Actress:
     # ONE canonical "unset" sentinel — 98d compares (path, mtime_ns, size)
     # and must not juggle None-vs-''/0 by row provenance.
     # 98a 預留、spec-100 不使用：這三欄供 98a 規劃的 stat-on-load 背景 focal
-    # 演算法使用（未落地，寫入路徑見 update_focal_result）。spec-100 的手動焦點
+    # 演算法使用（未落地）。spec-100 的手動焦點
     # 走 update_manual_focal，不寫這三欄（女優無背景 writer，CD-3）。保留欄位
     # 不刪除，供未來背景 focal worker 落地時使用。
     photo_fp_path: str = ''
@@ -93,8 +93,9 @@ class Actress:
 # save() ON CONFLICT 排除集合（CD-98a-6）：name 是 PK、恆不進 update_parts；
 # auto_focal/crop_mode/photo_fp_* 五欄只由專用 mutator 改寫，save() 衝突時一律保留
 # DB 既有值（比照 video.py 的 _FOCAL_PRESERVE）。現行 writer：clear_focal /
-# update_manual_focal（spec-100，auto_focal + crop_mode）；update_crop_mode /
-# update_focal_result 為 98a 預留、spec-100 不使用（見各自 docstring）。
+# update_manual_focal（spec-100，auto_focal + crop_mode）。98a 曾預留
+# update_crop_mode/update_focal_result 供未落地的背景 focal worker 使用，
+# spec-100 未採用，已於 103-T1 隨同刪除。
 _ACTRESS_FOCAL_PRESERVE = frozenset({
     'name', 'auto_focal', 'crop_mode',
     'photo_fp_path', 'photo_fp_mtime_ns', 'photo_fp_size',
@@ -157,72 +158,6 @@ class ActressRepository:
 
             cursor.execute(sql, list(actress_dict.values()))
             conn.commit()
-        finally:
-            conn.close()
-
-    def update_crop_mode(self, name: str, mode: str) -> bool:
-        """安全更新 crop_mode 欄位（不碰其他欄位，CD-98a-6 mutator，鏡射 update_user_tags 的
-        單欄安全更新範本——VideoRepository 端同名方法已於 99a-T7 retire，此方法屬不同
-        feature（女優照片 / 98d），與影片 focal 無關，不受影響）。
-
-        98a 預留、spec-100 不使用：spec-100 的手動存焦點/清焦點流程改走
-        `clear_focal` / `update_manual_focal`（單一 UPDATE 同時寫 auto_focal + crop_mode）。
-        本方法保留供未來若有「只改 crop_mode、不動 auto_focal」的呼叫端使用，不刪除。
-
-        Args:
-            name: 女優名稱（DB key）
-            mode: 新的 crop_mode 值。⚠️ 女優值域是 'auto' | 'manual'（spec-100）——
-                'default' 是**影片側**的值（showcase.py 序列化註解），女優不適用，
-                原 docstring 誤植自影片 domain（98a 時女優側零 production caller、
-                從未有人傳過值，故未被發現）。
-
-        Returns:
-            bool: 是否成功更新（name 不存在 → False，不拋例外、不新建 row）
-        """
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        try:
-            cursor.execute(
-                "UPDATE actresses SET crop_mode = ?, updated_at = CURRENT_TIMESTAMP WHERE name = ?",
-                (mode, name)
-            )
-            conn.commit()
-            return cursor.rowcount > 0
-        finally:
-            conn.close()
-
-    def update_focal_result(self, name: str, focal: str, fp: tuple) -> bool:
-        """原子寫入 auto_focal + photo fingerprint 三欄（CD-98a-6 mutator）。
-
-        單一 UPDATE 一次寫完 auto_focal 與 photo_fp_path/photo_fp_mtime_ns/photo_fp_size，
-        避免 focal 與 fingerprint 分兩次寫造成的中間態（背景 worker 算完焦點後一次落庫）。
-
-        98a 預留、spec-100 不使用：本方法供 98a 規劃的「stat-on-load 背景 focal 演算法」
-        使用（未落地），spec-100 的手動存焦點走 `update_manual_focal`（不寫 fingerprint，
-        女優無背景 writer，CD-3）。保留供未來背景 focal worker 落地時使用，不刪除。
-
-        Args:
-            name: 女優名稱（DB key）
-            focal: 新的 auto_focal 值（背景 focal 演算法算出的座標字串）
-            fp: (photo_fp_path, photo_fp_mtime_ns, photo_fp_size) 三元組——worker 算 focal
-                當下所依據的照片檔案指紋，供下次載入時判斷照片是否已變更（98d stat-on-load）
-
-        Returns:
-            bool: 是否成功更新（name 不存在 → False，不拋例外、不新建 row）
-        """
-        fp_path, fp_mtime_ns, fp_size = fp
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        try:
-            cursor.execute(
-                """UPDATE actresses
-                   SET auto_focal = ?, photo_fp_path = ?, photo_fp_mtime_ns = ?, photo_fp_size = ?,
-                       updated_at = CURRENT_TIMESTAMP
-                   WHERE name = ?""",
-                (focal, fp_path, fp_mtime_ns, fp_size, name)
-            )
-            conn.commit()
-            return cursor.rowcount > 0
         finally:
             conn.close()
 

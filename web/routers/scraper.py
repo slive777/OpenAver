@@ -67,16 +67,6 @@ class ScrapeRequest(BaseModel):
     metadata: Optional[dict] = None
 
 
-class ScrapeResponse(BaseModel):
-    success: bool
-    error: Optional[str] = None
-    original_path: Optional[str] = None
-    new_folder: Optional[str] = None
-    new_filename: Optional[str] = None
-    cover_path: Optional[str] = None
-    nfo_path: Optional[str] = None
-
-
 # 唯讀來源 guard 的錯誤訊息（單一真理來源；sync helper 與 batch async loop 共用）。
 _READONLY_SOURCE_ERROR_MSG = (
     "此來源路徑為唯讀（readonly），無法搬移或重新命名檔案。"
