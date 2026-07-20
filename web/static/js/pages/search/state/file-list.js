@@ -278,10 +278,13 @@ export function searchStateFileList() {
     async setFileList(paths) {
         // 呼叫過濾 API
         const setFileListSignal = this._getAbortSignal('setFileList');  // T4.3
-        // Codex PR#112 P2(第2輪): file-list 替換＝新狀態世代，作廢任何 pending
-        // 拖檔解析／進行中搜尋的 async continuation（重用 doSearch/cancelSearch
-        // 的 requestId 機制，見 search-flow.js:106/602）
-        this.requestId++;
+        // Codex PR#112 P2(第3輪 revert 第2輪): file-list 替換取代任何 pending 拖檔解析——
+        // abort handleFileDrop 這條線（方向 a：不動 requestId／不攪動 search 狀態機，見
+        // _resolveAndSearchDroppedFile 的 signal.aborted 檢查）。直接 abort 現有 controller，
+        // 不用 _getAbortSignal（那會建新 controller 留孤兒）；無 pending 拖檔時為 no-op。
+        // （第2輪的 this.requestId++ 已移除：會讓進行中的 doSearch stream 誤走
+        // requestId-mismatch 早退，卻不清理 _searchSnapshot/activeEventSource，見 Codex 第3輪 P2）
+        this._abortControllers['handleFileDrop']?.abort();
         var hasNfoMap = {};
         try {
             try {
@@ -429,6 +432,7 @@ export function searchStateFileList() {
         const capturedRequestId = this.requestId;
         try {
             const [r] = await window.SearchFile.parseFilenames([file.name], { signal });
+            if (signal.aborted) return;   // Codex PR#112 P2(第3輪): file-list 替換（setFileList）已 abort 本拖檔
             if (capturedRequestId !== this.requestId) return;   // 期間使用者已手動搜尋，這輪 stale，不覆蓋
             if (!r?.number) {
                 this.errorText = window.t('search.error.number_not_recognized');  // T6c: 沿用既有 key
@@ -439,6 +443,7 @@ export function searchStateFileList() {
             this.doSearch(r.number);
         } catch (err) {
             if (err.name === 'AbortError') return;   // 舊請求被新拖曳取代，靜默退出——必要不是裝飾
+            if (signal.aborted) return;   // 同上（對稱）：非 AbortError 失敗但期間已被 file-list 替換取代
             if (capturedRequestId !== this.requestId) return;   // 同上：手動搜尋期間發生的失敗不覆蓋新搜尋狀態
             this.errorText = window.t('search.error.number_parse_unavailable');   // 新 key
             this.pageState = 'error';

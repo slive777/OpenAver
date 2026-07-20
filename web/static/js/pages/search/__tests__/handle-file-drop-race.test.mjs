@@ -218,12 +218,18 @@ test('Codex P2 對照（happy path）：拖檔 parse 期間 requestId 未變 →
 
 // Codex PR#112 review 第 2 輪 P2：拖檔 parse pending 期間，使用者改走「載入我的最愛」等
 // file-list 替換操作（setFileList，loadFavorite/addFiles/addFolder 共用出口）。這條路徑
-// 既不 bump requestId、也不共用 handleFileDrop 的 abort registry key（不同 key，互相
-// abort 不到），上面 CD-11/requestId 那組測試都堵不住這個洞——setFileList 必須自己在
-// 同步段 bump this.requestId，讓 _resolveAndSearchDroppedFile 既有的
-// `capturedRequestId !== this.requestId` 檢查連帶失效這條 stale continuation。
+// 不共用 handleFileDrop 的 abort registry key（不同 key，_getAbortSignal 互相 abort 不到），
+// 上面 CD-11/requestId 那組測試都堵不住這個洞。
+//
+// 第2輪修法（改 requestId bump）已在第 3 輪 revert——Codex 指出它會讓進行中的 doSearch
+// stream 誤走 requestId-mismatch 早退卻不清理 _searchSnapshot/activeEventSource，點掉
+// loading cancel 按鈕會用舊 snapshot 蓋掉剛載入的清單。現改為方向 (a)：setFileList 直接
+// abort handleFileDrop 的 controller（`this._abortControllers['handleFileDrop']?.abort()`），
+// 不動 requestId、不碰 search 狀態機；_resolveAndSearchDroppedFile 靠新增的
+// `signal.aborted` 檢查早退（同 key controller 被 abort 後 signal.aborted 同步變 true，
+// 不需要 mock 端接線 abort 事件監聽）。
 
-test('Codex P2(第2輪): 拖檔 parse pending 期間 setFileList 替換清單（模擬 loadFavorite）→ 拖檔的 stale continuation 不得覆蓋新清單', async () => {
+test('Codex P2(第3輪 revert 第2輪，改走 abort registry 方向 a): 拖檔 parse pending 期間 setFileList 替換清單（模擬 loadFavorite）→ 拖檔的 stale continuation 不得覆蓋新清單', async () => {
   const dropCalls = [];
   const favCalls = [];
   // 拖檔與 setFileList 共用同一個 window.SearchFile.parseFilenames，用 filenames 內容區分
