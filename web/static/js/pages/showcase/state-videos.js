@@ -8,6 +8,7 @@
 
 import { _videos, _filteredVideos, _nameToGroup, _tagToGroup, _setVideos, _setFilteredVideos } from '@/showcase/state-base.js';
 import { applyCellFocal } from '@/shared/focal-cell.js';
+import { openLocal } from '@/shared/open-local.js';
 
 export function stateVideos() {
     return {
@@ -451,40 +452,7 @@ export function stateVideos() {
         },
 
         // 開啟資料夾（複製路徑到剪貼簿 + PyWebView 桌面模式額外開啟資料夾）
-        openLocal(path) {
-            if (!path) return;
-
-            // 1. 擷取資料夾路徑
-            const lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
-            const folder = lastSlash >= 0 ? path.substring(0, lastSlash) : path;
-            const displayPath = pathToDisplay(folder);
-
-            // 2. 複製到剪貼簿
-            const clipboardOk = navigator.clipboard?.writeText
-                ? navigator.clipboard.writeText(displayPath).then(() => true).catch(() => false)
-                : Promise.resolve(false);
-
-            // 3. PyWebView 桌面模式：額外開啟資料夾
-            if (window.pywebview?.api?.open_folder) {
-                window.pywebview.api.open_folder(path)
-                    .then(async (opened) => {
-                        const ok = await clipboardOk;
-                        if (opened) {
-                            this.showToast(ok ? '已開啟資料夾（路徑已複製）' : '已開啟資料夾', 'success');
-                        } else {
-                            this.showToast(ok ? '已複製: ' + displayPath : '開啟資料夾失敗', ok ? 'success' : 'error');
-                        }
-                    })
-                    .catch(async () => {
-                        const ok = await clipboardOk;
-                        this.showToast(ok ? '已複製: ' + displayPath : '開啟資料夾失敗', ok ? 'success' : 'error');
-                    });
-            } else {
-                clipboardOk.then(ok => {
-                    this.showToast(ok ? '已複製: ' + displayPath : '複製失敗', ok ? 'success' : 'error');
-                });
-            }
-        },
+        openLocal,
 
     };
 }

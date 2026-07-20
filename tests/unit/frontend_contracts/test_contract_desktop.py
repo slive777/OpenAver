@@ -2,11 +2,17 @@
 
 module-level 路徑常數為源檔複製（CD-96c-7：源檔殘留 class 仍引用同名常數，故複製非剪走）。
 """
+import re
 from pathlib import Path
 
 SETTINGS_HTML = Path(__file__).parent.parent.parent.parent / "web" / "templates" / "settings.html"
 ZH_TW_JSON = Path(__file__).parent.parent.parent.parent / "locales" / "zh_TW.json"
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent  # /home/peace/OpenAver
+_OPEN_LOCAL_SHARED = PROJECT_ROOT / "web" / "static" / "js" / "shared" / "open-local.js"
+_OPEN_LOCAL_PAGE_FILES = [
+    PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "result-card.js",
+    PROJECT_ROOT / "web" / "static" / "js" / "pages" / "showcase" / "state-videos.js",
+]
 _BOOTSTRAP_HTML = Path(__file__).parent.parent.parent.parent / "web" / "templates" / "_advanced_search_bootstrap.html"
 _STATE_RESCRAPE_JS = Path(__file__).parent.parent.parent.parent / "web" / "static" / "js" / "shared" / "state-rescrape.js"
 _APP_PY = Path(__file__).parent.parent.parent.parent / "web" / "app.py"
@@ -19,7 +25,21 @@ STATE_RESCRAPE_JS = (
 
 
 class TestOpenLocalGuard:
-    """確認 openLocal() 綁定和 open_folder() API 的結構完整性（T5a / T5b）"""
+    """確認 openLocal() 綁定和 open_folder() API 的結構完整性（T5a / T5b / T4）"""
+
+    def _assert_openlocal_wired(self):
+        """兩頁各自 import 且掛載 openLocal（CD-10 假綠防護，見 TASK-103-T4）。
+
+        不可用整檔 substring 找 `openLocal`（模板呼叫、殘留註解都會誤中）；
+        掛載檢查用整行 anchor `^\\s*openLocal,\\s*$`，刻意排除 import 那一行
+        （其內容不同不會誤中）與任何提及 openLocal 字樣的註解（不會單獨成行）。
+        """
+        for js_file in _OPEN_LOCAL_PAGE_FILES:
+            content = js_file.read_text(encoding='utf-8')
+            assert "from '@/shared/open-local.js'" in content, \
+                f"{js_file.name} 未 import shared/open-local.js（T4/CD-10）"
+            assert re.search(r'^\s*openLocal,\s*$', content, re.MULTILINE), \
+                f"{js_file.name} 未掛載 openLocal（缺少 shorthand property 行，T4/CD-10）"
 
     def test_open_local_in_search(self):
         """search.html 包含 openLocal( 綁定（Detail badge + Grid overlay 兩處）"""
@@ -36,17 +56,17 @@ class TestOpenLocalGuard:
             "showcase.html 缺少 openLocal( 綁定（T5b：Grid overlay + Lightbox）"
 
     def test_open_local_method_exists(self):
-        """result-card.js 和 showcase/state-videos.js 均包含 openLocal(path) method 定義"""
-        result_card = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "result-card.js"
-        showcase_videos = PROJECT_ROOT / "web" / "static" / "js" / "pages" / "showcase" / "state-videos.js"
-
-        rc_content = result_card.read_text(encoding='utf-8')
-        assert 'openLocal(path)' in rc_content, \
-            "result-card.js 缺少 openLocal(path) method 定義（T5b）"
-
-        sc_content = showcase_videos.read_text(encoding='utf-8')
-        assert 'openLocal(path)' in sc_content, \
-            "showcase/state-videos.js 缺少 openLocal(path) method 定義（T5b）"
+        """openLocal(path) 定義於 shared/open-local.js；兩頁各自 import 且掛載（T4/CD-10）"""
+        shared_content = _OPEN_LOCAL_SHARED.read_text(encoding='utf-8')
+        # 整條宣告式 regex（非裸 substring）：鎖死 `export function openLocal(path) {`。
+        # 裸 substring 'openLocal(path)' 會被文件註解裡的同名字面騙過（adversarial mutation
+        # 實測：換成 `export const openLocal = (path) => {...}` 這種 this 綁定會炸掉 runtime
+        # 的 arrow function，只要留一行提及 openLocal(path) 的註解，裸 substring 版仍全綠）。
+        # ^export 開頭排除任何縮排的註解行，強制要求 function 關鍵字（非 arrow）。
+        assert re.search(r'^export function openLocal\(path\)\s*\{', shared_content, re.MULTILINE), \
+            "shared/open-local.js 缺少 `export function openLocal(path) {` 宣告" \
+            "（必須是一般 function，非 arrow function——this 由呼叫端決定）"
+        self._assert_openlocal_wired()
 
     def test_open_folder_pywebview_api(self):
         """windows/pywebview_api.py 包含 def open_folder（T5a）"""
@@ -63,24 +83,18 @@ class TestOpenLocalGuard:
             "search.html 仍包含 copyLocalPath( — T5b 應已將其改為 openLocal()"
 
     def test_open_local_checks_return_value(self):
-        """openLocal() 的 .then() 必須檢查 open_folder 回傳值（不能無條件當成功）"""
-        for js_file in [
-            PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "result-card.js",
-            PROJECT_ROOT / "web" / "static" / "js" / "pages" / "showcase" / "state-videos.js",
-        ]:
-            content = js_file.read_text(encoding='utf-8')
-            assert '.then(async (opened)' in content, \
-                f"{js_file.name} openLocal() 的 .then() 缺少 opened 參數檢查"
+        """openLocal() 的 .then() 必須檢查 open_folder 回傳值；兩頁各自掛載（T4/CD-10）"""
+        shared_content = _OPEN_LOCAL_SHARED.read_text(encoding='utf-8')
+        assert '.then(async (opened)' in shared_content, \
+            "shared/open-local.js openLocal() 的 .then() 缺少 opened 參數檢查"
+        self._assert_openlocal_wired()
 
     def test_open_local_cross_platform_path(self):
-        """openLocal() 必須偵測 Windows drive letter 而非一律轉反斜線"""
-        for js_file in [
-            PROJECT_ROOT / "web" / "static" / "js" / "pages" / "search" / "state" / "result-card.js",
-            PROJECT_ROOT / "web" / "static" / "js" / "pages" / "showcase" / "state-videos.js",
-        ]:
-            content = js_file.read_text(encoding='utf-8')
-            assert 'displayPath' in content, \
-                f"{js_file.name} openLocal() 缺少跨平台路徑格式偵測（displayPath）"
+        """openLocal() 必須偵測 Windows drive letter；兩頁各自掛載（T4/CD-10）"""
+        shared_content = _OPEN_LOCAL_SHARED.read_text(encoding='utf-8')
+        assert 'displayPath' in shared_content, \
+            "shared/open-local.js openLocal() 缺少跨平台路徑格式偵測（displayPath）"
+        self._assert_openlocal_wired()
 
 
 class TestJavlibraryPickerT5Guard:

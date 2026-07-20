@@ -2,6 +2,8 @@
  * SearchState - Result Card Mixin
  * 包含：結果卡片顯示、編輯、翻譯、標籤、本地狀態
  */
+import { openLocal } from '@/shared/open-local.js';
+
 export function searchStateResultCard() {
     return {
     // ===== T1c: Result Card Computed =====
@@ -366,42 +368,7 @@ export function searchStateResultCard() {
 
     // ===== T1c: Local Badge =====
 
-    openLocal(path) {
-        if (!path) return;
-
-        // 1. 擷取資料夾路徑
-        const lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
-        const folder = lastSlash >= 0 ? path.substring(0, lastSlash) : path;
-        const displayPath = pathToDisplay(folder);
-
-        // 2. 複製到剪貼簿
-        // T3.7 fix: guard against undefined navigator.clipboard (HTTP / older WebView)
-        // sync property access 在 clipboard undefined 時會 TypeError，.catch 不會跑。
-        const clipboardOk = navigator.clipboard?.writeText
-            ? navigator.clipboard.writeText(displayPath).then(() => true).catch(() => false)
-            : Promise.resolve(false);
-
-        // 3. PyWebView 桌面模式：額外開啟資料夾
-        if (window.pywebview?.api?.open_folder) {
-            window.pywebview.api.open_folder(path)
-                .then(async (opened) => {
-                    const ok = await clipboardOk;
-                    if (opened) {
-                        this.showToast(ok ? '已開啟資料夾（路徑已複製）' : '已開啟資料夾', 'success');
-                    } else {
-                        this.showToast(ok ? '已複製: ' + displayPath : '開啟資料夾失敗', ok ? 'success' : 'error');
-                    }
-                })
-                .catch(async () => {
-                    const ok = await clipboardOk;
-                    this.showToast(ok ? '已複製: ' + displayPath : '開啟資料夾失敗', ok ? 'success' : 'error');
-                });
-        } else {
-            clipboardOk.then(ok => {
-                this.showToast(ok ? '已複製: ' + displayPath : '複製失敗', ok ? 'success' : 'error');
-            });
-        }
-    },
+    openLocal,
 
     // ===== T18c: Source Link =====
 
