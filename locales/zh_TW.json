@@ -296,7 +296,7 @@
       "mt_lan_mode_label": "LAN 自架（允許區網位址）",
       "mt_connecting_btn": "連線中…",
       "mt_connect_network_error": "連線失敗，請確認網路並重試",
-      "mt_connect_success_toast": "已連線，{count} 個 provider 已載入 Parts Bin",
+      "mt_connect_success_toast": "已連線，{count} 個 provider 已載入 Provider 清單",
       "mt_probe_testing": "測試來源中",
       "mt_retest_btn": "重新測試",
       "mt_probe_hint_title": "為什麼有些來源是灰色的？",
