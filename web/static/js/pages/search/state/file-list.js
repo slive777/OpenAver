@@ -242,7 +242,7 @@ export function searchStateFileList() {
         if (!file) return;
 
         // eslint-disable-next-line no-alert -- inline number edit prompt, backlog migration to fluent-modal, reviewed 2026-05-03
-        const number = prompt('請輸入番號（例如：T28-650）', '');
+        const number = prompt(window.t('search.filelist.enter_number_prompt'), '');
         if (!number || !number.trim()) return;
 
         const formatted = window.SearchFile.formatNumber(number.trim());
@@ -291,11 +291,11 @@ export function searchStateFileList() {
             if (result.success) {
                 if (result.total_rejected > 0) {
                     const { extension, size, not_found } = result.rejected;
-                    let msg = `已過濾 ${result.total_rejected} 個檔案`;
+                    let msg = window.t('search.filelist.filtered_count', { count: result.total_rejected });
                     const details = [];
-                    if (extension > 0) details.push(`${extension} 個非影片檔`);
-                    if (size > 0) details.push(`${size} 個小於最小尺寸`);
-                    if (not_found > 0) details.push(`${not_found} 個不存在`);
+                    if (extension > 0) details.push(window.t('search.filelist.rejected_extension', { count: extension }));
+                    if (size > 0) details.push(window.t('search.filelist.rejected_size', { count: size }));
+                    if (not_found > 0) details.push(window.t('search.filelist.rejected_not_found', { count: not_found }));
                     if (details.length > 0) msg += `（${details.join('、')}）`;
 
                     // T6b: 後端過濾提示（info 類型）
@@ -330,7 +330,7 @@ export function searchStateFileList() {
 
         // T6b: 前端過濾提示（warning 類型）
         if (noNumberCount > 0) {
-            const msg = `已過濾 ${noNumberCount} 個無法識別番號的檔案`;
+            const msg = window.t('search.filelist.filtered_no_number', { count: noNumberCount });
             this.showToast(msg, 'warning');
         }
 
@@ -391,7 +391,7 @@ export function searchStateFileList() {
         const number = window.SearchFile.extractNumber(filename);
 
         if (!number) {
-            this.errorText = '無法從檔名識別番號';  // T6c: Alpine state
+            this.errorText = window.t('search.error.number_not_recognized');  // T6c: Alpine state
             this.pageState = 'error';
             return;
         }

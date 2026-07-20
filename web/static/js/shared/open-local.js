@@ -45,18 +45,18 @@ export function openLocal(path) {
       .then(async (opened) => {
         const ok = await clipboardOk;
         if (opened) {
-          this.showToast(ok ? '已開啟資料夾（路徑已複製）' : '已開啟資料夾', 'success');
+          this.showToast(ok ? window.t('common.open_local.folder_opened_copied') : window.t('common.open_local.folder_opened'), 'success');
         } else {
-          this.showToast(ok ? '已複製: ' + displayPath : '開啟資料夾失敗', ok ? 'success' : 'error');
+          this.showToast(ok ? window.t('common.open_local.path_copied', { path: displayPath }) : window.t('common.open_local.folder_open_failed'), ok ? 'success' : 'error');
         }
       })
       .catch(async () => {
         const ok = await clipboardOk;
-        this.showToast(ok ? '已複製: ' + displayPath : '開啟資料夾失敗', ok ? 'success' : 'error');
+        this.showToast(ok ? window.t('common.open_local.path_copied', { path: displayPath }) : window.t('common.open_local.folder_open_failed'), ok ? 'success' : 'error');
       });
   } else {
     clipboardOk.then(ok => {
-      this.showToast(ok ? '已複製: ' + displayPath : '複製失敗', ok ? 'success' : 'error');
+      this.showToast(ok ? window.t('common.open_local.path_copied', { path: displayPath }) : window.t('common.open_local.copy_failed'), ok ? 'success' : 'error');
     });
   }
 }

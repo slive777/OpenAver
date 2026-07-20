@@ -345,7 +345,7 @@ export function stateConfig() {
                         return false;
                     },
                     onBeforeUnload: () => {
-                        if (this.isDirty) return '您有未儲存的設定變更';
+                        if (this.isDirty) return window.t('settings.dirty_modal.unsaved_native_prompt');
                         return null;
                     },
                     cleanup: () => {
@@ -362,7 +362,7 @@ export function stateConfig() {
         async cycleLocale() {
             if (this.isDirty) {
                 // eslint-disable-next-line no-alert -- cycleLocale dirty-check confirm, backlog migration to fluent-modal, reviewed 2026-05-03
-                if (!confirm('您有未儲存的變更，切換語系後將遺失。確定繼續？')) return;
+                if (!confirm(window.t('settings.dirty_modal.locale_switch_confirm'))) return;
             }
             const order = ['zh-TW', 'zh-CN', 'ja', 'en'];
             const idx = order.indexOf(this.locale);
@@ -793,7 +793,7 @@ export function stateConfig() {
                 const currentResp = await fetch('/api/config');
                 const currentResult = await currentResp.json();
                 if (!currentResult.success) {
-                    this.showToast('載入現有設定失敗', 'error');
+                    this.showToast(window.t('settings.toast.load_current_failed'), 'error');
                     return;
                 }
                 const config = currentResult.data;
@@ -954,7 +954,7 @@ export function stateConfig() {
                 });
                 const result = await resp.json();
                 if (result.success) {
-                    this.showToast('設定已儲存', 'success');
+                    this.showToast(window.t('settings.toast.config_saved'), 'success');
                     // 更新快照（避免儲存後仍為 dirty）
                     this.savedState = JSON.parse(JSON.stringify(this.form));
                     this.savedOpenaiUseCustomModel = this.openaiUseCustomModel;
@@ -998,10 +998,10 @@ export function stateConfig() {
                     // 直接顯示後端訊息（非「儲存失敗」誤導前綴）——這是「稍後再試」而非錯誤。
                     this.showToast(result.error, 'warning');
                 } else {
-                    this.showToast('儲存失敗: ' + result.error, 'error');
+                    this.showToast(window.t('settings.toast.save_failed', { error: result.error }), 'error');
                 }
             } catch (e) {
-                this.showToast('儲存失敗: ' + e.message, 'error');
+                this.showToast(window.t('settings.toast.save_failed', { error: e.message }), 'error');
             }
         },
 
@@ -1031,12 +1031,12 @@ export function stateConfig() {
                 const result = await resp.json();
                 if (result.success) {
                     await this.loadConfig();
-                    this.showToast('已恢復預設設定', 'success');
+                    this.showToast(window.t('settings.toast.reset_done'), 'success');
                 } else {
-                    this.showToast('重置失敗: ' + result.error, 'error');
+                    this.showToast(window.t('settings.toast.reset_failed', { error: result.error }), 'error');
                 }
             } catch (e) {
-                this.showToast('重置失敗: ' + e.message, 'error');
+                this.showToast(window.t('settings.toast.reset_failed', { error: e.message }), 'error');
             } finally {
                 this._resetConfigLoading = false;
                 this.resetConfigModalOpen = false;
@@ -1360,10 +1360,10 @@ export function stateConfig() {
                     this.sources.forEach(s => { if (s.type === 'metatube') s.available = true; });
                     await this.loadConfig();
                     this.metatubeConnected = true;
-                    this.showToast(`已連線，${result.provider_count} 個 provider 已載入 Parts Bin`, 'success');
+                    this.showToast(window.t('settings.sources.mt_connect_success_toast', { count: result.provider_count }), 'success');
                     this.startProbePolling();
                 } else {
-                    this.showToast(`連線失敗：${result.error}`, 'error');
+                    this.showToast(window.t('settings.sources.mt_connect_failed', { error: result.error }), 'error');
                 }
             } catch (_e) {
                 this.showToast(window.t('settings.sources.mt_connect_network_error'), 'error');

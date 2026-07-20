@@ -133,7 +133,7 @@ async function ensureCached(state, number) {
  */
 function showSourceToast(alpineContext, source) {
     const name = SOURCE_NAMES[source] || source;
-    const msg = `來自 ${name}`;
+    const msg = window.t('search.toast.from_source', { name });
     alpineContext.showToast(msg, 'info', 2000);
 }
 

@@ -280,7 +280,7 @@ export function searchStateBatch() {
         );
 
         if (translatableResults.length === 0) {
-            this.showToast('沒有需要翻譯的標題', 'info');
+            this.showToast(window.t('search.toast.no_translatable_titles'), 'info');
             return;
         }
 
@@ -344,7 +344,7 @@ export function searchStateBatch() {
         ts.isProcessing = false;
         ts.isPaused = false;
         if (!aborted) {  // T4.3: abort 時不顯示 toast（DOM 可能已不可用）
-            this.showToast(`翻譯完成：成功 ${ts.success}，失敗 ${ts.failed}`, ts.failed > 0 ? 'warning' : 'success');
+            this.showToast(window.t('search.toast.translate_batch_done', { success: ts.success, failed: ts.failed }), ts.failed > 0 ? 'warning' : 'success');
         }
         ts.total = 0;
     },
@@ -421,7 +421,7 @@ export function searchStateBatch() {
                     // 新增：fallback 提示
                     if (result.used_fallbacks?.length) {
                         const fields = result.used_fallbacks.join('、');
-                        this.showToast(`⚠️ ${fields} 資訊未取得，已使用預設值`, 'warning');
+                        this.showToast(window.t('search.toast.fields_defaulted', { fields }), 'warning');
                     }
                     if (result.skipped_nfo_multipart) {
                         this.showToast(window.t('search.toast.skipped_nfo_multipart'), 'info', 4000);
@@ -506,7 +506,7 @@ export function searchStateBatch() {
                 // 新增：fallback 提示
                 if (result.used_fallbacks?.length) {
                     const fields = result.used_fallbacks.join('、');
-                    this.showToast(`⚠️ ${fields} 資訊未取得，已使用預設值`, 'warning');
+                    this.showToast(window.t('search.toast.fields_defaulted', { fields }), 'warning');
                 }
                 if (result.skipped_nfo_multipart) {
                     this.showToast(window.t('search.toast.skipped_nfo_multipart'), 'info', 4000);

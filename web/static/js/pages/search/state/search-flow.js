@@ -352,7 +352,7 @@ export function searchStateSearchFlow() {
                             // 全部失敗且無 fallback → 顯示 error
                             // A7-Prod: 清理 _heroSlotReserved（頁面將切到 error state）
                             this._heroSlotReserved = false;
-                            this.errorText = '找不到資料';
+                            this.errorText = window.t('search.error.no_data');
                             this.pageState = 'error';
                         } else {
                             // 正常 stream 完成：只補充 metadata
@@ -421,7 +421,7 @@ export function searchStateSearchFlow() {
                         this.addingTag = false;
                     } else {
                         this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋失敗）
-                        this.errorText = '找不到資料';  // T6c: Alpine state
+                        this.errorText = window.t('search.error.no_data');  // T6c: Alpine state
                         this.pageState = 'error';
                     }
                 }
@@ -430,7 +430,7 @@ export function searchStateSearchFlow() {
                     this._untrackConnection(eventSource);
                     this.activeEventSource = null;
                     this._searchSnapshot = null; // Fix 2: 清空 snapshot（搜尋錯誤）
-                    this.errorText = data.message || '搜尋失敗';  // T6c: Alpine state
+                    this.errorText = data.message || window.t('search.error.search_failed');  // T6c: Alpine state
                     this.pageState = 'error';
                 }
             } catch (err) {
@@ -547,7 +547,7 @@ export function searchStateSearchFlow() {
                 if (this._heroSlotReserved) {
                     this._heroSlotReserved = false;
                 }
-                this.errorText = data.error || '找不到資料';  // T6c: Alpine state
+                this.errorText = data.error || window.t('search.error.no_data');  // T6c: Alpine state
                 this.pageState = 'error';
             }
         } catch (err) {
@@ -557,7 +557,7 @@ export function searchStateSearchFlow() {
             if (savedRequestId !== this.requestId) return;
             this._searchSnapshot = null;
             console.error('[Search]', err);
-            this.errorText = '網路錯誤，請重試';  // T6c: Alpine state
+            this.errorText = window.t('search.error.network_error');  // T6c: Alpine state
             this.pageState = 'error';
         }
     },
@@ -994,29 +994,29 @@ export function searchStateSearchFlow() {
         const sourceName = this.SOURCE_NAME[source] || source;
 
         if (status === 'searching') {
-            this.progressLog = `${sourceName} 搜尋中...`;
+            this.progressLog = window.t('search.progress.searching_source', { source: sourceName });
         }
         else if (status.startsWith('found:')) {
             const count = status.split(':')[1];
             if (count === '0') {
-                this.progressLog = `${sourceName} 無結果`;
+                this.progressLog = window.t('search.progress.no_result_source', { source: sourceName });
             } else {
-                this.progressLog = `${sourceName} 找到 ${count} 筆`;
+                this.progressLog = window.t('search.progress.found_count', { source: sourceName, count });
             }
         }
         else if (status === 'fetching_details') {
-            this.progressLog = '抓取詳情...';
+            this.progressLog = window.t('search.progress.fetching_detail');
         }
         else if (status.startsWith('details:')) {
             const parts = status.split(':')[1].split('/');
             if (parts.length === 2) {
                 this.detailDone = parseInt(parts[0]);
                 this.detailTotal = parseInt(parts[1]);
-                this.progressLog = `抓取詳情 ${this.detailDone}/${this.detailTotal}`;
+                this.progressLog = window.t('search.progress.fetching_detail_count', { done: this.detailDone, total: this.detailTotal });
             }
         }
         else if (status === 'failed') {
-            this.progressLog = `${sourceName} 失敗`;
+            this.progressLog = window.t('search.progress.source_failed', { source: sourceName });
         }
     }
     };

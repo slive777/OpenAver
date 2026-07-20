@@ -305,15 +305,15 @@ export function stateScan() {
                 if (result.success) {
                     this.configDirty = false;
                     this.folderSnapshot = JSON.stringify(this.directories);
-                    this.showToast('設定已儲存', 'success');
+                    this.showToast(window.t('scanner.toast.config_saved'), 'success');
                     return true;
                 } else {
-                    this.showToast('儲存失敗: ' + (result.error || '未知錯誤'), 'error');
+                    this.showToast(window.t('scanner.toast.save_failed', { error: result.error || window.t('common.unknown_error') }), 'error');
                     return false;
                 }
             } catch (e) {
                 console.error('儲存失敗:', e);
-                this.showToast('儲存失敗: ' + e.message, 'error');
+                this.showToast(window.t('scanner.toast.save_failed', { error: e.message }), 'error');
                 return false;
             }
         },
@@ -356,7 +356,7 @@ export function stateScan() {
                 const resp = await fetch('/api/gallery/cache', { method: 'DELETE' });
                 const result = await resp.json();
                 if (result.success) {
-                    this.showToast(`已清除 ${result.deleted} 部影片快取`, 'success');
+                    this.showToast(window.t('scanner.toast.cache_cleared', { count: result.deleted }), 'success');
                     this.statTotal = 0;
                     this.statsVisible = false;
                     this.nfoUpdateVisible = false;
@@ -369,10 +369,10 @@ export function stateScan() {
                     this.missingItems = [];
                     localStorage.removeItem('avlist_enrich_pending');
                 } else {
-                    this.showToast('清除失敗: ' + (result.error || '未知錯誤'), 'error');
+                    this.showToast(window.t('scanner.toast.clear_failed', { error: result.error || window.t('common.unknown_error') }), 'error');
                 }
             } catch (e) {
-                this.showToast('清除失敗: ' + e.message, 'error');
+                this.showToast(window.t('scanner.toast.clear_failed', { error: e.message }), 'error');
             } finally {
                 this.clearCacheLoading = false;
             }
@@ -673,7 +673,7 @@ export function stateScan() {
                 });
 
                 if (wasGenerating) {
-                    this.addLog('warn', '⚠ 生成被中斷（離開頁面）');
+                    this.addLog('warn', window.t('scanner.stats.log_interrupted'));
                     this.flushLogs();
                     localStorage.setItem('avlist_generating', 'false');
                 }
@@ -708,7 +708,7 @@ export function stateScan() {
 
         copyLogs() {
             if (this.logEntries.length === 0) {
-                this.showToast('目前沒有日誌');
+                this.showToast(window.t('scanner.toast.no_logs'));
                 return;
             }
 
@@ -723,7 +723,7 @@ export function stateScan() {
             }
 
             navigator.clipboard.writeText(text).then(() => {
-                this.showToast(`已複製 ${this.logEntries.length} 筆日誌`, 'success');
+                this.showToast(window.t('scanner.toast.logs_copied', { count: this.logEntries.length }), 'success');
             }).catch(() => {
                 this.openCopyFailModal(text);
             });
@@ -743,14 +743,14 @@ export function stateScan() {
         confirmClearAll() {
             const hasLogs = this.logEntries.length > 0 || localStorage.getItem('avlist_logs');
             if (!hasLogs) {
-                this.showToast('目前沒有日誌');
+                this.showToast(window.t('scanner.toast.no_logs'));
                 return;
             }
 
             // eslint-disable-next-line no-alert -- clearLogs confirm, backlog migration to fluent-modal, reviewed 2026-05-03
-            if (confirm('確定要清除所有日誌嗎？（包含歷史紀錄）')) {
+            if (confirm(window.t('scanner.toast.confirm_clear_logs'))) {
                 this.clearLogs();
-                this.showToast('已清除所有日誌', 'success');
+                this.showToast(window.t('scanner.toast.logs_cleared'), 'success');
             }
         },
 
@@ -760,7 +760,7 @@ export function stateScan() {
             if (this.isGenerating) return;
 
             if (this.directories.length === 0) {
-                this.showToast('請先加入至少一個資料夾');
+                this.showToast(window.t('scanner.toast.no_folder'));
                 return;
             }
 
@@ -774,7 +774,7 @@ export function stateScan() {
 
             // 重置狀態
             this.state = 'generating';
-            this.progressStatus = '準備中...';
+            this.progressStatus = window.t('scanner.stats.status_preparing');
             this.progressCurrent = 0;
             this.progressTotal = 0;
             this.outputPath = '';
@@ -801,12 +801,12 @@ export function stateScan() {
                         this.eventSource.close();
                         this.eventSource = null;
                         this.state = 'done';
-                        this.progressStatus = `完成！${data.video_count} 部影片`;
+                        this.progressStatus = window.t('scanner.stats.status_done_count', { count: data.video_count });
                         this.progressCurrent = this.progressTotal;
                         this.outputPath = data.output_path;
 
                         localStorage.setItem('avlist_generating', 'false');
-                        localStorage.setItem('avlist_last_status', '完成');
+                        localStorage.setItem('avlist_last_status', window.t('scanner.stats.status_done'));
                         localStorage.removeItem('avlist_state');  // 清除 viewer 狀態
 
                         // 處理 NFO 更新提示
@@ -835,23 +835,23 @@ export function stateScan() {
                         const partial = (data.readonly_stats && data.readonly_stats.partial) || 0;
                         if (srcErrors > 0 || failedCount > 0 || noOutput > 0 || unreachable > 0 || partial > 0) {
                             const parts = [];
-                            if (srcErrors > 0) parts.push(`${srcErrors} 個唯讀來源失敗`);
-                            if (failedCount > 0) parts.push(`${failedCount} 部失敗`);
-                            if (unreachable > 0) parts.push(`${unreachable} 個來源無法連線`);
-                            if (partial > 0) parts.push(`${partial} 個來源部分讀取失敗`);
-                            if (noOutput > 0) parts.push(`${noOutput} 個未設輸出夾`);
+                            if (srcErrors > 0) parts.push(window.t('scanner.toast.readonly_failed_count', { count: srcErrors }));
+                            if (failedCount > 0) parts.push(window.t('scanner.toast.failed_count', { count: failedCount }));
+                            if (unreachable > 0) parts.push(window.t('scanner.toast.unreachable_count', { count: unreachable }));
+                            if (partial > 0) parts.push(window.t('scanner.toast.partial_count', { count: partial }));
+                            if (noOutput > 0) parts.push(window.t('scanner.toast.no_output_count', { count: noOutput }));
                             this.showToast(
-                                `完成 ${data.video_count} 部，但 ${parts.join('、')}，詳細見日誌`,
+                                window.t('scanner.toast.done_with_warnings', { count: data.video_count, parts: parts.join('、') }),
                                 'warn'
                             );
                         } else {
-                            this.showToast(`成功產生 ${data.video_count} 部影片列表`, 'success');
+                            this.showToast(window.t('scanner.toast.generate_success', { count: data.video_count }), 'success');
                         }
 
                         // a5: Windows 長路徑警告
                         if (data.long_paths && data.long_paths.length > 0) {
                             this.showToast(
-                                `本次掃描發現 ${data.long_paths.length} 個路徑超過 260 字元，可能無法讀取，詳細清單見 debug.log`,
+                                window.t('scanner.toast.long_paths_warning', { count: data.long_paths.length }),
                                 'warn',
                                 6000
                             );
@@ -871,7 +871,7 @@ export function stateScan() {
                         this.eventSource.close();
                         this.eventSource = null;
                         this.state = 'error';
-                        this.addLog('error', '錯誤: ' + data.message);
+                        this.addLog('error', window.t('scanner.stats.log_error_prefix', { message: data.message }));
                         this.flushLogs();
                         localStorage.setItem('avlist_generating', 'false');
                     }
@@ -882,7 +882,7 @@ export function stateScan() {
                     this.eventSource.close();
                     this.eventSource = null;
                     this.state = 'error';
-                    this.addLog('error', '連線中斷');
+                    this.addLog('error', window.t('scanner.stats.log_disconnected'));
                     this.flushLogs();
                     localStorage.setItem('avlist_generating', 'false');
                 };
@@ -900,13 +900,13 @@ export function stateScan() {
             if (this.isGenerating) return;
 
             if (this.nfoNeedUpdateCount === 0) {
-                this.showToast('沒有需要更新的影片');
+                this.showToast(window.t('scanner.toast.no_nfo_update_needed'));
                 return;
             }
 
             // 重置狀態
             this.state = 'nfoUpdating';
-            this.progressStatus = '準備中...';
+            this.progressStatus = window.t('scanner.stats.status_preparing');
             this.progressCurrent = 0;
             this.progressTotal = 0;
             this.clearLogs();
@@ -930,13 +930,13 @@ export function stateScan() {
                         this.eventSource.close();
                         this.eventSource = null;
                         this.state = 'done';
-                        this.progressStatus = data.message || '完成';
+                        this.progressStatus = data.message || window.t('scanner.stats.status_done');
                         this.progressCurrent = this.progressTotal;
 
                         localStorage.setItem('avlist_generating', 'false');
-                        localStorage.setItem('avlist_last_status', data.message || '完成');
+                        localStorage.setItem('avlist_last_status', data.message || window.t('scanner.stats.status_done'));
 
-                        this.showToast('補全完成！請重新產生列表以更新', 'success');
+                        this.showToast(window.t('scanner.toast.nfo_update_done'), 'success');
                         if (data.message) {
                             this.addLog('info', data.message);
                         }
@@ -949,7 +949,7 @@ export function stateScan() {
                         this.eventSource.close();
                         this.eventSource = null;
                         this.state = 'error';
-                        this.addLog('error', '錯誤: ' + data.message);
+                        this.addLog('error', window.t('scanner.stats.log_error_prefix', { message: data.message }));
                         this.flushLogs();
                         localStorage.setItem('avlist_generating', 'false');
                     }
@@ -960,7 +960,7 @@ export function stateScan() {
                     this.eventSource.close();
                     this.eventSource = null;
                     this.state = 'error';
-                    this.addLog('error', '連線中斷');
+                    this.addLog('error', window.t('scanner.stats.log_disconnected'));
                     this.flushLogs();
                     localStorage.setItem('avlist_generating', 'false');
                 };
@@ -977,12 +977,12 @@ export function stateScan() {
             if (this.isGenerating) return;
 
             if (this.jellyfinImageCount === 0) {
-                this.showToast('沒有需要補齊的影片');
+                this.showToast(window.t('scanner.toast.no_jellyfin_update_needed'));
                 return;
             }
 
             this.state = 'jellyfinUpdating';
-            this.progressStatus = '準備中...';
+            this.progressStatus = window.t('scanner.stats.status_preparing');
             this.progressCurrent = 0;
             this.progressTotal = 0;
             this.clearLogs();
@@ -1006,18 +1006,18 @@ export function stateScan() {
                         this.eventSource.close();
                         this.eventSource = null;
                         this.state = 'done';
-                        this.progressStatus = data.message || '完成';
+                        this.progressStatus = data.message || window.t('scanner.stats.status_done');
                         this.progressCurrent = this.progressTotal;
 
                         localStorage.setItem('avlist_generating', 'false');
-                        localStorage.setItem('avlist_last_status', data.message || '完成');
+                        localStorage.setItem('avlist_last_status', data.message || window.t('scanner.stats.status_done'));
 
                         // T3(40c) Codex fix: update 完成後重設 jellyfin check 狀態，讓觸發列重新出現
                         this.jellyfinImageVisible = false;
                         this.jellyfinImageCount = 0;
                         this.jellyfinCheckState = 'idle';
 
-                        this.showToast('補齊完成！', 'success');
+                        this.showToast(window.t('scanner.toast.jellyfin_update_done'), 'success');
                         if (data.message) {
                             this.addLog('info', data.message);
                         }
@@ -1026,7 +1026,7 @@ export function stateScan() {
                         this.eventSource.close();
                         this.eventSource = null;
                         this.state = 'error';
-                        this.addLog('error', '錯誤: ' + data.message);
+                        this.addLog('error', window.t('scanner.stats.log_error_prefix', { message: data.message }));
                         this.flushLogs();
                         localStorage.setItem('avlist_generating', 'false');
                     }
@@ -1037,7 +1037,7 @@ export function stateScan() {
                     this.eventSource.close();
                     this.eventSource = null;
                     this.state = 'error';
-                    this.addLog('error', '連線中斷');
+                    this.addLog('error', window.t('scanner.stats.log_disconnected'));
                     this.flushLogs();
                     localStorage.setItem('avlist_generating', 'false');
                 };
@@ -1069,7 +1069,7 @@ export function stateScan() {
             }
 
             navigator.clipboard.writeText(this.outputPath).then(() => {
-                this.showToast('已複製: ' + this.outputPath, 'success');
+                this.showToast(window.t('scanner.toast.path_copied', { path: this.outputPath }), 'success');
             }).catch(() => {
                 showFailToast();
             });

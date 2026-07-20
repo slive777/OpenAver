@@ -52,7 +52,6 @@ const ORPHAN_PREVIEW = 10;
 const KNOWN_UNSCANNED_KEYS = [
   'showcase.search.video', //           ← TestShowcaseActressI18n（影片模式搜尋 placeholder）
   'showcase.unit.videos_count', //      ← TestShowcaseActressI18n（部數單位）
-  'settings.sources.mt_connect_success_toast', // ← TestMetatubeB6I18n（metatube 連線 toast）
   'settings.sources.mt_probe_hint_title', //      ← TestMetatubeB6I18n
   'settings.sources.mt_probe_hint_reason1',
   'settings.sources.mt_probe_hint_reason2',

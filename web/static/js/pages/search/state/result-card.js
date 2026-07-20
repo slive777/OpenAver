@@ -164,7 +164,7 @@ export function searchStateResultCard() {
             }
 
             if (!currentResult || !currentResult.title || !this.hasJapanese(currentResult.title)) {
-                throw new Error('當前片無需翻譯');
+                throw new Error(window.t('search.error.no_translation_needed'));
             }
 
             const result = await this.translateWithOllama(currentResult.title, 'translate', currentResult);
@@ -176,7 +176,7 @@ export function searchStateResultCard() {
                 currentResult.translated_title = result.result;
                 this.saveState();
             } else {
-                throw new Error(result.error || '翻譯失敗');
+                throw new Error(result.error || window.t('search.error.translate_failed_generic'));
             }
 
             return;  // Gemini 模式結束
@@ -210,7 +210,7 @@ export function searchStateResultCard() {
         }
 
         if (batch.length === 0) {
-            throw new Error('無需翻譯的日文標題');
+            throw new Error(window.t('search.error.no_japanese_title'));
         }
 
         if (this.listMode !== 'file') {
@@ -378,7 +378,7 @@ export function searchStateResultCard() {
         if (window.pywebview?.api?.open_url) {
             window.pywebview.api.open_url(url).then(ok => {
                 if (ok) {
-                    this.showToast('已開啟瀏覽器', 'success');
+                    this.showToast(window.t('search.toast.browser_opened'), 'success');
                 } else {
                     window.open(url, '_blank', 'noopener,noreferrer');
                 }
@@ -427,7 +427,7 @@ export function searchStateResultCard() {
                     if (this._coverRequestId !== requestId) return;
                     if (this._coverRetried && !this.coverError) {
                         this._coverRetried = false;
-                        this.coverError = '封面載入失敗';
+                        this.coverError = window.t('search.cover.load_failed');
                     }
                 }, 5000);
                 return;
@@ -437,7 +437,7 @@ export function searchStateResultCard() {
         // PHASE 2: Second failure (retry also failed)
         this._clearTimer('coverRetry');
         this._coverRetried = false;
-        this.coverError = '封面載入失敗';
+        this.coverError = window.t('search.cover.load_failed');
     },
 
     // ===== V1d: Source Switching =====

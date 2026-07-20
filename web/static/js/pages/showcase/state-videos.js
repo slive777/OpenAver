@@ -29,7 +29,7 @@ export function stateVideos() {
                     this.videoCount = 0;
                     _filteredVideos.length = 0;
                     this.filteredCount = 0;
-                    this.error = `伺服器錯誤 (${resp.status})`;
+                    this.error = window.t('showcase.error.server_error', { status: resp.status });
                     return;
                 }
                 const data = await resp.json();
@@ -38,7 +38,7 @@ export function stateVideos() {
                     this.videoCount = 0;
                     _filteredVideos.length = 0;
                     this.filteredCount = 0;
-                    this.error = data.error || '載入失敗';
+                    this.error = data.error || window.t('showcase.error.load_failed');
                     return;
                 }
                 // Re-assign module-level var via splice/push to keep the same reference
@@ -59,7 +59,7 @@ export function stateVideos() {
                 this.videoCount = 0;
                 _filteredVideos.splice(0, _filteredVideos.length);
                 this.filteredCount = 0;
-                this.error = '無法連線到伺服器';
+                this.error = window.t('showcase.error.cannot_connect');
             } finally {
                 this.loading = false;
             }
@@ -434,11 +434,11 @@ export function stateVideos() {
             if (window.pywebview && window.pywebview.api) {
                 window.pywebview.api.open_file(path)
                     .then(opened => {
-                        if (!opened) this.showToast('播放失敗', 'error');
+                        if (!opened) this.showToast(window.t('showcase.video.play_failed'), 'error');
                     })
                     .catch(err => {
                         console.error('Failed to open file:', err);
-                        this.showToast('播放失敗', 'error');
+                        this.showToast(window.t('showcase.video.play_failed'), 'error');
                     });
             } else {
                 window.open('/api/gallery/player?path=' + encodeURIComponent(path), '_blank');

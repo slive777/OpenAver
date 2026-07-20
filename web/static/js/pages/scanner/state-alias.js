@@ -49,10 +49,10 @@ export function stateAlias() {
                 if (result.success) {
                     this.aliasRecords = result.groups || [];
                 } else {
-                    this.aliasRecordsError = '載入失敗: ' + (result.error || '未知錯誤');
+                    this.aliasRecordsError = window.t('scanner.alias.load_failed', { error: result.error || window.t('common.unknown_error') });
                 }
             } catch (e) {
-                this.aliasRecordsError = '載入失敗: ' + e.message;
+                this.aliasRecordsError = window.t('scanner.alias.load_failed', { error: e.message });
             } finally {
                 this.aliasRecordsLoading = false;
             }
@@ -83,14 +83,14 @@ export function stateAlias() {
                 const result = await resp.json();
 
                 if (result.success) {
-                    this.showToast('已新增別名組：' + name, 'success');
+                    this.showToast(window.t('scanner.alias.toast_group_added', { name }), 'success');
                     this.aliasInput = '';
                     await this.loadAliasRecords();
                 } else {
-                    this.showToast('新增失敗: ' + (result.error || '未知錯誤'), 'error');
+                    this.showToast(window.t('scanner.alias.toast_add_failed', { error: result.error || window.t('common.unknown_error') }), 'error');
                 }
             } catch (e) {
-                this.showToast('新增失敗: ' + e.message, 'error');
+                this.showToast(window.t('scanner.alias.toast_add_failed', { error: e.message }), 'error');
             } finally {
                 this.newGroupAdding = false;
             }
@@ -130,13 +130,13 @@ export function stateAlias() {
                 const result = await resp.json();
 
                 if (result.success) {
-                    this.showToast('已刪除：' + name, 'success');
+                    this.showToast(window.t('scanner.alias.toast_deleted', { name }), 'success');
                     await this.loadAliasRecords();
                 } else {
-                    this.showToast('刪除失敗: ' + (result.error || '未知錯誤'), 'error');
+                    this.showToast(window.t('scanner.alias.toast_delete_failed', { error: result.error || window.t('common.unknown_error') }), 'error');
                 }
             } catch (e) {
-                this.showToast('刪除失敗: ' + e.message, 'error');
+                this.showToast(window.t('scanner.alias.toast_delete_failed', { error: e.message }), 'error');
             } finally {
                 this._deleteAliasGroupLoading = false;
                 this.deleteAliasGroupModalOpen = false;
@@ -177,10 +177,10 @@ export function stateAlias() {
                     this.addingAlias = updated;
                     await this.loadAliasRecords();
                 } else {
-                    this.showToast(result.error || '新增別名失敗', 'error');
+                    this.showToast(result.error || window.t('scanner.alias.toast_add_alias_failed'), 'error');
                 }
             } catch (e) {
-                this.showToast('新增別名失敗: ' + e.message, 'error');
+                this.showToast(window.t('scanner.alias.toast_add_alias_failed_detail', { error: e.message }), 'error');
             } finally {
                 const loading = { ...this.addingAliasLoading };
                 delete loading[primary];
@@ -200,10 +200,10 @@ export function stateAlias() {
                 if (result.success) {
                     await this.loadAliasRecords();
                 } else {
-                    this.showToast('移除失敗: ' + (result.error || '未知錯誤'), 'error');
+                    this.showToast(window.t('scanner.alias.toast_remove_failed', { error: result.error || window.t('common.unknown_error') }), 'error');
                 }
             } catch (e) {
-                this.showToast('移除失敗: ' + e.message, 'error');
+                this.showToast(window.t('scanner.alias.toast_remove_failed', { error: e.message }), 'error');
             }
         },
 
@@ -211,7 +211,7 @@ export function stateAlias() {
         async startOnlineSearch() {
             const name = this.aliasInput.trim();
             if (!name) {
-                this.showToast('請先輸入主名稱再進行線上搜尋');
+                this.showToast(window.t('scanner.alias.toast_need_primary_name'));
                 return;
             }
 
@@ -228,7 +228,7 @@ export function stateAlias() {
                     body: JSON.stringify({ name })
                 });
                 if (resp.status === 504) {
-                    this.showToast('線上搜尋逾時', 'error');
+                    this.showToast(window.t('scanner.alias.toast_search_timeout'), 'error');
                     return;
                 }
                 const result = await resp.json();
@@ -236,10 +236,10 @@ export function stateAlias() {
                 if (result.success) {
                     this.onlineSearchResults = result.suggested_aliases || [];
                 } else {
-                    this.showToast('線上搜尋失敗: ' + (result.error || '未知錯誤'), 'error');
+                    this.showToast(window.t('scanner.alias.toast_search_failed', { error: result.error || window.t('common.unknown_error') }), 'error');
                 }
             } catch (e) {
-                this.showToast('線上搜尋失敗: ' + e.message, 'error');
+                this.showToast(window.t('scanner.alias.toast_search_failed', { error: e.message }), 'error');
             } finally {
                 this.onlineSearchLoading = false;
                 this.onlineSearchDone = true;
@@ -262,7 +262,7 @@ export function stateAlias() {
                 });
                 const createResult = await createResp.json();
                 if (!createResult.success) {
-                    this.showToast('建立別名組失敗: ' + (createResult.error || '未知錯誤'), 'error');
+                    this.showToast(window.t('scanner.alias.toast_create_group_failed', { error: createResult.error || window.t('common.unknown_error') }), 'error');
                     return;
                 }
             }
@@ -277,10 +277,10 @@ export function stateAlias() {
                     });
                     const result = await resp.json();
                     if (!result.success) {
-                        this.showToast(result.error || `加入 ${alias} 失敗`, 'error');
+                        this.showToast(result.error || window.t('scanner.alias.toast_add_item_failed', { alias }), 'error');
                     }
                 } catch (e) {
-                    this.showToast(`加入 ${alias} 失敗: ` + e.message, 'error');
+                    this.showToast(window.t('scanner.alias.toast_add_item_failed_detail', { alias, error: e.message }), 'error');
                 }
             }
 

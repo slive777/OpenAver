@@ -19,7 +19,15 @@
       "confirm": "確認",
       "cancel": "取消"
     },
-    "no_image": "無圖片"
+    "no_image": "無圖片",
+    "unknown_error": "未知錯誤",
+    "open_local": {
+      "folder_opened_copied": "已開啟資料夾（路徑已複製）",
+      "folder_opened": "已開啟資料夾",
+      "path_copied": "已複製: {path}",
+      "folder_open_failed": "開啟資料夾失敗",
+      "copy_failed": "複製失敗"
+    }
   },
   "desktop": {
     "tray": {
@@ -89,7 +97,14 @@
     },
     "error": {
       "hint": "請檢查番號格式或稍後再試",
-      "tag_api_failed": "標籤儲存失敗，請稍後再試"
+      "tag_api_failed": "標籤儲存失敗，請稍後再試",
+      "no_data": "找不到資料",
+      "search_failed": "搜尋失敗",
+      "network_error": "網路錯誤，請重試",
+      "no_translation_needed": "當前片無需翻譯",
+      "translate_failed_generic": "翻譯失敗",
+      "no_japanese_title": "無需翻譯的日文標題",
+      "number_not_recognized": "無法從檔名識別番號"
     },
     "nav": {
       "prev": "上一個 (←)",
@@ -141,7 +156,16 @@
       "unknown_title": "未知標題"
     },
     "cover": {
-      "alt": "封面"
+      "alt": "封面",
+      "load_failed": "封面載入失敗"
+    },
+    "progress": {
+      "searching_source": "{source} 搜尋中...",
+      "no_result_source": "{source} 無結果",
+      "found_count": "{source} 找到 {count} 筆",
+      "fetching_detail": "抓取詳情...",
+      "fetching_detail_count": "抓取詳情 {done}/{total}",
+      "source_failed": "{source} 失敗"
     },
     "local": {
       "has_local": "本地已有（點擊開啟資料夾）",
@@ -178,6 +202,12 @@
       "failed": "失敗",
       "retry": "重試",
       "enter_number": "手動輸入番號",
+      "enter_number_prompt": "請輸入番號（例如：T28-650）",
+      "filtered_count": "已過濾 {count} 個檔案",
+      "rejected_extension": "{count} 個非影片檔",
+      "rejected_size": "{count} 個小於最小尺寸",
+      "rejected_not_found": "{count} 個不存在",
+      "filtered_no_number": "已過濾 {count} 個無法識別番號的檔案",
       "file_count": "檔案 {current}/{total}",
       "result_count": "搜尋結果 ({count})",
       "unrecognized": "無法識別番號: {filename}",
@@ -201,7 +231,12 @@
       "db_not_synced": "未連動 — 整理完成後不會出現在 Showcase",
       "db_sync_failed": "DB 同步失敗（檔案已整理但未出現在 Showcase）",
       "db_synced_mobile": "已入庫",
-      "skipped_nfo_multipart": "已跳過 NFO — 此檔為多段影片的第 2 段以後，由第 1 段的 NFO 管理"
+      "skipped_nfo_multipart": "已跳過 NFO — 此檔為多段影片的第 2 段以後，由第 1 段的 NFO 管理",
+      "browser_opened": "已開啟瀏覽器",
+      "no_translatable_titles": "沒有需要翻譯的標題",
+      "translate_batch_done": "翻譯完成：成功 {success}，失敗 {failed}",
+      "fields_defaulted": "⚠️ {fields} 資訊未取得，已使用預設值",
+      "from_source": "來自 {name}"
     },
     "duplicate": {
       "title": "檔案重複",
@@ -257,13 +292,14 @@
       "mt_lan_mode_label": "LAN 自架（允許區網位址）",
       "mt_connecting_btn": "連線中…",
       "mt_connect_network_error": "連線失敗，請確認網路並重試",
-      "mt_connect_success_toast": "已連線，{count} 個 provider 已載入 Provider 清單",
+      "mt_connect_success_toast": "已連線，{count} 個 provider 已載入 Parts Bin",
       "mt_probe_testing": "測試來源中",
       "mt_retest_btn": "重新測試",
       "mt_probe_hint_title": "為什麼有些來源是灰色的？",
       "mt_probe_hint_reason1": "你的 metatube server 未設定或未生效日本 proxy（地區封鎖，如 FANZA / MGS 類）。",
       "mt_probe_hint_reason2": "該來源需登入或有反爬機制（如 SOD，換 IP 也無效）。",
       "mt_probe_hint_reason3": "該來源的 metatube scraper 已隨網站改版失效（如 JAV321 / KIN8，與你的環境無關）。",
+      "mt_connect_failed": "連線失敗：{error}",
       "mt_promote_unavailable_warning": "此來源目前測不到，已加入主力集但可能抓不到資料",
       "mt_probe_failed_pill_hint": "此來源目前測不到，加入後可能抓不到資料，可先點「重新測試」確認",
       "dmm_proxy_required_hint": "DMM 需要 proxy 才能使用，請先在設定中開啟代理"
@@ -289,7 +325,12 @@
       }
     },
     "toast": {
-      "desktop_only": "此功能需要在桌面應用程式中使用"
+      "desktop_only": "此功能需要在桌面應用程式中使用",
+      "load_current_failed": "載入現有設定失敗",
+      "config_saved": "設定已儲存",
+      "save_failed": "儲存失敗: {error}",
+      "reset_done": "已恢復預設設定",
+      "reset_failed": "重置失敗: {error}"
     },
     "header": {
       "title": "設定",
@@ -486,7 +527,9 @@
       "title": "尚未儲存的變更",
       "body": "您有修改尚未儲存，要如何處理？",
       "discard": "不儲存",
-      "save": "儲存更改"
+      "save": "儲存更改",
+      "unsaved_native_prompt": "您有未儲存的設定變更",
+      "locale_switch_confirm": "您有未儲存的變更，切換語系後將遺失。確定繼續？"
     },
     "reset_modal": {
       "title": "重置所有設定",
@@ -534,7 +577,29 @@
       "copy_path_failed": "複製失敗，路徑：{path}",
       "generate_error": "產生失敗，請查看日誌",
       "nfo_update_error": "NFO 補齊失敗，請查看日誌",
-      "jellyfin_update_error": "圖片補齊失敗，請查看日誌"
+      "jellyfin_update_error": "圖片補齊失敗，請查看日誌",
+      "config_saved": "設定已儲存",
+      "save_failed": "儲存失敗: {error}",
+      "cache_cleared": "已清除 {count} 部影片快取",
+      "clear_failed": "清除失敗: {error}",
+      "no_logs": "目前沒有日誌",
+      "logs_copied": "已複製 {count} 筆日誌",
+      "confirm_clear_logs": "確定要清除所有日誌嗎？（包含歷史紀錄）",
+      "logs_cleared": "已清除所有日誌",
+      "no_folder": "請先加入至少一個資料夾",
+      "readonly_failed_count": "{count} 個唯讀來源失敗",
+      "failed_count": "{count} 部失敗",
+      "unreachable_count": "{count} 個來源無法連線",
+      "partial_count": "{count} 個來源部分讀取失敗",
+      "no_output_count": "{count} 個未設輸出夾",
+      "done_with_warnings": "完成 {count} 部，但 {parts}，詳細見日誌",
+      "generate_success": "成功產生 {count} 部影片列表",
+      "long_paths_warning": "本次掃描發現 {count} 個路徑超過 260 字元，可能無法讀取，詳細清單見 debug.log",
+      "no_nfo_update_needed": "沒有需要更新的影片",
+      "nfo_update_done": "補全完成！請重新產生列表以更新",
+      "no_jellyfin_update_needed": "沒有需要補齊的影片",
+      "jellyfin_update_done": "補齊完成！",
+      "path_copied": "已複製: {path}"
     },
     "copy_fail_modal": {
       "title": "複製日誌失敗",
@@ -628,7 +693,16 @@
       "missing_enrich_confirm_body_middle": " 部影片將進行補完，預估耗時約 ",
       "missing_enrich_confirm_body_suffix": " 分鐘，是否繼續？",
       "missing_enrich_confirm_cancel": "取消",
-      "missing_enrich_confirm_confirm": "確認補完"
+      "missing_enrich_confirm_confirm": "確認補完",
+      "log_interrupted": "⚠ 生成被中斷（離開頁面）",
+      "status_preparing": "準備中...",
+      "status_done_count": "完成！{count} 部影片",
+      "status_done": "完成",
+      "log_error_prefix": "錯誤: {message}",
+      "log_disconnected": "連線中斷",
+      "missing_enrich_connection_failed": "連線失敗: {message}",
+      "missing_enrich_item_failed": "失敗: {number} — {error}",
+      "missing_enrich_error_prefix": "錯誤: {message}"
     },
     "alias": {
       "section_title": "女優別名管理",
@@ -651,7 +725,21 @@
         "body": "確定要刪除「{name}」的整筆別名組嗎？此操作無法復原。",
         "cancel": "取消",
         "confirm": "確認刪除"
-      }
+      },
+      "load_failed": "載入失敗: {error}",
+      "toast_group_added": "已新增別名組：{name}",
+      "toast_add_failed": "新增失敗: {error}",
+      "toast_deleted": "已刪除：{name}",
+      "toast_delete_failed": "刪除失敗: {error}",
+      "toast_add_alias_failed": "新增別名失敗",
+      "toast_add_alias_failed_detail": "新增別名失敗: {error}",
+      "toast_remove_failed": "移除失敗: {error}",
+      "toast_need_primary_name": "請先輸入主名稱再進行線上搜尋",
+      "toast_search_timeout": "線上搜尋逾時",
+      "toast_search_failed": "線上搜尋失敗: {error}",
+      "toast_create_group_failed": "建立別名組失敗: {error}",
+      "toast_add_item_failed": "加入 {alias} 失敗",
+      "toast_add_item_failed_detail": "加入 {alias} 失敗: {error}"
     },
     "tag_alias": {
       "section_title": "Tag 別名管理",
@@ -744,6 +832,11 @@
   },
   "showcase": {
     "page_title": "影片瀏覽",
+    "error": {
+      "server_error": "伺服器錯誤 ({status})",
+      "load_failed": "載入失敗",
+      "cannot_connect": "無法連線到伺服器"
+    },
     "rescrape": {
       "modal_title": "進階重新刮削",
       "search_title": "進階搜尋",
@@ -907,7 +1000,8 @@
         "confirm": "確認移除"
       },
       "delete_success": "已從收藏移除",
-      "delete_failed": "移除失敗，請稍後再試"
+      "delete_failed": "移除失敗，請稍後再試",
+      "play_failed": "播放失敗"
     },
     "actress": {
       "add": "+ 新增女優",

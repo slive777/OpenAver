@@ -113,7 +113,7 @@ export function stateBatch() {
                             // cleanup() already saved remaining items
                             return;
                         }
-                        this.addLog('error', '連線失敗: ' + fetchErr.message);
+                        this.addLog('error', window.t('scanner.stats.missing_enrich_connection_failed', { message: fetchErr.message }));
                         this.flushLogs();
                         this.state = 'error';
                         this.currentCard = null;
@@ -202,14 +202,14 @@ export function stateBatch() {
                                 }
                                 // log reason-gate（U-2）：only error 記詳情，not_found/readonly 安靜不記
                                 if (event.reason === 'error') {
-                                    this.addLog('error', `失敗: ${event.number || ''} — ${event.error || ''}`);
+                                    this.addLog('error', window.t('scanner.stats.missing_enrich_item_failed', { number: event.number || '', error: event.error || '' }));
                                 }
                             } else if (event.type === 'log') {
                                 this.addLog(event.level || 'info', event.message || '');
                             } else if (event.type === 'done') {
                                 batchDone = true;
                             } else if (event.type === 'error') {
-                                this.addLog('error', '錯誤: ' + (event.message || ''));
+                                this.addLog('error', window.t('scanner.stats.missing_enrich_error_prefix', { message: event.message || '' }));
                                 this.flushLogs();
                                 this.state = 'error';
                                 this.currentCard = null;

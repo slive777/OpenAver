@@ -2979,15 +2979,22 @@ const RULES = [
     scope: { anchor: /long_paths/, window: 500 },
     note: '[TestLongPathWarning] test_scanner_js_long_path_warning — toast duration',
   },
+  // 103-T6：文案本體隨 i18n 收斂搬進 locales/zh_TW.json，守衛同步改錨到新家（遷移粒度守則：
+  // 守衛跟著被守的內容走，不在 JS 側留字面誘餌註解——那會讓規則永遠綠、失去 load-bearing 性）。
   {
-    file: 'web/static/js/pages/scanner/state-scan.js', kind: 'required-string', pattern: '260',
-    scope: { anchor: /long_paths/, window: 500 },
-    note: '[TestLongPathWarning] test_scanner_js_long_path_warning — 260 字元門檻',
+    file: 'locales/zh_TW.json', kind: 'required-string', pattern: '260',
+    scope: { anchor: /"long_paths_warning"/, window: 160 },
+    note: '[TestLongPathWarning] test_scanner_js_long_path_warning — 260 字元門檻（103-T6 起錨在 i18n 文案）',
   },
   {
-    file: 'web/static/js/pages/scanner/state-scan.js', kind: 'required-string', pattern: 'debug.log',
+    file: 'locales/zh_TW.json', kind: 'required-string', pattern: 'debug.log',
+    scope: { anchor: /"long_paths_warning"/, window: 160 },
+    note: '[TestLongPathWarning] test_scanner_js_long_path_warning — debug.log 引導字串（103-T6 起錨在 i18n 文案）',
+  },
+  {
+    file: 'web/static/js/pages/scanner/state-scan.js', kind: 'required-string', pattern: 'scanner.toast.long_paths_warning',
     scope: { anchor: /long_paths/, window: 500 },
-    note: '[TestLongPathWarning] test_scanner_js_long_path_warning — debug.log 引導字串',
+    note: '[TestLongPathWarning] 103-T6：JS 側須確實呼叫該 i18n key（接線檢查，防「文案在 JSON 但沒人用」假綠）',
   },
 
   // ---- [TestReadonlySourceErrorToastGuard] web/static/js/pages/scanner/state-scan.js（WF + WIN×2 + 複合窄 scope）----
@@ -2995,8 +3002,8 @@ const RULES = [
   { file: 'web/static/js/pages/scanner/state-scan.js', kind: 'required-string', pattern: 'source_errors', note: '[TestReadonlySourceErrorToastGuard] test_done_toast_consults_source_errors' },
   {
     file: 'web/static/js/pages/scanner/state-scan.js', kind: 'required-string', anyOf: true, pattern: ["'warn'", '"warn"'],
-    scope: { anchor: /const srcErrors/, window: 1300 },
-    note: '[TestReadonlySourceErrorToastGuard] test_done_toast_consults_source_errors + test_done_toast_consults_per_video_failed（共用 warn 斷言，1300-char window）',
+    scope: { anchor: /const srcErrors/, window: 1600 },
+    note: "[TestReadonlySourceErrorToastGuard] test_done_toast_consults_source_errors + test_done_toast_consults_per_video_failed（共用 warn 斷言）。103-T6：文案搬 i18n 後 window.t() 呼叫較原字面長，'warn' 由 1300 外推到 1485，window 1300→1600。實測 anchor 後兩個 'warn' 落在 1485／2022，1600 只涵蓋第一個——刪掉真正的 'warn' 仍會 RED，未因放寬而假綠。",
   },
   {
     file: 'web/static/js/pages/scanner/state-scan.js', kind: 'required-string', pattern: '.failed',
