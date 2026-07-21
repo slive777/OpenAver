@@ -370,6 +370,9 @@ class TestT4OffloadHousePattern:
         assert "await asyncio.to_thread(load_config)" in self._src("scraper.py")
 
     def test_batch_enrich_readonly_route_offloaded(self):
+        # [lint-guard: pytest-justified] Python 源碼 async-offload 架構契約——
+        # 「阻塞 helper 必須經 run_in_executor 包裝」是 event-loop 語意，eslint/
+        # static_guard 無法表達；沿用本檔 TestT4OffloadHousePattern 既有 house-pattern。
         """TASK-104-T3/T5：batch-enrich 唯讀項改道（resolve_owning_output_root →
         resolve_ingest_plan → _produce_one，皆阻塞 I/O）須包在 nested sync helper
         `_do_readonly` 內、經 `run_in_executor` offload，不可在 async event_generator
