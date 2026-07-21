@@ -225,6 +225,10 @@ def _write_cover(
     write_cover: bool,
     overwrite_existing: bool,
 ) -> bool:
+    # write_cover=False 先短路，避免對「不寫封面」的片多做一次 os.path.exists
+    # （逐位元組對齊 T2 前行為）；exists/overwrite 保留判斷仍走共用 should_preserve_cover。
+    if not write_cover:
+        return False
     if not cover_url:
         return False
 

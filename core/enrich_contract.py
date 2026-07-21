@@ -1,7 +1,8 @@
 """enrich_contract.py — enrich 記帳合約的中性原子（無 side-effect、無網路、無寫檔）。
 
-依賴僅 `core.database` / `core.path_utils` / `os` / `dataclasses`。
-**不 import** `core.enricher` / `core.readonly_producer`（避免循環依賴；本模組是被它們共用的底層）。
+依賴僅 `os` / `dataclasses` / `typing` / `core.path_utils`（repo 走 duck typing 由呼叫端傳入、
+不 import `core.database`）。**不 import** `core.enricher` / `core.readonly_producer`（避免循環依賴；
+本模組是被它們共用的底層）。
 
 存在理由（feature/105）：enrich「寫完後記帳 has_servable_cover」的判斷原本被手抄多份，
 enricher 那份含磁碟複驗（正確），唯讀那份漏了（Bug 1 破圖）。把單一原子收斂於此，
