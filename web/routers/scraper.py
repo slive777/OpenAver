@@ -414,6 +414,20 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
                 return {"success": False, "error": "找不到可用的番號資料"}
             repo = VideoRepository()
             existing = repo.get_by_path(canonical)
+            # Codex PR#113 P2#3（round 2，owner-confirmed 全面對齊）：readonly enrich
+            # 對齊非唯讀 core.enricher._write_cover 的 skip 語意
+            # （os.path.exists(cover) and not overwrite_existing）——fill_missing
+            # （放大鏡在「已有封面、缺 NFO」的片上點，見 state-lightbox.js:1634-1650）
+            # 或 write_cover=false 時只補 NFO，絕不動既有封面（output_dir 的封面檔與
+            # DB cover_path 皆保留）。refresh_full（gear 一律送 mode='refresh_full'
+            # +overwrite_existing=true，見 state-rescrape.js:404/408；或放大鏡在無
+            # 封面片上點）不受此擋，維持既有「一律寫」行為。
+            had_cover = bool(existing and existing.cover_path)
+            preserve_cover = (not request.write_cover) or (
+                request.mode == 'fill_missing' and not request.overwrite_existing and had_cover
+            )
+            if preserve_cover:
+                cover_strategy = ('none',)
             file_info = {
                 "path": fs_path,
                 "size": existing.size_bytes if existing else os.path.getsize(fs_path),
@@ -435,10 +449,29 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
                 allocated_this_run=set(), path_mappings=path_mappings,
             )
             thumbnail_cache.invalidate(canonical)
+            cover_written = bool(assets.get('cover_fs'))
+            # Codex PR#113 P2#4（round 2）：對齊 core.enricher.enrich_single:528-547
+            # ——只在「本次實際寫入新封面內容」時才作廢舊手動焦點、再排新的背景偵測。
+            # preserve_cover=True 時 cover_strategy=('none',) 不產出檔案，
+            # assets['cover_fs'] 恆為空 → cover_written 恆 False，此塊不進、既有
+            # manual 焦點原樣保留（與 enricher 的 cover_written 閘門語意一致）。
+            if cover_written:
+                try:
+                    focal_repo = VideoRepository()  # 致命細節 1：不可重用上面的 repo 變數
+                    focal_repo.reset_focal_to_auto(canonical)
+                    maybe_submit_video_focal(
+                        meta['number'],
+                        meta.get('maker'),
+                        canonical,
+                        assets['cover_fs'],
+                        cover_path_uri=to_file_uri(assets['cover_fs'], path_mappings),
+                    )
+                except Exception:
+                    logger.warning("readonly enrich focal 排程失敗（不影響改道結果）", exc_info=True)
             return {
                 "success": True,
                 "nfo_written": True,
-                "cover_written": bool(assets.get('cover_fs')),
+                "cover_written": cover_written,
             }
         except Exception:
             logger.exception("enrich_single_endpoint readonly 改道失敗")
@@ -691,6 +724,17 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                             return ('no_scrape', "找不到可用的番號資料")
                         repo = VideoRepository()
                         existing = repo.get_by_path(uri)
+                        # Codex PR#113 P2#3（round 2，owner-confirmed 全面對齊）：batch
+                        # readonly 對齊 enrich_single_endpoint 同一段 cover-preserve gate
+                        # （見該處註解）。BatchEnrichRequest 沒有 per-item mode/write_cover/
+                        # overwrite_existing 覆寫欄位（BatchEnrichItem 只帶 file_path/
+                        # number/source/javbus_lang），一律用整批 request 的值。
+                        had_cover = bool(existing and existing.cover_path)
+                        preserve_cover = (not request.write_cover) or (
+                            request.mode == 'fill_missing' and not request.overwrite_existing and had_cover
+                        )
+                        if preserve_cover:
+                            cs = ('none',)
                         file_info = {
                             "path": fs_path,
                             "size": existing.size_bytes if existing else os.path.getsize(fs_path),
@@ -713,6 +757,27 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                         except Exception:
                             logger.exception("batch_enrich readonly item %s 失敗", itm.number)
                             return ('error', "生成失敗")
+                        # Codex PR#113 P2#4（round 2）：對齊 enrich-single / core.enricher
+                        # ——只在本次「實際寫入新封面內容」時才 reset+re-submit focal。留在
+                        # executor 執行緒內完成（run_in_executor 已離開 event loop）——
+                        # reset_focal_to_auto 是阻塞 DB 寫、maybe_submit_video_focal 內部
+                        # 亦有阻塞 DB 讀，不可搬回外層 async 裸呼叫（async-offload 守衛）。
+                        if assets.get('cover_fs'):
+                            try:
+                                focal_repo = VideoRepository()  # 致命細節 1：不可重用上面的 repo
+                                focal_repo.reset_focal_to_auto(uri)
+                                maybe_submit_video_focal(
+                                    meta['number'],
+                                    meta.get('maker'),
+                                    uri,
+                                    assets['cover_fs'],
+                                    cover_path_uri=to_file_uri(assets['cover_fs'], _ro_mappings),
+                                )
+                            except Exception:
+                                logger.warning(
+                                    "batch_enrich readonly item %s focal 排程失敗（不影響結果）",
+                                    itm.number, exc_info=True,
+                                )
                         return ('ok', assets)
 
                     loop = asyncio.get_running_loop()

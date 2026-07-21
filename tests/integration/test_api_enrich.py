@@ -544,6 +544,153 @@ class TestEnrichSingleReadonlyGuard:
         mock_owning.assert_called_once()
 
 
+# ── Codex PR#113 P2#3/P2#4（round 2，owner-confirmed 全面對齊）：readonly
+# enrich-single 的 cover-preserve gate + cover-written focal reset/re-submit.
+# Router-level mock（同 TestEnrichSingleReadonlyGuard 慣例）——只驗證「傳給
+# _produce_one 的 cover_strategy」與「focal 函式是否被呼叫」本身的邏輯正確性；
+# 真檔案雜湊/落盤驗證見 TestReadonlyRoutingE2E。
+
+
+class TestEnrichSingleReadonlyCoverPreserveGate:
+    def _mock_routing(
+        self, mocker, *, existing_cover_path="",
+        plan_cover_strategy=("download", "http://x/new.jpg"),
+        produce_cover_fs="/out/ro_src-abcdef/ABC-001/ABC-001.jpg",
+    ):
+        mocker.patch("web.routers.scraper.resolve_owning_output_root", return_value=_owning_stub())
+        mocker.patch(
+            "web.routers.scraper.resolve_ingest_plan",
+            return_value=(
+                {"number": "ABC-001", "title": "T", "maker": "M", "cover": "http://x/new.jpg"},
+                plan_cover_strategy,
+            ),
+        )
+        mock_produce = mocker.patch(
+            "web.routers.scraper._produce_one",
+            return_value=(
+                Path("/out/ro_src-abcdef/ABC-001"),
+                {"cover_fs": produce_cover_fs, "sample_fs": [], "nfo_mtime": 1.0},
+            ),
+        )
+        mock_repo = mocker.patch("web.routers.scraper.VideoRepository")
+        # cover_path='' (default) → had_cover=False；帶字串 URI → had_cover=True.
+        mock_repo.return_value.get_by_path.return_value = MagicMock(
+            size_bytes=1000, mtime=1.0, cover_path=existing_cover_path,
+        )
+        mock_focal = mocker.patch("web.routers.scraper.maybe_submit_video_focal")
+        return mock_produce, mock_repo, mock_focal
+
+    def _post(self, client, **overrides):
+        body = {
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+            "readonly_action": "ingest",
+        }
+        body.update(overrides)
+        return client.post("/api/enrich-single", json=body)
+
+    # ── P2#3: cover-preserve gate ────────────────────────────────────────────
+
+    def test_fill_missing_with_existing_cover_preserves_cover(self, client, mocker):
+        """放大鏡-with-cover（fill_missing + overwrite=False + 既有 cover_path）
+        → cover_strategy 被覆蓋為 ('none',)，即使 resolve_ingest_plan 本來想下載。
+        MUTATION LOCK：拿掉 preserve gate 這條會讓本測試 RED（cover_strategy 會維持
+        resolve_ingest_plan 的原值 ('download', ...)）。"""
+        mocker.patch("web.routers.scraper.load_config", return_value=_readonly_gallery_config("/tmp/ro_src"))
+        mock_produce, _, _ = self._mock_routing(mocker, existing_cover_path="file:///out/old.jpg")
+
+        response = self._post(client, mode="fill_missing", overwrite_existing=False)
+
+        assert response.json()["success"] is True
+        assert mock_produce.call_args.kwargs["cover_strategy"] == ("none",)
+
+    def test_fill_missing_without_existing_cover_writes(self, client, mocker):
+        """放大鏡-no-cover：既有 row 沒有 cover_path（had_cover=False）→ 不觸發
+        preserve，cover_strategy 原樣傳給 _produce_one。"""
+        mocker.patch("web.routers.scraper.load_config", return_value=_readonly_gallery_config("/tmp/ro_src"))
+        mock_produce, _, _ = self._mock_routing(mocker, existing_cover_path="")
+
+        response = self._post(client, mode="fill_missing", overwrite_existing=False)
+
+        assert response.json()["success"] is True
+        assert mock_produce.call_args.kwargs["cover_strategy"] == ("download", "http://x/new.jpg")
+
+    def test_gear_refresh_full_overwrite_true_writes_regardless_of_had_cover(self, client, mocker):
+        """gear rescrape（refresh_full + overwrite=True，state-rescrape.js:404/408
+        的實際送法）→ 即使既有 cover_path 也不 preserve，cover_strategy 原樣傳給
+        _produce_one（回歸鎖：不得被 P2#3 誤擋）。"""
+        mocker.patch("web.routers.scraper.load_config", return_value=_readonly_gallery_config("/tmp/ro_src"))
+        mock_produce, _, _ = self._mock_routing(mocker, existing_cover_path="file:///out/old.jpg")
+
+        response = self._post(
+            client, readonly_action="rescrape", mode="refresh_full", overwrite_existing=True,
+        )
+
+        assert response.json()["success"] is True
+        assert mock_produce.call_args.kwargs["cover_strategy"] == ("download", "http://x/new.jpg")
+
+    def test_write_cover_false_preserves_regardless_of_mode(self, client, mocker):
+        """write_cover=false → 不論 mode/overwrite 為何，一律 preserve。用
+        refresh_full+overwrite=True（gear 語意）刻意排除 fill_missing 分支才會
+        觸發的條件，證明是 `not write_cover` 這條在起作用。"""
+        mocker.patch("web.routers.scraper.load_config", return_value=_readonly_gallery_config("/tmp/ro_src"))
+        mock_produce, _, _ = self._mock_routing(mocker, existing_cover_path="file:///out/old.jpg")
+
+        response = self._post(
+            client, readonly_action="rescrape", mode="refresh_full",
+            overwrite_existing=True, write_cover=False,
+        )
+
+        assert response.json()["success"] is True
+        assert mock_produce.call_args.kwargs["cover_strategy"] == ("none",)
+
+    # ── P2#4: cover-written focal reset + re-submit ──────────────────────────
+
+    def test_cover_written_resets_and_resubmits_focal(self, client, mocker):
+        """本次實際寫入新封面（assets['cover_fs'] 非空）→ reset_focal_to_auto +
+        maybe_submit_video_focal 都被呼叫，且參數對齊 enricher.py:537-547
+        （video_path_uri=canonical DB key、cover_fs_path=assets['cover_fs']、
+        cover_path_uri=to_file_uri(assets['cover_fs'], path_mappings)）。
+        MUTATION LOCK：拿掉整個 focal 區塊會讓本測試 RED。"""
+        from core.path_utils import to_file_uri
+
+        mocker.patch("web.routers.scraper.load_config", return_value=_readonly_gallery_config("/tmp/ro_src"))
+        cover_fs = "/out/ro_src-abcdef/ABC-001/ABC-001.jpg"
+        mock_produce, mock_repo, mock_focal = self._mock_routing(
+            mocker, existing_cover_path="", produce_cover_fs=cover_fs,
+        )
+
+        response = self._post(client, mode="refresh_full")
+
+        assert response.json()["success"] is True
+        assert response.json()["cover_written"] is True
+        canonical = to_file_uri("/tmp/ro_src/ABC-001.mp4", {})
+        mock_repo.return_value.reset_focal_to_auto.assert_called_once_with(canonical)
+        mock_focal.assert_called_once()
+        args, kwargs = mock_focal.call_args
+        assert args[0] == "ABC-001"       # number
+        assert args[1] == "M"             # maker
+        assert args[2] == canonical       # video_path_uri (DB key)
+        assert args[3] == cover_fs        # cover_fs_path
+        assert kwargs["cover_path_uri"] == to_file_uri(cover_fs, {})
+
+    def test_cover_preserved_skips_focal(self, client, mocker):
+        """preserve_cover=True → assets['cover_fs'] 空 → focal 兩函式皆不呼叫，
+        既有 manual 焦點原樣保留（cover_written=False 閘門，同 enricher.py:534）。"""
+        mocker.patch("web.routers.scraper.load_config", return_value=_readonly_gallery_config("/tmp/ro_src"))
+        mock_produce, mock_repo, mock_focal = self._mock_routing(
+            mocker, existing_cover_path="file:///out/old.jpg",
+            produce_cover_fs="",  # preserved → _produce_one 沒寫新封面
+        )
+
+        response = self._post(client, mode="fill_missing", overwrite_existing=False)
+
+        assert response.json()["success"] is True
+        assert response.json()["cover_written"] is False
+        mock_repo.return_value.reset_focal_to_auto.assert_not_called()
+        mock_focal.assert_not_called()
+
+
 # ── TASK-104-T3 (CD-104-5): fetch-samples 唯讀來源改道 output_dir（samples_only）──
 
 
@@ -1734,10 +1881,145 @@ class TestReadonlyRoutingE2E:
             "file_path": canonical, "number": "DL-001",
             "readonly_action": "rescrape", "source": "javlibrary",
             "detail_url": "https://www.javlibrary.com/ja/?v=restored",
+            # Codex PR#113 P2#3（round 2）：real gear 一律送 mode='refresh_full'+
+            # overwrite_existing=true（state-rescrape.js:404/408）——這兩個欄位漏帶
+            # 會落到 EnrichRequest 預設 mode='fill_missing'/overwrite_existing=False，
+            # 誤觸新的 cover-preserve gate（DB 仍有舊 cover_path，即使檔案已被使用者
+            # 手動刪除），讓本測試想驗的「gear rescrape 復原被刪封面」失真。
+            "mode": "refresh_full", "overwrite_existing": True,
         })
         assert resp2.json()["success"] is True
         assert cover_path.exists(), "gear rescrape 須復原被刪的 output_dir 封面"
         assert cover_path.read_bytes() == b"COVER-BYTES:http://x/restored.jpg"
+
+    # ── Codex PR#113 P2#3（round 2）：放大鏡 fill_missing 在「已有封面」的片上點
+    # 只補 NFO，絕不動既有封面（真檔案雜湊驗證；router-level mock 版見
+    # TestEnrichSingleReadonlyCoverPreserveGate） ──────────────────────────────
+
+    def test_magnifier_fill_missing_preserves_existing_cover_bytes(self, tmp_path, client, mocker, monkeypatch):
+        from core.path_utils import to_file_uri, uri_to_local_fs_path
+
+        src = tmp_path / "src"
+        src.mkdir()
+        video = src / "PV-001.mp4"
+        video.write_bytes(b"FAKE-VIDEO")
+        # 無 .nfo / 無本地封面 → 第一次呼叫走 search_jav+download 建出既有封面
+
+        db_path = self._init_db(tmp_path)
+        config = _e2e_off_config(src)
+        self._wire(mocker, monkeypatch, config, db_path)
+        canonical = to_file_uri(str(video))
+
+        mocker.patch(
+            "core.readonly_producer.search_jav",
+            return_value={
+                "number": "PV-001", "title": "First Title",
+                "cover": "http://x/first.jpg", "actors": [], "tags": [],
+                "date": "", "maker": "", "sample_images": [],
+            },
+        )
+        mock_download = mocker.patch(
+            "core.readonly_producer.download_image", side_effect=_e2e_download_writes_url_bytes,
+        )
+        resp1 = client.post("/api/enrich-single", json={
+            "file_path": canonical, "number": "PV-001", "readonly_action": "ingest",
+        })
+        assert resp1.json()["success"] is True
+        assert resp1.json()["cover_written"] is True
+
+        repo = self._repo(db_path)
+        row1 = repo.get_by_path(canonical)
+        movie_dir = uri_to_local_fs_path(row1.output_dir, {})
+        cover_fs_path = Path(movie_dir) / "PV-001.jpg"
+        assert cover_fs_path.exists()
+        before_bytes = cover_fs_path.read_bytes()
+        before_hash = hashlib.sha256(before_bytes).hexdigest()
+        assert before_bytes == b"COVER-BYTES:http://x/first.jpg"
+
+        # 第二次呼叫（放大鏡 fill_missing，預設 mode/overwrite_existing/write_cover）：
+        # search_jav 這次回一個「不同」的遠端封面 URL —— 若 preserve gate 沒生效，
+        # download_image 會被再叫一次、封面雜湊會變成 second.jpg 的內容。
+        mocker.patch(
+            "core.readonly_producer.search_jav",
+            return_value={
+                "number": "PV-001", "title": "Second Title",
+                "cover": "http://x/second.jpg", "actors": [], "tags": [],
+                "date": "", "maker": "", "sample_images": [],
+            },
+        )
+        mock_download.reset_mock()
+
+        resp2 = client.post("/api/enrich-single", json={
+            "file_path": canonical, "number": "PV-001", "readonly_action": "ingest",
+            "mode": "fill_missing", "overwrite_existing": False,
+        })
+        assert resp2.json()["success"] is True
+        # cover_written=False：本次沒有實際寫入新封面（preserve gate 生效）
+        assert resp2.json()["cover_written"] is False
+
+        mock_download.assert_not_called()
+        after_bytes = cover_fs_path.read_bytes()
+        assert hashlib.sha256(after_bytes).hexdigest() == before_hash, (
+            "fill_missing + overwrite=False 不得動既有封面內容"
+        )
+        assert after_bytes == b"COVER-BYTES:http://x/first.jpg"
+
+        row2 = repo.get_by_path(canonical)
+        assert row2.cover_path == row1.cover_path, "DB cover_path 必須保留既有值"
+
+        # NFO 仍照第二次的 metadata 重新寫出（只補 NFO，不動封面）
+        nfo_path = Path(movie_dir) / "PV-001.nfo"
+        assert nfo_path.exists()
+        assert "Second Title" in nfo_path.read_text(encoding="utf-8")
+
+    def test_magnifier_write_cover_false_preserves_cover_regardless_of_mode(
+        self, tmp_path, client, mocker, monkeypatch,
+    ):
+        """write_cover=false → 即使 mode=refresh_full（理論上「一律寫」），封面仍
+        必須被保留 —— 對齊 core.enricher._write_cover 的 `if not write_cover: return
+        False` 短路（write_cover 的優先序高於 mode）。"""
+        from core.path_utils import to_file_uri, uri_to_local_fs_path
+
+        src = tmp_path / "src"
+        src.mkdir()
+        video = src / "WCF-001.mp4"
+        video.write_bytes(b"FAKE-VIDEO")
+
+        db_path = self._init_db(tmp_path)
+        config = _e2e_off_config(src)
+        self._wire(mocker, monkeypatch, config, db_path)
+        canonical = to_file_uri(str(video))
+
+        mocker.patch(
+            "core.readonly_producer.search_jav",
+            return_value={
+                "number": "WCF-001", "title": "T", "cover": "http://x/c.jpg",
+                "actors": [], "tags": [], "date": "", "maker": "", "sample_images": [],
+            },
+        )
+        mock_download = mocker.patch(
+            "core.readonly_producer.download_image", side_effect=_e2e_download_writes_url_bytes,
+        )
+        resp1 = client.post("/api/enrich-single", json={
+            "file_path": canonical, "number": "WCF-001", "readonly_action": "ingest",
+        })
+        assert resp1.json()["success"] is True
+
+        repo = self._repo(db_path)
+        row1 = repo.get_by_path(canonical)
+        movie_dir = uri_to_local_fs_path(row1.output_dir, {})
+        cover_fs_path = Path(movie_dir) / "WCF-001.jpg"
+        before_hash = hashlib.sha256(cover_fs_path.read_bytes()).hexdigest()
+
+        mock_download.reset_mock()
+        resp2 = client.post("/api/enrich-single", json={
+            "file_path": canonical, "number": "WCF-001", "readonly_action": "ingest",
+            "mode": "refresh_full", "overwrite_existing": True, "write_cover": False,
+        })
+        assert resp2.json()["success"] is True
+        assert resp2.json()["cover_written"] is False
+        mock_download.assert_not_called()
+        assert hashlib.sha256(cover_fs_path.read_bytes()).hexdigest() == before_hash
 
     # ── 補劇照唯讀：只劇照落 output_dir，nfo/封面 stat+雜湊未變 ─────────────────
 

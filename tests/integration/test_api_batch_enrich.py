@@ -574,6 +574,161 @@ class TestBatchEnrichReadonlyGuard:
         assert done["summary"] == {"total": 2, "success": 1, "failed": 1}
 
 
+class TestBatchEnrichReadonlyCoverPreserveGate:
+    """Codex PR#113 P2#3/P2#4（round 2，owner-confirmed 全面對齊）：batch readonly
+    的 cover-preserve gate + cover-written focal reset/re-submit，鏡射
+    tests/integration/test_api_enrich.py::TestEnrichSingleReadonlyCoverPreserveGate
+    同一組場景。BatchEnrichRequest 沒有 per-item mode/write_cover/overwrite_existing
+    覆寫欄位（BatchEnrichItem 只帶 file_path/number/source/javbus_lang），一律用整批
+    request 的值——每個測試只需構造單一 readonly item。"""
+
+    def _readonly_config(self):
+        return {
+            "gallery": {
+                "directories": [{"path": "/tmp/ro_src", "readonly": True}],
+                "path_mappings": {},
+            },
+            "search": {},
+            "scraper": {},
+        }
+
+    def _mock_routing(
+        self, mocker, *, existing_cover_path="",
+        plan_cover_strategy=("download", "http://x/new.jpg"),
+        produce_cover_fs="/out/ro_src-x/RO-001/RO-001.jpg",
+    ):
+        source_stub = MagicMock()
+        source_stub.path = "/tmp/ro_src"
+        mocker.patch(
+            "web.routers.scraper.resolve_owning_output_root",
+            return_value=(source_stub, "/out/ro_src-x", "file:///out/ro_src-x"),
+        )
+        mocker.patch(
+            "web.routers.scraper.resolve_ingest_plan",
+            return_value=(
+                {"number": "RO-001", "title": "T", "maker": "M", "cover": "http://x/new.jpg"},
+                plan_cover_strategy,
+            ),
+        )
+        mock_produce = mocker.patch(
+            "web.routers.scraper._produce_one",
+            return_value=(
+                Path("/out/ro_src-x/RO-001"),
+                {"cover_fs": produce_cover_fs, "sample_fs": [], "nfo_mtime": 1.0},
+            ),
+        )
+        mock_repo = mocker.patch("web.routers.scraper.VideoRepository")
+        # cover_path='' (default) → had_cover=False；帶字串 URI → had_cover=True.
+        mock_repo.return_value.get_by_path.return_value = MagicMock(
+            size_bytes=10, mtime=1.0, cover_path=existing_cover_path,
+        )
+        mock_focal = mocker.patch("web.routers.scraper.maybe_submit_video_focal")
+        return mock_produce, mock_repo, mock_focal
+
+    def _post(self, client, **overrides):
+        body = {
+            "items": [{"file_path": "/tmp/ro_src/RO-001.mp4", "number": "RO-001"}],
+            "mode": "refresh_full",
+        }
+        body.update(overrides)
+        return client.post("/api/batch-enrich", json=body)
+
+    # ── P2#3: cover-preserve gate ────────────────────────────────────────────
+
+    def test_fill_missing_with_existing_cover_preserves_cover(self, client, mocker):
+        """放大鏡-with-cover（batch mode=fill_missing + overwrite=False + 既有
+        cover_path）→ cover_strategy 被覆蓋為 ('none',)。MUTATION LOCK：拿掉
+        preserve gate 這條會讓本測試 RED。"""
+        mocker.patch("web.routers.scraper.load_config", return_value=self._readonly_config())
+        mock_produce, _, _ = self._mock_routing(mocker, existing_cover_path="file:///out/old.jpg")
+
+        response = self._post(client, mode="fill_missing", overwrite_existing=False)
+
+        result_items = [e for e in parse_sse(response.text) if e["type"] == "result-item"]
+        assert result_items[0]["success"] is True
+        assert mock_produce.call_args.kwargs["cover_strategy"] == ("none",)
+
+    def test_fill_missing_without_existing_cover_writes(self, client, mocker):
+        """既有 row 沒有 cover_path（had_cover=False）→ 不觸發 preserve，
+        cover_strategy 原樣傳給 _produce_one。"""
+        mocker.patch("web.routers.scraper.load_config", return_value=self._readonly_config())
+        mock_produce, _, _ = self._mock_routing(mocker, existing_cover_path="")
+
+        response = self._post(client, mode="fill_missing", overwrite_existing=False)
+
+        result_items = [e for e in parse_sse(response.text) if e["type"] == "result-item"]
+        assert result_items[0]["success"] is True
+        assert mock_produce.call_args.kwargs["cover_strategy"] == ("download", "http://x/new.jpg")
+
+    def test_refresh_full_writes_regardless_of_had_cover(self, client, mocker):
+        """batch 預設 mode=refresh_full（BatchEnrichRequest 預設值）→ 不 preserve，
+        即使既有 cover_path 存在（回歸鎖：不得被 P2#3 誤擋）。"""
+        mocker.patch("web.routers.scraper.load_config", return_value=self._readonly_config())
+        mock_produce, _, _ = self._mock_routing(mocker, existing_cover_path="file:///out/old.jpg")
+
+        response = self._post(client, mode="refresh_full")
+
+        result_items = [e for e in parse_sse(response.text) if e["type"] == "result-item"]
+        assert result_items[0]["success"] is True
+        assert mock_produce.call_args.kwargs["cover_strategy"] == ("download", "http://x/new.jpg")
+
+    def test_write_cover_false_preserves_regardless_of_mode(self, client, mocker):
+        """write_cover=false → 不論 mode 為何，一律 preserve。"""
+        mocker.patch("web.routers.scraper.load_config", return_value=self._readonly_config())
+        mock_produce, _, _ = self._mock_routing(mocker, existing_cover_path="file:///out/old.jpg")
+
+        response = self._post(client, mode="refresh_full", write_cover=False)
+
+        result_items = [e for e in parse_sse(response.text) if e["type"] == "result-item"]
+        assert result_items[0]["success"] is True
+        assert mock_produce.call_args.kwargs["cover_strategy"] == ("none",)
+
+    # ── P2#4: cover-written focal reset + re-submit ──────────────────────────
+
+    def test_cover_written_resets_and_resubmits_focal(self, client, mocker):
+        """本次實際寫入新封面（assets['cover_fs'] 非空）→ reset_focal_to_auto +
+        maybe_submit_video_focal 都被呼叫，參數對齊 enricher.py:537-547。留在
+        `_do_readonly`（已在 run_in_executor 的執行緒內）完成，不在 event loop 上
+        裸呼叫。MUTATION LOCK：拿掉整個 focal 區塊會讓本測試 RED。"""
+        from core.path_utils import to_file_uri
+
+        mocker.patch("web.routers.scraper.load_config", return_value=self._readonly_config())
+        cover_fs = "/out/ro_src-x/RO-001/RO-001.jpg"
+        mock_produce, mock_repo, mock_focal = self._mock_routing(
+            mocker, existing_cover_path="", produce_cover_fs=cover_fs,
+        )
+
+        response = self._post(client, mode="refresh_full")
+
+        result_items = [e for e in parse_sse(response.text) if e["type"] == "result-item"]
+        assert result_items[0]["success"] is True
+        assert result_items[0]["cover_written"] is True
+        canonical = to_file_uri("/tmp/ro_src/RO-001.mp4", {})
+        mock_repo.return_value.reset_focal_to_auto.assert_called_once_with(canonical)
+        mock_focal.assert_called_once()
+        args, kwargs = mock_focal.call_args
+        assert args[0] == "RO-001"        # number
+        assert args[1] == "M"             # maker
+        assert args[2] == canonical       # video_path_uri (DB key)
+        assert args[3] == cover_fs        # cover_fs_path
+        assert kwargs["cover_path_uri"] == to_file_uri(cover_fs, {})
+
+    def test_cover_preserved_skips_focal(self, client, mocker):
+        """preserve_cover=True → assets['cover_fs'] 空 → focal 兩函式皆不呼叫。"""
+        mocker.patch("web.routers.scraper.load_config", return_value=self._readonly_config())
+        mock_produce, mock_repo, mock_focal = self._mock_routing(
+            mocker, existing_cover_path="file:///out/old.jpg", produce_cover_fs="",
+        )
+
+        response = self._post(client, mode="fill_missing", overwrite_existing=False)
+
+        result_items = [e for e in parse_sse(response.text) if e["type"] == "result-item"]
+        assert result_items[0]["success"] is True
+        assert result_items[0]["cover_written"] is False
+        mock_repo.return_value.reset_focal_to_auto.assert_not_called()
+        mock_focal.assert_not_called()
+
+
 class TestBatchEnrichThumbnailInvalidation:
     """feature/71 T8 邊界5 + PR #60 Codex P2：每筆成功 → invalidate 用 canonical key
     （輸入 URI 原值，非 double-encoded）；失敗不呼叫；去重後至多一次。
