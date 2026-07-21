@@ -18,6 +18,7 @@ import hashlib
 import os
 import shutil
 import time
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
@@ -27,8 +28,9 @@ from core.config import _STEM_IMAGE_MODES
 from core.database import Video, get_db_path
 from core.focal import requires_face_detection
 from core.focal_trigger import maybe_submit_video_focal
-from core.gallery_scanner import fast_scan_directory
+from core.gallery_scanner import VideoScanner, fast_scan_directory
 from core.logger import get_logger
+from core.nfo_updater import parse_nfo
 from core.organizer import (
     _detect_suffixes,
     _detect_vr_cluster,
@@ -844,6 +846,199 @@ def _upsert_db(
 
 
 # ---------------------------------------------------------------------------
+# TASK-104-T2 (CD-104-3 / CD-104-3a / CD-104-3b): NFO → producer-meta adapter +
+# resolve_ingest_plan (the metadata/cover two-axis decision the ingest/rescrape
+# gear needs). Both are pure functions — no I/O beyond the caller-supplied
+# root / src_fs_path — so the per-file produce_source loop below can call them
+# directly without adding a new resource-lifecycle concern.
+# ---------------------------------------------------------------------------
+
+def _nfo_to_producer_meta(root: ET.Element, fallback_number: str) -> dict:
+    """Reverse-map a parsed NFO `<movie>` root into producer-meta shape (CD-104-3b).
+
+    Mirrors VideoScanner.parse_nfo's (gallery_scanner.py:303) tag-extraction
+    robustness — multi-tag date fallback, genre/tag merge-with-dedup, set/name
+    — but OUTPUTS producer-meta keys (number/title/actors/tags/date/maker/
+    director/series/label/duration/url/_summary/_rating/cover/sample_images),
+    matching what `_write_movie_assets`/`generate_nfo`/`_upsert_db` already
+    consume (this module, :625/:790). Do NOT reuse `core.enricher._nfo_to_meta`
+    — its actresses/release_date/cover_url shape silently drops fields at the
+    writer/upsert boundary (card note).
+
+    Two round-trip edges reversing `generate_nfo` (core/organizer.py:597):
+      - title: generate_nfo writes `[number]display` — strip that prefix back
+        off via `_strip_num_prefixes`, else re-generating double-wraps to
+        `[num][num]…`.
+      - _rating: `<rating>` is written as raw×2 (organizer.py:674) — divide
+        back by 2 here; empty/non-numeric/<=0 → None (never resurrects a
+        rating that generate_nfo never actually wrote).
+
+    `number` falls back to `fallback_number` (caller's `extract_number
+    (basename)`) when the NFO has neither a non-empty `<num>` nor `<uniqueid>`.
+    `cover`/`sample_images` are always '' / [] here — ingest cover is decided
+    by `resolve_ingest_plan`'s own cover axis (cover_strategy), not this meta
+    dict; samples are never bulk-fetched (see `resolve_ingest_plan` docstring).
+    """
+    def _text(tag: str) -> str:
+        elem = root.find(tag)
+        return (elem.text or '').strip() if elem is not None else ''
+
+    # number/maker/date fallback chains mirror VideoScanner.parse_nfo
+    # (gallery_scanner.py:323/330/337) EXACTLY so ingest reads a third-party
+    # NFO identically to OpenAver's incumbent scan reader (no ingest-vs-scan
+    # date/maker drift). `uniqueid` kept as an extra tail fallback (generate_nfo
+    # always writes it; harmless for OpenAver NFOs where <num> already wins).
+    number = ''
+    for tag in ('num', 'id', 'uniqueid'):
+        elem = root.find(tag)
+        if elem is not None and elem.text and elem.text.strip():
+            number = elem.text.strip()
+            break
+    if not number:
+        number = fallback_number or ''
+
+    raw_title = _text('title')
+    title = _strip_num_prefixes(raw_title, number) if raw_title else raw_title
+
+    actors = [
+        (n.text or '').strip()
+        for a in root.findall('actor')
+        for n in [a.find('name')]
+        if n is not None and n.text
+    ]
+
+    # genre/tag merge-with-dedup, mirroring VideoScanner.parse_nfo:350-358
+    # (genre first, then any <tag> not already present).
+    tags: list = []
+    for genre_elem in root.findall('genre'):
+        if genre_elem.text:
+            t = genre_elem.text.strip()
+            if t not in tags:
+                tags.append(t)
+    for tag_elem in root.findall('tag'):
+        if tag_elem.text:
+            t = tag_elem.text.strip()
+            if t not in tags:
+                tags.append(t)
+
+    date = _text('release') or _text('premiered') or _text('year')
+
+    set_elem = root.find('set')
+    series = ''
+    if set_elem is not None:
+        n_elem = set_elem.find('name')
+        series = (n_elem.text or '').strip() if n_elem is not None else ''
+
+    runtime_text = _text('runtime')
+    duration: Optional[int] = None
+    if runtime_text:
+        try:
+            duration = int(runtime_text)
+        except ValueError:
+            duration = None
+
+    rating_text = _text('rating')
+    rating_val: Optional[float] = None
+    if rating_text:
+        try:
+            r = float(rating_text)
+            if r > 0:
+                rating_val = r / 2
+        except ValueError:
+            rating_val = None
+
+    return {
+        'number': number,
+        'title': title,
+        'actors': actors,
+        'tags': tags,
+        'date': date,
+        'maker': _text('maker') or _text('studio'),
+        'director': _text('director'),
+        'series': series,
+        'label': _text('label'),
+        'duration': duration,
+        'url': _text('website'),
+        '_summary': _text('plot'),
+        '_rating': rating_val,
+        'cover': '',
+        'sample_images': [],
+    }
+
+
+def resolve_ingest_plan(
+    src_fs_path: str,
+    number: Optional[str],
+    config: dict,
+    *,
+    action: str = 'ingest',
+    proxy_url: str = '',
+) -> tuple:
+    """Metadata + cover two-axis decision for one source file (CD-104-3a).
+
+    `config` is scraper_cfg (matches produce_source's own call-site
+    convention). Returns `(meta, cover_strategy)`; `meta` is None when nothing
+    usable was found — the caller falls to its own no_scrape stub, matching
+    the pre-T2 "search_jav returns None" contract byte for byte.
+
+    action='ingest' (bulk loop / 放大鏡): metadata prefers a valid sidecar NFO
+    (zero network, via `_nfo_to_producer_meta`) over `search_jav`; cover
+    prefers a LOCAL file (`VideoScanner.find_cover_image`, with the NFO's
+    `<thumb>` threaded in as `nfo_thumb` when the NFO is valid) over a remote
+    download — local-first, ingest intent (CD-104-10: nfo_thumb must be
+    threaded or L3 silently degrades).
+
+    action='rescrape' (gear; T3 wires the caller): metadata and cover are
+    ALWAYS remote (T3 will widen the metadata call with scraper_data/
+    detail_url candidates) — a re-scrape means "get the current upstream
+    truth", never reusing whatever's already on disk (a stale local cover must
+    not survive a deliberate re-scrape).
+
+    A `parse_nfo()` failure (bad XML → root=None) is treated as "no usable
+    NFO": `nfo_thumb=None`, metadata falls to `search_jav`, and the cover
+    `('none',)` branch below keys on `valid_nfo` (root is not None) — NEVER on
+    the bare `nfo_path.exists()` check. Keying on file-exists alone would let
+    a malformed sidecar both withhold metadata AND lock the cover into
+    `('none',)` with no download fallback (card's 特有邊界 #1).
+
+    Common (both actions): before returning, `sample_images` is always forced
+    to `[]` — neither ingest nor rescrape bulk-fetches sample images (spec
+    §3-A / Non-Goals; samples are on-demand only, via the separate case-C
+    `assets_mode='samples_only'` path). When `meta` is None, the computed
+    cover_strategy is discarded and `('none',)` is returned instead — nothing
+    to copy/download without any metadata to attach it to.
+    """
+    nfo_path = Path(src_fs_path).with_suffix('.nfo')
+    root = None
+    if nfo_path.exists():
+        _, root = parse_nfo(str(nfo_path))
+    valid_nfo = root is not None
+
+    if action == 'ingest':
+        if valid_nfo:
+            meta = _nfo_to_producer_meta(root, fallback_number=number)
+        else:
+            meta = search_jav(number, source="auto", proxy_url=proxy_url) if number else None
+
+        nfo_thumb = root.findtext('thumb') if valid_nfo else None
+        cover_fs = VideoScanner().find_cover_image(src_fs_path, nfo_thumb=nfo_thumb)
+        if cover_fs:
+            cover_strategy = ('copy', cover_fs)
+        elif valid_nfo:
+            cover_strategy = ('none',)
+        else:
+            cover_strategy = ('download', meta['cover']) if meta and meta.get('cover') else ('none',)
+    else:  # 'rescrape'
+        meta = search_jav(number, source="auto", proxy_url=proxy_url) if number else None
+        cover_strategy = ('download', meta['cover']) if meta and meta.get('cover') else ('none',)
+
+    if meta is None:
+        return None, ('none',)
+    meta['sample_images'] = []
+    return meta, cover_strategy
+
+
+# ---------------------------------------------------------------------------
 # TASK-104-T1 (CD-104-1): single-file produce primitive — extracted from
 # produce_source's per-file try-block so ingest/rescrape/samples-only callers
 # (T2/T3: readonly gear/放大鏡/補劇照 endpoints) can reuse the SAME
@@ -994,20 +1189,21 @@ def produce_source(source, config, repo, *, proxy_url="", on_progress=None, shou
             _emit(on_progress, result, src_uri, "no_scrape")
             continue
 
-        meta = search_jav(number, source="auto", proxy_url=proxy_url)
+        # CD-104-3a (TASK-104-T2): metadata + cover two-axis decision — .nfo
+        # sidecar (zero network) / local cover file win over search_jav /
+        # download when present (ingest intent, local-first). Falls straight
+        # to the pre-T2 scrape-everything behavior when neither sidecar nor
+        # local cover exists (CD-104-2's 3-state cover_strategy tuple lives
+        # inside resolve_ingest_plan now, not inline here).
+        meta, cover_strategy = resolve_ingest_plan(
+            fi["path"], number, scraper_cfg, action='ingest', proxy_url=proxy_url,
+        )
         if not meta:
             repo.insert_if_ignore(Video(path=src_uri, number=number, title=os.path.basename(fi["path"])))
             repo.update_scrape_attempted_at(src_uri, time.time())
             result.no_scrape += 1
             _emit(on_progress, result, src_uri, "no_scrape")
             continue
-
-        # CD-104-2 (TASK-104-T1): byte-identical to the old binary
-        # `bool(meta.get('cover')) and download_image(...)` branch — expressed as
-        # an explicit 3-state tuple so _write_movie_assets can also serve the
-        # (T2/T3) ingest-copy / no-cover cases without a hidden truthy/falsy
-        # cover_strategy inference living inside the writer.
-        cover_strategy = ('download', meta['cover']) if meta.get('cover') else ('none',)
 
         try:
             existing = repo.get_by_path(src_uri)  # T3: read once; T4 reuses title/actresses/maker/release_date

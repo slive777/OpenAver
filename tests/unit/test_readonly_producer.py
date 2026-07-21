@@ -7,6 +7,7 @@ import inspect
 import os
 import shutil
 import time
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -4072,3 +4073,489 @@ class TestCallSequenceEquivalence:
         assert sum(1 for c in call_log if c[0] == 'download_image') == 2, "one download_image per cover"
         assert sum(1 for c in call_log if c[0] == 'generate_nfo') == 2, "one generate_nfo per file"
         assert sum(1 for c in call_log if c[0] == 'upsert') == 2, "one upsert per created file"
+
+    def test_sample_download_never_exercised_by_this_lock(self):
+        """TASK-104-T2 note (spec §3-A / Non-Goals reconciliation): this lock's own
+        config already sets download_sample_images=False and its fake meta already
+        carries sample_images=[] (see setup above) — so T2 forcing
+        meta['sample_images']=[] inside resolve_ingest_plan changes NOTHING
+        observable here. No update was needed for THIS test; documented per the
+        card's instruction to note when a test's premise already excluded sample
+        download rather than silently leaving it unexplained."""
+        assert True
+
+
+# ---------------------------------------------------------------------------
+# TASK-104-T2 (CD-104-3b): _nfo_to_producer_meta — NFO -> producer-meta adapter.
+# All-keys alignment, round-trip edges (title bracket-strip / rating ÷2),
+# mutation lock against core.enricher._nfo_to_meta's different key shape.
+# ---------------------------------------------------------------------------
+
+def _nfo_root(xml: str):
+    return ET.fromstring(xml)
+
+
+class TestNfoToProducerMeta:
+    def test_all_keys_present_and_aligned(self):
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        xml = """<?xml version="1.0" encoding="utf-8"?>
+<movie>
+  <title>[ABC-123]My Title</title>
+  <num>ABC-123</num>
+  <studio>MakerCo</studio>
+  <label>LabelCo</label>
+  <director>DirName</director>
+  <set><name>SeriesName</name></set>
+  <premiered>2024-05-01</premiered>
+  <runtime>120</runtime>
+  <plot>A summary.</plot>
+  <rating>8.4</rating>
+  <website>https://example.com/v</website>
+  <actor><name>Actress A</name><role></role></actor>
+  <actor><name>Actress B</name><role></role></actor>
+  <tag>Tag1</tag>
+  <tag>Tag2</tag>
+  <genre>Tag1</genre>
+  <genre>Tag2</genre>
+</movie>"""
+        root = _nfo_root(xml)
+        meta = _nfo_to_producer_meta(root, fallback_number='FALLBACK-000')
+
+        assert set(meta.keys()) == {
+            'number', 'title', 'actors', 'tags', 'date', 'maker', 'director',
+            'series', 'label', 'duration', 'url', '_summary', '_rating',
+            'cover', 'sample_images',
+        }
+        assert meta['number'] == 'ABC-123'
+        assert meta['title'] == 'My Title'
+        assert meta['actors'] == ['Actress A', 'Actress B']
+        assert meta['tags'] == ['Tag1', 'Tag2']
+        assert meta['date'] == '2024-05-01'
+        assert meta['maker'] == 'MakerCo'
+        assert meta['director'] == 'DirName'
+        assert meta['series'] == 'SeriesName'
+        assert meta['label'] == 'LabelCo'
+        assert meta['duration'] == 120
+        assert meta['url'] == 'https://example.com/v'
+        assert meta['_summary'] == 'A summary.'
+        assert meta['_rating'] == pytest.approx(4.2)
+        assert meta['cover'] == ''
+        assert meta['sample_images'] == []
+
+    def test_number_fallback_when_num_and_uniqueid_absent(self):
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        root = _nfo_root('<movie><title>Bare Title</title></movie>')
+        meta = _nfo_to_producer_meta(root, fallback_number='FALLBACK-999')
+        assert meta['number'] == 'FALLBACK-999'
+
+    def test_number_prefers_num_over_uniqueid(self):
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        root = _nfo_root(
+            '<movie><num>REAL-001</num>'
+            '<uniqueid type="home">OTHER-002</uniqueid></movie>'
+        )
+        meta = _nfo_to_producer_meta(root, fallback_number='FB-000')
+        assert meta['number'] == 'REAL-001'
+
+    def test_number_uses_uniqueid_when_num_missing(self):
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        root = _nfo_root('<movie><uniqueid type="home">UID-001</uniqueid></movie>')
+        meta = _nfo_to_producer_meta(root, fallback_number='FB-000')
+        assert meta['number'] == 'UID-001'
+
+    def test_title_strips_leading_number_bracket_prefix(self):
+        """Round-trip edge #1: generate_nfo writes `[number]title` — the adapter
+        must strip it back off, else re-generating double-wraps."""
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        root = _nfo_root('<movie><num>ABC-123</num><title>[ABC-123]Real Title</title></movie>')
+        meta = _nfo_to_producer_meta(root, fallback_number='')
+        assert meta['title'] == 'Real Title'
+
+    def test_title_without_bracket_prefix_unchanged(self):
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        root = _nfo_root('<movie><num>ABC-123</num><title>Plain Title</title></movie>')
+        meta = _nfo_to_producer_meta(root, fallback_number='')
+        assert meta['title'] == 'Plain Title'
+
+    def test_rating_divided_by_two(self):
+        """Round-trip edge #2: <rating> is raw×2 — the adapter must divide back."""
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        root = _nfo_root('<movie><rating>7.0</rating></movie>')
+        meta = _nfo_to_producer_meta(root, fallback_number='X')
+        assert meta['_rating'] == pytest.approx(3.5)
+
+    def test_rating_missing_is_none(self):
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        root = _nfo_root('<movie></movie>')
+        meta = _nfo_to_producer_meta(root, fallback_number='X')
+        assert meta['_rating'] is None
+
+    def test_rating_zero_is_none(self):
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        root = _nfo_root('<movie><rating>0</rating></movie>')
+        meta = _nfo_to_producer_meta(root, fallback_number='X')
+        assert meta['_rating'] is None
+
+    def test_duration_empty_is_none(self):
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        root = _nfo_root('<movie><runtime></runtime></movie>')
+        meta = _nfo_to_producer_meta(root, fallback_number='X')
+        assert meta['duration'] is None
+
+    def test_duration_non_numeric_is_none(self):
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        root = _nfo_root('<movie><runtime>abc</runtime></movie>')
+        meta = _nfo_to_producer_meta(root, fallback_number='X')
+        assert meta['duration'] is None
+
+    def test_date_fallback_chain_release_premiered_year(self):
+        # Mirrors VideoScanner.parse_nfo (gallery_scanner.py:337) order
+        # release > premiered > year so ingest and scan agree on the same NFO.
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        root = _nfo_root('<movie><release>2020-01-01</release><year>2019</year></movie>')
+        meta = _nfo_to_producer_meta(root, fallback_number='X')
+        assert meta['date'] == '2020-01-01'
+
+        root2 = _nfo_root('<movie><year>2019</year></movie>')
+        meta2 = _nfo_to_producer_meta(root2, fallback_number='X')
+        assert meta2['date'] == '2019'
+
+        # both premiered + release present → release wins (matches VideoScanner)
+        root3 = _nfo_root('<movie><premiered>2021-03-03</premiered><release>2020-01-01</release></movie>')
+        meta3 = _nfo_to_producer_meta(root3, fallback_number='X')
+        assert meta3['date'] == '2020-01-01'
+
+    def test_number_and_maker_fallback_tags_mirror_videoscanner(self):
+        # VideoScanner.parse_nfo uses num>id (number) and maker>studio (maker);
+        # adapter must agree so third-party NFOs read identically.
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        # <id> as number fallback (no <num>)
+        root = _nfo_root('<movie><id>IDN-007</id><studio>StudioCo</studio></movie>')
+        meta = _nfo_to_producer_meta(root, fallback_number='FB-999')
+        assert meta['number'] == 'IDN-007'
+
+        # <maker> wins over <studio>
+        root2 = _nfo_root('<movie><num>N-1</num><maker>MakerCo</maker><studio>StudioCo</studio></movie>')
+        meta2 = _nfo_to_producer_meta(root2, fallback_number='')
+        assert meta2['maker'] == 'MakerCo'
+
+        # <studio> only still works
+        root3 = _nfo_root('<movie><num>N-2</num><studio>StudioOnly</studio></movie>')
+        meta3 = _nfo_to_producer_meta(root3, fallback_number='')
+        assert meta3['maker'] == 'StudioOnly'
+
+    def test_mutation_lock_not_enricher_shape(self):
+        """MUTATION LOCK: must use producer-meta keys ('actors'/'date'/'cover'),
+        NOT core.enricher._nfo_to_meta's shape ('actresses'/'release_date'/
+        'cover_url') — swapping in that shape must turn this test RED."""
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        root = _nfo_root(
+            '<movie><num>MUT-001</num><actor><name>A</name></actor>'
+            '<premiered>2024-01-01</premiered></movie>'
+        )
+        meta = _nfo_to_producer_meta(root, fallback_number='')
+        assert 'actors' in meta and 'actresses' not in meta
+        assert 'date' in meta and 'release_date' not in meta
+        assert 'cover' in meta and 'cover_url' not in meta
+        assert meta['actors'] == ['A']
+        assert meta['date'] == '2024-01-01'
+
+
+class TestNfoToProducerMetaRoundTrip:
+    """CD-104-3b DoD: generate_nfo -> _nfo_to_producer_meta round-trip."""
+
+    def test_round_trip_core_fields_survive(self, tmp_path):
+        from core.nfo_updater import parse_nfo
+        from core.organizer import generate_nfo
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        nfo_path = tmp_path / 'RTX-001.nfo'
+        ok = generate_nfo(
+            number='RTX-001',
+            title='Original Title',
+            actors=['Actress A', 'Actress B'],
+            tags=['TagA', 'TagB'],
+            date='2023-06-15',
+            maker='MakerX',
+            url='https://example.com/rtx-001',
+            output_path=str(nfo_path),
+            director='DirectorX',
+            duration=95,
+            series='SeriesX',
+            label='LabelX',
+            summary='Summary text.',
+            rating=4.3,
+        )
+        assert ok
+
+        _, root = parse_nfo(str(nfo_path))
+        assert root is not None
+        meta = _nfo_to_producer_meta(root, fallback_number='RTX-001')
+
+        assert meta['number'] == 'RTX-001'
+        assert meta['title'] == 'Original Title'
+        assert meta['actors'] == ['Actress A', 'Actress B']
+        assert meta['date'] == '2023-06-15'
+        assert meta['maker'] == 'MakerX'
+        assert meta['tags'] == ['TagA', 'TagB']
+        assert meta['series'] == 'SeriesX'
+        assert meta['label'] == 'LabelX'
+        assert meta['duration'] == 95
+        assert meta['_summary'] == 'Summary text.'
+        assert meta['_rating'] == pytest.approx(4.3)
+
+    def test_round_trip_title_does_not_double_wrap_on_regenerate(self, tmp_path):
+        """The exact round-trip edge this task exists for: regenerating an NFO
+        from the adapter's own output must NOT double-wrap [num][num]title."""
+        from core.nfo_updater import parse_nfo
+        from core.organizer import generate_nfo
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        nfo_path = tmp_path / 'RTX-002.nfo'
+        generate_nfo(number='RTX-002', title='Plain Title', output_path=str(nfo_path))
+        _, root = parse_nfo(str(nfo_path))
+        meta = _nfo_to_producer_meta(root, fallback_number='RTX-002')
+        assert meta['title'] == 'Plain Title'  # NOT '[RTX-002]Plain Title'
+
+        nfo_path2 = tmp_path / 'RTX-002-again.nfo'
+        generate_nfo(number=meta['number'], title=meta['title'], output_path=str(nfo_path2))
+        _, root2 = parse_nfo(str(nfo_path2))
+        title_elem = root2.find('title')
+        assert title_elem.text == '[RTX-002]Plain Title'
+        assert title_elem.text.count('[RTX-002]') == 1
+
+    def test_round_trip_rating_survives_multiply_then_divide(self, tmp_path):
+        from core.nfo_updater import parse_nfo
+        from core.organizer import generate_nfo
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        nfo_path = tmp_path / 'RTX-003.nfo'
+        generate_nfo(number='RTX-003', title='T', output_path=str(nfo_path), rating=3.7)
+        _, root = parse_nfo(str(nfo_path))
+        meta = _nfo_to_producer_meta(root, fallback_number='RTX-003')
+        assert meta['_rating'] == pytest.approx(3.7)
+
+
+# ---------------------------------------------------------------------------
+# TASK-104-T2 (CD-104-3a): resolve_ingest_plan — metadata/cover two-axis
+# decision. ingest local-first branches, rescrape always-remote branch,
+# malformed-NFO fallback (特有邊界), sample_images always [].
+# ---------------------------------------------------------------------------
+
+class TestResolveIngestPlan:
+    def _touch_video(self, tmp_path, name='SRC-001.mp4'):
+        p = tmp_path / name
+        p.write_bytes(b'FAKE')
+        return p
+
+    def test_ingest_valid_nfo_uses_nfo_metadata_zero_network(self, tmp_path):
+        from core.readonly_producer import resolve_ingest_plan
+
+        video = self._touch_video(tmp_path)
+        nfo = video.with_suffix('.nfo')
+        nfo.write_text('<movie><num>SRC-001</num><title>[SRC-001]T</title></movie>', encoding='utf-8')
+
+        with patch('core.readonly_producer.search_jav') as mock_search, \
+             patch('core.readonly_producer.VideoScanner') as MockVS:
+            MockVS.return_value.find_cover_image.return_value = ''
+            meta, cover_strategy = resolve_ingest_plan(str(video), 'SRC-001', {}, action='ingest')
+
+        mock_search.assert_not_called()
+        assert meta['number'] == 'SRC-001'
+        assert meta['title'] == 'T'
+        assert cover_strategy == ('none',)
+        assert meta['sample_images'] == []
+
+    def test_ingest_nfo_thumb_threaded_into_find_cover_image(self, tmp_path):
+        """DoD: ingest cover axis must thread the NFO's <thumb> as nfo_thumb
+        (CD-104-10 — L3 silently degrades if it isn't)."""
+        from core.readonly_producer import resolve_ingest_plan
+
+        video = self._touch_video(tmp_path)
+        nfo = video.with_suffix('.nfo')
+        nfo.write_text('<movie><num>SRC-001</num><thumb>cover.jpg</thumb></movie>', encoding='utf-8')
+
+        with patch('core.readonly_producer.search_jav'), \
+             patch('core.readonly_producer.VideoScanner') as MockVS:
+            MockVS.return_value.find_cover_image.return_value = ''
+            resolve_ingest_plan(str(video), 'SRC-001', {}, action='ingest')
+
+        MockVS.return_value.find_cover_image.assert_called_once_with(str(video), nfo_thumb='cover.jpg')
+
+    def test_ingest_no_thumb_threads_none(self, tmp_path):
+        from core.readonly_producer import resolve_ingest_plan
+
+        video = self._touch_video(tmp_path)
+        nfo = video.with_suffix('.nfo')
+        nfo.write_text('<movie><num>SRC-001</num></movie>', encoding='utf-8')
+
+        with patch('core.readonly_producer.search_jav'), \
+             patch('core.readonly_producer.VideoScanner') as MockVS:
+            MockVS.return_value.find_cover_image.return_value = ''
+            resolve_ingest_plan(str(video), 'SRC-001', {}, action='ingest')
+
+        MockVS.return_value.find_cover_image.assert_called_once_with(str(video), nfo_thumb=None)
+
+    def test_ingest_cover_hit_returns_copy_strategy(self, tmp_path):
+        """Matrix ①/②: local cover hit -> ('copy', fs_path), never a download."""
+        from core.readonly_producer import resolve_ingest_plan
+
+        video = self._touch_video(tmp_path)
+        cover_path = str(tmp_path / 'SRC-001.jpg')
+
+        with patch(
+            'core.readonly_producer.search_jav',
+            return_value={'number': 'SRC-001', 'title': 'T', 'cover': 'http://x/c.jpg'},
+        ) as mock_search, patch('core.readonly_producer.VideoScanner') as MockVS:
+            MockVS.return_value.find_cover_image.return_value = cover_path
+            meta, cover_strategy = resolve_ingest_plan(str(video), 'SRC-001', {}, action='ingest')
+
+        mock_search.assert_called_once()
+        assert cover_strategy == ('copy', cover_path)
+
+    def test_ingest_cover_only_no_nfo_calls_search_jav(self, tmp_path):
+        """Matrix ③: cover-only (no .nfo) -> search_jav CALLED for metadata,
+        but the cover itself is copied locally, never downloaded."""
+        from core.readonly_producer import resolve_ingest_plan
+
+        video = self._touch_video(tmp_path)
+        cover_path = str(tmp_path / 'SRC-001.jpg')
+
+        with patch(
+            'core.readonly_producer.search_jav',
+            return_value={'number': 'SRC-001', 'title': 'T', 'cover': ''},
+        ) as mock_search, patch('core.readonly_producer.VideoScanner') as MockVS:
+            MockVS.return_value.find_cover_image.return_value = cover_path
+            meta, cover_strategy = resolve_ingest_plan(str(video), 'SRC-001', {}, action='ingest')
+
+        mock_search.assert_called_once_with('SRC-001', source='auto', proxy_url='')
+        assert cover_strategy == ('copy', cover_path)
+
+    def test_ingest_neither_nfo_nor_cover_falls_back_to_download(self, tmp_path):
+        """Matrix ④: neither -> existing scrape+download behavior, unchanged."""
+        from core.readonly_producer import resolve_ingest_plan
+
+        video = self._touch_video(tmp_path)
+
+        with patch(
+            'core.readonly_producer.search_jav',
+            return_value={'number': 'SRC-001', 'title': 'T', 'cover': 'http://x/c.jpg'},
+        ), patch('core.readonly_producer.VideoScanner') as MockVS:
+            MockVS.return_value.find_cover_image.return_value = ''
+            meta, cover_strategy = resolve_ingest_plan(str(video), 'SRC-001', {}, action='ingest')
+
+        assert cover_strategy == ('download', 'http://x/c.jpg')
+
+    def test_ingest_nfo_present_no_cover_hit_is_none_not_download(self, tmp_path):
+        """Matrix ②: valid NFO + cover miss -> ('none',) — must NOT silently
+        fall back to downloading (ingest is zero-network when NFO is valid)."""
+        from core.readonly_producer import resolve_ingest_plan
+
+        video = self._touch_video(tmp_path)
+        nfo = video.with_suffix('.nfo')
+        nfo.write_text('<movie><num>SRC-001</num></movie>', encoding='utf-8')
+
+        with patch('core.readonly_producer.search_jav') as mock_search, \
+             patch('core.readonly_producer.VideoScanner') as MockVS:
+            MockVS.return_value.find_cover_image.return_value = ''
+            meta, cover_strategy = resolve_ingest_plan(str(video), 'SRC-001', {}, action='ingest')
+
+        mock_search.assert_not_called()
+        assert cover_strategy == ('none',)
+
+    def test_ingest_malformed_nfo_falls_back_to_scrape_not_locked_to_none(self, tmp_path):
+        """特有邊界 #1: .nfo exists but parse_nfo fails (bad XML, root=None) ->
+        treated as no usable NFO. Metadata retries search_jav; the cover branch
+        must key on valid_nfo, NOT the bare nfo_path.exists() check — else a
+        malformed sidecar would withhold metadata AND lock cover into
+        ('none',) with no fallback."""
+        from core.readonly_producer import resolve_ingest_plan
+
+        video = self._touch_video(tmp_path)
+        nfo = video.with_suffix('.nfo')
+        nfo.write_text('NOT VALID XML <<<', encoding='utf-8')
+
+        with patch(
+            'core.readonly_producer.search_jav',
+            return_value={'number': 'SRC-001', 'title': 'T', 'cover': 'http://x/c.jpg'},
+        ) as mock_search, patch('core.readonly_producer.VideoScanner') as MockVS:
+            MockVS.return_value.find_cover_image.return_value = ''
+            meta, cover_strategy = resolve_ingest_plan(str(video), 'SRC-001', {}, action='ingest')
+
+        mock_search.assert_called_once()
+        assert meta is not None
+        assert cover_strategy == ('download', 'http://x/c.jpg')
+        MockVS.return_value.find_cover_image.assert_called_once_with(str(video), nfo_thumb=None)
+
+    def test_meta_none_returns_none_cover_strategy(self, tmp_path):
+        """Common rule: meta is None -> (None, ('none',)) even when a local
+        cover WOULD have been found — nothing to attach it to."""
+        from core.readonly_producer import resolve_ingest_plan
+
+        video = self._touch_video(tmp_path)
+
+        with patch('core.readonly_producer.search_jav', return_value=None), \
+             patch('core.readonly_producer.VideoScanner') as MockVS:
+            MockVS.return_value.find_cover_image.return_value = str(tmp_path / 'SRC-001.jpg')
+            meta, cover_strategy = resolve_ingest_plan(str(video), 'SRC-001', {}, action='ingest')
+
+        assert meta is None
+        assert cover_strategy == ('none',)
+
+    def test_rescrape_always_downloads_ignores_local_cover(self, tmp_path):
+        from core.readonly_producer import resolve_ingest_plan
+
+        video = self._touch_video(tmp_path)
+        nfo = video.with_suffix('.nfo')
+        nfo.write_text('<movie><num>SRC-001</num></movie>', encoding='utf-8')
+
+        with patch(
+            'core.readonly_producer.search_jav',
+            return_value={'number': 'SRC-001', 'title': 'T', 'cover': 'http://x/new.jpg'},
+        ) as mock_search, patch('core.readonly_producer.VideoScanner') as MockVS:
+            MockVS.return_value.find_cover_image.return_value = str(tmp_path / 'local.jpg')
+            meta, cover_strategy = resolve_ingest_plan(str(video), 'SRC-001', {}, action='rescrape')
+
+        mock_search.assert_called_once()
+        MockVS.return_value.find_cover_image.assert_not_called()
+        assert cover_strategy == ('download', 'http://x/new.jpg')
+        assert meta['sample_images'] == []
+
+    def test_rescrape_meta_none_when_search_fails(self, tmp_path):
+        from core.readonly_producer import resolve_ingest_plan
+
+        video = self._touch_video(tmp_path)
+        with patch('core.readonly_producer.search_jav', return_value=None):
+            meta, cover_strategy = resolve_ingest_plan(str(video), 'SRC-001', {}, action='rescrape')
+        assert meta is None
+        assert cover_strategy == ('none',)
+
+    @pytest.mark.parametrize("action", ["ingest", "rescrape"])
+    def test_sample_images_always_empty(self, tmp_path, action):
+        from core.readonly_producer import resolve_ingest_plan
+
+        video = self._touch_video(tmp_path)
+        meta_stub = {
+            'number': 'SRC-001', 'title': 'T', 'cover': '',
+            'sample_images': ['http://x/s1.jpg', 'http://x/s2.jpg'],
+        }
+        with patch('core.readonly_producer.search_jav', return_value=meta_stub), \
+             patch('core.readonly_producer.VideoScanner') as MockVS:
+            MockVS.return_value.find_cover_image.return_value = ''
+            meta, _cover_strategy = resolve_ingest_plan(str(video), 'SRC-001', {}, action=action)
+
+        assert meta['sample_images'] == []

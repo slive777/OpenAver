@@ -39,6 +39,7 @@ from __future__ import annotations
 import hashlib
 import os
 from pathlib import Path
+from unittest.mock import patch
 
 from core.database import Video, VideoRepository
 from core.path_utils import to_file_uri, uri_to_fs_path
@@ -268,8 +269,16 @@ class TestOffFlavorHappyPath:
             assert (movie_dir / f"{num}.jpg").exists(), f"missing cover {num}"
             assert (movie_dir / f"{num}-poster.jpg").exists(), f"missing poster {num}"
             assert (movie_dir / f"{num}-fanart.jpg").exists(), f"missing fanart {num}"
-            # samples ON → extrafanart/fanart1.jpg
-            assert (movie_dir / "extrafanart" / "fanart1.jpg").exists(), f"missing extrafanart {num}"
+            # TASK-104-T2 (spec §3-A / Non-Goals, intended change — NOT a
+            # weakening): bulk produce no longer downloads sample images even
+            # when download_sample_images=True — resolve_ingest_plan forces
+            # meta['sample_images']=[] unconditionally (samples are on-demand
+            # only, via the separate fetch-samples endpoint / case C). Before
+            # T2 this asserted extrafanart/fanart1.jpg EXISTS; the correct
+            # post-T2 behavior is that bulk produce never creates it.
+            assert not (movie_dir / "extrafanart" / "fanart1.jpg").exists(), (
+                f"extrafanart must NOT be populated by bulk produce (T2 spec change): {num}"
+            )
 
         # Acceptance #5: off-flavor produces NO .strm anywhere under output.
         assert ".strm" not in _all_extensions(output)
@@ -290,9 +299,13 @@ class TestOffFlavorHappyPath:
             assert v is not None, f"no DB row for {num}"
             assert v.path == src_uri  # streaming key = source URI
             assert v.cover_path.startswith(output_uri), f"cover not under output: {v.cover_path}"
-            assert v.sample_images, f"expected samples for {num}"
-            for s in v.sample_images:
-                assert s.startswith(output_uri), f"sample not under output: {s}"
+            # TASK-104-T2 (spec §3-A / Non-Goals, intended change — NOT a
+            # weakening): bulk produce no longer bulk-downloads sample images —
+            # resolve_ingest_plan forces sample_images=[] unconditionally.
+            # Before T2 this asserted samples were present; on-demand fetch
+            # (case C, a separate endpoint) is the only path that still
+            # populates them.
+            assert v.sample_images == [], f"expected NO bulk-downloaded samples for {num} (T2 spec change)"
 
     def test_schema_no_new_columns(self, tmp_path, monkeypatch, client, parse_sse_events):
         """#7: videos table column set unchanged (no schema drift from 88b write path)."""
@@ -433,6 +446,143 @@ def test_samples_off_no_extrafanart(tmp_path, monkeypatch, client, parse_sse_eve
         assert not (output / num / "extrafanart").exists()
         src_uri = to_file_uri(str(src / f"{num}.mp4"), {})
         assert repo.get_by_path(src_uri).sample_images == []
+
+
+# ---------------------------------------------------------------------------
+# TASK-104-T2 (CD-104-3/3a/3b, DoD 四矩陣): nfo_exists × local-cover-hit
+# orthogonal combinations, run through the REAL produce_source (via the SSE
+# endpoint), asserting the metadata/cover source AND zero source-tree writes.
+# ---------------------------------------------------------------------------
+
+_SIDECAR_NFO_XML = """<?xml version="1.0" encoding="utf-8"?>
+<movie>
+  <title>[{num}]Sidecar Title {num}</title>
+  <num>{num}</num>
+  <studio>SidecarMaker</studio>
+  <premiered>2022-02-02</premiered>
+  <actor><name>Sidecar Actress</name><role></role></actor>
+  <tag>SidecarTag</tag>
+  <genre>SidecarTag</genre>
+</movie>"""
+
+
+def _make_ingest_source(base: Path, name: str, num: str, *, with_nfo: bool, with_cover: bool) -> Path:
+    """One movie source dir: `{num}.mp4` (+ optional `{num}.nfo` / `{num}.jpg` sidecars)."""
+    d = base / name
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{num}.mp4").write_bytes(b"FAKE-VIDEO-BYTES")
+    if with_nfo:
+        (d / f"{num}.nfo").write_text(_SIDECAR_NFO_XML.format(num=num), encoding="utf-8")
+    if with_cover:
+        (d / f"{num}.jpg").write_bytes(_FAKE_COVER_BYTES)
+    return d
+
+
+class TestIngestFourMatrix:
+    """DoD 四矩陣: nfo_exists × local-cover-hit — each cell asserts the
+    metadata source, the cover-write mechanism (copy vs. download vs. none),
+    zero network calls where the axis says so, sample_images always empty,
+    and zero writes to the source tree (via the extended `_snapshot`,
+    CD-104-9: content hash + st_ino, not just size/mtime)."""
+
+    def _run_case(self, tmp_path, monkeypatch, client, parse_sse_events, num, *, with_nfo, with_cover):
+        src = _make_ingest_source(tmp_path / "src", "movies", num, with_nfo=with_nfo, with_cover=with_cover)
+        db_path = tmp_path / "test.db"
+        config = _make_config(
+            [{"path": str(src), "output_path": "", "readonly": True}],
+            tmp_path / "htmlout",
+            # download_sample_images=True ON PURPOSE: proves T2's forced
+            # sample_images=[] wins even when the config would otherwise want
+            # samples (see the sample_images assertions in each case below).
+            download_samples=True,
+        )
+        _wire(monkeypatch, config, db_path)
+        before = _snapshot(src)
+        with patch("core.readonly_producer.search_jav", side_effect=_fake_search_jav) as mock_search, \
+             patch("core.readonly_producer.download_image", side_effect=_fake_download_image) as mock_download:
+            _run_generate(client, parse_sse_events)
+        after = _snapshot(src)
+
+        output = _off_root(src, db_path)
+        repo = VideoRepository(str(db_path))
+        src_uri = to_file_uri(str(src / f"{num}.mp4"), {})
+        v = repo.get_by_path(src_uri)
+        return before, after, output, v, mock_search, mock_download
+
+    def test_case1_nfo_and_local_cover(self, tmp_path, monkeypatch, client, parse_sse_events):
+        """① .nfo + local cover: meta from NFO, cover COPIED into output_dir,
+        search_jav AND download_image both NOT called (zero network)."""
+        num = "MTX-001"
+        before, after, output, v, mock_search, mock_download = self._run_case(
+            tmp_path, monkeypatch, client, parse_sse_events, num, with_nfo=True, with_cover=True,
+        )
+        mock_search.assert_not_called()
+        mock_download.assert_not_called()
+        assert before == after, "source tree must be zero-write"
+
+        movie_dir = output / num
+        assert (movie_dir / f"{num}.nfo").exists()
+        assert (movie_dir / f"{num}.jpg").exists()
+        assert v is not None
+        assert v.title == f"Sidecar Title {num}", "metadata must come from the NFO, not a scrape stub"
+        assert v.maker == "SidecarMaker"
+        assert v.cover_path.startswith(to_file_uri(str(output), {}))
+        assert v.sample_images == []
+
+    def test_case2_nfo_only(self, tmp_path, monkeypatch, client, parse_sse_events):
+        """② .nfo only (no cover img): meta from NFO, cover_path empty,
+        search_jav AND download_image both NOT called (zero network)."""
+        num = "MTX-002"
+        before, after, output, v, mock_search, mock_download = self._run_case(
+            tmp_path, monkeypatch, client, parse_sse_events, num, with_nfo=True, with_cover=False,
+        )
+        mock_search.assert_not_called()
+        mock_download.assert_not_called()
+        assert before == after, "source tree must be zero-write"
+
+        movie_dir = output / num
+        assert (movie_dir / f"{num}.nfo").exists()
+        assert not (movie_dir / f"{num}.jpg").exists()
+        assert v is not None
+        assert v.title == f"Sidecar Title {num}"
+        assert v.cover_path == ""
+        assert v.sample_images == []
+
+    def test_case3_cover_only(self, tmp_path, monkeypatch, client, parse_sse_events):
+        """③ cover only (no .nfo): search_jav CALLED (metadata scrape),
+        download_image NOT called (local cover copied instead)."""
+        num = "MTX-003"
+        before, after, output, v, mock_search, mock_download = self._run_case(
+            tmp_path, monkeypatch, client, parse_sse_events, num, with_nfo=False, with_cover=True,
+        )
+        mock_search.assert_called_once()
+        mock_download.assert_not_called()
+        assert before == after, "source tree must be zero-write"
+
+        movie_dir = output / num
+        assert (movie_dir / f"{num}.nfo").exists()
+        assert (movie_dir / f"{num}.jpg").exists()
+        assert v is not None
+        assert v.title == f"Title {num}"  # from _fake_search_jav, not the (absent) NFO
+        assert v.sample_images == []
+
+    def test_case4_neither(self, tmp_path, monkeypatch, client, parse_sse_events):
+        """④ neither: existing scrape behavior unchanged — search_jav CALLED,
+        download_image CALLED (remote cover)."""
+        num = "MTX-004"
+        before, after, output, v, mock_search, mock_download = self._run_case(
+            tmp_path, monkeypatch, client, parse_sse_events, num, with_nfo=False, with_cover=False,
+        )
+        mock_search.assert_called_once()
+        mock_download.assert_called_once()
+        assert before == after, "source tree must be zero-write"
+
+        movie_dir = output / num
+        assert (movie_dir / f"{num}.nfo").exists()
+        assert (movie_dir / f"{num}.jpg").exists()
+        assert v is not None
+        assert v.title == f"Title {num}"
+        assert v.sample_images == []
 
 
 # ---------------------------------------------------------------------------
@@ -580,10 +730,25 @@ def test_incremental_idempotent(tmp_path, monkeypatch, client, parse_sse_events)
 # walks the real read-and-reuse branch of `_resolve_movie_dir` and lands in
 # `_write_movie_assets`'s stale-asset cleanup (TASK-89a-T4 / Codex #3) for real,
 # against the actual SSE endpoint + a real sqlite DB — not mocked internals.
+#
+# TASK-104-T2 reconciliation (spec §3-A / Non-Goals, intended change — NOT a
+# weakening): this test originally ALSO covered the extrafanart 3→2 shrink
+# (title-drift + stale-sample-cleanup landing in the SAME run). Since T2,
+# resolve_ingest_plan forces meta['sample_images']=[] unconditionally, so bulk
+# produce never downloads samples at all regardless of download_sample_images
+# or how many sample_images search_jav returns — there is nothing left to
+# shrink. The fake round1/round2 metas below still carry a sample_images list
+# (harmless leftover fields, unused by _format_data/_build_basename) but the
+# assertions below now assert extrafanart stays EMPTY across both rounds
+# instead of shrinking 3→2. The title-drift + singleton (nfo/cover/poster/
+# fanart) stale-cleanup coverage this test exists for is unaffected by T2 and
+# is kept as-is.
 # ---------------------------------------------------------------------------
 
 def _fake_search_jav_round1(number, source="auto", proxy_url=""):
-    """Round 1: title A, 3 sample images (for the extrafanart-shrink assertion)."""
+    """Round 1: title A. sample_images kept in the fixture for realism but
+    unused post-T2 (see reconciliation note above — bulk produce never
+    downloads samples)."""
     return {
         "number": number,
         "title": f"Title {number}",
@@ -601,7 +766,8 @@ def _fake_search_jav_round1(number, source="auto", proxy_url=""):
 
 
 def _fake_search_jav_round2(number, source="auto", proxy_url=""):
-    """Round 2: DIFFERENT title (maker corrected it), only 2 sample images."""
+    """Round 2: DIFFERENT title (maker corrected it). sample_images count
+    dropped in the fixture too but is unused post-T2 (see note above)."""
     return {
         "number": number,
         "title": f"Title-B {number}",
@@ -629,10 +795,12 @@ def test_real_readstore_overwrite_title_drift_and_extrafanart_shrink(
     tmp_path, monkeypatch, client, parse_sse_events
 ):
     """Zero out `scrape_attempted_at` (bypass `_should_skip`'s attempted-index
-    check) → re-scrape with a corrected title + fewer samples → asserts the
-    SECOND run truly walks the read-store branch (same output_dir, not
-    re-allocated) and TASK-89a-T4's stale cleanup (old title-A series + shrunk
-    extrafanart removed, only title-B series left).
+    check) → re-scrape with a corrected title → asserts the SECOND run truly
+    walks the read-store branch (same output_dir, not re-allocated) and
+    TASK-89a-T4's stale-singleton cleanup (old title-A nfo/cover/poster/fanart
+    removed, only title-B remains). TASK-104-T2: no longer also covers
+    extrafanart shrink — bulk produce never downloads samples post-T2 (see
+    reconciliation note on the section header above).
     """
     numbers = ["JKL-030"]
     num = numbers[0]
@@ -673,7 +841,10 @@ def test_real_readstore_overwrite_title_drift_and_extrafanart_shrink(
     assert (movie_dir / f"{old_base}.jpg").exists()
     assert (movie_dir / f"{old_base}-poster.jpg").exists()
     assert (movie_dir / f"{old_base}-fanart.jpg").exists()
-    assert (movie_dir / "extrafanart" / "fanart3.jpg").exists()
+    # TASK-104-T2 (intended change, NOT a weakening): resolve_ingest_plan
+    # forces sample_images=[] — bulk produce never populates extrafanart,
+    # even with download_sample_images=True and a 3-sample search_jav return.
+    assert not (movie_dir / "extrafanart" / "fanart3.jpg").exists()
 
     repo = VideoRepository(str(db_path))
     src_uri = to_file_uri(source_fs_path, {})
@@ -715,11 +886,14 @@ def test_real_readstore_overwrite_title_drift_and_extrafanart_shrink(
     assert (movie_dir / f"{new_base}-poster.jpg").exists()
     assert (movie_dir / f"{new_base}-fanart.jpg").exists()
 
-    # extrafanart 3→2: shrunk sample must not persist.
+    # TASK-104-T2 (intended change, NOT a weakening): extrafanart stays empty
+    # across both rounds — bulk produce never downloads samples post-T2, so
+    # there is no 3→2 shrink to observe any more (see reconciliation note on
+    # the section header above).
     ef_dir = movie_dir / "extrafanart"
-    assert not (ef_dir / "fanart3.jpg").exists(), "shrunk extrafanart sample survived"
-    assert (ef_dir / "fanart1.jpg").exists()
-    assert (ef_dir / "fanart2.jpg").exists()
+    assert not (ef_dir / "fanart1.jpg").exists()
+    assert not (ef_dir / "fanart2.jpg").exists()
+    assert not (ef_dir / "fanart3.jpg").exists()
 
 
 # ---------------------------------------------------------------------------
