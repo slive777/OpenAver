@@ -28,13 +28,14 @@ from core.config import _STEM_IMAGE_MODES, iter_gallery_sources
 from core.database import Video, get_db_path
 from core.focal import requires_face_detection
 from core.focal_trigger import maybe_submit_video_focal
-from core.gallery_scanner import VideoScanner, fast_scan_directory
+from core.gallery_scanner import IMAGE_EXTENSIONS, VideoScanner, fast_scan_directory
 from core.logger import get_logger
 from core.nfo_updater import parse_nfo
 from core.organizer import (
     _detect_suffixes,
     _detect_vr_cluster,
     _strip_num_prefixes,
+    crop_to_poster,
     download_image,
     format_string,
     generate_jellyfin_images,
@@ -703,6 +704,76 @@ def _write_strm(base_stem: str, source_fs_path: str, config: dict, strm_mappings
 # T-3: write off-flavor assets + DB upsert (plan §5.2 / §6)
 # ---------------------------------------------------------------------------
 
+def _write_media_images(
+    cover_fs: str, base_stem: str, meta: dict, source_media: Optional[dict]
+) -> tuple[bool, bool]:
+    """Write ``-poster``/``-fanart`` images for one movie. Returns
+    ``(has_poster, has_fanart)``.
+
+    ``source_media is None`` (scrape/rescrape, or ingest with no detected
+    curator sidecars): delegates to ``generate_jellyfin_images`` EXACTLY as
+    before this fix — the ONE source of truth for the "generate from cover"
+    path (fanart = copy2(cover); poster = crop_to_poster(cover)) — byte-
+    identical for every caller that doesn't carry a 3rd cover_strategy
+    element (CD scrape/rescrape byte-identity guarantee).
+
+    ``source_media`` is a dict (ingest, curator sidecars detected — see
+    ``resolve_ingest_plan``'s cover-axis docstring): each slot is handled
+    independently.
+      - A detected sidecar (``source_media['poster']`` / ``['fanart']`` not
+        None) is copied VERBATIM via ``shutil.copy2`` — byte-identical to the
+        source, no crop/focal. An ``OSError`` (source vanished mid-run) falls
+        back to the SAME generate step the slot would have used had no
+        sidecar been detected at all.
+      - A missing slot (``None``) always falls back to that generate step —
+        this is the pre-fix behaviour for that slot, unchanged.
+    """
+    number = meta['number']
+    maker = meta.get('maker', '')
+
+    if source_media is None:
+        imgs = generate_jellyfin_images(cover_fs, base_stem, number=number, maker=maker)
+        return imgs.get('poster', False), imgs.get('fanart', False)
+
+    fanart_path = base_stem + '-fanart.jpg'
+    poster_path = base_stem + '-poster.jpg'
+
+    # fanart: verbatim copy of curator sidecar, else generate (copy2 of cover
+    # — matches generate_jellyfin_images's own fanart step byte-for-byte).
+    src_fanart = source_media.get('fanart')
+    has_fanart = False
+    if src_fanart:
+        try:
+            shutil.copy2(src_fanart, fanart_path)
+            has_fanart = True
+        except Exception as e:  # noqa: BLE001 — mirror generate_jellyfin_images' broad catch; any copy failure falls through to generate
+            logger.warning(f"[!] ingest fanart 原樣複製失敗，改由封面生成: {e}")
+            src_fanart = None  # fall through to generate below
+    if not src_fanart:
+        try:
+            shutil.copy2(cover_fs, fanart_path)
+            has_fanart = True
+        except Exception as e:
+            logger.warning(f"[!] generate_jellyfin_images fanart 複製失敗: {e}")
+            has_fanart = False
+
+    # poster: verbatim copy of curator sidecar, else generate (crop_to_poster
+    # of cover — matches generate_jellyfin_images's own poster step).
+    src_poster = source_media.get('poster')
+    has_poster = False
+    if src_poster:
+        try:
+            shutil.copy2(src_poster, poster_path)
+            has_poster = True
+        except Exception as e:  # noqa: BLE001 — mirror generate path's broad catch; any copy failure falls through to crop_to_poster
+            logger.warning(f"[!] ingest poster 原樣複製失敗，改由封面裁生: {e}")
+            src_poster = None  # fall through to generate below
+    if not src_poster:
+        has_poster = crop_to_poster(cover_fs, poster_path, number=number, maker=maker)
+
+    return has_poster, has_fanart
+
+
 def _write_movie_assets(
     movie_dir: str,
     meta: dict,
@@ -741,8 +812,14 @@ def _write_movie_assets(
       ('download', remote_url) — has_cover = bool(remote_url) and
         download_image(remote_url, cover_fs); byte-identical to the pre-T1
         unconditional-download branch (scrape / gear rescrape, C6).
-    poster/fanart generation is unchanged: generate_jellyfin_images(...) runs
-    whenever has_cover is True, regardless of which cover_strategy produced it.
+    poster/fanart: generate_jellyfin_images(...) runs whenever has_cover is
+    True AND cover_strategy carries no 3rd element (scrape/rescrape, or ingest
+    with no detected curator sidecars) — byte-identical to the pre-fix
+    behaviour. When cover_strategy is the 3-tuple ingest-copy form (see
+    resolve_ingest_plan docstring), each detected `{stem}-poster`/`{stem}
+    -fanart` sidecar is copied VERBATIM into the output slot instead of being
+    regenerated from the cover; a slot with no detected sidecar still falls
+    back to the generate step. See `_write_media_images` below.
 
     old_base (TASK-89a-T4, Codex #3; T5 follow-up, Codex PR review P2): when
     non-empty, this movie's own stale assets from the PREVIOUS run (different
@@ -800,11 +877,26 @@ def _write_movie_assets(
         has_cover = bool(remote_url) and download_image(remote_url, cover_fs)
 
     # 2) poster/fanart (off mode also produces these — Acceptance #6)
-    imgs = generate_jellyfin_images(
-        cover_fs, base_stem, number=meta['number'], maker=meta.get('maker', '')
-    ) if has_cover else {}
-    has_poster = imgs.get('poster', False)
-    has_fanart = imgs.get('fanart', False)
+    if has_cover:
+        raw_source_media = (
+            cover_strategy[2]
+            if strategy_kind == 'copy' and len(cover_strategy) > 2
+            else None
+        )
+        # An ingest source with neither a -poster nor a -fanart sidecar detected
+        # (both slots None) is treated identically to "no 3rd element at all" —
+        # falls through to the single generate_jellyfin_images source of truth
+        # below, keeping that path (and every test that mocks
+        # generate_jellyfin_images directly, e.g. TestIngestFourMatrix) byte-
+        # /call-identical to before this fix.
+        source_media = (
+            raw_source_media
+            if raw_source_media and (raw_source_media.get('poster') or raw_source_media.get('fanart'))
+            else None
+        )
+        has_poster, has_fanart = _write_media_images(cover_fs, base_stem, meta, source_media)
+    else:
+        has_poster = has_fanart = False
 
     # 3) extrafanart — gated only on config key; per-movie dir already exists (no create_folder).
     # Stale samples from the previous run are cleaned first (whenever old_base is
@@ -1164,6 +1256,22 @@ def resolve_ingest_plan(
     `assets_mode='samples_only'` path). When `meta` is None, the computed
     cover_strategy is discarded and `('none',)` is returned instead — nothing
     to copy/download without any metadata to attach it to.
+
+    Curated -poster/-fanart passthrough (owner-approved fix, 2026-07-21):
+    action='ingest' only, when the cover strategy resolves to the local-copy
+    form (`('copy', cover_fs)`), the 3rd element is appended as
+    `('copy', cover_fs, {'poster': poster_fs, 'fanart': fanart_fs})` — the
+    source directory's OWN `{stem}-poster.*` / `{stem}-fanart.*` sidecars
+    (curated Jellyfin/Emby libraries ship both, distinct portrait/landscape
+    images), each `None` when absent. `_write_movie_assets` copies these
+    VERBATIM into the output `-poster`/`-fanart` slots instead of regenerating
+    them from whichever single image `find_cover_image` picked as the cover
+    (which previously discarded the curator's real poster — see plan-104
+    cover axis notes). `('none',)` is left untouched (no local cover at all →
+    nothing to copy). `action='rescrape'` never adds this 3rd element —
+    cover_strategy stays a 2-tuple there, so the scrape/rescrape write path
+    (`source_media is None` in `_write_movie_assets`) stays byte-identical to
+    before this fix.
     """
     nfo_path = Path(src_fs_path).with_suffix('.nfo')
     root = None
@@ -1180,7 +1288,19 @@ def resolve_ingest_plan(
         nfo_thumb = root.findtext('thumb') if valid_nfo else None
         cover_fs = VideoScanner().find_cover_image(src_fs_path, nfo_thumb=nfo_thumb)
         if cover_fs:
-            cover_strategy = ('copy', cover_fs)
+            src_dir = Path(src_fs_path).parent
+            stem = Path(src_fs_path).stem
+            poster_fs = next(
+                (str(p) for ext in IMAGE_EXTENSIONS
+                 if (p := src_dir / f"{stem}-poster{ext}").exists()),
+                None,
+            )
+            fanart_fs = next(
+                (str(p) for ext in IMAGE_EXTENSIONS
+                 if (p := src_dir / f"{stem}-fanart{ext}").exists()),
+                None,
+            )
+            cover_strategy = ('copy', cover_fs, {'poster': poster_fs, 'fanart': fanart_fs})
         elif valid_nfo:
             cover_strategy = ('none',)
         else:

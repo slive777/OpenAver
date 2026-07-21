@@ -586,6 +586,118 @@ class TestIngestFourMatrix:
 
 
 # ---------------------------------------------------------------------------
+# Owner-approved fix (2026-07-21): curated Jellyfin/Emby libraries ship BOTH a
+# distinct portrait `{num}-poster.*` and landscape `{num}-fanart.*` sidecar
+# (often no plain `{num}.jpg`). The pre-fix ingest path discarded the curated
+# poster: `_write_movie_assets` picked ONE image via `find_cover_image` as the
+# cover, then `generate_jellyfin_images(cover)` REGENERATED `-poster` by
+# cropping that cover and `-fanart` by copying it — throwing away the real
+# `-poster.jpg` from disk. Fix: `resolve_ingest_plan` detects both sidecars
+# and threads them through `cover_strategy`'s 3rd element; `_write_movie_assets`
+# copies each one VERBATIM (byte-identical) into the output slot instead.
+# ---------------------------------------------------------------------------
+
+_POSTER_MARKER_BYTES = b"\xff\xd8\xff\xe0POSTER-MARKER-PORTRAIT"
+_FANART_MARKER_BYTES = b"\xff\xd8\xff\xe0FANART-MARKER-LANDSCAPE"
+_SAME_NAME_COVER_MARKER_BYTES = b"\xff\xd8\xff\xe0SAME-NAME-COVER-MARKER"
+
+
+def _make_curated_jellyfin_source(
+    base: Path, name: str, num: str, *, with_nfo: bool, same_name_cover: bool = False,
+) -> Path:
+    """Curated Jellyfin/Emby layout: `{num}.mp4` + `{num}-poster.jpg` (portrait,
+    distinct bytes) + `{num}-fanart.jpg` (landscape, distinct bytes), optional
+    `.nfo`, optional same-name `{num}.jpg` cover (distinct bytes again so the
+    three images are never accidentally byte-equal to one another)."""
+    d = base / name
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{num}.mp4").write_bytes(b"FAKE-VIDEO-BYTES")
+    if with_nfo:
+        (d / f"{num}.nfo").write_text(_SIDECAR_NFO_XML.format(num=num), encoding="utf-8")
+    (d / f"{num}-poster.jpg").write_bytes(_POSTER_MARKER_BYTES)
+    (d / f"{num}-fanart.jpg").write_bytes(_FANART_MARKER_BYTES)
+    if same_name_cover:
+        (d / f"{num}.jpg").write_bytes(_SAME_NAME_COVER_MARKER_BYTES)
+    return d
+
+
+class TestIngestCuratedPosterFanartPassthrough:
+    """Owner-approved fix: ingest copies curator -poster/-fanart sidecars
+    VERBATIM instead of regenerating them from whichever image
+    find_cover_image happened to pick as the cover."""
+
+    def test_jellyfin_source_poster_and_fanart_copied_verbatim(
+        self, tmp_path, monkeypatch, client, parse_sse_events,
+    ):
+        """No same-name `{num}.jpg` → find_cover_image's L1.5 fallback picks
+        `-fanart` as the cover (fanart-before-poster priority, gallery_scanner.py
+        find_cover_image). Output `.jpg` (cover) must equal the source fanart
+        bytes; output `-poster.jpg` must equal the source POSTER bytes verbatim
+        (NOT a crop of the fanart — this is the bug being fixed); output
+        `-fanart.jpg` must equal the source fanart bytes verbatim."""
+        num = "JELLY-001"
+        src = _make_curated_jellyfin_source(tmp_path / "src", "movies", num, with_nfo=True)
+        db_path = tmp_path / "test.db"
+        config = _make_config(
+            [{"path": str(src), "output_path": "", "readonly": True}], tmp_path / "htmlout",
+        )
+        _wire(monkeypatch, config, db_path)
+        _run_generate(client, parse_sse_events)
+
+        movie_dir = _off_root(src, db_path) / num
+        assert (movie_dir / f"{num}.jpg").read_bytes() == _FANART_MARKER_BYTES, (
+            "cover must come from find_cover_image's existing -fanart-first priority"
+        )
+        assert (movie_dir / f"{num}-poster.jpg").read_bytes() == _POSTER_MARKER_BYTES, (
+            "poster must be the source's OWN curated poster, verbatim — not a crop of the cover"
+        )
+        assert (movie_dir / f"{num}-fanart.jpg").read_bytes() == _FANART_MARKER_BYTES
+
+    def test_same_name_cover_plus_poster_and_fanart_all_verbatim(
+        self, tmp_path, monkeypatch, client, parse_sse_events,
+    ):
+        """Same-name `{num}.jpg` present too → it wins as the cover (L1 beats
+        L1.5), but `-poster`/`-fanart` still come from their OWN sidecars,
+        verbatim — independent of which image became the cover."""
+        num = "JELLY-002"
+        src = _make_curated_jellyfin_source(
+            tmp_path / "src", "movies", num, with_nfo=True, same_name_cover=True,
+        )
+        db_path = tmp_path / "test.db"
+        config = _make_config(
+            [{"path": str(src), "output_path": "", "readonly": True}], tmp_path / "htmlout",
+        )
+        _wire(monkeypatch, config, db_path)
+        _run_generate(client, parse_sse_events)
+
+        movie_dir = _off_root(src, db_path) / num
+        assert (movie_dir / f"{num}.jpg").read_bytes() == _SAME_NAME_COVER_MARKER_BYTES
+        assert (movie_dir / f"{num}-poster.jpg").read_bytes() == _POSTER_MARKER_BYTES
+        assert (movie_dir / f"{num}-fanart.jpg").read_bytes() == _FANART_MARKER_BYTES
+
+    def test_only_same_name_cover_no_sidecars_still_generates(
+        self, tmp_path, monkeypatch, client, parse_sse_events,
+    ):
+        """No regression: a source with ONLY a same-name cover (no -poster/
+        -fanart sidecars at all) still gets poster/fanart GENERATED via
+        generate_jellyfin_images (mocked in _wire to write _FAKE_IMG_BYTES) —
+        exactly the pre-fix behaviour, untouched by this fix."""
+        num = "JELLY-003"
+        src = _make_ingest_source(tmp_path / "src", "movies", num, with_nfo=True, with_cover=True)
+        db_path = tmp_path / "test.db"
+        config = _make_config(
+            [{"path": str(src), "output_path": "", "readonly": True}], tmp_path / "htmlout",
+        )
+        _wire(monkeypatch, config, db_path)
+        _run_generate(client, parse_sse_events)
+
+        movie_dir = _off_root(src, db_path) / num
+        assert (movie_dir / f"{num}.jpg").read_bytes() == _FAKE_COVER_BYTES
+        assert (movie_dir / f"{num}-poster.jpg").read_bytes() == _FAKE_IMG_BYTES
+        assert (movie_dir / f"{num}-fanart.jpg").read_bytes() == _FAKE_IMG_BYTES
+
+
+# ---------------------------------------------------------------------------
 # Case 17: same-number across two sources → two distinct leaf subdirs
 # ---------------------------------------------------------------------------
 
