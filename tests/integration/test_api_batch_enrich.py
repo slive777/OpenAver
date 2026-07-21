@@ -747,6 +747,64 @@ class TestBatchEnrichReadonlyGuard:
         mock_produce.assert_called_once()
         assert "write_nfo" not in mock_produce.call_args.kwargs
 
+    # TASK-105-T9（BUG，PR#113 round 8 Codex thread `Sn2qv`）：唯讀分支的
+    # executor await（含 in-executor 前置如 resolve_ingest_plan）未被任何
+    # per-item try/except 隔離——單一唯讀項的例外會上傳批次層 try，`raise` 後
+    # SSE 生成器崩潰、整批掛掉（後續項與 done 全失）。故障注入：對其中一個唯讀
+    # 項的 resolve_ingest_plan 拋例外，斷言（a）該項回失敗結果項
+    # （success=False, reason='error'），（b）其後的可寫項與唯讀成功項仍完成
+    # （證明迴圈續跑，故障項故意不放最後一筆），（c）done 事件仍發出、計數正確。
+    # §7 mutation 自驗強制：見 task card。
+    def test_readonly_item_resolve_plan_raises_isolated_batch_continues(self, client, mocker):
+        """單一唯讀項 resolve_ingest_plan 拋例外 → 該項回失敗結果項（reason='error'），
+        同批其後的可寫項與唯讀成功項仍完成、done 仍發出（改前整批崩、無 done）。"""
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=self._readonly_config(),
+        )
+        mocker.patch("web.routers.scraper.enrich_single", return_value=_ok_result())
+        # 唯讀路由基座（owning/_produce_one/VideoRepository 預設）；
+        # resolve_ingest_plan 另行以 side_effect 覆寫（依 number 分流成功/拋例外）。
+        self._mock_readonly_routing(mocker)
+
+        def _plan_side_effect(fs_path, number, *args, **kwargs):
+            if number == "RO-FAIL":
+                raise RuntimeError("boom in resolve_ingest_plan")
+            return ({"number": number, "title": "T", "cover": ""}, ("none",))
+
+        mocker.patch(
+            "web.routers.scraper.resolve_ingest_plan",
+            side_effect=_plan_side_effect,
+        )
+
+        response = client.post("/api/batch-enrich", json={
+            "items": [
+                # 故障唯讀項置批首（非批尾）——證明例外未中斷迴圈：若置批尾，
+                # 改前的 bug 恰好也會讓「無後續項」看起來像通過。
+                {"file_path": "/tmp/ro_src/RO-FAIL.mp4", "number": "RO-FAIL"},
+                {"file_path": "/tmp/rw/RW-OK.mp4", "number": "RW-OK"},
+                {"file_path": "/tmp/ro_src/RO-OK.mp4", "number": "RO-OK"},
+            ],
+            "mode": "refresh_full",
+        })
+
+        assert response.status_code == 200
+        events = parse_sse(response.text)
+        by_number = {e["number"]: e for e in events if e["type"] == "result-item"}
+
+        # 故障項：隔離成失敗結果項，非整批崩
+        assert by_number["RO-FAIL"]["success"] is False
+        assert by_number["RO-FAIL"]["reason"] == "error"
+
+        # 其後兩項仍完成（證明迴圈續跑）
+        assert by_number["RW-OK"]["success"] is True
+        assert by_number["RO-OK"]["success"] is True
+
+        # done 仍發出、計數對稱
+        done_events = [e for e in events if e["type"] == "done"]
+        assert len(done_events) == 1
+        assert done_events[0]["summary"] == {"total": 3, "success": 2, "failed": 1}
+
 
 class TestBatchEnrichReadonlyCoverPreserveGate:
     """Codex PR#113 P2#3/P2#4（round 2，owner-confirmed 全面對齊）：batch readonly

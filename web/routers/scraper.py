@@ -937,56 +937,73 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                         has_servable_cover = compute_has_servable_cover(repo, uri, _ro_mappings)
                         return ('ok', (assets, meta, has_servable_cover))
 
-                    loop = asyncio.get_running_loop()
-                    status, payload = await loop.run_in_executor(None, _do_readonly)
-                    if status == 'ok':
-                        success_count += 1
-                        thumbnail_cache.invalidate(canonical)
-                        # nfo_written=True unconditionally: assets_mode='full' reaching
-                        # here means _write_movie_assets ran to completion (it raises
-                        # otherwise, caught above as 'error'), and the NFO write is
-                        # always attempted now (P1 revert, round-3 review 2026-07-21 —
-                        # write_nfo=false is rejected above, before this point).
-                        # has_servable_cover was computed INSIDE the executor closure
-                        # (compute_has_servable_cover: final DB re-read + disk verify,
-                        # Bug 1 fix feature/105) and carried out via payload — the DB
-                        # read is blocking and must not run in this async context.
-                        # reason mirrors non-readonly EnrichResult semantics
-                        # (core/enricher.py) so state-batch.js _resolveCardStatus
-                        # doesn't fall back to its success-implies-'hit' default —
-                        # an NFO-only ingest (no servable cover) reports 'no_cover',
-                        # so the frontend never builds a /api/gallery/thumb URL for a
-                        # cover that isn't servable.
-                        assets, item_meta, has_servable_cover = payload or ({}, {}, False)
-                        cover_written = bool(assets.get('cover_fs'))
-                        result_item = {
-                            'type': 'result-item', 'number': item.number, 'file_path': item.file_path,
-                            **asdict(enrich_success(
-                                nfo_written=True,
-                                cover_written=cover_written,
-                                extrafanart_written=len(assets.get('sample_fs', [])),
-                                fields_filled=_readonly_fields_filled(item_meta),
-                                source_used=item_meta.get('source', ''),
-                                has_servable_cover=has_servable_cover,
-                            )),
-                        }
-                        yield f"data: {json.dumps(result_item)}\n\n"
-                    else:
+                    try:
+                        loop = asyncio.get_running_loop()
+                        status, payload = await loop.run_in_executor(None, _do_readonly)
+                        if status == 'ok':
+                            success_count += 1
+                            thumbnail_cache.invalidate(canonical)
+                            # nfo_written=True unconditionally: assets_mode='full' reaching
+                            # here means _write_movie_assets ran to completion (it raises
+                            # otherwise, caught above as 'error'), and the NFO write is
+                            # always attempted now (P1 revert, round-3 review 2026-07-21 —
+                            # write_nfo=false is rejected above, before this point).
+                            # has_servable_cover was computed INSIDE the executor closure
+                            # (compute_has_servable_cover: final DB re-read + disk verify,
+                            # Bug 1 fix feature/105) and carried out via payload — the DB
+                            # read is blocking and must not run in this async context.
+                            # reason mirrors non-readonly EnrichResult semantics
+                            # (core/enricher.py) so state-batch.js _resolveCardStatus
+                            # doesn't fall back to its success-implies-'hit' default —
+                            # an NFO-only ingest (no servable cover) reports 'no_cover',
+                            # so the frontend never builds a /api/gallery/thumb URL for a
+                            # cover that isn't servable.
+                            assets, item_meta, has_servable_cover = payload or ({}, {}, False)
+                            cover_written = bool(assets.get('cover_fs'))
+                            result_item = {
+                                'type': 'result-item', 'number': item.number, 'file_path': item.file_path,
+                                **asdict(enrich_success(
+                                    nfo_written=True,
+                                    cover_written=cover_written,
+                                    extrafanart_written=len(assets.get('sample_fs', [])),
+                                    fields_filled=_readonly_fields_filled(item_meta),
+                                    source_used=item_meta.get('source', ''),
+                                    has_servable_cover=has_servable_cover,
+                                )),
+                            }
+                            yield f"data: {json.dumps(result_item)}\n\n"
+                        else:
+                            failed_count += 1
+                            # P2 review round 3 (FIX#5): canonicalize `reason` — only
+                            # 'hit'/'no_cover'/'not_found'/'error' are ever emitted, never
+                            # a raw internal status string. 'no_scrape' → 'not_found'
+                            # (mirrors core.enricher's own not_found reason value for the
+                            # same "couldn't find any data" condition — Codex PR#113
+                            # one-pass alignment); every other non-'ok' status ('error',
+                            # 'db_to_sidecar' [FIX#4], and the theoretically-unreachable
+                            # 'skip') collapses to 'error' — previously `reason = status`
+                            # would have leaked 'skip' verbatim if that dead path were
+                            # ever somehow hit.
+                            reason = 'not_found' if status == 'no_scrape' else 'error'
+                            result_item = {
+                                'type': 'result-item', 'number': item.number, 'file_path': item.file_path,
+                                **asdict(_readonly_enrich_failure(payload or '生成失敗', reason)),
+                            }
+                            yield f"data: {json.dumps(result_item)}\n\n"
+                    except Exception:
+                        # TASK-105-T9（BUG，PR#113 round 8 Codex thread `Sn2qv`）：唯讀分支
+                        # 補齊與可寫路徑（:1045 對應 except）同層的 per-item 隔離。narrow
+                        # try（:889，護 _produce_one）與 focal try（:914）之外的任何
+                        # in-executor 例外（如 resolve_ingest_plan）改前會經 await（原
+                        # :941）重拋、直上批次層 try（:803）→ raise → 整批 SSE 崩潰。此
+                        # except 把該唯讀項隔離成一筆失敗結果項，同批其他項照常完成。
+                        # except Exception（非 BaseException）：asyncio.CancelledError
+                        # 需正確上傳，不得被吞成假失敗項。
+                        logger.exception("batch_enrich readonly item %s 失敗", item.number)
                         failed_count += 1
-                        # P2 review round 3 (FIX#5): canonicalize `reason` — only
-                        # 'hit'/'no_cover'/'not_found'/'error' are ever emitted, never
-                        # a raw internal status string. 'no_scrape' → 'not_found'
-                        # (mirrors core.enricher's own not_found reason value for the
-                        # same "couldn't find any data" condition — Codex PR#113
-                        # one-pass alignment); every other non-'ok' status ('error',
-                        # 'db_to_sidecar' [FIX#4], and the theoretically-unreachable
-                        # 'skip') collapses to 'error' — previously `reason = status`
-                        # would have leaked 'skip' verbatim if that dead path were
-                        # ever somehow hit.
-                        reason = 'not_found' if status == 'no_scrape' else 'error'
                         result_item = {
                             'type': 'result-item', 'number': item.number, 'file_path': item.file_path,
-                            **asdict(_readonly_enrich_failure(payload or '生成失敗', reason)),
+                            **asdict(_readonly_enrich_failure("enrich 處理失敗，請查閱日誌", 'error')),
                         }
                         yield f"data: {json.dumps(result_item)}\n\n"
                     continue
