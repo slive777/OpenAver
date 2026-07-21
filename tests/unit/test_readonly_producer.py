@@ -2697,7 +2697,8 @@ class TestProduceSourceExceptionDoesNotAbort:
         call_count = [0]
 
         def fake_write(movie_dir, meta_arg, fd_arg, src_path, cfg, cover_strategy=None,
-                      assets_mode='full', old_base='', strm_mappings_getter=None):
+                      assets_mode='full', old_base='', strm_mappings_getter=None,
+                      write_nfo=True):
             call_count[0] += 1
             if call_count[0] == 2:
                 raise OSError("disk full")

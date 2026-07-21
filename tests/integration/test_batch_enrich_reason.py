@@ -158,7 +158,10 @@ class TestResultItemReadonlyStationReason:
             return_value=(Path("/out/ro_src-x/RO-001"), {"cover_fs": "", "sample_fs": [], "nfo_mtime": 1.0}),
         )
         mock_repo = mocker.patch("web.routers.scraper.VideoRepository")
-        mock_repo.return_value.get_by_path.return_value = MagicMock(size_bytes=10, mtime=1.0)
+        # cover_path="" explicit (FIX#1 has_servable_cover reads this) — a bare
+        # MagicMock() attribute is truthy by default, which would silently flip
+        # reason to 'hit' for the no-cover scenario this helper's default models.
+        mock_repo.return_value.get_by_path.return_value = MagicMock(size_bytes=10, mtime=1.0, cover_path="")
         return mock_produce
 
     # 歷史命名保留（TASK-104-T3 改寫，CD-104-10：不可為保綠而還原新碼）：唯讀項
@@ -182,21 +185,29 @@ class TestResultItemReadonlyStationReason:
         assert len(result_items) == 1
         assert result_items[0]["success"] is True
         assert result_items[0]["file_path"] == "/tmp/ro_src/RO-001.mp4"
-        # 改道成功 result-item 手組自 _do_readonly 的 'ok' 分支（非 asdict(EnrichResult)，
-        # 兩者不同源——見本 class docstring）。source_used 這組概念不適用於唯讀改道
-        # （沒有 search_jav source 可回）。reason 則自 Codex PR#113 P2 #2 起補上、鏡射
-        # 非唯讀 EnrichResult.reason 語意（hit/no_cover）——此 mock 的 cover_strategy=
-        # ('none',) + assets['cover_fs']='' → no_cover（不然 state-batch.js
-        # _resolveCardStatus 的 success-implies-'hit' 預設會誤報成 hit，見
+        # Codex PR#113 one-pass alignment（2026-07-21）：改道成功 result-item 現在
+        # spread 一個真 asdict(EnrichResult(...)) 進 SSE envelope（shape parity 用
+        # dataclass 結構保證，不再是手組 dict）——之前的斷言「source_used 這組概念
+        # 不適用於唯讀改道」已過期：EnrichResult 的 8 個欄位一律齊全，source_used
+        # 缺 'source' key 的 mock meta 落回 meta.get('source','') == ''，而非整個
+        # 缺席。reason 語意不變（hit/no_cover）——此 mock 的 cover_strategy=('none',)
+        # + assets['cover_fs']='' → no_cover（不然 state-batch.js _resolveCardStatus
+        # 的 success-implies-'hit' 預設會誤報成 hit，見
         # web/static/js/pages/scanner/state-batch.js:300）。
         assert result_items[0]["reason"] == "no_cover"
-        assert "source_used" not in result_items[0]
+        assert result_items[0]["source_used"] == ""
+        assert set(result_items[0]) >= {
+            'type', 'number', 'file_path', 'success', 'nfo_written', 'cover_written',
+            'extrafanart_written', 'fields_filled', 'source_used', 'error', 'reason',
+        }
         mock_produce.assert_called_once()
         assert mock_produce.call_args.kwargs["assets_mode"] == "full"
         # 唯讀項改走 resolve_ingest_plan/_produce_one，不觸及 enrich_single
         mock_enrich.assert_not_called()
 
-    # 失敗分支仍帶 reason（此處 'no_scrape'）——站台〔b〕reason 契約在失敗語意上維持成立。
+    # 失敗分支仍帶 reason（此處 'not_found'——Codex PR#113 one-pass alignment，對齊
+    # core.enricher 自己的 not_found reason 值，取代內部狀態碼 'no_scrape'）——
+    # 站台〔b〕reason 契約在失敗語意上維持成立。
     def test_readonly_item_no_scrape_reason_no_scrape(self, client, mocker):
         mocker.patch(
             "web.routers.scraper.load_config",
@@ -214,7 +225,11 @@ class TestResultItemReadonlyStationReason:
         result_items = [e for e in parse_sse(response.text) if e["type"] == "result-item"]
         assert len(result_items) == 1
         assert result_items[0]["success"] is False
-        assert result_items[0]["reason"] == "no_scrape"
+        assert result_items[0]["reason"] == "not_found"
+        assert set(result_items[0]) >= {
+            'type', 'number', 'file_path', 'success', 'nfo_written', 'cover_written',
+            'extrafanart_written', 'fields_filled', 'source_used', 'error', 'reason',
+        }
         mock_produce.assert_not_called()
         mock_enrich.assert_not_called()
 

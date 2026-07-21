@@ -615,6 +615,36 @@ class TestEnrichSingleReadonlyCoverPreserveGate:
         assert response.json()["success"] is True
         assert mock_produce.call_args.kwargs["cover_strategy"] == ("download", "http://x/new.jpg")
 
+    # ── P2 review round 3 (FIX#1): reason reflects a SERVABLE cover, not just
+    # this-call cover_written ────────────────────────────────────────────────
+
+    def test_fill_missing_with_existing_cover_reason_is_hit_despite_cover_written_false(
+        self, client, mocker,
+    ):
+        """同 test_fill_missing_with_existing_cover_preserves_cover 場景（放大鏡-
+        with-cover）：cover_strategy 被覆蓋為 ('none',) → cover_written=False，但
+        既有封面（existing.cover_path）仍可服務 → reason 必須是 'hit'（不是
+        'no_cover'），對齊 core.enricher.enrich_single 的 has_servable_cover 解耦
+        語意（enricher.py:589-604）。MUTATION LOCK：把 reason 改回
+        `'hit' if cover_written else 'no_cover'` 會讓本測試 RED。"""
+        mocker.patch("web.routers.scraper.load_config", return_value=_readonly_gallery_config("/tmp/ro_src"))
+        # produce_cover_fs="" — the mocked _produce_one echoes whatever fixture
+        # value it's given regardless of cover_strategy (it's a mock, not the
+        # real preserve logic), so this must be explicit to model "preserve
+        # gate suppressed the write" → assets['cover_fs'] empty → cover_written
+        # False (same as test_cover_preserved_skips_focal's setup).
+        mock_produce, _, _ = self._mock_routing(
+            mocker, existing_cover_path="file:///out/old.jpg", produce_cover_fs="",
+        )
+
+        response = self._post(client, mode="fill_missing", overwrite_existing=False)
+
+        data = response.json()
+        assert data["success"] is True
+        assert mock_produce.call_args.kwargs["cover_strategy"] == ("none",)
+        assert data["cover_written"] is False
+        assert data["reason"] == "hit"
+
     def test_gear_refresh_full_overwrite_true_writes_regardless_of_had_cover(self, client, mocker):
         """gear rescrape（refresh_full + overwrite=True，state-rescrape.js:404/408
         的實際送法）→ 即使既有 cover_path 也不 preserve，cover_strategy 原樣傳給
@@ -691,6 +721,48 @@ class TestEnrichSingleReadonlyCoverPreserveGate:
         mock_focal.assert_not_called()
 
 
+# ── P2 review round 3 (FIX#4): readonly + mode='db_to_sidecar' clean rejection ──
+# db_to_sidecar means "write current DB metadata to the SOURCE sidecar NFO, no
+# scrape" — for a readonly source the source sidecar cannot be written at all
+# (zero-write wall), and the output_dir NFO is auto-managed by the produce flow,
+# so this mode is not meaningful for readonly. A documented, defensible by-design
+# divergence: reject early with a clean, full-shape EnrichResult instead of
+# silently doing a full ingest/rescrape (the readonly branch otherwise ignores
+# request.mode entirely).
+
+
+class TestEnrichSingleReadonlyDbToSidecarRejection:
+    def test_db_to_sidecar_readonly_rejected_cleanly(self, client, mocker):
+        """MUTATION LOCK：拿掉這條 early-return 會讓 resolve_ingest_plan/_produce_one
+        被呼叫（本測試斷言它們不被呼叫），本測試會 RED。"""
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=_readonly_gallery_config("/tmp/ro_src"),
+        )
+        mocker.patch("web.routers.scraper.resolve_owning_output_root", return_value=_owning_stub())
+        mock_plan = mocker.patch("web.routers.scraper.resolve_ingest_plan")
+        mock_produce = mocker.patch("web.routers.scraper._produce_one")
+
+        response = client.post("/api/enrich-single", json={
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+            "mode": "db_to_sidecar",
+        })
+
+        data = response.json()
+        assert data["success"] is False
+        assert data["error"]
+        assert data["nfo_written"] is False
+        assert data["cover_written"] is False
+        assert data["extrafanart_written"] == 0
+        assert data["fields_filled"] == []
+        assert data["source_used"] == ""
+        assert data["reason"] == "error"
+        assert set(data) >= _ENRICH_RESULT_KEYS
+        mock_plan.assert_not_called()
+        mock_produce.assert_not_called()
+
+
 # ── TASK-104-T3 (CD-104-5): fetch-samples 唯讀來源改道 output_dir（samples_only）──
 
 
@@ -744,6 +816,12 @@ class TestFetchSamplesReadonlyGuard:
         data = response.json()
         assert data["success"] is True
         assert data["extrafanart_written"] == 2
+        # P2 review round 3 (FIX#2): fetch_samples_only NEVER sets `reason` (stays
+        # the EnrichResult dataclass default, None, on every path) — the readonly
+        # branch must match field-for-field, not invent 'hit'/'no_cover' values.
+        # MUTATION LOCK: reintroducing `reason='hit' if written else 'no_cover'`
+        # would make this RED.
+        assert data["reason"] is None
         mock_search.assert_called_once()
         mock_produce.assert_called_once()
         assert mock_produce.call_args.kwargs["assets_mode"] == "samples_only"
@@ -833,8 +911,19 @@ class TestFetchSamplesReadonlyGuard:
         assert data["success"] is True
         assert data["extrafanart_written"] == 0
 
-    # 無劇照可補（search_jav 回 None 或無 sample_images）→ 非錯誤，extrafanart_written=0
-    def test_readonly_no_samples_found_is_not_an_error(self, client, mocker):
+    # P2 review round 3 (FIX#3): split what used to be one combined test into
+    # the two branches core.enricher.fetch_samples_only itself distinguishes —
+    # TOTAL search failure (search_jav → None, enricher.py:715-718) is a real
+    # failure (success=False + error), NOT the same as "found metadata but it
+    # happens to have no sample_images" (still success=True/extrafanart_written=0,
+    # meta.get("sample_images", []) just defaults to []). The old combined test
+    # asserted success=True for BOTH cases, silently swallowing total search
+    # failures — this is an intentional contract fix, not a regression.
+    def test_readonly_search_jav_none_is_a_failure(self, client, mocker):
+        """search_jav 完全找不到資料（回 None）→ success=False + error 帶出，對齊
+        fetch_samples_only 的 total-not-found 分支（enricher.py:715-718）。
+        MUTATION LOCK：把 `if not meta:` 改回 `if not meta or not
+        meta.get("sample_images")` 會讓本測試 RED（success 會變回 True）。"""
         mocker.patch(
             "web.routers.scraper.load_config",
             return_value=_readonly_gallery_config("/tmp/ro_src"),
@@ -851,8 +940,38 @@ class TestFetchSamplesReadonlyGuard:
         })
 
         data = response.json()
+        assert data["success"] is False
+        assert data["error"]
+        assert data["extrafanart_written"] == 0
+        assert data["reason"] is None
+        mock_produce.assert_not_called()
+
+    def test_readonly_meta_found_but_no_sample_images_is_not_an_error(self, client, mocker):
+        """search_jav 有找到資料，但該筆沒有 sample_images → 非錯誤，
+        extrafanart_written=0，reason 保持 None（fetch_samples_only 從不設
+        reason）。"""
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=_readonly_gallery_config("/tmp/ro_src"),
+        )
+        mocker.patch(
+            "web.routers.scraper.resolve_owning_output_root", return_value=_owning_stub()
+        )
+        mocker.patch(
+            "web.routers.scraper.search_jav",
+            return_value={"number": "ABC-001", "source": "javbus", "sample_images": []},
+        )
+        mock_produce = mocker.patch("web.routers.scraper._produce_one")
+
+        response = client.post("/api/scraper/fetch-samples", json={
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+        })
+
+        data = response.json()
         assert data["success"] is True
         assert data["extrafanart_written"] == 0
+        assert data["reason"] is None
         mock_produce.assert_not_called()
 
     # 未設定媒體庫輸出路徑 → 結構化錯誤，不寫
@@ -900,6 +1019,255 @@ class TestFetchSamplesReadonlyGuard:
         assert response.json()["success"] is True
         mock_fetch.assert_called_once()
         mock_produce.assert_not_called()
+
+
+# ── Codex PR#113 one-pass alignment (2026-07-21): readonly endpoints now build
+# an ACTUAL EnrichResult dataclass and asdict() it, so their response shape is
+# structurally guaranteed to carry every field the non-readonly contract does
+# (success/nfo_written/cover_written/extrafanart_written/fields_filled/
+# source_used/error/reason) — success AND failure paths alike. This closes the
+# whole class of "readonly branch forgot field X" findings Codex peeled off one
+# at a time across earlier rounds, instead of relying on ad-hoc per-field tests.
+
+_ENRICH_RESULT_KEYS = {
+    'success', 'nfo_written', 'cover_written', 'extrafanart_written',
+    'fields_filled', 'source_used', 'error', 'reason',
+}
+
+
+class TestReadonlyEnrichResultShapeParity:
+    """enrich-single / fetch-samples readonly branches: full EnrichResult shape
+    on every return path (success + every failure early-return)."""
+
+    def test_enrich_single_success_has_full_shape(self, client, mocker):
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=_readonly_gallery_config("/tmp/ro_src"),
+        )
+        mocker.patch("web.routers.scraper.resolve_owning_output_root", return_value=_owning_stub())
+        mocker.patch(
+            "web.routers.scraper.resolve_ingest_plan",
+            return_value=({"number": "ABC-001", "title": "T", "cover": ""}, ("none",)),
+        )
+        mocker.patch(
+            "web.routers.scraper._produce_one",
+            return_value=(Path("/out/ro_src-abcdef/ABC-001"),
+                          {"cover_fs": "", "sample_fs": [], "nfo_mtime": 1.0}),
+        )
+        mock_repo = mocker.patch("web.routers.scraper.VideoRepository")
+        mock_repo.return_value.get_by_path.return_value = MagicMock(size_bytes=1000, mtime=1.0, cover_path="")
+
+        response = client.post("/api/enrich-single", json={
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+        })
+
+        data = response.json()
+        assert data["success"] is True
+        assert set(data) >= _ENRICH_RESULT_KEYS
+
+    def test_enrich_single_no_output_root_has_full_shape(self, client, mocker):
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=_readonly_gallery_config("/tmp/ro_src"),
+        )
+        mocker.patch(
+            "web.routers.scraper.resolve_owning_output_root",
+            return_value=_owning_stub(output_root="", output_uri=""),
+        )
+
+        response = client.post("/api/enrich-single", json={
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+        })
+
+        data = response.json()
+        assert data["success"] is False
+        assert set(data) >= _ENRICH_RESULT_KEYS
+
+    def test_enrich_single_no_meta_has_full_shape(self, client, mocker):
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=_readonly_gallery_config("/tmp/ro_src"),
+        )
+        mocker.patch("web.routers.scraper.resolve_owning_output_root", return_value=_owning_stub())
+        mocker.patch("web.routers.scraper.resolve_ingest_plan", return_value=(None, ("none",)))
+
+        response = client.post("/api/enrich-single", json={
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+        })
+
+        data = response.json()
+        assert data["success"] is False
+        assert set(data) >= _ENRICH_RESULT_KEYS
+
+    def test_enrich_single_exception_has_full_shape(self, client, mocker):
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=_readonly_gallery_config("/tmp/ro_src"),
+        )
+        mocker.patch("web.routers.scraper.resolve_owning_output_root", return_value=_owning_stub())
+        mocker.patch(
+            "web.routers.scraper.resolve_ingest_plan",
+            side_effect=RuntimeError("boom"),
+        )
+
+        response = client.post("/api/enrich-single", json={
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+        })
+
+        data = response.json()
+        assert data["success"] is False
+        assert set(data) >= _ENRICH_RESULT_KEYS
+
+    def test_fetch_samples_success_has_full_shape(self, client, mocker):
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=_readonly_gallery_config("/tmp/ro_src"),
+        )
+        mocker.patch("web.routers.scraper.resolve_owning_output_root", return_value=_owning_stub())
+        mocker.patch(
+            "web.routers.scraper.search_jav",
+            return_value={"number": "ABC-001", "source": "javbus", "sample_images": ["http://x/s1.jpg"]},
+        )
+        mock_repo = mocker.patch("web.routers.scraper.VideoRepository")
+        mock_repo.return_value.get_by_path.return_value = MagicMock(size_bytes=1000, mtime=1.0)
+        mocker.patch(
+            "web.routers.scraper._produce_one",
+            return_value=(Path("/out/ro_src-abcdef/ABC-001"), {"sample_fs": ["/out/x/fanart1.jpg"]}),
+        )
+
+        response = client.post("/api/scraper/fetch-samples", json={
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+        })
+
+        data = response.json()
+        assert data["success"] is True
+        assert set(data) >= _ENRICH_RESULT_KEYS
+        assert data["nfo_written"] is False
+        assert data["cover_written"] is False
+
+    def test_fetch_samples_no_output_root_has_full_shape(self, client, mocker):
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=_readonly_gallery_config("/tmp/ro_src"),
+        )
+        mocker.patch(
+            "web.routers.scraper.resolve_owning_output_root",
+            return_value=_owning_stub(output_root="", output_uri=""),
+        )
+
+        response = client.post("/api/scraper/fetch-samples", json={
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+        })
+
+        data = response.json()
+        assert data["success"] is False
+        assert set(data) >= _ENRICH_RESULT_KEYS
+
+    def test_fetch_samples_no_samples_found_has_full_shape(self, client, mocker):
+        """search_jav → None（total not-found，FIX#3）→ success=False, 但仍是
+        full EnrichResult shape。"""
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=_readonly_gallery_config("/tmp/ro_src"),
+        )
+        mocker.patch("web.routers.scraper.resolve_owning_output_root", return_value=_owning_stub())
+        mocker.patch("web.routers.scraper.search_jav", return_value=None)
+
+        response = client.post("/api/scraper/fetch-samples", json={
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+        })
+
+        data = response.json()
+        assert data["success"] is False
+        assert set(data) >= _ENRICH_RESULT_KEYS
+
+    def test_fetch_samples_meta_found_no_samples_has_full_shape(self, client, mocker):
+        """search_jav 找到資料但 sample_images 為空 → success=True，仍是 full
+        EnrichResult shape。"""
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=_readonly_gallery_config("/tmp/ro_src"),
+        )
+        mocker.patch("web.routers.scraper.resolve_owning_output_root", return_value=_owning_stub())
+        mocker.patch(
+            "web.routers.scraper.search_jav",
+            return_value={"number": "ABC-001", "source": "javbus", "sample_images": []},
+        )
+
+        response = client.post("/api/scraper/fetch-samples", json={
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+        })
+
+        data = response.json()
+        assert data["success"] is True
+        assert set(data) >= _ENRICH_RESULT_KEYS
+
+    def test_fetch_samples_exception_has_full_shape(self, client, mocker):
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=_readonly_gallery_config("/tmp/ro_src"),
+        )
+        mocker.patch("web.routers.scraper.resolve_owning_output_root", return_value=_owning_stub())
+        mocker.patch(
+            "web.routers.scraper.search_jav",
+            side_effect=RuntimeError("boom"),
+        )
+
+        response = client.post("/api/scraper/fetch-samples", json={
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+        })
+
+        data = response.json()
+        assert data["success"] is False
+        assert set(data) >= _ENRICH_RESULT_KEYS
+
+    # fields_filled: 對於帶有多個非空 meta 欄位的片，回傳非空清單（"what got written"
+    # 摘要）——readonly ingest/rescrape 沒有 _merge_meta 的部分合併概念，改列非空頂層
+    # metadata keys。
+    def test_enrich_single_fields_filled_non_empty(self, client, mocker):
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=_readonly_gallery_config("/tmp/ro_src"),
+        )
+        mocker.patch("web.routers.scraper.resolve_owning_output_root", return_value=_owning_stub())
+        mocker.patch(
+            "web.routers.scraper.resolve_ingest_plan",
+            return_value=(
+                {
+                    "number": "ABC-001", "title": "T", "cover": "",
+                    "actors": ["A"], "tags": ["t1"], "date": "2024-01-01",
+                    "maker": "M", "director": "D", "series": "S", "label": "L",
+                },
+                ("none",),
+            ),
+        )
+        mocker.patch(
+            "web.routers.scraper._produce_one",
+            return_value=(Path("/out/ro_src-abcdef/ABC-001"),
+                          {"cover_fs": "", "sample_fs": [], "nfo_mtime": 1.0}),
+        )
+        mock_repo = mocker.patch("web.routers.scraper.VideoRepository")
+        mock_repo.return_value.get_by_path.return_value = MagicMock(size_bytes=1000, mtime=1.0, cover_path="")
+
+        response = client.post("/api/enrich-single", json={
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+        })
+
+        data = response.json()
+        assert data["success"] is True
+        assert set(data["fields_filled"]) == {
+            "title", "actors", "tags", "date", "maker", "director", "series", "label",
+        }
 
 
 # ── F4: enrich endpoint 從 config["search"] 取 proxy_url ─────
@@ -2021,6 +2389,153 @@ class TestReadonlyRoutingE2E:
         mock_download.assert_not_called()
         assert hashlib.sha256(cover_fs_path.read_bytes()).hexdigest() == before_hash
 
+    # Codex PR#113 one-pass alignment (2026-07-21): write_nfo threaded through to
+    # _produce_one/_write_movie_assets — mirrors the non-readonly write_cover=false
+    # test above (write_nfo's priority over mode is the SAME contract shape).
+    # MUTATION LOCK: removing the `if write_nfo:` gate in _write_movie_assets makes
+    # this test RED (the second call would overwrite the NFO despite write_nfo=False,
+    # so before_hash/before_mtime would no longer match after_hash/after_mtime).
+    def test_magnifier_write_nfo_false_preserves_nfo_regardless_of_mode(
+        self, tmp_path, client, mocker, monkeypatch,
+    ):
+        """write_nfo=false → 即使 mode=refresh_full（理論上「一律寫」），NFO 仍必須
+        被保留（bytes + mtime 皆不變），DB nfo_mtime 沿用既有值，has_nfo 保持真值。"""
+        from core.path_utils import to_file_uri, uri_to_local_fs_path
+
+        src = tmp_path / "src"
+        src.mkdir()
+        video = src / "WNF-001.mp4"
+        video.write_bytes(b"FAKE-VIDEO")
+
+        db_path = self._init_db(tmp_path)
+        config = _e2e_off_config(src)
+        self._wire(mocker, monkeypatch, config, db_path)
+        canonical = to_file_uri(str(video))
+
+        mocker.patch(
+            "core.readonly_producer.search_jav",
+            return_value={
+                "number": "WNF-001", "title": "T", "cover": "http://x/c.jpg",
+                "actors": [], "tags": [], "date": "", "maker": "", "sample_images": [],
+            },
+        )
+        mocker.patch(
+            "core.readonly_producer.download_image", side_effect=_e2e_download_writes_url_bytes,
+        )
+        resp1 = client.post("/api/enrich-single", json={
+            "file_path": canonical, "number": "WNF-001", "readonly_action": "ingest",
+        })
+        assert resp1.json()["success"] is True
+        assert resp1.json()["nfo_written"] is True
+
+        repo = self._repo(db_path)
+        row1 = repo.get_by_path(canonical)
+        movie_dir = uri_to_local_fs_path(row1.output_dir, {})
+        nfo_path = Path(movie_dir) / "WNF-001.nfo"
+        assert nfo_path.exists()
+        before_hash = hashlib.sha256(nfo_path.read_bytes()).hexdigest()
+        before_mtime_ns = nfo_path.stat().st_mtime_ns
+        before_db_nfo_mtime = row1.nfo_mtime
+        assert before_db_nfo_mtime > 0
+
+        resp2 = client.post("/api/enrich-single", json={
+            "file_path": canonical, "number": "WNF-001", "readonly_action": "ingest",
+            "mode": "refresh_full", "overwrite_existing": True, "write_nfo": False,
+        })
+        assert resp2.json()["success"] is True
+        assert resp2.json()["nfo_written"] is False
+        assert nfo_path.stat().st_mtime_ns == before_mtime_ns
+        assert hashlib.sha256(nfo_path.read_bytes()).hexdigest() == before_hash
+
+        row2 = repo.get_by_path(canonical)
+        assert row2.nfo_mtime == before_db_nfo_mtime, (
+            "nfo_mtime must be PRESERVED (not clobbered to 0/None) when this run "
+            "didn't write an NFO — has_nfo derives from nfo_mtime > 0"
+        )
+
+    # Codex PR#113 one-pass alignment (2026-07-21): resolve_ingest_plan must set
+    # meta['source'] = 'nfo' for the NFO-sourced ingest branch so the readonly
+    # EnrichResult's source_used field isn't silently ''.
+    def test_magnifier_ingest_from_valid_nfo_reports_source_used_nfo(
+        self, tmp_path, client, mocker, monkeypatch,
+    ):
+        from core.path_utils import to_file_uri
+
+        src = tmp_path / "src"
+        src.mkdir()
+        video = src / "SU-001.mp4"
+        video.write_bytes(b"FAKE-VIDEO")
+        (src / "SU-001.nfo").write_text(
+            "<movie><num>SU-001</num><title>[SU-001]NFO Title</title></movie>",
+            encoding="utf-8",
+        )
+
+        db_path = self._init_db(tmp_path)
+        config = _e2e_off_config(src)
+        self._wire(mocker, monkeypatch, config, db_path)
+        mock_search = mocker.patch("core.readonly_producer.search_jav")
+        canonical = to_file_uri(str(video))
+
+        response = client.post("/api/enrich-single", json={
+            "file_path": canonical, "number": "SU-001", "readonly_action": "ingest",
+        })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["source_used"] == "nfo"
+        mock_search.assert_not_called()  # valid NFO → zero network, source is 'nfo' not a scraper name
+
+    # Codex PR#113 one-pass alignment (2026-07-21): write_nfo=false + write_cover
+    # (preserve_cover)=false together → neither sidecar written this run, only DB
+    # metadata upserted. Must not crash on empty `assets` (no 'nfo_mtime'/'cover_fs'
+    # keys the write path would normally add) — every downstream `.get()` needs a
+    # fallback.
+    def test_magnifier_write_nfo_false_and_write_cover_false_no_crash_db_only(
+        self, tmp_path, client, mocker, monkeypatch,
+    ):
+        from core.path_utils import to_file_uri, uri_to_local_fs_path
+
+        src = tmp_path / "src"
+        src.mkdir()
+        video = src / "DBO-001.mp4"
+        video.write_bytes(b"FAKE-VIDEO")
+
+        db_path = self._init_db(tmp_path)
+        config = _e2e_off_config(src)
+        self._wire(mocker, monkeypatch, config, db_path)
+        canonical = to_file_uri(str(video))
+
+        mocker.patch(
+            "core.readonly_producer.search_jav",
+            return_value={
+                "number": "DBO-001", "title": "T", "cover": "http://x/c.jpg",
+                "actors": [], "tags": [], "date": "", "maker": "", "sample_images": [],
+            },
+        )
+        mock_download = mocker.patch("core.readonly_producer.download_image")
+
+        response = client.post("/api/enrich-single", json={
+            "file_path": canonical, "number": "DBO-001", "readonly_action": "ingest",
+            "write_nfo": False, "write_cover": False,
+        })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["nfo_written"] is False
+        assert data["cover_written"] is False
+        mock_download.assert_not_called()
+
+        repo = self._repo(db_path)
+        row = repo.get_by_path(canonical)
+        assert row is not None  # DB metadata upsert still happened
+        assert row.title == "T"
+        assert row.nfo_mtime == 0.0  # brand-new row, no NFO ever written
+        movie_dir = uri_to_local_fs_path(row.output_dir, {})
+        assert not Path(movie_dir, "DBO-001.nfo").exists()
+        assert not Path(movie_dir, "DBO-001.jpg").exists()
+
     # ── 補劇照唯讀：只劇照落 output_dir，nfo/封面 stat+雜湊未變 ─────────────────
 
     def test_fetch_samples_readonly_only_touches_extrafanart(self, tmp_path, client, mocker, monkeypatch):
@@ -2301,8 +2816,10 @@ class TestReadonlyRoutingE2E:
         assert done["summary"] == {"total": 2, "success": 2, "failed": 0}
 
     def test_batch_enrich_readonly_item_no_scrape_when_no_nfo_and_search_fails(self, client, mocker):
-        """唯讀項無 .nfo 且 search_jav 回 None → no_scrape，failed_count+=1，
-        不中斷整批（另一唯讀項 stub 省略；此測試聚焦單一唯讀項失敗語意）。"""
+        """唯讀項無 .nfo 且 search_jav 回 None → reason='not_found'（Codex PR#113
+        one-pass alignment，對齊 core.enricher 自己的 not_found reason 值），
+        failed_count+=1，不中斷整批（另一唯讀項 stub 省略；此測試聚焦單一唯讀項
+        失敗語意）。"""
         config = {
             "gallery": {
                 "directories": [{"path": "/tmp/ro_src", "readonly": True}],
@@ -2333,7 +2850,7 @@ class TestReadonlyRoutingE2E:
         ]
         result_items = [e for e in events if e["type"] == "result-item"]
         assert result_items[0]["success"] is False
-        assert result_items[0]["reason"] == "no_scrape"
+        assert result_items[0]["reason"] == "not_found"
         mock_produce.assert_not_called()
 
     # ── URI round-trip 不變式：to_file_uri(uri_to_local_fs_path(u, pm), pm) == u ──

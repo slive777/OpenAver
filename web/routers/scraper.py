@@ -9,6 +9,7 @@ Scraper API 路由 - 單檔刮削
 import asyncio
 import json
 import os
+from dataclasses import asdict
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException
@@ -19,7 +20,7 @@ from typing import List, Literal, Optional
 from core.database import VideoRepository
 from core.db_inflow import try_inflow_upsert
 from core.focal_trigger import maybe_submit_video_focal
-from core.enricher import enrich_single, fetch_samples_only, resolve_nfo_cover_paths
+from core.enricher import EnrichResult, enrich_single, fetch_samples_only, resolve_nfo_cover_paths
 from core.organizer import organize_file
 from core.path_utils import to_file_uri, uri_to_fs_path, uri_to_local_fs_path, coerce_to_file_uri
 from core.scraper import (
@@ -74,6 +75,14 @@ _READONLY_SOURCE_ERROR_MSG = (
     "請改用掃描頁『產生』生成本地媒體庫，或確認你對此路徑有寫入權限。"
 )
 
+# P2 review round 3 (FIX#4)：readonly 來源 + mode='db_to_sidecar' 的拒絕訊息（單一
+# 真理來源；enrich-single 與 batch 的 _do_readonly 共用）。db_to_sidecar 意指「把 DB
+# 現有 metadata 寫回來源 sidecar NFO、不刮網」——唯讀來源零寫入牆下，來源 sidecar 本來
+# 就不可寫；output_dir 的 NFO 又是產生流程自動管理，故此 mode 對唯讀來源無意義。
+_READONLY_DB_TO_SIDECAR_ERROR_MSG = (
+    "唯讀來源不支援 db_to_sidecar（產物 NFO 由產生流程自動管理，來源零寫入）"
+)
+
 
 def _readonly_source_error(file_path: str) -> Optional[dict]:
     """唯讀來源 guard：只依 file_path 判斷所屬來源是否唯讀（readonly）。
@@ -103,6 +112,19 @@ def _readonly_source_error(file_path: str) -> Optional[dict]:
     if is_path_readonly(coerce_to_file_uri(file_path, _path_mappings), _prefixes, _writable):
         return {"success": False, "error": _READONLY_SOURCE_ERROR_MSG}
     return None
+
+
+# Codex PR#113 P4 one-pass alignment (2026-07-21): readonly ingest/rescrape
+# writes the whole meta wholesale (no _merge_meta partial-diff concept the
+# way non-readonly enrich_single has), so there is no equivalent "fields the
+# scrape supplemented" diff to report. Listing the non-empty top-level
+# metadata keys is a reasonable "what got written" summary for the
+# fields_filled slot of the EnrichResult shape.
+_READONLY_FIELDS_FILLED_KEYS = ('title', 'actors', 'tags', 'date', 'maker', 'director', 'series', 'label')
+
+
+def _readonly_fields_filled(meta: dict) -> List[str]:
+    return [k for k in _READONLY_FIELDS_FILLED_KEYS if meta.get(k)]
 
 
 @router.post("/scrape-single")
@@ -396,8 +418,33 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
     owning = resolve_owning_output_root(canonical, config)
     if owning is not None:
         source, output_root, output_uri = owning
+        # Codex PR#113 one-pass alignment (2026-07-21): readonly branch now returns
+        # the ACTUAL EnrichResult dataclass shape (asdict'd) on every path — success
+        # AND failure — so the frontend badge/fly-in UI keyed off nfo_written/
+        # cover_written/fields_filled/source_used/reason gets the same contract
+        # whether the file came from a writable or readonly source (closes the
+        # whole class of partial-shape divergences Codex peeled off one at a time).
+        # P2 review round 3 (FIX#4): mode='db_to_sidecar' means "write current DB
+        # metadata to the SOURCE sidecar NFO, no scrape" — for a readonly source
+        # the source sidecar cannot be written at all (zero-write wall), and the
+        # output_dir NFO is auto-managed by the produce flow (resolve_ingest_plan/
+        # _produce_one), so this mode has no meaningful readonly behaviour. Reject
+        # early — before resolve_ingest_plan/_produce_one — with a clean, full-shape
+        # EnrichResult rather than silently doing a full ingest/rescrape instead
+        # (this branch otherwise ignores request.mode entirely).
+        if request.mode == 'db_to_sidecar':
+            return asdict(EnrichResult(
+                success=False, nfo_written=False, cover_written=False,
+                extrafanart_written=0, fields_filled=[], source_used='',
+                error=_READONLY_DB_TO_SIDECAR_ERROR_MSG,
+                reason='error',
+            ))
         if not output_root:
-            return {"success": False, "error": "未設定媒體庫輸出路徑"}
+            return asdict(EnrichResult(
+                success=False, nfo_written=False, cover_written=False,
+                extrafanart_written=0, fields_filled=[], source_used="",
+                error="未設定媒體庫輸出路徑", reason="error",
+            ))
         try:
             action = request.readonly_action or 'ingest'
             scraper_data = None
@@ -411,7 +458,11 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
                 action=action, proxy_url=proxy_url, scraper_data=scraper_data, source=request.source,
             )
             if not meta:
-                return {"success": False, "error": "找不到可用的番號資料"}
+                return asdict(EnrichResult(
+                    success=False, nfo_written=False, cover_written=False,
+                    extrafanart_written=0, fields_filled=[], source_used="",
+                    error="找不到可用的番號資料", reason="error",
+                ))
             repo = VideoRepository()
             existing = repo.get_by_path(canonical)
             # Codex PR#113 P2#3（round 2，owner-confirmed 全面對齊）：readonly enrich
@@ -433,23 +484,32 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
                 "size": existing.size_bytes if existing else os.path.getsize(fs_path),
                 "mtime": existing.mtime if existing else os.path.getmtime(fs_path),
             }
-            # _produce_one now returns (movie_dir, assets) — CD-104-5 P2 review
-            # (2026-07-21): the frontend enrich success handlers key badge/fly-in
-            # UI off nfo_written/cover_written (EnrichResult shape), which the bare
-            # `{"success": True}` this branch used to return never carried. In full
-            # mode reaching this line always means the NFO was written
-            # (_write_movie_assets raises before returning otherwise) — nfo_written
-            # is unconditionally True here; cover_written reflects whether the
-            # cover step actually produced a file (cover_strategy=('none',) or a
+            # _produce_one now returns (movie_dir, assets). write_nfo threaded from
+            # the request (Codex PR#113 P1 one-pass alignment) — mirrors non-readonly
+            # enrich_single's own write_nfo flag; previously this branch always wrote
+            # the NFO regardless of the request flag. cover_written reflects whether
+            # the cover step actually produced a file (cover_strategy=('none',) or a
             # failed copy/download both leave assets['cover_fs'] == '').
             _, assets = _produce_one(
                 repo, source, config.get("scraper", {}), file_info=file_info,
                 meta=meta, cover_strategy=cover_strategy, assets_mode='full',
                 existing=existing, output_root=output_root, output_uri=output_uri,
                 allocated_this_run=set(), path_mappings=path_mappings,
+                write_nfo=request.write_nfo,
             )
             thumbnail_cache.invalidate(canonical)
             cover_written = bool(assets.get('cover_fs'))
+            # Codex PR#113 P2 review round 3: `reason` must reflect whether a
+            # SERVABLE cover exists, not just whether THIS call wrote one —
+            # mirrors core.enricher.enrich_single's own decoupling (enricher.py
+            # :589-604, has_servable_cover based on a final DB+disk re-check).
+            # A fill_missing/overwrite=false pass on a video that already has a
+            # cover hits preserve_cover=True → cover_strategy=('none',) →
+            # cover_written=False, but the EXISTING cover (DB row, re-read
+            # above into `existing`) is still fully servable — reason must stay
+            # 'hit' or the scanner fly-in/badge (state-batch.js keys off
+            # status==='hit') wrongly suppresses for a preserve-cover pass.
+            has_servable_cover = bool(assets.get('cover_fs')) or bool(existing and existing.cover_path)
             # Codex PR#113 P2#4（round 2）：對齊 core.enricher.enrich_single:528-547
             # ——只在「本次實際寫入新封面內容」時才作廢舊手動焦點、再排新的背景偵測。
             # preserve_cover=True 時 cover_strategy=('none',) 不產出檔案，
@@ -468,14 +528,23 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
                     )
                 except Exception:
                     logger.warning("readonly enrich focal 排程失敗（不影響改道結果）", exc_info=True)
-            return {
-                "success": True,
-                "nfo_written": True,
-                "cover_written": cover_written,
-            }
+            return asdict(EnrichResult(
+                success=True,
+                nfo_written=bool(request.write_nfo),
+                cover_written=cover_written,
+                extrafanart_written=len(assets.get('sample_fs', [])),
+                fields_filled=_readonly_fields_filled(meta),
+                source_used=meta.get('source', ''),
+                error=None,
+                reason='hit' if has_servable_cover else 'no_cover',
+            ))
         except Exception:
             logger.exception("enrich_single_endpoint readonly 改道失敗")
-            return {"success": False, "error": "enrich 處理失敗，請查閱日誌"}
+            return asdict(EnrichResult(
+                success=False, nfo_written=False, cover_written=False,
+                extrafanart_written=0, fields_filled=[], source_used="",
+                error="enrich 處理失敗，請查閱日誌", reason="error",
+            ))
 
     # CD-62-4 分裂陷阱智慧防呆：refresh_full + overwrite=false 時，若這組設定不會寫出任何
     # sidecar（NFO/cover）卻仍 _db_upsert，就是純分裂。一個 sidecar「會寫」需 write 旗標開 + 檔案缺
@@ -557,7 +626,6 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
         # double-encode 砍錯 hash（PR #60 Codex P2）。
         if result.success:
             thumbnail_cache.invalidate(coerce_to_file_uri(request.file_path))  # uri-no-reverse: coerce_to_file_uri forward URI build, D2 complement
-        from dataclasses import asdict
         return asdict(result)
     except Exception:
         logger.exception("enrich_single_endpoint 失敗")
@@ -586,12 +654,41 @@ def fetch_samples_endpoint(req: FetchSamplesRequest) -> dict:
     owning = resolve_owning_output_root(canonical, config)
     if owning is not None:
         source, output_root, output_uri = owning
+        # Codex PR#113 one-pass alignment (2026-07-21): mirror core.enricher.
+        # fetch_samples_only's own EnrichResult field-for-field — nfo_written/
+        # cover_written are always False here (samples-only never touches NFO or
+        # cover), fields_filled is always [] (no metadata merge happens).
         if not output_root:
-            return {"success": False, "error": "未設定媒體庫輸出路徑", "extrafanart_written": 0}
+            return asdict(EnrichResult(
+                success=False, nfo_written=False, cover_written=False,
+                extrafanart_written=0, fields_filled=[], source_used="",
+                error="未設定媒體庫輸出路徑", reason="error",
+            ))
         try:
             meta = search_jav(req.number, source="auto", proxy_url=proxy_url)
-            if not meta or not meta.get("sample_images"):
-                return {"success": True, "extrafanart_written": 0}
+            # P2 review round 3 (FIX#2/FIX#3): mirror core.enricher.fetch_samples_only
+            # field-for-field. That function NEVER sets `reason` (EnrichResult's
+            # dataclass default, None, on every path — success, file-not-found,
+            # meta-not-found alike) and distinguishes a TOTAL search failure
+            # (search_jav found nothing at all, enricher.py:715-718 → success=False
+            # + error) from "found metadata but it has no sample_images to
+            # download" (not an error — meta.get("sample_images", []) just
+            # defaults to [], nothing to write, success=True/extrafanart_written=0).
+            # The old `not meta or not meta.get(...)` conflated both into one
+            # success=True branch, silently swallowing total search failures.
+            if not meta:
+                return asdict(EnrichResult(
+                    success=False, nfo_written=False, cover_written=False,
+                    extrafanart_written=0, fields_filled=[], source_used="",
+                    error=f"找不到 {req.number} 的資料", reason=None,
+                ))
+            if not meta.get("sample_images"):
+                return asdict(EnrichResult(
+                    success=True, nfo_written=False, cover_written=False,
+                    extrafanart_written=0, fields_filled=[],
+                    source_used=meta.get('source', ''),
+                    error=None, reason=None,
+                ))
             fs_path = uri_to_local_fs_path(req.file_path, path_mappings)
             repo = VideoRepository()
             existing = repo.get_by_path(canonical)
@@ -614,10 +711,24 @@ def fetch_samples_endpoint(req: FetchSamplesRequest) -> dict:
                 existing=existing, output_root=output_root, output_uri=output_uri,
                 allocated_this_run=set(), path_mappings=path_mappings,
             )
-            return {"success": True, "extrafanart_written": len(assets.get('sample_fs', []))}
+            written = len(assets.get('sample_fs', []))
+            return asdict(EnrichResult(
+                success=True, nfo_written=False, cover_written=False,
+                extrafanart_written=written, fields_filled=[],
+                source_used=meta.get('source', ''), error=None,
+                reason=None,
+            ))
         except Exception:
             logger.exception("fetch_samples_endpoint readonly 改道失敗")
-            return {"success": False, "error": "fetch_samples 處理失敗，請查閱日誌", "extrafanart_written": 0}
+            # fetch_samples_only never sets reason='error' either (it has no
+            # top-level exception boundary of its own — stays the dataclass
+            # default None on every path), so this router-level catch-all
+            # matches with reason=None too (FIX#2 field-for-field parity).
+            return asdict(EnrichResult(
+                success=False, nfo_written=False, cover_written=False,
+                extrafanart_written=0, fields_filled=[], source_used="",
+                error="fetch_samples 處理失敗，請查閱日誌", reason=None,
+            ))
 
     # uri-no-reverse: comparison-only (DB LIKE prefix), inner kept bare per TASK-91-T3 inner/outer analysis
     folder_uri_prefix = to_file_uri(os.path.dirname(uri_to_fs_path(req.file_path)), path_mappings) + "/"
@@ -633,7 +744,6 @@ def fetch_samples_endpoint(req: FetchSamplesRequest) -> dict:
             proxy_url=proxy_url,
             path_mappings=path_mappings,
         )
-        from dataclasses import asdict
         return asdict(result)
     except Exception:
         logger.exception("fetch_samples_endpoint 失敗")
@@ -709,6 +819,14 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                 canonical = coerce_to_file_uri(item.file_path, _ro_mappings)
                 if is_path_readonly(canonical, _ro_prefixes, _ro_writable):
                     def _do_readonly(itm=item, uri=canonical):
+                        # P2 review round 3 (FIX#4): same db_to_sidecar rejection as
+                        # enrich_single_endpoint's readonly branch (see that branch's
+                        # comment) — placed before resolve_owning_output_root so it
+                        # short-circuits regardless of output_dir configuration.
+                        # BatchEnrichRequest has no per-item mode override, so this
+                        # is checked once against the whole-batch `request.mode`.
+                        if request.mode == 'db_to_sidecar':
+                            return ('db_to_sidecar', _READONLY_DB_TO_SIDECAR_ERROR_MSG)
                         owning = resolve_owning_output_root(uri, config)
                         if owning is None:
                             return ('skip', None)  # 理論不達（上面 is_path_readonly 已判真）
@@ -743,16 +861,19 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                         try:
                             # _produce_one now returns (movie_dir, assets) — payload
                             # (P3 review 2026-07-21) carries assets back out of the
-                            # executor so the 'ok' branch below can surface
-                            # nfo_written/cover_written on the result-item, same as
-                            # the non-readonly EnrichResult shape the frontend
-                            # (state-batch.js) already keys its badge/fly-in
-                            # animation off of.
+                            # executor so the 'ok' branch below can surface the full
+                            # EnrichResult shape (Codex PR#113 one-pass alignment) on
+                            # the result-item, same as the non-readonly EnrichResult
+                            # shape the frontend (state-batch.js) already keys its
+                            # badge/fly-in animation off of. write_nfo threaded from
+                            # the batch request (mirrors enrich-single's own flag —
+                            # previously this branch always wrote the NFO regardless).
                             _, assets = _produce_one(
                                 repo, ro_source, config.get("scraper", {}), file_info=file_info, meta=meta,
                                 cover_strategy=cs, assets_mode='full', existing=existing,
                                 output_root=out_root, output_uri=out_uri,
                                 allocated_this_run=set(), path_mappings=_ro_mappings,
+                                write_nfo=request.write_nfo,
                             )
                         except Exception:
                             logger.exception("batch_enrich readonly item %s 失敗", itm.number)
@@ -778,17 +899,25 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                                     "batch_enrich readonly item %s focal 排程失敗（不影響結果）",
                                     itm.number, exc_info=True,
                                 )
-                        return ('ok', assets)
+                        # had_cover carried out in payload (not just used for the
+                        # preserve_cover gate above) — the 'ok' branch outside this
+                        # closure needs it to compute has_servable_cover for `reason`
+                        # (P2 review round 3), and `existing` itself is local to this
+                        # executor closure / not accessible after run_in_executor returns.
+                        return ('ok', (assets, meta, had_cover))
 
                     loop = asyncio.get_running_loop()
                     status, payload = await loop.run_in_executor(None, _do_readonly)
                     if status == 'ok':
                         success_count += 1
                         thumbnail_cache.invalidate(canonical)
-                        # nfo_written unconditionally True: assets_mode='full' reaching
-                        # here means _write_movie_assets already wrote the NFO
-                        # successfully (it raises otherwise, caught above as 'error').
-                        assets = payload or {}
+                        # nfo_written = bool(request.write_nfo): assets_mode='full'
+                        # reaching here means _write_movie_assets ran to completion
+                        # (it raises otherwise, caught above as 'error') — when
+                        # write_nfo was requested the NFO write itself is what
+                        # ran-to-completion means; when write_nfo=False no NFO write
+                        # was attempted at all (Codex PR#113 one-pass alignment).
+                        assets, item_meta, had_cover = payload or ({}, {}, False)
                         cover_written = bool(assets.get('cover_fs'))
                         # Codex PR#113 P2 #2: mirror non-readonly EnrichResult.reason
                         # semantics (core/enricher.py:603) so state-batch.js
@@ -797,17 +926,52 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                         # ingest (no cover) would otherwise be misreported as
                         # 'hit', causing the frontend to build a /api/gallery/thumb
                         # URL for a cover that was never written.
+                        # P2 review round 3: `reason` must reflect a SERVABLE cover
+                        # (this-call write OR an existing DB row cover_path), not
+                        # just this-call cover_written — same has_servable_cover
+                        # decoupling as enrich-single (see that branch's comment) /
+                        # core.enricher.enrich_single (enricher.py:589-604). had_cover
+                        # was computed inside the executor closure (before _produce_one
+                        # ran) from the pre-write DB row and carried out via payload
+                        # (preserve-cover means that row's cover_path is untouched by
+                        # this call, so it's still what's servable now).
+                        has_servable_cover = cover_written or had_cover
                         result_item = {
                             'type': 'result-item', 'number': item.number, 'file_path': item.file_path,
-                            'success': True,
-                            'nfo_written': True,
-                            'cover_written': cover_written,
-                            'reason': 'hit' if cover_written else 'no_cover',
+                            **asdict(EnrichResult(
+                                success=True,
+                                nfo_written=bool(request.write_nfo),
+                                cover_written=cover_written,
+                                extrafanart_written=len(assets.get('sample_fs', [])),
+                                fields_filled=_readonly_fields_filled(item_meta),
+                                source_used=item_meta.get('source', ''),
+                                error=None,
+                                reason='hit' if has_servable_cover else 'no_cover',
+                            )),
                         }
                         yield f"data: {json.dumps(result_item)}\n\n"
                     else:
                         failed_count += 1
-                        yield f"data: {json.dumps({'type': 'result-item', 'number': item.number, 'file_path': item.file_path, 'success': False, 'error': payload or '生成失敗', 'reason': status})}\n\n"
+                        # P2 review round 3 (FIX#5): canonicalize `reason` — only
+                        # 'hit'/'no_cover'/'not_found'/'error' are ever emitted, never
+                        # a raw internal status string. 'no_scrape' → 'not_found'
+                        # (mirrors core.enricher's own not_found reason value for the
+                        # same "couldn't find any data" condition — Codex PR#113
+                        # one-pass alignment); every other non-'ok' status ('error',
+                        # 'db_to_sidecar' [FIX#4], and the theoretically-unreachable
+                        # 'skip') collapses to 'error' — previously `reason = status`
+                        # would have leaked 'skip' verbatim if that dead path were
+                        # ever somehow hit.
+                        reason = 'not_found' if status == 'no_scrape' else 'error'
+                        result_item = {
+                            'type': 'result-item', 'number': item.number, 'file_path': item.file_path,
+                            **asdict(EnrichResult(
+                                success=False, nfo_written=False, cover_written=False,
+                                extrafanart_written=0, fields_filled=[], source_used='',
+                                error=payload or '生成失敗', reason=reason,
+                            )),
+                        }
+                        yield f"data: {json.dumps(result_item)}\n\n"
                     continue
 
                 try:
@@ -851,7 +1015,6 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                             path_mappings=_ro_mappings,
                         ),
                     )
-                    from dataclasses import asdict
                     result_dict = asdict(result)
                     if result.success:
                         success_count += 1
