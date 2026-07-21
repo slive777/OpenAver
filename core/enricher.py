@@ -6,13 +6,19 @@ import os
 import shutil
 import time
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
 from core.config import _STEM_IMAGE_MODES
 from core.database import Video, VideoRepository, get_connection
-from core.focal_trigger import maybe_submit_video_focal
+from core.enrich_contract import (
+    EnrichResult,
+    compute_has_servable_cover,
+    effective_original_title,
+    enrich_success,
+    should_preserve_cover,
+)
+from core.focal_trigger import schedule_focal_after_cover_write
 from core.logger import get_logger
 from core.nfo_updater import parse_nfo
 from core.organizer import crop_to_poster, download_image, find_subtitle_files, generate_nfo
@@ -27,16 +33,8 @@ VALID_MODES = {"fill_missing", "db_to_sidecar", "refresh_full"}
 _FILL_MISSING_REQUIRED = ["title", "actresses", "maker", "director", "series", "label", "tags", "release_date"]
 
 
-@dataclass
-class EnrichResult:
-    success: bool
-    nfo_written: bool
-    cover_written: bool
-    extrafanart_written: int
-    fields_filled: List[str]
-    source_used: str
-    error: Optional[str]
-    reason: Optional[str] = None
+# EnrichResult 定義已遷入 core.enrich_contract（中性合約模組），此處 re-export
+# 保持全庫既有 `from core.enricher import EnrichResult` 匯入零改動（feature/105）。
 
 
 def _nfo_to_meta(root: ET.Element) -> dict:
@@ -227,13 +225,15 @@ def _write_cover(
     write_cover: bool,
     overwrite_existing: bool,
 ) -> bool:
+    # write_cover=False 先短路，避免對「不寫封面」的片多做一次 os.path.exists
+    # （逐位元組對齊 T2 前行為）；exists/overwrite 保留判斷仍走共用 should_preserve_cover。
     if not write_cover:
         return False
     if not cover_url:
         return False
 
     cover_path = str(Path(fs_path).with_suffix(".jpg"))
-    if os.path.exists(cover_path) and not overwrite_existing:
+    if should_preserve_cover(write_cover, overwrite_existing, os.path.exists(cover_path)):
         return False
 
     return download_image(cover_url, cover_path)
@@ -441,6 +441,12 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
     existing_record = repo.get_by_path(path_uri)
     preserved_user_tags = existing_record.user_tags if existing_record else []
 
+    # Bug 2 (feature/105): synthesize the EFFECTIVE original_title ONCE, before any
+    # write branch, so both _write_nfo (<originaltitle>) and _db_upsert consume the
+    # same preserved value. A refresh_full re-scrape returning an empty original_title
+    # must NOT clobber the existing DB/NFO value (mirrors user_tags/cover preserve).
+    meta['original_title'] = effective_original_title(meta, existing_record)
+
     cover_url = meta.get("cover_url", "")
 
     nfo_written = False
@@ -532,18 +538,10 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
         # 不進此塊，manual 值原樣保留。video_path_uri 須與 _db_upsert 寫入的 key 一致
         # （:190 / :594 to_file_uri(fs_path_for_db)），複用上方已算過的 path_uri。
         if cover_written:
-            repo.reset_focal_to_auto(path_uri)
-            # db-ns-ok: fs_path_for_db, DB round-trip value, no reverse mapping applied
-            maybe_submit_video_focal(
-                number,
-                meta.get("maker"),
-                to_file_uri(fs_path_for_db if fs_path_for_db is not None else fs_path),
-                local_cover,
-                # 99b-T2 caller #4：與 _db_upsert:619-620 計算 cover_uri 同式
-                # （to_file_uri(local_cover_path, path_mappings)），local_cover
-                # 即該處的 local_cover_path。cover_written=True 時 local_cover
-                # 必非空，仍加 `if local_cover else ""` 防未來 gate 條件漂移。
-                cover_path_uri=to_file_uri(local_cover, path_mappings) if local_cover else "",
+            # TASK-105-T6: reset+submit 收斂至共用 helper（video_uri=path_uri，
+            # 與 reset 現用值同源、byte-identical，見 TASK-105-T6.md 等值證明）。
+            schedule_focal_after_cover_write(
+                repo, path_uri, number, meta.get("maker"), local_cover, path_mappings
             )
 
     # nfo_mtime 獨立更新：不論 mode/source，只要 NFO 存在就同步 DB
@@ -566,41 +564,22 @@ def enrich_single(  # ranker-invalidate-ok: (only updates nfo_mtime, not a corpu
             if conn:
                 conn.close()
 
-    # reason=hit 必須是「前端 /thumb 真的服務得到」。/thumb（scanner.py get_thumb）
-    # 有兩道 gate，兩道都過才服務得到，reason=hit 必須同時鏡射：
-    #   gate 1（scanner.py:1276-1277）：DB cover_path 非空，否則 404。
-    #   gate 2（scanner.py:1290/1300/1332-1333）：cache miss 或 disabled 時要讀
-    #     實體封面檔（uri_to_local_fs_path 反解後 generate / fallback FileResponse），
-    #     檔不在 → 404。（cache hit 於 :1263 直接 serve WebP 不碰實體檔，見下方 false-negative）
-    # 故不能只查 DB cover_path 非空（只鏡射 gate 1，Codex PR #98 P2）：DB 有記
-    # cover_path、但該實體封面檔已被刪/移／path_mapping 失效解不到時，/thumb 於
-    # cache miss/disabled 會 404 → 飛入破圖，卻誤計 hit。
-    # 亦不能用磁碟 sidecar 真相（Path(fs_path).with_suffix('.jpg')）判：磁碟有 .jpg
-    # 但 DB cover_path 空（散落 sidecar 未入 DB／db·nfo-sourced 命中跳過 :514
-    # _db_upsert）會漏 gate 1（Codex P1，v0.11.9）。故重讀 DB 最終 cover_path，
-    # 並用 /thumb 同一組解析（uri_to_local_fs_path + 同 path_mappings）確認實體檔存在。
-    # 此重讀在所有寫檔 + _db_upsert + nfo_mtime UPDATE 之後（同步、已 commit），
-    # 故看到的是最終 DB 狀態。
-    # 已知並接受的 false-negative（安全方向）：cache hit（stale WebP 已快取）但實體
-    # 封面檔已刪時，/thumb 仍能從快取 serve（:1263），此處卻判 no_cover。代價是「服務
-    # 得到的封面不飛入」（不破圖）；反向 false-positive（判 hit 卻 404 破圖）代價更高，
-    # 故偏保守。
+    # reason=hit 的「/thumb 兩道 gate + 磁碟複驗 + false-negative 取捨」完整理由已
+    # 遷入 core.enrich_contract.compute_has_servable_cover 的 docstring（feature/105，
+    # 三呼叫點共用同一份磁碟真相）。此重讀在所有寫檔 + _db_upsert + nfo_mtime UPDATE
+    # 之後（同步、已 commit），故看到的是最終 DB 狀態。
     # db-ns-ok: fs_path_for_db, DB round-trip key（同 :437 path_uri）
-    final_row = repo.get_by_path(to_file_uri(fs_path_for_db))
-    cover_uri = final_row.cover_path if final_row else ''
-    has_servable_cover = bool(cover_uri) and os.path.exists(
-        uri_to_local_fs_path(cover_uri, path_mappings)
+    has_servable_cover = compute_has_servable_cover(
+        repo, to_file_uri(fs_path_for_db), path_mappings
     )
 
-    return EnrichResult(
-        success=True,
+    return enrich_success(
         nfo_written=nfo_written,
         cover_written=cover_written,
         extrafanart_written=extrafanart_written,
         fields_filled=fields_filled,
         source_used=source_used,
-        error=None,
-        reason=("hit" if has_servable_cover else "no_cover"),
+        has_servable_cover=has_servable_cover,
     )
 
 
@@ -726,14 +705,13 @@ def fetch_samples_only(
         _db_upsert_samples_only(repo, fs_path_for_db, written_uris)
 
     logger.info("[fetch_samples_only] %s: %d samples downloaded", number, len(written_uris))
-    return EnrichResult(
-        success=True,
+    return enrich_success(
         nfo_written=False,
         cover_written=False,
         extrafanart_written=len(written_uris),
         fields_filled=[],
         source_used=meta.get("source", ""),
-        error=None,
+        reason=None,
     )
 
 

@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.7] - 2026-07-22
+
+本版是一次「內部收斂＋順手修 bug」（feature/105）：把唯讀來源與一般來源在「刮完之後怎麼記帳、怎麼回報」這層——原本被抄成四份、每次改都漏抄一份的判斷邏輯——收斂成**單一實作、兩邊共用**，並替它上了機械守衛（債長不回來）。**絕大部分對使用者隱形**，實際會被感受到的是下面四個修復。
+
+### Fixed
+- **唯讀片不再誤顯示破圖**：唯讀來源的片在重刮／補缺時，若輸出夾的封面圖檔已被刪除、或跨機器路徑對不上（DB 還記著、磁碟其實沒有），以前會誤判「有封面」、讓介面拉出一張不存在的縮圖（破圖）。本版改為**實際檢查磁碟上封面在不在**，與一般來源完全一致。
+- **重刮不再清空原文標題**：一般來源的片重刮時，若這次線上刮不到原文標題（originaltitle），以前會把**既有的原文標題清空**（資料庫與 NFO 都被清）。本版改為刮不到就**保留既有值**（此修復唯讀側早已有、這次補回一般側）。
+- **某些片重刮不再失敗**：承上，在「既有原文標題本來就是空的 + 這次也刮不到」的特定組合下，重刮會在產生 NFO 時崩潰、該片補料失敗。本版一併修好（原文標題一律以空字串處理，不會變成無效值）。
+- **批次補料單片出錯不再拖垮整批**：批次補料時，若某一片在前置解析階段就出錯，以前會**整批掛掉**；本版改為**只有該片失敗、其餘照常完成**（與一般片的逐片錯誤隔離一致）。
+
+### Internal
+純內部工程，對使用者無感、零行為變更（除上述四個 bugfix）：
+- **第②層「寫後記帳＋回報」收斂**：把「有沒有可服務的封面／要不要保留既有封面／原文標題保留／回報 `hit`/`no_cover`/`not_found`/`error`」這四類判斷，從 enricher 一份＋唯讀三分支各一份（共四份手抄）收斂成單一實作。本該與一般來源相同的部分抽進新的中性模組 `core/enrich_contract.py`（兩邊都 import、無循環依賴）；唯讀限定的部分（not-found 樁列、失敗形狀）收進 `core/readonly_producer.py`；封面寫入後的焦點記帳三份拷貝收進 `core/focal_trigger.py`。刻意的唯讀／非唯讀差異（唯讀恆寫 NFO、`fields_filled` 語意）以**參數**表達、不開第二套實作。
+- **防漂移雙機械閘**：新增 AST 靜態結構守衛（鎖「每個判斷只有一份、呼叫端都改呼叫同一份、舊手抄指紋不得復生」）＋ 唯讀/非唯讀 contract-parity 測試（等價輸入下兩路徑可比欄位相等 + 全欄位歸類 fail-loud，未來新增欄位漏鏡射即報紅）。這是「一勞永逸」的核心——讓第②層不會再長出第五份拷貝。
+- 第①層（拿哪份 metadata／封面）與第③層（實際寫檔演算法）維持**刻意分歧、完全不動**（唯讀 local-first 零連網 vs 一般 DB→NFO→scraper merge；就地補寫 vs 整體 regenerate 進輸出夾）。
+
+### 測試
+- 全套 pytest **5603 passed, 1 skipped**（unit + integration，排除 smoke／e2e）＋ `ruff check .` 綠 ＋ `npm run lint` 綠（static_guard 1031／css-guard／cjk_guard；i18n 102 缺 key 為既往版本 milestone 同步項、非本版）。
+- 來源金絲雀：**8 源全 PASS**（javbus／jav321／heyzo／d2pass／avsox／fc2／javdb／dmm，pre-merge live）。
+- 新增守衛：AST 結構守衛（`test_enrich_contract_structure.py`）＋ contract-parity（`test_readonly_enrich_contract_parity.py`）＋ 六支共用 helper/建構器 unit（`test_enrich_contract.py`）＋ focal 收斂 unit（`test_focal_trigger.py`）；兩支防漂移守衛皆做 mutation 自驗（拿掉呼叫／植入舊指紋／回退 helper → 對應守衛真的變紅）。
+- 每 task 獨立 Sonnet review（T7 抓到負向鎖指紋硬編變數名 `existing`、漏掉主 target 用的 `existing_record` 近空殼，已放寬為錨定 attribute shape）＋ grok 整支 branch 第二意見（**提 1／採納 1／假陽性 0／未查證 0／增量 1**）：抓到本 branch 引入、四層 review 皆漏的回歸——原文標題保留 helper 在「DB 既有值為 SQL NULL＋這次刮不到」時回傳 `None`（而非 `''`），會讓 NFO 產生崩潰；已修為回傳恆為字串。
+- 本版無新增 i18n key（純後端 + 守衛）。
+
 ## [0.12.6] - 2026-07-21
 
 本版讓「唯讀來源」（通常是雲端分享盤）變聰明了：如果那個盤本身已經是整理好的媒體庫（影片旁邊就附了 `.nfo` 和封面圖），OpenAver 會**直接讀用它現成的資料**，不再無視它、傻傻地重新上網刮一次——更快、更省流量、也更準（撞號抓錯的問題在已整理的庫直接消失）。同時，唯讀來源的片現在也能用放大鏡補料、齒輪重刮、補劇照，而且產物一律落在獨立輸出夾，**絕不會寫回你的唯讀盤**。

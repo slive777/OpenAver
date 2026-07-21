@@ -14,6 +14,7 @@ import os
 from core.database import VideoRepository
 from core.focal import requires_face_detection, submit_focal
 from core.logger import get_logger
+from core.path_utils import to_file_uri
 
 logger = get_logger(__name__)
 
@@ -58,3 +59,24 @@ def maybe_submit_video_focal(number, maker, video_path_uri, cover_fs_path, *, co
     except Exception:
         logger.exception("maybe_submit_video_focal 排程失敗（不影響呼叫端流程）: %s", video_path_uri)
         return
+
+
+def schedule_focal_after_cover_write(repo, video_uri, number, maker, cover_fs, path_mappings):
+    """本次實際寫入新封面後的 focal 記帳（三站共用；98b/99a/113-R2 同形狀）。
+
+    helper 僅保證一條不變式：reset_focal_to_auto 必在 maybe_submit_video_focal
+    之前（先清舊 manual 值、再讓 gate 判是否排 worker，避免有碼片極端時序下短暫
+    殘留 manual）。以下**刻意留呼叫端**、helper 不介入：
+      - try/except（readonly 兩站有、enricher 無）；
+      - repo lifecycle（enricher 傳既有 repo、readonly 傳 fresh VideoRepository()，
+        「致命細節 1」——不可重用綁在 user_tags 分支內的 repo）；
+      - `if cover_written:` / `if assets.get('cover_fs'):` guard（只在寫了封面時呼叫）；
+      - batch 必須在 run_in_executor closure 內呼叫（reset/submit 皆阻塞 DB，不可搬回
+        event loop 裸呼叫，async-offload 守衛）。
+    helper 不建 repo、不包 try/except、不判 cover guard。
+    """
+    repo.reset_focal_to_auto(video_uri)
+    maybe_submit_video_focal(
+        number, maker, video_uri, cover_fs,
+        cover_path_uri=to_file_uri(cover_fs, path_mappings) if cover_fs else "",
+    )

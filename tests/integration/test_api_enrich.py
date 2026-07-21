@@ -636,7 +636,18 @@ class TestEnrichSingleReadonlyCoverPreserveGate:
         # 的一般情境）維持原 had_cover=True 行為；cover_file_exists=False 用來
         # 模擬 round-6 回報的 bug 場景（DB row 殘留、輸出檔已被刪除/對應不到）。
         mocker.patch("web.routers.scraper.os.path.exists", return_value=cover_file_exists)
-        mock_focal = mocker.patch("web.routers.scraper.maybe_submit_video_focal")
+        # feature/105 patch-target migration (CD-105-8): has_servable_cover 的磁碟
+        # 複驗隨 compute_has_servable_cover 從 web.routers.scraper 搬進
+        # core.enrich_contract；顯式 patch 該命名空間讓「哪個 mock 餵 has_servable_cover」
+        # 自我文件化（os.path 為共享 module singleton，機械上與上一行同物件，
+        # 兩者一致即可）。cover_file_exists 同時餵 had_cover（scraper）與
+        # has_servable_cover（enrich_contract）兩道 gate。
+        mocker.patch("core.enrich_contract.os.path.exists", return_value=cover_file_exists)
+        # TASK-105-T6: reset+submit 收斂進 schedule_focal_after_cover_write（住
+        # core.focal_trigger）；maybe_submit_video_focal 的實際呼叫端隨之從
+        # web.routers.scraper 移到 core.focal_trigger（bare name 在該模組 global
+        # namespace 內解析），patch target 需對齊使用端（gotchas-backend.md §1）。
+        mock_focal = mocker.patch("core.focal_trigger.maybe_submit_video_focal")
         return mock_produce, mock_repo, mock_focal
 
     def _post(self, client, **overrides):
@@ -713,6 +724,29 @@ class TestEnrichSingleReadonlyCoverPreserveGate:
         assert response.json()["success"] is True
         assert mock_produce.call_args.kwargs["cover_strategy"] == ("none",)
 
+    # ── feature/105 T2 AC4 delta：移除唯讀 mode=='fill_missing' 顯式閘後，唯讀保留
+    # 政策與非唯讀 core.enricher._write_cover 完全 mode-agnostic 對齊。refresh_full
+    # + overwrite=false + 既有可服務封面 → 保留（改前 mode 閘 False 會靜默覆蓋）。
+    # MUTATION SELF-CHECK：把 mode 閘加回（preserve = (not write_cover) or
+    # (request.mode == 'fill_missing' and not overwrite and had_cover)）會讓本測試
+    # RED（cover_strategy 變回 ('download', ...)）——已於實作時驗證。─────────────
+    def test_refresh_full_no_overwrite_existing_cover_preserves_mode_agnostic(
+        self, client, mocker,
+    ):
+        """AC4：refresh_full + overwrite=false + 既有封面（磁碟檔在）→ preserve
+        （('none',)），與 enricher _write_cover 同輸入
+        should_preserve_cover(write_cover=True, overwrite=False, cover_exists=True)
+        =True 一致。"""
+        mocker.patch("web.routers.scraper.load_config", return_value=_readonly_gallery_config("/tmp/ro_src"))
+        mock_produce, _, _ = self._mock_routing(
+            mocker, existing_cover_path="file:///out/old.jpg", cover_file_exists=True,
+        )
+
+        response = self._post(client, mode="refresh_full", overwrite_existing=False)
+
+        assert response.json()["success"] is True
+        assert mock_produce.call_args.kwargs["cover_strategy"] == ("none",)
+
     # ── P2 review round 3 (FIX#1): reason reflects a SERVABLE cover, not just
     # this-call cover_written ────────────────────────────────────────────────
 
@@ -742,6 +776,29 @@ class TestEnrichSingleReadonlyCoverPreserveGate:
         assert mock_produce.call_args.kwargs["cover_strategy"] == ("none",)
         assert data["cover_written"] is False
         assert data["reason"] == "hit"
+
+    # ── feature/105 AC2 (Bug 1 fix): reason must be 'no_cover' when the DB has a
+    # residual cover_path but the physical cover file is gone on disk. Before the
+    # fix enrich-single only checked the DB row → wrongly reported 'hit' → the
+    # frontend built a /api/gallery/thumb URL that 404s (broken fly-in image).
+    # MUTATION LOCK: revert enrich-single's has_servable_cover to the DB-only
+    # `bool(assets.get('cover_fs')) or bool(existing and existing.cover_path)` and
+    # this test goes RED (reason flips back to 'hit'). ────────────────────────
+    def test_residual_cover_path_but_file_deleted_reason_is_no_cover(self, client, mocker):
+        mocker.patch("web.routers.scraper.load_config", return_value=_readonly_gallery_config("/tmp/ro_src"))
+        # DB row still has cover_path, but the output cover file no longer exists on
+        # disk (cover_file_exists=False) and this call wrote nothing (produce_cover_fs="").
+        mock_produce, _, _ = self._mock_routing(
+            mocker, existing_cover_path="file:///out/old.jpg",
+            produce_cover_fs="", cover_file_exists=False,
+        )
+
+        response = self._post(client, mode="fill_missing", overwrite_existing=False)
+
+        data = response.json()
+        assert data["success"] is True
+        assert data["cover_written"] is False
+        assert data["reason"] == "no_cover"
 
     def test_gear_refresh_full_overwrite_true_writes_regardless_of_had_cover(self, client, mocker):
         """gear rescrape（refresh_full + overwrite=True，state-rescrape.js:404/408
@@ -2321,6 +2378,8 @@ class TestReadonlyRoutingE2E:
             "source": "javlibrary",
             "detail_url": "https://www.javlibrary.com/ja/?v=abcxyz",
             "mode": "refresh_full",
+            # overwrite_existing:True 對齊真實齒輪重刮（state-rescrape.js:404）；feature/105 AC4 後 refresh_full 保留政策綁 overwrite_existing
+            "overwrite_existing": True,
         })
         assert resp2.json()["success"] is True
 
@@ -3106,3 +3165,78 @@ class TestReadonlyRoutingE2E:
                 f"round-trip 不變式破了: fs_path={fs_path!r} pm={pm!r} canonical={canonical!r} -> "
                 f"{round_tripped_fs!r} -> {to_file_uri(round_tripped_fs, pm)!r}"
             )
+
+
+# ── AC3 (feature/105 Bug 2): 非唯讀 refresh_full 重刮回空 → 保留既有原文標題 ─────
+
+class TestEnrichSinglePreservesOriginalTitle:
+    """AC3 (feature/105 T3, Bug 2): a non-readonly `refresh_full` re-scrape whose
+    source returned an EMPTY original_title must NOT clobber the existing value —
+    BOTH the written NFO <originaltitle> AND the DB row must preserve it.
+
+    Drives the REAL enrich_single with a REAL VideoRepository(temp db) + REAL
+    generate_nfo (only search_jav is mocked). Before the fix, both were cleared to
+    '' (the injection line `meta['original_title'] = effective_original_title(...)`
+    is the load-bearing preserve — remove it and this test goes RED)."""
+
+    def _scraper_data_without_original_title(self, number="TEST-001"):
+        # 重刮這次來源未回傳 original_title（key 缺 → _scraper_to_meta 落 ''）
+        return {
+            "number": number,
+            "title": "新しいタイトル",
+            "actors": ["女優A"],
+            "cover": "",
+            "date": "2024-01-01",
+            "maker": "SOD",
+            "director": "監督",
+            "series": "シリーズ",
+            "label": "LABEL",
+            "tags": ["タグ"],
+            "sample_images": [],
+            "duration": 120,
+            "url": "https://www.javbus.com/TEST-001",
+        }
+
+    def test_refresh_full_empty_rescrape_preserves_original_title_in_nfo_and_db(
+        self, tmp_path, mocker
+    ):
+        import xml.etree.ElementTree as ET
+        from core.database import init_db, VideoRepository, Video
+        from core.enricher import enrich_single
+        from core.path_utils import to_file_uri
+
+        db_path = tmp_path / "ac3.db"
+        init_db(db_path)
+        repo = VideoRepository(db_path)
+
+        video_file = tmp_path / "TEST-001.mp4"
+        video_file.write_bytes(b"\x00")
+        path_uri = to_file_uri(str(video_file))
+
+        # 既有 DB row 帶非空 original_title（對應 NFO 也將被寫）
+        repo.upsert(Video(
+            path=path_uri, number="TEST-001", title="既存タイトル",
+            original_title="既存の原題",
+        ))
+
+        # enrich_single 內部 new VideoRepository() → 指向同一 temp DB
+        mocker.patch("core.enricher.VideoRepository", return_value=repo)
+        mocker.patch(
+            "core.enricher.search_jav",
+            return_value=self._scraper_data_without_original_title(),
+        )
+
+        result = enrich_single(
+            file_path=path_uri, number="TEST-001", mode="refresh_full",
+            write_nfo=True, write_cover=False, write_extrafanart=False,
+        )
+        assert result.success, result.error
+
+        # DB row 保留既有原文標題
+        assert repo.get_by_path(path_uri).original_title == "既存の原題"
+
+        # 寫出的 NFO <originaltitle> 保留既有原文標題（改前皆清成 ''）
+        nfo_file = video_file.with_suffix(".nfo")
+        assert nfo_file.exists(), "NFO 應被寫出"
+        root = ET.parse(nfo_file).getroot()
+        assert root.findtext("originaltitle") == "既存の原題"

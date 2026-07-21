@@ -2410,7 +2410,7 @@ class TestEnrichFocalTrigger:
             patch("core.enricher.generate_nfo", return_value=True),
             patch("core.enricher.download_image", return_value=True),
             patch("core.enricher.find_subtitle_files", return_value=[]),
-            patch("core.enricher.maybe_submit_video_focal") as mock_submit,
+            patch("core.focal_trigger.maybe_submit_video_focal") as mock_submit,
         ):
             mock_repo = MagicMock()
             mock_existing = MagicMock()
@@ -2492,7 +2492,7 @@ class TestEnrichPreserveCropModeE2E:
             patch("core.enricher.generate_nfo", return_value=True),
             patch("core.enricher.download_image", return_value=True),
             patch("core.enricher.find_subtitle_files", return_value=[]),
-            patch("core.enricher.maybe_submit_video_focal"),
+            patch("core.focal_trigger.maybe_submit_video_focal"),
             patch("core.similar.ranker_cache.SimilarRankerCache"),
         ):
             from core.enricher import enrich_single
@@ -2566,7 +2566,7 @@ class TestEnrichFocalReset:
             patch("core.enricher.generate_nfo", return_value=True),
             patch("core.enricher.download_image", return_value=True),
             patch("core.enricher.find_subtitle_files", return_value=[]),
-            patch("core.enricher.maybe_submit_video_focal", side_effect=_capture_submit),
+            patch("core.focal_trigger.maybe_submit_video_focal", side_effect=_capture_submit),
             patch("core.similar.ranker_cache.SimilarRankerCache"),
         ):
             from core.enricher import enrich_single
@@ -2599,7 +2599,7 @@ class TestEnrichFocalReset:
             patch("core.enricher.generate_nfo", return_value=True),
             patch("core.enricher.download_image", return_value=True),
             patch("core.enricher.find_subtitle_files", return_value=[]),
-            patch("core.enricher.maybe_submit_video_focal") as mock_submit,
+            patch("core.focal_trigger.maybe_submit_video_focal") as mock_submit,
             patch("core.similar.ranker_cache.SimilarRankerCache"),
         ):
             from core.enricher import enrich_single
@@ -2672,7 +2672,7 @@ class TestEnrichFocalCoverPathUriNamespace:
             patch("core.enricher.generate_nfo", return_value=True),
             patch("core.enricher.download_image", side_effect=self._write_fake_cover),
             patch("core.enricher.find_subtitle_files", return_value=[]),
-            patch("core.enricher.maybe_submit_video_focal", side_effect=_capture_submit),
+            patch("core.focal_trigger.maybe_submit_video_focal", side_effect=_capture_submit),
             patch("core.similar.ranker_cache.SimilarRankerCache"),
         ):
             from core.enricher import enrich_single
@@ -2732,7 +2732,7 @@ class TestEnrichFocalCoverPathUriNamespace:
             patch("core.enricher.generate_nfo", return_value=True),
             patch("core.enricher.download_image", side_effect=self._write_fake_cover),
             patch("core.enricher.find_subtitle_files", return_value=[]),
-            patch("core.enricher.maybe_submit_video_focal", side_effect=_capture_submit),
+            patch("core.focal_trigger.maybe_submit_video_focal", side_effect=_capture_submit),
             patch("core.similar.ranker_cache.SimilarRankerCache"),
         ):
             from core.enricher import enrich_single

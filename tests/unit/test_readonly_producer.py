@@ -1830,10 +1830,10 @@ class TestUpsertDbFullModeExistingPreservation:
         as '' → on-disk data loss + NFO/DB drift. This drives the FULL _produce_one
         path with REAL generate_nfo and asserts the written file itself.
 
-        MUTATION LOCK: removing the `meta['original_title'] = existing.original_title`
-        synthesis in _produce_one turns the NFO assertion below RED (DB stays green
-        via _upsert_db's own preserve — which is exactly why the NFO assertion is
-        the load-bearing one here)."""
+        MUTATION LOCK: removing the `meta['original_title'] = effective_original_title(...)`
+        helper call (the synthesis in _produce_one) turns the NFO assertion below RED
+        (DB stays green via _upsert_db's own effective_original_title call — which is
+        exactly why the NFO assertion is the load-bearing one here)."""
         import xml.etree.ElementTree as ET
         from core.readonly_producer import _produce_one
         from core.database import Video
@@ -5775,3 +5775,108 @@ class TestResolveOwningOutputRoot:
         result = resolve_owning_output_root(canonical, config)
         assert result is not None
         assert result[0].path == str(good)
+
+
+class TestReadonlyStubNotFound:
+    """TASK-105-T5 (T2-a): _readonly_stub_not_found(repo, uri, number, fs_path)
+    collapses the 3 not-found stub call sites (S1 scraper.py enrich-single,
+    S2 scraper.py batch, S3 readonly_producer.py bulk produce_source) into one
+    helper. Core invariant: insert_if_ignore MUST run before
+    update_scrape_attempted_at (the latter is a bare UPDATE...WHERE path=?
+    that silently no-ops without a row — see video.py:1144-1167)."""
+
+    def test_insert_before_update_ordering(self):
+        """MUTATION LOCK: insert_if_ignore call index must be < update_scrape_attempted_at
+        call index in repo.mock_calls. Reversing the two calls in the helper body
+        must turn this RED."""
+        from core.readonly_producer import _readonly_stub_not_found
+
+        repo = MagicMock()
+        _readonly_stub_not_found(repo, "file:///src/videos/X-001.mp4", "X-001", "/src/videos/X-001.mp4")
+
+        call_names = [c[0] for c in repo.mock_calls]
+        insert_idx = call_names.index("insert_if_ignore")
+        update_idx = call_names.index("update_scrape_attempted_at")
+        assert insert_idx < update_idx
+
+    def test_video_three_field_lock(self):
+        """Video(path=uri, number=number, title=basename(fs_path)) — other
+        fields fall back to dataclass defaults (cover_path='', output_dir='',
+        sample_images=[])."""
+        from core.database import Video
+        from core.readonly_producer import _readonly_stub_not_found
+
+        repo = MagicMock()
+        _readonly_stub_not_found(
+            repo, "file:///src/videos/NOTFOUND-001.mp4", "NOTFOUND-001", "/src/videos/NOTFOUND-001.mp4",
+        )
+
+        repo.insert_if_ignore.assert_called_once()
+        inserted = repo.insert_if_ignore.call_args[0][0]
+        assert isinstance(inserted, Video)
+        assert inserted.path == "file:///src/videos/NOTFOUND-001.mp4"
+        assert inserted.number == "NOTFOUND-001"
+        assert inserted.title == "NOTFOUND-001.mp4"  # basename, WITH extension
+        assert inserted.cover_path == ''
+        assert inserted.output_dir == ''
+        assert inserted.sample_images == []
+
+    def test_uri_consistency_between_insert_and_update(self):
+        """The uri passed to insert_if_ignore's Video.path must be the exact
+        same value passed as update_scrape_attempted_at's first positional
+        arg — guards against a future accidental fs_path/canonical mismatch."""
+        from core.readonly_producer import _readonly_stub_not_found
+
+        repo = MagicMock()
+        uri = "file:///src/videos/X-001.mp4"
+        _readonly_stub_not_found(repo, uri, "X-001", "/src/videos/X-001.mp4")
+
+        inserted = repo.insert_if_ignore.call_args[0][0]
+        update_call_args = repo.update_scrape_attempted_at.call_args[0]
+        assert inserted.path == uri
+        assert update_call_args[0] == uri
+
+    def test_update_scrape_attempted_at_uses_current_time(self):
+        repo = MagicMock()
+        from core.readonly_producer import _readonly_stub_not_found
+
+        before = time.time()
+        _readonly_stub_not_found(repo, "file:///x.mp4", "X-001", "/x.mp4")
+        after = time.time()
+
+        ts = repo.update_scrape_attempted_at.call_args[0][1]
+        assert before <= ts <= after
+
+
+class TestReadonlyEnrichFailure:
+    """TASK-105-T5 (T2-b): _readonly_enrich_failure(error, reason=None) -> EnrichResult
+    collapses scraper.py's 9 failure EnrichResult constructions (F1-F9) into one
+    shape builder. All 6 constant fields are fixed; only error/reason vary."""
+
+    def test_shape_lock_default_reason_none(self):
+        from core.enrich_contract import EnrichResult
+        from core.readonly_producer import _readonly_enrich_failure
+
+        result = _readonly_enrich_failure("msg")
+
+        assert isinstance(result, EnrichResult)
+        assert result.success is False
+        assert result.nfo_written is False
+        assert result.cover_written is False
+        assert result.extrafanart_written == 0
+        assert result.fields_filled == []
+        assert result.source_used == ''
+        assert result.error == "msg"
+        assert result.reason is None
+
+    def test_reason_passthrough_not_found(self):
+        from core.readonly_producer import _readonly_enrich_failure
+
+        result = _readonly_enrich_failure("m", "not_found")
+        assert result.reason == "not_found"
+
+    def test_reason_passthrough_error(self):
+        from core.readonly_producer import _readonly_enrich_failure
+
+        result = _readonly_enrich_failure("m", "error")
+        assert result.reason == "error"

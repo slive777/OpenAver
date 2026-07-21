@@ -747,6 +747,64 @@ class TestBatchEnrichReadonlyGuard:
         mock_produce.assert_called_once()
         assert "write_nfo" not in mock_produce.call_args.kwargs
 
+    # TASK-105-T9（BUG，PR#113 round 8 Codex thread `Sn2qv`）：唯讀分支的
+    # executor await（含 in-executor 前置如 resolve_ingest_plan）未被任何
+    # per-item try/except 隔離——單一唯讀項的例外會上傳批次層 try，`raise` 後
+    # SSE 生成器崩潰、整批掛掉（後續項與 done 全失）。故障注入：對其中一個唯讀
+    # 項的 resolve_ingest_plan 拋例外，斷言（a）該項回失敗結果項
+    # （success=False, reason='error'），（b）其後的可寫項與唯讀成功項仍完成
+    # （證明迴圈續跑，故障項故意不放最後一筆），（c）done 事件仍發出、計數正確。
+    # §7 mutation 自驗強制：見 task card。
+    def test_readonly_item_resolve_plan_raises_isolated_batch_continues(self, client, mocker):
+        """單一唯讀項 resolve_ingest_plan 拋例外 → 該項回失敗結果項（reason='error'），
+        同批其後的可寫項與唯讀成功項仍完成、done 仍發出（改前整批崩、無 done）。"""
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=self._readonly_config(),
+        )
+        mocker.patch("web.routers.scraper.enrich_single", return_value=_ok_result())
+        # 唯讀路由基座（owning/_produce_one/VideoRepository 預設）；
+        # resolve_ingest_plan 另行以 side_effect 覆寫（依 number 分流成功/拋例外）。
+        self._mock_readonly_routing(mocker)
+
+        def _plan_side_effect(fs_path, number, *args, **kwargs):
+            if number == "RO-FAIL":
+                raise RuntimeError("boom in resolve_ingest_plan")
+            return ({"number": number, "title": "T", "cover": ""}, ("none",))
+
+        mocker.patch(
+            "web.routers.scraper.resolve_ingest_plan",
+            side_effect=_plan_side_effect,
+        )
+
+        response = client.post("/api/batch-enrich", json={
+            "items": [
+                # 故障唯讀項置批首（非批尾）——證明例外未中斷迴圈：若置批尾，
+                # 改前的 bug 恰好也會讓「無後續項」看起來像通過。
+                {"file_path": "/tmp/ro_src/RO-FAIL.mp4", "number": "RO-FAIL"},
+                {"file_path": "/tmp/rw/RW-OK.mp4", "number": "RW-OK"},
+                {"file_path": "/tmp/ro_src/RO-OK.mp4", "number": "RO-OK"},
+            ],
+            "mode": "refresh_full",
+        })
+
+        assert response.status_code == 200
+        events = parse_sse(response.text)
+        by_number = {e["number"]: e for e in events if e["type"] == "result-item"}
+
+        # 故障項：隔離成失敗結果項，非整批崩
+        assert by_number["RO-FAIL"]["success"] is False
+        assert by_number["RO-FAIL"]["reason"] == "error"
+
+        # 其後兩項仍完成（證明迴圈續跑）
+        assert by_number["RW-OK"]["success"] is True
+        assert by_number["RO-OK"]["success"] is True
+
+        # done 仍發出、計數對稱
+        done_events = [e for e in events if e["type"] == "done"]
+        assert len(done_events) == 1
+        assert done_events[0]["summary"] == {"total": 3, "success": 2, "failed": 1}
+
 
 class TestBatchEnrichReadonlyCoverPreserveGate:
     """Codex PR#113 P2#3/P2#4（round 2，owner-confirmed 全面對齊）：batch readonly
@@ -804,7 +862,17 @@ class TestBatchEnrichReadonlyCoverPreserveGate:
         # 維持原 had_cover=True 行為；cover_file_exists=False 模擬 round-6
         # 回報的 bug 場景（DB row 殘留、輸出檔已被刪除/對應不到）。
         mocker.patch("web.routers.scraper.os.path.exists", return_value=cover_file_exists)
-        mock_focal = mocker.patch("web.routers.scraper.maybe_submit_video_focal")
+        # feature/105 patch-target migration (CD-105-8): has_servable_cover 的磁碟
+        # 複驗隨 compute_has_servable_cover 從 web.routers.scraper 搬進
+        # core.enrich_contract；顯式 patch 該命名空間（os.path 為共享 module
+        # singleton，機械上與上一行同物件，兩者一致即可）。cover_file_exists
+        # 同時餵 had_cover（scraper）與 has_servable_cover（enrich_contract）兩道 gate。
+        mocker.patch("core.enrich_contract.os.path.exists", return_value=cover_file_exists)
+        # TASK-105-T6: reset+submit 收斂進 schedule_focal_after_cover_write（住
+        # core.focal_trigger）；maybe_submit_video_focal 的實際呼叫端隨之從
+        # web.routers.scraper 移到 core.focal_trigger（bare name 在該模組 global
+        # namespace 內解析），patch target 需對齊使用端（gotchas-backend.md §1）。
+        mock_focal = mocker.patch("core.focal_trigger.maybe_submit_video_focal")
         return mock_produce, mock_repo, mock_focal
 
     def _post(self, client, **overrides):
@@ -880,12 +948,15 @@ class TestBatchEnrichReadonlyCoverPreserveGate:
         assert mock_produce.call_args.kwargs["cover_strategy"] == ("none",)
 
     def test_refresh_full_writes_regardless_of_had_cover(self, client, mocker):
-        """batch 預設 mode=refresh_full（BatchEnrichRequest 預設值）→ 不 preserve，
-        即使既有 cover_path 存在（回歸鎖：不得被 P2#3 誤擋）。"""
+        """refresh_full + overwrite_existing=True → 寫（不 preserve），即使既有
+        cover_path 存在（回歸鎖：不得被 P2#3 誤擋）。feature/105 AC4 後 refresh_full
+        的保留政策綁 overwrite_existing（mode-agnostic）：refresh_full+overwrite=False
+        現改為「保留」（前端不可達——batch 恆送 fill_missing，見 state-batch.js:108），
+        故此回歸鎖須顯式送 overwrite_existing=True 走真實覆蓋路徑。"""
         mocker.patch("web.routers.scraper.load_config", return_value=self._readonly_config())
         mock_produce, _, _ = self._mock_routing(mocker, existing_cover_path="file:///out/old.jpg")
 
-        response = self._post(client, mode="refresh_full")
+        response = self._post(client, mode="refresh_full", overwrite_existing=True)
 
         result_items = [e for e in parse_sse(response.text) if e["type"] == "result-item"]
         assert result_items[0]["success"] is True
@@ -897,6 +968,31 @@ class TestBatchEnrichReadonlyCoverPreserveGate:
         mock_produce, _, _ = self._mock_routing(mocker, existing_cover_path="file:///out/old.jpg")
 
         response = self._post(client, mode="refresh_full", write_cover=False)
+
+        result_items = [e for e in parse_sse(response.text) if e["type"] == "result-item"]
+        assert result_items[0]["success"] is True
+        assert mock_produce.call_args.kwargs["cover_strategy"] == ("none",)
+
+    # ── feature/105 T2 AC4 delta（batch 側，鏡射 test_api_enrich.py 同名）：移除唯讀
+    # mode=='fill_missing' 顯式閘後，唯讀保留政策與非唯讀 core.enricher._write_cover
+    # 完全 mode-agnostic 對齊。refresh_full + overwrite=false + 既有可服務封面 → 保留
+    # （改前 mode 閘 False 會靜默覆蓋）。前端不可達（batch 恆送 fill_missing，見
+    # state-batch.js:108），latent-safety 對齊。MUTATION SELF-CHECK：把 mode 閘加回
+    # （preserve = (not write_cover) or (mode=='fill_missing' and not overwrite and
+    # had_cover)）會讓本測試 RED（cover_strategy 變回 ('download', ...)）。────────
+    def test_refresh_full_no_overwrite_existing_cover_preserves_mode_agnostic(
+        self, client, mocker,
+    ):
+        """AC4：batch refresh_full + overwrite=false + 既有封面（磁碟檔在）→ preserve
+        （('none',)），與 enricher _write_cover 同輸入
+        should_preserve_cover(write_cover=True, overwrite=False, cover_exists=True)
+        =True 一致。"""
+        mocker.patch("web.routers.scraper.load_config", return_value=self._readonly_config())
+        mock_produce, _, _ = self._mock_routing(
+            mocker, existing_cover_path="file:///out/old.jpg", cover_file_exists=True,
+        )
+
+        response = self._post(client, mode="refresh_full", overwrite_existing=False)
 
         result_items = [e for e in parse_sse(response.text) if e["type"] == "result-item"]
         assert result_items[0]["success"] is True
@@ -931,6 +1027,29 @@ class TestBatchEnrichReadonlyCoverPreserveGate:
         assert mock_produce.call_args.kwargs["cover_strategy"] == ("none",)
         assert result_items[0]["cover_written"] is False
         assert result_items[0]["reason"] == "hit"
+
+    # ── feature/105 AC2 (Bug 1 fix), batch equivalence/regression guard: DB has
+    # residual cover_path but the physical cover file is gone → reason must be
+    # 'no_cover'. NOTE: batch never had Bug 1 — its pre-T1 form was
+    # `cover_written or had_cover`, and had_cover already carried a disk check, so
+    # this scenario returned 'no_cover' before T1 too. This test therefore LOCKS
+    # that the unification onto the shared compute_has_servable_cover atom
+    # PRESERVES that disk-verify guarantee (behavior-equivalent refactor). It goes
+    # RED if the shared atom's disk check is dropped (verified: reverting
+    # cover_uri_is_servable to `return bool(cover_uri)` flips this to 'hit'). ────
+    def test_residual_cover_path_but_file_deleted_reason_is_no_cover(self, client, mocker):
+        mocker.patch("web.routers.scraper.load_config", return_value=self._readonly_config())
+        mock_produce, _, _ = self._mock_routing(
+            mocker, existing_cover_path="file:///out/old.jpg",
+            produce_cover_fs="", cover_file_exists=False,
+        )
+
+        response = self._post(client, mode="fill_missing", overwrite_existing=False)
+
+        result_items = [e for e in parse_sse(response.text) if e["type"] == "result-item"]
+        assert result_items[0]["success"] is True
+        assert result_items[0]["cover_written"] is False
+        assert result_items[0]["reason"] == "no_cover"
 
     # ── P2#4: cover-written focal reset + re-submit ──────────────────────────
 
@@ -976,6 +1095,45 @@ class TestBatchEnrichReadonlyCoverPreserveGate:
         assert result_items[0]["cover_written"] is False
         mock_repo.return_value.reset_focal_to_auto.assert_not_called()
         mock_focal.assert_not_called()
+
+    # ── PR#114 P2: 唯讀成功項的 thumbnail_cache.invalidate 是 best-effort cleanup
+    # （檔案 unlink 可拋 OSError）。其失敗不得把成功項打成失敗、也不得讓外層 except
+    # 再 failed_count+=1 造成同一項 success+failed 雙記（done 匯總 success+failed >
+    # total）。故障注入型測試 ──
+    def test_thumbnail_invalidate_oserror_does_not_double_count_or_fail_item(
+        self, client, mocker,
+    ):
+        """唯讀成功項的縮圖失效拋 OSError → 不得雙記、不得誤報失敗。修前（invalidate
+        未包 best-effort try/except）：外層 except 捕獲 → failed_count+=1，同項既
+        success 又 failed → done 匯總 success=1, failed=1, total=1（success+failed=2
+        > total），且該項被 yield 成失敗。MUTATION LOCK：拿掉 ok 分支對 invalidate
+        外包的 best-effort try/except → 本測試 RED。"""
+        mocker.patch("web.routers.scraper.load_config", return_value=self._readonly_config())
+        # 既有 servable cover → refresh_full 仍寫（cover_written True），
+        # has_servable_cover=True → reason 'hit'（成功項的正常 reason）。
+        self._mock_routing(
+            mocker,
+            existing_cover_path="file:///out/ro_src-x/RO-001/RO-001.jpg",
+        )
+        inval_spy = mocker.patch(
+            "web.routers.scraper.thumbnail_cache.invalidate",
+            side_effect=OSError("disk gone"),
+        )
+
+        response = self._post(client, mode="refresh_full")
+
+        events = parse_sse(response.text)
+        inval_spy.assert_called_once()  # 確有觸發到（否則測試無效）
+        done = [e for e in events if e["type"] == "done"][0]["summary"]
+        # 無雙記：success + failed 精確等於 total（修前為 2 > 1）。
+        assert done["total"] == 1
+        assert done["success"] + done["failed"] == done["total"]
+        assert done["success"] == 1 and done["failed"] == 0
+        # 成功項不因 cleanup 失敗被誤報成失敗。
+        result_items = [e for e in events if e["type"] == "result-item"]
+        assert len(result_items) == 1
+        assert result_items[0]["success"] is True
+        assert result_items[0]["reason"] == "hit"
 
 
 # ── P2 review round 3 (FIX#4/FIX#5): readonly + mode='db_to_sidecar' clean
@@ -1170,3 +1328,31 @@ class TestBatchEnrichThumbnailInvalidation:
         assert response.status_code == 200
         called = [c.args[0] for c in inval_spy.call_args_list]
         assert called == ["file:///nas/dup.mp4"]
+
+    def test_invalidate_oserror_does_not_double_count_or_fail_item(self, client, mocker):
+        """PR#114 P2（可寫路徑孿生）：enrich 成功後的 thumbnail_cache.invalidate
+        拋 OSError → best-effort try/except 吞掉；不得讓外層 except 再 failed_count+=1
+        造成同一成功項 success+failed 雙記、也不得誤報失敗。MUTATION LOCK：拿掉可寫
+        分支 invalidate 外包的 best-effort try/except → 本測試 RED（done 回 success=1,
+        failed=1, total=1，且該項 success=False）。"""
+        mocker.patch("web.routers.scraper.enrich_single", return_value=_ok_result())
+        inval_spy = mocker.patch(
+            "web.routers.scraper.thumbnail_cache.invalidate",
+            side_effect=OSError("disk gone"),
+        )
+
+        response = client.post("/api/batch-enrich", json={
+            "items": [{"file_path": "file:///nas/ok.mp4", "number": "IPZ-154"}],
+            "mode": "refresh_full",
+        })
+
+        assert response.status_code == 200
+        inval_spy.assert_called_once()
+        events = parse_sse(response.text)
+        done = [e for e in events if e["type"] == "done"][0]["summary"]
+        assert done["total"] == 1
+        assert done["success"] + done["failed"] == done["total"]
+        assert done["success"] == 1 and done["failed"] == 0
+        result_items = [e for e in events if e["type"] == "result-item"]
+        assert len(result_items) == 1
+        assert result_items[0]["success"] is True

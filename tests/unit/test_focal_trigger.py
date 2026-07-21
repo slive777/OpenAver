@@ -1,5 +1,6 @@
 """
 test_focal_trigger.py — TASK-98b-T2 / 99b-T2: maybe_submit_video_focal helper 契約
+                         + TASK-105-T6: schedule_focal_after_cover_write 收斂 helper
 
 TDD-lite（注入假 submit_focal / 假 repo / 假 gate，不真跑 pigo、不碰真 DB）：
 - gate：有碼 → 不 submit；無碼 → submit
@@ -8,6 +9,13 @@ TDD-lite（注入假 submit_focal / 假 repo / 假 gate，不真跑 pigo、不�
 - commit lambda：呼叫 update_auto_focal(video_path_uri, focal_str, cover_path_uri)（fp 忽略）
 - 防禦：helper 內任何例外都吞掉（不冒泡打斷 scrape/scan）
 - 99b-T2 CD-99b-9：cover_path_uri 為 keyword-only 必填，省略即 TypeError（fail-closed）
+
+TASK-105-T6 schedule_focal_after_cover_write：
+- 順序鎖：reset_focal_to_auto 必早於 maybe_submit_video_focal
+- args passthrough：reset 單一 video_uri；submit 位置 (number, maker, video_uri, cover_fs)
+  + keyword-only cover_path_uri
+- cover_path_uri 派生：truthy → to_file_uri(cover_fs, path_mappings)；falsy → ""
+- db_path 不傳
 """
 
 from unittest.mock import patch, MagicMock
@@ -248,3 +256,137 @@ def test_cover_path_uri_cannot_be_passed_positionally():
             "SIRO-1234", "", "file:///x/SIRO-1234.mp4", "/x/SIRO-1234.jpg",
             "file:///x/SIRO-1234.jpg",
         )
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# TASK-105-T6: schedule_focal_after_cover_write（三站收斂 helper）
+# ══════════════════════════════════════════════════════════════════════════
+
+def test_schedule_focal_reset_called_before_submit():
+    """順序鎖（最核心不變式）：reset_focal_to_auto 必早於 maybe_submit_video_focal。
+
+    mutation 鎖：把 helper body 反過來（submit 先、reset 後）→ 本測 RED（parent
+    mock 的 mock_calls 順序會變成 submit 先出現）。
+    """
+    repo = MagicMock()
+    manager = MagicMock()
+    manager.attach_mock(repo.reset_focal_to_auto, "reset")
+
+    with patch("core.focal_trigger.maybe_submit_video_focal") as mock_submit:
+        manager.attach_mock(mock_submit, "submit")
+        from core.focal_trigger import schedule_focal_after_cover_write
+        schedule_focal_after_cover_write(
+            repo, "file:///x/SIRO-1234.mp4", "SIRO-1234", "SOD",
+            "/x/SIRO-1234.jpg", {},
+        )
+
+    call_names = [c[0] for c in manager.mock_calls]
+    assert call_names.index("reset") < call_names.index("submit")
+
+
+def test_schedule_focal_reset_passthrough():
+    """reset_focal_to_auto 以單一 video_uri 呼叫一次。"""
+    repo = MagicMock()
+    video_uri = "file:///x/SIRO-1234.mp4"
+
+    with patch("core.focal_trigger.maybe_submit_video_focal"):
+        from core.focal_trigger import schedule_focal_after_cover_write
+        schedule_focal_after_cover_write(
+            repo, video_uri, "SIRO-1234", "SOD", "/x/SIRO-1234.jpg", {},
+        )
+
+    repo.reset_focal_to_auto.assert_called_once_with(video_uri)
+
+
+def test_schedule_focal_submit_passthrough():
+    """maybe_submit_video_focal 收到 (number, maker, video_uri, cover_fs) 位置參
+    + cover_path_uri= keyword；第三位置參與 reset 同一個 video_uri（防未來誤拆兩 URI）。
+    """
+    repo = MagicMock()
+    video_uri = "file:///x/SIRO-1234.mp4"
+    cover_fs = "/x/SIRO-1234.jpg"
+
+    with patch("core.focal_trigger.maybe_submit_video_focal") as mock_submit:
+        from core.focal_trigger import schedule_focal_after_cover_write
+        schedule_focal_after_cover_write(
+            repo, video_uri, "SIRO-1234", "SOD", cover_fs, {},
+        )
+
+    mock_submit.assert_called_once()
+    args, kwargs = mock_submit.call_args
+    assert args[0] == "SIRO-1234"
+    assert args[1] == "SOD"
+    assert args[2] == video_uri
+    assert args[3] == cover_fs
+    assert "cover_path_uri" in kwargs
+
+
+def test_schedule_focal_cover_path_uri_truthy_derives_via_to_file_uri():
+    """cover_fs 非空 → cover_path_uri == to_file_uri(cover_fs, path_mappings)
+    （patch to_file_uri 回 sentinel，斷言穿透）。"""
+    repo = MagicMock()
+    path_mappings = {"a": "b"}
+    sentinel = "file:///sentinel/cover.jpg"
+
+    with (
+        patch("core.focal_trigger.maybe_submit_video_focal") as mock_submit,
+        patch("core.focal_trigger.to_file_uri", return_value=sentinel) as mock_to_uri,
+    ):
+        from core.focal_trigger import schedule_focal_after_cover_write
+        schedule_focal_after_cover_write(
+            repo, "file:///x/SIRO-1234.mp4", "SIRO-1234", "SOD",
+            "/x/SIRO-1234.jpg", path_mappings,
+        )
+
+    mock_to_uri.assert_called_once_with("/x/SIRO-1234.jpg", path_mappings)
+    _, kwargs = mock_submit.call_args
+    assert kwargs["cover_path_uri"] == sentinel
+
+
+def test_schedule_focal_cover_path_uri_falsy_empty_string():
+    """cover_fs == "" → cover_path_uri == ""（to_file_uri 不決定此分支的最終值）。"""
+    repo = MagicMock()
+
+    with (
+        patch("core.focal_trigger.maybe_submit_video_focal") as mock_submit,
+        patch("core.focal_trigger.to_file_uri", return_value="should-not-be-used"),
+    ):
+        from core.focal_trigger import schedule_focal_after_cover_write
+        schedule_focal_after_cover_write(
+            repo, "file:///x/SIRO-1234.mp4", "SIRO-1234", "SOD", "", {},
+        )
+
+    _, kwargs = mock_submit.call_args
+    assert kwargs["cover_path_uri"] == ""
+
+
+def test_schedule_focal_cover_path_uri_falsy_none():
+    """cover_fs is None → cover_path_uri == ""。"""
+    repo = MagicMock()
+
+    with (
+        patch("core.focal_trigger.maybe_submit_video_focal") as mock_submit,
+        patch("core.focal_trigger.to_file_uri", return_value="should-not-be-used"),
+    ):
+        from core.focal_trigger import schedule_focal_after_cover_write
+        schedule_focal_after_cover_write(
+            repo, "file:///x/SIRO-1234.mp4", "SIRO-1234", "SOD", None, {},
+        )
+
+    _, kwargs = mock_submit.call_args
+    assert kwargs["cover_path_uri"] == ""
+
+
+def test_schedule_focal_does_not_pass_db_path():
+    """maybe_submit_video_focal 呼叫不含 db_path kwarg（走預設 DB，三站現況一致）。"""
+    repo = MagicMock()
+
+    with patch("core.focal_trigger.maybe_submit_video_focal") as mock_submit:
+        from core.focal_trigger import schedule_focal_after_cover_write
+        schedule_focal_after_cover_write(
+            repo, "file:///x/SIRO-1234.mp4", "SIRO-1234", "SOD",
+            "/x/SIRO-1234.jpg", {},
+        )
+
+    _, kwargs = mock_submit.call_args
+    assert "db_path" not in kwargs

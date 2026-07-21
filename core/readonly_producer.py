@@ -26,6 +26,7 @@ from typing import Callable, Optional
 from core import thumbnail_cache
 from core.config import _STEM_IMAGE_MODES, iter_gallery_sources
 from core.database import Video, get_db_path
+from core.enrich_contract import EnrichResult, effective_original_title
 from core.focal import requires_face_detection
 from core.focal_trigger import maybe_submit_video_focal
 from core.gallery_scanner import IMAGE_EXTENSIONS, VideoScanner, fast_scan_directory
@@ -1088,7 +1089,7 @@ def _upsert_db(
         path=source_uri,
         number=meta['number'],
         title=meta['title'],
-        original_title=meta.get('original_title') or (existing.original_title if existing else ''),
+        original_title=effective_original_title(meta, existing),
         actresses=meta.get('actors', []),
         maker=meta.get('maker', ''),
         director=meta.get('director', ''),
@@ -1445,18 +1446,18 @@ def _produce_one(
         fd, config, allocated_this_run, path_mappings,
     )
     old_base = _build_old_base(existing, file_info["path"], config)  # '' when no prior row/title/number
-    # FIX P1 (Codex PR#113 round-6, 2026-07-21): synthesize the EFFECTIVE
-    # original_title ONCE, before writing any asset, so the output NFO
+    # FIX P1 (Codex PR#113 round-6, 2026-07-21; feature/105 T3: extracted to
+    # effective_original_title helper): synthesize the EFFECTIVE original_title
+    # ONCE, before writing any asset, so the output NFO
     # (_write_movie_assets→generate_nfo) and the DB row (_upsert_db) consume the
     # SAME value. A re-scrape whose source returns an empty original_title must
     # NOT clobber the on-disk NFO's <originaltitle> to '' while the DB keeps the
     # old value — that split (preserve in _upsert_db only) was on-disk data loss
     # + NFO/DB drift. Mirrors the cover_path/sample_images preserve-if-empty
     # contract. Full-mode only in effect (samples_only writes no NFO), but the
-    # mutation is harmless there. _upsert_db keeps its own preserve as a defensive
+    # mutation is harmless there. _upsert_db calls the same helper as a defensive
     # net for any direct caller, but after this line meta already carries the truth.
-    if not meta.get('original_title') and existing and existing.original_title:
-        meta['original_title'] = existing.original_title
+    meta['original_title'] = effective_original_title(meta, existing)
     # PR #93 五審四次 P2 (option C): media-server 模式下用注入的 getter 讓
     # _write_movie_assets 在真正落 .strm 那一刻才重讀 fresh strm_path_mappings
     # （見 _write_movie_assets 內部該段落的完整解釋）。strm_mappings_getter=None
@@ -1471,6 +1472,36 @@ def _produce_one(
         assets_mode=assets_mode, existing=existing,
     )
     return movie_dir, assets
+
+
+# ---------------------------------------------------------------------------
+# TASK-105-T5 (T2-a/T2-b): readonly-only Tier-2 convergence helpers
+# ---------------------------------------------------------------------------
+
+def _readonly_stub_not_found(repo, uri: str, number, fs_path: str) -> None:
+    """唯讀 not-found 樁列（順序不可反）：先 insert_if_ignore 建樁 row、
+    再 update_scrape_attempted_at 記帳。update_scrape_attempted_at 是 bare
+    UPDATE...WHERE path=?，無 row 靜默 no-op，故必須先建樁（見 video.py:1144-1167）。
+
+    repo 由呼叫端傳（各站來源不同：S1/S2 現場新建、S3 呼叫端傳入共用實例）；
+    `if number:` guard（若有）留呼叫端 — helper body 無條件執行兩步。
+    """
+    repo.insert_if_ignore(Video(path=uri, number=number, title=os.path.basename(fs_path)))
+    repo.update_scrape_attempted_at(uri, time.time())
+
+
+def _readonly_enrich_failure(error, reason=None) -> EnrichResult:
+    """唯讀失敗回報固定形狀：success/nfo/cover 全 False、extrafanart=0、
+    fields_filled=[]、source_used=''；只 error/reason 由呼叫端定。
+
+    reason 預設 None（對齊 fetch-samples 路徑「無 top-level exception boundary」
+    的刻意語意）；需 'error'/'not_found' 的站顯式傳 reason=。
+    """
+    return EnrichResult(
+        success=False, nfo_written=False, cover_written=False,
+        extrafanart_written=0, fields_filled=[], source_used='',
+        error=error, reason=reason,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1580,8 +1611,7 @@ def produce_source(source, config, repo, *, proxy_url="", on_progress=None, shou
             # no-number-no-NFO case — no DB row for a file we can't identify
             # at all).
             if number:
-                repo.insert_if_ignore(Video(path=src_uri, number=number, title=os.path.basename(fi["path"])))
-                repo.update_scrape_attempted_at(src_uri, time.time())
+                _readonly_stub_not_found(repo, src_uri, number, fi["path"])
             result.no_scrape += 1
             _emit(on_progress, result, src_uri, "no_scrape")
             continue
