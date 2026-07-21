@@ -763,6 +763,49 @@ class TestEnrichSingleReadonlyDbToSidecarRejection:
         mock_produce.assert_not_called()
 
 
+# ── P1 revert + reject (round-3 review 2026-07-21, owner-confirmed): readonly +
+# write_nfo=false clean rejection ── Codex PR#113 round-3 threaded a write_nfo
+# skip-gate into the readonly produce path (_write_movie_assets/_produce_one) —
+# that was a P1 data-loss (a title-changing rescrape with write_nfo=False
+# skipped the new NFO write while stale-cleanup still unlinked the OLD one,
+# losing the NFO entirely while the DB kept a stale nfo_mtime claiming it
+# exists). Readonly produce is HOLISTIC (a library entry always has an NFO),
+# so write_nfo=false is rejected here the same way db_to_sidecar is above,
+# instead of threading a skip flag down into the write path.
+
+
+class TestEnrichSingleReadonlyNoNfoRejection:
+    def test_write_nfo_false_readonly_rejected_cleanly(self, client, mocker):
+        """MUTATION LOCK：拿掉這條 early-return 會讓 resolve_ingest_plan/_produce_one
+        被呼叫（本測試斷言它們不被呼叫），本測試會 RED。"""
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=_readonly_gallery_config("/tmp/ro_src"),
+        )
+        mocker.patch("web.routers.scraper.resolve_owning_output_root", return_value=_owning_stub())
+        mock_plan = mocker.patch("web.routers.scraper.resolve_ingest_plan")
+        mock_produce = mocker.patch("web.routers.scraper._produce_one")
+
+        response = client.post("/api/enrich-single", json={
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+            "write_nfo": False,
+        })
+
+        data = response.json()
+        assert data["success"] is False
+        assert data["error"]
+        assert data["nfo_written"] is False
+        assert data["cover_written"] is False
+        assert data["extrafanart_written"] == 0
+        assert data["fields_filled"] == []
+        assert data["source_used"] == ""
+        assert data["reason"] == "error"
+        assert set(data) >= _ENRICH_RESULT_KEYS
+        mock_plan.assert_not_called()
+        mock_produce.assert_not_called()
+
+
 # ── TASK-104-T3 (CD-104-5): fetch-samples 唯讀來源改道 output_dir（samples_only）──
 
 
@@ -2389,17 +2432,21 @@ class TestReadonlyRoutingE2E:
         mock_download.assert_not_called()
         assert hashlib.sha256(cover_fs_path.read_bytes()).hexdigest() == before_hash
 
-    # Codex PR#113 one-pass alignment (2026-07-21): write_nfo threaded through to
-    # _produce_one/_write_movie_assets — mirrors the non-readonly write_cover=false
-    # test above (write_nfo's priority over mode is the SAME contract shape).
-    # MUTATION LOCK: removing the `if write_nfo:` gate in _write_movie_assets makes
-    # this test RED (the second call would overwrite the NFO despite write_nfo=False,
-    # so before_hash/before_mtime would no longer match after_hash/after_mtime).
-    def test_magnifier_write_nfo_false_preserves_nfo_regardless_of_mode(
+    # P1 revert + reject (round-3 review 2026-07-21, owner-confirmed): a Codex
+    # PR#113 round-3 write_nfo skip-gate here was a P1 data-loss (a title-
+    # changing rescrape with write_nfo=False skipped the new NFO write while
+    # stale-cleanup still unlinked the OLD one — NFO lost, DB kept a stale
+    # nfo_mtime claiming it exists). Readonly produce is holistic (a library
+    # entry always has an NFO) — write_nfo=false is now REJECTED up front
+    # instead of "honored". This test used to assert the (buggy) skip
+    # behaviour; repurposed to assert the rejection + that nothing on disk/DB
+    # changes as a result of the rejected call.
+    def test_magnifier_write_nfo_false_rejected_nfo_untouched(
         self, tmp_path, client, mocker, monkeypatch,
     ):
-        """write_nfo=false → 即使 mode=refresh_full（理論上「一律寫」），NFO 仍必須
-        被保留（bytes + mtime 皆不變），DB nfo_mtime 沿用既有值，has_nfo 保持真值。"""
+        """write_nfo=false → rejected before any I/O; the existing NFO on disk
+        (bytes + mtime) and DB nfo_mtime are completely untouched (not even
+        re-read/re-written) by the rejected call."""
         from core.path_utils import to_file_uri, uri_to_local_fs_path
 
         src = tmp_path / "src"
@@ -2442,16 +2489,98 @@ class TestReadonlyRoutingE2E:
             "file_path": canonical, "number": "WNF-001", "readonly_action": "ingest",
             "mode": "refresh_full", "overwrite_existing": True, "write_nfo": False,
         })
-        assert resp2.json()["success"] is True
-        assert resp2.json()["nfo_written"] is False
+        data2 = resp2.json()
+        assert data2["success"] is False
+        assert data2["nfo_written"] is False
+        assert data2["cover_written"] is False
+        assert data2["extrafanart_written"] == 0
+        assert data2["fields_filled"] == []
+        assert data2["source_used"] == ""
+        assert data2["error"]
+        assert data2["reason"] == "error"
+        assert set(data2) >= _ENRICH_RESULT_KEYS
+
         assert nfo_path.stat().st_mtime_ns == before_mtime_ns
         assert hashlib.sha256(nfo_path.read_bytes()).hexdigest() == before_hash
 
         row2 = repo.get_by_path(canonical)
         assert row2.nfo_mtime == before_db_nfo_mtime, (
-            "nfo_mtime must be PRESERVED (not clobbered to 0/None) when this run "
-            "didn't write an NFO — has_nfo derives from nfo_mtime > 0"
+            "a rejected write_nfo=false call must not touch the DB row at all"
         )
+
+    # P1 regression (round-3 revert, 2026-07-21): the exact scenario the
+    # round-3 write_nfo skip-gate broke — a title-changing rescrape/re-ingest
+    # (old_base != new_base) with write_nfo left at its (now only-supported)
+    # True default must write the NEW basename's NFO and clean up the OLD
+    # basename's NFO, leaving exactly one NFO on disk, never zero.
+    def test_magnifier_title_change_writes_new_nfo_and_cleans_old(
+        self, tmp_path, client, mocker, monkeypatch,
+    ):
+        from core.path_utils import to_file_uri, uri_to_local_fs_path
+
+        src = tmp_path / "src"
+        src.mkdir()
+        video = src / "TC-001.mp4"
+        video.write_bytes(b"FAKE-VIDEO")
+
+        db_path = self._init_db(tmp_path)
+        config = _e2e_off_config(src)
+        # title-driven basename (default filename_format) — needed so old_base
+        # != new_base across the title change below (P1 repro precondition).
+        config["scraper"]["filename_format"] = "{num} {title}"
+        self._wire(mocker, monkeypatch, config, db_path)
+        canonical = to_file_uri(str(video))
+
+        mocker.patch(
+            "core.readonly_producer.search_jav",
+            return_value={
+                "number": "TC-001", "title": "First Title", "cover": "",
+                "actors": [], "tags": [], "date": "", "maker": "", "sample_images": [],
+            },
+        )
+        resp1 = client.post("/api/enrich-single", json={
+            "file_path": canonical, "number": "TC-001", "readonly_action": "ingest",
+        })
+        assert resp1.json()["success"] is True
+        assert resp1.json()["nfo_written"] is True
+
+        repo = self._repo(db_path)
+        row1 = repo.get_by_path(canonical)
+        movie_dir = Path(uri_to_local_fs_path(row1.output_dir, {}))
+        old_nfos = list(movie_dir.glob("*.nfo"))
+        assert len(old_nfos) == 1
+        old_nfo_path = old_nfos[0]
+        assert "First Title" in old_nfo_path.read_text(encoding="utf-8")
+
+        mocker.patch(
+            "core.readonly_producer.search_jav",
+            return_value={
+                "number": "TC-001", "title": "Second Title", "cover": "",
+                "actors": [], "tags": [], "date": "", "maker": "", "sample_images": [],
+            },
+        )
+        resp2 = client.post("/api/enrich-single", json={
+            "file_path": canonical, "number": "TC-001", "readonly_action": "ingest",
+            "mode": "refresh_full", "overwrite_existing": True,
+        })
+        assert resp2.json()["success"] is True
+        assert resp2.json()["nfo_written"] is True
+
+        nfos_after = list(movie_dir.glob("*.nfo"))
+        assert len(nfos_after) == 1, (
+            f"exactly one NFO must survive a title change (old cleaned, new "
+            f"written) — never zero (the P1) or two: {nfos_after}"
+        )
+        assert not old_nfo_path.exists(), (
+            "OLD basename's NFO must be cleaned up — this is the exact P1 the "
+            "round-3 write_nfo skip-gate introduced (skip-write + stale-cleanup "
+            "still ran => NFO lost entirely)"
+        )
+        assert nfos_after[0] != old_nfo_path
+        assert "Second Title" in nfos_after[0].read_text(encoding="utf-8")
+
+        row2 = repo.get_by_path(canonical)
+        assert row2.nfo_mtime > 0
 
     # Codex PR#113 one-pass alignment (2026-07-21): resolve_ingest_plan must set
     # meta['source'] = 'nfo' for the NFO-sourced ingest branch so the readonly
@@ -2486,15 +2615,16 @@ class TestReadonlyRoutingE2E:
         assert data["source_used"] == "nfo"
         mock_search.assert_not_called()  # valid NFO → zero network, source is 'nfo' not a scraper name
 
-    # Codex PR#113 one-pass alignment (2026-07-21): write_nfo=false + write_cover
-    # (preserve_cover)=false together → neither sidecar written this run, only DB
-    # metadata upserted. Must not crash on empty `assets` (no 'nfo_mtime'/'cover_fs'
-    # keys the write path would normally add) — every downstream `.get()` needs a
-    # fallback.
-    def test_magnifier_write_nfo_false_and_write_cover_false_no_crash_db_only(
+    # P1 revert + reject (round-3 review 2026-07-21): write_nfo=false is now
+    # REJECTED regardless of write_cover — readonly produce is holistic (a
+    # library entry always has an NFO), so there is no longer a "write_nfo=
+    # false + write_cover=false DB-only" path to not-crash on; the whole call
+    # is rejected up front, before resolve_ingest_plan/search_jav/download are
+    # ever reached, and no DB row is created at all.
+    def test_magnifier_write_nfo_false_and_write_cover_false_rejected_no_db_row(
         self, tmp_path, client, mocker, monkeypatch,
     ):
-        from core.path_utils import to_file_uri, uri_to_local_fs_path
+        from core.path_utils import to_file_uri
 
         src = tmp_path / "src"
         src.mkdir()
@@ -2506,13 +2636,7 @@ class TestReadonlyRoutingE2E:
         self._wire(mocker, monkeypatch, config, db_path)
         canonical = to_file_uri(str(video))
 
-        mocker.patch(
-            "core.readonly_producer.search_jav",
-            return_value={
-                "number": "DBO-001", "title": "T", "cover": "http://x/c.jpg",
-                "actors": [], "tags": [], "date": "", "maker": "", "sample_images": [],
-            },
-        )
+        mock_search = mocker.patch("core.readonly_producer.search_jav")
         mock_download = mocker.patch("core.readonly_producer.download_image")
 
         response = client.post("/api/enrich-single", json={
@@ -2522,19 +2646,16 @@ class TestReadonlyRoutingE2E:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["success"] is True
+        assert data["success"] is False
         assert data["nfo_written"] is False
         assert data["cover_written"] is False
+        assert data["error"]
+        assert data["reason"] == "error"
+        mock_search.assert_not_called()
         mock_download.assert_not_called()
 
         repo = self._repo(db_path)
-        row = repo.get_by_path(canonical)
-        assert row is not None  # DB metadata upsert still happened
-        assert row.title == "T"
-        assert row.nfo_mtime == 0.0  # brand-new row, no NFO ever written
-        movie_dir = uri_to_local_fs_path(row.output_dir, {})
-        assert not Path(movie_dir, "DBO-001.nfo").exists()
-        assert not Path(movie_dir, "DBO-001.jpg").exists()
+        assert repo.get_by_path(canonical) is None  # rejected before any DB upsert
 
     # ── 補劇照唯讀：只劇照落 output_dir，nfo/封面 stat+雜湊未變 ─────────────────
 

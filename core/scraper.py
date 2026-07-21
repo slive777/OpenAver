@@ -365,9 +365,11 @@ def search_jav(number: str, source: str = 'auto', proxy_url: str = '', javbus_la
     return result
 
 
-def search_jav_single_source(number: str, source: str, proxy_url: str = '') -> Optional[Dict[str, Any]]:
+def search_jav_single_source(
+    number: str, source: str, proxy_url: str = '', javbus_lang: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
     """指定單一來源搜尋"""
-    return search_jav(number, source=source, proxy_url=proxy_url)
+    return search_jav(number, source=source, proxy_url=proxy_url, javbus_lang=javbus_lang)
 
 
 def search_javlib_versions(number: str) -> List[Dict[str, Any]]:

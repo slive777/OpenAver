@@ -648,10 +648,13 @@ class TestBatchEnrichReadonlyGuard:
             'extrafanart_written', 'fields_filled', 'source_used', 'error', 'reason',
         }
 
-    # write_nfo=false threaded from the batch request into _produce_one (Codex
-    # PR#113 one-pass alignment) — previously this branch always wrote the NFO
-    # regardless of the request flag.
-    def test_write_nfo_false_threaded_into_produce_one_and_result_item(self, client, mocker):
+    # P1 revert + reject (round-3 review 2026-07-21, owner-confirmed): a Codex
+    # PR#113 round-3 write_nfo skip-gate threaded down to _produce_one was a P1
+    # data-loss (see TestBatchEnrichReadonlyNoNfoRejection below). write_nfo is
+    # no longer threaded into _produce_one at all — readonly produce always
+    # writes the NFO, and write_nfo=false is rejected before _produce_one is
+    # ever called (this test used to assert the buggy "honored" behaviour).
+    def test_write_nfo_false_readonly_item_rejected(self, client, mocker):
         mocker.patch(
             "web.routers.scraper.load_config",
             return_value=self._readonly_config(),
@@ -666,14 +669,16 @@ class TestBatchEnrichReadonlyGuard:
         })
 
         result_items = [e for e in parse_sse(response.text) if e["type"] == "result-item"]
-        assert result_items[0]["success"] is True
+        assert result_items[0]["success"] is False
         assert result_items[0]["nfo_written"] is False
-        mock_produce.assert_called_once()
-        assert mock_produce.call_args.kwargs["write_nfo"] is False
+        assert result_items[0]["error"]
+        assert result_items[0]["reason"] == "error"
+        mock_produce.assert_not_called()
 
-    def test_write_nfo_default_true_threaded_into_produce_one(self, client, mocker):
-        """未帶 write_nfo（BatchEnrichRequest 預設 True）→ _produce_one 收到
-        write_nfo=True，result-item nfo_written=True（byte-identical 既有行為）。"""
+    def test_write_nfo_default_true_produce_one_no_longer_takes_write_nfo_kwarg(self, client, mocker):
+        """未帶 write_nfo（BatchEnrichRequest 預設 True，唯一支援值）→ result-item
+        nfo_written=True；_produce_one 不再收 write_nfo kwarg 於呼叫中（P1 revert，
+        write_nfo 已徹底從 _produce_one 簽名移除，不再是 threading 目標）。"""
         mocker.patch(
             "web.routers.scraper.load_config",
             return_value=self._readonly_config(),
@@ -687,9 +692,10 @@ class TestBatchEnrichReadonlyGuard:
         })
 
         result_items = [e for e in parse_sse(response.text) if e["type"] == "result-item"]
+        assert result_items[0]["success"] is True
         assert result_items[0]["nfo_written"] is True
         mock_produce.assert_called_once()
-        assert mock_produce.call_args.kwargs["write_nfo"] is True
+        assert "write_nfo" not in mock_produce.call_args.kwargs
 
 
 class TestBatchEnrichReadonlyCoverPreserveGate:
@@ -910,6 +916,63 @@ class TestBatchEnrichReadonlyDbToSidecarRejection:
         response = client.post("/api/batch-enrich", json={
             "items": [{"file_path": "/tmp/ro_src/RO-001.mp4", "number": "RO-001"}],
             "mode": "db_to_sidecar",
+        })
+
+        result_items = [e for e in parse_sse(response.text) if e["type"] == "result-item"]
+        assert len(result_items) == 1
+        item = result_items[0]
+        assert item["success"] is False
+        assert item["error"]
+        assert item["nfo_written"] is False
+        assert item["cover_written"] is False
+        assert item["extrafanart_written"] == 0
+        assert item["fields_filled"] == []
+        assert item["source_used"] == ""
+        assert item["reason"] == "error"
+        assert set(item) >= {
+            'type', 'number', 'file_path', 'success', 'nfo_written', 'cover_written',
+            'extrafanart_written', 'fields_filled', 'source_used', 'error', 'reason',
+        }
+        mock_owning.assert_not_called()
+        mock_plan.assert_not_called()
+        mock_produce.assert_not_called()
+
+
+class TestBatchEnrichReadonlyNoNfoRejection:
+    """P1 revert + reject (round-3 review 2026-07-21, owner-confirmed): mirrors
+    TestBatchEnrichReadonlyDbToSidecarRejection above — write_nfo=false is a
+    granular flag the holistic readonly produce model doesn't support, so it
+    is rejected the same way, before resolve_owning_output_root is ever
+    called. See _READONLY_NO_NFO_ERROR_MSG (web/routers/scraper.py) for the P1
+    this replaces (a title-changing rescrape with write_nfo=False used to
+    skip the new NFO write while stale-cleanup still unlinked the old one)."""
+
+    def _readonly_config(self):
+        return {
+            "gallery": {
+                "directories": [{"path": "/tmp/ro_src", "readonly": True}],
+                "path_mappings": {},
+            },
+            "search": {},
+            "scraper": {},
+        }
+
+    def test_write_nfo_false_readonly_item_rejected_cleanly(self, client, mocker):
+        """MUTATION LOCK：拿掉這條 early-return 會讓 resolve_owning_output_root/
+        resolve_ingest_plan/_produce_one 被呼叫（本測試斷言它們不被呼叫），本測試
+        會 RED。"""
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=self._readonly_config(),
+        )
+        mock_owning = mocker.patch("web.routers.scraper.resolve_owning_output_root")
+        mock_plan = mocker.patch("web.routers.scraper.resolve_ingest_plan")
+        mock_produce = mocker.patch("web.routers.scraper._produce_one")
+
+        response = client.post("/api/batch-enrich", json={
+            "items": [{"file_path": "/tmp/ro_src/RO-001.mp4", "number": "RO-001"}],
+            "mode": "refresh_full",
+            "write_nfo": False,
         })
 
         result_items = [e for e in parse_sse(response.text) if e["type"] == "result-item"]

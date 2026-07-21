@@ -1907,9 +1907,9 @@ const RULES = [
     note: '[TestRescrapeEntryGuard] test_gear_tooltip_uses_i18n_key — ⚙ 用 i18n key，不硬編碼',
   },
   {
-    file: 'web/templates/showcase.html', kind: 'required-string', pattern: /\baria-label="[^"]*entry_tooltip/,
+    file: 'web/templates/showcase.html', kind: 'required-string', pattern: /[\s:]aria-label="[^"]*entry_tooltip/,
     scope: /<button\b[^>]*?\bclass="lb-rescrape-gear".*?<\/button>/s,
-    note: '[TASK-104-T4] test_gear_tooltip_uses_i18n_key — ⚙ 缺 aria-label（可及性）；104-T4 移除 readonly 三元後改靜態 Jinja 屬性（原僅接受 Alpine `:aria-label` 動態綁定，拓寬比對前綴涵蓋兩種形式）',
+    note: '[TASK-104-T4] test_gear_tooltip_uses_i18n_key — ⚙ 缺 aria-label（可及性）；104-T4 移除 readonly 三元後改靜態 Jinja 屬性（原僅接受 Alpine `:aria-label` 動態綁定，拓寬比對前綴涵蓋兩種形式）。round-3 P3：改用 `[\\s:]` 前綴取代 `\\b`（`-` 也是 word-boundary，`\\baria-label` 會誤過 `data-aria-label`）',
   },
   { file: 'web/static/js/shared/long-press.js', kind: 'file-absent', note: '[TestRescrapeEntryGuard] test_long_press_helper_retired — 74c-T3：long-press.js 已刪除，不得再存在' },
   { file: 'web/static/js/pages/showcase/main.js', kind: 'forbidden-string', pattern: "from '@/shared/long-press.js'", note: '[TestRescrapeEntryGuard] test_main_js_imports_and_merges_long_press — showcase main.js 已移除 long-press import' },

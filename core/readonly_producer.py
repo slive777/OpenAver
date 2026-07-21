@@ -784,7 +784,6 @@ def _write_movie_assets(
     assets_mode: str = 'full',
     old_base: str = '',
     strm_mappings_getter=None,
-    write_nfo: bool = True,
 ) -> dict:
     """Write nfo + cover + -poster/-fanart + extrafanart to movie_dir.
 
@@ -794,15 +793,17 @@ def _write_movie_assets(
     os.stat().st_mtime of the NFO just written — generate_nfo has already raised
     on failure by the time this is read, so the file is guaranteed to exist.
 
-    write_nfo (Codex PR#113 one-pass alignment, 2026-07-21): mirrors the
-    non-readonly single-file enrich entrypoint's own write_nfo flag (core/
-    enricher.py) — when False, step 4 (generate_nfo) is skipped entirely: no
-    write, no raise-on-failure, and the returned dict OMITS the 'nfo_mtime'
-    key (rather than carrying a stale/fake value). Callers that upsert to DB
-    must fall back to the existing row's nfo_mtime in that case (see
-    `_upsert_db`'s `assets.get('nfo_mtime', ...)`). poster/fanart/cover/
-    extrafanart are unaffected — they are decided by has_cover/cover_strategy/
-    config, independent of this flag.
+    Codex PR#113 round-3 (2026-07-21) added a `write_nfo` gate here that let a
+    readonly produce skip the NFO write. REVERTED (owner-confirmed, round-3
+    review): that gate was a P1 data-loss — a title-changing rescrape with
+    write_nfo=False would skip writing `<new_base>.nfo` while
+    `_clean_stale_singletons` still unlinked the OLD `<old_base>.nfo`, losing
+    the NFO entirely while the DB kept a stale nfo_mtime claiming it exists.
+    Readonly produce is a HOLISTIC operation (a library entry always has an
+    NFO) — the router now rejects write_nfo=false for readonly up front (see
+    `_READONLY_NO_NFO_ERROR_MSG` in web/routers/scraper.py) instead of
+    threading a skip flag down here. The NFO is therefore always written,
+    unconditionally, exactly like every other produce caller.
 
     samples_only mode (TASK-104-T1 / CD-104-1) returns ONLY {'sample_fs':
     list[str]} — downloads meta['sample_images'] into movie_dir/extrafanart
@@ -937,39 +938,38 @@ def _write_movie_assets(
     # claims a movie was generated when the NFO is missing ("每片成功生成後寫一筆").
     # Cover/poster/fanart stay best-effort: a missing cover is acceptable per C6
     # (cold title with no image) and self-heals on the next incremental run.
-    # write_nfo=False (Codex PR#113 one-pass alignment): skip generate_nfo entirely
-    # — no write, no raise, nfo_mtime stays unset (caller preserves existing value).
+    # Always written (P1 revert, round-3 review 2026-07-21) — see the
+    # write_nfo paragraph in this function's docstring for why a skip-NFO
+    # gate is never reintroduced here.
     external_manager = config.get('external_manager', 'off')
-    nfo_mtime = None
-    if write_nfo:
-        nfo_fs = base_stem + '.nfo'
-        nfo_ok = generate_nfo(
-            number=meta['number'],
-            title=meta['title'],
-            actors=meta.get('actors', []),
-            tags=meta.get('tags', []),
-            date=meta.get('date', ''),
-            maker=meta.get('maker', ''),
-            url=meta.get('url', ''),
-            output_path=nfo_fs,
-            has_poster=has_poster,
-            has_fanart=has_fanart,
-            director=meta.get('director', ''),
-            duration=meta.get('duration'),
-            series=meta.get('series', ''),
-            label=meta.get('label', ''),
-            summary=meta.get('_summary', ''),
-            rating=meta.get('_rating'),
-            external_manager=external_manager,
-        )
-        if not nfo_ok:
-            raise RuntimeError(f"NFO write failed: {nfo_fs}")
-        # CD-104-4 (TASK-104-T1): real write mtime, not a hardcoded 0.0 — nfo_ok is
-        # True here so the file is guaranteed to exist (generate_nfo already raised
-        # above otherwise). MUTATION LOCK: replacing this stat with a hardcoded 0.0
-        # is caught by test_readonly_producer.py::TestUpsertDbAssetsMode's
-        # nfo_mtime-positive test (see that file for the mutation-lock comment).
-        nfo_mtime = os.stat(nfo_fs).st_mtime
+    nfo_fs = base_stem + '.nfo'
+    nfo_ok = generate_nfo(
+        number=meta['number'],
+        title=meta['title'],
+        actors=meta.get('actors', []),
+        tags=meta.get('tags', []),
+        date=meta.get('date', ''),
+        maker=meta.get('maker', ''),
+        url=meta.get('url', ''),
+        output_path=nfo_fs,
+        has_poster=has_poster,
+        has_fanart=has_fanart,
+        director=meta.get('director', ''),
+        duration=meta.get('duration'),
+        series=meta.get('series', ''),
+        label=meta.get('label', ''),
+        summary=meta.get('_summary', ''),
+        rating=meta.get('_rating'),
+        external_manager=external_manager,
+    )
+    if not nfo_ok:
+        raise RuntimeError(f"NFO write failed: {nfo_fs}")
+    # CD-104-4 (TASK-104-T1): real write mtime, not a hardcoded 0.0 — nfo_ok is
+    # True here so the file is guaranteed to exist (generate_nfo already raised
+    # above otherwise). MUTATION LOCK: replacing this stat with a hardcoded 0.0
+    # is caught by test_readonly_producer.py::TestUpsertDbAssetsMode's
+    # nfo_mtime-positive test (see that file for the mutation-lock comment).
+    nfo_mtime = os.stat(nfo_fs).st_mtime
 
     # 5) strm sidecar — media-server flavours only (TASK-90a-T3). off / non
     # media-server → no strm. best-effort: a write failure returns False and
@@ -990,10 +990,7 @@ def _write_movie_assets(
     # (T5 follow-up, Codex PR review P2) — see docstring above for why this is
     # post-write rather than pre-write.
     _clean_stale_singletons(movie_dir, old_base, new_base, has_cover, has_poster, has_fanart, has_strm)
-    result = {'cover_fs': cover_fs if has_cover else '', 'sample_fs': sample_fs}
-    if write_nfo:
-        result['nfo_mtime'] = nfo_mtime
-    return result
+    return {'cover_fs': cover_fs if has_cover else '', 'sample_fs': sample_fs, 'nfo_mtime': nfo_mtime}
 
 
 def _upsert_db(
@@ -1036,14 +1033,12 @@ def _upsert_db(
         sample_images fetched by an earlier 補劇照 (samples_only) call.
         ``existing`` is None for a brand-new video, so the no-existing-row
         matrix still gets ``sample_images=[]`` (no regression).
-      - nfo_mtime (Codex PR#113 one-pass alignment, 2026-07-21): when THIS run
-        did not write an NFO (``write_nfo=False`` threaded down to
-        ``_write_movie_assets``, which then omits the ``'nfo_mtime'`` key
-        entirely), fall back to ``existing.nfo_mtime`` (or ``0.0`` for a
-        brand-new row) instead of KeyError/clobbering — has_nfo stays a
-        faithful reflection of whatever NFO actually exists on disk.
-    Both/all three preservations only apply in ``full`` mode — ``samples_only``
-    already has its own symmetric skip-when-empty guard below.
+    Both preservations only apply in ``full`` mode — ``samples_only`` already
+    has its own symmetric skip-when-empty guard below. (A Codex PR#113 round-3
+    `write_nfo` skip-gate briefly made ``assets['nfo_mtime']`` optional too and
+    added a matching fallback here — REVERTED, round-3 review: the gate itself
+    was a P1 data-loss and readonly produce always writes the NFO now, so
+    ``assets['nfo_mtime']`` is unconditionally present.)
 
     samples_only mode (TASK-104-T1 / CD-104-1): does NOT construct/upsert a full
     Video row — a supplemental-samples fetch must never touch cover_path/
@@ -1098,7 +1093,7 @@ def _upsert_db(
         output_dir=output_dir,
         release_date=meta.get('date', ''),
         mtime=file_info['mtime'],
-        nfo_mtime=assets.get('nfo_mtime', existing.nfo_mtime if existing else 0.0),
+        nfo_mtime=assets['nfo_mtime'],
         scrape_attempted_at=time.time(),
     )
     repo.upsert(v)
@@ -1240,6 +1235,7 @@ def resolve_ingest_plan(
     proxy_url: str = '',
     scraper_data: Optional[dict] = None,
     source: Optional[str] = None,
+    javbus_lang: Optional[str] = None,
 ) -> tuple:
     """Metadata + cover two-axis decision for one source file (CD-104-3a).
 
@@ -1253,7 +1249,13 @@ def resolve_ingest_plan(
     prefers a LOCAL file (`VideoScanner.find_cover_image`, with the NFO's
     `<thumb>` threaded in as `nfo_thumb` when the NFO is valid) over a remote
     download — local-first, ingest intent (CD-104-10: nfo_thumb must be
-    threaded or L3 silently degrades).
+    threaded or L3 silently degrades). When there is no usable NFO, the
+    scrape-fallback (P2 fix, round-3 review 2026-07-21) honors the caller's own
+    `source`/`javbus_lang` instead of hardcoding `source="auto"` — mirrors the
+    rescrape branch's own dispatch just below: a concrete `source` (not
+    None/'auto') routes through `search_jav_single_source`; otherwise falls
+    back to `search_jav(source='auto', ...)`. Both dispatch cases thread
+    `javbus_lang` through.
 
     action='rescrape' (gear; T3 wires the caller): metadata and cover are
     ALWAYS remote — a re-scrape means "get the current upstream truth", never
@@ -1313,8 +1315,15 @@ def resolve_ingest_plan(
             # core.enricher's own source_used='nfo' for its NFO-read branch)
             # or it would silently report '' instead.
             meta['source'] = 'nfo'
+        elif not number:
+            meta = None
+        # P2 fix (round-3 review 2026-07-21): honor the caller's own source/
+        # javbus_lang instead of hardcoding source="auto" — mirrors the
+        # rescrape branch's dispatch below.
+        elif source and source not in (None, 'auto'):
+            meta = search_jav_single_source(number, source, proxy_url, javbus_lang=javbus_lang)
         else:
-            meta = search_jav(number, source="auto", proxy_url=proxy_url) if number else None
+            meta = search_jav(number, source="auto", proxy_url=proxy_url, javbus_lang=javbus_lang)
 
         nfo_thumb = root.findtext('thumb') if valid_nfo else None
         cover_fs = VideoScanner().find_cover_image(src_fs_path, nfo_thumb=nfo_thumb)
@@ -1340,9 +1349,9 @@ def resolve_ingest_plan(
         if scraper_data:
             meta = scraper_data
         elif source and source not in (None, 'auto'):
-            meta = search_jav_single_source(number, source, proxy_url) if number else None
+            meta = search_jav_single_source(number, source, proxy_url, javbus_lang=javbus_lang) if number else None
         else:
-            meta = search_jav(number, source="auto", proxy_url=proxy_url) if number else None
+            meta = search_jav(number, source="auto", proxy_url=proxy_url, javbus_lang=javbus_lang) if number else None
         cover_strategy = ('download', meta['cover']) if meta and meta.get('cover') else ('none',)
 
     if meta is None:
@@ -1381,7 +1390,6 @@ def _produce_one(
     allocated_this_run: set,
     path_mappings: dict,
     strm_mappings_getter=None,
-    write_nfo: bool = True,
 ) -> tuple[Path, dict]:
     """Resolve movie_dir, write assets, upsert DB for ONE file. Returns
     ``(movie_dir, assets)`` (contract change, P2 review 2026-07-21 — was a
@@ -1414,11 +1422,10 @@ def _produce_one(
     CD-104-1 contract and for T2/T3 callers that will need it (e.g. resolving
     ingest vs. rescrape intent upstream of this primitive).
 
-    write_nfo (Codex PR#113 one-pass alignment, 2026-07-21): threaded straight
-    through to ``_write_movie_assets`` — defaults to True, so every EXISTING
-    caller (produce_source's bulk loop included) that does not pass this
-    kwarg keeps writing the NFO unconditionally (byte-identical behaviour).
-    Only the readonly router endpoints pass ``write_nfo=request.write_nfo``.
+    A Codex PR#113 round-3 `write_nfo` param that threaded a skip-NFO flag
+    down to `_write_movie_assets` was REVERTED (P1 data-loss, round-3 review
+    2026-07-21) — every caller, including the readonly router endpoints,
+    always writes the NFO now.
     """
     src_uri = to_file_uri(file_info["path"], path_mappings)
     fd = _format_data(meta, file_info["path"], config)
@@ -1435,7 +1442,6 @@ def _produce_one(
         str(movie_dir), meta, fd, file_info["path"], config,
         cover_strategy=cover_strategy, assets_mode=assets_mode,
         old_base=old_base, strm_mappings_getter=strm_mappings_getter,
-        write_nfo=write_nfo,
     )
     _upsert_db(
         repo, src_uri, file_info, meta, assets, path_mappings, output_dir_uri,

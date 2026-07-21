@@ -83,6 +83,20 @@ _READONLY_DB_TO_SIDECAR_ERROR_MSG = (
     "唯讀來源不支援 db_to_sidecar（產物 NFO 由產生流程自動管理，來源零寫入）"
 )
 
+# P1 revert + reject (round-3 review 2026-07-21，owner-confirmed)：Codex PR#113
+# round-3 threaded a write_nfo=false skip-NFO gate into the readonly produce
+# path — that was a P1 data-loss (a title-changing rescrape with
+# write_nfo=False skipped writing the new NFO while stale-cleanup still
+# unlinked the old one, losing the NFO while the DB kept a stale nfo_mtime
+# claiming it exists). Readonly produce is HOLISTIC — a library entry always
+# has an NFO — so write_nfo=false is rejected here exactly like
+# db_to_sidecar above (both are granular flags the holistic produce model
+# doesn't support), instead of threading a skip flag down into
+# _produce_one/_write_movie_assets.
+_READONLY_NO_NFO_ERROR_MSG = (
+    "唯讀來源產生一律含 NFO（holistic 產物），不支援 write_nfo=false"
+)
+
 
 def _readonly_source_error(file_path: str) -> Optional[dict]:
     """唯讀來源 guard：只依 file_path 判斷所屬來源是否唯讀（readonly）。
@@ -439,6 +453,19 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
                 error=_READONLY_DB_TO_SIDECAR_ERROR_MSG,
                 reason='error',
             ))
+        # P1 revert + reject (round-3 review 2026-07-21): readonly produce is
+        # holistic (a library entry always has an NFO) — write_nfo=false is
+        # rejected the same way db_to_sidecar is above, rather than threading
+        # a skip-NFO flag down into resolve_ingest_plan/_produce_one (see
+        # _READONLY_NO_NFO_ERROR_MSG). The frontend never sends
+        # write_nfo=false, so this is zero UI impact.
+        if not request.write_nfo:
+            return asdict(EnrichResult(
+                success=False, nfo_written=False, cover_written=False,
+                extrafanart_written=0, fields_filled=[], source_used='',
+                error=_READONLY_NO_NFO_ERROR_MSG,
+                reason='error',
+            ))
         if not output_root:
             return asdict(EnrichResult(
                 success=False, nfo_written=False, cover_written=False,
@@ -456,6 +483,7 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
             meta, cover_strategy = resolve_ingest_plan(
                 fs_path, request.number, config.get("scraper", {}),
                 action=action, proxy_url=proxy_url, scraper_data=scraper_data, source=request.source,
+                javbus_lang=request.javbus_lang,
             )
             if not meta:
                 return asdict(EnrichResult(
@@ -484,18 +512,16 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
                 "size": existing.size_bytes if existing else os.path.getsize(fs_path),
                 "mtime": existing.mtime if existing else os.path.getmtime(fs_path),
             }
-            # _produce_one now returns (movie_dir, assets). write_nfo threaded from
-            # the request (Codex PR#113 P1 one-pass alignment) — mirrors non-readonly
-            # enrich_single's own write_nfo flag; previously this branch always wrote
-            # the NFO regardless of the request flag. cover_written reflects whether
-            # the cover step actually produced a file (cover_strategy=('none',) or a
-            # failed copy/download both leave assets['cover_fs'] == '').
+            # _produce_one now returns (movie_dir, assets). NFO is always written
+            # (P1 revert, round-3 review 2026-07-21 — write_nfo=false is rejected
+            # above, before this point is ever reached). cover_written reflects
+            # whether the cover step actually produced a file (cover_strategy=
+            # ('none',) or a failed copy/download both leave assets['cover_fs'] == '').
             _, assets = _produce_one(
                 repo, source, config.get("scraper", {}), file_info=file_info,
                 meta=meta, cover_strategy=cover_strategy, assets_mode='full',
                 existing=existing, output_root=output_root, output_uri=output_uri,
                 allocated_this_run=set(), path_mappings=path_mappings,
-                write_nfo=request.write_nfo,
             )
             thumbnail_cache.invalidate(canonical)
             cover_written = bool(assets.get('cover_fs'))
@@ -530,7 +556,10 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
                     logger.warning("readonly enrich focal 排程失敗（不影響改道結果）", exc_info=True)
             return asdict(EnrichResult(
                 success=True,
-                nfo_written=bool(request.write_nfo),
+                # NFO is always written on a successful readonly produce (P1
+                # revert, round-3 review 2026-07-21) — write_nfo=false never
+                # reaches here (rejected above).
+                nfo_written=True,
                 cover_written=cover_written,
                 extrafanart_written=len(assets.get('sample_fs', [])),
                 fields_filled=_readonly_fields_filled(meta),
@@ -818,7 +847,7 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                 # uri-no-reverse: coerce_to_file_uri forward URI build, D2 complement
                 canonical = coerce_to_file_uri(item.file_path, _ro_mappings)
                 if is_path_readonly(canonical, _ro_prefixes, _ro_writable):
-                    def _do_readonly(itm=item, uri=canonical):
+                    def _do_readonly(itm=item, uri=canonical, es=effective_source, el=effective_lang):
                         # P2 review round 3 (FIX#4): same db_to_sidecar rejection as
                         # enrich_single_endpoint's readonly branch (see that branch's
                         # comment) — placed before resolve_owning_output_root so it
@@ -827,6 +856,12 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                         # is checked once against the whole-batch `request.mode`.
                         if request.mode == 'db_to_sidecar':
                             return ('db_to_sidecar', _READONLY_DB_TO_SIDECAR_ERROR_MSG)
+                        # P1 revert + reject (round-3 review 2026-07-21): same
+                        # write_nfo=false rejection as enrich_single_endpoint's
+                        # readonly branch (see _READONLY_NO_NFO_ERROR_MSG) — readonly
+                        # produce is holistic, no per-item override exists.
+                        if not request.write_nfo:
+                            return ('no_nfo', _READONLY_NO_NFO_ERROR_MSG)
                         owning = resolve_owning_output_root(uri, config)
                         if owning is None:
                             return ('skip', None)  # 理論不達（上面 is_path_readonly 已判真）
@@ -834,9 +869,14 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                         if not out_root:
                             return ('error', "未設定媒體庫輸出路徑")
                         fs_path = uri_to_local_fs_path(itm.file_path, _ro_mappings)
+                        # P2 fix (round-3 review 2026-07-21): thread the caller's own
+                        # effective_source/effective_lang into the ingest scrape-
+                        # fallback instead of leaving resolve_ingest_plan's source/
+                        # javbus_lang at their None defaults (which silently forced
+                        # every no-valid-NFO batch item through source="auto").
                         meta, cs = resolve_ingest_plan(
                             fs_path, itm.number, config.get("scraper", {}),
-                            action='ingest', proxy_url=proxy_url,
+                            action='ingest', proxy_url=proxy_url, source=es, javbus_lang=el,
                         )
                         if not meta:
                             return ('no_scrape', "找不到可用的番號資料")
@@ -865,15 +905,14 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                             # EnrichResult shape (Codex PR#113 one-pass alignment) on
                             # the result-item, same as the non-readonly EnrichResult
                             # shape the frontend (state-batch.js) already keys its
-                            # badge/fly-in animation off of. write_nfo threaded from
-                            # the batch request (mirrors enrich-single's own flag —
-                            # previously this branch always wrote the NFO regardless).
+                            # badge/fly-in animation off of. NFO is always written
+                            # (P1 revert, round-3 review 2026-07-21 — write_nfo=false
+                            # is rejected above, before this point is ever reached).
                             _, assets = _produce_one(
                                 repo, ro_source, config.get("scraper", {}), file_info=file_info, meta=meta,
                                 cover_strategy=cs, assets_mode='full', existing=existing,
                                 output_root=out_root, output_uri=out_uri,
                                 allocated_this_run=set(), path_mappings=_ro_mappings,
-                                write_nfo=request.write_nfo,
                             )
                         except Exception:
                             logger.exception("batch_enrich readonly item %s 失敗", itm.number)
@@ -911,12 +950,11 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                     if status == 'ok':
                         success_count += 1
                         thumbnail_cache.invalidate(canonical)
-                        # nfo_written = bool(request.write_nfo): assets_mode='full'
-                        # reaching here means _write_movie_assets ran to completion
-                        # (it raises otherwise, caught above as 'error') — when
-                        # write_nfo was requested the NFO write itself is what
-                        # ran-to-completion means; when write_nfo=False no NFO write
-                        # was attempted at all (Codex PR#113 one-pass alignment).
+                        # nfo_written=True unconditionally: assets_mode='full' reaching
+                        # here means _write_movie_assets ran to completion (it raises
+                        # otherwise, caught above as 'error'), and the NFO write is
+                        # always attempted now (P1 revert, round-3 review 2026-07-21 —
+                        # write_nfo=false is rejected above, before this point).
                         assets, item_meta, had_cover = payload or ({}, {}, False)
                         cover_written = bool(assets.get('cover_fs'))
                         # Codex PR#113 P2 #2: mirror non-readonly EnrichResult.reason
@@ -940,7 +978,7 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                             'type': 'result-item', 'number': item.number, 'file_path': item.file_path,
                             **asdict(EnrichResult(
                                 success=True,
-                                nfo_written=bool(request.write_nfo),
+                                nfo_written=True,
                                 cover_written=cover_written,
                                 extrafanart_written=len(assets.get('sample_fs', [])),
                                 fields_filled=_readonly_fields_filled(item_meta),
