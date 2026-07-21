@@ -81,8 +81,12 @@ def apply_cover_preserve(strategy, write_cover, overwrite_existing, cover_exists
 def effective_original_title(meta, existing) -> str:
     """重刮回空原文標題時保留 DB 既有值。meta 有非空 original_title → 用之；
     否則回退 existing.original_title（existing 為 None → '')。唯一 preserve 邏輯，
-    非唯讀 enricher 與唯讀 producer 皆呼叫此份（方案 A：唯一 preserve 在 helper）。"""
-    return meta.get('original_title') or (existing.original_title if existing else '')
+    非唯讀 enricher 與唯讀 producer 皆呼叫此份（方案 A：唯一 preserve 在 helper）。
+
+    回傳**恆為 str**：`original_title TEXT` 欄可為 SQL NULL、`Video.from_row` 原樣
+    傳 Python None，故尾端 `or ''` 把 None（與 '')正規化成 ''——否則 None 會被注入
+    meta['original_title']、下游 generate_nfo 的 html.escape(None) 拋 AttributeError。"""
+    return meta.get('original_title') or (existing.original_title if existing else '') or ''
 
 
 def compute_has_servable_cover(repo, path_uri, path_mappings) -> bool:

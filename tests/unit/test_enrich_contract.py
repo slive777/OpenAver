@@ -120,6 +120,16 @@ class TestEffectiveOriginalTitle:
         assert effective_original_title({}, None) == ''
         assert effective_original_title({'original_title': ''}, SimpleNamespace(original_title='')) == ''
 
+    def test_existing_original_title_none_returns_empty_str_not_none(self):
+        """meta 空 + existing.original_title 為 SQL NULL（Video.from_row → Python None）→ 回 ''
+        而非 None（grok pre-merge P2 回歸修正）。DB `original_title TEXT` 可為 NULL、
+        `from_row` 原樣傳 None；若回 None 會被注入 meta['original_title']，下游
+        `generate_nfo` 的 `html.escape(None)` 拋 AttributeError。回傳恆為 str。"""
+        assert effective_original_title({}, SimpleNamespace(original_title=None)) == ''
+        assert effective_original_title({'original_title': ''}, SimpleNamespace(original_title=None)) == ''
+        # 型別鎖：任何輸入組合回傳皆為 str（不得回 None）
+        assert isinstance(effective_original_title({}, SimpleNamespace(original_title=None)), str)
+
 
 # ── should_preserve_cover ────────────────────────────────────────────────────
 
