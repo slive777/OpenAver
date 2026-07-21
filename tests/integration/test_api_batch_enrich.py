@@ -5,6 +5,8 @@ test_api_batch_enrich.py - POST /api/batch-enrich 端點整合測試（SSE Strea
 """
 
 import json
+from pathlib import Path
+
 import pytest
 from unittest.mock import MagicMock
 
@@ -385,8 +387,13 @@ class TestBatchEnrichReadonlyGuard:
             if plan_return is not None
             else ({"number": "RO-001", "title": "T", "cover": ""}, ("none",)),
         )
+        # _produce_one now returns (movie_dir, assets) — this default return_value
+        # (only used when produce_side_effect is None) keeps the router's
+        # `_, assets = _produce_one(...)` unpack from raising on a bare MagicMock.
         mock_produce = mocker.patch(
-            "web.routers.scraper._produce_one", side_effect=produce_side_effect,
+            "web.routers.scraper._produce_one",
+            side_effect=produce_side_effect,
+            return_value=(Path("/out/ro_src-x/RO-001"), {"cover_fs": "", "sample_fs": [], "nfo_mtime": 1.0}),
         )
         mock_repo = mocker.patch("web.routers.scraper.VideoRepository")
         mock_repo.return_value.get_by_path.return_value = MagicMock(size_bytes=10, mtime=1.0)
@@ -439,6 +446,88 @@ class TestBatchEnrichReadonlyGuard:
 
         # _emit_notif 只在批次層呼叫（started + done），唯讀項不逐項發 notif
         assert emit_spy.call_count == 2
+
+    # P2 review (2026-07-21): the readonly batch success result-item was
+    # `{'success': True}` only — no nfo_written/cover_written — so
+    # state-batch.js's badge counter / cover fly-in animation (which key off
+    # `event.nfo_written || event.cover_written`, see
+    # web/static/js/pages/scanner/state-batch.js:174/188) never fired for a
+    # readonly item that DID generate assets. cover_written must reflect
+    # `assets['cover_fs']` truthiness (here: non-empty → True); nfo_written is
+    # unconditionally True on any 'ok' full-mode result (a failed NFO write
+    # raises inside _produce_one, which the offload's except-branch turns into
+    # an 'error' status, never reaching 'ok').
+    def test_readonly_batch_success_item_carries_nfo_and_cover_written(self, client, mocker):
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=self._readonly_config(),
+        )
+        mocker.patch("web.routers.scraper.enrich_single", return_value=_ok_result())
+        source_stub = MagicMock()
+        source_stub.path = "/tmp/ro_src"
+        mocker.patch(
+            "web.routers.scraper.resolve_owning_output_root",
+            return_value=(source_stub, "/out/ro_src-x", "file:///out/ro_src-x"),
+        )
+        mocker.patch(
+            "web.routers.scraper.resolve_ingest_plan",
+            return_value=({"number": "RO-001", "title": "T", "cover": ""}, ("none",)),
+        )
+        mocker.patch(
+            "web.routers.scraper._produce_one",
+            return_value=(
+                Path("/out/ro_src-x/RO-001"),
+                {"cover_fs": "/out/ro_src-x/RO-001/RO-001.jpg", "sample_fs": [], "nfo_mtime": 1.0},
+            ),
+        )
+        mock_repo = mocker.patch("web.routers.scraper.VideoRepository")
+        mock_repo.return_value.get_by_path.return_value = MagicMock(size_bytes=10, mtime=1.0)
+
+        response = client.post("/api/batch-enrich", json={
+            "items": [{"file_path": "/tmp/ro_src/RO-001.mp4", "number": "RO-001"}],
+            "mode": "refresh_full",
+        })
+
+        result_items = [e for e in parse_sse(response.text) if e["type"] == "result-item"]
+        assert result_items[0]["success"] is True
+        assert result_items[0]["nfo_written"] is True
+        assert result_items[0]["cover_written"] is True
+
+    def test_readonly_batch_success_item_cover_written_false_when_no_cover(self, client, mocker):
+        """cover_written must be False, not just truthy-omitted, when
+        assets['cover_fs'] is '' (e.g. cover_strategy=('none',) — an ingest with
+        an .nfo but no local/remote cover available)."""
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=self._readonly_config(),
+        )
+        mocker.patch("web.routers.scraper.enrich_single", return_value=_ok_result())
+        source_stub = MagicMock()
+        source_stub.path = "/tmp/ro_src"
+        mocker.patch(
+            "web.routers.scraper.resolve_owning_output_root",
+            return_value=(source_stub, "/out/ro_src-x", "file:///out/ro_src-x"),
+        )
+        mocker.patch(
+            "web.routers.scraper.resolve_ingest_plan",
+            return_value=({"number": "RO-001", "title": "T", "cover": ""}, ("none",)),
+        )
+        mocker.patch(
+            "web.routers.scraper._produce_one",
+            return_value=(Path("/out/ro_src-x/RO-001"), {"cover_fs": "", "sample_fs": [], "nfo_mtime": 1.0}),
+        )
+        mock_repo = mocker.patch("web.routers.scraper.VideoRepository")
+        mock_repo.return_value.get_by_path.return_value = MagicMock(size_bytes=10, mtime=1.0)
+
+        response = client.post("/api/batch-enrich", json={
+            "items": [{"file_path": "/tmp/ro_src/RO-001.mp4", "number": "RO-001"}],
+            "mode": "refresh_full",
+        })
+
+        result_items = [e for e in parse_sse(response.text) if e["type"] == "result-item"]
+        assert result_items[0]["success"] is True
+        assert result_items[0]["nfo_written"] is True
+        assert result_items[0]["cover_written"] is False
 
     def test_readonly_item_no_scrape_still_fails_batch_continues(self, client, mocker):
         """唯讀項改道但找不到可用番號資料（resolve_ingest_plan 回 meta=None）→

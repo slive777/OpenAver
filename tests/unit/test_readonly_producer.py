@@ -3865,9 +3865,23 @@ class TestUpsertDbSamplesOnly:
             self.SOURCE_URI, [to_file_uri('/output/TEST-001/extrafanart/fanart1.jpg', None)]
         )
 
-    def test_empty_sample_fs_calls_update_with_empty_list(self):
-        """Legal clear (card boundary): explicit fetch found zero samples this
-        time → update_sample_images(path, []) is still called (not skipped)."""
+    def test_empty_sample_fs_skips_update_does_not_clobber(self):
+        """P2 review (2026-07-21): INTENDED CONTRACT CHANGE, not a weakening.
+
+        This test previously asserted `update_sample_images(path, [])` IS called
+        on an empty sample_fs ("legal clear" — explicit fetch found/downloaded
+        zero samples this time). That is the exact P2 bug: a total download
+        failure (network error mid-loop, all URLs 404, etc.) also produces an
+        empty `assets['sample_fs']`, and unconditionally clearing DB
+        sample_images to `[]` on that path silently destroys data the caller
+        never asked to touch. `core.enricher.fetch_samples_only` — the
+        non-readonly sibling this samples_only path must behave like — already
+        gets this right: it only calls its own `_db_upsert_samples_only`
+        `if written_uris:`, leaving any existing sample_images alone when
+        nothing was actually written, regardless of WHY nothing was written.
+        `_upsert_db`'s samples_only branch now mirrors that exactly.
+        MUTATION LOCK: reinstating the unconditional `repo.update_sample_images`
+        call must turn this test RED."""
         from core.readonly_producer import _upsert_db
 
         repo = MagicMock()
@@ -3878,7 +3892,31 @@ class TestUpsertDbSamplesOnly:
             'file:///output/TEST-001', assets_mode='samples_only',
         )
 
-        repo.update_sample_images.assert_called_once_with(self.SOURCE_URI, [])
+        repo.update_sample_images.assert_not_called()
+
+    def test_empty_sample_fs_leaves_existing_sample_images_row_untouched(self, temp_db):
+        """Real-DB round trip of the P2 fix: an existing row's sample_images
+        survive a samples_only call whose assets['sample_fs'] came back empty
+        (e.g. every download in this fetch attempt failed) — the exact
+        "total failure clobbers to []" bug this task fixes."""
+        from core.database import Video, VideoRepository
+        from core.readonly_producer import _upsert_db
+
+        repo = VideoRepository(temp_db)
+        repo.upsert(Video(
+            path=self.SOURCE_URI, number='TEST-001', title='Existing Title',
+            sample_images=['file:///output/TEST-001/extrafanart/fanart1.jpg'],
+            output_dir='file:///output/TEST-001',
+        ))
+
+        assets = {'sample_fs': []}
+        _upsert_db(
+            repo, self.SOURCE_URI, _T3_FILE_INFO, _T3_META, assets, None,
+            'file:///output/TEST-001', assets_mode='samples_only',
+        )
+
+        v = repo.get_by_path(self.SOURCE_URI)
+        assert v.sample_images == ['file:///output/TEST-001/extrafanart/fanart1.jpg']
 
     def test_does_not_touch_cover_path_or_nfo_mtime_of_existing_row(self, temp_db):
         """Real-DB round trip: an existing produced row's cover_path/nfo_mtime/
@@ -4256,6 +4294,39 @@ class TestNfoToProducerMeta:
         root3 = _nfo_root('<movie><num>N-2</num><studio>StudioOnly</studio></movie>')
         meta3 = _nfo_to_producer_meta(root3, fallback_number='')
         assert meta3['maker'] == 'StudioOnly'
+
+    def test_flat_actor_element_openaver_native_shape(self):
+        """OpenAver's own generate_nfo writes flat <movie><actor><name> (direct
+        child of <movie>) — the pre-existing shape must keep working after
+        switching the selector to any-depth `.//actor/name` (P1 finding)."""
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        root = _nfo_root(
+            '<movie><actor><name>Flat A</name></actor>'
+            '<actor><name>Flat B</name></actor></movie>'
+        )
+        meta = _nfo_to_producer_meta(root, fallback_number='X')
+        assert meta['actors'] == ['Flat A', 'Flat B']
+
+    def test_nested_actors_element_any_depth(self):
+        """P1 finding (2026-07-21 review): a third-party NFO nests <actor> one
+        level deeper — <movie><actors><actor><name>X</name></actor></actors></movie>
+        — which VideoScanner.parse_nfo already reads via its own any-depth
+        `.//actor/name` selector (gallery_scanner.py:345). A direct-children-only
+        `root.findall('actor')` silently returns [] here, so ingest would clear
+        actors that the incumbent scan path reads fine — the exact drift this
+        adapter exists to avoid. MUTATION LOCK: reverting `_nfo_to_producer_meta`'s
+        selector back to `root.findall('actor')` must turn this test RED."""
+        from core.readonly_producer import _nfo_to_producer_meta
+
+        root = _nfo_root(
+            '<movie><actors>'
+            '<actor><name>Nested A</name></actor>'
+            '<actor><name>Nested B</name></actor>'
+            '</actors></movie>'
+        )
+        meta = _nfo_to_producer_meta(root, fallback_number='X')
+        assert meta['actors'] == ['Nested A', 'Nested B']
 
     def test_mutation_lock_not_enricher_shape(self):
         """MUTATION LOCK: must use producer-meta keys ('actors'/'date'/'cover'),

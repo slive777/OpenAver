@@ -412,14 +412,27 @@ def enrich_single_endpoint(request: EnrichRequest) -> dict:
                 "size": existing.size_bytes if existing else os.path.getsize(fs_path),
                 "mtime": existing.mtime if existing else os.path.getmtime(fs_path),
             }
-            _produce_one(
+            # _produce_one now returns (movie_dir, assets) — CD-104-5 P2 review
+            # (2026-07-21): the frontend enrich success handlers key badge/fly-in
+            # UI off nfo_written/cover_written (EnrichResult shape), which the bare
+            # `{"success": True}` this branch used to return never carried. In full
+            # mode reaching this line always means the NFO was written
+            # (_write_movie_assets raises before returning otherwise) — nfo_written
+            # is unconditionally True here; cover_written reflects whether the
+            # cover step actually produced a file (cover_strategy=('none',) or a
+            # failed copy/download both leave assets['cover_fs'] == '').
+            _, assets = _produce_one(
                 repo, source, config.get("scraper", {}), file_info=file_info,
                 meta=meta, cover_strategy=cover_strategy, assets_mode='full',
                 existing=existing, output_root=output_root, output_uri=output_uri,
                 allocated_this_run=set(), path_mappings=path_mappings,
             )
             thumbnail_cache.invalidate(canonical)
-            return {"success": True}
+            return {
+                "success": True,
+                "nfo_written": True,
+                "cover_written": bool(assets.get('cover_fs')),
+            }
         except Exception:
             logger.exception("enrich_single_endpoint readonly 改道失敗")
             return {"success": False, "error": "enrich 處理失敗，請查閱日誌"}
@@ -547,13 +560,21 @@ def fetch_samples_endpoint(req: FetchSamplesRequest) -> dict:
                 "size": existing.size_bytes if existing else os.path.getsize(fs_path),
                 "mtime": existing.mtime if existing else os.path.getmtime(fs_path),
             }
-            _produce_one(
+            # P2 review (2026-07-21): report the ACTUALLY-downloaded count, not the
+            # requested one — `len(meta["sample_images"])` used to be returned
+            # verbatim regardless of how many downloads actually succeeded, so a
+            # partial/total download failure still reported full success.
+            # `assets['sample_fs']` (from _produce_one's new (movie_dir, assets)
+            # return) only contains the files `_write_movie_assets` actually wrote
+            # — the same source `_upsert_db` uses to (conditionally) update
+            # sample_images, so this count and the DB state can never disagree.
+            _, assets = _produce_one(
                 repo, source, config.get("scraper", {}), file_info=file_info,
                 meta=meta, cover_strategy=('none',), assets_mode='samples_only',
                 existing=existing, output_root=output_root, output_uri=output_uri,
                 allocated_this_run=set(), path_mappings=path_mappings,
             )
-            return {"success": True, "extrafanart_written": len(meta["sample_images"])}
+            return {"success": True, "extrafanart_written": len(assets.get('sample_fs', []))}
         except Exception:
             logger.exception("fetch_samples_endpoint readonly 改道失敗")
             return {"success": False, "error": "fetch_samples 處理失敗，請查閱日誌", "extrafanart_written": 0}
@@ -669,7 +690,14 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                             "mtime": existing.mtime if existing else os.path.getmtime(fs_path),
                         }
                         try:
-                            _produce_one(
+                            # _produce_one now returns (movie_dir, assets) — payload
+                            # (P3 review 2026-07-21) carries assets back out of the
+                            # executor so the 'ok' branch below can surface
+                            # nfo_written/cover_written on the result-item, same as
+                            # the non-readonly EnrichResult shape the frontend
+                            # (state-batch.js) already keys its badge/fly-in
+                            # animation off of.
+                            _, assets = _produce_one(
                                 repo, ro_source, config.get("scraper", {}), file_info=file_info, meta=meta,
                                 cover_strategy=cs, assets_mode='full', existing=existing,
                                 output_root=out_root, output_uri=out_uri,
@@ -678,17 +706,27 @@ async def batch_enrich_endpoint(request: BatchEnrichRequest):
                         except Exception:
                             logger.exception("batch_enrich readonly item %s 失敗", itm.number)
                             return ('error', "生成失敗")
-                        return ('ok', None)
+                        return ('ok', assets)
 
                     loop = asyncio.get_running_loop()
-                    status, err = await loop.run_in_executor(None, _do_readonly)
+                    status, payload = await loop.run_in_executor(None, _do_readonly)
                     if status == 'ok':
                         success_count += 1
                         thumbnail_cache.invalidate(canonical)
-                        yield f"data: {json.dumps({'type': 'result-item', 'number': item.number, 'file_path': item.file_path, 'success': True})}\n\n"
+                        # nfo_written unconditionally True: assets_mode='full' reaching
+                        # here means _write_movie_assets already wrote the NFO
+                        # successfully (it raises otherwise, caught above as 'error').
+                        assets = payload or {}
+                        result_item = {
+                            'type': 'result-item', 'number': item.number, 'file_path': item.file_path,
+                            'success': True,
+                            'nfo_written': True,
+                            'cover_written': bool(assets.get('cover_fs')),
+                        }
+                        yield f"data: {json.dumps(result_item)}\n\n"
                     else:
                         failed_count += 1
-                        yield f"data: {json.dumps({'type': 'result-item', 'number': item.number, 'file_path': item.file_path, 'success': False, 'error': err or '生成失敗', 'reason': status})}\n\n"
+                        yield f"data: {json.dumps({'type': 'result-item', 'number': item.number, 'file_path': item.file_path, 'success': False, 'error': payload or '生成失敗', 'reason': status})}\n\n"
                     continue
 
                 try:

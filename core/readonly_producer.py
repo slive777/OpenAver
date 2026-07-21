@@ -894,11 +894,25 @@ def _upsert_db(
     nfo_mtime/metadata (Codex P1-c symmetry with _write_movie_assets). Only
     sample_images is updated, via the dedicated repo.update_sample_images (same
     DB path the existing fetch-samples feature already uses).
+
+    P2 review (2026-07-21): `repo.update_sample_images` is skipped entirely when
+    `assets['sample_fs']` is empty — matching `core.enricher.fetch_samples_only`'s
+    OWN zero-download behaviour byte for byte (that function only calls its
+    `_db_upsert_samples_only` `if written_uris:`, leaving any existing DB
+    `sample_images` untouched when nothing was actually downloaded, regardless of
+    whether zero downloads happened because the scraper returned no sample URLs
+    at all or because every download attempt failed). Previously this branch
+    called `update_sample_images(source_uri, [])` unconditionally, which cleared
+    a video's existing sample_images to `[]` on a total download failure —
+    silently destroying data the caller never asked to touch. Do NOT revert to
+    the unconditional call: that is the exact bug this task fixes, not a
+    simplification.
     """
     if assets_mode == 'samples_only':
-        repo.update_sample_images(
-            source_uri, [to_file_uri(p, path_mappings) for p in assets['sample_fs']]
-        )
+        if assets['sample_fs']:
+            repo.update_sample_images(
+                source_uri, [to_file_uri(p, path_mappings) for p in assets['sample_fs']]
+            )
         return
 
     v = Video(
@@ -979,11 +993,17 @@ def _nfo_to_producer_meta(root: ET.Element, fallback_number: str) -> dict:
     raw_title = _text('title')
     title = _strip_num_prefixes(raw_title, number) if raw_title else raw_title
 
+    # any-depth `.//actor/name` — mirrors VideoScanner.parse_nfo (gallery_scanner.py:345)
+    # EXACTLY. A direct-children-only `root.findall('actor')` would silently return []
+    # for a third-party NFO shaped `<movie><actors><actor><name>X</name></actor></actors></movie>`
+    # (actors nested one level deeper than OpenAver's own flat `<movie><actor>` shape) —
+    # VideoScanner would still read the actor via the scan path, but ingest would clear it
+    # (P1 finding, 2026-07-21 review). MUTATION LOCK: reverting to `root.findall('actor')`
+    # must turn test_nested_actors_element_any_depth RED (test_readonly_producer.py).
     actors = [
-        (n.text or '').strip()
-        for a in root.findall('actor')
-        for n in [a.find('name')]
-        if n is not None and n.text
+        (elem.text or '').strip()
+        for elem in root.findall('.//actor/name')
+        if elem.text
     ]
 
     # genre/tag merge-with-dedup, mirroring VideoScanner.parse_nfo:350-358
@@ -1160,8 +1180,24 @@ def _produce_one(
     allocated_this_run: set,
     path_mappings: dict,
     strm_mappings_getter=None,
-) -> Path:
-    """Resolve movie_dir, write assets, upsert DB for ONE file. Returns movie_dir.
+) -> tuple[Path, dict]:
+    """Resolve movie_dir, write assets, upsert DB for ONE file. Returns
+    ``(movie_dir, assets)`` (contract change, P2 review 2026-07-21 — was a
+    bare ``movie_dir`` Path; every caller must now unpack the tuple).
+
+    ``assets`` is the dict `_write_movie_assets` returned (``{'cover_fs',
+    'sample_fs', 'nfo_mtime'}`` in full mode / ``{'sample_fs'}`` in
+    samples_only mode) — the shared enabler for two router-level bugs:
+      - fetch-samples was reporting the REQUESTED sample count instead of the
+        ACTUALLY-downloaded one (`len(assets['sample_fs'])` is ground truth;
+        `_write_movie_assets` only appends successfully-downloaded files to
+        `sample_fs`, so a partial/total download failure no longer over-reports).
+      - batch/enrich-single readonly success responses carried no
+        nfo_written/cover_written for the frontend — callers can now derive
+        `cover_written = bool(assets.get('cover_fs'))` (nfo_written is
+        unconditionally True on a successful return in full mode:
+        `_write_movie_assets` raises before returning if the NFO write itself
+        fails, so reaching here always means the NFO was written).
 
     config here is scraper_cfg — the same section _resolve_movie_dir /
     _write_movie_assets already take (matches produce_source's call site).
@@ -1190,7 +1226,7 @@ def _produce_one(
         old_base=old_base, strm_mappings_getter=strm_mappings_getter,
     )
     _upsert_db(repo, src_uri, file_info, meta, assets, path_mappings, output_dir_uri, assets_mode=assets_mode)
-    return movie_dir
+    return movie_dir, assets
 
 
 # ---------------------------------------------------------------------------
@@ -1299,7 +1335,7 @@ def produce_source(source, config, repo, *, proxy_url="", on_progress=None, shou
 
         try:
             existing = repo.get_by_path(src_uri)  # T3: read once; T4 reuses title/actresses/maker/release_date
-            movie_dir = _produce_one(
+            movie_dir, _assets = _produce_one(  # _produce_one now returns (movie_dir, assets) — this loop only needs movie_dir
                 repo, source, scraper_cfg,
                 file_info=fi, meta=meta, cover_strategy=cover_strategy, assets_mode='full',
                 existing=existing, output_root=output_root, output_uri=output_uri,

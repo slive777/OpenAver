@@ -300,7 +300,15 @@ class TestEnrichSingleReadonlyGuard:
             "web.routers.scraper.resolve_ingest_plan",
             return_value=(meta if meta is not None else {"number": "ABC-001", "title": "T", "cover": ""}, cover_strategy),
         )
-        mock_produce = mocker.patch("web.routers.scraper._produce_one")
+        # _produce_one now returns (movie_dir, assets) — CD-104-5 P2 review
+        # (2026-07-21): a bare MagicMock() return_value doesn't unpack as a
+        # 2-tuple (`a, b = MagicMock()` raises), so every router-level mock of
+        # this collaborator needs an explicit tuple default. cover_fs non-empty
+        # by default so tests that don't care land on cover_written=True.
+        mock_produce = mocker.patch(
+            "web.routers.scraper._produce_one",
+            return_value=(Path("/out/ro_src-abcdef/ABC-001"), {"cover_fs": "/out/ro_src-abcdef/ABC-001/ABC-001.jpg", "sample_fs": [], "nfo_mtime": 1.0}),
+        )
         mock_repo = mocker.patch("web.routers.scraper.VideoRepository")
         # existing=None (explicit) → 落 os.path.getsize/getmtime fallback（不在此測試組覆蓋，
         # 真檔案雜湊/落盤驗證交給 TestReadonlyRoutingE2E）；預設給一個 non-None stub，避免
@@ -366,6 +374,62 @@ class TestEnrichSingleReadonlyGuard:
         assert response.json()["success"] is True
         assert mock_plan.call_args.kwargs["action"] == "rescrape"
         mock_produce.assert_called_once()
+
+    # P2 review (2026-07-21): the readonly enrich-single success response was
+    # `{"success": True}` only — no nfo_written/cover_written — inconsistent
+    # with the non-readonly path's `asdict(EnrichResult)` shape. The showcase
+    # lightbox's enrichVideo() success handler (state-lightbox.js) only checks
+    # `result.success` today (doesn't consume these fields), but they're added
+    # for consistency/forward-compat regardless — harmless either way.
+    def test_readonly_enrich_single_success_carries_nfo_and_cover_written(self, client, mocker):
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=_readonly_gallery_config("/tmp/ro_src"),
+        )
+        _, _, mock_produce, _ = self._mock_routing(
+            mocker,
+            meta={"number": "ABC-001", "title": "T", "cover": "http://x/c.jpg"},
+            cover_strategy=("download", "http://x/c.jpg"),
+        )
+        mock_produce.return_value = (
+            Path("/out/ro_src-abcdef/ABC-001"),
+            {"cover_fs": "/out/ro_src-abcdef/ABC-001/ABC-001.jpg", "sample_fs": [], "nfo_mtime": 1.0},
+        )
+
+        response = client.post("/api/enrich-single", json={
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+        })
+
+        data = response.json()
+        assert data["success"] is True
+        assert data["nfo_written"] is True
+        assert data["cover_written"] is True
+
+    def test_readonly_enrich_single_cover_written_false_when_no_cover(self, client, mocker):
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=_readonly_gallery_config("/tmp/ro_src"),
+        )
+        _, _, mock_produce, _ = self._mock_routing(
+            mocker,
+            meta={"number": "ABC-001", "title": "T", "cover": ""},
+            cover_strategy=("none",),
+        )
+        mock_produce.return_value = (
+            Path("/out/ro_src-abcdef/ABC-001"),
+            {"cover_fs": "", "sample_fs": [], "nfo_mtime": 1.0},
+        )
+
+        response = client.post("/api/enrich-single", json={
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+        })
+
+        data = response.json()
+        assert data["success"] is True
+        assert data["nfo_written"] is True
+        assert data["cover_written"] is False
 
     # 未設定媒體庫輸出路徑（media-server flavour 空 output_path）→ 結構化錯誤，不寫
     def test_readonly_empty_output_root_returns_error_no_write(self, client, mocker):
@@ -509,7 +573,19 @@ class TestFetchSamplesReadonlyGuard:
         )
         mock_repo = mocker.patch("web.routers.scraper.VideoRepository")
         mock_repo.return_value.get_by_path.return_value = MagicMock(size_bytes=1000, mtime=1.0)
-        mock_produce = mocker.patch("web.routers.scraper._produce_one")
+        # _produce_one now returns (movie_dir, assets) — both requested URLs
+        # actually downloaded here (sample_fs has 2 entries, matching the 2
+        # requested), so extrafanart_written == 2 stays the happy-path value.
+        # See test_fetch_samples_reports_actual_written_count_not_requested (P2
+        # review) for the case where they diverge.
+        mock_produce = mocker.patch(
+            "web.routers.scraper._produce_one",
+            return_value=(
+                Path("/out/ro_src-abcdef/ABC-001"),
+                {"sample_fs": ["/out/ro_src-abcdef/ABC-001/extrafanart/fanart1.jpg",
+                                "/out/ro_src-abcdef/ABC-001/extrafanart/fanart2.jpg"]},
+            ),
+        )
         mock_fetch = mocker.patch("web.routers.scraper.fetch_samples_only")
 
         response = client.post("/api/scraper/fetch-samples", json={
@@ -527,6 +603,88 @@ class TestFetchSamplesReadonlyGuard:
         assert mock_produce.call_args.kwargs["cover_strategy"] == ("none",)
         # 唯讀分支不用舊版 samples_only helper（改走 resolve_ingest_plan 的姊妹路徑）
         mock_fetch.assert_not_called()
+
+    # P2 review (2026-07-21): INTENDED CONTRACT CHANGE, not a weakening.
+    # `data["extrafanart_written"]` previously echoed `len(meta["sample_images"])`
+    # (the REQUESTED count) verbatim, regardless of how many of those downloads
+    # actually succeeded. Here 3 sample URLs are requested but only 1 file
+    # actually lands in `assets['sample_fs']` (the other 2 download attempts
+    # failed inside `_write_movie_assets`) — the endpoint must report 1, the
+    # ACTUAL written count, not 3.
+    def test_fetch_samples_reports_actual_written_count_not_requested(self, client, mocker):
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=_readonly_gallery_config("/tmp/ro_src"),
+        )
+        mocker.patch(
+            "web.routers.scraper.resolve_owning_output_root", return_value=_owning_stub()
+        )
+        mocker.patch(
+            "web.routers.scraper.search_jav",
+            return_value={
+                "number": "ABC-001",
+                "sample_images": ["http://x/s1.jpg", "http://x/s2.jpg", "http://x/s3.jpg"],
+            },
+        )
+        mock_repo = mocker.patch("web.routers.scraper.VideoRepository")
+        mock_repo.return_value.get_by_path.return_value = MagicMock(size_bytes=1000, mtime=1.0)
+        mocker.patch(
+            "web.routers.scraper._produce_one",
+            return_value=(
+                Path("/out/ro_src-abcdef/ABC-001"),
+                {"sample_fs": ["/out/ro_src-abcdef/ABC-001/extrafanart/fanart1.jpg"]},  # only 1 of 3 survived
+            ),
+        )
+
+        response = client.post("/api/scraper/fetch-samples", json={
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+        })
+
+        data = response.json()
+        assert data["success"] is True
+        assert data["extrafanart_written"] == 1, (
+            "must report the ACTUAL written count (assets['sample_fs']), "
+            "not the requested count (meta['sample_images'])"
+        )
+
+    # P2 review companion case: ALL downloads fail → assets['sample_fs'] == [] →
+    # extrafanart_written == 0 (not 3, the requested count). The DB-side "must
+    # not clobber existing sample_images to []" half of this same finding is
+    # unit-tested directly against `_upsert_db` in
+    # tests/unit/test_readonly_producer.py::TestUpsertDbSamplesOnly (router-level
+    # here only has a mocked `_produce_one`, so it cannot observe the DB write —
+    # this test only pins the endpoint's reported count).
+    def test_fetch_samples_zero_downloads_reports_zero_not_requested(self, client, mocker):
+        mocker.patch(
+            "web.routers.scraper.load_config",
+            return_value=_readonly_gallery_config("/tmp/ro_src"),
+        )
+        mocker.patch(
+            "web.routers.scraper.resolve_owning_output_root", return_value=_owning_stub()
+        )
+        mocker.patch(
+            "web.routers.scraper.search_jav",
+            return_value={
+                "number": "ABC-001",
+                "sample_images": ["http://x/s1.jpg", "http://x/s2.jpg", "http://x/s3.jpg"],
+            },
+        )
+        mock_repo = mocker.patch("web.routers.scraper.VideoRepository")
+        mock_repo.return_value.get_by_path.return_value = MagicMock(size_bytes=1000, mtime=1.0)
+        mocker.patch(
+            "web.routers.scraper._produce_one",
+            return_value=(Path("/out/ro_src-abcdef/ABC-001"), {"sample_fs": []}),  # every download failed
+        )
+
+        response = client.post("/api/scraper/fetch-samples", json={
+            "file_path": "/tmp/ro_src/ABC-001.mp4",
+            "number": "ABC-001",
+        })
+
+        data = response.json()
+        assert data["success"] is True
+        assert data["extrafanart_written"] == 0
 
     # 無劇照可補（search_jav 回 None 或無 sample_images）→ 非錯誤，extrafanart_written=0
     def test_readonly_no_samples_found_is_not_an_error(self, client, mocker):
@@ -1660,7 +1818,12 @@ class TestReadonlyRoutingE2E:
             "web.routers.scraper.resolve_ingest_plan",
             return_value=({"number": "RO-001", "title": "T", "cover": ""}, ("none",)),
         )
-        mock_produce = mocker.patch("web.routers.scraper._produce_one")
+        # _produce_one now returns (movie_dir, assets) — tuple default so the
+        # router's `_, assets = _produce_one(...)` unpack succeeds.
+        mock_produce = mocker.patch(
+            "web.routers.scraper._produce_one",
+            return_value=(Path("/out/ro_src-x/RO-001"), {"cover_fs": "", "sample_fs": [], "nfo_mtime": 1.0}),
+        )
         mock_repo = mocker.patch("web.routers.scraper.VideoRepository")
         mock_repo.return_value.get_by_path.return_value = MagicMock(size_bytes=10, mtime=1.0)
         mock_enrich = mocker.patch(

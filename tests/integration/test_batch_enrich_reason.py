@@ -13,6 +13,8 @@ Mock 邊界：patch `web.routers.scraper.search_jav` / `web.routers.scraper.enri
 """
 
 import json
+from pathlib import Path
+
 import pytest
 
 from core.path_utils import to_file_uri
@@ -149,7 +151,12 @@ class TestResultItemReadonlyStationReason:
             if plan_return is not None
             else ({"number": "RO-001", "title": "T", "cover": ""}, ("none",)),
         )
-        mock_produce = mocker.patch("web.routers.scraper._produce_one")
+        # _produce_one now returns (movie_dir, assets) — tuple default so the
+        # router's `_, assets = _produce_one(...)` unpack succeeds.
+        mock_produce = mocker.patch(
+            "web.routers.scraper._produce_one",
+            return_value=(Path("/out/ro_src-x/RO-001"), {"cover_fs": "", "sample_fs": [], "nfo_mtime": 1.0}),
+        )
         mock_repo = mocker.patch("web.routers.scraper.VideoRepository")
         mock_repo.return_value.get_by_path.return_value = MagicMock(size_bytes=10, mtime=1.0)
         return mock_produce
