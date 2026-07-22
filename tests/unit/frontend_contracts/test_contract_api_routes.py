@@ -81,8 +81,11 @@ class TestUserTagsApiGuard:
         """search.html 含 user-tags 守衛 + currentUserTags()"""
         html = self._html()
         for expected in [
-            "listMode === \'file\'",
-            "fileList[currentFileIndex]?.path",
+            # 106-T1 CD-106-1/AC12：tags+ 的 file-mode/path 閘從 inline 三 conjunct
+            # (listMode==='file' && fileList[currentFileIndex]?.path) 收斂進 canEditFile()
+            # computed（base.js）；canEditFile 的 file+path 語意由 can-edit-file.test.mjs
+            # node:test 守。此處守 tags+「+」按鈕仍走 file-mode 閘（!addingTag 保留避免加標籤時重複）。
+            "!addingTag && canEditFile()",
             "currentUserTags()",
         ]:
             assert expected in html, f"search.html missing: {expected!r}"
