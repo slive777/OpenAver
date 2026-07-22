@@ -78,10 +78,17 @@ export function searchStateBase() {
         editedActorsValue: '',
         // TASK-106 Option C Part 1: 編輯開啟當下捕獲的候選物件參照（identity guard）。
         // confirmEditTitle/confirmEditChineseTitle/confirmEditActors 開頭都拿 this.current()
-        // 與此欄位比對，不同即代表 current() 已換到別的候選/檔——不管是被 navigate/switchToFile/
+        // 與各自欄位比對，不同即代表 current() 已換到別的候選/檔——不管是被 navigate/switchToFile/
         // scrapeAll/grid/lightbox 或任何未來新增的路徑移動的，一律擋下寫入。這是本重構的唯一
         // 權威保證（見 persistence.js setupAutoSave 的 $watch，那層只是 UX 便利、非保證）。
-        _editSourceCandidate: null,
+        //
+        // Codex PR#115 P2 fix：三個欄位獨立，不共用單一 `_editSourceCandidate`——title/
+        // chinese/actor 三個 editingX 各自獨立、可同時開啟；若共用一個欄位，後開啟的編輯器
+        // 會覆蓋先開啟者捕獲的來源，讓先開啟者的 guard 誤判「候選未換」而把已經 stale 的
+        // 內容寫進後開啟者當下的候選（data pollution）。
+        _editSourceTitle: null,
+        _editSourceChineseTitle: null,
+        _editSourceActors: null,
         addingTag: false,
         newTagValue: '',
         coverError: '',

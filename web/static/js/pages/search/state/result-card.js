@@ -116,7 +116,8 @@ export function searchStateResultCard() {
         this.editedTitleValue = c.title || '';
         this.editingTitle = true;
         // TASK-106 Option C Part 1: 捕獲編輯開啟當下的候選物件參照，供 confirmEditTitle 比對。
-        this._editSourceCandidate = c;
+        // Codex PR#115 P2: 用 title 專屬欄位，不與 chineseTitle/actors 共用（見 base.js 註解）。
+        this._editSourceTitle = c;
         this.$nextTick(() => {
             this.$refs.titleInput?.focus();
             this.$refs.titleInput?.select();
@@ -128,7 +129,7 @@ export function searchStateResultCard() {
         // navigate/switchToFile/scrapeAll/grid/lightbox 或任何未來路徑造成的）就擋下寫入，
         // 不寫錯候選。必須在任何寫入之前、最先執行。
         const c = this.current();
-        if (c !== this._editSourceCandidate) {
+        if (c !== this._editSourceTitle) {
             this.editingTitle = false;
             return;
         }
@@ -148,7 +149,8 @@ export function searchStateResultCard() {
         this.editedChineseTitleValue = this.chineseTitleText() || '';
         this.editingChineseTitle = true;
         // TASK-106 Option C Part 1: 捕獲編輯開啟當下的候選物件參照，供 confirmEditChineseTitle 比對。
-        this._editSourceCandidate = c;
+        // Codex PR#115 P2: 用 chineseTitle 專屬欄位，不與 title/actors 共用（見 base.js 註解）。
+        this._editSourceChineseTitle = c;
         this.$nextTick(() => {
             this.$refs.chineseTitleInput?.focus();
             this.$refs.chineseTitleInput?.select();
@@ -158,7 +160,7 @@ export function searchStateResultCard() {
     confirmEditChineseTitle() {
         // TASK-106 Option C Part 1（唯一權威保證）：見 confirmEditTitle 同段註解。
         const c = this.current();
-        if (c !== this._editSourceCandidate) {
+        if (c !== this._editSourceChineseTitle) {
             this.editingChineseTitle = false;
             return;
         }
@@ -180,7 +182,8 @@ export function searchStateResultCard() {
         this.editedActorsValue = (c.actors || []).join(', ');
         this.editingActors = true;
         // TASK-106 Option C Part 1: 捕獲編輯開啟當下的候選物件參照，供 confirmEditActors 比對。
-        this._editSourceCandidate = c;
+        // Codex PR#115 P2: 用 actors 專屬欄位，不與 title/chineseTitle 共用（見 base.js 註解）。
+        this._editSourceActors = c;
         this.$nextTick(() => {
             this.$refs.actorsInput?.focus();
             this.$refs.actorsInput?.select();
@@ -190,7 +193,7 @@ export function searchStateResultCard() {
     confirmEditActors() {
         // TASK-106 Option C Part 1（唯一權威保證）：見 confirmEditTitle 同段註解。
         const c = this.current();
-        if (c !== this._editSourceCandidate) {
+        if (c !== this._editSourceActors) {
             this.editingActors = false;
             return;
         }

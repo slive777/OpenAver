@@ -7,7 +7,8 @@
 //
 // Option C 改為身份制：
 // - 唯一權威保證：result-card.js confirmEditTitle/confirmEditChineseTitle/confirmEditActors
-//   開頭的 identity guard（current() !== 開編輯當下捕獲的 _editSourceCandidate 就不寫）。
+//   開頭的 identity guard（current() !== 開編輯當下捕獲的各自欄位
+//   _editSourceTitle/_editSourceChineseTitle/_editSourceActors 就不寫）。
 //   見 confirm-edit-identity-guard.test.mjs。
 // - UX 便利層：persistence.js setupAutoSave 內單一 `$watch`，偵測到候選位置改變
 //   （currentFileIndex/currentIndex/listMode/清單長度）就呼叫 _resetPendingEdits() 清 UI flag。

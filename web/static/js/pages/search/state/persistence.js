@@ -133,21 +133,34 @@ export function searchStatePersistence() {
         // current().date、甚至 confirmEditTitle 自己寫 c.title）全部會誤觸發本 watcher，
         // 在使用者輸入到一半時把編輯框關掉——正是本次要修的過度觸發那類 bug。
         //
-        // 改用只讀 primitives 的複合表達式：候選在 fileList/searchResults 陣列裡的「位置」
-        // 由 currentFileIndex/currentIndex/listMode 三個數字/字串決定，「候選清單被整批替換」
+        // 改用只讀 primitives 的複合表達式：候選「在檔案清單中的身分」用 fileList 模式下
+        // 當前檔案的 `path`（字串，穩定不變的識別，非位置數字）鍵定，search 模式無檔案身分
+        // 用空字串佔位；候選「在結果清單中的位置」用 currentIndex；「候選清單被整批替換」
         // 用清單長度變化偵測（重新搜尋/重刮通常筆數不同）。JSON.stringify 對純 primitives
         // 陣列不會再往下巢狀追蹤，故打字/候選內部直寫不會誤觸發；只在候選真的換位/換檔/
-        // 換模式/清單被替換時才觸發。（已知邊界：同 index、同 mode、剛好同長度的清單被整批
-        // 替換不會觸發本 watcher——但 current() 此時回傳的已是新陣列裡的新物件參照，
-        // confirmEditX 的 identity guard 仍會擋下寫入，不會寫壞資料，只是編輯框慢一拍才關。）
-        this.$watch(() => [
-            this.currentFileIndex,
-            this.currentIndex,
-            this.listMode,
-            (this.listMode === 'file'
+        // 換模式/清單被替換時才觸發。
+        //
+        // Codex PR#115 P2 fix：原本用 `currentFileIndex`（位置數字）鍵定，removeFile() 移除
+        // currentFileIndex 之前的一列時只會遞減 currentFileIndex（見 file-list.js
+        // removeFile 的 removingCurrent gate 註解——目前檢視的檔沒變，只是它在陣列中的
+        // 位置往前移一格），currentFileIndex 這個數字因此改變、誤觸發本 watcher，把使用者
+        // 正在編輯、尚未確認的內容清掉——但實際上目前檔案/候選完全沒變，是誤傷。改鍵定
+        // `path`（該檔案的穩定字串識別）後，純 reindex（陣列位置位移但同一份 file 物件）
+        // 不會改變 path，複合表達式不變，watcher 不誤觸發，編輯得以保留。
+        // 換檔（path 真的變了）/候選導覽（currentIndex 變）/re-search 替換清單（多數情況下
+        // length 變）仍會正確觸發。
+        //（已知邊界：同 path、同 index、剛好同長度的清單被整批替換不會觸發本 watcher——
+        // 但 current() 此時回傳的已是新陣列裡的新物件參照，confirmEditX 的 identity guard
+        // 仍會擋下寫入，不會寫壞資料，只是編輯框慢一拍才關。）
+        this.$watch(() => {
+            const results = this.listMode === 'file'
                 ? this.fileList[this.currentFileIndex]?.searchResults
-                : this.searchResults)?.length ?? 0,
-        ], () => this._resetPendingEdits());
+                : this.searchResults;
+            const fileKey = this.listMode === 'file'
+                ? (this.fileList[this.currentFileIndex]?.path ?? '')
+                : '';
+            return [fileKey, this.currentIndex, this.listMode, results?.length ?? 0];
+        }, () => this._resetPendingEdits());
     }
     };
 }
