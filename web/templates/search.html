@@ -566,8 +566,9 @@
                             <input type="date" x-show="canEditFile() && !current().date" id="resultDateInput"
                                    class="input input-bordered info-value"
                                    :value="current().date || ''"
+                                   @focus="startEditDate()"
                                    @keydown="if (!['Tab','Escape'].includes($event.key)) $event.preventDefault()"
-                                   @change="current().date = $event.target.value; saveState()">
+                                   @change="confirmEditDate($event.target.value)">
                         </div>
                         <div class="info-cell" x-show="current().duration">
                             <span class="info-label">{{ t('search.label.duration') }}</span>

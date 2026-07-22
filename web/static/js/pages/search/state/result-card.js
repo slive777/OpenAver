@@ -187,6 +187,23 @@ export function searchStateResultCard() {
         this.editingActors = false;
     },
 
+    // ===== T7: Date Edit Methods =====
+
+    startEditDate() {
+        // TASK-106 Codex PR#116 P2: 打開原生日曆當下捕獲候選物件參照，供 confirmEditDate 比對，
+        // 防「選日期期間候選被換（背景批次/換源/切檔）→ 寫錯候選」。掛 date input @focus。
+        this._editSourceDate = this.current();
+    },
+
+    confirmEditDate(value) {
+        // TASK-106 Codex PR#116 P2（與 confirmEditTitle 同源的 identity guard）：current() 已換到
+        // 別的候選/檔就擋下寫入、不寫錯候選。必須在寫入前最先執行。掛 date input @change。
+        const c = this.current();
+        if (c !== this._editSourceDate) return;   // fail-closed：候選變了（含未捕獲 null）就丟棄不寫
+        c.date = value;
+        this.saveState();
+    },
+
     // ===== T1c: Translate =====
 
     async translateWithAI() {

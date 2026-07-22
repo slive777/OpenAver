@@ -89,6 +89,9 @@ export function searchStateBase() {
         _editSourceTitle: null,
         _editSourceChineseTitle: null,
         _editSourceActors: null,
+        // TASK-106 Codex PR#116 P2: date picker 的 stale-candidate 身分守衛捕獲欄位（與
+        // title/chineseTitle/actors 同源 pattern，見上方 Codex PR#115 P2 段落理由）。
+        _editSourceDate: null,
         // TASK-106 Codex PR#116 P2: 候選「原地替換」計數器（換源 / switch-source 流程）。
         // 換源時整顆替換 current() 候選物件（arr[idx] = variant），但 path / currentIndex /
         // listMode / length 全都不變 → pendingEditWatchKey 前四段字串不變 → _resetPendingEdits

@@ -165,6 +165,29 @@ class TestDateGatingGuard:
         ]:
             assert expected in html, f"search.html missing: {expected!r}"
 
+    def test_search_html_date_input_wired_to_identity_guarded_methods(self):
+        """Codex PR#116 P2: date picker 是四個可編輯欄位中唯一原本沒有 stale-candidate 身分
+        守衛的——@change 直寫 `current().date = ...` 在事件當下才 re-resolve current()，若打開
+        日曆到選好日期之間候選被換掉（背景批次/換源/切檔）會把日期寫進錯的候選。
+
+        鎖定 date input 必須改走 result-card.js 的 startEditDate()/confirmEditDate()（與
+        title/chineseTitle/actors 同源 identity-guard pattern），防未來改回直寫 current().date
+        的回歸。這是 search.html ↔ result-card.js 的跨檔 Alpine binding contract（方法是否被
+        定義、guard 邏輯是否正確由對應的 .mjs 單元測試覆蓋），非單純字串存在檢查，
+        static_guard_lint 無法表達此跨檔語意。
+        """
+        # [lint-guard: pytest-justified] 同 class docstring 理由：canEditFile() 系列已在本
+        # class 建立先例——跨檔 Alpine binding contract 用 pytest 鎖，不是前端靜態字串存在檢查。
+        html = self._html()
+        for expected in [
+            '@focus="startEditDate()"',
+            '@change="confirmEditDate($event.target.value)"',
+        ]:
+            assert expected in html, f"search.html missing: {expected!r}"
+        assert "current().date = $event.target.value" not in html, (
+            "date input 不應退回直寫 current().date（繞過身分守衛，見 Codex PR#116 P2）"
+        )
+
 
 class TestShowcaseAliasGuard:
     """T5 (45-actress-alias): Frontend Guard — alias injection guard (method folded)"""
