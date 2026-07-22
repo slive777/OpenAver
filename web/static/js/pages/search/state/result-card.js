@@ -4,6 +4,12 @@
  */
 import { openLocal } from '@/shared/open-local.js';
 
+// TASK-106-T3 CD-106-8: 純函式，module-level named export（非 this.-bound method）
+// 三分隔符 `、`/`，`（U+FF0C 全形逗號）/`,`，對齊 core/scrapers/actress/wiki_ja.py:108 先例。
+export function parseActorsInput(str) {
+    return str.split(/[、，,]/).map(s => s.trim()).filter(Boolean);
+}
+
 export function searchStateResultCard() {
     return {
     // ===== T1c: Result Card Computed =====
@@ -129,6 +135,29 @@ export function searchStateResultCard() {
 
     cancelEditChineseTitle() {
         this.editingChineseTitle = false;
+    },
+
+    // ===== T3: Actor Edit Methods =====
+
+    startEditActors() {
+        const c = this.current();
+        this.editedActorsValue = (c.actors || []).join(', ');
+        this.editingActors = true;
+        this.$nextTick(() => {
+            this.$refs.actorsInput?.focus();
+            this.$refs.actorsInput?.select();
+        });
+    },
+
+    confirmEditActors() {
+        const c = this.current();
+        c.actors = parseActorsInput(this.editedActorsValue);
+        this.editingActors = false;
+        this.saveState();
+    },
+
+    cancelEditActors() {
+        this.editingActors = false;
     },
 
     // ===== T1c: Translate =====

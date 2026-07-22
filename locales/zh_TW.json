@@ -57,7 +57,8 @@
     },
     "placeholder": {
       "query": "搜尋番號、女優或拖入檔案...",
-      "tag": "標籤名稱"
+      "tag": "標籤名稱",
+      "actors": "演員名稱（可用、，,分隔多人）"
     },
     "hint": {
       "partial_search": "提示：輸入局部番號如 IPZZ-03 可搜尋 030~039，輸入女優名可搜尋其作品"
@@ -83,6 +84,7 @@
       "edit_title": "編輯標題",
       "translate_ai": "AI 翻譯",
       "edit_chinese_title": "編輯中文片名",
+      "edit_actors": "編輯演員",
       "switch_source": "切換版本",
       "open_source_url": "開啟來源頁面",
       "open_folder": "開啟資料夾",

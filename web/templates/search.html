@@ -583,7 +583,31 @@
                     <!-- 長值獨行：演員 -->
                     <div class="info-row">
                         <span class="info-label">{{ t('search.label.actor') }}</span>
-                        <span class="info-value" id="resultActors" x-text="(current().actors || []).join(', ') || '-'">-</span>
+                        <!-- 顯示模式 -->
+                        <div class="info-value-with-actions" id="actorsContainer" x-show="!editingActors">
+                            <span class="info-value" id="resultActors" x-text="(current().actors || []).join(', ') || '-'">-</span>
+                            <div class="av-card-full-footer-actions">
+                                <button id="editActorsBtn" class="info-icon-btn" x-show="canEditFile()" @click="startEditActors()" title="{{ t('search.action.edit_actors') }}">
+                                    <i class="bi bi-pencil text-muted"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <!-- 編輯模式 -->
+                        <div class="info-value-with-actions" x-show="editingActors" x-cloak>
+                            <input type="text" x-ref="actorsInput" x-model="editedActorsValue"
+                                   @keydown.enter="confirmEditActors()"
+                                   @keydown.escape="cancelEditActors()"
+                                   class="input input-bordered info-value flex-1 min-w-0"
+                                   placeholder="{{ t('search.placeholder.actors') }}">
+                            <div class="av-card-full-footer-actions">
+                                <button class="info-icon-btn text-success" @click="confirmEditActors()" title="{{ t('common.action.confirm') }}">
+                                    <i class="bi bi-check-lg"></i>
+                                </button>
+                                <button class="info-icon-btn text-error" @click="cancelEditActors()" title="{{ t('common.action.cancel') }}">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <!-- 長值獨行：系列 -->
                     <div class="info-row" x-show="current().series">

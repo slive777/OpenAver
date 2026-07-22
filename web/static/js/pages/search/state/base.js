@@ -74,6 +74,8 @@ export function searchStateBase() {
         editedTitleValue: '',
         editingChineseTitle: false,
         editedChineseTitleValue: '',
+        editingActors: false,
+        editedActorsValue: '',
         addingTag: false,
         newTagValue: '',
         coverError: '',
