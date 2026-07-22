@@ -398,7 +398,11 @@ export function searchStateBatch() {
 
             this.currentFileIndex = index;
             this.searchResults = file.searchResults;
-            this.currentIndex = 0;
+            // Codex PR#115 P3：顯示要與「實際整理的候選」一致，避免批次時卡片顯示第一個來源、
+            // 後端卻整理另一個來源（buildOrganizeMetadata 用 selectedCandidateIndex）。界限保護
+            // 防越界（selectedCandidateIndex 在 T2' loadMore 硬關＋fresh-baseline 後恆在界內，
+            // 此 clamp 為防禦性；scrapableFiles 已濾掉空 searchResults，length ≥ 1）。
+            this.currentIndex = Math.min(file.selectedCandidateIndex ?? 0, file.searchResults.length - 1);
             this._resetCoverState();
 
             const metadata = { ...buildOrganizeMetadata(file) };
