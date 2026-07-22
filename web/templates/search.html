@@ -562,7 +562,12 @@
                     <div class="info-grid-pair">
                         <div class="info-cell">
                             <span class="info-label">{{ t('search.label.date') }}</span>
-                            <span class="info-value" id="resultDate" x-text="current().date || '-'">-</span>
+                            <span class="info-value" id="resultDate" x-show="!canEditFile()" x-text="current().date || '-'">-</span>
+                            <input type="date" x-show="canEditFile()" id="resultDateInput"
+                                   class="input input-bordered info-value"
+                                   :value="toDateInputValue(current().date)"
+                                   @change="current().date = $event.target.value; saveState()">
+                            <small class="text-muted" x-show="canEditFile()">{{ t('search.hint.date_uncertain') }}</small>
                         </div>
                         <div class="info-cell" x-show="current().duration">
                             <span class="info-label">{{ t('search.label.duration') }}</span>

@@ -61,7 +61,8 @@
       "actors": "演員名稱（可用、，,分隔多人）"
     },
     "hint": {
-      "partial_search": "提示：輸入局部番號如 IPZZ-03 可搜尋 030~039，輸入女優名可搜尋其作品"
+      "partial_search": "提示：輸入局部番號如 IPZZ-03 可搜尋 030~039，輸入女優名可搜尋其作品",
+      "date_uncertain": "不確定就留空，避免填錯"
     },
     "auto_pill": {
       "tooltip": "點擊挑選來源"
