@@ -42,6 +42,20 @@ export function searchStateNavigation() {
     },
 
     /**
+     * TASK-106-T5 CD-106-6：重置未確認的編輯 buffer（純狀態，不碰 DOM）。
+     * 呼叫端負責判斷「什麼時候該呼叫」——只在確定要換候選/檔的分支呼叫
+     * （navigate `:96` 正常同檔導覽、switchToFile 實際切檔），絕不放函式入口
+     * （B1 BLOCKER：navigate 有兩條 no-op return 分支，放函式入口會在邊界
+     * 按鍵/滾輪/滑動時靜默清掉使用者未確認的編輯）。
+     * 比照 result-card.js 既有 cancelEditX 慣例，只清 editingX，不清 editedXValue。
+     */
+    _resetPendingEdits() {
+        this.editingTitle = false;
+        this.editingChineseTitle = false;
+        this.editingActors = false;
+    },
+
+    /**
      * 導航到相對位置
      * @param {number} delta - 偏移量（-1 = 上一個，1 = 下一個）
      */
@@ -94,6 +108,10 @@ export function searchStateNavigation() {
 
             // State change（Alpine re-render）
             this.currentIndex = newIndex;
+
+            // TASK-106-T5 CD-106-6: 候選真的換了才 reset 編輯 buffer（B1 BLOCKER：
+            // 不可放函式入口，見上方 _resetPendingEdits 註解）
+            this._resetPendingEdits();
 
             // U8b: reset cover state on navigation
             this._resetCoverState();

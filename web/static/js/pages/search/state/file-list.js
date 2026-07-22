@@ -14,6 +14,12 @@ export function searchStateFileList() {
         }
 
         this.currentFileIndex = index;
+
+        // TASK-106-T5 CD-106-6: 檔真的換了才 reset 編輯 buffer（無條件安全——
+        // switchToFile 過了 :10 合法 index 檢查後必定是真的切檔，見 T5 task card
+        // 「現況分析」的 removeFile/enterNumber 同數字 index 場景分析）
+        this._resetPendingEdits();
+
         const file = this.fileList[index];
 
         if (!file.number) {

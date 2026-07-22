@@ -28,7 +28,9 @@ function makeFakeThis(overrides = {}) {
     // switchToFile()（number:null 分支）呼叫的既有 _resetCoverState() 依賴 Alpine 注入的
     // this.$nextTick，Node 測試環境沒有 Alpine——不測 _resetCoverState 本身（非本卡範圍），
     // 用 no-op 隔離掉，避免與 CD-4b 邏輯無關的 TypeError 污染斷言。
-    { _resetCoverState() {} },
+    // TASK-106-T5: switchToFile 新增跨 mixin 呼叫 this._resetPendingEdits()（navigation.js），
+    // 本檔 fakeThis 只組 base+search-flow+file-list 三個 mixin，同理用 no-op 隔離。
+    { _resetCoverState() {}, _resetPendingEdits() {} },
     overrides,
   );
 }
