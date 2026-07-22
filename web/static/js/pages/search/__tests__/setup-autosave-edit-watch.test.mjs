@@ -182,5 +182,27 @@ test('pendingEditWatchKey：keyword（search）模式 fileKey 為空、用 searc
         searchResults: [{ number: 'A' }, { number: 'B' }, { number: 'C' }],
         fileList: [{ path: '/should-be-ignored', searchResults: [] }],
     });
-    assert.equal(key, `\0${2}\0search\0${3}`, 'search 模式 key = 空 fileKey + currentIndex + mode + searchResults.length');
+    assert.equal(key, `\0${2}\0search\0${3}\0${0}`, 'search 模式 key = 空 fileKey + currentIndex + mode + searchResults.length + _candidateReplaceSeq（未帶時 ?? 0）');
+});
+
+// ── 核心回歸（Codex PR#116 P2：原地替換盲區）──
+// 換源 / switch-source 流程整顆替換 current() 候選物件（arr[idx] = variant），但
+// path / currentIndex / listMode / length 全都不變 → 前四段 key 不變 → 哨兵不觸發 → stale
+// 編輯框留著。第五段 _candidateReplaceSeq 在每個原地替換點遞增，讓「同位置換掉一顆候選」
+// 也能改變 key，觸發 _resetPendingEdits 關掉 stale 編輯框。
+test('pendingEditWatchKey：原地替換（_candidateReplaceSeq 0→1，其餘全同）→ key 不同（換源哨兵）', () => {
+    const results = [{ number: 'A' }, { number: 'B' }];
+    const base = {
+        listMode: 'search',
+        currentFileIndex: 0,
+        currentIndex: 1,
+        searchResults: results,
+        fileList: [],
+        _candidateReplaceSeq: 0,
+    };
+    const keyBefore = pendingEditWatchKey(base);
+    // 換源：同 path（search 模式空）、同 currentIndex、同 listMode、同 length，只有計數器遞增。
+    const keyAfter = pendingEditWatchKey({ ...base, _candidateReplaceSeq: 1 });
+    assert.notEqual(keyBefore, keyAfter,
+        '同 path/index/mode/length、候選被原地替換（_candidateReplaceSeq 遞增）→ key 應不同，哨兵才會關掉 stale 編輯框');
 });

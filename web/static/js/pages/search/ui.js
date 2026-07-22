@@ -203,6 +203,7 @@ async function switchSource(alpineContext, number) {
                 // 更新 Alpine state（Alpine template 自動反應）
                 if (alpineContext.searchResults.length > 0) {
                     alpineContext.searchResults[alpineContext.currentIndex] = variant;
+                    alpineContext._candidateReplaceSeq++;   // 訊號給 pendingEditWatchKey 偵測原地替換 → 觸發哨兵關 stale 編輯框（PR#116 P2）
                     // U8 fix: cover 可能改變，重置 cover state（#20）
                     alpineContext._resetCoverState();
                 }

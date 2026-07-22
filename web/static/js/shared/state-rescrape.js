@@ -254,6 +254,7 @@ export function rescrapeState() {
                                 return v;
                             })();
                             t.arr[t.idx] = variant;                               // 整顆替換（對齊 ui.js:248）
+                            this._candidateReplaceSeq++;                          // 訊號給 pendingEditWatchKey 偵測原地替換 → 觸發哨兵關 stale 編輯框（PR#116 P2）
                             this._resetCoverState?.();                            // cover 可能變（對齊 ui.js:250）
                             this.saveState?.();                                   // 持久化寫回（對齊 ui.js:259 tap 路徑；防 session restore 回舊卡）。optional-chain：mixin 共用 showcase，switch-source 僅 search 觸發
                             window.SearchUI?.seedSwitchState?.(variant.number || t.number, sourceId, variant);  // 鎖定#4：下次 tap 從選定來源接續（用替換後實際番號 key，對齊編輯番號後的當前卡）
@@ -383,6 +384,7 @@ export function rescrapeState() {
                     if (!stale) {
                         const { success: _s, sourceName: _sn, sourceCensored: _sc, ...variant } = this.rescrapePreview;
                         t.arr[t.idx] = variant;                          // in-place 替換選定版本
+                        this._candidateReplaceSeq++;                     // 訊號給 pendingEditWatchKey 偵測原地替換 → 觸發哨兵關 stale 編輯框（PR#116 P2）
                         this._resetCoverState?.();
                         this.saveState?.();
                         window.SearchUI?.seedSwitchState?.(variant.number || t.number, this._rescrapeCommitSource, variant);

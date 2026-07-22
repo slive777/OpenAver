@@ -89,6 +89,13 @@ export function searchStateBase() {
         _editSourceTitle: null,
         _editSourceChineseTitle: null,
         _editSourceActors: null,
+        // TASK-106 Codex PR#116 P2: 候選「原地替換」計數器（換源 / switch-source 流程）。
+        // 換源時整顆替換 current() 候選物件（arr[idx] = variant），但 path / currentIndex /
+        // listMode / length 全都不變 → pendingEditWatchKey 前四段字串不變 → _resetPendingEdits
+        // 不觸發 → stale 編輯框留著。此計數器在每個原地替換點遞增，pendingEditWatchKey 併入尾段，
+        // 讓哨兵偵測到「同 path/index/length 但候選被換掉」→ 關掉 stale 編輯框。
+        // 短暫 UI 訊號（同 editingX 性質）：不寫進 saveState / snapshot / restoreState（不持久化）。
+        _candidateReplaceSeq: 0,
         addingTag: false,
         newTagValue: '',
         coverError: '',
