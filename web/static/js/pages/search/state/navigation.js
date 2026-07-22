@@ -66,7 +66,7 @@ export function searchStateNavigation() {
 
         // 往右且到最後一個
         if (delta > 0 && newIndex >= this.searchResults.length) {
-            if (this.hasMoreResults && !this.isLoadingMore) {
+            if (this.hasMoreResults && !this.isLoadingMore && this.listMode !== 'file') {
                 const result = await this.loadMore('detail');
                 if (!result || result.loadedCount === 0) return;
                 // C17 state-first：先改 index，再 $nextTick 播動畫
@@ -160,6 +160,7 @@ export function searchStateNavigation() {
      * @returns {{ loadedCount: number, oldLength: number }|null}
      */
     async loadMore(trigger = 'detail') {
+        if (this.listMode === 'file') return null;
         if (this.isLoadingMore || !this.hasMoreResults || !this.currentQuery) return null;
 
         this.isLoadingMore = true;

@@ -35,6 +35,11 @@ async function translateBatchHelper(titles) {
     }
 }
 
+// CD-106-5/CD-106-8: 純函式，讀 per-file selectedCandidateIndex（未設 fallback 0）
+export function buildOrganizeMetadata(file) {
+    return { ...file.searchResults[file.selectedCandidateIndex ?? 0] };
+}
+
 export function searchStateBatch() {
     return {
     isBatchTranslating(index) {
@@ -350,6 +355,11 @@ export function searchStateBatch() {
     },
 
     async scrapeAll() {
+        // CD-106-5 snapshot 點 (2)：整理觸發時存目前檢視檔的候選 index（迴圈前，僅一次）
+        if (this.listMode === 'file' && this.fileList[this.currentFileIndex]) {
+            this.fileList[this.currentFileIndex].selectedCandidateIndex = this.currentIndex;
+        }
+
         const scrapableFiles = this.fileList.filter(f =>
             f.searched && f.searchResults && f.searchResults.length > 0 && !f.scraped
         );
@@ -385,7 +395,7 @@ export function searchStateBatch() {
             this.currentIndex = 0;
             this._resetCoverState();
 
-            const metadata = { ...file.searchResults[0] };
+            const metadata = { ...buildOrganizeMetadata(file) };
 
             // Set per-file scraping status
             file.isScraping = true;
@@ -478,7 +488,13 @@ export function searchStateBatch() {
             return;
         }
 
-        const metadata = { ...file.searchResults[0] };
+        // CD-106-5 snapshot 點 (2)：LOAD-BEARING — 用 this.currentFileIndex（目前檢視檔），
+        // 絕不是參數 index（per-row @click.stop 不會先切到該 row，index 可能是別的檔）
+        if (this.listMode === 'file' && this.fileList[this.currentFileIndex]) {
+            this.fileList[this.currentFileIndex].selectedCandidateIndex = this.currentIndex;
+        }
+
+        const metadata = { ...buildOrganizeMetadata(file) };
 
         file.isScraping = true;
         file.scrapeStatus = null;

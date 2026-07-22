@@ -205,7 +205,7 @@ export function searchStateBase() {
         canGoNext() {
             if (this.listMode === 'file') {
                 const hasNextVisible = this.searchResults.slice(this.currentIndex + 1).some(r => !r._failed);
-                return hasNextVisible || this.hasMoreResults || this.currentFileIndex < this.fileList.length - 1;
+                return hasNextVisible || this.currentFileIndex < this.fileList.length - 1;
             }
             return this.searchResults.slice(this.currentIndex + 1).some(r => !r._failed) || this.hasMoreResults;
         },

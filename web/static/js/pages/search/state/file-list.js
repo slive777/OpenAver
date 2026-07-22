@@ -9,6 +9,10 @@ export function searchStateFileList() {
     async switchToFile(index, position = 'first', showFullLoading = false) {
         if (index < 0 || index >= this.fileList.length) return;
 
+        if (this.listMode === 'file' && this.fileList[this.currentFileIndex]) {
+            this.fileList[this.currentFileIndex].selectedCandidateIndex = this.currentIndex;
+        }
+
         this.currentFileIndex = index;
         const file = this.fileList[index];
 
@@ -97,6 +101,7 @@ export function searchStateFileList() {
                             this.searchResults = data.data;
                             this.hasMoreResults = file.hasMoreResults;
                             this.currentIndex = position === 'last' ? this.searchResults.length - 1 : 0;
+                            file.selectedCandidateIndex = this.currentIndex;
                             this._resetCoverState();
 
                             // T4: File search 後查詢本地狀態
@@ -388,7 +393,8 @@ export function searchStateFileList() {
                     hasMoreResults: false,
                     searched: false,
                     has_nfo: hasNfoMap[path] || false,
-                    user_tags: []
+                    user_tags: [],
+                    selectedCandidateIndex: 0,
                 };
             });
             this.currentFileIndex = 0;
