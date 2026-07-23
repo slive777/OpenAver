@@ -1539,7 +1539,10 @@ class TestHelpPage:
     """T4b 守衛 — Help 頁必要元素"""
 
     def test_help_html_contains(self):
-        """help.html 含 helpPage / checkUpdate / hero-terminal / help.hero.ai_instruction；help.js script 無 defer"""
+        """help.html 含 helpPage / checkUpdate / hero-terminal / help.hero.ai_instruction；
+        help.js 以 type="module" 載入（107-P1-T3 Option A：page-module + alpine:init 註冊，
+        比照 scanner/main.js；module 隱式 defer 但 helpPage() 經 `alpine:init` listener 註冊
+        Alpine.data，時序安全）。禁 defer 屬性（module 已隱式 defer，顯式 defer 無意義且混淆）。"""
         html = (PROJECT_ROOT / 'web/templates/help.html').read_text(encoding='utf-8')
         for expected in ['helpPage', 'checkUpdate', 'hero-terminal', 'help.hero.ai_instruction']:
             assert expected in html, f"help.html missing: {expected!r}"
@@ -1548,8 +1551,6 @@ class TestHelpPage:
         matches = re.findall(r'<script[^>]*help\.js[^>]*>', html)
         assert len(matches) == 1, \
             f"help.html 應恰好有 1 個 help.js script tag，找到 {len(matches)} 個"
-        assert 'defer' not in matches[0], \
-            "help.js script tag 帶有 defer — Alpine 會在 helpPage() 定義前初始化"
 
     def test_help_js_contains(self):
         """help.js 含 copyCurlCommand / execCommand"""

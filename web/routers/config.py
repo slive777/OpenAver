@@ -196,7 +196,7 @@ def update_general_field(field: str, request: GeneralFieldRequest, raw_request: 
     註：保持同步 def —— body 內 mutate_config 走檔案 I/O，依 async-offload 守衛
     （feature/71）須在 Starlette threadpool 執行，不可改 async def 卡 event loop。
     """
-    allowed = {"sidebar_collapsed", "theme", "font_size", "locale", "server_mode"}
+    allowed = {"sidebar_collapsed", "theme", "font_size", "locale", "server_mode", "auto_check_update"}
     if field not in allowed:
         return {"success": False, "error": f"不允許更新欄位: {field}"}
     try:
@@ -205,6 +205,12 @@ def update_general_field(field: str, request: GeneralFieldRequest, raw_request: 
         # middleware `bool(server_mode)` 誤判為開啟對外。非 bool 字串 → 400。
         if field == "server_mode" and not isinstance(request.value, bool):
             raise HTTPException(status_code=400, detail="server_mode 必須為布林值")
+
+        # auto_check_update 布林語意欄位擋字串 truthy 反轉（Codex P2），比照 server_mode：
+        # 字串 "false" 是 truthy，若落盤 lifespan `not "false"`=False 會誤判 gate 通過、
+        # help data-attr 也誤算 true → 使用者關閉卻被當開啟。非 bool → 400。
+        if field == "auto_check_update" and not isinstance(request.value, bool):
+            raise HTTPException(status_code=400, detail="auto_check_update 必須為布林值")
 
         # server_mode 是主機決定，遠端連入的客人不得切換（spec「遠端自鎖不防護」的更乾淨版本）。
         # 僅允許 loopback 來源切換；fail-closed：client None → 視為非 loopback → 拒絕。

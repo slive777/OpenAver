@@ -1411,6 +1411,88 @@ class TestMigrationCloseAction:
         assert written.get("general", {}).get("close_action") == "ask"
 
 
+# ============ TASK-107-P1-T1：GeneralConfig.auto_check_update schema ============
+
+class TestAutoCheckUpdateSchema:
+    """auto_check_update: bool = True 欄位 schema 測試（TASK-107-P1-T1）"""
+
+    def test_auto_check_update_default_true(self):
+        """GeneralConfig() 預設 auto_check_update is True"""
+        from core.config import GeneralConfig
+        cfg = GeneralConfig()
+        assert cfg.auto_check_update is True
+
+    def test_appconfig_auto_check_update_default_true(self):
+        """AppConfig().general.auto_check_update 預設 True"""
+        cfg = AppConfig()
+        assert cfg.general.auto_check_update is True
+
+
+# ============ TASK-107-P1-T1：additive migration general.auto_check_update ============
+
+class TestMigrationAutoCheckUpdate:
+    """general.auto_check_update additive migration（feature/107 P1-T1）"""
+
+    def test_auto_check_update_added_when_missing(self, tmp_path, monkeypatch):
+        """舊 config 缺 general.auto_check_update → migration 自動補 True 並寫回檔案"""
+        config_path = tmp_path / "config.json"
+        _write_config(config_path, {"general": {"theme": "dark", "locale": "zh-TW"}})
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
+
+        result = load_config()
+
+        assert result.get("general", {}).get("auto_check_update") is True
+        # migration 命中 → 已寫回 config.json（斷言檔案 dict 內容，非只 Pydantic 物件）
+        written = _read_config(config_path)
+        assert written.get("general", {}).get("auto_check_update") is True
+
+    def test_auto_check_update_not_overwritten_when_false(self, tmp_path, monkeypatch):
+        """既存 auto_check_update=False（使用者曾關閉）不被覆寫（用 not in 判斷）"""
+        config_path = tmp_path / "config.json"
+        _write_config(config_path, {"general": {"auto_check_update": False}})
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
+
+        result = load_config()
+
+        assert result.get("general", {}).get("auto_check_update") is False
+        # 回讀檔案仍為 False
+        written = _read_config(config_path)
+        assert written.get("general", {}).get("auto_check_update") is False
+
+    def test_auto_check_update_added_when_general_absent(self, tmp_path, monkeypatch):
+        """general 段完全缺失 → migration 安全建立並補 True"""
+        config_path = tmp_path / "config.json"
+        _write_config(config_path, {"scraper": {"create_folder": True}})
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
+
+        result = load_config()
+
+        assert result.get("general", {}).get("auto_check_update") is True
+
+    def test_auto_check_update_added_when_general_not_dict(self, tmp_path, monkeypatch):
+        """general 段非 dict（如 null）→ migration 安全建立並補 True"""
+        config_path = tmp_path / "config.json"
+        _write_config(config_path, {"general": None})
+        monkeypatch.setattr(core_config, "CONFIG_PATH", config_path)
+        monkeypatch.setattr(core_config, "CONFIG_DEFAULT_PATH", tmp_path / "config.default.json")
+
+        result = load_config()
+
+        assert result.get("general", {}).get("auto_check_update") is True
+
+    def test_config_default_json_has_auto_check_update(self):
+        """web/config.default.json general 區塊含 auto_check_update（fresh-install GET 正確）"""
+        import json as _json
+        default_path = Path(__file__).parents[2] / "web" / "config.default.json"
+        data = _json.loads(default_path.read_text(encoding="utf-8"))
+        assert "auto_check_update" in data.get("general", {}), \
+            "config.default.json general 缺 auto_check_update 鍵"
+        assert data["general"]["auto_check_update"] is True
+
+
 # ============ TASK-88a-T3：gallery.directories str → DirectoryConfig object migration ============
 
 class TestMigrationDirectoriesToObject:

@@ -107,7 +107,8 @@
       "translate_failed_generic": "翻譯失敗",
       "no_japanese_title": "無需翻譯的日文標題",
       "number_not_recognized": "無法從檔名識別番號",
-      "number_parse_unavailable": "無法連線，請手動輸入番號"
+      "number_parse_unavailable": "無法連線，請手動輸入番號",
+      "path_inaccessible": "無法存取此檔案路徑（權限不足或未掛載）"
     },
     "nav": {
       "prev": "上一個 (←)",
@@ -833,7 +834,8 @@
     "batch_enrich_failed": "批次補完中斷",
     "jl_cf_timeout": "JavLibrary CF 驗證逾時",
     "thumb_prewarm_start": "開始建立封面縮圖快取",
-    "thumb_prewarm_done": "封面縮圖快取已完成"
+    "thumb_prewarm_done": "封面縮圖快取已完成",
+    "update_available": "OpenAver 有新版本"
   },
   "similar_mode": {
     "button_aria_label": "探索相似影片",
@@ -1078,6 +1080,8 @@
       "update_available_prefix": "新版本",
       "update_available_suffix": "可用",
       "up_to_date": "已是最新版本",
+      "auto_check_toggle": "啟動時檢查更新",
+      "auto_check_save_failed": "設定儲存失敗，請稍後再試",
       "ai_instruction": "貼給 AI agent 就能操作 OpenAver",
       "ai_hint_unsupported": "不適用網頁版聊天",
       "ai_tools": "支援：Claude Code · Cursor · Codex 等 AI agent"

@@ -6,10 +6,14 @@ export function searchStateFileList() {
     return {
     // ===== T1d: File Methods =====
 
-    async switchToFile(index, position = 'first', showFullLoading = false) {
+    async switchToFile(index, position = 'first', showFullLoading = false, skipPersist = false) {
         if (index < 0 || index >= this.fileList.length) return;
 
-        if (this.listMode === 'file' && this.fileList[this.currentFileIndex]) {
+        // skipPersist（P2-T5，spec 功能 C）：removeFile 移除當前檔後 currentFileIndex 已被重指
+        // 鄰檔、但 currentIndex 仍是外出檔的值——此時持久化會把外出檔候選 index 寫進鄰檔（汙染）。
+        // 外出檔已 splice、無須也不該保存其候選 index，故該路徑傳 skipPersist=true 跳過此寫入。
+        // 正常左右導航維持預設 false（照常持久化外出檔候選），行為零變化。
+        if (!skipPersist && this.listMode === 'file' && this.fileList[this.currentFileIndex]) {
             this.fileList[this.currentFileIndex].selectedCandidateIndex = this.currentIndex;
         }
 
@@ -295,7 +299,8 @@ export function searchStateFileList() {
             // 檔/候選不變，跳過 switchToFile 以免無謂把顯示跳回候選 0（純顯示最佳化，
             // 見上方 removingCurrent 註解——編輯安全已由 identity guard 結構性保證，
             // 與這個分支是否執行無關）。
-            this.switchToFile(this.currentFileIndex, 'first', false);
+            // skipPersist=true：外出檔已 splice，不得把其 currentIndex 汙染進鄰檔（P2-T5）
+            this.switchToFile(this.currentFileIndex, 'first', false, true);
         }
         this.saveState();
     },
@@ -311,6 +316,10 @@ export function searchStateFileList() {
         // requestId-mismatch 早退，卻不清理 _searchSnapshot/activeEventSource，見 Codex 第3輪 P2）
         this._abortControllers['handleFileDrop']?.abort();
         var hasNfoMap = {};
+        // P2-T6（功能 D）：宣告在 try 外——空列表檢查（下方）在同 try 內須看得到（Codex 三審#1）。
+        // 桌面 pywebview 拖入未掛載/UNC/無權限檔時，filter-files 回 rejected.inaccessible，
+        // 表面化為 path_inaccessible 並中止，取代誤導的「無法識別番號」。
+        let hadInaccessible = false;
         try {
             try {
                 const resp = await fetch('/api/search/filter-files', {
@@ -322,17 +331,24 @@ export function searchStateFileList() {
                 const result = await resp.json();
 
                 if (result.success) {
-                    if (result.total_rejected > 0) {
-                        const { extension, size, not_found } = result.rejected;
-                        let msg = window.t('search.filelist.filtered_count', { count: result.total_rejected });
+                    const { extension = 0, size = 0, not_found = 0, inaccessible = 0 } = result.rejected || {};
+                    hadInaccessible = inaccessible > 0;
+                    // 通用「已過濾」toast 只計非-inaccessible 桶：inaccessible-only 時 genericCount=0
+                    // 自然不冒（避免與 path_inaccessible 雙 toast）；mixed 時通用涵蓋其他桶、
+                    // path_inaccessible 另出（P2-T6 Codex 四審；改 genericCount 一併修正原以
+                    // total_rejected 當計數會含 inaccessible 造成「count 含未解釋桶」的落差）。
+                    const genericCount = extension + size + not_found;
+                    if (genericCount > 0) {
+                        let msg = window.t('search.filelist.filtered_count', { count: genericCount });
                         const details = [];
                         if (extension > 0) details.push(window.t('search.filelist.rejected_extension', { count: extension }));
                         if (size > 0) details.push(window.t('search.filelist.rejected_size', { count: size }));
                         if (not_found > 0) details.push(window.t('search.filelist.rejected_not_found', { count: not_found }));
                         if (details.length > 0) msg += `（${details.join('、')}）`;
-
-                        // T6b: 後端過濾提示（info 類型）
                         this.showToast(msg, 'info');
+                    }
+                    if (hadInaccessible) {
+                        this.showToast(window.t('search.error.path_inaccessible'), 'error');
                     }
                     paths = result.files.map(f => f.path);
                     result.files.forEach(f => { hasNfoMap[f.path] = !!f.has_nfo; });
@@ -388,6 +404,9 @@ export function searchStateFileList() {
             // validIndices 恆為全量，只有 paths 本身就空（filter-files 已全數濾掉）時才會落到這裡，
             // 此時 number_parse_unavailable toast 已顯示過，不再補 no_valid_files（避免雙 toast）。
             if (validIndices.length === 0) {
+                // P2-T6：已因 inaccessible 顯示 path_inaccessible，優先中止、不補通用 no_valid_files
+                // （桌面拖單一未掛載檔被全濾 → 只出 path_inaccessible 一則、明確中止）。
+                if (hadInaccessible) return;
                 if (!parseFailed) {
                     this.showToast(window.t('search.toast.no_valid_files'), 'warning');
                 }

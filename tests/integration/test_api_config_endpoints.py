@@ -317,6 +317,68 @@ class TestServerModeEndpoint:
         assert resp.json()["success"] is True
 
 
+class TestAutoCheckUpdateEndpoint:
+    """PUT /api/config/general/auto_check_update 端點測試（Codex P2：布林語意欄位擋字串反轉）
+
+    auto_check_update 是布林語意欄位，下游 lifespan(_startup_update_check) 與 help.html
+    data-attr 都當布林讀。字串 "false" 是 truthy，若落盤會被當「開啟」→ 語意反轉。
+    比照 server_mode，非 bool 一律 400。"""
+
+    @pytest.fixture
+    def mock_config_path(self, tmp_path, monkeypatch):
+        config_path = tmp_path / "config.json"
+        default_path = tmp_path / "config.default.json"
+
+        config_data = {
+            "general": {"locale": "zh-TW", "theme": "light", "sidebar_collapsed": False,
+                        "tutorial_completed": False, "font_size": "md", "default_page": "search"},
+        }
+        config_path.write_text(json.dumps(config_data))
+        default_path.write_text(json.dumps(config_data))
+
+        monkeypatch.setattr("core.config.CONFIG_PATH", config_path)
+        monkeypatch.setattr("core.config.CONFIG_DEFAULT_PATH", default_path)
+        monkeypatch.setattr("web.routers.config._reset_translate_service", lambda: None)
+
+        return config_path
+
+    def test_string_false_returns_400_not_stored(self, client, mock_config_path):
+        """安全性關鍵：字串 "false" 是 truthy，必須 400 且不得寫入 config
+        （否則 lifespan `not "false"` = False → gate 誤過、help data-attr 誤算 true）。"""
+        resp = client.put("/api/config/general/auto_check_update", json={"value": "false"})
+
+        assert resp.status_code == 400
+        saved = json.loads(mock_config_path.read_text())
+        assert "auto_check_update" not in saved.get("general", {})
+
+    def test_bool_false_returns_200_persisted_as_bool(self, client, mock_config_path):
+        """PUT {value: false} 真 bool → 200 且落盤為 bool False（非字串 "false"）"""
+        resp = client.put("/api/config/general/auto_check_update", json={"value": False})
+
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+        saved = json.loads(mock_config_path.read_text())
+        stored = saved.get("general", {}).get("auto_check_update")
+        assert stored is False  # 嚴格：bool False，非 truthy 字串 "false"
+
+    def test_bool_true_returns_200_persisted_as_bool(self, client, mock_config_path):
+        """PUT {value: true} 真 bool → 200 且落盤為 bool True"""
+        resp = client.put("/api/config/general/auto_check_update", json={"value": True})
+
+        assert resp.status_code == 200
+        assert resp.json()["success"] is True
+        saved = json.loads(mock_config_path.read_text())
+        assert saved.get("general", {}).get("auto_check_update") is True
+
+    def test_int_one_rejected(self, client, mock_config_path):
+        """PUT {value: 1} (int) → 422（StrictBool|StrictStr schema 層擋整數，非本次新增，補一條確認）"""
+        resp = client.put("/api/config/general/auto_check_update", json={"value": 1})
+
+        assert resp.status_code == 422
+        saved = json.loads(mock_config_path.read_text())
+        assert "auto_check_update" not in saved.get("general", {})
+
+
 class TestFullConfigSavePreservesServerMode:
     """P2-1: PUT /api/config（全量儲存）不得改寫 server_mode（toggle-lifecycle 所有權）
 

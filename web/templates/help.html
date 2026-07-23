@@ -7,15 +7,27 @@
 {% endblock %}
 
 {% block content %}
-<div class="help-container container mx-auto px-4 max-w-screen-2xl" x-data="helpPage">
+<div class="help-container container mx-auto px-4 max-w-screen-2xl" x-data="helpPage"
+     data-is-desktop="{{ 'true' if is_desktop else 'false' }}"
+     data-auto-check-update="{{ 'true' if config.get('general', {}).get('auto_check_update', True) else 'false' }}">
     <!-- Hero Card — 置頂區 -->
     <div class="card help-card fluent-rounded-xl mb-4">
         <div class="card-body flex flex-col lg:flex-row">
             <!-- 左欄：現有內容不動 -->
             <div class="flex-1">
-                <h2 class="card-title text-lg">
-                    <i class="bi bi-info-circle"></i>
-                    <span>OpenAver <span x-text="appVersion || 'v{{ version }}'">v{{ version }}</span></span>
+                <h2 class="card-title text-lg flex items-center justify-between">
+                    <span class="flex items-center gap-2">
+                        <i class="bi bi-info-circle"></i>
+                        <span>OpenAver <span x-text="appVersion || 'v{{ version }}'">v{{ version }}</span></span>
+                    </span>
+                    {% if is_desktop %}
+                    <label class="flex items-center gap-2 text-sm font-normal ms-auto">
+                        <span>{{ t('help.hero.auto_check_toggle') }}</span>
+                        <input type="checkbox" class="toggle toggle-primary toggle-sm"
+                               x-model="autoCheckUpdate" @change="saveAutoCheckUpdate()"
+                               :disabled="_autoCheckSaving">
+                    </label>
+                    {% endif %}
                 </h2>
                 <p class="text-base-content/60 text-sm mb-1">{{ t('help.hero.subtitle') }}</p>
                 <p class="text-base-content/60 text-sm mb-3">
@@ -757,6 +769,9 @@
 </div>
 
 {% endblock %}
-{% block extra_js %}
-<script src="/static/js/pages/help.js"></script>
+{# help.js 走 pre_alpine_module（Alpine Core 之前）：ES module 隱式 defer，須早於 Alpine
+   start 掛上 alpine:init listener 才註冊得到 Alpine.data('helpPage')，比照 scanner/main.js、
+   search/main.js。放 extra_js（Alpine Core 之後）會導致 helpPage 註冊太晚、頁面不 hydrate。 #}
+{% block pre_alpine_module %}
+<script type="module" src="/static/js/pages/help.js"></script>
 {% endblock %}

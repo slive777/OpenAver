@@ -103,6 +103,10 @@
 
   --fluent-smoke: rgba(0, 0, 0, 0.6);
 
+  /* neutral 覆寫（dim 補齊，鏡射 light；提亮至可視對比，修 btn-outline btn-neutral 深色隱形）*/
+  /* L=60%：對 base-100/200 卡面均 ≥3:1（WCAG 非文字門檻，清楚可見）、又低於 base-content 83% 維持次級克制 */
+  --color-neutral: oklch(60% 0.02 250);
+
   /* Constellation Lab star tokens - dim theme overrides (bright gold on dark) */
   --star-line-bright: oklch(0.86 0.11 80);
   --star-line-fade:   oklch(0.70 0.08 80);

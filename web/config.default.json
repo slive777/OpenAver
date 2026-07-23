@@ -75,7 +75,8 @@
     "tutorial_completed": false,
     "font_size": "md",
     "locale": "zh-TW",
-    "close_action": "ask"
+    "close_action": "ask",
+    "auto_check_update": true
   },
   "sources": [
     {

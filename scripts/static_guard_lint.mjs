@@ -3346,6 +3346,39 @@ const RULES = [
     scope: { anchor: /<button class="lightbox-nav lightbox-nav-next"/, window: 400 },
     note: '[nit-1 nav-arrow-picker] PR#108：picker 開啟時隱藏女優「下一位」箭頭（防死點擊）；影片分支 hasVisibleNext() 維持零改動',
   },
+
+  // ---- [TestHelpAutoCheckToggle] help.html：107-P1-T3 啟動時檢查更新 toggle ----
+  { file: 'web/templates/help.html', kind: 'required-string', pattern: 'data-is-desktop=', note: '[lint-guard 107-P1-T3] .help-container 注入 is_desktop 訊號（init gate 輸入）' },
+  { file: 'web/templates/help.html', kind: 'required-string', pattern: 'data-auto-check-update=', note: '[lint-guard 107-P1-T3] .help-container 注入 auto_check_update 初值（SSR，無 fetch race）' },
+  { file: 'web/templates/help.html', kind: 'required-string', pattern: 'x-model="autoCheckUpdate"', note: '[lint-guard 107-P1-T3] toggle 綁 autoCheckUpdate state（AC-A1）' },
+  { file: 'web/templates/help.html', kind: 'required-string', pattern: '@change="saveAutoCheckUpdate()"', note: '[lint-guard 107-P1-T3] toggle 切換即時 PUT 持久化（AC-A1）' },
+  { file: 'web/templates/help.html', kind: 'required-string', pattern: "t('help.hero.auto_check_toggle')", note: '[lint-guard 107-P1-T3] toggle 文案走 i18n key（不硬編碼）' },
+  // help.js 必須落在 pre_alpine_module block（Alpine Core defer 之前）——ES module 隱式 defer，
+  // 放 extra_js（Alpine 之後）會讓 alpine:init listener 註冊太晚、helpPage 靜默不 hydrate（no error，
+  // CDP-only 才抓得到；107-P1-T3 CDP 實測踩過）。scope 視窗鎖 module script 緊接 block 內，防移回 extra_js。
+  // 參 gotchas-frontend §「ESM type=module 與 Alpine CDN defer 的初始化時序」。
+  {
+    file: 'web/templates/help.html', kind: 'required-string',
+    pattern: 'pages/help.js',
+    // scope = pre_alpine_module block BODY（capture group）。若 help.js 移出此 block（如移回
+    // extra_js），block body 不再含它 → RED。用 block body 而非 char-window：緊鄰的 extra_js
+    // block 落在固定字元窗內會讓 window 版假綠（Codex/Sonnet mutation 抓到，見 feedback_mutation_anchor_precision）。
+    scope: /\{%\s*block pre_alpine_module\s*%\}([\s\S]*?)\{%\s*endblock\s*%\}/,
+    note: '[lint-guard 107-P1-T3] help.js module script 須在 pre_alpine_module block body 內（早於 Alpine Core，防 hydrate 時序 bug 回歸）',
+  },
+  // 遷自 tests/unit/test_frontend_lint.py TestHelpPage.test_help_html_contains（SA-pre-6：
+  // 該 class 無 [lint-guard] 標記，兩條純 HTML 屬性存在性字面斷言應走 lint 而非 pytest）。
+  {
+    file: 'web/templates/help.html', kind: 'required-string',
+    pattern: 'type="module" src="/static/js/pages/help.js"',
+    note: '[lint-guard 107-P1-T3] help.js 以 ES module 載入（隱式 defer；alpine:init 註冊 helpPage，時序安全）— 遷自 test_frontend_lint.py TestHelpPage',
+  },
+  {
+    file: 'web/templates/help.html', kind: 'forbidden-string',
+    pattern: 'defer',
+    scope: /<script[^>]*help\.js[^>]*>/,
+    note: '[lint-guard 107-P1-T3] help.js script tag 禁顯式 defer（module 已隱式 defer）— 遷自 test_frontend_lint.py',
+  },
 ];
 
 // ---- helpers ----
