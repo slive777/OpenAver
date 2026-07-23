@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.9] - 2026-07-24
+
+0.12 系列 released 前的優化版（feature/107），一次收四件性質不同的小事：桌面版開機會自動幫你看一下有沒有新版、深色主題幾顆看不清的按鈕修清楚、修好一個整理可能送出空資料的隱性 bug，以及一個只有開發者會遇到的拖檔訊息誤導。
+
+### Added
+#### 🔔 啟動時自動檢查更新（桌面版）
+- **桌面 App 開機後會在背景靜靜地去 GitHub 看一次有沒有新版本**，真的有才在側邊欄鈴鐺推一則「OpenAver 有新版本 vX.Y.Z」通知（已是最新就完全安靜、不打擾）。通知不附下載連結——看到後到 Help 頁按既有的「更新」鈕走 App 內建更新即可。
+- **Help 頁版本標題右側多一個「啟動時檢查更新」開關**（預設開）。開著時打開 Help 頁會自動幫你按一次「檢查更新」，直接顯示「有新版本」或「已是最新版本」，不用再手動點。關掉後開機與 Help 頁都不自動查，行為與以前完全一致。
+- 離線／逾時／查詢失敗一律安靜略過，不會拖慢開機、也不會冒錯誤通知。只在桌面版生效（LAN／瀏覽器端看的是別人的桌面、自己無從更新，不給無法行動的噪音）。
+
+### Changed
+#### 🌙 深色主題幾顆按鈕看清楚了
+- 深色（dim）主題下，Help「檢查更新」、設定頁選資料夾、搜尋錯誤態的上一個／下一個等幾顆邊框式按鈕，原本邊框與文字幾乎與卡片同色、不移上去看不見。本版補上深色主題缺的顏色定義，一次修好整類「深色描邊按鈕太暗」的問題。
+
+### Fixed
+- **修好「整理前移除當前檔案可能送出空資料」的隱性 bug**：在多候選的檔案上看著較後面的候選、然後把當前這個檔從清單移除，鄰近檔案的候選選擇會被汙染，之後直接整理可能送出空的或錯的資料（寫進空 NFO／資料庫、無提示）。本版從源頭杜絕這個汙染。（目前的整理流程其實會在送出前重新同步、把這個汙染遮蔽掉，屬隱性問題；本修讓資料狀態永遠正確，不再依賴那層遮蔽。）
+- **關掉「啟動時檢查更新」開關若儲存失敗，畫面不再與實際設定不符**：開關切換若因寫入失敗沒存進去，以前畫面顯示已關、實際卻仍開著（下次開機仍會自動查）。本版改為儲存失敗時把開關還原、並明確提示，畫面與實際設定一致。
+
+#### 🛠️ 開發者專用
+- **拖入存取不到的檔案改顯示正確原因**：開發者在 WSL2 環境把「無權限／未掛載的 Windows 網路檔」拖進搜尋頁時，以前誤顯示「無法識別番號」（讓人以為是番號解析壞了）。本版改顯示「無法存取此檔案路徑（權限不足或未掛載）」，一眼看出是環境問題。可正常存取但檔名真的沒番號的檔，維持顯示「無法識別番號」不變。一般使用者（Windows 原生部署）不會遇到這個情況。
+
+### 測試
+- 全套 pytest **5640 passed, 1 skipped**（unit + integration，排除 smoke／e2e）＋ `ruff check .` 綠 ＋ `npm run lint` 綠（static_guard 1037／css-guard 44／cjk clean）＋ `npm test`（node:test **285**，含候選汙染守衛〔跑真 switchToFile、三向 mutation〕／filter-files inaccessible 前端分流／toggle 儲存失敗還原 等，皆 mutation 實測殺 mutant）。
+- 來源金絲雀：**8 源全 PASS**（javbus／jav321／heyzo／d2pass／avsox／fc2／javdb／dmm，pre-merge live）。
+- 每 task 獨立 Sonnet review（皆 APPROVE，subagent mutation 後工作樹經 Opus 核對完整）＋ Codex P2 修（auto_check_update PUT 擋非布林字串 truthy 反轉）＋ **pre-merge Phase 1 跨廠牌 holistic 第二意見**（Opus subagent high：**LGTM**、逐一查證 A/B/C/D 交互〔尤其 file-list.js 兩處獨立編輯不衝突〕；Codex：**提 3〔P1×1 P2×1 P3×1〕採納 1 假陽性 0**——P1＝版號待 bump〔本步驟處理〕、**P2＝toggle PUT 失敗未檢查 success 已修**、P3＝filter-files inaccessible 桶為全域加法〔by-design〕；grok 依 `reference_grok_cli` 增量持續為 0 之計分卡準則本輪略過）。
+- 功能 D 的 AC-D1 以 node/python 執行式 repro 坐實例外型別（未掛載＝FileNotFoundError、無權限＝PermissionError），owner 拍板走路徑外觀啟發式。功能 A/B/D 的桌面顯示與真拖檔留 owner 真機 hard-gate。
+- 本版新增 i18n key 只寫 zh_TW（其餘三語留空靠回退）。
+
 ## [0.12.8] - 2026-07-22
 
 本版把搜尋頁的 detail（詳情卡）做成「把這個檔案整理進庫之前，最後看一眼並手動修正」的地方（feature/106）。以前 scraper 抓錯／漏抓演員、或無碼片沒有發售日只能將就；現在拖檔進搜尋頁後，可在整理前直接改標題、改演員、補發售日，修正會隨整理一起寫進 NFO＋資料庫。純關鍵字搜尋（只是查資料、沒有要整理）維持唯讀、不出現任何編輯鈕。
