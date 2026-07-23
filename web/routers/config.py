@@ -196,7 +196,7 @@ def update_general_field(field: str, request: GeneralFieldRequest, raw_request: 
     註：保持同步 def —— body 內 mutate_config 走檔案 I/O，依 async-offload 守衛
     （feature/71）須在 Starlette threadpool 執行，不可改 async def 卡 event loop。
     """
-    allowed = {"sidebar_collapsed", "theme", "font_size", "locale", "server_mode"}
+    allowed = {"sidebar_collapsed", "theme", "font_size", "locale", "server_mode", "auto_check_update"}
     if field not in allowed:
         return {"success": False, "error": f"不允許更新欄位: {field}"}
     try:

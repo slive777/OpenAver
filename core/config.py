@@ -176,6 +176,7 @@ class GeneralConfig(BaseModel):
     locale: Literal["zh-TW", "zh-CN", "ja", "en"] = "zh-TW"  # 介面語系
     server_mode: bool = False  # LAN 伺服器模式開關（feature/80）
     close_action: Literal["ask", "tray", "exit"] = "ask"  # 視窗關閉行為（feature/82）
+    auto_check_update: bool = True  # 啟動時檢查更新（feature/107）
 
     @field_validator("close_action", mode="before")
     @classmethod
@@ -485,6 +486,14 @@ def _load_config_unlocked() -> dict:
             raw_config['general'] = gen
         if gen.get('close_action') not in _CLOSE_ACTIONS:
             gen['close_action'] = 'ask'
+            need_save = True
+
+        # Additive migration（feature/107 P1-T1）：general.auto_check_update 補預設。
+        # load_config() return raw dict（不 model_validate），舊 config 缺此 key 時 Pydantic default
+        # 不 backfill → 顯式補 True。gen 已由上方 close_action 段保證是 dict，直接複用。
+        # 用 not in（非 falsy）：既存 False（使用者曾關閉）為合法值，不可被 True 覆寫。
+        if 'auto_check_update' not in gen:
+            gen['auto_check_update'] = True
             need_save = True
 
         # Save migrated config（已持鎖 → 用 unlocked 版避免自我死鎖）
