@@ -783,8 +783,25 @@ def get_favorite_files() -> dict:
     }
 
 
+def _looks_unmounted_drive(path: str) -> bool:
+    """P2-T6 啟發式：路徑形如 WSL 掛載點 `/mnt/<letter>/…` 但該碟未掛載 → 存取不到（非「檔案不存在」）。
+
+    owner 拍板（spec-107 功能 D）：WSL2 開發者拖入未掛載的 Windows 碟時 stat 拋 FileNotFoundError，
+    與「真的不存在的本地檔」同例外，只能靠路徑外觀區分。`/mnt/<letter>` 已掛載但檔案真缺 → is_mount()
+    為 True → 回 False（歸 not_found，正確）。非 `/mnt/<letter>` 形狀（Windows 原生 Z: 碟、本地 `/home/…`）
+    一律 False，不誤判。SMB/UNC 由 normalize_path ValueError 另行歸類、不經此函式。
+    """
+    m = re.match(r'^/mnt/([a-z])(?:/|$)', path)
+    if not m:
+        return False
+    try:
+        return not Path(f'/mnt/{m.group(1)}').is_mount()
+    except OSError:
+        return False
+
+
 def _filter_files_sync(paths: list) -> dict:
-    """Threadpool helper（CD-66-3 外層）：load_config + 檔案走訪（exists/stat/iterdir）。
+    """Threadpool helper（CD-66-3 外層）：load_config + 檔案走訪（stat/iterdir）。
 
     整段同步阻塞 I/O，由 filter_files 經 await asyncio.to_thread 移出 event loop。
     """
@@ -798,7 +815,8 @@ def _filter_files_sync(paths: list) -> dict:
     min_size_bytes = min_size_mb * 1024 * 1024
 
     filtered = []
-    rejected = {"extension": 0, "size": 0, "not_found": 0}
+    # P2-T6: inaccessible 桶＝無讀權限（PermissionError）＋未掛載/UNC（啟發式），與 not_found 分流
+    rejected = {"extension": 0, "size": 0, "not_found": 0, "inaccessible": 0}
     nfo_stem_cache: dict = {}
 
     for original_path in paths:
@@ -806,12 +824,20 @@ def _filter_files_sync(paths: list) -> dict:
         try:
             path = normalize_path(original_path)
         except ValueError:
-            rejected["not_found"] += 1
+            # WSL 不支援的 SMB/UNC 網路路徑＝存取不到的網路碟（非「檔案不存在」）
+            rejected["inaccessible"] += 1
             continue
 
         p = Path(path)
-        if not p.exists():
-            rejected["not_found"] += 1
+        # P2-T6 stat-early：取代 p.exists()（會把權限吞成 False→not_found），且預設 min_size_mb=0
+        # 時原本根本不 stat、permission/未掛載無從判別。一次 stat 供權限判別 + 後續 size 重用。
+        try:
+            stat_result = p.stat()
+        except PermissionError:
+            rejected["inaccessible"] += 1
+            continue
+        except (FileNotFoundError, OSError):
+            rejected["inaccessible" if _looks_unmounted_drive(path) else "not_found"] += 1
             continue
 
         suffix = p.suffix.lower()
@@ -820,12 +846,8 @@ def _filter_files_sync(paths: list) -> dict:
             continue
 
         if min_size_bytes > 0 and suffix not in ZERO_SIZE_EXTENSIONS:
-            try:
-                if p.stat().st_size < min_size_bytes:
-                    rejected["size"] += 1
-                    continue
-            except OSError:
-                rejected["not_found"] += 1
+            if stat_result.st_size < min_size_bytes:
+                rejected["size"] += 1
                 continue
 
         # NFO 同 stem 偵測（case-insensitive，父目錄 listing cache）
@@ -863,7 +885,7 @@ async def filter_files(request: Request) -> dict:
         {
             "success": True,
             "files": ["filtered paths"],
-            "rejected": {"extension": 0, "size": 0, "not_found": 0},
+            "rejected": {"extension": 0, "size": 0, "not_found": 0, "inaccessible": 0},
             "total_rejected": 0
         }
     """
