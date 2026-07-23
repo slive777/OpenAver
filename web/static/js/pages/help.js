@@ -14,6 +14,7 @@ export function helpPage() {
         isDefaultPath: true,
         updateLoading: false,
         autoCheckUpdate: false,
+        _autoCheckSaving: false,
         _isDesktop: false,
         _toast: { message: '', type: 'info', visible: false },
         _toastTimer: null,
@@ -30,6 +31,9 @@ export function helpPage() {
             // 否則 UI 顯示「關」但 config 仍「開」→ 下次啟動仍自動查 GitHub，違反 opt-out
             // （比照 settings state-config.js setServerMode 的 success-then-commit / fail-revert）。
             const desired = this.autoCheckUpdate;
+            this._autoCheckSaving = true;  // 擋 checkbox，防兩次快速切換同時有 PUT in-flight
+            // （server 寫入順序若被打亂，config 會與最後可見的 toggle 狀態相反——兩次 PUT 都
+            // success:true，既有 revert-on-failure 邏輯抓不到，見 107 P2 Codex review）
             try {
                 const resp = await fetch('/api/config/general/auto_check_update', {
                     method: 'PUT',
@@ -44,6 +48,8 @@ export function helpPage() {
             } catch (e) {
                 this.autoCheckUpdate = !desired;  // 還原（離線/HTTP 錯）
                 this.showToast(window.t('help.hero.auto_check_save_failed'), 'error');
+            } finally {
+                this._autoCheckSaving = false;
             }
         },
 

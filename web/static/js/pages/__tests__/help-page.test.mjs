@@ -129,3 +129,28 @@ test('saveAutoCheckUpdate: PUT throw（離線）→ 還原本地狀態 + 顯示 
   assert.equal(toasts.length, 1);
   assert.equal(toasts[0].t, 'error');
 });
+
+// Codex 107 P2：兩次快速切換可能各發一個 PUT，server 寫入順序若被打亂，config 會與
+// 最後可見的 toggle 狀態相反（兩次都 success:true，既有 revert-on-failure 抓不到）。
+// 修法：disable-while-saving——_autoCheckSaving 在 PUT in-flight 期間為 true（checkbox
+// :disabled 綁它），resolve 後（無論成功/失敗/throw）清為 false，讓同一時間只可能有一個
+// PUT in-flight。用手動控制的 pending promise 斷言「in-flight 期間 true、resolve 後 false」。
+test('saveAutoCheckUpdate: PUT in-flight 期間 _autoCheckSaving=true，resolve 後清回 false', async () => {
+  let resolveFetch;
+  globalThis.fetch = () => new Promise((resolve) => { resolveFetch = resolve; });
+  const fakeThis = { ...helpPage(), autoCheckUpdate: true };
+
+  const savePromise = fakeThis.saveAutoCheckUpdate();
+  assert.equal(fakeThis._autoCheckSaving, true, 'PUT in-flight 期間應為 true（擋 checkbox 二次觸發）');
+
+  resolveFetch({ ok: true, json: async () => ({ success: true }) });
+  await savePromise;
+  assert.equal(fakeThis._autoCheckSaving, false, 'resolve 後應清回 false');
+});
+
+test('saveAutoCheckUpdate: PUT throw 亦清回 _autoCheckSaving=false（finally 保證）', async () => {
+  globalThis.fetch = async () => { throw new Error('offline'); };
+  const fakeThis = { ...helpPage(), autoCheckUpdate: true, showToast: () => {} };
+  await fakeThis.saveAutoCheckUpdate();
+  assert.equal(fakeThis._autoCheckSaving, false, 'throw 路徑也必須經 finally 清旗標，否則 checkbox 永久 disabled');
+});

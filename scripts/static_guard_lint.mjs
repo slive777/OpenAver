@@ -3366,6 +3366,19 @@ const RULES = [
     scope: /\{%\s*block pre_alpine_module\s*%\}([\s\S]*?)\{%\s*endblock\s*%\}/,
     note: '[lint-guard 107-P1-T3] help.js module script 須在 pre_alpine_module block body 內（早於 Alpine Core，防 hydrate 時序 bug 回歸）',
   },
+  // 遷自 tests/unit/test_frontend_lint.py TestHelpPage.test_help_html_contains（SA-pre-6：
+  // 該 class 無 [lint-guard] 標記，兩條純 HTML 屬性存在性字面斷言應走 lint 而非 pytest）。
+  {
+    file: 'web/templates/help.html', kind: 'required-string',
+    pattern: 'type="module" src="/static/js/pages/help.js"',
+    note: '[lint-guard 107-P1-T3] help.js 以 ES module 載入（隱式 defer；alpine:init 註冊 helpPage，時序安全）— 遷自 test_frontend_lint.py TestHelpPage',
+  },
+  {
+    file: 'web/templates/help.html', kind: 'forbidden-string',
+    pattern: 'defer',
+    scope: /<script[^>]*help\.js[^>]*>/,
+    note: '[lint-guard 107-P1-T3] help.js script tag 禁顯式 defer（module 已隱式 defer）— 遷自 test_frontend_lint.py',
+  },
 ];
 
 // ---- helpers ----

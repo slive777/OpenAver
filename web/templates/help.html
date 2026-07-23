@@ -24,7 +24,8 @@
                     <label class="flex items-center gap-2 text-sm font-normal ms-auto">
                         <span>{{ t('help.hero.auto_check_toggle') }}</span>
                         <input type="checkbox" class="toggle toggle-primary toggle-sm"
-                               x-model="autoCheckUpdate" @change="saveAutoCheckUpdate()">
+                               x-model="autoCheckUpdate" @change="saveAutoCheckUpdate()"
+                               :disabled="_autoCheckSaving">
                     </label>
                     {% endif %}
                 </h2>

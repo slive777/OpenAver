@@ -1551,10 +1551,6 @@ class TestHelpPage:
         matches = re.findall(r'<script[^>]*help\.js[^>]*>', html)
         assert len(matches) == 1, \
             f"help.html 應恰好有 1 個 help.js script tag，找到 {len(matches)} 個"
-        assert 'type="module"' in matches[0], \
-            "help.js 應以 type=\"module\" 載入（107-P1-T3 Option A：export function helpPage + alpine:init 註冊）"
-        assert 'defer' not in matches[0], \
-            "help.js script tag 帶有 defer — module 已隱式 defer，顯式 defer 冗餘且混淆"
 
     def test_help_js_contains(self):
         """help.js 含 copyCurlCommand / execCommand"""
