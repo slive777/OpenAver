@@ -833,7 +833,8 @@
     "batch_enrich_failed": "批次補完中斷",
     "jl_cf_timeout": "JavLibrary CF 驗證逾時",
     "thumb_prewarm_start": "開始建立封面縮圖快取",
-    "thumb_prewarm_done": "封面縮圖快取已完成"
+    "thumb_prewarm_done": "封面縮圖快取已完成",
+    "update_available": "OpenAver 有新版本"
   },
   "similar_mode": {
     "button_aria_label": "探索相似影片",

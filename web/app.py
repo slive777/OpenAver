@@ -3,6 +3,7 @@ OpenAver Web GUI - FastAPI Application
 """
 from contextlib import asynccontextmanager
 from pathlib import Path
+import asyncio
 import os
 import re
 import subprocess
@@ -39,6 +40,30 @@ from core.metatube.state import metatube_state as _mt_startup_state
 BASE_DIR = Path(__file__).parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
+
+
+async def _startup_update_check() -> None:
+    """TASK-107-P1-T2: 桌面 App 啟動時背景復用 check_update() 查一次 GitHub，
+    只有真的有新版時 emit 一則 info 通知。失敗全靜默、絕不外拋（不 crash 啟動）。
+
+    gate 順序（AC-A4）：desktop gate 與 flag gate 都在 await check_update() 之前，
+    任一 gate 不過即 return，check_update() 完全不被呼叫、零網路請求。
+    config 一律 dict 存取（CD-107-4，禁 _cfg.general.xxx，否則 AttributeError 被吞）。
+    """
+    try:
+        _cfg = load_config()  # raw dict
+        if not (_is_windows_desktop() or _is_mac_desktop()):
+            return  # gate 1：非桌面 → 零網路
+        if not _cfg.get("general", {}).get("auto_check_update", True):
+            return  # gate 2：開關關 → 零網路
+        result = await check_update()  # 復用端點函式，check_update() 本體不動
+        if result.get("has_update") and result.get("latest_version"):
+            emit_notification(
+                "info", "notif.update_available",
+                message=f"v{result['latest_version']}",
+            )
+    except Exception:
+        logger.warning("lifespan: startup update check failed", exc_info=True)
 
 
 @asynccontextmanager
@@ -83,6 +108,12 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.warning("lifespan: startup_reconnect failed unexpectedly", exc_info=True)
 
+    # TASK-107-P1-T2: 背景（非阻塞）啟動更新檢查。lifespan 不 await 此 task，
+    # yield 立刻放行，App 啟動不被 GitHub 網路往返拖慢（AC-A6）。
+    # create_task 回傳值須保留強引用（event loop 只持 weak ref），否則 task 可能
+    # 執行中途被 GC 回收 —— 存 app.state（app 已建立、比 module global 乾淨，無需 global）。
+    app.state.startup_check_task = asyncio.create_task(_startup_update_check())
+
     yield
     # ── shutdown ──────────────────────────────────────────────
     # 目前無 shutdown 邏輯（setup_logging 是 module-level，不需 teardown）
@@ -120,6 +151,9 @@ from web.routers import actress_alias as actress_alias_router
 from web.routers import tag_alias as tag_alias_router
 from web.routers import tags as tags_router
 from web.routers import notifications as notifications_router
+# TASK-107-P1-T2: import emit_notification at module level so lifespan can call
+# it directly and tests can patch("web.app.emit_notification") at the use-site.
+from web.routers.notifications import emit_notification
 from web.routers import similar as similar_router
 from web.routers import settings_link as settings_link_router
 from web.routers import scraper_sources as scraper_sources_router
