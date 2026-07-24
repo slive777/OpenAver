@@ -40,8 +40,11 @@ function stripCssComments(text) {
 }
 
 // _parse_rule_blocks：逐字元走訪追 brace depth，depth 歸 0 時收 {selector, declarations}。
-// @media wrapper 自然被當 depth-1 外層、回傳最內層 rule block（忠實鏡射 Python 逐字元
-// 迴圈，非 regex 猜大括號配對）。
+// ⚠️ 只收 depth-0（頂層）block：`@media (...) { .a{} .b{} }` 整塊被當**單一外層** block，
+// selector=`@media (...)`、declarations=整段內文——內層 .a/.b **不會**被拆成獨立 block。
+// 要看 @media 內的規則，需另對其 body 重新 parse（見 flattenRuleBlocks / extractMediaBodies）；
+// 只掃頂層 block 的檢查對巢狀在 @media 內的規則會 fail-open（CG-GRID-ALIGN 108-T6 曾踩）。
+// 忠實鏡射 Python 逐字元迴圈，非 regex 猜大括號配對。
 function parseRuleBlocks(cssText) {
   const blocks = [];
   let depth = 0;
@@ -70,6 +73,26 @@ function parseRuleBlocks(cssText) {
 // re.escape port（token 名含 `-`，CG-FLU-12 需精確 escape，CD-96c-2）
 function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// 遞迴展平 at-rule（@media/@supports/…）block，取得所有「真實」style rule（selector+declarations）。
+// parseRuleBlocks 只在 brace depth 歸 0 時收 block，故 `@media (...) { .a{} .b{} }` 只會回一個
+// selector=`@media (...)`、declarations=整段內文的 block —— 內層 `.a` / `.b` 規則不會被拆開，
+// 任何只掃 ctx.blocks 頂層的 rule 會漏看巢狀在 @media 裡的規則（CG-GRID-ALIGN 108-T6 fail-open 之因）。
+// 此函式對 selector 以 `@` 開頭的 block，於其 declarations 上重新 parseRuleBlocks 取內層規則並遞迴
+// （支援巢狀 @media），非 at-rule 則視為真實 style rule 直接收下。CG-GRID-ALIGN 起使用；其餘既有
+// rule 已各自用 extractDesktopMediaBodies/extractMediaBodies/extractMobileMediaBody 手工處理 @media，
+// 不受影響、不重構（避免波及已驗證行為）。
+function flattenRuleBlocks(blocks) {
+  const out = [];
+  for (const { selector, declarations } of blocks) {
+    if (selector.trim().startsWith('@')) {
+      out.push(...flattenRuleBlocks(parseRuleBlocks(declarations)));
+    } else {
+      out.push({ selector, declarations });
+    }
+  }
+  return out;
 }
 
 // @media (min-width:1024px) body 抽取（CG-FLU-09/10 11b；用 ctx.raw，鏡射 pytest css_raw）。
@@ -1709,31 +1732,118 @@ const RULES = [
     },
   },
 
-  // ══ 108-T6：G5 — 女優 grid 寬度決定屬性必須來自與 .showcase-grid 併列（co-listed）的共用規則，
-  //    鎖 108-T5「.actress-grid 與 .showcase-grid 共用響應式欄數系統」不變式（AC-C1：女優卡與影片卡
-  //    在每個斷點同寬），防止日後有人加一條 .actress-grid 專屬規則悄悄改欄數/gap/padding/寬度而
-  //    silent drift。用 ctx.blocks（來自 stripCssComments 後的 parseRuleBlocks）判斷 selector，
-  //    天生排除註解內字面 `.actress-grid`（如「比照 .actress-grid」說明文字）誤命中，不會 fail-open。 ══
+  // ══ 108-T6：G5 — 女優 grid（.actress-grid）必須與影片 grid（.showcase-grid）共用同一套響應式欄數
+  //    系統：base + 5 個固定斷點的 grid-template-columns 一律 co-listed `.showcase-grid, .actress-grid`，
+  //    外加 T1 行動 gutter 規則（@media max-width:899）亦 co-listed。鎖 108-T5 不變式（AC-C1：女優卡與
+  //    影片卡在每個斷點同寬）。三道檢查合起來對「base+5 斷點+T1 全 co-listed」契約 fail-closed：
+  //      (A) 正向存在表（hard-coded 斷點表，reviewer 認可/期望）：base + 5 欄數斷點 + T1 gutter 各自
+  //          必須存在一條 co-listed 且宣告錨屬性的規則。抓三類 fail-open：整塊 @media 被刪 / 斷點條件
+  //          被改（如 1500→1400）/ 某斷點拿掉 .actress-grid（只剩 showcase-only）—— 原正向 .some() 只要
+  //          任一斷點還在就綠、對「刪整塊」與「改斷點條件」全漏。斷點條件寫死＝功能契約，重構斷點本身
+  //          即契約變更，本表故意會紅逼迫有意識更新守衛（reviewer 明確認可/期望）。
+  //      (B) 負向：.actress-grid 單獨規則不得宣告任何寬度決定屬性（女優偷加自有 override，top-level 或
+  //          巢狀於 @media 皆抓）。
+  //      (C) 負向（對稱）：.showcase-grid 自身規則宣告寬度屬性卻未併列 .actress-grid（影片端在任意——含
+  //          非-canonical——斷點偷加 showcase-only 分歧，女優 grid 於該斷點悄悄回落 base auto-fill）。
+  //    欄數「值」（repeat(5)/repeat(4)/repeat(3)…）由 CG-PC-02/05/07 各自擁有；本 rule 只鎖「存在＋
+  //    co-listed」不重複值斷言（分工：G5 owns「每個 canonical 斷點 actress 有併列」，CG-PC-* owns 欄數值）。
+  //    ctx.text 已 stripCssComments → 天生排除註解內字面 `.actress-grid`；co-listed / 自身規則判定一律
+  //    用 comma-split exact-part 比對 → 天生排除後代選擇器（`.showcase-grid .av-card…`）與 z-index
+  //    sibling 規則（`.showcase-status-bar, .showcase-grid, …`：宣告 position/z-index，無寬度屬性）。 ══
 
-  // CG-GRID-ALIGN ← 108-T6 G5：正向 co-listed 規則存在 + 負向 .actress-grid 單獨規則禁寬度屬性
+  // CG-GRID-ALIGN ← 108-T6 G5：正向斷點存在表 + 雙向負向（actress-only / showcase-only）分歧禁令
   {
     id: 'CG-GRID-ALIGN',
     file: 'pages/showcase.css',
     kind: 'fn',
     check(ctx) {
-      // 正向：至少一條 .showcase-grid 與 .actress-grid 併列的規則宣告 grid-template-columns
-      // （女優 grid 的欄數必須來自共用規則，而非自己的流動欄數規則）
-      const coListedWithColumns = ctx.blocks.some(
-        ({ selector, declarations }) => selector.includes('.showcase-grid')
-          && selector.includes('.actress-grid')
-          && /grid-template-columns\s*:/.test(declarations),
+      // 「最終 subject」判定（Codex 四審 P2 + 五審 P2）：判斷 selector 某逗號段是否以 class `cls`
+      // 為最終 subject（最後一個 combinator ` `/`>`/`+`/`~` 之後那截 compound）。
+      // 認得 parent scope / 附加 class·pseudo / attribute 的同一 grid 規則
+      //（`.showcase-container .showcase-grid.compact`、`.showcase-grid:has(> .x)`、
+      //  `.showcase-grid[data-label="wide grid"]` 最終 subject 仍是 .showcase-grid），
+      // 排除「最終 subject 是後代元素」（`.showcase-grid .av-card…`）與「grid 只出現在
+      // functional pseudo 參數內」（`.foo:has(.showcase-grid)` subject 其實是 .foo）。
+      // ⚠️ CSS-aware：combinator / comma 這些字元在 :has()/:not()/:is()、attribute value、字串內
+      // 皆可能合法出現，naive split 會誤切（Codex 五審）。故先 stripNested 剝掉 ()/[]/引號內容
+      //（追 depth + escape），使殘留的 comma/combinator 必為頂層，再切。
+      const stripNested = (s) => {
+        let out = '';
+        let paren = 0;
+        let bracket = 0;
+        let quote = '';
+        for (let i = 0; i < s.length; i += 1) {
+          const ch = s[i];
+          if (quote) {
+            if (ch === '\\') i += 1; // 跳過 escape 的下一字元
+            else if (ch === quote) quote = '';
+            continue;
+          }
+          if (ch === '"' || ch === "'") { quote = ch; continue; }
+          if (ch === '(') { paren += 1; continue; }
+          if (ch === ')') { paren = Math.max(0, paren - 1); continue; }
+          if (ch === '[') { bracket += 1; continue; }
+          if (ch === ']') { bracket = Math.max(0, bracket - 1); continue; }
+          if (paren === 0 && bracket === 0) out += ch;
+        }
+        return out;
+      };
+      const subjectTargets = (strippedPart, cls) => {
+        const compounds = strippedPart.split(/[\s>+~]+/).filter(Boolean);
+        const last = compounds[compounds.length - 1] || '';
+        return new RegExp(`\\.${escapeRegExp(cls)}(?![\\w-])`).test(last);
+      };
+      // 先 stripNested 全 selector（()/[]/引號內容剝除）→ 殘留 comma 必為頂層 selector-list 分隔，
+      // 殘留 combinator 必為頂層 → 切段後判每段最終 subject。
+      const selHasSubject = (selector, cls) => stripNested(selector)
+        .split(',')
+        .some((part) => subjectTargets(part.trim(), cls));
+      // co-listed 判定：某段最終 subject 是 .showcase-grid、且某段最終 subject 是 .actress-grid
+      //（排除後代選擇器與 z-index sibling；支援 scoped / state 併列變體）
+      const isCoListed = (selector) => selHasSubject(selector, 'showcase-grid')
+        && selHasSubject(selector, 'actress-grid');
+      const hasCoListedAnchor = (blocks, anchorRe) => blocks.some(
+        ({ selector, declarations }) => isCoListed(selector) && anchorRe.test(declarations),
       );
-      if (!coListedWithColumns) {
-        ctx.fail(
-          'CG-GRID-ALIGN [lint-guard:108-T6]: 找不到與 .showcase-grid 併列（co-listed）且宣告 '
-            + 'grid-template-columns 的 .actress-grid 規則（女優 grid 欄數須來自共用規則，非自有規則）',
-        );
+
+      // ── (A) 正向存在表：base + 5 欄數斷點 + T1 gutter。斷點條件 hard-code（^…$ 錨定＝字面比對，
+      //    條件被改則抽不到 @media body → 判缺）。base cond=null → 只看 top-level 非-@media 規則。──
+      const COLS = /grid-template-columns\s*:/;
+      const GUTTER = /margin-inline\s*:/;
+      const REQUIRED = [
+        { label: 'base grid（top-level 非-@media）', cond: null, anchor: COLS, prop: 'grid-template-columns' },
+        { label: '@media (min-width: 1500px) → 5 欄', cond: /^\s*\(\s*min-width\s*:\s*1500px\s*\)\s*$/, anchor: COLS, prop: 'grid-template-columns' },
+        { label: '@media (min-width: 1100px) and (max-width: 1499px) → 4 欄', cond: /^\s*\(\s*min-width\s*:\s*1100px\s*\)\s+and\s+\(\s*max-width\s*:\s*1499px\s*\)\s*$/, anchor: COLS, prop: 'grid-template-columns' },
+        { label: '@media (min-width: 900px) and (max-width: 1099px) → 3 欄', cond: /^\s*\(\s*min-width\s*:\s*900px\s*\)\s+and\s+\(\s*max-width\s*:\s*1099px\s*\)\s*$/, anchor: COLS, prop: 'grid-template-columns' },
+        { label: '@media (min-width: 481px) and (max-width: 899px) → 4 欄', cond: MIN481_MAX899, anchor: COLS, prop: 'grid-template-columns' },
+        { label: '@media (max-width: 480px) → 3 欄', cond: MW480, anchor: COLS, prop: 'grid-template-columns' },
+        { label: 'T1 行動 gutter @media (max-width: 899px)', cond: MW899, anchor: GUTTER, prop: 'margin-inline' },
+      ];
+      for (const { label, cond, anchor, prop } of REQUIRED) {
+        let ok;
+        if (cond === null) {
+          // base：ctx.blocks 未展平，@media wrapper 的 selector 以 @ 開頭 → 濾掉只留真 top-level 規則
+          const topLevel = ctx.blocks.filter(({ selector }) => !selector.trim().startsWith('@'));
+          ok = hasCoListedAnchor(topLevel, anchor);
+        } else {
+          // 斷點：抽符合錨定條件的 @media body（可能多個同條件 block，如兩個 max-width:899），
+          // 各自 parseRuleBlocks 內層規則後找 co-listed + 錨屬性
+          const bodies = extractMediaBodies(ctx.text, cond);
+          ok = bodies.some((body) => hasCoListedAnchor(parseRuleBlocks(body), anchor));
+        }
+        if (!ok) {
+          ctx.fail(
+            `CG-GRID-ALIGN [lint-guard:108-T6]: 缺少 canonical 斷點「${label}」的 co-listed `
+              + `.showcase-grid, .actress-grid 規則（須宣告 ${prop}）—— base+5 斷點+T1 為固定功能契約；`
+              + `整塊被刪 / 斷點條件被改 / 某斷點拿掉 .actress-grid 皆違反 AC-C1「女優卡與影片卡同寬」。`
+              + `若確為有意重構斷點，請同步更新本守衛的期望表`,
+          );
+        }
       }
+
+      // ── (B)(C) 負向：需含 @media 內巢狀規則 → flatten 成「真實 style rule」清單再逐條檢查
+      //    （原只掃 ctx.blocks 頂層看不到 @media 內的 actress-only override，fail-open）。──
+      const flatBlocks = flattenRuleBlocks(ctx.blocks);
 
       // 負向（load-bearing）：.actress-grid 若單獨出現（selector 未同時含 .showcase-grid），
       // 該規則不得宣告任何寬度決定屬性 — 一旦出現即代表女優 grid 悄悄脫離共用寬度系統。
@@ -1762,18 +1872,43 @@ const RULES = [
         'max-inline-size',
         'box-sizing',
       ];
-      for (const { selector, declarations } of ctx.blocks) {
-        const isActressOnly = selector.includes('.actress-grid') && !selector.includes('.showcase-grid');
-        if (!isActressOnly) continue;
-        for (const prop of forbiddenWidthProps) {
-          const propRe = new RegExp(`(^|[;{]|\\s)${escapeRegExp(prop)}\\s*:`);
-          if (propRe.test(declarations)) {
-            ctx.fail(
-              `CG-GRID-ALIGN [lint-guard:108-T6]: .actress-grid 單獨規則（未與 .showcase-grid 併列）`
-                + `宣告寬度決定屬性 \`${prop}\`，違反 AC-C1「女優卡與影片卡同寬」不變式 — `
-                + `selector=${selector.replace(/\s+/g, ' ').trim()}`,
-            );
-          }
+      // 「宣告了哪個寬度決定屬性」共用小工具（回傳命中的 prop 名或 null）。
+      const declaredWidthProp = (declarations) => forbiddenWidthProps.find(
+        (prop) => new RegExp(`(^|[;{]|\\s)${escapeRegExp(prop)}\\s*:`).test(declarations),
+      ) || null;
+
+      // (B) 負向（load-bearing）：最終 subject 是 .actress-grid 的規則（含 scoped / 附加 class 變體），
+      // 若**未**與 .showcase-grid 併列卻宣告任一寬度決定屬性 → 女優 grid 悄悄脫離共用寬度系統。
+      // 用最終 subject 判定 → 只認「真的以 .actress-grid 為目標」的規則，不誤傷 `.actress-grid .foo` 後代規則。
+      for (const { selector, declarations } of flatBlocks) {
+        if (!selHasSubject(selector, 'actress-grid')) continue; // 只看以 .actress-grid 為目標的規則
+        if (selHasSubject(selector, 'showcase-grid')) continue; // 已與 showcase 併列 → 合規
+        const prop = declaredWidthProp(declarations);
+        if (prop) {
+          ctx.fail(
+            `CG-GRID-ALIGN [lint-guard:108-T6]: .actress-grid 單獨規則（未與 .showcase-grid 併列）`
+              + `宣告寬度決定屬性 \`${prop}\`，違反 AC-C1「女優卡與影片卡同寬」不變式 — `
+              + `selector=${selector.replace(/\s+/g, ' ').trim()}`,
+          );
+        }
+      }
+
+      // (C) 對稱負向（Codex 二審 P1 + 四審 P2）：反過來也鎖——最終 subject 是 .showcase-grid 的規則
+      // （含 `.showcase-container .showcase-grid.compact` 這類 parent scope / state class 變體），
+      // 若宣告任一寬度決定屬性卻**未**同時併列 .actress-grid，女優 grid 會在該情境悄悄脫鉤
+      // （正向存在表只鎖 canonical 斷點，攔不到 non-canonical / scoped 的 showcase-only 覆寫）。
+      // 用最終 subject 判定 → 天生排除後代選擇器（`.showcase-grid .av-card…` 最終 subject 非 grid）
+      // 與 z-index sibling（其 grid 段最終 subject 雖是 grid，但不宣告寬度屬性 → declaredWidthProp=null）。
+      for (const { selector, declarations } of flatBlocks) {
+        if (!selHasSubject(selector, 'showcase-grid')) continue; // 只看以 .showcase-grid 為目標的規則
+        if (selHasSubject(selector, 'actress-grid')) continue; // 已併列 → 合規
+        const prop = declaredWidthProp(declarations);
+        if (prop) {
+          ctx.fail(
+            `CG-GRID-ALIGN [lint-guard:108-T6]: .showcase-grid 規則宣告寬度決定屬性 \`${prop}\` `
+              + `卻未與 .actress-grid 併列 — 女優 grid 會在此情境脫鉤（違反 AC-C1「同寬」；`
+              + `含 scoped/state 變體，非只 base+5 斷點） — selector=${selector.replace(/\s+/g, ' ').trim()}`,
+          );
         }
       }
     },
