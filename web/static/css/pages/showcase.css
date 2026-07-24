@@ -369,6 +369,22 @@
     }
 }
 
+/* 108-T1 (功能A): 行動裝置 grid 邊到邊、~12px gutter。
+   負 margin-inline 抵消 .main-content 的 1.5rem 水平 padding（container 本身無水平 padding）；
+   padding-inline 留 12px gutter；box-sizing 顯式 border-box 防負 margin 拉滿寬後 padding 溢出成水平捲動；
+   max-width:none 解除 base max-width:100%（=CB 上限），否則負右 margin 被吃、右側殘 gap（CDP 實測）。
+   .showcase-grid, .actress-grid 併列單一規則（不可拆兩條——T6 G5 鎖此不變式）。
+   置於兩 grid base 定義之後 → 同 specificity 靠 source order 勝 base 的 max-width:100%（影片/女優皆然）。 */
+@media (max-width: 899px) {
+    .showcase-grid,
+    .actress-grid {
+        margin-inline: -1.5rem;
+        padding-inline: 0.75rem;
+        box-sizing: border-box;
+        max-width: none;
+    }
+}
+
 /* ==================== Actress Card (T3) ==================== */
 
 .actress-card {
