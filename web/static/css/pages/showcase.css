@@ -1173,7 +1173,7 @@
    （Codex PR#117 P2 判為 by-design：非 search 頁 regression，是刻意 cross-grid 統一。spec-108
    Non-Goal「不動 search 頁」隨此 owner 決策放寬為「search grid 觸控呈現一併統一、功能經 lightbox 等價」。）*/
 @media (any-hover: none) {
-    :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview:not(.missing-cover):hover .av-card-preview-overlay {
+    :is(#ds-gallery-components, .ds-gallery-composition) .av-card-preview:not(.missing-cover):hover .av-card-preview-overlay:not(.always-visible) {
         opacity: 0;
         pointer-events: none;
     }

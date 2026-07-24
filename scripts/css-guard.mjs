@@ -1772,6 +1772,7 @@ const RULES = [
           if (!/:hover\b/.test(vRule.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片卡 overlay 壓制 selector 須含 :hover（sticky-hover 是 :hover 現象；只驗宣告會 fail-open，Codex PR#117 二審 P2-1）');
           if (/:focus-within\b/.test(vRule.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片卡 overlay 壓制不得含 :focus-within（會藏聚焦控制、鍵盤/Switch a11y 違規，Codex PR#117 二審 P2-2）');
           if (!/:not\(\.missing-cover\)/.test(vRule.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片 overlay 壓制須帶 :not(.missing-cover)（保破圖卡例外常駐）');
+          if (!/:not\(\.always-visible\)/.test(vRule.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片 overlay opacity 壓制須帶 :not(.always-visible)（hero 收藏愛心常駐、不得被合成 hover 壓透明，PR#117 四審 P2）');
           if (!/opacity\s*:\s*0/.test(vRule.decl)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片卡 overlay 壓制應含 opacity:0（保 AC-B1 觸控封面乾淨）');
         }
         if (!aRule) {
