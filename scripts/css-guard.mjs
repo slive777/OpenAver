@@ -1733,9 +1733,11 @@ const RULES = [
   },
 
   // CG-TOUCH-04 ← T7：純觸控（any-hover:none）裝置合成 hover 時壓住卡片 overlay（AC-B1/B7 硬化，
-  // Codex pre-merge P2）。反向從「裸 @media (any-hover: none)」（排除 T3 folder 的三條件 gate）
-  // 且含 .av-card-preview-overlay 的 block 找，斷言影片壓制帶 :not(.missing-cover)（保破圖卡例外）
-  // 且 opacity:0、女優壓制 opacity:0 + pointer-events:none（其 show 規則帶 pointer-events:auto）。
+  // Codex pre-merge P2 + PR#117 二審 P2）。反向從「裸 @media (any-hover: none)」（排除 T3 folder 的
+  // 三條件 gate）且含 .av-card-preview-overlay 的 block 找，逐 rule 對 **selector 文字** 斷言：
+  // 影片/女優壓制 selector 須含 :hover（sticky-hover 是 :hover 現象；只驗宣告 fail-open）、**不得含
+  // :focus-within**（會藏鍵盤/Switch 聚焦控制、a11y 違規）、影片帶 :not(.missing-cover)（保破圖卡例外）；
+  // 宣告須 opacity:0（女優另補 pointer-events:none，其 show 規則帶 pointer-events:auto）。
   {
     id: 'CG-TOUCH-04',
     file: 'pages/showcase.css',
@@ -1759,18 +1761,26 @@ const RULES = [
         const body = css.slice(mediaRe.lastIndex, i - 1);
         if (!/\.av-card-preview-overlay\b/.test(body)) continue; // 確認是 overlay 壓制 block
         found = true;
-        if (!/:not\(\.missing-cover\)/.test(body)) {
-          ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片 overlay 觸控壓制須帶 :not(.missing-cover)（保破圖卡例外常駐，否則破圖卡補資料鈕也被壓）');
+        // 逐 rule 拆 selector + declarations（selector 無 braces）→ 對「selector 文字」斷言，
+        // 非只驗宣告（否則拿掉 :hover 只留 :focus-within 仍匹配宣告塊 → fail-open，Codex PR#117 二審 P2-1）。
+        const rules = [...body.matchAll(/([^{}]+)\{([^}]*)\}/g)].map((mm) => ({ sel: mm[1].trim(), decl: mm[2] }));
+        const vRule = rules.find((r) => /\.av-card-preview-overlay\b/.test(r.sel));
+        const aRule = rules.find((r) => /\.actress-card-overlay\b/.test(r.sel));
+        if (!vRule) {
+          ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 找不到影片卡 .av-card-preview-overlay 觸控壓制規則');
+        } else {
+          if (!/:hover\b/.test(vRule.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片卡 overlay 壓制 selector 須含 :hover（sticky-hover 是 :hover 現象；只驗宣告會 fail-open，Codex PR#117 二審 P2-1）');
+          if (/:focus-within\b/.test(vRule.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片卡 overlay 壓制不得含 :focus-within（會藏聚焦控制、鍵盤/Switch a11y 違規，Codex PR#117 二審 P2-2）');
+          if (!/:not\(\.missing-cover\)/.test(vRule.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片 overlay 壓制須帶 :not(.missing-cover)（保破圖卡例外常駐）');
+          if (!/opacity\s*:\s*0/.test(vRule.decl)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片卡 overlay 壓制應含 opacity:0（保 AC-B1 觸控封面乾淨）');
         }
-        const vr = body.match(/\.av-card-preview-overlay\s*\{([^}]*)\}/);
-        if (!vr || !/opacity\s*:\s*0/.test(vr[1])) {
-          ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 影片卡 overlay 觸控壓制應含 opacity:0（保 AC-B1 觸控封面乾淨、防合成 hover 冒 icon）');
-        }
-        const ar = body.match(/\.actress-card-overlay\s*\{([^}]*)\}/);
-        if (!ar || !/opacity\s*:\s*0/.test(ar[1])) {
-          ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 女優卡 overlay 觸控壓制應含 opacity:0（AC-B7）');
-        } else if (!/pointer-events\s*:\s*none/.test(ar[1])) {
-          ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 女優卡 overlay 壓制須補 pointer-events:none（其 show 規則帶 pointer-events:auto，只壓 opacity 會留隱形 tap target）');
+        if (!aRule) {
+          ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 找不到女優卡 .actress-card-overlay 觸控壓制規則');
+        } else {
+          if (!/:hover\b/.test(aRule.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 女優卡 overlay 壓制 selector 須含 :hover（fail-open 防護，Codex PR#117 二審 P2-1）');
+          if (/:focus-within\b/.test(aRule.sel)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 女優卡 overlay 壓制不得含 :focus-within（會藏聚焦的 searchActressFilms、鍵盤/Switch a11y 違規，Codex PR#117 二審 P2-2）');
+          if (!/opacity\s*:\s*0/.test(aRule.decl)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 女優卡 overlay 壓制應含 opacity:0（AC-B7）');
+          else if (!/pointer-events\s*:\s*none/.test(aRule.decl)) ctx.fail('CG-TOUCH-04 [lint-guard:108-T7]: 女優卡 overlay 壓制須補 pointer-events:none（其 show 規則帶 pointer-events:auto，只壓 opacity 會留隱形 tap target）');
         }
       }
       if (!found) {
