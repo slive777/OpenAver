@@ -1146,6 +1146,16 @@
     }
 }
 
+/* 108-T3 (功能B/D-B3): folder 只在能 hover 的裝置顯示。純觸控（無任何 hover 能力）隱藏——
+   folder 在 mobile/LAN 只 clipboard copy 遠端路徑、開不了遠端資料夾（inert）。
+   承重是 any-hover:none（＝沒有任何輸入能 hover ＝真‧純觸控）；不可收窄回裸 pointer:coarse
+   （coarse-primary 但有滑鼠/觸控板的 2-in-1 仍能 openLocal，不該藏）。display:none 不佔位不可點。 */
+@media (pointer: coarse) and (hover: none) and (any-hover: none) {
+    .js-open-folder {
+        display: none !important;
+    }
+}
+
 /* US5-75b fix（Codex P1）：真實觸控 ≤480px poster 格——還原 .footer-default（番號可讀層）、
  * 壓回上方 75a-US3c 的 footer-hover 常駐。
  * 衝突來源：US3c 在 @media(pointer:coarse) 無條件把 .footer-default opacity:0 + footer-hover opacity:1
