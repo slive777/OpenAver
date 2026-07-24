@@ -4,7 +4,7 @@ this genre is actually browsed — navigate by cover + tag, actress as a first-c
 (profile cards, cup/age/height sort, cross-language alias). 8 built-in scrape sources
 (JavBus/Jav321/JavDB/DMM/D2Pass/HEYZO/FC2/AVSOX) plus optional Metatube federation (30+ providers).
 Optionally exports NFO + cover art (poster/fanart) to Jellyfin / Emby / Kodi.
-AI-operable REST API with capabilities manifest, 4,000+ tests, MIT license. -->
+AI-operable REST API with capabilities manifest, 5,000+ tests, MIT license. -->
 
 <h1 align="center">OpenAver</h1>
 
@@ -18,7 +18,7 @@ AI-operable REST API with capabilities manifest, 4,000+ tests, MIT license. -->
 ![Downloads](https://img.shields.io/github/downloads/slive777/OpenAver/total?color=success)
 ![Stars](https://img.shields.io/github/stars/slive777/OpenAver)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Tests](https://img.shields.io/github/actions/workflow/status/slive777/OpenAver/test.yml?label=tests%204%2C000%2B)
+![Tests](https://img.shields.io/github/actions/workflow/status/slive777/OpenAver/test.yml?label=tests%205%2C000%2B)
 
 **[English](README_EN.md)** | 繁體中文
 
@@ -42,7 +42,7 @@ AI-operable REST API with capabilities manifest, 4,000+ tests, MIT license. -->
 | **多裝置存取** | 一鍵切換伺服器模式，同 Wi-Fi 的手機 / 平板用瀏覽器即可瀏覽收藏（**即時生效、免重啟、免設定**；預設單機完全不對外） |
 | **刮削來源** | 8 個內建（JavBus / Jav321 / JavDB / DMM / D2Pass / HEYZO / FC2 / AVSOX）；進階可選配接 Metatube 聯邦再擴 **30+ 來源** |
 | **媒體庫輸出（選配）** | 一鍵生成 NFO + 封面海報（poster / fanart）給 **Jellyfin / Emby / Kodi**；唯讀來源可不下載原檔、本地生成 `.strm` 媒體庫直接串流 |
-| **女優收藏** | 自動建檔 + 跨語言別名展開 + 多來源照片下載 |
+| **女優收藏** | 自動建檔 + 跨語言別名展開 + 多來源照片下載（也可自選上傳） |
 | **AI 操作** | 內建 REST API + capabilities manifest（Claude Code / Cursor / Perplexity 等 AI agent 直接操作） |
 | **AI 翻譯** | Ollama（本地免費）/ Gemini / OpenAI-compatible 任選 |
 | **資料** | 100% 本地 SQLite，**無雲端、無帳號、無遙測** |
@@ -113,7 +113,7 @@ irm https://raw.githubusercontent.com/slive777/OpenAver/main/install.ps1 | iex
 
 **媒體伺服器的導航軸是片名和資料夾；OpenAver 的導航軸是封面、tag、女優——這才是這個 genre 的實際逛法。**
 
-- **封面牆 + Lightbox**：以封面為主軸逛收藏，點封面進詳情燈箱看劇照、tag、女優資訊。
+- **封面牆 + Lightbox**：以封面為主軸逛收藏，點封面進詳情燈箱看劇照、tag、女優資訊。無碼封面自動對準人臉裁切，不會切掉半張臉。
 - **以 tag 篩選與排序**：封面牆用 tag chip 當導航（中日英同義詞自動展開），可按日期 / 番號 / 女優 / 片商 / 檔案大小等多軸排序。
 - **女優瀏覽模式**：女優單獨成一個逛法——收藏女優封面牆 + 個人資料燈箱（身高、罩杯、三圍、年齡、別名歷史），按罩杯 / 年齡 / 身高 / 片數排序；跨語言別名把同一人的所有藝名與退休名收攏成一張卡。
 - **相似探索**：燈箱點魔杖 → 同風格的番號環繞主圖，點任一顆「鑽入」繼續探索。以 **tag IDF** 加權再混系列、片商、女優等共同點本地比對，找出同類片（規則式，非行為推薦演算法），離線即時、免 GPU、免下載模型。
@@ -255,7 +255,7 @@ curl http://localhost:<port>/api/capabilities
 | **Animation** | GSAP 3.14+ + Motion Adapter (reduced-motion support) |
 | **Desktop** | PyWebView (Windows/macOS) |
 | **Database** | SQLite (WAL mode) |
-| **Testing** | Pytest (4,000+ tests) |
+| **Testing** | Pytest (5,000+ tests) |
 
 ### 從原始碼執行
 

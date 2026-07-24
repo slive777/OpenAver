@@ -4,7 +4,7 @@ this genre is actually browsed — navigate by cover + tag, actress as a first-c
 (profile cards, cup/age/height sort, cross-language alias). 8 built-in scrape sources
 (JavBus/Jav321/JavDB/DMM/D2Pass/HEYZO/FC2/AVSOX) plus optional Metatube federation (30+ providers).
 Optionally exports NFO + cover art (poster/fanart) to Jellyfin / Emby / Kodi.
-AI-operable REST API with capabilities manifest, 4,000+ tests, MIT license. -->
+AI-operable REST API with capabilities manifest, 5,000+ tests, MIT license. -->
 
 <h1 align="center">OpenAver</h1>
 
@@ -18,7 +18,7 @@ AI-operable REST API with capabilities manifest, 4,000+ tests, MIT license. -->
 ![Downloads](https://img.shields.io/github/downloads/slive777/OpenAver/total?color=success)
 ![Stars](https://img.shields.io/github/stars/slive777/OpenAver)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
-![Tests](https://img.shields.io/github/actions/workflow/status/slive777/OpenAver/test.yml?label=tests%204%2C000%2B)
+![Tests](https://img.shields.io/github/actions/workflow/status/slive777/OpenAver/test.yml?label=tests%205%2C000%2B)
 
 **English** | [繁體中文](README.md)
 
@@ -42,7 +42,7 @@ Three pages form the core: 📋 Scan & build library → 🎬 Browse collection 
 | **Multi-device access** | One-click server mode — phones and tablets on the same Wi-Fi can browse your collection in any browser (**instant, no restart, no setup**; single-machine by default, no external exposure) |
 | **Scrape sources** | 8 built-in (JavBus / Jav321 / JavDB / DMM / D2Pass / HEYZO / FC2 / AVSOX); advanced users can optionally federate **Metatube (30+ more providers)** |
 | **Media server output (optional)** | One-click NFO + cover art (poster / fanart) for **Jellyfin / Emby / Kodi**; read-only sources can generate a local `.strm` library that streams without copying the originals |
-| **Actress collection** | Auto profiles + cross-language alias expansion + multi-source photo download |
+| **Actress collection** | Auto profiles + cross-language alias expansion + multi-source photo download (or upload your own) |
 | **AI control** | Built-in REST API + capabilities manifest (Claude Code / Cursor / Perplexity and other AI agents operate it directly) |
 | **AI translation** | Ollama (local, free) / Gemini / OpenAI-compatible — your choice |
 | **Data** | 100% local SQLite — **no cloud, no account, no telemetry** |
@@ -113,7 +113,7 @@ On first launch, a built-in setup wizard walks you through folder configuration 
 
 **A media server navigates by title and folder. OpenAver navigates by cover, tag, and actress — because that's actually how this genre gets browsed.**
 
-- **Cover wall + Lightbox**: Browse your collection cover-first; click any cover to open a detail Lightbox with stills, tags, and actress info.
+- **Cover wall + Lightbox**: Browse your collection cover-first; click any cover to open a detail Lightbox with stills, tags, and actress info. Uncensored covers auto-center on the face, so faces don't get cropped off.
 - **Tag-based filtering and sorting**: Cover wall uses tag chips as navigation (Chinese/Japanese/English synonyms auto-expand); sort by date / ID / actress / maker / file size and more.
 - **Actress browsing mode**: Actresses are a first-class browsing axis — a cover wall of your favorited actresses plus a profile Lightbox (height, cup size, measurements, age, alias history), sortable by cup size / age / height / video count. Cross-language aliases collapse all of one person's stage names and post-retirement names into a single card.
 - **Similar exploration**: Tap the wand in the Lightbox → titles with a similar style orbit the main cover; tap any to "dive in" and keep exploring. Uses **tag IDF** weighting mixed with series, maker, and cast overlap to find like-minded titles via local computation — rule-based, not a behavioral recommendation algorithm. Offline, instant, no GPU, no model download required.
@@ -255,7 +255,7 @@ No. 100% local — no data collection, no file uploads. Network requests are onl
 | **Animation** | GSAP 3.14+ + Motion Adapter (reduced-motion support) |
 | **Desktop Shell** | PyWebView (Windows / macOS) |
 | **Database** | SQLite (WAL mode) |
-| **Testing** | Pytest (4,000+ tests) |
+| **Testing** | Pytest (5,000+ tests) |
 
 ### Run from Source
 
