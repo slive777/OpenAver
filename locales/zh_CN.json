@@ -19,7 +19,15 @@
       "confirm": "确认",
       "cancel": "取消"
     },
-    "no_image": "无图片"
+    "no_image": "无图片",
+    "unknown_error": "未知错误",
+    "open_local": {
+      "folder_opened_copied": "已打开文件夹（路径已复制）",
+      "folder_opened": "已打开文件夹",
+      "path_copied": "已复制: {path}",
+      "folder_open_failed": "打开文件夹失败",
+      "copy_failed": "复制失败"
+    }
   },
   "desktop": {
     "tray": {
@@ -49,7 +57,8 @@
     },
     "placeholder": {
       "query": "搜索番号、女优或拖入文件...",
-      "tag": "标签名称"
+      "tag": "标签名称",
+      "actors": "演员名称（可用、，,分隔多人）"
     },
     "hint": {
       "partial_search": "提示：输入局部番号如 IPZZ-03 可搜索 030~039，输入女优名可搜索其作品"
@@ -69,6 +78,7 @@
       "edit_title": "编辑标题",
       "translate_ai": "AI 翻译",
       "edit_chinese_title": "编辑中文片名",
+      "edit_actors": "编辑演员",
       "switch_source": "切换版本",
       "open_source_url": "打开来源页面",
       "open_folder": "打开文件夹",
@@ -83,7 +93,16 @@
     },
     "error": {
       "hint": "请检查番号格式或稍后再试",
-      "tag_api_failed": "标签保存失败，请稍后再试"
+      "tag_api_failed": "标签保存失败，请稍后再试",
+      "no_data": "找不到数据",
+      "search_failed": "搜索失败",
+      "network_error": "网络错误，请重试",
+      "no_translation_needed": "当前影片无需翻译",
+      "translate_failed_generic": "翻译失败",
+      "no_japanese_title": "无需翻译的日文标题",
+      "number_not_recognized": "无法从文件名识别番号",
+      "number_parse_unavailable": "无法连接，请手动输入番号",
+      "path_inaccessible": "无法访问此文件路径（权限不足或未挂载）"
     },
     "nav": {
       "prev": "上一个 (←)",
@@ -135,7 +154,16 @@
       "unknown_title": "未知标题"
     },
     "cover": {
-      "alt": "封面"
+      "alt": "封面",
+      "load_failed": "封面加载失败"
+    },
+    "progress": {
+      "searching_source": "{source} 搜索中...",
+      "no_result_source": "{source} 无结果",
+      "found_count": "{source} 找到 {count} 条",
+      "fetching_detail": "抓取详情...",
+      "fetching_detail_count": "抓取详情 {done}/{total}",
+      "source_failed": "{source} 失败"
     },
     "local": {
       "has_local": "本地已有（点击打开文件夹）",
@@ -172,13 +200,22 @@
       "failed": "失败",
       "retry": "重试",
       "enter_number": "手动输入番号",
+      "enter_number_prompt": "请输入番号（例如：T28-650）",
+      "filtered_count": "已过滤 {count} 个文件",
+      "rejected_extension": "{count} 个非视频文件",
+      "rejected_size": "{count} 个小于最小尺寸",
+      "rejected_not_found": "{count} 个不存在",
+      "filtered_no_number": "已过滤 {count} 个无法识别番号的文件",
       "file_count": "文件 {current}/{total}",
       "result_count": "搜索结果 ({count})",
       "unrecognized": "无法识别番号: {filename}",
       "not_found": "找不到 {number} 的资料",
       "search_failed": "搜索失败",
       "connection_error": "连接错误，请稍后再试",
-      "already_organized": "已整理"
+      "already_organized": "已整理",
+      "initial_count": "0 个文件",
+      "initial_search_all": "搜索全部",
+      "initial_translate_all": "翻译全部"
     },
     "toast": {
       "no_searchable_files": "没有需要搜索的文件",
@@ -195,7 +232,12 @@
       "db_not_synced": "未联动 — 整理完成后不会出现在 Showcase",
       "db_sync_failed": "DB 同步失败（文件已整理但未出现在 Showcase）",
       "db_synced_mobile": "已入库",
-      "skipped_nfo_multipart": "已跳过 NFO — 此文件为多段影片的第 2 段以后，由第 1 段的 NFO 管理"
+      "skipped_nfo_multipart": "已跳过 NFO — 此文件为多段影片的第 2 段以后，由第 1 段的 NFO 管理",
+      "browser_opened": "已打开浏览器",
+      "no_translatable_titles": "没有需要翻译的标题",
+      "translate_batch_done": "翻译完成：成功 {success}，失败 {failed}",
+      "fields_defaulted": "⚠️ {fields} 信息未取得，已使用默认值",
+      "from_source": "来自 {name}"
     },
     "duplicate": {
       "title": "文件重复",
@@ -264,6 +306,7 @@
       "mt_probe_hint_reason1": "你的 metatube server 未配置或未生效日本 proxy（地区封锁，如 FANZA / MGS 类）。",
       "mt_probe_hint_reason2": "该来源需要登录或有反爬机制（如 SOD，换 IP 也无效）。",
       "mt_probe_hint_reason3": "该来源的 metatube scraper 已随网站改版失效（如 JAV321 / KIN8，与你的环境无关）。",
+      "mt_connect_failed": "连接失败：{error}",
       "mt_promote_unavailable_warning": "此来源目前测不到，已加入主力集但可能抓不到数据",
       "mt_probe_failed_pill_hint": "此来源目前测不到，加入后可能抓不到数据，可先点「重新测试」确认",
       "dmm_proxy_required_hint": "DMM 需要 proxy 才能使用，请先在设置中开启代理"
@@ -289,7 +332,12 @@
       }
     },
     "toast": {
-      "desktop_only": "此功能需要在桌面应用程序中使用"
+      "desktop_only": "此功能需要在桌面应用程序中使用",
+      "load_current_failed": "加载现有设置失败",
+      "config_saved": "设置已保存",
+      "save_failed": "保存失败: {error}",
+      "reset_done": "已恢复默认设置",
+      "reset_failed": "重置失败: {error}"
     },
     "header": {
       "title": "设置",
@@ -462,7 +510,9 @@
       "title": "未保存的更改",
       "body": "您有修改尚未保存，要如何处理？",
       "discard": "不保存",
-      "save": "保存更改"
+      "save": "保存更改",
+      "unsaved_native_prompt": "您有未保存的设置更改",
+      "locale_switch_confirm": "您有未保存的更改，切换语言后将丢失。确定继续？"
     },
     "reset_modal": {
       "title": "重置所有设置",
@@ -534,7 +584,29 @@
       "copy_path_failed": "复制失败，路径：{path}",
       "generate_error": "生成失败，请查看日志",
       "nfo_update_error": "NFO 补齐失败，请查看日志",
-      "jellyfin_update_error": "Jellyfin 图片补齐失败，请查看日志"
+      "jellyfin_update_error": "Jellyfin 图片补齐失败，请查看日志",
+      "config_saved": "设置已保存",
+      "save_failed": "保存失败: {error}",
+      "cache_cleared": "已清除 {count} 部视频缓存",
+      "clear_failed": "清除失败: {error}",
+      "no_logs": "目前没有日志",
+      "logs_copied": "已复制 {count} 条日志",
+      "confirm_clear_logs": "确定要清除所有日志吗？（包含历史记录）",
+      "logs_cleared": "已清除所有日志",
+      "no_folder": "请先加入至少一个文件夹",
+      "readonly_failed_count": "{count} 个只读来源失败",
+      "failed_count": "{count} 部失败",
+      "unreachable_count": "{count} 个来源无法连接",
+      "partial_count": "{count} 个来源部分读取失败",
+      "no_output_count": "{count} 个未设输出文件夹",
+      "done_with_warnings": "完成 {count} 部，但 {parts}，详细见日志",
+      "generate_success": "成功生成 {count} 部视频列表",
+      "long_paths_warning": "本次扫描发现 {count} 个路径超过 260 字符，可能无法读取，详细清单见 debug.log",
+      "no_nfo_update_needed": "没有需要更新的视频",
+      "nfo_update_done": "补全完成！请重新生成列表以更新",
+      "no_jellyfin_update_needed": "没有需要补齐的视频",
+      "jellyfin_update_done": "补齐完成！",
+      "path_copied": "已复制: {path}"
     },
     "copy_fail_modal": {
       "title": "复制日志失败",
@@ -627,7 +699,16 @@
       "missing_enrich_confirm_body_middle": " 部视频将进行补全，预估耗时约 ",
       "missing_enrich_confirm_body_suffix": " 分钟，是否继续？",
       "missing_enrich_confirm_cancel": "取消",
-      "missing_enrich_confirm_confirm": "确认补全"
+      "missing_enrich_confirm_confirm": "确认补全",
+      "log_interrupted": "⚠ 生成被中断（离开页面）",
+      "status_preparing": "准备中...",
+      "status_done_count": "完成！{count} 部视频",
+      "status_done": "完成",
+      "log_error_prefix": "错误: {message}",
+      "log_disconnected": "连接中断",
+      "missing_enrich_connection_failed": "连接失败: {message}",
+      "missing_enrich_item_failed": "失败: {number} — {error}",
+      "missing_enrich_error_prefix": "错误: {message}"
     },
     "alias": {
       "section_title": "女优名称管理",
@@ -650,7 +731,21 @@
         "body": "确定要删除「{name}」的整笔别名组吗？此操作无法复原。",
         "cancel": "取消",
         "confirm": "确认删除"
-      }
+      },
+      "load_failed": "加载失败: {error}",
+      "toast_group_added": "已新增别名组：{name}",
+      "toast_add_failed": "新增失败: {error}",
+      "toast_deleted": "已删除：{name}",
+      "toast_delete_failed": "删除失败: {error}",
+      "toast_add_alias_failed": "新增别名失败",
+      "toast_add_alias_failed_detail": "新增别名失败: {error}",
+      "toast_remove_failed": "移除失败: {error}",
+      "toast_need_primary_name": "请先输入主名称再进行在线搜索",
+      "toast_search_timeout": "在线搜索超时",
+      "toast_search_failed": "在线搜索失败: {error}",
+      "toast_create_group_failed": "创建别名组失败: {error}",
+      "toast_add_item_failed": "加入 {alias} 失败",
+      "toast_add_item_failed_detail": "加入 {alias} 失败: {error}"
     },
     "dirty_modal": {
       "title": "尚未保存的更改",
@@ -716,8 +811,24 @@
       "nas_hint": "想喂给 NAS 上的 Emby／Jellyfin／Kodi？默认模式只生成 OpenAver 自己浏览用的本地库、不会生成 .strm 快捷方式文件。若你要让媒体服务器扫这批片，请先到「设置」把模式切到 Emby·Jellyfin·Kodi 模式。"
     }
   },
+  "scraper": {
+    "page_title": "刮削器",
+    "heading": "JAV 刮削器",
+    "body": "刮削功能开发中..."
+  },
   "showcase": {
     "page_title": "视频浏览",
+    "state": {
+      "loading": "加载视频列表中...",
+      "empty": "尚未生成视频列表",
+      "generate_action": "生成列表",
+      "retry": "重试"
+    },
+    "error": {
+      "server_error": "服务器错误 ({status})",
+      "load_failed": "加载失败",
+      "cannot_connect": "无法连接到服务器"
+    },
     "rescrape": {
       "modal_title": "高级重新刮削",
       "search_title": "高级搜索",
@@ -876,7 +987,8 @@
         "confirm": "确认移除"
       },
       "delete_success": "已从收藏移除",
-      "delete_failed": "移除失败，请稍后再试"
+      "delete_failed": "移除失败，请稍后再试",
+      "play_failed": "播放失败"
     },
     "search": {
       "actress": "搜索女优名称...",
@@ -941,6 +1053,8 @@
       "update_available_prefix": "新版本",
       "update_available_suffix": "可用",
       "up_to_date": "已是最新版本",
+      "auto_check_toggle": "启动时检查更新",
+      "auto_check_save_failed": "设置保存失败，请稍后再试",
       "ai_instruction": "粘贴给 AI 智能体即可操作 OpenAver",
       "ai_hint_unsupported": "不适用网页版聊天",
       "ai_tools": "贴给 AI agent 就能操作 OpenAver — Claude Code · Cursor · Codex 等",
@@ -1279,6 +1393,11 @@
     "step7_title": "📖 说明手册",
     "step7_content": "随时回来重看就好<br>Help 页也有功能详解与 AI agent 指令"
   },
+  "updater": {
+    "page_title": "更新器",
+    "heading": "NFO 更新器",
+    "body": "更新功能开发中..."
+  },
   "notif": {
     "title": "通知",
     "clear_all": "全部清空",
@@ -1297,6 +1416,7 @@
     "jl_cf_timeout": "JavLibrary CF 验证超时",
     "thumb_prewarm_start": "开始建立封面缩略图缓存",
     "thumb_prewarm_done": "封面缩略图缓存已完成",
+    "update_available": "OpenAver 有新版本",
     "scanner_cancelled": "扫描已取消"
   },
   "similar_mode": {

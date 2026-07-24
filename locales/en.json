@@ -19,7 +19,15 @@
       "confirm": "Confirm",
       "cancel": "Cancel"
     },
-    "no_image": "No Image"
+    "no_image": "No Image",
+    "unknown_error": "Unknown error",
+    "open_local": {
+      "folder_opened_copied": "Folder opened (path copied)",
+      "folder_opened": "Folder opened",
+      "path_copied": "Copied: {path}",
+      "folder_open_failed": "Failed to open folder",
+      "copy_failed": "Copy failed"
+    }
   },
   "desktop": {
     "tray": {
@@ -49,7 +57,8 @@
     },
     "placeholder": {
       "query": "Search ID, actress or drop files...",
-      "tag": "Tag name"
+      "tag": "Tag name",
+      "actors": "Actor names (separate with 、, or ,)"
     },
     "hint": {
       "partial_search": "Tip: Enter partial ID like IPZZ-03 to search 030–039; enter an actress name to find her works"
@@ -69,6 +78,7 @@
       "edit_title": "Edit Title",
       "translate_ai": "AI Translate",
       "edit_chinese_title": "Edit Chinese Title",
+      "edit_actors": "Edit actors",
       "switch_source": "Switch Version",
       "open_source_url": "Open Source Page",
       "open_folder": "Open Folder",
@@ -83,7 +93,16 @@
     },
     "error": {
       "hint": "Please check the ID format or try again later",
-      "tag_api_failed": "Failed to save tag, please try again later"
+      "tag_api_failed": "Failed to save tag, please try again later",
+      "no_data": "No data found",
+      "search_failed": "Search failed",
+      "network_error": "Network error, please retry",
+      "no_translation_needed": "No translation needed for this title",
+      "translate_failed_generic": "Translation failed",
+      "no_japanese_title": "No Japanese title to translate",
+      "number_not_recognized": "Could not recognize the ID from the filename",
+      "number_parse_unavailable": "Cannot connect; please enter the ID manually",
+      "path_inaccessible": "Cannot access this file path (permission denied or not mounted)"
     },
     "nav": {
       "prev": "Previous (←)",
@@ -135,7 +154,16 @@
       "unknown_title": "Unknown Title"
     },
     "cover": {
-      "alt": "Cover"
+      "alt": "Cover",
+      "load_failed": "Failed to load cover"
+    },
+    "progress": {
+      "searching_source": "Searching {source}...",
+      "no_result_source": "{source}: no results",
+      "found_count": "{source}: found {count}",
+      "fetching_detail": "Fetching details...",
+      "fetching_detail_count": "Fetching details {done}/{total}",
+      "source_failed": "{source}: failed"
     },
     "local": {
       "has_local": "Available locally (click to open folder)",
@@ -172,13 +200,22 @@
       "failed": "Failed",
       "retry": "Retry",
       "enter_number": "Enter ID manually",
+      "enter_number_prompt": "Enter an ID (e.g. T28-650)",
+      "filtered_count": "Filtered out {count} files",
+      "rejected_extension": "{count} non-video files",
+      "rejected_size": "{count} below minimum size",
+      "rejected_not_found": "{count} not found",
+      "filtered_no_number": "Filtered out {count} files with unrecognizable IDs",
       "file_count": "File {current}/{total}",
       "result_count": "Results ({count})",
       "unrecognized": "Cannot identify ID: {filename}",
       "not_found": "No data found for {number}",
       "search_failed": "Search Failed",
       "connection_error": "Connection error, please try again later",
-      "already_organized": "Organized"
+      "already_organized": "Organized",
+      "initial_count": "0 files",
+      "initial_search_all": "Search all",
+      "initial_translate_all": "Translate all"
     },
     "toast": {
       "no_searchable_files": "No files to search",
@@ -195,7 +232,12 @@
       "db_not_synced": "Not linked — organized files won't appear in Showcase",
       "db_sync_failed": "DB sync failed (file organized but not showing in Showcase)",
       "db_synced_mobile": "Saved",
-      "skipped_nfo_multipart": "NFO skipped — this file is part 2+ of a multipart movie, managed by part 1's NFO"
+      "skipped_nfo_multipart": "NFO skipped — this file is part 2+ of a multipart movie, managed by part 1's NFO",
+      "browser_opened": "Browser opened",
+      "no_translatable_titles": "No titles need translation",
+      "translate_batch_done": "Translation done: {success} succeeded, {failed} failed",
+      "fields_defaulted": "⚠️ {fields} not available; default values used",
+      "from_source": "From {name}"
     },
     "duplicate": {
       "title": "Duplicate File",
@@ -264,6 +306,7 @@
       "mt_probe_hint_reason1": "Your metatube server has no Japan proxy configured or it is not working (region-blocked sources such as FANZA / MGS).",
       "mt_probe_hint_reason2": "The source requires login or has anti-crawl measures (e.g. SOD — switching IPs does not help).",
       "mt_probe_hint_reason3": "The source's metatube scraper has broken due to a site redesign (e.g. JAV321 / KIN8 — unrelated to your setup).",
+      "mt_connect_failed": "Connection failed: {error}",
       "mt_promote_unavailable_warning": "This source is currently unreachable — it has been added to Active Row but may return no data",
       "mt_probe_failed_pill_hint": "This source is currently unreachable — it may return no data after adding. Click 'Retest' to check again.",
       "dmm_proxy_required_hint": "DMM requires a proxy to work — enable a proxy in Settings first"
@@ -289,7 +332,12 @@
       }
     },
     "toast": {
-      "desktop_only": "This feature requires the desktop app"
+      "desktop_only": "This feature requires the desktop app",
+      "load_current_failed": "Failed to load current settings",
+      "config_saved": "Settings saved",
+      "save_failed": "Save failed: {error}",
+      "reset_done": "Reset to default settings",
+      "reset_failed": "Reset failed: {error}"
     },
     "header": {
       "title": "Settings",
@@ -462,7 +510,9 @@
       "title": "Unsaved Changes",
       "body": "You have unsaved changes. What would you like to do?",
       "discard": "Discard",
-      "save": "Save Changes"
+      "save": "Save Changes",
+      "unsaved_native_prompt": "You have unsaved settings changes",
+      "locale_switch_confirm": "You have unsaved changes that will be lost when switching language. Continue?"
     },
     "reset_modal": {
       "title": "Reset all settings",
@@ -534,7 +584,29 @@
       "copy_path_failed": "Copy failed: {path}",
       "generate_error": "Generation failed. Check the log for details.",
       "nfo_update_error": "NFO update failed. Check the log for details.",
-      "jellyfin_update_error": "Jellyfin image update failed. Check the log for details."
+      "jellyfin_update_error": "Jellyfin image update failed. Check the log for details.",
+      "config_saved": "Settings saved",
+      "save_failed": "Save failed: {error}",
+      "cache_cleared": "Cleared cache for {count} videos",
+      "clear_failed": "Clear failed: {error}",
+      "no_logs": "No logs yet",
+      "logs_copied": "Copied {count} log entries",
+      "confirm_clear_logs": "Clear all logs? (including history)",
+      "logs_cleared": "All logs cleared",
+      "no_folder": "Please add at least one folder first",
+      "readonly_failed_count": "{count} read-only sources failed",
+      "failed_count": "{count} failed",
+      "unreachable_count": "{count} sources unreachable",
+      "partial_count": "{count} sources partially failed",
+      "no_output_count": "{count} without output folder set",
+      "done_with_warnings": "Completed {count}, but {parts}; see log for details",
+      "generate_success": "Generated list of {count} videos",
+      "long_paths_warning": "This scan found {count} paths over 260 characters that may be unreadable; see debug.log for the full list",
+      "no_nfo_update_needed": "No videos need updating",
+      "nfo_update_done": "Update complete! Regenerate the list to refresh",
+      "no_jellyfin_update_needed": "No videos need updating",
+      "jellyfin_update_done": "Update complete!",
+      "path_copied": "Copied: {path}"
     },
     "copy_fail_modal": {
       "title": "Copy logs failed",
@@ -627,7 +699,16 @@
       "missing_enrich_confirm_body_middle": " videos, estimated time about ",
       "missing_enrich_confirm_body_suffix": " minutes. Continue?",
       "missing_enrich_confirm_cancel": "Cancel",
-      "missing_enrich_confirm_confirm": "Confirm"
+      "missing_enrich_confirm_confirm": "Confirm",
+      "log_interrupted": "⚠ Generation interrupted (left the page)",
+      "status_preparing": "Preparing...",
+      "status_done_count": "Done! {count} videos",
+      "status_done": "Done",
+      "log_error_prefix": "Error: {message}",
+      "log_disconnected": "Disconnected",
+      "missing_enrich_connection_failed": "Connection failed: {message}",
+      "missing_enrich_item_failed": "Failed: {number} — {error}",
+      "missing_enrich_error_prefix": "Error: {message}"
     },
     "alias": {
       "section_title": "Actress Name Aliases",
@@ -650,7 +731,21 @@
         "body": "Are you sure you want to delete the alias group for \"{name}\"? This cannot be undone.",
         "cancel": "Cancel",
         "confirm": "Delete"
-      }
+      },
+      "load_failed": "Load failed: {error}",
+      "toast_group_added": "Alias group added: {name}",
+      "toast_add_failed": "Add failed: {error}",
+      "toast_deleted": "Deleted: {name}",
+      "toast_delete_failed": "Delete failed: {error}",
+      "toast_add_alias_failed": "Failed to add alias",
+      "toast_add_alias_failed_detail": "Failed to add alias: {error}",
+      "toast_remove_failed": "Remove failed: {error}",
+      "toast_need_primary_name": "Enter a primary name before searching online",
+      "toast_search_timeout": "Online search timed out",
+      "toast_search_failed": "Online search failed: {error}",
+      "toast_create_group_failed": "Failed to create alias group: {error}",
+      "toast_add_item_failed": "Failed to add {alias}",
+      "toast_add_item_failed_detail": "Failed to add {alias}: {error}"
     },
     "dirty_modal": {
       "title": "Unsaved Changes",
@@ -716,8 +811,24 @@
       "nas_hint": "Want to feed Emby / Jellyfin / Kodi on a NAS? Default mode only builds a local library for OpenAver's own browsing and does not create .strm shortcut files. To let a media server scan these titles, first switch the mode to Emby / Jellyfin / Kodi mode on the Settings page."
     }
   },
+  "scraper": {
+    "page_title": "Scraper",
+    "heading": "JAV Scraper",
+    "body": "Scraper feature under development..."
+  },
   "showcase": {
     "page_title": "Browse",
+    "state": {
+      "loading": "Loading video list...",
+      "empty": "No video list generated yet",
+      "generate_action": "Generate list",
+      "retry": "Retry"
+    },
+    "error": {
+      "server_error": "Server error ({status})",
+      "load_failed": "Load failed",
+      "cannot_connect": "Cannot connect to server"
+    },
     "rescrape": {
       "modal_title": "Advanced Re-scrape",
       "search_title": "Advanced Search",
@@ -876,7 +987,8 @@
         "confirm": "Confirm Remove"
       },
       "delete_success": "Removed from collection",
-      "delete_failed": "Remove failed, please try again"
+      "delete_failed": "Remove failed, please try again",
+      "play_failed": "Playback failed"
     },
     "search": {
       "actress": "Search actress name...",
@@ -941,6 +1053,8 @@
       "update_available_prefix": "New version",
       "update_available_suffix": "available",
       "up_to_date": "You are up to date",
+      "auto_check_toggle": "Check for updates on startup",
+      "auto_check_save_failed": "Failed to save setting, please try again later",
       "ai_instruction": "Paste to AI agent to control OpenAver",
       "ai_hint_unsupported": "Not supported in web chat",
       "ai_tools": "Paste to any AI agent to operate OpenAver — Claude Code · Cursor · Codex etc.",
@@ -1279,6 +1393,11 @@
     "step7_title": "📖 Help Manual",
     "step7_content": "Come back any time to replay this<br>The Help page also has full feature docs and AI agent commands"
   },
+  "updater": {
+    "page_title": "Updater",
+    "heading": "NFO Updater",
+    "body": "Update feature under development..."
+  },
   "notif": {
     "title": "Notifications",
     "clear_all": "Clear All",
@@ -1297,6 +1416,7 @@
     "jl_cf_timeout": "JavLibrary CF challenge timed out",
     "thumb_prewarm_start": "Starting cover thumbnail cache generation",
     "thumb_prewarm_done": "Cover thumbnail cache complete",
+    "update_available": "A new version of OpenAver is available",
     "scanner_cancelled": "Scan cancelled"
   },
   "similar_mode": {

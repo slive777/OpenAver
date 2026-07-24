@@ -19,7 +19,15 @@
       "confirm": "確認",
       "cancel": "キャンセル"
     },
-    "no_image": "画像なし"
+    "no_image": "画像なし",
+    "unknown_error": "不明なエラー",
+    "open_local": {
+      "folder_opened_copied": "フォルダを開きました（パスをコピーしました）",
+      "folder_opened": "フォルダを開きました",
+      "path_copied": "コピーしました: {path}",
+      "folder_open_failed": "フォルダを開けませんでした",
+      "copy_failed": "コピーに失敗しました"
+    }
   },
   "desktop": {
     "tray": {
@@ -49,7 +57,8 @@
     },
     "placeholder": {
       "query": "番号、女優名またはファイルをドロップ...",
-      "tag": "タグ名"
+      "tag": "タグ名",
+      "actors": "女優名（、，, で複数区切り可）"
     },
     "hint": {
       "partial_search": "ヒント：IPZZ-03 のような部分番号で 030〜039 を検索できます。女優名でも検索可能"
@@ -69,6 +78,7 @@
       "edit_title": "タイトルを編集",
       "translate_ai": "AI 翻訳",
       "edit_chinese_title": "中国語タイトルを編集",
+      "edit_actors": "女優を編集",
       "switch_source": "バージョン切替",
       "open_source_url": "ソースページを開く",
       "open_folder": "フォルダを開く",
@@ -83,7 +93,16 @@
     },
     "error": {
       "hint": "番号の形式を確認するか、しばらくしてから再試行してください",
-      "tag_api_failed": "タグの保存に失敗しました。しばらくしてから再試行してください"
+      "tag_api_failed": "タグの保存に失敗しました。しばらくしてから再試行してください",
+      "no_data": "データが見つかりません",
+      "search_failed": "検索に失敗しました",
+      "network_error": "ネットワークエラーです。再試行してください",
+      "no_translation_needed": "この作品は翻訳不要です",
+      "translate_failed_generic": "翻訳に失敗しました",
+      "no_japanese_title": "翻訳が必要な日本語タイトルがありません",
+      "number_not_recognized": "ファイル名から品番を認識できません",
+      "number_parse_unavailable": "接続できません。品番を手動で入力してください",
+      "path_inaccessible": "このファイルパスにアクセスできません（権限不足または未マウント）"
     },
     "nav": {
       "prev": "前へ (←)",
@@ -135,7 +154,16 @@
       "unknown_title": "タイトル不明"
     },
     "cover": {
-      "alt": "カバー"
+      "alt": "カバー",
+      "load_failed": "カバーの読み込みに失敗しました"
+    },
+    "progress": {
+      "searching_source": "{source} 検索中...",
+      "no_result_source": "{source} 結果なし",
+      "found_count": "{source} {count} 件見つかりました",
+      "fetching_detail": "詳細を取得中...",
+      "fetching_detail_count": "詳細を取得中 {done}/{total}",
+      "source_failed": "{source} 失敗"
     },
     "local": {
       "has_local": "ローカルに存在（クリックしてフォルダを開く）",
@@ -172,13 +200,22 @@
       "failed": "失敗",
       "retry": "再試行",
       "enter_number": "番号を手動入力",
+      "enter_number_prompt": "品番を入力してください（例：T28-650）",
+      "filtered_count": "{count} 件のファイルを除外しました",
+      "rejected_extension": "{count} 件の非動画ファイル",
+      "rejected_size": "{count} 件が最小サイズ未満",
+      "rejected_not_found": "{count} 件が存在しません",
+      "filtered_no_number": "品番を認識できないファイル {count} 件を除外しました",
       "file_count": "ファイル {current}/{total}",
       "result_count": "検索結果 ({count})",
       "unrecognized": "品番を識別できません: {filename}",
       "not_found": "{number} のデータが見つかりません",
       "search_failed": "検索失敗",
       "connection_error": "接続エラー、後でもう一度お試しください",
-      "already_organized": "整理済み"
+      "already_organized": "整理済み",
+      "initial_count": "0 件のファイル",
+      "initial_search_all": "すべて検索",
+      "initial_translate_all": "すべて翻訳"
     },
     "toast": {
       "no_searchable_files": "検索するファイルがありません",
@@ -195,7 +232,12 @@
       "db_not_synced": "未同期 — 整理完了後も Showcase に表示されません",
       "db_sync_failed": "DB 同期失敗（ファイルは整理済みですが Showcase に表示されません）",
       "db_synced_mobile": "保存しました",
-      "skipped_nfo_multipart": "NFO をスキップ — このファイルは分割動画の 2 本目以降で、1 本目の NFO が管理します"
+      "skipped_nfo_multipart": "NFO をスキップ — このファイルは分割動画の 2 本目以降で、1 本目の NFO が管理します",
+      "browser_opened": "ブラウザを開きました",
+      "no_translatable_titles": "翻訳が必要なタイトルはありません",
+      "translate_batch_done": "翻訳完了：成功 {success}、失敗 {failed}",
+      "fields_defaulted": "⚠️ {fields} の情報を取得できず、デフォルト値を使用しました",
+      "from_source": "{name} より"
     },
     "duplicate": {
       "title": "ファイルが重複しています",
@@ -264,6 +306,7 @@
       "mt_probe_hint_reason1": "metatube サーバーに日本の proxy が設定されていないか有効でない（地域ブロック対象のソース — FANZA / MGS 等）。",
       "mt_probe_hint_reason2": "ログインが必要なソース、または Bot 対策がある（SOD など、IP 変更でも解決しない）。",
       "mt_probe_hint_reason3": "サイトリニューアルで metatube scraper が機能しなくなったソース（JAV321 / KIN8 など、お使いの環境とは無関係）。",
+      "mt_connect_failed": "接続に失敗しました：{error}",
       "mt_promote_unavailable_warning": "このソースは現在到達不可ですが、Active Row に追加しました。データを取得できない可能性があります",
       "mt_probe_failed_pill_hint": "このソースは現在到達不可です。追加後にデータを取得できない可能性があります。先に「再テスト」で確認することをお勧めします",
       "dmm_proxy_required_hint": "DMM を使用するには Proxy が必要です。設定で Proxy を有効にしてください"
@@ -289,7 +332,12 @@
       }
     },
     "toast": {
-      "desktop_only": "この機能はデスクトップアプリで使用する必要があります"
+      "desktop_only": "この機能はデスクトップアプリで使用する必要があります",
+      "load_current_failed": "現在の設定の読み込みに失敗しました",
+      "config_saved": "設定を保存しました",
+      "save_failed": "保存に失敗しました: {error}",
+      "reset_done": "デフォルト設定に戻しました",
+      "reset_failed": "リセットに失敗しました: {error}"
     },
     "header": {
       "title": "設定",
@@ -462,7 +510,9 @@
       "title": "未保存の変更",
       "body": "保存されていない変更があります。どうしますか？",
       "discard": "保存しない",
-      "save": "変更を保存"
+      "save": "変更を保存",
+      "unsaved_native_prompt": "保存していない設定の変更があります",
+      "locale_switch_confirm": "保存していない変更があります。言語を切り替えると失われます。続行しますか？"
     },
     "reset_modal": {
       "title": "すべての設定をリセット",
@@ -534,7 +584,29 @@
       "copy_path_failed": "コピーに失敗しました：{path}",
       "generate_error": "生成に失敗しました。ログを確認してください",
       "nfo_update_error": "NFO 補完に失敗しました。ログを確認してください",
-      "jellyfin_update_error": "Jellyfin 画像補完に失敗しました。ログを確認してください"
+      "jellyfin_update_error": "Jellyfin 画像補完に失敗しました。ログを確認してください",
+      "config_saved": "設定を保存しました",
+      "save_failed": "保存に失敗しました: {error}",
+      "cache_cleared": "{count} 本の動画キャッシュを削除しました",
+      "clear_failed": "削除に失敗しました: {error}",
+      "no_logs": "ログはありません",
+      "logs_copied": "{count} 件のログをコピーしました",
+      "confirm_clear_logs": "すべてのログを削除しますか？（履歴を含む）",
+      "logs_cleared": "すべてのログを削除しました",
+      "no_folder": "フォルダを少なくとも 1 つ追加してください",
+      "readonly_failed_count": "{count} 件の読み取り専用ソースが失敗",
+      "failed_count": "{count} 本が失敗",
+      "unreachable_count": "{count} 件のソースに接続できません",
+      "partial_count": "{count} 件のソースが部分的に読み取り失敗",
+      "no_output_count": "{count} 件が出力フォルダ未設定",
+      "done_with_warnings": "{count} 本完了、ただし {parts}。詳細はログを参照",
+      "generate_success": "{count} 本の動画リストを生成しました",
+      "long_paths_warning": "今回のスキャンで 260 文字を超えるパスが {count} 件見つかりました。読み取れない可能性があります。詳細は debug.log を参照",
+      "no_nfo_update_needed": "更新が必要な動画はありません",
+      "nfo_update_done": "補完が完了しました。リストを再生成して更新してください",
+      "no_jellyfin_update_needed": "補完が必要な動画はありません",
+      "jellyfin_update_done": "補完が完了しました！",
+      "path_copied": "コピーしました: {path}"
     },
     "copy_fail_modal": {
       "title": "ログのコピーに失敗",
@@ -627,7 +699,16 @@
       "missing_enrich_confirm_body_middle": " 件の動画を補完します。予想所要時間は約 ",
       "missing_enrich_confirm_body_suffix": " 分です。続行しますか？",
       "missing_enrich_confirm_cancel": "キャンセル",
-      "missing_enrich_confirm_confirm": "補完を確認"
+      "missing_enrich_confirm_confirm": "補完を確認",
+      "log_interrupted": "⚠ 生成が中断されました（ページを離れました）",
+      "status_preparing": "準備中...",
+      "status_done_count": "完了！{count} 本の動画",
+      "status_done": "完了",
+      "log_error_prefix": "エラー: {message}",
+      "log_disconnected": "接続が切断されました",
+      "missing_enrich_connection_failed": "接続に失敗しました: {message}",
+      "missing_enrich_item_failed": "失敗: {number} — {error}",
+      "missing_enrich_error_prefix": "エラー: {message}"
     },
     "alias": {
       "section_title": "女優名管理",
@@ -650,7 +731,21 @@
         "body": "「{name}」のエイリアスグループ全体を削除してもよろしいですか？この操作は元に戻せません。",
         "cancel": "キャンセル",
         "confirm": "削除を確認"
-      }
+      },
+      "load_failed": "読み込みに失敗しました: {error}",
+      "toast_group_added": "別名グループを追加しました：{name}",
+      "toast_add_failed": "追加に失敗しました: {error}",
+      "toast_deleted": "削除しました：{name}",
+      "toast_delete_failed": "削除に失敗しました: {error}",
+      "toast_add_alias_failed": "別名の追加に失敗しました",
+      "toast_add_alias_failed_detail": "別名の追加に失敗しました: {error}",
+      "toast_remove_failed": "削除に失敗しました: {error}",
+      "toast_need_primary_name": "オンライン検索の前にメイン名を入力してください",
+      "toast_search_timeout": "オンライン検索がタイムアウトしました",
+      "toast_search_failed": "オンライン検索に失敗しました: {error}",
+      "toast_create_group_failed": "別名グループの作成に失敗しました: {error}",
+      "toast_add_item_failed": "{alias} の追加に失敗しました",
+      "toast_add_item_failed_detail": "{alias} の追加に失敗しました: {error}"
     },
     "dirty_modal": {
       "title": "未保存の変更",
@@ -716,8 +811,24 @@
       "nas_hint": "NAS 上の Emby／Jellyfin／Kodi に取り込ませたいですか？デフォルトモードでは OpenAver 自身の閲覧用ローカルライブラリのみを生成し、.strm ショートカットファイルは作成しません。メディアサーバーにこれらの作品をスキャンさせたい場合は、まず「設定」でモードを Emby・Jellyfin・Kodi モードに切り替えてください。"
     }
   },
+  "scraper": {
+    "page_title": "スクレイパー",
+    "heading": "JAV スクレイパー",
+    "body": "スクレイピング機能は開発中です..."
+  },
   "showcase": {
     "page_title": "動画ブラウズ",
+    "state": {
+      "loading": "動画リストを読み込み中...",
+      "empty": "動画リストがまだ生成されていません",
+      "generate_action": "リストを生成",
+      "retry": "再試行"
+    },
+    "error": {
+      "server_error": "サーバーエラー ({status})",
+      "load_failed": "読み込みに失敗しました",
+      "cannot_connect": "サーバーに接続できません"
+    },
     "rescrape": {
       "modal_title": "高度な再スクレイプ",
       "search_title": "高度な検索",
@@ -876,7 +987,8 @@
         "confirm": "削除を確認"
       },
       "delete_success": "コレクションから削除しました",
-      "delete_failed": "削除に失敗しました。後ほど再試行してください"
+      "delete_failed": "削除に失敗しました。後ほど再試行してください",
+      "play_failed": "再生に失敗しました"
     },
     "search": {
       "actress": "女優名を検索...",
@@ -941,6 +1053,8 @@
       "update_available_prefix": "新バージョン",
       "update_available_suffix": "利用可能",
       "up_to_date": "最新バージョンです",
+      "auto_check_toggle": "起動時に更新を確認",
+      "auto_check_save_failed": "設定の保存に失敗しました。しばらくしてから再試行してください",
       "ai_instruction": "AIエージェントに貼り付けるだけでOpenAverを操作できます",
       "ai_hint_unsupported": "ウェブ版チャットには非対応",
       "ai_tools": "AI エージェントに貼り付けて OpenAver を操作 — Claude Code · Cursor · Codex など",
@@ -1279,6 +1393,11 @@
     "step7_title": "📖 使い方ガイド",
     "step7_content": "いつでも戻って見直してください<br>Help ページには機能詳解と AI agent コマンドもあります"
   },
+  "updater": {
+    "page_title": "アップデーター",
+    "heading": "NFO アップデーター",
+    "body": "更新機能は開発中です..."
+  },
   "notif": {
     "title": "通知",
     "clear_all": "すべてクリア",
@@ -1297,6 +1416,7 @@
     "jl_cf_timeout": "JavLibrary CF認証タイムアウト",
     "thumb_prewarm_start": "カバーサムネイルキャッシュの生成を開始しました",
     "thumb_prewarm_done": "カバーサムネイルキャッシュが完了しました",
+    "update_available": "OpenAver の新しいバージョンがあります",
     "scanner_cancelled": "スキャンをキャンセルしました"
   },
   "similar_mode": {
